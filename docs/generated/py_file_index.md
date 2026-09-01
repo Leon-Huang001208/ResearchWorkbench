@@ -256,6 +256,7 @@ Classes:
 - `AlertRuleCreateRequest`
 - `AlertRuleStatusRequest`
 - `NotificationDeliveryRequest`
+- `DueAlertEvaluationRequest`
 
 Functions:
 - `get_asset_observation_service`
@@ -268,6 +269,7 @@ Functions:
 - `add_watchlist_item`
 - `create_alert_rule`
 - `list_alert_rules`
+- `evaluate_due_alerts`
 - `update_alert_rule_status`
 - `list_alert_events`
 - `acknowledge_alert_event`
@@ -2750,6 +2752,8 @@ Classes:
   - In-app authority and optional desktop delivery projection states.
 - `Notification`
   - Safe persisted inbox message independent of desktop permission.
+- `AlertBatchEvaluationSummary`
+  - Aggregate outcome for one server-side due-alert evaluation batch.
 
 
 ## `core/contracts/assets.py`
@@ -6981,7 +6985,7 @@ Imports:
 Classes:
 - `AssetObservationRepository`
   - Request-scoped repository; methods flush but never commit.
-  - methods: get_asset_projection, list_peer_assets, create_watchlist, list_watchlists, add_watchlist_item, get_watchlist, get_asset, create_alert_rule, list_alert_rules, get_alert_rule, update_alert_rule_status, get_rule_state, update_rule_state, create_alert_event, create_notification, list_alert_events, acknowledge_alert_event, resolve_alert_event, list_notifications, mark_notification_delivery, to_watchlist, to_watchlist_item, to_alert_rule, to_alert_event, to_notification, _current_identifiers, _empty_projection, _load_stock_projection, _load_index_projection, _load_etf_projection, _load_fund_projection, _freshness, _peer_dimension_matches
+  - methods: get_asset_projection, list_peer_assets, create_watchlist, list_watchlists, add_watchlist_item, get_watchlist, get_asset, create_alert_rule, list_alert_rules, list_active_alert_rules, evaluation_savepoint, get_alert_rule, update_alert_rule_status, get_rule_state, lock_rule_state, update_rule_state, create_alert_event, get_active_alert_event, create_notification, list_alert_events, acknowledge_alert_event, resolve_alert_event, list_notifications, mark_notification_delivery, get_notification, to_watchlist, to_watchlist_item, to_alert_rule, to_alert_event, to_notification, _current_identifiers, _fact_candidate_values, _empty_projection, _load_stock_projection, _load_index_projection, _load_etf_projection, _load_fund_projection, _freshness, _peer_dimension_matches
 
 Functions:
 - `_utc_now`

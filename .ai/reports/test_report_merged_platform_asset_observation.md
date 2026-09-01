@@ -13,6 +13,9 @@
 - Registered the official Tauri notification plugin, added exactly three notification capabilities, and enabled its no-bundler Tauri v2 global API. The frontend reads only persisted pending records, sends their API-provided title/body, persists delivery/denial/failure, and is a no-op outside Tauri; no Rust title/body command remains.
 - Serialized Alert evaluation through a Rule row lock and re-read, with an active-event partial unique index for PostgreSQL/SQLite and savepoint recovery that deduplicates conflicts without writing a Notification.
 - Preserved identifier scheme/value/market internally and validates prioritized candidates against the matching fact table instead of trusting the first alias.
+- Added a production-callable due-alert batch and internal API that derive observations only from authoritative asset projections, isolate failures per Rule, and return evaluated/triggered/deduplicated/skipped/failed counts. Periodic Scheduler Coordinator wiring remains a later task.
+- Added conditional notification delivery transitions with `desktop_delivering`, plus one single-flight 60-second durable desktop poller and concurrent-consumer claim tests.
+- Hardened active-fund NAV point-in-time reads against future trading days and future availability timestamps.
 
 ## TDD evidence
 
@@ -25,6 +28,8 @@ The independent follow-up review was also resolved through RED→GREEN. The adde
 The release capability review found that the packaged bootstrap's `http://127.0.0.1:8765/` navigation is a Tauri remote origin. A new exact-origin test first failed because the capability had no `remote` entry, then passed after adding only `http://127.0.0.1:8765/*`; notification permission scope remains exactly three operations and no wildcard port or `localhost` alias is authorized.
 
 The final security-boundary review then caught that putting this remote scope on `default` would also expose dialog, process, shell, and sidecar operations. The replacement RED test first failed because `notification-remote.json` did not exist. GREEN splits the origin into a `local=false` notification-only capability whose complete permission list is exactly the three notification operations, while `default` has no remote scope.
+
+The subsequent production-readiness RED run reported five of six Node behavior tests failing and four Python failures: no conditional claim/poller, no due-alert API, no atomic expected-status transition, and future fund NAV leakage. GREEN reached six Node passes and the focused Python slice passed with real SQLite trigger/notification persistence, stale/missing skips, per-rule failure continuation, delivery conflict recovery, and point-in-time fund selection.
 
 ## Verification
 
@@ -46,6 +51,10 @@ The final security-boundary review then caught that putting this remote scope on
 | Follow-up `cargo fmt --check` and `cargo check --locked` | passed on local macOS; compile completed in 3.67s |
 | Release capability gate: Node behavior + Python bridge + Cargo format/check | `4` Node tests and `4` Python tests passed; locked macOS Cargo check completed in 3.64s; generated schemas had no diff |
 | Final capability isolation gate: Node behavior + Python bridge + Cargo format/check | `4` Node tests and `4` Python tests passed; locked macOS Cargo check completed in 2.85s; generated capabilities now contain separate local `default` and remote notification-only entries |
+| Production-readiness Node behavior | `6 passed`; includes one durable poller, single-flight polling, conditional claim, and concurrent-consumer deduplication |
+| Production-readiness focused Python slice | `38 passed, 4 warnings`; covers due-alert batch persistence, stale/missing skips, per-rule isolation, atomic delivery conflicts, and fund point-in-time reads |
+| Production-readiness related Python regression | `132 passed, 5 warnings in 3.83s`; warnings remain the existing FastAPI `on_event` and legacy `datetime.utcnow()` deprecations |
+| Production-readiness dependency/build gate | `npm ci` installed 4 locked packages with 0 vulnerabilities; `cargo fmt --check` and `cargo check --locked` passed on local macOS in 0.85s |
 
 ## Dependency record
 

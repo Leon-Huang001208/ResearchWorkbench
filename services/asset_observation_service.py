@@ -9,6 +9,8 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 
 from core.contracts.asset_observation import (
+    AlertBatchEvaluationSummary,
+    AlertEvaluationStatus,
     AlertEvent,
     AlertRule,
     AlertRuleStatus,
@@ -19,7 +21,11 @@ from core.contracts.asset_observation import (
     Watchlist,
     WatchlistItem,
 )
-from core.contracts.platform_shared import AssetType
+from core.contracts.platform_shared import (
+    AssetType,
+    FreshnessStatus,
+    ObservationEnvelope,
+)
 from core.observability import get_logger
 
 logger = get_logger(__name__)
@@ -164,6 +170,70 @@ class AssetObservationService:
     def list_alert_rules(self, asset_id: str | None = None) -> list[AlertRule]:
         return [self._to_alert_rule(row) for row in self._repository.list_alert_rules(asset_id)]
 
+    def evaluate_due_alerts(
+        self,
+        profile_id: str,
+        evaluated_at: datetime | None = None,
+    ) -> AlertBatchEvaluationSummary:
+        """Evaluate active rules only against server-side authoritative facts."""
+
+        from services.alert_evaluation_service import AlertEvaluationService
+
+        if not profile_id.strip():
+            raise ValueError("profile_id is required")
+        now = evaluated_at or _utc_now()
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("evaluated_at must be timezone-aware")
+        counts = {
+            "evaluated": 0,
+            "triggered": 0,
+            "deduplicated": 0,
+            "skipped": 0,
+            "failed": 0,
+        }
+        evaluator = AlertEvaluationService(self._repository)
+        for row in self._repository.list_active_alert_rules(profile_id.strip()):
+            counts["evaluated"] += 1
+            try:
+                with self._repository.evaluation_savepoint():
+                    rule = self._to_alert_rule(row)
+                    projection = self._repository.get_asset_projection(
+                        rule.asset_id,
+                        as_of=now,
+                    )
+                    observation = self._build_rule_observation(rule, projection, now)
+                    result = evaluator.evaluate(
+                        rule,
+                        observation,
+                        profile_id=profile_id.strip(),
+                        evaluated_at=now,
+                    )
+                if result.status is AlertEvaluationStatus.TRIGGERED:
+                    counts["triggered"] += 1
+                elif result.status is AlertEvaluationStatus.DEDUPLICATED:
+                    counts["deduplicated"] += 1
+                elif result.status in {
+                    AlertEvaluationStatus.SKIPPED_DATA_STALE,
+                    AlertEvaluationStatus.SKIPPED_DATA_UNAVAILABLE,
+                }:
+                    counts["skipped"] += 1
+                elif result.status is AlertEvaluationStatus.FAILED_UNIT_MISMATCH:
+                    counts["failed"] += 1
+            except Exception as exc:  # noqa: BLE001 - one bad rule must not stop the batch
+                counts["failed"] += 1
+                logger.error(
+                    "due alert evaluation failed",
+                    rule_id=getattr(row, "rule_id", "unknown"),
+                    asset_id=getattr(row, "asset_id", "unknown"),
+                    error_type=type(exc).__name__,
+                )
+        logger.info(
+            "due alert batch evaluated",
+            profile_id=profile_id.strip(),
+            **counts,
+        )
+        return AlertBatchEvaluationSummary(**counts)
+
     def update_alert_rule_status(
         self,
         rule_id: str,
@@ -211,17 +281,34 @@ class AssetObservationService:
         self,
         notification_id: str,
         status: str,
+        *,
+        expected_status: str,
     ) -> Notification:
         delivery_status = NotificationStatus(status)
-        if delivery_status is NotificationStatus.PENDING:
-            raise ValueError("pending is not a delivery outcome")
+        expected_delivery_status = NotificationStatus(expected_status)
+        allowed_transitions = {
+            NotificationStatus.PENDING: {
+                NotificationStatus.DESKTOP_DELIVERING,
+                NotificationStatus.DESKTOP_PERMISSION_DENIED,
+                NotificationStatus.DESKTOP_FAILED,
+            },
+            NotificationStatus.DESKTOP_DELIVERING: {
+                NotificationStatus.DESKTOP_DELIVERED,
+                NotificationStatus.DESKTOP_FAILED,
+            },
+        }
+        if delivery_status not in allowed_transitions.get(expected_delivery_status, set()):
+            raise ValueError("invalid notification delivery transition")
         row = self._repository.mark_notification_delivery(
             notification_id,
             delivery_status,
+            expected_delivery_status,
             _utc_now(),
         )
         if row is None:
-            raise AssetNotFoundError(notification_id)
+            if self._repository.get_notification(notification_id) is None:
+                raise AssetNotFoundError(notification_id)
+            raise AssetObservationConflictError("notification delivery conflict")
         logger.info(
             "notification delivery state updated",
             notification_id=notification_id,
@@ -229,6 +316,54 @@ class AssetObservationService:
             status=delivery_status.value,
         )
         return self._to_notification(row)
+
+    @staticmethod
+    def _build_rule_observation(
+        rule: AlertRule,
+        projection: dict[str, Any] | None,
+        evaluated_at: datetime,
+    ) -> ObservationEnvelope:
+        if projection is None:
+            raise AssetNotFoundError(rule.asset_id)
+        market_data = projection.get("market_data") or {}
+        metric_units = projection.get("metric_units") or {}
+        value = market_data.get(rule.metric_key)
+        unit = metric_units.get(rule.metric_key)
+        freshness = projection["freshness_status"]
+        quality_flags = list(projection.get("quality_flags") or [])
+        missing_reason = None
+        if value is None:
+            missing_reason = "authoritative_metric_unavailable"
+        elif unit is None:
+            value = None
+            missing_reason = "authoritative_unit_unavailable"
+        if missing_reason is not None:
+            unit = None
+            freshness = FreshnessStatus.UNAVAILABLE
+            quality_flags.append(missing_reason)
+        if projection["observed_at"] > evaluated_at or projection["available_at"] > evaluated_at:
+            value = None
+            unit = None
+            missing_reason = "future_fact_unavailable"
+            freshness = FreshnessStatus.UNAVAILABLE
+            quality_flags.append(missing_reason)
+        return ObservationEnvelope(
+            observation_id=(
+                f"alert-fact:{rule.rule_id}:{rule.metric_key}:"
+                f"{projection['available_at'].isoformat()}"
+            ),
+            subject_ref=f"asset:{rule.asset_id}",
+            metric_key=rule.metric_key,
+            value=value,
+            unit=unit,
+            missing_reason=missing_reason,
+            as_of=evaluated_at,
+            observed_at=projection["observed_at"],
+            available_at=projection["available_at"],
+            source_refs=projection["source_refs"],
+            freshness_status=freshness,
+            quality_flags=quality_flags,
+        )
 
     def _to_watchlist(self, row: Any) -> Watchlist:
         converter = getattr(self._repository, "to_watchlist", None)

@@ -153,6 +153,7 @@ class NotificationStatus(str, Enum):
 
     PENDING = "pending"
     IN_APP_DELIVERED = "in_app_delivered"
+    DESKTOP_DELIVERING = "desktop_delivering"
     DESKTOP_DELIVERED = "desktop_delivered"
     DESKTOP_PERMISSION_DENIED = "desktop_permission_denied"
     DESKTOP_FAILED = "desktop_failed"
@@ -169,3 +170,13 @@ class Notification(BaseModel):
     status: NotificationStatus = NotificationStatus.PENDING
     created_at: AwareDatetime
     delivered_at: AwareDatetime | None = None
+
+
+class AlertBatchEvaluationSummary(BaseModel):
+    """Aggregate outcome for one server-side due-alert evaluation batch."""
+
+    evaluated: int = Field(ge=0)
+    triggered: int = Field(ge=0)
+    deduplicated: int = Field(ge=0)
+    skipped: int = Field(ge=0)
+    failed: int = Field(ge=0)

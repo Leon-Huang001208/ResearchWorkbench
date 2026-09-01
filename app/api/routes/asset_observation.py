@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.contracts.asset_observation import (
+    AlertBatchEvaluationSummary,
     AlertEvent,
     AlertRule,
     AlertRuleStatus,
@@ -79,6 +80,14 @@ class AlertRuleStatusRequest(BaseModel):
 
 class NotificationDeliveryRequest(BaseModel):
     status: NotificationStatus
+    expected_status: NotificationStatus
+
+
+class DueAlertEvaluationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile_id: str = Field(default="local", min_length=1, max_length=128)
+    evaluated_at: AwareDatetime | None = None
 
 
 DBSession = Annotated[Session, Depends(get_db)]
@@ -232,6 +241,28 @@ async def list_alert_rules(
         _raise_safe_http_error(exc)
 
 
+@router.post(
+    "/alert-rules/evaluate-due",
+    response_model=AlertBatchEvaluationSummary,
+)
+async def evaluate_due_alerts(
+    request: DueAlertEvaluationRequest,
+    service: AssetObservationServiceDependency,
+) -> AlertBatchEvaluationSummary:
+    try:
+        result = service.evaluate_due_alerts(request.profile_id, request.evaluated_at)
+        logger.info(
+            "asset observation write completed",
+            operation="evaluate_due_alerts",
+            profile_id=request.profile_id,
+            evaluated=result.evaluated,
+            triggered=result.triggered,
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001 - translate unexpected failures to a safe 500
+        _raise_safe_http_error(exc)
+
+
 @router.patch("/alert-rules/{rule_id}/status", response_model=AlertRule)
 async def update_alert_rule_status(
     rule_id: str,
@@ -308,7 +339,11 @@ async def mark_notification_delivery(
     service: AssetObservationServiceDependency,
 ) -> Notification:
     try:
-        result = service.mark_notification_delivery(notification_id, request.status.value)
+        result = service.mark_notification_delivery(
+            notification_id,
+            request.status.value,
+            expected_status=request.expected_status.value,
+        )
         logger.info(
             "asset observation write completed",
             operation="mark_notification_delivery",

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import Session
 
 from core.contracts.asset_observation import (
@@ -434,6 +434,220 @@ def test_repository_reuses_existing_stock_facts_and_never_commits():
         assert projection["market_data"]["last"] == 1500.0
         assert projection["type_payload"]["industry_level3"] == "白酒"
         assert session.in_transaction()
+
+
+def test_due_alert_entry_evaluates_authoritative_facts_and_skips_stale_or_missing():
+    from data_layer.repositories.asset_observation_repository import (
+        AssetObservationRepository,
+    )
+    from data_layer.repositories.base import Base
+    from data_layer.repositories.models import (
+        AlertEventDB,
+        AlertRuleDB,
+        AssetIdentifierDB,
+        AssetRegistryDB,
+        NotificationDB,
+        StockMasterDB,
+        StockQuoteSnapshotDB,
+    )
+    from services.asset_observation_service import (
+        AssetObservationConflictError,
+        AssetObservationService,
+    )
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            AssetRegistryDB.__table__,
+            AssetIdentifierDB.__table__,
+            StockMasterDB.__table__,
+            StockQuoteSnapshotDB.__table__,
+            AlertRuleDB.__table__,
+            AlertEventDB.__table__,
+            NotificationDB.__table__,
+        ],
+    )
+    with Session(engine) as session:
+        for suffix, quote_time, last_price in (
+            ("fresh", NOW, 150.0),
+            ("stale", NOW - timedelta(minutes=2), 150.0),
+        ):
+            asset_id = f"asset-{suffix}"
+            symbol = f"{suffix}.SH"
+            session.add(
+                AssetRegistryDB(
+                    asset_id=asset_id,
+                    asset_type="stock",
+                    canonical_name=suffix,
+                    updated_at=NOW,
+                )
+            )
+            session.add(
+                AssetIdentifierDB(
+                    identifier_id=f"identifier-{suffix}",
+                    asset_id=asset_id,
+                    scheme="wind",
+                    value=symbol,
+                    market="CN",
+                    valid_from=NOW - timedelta(days=1),
+                )
+            )
+            session.add(
+                StockMasterDB(
+                    symbol=symbol,
+                    raw_code=suffix,
+                    name=suffix,
+                    market="CN",
+                    source="wind",
+                    updated_at=quote_time,
+                    created_at=quote_time,
+                )
+            )
+            session.add(
+                StockQuoteSnapshotDB(
+                    symbol=symbol,
+                    quote_time=quote_time,
+                    last_price=last_price,
+                    source="wind",
+                    created_at=quote_time,
+                )
+            )
+
+        rules = (
+            ("rule-fresh", "asset-fresh", "last", "gt"),
+            ("rule-invalid", "asset-fresh", "last", "invalid"),
+            ("rule-stale", "asset-stale", "last", "gt"),
+            ("rule-missing", "asset-fresh", "missing_metric", "gt"),
+        )
+        for rule_id, asset_id, metric_key, operator in rules:
+            session.add(
+                AlertRuleDB(
+                    rule_id=rule_id,
+                    asset_id=asset_id,
+                    metric_type="price",
+                    metric_key=metric_key,
+                    operator=operator,
+                    threshold=100,
+                    unit="CNY/share",
+                    required_freshness="fresh",
+                    cooldown_seconds=0,
+                    status="active",
+                    state={"condition_true": False, "profile_id": "local"},
+                    created_at=NOW,
+                    updated_at=NOW,
+                )
+            )
+        session.commit()
+
+        service = AssetObservationService(AssetObservationRepository(session))
+        summary = service.evaluate_due_alerts("local", NOW)
+
+        assert summary.model_dump() == {
+            "evaluated": 4,
+            "triggered": 1,
+            "deduplicated": 0,
+            "skipped": 2,
+            "failed": 1,
+        }
+        assert session.query(AlertEventDB).count() == 1
+        assert session.query(NotificationDB).count() == 1
+        notification_id = session.query(NotificationDB.notification_id).scalar()
+
+        claimed = service.mark_notification_delivery(
+            notification_id,
+            "desktop_delivering",
+            expected_status="pending",
+        )
+        assert claimed.status.value == "desktop_delivering"
+        with pytest.raises(AssetObservationConflictError, match="conflict"):
+            service.mark_notification_delivery(
+                notification_id,
+                "desktop_delivering",
+                expected_status="pending",
+            )
+
+
+def test_active_fund_projection_excludes_future_trading_day_and_future_available_nav():
+    from data_layer.repositories.asset_observation_repository import (
+        AssetObservationRepository,
+    )
+    from data_layer.repositories.base import Base
+    from data_layer.repositories.fund_repository import (
+        fund_master_table,
+        fund_metadata,
+        fund_nav_daily_table,
+    )
+    from data_layer.repositories.models import AssetIdentifierDB, AssetRegistryDB
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(
+        engine,
+        tables=[AssetRegistryDB.__table__, AssetIdentifierDB.__table__],
+    )
+    fund_metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(
+            AssetRegistryDB(
+                asset_id="asset-fund-1",
+                asset_type="active_fund",
+                canonical_name="点时基金",
+                updated_at=NOW,
+            )
+        )
+        session.add(
+            AssetIdentifierDB(
+                identifier_id="identifier-fund-1",
+                asset_id="asset-fund-1",
+                scheme="wind",
+                value="000001.OF",
+                market="CN",
+                valid_from=NOW - timedelta(days=30),
+            )
+        )
+        session.execute(
+            insert(fund_master_table).values(
+                symbol="000001.OF",
+                name="点时基金",
+                fund_type="混合型",
+                benchmark="沪深300",
+                updated_at=NOW - timedelta(days=1),
+            )
+        )
+        session.execute(
+            insert(fund_nav_daily_table),
+            [
+                {
+                    "symbol": "000001.OF",
+                    "trading_day": (NOW - timedelta(days=2)).date(),
+                    "unit_nav": 1.1,
+                    "updated_at": NOW - timedelta(days=1),
+                },
+                {
+                    "symbol": "000001.OF",
+                    "trading_day": (NOW + timedelta(days=1)).date(),
+                    "unit_nav": 9.9,
+                    "updated_at": NOW - timedelta(hours=1),
+                },
+                {
+                    "symbol": "000001.OF",
+                    "trading_day": (NOW - timedelta(days=1)).date(),
+                    "unit_nav": 8.8,
+                    "updated_at": NOW + timedelta(hours=1),
+                },
+            ],
+        )
+        session.commit()
+
+        projection = AssetObservationRepository(session).get_asset_projection(
+            "asset-fund-1",
+            as_of=NOW,
+        )
+
+        assert projection is not None
+        assert projection["market_data"]["unit_nav"] == 1.1
+        assert projection["observed_at"] <= NOW
+        assert projection["available_at"] <= NOW
 
 
 def test_repository_add_watchlist_item_is_idempotent_by_canonical_asset_id():

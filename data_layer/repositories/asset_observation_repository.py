@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import and_, inspect, or_, select
+from sqlalchemy import and_, inspect, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from core.contracts.asset_observation import (
@@ -310,6 +310,19 @@ class AssetObservationRepository(BaseRepository):
             statement = statement.where(AlertRuleDB.asset_id == asset_id)
         return list(self.db.scalars(statement).all())
 
+    def list_active_alert_rules(self, profile_id: str) -> list[AlertRuleDB]:
+        rows = self.db.scalars(
+            select(AlertRuleDB)
+            .where(AlertRuleDB.status == AlertRuleStatus.ACTIVE.value)
+            .order_by(AlertRuleDB.created_at, AlertRuleDB.rule_id)
+        ).all()
+        return [row for row in rows if (row.state or {}).get("profile_id") == profile_id]
+
+    def evaluation_savepoint(self):
+        """Isolate one batch item while retaining the caller-owned transaction."""
+
+        return self.db.begin_nested()
+
     def get_alert_rule(self, rule_id: str) -> AlertRuleDB | None:
         return self.db.get(AlertRuleDB, rule_id)
 
@@ -490,15 +503,35 @@ class AssetObservationRepository(BaseRepository):
         self,
         notification_id: str,
         status: NotificationStatus,
+        expected_status: NotificationStatus,
         delivered_at: datetime,
     ) -> NotificationDB | None:
-        row = self.db.get(NotificationDB, notification_id)
-        if row is None:
+        result = self.db.execute(
+            update(NotificationDB)
+            .where(
+                and_(
+                    NotificationDB.notification_id == notification_id,
+                    NotificationDB.status == expected_status.value,
+                )
+            )
+            .values(
+                status=status.value,
+                delivered_at=(
+                    None if status is NotificationStatus.DESKTOP_DELIVERING else delivered_at
+                ),
+            )
+        )
+        if result.rowcount != 1:
             return None
-        row.status = status.value
-        row.delivered_at = delivered_at
         self.db.flush()
-        return row
+        return self.db.scalar(
+            select(NotificationDB)
+            .where(NotificationDB.notification_id == notification_id)
+            .execution_options(populate_existing=True)
+        )
+
+    def get_notification(self, notification_id: str) -> NotificationDB | None:
+        return self.db.get(NotificationDB, notification_id)
 
     @staticmethod
     def to_watchlist(row: WatchlistDB) -> Watchlist:
@@ -624,6 +657,7 @@ class AssetObservationRepository(BaseRepository):
             ),
             "identifiers": identifiers,
             "market_data": {},
+            "metric_units": {},
             "history": [],
             "events": [],
             "themes": [],
@@ -675,7 +709,7 @@ class AssetObservationRepository(BaseRepository):
             .limit(1)
         )
         bars: list[StockDailyBarDB] = []
-        if inspect(self.db.get_bind()).has_table(StockDailyBarDB.__tablename__):
+        if inspect(self.db.connection()).has_table(StockDailyBarDB.__tablename__):
             bars = list(
                 self.db.scalars(
                     select(StockDailyBarDB)
@@ -708,6 +742,16 @@ class AssetObservationRepository(BaseRepository):
                 "pe": _json_value(quote.pe),
                 "pb": _json_value(quote.pb),
             }
+            if any(identifier.market == "CN" for identifier in identifiers):
+                projection["metric_units"] = {
+                    "last": "CNY/share",
+                    "change_pct": "%",
+                    "volume": "share",
+                    "amount": "CNY",
+                    "turnover": "%",
+                    "pe": "ratio",
+                    "pb": "ratio",
+                }
             projection["observed_at"] = observed
             projection["available_at"] = _aware(quote.created_at, fallback=observed)
             projection["source_refs"] = [_source_ref(quote.source, f"{symbol}:{observed}")]
@@ -815,6 +859,14 @@ class AssetObservationRepository(BaseRepository):
                 "net_flow_amount": _json_value(metric.net_flow_amount),
                 "premium_discount_pct": _json_value(metric.premium_discount_pct),
             }
+            if any(identifier.market == "CN" for identifier in identifiers):
+                projection["metric_units"] = {
+                    "nav": "CNY/share",
+                    "close": "CNY/share",
+                    "aum": "CNY",
+                    "net_flow_amount": "CNY",
+                    "premium_discount_pct": "%",
+                }
             projection["observed_at"] = observed
             projection["available_at"] = _aware(metric.created_at, fallback=observed)
             projection["source_refs"] = [_source_ref(metric.source, f"{symbol}:{observed}")]
@@ -827,7 +879,7 @@ class AssetObservationRepository(BaseRepository):
         identifiers: list[AssetIdentifierDB],
         as_of: datetime,
     ) -> None:
-        if not identifiers or not inspect(self.db.get_bind()).has_table(fund_master_table.name):
+        if not identifiers or not inspect(self.db.connection()).has_table(fund_master_table.name):
             return
         symbol = None
         master = None
@@ -851,13 +903,22 @@ class AssetObservationRepository(BaseRepository):
             "benchmark": master["benchmark"],
             "management_company": master["management_company"],
         }
-        if not inspect(self.db.get_bind()).has_table(fund_nav_daily_table.name):
+        if not inspect(self.db.connection()).has_table(fund_nav_daily_table.name):
             return
         nav = (
             self.db.execute(
                 select(fund_nav_daily_table)
-                .where(fund_nav_daily_table.c.symbol == symbol)
-                .order_by(fund_nav_daily_table.c.trading_day.desc())
+                .where(
+                    and_(
+                        fund_nav_daily_table.c.symbol == symbol,
+                        fund_nav_daily_table.c.trading_day <= as_of.date(),
+                        fund_nav_daily_table.c.updated_at <= as_of,
+                    )
+                )
+                .order_by(
+                    fund_nav_daily_table.c.trading_day.desc(),
+                    fund_nav_daily_table.c.updated_at.desc(),
+                )
                 .limit(1)
             )
             .mappings()
@@ -866,13 +927,23 @@ class AssetObservationRepository(BaseRepository):
         if nav is None:
             return
         observed = datetime.combine(nav["trading_day"], datetime.min.time(), tzinfo=UTC)
+        available = _aware(nav["updated_at"], fallback=observed)
+        if observed > as_of or available > as_of:
+            projection["quality_flags"].append("future_fact_excluded")
+            return
         projection["market_data"] = {
             "unit_nav": nav["unit_nav"],
             "accumulated_nav": nav["accumulated_nav"],
             "daily_return": nav["daily_return"],
         }
+        if any(identifier.market == "CN" for identifier in identifiers):
+            projection["metric_units"] = {
+                "unit_nav": "CNY/share",
+                "accumulated_nav": "CNY/share",
+                "daily_return": "%",
+            }
         projection["observed_at"] = observed
-        projection["available_at"] = _aware(nav["updated_at"], fallback=observed)
+        projection["available_at"] = available
         projection["source_refs"] = [_source_ref("fund_nav_daily", f"{symbol}:{observed}")]
         projection["freshness_status"] = self._freshness(observed, as_of, timedelta(days=3))
         projection["quality_flags"] = []

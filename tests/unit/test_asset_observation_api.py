@@ -34,6 +34,7 @@ SOURCE = SourceRef(
 class FakeService:
     def __init__(self) -> None:
         self.status_updates: list[tuple[str, str]] = []
+        self.notification_status = "pending"
 
     def get_asset_snapshot(self, asset_id: str):
         from core.contracts.asset_observation import AssetSnapshotEnvelope
@@ -108,6 +109,18 @@ class FakeService:
     def list_alert_rules(self, asset_id: str | None = None) -> list[AlertRule]:
         return []
 
+    def evaluate_due_alerts(self, profile_id: str, evaluated_at: datetime | None = None) -> Any:
+        from core.contracts.asset_observation import AlertBatchEvaluationSummary
+
+        self.evaluation_request = (profile_id, evaluated_at)
+        return AlertBatchEvaluationSummary(
+            evaluated=4,
+            triggered=1,
+            deduplicated=1,
+            skipped=1,
+            failed=1,
+        )
+
     def update_alert_rule_status(self, rule_id: str, status: AlertRuleStatus) -> AlertRule:
         self.status_updates.append((rule_id, status.value))
         return AlertRule(
@@ -165,11 +178,23 @@ class FakeService:
                 profile_id=profile_id,
                 title="价格提醒",
                 body="stock-1 已满足提醒条件",
+                status=self.notification_status,
                 created_at=NOW,
             )
         ]
 
-    def mark_notification_delivery(self, notification_id: str, status: str) -> Notification:
+    def mark_notification_delivery(
+        self,
+        notification_id: str,
+        status: str,
+        *,
+        expected_status: str,
+    ) -> Notification:
+        from services.asset_observation_service import AssetObservationConflictError
+
+        if self.notification_status != expected_status:
+            raise AssetObservationConflictError("notification transition conflict")
+        self.notification_status = status
         return Notification(
             notification_id=notification_id,
             alert_event_id="event-1",
@@ -288,7 +313,14 @@ def test_notifications_expose_only_persisted_safe_payload_and_delivery_state(cli
     listed = client.get("/api/asset-observation/notifications?profile_id=local&status=pending")
     delivered = client.patch(
         "/api/asset-observation/notifications/notification-1/delivery",
-        json={"status": "desktop_permission_denied"},
+        json={
+            "status": "desktop_permission_denied",
+            "expected_status": "pending",
+        },
+    )
+    conflict = client.patch(
+        "/api/asset-observation/notifications/notification-1/delivery",
+        json={"status": "desktop_failed", "expected_status": "pending"},
     )
 
     assert listed.status_code == 200
@@ -296,6 +328,30 @@ def test_notifications_expose_only_persisted_safe_payload_and_delivery_state(cli
     assert service.notification_filter == "pending"
     assert delivered.status_code == 200
     assert delivered.json()["status"] == "desktop_permission_denied"
+    assert conflict.status_code == 409
+
+
+def test_evaluate_due_route_accepts_no_external_fact_payload(client_and_service):
+    client, service = client_and_service
+    response = client.post(
+        "/api/asset-observation/alert-rules/evaluate-due",
+        json={"profile_id": "local", "evaluated_at": NOW.isoformat()},
+    )
+    rejected = client.post(
+        "/api/asset-observation/alert-rules/evaluate-due",
+        json={"profile_id": "local", "observation": {"value": 999999}},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "evaluated": 4,
+        "triggered": 1,
+        "deduplicated": 1,
+        "skipped": 1,
+        "failed": 1,
+    }
+    assert service.evaluation_request == ("local", NOW)
+    assert rejected.status_code == 422
 
 
 def test_main_app_registers_asset_observation_routes():

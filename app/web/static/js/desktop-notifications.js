@@ -4,27 +4,45 @@
 
 const PENDING_NOTIFICATIONS_URL =
     '/api/asset-observation/notifications?profile_id=local&status=pending';
+const DESKTOP_NOTIFICATION_POLL_MS = 60_000;
 
-async function updateDeliveryState(fetchImpl, notificationId, status) {
+let pollingInitialized = false;
+let notificationPollInFlight = null;
+
+async function updateDeliveryState(
+    fetchImpl,
+    notificationId,
+    status,
+    expectedStatus,
+) {
     const response = await fetchImpl(
         `/api/asset-observation/notifications/${encodeURIComponent(notificationId)}/delivery`,
         {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status }),
+            body: JSON.stringify({ status, expected_status: expectedStatus }),
         },
     );
+    if (response.status === 409) {
+        return false;
+    }
     if (!response.ok) {
         throw new Error(`notification delivery update failed with status ${response.status}`);
     }
+    return true;
 }
 
-async function recordOutcome(fetchImpl, records, status) {
+async function recordOutcome(fetchImpl, records, status, expectedStatus) {
     let updated = 0;
     for (const record of records) {
         try {
-            await updateDeliveryState(fetchImpl, record.notification_id, status);
-            updated += 1;
+            const transitioned = await updateDeliveryState(
+                fetchImpl,
+                record.notification_id,
+                status,
+                expectedStatus,
+            );
+            updated += transitioned ? 1 : 0;
         } catch (error) {
             console.error('[desktop-notifications] delivery state update failed', {
                 notificationId: record.notification_id,
@@ -74,6 +92,7 @@ export async function processPendingDesktopNotifications({
                 fetchImpl,
                 pending,
                 'desktop_permission_denied',
+                'pending',
             );
             return { outcome: 'desktop_permission_denied', processed };
         }
@@ -81,25 +100,57 @@ export async function processPendingDesktopNotifications({
         console.error('[desktop-notifications] permission check failed', {
             errorType: error?.name || 'UnknownError',
         });
-        const processed = await recordOutcome(fetchImpl, pending, 'desktop_failed');
+        const processed = await recordOutcome(
+            fetchImpl,
+            pending,
+            'desktop_failed',
+            'pending',
+        );
         return { outcome: 'desktop_failed', processed };
     }
 
     let delivered = 0;
     let failed = 0;
     for (const record of pending) {
+        let claimed = false;
+        try {
+            claimed = await updateDeliveryState(
+                fetchImpl,
+                record.notification_id,
+                'desktop_delivering',
+                'pending',
+            );
+        } catch (error) {
+            console.error('[desktop-notifications] delivery claim failed', {
+                notificationId: record.notification_id,
+                errorType: error?.name || 'UnknownError',
+            });
+        }
+        if (!claimed) {
+            continue;
+        }
         try {
             await tauriNotification.sendNotification({
                 title: record.title,
                 body: record.body,
             });
-            delivered += await recordOutcome(fetchImpl, [record], 'desktop_delivered');
+            delivered += await recordOutcome(
+                fetchImpl,
+                [record],
+                'desktop_delivered',
+                'desktop_delivering',
+            );
         } catch (error) {
             console.error('[desktop-notifications] native delivery failed', {
                 notificationId: record.notification_id,
                 errorType: error?.name || 'UnknownError',
             });
-            failed += await recordOutcome(fetchImpl, [record], 'desktop_failed');
+            failed += await recordOutcome(
+                fetchImpl,
+                [record],
+                'desktop_failed',
+                'desktop_delivering',
+            );
         }
     }
 
@@ -109,10 +160,39 @@ export async function processPendingDesktopNotifications({
     return { outcome: 'delivered', processed: delivered };
 }
 
-export async function initDesktopNotifications() {
+function runNotificationPoll(options) {
+    if (notificationPollInFlight) {
+        return notificationPollInFlight;
+    }
+    notificationPollInFlight = processPendingDesktopNotifications(options)
+        .finally(() => {
+            notificationPollInFlight = null;
+        });
+    return notificationPollInFlight;
+}
+
+export function initDesktopNotifications(options = {}) {
     // The explicit global path documents the no-bundler Tauri v2 integration.
-    const tauriNotification = window.__TAURI__
+    const globalTauriNotification = typeof window !== 'undefined' && window.__TAURI__
         ? window.__TAURI__.notification
         : undefined;
-    return processPendingDesktopNotifications({ tauriNotification });
+    const tauriNotification = options.tauriNotification ?? globalTauriNotification;
+    if (!tauriNotification) {
+        return Promise.resolve({ outcome: 'not_tauri', processed: 0 });
+    }
+    const pollOptions = {
+        fetchImpl: options.fetchImpl ?? globalThis.fetch,
+        tauriNotification,
+    };
+    if (pollingInitialized) {
+        return notificationPollInFlight
+            ?? Promise.resolve({ outcome: 'already_initialized', processed: 0 });
+    }
+    pollingInitialized = true;
+    const setIntervalImpl = options.setIntervalImpl ?? globalThis.setInterval;
+    setIntervalImpl(
+        () => runNotificationPoll(pollOptions),
+        DESKTOP_NOTIFICATION_POLL_MS,
+    );
+    return runNotificationPoll(pollOptions);
 }

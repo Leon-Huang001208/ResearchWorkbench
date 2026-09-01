@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    initDesktopNotifications,
     processPendingDesktopNotifications,
 } from '../../app/web/static/js/desktop-notifications.js';
 
@@ -17,10 +18,10 @@ const persisted = (overrides = {}) => ({
     ...overrides,
 });
 
-function response(body, ok = true) {
+function response(body, ok = true, status = ok ? 200 : 500) {
     return {
         ok,
-        status: ok ? 200 : 500,
+        status,
         json: async () => structuredClone(body),
     };
 }
@@ -38,7 +39,11 @@ function createFetch(records) {
         const id = url.split('/').at(-2);
         const target = store.find(record => record.notification_id === id);
         assert.ok(target, `unknown notification ${id}`);
-        target.status = JSON.parse(options.body).status;
+        const payload = JSON.parse(options.body);
+        if (target.status !== payload.expected_status) {
+            return response({ detail: 'conflict' }, false, 409);
+        }
+        target.status = payload.status;
         return response(target);
     };
     return { calls, fetchImpl, store };
@@ -83,7 +88,7 @@ test('granted permission sends only pending persisted payloads and records deliv
     assert.equal(calls[0].method, 'GET');
     assert.match(calls[0].url, /profile_id=local/);
     assert.match(calls[0].url, /status=pending/);
-    assert.equal(calls.filter(call => call.method === 'PATCH').length, 1);
+    assert.equal(calls.filter(call => call.method === 'PATCH').length, 2);
     assert.equal(store[0].status, 'desktop_delivered');
     assert.equal(store[1].status, 'desktop_delivered');
 });
@@ -126,4 +131,56 @@ test('plugin delivery failure records desktop_failed', async () => {
 
     assert.deepEqual(result, { outcome: 'desktop_failed', processed: 1 });
     assert.equal(store[0].status, 'desktop_failed');
+});
+
+test('concurrent consumers atomically claim one pending notification', async () => {
+    const { fetchImpl, store } = createFetch([{}]);
+    let sendCount = 0;
+    const tauriNotification = {
+        isPermissionGranted: async () => true,
+        requestPermission: async () => 'granted',
+        sendNotification: async () => {
+            sendCount += 1;
+        },
+    };
+
+    await Promise.all([
+        processPendingDesktopNotifications({ fetchImpl, tauriNotification }),
+        processPendingDesktopNotifications({ fetchImpl, tauriNotification }),
+    ]);
+
+    assert.equal(sendCount, 1);
+    assert.equal(store[0].status, 'desktop_delivered');
+});
+
+test('initializer installs one 60-second single-flight poller that consumes later records', async () => {
+    const { calls, fetchImpl, store } = createFetch([]);
+    const timers = [];
+    const sent = [];
+    const options = {
+        fetchImpl,
+        tauriNotification: {
+            isPermissionGranted: async () => true,
+            requestPermission: async () => 'granted',
+            sendNotification: async payload => sent.push(payload),
+        },
+        setIntervalImpl: (callback, delay) => {
+            timers.push({ callback, delay });
+            return 1;
+        },
+    };
+
+    await Promise.all([
+        initDesktopNotifications(options),
+        initDesktopNotifications(options),
+    ]);
+    assert.equal(timers.length, 1);
+    assert.ok(timers[0].delay <= 60_000);
+    assert.equal(calls.filter(call => call.method === 'GET').length, 1);
+
+    store.push(persisted({ notification_id: 'notification-later' }));
+    await timers[0].callback();
+
+    assert.equal(sent.length, 1);
+    assert.equal(store[0].status, 'desktop_delivered');
 });
