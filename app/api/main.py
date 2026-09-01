@@ -277,6 +277,7 @@ from app.api.routes import (  # noqa: E402
     system,
     thesis_generator,
     thesis_review,
+    theme_research,
     timing,
     timing_engine,
     wind,
@@ -316,6 +317,7 @@ app.include_router(funds.router)
 app.include_router(factors.router)
 app.include_router(thesis_generator.router)
 app.include_router(thesis_review.router)
+app.include_router(theme_research.router)
 app.include_router(timing_engine.router)
 app.include_router(dashboard.router)
 app.include_router(report.router)

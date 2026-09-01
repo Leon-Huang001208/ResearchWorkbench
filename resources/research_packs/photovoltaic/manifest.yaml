@@ -1,0 +1,128 @@
+pack_key: photovoltaic
+kind: theme_research
+name: 光伏
+version: 1.0.0
+compatibility_version: merged-platform-v1
+status: discovered
+boundary: 产业链价格、装机出口、供给盈利、估值情绪和行情事实；不迁 catalysts/score_hint、策略或订单。
+plugin_permissions: [normalize, validate, derive]
+datasets:
+  - dataset_key: weekly_prices_detail
+    schema_version: '1'
+    frequency: weekly
+    source_priority: [infolink, silicon_industry]
+    freshness_seconds: 1209600
+    fields:
+      - {name: observation_date, data_type: date}
+      - {name: metric, data_type: string}
+      - {name: spec, data_type: string}
+      - {name: price_low, data_type: number, required: false}
+      - {name: price_mid, data_type: number}
+      - {name: price_high, data_type: number, required: false}
+      - {name: unit, data_type: string}
+      - {name: source_name, data_type: string}
+      - {name: source_url, data_type: string, required: false}
+      - {name: source_date, data_type: date}
+      - {name: confidence, data_type: string, required: false}
+      - {name: notes, data_type: string, required: false}
+    identity_fields: [observation_date, metric, spec]
+    observed_at_field: observation_date
+    available_at_field: source_date
+    subject_field: spec
+    metric_field: metric
+    value_field: price_mid
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+  - dataset_key: price_consensus
+    schema_version: '1'
+    frequency: weekly
+    source_priority: [infolink, silicon_industry]
+    freshness_seconds: 1209600
+    fields:
+      - {name: observation_date, data_type: date}
+      - {name: metric, data_type: string}
+      - {name: primary_source, data_type: string}
+      - {name: secondary_source, data_type: string}
+      - {name: primary_mid, data_type: number}
+      - {name: secondary_mid, data_type: number}
+      - {name: unit, data_type: string}
+      - {name: spread_pct, data_type: number, required: false}
+      - {name: direction_agreement, data_type: string, required: false}
+      - {name: confidence, data_type: string, required: false}
+      - {name: notes, data_type: string, required: false}
+      - {name: last_checked, data_type: datetime}
+    identity_fields: [observation_date, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: metric
+    metric_field: metric
+    value_field: primary_mid
+    unit_field: unit
+    source_name_field: primary_source
+  - dataset_key: demand_installation
+    schema_version: '1'
+    frequency: monthly
+    source_priority: [nea, customs]
+    freshness_seconds: 3456000
+    fields: &pv_track_fields
+      - {name: observation_date, data_type: date}
+      - {name: indicator, data_type: string}
+      - {name: current_value, data_type: string}
+      - {name: change_desc, data_type: string, required: false}
+      - {name: caliber, data_type: string}
+      - {name: last_checked, data_type: datetime}
+      - {name: notes, data_type: string, required: false}
+    identity_fields: [observation_date, indicator]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: caliber
+    metric_field: indicator
+    value_field: current_value
+    fixed_unit: reported
+    source_name_field: caliber
+  - <<: {dataset_key: supply_profitability, schema_version: '1', frequency: monthly, source_priority: [industry_official], freshness_seconds: 3456000, fields: *pv_track_fields, identity_fields: [observation_date, indicator], observed_at_field: observation_date, available_at_field: last_checked, subject_field: caliber, metric_field: indicator, value_field: current_value, fixed_unit: reported, source_name_field: caliber}
+  - <<: {dataset_key: weekly_prices, schema_version: '1', frequency: weekly, source_priority: [industry_official], freshness_seconds: 1209600, fields: *pv_track_fields, identity_fields: [observation_date, indicator], observed_at_field: observation_date, available_at_field: last_checked, subject_field: caliber, metric_field: indicator, value_field: current_value, fixed_unit: reported, source_name_field: caliber}
+  - <<: {dataset_key: pv_track, schema_version: '1', frequency: weekly, source_priority: [documented_caliber], freshness_seconds: 1209600, fields: *pv_track_fields, identity_fields: [observation_date, indicator], observed_at_field: observation_date, available_at_field: last_checked, subject_field: caliber, metric_field: indicator, value_field: current_value, fixed_unit: reported, source_name_field: caliber}
+  - dataset_key: market_trend
+    schema_version: '1'
+    frequency: daily
+    source_priority: [licensed_market_data]
+    freshness_seconds: 172800
+    fields: &pv_market_fields
+      - {name: observation_date, data_type: date}
+      - {name: index_code, data_type: string}
+      - {name: index_name, data_type: string}
+      - {name: metric, data_type: string}
+      - {name: value, data_type: number}
+      - {name: unit, data_type: string}
+      - {name: percentile_20, data_type: number, required: false}
+      - {name: source_name, data_type: string}
+      - {name: source_url, data_type: string, required: false}
+      - {name: status, data_type: string}
+      - {name: last_checked, data_type: datetime}
+      - {name: notes, data_type: string, required: false}
+    identity_fields: [observation_date, index_code, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: index_code
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+  - <<: {dataset_key: market_valuation_sentiment, schema_version: '1', frequency: daily, source_priority: [licensed_market_data], freshness_seconds: 172800, fields: *pv_market_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
+kpis:
+  - {kpi_key: polysilicon_price, name: 硅料价格, unit: CNY/kg, frequency: weekly, dataset_key: weekly_prices_detail}
+  - {kpi_key: installation, name: 光伏新增装机, unit: GW, frequency: monthly, dataset_key: demand_installation}
+value_chain:
+  - {node_key: silicon, name: 硅料, stage: upstream, evidence_refs: [dataset:weekly_prices_detail]}
+  - {node_key: wafer_cell, name: 硅片与电池片, stage: midstream, evidence_refs: [dataset:weekly_prices_detail]}
+  - {node_key: module_installation, name: 组件与电站, stage: downstream, evidence_refs: [dataset:demand_installation]}
+event_types: [price_change, capacity_change, installation_release, export_release]
+asset_exposures:
+  - asset: {asset_id: 'index:399673.SZ', asset_type: index, display_name: 创业板50}
+    exposure_type: market_proxy
+    rationale_ref: manifest:photovoltaic:chinext50_proxy
+research_template_keys: [photovoltaic_chain_health, photovoltaic_event_review]

@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from core.contracts.platform_shared import (
     AssetRef,
@@ -27,6 +27,14 @@ class PackLifecycle(str, Enum):
 PluginPermission = Literal["normalize", "validate", "derive"]
 
 
+class DatasetField(BaseModel):
+    """One typed CSV/connector field declared by a dataset."""
+
+    name: str = Field(min_length=1)
+    data_type: Literal["string", "number", "integer", "boolean", "date", "datetime"]
+    required: bool = True
+
+
 class DatasetManifest(BaseModel):
     """One source dataset declared by a theme pack."""
 
@@ -36,6 +44,48 @@ class DatasetManifest(BaseModel):
     source_priority: list[str] = Field(default_factory=list)
     freshness_seconds: int = Field(gt=0)
     required: bool = True
+    fields: list[DatasetField] = Field(default_factory=list, min_length=1)
+    identity_fields: list[str] = Field(default_factory=list, min_length=1)
+    observed_at_field: str = Field(min_length=1)
+    available_at_field: str | None = None
+    subject_field: str = Field(min_length=1)
+    metric_field: str = Field(min_length=1)
+    value_field: str = Field(min_length=1)
+    unit_field: str | None = None
+    fixed_unit: str | None = None
+    source_name_field: str | None = None
+    source_url_field: str | None = None
+    freshness_field: str | None = None
+
+    @model_validator(mode="after")
+    def validate_field_mapping(self) -> DatasetManifest:
+        """Keep ingestion mappings inside the explicitly declared schema."""
+
+        field_names = {field.name for field in self.fields}
+        mapped = {
+            *self.identity_fields,
+            self.observed_at_field,
+            self.subject_field,
+            self.metric_field,
+            self.value_field,
+        }
+        mapped.update(
+            field
+            for field in (
+                self.available_at_field,
+                self.unit_field,
+                self.source_name_field,
+                self.source_url_field,
+                self.freshness_field,
+            )
+            if field is not None
+        )
+        missing = mapped - field_names
+        if missing:
+            raise ValueError(f"dataset mappings reference undeclared fields: {sorted(missing)}")
+        if self.unit_field is None and self.fixed_unit is None:
+            raise ValueError("dataset requires unit_field or fixed_unit")
+        return self
 
 
 class KPIDefinition(BaseModel):
@@ -54,6 +104,7 @@ class ValueChainNode(BaseModel):
     node_key: str = Field(min_length=1)
     name: str = Field(min_length=1)
     stage: str = Field(min_length=1)
+    evidence_refs: list[str] = Field(default_factory=list)
 
 
 class ThemeAssetExposure(BaseModel):
@@ -68,6 +119,7 @@ class ThemePackManifest(BaseModel):
     """Versioned and permission-bounded declaration of a Research Pack."""
 
     pack_key: str = Field(min_length=1)
+    kind: Literal["theme_research"] = "theme_research"
     name: str = Field(min_length=1)
     version: str = Field(min_length=1)
     compatibility_version: str = Field(min_length=1)
@@ -118,3 +170,89 @@ class PackHealth(BaseModel):
     quarantined: int = Field(ge=0, default=0)
     rejected: int = Field(ge=0, default=0)
     duplicate: int = Field(ge=0, default=0)
+    dataset_age_seconds: dict[str, float | None] = Field(default_factory=dict)
+    quality_flags: list[str] = Field(default_factory=list)
+
+
+class ThemeKPIValue(BaseModel):
+    """One unit-bearing KPI point backed by a persisted observation."""
+
+    kpi_key: str
+    name: str
+    unit: str
+    frequency: str
+    observation: ThemeObservation
+
+
+class ThemeKPIProjection(BaseModel):
+    """Typed KPI series read model."""
+
+    pack_key: str
+    series: list[ThemeKPIValue]
+    as_of: AwareDatetime
+
+
+class ThemeValueChainProjection(BaseModel):
+    """Manifest-declared value-chain nodes with evidence references."""
+
+    pack_key: str
+    nodes: list[ValueChainNode]
+    as_of: AwareDatetime
+
+
+class ThemeEventProjection(BaseModel):
+    """Verified events and unverified leads remain visibly separated."""
+
+    pack_key: str
+    verified: list[ThemeObservation]
+    leads: list[ThemeObservation]
+    as_of: AwareDatetime
+
+
+class ThemeAssetProjection(BaseModel):
+    """Asset exposure projection that never copies asset facts."""
+
+    pack_key: str
+    assets: list[ThemeAssetExposure]
+    as_of: AwareDatetime
+
+
+class WorkspacePrefillRequest(BaseModel):
+    """Safe hand-off to the research module; it does not write theme facts."""
+
+    pack_key: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    template_key: str = Field(min_length=1)
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
+class IngestionCheckpoint(BaseModel):
+    """Restart token for a deterministic source file scan."""
+
+    source_hash: str = Field(min_length=1)
+    last_row_number: int = Field(ge=1)
+
+
+class IngestionRowResult(BaseModel):
+    """Safe row-level outcome without embedding unvalidated source content."""
+
+    row_number: int = Field(ge=2)
+    row_identity_hash: str = Field(min_length=1)
+    outcome: Literal["accepted", "quarantined", "rejected", "duplicate"]
+    error_code: str | None = None
+
+
+class ThemeIngestionReport(BaseModel):
+    """Dry-run/apply report for one immutable source file."""
+
+    pack_key: str
+    dataset_key: str
+    source_hash: str
+    dry_run: bool
+    accepted: int = Field(ge=0)
+    quarantined: int = Field(ge=0)
+    rejected: int = Field(ge=0)
+    duplicate: int = Field(ge=0)
+    applied: int = Field(ge=0)
+    rows: list[IngestionRowResult]
+    checkpoint: IngestionCheckpoint

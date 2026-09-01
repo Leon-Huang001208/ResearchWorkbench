@@ -1,0 +1,101 @@
+pack_key: aerospace
+kind: theme_research
+name: 航天航空
+version: 1.0.0
+compatibility_version: merged-platform-v1
+status: discovered
+boundary: 发射活动、产业驱动、主机厂映射、CN5082、ETF资金与成分基本面事实；不包含策略评分。
+plugin_permissions: [normalize, validate, derive]
+datasets:
+  - &aerospace_long
+    dataset_key: launch_activity
+    schema_version: '1'
+    frequency: monthly
+    source_priority: [official_launch_provider]
+    freshness_seconds: 2678400
+    fields:
+      - {name: observation_date, data_type: date}
+      - {name: metric, data_type: string}
+      - {name: scope, data_type: string}
+      - {name: region, data_type: string}
+      - {name: value, data_type: number}
+      - {name: unit, data_type: string}
+      - {name: status, data_type: string}
+      - {name: source, data_type: string}
+      - {name: notes, data_type: string, required: false}
+      - {name: last_checked, data_type: datetime}
+    identity_fields: [observation_date, metric, scope, region]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: scope
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source
+    freshness_field: status
+  - <<: *aerospace_long
+    dataset_key: industry_drivers
+    source_priority: [official_industry_source]
+  - dataset_key: cn5082_valuation
+    schema_version: '1'
+    frequency: daily
+    source_priority: [csindex, licensed_market_data]
+    freshness_seconds: 172800
+    fields: &index_long_fields
+      - {name: observation_date, data_type: date}
+      - {name: index_code, data_type: string}
+      - {name: index_name, data_type: string}
+      - {name: metric, data_type: string}
+      - {name: value, data_type: number}
+      - {name: unit, data_type: string}
+      - {name: percentile_20, data_type: number, required: false}
+      - {name: source_name, data_type: string}
+      - {name: source_url, data_type: string, required: false}
+      - {name: status, data_type: string}
+      - {name: last_checked, data_type: datetime}
+      - {name: notes, data_type: string, required: false}
+    identity_fields: [observation_date, index_code, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: index_code
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+  - <<: {dataset_key: market_trend, schema_version: '1', frequency: daily, source_priority: [licensed_market_data], freshness_seconds: 172800, fields: *index_long_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
+  - <<: {dataset_key: etf_flow_shares, schema_version: '1', frequency: daily, source_priority: [exchange, fund_manager], freshness_seconds: 172800, fields: *index_long_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
+  - <<: {dataset_key: constituent_fundamentals, schema_version: '1', frequency: quarterly, source_priority: [company_filing, licensed_market_data], freshness_seconds: 10368000, fields: *index_long_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
+  - <<: {dataset_key: market_valuation_sentiment, schema_version: '1', frequency: daily, source_priority: [licensed_market_data], freshness_seconds: 172800, fields: *index_long_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
+  - dataset_key: prime_contractor_map
+    schema_version: '1'
+    frequency: quarterly
+    source_priority: [company_filing]
+    freshness_seconds: 10368000
+    fields:
+      - {name: code, data_type: string}
+      - {name: company, data_type: string}
+      - {name: category, data_type: string}
+      - {name: notes, data_type: string, required: false}
+      - {name: last_checked, data_type: datetime}
+    identity_fields: [code, category]
+    observed_at_field: last_checked
+    available_at_field: last_checked
+    subject_field: code
+    metric_field: category
+    value_field: company
+    fixed_unit: mapping
+kpis:
+  - {kpi_key: launch_count, name: 发射次数, unit: count, frequency: monthly, dataset_key: launch_activity}
+  - {kpi_key: cn5082_pe, name: 航天军工指数估值, unit: x, frequency: daily, dataset_key: cn5082_valuation}
+value_chain:
+  - {node_key: components, name: 核心元器件, stage: upstream, evidence_refs: [dataset:industry_drivers]}
+  - {node_key: prime_contractors, name: 主机厂, stage: midstream, evidence_refs: [dataset:prime_contractor_map]}
+  - {node_key: launch_services, name: 发射服务, stage: downstream, evidence_refs: [dataset:launch_activity]}
+event_types: [launch, procurement, satellite_deployment]
+asset_exposures:
+  - asset: {asset_id: 'index:CN5082.CSI', asset_type: index, display_name: 中证军工}
+    exposure_type: benchmark
+    rationale_ref: manifest:aerospace:cn5082_valuation
+research_template_keys: [aerospace_activity_chain, aerospace_event_review]
