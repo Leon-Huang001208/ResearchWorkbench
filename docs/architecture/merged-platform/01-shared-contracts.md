@@ -13,18 +13,18 @@
 | 015 | 共享事实核（5） | `asset_registry` | canonical asset ID；只映射现有 stock/index/etf/fund 事实，不复制行情或主数据 |
 | 015 | 共享事实核 | `asset_identifier` | `(scheme, value, market, valid_from)` 唯一；半开有效期 `[valid_from, valid_to)` 必须正向且不得重叠 |
 | 015 | 共享事实核 | `theme_observation` | 唯一主题事实表；Observation envelope + typed payload |
-| 015 | 共享事实核 | `scheduled_job` | owner、lease、idempotency、single-flight 与 coalesce 状态 |
+| 015 | 共享事实核 | `scheduled_job` | owner、lease、idempotency；命名 CHECK 强制 no-reentry、latest coalesce 与完整 lease pair |
 | 015 | 共享事实核 | `domain_event` | PostgreSQL 持久事件权威记录；SystemEventBus 只做 SSE/进程内投递适配 |
 | 016 | 主题/首页（2） | `theme_pack` | Pack manifest 版本、生命周期、校验哈希 |
 | 016 | 主题/首页 | `market_home_snapshot` | 交易日/时点/section 快照；历史禁止由 live 重算 |
 | 017 | 研究运行时（8） | `research_workspace` | 项目隔离、标题、归档状态 |
-| 017 | 研究运行时 | `research_session` | 临时/项目会话，原子升级；可关联现有 Run |
-| 017 | 研究运行时 | `research_message` | Session 消息与安全内容引用；Workspace 归属只从 Session 推导 |
+| 017 | 研究运行时 | `research_session` | 临时/项目会话，数据库 CHECK 强制 mode/Workspace scope；可关联现有 Run |
+| 017 | 研究运行时 | `research_message` | Session 消息与安全内容引用；content/content_ref 恰一非空，Workspace 归属只从 Session 推导 |
 | 017 | 研究运行时 | `research_note` | Claim 或段落两种互斥来源、revision、pinned；旧 revision 不覆盖 |
 | 017 | 研究运行时 | `runtime_provider` | LangGraph/DSH 能力、健康、配置引用，不保存密钥 |
 | 017 | 研究运行时 | `skill_definition` | `SkillManifest` 的持久化表；声明式模板、allowed_tools、版本和状态 |
 | 017 | 研究运行时 | `agent_team` | Supervisor、角色、预算、deadline 与并发上限 |
-| 017 | 研究运行时 | `agent_schedule` | 团队/研究计划，委托 `scheduled_job` 获取租约 |
+| 017 | 研究运行时 | `agent_schedule` | 团队/研究计划，命名 CHECK 强制 no-reentry/latest，并委托 `scheduled_job` 获取租约 |
 | 018 | 个人观察（5） | `watchlist` | 用户/本地 profile 下多列表与排序 |
 | 018 | 个人观察 | `watchlist_item` | 只引用 `asset_registry.asset_id`；标识变化不丢失条目 |
 | 018 | 个人观察 | `alert_rule` | 操作符、阈值、freshness 条件、启停状态 |
@@ -50,7 +50,7 @@
 |---|---|---|
 | `AssetRef` | `asset_id`、`asset_type` | `asset_type` 仅 `stock|index|etf|active_fund` |
 | `AssetIdentifier` | scheme/value/market/有效期 | 半开区间 `[valid_from, valid_to)`；`valid_to > valid_from`；同一 scheme/value/market 不得重叠 |
-| `SourceRef` | source_id、name、tier、content_hash/URL | 必须可追溯，敏感凭据不可进入模型 |
+| `SourceRef` | source_id、name、tier、content_hash/URL | HTTP URL 结构化校验且必须有 host、不得含 userinfo；字段仍按 string 序列化，敏感凭据不可进入模型 |
 | `ObservationEnvelope` | subject_ref、metric_key、source_ref、observed_at、available_at、freshness | `available_at >= observed_at`；numeric value 必须带 unit |
 | `FreshnessStatus` | fresh/stale/unavailable/quarantined | stale/unavailable/quarantined 不得伪装 fresh；冲突写入 quality_flags；缺失值与 0 分开 |
 | `DomainEvent` | event_id、type、occurred_at、payload_ref | 先写 PostgreSQL `domain_event`，SSE 只传小型引用 |

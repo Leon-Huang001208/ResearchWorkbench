@@ -6,7 +6,7 @@ from datetime import date
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from core.contracts.platform_shared import FactResponseBase
 
@@ -84,6 +84,16 @@ class MarketHomeEnvelope(BaseModel):
     trading_day: date
     trading_status: TradingStatus
     sections: list[MarketHomeSection] = Field(min_length=5, max_length=5)
+
+    @model_validator(mode="after")
+    def validate_section_set(self) -> MarketHomeEnvelope:
+        """Require every fixed facts-only section exactly once."""
+
+        expected = set(MarketHomeSectionKey)
+        actual = {section.section_key for section in self.sections}
+        if actual != expected or len(self.sections) != len(expected):
+            raise ValueError("market home requires every fixed section exactly once")
+        return self
 
 
 class MarketHomeSnapshot(FactResponseBase):

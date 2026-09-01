@@ -36,9 +36,9 @@ Update this section when:
 Purpose:
 - SQLAlchemy ORM model definitions for all database tables.
 - 定义合并平台 20 张新增表：共享事实核 5 张、主题/首页 2 张、研究运行时 8 张、个人观察 5 张；继续复用既有 Research Run 与股票/指数/ETF/基金事实表。
-- `domain_event` 是持久事件权威，`scheduled_job` 保存租约与幂等状态；`theme_observation` 是唯一主题事实表，主题六类读模型不物化。
+- `domain_event` 是持久事件权威；`scheduled_job` 保存租约与幂等状态，并以命名 CHECK 强制 no-reentry/latest 和完整 lease pair；`theme_observation` 是唯一主题事实表，主题六类读模型不物化。
 - `asset_identifier` 在 PostgreSQL 以半开时间范围 exclusion constraint 阻止同一供应商代码的有效期重叠，并要求 `valid_to > valid_from`。
-- `research_message` 通过 Session 推导 Workspace；`research_note` 以数据库 CHECK 强制 Claim-only 或 Run+paragraph 两种互斥来源并复用既有 Run/Claim，`watchlist_item` 只引用 `asset_registry.asset_id`。
+- `research_session` 以 CHECK 强制 mode/scope 一致，`research_message` 通过 Session 推导 Workspace 且 content/content_ref 恰一非空；`agent_schedule` 以 CHECK 强制 no-reentry/latest；`research_note` 以 CHECK 强制 Claim-only 或 Run+paragraph 两种互斥来源并复用既有 Run/Claim，`watchlist_item` 只引用 `asset_registry.asset_id`。
 
 Update this section when:
 - New tables are added.

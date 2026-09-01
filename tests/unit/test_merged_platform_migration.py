@@ -147,6 +147,27 @@ def test_new_tables_define_identity_constraints_and_time_indexes():
     assert notification.c.created_at.index is True
 
 
+def test_scheduler_and_research_invariants_have_named_database_constraints():
+    expected_by_table = {
+        "scheduled_job": {
+            "ck_scheduled_job_allow_concurrent_false",
+            "ck_scheduled_job_coalesce_latest",
+            "ck_scheduled_job_lease_pair",
+        },
+        "agent_schedule": {
+            "ck_agent_schedule_allow_concurrent_false",
+            "ck_agent_schedule_coalesce_latest",
+        },
+        "research_session": {"ck_research_session_scope"},
+        "research_message": {"ck_research_message_content_source"},
+    }
+    for table_name, expected_names in expected_by_table.items():
+        actual_names = {
+            constraint.name for constraint in Base.metadata.tables[table_name].constraints
+        }
+        assert expected_names.issubset(actual_names)
+
+
 def test_015_to_018_upgrade_and_downgrade_on_sqlite(tmp_path: Path):
     database_path = tmp_path / "merged.sqlite"
     database_url = f"sqlite:///{database_path}"
@@ -215,12 +236,204 @@ def test_015_to_018_upgrade_and_downgrade_on_sqlite(tmp_path: Path):
                 )
                 """))
 
+    with (
+        pytest.raises(IntegrityError, match="asset_identifier validity overlap"),
+        engine.begin() as connection,
+    ):
+        connection.execute(text("""
+                UPDATE asset_identifier
+                SET valid_from = '2026-01-15T00:00:00+00:00'
+                WHERE identifier_id = 'identifier-adjacent'
+                """))
+
     with engine.begin() as connection:
+        connection.execute(text("""
+                INSERT INTO scheduled_job (
+                    job_id, owner, job_type, idempotency_key, scheduled_for
+                ) VALUES (
+                    'job-valid', 'scheduler', 'refresh', 'job-valid-key',
+                    '2026-08-31T09:30:00+00:00'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO scheduled_job (
+                    job_id, owner, job_type, idempotency_key, scheduled_for,
+                    lease_owner, lease_expires_at
+                ) VALUES (
+                    'job-leased', 'scheduler', 'refresh', 'job-leased-key',
+                    '2026-08-31T09:30:00+00:00', 'worker-1',
+                    '2026-08-31T09:35:00+00:00'
+                )
+                """))
+
+    invalid_job_sql = [
+        """
+        INSERT INTO scheduled_job (
+            job_id, owner, job_type, idempotency_key, scheduled_for, allow_concurrent
+        ) VALUES (
+            'job-concurrent', 'scheduler', 'refresh', 'job-concurrent-key',
+            '2026-08-31T09:30:00+00:00', 1
+        )
+        """,
+        """
+        INSERT INTO scheduled_job (
+            job_id, owner, job_type, idempotency_key, scheduled_for, coalesce_policy
+        ) VALUES (
+            'job-coalesce-all', 'scheduler', 'refresh', 'job-coalesce-key',
+            '2026-08-31T09:30:00+00:00', 'all'
+        )
+        """,
+        """
+        INSERT INTO scheduled_job (
+            job_id, owner, job_type, idempotency_key, scheduled_for, lease_owner
+        ) VALUES (
+            'job-half-lease', 'scheduler', 'refresh', 'job-half-lease-key',
+            '2026-08-31T09:30:00+00:00', 'worker-1'
+        )
+        """,
+    ]
+    for invalid_sql in invalid_job_sql:
+        with pytest.raises(IntegrityError), engine.begin() as connection:
+            connection.execute(text(invalid_sql))
+
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO research_run (run_id) VALUES ('run-1')"))
+        connection.execute(text("""
+                INSERT INTO research_claim (claim_id, run_id)
+                VALUES ('claim-1', 'run-1')
+                """))
         connection.execute(text("""
                 INSERT INTO research_workspace (
                     workspace_id, project_id, title, status
                 ) VALUES ('workspace-1', 'project-1', 'Workspace', 'active')
                 """))
+        connection.execute(text("""
+                INSERT INTO research_session (
+                    session_id, workspace_id, mode, idempotency_key
+                ) VALUES (
+                    'session-workspace', 'workspace-1', 'workspace', 'session-workspace-key'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO research_session (
+                    session_id, mode, idempotency_key
+                ) VALUES (
+                    'session-temporary', 'temporary', 'session-temporary-key'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO research_message (
+                    message_id, session_id, role, content, idempotency_key
+                ) VALUES (
+                    'message-content', 'session-temporary', 'user', 'hello',
+                    'message-content-key'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO research_message (
+                    message_id, session_id, role, content_ref, idempotency_key
+                ) VALUES (
+                    'message-ref', 'session-temporary', 'user', 'attachment:1',
+                    'message-ref-key'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO agent_team (
+                    team_id, workspace_id, name, supervisor_role
+                ) VALUES (
+                    'team-1', 'workspace-1', 'Team', 'supervisor'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO agent_schedule (
+                    schedule_id, team_id, cron_expression, status
+                ) VALUES (
+                    'schedule-valid', 'team-1', '0 9 * * 1-5', 'active'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO research_note (
+                    note_id, note_key, workspace_id, claim_id, revision,
+                    source_kind, summary
+                ) VALUES (
+                    'note-claim', 'claim-note', 'workspace-1', 'claim-1', 1,
+                    'claim', 'valid claim note'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO research_note (
+                    note_id, note_key, workspace_id, run_id, revision,
+                    source_kind, paragraph_ref, summary
+                ) VALUES (
+                    'note-paragraph', 'paragraph-note', 'workspace-1', 'run-1', 1,
+                    'paragraph', 'artifact:1#p2', 'valid paragraph note'
+                )
+                """))
+
+    invalid_research_sql = [
+        """
+        INSERT INTO research_session (
+            session_id, workspace_id, mode, idempotency_key
+        ) VALUES (
+            'session-workspace-blank-scope', '   ', 'workspace',
+            'session-invalid-blank-workspace-key'
+        )
+        """,
+        """
+        INSERT INTO research_session (
+            session_id, mode, idempotency_key
+        ) VALUES (
+            'session-workspace-without-scope', 'workspace', 'session-invalid-workspace-key'
+        )
+        """,
+        """
+        INSERT INTO research_session (
+            session_id, workspace_id, mode, idempotency_key
+        ) VALUES (
+            'session-temporary-with-scope', 'workspace-1', 'temporary',
+            'session-invalid-temporary-key'
+        )
+        """,
+        """
+        INSERT INTO research_message (
+            message_id, session_id, role, content, content_ref, idempotency_key
+        ) VALUES (
+            'message-both', 'session-temporary', 'user', 'hello', 'attachment:1',
+            'message-both-key'
+        )
+        """,
+        """
+        INSERT INTO research_message (
+            message_id, session_id, role, idempotency_key
+        ) VALUES (
+            'message-neither', 'session-temporary', 'user', 'message-neither-key'
+        )
+        """,
+        """
+        INSERT INTO research_message (
+            message_id, session_id, role, content, idempotency_key
+        ) VALUES (
+            'message-empty', 'session-temporary', 'user', '   ', 'message-empty-key'
+        )
+        """,
+        """
+        INSERT INTO agent_schedule (
+            schedule_id, team_id, cron_expression, status, allow_concurrent
+        ) VALUES (
+            'schedule-concurrent', 'team-1', '0 9 * * 1-5', 'active', 1
+        )
+        """,
+        """
+        INSERT INTO agent_schedule (
+            schedule_id, team_id, cron_expression, status, coalesce_policy
+        ) VALUES (
+            'schedule-coalesce-all', 'team-1', '0 9 * * 1-5', 'active', 'all'
+        )
+        """,
+    ]
+    for invalid_sql in invalid_research_sql:
+        with pytest.raises(IntegrityError), engine.begin() as connection:
+            connection.execute(text(invalid_sql))
 
     with pytest.raises(IntegrityError), engine.begin() as connection:
         connection.execute(text("""

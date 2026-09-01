@@ -3397,6 +3397,7 @@ Classes:
   - Independently degradable, source-backed home section.
 - `MarketHomeEnvelope`
   - Facts-only market home response with five explicit sections.
+  - methods: validate_section_set
 - `MarketHomeSnapshot`
   - Immutable close or point-in-time projection for historical reads.
 
@@ -3555,6 +3556,7 @@ Imports:
 - `enum`
 - `pydantic`
 - `typing`
+- `urllib.parse`
 
 Classes:
 - `AssetType`

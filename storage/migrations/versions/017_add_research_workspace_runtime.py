@@ -56,6 +56,12 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["run_id"], ["research_run.run_id"]),
         sa.PrimaryKeyConstraint("session_id"),
+        sa.CheckConstraint(
+            "(mode = 'workspace' AND workspace_id IS NOT NULL "
+            "AND length(trim(workspace_id)) > 0) OR "
+            "(mode = 'temporary' AND workspace_id IS NULL)",
+            name="ck_research_session_scope",
+        ),
         sa.UniqueConstraint("idempotency_key", name="uq_research_session_idempotency_key"),
     )
     for column in ("workspace_id", "run_id", "mode", "status"):
@@ -76,6 +82,12 @@ def upgrade() -> None:
             ["session_id"], ["research_session.session_id"], ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("message_id"),
+        sa.CheckConstraint(
+            "(content IS NOT NULL AND length(trim(content)) > 0 AND content_ref IS NULL) OR "
+            "(content IS NULL AND content_ref IS NOT NULL "
+            "AND length(trim(content_ref)) > 0)",
+            name="ck_research_message_content_source",
+        ),
         sa.UniqueConstraint(
             "session_id", "idempotency_key", name="uq_research_message_idempotency"
         ),
@@ -170,6 +182,14 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["team_id"], ["agent_team.team_id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["scheduled_job_id"], ["scheduled_job.job_id"]),
         sa.PrimaryKeyConstraint("schedule_id"),
+        sa.CheckConstraint(
+            "allow_concurrent = false",
+            name="ck_agent_schedule_allow_concurrent_false",
+        ),
+        sa.CheckConstraint(
+            "coalesce_policy = 'latest'",
+            name="ck_agent_schedule_coalesce_latest",
+        ),
     )
     op.create_index("ix_agent_schedule_team_id", "agent_schedule", ["team_id"])
     op.create_index("ix_agent_schedule_scheduled_job_id", "agent_schedule", ["scheduled_job_id"])

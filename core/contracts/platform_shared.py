@@ -4,8 +4,19 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any
+from urllib.parse import urlsplit
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    TypeAdapter,
+    model_validator,
+)
+
+_HTTP_URL_ADAPTER = TypeAdapter(HttpUrl)
 
 
 class AssetType(str, Enum):
@@ -83,8 +94,21 @@ class SourceRef(BaseModel):
 
         if not self.content_hash and not self.source_url:
             raise ValueError("content_hash or source_url is required")
-        if self.source_url and not self.source_url.startswith(("https://", "http://")):
-            raise ValueError("source_url must use http or https")
+        if self.source_url:
+            try:
+                url_parts = urlsplit(self.source_url)
+            except ValueError as exc:
+                raise ValueError("source_url must be a valid HTTP URL with a host") from exc
+            if url_parts.scheme not in {"http", "https"} or url_parts.hostname is None:
+                raise ValueError("source_url must be a valid HTTP URL with a host")
+            if url_parts.username is not None or url_parts.password is not None:
+                raise ValueError("source_url must not contain user credentials")
+            try:
+                parsed_url = _HTTP_URL_ADAPTER.validate_python(self.source_url)
+            except ValueError as exc:
+                raise ValueError("source_url must be a valid HTTP URL with a host") from exc
+            if parsed_url.host is None:
+                raise ValueError("source_url must include a host")
         return self
 
 

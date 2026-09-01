@@ -7,7 +7,7 @@ from collections.abc import Collection
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 # Closed platform-owned capability set; additions require contract and security review.
 SAFE_INTERNAL_TOOL_IDS: frozenset[str] = frozenset({"internal:asset_snapshot"})
@@ -62,9 +62,11 @@ class ResearchSession(BaseModel):
     def validate_scope(self) -> ResearchSession:
         """Require workspace sessions to carry their isolation scope."""
 
-        if self.mode is SessionMode.WORKSPACE and not self.workspace_id:
+        if self.mode is SessionMode.WORKSPACE and (
+            self.workspace_id is None or not self.workspace_id.strip()
+        ):
             raise ValueError("workspace_id is required for workspace session")
-        if self.mode is SessionMode.TEMPORARY and self.workspace_id:
+        if self.mode is SessionMode.TEMPORARY and self.workspace_id is not None:
             raise ValueError("temporary session cannot have workspace_id before promotion")
         return self
 
@@ -88,7 +90,9 @@ class ResearchMessage(BaseModel):
     def validate_content(self) -> ResearchMessage:
         """Require exactly one message content representation."""
 
-        if bool(self.content) == bool(self.content_ref):
+        has_content = self.content is not None and bool(self.content.strip())
+        has_content_ref = self.content_ref is not None and bool(self.content_ref.strip())
+        if has_content == has_content_ref:
             raise ValueError("exactly one of content or content_ref is required")
         return self
 
@@ -120,6 +124,8 @@ class SkillManifest(BaseModel):
     platform-owned authorized tool IDs before compiling or running a Skill. A
     manifest can declare references, but it cannot grant permissions to itself.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     skill_key: str = Field(min_length=1)
     name: str = Field(min_length=1)

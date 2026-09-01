@@ -2208,6 +2208,19 @@ class ScheduledJobDB(Base):
     __tablename__ = "scheduled_job"
     __table_args__ = (
         UniqueConstraint("owner", "idempotency_key", name="uq_scheduled_job_idempotency"),
+        CheckConstraint(
+            "allow_concurrent = false",
+            name="ck_scheduled_job_allow_concurrent_false",
+        ),
+        CheckConstraint(
+            "coalesce_policy = 'latest'",
+            name="ck_scheduled_job_coalesce_latest",
+        ),
+        CheckConstraint(
+            "(lease_owner IS NULL AND lease_expires_at IS NULL) OR "
+            "(lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL)",
+            name="ck_scheduled_job_lease_pair",
+        ),
     )
 
     job_id = Column(Text, primary_key=True)
@@ -2320,6 +2333,14 @@ class ResearchSessionDB(Base):
     """Temporary or workspace-scoped persisted conversation."""
 
     __tablename__ = "research_session"
+    __table_args__ = (
+        CheckConstraint(
+            "(mode = 'workspace' AND workspace_id IS NOT NULL "
+            "AND length(trim(workspace_id)) > 0) OR "
+            "(mode = 'temporary' AND workspace_id IS NULL)",
+            name="ck_research_session_scope",
+        ),
+    )
 
     session_id = Column(Text, primary_key=True)
     workspace_id = Column(
@@ -2342,6 +2363,12 @@ class ResearchMessageDB(Base):
     __tablename__ = "research_message"
     __table_args__ = (
         UniqueConstraint("session_id", "idempotency_key", name="uq_research_message_idempotency"),
+        CheckConstraint(
+            "(content IS NOT NULL AND length(trim(content)) > 0 AND content_ref IS NULL) OR "
+            "(content IS NULL AND content_ref IS NOT NULL "
+            "AND length(trim(content_ref)) > 0)",
+            name="ck_research_message_content_source",
+        ),
     )
 
     message_id = Column(Text, primary_key=True)
@@ -2417,6 +2444,16 @@ class AgentScheduleDB(Base):
     """Team schedule delegating lease ownership to scheduled_job."""
 
     __tablename__ = "agent_schedule"
+    __table_args__ = (
+        CheckConstraint(
+            "allow_concurrent = false",
+            name="ck_agent_schedule_allow_concurrent_false",
+        ),
+        CheckConstraint(
+            "coalesce_policy = 'latest'",
+            name="ck_agent_schedule_coalesce_latest",
+        ),
+    )
 
     schedule_id = Column(Text, primary_key=True)
     team_id = Column(

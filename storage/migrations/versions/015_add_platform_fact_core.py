@@ -184,6 +184,19 @@ def upgrade() -> None:
             "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
         sa.PrimaryKeyConstraint("job_id"),
+        sa.CheckConstraint(
+            "allow_concurrent = false",
+            name="ck_scheduled_job_allow_concurrent_false",
+        ),
+        sa.CheckConstraint(
+            "coalesce_policy = 'latest'",
+            name="ck_scheduled_job_coalesce_latest",
+        ),
+        sa.CheckConstraint(
+            "(lease_owner IS NULL AND lease_expires_at IS NULL) OR "
+            "(lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL)",
+            name="ck_scheduled_job_lease_pair",
+        ),
         sa.UniqueConstraint("owner", "idempotency_key", name="uq_scheduled_job_idempotency"),
     )
     for column in (

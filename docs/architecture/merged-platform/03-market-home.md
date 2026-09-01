@@ -30,7 +30,7 @@
 | `GET /api/market-home/drill-down/{section_key}` | 返回组成事实、样本、单位和来源 |
 | `GET /api/market-home/events` | SSE：`event_id`、`section_key`、`as_of`、`sequence` |
 
-公共类型为 `MarketHomeEnvelope`、`MarketHomeSection`、`MainlineRank`、`MainlineComponents`、`MarketHomeSnapshot` 和 `SectionDegradation`。所有 section 都有独立 `freshness_status`，整页不使用单一 fresh 标志。
+公共类型为 `MarketHomeEnvelope`、`MarketHomeSection`、`MainlineRank`、`MainlineComponents`、`MarketHomeSnapshot` 和 `SectionDegradation`。`MarketHomeEnvelope` 校验 section key 集合严格等于五个枚举全集，每项恰好一次；所有 section 都有独立 `freshness_status`，整页不使用单一 fresh 标志。
 
 ## 主流程
 
@@ -54,6 +54,7 @@ SLA 以数据可用时间为起点：行情到达 30 秒内可见；市场聚合
 ## 测试与验收
 
 - 公式测试固定四项权重并断言 component/sample_size/version 全部返回。
+- Envelope 测试覆盖五个 section 完整集合、重复 key 和遗漏 key。
 - 历史测试使用 spy 断言 snapshot 查询从不调用 live provider。
 - 单区块故障注入确认整页非 500、错误码与 freshness 准确。
 - SSE 测试确认小载荷、有序重连和客户端重新读取聚合 API。

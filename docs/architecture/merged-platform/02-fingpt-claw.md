@@ -9,11 +9,11 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 ## 数据归属
 
 - `research_workspace`：项目范围、标题、状态和归档策略。
-- `research_session` / `research_message`：临时或项目会话；Message 不重复保存 `workspace_id`，查询必须先由 Session 推导并验证 Workspace scope。
+- `research_session` / `research_message`：临时或项目会话；Session mode/scope 由数据库 CHECK 强制一致，Message 的 content/content_ref 恰一非空且不重复保存 `workspace_id`，查询必须先由 Session 推导并验证 Workspace scope。
 - 现有 `research_run` 及其 task/artifact/claim/quality_gate：Run 权威状态与不可变产物。
 - `research_note`：`workspace_id`、revision、source_kind 与互斥来源；Claim Note 只保存 `claim_id` 并由 Claim 推导 Run，Paragraph Note 保存 `run_id + paragraph_ref`。
 - `runtime_provider`：`langgraph` 或 `dsh` 的能力声明、健康和配置引用。
-- `skill_definition`：持久化公共 `SkillManifest`，包含声明式 prompt/template、输入 schema、allowed tools 与版本。
+- `skill_definition`：持久化公共 `SkillManifest`，包含声明式 prompt/template、输入 schema、allowed tools 与版本；契约 `extra=forbid`，已移除的自授权字段不能被静默吞掉。
 - `agent_team` / `agent_schedule`：Supervisor、角色、预算、deadline、并发与日程。
 - Shared Blackboard 使用已有 Agent View/冲突能力或 service 内受控投影；不允许 DSH 自建数据库。
 
@@ -60,7 +60,7 @@ Workspace 承载项目隔离的会话与记忆；Run 承载可恢复、证据优
 - FinGPT：DSH unavailable/timeout 时记录 `runtime_fallback_total` 并从 LangGraph 重新开始确定性阶段；不复用未知的 DSH 中间副作用。
 - Claw：provider 缺 `agent_team`、预算不足或白名单不满足即 `blocked_runtime`；不得回退为 FinGPT。
 - Tool/MCP：未注册、参数超 schema、超 deadline 或返回敏感字段时拒绝并审计；其它 Worker 可继续时由 Supervisor 局部降级。
-- Agent Schedule：默认禁止并发重入；同一日程错过多次时只合并并执行最近一次，租约过期后才允许接管。
+- Agent Schedule：默认禁止并发重入；同一日程错过多次时只合并并执行最近一次，租约过期后才允许接管；`agent_schedule` 与 `scheduled_job` 的命名 CHECK 同时守住 no-reentry/latest，Job lease owner/expiry 必须成对。
 - 完成后自动归档失败不回滚 completed Run，但产生可重试 `archive_pending` 运维事件。
 
 ## 可观测性

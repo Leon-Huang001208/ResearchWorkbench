@@ -1992,7 +1992,7 @@ class ExampleRepositoryImpl(BaseRepository):
 | 017 | 017_add_research_workspace_runtime.py | 新增 8 张研究工作区/运行时表，并通过外键复用既有 Research Run 与 Claim。 |
 | 018 | 018_add_asset_observation.py | 新增 Watchlist、规则、Alert Event 与站内 Notification 五张个人观察表。 |
 
-合并平台迁移严格保持 20 张 additive 表：不创建 `source_ref`、第二套 `research_run`、股票/指数/ETF/基金事实表或六张主题投影表。生产以 PostgreSQL 为权威；SQLite 仅用于 ORM 与 015→018 升降级兼容测试。`asset_identifier` 使用半开有效期 `[valid_from, valid_to)`，要求 `valid_to > valid_from`；生产 PostgreSQL 以 GiST exclusion constraint 拒绝同一 scheme/value/market 的重叠区间，SQLite 迁移用 insert/update 触发器保持等价测试语义。`research_message` 不重复保存 Workspace，归属从 Session 推导；`research_note` 的 CHECK 只允许 Claim-only 或 Run+paragraph 两种来源。`domain_event` 是持久事件源，进程内事件总线只负责投递；`scheduled_job` 以 owner/idempotency 唯一键和租约字段支持 single-flight。
+合并平台迁移严格保持 20 张 additive 表：不创建 `source_ref`、第二套 `research_run`、股票/指数/ETF/基金事实表或六张主题投影表。生产以 PostgreSQL 为权威；SQLite 仅用于 ORM 与 015→018 升降级兼容测试。`asset_identifier` 使用半开有效期 `[valid_from, valid_to)`，要求 `valid_to > valid_from`；生产 PostgreSQL 以 GiST exclusion constraint 拒绝同一 scheme/value/market 的重叠区间，SQLite 迁移用 insert/update 触发器保持等价测试语义。`scheduled_job` 的命名 CHECK 强制 no-reentry、latest coalesce 和完整 lease owner/expiry pair；`agent_schedule` 同样强制 no-reentry/latest。`research_session` 的 CHECK 强制 mode/Workspace scope 一致；`research_message` 不重复保存 Workspace、归属从 Session 推导，并要求 content/content_ref 恰一非空；`research_note` 的 CHECK 只允许 Claim-only 或 Run+paragraph 两种来源。`domain_event` 是持久事件源，进程内事件总线只负责投递。
 
 ### 常用命令
 

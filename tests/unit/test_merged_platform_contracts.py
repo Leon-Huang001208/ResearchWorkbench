@@ -17,7 +17,12 @@ from core.contracts.asset_observation import (
     Watchlist,
     WatchlistItem,
 )
-from core.contracts.market_home import MarketHomeSnapshot
+from core.contracts.market_home import (
+    MarketHomeEnvelope,
+    MarketHomeSection,
+    MarketHomeSectionKey,
+    MarketHomeSnapshot,
+)
 from core.contracts.platform_shared import (
     AssetIdentifier,
     AssetRef,
@@ -144,6 +149,38 @@ def test_source_ref_requires_a_traceable_hash_or_url():
         SourceRef(source_id="unknown", name="Unknown", tier="public")
 
 
+@pytest.mark.parametrize(
+    "source_url",
+    [
+        "https://user@example.com/report",
+        "https://user:secret@example.com/report",
+        "http:///missing-host",
+        "https://",
+        "http://[::1",
+    ],
+)
+def test_source_ref_rejects_credentials_and_urls_without_a_host(source_url: str):
+    with pytest.raises(ValidationError, match="source_url"):
+        SourceRef(
+            source_id="unsafe",
+            name="Unsafe",
+            tier="public",
+            source_url=source_url,
+        )
+
+
+def test_source_ref_keeps_valid_http_url_as_a_serialized_string():
+    source_url = "https://example.com/report?id=1"
+    source = SourceRef(
+        source_id="official",
+        name="Official",
+        tier="official",
+        source_url=source_url,
+    )
+    assert source.source_url == source_url
+    assert source.model_dump()["source_url"] == source_url
+
+
 def test_theme_pack_lifecycle_and_permissions_are_bounded():
     manifest = ThemePackManifest(
         pack_key="gold",
@@ -175,12 +212,16 @@ def test_theme_observation_requires_source_hash_for_idempotent_ingestion():
         ThemeObservation(**payload)
 
 
-def test_workspace_session_requires_workspace_scope():
+@pytest.mark.parametrize("workspace_id", [None, "   "])
+def test_workspace_session_requires_nonempty_workspace_scope(
+    workspace_id: str | None,
+):
     with pytest.raises(ValidationError, match="workspace_id"):
         ResearchSession(
             session_id="session-1",
             mode="workspace",
             status="active",
+            workspace_id=workspace_id,
             created_at=NOW,
             updated_at=NOW,
         )
@@ -238,21 +279,32 @@ def test_skill_accepts_internal_attachment_controlled_web_and_registered_mcp():
     ],
 )
 def test_skill_cannot_self_authorize_forbidden_or_unregistered_tool(tool: str):
-    manifest = SkillManifest.model_validate(
-        {
-            "skill_key": "registry-check",
-            "name": "registry-check",
-            "version": "1.0.0",
-            "prompt_template": "x",
-            "input_schema": {},
-            "output_schema": {},
-            "allowed_tools": [tool],
-            "registered_mcp_tools": [tool],
-        }
+    manifest = SkillManifest(
+        skill_key="registry-check",
+        name="registry-check",
+        version="1.0.0",
+        prompt_template="x",
+        input_schema={},
+        output_schema={},
+        allowed_tools=[tool],
     )
-    assert "registered_mcp_tools" not in SkillManifest.model_fields
     with pytest.raises(ValueError, match="authorized tool registry"):
         manifest.validate_tool_registry({"internal:asset_snapshot", "mcp:approved"})
+
+
+def test_skill_manifest_rejects_removed_self_authorization_field():
+    with pytest.raises(ValidationError, match="registered_mcp_tools"):
+        SkillManifest.model_validate(
+            {
+                "skill_key": "strict-manifest",
+                "name": "strict-manifest",
+                "version": "1.0.0",
+                "prompt_template": "x",
+                "input_schema": {},
+                "output_schema": {},
+                "registered_mcp_tools": ["mcp:evil"],
+            }
+        )
 
 
 @pytest.mark.parametrize(
@@ -335,11 +387,68 @@ def test_research_message_scope_is_derived_from_session():
     assert "workspace_id" not in ResearchMessage.model_fields
 
 
+@pytest.mark.parametrize(
+    ("content", "content_ref"),
+    [(None, None), ("message", "attachment:1"), ("   ", None), (None, "   ")],
+)
+def test_research_message_requires_exactly_one_nonempty_content_source(
+    content: str | None, content_ref: str | None
+):
+    with pytest.raises(ValidationError, match="exactly one"):
+        ResearchMessage(
+            message_id="message-invalid",
+            session_id="session-1",
+            role="user",
+            content=content,
+            content_ref=content_ref,
+            idempotency_key="message-invalid-key",
+            created_at=NOW,
+        )
+
+
 NAIVE = datetime(2026, 8, 31, 9, 30)  # noqa: DTZ001 - invalid input under test
 
 
 def _fact_payload() -> dict[str, Any]:
     return _observation().model_dump()
+
+
+def _market_home_section(section_key: MarketHomeSectionKey) -> MarketHomeSection:
+    return MarketHomeSection(
+        section_key=section_key,
+        status="ready",
+        payload={},
+        as_of=NOW,
+        observed_at=NOW,
+        available_at=NOW,
+        source_refs=[SOURCE],
+        freshness_status="fresh",
+        quality_flags=[],
+    )
+
+
+def test_market_home_requires_each_fixed_section_exactly_once():
+    complete_sections = [_market_home_section(key) for key in MarketHomeSectionKey]
+    envelope = MarketHomeEnvelope(
+        trading_day=NOW.date(),
+        trading_status="closed",
+        sections=complete_sections,
+    )
+    assert {section.section_key for section in envelope.sections} == set(MarketHomeSectionKey)
+
+    with pytest.raises(ValidationError, match="exactly once"):
+        MarketHomeEnvelope(
+            trading_day=NOW.date(),
+            trading_status="closed",
+            sections=[*complete_sections[:-1], complete_sections[0]],
+        )
+
+    with pytest.raises(ValidationError):
+        MarketHomeEnvelope(
+            trading_day=NOW.date(),
+            trading_status="closed",
+            sections=complete_sections[:-1],
+        )
 
 
 @pytest.mark.parametrize(
