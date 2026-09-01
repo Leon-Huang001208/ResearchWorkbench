@@ -78,6 +78,21 @@ Update this section when:
 - Canonical asset projection or peer-selection queries change.
 - Watchlist/Alert/Notification persistence or transaction boundaries change.
 
+### `data_layer/repositories/market_home_repository.py`
+
+Purpose:
+
+- Read the five live facts-only projections from existing quote, event, and theme-observation tables without owning those facts.
+- Persist and read the five immutable close rows in `market_home_snapshot`; historical reads never call live providers.
+- Resume `market_home.section_invalidated` records from durable `domain_event` by `Last-Event-ID`, exposing only the three-field invalidation contract.
+- Flush writes without committing; `data_layer.repositories.base.get_db` owns the request transaction.
+
+Related service:
+
+- `services/market_home_service.py`
+
+Update this section when live fact sources, snapshot identity, or durable event replay semantics change.
+
 ---
 
 ### `data_layer/repositories/market_data_repository.py`

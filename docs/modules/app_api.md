@@ -387,6 +387,24 @@ Update this section when:
 
 ---
 
+### `app/api/routes/market_home.py`
+
+Purpose:
+
+- Expose the facts-only five-section live aggregate, one-section drill-down, and immutable close snapshots.
+- Stream only `event_id`, `section_key`, and `as_of` invalidation references from durable `domain_event` records, including `Last-Event-ID` replay.
+- Map invalid close dates, missing snapshots, immutable conflicts, and internal failures to stable public errors without leaking exception text.
+
+Related modules:
+
+- `services/market_home_service.py`
+- `data_layer/repositories/market_home_repository.py`
+- `core/contracts/market_home.py`
+
+Update this section when the five-section set, mainline formula, SLA, snapshot, or SSE replay contract changes.
+
+---
+
 ### `app/api/routes/knowledge.py`
 
 Purpose:

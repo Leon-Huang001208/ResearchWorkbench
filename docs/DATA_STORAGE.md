@@ -2008,6 +2008,8 @@ class ExampleRepositoryImpl(BaseRepository):
 
 合并平台迁移严格保持 20 张 additive 表：不创建 `source_ref`、第二套 `research_run`、股票/指数/ETF/基金事实表或六张主题投影表。生产以 PostgreSQL 为权威；SQLite 仅用于 ORM 与 015→018 升降级兼容测试。`asset_identifier` 使用半开有效期 `[valid_from, valid_to)`，要求 `valid_to > valid_from`；生产 PostgreSQL 以 GiST exclusion constraint 拒绝同一 scheme/value/market 的重叠区间，SQLite 迁移用 insert/update 触发器保持等价测试语义。`scheduled_job` 的命名 CHECK 强制 no-reentry、latest coalesce 和完整 lease owner/expiry pair；`agent_schedule` 同样强制 no-reentry/latest。`research_session` 的 CHECK 强制 mode/Workspace scope 一致；`research_message` 不重复保存 Workspace、归属从 Session 推导，并要求 content/content_ref 恰一非空；`research_note` 的 CHECK 只允许 Claim-only 或 Run+paragraph 两种来源。`domain_event` 是持久事件源，进程内事件总线只负责投递。
 
+市场首页 live 投影只读取既有 `stock_quote_snapshot`、`document_event_v1` 与 `theme_observation` 事实。每个交易日收盘后，`market_home_snapshot` 按 `trading_day + close + section_key + mainline-v1` 保存五条不可变查询结果；历史读取缺失时返回不存在，不得用当前 live 事实重算。`MarketHomeRepository` 只 `flush`，请求事务由 `get_db` 提交；SSE 重连以 `domain_event.event_id` 定位，只从事件 payload 投影 `event_id/section_key/as_of`，不返回事实本体。
+
 ### 常用命令
 
 ```bash

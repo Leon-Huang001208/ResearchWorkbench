@@ -4,7 +4,7 @@
 
 合并平台保持本文件定义的模块化单体、FastAPI 与 PostgreSQL + pgvector 主干，并增加四个边界明确的产品模块：FinGPT / Claw、facts-only 市场首页、Research Pack、资产观察。DSH 仅是可选 `RuntimeProvider` 侧车，不得直连数据库；事实、研究与个人观察三层严格隔离。该目标态、20 张新增表、四段迁移、API/状态/失败语义和九张架构图见 [`docs/architecture/merged-platform/`](architecture/merged-platform/README.md)。
 
-共享契约、集中 ORM 模型与 `015`–`018` 四段迁移现已落地；业务 Service/API 仍按架构包的纵切顺序实施。四段迁移只增加架构包列出的 20 张表，继续复用既有 Research Run 与股票、指数、ETF、基金事实表。新增平台契约拒绝 naive datetime 和含凭据/无 host 的来源 URL；Skill internal 工具必须同时命中封闭安全集合与平台可信 registry，MCP 必须命中 registry。数据库命名 CHECK/trigger/exclusion constraint 共同守住 scheduler、Session/Message、资产代码有效期和 Note 来源；首页 Envelope 强制五个固定 section 各出现一次。
+共享契约、集中 ORM 模型与 `015`–`018` 四段迁移现已落地；业务 Service/API 按架构包的纵切顺序实施，其中资产观察和 facts-only 市场首页已形成首批纵切。四段迁移只增加架构包列出的 20 张表，继续复用既有 Research Run 与股票、指数、ETF、基金事实表。新增平台契约拒绝 naive datetime 和含凭据/无 host 的来源 URL；Skill internal 工具必须同时命中封闭安全集合与平台可信 registry，MCP 必须命中 registry。数据库命名 CHECK/trigger/exclusion constraint 共同守住 scheduler、Session/Message、资产代码有效期和 Note 来源；首页 Envelope 强制五个固定 section 各出现一次，Service 对五区分别降级并以透明 `mainline-v1` 计算主线，历史只读 close snapshot，SSE 只投递持久失效引用。
 
 该架构只迁移 LSH 中可追溯、可校验的数据与受限运行时能力，不迁入策略评分、订单、模拟交易、`score_hint`、`driver-summary` 或旧策略/交易范围。等价迁移后，LSH 只读归档一个稳定版本。
 

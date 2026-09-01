@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 from core.contracts.platform_shared import FactResponseBase
 
@@ -46,6 +47,18 @@ class SectionDegradation(BaseModel):
     error_code: str = Field(min_length=1)
     retryable: bool
     missing_components: list[str] = Field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class MainlineCandidate:
+    """Internal facts projection consumed by the versioned mainline formula."""
+
+    theme_key: str
+    label: str
+    return_value: float
+    turnover_change: float
+    breadth: float
+    verified_event_density: float
 
 
 class MainlineComponents(BaseModel):
@@ -106,3 +119,11 @@ class MarketHomeSnapshot(FactResponseBase):
     formula_version: str = Field(min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)
     input_fact_refs: list[str] = Field(default_factory=list)
+
+
+class MarketHomeInvalidationEvent(BaseModel):
+    """Small durable SSE reference that never embeds a section payload."""
+
+    event_id: str = Field(min_length=1)
+    section_key: MarketHomeSectionKey
+    as_of: AwareDatetime

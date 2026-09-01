@@ -957,6 +957,40 @@ Functions:
   - 查询最近的 ETL 运行记录
 
 
+## `app/api/routes/market_home.py`
+
+Module docstring:
+> Thin API routes for the facts-only market home.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `core.contracts.market_home`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.market_home_repository`
+- `datetime`
+- `fastapi`
+- `fastapi.responses`
+- `json`
+- `services.market_home_service`
+- `sqlalchemy.orm`
+- `typing`
+
+Functions:
+- `get_market_home_service`
+  - Inject the request-scoped market-home service without eager heavy imports.
+- `get_live_market_home`
+- `get_market_home_drill_down`
+- `get_market_home_snapshot`
+- `create_market_home_snapshot`
+- `_format_market_home_sse_event`
+  - Serialize only the durable invalidation reference, never section facts.
+- `_market_home_event_stream`
+- `stream_market_home_events`
+
+
 ## `app/api/routes/memory.py`
 
 Module docstring:
@@ -3422,6 +3456,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `core.contracts.platform_shared`
+- `dataclasses`
 - `datetime`
 - `enum`
 - `pydantic`
@@ -3436,6 +3471,8 @@ Classes:
   - Independent readiness state of one home section.
 - `SectionDegradation`
   - Stable partial-failure description for one market section.
+- `MainlineCandidate`
+  - Internal facts projection consumed by the versioned mainline formula.
 - `MainlineComponents`
   - Versioned inputs to the transparent market-mainline score.
 - `MainlineRank`
@@ -3447,6 +3484,8 @@ Classes:
   - methods: validate_section_set
 - `MarketHomeSnapshot`
   - Immutable close or point-in-time projection for historical reads.
+- `MarketHomeInvalidationEvent`
+  - Small durable SSE reference that never embeds a section payload.
 
 
 ## `core/contracts/monitoring.py`
@@ -7377,6 +7416,35 @@ Classes:
 Functions:
 - `_is_postgresql`
   - 检测当前数据库是否为 PostgreSQL
+
+
+## `data_layer/repositories/market_home_repository.py`
+
+Module docstring:
+> Persistence and facts-only read projection for the market home module.
+
+Imports:
+- `__future__`
+- `core.contracts.market_home`
+- `core.contracts.platform_shared`
+- `core.observability`
+- `data_layer.repositories.models`
+- `datetime`
+- `decimal`
+- `sqlalchemy`
+- `sqlalchemy.orm`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `MarketHomeRepository`
+  - Own snapshots/events and query only existing authoritative fact tables.
+  - methods: __init__, get_close_snapshots, insert_close_snapshots, read_mainline_candidates, read_live_section, list_invalidation_events, _read_observation_section, _read_a_share_status, _read_asset_moves, _read_important_events, _latest_quote_rows, _quote_section, _observation_sources, _utc_day_bounds, _to_snapshot
+
+Functions:
+- `_aware`
+  - Restore UTC awareness lost by SQLite while retaining PostgreSQL offsets.
+- `_number`
 
 
 ## `data_layer/repositories/memory_asset_snapshot_repo.py`

@@ -253,6 +253,7 @@ from app.api.routes import (  # noqa: E402
     knowledge,
     llm,
     market_data,
+    market_home,
     memory,
     monitoring,
     outcome_journal,
@@ -325,6 +326,7 @@ app.include_router(scheduler.router)
 app.include_router(knowledge.router)
 app.include_router(pdf_admin.router)
 app.include_router(market_data.router)
+app.include_router(market_home.router)
 app.include_router(wind.router)
 app.include_router(system.router)
 app.include_router(realtime.router)

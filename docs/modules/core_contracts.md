@@ -72,5 +72,5 @@ When files in this module change, check:
 | `core/contracts/platform_shared.py` | 合并平台共享核：稳定资产身份、无 userinfo/有 host 的结构化 HTTP 来源引用、六字段事实响应、新鲜度、Observation、持久领域事件与单飞调度契约；URL 对外仍为 string，公共时间字段拒绝 naive datetime。 |
 | `core/contracts/theme_research.py` | Research Pack Manifest、统一主题 Observation、主题快照与数据健康契约；插件权限限定为 normalize/validate/derive。 |
 | `core/contracts/research_workspace.py` | Workspace/Session/Message、RuntimeProvider、声明式 Skill、Agent Team/预算/日程和版本化 Research Note；Session scope 与 Message 内容源严格校验，Skill 禁止多余字段，Note 来源互斥，执行服务必须用封闭 internal allowlist 与平台可信 registry 双重校验工具引用。 |
-| `core/contracts/market_home.py` | facts-only 市场首页五区块、交易状态、透明主线分项和不可变快照契约；Envelope 要求五个 section key 各出现一次。 |
+| `core/contracts/market_home.py` | facts-only 市场首页五区块、交易状态、透明主线候选/分项、不可变快照和三字段 SSE 失效引用契约；Envelope 要求五个 section key 各出现一次。 |
 | `core/contracts/asset_observation.py` | 四类资产统一快照、PeerSet、Watchlist、Alert 边沿状态与站内通知契约。 |

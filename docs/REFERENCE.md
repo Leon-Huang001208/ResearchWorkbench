@@ -53,6 +53,20 @@
 | `GET` | `/api/asset-observation/notifications` | 读取 profile 站内通知，支持 `unread_only` |
 | `PATCH` | `/api/asset-observation/notifications/{notification_id}/delivery` | 写入站内/桌面投递结果，不改变 Alert Event |
 
+## 全市场首页 API
+
+首页固定返回全球背景、A 股状态、市场主线、重要事件、资产异动五个 facts-only 区块。每区独立报告来源、事实时间、新鲜度与降级原因；单区失败不会让整页返回 500，也不会用零值或 AI 文本补齐。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `GET` | `/api/market-home/live` | 当前交易日五区 live 投影与 `pre_open/open/lunch_break/closed/non_trading_day` 状态 |
+| `GET` | `/api/market-home/drill-down/{section_key}` | 单区来源、时间、单位和透明计算组成 |
+| `GET` | `/api/market-home/snapshots/{trading_day}` | 只读指定交易日的五条不可变 close 快照；绝不以当前 live 数据重算历史 |
+| `POST` | `/api/market-home/snapshots/{trading_day}` | 收盘后幂等固化 close 快照；重复调用返回既有结果 |
+| `GET` | `/api/market-home/events` | 持久 `domain_event` 驱动的 SSE 失效引用，支持 `Last-Event-ID`；载荷只含 `event_id/section_key/as_of` |
+
+`mainline-v1` 先在同行内对涨幅、成交额相对 20 日中位数、上涨家数占比和已验证事件密度计算百分位，再按 `0.35/0.30/0.25/0.10` 加权；响应公开全部分项、样本数、公式版本与确定性 `leading/weakening` 排序。行情/聚合/事件 SLA 分别为 30/60/15 秒，超期值标记为 stale。
+
 ---
 
 ## CLI 命令

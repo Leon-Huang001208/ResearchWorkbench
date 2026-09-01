@@ -8,6 +8,8 @@
 
 ### Added
 
+- **全市场 facts-only 首页纵切**：新增 `/api/market-home` live、单区 drill-down、历史/创建 close snapshot 与 durable SSE 接口。首页固定五区独立降级，按 Asia/Shanghai 给出五态交易状态；`mainline-v1` 公开四项同行百分位、`0.35/0.30/0.25/0.10` 权重、样本数和确定性 leading/weakening 排序。行情、聚合和事件分别执行 30/60/15 秒 SLA，缺失事实不填零、不调用 AI；历史只读不可变快照，SSE 只发送 `event_id/section_key/as_of` 并支持 `Last-Event-ID`。
+
 - **资产观察纵切与持久化提醒**：新增 `/api/asset-observation` 领域 API、请求级 Repository/Service、四类 canonical asset 详情与透明 peer-set、多 Watchlist、确定性 Alert 边沿/冷却/确认/解决，以及站内 Notification 投递状态。资产详情只读取既有股票、指数、ETF、主动基金事实表；Watchlist Item 只保存稳定 `asset_id`，供应商代码变化不改变列表身份。stale/unavailable/quarantined、来源冲突和单位不匹配均不得产生提醒，持续真值不会重复触发。
   - 桌面壳新增官方 `tauri-plugin-notification`（Rust 与 JavaScript 锁文件），capability 仅开放 permission query、permission request 和 notify 三项。Rust bridge 只接受已持久化、长度受限且不含控制字符的通知摘要；权限拒绝或桌面投递失败不会删除站内记录。
   - 本地 macOS `cargo check` 与 Python 契约/服务/API 测试已通过；原生 Windows CI 和真实 Windows 安装级通知冒烟尚未执行，不构成 Windows 可用性证明。
