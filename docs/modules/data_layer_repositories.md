@@ -58,6 +58,26 @@ Related service:
 Update this section when:
 - Research state, artifact idempotency, or projection replacement semantics change.
 
+### `data_layer/repositories/asset_observation_repository.py`
+
+Purpose:
+
+- Read canonical identity and current identifier validity from `asset_registry` / `asset_identifier`.
+- Compose stock, index, ETF, and active-fund projections by reading existing structured fact tables; it never owns or duplicates those facts.
+- Persist only Watchlist, Watchlist Item, Alert Rule/Event, and Notification personal state.
+- Keep Watchlist membership stable across vendor-code changes by using canonical `asset_id`.
+- Flush writes without committing; `data_layer.repositories.base.get_db` owns the request transaction.
+
+Related services:
+
+- `services/asset_observation_service.py`
+- `services/alert_evaluation_service.py`
+
+Update this section when:
+
+- Canonical asset projection or peer-selection queries change.
+- Watchlist/Alert/Notification persistence or transaction boundaries change.
+
 ---
 
 ### `data_layer/repositories/market_data_repository.py`

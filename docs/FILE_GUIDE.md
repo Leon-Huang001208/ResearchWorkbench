@@ -75,6 +75,7 @@
 | `app/api/main.py` | API 入口点，初始化 FastAPI 应用，注册所有路由；显式分支预览模式只保留就绪检查，不执行数据库初始化或自动后台服务 |
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
 | `app/api/routes/audit.py` | 审计 API：查询审计日志 |
+| `app/api/routes/asset_observation.py` | 资产观察 API：四类 canonical asset 详情/同类组、多 Watchlist、Alert Rule/Event 与持久化 Notification；薄路由统一映射安全 400/404/409/500 |
 | `app/api/routes/dashboard.py` | 仪表盘 API：获取仪表盘汇总数据 |
 | `app/api/routes/funds.py` | 基金智能 API：基金详情、单基金暴露、基金组合穿透、结构化 rows 导入 |
 | `app/api/routes/governance.py` | 治理 API：版本控制、配置管理 |
@@ -226,6 +227,8 @@
 | `services/__init__.py` | 导出所有服务 |
 | **资产分析** | |
 | `asset_analysis_service.py` | 资产分析服务：生成资产分析快照、K线技术指标计算（KDJ/RSI）、筹码分布计算、Wind 直连数据补齐 |
+| `asset_observation_service.py` | 资产观察服务：组合既有四类资产事实、公开同类集合规则并管理 canonical Watchlist、规则/事件与站内通知 |
+| `alert_evaluation_service.py` | 确定性提醒评估：fresh + 单位兼容门禁、false→true 单次边沿、持续真值去重、false 自动解决和跨周期 cooldown |
 | `fund_data_ingestion_service.py` | 基金数据接入服务：从本地 rows/CSV 规范化导入基金主数据、净值、持仓和基金经理任职 |
 | `fund_intelligence_service.py` | 基金智能服务：基金详情组装、收益风险指标计算、单基金/组合持仓穿透 |
 | `macro_sensitivity.py` | 宏观敏感性计算：通过时间序列回归计算个股对宏观因子的敏感度 |
@@ -424,6 +427,7 @@
 |---|---|
 | `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
 | `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型；包含合并平台 20 张 additive 表，复用既有资产事实与 Research Run 表 |
+| `data_layer/repositories/asset_observation_repository.py` | 资产观察仓储：只写 canonical identity/Watchlist/Alert/Notification 表并读取既有 stock/index/ETF/fund 事实；仅 `flush`，事务提交由 `get_db` 管理 |
 | `data_layer/repositories/research_run_repository.py` | 研究运行仓储：持久化运行、任务、证据输入、版本化产物、当前观点及质量门禁投影 |
 | `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东、指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 | `data_layer/repositories/monitoring_repository.py` | 监控仓储：持久化健康指标、告警与事件；支持仅更新未解决告警详情，并以确定性周期 ID / savepoint 冲突恢复和独立读取事务创建单一未解决资源事件 |
@@ -653,6 +657,9 @@
 | `tests/unit/test_factor_repository.py` | 因子仓储单元测试：13 个测试覆盖空记录、upsert 委托、查询方法、session 生命周期 |
 | `tests/unit/test_factor_store_service.py` | 因子存储服务单元测试：27 个测试覆盖 Pydantic 契约 ↔ ORM 双向转换、CRUD 路径、端到端流程 |
 | `tests/unit/test_factor_api.py` | 因子 API 单元测试：13 个测试覆盖所有端点、请求验证、空数据处理 |
+| `tests/unit/test_asset_observation_service.py` | 资产观察 Service/Repository 测试：四类 envelope、透明 peer、canonical identity 和 Alert edge/cooldown/降级 |
+| `tests/unit/test_asset_observation_api.py` | 资产观察 API 测试：路由注册、Watchlist/Rule/Event/Notification 生命周期及安全错误映射 |
+| `tests/unit/test_desktop_notification_bridge.py` | Tauri 通知桥静态测试：官方插件双端注册、三项最小 capability 与受限持久化 payload |
 | `tests/unit/test_factor_computation_service.py` | 因子计算服务单元测试：11 个测试覆盖空定义/空值/完整循环/资源关闭 |
 | `tests/unit/test_resource_monitor_service.py` | 资源监控服务测试：受控 PID 边界、预热、I/O 差分、历史上限、字段/子进程降级、Worker 精确归因和 API 共享估算 |
 | `tests/unit/test_resource_host_history_service.py` | 整机容量历史测试：分钟去重、24 小时精确清理、类型隔离、安全字段白名单和受控坏快照处理 |

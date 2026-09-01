@@ -47,6 +47,12 @@ Windows upgrades detect a legacy `%APPDATA%\AlphaFoundry\.env` and copy it only 
 
 The desktop backend accepts only `localhost` or `127.0.0.1` as its listener. If the selected port is occupied, the launcher stops without terminating the unknown owning process. Configuration endpoints are restricted to loopback clients, do not return persisted secrets, and are disabled in `web-prod` mode. Database and advanced logging configuration changes are persisted for the next restart rather than falsely claiming that the current SQLAlchemy engine or logging handlers have switched. The runtime `.env` file is the authoritative persisted configuration; process variables do not lock fields in the desktop configuration page. `ALPHAFOUNDRY_BACKEND_URL` is the single base URL used by workers and scheduled API calls.
 
+### Persisted notification bridge
+
+The in-app `notification` table remains authoritative. The Tauri shell registers the official notification plugin, while the default capability grants only `is-permission-granted`, `request-permission`, and `notify`. The Rust command accepts an already-persisted `notification_id` plus a bounded title/body summary, rejects empty/control-character/oversized payloads, and never logs the message text. A client must retain the in-app record and update its delivery status to `desktop_delivered`, `desktop_permission_denied`, or `desktop_failed`; native delivery failure never rolls back the alert event.
+
+Local `cargo check` only proves that the macOS development build compiles. Windows notifications are reliable only from an installed application and remain unverified until native Windows CI builds the installer and a real Windows installation-level smoke test covers permission allow/deny and delivery.
+
 ## Why This Differs From cc-switch
 
 cc-switch keeps most local backend behavior in Rust Tauri commands. AlphaFoundry keeps investment research, AI, document, market data, and report generation logic in Python because those modules already depend on FastAPI, SQLAlchemy, pandas, document tooling, model gateways, and financial data adapters.

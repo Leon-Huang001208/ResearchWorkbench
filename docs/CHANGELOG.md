@@ -8,6 +8,10 @@
 
 ### Added
 
+- **资产观察纵切与持久化提醒**：新增 `/api/asset-observation` 领域 API、请求级 Repository/Service、四类 canonical asset 详情与透明 peer-set、多 Watchlist、确定性 Alert 边沿/冷却/确认/解决，以及站内 Notification 投递状态。资产详情只读取既有股票、指数、ETF、主动基金事实表；Watchlist Item 只保存稳定 `asset_id`，供应商代码变化不改变列表身份。stale/unavailable/quarantined、来源冲突和单位不匹配均不得产生提醒，持续真值不会重复触发。
+  - 桌面壳新增官方 `tauri-plugin-notification`（Rust 与 JavaScript 锁文件），capability 仅开放 permission query、permission request 和 notify 三项。Rust bridge 只接受已持久化、长度受限且不含控制字符的通知摘要；权限拒绝或桌面投递失败不会删除站内记录。
+  - 本地 macOS `cargo check` 与 Python 契约/服务/API 测试已通过；原生 Windows CI 和真实 Windows 安装级通知冒烟尚未执行，不构成 Windows 可用性证明。
+
 - **合并平台共享契约与 015–018 数据基线**：新增五个 Pydantic 契约模块，固定四类资产、`fresh/stale/unavailable/quarantined`、事实响应六字段、单位/缺失值语义、受限 Skill、Agent 预算/日程、主题 Pack、facts-only 首页与资产提醒状态。新增 20 张 SQLAlchemy 模型和四段可逆 Alembic 迁移；`domain_event` 为持久权威，`theme_observation` 为唯一主题事实表，Research Note/Watchlist 分别复用既有 Run/Claim 与 canonical asset identity。SQLite 已覆盖 015→018 实际升降级，未新增平行资产或 Research Run 表。
   - 审查收口后，Skill 工具权限改为封闭 internal allowlist 与平台可信 registry 双重校验，Manifest 或误配置 registry 均不能授权任意内部能力；新增平台契约拒绝 naive datetime。`asset_identifier` 以 PostgreSQL exclusion constraint（SQLite 等价触发器）强制半开有效期不重叠；Message 归属只从 Session 推导，Research Note 以 CHECK 强制 Claim-only 或 Run+paragraph 互斥来源。
   - 独立质量审查进一步使用结构化 HTTP URL 校验拒绝 SourceRef userinfo/无 host，并保持 API string 序列化；SkillManifest 拒绝多余自授权字段。数据库命名 CHECK 强制 Job/Schedule no-reentry/latest、完整 lease pair、Session mode/scope 和 Message 恰一非空内容源；SQLite 同时覆盖 overlap UPDATE 与两种合法 Note 形态。MarketHomeEnvelope 强制五个固定 section key 各出现一次。

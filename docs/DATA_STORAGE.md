@@ -230,6 +230,20 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 
 Fund Intelligence MVP 由 `data_layer/repositories/fund_repository.py` 管理，当前通过仓储 `ensure_schema()` 创建表；后续若进入正式迁移链，可迁入 Alembic 和全局 ORM 模型。
 
+### 4. 资产观察与个人状态
+
+资产观察不创建行情、净值或基金事实副本。`asset_registry` 保存稳定 canonical `asset_id`，`asset_identifier` 保存半开有效期的供应商代码；`watchlist_item` 只引用 canonical ID，因此代码换源或变更不会丢失列表归属。`AssetObservationRepository` 读取既有 `stock_*`、`index_*`、`etf_*`、`fund_*` 表来组合详情，只写下列个人状态表，且仅执行 `flush`，事务由 API 的 `get_db` 提交或回滚。
+
+| 表 | 权威内容 | 关键约束 |
+|---|---|---|
+| `watchlist` | profile 下的命名列表与顺序 | `(profile_id, name)` 唯一 |
+| `watchlist_item` | 列表中的 canonical asset、顺序和注释 | `(watchlist_id, asset_id)` 唯一 |
+| `alert_rule` | metric/operator/threshold/unit/freshness/cooldown 与评估状态 | 只引用 `asset_registry.asset_id` |
+| `alert_event` | false→true 边沿、确认与解决 | `dedupe_key` 唯一 |
+| `notification` | 站内通知及可选桌面投递状态 | 桌面失败不删除站内记录 |
+
+提醒评估将 stale、unavailable、quarantined、冲突质量标记与单位不匹配记录为非触发结果；持续为真不新增 Event，回到 false 时解决当前 Event，后续新边沿仍受上次触发 cooldown 约束。
+
 #### fund_master（基金主数据表）
 
 | 字段 | 类型 | 说明 |

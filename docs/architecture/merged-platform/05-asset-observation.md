@@ -19,7 +19,7 @@
 - Alert 不读取 Research Claim/Note、模型文本或策略评分作为事实条件。
 - stale、unavailable、quarantined 数据不得触发；冲突 `quality_flags` 必须阻断评估；0 不得被当作缺失。
 - 通知不得包含密钥、完整研究文本、附件正文或未脱敏来源 payload。
-- 当前仓库没有 Tauri 通知插件；用户已授权在 Task 3 添加官方 `tauri-plugin-notification`，在该实现及原生验收完成前不得宣称系统通知可用。
+- Task 3 已添加官方 `tauri-plugin-notification` 与三项最小 capability；站内记录仍是权威。原生 Windows CI 与真实 Windows 安装级烟测完成前不得宣称 Windows 系统通知已验证。
 - 权限拒绝、桌面桥接失败不得丢失站内通知或改变 Alert 状态。
 
 ## 公共 API 与类型
@@ -63,4 +63,4 @@
 - stale/unavailable 不触发、单位不兼容拒绝、false→true 单次触发、回落后再触发测试。
 - API 测试覆盖 400/404/409/422、acknowledge/resolved 与站内通知持久化。
 - 桌面通知在 Task 3 使用已获授权的官方插件实施；必须通过最小 capability、权限拒绝降级、原生 macOS/Windows CI，并在发布前完成真实 Windows 安装级烟测。
-- 在插件实施前，验收结论只能是“站内通知架构与持久化可实现，桌面系统通知未启用”。
+- 当前验收结论为“站内通知、受限桌面桥和 macOS 本地编译已实现”；Windows installed-app 通知、权限拒绝与系统投递仍须原生 CI 和真实安装级烟测。

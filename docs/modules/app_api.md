@@ -217,6 +217,26 @@ Update this section when:
 - Dependency injection configuration changes.
 - Structured data fallback logic changes.
 
+### `app/api/routes/asset_observation.py`
+
+Purpose:
+
+- Expose the canonical asset-observation API under `/api/asset-observation`.
+- Return four typed asset families through `AssetSnapshotEnvelope` without creating parallel fact tables.
+- Expose transparent peer-set metadata, multiple profile watchlists, Alert Rule/Event lifecycle, and persisted Notification delivery state.
+- Keep route handling thin, record structured write identifiers, and map failures to safe 400/404/409/500 responses without leaking internal exception strings.
+
+Related services and repository:
+
+- `services/asset_observation_service.py`
+- `services/alert_evaluation_service.py`
+- `data_layer/repositories/asset_observation_repository.py`
+
+Update this section when:
+
+- Asset-observation paths, request models, response contracts, or error mapping change.
+- Watchlist/Alert/Notification lifecycle behavior changes.
+
 ---
 
 ### `app/api/routes/funds.py`

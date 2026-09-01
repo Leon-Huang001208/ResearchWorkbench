@@ -233,6 +233,49 @@ Module docstring:
 > API 路由
 
 
+## `app/api/routes/asset_observation.py`
+
+Module docstring:
+> Thin FastAPI routes for canonical asset observation and personal alerts.
+
+Imports:
+- `__future__`
+- `core.contracts.asset_observation`
+- `core.observability`
+- `data_layer.repositories.base`
+- `fastapi`
+- `pydantic`
+- `services.asset_observation_service`
+- `sqlalchemy.exc`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `WatchlistCreateRequest`
+- `WatchlistItemCreateRequest`
+- `AlertRuleCreateRequest`
+- `AlertRuleStatusRequest`
+- `NotificationDeliveryRequest`
+
+Functions:
+- `get_asset_observation_service`
+  - Build the request-scoped asset observation service lazily.
+- `_raise_safe_http_error`
+- `get_asset_snapshot`
+- `get_asset_peers`
+- `create_watchlist`
+- `list_watchlists`
+- `add_watchlist_item`
+- `create_alert_rule`
+- `list_alert_rules`
+- `update_alert_rule_status`
+- `list_alert_events`
+- `acknowledge_alert_event`
+- `resolve_alert_event`
+- `list_notifications`
+- `mark_notification_delivery`
+
+
 ## `app/api/routes/assets.py`
 
 Module docstring:
@@ -6912,6 +6955,39 @@ Classes:
 - `AssertionRepositoryImpl`
   - 断言仓储实现
   - methods: _to_domain, _to_model, save, get, list, delete, get_by_subject, get_pending_review
+
+
+## `data_layer/repositories/asset_observation_repository.py`
+
+Module docstring:
+> Persistence adapter for canonical assets, watchlists, alerts, and notifications.
+
+Imports:
+- `__future__`
+- `core.contracts.asset_observation`
+- `core.contracts.platform_shared`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.fund_repository`
+- `data_layer.repositories.models`
+- `datetime`
+- `decimal`
+- `hashlib`
+- `sqlalchemy`
+- `sqlalchemy.exc`
+- `typing`
+- `uuid`
+
+Classes:
+- `AssetObservationRepository`
+  - Request-scoped repository; methods flush but never commit.
+  - methods: get_asset_projection, list_peer_assets, create_watchlist, list_watchlists, add_watchlist_item, get_watchlist, get_asset, create_alert_rule, list_alert_rules, get_alert_rule, update_alert_rule_status, get_rule_state, update_rule_state, create_alert_event, create_notification, list_alert_events, acknowledge_alert_event, resolve_alert_event, list_notifications, mark_notification_delivery, to_watchlist, to_watchlist_item, to_alert_rule, to_alert_event, to_notification, _current_identifiers, _empty_projection, _load_stock_projection, _load_index_projection, _load_etf_projection, _load_fund_projection, _freshness, _peer_dimension_matches
+
+Functions:
+- `_utc_now`
+- `_aware`
+- `_json_value`
+- `_source_ref`
 
 
 ## `data_layer/repositories/asset_snapshot_repository.py`

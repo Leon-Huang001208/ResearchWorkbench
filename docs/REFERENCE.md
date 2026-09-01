@@ -35,6 +35,24 @@
 
 分支验收可从对应 Git worktree 运行 `npm run desktop:preview -- --port 8766 --use-stable-data`。该预览在独立 loopback 端口运行，并显式禁用资源监控的常驻采集/告警后台线程；它不是安装包或正式桌面端验证。
 
+## 资产观察 API
+
+所有响应使用 canonical `asset_id`；资产详情继续读取既有事实表。错误响应不会包含数据库约束或内部异常文本：非法业务输入为 400，不存在为 404，写冲突为 409，Pydantic 字段错误为 422。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `GET` | `/api/asset-observation/assets/{asset_id}` | stock/index/etf/active_fund 统一事实 envelope 与来源/时效字段 |
+| `GET` | `/api/asset-observation/assets/{asset_id}/peers` | 透明 peer 规则、样本数和 canonical 资产列表 |
+| `POST/GET` | `/api/asset-observation/watchlists` | 创建/查询 profile 下的多个列表 |
+| `POST` | `/api/asset-observation/watchlists/{watchlist_id}/items` | 以 canonical asset ID 幂等添加或更新条目 |
+| `POST/GET` | `/api/asset-observation/alert-rules` | 创建/查询提醒规则；数值阈值必须带单位 |
+| `PATCH` | `/api/asset-observation/alert-rules/{rule_id}/status` | draft/active/paused/retired 状态切换 |
+| `GET` | `/api/asset-observation/alert-events` | 查询持久化触发边沿 |
+| `POST` | `/api/asset-observation/alert-events/{event_id}/acknowledge` | 确认一个事件 |
+| `POST` | `/api/asset-observation/alert-events/{event_id}/resolve` | 人工解决一个事件 |
+| `GET` | `/api/asset-observation/notifications` | 读取 profile 站内通知，支持 `unread_only` |
+| `PATCH` | `/api/asset-observation/notifications/{notification_id}/delivery` | 写入站内/桌面投递结果，不改变 Alert Event |
+
 ---
 
 ## CLI 命令

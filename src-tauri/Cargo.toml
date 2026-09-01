@@ -20,5 +20,6 @@ log = "0.4"
 tauri = { version = "2.8.2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
+tauri-plugin-notification = "2"
 tauri-plugin-process = "2"
 tauri-plugin-shell = "2"

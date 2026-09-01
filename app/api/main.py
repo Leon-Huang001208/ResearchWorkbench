@@ -235,6 +235,7 @@ app.add_middleware(
 
 # ─── 注册路由 ───────────────────────────────────────────
 from app.api.routes import (  # noqa: E402
+    asset_observation,
     assets,
     audit,
     commentary,
@@ -282,6 +283,7 @@ from app.api.routes import (  # noqa: E402
 )
 
 app.include_router(assets.router)
+app.include_router(asset_observation.router)
 app.include_router(commentary.router)
 app.include_router(configuration.router)
 app.include_router(setup.router)
