@@ -116,6 +116,9 @@ def upgrade() -> None:
         sa.Column("body", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False, server_default="pending"),
         sa.Column("delivery_metadata", sa.JSON(), nullable=False, server_default="{}"),
+        sa.Column("delivery_claim_token", sa.Text(), nullable=True),
+        sa.Column("delivery_claimed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("delivery_attempt", sa.Integer(), nullable=False, server_default="0"),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import secrets
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -29,6 +30,8 @@ from core.contracts.platform_shared import (
 from core.observability import get_logger
 
 logger = get_logger(__name__)
+
+_DESKTOP_DELIVERY_LEASE = timedelta(seconds=120)
 
 
 class AssetObservationError(Exception):
@@ -196,18 +199,30 @@ class AssetObservationService:
             counts["evaluated"] += 1
             try:
                 with self._repository.evaluation_savepoint():
-                    rule = self._to_alert_rule(row)
-                    projection = self._repository.get_asset_projection(
-                        rule.asset_id,
-                        as_of=now,
+                    candidate_id = row.rule_id
+                    locked = evaluator.lock_rule_for_evaluation(
+                        candidate_id,
+                        profile_id.strip(),
                     )
-                    observation = self._build_rule_observation(rule, projection, now)
-                    result = evaluator.evaluate(
-                        rule,
-                        observation,
-                        profile_id=profile_id.strip(),
-                        evaluated_at=now,
-                    )
+                    if locked is None:
+                        result = evaluator.not_eligible(
+                            candidate_id,
+                            f"alert-rule:{candidate_id}:not-eligible",
+                            now,
+                        )
+                    else:
+                        rule = locked.rule
+                        projection = self._repository.get_asset_projection(
+                            rule.asset_id,
+                            as_of=now,
+                        )
+                        observation = self._build_rule_observation(rule, projection, now)
+                        result = evaluator.evaluate_locked(
+                            locked,
+                            observation,
+                            profile_id=profile_id.strip(),
+                            evaluated_at=now,
+                        )
                 if result.status is AlertEvaluationStatus.TRIGGERED:
                     counts["triggered"] += 1
                 elif result.status is AlertEvaluationStatus.DEDUPLICATED:
@@ -215,6 +230,7 @@ class AssetObservationService:
                 elif result.status in {
                     AlertEvaluationStatus.SKIPPED_DATA_STALE,
                     AlertEvaluationStatus.SKIPPED_DATA_UNAVAILABLE,
+                    AlertEvaluationStatus.SKIPPED_RULE_NOT_ELIGIBLE,
                 }:
                     counts["skipped"] += 1
                 elif result.status is AlertEvaluationStatus.FAILED_UNIT_MISMATCH:
@@ -268,6 +284,17 @@ class AssetObservationService:
         status: str | None = None,
     ) -> list[Notification]:
         notification_status = NotificationStatus(status) if status is not None else None
+        if notification_status is NotificationStatus.PENDING:
+            recovered = self._repository.requeue_expired_delivery_claims(
+                profile_id,
+                _utc_now() - _DESKTOP_DELIVERY_LEASE,
+            )
+            if recovered:
+                logger.info(
+                    "expired desktop notification claims recovered",
+                    profile_id=profile_id,
+                    recovered_count=recovered,
+                )
         return [
             self._to_notification(row)
             for row in self._repository.list_notifications(
@@ -283,6 +310,7 @@ class AssetObservationService:
         status: str,
         *,
         expected_status: str,
+        delivery_claim_token: str | None = None,
     ) -> Notification:
         delivery_status = NotificationStatus(status)
         expected_delivery_status = NotificationStatus(expected_status)
@@ -299,12 +327,30 @@ class AssetObservationService:
         }
         if delivery_status not in allowed_transitions.get(expected_delivery_status, set()):
             raise ValueError("invalid notification delivery transition")
-        row = self._repository.mark_notification_delivery(
-            notification_id,
-            delivery_status,
-            expected_delivery_status,
-            _utc_now(),
-        )
+        now = _utc_now()
+        if delivery_status is NotificationStatus.DESKTOP_DELIVERING:
+            if delivery_claim_token is not None:
+                raise ValueError("claim token is server generated")
+            row = self._repository.claim_notification_delivery(
+                notification_id,
+                secrets.token_urlsafe(32),
+                now,
+            )
+        elif expected_delivery_status is NotificationStatus.DESKTOP_DELIVERING:
+            if not delivery_claim_token:
+                raise ValueError("delivery claim token is required")
+            row = self._repository.complete_notification_delivery(
+                notification_id,
+                delivery_status,
+                delivery_claim_token,
+                now,
+            )
+        else:
+            row = self._repository.mark_pending_notification_outcome(
+                notification_id,
+                delivery_status,
+                now,
+            )
         if row is None:
             if self._repository.get_notification(notification_id) is None:
                 raise AssetNotFoundError(notification_id)

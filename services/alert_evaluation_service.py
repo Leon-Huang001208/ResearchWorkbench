@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -24,6 +25,14 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+@dataclass(frozen=True)
+class LockedAlertRule:
+    """Authoritative rule and state read under the database row lock."""
+
+    rule: AlertRule
+    state: dict[str, Any]
+
+
 class AlertEvaluationService:
     """Evaluate one rule while preserving false-to-true edge semantics."""
 
@@ -41,9 +50,47 @@ class AlertEvaluationService:
         now = evaluated_at or _utc_now()
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("evaluated_at must be timezone-aware")
+        locked = self.lock_rule_for_evaluation(rule.rule_id, profile_id)
+        if locked is None:
+            return self.not_eligible(rule.rule_id, observation.observation_id, now)
+        return self.evaluate_locked(
+            locked,
+            observation,
+            profile_id=profile_id,
+            evaluated_at=now,
+        )
+
+    def lock_rule_for_evaluation(
+        self,
+        rule_id: str,
+        profile_id: str,
+    ) -> LockedAlertRule | None:
+        """Lock, fully refresh, and eligibility-check the authoritative rule."""
+
+        row = self._repository.lock_alert_rule(rule_id)
+        if row is None:
+            return None
+        rule = self._repository.to_alert_rule(row)
+        state = dict(row.state or {})
         if rule.status is not AlertRuleStatus.ACTIVE:
-            raise ValueError("only active rules can be evaluated")
-        state = self._repository.lock_rule_state(rule.rule_id)
+            return None
+        if state.get("profile_id") != profile_id:
+            return None
+        return LockedAlertRule(rule=rule, state=state)
+
+    def evaluate_locked(
+        self,
+        locked: LockedAlertRule,
+        observation: ObservationEnvelope,
+        *,
+        profile_id: str,
+        evaluated_at: datetime,
+    ) -> AlertEvaluation:
+        """Evaluate using only rule fields captured by the held row lock."""
+
+        rule = locked.rule
+        state = locked.state
+        now = evaluated_at
 
         unusable = self._unusable_status(observation)
         if unusable is not None:
@@ -172,6 +219,27 @@ class AlertEvaluationService:
             evaluated_at=now,
             alert_event_id=event_id,
             notification_id=notification_id,
+        )
+
+    def not_eligible(
+        self,
+        rule_id: str,
+        observation_id: str,
+        evaluated_at: datetime,
+    ) -> AlertEvaluation:
+        """Return an explicit skip without mutating a paused, retired, or foreign rule."""
+
+        logger.info(
+            "alert evaluation skipped because rule is not eligible",
+            rule_id=rule_id,
+            observation_id=observation_id,
+            evaluation_status=AlertEvaluationStatus.SKIPPED_RULE_NOT_ELIGIBLE.value,
+        )
+        return AlertEvaluation(
+            rule_id=rule_id,
+            observation_id=observation_id,
+            status=AlertEvaluationStatus.SKIPPED_RULE_NOT_ELIGIBLE,
+            evaluated_at=evaluated_at,
         )
 
     def _record_result(

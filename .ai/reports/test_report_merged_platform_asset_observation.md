@@ -15,6 +15,8 @@
 - Preserved identifier scheme/value/market internally and validates prioritized candidates against the matching fact table instead of trusting the first alias.
 - Added a production-callable due-alert batch and internal API that derive observations only from authoritative asset projections, isolate failures per Rule, and return evaluated/triggered/deduplicated/skipped/failed counts. Periodic Scheduler Coordinator wiring remains a later task.
 - Added conditional notification delivery transitions with `desktop_delivering`, plus one single-flight 60-second durable desktop poller and concurrent-consumer claim tests.
+- Closed the Rule pause/edit race by treating the active list as candidate IDs, fully refreshing each Rule under `FOR UPDATE`, and rechecking status/profile before using the locked threshold/operator/unit/state.
+- Added persisted 120-second desktop delivery leases with unpredictable claim tokens and attempt counters; stale claims are atomically recovered, stale completions conflict, and current-token completions clear the lease. Native delivery is explicitly at-least-once.
 - Hardened active-fund NAV point-in-time reads against future trading days and future availability timestamps.
 
 ## TDD evidence
@@ -30,6 +32,8 @@ The release capability review found that the packaged bootstrap's `http://127.0.
 The final security-boundary review then caught that putting this remote scope on `default` would also expose dialog, process, shell, and sidecar operations. The replacement RED test first failed because `notification-remote.json` did not exist. GREEN splits the origin into a `local=false` notification-only capability whose complete permission list is exactly the three notification operations, while `default` has no remote scope.
 
 The subsequent production-readiness RED run reported five of six Node behavior tests failing and four Python failures: no conditional claim/poller, no due-alert API, no atomic expected-status transition, and future fund NAV leakage. GREEN reached six Node passes and the focused Python slice passed with real SQLite trigger/notification persistence, stale/missing skips, per-rule failure continuation, delivery conflict recovery, and point-in-time fund selection.
+
+The final concurrency review began with seven Python failures and five of seven Node failures: a paused candidate still triggered, PostgreSQL locking was not compiled, delivery lease columns/tokens were absent, and the frontend could not complete a token-protected claim. GREEN reached 46 focused Python passes and seven Node passes, including real SQLite pause-after-list refresh, crash lease recovery, attempt rotation, old-token conflict, and new-token completion.
 
 ## Verification
 
@@ -55,6 +59,9 @@ The subsequent production-readiness RED run reported five of six Node behavior t
 | Production-readiness focused Python slice | `38 passed, 4 warnings`; covers due-alert batch persistence, stale/missing skips, per-rule isolation, atomic delivery conflicts, and fund point-in-time reads |
 | Production-readiness related Python regression | `132 passed, 5 warnings in 3.83s`; warnings remain the existing FastAPI `on_event` and legacy `datetime.utcnow()` deprecations |
 | Production-readiness dependency/build gate | `npm ci` installed 4 locked packages with 0 vulnerabilities; `cargo fmt --check` and `cargo check --locked` passed on local macOS in 0.85s |
+| Final concurrency regression: Task 2/3 contracts, migrations, asset observation, desktop bridge, asset analysis, and funds | `136 passed, 5 warnings in 3.67s`; warnings remain existing FastAPI `on_event` and legacy `datetime.utcnow()` deprecations |
+| Final lease/lock behavior and migration gates | `7` Node tests passed; PostgreSQL offline `017:018` DDL compiled with all three lease columns and the active-event partial index; SQLite `014→018→014` passed |
+| Final quality/dependency/build gate | Ruff, Black, and isort passed on all changed Python files; `npm ci` reported 0 vulnerabilities; locked macOS Cargo check completed in 0.79s |
 
 ## Dependency record
 
@@ -64,6 +71,6 @@ The subsequent production-readiness RED run reported five of six Node behavior t
 
 ## Limits and risks
 
-- No live PostgreSQL server integration test was run in this task. SQLite verifies a real active-event uniqueness conflict and recoverable savepoint, the migration suite verifies 015→018→014 including the partial index, and PostgreSQL offline DDL compilation verifies the corresponding filtered unique-index statement.
+- No live PostgreSQL server integration test was run in this task. SQLite verifies a real active-event uniqueness conflict, pause-after-list refresh, recoverable savepoint, and delivery lease recovery; the migration suite verifies 015→018→014, while PostgreSQL offline DDL compilation verifies the filtered unique index and explicit delivery lease columns.
 - Local macOS compilation is not Windows verification. Native Windows CI must build the sidecar and installed application, and release acceptance must test notification permission allow/deny and delivery on a real Windows installed app.
 - The existing no-bundler frontend initializes the global Tauri notification bridge after setup readiness. Native Windows delivery remains intentionally unclaimed until installed-app evidence exists.

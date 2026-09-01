@@ -113,6 +113,7 @@ class AlertEvaluationStatus(str, Enum):
     DEDUPLICATED = "deduplicated"
     SKIPPED_DATA_STALE = "skipped_data_stale"
     SKIPPED_DATA_UNAVAILABLE = "skipped_data_unavailable"
+    SKIPPED_RULE_NOT_ELIGIBLE = "skipped_rule_not_eligible"
     FAILED_UNIT_MISMATCH = "failed_unit_mismatch"
 
 
@@ -168,6 +169,9 @@ class Notification(BaseModel):
     title: str = Field(min_length=1, max_length=160)
     body: str = Field(min_length=1, max_length=500)
     status: NotificationStatus = NotificationStatus.PENDING
+    delivery_claim_token: str | None = None
+    delivery_claimed_at: AwareDatetime | None = None
+    delivery_attempt: int = Field(default=0, ge=0)
     created_at: AwareDatetime
     delivered_at: AwareDatetime | None = None
 

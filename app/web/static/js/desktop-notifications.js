@@ -14,25 +14,36 @@ async function updateDeliveryState(
     notificationId,
     status,
     expectedStatus,
+    deliveryClaimToken = undefined,
 ) {
+    const payload = { status, expected_status: expectedStatus };
+    if (deliveryClaimToken !== undefined) {
+        payload.delivery_claim_token = deliveryClaimToken;
+    }
     const response = await fetchImpl(
         `/api/asset-observation/notifications/${encodeURIComponent(notificationId)}/delivery`,
         {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status, expected_status: expectedStatus }),
+            body: JSON.stringify(payload),
         },
     );
     if (response.status === 409) {
-        return false;
+        return null;
     }
     if (!response.ok) {
         throw new Error(`notification delivery update failed with status ${response.status}`);
     }
-    return true;
+    return response.json();
 }
 
-async function recordOutcome(fetchImpl, records, status, expectedStatus) {
+async function recordOutcome(
+    fetchImpl,
+    records,
+    status,
+    expectedStatus,
+    deliveryClaimToken = undefined,
+) {
     let updated = 0;
     for (const record of records) {
         try {
@@ -41,6 +52,7 @@ async function recordOutcome(fetchImpl, records, status, expectedStatus) {
                 record.notification_id,
                 status,
                 expectedStatus,
+                deliveryClaimToken,
             );
             updated += transitioned ? 1 : 0;
         } catch (error) {
@@ -114,12 +126,13 @@ export async function processPendingDesktopNotifications({
     for (const record of pending) {
         let claimed = false;
         try {
-            claimed = await updateDeliveryState(
+            const claim = await updateDeliveryState(
                 fetchImpl,
                 record.notification_id,
                 'desktop_delivering',
                 'pending',
             );
+            claimed = claim?.delivery_claim_token || null;
         } catch (error) {
             console.error('[desktop-notifications] delivery claim failed', {
                 notificationId: record.notification_id,
@@ -139,6 +152,7 @@ export async function processPendingDesktopNotifications({
                 [record],
                 'desktop_delivered',
                 'desktop_delivering',
+                claimed,
             );
         } catch (error) {
             console.error('[desktop-notifications] native delivery failed', {
@@ -150,6 +164,7 @@ export async function processPendingDesktopNotifications({
                 [record],
                 'desktop_failed',
                 'desktop_delivering',
+                claimed,
             );
         }
     }

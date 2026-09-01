@@ -7,7 +7,8 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, insert
+from sqlalchemy import create_engine, insert, update
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 
 from core.contracts.asset_observation import (
@@ -106,7 +107,8 @@ class FakeAlertRepository:
     """Persist alert state, events, and notifications for edge tests."""
 
     def __init__(self) -> None:
-        self.state: dict[str, Any] = {}
+        self.rule = _rule()
+        self.state: dict[str, Any] = {"profile_id": "local"}
         self.events: dict[str, Any] = {}
         self.notifications: dict[str, Any] = {}
         self.lock_calls = 0
@@ -114,6 +116,17 @@ class FakeAlertRepository:
     def lock_rule_state(self, rule_id: str) -> dict[str, Any]:
         self.lock_calls += 1
         return dict(self.state)
+
+    def lock_alert_rule(self, rule_id: str) -> Any:
+        self.lock_calls += 1
+        return SimpleNamespace(
+            **self.rule.model_dump(mode="python"),
+            state=dict(self.state),
+        )
+
+    @staticmethod
+    def to_alert_rule(row: Any) -> AlertRule:
+        return AlertRule.model_validate(row, from_attributes=True)
 
     def get_rule_state(self, rule_id: str) -> dict[str, Any]:
         return dict(self.state)
@@ -560,12 +573,258 @@ def test_due_alert_entry_evaluates_authoritative_facts_and_skips_stale_or_missin
             expected_status="pending",
         )
         assert claimed.status.value == "desktop_delivering"
+        assert claimed.delivery_claim_token
+        assert claimed.delivery_claimed_at is not None
+        assert claimed.delivery_attempt == 1
         with pytest.raises(AssetObservationConflictError, match="conflict"):
             service.mark_notification_delivery(
                 notification_id,
                 "desktop_delivering",
                 expected_status="pending",
             )
+
+
+def test_due_alert_reloads_locked_rule_after_candidate_is_paused(tmp_path):
+    from data_layer.repositories.asset_observation_repository import (
+        AssetObservationRepository,
+    )
+    from data_layer.repositories.base import Base
+    from data_layer.repositories.models import (
+        AlertEventDB,
+        AlertRuleDB,
+        AssetIdentifierDB,
+        AssetRegistryDB,
+        NotificationDB,
+        StockMasterDB,
+        StockQuoteSnapshotDB,
+    )
+    from services.asset_observation_service import AssetObservationService
+
+    engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'pause-race.sqlite'}")
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            AssetRegistryDB.__table__,
+            AssetIdentifierDB.__table__,
+            StockMasterDB.__table__,
+            StockQuoteSnapshotDB.__table__,
+            AlertRuleDB.__table__,
+            AlertEventDB.__table__,
+            NotificationDB.__table__,
+        ],
+    )
+    with Session(engine) as seed:
+        seed.add(
+            AssetRegistryDB(
+                asset_id="asset-race",
+                asset_type="stock",
+                canonical_name="Race Asset",
+                updated_at=NOW,
+            )
+        )
+        seed.add(
+            AssetIdentifierDB(
+                identifier_id="identifier-race",
+                asset_id="asset-race",
+                scheme="wind",
+                value="race.SH",
+                market="CN",
+                valid_from=NOW - timedelta(days=1),
+            )
+        )
+        seed.add(
+            StockMasterDB(
+                symbol="race.SH",
+                raw_code="race",
+                name="Race Asset",
+                market="CN",
+                source="wind",
+                updated_at=NOW,
+                created_at=NOW,
+            )
+        )
+        seed.add(
+            StockQuoteSnapshotDB(
+                symbol="race.SH",
+                quote_time=NOW,
+                last_price=150,
+                source="wind",
+                created_at=NOW,
+            )
+        )
+        seed.add(
+            AlertRuleDB(
+                rule_id="rule-race",
+                asset_id="asset-race",
+                metric_type="price",
+                metric_key="last",
+                operator="gt",
+                threshold=100,
+                unit="CNY/share",
+                required_freshness="fresh",
+                cooldown_seconds=0,
+                status="active",
+                state={"condition_true": False, "profile_id": "local"},
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+        seed.commit()
+
+    class PauseAfterListRepository(AssetObservationRepository):
+        def list_active_alert_rules(self, profile_id: str) -> list[Any]:
+            candidates = super().list_active_alert_rules(profile_id)
+            with Session(engine) as writer:
+                writer.execute(
+                    update(AlertRuleDB)
+                    .where(AlertRuleDB.rule_id == "rule-race")
+                    .values(status="paused", updated_at=NOW + timedelta(seconds=1))
+                )
+                writer.commit()
+            return candidates
+
+    with Session(engine) as reader:
+        summary = AssetObservationService(PauseAfterListRepository(reader)).evaluate_due_alerts(
+            "local", NOW + timedelta(seconds=2)
+        )
+
+        assert summary.evaluated == 1
+        assert summary.skipped == 1
+        assert summary.triggered == 0
+        assert reader.query(AlertEventDB).count() == 0
+        assert reader.query(NotificationDB).count() == 0
+
+
+def test_alert_rule_lock_statement_compiles_to_postgresql_for_update():
+    from data_layer.repositories.asset_observation_repository import (
+        AssetObservationRepository,
+    )
+
+    statement = AssetObservationRepository.alert_rule_for_update_statement("rule-1")
+    ddl = str(statement.compile(dialect=postgresql.dialect()))
+
+    assert "FOR UPDATE" in ddl
+
+
+def test_notification_delivery_lease_recovers_crash_and_rejects_old_token():
+    from data_layer.repositories.asset_observation_repository import (
+        AssetObservationRepository,
+    )
+    from data_layer.repositories.base import Base
+    from data_layer.repositories.models import (
+        AlertEventDB,
+        AlertRuleDB,
+        AssetRegistryDB,
+        NotificationDB,
+    )
+    from services.asset_observation_service import (
+        AssetObservationConflictError,
+        AssetObservationService,
+    )
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            AssetRegistryDB.__table__,
+            AlertRuleDB.__table__,
+            AlertEventDB.__table__,
+            NotificationDB.__table__,
+        ],
+    )
+    with Session(engine) as session:
+        session.add(
+            AssetRegistryDB(
+                asset_id="asset-notification",
+                asset_type="stock",
+                canonical_name="Notification Asset",
+                updated_at=NOW,
+            )
+        )
+        session.add(
+            AlertRuleDB(
+                rule_id="rule-notification",
+                asset_id="asset-notification",
+                metric_type="price",
+                metric_key="last",
+                operator="gt",
+                threshold=100,
+                unit="CNY/share",
+                status="active",
+                state={"profile_id": "local"},
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+        session.add(
+            AlertEventDB(
+                event_id="event-notification",
+                rule_id="rule-notification",
+                observation_id="obs-notification",
+                dedupe_key="dedupe-notification",
+                status="open",
+                triggered_at=NOW,
+            )
+        )
+        session.add(
+            NotificationDB(
+                notification_id="notification-lease",
+                alert_event_id="event-notification",
+                profile_id="local",
+                title="Lease",
+                body="Lease body",
+                status="pending",
+                delivery_metadata={},
+                created_at=NOW,
+            )
+        )
+        session.commit()
+
+        service = AssetObservationService(AssetObservationRepository(session))
+        first_claim = service.mark_notification_delivery(
+            "notification-lease",
+            "desktop_delivering",
+            expected_status="pending",
+        )
+        first_token = first_claim.delivery_claim_token
+        assert first_token
+        session.execute(
+            update(NotificationDB)
+            .where(NotificationDB.notification_id == "notification-lease")
+            .values(delivery_claimed_at=datetime.now(UTC) - timedelta(seconds=121))
+        )
+        session.commit()
+
+        recovered = service.list_notifications("local", status="pending")
+        assert [item.notification_id for item in recovered] == ["notification-lease"]
+        assert recovered[0].delivery_claim_token is None
+
+        second_claim = service.mark_notification_delivery(
+            "notification-lease",
+            "desktop_delivering",
+            expected_status="pending",
+        )
+        second_token = second_claim.delivery_claim_token
+        assert second_token and second_token != first_token
+        assert second_claim.delivery_attempt == 2
+
+        with pytest.raises(AssetObservationConflictError, match="conflict"):
+            service.mark_notification_delivery(
+                "notification-lease",
+                "desktop_delivered",
+                expected_status="desktop_delivering",
+                delivery_claim_token=first_token,
+            )
+
+        completed = service.mark_notification_delivery(
+            "notification-lease",
+            "desktop_delivered",
+            expected_status="desktop_delivering",
+            delivery_claim_token=second_token,
+        )
+        assert completed.status.value == "desktop_delivered"
+        assert completed.delivery_claim_token is None
+        assert completed.delivery_claimed_at is None
 
 
 def test_active_fund_projection_excludes_future_trading_day_and_future_available_nav():

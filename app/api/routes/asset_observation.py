@@ -81,6 +81,7 @@ class AlertRuleStatusRequest(BaseModel):
 class NotificationDeliveryRequest(BaseModel):
     status: NotificationStatus
     expected_status: NotificationStatus
+    delivery_claim_token: str | None = Field(default=None, min_length=16, max_length=256)
 
 
 class DueAlertEvaluationRequest(BaseModel):
@@ -343,6 +344,7 @@ async def mark_notification_delivery(
             notification_id,
             request.status.value,
             expected_status=request.expected_status.value,
+            delivery_claim_token=request.delivery_claim_token,
         )
         logger.info(
             "asset observation write completed",

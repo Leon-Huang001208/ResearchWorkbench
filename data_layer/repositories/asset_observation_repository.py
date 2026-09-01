@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import and_, inspect, or_, select, update
+from sqlalchemy import and_, func, inspect, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from core.contracts.asset_observation import (
@@ -323,6 +323,32 @@ class AssetObservationRepository(BaseRepository):
 
         return self.db.begin_nested()
 
+    @staticmethod
+    def alert_rule_for_update_statement(rule_id: str):
+        """Build the authoritative PostgreSQL row-lock statement."""
+
+        return select(AlertRuleDB).where(AlertRuleDB.rule_id == rule_id).with_for_update()
+
+    def lock_alert_rule(self, rule_id: str) -> AlertRuleDB | None:
+        """Lock and fully refresh one rule inside the caller-owned transaction."""
+
+        try:
+            row = self.db.scalar(
+                self.alert_rule_for_update_statement(rule_id).execution_options(
+                    populate_existing=True
+                )
+            )
+            if row is not None:
+                self.db.refresh(row)
+            return row
+        except SQLAlchemyError as exc:
+            logger.error(
+                "alert rule lock failed",
+                rule_id=rule_id,
+                error_type=type(exc).__name__,
+            )
+            raise
+
     def get_alert_rule(self, rule_id: str) -> AlertRuleDB | None:
         return self.db.get(AlertRuleDB, rule_id)
 
@@ -342,25 +368,6 @@ class AssetObservationRepository(BaseRepository):
     def get_rule_state(self, rule_id: str) -> dict[str, Any]:
         row = self.db.get(AlertRuleDB, rule_id)
         return dict(row.state or {}) if row is not None else {}
-
-    def lock_rule_state(self, rule_id: str) -> dict[str, Any]:
-        """Lock and re-read mutable rule state for the caller's transaction."""
-
-        try:
-            row = self.db.scalar(
-                select(AlertRuleDB).where(AlertRuleDB.rule_id == rule_id).with_for_update()
-            )
-            if row is None:
-                raise LookupError("alert rule not found")
-            self.db.refresh(row, attribute_names=["state"])
-            return dict(row.state or {})
-        except SQLAlchemyError as exc:
-            logger.error(
-                "alert rule state lock failed",
-                rule_id=rule_id,
-                error_type=type(exc).__name__,
-            )
-            raise
 
     def update_rule_state(self, rule_id: str, state: dict[str, Any]) -> None:
         row = self.db.get(AlertRuleDB, rule_id)
@@ -497,13 +504,65 @@ class AssetObservationRepository(BaseRepository):
             statement = statement.where(NotificationDB.read_at.is_(None))
         if status is not None:
             statement = statement.where(NotificationDB.status == status.value)
+        statement = statement.execution_options(populate_existing=True)
         return list(self.db.scalars(statement).all())
 
-    def mark_notification_delivery(
+    def requeue_expired_delivery_claims(
+        self,
+        profile_id: str,
+        expired_before: datetime,
+    ) -> int:
+        result = self.db.execute(
+            update(NotificationDB)
+            .where(
+                and_(
+                    NotificationDB.profile_id == profile_id,
+                    NotificationDB.status == NotificationStatus.DESKTOP_DELIVERING.value,
+                    NotificationDB.delivery_claimed_at.is_not(None),
+                    NotificationDB.delivery_claimed_at <= expired_before,
+                )
+            )
+            .values(
+                status=NotificationStatus.PENDING.value,
+                delivery_claim_token=None,
+                delivery_claimed_at=None,
+                delivered_at=None,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        self.db.flush()
+        return int(result.rowcount or 0)
+
+    def claim_notification_delivery(
+        self,
+        notification_id: str,
+        claim_token: str,
+        claimed_at: datetime,
+    ) -> NotificationDB | None:
+        result = self.db.execute(
+            update(NotificationDB)
+            .where(
+                and_(
+                    NotificationDB.notification_id == notification_id,
+                    NotificationDB.status == NotificationStatus.PENDING.value,
+                )
+            )
+            .values(
+                status=NotificationStatus.DESKTOP_DELIVERING.value,
+                delivery_claim_token=claim_token,
+                delivery_claimed_at=claimed_at,
+                delivery_attempt=func.coalesce(NotificationDB.delivery_attempt, 0) + 1,
+                delivered_at=None,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        return self._notification_after_update(notification_id, result.rowcount)
+
+    def complete_notification_delivery(
         self,
         notification_id: str,
         status: NotificationStatus,
-        expected_status: NotificationStatus,
+        claim_token: str,
         delivered_at: datetime,
     ) -> NotificationDB | None:
         result = self.db.execute(
@@ -511,17 +570,50 @@ class AssetObservationRepository(BaseRepository):
             .where(
                 and_(
                     NotificationDB.notification_id == notification_id,
-                    NotificationDB.status == expected_status.value,
+                    NotificationDB.status == NotificationStatus.DESKTOP_DELIVERING.value,
+                    NotificationDB.delivery_claim_token == claim_token,
                 )
             )
             .values(
                 status=status.value,
-                delivered_at=(
-                    None if status is NotificationStatus.DESKTOP_DELIVERING else delivered_at
-                ),
+                delivery_claim_token=None,
+                delivery_claimed_at=None,
+                delivered_at=delivered_at,
             )
+            .execution_options(synchronize_session=False)
         )
-        if result.rowcount != 1:
+        return self._notification_after_update(notification_id, result.rowcount)
+
+    def mark_pending_notification_outcome(
+        self,
+        notification_id: str,
+        status: NotificationStatus,
+        delivered_at: datetime,
+    ) -> NotificationDB | None:
+        result = self.db.execute(
+            update(NotificationDB)
+            .where(
+                and_(
+                    NotificationDB.notification_id == notification_id,
+                    NotificationDB.status == NotificationStatus.PENDING.value,
+                )
+            )
+            .values(
+                status=status.value,
+                delivery_claim_token=None,
+                delivery_claimed_at=None,
+                delivered_at=delivered_at,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        return self._notification_after_update(notification_id, result.rowcount)
+
+    def _notification_after_update(
+        self,
+        notification_id: str,
+        rowcount: int | None,
+    ) -> NotificationDB | None:
+        if rowcount != 1:
             return None
         self.db.flush()
         return self.db.scalar(
@@ -599,6 +691,13 @@ class AssetObservationRepository(BaseRepository):
             title=row.title,
             body=row.body,
             status=row.status,
+            delivery_claim_token=row.delivery_claim_token,
+            delivery_claimed_at=(
+                _aware(row.delivery_claimed_at, fallback=_utc_now())
+                if row.delivery_claimed_at is not None
+                else None
+            ),
+            delivery_attempt=row.delivery_attempt,
             created_at=_aware(row.created_at, fallback=_utc_now()),
             delivered_at=(
                 _aware(row.delivered_at, fallback=_utc_now())

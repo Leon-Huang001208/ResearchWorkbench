@@ -147,6 +147,9 @@ def test_new_tables_define_identity_constraints_and_time_indexes():
     assert observation.c.observed_at.index is True
     assert domain_event.c.occurred_at.index is True
     assert notification.c.created_at.index is True
+    assert notification.c.delivery_claim_token.nullable is True
+    assert notification.c.delivery_claimed_at.nullable is True
+    assert notification.c.delivery_attempt.nullable is False
 
 
 def test_active_alert_event_partial_unique_index_is_declared_for_sqlite_and_postgresql():
@@ -204,6 +207,12 @@ def test_015_to_018_upgrade_and_downgrade_on_sqlite(tmp_path: Path):
 
     expected = set().union(*EXPECTED_BY_REVISION.values())
     assert expected.issubset(set(inspect(engine).get_table_names()))
+    notification_columns = {
+        column["name"]: column for column in inspect(engine).get_columns("notification")
+    }
+    assert notification_columns["delivery_claim_token"]["nullable"] is True
+    assert notification_columns["delivery_claimed_at"]["nullable"] is True
+    assert notification_columns["delivery_attempt"]["nullable"] is False
 
     with engine.begin() as connection:
         connection.execute(text("""

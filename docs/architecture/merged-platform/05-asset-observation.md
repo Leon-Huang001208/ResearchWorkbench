@@ -11,7 +11,7 @@
 - `watchlist` / `watchlist_item`：本地 profile 下的列表、条目、顺序和注释；Item 只引用 canonical asset ID。
 - `alert_rule`：metric、operator、threshold、unit、freshness、cooldown 与 enable 状态。
 - `alert_event`：触发边沿、观测引用、去重键、确认与解决；数据库 partial unique index 保证每条 Rule 最多一个 `open|acknowledged` 事件，已 resolved 事件不占用唯一位。
-- `notification`：站内通知权威记录；桌面系统通知是其投递投影。
+- `notification`：站内通知权威记录；`delivery_claim_token`、`delivery_claimed_at`、`delivery_attempt` 持久化桌面投递租约，桌面系统通知是其投递投影。
 
 ## 禁止依赖
 
@@ -41,17 +41,17 @@
 1. 服务解析 `AssetRef` 和当前有效 identifier；内部保留 scheme/value/market，按显式 scheme 优先级逐个验证现有事实表，命中后组合详情，对外 identifiers 仍为字符串列表。active_fund NAV 同时满足 `trading_day <= as_of.date()` 与 `updated_at <= as_of`，未来观测或未来可用事实不进入投影。
 2. 默认 peer：stock 按申万细分行业，index 按类别，ETF 按跟踪指数/主题，active_fund 按基金分类/基准；响应返回规则、样本和 as_of。
 3. 用户以 canonical asset ID 加入一个或多个 Watchlist。
-4. `evaluate_due_alerts(profile_id, evaluated_at)` 是可执行生产入口：查询 active rules，从现有资产事实投影构造 ObservationEnvelope，缺 metric/unit 或未来事实一律 unavailable/skip，不接受调用方自带 value/unit。每条规则在独立 savepoint 内按既有锁与 edge 语义评估，单条失败记录结构化日志但不中断批次。后续由 PostgreSQL Scheduler Coordinator 周期调用；当前不宣称后台自动调度已完成。
-5. Alert Evaluation 在同一数据库事务先以 `SELECT ... FOR UPDATE` 锁定 Rule 并重读 state。仅 fresh 且单位一致的 false→true 可生成 `alert_event` 和 `notification`；写冲突在 savepoint 中恢复为 deduplicated，不会遗留半写 notification。持续为 true 始终去重，不因 cooldown 到期重复提醒；转为 false 时当前事件自动 resolved，并重置边沿。下一次 false→true 若仍处于上次触发的 cooldown 窗口则返回 deduplicated，窗口结束后才触发新事件。
+4. `evaluate_due_alerts(profile_id, evaluated_at)` 是可执行生产入口：active 列表只提供候选 Rule ID；每条规则进入独立 savepoint 后以 `SELECT ... FOR UPDATE` 锁定并完整刷新权威 Rule，再校验 `status=active` 和 `state.profile_id`。不再符合条件时返回 `skipped_rule_not_eligible`，不生成 Event/Notification；符合条件时才按锁内 asset/metric/operator/threshold/unit/state 从现有资产事实投影构造 ObservationEnvelope。缺 metric/unit 或未来事实一律 unavailable/skip，不接受调用方自带 value/unit。单条失败记录结构化日志但不中断批次。后续由 PostgreSQL Scheduler Coordinator 周期调用；当前不宣称后台自动调度已完成。
+5. Alert Evaluation 仅使用完整锁内 Rule 和 state。仅 fresh 且单位一致的 false→true 可生成 `alert_event` 和 `notification`；写冲突在 savepoint 中恢复为 deduplicated，不会遗留半写 notification。持续为 true 始终去重，不因 cooldown 到期重复提醒；转为 false 时当前事件自动 resolved，并重置边沿。下一次 false→true 若仍处于上次触发的 cooldown 窗口则返回 deduplicated，窗口结束后才触发新事件。
 6. acknowledge/resolved 持久化；Task 4/DomainEvent SSE 后续可触发即时 notification 失效。
-7. 首版桌面前端以不超过 60 秒的 durable polling 从 `GET /api/asset-observation/notifications?profile_id=local&status=pending` 消费已持久化记录。发送前以条件更新原子抢占 `pending → desktop_delivering`，409 表示其他消费者已抢占；发送后仅允许 `desktop_delivering → desktop_delivered|desktop_failed`。轮询 single-flight 且只安装一次，权限拒绝/检查失败同样使用 expected status 条件更新；Web 非 Tauri 环境 no-op，任何结果都保留站内记录。
+7. 首版桌面前端以不超过 60 秒的 durable polling 从 `GET /api/asset-observation/notifications?profile_id=local&status=pending` 消费已持久化记录。权限批准后，服务端以不可预测 token 原子抢占 `pending → desktop_delivering`，持久化 claimed_at 并递增 attempt；最终 `desktop_delivering → desktop_delivered|desktop_failed` 必须携带同一 token。120 秒未完成的 claim 会在下一次 pending GET 前原子回收，新 attempt 获得新 token，旧 token 永远返回 409。轮询 single-flight 且只安装一次，权限拒绝/检查失败同样使用 expected status 条件更新；Web 非 Tauri 环境 no-op，任何结果都保留站内记录。原生通知是 at-least-once：系统已发送但最终 ACK 丢失时，租约回收后可能重复显示，不承诺 exactly-once。
 
 ## 状态与失败
 
 - Alert Rule：`draft → active → paused → retired`。
-- Evaluation：`not_matched|triggered|deduplicated|skipped_data_stale|skipped_data_unavailable|failed_unit_mismatch`。
+- Evaluation：`not_matched|triggered|deduplicated|skipped_data_stale|skipped_data_unavailable|skipped_rule_not_eligible|failed_unit_mismatch`。
 - Alert Event：`open → acknowledged → resolved`；每个 true 周期最多触发一次，持续真值始终去重；条件回到 false 时自动 resolved，下一次 false→true 仍受 cooldown 约束。
-- Notification：桌面路径为 `pending → desktop_delivering → desktop_delivered|desktop_failed`；权限拒绝/检查失败可由 `pending` 条件进入 `desktop_permission_denied|desktop_failed`。条件抢占失败返回 409，不回滚或删除站内记录。
+- Notification：桌面路径为 `pending → desktop_delivering → desktop_delivered|desktop_failed`；权限拒绝/检查失败可由 `pending` 条件进入 `desktop_permission_denied|desktop_failed`。抢占生成 120 秒租约，超时后回到 pending；完成必须匹配当前 claim token，旧 token 或条件冲突返回 409，不回滚或删除站内记录。
 - 写冲突返回 409，非法 operator/unit 返回 422，不存在的资产/列表返回 404。
 
 ## 可观测性
@@ -62,7 +62,7 @@
 
 - 四类资产详情与 peer-set metadata 测试；代码标识更新后 Watchlist Item identity 不变。
 - 多列表、排序、重复添加幂等和 workspace/profile 隔离测试。
-- stale/unavailable 不触发、单位不兼容拒绝、false→true 单次触发、回落后再触发测试；真实 SQLite 批次入口覆盖 trigger、stale/missing skip 与单规则失败继续执行。
+- stale/unavailable 不触发、单位不兼容拒绝、false→true 单次触发、回落后再触发测试；真实 SQLite 批次入口覆盖 trigger、stale/missing skip、单规则失败继续执行，以及候选列出后暂停的 Rule 不触发。PostgreSQL 方言测试确认锁语句包含 `FOR UPDATE`。
 - API 测试覆盖 400/404/409/422、acknowledge/resolved 与站内通知持久化。
-- 桌面通知在 Task 3 使用已获授权的官方插件实施；Node 行为测试覆盖 granted/denied/failed、仅消费 API 持久化记录以及拒绝后站内记录仍可查询。仍必须通过原生 macOS/Windows CI，并在发布前完成真实 Windows 安装级烟测。
+- 桌面通知在 Task 3 使用已获授权的官方插件实施；真实 SQLite 与 Node 行为测试覆盖 granted/denied/failed、并发 claim、崩溃后租约回收、新旧 token 隔离、仅消费 API 持久化记录以及拒绝后站内记录仍可查询。仍必须通过原生 macOS/Windows CI，并在发布前完成真实 Windows 安装级烟测。
 - 当前验收结论为“站内通知、最小权限前端桥和 macOS 本地编译已实现”；Windows installed-app 通知与系统投递仍须原生 CI 和真实安装级烟测。

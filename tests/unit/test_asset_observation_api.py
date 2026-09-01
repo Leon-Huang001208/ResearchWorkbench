@@ -35,6 +35,8 @@ class FakeService:
     def __init__(self) -> None:
         self.status_updates: list[tuple[str, str]] = []
         self.notification_status = "pending"
+        self.notification_claim_token: str | None = None
+        self.notification_delivery_attempt = 0
 
     def get_asset_snapshot(self, asset_id: str):
         from core.contracts.asset_observation import AssetSnapshotEnvelope
@@ -179,6 +181,8 @@ class FakeService:
                 title="价格提醒",
                 body="stock-1 已满足提醒条件",
                 status=self.notification_status,
+                delivery_claim_token=self.notification_claim_token,
+                delivery_attempt=self.notification_delivery_attempt,
                 created_at=NOW,
             )
         ]
@@ -189,11 +193,19 @@ class FakeService:
         status: str,
         *,
         expected_status: str,
+        delivery_claim_token: str | None = None,
     ) -> Notification:
         from services.asset_observation_service import AssetObservationConflictError
 
         if self.notification_status != expected_status:
             raise AssetObservationConflictError("notification transition conflict")
+        if status == "desktop_delivering":
+            self.notification_claim_token = "server-generated-claim-token"
+            self.notification_delivery_attempt += 1
+        elif expected_status == "desktop_delivering":
+            if delivery_claim_token != self.notification_claim_token:
+                raise AssetObservationConflictError("notification claim token conflict")
+            self.notification_claim_token = None
         self.notification_status = status
         return Notification(
             notification_id=notification_id,
@@ -202,6 +214,8 @@ class FakeService:
             title="价格提醒",
             body="stock-1 已满足提醒条件",
             status=status,
+            delivery_claim_token=self.notification_claim_token,
+            delivery_attempt=self.notification_delivery_attempt,
             created_at=NOW,
             delivered_at=NOW,
         )
@@ -329,6 +343,37 @@ def test_notifications_expose_only_persisted_safe_payload_and_delivery_state(cli
     assert delivered.status_code == 200
     assert delivered.json()["status"] == "desktop_permission_denied"
     assert conflict.status_code == 409
+
+
+def test_notification_delivery_completion_requires_server_claim_token(client_and_service):
+    client, _ = client_and_service
+    claimed = client.patch(
+        "/api/asset-observation/notifications/notification-1/delivery",
+        json={"status": "desktop_delivering", "expected_status": "pending"},
+    )
+    token = claimed.json()["delivery_claim_token"]
+    stale = client.patch(
+        "/api/asset-observation/notifications/notification-1/delivery",
+        json={
+            "status": "desktop_delivered",
+            "expected_status": "desktop_delivering",
+            "delivery_claim_token": "stale-token-123456",
+        },
+    )
+    completed = client.patch(
+        "/api/asset-observation/notifications/notification-1/delivery",
+        json={
+            "status": "desktop_delivered",
+            "expected_status": "desktop_delivering",
+            "delivery_claim_token": token,
+        },
+    )
+
+    assert claimed.status_code == 200
+    assert token == "server-generated-claim-token"
+    assert stale.status_code == 409
+    assert completed.status_code == 200
+    assert completed.json()["delivery_claim_token"] is None
 
 
 def test_evaluate_due_route_accepts_no_external_fact_payload(client_and_service):
