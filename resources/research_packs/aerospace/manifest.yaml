@@ -5,7 +5,7 @@ version: 1.0.0
 compatibility_version: merged-platform-v1
 status: discovered
 boundary: 发射活动、产业驱动、主机厂映射、CN5082、ETF资金与成分基本面事实；不包含策略评分。
-plugin_permissions: [normalize, validate, derive]
+plugins: []
 datasets:
   - &aerospace_long
     dataset_key: launch_activity
@@ -33,6 +33,7 @@ datasets:
     unit_field: unit
     source_name_field: source
     freshness_field: status
+    emitted_metric_keys: [launch_count]
   - <<: *aerospace_long
     dataset_key: industry_drivers
     source_priority: [official_industry_source]
@@ -64,6 +65,7 @@ datasets:
     source_name_field: source_name
     source_url_field: source_url
     freshness_field: status
+    emitted_metric_keys: [pe_ttm]
   - <<: {dataset_key: market_trend, schema_version: '1', frequency: daily, source_priority: [licensed_market_data], freshness_seconds: 172800, fields: *index_long_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
   - <<: {dataset_key: etf_flow_shares, schema_version: '1', frequency: daily, source_priority: [exchange, fund_manager], freshness_seconds: 172800, fields: *index_long_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
   - <<: {dataset_key: constituent_fundamentals, schema_version: '1', frequency: quarterly, source_priority: [company_filing, licensed_market_data], freshness_seconds: 10368000, fields: *index_long_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
@@ -87,8 +89,8 @@ datasets:
     value_field: company
     fixed_unit: mapping
 kpis:
-  - {kpi_key: launch_count, name: 发射次数, unit: count, frequency: monthly, dataset_key: launch_activity}
-  - {kpi_key: cn5082_pe, name: 航天军工指数估值, unit: x, frequency: daily, dataset_key: cn5082_valuation}
+  - {kpi_key: launch_count, name: 发射次数, unit: count, frequency: monthly, dataset_key: launch_activity, metric_key: launch_count}
+  - {kpi_key: cn5082_pe, name: 航天军工指数估值, unit: x, frequency: daily, dataset_key: cn5082_valuation, metric_key: pe_ttm}
 value_chain:
   - {node_key: components, name: 核心元器件, stage: upstream, evidence_refs: [dataset:industry_drivers]}
   - {node_key: prime_contractors, name: 主机厂, stage: midstream, evidence_refs: [dataset:prime_contractor_map]}

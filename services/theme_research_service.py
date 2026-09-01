@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import json
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from core.contracts.market_home import MarketHomeSectionKey
 from core.contracts.platform_shared import FreshnessStatus, SourceRef, SourceTier
 from core.contracts.theme_research import (
     DatasetField,
@@ -33,6 +36,7 @@ from core.contracts.theme_research import (
 )
 from core.observability import get_logger
 from data_layer.repositories.theme_research_repository import ThemeResearchRepository
+from services.market_home_invalidation import record_market_home_fact_update
 from services.theme_pack_registry import ThemePackRegistry, ThemePackValidationError
 
 logger = get_logger(__name__)
@@ -75,15 +79,15 @@ class ThemeResearchService:
         """Validate, enable, and persist every bundled first-party Pack."""
 
         synced: list[ThemePackManifest] = []
-        for manifest in self.registry.discover():
-            current = manifest
-            if current.status is PackLifecycle.DISCOVERED:
+        for declared in self.registry.discover():
+            persisted = self.repository.get_manifest(declared.pack_key, declared.version)
+            current = persisted or declared
+            if persisted is None and current.status is PackLifecycle.DISCOVERED:
                 current = self.registry.transition(current.pack_key, PackLifecycle.VALIDATED)
-            if current.status is PackLifecycle.VALIDATED:
+            if persisted is None and current.status is PackLifecycle.VALIDATED:
                 current = self.registry.transition(current.pack_key, PackLifecycle.ENABLED)
             self.repository.save_manifest(
                 current,
-                content_hash=self.registry.content_hash(current),
                 validation_result={"manifest": "valid"},
             )
             synced.append(current)
@@ -93,7 +97,12 @@ class ThemeResearchService:
     def list_catalog(self) -> list[ThemePackManifest]:
         """Return declared Packs without importing plugin code or fetching data."""
 
-        return self.registry.discover()
+        manifests = []
+        for declared in self.registry.discover():
+            manifests.append(
+                self.repository.get_manifest(declared.pack_key, declared.version) or declared
+            )
+        return manifests
 
     def ingest_file(
         self,
@@ -106,7 +115,13 @@ class ThemeResearchService:
     ) -> ThemeIngestionReport:
         """Scan a CSV deterministically; write accepted facts only with explicit apply."""
 
-        manifest = self._manifest(pack_key)
+        try:
+            declared = self.registry.get(pack_key)
+        except ThemePackValidationError as exc:
+            raise ThemePackNotFoundError(pack_key) from exc
+        if apply:
+            self.repository.lock_ingestion_namespace(pack_key, dataset_key)
+        manifest = self.repository.get_manifest(declared.pack_key, declared.version) or declared
         source_path = Path(path).resolve()
         try:
             content = source_path.read_bytes()
@@ -119,8 +134,11 @@ class ThemeResearchService:
             )
             raise ThemeIngestionError("theme source cannot be read") from exc
         source_hash = f"sha256:{hashlib.sha256(content).hexdigest()}"
+        ingestion_mode = "apply" if apply else "dry-run"
         if checkpoint is not None and checkpoint.source_hash != source_hash:
             raise ThemeIngestionError("checkpoint source hash does not match the source file")
+        if checkpoint is not None and checkpoint.mode != ingestion_mode:
+            raise ThemeIngestionError("checkpoint mode does not match the ingestion mode")
         try:
             text = content.decode("utf-8-sig")
             reader = csv.DictReader(text.splitlines())
@@ -166,41 +184,25 @@ class ThemeResearchService:
 
         results: list[IngestionRowResult] = []
         accepted_observations: list[ThemeObservation] = []
-        seen_identity_hashes: set[str] = set()
+        seen_observations: dict[str, ThemeObservation] = {}
         for row_number, row in enumerate(rows, start=2):
             if checkpoint is not None and row_number <= checkpoint.last_row_number:
                 continue
-            identity = self._row_identity(dataset, row)
-            identity_hash = hashlib.sha256(identity.encode()).hexdigest()
-            if identity_hash in seen_identity_hashes or self.repository.observation_exists(
-                pack_key,
-                dataset_key,
-                identity_hash,
-                source_hash,
-            ):
-                results.append(
-                    IngestionRowResult(
-                        row_number=row_number,
-                        row_identity_hash=identity_hash,
-                        outcome="duplicate",
-                    )
-                )
-                continue
-            seen_identity_hashes.add(identity_hash)
+            base_identity = self._row_identity(dataset, row)
+            fallback_hash = hashlib.sha256(base_identity.encode()).hexdigest()
             try:
-                observation = self._normalize_row(
+                observations = self._normalize_row(
                     manifest,
                     dataset,
                     row,
                     row_number,
-                    identity_hash,
                     source_hash,
                 )
             except _RejectedRow as exc:
                 results.append(
                     IngestionRowResult(
                         row_number=row_number,
-                        row_identity_hash=identity_hash,
+                        row_identity_hash=fallback_hash,
                         outcome="rejected",
                         error_code=exc.code,
                     )
@@ -209,7 +211,7 @@ class ThemeResearchService:
                 results.append(
                     IngestionRowResult(
                         row_number=row_number,
-                        row_identity_hash=identity_hash,
+                        row_identity_hash=fallback_hash,
                         outcome="quarantined",
                         error_code="invalid_row_semantics",
                     )
@@ -219,18 +221,59 @@ class ThemeResearchService:
                     pack_key=pack_key,
                     dataset_key=dataset_key,
                     source_hash=source_hash,
-                    row_identity_hash=identity_hash,
+                    row_identity_hash=fallback_hash,
                     error_type=type(exc).__name__,
                 )
             else:
-                accepted_observations.append(observation)
-                results.append(
-                    IngestionRowResult(
-                        row_number=row_number,
-                        row_identity_hash=identity_hash,
-                        outcome="accepted",
+                if not observations:
+                    results.append(
+                        IngestionRowResult(
+                            row_number=row_number,
+                            row_identity_hash=fallback_hash,
+                            outcome="quarantined",
+                            error_code="no_observation_values",
+                        )
                     )
-                )
+                    continue
+                for observation in observations:
+                    if apply:
+                        self.repository.lock_observation_identity(
+                            pack_key,
+                            dataset_key,
+                            observation.row_identity,
+                        )
+                    existing = seen_observations.get(observation.row_identity)
+                    if existing is None:
+                        existing = self.repository.get_observation_by_identity(
+                            pack_key,
+                            dataset_key,
+                            observation.row_identity,
+                        )
+                    if existing is not None:
+                        if self._same_normalized_payload(existing, observation):
+                            outcome = "duplicate"
+                            error_code = None
+                        else:
+                            outcome = "quarantined"
+                            error_code = "identity_payload_conflict"
+                        results.append(
+                            IngestionRowResult(
+                                row_number=row_number,
+                                row_identity_hash=observation.row_identity,
+                                outcome=outcome,
+                                error_code=error_code,
+                            )
+                        )
+                        continue
+                    seen_observations[observation.row_identity] = observation
+                    accepted_observations.append(observation)
+                    results.append(
+                        IngestionRowResult(
+                            row_number=row_number,
+                            row_identity_hash=observation.row_identity,
+                            outcome="accepted",
+                        )
+                    )
 
         counts = {
             key: sum(result.outcome == key for result in results)
@@ -250,7 +293,11 @@ class ThemeResearchService:
             rows=results,
             checkpoint=IngestionCheckpoint(
                 source_hash=source_hash,
-                last_row_number=max((result.row_number for result in results), default=1),
+                mode=ingestion_mode,
+                last_row_number=max(
+                    (result.row_number for result in results),
+                    default=checkpoint.last_row_number if checkpoint is not None else 1,
+                ),
             ),
             **counts,
         )
@@ -260,7 +307,17 @@ class ThemeResearchService:
                 for observation in accepted_observations:
                     self.repository.insert_observation(observation)
                 self.repository.record_ingestion_report(report)
-            except (SQLAlchemyError, LookupError):
+                sections = self._market_home_sections(dataset)
+                if sections and accepted_observations:
+                    record_market_home_fact_update(
+                        self.repository.db,
+                        sections,
+                        as_of=max(
+                            observation.available_at for observation in accepted_observations
+                        ),
+                        idempotency_key=(f"theme:{pack_key}:{dataset_key}:{source_hash}"),
+                    )
+            except (SQLAlchemyError, LookupError, ValueError):
                 logger.error(
                     "theme ingestion apply failed",
                     pack_key=pack_key,
@@ -289,18 +346,42 @@ class ThemeResearchService:
         observations = self.repository.list_observations(pack_key, as_of=point_in_time)
         if not observations:
             raise ThemeDataUnavailableError(pack_key)
-        latest: dict[str, ThemeObservation] = {}
-        for observation in observations:
-            latest.setdefault(f"{observation.dataset_key}:{observation.metric_key}", observation)
-        observed_datasets = {item.dataset_key for item in observations}
+        latest = self._select_latest_facts(observations)
+        datasets = {dataset.dataset_key: dataset for dataset in manifest.datasets}
+        latest = {
+            key: self._with_effective_freshness(
+                observation,
+                datasets.get(observation.dataset_key),
+                point_in_time,
+            )
+            for key, observation in latest.items()
+        }
+        selected_by_dataset: dict[str, list[ThemeObservation]] = {}
+        for observation in latest.values():
+            selected_by_dataset.setdefault(observation.dataset_key, []).append(observation)
+        usable_datasets = {
+            dataset_key
+            for dataset_key, selected in selected_by_dataset.items()
+            if selected
+            and all(
+                self._effective_freshness(item, datasets.get(dataset_key), point_in_time)
+                is FreshnessStatus.FRESH
+                for item in selected
+            )
+        }
         required = {dataset.dataset_key for dataset in manifest.datasets if dataset.required}
-        coverage = len(required & observed_datasets) / len(required) if required else 1.0
-        freshness = self._aggregate_freshness(list(latest.values()))
+        coverage = len(required & usable_datasets) / len(required) if required else 1.0
+        freshness = self._aggregate_freshness(
+            [
+                self._effective_freshness(item, datasets.get(item.dataset_key), point_in_time)
+                for item in latest.values()
+            ]
+        )
         return ThemeSnapshot(
             pack_key=pack_key,
             facts={key: value.model_dump(mode="json") for key, value in latest.items()},
             coverage=coverage,
-            as_of=point_in_time,
+            as_of=max(item.as_of for item in latest.values()),
             observed_at=max(item.observed_at for item in latest.values()),
             available_at=max(item.available_at for item in latest.values()),
             source_refs=self._unique_sources(list(latest.values())),
@@ -312,6 +393,7 @@ class ThemeResearchService:
         manifest = self._manifest(pack_key)
         point_in_time = self._aware(as_of or self._now())
         series: list[ThemeKPIValue] = []
+        datasets = {dataset.dataset_key: dataset for dataset in manifest.datasets}
         for definition in manifest.kpis:
             observations = self.repository.list_observations(
                 pack_key,
@@ -324,11 +406,16 @@ class ThemeResearchService:
                     name=definition.name,
                     unit=definition.unit,
                     frequency=definition.frequency,
-                    observation=observation,
+                    observation=self._with_effective_freshness(
+                        observation,
+                        datasets.get(observation.dataset_key),
+                        point_in_time,
+                    ),
                 )
                 for observation in observations
-                if observation.unit == definition.unit
-                or observation.unit.lower() == definition.unit.lower()
+                if observation.metric_key == definition.metric_key
+                and observation.unit is not None
+                and observation.unit.casefold() == definition.unit.casefold()
             )
         return ThemeKPIProjection(pack_key=pack_key, series=series, as_of=point_in_time)
 
@@ -352,8 +439,13 @@ class ThemeResearchService:
         manifest = self._manifest(pack_key)
         point_in_time = self._aware(as_of or self._now())
         observations = self.repository.list_observations(pack_key, as_of=point_in_time)
+        datasets = {dataset.dataset_key: dataset for dataset in manifest.datasets}
         events = [
-            item
+            self._with_effective_freshness(
+                item,
+                datasets.get(item.dataset_key),
+                point_in_time,
+            )
             for item in observations
             if item.dataset_key.endswith("events")
             or item.metric_key in manifest.event_types
@@ -366,7 +458,7 @@ class ThemeResearchService:
                 source.tier in {SourceTier.OFFICIAL, SourceTier.LICENSED}
                 for source in item.source_refs
             )
-            and item.payload.get("verification_status", "verified") == "verified"
+            and item.payload.get("verification_status") == "verified"
         ]
         leads = [item for item in events if item not in verified]
         return ThemeEventProjection(
@@ -392,17 +484,25 @@ class ThemeResearchService:
         manifest = self._manifest(pack_key)
         point_in_time = self._aware(as_of or self._now())
         observations = self.repository.list_observations(pack_key, as_of=point_in_time)
-        latest_by_dataset: dict[str, datetime] = {}
-        for observation in observations:
-            latest_by_dataset.setdefault(observation.dataset_key, observation.available_at)
+        selected = self._select_latest_facts(observations)
+        selected_by_dataset: dict[str, list[ThemeObservation]] = {}
+        for observation in selected.values():
+            selected_by_dataset.setdefault(observation.dataset_key, []).append(observation)
         coverage: dict[str, float] = {}
         ages: dict[str, float | None] = {}
         flags: list[str] = []
         for dataset in manifest.datasets:
-            latest = latest_by_dataset.get(dataset.dataset_key)
-            age = max(0.0, (point_in_time - latest).total_seconds()) if latest else None
+            dataset_facts = selected_by_dataset.get(dataset.dataset_key, [])
+            fact_ages = [
+                max(0.0, (point_in_time - fact.available_at).total_seconds())
+                for fact in dataset_facts
+            ]
+            age = max(fact_ages) if fact_ages else None
             ages[dataset.dataset_key] = age
-            usable = latest is not None and age is not None and age <= dataset.freshness_seconds
+            usable = bool(dataset_facts) and all(
+                self._effective_freshness(fact, dataset, point_in_time) is FreshnessStatus.FRESH
+                for fact in dataset_facts
+            )
             coverage[dataset.dataset_key] = 1.0 if usable else 0.0
             if dataset.required and not usable:
                 flags.append(f"required_dataset_unavailable:{dataset.dataset_key}")
@@ -439,14 +539,14 @@ class ThemeResearchService:
 
     def _manifest(self, pack_key: str) -> ThemePackManifest:
         try:
-            return self.registry.get(pack_key)
+            declared = self.registry.get(pack_key)
+            return self.repository.get_manifest(declared.pack_key, declared.version) or declared
         except ThemePackValidationError as exc:
             raise ThemePackNotFoundError(pack_key) from exc
 
     def _persist_manifest_if_needed(self, manifest: ThemePackManifest) -> None:
         self.repository.save_manifest(
             manifest,
-            content_hash=self.registry.content_hash(manifest),
         )
 
     def _normalize_row(
@@ -455,9 +555,8 @@ class ThemeResearchService:
         dataset: DatasetManifest,
         row: dict[str, str],
         row_number: int,
-        identity_hash: str,
         source_hash: str,
-    ) -> ThemeObservation:
+    ) -> list[ThemeObservation]:
         fields = {field.name: field for field in dataset.fields}
         for field in dataset.fields:
             if field.required and not (row.get(field.name) or "").strip():
@@ -474,10 +573,6 @@ class ThemeResearchService:
             if dataset.available_at_field
             else observed_at
         )
-        value = self._parse_value(row[dataset.value_field], fields[dataset.value_field])
-        unit = row.get(dataset.unit_field, "").strip() if dataset.unit_field else dataset.fixed_unit
-        if isinstance(value, (int, float)) and not unit:
-            raise _RejectedRow("numeric_unit_missing")
         source_name = (
             row.get(dataset.source_name_field, "").strip()
             if dataset.source_name_field
@@ -489,35 +584,98 @@ class ThemeResearchService:
         source = SourceRef(
             source_id=self._slug(source_name),
             name=source_name,
-            tier=self._source_tier(source_name, dataset.source_priority),
+            tier=self._source_tier(source_name, dataset.source_tiers),
             content_hash=source_hash,
             source_url=source_url,
         )
         freshness = self._freshness(dataset, row, available_at)
         quality_flags = [] if freshness is FreshnessStatus.FRESH else ["source_reported_not_fresh"]
-        return ThemeObservation(
-            observation_id=f"theme-observation-{hashlib.sha256(f'{source_hash}:{identity_hash}'.encode()).hexdigest()}",
-            pack_key=manifest.pack_key,
-            dataset_key=dataset.dataset_key,
-            row_identity=identity_hash,
-            subject_ref=f"theme:{manifest.pack_key}:{row[dataset.subject_field].strip()}",
-            metric_key=row[dataset.metric_field].strip(),
-            value=value,
-            unit=unit,
-            as_of=available_at,
-            observed_at=observed_at,
-            available_at=available_at,
-            source_refs=[source],
-            freshness_status=freshness,
-            quality_flags=quality_flags,
-            source_hash=source_hash,
-            payload={
-                key: value
-                for key, value in row.items()
-                if key in fields and key not in _FORBIDDEN_FIELDS
-            }
-            | {"source_row_number": row_number},
+        normalized_payload = {
+            name: self._normalize_payload_value(row.get(name, ""), field)
+            for name, field in fields.items()
+            if name not in _FORBIDDEN_FIELDS and (row.get(name) or "").strip()
+        }
+        if dataset.verification_field:
+            normalized_payload["verification_status"] = (
+                row.get(dataset.verification_field, "").strip().lower()
+            )
+        normalized_payload["source_row_number"] = row_number
+        identity_values = [normalized_payload[field] for field in dataset.identity_fields]
+        if dataset.source_row_discriminator == "row_number":
+            identity_values.append(row_number)
+        base_identity = json.dumps(
+            identity_values,
+            ensure_ascii=False,
+            separators=(",", ":"),
         )
+        subject_ref = f"theme:{manifest.pack_key}:{row[dataset.subject_field].strip()}"
+        if dataset.dimension_fields:
+            dimensions = [
+                f"{field}={quote(str(normalized_payload[field]), safe='')}"
+                for field in dataset.dimension_fields
+            ]
+            if dataset.source_row_discriminator == "row_number":
+                dimensions.append(f"source_row_number={row_number}")
+            dimension_key = "|".join(dimensions)
+            normalized_payload["dimension_key"] = dimension_key
+            subject_ref = f"theme:{manifest.pack_key}:{dataset.dataset_key}:{dimension_key}"
+        base_metric = row[dataset.metric_field].strip()
+        mappings: list[tuple[str, str, str | None, str | None]] = []
+        if dataset.observation_fields:
+            for mapping in dataset.observation_fields:
+                metric_key = mapping.metric_key or f"{base_metric}.{mapping.metric_suffix}"
+                mappings.append(
+                    (
+                        mapping.value_field,
+                        metric_key,
+                        mapping.unit_field,
+                        mapping.fixed_unit,
+                    )
+                )
+        else:
+            mappings.append(
+                (
+                    dataset.value_field,
+                    base_metric,
+                    dataset.unit_field,
+                    dataset.fixed_unit,
+                )
+            )
+
+        observations: list[ThemeObservation] = []
+        for value_field, metric_key, unit_field, fixed_unit in mappings:
+            raw_value = (row.get(value_field) or "").strip()
+            if not raw_value:
+                continue
+            value = self._parse_value(raw_value, fields[value_field])
+            unit = (row.get(unit_field, "").strip() if unit_field else fixed_unit) or None
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and not unit:
+                raise _RejectedRow("numeric_unit_missing")
+            identity_hash = hashlib.sha256(f"{base_identity}\x1f{metric_key}".encode()).hexdigest()
+            observations.append(
+                ThemeObservation(
+                    observation_id=(
+                        "theme-observation-"
+                        + hashlib.sha256(f"{source_hash}:{identity_hash}".encode()).hexdigest()
+                    ),
+                    pack_key=manifest.pack_key,
+                    dataset_key=dataset.dataset_key,
+                    row_identity=identity_hash,
+                    subject_ref=subject_ref,
+                    metric_key=metric_key,
+                    value=value,
+                    unit=unit,
+                    as_of=observed_at,
+                    observed_at=observed_at,
+                    available_at=available_at,
+                    source_refs=[source],
+                    freshness_status=freshness,
+                    quality_flags=quality_flags,
+                    source_hash=source_hash,
+                    payload=dict(normalized_payload),
+                )
+            )
+        return observations
 
     def _rejected_file_report(
         self,
@@ -563,6 +721,7 @@ class ThemeResearchService:
             checkpoint=IngestionCheckpoint(
                 source_hash=source_hash,
                 last_row_number=row_results[-1].row_number,
+                mode="apply" if apply else "dry-run",
             ),
         )
 
@@ -578,9 +737,7 @@ class ThemeResearchService:
     ) -> FreshnessStatus:
         raw = (row.get(dataset.freshness_field, "") if dataset.freshness_field else "").lower()
         if raw in {status.value for status in FreshnessStatus}:
-            reported = FreshnessStatus(raw)
-            if reported is not FreshnessStatus.FRESH:
-                return reported
+            return FreshnessStatus(raw)
         age = max(0.0, (self._aware(self._now()) - available_at).total_seconds())
         return FreshnessStatus.FRESH if age <= dataset.freshness_seconds else FreshnessStatus.STALE
 
@@ -597,7 +754,7 @@ class ThemeResearchService:
     def _parse_value(value: str, field: DatasetField) -> Any:
         text = value.strip()
         if field.data_type == "number":
-            return float(text.replace(",", ""))
+            return float(text.replace(",", "").removesuffix("%"))
         if field.data_type == "integer":
             return int(text.replace(",", ""))
         if field.data_type == "boolean":
@@ -606,6 +763,124 @@ class ThemeResearchService:
                 raise ValueError("invalid boolean")
             return normalized in {"true", "1", "yes"}
         return text
+
+    @staticmethod
+    def _normalize_payload_value(value: str, field: DatasetField) -> Any:
+        """Canonicalize every declared source field before deduplication."""
+
+        if field.data_type in {"date", "datetime"}:
+            return ThemeResearchService._parse_datetime(value, field).isoformat()
+        return ThemeResearchService._parse_value(value, field)
+
+    @staticmethod
+    def _same_normalized_payload(
+        left: ThemeObservation,
+        right: ThemeObservation,
+    ) -> bool:
+        """Compare semantic facts while ignoring file hash and physical row position."""
+
+        def canonical(observation: ThemeObservation) -> dict[str, Any]:
+            payload = {
+                key: value
+                for key, value in observation.payload.items()
+                if key != "source_row_number"
+            }
+            sources = [
+                {
+                    "source_id": source.source_id,
+                    "name": source.name,
+                    "tier": source.tier.value,
+                    "source_url": source.source_url,
+                }
+                for source in observation.source_refs
+            ]
+            semantic = {
+                "subject_ref": observation.subject_ref,
+                "metric_key": observation.metric_key,
+                "value": observation.value,
+                "unit": observation.unit,
+                "as_of": observation.as_of.isoformat(),
+                "observed_at": observation.observed_at.isoformat(),
+                "available_at": observation.available_at.isoformat(),
+                "sources": sources,
+                "payload": payload,
+            }
+            return semantic
+
+        return canonical(left) == canonical(right)
+
+    @staticmethod
+    def _market_home_sections(
+        dataset: DatasetManifest,
+    ) -> set[MarketHomeSectionKey]:
+        """Map only explicitly participating theme facts to home invalidations."""
+
+        sections: set[MarketHomeSectionKey] = set()
+        if dataset.market_home_section is not None:
+            sections.add(MarketHomeSectionKey(dataset.market_home_section))
+        if dataset.dataset_key == "market_home_global":
+            sections.add(MarketHomeSectionKey.GLOBAL_CONTEXT)
+        if dataset.dataset_key == "market_home_mainline":
+            sections.add(MarketHomeSectionKey.MARKET_MAINLINES)
+        return sections
+
+    @staticmethod
+    def _select_latest_facts(
+        observations: list[ThemeObservation],
+    ) -> dict[str, ThemeObservation]:
+        """Select the newest fact period, then its newest admissible publication."""
+
+        selected: dict[str, ThemeObservation] = {}
+        for observation in observations:
+            key = (
+                f"{observation.dataset_key}:{observation.subject_ref}:" f"{observation.metric_key}"
+            )
+            current = selected.get(key)
+            if current is None or (
+                observation.as_of,
+                observation.available_at,
+                observation.observation_id,
+            ) > (
+                current.as_of,
+                current.available_at,
+                current.observation_id,
+            ):
+                selected[key] = observation
+        return selected
+
+    @staticmethod
+    def _effective_freshness(
+        observation: ThemeObservation,
+        dataset: DatasetManifest | None,
+        point_in_time: datetime,
+    ) -> FreshnessStatus:
+        if observation.freshness_status is not FreshnessStatus.FRESH:
+            return observation.freshness_status
+        if dataset is None:
+            return FreshnessStatus.UNAVAILABLE
+        age = max(0.0, (point_in_time - observation.available_at).total_seconds())
+        if age > dataset.freshness_seconds:
+            return FreshnessStatus.STALE
+        return FreshnessStatus.FRESH
+
+    @classmethod
+    def _with_effective_freshness(
+        cls,
+        observation: ThemeObservation,
+        dataset: DatasetManifest | None,
+        point_in_time: datetime,
+    ) -> ThemeObservation:
+        """Project SLA freshness without mutating the stored source observation."""
+
+        effective = cls._effective_freshness(observation, dataset, point_in_time)
+        if effective is observation.freshness_status:
+            return observation
+        flags = list(observation.quality_flags)
+        if "dataset_sla_stale" not in flags:
+            flags.append("dataset_sla_stale")
+        return observation.model_copy(
+            update={"freshness_status": effective, "quality_flags": flags}
+        )
 
     @staticmethod
     def _aware(value: datetime) -> datetime:
@@ -618,24 +893,26 @@ class ThemeResearchService:
         return "-".join(value.lower().split()) or "source"
 
     @staticmethod
-    def _source_tier(source_name: str, priorities: list[str]) -> SourceTier:
-        normalized = f"{source_name} {' '.join(priorities)}".lower()
-        if any(token in normalized for token in ("official", "exchange", "imf", "lbma", "sge")):
-            return SourceTier.OFFICIAL
-        if "licensed" in normalized:
-            return SourceTier.LICENSED
+    def _source_tier(
+        source_name: str,
+        declared_tiers: dict[str, SourceTier],
+    ) -> SourceTier:
+        normalized = source_name.casefold().strip()
+        exact_tiers = {key.casefold().strip(): value for key, value in declared_tiers.items()}
+        if normalized in exact_tiers:
+            return exact_tiers[normalized]
         return SourceTier.PUBLIC
 
     @staticmethod
-    def _aggregate_freshness(observations: list[ThemeObservation]) -> FreshnessStatus:
-        statuses = {item.freshness_status for item in observations}
+    def _aggregate_freshness(statuses: list[FreshnessStatus]) -> FreshnessStatus:
+        unique_statuses = set(statuses)
         for status in (
             FreshnessStatus.QUARANTINED,
             FreshnessStatus.UNAVAILABLE,
             FreshnessStatus.STALE,
             FreshnessStatus.FRESH,
         ):
-            if status in statuses:
+            if status in unique_statuses:
                 return status
         return FreshnessStatus.UNAVAILABLE
 
@@ -660,11 +937,9 @@ class ThemeResearchService:
             target = PackLifecycle.ENABLED
         if target is None:
             return
-        updated = self.registry.transition(manifest.pack_key, target)
+        updated = manifest.model_copy(update={"status": target})
         try:
-            self.repository.update_pack_status(
-                updated.pack_key, updated.version, updated.status.value
-            )
+            self.repository.update_pack_status(updated.pack_key, updated.version, updated.status)
         except LookupError:
             logger.info(
                 "theme pack lifecycle not persisted because catalog is not synchronized",

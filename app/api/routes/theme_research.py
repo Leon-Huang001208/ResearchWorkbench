@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import AwareDatetime, BaseModel, Field
@@ -63,7 +63,7 @@ ThemeResearchServiceDependency = Annotated[
 ]
 
 
-def _raise_safe_http_error(exc: Exception) -> None:
+def _raise_safe_http_error(exc: Exception) -> NoReturn:
     if isinstance(exc, ThemePackNotFoundError):
         raise HTTPException(status_code=404, detail="Theme pack not found") from exc
     if isinstance(exc, ThemeDataUnavailableError):

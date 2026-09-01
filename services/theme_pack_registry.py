@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import ast
 import hashlib
-import inspect
 import json
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -18,33 +15,19 @@ from core.observability import get_logger
 
 logger = get_logger(__name__)
 
-_ALLOWED_PLUGIN_OPERATIONS = frozenset({"normalize", "validate", "derive"})
-_FORBIDDEN_IMPORT_ROOTS = frozenset(
-    {
-        "anthropic",
-        "asyncio.subprocess",
-        "http",
-        "httpx",
-        "openai",
-        "os",
-        "pathlib",
-        "psycopg",
-        "requests",
-        "socket",
-        "sqlalchemy",
-        "subprocess",
-        "urllib",
-    }
-)
-_FORBIDDEN_CALLS = frozenset(
-    {"__import__", "compile", "eval", "exec", "open", "popen", "run", "system"}
-)
-_LIFECYCLE_TRANSITIONS = {
-    PackLifecycle.DISCOVERED: {PackLifecycle.VALIDATED},
-    PackLifecycle.VALIDATED: {PackLifecycle.ENABLED, PackLifecycle.DISABLED},
-    PackLifecycle.ENABLED: {PackLifecycle.DEGRADED, PackLifecycle.DISABLED},
-    PackLifecycle.DEGRADED: {PackLifecycle.ENABLED, PackLifecycle.DISABLED},
-    PackLifecycle.DISABLED: set(),
+_BUILTIN_PLUGINS = {
+    "builtin.identity.v1": ("validate", lambda value: value),
+    "builtin.trim_string.v1": (
+        "normalize",
+        lambda value: value.strip() if isinstance(value, str) else value,
+    ),
+}
+_LIFECYCLE_TRANSITIONS: dict[PackLifecycle, frozenset[PackLifecycle]] = {
+    PackLifecycle.DISCOVERED: frozenset({PackLifecycle.VALIDATED}),
+    PackLifecycle.VALIDATED: frozenset({PackLifecycle.ENABLED, PackLifecycle.DISABLED}),
+    PackLifecycle.ENABLED: frozenset({PackLifecycle.DEGRADED, PackLifecycle.DISABLED}),
+    PackLifecycle.DEGRADED: frozenset({PackLifecycle.ENABLED, PackLifecycle.DISABLED}),
+    PackLifecycle.DISABLED: frozenset(),
 }
 
 
@@ -56,20 +39,12 @@ class PluginSecurityError(ValueError):
     """A plugin requests or references a forbidden capability."""
 
 
-class _RegisteredPlugin:
-    def __init__(self, operation: str, function: Callable[[Any], Any], fingerprint: str):
-        self.operation = operation
-        self.function = function
-        self.fingerprint = fingerprint
-
-
 class ThemePackRegistry:
-    """Load manifests and execute only explicitly registered pure plugins."""
+    """Load manifests and execute only versioned, trusted built-in transforms."""
 
     def __init__(self, root: Path):
         self.root = Path(root).resolve()
         self._manifests: dict[str, ThemePackManifest] = {}
-        self._plugins: dict[str, _RegisteredPlugin] = {}
 
     def discover(self) -> list[ThemePackManifest]:
         """Validate every first-party manifest in deterministic key order."""
@@ -100,10 +75,8 @@ class ThemePackRegistry:
             raise ThemePackValidationError("manifest cannot be read safely") from exc
         if not isinstance(raw, dict):
             raise ThemePackValidationError("manifest root must be an object")
-        permissions = raw.get("plugin_permissions", [])
-        forbidden = set(permissions) - _ALLOWED_PLUGIN_OPERATIONS
-        if forbidden:
-            raise ThemePackValidationError(f"forbidden permission declared: {sorted(forbidden)}")
+        if "plugin_permissions" in raw:
+            raise ThemePackValidationError("forbidden permission declared; use trusted plugin IDs")
         try:
             manifest = ThemePackManifest.model_validate(raw)
         except ValidationError as exc:
@@ -113,6 +86,10 @@ class ThemePackRegistry:
                 error_count=exc.error_count(),
             )
             raise ThemePackValidationError("manifest validation failed") from exc
+        for binding in manifest.plugins:
+            builtin = _BUILTIN_PLUGINS.get(binding.plugin_id)
+            if builtin is None or builtin[0] != binding.operation:
+                raise ThemePackValidationError("manifest references an unknown trusted plugin ID")
         existing = self._manifests.get(manifest.pack_key)
         if existing is not None and existing.version != manifest.version:
             raise ThemePackValidationError("duplicate pack key has a conflicting version")
@@ -155,61 +132,37 @@ class ThemePackRegistry:
         return updated
 
     def validate_plugin_source(self, source: str) -> None:
-        """Statically reject imports and calls that escape the pure plugin boundary."""
+        """Reject all externally supplied Python source; only built-ins can execute."""
 
-        try:
-            tree = ast.parse(source)
-        except SyntaxError as exc:
-            raise PluginSecurityError("plugin source is invalid") from exc
-        functions = {
-            node.name
-            for node in tree.body
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        }
-        if not functions or not functions.issubset(_ALLOWED_PLUGIN_OPERATIONS):
-            raise PluginSecurityError("plugin may only define normalize, validate, or derive")
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                self._reject_imports(alias.name for alias in node.names)
-            elif isinstance(node, ast.ImportFrom):
-                self._reject_imports([node.module or ""])
-            elif isinstance(node, ast.Call):
-                name = self._call_name(node.func)
-                if name.split(".")[-1] in _FORBIDDEN_CALLS:
-                    raise PluginSecurityError(f"forbidden plugin call: {name}")
+        del source
+        raise PluginSecurityError("external plugin source is forbidden; use a trusted built-in ID")
 
     def register_plugin(
         self,
         name: str,
         operation: str,
-        function: Callable[[Any], Any],
+        function: Any,
     ) -> None:
-        """Register a trusted in-process pure function after bytecode capability checks."""
+        """Reject runtime Python registration regardless of callable shape or closure."""
 
-        if operation not in _ALLOWED_PLUGIN_OPERATIONS:
-            raise PluginSecurityError("forbidden plugin operation")
-        self._validate_callable(function)
-        fingerprint = self._plugin_fingerprint(function)
-        self._plugins[name] = _RegisteredPlugin(operation, function, fingerprint)
-        logger.info("theme pack plugin registered", plugin=name, operation=operation)
+        del name, operation, function
+        raise PluginSecurityError("arbitrary callables are forbidden; use a trusted built-in ID")
 
     def run_plugin(self, name: str, value: Any) -> Any:
-        """Revalidate the registered callable at runtime before invoking it."""
+        """Invoke a fixed built-in by immutable ID with JSON-only input and output."""
 
-        plugin = self._plugins.get(name)
-        if plugin is None:
-            raise PluginSecurityError("plugin is not registered")
-        self._validate_callable(plugin.function)
-        if self._plugin_fingerprint(plugin.function) != plugin.fingerprint:
-            raise PluginSecurityError("plugin implementation changed after registration")
+        builtin = _BUILTIN_PLUGINS.get(name)
+        if builtin is None:
+            raise PluginSecurityError("plugin is not a trusted built-in ID")
         safe_value = self._json_like_copy(value)
         try:
-            result = plugin.function(safe_value)
+            operation, function = builtin
+            result = function(safe_value)
         except Exception as exc:
             logger.warning(
                 "theme pack plugin execution failed",
                 plugin=name,
-                operation=plugin.operation,
+                operation=operation,
                 error_type=type(exc).__name__,
             )
             raise PluginSecurityError("plugin execution failed") from exc
@@ -217,51 +170,10 @@ class ThemePackRegistry:
 
     @staticmethod
     def content_hash(manifest: ThemePackManifest) -> str:
-        """Return a stable hash for persistence and version review."""
+        """Hash immutable declarations while lifecycle remains database-owned."""
 
-        payload = manifest.model_dump_json(exclude_none=True)
+        payload = manifest.model_dump_json(exclude_none=True, exclude={"status"})
         return f"sha256:{hashlib.sha256(payload.encode()).hexdigest()}"
-
-    @staticmethod
-    def _call_name(node: ast.expr) -> str:
-        if isinstance(node, ast.Name):
-            return node.id
-        if isinstance(node, ast.Attribute):
-            prefix = ThemePackRegistry._call_name(node.value)
-            return f"{prefix}.{node.attr}" if prefix else node.attr
-        return ""
-
-    @staticmethod
-    def _reject_imports(names: Any) -> None:
-        for name in names:
-            if any(name == root or name.startswith(f"{root}.") for root in _FORBIDDEN_IMPORT_ROOTS):
-                raise PluginSecurityError(f"forbidden plugin import: {name}")
-            if name.startswith(("core.model_gateway", "data_layer", "storage")):
-                raise PluginSecurityError(f"forbidden plugin import: {name}")
-
-    @staticmethod
-    def _validate_callable(function: Callable[[Any], Any]) -> None:
-        if not callable(function) or not hasattr(function, "__code__"):
-            raise PluginSecurityError("plugin must be a Python function")
-        names = set(function.__code__.co_names)
-        forbidden_names = names & (_FORBIDDEN_CALLS | _FORBIDDEN_IMPORT_ROOTS)
-        if forbidden_names or any(
-            name.startswith(("model_gateway", "sqlalchemy", "subprocess")) for name in names
-        ):
-            raise PluginSecurityError("plugin callable references a forbidden capability")
-        closure = inspect.getclosurevars(function)
-        for value in (*closure.globals.values(), *closure.nonlocals.values()):
-            module = getattr(value, "__module__", "") or getattr(value, "__name__", "")
-            if any(
-                module == root or module.startswith(f"{root}.") for root in _FORBIDDEN_IMPORT_ROOTS
-            ):
-                raise PluginSecurityError("plugin closure contains a forbidden capability")
-
-    @staticmethod
-    def _plugin_fingerprint(function: Callable[[Any], Any]) -> str:
-        code = function.__code__
-        payload = code.co_code + repr(code.co_consts).encode() + repr(code.co_names).encode()
-        return hashlib.sha256(payload).hexdigest()
 
     @staticmethod
     def _json_like_copy(value: Any) -> Any:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -11,7 +12,6 @@ from app.api.routes.theme_research import get_theme_research_service, router
 from core.contracts.platform_shared import AssetRef, FreshnessStatus, SourceRef
 from core.contracts.theme_research import (
     PackHealth,
-    PackLifecycle,
     ThemeAssetExposure,
     ThemeAssetProjection,
     ThemeEventProjection,
@@ -21,9 +21,11 @@ from core.contracts.theme_research import (
     ThemeValueChainProjection,
     WorkspacePrefillRequest,
 )
+from services.theme_pack_registry import ThemePackRegistry
 from services.theme_research_service import ThemePackNotFoundError
 
 NOW = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
+PACK_ROOT = Path(__file__).parents[2] / "resources" / "research_packs"
 SOURCE = SourceRef(
     source_id="official",
     name="Official",
@@ -36,15 +38,7 @@ class FakeThemeResearchService:
     def _manifest(self, key: str) -> ThemePackManifest:
         if key == "missing":
             raise ThemePackNotFoundError(key)
-        return ThemePackManifest(
-            pack_key=key,
-            name=key,
-            version="1.0.0",
-            compatibility_version="1",
-            status=PackLifecycle.ENABLED,
-            boundary="facts only",
-            research_template_keys=["theme_overview"],
-        )
+        return ThemePackRegistry(PACK_ROOT).get(key)
 
     def list_catalog(self):
         return [self._manifest("gold")]

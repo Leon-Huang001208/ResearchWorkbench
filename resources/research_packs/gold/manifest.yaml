@@ -5,12 +5,13 @@ version: 1.0.0
 compatibility_version: merged-platform-v1
 status: discovered
 boundary: 黄金价格、供需、ETF、现货/SGE、央行储备与宏观事实；不包含交易信号或目标仓位。
-plugin_permissions: [normalize, validate, derive]
+plugins: []
 datasets:
   - dataset_key: gold_price
     schema_version: '1'
     frequency: daily
     source_priority: [lbma, world_gold_council]
+    source_tiers: {lbma: official}
     freshness_seconds: 86400
     fields: &gold_long_fields
       - {name: observation_date, data_type: date}
@@ -32,6 +33,7 @@ datasets:
     source_name_field: source_name
     source_url_field: source_url
     freshness_field: status
+    emitted_metric_keys: [close]
   - dataset_key: gold_supply_demand
     schema_version: '1'
     frequency: quarterly
@@ -112,6 +114,7 @@ datasets:
     source_name_field: source_name
     source_url_field: source_url
     freshness_field: status
+    emitted_metric_keys: [central_bank_net_purchase]
   - dataset_key: gold_macro
     schema_version: '1'
     frequency: daily
@@ -129,8 +132,8 @@ datasets:
     source_url_field: source_url
     freshness_field: status
 kpis:
-  - {kpi_key: gold_close, name: 国际金价, unit: USD/oz, frequency: daily, dataset_key: gold_price}
-  - {kpi_key: central_bank_net_purchase, name: 央行净购金, unit: tonne, frequency: monthly, dataset_key: central_bank_reserves}
+  - {kpi_key: gold_close, name: 国际金价, unit: USD/oz, frequency: daily, dataset_key: gold_price, metric_key: close}
+  - {kpi_key: central_bank_net_purchase, name: 央行净购金, unit: tonne, frequency: monthly, dataset_key: central_bank_reserves, metric_key: central_bank_net_purchase}
 value_chain:
   - {node_key: mining, name: 金矿开采, stage: upstream, evidence_refs: [dataset:gold_supply_demand]}
   - {node_key: refining, name: 冶炼精炼, stage: midstream, evidence_refs: [dataset:gold_supply_demand]}

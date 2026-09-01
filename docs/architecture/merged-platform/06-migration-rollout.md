@@ -26,9 +26,10 @@
 ```text
 scripts/migrate_lsh_theme_data.py --source <path> --dry-run --output <report.json>
 scripts/migrate_lsh_theme_data.py --source <path> --apply --output <report.json>
+scripts/migrate_lsh_theme_data.py --source <path> --dry-run --resume-from <prior-report.json> --output <report.json>
 ```
 
-默认必须是 dry-run；apply 需要显式参数。报告类型 `MigrationReport` 包含 `accepted/quarantined/rejected/duplicate`、文件/行数、缺失、冲突、单位、source hashes、目标 revision 与数据库写入计数。
+默认必须是 dry-run；apply 需要显式参数。报告类型 `MigrationReport` 包含 `accepted/quarantined/rejected/duplicate`、文件/行数、缺失、冲突、单位、source hashes、逐文件 checkpoint、运行 mode、目标 revision 与数据库写入计数。恢复报告必须与同一 source root/source hash/mode 匹配；dry-run checkpoint 禁止用于 apply 跳行。apply 只有在数据库 commit 成功后才原子发布报告，commit 失败 rollback 且不生成成功报告。
 
 兼容门禁 `LegacyCapabilityDecision` 返回 `allowed`、`missing_evidence`、`target`、`archive_path`。旧适配器响应带 deprecation 标识和 correlation ID；新前端只调用新领域 API。
 
@@ -37,7 +38,7 @@ scripts/migrate_lsh_theme_data.py --source <path> --apply --output <report.json>
 1. 冻结 LSH source version 与文件哈希，分类为 data、runtime、UI、strategy/trading 或 discard。
 2. 运行四段 Alembic：`015_add_platform_fact_core` → `016_add_theme_and_market_home` → `017_add_research_workspace_runtime` → `018_add_asset_observation`。
 3. 对 LSH 主题文件运行 dry-run，审阅 accepted/quarantined/rejected、重复、单位和冲突。
-4. 获得明确 apply 决策后写入新表；按 source hash + row identity 幂等，复核计数和抽样事实。
+4. 获得明确 apply 决策后写入新表；按规范化业务 dimension/source-row discriminator（禁止值/数量参与 identity）+ 完整规范化 payload 判定 duplicate/不可解释冲突，source hash 保留审计。dimension 同时进入 subject_ref/read-model key，防止投影隐式折叠。PostgreSQL 使用事务级 advisory lock 串行化并发 semantic identity；复核计数和抽样事实。
 5. 新 API 与旧能力并行读，对相同 fixture/as_of 跑 parity；前端切到新 API，旧适配器持续计量调用。
 6. `data_migration + parity_test + regression + call_count_zero + archive_path` 全绿后停止 LSH，把目录与数据导出设为只读归档，并观察一个稳定版本；观察期发现回归时恢复适配器而不是双写。
 7. 稳定观察期完成且所有证据持续有效后，gate 才允许删除重复 Flask、SQLite、静态 Dashboard 和平行运行模型；策略、交易和基金审批不进入删除集合。删除后继续回归监测。

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from data_layer.repositories.theme_research_repository import ThemeResearchRepository
 from scripts.migrate_lsh_theme_data import (
@@ -41,6 +42,22 @@ def test_cli_parser_defaults_to_dry_run(tmp_path: Path) -> None:
     )
 
     assert args.apply is False
+
+
+def test_cli_parser_accepts_resume_report(tmp_path: Path) -> None:
+    checkpoint = tmp_path / "previous.json"
+    args = build_parser().parse_args(
+        [
+            "--source",
+            str(tmp_path),
+            "--output",
+            str(tmp_path / "report.json"),
+            "--resume-from",
+            str(checkpoint),
+        ]
+    )
+
+    assert args.resume_from == checkpoint
 
 
 def test_script_entrypoint_can_run_from_a_file_path() -> None:
@@ -90,6 +107,67 @@ def test_explicit_apply_is_idempotent(db_session, tmp_path: Path) -> None:
     assert second["totals"]["duplicate"] == 1
     assert second["totals"]["applied"] == 0
     assert ThemeResearchRepository(db_session).count_observations("aerospace") == 1
+
+
+def test_resume_uses_per_file_checkpoint_and_preserves_completed_position(
+    db_session,
+    tmp_path: Path,
+) -> None:
+    source = _source_tree(tmp_path / "skills")
+    first_output = tmp_path / "first.json"
+    first = run_migration(source, first_output, db_session=db_session)
+
+    resumed = run_migration(
+        source,
+        tmp_path / "resumed.json",
+        db_session=db_session,
+        resume_from=first_output,
+    )
+
+    launch_path = "aerospace-etf-analysis/launch-activity.csv"
+    assert resumed["files"][0]["accepted"] == 0
+    assert resumed["checkpoints"][launch_path] == first["checkpoints"][launch_path]
+
+
+def test_apply_rejects_resume_from_dry_run_without_skipping_unwritten_rows(
+    db_session,
+    tmp_path: Path,
+) -> None:
+    source = _source_tree(tmp_path / "skills")
+    dry_run_output = tmp_path / "dry-run.json"
+    run_migration(source, dry_run_output, db_session=db_session)
+    apply_output = tmp_path / "apply.json"
+
+    with pytest.raises(MigrationCLIError, match="mode"):
+        run_migration(
+            source,
+            apply_output,
+            db_session=db_session,
+            apply=True,
+            resume_from=dry_run_output,
+        )
+
+    assert ThemeResearchRepository(db_session).count_observations("aerospace") == 0
+    assert not apply_output.exists()
+
+
+def test_apply_report_is_not_written_when_database_commit_fails(
+    db_session,
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = _source_tree(tmp_path / "skills")
+    output = tmp_path / "apply.json"
+
+    def fail_commit() -> None:
+        raise SQLAlchemyError("commit failed")
+
+    monkeypatch.setattr(db_session, "commit", fail_commit)
+
+    with pytest.raises(MigrationCLIError, match="commit"):
+        run_migration(source, output, db_session=db_session, apply=True)
+
+    assert not output.exists()
 
 
 def test_missing_source_fails_without_creating_report(db_session, tmp_path: Path) -> None:

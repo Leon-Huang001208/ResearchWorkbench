@@ -5,7 +5,7 @@ version: 1.0.0
 compatibility_version: merged-platform-v1
 status: discovered
 boundary: 产业链价格、装机出口、供给盈利、估值情绪和行情事实；不迁 catalysts/score_hint、策略或订单。
-plugin_permissions: [normalize, validate, derive]
+plugins: []
 datasets:
   - dataset_key: weekly_prices_detail
     schema_version: '1'
@@ -34,6 +34,11 @@ datasets:
     unit_field: unit
     source_name_field: source_name
     source_url_field: source_url
+    observation_fields:
+      - {value_field: price_low, metric_suffix: price_low, unit_field: unit}
+      - {value_field: price_mid, metric_suffix: price_mid, unit_field: unit}
+      - {value_field: price_high, metric_suffix: price_high, unit_field: unit}
+    emitted_metric_keys: [polysilicon.price_mid]
   - dataset_key: price_consensus
     schema_version: '1'
     frequency: weekly
@@ -60,6 +65,10 @@ datasets:
     value_field: primary_mid
     unit_field: unit
     source_name_field: primary_source
+    observation_fields:
+      - {value_field: primary_mid, metric_suffix: primary_mid, unit_field: unit}
+      - {value_field: secondary_mid, metric_suffix: secondary_mid, unit_field: unit}
+      - {value_field: spread_pct, metric_suffix: spread_pct, fixed_unit: percent}
   - dataset_key: demand_installation
     schema_version: '1'
     frequency: monthly
@@ -81,6 +90,7 @@ datasets:
     value_field: current_value
     fixed_unit: reported
     source_name_field: caliber
+    emitted_metric_keys: [国内新增装机]
   - <<: {dataset_key: supply_profitability, schema_version: '1', frequency: monthly, source_priority: [industry_official], freshness_seconds: 3456000, fields: *pv_track_fields, identity_fields: [observation_date, indicator], observed_at_field: observation_date, available_at_field: last_checked, subject_field: caliber, metric_field: indicator, value_field: current_value, fixed_unit: reported, source_name_field: caliber}
   - <<: {dataset_key: weekly_prices, schema_version: '1', frequency: weekly, source_priority: [industry_official], freshness_seconds: 1209600, fields: *pv_track_fields, identity_fields: [observation_date, indicator], observed_at_field: observation_date, available_at_field: last_checked, subject_field: caliber, metric_field: indicator, value_field: current_value, fixed_unit: reported, source_name_field: caliber}
   - <<: {dataset_key: pv_track, schema_version: '1', frequency: weekly, source_priority: [documented_caliber], freshness_seconds: 1209600, fields: *pv_track_fields, identity_fields: [observation_date, indicator], observed_at_field: observation_date, available_at_field: last_checked, subject_field: caliber, metric_field: indicator, value_field: current_value, fixed_unit: reported, source_name_field: caliber}
@@ -114,8 +124,8 @@ datasets:
     freshness_field: status
   - <<: {dataset_key: market_valuation_sentiment, schema_version: '1', frequency: daily, source_priority: [licensed_market_data], freshness_seconds: 172800, fields: *pv_market_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
 kpis:
-  - {kpi_key: polysilicon_price, name: 硅料价格, unit: CNY/kg, frequency: weekly, dataset_key: weekly_prices_detail}
-  - {kpi_key: installation, name: 光伏新增装机, unit: GW, frequency: monthly, dataset_key: demand_installation}
+  - {kpi_key: polysilicon_price, name: 硅料价格, unit: CNY/kg, frequency: weekly, dataset_key: weekly_prices_detail, metric_key: polysilicon.price_mid}
+  - {kpi_key: installation, name: 光伏新增装机, unit: reported, frequency: monthly, dataset_key: demand_installation, metric_key: 国内新增装机}
 value_chain:
   - {node_key: silicon, name: 硅料, stage: upstream, evidence_refs: [dataset:weekly_prices_detail]}
   - {node_key: wafer_cell, name: 硅片与电池片, stage: midstream, evidence_refs: [dataset:weekly_prices_detail]}
@@ -124,5 +134,5 @@ event_types: [price_change, capacity_change, installation_release, export_releas
 asset_exposures:
   - asset: {asset_id: 'index:399673.SZ', asset_type: index, display_name: 创业板50}
     exposure_type: market_proxy
-    rationale_ref: manifest:photovoltaic:chinext50_proxy
+    rationale_ref: manifest:photovoltaic:market_trend
 research_template_keys: [photovoltaic_chain_health, photovoltaic_event_review]

@@ -24,8 +24,10 @@ if str(_BOOTSTRAP_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_BOOTSTRAP_PROJECT_ROOT))
 
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from core.contracts.theme_research import IngestionCheckpoint
 from core.observability import get_logger, setup_logging
 from data_layer.repositories.base import Base, db_session
 from data_layer.repositories.theme_research_repository import (
@@ -108,6 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True, help="LSH manual_data/skills root")
     parser.add_argument("--output", type=Path, required=True, help="JSON report destination")
+    parser.add_argument(
+        "--resume-from",
+        type=Path,
+        help="prior JSON report whose per-file checkpoints should be resumed",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--apply", action="store_true", help="write accepted observations")
     mode.add_argument(
@@ -124,6 +131,7 @@ def run_migration(
     *,
     db_session: Session,
     apply: bool = False,
+    resume_from: Path | None = None,
 ) -> dict[str, Any]:
     """Scan all known top-level LSH Pack CSVs and atomically publish a report."""
 
@@ -131,6 +139,7 @@ def run_migration(
     if not source_root.is_dir():
         raise MigrationCLIError("source directory does not exist or is not readable")
     output_path = Path(output).resolve()
+    checkpoints = _load_resume_checkpoints(resume_from, source_root, apply=apply)
     service = ThemeResearchService(
         ThemeResearchRepository(db_session),
         ThemePackRegistry(_PACK_ROOT),
@@ -146,12 +155,14 @@ def run_migration(
 
     for source_file, pack_key, dataset_key in _iter_sources(source_root):
         relative_path = source_file.relative_to(source_root).as_posix()
+        checkpoint = checkpoints.get(relative_path)
         try:
             result = service.ingest_file(
                 pack_key,
                 dataset_key,
                 source_file,
                 apply=apply,
+                checkpoint=checkpoint,
             )
             file_report = result.model_dump(mode="json")
         except ThemeIngestionError as exc:
@@ -177,7 +188,11 @@ def run_migration(
                 "duplicate": 0,
                 "applied": 0,
                 "rows": [],
-                "checkpoint": {"source_hash": source_hash, "last_row_number": 1},
+                "checkpoint": {
+                    "source_hash": source_hash,
+                    "last_row_number": 1,
+                    "mode": "apply" if apply else "dry-run",
+                },
                 "file_error_code": "invalid_source_file",
             }
         file_report["source_file"] = relative_path
@@ -190,12 +205,24 @@ def run_migration(
         "source_root": str(source_root),
         "generated_at": datetime.now(UTC).isoformat(),
         "target_revision": "018",
+        "resumed_from": str(Path(resume_from).resolve()) if resume_from else None,
         "files_scanned": len(files),
         "totals": totals,
         "source_hashes": {item["source_file"]: item["source_hash"] for item in files},
         "checkpoints": {item["source_file"]: item["checkpoint"] for item in files},
         "files": files,
     }
+    if apply:
+        try:
+            db_session.commit()
+        except SQLAlchemyError as exc:
+            db_session.rollback()
+            logger.error(
+                "LSH theme migration commit failed",
+                files_scanned=len(files),
+                error_type=type(exc).__name__,
+            )
+            raise MigrationCLIError("database commit failed; apply report was not written") from exc
     _write_report_atomic(output_path, report)
     logger.info(
         "LSH theme migration completed",
@@ -208,6 +235,35 @@ def run_migration(
         applied=totals["applied"],
     )
     return report
+
+
+def _load_resume_checkpoints(
+    resume_from: Path | None,
+    source_root: Path,
+    *,
+    apply: bool,
+) -> dict[str, IngestionCheckpoint]:
+    if resume_from is None:
+        return {}
+    resume_path = Path(resume_from).resolve()
+    try:
+        raw = json.loads(resume_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise MigrationCLIError("resume report cannot be read safely") from exc
+    if not isinstance(raw, dict) or not isinstance(raw.get("checkpoints"), dict):
+        raise MigrationCLIError("resume report does not contain checkpoints")
+    if Path(str(raw.get("source_root", ""))).resolve() != source_root:
+        raise MigrationCLIError("resume report source root does not match --source")
+    expected_mode = "apply" if apply else "dry-run"
+    if raw.get("mode") != expected_mode:
+        raise MigrationCLIError("resume report mode is incompatible with this migration")
+    try:
+        return {
+            str(relative_path): IngestionCheckpoint.model_validate(checkpoint)
+            for relative_path, checkpoint in raw["checkpoints"].items()
+        }
+    except (TypeError, ValueError) as exc:
+        raise MigrationCLIError("resume report contains invalid checkpoints") from exc
 
 
 def _iter_sources(source_root: Path) -> list[tuple[Path, str, str]]:
@@ -260,6 +316,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     args.output,
                     db_session=session,
                     apply=True,
+                    resume_from=args.resume_from,
                 )
         else:
             import data_layer.repositories.models  # noqa: F401
@@ -272,6 +329,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     args.output,
                     db_session=session,
                     apply=False,
+                    resume_from=args.resume_from,
                 )
     except Exception as exc:  # noqa: BLE001 - CLI boundary returns a stable nonzero status
         logger.error("LSH theme migration failed", error_type=type(exc).__name__)

@@ -5,12 +5,13 @@ version: 1.0.0
 compatibility_version: merged-platform-v1
 status: discovered
 boundary: 模型目录/使用量、供应链收入、光模块海关、宏观估值行情事实；不迁 driver-summary、score_hint、策略或订单。
-plugin_permissions: [normalize, validate, derive]
+plugins: []
 datasets:
   - dataset_key: optical_module_customs
     schema_version: '1'
     frequency: monthly
     source_priority: [customs_official]
+    source_tiers: {海关统计数据查询: official}
     freshness_seconds: 3456000
     fields:
       - {name: observation_date, data_type: date}
@@ -29,7 +30,9 @@ datasets:
       - {name: status, data_type: string}
       - {name: notes, data_type: string, required: false}
       - {name: imported_at, data_type: datetime}
-    identity_fields: [observation_date, flow, region, partner, hs_code, metric]
+    identity_fields: [observation_date, flow, region, partner, hs_code, metric, source_file]
+    dimension_fields: [observation_date, flow, region, partner, hs_code, source_file]
+    source_row_discriminator: row_number
     observed_at_field: observation_date
     available_at_field: imported_at
     subject_field: hs_code
@@ -39,6 +42,10 @@ datasets:
     source_name_field: source_name
     source_url_field: source_url
     freshness_field: status
+    observation_fields:
+      - {value_field: value, metric_suffix: value, unit_field: unit}
+      - {value_field: quantity, metric_suffix: quantity, unit_field: quantity_unit}
+    emitted_metric_keys: [optical_module_trade_value.value]
   - dataset_key: ai_token_usage
     schema_version: '1'
     frequency: monthly
@@ -49,7 +56,7 @@ datasets:
       - {name: window, data_type: string}
       - {name: model_permaslug, data_type: string}
       - {name: total_tokens, data_type: number}
-      - {name: rank_position, data_type: integer}
+      - {name: rank_position, data_type: string}
       - {name: source_name, data_type: string}
       - {name: source_url, data_type: string, required: false}
       - {name: source_date, data_type: date}
@@ -64,6 +71,9 @@ datasets:
     fixed_unit: token
     source_name_field: source_name
     source_url_field: source_url
+    observation_fields:
+      - {value_field: total_tokens, metric_key: total_tokens, fixed_unit: token}
+      - {value_field: rank_position, metric_key: rank_position, fixed_unit: rank}
   - dataset_key: ai_supply_chain_revenue
     schema_version: '1'
     frequency: monthly
@@ -74,6 +84,10 @@ datasets:
       - {name: company, data_type: string}
       - {name: role, data_type: string}
       - {name: revenue_ntd_million, data_type: number}
+      - {name: mom_change, data_type: number, required: false}
+      - {name: yoy_change, data_type: number, required: false}
+      - {name: ytd_revenue_ntd_million, data_type: number, required: false}
+      - {name: ytd_yoy_change, data_type: number, required: false}
       - {name: source_name, data_type: string}
       - {name: source_url, data_type: string, required: false}
       - {name: status, data_type: string}
@@ -88,6 +102,12 @@ datasets:
     source_name_field: source_name
     source_url_field: source_url
     freshness_field: status
+    observation_fields:
+      - {value_field: revenue_ntd_million, metric_key: revenue_ntd_million, fixed_unit: NTD_million}
+      - {value_field: mom_change, metric_key: mom_change, fixed_unit: percent}
+      - {value_field: yoy_change, metric_key: yoy_change, fixed_unit: percent}
+      - {value_field: ytd_revenue_ntd_million, metric_key: ytd_revenue_ntd_million, fixed_unit: NTD_million}
+      - {value_field: ytd_yoy_change, metric_key: ytd_yoy_change, fixed_unit: percent}
   - dataset_key: ai_model_catalog
     schema_version: '1'
     frequency: monthly
@@ -98,8 +118,15 @@ datasets:
       - {name: model_id, data_type: string}
       - {name: display_name, data_type: string}
       - {name: context_length, data_type: number}
+      - {name: input_price_per_million, data_type: number, required: false}
+      - {name: output_price_per_million, data_type: number, required: false}
+      - {name: supports_tools, data_type: boolean, required: false}
+      - {name: supports_structured_outputs, data_type: boolean, required: false}
+      - {name: architecture_modality, data_type: string, required: false}
       - {name: source_name, data_type: string}
       - {name: source_url, data_type: string, required: false}
+      - {name: confidence, data_type: string, required: false}
+      - {name: notes, data_type: string, required: false}
     identity_fields: [snapshot_date, model_id]
     observed_at_field: snapshot_date
     subject_field: model_id
@@ -108,6 +135,10 @@ datasets:
     fixed_unit: token
     source_name_field: source_name
     source_url_field: source_url
+    observation_fields:
+      - {value_field: context_length, metric_key: context_length, fixed_unit: token}
+      - {value_field: input_price_per_million, metric_key: input_price_per_million, fixed_unit: USD/million_token}
+      - {value_field: output_price_per_million, metric_key: output_price_per_million, fixed_unit: USD/million_token}
   - dataset_key: ai_track
     schema_version: '1'
     frequency: weekly
@@ -178,8 +209,8 @@ datasets:
     freshness_field: status
   - <<: {dataset_key: market_valuation_sentiment, schema_version: '1', frequency: daily, source_priority: [licensed_market_data], freshness_seconds: 172800, fields: *ai_market_fields, identity_fields: [observation_date, index_code, metric], observed_at_field: observation_date, available_at_field: last_checked, subject_field: index_code, metric_field: metric, value_field: value, unit_field: unit, source_name_field: source_name, source_url_field: source_url, freshness_field: status}
 kpis:
-  - {kpi_key: optical_exports, name: 光模块出口额, unit: CNY, frequency: monthly, dataset_key: optical_module_customs}
-  - {kpi_key: token_usage, name: 模型Token使用量, unit: token, frequency: monthly, dataset_key: ai_token_usage}
+  - {kpi_key: optical_exports, name: 光模块出口额, unit: 元人民币, frequency: monthly, dataset_key: optical_module_customs, metric_key: optical_module_trade_value.value}
+  - {kpi_key: token_usage, name: 模型Token使用量, unit: token, frequency: monthly, dataset_key: ai_token_usage, metric_key: total_tokens}
 value_chain:
   - {node_key: compute, name: 算力芯片与服务器, stage: upstream, evidence_refs: [dataset:ai_supply_chain_revenue]}
   - {node_key: optical, name: 光模块与网络, stage: midstream, evidence_refs: [dataset:optical_module_customs]}
@@ -188,5 +219,5 @@ event_types: [model_release, capex_change, customs_release, supply_chain_revenue
 asset_exposures:
   - asset: {asset_id: 'index:399673.SZ', asset_type: index, display_name: 创业板50}
     exposure_type: market_proxy
-    rationale_ref: manifest:ai_infrastructure:chinext50_proxy
+    rationale_ref: manifest:ai_infrastructure:market_trend
 research_template_keys: [ai_infrastructure_chain, optical_module_event_review]
