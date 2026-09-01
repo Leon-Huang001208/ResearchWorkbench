@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "D03-04 · 提醒规则求值状态机",
+    "output": "D03-04-alert-state.html",
+    "viewBox": [
+      1800,
+      720
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "asset-life-1",
+        "label": "主链",
+        "focus": [
+          "idle",
+          "evaluating",
+          "triggered",
+          "cooldown",
+          "resolved"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "asset-life-2",
+        "label": "边界",
+        "focus": [
+          "triggered",
+          "stale"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "asset-life-3",
+        "label": "异常",
+        "focus": [
+          "stale",
+          "disabled",
+          "evaluating"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "主状态"
+    },
+    {
+      "id": "alternate",
+      "label": "等待或降级"
+    },
+    {
+      "id": "terminal",
+      "label": "终止或恢复"
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "type": "start",
+      "label": "未满足",
+      "sublabel": "等待新事实",
+      "lane": "main",
+      "col": 0,
+      "step": "01"
+    },
+    {
+      "id": "evaluating",
+      "type": "active",
+      "label": "求值中",
+      "sublabel": "读取最新事实",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "triggered",
+      "type": "active",
+      "label": "已触发",
+      "sublabel": "false → true",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "cooldown",
+      "type": "decision",
+      "label": "冷却中",
+      "sublabel": "持续满足去重",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "resolved",
+      "type": "success",
+      "label": "已恢复",
+      "sublabel": "条件回到 false",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "stale",
+      "type": "waiting",
+      "label": "跳过",
+      "sublabel": "skipped_data_stale",
+      "lane": "alternate",
+      "col": 2
+    },
+    {
+      "id": "disabled",
+      "type": "failure",
+      "label": "已停用",
+      "sublabel": "用户关闭规则",
+      "lane": "terminal",
+      "col": 2
+    }
+  ],
+  "transitions": [
+    {
+      "from": "triggered",
+      "to": "stale",
+      "variant": "security",
+      "route": "drop"
+    },
+    {
+      "from": "stale",
+      "to": "disabled",
+      "variant": "security",
+      "route": "drop"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主路径",
+      "items": [
+        "未满足",
+        "求值中",
+        "已触发",
+        "冷却中",
+        "已恢复"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "等待/降级",
+      "items": [
+        "跳过",
+        "skipped_data_stale",
+        "不把等待态伪装成成功"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "终止与恢复",
+      "items": [
+        "已停用",
+        "用户关闭规则",
+        "恢复必须回到明确活动态"
+      ]
+    }
+  ]
+}

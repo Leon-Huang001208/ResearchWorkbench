@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "D03-02 · 资产观察与提醒接口与服务",
+    "output": "D03-02-asset-interfaces.html",
+    "viewBox": [
+      1320,
+      660
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "asset-if-1",
+        "label": "主链",
+        "focus": [
+          "page",
+          "api",
+          "service",
+          "repo",
+          "store"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "asset-if-2",
+        "label": "边界",
+        "focus": [
+          "contract",
+          "service",
+          "repo"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "asset-if-3",
+        "label": "异常",
+        "focus": [
+          "sse",
+          "event",
+          "page"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "page",
+      "type": "frontend",
+      "label": "资产观察与提醒",
+      "sublabel": "P03/P06 · 资产观察与自选提醒",
+      "pos": [
+        35,
+        250
+      ],
+      "size": [
+        190,
+        68
+      ]
+    },
+    {
+      "id": "api",
+      "type": "cloud",
+      "label": "HTTP 主接口",
+      "sublabel": "GET /api/assets/{asset_id}",
+      "pos": [
+        285,
+        150
+      ],
+      "size": [
+        225,
+        68
+      ]
+    },
+    {
+      "id": "sse",
+      "type": "messagebus",
+      "label": "SSE / 异步事件",
+      "sublabel": "Alert 领域事件 → 通知收件箱",
+      "pos": [
+        285,
+        370
+      ],
+      "size": [
+        225,
+        68
+      ]
+    },
+    {
+      "id": "contract",
+      "type": "security",
+      "label": "共享 Contract",
+      "sublabel": "ID / 来源 / 时间 / 质量",
+      "pos": [
+        565,
+        60
+      ],
+      "size": [
+        180,
+        68
+      ]
+    },
+    {
+      "id": "service",
+      "type": "backend",
+      "label": "领域 Service",
+      "sublabel": "AssetObservationService",
+      "pos": [
+        565,
+        250
+      ],
+      "size": [
+        180,
+        68
+      ]
+    },
+    {
+      "id": "event",
+      "type": "messagebus",
+      "label": "DomainEvent",
+      "sublabel": "事务后发布",
+      "pos": [
+        565,
+        440
+      ],
+      "size": [
+        180,
+        68
+      ]
+    },
+    {
+      "id": "repo",
+      "type": "backend",
+      "label": "领域 Repository",
+      "sublabel": "AssetObservationRepository",
+      "pos": [
+        825,
+        250
+      ],
+      "size": [
+        205,
+        68
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "领域数据表",
+      "sublabel": "asset_registry / watchlist / alert_rule",
+      "pos": [
+        1095,
+        250
+      ],
+      "size": [
+        195,
+        68
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "page",
+      "to": "api",
+      "label": "HTTP",
+      "variant": "emphasis"
+    },
+    {
+      "from": "api",
+      "to": "service",
+      "label": "调用"
+    },
+    {
+      "from": "contract",
+      "to": "api",
+      "variant": "security"
+    },
+    {
+      "from": "contract",
+      "to": "service",
+      "variant": "security"
+    },
+    {
+      "from": "service",
+      "to": "repo",
+      "label": "拥有"
+    },
+    {
+      "from": "repo",
+      "to": "store",
+      "label": "读/写",
+      "variant": "security"
+    },
+    {
+      "from": "service",
+      "to": "event"
+    },
+    {
+      "from": "event",
+      "to": "sse",
+      "label": "投影"
+    },
+    {
+      "from": "sse",
+      "to": "page",
+      "label": "失效/进度",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "同步请求",
+      "items": [
+        "GET /api/assets/{asset_id}",
+        "写接口要求 Idempotency-Key",
+        "读模型明确 200/206 与错误码"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "异步通道",
+      "items": [
+        "Alert 领域事件 → 通知收件箱",
+        "SSE 支持 Last-Event-ID",
+        "客户端收到失效后重读聚合 API"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "数据所有权",
+      "items": [
+        "AssetObservationRepository",
+        "asset_registry / watchlist / alert_rule",
+        "其他模块不得直接访问本模块表"
+      ]
+    }
+  ]
+}

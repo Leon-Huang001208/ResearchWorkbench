@@ -1,0 +1,286 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "D06-01 · 平台能力与调度内核能力边界",
+    "output": "D06-01-core-capabilities.html",
+    "viewBox": [
+      1320,
+      660
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "core-1",
+        "label": "主链",
+        "focus": [
+          "user",
+          "page",
+          "cap1",
+          "cap2",
+          "cap3",
+          "cap4",
+          "cap5",
+          "service",
+          "store"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "core-2",
+        "label": "边界",
+        "focus": [
+          "page",
+          "service",
+          "store"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "core-3",
+        "label": "异常",
+        "focus": [
+          "cap5",
+          "service"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "研究者",
+      "sublabel": "单人本地优先",
+      "pos": [
+        25,
+        290
+      ],
+      "size": [
+        115,
+        62
+      ]
+    },
+    {
+      "id": "page",
+      "type": "frontend",
+      "label": "平台能力与调度内核",
+      "sublabel": "Web / Tauri 共用",
+      "pos": [
+        180,
+        290
+      ],
+      "size": [
+        155,
+        62
+      ]
+    },
+    {
+      "id": "cap1",
+      "type": "backend",
+      "label": "Runtime Registry",
+      "sublabel": "CAP · D06-01",
+      "pos": [
+        410,
+        55
+      ],
+      "size": [
+        155,
+        62
+      ]
+    },
+    {
+      "id": "cap2",
+      "type": "backend",
+      "label": "Skill 校验",
+      "sublabel": "CAP · D06-02",
+      "pos": [
+        410,
+        170
+      ],
+      "size": [
+        155,
+        62
+      ]
+    },
+    {
+      "id": "cap3",
+      "type": "backend",
+      "label": "Scheduler",
+      "sublabel": "CAP · D06-03",
+      "pos": [
+        410,
+        285
+      ],
+      "size": [
+        155,
+        62
+      ]
+    },
+    {
+      "id": "cap4",
+      "type": "backend",
+      "label": "领域事件",
+      "sublabel": "CAP · D06-04",
+      "pos": [
+        410,
+        400
+      ],
+      "size": [
+        155,
+        62
+      ]
+    },
+    {
+      "id": "cap5",
+      "type": "security",
+      "label": "持久化通知",
+      "sublabel": "CAP · D06-05",
+      "pos": [
+        410,
+        515
+      ],
+      "size": [
+        155,
+        62
+      ]
+    },
+    {
+      "id": "service",
+      "type": "backend",
+      "label": "领域 Service",
+      "sublabel": "SchedulerCoordinator",
+      "pos": [
+        720,
+        290
+      ],
+      "size": [
+        180,
+        62
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "领域数据表",
+      "sublabel": "runtime_provider / scheduled_job / domain_event",
+      "pos": [
+        1030,
+        290
+      ],
+      "size": [
+        205,
+        62
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "user",
+      "to": "page",
+      "label": "进入",
+      "variant": "emphasis"
+    },
+    {
+      "from": "page",
+      "to": "cap1",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "page",
+      "to": "cap2",
+      "variant": "default",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "page",
+      "to": "cap3",
+      "variant": "default",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "page",
+      "to": "cap4",
+      "variant": "default",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "page",
+      "to": "cap5",
+      "variant": "default",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "cap1",
+      "to": "service",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "cap2",
+      "to": "service",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "cap3",
+      "to": "service",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "cap4",
+      "to": "service",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "cap5",
+      "to": "service",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "service",
+      "to": "store",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "页面职责",
+      "items": [
+        "Runtime Registry",
+        "Skill 校验",
+        "Scheduler"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "服务边界",
+      "items": [
+        "SchedulerCoordinator",
+        "模块间只经 Service/Contract",
+        "数据表只由 Owner 访问"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "禁止事项",
+      "items": [
+        "页面不直连数据库",
+        "事实缺失不用零值或模型猜测",
+        "研究结果不写事实区"
+      ]
+    }
+  ]
+}

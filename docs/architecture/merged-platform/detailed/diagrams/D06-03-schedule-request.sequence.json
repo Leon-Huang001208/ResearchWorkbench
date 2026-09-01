@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "D06-03 · 平台能力与调度内核请求时序",
+    "output": "D06-03-schedule-request.html",
+    "viewBox": [
+      1600,
+      620
+    ],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "core-seq-1",
+        "label": "主链",
+        "focus": [
+          "user",
+          "page",
+          "api",
+          "service",
+          "store"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "core-seq-2",
+        "label": "边界",
+        "focus": [
+          "service",
+          "event",
+          "page"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "core-seq-3",
+        "label": "异常",
+        "focus": [
+          "service",
+          "store",
+          "page"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "研究者"
+    },
+    {
+      "id": "page",
+      "type": "frontend",
+      "label": "平台能力与调度内核"
+    },
+    {
+      "id": "api",
+      "type": "cloud",
+      "label": "FastAPI"
+    },
+    {
+      "id": "service",
+      "type": "backend",
+      "label": "领域 Service"
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "PostgreSQL"
+    },
+    {
+      "id": "event",
+      "type": "messagebus",
+      "label": "SSE / Event"
+    }
+  ],
+  "segments": [
+    {
+      "from": 145,
+      "to": 235,
+      "label": "接受与校验"
+    },
+    {
+      "from": 245,
+      "to": 375,
+      "label": "服务与持久化"
+    },
+    {
+      "from": 385,
+      "to": 510,
+      "label": "响应与增量状态"
+    }
+  ],
+  "messages": [
+    {
+      "from": "user",
+      "to": "page",
+      "y": 160,
+      "label": "发起功能动作",
+      "variant": "emphasis"
+    },
+    {
+      "from": "page",
+      "to": "api",
+      "y": 190,
+      "label": "POST /api/agent-schedules",
+      "variant": "emphasis"
+    },
+    {
+      "from": "api",
+      "to": "service",
+      "y": 220,
+      "label": "校验 Contract + 权限"
+    },
+    {
+      "from": "service",
+      "to": "store",
+      "y": 255,
+      "label": "读取 Owned Data"
+    },
+    {
+      "from": "store",
+      "to": "service",
+      "y": 290,
+      "label": "内部 Contract 非公共 API",
+      "variant": "return"
+    },
+    {
+      "from": "service",
+      "to": "store",
+      "y": 325,
+      "label": "必要时幂等持久化",
+      "variant": "security"
+    },
+    {
+      "from": "service",
+      "to": "event",
+      "y": 360,
+      "label": "Tauri 系统通知",
+      "variant": "dashed"
+    },
+    {
+      "from": "service",
+      "to": "api",
+      "y": 395,
+      "label": "类型化响应 / 206 降级",
+      "variant": "return"
+    },
+    {
+      "from": "api",
+      "to": "page",
+      "y": 430,
+      "label": "读模型 + 状态",
+      "variant": "return"
+    },
+    {
+      "from": "event",
+      "to": "page",
+      "y": 465,
+      "label": "DomainEvent → Notification",
+      "variant": "dashed"
+    },
+    {
+      "from": "page",
+      "to": "user",
+      "y": 500,
+      "label": "刷新区块 / 展示异常",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "api",
+      "from": 185,
+      "to": 438,
+      "type": "cloud"
+    },
+    {
+      "participant": "service",
+      "from": 215,
+      "to": 403,
+      "type": "backend"
+    },
+    {
+      "participant": "store",
+      "from": 250,
+      "to": 333,
+      "type": "database"
+    },
+    {
+      "participant": "event",
+      "from": 355,
+      "to": 473,
+      "type": "messagebus"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "请求入口",
+      "items": [
+        "POST /api/agent-schedules",
+        "请求模型先完成结构与语义校验",
+        "写操作使用幂等键"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "服务执行",
+      "items": [
+        "SchedulerCoordinator",
+        "PlatformRepository / ScheduledJobRepository",
+        "只访问本模块拥有的数据"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "异常与恢复",
+      "items": [
+        "默认禁止重入",
+        "SSE 断线可重连",
+        "错误状态必须可见，不伪造成功"
+      ]
+    }
+  ]
+}

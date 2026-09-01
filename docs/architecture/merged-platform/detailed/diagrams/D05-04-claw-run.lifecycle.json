@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "D05-04 · Claw 多 Agent Run 状态机",
+    "output": "D05-04-claw-run.html",
+    "viewBox": [
+      1800,
+      720
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "claw-life-1",
+        "label": "主链",
+        "focus": [
+          "queued",
+          "planning",
+          "executing",
+          "reviewing",
+          "completed"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "claw-life-2",
+        "label": "边界",
+        "focus": [
+          "executing",
+          "blocked_runtime"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "claw-life-3",
+        "label": "异常",
+        "focus": [
+          "blocked_runtime",
+          "budget_exceeded",
+          "planning"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "主状态"
+    },
+    {
+      "id": "alternate",
+      "label": "等待或降级"
+    },
+    {
+      "id": "terminal",
+      "label": "终止或恢复"
+    }
+  ],
+  "states": [
+    {
+      "id": "queued",
+      "type": "start",
+      "label": "已排队",
+      "sublabel": "校验 Team",
+      "lane": "main",
+      "col": 0,
+      "step": "01"
+    },
+    {
+      "id": "planning",
+      "type": "active",
+      "label": "编排中",
+      "sublabel": "Supervisor 分解",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "executing",
+      "type": "active",
+      "label": "协作中",
+      "sublabel": "Agent + Blackboard",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "reviewing",
+      "type": "decision",
+      "label": "汇总中",
+      "sublabel": "质量门",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "completed",
+      "type": "success",
+      "label": "已完成",
+      "sublabel": "回写共享研究内核",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "blocked_runtime",
+      "type": "waiting",
+      "label": "运行时阻塞",
+      "sublabel": "DSH 不可用",
+      "lane": "alternate",
+      "col": 2
+    },
+    {
+      "id": "budget_exceeded",
+      "type": "failure",
+      "label": "预算终止",
+      "sublabel": "达到硬限制",
+      "lane": "terminal",
+      "col": 2
+    }
+  ],
+  "transitions": [
+    {
+      "from": "executing",
+      "to": "blocked_runtime",
+      "variant": "security",
+      "route": "drop"
+    },
+    {
+      "from": "blocked_runtime",
+      "to": "budget_exceeded",
+      "variant": "security",
+      "route": "drop"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主路径",
+      "items": [
+        "已排队",
+        "编排中",
+        "协作中",
+        "汇总中",
+        "已完成"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "等待/降级",
+      "items": [
+        "运行时阻塞",
+        "DSH 不可用",
+        "不把等待态伪装成成功"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "终止与恢复",
+      "items": [
+        "预算终止",
+        "达到硬限制",
+        "恢复必须回到明确活动态"
+      ]
+    }
+  ]
+}

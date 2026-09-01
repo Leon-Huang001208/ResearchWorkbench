@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "D06-04 · Scheduled Job 租约状态机",
+    "output": "D06-04-scheduled-job.html",
+    "viewBox": [
+      1800,
+      720
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "core-life-1",
+        "label": "主链",
+        "focus": [
+          "scheduled",
+          "leased",
+          "running",
+          "persisting",
+          "completed"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "core-life-2",
+        "label": "边界",
+        "focus": [
+          "running",
+          "coalesced"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "core-life-3",
+        "label": "异常",
+        "focus": [
+          "coalesced",
+          "failed",
+          "leased"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "主状态"
+    },
+    {
+      "id": "alternate",
+      "label": "等待或降级"
+    },
+    {
+      "id": "terminal",
+      "label": "终止或恢复"
+    }
+  ],
+  "states": [
+    {
+      "id": "scheduled",
+      "type": "start",
+      "label": "已计划",
+      "sublabel": "等待 next_run_at",
+      "lane": "main",
+      "col": 0,
+      "step": "01"
+    },
+    {
+      "id": "leased",
+      "type": "active",
+      "label": "已租约",
+      "sublabel": "唯一执行者",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "running",
+      "type": "active",
+      "label": "执行中",
+      "sublabel": "发出领域命令",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "persisting",
+      "type": "decision",
+      "label": "持久化",
+      "sublabel": "写入结果与事件",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "completed",
+      "type": "success",
+      "label": "已完成",
+      "sublabel": "计算下次运行",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "coalesced",
+      "type": "waiting",
+      "label": "已合并",
+      "sublabel": "仅保留最近一次",
+      "lane": "alternate",
+      "col": 2
+    },
+    {
+      "id": "failed",
+      "type": "failure",
+      "label": "失败待重试",
+      "sublabel": "租约过期后恢复",
+      "lane": "terminal",
+      "col": 2
+    }
+  ],
+  "transitions": [
+    {
+      "from": "running",
+      "to": "coalesced",
+      "variant": "security",
+      "route": "drop"
+    },
+    {
+      "from": "coalesced",
+      "to": "failed",
+      "variant": "security",
+      "route": "drop"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主路径",
+      "items": [
+        "已计划",
+        "已租约",
+        "执行中",
+        "持久化",
+        "已完成"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "等待/降级",
+      "items": [
+        "已合并",
+        "仅保留最近一次",
+        "不把等待态伪装成成功"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "终止与恢复",
+      "items": [
+        "失败待重试",
+        "租约过期后恢复",
+        "恢复必须回到明确活动态"
+      ]
+    }
+  ]
+}

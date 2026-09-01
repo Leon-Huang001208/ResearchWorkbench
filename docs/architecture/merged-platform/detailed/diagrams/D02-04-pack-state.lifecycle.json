@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "D02-04 · Research Pack 生命周期",
+    "output": "D02-04-pack-state.html",
+    "viewBox": [
+      1800,
+      720
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "theme-life-1",
+        "label": "主链",
+        "focus": [
+          "discovered",
+          "validated",
+          "enabled",
+          "refreshed",
+          "ready"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "theme-life-2",
+        "label": "边界",
+        "focus": [
+          "enabled",
+          "degraded"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "theme-life-3",
+        "label": "异常",
+        "focus": [
+          "degraded",
+          "disabled",
+          "validated"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "主状态"
+    },
+    {
+      "id": "alternate",
+      "label": "等待或降级"
+    },
+    {
+      "id": "terminal",
+      "label": "终止或恢复"
+    }
+  ],
+  "states": [
+    {
+      "id": "discovered",
+      "type": "start",
+      "label": "已发现",
+      "sublabel": "读取 Manifest",
+      "lane": "main",
+      "col": 0,
+      "step": "01"
+    },
+    {
+      "id": "validated",
+      "type": "active",
+      "label": "已验证",
+      "sublabel": "Schema + 来源检查",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "enabled",
+      "type": "active",
+      "label": "已启用",
+      "sublabel": "生成读模型",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "refreshed",
+      "type": "decision",
+      "label": "刷新中",
+      "sublabel": "摄入 Observation",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "ready",
+      "type": "success",
+      "label": "可用",
+      "sublabel": "发布 Snapshot",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "degraded",
+      "type": "waiting",
+      "label": "已降级",
+      "sublabel": "部分事实不可用",
+      "lane": "alternate",
+      "col": 2
+    },
+    {
+      "id": "disabled",
+      "type": "failure",
+      "label": "已禁用",
+      "sublabel": "兼容或质量失败",
+      "lane": "terminal",
+      "col": 2
+    }
+  ],
+  "transitions": [
+    {
+      "from": "enabled",
+      "to": "degraded",
+      "variant": "security",
+      "route": "drop"
+    },
+    {
+      "from": "degraded",
+      "to": "disabled",
+      "variant": "security",
+      "route": "drop"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主路径",
+      "items": [
+        "已发现",
+        "已验证",
+        "已启用",
+        "刷新中",
+        "可用"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "等待/降级",
+      "items": [
+        "已降级",
+        "部分事实不可用",
+        "不把等待态伪装成成功"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "终止与恢复",
+      "items": [
+        "已禁用",
+        "兼容或质量失败",
+        "恢复必须回到明确活动态"
+      ]
+    }
+  ]
+}

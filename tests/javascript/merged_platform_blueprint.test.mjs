@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -134,4 +134,31 @@ test('blueprint index links the Atlas and supplied diagram groups', () => {
   });
   assert.match(html, /api-atlas\.html/);
   assert.match(html, /diagrams\/A01\.html/);
+});
+
+test('blueprint contains exactly eight shared and thirty domain diagrams', async () => {
+  const sourceRoot = new URL(
+    '../../docs/architecture/merged-platform/detailed/diagrams/',
+    import.meta.url,
+  );
+  const outputRoot = new URL(
+    '../../outputs/merged-platform-blueprint/diagrams/',
+    import.meta.url,
+  );
+  const sourceNames = (await readdir(sourceRoot)).filter((name) => name.endsWith('.json'));
+  const deliveredNames = (await readdir(outputRoot)).filter(
+    (name) => name.endsWith('.html') && !name.endsWith('.visual-check.html'),
+  );
+  const sourceStem = (name) =>
+    name.replace(/\.(architecture|workflow|sequence|lifecycle|dataflow)\.json$/, '');
+  const deliveredStem = (name) => name.replace(/\.html$/, '');
+  const shared = sourceNames.filter((name) => /^A\d{2}-/.test(name));
+  const domains = sourceNames.filter((name) => /^D\d{2}-/.test(name));
+
+  assert.equal(shared.length, 8);
+  assert.equal(domains.length, 30);
+  assert.deepEqual(
+    sourceNames.map(sourceStem).sort(),
+    deliveredNames.map(deliveredStem).sort(),
+  );
 });

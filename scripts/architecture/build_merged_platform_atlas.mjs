@@ -275,7 +275,9 @@ async function discoverDiagramGroups(outputDir) {
   const diagramDir = path.join(outputDir, 'diagrams');
   let names = [];
   try {
-    names = (await readdir(diagramDir)).filter((name) => name.endsWith('.html'));
+    names = (await readdir(diagramDir)).filter(
+      (name) => name.endsWith('.html') && !name.endsWith('.visual-check.html'),
+    );
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
   }
