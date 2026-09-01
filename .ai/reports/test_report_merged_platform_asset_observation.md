@@ -24,6 +24,8 @@ The independent follow-up review was also resolved through RED→GREEN. The adde
 
 The release capability review found that the packaged bootstrap's `http://127.0.0.1:8765/` navigation is a Tauri remote origin. A new exact-origin test first failed because the capability had no `remote` entry, then passed after adding only `http://127.0.0.1:8765/*`; notification permission scope remains exactly three operations and no wildcard port or `localhost` alias is authorized.
 
+The final security-boundary review then caught that putting this remote scope on `default` would also expose dialog, process, shell, and sidecar operations. The replacement RED test first failed because `notification-remote.json` did not exist. GREEN splits the origin into a `local=false` notification-only capability whose complete permission list is exactly the three notification operations, while `default` has no remote scope.
+
 ## Verification
 
 | Command | Actual result |
@@ -43,6 +45,7 @@ The release capability review found that the packaged bootstrap's `http://127.0.
 | Follow-up `npm ci` | passed; 4 packages installed from lock, 0 vulnerabilities |
 | Follow-up `cargo fmt --check` and `cargo check --locked` | passed on local macOS; compile completed in 3.67s |
 | Release capability gate: Node behavior + Python bridge + Cargo format/check | `4` Node tests and `4` Python tests passed; locked macOS Cargo check completed in 3.64s; generated schemas had no diff |
+| Final capability isolation gate: Node behavior + Python bridge + Cargo format/check | `4` Node tests and `4` Python tests passed; locked macOS Cargo check completed in 2.85s; generated capabilities now contain separate local `default` and remote notification-only entries |
 
 ## Dependency record
 

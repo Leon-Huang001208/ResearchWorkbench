@@ -20,12 +20,17 @@ def test_official_notification_plugin_is_registered_on_both_sides():
 
 
 def test_notification_capability_grants_only_three_required_operations():
-    capability = json.loads(
+    default_capability = json.loads(
         (ROOT / "src-tauri" / "capabilities" / "default.json").read_text(encoding="utf-8")
+    )
+    remote_capability = json.loads(
+        (ROOT / "src-tauri" / "capabilities" / "notification-remote.json").read_text(
+            encoding="utf-8"
+        )
     )
     notification_permissions = {
         item
-        for item in capability["permissions"]
+        for item in default_capability["permissions"]
         if isinstance(item, str) and item.startswith("notification:")
     }
 
@@ -34,7 +39,20 @@ def test_notification_capability_grants_only_three_required_operations():
         "notification:allow-request-permission",
         "notification:allow-notify",
     }
-    assert capability["remote"] == {"urls": ["http://127.0.0.1:8765/*"]}
+    assert "remote" not in default_capability
+    assert remote_capability == {
+        "$schema": "../gen/schemas/desktop-schema.json",
+        "identifier": "notification-remote",
+        "description": "Notification-only permissions for the packaged local FastAPI origin",
+        "local": False,
+        "windows": ["main"],
+        "remote": {"urls": ["http://127.0.0.1:8765/*"]},
+        "permissions": [
+            "notification:allow-is-permission-granted",
+            "notification:allow-request-permission",
+            "notification:allow-notify",
+        ],
+    }
 
 
 def test_frontend_uses_global_tauri_notification_api_without_rust_payload_command():
