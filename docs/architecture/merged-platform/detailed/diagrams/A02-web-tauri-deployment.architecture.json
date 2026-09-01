@@ -1,0 +1,21 @@
+{
+  "schema_version":1,"diagram_type":"architecture",
+  "meta":{"title":"A02 · Web 与 Tauri 共用部署主干","output":"A02-web-tauri-deployment.html","quality_profile":"showcase","views":[{"id":"request","label":"业务请求","focus":["browser","tauri","frontend","api","services","postgres"],"note":"两种客户端复用前端和唯一 FastAPI。"},{"id":"runtime","label":"可选运行时","focus":["services","router","dsh"],"note":"DSH 只通过 RuntimeProvider 接入且不能访问数据库。"},{"id":"notification","label":"桌面通知","focus":["services","notify","tauri"],"note":"通知先持久化，再由 Tauri 投递系统通知。"}]},
+  "components":[
+    {"id":"browser","type":"external","label":"Web 浏览器","sublabel":"响应式网页","pos":[40,150],"size":[140,64]},
+    {"id":"tauri","type":"frontend","label":"Tauri 桌面壳","sublabel":"macOS / Windows","pos":[40,350],"size":[140,64]},
+    {"id":"frontend","type":"frontend","label":"共享前端资源","sublabel":"同一路由与组件","pos":[260,250],"size":[150,68]},
+    {"id":"api","type":"cloud","label":"FastAPI","sublabel":"唯一业务 API","pos":[490,250],"size":[145,68]},
+    {"id":"services","type":"backend","label":"模块化 Service","sublabel":"Contract 通信","pos":[710,250],"size":[155,68]},
+    {"id":"postgres","type":"database","label":"PostgreSQL + pgvector","sublabel":"唯一持久化存储","pos":[960,250],"size":[175,68]},
+    {"id":"router","type":"security","label":"Runtime Router","sublabel":"能力与预算检查","pos":[710,80],"size":[155,64]},
+    {"id":"dsh","type":"external","label":"DSH 侧车","sublabel":"无数据库权限","pos":[960,80],"size":[155,64]},
+    {"id":"notify","type":"backend","label":"通知桥","sublabel":"站内箱 → 系统通知","pos":[710,430],"size":[155,64]}
+  ],
+  "boundaries":[{"kind":"region","label":"AlphaFoundry 模块化单体","wraps":["frontend","api","services","postgres","router","notify"],"pad":24},{"kind":"security-group","label":"Runtime 白名单边界","wraps":["router"],"pad":12}],
+  "connections":[
+    {"from":"browser","to":"frontend","label":"HTTPS","variant":"emphasis"},{"from":"tauri","to":"frontend","label":"本地资源","variant":"emphasis"},{"from":"frontend","to":"api","label":"JSON / SSE"},{"from":"api","to":"services","label":"Contract"},{"from":"services","to":"postgres","label":"Owner Repo"},
+    {"from":"services","to":"router","label":"运行请求","fromSide":"top","toSide":"bottom"},{"from":"router","to":"dsh","label":"白名单工具","variant":"security"},{"from":"services","to":"notify","label":"通知记录","fromSide":"bottom","toSide":"top","labelAt":[788,370]},{"from":"notify","to":"tauri","label":"系统通知","variant":"dashed","fromSide":"left","toSide":"right"}
+  ],
+  "cards":[{"dot":"cyan","title":"一套前端","items":["Web 与 Tauri 使用同一响应式页面","桌面壳只提供原生能力和安装边界"]},{"dot":"emerald","title":"一套业务主干","items":["FastAPI 是唯一业务 API","PostgreSQL + pgvector 是唯一持久化事实源"]},{"dot":"rose","title":"侧车限制","items":["DSH 不持有数据库凭据","所有工具和 MCP 先经过 Runtime Router"]}]
+}

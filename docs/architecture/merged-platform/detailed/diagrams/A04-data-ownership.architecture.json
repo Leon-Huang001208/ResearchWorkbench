@@ -1,0 +1,25 @@
+{
+  "schema_version":1,"diagram_type":"architecture",
+  "meta":{"title":"A04 · 事实、研究与个人观察的数据归属","output":"A04-data-ownership.html","quality_profile":"showcase","views":[{"id":"facts","label":"事实区","focus":["source","fact","market","theme","asset"],"note":"仅受校验的数据管道写入事实区，产品页面只读事实投影。"},{"id":"research","label":"研究区","focus":["runtime","research","fingpt","claw"],"note":"模型产物进入研究区，不反写事实。"},{"id":"personal","label":"个人观察区","focus":["personal","watch","notification"],"note":"自选、提醒和通知属于个人观察数据。"}]},
+  "components":[
+    {"id":"source","type":"external","label":"受信数据源","sublabel":"行情 / 公告 / 数据集","pos":[40,110],"size":[145,64]},
+    {"id":"fact","type":"database","label":"事实区","sublabel":"Observation + Snapshot","pos":[300,110],"size":[160,68]},
+    {"id":"market","type":"frontend","label":"市场首页","sublabel":"facts-only","pos":[590,50],"size":[140,60]},
+    {"id":"theme","type":"frontend","label":"主题研究","sublabel":"Pack 读模型","pos":[590,135],"size":[140,60]},
+    {"id":"asset","type":"frontend","label":"资产观察","sublabel":"统一资产事实","pos":[590,220],"size":[140,60]},
+    {"id":"runtime","type":"external","label":"模型 / Runtime","sublabel":"不写事实","pos":[40,350],"size":[145,64]},
+    {"id":"research","type":"database","label":"研究区","sublabel":"Run / Evidence / Note","pos":[300,350],"size":[160,68]},
+    {"id":"fingpt","type":"frontend","label":"FinGPT","sublabel":"即时研究","pos":[590,330],"size":[140,60]},
+    {"id":"claw","type":"frontend","label":"Claw","sublabel":"Agent 任务","pos":[590,415],"size":[140,60]},
+    {"id":"personal","type":"database","label":"个人观察区","sublabel":"Watchlist / Alert","pos":[840,350],"size":[165,68]},
+    {"id":"watch","type":"frontend","label":"自选与提醒","sublabel":"个人配置","pos":[1080,300],"size":[145,60]},
+    {"id":"notification","type":"backend","label":"通知收件箱","sublabel":"持久化优先","pos":[1080,405],"size":[145,60]}
+  ],
+  "boundaries":[{"kind":"region","label":"事实数据域","wraps":["fact","market","theme","asset"],"pad":20},{"kind":"region","label":"研究数据域","wraps":["research","fingpt","claw"],"pad":20},{"kind":"region","label":"个人数据域","wraps":["personal","watch","notification"],"pad":20}],
+  "connections":[
+    {"from":"source","to":"fact","label":"校验摄入","variant":"emphasis"},{"from":"fact","to":"market","label":"快照"},{"from":"fact","to":"theme","label":"主题事实"},{"from":"fact","to":"asset","label":"资产事实"},
+    {"from":"runtime","to":"research","label":"研究产物","variant":"dashed"},{"from":"research","to":"fingpt","label":"共享"},{"from":"research","to":"claw","label":"共享"},
+    {"from":"asset","to":"personal","label":"观察引用","variant":"dashed"},{"from":"personal","to":"watch","label":"列表规则"},{"from":"personal","to":"notification","label":"触发记录"}
+  ],
+  "cards":[{"dot":"cyan","title":"事实区","items":["所有事实包含来源、观测时间、可用时间和质量标记","模型不得写入事实表"]},{"dot":"violet","title":"研究区","items":["FinGPT 与 Claw 共用研究对象","Note 可追溯但不成为事实"]},{"dot":"amber","title":"个人观察区","items":["自选和提醒只引用稳定 Asset ID","通知先进入持久化收件箱"]}]
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version":1,"diagram_type":"dataflow",
+  "meta":{"title":"A06 · 调度租约、领域事件与通知数据流","output":"A06-events-scheduler.html","viewBox":[1600,850],"quality_profile":"showcase","animation":"trace","views":[{"id":"happy","label":"正常执行","focus":["trigger","job","lease","event","handler","inbox"],"note":"触发先持久化，再由唯一租约持有者执行并分派领域事件。"},{"id":"coalesce","label":"合并补跑","focus":["job","coalesce","event"],"note":"错过多次触发只保留最近一次。"},{"id":"stale","label":"过期数据","focus":["job","stale","skipped"],"note":"提醒遇到过期数据记录 skipped，不产生通知。"}]},
+  "stages":[{"label":"触发"},{"label":"持久化"},{"label":"执行控制"},{"label":"领域处理"},{"label":"交付"}],
+  "nodes":[
+    {"id":"trigger","type":"frontend","label":"刷新 / 日程 / 提醒","sublabel":"统一作业入口","stage":0,"row":1,"tag":"idempotency key"},
+    {"id":"job","type":"database","label":"scheduled_job","sublabel":"状态 + 下次运行","stage":1,"row":1,"tag":"唯一真相"},
+    {"id":"lease","type":"security","label":"数据库租约","sublabel":"禁止并发重入","stage":2,"row":1,"tag":"EVT-SCH-001"},
+    {"id":"coalesce","type":"messagebus","label":"合并最近一次","sublabel":"多次错过触发","stage":2,"row":3,"tag":"EVT-SCH-002"},
+    {"id":"stale","type":"security","label":"数据时效门","sublabel":"stale / unavailable","stage":2,"row":4},
+    {"id":"event","type":"messagebus","label":"domain_event","sublabel":"可重放事件","stage":3,"row":1},
+    {"id":"handler","type":"backend","label":"领域 Handler","sublabel":"刷新 / Run / Alert","stage":3,"row":3},
+    {"id":"skipped","type":"messagebus","label":"skipped_data_stale","sublabel":"审计记录，不通知","stage":3,"row":4},
+    {"id":"inbox","type":"database","label":"通知收件箱","sublabel":"持久化优先","stage":4,"row":3},
+    {"id":"desktop","type":"frontend","label":"Tauri 系统通知","sublabel":"可选交付通道","stage":4,"row":4}
+  ],
+  "flows":[
+    {"from":"trigger","to":"job","label":"创建作业","classification":"idempotent","variant":"emphasis","route":"straight"},
+    {"from":"job","to":"lease","label":"领取","classification":"compare-and-set","variant":"security","route":"straight","labelDy":-48},
+    {"from":"lease","to":"event","label":"执行结果","classification":"DomainEvent","variant":"emphasis","route":"straight"},
+    {"from":"event","to":"handler","label":"分派","classification":"typed contract","route":"vertical-channel"},
+    {"from":"handler","to":"inbox","label":"创建通知","classification":"durable","variant":"emphasis","route":"straight"},
+    {"from":"inbox","to":"desktop","label":"允许后投递","classification":"best effort","variant":"dashed","route":"vertical-channel","labelDx":74},
+    {"from":"job","to":"coalesce","label":"错过多次","classification":"latest only","variant":"dashed","route":"vertical-channel","labelDx":70},
+    {"from":"coalesce","to":"handler","label":"最近一次","classification":"coalesced run","variant":"dashed","route":"straight"},
+    {"from":"job","to":"stale","label":"提醒读取事实","classification":"FreshnessStatus","variant":"security","route":"bottom-channel","labelDy":20},
+    {"from":"stale","to":"skipped","label":"过期则跳过","classification":"no notification","variant":"security","route":"straight"}
+  ],
+  "cards":[{"dot":"emerald","title":"一致性","items":["作业先持久化再执行","同一作业同时只有一个有效租约"]},{"dot":"amber","title":"补跑策略","items":["错过多次运行只合并最近一次","合并行为产生可审计事件"]},{"dot":"rose","title":"时效保护","items":["stale/unavailable 不触发提醒","桌面权限失败不丢失收件箱记录"]}]
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version":1,"diagram_type":"architecture",
+  "meta":{"title":"A07 · Skill、MCP 与 Runtime 安全边界","output":"A07-security-boundaries.html","quality_profile":"showcase","views":[{"id":"input","label":"输入校验","focus":["user","api","skill","policy"],"note":"用户请求和 Skill Manifest 必须先通过 Schema 与权限检查。"},{"id":"tools","label":"工具授权","focus":["policy","internal","registry","runtime"],"note":"内置工具和 MCP 分别命中封闭集合与注册表。"},{"id":"database","label":"数据库隔离","focus":["runtime","dsh","service","db"],"note":"Runtime 只能返回受控结果，DSH 无法直接访问数据库。"}]},
+  "components":[
+    {"id":"user","type":"external","label":"用户输入","sublabel":"文本 / URL / 附件","pos":[30,250],"size":[135,64]},
+    {"id":"api","type":"cloud","label":"API Schema 校验","sublabel":"身份 + 项目隔离","pos":[215,250],"size":[150,64]},
+    {"id":"skill","type":"security","label":"Skill Manifest","sublabel":"声明式 I/O","pos":[420,250],"size":[150,64]},
+    {"id":"policy","type":"security","label":"能力策略门","sublabel":"预算 + 截止时间","pos":[625,250],"size":[150,64]},
+    {"id":"internal","type":"backend","label":"内置工具集合","sublabel":"封闭 allowlist","pos":[840,100],"size":[150,64]},
+    {"id":"registry","type":"security","label":"MCP Registry","sublabel":"预注册 + 授权","pos":[840,250],"size":[150,64]},
+    {"id":"runtime","type":"backend","label":"Runtime Provider","sublabel":"受控执行接口","pos":[840,400],"size":[150,64]},
+    {"id":"dsh","type":"external","label":"DSH 侧车","sublabel":"无 Shell / DB 权限","pos":[1050,400],"size":[150,64]},
+    {"id":"service","type":"backend","label":"Owning Service","sublabel":"验证运行结果","pos":[1050,180],"size":[150,64]},
+    {"id":"db","type":"database","label":"PostgreSQL","sublabel":"只接受 Service 写入","pos":[1050,40],"size":[150,64]}
+  ],
+  "boundaries":[{"kind":"security-group","label":"白名单执行边界","wraps":["policy","internal","registry","runtime"],"pad":22},{"kind":"region","label":"无数据库凭据的侧车边界","wraps":["dsh"],"pad":14}],
+  "connections":[
+    {"from":"user","to":"api","label":"提交","variant":"emphasis"},{"from":"api","to":"skill","label":"验证"},{"from":"skill","to":"policy","label":"声明"},{"from":"policy","to":"internal","variant":"security"},{"from":"policy","to":"registry","variant":"security"},{"from":"policy","to":"runtime","variant":"security"},
+    {"from":"runtime","to":"dsh","label":"受控调用","variant":"dashed","labelDy":32},{"from":"runtime","to":"service","label":"结构化结果","fromSide":"right","toSide":"left","labelDy":-38},{"from":"internal","to":"service","label":"工具结果","fromSide":"right","toSide":"left"},{"from":"service","to":"db","label":"Owner 写入","variant":"emphasis","fromSide":"top","toSide":"bottom"}
+  ],
+  "cards":[{"dot":"emerald","title":"允许","items":["声明式 Prompt 与 I/O Schema","注册内置工具、受控网页域名和白名单 MCP"]},{"dot":"rose","title":"拒绝","items":["任意代码、Shell 和任意文件系统路径","任意 URL、未注册 MCP 和侧车直连数据库"]},{"dot":"amber","title":"运行约束","items":["最大步骤、并发、token、费用和截止时间强制执行","能力不足进入 blocked_runtime"]}]
+}
