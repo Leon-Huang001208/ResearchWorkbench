@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-density="compact">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>AlphaFoundry · 投研决策工作台</title>
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/shell.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <link rel="stylesheet" href="styles/pages.css">
+  <link rel="stylesheet" href="styles/responsive.css">
+</head>
+<body>
+  <a class="skip-link" href="#page-root">跳到主要内容</a>
+  <div class="app-shell" id="app">
+    <header data-shell="topbar" aria-label="全局工具栏"></header>
+    <nav data-shell="product-nav" aria-label="产品导航"></nav>
+    <aside data-shell="module-sidebar" aria-label="模块导航"></aside>
+    <main data-shell="workspace" id="page-root" tabindex="-1"></main>
+    <aside data-shell="research-space" aria-label="研究空间"></aside>
+  </div>
+  <div id="journey-bar" aria-live="polite"></div>
+  <div id="tweak-panel"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  <noscript>此产品原型需要浏览器启用 JavaScript。</noscript>
+
+  <script src="scripts/store.js"></script>
+  <script src="scripts/router.js"></script>
+  <script src="scripts/data-adapter.js"></script>
+  <script src="scripts/shell.js"></script>
+  <script src="scripts/tweaks.js"></script>
+  <script src="scripts/pages/market-home.js"></script>
+  <script src="scripts/pages/theme-research.js"></script>
+  <script src="scripts/pages/asset-observation.js"></script>
+  <script src="scripts/pages/fingpt.js"></script>
+  <script src="scripts/pages/claw.js"></script>
+  <script src="scripts/pages/watchlists.js"></script>
+  <script src="scripts/pages/research-library.js"></script>
+  <script src="scripts/pages/capability-center.js"></script>
+  <script src="scripts/journeys.js"></script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>

@@ -13,7 +13,7 @@
 
 ## 文档导航
 
-完整的功能/API/服务/数据/状态追踪见 [detailed/README.md](detailed/README.md)，可交互入口为 `outputs/merged-platform-blueprint/index.html`。
+完整的功能/API/服务/数据/状态追踪见 [detailed/README.md](detailed/README.md)，可交互架构入口为 `outputs/merged-platform-blueprint/index.html`。可点击产品效果入口为 `outputs/merged-platform-product-prototype/index.html`，页面与接口追踪见 [product/prototype-map.md](product/prototype-map.md)，视觉约束见 [product/brand-spec.md](product/brand-spec.md)。
 
 | 文档 | 实现问题 | 配套图 |
 |---|---|---|
