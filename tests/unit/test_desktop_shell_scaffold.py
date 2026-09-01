@@ -493,7 +493,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "renderMarketCommandCenter(mo)" in dashboard_js
     assert "function renderMarketCommandCenter" in dashboard_js
     assert "refreshMarketOverviewOnly" in dashboard_js
-    assert "/api/dashboard/market-overview?force_refresh=" in dashboard_js
+    assert "/api/market-home/live?force_refresh=" in dashboard_js
     assert "toast('行情刷新失败'" in dashboard_js
     assert "loadDashboard({ silent: !options.manual })" not in dashboard_js
     assert "renderMarketHeatmap" in dashboard_js
@@ -599,8 +599,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "primeMarketSectorViewRequest(activeMarketSectorView)" in dashboard_js
     assert "...previousViews" in dashboard_js
     assert "sectors.slice(0, MARKET_SECTOR_LIST_LIMIT)" in dashboard_js
-    assert "limit=${MARKET_SECTOR_FETCH_LIMIT}" in dashboard_js
-    assert "force_refresh=true" in dashboard_js
+    assert "/api/dashboard/sector-movers" not in dashboard_js
+    assert "force_refresh=${forceRefresh ? 'true' : 'false'}" in dashboard_js
     assert "hasFreshSectorData" in dashboard_js
     assert "if (force && !hasFreshSectorData && current) return" in dashboard_js
     assert "marketSectorViewRequestCache.delete(viewKey)" in dashboard_js
@@ -610,7 +610,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     )
     assert "combined.slice(0, MARKET_HEATMAP_ITEM_LIMIT)" in dashboard_js
     assert "return { up: [], down: [] }" in dashboard_js
-    assert "/api/dashboard/sector-movers?view_key=" in dashboard_js
+    assert "/api/market-home/live" in dashboard_js
     assert "const savedTheme = localStorage.getItem('af-theme')" in js
     assert "localStorage.setItem('af-theme', savedTheme || 'dark')" in js
     assert "localStorage.setItem('af-theme', 'dark')" not in js
