@@ -67,3 +67,10 @@ scripts/migrate_lsh_theme_data.py --source <path> --apply --output <report.json>
 - 浏览器验收必须覆盖首页、资产观察、主题研究、FinGPT/Claw 四条完整旅程。
 - 安全测试必须证明 DSH 无数据库权限，Skill/MCP 未授权调用被拒绝，项目记忆互相隔离。
 - 性能门槛固定为缓存首页 P95≤500ms、资产/主题详情 P95≤1s、SSE 首状态≤1s、提醒评估延迟≤60s。
+
+## V1 实施记录
+
+- `services/legacy_capability_gate.py` 已实现 fail-closed 删除判断；清单缺失、字段不全、未知 capability 或未达到 `archived` 状态都不会获得删除许可。
+- `lsh-capability-map.yaml` 采用 JSON-compatible YAML，避免为清单读取新增运行时依赖；当前真实证据均按未完成记录，因此没有任何 LSH 重复能力获准删除。
+- `strategy_trading` 与 `fund_approval` 固定为 `freeze_read_only`，门禁始终返回 `retain_read_only`。
+- 首页、资产观察、主题产业链和研究入口的现有前端已接入新领域 API；这只是兼容期适配，不代表 LSH 已达到零调用、只读归档或可删除状态。

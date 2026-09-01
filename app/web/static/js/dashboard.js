@@ -69,7 +69,7 @@ export async function loadDashboard(options = {}) {
         primeMarketSectorViewRequest(activeMarketSectorView);
         let data = null;
         try {
-            data = await apiCall('GET', '/api/dashboard');
+            data = normalizeMarketHomeEnvelope(await apiCall('GET', '/api/market-home/live'));
         } catch (e) {
             console.error('dashboard_fetch_failed', e);
             if (!silent) {
@@ -132,6 +132,56 @@ function setSourceBadge(badge, label, isReal) {
 // ─── Market Overview Tab ────────────────────────────────────
 function renderMarketOverview(data) {
     renderMarketOverviewPayload(data.market_overview || {});
+}
+
+function normalizeMarketHomeEnvelope(envelope = {}) {
+    const sections = Object.fromEntries(
+        (envelope.sections || []).map(section => [section.section_key, section])
+    );
+    const sectionPayload = key => sections[key]?.payload || {};
+    const globalContext = sectionPayload('global_context');
+    const aShare = sectionPayload('a_share_status');
+    const mainlines = sectionPayload('market_mainlines');
+    const importantEvents = sectionPayload('important_events');
+    const assetMoves = sectionPayload('asset_moves');
+    const normalizeMainline = item => ({
+        ...item,
+        name: item.name || item.label || item.theme_key,
+        change_pct: item.change_pct ?? item.return_value ?? null,
+    });
+    const leading = (mainlines.leading || []).map(normalizeMainline);
+    const weakening = (mainlines.weakening || []).map(normalizeMainline);
+    const events = importantEvents.events || importantEvents.items || globalContext.events || [];
+    const asOf = (envelope.sections || [])
+        .map(section => section.as_of)
+        .filter(Boolean)
+        .sort()
+        .at(-1);
+    return {
+        market_overview: {
+            ...globalContext,
+            ...aShare,
+            indices: aShare.indices || assetMoves.indices || [],
+            breadth: aShare.breadth || {},
+            global_news: events,
+            top_up_sectors: leading,
+            top_down_sectors: weakening,
+            heatmap: [...leading, ...weakening],
+            sector_views: {
+                wind_hot_concept: {
+                    up: leading,
+                    down: weakening,
+                    status: sections.market_mainlines?.status || '',
+                    message: sections.market_mainlines?.degradation?.error_code || '',
+                },
+            },
+            trading_status: envelope.trading_status,
+            trading_day: envelope.trading_day,
+            last_updated: asOf,
+            uses_real_news: Boolean(sections.important_events?.source_refs?.length),
+            uses_real_sectors: Boolean(sections.market_mainlines?.source_refs?.length),
+        },
+    };
 }
 
 function renderMarketOverviewPayload(mo = {}) {
@@ -212,10 +262,11 @@ async function refreshMarketOverviewOnly(options = {}) {
 
     try {
         setMarketRefreshState(true, silent ? '自动刷新中' : '刷新中');
-        const overview = await apiCall(
+        const envelope = await apiCall(
             'GET',
-            `/api/dashboard/market-overview?force_refresh=${forceRefresh ? 'true' : 'false'}&_=${Date.now()}`
+            `/api/market-home/live?force_refresh=${forceRefresh ? 'true' : 'false'}&_=${Date.now()}`
         );
+        const overview = normalizeMarketHomeEnvelope(envelope).market_overview;
         updateDataSourceBadge({ market_overview: overview });
         renderMarketOverviewPayload(overview);
         await ensureMarketSectorViewLoaded(activeMarketSectorView, { force: true, silent: true });
@@ -572,14 +623,16 @@ async function getMarketSectorViewPayload(viewKey, signal, forceRefresh = false)
 }
 
 function fetchMarketSectorViewPayload(viewKey, signal, forceRefresh = false) {
-    const forceParam = forceRefresh ? '&force_refresh=true' : '';
-    const cacheBuster = forceRefresh ? `&_=${Date.now()}` : '';
-    return apiCall(
-        'GET',
-        `/api/dashboard/sector-movers?view_key=${encodeURIComponent(viewKey)}&limit=${MARKET_SECTOR_FETCH_LIMIT}${forceParam}${cacheBuster}`,
-        null,
-        { signal }
-    );
+    const view = latestMarketOverview?.sector_views?.[viewKey] || {};
+    return Promise.resolve({
+        up: view.up || [],
+        down: view.down || [],
+        status: view.status || '',
+        message: view.message || '',
+        has_real_data: Boolean((view.up || []).length || (view.down || []).length),
+        signal,
+        forceRefresh,
+    });
 }
 
 function formatNewsTimestamp(value) {
@@ -612,7 +665,7 @@ function renderMarketCommandCenter(mo = {}) {
     const heatmapItems = mo.heatmap || buildMarketHeatmapItems(mo);
     renderMarketHeatmap(heatmapItems);
 
-    renderMarketAiBrief(mo, indices, breadth);
+    renderMarketFactSummary(mo);
 }
 
 function buildFallbackIndices(mo = {}) {
@@ -775,16 +828,11 @@ function getMarketHeatmapIntensityClass(change) {
     return 'is-muted';
 }
 
-function renderMarketAiBrief(mo = {}, indices = [], breadth = {}) {
-    const bestSector = (mo.top_up_sectors || [])[0];
-    const weakSector = (mo.top_down_sectors || [])[0];
-    const leadIndex = indices.find(index => readPercentChange(index) > 0) || indices[0] || {};
-    const brief = [
-        `${leadIndex.name || 'A股'}盘面以结构性机会为主。`,
-        bestSector ? `${bestSector.name}领涨，涨幅约 ${Number(bestSector.change_pct || 0).toFixed(2)}%。` : '热点板块等待实时数据确认。',
-        weakSector ? `${weakSector.name}承压，注意资金轮动。` : '下跌板块暂未形成清晰主线。',
-    ].join('');
-
+function renderMarketFactSummary(mo = {}) {
+    const leadingCount = (mo.top_up_sectors || []).length;
+    const weakeningCount = (mo.top_down_sectors || []).length;
+    const eventCount = (mo.global_news || []).length;
+    const brief = `事实快照：领先主线 ${leadingCount} 条，走弱主线 ${weakeningCount} 条，重要事件 ${eventCount} 条。`;
     const updated = formatMarketDateTime(mo.last_updated);
     setText('market-ai-brief-text', brief);
     setText('market-ai-brief-date', updated);

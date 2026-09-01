@@ -4,6 +4,8 @@ let initialized = false;
 let templates = [];
 let selectedTemplateKey = null;
 let currentRun = null;
+let currentWorkspace = null;
+let currentSession = null;
 let pendingPrefill = null;
 
 export function initResearchWorkbench() {
@@ -186,6 +188,11 @@ async function submitResearchRun(event) {
             .filter(Boolean);
         const date = document.getElementById('research-as-of')?.value;
         const subjectId = document.getElementById('research-subject-id')?.value.trim();
+        const question = document.getElementById('research-question')?.value.trim();
+        await ensureResearchContext({
+            title: document.getElementById('research-subject-name')?.value.trim() || subjectId,
+            question,
+        });
         const created = await apiCall('POST', '/api/research-runs', {
             template_key: template.template_key,
             subject: {
@@ -194,7 +201,7 @@ async function submitResearchRun(event) {
                 display_name: document.getElementById('research-subject-name')?.value.trim() || subjectId,
             },
             as_of: `${date}T00:00:00Z`,
-            question: document.getElementById('research-question')?.value.trim(),
+            question,
             attachment_refs: attachments,
         });
         const run = await apiCall('POST', `/api/research-runs/${encodeURIComponent(created.run_id)}/execute`);
@@ -214,6 +221,30 @@ async function submitResearchRun(event) {
     } finally {
         setSubmitLoading(false);
     }
+}
+
+async function ensureResearchContext({ title, question }) {
+    if (!currentWorkspace) {
+        const key = globalThis.crypto?.randomUUID?.() || `workspace-${Date.now()}`;
+        currentWorkspace = await apiCall('POST', '/api/research-workspaces', {
+            project_id: 'local',
+            title: title || '研究工作区',
+        }, { headers: { 'Idempotency-Key': key } });
+    }
+    if (!currentSession) {
+        const key = globalThis.crypto?.randomUUID?.() || `session-${Date.now()}`;
+        currentSession = await apiCall('POST', '/api/research-sessions', {
+            mode: 'workspace',
+            workspace_id: currentWorkspace.workspace_id,
+        }, { headers: { 'Idempotency-Key': key } });
+    }
+    const messageKey = globalThis.crypto?.randomUUID?.() || `message-${Date.now()}`;
+    await apiCall(
+        'POST',
+        `/api/research-sessions/${encodeURIComponent(currentSession.session_id)}/messages`,
+        { role: 'user', content: question, idempotency_key: messageKey },
+        { headers: { 'Idempotency-Key': messageKey } }
+    );
 }
 
 function setSubmitLoading(loading) {
