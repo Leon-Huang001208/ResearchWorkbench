@@ -72,12 +72,12 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 }
 
 export function createController({ api, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {} }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], skillId: '', error: '', streamError: '', loading: false, busy: false };
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], skillId: '', expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {};
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
-  const saveDraft = () => drafts.set(draftKey(), { draft: state.draft, attachments: state.attachments, skillId: state.skillId });
+  const saveDraft = () => drafts.set(draftKey(), { draft: state.draft, attachments: state.attachments, skillId: state.skillId, expectedFormats: state.expectedFormats });
   const fail = (error) => { state.error = error?.message || '操作失败，请重试。'; };
   function snapshot(data) {
     if (!data || data.id !== state.route.sessionId || !Array.isArray(data.messages)) throw new Error('会话响应格式异常，请刷新重试。');
@@ -92,7 +92,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   async function open(route) {
     saveDraft(); const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false;
-    Object.assign(state, drafts.get(draftKey()) || { draft: '', attachments: [], skillId: '' }); emit();
+    Object.assign(state, { expectedFormats: null }, drafts.get(draftKey()) || { draft: '', attachments: [], skillId: '' }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
@@ -109,7 +109,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   async function send() {
     if (state.busy || !state.detail || !state.draft.trim()) return;
     const id = state.detail.id; const ticket = generation; const text = state.draft;
-    const body = { text: text.trim(), ...(state.skillId ? { skill_id: state.skillId } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}) };
+    const body = { text: text.trim(), ...(state.skillId ? { skill_id: state.skillId } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}) };
     const signature = JSON.stringify(body); const previous = pending.get(id);
     const attempt = previous?.signature === signature ? previous : { signature, key: makeID() };
     pending.set(id, attempt); state.busy = true; state.error = ''; emit();
@@ -137,11 +137,12 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
     state, subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); }, open, refresh, send, action,
     setDraft: (value) => { state.draft = value; saveDraft(); },
     setSkill: (value) => { state.skillId = value; saveDraft(); },
+    setFormats: (value) => { state.expectedFormats = value === null ? null : [...new Set(value)]; saveDraft(); },
     addAttachments: (items) => { state.attachments = [...new Map([...state.attachments, ...items].map((file) => [file.id, file])).values()]; saveDraft(); emit(); },
     removeAttachment: (id) => { state.attachments = state.attachments.filter((file) => file.id !== id); saveDraft(); emit(); },
     create: async (mode, workspaceId) => {
       const ticket = generation;
-      const previousDraft = { draft: state.draft, attachments: [], skillId: state.skillId };
+      const previousDraft = { draft: state.draft, attachments: [], skillId: state.skillId, expectedFormats: state.expectedFormats };
       const result = await action(() => api.create({ mode, ...(workspaceId ? { workspace_id: workspaceId } : {}) }), { refreshAfter: false });
       if (ticket !== generation) return null;
       if (result?.id) { drafts.set(result.id, previousDraft); onNavigate(sessionHash(result)); }

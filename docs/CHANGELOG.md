@@ -8,6 +8,8 @@
 
 ### Added
 
+- **Research Web 文件交付检查**：新增显式输出格式与 Skill 默认值、绑定幂等收据的哈希快照、单会话串行归属和严格沙箱内 DOCX/XLSX/HTML/Markdown/PNG 实际解析。详情单列交付状态、缺失/损坏原因，执行结束不等于文件交付完成；重命名和原生问题改用应用内表单。详见 `docs/research-web-delivery.md`；不代表真实模型完整产品验收。
+
 - **DSH 原生 Research Web（独立入口）**：`app.research_web.main:app` 提供 `/api/research`、FinGPT/Claw、历史、设置、附件和真实文件下载。采用 HTTP RPC + 双 WebSocket → SSE，历史由 DSH 持久化；不启动旧 ResearchRun、Evidence/Claim、LangGraph、数据库和桌面服务。新增幂等受理、断线恢复、专属实例归属核验、原生审批/问题响应及受限 HTML 预览。原生模型成功旅程仍需专属实例 API Key，不能把代码/回归测试标记为全部产品验收。
 
 - **FinGPT / Claw 项目化研究运行时**：新增项目隔离的 Workspace、单 Run Session、幂等 Message、版本化 Research Note、Runtime Provider、声明式 Skill、Supervisor Agent Team 与持久 Agent Schedule API。产品路径通过 Session 原子创建/绑定/执行既有 Research Run；绑定后的读取、补证、恢复、下载和 SSE 均要求 project/workspace scope。FinGPT 可从 DSH 确定性回退内置 LangGraph，Claw 缺能力时持久为 `blocked_runtime`；关联 Provider result、团队 Blackboard/usage 和研究阶段事件进入原 Research Run/Artifact 链路，不创建平行运行模型。

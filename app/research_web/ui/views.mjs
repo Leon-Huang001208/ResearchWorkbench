@@ -1,16 +1,36 @@
 import { escapeHTML as e, renderMarkdown, safeURL } from './markdown.mjs';
 import { sessionHash, isRunning } from './core.mjs';
 
-export const statusText = (status) => ({ idle: '待命', running: '运行中', queued: '排队中', completed: '已完成', failed: '失败', cancelled: '已取消', waiting_approval: '等待授权', awaiting_approval: '等待授权', waiting_input: '等待回复', cancelling: '取消中' })[status] || status || '未知';
+export const statusText = (status) => ({ idle: '待命', running: '运行中', queued: '排队中', completed: '执行已结束', failed: '失败', cancelled: '已取消', waiting_approval: '等待授权', awaiting_approval: '等待授权', waiting_input: '等待回复', cancelling: '取消中' })[status] || status || '未知';
 export const badge = (status) => `<span class="badge ${isRunning(status) ? 'live' : ['failed', 'error'].includes(status) ? 'danger' : ''}">${e(statusText(status))}</span>`;
 export const empty = (title, description = '') => `<div class="empty"><span class="empty-symbol" aria-hidden="true">◇</span><h3>${e(title)}</h3>${description ? `<p>${e(description)}</p>` : ''}</div>`;
 
-export function renderConversation(detail) {
+export function renderConversation(detail, questionDrafts = new Map()) {
   if (!detail) return '';
   const messages = (detail.messages || []).map((message) => `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}"><div class="message-byline"><span class="avatar">${message.role === 'user' ? '你' : 'A'}</span><strong>${e(message.role === 'user' ? '你' : message.role === 'assistant' ? 'AlphaFoundry' : message.role)}</strong></div><div class="markdown">${renderMarkdown(message.text)}</div></article>`).join('');
   const approvals = (detail.approvals || []).map((approval) => `<section class="decision-card"><div class="eyebrow">需要你的授权</div><h3>${e(approval.title)}</h3><div class="markdown">${renderMarkdown(approval.detail)}</div><div class="button-row"><button class="button primary" data-approval="${e(approval.id)}" data-decision="approve">允许</button><button class="button danger-outline" data-approval="${e(approval.id)}" data-decision="deny">拒绝</button></div></section>`).join('');
-  const questions = (detail.questions || []).map((question) => `<section class="decision-card"><div class="eyebrow">DSH 需要补充信息</div><div class="markdown">${renderMarkdown(question.text)}</div><button class="button" data-answer="${e(question.id)}">回答问题</button></section>`).join('');
+  const questions = (detail.questions || []).map((question) => {
+    const draft = questionDrafts.get(question.id) || [];
+    return `<form class="decision-card question-form" data-question-form="${e(question.id)}"><div class="eyebrow">DSH 需要补充信息</div>${question.items?.length ? question.items.map((item, index) => `<fieldset><legend>${e(item.question)}</legend>${(item.options || []).map((option) => `<label class="check-label"><input type="checkbox" name="selection-${index}" value="${e(option.label)}" ${draft[index]?.selected?.includes(option.label) ? 'checked' : ''}>${e(option.label)}${option.description ? `<span class="muted">${e(option.description)}</span>` : ''}</label>`).join('')}<label for="question-${e(encodeURIComponent(question.id))}-${index}">补充回答</label><textarea id="question-${e(encodeURIComponent(question.id))}-${index}" name="custom-${index}" maxlength="10000" rows="2">${e(draft[index]?.custom || '')}</textarea></fieldset>`).join('') : `<div class="markdown">${renderMarkdown(question.text)}</div>`}<button type="submit" class="button primary">提交回答</button></form>`;
+  }).join('');
   return `${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(detail.error)}</div>` : ''}`;
+}
+
+export function renderRename(title) {
+  return `<form id="rename-form" class="decision-card rename-form"><label for="rename-title">为这个研究会话命名</label><input id="rename-title" name="title" value="${e(title)}" required maxlength="120"><div class="button-row"><button type="submit" class="button primary">保存名称</button><button type="button" class="button" data-cancel-rename>取消</button></div></form>`;
+}
+
+export function renderFormatPicker(formats, skillId) {
+  const defaults = ['fund-evaluation', 'company-research', 'industry-research'].includes(skillId) ? ['docx', 'html', 'xlsx'] : [];
+  const selected = formats === null ? defaults : formats;
+  const label = selected.length ? selected.map((value) => value.toUpperCase()).join(' / ') : '无需文件';
+  return `<details class="format-picker"><summary>输出格式：${formats === null ? '自动 · ' : ''}${e(label)}</summary><div class="format-options"><label class="check-label"><input id="auto-formats" type="checkbox" data-auto-formats ${formats === null ? 'checked' : ''}>按 Skill 默认格式</label>${['md', 'html', 'docx', 'xlsx', 'png'].map((format) => `<label class="check-label"><input id="format-${format}" type="checkbox" data-format="${format}" ${selected.includes(format) ? 'checked' : ''}>${format.toUpperCase()}</label>`).join('')}<button type="button" class="text-button" data-no-formats>仅聊天，无需文件</button></div></details>`;
+}
+
+export function renderDelivery(delivery) {
+  if (!delivery) return '';
+  const labels = { pending: '等待执行结束后检查', admission_unknown: '受理未知，未重复执行', completed: '文件交付已检查', incomplete: '交付未完成', verification_failed: '交付验证失败', not_required: '本任务未要求文件' };
+  return `<section class="context-section delivery-panel" aria-label="文件交付检查"><h3>文件交付检查</h3><p class="badge ${['incomplete', 'verification_failed'].includes(delivery.status) ? 'danger' : ''}">${e(labels[delivery.status] || delivery.status)}</p><p class="small muted">要求：${e((delivery.required_formats || []).map((format) => format.toUpperCase()).join(' / ') || '无需文件')}。执行结束不等于文件交付完成。</p>${(delivery.reasons || []).map((reason) => `<p class="small">${e(reason)}</p>`).join('')}${(delivery.files || []).map((file) => `<div class="delivery-file"><strong>${e(file.name)}</strong><span>${file.valid ? '已通过格式检查' : '未通过检查'}</span>${file.reason ? `<p>${e(file.reason)}</p>` : ''}</div>`).join('')}</section>`;
 }
 
 export function renderActivities(detail) {

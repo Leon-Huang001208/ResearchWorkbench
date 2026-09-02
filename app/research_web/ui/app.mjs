@@ -1,12 +1,14 @@
 import { createAPI, createController, parseRoute, sessionHash, isRunning, safeLog } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
-import { badge, empty, renderConversation, renderActivities, renderFiles, renderHistory, modelOptions } from './views.mjs';
+import { badge, empty, renderConversation, renderActivities, renderFiles, renderHistory, modelOptions, renderRename, renderDelivery, renderFormatPicker } from './views.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
 const catalog = { runtime: null, models: [], sessions: [], workspaces: [], skills: [], errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let contextOpen = false;
 let pageGeneration = 0;
+let renameDraft = null;
+const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
 
@@ -20,7 +22,8 @@ function notice(message, kind = 'error') { return message ? `<div class="notice 
 
 function composer() {
   const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
-  return `<form id="composer" class="composer"><label class="sr-only" for="prompt">${state.route.page === 'claw' ? '任务目标或补充信息' : '研究问题'}</label><textarea id="prompt" name="prompt" rows="3" placeholder="${state.route.page === 'claw' ? '描述研究目标、约束与希望交付的结果…' : '今天想研究什么？输入问题，或添加文件…'}" ${disabled ? 'disabled' : ''}>${e(state.draft)}</textarea>${state.attachments.length ? `<div class="attachment-chips">${state.attachments.map((file) => `<span>${e(file.name)}<button type="button" data-remove-attachment="${e(file.id)}" aria-label="移除附件 ${e(file.name)}">×</button></span>`).join('')}</div>` : ''}<div class="composer-tools"><button type="button" class="button attachment-button" data-upload ${disabled ? 'disabled' : ''} title="PDF、图片、Markdown、CSV、Excel">＋ <span>附件</span></button><label class="sr-only" for="skill-select">使用 Skill</label><select id="skill-select" ${disabled ? 'disabled' : ''}><option value="">按需使用 Skill</option>${catalog.skills.map((skill) => `<option value="${e(skill.id)}" ${state.skillId === skill.id ? 'selected' : ''}>${e(skill.name)}</option>`).join('')}</select><span class="spacer"></span>${state.detail && (isRunning(state.detail.status) || state.detail.can_cancel) ? `<button type="button" class="button danger-outline" data-cancel ${state.busy ? 'disabled' : ''}>停止</button>` : ''}<button type="submit" class="button primary" ${disabled ? 'disabled' : ''}>${state.busy ? '正在提交…' : state.detail ? '发送' : '开始研究'} <span aria-hidden="true">↑</span></button></div><input id="file-input" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.md,.csv,.xlsx" hidden></form><p class="composer-caption">Enter 发送 · Shift + Enter 换行 · 内容交由 DSH 运行时处理</p>`;
+  const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
+  return `<form id="composer" class="composer"><label class="sr-only" for="prompt">${state.route.page === 'claw' ? '任务目标或补充信息' : '研究问题'}</label><textarea id="prompt" name="prompt" rows="3" placeholder="${state.route.page === 'claw' ? '描述研究目标、约束与希望交付的结果…' : '今天想研究什么？输入问题，或添加文件…'}" ${disabled ? 'disabled' : ''}>${e(state.draft)}</textarea>${state.attachments.length ? `<div class="attachment-chips">${state.attachments.map((file) => `<span>${e(file.name)}<button type="button" data-remove-attachment="${e(file.id)}" aria-label="移除附件 ${e(file.name)}">×</button></span>`).join('')}</div>` : ''}${renderFormatPicker(state.expectedFormats, state.skillId)}<div class="composer-tools"><button type="button" class="button attachment-button" data-upload ${disabled ? 'disabled' : ''} title="PDF、图片、Markdown、CSV、Excel">＋ <span>附件</span></button><label class="sr-only" for="skill-select">使用 Skill</label><select id="skill-select" ${disabled ? 'disabled' : ''}><option value="">按需使用 Skill</option>${catalog.skills.map((skill) => `<option value="${e(skill.id)}" ${state.skillId === skill.id ? 'selected' : ''}>${e(skill.name)}</option>`).join('')}</select><span class="spacer"></span>${state.detail && (isRunning(state.detail.status) || state.detail.can_cancel) ? `<button type="button" class="button danger-outline" data-cancel ${state.busy ? 'disabled' : ''}>停止</button>` : ''}<button type="submit" class="button primary" ${disabled || taskPending ? 'disabled' : ''}>${state.busy ? '正在提交…' : state.detail ? '发送' : '开始研究'} <span aria-hidden="true">↑</span></button></div><input id="file-input" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.md,.csv,.xlsx" hidden></form><p class="composer-caption">${taskPending ? '上一任务及其交付尚未确认结束；可准备草稿，完成后再发送。' : 'Enter 发送 · Shift + Enter 换行 · 内容交由 DSH 运行时处理'}</p>`;
 }
 
 function landing() {
@@ -33,7 +36,7 @@ function researchPage() {
   if (state.route.sessionId && !state.detail) return `${empty('暂时无法读取这个会话', '检查连接后重试，输入内容仍会保留。')}<button class="button" data-reload-session>重新读取</button>`;
   if (!state.detail) return landing();
   const detail = state.detail;
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row"><button class="button small" data-rename ${state.busy ? 'disabled' : ''}>重命名</button>${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context>活动与文件</button></div></header>${notice(state.streamError, 'warning')}<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail)}</div><div class="composer-dock">${composer()}</div>`;
+  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row"><button class="button small" data-rename ${state.busy ? 'disabled' : ''}>重命名</button>${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context>活动与文件</button></div></header>${renameDraft !== null ? renderRename(renameDraft) : ''}${notice(state.streamError, 'warning')}<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts)}</div><div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -54,7 +57,7 @@ function sidebar() {
 
 function contextPanel() {
   const usage = state.detail?.usage;
-  return `<aside class="context-panel ${contextOpen ? 'mobile-open' : ''}" aria-label="研究活动与文件"><header class="context-header"><h2>研究空间</h2><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button><span class="badge">${state.detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></header>${renderActivities(state.detail)}<section class="context-section"><div class="section-heading"><h3>文件</h3>${state.detail ? `<button class="text-button" data-refresh-files ${state.busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(state.detail?.files || [], selectedPreview)}</section>${usage && (usage.tokens != null || usage.cost != null) ? `<footer class="usage-footer">${usage.tokens != null ? `<span>Tokens <strong>${e(usage.tokens)}</strong></span>` : ''}${usage.cost != null ? `<span>运行时费用 <strong>${e(usage.cost)}</strong></span>` : ''}</footer>` : ''}</aside>`;
+  return `<aside class="context-panel ${contextOpen ? 'mobile-open' : ''}" aria-label="研究活动与文件"><header class="context-header"><h2>研究空间</h2><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button><span class="badge">${state.detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></header>${renderDelivery(state.detail?.delivery)}${renderActivities(state.detail)}<section class="context-section"><div class="section-heading"><h3>文件</h3>${state.detail ? `<button class="text-button" data-refresh-files ${state.busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(state.detail?.files || [], selectedPreview)}</section>${usage && (usage.tokens != null || usage.cost != null) ? `<footer class="usage-footer">${usage.tokens != null ? `<span>Tokens <strong>${e(usage.tokens)}</strong></span>` : ''}${usage.cost != null ? `<span>运行时费用 <strong>${e(usage.cost)}</strong></span>` : ''}</footer>` : ''}</aside>`;
 }
 
 function render() {
@@ -68,7 +71,7 @@ function render() {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
-  if (state.busy) root.querySelectorAll('[data-approval], [data-upload]').forEach((button) => { button.disabled = true; });
+  if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
   document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', history: '研究历史', skills: 'Skills', settings: '设置' })[state.route.page]} · AlphaFoundry`;
 }
 
@@ -86,7 +89,7 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
 }
 
 async function showRoute() {
-  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; contextOpen = false;
+  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; contextOpen = false; renameDraft = null; questionDrafts.clear();
   await controller.open(parseRoute(location.hash));
   if (ticket !== pageGeneration) return;
   document.querySelector('#main')?.scrollTo({ top: 0 });
@@ -105,18 +108,30 @@ async function ensureSession() {
 
 root.addEventListener('input', (event) => {
   if (event.target.id === 'prompt') controller.setDraft(event.target.value);
+  if (event.target.id === 'rename-title') renameDraft = event.target.value;
+  const form = event.target.closest('[data-question-form]');
+  if (form) {
+    const question = state.detail?.questions?.find((item) => item.id === form.dataset.questionForm);
+    if (question) questionDrafts.set(question.id, collectAnswers(form, question));
+  }
   if (event.target.id === 'history-search') { historyFilter = event.target.value; document.querySelector('#history-results').innerHTML = renderHistory(catalog.sessions, historyFilter); }
 });
 
 root.addEventListener('keydown', (event) => {
   if (event.target.id === 'prompt' && event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); document.querySelector('#composer')?.requestSubmit(); }
-  if (event.key === 'Escape') { sidebarOpen = false; contextOpen = false; render(); }
+  if (event.key === 'Escape') { sidebarOpen = false; contextOpen = false; renameDraft = null; render(); }
 });
 
 root.addEventListener('change', async (event) => {
   const target = event.target;
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
-  if (target.id === 'skill-select') controller.setSkill(target.value);
+  if (target.id === 'skill-select') { controller.setSkill(target.value); render(); }
+  if ('autoFormats' in target.dataset) { controller.setFormats(target.checked ? null : []); render(); }
+  if ('format' in target.dataset) {
+    const selected = [...root.querySelectorAll('[data-format]:checked')].map((input) => input.dataset.format);
+    controller.setFormats(selected); render();
+    root.querySelector('.format-picker')?.setAttribute('open', '');
+  }
   if (target.id === 'settings-model' && target.value) {
     try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; }
     catch { safeLog('invalid_model_selection'); }
@@ -136,6 +151,21 @@ root.addEventListener('change', async (event) => {
 
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (event.target.id === 'rename-form') {
+    const id = state.detail?.id; const title = String(new FormData(event.target).get('title') || '').trim();
+    if (!id || !title) { state.error = '会话名称不能为空。'; render(); return; }
+    const result = await controller.action(() => api.rename(id, title));
+    if (result && state.detail?.id === id) { renameDraft = null; await loadCatalog(['sessions']); }
+  }
+  if (event.target.dataset.questionForm) {
+    const id = state.detail?.id; const question = state.detail?.questions?.find((item) => item.id === event.target.dataset.questionForm);
+    if (!id || !question?.items?.length) return;
+    const answers = collectAnswers(event.target, question);
+    questionDrafts.set(question.id, answers);
+    if (answers.some((answer) => !answer.custom.trim() && !answer.selected.length)) { state.error = '请完整回答这组问题。'; render(); return; }
+    const result = await controller.action(() => api.answer(id, question.id, answers));
+    if (result) { questionDrafts.delete(question.id); render(); }
+  }
   if (event.target.id === 'composer') {
     if (!state.draft.trim() || state.busy) return;
     if (await ensureSession()) { await controller.send(); await loadCatalog(['sessions']); }
@@ -162,19 +192,8 @@ root.addEventListener('click', async (event) => {
   if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
-  if ('answer' in data) {
-    const question = state.detail?.questions?.find((item) => item.id === data.answer);
-    if (question?.items?.length) {
-      const answers = [];
-      for (const item of question.items) {
-        const custom = window.prompt(item.question + (item.options?.length ? '\n选项：' + item.options.map((option) => option.label).join('、') : ''));
-        if (custom === null) return;
-        const matching = item.options?.find((option) => option.label === custom);
-        answers.push({ id: item.id, selected: matching ? [matching.label] : [], custom: matching ? '' : custom });
-      }
-      await controller.action(() => api.answer(state.detail.id, question.id, answers));
-    }
-  }
+  if ('cancelRename' in data) { renameDraft = null; render(); }
+  if ('noFormats' in data) { controller.setFormats([]); render(); }
   if ('preview' in data) { selectedPreview = data.preview; render(); }
   if ('closePreview' in data) { selectedPreview = null; render(); }
   if ('useSkill' in data) { history.pushState(null, '', '#/fingpt'); await showRoute(); controller.setSkill(data.useSkill); render(); document.querySelector('#prompt')?.focus(); }
@@ -183,8 +202,7 @@ root.addEventListener('click', async (event) => {
   if ('cancel' in data) { await controller.action(() => api.cancel(id)); await loadCatalog(['sessions']); }
   if ('approval' in data) await controller.action(() => api.approve(id, data.approval, data.decision));
   if ('rename' in data) {
-    const title = window.prompt('为这个研究会话命名', state.detail.title || '');
-    if (title?.trim()) { await controller.action(() => api.rename(id, title.trim())); await loadCatalog(['sessions']); }
+    renameDraft = state.detail.title || ''; render(); document.querySelector('#rename-title')?.focus();
   }
   if ('upgrade' in data) {
     const upgraded = await controller.upgrade();
@@ -195,6 +213,11 @@ root.addEventListener('click', async (event) => {
     if (result?.items && state.detail?.id === id) { state.detail.files = result.items; render(); }
   }
 });
+
+function collectAnswers(form, question) {
+  const values = new FormData(form);
+  return question.items.map((item, index) => ({ id: item.id, selected: values.getAll(`selection-${index}`).map(String), custom: String(values.get(`custom-${index}`) || '') }));
+}
 
 controller.subscribe(render);
 window.addEventListener('hashchange', () => { void showRoute(); });
