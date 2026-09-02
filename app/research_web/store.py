@@ -98,7 +98,7 @@ class Store:
             raise StoreError("非法会话目录")
         return path
 
-    def reserve(self, sid: str, key: str, digest: str) -> bool:
+    def reserve(self, sid: str, key: str, digest: str, delivery: dict | None = None) -> bool:
         self.session(sid)
         name = f"{sid}:{key}"
         if name in self.data["receipts"]:
@@ -106,6 +106,9 @@ class Store:
                 raise StoreError("幂等键不能用于不同问题")
             return False
         self.data["receipts"][name] = {"digest": digest, "status": "pending"}
+        if delivery is not None:
+            self.data["receipts"][name]["delivery"] = delivery
+            self.session(sid)["delivery_key"] = key
         self.save()
         return True
 

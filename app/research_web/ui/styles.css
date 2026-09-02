@@ -147,6 +147,17 @@ textarea { resize: vertical; }
 .decision-card { border: 1px solid #e8d4a6; background: #fffaf0; border-radius: 10px; padding: 18px; }
 .decision-card .eyebrow { color: #9f762b; margin-bottom: 8px; }
 .decision-card .button-row, .decision-card > .button { margin-top: 13px; }
+.rename-form { display: grid; gap: 10px; margin-bottom: 18px; }
+.question-form fieldset { border: 0; padding: 10px 0; margin: 0; min-width: 0; }
+.question-form legend { font-weight: 600; }
+.question-form textarea { display: block; width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 9px; margin-top: 7px; }
+.check-label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.check-label input { min-height: 0; padding: 0; }
+.format-picker { margin: 3px 0 12px; text-align: left; font-size: 11px; color: var(--muted); }
+.format-picker summary { cursor: pointer; }
+.format-options { display: flex; flex-wrap: wrap; gap: 8px 14px; padding-top: 9px; }
+.delivery-file { display: grid; gap: 3px; padding: 8px 0; font-size: 11px; overflow-wrap: anywhere; border-top: 1px solid var(--line); }
+.delivery-file p { margin: 0; color: var(--danger); }
 .notice { padding: 12px 15px; border: 1px solid #e6bac2; color: #923848; background: #fff2f4; border-radius: 9px; font-size: 12px; margin-bottom: 15px; overflow-wrap: anywhere; }
 .notice.warning { border-color: #ead7b5; background: #fff8eb; color: #916628; }
 .notice.success { border-color: #b9ddce; background: #eef9f3; color: #267152; }

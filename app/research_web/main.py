@@ -41,6 +41,9 @@ class Prompt(BaseModel):
     text: str = Field(min_length=1, max_length=100000)
     attachment_ids: list[str] = Field(default_factory=list, max_length=20)
     skill_id: str | None = None
+    expected_formats: list[Literal["md", "html", "docx", "xlsx", "png"]] | None = Field(
+        default=None, max_length=5
+    )
 
 
 class Rename(BaseModel):
@@ -190,7 +193,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         if not body.text.strip():
             raise StoreError("问题不能为空")
         return await svc(request).send(
-            sid, body.text, idempotency_key, body.attachment_ids, body.skill_id
+            sid,
+            body.text,
+            idempotency_key,
+            body.attachment_ids,
+            body.skill_id,
+            body.expected_formats,
         )
 
     @app.post("/api/research/sessions/{sid}/cancel")

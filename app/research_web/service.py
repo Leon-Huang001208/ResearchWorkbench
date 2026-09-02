@@ -15,6 +15,7 @@ from websockets.exceptions import WebSocketException
 from core.observability import get_logger
 
 from .client import DSHClient, RuntimeFailure
+from .delivery import FINAL, Delivery, expected_formats
 from .projection import project
 from .store import Store, StoreError
 
@@ -29,9 +30,11 @@ class ResearchService:
         *,
         owned: bool = True,
         expected_cwd: Path | None = None,
+        delivery_python: Path | None = None,
     ):
         self.client, self.store, self.owned = client, store, owned
         self.expected_cwd = expected_cwd
+        self.delivery = Delivery(store, delivery_python)
         self.connected: set[str] = set()
         self.events: dict[str, dict[int, dict]] = {}
         self.loaded: set[str] = set()
@@ -371,18 +374,47 @@ class ResearchService:
             result.update(
                 status="disconnected", error="DSH 事件连接已断开；未重发请求，也未判定任务完成"
             )
+        result["delivery"] = await self.delivery.refresh(
+            sid,
+            list(self.events.get(sid, {}).values()),
+            busy=result["can_cancel"],
+            connected=self.connected == {"mux", "host"},
+        )
         return result
 
-    async def send(self, sid, text, key, attachments=(), skill_id=None):
+    async def send(self, sid, text, key, attachments=(), skill_id=None, formats=None):
         await self.ensure_owned()
         async with self.lock:
             row = self.store.session(sid)
             if not row["created"]:
                 raise StoreError("会话尚未创建")
+            required = expected_formats(formats, skill_id)
+            payload = {
+                "text": text,
+                "attachments": list(attachments),
+                "skill": skill_id,
+                "expected_formats": required,
+            }
+            digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+            if f"{sid}:{key}" in self.store.data["receipts"]:
+                self.store.reserve(sid, key, digest)
+                if self.store.receipt(sid, key)["status"] == "accepted":
+                    return {"accepted": True}
+                raise RuntimeFailure(
+                    "此请求受理结果未知；请检查会话历史，不要重复发送", "admission_unknown"
+                )
             if self.connected != {"mux", "host"}:
                 raise RuntimeFailure("DSH 事件未连接，暂不提交问题")
-            payload = {"text": text, "attachments": list(attachments), "skill": skill_id}
-            digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+            current = await self.detail(sid)
+            native = await self.client.rpc("session.list", {})
+            busy = current["can_cancel"] or any(
+                item["sessionId"] == sid and item["running"] for item in native["items"]
+            )
+            if busy or (current["delivery"] and current["delivery"]["status"] not in FINAL):
+                raise RuntimeFailure(
+                    "上一任务或子 Agent 尚未结束，或交付/受理结果未确认；请先等待并刷新，不要重复提交",
+                    "delivery_pending",
+                )
             files = [
                 self.store.file_path(sid, fid).relative_to(self.store.directory(sid)).as_posix()
                 for fid in attachments
@@ -417,7 +449,8 @@ class ResearchService:
                 skills = await self.skill_catalog(sid)
                 if skill_id not in {skill["name"] for skill in skills["skills"]}:
                     raise StoreError("Skill 未由 DSH 原生加载")
-            if not self.store.reserve(sid, key, digest):
+            delivery = self.delivery.begin(sid, key, required)
+            if not self.store.reserve(sid, key, digest, delivery):
                 status = self.store.receipt(sid, key)["status"]
                 if status == "accepted":
                     return {"accepted": True}
@@ -425,6 +458,20 @@ class ResearchService:
                     "此请求受理结果未知；请检查会话历史，不要重复发送", "admission_unknown"
                 )
             prompt = text
+            prompt += "\n\n" + delivery["marker"]
+            if formats is not None:
+                prompt += "\n用户显式选择的输出格式优先于 Skill 默认格式。"
+                if not required:
+                    prompt += "本次无需文件，直接在聊天中回答。"
+            if required:
+                prompt += (
+                    "\n本任务文件交付要求："
+                    + "、".join(required)
+                    + "。必须在本次执行中新建或更新 outputs/ 下的实际文件；"
+                    "聊天正文、inputs 附件和历史未修改文件不算交付。"
+                    "Office 文件必须重开并有实际内容；Excel 至少包含表头与数据行。"
+                    "仅使用已可用的严格沙箱工具生成，不虚构文件、数据或验证。"
+                )
             if files:
                 prompt += "\n\n附件（仅本会话 inputs 目录）：\n" + "\n".join(files)
             if row["mode"] == "claw":
