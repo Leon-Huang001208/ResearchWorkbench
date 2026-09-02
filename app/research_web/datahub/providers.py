@@ -380,10 +380,10 @@ def supplement_rows(query, result, raw):
             raise ProviderError("distribution_table_missing")
         result.fields["每10份分红"] = {
             "unit": "provider original text / 10 shares",
-            "currency": "CNY",
+            "currency": None,
         }
         result.limitations.append("分红记录不等于已构建的分红再投资总回报序列；拆分数据未取得。")
-        result.missing.append("split_history")
+        result.missing.extend(["split_history", "verified_currency"])
     else:
         for heading in soup.select("h4.t"):
             label = original_text(heading)

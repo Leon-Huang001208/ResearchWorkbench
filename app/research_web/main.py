@@ -240,6 +240,36 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         new["attachments"] = service.store.files(new["id"])
         service.datahub.copy_for_upgrade(sid, new["id"])
         new["datasets"] = service.datahub.summaries(new["id"])
+        mappings = []
+        for item in new["datasets"]:
+            dataset = service.datahub.detail(new["id"], item["dataset_id"])
+            mappings.append(
+                {
+                    key: dataset[key]
+                    for key in (
+                        "origin_dataset_id",
+                        "dataset_id",
+                        "origin_manifest_sha256",
+                        "manifest_sha256",
+                        "retrieved_at",
+                    )
+                }
+                | {
+                    "files": [
+                        {"path": file["path"], "sha256": file["sha256"]}
+                        for file in dataset["files"]
+                    ]
+                }
+            )
+        if mappings:
+            new["draft"] += (
+                "\n\n数据集升级映射：上方原消息保持不变；旧数据集路径不属于当前会话。"
+                "仅使用下列当前会话相对路径，先读取manifest核对状态和缺失项，不必重新取数。\n"
+                + json.dumps(mappings, ensure_ascii=False, indent=2)
+            )
+            log.info(
+                "research_upgrade_dataset_mapping_added", session_id=new["id"], count=len(mappings)
+            )
         return new
 
     @app.get("/api/research/sessions/{sid}/events")

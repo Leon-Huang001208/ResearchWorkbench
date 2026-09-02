@@ -337,6 +337,27 @@ async def test_verified_supplemental_tables_preserve_original_units(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("original", ["每10份派现金0.1000美元", "每10份派现金0.1000元", "---"])
+async def test_distribution_currency_is_unverified_and_original_is_preserved(
+    hub_module, tmp_path, original
+):
+    payload = (
+        "<table><tr><th>权益登记日</th><th>除息日</th><th>每10份分红</th>"
+        "<th>分红发放日</th></tr><tr><td>2025-09-22</td><td>2025-09-22</td>"
+        f"<td>{original}</td><td>2025-09-23</td></tr></table>"
+    )
+    hub, _, sid = make_hub(hub_module, tmp_path, lambda r: httpx.Response(200, text=payload))
+    result = await hub.query(
+        sid, "distribution-currency", hub_module.Query(source="fund_distributions", code="000001")
+    )
+    assert result["status"] == "snapshot"
+    assert result["fields"]["每10份分红"]["currency"] is None
+    assert "verified_currency" in result["missing"]
+    assert hub.rows(sid, result["dataset_id"])["items"][0]["每10份分红"] == original
+    await hub.close()
+
+
+@pytest.mark.asyncio
 async def test_real_holdings_headers_with_breaks_and_profile_asset_label(hub_module, tmp_path):
     html = '<h4 class="t">2025年4季度股票投资明细 截止至2025-12-31</h4><table><tr><th>股票代码</th><th>股票名称</th><th>占净值<br/>比例</th><th>持股数<br/>（万股）</th><th>持仓市值<br/>（万元）</th></tr><tr><td>600001</td><td>测试</td><td>4.57%</td><td>22.00</td><td>13,420.00</td></tr></table>'
     hub, _, sid = make_hub(
@@ -523,3 +544,71 @@ def test_non_ascii_auth_and_empty_userinfo_are_rejected(hub_module, tmp_path):
     assert not hub.authenticate("é" * 43)
     with pytest.raises(StoreError):
         hub_module.load_control(tmp_path / "unsafe", "http://@127.0.0.1:8088")
+
+
+@pytest.mark.asyncio
+async def test_crash_between_snapshot_renames_does_not_poison_catalog_or_retry_pending(
+    hub_module, tmp_path, monkeypatch
+):
+    from app.research_web.datahub.providers import Result
+
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(200, json=nav_page([nav_row("2025-12-31")], 1))
+
+    hub, store, sid = make_hub(hub_module, tmp_path, respond)
+    healthy = await hub.query(sid, "healthy", query(hub_module))
+    interrupted_query = hub_module.Query(source="fund_nav", code="000002")
+    hub.snapshots.receipt(
+        sid,
+        "interrupted",
+        {"status": "pending", "fingerprint": interrupted_query.fingerprint(include_refresh=True)},
+    )
+    original_rename = os.rename
+    destinations = []
+
+    class ProcessExit(BaseException):
+        pass
+
+    def crash_before_second_rename(src, dst, **kwargs):
+        destinations.append(dst)
+        if len(destinations) == 2:
+            raise ProcessExit
+        return original_rename(src, dst, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "rename", crash_before_second_rename)
+        with pytest.raises(ProcessExit):
+            hub.snapshots.publish(
+                sid,
+                interrupted_query,
+                Result(
+                    rows=[{"date": "2025-12-31", "unit_nav": 1.2}],
+                    status="complete",
+                    pagination_complete=True,
+                    raw=[b'{"offline":"raw"}'],
+                ),
+            )
+    assert len(destinations) == 2
+    orphan_id = destinations[0]
+    await hub.close()
+    restarted = hub_module.DataHub(Store(tmp_path), transport=httpx.MockTransport(respond))
+    assert [item["dataset_id"] for item in restarted.summaries(sid)] == [healthy["dataset_id"]]
+    assert restarted.rows(sid, healthy["dataset_id"])["total"] == 1
+    assert restarted.store.files(sid) == []
+    with pytest.raises(StoreError):
+        restarted.detail(sid, orphan_id)
+    with pytest.raises(StoreError, match="不自动重发"):
+        await restarted.query(sid, "interrupted", interrupted_query)
+    assert len(calls) == 1
+    fresh = await restarted.query(sid, "fresh-call", interrupted_query)
+    assert len(calls) == 2 and fresh["dataset_id"] not in {orphan_id, healthy["dataset_id"]}
+    assert len(restarted.summaries(sid)) == 2
+    # The process-exit orphan remains isolated for diagnosis, never auto-deleted or listed.
+    assert any(
+        path.name == orphan_id or path.name == ".pending-" + orphan_id
+        for path in (store.directory(sid) / "inputs/datasets").iterdir()
+    )
+    await restarted.close()

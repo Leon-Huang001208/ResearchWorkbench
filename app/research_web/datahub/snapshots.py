@@ -205,7 +205,9 @@ class Snapshots:
                         write_new(fd, name, content)
                     os.fsync(fd)
             # No await within publication; cancellation is checked immediately before it.
-            for parts, _, private in created:
+            # Publish public inputs first; the private UUID is the catalog commit marker.
+            # A process exit between renames leaves only ignored, uncommitted inputs.
+            for parts, _, private in reversed(created):
                 with directory(self.store.root, parts, private=private) as fd:
                     os.rename(temporary, did, src_dir_fd=fd, dst_dir_fd=fd)
                     os.fsync(fd)

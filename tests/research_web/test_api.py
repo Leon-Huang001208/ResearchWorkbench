@@ -76,7 +76,7 @@ def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
 
     from app.research_web.datahub import Query
 
-    client, _, service = api
+    client, native, service = api
     capabilities = client.get("/api/research/data/capabilities")
     assert capabilities.status_code == 200
     assert len(capabilities.json()["items"]) == 5
@@ -110,6 +110,26 @@ def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
     assert client.get(detail["files"][0]["url"]).status_code == 200
     assert client.get(f"/api/research/sessions/{sid}/files").json()["items"] == []
     assert len(client.get(f"/api/research/sessions/{sid}").json()["datasets"]) == 1
+    source_text = f"请保留这段原文，继续分析 inputs/datasets/{did}/rows.json。"
+
+    async def history_with_original_dataset(requested_sid):
+        if requested_sid != sid:
+            return []
+        return [
+            {
+                "event": {
+                    "seq": 1,
+                    "type": "user/message",
+                    "data": {
+                        "id": "original-user-message",
+                        "content": [{"type": "text", "text": source_text}],
+                    },
+                }
+            }
+        ]
+
+    native.history = history_with_original_dataset
+    service.loaded.discard(sid)
     upgraded = client.post(f"/api/research/sessions/{sid}/upgrade").json()
     new_sid = upgraded["id"]
     copied = client.get(f"/api/research/sessions/{new_sid}/datasets").json()["items"][0]
@@ -120,6 +140,20 @@ def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
     assert copied_detail["origin_dataset_id"] == did
     assert copied_detail["retrieved_at"] == detail["retrieved_at"]
     assert copied_detail["origin_manifest_sha256"] == detail["manifest_sha256"]
+    original_draft = "继续研究以下会话：\nuser: " + source_text
+    assert upgraded["draft"].startswith(original_draft)
+    handoff = upgraded["draft"][len(original_draft) :]
+    assert f'"origin_dataset_id": "{did}"' in handoff
+    assert f'"dataset_id": "{copied["dataset_id"]}"' in handoff
+    assert copied_detail["origin_manifest_sha256"] in handoff
+    assert copied_detail["manifest_sha256"] in handoff
+    assert copied_detail["retrieved_at"] in handoff
+    for item in copied_detail["files"]:
+        assert item["path"] in handoff and item["sha256"] in handoff
+        assert (service.store.directory(new_sid) / item["path"]).is_file()
+    assert f"inputs/datasets/{did}/" not in handoff
+    assert str(service.store.directory(sid)) not in handoff
+    assert client.get(f"/api/research/sessions/{sid}").json()["messages"][0]["text"] == source_text
     assert client.get(copied_detail["files"][0]["url"]).status_code == 200
     assert client.get(prefix.replace(sid, new_sid)).status_code == 400
     assert len(called) == 1
