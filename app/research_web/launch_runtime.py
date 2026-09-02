@@ -11,12 +11,21 @@ from pathlib import Path
 
 from core.observability import get_logger, setup_logging
 
+from .datahub.security import load_control
+from .store import StoreError
+
 log = get_logger(__name__)
 PINNED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
 
 
 def prepare(
-    source: Path, data: Path, node: str, port: int, source_mode=False, research_tools=False
+    source: Path,
+    data: Path,
+    node: str,
+    port: int,
+    source_mode=False,
+    research_tools=False,
+    datahub_url: str | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
@@ -37,6 +46,7 @@ def prepare(
     preset.mkdir(parents=True, exist_ok=True, mode=0o700)
     package = Path(__file__).parent / "runtime"
     if research_tools:
+        load_control(data, datahub_url)
         runner = package.parent / "sandbox.py"
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
@@ -144,6 +154,9 @@ def main():
     parser.add_argument("--node", default="/usr/local/bin/node")
     parser.add_argument("--port", type=int, default=3081)
     parser.add_argument(
+        "--datahub-url", default=None, help="Trusted loopback BFF origin; default 127.0.0.1:8088"
+    )
+    parser.add_argument(
         "--source-mode",
         action="store_true",
         help="Use pinned source with existing tsx; no installation",
@@ -157,12 +170,18 @@ def main():
     setup_logging()
     try:
         command, env, work = prepare(
-            args.source, args.data, args.node, args.port, args.source_mode, args.research_tools
+            args.source,
+            args.data,
+            args.node,
+            args.port,
+            args.source_mode,
+            args.research_tools,
+            args.datahub_url,
         )
         log.info("owned_dsh_launch", port=args.port, commit=PINNED_COMMIT)
         os.chdir(work)
         os.execve(args.node, command, env)
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+    except (OSError, ValueError, RuntimeError, StoreError, subprocess.SubprocessError) as exc:
         log.error("owned_dsh_launch_failed", error=str(exc))
         raise SystemExit(1) from exc
 

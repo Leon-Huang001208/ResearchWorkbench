@@ -15,6 +15,7 @@ from websockets.exceptions import WebSocketException
 from core.observability import get_logger
 
 from .client import DSHClient, RuntimeFailure
+from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
 from .projection import project
 from .store import Store, StoreError
@@ -35,6 +36,7 @@ class ResearchService:
         self.client, self.store, self.owned = client, store, owned
         self.expected_cwd = expected_cwd
         self.delivery = Delivery(store, delivery_python)
+        self.datahub = DataHub(store)
         self.connected: set[str] = set()
         self.events: dict[str, dict[int, dict]] = {}
         self.loaded: set[str] = set()
@@ -64,6 +66,7 @@ class ResearchService:
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
 
     async def close(self):
+        await self.datahub.close()
         if self.pump:
             self.pump.cancel()
             with suppress(asyncio.CancelledError):
@@ -343,6 +346,7 @@ class ResearchService:
         if sid in self.errors:
             result.update(status="failed", error=self.errors[sid])
         result["files"] = self.store.files(sid)
+        result["datasets"] = self.datahub.summaries(sid)
         result["approvals"] = [
             {"id": key, "title": value["toolName"], "detail": value.get("reason", "需要授权")}
             for key, value in self.approvals.items()
@@ -571,6 +575,7 @@ class ResearchService:
     async def cancel(self, sid):
         await self.ensure_owned()
         self.store.session(sid)
+        await self.datahub.cancel(sid)
         try:
             result = await self.client.rpc("session.cancel", {"sessionId": sid})
         except RuntimeFailure as exc:

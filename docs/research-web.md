@@ -43,7 +43,8 @@ DSH 源码固定 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；CLI 版本为 `0.1
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
 - `skills/`：资料解读、公司研究、行业研究、基金评价四类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
 - `resources/`：实际 PDF 页码抽取、Office/HTML/Markdown 文件生成与重开检查。
-- `runtime/public-data.mjs`：经原生审批的财联社电报、公开基金单页净值；来源协议与约束见 [公开数据工具](research-web-public-data.md)。
+- `datahub/`：固定来源、分页、私有原始响应、会话不可变资料、校验读取与缓存；见 [DataHub](research-web-datahub.md)。
+- `runtime/public-data.mjs`：原生审批、可信会话身份、认证回环DataHub及取消薄桥接，不再重复上游解析；见 [公开数据工具](research-web-public-data.md)。
 
 数据根默认 `~/.alphafoundry/research-web`（可通过 `AF_RESEARCH_DATA` 指定）。其下：
 

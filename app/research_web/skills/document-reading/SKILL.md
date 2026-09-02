@@ -9,7 +9,9 @@ description: 解读上传的 PDF、图片、Markdown、CSV 和 Excel，按页码
 2. 用 af_run_script 的 Python 读取资料；PDF 使用 `resources/research_helpers.py` 的 `read_pdf`，返回的 page 从 1 开始。空文本页说明需要 OCR，不编造页码。
 3. 分别列出原文观点、数据和你的分析；引用格式 `[文件名，第 N 页]`，表格注明 sheet/列名。
 4. 发现冲突或缺失时显式列出，不能用零补缺失。
+   如需公开补充资料，先由父Agent经af_public_data的原生审批准备资料，读取manifest_json和inputs/datasets的manifest.json，核对dataset_id、hash、status、实际期间、行数、missing/limitations；复杂Claw任务再分配两个子Agent读取同一CSV/JSON，子Agent不重复取数。现有上传资料不必额外联网，所有计算限定已取得口径。
 5. 用户要求文件时运行脚本实际生成到 outputs，检查存在且能够重新打开，再给出文件名。不要把聊天正文当 Word/Excel。
+   使用数据集的XLSX含原始解析记录、公式或计算说明、dataset_id/manifest_sha256；DOCX/HTML引用相同ID、hash和日期。inputs/datasets材料不算报告产物；CSV公式文本已转义、JSON保留原值，写Excel仍将不可信内容作为文本。
 
 示例：在 af_run_script 中 `from research_helpers import read_pdf; print(read_pdf('inputs/实际文件.pdf'))`。
 运行器已经加入当前会话的只读资源导入路径；不要添加相对 sys.path，也不要依赖读取会话根目录或 getcwd。

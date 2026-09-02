@@ -22,6 +22,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from core.observability import get_logger, setup_logging
 
 from .client import DSHClient, RuntimeFailure
+from .datahub.routes import router as datahub_router
 from .service import ResearchService
 from .store import Store, StoreError
 
@@ -89,12 +90,22 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             await active.close()
 
     app = FastAPI(title="AlphaFoundry Research Web", lifespan=lifespan)
+    app.include_router(datahub_router)
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
     )
 
     @app.middleware("http")
     async def local_boundary(request, call_next):
+        if request.url.path.startswith(
+            "/api/research/internal/data/"
+        ) and not request.app.state.research.datahub.authenticate(
+            request.headers.get("X-Research-Data-Key")
+        ):
+            return JSONResponse(
+                {"error": {"code": "data_auth_denied", "message": "仅可信原生插件可发起资料查询"}},
+                status_code=403,
+            )
         # Loopback app, no CORS. Stop drive-by requests / opaque sandbox origins.
         origin = request.headers.get("origin")
         own = f"{request.url.scheme}://{request.headers.get('host', '')}"
@@ -227,6 +238,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 source = service.store.file_path(sid, item["id"])
                 shutil.copyfile(source, service.store.directory(new["id"]) / "inputs" / source.name)
         new["attachments"] = service.store.files(new["id"])
+        service.datahub.copy_for_upgrade(sid, new["id"])
+        new["datasets"] = service.datahub.summaries(new["id"])
         return new
 
     @app.get("/api/research/sessions/{sid}/events")

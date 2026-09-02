@@ -70,6 +70,61 @@ def test_create_submit_duplicate_never_replays(api):
     )
 
 
+def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
+    import httpx
+    from test_datahub import nav_page, nav_row
+
+    from app.research_web.datahub import Query
+
+    client, _, service = api
+    capabilities = client.get("/api/research/data/capabilities")
+    assert capabilities.status_code == 200
+    assert len(capabilities.json()["items"]) == 5
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    assert client.get(f"/api/research/sessions/{sid}").json()["datasets"] == []
+    called = []
+
+    def provider(request):
+        called.append(request)
+        return httpx.Response(200, json=nav_page([nav_row("2025-12-31")], 1))
+
+    service.datahub.transport = httpx.MockTransport(provider)
+    payload = {
+        "session_id": sid,
+        "call_id": "api-test",
+        "query": Query(source="fund_nav", code="000001").model_dump(),
+    }
+    for path in ("query", "cancel"):
+        assert client.post(f"/api/research/internal/data/{path}", json=payload).status_code == 403
+    assert called == []
+    headers = {"X-Research-Data-Key": service.datahub.control["token"]}
+    response = client.post("/api/research/internal/data/query", json=payload, headers=headers)
+    assert response.status_code == 200, response.text
+    dataset = response.json()
+    did = dataset["dataset_id"]
+    assert len(called) == 1
+    prefix = f"/api/research/sessions/{sid}/datasets/{did}"
+    assert client.get(prefix + "/rows?offset=0&limit=1").json()["total"] == 1
+    assert client.get(prefix + "/rows?limit=501").status_code in {400, 422}
+    detail = client.get(prefix).json()
+    assert client.get(detail["files"][0]["url"]).status_code == 200
+    assert client.get(f"/api/research/sessions/{sid}/files").json()["items"] == []
+    assert len(client.get(f"/api/research/sessions/{sid}").json()["datasets"]) == 1
+    upgraded = client.post(f"/api/research/sessions/{sid}/upgrade").json()
+    new_sid = upgraded["id"]
+    copied = client.get(f"/api/research/sessions/{new_sid}/datasets").json()["items"][0]
+    assert copied["dataset_id"] != did
+    copied_detail = client.get(
+        f"/api/research/sessions/{new_sid}/datasets/{copied['dataset_id']}"
+    ).json()
+    assert copied_detail["origin_dataset_id"] == did
+    assert copied_detail["retrieved_at"] == detail["retrieved_at"]
+    assert copied_detail["origin_manifest_sha256"] == detail["manifest_sha256"]
+    assert client.get(copied_detail["files"][0]["url"]).status_code == 200
+    assert client.get(prefix.replace(sid, new_sid)).status_code == 400
+    assert len(called) == 1
+
+
 def test_unknown_admission_not_retried(api):
     client, native, _ = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]

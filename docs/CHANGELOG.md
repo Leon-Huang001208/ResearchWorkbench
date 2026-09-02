@@ -8,6 +8,8 @@
 
 ### Added
 
+- **Research Web DataHub后端与可信原生桥接**：FastAPI内共享公开查询/不可变资料快照，NAV按真实20行响应分页并校验覆盖，加入基金基本资料/分红/持仓；原生审批后才通过私有随机凭据请求回环DataHub，取消与DSH联动。资料CSV/JSON、manifest/hash只读归属、缓存/刷新与显式Claw升级复制；输入资料不计报告产物。四个Skill同步数据口径/原始记录底稿要求。详见 `docs/research-web-datahub.md`；UI及真实模型闭环另行验收。
+
 - **Research Web 真实模型闭环验收**：接入经DSH原生审批的财联社电报/基金净值，完成多轮及PDF页码研究、公开数据文件包、双子Agent报告、真实停止/拒绝/断线恢复。修复辅助脚本导入、事件时序、父离线取消和内部标记显示；展示原生Agent用量/耗时。新增交付缺失/损坏/旧文件与发布前hash复核。证据和本机文件链接见 `docs/research-web-acceptance.md`；无新依赖、未改3080/原生DSH版本/执行权限，基金示例明确为受限评价。
 
 - **Research Web 文件交付检查**：新增显式输出格式与 Skill 默认值、绑定幂等收据的哈希快照、单会话串行归属和严格沙箱内 DOCX/XLSX/HTML/Markdown/PNG 实际解析。详情单列交付状态、缺失/损坏原因，执行结束不等于文件交付完成；重命名和原生问题改用应用内表单。详见 `docs/research-web-delivery.md`；不代表真实模型完整产品验收。

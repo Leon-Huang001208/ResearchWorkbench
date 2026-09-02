@@ -67,6 +67,34 @@ print('success')
     assert (session / "outputs/result.txt").read_text() == "output"
 
 
+def test_nested_datasets_are_read_only_and_private_control_is_unreadable(prepared):
+    module, root, session, config = prepared
+    dataset = session / "inputs/datasets" / str(uuid4())
+    dataset.mkdir(parents=True)
+    (dataset / "rows.json").write_text('[{"unit_nav":1.2}]')
+    control = root / ".control"
+    control.mkdir(mode=0o700)
+    (control / "datahub.json").write_text("synthetic-nonsecret-canary")
+    result = module.run_script(
+        config,
+        session,
+        f"""
+from pathlib import Path
+import json
+dataset = Path({str(dataset)!r})
+assert json.loads((dataset / 'rows.json').read_text())[0]['unit_nav'] == 1.2
+for action in [lambda: (dataset / 'rows.json').write_text('changed'),
+               lambda: Path({str(control / 'datahub.json')!r}).read_text()]:
+    try: action()
+    except PermissionError: pass
+    else: raise AssertionError('dataset/control boundary escaped')
+print('dataset-boundary-passed')
+""",
+    )
+    assert result.status == "completed", result
+    assert result.stdout == "dataset-boundary-passed\n"
+
+
 def test_rejects_host_sibling_inputs_links_and_network(prepared):
     module, root, session, config = prepared
     outer = root / "index.json"

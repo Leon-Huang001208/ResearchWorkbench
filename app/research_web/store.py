@@ -130,7 +130,8 @@ class Store:
             for path in base.rglob("*"):
                 relative = path.relative_to(root)
                 if (
-                    not path.is_file()
+                    relative.parts[:2] == ("inputs", "datasets")
+                    or not path.is_file()
                     or path.suffix.lower() not in PUBLIC_EXTENSIONS
                     or any(part.startswith(".") for part in relative.parts)
                     or any(p.is_symlink() for p in (path, *path.parents) if p != self.root)

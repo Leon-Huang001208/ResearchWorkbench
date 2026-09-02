@@ -9,6 +9,7 @@ Read [Research Web](research-web.md) and [UI contract](research-web-ui.md) first
 The legacy subsystems below remain historical implementations, not dependencies to add to this new chain.
 Tests: `tests/research_web/` (use `--confcutdir=tests/research_web`) and `tests/javascript/research_web*.test.mjs`.
 DSH owns the execution loop, skills, subagents and transcript; no second orchestration/fact database.
+DataHub query/snapshot/bridge contracts live in `app/research_web/datahub/` and [DataHub](research-web-datahub.md).
 
 Claude must read this file before changing code.
 
