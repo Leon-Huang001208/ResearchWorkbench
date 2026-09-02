@@ -112,3 +112,24 @@ docs/CHANGELOG.md
 `/tmp/af-delivery-review-all.log`；初始失败输出：`/tmp/af-delivery-review-red.log`。
 本轮仍未操作服务/密钥/主工作树，未执行真实模型或浏览器验收。Harness
 `task-8825dc0e-dsh-web` 的最终 outcome 由主任务维护，未更改。
+
+## 发布前文件复核修复（同日第三次提交）
+
+最终审查确认：沙箱解析返回的 valid 仅属于其读取的字节，原先 BFF 在结果返回后
+没有再次检查路径内容。新增真实 macOS 沙箱回归，确认解析本身成功后，分别清空、
+同字节长度替换、删除候选文件；修复前 3 个用例全部错误地 completed，实际运行
+得到 **3 failed**。修复仅在 `delivery.py` 发布状态前，用既有 `Store.open_file`
+安全描述符重读已通过候选并核对字节数/SHA-256；不再解析、不扩大沙箱、不增加
+服务/UI 变动。差异或读取失败将文件置为无效，重新计算 missing_formats，并以
+incomplete 落盘；新增用例同时检查返回结果和持久化收据。
+
+实际验证：`test_delivery.py` **27 passed in 3.78s**；完整 Research Web Python
+**68 passed in 11.40s**，命令仍为前述 `DSH_SOURCE_ROOT=... python -m pytest
+tests/research_web --confcutdir=tests/research_web -q`。改动文件的 ruff、black、
+isort、delivery.py 的 mypy `--check-untyped-defs` 与差异空白检查均通过。
+本次未重跑未改动的 JS；前轮 25 passed 不冒充本轮新增执行。
+失败/通过日志分别为 `/tmp/af-delivery-publish-red.log`、
+`/tmp/af-delivery-publish-green.log`、`/tmp/af-delivery-publish-all.log`。
+
+这是发布时点复核，不是不可变文件归档；发布后的外部修改不在本补丁保证范围。
+未操作主工作树、运行服务、凭据或主 Harness outcome。

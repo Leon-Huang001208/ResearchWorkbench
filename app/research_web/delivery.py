@@ -153,6 +153,29 @@ class Delivery:
                             ):
                                 raise StoreError("沙箱验证响应与文件快照不匹配")
                             item.update(valid=check["valid"], reason=check["reason"])
+                        # Parser success refers to its byte snapshot, not a later path.
+                        # Re-open safely before publishing; do not parse on the host.
+                        for item in candidates:
+                            if not item.get("valid"):
+                                continue
+                            try:
+                                stream, _ = self.store.open_file(sid, item["id"])
+                                with stream:
+                                    raw = stream.read(16 * 1024 * 1024 + 1)
+                                if (
+                                    len(raw) != item["size"]
+                                    or hashlib.sha256(raw).hexdigest() != item["sha256"]
+                                ):
+                                    raise StoreError("交付文件在解析后发生变化")
+                            except (OSError, StoreError) as exc:
+                                log.warning(
+                                    "research_delivery_publish_recheck_failed",
+                                    error_type=type(exc).__name__,
+                                )
+                                item.update(
+                                    valid=False,
+                                    reason="文件在解析后发生变化、消失或无法安全读取，未确认交付",
+                                )
                     valid = {row["format"] for row in files if row.get("valid")}
                     delivery["missing_formats"] = [
                         fmt for fmt in delivery["required_formats"] if fmt not in valid
