@@ -92,5 +92,8 @@ XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/H
 离线：`python -m pytest tests/research_web --confcutdir=tests/research_web -q`及`DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness node --test tests/javascript/research_web*.test.mjs`。
 还执行ruff/black/isort/mypy及项目任务完整性检查，具体结果见`.ai/reports/2026-09-02-datahub-implementation.md`。
 真实来源只读核对由父任务记录在`.ai/reports/2026-09-02-datahub-source-probes.md`，不把离线测试当真实模型闭环。
-模型审批→取数→双Agent→报告及Web资料UI仍需父任务集成验收；本后端任务不启动/重启服务，不修改3080、固定DSH、模型、原生额度或Seatbelt权限。
+2026-09-02集成验收已从Web完成四次原生审批、2025净值13页243条及三类补充资料、FinGPT升级复制、两个真实子Agent共享资料，以及DOCX/HTML/XLSX/PNG输出。
+最终XLSX四张原始表逐值与CSV一致（243/16/25/220行），来源文件hash一致；首末观测区间变动和回撤已独立重算，数值与百分比格式均核对。
+首次模型产物曾有回撤百分比放大和无效公式，经真实会话修订后才作为final文件交付；格式检查不是自动语义正确性保证，也不代表任意基金评价已验证。
+详细会话、修订、下载和边界证据见[本批真实验收](../.ai/reports/2026-09-02-datahub-acceptance.md)。本批仅更新专属3081/8088；没有修改3080、固定DSH、模型、原生额度或Seatbelt权限。
 单Web worker、本机macOS；未验证Linux/Windows、多租户、磁盘总配额或大规模快照目录性能。
