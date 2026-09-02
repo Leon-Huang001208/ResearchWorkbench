@@ -383,6 +383,43 @@ def test_parser_detects_same_name_swap_and_rejects_linked_files(delivery_api, mo
     assert "symlink.md" not in files
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="strict parser requires native macOS sandbox")
+@pytest.mark.parametrize("mutation", ["empty", "same_size", "delete"])
+def test_files_changed_after_parser_success_cannot_be_published_as_valid(
+    delivery_api, monkeypatch, mutation
+):
+    import json
+
+    from app.research_web import sandbox
+
+    _, _, service, sid = delivery_api
+    assert submit(delivery_api, ["md"]).status_code == 202
+    report = service.store.directory(sid) / "outputs/report.md"
+    report.write_text("valid report")
+    original = sandbox.run_script
+
+    def parse_then_mutate(config, directory, code):
+        result = original(config, directory, code)
+        assert result.status == "completed"
+        assert json.loads(result.stdout)[0]["valid"] is True
+        if mutation == "delete":
+            report.unlink()
+        else:
+            report.write_text("" if mutation == "empty" else "other report")
+        return result
+
+    monkeypatch.setattr(sandbox, "run_script", parse_then_mutate)
+    finish(delivery_api)
+    row = detail(delivery_api)["delivery"]
+    assert row["status"] == "incomplete"
+    assert row["missing_formats"] == ["md"]
+    assert row["files"][0]["valid"] is False
+    assert "解析后" in row["files"][0]["reason"]
+    stored = Store(service.store.root).receipt(sid, "delivery-one")["delivery"]
+    assert stored["status"] == "incomplete"
+    assert stored["files"][0]["valid"] is False
+
+
 @pytest.mark.asyncio
 async def test_concurrent_detail_requests_parse_once(tmp_path, monkeypatch):
     from app.research_web import sandbox
