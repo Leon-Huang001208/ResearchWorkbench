@@ -1,4 +1,4 @@
-import { createAPI, createController, parseRoute, sessionHash, isRunning, safeLog } from './core.mjs';
+import { createAPI, createController, parseRoute, sessionHash, isRunning, safeLog, collectQuestionAnswers } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderActivities, renderFiles, renderHistory, modelOptions, renderRename, renderDelivery, renderFormatPicker } from './views.mjs';
 
@@ -112,7 +112,7 @@ root.addEventListener('input', (event) => {
   const form = event.target.closest('[data-question-form]');
   if (form) {
     const question = state.detail?.questions?.find((item) => item.id === form.dataset.questionForm);
-    if (question) questionDrafts.set(question.id, collectAnswers(form, question));
+    if (question) { const answers = collectAnswers(form, question); if (answers) questionDrafts.set(question.id, answers); }
   }
   if (event.target.id === 'history-search') { historyFilter = event.target.value; document.querySelector('#history-results').innerHTML = renderHistory(catalog.sessions, historyFilter); }
 });
@@ -161,6 +161,7 @@ root.addEventListener('submit', async (event) => {
     const id = state.detail?.id; const question = state.detail?.questions?.find((item) => item.id === event.target.dataset.questionForm);
     if (!id || !question?.items?.length) return;
     const answers = collectAnswers(event.target, question);
+    if (!answers) return;
     questionDrafts.set(question.id, answers);
     if (answers.some((answer) => !answer.custom.trim() && !answer.selected.length)) { state.error = '请完整回答这组问题。'; render(); return; }
     const result = await controller.action(() => api.answer(id, question.id, answers));
@@ -215,8 +216,8 @@ root.addEventListener('click', async (event) => {
 });
 
 function collectAnswers(form, question) {
-  const values = new FormData(form);
-  return question.items.map((item, index) => ({ id: item.id, selected: values.getAll(`selection-${index}`).map(String), custom: String(values.get(`custom-${index}`) || '') }));
+  try { return collectQuestionAnswers(new FormData(form), question.items); }
+  catch (error) { safeLog('invalid_question_selection'); state.error = error.message; render(); return null; }
 }
 
 controller.subscribe(render);

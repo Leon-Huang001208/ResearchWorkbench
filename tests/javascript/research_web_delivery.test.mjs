@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import * as views from '../../app/research_web/ui/views.mjs';
 import { createController } from '../../app/research_web/ui/core.mjs';
+import * as core from '../../app/research_web/ui/core.mjs';
 
 test('delivery is independent from execution and renders missing/corrupt reasons safely', () => {
   assert.equal(typeof views.renderDelivery, 'function');
@@ -44,4 +45,22 @@ test('rename and native questions use accessible in-app forms instead of window.
   assert.match(html, /name="custom-0"/);
   assert.match(html, /name="selection-0"/);
   assert.match(html, /type="submit"/);
+});
+
+test('native question options default to radios and only explicit multiSelect uses checkboxes', () => {
+  const item = { id: 'period', question: '期间', options: [{ label: '2024' }, { label: '2025' }] };
+  for (const multiSelect of [undefined, false, true]) {
+    const html = views.renderConversation({ messages: [], questions: [{ id: 'rpc', items: [{ ...item, multiSelect }] }] });
+    assert.match(html, new RegExp(`type="${multiSelect ? 'checkbox' : 'radio'}" name="selection-0"`));
+    assert.doesNotMatch(html, new RegExp(`type="${multiSelect ? 'radio' : 'checkbox'}" name="selection-0"`));
+  }
+});
+
+test('answer collection refuses multiple choices for a native single-select question', () => {
+  assert.equal(typeof core.collectQuestionAnswers, 'function');
+  const values = new FormData(); values.append('selection-0', '2024'); values.append('selection-0', '2025');
+  for (const multiSelect of [undefined, false]) {
+    assert.throws(() => core.collectQuestionAnswers(values, [{ id: 'period', multiSelect }]), /单选/);
+  }
+  assert.deepEqual(core.collectQuestionAnswers(values, [{ id: 'period', multiSelect: true }]), [{ id: 'period', selected: ['2024', '2025'], custom: '' }]);
 });

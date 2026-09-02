@@ -10,6 +10,14 @@ export function parseRoute(hash = '') {
 export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
 export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting', 'waiting_approval', 'awaiting_approval', 'waiting_input', 'busy', 'cancelling'].includes(status);
 
+export function collectQuestionAnswers(values, items) {
+  return items.map((item, index) => {
+    const selected = values.getAll(`selection-${index}`).map(String);
+    if (item.multiSelect !== true && selected.length > 1) throw new Error('单选问题只能选择一个选项');
+    return { id: item.id, selected, custom: String(values.get(`custom-${index}`) || '') };
+  });
+}
+
 // Never log prompts, response bodies, filenames, credentials or session identifiers.
 export function safeLog(event, metadata = {}) {
   console.info('[ResearchWeb]', event, { status: metadata.status, method: metadata.method });

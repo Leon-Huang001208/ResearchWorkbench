@@ -56,8 +56,12 @@ Session 和所有限制仍由原 `SandboxConfig` / Seatbelt 验证；没有裸�
 快照哈希，并基于同一份不可变字节解析，避免检查期间换文件造成误判：
 
 - DOCX：`python-docx` 实际重开，要求段落或表格有文本。
-- XLSX：`openpyxl` 只读、`data_only=True` 重开，要求至少一张表有两行非空内容
-  （表头与数据）；0 / False 是有效值，纯空表、仅表头、无缓存值公式不算有效数据。
+- XLSX：`openpyxl` 只读、`data_only=True` 重开，要求至少一张非元数据表有两行
+  非空内容（表头与数据）；0 / False 是有效值，纯空表、仅表头、无缓存值公式不算有效数据。
+  表名去除首尾空白并忽略英文大小写后，精确排除 `sources`、`source`、`references`、
+  `reference`、`notes`、`readme`、`metadata`、`来源`、`数据来源`、`说明`、`参考资料`、
+  `参考文献`。来源 URL 或说明页不能单独证明分析底稿有效；这只是确定性格式检查，
+  不推断其他任意表名的金融语义或保证数据正确性。
 - HTML：标准库 `HTMLParser` 解析 UTF-8，要求排除 head/script/style 后的可见文本。
 - Markdown：UTF-8 非空文本。
 - PNG：Pillow 实际打开并 `verify()`，要求 PNG 类型及正尺寸。
@@ -77,6 +81,8 @@ iframe，不在宿主或顶层 DOM 渲染模型 HTML。
 
 重命名与原生 questions 使用应用内表单，不依赖嵌入浏览器不支持的 `window.prompt`。
 输入草稿在 SSE 重渲染时保留，提交失败仍可编辑；questions 保持原 `answers` 契约。
+原生 `multiSelect` 缺省或 false 使用 radio，true 使用 checkbox；答案收集和后端
+同时拒绝单选问题中的多个 `selected` 值，不静默丢弃用户选择。
 
 ## 验证入口
 
