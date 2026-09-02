@@ -1,6 +1,6 @@
 import { createAPI, createController, parseRoute, sessionHash, isRunning, safeLog, collectQuestionAnswers } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
-import { badge, empty, renderConversation, renderActivities, renderFiles, renderHistory, modelOptions, renderRename, renderDelivery, renderFormatPicker } from './views.mjs';
+import { badge, empty, renderConversation, renderActivities, renderDatasets, renderFiles, renderHistory, modelOptions, renderRename, renderDelivery, renderFormatPicker } from './views.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
@@ -57,7 +57,7 @@ function sidebar() {
 
 function contextPanel() {
   const usage = state.detail?.usage;
-  return `<aside class="context-panel ${contextOpen ? 'mobile-open' : ''}" aria-label="研究活动与文件"><header class="context-header"><h2>研究空间</h2><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button><span class="badge">${state.detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></header>${renderDelivery(state.detail?.delivery)}${renderActivities(state.detail)}<section class="context-section"><div class="section-heading"><h3>文件</h3>${state.detail ? `<button class="text-button" data-refresh-files ${state.busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(state.detail?.files || [], selectedPreview)}</section>${usage && (usage.tokens != null || usage.cost != null) ? `<footer class="usage-footer">${usage.tokens != null ? `<span>Tokens <strong>${e(usage.tokens)}</strong></span>` : ''}${usage.cost != null ? `<span>运行时费用 <strong>${e(usage.cost)}</strong></span>` : ''}</footer>` : ''}</aside>`;
+  return `<aside class="context-panel ${contextOpen ? 'mobile-open' : ''}" aria-label="研究活动与文件"><header class="context-header"><h2>研究空间</h2><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button><span class="badge">${state.detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></header>${renderDelivery(state.detail?.delivery)}${renderDatasets(state.detail?.id, state.detail?.datasets)}${renderActivities(state.detail)}<section class="context-section"><div class="section-heading"><h3>文件</h3>${state.detail ? `<button class="text-button" data-refresh-files ${state.busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(state.detail?.files || [], selectedPreview)}</section>${usage && (usage.tokens != null || usage.cost != null) ? `<footer class="usage-footer">${usage.tokens != null ? `<span>Tokens <strong>${e(usage.tokens)}</strong></span>` : ''}${usage.cost != null ? `<span>运行时费用 <strong>${e(usage.cost)}</strong></span>` : ''}</footer>` : ''}</aside>`;
 }
 
 function render() {

@@ -206,3 +206,33 @@ test('native agent usage, duration and errors are visible without fake measureme
   assert.match(result, /历史已截断/);
   assert.doesNotMatch(views.renderActivities({subagents:[{id:'unknown',status:'running'}]}), /0 tokens|0\.0 秒/);
 });
+
+test('dataset cards show real provenance, range and partial warning without claiming a snapshot is complete', () => {
+  assert.equal(typeof views.renderDatasets, 'function');
+  const result = views.renderDatasets('session-1', [{
+    id: 'dataset-1', name: '<基金净值>', source: 'Eastmoney', source_url: 'https://fund.eastmoney.com/', status: 'partial',
+    row_count: 20, requested_range: { start: '2024-01-01', end: '2024-12-31' }, actual_range: { start: '2024-01-02', end: '2024-12-30' },
+    pagination_complete: true, pages_fetched: 2, provider_total: 21, retrieved_at: '2026-09-02T09:00:00+08:00', as_of: '2024-12-30',
+    missing: ['2024-06-03'], limitations: ['供应商总量与唯一日期数不一致'], files: [{ name: 'rows.csv', sha256: 'a'.repeat(64) }],
+  }, {
+    id: 'dataset-2', name: '最新资讯', source: 'CLS', status: 'snapshot', row_count: 20, pagination_complete: true,
+  }]);
+  for (const expected of ['研究资料', '&lt;基金净值&gt;', 'Eastmoney', '请求范围', '实际范围', '20 条', '2 页', '供应商总量 21', '取数时间', '缺失：2024-06-03', '供应商总量与唯一日期数不一致', '资料不完整', '分页已结束，但资料仍不完整', '公开快照，不代表完整历史', '下载 CSV', '下载 JSON', '下载 manifest', 'a'.repeat(64)]) assert.match(result, new RegExp(expected));
+  assert.match(result, /截至<\/dt><dd>2024-12-30/);
+  assert.match(result, /href="https:\/\/fund\.eastmoney\.com\//);
+  assert.doesNotMatch(result, /全量数据完整/);
+});
+
+test('dataset downloads only use the current session, safe dataset id and three fixed files', () => {
+  assert.equal(typeof views.datasetFileURL, 'function');
+  assert.equal(views.datasetFileURL('session-1', 'dataset-1', 'rows.csv'), '/api/research/sessions/session-1/datasets/dataset-1/files/rows.csv');
+  for (const value of [
+    views.datasetFileURL('session-1', 'dataset-1', 'rows.csv?download=1'),
+    views.datasetFileURL('session-1', 'dataset-1', 'manifest.json#fragment'),
+    views.datasetFileURL('session-1', 'dataset-1', 'other.txt'),
+    views.datasetFileURL('session-1', 'dataset%2Fother', 'rows.json'),
+    views.datasetFileURL('session/other', 'dataset-1', 'rows.json'),
+  ]) assert.equal(value, null);
+  const unsafe = views.renderDatasets('session-1', [{ id: '../dataset', name: '坏资料', source_url: 'javascript:alert(1)', files: [{ name: 'rows.csv', url: 'https://evil.test/download' }] }]);
+  assert.doesNotMatch(unsafe, /evil\.test|javascript:|href="\/api\/research\/sessions/);
+});

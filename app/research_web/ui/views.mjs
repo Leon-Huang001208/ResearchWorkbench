@@ -33,6 +33,50 @@ export function renderDelivery(delivery) {
   return `<section class="context-section delivery-panel" aria-label="文件交付检查"><h3>文件交付检查</h3><p class="badge ${['incomplete', 'verification_failed'].includes(delivery.status) ? 'danger' : ''}">${e(labels[delivery.status] || delivery.status)}</p><p class="small muted">要求：${e((delivery.required_formats || []).map((format) => format.toUpperCase()).join(' / ') || '无需文件')}。执行结束不等于文件交付完成。</p>${(delivery.reasons || []).map((reason) => `<p class="small">${e(reason)}</p>`).join('')}${(delivery.files || []).map((file) => `<div class="delivery-file"><strong>${e(file.name)}</strong><span>${file.valid ? '已通过格式检查' : '未通过检查'}</span>${file.reason ? `<p>${e(file.reason)}</p>` : ''}</div>`).join('')}</section>`;
 }
 
+const datasetID = (value) => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(value) ? value : null;
+const fixedDatasetFiles = new Map([['rows.csv', 'CSV'], ['rows.json', 'JSON'], ['manifest.json', 'manifest']]);
+
+export function datasetFileURL(sessionID, datasetIDValue, fileName) {
+  const sid = datasetID(sessionID); const did = datasetID(datasetIDValue);
+  if (!sid || !did || !fixedDatasetFiles.has(fileName)) return null;
+  return `/api/research/sessions/${sid}/datasets/${did}/files/${fileName}`;
+}
+
+function datasetRange(range) {
+  if (!range || typeof range !== 'object') return '未提供';
+  const start = range.start ?? range.start_date; const end = range.end ?? range.end_date;
+  return start || end ? `${start || '未知'} 至 ${end || '未知'}` : '未提供';
+}
+
+function datasetStatus(status) {
+  return ({ complete: '请求范围已完整取得', snapshot: '公开快照', empty: '来源返回零条', partial: '资料不完整', failed: '取数失败' })[status] || '状态未知';
+}
+
+function datasetPagination(dataset) {
+  if (dataset.pagination_complete === true) return dataset.status === 'partial' ? '分页已结束，但资料仍不完整' : '分页已结束';
+  if (dataset.pagination_complete === false) return '分页尚未结束';
+  return '分页状态未知';
+}
+
+export function renderDatasets(sessionID, datasets = []) {
+  if (!Array.isArray(datasets) || !datasets.length) return '';
+  const sid = datasetID(sessionID);
+  const cards = datasets.map((dataset) => {
+    const did = datasetID(dataset?.dataset_id || dataset?.id);
+    const sourceURL = safeURL(dataset?.source_url);
+    const source = dataset?.source || '来源未知';
+    const status = dataset?.status;
+    const warning = status === 'partial' || status === 'failed' || !['complete', 'snapshot', 'empty'].includes(status);
+    const filesByName = new Map((Array.isArray(dataset?.files) ? dataset.files : []).filter((file) => fixedDatasetFiles.has(file?.name)).map((file) => [file.name, file]));
+    const downloads = did && sid ? [...fixedDatasetFiles].map(([fileName, label]) => {
+      const url = datasetFileURL(sid, did, fileName); const hash = filesByName.get(fileName)?.sha256;
+      return `<div class="dataset-download"><a class="text-button" href="${e(url)}" download aria-label="下载资料 ${e(dataset?.name || did)} 的 ${label}">下载 ${label}</a>${typeof hash === 'string' ? `<small class="dataset-hash">SHA256：${e(hash)}</small>` : ''}</div>`;
+    }).join('') : '<p class="muted small">资料标识不合规，下载不可用。</p>';
+    return `<article class="dataset-card"><div class="section-heading"><div><strong>${e(dataset?.name || '未命名资料')}</strong><p class="dataset-source">来源：${sourceURL ? `<a href="${e(sourceURL)}" target="_blank" rel="noopener noreferrer">${e(source)}</a>` : e(source)}</p></div><span class="badge ${warning ? 'danger' : ''}">${e(datasetStatus(status))}</span></div>${status === 'snapshot' ? '<p class="dataset-note">公开快照，不代表完整历史。</p>' : ''}${warning ? `<p class="dataset-warning" role="alert">${e(datasetPagination(dataset))}${status === 'partial' ? '；请结合缺失和限制谨慎使用。' : status ? '；请检查资料说明。' : '；不能据此判断取数结果。'}</p>` : ''}<dl class="dataset-meta"><div><dt>请求范围</dt><dd>${e(datasetRange(dataset?.requested_range))}</dd></div><div><dt>实际范围</dt><dd>${e(datasetRange(dataset?.actual_range))}</dd></div><div><dt>记录数</dt><dd>${Number.isFinite(dataset?.row_count) ? `${e(dataset.row_count)} 条` : '未知'}</dd></div><div><dt>分页</dt><dd>${e(datasetPagination(dataset))}${Number.isFinite(dataset?.pages_fetched) ? ` · ${e(dataset.pages_fetched)} 页` : ''}${Number.isFinite(dataset?.provider_total) ? ` · 供应商总量 ${e(dataset.provider_total)}` : ''}</dd></div><div><dt>取数时间</dt><dd>${e(dataset?.retrieved_at || '未知')}</dd></div><div><dt>截至</dt><dd>${e(dataset?.as_of || '未知')}</dd></div></dl>${dataset?.cache_hit === true ? '<p class="dataset-note">复用已验证快照；取数时间保留原始值。</p>' : ''}${Array.isArray(dataset?.missing) && dataset.missing.length ? `<p class="dataset-note">缺失：${e(dataset.missing.join('；'))}</p>` : ''}${Array.isArray(dataset?.limitations) && dataset.limitations.length ? `<p class="dataset-note">限制：${e(dataset.limitations.join('；'))}</p>` : ''}<div class="dataset-downloads">${downloads}</div></article>`;
+  }).join('');
+  return `<section class="context-section datasets-panel" aria-label="研究资料"><div class="section-heading"><h3>研究资料</h3><span class="count">${datasets.length}</span></div><p class="muted small">资料输入独立于生成文件和交付状态。</p>${cards}</section>`;
+}
+
 export function renderActivities(detail) {
   const activities = detail?.activities || []; const agents = detail?.subagents || [];
   const duration = (value) => Number.isFinite(value) && value >= 0 ? ` · ${(value / 1000).toFixed(1)} 秒` : '';

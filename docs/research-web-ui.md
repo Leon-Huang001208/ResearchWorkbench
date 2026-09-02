@@ -30,6 +30,8 @@
 - 重命名和原生问题使用应用内表单；不调用 `window.prompt`。SSE 重渲染保留当前表单草稿；问题可选择选项并补充文本，仍提交既有原生 `answers` 契约。
   - `multiSelect` 缺省/false 为单选 radio，true 为多选 checkbox；前端收集与后端均拒绝单选多值。
 - 编辑器提供显式 `expected_formats` 与按 Skill 默认格式；选择随草稿/幂等请求保存。父/子任务和交付检查未结束时不排队新消息，允许先准备草稿。右侧单独展示 `delivery` 的要求、实际文件、缺失/损坏原因；“执行已结束”不等于“文件交付已检查”。详见 [交付契约](research-web-delivery.md)。
+- 右侧“研究资料”仅渲染会话详情/SSE 快照中的 `detail.datasets`，不另起轮询；它位于交付检查与活动之间，独立于生成文件和交付状态。旧会话的空数组不显示占位卡片。每张真实资料卡展示来源安全链接、状态、请求/实际范围、记录数、分页结束语义/页数/供应商总量、取数时间、`as_of`、缺失、限制和快照复用信息。`partial` 即使分页结束仍以警示呈现，`snapshot` 明确不代表完整历史，未知状态不按成功显示。
+- 资料下载由当前会话 ID 和资料 ID 在浏览器本地严格构造，仅允许 `rows.csv`、`rows.json`、`manifest.json` 三个无查询串/片段的专用路径；不信任资料返回中的 URL。会话或资料 ID 含编码分隔符、路径分隔符或其他不合规字符时不提供下载。每个下载操作具有“资料名称 + 文件格式”的独立辅助技术名称；来源 URL 仍通过 `safeURL` 过滤。
 - 升级调用 `POST /sessions/{id}/upgrade`，使用返回的新会话和 `draft`；草稿放入新编辑器，不自动提交。
 - 附件使用 multipart `files` 字段上传；返回 ID 作为 `attachment_ids` 提交。上传成功仅代表后端收到了文件，不代表模型已读取或工具沙箱已执行。
 - 文件下载只使用真实返回且经过检查的同源会话文件 URL。HTML 预览 iframe 使用空 `sandbox` 和 `no-referrer`，前端拒绝外部或任意路径的预览地址；后端仍负责授权、路径隔离和响应 CSP。
@@ -40,7 +42,7 @@
 
 支持标题、段落、粗体/斜体、行内代码、围栏代码块、列表、引用、简单表格与 HTTP(S) 来源链接。原始 HTML 始终转义；不执行模型输出的脚本或 HTML，不远程加载 Markdown 图片。来源链接拒绝活动协议、凭据 URL、控制字符与协议相对 URL。不是完整 CommonMark 实现。
 
-文件链接限定 `/api/research/sessions/{sid}/files/{fid}/download` 或 `/preview` 路径；拒绝路径穿越及编码分隔符。前端校验不替代服务器授权。
+生成文件链接限定 `/api/research/sessions/{sid}/files/{fid}/download` 或 `/preview` 路径；资料链接另限 `/api/research/sessions/{sid}/datasets/{did}/files/{rows.csv|rows.json|manifest.json}`。两者都拒绝路径穿越及编码分隔符。前端校验不替代服务器授权。
 
 ## 验证与限制
 
@@ -50,6 +52,6 @@ node --check app/research_web/ui/app.mjs
 git diff --check
 ```
 
-独立 JS 测试涵盖真实解析/渲染、恶意 HTML/URL、API 结构化错误、multipart 上传、日志秘密隔离、幂等重试、跨会话竞态、SSE 重连/清理、Claw 升级草稿与文件 sandbox。
+独立 JS 测试涵盖真实解析/渲染、恶意 HTML/URL、API 结构化错误、multipart 上传、日志秘密隔离、幂等重试、跨会话竞态、SSE 重连/清理、Claw 升级草稿、生成文件 sandbox，以及资料卡状态/范围/不完整警示和固定下载路由。
 
 浏览器视觉、键盘/移动端状态和真实 DSH 全链路由集成任务另行验证。DSH 模型凭据、工具沙箱、文件读取与 Agent 执行能力取决于实际后端，不由 UI 模拟。此变更不涉及桌面安装或 Windows 运行验证。
