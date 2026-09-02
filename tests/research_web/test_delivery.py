@@ -174,6 +174,78 @@ Image.new('RGB', (2, 2)).save('outputs/chart.png')
         assert files[name]["reason"]
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="strict parser requires native macOS sandbox")
+@pytest.mark.parametrize(
+    "metadata_sheet", ["sources", "source", " Sources ", "来源", "说明", "参考资料"]
+)
+def test_metadata_only_workbook_does_not_satisfy_analysis_delivery(delivery_api, metadata_sheet):
+    from app.research_web.sandbox import SandboxConfig, run_script
+
+    _, _, service, sid = delivery_api
+    assert submit(delivery_api, ["xlsx"]).status_code == 202
+    generated = run_script(
+        SandboxConfig(service.store.root, Path(sys.executable)),
+        service.store.directory(sid),
+        "from openpyxl import Workbook\n"
+        "book = Workbook(); book.active.title = 'analysis'\n"
+        f"sources = book.create_sheet({metadata_sheet!r})\n"
+        "sources.append(['https://example.com/one']); sources.append(['https://example.com/two'])\n"
+        "book.save('outputs/report.xlsx')\n",
+    )
+    assert generated.status == "completed", generated
+    finish(delivery_api)
+    delivery = detail(delivery_api)["delivery"]
+    assert delivery["status"] == "incomplete"
+    assert delivery["missing_formats"] == ["xlsx"]
+    assert "非元数据" in delivery["files"][0]["reason"]
+
+
+@pytest.mark.parametrize("multi", [None, False, True])
+def test_native_question_single_selection_is_validated(delivery_api, multi):
+    client, native, service, sid = delivery_api
+    question = {
+        "id": "period",
+        "question": "期间",
+        "options": [{"label": "2024"}, {"label": "2025"}],
+    }
+    if multi is not None:
+        question["multiSelect"] = multi
+    service.questions["rpc"] = {"sessionId": sid, "questions": [question]}
+    responses = []
+
+    async def respond(rpc_id, body):
+        responses.append((rpc_id, body))
+        return {"accepted": True}
+
+    native.respond = respond
+    response = client.post(
+        f"/api/research/sessions/{sid}/questions/rpc",
+        json={"answers": [{"id": "period", "selected": ["2024", "2025"], "custom": ""}]},
+    )
+    assert response.status_code == (200 if multi else 400)
+    assert len(responses) == (1 if multi else 0)
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="strict parser requires native macOS sandbox")
+def test_analysis_sheet_with_sources_and_zero_value_is_valid(delivery_api):
+    from app.research_web.sandbox import SandboxConfig, run_script
+
+    _, _, service, sid = delivery_api
+    assert submit(delivery_api, ["xlsx"]).status_code == 202
+    generated = run_script(
+        SandboxConfig(service.store.root, Path(sys.executable)),
+        service.store.directory(sid),
+        "from openpyxl import Workbook\n"
+        "book = Workbook(); book.active.title = 'analysis'\n"
+        "book.active.append(['metric', 'value']); book.active.append(['return', 0])\n"
+        "sources = book.create_sheet('sources'); sources.append(['url']); sources.append(['https://example.com'])\n"
+        "book.save('outputs/report.xlsx')\n",
+    )
+    assert generated.status == "completed", generated
+    finish(delivery_api)
+    assert detail(delivery_api)["delivery"]["status"] == "completed"
+
+
 def test_idempotency_unknown_and_serial_admission(delivery_api):
     _, native, _, _ = delivery_api
     assert submit(delivery_api, ["md"]).status_code == 202

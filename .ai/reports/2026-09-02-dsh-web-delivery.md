@@ -92,3 +92,23 @@ docs/research-web-ui.md
 docs/CHANGELOG.md
 .ai/reports/2026-09-02-dsh-web-delivery.md
 ```
+
+## 规格审查修复（同日后续提交）
+
+主任务审查发现并要求两项最小修正：
+
+1. 空 analysis 表加两行 sources URL 曾被误判为有效分析底稿。新增 6 个明确
+   元数据表名参数回归，在真实严格沙箱内生成/解析并先得到 6 个失败；修复为
+   排除文档列出的精确元数据表名后，要求非元数据表有表头及非空数据行。另有
+   analysis 表头+数值 0 与 sources 共存的正向用例。未增加金融语义治理规则。
+2. 原生问题的 multiSelect 缺省/false 原应单选。后端缺省/false 两个回归先失败，
+   true 多选原行为通过；JS 两个渲染/收集回归先失败。修复为默认 radio、true
+   checkbox，前后端拒绝单选多个 selected。service.answer 仅在既有完整答案
+   检查后新增基数校验，不触及主任务的子 Agent owner/response 路由。
+
+本轮命令同上，实际结果：完整 Python **65 passed in 11.48s**、JavaScript
+**25 passed**；ruff、black、isort、app.mjs 语法、mypy 12 文件及新增模块
+`--check-untyped-defs` 2 文件、差异空白检查通过。完整 Python 输出：
+`/tmp/af-delivery-review-all.log`；初始失败输出：`/tmp/af-delivery-review-red.log`。
+本轮仍未操作服务/密钥/主工作树，未执行真实模型或浏览器验收。Harness
+`task-8825dc0e-dsh-web` 的最终 outcome 由主任务维护，未更改。

@@ -9,6 +9,7 @@
 ### Added
 
 - **Research Web 文件交付检查**：新增显式输出格式与 Skill 默认值、绑定幂等收据的哈希快照、单会话串行归属和严格沙箱内 DOCX/XLSX/HTML/Markdown/PNG 实际解析。详情单列交付状态、缺失/损坏原因，执行结束不等于文件交付完成；重命名和原生问题改用应用内表单。详见 `docs/research-web-delivery.md`；不代表真实模型完整产品验收。
+  - XLSX 分析底稿检查排除明确的来源/说明元数据表；原生 questions 按 multiSelect 区分单选/多选，前后端拒绝单选多填。
 
 - **DSH 原生 Research Web（独立入口）**：`app.research_web.main:app` 提供 `/api/research`、FinGPT/Claw、历史、设置、附件和真实文件下载。采用 HTTP RPC + 双 WebSocket → SSE，历史由 DSH 持久化；不启动旧 ResearchRun、Evidence/Claim、LangGraph、数据库和桌面服务。新增幂等受理、断线恢复、专属实例归属核验、原生审批/问题响应及受限 HTML 预览。原生模型成功旅程仍需专属实例 API Key，不能把代码/回归测试标记为全部产品验收。
 

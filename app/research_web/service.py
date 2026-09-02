@@ -548,4 +548,12 @@ class ResearchService:
         expected = {question["id"] for question in request["questions"]}
         if {answer["id"] for answer in answers} != expected or len(answers) != len(expected):
             raise StoreError("请完整回答该组问题")
+        questions = {question["id"]: question for question in request["questions"]}
+        for answer in answers:
+            if (
+                questions[answer["id"]].get("multiSelect") is not True
+                and len(answer.get("selected", [])) > 1
+            ):
+                log.warning("research_question_single_selection_rejected")
+                raise StoreError("单选问题只能选择一个选项")
         return await self.client.respond(qid, {"sessionId": sid, "answer": {"answers": answers}})

@@ -27,6 +27,7 @@
 - 会话详情来自 `GET /sessions/{id}`；SSE `snapshot` 替换真实详情，`runtime_error` 显示运行错误。事件连接恢复只重新读取快照，不重发消息。跨会话旧响应会被忽略；较旧 HTTP 快照不会覆盖后来到达的 SSE 输出。
 - 历史打开、重命名、取消、批准/拒绝均调用对应真实接口。运行时提问通过问题响应接口回复；根回合结束但子 Agent 仍活跃时保留运行状态和停止入口。
 - 重命名和原生问题使用应用内表单；不调用 `window.prompt`。SSE 重渲染保留当前表单草稿；问题可选择选项并补充文本，仍提交既有原生 `answers` 契约。
+  - `multiSelect` 缺省/false 为单选 radio，true 为多选 checkbox；前端收集与后端均拒绝单选多值。
 - 编辑器提供显式 `expected_formats` 与按 Skill 默认格式；选择随草稿/幂等请求保存。父/子任务和交付检查未结束时不排队新消息，允许先准备草稿。右侧单独展示 `delivery` 的要求、实际文件、缺失/损坏原因；“执行已结束”不等于“文件交付已检查”。详见 [交付契约](research-web-delivery.md)。
 - 升级调用 `POST /sessions/{id}/upgrade`，使用返回的新会话和 `draft`；草稿放入新编辑器，不自动提交。
 - 附件使用 multipart `files` 字段上传；返回 ID 作为 `attachment_ids` 提交。上传成功仅代表后端收到了文件，不代表模型已读取或工具沙箱已执行。

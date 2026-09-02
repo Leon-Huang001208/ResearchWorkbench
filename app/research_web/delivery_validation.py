@@ -8,6 +8,21 @@ import stat
 from html.parser import HTMLParser
 from pathlib import Path
 
+METADATA_SHEETS = {
+    "sources",
+    "source",
+    "references",
+    "reference",
+    "notes",
+    "readme",
+    "metadata",
+    "来源",
+    "数据来源",
+    "说明",
+    "参考资料",
+    "参考文献",
+}
+
 
 class VisibleHTML(HTMLParser):
     def __init__(self):
@@ -50,6 +65,8 @@ def validate_content(raw, extension):
         book = load_workbook(stream, read_only=True, data_only=True)
         try:
             for sheet in book:
+                if sheet.title.strip().casefold() in METADATA_SHEETS:
+                    continue
                 rows = 0
                 # Do not trust dimension metadata to hide data or force huge allocation.
                 sheet.reset_dimensions()
@@ -58,7 +75,7 @@ def validate_content(raw, extension):
                         rows += 1
                     if rows >= 2:
                         return None
-            return "Excel 可打开，但没有至少两行有效内容（表头及数据）"
+            return "Excel 可打开，但非元数据工作表没有至少两行有效内容（表头及数据）"
         finally:
             book.close()
     elif extension == "png":
