@@ -11,6 +11,7 @@ description: 解读上传的 PDF、图片、Markdown、CSV 和 Excel，按页码
 4. 发现冲突或缺失时显式列出，不能用零补缺失。
 5. 用户要求文件时运行脚本实际生成到 outputs，检查存在且能够重新打开，再给出文件名。不要把聊天正文当 Word/Excel。
 
-示例：在 af_run_script 中 `import sys; sys.path.insert(0,'resources'); from research_helpers import read_pdf; print(read_pdf('inputs/实际文件.pdf'))`。
+示例：在 af_run_script 中 `from research_helpers import read_pdf; print(read_pdf('inputs/实际文件.pdf'))`。
+运行器已经加入当前会话的只读资源导入路径；不要添加相对 sys.path，也不要依赖读取会话根目录或 getcwd。
 
 报告结构见 `templates/report.md`。共享脚本随新会话复制到 resources，不访问宿主资料。

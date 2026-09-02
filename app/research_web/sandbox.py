@@ -206,8 +206,11 @@ def run_script(config: SandboxConfig, session: Path, code: str) -> ScriptResult:
     except OSError as exc:
         raise SandboxError("research sandbox directories are unavailable") from exc
     # -I -S prevents user startup/.pth execution. Only the configured venv's
-    # site-packages directory is added; the project checkout is never on sys.path.
+    # site-packages and this session's reviewed resources use absolute paths.
+    # Relative imports require getcwd(), denied at the session root. Adding the
+    # already-readable resource directory needs no new filesystem permission.
     site_paths = [path for path in reads if path.endswith("/site-packages")]
+    site_paths.append(str(session / "resources"))
     bootstrap = (
         "import sys,resource,mimetypes;"
         f"resource.setrlimit(resource.RLIMIT_CPU,({math.ceil(config.timeout_seconds) + 1},)*2);"

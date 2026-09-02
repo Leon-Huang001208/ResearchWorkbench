@@ -44,6 +44,10 @@ Seatbelt 使用 `allow default` 加 `deny file-read-data` 与明确运行库/会
 
 ## 资源与错误处理
 
+资源导入：运行器把当前会话 `resources/` 的可信绝对路径加入 Python 导入路径。
+脚本直接 `from research_helpers import read_pdf, write_deliverables`；不要添加相对
+`sys.path`（其解析依赖被拒绝的 `getcwd()`）。本修复不增加 Seatbelt 权限。
+
 - 墙钟限额可配置为 `(0, 60]` 秒；源码传输、执行与输出收集共用非阻塞截止时间。
 - CPU 硬限额为墙钟向上取整加一秒；打开文件上限 64；单文件大小硬限额 16 MiB。
 - 超时、取消和输出超限杀死独立进程组；清理等待最多一秒。无法确认内核清理时返回失败，绝不声称终止成功。

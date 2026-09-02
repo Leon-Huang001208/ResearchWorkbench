@@ -92,6 +92,24 @@ def test_failed_or_interrupted_turn_is_never_completed():
     assert result["error"] == "model unavailable"
 
 
+def test_native_timestamps_supply_duration_without_inventing_missing_time():
+    entries = [
+        event(1, "turn/start", {"turn": 1}),
+        event(2, "tool/call", {"callId": "timed", "name": "web_search"}),
+        event(3, "tool/result", {"message": {"source": {"callId": "timed"}, "content": []}}),
+        event(4, "turn/end", {"reason": {"kind": "completed"}}),
+    ]
+    for row, timestamp in zip(entries, [1000, 1200, 2300, 3000], strict=True):
+        row["event"]["time"] = timestamp
+    result = project(entries)
+    assert result["duration_ms"] == 2000
+    assert result["activities"][0]["duration_ms"] == 1100
+    for row in entries:
+        row["event"].pop("time")
+    assert "duration_ms" not in project(entries)
+    assert "duration_ms" not in project(entries)["activities"][0]
+
+
 def test_runtime_url_is_loopback_only():
     with pytest.raises(ValueError):
         DSHClient("https://example.com")

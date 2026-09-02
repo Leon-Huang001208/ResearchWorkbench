@@ -205,6 +205,14 @@ def test_explicit_venv_document_libraries_import(prepared):
     assert (session / "outputs/chart.png").read_bytes().startswith(b"\x89PNG")
 
 
+def test_trusted_resource_import_does_not_require_cwd_read_permission(prepared):
+    module, _root, session, config = prepared
+    (session / "resources/helper_canary.py").write_text("VALUE = 42\n")
+    result = module.run_script(config, session, "from helper_canary import VALUE; print(VALUE)")
+    assert result.status == "completed", result
+    assert result.stdout == "42\n"
+
+
 def test_native_tool_contract_and_trusted_cwd(tmp_path):
     plugin = SOURCE.parent / "runtime/research-tools.mjs"
     assert plugin.is_file(), "native research tool has not been implemented"

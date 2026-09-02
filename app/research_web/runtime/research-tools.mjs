@@ -8,7 +8,7 @@ export const inject = ['tools', 'sessions'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Validate immutable DSH lineage; a cold/missing ancestor fails closed. */
-async function trustedDirectory(ctx, exec, config) {
+export async function trustedDirectory(ctx, exec, config) {
   let session = exec.agent?.session;
   if (!session?.header?.cwd || !session.header.id) throw new Error('trusted agent session is required');
   const cwd = session.header.cwd;

@@ -104,6 +104,45 @@ def test_fund_default_and_explicit_override_are_bound_to_receipt(delivery_api):
     assert detail(delivery_api)["delivery"]["required_formats"] == ["md"]
 
 
+def test_ui_hides_only_registered_task_suffix_and_keeps_native_log(delivery_api):
+    _, native, service, sid = delivery_api
+    assert submit(delivery_api, [], skill="fund-evaluation").status_code == 202
+    finish(delivery_api)
+    prompt = [payload for method, payload in native.calls if method == "session.prompt"][-1]
+    assert "[AF_TASK:" in prompt["content"][0]["text"]
+    assert detail(delivery_api)["messages"][0]["text"] == "/fund-evaluation 交付本次研究"
+    original = next(iter(service.events[sid].values()))["event"]["data"]["content"][0]["text"]
+    assert "[AF_TASK:" in original
+    service.events[sid][999] = {
+        "event": {
+            "seq": 999,
+            "type": "user/message",
+            "data": {"id": "other", "content": "原样保留\n\n[AF_TASK:not-owned]"},
+        }
+    }
+    assert detail(delivery_api)["messages"][-1]["text"].endswith("[AF_TASK:not-owned]")
+
+
+def test_quoted_prior_task_marker_does_not_hide_new_user_requirements(delivery_api):
+    _, _, service, sid = delivery_api
+    markers = []
+    for key in ("quote-first", "quote-second"):
+        assert submit(delivery_api, [], key=key).status_code == 202
+        markers.append(service.store.receipt(sid, key)["delivery"]["marker"])
+        finish(delivery_api)
+        detail(delivery_api)
+    for first, last in (markers, list(reversed(markers))):
+        human = f"引用先前原生日志\n\n{first}\n这里仍是用户补充的研究要求"
+        service.events[sid][999] = {
+            "event": {
+                "seq": 999,
+                "type": "user/message",
+                "data": {"id": "quote", "content": human + "\n\n" + last + "\n内部契约"},
+            }
+        }
+        assert detail(delivery_api)["messages"][-1]["text"] == human
+
+
 def test_completed_turn_with_missing_files_is_not_delivered(delivery_api):
     assert submit(delivery_api, ["docx", "xlsx"]).status_code == 202
     finish(delivery_api)

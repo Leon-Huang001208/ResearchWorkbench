@@ -196,3 +196,13 @@ test('SSE malformed payload reports errors and closing a stream releases it', ()
   assert.equal(errors[1], '真实运行失败');
   close(); assert.equal(source.closed, true);
 });
+
+test('native agent usage, duration and errors are visible without fake measurements', () => {
+  const result = views.renderActivities({subagents: [{id:'child', name:'资料Agent', status:'failed', usage:{tokens:123}, duration_ms:2345, error:'<denied>', history_truncated:true}], activities:[{id:'t', title:'af_run_script', status:'completed', duration_ms:1200}]});
+  assert.match(result, /123 tokens/);
+  assert.match(result, /2\.3 秒/);
+  assert.match(result, /1\.2 秒/);
+  assert.match(result, /&lt;denied&gt;/);
+  assert.match(result, /历史已截断/);
+  assert.doesNotMatch(views.renderActivities({subagents:[{id:'unknown',status:'running'}]}), /0 tokens|0\.0 秒/);
+});

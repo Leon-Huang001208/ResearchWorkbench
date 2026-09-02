@@ -115,16 +115,24 @@ class ResearchService:
                 continue
             frame = envelope["payload"]
             sid = frame.get("sessionId")
-            if sid not in self.store.data["sessions"]:
-                if sid in self.child_parents:
-                    self.notify()
-                continue  # Never expose the other application's sessions.
             kind = frame["type"]
+            owner = sid
+            if sid not in self.store.data["sessions"]:
+                if kind.startswith(("approval/", "question/")):
+                    owner = await self._interaction_owner(sid)
+                    if owner is None:
+                        continue
+                elif sid in self.child_parents:
+                    self.notify()
+                    continue
+                else:
+                    continue  # Never expose unowned sessions.
             if kind == "session/event":
                 event = frame["event"]
                 self.events.setdefault(sid, {})[event["seq"]] = {"event": event}
                 if event["type"] == "turn/start":
                     self.errors.pop(sid, None)
+                    self.running[sid] = True
                 if event["type"] == "turn/end":
                     self.running[sid] = False
                     row = self.store.session(sid)
@@ -136,14 +144,33 @@ class ResearchService:
             elif kind == "host/agent-error":
                 self.errors[sid] = frame["message"]
             elif kind == "approval/requested":
-                self.approvals[frame["approvalId"]] = {**frame, "rpc_id": envelope["rpcId"]}
+                self.approvals[frame["approvalId"]] = {
+                    **frame,
+                    "rpc_id": envelope["rpcId"],
+                    "ownerSessionId": owner,
+                }
             elif kind == "approval/resolved":
                 self.approvals.pop(frame["approvalId"], None)
             elif kind == "question/requested":
-                self.questions[envelope["rpcId"]] = frame
+                self.questions[envelope["rpcId"]] = {**frame, "ownerSessionId": owner}
             elif kind == "question/resolved":
                 self.questions.pop(frame["questionRpcId"], None)
             self.notify()
+
+    async def _interaction_owner(self, sid):
+        if sid in self.child_parents:
+            return self.child_parents[sid]
+        # Pending interactions may replay before the first detail projection.
+        # Resolve only via the native parent-scoped registry, never claimed IDs.
+        for row in list(self.store.data["sessions"].values()):
+            if not row["created"]:
+                continue
+            children = await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
+            if any(c.get("kind") == "child" and c.get("id") == sid for c in children["entries"]):
+                self.child_parents[sid] = row["id"]
+                return row["id"]
+        log.warning("research_unowned_interaction_ignored")
+        return None
 
     async def runtime(self):
         try:
@@ -293,6 +320,20 @@ class ResearchService:
             cache.update({entry["event"]["seq"]: entry for entry in entries})
             self.loaded.add(sid)
         result = {**self.summary(row), **project(list(self.events.get(sid, {}).values()))}
+        # Native logs retain the execution contract. Only its product-owned
+        # suffix is hidden in the human transcript, including after reload.
+        markers = {
+            receipt["delivery"]["marker"]
+            for key, receipt in self.store.data["receipts"].items()
+            if key.startswith(sid + ":") and receipt.get("delivery")
+        }
+        for message in result["messages"]:
+            if message["role"] == "user":
+                boundary = max(
+                    (message["text"].rfind("\n\n" + marker) for marker in markers), default=-1
+                )
+                if boundary >= 0:
+                    message["text"] = message["text"][:boundary]
         if self.running.get(sid):
             result["status"] = "running"
         elif result["status"] == "running":
@@ -305,7 +346,7 @@ class ResearchService:
         result["approvals"] = [
             {"id": key, "title": value["toolName"], "detail": value.get("reason", "需要授权")}
             for key, value in self.approvals.items()
-            if value["sessionId"] == sid
+            if value.get("ownerSessionId", value["sessionId"]) == sid
         ]
         result["questions"] = [
             {
@@ -314,7 +355,7 @@ class ResearchService:
                 "items": value["questions"],
             }
             for key, value in self.questions.items()
-            if value["sessionId"] == sid
+            if value.get("ownerSessionId", value["sessionId"]) == sid
         ]
         if result["approvals"]:
             result["status"] = "awaiting_approval"
@@ -352,6 +393,7 @@ class ResearchService:
                             "running" if child["activity"] == "running" else projection["status"]
                         ),
                         usage=projection["usage"],
+                        duration_ms=projection.get("duration_ms"),
                         error=projection.get("error"),
                         history_truncated=projection["history_truncated"],
                     )
@@ -514,12 +556,13 @@ class ResearchService:
         await self.ensure_owned()
         self.store.session(sid)
         request = self.approvals.get(aid)
-        if not request or request["sessionId"] != sid:
+        if not request or request.get("ownerSessionId", request["sessionId"]) != sid:
             raise StoreError("审批已失效或不属于该会话")
+        log.info("research_approval_response", decision=decision)
         return await self.client.respond(
             request["rpc_id"],
             {
-                "sessionId": sid,
+                "sessionId": request["sessionId"],
                 "approvalId": aid,
                 "outcome": "allowed-once" if decision == "approve" else "rejected",
             },
@@ -528,7 +571,13 @@ class ResearchService:
     async def cancel(self, sid):
         await self.ensure_owned()
         self.store.session(sid)
-        result = await self.client.rpc("session.cancel", {"sessionId": sid})
+        try:
+            result = await self.client.rpc("session.cancel", {"sessionId": sid})
+        except RuntimeFailure as exc:
+            if exc.code != "session-not-found":
+                raise
+            log.info("research_cancel_parent_offline", session_id=sid)
+            result = {"accepted": True}
         children = await self.client.rpc("subagent.list", {"parentSessionId": sid})
         for child in children["entries"]:
             if child.get("kind") == "child" and child.get("mode") == "continuable":
@@ -543,7 +592,7 @@ class ResearchService:
         await self.ensure_owned()
         self.store.session(sid)
         request = self.questions.get(qid)
-        if not request or request["sessionId"] != sid:
+        if not request or request.get("ownerSessionId", request["sessionId"]) != sid:
             raise StoreError("提问已失效或不属于该会话")
         expected = {question["id"] for question in request["questions"]}
         if {answer["id"] for answer in answers} != expected or len(answers) != len(expected):
@@ -556,4 +605,6 @@ class ResearchService:
             ):
                 log.warning("research_question_single_selection_rejected")
                 raise StoreError("单选问题只能选择一个选项")
-        return await self.client.respond(qid, {"sessionId": sid, "answer": {"answers": answers}})
+        return await self.client.respond(
+            qid, {"sessionId": request["sessionId"], "answer": {"answers": answers}}
+        )

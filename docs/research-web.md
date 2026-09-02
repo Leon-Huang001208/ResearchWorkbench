@@ -17,7 +17,7 @@
 - 产品索引只存会话归属、文件标识、幂等收据；历史正文来自 DSH。
 - 连接中断不重发问题；未知受理结果要求先查看历史。
 - 缺少安全工具运行环境时禁止调用工具，不把 cwd 当沙箱。
-- 实际模型旅程尚未验收；测试通过不代表真实研究完成。
+- 2026-09-02 已用专属 DeepSeek 模型完成真实聊天、PDF、公开数据文件、双子 Agent 报告和异常恢复旅程；证据见 [真实验收记录](research-web-acceptance.md)。这不代表任意题目的研究质量均已验证。
 
 ## 开发启动
 
@@ -25,7 +25,7 @@
 
 ```bash
 python -m app.research_web.launch_runtime --source /Users/leon/Developer/deepseek-harness --data /Users/leon/.alphafoundry/research-web --source-mode --research-tools
-python -m uvicorn app.research_web.main:app --host 127.0.0.1 --port 8088
+python -m uvicorn app.research_web.main:app --host 127.0.0.1 --port 8088 --timeout-graceful-shutdown 5
 ```
 
 入口：`http://127.0.0.1:8088/#/settings`。模型密钥只在此填写，不从 3080 或仓库环境文件复制。
@@ -43,6 +43,7 @@ DSH 源码固定 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；CLI 版本为 `0.1
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
 - `skills/`：资料解读、公司研究、行业研究、基金评价四类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
 - `resources/`：实际 PDF 页码抽取、Office/HTML/Markdown 文件生成与重开检查。
+- `runtime/public-data.mjs`：经原生审批的财联社电报、公开基金单页净值；来源协议与约束见 [公开数据工具](research-web-public-data.md)。
 
 数据根默认 `~/.alphafoundry/research-web`（可通过 `AF_RESEARCH_DATA` 指定）。其下：
 
@@ -80,16 +81,17 @@ Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真�
 - DSH 重启后先用 `session.models` 恢复记录中的 preset，再查询 `skill.list`；不会创建替代会话或重复发送。
 - 子 Agent 活动来自 `subagent.list/history` 的父子归属接口；每个子 Agent 展示最近100条消息的投影，`history_truncated` 明确说明更早内容未加载，1秒缓存减少重复读取。
 - 父回合结束但子 Agent 仍运行时，详情和历史保持运行状态；停止调用原生父会话取消及直接子 Agent interrupt，不把受理当作已停止。
+- 父 Agent 已离线的 `session-not-found` 不阻断原生父子归属下的子任务取消；其他错误仍明确报告。原生后台子 Agent 审批策略为 `never`，需审批的取数由父 Agent 完成，再传给子 Agent 分析，不修改原生策略。
+- 子 Agent 展示原生用量、错误和已结束回合累计耗时；工具耗时来自原生事件时间戳。未提供时不填零。截断历史时提示统计不完整。内部任务标记只在 Web 展示层隐藏，本会话原生日志保留完整契约。
 - 模型配置、创建及发送共用单进程锁；配置完成才发布产品默认模型，运行中的原生会话不被热切换。
 - 图片附件转换为原生 image content（单张8MiB、合计16MiB），DSH负责媒体校验和模型兼容性；其他文件作为只读inputs路径交给研究工具。上传30MiB上限不表示模型能接收等大图片。
 - 本地索引不保存聊天正文；消息可选 `expected_formats`，通过幂等收据和提交前 outputs 哈希绑定独立文件交付检查。DOCX/XLSX/HTML/Markdown/PNG 实际解析仅在严格沙箱内执行；详情 `delivery` 与原生执行状态分开，不能仅凭回合 completed 判定报告交付。接口、默认格式、串行归属和限制见 [文件交付检查](research-web-delivery.md)。
 
-## 当前未完成的外部验收
+## 验收与保留限制
 
-- 专属模型未提供密钥时只能验证原生协议、历史和失败路径，不能完成真实问答/子Agent研究。
-- 公共检索由 DSH 原生 `web_search` 走明确的 DeepSeek 搜索提供方；不开放任意网页 fetch。
-- 财联社专用接入、额外金融 HTTP/MCP 尚未配置，不能声称已可用；禁止自动安装第三方插件或继承其他产品凭据。
-- 长任务真实停止/审批拒绝/模型中途故障、最终用户报告质量与完整旅程仍需有凭据后验收。
-- 当前文本/图片多模态都尚未通过真实模型验收。批准流程已接入原生消息，但没有通过实际工具触发的审批旅程。
+- 原生 `web_search`、财联社电报、基金净值及批准/拒绝/等待中取消已有真实模型证据；不开放任意网页 fetch、MCP 或自动依赖安装。
+- 基金示例是受限评价：本次两次单页响应均20条，不具备复权、持仓、费率或基准；不能据此宣称完整基金尽调。文件格式验证不替代数据与结论复核。
+- 已验证真实无效模型报错并恢复、BFF 中断后审批/草稿恢复、同键不重发、父与子脚本停止。未模拟提供方生成到一半时的任意故障类型；真实图片模型识别仍未覆盖。
+- 本轮仍是本机回环单人 Web；脚本隔离仅验证当前 macOS Seatbelt，未验证 Linux 部署。未新增任何依赖或第三方 MCP。
 - 早期固定Python启动探针 PID 38291 留在macOS内核 `UE` 状态；SIGKILL后未确认回收，临时目录 `/private/tmp/af-dsh-sandbox-probe.frLuyJ` 保留。它不是模型脚本；旧实验profile快照不完整，不能保证其权限/句柄状态。当前有效runner的全部取消测试已正常回收。
 - 未涉及桌面/Windows、市场首页/主题/自选、旧系统数据删除。

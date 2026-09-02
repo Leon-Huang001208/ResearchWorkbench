@@ -19,11 +19,16 @@ def project(entries: list[dict]) -> dict:
     messages: dict = {}
     activities: dict = {}
     partials: dict = {}
+    tool_started: dict = {}
+    turn_started, duration_ms = None, 0
     status, error, tokens = "idle", None, 0
     title = None
     for entry in sorted(entries, key=lambda row: row["event"]["seq"]):
         event = entry["event"]
         data, kind, seq = event["data"], event["type"], event["seq"]
+        timestamp = event.get("time")
+        if not isinstance(timestamp, (int, float)) or isinstance(timestamp, bool):
+            timestamp = None
         if kind == "user/message":
             # Skill/system injected context is not a human message in the UI.
             source = data.get("source")
@@ -67,6 +72,7 @@ def project(entries: list[dict]) -> dict:
                     blocks[index] = chunk["block"].get("text", "")
         elif kind == "tool/call":
             aid = data["callId"]
+            tool_started[aid] = timestamp
             activities[aid] = {
                 "id": aid,
                 "type": "tool",
@@ -87,6 +93,9 @@ def project(entries: list[dict]) -> dict:
                 status="failed" if data.get("error") or block.get("isError") else "completed",
                 detail=content_text(block.get("content")),
             )
+            started = tool_started.get(aid)
+            if started is not None and timestamp is not None and timestamp > started:
+                row["duration_ms"] = timestamp - started
             if row.get("title") == "af_run_script" and row["status"] == "completed":
                 try:
                     script = json.loads(row["detail"])
@@ -97,7 +106,11 @@ def project(entries: list[dict]) -> dict:
                     row["status"] = "failed"
         elif kind == "turn/start":
             status, error = "running", None
+            turn_started = timestamp
         elif kind == "turn/end":
+            if turn_started is not None and timestamp is not None and timestamp > turn_started:
+                duration_ms += timestamp - turn_started
+            turn_started = None
             reason = data.get("reason", {})
             status = {
                 "completed": "completed",
@@ -136,4 +149,6 @@ def project(entries: list[dict]) -> dict:
         result["error"] = error
     if title:
         result["title"] = title
+    if duration_ms:
+        result["duration_ms"] = duration_ms
     return result

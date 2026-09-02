@@ -1,7 +1,7 @@
 /** Host-global final veto; no arbitrary shell, filesystem, URL or MCP tools. */
 export const inject = ['tools'];
 
-export const RESEARCH_TOOLS = new Set(['af_run_script', 'skill', 'web_search', 'subagent', 'report', 'send_message', 'interrupt_agent', 'list_agents']);
+export const RESEARCH_TOOLS = new Set(['af_run_script', 'af_public_data', 'skill', 'web_search', 'subagent', 'report', 'send_message', 'interrupt_agent', 'list_agents']);
 
 export function apply(ctx, config = {}) {
   const calls = new WeakMap();

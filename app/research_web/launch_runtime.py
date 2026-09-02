@@ -44,6 +44,7 @@ def prepare(
         for key, value in {
             "__SKILL_ROOT__": package.parent / "skills",
             "__TOOLS_MODULE__": package / "research-tools.mjs",
+            "__PUBLIC_DATA_MODULE__": package / "public-data.mjs",
             "__PYTHON__": Path(sys.executable),
             "__RUNNER__": runner,
             "__RESEARCH_ROOT__": data,
