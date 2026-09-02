@@ -42,9 +42,9 @@ export function apply(ctx, config) {
   ctx.tools.register({
     name: 'af_run_script',
     description: 'Run Python in this research session. Read inputs/resources; write outputs/tmp. Network, host files, and subprocesses are unavailable.',
-    parameters: { type: 'object', properties: { code: { type: 'string', minLength: 1, maxLength: 65536 } }, required: ['code'], additionalProperties: false },
+    parameters: { type: 'object', properties: { code: { type: 'string', description: 'Nonempty Python source, at most 65536 UTF-8 bytes; enforced before execution.' } }, required: ['code'], additionalProperties: false },
     output: {
-      schema: { type: 'object', properties: { status: { type: 'string' }, stdout: { type: 'string' }, stderr: { type: 'string' }, exit_code: { type: ['integer', 'null'] }, error: { type: ['string', 'null'] } }, required: ['status', 'stdout', 'stderr', 'exit_code', 'error'], additionalProperties: false },
+      schema: { type: 'object', properties: { status: { type: 'string' }, stdout: { type: 'string' }, stderr: { type: 'string' }, exit_code: { oneOf: [{ type: 'integer' }, { type: 'null' }] }, error: { oneOf: [{ type: 'string' }, { type: 'null' }] } }, required: ['status', 'stdout', 'stderr', 'exit_code', 'error'], additionalProperties: false },
       render(_args, value) { return [{ type: 'text', text: JSON.stringify(value) }]; },
     },
     async execute(args, exec) {
