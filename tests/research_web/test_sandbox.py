@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -217,6 +218,10 @@ def test_native_tool_contract_and_trusted_cwd(tmp_path):
 let tool;
 apply({ tools: {register(t) {tool=t;}}, logger: {info(){},warn(){},error(){}}}, config);
 if(tool.name!=='af_run_script') throw Error('missing native tool');
+for(const code of ['', '中'.repeat(30000)]) {
+  try { await tool.execute({code},{signal:new AbortController().signal}); throw Error('unbounded source accepted'); }
+  catch(e) { if(!String(e).includes('bounded code')) throw e; }
+}
 try { await tool.execute({code:'print(1)'},{signal:new AbortController().signal}); throw Error('untrusted call accepted'); }
 catch(e) { if(!String(e).includes('trusted')) throw e; }
 console.log('native-tool-ok');
@@ -231,6 +236,51 @@ console.log('native-tool-ok');
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout == "native-tool-ok\n"
+
+
+def test_native_tool_schemas_match_pinned_dsh_converter(tmp_path):
+    dsh_source = os.environ.get("DSH_SOURCE_ROOT")
+    if not dsh_source:
+        pytest.skip("set DSH_SOURCE_ROOT to the pinned built DSH checkout")
+    converter = Path(dsh_source) / "packages/core/tools/lib/index.js"
+    assert converter.is_file(), "explicit DSH_SOURCE_ROOT must contain the built schema converter"
+    plugin = SOURCE.parent / "runtime/research-tools.mjs"
+    config_json = json.dumps(
+        {"python": str(PYTHON), "runnerPath": str(SOURCE), "researchRoot": str(tmp_path)}
+    )
+    program = (
+        f"import {{ apply }} from {json.dumps(plugin.as_uri())};\n"
+        "import { assertSupportedJsonSchema, validateJsonSchemaValue, jsonSchemaToTs, jsonSchemaToPy } "
+        f"from {json.dumps(converter.as_uri())};\nconst config = {config_json};" + """
+let tool;
+apply({tools:{register(t){tool=t;}},logger:{info(){},warn(){},error(){}}},config);
+// Use the same implementation ToolRuntime.register invokes, not a local mock.
+assertSupportedJsonSchema(tool.output.schema);
+assertSupportedJsonSchema(tool.parameters);
+const result = {status:'completed',stdout:'',stderr:'',exit_code:0,error:null};
+for (const value of [result, {...result,status:'failed',exit_code:null,error:'rejected'}]) {
+  const errors = validateJsonSchemaValue(tool.output.schema,value);
+  if(errors.length) throw Error(errors.join('; '));
+}
+for (const value of [{...result,exit_code:'0'}, {...result,error:1}]) {
+  if(!validateJsonSchemaValue(tool.output.schema,value).length) throw Error('invalid output accepted');
+}
+for(const schema of [tool.parameters,tool.output.schema]) {
+  if(jsonSchemaToTs(schema)==='unknown') throw Error('TypeScript SDK schema degraded to unknown');
+  if(jsonSchemaToPy(schema)==='Any') throw Error('Python SDK schema degraded to Any');
+}
+console.log('pinned-dsh-schemas-ok');
+"""
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", program],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "pinned-dsh-schemas-ok\n"
 
 
 def test_native_tool_runs_inherited_workspace_and_cancels(prepared):
