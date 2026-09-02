@@ -50,6 +50,8 @@
 5. Runtime Router 选择本地 LangGraph 或 DSH；DSH 经白名单工具回调 FastAPI。
 6. 完成 Run 自动归档，用户可把选中的 Claim/段落置顶为版本化 Note。
 
+后台任务只由进程级 `DurableSchedulerRuntime` 消费。默认单例创建与 `start()` 均有进程内锁，启动线程前注册 Agent Schedule、每日市场收盘快照和资产提醒三类 handler/materializer；每个领域回调自行创建数据库 Session，并在成功时提交、失败时回滚、最终关闭。失败任务保留同一 job/idempotency key、attempt 与 error，以 5 秒起始的确定性指数退避重回 idle，三次后进入 terminal failed。市场任务只在权威 Cjpy A 股日历明确返回交易日时固定于 Asia/Shanghai 15:05；日历缺失或失败时 fail closed。资产提醒按 UTC 分钟桶为每个 active profile 幂等入队，并用全局 due backlog 对 runtime 每分钟批处理容量做门禁和结构化健康记录。领域运行时不得再创建平行调度线程。
+
 ## 状态与失败
 
 系统健康以模块独立状态表达：`ready`、`degraded`、`setup_required`、`unavailable`。数据库或 pgvector 未就绪时 API 使用既有 `setup_required` 语义；DSH 不可用不影响 facts-only 页面。`FreshnessStatus` 固定为 `fresh|stale|unavailable|quarantined`；口径冲突进入 `quality_flags` 或校验结果，不替代 freshness。研究、Pack、Alert 和迁移使用各自的显式状态机，不共享模糊的 `success` 布尔值。

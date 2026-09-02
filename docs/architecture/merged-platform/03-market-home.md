@@ -38,7 +38,7 @@
 2. 主线质量门只接收同一主题、同一 `as_of` 水位、单位匹配且 `available_at <= as_of` 的四项 fresh 事实；`stale|unavailable|quarantined`、非空 quality flags、未来可用时间和单位冲突均被排除并进入 `missing_components`。
 3. Service 对通过质量门的候选板块计算 percentile；`mainline-v1 = return×0.35 + turnover_change×0.30 + breadth×0.25 + event_density×0.10`。
 4. 返回每项 component、sample_size、formula_version 和输入事实时间，不只返回总分；任何候选缺项或冲突都将区块标为 `partial`，不得静默删除失败原因。
-5. API 生产启动时创建 `MarketHomeSchedulerRuntime`：它向通用 `SchedulerCoordinator` 注册 `market_home.close_snapshot` handler、确保当日持久 `scheduled_job` 存在，并由受控轮询线程消费到期任务；关闭时停止线程并释放协调器会话。同一交易日重复注册返回既有任务。快照依赖数据库唯一约束保持不可变，并发写入冲突后重读完整既有快照。
+5. API 生产启动时把稳定的 market materializer/handler 注册到进程级唯一 `DurableSchedulerRuntime`，不启动市场专用线程。Materializer 使用 Cjpy 交易日序列对当天做精确权威查询；只有明确返回交易日才幂等确保一条 Asia/Shanghai 15:05 的 `market_home.close_snapshot` 持久任务，日历未配置、异常或返回非交易日一律 fail closed，不用 weekday 猜测。handler 使用独立 Session 在一个事务内生成五条不可变 section 快照，成功提交、失败回滚并关闭 Session。同一交易日重复注册返回既有任务，快照并发唯一冲突后重读完整既有五条记录；失败 job 按共享退避策略重试且快照唯一键使重复执行安全。
 6. 权威行情和 `DocumentEvent` 写入方在提交前、同一数据库事务中调用 `record_market_home_fact_update`，以来源批次幂等键写入 `market_home.section_invalidated` outbox；异常向上抛出并使整笔事实事务回滚。Theme Pack 写入方复用同一 helper：`market_home_global` 映射 `global_context`，`market_home_mainline` 及其四项组件映射 `market_mainlines`，未被首页消费的 observation 不发送首页失效事件。客户端收到 SSE 引用后重新获取受影响区块。
 7. 历史日期始终读取存档，不访问 live provider。
 
@@ -62,6 +62,6 @@ SLA 以数据可用时间为起点：行情到达 30 秒内可见；市场聚合
 - 单区块故障注入确认整页非 500、错误码与 freshness 准确。
 - SSE 测试确认小载荷、有序重连和客户端重新读取聚合 API。
 - 权威行情与 `DocumentEvent` writer 测试确认事实和幂等 outbox 在一次提交中完成，并通过真实 HTTP `Last-Event-ID` 只恢复游标后的事件。
-- 调度集成测试确认启动注册 handler、持久化收盘任务、通用 Coordinator 消费任务并生成五区 close snapshot，关闭时停止消费线程。
+- 调度集成测试确认 API 在唯一 runtime 启动前注册 handler/materializer、持久化 15:05 收盘任务、通用 Coordinator 消费任务并生成五区 close snapshot；关闭时只停止这一条共享消费线程。
 - SLA 测试分别覆盖 30s 行情到达、60s 市场聚合、15s 事件到达；过期值不可标 fresh。
 - 静态前端契约断言首页无 AI 自动摘要入口，钻取展示来源、时间、单位与公式。

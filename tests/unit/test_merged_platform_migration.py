@@ -175,7 +175,10 @@ def test_scheduler_and_research_invariants_have_named_database_constraints():
             "ck_agent_schedule_allow_concurrent_false",
             "ck_agent_schedule_coalesce_latest",
         },
-        "research_session": {"ck_research_session_scope"},
+        "research_session": {
+            "ck_research_session_scope",
+            "uq_research_session_run_id",
+        },
         "research_message": {"ck_research_message_content_source"},
     }
     for table_name, expected_names in expected_by_table.items():
@@ -339,6 +342,14 @@ def test_015_to_018_upgrade_and_downgrade_on_sqlite(tmp_path: Path):
                 """))
         connection.execute(text("""
                 INSERT INTO research_session (
+                    session_id, workspace_id, run_id, mode, idempotency_key
+                ) VALUES (
+                    'session-bound', 'workspace-1', 'run-1', 'workspace',
+                    'session-bound-key'
+                )
+                """))
+        connection.execute(text("""
+                INSERT INTO research_session (
                     session_id, mode, idempotency_key
                 ) VALUES (
                     'session-temporary', 'temporary', 'session-temporary-key'
@@ -394,6 +405,14 @@ def test_015_to_018_upgrade_and_downgrade_on_sqlite(tmp_path: Path):
                 """))
 
     invalid_research_sql = [
+        """
+        INSERT INTO research_session (
+            session_id, workspace_id, run_id, mode, idempotency_key
+        ) VALUES (
+            'session-duplicate-run', 'workspace-1', 'run-1', 'workspace',
+            'session-duplicate-run-key'
+        )
+        """,
         """
         INSERT INTO research_session (
             session_id, workspace_id, mode, idempotency_key

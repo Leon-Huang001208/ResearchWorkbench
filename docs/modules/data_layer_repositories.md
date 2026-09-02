@@ -58,6 +58,24 @@ Related service:
 Update this section when:
 - Research state, artifact idempotency, or projection replacement semantics change.
 
+### `data_layer/repositories/research_workspace_repository.py`
+
+Purpose:
+
+- Persist project-scoped Workspace, one-Run Session, idempotent Message, Runtime Provider, Skill, Agent Team/Schedule and versioned Research Note records without creating a second Research Run table.
+- Reserve create/execute/resume/provider-result idempotency keys atomically and reject cross-operation, cross-request or cross-Run replay.
+- Enforce Run ownership through Session scope, persist ordered stage events for `Last-Event-ID`, and store archive-pending outbox work outside the completed Run transaction.
+- Lease `scheduled_job` rows using owner, expiry and fencing token; completion/renewal from a stale worker is rejected.
+
+### `data_layer/repositories/theme_research_repository.py`
+
+Purpose:
+
+- Persist immutable Pack versions and the single `theme_observation` fact model; lifecycle reads are database-authoritative rather than request-local registry state.
+- Preserve source hashes, row identity, full normalized payload, quality flags and ingestion checkpoints for dry-run/apply/resume audit.
+- Read typed snapshot/KPI/value-chain/event/asset/health projections without materializing six parallel fact tables.
+- Flush theme facts and market-home invalidation outbox in the caller transaction; failures roll back both.
+
 ### `data_layer/repositories/asset_observation_repository.py`
 
 Purpose:

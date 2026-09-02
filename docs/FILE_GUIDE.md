@@ -89,6 +89,10 @@
 | `app/api/routes/report.py` | 报告 API：生成各类报告 |
 | `app/api/routes/report_projects.py` | 报告项目 API：列出/重命名/排序项目，保存 `report_config.yaml` / `prompt_templates.md` 源码，返回 `compiled_plan` 生成预检计划，委托 `ReportProjectRunService` 配置驱动生成 DOCX/PPTX，返回下载和 HTML 预览入口 |
 | `app/api/routes/research_runs.py` | 通用研究模板与运行 API：列出模板/任务，创建、执行、补证恢复、读取决策卡/观点/质量门禁，并仅在完成后导出 Markdown/Word |
+| `app/api/routes/research_workspaces.py` / `research_sessions.py` | 项目作用域 Workspace、单 Run Session、Message/Note 与原子 Session→Run 纵切 API |
+| `app/api/routes/runtime_providers.py` / `research_skills.py` | LangGraph/DSH Provider 声明和关联回传、声明式白名单 Skill API |
+| `app/api/routes/agent_teams.py` / `agent_schedules.py` | Supervisor 团队、共享黑板、硬预算与持久 Agent 日程 API |
+| `app/api/routes/theme_research.py` | Research Pack 目录及 snapshot/KPI/value-chain/events/assets/health 类型化读模型 |
 | `app/api/routes/scenarios.py` | 情景 API：生成多情景分析 |
 | `app/api/routes/search.py` | 搜索 API：全局跨对象搜索 |
 | `app/api/routes/signal_lab.py` | 信号实验室 API：特征、标签、评分、回测 |
@@ -124,7 +128,7 @@
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
 | `app/web/static/js/resource-monitor.js` | AlphaFoundry 受控资源监控：仅在系统中心“系统中心”标签可见时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 AlphaFoundry/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、紧凑置顶异常、确认/解决和可键盘操作的安全历史筛选；正常状态不显示 `ok` 徽标，采样不可用时保留上一帧 |
 | `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
-| `app/web/static/js/research-workbench.js` | 研究工作台：提交单证券 A 股研究、呈现门禁/来源关联观点/决策卡/报告预览，以及完成后的 Markdown/Word 下载链接 |
+| `app/web/static/js/research-workbench.js` | 研究工作台：复用本地 Workspace、每次提交创建新的单 Run Session，通过原子 Session→Run 接口执行，并以项目/工作区 scope 读取历史、补证、恢复及下载完成产物 |
 
 ---
 
@@ -230,6 +234,11 @@
 | `asset_observation_service.py` | 资产观察服务：组合既有四类资产事实、公开同类集合规则并管理 canonical Watchlist、规则/事件与站内通知 |
 | `alert_evaluation_service.py` | 确定性提醒评估：fresh + 单位兼容门禁、false→true 单次边沿、持续真值去重、false 自动解决和跨周期 cooldown |
 | `market_home_service.py` | facts-only 首页协调：Asia/Shanghai 交易状态、五区独立降级/SLA、mainline-v1 百分位评分与幂等 close 快照 |
+| `market_home_invalidation.py` | 权威 fact writer 同事务 outbox helper 与可停止的持久 close-snapshot 调度运行时 |
+| `theme_pack_registry.py` / `theme_research_service.py` | 受信任内置 Pack 注册、无损宽表归一/隔离/断点摄入及六类主题读模型 |
+| `research_workspace_service.py` / `research_orchestration_service.py` | Workspace/Session/Message/Note 作用域、原子 Session→Run 绑定、终态归档 outbox |
+| `runtime_provider_service.py` / `agent_team_service.py` | FinGPT/Claw Runtime 路由、关联 DSH 结果、Skill schema/安全/预算和团队共享黑板执行 |
+| `scheduler_coordinator.py` | PostgreSQL 持久任务租约、执行中续租、fencing、latest coalesce 与 AgentSchedule 物化 |
 | `fund_data_ingestion_service.py` | 基金数据接入服务：从本地 rows/CSV 规范化导入基金主数据、净值、持仓和基金经理任职 |
 | `fund_intelligence_service.py` | 基金智能服务：基金详情组装、收益风险指标计算、单基金/组合持仓穿透 |
 | `macro_sensitivity.py` | 宏观敏感性计算：通过时间序列回归计算个股对宏观因子的敏感度 |
@@ -431,6 +440,8 @@
 | `data_layer/repositories/asset_observation_repository.py` | 资产观察仓储：只写 canonical identity/Watchlist/Alert/Notification 表并读取既有 stock/index/ETF/fund 事实；仅 `flush`，事务提交由 `get_db` 管理 |
 | `data_layer/repositories/market_home_repository.py` | 首页仓储：读取既有行情、事件与主题 Observation，管理不可变 close 快照，并从持久 `domain_event` 恢复小型失效引用；仅 `flush` |
 | `data_layer/repositories/research_run_repository.py` | 研究运行仓储：持久化运行、任务、证据输入、版本化产物、当前观点及质量门禁投影 |
+| `data_layer/repositories/research_workspace_repository.py` | Workspace/Session/Message/Runtime/Skill/Team/Schedule/Note 仓储、Run scope、幂等 reservation、SSE 事件和租约 fencing |
+| `data_layer/repositories/theme_research_repository.py` | 不可变 Pack 版本、统一 Theme Observation、摄入审计/checkpoint 与六类类型化查询投影 |
 | `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东、指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 | `data_layer/repositories/monitoring_repository.py` | 监控仓储：持久化健康指标、告警与事件；支持仅更新未解决告警详情，并以确定性周期 ID / savepoint 冲突恢复和独立读取事务创建单一未解决资源事件 |
 | `data_layer/repositories/fund_repository.py` | 基金智能仓储：管理基金主数据、日净值、股票持仓和基金经理任职 MVP 表 |
@@ -631,6 +642,7 @@
 | `scripts/bootstrap_db.py` | 数据库初始化脚本：验证连接、创建表、验证 schema、植入默认配置 |
 | `scripts/import_real_data.py` | 导入真实数据脚本：导入 benchmarks/ 中的真实数据存档，返回运行时字符串 doc_id |
 | `scripts/minimal_reingest_bootstrap.py` | 最小重摄入引导脚本：从零重建系统，使用基准样本和上游连接器 |
+| `scripts/migrate_lsh_theme_data.py` | LSH 主题数据默认 dry-run/显式 apply 迁移：source hash、断点恢复、宽表展开、冲突隔离和无损审计报告 |
 | `scripts/backfill_from_objects.py` | 从对象存储回填脚本：从幸存的原始制品重建源文档和事实层；抽取前将 ORM 文档字段规整为字符串边界值 |
 | `scripts/rebuild_derived_state.py` | 重建派生状态脚本：从恢复的事实记录重建派生系统状态（信号、择时决策、结果、回放），并按 `TimingModelScore` 完整契约重建择时评分 |
 | `scripts/smoke_runner.py` | 冒烟测试脚本：端到端一键 MVP 验证 |

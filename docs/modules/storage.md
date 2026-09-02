@@ -73,6 +73,11 @@ Update this section when:
 - Schema compatibility tests
 - Repository integration tests
 
+## Durable scheduler repository reads
+
+- `AssetObservationRepository.list_active_alert_profile_ids()` returns a deterministic, de-duplicated list of non-empty profile IDs from active Alert Rules. The shared scheduler uses this read to materialize one `asset_alert.evaluate` job per profile and UTC minute bucket; it does not create a second profile or alert ownership table.
+- `scheduled_job` remains the only durable queue for Agent Schedule, market close, and asset alert work. Domain materializers and handlers own short independent Sessions, while lease/heartbeat/fencing state remains coordinator-owned.
+
 ---
 
 ## Required Documentation Updates

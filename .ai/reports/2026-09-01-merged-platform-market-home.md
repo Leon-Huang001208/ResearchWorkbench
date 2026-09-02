@@ -17,7 +17,7 @@
 - Changed A-share status and asset moves to select each symbol's latest quote at or before the request time, including universe coverage and min/max watermarks.
 - Added idempotent fact-update outbox writes and persistent single-flight `market_home.close_snapshot` jobs. Concurrent snapshot unique conflicts now reread complete existing rows without poisoning the request transaction.
 - Wired authoritative quote and `DocumentEvent` writers to the reusable market-home invalidation helper. Facts and their idempotent `market_home.section_invalidated` outbox rows now flush before the writer's single transaction commit; an outbox failure rolls back the fact write.
-- Added the production `MarketHomeSchedulerRuntime`. API startup registers the close-snapshot handler with the generic `SchedulerCoordinator`, ensures the durable daily job, and starts a bounded polling thread; shutdown stops it and releases the owned coordinator session.
+- Added the initial production `MarketHomeSchedulerRuntime`. This wiring was subsequently superseded by `.ai/reports/2026-09-01-merged-platform-unified-scheduler.md`: market close now registers on the single process-wide `DurableSchedulerRuntime`, while this class remains compatibility-only.
 - Added per-section `age_seconds` to every market-home fact response, including degraded responses, so clients can display actual data age without reconstructing it.
 
 ## TDD evidence
@@ -53,7 +53,7 @@ Warnings are existing FastAPI `on_event` and legacy dashboard naive-UTC deprecat
 
 - No live PostgreSQL instance or production market connector was exercised. Repository behavior was verified with SQLite-backed ORM tests; PostgreSQL integration remains a later acceptance gate.
 - The outbox API deliberately uses the caller's SQLAlchemy session. The authoritative quote and `DocumentEvent` repositories invoke it before their existing commit boundary; future fact writers must do the same. There is no separate auto-commit in the market-home repository.
-- The production scheduler uses the generic persisted-job coordinator and a process-local polling thread. Multi-process duplicate execution is prevented by the coordinator's lease/fencing contract, but PostgreSQL-backed multi-worker behavior remains an integration acceptance gate.
+- The production scheduler now uses the process-wide shared durable runtime documented in `.ai/reports/2026-09-01-merged-platform-unified-scheduler.md`. Multi-process duplicate execution is prevented by the coordinator's lease/fencing contract, but PostgreSQL-backed multi-worker behavior remains an integration acceptance gate.
 - The repository-wide documentation gates remain for the parent integration pass. This follow-up does not claim they passed and does not take ownership of concurrent research-runtime files or shared changelog/index edits.
 - The current trading calendar handles weekends plus an injected non-trading-day set. A production exchange holiday provider must populate that set; absent that provider, weekday public holidays are not inferred.
 - Close snapshots are created only for the current local trading day after close. Past missing snapshots are intentionally not reconstructed from current live data.

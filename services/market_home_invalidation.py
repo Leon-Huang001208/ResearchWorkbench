@@ -24,6 +24,47 @@ logger = get_logger(__name__)
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
 
+class CjpyAShareTradingCalendar:
+    """Authoritative exchange-day lookup backed by the registered Cjpy provider."""
+
+    def __init__(self, adapter_factory: Callable[[], Any] | None = None) -> None:
+        self._adapter_factory = adapter_factory or self._build_adapter
+        self._cache: dict[date, bool] = {}
+        self._lock = threading.Lock()
+
+    @staticmethod
+    def _build_adapter() -> Any:
+        from data_layer.adapters.cjpy_adapter import CjpyAdapter
+
+        return CjpyAdapter()
+
+    def is_trading_day(self, trading_day: date) -> bool | None:
+        """Return ``None`` when authority cannot answer, so callers fail closed."""
+
+        with self._lock:
+            cached = self._cache.get(trading_day)
+        if cached is not None:
+            return cached
+        day_value = trading_day.strftime("%Y%m%d")
+        try:
+            values = self._adapter_factory().fetch_trading_days(
+                start=day_value,
+                end=day_value,
+            )
+        except Exception as exc:  # noqa: BLE001 - external provider availability boundary
+            logger.warning(
+                "authoritative A-share calendar unavailable",
+                trading_day=trading_day.isoformat(),
+                error_type=type(exc).__name__,
+            )
+            return None
+        normalized = {str(value).replace("-", "")[:8] for value in values if value is not None}
+        result = day_value in normalized
+        with self._lock:
+            self._cache[trading_day] = result
+        return result
+
+
 class SchedulerCoordinatorProtocol(Protocol):
     """Stable generic scheduler surface consumed by the market-home runtime."""
 
@@ -34,6 +75,22 @@ class SchedulerCoordinatorProtocol(Protocol):
     def run_due(
         self, worker_id: str, *, lease_seconds: int, limit: int = 1
     ) -> list[ScheduledJob]: ...
+
+
+class DurableSchedulerRuntimeProtocol(Protocol):
+    """Registration surface shared by all durable scheduler domains."""
+
+    def register_materializer(
+        self,
+        name: str,
+        materializer: Callable[[datetime], object],
+    ) -> None: ...
+
+    def register_handler(
+        self,
+        job_type: str,
+        handler: Callable[[ScheduledJob], object],
+    ) -> None: ...
 
 
 def aware_utc(value: datetime) -> datetime:
@@ -72,6 +129,138 @@ def record_market_home_fact_update(
         as_of=normalized_as_of.isoformat(),
     )
     return events
+
+
+class MarketHomeSchedulerBindings:
+    """Transaction-owning callbacks registered on the shared durable runtime."""
+
+    JOB_TYPE = "market_home.close_snapshot"
+    MATERIALIZER_NAME = "market-home-close"
+
+    def __init__(
+        self,
+        session_factory: Callable[[], Session],
+        *,
+        is_trading_day: Callable[[date], bool | None] | None = None,
+        service_factory: Callable[[Session, datetime | None], MarketHomeService] | None = None,
+    ) -> None:
+        self._session_factory = session_factory
+        self._is_trading_day = is_trading_day
+        self._service_factory = service_factory or self._build_service
+        # Store bound methods once because the runtime uses callable identity for
+        # idempotent duplicate registration.
+        self.materializer_callback = self.materialize
+        self.handler_callback = self.handle
+
+    @staticmethod
+    def _build_service(db: Session, now: datetime | None) -> MarketHomeService:
+        repository = MarketHomeRepository(db)
+        if now is None:
+            return MarketHomeService(repository)
+        return MarketHomeService(repository, now_provider=lambda: now)
+
+    def register(self, runtime: DurableSchedulerRuntimeProtocol) -> None:
+        runtime.register_materializer(self.MATERIALIZER_NAME, self.materializer_callback)
+        runtime.register_handler(self.JOB_TYPE, self.handler_callback)
+
+    def materialize(self, moment: datetime) -> ScheduledJob | None:
+        """Ensure one 15:05 Asia/Shanghai close job for the current workday."""
+
+        normalized = aware_utc(moment)
+        trading_day = normalized.astimezone(SHANGHAI_TZ).date()
+        if trading_day.weekday() >= 5:
+            return None
+        if self._is_trading_day is None:
+            logger.warning(
+                "market home close job skipped without authoritative calendar",
+                trading_day=trading_day.isoformat(),
+            )
+            return None
+        try:
+            calendar_result = self._is_trading_day(trading_day)
+        except Exception as exc:  # noqa: BLE001 - injected provider availability boundary
+            logger.warning(
+                "market home close job skipped after calendar failure",
+                trading_day=trading_day.isoformat(),
+                error_type=type(exc).__name__,
+            )
+            return None
+        if calendar_result is not True:
+            logger.info(
+                "market home close job skipped for non-trading or unknown day",
+                trading_day=trading_day.isoformat(),
+                calendar_available=calendar_result is not None,
+            )
+            return None
+        db = self._session_factory()
+        try:
+            job = self._service_factory(db, normalized).schedule_close_snapshot(trading_day)
+            db.commit()
+            logger.info(
+                "market home close job materialized",
+                trading_day=trading_day.isoformat(),
+                scheduled_for=job.scheduled_for.isoformat(),
+            )
+            return job
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "market home close job materialization failed",
+                trading_day=trading_day.isoformat(),
+            )
+            raise
+        finally:
+            db.close()
+
+    def handle(self, job: ScheduledJob) -> object:
+        """Create all five immutable close-section snapshots in one transaction."""
+
+        if job.job_type != self.JOB_TYPE:
+            raise ValueError("unexpected market-home job type")
+        trading_day_value = str(job.payload.get("trading_day") or "")
+        if not trading_day_value:
+            raise ValueError("market-home close job requires trading_day")
+        trading_day = date.fromisoformat(trading_day_value)
+        db = self._session_factory()
+        try:
+            snapshots = self._service_factory(db, None).create_close_snapshot(trading_day)
+            db.commit()
+            logger.info(
+                "market home close snapshots persisted",
+                trading_day=trading_day.isoformat(),
+                snapshot_count=len(snapshots),
+            )
+            return snapshots
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "market home close snapshot handler failed",
+                trading_day=trading_day.isoformat(),
+            )
+            raise
+        finally:
+            db.close()
+
+
+_default_market_home_bindings: MarketHomeSchedulerBindings | None = None
+
+
+def register_default_market_home_scheduler(
+    runtime: DurableSchedulerRuntimeProtocol,
+) -> MarketHomeSchedulerBindings:
+    """Register stable process-wide market callbacks before runtime startup."""
+
+    global _default_market_home_bindings
+    if _default_market_home_bindings is None:
+        from data_layer.repositories.base import SessionLocal
+
+        calendar = CjpyAShareTradingCalendar()
+        _default_market_home_bindings = MarketHomeSchedulerBindings(
+            SessionLocal,
+            is_trading_day=calendar.is_trading_day,
+        )
+    _default_market_home_bindings.register(runtime)
+    return _default_market_home_bindings
 
 
 class MarketHomeSchedulerRuntime:

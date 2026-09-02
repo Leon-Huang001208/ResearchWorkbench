@@ -8,6 +8,13 @@
 
 ### Added
 
+- **FinGPT / Claw 项目化研究运行时**：新增项目隔离的 Workspace、单 Run Session、幂等 Message、版本化 Research Note、Runtime Provider、声明式 Skill、Supervisor Agent Team 与持久 Agent Schedule API。产品路径通过 Session 原子创建/绑定/执行既有 Research Run；绑定后的读取、补证、恢复、下载和 SSE 均要求 project/workspace scope。FinGPT 可从 DSH 确定性回退内置 LangGraph，Claw 缺能力时持久为 `blocked_runtime`；关联 Provider result、团队 Blackboard/usage 和研究阶段事件进入原 Research Run/Artifact 链路，不创建平行运行模型。
+  - Skill 在执行前重验封闭 internal/MCP registry、JSON Schema、敏感输出、token/费用 reservation 和 deadline；Agent assignment 显式携带预算上下文。调度器支持持久租约、执行中续租、fencing、latest coalesce 与 due schedule 物化。
+
+- **四个无损 Research Pack 与 LSH 迁移器**：黄金、航天航空、光伏、AI 基础设施/光模块 Manifest 和 `/api/themes` 六类读模型已接入统一 `theme_observation`。Manifest 只能引用已审查的内置 normalize/validate/derive 插件 ID，生命周期和版本以数据库为权威。宽表会展开为独立 Observation；只有 identity/payload 等价才判 duplicate，同 identity 不同值进入 `identity_conflict` quarantine，不覆盖事实。迁移器默认 dry-run，支持 hash 校验断点恢复与 accepted/quarantined/rejected/duplicate/applied 审计；策略、交易、基金审批和禁止评分字段继续冻结归档。
+
+- **持久首页刷新与统一调度链路**：行情、文档事件和 Theme Observation 权威 writer 在自身事务提交前写入幂等区块失效 outbox。API 就绪后只启动一个进程级 `DurableSchedulerRuntime`，在启动前注册市场收盘、资产提醒与 Agent 日程；它实际领取 `market_home.close_snapshot` 并生成五条不可变快照，也按 UTC 分钟桶为全部 active profile 领取 `asset_alert.evaluate` 并持久通知。各领域回调使用独立事务，每区返回按自身事实水位计算的 `age_seconds`。
+
 - **全市场 facts-only 首页纵切**：新增 `/api/market-home` live、单区 drill-down、历史/创建 close snapshot 与 durable SSE 接口。首页固定五区独立降级，按 Asia/Shanghai 给出五态交易状态；`mainline-v1` 公开四项同行百分位、`0.35/0.30/0.25/0.10` 权重、样本数和确定性 leading/weakening 排序。行情、聚合和事件分别执行 30/60/15 秒 SLA，缺失事实不填零、不调用 AI；历史只读不可变快照，SSE 只发送 `event_id/section_key/as_of` 并支持 `Last-Event-ID`。
 
 - **资产观察纵切与持久化提醒**：新增 `/api/asset-observation` 领域 API、请求级 Repository/Service、四类 canonical asset 详情与透明 peer-set、多 Watchlist、确定性 Alert 边沿/冷却/确认/解决，以及站内 Notification 投递状态。资产详情只读取既有股票、指数、ETF、主动基金事实表；Watchlist Item 只保存稳定 `asset_id`，供应商代码变化不改变列表身份。stale/unavailable/quarantined、来源冲突和单位不匹配均不得产生提醒，持续真值不会重复触发。

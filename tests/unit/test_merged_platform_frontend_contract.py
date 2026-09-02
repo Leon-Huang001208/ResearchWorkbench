@@ -51,7 +51,11 @@ def test_research_entry_creates_workspace_session_and_never_writes_fact_domains(
     assert "/api/research-workspaces" in script
     assert "/api/research-sessions" in script
     assert "/messages" in script
-    assert "/api/research-runs" in script
+    assert "/runs`" in script
+    assert "/execute`" in script
+    assert "X-Project-ID" in script
+    assert "X-Workspace-ID" in script
+    assert "apiCall('POST', '/api/research-runs'" not in script
     forbidden_writes = (
         "apiCall('POST', '/api/market-home",
         "apiCall('POST', '/api/themes",

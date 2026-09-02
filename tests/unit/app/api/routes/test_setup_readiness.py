@@ -62,7 +62,7 @@ def test_desktop_startup_enters_setup_required_without_schema_or_schedulers(
     start_schedulers = MagicMock()
     start_wind = MagicMock()
     start_runtime = MagicMock()
-    start_market_home = MagicMock()
+    start_durable_scheduler = MagicMock()
     monkeypatch.setattr(
         main, "probe_postgresql", lambda *_: _readiness(DatabaseReadinessCode.PGVECTOR_MISSING)
     )
@@ -70,7 +70,7 @@ def test_desktop_startup_enters_setup_required_without_schema_or_schedulers(
     monkeypatch.setattr(main, "_start_data_acquisition_schedulers", start_schedulers)
     monkeypatch.setattr(main, "_start_wind_workbook_background", start_wind)
     monkeypatch.setattr(main, "_start_resource_monitor_runtime", start_runtime)
-    monkeypatch.setattr(main, "_start_market_home_scheduler_runtime", start_market_home)
+    monkeypatch.setattr(main, "_start_durable_scheduler_runtime", start_durable_scheduler)
     monkeypatch.setattr(main, "RUNTIME_CONTEXT", _context("desktop"))
 
     asyncio.run(main.startup())
@@ -80,7 +80,7 @@ def test_desktop_startup_enters_setup_required_without_schema_or_schedulers(
     start_schedulers.assert_not_called()
     start_wind.assert_not_called()
     start_runtime.assert_not_called()
-    start_market_home.assert_not_called()
+    start_durable_scheduler.assert_not_called()
 
 
 @pytest.mark.parametrize("mode", ["web-dev", "web-prod"])
@@ -103,7 +103,7 @@ def test_desktop_startup_initializes_schema_and_automatic_services_when_ready(
     start_schedulers = MagicMock()
     start_wind = MagicMock()
     start_runtime = MagicMock()
-    start_market_home = MagicMock()
+    start_durable_scheduler = MagicMock()
     monkeypatch.setattr(
         main, "probe_postgresql", lambda *_: _readiness(DatabaseReadinessCode.READY)
     )
@@ -111,7 +111,7 @@ def test_desktop_startup_initializes_schema_and_automatic_services_when_ready(
     monkeypatch.setattr(main, "_start_data_acquisition_schedulers", start_schedulers)
     monkeypatch.setattr(main, "_start_wind_workbook_background", start_wind)
     monkeypatch.setattr(main, "_start_resource_monitor_runtime", start_runtime)
-    monkeypatch.setattr(main, "_start_market_home_scheduler_runtime", start_market_home)
+    monkeypatch.setattr(main, "_start_durable_scheduler_runtime", start_durable_scheduler)
     monkeypatch.setattr(main, "RUNTIME_CONTEXT", _context("desktop"))
 
     asyncio.run(main.startup())
@@ -121,7 +121,7 @@ def test_desktop_startup_initializes_schema_and_automatic_services_when_ready(
     start_schedulers.assert_called_once_with()
     start_wind.assert_called_once_with()
     start_runtime.assert_called_once_with()
-    start_market_home.assert_called_once_with()
+    start_durable_scheduler.assert_called_once_with()
 
 
 def test_desktop_preview_skips_database_initialization_and_automatic_services(
@@ -131,7 +131,7 @@ def test_desktop_preview_skips_database_initialization_and_automatic_services(
     start_schedulers = MagicMock()
     start_wind = MagicMock()
     start_runtime = MagicMock()
-    start_market_home = MagicMock()
+    start_durable_scheduler = MagicMock()
     monkeypatch.setattr(
         main, "probe_postgresql", lambda *_: _readiness(DatabaseReadinessCode.READY)
     )
@@ -139,7 +139,7 @@ def test_desktop_preview_skips_database_initialization_and_automatic_services(
     monkeypatch.setattr(main, "_start_data_acquisition_schedulers", start_schedulers)
     monkeypatch.setattr(main, "_start_wind_workbook_background", start_wind)
     monkeypatch.setattr(main, "_start_resource_monitor_runtime", start_runtime)
-    monkeypatch.setattr(main, "_start_market_home_scheduler_runtime", start_market_home)
+    monkeypatch.setattr(main, "_start_durable_scheduler_runtime", start_durable_scheduler)
     monkeypatch.setattr(main, "RUNTIME_CONTEXT", _context("desktop"))
     monkeypatch.setenv("ALPHAFOUNDRY_PREVIEW", "1")
 
@@ -150,7 +150,7 @@ def test_desktop_preview_skips_database_initialization_and_automatic_services(
     start_schedulers.assert_not_called()
     start_wind.assert_not_called()
     start_runtime.assert_not_called()
-    start_market_home.assert_not_called()
+    start_durable_scheduler.assert_not_called()
 
 
 def test_shutdown_stops_resource_monitor_before_other_schedulers(monkeypatch) -> None:
@@ -165,13 +165,13 @@ def test_shutdown_stops_resource_monitor_before_other_schedulers(monkeypatch) ->
     )
     monkeypatch.setattr(
         main,
-        "_stop_market_home_scheduler_runtime",
-        lambda: call_order.append("market_home"),
+        "_stop_durable_scheduler_runtime",
+        lambda: call_order.append("durable_scheduler"),
     )
 
     main.shutdown()
 
-    assert call_order == ["runtime", "market_home", "schedulers"]
+    assert call_order == ["runtime", "durable_scheduler", "schedulers"]
 
 
 def test_setup_readiness_returns_safe_restart_required_status(

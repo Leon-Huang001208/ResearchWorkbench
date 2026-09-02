@@ -45,7 +45,7 @@ HTML 位于仓库根目录 `outputs/merged-platform-architecture/`；可编辑 A
 | 共享核 | `core/contracts/`、`data_layer/repositories/models.py`、`storage/migrations/versions/015..018` | 20 张表、唯一键/外键/时间索引、SQLite 测试兼容 |
 | 纵切 API | `services/`、`data_layer/repositories/`、`app/api/routes/` | 薄 route、结构化日志、400/404/409 失败映射 |
 | Pack | `theme_packs/`、`scripts/migrate_lsh_theme_data.py` | 默认 dry-run、哈希幂等、隔离坏数据 |
-| Runtime | Research Workspace/Runtime/Team/Scheduler 服务 | 运行时回退、权限白名单、预算和 deadline |
+| Runtime | Research Workspace/Runtime/Team/Scheduler 服务 | 单一加锁持久 worker；Agent、权威交易日历确认后的 15:05 市场快照、带 backlog 容量门禁的分钟级资产提醒共享租约/围栏 |
 | 桌面通知 | Tauri 官方通知插件桥接 | Task 3 添加已授权的官方插件，再跑原生 macOS/Windows CI 与真实 Windows 安装烟测 |
 | 删除门禁 | `legacy_capability_gate` 与 capability map | parity、数据迁移、零调用、归档路径、稳定版本观察期 |
 

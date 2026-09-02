@@ -318,6 +318,20 @@ class AssetObservationRepository(BaseRepository):
         ).all()
         return [row for row in rows if (row.state or {}).get("profile_id") == profile_id]
 
+    def list_active_alert_profile_ids(self) -> list[str]:
+        """Return deterministic unique profiles that currently own active rules."""
+
+        states = self.db.scalars(
+            select(AlertRuleDB.state).where(AlertRuleDB.status == AlertRuleStatus.ACTIVE.value)
+        ).all()
+        return sorted(
+            {
+                str(state.get("profile_id") or "").strip()
+                for state in states
+                if str(state.get("profile_id") or "").strip()
+            }
+        )
+
     def evaluation_savepoint(self):
         """Isolate one batch item while retaining the caller-owned transaction."""
 

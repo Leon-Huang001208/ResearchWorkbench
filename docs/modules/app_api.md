@@ -308,9 +308,9 @@ Update this section when:
 Purpose:
 
 - Cross-domain, evidence-first research-center API. `ResearchRun` in PostgreSQL is the sole run-state authority; the route delegates template validation and domain behavior to `ResearchRunService`.
-- `GET /api/research-templates` — list framework-free metadata for available and planned templates. `GET /api/research-runs` lists recent runs.
-- `POST /api/research-runs` — create a draft from one normalized `ResearchSubject`, `template_key`, `as_of`, question, attachment references, and optional internal normalized evidence. Legacy `target_id` maps to a security subject.
-- `POST /api/research-runs/{run_id}/execute` — execute the resumable graph; quality-gate failures end in `blocked`, otherwise the run becomes `completed`.
+- `GET /api/research-templates` — list framework-free metadata for available and planned templates. `GET /api/research-runs` lists recent runs inside the supplied project/workspace scope.
+- Compatibility `POST /api/research-runs` remains additive, while the product path uses `POST /api/research-sessions/{session_id}/runs` so Session ownership and Run creation bind atomically under one project/workspace scope.
+- `POST /api/research-sessions/{session_id}/runs/{run_id}/execute` — execute through `RuntimeProvider` routing; FinGPT may fall back from DSH to built-in LangGraph, while Claw persists `blocked_runtime` instead of silently changing semantics.
 - `GET /api/research-runs/{run_id}` / `GET /api/research-runs/{run_id}/outputs` — return state, source plan, blockers, gates, immutable artifacts, current claims, decision card, notes, and Markdown projection.
 - `POST /api/research-runs/{run_id}/evidence` and `POST /api/research-runs/{run_id}/resume` — append corrective evidence then resume only a blocked run.
 - `GET /api/research-runs/{run_id}/downloads/markdown` and `/downloads/word` — export only a completed run; no trade instruction, position, or order is produced.
@@ -327,6 +327,43 @@ Update this section when:
 
 - Research-run status, quality gates, export eligibility, or data-source fallback semantics change.
 - Request/response contracts or output projections change.
+
+---
+
+### Merged research runtime route groups
+
+Purpose:
+
+- `research_workspaces.py` / `research_sessions.py` own project-scoped Workspaces, one-Run Sessions, idempotent Messages, atomic Session→Run creation and scoped execution.
+- `runtime_providers.py` owns provider declarations and typed, idempotent DSH result callbacks that are correlated to the originating request and Run.
+- `research_skills.py` owns declarative Skill manifests. Execution revalidates the closed internal/MCP registry, input/output JSON Schema, budget and deadline before accepting output.
+- `agent_teams.py` owns Supervisor-led team definitions and bounded shared-blackboard execution.
+- `agent_schedules.py` owns persistent no-reentry/latest-coalesced schedules; due schedules materialize into leased `scheduled_job` work.
+- `research_runs.py` streams durable ordered stage events with `Last-Event-ID`; scoped Run reads require both `X-Project-ID` and `X-Workspace-ID`.
+
+The public route set is additive:
+
+```text
+/api/research-workspaces
+/api/research-sessions
+/api/research-runs
+/api/runtime-providers
+/api/research-skills
+/api/agent-teams
+/api/agent-schedules
+```
+
+Create, execute, resume and schedule-trigger operations require an `Idempotency-Key`. Runtime failures are returned without rolling back their persisted `blocked_runtime`/`failed` state.
+
+---
+
+### `app/api/routes/theme_research.py`
+
+Purpose:
+
+- Expose the four installed Research Packs through catalog, snapshot, KPI, value-chain, event, related-asset and data-health read models.
+- Create only a research Workspace prefill from a theme; the route never writes model output into theme facts.
+- Keep `theme_observation` ingestion behind the migration/service boundary rather than accepting arbitrary fact writes over HTTP.
 
 ---
 
@@ -394,6 +431,7 @@ Purpose:
 - Expose the facts-only five-section live aggregate, one-section drill-down, and immutable close snapshots.
 - Stream only `event_id`, `section_key`, and `as_of` invalidation references from durable `domain_event` records, including `Last-Event-ID` replay.
 - Map invalid close dates, missing snapshots, immutable conflicts, and internal failures to stable public errors without leaking exception text.
+- Start one durable close-snapshot consumer after database readiness and stop it during API shutdown; branch preview and setup-required modes do not start background work.
 
 Related modules:
 

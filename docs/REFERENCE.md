@@ -69,6 +69,48 @@
 
 ---
 
+## 主题 Research Pack API
+
+四个首批 Pack 为 `gold`、`aerospace`、`photovoltaic`、`ai_infrastructure`。事实只来自统一 `theme_observation`；snapshot/KPI/value-chain/events/assets/health 是类型化读模型，不是平行事实表。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `GET` | `/api/themes` | 列出数据库权威版本和生命周期状态的 Pack Manifest |
+| `GET` | `/api/themes/{pack_key}/snapshot` | 指定 `as_of` 的主题事实快照、来源与质量状态 |
+| `GET` | `/api/themes/{pack_key}/kpis` | Manifest KPI 映射后的多指标序列 |
+| `GET` | `/api/themes/{pack_key}/value-chain` | 产业链节点与关系投影 |
+| `GET` | `/api/themes/{pack_key}/events` | 经来源和验证状态约束的主题事件 |
+| `GET` | `/api/themes/{pack_key}/assets` | 统一资产身份下的主题暴露；创业板 50 仅为指数资产关联 |
+| `GET` | `/api/themes/{pack_key}/health` | 数据集覆盖、新鲜度、隔离/拒绝计数和降级原因 |
+| `POST` | `/api/themes/{pack_key}/research-workspaces` | 返回研究 Workspace 预填请求，不把研究结论写回事实区 |
+
+LSH CSV 迁移只通过 `scripts/migrate_lsh_theme_data.py` 执行，默认 dry-run。报告按文件输出 source hash、checkpoint、accepted/quarantined/rejected/duplicate/applied；`--resume-from` 会验证文件 hash。策略、交易、基金审批及禁止评分字段不会进入主题事实。
+
+## FinGPT / Claw 研究运行时 API
+
+Workspace 是项目隔离边界，Session 是一次会话且最多绑定一个 Run。产品入口应使用 Session 纵切创建/执行；兼容 `/api/research-runs` 创建接口保留在 additive 过渡期。所有绑定 Run 的读取与变更需同时携带 `X-Project-ID`、`X-Workspace-ID`。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `POST/GET` | `/api/research-workspaces` | 幂等创建或按项目列出 Workspace |
+| `GET` | `/api/research-workspaces/{workspace_id}` | 读取项目作用域内 Workspace |
+| `POST/GET` | `/api/research-workspaces/{workspace_id}/notes` | 固定 Claim 或 Run paragraph 为版本化 Research Note |
+| `POST` | `/api/research-sessions` | 创建 temporary 或 project/workspace scoped Session |
+| `POST/GET` | `/api/research-sessions/{session_id}/messages` | 幂等追加/读取作用域消息 |
+| `POST` | `/api/research-sessions/{session_id}/runs` | 原子创建并绑定 Research Run；需要 `Idempotency-Key` |
+| `POST` | `/api/research-sessions/{session_id}/runs/{run_id}/execute` | 作用域执行 FinGPT 或 Claw；需要 `Idempotency-Key` |
+| `GET` | `/api/research-runs/{run_id}/events` | 持久有序研究阶段 SSE，支持 `Last-Event-ID` |
+| `GET/PUT` | `/api/runtime-providers[/{provider_id}]` | 列出或保存 LangGraph/DSH 能力与健康声明 |
+| `POST` | `/api/runtime-providers/{provider_id}/results` | 接收与 request/Run 关联、hash 校验的幂等 DSH 终态 |
+| `POST/GET` | `/api/research-skills` | 保存/列出声明式、白名单约束的 Skill |
+| `POST/GET` | `/api/agent-teams` | 保存/列出 Supervisor + Shared Blackboard 团队 |
+| `POST/GET` | `/api/agent-schedules` | 保存/列出 no-reentry/latest-coalesced 日程 |
+| `POST` | `/api/agent-schedules/{schedule_id}/trigger` | 幂等物化一次持久 ScheduledJob |
+
+FinGPT 在 DSH 不可用时可确定性回退 LangGraph。Claw 缺少健康 team runtime、Skill 授权或预算时持久为 `blocked_runtime`，不会改变成单 Agent 任务。Skill 不允许任意代码、Shell、文件系统或任意 URL；外部 MCP 必须已注册并获授权。
+
+---
+
 ## CLI 命令
 
 ### 0. data - 统一数据命令组（推荐）

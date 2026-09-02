@@ -11,7 +11,6 @@ from data_layer.repositories.models import MarketHomeSnapshotDB, ScheduledJobDB
 from data_layer.repositories.research_workspace_repository import (
     ResearchWorkspaceRepository,
 )
-from services import market_home_invalidation
 from services.market_home_invalidation import MarketHomeSchedulerRuntime
 from services.market_home_service import MarketHomeService
 from services.scheduler_coordinator import SchedulerCoordinator
@@ -113,7 +112,7 @@ def test_real_coordinator_consumes_persisted_close_job_with_registered_handler(
     assert db_session.query(MarketHomeSnapshotDB).count() == 5
 
 
-def test_api_startup_builder_holds_and_stops_market_home_runtime(monkeypatch) -> None:
+def test_api_startup_holds_and_stops_only_shared_durable_runtime(monkeypatch) -> None:
     calls: list[str] = []
 
     class FakeRuntime:
@@ -124,18 +123,13 @@ def test_api_startup_builder_holds_and_stops_market_home_runtime(monkeypatch) ->
             calls.append("stop")
 
     runtime = FakeRuntime()
-    previous = main._market_home_scheduler_runtime
-    monkeypatch.setattr(main, "_market_home_scheduler_runtime", None)
-    monkeypatch.setattr(
-        market_home_invalidation,
-        "build_default_market_home_scheduler_runtime",
-        lambda: runtime,
-    )
+    previous = main._durable_scheduler_runtime
+    monkeypatch.setattr(main, "_durable_scheduler_runtime", runtime)
     try:
-        main._start_market_home_scheduler_runtime()
-        main._start_market_home_scheduler_runtime()
-        main._stop_market_home_scheduler_runtime()
+        main._start_durable_scheduler_runtime()
+        main._start_durable_scheduler_runtime()
+        main._stop_durable_scheduler_runtime()
     finally:
-        main._market_home_scheduler_runtime = previous
+        main._durable_scheduler_runtime = previous
 
     assert calls == ["start", "start", "stop"]

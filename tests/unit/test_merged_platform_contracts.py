@@ -45,8 +45,8 @@ from core.contracts.research_workspace import (
 )
 from core.contracts.theme_research import (
     PackLifecycle,
+    PluginBinding,
     ThemeObservation,
-    ThemePackManifest,
 )
 
 NOW = datetime(2026, 8, 31, 9, 30, tzinfo=UTC)
@@ -182,27 +182,20 @@ def test_source_ref_keeps_valid_http_url_as_a_serialized_string():
 
 
 def test_theme_pack_lifecycle_and_permissions_are_bounded():
-    manifest = ThemePackManifest(
-        pack_key="gold",
-        name="黄金",
-        version="1.0.0",
-        compatibility_version="1",
-        status=PackLifecycle.DISCOVERED,
-        boundary="黄金供需与价格",
-        plugin_permissions=["normalize", "validate", "derive"],
-    )
-    assert manifest.status is PackLifecycle.DISCOVERED
+    assert {status.value for status in PackLifecycle} == {
+        "discovered",
+        "validated",
+        "enabled",
+        "degraded",
+        "disabled",
+    }
+    binding = PluginBinding(plugin_id="builtin.identity.v1", operation="normalize")
+    assert binding.operation == "normalize"
 
     with pytest.raises(ValidationError):
-        ThemePackManifest(
-            pack_key="unsafe",
-            name="unsafe",
-            version="1.0.0",
-            compatibility_version="1",
-            status="enabled",
-            boundary="unsafe",
-            plugin_permissions=["network"],
-        )
+        PluginBinding(plugin_id="arbitrary.python", operation="normalize")
+    with pytest.raises(ValidationError):
+        PluginBinding(plugin_id="builtin.identity.v1", operation="network")
 
 
 def test_theme_observation_requires_source_hash_for_idempotent_ingestion():

@@ -1989,6 +1989,7 @@ class ExampleRepositoryImpl(BaseRepository):
 |------|------|------|
 | 001 | 001_initial_schema.py | 初始 schema |
 | 002 | 002_add_asset_snapshot.py | 添加资产快照表 |
+| 002_pdf_crawl_state | 002_pdf_crawl_state_schema.py | 建立 `document_v1` 权威表及 PDF、爬取状态表；新库不依赖 ORM 预建表。 |
 | 003 | 003_temporal_industry_graph.py | 添加时间化产业链表 |
 | 004 | 004_signal_tables.py | 添加信号相关表 |
 | 005 | 005_timing_tables.py | 添加择时相关表 |
@@ -2008,7 +2009,15 @@ class ExampleRepositoryImpl(BaseRepository):
 
 合并平台迁移严格保持 20 张 additive 表：不创建 `source_ref`、第二套 `research_run`、股票/指数/ETF/基金事实表或六张主题投影表。生产以 PostgreSQL 为权威；SQLite 仅用于 ORM 与 015→018 升降级兼容测试。`asset_identifier` 使用半开有效期 `[valid_from, valid_to)`，要求 `valid_to > valid_from`；生产 PostgreSQL 以 GiST exclusion constraint 拒绝同一 scheme/value/market 的重叠区间，SQLite 迁移用 insert/update 触发器保持等价测试语义。`scheduled_job` 的命名 CHECK 强制 no-reentry、latest coalesce 和完整 lease owner/expiry pair；`agent_schedule` 同样强制 no-reentry/latest。`research_session` 的 CHECK 强制 mode/Workspace scope 一致；`research_message` 不重复保存 Workspace、归属从 Session 推导，并要求 content/content_ref 恰一非空；`research_note` 的 CHECK 只允许 Claim-only 或 Run+paragraph 两种来源。`domain_event` 是持久事件源，进程内事件总线只负责投递。
 
+Alembic CLI 只接受显式 `DATABASE_URL` 覆盖；仓库中的 URL 故意指向不可达地址，避免开发凭据被提交或误迁移其他数据库。2026-09-01 已在隔离的 PostgreSQL 18.3 + pgvector 0.8.5 空库上实际执行完整 `001 → 018`，并验证 `FOR UPDATE SKIP LOCKED` 单飞、租约过期接管、fencing 拒绝旧 worker、创建幂等和项目隔离；该验证不等同于生产数据迁移或 Windows 平台验证。
+
 市场首页 live 投影只读取既有 `stock_quote_snapshot`、`document_event_v1` 与 `theme_observation` 事实。每个交易日收盘后，`market_home_snapshot` 按 `trading_day + close + section_key + mainline-v1` 保存五条不可变查询结果；历史读取缺失时返回不存在，不得用当前 live 事实重算。`MarketHomeRepository` 只 `flush`，请求事务由 `get_db` 提交；SSE 重连以 `domain_event.event_id` 定位，只从事件 payload 投影 `event_id/section_key/as_of`，不返回事实本体。
+
+权威行情、文档事件和 Theme Observation writer 在提交事实前，把受影响首页区块写入同一事务的 `domain_event`；事实失败时 outbox 一并回滚。进程级唯一 `DurableSchedulerRuntime` 通过 `scheduled_job` 租约与 fencing 统一领取 `market_home.close_snapshot`、`asset_alert.evaluate` 和 Agent 日程任务；各领域 handler 使用独立 Session 提交/回滚/关闭，收盘五区快照、提醒通知与 job 终态分别在受控事务中持久化。首页 API 的每个 section 都公开按该 section 事实水位计算的 `age_seconds`。
+
+Research Pack 每个宽表指标会展开为独立 `theme_observation`，但保留同一 source hash、row identity 和规范化原始 payload，避免丢失 mom/yoy/ytd、模型价格或置信度等列。只有 identity 与 payload 都等价才是 duplicate；同 identity 不同值进入 `identity_conflict` quarantine，不覆盖任何已接收事实。Pack 生命周期读取 `theme_pack` 的不可变版本记录，Manifest discovered 状态不会覆盖已验证/启用的数据库状态。
+
+研究运行时继续复用 013/014 的 `research_run`。`research_session.run_id` 建立唯一 Workspace 归属，任何绑定 Run 的操作必须匹配 `(project_id, workspace_id)`；provider request/result、执行/恢复幂等 reservation 和阶段事件使用 `domain_event` 保存相关 ID 与 hash。DSH 不拥有数据库权限，只能通过关联 callback 交付 typed terminal result。completed Run 与 archive-pending outbox 使用隔离事务，归档失败不得回滚研究终态。
 
 ### 常用命令
 

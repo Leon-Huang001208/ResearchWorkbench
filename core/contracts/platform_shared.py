@@ -49,7 +49,7 @@ class SourceTier(str, Enum):
 class AssetRef(BaseModel):
     """Stable internal asset identity without duplicating asset facts."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", str_strip_whitespace=True)
 
     asset_id: str = Field(min_length=1)
     asset_type: AssetType
@@ -195,6 +195,9 @@ class ScheduledJob(BaseModel):
     lease_owner: str | None = None
     lease_expires_at: AwareDatetime | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
+    attempt: int = Field(default=0, ge=0)
+    fencing_token: int = Field(default=0, ge=0)
+    last_error_code: str | None = None
 
     @model_validator(mode="after")
     def validate_single_flight(self) -> ScheduledJob:
@@ -206,4 +209,6 @@ class ScheduledJob(BaseModel):
             raise ValueError("scheduled jobs must coalesce to latest")
         if (self.lease_owner is None) != (self.lease_expires_at is None):
             raise ValueError("lease_owner and lease_expires_at must be set together")
+        if self.fencing_token != self.attempt:
+            raise ValueError("fencing_token must equal the persisted lease attempt")
         return self

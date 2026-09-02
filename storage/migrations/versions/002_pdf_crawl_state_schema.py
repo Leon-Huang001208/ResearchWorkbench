@@ -17,6 +17,42 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # The PDF schema references the unified document table. Earlier fresh
+    # installations only had ``source_document`` from revision 001, so the
+    # foreign key made the PostgreSQL migration graph fail before reaching the
+    # merged-platform revisions. Create the v1 authority before its dependants.
+    op.create_table(
+        "document_v1",
+        sa.Column("doc_id", sa.Text(), primary_key=True),
+        sa.Column("doc_type", sa.Text(), nullable=False),
+        sa.Column("source_type", sa.Text(), nullable=False),
+        sa.Column("title", sa.Text(), nullable=False),
+        sa.Column("summary", sa.Text(), nullable=True),
+        sa.Column("content", sa.Text(), nullable=False),
+        sa.Column("doc_metadata", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("source_metadata", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("classification", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("quality", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("evidence_profile", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("timeliness", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("processing", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("review", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("extra", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("source_name", sa.Text(), nullable=True),
+        sa.Column("source_url", sa.Text(), nullable=True),
+        sa.Column("language", sa.Text(), nullable=False, server_default="zh"),
+        sa.Column("content_hash", sa.Text(), nullable=True),
+        sa.Column(
+            "created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+        ),
+        sa.Column(
+            "updated_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+        ),
+    )
+    op.create_index("idx_document_v1_doc_type", "document_v1", ["doc_type"])
+    op.create_index("idx_document_v1_source_type", "document_v1", ["source_type"])
+    op.create_index("idx_document_v1_content_hash", "document_v1", ["content_hash"])
+
     # PDF 制品表
     op.create_table(
         "pdf_artifact_v1",
@@ -150,3 +186,4 @@ def downgrade() -> None:
     op.drop_table("crawl_state_v1")
     op.drop_table("pdf_conversion_v1")
     op.drop_table("pdf_artifact_v1")
+    op.drop_table("document_v1")

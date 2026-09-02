@@ -63,6 +63,7 @@ def upgrade() -> None:
             name="ck_research_session_scope",
         ),
         sa.UniqueConstraint("idempotency_key", name="uq_research_session_idempotency_key"),
+        sa.UniqueConstraint("run_id", name="uq_research_session_run_id"),
     )
     for column in ("workspace_id", "run_id", "mode", "status"):
         op.create_index(f"ix_research_session_{column}", "research_session", [column])

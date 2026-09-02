@@ -70,6 +70,21 @@ Update this section when:
 - Output format changes
 - Included directories change
 
+### `scripts/migrate_lsh_theme_data.py`
+
+Purpose:
+
+- Discover the reviewed LSH theme CSV set and route rows only through installed Pack manifests.
+- Default to `--dry-run`; `--apply` is explicit and uses the configured database transaction.
+- Emit accepted, quarantined, rejected, duplicate and applied counts plus per-file SHA-256 hashes and resumable checkpoints.
+- `--resume-from` accepts only a checkpoint whose source hash still matches; a changed file must restart and cannot silently continue at an old row number.
+- Preserve all mapped measures from wide rows as separate Observations. Identity collisions with different values are quarantined as `identity_conflict`, never counted as harmless duplicates or overwritten.
+- Keep strategy, trading, fund approval, `score_hint` and `driver-summary` inputs frozen/rejected rather than migrating them into facts.
+
+Update this section when:
+
+- LSH discovery, mapping, identity, resume, report or commit semantics change.
+
 ### `scripts/check_task_completion.py`
 
 Purpose:

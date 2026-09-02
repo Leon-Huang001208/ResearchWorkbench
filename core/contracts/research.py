@@ -68,7 +68,7 @@ class ResearchEvidenceInput(BaseModel):
     conflict: bool = False
 
     @model_validator(mode="after")
-    def validate_numeric_context(self) -> "ResearchEvidenceInput":
+    def validate_numeric_context(self) -> ResearchEvidenceInput:
         numeric_fields = (self.numeric_value, self.numeric_unit, self.numeric_period)
         if any(value is not None for value in numeric_fields) and not all(
             value is not None and value != "" for value in numeric_fields
@@ -85,9 +85,12 @@ class ResearchRunCreateRequest(BaseModel):
     question: str = Field(min_length=1)
     attachment_refs: list[str] = Field(default_factory=list)
     evidence_inputs: list[ResearchEvidenceInput] = Field(default_factory=list)
+    mode: Literal["fingpt", "claw"] = "fingpt"
+    agent_team_id: str | None = Field(default=None, min_length=1)
+    skill_keys: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def normalize_legacy_target(self) -> "ResearchRunCreateRequest":
+    def normalize_legacy_target(self) -> ResearchRunCreateRequest:
         if self.subject is None and self.target_id is None:
             raise ValueError("subject or legacy target_id is required")
         if self.subject is None and self.target_id is not None:
@@ -100,6 +103,12 @@ class ResearchRunCreateRequest(BaseModel):
             self.target_id = self.subject.subject_id
         if self.subject is not None and self.target_id != self.subject.subject_id:
             raise ValueError("target_id must match subject.subject_id")
+        if self.mode == "claw" and not self.agent_team_id:
+            raise ValueError("agent_team_id is required for claw mode")
+        if self.mode == "fingpt" and self.agent_team_id is not None:
+            raise ValueError("agent_team_id is only valid for claw mode")
+        if len(self.skill_keys) != len(set(self.skill_keys)):
+            raise ValueError("skill_keys must be unique")
         return self
 
 

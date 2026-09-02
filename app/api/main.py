@@ -4,7 +4,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # 把项目根目录加入path（必须在其他本地导入之前）
 script_path = Path(__file__).resolve()
@@ -38,7 +38,11 @@ from app.api.configuration_security import (
 from core.observability import get_logger
 from core.settings.config import RUNTIME_CONTEXT, settings
 from data_layer.repositories.base import ensure_schema
-from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode, probe_postgresql
+from services.database_readiness import (
+    DatabaseReadiness,
+    DatabaseReadinessCode,
+    probe_postgresql,
+)
 
 __all__ = [
     "app",
@@ -54,6 +58,7 @@ _DATABASE_READINESS_STARTUP_ERROR = "无法连接 PostgreSQL；请检查数据�
 # 后端启动时间戳，供前端轮询检测后端重启后自动刷新页面
 _STARTUP_TIMESTAMP: str = str(time.time())
 _resource_monitor_runtime: Any | None = None
+_durable_scheduler_runtime: Any | None = None
 
 
 app = FastAPI(
@@ -87,6 +92,7 @@ async def startup() -> None:
 
     ensure_schema()
     _start_resource_monitor_runtime()
+    _start_durable_scheduler_runtime()
     _start_wind_workbook_background()
     # 自动启动数据获取调度器（在 async 上下文中，AsyncIOScheduler 可正常拿到事件循环）
     _start_data_acquisition_schedulers()
@@ -98,7 +104,7 @@ def _start_wind_workbook_background() -> None:
         from services.wind_workbook_manager import get_wind_workbook_manager
 
         get_wind_workbook_manager().start_background_ensure(reason="api_startup")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - optional desktop integration boundary
         logger.warning(
             "Wind realtime workbook background startup skipped",
             extra={"error_type": type(exc).__name__},
@@ -114,11 +120,42 @@ def _start_resource_monitor_runtime() -> None:
 
             _resource_monitor_runtime = ResourceMonitorRuntime()
         _resource_monitor_runtime.start()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - optional monitor startup boundary
         logger.warning(
             "Resource monitor runtime startup skipped",
             error_type=type(exc).__name__,
         )
+
+
+def _start_durable_scheduler_runtime() -> None:
+    """Start the single durable worker after domain handlers are registered."""
+
+    global _durable_scheduler_runtime
+    try:
+        if _durable_scheduler_runtime is None:
+            from services.agent_schedule_runtime import (
+                register_default_agent_schedule_runtime,
+            )
+            from services.asset_alert_scheduler import (
+                register_default_asset_alert_scheduler,
+            )
+            from services.market_home_invalidation import (
+                register_default_market_home_scheduler,
+            )
+            from services.scheduler_coordinator import get_default_scheduler_runtime
+
+            runtime = get_default_scheduler_runtime()
+            register_default_market_home_scheduler(runtime)
+            register_default_asset_alert_scheduler(runtime)
+            register_default_agent_schedule_runtime(runtime)
+            _durable_scheduler_runtime = runtime
+        _durable_scheduler_runtime.start()
+    except Exception as exc:
+        logger.exception(
+            "Durable scheduler runtime startup failed",
+            error_type=type(exc).__name__,
+        )
+        raise
 
 
 def _start_data_acquisition_schedulers() -> None:
@@ -137,8 +174,8 @@ def _start_data_acquisition_schedulers() -> None:
             logger.info("市场数据调度器已在运行中")
     except ImportError as e:
         logger.warning("无法导入市场数据调度器: %s", e)
-    except Exception as e:
-        logger.error("启动市场数据调度器失败: %s", e, exc_info=True)
+    except Exception:
+        logger.exception("启动市场数据调度器失败")
 
     # 尝试启动爬虫调度器
     try:
@@ -152,8 +189,8 @@ def _start_data_acquisition_schedulers() -> None:
             logger.info("爬虫调度器已在运行中")
     except ImportError as e:
         logger.warning("无法导入爬虫调度器: %s", e)
-    except Exception as e:
-        logger.error("启动爬虫调度器失败: %s", e, exc_info=True)
+    except Exception:
+        logger.exception("启动爬虫调度器失败")
 
     # 检查 APScheduler 可用性
     try:
@@ -169,6 +206,7 @@ def shutdown() -> None:
     """Shutdown hook"""
     logger.info("AlphaFoundry API shutting down...")
     _stop_resource_monitor_runtime()
+    _stop_durable_scheduler_runtime()
     # 停止数据获取调度器
     _stop_data_acquisition_schedulers()
 
@@ -179,9 +217,23 @@ def _stop_resource_monitor_runtime() -> None:
         return
     try:
         _resource_monitor_runtime.stop()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - shutdown must remain best-effort
         logger.warning(
             "Resource monitor runtime shutdown failed",
+            error_type=type(exc).__name__,
+        )
+
+
+def _stop_durable_scheduler_runtime() -> None:
+    """Stop the single durable worker during API shutdown."""
+
+    if _durable_scheduler_runtime is None:
+        return
+    try:
+        _durable_scheduler_runtime.stop()
+    except Exception as exc:  # noqa: BLE001 - shutdown must remain best-effort
+        logger.warning(
+            "Durable scheduler runtime shutdown failed",
             error_type=type(exc).__name__,
         )
 
@@ -200,8 +252,8 @@ def _stop_data_acquisition_schedulers() -> None:
             logger.info("市场数据调度器已停止")
     except (ImportError, AttributeError):
         pass
-    except Exception as e:
-        logger.error("停止市场数据调度器失败: %s", e, exc_info=True)
+    except Exception:
+        logger.exception("停止市场数据调度器失败")
 
     # 尝试停止爬虫调度器
     try:
@@ -213,8 +265,8 @@ def _stop_data_acquisition_schedulers() -> None:
             logger.info("爬虫调度器已停止")
     except (ImportError, AttributeError):
         pass
-    except Exception as e:
-        logger.error("停止爬虫调度器失败: %s", e, exc_info=True)
+    except Exception:
+        logger.exception("停止爬虫调度器失败")
 
 
 # ─── CORS（收紧为配置驱动的域名白名单）──────────────────
@@ -234,7 +286,9 @@ app.add_middleware(
 )
 
 # ─── 注册路由 ───────────────────────────────────────────
-from app.api.routes import (  # noqa: E402
+from app.api.routes import (
+    agent_schedules,
+    agent_teams,
     asset_observation,
     assets,
     audit,
@@ -267,7 +321,11 @@ from app.api.routes import (  # noqa: E402
     report,
     report_projects,
     research_runs,
+    research_sessions,
+    research_skills,
+    research_workspaces,
     review,
+    runtime_providers,
     scenarios,
     scheduler,
     search,
@@ -275,9 +333,9 @@ from app.api.routes import (  # noqa: E402
     signal_lab,
     signals,
     system,
+    theme_research,
     thesis_generator,
     thesis_review,
-    theme_research,
     timing,
     timing_engine,
     wind,
@@ -307,6 +365,12 @@ app.include_router(search.router)
 app.include_router(replay.router)
 app.include_router(research_runs.router)
 app.include_router(research_runs.template_router)
+app.include_router(research_workspaces.router)
+app.include_router(research_sessions.router)
+app.include_router(runtime_providers.router)
+app.include_router(research_skills.router)
+app.include_router(agent_teams.router)
+app.include_router(agent_schedules.router)
 app.include_router(portfolio.router)
 app.include_router(paper_trading.router)
 app.include_router(governance.router)
@@ -376,7 +440,7 @@ async def index() -> HTMLResponse:
 
 
 @app.get("/_version")
-async def backend_version() -> Dict[str, Any]:
+async def backend_version() -> dict[str, Any]:
     """后端版本/启动时间戳。
 
     前端可定期轮询此端点，当 startup_ts 变化时自动刷新页面，
@@ -389,7 +453,7 @@ async def backend_version() -> Dict[str, Any]:
 
 
 @app.get("/health")
-async def health_check() -> Dict[str, Any]:
+async def health_check() -> dict[str, Any]:
     """健康检查 - report the startup persistence state without retrying the database."""
     from core.settings.config import settings
 

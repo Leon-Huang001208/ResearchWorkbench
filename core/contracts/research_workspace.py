@@ -105,6 +105,14 @@ class RuntimeProviderStatus(str, Enum):
     UNAVAILABLE = "unavailable"
 
 
+class ProviderTerminalStatus(str, Enum):
+    """Typed terminal state returned by a runtime provider."""
+
+    COMPLETED = "completed"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+
+
 class RuntimeProvider(BaseModel):
     """Capability declaration for LangGraph or the optional DSH sidecar."""
 
@@ -115,6 +123,31 @@ class RuntimeProvider(BaseModel):
     status: RuntimeProviderStatus
     config_ref: str | None = None
     checked_at: AwareDatetime
+
+
+class ProviderExecutionResult(BaseModel):
+    """Idempotent, credential-free result returned by DSH or another provider."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider_id: str = Field(min_length=1)
+    provider_result_id: str = Field(min_length=1)
+    request_id: str = Field(min_length=1)
+    run_id: str = Field(min_length=1)
+    request_hash: str = Field(min_length=1)
+    terminal_status: ProviderTerminalStatus
+    output: dict[str, Any] = Field(default_factory=dict)
+    error_code: str | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def validate_terminal_shape(self) -> ProviderExecutionResult:
+        """Keep successful and failed callbacks unambiguous."""
+
+        if self.terminal_status is ProviderTerminalStatus.COMPLETED and self.error_code:
+            raise ValueError("completed provider result cannot include error_code")
+        if self.terminal_status is not ProviderTerminalStatus.COMPLETED and not self.error_code:
+            raise ValueError("blocked or failed provider result requires error_code")
+        return self
 
 
 class SkillManifest(BaseModel):
@@ -211,6 +244,20 @@ class AgentTeamDefinition(BaseModel):
         if len(self.roles) != len(set(self.roles)):
             raise ValueError("roles must be unique")
         return self
+
+
+class BlackboardEntry(BaseModel):
+    """Typed assignment/result written to a team-owned shared blackboard."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entry_id: str = Field(min_length=1)
+    team_id: str = Field(min_length=1)
+    role: str = Field(min_length=1)
+    entry_type: Literal["assignment", "result", "conflict", "summary"]
+    step: int = Field(ge=1)
+    payload: dict[str, Any]
+    created_at: AwareDatetime
 
 
 class AgentSchedule(BaseModel):

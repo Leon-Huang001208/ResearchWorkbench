@@ -54,7 +54,7 @@
 | `ObservationEnvelope` | subject_ref、metric_key、source_ref、observed_at、available_at、freshness | `available_at >= observed_at`；numeric value 必须带 unit |
 | `FreshnessStatus` | fresh/stale/unavailable/quarantined | stale/unavailable/quarantined 不得伪装 fresh；冲突写入 quality_flags；缺失值与 0 分开 |
 | `DomainEvent` | event_id、type、occurred_at、payload_ref | 先写 PostgreSQL `domain_event`，SSE 只传小型引用 |
-| `ScheduledJob` | job_id、owner、idempotency_key、lease | 默认 single-flight；missed runs 合并 latest |
+| `ScheduledJob` | job_id、owner、idempotency_key、lease、attempt/error | 默认 single-flight；missed runs 合并 latest；失败按确定性退避重试 |
 
 所有事实响应必须完整包含 `as_of`、`observed_at`、`available_at`、`source_refs`、`freshness_status`、`quality_flags`。API 模型必须保持“缺失”“不适用”“来源失败”“0”四种语义可区分。金额、比例、点位、数量和价格不得省略单位；新增平台公共契约以 `AwareDatetime` 拒绝 naive datetime，所有时间保存带时区值，交易日另有明确 date 字段。
 
@@ -70,7 +70,8 @@
 ## 状态与失败
 
 - Observation：`fresh → stale`；采集失败可为 `unavailable`；隔离数据为 `quarantined`；口径冲突写入 `quality_flags` 或校验结果。新来源验证通过后可生成新的 fresh 记录，旧记录不原地改写历史。
-- ScheduledJob：`idle → leased → running → succeeded|failed`；租约过期可由新 owner 接管；重复 idempotency key 返回既有执行。
+- ScheduledJob：`idle → leased → running → idle(retry)|succeeded|failed`；失败以 5/10 秒退避并最多尝试三次，重试保留同一 idempotency key、递增 attempt 和最新 error；租约过期可由新 owner 接管；重复 idempotency key 返回既有执行。
+- 调度器提供 at-least-once，不承诺 exactly-once：若领域副作用已提交而 fenced completion 失败，租约过期后 handler 会再次执行。首页快照靠不可变唯一键、提醒靠 Rule/Event 去重保证重复安全；Agent/通用工具若有非幂等外部副作用，必须在 Task 6 的 durable execution ledger 中以 `job_id + attempt + operation_id` 做调用前占位和结果重放，不能把 scheduler completion 当副作用账本。本任务的测试边界只证明重试/围栏与两个幂等领域，不宣称 Agent 外部副作用 exactly-once。
 - 写入冲突使用 409；验证错误使用 422；引用不存在使用 404；数据库未就绪沿用 `setup_required` 健康契约。
 - quarantine 保存文件哈希、行号、安全错误码和原始文件引用；不把未校验行塞进事实 payload。
 

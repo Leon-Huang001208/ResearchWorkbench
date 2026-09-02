@@ -2342,6 +2342,7 @@ class ResearchSessionDB(Base):
             "(mode = 'temporary' AND workspace_id IS NULL)",
             name="ck_research_session_scope",
         ),
+        UniqueConstraint("run_id", name="uq_research_session_run_id"),
     )
 
     session_id = Column(Text, primary_key=True)
