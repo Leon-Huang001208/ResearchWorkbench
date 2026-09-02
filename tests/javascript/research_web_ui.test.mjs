@@ -162,6 +162,11 @@ test('upgrading opens a Claw session with the real returned draft without sendin
   assert.equal(sends, 0);
 });
 
+test('native file download route is accepted and traversal remains blocked', () => {
+  assert.equal(views.fileURL('/api/research/sessions/s/files/f/download'), '/api/research/sessions/s/files/f/download');
+  assert.equal(views.fileURL('/api/research/sessions/s/files/f/../../runtime'), null);
+});
+
 test('API uploads actual files as multipart and sends secrets only in configuration body', async () => {
   const calls = []; const logs = [];
   const api = core.createAPI({ fetcher: async (url, options) => { calls.push([url, options]); return new Response('{}'); }, logger: (...args) => logs.push(args) });

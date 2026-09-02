@@ -53,6 +53,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     files: (id) => request(`${sessionPath(id)}/files`),
     upload: (id, files) => { const body = new FormData(); for (const file of files) body.append('files', file); return request(`${sessionPath(id)}/uploads`, { method: 'POST', body }); },
     approve: (id, approval, decision) => request(`${sessionPath(id)}/approvals/${segment(approval)}`, { method: 'POST', body: { decision } }),
+    answer: (id, question, answers) => request(`${sessionPath(id)}/questions/${segment(question)}`, { method: 'POST', body: { answers } }),
     configure: (body) => request('/runtime/model', { method: 'PUT', body }),
     events: (id, handlers) => {
       if (!EventSourceClass) { handlers.error('当前浏览器不支持实时连接，可手动刷新会话。'); return () => {}; }
@@ -152,7 +153,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
       const result = await action(() => api.upgrade(id), { refreshAfter: false });
       if (ticket !== generation) return null;
       if (result?.id) {
-        drafts.set(result.id, { draft: typeof result.draft === 'string' ? result.draft : '', attachments: [], skillId: '' });
+        drafts.set(result.id, { draft: typeof result.draft === 'string' ? result.draft : '', attachments: result.attachments || [], skillId: '' });
         onNavigate(sessionHash(result));
       }
       return result;

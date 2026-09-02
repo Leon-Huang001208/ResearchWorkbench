@@ -2,7 +2,7 @@
 
 ## 范围与入口
 
-`app/research_web/ui/` 是独立的生产 Research Web 静态前端，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。
+`app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包；完整真实模型验收尚未完成。
 
 页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/history`、`#/skills`、`#/settings`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
@@ -25,7 +25,7 @@
 
 - 新研究先 `POST /sessions`，再对新会话 `POST /messages`；消息带 `Idempotency-Key`。同一个失败草稿重试复用相同键；收到 `accepted: true` 才清空原稿。界面不伪造用户/助手消息或进度。
 - 会话详情来自 `GET /sessions/{id}`；SSE `snapshot` 替换真实详情，`runtime_error` 显示运行错误。事件连接恢复只重新读取快照，不重发消息。跨会话旧响应会被忽略；较旧 HTTP 快照不会覆盖后来到达的 SSE 输出。
-- 历史打开、重命名、取消、批准/拒绝均调用对应真实接口。运行时提问在输入区回复。
+- 历史打开、重命名、取消、批准/拒绝均调用对应真实接口。运行时提问通过问题响应接口回复；根回合结束但子 Agent 仍活跃时保留运行状态和停止入口。
 - 升级调用 `POST /sessions/{id}/upgrade`，使用返回的新会话和 `draft`；草稿放入新编辑器，不自动提交。
 - 附件使用 multipart `files` 字段上传；返回 ID 作为 `attachment_ids` 提交。上传成功仅代表后端收到了文件，不代表模型已读取或工具沙箱已执行。
 - 文件下载只使用真实返回且经过检查的同源会话文件 URL。HTML 预览 iframe 使用空 `sandbox` 和 `no-referrer`，前端拒绝外部或任意路径的预览地址；后端仍负责授权、路径隔离和响应 CSP。
@@ -36,7 +36,7 @@
 
 支持标题、段落、粗体/斜体、行内代码、围栏代码块、列表、引用、简单表格与 HTTP(S) 来源链接。原始 HTML 始终转义；不执行模型输出的脚本或 HTML，不远程加载 Markdown 图片。来源链接拒绝活动协议、凭据 URL、控制字符与协议相对 URL。不是完整 CommonMark 实现。
 
-文件链接限定 `/api/research/sessions/{sid}/files/{fid}` 及其 `/preview` 路径；拒绝路径穿越及编码分隔符。前端校验不替代服务器授权。
+文件链接限定 `/api/research/sessions/{sid}/files/{fid}/download` 或 `/preview` 路径；拒绝路径穿越及编码分隔符。前端校验不替代服务器授权。
 
 ## 验证与限制
 

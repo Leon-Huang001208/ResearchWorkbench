@@ -12,6 +12,7 @@ const state = controller.state;
 
 function runtimeLabel() {
   if (!catalog.runtime) return 'DSH 未连接';
+  if (catalog.runtime.connected && catalog.runtime.credential_configured === false) return 'DSH 待授权';
   return catalog.runtime.connected ? 'DSH 已连接' : 'DSH 不可用';
 }
 
@@ -19,7 +20,7 @@ function notice(message, kind = 'error') { return message ? `<div class="notice 
 
 function composer() {
   const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
-  return `<form id="composer" class="composer"><label class="sr-only" for="prompt">${state.route.page === 'claw' ? '任务目标或补充信息' : '研究问题'}</label><textarea id="prompt" name="prompt" rows="3" placeholder="${state.route.page === 'claw' ? '描述研究目标、约束与希望交付的结果…' : '今天想研究什么？输入问题，或添加文件…'}" ${disabled ? 'disabled' : ''}>${e(state.draft)}</textarea>${state.attachments.length ? `<div class="attachment-chips">${state.attachments.map((file) => `<span>${e(file.name)}<button type="button" data-remove-attachment="${e(file.id)}" aria-label="移除附件 ${e(file.name)}">×</button></span>`).join('')}</div>` : ''}<div class="composer-tools"><button type="button" class="button attachment-button" data-upload ${disabled ? 'disabled' : ''} title="PDF、图片、Markdown、CSV、Excel">＋ <span>附件</span></button><label class="sr-only" for="skill-select">使用 Skill</label><select id="skill-select" ${disabled ? 'disabled' : ''}><option value="">按需使用 Skill</option>${catalog.skills.map((skill) => `<option value="${e(skill.id)}" ${state.skillId === skill.id ? 'selected' : ''}>${e(skill.name)}</option>`).join('')}</select><span class="spacer"></span>${state.detail && isRunning(state.detail.status) ? `<button type="button" class="button danger-outline" data-cancel ${state.busy ? 'disabled' : ''}>停止</button>` : ''}<button type="submit" class="button primary" ${disabled ? 'disabled' : ''}>${state.busy ? '正在提交…' : state.detail ? '发送' : '开始研究'} <span aria-hidden="true">↑</span></button></div><input id="file-input" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.md,.markdown,.txt,.csv,.xlsx,.xls" hidden></form><p class="composer-caption">Enter 发送 · Shift + Enter 换行 · 内容交由 DSH 运行时处理</p>`;
+  return `<form id="composer" class="composer"><label class="sr-only" for="prompt">${state.route.page === 'claw' ? '任务目标或补充信息' : '研究问题'}</label><textarea id="prompt" name="prompt" rows="3" placeholder="${state.route.page === 'claw' ? '描述研究目标、约束与希望交付的结果…' : '今天想研究什么？输入问题，或添加文件…'}" ${disabled ? 'disabled' : ''}>${e(state.draft)}</textarea>${state.attachments.length ? `<div class="attachment-chips">${state.attachments.map((file) => `<span>${e(file.name)}<button type="button" data-remove-attachment="${e(file.id)}" aria-label="移除附件 ${e(file.name)}">×</button></span>`).join('')}</div>` : ''}<div class="composer-tools"><button type="button" class="button attachment-button" data-upload ${disabled ? 'disabled' : ''} title="PDF、图片、Markdown、CSV、Excel">＋ <span>附件</span></button><label class="sr-only" for="skill-select">使用 Skill</label><select id="skill-select" ${disabled ? 'disabled' : ''}><option value="">按需使用 Skill</option>${catalog.skills.map((skill) => `<option value="${e(skill.id)}" ${state.skillId === skill.id ? 'selected' : ''}>${e(skill.name)}</option>`).join('')}</select><span class="spacer"></span>${state.detail && (isRunning(state.detail.status) || state.detail.can_cancel) ? `<button type="button" class="button danger-outline" data-cancel ${state.busy ? 'disabled' : ''}>停止</button>` : ''}<button type="submit" class="button primary" ${disabled ? 'disabled' : ''}>${state.busy ? '正在提交…' : state.detail ? '发送' : '开始研究'} <span aria-hidden="true">↑</span></button></div><input id="file-input" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.md,.csv,.xlsx" hidden></form><p class="composer-caption">Enter 发送 · Shift + Enter 换行 · 内容交由 DSH 运行时处理</p>`;
 }
 
 function landing() {
@@ -161,7 +162,19 @@ root.addEventListener('click', async (event) => {
   if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
-  if ('answer' in data) document.querySelector('#prompt')?.focus();
+  if ('answer' in data) {
+    const question = state.detail?.questions?.find((item) => item.id === data.answer);
+    if (question?.items?.length) {
+      const answers = [];
+      for (const item of question.items) {
+        const custom = window.prompt(item.question + (item.options?.length ? '\n选项：' + item.options.map((option) => option.label).join('、') : ''));
+        if (custom === null) return;
+        const matching = item.options?.find((option) => option.label === custom);
+        answers.push({ id: item.id, selected: matching ? [matching.label] : [], custom: matching ? '' : custom });
+      }
+      await controller.action(() => api.answer(state.detail.id, question.id, answers));
+    }
+  }
   if ('preview' in data) { selectedPreview = data.preview; render(); }
   if ('closePreview' in data) { selectedPreview = null; render(); }
   if ('useSkill' in data) { history.pushState(null, '', '#/fingpt'); await showRoute(); controller.setSkill(data.useSkill); render(); document.querySelector('#prompt')?.focus(); }

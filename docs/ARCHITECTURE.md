@@ -1,6 +1,20 @@
 # AlphaFoundry 架构文档
 
-## AlphaFoundry × LSH 合并平台 V1 基线
+## 当前研究产品：DSH Web（2026-09-02）
+
+当前研究入口为 `app.research_web.main:app`。Web → FastAPI 轻量适配 → 专属 DSH
+原生 RPC / 双 WebSocket；DSH 是唯一研究引擎，并负责执行循环、历史、Skill 和子 Agent。
+该入口不启动旧 API 生命周期，不要求 PostgreSQL/pgvector，不使用 Evidence、Claim、Quality Gate、
+LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
+
+产品索引只记录归属、文件与幂等受理收据；研究正文以 DSH 日志为准。附件及产物按会话隔离，
+研究脚本经内核文件访问约束执行，HTML 产物在不具同源权限的预览中打开。
+具体启动、契约、已验证与未完成事项见 [DSH Web 实施记录](research-web.md)
+和 [脚本边界](research-web-sandbox.md)。
+
+以下合并平台与量化设计保留作历史记录，不是本轮研究链路的实现前置条件。
+
+## 历史：AlphaFoundry × LSH 合并平台 V1 基线
 
 合并平台保持本文件定义的模块化单体、FastAPI 与 PostgreSQL + pgvector 主干，并增加四个边界明确的产品模块：FinGPT / Claw、facts-only 市场首页、Research Pack、资产观察。DSH 仅是可选 `RuntimeProvider` 侧车，不得直连数据库；事实、研究与个人观察三层严格隔离。该目标态、20 张新增表、四段迁移、API/状态/失败语义和九张架构图见 [`docs/architecture/merged-platform/`](architecture/merged-platform/README.md)。
 

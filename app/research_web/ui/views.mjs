@@ -9,7 +9,7 @@ export function renderConversation(detail) {
   if (!detail) return '';
   const messages = (detail.messages || []).map((message) => `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}"><div class="message-byline"><span class="avatar">${message.role === 'user' ? '你' : 'A'}</span><strong>${e(message.role === 'user' ? '你' : message.role === 'assistant' ? 'AlphaFoundry' : message.role)}</strong></div><div class="markdown">${renderMarkdown(message.text)}</div></article>`).join('');
   const approvals = (detail.approvals || []).map((approval) => `<section class="decision-card"><div class="eyebrow">需要你的授权</div><h3>${e(approval.title)}</h3><div class="markdown">${renderMarkdown(approval.detail)}</div><div class="button-row"><button class="button primary" data-approval="${e(approval.id)}" data-decision="approve">允许</button><button class="button danger-outline" data-approval="${e(approval.id)}" data-decision="deny">拒绝</button></div></section>`).join('');
-  const questions = (detail.questions || []).map((question) => `<section class="decision-card"><div class="eyebrow">DSH 需要补充信息</div><div class="markdown">${renderMarkdown(question.text)}</div><button class="button" data-answer>在下方回复</button></section>`).join('');
+  const questions = (detail.questions || []).map((question) => `<section class="decision-card"><div class="eyebrow">DSH 需要补充信息</div><div class="markdown">${renderMarkdown(question.text)}</div><button class="button" data-answer="${e(question.id)}">回答问题</button></section>`).join('');
   return `${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(detail.error)}</div>` : ''}`;
 }
 
@@ -23,7 +23,7 @@ export function fileURL(value) {
   if (!url?.startsWith('/api/research/sessions/')) return null;
   const path = url.split('?')[0];
   if (/%(?:2e|2f|5c)/i.test(path) || path.split('/').some((part) => ['.', '..'].includes(part))) return null;
-  return /^\/api\/research\/sessions\/[^/]+\/files\/[^/]+(?:\/preview)?(?:\?[^#]*)?$/.test(url) ? url : null;
+  return /^\/api\/research\/sessions\/[^/]+\/files\/[^/]+(?:\/(?:preview|download))?(?:\?[^#]*)?$/.test(url) ? url : null;
 }
 
 export function formatSize(size) {
