@@ -1,11 +1,13 @@
-import { createAPI, createController, parseRoute, sessionHash, isRunning, safeLog, collectQuestionAnswers } from './core.mjs';
+import { createAPI, createController, parseRoute, isRunning, safeLog, collectQuestionAnswers } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
-import { badge, empty, renderConversation, renderActivities, renderDatasets, renderFiles, renderHistory, modelOptions, renderRename, renderDelivery, renderFormatPicker } from './views.mjs';
+import { badge, empty, renderConversation, renderHistory, modelOptions, renderRename } from './views.mjs';
+import { renderComposer, renderQuickSkills } from './composer.mjs';
+import { renderContextPanel, renderSidebar, renderTopbar } from './shell.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
 const catalog = { runtime: null, models: [], sessions: [], workspaces: [], skills: [], errors: {}, modelFailures: [] };
-let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let contextOpen = false;
+let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false; let selectedSkillDetail = '';
 let pageGeneration = 0;
 let renameDraft = null;
 const questionDrafts = new Map();
@@ -23,12 +25,13 @@ function notice(message, kind = 'error') { return message ? `<div class="notice 
 function composer() {
   const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
-  return `<form id="composer" class="composer"><label class="sr-only" for="prompt">${state.route.page === 'claw' ? '任务目标或补充信息' : '研究问题'}</label><textarea id="prompt" name="prompt" rows="3" placeholder="${state.route.page === 'claw' ? '描述研究目标、约束与希望交付的结果…' : '今天想研究什么？输入问题，或添加文件…'}" ${disabled ? 'disabled' : ''}>${e(state.draft)}</textarea>${state.attachments.length ? `<div class="attachment-chips">${state.attachments.map((file) => `<span>${e(file.name)}<button type="button" data-remove-attachment="${e(file.id)}" aria-label="移除附件 ${e(file.name)}">×</button></span>`).join('')}</div>` : ''}${renderFormatPicker(state.expectedFormats, state.skillId)}<div class="composer-tools"><button type="button" class="button attachment-button" data-upload ${disabled ? 'disabled' : ''} title="PDF、图片、Markdown、CSV、Excel">＋ <span>附件</span></button><label class="sr-only" for="skill-select">使用 Skill</label><select id="skill-select" ${disabled ? 'disabled' : ''}><option value="">按需使用 Skill</option>${catalog.skills.map((skill) => `<option value="${e(skill.id)}" ${state.skillId === skill.id ? 'selected' : ''}>${e(skill.name)}</option>`).join('')}</select><span class="spacer"></span>${state.detail && (isRunning(state.detail.status) || state.detail.can_cancel) ? `<button type="button" class="button danger-outline" data-cancel ${state.busy ? 'disabled' : ''}>停止</button>` : ''}<button type="submit" class="button primary" ${disabled || taskPending ? 'disabled' : ''}>${state.busy ? '正在提交…' : state.detail ? '发送' : '开始研究'} <span aria-hidden="true">↑</span></button></div><input id="file-input" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.md,.csv,.xlsx" hidden></form><p class="composer-caption">${taskPending ? '上一任务及其交付尚未确认结束；可准备草稿，完成后再发送。' : 'Enter 发送 · Shift + Enter 换行 · 内容交由 DSH 运行时处理'}</p>`;
+  return renderComposer({ page: state.route.page, draft: state.draft, attachments: state.attachments, expectedFormats: state.expectedFormats, skills: catalog.skills, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen });
 }
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing"><div class="landing-brand"><img src="/static/assets/alphafoundry-logo.png" alt="" width="56" height="56"><span class="eyebrow">${claw ? 'AGENT WORKSPACE' : 'YOUR RESEARCH PARTNER'}</span></div><h1>${claw ? '复杂研究，交给 Claw' : 'FinGPT，您的即时投研伙伴'}</h1><p class="landing-subtitle">${claw ? '把目标变成行动。由 DSH 协调 Agent、工具与文件，持续推进研究。' : '从一个好问题开始。连接真实信息，理解复杂问题，沉淀研究成果。'}</p>${composer()}<div class="capability-notes"><div><span aria-hidden="true">⌕</span><strong>深入理解</strong><p>围绕问题持续追问，在同一会话中推进研究。</p></div><div><span aria-hidden="true">▤</span><strong>带上你的资料</strong><p>支持 PDF、图片、Markdown、CSV 与 Excel。</p></div><div><span aria-hidden="true">◇</span><strong>看见研究过程</strong><p>查看真实工具活动、Agent 协作与产出文件。</p></div></div></div>`;
+  const detail = catalog.skills.find((skill) => skill.id === selectedSkillDetail);
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="landing-brand"><img src="/static/assets/alphafoundry-logo.png" alt="" width="56" height="56"><span class="eyebrow">${claw ? 'CLAW · GOAL WORKSPACE' : 'FINGPT · RESEARCH PARTNER'}</span></div><h1>${claw ? '把研究目标变成可交付结果' : 'FinGPT，您的即时投研伙伴'}</h1><p class="landing-subtitle">${claw ? '描述目标、边界和希望交付的文件。DSH 仅在你开始研究后协调真实 Agent、工具与资料。' : '从一个好问题开始。连接真实信息，理解复杂问题，沉淀研究成果。'}</p>${composer()}${detail ? `<aside class="skill-detail-card" aria-label="${e(detail.name)} 详情"><div><span class="eyebrow">真实 Skill</span><h2>${e(detail.name)}</h2><p>${e(detail.description || '此 Skill 未提供描述。')}</p></div><button type="button" class="icon-button" data-close-skill-detail aria-label="关闭 Skill 详情">×</button></aside>` : ''}${renderQuickSkills(catalog.skills)}<div class="capability-notes"><div><span aria-hidden="true">⌕</span><strong>深入理解</strong><p>围绕问题持续追问，在同一会话中推进研究。</p></div><div><span aria-hidden="true">▤</span><strong>带上你的资料</strong><p>支持 PDF、图片、Markdown、CSV 与 Excel。</p></div><div><span aria-hidden="true">◇</span><strong>${claw ? '明确交付' : '看见研究过程'}</strong><p>${claw ? '设置输出格式，先准备草稿，再由你确认开始。' : '查看真实工具活动、Agent 协作与产出文件。'}</p></div></div></div>`;
 }
 
 function researchPage() {
@@ -48,16 +51,15 @@ function mainPage() {
   if (['fingpt', 'claw'].includes(state.route.page)) return researchPage();
   if (state.route.page === 'settings') return settingsPage();
   if (state.route.page === 'history') return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>研究历史</h1><p class="muted">所有 FinGPT 与 Claw 会话，随时回来继续。</p></div><button class="button" data-refresh>刷新</button></header><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索研究历史"></label><div id="history-results">${renderHistory(catalog.sessions, historyFilter)}</div>`;
-  return `<header class="page-header"><div><div class="eyebrow">RESEARCH CAPABILITIES</div><h1>Skills</h1><p class="muted">来自 DSH 的已安装能力。选择后可在研究中使用。</p></div><button class="button" data-refresh>刷新</button></header>${catalog.skills.length ? `<div class="skills-grid">${catalog.skills.map((skill) => `<article class="skill-card"><div class="skill-icon">◇</div><h2>${e(skill.name)}</h2><p>${e(skill.description || '此 Skill 未提供描述。')}</p><button class="button" data-use-skill="${e(skill.id)}">在 FinGPT 使用 ↗</button></article>`).join('')}</div>` : empty('尚无可用 Skill', '请在 DSH 中配置能力后刷新。')}`;
+  return `<header class="page-header"><div><div class="eyebrow">RESEARCH CAPABILITIES</div><h1>能力中心</h1><p class="muted">来自 DSH 的已安装能力。选择后可在研究中使用。</p></div><button class="button" data-refresh>刷新</button></header>${catalog.skills.length ? `<div class="skills-grid">${catalog.skills.map((skill) => `<article class="skill-card"><div class="skill-icon">◇</div><h2>${e(skill.name)}</h2><p>${e(skill.description || '此 Skill 未提供描述。')}</p><button class="button" data-use-skill="${e(skill.id)}">放入 FinGPT 草稿 ↗</button></article>`).join('')}</div>` : empty('尚无可用 Skill', '请在 DSH 中配置能力后刷新。')}`;
 }
 
 function sidebar() {
-  return `<aside class="sidebar ${sidebarOpen ? 'mobile-open' : ''}" aria-label="研究导航"><div class="sidebar-top"><span class="eyebrow">RESEARCH WORKSPACE</span><button class="icon-button sidebar-close" data-toggle-sidebar aria-label="关闭导航">×</button></div><label class="sr-only" for="workspace-select">工作空间</label><select id="workspace-select"><option value="">默认工作空间</option>${catalog.workspaces.map((workspace) => `<option value="${e(workspace.id)}" ${selectedWorkspace === workspace.id ? 'selected' : ''}>${e(workspace.name)}</option>`).join('')}</select><button class="button new-session" data-new>＋ 新建研究</button><nav class="main-nav" aria-label="产品导航">${[['fingpt', '⌕', 'FinGPT', '即时研究'], ['claw', '◇', 'Claw', 'Agent 协作'], ['history', '◷', '研究历史', ''], ['skills', '▧', 'Skills', '']].map(([page, icon, title, description]) => `<a href="#/${page}" class="nav-link ${state.route.page === page ? 'active' : ''}" ${state.route.page === page ? 'aria-current="page"' : ''}><span class="nav-icon" aria-hidden="true">${icon}</span><span><strong>${title}</strong>${description ? `<small>${description}</small>` : ''}</span></a>`).join('')}</nav><div class="recent-heading"><span class="eyebrow">最近会话</span><a href="#/history" aria-label="查看全部历史">↗</a></div><div class="recent-sessions">${catalog.sessions.slice(0, 10).map((session) => `<a href="${sessionHash(session)}" class="recent-item ${state.route.sessionId === session.id ? 'active' : ''}" title="${e(session.title)}"><span class="tiny-dot ${isRunning(session.status) ? 'active' : ''}"></span><span>${e(session.title || '未命名会话')}</span></a>`).join('') || '<p class="muted small sidebar-empty">开始第一项研究后，会话将显示在这里。</p>'}</div><div class="sidebar-footer"><a class="nav-link ${state.route.page === 'settings' ? 'active' : ''}" href="#/settings"><span class="nav-icon" aria-hidden="true">⚙</span><strong>设置</strong></a><span class="local-caption">AlphaFoundry Research · DSH</span></div></aside>`;
+  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen });
 }
 
 function contextPanel() {
-  const usage = state.detail?.usage;
-  return `<aside class="context-panel ${contextOpen ? 'mobile-open' : ''}" aria-label="研究活动与文件"><header class="context-header"><h2>研究空间</h2><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button><span class="badge">${state.detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></header>${renderDelivery(state.detail?.delivery)}${renderDatasets(state.detail?.id, state.detail?.datasets)}${renderActivities(state.detail)}<section class="context-section"><div class="section-heading"><h3>文件</h3>${state.detail ? `<button class="text-button" data-refresh-files ${state.busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(state.detail?.files || [], selectedPreview)}</section>${usage && (usage.tokens != null || usage.cost != null) ? `<footer class="usage-footer">${usage.tokens != null ? `<span>Tokens <strong>${e(usage.tokens)}</strong></span>` : ''}${usage.cost != null ? `<span>运行时费用 <strong>${e(usage.cost)}</strong></span>` : ''}</footer>` : ''}</aside>`;
+  return renderContextPanel({ detail: state.detail, selectedTab: contextTab, mobileOpen: contextOpen, selectedPreview, busy: state.busy });
 }
 
 function render() {
@@ -65,7 +67,7 @@ function render() {
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
   const research = ['fingpt', 'claw'].includes(state.route.page);
-  root.innerHTML = `<div class="app-shell ${research ? '' : 'wide-page'}"><header class="topbar"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航" aria-expanded="${sidebarOpen}">☰</button><a class="brand" href="#/fingpt"><img src="/static/assets/alphafoundry-logo.png" width="30" height="30" alt=""><span>AlphaFoundry</span><span class="brand-divider"></span><span class="brand-label">Research</span></a><div class="topbar-right"><a href="#/settings" class="runtime-status"><span class="tiny-dot ${catalog.runtime?.connected ? 'active' : ''}"></span>${runtimeLabel()}</a><label class="sr-only" for="model-select">运行模型</label><select id="model-select" ${state.busy ? 'disabled' : ''}>${modelOptions(catalog.models, catalog.runtime?.model)}</select><button class="icon-button" data-refresh aria-label="刷新服务状态" title="刷新服务状态">↻</button></div></header>${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', skills: 'Skills' })[name]}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${research ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
+  root.innerHTML = `<div class="app-shell ${research ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}">${renderTopbar({ runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: catalog.skills })}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', skills: 'Skills' })[name]}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${research ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -89,7 +91,7 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
 }
 
 async function showRoute() {
-  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; contextOpen = false; renameDraft = null; questionDrafts.clear();
+  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; contextOpen = false; contextTab = 'activity'; slashOpen = false; selectedSkillDetail = ''; renameDraft = null; questionDrafts.clear();
   await controller.open(parseRoute(location.hash));
   if (ticket !== pageGeneration) return;
   document.querySelector('#main')?.scrollTo({ top: 0 });
@@ -107,7 +109,12 @@ async function ensureSession() {
 }
 
 root.addEventListener('input', (event) => {
-  if (event.target.id === 'prompt') controller.setDraft(event.target.value);
+  if (event.target.id === 'prompt') {
+    controller.setDraft(event.target.value);
+    slashOpen = event.target.value.trimStart().startsWith('/');
+    if (slashOpen) render();
+  }
+  if ('globalSearch' in event.target.dataset) { globalSearch = event.target.value; render(); }
   if (event.target.id === 'rename-title') renameDraft = event.target.value;
   const form = event.target.closest('[data-question-form]');
   if (form) {
@@ -140,13 +147,35 @@ root.addEventListener('change', async (event) => {
     const result = await controller.action(() => api.configure(JSON.parse(target.value)), { refreshAfter: false });
     if (result?.configured) { success = '运行模型已更新。'; await loadCatalog(['runtime']); }
   }
-  if (target.id === 'file-input' && target.files?.length) {
-    const files = [...target.files];
-    if (!(await ensureSession())) return;
-    const id = state.detail.id;
-    const result = await controller.action(() => api.upload(id, files));
-    if (result?.items && state.detail?.id === id) controller.addAttachments(result.items);
-  }
+  if (target.id === 'file-input' && target.files?.length) await uploadFiles([...target.files]);
+});
+
+async function uploadFiles(files) {
+  if (!files.length || state.busy || state.loading || !(await ensureSession())) return;
+  const id = state.detail?.id;
+  if (!id) return;
+  const result = await controller.action(() => api.upload(id, files));
+  if (result?.items && state.detail?.id === id) controller.addAttachments(result.items);
+}
+
+root.addEventListener('dragover', (event) => {
+  if (!event.target.closest('[data-dropzone]')) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+});
+
+root.addEventListener('drop', (event) => {
+  if (!event.target.closest('[data-dropzone]')) return;
+  event.preventDefault();
+  void uploadFiles([...(event.dataTransfer?.files || [])]);
+});
+
+root.addEventListener('paste', (event) => {
+  if (!event.target.closest('[data-paste-support]')) return;
+  const files = [...(event.clipboardData?.files || [])];
+  if (!files.length) return;
+  event.preventDefault();
+  void uploadFiles(files);
 });
 
 root.addEventListener('submit', async (event) => {
@@ -190,13 +219,27 @@ root.addEventListener('click', async (event) => {
   if ('reloadSession' in data) await showRoute();
   if ('toggleSidebar' in data) { sidebarOpen = !sidebarOpen; contextOpen = false; render(); }
   if ('toggleContext' in data) { contextOpen = !contextOpen; sidebarOpen = false; render(); }
+  if ('collapseSidebar' in data) { sidebarCollapsed = !sidebarCollapsed; render(); }
+  if ('contextTab' in data) { contextTab = data.contextTab; render(); }
   if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
+  if ('slashSearch' in data) { slashOpen = !slashOpen; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
   if ('cancelRename' in data) { renameDraft = null; render(); }
   if ('noFormats' in data) { controller.setFormats([]); render(); }
   if ('preview' in data) { selectedPreview = data.preview; render(); }
   if ('closePreview' in data) { selectedPreview = null; render(); }
+  if ('closeSkillDetail' in data) { selectedSkillDetail = ''; render(); }
+  if ('skillDetail' in data) { selectedSkillDetail = data.skillDetail; render(); }
+  if ('skillShortcut' in data) {
+    if (!catalog.skills.some((skill) => skill.id === data.skillShortcut)) { state.error = '所选 Skill 已不可用，请刷新能力目录。'; render(); return; }
+    if (data.globalResult === 'skill' && !['fingpt', 'claw'].includes(state.route.page)) { history.pushState(null, '', '#/fingpt'); await showRoute(); }
+    controller.setSkill(data.skillShortcut);
+    if (state.draft.trimStart().startsWith('/')) controller.setDraft('');
+    slashOpen = false;
+    render();
+    document.querySelector('#prompt')?.focus();
+  }
   if ('useSkill' in data) { history.pushState(null, '', '#/fingpt'); await showRoute(); controller.setSkill(data.useSkill); render(); document.querySelector('#prompt')?.focus(); }
   const id = state.detail?.id;
   if (!id) return;
