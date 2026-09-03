@@ -115,6 +115,9 @@ and explicit same-hash human screenshot reviews. Source changes require mapped M
 and an `architecture-review` marker in the review record; unknown Research Web source fails.
 No global Archify installation or network is required. JSONL diagnostics are written under
 `logs/research-architecture-check.jsonl`; Python also uses the project logging facility.
+Invalid top-level maps and unsupported HTTP declaration syntax fail closed; literal positional
+and `path=` keyword routes are checked. Generated artifact/receipt paths use fixed canonical
+filenames. CI checks Git's exit status before consuming NUL-delimited changed filenames.
 Full CLI/security/update contracts and fixture tests are documented in
 [Research Web documentation gate](../research-web-documentation.md).
 

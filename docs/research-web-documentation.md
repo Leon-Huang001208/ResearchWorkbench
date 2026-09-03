@@ -25,14 +25,21 @@ unstaged 与逐文件 untracked；`--base` 还包括该 revision 到 HEAD 的变
 revision、仓库缺失、回执无效会失败，不能当作空变更通过。离线非 Git fixture 可使用
 显式文件列表或 Node `checkResearchArchitecture({projectRoot, changedFiles})` 函数。
 显式文件列表应完整覆盖任务，不是用来隐藏实际改动的豁免。
+Project Constraints CI 先将 `git diff -z` 成功结果保存到临时文件，再以 NUL 分隔读入完整文件名；
+Git 失败立即停止，不让 process substitution 的退出状态丢失后继续检查零个变化文件。
 
 ## 检查内容与核对标记
 
 - 所有 Research Web Python、JS/MJS、CSS、HTML、Skill Markdown/脚本/模板与配置均检查映射。
 - 映射的源码、模块 Markdown、测试、图节点和关系证据必须存在且不经过符号链接。
+- 清单顶层必须为非 null 对象；`null`、布尔值、数字、字符串和数组均失败，不以空违规列表返回。
 - 扫描源码中的 HTTP 装饰器及 APIRouter 前缀，双向比较接口 inventory；新增遗漏和旧接口均失败。
+  HTTP 装饰器接受位置参数或 `path=` 字面量，含换行和其他参数在前的形式；动态路径、转义路径及
+  不支持的 `api_route`/`route`/`websocket` 声明明确报 `api_declaration_unsupported`，不静默漏检。
 - 变更组的每份模块说明和本次 review-record 必须出现在变更清单；核对记录有明确结构决策。
 - 图源、HTML 的实际 SHA-256 和字节数必须匹配 deliver；要求 showcase 9/9、零错误零警告。
+  HTML、deliver 回执和视觉回执还必须使用根目录内按八图 ID 固定的规范文件名；
+  `../`、非规范别名和其他文件名在读取前即被拒绝。
 - 视觉回执必须绑定当前 HTML，四个固定视口 1440×900 / 1600×1000 / 1920×1080 /
   2048×1320 包含性通过；截图存在。人工记录独立绑定同一 JSON/HTML 哈希与实际查看截图。
 - 检查当前 canonical/module Markdown 和生成 index.html 的本地链接；不扩展为清理历史文档。
@@ -62,7 +69,10 @@ revision、仓库缺失、回执无效会失败，不能当作空变更通过。
 
 只有成功的固定文档路由保留自己的 CSP：`sandbox allow-scripts`，无 `allow-same-origin`，
 无网络连接、表单提交或 base URL 权限；只允许内联 viewer 脚本、样式与 data 图片。
-原产品 `script-src 'self'` 与研究文件的空 sandbox 预览政策不变。回环 Origin/跨站请求检查、
+原产品 `script-src 'self'` 与研究文件的空 sandbox 预览政策不变。图册的 opaque origin 会让
+相对图页链接带 `Sec-Fetch-Site: cross-site`：中间件仅对固定九个公开 HTML 的 GET 请求提供
+窄例外，且须同时满足 `Sec-Fetch-Mode: navigate`、`Sec-Fetch-Dest: document` 和
+`Sec-Fetch-User: ?1`。跨站 fetch、iframe、非 GET、未知路径和研究 API 仍拒绝；不开放 CORS。
 no-store、no-referrer、nosniff 仍由现有中间件执行。
 
 ## 测试与日志

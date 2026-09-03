@@ -107,3 +107,49 @@ def test_oversize_document_is_rejected(docs):
     with (root / "index.html").open("wb") as stream:
         stream.truncate(MAX_HTML_BYTES + 1)
     assert client.get("/api/research/documentation/index.html").status_code == 404
+
+
+def test_user_navigation_from_opaque_index_can_read_fixed_public_diagram(docs):
+    client, _ = docs
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+    }
+    for origin in (None, "null", "https://elsewhere.invalid"):
+        request_headers = headers | ({"Origin": origin} if origin else {})
+        response = client.get(
+            "/api/research/documentation/01-deployment.html", headers=request_headers
+        )
+        assert response.status_code == 200
+        assert "sandbox allow-scripts" in response.headers["content-security-policy"]
+        assert "connect-src 'none'" in response.headers["content-security-policy"]
+        assert "access-control-allow-origin" not in response.headers
+
+
+@pytest.mark.parametrize(
+    "method,path,override",
+    [
+        ("GET", "/api/research/runtime", {}),
+        ("POST", "/api/research/documentation/index.html", {}),
+        ("HEAD", "/api/research/documentation/index.html", {}),
+        ("GET", "/api/research/documentation/unlisted.html", {}),
+        ("GET", "/api/research/documentation/index.html", {"Sec-Fetch-Mode": "cors"}),
+        ("GET", "/api/research/documentation/index.html", {"Sec-Fetch-Dest": "iframe"}),
+        ("GET", "/api/research/documentation/index.html", {"Sec-Fetch-User": ""}),
+        ("GET", "/api/research/sessions/private/files/private/preview", {}),
+    ],
+)
+def test_documentation_navigation_exception_does_not_expand_other_boundaries(
+    docs, method, path, override
+):
+    client, _ = docs
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        "Origin": "null",
+    } | override
+    assert client.request(method, path, headers=headers).status_code == 403

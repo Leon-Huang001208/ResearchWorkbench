@@ -120,3 +120,65 @@ test('settings contains a fixed read-only architecture entry with opener isolati
   assert.match(settings,/href="\/api\/research\/documentation\/index\.html"/);
   assert.match(settings,/target="_blank" rel="noopener noreferrer"/);
 });
+
+for (const value of [null, false, 0, '', [], 'not a map']) {
+  test(`invalid top-level map fails closed: ${JSON.stringify(value)}`, async t => {
+    const f=fixture(t);f.write(mapPath,JSON.stringify(value));
+    assert.ok((await check(f)).violations.some(item=>item.code==='map_schema'));
+    const result=spawnSync(process.execPath,[checkerURL.pathname,'--project',f.root,'--changed-file',source],{encoding:'utf8'});
+    assert.equal(result.status,1);
+  });
+}
+
+for (const declaration of [
+  '@app.get(path="/api/research/hidden")',
+  '@app.get(summary="Hidden", path="/api/research/hidden")',
+  '@app.get(\n    tags=["local", "docs"],\n    path="/api/research/hidden",\n)',
+]) test(`keyword API cannot bypass inventory: ${declaration}`,async t=>{
+  const f=fixture(t);f.write(source,`${fs.readFileSync(path.join(f.root,source),'utf8')}\n${declaration}\nasync def hidden(): pass\n`);
+  assert.ok((await check(f)).violations.some(item=>item.code==='api_inventory' && item.message.includes('/api/research/hidden')));
+});
+
+test('a mapped keyword API remains valid',async t=>{
+  const f=fixture(t);f.write(source,'@app.get(path="/api/research/runtime", tags=["research"])\nasync def runtime(): pass\n');
+  assert.deepEqual((await check(f)).violations,[]);
+});
+
+for (const declaration of ['@app.get(PATH)', '@app.get(path=f"/api/research/{name}")', '@app.api_route("/api/research/hidden", methods=["GET"])']) {
+  test(`unsupported API declaration fails explicitly: ${declaration}`,async t=>{
+    const f=fixture(t);f.write(source,`${fs.readFileSync(path.join(f.root,source),'utf8')}\n${declaration}\nasync def hidden(): pass\n`);
+    assert.ok((await check(f)).violations.some(item=>item.code==='api_declaration_unsupported'));
+  });
+}
+
+for(const [field,suffix] of [['artifact','.html'],['receipt','.receipt.json'],['visualReceipt','.visual-check.json']]) {
+  for(const value of [`outputs/research-web-architecture/../outside${suffix}`,`outputs/research-web-architecture/wrong-name${suffix}`]) {
+    test(`fixed artifact boundary rejects ${field}: ${value}`,async t=>{
+      const f=fixture(t);const map=f.read(mapPath);const original=map.diagrams[0][field];
+      f.write(value,fs.readFileSync(path.join(f.root,original),'utf8'));map.diagrams[0][field]=value;f.write(mapPath,map);
+      assert.ok((await check(f)).violations.some(item=>item.code==='artifact_boundary'));
+    });
+  }
+}
+
+function runCI(f,base,head) {
+  const workflow=fs.readFileSync(new URL('../../.github/workflows/project-constraints.yml',import.meta.url),'utf8');
+  const body=workflow.split('      - name: Enforce project constraints')[1].split('        run: |\n')[1].split('\n').map(line=>line.replace(/^          /,'')).join('\n');
+  const script=body.replaceAll('${{ github.event.before }}',base).replaceAll('${{ github.event.pull_request.base.sha }}',base);
+  f.write('.agents/project-constraints.mjs','console.log(JSON.stringify(process.argv.slice(2)));');
+  return spawnSync('bash',['-c',script],{cwd:f.root,encoding:'utf8',env:{...process.env,GITHUB_EVENT_NAME:'push',GITHUB_WORKSPACE:f.root,GITHUB_SHA:head,RUNNER_TEMP:f.root}});
+}
+
+test('actual CI shell stops when git diff cannot resolve the base',t=>{
+  const f=fixture(t);const result=runCI(f,'missing-base','HEAD');
+  assert.notEqual(result.status,0,'git failure must not become zero changed files and a successful gate');
+  assert.doesNotMatch(result.stdout,/--project/,'the downstream checker must not run with partial input');
+});
+
+test('actual CI shell preserves NUL-delimited filenames as single arguments',t=>{
+  const f=fixture(t);const git=(...args)=>{const result=spawnSync('git',args,{cwd:f.root,encoding:'utf8'});assert.equal(result.status,0,result.stderr);return result.stdout.trim();};
+  git('init','-q');git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','base');const base=git('rev-parse','HEAD');
+  const filename='app/research_web/space and\nnewline.mjs';f.write(filename,'export const value = 1;');git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','change');
+  const result=runCI(f,base,'HEAD');assert.equal(result.status,0,result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout),['--project',f.root,'--changed-file',filename]);
+});

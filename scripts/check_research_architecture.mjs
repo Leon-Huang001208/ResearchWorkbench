@@ -54,6 +54,31 @@ const matches = (file, patterns) => patterns.some(pattern => pattern.endsWith('/
 const digest = bytes => ({sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length});
 const sameHash = (record, actual) => record?.sha256 === actual.sha256 && record?.bytes === actual.bytes;
 
+function pythonCallArguments(content, start) {
+  const args=[];const stack=['('];let argument='',quote='';
+  for(let index=start;index<content.length;index++) {
+    const character=content[index];
+    if(quote) {
+      if(character==='\\') {argument+=content.slice(index,index+2);index++;continue;}
+      if(content.startsWith(quote,index)) {argument+=quote;index+=quote.length-1;quote='';}
+      else argument+=character;
+      continue;
+    }
+    if(character==='"' || character==="'") {
+      quote=content.startsWith(character.repeat(3),index)?character.repeat(3):character;
+      argument+=quote;index+=quote.length-1;continue;
+    }
+    if(character==='#') {while(index<content.length && content[index]!=='\n')index++;argument+=' ';continue;}
+    if('([{'.includes(character))stack.push(character);
+    else if(')]}'.includes(character)) {
+      if(stack.pop()!=={')':'(',']':'[','}':'{'}[character])throw new Error('unbalanced Python declaration');
+      if(!stack.length) {if(argument.trim())args.push(argument.trim());return args;}
+    } else if(character===',' && stack.length===1) {args.push(argument.trim());argument='';continue;}
+    argument+=character;
+  }
+  throw new Error('unterminated Python declaration');
+}
+
 export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
   const root = fs.realpathSync(projectRoot);
   const checkedFiles = [...new Set(changedFiles.map(relative))];
@@ -78,7 +103,10 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
     catch { issue('invalid_json',file,'Expected valid JSON'); return null; }
   };
   const map = json(MAP_PATH);
-  if (!map) return {checkedFiles,violations};
+  if (!map || typeof map!=='object' || Array.isArray(map)) {
+    issue('map_schema',MAP_PATH,'Architecture map must be a non-null object');
+    return {checkedFiles,violations};
+  }
   if (map.schemaVersion !== 1 || map.artifactRoot !== ARTIFACT_ROOT || !Array.isArray(map.groups) || !map.groups.length || !Array.isArray(map.apis) || !map.apis.length || !Array.isArray(map.diagrams)) {
     issue('map_schema',MAP_PATH,'Expected schema 1, nonempty groups/API inventory, and the fixed artifact root');
     return {checkedFiles,violations};
@@ -134,10 +162,21 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
   for (const source of researchFiles.filter(file=>file.endsWith('.py'))) {
     const content=read(source)?.toString('utf8');if (!content) continue;
     const prefixes=new Map([...content.matchAll(/^(\w+)\s*=\s*APIRouter\(\s*prefix\s*=\s*["']([^"']*)["']/gm)].map(match=>[match[1],match[2]]));
-    for (const match of content.matchAll(/^\s*@(\w+)\.(get|post|put|patch|delete|head|options)\(\s*["']([^"']+)["']/gm)) {
+    for (const match of content.matchAll(/^\s*@\s*(\w+(?:\.\w+)*)\s*\.\s*(get|post|put|patch|delete|head|options|api_route|route|websocket)\s*\(/gm)) {
       if (!mountedSources.has(source)) issue('api_unmounted',source,'API source is not directly mounted by the Research Web entrypoint');
-      const prefix=prefixes.get(match[1]) || '';
-      actualAPIs.push({source,method:match[2].toUpperCase(),path:prefix+match[3],declaredPath:match[3],prefix});
+      try {
+        if(['api_route','route','websocket'].includes(match[2]))throw new Error('unsupported route decorator');
+        const args=pythonCallArguments(content,match.index+match[0].length);
+        const pathArgument=args.find(argument=>/^path\s*=/.test(argument));
+        const pathLiteral=(pathArgument?pathArgument.replace(/^path\s*=\s*/,''):args[0]) || '';
+        const literal=pathLiteral.match(/^(["'])([^"'\\\r\n]*)\1$/);
+        if(!literal)throw new Error('route path must be an unescaped literal');
+        const declaredPath=literal[2];
+        const prefix=prefixes.get(match[1]) || '';
+        actualAPIs.push({source,method:match[2].toUpperCase(),path:prefix+declaredPath,declaredPath,prefix});
+      } catch {
+        issue('api_declaration_unsupported',source,'Unsupported HTTP declaration; use a literal positional/path keyword or extend the checked parser');
+      }
     }
   }
   const apiKey = api => JSON.stringify([api.source,api.method,api.path,api.declaredPath,api.prefix]);
@@ -150,9 +189,14 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
   if (ids.length!==8 || new Set(ids).size!==8 || REQUIRED_DIAGRAMS.some(id=>!ids.includes(id))) issue('diagram_inventory',MAP_PATH,'Exactly the eight required diagrams must be delivered');
   const human=json(map.visualReview);
   for (const diagram of map.diagrams) {
+    const expected={artifact:'.html',receipt:'.receipt.json',visualReceipt:'.visual-check.json'};
+    const validPaths=REQUIRED_DIAGRAMS.includes(diagram.id) && Object.entries(expected).every(([field,suffix])=>{
+      try {const canonical=`${ARTIFACT_ROOT}/${diagram.id}${suffix}`;return diagram[field]===canonical && relative(diagram[field])===canonical;}
+      catch {return false;}
+    });
+    if(!validPaths) {issue('artifact_boundary',MAP_PATH,`Require fixed canonical output filenames: ${diagram.id}`);continue;}
     const specBytes=read(diagram.source);const artifactBytes=read(diagram.artifact);
     const receipt=json(diagram.receipt);const visual=json(diagram.visualReceipt);
-    if (![diagram.artifact,diagram.receipt,diagram.visualReceipt].every(file=>typeof file==='string' && file.startsWith(`${ARTIFACT_ROOT}/`))) issue('artifact_boundary',MAP_PATH,`Artifact outside the fixed output root: ${diagram.id}`);
     const graph=json(diagram.source);
     if (specBytes && receipt && !sameHash(receipt.specification,digest(specBytes))) issue('specification_hash',diagram.receipt,'Specification bytes/hash are stale');
     if (artifactBytes && receipt && !sameHash(receipt.artifact,digest(artifactBytes))) issue('artifact_hash',diagram.receipt,'HTML bytes/hash are stale');

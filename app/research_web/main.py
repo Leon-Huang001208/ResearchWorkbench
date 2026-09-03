@@ -118,17 +118,27 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         # Loopback app, no CORS. Stop drive-by requests / opaque sandbox origins.
         origin = request.headers.get("origin")
         own = f"{request.url.scheme}://{request.headers.get('host', '')}"
-        if (origin and origin != own) or request.headers.get("sec-fetch-site") == "cross-site":
+        documentation_path = request.url.path in {
+            f"/api/research/documentation/{name}" for name in DOCUMENT_NAMES
+        }
+        # An opaque-origin index can navigate only to these public, isolated documents.
+        public_document_navigation = (
+            documentation_path
+            and request.method == "GET"
+            and request.headers.get("sec-fetch-mode") == "navigate"
+            and request.headers.get("sec-fetch-dest") == "document"
+            and request.headers.get("sec-fetch-user") == "?1"
+        )
+        if not public_document_navigation and (
+            (origin and origin != own) or request.headers.get("sec-fetch-site") == "cross-site"
+        ):
             return JSONResponse(
                 {"error": {"code": "origin_denied", "message": "跨站请求被拒绝"}}, status_code=403
             )
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
-        documentation_response = (
-            request.url.path in {f"/api/research/documentation/{name}" for name in DOCUMENT_NAMES}
-            and response.status_code == 200
-        )
+        documentation_response = documentation_path and response.status_code == 200
         if "/preview" not in request.url.path and not documentation_response:
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; frame-ancestors 'none'"
