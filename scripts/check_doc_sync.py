@@ -3,12 +3,18 @@
 
 from __future__ import annotations
 
+import argparse
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.utils.git import get_changed_files
+from core.observability import configure_logging, get_logger
+
+log = get_logger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ARCHITECTURE_MAP = "docs/architecture/research-web/architecture-map.json"
 
 DOC_RULES = {
     "app/api/": [
@@ -140,19 +146,71 @@ DOC_RULES = {
 }
 
 
-def main() -> int:
-    changed = get_changed_files()
+def collect_changes(project: Path, base: str | None = None) -> list[str]:
+    """Use NUL-delimited Git output, including individual untracked files."""
+    commands = [
+        ["diff", "--name-only", "-z"],
+        ["diff", "--cached", "--name-only", "-z"],
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+    ]
+    if base:
+        commands.append(["diff", "--name-only", "-z", base, "HEAD", "--"])
+    files: set[str] = set()
+    for arguments in commands:
+        result = subprocess.run(
+            ["git", *arguments], cwd=project, capture_output=True, text=True, check=False
+        )
+        if result.returncode:
+            raise ValueError("git change detection failed; check project and base revision")
+        files.update(filter(None, result.stdout.split("\0")))
+    return sorted(files)
+
+
+def check_research_docs(project: Path, changed: list[str]) -> int:
+    """Invoke the repository-owned Node core used by project-constraints CI."""
+    arguments = [
+        "node",
+        str(PROJECT_ROOT / "scripts/check_research_architecture.mjs"),
+        "--project",
+        str(project),
+    ]
+    # An unchanged document is an explicit empty-source check, not automatic Git discovery.
+    for file in changed or [ARCHITECTURE_MAP]:
+        arguments.extend(["--changed-file", file])
+    result = subprocess.run(arguments, check=False)
+    log.info("research_architecture_gate_finished status=%s", result.returncode)
+    return 0 if result.returncode == 0 else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--project", type=Path, default=PROJECT_ROOT)
+    parser.add_argument("--base")
+    parser.add_argument("--changed-file", action="append", default=[])
+    options = parser.parse_args(argv)
+    project = options.project.resolve()
+    try:
+        changed = options.changed_file
+        if options.base or not changed:
+            changed = sorted(set(changed + collect_changes(project, options.base)))
+        research_required = (project / ARCHITECTURE_MAP).exists() or any(
+            file.startswith("app/research_web/") for file in changed
+        )
+        architecture_status = check_research_docs(project, changed) if research_required else 0
+    except (OSError, ValueError) as exc:
+        log.error("documentation_check_failed error=%s", str(exc))
+        return 1
 
     if not changed:
         print("No changed files detected.")
-        return 0
+        return architecture_status
 
     changed_set = set(changed)
     required_docs: set[str] = set()
     matched_source_files: list[str] = []
 
     for file in changed:
-        if file.startswith("docs/") or file.startswith(".ai/") or file.startswith(".claude/"):
+        if file.startswith(("docs/", ".ai/", ".claude/")):
             continue
 
         if not file.endswith(".py"):
@@ -165,7 +223,7 @@ def main() -> int:
 
     if not matched_source_files:
         print("No source files requiring doc sync were changed.")
-        return 0
+        return architecture_status
 
     required_docs.add("docs/generated/py_file_index.md")
 
@@ -187,9 +245,13 @@ def main() -> int:
         print("Update required docs, or document a justified exception in the test report.")
         return 1
 
+    if architecture_status:
+        print("❌ Research Web architecture documentation sync check failed.")
+        return architecture_status
     print("✅ Documentation sync check passed.")
-    return 0
+    return architecture_status
 
 
 if __name__ == "__main__":
+    configure_logging()
     sys.exit(main())

@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "researchArchitectureMap": "docs/architecture/research-web/architecture-map.json",
   "requiredFiles": [
     "AGENTS.md",
     "docs/ARCHITECTURE.md",

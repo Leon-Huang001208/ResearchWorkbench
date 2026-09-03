@@ -103,7 +103,20 @@ Purpose:
 - Verifies source changes have corresponding documentation updates
 - Maps source directories to required docs
 - Ensures generated index is updated
-- Detects changes via shared `core/utils/git.py` (includes untracked files)
+- Detects source changes with NUL-delimited Git output (includes individual untracked files)
+
+Research Web uses the repository-owned `scripts/check_research_architecture.mjs` core,
+also invoked by `.agents/project-constraints.mjs` and the existing Project Constraints CI.
+`check_doc_sync.py` accepts `--project`, `--base` and repeated `--changed-file`, using
+NUL-delimited Git output to include individual untracked files and failing closed on Git errors.
+The shared core checks all eight required diagrams, current API/source/test references,
+canonical links, byte hashes, showcase 9/9 receipts, four viewport containment receipts,
+and explicit same-hash human screenshot reviews. Source changes require mapped Markdown
+and an `architecture-review` marker in the review record; unknown Research Web source fails.
+No global Archify installation or network is required. JSONL diagnostics are written under
+`logs/research-architecture-check.jsonl`; Python also uses the project logging facility.
+Full CLI/security/update contracts and fixture tests are documented in
+[Research Web documentation gate](../research-web-documentation.md).
 
 Update this section when:
 - DOC_RULES mapping changes

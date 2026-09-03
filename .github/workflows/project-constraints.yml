@@ -20,6 +20,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Test portable Research Web architecture gate
+        run: node --test tests/javascript/research_web_architecture.test.mjs
+
       - name: Enforce project constraints
         shell: bash
         run: |

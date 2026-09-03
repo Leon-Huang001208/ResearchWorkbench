@@ -25,6 +25,8 @@ from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
 from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
+from .documentation import DOCUMENT_NAMES
+from .documentation import router as documentation_router
 from .service import ResearchService
 from .store import Store, StoreError
 
@@ -97,6 +99,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app = FastAPI(title="AlphaFoundry Research Web", lifespan=lifespan)
     app.include_router(datahub_router)
     app.include_router(capabilities_router)
+    app.include_router(documentation_router)
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
     )
@@ -122,7 +125,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
-        if "/preview" not in request.url.path:
+        documentation_response = (
+            request.url.path in {f"/api/research/documentation/{name}" for name in DOCUMENT_NAMES}
+            and response.status_code == 200
+        )
+        if "/preview" not in request.url.path and not documentation_response:
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; frame-ancestors 'none'"
             )
