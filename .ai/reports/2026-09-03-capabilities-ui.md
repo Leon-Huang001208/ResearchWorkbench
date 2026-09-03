@@ -43,3 +43,14 @@
 - 已保存候选由后端持久化；未保存编辑仅保留本页内存。DSH 离线仍可通过 Web 后端读目录，但不提供 Web 服务完全离线的 PWA 缓存。
 - 发布/目录切换的全局活动状态以服务端锁校验为准；目录声明不代表实际工具授权。
 - 控制器报告本批 15 页面/视口初检通过，提交后仍由控制器重验。控制器真实创建链遇到后端历史文件账本读取已改名文件的问题，由其安排后端修复；本任务不修改后端，也不宣称该模型链已最终通过。
+
+## Task 3 有界复审修复：Workflow 版本失败缓存
+
+- 修复基线：`d997759`，独立复审 Minor；仅改 `app.mjs`、能力 UI 回归、本文和模块文档。
+- 根因：`loadWorkflowVersion` 在 GET 前写入空步骤占位，失败后未删除；后续刷新命中 `has(key)`，始终不再请求。
+- 最小修复：失败只删除对应版本占位并保留可见错误和安全日志；成功只清除对应版本错误，继续缓存已读取的不可变版本。
+- RED：`node --test --test-name-pattern='failed workflow version reads' tests/javascript/research_web_capabilities_ui.test.mjs`，1 项失败，明确刷新后 `versionReads` 实际 1 / 期望 2。
+- GREEN：同命令 1/1；证明刷新后步骤出现、对应错误清除，再刷新仍只有 2 次版本读取；全部请求均为 GET。
+- 相邻回归：`node --test tests/javascript/research_web_capabilities_ui.test.mjs tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_ui_layout.test.mjs`，54/54，0 fail / skip / todo。
+- `node --check app/research_web/ui/app.mjs`、`git diff --check` 均通过。
+- 最小修复技能约束本批仅处理失败缓存；未改后端、未重启服务、未调用 live 模型，未编辑控制器架构或 e2e。

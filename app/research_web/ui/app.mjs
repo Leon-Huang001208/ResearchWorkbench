@@ -366,10 +366,12 @@ async function loadWorkflowVersion() {
   const key = `${ref.id}:${ref.version}`;
   if (workflowVersions.has(key)) return;
   workflowVersions.set(key, { ...ref, steps: [] });
+  const versionError = '未能读取本次 Workflow 的不可变版本步骤；实际活动仍以 DSH 为准。';
   try {
     const version = await api.capabilityVersion(ref.id, ref.version);
     workflowVersions.set(key, { ...version, kind: 'workflow' });
-  } catch { safeLog('workflow_version_read_failed'); state.error = '未能读取本次 Workflow 的不可变版本步骤；实际活动仍以 DSH 为准。'; }
+    if (state.error === versionError) state.error = '';
+  } catch { workflowVersions.delete(key); safeLog('workflow_version_read_failed'); state.error = versionError; }
   render();
 }
 

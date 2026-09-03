@@ -249,3 +249,46 @@ test('publication adopts the confirmed mutation response instead of risking an u
   await control.open('my-skill'); await control.action('publish');
   assert.equal(control.state.detail.version, 3); assert.equal(control.state.error, ''); assert.equal(reads, 1);
 });
+
+test('failed workflow version reads retry on explicit refresh and clear only the recovered version error', async () => {
+  const handlers = new Map(); const calls = []; let versionReads = 0;
+  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const main = { scrollTop: 0, scrollTo() {}, focus() {} };
+  const selectors = { '#app': rootElement, '#main': main, '.skip-link': { addEventListener() {} } };
+  const previous = new Map(['document', 'window', 'location', 'history', 'fetch', 'EventSource'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const originalLog = console.info;
+  const detail = { ...session(), capability: { id: 'wf', kind: 'workflow', version: 2 } };
+  try {
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: false }), addEventListener() {} } });
+    Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/fingpt?session=s1' } });
+    Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState() {} } });
+    Object.defineProperty(globalThis, 'EventSource', { configurable: true, value: class { addEventListener() {} close() {} } });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
+      calls.push([url, options.method]);
+      if (url.endsWith('/capabilities/wf/versions/2')) {
+        if (++versionReads === 1) return new Response(JSON.stringify({ error: { code: 'temporary_failure', message: '暂时不可用' } }), { status: 503 });
+        return new Response(JSON.stringify({ id: 'wf', version: 2, steps: [{ title: '版本恢复后的步骤', instruction: '仅显示模板' }] }));
+      }
+      const payload = url.endsWith('/sessions/s1') ? detail : url.endsWith('/runtime') ? { connected: true } : url.endsWith('/models') ? { groups: [] } : { items: [] };
+      return new Response(JSON.stringify(payload));
+    } });
+    console.info = () => {};
+    await load(`app.mjs?workflow-retry=${Date.now()}`);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(versionReads, 1); assert.match(rootElement.innerHTML, /未能读取本次 Workflow/);
+    assert.doesNotMatch(rootElement.innerHTML, /版本恢复后的步骤/);
+    await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(versionReads, 2, 'explicit refresh must retry the failed immutable-version read');
+    assert.match(rootElement.innerHTML, /版本恢复后的步骤/);
+    assert.doesNotMatch(rootElement.innerHTML, /未能读取本次 Workflow/);
+    await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(versionReads, 2, 'successfully loaded immutable versions stay cached');
+    assert.equal(calls.some(([, method]) => method !== 'GET'), false);
+  } finally {
+    console.info = originalLog;
+    for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
+  }
+});
