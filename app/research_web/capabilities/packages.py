@@ -9,6 +9,7 @@ import re
 import stat
 import zipfile
 from pathlib import PurePosixPath
+from xml.etree import ElementTree
 
 import yaml
 
@@ -85,7 +86,24 @@ def encode_file(name, raw):
     if len(raw) > MAX_FILE:
         raise CapabilityError("单文件超过 10 MiB", "file_limit")
     if raw.startswith(
-        (b"MZ", b"\x7fELF", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"PK\x03\x04", b"\x1f\x8b")
+        (
+            b"MZ",
+            b"\x7fELF",
+            b"\xcf\xfa\xed\xfe",
+            b"\xfe\xed\xfa\xcf",
+            b"\xce\xfa\xed\xfe",
+            b"\xfe\xed\xfa\xce",
+            b"\xca\xfe\xba\xbe",
+            b"\xbe\xba\xfe\xca",
+            b"PK\x03\x04",
+            b"PK\x05\x06",
+            b"PK\x07\x08",
+            b"\x1f\x8b",
+            b"\xfd7zXZ\x00",
+            b"BZh",
+            b"7z\xbc\xaf\x27\x1c",
+            b"Rar!",
+        )
     ):
         raise CapabilityError("不允许二进制可执行文件或嵌套压缩包", "unsafe_file")
     if path.suffix.lower() in TEXT_EXTENSIONS:
@@ -95,12 +113,163 @@ def encode_file(name, raw):
             raise CapabilityError("文本文件必须为 UTF-8", "invalid_encoding") from exc
         if b"\x00" in raw:
             raise CapabilityError("文本包含二进制内容", "unsafe_file")
+    suffix = path.suffix.lower()
+    if (suffix not in TEXT_EXTENSIONS or suffix == ".svg") and not media_evidence(suffix, raw):
+        raise CapabilityError("资源内容不符合声明的图片/PDF 格式", "invalid_media")
     return {
         "path": name,
         "base64": base64.b64encode(raw).decode("ascii"),
         "size": len(raw),
         "sha256": hashlib.sha256(raw).hexdigest(),
     }
+
+
+def media_evidence(suffix, raw):
+    """Bounded container evidence only: no rendering, decompression or code execution."""
+    if suffix == ".png":
+        if not raw.startswith(b"\x89PNG\r\n\x1a\n"):
+            return False
+        position, chunks = 8, []
+        while position + 12 <= len(raw):
+            size = int.from_bytes(raw[position : position + 4], "big")
+            end = position + 12 + size
+            if end > len(raw):
+                return False
+            kind = raw[position + 4 : position + 8]
+            body = raw[position + 8 : end - 4]
+            if binascii.crc32(kind + body) != int.from_bytes(raw[end - 4 : end], "big"):
+                return False
+            if not chunks and (
+                kind != b"IHDR"
+                or size != 13
+                or not int.from_bytes(body[:4], "big")
+                or not int.from_bytes(body[4:8], "big")
+            ):
+                return False
+            chunks.append(kind)
+            if kind == b"IEND":
+                return size == 0 and end == len(raw) and b"IDAT" in chunks
+            position = end
+        return False
+    if suffix in {".jpg", ".jpeg"}:
+        if not raw.startswith(b"\xff\xd8") or not raw.endswith(b"\xff\xd9"):
+            return False
+        position, frame = 2, False
+        while position + 4 <= len(raw):
+            if raw[position] != 0xFF:
+                return False
+            marker = raw[position + 1]
+            if marker == 0xFF:
+                position += 1
+                continue
+            size = int.from_bytes(raw[position + 2 : position + 4], "big")
+            if size < 2 or position + 2 + size > len(raw):
+                return False
+            if marker in {
+                0xC0,
+                0xC1,
+                0xC2,
+                0xC3,
+                0xC5,
+                0xC6,
+                0xC7,
+                0xC9,
+                0xCA,
+                0xCB,
+                0xCD,
+                0xCE,
+                0xCF,
+            }:
+                frame = size >= 8 and all(
+                    (
+                        int.from_bytes(raw[position + 5 : position + 7], "big"),
+                        int.from_bytes(raw[position + 7 : position + 9], "big"),
+                    )
+                )
+            if marker == 0xDA:
+                return bool(frame and size >= 6 and position + 2 + size < len(raw) - 2)
+            position += 2 + size
+        return False
+    if suffix == ".gif":
+        if (
+            len(raw) < 35
+            or raw[:6] not in {b"GIF87a", b"GIF89a"}
+            or not int.from_bytes(raw[6:8], "little")
+            or not int.from_bytes(raw[8:10], "little")
+        ):
+            return False
+        position = 13 + (3 * 2 ** ((raw[10] & 7) + 1) if raw[10] & 0x80 else 0)
+        image = False
+        while 0 <= position < len(raw):
+            marker = raw[position]
+            if marker == 0x3B:
+                return image and position == len(raw) - 1
+            if marker == 0x21:  # inert extension sub-blocks
+                position = gif_blocks_end(raw, position + 2)
+            elif marker == 0x2C and position + 10 < len(raw):
+                if not int.from_bytes(
+                    raw[position + 5 : position + 7], "little"
+                ) or not int.from_bytes(raw[position + 7 : position + 9], "little"):
+                    return False
+                packed = raw[position + 9]
+                position += 10 + (3 * 2 ** ((packed & 7) + 1) if packed & 0x80 else 0)
+                if position + 1 >= len(raw) or not 2 <= raw[position] <= 8 or not raw[position + 1]:
+                    return False
+                position = gif_blocks_end(raw, position + 1)
+                image = True
+            else:
+                return False
+        return False
+    if suffix == ".webp":
+        if (
+            raw[:4] != b"RIFF"
+            or raw[8:12] != b"WEBP"
+            or len(raw) != int.from_bytes(raw[4:8], "little") + 8
+        ):
+            return False
+        position, image = 12, False
+        while position + 8 <= len(raw):
+            kind = raw[position : position + 4]
+            size = int.from_bytes(raw[position + 4 : position + 8], "little")
+            body = raw[position + 8 : position + 8 + size]
+            if kind == b"VP8 ":
+                image |= len(body) >= 10 and body[3:6] == b"\x9d\x01\x2a"
+            elif kind == b"VP8L":
+                image |= len(body) >= 5 and body[0] == 0x2F
+            elif kind == b"ANMF":
+                image |= len(body) > 24 and body[16:20] in {b"VP8 ", b"VP8L", b"ALPH"}
+            position += 8 + size + size % 2
+        return bool(image and position == len(raw))
+    if suffix == ".pdf":
+        # Recognize both classic xref tables and modern xref-stream object headers.
+        ending = re.search(rb"startxref\s+(\d+)\s+%%EOF\s*\Z", raw)
+        if not re.match(rb"%PDF-[12]\.\d[\r\n]", raw) or not ending:
+            return False
+        offset = int(ending[1]) if len(ending[1]) < 12 else len(raw)
+        return (
+            offset < ending.start()
+            and b"endobj" in raw[:offset]
+            and bool(re.match(rb"(?:xref\s|\d+\s+\d+\s+obj\b)", raw[offset:]))
+        )
+    if suffix == ".svg":
+        if b"<!DOCTYPE" in raw.upper() or b"<!ENTITY" in raw.upper():
+            return False
+        try:
+            root = ElementTree.fromstring(raw)
+            return root.tag in {"svg", "{http://www.w3.org/2000/svg}svg"}
+        except (ElementTree.ParseError, ValueError, LookupError):
+            return False
+    return False
+
+
+def gif_blocks_end(raw, position):
+    while position < len(raw):
+        size = raw[position]
+        position += 1
+        if not size:
+            return position
+        position += size
+    return -1
 
 
 def decode_file(file):
@@ -121,6 +290,12 @@ def normalize_files(files):
                 or name.casefold() in {"skill.md", "capability.json", "workflow.json"}
             ):
                 raise CapabilityError("文件名重复或占用包元数据名称", "duplicate_file")
+            folded = name.casefold()
+            if any(
+                folded.startswith(previous + "/") or previous.startswith(folded + "/")
+                for previous in seen | {"skill.md", "capability.json", "workflow.json"}
+            ):
+                raise CapabilityError("文件与目录路径前缀冲突", "path_conflict")
             seen.add(name.casefold())
             raw = (
                 item["content"].encode("utf-8")
@@ -215,7 +390,7 @@ def import_package(filename, raw):
                 if len(entries) > MAX_FILES or sum(e.file_size for e in entries) > MAX_EXPANDED:
                     issues.append(issue("package_limit", "ZIP 展开超过 30 MiB 或 128 个条目"))
                 else:
-                    seen = set()
+                    seen, directories = set(), set()
                     for entry in entries:
                         name = entry.filename
                         try:
@@ -229,11 +404,24 @@ def import_package(filename, raw):
                                 )
                             if entry.is_dir():
                                 valid_path(name.rstrip("/") + "/placeholder.md")
+                                directory = name.rstrip("/").casefold()
+                                if any(
+                                    directory == previous or directory.startswith(previous + "/")
+                                    for previous in seen
+                                ):
+                                    raise CapabilityError("ZIP 文件与目录路径冲突", "path_conflict")
+                                directories.add(directory)
                                 continue
                             if stat.S_IFMT(mode) == stat.S_IFDIR:
                                 raise CapabilityError("ZIP 文件类型与名称冲突", "unsafe_file")
                             if name.casefold() in seen:
                                 raise CapabilityError("ZIP 文件名大小写冲突", "duplicate_file")
+                            if any(
+                                directory == name.casefold()
+                                or directory.startswith(name.casefold() + "/")
+                                for directory in directories
+                            ):
+                                raise CapabilityError("ZIP 文件与目录路径冲突", "path_conflict")
                             seen.add(name.casefold())
                             valid_path(name)
                             if entry.file_size > MAX_FILE:

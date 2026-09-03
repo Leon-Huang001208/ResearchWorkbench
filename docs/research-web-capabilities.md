@@ -66,8 +66,9 @@ ZIP 必须以包根 SKILL.md、capability.json 开始，不自动移动多层目
 
 Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 `{title,instruction,skill_id?:已启用Skill的产品ID,tools:[]}` 数组。
-发布记录关联 Skill 的具体版本与 native_name；关联版本变化或停用后，显式选择该 Workflow
-会被拒绝，须编辑重新发布。步骤是计划模板，不应由前端标记为已经执行。
+发布记录关联 Skill 的具体版本与 native_name；关联版本变化或停用后，该 Workflow
+不能再用于发送（包括未选择能力、由模型自主发现的发送），须停用该 Workflow 或编辑重新发布。
+步骤是计划模板，不应由前端标记为已经执行。
 
 ### 会话与提交
 
@@ -79,6 +80,8 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 
 发送前在同一锁内验证状态、真实 `skill.list` 的 exact native_name、依赖和包哈希，
 将启用目录资源复制为本会话只读快照；因为 DSH 也会自主挑选 Skill，所有已启用包均提供快照。
+快照前对整个启用目录调用与显式选择相同的校验：任何包的依赖/工具、关联版本或原生正文失效，
+均明确拒绝本次发送、不会提交模型；不静默跳过仍可被原生发现的失效包。
 已存在快照不覆盖，跨会话不共享可变路径。收据记录用户选择 `capability` 及可用快照
 `capability_catalog`；详情返回 capability/capability_history，不能将可用快照列表说成实际执行列表。
 DSH 得到的是原生 slash invocation 与当前会话相对资源指引，不绕过其原生 Skill loader。
@@ -103,10 +106,14 @@ DSH 得到的是原生 slash invocation 与当前会话相对资源指引，不�
 ```
 
 导入压缩上限 10 MiB，展开总计 30 MiB，最多 128 ZIP 条目，单文件 10 MiB。
-拒绝绝对路径、`..`、反斜线/盘符、点目录、大小写重复名、链接/特殊文件、加密 ZIP、
+拒绝绝对路径、`..`、反斜线/盘符、点目录、大小写重复名、文件/目录前缀冲突（含空目录与包元数据名）、链接/特殊文件、加密 ZIP、
 嵌套压缩、二进制可执行 magic、安装配置/钩子。ZIP 不使用 extractall，候选保存在索引与原始 blob，
 恶意路径不会写出目标目录。允许 md/txt/csv/json/yaml/yml/html/css/j2 文档模板、
 png/jpg/jpeg/webp/gif/svg/pdf 资料，及 `scripts/*.py` 研究脚本。
+图片/PDF 必须与扩展名匹配并有容器证据：PNG 块边界/CRC、JPEG 帧/扫描标记、GIF 子块、
+WebP RIFF/图像块、SVG 根元素、PDF 头/交叉引用位置/EOF；拒绝空 ZIP、32/64 位 Mach-O、XZ 等伪装资源。
+此检查不解压图像、不渲染、不执行内容，也不保证所有像素/文档对象可解码或证明资源无恶意。
+SVG 拒绝 DTD/实体及未知编码。合法格式不因此获得额外执行权限。
 研究脚本语法、静态缺失 imports、显式依赖及安装行为检查；脚本哈希须加入 reviewed_scripts。
 不存在自动依赖安装。URL/extras/marker 依赖声明不支持，明确报错。
 导入检查保留失败问题；用户完整编辑候选是显式处理，不悄悄修复并声称原包兼容。
@@ -114,6 +121,11 @@ png/jpg/jpeg/webp/gif/svg/pdf 资料，及 `scripts/*.py` 研究脚本。
 发布、停用、启用、回滚、发送共用 ResearchService.lock；原生父任务、子 Agent、诊断异常、
 断连、未知受理或未确认交付均阻止目录切换，草稿仍保留。
 切换前持久化 pending；异常尝试恢复原映射，无法确认时拒绝后续发送/发布。
+版本先写入 `versions/<id>/.staging-<version>-<opaque>`，完成后封存并提交正式版本名；
+写入、重命名或封存失败会返回 503，保留草稿/旧版本及隐藏暂存证据，正常恢复后可直接重试。
+暂存不参与原生发现；不会覆盖历史版本。若无法撤回未完成的正式目录，持久化 pending 并拒绝继续。
+回滚/启用在目录变更前重新核对目标版本的 name/slug；已被其他能力或草稿占用时返回 409 name_conflict，
+当前版本与原生投影均保持不变。
 进程崩溃遗留 pending 或目录与索引不一致时，启动 prepare_native_root 拒绝宣称成功；
 须由操作者停止专属实例后核对 catalog、versions 与 retired，恢复一致状态再启动。
 不自动覆盖、删除版本或清除未知标记。仅支持一个 Web worker。
@@ -133,6 +145,15 @@ DSH 固定提交 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`。
 主控制器须确认所有实际任务结束后，通过原授权启动器更新专属实例；旧实例指向仓库 skills，
 自建版本在旧实例会明确报 native_discovery_pending，不伪装已经调用。
 
+冷恢复边界（固定源码核对，未做本批跨重启实测）：DSH 会话记录的是 preset ID，
+不是完整 Skill root 配置快照。`agent-presets/src/session.ts` 解析该 ID；
+`apiproxy/src/api-proxy.ts` 的 agentFor 依此重新 compose；
+`agent-presets/src/index.ts` 的 ensureStanding 按当前 preset 文件构建 generation。
+仍挂载的旧 Agent 保留原 generation，真正冷恢复则按该 ID 当前可解析的 preset 挂载。
+因此同 ID 的授权启动文件更新后，不能断言旧会话必然继续扫描旧 root，也不能把尚未实测说成已经升级成功。
+Web 先以 session.models 冷恢复再 skill.list 核对；缺 exact native_name 时409拒绝，不改写会话历史。
+界面应提示等待已授权目录接线；仍缺失时新建/显式升级会话并复用资料，不自动重写旧 preset 记录。
+
 tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。
 真实原生注册测试覆盖 skill/subagent/report/send_message/interrupt_agent/list_agents/web_search
 及本项目 af_run_script/af_public_data；DataHub 的 Query schema 与五个 SOURCES 直接复用。
@@ -142,7 +163,7 @@ report 仅原生子 Agent 作用域可用；所有工具权限、模型、执行
 
 | 源码 | 测试 | 验证边界 |
 | --- | --- | --- |
-| capabilities/models/packages/catalog/seeds | test_capabilities.py、test_capabilities_safety.py | 离线种子、元数据、恶意ZIP、脚本审查、不可变版本、恢复失败 |
+| capabilities/models/packages/catalog/seeds | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py | 离线种子、元数据、恶意ZIP、媒体容器、脚本审查、目录全量校验、不可变版本/故障重试、回滚唯一性 |
 | capabilities/routes、main/service/store | test_capabilities_admission.py、既有 research_web 回归 | 原生名称核对、格式优先、幂等、跨会话、并发、创建产物 |
 | tools、launch_runtime、research.cordis.yml | test_capabilities_native.py | 固定源码真实 provider list/get/watch 与实际注册；不调用模型 |
 

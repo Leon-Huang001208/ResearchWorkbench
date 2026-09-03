@@ -491,7 +491,30 @@ class CapabilityCatalog:
             raise CapabilityError(
                 "版本资源已存在但未提交；需人工恢复，未覆盖", "publication_uncertain", 409
             )
-        self._write_bundle(path, record, compiled)
+        # Build outside the final name so an interrupted write cannot reserve a
+        # version number. Keep failed staging evidence; never overwrite history.
+        stage = path.with_name(f".staging-{version}-{uuid4().hex}")
+        promoted = False
+        try:
+            self._write_bundle(stage, record, compiled)
+            stage.chmod(0o700)  # macOS requires a writable source directory for rename
+            os.rename(stage, path)
+            promoted = True
+            path.chmod(0o555)
+        except OSError as exc:
+            if promoted:
+                try:
+                    path.chmod(0o700)
+                    os.rename(path, stage)
+                except OSError:
+                    self.data["pending"] = {"id": cid, "version": version, "status": "uncertain"}
+                    self.save()
+            log.error(
+                "capability_version_write_failed", capability_id=cid, error_type=type(exc).__name__
+            )
+            raise CapabilityError(
+                "版本资源写入失败；草稿和旧版本保留，可重试发布", "publication_failed", 503
+            ) from exc
         row["versions"][str(version)] = record
         self._activate(cid, version, "enabled")
         row["has_draft"] = False
@@ -569,6 +592,7 @@ class CapabilityCatalog:
         target = version if action == "rollback" else row["version"]
         self.version_path(cid, target)
         if action != "disable":
+            self._unique(row["versions"][str(target)]["metadata"], cid)
             result = self.validate(row["kind"], row["versions"][str(target)])
             if not result["valid"]:
                 raise CapabilityError("该版本依赖或工具检查未通过", "blocked_dependencies")
@@ -692,20 +716,15 @@ class CapabilityCatalog:
 
     def snapshot_catalog(self, session_root):
         """The model may natively select any enabled package, not only a UI choice."""
-        snapshots = []
-        for row in self.data["items"].values():
-            if row["status"] != "enabled":
-                continue
-            record = row["versions"][str(row["version"])]
-            item = {
-                "id": row["id"],
-                "version": row["version"],
-                "native_name": record["native_name"],
-                "sha256": record["compiled_sha256"],
-                "bindings": record["bindings"],
-            }
+        # Validate the entire native-discoverable set before copying resources.
+        # Explicit selection and model-chosen packages share exactly one gate.
+        snapshots = [
+            self.selection(row["id"])
+            for row in self.data["items"].values()
+            if row["status"] == "enabled"
+        ]
+        for item in snapshots:
             self.snapshot(item, session_root)
-            snapshots.append(item)
         return snapshots
 
     def export(self, cid, version):
