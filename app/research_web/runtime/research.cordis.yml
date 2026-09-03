@@ -29,7 +29,8 @@
     includeDefaultRoots: false
     customSkillDirs:
       - __SKILL_ROOT__
-    watch: false
+    watch: true
+    watchFollowSymlinks: false
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
 - id: research-tools

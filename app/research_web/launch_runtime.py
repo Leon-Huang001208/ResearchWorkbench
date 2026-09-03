@@ -11,6 +11,7 @@ from pathlib import Path
 
 from core.observability import get_logger, setup_logging
 
+from .capabilities.catalog import CapabilityCatalog
 from .datahub.security import load_control
 from .store import StoreError
 
@@ -52,7 +53,7 @@ def prepare(
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
         content = (package / "research.cordis.yml").read_text()
         for key, value in {
-            "__SKILL_ROOT__": package.parent / "skills",
+            "__SKILL_ROOT__": CapabilityCatalog(data).prepare_native_root(),
             "__TOOLS_MODULE__": package / "research-tools.mjs",
             "__PUBLIC_DATA_MODULE__": package / "public-data.mjs",
             "__PYTHON__": Path(sys.executable),

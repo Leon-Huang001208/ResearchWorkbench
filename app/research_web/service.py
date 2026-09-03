@@ -14,6 +14,10 @@ from websockets.exceptions import WebSocketException
 
 from core.observability import get_logger
 
+from .capabilities.catalog import CapabilityCatalog
+from .capabilities.models import CapabilityError
+from .capabilities.packages import MAX_COMPRESSED
+from .capabilities.tools import SELECTABLE
 from .client import DSHClient, RuntimeFailure
 from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
@@ -36,6 +40,7 @@ class ResearchService:
         self.client, self.store, self.owned = client, store, owned
         self.expected_cwd = expected_cwd
         self.delivery = Delivery(store, delivery_python)
+        self.capabilities = CapabilityCatalog(store.root)
         self.datahub = DataHub(store)
         self.connected: set[str] = set()
         self.events: dict[str, dict[int, dict]] = {}
@@ -323,6 +328,15 @@ class ResearchService:
             cache.update({entry["event"]["seq"]: entry for entry in entries})
             self.loaded.add(sid)
         result = {**self.summary(row), **project(list(self.events.get(sid, {}).values()))}
+        result["purpose"] = row.get("purpose", "research")
+        result["creation_kind"] = row.get("creation_kind")
+        latest_receipt = self.store.data["receipts"].get(f"{sid}:{row.get('delivery_key', '')}", {})
+        result["capability"] = latest_receipt.get("capability")
+        result["capability_history"] = [
+            receipt["capability"]
+            for key, receipt in self.store.data["receipts"].items()
+            if key.startswith(sid + ":") and receipt.get("capability")
+        ]
         # Native logs retain the execution contract. Only its product-owned
         # suffix is hidden in the human transcript, including after reload.
         markers = {
@@ -428,18 +442,83 @@ class ResearchService:
         )
         return result
 
-    async def send(self, sid, text, key, attachments=(), skill_id=None, formats=None):
+    async def send(
+        self,
+        sid,
+        text,
+        key,
+        attachments=(),
+        skill_id=None,
+        formats=None,
+        *,
+        capability_id=None,
+        capability_version=None,
+        tool_ids=(),
+    ):
         await self.ensure_owned()
         async with self.lock:
+            self.capabilities.assert_consistent()
             row = self.store.session(sid)
             if not row["created"]:
                 raise StoreError("会话尚未创建")
-            required = expected_formats(formats, skill_id)
+            existing = self.store.data["receipts"].get(f"{sid}:{key}")
+            if (
+                existing
+                and "capability_catalog" not in existing
+                and not capability_id
+                and not tool_ids
+                and capability_version is None
+            ):
+                legacy = {
+                    "text": text,
+                    "attachments": list(attachments),
+                    "skill": skill_id,
+                    "expected_formats": expected_formats(formats, skill_id),
+                }
+                legacy_digest = hashlib.sha256(
+                    json.dumps(legacy, sort_keys=True).encode()
+                ).hexdigest()
+                if existing["digest"] == legacy_digest:
+                    if existing["status"] == "accepted":
+                        return {"accepted": True}
+                    raise RuntimeFailure(
+                        "此请求受理结果未知；请检查会话历史，不要重复发送", "admission_unknown"
+                    )
+            if capability_id and skill_id and capability_id != skill_id:
+                raise CapabilityError("skill_id 与 capability_id 冲突", "selection_conflict", 409)
+            if capability_version is not None and not capability_id:
+                raise CapabilityError("版本必须与 capability_id 一起选择")
+            if any(tool not in SELECTABLE for tool in tool_ids):
+                raise CapabilityError(
+                    "只能选择实际研究工具；内部控制工具不可选择", "tool_unavailable"
+                )
+            selected_id = capability_id or (
+                skill_id if skill_id in self.capabilities.data["items"] else None
+            )
+            previous = self.store.data["receipts"].get(f"{sid}:{key}", {}).get("capability")
+            # A replay of the identical request refers to its original accepted
+            # immutable version even when management later disables that version.
+            if (
+                previous
+                and selected_id == previous["id"]
+                and capability_version in (None, previous["version"])
+            ):
+                selection = previous
+            else:
+                selection = (
+                    self.capabilities.selection(selected_id, capability_version)
+                    if selected_id
+                    else None
+                )
+            defaults = selection["default_formats"] if selection else None
+            required = expected_formats(formats if formats is not None else defaults, skill_id)
             payload = {
                 "text": text,
                 "attachments": list(attachments),
                 "skill": skill_id,
                 "expected_formats": required,
+                "capability": selection,
+                "tool_ids": list(tool_ids),
             }
             digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
             if f"{sid}:{key}" in self.store.data["receipts"]:
@@ -491,10 +570,18 @@ class ResearchService:
                             "data": base64.b64encode(raw).decode("ascii"),
                         }
                     )
-            if skill_id:
+            native_skill = selection["native_name"] if selection else skill_id
+            if native_skill:
                 skills = await self.skill_catalog(sid)
-                if skill_id not in {skill["name"] for skill in skills["skills"]}:
-                    raise StoreError("Skill 未由 DSH 原生加载")
+                if native_skill not in {skill["name"] for skill in skills["skills"]}:
+                    raise CapabilityError(
+                        "能力未由 DSH 原生发现；请等待目录观察，旧实例需空闲后更新启动配置",
+                        "native_discovery_pending",
+                        409,
+                    )
+            if selection:
+                self.capabilities.snapshot(selection, self.store.directory(sid))
+            capability_snapshots = self.capabilities.snapshot_catalog(self.store.directory(sid))
             delivery = self.delivery.begin(sid, key, required)
             if not self.store.reserve(sid, key, digest, delivery):
                 status = self.store.receipt(sid, key)["status"]
@@ -503,6 +590,10 @@ class ResearchService:
                 raise RuntimeFailure(
                     "此请求受理结果未知；请检查会话历史，不要重复发送", "admission_unknown"
                 )
+            self.store.receipt(sid, key)["capability_catalog"] = capability_snapshots
+            if selection:
+                self.store.receipt(sid, key)["capability"] = selection
+            self.store.save()
             prompt = text
             prompt += "\n\n" + delivery["marker"]
             if formats is not None:
@@ -520,12 +611,18 @@ class ResearchService:
                 )
             if files:
                 prompt += "\n\n附件（仅本会话 inputs 目录）：\n" + "\n".join(files)
+            if selection:
+                prompt += "\n\n本次能力与只读资源快照：" + json.dumps(selection, ensure_ascii=False)
+            if tool_ids:
+                prompt += "\n用户选择的研究工具意图（不改变原生审批、权限和限制）：" + ", ".join(
+                    tool_ids
+                )
             if row["mode"] == "claw":
                 prompt += (
                     "\n\n使用 DSH 原生子 Agent 分工研究；只使用实际可用工具，不虚构执行或产物。"
                 )
-            if skill_id:
-                prompt = f"/{skill_id} " + prompt
+            if native_skill:
+                prompt = f"/{native_skill} " + prompt
             try:
                 result = await self.client.rpc(
                     "session.prompt",
@@ -555,6 +652,117 @@ class ResearchService:
         # DSH's recorded-preset cold resume without submitting another prompt.
         await self.client.rpc("session.models", {"sessionId": sid})
         return await self.client.rpc("skill.list", {"sessionId": sid})
+
+    async def _capability_idle(self):
+        """Called under the same lock as send; ambiguous native state fails closed."""
+        self.capabilities.assert_consistent()
+        await self.ensure_owned()
+        if self.connected != {"mux", "host"}:
+            raise CapabilityError(
+                "原生状态未连接，草稿已保留但不能发布", "runtime_state_uncertain", 409
+            )
+        native = await self.client.rpc("session.list", {})
+        if any(item.get("running") is not False for item in native["items"]):
+            raise CapabilityError("存在活动或未确认的原生回合，草稿已保留", "capability_busy", 409)
+        for row in self.store.data["sessions"].values():
+            if not row["created"]:
+                continue
+            children = await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
+            if any(
+                c.get("kind") != "child" or c.get("activity") != "inactive"
+                for c in children["entries"]
+            ):
+                raise CapabilityError(
+                    "存在活动或无法确认的子 Agent，草稿已保留", "capability_busy", 409
+                )
+            detail = await self.detail(row["id"])
+            if (
+                detail["can_cancel"]
+                or detail["status"]
+                in {"running", "disconnected", "interrupted", "awaiting_approval"}
+                or (detail["delivery"] and detail["delivery"]["status"] not in FINAL)
+            ):
+                raise CapabilityError(
+                    "会话活动、恢复或交付受理状态尚未确认", "capability_busy", 409
+                )
+        if any(
+            receipt["status"] in {"pending", "unknown"}
+            for receipt in self.store.data["receipts"].values()
+        ):
+            raise CapabilityError("存在尚未确认的受理请求，草稿已保留", "capability_busy", 409)
+
+    async def change_capability(self, cid, action, version=None):
+        async with self.lock:
+            await self._capability_idle()
+            if action == "publish":
+                result = self.capabilities.publish(cid)
+            else:
+                result = self.capabilities.transition(cid, action, version)
+            self.notify()
+            return result
+
+    async def create_capability_session(self, kind, goal):
+        session = await self.create("fingpt", "创建 Skill" if kind == "skill" else "创建 Workflow")
+        row = self.store.session(session["id"])
+        row["purpose"] = "capability_creation"
+        row["creation_kind"] = kind
+        self.store.save()
+        draft = (
+            f"请为以下目标设计一个{kind}候选包：{goal}\n"
+            "仅使用当前可用工具，将候选 SKILL.md 和 capability.json 写入 outputs；Workflow 另写 workflow.json。"
+            "不得发布、安装、执行候选包，不得改变权限或依赖。输出文件是待用户审查的草稿。\n"
+            "capability.json 必须包含中文 name/description/category、kebab-case slug、inputs 数组（name/label/type/required）、"
+            "scenarios 数组、default_formats 数组（md/html/docx/xlsx/png）、required_tools 数组、dependencies 数组。"
+            "SKILL.md 使用 YAML frontmatter name=slug、description，后接实际步骤正文。"
+            "workflow.json 为 {steps:[{title,instruction,skill_id可选,tools:[]}]}，只引用目录已启用 Skill。"
+            "除研究 Python 脚本、文档、图像与模板外不要生成执行文件；依赖不足明确注明。"
+        )
+        return {
+            **session,
+            "purpose": "capability_creation",
+            "draft": draft,
+            "auto_submitted": False,
+            "auto_published": False,
+        }
+
+    async def capability_from_artifact(self, sid, fid):
+        async with self.lock:
+            row = self.store.session(sid)
+            if row.get("purpose") != "capability_creation":
+                raise CapabilityError(
+                    "只能从专用能力创建会话审查实际产物", "creation_session_required", 409
+                )
+            current = await self.detail(sid)
+            if current["can_cancel"] or current["status"] in {
+                "disconnected",
+                "interrupted",
+                "awaiting_approval",
+            }:
+                raise CapabilityError("候选包仍在生成或状态未确认", "capability_busy", 409)
+            self.store.files(sid)
+            relative = row["files"].get(fid, "")
+            if not relative.startswith("outputs/"):
+                raise CapabilityError("只能导入本会话实际 outputs 产物", "artifact_not_output", 409)
+            stream, name = self.store.open_file(sid, fid)
+            with stream:
+                raw = stream.read(MAX_COMPRESSED + 1)
+            if name == "SKILL.md":
+                # Bundle only the actual explicit root-level candidate files; no host path input.
+                import io
+                import zipfile
+
+                packed = io.BytesIO()
+                with zipfile.ZipFile(packed, "w", zipfile.ZIP_DEFLATED) as archive:
+                    archive.writestr("SKILL.md", raw)
+                    for file_id, path in row["files"].items():
+                        if path in {"outputs/capability.json", "outputs/workflow.json"}:
+                            resource, filename = self.store.open_file(sid, file_id)
+                            with resource:
+                                archive.writestr(filename, resource.read(MAX_COMPRESSED + 1))
+                raw, name = packed.getvalue(), "candidate.zip"
+            return self.capabilities.import_bytes(
+                name, raw, source="conversation", origin={"session_id": sid, "file_id": fid}
+            )
 
     async def approve(self, sid, aid, decision):
         await self.ensure_owned()

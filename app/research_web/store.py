@@ -132,7 +132,14 @@ class Store:
                 if (
                     relative.parts[:2] == ("inputs", "datasets")
                     or not path.is_file()
-                    or path.suffix.lower() not in PUBLIC_EXTENSIONS
+                    or (
+                        path.suffix.lower() not in PUBLIC_EXTENSIONS
+                        and not (
+                            path.suffix.lower() == ".zip"
+                            and folder == "outputs"
+                            and row.get("purpose") == "capability_creation"
+                        )
+                    )
                     or any(part.startswith(".") for part in relative.parts)
                     or any(p.is_symlink() for p in (path, *path.parents) if p != self.root)
                     or not path.resolve().is_relative_to(base.resolve())

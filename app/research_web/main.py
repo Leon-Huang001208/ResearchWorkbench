@@ -21,6 +21,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from core.observability import get_logger, setup_logging
 
+from .capabilities.models import CapabilityError
+from .capabilities.routes import router as capabilities_router
 from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
 from .service import ResearchService
@@ -42,6 +44,9 @@ class Prompt(BaseModel):
     text: str = Field(min_length=1, max_length=100000)
     attachment_ids: list[str] = Field(default_factory=list, max_length=20)
     skill_id: str | None = None
+    capability_id: str | None = None
+    capability_version: int | None = Field(default=None, ge=1, strict=True)
+    tool_ids: list[str] = Field(default_factory=list, max_length=3)
     expected_formats: list[Literal["md", "html", "docx", "xlsx", "png"]] | None = Field(
         default=None, max_length=5
     )
@@ -91,6 +96,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     app = FastAPI(title="AlphaFoundry Research Web", lifespan=lifespan)
     app.include_router(datahub_router)
+    app.include_router(capabilities_router)
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
     )
@@ -131,6 +137,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     async def store_error(request, exc):
         return JSONResponse(
             {"error": {"code": "invalid_resource", "message": str(exc)}}, status_code=400
+        )
+
+    @app.exception_handler(CapabilityError)
+    async def capability_error(request, exc):
+        log.warning("capability_request_rejected", code=exc.code)
+        return JSONResponse(
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )
 
     @app.exception_handler(RequestValidationError)
@@ -210,6 +223,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             body.attachment_ids,
             body.skill_id,
             body.expected_formats,
+            capability_id=body.capability_id,
+            capability_version=body.capability_version,
+            tool_ids=body.tool_ids,
         )
 
     @app.post("/api/research/sessions/{sid}/cancel")
