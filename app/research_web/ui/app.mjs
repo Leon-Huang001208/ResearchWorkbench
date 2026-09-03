@@ -2,12 +2,12 @@ import { createAPI, createController, parseRoute, isRunning, safeLog, collectQue
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderHistory, modelOptions, renderRename } from './views.mjs';
 import { renderComposer, renderQuickSkills } from './composer.mjs';
-import { renderContextPanel, renderSidebar, renderTopbar } from './shell.mjs';
+import { renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
 const catalog = { runtime: null, models: [], sessions: [], workspaces: [], skills: [], errors: {}, modelFailures: [] };
-let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false; let selectedSkillDetail = '';
+let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false; let selectedSkillDetail = '';
 let pageGeneration = 0;
 let renameDraft = null;
 const questionDrafts = new Map();
@@ -55,7 +55,15 @@ function mainPage() {
 }
 
 function sidebar() {
-  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen });
+  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView });
+}
+
+function primaryRail() {
+  const narrow = window.matchMedia('(max-width: 1050px)').matches;
+  return renderPrimaryRail({
+    page: state.route.page,
+    secondaryOpen: narrow ? sidebarOpen : !sidebarCollapsed,
+  });
 }
 
 function contextPanel() {
@@ -67,7 +75,7 @@ function render() {
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
   const research = ['fingpt', 'claw'].includes(state.route.page);
-  root.innerHTML = `<div class="app-shell ${research ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}">${renderTopbar({ runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: catalog.skills })}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', skills: 'Skills' })[name]}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${research ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
+  root.innerHTML = `<div class="app-shell ${research ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}">${renderTopbar({ runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: catalog.skills })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', skills: 'Skills' })[name]}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${research ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -91,7 +99,7 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
 }
 
 async function showRoute() {
-  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; contextOpen = false; contextTab = 'activity'; slashOpen = false; selectedSkillDetail = ''; renameDraft = null; questionDrafts.clear();
+  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; selectedSkillDetail = ''; renameDraft = null; questionDrafts.clear();
   await controller.open(parseRoute(location.hash));
   if (ticket !== pageGeneration) return;
   document.querySelector('#main')?.scrollTo({ top: 0 });
@@ -217,9 +225,19 @@ root.addEventListener('click', async (event) => {
   if ('new' in data) { history.pushState(null, '', state.route.page === 'claw' ? '#/claw' : '#/fingpt'); await showRoute(); controller.setDraft(''); render(); document.querySelector('#prompt')?.focus(); }
   if ('refresh' in data) { success = ''; await loadCatalog(); await controller.refresh(); }
   if ('reloadSession' in data) await showRoute();
-  if ('toggleSidebar' in data) { sidebarOpen = !sidebarOpen; contextOpen = false; render(); }
+  if ('toggleSidebar' in data) {
+    const narrow = window.matchMedia('(max-width: 1050px)').matches;
+    if (narrow) sidebarOpen = !sidebarOpen;
+    else sidebarCollapsed = !sidebarCollapsed;
+    contextOpen = false; render();
+  }
   if ('toggleContext' in data) { contextOpen = !contextOpen; sidebarOpen = false; render(); }
-  if ('collapseSidebar' in data) { sidebarCollapsed = !sidebarCollapsed; render(); }
+  if ('collapseSidebar' in data) {
+    if (window.matchMedia('(max-width: 1050px)').matches) sidebarOpen = false;
+    else sidebarCollapsed = true;
+    render();
+  }
+  if ('clawSidebarView' in data) { clawSidebarView = data.clawSidebarView; render(); }
   if ('contextTab' in data) { contextTab = data.contextTab; render(); }
   if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
   if ('upload' in data) document.querySelector('#file-input')?.click();

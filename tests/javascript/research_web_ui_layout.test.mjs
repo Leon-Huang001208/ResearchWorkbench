@@ -9,7 +9,9 @@ test('product shell keeps the compact product navigation, real recent work and s
   const sessions = [{ id: 'run-1', title: '半导体设备需求', mode: 'fingpt', status: 'running' }];
   const skills = [{ id: 'company-research', name: '公司研究', description: '基于资料完成公司研究' }];
   const html = shell.renderSidebar({ page: 'fingpt', sessionId: null, sessions, skills, collapsed: false });
-  for (const expected of ['FinGPT', 'Claw', '能力中心', '历史', '设置', 'data-collapse-sidebar', '半导体设备需求', '运行任务']) assert.match(html, new RegExp(expected));
+  const rail = shell.renderPrimaryRail({ page: 'fingpt' });
+  for (const expected of ['FinGPT', 'Claw', '能力中心', '历史', '设置']) assert.match(rail, new RegExp(expected));
+  for (const expected of ['data-collapse-sidebar', '半导体设备需求', '运行任务']) assert.match(html, new RegExp(expected));
   const matches = shell.filterGlobalSearch('公司研究', sessions, skills);
   assert.deepEqual(matches.map((item) => item.kind), ['skill']);
   assert.match(shell.renderGlobalSearch('', sessions, skills), /data-global-search/);
@@ -49,4 +51,44 @@ test('right panel tabs stay scoped to the current detail and failed activity err
   assert.match(html, /真实失败原因/);
   assert.match(views.renderActivities(detail), /<details open>/);
   assert.doesNotMatch(shell.renderContextPanel({ detail, selectedTab: 'files' }), /other-session/);
+});
+
+test('primary rail stays independent while only the secondary session sidebar collapses', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  assert.equal(typeof shell.renderPrimaryRail, 'function');
+  const rail = shell.renderPrimaryRail({ page: 'fingpt', secondaryOpen: true });
+  const secondary = shell.renderSidebar({ page: 'fingpt', sessions: [], collapsed: true });
+  assert.match(rail, /primary-rail/);
+  assert.match(rail, /data-toggle-sidebar/);
+  assert.match(rail, /FinGPT/);
+  assert.match(secondary, /secondary-sidebar/);
+  assert.doesNotMatch(secondary, /main-nav/);
+});
+
+test('Claw switches session and current-workspace projections without mixing other sessions', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  const detail = { id: 'claw-current', mode: 'claw', datasets: [{ name: '当前资料' }], files: [{ name: '当前产物.docx' }] };
+  const workspace = shell.renderSidebar({ page: 'claw', detail, clawSidebarView: 'workspace', sessions: [{ id: 'other', title: '其他会话' }] });
+  assert.match(workspace, /data-claw-sidebar-view="workspace"/);
+  assert.match(workspace, /当前资料/);
+  assert.match(workspace, /当前产物\.docx/);
+  assert.doesNotMatch(workspace, /href="#\/fingpt\?session=other"/);
+});
+
+test('a lone slash lists every enabled real Skill without submitting a model request', async () => {
+  const composer = await import(new URL('composer.mjs', root));
+  const skills = [{ id: 'enabled-one', name: '已启用一', description: '' }, { id: 'disabled', name: '已禁用', description: '', enabled: false }, { id: 'enabled-two', name: '已启用二', description: '' }];
+  assert.deepEqual(composer.skillMatches('', skills).map((skill) => skill.id), ['enabled-one', 'enabled-two']);
+  const html = composer.renderComposer({ page: 'fingpt', draft: '/', skills, slashOpen: true });
+  assert.match(html, /已启用一/);
+  assert.match(html, /已启用二/);
+  assert.doesNotMatch(html, /已禁用|fetch\(|POST \/api\/research/);
+});
+
+test('running tasks are selected from the complete real session catalog before recent sessions are capped', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  const sessions = Array.from({ length: 11 }, (_, index) => ({ id: `session-${index}`, title: `会话 ${index}`, status: index === 10 ? 'running' : 'idle', mode: 'fingpt' }));
+  const html = shell.renderSidebar({ page: 'fingpt', sessions });
+  assert.match(html, /会话 10/);
+  assert.match(html, /运行任务[\s\S]*会话 10/);
 });
