@@ -65,6 +65,13 @@ test('primary rail stays independent while only the secondary session sidebar co
   assert.doesNotMatch(secondary, /main-nav/);
 });
 
+test('a collapsed desktop secondary sidebar becomes an exposed narrow-screen drawer when opened', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  const drawer = shell.renderSidebar({ page: 'fingpt', sessions: [], collapsed: true, mobileOpen: true });
+  assert.match(drawer, /secondary-sidebar mobile-open collapsed/);
+  assert.doesNotMatch(drawer, /aria-hidden="true"/);
+});
+
 test('Claw switches session and current-workspace projections without mixing other sessions', async () => {
   const shell = await import(new URL('shell.mjs', root));
   const detail = { id: 'claw-current', mode: 'claw', datasets: [{ name: '当前资料' }], files: [{ name: '当前产物.docx' }] };
@@ -73,6 +80,24 @@ test('Claw switches session and current-workspace projections without mixing oth
   assert.match(workspace, /当前资料/);
   assert.match(workspace, /当前产物\.docx/);
   assert.doesNotMatch(workspace, /href="#\/fingpt\?session=other"/);
+});
+
+test('Claw workspace tab renders current-session datasets and safe file actions in the main canvas', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  const detail = {
+    id: 'claw-current', mode: 'claw', title: '当前 Claw',
+    datasets: [{ id: 'dataset-1', name: '当前资料', status: 'complete', files: [] }],
+    files: [{ id: 'file-1', name: '当前产物.docx', size: 10, url: '/api/research/sessions/claw-current/files/file-1/download', preview_url: '/api/research/sessions/claw-current/files/file-1/preview' }],
+  };
+  assert.equal(typeof shell.renderClawWorkspaceCanvas, 'function');
+  const workspace = shell.renderClawWorkspaceCanvas({ detail, selectedPreview: 'file-1' });
+  assert.match(workspace, /当前资料/);
+  assert.match(workspace, /datasets\/dataset-1\/files\/rows\.csv/);
+  assert.match(workspace, /当前产物\.docx/);
+  assert.match(workspace, /sandbox=""/);
+  const app = await readFile(new URL('app.mjs', root), 'utf8');
+  assert.match(app, /detail\.mode === 'claw' && clawSidebarView === 'workspace'/);
+  assert.match(app, /renderClawWorkspaceCanvas/);
 });
 
 test('a lone slash lists every enabled real Skill without submitting a model request', async () => {

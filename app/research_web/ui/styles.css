@@ -111,6 +111,13 @@ textarea { resize: vertical; }
 .workspace-current { padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #f9fbfe; }
 .workspace-current > p { margin: 4px 0 9px; }
 .workspace-current ul { display: grid; gap: 6px; margin: 0; padding-left: 17px; font-size: 11px; overflow-wrap: anywhere; }
+.claw-workspace-canvas { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: white; }
+.claw-workspace-header { padding: 24px 26px 19px; border-bottom: 1px solid var(--line); }
+.claw-workspace-header h2 { margin: 5px 0 7px; font-size: 18px; }
+.claw-workspace-header p { margin: 0; font-size: 12px; }
+.claw-workspace-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .72fr); }
+.claw-workspace-content .context-section { min-width: 0; border-bottom: 0; }
+.claw-workspace-content .context-section + .context-section { border-left: 1px solid var(--line); }
 #main { grid-area: main; overflow: auto; scrollbar-gutter: stable; min-width: 0; }
 .page-content { max-width: 1180px; margin: 0 auto; padding: 28px 32px 0; min-height: 100%; }
 .wide-page .page-content { padding-bottom: 40px; }
@@ -316,6 +323,8 @@ textarea { resize: vertical; }
   .page-header { flex-direction: column; }
   .skills-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .capability-notes { gap: 18px; padding-left: 0; padding-right: 0; }
+  .claw-workspace-content { grid-template-columns: 1fr; }
+  .claw-workspace-content .context-section + .context-section { border-top: 1px solid var(--line); border-left: 0; }
 }
 @media (max-width: 1050px) {
   .app-shell, .app-shell.wide-page, .app-shell.sidebar-collapsed, .app-shell.sidebar-collapsed.wide-page { grid-template-columns: 72px minmax(0, 1fr); grid-template-areas: "top top" "rail main"; }
@@ -330,6 +339,7 @@ textarea { resize: vertical; }
   .runtime-status { font-size: 10px; }
   .brand-label, .brand-divider { display: none; }
   .landing { padding-top: 75px; }
+  .claw-workspace-header { padding: 20px; }
 }
 @media (max-width: 760px) {
   .app-shell, .app-shell.wide-page, .app-shell.sidebar-collapsed, .app-shell.sidebar-collapsed.wide-page { grid-template-columns: 56px minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr); grid-template-areas: "top top" "rail main"; }
