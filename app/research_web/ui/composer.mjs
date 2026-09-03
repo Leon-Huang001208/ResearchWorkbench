@@ -23,10 +23,15 @@ export function slashKey(key, index, matches) {
   return { handled: false };
 }
 
-export function renderQuickSkills(skills = []) {
-  const visible = researchQuickSkills(skills);
-  if (!visible.length) return '<p class="muted small quick-skill-empty">尚无可用研究 Skill；请在能力中心检查目录后刷新。</p>';
-  return `<section class="quick-skills" aria-label="研究 Skill 快捷入口"><div class="section-heading"><h2>从真实研究 Skill 开始</h2><a href="#/skills" class="text-button">查看能力中心</a></div><div class="quick-skill-grid">${visible.map((skill) => `<article class="quick-skill-card"><span class="quick-skill-mark" aria-hidden="true">◇</span><div><h3>${e(skill.name)}</h3><p>${e(skill.description || '此 Skill 未提供描述。')}</p><p>场景：${e((skill.metadata?.scenarios || []).join('、') || '未提供')}</p><p>输入：${e((skill.metadata?.inputs || []).map(input => `${input.label}（${input.type}${input.required ? ' · 必填' : ''}）`).join('、') || '未提供')}</p><p>输出：${e((skill.metadata?.default_formats || []).join('、') || '无需文件')}</p></div><div class="quick-skill-actions"><button type="button" class="text-button" data-skill-detail="${e(skill.id)}">查看详情</button><button type="button" class="button small" data-skill-shortcut="${e(skill.id)}" ${skill.enabled === false ? 'disabled' : ''}>放入草稿</button></div></article>`).join('')}</div></section>`;
+export function renderQuickSkills(skills = [], { page = 'fingpt', category = '' } = {}) {
+  const claw = page === 'claw';
+  const items = claw ? (Array.isArray(skills) ? skills : []).filter(item => item?.kind === 'workflow' && item.enabled === true) : researchQuickSkills(skills);
+  const categories = [...new Set(items.map(item => item.category).filter(Boolean))];
+  const selectedCategory = categories.includes(category) ? category : '';
+  const visible = items.filter(item => !selectedCategory || item.category === selectedCategory);
+  const filters = categories.length ? `<div class="capability-filters"><label for="quick-category">分类<select id="quick-category" data-quick-category><option value="">全部分类</option>${categories.map(value => `<option value="${e(value)}" ${selectedCategory === value ? 'selected' : ''}>${e(value)}</option>`).join('')}</select></label></div>` : '';
+  const cards = visible.map((skill) => `<article class="quick-skill-card"><span class="quick-skill-mark" aria-hidden="true">◇</span><div><h3>${e(skill.name)}</h3><p>${e(skill.description || '此能力未提供描述。')}</p><p>场景：${e((skill.metadata?.scenarios || []).join('、') || '未提供')}</p><p>输入：${e((skill.metadata?.inputs || []).map(input => `${input.label}（${input.type}${input.required ? ' · 必填' : ''}）`).join('、') || '未提供')}</p><p>输出：${e((skill.metadata?.default_formats || []).join('、') || '无需文件')}</p></div><div class="quick-skill-actions"><button type="button" class="text-button" data-skill-detail="${e(skill.id)}">查看详情</button><button type="button" class="button small" data-skill-shortcut="${e(skill.id)}" ${skill.enabled === false ? 'disabled' : ''}>放入草稿</button></div></article>`).join('');
+  return `<section class="quick-skills" aria-label="${claw ? '研究步骤模板快捷入口' : '研究 Skill 快捷入口'}"><div class="section-heading"><h2>${claw ? '研究步骤模板' : '从真实研究 Skill 开始'}</h2><a href="#/skills" class="text-button">查看能力中心</a></div>${claw ? '<p class="small muted">步骤是研究模板，不代表已经执行；也可通过上方能力选择使用真实 Skill。</p>' : ''}${filters}${cards ? `<div class="quick-skill-grid">${cards}</div>` : `<p class="muted small quick-skill-empty">${claw ? '尚无已启用的研究步骤模板' : '尚无可用研究 Skill'}；请在能力中心检查目录后刷新。</p>`}</section>`;
 }
 
 export function renderComposer({ page, draft, attachments = [], expectedFormats = null, skills = [], skillId = '', capability = null, toolIds = [], tools = [], disabled = false, busy = false, taskPending = false, detail = null, slashOpen = false, slashIndex = 0, runtimeReady = true } = {}) {

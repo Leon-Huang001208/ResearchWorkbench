@@ -65,7 +65,9 @@ git diff --check
 
 研究壳保留 AlphaFoundry 深蓝顶栏、深色窄主导航 rail、浅色二级会话栏及白色研究画布。rail 的 FinGPT、Claw、能力中心、历史和设置使用可见文字；折叠仅作用于二级会话栏。≤1050px 时二级栏改为抽屉，内有明确“关闭会话侧栏”按钮；桌面折叠后在手机打开仍暴露正确 ARIA 状态。顶栏检索匹配已加载的真实会话与同一 Skill/Workflow/Tool 名称和简介；手机提供“打开全局搜索”按钮。运行任务从完整会话目录筛选，最近会话才限制为十项；hash 路由和原有 selector 保持兼容。
 
-FinGPT 与 Claw 分别呈现首页。FinGPT 面向问题研究；Claw 明确目标、约束与预期交付。四个首页快捷入口严格筛选同一 `/capabilities` 目录中的 `document-reading`、`company-research`、`industry-research`、`fund-evaluation`；目录缺项不补造卡片。卡片可见名称、简介、场景、输入和默认输出。详情进入能力中心，选择将不可变的 `capability_id` / `capability_version` 放入此前 FinGPT 或 Claw 的当前草稿，不创建会话或启动模型；旧 `skill_id` 仅保留 API 兼容。
+FinGPT 与 Claw 分别呈现首页。FinGPT 面向问题研究，其四个快捷入口严格筛选同一 `/capabilities` 目录中的 `document-reading`、`company-research`、`industry-research`、`fund-evaluation`。Claw 明确目标、约束与预期交付；快捷区标题为“研究步骤模板”，只展示同目录 `kind=workflow` 且 `enabled=true` 的真实模板（包括已发布自建模板），不硬编码模板 ID，也不把缺项替换为 Skill 卡片。Claw 仍可通过上方能力选择框/slash 使用真实 Skill，并明确模板不代表已执行。目录缺项显示空态，不补造卡片。
+
+两种首页分类选项仅来自各自快捷区条目的实际 `category`，`#quick-category[data-quick-category]` 只在本页内存筛选；切换路由时复位，目录更新后未知分类按全部显示。筛选不请求后端、不改变草稿或执行能力。卡片可见名称、简介、场景、输入和默认输出。既有 `data-skill-detail` / `data-skill-shortcut` 按钮保持：详情进入能力中心，选择将不可变的 `capability_id` / `capability_version` 放入此前 FinGPT 或 Claw 的当前草稿，不创建会话或启动模型；旧 `skill_id` 仅保留 API 兼容。
 
 输入框继续使用既有附件、模型和格式契约。`/` 搜索已启用 Skill/Workflow，ArrowUp/ArrowDown 选择、Enter 放入草稿、Escape 关闭；slash 草稿不会意外提交模型。显式 `expected_formats`（含空数组）优先，否则根据所选目录元数据显示默认格式并由后端绑定；删除了前端平行的硬编码默认格式表。工具意图使用 `tool_ids`，不改变原生审批。运行时未就绪只禁止真实发送，仍允许浏览和准备草稿。
 
@@ -99,5 +101,6 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 | 编辑/保存/版本 | 失败保留完整候选；保存可由新控制器重新读取；版本与工具意图参与幂等消息 | `research_web_capabilities_ui.test.mjs` |
 | 离线/键盘 | 运行时离线禁发送但可编辑；真实 app 事件处理器消费 slash/Escape/移动抽屉和搜索 | 无网络 DOM 边界测试；不替代真实浏览器 |
 | Claw 工作区 | 会话恢复聊天；当前工作区主画布只投影当前 `detail` 的资料与文件，复用安全下载/预览 | `research_web_ui_layout.test.mjs` |
+| 首页模板/分类 | Claw 仅已启用 Workflow；FinGPT 四 Skill；分类本地筛选，卡片与上方 Skill 选择只准备版本草稿 | 布局渲染测试 + 实际 app 事件无网络 DOM 边界测试；视口/hover 由控制器另验 |
 
 本轮未启动服务、未请求模型，也未做浏览器视觉验收；单元测试不能替代 1440/1600/1920、平板和手机的实际界面验收。

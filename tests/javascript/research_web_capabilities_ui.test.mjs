@@ -229,6 +229,49 @@ test('real app event handlers close/select slash, search and drawers without any
   }
 });
 
+test('real landing modes filter catalog categories and select Workflow or Skill drafts without writes', async () => {
+  const handlers = new Map(); const windowHandlers = new Map(); const calls = [];
+  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
+  const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const originalLog = console.info;
+  const skillIDs = ['document-reading', 'company-research', 'industry-research', 'fund-evaluation'];
+  const items = [...skillIDs.map(id => cap({ id })), cap({ id: 'flow-one', kind: 'workflow', name: '公司研究步骤', category: '公司' }), cap({ id: 'flow-two', kind: 'workflow', name: '行业研究步骤', category: '行业' })];
+  try {
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: false }), addEventListener: (name, handler) => windowHandlers.set(name, handler) } });
+    Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/claw' } });
+    Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState: (_a, _b, hash) => { globalThis.location.hash = hash; } } });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
+      calls.push([url, options.method]);
+      const payload = url.endsWith('/runtime') ? { connected: true, credential_configured: true } : url.endsWith('/models') ? { groups: [] } : { items: url.endsWith('/capabilities') ? items : [] };
+      return new Response(JSON.stringify(payload));
+    } });
+    console.info = () => {};
+    await load(`app.mjs?landing-integration=${Date.now()}`);
+    const quickIDs = () => [...rootElement.innerHTML.matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]);
+    const change = (id, value, dataset = {}) => handlers.get('change')({ target: { id, value, dataset, closest: () => null } });
+    assert.match(rootElement.innerHTML, /<h2>研究步骤模板<\/h2>/);
+    assert.deepEqual(quickIDs(), ['flow-one', 'flow-two']);
+    const reads = calls.length;
+    await change('quick-category', '公司', { quickCategory: '' });
+    assert.deepEqual(quickIDs(), ['flow-one']); assert.equal(calls.length, reads);
+    await handlers.get('click')({ target: { closest: () => ({ dataset: { skillShortcut: 'flow-one' }, disabled: false }) } });
+    assert.equal(globalThis.location.hash, '#/claw');
+    assert.match(rootElement.innerHTML, /capability-chips.*公司研究步骤 · v2/s);
+    await change('skill-select', 'document-reading');
+    assert.match(rootElement.innerHTML, /capability-chips.*我的研究 · v2/s);
+    globalThis.location.hash = '#/fingpt'; windowHandlers.get('hashchange')();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(quickIDs(), skillIDs);
+    assert.match(rootElement.innerHTML, /从真实研究 Skill 开始/);
+    assert.equal(calls.some(([, method]) => method !== 'GET'), false);
+  } finally {
+    console.info = originalLog;
+    for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
+  }
+});
+
 test('cached running session summaries do not indefinitely prevent backend-checked capability publication', async () => {
   const { renderCapabilityDetail } = await load('capabilities.mjs');
   const html = renderCapabilityDetail(cap({ draft: {}, checks: { valid: true } }), { running: true });

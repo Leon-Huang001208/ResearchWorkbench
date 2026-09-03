@@ -54,3 +54,15 @@
 - 相邻回归：`node --test tests/javascript/research_web_capabilities_ui.test.mjs tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_ui_layout.test.mjs`，54/54，0 fail / skip / todo。
 - `node --check app/research_web/ui/app.mjs`、`git diff --check` 均通过。
 - 最小修复技能约束本批仅处理失败缓存；未改后端、未重启服务、未调用 live 模型，未编辑控制器架构或 e2e。
+
+## Task 3 有界首页补齐：Claw 真实 Workflow 模板
+
+- 基线 `3e0209e`，Task 4 完成后由控制器授权唯一实现者继续。仅改 app/composer、两份现有 JS 测试、本文和模块文档；保留 Task 4 设置入口及其他脏文件。
+- Claw 首页快捷区改为“研究步骤模板”，直接筛选共享目录中 `kind=workflow && enabled===true`，包含真实内置和已发布自建模板；无模板时显示空态，不回退展示 Skill 卡。FinGPT 四个真实 Skill 快捷入口不变。
+- 两种首页提供目录驱动的分类选择；选项来自各自卡片源，分类在路由切换时复位，失效分类按全部展示。纯本地渲染，无新 API、依赖、样式或执行引擎。
+- Claw 保留上方 Skill/Workflow 选择；卡片继续沿用详情/草稿按钮与不可变版本，不创建会话或自动请求模型/工具。
+- RED：`node --test --test-name-pattern='Claw landing|landing category' tests/javascript/research_web_ui_layout.test.mjs`，2/2 失败（缺模板标题/卡片和分类）；`node --test --test-name-pattern='real landing modes' tests/javascript/research_web_capabilities_ui.test.mjs`，1/1 失败（实际 Claw app 仍渲染 Skill）。
+- GREEN：`node --test --test-name-pattern='Claw landing|landing category|real landing modes' tests/javascript/research_web_ui_layout.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs`，3/3。覆盖停用/草稿 Workflow 排除、缺模板、分类 HTML 转义、失效分类，以及实际 app 的分类不请求网络、模板/Skill 草稿选择和路由恢复四 Skill；所有请求均 GET。
+- 全量：`DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness node --test tests/javascript/research_web*.test.mjs`，101/101，0 fail / skip / todo（含 Task 4 新增门禁回归）。两个修改模块 `node --check`、`git diff --check` 均通过。
+- `ui-iterate` 技能约束状态：默认/模板/分类/空态/禁用筛选已由渲染和事件测试验证；loading/error/离线发送沿用既有控制器并通过全量回归；hover、响应式视口及组合状态未做真实浏览器验证，由控制器最终验收。无新增 danger 操作；不宣称本地 DOM 测试是浏览器验收。
+- 自审确认未动设置、后端、控制器 canonical 文档/E2E，未调用 live 模型或重启服务。

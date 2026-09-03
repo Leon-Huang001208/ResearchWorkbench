@@ -13,6 +13,7 @@ const root = document.querySelector('#app');
 const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = false;
+let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
 const workflowVersions = new Map();
 let pageGeneration = 0;
@@ -39,7 +40,7 @@ function composer() {
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="landing-brand"><img src="/static/assets/alphafoundry-logo.png" alt="" width="56" height="56"><span class="eyebrow">${claw ? 'CLAW · GOAL WORKSPACE' : 'FINGPT · RESEARCH PARTNER'}</span></div><h1>${claw ? '把研究目标变成可交付结果' : 'FinGPT，您的即时投研伙伴'}</h1><p class="landing-subtitle">${claw ? '描述目标、边界和希望交付的文件。DSH 仅在你开始研究后协调真实 Agent、工具与资料。' : '从一个好问题开始。连接真实信息，理解复杂问题，沉淀研究成果。'}</p>${composer()}${renderQuickSkills(catalog.capabilities)}<div class="capability-notes"><div><span aria-hidden="true">⌕</span><strong>深入理解</strong><p>围绕问题持续追问，在同一会话中推进研究。</p></div><div><span aria-hidden="true">▤</span><strong>带上你的资料</strong><p>支持 PDF、图片、Markdown、CSV 与 Excel。</p></div><div><span aria-hidden="true">◇</span><strong>${claw ? '明确交付' : '看见研究过程'}</strong><p>${claw ? '设置输出格式，先准备草稿，再由你确认开始。' : '查看真实工具活动、Agent 协作与产出文件。'}</p></div></div></div>`;
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="landing-brand"><img src="/static/assets/alphafoundry-logo.png" alt="" width="56" height="56"><span class="eyebrow">${claw ? 'CLAW · GOAL WORKSPACE' : 'FINGPT · RESEARCH PARTNER'}</span></div><h1>${claw ? '把研究目标变成可交付结果' : 'FinGPT，您的即时投研伙伴'}</h1><p class="landing-subtitle">${claw ? '描述目标、边界和希望交付的文件。DSH 仅在你开始研究后协调真实 Agent、工具与资料。' : '从一个好问题开始。连接真实信息，理解复杂问题，沉淀研究成果。'}</p>${composer()}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}<div class="capability-notes"><div><span aria-hidden="true">⌕</span><strong>深入理解</strong><p>围绕问题持续追问，在同一会话中推进研究。</p></div><div><span aria-hidden="true">▤</span><strong>带上你的资料</strong><p>支持 PDF、图片、Markdown、CSV 与 Excel。</p></div><div><span aria-hidden="true">◇</span><strong>${claw ? '明确交付' : '看见研究过程'}</strong><p>${claw ? '设置输出格式，先准备草稿，再由你确认开始。' : '查看真实工具活动、Agent 协作与产出文件。'}</p></div></div></div>`;
 }
 
 function researchPage() {
@@ -121,6 +122,7 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
 }
 
 async function showRoute() {
+  quickCategory = '';
   const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; globalSearch = ''; searchOpen = false; renameDraft = null; questionDrafts.clear();
   await controller.open(parseRoute(location.hash));
   if (ticket !== pageGeneration) return;
@@ -177,6 +179,7 @@ root.addEventListener('keydown', (event) => {
 root.addEventListener('change', async (event) => {
   const target = event.target;
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
+  if ('quickCategory' in target.dataset) { quickCategory = target.value; render(); }
   if (target.id === 'skill-select') { if (target.value) await selectCapability(target.value); else { controller.setCapability(null); render(); } }
   if ('capSource' in target.dataset) { capabilityState.source = target.value; render(); }
   if ('capCategory' in target.dataset) { capabilityState.category = target.value; render(); }

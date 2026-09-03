@@ -42,6 +42,41 @@ test('app wires shell-only interactions without changing controller routes or AP
   assert.doesNotMatch(app, /fetch\(['"`]https?:\/\//);
 });
 
+test('Claw landing shows enabled catalog Workflow templates while FinGPT keeps its four Skill shortcuts', async () => {
+  const { renderQuickSkills } = await import(new URL('composer.mjs', root));
+  const skills = ['document-reading', 'company-research', 'industry-research', 'fund-evaluation'].map(id => ({ id, kind: 'skill', name: id, enabled: true }));
+  const workflow = { id: 'real-workflow', kind: 'workflow', name: '真实研究模板', enabled: true, metadata: { scenarios: ['资料研究'], inputs: [{ label: '主题', type: 'text', required: true }], default_formats: ['html'] } };
+  const catalog = [...skills, workflow, { ...workflow, id: 'my-workflow', name: '我的模板' }, { ...workflow, id: 'disabled-workflow', enabled: false }, { ...workflow, id: 'draft-workflow', enabled: undefined }];
+  const claw = renderQuickSkills(catalog, { page: 'claw' });
+  assert.match(claw, /<h2>研究步骤模板<\/h2>/);
+  assert.deepEqual([...claw.matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]), ['real-workflow', 'my-workflow']);
+  for (const expected of ['场景：资料研究', '输入：主题（text · 必填）', '输出：html', '上方能力选择', 'Skill']) assert.ok(claw.includes(expected));
+  assert.doesNotMatch(claw, /type="submit"|data-run|已完成步骤/);
+  assert.deepEqual([...renderQuickSkills(catalog).matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]), skills.map(skill => skill.id));
+  assert.match(renderQuickSkills(skills, { page: 'claw' }), /尚无已启用的研究步骤模板/);
+  assert.doesNotMatch(renderQuickSkills(skills, { page: 'claw' }), /data-skill-shortcut/);
+});
+
+test('landing category filters derive from the displayed catalog kind and escape category labels', async () => {
+  const { renderQuickSkills } = await import(new URL('composer.mjs', root));
+  const catalog = [
+    { id: 'document-reading', kind: 'skill', name: '资料解读', category: '资料研究', enabled: true },
+    { id: 'company-research', kind: 'skill', name: '公司研究', category: '<风险>', enabled: true },
+    { id: 'flow', kind: 'workflow', name: '流程', category: '步骤分类', enabled: true },
+  ];
+  const html = renderQuickSkills(catalog, { page: 'fingpt', category: '资料研究' });
+  assert.match(html, /id="quick-category"[^>]*data-quick-category/);
+  assert.match(html, /<label[^>]*for="quick-category"/);
+  assert.match(html, /value="资料研究" selected/);
+  assert.match(html, /&lt;风险&gt;/);
+  assert.doesNotMatch(html, /<风险>|步骤分类|data-skill-shortcut="company-research"/);
+  assert.match(html, /data-skill-shortcut="document-reading"/);
+  assert.match(renderQuickSkills(catalog, { category: 'obsolete' }), /data-skill-shortcut="company-research"/);
+  const claw = renderQuickSkills(catalog, { page: 'claw' });
+  assert.match(claw, /步骤分类/);
+  assert.doesNotMatch(claw, /value="资料研究"/);
+});
+
 test('right panel tabs stay scoped to the current detail and failed activity errors are visible', async () => {
   const shell = await import(new URL('shell.mjs', root));
   const views = await import(new URL('views.mjs', root));
