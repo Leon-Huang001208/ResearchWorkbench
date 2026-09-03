@@ -1,18 +1,27 @@
-import { createAPI, createController, parseRoute, isRunning, safeLog, collectQuestionAnswers } from './core.mjs';
+import { createAPI, createController, parseRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderHistory, modelOptions, renderRename } from './views.mjs';
-import { renderComposer, renderQuickSkills } from './composer.mjs';
+import { renderComposer, renderQuickSkills, slashKey, skillMatches } from './composer.mjs';
 import { renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
+
+import { createCapabilityController } from './capability-controller.mjs';
+import { renderCapabilityCatalog, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
+import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStep } from './capability-editor.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, models: [], sessions: [], workspaces: [], skills: [], errors: {}, modelFailures: [] };
-let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false; let selectedSkillDetail = '';
+const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], errors: {}, modelFailures: [] };
+let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
+let searchOpen = false; let slashIndex = 0; let contextCollapsed = false;
+let researchDraftRoute = { page: 'fingpt', sessionId: null };
+const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
+const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
+const capabilityState = capabilityController.state;
 
 function runtimeLabel() {
   if (!catalog.runtime) return 'DSH 未连接';
@@ -25,13 +34,12 @@ function notice(message, kind = 'error') { return message ? `<div class="notice 
 function composer() {
   const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
-  return renderComposer({ page: state.route.page, draft: state.draft, attachments: state.attachments, expectedFormats: state.expectedFormats, skills: catalog.skills, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen });
+  return renderComposer({ page: state.route.page, draft: state.draft, attachments: state.attachments, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, runtimeReady: catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false });
 }
 
 function landing() {
   const claw = state.route.page === 'claw';
-  const detail = catalog.skills.find((skill) => skill.id === selectedSkillDetail);
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="landing-brand"><img src="/static/assets/alphafoundry-logo.png" alt="" width="56" height="56"><span class="eyebrow">${claw ? 'CLAW · GOAL WORKSPACE' : 'FINGPT · RESEARCH PARTNER'}</span></div><h1>${claw ? '把研究目标变成可交付结果' : 'FinGPT，您的即时投研伙伴'}</h1><p class="landing-subtitle">${claw ? '描述目标、边界和希望交付的文件。DSH 仅在你开始研究后协调真实 Agent、工具与资料。' : '从一个好问题开始。连接真实信息，理解复杂问题，沉淀研究成果。'}</p>${composer()}${detail ? `<aside class="skill-detail-card" aria-label="${e(detail.name)} 详情"><div><span class="eyebrow">真实 Skill</span><h2>${e(detail.name)}</h2><p>${e(detail.description || '此 Skill 未提供描述。')}</p></div><button type="button" class="icon-button" data-close-skill-detail aria-label="关闭 Skill 详情">×</button></aside>` : ''}${renderQuickSkills(catalog.skills)}<div class="capability-notes"><div><span aria-hidden="true">⌕</span><strong>深入理解</strong><p>围绕问题持续追问，在同一会话中推进研究。</p></div><div><span aria-hidden="true">▤</span><strong>带上你的资料</strong><p>支持 PDF、图片、Markdown、CSV 与 Excel。</p></div><div><span aria-hidden="true">◇</span><strong>${claw ? '明确交付' : '看见研究过程'}</strong><p>${claw ? '设置输出格式，先准备草稿，再由你确认开始。' : '查看真实工具活动、Agent 协作与产出文件。'}</p></div></div></div>`;
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="landing-brand"><img src="/static/assets/alphafoundry-logo.png" alt="" width="56" height="56"><span class="eyebrow">${claw ? 'CLAW · GOAL WORKSPACE' : 'FINGPT · RESEARCH PARTNER'}</span></div><h1>${claw ? '把研究目标变成可交付结果' : 'FinGPT，您的即时投研伙伴'}</h1><p class="landing-subtitle">${claw ? '描述目标、边界和希望交付的文件。DSH 仅在你开始研究后协调真实 Agent、工具与资料。' : '从一个好问题开始。连接真实信息，理解复杂问题，沉淀研究成果。'}</p>${composer()}${renderQuickSkills(catalog.capabilities)}<div class="capability-notes"><div><span aria-hidden="true">⌕</span><strong>深入理解</strong><p>围绕问题持续追问，在同一会话中推进研究。</p></div><div><span aria-hidden="true">▤</span><strong>带上你的资料</strong><p>支持 PDF、图片、Markdown、CSV 与 Excel。</p></div><div><span aria-hidden="true">◇</span><strong>${claw ? '明确交付' : '看见研究过程'}</strong><p>${claw ? '设置输出格式，先准备草稿，再由你确认开始。' : '查看真实工具活动、Agent 协作与产出文件。'}</p></div></div></div>`;
 }
 
 function researchPage() {
@@ -41,7 +49,7 @@ function researchPage() {
   const detail = state.detail;
   const workspaceView = detail.mode === 'claw' && clawSidebarView === 'workspace';
   const canvas = workspaceView ? renderClawWorkspaceCanvas({ detail, selectedPreview, busy: state.busy }) : `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts)}</div>`;
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row"><button class="button small" data-rename ${state.busy ? 'disabled' : ''}>重命名</button>${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context>活动与文件</button></div></header>${renameDraft !== null ? renderRename(renameDraft) : ''}${notice(state.streamError, 'warning')}${canvas}<div class="composer-dock">${composer()}</div>`;
+  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row"><button class="button small" data-rename ${state.busy ? 'disabled' : ''}>重命名</button>${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${renameDraft !== null ? renderRename(renameDraft) : ''}${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${canvas}<div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -53,7 +61,18 @@ function mainPage() {
   if (['fingpt', 'claw'].includes(state.route.page)) return researchPage();
   if (state.route.page === 'settings') return settingsPage();
   if (state.route.page === 'history') return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>研究历史</h1><p class="muted">所有 FinGPT 与 Claw 会话，随时回来继续。</p></div><button class="button" data-refresh>刷新</button></header><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索研究历史"></label><div id="history-results">${renderHistory(catalog.sessions, historyFilter)}</div>`;
-  return `<header class="page-header"><div><div class="eyebrow">RESEARCH CAPABILITIES</div><h1>能力中心</h1><p class="muted">来自 DSH 的已安装能力。选择后可在研究中使用。</p></div><button class="button" data-refresh>刷新</button></header>${catalog.skills.length ? `<div class="skills-grid">${catalog.skills.map((skill) => `<article class="skill-card"><div class="skill-icon">◇</div><h2>${e(skill.name)}</h2><p>${e(skill.description || '此 Skill 未提供描述。')}</p><button class="button" data-use-skill="${e(skill.id)}">放入 FinGPT 草稿 ↗</button></article>`).join('')}</div>` : empty('尚无可用 Skill', '请在 DSH 中配置能力后刷新。')}`;
+  return capabilityPage();
+}
+
+function capabilityPage() {
+  const cap = capabilityState;
+  const messages = notice(cap.error) + notice(cap.success, 'success');
+  if (cap.form === 'editor') return messages + renderCapabilityEditor({ draft: cap.editor, id: cap.editorId, items: catalog.capabilities, tools: catalog.tools, busy: cap.busy });
+  if (cap.form === 'conversation') return messages + renderCreationForm(cap.kind, cap.goal, state.busy);
+  if (cap.form === 'copy') return messages + renderCopyForm(cap.detail, cap.copy, cap.busy);
+  if (cap.tool) return messages + renderToolDetail(cap.tool);
+  if (cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: catalog.sessions.some(session => isRunning(session.status)) });
+  return messages + renderCapabilityCatalog({ ...cap, items: catalog.capabilities, tools: catalog.tools, error: catalog.errors.capabilities || catalog.errors.tools || '' });
 }
 
 function sidebar() {
@@ -69,7 +88,7 @@ function primaryRail() {
 }
 
 function contextPanel() {
-  return renderContextPanel({ detail: state.detail, selectedTab: contextTab, mobileOpen: contextOpen, selectedPreview, busy: state.busy });
+  return renderContextPanel({ detail: state.detail, selectedTab: contextTab, mobileOpen: contextOpen, selectedPreview, busy: state.busy, workflow: state.detail?.capability ? workflowVersions.get(`${state.detail.capability.id}:${state.detail.capability.version}`) : null });
 }
 
 function render() {
@@ -77,17 +96,18 @@ function render() {
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
   const research = ['fingpt', 'claw'].includes(state.route.page);
-  root.innerHTML = `<div class="app-shell ${research ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}">${renderTopbar({ runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: catalog.skills })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', skills: 'Skills' })[name]}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${research ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
+  const hasContext = research && Boolean(state.detail) && !contextCollapsed;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}">${renderTopbar({ runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: [...catalog.capabilities, ...catalog.tools], searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', capabilities: '能力目录', tools: '工具目录' })[name]}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', history: '研究历史', skills: 'Skills', settings: '设置' })[state.route.page]} · AlphaFoundry`;
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', history: '研究历史', skills: '能力中心', settings: '设置' })[state.route.page]} · AlphaFoundry`;
 }
 
-async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'skills']) {
+async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools']) {
   await Promise.all(names.map(async (name) => {
     try {
       const data = await api[name]();
@@ -101,12 +121,14 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
 }
 
 async function showRoute() {
-  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; selectedSkillDetail = ''; renameDraft = null; questionDrafts.clear();
+  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; globalSearch = ''; searchOpen = false; renameDraft = null; questionDrafts.clear();
   await controller.open(parseRoute(location.hash));
   if (ticket !== pageGeneration) return;
+  if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
   document.querySelector('#main')?.scrollTo({ top: 0 });
+  await loadWorkflowVersion();
   if (state.route.page === 'history') await loadCatalog(['sessions']);
-  if (state.route.page === 'skills') await loadCatalog(['skills']);
+  if (state.route.page === 'skills') await loadCatalog(['capabilities', 'tools', 'sessions']);
 }
 
 async function ensureSession() {
@@ -121,9 +143,13 @@ async function ensureSession() {
 root.addEventListener('input', (event) => {
   if (event.target.id === 'prompt') {
     controller.setDraft(event.target.value);
-    slashOpen = event.target.value.trimStart().startsWith('/');
-    if (slashOpen) render();
+    const wasOpen = slashOpen; slashOpen = event.target.value.trimStart().startsWith('/'); slashIndex = 0;
+    if (slashOpen || wasOpen) render();
   }
+  if (event.target.closest('#cap-editor-form')) captureEditor();
+  if (event.target.closest('#cap-creation-form')) capabilityState.goal = event.target.value;
+  if (event.target.closest('#cap-copy-form')) capabilityState.copy = { name: document.querySelector('#cap-copy-name')?.value || '', slug: document.querySelector('#cap-copy-slug')?.value || '' };
+  if ('capQuery' in event.target.dataset) { capabilityState.query = event.target.value; render(); }
   if ('globalSearch' in event.target.dataset) { globalSearch = event.target.value; render(); }
   if (event.target.id === 'rename-title') renameDraft = event.target.value;
   const form = event.target.closest('[data-question-form]');
@@ -135,14 +161,27 @@ root.addEventListener('input', (event) => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (event.target.id === 'prompt' && (slashOpen || state.draft.trimStart().startsWith('/')) && !event.isComposing) {
+    const result = slashKey(event.key, slashIndex, currentSlashMatches());
+    if (result.handled) {
+      event.preventDefault();
+      if (result.select) void selectCapability(result.select);
+      else { if (result.close) slashOpen = false; if (result.index !== undefined) slashIndex = result.index; render(); }
+      return;
+    }
+  }
   if (event.target.id === 'prompt' && event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); document.querySelector('#composer')?.requestSubmit(); }
-  if (event.key === 'Escape') { sidebarOpen = false; contextOpen = false; renameDraft = null; render(); }
+  if (event.key === 'Escape') { event.preventDefault(); sidebarOpen = false; contextOpen = false; slashOpen = false; globalSearch = ''; searchOpen = false; renameDraft = null; render(); }
 });
 
 root.addEventListener('change', async (event) => {
   const target = event.target;
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
-  if (target.id === 'skill-select') { controller.setSkill(target.value); render(); }
+  if (target.id === 'skill-select') { if (target.value) await selectCapability(target.value); else { controller.setCapability(null); render(); } }
+  if ('capSource' in target.dataset) { capabilityState.source = target.value; render(); }
+  if ('capCategory' in target.dataset) { capabilityState.category = target.value; render(); }
+  if (target.closest('#cap-editor-form')) captureEditor();
+  if (target.id === 'cap-import-file' && target.files?.length) await capabilityController.import(target.files[0]);
   if ('autoFormats' in target.dataset) { controller.setFormats(target.checked ? null : []); render(); }
   if ('format' in target.dataset) {
     const selected = [...root.querySelectorAll('[data-format]:checked')].map((input) => input.dataset.format);
@@ -190,6 +229,13 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (event.target.id === 'cap-editor-form') { captureEditor(); await capabilityController.save(); return; }
+  if (event.target.id === 'cap-copy-form') { await capabilityController.copy(); return; }
+  if (event.target.id === 'cap-creation-form') {
+    const result = await controller.createCapabilitySession(capabilityState.kind, capabilityState.goal.trim());
+    if (result?.id) { capabilityController.close(); await showRoute(); await loadCatalog(['sessions']); }
+    return;
+  }
   if (event.target.id === 'rename-form') {
     const id = state.detail?.id; const title = String(new FormData(event.target).get('title') || '').trim();
     if (!id || !title) { state.error = '会话名称不能为空。'; render(); return; }
@@ -207,7 +253,10 @@ root.addEventListener('submit', async (event) => {
     if (result) { questionDrafts.delete(question.id); render(); }
   }
   if (event.target.id === 'composer') {
-    if (!state.draft.trim() || state.busy) return;
+    if (state.draft.trimStart().startsWith('/')) { slashOpen = true; slashIndex = 0; render(); return; }
+    if (!state.draft.trim() || state.busy || slashOpen) return;
+    if (state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))) { state.error = '上一任务与交付尚未确认结束；草稿已保留，未发送。'; render(); return; }
+    if (!catalog.runtime?.connected || catalog.runtime.credential_configured === false) { state.error = '运行时未就绪，请检查连接与授权；草稿已保留。'; render(); return; }
     if (await ensureSession()) { await controller.send(); await loadCatalog(['sessions']); }
   }
   if (event.target.id === 'settings-form') {
@@ -224,6 +273,10 @@ root.addEventListener('submit', async (event) => {
 root.addEventListener('click', async (event) => {
   const button = event.target.closest('button'); if (!button || button.disabled) return;
   const data = button.dataset;
+  if (await handleCapabilityClick(data)) return;
+  if ('toggleSearch' in data) { searchOpen = !searchOpen; sidebarOpen = false; contextOpen = false; if (!searchOpen) globalSearch = ''; render(); if (searchOpen) document.querySelector('#global-search')?.focus(); }
+  if ('clearCapability' in data) { controller.setCapability(null); render(); }
+  if ('removeTool' in data) { controller.setTools(state.toolIds.filter(id => id !== data.removeTool)); render(); }
   if ('new' in data) { history.pushState(null, '', state.route.page === 'claw' ? '#/claw' : '#/fingpt'); await showRoute(); controller.setDraft(''); render(); document.querySelector('#prompt')?.focus(); }
   if ('refresh' in data) { success = ''; await loadCatalog(); await controller.refresh(); }
   if ('reloadSession' in data) await showRoute();
@@ -233,7 +286,7 @@ root.addEventListener('click', async (event) => {
     else sidebarCollapsed = !sidebarCollapsed;
     contextOpen = false; render();
   }
-  if ('toggleContext' in data) { contextOpen = !contextOpen; sidebarOpen = false; render(); }
+  if ('toggleContext' in data) { if (window.matchMedia('(max-width: 1050px)').matches) contextOpen = !contextOpen; else contextCollapsed = !contextCollapsed; sidebarOpen = false; render(); }
   if ('collapseSidebar' in data) {
     if (window.matchMedia('(max-width: 1050px)').matches) sidebarOpen = false;
     else sidebarCollapsed = true;
@@ -243,24 +296,22 @@ root.addEventListener('click', async (event) => {
   if ('contextTab' in data) { contextTab = data.contextTab; render(); }
   if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
-  if ('slashSearch' in data) { slashOpen = !slashOpen; render(); document.querySelector('#prompt')?.focus(); }
+  if ('slashSearch' in data) { slashOpen = !slashOpen; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
   if ('cancelRename' in data) { renameDraft = null; render(); }
   if ('noFormats' in data) { controller.setFormats([]); render(); }
   if ('preview' in data) { selectedPreview = data.preview; render(); }
   if ('closePreview' in data) { selectedPreview = null; render(); }
-  if ('closeSkillDetail' in data) { selectedSkillDetail = ''; render(); }
-  if ('skillDetail' in data) { selectedSkillDetail = data.skillDetail; render(); }
-  if ('skillShortcut' in data) {
-    if (!catalog.skills.some((skill) => skill.id === data.skillShortcut)) { state.error = '所选 Skill 已不可用，请刷新能力目录。'; render(); return; }
-    if (data.globalResult === 'skill' && !['fingpt', 'claw'].includes(state.route.page)) { history.pushState(null, '', '#/fingpt'); await showRoute(); }
-    controller.setSkill(data.skillShortcut);
-    if (state.draft.trimStart().startsWith('/')) controller.setDraft('');
-    slashOpen = false;
-    render();
-    document.querySelector('#prompt')?.focus();
+  if ('closeSkillDetail' in data) { capabilityController.close(); render(); }
+  if ('skillDetail' in data) {
+    const ticket = pageGeneration;
+    await capabilityController.open(data.skillDetail);
+    if (ticket !== pageGeneration) return;
+    if (state.route.page !== 'skills') { history.pushState(null, '', '#/skills'); await showRoute(); }
+    document.querySelector('#main')?.scrollTo({ top: 0 });
   }
-  if ('useSkill' in data) { history.pushState(null, '', '#/fingpt'); await showRoute(); controller.setSkill(data.useSkill); render(); document.querySelector('#prompt')?.focus(); }
+  if ('skillShortcut' in data) await selectCapability(data.skillShortcut);
+  if ('useSkill' in data) await selectCapability(data.useSkill);
   const id = state.detail?.id;
   if (!id) return;
   if ('cancel' in data) { await controller.action(() => api.cancel(id)); await loadCatalog(['sessions']); }
@@ -283,7 +334,98 @@ function collectAnswers(form, question) {
   catch (error) { safeLog('invalid_question_selection'); state.error = error.message; render(); return null; }
 }
 
-controller.subscribe(render);
+function currentSlashMatches() {
+  return skillMatches(state.draft.trimStart().replace(/^\//, ''), catalog.capabilities).slice(0, 6);
+}
+
+async function goToResearchDraft() {
+  if (['fingpt', 'claw'].includes(state.route.page)) return;
+  const route = researchDraftRoute;
+  history.pushState(null, '', `#/${route.page}${route.sessionId ? `?session=${encodeURIComponent(route.sessionId)}` : ''}`);
+  await showRoute();
+}
+
+async function selectCapability(id) {
+  const item = catalog.capabilities.find(cap => cap.id === id);
+  if (!item?.enabled || !item.version) { state.error = '所选能力未启用或尚未发布，请刷新能力目录。'; render(); return; }
+  await goToResearchDraft();
+  controller.setCapability(item);
+  if (state.draft.trimStart().startsWith('/')) controller.setDraft('');
+  slashOpen = false; globalSearch = ''; searchOpen = false; render();
+  document.querySelector('#prompt')?.focus();
+}
+
+function captureEditor() {
+  const form = document.querySelector('#cap-editor-form');
+  if (form && capabilityState.editor && !capabilityState.busy) capabilityState.editor = readEditor(new FormData(form), capabilityState.editor);
+}
+
+async function loadWorkflowVersion() {
+  const ref = state.detail?.capability;
+  if (ref?.kind !== 'workflow') return;
+  const key = `${ref.id}:${ref.version}`;
+  if (workflowVersions.has(key)) return;
+  workflowVersions.set(key, { ...ref, steps: [] });
+  try {
+    const version = await api.capabilityVersion(ref.id, ref.version);
+    workflowVersions.set(key, { ...version, kind: 'workflow' });
+  } catch { safeLog('workflow_version_read_failed'); state.error = '未能读取本次 Workflow 的不可变版本步骤；实际活动仍以 DSH 为准。'; }
+  render();
+}
+
+async function handleCapabilityClick(data) {
+  const cap = capabilityState;
+  if ('capRefresh' in data) { await loadCatalog(['capabilities', 'tools']); return true; }
+  if ('capKind' in data) { cap.kind = data.capKind; cap.category = ''; cap.query = ''; render(); return true; }
+  if ('capClose' in data) { capabilityController.close(); return true; }
+  if ('capCancelEdit' in data) { cap.form = ''; cap.editor = null; render(); return true; }
+  if ('capCreate' in data) { capabilityController.create(data.capCreate); return true; }
+  if ('capImport' in data) { document.querySelector('#cap-import-file')?.click(); return true; }
+  if ('capEdit' in data) { capabilityController.edit(); return true; }
+  if ('capCopy' in data) { cap.form = 'copy'; cap.copy = {}; render(); return true; }
+  if ('capVersions' in data) { await capabilityController.versions(); return true; }
+  if ('capVersion' in data) { await capabilityController.version(Number(data.capVersion)); return true; }
+  if ('capAction' in data) { await capabilityController.action(data.capAction); return true; }
+  if ('capRollback' in data) { await capabilityController.action('rollback', Number(data.capRollback)); return true; }
+  if ('toolDetail' in data) { cap.tool = catalog.tools.find(tool => tool.id === data.toolDetail); if (state.route.page !== 'skills') { history.pushState(null, '', '#/skills'); await showRoute(); } else render(); return true; }
+  if ('useTool' in data) {
+    const tool = catalog.tools.find(item => item.id === data.useTool && item.selectable);
+    if (!tool) { state.error = '此工具不可单独选择。'; render(); return true; }
+    await goToResearchDraft(); controller.setTools([...state.toolIds, tool.id]); render(); document.querySelector('#prompt')?.focus(); return true;
+  }
+  if ('capArtifact' in data) {
+    const ticket = pageGeneration;
+    if (!creationArtifacts(state.detail).some(file => file.id === data.capArtifact)) { state.error = '请选择专用创建会话的实际候选产物。'; render(); return true; }
+    const result = await capabilityController.fromArtifact(state.detail.id, data.capArtifact);
+    if (ticket !== pageGeneration) return true;
+    if (result) { history.pushState(null, '', '#/skills'); await showRoute(); }
+    else { state.error = cap.error; render(); }
+    return true;
+  }
+  if (!cap.editor) return false;
+  const editActions = ['inputAdd', 'inputRemove', 'stepAdd', 'stepRemove', 'stepMove', 'packageFileAdd', 'packageFileRemove', 'reviewScript'];
+  if (!editActions.some(key => key in data)) return false;
+  captureEditor();
+  const editor = cap.editor;
+  if ('inputAdd' in data) editor.metadata.inputs.push({ name: '', label: '', type: 'text', required: true });
+  if ('inputRemove' in data) editor.metadata.inputs.splice(Number(data.inputRemove), 1);
+  if ('stepAdd' in data) editor.steps.push({ title: '', instruction: '', skill_id: null, tools: [] });
+  if ('stepRemove' in data) editor.steps.splice(Number(data.stepRemove), 1);
+  if ('stepMove' in data) editor.steps = moveStep(editor.steps, Number(data.stepMove), Number(data.direction));
+  if ('packageFileAdd' in data) editor.files.push({ path: '', content: '' });
+  if ('packageFileRemove' in data) { editor.files.splice(Number(data.packageFileRemove), 1); editor.reviewed_scripts = []; }
+  if ('reviewScript' in data) await capabilityController.run(async () => {
+    const file = editor.files[Number(data.reviewScript)];
+    if (!file || typeof file.content !== 'string' || !/^scripts\/.*\.py$/.test(file.path)) throw new Error('只可审查当前候选的研究 Python 脚本。');
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(file.content));
+    file.sha256 = [...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+    editor.reviewed_scripts = [...new Set([...editor.reviewed_scripts, file.sha256])];
+    cap.success = '已记录你对当前脚本字节的审查确认；仍需保存并检查。';
+  });
+  render(); return true;
+}
+
+controller.subscribe(() => { catalog.sessions = reconcileSessionSummary(catalog.sessions, state.detail); render(); void loadWorkflowVersion(); });
 window.addEventListener('hashchange', () => { void showRoute(); });
 document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); document.querySelector('#main')?.focus(); });
 window.addEventListener('unhandledrejection', (event) => { event.preventDefault(); safeLog('unhandled_async_error'); state.error = '操作出现异常，请刷新状态后重试。'; render(); });

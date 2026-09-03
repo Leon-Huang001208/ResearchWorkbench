@@ -10,6 +10,12 @@ export function parseRoute(hash = '') {
 export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
 export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting', 'waiting_approval', 'awaiting_approval', 'waiting_input', 'busy', 'cancelling'].includes(status);
 
+export function reconcileSessionSummary(sessions, detail) {
+  if (!detail?.id) return sessions;
+  const { id, title, mode, status, can_cancel } = detail;
+  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel } : session);
+}
+
 export function collectQuestionAnswers(values, items) {
   return items.map((item, index) => {
     const selected = values.getAll(`selection-${index}`).map(String);
@@ -49,9 +55,23 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     return data;
   }
   const sessionPath = (id) => `/sessions/${segment(id)}`;
+  const capabilityPath = (id) => `/capabilities/${segment(id)}`;
   return {
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     sessions: () => request('/sessions'), skills: () => request('/skills'),
+    capabilities: () => request('/capabilities'), tools: () => request('/tools'),
+    capability: (id) => request(capabilityPath(id)),
+    createCapability: (body) => request('/capabilities', { method: 'POST', body }),
+    saveCapability: (id, body) => request(`${capabilityPath(id)}/draft`, { method: 'PATCH', body }),
+    capabilityAction: (id, action, body = {}) => {
+      if (!['copy', 'check', 'publish', 'disable', 'enable', 'rollback'].includes(action)) throw new Error('未知能力操作');
+      return request(`${capabilityPath(id)}/${action}`, { method: 'POST', body });
+    },
+    capabilityVersions: (id) => request(`${capabilityPath(id)}/versions`),
+    capabilityVersion: (id, version) => request(`${capabilityPath(id)}/versions/${segment(version)}`),
+    importCapability: (file) => { const body = new FormData(); body.append('file', file); return request('/capabilities/import', { method: 'POST', body }); },
+    createCapabilitySession: (kind, goal) => request('/capabilities/creation-sessions', { method: 'POST', body: { kind, goal } }),
+    capabilityFromArtifact: (sessionId, fileId) => request('/capabilities/from-artifact', { method: 'POST', body: { session_id: sessionId, file_id: fileId } }),
     create: (body) => request('/sessions', { method: 'POST', body }),
     detail: (id) => request(sessionPath(id)),
     message: (id, body, key) => request(`${sessionPath(id)}/messages`, { method: 'POST', body, key }),
@@ -80,12 +100,13 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 }
 
 export function createController({ api, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {} }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], skillId: '', expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], skillId: '', capability: null, toolIds: [], expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {};
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
-  const saveDraft = () => drafts.set(draftKey(), { draft: state.draft, attachments: state.attachments, skillId: state.skillId, expectedFormats: state.expectedFormats });
+  const draftState = () => ({ draft: state.draft, attachments: state.attachments, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, expectedFormats: state.expectedFormats });
+  const saveDraft = () => drafts.set(draftKey(), draftState());
   const fail = (error) => { state.error = error?.message || '操作失败，请重试。'; };
   function snapshot(data) {
     if (!data || data.id !== state.route.sessionId || !Array.isArray(data.messages)) throw new Error('会话响应格式异常，请刷新重试。');
@@ -100,7 +121,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   async function open(route) {
     saveDraft(); const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false;
-    Object.assign(state, { expectedFormats: null }, drafts.get(draftKey()) || { draft: '', attachments: [], skillId: '' }); emit();
+    Object.assign(state, { expectedFormats: null, capability: null, toolIds: [] }, drafts.get(draftKey()) || { draft: '', attachments: [], skillId: '' }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
@@ -117,7 +138,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   async function send() {
     if (state.busy || !state.detail || !state.draft.trim()) return;
     const id = state.detail.id; const ticket = generation; const text = state.draft;
-    const body = { text: text.trim(), ...(state.skillId ? { skill_id: state.skillId } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}) };
+    const body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: state.toolIds } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}) };
     const signature = JSON.stringify(body); const previous = pending.get(id);
     const attempt = previous?.signature === signature ? previous : { signature, key: makeID() };
     pending.set(id, attempt); state.busy = true; state.error = ''; emit();
@@ -144,16 +165,31 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   return {
     state, subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); }, open, refresh, send, action,
     setDraft: (value) => { state.draft = value; saveDraft(); },
-    setSkill: (value) => { state.skillId = value; saveDraft(); },
+    setSkill: (value) => { state.skillId = value; state.capability = null; saveDraft(); },
+    setCapability: (value) => {
+      if (value && (value.enabled !== true || !Number.isInteger(value.version) || value.version < 1)) throw new Error('只能选择已启用的已发布能力版本。');
+      state.capability = value ? structuredClone(value) : null; state.skillId = value?.id || ''; saveDraft();
+    },
+    setTools: (values) => { state.toolIds = [...new Set(values)]; saveDraft(); },
     setFormats: (value) => { state.expectedFormats = value === null ? null : [...new Set(value)]; saveDraft(); },
     addAttachments: (items) => { state.attachments = [...new Map([...state.attachments, ...items].map((file) => [file.id, file])).values()]; saveDraft(); emit(); },
     removeAttachment: (id) => { state.attachments = state.attachments.filter((file) => file.id !== id); saveDraft(); emit(); },
     create: async (mode, workspaceId) => {
       const ticket = generation;
-      const previousDraft = { draft: state.draft, attachments: [], skillId: state.skillId, expectedFormats: state.expectedFormats };
+      const previousDraft = { ...draftState(), attachments: [] };
       const result = await action(() => api.create({ mode, ...(workspaceId ? { workspace_id: workspaceId } : {}) }), { refreshAfter: false });
       if (ticket !== generation) return null;
       if (result?.id) { drafts.set(result.id, previousDraft); onNavigate(sessionHash(result)); }
+      return result;
+    },
+    createCapabilitySession: async (kind, goal) => {
+      const ticket = generation;
+      const result = await action(() => api.createCapabilitySession(kind, goal), { refreshAfter: false });
+      if (ticket !== generation) return null;
+      if (result?.id && typeof result.draft === 'string') {
+        drafts.set(result.id, { draft: result.draft, attachments: [], skillId: '', capability: null, toolIds: [], expectedFormats: null });
+        onNavigate(sessionHash(result));
+      }
       return result;
     },
     upgrade: async () => {

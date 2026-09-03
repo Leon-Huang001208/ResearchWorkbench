@@ -20,8 +20,8 @@ export function renderRename(title) {
   return `<form id="rename-form" class="decision-card rename-form"><label for="rename-title">为这个研究会话命名</label><input id="rename-title" name="title" value="${e(title)}" required maxlength="120"><div class="button-row"><button type="submit" class="button primary">保存名称</button><button type="button" class="button" data-cancel-rename>取消</button></div></form>`;
 }
 
-export function renderFormatPicker(formats, skillId) {
-  const defaults = ['fund-evaluation', 'company-research', 'industry-research'].includes(skillId) ? ['docx', 'html', 'xlsx'] : [];
+export function renderFormatPicker(formats, capability) {
+  const defaults = capability?.metadata?.default_formats || capability?.default_formats || [];
   const selected = formats === null ? defaults : formats;
   const label = selected.length ? selected.map((value) => value.toUpperCase()).join(' / ') : '无需文件';
   return `<details class="format-picker"><summary>输出格式：${formats === null ? '自动 · ' : ''}${e(label)}</summary><div class="format-options"><label class="check-label"><input id="auto-formats" type="checkbox" data-auto-formats ${formats === null ? 'checked' : ''}>按 Skill 默认格式</label>${['md', 'html', 'docx', 'xlsx', 'png'].map((format) => `<label class="check-label"><input id="format-${format}" type="checkbox" data-format="${format}" ${selected.includes(format) ? 'checked' : ''}>${format.toUpperCase()}</label>`).join('')}<button type="button" class="text-button" data-no-formats>仅聊天，无需文件</button></div></details>`;

@@ -30,8 +30,9 @@ test('explicit file formats survive navigation and enter the idempotent request 
 
 test('format picker distinguishes skill defaults from explicit no-file output', () => {
   assert.equal(typeof views.renderFormatPicker, 'function');
-  assert.match(views.renderFormatPicker(null, 'fund-evaluation'), /DOCX.*HTML.*XLSX/);
-  assert.match(views.renderFormatPicker([], 'fund-evaluation'), /无需文件/);
+  const capability = { id: 'fund-evaluation', metadata: { default_formats: ['docx', 'html', 'xlsx'] } };
+  assert.match(views.renderFormatPicker(null, capability), /<summary>输出格式：自动 · DOCX \/ HTML \/ XLSX<\/summary>/);
+  assert.match(views.renderFormatPicker([], capability), /<summary>输出格式：无需文件<\/summary>/);
 });
 
 test('rename and native questions use accessible in-app forms instead of window.prompt', async () => {
