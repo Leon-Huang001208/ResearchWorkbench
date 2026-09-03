@@ -19,7 +19,7 @@ DOCX / HTML / XLSX；资料解读和无 Skill 聊天默认不要求文件。自�
 | admission_unknown | 受理未知，等待原生历史确认，绝不重发 |
 | completed | 所有要求格式均找到本任务新建/更新且通过解析的文件 |
 | incomplete | 要求格式缺失，或仅有损坏/空内容文件 |
-| verification_failed | 严格沙箱不可用、限额超出或检查结果不完整 |
+| verification_failed | 严格沙箱不可用、限额超出、检查不完整，或明确停止后缺少原生终止事件 |
 | not_required | 本任务没有要求文件，未执行文件解析 |
 
 `completed` 只证明文件格式/非空检查，不证明研究结论、数据、引用或财务计算正确。
@@ -43,6 +43,16 @@ DSH 的 `completed` 在 UI 显示“执行已结束”，不表示文件已经�
    新任务使用新的快照；旧收据不会成为新任务的有效输出证据。
 
 单 Web worker 的约束保持不变。这不是第二套研究执行器，没有自动补文件/重跑模型循环。
+
+### 明确停止后的异常复核
+
+停止与消息提交/能力发布共用服务锁。当前收据保存绑定 key、task_id、marker 的停止意图；只有真实 `session.cancel` 返回 `accepted=true` 才记录受理。每次复核重新读取完整历史、唯一父会话（`running is False`）和子任务（parentAvailable=true、全部inactive），并要求双事件通道在线、没有待审批或提问、当前标记唯一且其后没有新用户请求。
+
+满足上述条件但缺少本任务 `turn/end` 时，持久化 `verification_failed` 与 `failure_code=cancel_terminal_event_missing`，不解析文件、不伪造终止事件或成功。原生错误仍显示；冷恢复可以看到结果未确认并提交新键，同键只返回原收据。任何证明缺失、旧停止意图、未知受理或断线继续等待。存在真正终止事件时仍走原有取消/交付校验路径。
+
+复核还要求事件revision、已缓存seq与运行状态在请求期间保持一致，历史不得落后于已观察事件；新运行或终态帧到达会使旧证据失效，不覆盖新状态。
+
+非运行但尚未确认的已受理任务提供「重新核对停止」，离线禁用；复核前发送保持禁用。对应28项正反向回归在 `tests/research_web/test_cancel_reconciliation.py`，真实异常复验另记。
 
 ## 严格沙箱解析
 

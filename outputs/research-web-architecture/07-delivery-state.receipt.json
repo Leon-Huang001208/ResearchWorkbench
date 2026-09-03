@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/07-delivery-state.json",
+  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/07-delivery-state.html",
+  "specification": {
+    "sha256": "9185ea97723099545931bc5b24c43b48b809d65325f2fee6b08468aea061db35",
+    "bytes": 2941
+  },
+  "artifact": {
+    "sha256": "1d38ae1f3252caf0f3138d1f7487dd43924b60ee20db8728a6a934505fccdc2c",
+    "bytes": 633636
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

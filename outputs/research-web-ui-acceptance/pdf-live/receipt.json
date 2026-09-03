@@ -1,0 +1,27 @@
+{
+  "status": "passed",
+  "session": "63d128e4-e39d-4cd0-a1ec-2e5fa5d5e7c8",
+  "sourceSession": "28d73296-9908-4095-b89b-f46a4758d852",
+  "sourceFile": "d7a22c597bdc6ade86e3c2b8",
+  "uploaded": "a928b9cc44bdbe2640728740",
+  "sha256": "36b7c81b24ca50ff86f5ff97c256fa882de56b2f95c4ab1393d9bde5c5aa6154",
+  "mode": "readback",
+  "messageRequests": 0,
+  "capability": {
+    "id": "document-reading",
+    "version": 1,
+    "kind": "skill",
+    "native_name": "document-reading",
+    "sha256": "c7cb6659eda58a1dca2c1b3489e39871ce479a85ad28bd73b03bbcf25a9120f5",
+    "resource_path": "resources/capabilities/document-reading/1",
+    "default_formats": [],
+    "bindings": []
+  },
+  "checks": [
+    "actual_upload_bytes",
+    "native_document_skill",
+    "model_read_activity",
+    "pages_14_15_rendered",
+    "history_restored"
+  ]
+}

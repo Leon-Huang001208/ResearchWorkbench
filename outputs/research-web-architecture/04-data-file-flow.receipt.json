@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/04-data-file-flow.html",
+  "specification": {
+    "sha256": "84e73a18abc25df46a6bd216ed886dbc9492e66ccd27c8807b013df4310b0bcf",
+    "bytes": 3336
+  },
+  "artifact": {
+    "sha256": "3f8b6ffb3266a50572600acbf2db51aa08ae81709a31c21fea764ce20c5f6d60",
+    "bytes": 638035
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

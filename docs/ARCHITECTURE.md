@@ -1,6 +1,10 @@
 # AlphaFoundry 架构文档
 
-## 当前研究产品：DSH Web（2026-09-02）
+## 当前研究产品：DSH Web（2026-09-03）
+
+当前实现的唯一架构主入口是 [Research Web 架构](architecture/research-web/README.md)。
+部署、协议、数据文件、图源与源码对应清单在该目录维护；本轮能力管理与界面迭代的完成情况见
+[架构核对记录](architecture/research-web/review-record.md)，未完成验收不视为可交付。
 
 当前研究入口为 `app.research_web.main:app`。Web → FastAPI 轻量适配 → 专属 DSH
 原生 RPC / 双 WebSocket；DSH 是唯一研究引擎，并负责执行循环、历史、Skill 和子 Agent。
@@ -24,7 +28,7 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 
 该架构只迁移 LSH 中可追溯、可校验的数据与受限运行时能力，不迁入策略评分、订单、模拟交易、`score_hint`、`driver-summary` 或旧策略/交易范围。等价迁移后，LSH 只读归档一个稳定版本。
 
-## 系统总览
+## 历史量化平台：系统总览
 
 AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。
 

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/08-iteration-docs.json",
+  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/08-iteration-docs.html",
+  "specification": {"sha256": "707bba80be31068ae8bf78ef6d704e9a09406342159af732afb1f2ce4ab951b6", "bytes": 5392},
+  "artifact": {"sha256": "3e2f05d4a167f25ca648156c17d6900ab20b0553440d2b07782ddd6d5597c50f", "bytes": 639788},
+  "validation": {"checksPassed": 9, "checkCount": 9, "compositionProfile": "showcase", "compositionStatus": "pass", "errors": 0, "warnings": 0}
+}

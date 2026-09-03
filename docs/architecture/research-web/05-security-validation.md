@@ -1,0 +1,46 @@
+# 安全边界与验证方法
+
+## 当前部署的信任模型
+
+这是单人、本机回环部署，不是公网认证或多租户隔离方案。浏览器请求由同源与 Host 检查限制；BFF 确认自己管理的 DSH 实例与会话归属。3080 不是产品执行端，模型凭据只由专属 DSH 管理，研究脚本没有凭据环境变量。
+
+| 边界 | 实际约束 | 核对位置 / 测试 |
+|---|---|---|
+| Web → FastAPI | 本地 Host、同源、输入 schema；不开放任意代理 URL | `main.py` / `test_api.py` |
+| FastAPI → DSH | 固定回环 RPC、已核对协议版本、方法白名单、双事件通道 | `client.py` / `test_protocol.py`、`test_event_recovery.py` |
+| 用户 → 会话文件 | 会话归属、规范路径、安全文件描述符、有限上传体积和类型 | `store.py`、`main.py` / `test_store.py`、`test_artifacts.py` |
+| DSH → 工具 | 精确注册工具集合，子 Agent 深度、并发和步骤限制 | `runtime/guard.mjs` / `research_web_guard.test.mjs` |
+| DSH → 公开数据 | 原生审批；私有认证 BFF 入口，固定来源/参数，无任意 URL、重定向或自动安装 | `runtime/public-data.mjs`、`datahub/` / `research_web_public_data.test.mjs`、`test_datahub.py` |
+| 脚本 → 宿主 | macOS Seatbelt 内核约束，环境变量白名单；只读 inputs/resources，仅 outputs/tmp 可写，无网络和子进程 | `sandbox.py` / `test_sandbox.py` |
+| HTML → 浏览器凭据 | 隔离 iframe，后端 sandbox CSP，无同源权限；模型 Markdown 先转义 | `main.py`、`ui/markdown.mjs`、`ui/views.mjs` / UI 安全测试 |
+| 研究结束 → 交付完成 | 本任务输出基线、哈希复核、沙箱解析与重开；旧产物、附件和正文不补文件格式 | `delivery.py`、`delivery_validation.py` / `test_delivery.py` |
+| 导入包 → 本地存储 | 有界读取，不 extractall、不执行；拒绝穿越、链接、祖先路径冲突、嵌套压缩及伪装可执行；图片/PDF 容器证据检查 | `capabilities/packages.py` / `test_capabilities_safety.py`、`test_capabilities_review.py` |
+| 草稿 → 原生发现 | 检查元数据、调用方式、脚本哈希、已安装依赖与精确工具名；活动任务阻止发布/停用/回滚 | `capabilities/catalog.py`、`routes.py` / `test_capabilities.py`、`test_capabilities_admission.py` |
+| 原生能力 → 当前研究 | 仅专属 Skill root；所有启用包检查依赖与关联版本，再复制只读资源；失效包不能在自主发现时绕过 | `capabilities/catalog.py`、`runtime/research.cordis.yml` / `test_capabilities_native.py`、`test_capabilities_review.py` |
+
+包管理后端最近完成 233 项完整 research_web 回归与两轮限定修复复审。真实 UI 已完成对话产物创建/审查/发布/新研究调用/HTML 下载，以及手动导入/编辑两版/停用/回滚/导出；Workflow 与全轮交付检查另行记录，不由这些结果推定。媒体容器检查不是恶意内容证明，静态 Python 检查不授予额外宿主访问或网络权限。发布暂存失败保留草稿与旧版；无法确认恢复时维持 pending 并拒绝继续，不悄悄抹去失败。
+
+创建会话从产物导入时只读取当前安全文件清单。已改名旧 ledger 不作附件来源；仍实际存在但不安全的固定伴随路径、读取时消失或创建类型冲突均拒绝。显式 ZIP 不吸收会话中无关 JSON。真实修复后同名包按名称冲突拒绝，未覆盖现有已发布能力。
+
+## 验证层次
+
+1. 协议与渲染测试验证确定性契约，不要求消耗模型。
+2. 原生沙箱与 DSH schema converter 测试要求本机环境以及 `DSH_SOURCE_ROOT`；缺失时明确 skipped，不能当作通过。
+3. 独立浏览器回归验证实际页面与响应式布局，不写会话或调用模型；截图必须另行人工检查。
+4. 真正研究旅程由本机 Web、专属 DSH 和真实模型完成，保留会话、版本、工具事件及文件；单元测试和旧验收不能替代新功能验收。
+5. 图文一致性检查只核对路径、接口、字节哈希及更新记录。人工仍需审查语义、权限和实现是否相符。
+
+## 当前可复跑命令
+
+```bash
+DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness python -m pytest tests/research_web --confcutdir=tests/research_web -q
+DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness node --test tests/javascript/research_web*.test.mjs
+node --check app/research_web/ui/app.mjs
+git diff --check
+```
+
+UI 布局验收：`node tests/e2e/research_web_layout.mjs`，可用 `ALPHAFOUNDRY_PLAYWRIGHT_MODULE` 指定已经安装的本地 Playwright 模块入口；该脚本不安装依赖、不改变当前浏览器会话、不提交研究。证据输出至 `outputs/research-web-ui-acceptance/`，日志为 `logs/research-web-layout.jsonl`。它不把截图自动标为视觉优良。
+
+## 未覆盖的部署保证
+
+不声称 Windows/Linux 原生研究沙箱、桌面安装、公网访问、多个 FastAPI worker 或多人协作已经验证。停止后如有内核退出异常，仅报告并保留证据，不自动重启系统。真实文件解析检查也不能自动证明财务结论正确或资料覆盖充分。

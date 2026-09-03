@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/03-research-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/03-research-sequence.html",
+  "specification": {
+    "sha256": "42be7ac19d8dd8ec9c2c047bbe59b39295eb6fba4c4c25f7b0a488da58038bb9",
+    "bytes": 3814
+  },
+  "artifact": {
+    "sha256": "6282d4ffe633f401bde08ec9fbdddd4f22d44849209d737d1de899da6f8c89c2",
+    "bytes": 633132
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

@@ -1,0 +1,34 @@
+# AlphaFoundry Research Web 当前架构
+
+这是当前研究产品的唯一架构主入口。源码范围为 `app/research_web/`；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。
+
+本轮研究布局、能力中心与架构更新检查已实施；本机真实模型与浏览器证据见 [本轮验收](../../../.ai/reports/2026-09-03-research-ui-live.md)，逐项变更见 [迭代核对](review-record.md)。图形通过不替代产品和内容审查。
+
+## 阅读顺序
+
+1. [部署与职责](01-system.md)：启动路径、模块边界和存储归属。
+2. [研究协议与状态](02-research-runtime.md)：提交、SSE、恢复、审批及停止。
+3. [数据与文件](03-data-files.md)：DataHub、资料快照、附件、产物和独立交付。
+4. [接口清单](04-api.md)：当前路由与请求边界。
+5. [安全与验证](05-security-validation.md)：可执行边界、测试层次与未覆盖部署。
+6. [文档清单契约](06-documentation-contract.md)：仓库内门禁、更新标记与负向验收。
+7. [能力管理](07-capabilities.md)：包、版本、原生发现和会话只读资源；创建调用与手动版本管理已完成真实验收。
+
+可交互图文位于仓库 `outputs/research-web-architecture/`，也可从 Web 设置的「架构文档」打开。JSON 图源在本目录 `diagrams/`。八图均以实际源码为依据，具有 showcase 9/9、零错误零警告、四视口与绑定哈希的人工截图核对记录。图形证据与产品验收分开保存。
+
+## 不在本轮范围
+
+不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、市场首页、提醒、定时任务、外部 MCP、线上技能市场或桌面适配。Workflow 是 DSH 读取的研究步骤模板，不是确定性执行 DAG。
+
+## 启动与验收基线
+
+从 `/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1` 运行；本机已安装解释器为 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`。以下命令中的 `python` 应使用该解释器。两个进程分别启动，端口已有服务时不要重复启动或重启他人的实例：
+
+```bash
+python -m app.research_web.launch_runtime --source /Users/leon/Developer/deepseek-harness --data /Users/leon/.alphafoundry/research-web --source-mode --research-tools
+python -m uvicorn app.research_web.main:app --host 127.0.0.1 --port 8088 --timeout-graceful-shutdown 5
+```
+
+模型仅在产品设置中授权。专属运行时使用 3081；用户原 3080 不被更改。上述本机路径是已验证开发环境，不是跨机器安装约定。
+
+本次起点为 `304930d`，分支 `codex/dsh-web-v1`。此前记录见 [原研究验收](../../research-web-acceptance.md)、[DataHub 资料共享验收](../../../.ai/reports/2026-09-02-datahub-acceptance.md)；本轮另行完成自建Skill、手动导入版本管理、PDF、双Agent Workflow与实际文件验收，没有以旧结果替代新功能。

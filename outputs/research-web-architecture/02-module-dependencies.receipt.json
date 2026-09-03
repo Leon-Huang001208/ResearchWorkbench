@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/02-module-dependencies.json",
+  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/02-module-dependencies.html",
+  "specification": {
+    "sha256": "6bb99ccd04456fa4b3728235dd77ba36b7b0e92c95a102465af5cceb00eb3261",
+    "bytes": 3897
+  },
+  "artifact": {
+    "sha256": "af9d27f1297e2da79cc12b55e76496e22edcf967855d34a1980ac132962ae740",
+    "bytes": 638638
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

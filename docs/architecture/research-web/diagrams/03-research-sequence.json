@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "研究请求 · 流式审批与刷新恢复",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [
+      1250,
+      600
+    ],
+    "legend": {
+      "entries": {
+        "default": {
+          "label": "请求"
+        },
+        "emphasis": {
+          "label": "主流程"
+        },
+        "security": {
+          "label": "审批边界"
+        },
+        "dashed": {
+          "label": "异步事件"
+        },
+        "return": {
+          "label": "响应"
+        }
+      }
+    }
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "研究 Web",
+      "sublabel": "草稿与会话界面"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "ResearchService"
+    },
+    {
+      "id": "native",
+      "type": "backend",
+      "label": "专属 DSH",
+      "sublabel": "执行与原生日志"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 245,
+      "label": "受理"
+    },
+    {
+      "from": 255,
+      "to": 420,
+      "label": "执行与审批"
+    },
+    {
+      "from": 430,
+      "to": 535,
+      "label": "刷新恢复"
+    }
+  ],
+  "messages": [
+    {
+      "id": "submit",
+      "from": "browser",
+      "to": "api",
+      "y": 160,
+      "label": "POST messages + Idempotency-Key",
+      "variant": "emphasis"
+    },
+    {
+      "id": "admit",
+      "from": "api",
+      "to": "native",
+      "y": 192,
+      "label": "session.prompt（仅等待受理）",
+      "variant": "emphasis"
+    },
+    {
+      "id": "accepted",
+      "from": "api",
+      "to": "browser",
+      "y": 224,
+      "label": "202 accepted（不等于完成）",
+      "variant": "return"
+    },
+    {
+      "id": "events",
+      "from": "native",
+      "to": "api",
+      "y": 270,
+      "label": "events.mux + events.host",
+      "variant": "dashed"
+    },
+    {
+      "id": "snapshot",
+      "from": "api",
+      "to": "browser",
+      "y": 302,
+      "label": "SSE snapshot：内容、工具、待审批",
+      "variant": "dashed"
+    },
+    {
+      "id": "decision",
+      "from": "browser",
+      "to": "api",
+      "y": 334,
+      "label": "POST approvals：允许或拒绝",
+      "variant": "security"
+    },
+    {
+      "id": "respond",
+      "from": "api",
+      "to": "native",
+      "y": 366,
+      "label": "原生 respond（拒绝则不取数）",
+      "variant": "security"
+    },
+    {
+      "id": "cancel",
+      "from": "api",
+      "to": "native",
+      "y": 398,
+      "label": "用户停止 → cancel + 子 Agent interrupt"
+    },
+    {
+      "id": "reload",
+      "from": "browser",
+      "to": "api",
+      "y": 444,
+      "label": "刷新 GET session / SSE 重连"
+    },
+    {
+      "id": "history",
+      "from": "api",
+      "to": "native",
+      "y": 476,
+      "label": "必要时读取历史、父子任务真实状态"
+    },
+    {
+      "id": "restore",
+      "from": "api",
+      "to": "browser",
+      "y": 508,
+      "label": "恢复快照 + 独立 delivery",
+      "variant": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "防止重复执行",
+      "items": [
+        "相同幂等键不重发；受理未知先查历史",
+        "浏览器断线或换页不会自动停止任务"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "审批与停止",
+      "items": [
+        "审批响应绑定原生 RPC 与当前会话归属",
+        "停止必须覆盖父回合和仍在运行的子 Agent"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "状态真实性",
+      "items": [
+        "任一下行通道断开即显示 disconnected",
+        "回合结束后仍需单独检查实际输出文件"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 # AlphaFoundry × LSH 合并平台 V1 架构包
 
+> 历史架构基线：不代表当前 Research Web 的运行架构。当前唯一主入口为
+> [Research Web 架构](../research-web/README.md)。本目录保留用于历史追溯，不作为恢复旧业务模块的实施要求。
+
 本目录是合并平台的实现基线，不表示所有接口和表已经落地。目标态只有一个 FastAPI 业务内核、一个 PostgreSQL + pgvector 权威存储和四个产品模块；DSH 是可选 `RuntimeProvider` 侧车，不拥有业务数据，也不能直连数据库。
 
 ## 固定边界

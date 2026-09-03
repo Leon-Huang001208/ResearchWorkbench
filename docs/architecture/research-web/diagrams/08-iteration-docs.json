@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "项目迭代 · 图文证据与同步门禁",
+    "quality_profile": "showcase",
+    "legend": {
+      "entries": {
+        "frontend": {
+          "label": "迭代材料"
+        },
+        "backend": {
+          "label": "校验程序"
+        },
+        "database": {
+          "label": "可复核产物"
+        },
+        "external": {
+          "label": "持续集成"
+        }
+      }
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      40,
+      70
+    ],
+    "cols": 4,
+    "cellW": 200,
+    "cellH": 86,
+    "gapX": 115,
+    "gapY": 135
+  },
+  "components": [
+    {
+      "id": "change",
+      "type": "frontend",
+      "label": "代码与迭代变更",
+      "sublabel": "Git base · staged · 工作区",
+      "row": 0,
+      "col": 0,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "mapping",
+      "type": "database",
+      "label": "架构对应清单",
+      "sublabel": "源码 · API · 文档 · 图 · 测试",
+      "row": 0,
+      "col": 1,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "markdown",
+      "type": "frontend",
+      "label": "更新模块说明",
+      "sublabel": "Markdown · 结构变更理由",
+      "row": 0,
+      "col": 2,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "graph",
+      "type": "frontend",
+      "label": "Archify 图源",
+      "sublabel": "结构变化才同步重绘",
+      "row": 0,
+      "col": 3,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "tests",
+      "type": "backend",
+      "label": "正反向回归",
+      "sublabel": "过期图文 · 断链 · 未登记接口",
+      "row": 1,
+      "col": 0,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "gate",
+      "type": "backend",
+      "label": "离线一致性检查",
+      "sublabel": "Node checker · 无全局依赖",
+      "row": 1,
+      "col": 1,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "evidence",
+      "type": "database",
+      "label": "哈希与视觉证据",
+      "sublabel": "showcase · 四视口 · 人工核对",
+      "row": 1,
+      "col": 2,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "html",
+      "type": "database",
+      "label": "生成 HTML",
+      "sublabel": "固定八图 · deliver 回执",
+      "row": 1,
+      "col": 3,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "ci",
+      "type": "external",
+      "label": "本地与 CI 约束",
+      "sublabel": "同一规则 · 错误阻止交付",
+      "row": 2,
+      "col": 1,
+      "size": [
+        200,
+        86
+      ]
+    },
+    {
+      "id": "entry",
+      "type": "backend",
+      "label": "产品文档入口",
+      "sublabel": "固定文件名 · 隔离 CSP",
+      "row": 2,
+      "col": 3,
+      "size": [
+        200,
+        86
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "source-map",
+      "from": "change",
+      "to": "mapping",
+      "label": "定位影响"
+    },
+    {
+      "id": "map-docs",
+      "from": "mapping",
+      "to": "markdown",
+      "label": "作者更新"
+    },
+    {
+      "id": "docs-graph",
+      "from": "markdown",
+      "to": "graph",
+      "label": "有结构变化"
+    },
+    {
+      "id": "source-tests",
+      "from": "change",
+      "to": "tests",
+      "label": "实际回归",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "map-gate",
+      "from": "mapping",
+      "to": "gate",
+      "label": "覆盖与接口",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "tests-gate",
+      "from": "tests",
+      "to": "gate",
+      "label": "负向用例"
+    },
+    {
+      "id": "graph-html",
+      "from": "graph",
+      "to": "html",
+      "label": "生成并校验",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "html-visual",
+      "from": "html",
+      "to": "evidence",
+      "label": "截图与检查"
+    },
+    {
+      "id": "visual-gate",
+      "from": "evidence",
+      "to": "gate",
+      "label": "比对字节"
+    },
+    {
+      "id": "gate-ci",
+      "from": "gate",
+      "to": "ci",
+      "label": "退出码与报告",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "html-entry",
+      "from": "html",
+      "to": "entry",
+      "label": "受限只读",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "每次迭代都核对",
+      "items": [
+        "结构未变仍更新说明和具体原因，不制造无意义图改动",
+        "新源码、API、测试与节点关系必须有真实对应"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "失败不放行",
+      "items": [
+        "仅改源码、图源与旧HTML不一致、断链均返回错误",
+        "CI核对既有产物，不依赖开发机Archify安装"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "证据不能替代语义",
+      "items": [
+        "9项showcase与四视口成功仍需人工阅读截图",
+        "图文门禁通过不代表模型内容或产品旅程已验收"
+      ]
+    }
+  ]
+}

@@ -4,6 +4,18 @@ import { readFile } from 'node:fs/promises';
 import * as views from '../../app/research_web/ui/views.mjs';
 import { createController } from '../../app/research_web/ui/core.mjs';
 import * as core from '../../app/research_web/ui/core.mjs';
+import { renderComposer } from '../../app/research_web/ui/composer.mjs';
+
+test('explicit stop recheck never enables sending and is unavailable offline', () => {
+  const detail = { status: 'failed', can_cancel: false, can_recheck_stop: true, delivery: { status: 'pending' } };
+  const html = renderComposer({ detail, taskPending: true, runtimeReady: true });
+  assert.match(html, /data-cancel[^>]*>重新核对停止<\/button>/);
+  assert.match(html, /type="submit"[^>]*disabled/);
+  const offline = renderComposer({ detail: { ...detail, status: 'disconnected' }, taskPending: true, runtimeReady: false });
+  assert.match(offline, /data-cancel[^>]*disabled/);
+  assert.match(offline, /离线.*无法核对停止/);
+  assert.doesNotMatch(renderComposer({ detail: { ...detail, can_recheck_stop: false }, taskPending: true }), /重新核对停止/);
+});
 
 test('delivery is independent from execution and renders missing/corrupt reasons safely', () => {
   assert.equal(typeof views.renderDelivery, 'function');

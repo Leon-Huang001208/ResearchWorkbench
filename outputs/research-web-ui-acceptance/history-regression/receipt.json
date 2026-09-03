@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "results": [
+    {
+      "session": "d918f34f-02bf-4c85-bc7a-a8b5880195b6",
+      "checks": [
+        "two_native_children",
+        "four_datasets",
+        "243_rows_13_pages",
+        "delivery_checked",
+        "xlsx_download_hash"
+      ],
+      "sha256": "f06cb9c45442ab89e9489369958a5adc41118440b458f50447e5e35ad546c37e"
+    },
+    {
+      "session": "28d73296-9908-4095-b89b-f46a4758d852",
+      "checks": [
+        "uploaded_pdf_retained",
+        "page_citations_retained"
+      ]
+    },
+    {
+      "session": "c9155f74-5887-4ef2-8768-5da903ad1ddb",
+      "checks": [
+        "cancelled_retained",
+        "no_pending_decision"
+      ]
+    }
+  ],
+  "modelCalls": 0,
+  "sourceQueries": 0
+}

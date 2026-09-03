@@ -1,0 +1,31 @@
+{
+  "schema_version": 1, "diagram_type": "dataflow",
+  "meta": {"title": "DataHub · 同一资料快照到研究文件", "quality_profile": "showcase", "viewBox": [1200, 700], "legend": {"entries": {"default": {"label": "资料读取"}, "emphasis": {"label": "主要数据流"}, "security": {"label": "授权与私有资料"}, "dashed": {"label": "分析产物"}, "database": {"label": "文件快照"}}}},
+  "stages": [{"label": "授权与来源"}, {"label": "受控取数"}, {"label": "资料落盘"}, {"label": "共享研究"}, {"label": "实际交付"}],
+  "nodes": [
+    {"id": "approval", "type": "security", "label": "DSH 原生审批", "sublabel": "af_public_data", "stage": 0, "row": 1},
+    {"id": "upstream", "type": "external", "label": "注册公开来源", "sublabel": "基金公开资料 · 财联社", "stage": 1, "row": 0},
+    {"id": "hub", "type": "backend", "label": "DataHub", "sublabel": "参数、分页、覆盖与取消", "stage": 1, "row": 1},
+    {"id": "raw", "type": "database", "label": "私有原始响应", "sublabel": "权威 Manifest · 哈希", "stage": 2, "row": 0},
+    {"id": "dataset", "type": "database", "label": "会话数据集", "sublabel": "rows.json / CSV / Manifest", "stage": 2, "row": 1},
+    {"id": "analysis", "type": "backend", "label": "DSH 分工分析", "sublabel": "父任务与子 Agent 共读", "stage": 3, "row": 1},
+    {"id": "outputs", "type": "database", "label": "会话 outputs", "sublabel": "图表 · DOCX · HTML · XLSX", "stage": 4, "row": 1},
+    {"id": "web", "type": "frontend", "label": "Web 资料面板", "sublabel": "只读目录、覆盖与下载", "stage": 2, "row": 3},
+    {"id": "delivery", "type": "security", "label": "独立交付检查", "sublabel": "新文件哈希与沙箱重开", "stage": 4, "row": 3}
+  ],
+  "flows": [
+    {"id": "approved-query", "from": "approval", "to": "hub", "label": "认证查询", "variant": "security"},
+    {"id": "bounded-http", "from": "hub", "to": "upstream", "label": "固定 HTTP", "fromSide": "top", "toSide": "bottom"},
+    {"id": "save-raw", "from": "hub", "to": "raw", "label": "原始响应", "variant": "security", "fromSide": "right", "toSide": "left", "via": [[390, 271], [390, 157]]},
+    {"id": "publish-rows", "from": "hub", "to": "dataset", "label": "解析快照", "variant": "emphasis"},
+    {"id": "shared-inputs", "from": "dataset", "to": "analysis", "label": "同一版本", "variant": "emphasis"},
+    {"id": "report-files", "from": "analysis", "to": "outputs", "label": "脚本生成", "variant": "dashed"},
+    {"id": "browse", "from": "dataset", "to": "web", "label": "REST / SSE", "fromSide": "bottom", "toSide": "top"},
+    {"id": "verify-files", "from": "outputs", "to": "delivery", "label": "验证再下载", "variant": "security", "fromSide": "bottom", "toSide": "top"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "资料不是产物", "items": ["数据集属于 inputs，仅允许本会话读取", "生成报告属于 outputs，另行校验"]},
+    {"dot": "amber", "title": "覆盖不伪装", "items": ["complete / snapshot / partial / empty / failed", "取数时间、报告期、缺失与分页分别返回"]},
+    {"dot": "rose", "title": "权限不扩大", "items": ["无任意 URL、跨会话文件或未经审批取数", "私有原始响应不开放普通 Web 下载"]}
+  ]
+}

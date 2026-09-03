@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/06-run-state.json",
+  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/06-run-state.html",
+  "specification": {
+    "sha256": "f1b498496e2b22997089caa25aa840dc8bdf19c2783c187c63739ca5524d6344",
+    "bytes": 3048
+  },
+  "artifact": {
+    "sha256": "629ab462b473c0fc8edec81010cfc9f80e4fc997dd91d201289ed7532df7dee1",
+    "bytes": 634523
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

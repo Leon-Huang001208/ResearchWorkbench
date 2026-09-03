@@ -1,0 +1,101 @@
+{
+  "status": "passed",
+  "session": "43170801-cfeb-4c89-914a-a6973dbb8c9a",
+  "capability": {
+    "id": "fund-research-workflow",
+    "version": 1,
+    "kind": "workflow",
+    "native_name": "fund-research-workflow",
+    "sha256": "e8c355398b23fbe8daf7a7277207be7b47ce30644bc3eab1e9568995bf2f8a9b",
+    "resource_path": "resources/capabilities/fund-research-workflow/1",
+    "default_formats": [
+      "docx",
+      "html",
+      "xlsx"
+    ],
+    "bindings": [
+      {
+        "id": "document-reading",
+        "version": 1,
+        "native_name": "document-reading"
+      },
+      {
+        "id": "fund-evaluation",
+        "version": 1,
+        "native_name": "fund-evaluation"
+      }
+    ]
+  },
+  "agents": [
+    {
+      "id": "3c6101ae-fb53-469f-ab8a-fac757453306",
+      "name": "核验净值与分红计算",
+      "status": "completed",
+      "usage": {
+        "tokens": 19804
+      },
+      "duration_ms": 80142,
+      "error": null,
+      "history_truncated": false
+    },
+    {
+      "id": "e5ec4b45-5510-4506-bb5d-b30f9227fd9e",
+      "name": "核验基本资料与持仓",
+      "status": "completed",
+      "usage": {
+        "tokens": 20859
+      },
+      "duration_ms": 61648,
+      "error": null,
+      "history_truncated": false
+    }
+  ],
+  "datasets": [
+    {
+      "id": "ef0f29eb-d9f5-44ce-b074-a5716b071151",
+      "name": "基金披露持仓 000001"
+    },
+    {
+      "id": "7d10b4b6-2665-47d7-9f49-a4599f0aaf58",
+      "name": "基金分红 000001"
+    },
+    {
+      "id": "4e30e040-3395-4225-b53f-1200d47462f6",
+      "name": "基金基本资料 000001"
+    },
+    {
+      "id": "78bc1a79-6ab5-4be1-96f0-41f06051f96f",
+      "name": "基金净值 000001"
+    }
+  ],
+  "downloads": [
+    {
+      "name": "workflow-fund-report-v2.docx",
+      "id": "b7633244999e079045942b68",
+      "sha256": "9ea0118a1d76b2383aaad4c63fd8ae2d81450ef5ff2ab1928ed40e7ee03531de",
+      "bytes": 41280
+    },
+    {
+      "name": "workflow-fund-report-v2.html",
+      "id": "1ccf91d946c2a7da1bcf9aa7",
+      "sha256": "f8de5970ffe15cf45d882bb67d70f12a09ecadb0d5b69c7ce30283bffe4512f0",
+      "bytes": 9727
+    },
+    {
+      "name": "workflow-fund-workbook-v2.xlsx",
+      "id": "849f14dbac3a9be567fbaf93",
+      "sha256": "24351ad0a27405ecb956d2acd49b698674b99b3fbc932f309889e90a048633ea",
+      "bytes": 31508
+    }
+  ],
+  "checks": [
+    "refresh_version",
+    "three_unchecked_template_steps",
+    "two_real_children",
+    "four_shared_datasets",
+    "delivery_complete",
+    "browser_download_hashes",
+    "isolated_preview"
+  ],
+  "modelCalls": 0
+}

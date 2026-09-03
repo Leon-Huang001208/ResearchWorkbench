@@ -43,6 +43,7 @@ class ResearchService:
         self.capabilities = CapabilityCatalog(store.root)
         self.datahub = DataHub(store)
         self.connected: set[str] = set()
+        self.event_revision = 0
         self.events: dict[str, dict[int, dict]] = {}
         self.loaded: set[str] = set()
         self.approvals: dict[str, dict] = {}
@@ -107,6 +108,7 @@ class ResearchService:
                     task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
                 self.connected.clear()
+                self.event_revision += 1
                 self.loaded.clear()
                 self.approvals.clear()
                 self.questions.clear()
@@ -117,6 +119,7 @@ class ResearchService:
 
     async def _consume(self, channel):
         async for envelope in self.client.frames(channel):
+            self.event_revision += 1
             if envelope.get("type") == "connected":
                 self.connected.add(channel)
                 self.notify()
@@ -318,6 +321,27 @@ class ResearchService:
         row = self.store.session(sid)
         if not row["created"]:
             raise RuntimeFailure("该会话未成功创建，请新建研究", "session_create_failed")
+        observed = self._cancel_observation(sid)
+        entries = await self.delivery.reconcile_cancel(
+            sid,
+            self.client,
+            lambda history=None: self.connected == {"mux", "host"}
+            and self._cancel_observation(sid) == observed
+            and (
+                history is None
+                or max((e["event"]["seq"] for e in history), default=-1) >= observed[1]
+            )
+            and not any(
+                value.get("ownerSessionId", value["sessionId"]) == sid
+                for value in [*self.approvals.values(), *self.questions.values()]
+            ),
+        )
+        if entries is not None:
+            self.events.setdefault(sid, {}).update(
+                {entry["event"]["seq"]: entry for entry in entries}
+            )
+            self.running[sid] = False
+            self.loaded.add(sid)
         if sid not in self.loaded:
             entries = await self.client.history(sid)
             native = await self.client.rpc("session.list", {})
@@ -440,7 +464,24 @@ class ResearchService:
             busy=result["can_cancel"],
             connected=self.connected == {"mux", "host"},
         )
+        delivery = result["delivery"]
+        result["can_recheck_stop"] = bool(
+            delivery
+            and delivery["status"] not in FINAL
+            and latest_receipt.get("status") == "accepted"
+            and not result["can_cancel"]
+        )
+        if (
+            delivery
+            and delivery.get("failure_code") == "cancel_terminal_event_missing"
+            and not result["can_cancel"]
+            and self.connected == {"mux", "host"}
+        ):
+            result.update(status="failed", error=self.errors.get(sid) or delivery["reasons"][0])
         return result
+
+    def _cancel_observation(self, sid):
+        return self.event_revision, max(self.events.get(sid, {}), default=-1), self.running.get(sid)
 
     async def send(
         self,
@@ -834,10 +875,29 @@ class ResearchService:
 
     async def cancel(self, sid):
         await self.ensure_owned()
+        async with self.lock:
+            return await self._cancel(sid)
+
+    async def _cancel(self, sid):
         self.store.session(sid)
+        delivery = self.delivery.current(sid)
+        request = None
+        if delivery and delivery["status"] not in FINAL:
+            request = {
+                "key": self.store.session(sid)["delivery_key"],
+                "task_id": delivery["task_id"],
+                "marker": delivery["marker"],
+                "requested_at": time.time(),
+                "accepted": False,
+            }
+            delivery["cancel_request"] = request
+            self.store.save()
         await self.datahub.cancel(sid)
         try:
             result = await self.client.rpc("session.cancel", {"sessionId": sid})
+            if request is not None and result.get("accepted") is True:
+                request["accepted"] = True
+                self.store.save()
         except RuntimeFailure as exc:
             if exc.code != "session-not-found":
                 raise
@@ -850,6 +910,11 @@ class ResearchService:
                     "subagent.interrupt",
                     {"parentSessionId": sid, "childSessionId": child["id"], "mode": "continuable"},
                 )
+        if request is not None:
+            try:
+                await self.detail(sid)
+            except RuntimeFailure as exc:
+                log.warning("research_cancel_followup_unavailable", code=exc.code)
         self.notify()
         return result
 

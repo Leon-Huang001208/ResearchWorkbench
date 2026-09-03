@@ -10,6 +10,7 @@ from pathlib import Path
 from core.observability import get_logger
 
 from . import sandbox
+from .client import RuntimeFailure
 from .projection import content_text
 from .store import StoreError
 
@@ -82,7 +83,83 @@ class Delivery:
 
     @staticmethod
     def public(delivery):
-        return {key: value for key, value in delivery.items() if key not in {"baseline", "marker"}}
+        return {
+            key: value
+            for key, value in delivery.items()
+            if key not in {"baseline", "marker", "cancel_request"}
+        }
+
+    async def reconcile_cancel(self, sid, client, ready):
+        """Explicit task-scoped cancellation may fail closed, never fabricate turn/end."""
+        async with self.locks.setdefault(sid, asyncio.Lock()):
+            delivery = self.current(sid)
+            if not delivery or delivery["status"] in FINAL or not ready():
+                return None
+            key = self.store.session(sid)["delivery_key"]
+            request = delivery.get("cancel_request", {})
+            if (
+                self.store.receipt(sid, key)["status"] != "accepted"
+                or request.get("accepted") is not True
+                or request.get("key") != key
+                or request.get("task_id") != delivery["task_id"]
+                or request.get("marker") != delivery["marker"]
+            ):
+                return None
+            try:
+                entries = await client.history(sid)
+                native = await client.rpc("session.list", {})
+                children = await client.rpc("subagent.list", {"parentSessionId": sid})
+                parents = [item for item in native["items"] if item.get("sessionId") == sid]
+                messages = [
+                    entry["event"] for entry in entries if entry["event"]["type"] == "user/message"
+                ]
+                markers = [
+                    event
+                    for event in messages
+                    if delivery["marker"] in content_text(event["data"].get("content"))
+                ]
+                if (
+                    not ready(entries)
+                    or native.get("diagnostics")
+                    or len(parents) != 1
+                    or parents[0].get("running") is not False
+                    or children.get("parentAvailable") is not True
+                    or any(
+                        child.get("kind") != "child" or child.get("activity") != "inactive"
+                        for child in children["entries"]
+                    )
+                    or len(markers) != 1
+                    or any(event["seq"] > markers[0]["seq"] for event in messages)
+                    or self.current(sid) is not delivery
+                    or self.store.session(sid)["delivery_key"] != key
+                ):
+                    return None
+                ended = any(
+                    entry["event"]["type"] == "turn/end"
+                    and entry["event"]["seq"] > markers[0]["seq"]
+                    for entry in entries
+                )
+                if not ended:
+                    delivery.update(
+                        status="verification_failed",
+                        failure_code="cancel_terminal_event_missing",
+                        reasons=[
+                            "停止请求已受理且父子任务均已空闲，但原生终止事件缺失；结果未确认，未执行文件校验。可提交新的研究请求。"
+                        ],
+                        files=[],
+                        missing_formats=delivery["required_formats"].copy(),
+                        checked_at=time.time(),
+                    )
+                    self.store.save()
+                    log.warning(
+                        "research_cancel_terminal_missing",
+                        session_id=sid,
+                        task_id=delivery["task_id"],
+                    )
+                return entries
+            except (RuntimeFailure, KeyError, TypeError, ValueError) as exc:
+                log.warning("research_cancel_recheck_uncertain", error_type=type(exc).__name__)
+                return None
 
     async def refresh(self, sid, entries, *, busy, connected):
         async with self.locks.setdefault(sid, asyncio.Lock()):

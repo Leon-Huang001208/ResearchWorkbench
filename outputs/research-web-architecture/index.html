@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AlphaFoundry · Research Web 当前架构</title>
+  <style>
+    :root{color-scheme:light dark;--paper:#f5f7fb;--card:#fff;--ink:#182337;--muted:#607087;--line:#dce4ee;--blue:#205cf2}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.65 system-ui,-apple-system,"PingFang SC",sans-serif}header{background:#071d34;color:#fff;padding:22px max(24px,calc((100vw - 1180px)/2));font-weight:700}header small{color:#a8c0dc;font-weight:400;margin-left:16px}main{max-width:1180px;padding:36px 24px 60px;margin:auto}h1{font-size:32px;letter-spacing:-.03em;margin:0 0 12px}p{color:var(--muted)}.notice{border-left:3px solid #d09a29;padding:12px 18px;background:var(--card);margin:24px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;text-decoration:none;color:inherit;display:block}.card:hover{border-color:var(--blue)}.card:focus-visible{outline:3px solid var(--blue);outline-offset:3px}.number{font-size:12px;color:var(--blue);font-weight:750}.card h2{font-size:19px;margin:6px 0}.card p{font-size:14px;margin:0}.meta{font-size:13px;color:var(--muted);margin-top:30px}code{font-size:12px;overflow-wrap:anywhere}.pending{border:1px dashed var(--line);border-radius:14px;padding:22px;color:var(--muted)}@media(max-width:650px){.grid{grid-template-columns:1fr}header small{display:block;margin:0}h1{font-size:26px}}@media(prefers-color-scheme:dark){:root{--paper:#0b1524;--card:#142238;--ink:#e5edf8;--muted:#a8bbd2;--line:#2d4058;--blue:#87acff}}
+  </style>
+</head>
+<body>
+<header>AlphaFoundry <small>Research Web / 当前架构</small></header>
+<main>
+  <h1>从研究问题，到真实文件交付</h1>
+  <p>以当前源码为依据，区分产品职责、DSH 执行和文件检查。旧量化与 merged-platform 图文不属于此运行链。</p>
+  <div class="notice">以下八图对应当前研究链路、能力管理与文档门禁的实际源码。图形检查不等于模型内容准确性证明；真实会话、文件及验证边界另记录在架构 Markdown 与验收报告中。</div>
+  <section class="grid" aria-label="架构图目录">
+    <a class="card" href="01-deployment.html"><span class="number">01 / DEPLOYMENT</span><h2>部署与安全边界</h2><p>浏览器、FastAPI、专属 DSH、模型接口与会话内脚本隔离。</p></a>
+    <a class="card" href="02-module-dependencies.html"><span class="number">02 / MODULES</span><h2>前后端模块依赖</h2><p>产品壳、输入框、能力编辑、领域服务与原生执行的源码分工。</p></a>
+    <a class="card" href="03-research-sequence.html"><span class="number">03 / SEQUENCE</span><h2>研究请求、审批与恢复</h2><p>受理与完成分离；双 WebSocket、SSE、停止及历史恢复。</p></a>
+    <a class="card" href="04-data-file-flow.html"><span class="number">04 / DATA FLOW</span><h2>数据快照到共享分析</h2><p>受控公开数据、同一数据集、子 Agent、资料和实际产物。</p></a>
+    <a class="card" href="05-capability-flow.html"><span class="number">05 / CAPABILITIES</span><h2>能力包、发布与原生调用</h2><p>草稿检查、不可变版本、原生目录和会话只读资源的边界。</p></a>
+    <a class="card" href="06-run-state.html"><span class="number">06 / RUN STATE</span><h2>研究执行状态</h2><p>原生状态的产品投影，连接中断不伪报完成；图示为主要分支。</p></a>
+    <a class="card" href="07-delivery-state.html"><span class="number">07 / DELIVERY</span><h2>独立文件交付状态</h2><p>只认可本次输出；文件有效性、缺失与损坏单独检查。</p></a>
+    <a class="card" href="08-iteration-docs.html"><span class="number">08 / ITERATION</span><h2>迭代与图文同步检查</h2><p>源码映射、说明更新、图源与回执、人工核对及本地／CI 共用门禁。</p></a>
+  </section>
+  <p class="meta">Markdown 主入口：<code>docs/architecture/research-web/README.md</code><br>可追踪清单：<code>architecture-map.json</code> · 校验与截图位于各图同目录。当前 Web 是单人本地部署，不是公网或 Windows 验证声明。</p>
+</main>
+</body></html>

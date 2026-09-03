@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {"title": "能力管理 · 发布与执行的真实边界", "quality_profile": "showcase", "legend": {"entries": {"frontend": {"label": "用户操作"}, "backend": {"label": "产品及原生服务"}, "database": {"label": "包与资源"}, "security": {"label": "检查边界"}}}},
+  "layout": {"mode": "grid", "origin": [40,70], "cols": 4, "cellW": 200, "cellH": 86, "gapX": 115, "gapY": 135},
+  "components": [
+    {"id": "candidate", "type": "frontend", "label": "能力草稿", "sublabel": "创建 · 对话产物 · 安全导入", "row": 0, "col": 0, "size": [200,86]},
+    {"id": "package-check", "type": "security", "label": "包检查", "sublabel": "元数据 · 文件 · 依赖 · 工具", "row": 0, "col": 1, "size": [200,86]},
+    {"id": "publication", "type": "backend", "label": "确认发布", "sublabel": "共享锁 · 空闲检查 · 持久意图", "row": 0, "col": 2, "size": [200,86]},
+    {"id": "discovery", "type": "backend", "label": "DSH 原生发现", "sublabel": "专属目录 · 仅启用版本", "row": 0, "col": 3, "size": [200,86]},
+    {"id": "validation-issues", "type": "security", "label": "草稿与问题", "sublabel": "失败保留 · 不安装依赖", "row": 1, "col": 1, "size": [200,86]},
+    {"id": "immutable-package", "type": "database", "label": "不可变版本", "sublabel": "SKILL.md · 脚本 · 模板", "row": 1, "col": 2, "size": [200,86]},
+    {"id": "research-intent", "type": "frontend", "label": "研究请求", "sublabel": "能力版本 · 输出格式 · 工具意图", "row": 2, "col": 0, "size": [200,86]},
+    {"id": "admission", "type": "security", "label": "提交核对", "sublabel": "启用状态 · 版本 · 资源哈希", "row": 2, "col": 1, "size": [200,86]},
+    {"id": "readonly-resources", "type": "database", "label": "会话资源快照", "sublabel": "只读路径 · 版本收据", "row": 2, "col": 2, "size": [200,86]},
+    {"id": "native-execution", "type": "backend", "label": "DSH 执行研究", "sublabel": "原生 Skill 与子 Agent", "row": 2, "col": 3, "size": [200,86]}
+  ],
+  "connections": [
+    {"id": "candidate-check", "from": "candidate", "to": "package-check", "label": "不执行导入包"},
+    {"id": "check-publish", "from": "package-check", "to": "publication", "label": "显式发布", "variant": "emphasis"},
+    {"id": "publish-discover", "from": "publication", "to": "discovery", "label": "原生目录投影", "variant": "emphasis"},
+    {"id": "check-issues", "from": "package-check", "to": "validation-issues", "label": "检查未通过", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "publish-version", "from": "publication", "to": "immutable-package", "label": "保留历史版本", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "intent-admission", "from": "research-intent", "to": "admission", "label": "同一研究锁"},
+    {"id": "admit-snapshot", "from": "admission", "to": "readonly-resources", "label": "记录可用目录", "variant": "emphasis"},
+    {"id": "version-resource", "from": "immutable-package", "to": "readonly-resources", "label": "复制且不覆盖", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "resource-execution", "from": "readonly-resources", "to": "native-execution", "label": "会话相对路径", "variant": "emphasis"},
+    {"id": "discover-load", "from": "discovery", "to": "native-execution", "label": "原生 skill 加载", "fromSide": "bottom", "toSide": "top", "labelDy": 24}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "Skill 与 Workflow 共用一套包", "items": ["Workflow 编译为步骤式 SKILL.md，仍由 DSH 执行", "模板步骤不等于实际执行证据"]},
+    {"dot": "amber", "title": "版本变更边界", "items": ["发布、停用、回滚不得改变活动任务", "目录切换不确定时保留证据，拒绝新任务"]},
+    {"dot": "rose", "title": "权限不随包扩张", "items": ["不扫描宿主 Skill 目录，不自动安装依赖", "脚本仍受沙箱约束，取数仍需原生审批"]}
+  ]
+}

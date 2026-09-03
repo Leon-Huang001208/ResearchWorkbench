@@ -8,6 +8,8 @@
 
 ### Added
 
+- **Research Web 研究界面、能力中心与当前架构**：完成独立FinGPT/Claw首页、产品壳、输入框与折叠研究面板；Skill/Tool/Workflow统一目录、对话创建、手动导入与版本管理连接真实DSH。八图与Markdown入口为 `docs/architecture/research-web/`，加入源码/API/图文哈希一致性和负向门禁。完成本机真实创建调用、PDF、双Agent Workflow文件验收；补齐明确停止后缺终止事件的失败复核及并发保护，不伪造成功。旧merged-platform保留为历史，未做桌面或远端发布。详见本轮`.ai/reports/2026-09-03-research-ui-live.md`。
+
 - **Research Web DataHub后端与可信原生桥接**：FastAPI内共享公开查询/不可变资料快照，NAV按真实20行响应分页并校验覆盖，加入基金基本资料/分红/持仓；原生审批后才通过私有随机凭据请求回环DataHub，取消与DSH联动。资料CSV/JSON、manifest/hash只读归属、缓存/刷新与显式Claw升级复制；输入资料不计报告产物。四个Skill同步数据口径/原始记录底稿要求。详见 `docs/research-web-datahub.md`；UI及真实模型闭环另行验收。
   - 审查修复：升级草稿在保留原文后追加旧→新资料路径/hash映射；快照以私有目录最后发布为提交标记，进程中断孤儿不污染目录；分红未核实币种改为null，保留每10份分红原文。
 

@@ -2765,6 +2765,697 @@ Functions:
   - AlphaFoundry - 买方投研情报系统
 
 
+## `app/research_web/__init__.py`
+
+Module docstring:
+> Standalone native-DSH research product; no legacy app lifecycle.
+
+
+## `app/research_web/capabilities/__init__.py`
+
+Module docstring:
+> Product-owned immutable instruction packages; DSH remains the only executor.
+
+
+## `app/research_web/capabilities/catalog.py`
+
+Module docstring:
+> Single-process package catalog, immutable versions and native discovery projection.
+
+Imports:
+- `ast`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `importlib.metadata`
+- `io`
+- `json`
+- `models`
+- `os`
+- `packages`
+- `packaging.requirements`
+- `pathlib`
+- `pydantic`
+- `re`
+- `seeds`
+- `shutil`
+- `sys`
+- `tempfile`
+- `time`
+- `tools`
+- `uuid`
+- `yaml`
+- `zipfile`
+
+Classes:
+- `CapabilityCatalog`
+  - methods: __init__, save, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+
+
+## `app/research_web/capabilities/models.py`
+
+Module docstring:
+> Editable package contracts; validation issues are retained with drafts.
+
+Imports:
+- `pydantic`
+- `store`
+- `typing`
+
+Classes:
+- `CapabilityError`
+  - methods: __init__
+- `InputField`
+- `Metadata`
+- `Step`
+- `DraftInput`
+- `CopyInput`
+- `VersionInput`
+- `CreationInput`
+- `ArtifactInput`
+
+Functions:
+- `issue`
+
+
+## `app/research_web/capabilities/packages.py`
+
+Module docstring:
+> Bounded inert imports. No extractall, subprocess, installer or network access.
+
+Imports:
+- `base64`
+- `binascii`
+- `core.observability`
+- `hashlib`
+- `io`
+- `json`
+- `models`
+- `pathlib`
+- `re`
+- `stat`
+- `xml.etree`
+- `yaml`
+- `zipfile`
+
+Functions:
+- `valid_path`
+- `encode_file`
+- `media_evidence`
+  - Bounded container evidence only: no rendering, decompression or code execution.
+- `gif_blocks_end`
+- `decode_file`
+- `normalize_files`
+- `frontmatter`
+- `import_package`
+
+
+## `app/research_web/capabilities/routes.py`
+
+Module docstring:
+> Local product package APIs; runtime mutations share ResearchService.lock.
+
+Imports:
+- `fastapi`
+- `fastapi.responses`
+- `models`
+- `packages`
+- `tools`
+
+Functions:
+- `catalog`
+- `tools`
+- `workflows`
+- `create`
+- `import_file`
+- `creation`
+- `from_artifact`
+- `detail`
+- `edit`
+- `copy`
+- `check`
+- `publish`
+- `disable`
+- `enable`
+- `rollback`
+- `versions`
+- `export`
+- `version_detail`
+
+
+## `app/research_web/capabilities/seeds.py`
+
+Module docstring:
+> Four existing reviewed Skills and two explicitly non-executed workflow templates.
+
+Imports:
+- `packages`
+- `pathlib`
+
+Functions:
+- `seed_packages`
+
+
+## `app/research_web/capabilities/tools.py`
+
+Module docstring:
+> Offline read-only projection of the pinned composition and final-veto registry.
+
+Imports:
+- `datahub.contracts`
+- `models`
+- `pathlib`
+- `re`
+
+Functions:
+- `tool_catalog`
+
+
+## `app/research_web/client.py`
+
+Module docstring:
+> Allowlisted, loopback-only native DSH transport, never a generic RPC proxy.
+
+Imports:
+- `asyncio`
+- `collections.abc`
+- `core.observability`
+- `httpx`
+- `json`
+- `typing`
+- `urllib.parse`
+- `uuid`
+- `websockets`
+
+Classes:
+- `RuntimeFailure`
+  - Safe product-facing error; never includes raw credentials or HTTP body.
+  - methods: __init__
+- `DSHClient`
+  - methods: __init__, __aenter__, __aexit__, close, rpc, respond, frames, history
+
+
+## `app/research_web/datahub/__init__.py`
+
+Module docstring:
+> One in-process DataHub shared by read-only Web and approved native tools.
+
+Imports:
+- `asyncio`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `hmac`
+- `json`
+- `re`
+- `security`
+- `snapshots`
+- `store`
+
+Classes:
+- `DataHub`
+  - methods: __init__, authenticate, capabilities, detail, summaries, copy_for_upgrade, list, rows, short, query, _query, cancel, close
+
+
+## `app/research_web/datahub/contracts.py`
+
+Module docstring:
+> Business-only queries; no provider endpoints, paths, sessions or credentials.
+
+Imports:
+- `datetime`
+- `hashlib`
+- `json`
+- `pydantic`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `Query`
+  - methods: valid_business_query, fingerprint
+- `InternalQuery`
+- `InternalCancel`
+
+
+## `app/research_web/datahub/providers.py`
+
+Module docstring:
+> Fixed public providers, bounded streaming, audited parsing; no legacy lifecycle.
+
+Imports:
+- `asyncio`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `hashlib`
+- `httpx`
+- `json`
+- `math`
+- `re`
+- `zoneinfo`
+
+Classes:
+- `ProviderError`
+  - Fixed non-sensitive reasons, safe for manifests and logs.
+- `Result`
+
+Functions:
+- `numeric`
+- `valid_date`
+- `response_bytes`
+- `json_payload`
+- `nav_observation`
+- `fund_nav`
+- `cls_telegraph`
+- `original_text`
+- `profile_cell_text`
+  - Provider omits closing td: stop before any following nested table cell.
+- `supplement_rows`
+- `supplement`
+- `fetch`
+
+
+## `app/research_web/datahub/routes.py`
+
+Module docstring:
+> Read-only browser catalog; authenticated native-only query and cancel ingress.
+
+Imports:
+- `asyncio`
+- `contracts`
+- `fastapi`
+- `fastapi.responses`
+- `typing`
+
+Functions:
+- `capabilities`
+- `datasets`
+- `detail`
+- `rows`
+- `download`
+- `query`
+- `cancel`
+
+
+## `app/research_web/datahub/security.py`
+
+Module docstring:
+> Private control and descriptor-relative IO; never reuse model credentials.
+
+Imports:
+- `contextlib`
+- `core.observability`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `secrets`
+- `stat`
+- `store`
+- `urllib.parse`
+- `uuid`
+
+Functions:
+- `directory`
+  - All descendants opened with NOFOLLOW; trusted root is canonical.
+- `read_file`
+- `write_new`
+- `atomic_json`
+- `json_bytes`
+- `checked_url`
+- `load_control`
+  - Startup/service-owned fixed file. Existing abnormal permissions fail closed.
+
+
+## `app/research_web/datahub/snapshots.py`
+
+Module docstring:
+> Immutable session snapshots; private hashes authorize public dataset reads.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `csv`
+- `datetime`
+- `hashlib`
+- `io`
+- `json`
+- `os`
+- `re`
+- `security`
+- `store`
+- `uuid`
+
+Classes:
+- `Snapshots`
+  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, copy_for_upgrade
+
+Functions:
+- `sha`
+- `csv_bytes`
+
+
+## `app/research_web/delivery.py`
+
+Module docstring:
+> File delivery metadata and strict sandbox validation, separate from DSH execution.
+
+Imports:
+- `asyncio`
+- `client`
+- `core.observability`
+- `hashlib`
+- `json`
+- `pathlib`
+- `projection`
+- `store`
+- `sys`
+- `time`
+
+Classes:
+- `Delivery`
+  - methods: __init__, snapshot, current, begin, public, reconcile_cancel, refresh
+
+Functions:
+- `expected_formats`
+
+
+## `app/research_web/delivery_validation.py`
+
+Module docstring:
+> Trusted parser source, executed ONLY via sandbox.run_script, never on the host.
+
+Imports:
+- `hashlib`
+- `html.parser`
+- `io`
+- `json`
+- `os`
+- `pathlib`
+- `stat`
+
+Classes:
+- `VisibleHTML`
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+
+Functions:
+- `meaningful`
+- `validate_content`
+- `validate_file`
+
+
+## `app/research_web/documentation.py`
+
+Module docstring:
+> Serve only reviewed architecture HTML names, never a repository file browser.
+
+Imports:
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `os`
+- `pathlib`
+- `stat`
+
+Functions:
+- `read_document`
+  - Open every directory and the final file without following links (POSIX only).
+- `architecture_document`
+
+
+## `app/research_web/launch_runtime.py`
+
+Module docstring:
+> Launch only an owned DSH instance with a fixed build and clean environment.
+
+Imports:
+- `argparse`
+- `capabilities.catalog`
+- `core.observability`
+- `datahub.security`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+- `store`
+- `subprocess`
+- `sys`
+
+Functions:
+- `prepare`
+- `main`
+
+
+## `app/research_web/main.py`
+
+Module docstring:
+> Web-only startup: python -m uvicorn app.research_web.main:app --port 8088.
+
+Imports:
+- `asyncio`
+- `capabilities.models`
+- `capabilities.routes`
+- `client`
+- `contextlib`
+- `core.observability`
+- `datahub.routes`
+- `documentation`
+- `fastapi`
+- `fastapi.exceptions`
+- `fastapi.responses`
+- `fastapi.staticfiles`
+- `json`
+- `mimetypes`
+- `os`
+- `pathlib`
+- `pydantic`
+- `re`
+- `service`
+- `shutil`
+- `starlette.middleware.trustedhost`
+- `store`
+- `typing`
+- `urllib.parse`
+- `uuid`
+
+Classes:
+- `NewSession`
+- `Prompt`
+- `Rename`
+- `Approval`
+- `AnswerItem`
+- `Answers`
+- `ModelConfig`
+
+Functions:
+- `create_app`
+
+
+## `app/research_web/projection.py`
+
+Module docstring:
+> Pure projection of native DSH events; no parallel research execution model.
+
+Imports:
+- `json`
+
+Functions:
+- `content_text`
+- `project`
+
+
+## `app/research_web/resources/__init__.py`
+
+Module docstring:
+> Audited document helpers copied read-only into each research workspace.
+
+
+## `app/research_web/resources/research_helpers.py`
+
+Module docstring:
+> Deterministic document extraction/delivery helpers for the isolated runner.
+
+Imports:
+- `html`
+- `logging`
+- `pathlib`
+- `uuid`
+
+Functions:
+- `read_pdf`
+- `safe_cell`
+- `write_deliverables`
+
+
+## `app/research_web/sandbox.py`
+
+Module docstring:
+> Fail-closed macOS research runner; intentionally independent of application settings.
+
+Imports:
+- `__future__`
+- `argparse`
+- `dataclasses`
+- `functools`
+- `json`
+- `logging`
+- `math`
+- `os`
+- `pathlib`
+- `selectors`
+- `signal`
+- `subprocess`
+- `sys`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `SandboxError`
+  - A deployment or request failed validation before code execution.
+- `SandboxConfig`
+- `ScriptResult`
+
+Functions:
+- `child_environment`
+  - An explicit environment, never a filtered copy of the host environment.
+- `validate_session`
+  - Accept only a real UUID directory directly below this deployment's sessions.
+- `_runtime`
+  - Inspect only the explicitly configured interpreter, with site startup disabled.
+- `seatbelt_profile`
+  - Build a read-data allowlist and narrow mutation grants (metadata stays visible).
+- `_kill_group`
+  - Stop every child; report incomplete kernel teardown rather than hanging forever.
+- `run_script`
+  - Execute bounded Python source under kernel-enforced research capabilities.
+- `_request_cancel`
+- `main`
+  - Single-request JSON supervisor used by the native DSH tool, not a server.
+
+
+## `app/research_web/service.py`
+
+Module docstring:
+> Research BFF: native events, safe ownership, idempotent admission, no agent loop.
+
+Imports:
+- `asyncio`
+- `base64`
+- `capabilities.catalog`
+- `capabilities.models`
+- `capabilities.packages`
+- `capabilities.tools`
+- `client`
+- `contextlib`
+- `core.observability`
+- `datahub`
+- `datetime`
+- `delivery`
+- `hashlib`
+- `json`
+- `pathlib`
+- `projection`
+- `shutil`
+- `store`
+- `time`
+- `websockets.exceptions`
+
+Classes:
+- `ResearchService`
+  - methods: __init__, ensure_owned, start, close, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+
+
+## `app/research_web/skills/company-research/scripts/workflow.py`
+
+Module docstring:
+> Generate actual deliverables from an analyst-created JSON input; no fabricated defaults.
+
+Imports:
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `main`
+
+
+## `app/research_web/skills/document-reading/scripts/workflow.py`
+
+Module docstring:
+> Generate actual deliverables from an analyst-created JSON input; no fabricated defaults.
+
+Imports:
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `main`
+
+
+## `app/research_web/skills/fund-evaluation/scripts/workflow.py`
+
+Module docstring:
+> Generate actual deliverables from an analyst-created JSON input; no fabricated defaults.
+
+Imports:
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `main`
+
+
+## `app/research_web/skills/industry-research/scripts/workflow.py`
+
+Module docstring:
+> Generate actual deliverables from an analyst-created JSON input; no fabricated defaults.
+
+Imports:
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `main`
+
+
+## `app/research_web/store.py`
+
+Module docstring:
+> Atomic single-process product ownership index. DSH owns all transcripts.
+
+Imports:
+- `core.observability`
+- `hashlib`
+- `json`
+- `mimetypes`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+- `tempfile`
+- `time`
+- `uuid`
+
+Classes:
+- `StoreError`
+- `Store`
+  - methods: __init__, save, create, session, directory, reserve, receipt, files, file_path, open_file
+
+
 ## `core/__init__.py`
 
 Module docstring:
@@ -13104,11 +13795,17 @@ Module docstring:
 
 Imports:
 - `__future__`
-- `core.utils.git`
+- `argparse`
+- `core.observability`
 - `pathlib`
+- `subprocess`
 - `sys`
 
 Functions:
+- `collect_changes`
+  - Use NUL-delimited Git output, including individual untracked files.
+- `check_research_docs`
+  - Invoke the repository-owned Node core used by project-constraints CI.
 - `main`
 
 

@@ -2,10 +2,13 @@
 
 This file maps AlphaFoundry subsystems to source files, tests, and required documentation updates.
 
-## Current Web research implementation (2026-09-02)
+## Current Web research implementation (2026-09-03)
 
 Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
-Read [Research Web](research-web.md) and [UI contract](research-web-ui.md) first for this product.
+Read the canonical [Research Web architecture](architecture/research-web/README.md),
+[implementation notes](research-web.md) and [UI contract](research-web-ui.md) first for this product.
+The machine-readable [architecture map](architecture/research-web/architecture-map.json) connects
+current source modules, Markdown, diagrams and tests. Local acceptance is recorded separately from structural consistency.
 The legacy subsystems below remain historical implementations, not dependencies to add to this new chain.
 Tests: `tests/research_web/` (use `--confcutdir=tests/research_web`) and `tests/javascript/research_web*.test.mjs`.
 DSH owns the execution loop, skills, subagents and transcript; no second orchestration/fact database.

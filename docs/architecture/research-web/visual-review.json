@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "status": "reviewed",
+  "diagrams": [
+    {
+      "id": "08-iteration-docs",
+      "artifactSha256": "3e2f05d4a167f25ca648156c17d6900ab20b0553440d2b07782ddd6d5597c50f",
+      "specificationSha256": "707bba80be31068ae8bf78ef6d704e9a09406342159af732afb1f2ce4ab951b6",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": ["08-iteration-docs.visual-check.1440x900.dark.png", "08-iteration-docs.visual-check.2048x1320.light.png"],
+      "findings": [],
+      "notes": "已人工查看小屏深色与大屏浅色最终截图；两行流程与CI/入口分支可读，未见穿线、遮挡、裁剪。作者更新图文与自动一致性检查分开，检查不代替语义或产品验收。"
+    },
+    {
+      "id": "02-module-dependencies",
+      "artifactSha256": "af9d27f1297e2da79cc12b55e76496e22edcf967855d34a1980ac132962ae740",
+      "specificationSha256": "6bb99ccd04456fa4b3728235dd77ba36b7b0e92c95a102465af5cceb00eb3261",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": ["02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png"],
+      "findings": [],
+      "notes": "已人工查看最终小屏深色与大屏浅色截图；主调用链和领域依赖分层清晰，无遮挡、裁剪或穿线。对应模块已有源码，能力前端仍须功能审查与真实旅程；图不代替产品验收。"
+    },
+    {
+      "id": "05-capability-flow",
+      "artifactSha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5",
+      "specificationSha256": "1f19790e4a68a12825af9cf1cea95472504d68e78d2f8a2ca3e08ec7533c192c",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": ["05-capability-flow.visual-check.1440x900.dark.png", "05-capability-flow.visual-check.2048x1320.light.png"],
+      "findings": [],
+      "notes": "已人工查看两张最终截图；发布与研究分层，无穿线/裁剪。图示为实际模块关系，不是另一个 Workflow 执行器。四视口自动检查独立记录；首次 Chrome load 超时，原样重验成功，未将失败回执算通过。"
+    },
+    {
+      "id": "01-deployment",
+      "artifactSha256": "b8a3d318c8ff357d9bf716cf28af8173e7a28009f34b846479e49683370cab5c",
+      "specificationSha256": "17383b082d437bf402b7cbd989468b3c4a015f4911439d376623c10bd6096610",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": [
+        "01-deployment.visual-check.1440x900.dark.png",
+        "01-deployment.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看上述最终哈希对应截图；未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+    },
+    {
+      "id": "03-research-sequence",
+      "artifactSha256": "6282d4ffe633f401bde08ec9fbdddd4f22d44849209d737d1de899da6f8c89c2",
+      "specificationSha256": "42be7ac19d8dd8ec9c2c047bbe59b39295eb6fba4c4c25f7b0a488da58038bb9",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": [
+        "03-research-sequence.visual-check.1440x900.dark.png",
+        "03-research-sequence.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看上述最终哈希对应截图；未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+    },
+    {
+      "id": "04-data-file-flow",
+      "artifactSha256": "3f8b6ffb3266a50572600acbf2db51aa08ae81709a31c21fea764ce20c5f6d60",
+      "specificationSha256": "84e73a18abc25df46a6bd216ed886dbc9492e66ccd27c8807b013df4310b0bcf",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": [
+        "04-data-file-flow.visual-check.1440x900.dark.png",
+        "04-data-file-flow.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看上述最终哈希对应截图；未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+    },
+    {
+      "id": "06-run-state",
+      "artifactSha256": "629ab462b473c0fc8edec81010cfc9f80e4fc997dd91d201289ed7532df7dee1",
+      "specificationSha256": "f1b498496e2b22997089caa25aa840dc8bdf19c2783c187c63739ca5524d6344",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": [
+        "06-run-state.visual-check.1440x900.dark.png",
+        "06-run-state.visual-check.2048x1320.light.png"
+      ],
+      "findings": [
+        "主要状态投影示例；断线恢复不限定为未完成状态，完整语义见02文档和源码。"
+      ],
+      "notes": "已人工查看上述最终哈希对应截图；未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+    },
+    {
+      "id": "07-delivery-state",
+      "artifactSha256": "1d38ae1f3252caf0f3138d1f7487dd43924b60ee20db8728a6a934505fccdc2c",
+      "specificationSha256": "9185ea97723099545931bc5b24c43b48b809d65325f2fee6b08468aea061db35",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": [
+        "07-delivery-state.visual-check.1440x900.dark.png",
+        "07-delivery-state.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看上述最终哈希对应截图；未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+    }
+  ]
+}

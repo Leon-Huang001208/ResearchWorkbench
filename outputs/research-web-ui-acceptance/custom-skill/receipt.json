@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "session": "7ee7b736-673a-4aff-8006-73de6c10b600",
+  "capability": "1ba298cc4b754aee9496b7d1c5c78bf7",
+  "version": 1,
+  "file": "3320abdf473d5e3d84d3df8f",
+  "sha256": "ff0b305c0b1815120654c944f00635094e930f98474ca7517d46d520e91878e0",
+  "bytes": 1285,
+  "checks": [
+    "refresh_version_record",
+    "delivery_complete",
+    "isolated_html_preview",
+    "browser_download_sha256",
+    "sample_values_present"
+  ],
+  "modelCalls": 0
+}

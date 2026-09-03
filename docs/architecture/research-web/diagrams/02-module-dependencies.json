@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {"title": "Research Web · 源码模块依赖", "quality_profile": "showcase", "legend": {"entries": {"frontend": {"label": "前端模块"}, "backend": {"label": "后端模块"}, "database": {"label": "版本与资料服务"}, "external": {"label": "原生运行时"}}}},
+  "layout": {"mode": "grid", "origin": [40,70], "cols": 4, "cellW": 200, "cellH": 86, "gapX": 115, "gapY": 135},
+  "components": [
+    {"id": "web-controller", "type": "frontend", "label": "页面控制器", "sublabel": "app.mjs · core.mjs", "row": 0, "col": 0, "size": [200,86]},
+    {"id": "web-api", "type": "backend", "label": "Web API 入口", "sublabel": "main.py · 同源边界", "row": 0, "col": 1, "size": [200,86]},
+    {"id": "research-service", "type": "backend", "label": "研究服务", "sublabel": "service.py · projection.py", "row": 0, "col": 2, "size": [200,86]},
+    {"id": "dsh-transport", "type": "backend", "label": "DSH 适配", "sublabel": "client.py · 有限 RPC 与双 WS", "row": 0, "col": 3, "size": [200,86]},
+    {"id": "ui-modules", "type": "frontend", "label": "独立交互模块", "sublabel": "产品壳 · 输入框 · 能力与编辑器", "row": 1, "col": 0, "size": [200,86]},
+    {"id": "domain-routers", "type": "backend", "label": "领域接口", "sublabel": "capabilities / datahub routes", "row": 1, "col": 1, "size": [200,86]},
+    {"id": "owned-files", "type": "database", "label": "归属与文件交付", "sublabel": "store.py · delivery.py · 沙箱", "row": 1, "col": 2, "size": [200,86]},
+    {"id": "native-dsh", "type": "external", "label": "专属 DSH", "sublabel": "原生循环 · 工具 · Skill · 子 Agent", "row": 1, "col": 3, "size": [200,86]},
+    {"id": "capability-packages", "type": "database", "label": "能力包管理", "sublabel": "catalog · packages · models", "row": 2, "col": 0, "size": [200,86]},
+    {"id": "data-services", "type": "database", "label": "DataHub 服务", "sublabel": "providers · snapshots · security", "row": 2, "col": 1, "size": [200,86]}
+  ],
+  "connections": [
+    {"id": "web-product-api", "from": "web-controller", "to": "web-api", "label": "REST / SSE", "variant": "emphasis"},
+    {"id": "api-research", "from": "web-api", "to": "research-service", "label": "会话与审批", "variant": "emphasis"},
+    {"id": "service-client", "from": "research-service", "to": "dsh-transport", "label": "原生协议", "variant": "emphasis"},
+    {"id": "web-components", "from": "web-controller", "to": "ui-modules", "label": "导入并接线", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "api-routers", "from": "web-api", "to": "domain-routers", "label": "挂载路由", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "service-files", "from": "research-service", "to": "owned-files", "label": "索引与交付", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "client-dsh", "from": "dsh-transport", "to": "native-dsh", "label": "回环传输", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "routes-packages", "from": "domain-routers", "to": "capability-packages", "label": "能力生命周期"},
+    {"id": "routes-data", "from": "domain-routers", "to": "data-services", "label": "取数与快照", "fromSide": "bottom", "toSide": "top", "labelDy": 24}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "前端分工", "items": ["目录、详情、编辑器与显式操作控制器分开", "输入框和首页消费同一能力目录"]},
+    {"dot": "amber", "title": "研究服务共享边界", "items": ["能力目录变更与研究提交共用互斥锁", "图示主要依赖，细节以模块与接口清单为准"]},
+    {"dot": "rose", "title": "唯一执行引擎", "items": ["原生 DSH 执行，Web 不增加 Agent 编排器", "运行状态与文件交付分别计算"]}
+  ]
+}

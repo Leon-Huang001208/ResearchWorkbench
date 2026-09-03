@@ -96,11 +96,15 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 | running | 运行任务显示在侧栏；停止仍使用已有取消接口 | 壳层渲染 + 既有 controller/API 测试 |
 | error | 目录/API 错误保留可见；失败活动默认展开并显示错误 | `views.mjs` 渲染与 UI 回归 |
 | empty | 缺少真实会话、Skill、资料或文件时显示操作性空状态，不填演示数据 | 壳层与既有 views 测试 |
-| keyboard | skip link、焦点恢复、Enter 发送、Escape 关闭抽屉沿用；`/` 可搜索真实 Skill | 静态/单元覆盖；未做浏览器键盘验收 |
+| keyboard | skip link、焦点恢复、Enter 发送、Escape 关闭抽屉沿用；`/` 可搜索真实 Skill | 单元及真实浏览器slash/Escape/ArrowDown/Enter、移动抽屉检查 |
 | 能力禁用/缺依赖/冲突 | 停用能力只可查看；导入检查问题和操作错误可见，不自动发布或安装 | `research_web_capabilities_ui.test.mjs` |
 | 编辑/保存/版本 | 失败保留完整候选；保存可由新控制器重新读取；版本与工具意图参与幂等消息 | `research_web_capabilities_ui.test.mjs` |
 | 离线/键盘 | 运行时离线禁发送但可编辑；真实 app 事件处理器消费 slash/Escape/移动抽屉和搜索 | 无网络 DOM 边界测试；不替代真实浏览器 |
 | Claw 工作区 | 会话恢复聊天；当前工作区主画布只投影当前 `detail` 的资料与文件，复用安全下载/预览 | `research_web_ui_layout.test.mjs` |
 | 首页模板/分类 | Claw 仅已启用 Workflow；FinGPT 四 Skill；分类本地筛选，卡片与上方 Skill 选择只准备版本草稿 | 布局渲染测试 + 实际 app 事件无网络 DOM 边界测试；视口/hover 由控制器另验 |
 
-本轮未启动服务、未请求模型，也未做浏览器视觉验收；单元测试不能替代 1440/1600/1920、平板和手机的实际界面验收。
+实现子任务未启动模型；集成控制器已另行执行真实Web验收。`tests/e2e/research_web_layout.mjs`覆盖1440/1600/1920、820平板与390手机共15页面组合，搜索、分类、slash键盘、抽屉及四Skill双模式草稿通过；控制器已实际查看全部15张最终截图。屏幕阅读器和桌面平台未验证。新真实模型旅程（自建Skill、PDF、Workflow双Agent文件）和只读历史回归见 [本轮记录](../.ai/reports/2026-09-03-research-ui-live.md)。
+
+设置中的「架构文档」链接只打开 `/api/research/documentation/index.html`，新页以noopener/noreferrer隔离；目录与八图由固定路由、受限文件读取及独立CSP提供，详见 [文档模块](research-web-documentation.md)，不会开放仓库或Runtime目录。
+
+已受理但原生不运行、交付仍等待时显示「重新核对停止」，调用已有取消端点。离线不可操作，复核前发送仍禁用；后端严格核对后只允许以verification_failed说明缺失终止记录，不能用UI按钮将任务伪报成功。普通运行任务仍使用「停止」。
