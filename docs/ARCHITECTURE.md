@@ -979,3 +979,8 @@ ResourceMonitorRuntime（非预览）→ 每分钟主机容量汇总 → 24 小�
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+DataHub 增量扩展在 018 后新增 019 四表：来源快照/分页行、独立周期与复权行情、同步批次账本。CJPY → 校验 → 事实库 → DataHubService → FinGPT/Claw；研究层与 DSH 不持有事实写入权限。能力中心增加真实 DataHub 页面，研究结果引用事实 ID 与 SHA256。 详见 [DataHub 模块说明](modules/datahub.md)。

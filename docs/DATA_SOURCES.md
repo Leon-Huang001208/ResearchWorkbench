@@ -262,3 +262,8 @@ pip install -e ".[pdf-full]"
 - `data_layer/web_search/` — Tavily / Bing provider + `page_fetcher`（trafilatura 抽正文）+ factory
 - `services/web_search_service.py` — 搜索服务内核
 - `services/ask_service.py` + `services/ask_factory.py` — 统一问答内核与装配
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+CJPY 0.5.2 现支持 17 个目录/事实数据集及手动持久同步；数据集与字段从服务端发现。现有 14 个来源注册和日线降级链不变。基金 OF 代码与股票代码分类型映射，未确认语义保留原始结果并隔离。来源状态 unknown 表示未检测，并非实时可用。 详见 [DataHub 模块说明](modules/datahub.md)。

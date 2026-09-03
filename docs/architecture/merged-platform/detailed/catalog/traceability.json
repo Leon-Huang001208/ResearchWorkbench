@@ -10,7 +10,8 @@
     {"id":"SVC-PLT-001","name":"RuntimeRouterService","module":"platform-core"},
     {"id":"SVC-PLT-002","name":"CapabilityRegistryService","module":"platform-core"},
     {"id":"SVC-SCH-001","name":"SchedulerCoordinator","module":"platform-core"},
-    {"id":"SVC-NOT-001","name":"NotificationService","module":"platform-core"}
+    {"id":"SVC-NOT-001","name":"NotificationService","module":"platform-core"},
+    {"id":"SVC-DH-001","name":"DataHubService","module":"services/datahub_service.py"}
   ],
   "data_owners": [
     {"id":"DATA-RES-001","name":"research_workspace_store","zone":"research"},
@@ -25,7 +26,8 @@
     {"id":"DATA-ALT-002","name":"alert_store","zone":"personal"},
     {"id":"DATA-NOT-001","name":"notification_store","zone":"personal"},
     {"id":"DATA-PLT-001","name":"runtime_capability_store","zone":"personal"},
-    {"id":"DATA-SCH-001","name":"scheduled_job_store","zone":"personal"}
+    {"id":"DATA-SCH-001","name":"scheduled_job_store","zone":"personal"},
+    {"id":"DATA-DH-001","name":"datahub_snapshot_row_bar_store","zone":"fact"}
   ],
   "events": [
     {"id":"EVT-RES-001","name":"research.run.queued"},
@@ -39,7 +41,8 @@
     {"id":"EVT-ALT-003","name":"alert.skipped_data_stale"},
     {"id":"EVT-SCH-001","name":"scheduled_job.leased"},
     {"id":"EVT-SCH-002","name":"scheduled_job.coalesced"},
-    {"id":"EVT-NOT-001","name":"notification.created"}
+    {"id":"EVT-NOT-001","name":"notification.created"},
+    {"id":"EVT-DH-001","name":"datahub.snapshot.updated"}
   ],
   "traces": [
     {"capability_id":"CAP-RES-001","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"],"api_ids":["API-RES-001","API-RES-002","API-RES-003","API-RES-004"],"service_ids":["SVC-RES-001"],"data_owner_ids":["DATA-RES-001"],"event_ids":[],"local_interaction":false},
@@ -69,6 +72,7 @@
     {"capability_id":"CAP-PLT-001","page_ids":["PAGE-P08"],"api_ids":["API-PLT-001","API-PLT-002","API-PLT-003","API-PLT-004"],"service_ids":["SVC-PLT-001"],"data_owner_ids":["DATA-PLT-001"],"event_ids":["EVT-RES-005"],"local_interaction":false},
     {"capability_id":"CAP-PLT-002","page_ids":["PAGE-P08"],"api_ids":["API-PLT-005","API-PLT-006","API-PLT-007","API-PLT-008"],"service_ids":["SVC-PLT-002"],"data_owner_ids":["DATA-PLT-001"],"event_ids":[],"local_interaction":false},
     {"capability_id":"CAP-PLT-003","page_ids":["PAGE-P08"],"api_ids":["API-PLT-005","API-PLT-006","API-PLT-007","API-PLT-008"],"service_ids":["SVC-PLT-002"],"data_owner_ids":["DATA-PLT-001"],"event_ids":[],"local_interaction":false},
-    {"capability_id":"CAP-PLT-004","page_ids":["PAGE-P08"],"api_ids":["API-SCH-001","API-SCH-002","API-SCH-003","API-SCH-004","API-SCH-005"],"service_ids":["SVC-SCH-001"],"data_owner_ids":["DATA-SCH-001"],"event_ids":["EVT-SCH-001","EVT-SCH-002"],"local_interaction":false}
+    {"capability_id":"CAP-PLT-004","page_ids":["PAGE-P08"],"api_ids":["API-SCH-001","API-SCH-002","API-SCH-003","API-SCH-004","API-SCH-005"],"service_ids":["SVC-SCH-001"],"data_owner_ids":["DATA-SCH-001"],"event_ids":["EVT-SCH-001","EVT-SCH-002"],"local_interaction":false},
+    {"capability_id":"CAP-DH-001","page_ids":["PAGE-P08"],"api_ids":["API-DH-001","API-DH-002","API-DH-003","API-DH-004","API-DH-005","API-DH-006","API-DH-007","API-DH-008"],"service_ids":["SVC-DH-001","SVC-SCH-001","SVC-RES-002"],"data_owner_ids":["DATA-DH-001","DATA-AST-001","DATA-AST-002","DATA-SCH-001","DATA-RES-002"],"event_ids":["EVT-DH-001","EVT-MKT-001"],"local_interaction":false}
   ]
 }

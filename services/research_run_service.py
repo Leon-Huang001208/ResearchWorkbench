@@ -31,6 +31,7 @@ from services.research_templates import (
     get_default_research_template_registry,
 )
 from services.runtime_provider_service import (
+    InvocationUsage,
     RuntimeBlockedError,
     RuntimeExecutionResult,
     RuntimeFailedError,
@@ -519,6 +520,7 @@ class ResearchRunService:
             skill_outputs = self._execute_skills(run, runtime_input)
             if skill_outputs:
                 runtime_input["skill_outputs"] = skill_outputs
+                runtime_input["evidence"] = self._repository.get_evidence_inputs(run.run_id)
             self._publish_progress(
                 run.run_id,
                 status=ResearchRunStatus.ANALYZING,
@@ -745,14 +747,14 @@ class ResearchRunService:
                 raise RuntimeBlockedError(
                     f"Enabled Skill not found: {skill_key}", code="blocked_runtime"
                 ) from exc
-            usage = []
+            usage: list[InvocationUsage] = []
             try:
+                from functools import partial
+
                 outputs[skill_key] = self._runtime_service.execute_skill(
                     manifest,
                     runtime_input,
-                    lambda payload, context, current=manifest: self._skill_invoker(
-                        current, payload, context
-                    ),
+                    partial(self._skill_invoker, manifest),
                     authorized_tool_ids=self._authorized_tool_ids,
                     deadline_seconds=30,
                     reserve_tokens=remaining_tokens,

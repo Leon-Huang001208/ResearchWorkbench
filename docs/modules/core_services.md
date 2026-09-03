@@ -57,3 +57,10 @@ This index records cross-cutting service contracts that sit beneath the API rout
 - The runtime eligibility, cadence, retention, host-history contract, or source-scope taxonomy changes.
 - Resource warnings gain a notification channel or a new public data boundary.
 - Research Run state, evidence gates, artifact semantics, or export eligibility changes.
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+FinGPT/Claw 的 data_catalog 与 data_query 都通过平台 DataHubService 读取已校验事实，可信 tool result sink 写原 Research Run 的证据与产物；研究图启动前刷新这些证据。采集与数据库访问始终留在平台服务内。 详见 [DataHub 模块说明](datahub.md)。
+
+MCP CLI `python -m mcp.server` 现在显式加载已安装 SDK，避免同名项目包遮蔽；使用标准初始化与独立协议 stdout。真实 stdio 验证见 `tests/unit/test_datahub_mcp.py`。

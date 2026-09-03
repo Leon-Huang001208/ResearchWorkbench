@@ -28,7 +28,8 @@
     {"id":"CAP-PLT-001","domain":"platform-core","name":"runtime-provider","decision":"add","description":"通过 RuntimeProvider 路由 LangGraph、DSH 和未来远程运行时。","page_ids":["PAGE-P08"]},
     {"id":"CAP-PLT-002","domain":"platform-core","name":"allowlisted-mcp","decision":"add","description":"外部 MCP 必须预注册、授权和审计。","page_ids":["PAGE-P08"]},
     {"id":"CAP-PLT-003","domain":"platform-core","name":"declarative-skills","decision":"add","description":"Skill 仅声明提示、Schema 与受控工具能力。","page_ids":["PAGE-P08"]},
-    {"id":"CAP-PLT-004","domain":"platform-core","name":"scheduler-coordinator","decision":"merge","description":"用 PostgreSQL 租约统一刷新、Agent 日程和提醒评估。","page_ids":["PAGE-P08"]}
+    {"id":"CAP-PLT-004","domain":"platform-core","name":"scheduler-coordinator","decision":"merge","description":"用 PostgreSQL 租约统一刷新、Agent 日程和提醒评估。","page_ids":["PAGE-P08"]},
+    {"id":"CAP-DH-001","domain":"datahub","name":"shared-validated-datahub","decision":"add","description":"CJPY 完整目录采集、校验入库、分页事实查询和 FinGPT/Claw 证据引用；能力中心使用真实 API。","page_ids":["PAGE-P08"]}
   ],
   "pages": [
     {"id":"PAGE-P01","route":"/market-home","name":"全市场首页","domain":"market","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},

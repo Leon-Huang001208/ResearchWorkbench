@@ -150,6 +150,8 @@ Functions:
   - Stop the single durable worker during API shutdown.
 - `_stop_data_acquisition_schedulers`
   - 停止数据获取调度器
+- `datahub_page`
+  - Live shared data service embedded by the merged capability center.
 - `index`
   - 首页 - 交互式 Web 前端
 - `backend_version`
@@ -504,6 +506,32 @@ Functions:
   - 获取市场总览独立快照，用于前端局部实时刷新。
 - `get_sector_movers`
   - 按需获取某一个市场口径的上涨/下跌列表。
+
+
+## `app/api/routes/datahub.py`
+
+Module docstring:
+> DataHub management API; research tools consume the separate read-only service.
+
+Imports:
+- `app.api.configuration_security`
+- `core.contracts.datahub`
+- `core.observability`
+- `data_layer.repositories.base`
+- `fastapi`
+- `sqlalchemy.orm`
+- `typing`
+
+Functions:
+- `get_datahub`
+- `cite`
+- `sources`
+- `catalog`
+- `records`
+- `sync`
+- `runs`
+- `run`
+- `health`
 
 
 ## `app/api/routes/decision_console.py`
@@ -3302,6 +3330,25 @@ Classes:
   - 完整首页聚合响应.
 
 
+## `core/contracts/datahub.py`
+
+Module docstring:
+> Bounded, credential-free DataHub query and ingestion contracts.
+
+Imports:
+- `datetime`
+- `pydantic`
+- `re`
+- `typing`
+
+Classes:
+- `DataHubSyncRequest`
+  - methods: check_parameters
+- `DataHubQuery`
+  - methods: known_dataset
+- `DataHubCitationRequest`
+
+
 ## `core/contracts/decision_console.py`
 
 Module docstring:
@@ -5187,11 +5234,12 @@ Classes:
 ## `data_layer/adapters/cjpy_adapter.py`
 
 Module docstring:
-> 天软 (Tinysoft) 数据适配器 —— 通过 cjpy 包获取天软行情、因子、表格数据
+> CJPY 0.5.2 adapter: explicit clients, isolated proxies, and lossless source APIs.
 
 Imports:
-- `contextlib`
+- `__future__`
 - `core.contracts`
+- `core.contracts.datahub`
 - `core.observability`
 - `data_layer.adapters.base`
 - `datetime`
@@ -5202,12 +5250,8 @@ Imports:
 
 Classes:
 - `CjpyAdapter`
-  - 天软 (Tinysoft) 数据适配器
-  - methods: __init__, _get_token, _ensure_token, is_available, fetch_stock_list, fetch_fund_list, fetch_trading_days, fetch_daily_quotes, fetch_factor_data, get_factor_repo, fetch_table_data, get_supported_tables, subscribe, fetch, parse, info
-
-Functions:
-- `_without_proxy_env`
-  - cjpy 访问天软服务时绕开本机代理环境变量。
+  - Own an SDK client; never change global SDK tokens or proxy environment.
+  - methods: __init__, _get_token, _ensure_token, _get_client, health, is_available, query, fetch_stock_list, fetch_fund_list, fetch_trading_days, fetch_daily_quotes, fetch_factor_data, fetch_table_data, get_supported_tables, get_factor_repo, subscribe, fetch, parse, info
 
 
 ## `data_layer/adapters/cls_adapter.py`
@@ -7111,6 +7155,31 @@ Functions:
   - 将 StockInfo dataclass 转为 stock_master 表格式
 
 
+## `data_layer/normalizers/cjpy.py`
+
+Module docstring:
+> Lossless CJPY source rows plus conservative, typed fact normalization.
+
+Imports:
+- `__future__`
+- `core.contracts.datahub`
+- `core.observability`
+- `datetime`
+- `math`
+- `re`
+- `typing`
+- `zoneinfo`
+
+Functions:
+- `canonical_code`
+- `json_value`
+  - Strict JSON projection; the original response remains in the raw artifact.
+- `parse_time`
+- `first`
+- `normalize_row`
+  - Never infer a financial unit, historical publication time, or asset class.
+
+
 ## `data_layer/normalizers/common.py`
 
 Module docstring:
@@ -7414,6 +7483,53 @@ Functions:
 - `_has_independent_content`
 - `_extract_json_document_text`
 - `_normalize_crawl_document_text`
+
+
+## `data_layer/repositories/datahub_models.py`
+
+Module docstring:
+> DataHub-owned immutable source snapshots, rows, bars, and job batch ledger.
+
+Imports:
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `sqlalchemy`
+
+Classes:
+- `DataHubSnapshotDB`
+- `DataHubRowDB`
+- `DataHubBarDB`
+- `DataHubRunItemDB`
+
+
+## `data_layer/repositories/datahub_repository.py`
+
+Module docstring:
+> Transactional persistence and bounded reads for the shared DataHub fact owner.
+
+Imports:
+- `__future__`
+- `core.contracts.datahub`
+- `core.contracts.platform_shared`
+- `core.observability`
+- `data_layer.normalizers.cjpy`
+- `data_layer.repositories.datahub_models`
+- `data_layer.repositories.models`
+- `datetime`
+- `hashlib`
+- `json`
+- `sqlalchemy`
+- `sqlalchemy.dialects.postgresql`
+- `sqlalchemy.dialects.sqlite`
+
+Classes:
+- `DataHubRepository`
+  - methods: __init__, _check_fence, upsert, completed_batch, record_batch, _asset_id, save_snapshot, _index_master, _project, snapshots, source_ref
+
+Functions:
+- `digest`
+- `query_identity`
+  - Equivalent vendor spellings share a current query; raw parameters remain intact.
 
 
 ## `data_layer/repositories/decision_console_repository.py`
@@ -7743,6 +7859,7 @@ Classes:
 ## `data_layer/repositories/models.py`
 
 Imports:
+- `data_layer.repositories`
 - `data_layer.repositories.base`
 - `datetime`
 - `sqlalchemy`
@@ -12595,6 +12712,21 @@ Functions:
   - Drop personal-observation tables in reverse dependency order.
 
 
+## `storage/migrations/versions/019_add_datahub.py`
+
+Module docstring:
+> Add DataHub source snapshots, complete rows, bars and batch ledger (019).
+
+Imports:
+- `alembic`
+- `core.observability`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+- `downgrade`
+
+
 ## `ingestion/__init__.py`
 
 Module docstring:
@@ -13335,6 +13467,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `importlib.util`
 - `os`
 - `pathlib`
 - `platform`

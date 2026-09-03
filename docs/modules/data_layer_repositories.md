@@ -366,3 +366,8 @@ When files in this module change, check:
 
 - `core/connectors/` — 连接器通过 `DocumentConnector.persist()` 将 `IngestionRecord` 入队到 `IngestionQueueRepository`，最终由 `KnowledgeWorker` 消费
 - `connectors/` — 具体连接器在 `persist()` 中调用本模块的仓储进行数据库写入
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+DataHubRepository 负责快照/行/行情/批次、typed 因子与成分投影。PostgreSQL 事务锁串行化投影，批次提交时检查 scheduler fencing；乱序响应不覆盖新值；隔离数据在身份补齐后可由手动同步重校验。 详见 [DataHub 模块说明](datahub.md)。

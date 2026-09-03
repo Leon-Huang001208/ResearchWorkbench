@@ -756,3 +756,8 @@ CLI 命令在 `app/cli/commands/`，文件名 = 功能 + `.py`，例如：
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
 - **[backup_restore.md](backup_restore.md)** - 备份恢复文档
 - **[DATA_SOURCES.md](DATA_SOURCES.md)** - 数据源文档
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+新增 core/contracts/datahub.py、data_layer/normalizers/cjpy.py、data_layer/repositories/datahub_models.py / datahub_repository.py、services/datahub_service.py、app/api/routes/datahub.py、app/web/templates/datahub.html、app/web/static/datahub.css / js/datahub.js、storage/migrations/versions/019_add_datahub.py。vendor/cjpy 保存用户提供的 0.5.2 wheel、许可证与校验清单。 详见 [DataHub 模块说明](modules/datahub.md)。

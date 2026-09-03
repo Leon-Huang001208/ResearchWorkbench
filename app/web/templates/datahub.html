@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DataHub · FinGPT / Claw</title><link rel="stylesheet" href="/static/datahub.css"></head>
+<body><main>
+<header><div><small>共享事实数据 · FinGPT / Claw</small><h1>DataHub</h1><p>查看来源、同步数据，将可追溯的事实用于研究。</p></div><button id="refresh">刷新状态</button></header>
+<div id="message" role="status" aria-live="polite">正在连接数据底座…</div>
+<section class="panel"><h2>数据源</h2><div id="sources" class="sources"></div></section>
+<div class="workspace"><section class="panel"><h2>CJPY 数据目录</h2><p id="health">尚未检测连接</p><button id="health-check">检测 CJPY 连接</button><label>数据集<select id="dataset"></select></label><p id="coverage"></p>
+<form id="sync-form"><div id="fields"></div><details><summary>字段与单位</summary><p>数值单位需来自供应商目录。未确认语义的记录会隔离保存。</p><label>列单位（列名=单位，每行一项）<textarea id="units" rows="3" placeholder="市盈率=倍"></textarea></label><label>业务日期字段<input id="date-field" placeholder="例如 截止日"></label><label>自定义因子（名称=TSL 表达式，每行一项）<textarea id="factor-repo" rows="2"></textarea></label></details><div class="actions"><button class="primary" type="submit">同步并入库</button><button type="button" id="browse">浏览已存数据</button></div></form>
+</section><section class="panel results"><div class="row"><h2>数据浏览</h2><label><input type="checkbox" id="show-quarantine">显示隔离记录</label></div><p id="result-meta">选择数据集后浏览。</p><div class="table-scroll"><table><thead id="result-head"></thead><tbody id="result-body"></tbody></table></div><div class="actions"><button id="previous">上一页</button><span id="page-label"></span><button id="next">下一页</button></div></section></div>
+<section class="panel"><h2>研究引用</h2><p>填写已有草稿或待补充的研究任务，在数据行点击“引用到研究”。FinGPT / Claw 使用同一份事实。</p><div class="actions"><label>项目 ID<input id="cite-project"></label><label>Workspace ID<input id="cite-workspace"></label><label>Run ID<input id="cite-run"></label></div></section>
+<section class="panel"><h2>同步记录</h2><p>失败批次会按调度策略重试；已保存批次不重复获取。</p><div id="runs"></div></section>
+</main><script type="module" src="/static/js/datahub.js"></script></body></html>

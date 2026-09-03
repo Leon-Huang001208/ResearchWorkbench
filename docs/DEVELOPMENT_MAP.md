@@ -916,3 +916,8 @@ Update triggers:
 - Base class lifecycle changes
 - Registry API changes
 - New concrete connector implementation
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+入口 app/api/routes/datahub.py、services/datahub_service.py；规范 core/contracts/datahub.py；采集 connectors/market/cjpy.py 与 data_layer/normalizers/cjpy.py；存储 datahub_models.py / datahub_repository.py；测试 tests/unit/test_datahub.py。修改时同步 DataHub 模块文档、架构 catalog、研究工具白名单及桌面资源清单。 详见 [DataHub 模块说明](modules/datahub.md)。

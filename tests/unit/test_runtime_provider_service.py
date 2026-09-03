@@ -554,6 +554,8 @@ def test_production_service_wires_real_asset_tool_and_only_preregistered_mcp(
 
     assert snapshot["asset"]["asset_id"] == "asset-production"
     assert service.authorized_tool_ids == {
+        "internal:data_catalog",
+        "internal:data_query",
         "internal:asset_snapshot",
         "mcp:approved",
     }

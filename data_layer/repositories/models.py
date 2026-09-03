@@ -2606,3 +2606,7 @@ class NotificationDB(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
     delivered_at = Column(DateTime(timezone=True), nullable=True)
     read_at = Column(DateTime(timezone=True), nullable=True)
+
+
+# Register DataHub-owned tables in the shared metadata without duplicating fact owners.
+from data_layer.repositories import datahub_models as _datahub_models  # noqa: E402,F401

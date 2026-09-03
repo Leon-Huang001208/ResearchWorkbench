@@ -606,6 +606,10 @@ def test_api_registers_all_domains_before_starting_single_runtime(monkeypatch) -
     calls: list[str] = []
 
     class Runtime:
+        def register_handler(self, job_type, handler):
+            assert job_type == "datahub.ingest"
+            calls.append("datahub")
+
         def start(self) -> None:
             calls.append("start")
 
@@ -639,7 +643,7 @@ def test_api_registers_all_domains_before_starting_single_runtime(monkeypatch) -
     main._start_durable_scheduler_runtime()
     main._stop_durable_scheduler_runtime()
 
-    assert calls == ["get", "market", "alert", "agent", "start", "start", "stop"]
+    assert calls == ["get", "datahub", "market", "alert", "agent", "start", "start", "stop"]
 
 
 def test_api_registration_failure_does_not_cache_an_incomplete_runtime(monkeypatch) -> None:
@@ -654,6 +658,10 @@ def test_api_registration_failure_does_not_cache_an_incomplete_runtime(monkeypat
     calls: list[str] = []
 
     class Runtime:
+        def register_handler(self, job_type, handler):
+            assert job_type == "datahub.ingest"
+            calls.append("datahub")
+
         def start(self) -> None:
             calls.append("start")
 
@@ -695,4 +703,4 @@ def test_api_registration_failure_does_not_cache_an_incomplete_runtime(monkeypat
 
     main._start_durable_scheduler_runtime()
 
-    assert calls == ["market", "alert", "market", "alert", "agent", "start"]
+    assert calls == ["datahub", "market", "alert", "datahub", "market", "alert", "agent", "start"]

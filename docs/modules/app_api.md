@@ -511,3 +511,8 @@ The route opens a database session only for the individual resource-event or hos
 ## Recent Changes
 
 - 2026-06-04: 收敛 API 路由层 mypy 历史债务，补齐上传流、监控响应、模板 section 拼装的显式类型，保持现有请求/响应行为不变。
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+DataHub 薄路由提供目录、分页事实、来源状态、同步记录、健康探测及研究引用。/datahub 提供真实页面，/platform 挂载合并平台产品壳；写接口复用本地 CSRF，引用强制 Run 的 project/workspace scope。 详见 [DataHub 模块说明](datahub.md)。

@@ -440,6 +440,7 @@ def test_api_startup_uses_one_process_wide_durable_scheduler_runtime(monkeypatch
     main._stop_durable_scheduler_runtime()
 
     assert calls == [
+        "handler:datahub.ingest",
         "materializer:market-home-close",
         "handler:market_home.close_snapshot",
         "materializer:asset-alert-evaluation",

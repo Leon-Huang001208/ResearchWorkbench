@@ -53,6 +53,7 @@ def get_research_run_service(db: Session = Depends(get_db)) -> ResearchRunServic
     from services.research_run_service import ResearchRunService
     from services.research_tool_registry import (
         build_production_research_tool_dispatcher,
+        record_datahub_tool_evidence,
     )
     from services.research_workspace_service import ResearchWorkspaceService
     from services.runtime_provider_service import (
@@ -77,7 +78,10 @@ def get_research_run_service(db: Session = Depends(get_db)) -> ResearchRunServic
         ],
     )
     adapters = ProductionResearchExecutionAdapters(
-        tool_dispatcher=build_production_research_tool_dispatcher(db)
+        tool_dispatcher=build_production_research_tool_dispatcher(db),
+        tool_result_sink=lambda run_id, tool_id, arguments, result: record_datahub_tool_evidence(
+            db, run_id, tool_id, arguments, result
+        ),
     )
     executable_tool_ids = load_authorized_tool_registry().intersection(adapters.authorized_tool_ids)
     return ResearchRunService(
@@ -96,9 +100,8 @@ def get_research_run_service(db: Session = Depends(get_db)) -> ResearchRunServic
 @router.post("", response_model=ResearchRun, status_code=status.HTTP_201_CREATED)
 async def create_research_run(
     request: ResearchRunCreateRequest,
-    idempotency_key: str | None = Header(
-        default=None, alias="Idempotency-Key", min_length=1, max_length=240
-    ),
+    idempotency_key: str
+    | None = Header(default=None, alias="Idempotency-Key", min_length=1, max_length=240),
     service: ResearchRunService = Depends(get_research_run_service),
 ) -> ResearchRun | Response:
     """Create a durable research task; execution remains explicit and resumable."""
@@ -153,9 +156,8 @@ async def get_research_run(
 @router.post("/{run_id}/execute", response_model=ResearchRun)
 async def execute_research_run(
     run_id: str,
-    idempotency_key: str | None = Header(
-        default=None, alias="Idempotency-Key", min_length=1, max_length=240
-    ),
+    idempotency_key: str
+    | None = Header(default=None, alias="Idempotency-Key", min_length=1, max_length=240),
     project_id: str | None = Header(default=None, alias="X-Project-ID"),
     workspace_id: str | None = Header(default=None, alias="X-Workspace-ID"),
     service: ResearchRunService = Depends(get_research_run_service),
@@ -202,9 +204,8 @@ async def execute_research_run(
 @router.post("/{run_id}/resume", response_model=ResearchRun)
 async def resume_research_run(
     run_id: str,
-    idempotency_key: str | None = Header(
-        default=None, alias="Idempotency-Key", min_length=1, max_length=240
-    ),
+    idempotency_key: str
+    | None = Header(default=None, alias="Idempotency-Key", min_length=1, max_length=240),
     project_id: str | None = Header(default=None, alias="X-Project-ID"),
     workspace_id: str | None = Header(default=None, alias="X-Workspace-ID"),
     service: ResearchRunService = Depends(get_research_run_service),

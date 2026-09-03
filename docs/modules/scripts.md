@@ -329,3 +329,8 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+build_sidecar.py 将合并平台产品壳、DataHub 网页及 CJPY 许可证/manifest 纳入原生 sidecar；安装有 cjpy 时收集其模块和包元数据。desktop-verify.yml 在原生 macOS/Windows 构建前安装已确认的本地 wheel。 详见 [DataHub 模块说明](datahub.md)。

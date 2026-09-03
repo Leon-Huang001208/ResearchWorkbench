@@ -1,468 +1,311 @@
-"""Cjpy (天软/Tinysoft) MarketDataConnector — 将现有 CjpyAdapter 包装为 MarketDataConnector.
-
-Wrapper-first 策略：内部委托给 data_layer/adapters/cjpy_adapter.py，
-不立即重写内部逻辑。
-
-支持的 datasets:
-- daily_quotes: 日线/分钟线行情（OHLCV）
-- factor_data: 因子数据（69 个系统因子）
-- table_data: 表格数据（21 张表：股本结构、财务指标、十大股东等）
-- stock_list: A 股代码列表
-- fund_list: 全量基金代码列表
-- trading_days: 交易日序列
-
-Usage:
-    connector = CjpyMarketConnector()
-    result = connector.run(dataset="daily_quotes", codes=["000001.SZ"],
-                           start_date="2026-05-01", end_date="2026-05-31")
-"""
+"""CJPY connector: bounded SDK batches and shared DataHub persistence."""
 
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
-if TYPE_CHECKING:
-    from services.realtime_bridge import RealtimeBridge
+import pandas as pd
 
 from core.connectors.base import DiscoveryItem, MarketDataConnector, ParsedTable, RawObject
-from core.contracts.ingestion_record import (
-    AssetType,
-    EntityType,
-    HealthStatus,
-    IngestionRecord,
-    MarketBarPayload,
-)
+from core.contracts.datahub import DATASETS, DataHubSyncRequest
+from core.contracts.ingestion_record import AssetType, HealthStatus, IngestionRecord
 from core.observability import get_logger
+from data_layer.normalizers.cjpy import json_value, normalize_row
 
 logger = get_logger(__name__)
 
-DATASET_META: Dict[str, Dict[str, Any]] = {
-    "daily_quotes": {
-        "item_type": "daily_quotes",
-        "asset_type": AssetType.MARKET,
-        "entity_type": EntityType.STOCK,
-    },
-    "factor_data": {
-        "item_type": "factor_data",
-        "asset_type": AssetType.FUNDAMENTAL,
-        "entity_type": EntityType.STOCK,
-    },
-    "table_data": {
-        "item_type": "table_data",
-        "asset_type": AssetType.FUNDAMENTAL,
-        "entity_type": EntityType.STOCK,
-    },
-    "stock_list": {
-        "item_type": "stock_list",
-        "asset_type": AssetType.OTHER,
-        "entity_type": EntityType.STOCK,
-    },
-    "fund_list": {
-        "item_type": "fund_list",
-        "asset_type": AssetType.OTHER,
-        "entity_type": EntityType.FUND,
-    },
-    "trading_days": {
-        "item_type": "trading_days",
-        "asset_type": AssetType.OTHER,
-        "entity_type": EntityType.INDEX,
-    },
-}
-
 
 class CjpyMarketConnector(MarketDataConnector):
-    """天软 (Tinysoft) 市场数据连接器.
-
-    封装 cjpy 包的同步查询接口，提供行情、因子、表格等数据获取能力。
-    使用前需确保 cjpy token 已配置（环境变量 CJ_KEY 或调用 cjpy.set_token()）。
-    """
-
-    def __init__(self, config: Dict[str, Any] | None = None):
+    def __init__(self, config=None, *, adapter=None):
         super().__init__(config)
-
-    # ------------------------------------------------------------------
-    # 元信息
-    # ------------------------------------------------------------------
+        self._adapter_instance = adapter
+        self._catalog_cache = {}
 
     @property
-    def source(self) -> str:
+    def source(self):
         return "cjpy"
 
     @property
-    def datasets(self) -> List[str]:
-        return [
-            "daily_quotes",
-            "factor_data",
-            "table_data",
-            "stock_list",
-            "fund_list",
-            "trading_days",
-        ]
+    def datasets(self):
+        return list(DATASETS)
 
-    # ------------------------------------------------------------------
-    # 生命周期方法
-    # ------------------------------------------------------------------
-
-    def health_check(self) -> HealthStatus:
-        """检查天软服务是否可用."""
-        try:
+    @property
+    def adapter(self):
+        if self._adapter_instance is None:
             from data_layer.adapters.cjpy_adapter import CjpyAdapter
 
-            adapter = CjpyAdapter()
-            if adapter.is_available():
-                self._health = HealthStatus.HEALTHY
-                return HealthStatus.HEALTHY
-            self._health = HealthStatus.UNAVAILABLE
-            return HealthStatus.UNAVAILABLE
-        except ImportError as e:
+            self._adapter_instance = CjpyAdapter(token=self.config.get("token"))
+        return self._adapter_instance
+
+    def health_check(self):
+        try:
+            self._health = (
+                HealthStatus.HEALTHY if self.adapter.is_available() else HealthStatus.UNAVAILABLE
+            )
+        except ImportError:
             self._health = HealthStatus.DEGRADED
-            logger.warning("cjpy_health_import_error", extra={"error": str(e)})
-            return HealthStatus.DEGRADED
-        except Exception as e:
+        except Exception as exc:
+            logger.warning("cjpy health check failed", error_type=type(exc).__name__)
             self._health = HealthStatus.UNAVAILABLE
-            logger.error("cjpy_health_failed", extra={"error": str(e)}, exc_info=True)
-            return HealthStatus.UNAVAILABLE
+        return self._health
 
-    def stream(
-        self,
-        codes: list[str],
-        fields: Optional[list[str]] = None,
-    ) -> "RealtimeBridge":
-        """创建 Cjpy 实时行情订阅桥接器.
-
-        返回一个 RealtimeBridge 实例，在后台线程中运行 Cjpy subscribe()，
-        将行情事件桥接到 SystemEventBus（事件类型: market.quote.cjpy）。
-
-        Args:
-            codes: 证券代码列表（Cjpy 格式，如 "SH600519"）.
-            fields: 订阅字段列表，默认使用行情核心字段.
-
-        Returns:
-            RealtimeBridge: 已创建但未启动的桥接器，调用 .start() 开始接收.
-
-        示例:
-            >>> connector = CjpyMarketConnector()
-            >>> bridge = connector.stream(["SH600519"], ["price", "volume"])
-            >>> bridge.start()
-            >>> # ... 行情数据通过 SSE event_bus 推送 ...
-            >>> bridge.stop()
-        """
+    def stream(self, codes, fields=None):
         from services.realtime_bridge import RealtimeBridge
 
         return RealtimeBridge(codes=codes, fields=fields)
 
-    def discover(self, dataset: str, **params: Any) -> List[DiscoveryItem]:
-        """发现可获取的数据对象.
+    def discover(self, dataset, **params):
+        from data_layer.repositories.datahub_repository import digest
 
-        Args:
-            dataset: 数据集标识.
-            **params:
-                - codes: 证券代码列表
-                - start_date: 开始日期
-                - end_date: 结束日期
-                - date: 单个日期（股票列表/因子用）
-                - dates: 日期列表（因子用）
-                - factors: 因子名称列表（因子用）
-                - table_name: 表格名称（表格用）
-                - fields: 字段列表（表格用）
-                - cycle: 周期（行情用）
-                - rate: 复权方式（行情用）
-
-        Returns:
-            List[DiscoveryItem]: 发现的待获取对象列表.
-        """
         if dataset not in self.datasets:
-            logger.warning(
-                "cjpy_unknown_dataset",
-                extra={"dataset": dataset, "available": self.datasets},
-            )
             return []
-
-        item_type = DATASET_META.get(dataset, {}).get("item_type", dataset)
-
-        # stock_list / fund_list / trading_days: 无 code 粒度，整体发现
-        if dataset in ("stock_list", "fund_list"):
-            return [
-                DiscoveryItem(
-                    item_id=f"cjpy_{dataset}_all",
-                    item_type=item_type,
-                    params=params,
-                    description=f"{dataset} (all)",
-                )
+        # Generic CLI limits control discovery, never enter SDK calls or persisted credentials.
+        max_items = params.pop("max_items", None)
+        params = DataHubSyncRequest(dataset=dataset, params=params).params
+        batches = [dict(params)]
+        if params.get("codes") and dataset in {
+            "daily_quotes",
+            "index_constituents",
+            "factor_data",
+            "table_data",
+        }:
+            batches = [{**params, "codes": [code]} for code in dict.fromkeys(params["codes"])]
+        if dataset == "factor_data" and params.get("dates"):
+            batches = [
+                {**batch, "dates": params["dates"][i : i + 31]}
+                for batch in batches
+                for i in range(0, len(params["dates"]), 31)
             ]
-
-        if dataset == "trading_days":
-            start = params.get("start_date", "")
-            end = params.get("end_date", "")
-            return [
-                DiscoveryItem(
-                    item_id=f"cjpy_trading_days_{start}_{end}",
-                    item_type=item_type,
-                    params=params,
-                    description=f"trading_days: {start} → {end}",
+        if dataset == "daily_quotes":
+            split = []
+            for batch in batches:
+                start, end = datetime.fromisoformat(batch["start_date"]), datetime.fromisoformat(
+                    batch["end_date"]
                 )
-            ]
+                span = 31 if batch.get("cycle", "day") not in {"day", "D"} else 366
+                while start <= end:
+                    last = min(end, start + timedelta(days=span - 1))
+                    split.append(
+                        {
+                            **batch,
+                            "start_date": start.date().isoformat(),
+                            "end_date": last.date().isoformat(),
+                        }
+                    )
+                    start = last + timedelta(days=1)
+            batches = split
+        items = [
+            DiscoveryItem(item_id=digest([dataset, batch]), item_type=dataset, params=batch)
+            for batch in batches
+        ]
+        if max_items is not None:
+            items = items[:max_items]
+        if self.config.get("job_id"):
+            from data_layer.repositories.base import db_session
+            from data_layer.repositories.datahub_repository import DataHubRepository
 
-        # daily_quotes / factor_data / table_data: 按 code 逐只发现
-        codes: List[str] = params.get("codes", [])
-        items: List[DiscoveryItem] = []
-
-        for code in codes:
-            item_params: Dict[str, Any] = {**params}
-            desc_parts = [f"{dataset}: {code}"]
-
-            items.append(
-                DiscoveryItem(
-                    item_id=f"cjpy_{dataset}_{code}",
-                    item_type=item_type,
-                    params=item_params,
-                    description=" ".join(desc_parts),
-                )
-            )
-
-        if not codes:
-            items.append(
-                DiscoveryItem(
-                    item_id=f"cjpy_{dataset}_all",
-                    item_type=item_type,
-                    params=params,
-                    description=f"{dataset} (all codes)",
-                )
-            )
-
+            with db_session() as db:
+                repo = DataHubRepository(db)
+                items = [
+                    item
+                    for item in items
+                    if not repo.completed_batch(self.config["job_id"], item.item_id)
+                ]
         return items
 
-    def fetch(self, dataset: str, item: DiscoveryItem, **params: Any) -> RawObject:
-        """获取天软原始数据.
-
-        委托给 CjpyAdapter 对应方法，返回 DataFrame → JSON。
-
-        Args:
-            dataset: 数据集标识.
-            item: discover() 返回的待获取对象.
-            **params: 额外参数.
-
-        Returns:
-            RawObject: 原始 JSON 数据.
-        """
-        if dataset not in self.datasets:
-            raise ValueError(
-                f"Unknown dataset '{dataset}' for Cjpy connector. "
-                f"Supported: {', '.join(self.datasets)}"
+    def fetch(self, dataset, item, **params):
+        try:
+            result = self.adapter.query(dataset, **item.params)
+            index_metadata = None
+            if isinstance(result, pd.DataFrame):
+                frame = result.copy()
+                index_metadata = {"names": list(frame.index.names), "values": frame.index.tolist()}
+                if frame.index.name and frame.index.name not in frame.columns:
+                    frame = frame.reset_index()
+                rows = frame.to_dict(orient="records")
+                columns = list(frame.columns)
+            elif isinstance(result, dict):
+                rows = [{"code": key, "vendor_code": value} for key, value in result.items()]
+                columns = ["code", "vendor_code"]
+            elif isinstance(result, list):
+                rows = [row if isinstance(row, dict) else {"value": row} for row in result]
+                columns = list(dict.fromkeys(key for row in rows for key in row))
+            else:
+                raise ValueError("Unexpected SDK result type")
+            semantics, catalogs = self._semantics(dataset, item.params)
+            now = datetime.now(UTC)
+            # Preserve the complete vendor values in the raw artifact; strict JSON conversion happens at storage boundaries.
+            data = json.dumps(
+                {
+                    "rows": rows,
+                    "columns": columns,
+                    "index": index_metadata,
+                    "catalogs": catalogs,
+                    "semantics": semantics,
+                },
+                ensure_ascii=False,
+                default=str,
             )
-
-        from data_layer.adapters.cjpy_adapter import CjpyAdapter
-
-        adapter = CjpyAdapter()
-        codes: List[str] = item.params.get("codes") or params.get("codes", [])
-        start_date = item.params.get("start_date") or params.get("start_date")
-        end_date = item.params.get("end_date") or params.get("end_date")
-
-        if dataset == "stock_list":
-            stocks = adapter.fetch_stock_list(date=item.params.get("date"))
-            serialized = json.dumps(stocks, ensure_ascii=False)
             return RawObject(
-                data=serialized,
+                data=data,
                 content_type="application/json",
-                source_uri="cjpy://stock_list/all",
+                source_uri=f"cjpy://{dataset}/{item.item_id}",
+                fetched_at=now,
                 metadata={
                     "dataset": dataset,
-                    "item_count": len(stocks) if isinstance(stocks, list) else 0,
+                    "params": {**item.params, **semantics},
+                    "columns": columns,
+                    "observed_at": now.isoformat(),
+                    "batch_key": item.item_id,
                 },
             )
+        except Exception as exc:
+            self._record_failure(item.item_id, type(exc).__name__)
+            raise
 
-        elif dataset == "fund_list":
-            funds = adapter.fetch_fund_list()
-            serialized = json.dumps(funds, ensure_ascii=False)
-            return RawObject(
-                data=serialized,
-                content_type="application/json",
-                source_uri="cjpy://fund_list/all",
-                metadata={
-                    "dataset": dataset,
-                    "item_count": len(funds) if isinstance(funds, list) else 0,
-                },
+    def _semantics(self, dataset, params):
+        """Use server metadata; unconfirmed units remain quarantined, not guessed."""
+        catalogs, semantics = {}, {}
+        if dataset not in {"table_data", "macro_data"}:
+            return semantics, catalogs
+
+        def catalog(name, **arguments):
+            key = (name, tuple(arguments.items()))
+            if key not in self._catalog_cache:
+                self._catalog_cache[key] = self.adapter.query(name, **arguments).to_dict("records")
+            catalogs[name] = self._catalog_cache[key]
+            return catalogs[name]
+
+        try:
+            if dataset == "table_data":
+                definitions = catalog("table_fields", table_name=params["table_name"])
+                tables = catalog("tables")
+                matches = [x for x in tables if x.get("表名") == params["table_name"]]
+                if len(matches) == 1:
+                    semantics["date_field"] = matches[0].get("日期字段") or "__observed_at__"
+                units = {x["字段名称"]: x["单位"] for x in definitions if x.get("字段名称") and x.get("单位")}
+            else:
+                definitions = catalog("macro_indicators")
+                selector = params["indicator"].split("@")
+                matches = [
+                    x
+                    for x in definitions
+                    if selector[0] in {x.get("名称"), str(x.get("字段ID"))}
+                    and (len(selector) == 1 or selector[1] in {x.get("表名"), str(x.get("表ID"))})
+                ]
+                units = (
+                    {x["名称"]: x["单位"] for x in matches if x.get("单位")} if len(matches) == 1 else {}
+                )
+            semantics["column_units"] = {**units, **params.get("column_units", {})}
+            if params.get("date_field"):
+                semantics["date_field"] = params["date_field"]
+        except Exception as exc:
+            logger.warning(
+                "cjpy metadata unavailable; retaining raw rows",
+                dataset=dataset,
+                error_type=type(exc).__name__,
             )
+        return semantics, catalogs
 
-        elif dataset == "trading_days":
-            if not start_date or not end_date:
-                raise ValueError("trading_days requires start_date and end_date")
-            days = adapter.fetch_trading_days(
-                start=start_date,
-                end=end_date,
-                cycle=item.params.get("cycle", "D"),
-            )
-            serialized = json.dumps(days, ensure_ascii=False)
-            return RawObject(
-                data=serialized,
-                content_type="application/json",
-                source_uri=f"cjpy://trading_days/{start_date}_{end_date}",
-                metadata={
-                    "dataset": dataset,
-                    "item_count": len(days),
-                    "start_date": start_date,
-                    "end_date": end_date,
-                },
-            )
+    def _record_failure(self, batch_key, error_code):
+        if self.config.get("job_id"):
+            from data_layer.repositories.base import db_session
+            from data_layer.repositories.datahub_repository import DataHubRepository
 
-        elif dataset == "daily_quotes":
-            if not codes:
-                raise ValueError("daily_quotes requires at least one code")
-            df = adapter.fetch_daily_quotes(
-                codes=codes,
-                start_date=start_date or "",
-                end_date=end_date or "",
-                cycle=item.params.get("cycle", "day"),
-                rate=item.params.get("rate", "前复权"),
-            )
+            with db_session() as db:
+                DataHubRepository(db, job_fence=self.config.get("job_fence")).record_batch(
+                    self.config["job_id"], batch_key, error_code=error_code
+                )
 
-        elif dataset == "factor_data":
-            dates = item.params.get("dates") or item.params.get("date")
-            factors = item.params.get("factors", [])
-            if not codes:
-                raise ValueError("factor_data requires codes")
-            if not factors:
-                raise ValueError("factor_data requires factors")
-            df = adapter.fetch_factor_data(
-                codes=codes,
-                dates=dates or [],
-                factors=factors,
-                repo=item.params.get("repo"),
-            )
-
-        elif dataset == "table_data":
-            table_name = item.params.get("table_name")
-            if not table_name:
-                raise ValueError("table_data requires table_name")
-            df = adapter.fetch_table_data(
-                codes=codes if codes else params.get("codes", []),
-                table_name=table_name,
-                fields=item.params.get("fields"),
-            )
-
-        else:
-            raise ValueError(f"Unsupported dataset: {dataset}")
-
-        records = df.to_dict(orient="records")
-        serialized = json.dumps(records, ensure_ascii=False, default=str)
-
-        return RawObject(
-            data=serialized,
-            content_type="application/json",
-            source_uri=f"cjpy://{dataset}/{','.join(codes) if codes else 'all'}",
-            metadata={
-                "dataset": dataset,
-                "item_type": item.item_type,
-                "item_count": len(records),
-                "codes": codes,
-                "start_date": start_date,
-                "end_date": end_date,
-            },
-        )
-
-    def parse_table(self, raw: RawObject) -> ParsedTable:
-        """解析原始 JSON 为结构化表格.
-
-        Args:
-            raw: fetch() 返回的原始数据.
-
-        Returns:
-            ParsedTable: 解析后的表格.
-        """
-        if isinstance(raw.data, bytes):
-            text = raw.data.decode("utf-8")
-        else:
-            text = raw.data
-
-        records: List[Dict[str, Any]] = json.loads(text)
-        if not records:
-            return ParsedTable(
-                columns=[],
-                rows=[],
-                table_name=raw.metadata.get("dataset", "unknown"),
-                metadata=raw.metadata,
-            )
-
-        # 处理非列表类型（如 stock_list 返回纯列表）
-        if isinstance(records, list) and not isinstance(records[0], dict):
-            records = [{"value": r} for r in records]
-
-        columns = list(records[0].keys())
+    def parse_table(self, raw):
+        content = json.loads(raw.data)
+        rows = content["rows"] if isinstance(content, dict) else content
         return ParsedTable(
-            columns=columns,
-            rows=records,
-            table_name=raw.metadata.get("dataset", "unknown"),
+            columns=raw.metadata.get("columns", list(rows[0]) if rows else []),
+            rows=rows,
+            table_name=raw.metadata.get("dataset"),
             metadata=raw.metadata,
         )
 
-    def normalize_bars(
-        self,
-        dataset: str,
-        table: ParsedTable,
-        raw_uri: str,
-        content_hash: str,
-    ) -> List[IngestionRecord]:
-        """将表格数据转为 IngestionRecord 列表.
-
-        Args:
-            dataset: 数据集标识.
-            table: parse_table() 的输出.
-            raw_uri: 原始数据存储 URI.
-            content_hash: SHA256 内容哈希.
-
-        Returns:
-            List[IngestionRecord]: 统一摄入记录列表.
-        """
-        records: List[IngestionRecord] = []
-        meta = DATASET_META.get(dataset, {})
-        asset_type = meta.get("asset_type", AssetType.OTHER)
-        entity_type = meta.get("entity_type", EntityType.STOCK)
-
-        for row in table.rows:
-            code = row.get("code", row.get("代码", ""))
-            date_val = (
-                row.get("date") or row.get("trade_date") or row.get("time") or row.get("日期", "")
+    def normalize_bars(self, dataset, table, raw_uri, content_hash):
+        observed = datetime.fromisoformat(
+            table.metadata.get("observed_at", datetime.now(UTC).isoformat())
+        )
+        return [
+            IngestionRecord(
+                source="cjpy",
+                dataset=dataset,
+                asset_type=AssetType.MACRO
+                if dataset == "macro_data"
+                else AssetType.MARKET
+                if dataset == "daily_quotes"
+                else AssetType.OTHER,
+                entity_id=value["symbol"],
+                fetched_at=observed,
+                raw_uri=raw_uri,
+                content_hash=content_hash,
+                payload={
+                    **json_value(value["payload"]),
+                    **json_value(value),
+                    "_params": table.metadata.get("params", {}),
+                    "_columns": table.columns,
+                },
             )
+            for row in table.rows
+            for value in [normalize_row(dataset, row, table.metadata.get("params", {}), observed)]
+        ]
 
-            if dataset == "daily_quotes":
-                payload = MarketBarPayload(
-                    trade_date=self._format_date(date_val),
-                    open=row.get("open"),
-                    high=row.get("high"),
-                    low=row.get("low"),
-                    close=row.get("close"),
-                    volume=row.get("vol") or row.get("volume"),
-                    amount=row.get("amount"),
+    def _process_item(self, dataset, item, raw, raw_uri):
+        from data_layer.repositories.base import db_session
+        from data_layer.repositories.datahub_repository import DataHubRepository
+
+        table = self.parse_table(raw)
+        records = self.normalize_bars(
+            dataset, table, raw_uri, raw.content_hash or self._compute_hash(raw.data)
+        )
+        try:
+            with db_session() as db:
+                DataHubRepository(db, job_fence=self.config.get("job_fence")).save_snapshot(
+                    dataset,
+                    table.rows,
+                    table.columns,
+                    table.metadata["params"],
+                    raw.content_hash or self._compute_hash(raw.data),
+                    raw_uri,
+                    raw.fetched_at,
+                    job_id=self.config.get("job_id"),
+                    batch_key=item.item_id,
                 )
-            else:
-                payload = MarketBarPayload(
-                    trade_date=self._format_date(date_val) if date_val else "",
+            return records
+        except Exception as exc:
+            self._record_failure(item.item_id, type(exc).__name__)
+            raise RuntimeError(f"CJPY persistence failed ({type(exc).__name__})") from None
+
+    def persist(self, records):
+        from collections import defaultdict
+
+        from data_layer.repositories.base import db_session
+        from data_layer.repositories.datahub_repository import DataHubRepository
+
+        groups = defaultdict(list)
+        for record in records:
+            groups[(record.dataset, record.content_hash, record.raw_uri)].append(record)
+        saved = 0
+        with db_session() as db:
+            repo = DataHubRepository(db)
+            for (dataset, content_hash, raw_uri), batch in groups.items():
+                _, count = repo.save_snapshot(
+                    dataset,
+                    [r.payload["payload"]["source_fields"] for r in batch],
+                    batch[0].payload["_columns"],
+                    batch[0].payload["_params"],
+                    content_hash,
+                    raw_uri,
+                    batch[0].fetched_at,
                 )
-                extra_fields = {
-                    k: v
-                    for k, v in row.items()
-                    if k not in ("code", "date", "trade_date", "time", "代码", "日期") and v is not None
-                }
-                payload_dict = payload.model_dump()
-                payload_dict["_cjpy_fields"] = extra_fields
-                payload = MarketBarPayload(**payload_dict)
+                saved += count
+        return saved
 
-            records.append(
-                IngestionRecord(
-                    source=self.source,
-                    dataset=dataset,
-                    asset_type=asset_type,
-                    entity_type=entity_type,
-                    entity_id=code,
-                    raw_uri=raw_uri,
-                    content_hash=content_hash,
-                    payload=payload.model_dump(),
-                )
-            )
-
-        return records
-
-    def _daily_bar_datasets(self) -> tuple[str, ...]:
-        """Cjpy 日线数据 datasets."""
+    def _daily_bar_datasets(self):
         return ("daily_quotes",)

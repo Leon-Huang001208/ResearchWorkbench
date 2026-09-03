@@ -1,6 +1,7 @@
 """Build the AlphaFoundry Python backend as a Tauri sidecar executable."""
 from __future__ import annotations
 
+import importlib.util
 import os
 import platform
 import subprocess
@@ -38,6 +39,12 @@ PROJECT_DATA = [
     (REPO_ROOT / "data" / "industry_graphs", Path("data") / "industry_graphs"),
     (REPO_ROOT / "reporting" / "templates", Path("reporting") / "templates"),
     (REPO_ROOT / "report_projects", Path("report_projects")),
+    (
+        REPO_ROOT / "outputs" / "merged-platform-product-prototype",
+        Path("outputs") / "merged-platform-product-prototype",
+    ),
+    (REPO_ROOT / "vendor" / "cjpy" / "LICENSE", Path("vendor") / "cjpy"),
+    (REPO_ROOT / "vendor" / "cjpy" / "manifest.json", Path("vendor") / "cjpy"),
 ]
 
 
@@ -103,6 +110,9 @@ def build_pyinstaller_args() -> list[str]:
         args.extend(["--add-data", add_data_arg(source, destination)])
     for package in COLLECT_DATA:
         args.extend(["--collect-data", package])
+
+    if importlib.util.find_spec("cjpy") is not None:
+        args.extend(["--collect-submodules", "cjpy", "--copy-metadata", "cjpy"])
 
     args.append(str(ENTRYPOINT))
     return args

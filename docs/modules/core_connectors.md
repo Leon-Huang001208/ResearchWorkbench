@@ -128,3 +128,8 @@ CLI 通过 `ConnectorRegistry` 统一调度：
 - `docs/DEVELOPMENT_MAP.md` — 子系统路由
 - `docs/CHANGELOG.md` — 变更记录
 - `docs/generated/py_file_index.md` — 自动索引
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+CjpyMarketConnector 扩展至 17 数据集，复用 BaseConnector.run，通过单批事务落库完整快照、typed 投影与批次记录。日线、分钟、因子日期按有界窗口拆批；重试仅补失败批次。 详见 [DataHub 模块说明](datahub.md)。

@@ -293,3 +293,8 @@ When files in this module change, check:
 
 - `connectors/` — 连接器实现通过 Wrapper-first 策略委托本模块的适配器（如 `CLSDocumentConnector` → `CLSAdapter`）。当前调度和 CLI 的统一入口是 Connector；`data_layer/adapters/` 只保留为连接器内部委托层和少量 legacy 调用层。
 - `core/connectors/` — 连接器抽象基类和注册表
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+CjpyAdapter 0.5.2 使用独立 token client，按唯一代码请求，保留完整字段和原始代码；Normalizer 按上海时区处理日期和分钟，字段单位未知或来源代码冲突时隔离。基金 OF、股票 SH/SZ/BJ 命名空间由明确类型列表建立身份。 详见 [DataHub 模块说明](datahub.md)。

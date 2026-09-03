@@ -119,3 +119,8 @@ When files in this module change, check:
 - 2026-07-24: 报告模板工作台占位符输出类型采用稳定优先级：已显式配置的 `type`（含 legacy alias 归一化）优先；仅当 `type` 缺失时才采用有效历史段落 `mode`；两者均无时才按占位符名称推断。显式非段落类型会忽略但保留遗留段落 `mode`，用户切回 `paragraph` 时可以恢复该模式。
 - 2026-06-25: 新增基金情报前端面板，左侧导航接入 `section-funds`，通过 `app/web/static/js/funds.js` 调用 Fund Intelligence API 展示基金详情、经理、持仓、行业暴露、组合穿透和结构化 rows 导入结果。
 - 2026-06-08: 模板工作台拆分 YAML 占位符映射与 Markdown Prompt 模板源码，源码编辑默认只读并通过 `/api/report-projects/{slug}/source` 写回项目文件；生成成功后显示下载入口和 Word HTML 预览；上传按钮从固定 dock 移到顶部工具栏。
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+DataHub 页使用真实 /api/datahub，支持来源状态、目录发现、手动同步、质量/覆盖日期、分页与研究引用；能力中心 tab=datahub 内嵌该页。所有来源文本通过 textContent 渲染，隔离记录禁用引用，错误与空数据不会替换成演示值。 详见 [DataHub 模块说明](datahub.md)。

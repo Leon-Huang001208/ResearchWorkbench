@@ -93,7 +93,9 @@ test('all fact responses expose provenance and freshness', async () => {
 test('catalog contains every planned method/path exactly once', async () => {
   const atlas = await load('api-atlas.json');
   const endpointKeys = atlas.interfaces.map((item) => `${item.method} ${item.path}`);
-  assert.equal(atlas.interfaces.length, 65);
+  assert.equal(atlas.interfaces.length, 73);
+  assert.ok(endpointKeys.includes('GET /api/datahub/records'));
+  assert.ok(endpointKeys.includes('POST /api/datahub/research-evidence'));
   assert.equal(new Set(endpointKeys).size, endpointKeys.length);
   assert.ok(endpointKeys.includes('GET /api/market-home'));
   assert.ok(endpointKeys.includes('GET /api/research-runs/{run_id}/events'));

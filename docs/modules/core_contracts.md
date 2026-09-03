@@ -74,3 +74,8 @@ When files in this module change, check:
 | `core/contracts/research_workspace.py` | Workspace/Session/Message、RuntimeProvider、可关联请求与 Run 的 Provider result、声明式 Skill、Agent Team/硬预算/日程和版本化 Research Note；Session scope 与 Message 内容源严格校验，Skill 禁止多余字段，Note 来源互斥，执行服务必须用封闭 internal allowlist 与平台可信 registry 双重校验工具引用。 |
 | `core/contracts/market_home.py` | facts-only 市场首页五区块、交易状态、透明主线候选/分项、不可变快照、实际 `age_seconds` 和三字段 SSE 失效引用契约；Envelope 要求五个 section key 各出现一次。 |
 | `core/contracts/asset_observation.py` | 四类资产统一快照、PeerSet、Watchlist、Alert 边沿状态与站内通知契约。 |
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+DataHubSyncRequest 限定数据集、参数、日期与列表边界；DataHubQuery 拒绝额外参数和写入请求。internal 工具封闭集合增至 asset_snapshot、data_catalog、data_query。事实行复用 FactResponseBase、ObservationEnvelope、SourceRef，保留三个时间点与缺失/隔离语义。 详见 [DataHub 模块说明](datahub.md)。

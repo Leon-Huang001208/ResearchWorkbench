@@ -217,3 +217,8 @@ The next packaging pass should add:
 - Tauri updater runtime UI/check flow after signing keys are configured
 - sidecar dependency trimming so the Python executable does not bundle unused ML/notebook/GUI packages
 - data directory migration rules so user data survives app updates
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+CJPY/DataHub 的 019 增量包含 Python runtime 与静态资源变动，适用原生 macOS/Windows 构建门禁。build_sidecar.py 收集 CJPY 0.5.2 及合并平台产品壳；desktop-verify.yml 安装 vendor/cjpy 中已确认的 wheel 后分别构建。CI 对临时 PostgreSQL 执行迁移及 DataHub 回归测试，再为两种 smoke 写入独立的权威 `.env`，防止默认桌面配置覆盖测试数据库。两个平台均明确断言 `ready` / `setup_required`，冷启动上限 180 秒；preview 模式关闭无关后台采集。当前任务的实测平台与未完成门禁记录在任务报告；未取得 Windows 原生证据前不得声称跨平台验收通过。详见 [DataHub 模块说明](modules/datahub.md)。

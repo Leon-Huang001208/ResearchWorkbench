@@ -89,3 +89,8 @@ When files in this module change, check:
 - `docs/FILE_GUIDE.md`
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+019_add_datahub.py 接在 018 后，只创建 DataHub 四张增量表及其约束、索引。015–018 原迁移不变；生产需 PostgreSQL，测试可选 SQLite。 详见 [DataHub 模块说明](datahub.md)。

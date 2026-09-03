@@ -1,0 +1,9 @@
+{
+  "package": "cjpy",
+  "version": "0.5.2",
+  "filename": "cjpy-0.5.2-py3-none-any.whl",
+  "sha256": "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94",
+  "license": "Apache-2.0",
+  "source": "User supplied CJPY安装包与教程v0_5_2",
+  "installation": "python -m pip install --no-deps vendor/cjpy/cjpy-0.5.2-py3-none-any.whl"
+}

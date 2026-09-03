@@ -2934,3 +2934,10 @@ python view_db.py query "SELECT * FROM canonical_event LIMIT 5"
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - 架构文档
 - **[FILE_GUIDE.md](FILE_GUIDE.md)** - 文件指南
 - **[CHANGELOG.md](CHANGELOG.md)** - 更新日志
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+DataHub API：GET /api/datahub/sources、/catalog、/records、/runs、/runs/{job_id}；POST /api/datahub/runs（202，持久任务）、/sources/cjpy/health、/research-evidence（project/workspace/run + fact_id）。POST 采用既有本地 CSRF。internal:data_catalog / internal:data_query 与平台 MCP data_catalog / data_query 只读同一事实服务。 详见 [DataHub 模块说明](modules/datahub.md)。
+
+MCP CLI `python -m mcp.server` 现在显式加载已安装 SDK，避免同名项目包遮蔽；使用标准初始化与独立协议 stdout。真实 stdio 验证见 `tests/unit/test_datahub_mcp.py`。

@@ -2081,3 +2081,8 @@ alembic history --verbose
 - **维度**: 1536 (OpenAI text-embedding-ada-002 兼容)
 - **存储格式**: PostgreSQL vector 类型
 - **索引**: HNSW 索引，使用 cosine 距离度量
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+019 新增 datahub_snapshot、datahub_row、datahub_market_bar、datahub_run_item。完整原始 gzip 与 SHA256 可回链；行情/因子/成分投影到相应仓储，动态表与宏观保留完整分页行。分钟与日线、不同复权不会共用唯一键；旧日线复权未知时不自动重写。事实和 outbox 同事务提交。 详见 [DataHub 模块说明](modules/datahub.md)。

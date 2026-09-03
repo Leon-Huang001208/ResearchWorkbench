@@ -664,3 +664,8 @@ When files in this module change, check:
 - `docs/ARCHITECTURE.md` if flow or boundary changes
 - `docs/CHANGELOG.md`
 - `docs/generated/py_file_index.md`
+
+
+## DataHub / CJPY 增量（2026-09-03）
+
+DataHubService 是 API、平台 MCP、FinGPT/Claw internal 工具的共同查询服务。datahub.ingest 复用 SchedulerCoordinator；research_tool_registry 保留可信结果到原 Run 的 Evidence/Artifact，RuntimeProvider 的 result sink 不写事实表。 详见 [DataHub 模块说明](datahub.md)。

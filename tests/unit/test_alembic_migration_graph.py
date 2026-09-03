@@ -15,7 +15,7 @@ def test_alembic_migrations_have_unique_revisions_and_single_head():
 
     revision_ids = [revision.revision for revision in script.walk_revisions()]
     assert len(revision_ids) == len(set(revision_ids))
-    assert script.get_heads() == ["018"]
+    assert script.get_heads() == ["019"]
 
 
 def test_checked_in_alembic_url_is_fail_closed_and_env_override_is_supported():

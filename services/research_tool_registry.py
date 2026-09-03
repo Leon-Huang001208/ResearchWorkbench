@@ -40,6 +40,69 @@ def get_default_research_mcp_registry() -> ResearchMCPHandlerRegistry:
     return _default_mcp_registry
 
 
+def record_datahub_tool_evidence(db, run_id, tool_id, arguments, result):
+    """Persist platform-observed tool results in the scoped Run, never in fact tables."""
+    if tool_id not in {"internal:data_catalog", "internal:data_query"}:
+        return
+    from datetime import UTC, datetime
+
+    from core.contracts.research import ResearchArtifact
+    from data_layer.repositories.datahub_repository import digest
+    from data_layer.repositories.research_run_repository import ResearchRunRepository
+
+    repository = ResearchRunRepository(db)
+    repository.get_run_or_raise(run_id)
+    identity = digest([run_id, tool_id, arguments, result])
+    repository.append_artifact(
+        ResearchArtifact(
+            artifact_id="datahub-tool:" + identity,
+            run_id=run_id,
+            artifact_type="datahub_tool:" + identity,
+            payload={"tool_id": tool_id, "arguments": arguments, "result": result},
+            created_at=datetime.now(UTC),
+        )
+    )
+    for row in result.get("records", []):
+        if row["freshness_status"] not in {"fresh", "stale"}:
+            continue
+        evidence = datahub_evidence(row, result["dataset"])
+        repository.append_evidence_input(run_id, evidence.model_dump(mode="json"))
+    logger.info(
+        "DataHub tool evidence retained",
+        run_id=run_id,
+        tool_id=tool_id,
+        rows=len(result.get("records", [])),
+    )
+
+
+def datahub_evidence(row, dataset):
+    """Convert a platform-read fact to an existing research evidence input."""
+    import json
+
+    from core.contracts.research import ResearchEvidenceInput
+
+    summary = json.dumps(
+        {
+            "dataset": dataset,
+            "as_of": row["as_of"],
+            "freshness_status": row["freshness_status"],
+            "payload": row["payload"],
+            "units": row["units"],
+        },
+        ensure_ascii=False,
+    )
+    return ResearchEvidenceInput(
+        evidence_id=row["evidence_ref"],
+        source_ref=row["evidence_ref"],
+        source_name="CJPY",
+        source_tier="licensed",
+        evidence_kind="financial",
+        summary=summary,
+        claim_text=summary,
+        observed_at=row["observed_at"],
+    )
+
+
 def build_production_research_tool_dispatcher(
     db,
     *,
@@ -77,8 +140,34 @@ def build_production_research_tool_dispatcher(
                 code="tool_resource_not_found",
             ) from exc
 
+    from core.contracts.datahub import DataHubQuery
+    from services.datahub_service import DataHubService
+
+    datahub = DataHubService(db)
+
+    def data_catalog(arguments):
+        if set(arguments) - {"dataset"} or (
+            arguments.get("dataset") is not None and not isinstance(arguments["dataset"], str)
+        ):
+            raise RuntimeBlockedError("Invalid catalog arguments", code="invalid_tool_arguments")
+        try:
+            return datahub.catalog(arguments.get("dataset"))
+        except ValueError as exc:
+            raise RuntimeBlockedError("Unknown catalog", code="invalid_tool_arguments") from exc
+
+    def data_query(arguments):
+        try:
+            query = DataHubQuery.model_validate(arguments)
+        except ValueError as exc:
+            raise RuntimeBlockedError("Invalid data query", code="invalid_tool_arguments") from exc
+        return datahub.query_for_tools(query)
+
     trusted_mcp = mcp_registry or get_default_research_mcp_registry()
     return AuthorizedResearchToolDispatcher(
-        internal_tools={"internal:asset_snapshot": asset_snapshot},
+        internal_tools={
+            "internal:asset_snapshot": asset_snapshot,
+            "internal:data_catalog": data_catalog,
+            "internal:data_query": data_query,
+        },
         mcp_tools=trusted_mcp.snapshot(),
     )

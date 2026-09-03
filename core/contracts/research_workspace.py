@@ -10,7 +10,9 @@ from typing import Any, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 # Closed platform-owned capability set; additions require contract and security review.
-SAFE_INTERNAL_TOOL_IDS: frozenset[str] = frozenset({"internal:asset_snapshot"})
+SAFE_INTERNAL_TOOL_IDS: frozenset[str] = frozenset(
+    {"internal:asset_snapshot", "internal:data_catalog", "internal:data_query"}
+)
 
 
 class WorkspaceStatus(str, Enum):

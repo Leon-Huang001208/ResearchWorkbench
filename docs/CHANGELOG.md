@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+### DataHub / CJPY 增量
+
+- CJPY 升至用户提供的 0.5.2，接入 17 个完整数据集；新增迁移 019 的快照、行、周期/复权行情与同步批次仓储。
+- 能力中心新增真实 DataHub 页、分页 API、持久手动同步与 scoped 研究引用；FinGPT/Claw 和平台 MCP 使用同一只读查询服务。
+- 修复批量重复请求、字段/代码丢失、时区日期、复权覆盖、身份类型、乱序响应与调度租约失效写入。完整结果可由来源 SHA256 回链，无法确认的语义隔离保留。
+- 详细范围、使用方式与实际验证记录见 docs/modules/datahub.md 和 .ai/reports/test_report_task-57b4a1d90e32.md。
+
 ### Added
 
 - **FinGPT / Claw 项目化研究运行时**：新增项目隔离的 Workspace、单 Run Session、幂等 Message、版本化 Research Note、Runtime Provider、声明式 Skill、Supervisor Agent Team 与持久 Agent Schedule API。产品路径通过 Session 原子创建/绑定/执行既有 Research Run；绑定后的读取、补证、恢复、下载和 SSE 均要求 project/workspace scope。FinGPT 可从 DSH 确定性回退内置 LangGraph，Claw 缺能力时持久为 `blocked_runtime`；关联 Provider result、团队 Blackboard/usage 和研究阶段事件进入原 Research Run/Artifact 链路，不创建平行运行模型。

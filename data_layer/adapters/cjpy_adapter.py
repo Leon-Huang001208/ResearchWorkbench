@@ -1,380 +1,203 @@
-"""天软 (Tinysoft) 数据适配器 —— 通过 cjpy 包获取天软行情、因子、表格数据"""
+"""CJPY 0.5.2 adapter: explicit clients, isolated proxies, and lossless source APIs."""
+
+from __future__ import annotations
 
 import os
-from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
 from core.contracts import DocumentEnvelope
+from core.contracts.datahub import DATASETS, DataHubSyncRequest
 from core.observability import get_logger
 from data_layer.adapters.base import BaseDataAdapter
 
 logger = get_logger(__name__)
 
-_MARKET_CYCLE_MAP = {
-    "1m": "1m",
-    "5m": "5m",
-    "15m": "15m",
-    "30m": "30m",
-    "60m": "60m",
-    "day": "day",
-    "D": "day",
-    "W": "W",
-    "M": "M",
-}
-
-_RATE_MAP = {
-    "不复权": "不复权",
-    "前复权": "前复权",
-    "后复权": "后复权",
-    "none": "不复权",
-    "forward": "前复权",
-    "backward": "后复权",
-}
-# Module-level Cjpy availability cache — cjpy.get_stocks() 网络调用较慢
-_cjpy_available_cache: Optional[bool] = None
-_PROXY_ENV_KEYS = (
-    "http_proxy",
-    "https_proxy",
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "all_proxy",
-    "ALL_PROXY",
-)
-
-
-@contextmanager
-def _without_proxy_env():
-    """cjpy 访问天软服务时绕开本机代理环境变量。"""
-    saved = {key: os.environ.get(key) for key in _PROXY_ENV_KEYS}
-    for key in _PROXY_ENV_KEYS:
-        os.environ.pop(key, None)
-    try:
-        yield
-    finally:
-        for key, value in saved.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
-
 
 class CjpyAdapter(BaseDataAdapter):
-    """天软 (Tinysoft) 数据适配器
+    """Own an SDK client; never change global SDK tokens or proxy environment."""
 
-    封装 cjpy 包的同步查询接口，提供行情、因子、表格、股票列表、
-    交易日等数据获取能力。
-
-    token 查找优先级:
-        1. 构造参数 ``token``
-        2. 已调用 ``cjpy.set_token()`` 的进程内 token
-        3. ``~/.cjpy/config.json`` 持久化 token
-        4. 环境变量 ``CJ_KEY``
-
-    使用前确保 token 已配置（通常只需在首次使用时调用
-    ``import cjpy; cjpy.set_token("your-token")``）。
-    """
-
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None, *, timeout: float = 30, client: Any = None):
         super().__init__(source_type="vendor_snapshot")
         self._token = token
-        self._factor_repo_cache: dict[str, str] | None = None
-        self._tables_cache: list[str] | None = None
+        self._client = client
+        self.timeout = timeout
+        self._factor_repo_cache = None
+        self._tables_cache = None
 
     def _get_token(self) -> str | None:
-        """按优先级获取 token"""
-        import cjpy
-
         if self._token:
             return self._token
+        from cjpy.base import CjConfigError, get_token
+
         try:
-            return cjpy.get_saved_token()  # type: ignore[no-any-return, attr-defined]
-        except Exception:
-            pass
-        return os.getenv("CJ_KEY")
+            return get_token(os.getenv("CJ_KEY"))
+        except CjConfigError:
+            return None
 
     def _ensure_token(self) -> str:
-        """确保 token 可用并返回"""
-        import cjpy
-
         token = self._get_token()
-        if token:
-            return token
+        if not token:
+            raise RuntimeError("cjpy token 未配置，请在本机设置 CJ_KEY 或 cjpy.set_token()")
+        return token
 
-        env_token = os.getenv("CJ_KEY")
-        if env_token:
-            cjpy.set_token(env_token, persist=True)
-            return env_token
+    def _get_client(self):
+        if self._client is None:
+            from cjpy.base import CjClient
 
-        raise RuntimeError("cjpy token 未配置。请调用 cjpy.set_token('your-token') 或设置环境变量 CJ_KEY")
+            class DirectClient(CjClient):
+                def _create_session(self):
+                    session = super()._create_session()
+                    session.trust_env = False
+                    return session
 
-    def is_available(self) -> bool:
-        """检查天软服务是否可用（模块级缓存，避免每次请求都做网络调用）"""
-        global _cjpy_available_cache
+            self._client = DirectClient(
+                token=self._ensure_token(), timeout=self.timeout, verify=True
+            )
+        return self._client
 
-        if _cjpy_available_cache is not None:
-            return _cjpy_available_cache
+    def health(self) -> dict:
+        from importlib.metadata import PackageNotFoundError, version
 
         try:
-            import cjpy
+            installed = version("cjpy")
+        except PackageNotFoundError:
+            return {"status": "unavailable", "reason": "not_installed", "version": None}
+        try:
+            if not self._get_token():
+                return {"status": "unavailable", "reason": "not_configured", "version": installed}
+            self.query("universes")
+            return {"status": "healthy", "reason": None, "version": installed}
+        except Exception as exc:
+            # SDK exceptions may embed upstream bodies or headers: log only the class.
+            logger.warning("cjpy health failed", error_type=type(exc).__name__)
+            return {"status": "unavailable", "reason": type(exc).__name__, "version": installed}
 
-            self._ensure_token()
-            with _without_proxy_env():
-                cjpy.get_stocks()
-            _cjpy_available_cache = True
-            return True
-        except Exception:
-            _cjpy_available_cache = False
-            return False
+    def is_available(self) -> bool:
+        return self.health()["status"] == "healthy"
 
-    # ===== 证券/基金列表 =====
-
-    def fetch_stock_list(self, date: str | None = None) -> list[str]:
-        """获取 A 股代码列表
-
-        Args:
-            date: 查询日期 "YYYYMMDD"，默认当日
-
-        Returns:
-            股票代码列表（Wind 格式，如 "000001.SZ"）
-        """
+    def query(self, dataset: str, **params: Any) -> Any:
+        """Only dispatch explicitly listed SDK methods; no arbitrary attribute access."""
         import cjpy
 
-        self._ensure_token()
-        with _without_proxy_env():
-            stocks = cjpy.get_stocks(date=date)
-        logger.info(f"获取股票列表: {len(stocks) if isinstance(stocks, list) else 'unknown'} 条")
-        return stocks if isinstance(stocks, list) else []
+        request = DataHubSyncRequest(dataset=dataset, params=params)
+        p = request.params
+        args: dict[str, Any] = {"client": self._get_client()}
+        if dataset in {"stock_list", "fund_list", "codes", "index_constituents"}:
+            args["date"] = p.get("date")
+        if dataset == "codes":
+            args["universe"] = p["universe"]
+        if dataset in {"daily_quotes", "trading_days", "table_data", "macro_data"}:
+            args.update(start=p.get("start_date"), end=p.get("end_date"))
+        if dataset in {"daily_quotes", "index_constituents"}:
+            if len(p["codes"]) != 1:
+                raise ValueError("This SDK query requires exactly one code per batch")
+            args["code"] = p["codes"][0]
+        elif dataset in {"table_data", "factor_data"}:
+            args["code"] = p["codes"]
+        elif dataset == "trading_days" and p.get("codes"):
+            args["code"] = p["codes"][0]
+        if dataset == "daily_quotes":
+            rates = {"none": "不复权", "forward": "前复权", "backward": "后复权"}
+            rate = p.get("rate", "前复权")
+            args.update(
+                cycle=p.get("cycle", "day"), rate=rates.get(rate, rate), fields=p.get("fields")
+            )
+        if dataset == "trading_days":
+            args["cycle"] = p.get("cycle", "D")
+        if dataset in {"table_data", "table_fields"}:
+            args["table_name"] = p["table_name"]
+        if dataset == "table_data":
+            args["fields"] = p.get("fields")
+        if dataset == "macro_data":
+            args["indicator"] = p["indicator"]
+        if dataset == "factor_data":
+            args.update(
+                date=p.get("dates") or p.get("date"), factors=p["factors"], repo=p.get("repo")
+            )
+        try:
+            result = getattr(cjpy, DATASETS[dataset][1])(**args)
+            logger.info(
+                "cjpy query completed",
+                dataset=dataset,
+                count=len(result) if result is not None else 0,
+            )
+            return result
+        except Exception as exc:
+            logger.warning("cjpy query failed", dataset=dataset, error_type=type(exc).__name__)
+            raise RuntimeError(f"CJPY {dataset} failed ({type(exc).__name__})") from None
 
-    def fetch_fund_list(self) -> list[str]:
-        """获取全部基金代码列表"""
-        import cjpy
+    def fetch_stock_list(self, date=None):
+        return self.query("stock_list", **({"date": date} if date else {}))
 
-        self._ensure_token()
-        with _without_proxy_env():
-            funds = cjpy.get_funds()
-        logger.info(f"获取基金列表: {len(funds) if isinstance(funds, list) else 'unknown'} 条")
-        return funds if isinstance(funds, list) else []
+    def fetch_fund_list(self, date=None):
+        return self.query("fund_list", **({"date": date} if date else {}))
 
-    # ===== 交易日 =====
-
-    def fetch_trading_days(
-        self,
-        start: str,
-        end: str,
-        cycle: str = "D",
-        code: str | None = None,
-    ) -> list[str]:
-        """获取交易日序列
-
-        Args:
-            start: 起始日期 "YYYYMMDD" 或 "YYYY-MM-DD"
-            end: 截止日期 "YYYYMMDD" 或 "YYYY-MM-DD"
-            cycle: 周期 D/W/M/Q/H/Y，默认 D
-            code: 证券代码（默认 SH000001 上证指数）
-
-        Returns:
-            "YYYYMMDD" 格式的交易日列表
-        """
-        import cjpy
-
-        self._ensure_token()
-        with _without_proxy_env():
-            days = cjpy.get_trading_days(start=start, end=end, cycle=cycle, code=code)
-        return days  # type: ignore[no-any-return]
-
-    # ===== 行情数据 =====
-
-    def fetch_daily_quotes(
-        self,
-        codes: list[str],
-        start_date: str,
-        end_date: str,
-        cycle: str = "day",
-        rate: str = "前复权",
-    ) -> pd.DataFrame:
-        """批量获取日行情数据
-
-        Args:
-            codes: 证券代码列表（Wind 格式如 "000001.SZ" 或天软格式 "SZ000001"）
-            start_date: 起始日期 "YYYYMMDD" 或 "YYYY-MM-DD"
-            end_date: 截止日期 "YYYYMMDD" 或 "YYYY-MM-DD"
-            cycle: 周期 1m/5m/15m/30m/60m/day，默认 day
-            rate: 复权方式 不复权/前复权/后复权，默认前复权
-
-        Returns:
-            DataFrame，合并所有代码的行情数据
-        """
-        import cjpy
-
-        self._ensure_token()
-        cycle = _MARKET_CYCLE_MAP.get(cycle, cycle)
-        rate = _RATE_MAP.get(rate, rate)
-
-        frames: list[pd.DataFrame] = []
-        for code in codes:
-            try:
-                with _without_proxy_env():
-                    df = cjpy.get_market_data(
-                        code=code,
-                        start=start_date,
-                        end=end_date,
-                        cycle=cycle,
-                        rate=rate,
-                    )
-                if not df.empty:
-                    df["code"] = code
-                    frames.append(df)
-                logger.debug(f"获取行情: {code} → {len(df)} 行")
-            except Exception as e:
-                logger.warning(f"获取行情失败 {code}: {e}")
-
-        if not frames:
-            return pd.DataFrame()
-
-        result = pd.concat(frames, ignore_index=True)
-        logger.info(
-            f"批量获取行情完成: {len(codes)} 代码, {len(result)} 行, "
-            f"{start_date}~{end_date}, cycle={cycle}"
+    def fetch_trading_days(self, start, end, cycle="D", code=None):
+        return self.query(
+            "trading_days",
+            start_date=start,
+            end_date=end,
+            cycle=cycle,
+            **({"codes": [code]} if code else {}),
         )
-        return result
 
-    # ===== 因子数据 =====
+    def fetch_daily_quotes(self, codes, start_date, end_date, cycle="day", rate="前复权"):
+        frames = []
+        for code in dict.fromkeys(codes):
+            frame = self.query(
+                "daily_quotes",
+                codes=[code],
+                start_date=start_date,
+                end_date=end_date,
+                cycle=cycle,
+                rate=rate,
+            )
+            if frame is not None and not frame.empty:
+                from data_layer.normalizers.cjpy import canonical_code
 
-    def fetch_factor_data(
-        self,
-        codes: list[str],
-        dates: str | list[str],
-        factors: list[str],
-        repo: dict[str, str] | None = None,
-    ) -> pd.DataFrame:
-        """获取因子指标数据
+                for key in ("code", "CODE", "代码", "证券代码"):
+                    if key in frame and any(
+                        canonical_code(value) != canonical_code(code) for value in frame[key]
+                    ):
+                        logger.warning("cjpy legacy response identity mismatch")
+                        raise ValueError("CJPY returned a different security")
+                frames.append(frame if "code" in frame else frame.assign(code=code))
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
-        Args:
-            codes: 证券代码列表
-            dates: 单个日期或日期列表 "YYYYMMDD"
-            factors: 因子名称列表
-            repo: 自定义因子公式字典，不传则使用系统因子库
+    def fetch_factor_data(self, codes, dates, factors, repo=None):
+        params = {"codes": codes, "factors": factors, "repo": repo}
+        params["date" if isinstance(dates, str) else "dates"] = dates
+        return self.query("factor_data", **params)
 
-        Returns:
-            DataFrame，列包含 截止日、代码 及各因子列
-        """
-        import cjpy
-
-        self._ensure_token()
-        with _without_proxy_env():
-            df = cjpy.get_factor_data(code=codes, date=dates, factors=factors, repo=repo)
-        if df is None:
-            logger.warning(f"因子数据为空: {factors}, codes={len(codes)}")
-            return pd.DataFrame()
-        logger.info(f"获取因子数据: {len(df)} 行, factors={factors}")
-        return df  # type: ignore[no-any-return]
-
-    def get_factor_repo(self) -> dict[str, str]:
-        """获取系统默认因子库
-
-        Returns:
-            dict: {因子名称: 因子公式} 的映射
-
-        示例:
-            >>> adapter.get_factor_repo()
-            {'收盘价': 'Close()', '市盈率': 'PE()', ...}
-        """
-        import cjpy
-
-        if self._factor_repo_cache is not None:
-            return self._factor_repo_cache
-
-        self._ensure_token()
-        with _without_proxy_env():
-            repo_df = cjpy.get_factor_repo()
-        if repo_df.empty:
-            self._factor_repo_cache = {}
-            return {}
-
-        self._factor_repo_cache = dict(zip(repo_df.index, repo_df.iloc[:, 0]))
-        logger.info(f"加载因子库: {len(self._factor_repo_cache)} 个因子")
-        return self._factor_repo_cache
-
-    # ===== 表格数据 =====
-
-    def fetch_table_data(
-        self,
-        codes: str | list[str],
-        table_name: str,
-        fields: str | list[str] | None = None,
-    ) -> pd.DataFrame:
-        """获取天软表格数据
-
-        Args:
-            codes: 单个或多个证券代码
-            table_name: 表格名称（如 "股本结构"、"财务摘要" 等）
-            fields: 字段列表或 "*"，默认全部字段
-
-        Returns:
-            DataFrame
-        """
-        import cjpy
-
-        self._ensure_token()
-        with _without_proxy_env():
-            df = cjpy.get_table_data(code=codes, table_name=table_name, fields=fields)
-        logger.info(
-            f"获取表格数据: table={table_name}, codes={len(codes) if isinstance(codes, list) else 1}, rows={len(df)}"
+    def fetch_table_data(self, codes, table_name, fields=None, start=None, end=None):
+        return self.query(
+            "table_data",
+            codes=[codes] if isinstance(codes, str) else codes,
+            table_name=table_name,
+            fields=fields,
+            start_date=start,
+            end_date=end,
         )
-        return df  # type: ignore[no-any-return]
 
-    def get_supported_tables(self) -> list[str]:
-        """获取当前支持的表格名称列表
+    def get_supported_tables(self):
+        result = self.query("tables")
+        return result["表名"].tolist() if "表名" in result else []
 
-        Returns:
-            表格名称列表
-        """
+    def get_factor_repo(self):
         import cjpy
 
-        if self._tables_cache is not None:
-            return self._tables_cache
+        # Compatibility for existing callers. New discovery preserves the full list_factors table.
+        return dict(cjpy.get_factor_repo(client=self._get_client()).iloc[:, 0])
 
-        self._ensure_token()
-        with _without_proxy_env():
-            tables = cjpy.get_supported_tables()
-        self._tables_cache = tables if isinstance(tables, list) else []
-        logger.info(f"支持表格: {len(self._tables_cache)} 张")
-        return self._tables_cache
-
-    # ===== 实时订阅 =====
-
-    def subscribe(
-        self,
-        ids: list[str],
-        fields: list[str],
-        on_event: Any = None,
-    ) -> Any:
-        """启动实时行情订阅
-
-        Args:
-            ids: 订阅标的列表，如 ["SZ000001", "SH000001"]
-            fields: 订阅字段列表，如 ["StockName", "price"]
-            on_event: 可选回调函数
-
-        Returns:
-            Subscription 对象，通过 get() / stop() 消费事件
-
-        示例:
-            >>> sub = adapter.subscribe(["SZ000001"], ["StockName", "price"])
-            >>> event = sub.get(timeout=5)
-            >>> sub.stop()
-        """
+    def subscribe(self, ids, fields, on_event=None):
         import cjpy
 
-        self._ensure_token()
-        with _without_proxy_env():
-            sub = cjpy.subscribe(ids=ids, fields=fields, on_event=on_event)
-        logger.info(f"启动订阅: ids={ids}, fields={fields}")
-        return sub
+        logger.info("cjpy subscription starting", count=len(ids))
+        return cjpy.subscribe(ids=ids, fields=fields, on_event=on_event, client=self._get_client())
 
     # ===== DataAdapter 抽象方法 =====
 

@@ -18,7 +18,7 @@ from core.observability import setup_logging
 
 setup_logging()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -145,6 +145,9 @@ def _start_durable_scheduler_runtime() -> None:
             from services.scheduler_coordinator import get_default_scheduler_runtime
 
             runtime = get_default_scheduler_runtime()
+            from services.datahub_service import register_datahub_scheduler
+
+            register_datahub_scheduler(runtime)
             register_default_market_home_scheduler(runtime)
             register_default_asset_alert_scheduler(runtime)
             register_default_agent_schedule_runtime(runtime)
@@ -295,6 +298,7 @@ from app.api.routes import (
     commentary,
     configuration,
     dashboard,
+    datahub,
     decision_console,
     event_ingestion,
     factors,
@@ -393,6 +397,7 @@ app.include_router(knowledge.router)
 app.include_router(pdf_admin.router)
 app.include_router(market_data.router)
 app.include_router(market_home.router)
+app.include_router(datahub.router)
 app.include_router(wind.router)
 app.include_router(system.router)
 app.include_router(realtime.router)
@@ -416,6 +421,27 @@ class NoCacheStaticFiles(StaticFiles):
 
 
 app.mount("/static", NoCacheStaticFiles(directory=str(_static_dir)), name="static")
+
+_platform_dir = (
+    Path(__file__).resolve().parents[2] / "outputs" / "merged-platform-product-prototype"
+)
+if _platform_dir.is_dir():
+    app.mount(
+        "/platform", NoCacheStaticFiles(directory=str(_platform_dir), html=True), name="platform"
+    )
+
+
+@app.get("/datahub", response_class=HTMLResponse)
+async def datahub_page() -> HTMLResponse:
+    """Live shared data service embedded by the merged capability center."""
+    try:
+        return HTMLResponse(
+            (_templates_dir / "datahub.html").read_text(encoding="utf-8"),
+            headers={"Cache-Control": "no-store"},
+        )
+    except OSError:
+        logger.exception("DataHub page could not be loaded")
+        raise HTTPException(status_code=503, detail="DataHub page unavailable") from None
 
 
 # ─── 首页 & 健康检查 ───────────────────────────────────

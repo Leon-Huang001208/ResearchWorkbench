@@ -164,9 +164,10 @@ class AuthorizedResearchToolDispatcher:
                     "attachment reference is not declared or resolver is unavailable",
                     code="invalid_attachment_reference",
                 )
+            resolver = self._attachment_resolver
             result = self._invoke_registered_tool(
                 parsed.tool_id,
-                lambda _arguments: self._attachment_resolver(reference),
+                lambda _arguments: resolver(reference),
                 {},
             )
         elif parsed.tool_id == "web:controlled":
@@ -259,11 +260,13 @@ class ProductionResearchExecutionAdapters:
         http_client: httpx.Client | None = None,
         tool_dispatcher: AuthorizedResearchToolDispatcher | None = None,
         cost_estimator: Callable[[Any], float] | None = None,
+        tool_result_sink: Callable[[str, str, dict[str, Any], Any], None] | None = None,
     ) -> None:
         self._model_gateway = model_gateway
         self._http_client = http_client
         self._tool_dispatcher = tool_dispatcher
         self._cost_estimator = cost_estimator or self._estimate_configured_cost
+        self._tool_result_sink = tool_result_sink
 
     @property
     def authorized_tool_ids(self) -> frozenset[str]:
@@ -393,6 +396,13 @@ class ProductionResearchExecutionAdapters:
                 self._remaining_invocation_budget(tokens_used, cost_used, context)
                 result = self._tool_dispatcher.dispatch(manifest, item)
                 tool_id = str(item.get("tool_id") if isinstance(item, dict) else "")
+                if self._tool_result_sink is not None:
+                    self._tool_result_sink(
+                        payload["run_id"],
+                        tool_id,
+                        item["arguments"] if "arguments" in item else {},
+                        result,
+                    )
                 results.append({"tool_id": tool_id, "result": result})
             messages.extend(
                 [
@@ -905,7 +915,7 @@ def _validate_json_schema(
         raise ValueError(f"{label} value does not match const")
 
     expected = schema.get("type")
-    type_map = {
+    type_map: dict[str, type | tuple[type, ...]] = {
         "object": dict,
         "array": list,
         "string": str,

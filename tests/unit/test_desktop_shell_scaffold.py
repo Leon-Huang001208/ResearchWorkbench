@@ -323,6 +323,11 @@ def test_desktop_verify_smokes_setup_required_on_both_native_runners():
     assert "postgresql+psycopg://postgres:postgres@127.0.0.1:1/alphafoundry" in source
     assert "alphafoundry-desktop-setup-smoke" in source
     assert "build/desktop-sidecar/setup-smoke.log" in source
+    assert source.count("--expected-persistence-status ready") == 2
+    assert source.count("--timeout-seconds 180") == 4
+    assert 'config.write_text("DATABASE_URL=" + url' in source
+    assert "DATAHUB_TEST_DATABASE_URL" in source
+    assert "tests/unit/test_datahub.py" in source
     for path_filter in (
         "app/api/main.py",
         "app/api/routes/setup.py",
@@ -347,7 +352,7 @@ def test_windows_pgvector_smoke_builds_a_native_extension():
     assert "--execution-timeout 1200" in source
     assert '$chocoParameters = "/Password:postgres /Port:${{ matrix.postgres_port }}"' in source
     assert "--params $chocoParameters" in source
-    assert '--params "\'/Password:postgres' not in source
+    assert "--params \"'/Password:postgres" not in source
     assert "nmake /F Makefile.win install" in source
     assert "CREATE EXTENSION IF NOT EXISTS vector;" in source
     assert "PGPASSWORD = 'postgres'" in source

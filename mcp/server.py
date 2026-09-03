@@ -106,6 +106,26 @@ def _serialize_result(obj: Any) -> str:
 # =============================================================================
 
 
+def data_catalog(dataset: str | None = None) -> str:
+    """Read persisted CJPY catalogs through the shared service."""
+    from data_layer.repositories.base import db_session
+    from services.datahub_service import DataHubService
+
+    with db_session() as db:
+        return _serialize_result(DataHubService(db).catalog(dataset))
+
+
+def data_query(**arguments: Any) -> str:
+    """Read validated facts only; no write, credentials, or arbitrary SQL parameters."""
+    from core.contracts.datahub import DataHubQuery
+    from data_layer.repositories.base import db_session
+    from services.datahub_service import DataHubService
+
+    request = DataHubQuery.model_validate(arguments)
+    with db_session() as db:
+        return _serialize_result(DataHubService(db).query_for_tools(request))
+
+
 def list_data_sources() -> str:
     """列出所有可用数据源及其元信息.
 
@@ -433,24 +453,55 @@ def data_status(source: str | None = None) -> str:
 
 def main() -> None:
     """启动 AlphaFoundry Data MCP Server (stdio transport)."""
+    import importlib.util
     import sys
+    from contextlib import redirect_stdout
+    from importlib.metadata import PackageNotFoundError, distribution
+    from pathlib import Path
 
     try:
-        from mcp.server import NotificationOptions, Server  # type: ignore[attr-defined]
-        from mcp.server.models import InitializationCapabilities  # type: ignore[attr-defined]
+        # The legacy project package is also named `mcp`. In this dedicated CLI
+        # process, load the installed SDK explicitly before importing its server.
+        sdk_root = Path(distribution("mcp").locate_file("mcp"))
+        project_package = Path(__file__).resolve().parent
+        if sdk_root.resolve() == project_package:
+            raise ImportError("Installed MCP SDK cannot be the project shim")
+        for name, module in list(sys.modules.items()):
+            location = getattr(module, "__file__", None)
+            if (
+                (name == "mcp" or name.startswith("mcp."))
+                and location
+                and Path(location).resolve().is_relative_to(project_package)
+            ):
+                del sys.modules[name]
+        spec = importlib.util.spec_from_file_location(
+            "mcp", sdk_root / "__init__.py", submodule_search_locations=[str(sdk_root)]
+        )
+        if spec is None or spec.loader is None:
+            raise ImportError("MCP SDK loader unavailable")
+        sdk = importlib.util.module_from_spec(spec)
+        sys.modules["mcp"] = sdk
+        spec.loader.exec_module(sdk)
+        from mcp.server import Server  # type: ignore[attr-defined]
         from mcp.server.stdio import stdio_server
         from mcp.types import TextContent, Tool
-    except ImportError:
+    except (ImportError, PackageNotFoundError) as exc:
         print(
-            "FATAL: mcp package not installed. Run: pip install mcp",
+            f"FATAL: installed MCP SDK unavailable ({type(exc).__name__})",
             file=sys.stderr,
         )
         sys.exit(1)
 
+    from core.observability import setup_logging
+
+    with redirect_stdout(sys.stderr):
+        setup_logging()
     server = Server("af-data")
 
     @server.list_tools()
     async def handle_list_tools() -> list[Tool]:
+        from core.contracts.datahub import DataHubQuery
+
         return [
             Tool(
                 name="list_data_sources",
@@ -510,6 +561,20 @@ def main() -> None:
                 },
             ),
             Tool(
+                name="data_catalog",
+                description="Read DataHub dataset catalog",
+                inputSchema={
+                    "type": "object",
+                    "properties": {"dataset": {"type": "string"}},
+                    "additionalProperties": False,
+                },
+            ),
+            Tool(
+                name="data_query",
+                description="Read validated DataHub facts with provenance",
+                inputSchema=DataHubQuery.model_json_schema(),
+            ),
+            Tool(
                 name="data_status",
                 description="查看数据采集的整体状态。聚合所有数据源的健康状态和最近采集运行历史。用于了解数据新鲜度和系统健康度。",
                 inputSchema={
@@ -540,6 +605,17 @@ def main() -> None:
                 codes=arguments.get("codes"),
                 max_items=arguments.get("max_items"),
             )
+        elif name in {"data_catalog", "data_query"}:
+            try:
+                with redirect_stdout(sys.stderr):
+                    result = (
+                        data_catalog(**arguments)
+                        if name == "data_catalog"
+                        else data_query(**arguments)
+                    )
+            except Exception as exc:
+                logger.warning("DataHub MCP query rejected", error_type=type(exc).__name__)
+                raise ValueError("DataHub query invalid or unavailable") from None
         elif name == "data_status":
             result = data_status(source=arguments.get("source"))
         else:
@@ -552,11 +628,7 @@ def main() -> None:
             await server.run(
                 read_stream,
                 write_stream,
-                InitializationCapabilities(
-                    sampling=None,
-                    experimental=None,
-                ),
-                NotificationOptions(),
+                server.create_initialization_options(),
             )
 
     import asyncio
