@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import zipfile
 
 import pytest
@@ -12,7 +13,7 @@ from test_capabilities import api as api_fixture
 from test_capabilities import candidate, create
 
 from app.research_web.capabilities.catalog import CapabilityCatalog
-from app.research_web.capabilities.models import CapabilityError
+from app.research_web.capabilities.models import CapabilityError, Metadata, Step
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
 
@@ -308,3 +309,190 @@ def test_creation_zip_is_scoped_downloadable_and_importable(api):
     other = client.post("/api/research/sessions", json={}).json()["id"]
     (service.store.directory(other) / "outputs" / "candidate.zip").write_bytes(output.read_bytes())
     assert client.get(f"/api/research/sessions/{other}/files").json()["items"] == []
+
+
+def creation_artifacts(api, kind="skill"):
+    client, _, service = api
+    created = client.post(
+        "/api/research/capabilities/creation-sessions", json={"kind": kind, "goal": "生成候选包"}
+    ).json()
+    sid = created["id"]
+    output = service.store.directory(sid) / "outputs"
+    (output / "SKILL.md").write_text(candidate()["instructions"])
+    (output / "capability.json").write_text(json.dumps(candidate()["metadata"]))
+    return sid, output
+
+
+@pytest.mark.parametrize("companion", ["capability.json", "workflow.json"])
+@pytest.mark.parametrize("change", ["rename", "delete"])
+def test_artifact_import_uses_current_companions_not_historical_index(api, companion, change):
+    client, _, service = api
+    sid, output = creation_artifacts(api)
+    if companion == "workflow.json":
+        (output / companion).write_text('{"steps":[{"title":"旧参考","instruction":"旧版本"}]}')
+    inventory = service.store.files(sid)
+    fid = next(file["id"] for file in inventory if file["name"] == "SKILL.md")
+    old_id = next(file["id"] for file in inventory if file["name"] == companion)
+    if change == "rename":
+        (output / companion).rename(output / "draft-reference.json")
+    else:
+        (output / companion).unlink()
+    result = client.post(
+        "/api/research/capabilities/from-artifact", json={"session_id": sid, "file_id": fid}
+    )
+    assert result.status_code == 201, result.text
+    assert result.json()["kind"] == "skill"
+    assert result.json()["status"] == ("invalid" if companion == "capability.json" else "draft")
+    if companion == "capability.json":
+        assert (
+            client.post(f"/api/research/capabilities/{result.json()['id']}/publish").status_code
+            == 422
+        )
+    assert service.store.session(sid)["files"][old_id] == f"outputs/{companion}"
+    if change == "rename":
+        assert (output / "draft-reference.json").is_file()
+
+
+@pytest.mark.parametrize(
+    "content", ['{"steps":[{"title":"研究","instruction":"核实材料"}]}', "not json"]
+)
+def test_artifact_import_checks_current_workflow_companion(api, content):
+    client, _, service = api
+    sid, output = creation_artifacts(api, "workflow")
+    (output / "workflow.json").write_text(content)
+    fid = next(file["id"] for file in service.store.files(sid) if file["name"] == "SKILL.md")
+    response = client.post(
+        "/api/research/capabilities/from-artifact", json={"session_id": sid, "file_id": fid}
+    )
+    if content == "not json":
+        assert response.status_code in {201, 422}, response.text
+        if response.status_code == 201:
+            assert response.json()["status"] == "invalid"
+    else:
+        assert response.status_code == 201 and response.json()["kind"] == "workflow"
+        assert response.json()["status"] == "draft"
+        assert response.json()["draft"]["steps"][0]["title"] == "研究"
+
+
+@pytest.mark.parametrize("companion_name", ["capability.json", "workflow.json"])
+@pytest.mark.parametrize("unsafe", ["symlink", "directory", "hardlink", "vanish_on_read"])
+def test_current_unsafe_or_racing_companion_is_not_silently_ignored(
+    api, monkeypatch, unsafe, companion_name
+):
+    client, _, service = api
+    sid, output = creation_artifacts(api)
+    if companion_name == "workflow.json":
+        (output / companion_name).write_text('{"steps":[{"title":"研究","instruction":"核实"}]}')
+    inventory = service.store.files(sid)
+    fid = next(file["id"] for file in inventory if file["name"] == "SKILL.md")
+    companion_id = next(file["id"] for file in inventory if file["name"] == companion_name)
+    companion = output / companion_name
+    if unsafe != "vanish_on_read":
+        companion.rename(output / "reference.json")
+        if unsafe == "symlink":
+            companion.symlink_to(output / "reference.json")
+        elif unsafe == "directory":
+            companion.mkdir()
+        else:
+            os.link(output / "reference.json", companion)
+    else:
+        real_open = service.store.open_file
+
+        def open_after_removal(session_id, file_id):
+            if file_id == companion_id:
+                companion.unlink()
+            return real_open(session_id, file_id)
+
+        monkeypatch.setattr(service.store, "open_file", open_after_removal)
+    before = len(service.capabilities.list()["items"])
+    result = client.post(
+        "/api/research/capabilities/from-artifact", json={"session_id": sid, "file_id": fid}
+    )
+    assert result.status_code == 400, result.text
+    assert len(service.capabilities.list()["items"]) == before
+    assert service.store.session(sid)["files"][companion_id] == f"outputs/{companion_name}"
+
+
+@pytest.mark.parametrize("kind", ["skill", "workflow"])
+@pytest.mark.parametrize("zip_package", [False, True])
+def test_creation_kind_conflict_is_explicit_without_rewriting_candidate(api, kind, zip_package):
+    client, _, service = api
+    sid, output = creation_artifacts(api, kind)
+    if kind == "skill":
+        (output / "workflow.json").write_text('{"steps":[{"title":"研究","instruction":"核实"}]}')
+    selected = "SKILL.md"
+    if zip_package:
+        selected = "candidate.zip"
+        with zipfile.ZipFile(output / selected, "w") as archive:
+            for path in output.glob("*.json"):
+                archive.write(path, path.name)
+            archive.write(output / "SKILL.md", "SKILL.md")
+    fid = next(file["id"] for file in service.store.files(sid) if file["name"] == selected)
+    before = len(service.capabilities.list()["items"])
+    response = client.post(
+        "/api/research/capabilities/from-artifact", json={"session_id": sid, "file_id": fid}
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["code"] == "creation_kind_conflict"
+    assert (output / selected).is_file()
+    assert len(service.capabilities.list()["items"]) == before
+    if zip_package and kind == "skill":
+        manual = client.post(
+            "/api/research/capabilities/import",
+            files={"file": ("candidate.zip", (output / selected).read_bytes())},
+        )
+        assert manual.status_code == 201 and manual.json()["kind"] == "workflow"
+
+
+def test_explicit_skill_zip_does_not_bundle_other_session_workflow_reference(api):
+    client, _, service = api
+    sid, output = creation_artifacts(api)
+    (output / "workflow.json").write_text('{"steps":[{"title":"参考","instruction":"不属于ZIP"}]}')
+    with zipfile.ZipFile(output / "candidate.zip", "w") as archive:
+        archive.write(output / "SKILL.md", "SKILL.md")
+        archive.write(output / "capability.json", "capability.json")
+    fid = next(file["id"] for file in service.store.files(sid) if file["name"] == "candidate.zip")
+    result = client.post(
+        "/api/research/capabilities/from-artifact", json={"session_id": sid, "file_id": fid}
+    )
+    assert result.status_code == 201 and result.json()["kind"] == "skill"
+    assert result.json()["status"] == "draft" and (output / "workflow.json").is_file()
+
+
+@pytest.mark.parametrize("kind", ["skill", "workflow"])
+def test_creation_prompt_declares_actual_schema_without_automatic_execution(api, kind):
+    client, native, _ = api
+    result = client.post(
+        "/api/research/capabilities/creation-sessions",
+        json={"kind": kind, "goal": "仅生成Markdown报告"},
+    ).json()
+    prompt = result["draft"]
+    schemas = [json.loads(block) for block in re.findall(r"```json\n(.*?)\n```", prompt, re.DOTALL)]
+    assert schemas, "创建提示缺少声明模型的 JSON schema"
+    assert schemas[0] == Metadata.model_json_schema()
+    assert "text/file/date/number" in prompt and "list[number]" in prompt
+    assert "只列目标需要的格式" in prompt and "不要全选" in prompt
+    assert "标准库" in prompt and "dependencies=[]" in prompt
+    assert "outputs 已存在" in prompt and "不要探测宿主 cwd" in prompt
+    assert "不添加未声明字段" in prompt
+    if kind == "workflow":
+        assert schemas[1] == Step.model_json_schema() and "workflow.json" in prompt
+    else:
+        assert len(schemas) == 1 and "workflow.json" not in prompt
+    assert not result["auto_submitted"] and not result["auto_published"]
+    assert not any(method == "session.prompt" for method, _ in native.calls)
+
+
+@pytest.mark.parametrize("change", ["rename", "symlink"])
+def test_selected_artifact_must_still_belong_to_current_safe_inventory(api, change):
+    client, _, service = api
+    sid, output = creation_artifacts(api)
+    fid = next(file["id"] for file in service.store.files(sid) if file["name"] == "SKILL.md")
+    (output / "SKILL.md").rename(output / "reference.md")
+    if change == "symlink":
+        (output / "SKILL.md").symlink_to(output / "reference.md")
+    response = client.post(
+        "/api/research/capabilities/from-artifact", json={"session_id": sid, "file_id": fid}
+    )
+    assert response.status_code == 409 and response.json()["error"]["code"] == "artifact_not_output"
+    assert service.store.session(sid)["files"][fid] == "outputs/SKILL.md"

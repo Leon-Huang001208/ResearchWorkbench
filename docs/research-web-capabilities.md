@@ -88,8 +88,18 @@ DSH 得到的是原生 slash invocation 与当前会话相对资源指引，不�
 旧会话原有 `resources/skills` 不改写。
 
 创建接口只创建真实会话并把候选要求放入 draft；不自动提交模型、不自动发布。
+创建提示直接包含当前 Metadata 模型的 JSON Schema（必填、枚举、禁止额外字段）；
+inputs.type 明确为 text/file/date/number，default_formats 只选目标需要的格式，
+标准库不作为第三方依赖、仅标准库时 dependencies=[]。明确 outputs 已存在且不探测宿主 cwd。
+仅 Workflow 创建附带 workflow.json 和 Step 模型约束。提示不保证模型首稿兼容，仍必须执行实际检查。
 用户通过普通消息接口开始制作包，结束后选择实际 outputs/SKILL.md 或候选 ZIP。
 选择根 SKILL.md 时仅一并读取实际根 capability.json/workflow.json；需要脚本/模板时产出完整 ZIP。
+主文件与伴随文件以本次安全文件清单为准，重命名/删除遗留的历史索引不再参与打包，也不删除历史索引。
+固定伴随路径仍存在但不安全（链接、目录等），或列举后读取失败时明确拒绝，不静默忽略。
+缺少 capability.json 保留 invalid 草稿且不能发布；专用会话的候选解析类型必须符合 creation_kind，
+例如 Skill 会话多出 workflow.json 或 Workflow 缺步骤文件会422 creation_kind_conflict，要求修正原文件。
+不会自动删除多余文件或悄悄转换类型。显式选择 ZIP 时只检查该 ZIP，不合入会话里其他参考 JSON；
+普通手动 ZIP 导入不受创建会话类型限制，仍按包的实际结构识别。
 只有专用创建会话的 ZIP 才加入产品文件索引，普通会话不扩展文件格式。
 导入仍需检查、审查脚本和显式发布。静态安全检查不是“恶意代码已证明安全”。
 

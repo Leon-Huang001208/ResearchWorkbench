@@ -15,8 +15,8 @@ from websockets.exceptions import WebSocketException
 from core.observability import get_logger
 
 from .capabilities.catalog import CapabilityCatalog
-from .capabilities.models import CapabilityError
-from .capabilities.packages import MAX_COMPRESSED
+from .capabilities.models import CapabilityError, Metadata, Step
+from .capabilities.packages import MAX_COMPRESSED, import_package
 from .capabilities.tools import SELECTABLE
 from .client import DSHClient, RuntimeFailure
 from .datahub import DataHub
@@ -709,14 +709,28 @@ class ResearchService:
         self.store.save()
         draft = (
             f"请为以下目标设计一个{kind}候选包：{goal}\n"
-            "仅使用当前可用工具，将候选 SKILL.md 和 capability.json 写入 outputs；Workflow 另写 workflow.json。"
+            "仅使用当前可用工具，将候选 SKILL.md 和 capability.json 写入 outputs。"
+            "outputs 已存在；使用 outputs/ 相对路径，不要探测宿主 cwd、扫描宿主或创建宿主目录。\n"
             "不得发布、安装、执行候选包，不得改变权限或依赖。输出文件是待用户审查的草稿。\n"
-            "capability.json 必须包含中文 name/description/category、kebab-case slug、inputs 数组（name/label/type/required）、"
-            "scenarios 数组、default_formats 数组（md/html/docx/xlsx/png）、required_tools 数组、dependencies 数组。"
-            "SKILL.md 使用 YAML frontmatter name=slug、description，后接实际步骤正文。"
-            "workflow.json 为 {steps:[{title,instruction,skill_id可选,tools:[]}]}，只引用目录已启用 Skill。"
+            "capability.json 直接是元数据对象，不包裹 metadata/kind；不添加未声明字段。"
+            "填全 name/slug/description/category/inputs/scenarios/default_formats/required_tools/dependencies。"
+            "name/description/category 使用中文，slug 使用 kebab-case；inputs 的每项只有 name/label/type/required，"
+            "type 只能为 text/file/date/number，不使用 string、list[number] 等类型；required 为布尔值。"
+            "scenarios 是非空字符串数组；default_formats 只列目标需要的格式，不要全选，允许值见 schema。"
+            "required_tools 只列需要的真实工具ID；dependencies 只列第三方发行版依赖，"
+            "json/csv/pathlib 等 Python 标准库不列入，只有标准库时 dependencies=[]，不得自动安装依赖。\n"
+            "capability.json 的完整约束来自当前 Metadata 模型（含必填字段、枚举和 additionalProperties:false）：\n"
+            f"```json\n{json.dumps(Metadata.model_json_schema(), ensure_ascii=False)}\n```\n"
+            "SKILL.md 使用 YAML frontmatter name=slug、description，后接实际步骤正文。\n"
             "除研究 Python 脚本、文档、图像与模板外不要生成执行文件；依赖不足明确注明。"
         )
+        if kind == "workflow":
+            draft += (
+                '\n另写 outputs/workflow.json，根对象只有 "steps"：非空、有序的步骤对象数组（最多40项）。'
+                "每步只含 title/instruction，以及可选 skill_id/tools；skill_id 只引用目录中已启用 Skill 的产品ID。"
+                "步骤对象遵循当前 Step 模型，不添加未声明字段：\n"
+                f"```json\n{json.dumps(Step.model_json_schema(), ensure_ascii=False)}\n```"
+            )
         return {
             **session,
             "purpose": "capability_creation",
@@ -739,9 +753,13 @@ class ResearchService:
                 "awaiting_approval",
             }:
                 raise CapabilityError("候选包仍在生成或状态未确认", "capability_busy", 409)
-            self.store.files(sid)
+            inventory = {item["id"]: item for item in self.store.files(sid)}
             relative = row["files"].get(fid, "")
-            if not relative.startswith("outputs/"):
+            if (
+                fid not in inventory
+                or inventory[fid]["kind"] != "outputs"
+                or not relative.startswith("outputs/")
+            ):
                 raise CapabilityError("只能导入本会话实际 outputs 产物", "artifact_not_output", 409)
             stream, name = self.store.open_file(sid, fid)
             with stream:
@@ -752,14 +770,48 @@ class ResearchService:
                 import zipfile
 
                 packed = io.BytesIO()
+                companions = {
+                    row["files"][item["id"]]: item["id"]
+                    for item in inventory.values()
+                    if item["kind"] == "outputs"
+                }
                 with zipfile.ZipFile(packed, "w", zipfile.ZIP_DEFLATED) as archive:
                     archive.writestr("SKILL.md", raw)
-                    for file_id, path in row["files"].items():
-                        if path in {"outputs/capability.json", "outputs/workflow.json"}:
-                            resource, filename = self.store.open_file(sid, file_id)
-                            with resource:
-                                archive.writestr(filename, resource.read(MAX_COMPRESSED + 1))
+                    for filename in ("capability.json", "workflow.json"):
+                        path = f"outputs/{filename}"
+                        file_id = companions.get(path)
+                        if file_id is None:
+                            # Absent historical entries are not current companions. A
+                            # present path excluded by the safe listing must still fail.
+                            try:
+                                (self.store.directory(sid) / path).lstat()
+                            except FileNotFoundError:
+                                continue
+                            except OSError as exc:
+                                log.warning(
+                                    "research_capability_companion_unavailable",
+                                    session_id=sid,
+                                    resource_name=filename,
+                                    error_type=type(exc).__name__,
+                                )
+                                raise StoreError("候选伴随文件无法安全读取") from exc
+                            log.warning(
+                                "research_capability_companion_unsafe",
+                                session_id=sid,
+                                resource_name=filename,
+                            )
+                            raise StoreError("候选伴随文件不是当前安全普通文件")
+                        resource, filename = self.store.open_file(sid, file_id)
+                        with resource:
+                            archive.writestr(filename, resource.read(MAX_COMPRESSED + 1))
                 raw, name = packed.getvalue(), "candidate.zip"
+            parsed, _ = import_package(name, raw)
+            if parsed["kind"] != row.get("creation_kind"):
+                raise CapabilityError(
+                    "候选包类型与创建会话目标不一致；请修正实际文件后重新审查，不会自动转换类型",
+                    "creation_kind_conflict",
+                    422,
+                )
             return self.capabilities.import_bytes(
                 name, raw, source="conversation", origin={"session_id": sid, "file_id": fid}
             )

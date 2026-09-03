@@ -90,3 +90,37 @@ invalid_media / path_conflict；冲突回滚409 name_conflict，版本写入异�
 Web skill_catalog 已用 session.models 冷恢复后 skill.list exact-name检查，缺新增能力409 native_discovery_pending。
 未重写会话历史/preset，未执行真实跨重启旧会话实验；该结论区分源码机制与未验证的live行为。
 控制器显式新建/升级Claw复用旧FinGPT材料仍是可观察的集成路径，前端可在持续缺发现时提示此方案。
+
+## Fix 2 — 真实创建产物导入与提示契约（基线 c73c5ff）
+
+控制器提供真实浏览器复现：创建会话 `793dc010-bb08-429d-957a-c858c6654d39` 选择
+`ebcedea5342a8bcef06c8a96`（SKILL.md）时，模型已将 workflow.json 改名为参考文件，
+当前文件清单没有旧文件，但历史 ledger 仍保留路径；from-artifact 遍历 ledger 并打开旧路径而失败。
+控制器还记录首稿包含非法额外字段、inputs 的 string/list[number] 类型、标准库依赖和非预期 Workflow。
+本子任务未读取或修改该真实会话，使用临时会话自动化复现；不把改提示说成模型首稿已保证正确。
+
+| 源变更（仅 service.py） | 测试（test_capabilities_admission.py） | 模块文档 |
+| --- | --- | --- |
+| 主文件/根伴随文件以本次安全 inventory 为准；保留 ledger | 重命名/删除两类伴随文件；已失效主文件；缺 metadata 的 invalid 草稿不可发布 | research-web-capabilities.md 会话与提交 |
+| 固定伴随路径仍存在但不安全则拒绝，列举后读取失败不吞掉 | 两种伴随文件 × symlink/directory/hardlink/vanish_on_read；实际合法/非法 JSON | 同上 |
+| 专用创建的解析类型必须符合 creation_kind | Skill/Workflow × 散文件/ZIP 冲突422；显式ZIP不吸收外部参考JSON；手动ZIP仍识别实际类型 | 同上 |
+| 提示直接嵌入 Metadata/Step schema，声明字段/枚举/格式/标准库/outputs边界 | 两种创建类型的 schema 等值测试、无额外 Workflow 指令、无自动模型提交 | 同上 |
+
+TDD 与实际验证：
+
+- `python -m pytest tests/research_web/test_capabilities_admission.py --confcutdir=tests/research_web -q -o addopts='' --tb=short --show-capture=no`：**10 failed / 23 passed → 33 passed**。4项旧ledger失败、4项类型静默转换、2项提示缺schema均先复现。
+- 扩展日志与边界回归时 **2 failed / 84 passed**：新日志字段 filename 与标准 logging.LogRecord 保留字段冲突；改为 resource_name 后 **86 passed**，未修改日志设施。
+- `python -m pytest tests/research_web/test_capabilities_admission.py tests/research_web/test_capabilities_review.py --confcutdir=tests/research_web -q -o addopts='' --tb=short --show-capture=no`：最终 **90 passed in 6.07s**（完整双伴随文件安全矩阵）。
+- `DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness python -m pytest tests/research_web --confcutdir=tests/research_web -q -o addopts='' --tb=short --show-capture=no`：**233 passed in 25.95s**，本轮最终源码整套仅执行一次，含既有 native 固定源码测试。
+- `python -m ruff check app/research_web tests/research_web`、`python -m black app/research_web tests/research_web --check`（42 files）、`python -m isort app/research_web tests/research_web --check-only`、`python -m mypy app/research_web --exclude '/skills/' --follow-imports=skip`（25 files）全部通过；mypy 既有 untyped notes 不作为强类型覆盖证据。
+- `python scripts/check_task_completion.py`、`git diff --check` 通过；`python scripts/check_doc_sync.py` 退出0但仍未覆盖本模块，不称全局架构门禁已通过。
+
+上述 python 均为 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`。
+API输入不变；主文件不再属于当前安全清单时409 artifact_not_output，不安全/读失败400 invalid_resource；
+专用创建类型冲突422 creation_kind_conflict，保留原始实际产物、不会添加错误类型的能力记录。
+缺 capability.json 继续返回 invalid 草稿以供修订，不允许发布。ZIP 手动导入逻辑未改。
+
+只提交 service.py、test_capabilities_admission.py、本模块文档和本报告；协作 task-2-report.md 追加证据。
+未改 Store/历史账本/文件、UI、控制器架构文档、DSH、权限、依赖、CI；无live重启、模型调用、外部写入或子代理。
+创建提示是清晰的既有声明，不是新执行引擎，也不保证模型输出兼容。真实首稿错误仍由控制器验收记录保留。
+新启动变化：无；控制器须在安全空闲时自行重启 Web 并复测真实浏览器导入/创建，不由本子任务代替。
