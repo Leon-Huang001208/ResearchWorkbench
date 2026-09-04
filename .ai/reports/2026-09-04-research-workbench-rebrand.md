@@ -7,6 +7,8 @@
 ## 已实施
 
 - `research-workbench` distribution 与 `rwb` CLI；旧命令不再发布。
+- CLI 历史子命令改为按需导入，`rwb web` 与迁移命令不再因旧研究、爬虫或回测模块初始化而阻塞。
+- `rwb` 使用唯一入口包并优先解析当前仓库，避免复用解释器中同名 `app` 包遮蔽新实现；外部 runtime core 环境保持不变。
 - `rwb web start|status|stop|restart` 管理专属 3081/8088，状态和日志写入 `~/.research-workbench/`；命令指纹与进程归属不匹配时拒绝终止，3080 明确不在管理范围。
 - `rwb migrate-research-data` 白名单复制会话、附件、能力版本、数据集、产物和 DSH 历史，逐文件核对数量、大小和 SHA-256；不复制模型凭据、控制令牌、overlay、缓存和日志。
 - DSH 原生脚本工具改为 `research_run_script`，数据工具只保留 13 个品牌无关 `datahub_*` 契约；移除旧平行数据查询 API。

@@ -1,67 +1,110 @@
 """Research Workbench CLI 主入口。"""
 
+import importlib
 import json
+import logging
 import sys
 from pathlib import Path
 
 import click
 
-from app.cli.commands.akshare import akshare
-
-# 导入子命令
-from app.cli.commands.analyze import analyze
-from app.cli.commands.ask import ask
-from app.cli.commands.backtest import backtest
-from app.cli.commands.data import data_group as data
-from app.cli.commands.ingest import crawl, ingest, knowledge
-from app.cli.commands.memory import memory
-from app.cli.commands.report import report
-from app.cli.commands.review import review
-from app.cli.commands.scenario import scenario
-from app.cli.commands.signal import signal
-from app.cli.commands.timing import timing
 from app.research_web.data_migration import (
     DataMigrationError,
+    archive_source,
     migrate_data,
-)
-from app.research_web.data_migration import (
-    archive_source as archive_legacy_source,
 )
 from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
     format_status,
 )
-from core.observability import configure_logging
 
 LEGACY_RESEARCH_DATA_DIR = ".alpha" + "foundry"
+archive_legacy_source = archive_source
+LAZY_COMMANDS = {
+    "akshare": ("app.cli.commands.akshare", "akshare"),
+    "analyze": ("app.cli.commands.analyze", "analyze"),
+    "ask": ("app.cli.commands.ask", "ask"),
+    "backtest": ("app.cli.commands.backtest", "backtest"),
+    "crawl": ("app.cli.commands.ingest", "crawl"),
+    "data": ("app.cli.commands.data", "data_group"),
+    "ingest": ("app.cli.commands.ingest", "ingest"),
+    "knowledge": ("app.cli.commands.ingest", "knowledge"),
+    "memory": ("app.cli.commands.memory", "memory"),
+    "report": ("app.cli.commands.report", "report"),
+    "review": ("app.cli.commands.review", "review"),
+    "scenario": ("app.cli.commands.scenario", "scenario"),
+    "signal": ("app.cli.commands.signal", "signal"),
+    "timing": ("app.cli.commands.timing", "timing"),
+}
+
+
+class LazyCommandGroup(click.Group):
+    """Expose legacy commands without importing their runtime until selected."""
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        return sorted(set(super().list_commands(ctx)) | set(LAZY_COMMANDS))
+
+    def get_command(self, ctx: click.Context, command_name: str) -> click.Command | None:
+        command = super().get_command(ctx, command_name)
+        if command is not None or command_name not in LAZY_COMMANDS:
+            return command
+        module_name, attribute = LAZY_COMMANDS[command_name]
+        try:
+            module = importlib.import_module(module_name)
+            loaded = getattr(module, attribute)
+        except (ImportError, AttributeError) as exc:
+            raise click.ClickException(
+                f"无法加载子命令 {command_name}: {type(exc).__name__}"
+            ) from exc
+        if not isinstance(loaded, click.Command):
+            raise click.ClickException(f"子命令 {command_name} 注册无效")
+        return loaded
+
+    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        rows: list[tuple[str, str]] = []
+        for command_name in self.list_commands(ctx):
+            if command_name in LAZY_COMMANDS:
+                rows.append((command_name, "历史兼容命令（按需加载）"))
+                continue
+            command = super().get_command(ctx, command_name)
+            if command is not None and not command.hidden:
+                rows.append((command_name, command.get_short_help_str()))
+        if rows:
+            with formatter.section("Commands"):
+                formatter.write_dl(rows)
+
 
 # 强制 stdout/stderr 使用 UTF-8，防止 Windows GBK 终端上 UnicodeEncodeError
 # （特殊字符如 ✓ ✗ 及中日文内容会触发 GBK 编码失败）
-if hasattr(sys.stdout, "fileno"):
+if hasattr(sys.stdout, "reconfigure"):
     try:
-        sys.stdout = open(
-            sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-        )
-    except Exception:
-        pass
-if hasattr(sys.stderr, "fileno"):
+        sys.stdout.reconfigure(encoding="utf-8", write_through=True)
+    except (AttributeError, OSError):
+        logging.getLogger(__name__).debug("stdout UTF-8 reconfiguration unavailable")
+if hasattr(sys.stderr, "reconfigure"):
     try:
-        sys.stderr = open(
-            sys.stderr.fileno(), mode="w", encoding="utf-8", closefd=False, buffering=1
-        )
-    except Exception:
-        pass
+        sys.stderr.reconfigure(encoding="utf-8", write_through=True)
+    except (AttributeError, OSError):
+        logging.getLogger(__name__).debug("stderr UTF-8 reconfiguration unavailable")
 
 
-@click.group()
+@click.group(cls=LazyCommandGroup)
 @click.option("--log-level", default="INFO", help="日志级别：DEBUG, INFO, WARNING, ERROR")
 @click.option("--log-file", help="日志文件路径")
 @click.version_option(version="0.1.0")
-def cli(log_level: str, log_file: str | None) -> None:
+@click.pass_context
+def cli(ctx: click.Context, log_level: str, log_file: str | None) -> None:
     """Research Workbench - 本地优先的研究工作台。"""
-    # 配置日志
     log_path: str | None = str(log_file) if log_file else None
+    if ctx.invoked_subcommand in {"web", "migrate-research-data"}:
+        numeric_level = getattr(logging, log_level.upper(), None)
+        if not isinstance(numeric_level, int):
+            raise click.BadParameter("无效日志级别", param_hint="--log-level")
+        logging.basicConfig(level=numeric_level, filename=log_path)
+        return
+    from core.observability import configure_logging
+
     configure_logging(level=log_level, log_file=log_path)
 
 
@@ -139,21 +182,6 @@ def migrate_research_data(source: Path, target: Path, dry_run: bool, archive_sou
         raise click.ClickException(str(exc)) from exc
 
 
-# 注册子命令
-cli.add_command(analyze)
-cli.add_command(ask)
-cli.add_command(report)
-cli.add_command(scenario)
-cli.add_command(ingest)
-cli.add_command(crawl)
-cli.add_command(review)
-cli.add_command(signal)
-cli.add_command(backtest)
-cli.add_command(timing)
-cli.add_command(memory)
-cli.add_command(akshare)
-cli.add_command(knowledge)
-cli.add_command(data)
 cli.add_command(web)
 
 
