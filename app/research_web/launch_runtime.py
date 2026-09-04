@@ -19,6 +19,65 @@ log = get_logger(__name__)
 PINNED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
 
 
+def prepare_runtime_module_fallback(source: Path, home: Path, node: str) -> int:
+    """Heal DSH profile module links and reject dependencies outside the pinned tree."""
+    module = source / "packages/boot/app-boot/lib/index.js"
+    anchor = source / "apps/cli/package.json"
+    if not module.is_file() or not anchor.is_file():
+        raise RuntimeError("DSH 构建缺少 profile 模块；请重新构建固定源码")
+    script = """
+import { pathToFileURL } from 'node:url';
+const [modulePath, anchor, home] = process.argv.slice(1);
+const runtime = await import(pathToFileURL(modulePath).href);
+runtime.healProfilesModuleFallback(anchor, home);
+"""
+    environment = {
+        "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "LANG": "en_US.UTF-8",
+        "HOME": str(home),
+        "DSH_HOME": str(home),
+        "DSH_TELEMETRY_DISABLED": "1",
+    }
+    try:
+        subprocess.run(
+            [
+                node,
+                "--input-type=module",
+                "--eval",
+                script,
+                str(module),
+                str(anchor),
+                str(home),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=environment,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError("DSH profile 模块初始化失败") from exc
+
+    modules = home / "profiles" / "node_modules"
+    links: list[Path] = []
+    if modules.is_dir():
+        for item in modules.iterdir():
+            if item.is_symlink():
+                links.append(item)
+            elif item.is_dir() and item.name.startswith("@"):
+                links.extend(child for child in item.iterdir() if child.is_symlink())
+    if not links:
+        raise RuntimeError("DSH profile 模块目录为空")
+    for link in links:
+        try:
+            target = link.resolve(strict=True)
+        except OSError as exc:
+            raise RuntimeError("DSH profile 存在失效模块链接") from exc
+        if not target.is_relative_to(source):
+            raise RuntimeError("DSH profile 模块越出项目私有源码目录")
+    return len(links)
+
+
 def prepare(
     source: Path,
     data: Path,
@@ -179,7 +238,15 @@ def main():
             args.research_tools,
             args.datahub_url,
         )
-        log.info("owned_dsh_launch", port=args.port, commit=PINNED_COMMIT)
+        module_count = prepare_runtime_module_fallback(
+            args.source.resolve(), args.data.resolve() / "runtime/home", args.node
+        )
+        log.info(
+            "owned_dsh_launch",
+            port=args.port,
+            commit=PINNED_COMMIT,
+            module_count=module_count,
+        )
         os.chdir(work)
         os.execve(args.node, command, env)
     except (OSError, ValueError, RuntimeError, StoreError, subprocess.SubprocessError) as exc:

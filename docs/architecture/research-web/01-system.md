@@ -16,8 +16,8 @@
 | 文件交付 | `app/research_web/delivery.py` | 本任务基线、有效输出集合、缺失格式和原因 |
 | DataHub | `app/research_web/datahub/` | 13 项能力/21 个来源静态目录、白名单选源、Provider、单源探测、不可变资料和共享分析 |
 | 受限脚本 | `app/research_web/sandbox.py` | 文件访问、环境和进程终止边界 |
-| 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、原生插件与白名单 |
-| 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的进程归属、健康检查、持久后台启动、停止和失败回滚 |
+| 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、私有模块链接校验、原生插件与白名单 |
+| 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的进程归属、健康检查、项目私有 DSH 源码选择、持久后台启动、停止和失败回滚 |
 | 数据迁移 | `app/research_web/data_migration.py` | 会话/附件/能力/数据集/产物的哈希复制；排除凭据并支持只读归档 |
 | 能力管理 | `app/research_web/capabilities/` | 草稿、受检资源、版本、原生目录投影与只读 Tool 声明 |
 | 产品壳与输入框 | `ui/shell.mjs`、`ui/composer.mjs` | 双侧栏、会话与能力检索、草稿输入；不执行研究 |
@@ -36,6 +36,6 @@
 
 ## 并发与部署限制
 
-当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。`rwb web start` 固定管理 3081/8088，状态文件保存 PID、命令指纹、项目路径和数据根；停止命令只操作全部指纹一致的进程，绝不操作用户原有 3080。服务仅回环；无多人权限体系，不应直接暴露公网。
+当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。`rwb web start` 默认从 `~/.research-workbench/dsh-source/` 启动经过固定提交构建的项目私有 DSH，只管理 3081/8088；`RESEARCH_DSH_SOURCE` 仅用于显式覆盖。状态文件保存 PID、命令指纹、项目路径和数据根；停止命令只操作全部指纹一致的进程，绝不操作用户原有 3080。服务仅回环；无多人权限体系，不应直接暴露公网。
 
 只验证当前 macOS 脚本隔离；不把 Web 本地成功当作 Linux/Windows/桌面支持证据。DSH 固定源码提交为 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；本轮不升级运行时。

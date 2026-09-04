@@ -94,14 +94,14 @@ python view_db.py all
 
 ### 3. 启动研究 Web
 
-安装当前仓库后，由项目级管理器持久启动专属 DSH 3081 与 Web 8088：
+安装当前仓库后，由项目级管理器从 `~/.research-workbench/dsh-source/` 的固定提交私有构建持久启动专属 DSH 3081 与 Web 8088：
 
 ```bash
 rwb web start
 rwb web status
 ```
 
-启动成功后访问 <http://127.0.0.1:8088/#/fingpt>。命令退出或关闭终端不会终止服务；`rwb web stop` 只停止指纹匹配的 8088/3081，不操作其他 DSH 实例。日志和进程状态位于 `~/.research-workbench/logs/` 与 `~/.research-workbench/run/`。
+启动成功后访问 <http://127.0.0.1:8088/#/fingpt>。命令退出或关闭终端不会终止服务；`rwb web stop` 只停止最终 Node CLI/overlay 与端口归属签名匹配的 8088/3081，不操作其他 DSH 实例。日志和进程状态位于 `~/.research-workbench/logs/` 与 `~/.research-workbench/run/`。需要临时使用其他已审核源码时，可显式设置 `RESEARCH_DSH_SOURCE`。
 
 首次从旧研究 Web 切换时执行 `rwb migrate-research-data --dry-run`，确认摘要后再执行 `rwb migrate-research-data`。迁移保留会话、附件、能力版本、数据集和产物，但不复制模型密钥；需要在设置页重新填写。
 

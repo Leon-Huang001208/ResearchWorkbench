@@ -91,3 +91,13 @@
 <!-- architecture-review {"group":"files","structure":"changed","reason":"新增白名单研究数据复制、逐文件哈希核验与只读归档边界，更新部署和模块依赖图。","diagrams":["01-deployment","02-module-dependencies"]} -->
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"专属3081与8088由持久进程管理器统一启动、核验和安全停止，3080明确排除在项目所有权外。","diagrams":["01-deployment","02-module-dependencies"]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力技术标识和依赖改为品牌无关命名，但包管理、版本发布和DSH调用边界保持不变。","diagrams":[]} -->
+
+## 2026-09-04 — 项目私有 DSH 构建路径收口
+
+- `rwb web` 的默认源码从用户开发目录切换到 `~/.research-workbench/dsh-source/`。该目录是固定提交 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` 的项目私有副本，并在副本中完成构建；用户原有 3080 进程及其源码工作树未被修改。
+- 启动前由固定源码内的 DSH 原生 helper 重建 profile 模块链接，并逐项拒绝失效或越出项目私有源码树的目标，防止迁移状态把 3081 静默接回其他实例的开发目录。
+- 首次真实启动发现 Python launcher `exec` 为 Node 后命令行会自然变化；归属校验改为最终 Node CLI、专属 overlay 与端口三项签名，既保留 PID/启动命令审计，也避免把同一受管进程误判为外部进程。
+- 这次调整只把既有“专属 DSH 3081”部署边界落实为独立源码路径，不增加服务、端口、接口、状态或数据流，因此部署图 01 的拓扑和其余图源无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"服务管理器改用项目私有固定提交DSH源码作为默认路径，仍管理同一3081/8088及相同健康检查和恢复协议。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"固定构建的profile模块链接增加私有源码边界校验，仍由同一launch_runtime组装同一3081运行时，没有新增节点或依赖关系。","diagrams":[]} -->

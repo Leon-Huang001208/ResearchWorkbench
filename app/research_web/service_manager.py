@@ -64,7 +64,7 @@ class WebServiceManager:
         self.runtime_source = (
             runtime_source
             or (Path(configured_source).expanduser() if configured_source else None)
-            or Path.home() / "Developer" / "deepseek-harness"
+            or self.data_root.parent / "dsh-source"
         ).resolve()
         self.python = python or sys.executable
         self.node = node or shutil.which("node") or "/usr/local/bin/node"
@@ -105,7 +105,11 @@ class WebServiceManager:
                 "runtime",
                 RUNTIME_PORT,
                 runtime_command,
-                ("app.research_web.launch_runtime", str(self.data_root), str(RUNTIME_PORT)),
+                (
+                    str(self.runtime_source / "apps/cli/lib/bin.js"),
+                    str(self.data_root / "runtime/overlay.yml"),
+                    str(RUNTIME_PORT),
+                ),
             ),
             ManagedProcess(
                 "web",

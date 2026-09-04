@@ -57,7 +57,8 @@
         "tests/research_web/test_api.py",
         "tests/research_web/test_protocol.py",
         "tests/research_web/test_event_recovery.py",
-        "tests/research_web/test_cancel_reconciliation.py"
+        "tests/research_web/test_cancel_reconciliation.py",
+        "tests/research_web/test_service_manager.py"
       ]
     },
     {
@@ -126,6 +127,7 @@
         "06-run-state"
       ],
       "tests": [
+        "tests/research_web/test_runtime_launch.py",
         "tests/research_web/test_sandbox.py",
         "tests/javascript/research_web_guard.test.mjs"
       ]

@@ -33,9 +33,19 @@ def test_process_contract_uses_brand_neutral_runtime_and_fixed_ports(manager):
     assert web.port == 8088
     assert "app.research_web.launch_runtime" in runtime.command
     assert "app.research_web.main:app" in web.command
-    assert not any(
-        part.startswith("af" + "_") for item in (runtime, web) for part in item.command
+    assert runtime.signature == (
+        str(manager.runtime_source / "apps/cli/lib/bin.js"),
+        str(manager.data_root / "runtime/overlay.yml"),
+        "3081",
     )
+    assert not any(part.startswith("af" + "_") for item in (runtime, web) for part in item.command)
+
+
+def test_default_runtime_source_is_project_private(tmp_path, monkeypatch):
+    monkeypatch.delenv("RESEARCH_DSH_SOURCE", raising=False)
+    data_root = tmp_path / ".research-workbench" / "research-web"
+    resolved = WebServiceManager(project_root=tmp_path, data_root=data_root)
+    assert resolved.runtime_source == (tmp_path / ".research-workbench" / "dsh-source").resolve()
 
 
 def test_private_state_is_atomic_and_fingerprint_checked(manager, monkeypatch):
@@ -43,7 +53,7 @@ def test_private_state_is_atomic_and_fingerprint_checked(manager, monkeypatch):
     process = manager._processes()[0]
     manager._write_state(process, 12345)
     monkeypatch.setattr(manager, "_pid_exists", lambda pid: True)
-    monkeypatch.setattr(manager, "_command_line", lambda pid: " ".join(process.command))
+    monkeypatch.setattr(manager, "_command_line", lambda pid: " ".join(process.signature))
     assert manager._owned_state(process)["pid"] == 12345
     state_path = manager._state_path(process.role)
     state = json.loads(state_path.read_text())
