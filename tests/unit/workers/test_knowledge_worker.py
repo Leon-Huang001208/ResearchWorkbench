@@ -142,6 +142,33 @@ class TestProcessOne:
         assert "Very long crawled article body" not in repr(fields)
 
 
+class TestDatabaseReadiness:
+    def test_database_preflight_stops_worker_before_connection_retry_loop(self, monkeypatch):
+        from workers import knowledge_worker
+
+        readiness = MagicMock(ready=False)
+        readiness.code.value = "connection_failed"
+        monkeypatch.setattr(knowledge_worker, "probe_postgresql", lambda _url: readiness)
+
+        assert knowledge_worker._database_is_ready("postgresql+psycopg://invalid") is False
+
+
+class TestLoopFailureBackoff:
+    def test_loop_failures_back_off_and_limit_traceback_logging(self):
+        from workers.knowledge_worker import (
+            MAX_BACKOFF,
+            POLL_INTERVAL,
+            _loop_error_backoff,
+            _should_log_loop_traceback,
+        )
+
+        assert _loop_error_backoff(1) == POLL_INTERVAL
+        assert _loop_error_backoff(2) == min(POLL_INTERVAL * 2, MAX_BACKOFF)
+        assert _loop_error_backoff(99) == MAX_BACKOFF
+        assert _should_log_loop_traceback(1) is True
+        assert _should_log_loop_traceback(2) is False
+
+
 class TestWorkerStatusSelfHealing:
     """测试 get_all_worker_statuses() 的孤儿 PID 文件自愈"""
 

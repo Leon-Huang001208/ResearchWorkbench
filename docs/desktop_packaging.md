@@ -28,10 +28,10 @@ Install PostgreSQL 15+ and pgvector yourself, create the `research_workbench` da
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux. Save a PostgreSQL psycopg v3 URL in System Configuration, then restart the desktop app before the full workbench can use the new connection:
+The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux, but intentionally leaves `DATABASE_URL` commented out rather than supplying a usable-looking account. Save an actual PostgreSQL psycopg v3 URL in System Configuration, then restart the desktop app before the full workbench can use the new connection. Background workers stay paused while the database preflight fails:
 
 ```dotenv
-DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/research_workbench
+# DATABASE_URL=postgresql+psycopg://<username>:<password>@127.0.0.1:5432/research_workbench
 ```
 
 ### Location and migration

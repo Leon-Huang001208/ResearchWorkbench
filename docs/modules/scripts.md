@@ -29,6 +29,7 @@ Purpose:
 - Resolves the source root in development and `sys._MEIPASS` in a PyInstaller one-file bundle before starting the backend or child workers.
 - Creates or migrates the per-user desktop `.env`, requires PostgreSQL + pgvector rather than silently creating a SQLite database, keeps user secrets out of launcher diagnostics, and refuses to terminate an unknown process that already owns the selected port.
 - When `RESEARCH_PREVIEW=1` is set by the branch-preview launcher, verifies desktop readiness but does not start duplicate knowledge-worker or crawler watchdogs.
+- `RESEARCH_CRAWLER_AUTOSTART=0` keeps the knowledge worker available but prevents the crawl-scheduler watchdog from starting after an application restart; explicit manual scheduler starts remain available.
 
 ### `scripts/desktop/run_preview.js`
 

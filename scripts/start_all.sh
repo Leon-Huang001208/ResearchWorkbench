@@ -151,11 +151,15 @@ else
 fi
 
 # ── Scheduler (with watchdog) ─────────────────────
-echo "[2/3] Starting crawl scheduler (with auto-restart)..."
-if prepare_supervised_worker "Scheduler" "scheduler.pid" "workers.crawl_scheduler_worker" "$LOGS_DIR/scheduler.heartbeat.json" 180; then
-    start_with_watchdog "scheduler" "scheduler.pid" "scheduler_stdout.log" \
-        "$PYTHON" -m workers.crawl_scheduler_worker
-    echo "  [OK] Scheduler started with watchdog"
+if [ "${RESEARCH_CRAWLER_AUTOSTART:-1}" = "1" ]; then
+    echo "[2/3] Starting crawl scheduler (with auto-restart)..."
+    if prepare_supervised_worker "Scheduler" "scheduler.pid" "workers.crawl_scheduler_worker" "$LOGS_DIR/scheduler.heartbeat.json" 180; then
+        start_with_watchdog "scheduler" "scheduler.pid" "scheduler_stdout.log" \
+            "$PYTHON" -m workers.crawl_scheduler_worker
+        echo "  [OK] Scheduler started with watchdog"
+    fi
+else
+    echo "[2/3] Crawl scheduler auto-start disabled"
 fi
 
 # ── Knowledge Worker (with watchdog) ──────────────

@@ -270,7 +270,7 @@ Research Workbench 是一个**本地优先**的 AI-native Investment Operating S
   - `ThesisReviewService`：论点审查服务
   - `TimingEngineService`：择时引擎服务
 
-- **core/settings/**：全局配置管理。`runtime.py` 在业务模块和数据库 engine 初始化前解析运行模式、跨平台用户数据目录、唯一 `.env` 位置及本地后端 URL；桌面端使用 `%LOCALAPPDATA%/Research Workbench`（Windows）或 `~/Library/Application Support/Research Workbench`（macOS），Web 生产仅接受部署环境变量或显式配置文件。
+- **core/settings/**：全局配置管理。`runtime.py` 在业务模块和数据库 engine 初始化前解析运行模式、跨平台用户数据目录、唯一 `.env` 位置及本地后端 URL；桌面端使用 `%LOCALAPPDATA%/Research Workbench`（Windows）或 `~/Library/Application Support/Research Workbench`（macOS），Web 生产仅接受部署环境变量或显式配置文件。首次生成的桌面模板不写入可连接的示例数据库账户，用户必须显式配置 `DATABASE_URL`。
 
 **关键契约**：所有核心领域对象都定义在 `contracts/` 中，所有跨层交互必须使用这些 Pydantic 模型，保证类型安全和数据验证。
 
@@ -542,6 +542,8 @@ Word 占位符
 │  - API: POST /api/knowledge/start|stop, GET /api/knowledge/status │
 │  - 两层并发: item 级 (asyncio.Semaphore, 8) + chunk 级        │
 │    (ThreadPoolExecutor, 8)                                    │
+│  - 启动前预检 PostgreSQL；不可用时暂停，运行时故障按指数退避 │
+│    并仅保留首次完整堆栈，避免错误日志无限增长                  │
 └──────────────────────────────────────────────────────────────┘
 ```
 

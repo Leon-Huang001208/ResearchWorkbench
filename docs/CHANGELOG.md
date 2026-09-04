@@ -50,6 +50,8 @@
   - 资产观察限定 stock/index/etf/active_fund、Watchlist 与 false→true Alert；站内通知由后端持久化，Task 3 将添加已获授权的官方 `tauri-plugin-notification`，原生平台 CI 与真实 Windows 安装烟测仍是发布门禁。
   - LSH 能力只有在数据迁移、parity、回归、零调用和归档路径齐全后才可删除；等价迁移后只读归档一个稳定版本。
 
+- **可关闭的爬虫自动启动**：桌面启动器和 `scripts/start_all.sh` 现在尊重 `RESEARCH_CRAWLER_AUTOSTART`；设为 `0` 后，应用重启只保留知识 Worker，不再启动爬虫调度器或其 watchdog，手动启动能力保持不变。
+
 - **通用研究中心与机构级 Research Run（首个闭环）**：新增 PostgreSQL 权威 `ResearchRun` 运行时及 013/014 迁移，保存规范化 `ResearchSubject`、任务、证据输入、不可变版本化 Artifact、当前 Claim/Gate 投影和恢复信息。首版 LangGraph 只作为无事实持久化的执行层，完成来源规划、证据归一、Research Notes、叙事/财报综合、反方检验、质量门禁及发布投影；任何引用、数值、模板证据覆盖或冲突门禁失败均进入 `blocked`，补证后可恢复。
   - 新增 `/api/research-templates` 模板目录，以及 `/api/research-runs` 列表、创建、执行、读取、补证、恢复、产物和完成后 Markdown/Word 导出接口；未知、规划中或对象类型不兼容的模板在持久化前返回 `422`。旧 `target_id` 请求兼容映射为 `security` ResearchSubject。
   - 工作台新增统一“研究中心”，用问题、研究对象、时点、附件和模板卡片发起所有领域研究；A股公司深研可执行，宏观、商品、指数和行业模板显示为规划中。原始证据 JSON 已从普通入口移除，阻塞任务改用结构化补证恢复。
@@ -207,6 +209,8 @@
   - **依赖**: 安装 `markitdown[pdf]>=0.1.0`（中质量策略现已可用）。MinerU 因本机无 GPU 暂不启用（`is_available()` 会自动降级）。
 
 ### Fixed
+
+- **知识 Worker 数据库失败日志风暴**：桌面初始 `.env` 不再写入可连接的示例账户；Knowledge Worker 在数据库预检失败时暂停而非持续重试。运行中数据库故障改用有上限的指数退避，并仅为连续故障的首次记录完整堆栈，避免日志无限增长。
 
 - **配置工作台交互恢复**：修复 `app/web/static/js/configuration.js` 在环境变量锁定逻辑后遗漏 `bindModalFormEvents(form, section)` 声明的问题。该模块由 Workbench 主入口静态导入，遗漏声明曾产生语法错误并阻止全局导航与点击事件注册；新增静态调用/声明契约及 Node 语法回归测试。
 

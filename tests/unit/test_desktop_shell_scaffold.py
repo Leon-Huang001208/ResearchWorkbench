@@ -998,6 +998,41 @@ def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, t
     ]
 
 
+def test_desktop_launcher_skips_crawl_scheduler_when_autostart_is_disabled(monkeypatch, tmp_path):
+    from services import database_readiness
+
+    launcher = load_launcher_module()
+    calls = []
+    isolate_desktop_launcher_environment(monkeypatch, launcher)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:password@127.0.0.1/db")
+    monkeypatch.setenv("RESEARCH_CRAWLER_AUTOSTART", "0")
+    monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
+    monkeypatch.setattr(
+        database_readiness,
+        "probe_postgresql",
+        lambda _database_url: SimpleNamespace(ready=True, code=SimpleNamespace(value="ready")),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_knowledge_worker",
+        lambda *_args: calls.append("knowledge_worker"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_crawl_scheduler",
+        lambda *_args: calls.append("crawl_scheduler"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "run_backend",
+        lambda host, port, reload: calls.append(("run_backend", host, port, reload)),
+    )
+
+    assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
+
+    assert calls == ["knowledge_worker", ("run_backend", "127.0.0.1", 8765, False)]
+
+
 def test_desktop_preview_launcher_skips_background_workers(monkeypatch, tmp_path):
     from services import database_readiness
 

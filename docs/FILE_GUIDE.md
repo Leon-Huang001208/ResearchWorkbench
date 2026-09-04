@@ -651,6 +651,7 @@
 |---|---|
 | `scripts/backup_db.py` | 数据库备份脚本：支持 PostgreSQL 完整备份、自动压缩、保留策略 |
 | `scripts/desktop/build_sidecar.py` | 桌面 sidecar 打包：纳入后端、前端、报告资源和 `data/industry_graphs/` 内置图谱 |
+| `scripts/desktop/backend_launcher.py` | 桌面后端启动器：按 `RESEARCH_CRAWLER_AUTOSTART` 决定是否启动爬虫调度器，关闭时仍启动知识 Worker |
 | `scripts/restore_db.py` | 数据库恢复脚本：支持从备份恢复、时间点恢复；压缩恢复路径显式校验解压命令和管道句柄 |
 | `scripts/backfill_pdf_artifacts.py` | PDF 制品回补：扫描磁盘 PDF 并注册到 pdf_artifact_v1 以触发自动转换 |
 | `scripts/seed_factor_data.py` | 因子数据播种管线：双数据源（AKShare + Wind WSD）、限流重试（指数退避 + 关键词检测）、JSON 断点续传、3 Phase 流水线（市场数据摄入 → 技术因子 → 财务因子）；pandas/DB 标量先标准化再参与收益和财务因子计算 |

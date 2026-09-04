@@ -928,3 +928,43 @@ Update triggers:
 - Base class lifecycle changes
 - Registry API changes
 - New concrete connector implementation
+
+---
+
+## 20. Runtime Configuration and Worker Operations
+
+Subsystem:
+
+```text
+core/settings
+workers
+```
+
+Responsibilities:
+
+- Generate safe first-run desktop configuration templates.
+- Guard PostgreSQL-backed workers from invalid configuration and control retry logging.
+
+Main files:
+
+```text
+core/settings/registry.py
+workers/knowledge_worker.py
+```
+
+Required tests:
+
+- Desktop configuration template tests.
+- Worker database-readiness and retry/backoff tests.
+
+Required docs:
+
+```text
+docs/ARCHITECTURE.md
+docs/CHANGELOG.md
+```
+
+Update triggers:
+
+- Desktop database template default changes.
+- Worker startup, database readiness, retry, or log-volume behavior changes.

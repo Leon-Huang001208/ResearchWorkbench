@@ -241,6 +241,16 @@ def _start_crawl_scheduler(data_dir: Path | None, log_dir: Path) -> subprocess.P
         return None
 
 
+def _crawler_autostart_enabled() -> bool:
+    """Return whether this desktop instance may launch the crawl scheduler on startup."""
+    return os.environ.get("RESEARCH_CRAWLER_AUTOSTART", "1").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 def _kill_stale_process_on_port(host: str, port: int) -> bool:
     """Check whether the desktop listener port is available without touching other processes."""
     logger = logging.getLogger("research_workbench.desktop")
@@ -355,7 +365,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             logger.info("Skipped background workers for isolated desktop preview")
         elif readiness.ready:
             _worker_proc = _start_knowledge_worker(data_dir, args.log_dir)
-            _sched_proc = _start_crawl_scheduler(data_dir, args.log_dir)
+            if _crawler_autostart_enabled():
+                _sched_proc = _start_crawl_scheduler(data_dir, args.log_dir)
+            else:
+                logger.info("Skipped crawl scheduler because automatic startup is disabled")
         else:
             logger.warning(
                 "Desktop database readiness code=%s",
