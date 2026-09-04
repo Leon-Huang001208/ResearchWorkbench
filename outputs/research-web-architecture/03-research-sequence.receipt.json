@@ -6,12 +6,12 @@
   "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/03-research-sequence.json",
   "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/03-research-sequence.html",
   "specification": {
-    "sha256": "42be7ac19d8dd8ec9c2c047bbe59b39295eb6fba4c4c25f7b0a488da58038bb9",
-    "bytes": 3814
+    "sha256": "8c2ece42e87518797e5e8da66997b0f133046c0718efa8e2c9cc4842389b85ef",
+    "bytes": 4703
   },
   "artifact": {
-    "sha256": "6282d4ffe633f401bde08ec9fbdddd4f22d44849209d737d1de899da6f8c89c2",
-    "bytes": 633132
+    "sha256": "5ef7c7a655774d2004c9a4ba9ddf48d5b3a9a8584ade8b6cb2b786793793575b",
+    "bytes": 643809
   },
   "validation": {
     "checksPassed": 9,

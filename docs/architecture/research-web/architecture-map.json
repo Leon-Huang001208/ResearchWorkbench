@@ -11,7 +11,8 @@
         "app/research_web/ui/"
       ],
       "documents": [
-        "docs/research-web-ui.md"
+        "docs/research-web-ui.md",
+        "docs/research-web-appearance.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -29,7 +30,9 @@
         "tests/e2e/research_web_history_regression.mjs",
         "tests/e2e/research_web_workflow_readback.mjs",
         "tests/e2e/research_web_pdf_live.mjs",
-        "tests/e2e/research_web_stop_live.mjs"
+        "tests/e2e/research_web_stop_live.mjs",
+        "tests/javascript/research_web_appearance.test.mjs",
+        "tests/e2e/research_web_appearance.mjs"
       ]
     },
     {
@@ -67,10 +70,14 @@
         "docs/research-web-datahub.md"
       ],
       "diagrams": [
+        "02-module-dependencies",
+        "03-research-sequence",
         "04-data-file-flow"
       ],
       "tests": [
         "tests/research_web/test_datahub.py",
+        "tests/research_web/test_datahub_catalog.py",
+        "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/javascript/research_web_public_data.test.mjs"
       ]
     },
@@ -109,6 +116,9 @@
       ],
       "diagrams": [
         "01-deployment",
+        "02-module-dependencies",
+        "03-research-sequence",
+        "04-data-file-flow",
         "06-run-state"
       ],
       "tests": [
@@ -126,6 +136,7 @@
         "docs/architecture/research-web/07-capabilities.md"
       ],
       "diagrams": [
+        "02-module-dependencies",
         "05-capability-flow"
       ],
       "tests": [
@@ -171,150 +182,68 @@
       "evidence": [
         {
           "subjects": [
-            "web-controller",
-            "web-components",
-            "web-product-api"
+            "browser",
+            "openData"
           ],
           "source": "app/research_web/ui/app.mjs"
         },
         {
           "subjects": [
-            "web-product-api"
+            "dataUi",
+            "readCatalog"
           ],
-          "source": "app/research_web/ui/core.mjs"
+          "source": "app/research_web/ui/data-catalog.mjs"
         },
         {
           "subjects": [
-            "ui-modules"
-          ],
-          "source": "app/research_web/ui/shell.mjs"
-        },
-        {
-          "subjects": [
-            "ui-modules"
-          ],
-          "source": "app/research_web/ui/composer.mjs"
-        },
-        {
-          "subjects": [
-            "ui-modules"
-          ],
-          "source": "app/research_web/ui/capabilities.mjs"
-        },
-        {
-          "subjects": [
-            "ui-modules"
-          ],
-          "source": "app/research_web/ui/capability-controller.mjs"
-        },
-        {
-          "subjects": [
-            "ui-modules"
-          ],
-          "source": "app/research_web/ui/capability-editor.mjs"
-        },
-        {
-          "subjects": [
-            "web-api",
-            "api-research",
-            "api-routers"
-          ],
-          "source": "app/research_web/main.py"
-        },
-        {
-          "subjects": [
-            "research-service",
-            "service-client",
-            "service-files"
-          ],
-          "source": "app/research_web/service.py"
-        },
-        {
-          "subjects": [
-            "research-service"
-          ],
-          "source": "app/research_web/projection.py"
-        },
-        {
-          "subjects": [
-            "dsh-transport",
-            "client-dsh"
-          ],
-          "source": "app/research_web/client.py"
-        },
-        {
-          "subjects": [
-            "native-dsh"
-          ],
-          "source": "app/research_web/runtime/research.cordis.yml"
-        },
-        {
-          "subjects": [
-            "owned-files"
-          ],
-          "source": "app/research_web/store.py"
-        },
-        {
-          "subjects": [
-            "owned-files"
-          ],
-          "source": "app/research_web/delivery.py"
-        },
-        {
-          "subjects": [
-            "owned-files"
-          ],
-          "source": "app/research_web/sandbox.py"
-        },
-        {
-          "subjects": [
-            "domain-routers",
-            "routes-packages"
-          ],
-          "source": "app/research_web/capabilities/routes.py"
-        },
-        {
-          "subjects": [
-            "domain-routers",
-            "routes-data"
+            "routes",
+            "internalQuery",
+            "readDataset"
           ],
           "source": "app/research_web/datahub/routes.py"
         },
         {
           "subjects": [
-            "capability-packages"
+            "catalog",
+            "catalogRead",
+            "sources"
           ],
-          "source": "app/research_web/capabilities/catalog.py"
+          "source": "app/research_web/datahub/catalog.py"
         },
         {
           "subjects": [
-            "capability-packages"
+            "broker",
+            "routeQuery",
+            "selectProvider"
           ],
-          "source": "app/research_web/capabilities/packages.py"
+          "source": "app/research_web/datahub/broker.py"
         },
         {
           "subjects": [
-            "capability-packages"
-          ],
-          "source": "app/research_web/capabilities/models.py"
-        },
-        {
-          "subjects": [
-            "data-services"
+            "providers",
+            "fetchSource"
           ],
           "source": "app/research_web/datahub/providers.py"
         },
         {
           "subjects": [
-            "data-services"
+            "snapshots",
+            "publishSnapshot"
           ],
           "source": "app/research_web/datahub/snapshots.py"
         },
         {
           "subjects": [
-            "data-services"
+            "dsh"
           ],
-          "source": "app/research_web/datahub/security.py"
+          "source": "app/research_web/runtime/research.cordis.yml"
+        },
+        {
+          "subjects": [
+            "nativeTool",
+            "submitBusiness"
+          ],
+          "source": "app/research_web/runtime/public-data.mjs"
         }
       ]
     },
@@ -387,37 +316,60 @@
       "evidence": [
         {
           "subjects": [
-            "browser",
-            "submit",
-            "reload"
+            "web",
+            "submitMessage",
+            "resumeStream",
+            "sseProjection"
           ],
           "source": "app/research_web/ui/core.mjs"
         },
         {
           "subjects": [
             "api",
-            "accepted",
-            "snapshot",
-            "restore"
+            "dshSubmit",
+            "accepted"
           ],
           "source": "app/research_web/main.py"
         },
         {
           "subjects": [
-            "native",
-            "admit",
-            "decision",
-            "respond",
-            "cancel",
-            "history"
+            "dsh",
+            "toolCall",
+            "streamActivity",
+            "deliveryState"
           ],
           "source": "app/research_web/service.py"
         },
         {
           "subjects": [
-            "events"
+            "approval",
+            "approvalResult"
           ],
-          "source": "app/research_web/client.py"
+          "source": "app/research_web/runtime/public-data.mjs"
+        },
+        {
+          "subjects": [
+            "datahub",
+            "businessQuery",
+            "manifestResult"
+          ],
+          "source": "app/research_web/datahub/__init__.py"
+        },
+        {
+          "subjects": [
+            "provider",
+            "providerQuery",
+            "providerResult"
+          ],
+          "source": "app/research_web/datahub/providers.py"
+        },
+        {
+          "subjects": [
+            "snapshot",
+            "saveSnapshot",
+            "datasetRead"
+          ],
+          "source": "app/research_web/datahub/snapshots.py"
         }
       ]
     },
@@ -430,60 +382,67 @@
       "evidence": [
         {
           "subjects": [
-            "approval",
-            "approved-query"
+            "sourceSpecs",
+            "catalog",
+            "catalogProjection",
+            "catalogRoute"
+          ],
+          "source": "app/research_web/datahub/catalog.py"
+        },
+        {
+          "subjects": [
+            "tool",
+            "policy",
+            "businessIntent",
+            "approvedQuery"
           ],
           "source": "app/research_web/runtime/public-data.mjs"
         },
         {
           "subjects": [
-            "upstream",
-            "bounded-http"
+            "router",
+            "providerSelection"
+          ],
+          "source": "app/research_web/datahub/broker.py"
+        },
+        {
+          "subjects": [
+            "providers",
+            "upstreams",
+            "externalFetch",
+            "parsedResult"
           ],
           "source": "app/research_web/datahub/providers.py"
         },
         {
           "subjects": [
-            "hub",
-            "publish-rows"
+            "normalize"
           ],
           "source": "app/research_web/datahub/__init__.py"
         },
         {
           "subjects": [
-            "raw",
-            "dataset",
-            "save-raw"
+            "snapshots",
+            "snapshotPublish",
+            "parentRead",
+            "childRead",
+            "webRead"
           ],
           "source": "app/research_web/datahub/snapshots.py"
         },
         {
           "subjects": [
-            "analysis",
-            "shared-inputs"
+            "parent",
+            "children"
           ],
           "source": "app/research_web/runtime/research.cordis.yml"
         },
         {
           "subjects": [
-            "outputs",
-            "report-files"
-          ],
-          "source": "app/research_web/runtime/research-tools.mjs"
-        },
-        {
-          "subjects": [
             "web",
-            "browse"
+            "catalogView"
           ],
-          "source": "app/research_web/ui/views.mjs"
-        },
-        {
-          "subjects": [
-            "delivery",
-            "verify-files"
-          ],
-          "source": "app/research_web/delivery.py"
+          "source": "app/research_web/ui/data-catalog.mjs"
         }
       ]
     },
@@ -805,6 +764,41 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/data/catalog",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/catalog",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/capabilities/{capability_id}",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/capabilities/{capability_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/sources/{source_id}",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/{source_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/data/sources/{source_id}/probes",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/{source_id}/probes",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/probes/{probe_id}",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/probes/{probe_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/sessions/{sid}/datasets",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/sessions/{sid}/datasets",
@@ -836,6 +830,13 @@
       "path": "/api/research/internal/data/query",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/internal/data/query",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/business-query",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/business-query",
       "prefix": "/api/research"
     },
     {

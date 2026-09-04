@@ -19,12 +19,34 @@ async function fixture() {
   await mkdir(cwd,{recursive:true}); await mkdir(join(root,'.control'),{mode:0o700});
   const control = join(root,'.control','datahub.json');
   await writeFile(control,JSON.stringify({url:'http://127.0.0.1:18088',token:'t'.repeat(43)}),{mode:0o600});
-  let tool; let outcome='allowed-once';
-  const ctx={tools:{register(value){tool=value;}},sessions:{get(){}},get(){return {async request(){return outcome;}};},logger:{info(){},warn(){},error(){}}};
+  const tools=new Map(); let outcome='allowed-once';
+  const ctx={tools:{register(value){tools.set(value.name,value);}},sessions:{get(){}},get(){return {async request(){return outcome;}};},logger:{info(){},warn(){},error(){}}};
   const {apply}=await import(moduleURL); apply(ctx,{researchRoot:root});
   const exec={agent:{session:{header:{id:sid,cwd}}},signal:new AbortController().signal,callId:'call-1'};
-  return {root,sid,cwd,control,tool,ctx,exec,setOutcome(value){outcome=value;}};
+  return {root,sid,cwd,control,tool:tools.get('af_public_data'),tools,ctx,exec,setOutcome(value){outcome=value;}};
 }
+
+test('brand-neutral business tools are registered alongside the deprecated compatibility alias',async()=>{
+  const f=await fixture();
+  assert.equal(f.tools.size,14);
+  assert.ok(f.tools.has('datahub_get_market_bars'));
+  assert.ok(f.tools.has('datahub_get_fund_data'));
+  assert.ok(f.tools.has('datahub_search_news'));
+  assert.ok(f.tools.has('af_public_data'));
+});
+
+test('approved business query uses the stable DataHub contract and never exposes provider credentials',async()=>{
+  const f=await fixture();const requests=[];const original=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>{requests.push({url,options});return reply({...dataset,provider:'eastmoney_fund',capability:'fund_data',attempted_sources:[{source:'eastmoney_fund',status:'selected',reason:null}]});};
+  try{
+    const result=await f.tools.get('datahub_get_fund_data').execute({dataset:'nav',code:'000001',start_date:'2025-01-01',end_date:'2025-12-31'},f.exec);
+    assert.ok(requests[0].url.endsWith('/api/research/internal/data/business-query'));
+    const body=JSON.parse(requests[0].options.body);
+    assert.deepEqual(body.query,{capability:'fund_data',source:'auto',allow_fallback:false,parameters:{dataset:'nav',code:'000001',start_date:'2025-01-01',end_date:'2025-12-31'},refresh:false});
+    assert.equal(JSON.parse(result.manifest_json).provider,'eastmoney_fund');
+    assert.ok(!JSON.stringify(result).includes('t'.repeat(43)));
+  } finally {globalThis.fetch=original;}
+});
 
 test('approved native query uses authenticated loopback DataHub and small manifest',async()=>{
   const f=await fixture();const requests=[];const original=globalThis.fetch;

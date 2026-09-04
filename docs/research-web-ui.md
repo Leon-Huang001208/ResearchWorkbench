@@ -6,21 +6,24 @@
 
 页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/history`、`#/skills`、`#/settings`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
-视觉延续已批准原型的深蓝顶栏、浅色研究画布、蓝色操作按钮、左侧导航和右侧研究空间；品牌图标复用现有本地资产。原型中的示例消息、进度、市场模块、Claim/Evidence/Quality Gate 与旧管线没有迁入。
+当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
 ## 模块
 
 | 文件 | 职责 |
 | --- | --- |
+| `theme.js` / `appearance.css` | 独立浏览器主题偏好、Light/Dark 色彩、导航和品牌符号；不调用研究 API |
 | `index.html` | 自托管资源入口、中文语言标识和键盘跳转入口 |
-| `styles.css` | 桌面三栏、平板研究抽屉、手机导航、焦点/禁用/错误/减少动态效果状态 |
+| `styles.css` | 基础组件、数据与表单状态；当前布局和双色外观由后加载的 appearance.css 覆盖 |
+| `icons.mjs` | 复用经批准 v2 样品中的静态线性 UI 图标；Logo 不经过此模块 |
 | `core.mjs` | `/api/research` API、SSE 生命周期、路由、草稿、幂等请求和会话竞态防护 |
 | `markdown.mjs` | 安全文本转义、URL 白名单、有限 Markdown 子集 |
 | `views.mjs` | 会话、审批、问题、活动、Agent、文件、历史与模型选项的渲染 |
 | `app.mjs` | 页面组合和真实用户交互；配置秘密不进入持久浏览器存储 |
-| `shell.mjs` | 顶栏检索、可收起的产品导航、真实运行/最近会话与会话右侧标签面板 |
+| `shell.mjs` | 页面标题、导航搜索弹层、可收起的产品导航、真实运行/最近会话与会话右侧标签面板 |
 | `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索及附件拖放/粘贴入口；不直接发起研究 |
 | `capabilities.mjs` | 同一能力目录的筛选、卡片、详情、检查结果、只读 Tool、不可变版本与 Workflow 模板渲染 |
+| `data-catalog.mjs` | DataHub 的 13 项能力 / 21 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
 | `capability-controller.mjs` | 显式创建/复制/导入/编辑/检查/发布/停用/启用/版本/回滚操作及失败保稿 |
 
@@ -63,19 +66,21 @@ git diff --check
 
 ## 产品壳与研究首页（2026-09-03）
 
-研究壳保留 AlphaFoundry 深蓝顶栏、深色窄主导航 rail、浅色二级会话栏及白色研究画布。rail 的 FinGPT、Claw、能力中心、历史和设置使用可见文字；折叠仅作用于二级会话栏。≤1050px 时二级栏改为抽屉，内有明确“关闭会话侧栏”按钮；桌面折叠后在手机打开仍暴露正确 ARIA 状态。顶栏检索匹配已加载的真实会话与同一 Skill/Workflow/Tool 名称和简介；手机提供“打开全局搜索”按钮。运行任务从完整会话目录筛选，最近会话才限制为十项；hash 路由和原有 selector 保持兼容。
+当前产品入口与会话区组合在单一 256px 导航列，桌面折叠为 72px；≤1050px 整列变为可开关抽屉。导航底部和设置页都能选择外观，手机保留原有全局搜索按钮。顶栏展示当前页面/会话标题；侧栏搜索入口与手机搜索按钮打开同一个弹层，只搜索已加载的真实会话与 Skill/Workflow/Tool。研究面板默认收起，展开后仍显示实际活动、资料、文件及固定版本 Workflow；异常和未完成交付在主画布保留提示。原 hash 路由、data selector 和全部能力操作契约不变。
 
 FinGPT 与 Claw 分别呈现首页。FinGPT 面向问题研究，其四个快捷入口严格筛选同一 `/capabilities` 目录中的 `document-reading`、`company-research`、`industry-research`、`fund-evaluation`。Claw 明确目标、约束与预期交付；快捷区标题为“研究步骤模板”，只展示同目录 `kind=workflow` 且 `enabled=true` 的真实模板（包括已发布自建模板），不硬编码模板 ID，也不把缺项替换为 Skill 卡片。Claw 仍可通过上方能力选择框/slash 使用真实 Skill，并明确模板不代表已执行。目录缺项显示空态，不补造卡片。
 
-两种首页分类选项仅来自各自快捷区条目的实际 `category`，`#quick-category[data-quick-category]` 只在本页内存筛选；切换路由时复位，目录更新后未知分类按全部显示。筛选不请求后端、不改变草稿或执行能力。卡片可见名称、简介、场景、输入和默认输出。既有 `data-skill-detail` / `data-skill-shortcut` 按钮保持：详情进入能力中心，选择将不可变的 `capability_id` / `capability_version` 放入此前 FinGPT 或 Claw 的当前草稿，不创建会话或启动模型；旧 `skill_id` 仅保留 API 兼容。
+两种首页分类选项仅来自各自快捷区条目的实际 `category`，`#quick-category[data-quick-category]` 只在本页内存筛选；切换路由时复位，目录更新后未知分类按全部显示。筛选不请求后端、不改变草稿或执行能力。首页卡片使用 v2 四列紧凑布局（手机两列），默认显示名称和简短输入要求；完整说明在能力详情查看，分类放入“浏览研究入口与分类”折叠区。能力中心保持三列卡片，显示简介、来源、输出和实际状态；场景/输入可原位展开，不删除元数据。既有 `data-skill-detail` / `data-skill-shortcut` 按钮保持：详情进入能力中心，选择将不可变的 `capability_id` / `capability_version` 放入此前 FinGPT 或 Claw 的当前草稿，不创建会话或启动模型；旧 `skill_id` 仅保留 API 兼容。
 
-输入框继续使用既有附件、模型和格式契约。`/` 搜索已启用 Skill/Workflow，ArrowUp/ArrowDown 选择、Enter 放入草稿、Escape 关闭；slash 草稿不会意外提交模型。显式 `expected_formats`（含空数组）优先，否则根据所选目录元数据显示默认格式并由后端绑定；删除了前端平行的硬编码默认格式表。工具意图使用 `tool_ids`，不改变原生审批。运行时未就绪只禁止真实发送，仍允许浏览和准备草稿。
+首页采用样品的左对齐标题、800px 编辑区、单行桌面工具栏。模型从顶栏移入编辑器，格式和完整能力下拉按需展开；输入框继续使用既有附件、模型和格式契约。`/` 搜索已启用 Skill/Workflow，ArrowUp/ArrowDown 选择、Enter 放入草稿、Escape 关闭；slash 草稿不会意外提交模型。显式 `expected_formats`（含空数组）优先，否则根据所选目录元数据显示默认格式并由后端绑定；删除了前端平行的硬编码默认格式表。工具意图使用 `tool_ids`，不改变原生审批。运行时未就绪只禁止真实发送，仍允许浏览和准备草稿。
 
 拖放/粘贴文件复用既有 multipart 流程。空首页不分配右侧空面板；研究详情中桌面也可显式收起/展开。活动/资料/文件标签仍只读取当前会话，Claw 会话/当前工作区切换继续复用安全下载与隔离预览，原生审批、停止、子 Agent 和交付语义不变。
 
 ## 能力中心闭环
 
 接口契约和包边界以 [能力包与版本](research-web-capabilities.md) 为准。Skill/Workflow 使用同一目录，支持内置/我的、分类和中文搜索。Tool 仅为只读声明，可选工具才有“放入草稿”；参数、来源、审批与条件均来自后端。
+
+能力中心新增“数据”页签，但数据不是第四种运行器。页面从 `/data/catalog` 读取静态能力、来源和绑定，支持按能力/按来源双视图，以及分类、市场、状态和鉴权筛选。来源卡同时展示代码、适配、配置、依赖、允许、可调用和最近探测，不能用一个绿色状态掩盖缺口。只有用户点击“检测连接”才 POST 单一来源 probe；打开、切换和刷新目录不联网。把能力放入研究草稿只选择相应的品牌无关 `datahub_*` Tool，不立即取数。
 
 手动新建与编辑提交完整 `DraftInput`，剔除服务器生成的 import/file issues，但保留候选文件内容或 base64 字节。脚本阅读后显式确认当前 SHA256，改写候选文件会清除审查确认；保存后还需检查和发布。内置只有复制入口，不覆盖编辑。导入精确 `SKILL.md` 或 ZIP 使用单个 multipart `file`，检查失败仍展示原问题，不伪造成功。发布、停用、启用、回滚与版本查询均调用真实 API，活动冲突保留草稿和后端错误。SSE 状态会回填会话摘要，进入能力中心也刷新列表；可能过期的其他会话 running 缓存仅作提示，不永久锁住发布按钮，后端全局活动锁最终裁决。发布直接采用已确认的完整变更响应，避免额外回读失败把已成功发布误报为失败。历史版本只读，导出地址按 ID/整数版本构造固定同源路径，不信任任意下载 URL。
 
@@ -102,6 +107,7 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 | 离线/键盘 | 运行时离线禁发送但可编辑；真实 app 事件处理器消费 slash/Escape/移动抽屉和搜索 | 无网络 DOM 边界测试；不替代真实浏览器 |
 | Claw 工作区 | 会话恢复聊天；当前工作区主画布只投影当前 `detail` 的资料与文件，复用安全下载/预览 | `research_web_ui_layout.test.mjs` |
 | 首页模板/分类 | Claw 仅已启用 Workflow；FinGPT 四 Skill；分类本地筛选，卡片与上方 Skill 选择只准备版本草稿 | 布局渲染测试 + 实际 app 事件无网络 DOM 边界测试；视口/hover 由控制器另验 |
+| 数据目录 | 13 项能力、21 个来源双视图；未适配/未配置/不可调用分别可见，显式探测只访问一源 | `research_web_capabilities_ui.test.mjs` + `test_datahub_catalog.py` |
 
 实现子任务未启动模型；集成控制器已另行执行真实Web验收。`tests/e2e/research_web_layout.mjs`覆盖1440/1600/1920、820平板与390手机共15页面组合，搜索、分类、slash键盘、抽屉及四Skill双模式草稿通过；控制器已实际查看全部15张最终截图。屏幕阅读器和桌面平台未验证。新真实模型旅程（自建Skill、PDF、Workflow双Agent文件）和只读历史回归见 [本轮记录](../.ai/reports/2026-09-03-research-ui-live.md)。
 

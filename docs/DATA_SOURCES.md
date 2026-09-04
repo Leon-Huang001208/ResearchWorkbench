@@ -1,5 +1,7 @@
 # 数据源配置指南
 
+> 当前 Research Web 的运行时来源目录以 `app/research_web/datahub/catalog.py` 与 [Research Web DataHub 文档](research-web-datahub.md) 为准。能力中心展示 13 项能力和 21 个登记来源，并分别标识“代码存在、完成适配、配置、依赖、允许调用、健康”。目前仅东方财富基金和财联社完成 DataHub 可调用适配。下文主要描述历史摄入/Connector 平台；其中的“已实现”或“专业源”不等于已接入当前 Research Web，也不会自动进入 `datahub_*` 路由。
+
 AlphaFoundry支持多数据源，按优先级自动切换。
 
 ## 支持的数据源

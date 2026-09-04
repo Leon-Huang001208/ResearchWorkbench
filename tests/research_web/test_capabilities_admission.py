@@ -36,6 +36,26 @@ def test_pre_capability_receipt_still_replays_without_model(api):
     assert not any(method == "session.prompt" for method, _ in native.calls)
 
 
+def test_new_messages_accept_brand_neutral_data_tools_and_reject_legacy_alias(api):
+    client, _native, _service = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    accepted = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={"text": "读取基金资料", "tool_ids": ["datahub_get_fund_data"]},
+        headers={"Idempotency-Key": "brand-neutral-data-tool"},
+    )
+    assert accepted.status_code == 202
+
+    legacy_sid = client.post("/api/research/sessions", json={}).json()["id"]
+    rejected = client.post(
+        f"/api/research/sessions/{legacy_sid}/messages",
+        json={"text": "旧入口", "tool_ids": ["af_public_data"]},
+        headers={"Idempotency-Key": "legacy-data-tool"},
+    )
+    assert rejected.status_code == 422
+    assert rejected.json()["error"]["code"] == "tool_unavailable"
+
+
 def discovery(native, service):
     original = native.rpc
 

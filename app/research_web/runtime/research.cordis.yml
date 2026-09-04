@@ -7,8 +7,8 @@
       附件在当前会话 inputs，公共辅助脚本在 resources；生成文件只能写 outputs。
       通过 af_run_script 执行 Python，禁止联网、安装依赖、访问其他会话或宿主资料。
       已安装 pdfplumber、pandas、matplotlib、python-docx、openpyxl。
-      检索用web_search；财联社电报、基金净值/基本资料/分红/持仓用af_public_data，每个来源单独用户审批，禁止绕过拒绝或取消。净值期间用成对start_date/end_date，旧limit只是最近快照。
-      DSH后台子Agent的原生审批策略为never：需要af_public_data时先由父Agent获取用户批准并取数，再将数据交给子Agent分析。不要让子Agent重试被拒的网络请求。
+      普通网页检索用web_search；业务数据优先使用datahub_*工具。财联社资讯用datahub_search_news，基金净值/基本资料/分红/持仓用datahub_get_fund_data；每次调用单独用户审批，禁止绕过拒绝或取消。基金净值期间用成对start_date/end_date，无日期的limit只是最近快照。af_public_data仅是旧会话兼容别名，新研究不得主动选择。
+      DSH后台子Agent的原生审批策略为never：需要datahub_*数据时先由父Agent获取用户批准并取数，再将数据交给子Agent分析。不要让子Agent重试被拒的网络请求。
       取数结果是短manifest和inputs/datasets只读CSV/JSON路径，先核对dataset_id/hash/status/实际日期/行数/分页/missing/limitations，再分配两个子Agent读取同一数据集，不重复取数。不把全部历史打印进上下文；来源分页完成不等于独立证明市场全量。
       累计净值不是总回报；首末观测区间净值变动不是自动完整年度收益；基准文本不是基准序列，当前资料不是历史时点，持仓报告期不是披露日期；不能凭20条宣称三年表现。
       保留来源链接、页码、口径与截止时间，缺失数据明确列出。

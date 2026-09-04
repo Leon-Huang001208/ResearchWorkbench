@@ -7,8 +7,8 @@ description: 基于可得基金净值、基准、持仓和费率资料进行基�
 
 1. 核实基金代码、份额类别、币种、净值类型、期间和对比基准。缺少复权/分红数据时不得把未复权净值收益当总回报。
 2. 读取用户上传数据或明确可用的公开来源；检查日期排序、重复、缺失与异常，不补造净值。
-   af_public_data 由父 Agent 经人工审批准备资料，先读取返回的manifest_json及inputs/datasets下manifest.json，核对dataset_id、hash、status、请求/实际期间、行数、分页完成、missing和limitations，再分配两个原生子Agent分别做净值计算与资料风险分析；二者读取同一CSV/JSON，不重复取数，approval=never。
-   明确期间的净值使用fund_nav的成对start_date/end_date；旧limit仅最近快照，不能凭20条宣称三年表现。基金资料fund_profile、分红fund_distributions、持仓fund_holdings（可选year）各自单次审批；取消/拒绝后停止，不用脚本联网。
+   datahub_get_fund_data 由父 Agent 经人工审批准备资料，先读取返回的 manifest_json 及 inputs/datasets 下 manifest.json，核对 dataset_id、hash、status、请求/实际期间、行数、分页完成、missing 和 limitations，再分配两个原生子 Agent 分别做净值计算与资料风险分析；二者读取同一 CSV/JSON，不重复取数，approval=never。
+   明确期间的净值使用 dataset=nav 与成对 start_date/end_date；无日期的 limit 仅表示最近快照，不能凭 20 条宣称三年表现。基本资料、分红、持仓分别使用 dataset=profile/distributions/holdings（持仓可选 year），每次调用单独审批；取消/拒绝后停止，不用脚本联网。
 3. 能计算的才计算：区间收益、回撤、波动、相对基准。注明频率、年化假设、样本数；基准/无风险利率不足则省略依赖指标。
    首末观测区间净值变动不自动等于完整日历年度收益：未取得期初前一估值日及分红复权口径时，不称年度收益/总回报。累计净值不等于总回报；业绩比较基准文本不是基准序列；fund_profile当前资料不是历史时点，持仓报告期不是披露日期。缺少基准序列、合同/报告下载能力要明确未取得。
 4. 评价规模、持仓集中度、风格稳定性、费率和风险；持仓滞后和披露截止时间必须说明。

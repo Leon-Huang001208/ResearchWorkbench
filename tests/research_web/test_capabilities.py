@@ -66,9 +66,11 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     tools = client.get("/api/research/tools").json()["items"]
     assert {t["id"] for t in tools if t["selectable"]} == {
         "af_run_script",
-        "af_public_data",
+        "datahub_get_fund_data",
+        "datahub_search_news",
         "web_search",
     }
+    assert next(t for t in tools if t["id"] == "af_public_data")["selectable"] is False
     assert all(t["parameters"] and t["source"] and t["conditions"] for t in tools)
     assert native.calls == []
 

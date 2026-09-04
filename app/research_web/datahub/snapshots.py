@@ -128,7 +128,7 @@ class Snapshots:
             raise StoreError("资料文件hash校验失败")
         return raw
 
-    def publish(self, sid, query, result, *, origin=None):
+    def publish(self, sid, query, result, *, origin=None, request_query=None):
         did = str(uuid4())
         temporary = ".pending-" + did
         parsed = {"rows.json": json_bytes(result.rows), "rows.csv": csv_bytes(result.rows)}
@@ -138,10 +138,14 @@ class Snapshots:
             "dataset_id": did,
             "name": f"{SOURCES[query.source]} {query.code or ''}".strip(),
             "source": query.source,
+            "provider": result.provider_id or query.source,
+            "capability": getattr(request_query, "capability", query.source),
+            "attempted_sources": result.attempted_sources,
             "source_url": result.source_url,
             "schema_version": SCHEMA_VERSION,
-            "query": query.model_dump(exclude={"refresh"}),
-            "query_fingerprint": query.fingerprint(),
+            "query": (request_query or query).model_dump(exclude={"refresh"}),
+            "provider_query": query.model_dump(exclude={"refresh"}),
+            "query_fingerprint": (request_query or query).fingerprint(),
             "retrieved_at": datetime.now(UTC).isoformat(),
             "as_of": result.as_of,
             "status": result.status,
@@ -236,7 +240,7 @@ class Snapshots:
 
     def copy_for_upgrade(self, old_sid, new_sid):
         """User-triggered copy only, never cross-session caching or file links."""
-        from .contracts import Query
+        from .contracts import BusinessQuery, Query
         from .providers import Result
 
         self.store.session(new_sid)
@@ -262,5 +266,18 @@ class Snapshots:
                 fields=original["fields"],
                 duplicates=original["duplicates_removed"],
                 as_of=original["as_of"],
+                provider_id=original.get("provider"),
+                attempted_sources=original.get("attempted_sources", []),
             )
-            self.publish(new_sid, Query.model_validate(original["query"]), result, origin=original)
+            request_query = (
+                BusinessQuery.model_validate(original["query"])
+                if "capability" in original.get("query", {})
+                else None
+            )
+            self.publish(
+                new_sid,
+                Query.model_validate(original.get("provider_query", original["query"])),
+                result,
+                origin=original,
+                request_query=request_query,
+            )

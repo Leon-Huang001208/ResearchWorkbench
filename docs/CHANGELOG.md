@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Research Web appearance · 2026-09-03
+
+- 在最新能力中心实现上合入 Codex 风格、Light/Dark/系统主题和用户原图符号 Logo（浅蓝深白）。单列导航和按需研究面板保留 Skill/Tool/Workflow、真实 DSH 与文件契约；不触碰模型配置或已有会话。详见 [外观文档](research-web-appearance.md)。
+- 按用户指定 v2 样品校正正式布局：左对齐标题、800px 输入框、四列快捷入口、侧栏新研究/搜索、编辑器模型与格式选择、紧凑能力卡；新增几何回归，避免仅换配色而未还原结构。
+
 ### Added
 
 - **Research Web 研究界面、能力中心与当前架构**：完成独立FinGPT/Claw首页、产品壳、输入框与折叠研究面板；Skill/Tool/Workflow统一目录、对话创建、手动导入与版本管理连接真实DSH。八图与Markdown入口为 `docs/architecture/research-web/`，加入源码/API/图文哈希一致性和负向门禁。完成本机真实创建调用、PDF、双Agent Workflow文件验收；补齐明确停止后缺终止事件的失败复核及并发保护，不伪造成功。旧merged-platform保留为历史，未做桌面或远端发布。详见本轮`.ai/reports/2026-09-03-research-ui-live.md`。

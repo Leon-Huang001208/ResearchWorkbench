@@ -22,7 +22,7 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 | GET `/capabilities/{id}/versions` | `{items:[{version,native_name,metadata,published_at,sha256,current}]}` |
 | GET `/capabilities/{id}/versions/{version}` | 原始指令、元数据、文件及步骤，`read_only:true` |
 | GET `/capabilities/{id}/versions/{version}/export` | ZIP：原始 SKILL.md、capability.json、可选 workflow.json、资源 |
-| GET `/tools` | 9 项真实研究 guard/注册声明；3 项 `selectable:true`，其余为内部控制 |
+| GET `/tools` | 22 项真实 guard/注册声明：原 9 项研究/控制工具和 13 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
 | GET `/workflows` | 同一能力目录中两项种子及用户 Workflow；没有平行目录 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |
@@ -73,7 +73,7 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 ### 会话与提交
 
 已有 `POST /sessions/{sid}/messages` 增加 `capability_id`、`capability_version`（正整数）及
-`tool_ids`（af_run_script/af_public_data/web_search，仅意图）。推荐客户端始终传选中的版本。
+`tool_ids`（仅表达已登记可选工具的使用意图）。推荐客户端始终传选中的版本。新数据能力统一选择 `datahub_*`；`af_public_data` 仅为历史兼容别名，产品改名不影响新协议。
 版本省略时首次受理绑定当时版本；同一幂等键重试使用原收据，不重新执行、不因后来停用而重发。
 非当前版本需要先显式回滚；`skill_id` 保留兼容，四个内置 ID 不变。
 显式 `expected_formats`（包括空数组）优先，否则用能力默认格式。
@@ -164,7 +164,7 @@ DSH 固定提交 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`。
 Web 先以 session.models 冷恢复再 skill.list 核对；缺 exact native_name 时409拒绝，不改写会话历史。
 界面应提示等待已授权目录接线；仍缺失时新建/显式升级会话并复用资料，不自动重写旧 preset 记录。
 
-tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。
+tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。能力中心“数据”页另从 DataHub 静态目录投影 13 项业务能力、21 个来源和绑定矩阵；它不是第四种运行器，加入草稿只会选择相应 `datahub_*` Tool。
 真实原生注册测试覆盖 skill/subagent/report/send_message/interrupt_agent/list_agents/web_search
 及本项目 af_run_script/af_public_data；DataHub 的 Query schema 与五个 SOURCES 直接复用。
 report 仅原生子 Agent 作用域可用；所有工具权限、模型、执行上限及审批策略均未改变。

@@ -42,6 +42,8 @@ class Result:
     duplicates: int = 0
     as_of: str | None = None
     raw_bytes: int = 0
+    provider_id: str | None = None
+    attempted_sources: list[dict] = field(default_factory=list)
 
 
 def numeric(value, *, required=False):
@@ -504,3 +506,22 @@ async def fetch(query: Query, *, transport=None):
         for key in row:
             result.fields.setdefault(key, {"unit": None, "currency": None})
     return result
+
+
+async def probe(source_id: str, *, transport=None):
+    """Minimal public read used only after an explicit per-source probe request."""
+    if source_id == "eastmoney_fund":
+        query = Query(source="fund_profile", code="000001", limit=1)
+    elif source_id == "cls":
+        query = Query(source="cls_telegraph", limit=1)
+    else:
+        raise ProviderError("probe_not_implemented")
+    result = await fetch(query, transport=transport)
+    if result.status == "failed":
+        return {
+            "health": "unavailable",
+            "failure_code": result.limitations[-1] if result.limitations else "probe_failed",
+        }
+    if result.status in {"partial", "empty"}:
+        return {"health": "degraded", "failure_code": "partial_or_empty"}
+    return {"health": "healthy", "failure_code": None}

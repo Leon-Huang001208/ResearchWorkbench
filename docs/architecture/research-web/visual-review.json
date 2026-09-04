@@ -15,14 +15,14 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "af9d27f1297e2da79cc12b55e76496e22edcf967855d34a1980ac132962ae740",
-      "specificationSha256": "6bb99ccd04456fa4b3728235dd77ba36b7b0e92c95a102465af5cceb00eb3261",
+      "artifactSha256": "1d82e9266910d5b95940144ffe27579bc5ca11bee7d523391b50e21c389f6a79",
+      "specificationSha256": "1429a92b96bbc4583cb63ec5d021f43a6cc11ad8ce3684bfec591ba566050a16",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-03",
+      "date": "2026-09-04",
       "captures": ["02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png"],
       "findings": [],
-      "notes": "已人工查看最终小屏深色与大屏浅色截图；主调用链和领域依赖分层清晰，无遮挡、裁剪或穿线。对应模块已有源码，能力前端仍须功能审查与真实旅程；图不代替产品验收。"
+      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；数据目录、FastAPI 内 DataHub、受控 datahub_* Tool、Provider 与快照边界可读，无遮挡、裁剪或穿线。图只证明结构表达，不证明登记来源已连接。"
     },
     {
       "id": "05-capability-flow",
@@ -51,31 +51,31 @@
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "6282d4ffe633f401bde08ec9fbdddd4f22d44849209d737d1de899da6f8c89c2",
-      "specificationSha256": "42be7ac19d8dd8ec9c2c047bbe59b39295eb6fba4c4c25f7b0a488da58038bb9",
+      "artifactSha256": "5ef7c7a655774d2004c9a4ba9ddf48d5b3a9a8584ade8b6cb2b786793793575b",
+      "specificationSha256": "8c2ece42e87518797e5e8da66997b0f133046c0718efa8e2c9cc4842389b85ef",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-03",
+      "date": "2026-09-04",
       "captures": [
         "03-research-sequence.visual-check.1440x900.dark.png",
         "03-research-sequence.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已人工查看上述最终哈希对应截图；未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；提交、原生审批、BusinessQuery、单一 Provider、快照、SSE 与独立 delivery 顺序可读，未见遮挡或裁剪。视觉查看不证明上游数据完整。"
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "3f8b6ffb3266a50572600acbf2db51aa08ae81709a31c21fea764ce20c5f6d60",
-      "specificationSha256": "84e73a18abc25df46a6bd216ed886dbc9492e66ccd27c8807b013df4310b0bcf",
+      "artifactSha256": "8524b0971442a2a593fdc6da0fa7332290fc0f2015785f3a6f0bbf34c6bd1c7c",
+      "specificationSha256": "2a01c862632de64b8e647a4ba9a6e524e594a17d17653c6fd720a1dd01a77cdc",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-03",
+      "date": "2026-09-04",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.dark.png",
         "04-data-file-flow.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已人工查看上述最终哈希对应截图；未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；五阶段数据流、目录零联网、审批路由、标准化快照及父子 Agent 共用路径均可辨认，无穿线或裁剪。1440 使用图内缩放查看细节；图不替代真实取数验收。"
     },
     {
       "id": "06-run-state",

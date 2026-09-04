@@ -1,6 +1,6 @@
 # AlphaFoundry 架构文档
 
-## 当前研究产品：DSH Web（2026-09-03）
+## 当前研究产品：DSH Web（2026-09-04）
 
 当前实现的唯一架构主入口是 [Research Web 架构](architecture/research-web/README.md)。
 部署、协议、数据文件、图源与源码对应清单在该目录维护；本轮能力管理与界面迭代的完成情况见
@@ -10,6 +10,8 @@
 原生 RPC / 双 WebSocket；DSH 是唯一研究引擎，并负责执行循环、历史、Skill 和子 Agent。
 该入口不启动旧 API 生命周期，不要求 PostgreSQL/pgvector，不使用 Evidence、Claim、Quality Gate、
 LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
+
+当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页展示 13 项能力与 21 个登记来源；只有东方财富基金和财联社目前完成可调用适配。DSH 使用品牌无关的 `datahub_*` 业务 Tool，旧 `af_public_data` 仅为兼容别名。登记、配置和最近探测分别显示，不能把代码存在解释为已连接。
 
 产品索引只记录归属、文件与幂等受理收据；研究正文以 DSH 日志为准。附件及产物按会话隔离，
 研究脚本经内核文件访问约束执行，HTML 产物在不具同源权限的预览中打开。

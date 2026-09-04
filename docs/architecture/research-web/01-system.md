@@ -14,14 +14,14 @@
 | 事件投影 | `app/research_web/projection.py` | 从真实日志重建消息、活动、状态、用量，不执行研究 |
 | 本地索引 | `app/research_web/store.py` | 原子索引、会话目录、文件 ID、安全打开 |
 | 文件交付 | `app/research_web/delivery.py` | 本任务基线、有效输出集合、缺失格式和原因 |
-| DataHub | `app/research_web/datahub/` | 注册来源、明确覆盖、不可变资料和共享分析 |
+| DataHub | `app/research_web/datahub/` | 13 项能力/21 个来源静态目录、白名单选源、Provider、单源探测、不可变资料和共享分析 |
 | 受限脚本 | `app/research_web/sandbox.py` | 文件访问、环境和进程终止边界 |
 | 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、原生插件与白名单 |
 | 能力管理 | `app/research_web/capabilities/` | 草稿、受检资源、版本、原生目录投影与只读 Tool 声明 |
 | 产品壳与输入框 | `ui/shell.mjs`、`ui/composer.mjs` | 双侧栏、会话与能力检索、草稿输入；不执行研究 |
-| 能力前端 | `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs` | 同一目录的卡片/详情、候选表单与步骤编辑、显式版本操作 |
+| 能力前端 | `ui/capabilities.mjs`、`ui/data-catalog.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs` | Skill/Tool/Workflow/数据卡片与详情、候选表单、步骤编辑、来源矩阵与显式版本/探测操作 |
 
-能力中心 UI 仍在集成；后端安全修正已复审。上表指源码职责，不表示全部新功能已在当前服务验收。
+数据目录和能力中心 UI 已接入当前源码；上表指源码职责，不表示登记的 21 个来源都已适配、配置或完成真实连接验收。当前仅东方财富基金与财联社可由 DataHub 业务路由调用。
 
 ## 存储归属
 

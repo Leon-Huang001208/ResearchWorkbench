@@ -43,7 +43,14 @@ def seed_packages():
                         "default_formats": (
                             [] if slug == "document-reading" else ["docx", "html", "xlsx"]
                         ),
-                        "required_tools": ["af_run_script"],
+                        "required_tools": [
+                            "af_run_script",
+                            *(
+                                ["datahub_get_fund_data"]
+                                if slug == "fund-evaluation"
+                                else ["datahub_search_news"]
+                            ),
+                        ],
                         "dependencies": [],
                     },
                     "instructions": (folder / "SKILL.md").read_text(),
@@ -98,7 +105,7 @@ def seed_packages():
                             "title": "资料准备",
                             "instruction": preparation,
                             "tools": (
-                                ["af_public_data"]
+                                ["datahub_get_fund_data"]
                                 if linked == "fund-evaluation"
                                 else ["web_search"]
                             ),

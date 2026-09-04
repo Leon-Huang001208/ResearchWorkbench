@@ -1,7 +1,6 @@
 # 研究公开数据原生工具
 
-`runtime/public-data.mjs`保留DSH原生工具名`af_public_data`，现在是DataHub薄桥接；
-上游请求、分页、解析与快照统一在FastAPI的`datahub/`模块。完整接口与数据口径见[DataHub](research-web-datahub.md)。
+`runtime/public-data.mjs` 现在注册 13 个品牌无关的 `datahub_*` 业务 Tool，并保留旧 `af_public_data` 作为 deprecated 兼容别名。上游请求、分页、解析与快照统一在 FastAPI 的 `datahub/` 模块。未来产品改名不会要求重命名 `datahub_*` 协议；完整目录、接口与数据口径见 [DataHub](research-web-datahub.md)。
 
 ## 不变边界
 
@@ -12,7 +11,7 @@
 
 ## 新契约
 
-业务参数source/code/limit/start_date/end_date/year/refresh；支持fund_nav、cls_telegraph、fund_profile、fund_distributions、fund_holdings。
+新业务契约使用 `capability`、能力限定 `parameters`、可选目录 `source`、`allow_fallback` 和 `refresh`；不接受任意 URL、头、凭据、模块或路径。目前 `datahub_get_fund_data` 与 `datahub_search_news` 分别映射到已适配的东方财富基金与财联社 Provider。旧契约仍使用 source/code/limit/start_date/end_date/year/refresh，支持 fund_nav、cls_telegraph、fund_profile、fund_distributions、fund_holdings。
 NAV成对日期在最多十年内且非未来，按实际PageSize/PageIndex/TotalCount分页；旧limit仍仅最近一页、最多100条，不能冒称完整历史。
 补充来源每项单独审批；持仓year可选。基准文字不等于序列，当前资料不等于历史时点，累计净值不等于总回报。
 
