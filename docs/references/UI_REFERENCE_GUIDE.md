@@ -100,7 +100,7 @@ Before submitting a new page:
 Use this template when asking AI to build components:
 
 ```
-Build a [component name] for AlphaFoundry.
+Build a [component name] for Research Workbench.
 
 Requirements:
 - Follow /docs/design/DESIGN.md

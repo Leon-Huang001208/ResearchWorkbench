@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship one AlphaFoundry codebase as a validated macOS Apple Silicon and Windows x64 desktop app, with equivalent Excel/Wind and Office workflows.
+**Goal:** Ship one Research Workbench codebase as a validated macOS Apple Silicon and Windows x64 desktop app, with equivalent Excel/Wind and Office workflows.
 
 **Architecture:** Keep Tauri and FastAPI/Python shared. Introduce a small `services/desktop_platform` boundary that owns every native Office, folder-opening and capability decision; shared Wind/Workbook logic calls that boundary instead of `xlwings`, `osascript` or COM directly. Build the Python sidecar natively on each target and gate every desktop change with macOS ARM and Windows x64 CI plus a real-device Office/Wind release checklist.
 
@@ -73,7 +73,7 @@ Existing in-progress cross-platform configuration changes are user-owned. Before
 
   ```json
   {
-    "name": "alphafoundry-desktop",
+    "name": "research-workbench-desktop",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -114,7 +114,7 @@ Existing in-progress cross-platform configuration changes are user-owned. Before
 
   ```powershell
   $ErrorActionPreference = 'Stop'
-  $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}.exe"
+  $sidecar = "build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}.exe"
   if (-not (Test-Path -LiteralPath $sidecar -PathType Leaf)) {
     throw "Expected sidecar was not produced: $sidecar"
   }
@@ -310,7 +310,7 @@ Existing in-progress cross-platform configuration changes are user-owned. Before
   ```python
   def test_desktop_autostart_is_enabled_when_excel_and_wind_are_available(monkeypatch):
       manager = WindWorkbookManager(office=FakeOfficeAutomation(wind_available=True))
-      monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP", "1")
+      monkeypatch.setenv("RESEARCH_DESKTOP", "1")
       assert manager.autostart_enabled() is True
   ```
 
@@ -409,7 +409,7 @@ Existing in-progress cross-platform configuration changes are user-owned. Before
 
   Update `docs/desktop_packaging.md` and `AGENTS.md` to name only these supported targets: macOS Apple Silicon and Windows x64. State that Windows support requires a native `windows-2022` CI success plus real Windows installation testing; do not state Linux or Intel Mac support.
 
-  The Windows checklist must contain: install MSI, launch app, poll `/health` with valid PostgreSQL configuration, inspect `%LOCALAPPDATA%\\AlphaFoundry`, verify logs, install/open Office, verify Wind plugin login, refresh a formula, open a generated report folder, generate a Word preview, uninstall/reinstall, and perform an upgrade test.
+  The Windows checklist must contain: install MSI, launch app, poll `/health` with valid PostgreSQL configuration, inspect `%LOCALAPPDATA%\\Research Workbench`, verify logs, install/open Office, verify Wind plugin login, refresh a formula, open a generated report folder, generate a Word preview, uninstall/reinstall, and perform an upgrade test.
 
 - [ ] **Step 2: Add a sidecar health smoke test to the native CI workflow.**
 

@@ -17,7 +17,7 @@ from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode
 def test_database_probe_api_accepts_valid_csrf_and_returns_readiness_contract(
     monkeypatch, tmp_path
 ):
-    database_url = "postgresql+psycopg://user:password@localhost:5432/alphafoundry"
+    database_url = "postgresql+psycopg://user:password@localhost:5432/research_workbench"
     service = ConfigurationService(env_path=tmp_path / ".env", runtime_settings=Settings())
     probe = Mock(
         return_value=DatabaseReadiness(
@@ -38,7 +38,7 @@ def test_database_probe_api_accepts_valid_csrf_and_returns_readiness_contract(
         json={"database_url": database_url},
         headers={
             "Origin": "http://localhost:8765",
-            "X-AlphaFoundry-Config-Token": CONFIGURATION_CSRF_TOKEN,
+            "X-Research Workbench-Config-Token": CONFIGURATION_CSRF_TOKEN,
         },
     )
 

@@ -13,7 +13,7 @@
 ## Security and error contract
 
 - Host payloads return only CPU, CPU-idle, logical CPU count, and total/used/available memory fields. Invalid values, booleans, non-finite floats, and unknown keys become absent or `null` under the stable field protocol.
-- Host history points contain only `sampled_at`, safe `host` fields, and safe AlphaFoundry CPU/memory/proportion fields. They are sorted ascending before returning.
+- Host history points contain only `sampled_at`, safe `host` fields, and safe Research Workbench CPU/memory/proportion fields. They are sorted ascending before returning.
 - Each history request uses a fresh database session and `ResourceHostHistoryService`; storage failures log only `error_type` and return `503 {"detail":"Host resource history unavailable"}`.
 - Event metadata never returns `dedupe_key` or other internal fields.
 

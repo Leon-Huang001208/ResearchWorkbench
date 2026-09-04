@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Resource Monitor
+   Research Workbench — Resource Monitor
    Restricted to the local API process and its child processes.
    ============================================================ */
 
@@ -452,7 +452,7 @@ function renderAttribution() {
         const title = document.createElement('strong');
         const confidence = process.confidence === 'shared_process_estimate'
             ? '共享 API 进程估算' : '独立进程精确值';
-        title.textContent = `${safeText(process.role, 'AlphaFoundry 进程')} · ${confidence}`;
+        title.textContent = `${safeText(process.role, 'Research Workbench 进程')} · ${confidence}`;
         const detail = document.createElement('span');
         const taskLabels = tasks.map(task => safeText(task.label, safeText(task.task_kind, '运行任务'))).join('、');
         detail.textContent = taskLabels || `PID ${process.pid} · CPU ${process.cpu_percent == null ? '采样中' : `${formatNumber(process.cpu_percent, 1)}%`}`;
@@ -510,7 +510,7 @@ function createResourceEvent(event, isPinned) {
     const metadata = event.metadata && typeof event.metadata === 'object' ? event.metadata : {};
     detail.textContent = `${sourceScopeLabel(metadata.source_scope)} · ${safeText(metadata.task_kind, '系统')} · ${formatTime(event.triggered_at)}`;
     const description = document.createElement('span');
-    description.textContent = safeText(event.description, '请查看 AlphaFoundry 日志。');
+    description.textContent = safeText(event.description, '请查看 Research Workbench 日志。');
     content.append(title, detail, description);
     item.append(content);
     if (isPinned) {
@@ -530,7 +530,7 @@ function createResourceEvent(event, isPinned) {
 }
 
 function sourceScopeLabel(scope) {
-    return scope === 'host' || scope === 'host_capacity' ? '整机容量' : 'AlphaFoundry';
+    return scope === 'host' || scope === 'host_capacity' ? '整机容量' : 'Research Workbench';
 }
 
 function createEventAction(label, alertId, action) {
@@ -716,7 +716,7 @@ function renderProcessTable() {
         cell.colSpan = 9;
         cell.className = 'resource-monitor-empty';
         cell.textContent = processTreeUnavailable
-            ? '未发现 AlphaFoundry 进程'
+            ? '未发现 Research Workbench 进程'
             : '等待受限进程树采样…';
         row.append(cell);
         fragment.append(row);

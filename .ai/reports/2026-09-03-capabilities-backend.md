@@ -18,7 +18,7 @@
 - `git diff --check`、`python scripts/check_task_completion.py` 通过；`python scripts/check_doc_sync.py` 退出0但报告 No source files requiring doc sync were changed：既有检查未覆盖本新模块，不宣称架构同步已验证。
 - 整套158项是在最后旧收据兼容之前执行；最后改动后重新执行全部40项能力聚焦与上述静态检查。最终主控制器可执行集成总回归。
 
-所有 pytest 使用当前 macOS 既有环境 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`；
+所有 pytest 使用当前 macOS 既有环境 `python`；
 原生测试 `DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness`，固定 commit b150a551b8d465e31e418e1b2eaf5e79bbb7d28e。
 聚焦命令格式：`python -m pytest tests/research_web/test_capabilities*.py --confcutdir=tests/research_web -q -o addopts='' --tb=short --show-capture=no`。
 `-o addopts=''` 恢复 pytest capture，避免仓库 `-p no:capture` 产生巨大终端日志，不改变测试内容。
@@ -115,7 +115,7 @@ TDD 与实际验证：
 - `python -m ruff check app/research_web tests/research_web`、`python -m black app/research_web tests/research_web --check`（42 files）、`python -m isort app/research_web tests/research_web --check-only`、`python -m mypy app/research_web --exclude '/skills/' --follow-imports=skip`（25 files）全部通过；mypy 既有 untyped notes 不作为强类型覆盖证据。
 - `python scripts/check_task_completion.py`、`git diff --check` 通过；`python scripts/check_doc_sync.py` 退出0但仍未覆盖本模块，不称全局架构门禁已通过。
 
-上述 python 均为 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`。
+上述 python 均为 `python`。
 API输入不变；主文件不再属于当前安全清单时409 artifact_not_output，不安全/读失败400 invalid_resource；
 专用创建类型冲突422 creation_kind_conflict，保留原始实际产物、不会添加错误类型的能力记录。
 缺 capability.json 继续返回 invalid 草稿以供修订，不允许发布。ZIP 手动导入逻辑未改。

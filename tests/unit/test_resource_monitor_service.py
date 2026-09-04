@@ -157,7 +157,7 @@ def test_snapshot_limits_collection_to_root_and_descendants_and_warms_up(
     assert snapshot["processes"][0]["role"] == "API"
     assert snapshot["processes"][0]["command"] == "python [redacted] [redacted]"
     assert "topsecret" not in snapshot["processes"][0]["command"]
-    assert snapshot["processes"][1]["role"] == "AlphaFoundry child process"
+    assert snapshot["processes"][1]["role"] == "Research Workbench child process"
     assert {
         "pid",
         "parent_pid",

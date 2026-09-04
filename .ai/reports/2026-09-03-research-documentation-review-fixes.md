@@ -19,7 +19,7 @@
 
 ## 实际验证
 
-Python解释器为已有当前macOS环境 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`。
+Python解释器为已有当前macOS环境 `python`。
 
 ```text
 node --test tests/javascript/research_web_architecture.test.mjs

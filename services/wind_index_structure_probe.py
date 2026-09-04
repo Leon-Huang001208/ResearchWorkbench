@@ -21,9 +21,9 @@ DEFAULT_PROBE_WORKBOOK_PATH = (
     Path.home()
     / "Library"
     / "Application Support"
-    / "AlphaFoundry"
+    / "Research Workbench"
     / "wind"
-    / "AlphaFoundry_Wind_Index_Structure_Probe.xlsx"
+    / "Research Workbench_Wind_Index_Structure_Probe.xlsx"
 )
 
 PROBE_SHEETS = [
@@ -258,7 +258,7 @@ def build_index_structure_probe_workbook(
         workbook.remove(workbook.active)
         sheets = {name: workbook.create_sheet(name) for name in PROBE_SHEETS}
 
-        sheets["README"]["A1"] = "AlphaFoundry Wind Index Structure Probe"
+        sheets["README"]["A1"] = "Research Workbench Wind Index Structure Probe"
         sheets["README"][
             "A2"
         ] = "Open this workbook with Wind Excel logged in, or run the prime script in hidden mode."
@@ -267,7 +267,7 @@ def build_index_structure_probe_workbook(
         sheets["Config"].append(["trade_date", trade_date_value, "探针交易日"])
         sheets["Config"].append(["formula_version", "1", "指数结构探针公式版本"])
         sheets["Config"].append(["last_generated_at", generated_at, "工作簿生成时间"])
-        sheets["Config"].append(["data_owner", "AlphaFoundry", "数据维护方"])
+        sheets["Config"].append(["data_owner", "Research Workbench", "数据维护方"])
 
         sheets["FormulaCatalog"].append(FORMULA_CATALOG_HEADERS)
         for definition in PROBE_FORMULAS:

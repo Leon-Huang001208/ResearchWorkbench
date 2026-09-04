@@ -17,6 +17,8 @@
 | DataHub | `app/research_web/datahub/` | 13 项能力/21 个来源静态目录、白名单选源、Provider、单源探测、不可变资料和共享分析 |
 | 受限脚本 | `app/research_web/sandbox.py` | 文件访问、环境和进程终止边界 |
 | 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、原生插件与白名单 |
+| 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的进程归属、健康检查、持久后台启动、停止和失败回滚 |
+| 数据迁移 | `app/research_web/data_migration.py` | 会话/附件/能力/数据集/产物的哈希复制；排除凭据并支持只读归档 |
 | 能力管理 | `app/research_web/capabilities/` | 草稿、受检资源、版本、原生目录投影与只读 Tool 声明 |
 | 产品壳与输入框 | `ui/shell.mjs`、`ui/composer.mjs` | 双侧栏、会话与能力检索、草稿输入；不执行研究 |
 | 能力前端 | `ui/capabilities.mjs`、`ui/data-catalog.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs` | Skill/Tool/Workflow/数据卡片与详情、候选表单、步骤编辑、来源矩阵与显式版本/探测操作 |
@@ -30,9 +32,10 @@
 - `sessions/<sid>/inputs/` 是上传资料；`resources/` 是研究脚本可读的审核资源；`outputs/` 是研究可写产物。
 - DataHub 私有原始响应与会话可读数据集分开。所有共享资料仍绑定目标会话及原始哈希，不提供任意路径读取接口。
 - 原生凭据只存在专属 DSH 私有目录，不提供给研究脚本环境。
+- 迁移只复制研究状态和 DSH 会话索引；凭据、运行时 overlay、临时文件、旧控制令牌与日志不复制。新实例需要在设置页重新授权模型。
 
 ## 并发与部署限制
 
-当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。服务仅回环；无多人权限体系，不应直接暴露公网。
+当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。`rwb web start` 固定管理 3081/8088，状态文件保存 PID、命令指纹、项目路径和数据根；停止命令只操作全部指纹一致的进程，绝不操作用户原有 3080。服务仅回环；无多人权限体系，不应直接暴露公网。
 
 只验证当前 macOS 脚本隔离；不把 Web 本地成功当作 Linux/Windows/桌面支持证据。DSH 固定源码提交为 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；本轮不升级运行时。

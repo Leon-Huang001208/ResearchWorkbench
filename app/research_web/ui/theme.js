@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  const STORAGE_KEY = 'alphafoundry.research.appearance.v1';
+  const STORAGE_KEY = 'research-web.appearance.v1';
   const normalize = value => ['light', 'dark', 'system'].includes(value) ? value : 'system';
 
   function createThemeController({ root, storage, systemDark = false, log = () => {} }) {
@@ -48,7 +48,7 @@
       input.checked = input.value === controller.preference;
     });
   };
-  window.AlphaFoundryTheme = { controller, syncControls };
+  window.ResearchWebTheme = { controller, syncControls };
   document.addEventListener('DOMContentLoaded', syncControls, { once: true });
   document.addEventListener('change', event => {
     if (!event.target.matches('[data-theme-option]')) return;

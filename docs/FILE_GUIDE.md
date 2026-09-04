@@ -1,4 +1,4 @@
-# AlphaFoundry 文件指南
+# Research Workbench 文件指南
 
 本指南详细说明项目中每个主要文件和目录的作用，帮助新开发者快速理解项目结构。
 
@@ -143,7 +143,7 @@
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、后端 `compiled_plan` 生成预检、配置驱动生成、下载和 Word HTML 预览 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
-| `app/web/static/js/resource-monitor.js` | AlphaFoundry 受控资源监控：仅在系统中心“系统中心”标签可见时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 AlphaFoundry/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、紧凑置顶异常、确认/解决和可键盘操作的安全历史筛选；正常状态不显示 `ok` 徽标，采样不可用时保留上一帧 |
+| `app/web/static/js/resource-monitor.js` | Research Workbench 受控资源监控：仅在系统中心“系统中心”标签可见时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 Research Workbench/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、紧凑置顶异常、确认/解决和可键盘操作的安全历史筛选；正常状态不显示 `ok` 徽标，采样不可用时保留上一帧 |
 | `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
 | `app/web/static/js/research-workbench.js` | 研究工作台：复用本地 Workspace、每次提交创建新的单 Run Session，通过原子 Session→Run 接口执行，并以项目/工作区 scope 读取历史、补证、恢复及下载完成产物 |
 
@@ -200,7 +200,7 @@
 
 | 目录/文件 | 说明 |
 |---|---|
-| `core/model_gateway/local_embedding_config.py` | 本地 embedding 模型解析：支持 `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH`，默认 Hugging Face cache-only，只有 `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载 |
+| `core/model_gateway/local_embedding_config.py` | 本地 embedding 模型解析：支持 `RESEARCH_LOCAL_EMBEDDING_MODEL_PATH`，默认 Hugging Face cache-only，只有 `RESEARCH_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载 |
 | `core/model_gateway/providers/` | 模型提供商实现 |
 | `core/model_gateway/providers/volcano.py` | 火山引擎提供商实现 |
 
@@ -308,10 +308,10 @@
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |
 | `resource_monitor_service.py` | 资源监控服务：采集 API 进程树与项目既有调度器/知识 Worker PID，并只通过主机级 psutil API 汇总整机 CPU/内存容量；不枚举其他系统进程，读取受控任务快照并标识精确进程或共享估算，维护页面使用的 150 点（5 分钟）内存历史并将字段权限/平台问题降级记录 |
-| `resource_monitor_runtime.py` | 资源监控运行时：仅在数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入 24 小时主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
+| `resource_monitor_runtime.py` | 资源监控运行时：仅在数据库就绪且非 `RESEARCH_PREVIEW=1` 时以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入 24 小时主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
 | `resource_host_history_service.py` | 整机容量历史服务：把安全白名单后的 CPU/内存整机汇总写入既有健康指标 JSON，每 UTC 分钟至多一条，按请求的 1–24 小时 UTC 窗口查询最多 1500 点并仅保留 24 小时；“剩余内存”使用主机 `available` 值，仓储读取失败以受控不可用信号交由 API 返回稳定 503 |
 | `resource_task_registry.py` | 资源任务登记器：为抓取、PDF、知识处理、Wind 与报告任务写入每 PID 原子安全快照，失败记录不含异常原文 |
-| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败、持续进程压力及整机 CPU/可用内存容量压力；AlphaFoundry 事件标记 `source_scope=alphafoundry`，主机容量事件标记 `source_scope=host_capacity`。通过共享 `ResourceAlertState` 保留跨周期压力/恢复计数，主机事件以稳定键原地升级，未恢复事件始终可查询；异常只在 Web/API 呈现，不触发原生通知 |
+| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败、持续进程压力及整机 CPU/可用内存容量压力；Research Workbench 事件标记 `source_scope=research_workbench`，主机容量事件标记 `source_scope=host_capacity`。通过共享 `ResourceAlertState` 保留跨周期压力/恢复计数，主机事件以稳定键原地升级，未恢复事件始终可查询；异常只在 Web/API 呈现，不触发原生通知 |
 | `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
@@ -668,7 +668,7 @@
 | `scripts/check_market_data_schema.py` | 结构化行情数据表 Schema 检查：验证 8 张市场数据表是否存在 |
 | `scripts/bootstrap_market_data.py` | 结构化行情数据初始化脚本：同步股票列表和核心股票日行情 |
 | `scripts/run_official_index_structure_ingestion.py` | 中证/国证官方指数成分摄入脚本：默认静默抓取核心指数，或用 `--discover-active --max-count` 从 official catalog 发现 active 指数并批量写入结构表 |
-| `scripts/run_wind_index_structure_probe.py` | Wind 指数结构探针脚本：生成 `AlphaFoundry_Wind_Index_Structure_Probe.xlsx`，可选隐藏 Excel prime、读取缓存结果并持久化到结构表 |
+| `scripts/run_wind_index_structure_probe.py` | Wind 指数结构探针脚本：生成 `Research Workbench_Wind_Index_Structure_Probe.xlsx`，可选隐藏 Excel prime、读取缓存结果并持久化到结构表 |
 | `workers/market_data_scheduler_worker.py` | 市场数据调度 Worker：后台运行日行情与 18:10 指数结构日更任务；默认关闭旧 gap check 回补链路 |
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |
 | `scripts/replace_huaan_word_charts_office.py` | 华安 ETF 周报图表替换脚本：通过 Excel/Word 原生复制粘贴生成可编辑 Word chart parts |
@@ -699,11 +699,11 @@
 | `tests/unit/test_resource_host_history_service.py` | 整机容量历史测试：分钟去重、24 小时精确清理、类型隔离、安全字段白名单和受控坏快照处理 |
 | `tests/unit/test_resource_monitor_runtime.py` | 资源监控运行时测试：采样、历史/告警协调、共享状态、失败续跑与线程生命周期 |
 | `tests/unit/test_resource_task_registry.py` | 资源任务登记器测试：原子快照、并发、失败脱敏、任务类别与损坏文件降级 |
-| `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：AlphaFoundry 事件来源标记、持续进程压力去重/恢复、整机 CPU/可用内存三级阈值、原地升级、缺失字段安全降级及未恢复事件历史 |
+| `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：Research Workbench 事件来源标记、持续进程压力去重/恢复、整机 CPU/可用内存三级阈值、原地升级、缺失字段安全降级及未恢复事件历史 |
 | `tests/unit/data_layer/repositories/test_monitoring_repository.py` | 监控仓储单元测试：未解决告警详情的条件更新、SQLite 双服务并发的主机/任务单一事件、以及已解决周期历史保留 |
 | `tests/unit/app/api/routes/test_resource_monitoring.py` | 资源事件 API 测试：历史查询、确认和人工解决响应契约 |
 | `tests/unit/app/api/routes/test_system_resource_usage.py` | 系统资源 API 测试：只读快照/历史契约、窗口边界、脱敏降级和懒加载依赖 |
-| `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：系统中心导航迁移与生命周期、轮询取消、150 点限制、AlphaFoundry/整机双范围卡与 24 小时历史、安全 DOM 渲染、详情抽屉、无常态成功徽标、筛选浮层和响应式样式 |
+| `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：系统中心导航迁移与生命周期、轮询取消、150 点限制、Research Workbench/整机双范围卡与 24 小时历史、安全 DOM 渲染、详情抽屉、无常态成功徽标、筛选浮层和响应式样式 |
 | `tests/unit/test_dynamic_factors.py` | 动态多因子核心测试：覆盖矩阵构建、因子评估、动态权重、事件-因子融合 |
 | `tests/integration/` | 集成测试目录 |
 
@@ -720,7 +720,7 @@
 | `docs/ARCHITECTURE.md` | 架构文档：系统总览、分层架构、数据流、设计理念 |
 | `docs/CHANGELOG.md` | 更新日志：记录所有 notable 项目变更 |
 | `docs/FILE_GUIDE.md` | 本文件：文件指南，详细说明每个主要文件的作用 |
-| `docs/architecture/merged-platform/` | AlphaFoundry × LSH 合并平台 V1 架构包：系统边界、共享契约、FinGPT/Claw、市场首页、Research Pack、资产观察、迁移门禁及 Archify JSON 图源 |
+| `docs/architecture/merged-platform/` | Research Workbench × LSH 合并平台 V1 架构包：系统边界、共享契约、FinGPT/Claw、市场首页、Research Pack、资产观察、迁移门禁及 Archify JSON 图源 |
 | `outputs/merged-platform-architecture/` | 九张可交互 HTML：系统部署、模块依赖、核心 ER、研究请求、Research Run、首页数据流、Pack、资产提醒、迁移门禁 |
 | `docs/DATA_STORAGE.md` | 数据存储文档：PostgreSQL 表结构、数据契约、仓储接口 |
 | `docs/DATA_SOURCES.md` | 数据源文档：各数据源说明、配置、使用方法 |

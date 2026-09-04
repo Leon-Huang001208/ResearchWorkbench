@@ -18,7 +18,7 @@ Commands run:
 - node --check app/web/static/js/asset.js
 - python scripts/check_doc_sync.py
 - python -m uvicorn app.api.main:app --host 127.0.0.1 --port 8002
-- ALPHAFOUNDRY_WEB_URL=http://127.0.0.1:8002 node output/verify_wind_kline_ui.js
+- RESEARCH_WEB_URL=http://127.0.0.1:8002 node output/verify_wind_kline_ui.js
 
 Command results:
 - JS syntax check passed.

@@ -25,7 +25,7 @@ def check_data():
     db = SessionLocal()
     try:
         print("=" * 60)
-        print("AlphaFoundry 数据库数据检查")
+        print("Research Workbench 数据库数据检查")
         print("=" * 60)
 
         # 检查各表的数据量

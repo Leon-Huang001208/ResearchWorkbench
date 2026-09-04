@@ -1,4 +1,4 @@
--- AlphaFoundry 数据库架构
+-- Research Workbench 数据库架构
 -- PostgreSQL + pgvector
 
 -- 启用 pgvector 扩展

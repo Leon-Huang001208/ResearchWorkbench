@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 
-const ROOT = "/Users/leon/Desktop/Projects/AlphaFoundry";
+const ROOT = "/Users/leon/Desktop/Projects/ResearchWorkbench";
 const OUTPUT_DIR = path.join(ROOT, "outputs/etf_gap_report_20260702");
 const DEFAULT_DATA_JSON = path.join(OUTPUT_DIR, "huaan_etf_gap_excel_wind_data.json");
 const REPORT_PATH = path.join(OUTPUT_DIR, "华安基金ETF缺口_ExcelWind插件_近五年PE分位_静态报告.xlsx");

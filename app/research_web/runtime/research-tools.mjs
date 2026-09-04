@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { realpath, lstat } from 'node:fs/promises';
 import { isAbsolute, join, resolve, dirname, basename } from 'node:path';
 
-export const name = 'alphafoundry-research-tools';
+export const name = 'research-tools';
 export const inject = ['tools', 'sessions'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -40,7 +40,7 @@ export function apply(ctx, config) {
     throw new Error('research-tools execution limits are invalid');
   }
   ctx.tools.register({
-    name: 'af_run_script',
+    name: 'research_run_script',
     description: 'Run Python in this research session. Read inputs/resources; write outputs/tmp. Network, host files, and subprocesses are unavailable.',
     parameters: { type: 'object', properties: { code: { type: 'string', description: 'Nonempty Python source, at most 65536 UTF-8 bytes; enforced before execution.' } }, required: ['code'], additionalProperties: false },
     output: {

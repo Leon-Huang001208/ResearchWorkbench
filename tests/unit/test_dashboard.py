@@ -477,8 +477,8 @@ def test_get_market_sector_view_prefers_realtime_workbook_by_default(
     monkeypatch,
 ):
     """Wind/中信/申万口径默认走常驻工作簿，不再请求时写临时公式。"""
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
     _market_sector_cache.clear()
     mock_reader = mock_workbook_reader_cls.return_value
     mock_reader.get_view.return_value = {
@@ -525,8 +525,8 @@ def test_get_market_sector_view_uses_persistent_cache_before_excel(
     """重启后优先使用本地快照，避免首屏请求阻塞在 Excel 自动化上。"""
     from services import dashboard_service as module
 
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
     monkeypatch.setattr(
         module,
         "MARKET_SECTOR_DISK_CACHE_PATH",
@@ -592,8 +592,8 @@ def test_get_market_sector_view_force_refresh_bypasses_persistent_cache(
     """实时刷新必须绕过本地快照，直接读取 Excel Wind 工作簿。"""
     from services import dashboard_service as module
 
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
     monkeypatch.setattr(
         module,
         "MARKET_SECTOR_DISK_CACHE_PATH",
@@ -672,8 +672,8 @@ def test_get_market_sector_view_ignores_ths_persistent_cache_for_wind_view(
     """Wind 口径不能复用 THS 行业兜底缓存，否则 UI 会显示错数据源。"""
     from services import dashboard_service as module
 
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
     monkeypatch.setattr(
         module,
         "MARKET_SECTOR_DISK_CACHE_PATH",
@@ -749,8 +749,8 @@ def test_get_market_sector_view_ignores_stale_inactive_wind_cache(
     """Wind 缓存若包含已从 active catalog 移除的指数，应丢弃并重新读工作簿。"""
     from services import dashboard_service as module
 
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
     monkeypatch.setattr(
         module,
         "MARKET_SECTOR_DISK_CACHE_PATH",
@@ -833,8 +833,8 @@ def test_get_market_sector_view_falls_back_when_workbook_not_open(
     monkeypatch,
 ):
     """工作簿没打开时，默认回落到 Wind 指数公式兜底，避免前端空白。"""
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
     _market_sector_cache.clear()
     mock_reader = mock_workbook_reader_cls.return_value
     mock_reader.get_view.return_value = {
@@ -899,9 +899,9 @@ def test_get_market_sector_view_times_out_slow_workbook_read(
     monkeypatch,
 ):
     """Excel 自动化卡住时，Wind 口径请求要快速返回而不是拖死桌面后端。"""
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
-    monkeypatch.setenv("ALPHAFOUNDRY_WIND_WORKBOOK_READ_TIMEOUT_SECONDS", "0.01")
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.setenv("RESEARCH_WIND_WORKBOOK_READ_TIMEOUT_SECONDS", "0.01")
     _market_sector_cache.clear()
     mock_reader = mock_workbook_reader_cls.return_value
 
@@ -996,8 +996,8 @@ def test_get_market_sector_view_does_not_mask_wind_view_with_ths_fallback(
     monkeypatch,
 ):
     """Wind/Excel 都不可用时，Wind 口径不能伪装成 THS 行业数据。"""
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.delenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", raising=False)
     _market_sector_cache.clear()
     mock_reader = mock_workbook_reader_cls.return_value
     mock_reader.get_view.return_value = {
@@ -1069,8 +1069,8 @@ def test_get_market_sector_view_returns_workbook_status_without_formula_fallback
     monkeypatch,
 ):
     """显式关闭兜底时，工作簿没准备好会快速返回状态。"""
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.setenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", "0")
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.setenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", "0")
     _market_sector_cache.clear()
     mock_reader = mock_workbook_reader_cls.return_value
     mock_reader.get_view.return_value = {
@@ -1109,8 +1109,8 @@ def test_get_market_sector_view_surfaces_snapshot_empty_wind_login_hint(
     monkeypatch,
 ):
     """工作簿已打开但 Snapshot 无数据时，应透传 snapshot_empty 状态及 Wind 登录提示。"""
-    monkeypatch.delenv("ALPHAFOUNDRY_ENABLE_WIND_WORKBOOK", raising=False)
-    monkeypatch.setenv("ALPHAFOUNDRY_ALLOW_WIND_EXCEL_FALLBACK", "0")
+    monkeypatch.delenv("RESEARCH_ENABLE_WIND_WORKBOOK", raising=False)
+    monkeypatch.setenv("RESEARCH_ALLOW_WIND_EXCEL_FALLBACK", "0")
     _market_sector_cache.clear()
     mock_reader = mock_workbook_reader_cls.return_value
     mock_reader.get_view.return_value = {

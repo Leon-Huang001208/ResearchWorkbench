@@ -1,6 +1,6 @@
-# AlphaFoundry Development Map
+# Research Workbench Development Map
 
-This file maps AlphaFoundry subsystems to source files, tests, and required documentation updates.
+This file maps Research Workbench subsystems to source files, tests, and required documentation updates.
 
 ## Current Web research implementation (2026-09-04)
 
@@ -28,7 +28,7 @@ app/api
 
 Responsibilities:
 
-- Expose AlphaFoundry capabilities through FastAPI.
+- Expose Research Workbench capabilities through FastAPI.
 - Provide endpoints for dashboard, ingest, search, scenarios, signal lab, monitoring, governance, reports, and memory.
 - Keep API routes thin and delegate business logic to `services`.
 
@@ -84,7 +84,7 @@ app/cli
 
 Responsibilities:
 
-- Provide command-line access to AlphaFoundry workflows.
+- Provide command-line access to Research Workbench workflows.
 - Wrap service calls into user-facing commands.
 
 Main files:

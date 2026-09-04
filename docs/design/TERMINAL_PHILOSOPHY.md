@@ -1,6 +1,6 @@
 # Terminal Philosophy
 
-AlphaFoundry is not a website.
+Research Workbench is not a website.
 
 It is a financial operating system.
 

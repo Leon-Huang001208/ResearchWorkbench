@@ -1,11 +1,11 @@
 ---
 name: a-share-deep-research
-description: Use for evidence-first A-share company deep research, including validating whether a valuation narrative is supported by financial statements, industry data, consensus estimates and risk disclosures. Creates or resumes an AlphaFoundry Research Run and returns a traceable decision card and report only after quality gates pass.
+description: Use for evidence-first A-share company deep research, including validating whether a valuation narrative is supported by financial statements, industry data, consensus estimates and risk disclosures. Creates or resumes an Research Workbench Research Run and returns a traceable decision card and report only after quality gates pass.
 ---
 
 # A 股深度研究
 
-使用 AlphaFoundry 研究中心注册的 `a_share_deep_research` Research Template，不得把未验证资料直接写成报告结论。本 Skill 是通用 Research Run 的领域能力，不是独立页面；研究事实通过现有 Document、Assertion、EvidencePackage 与 Citation 契约保存。
+使用 Research Workbench 研究中心注册的 `a_share_deep_research` Research Template，不得把未验证资料直接写成报告结论。本 Skill 是通用 Research Run 的领域能力，不是独立页面；研究事实通过现有 Document、Assertion、EvidencePackage 与 Citation 契约保存。
 
 ## 输入门槛
 

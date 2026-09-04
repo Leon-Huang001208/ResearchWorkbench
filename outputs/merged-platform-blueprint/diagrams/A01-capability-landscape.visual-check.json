@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A01-capability-landscape.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A01-capability-landscape.html",
     "sha256": "963acff34776791035dba56f0ab2bcd72d491aea0ebe9b4d6da95aa47b8137dc",
     "bytes": 636063
   },

@@ -7,7 +7,7 @@ use tauri::Manager;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
-const BACKEND_SIDECAR: &str = "alphafoundry-backend";
+const BACKEND_SIDECAR: &str = "research-workbench-backend";
 const BACKEND_HOST: &str = "127.0.0.1";
 const BACKEND_PORT: &str = "8765";
 const BACKEND_HEALTH_TIMEOUT_SECS: u64 = 30;
@@ -24,7 +24,7 @@ fn backend_url() -> String {
 }
 
 fn backend_port() -> String {
-    env::var("ALPHAFOUNDRY_DESKTOP_PORT")
+    env::var("RESEARCH_DESKTOP_PORT")
         .ok()
         .filter(|port| port.parse::<u16>().is_ok_and(|value| value >= 1024))
         .unwrap_or_else(|| BACKEND_PORT.to_string())
@@ -82,15 +82,15 @@ fn start_backend_sidecar(app: &tauri::AppHandle) {
                         }
                     }
                 });
-                log::info!("AlphaFoundry backend sidecar started");
+                log::info!("Research Workbench backend sidecar started");
             }
             Err(error) => {
-                log::warn!("Unable to start AlphaFoundry backend sidecar: {error}");
+                log::warn!("Unable to start Research Workbench backend sidecar: {error}");
             }
         },
         Err(error) => {
             log::warn!(
-                "AlphaFoundry backend sidecar is unavailable; use scripts/desktop/backend_launcher.py in development: {error}"
+                "Research Workbench backend sidecar is unavailable; use scripts/desktop/backend_launcher.py in development: {error}"
             );
         }
     }
@@ -100,7 +100,7 @@ fn stop_backend_sidecar(app: &tauri::AppHandle) {
     if let Ok(mut slot) = app.state::<BackendState>().child.lock() {
         if let Some(child) = slot.take() {
             if let Err(error) = child.kill() {
-                log::warn!("Unable to stop AlphaFoundry backend sidecar: {error}");
+                log::warn!("Unable to stop Research Workbench backend sidecar: {error}");
             }
         }
     }
@@ -132,5 +132,5 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running AlphaFoundry desktop shell");
+        .expect("error while running Research Workbench desktop shell");
 }

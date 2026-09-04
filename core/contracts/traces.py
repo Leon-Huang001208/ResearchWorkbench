@@ -2,7 +2,7 @@
 Core contracts for reasoning traces.
 
 This module defines the Pydantic model for reasoning traces, which record the complete
-reasoning process in AlphaFoundry.
+reasoning process in Research Workbench.
 """
 
 from datetime import datetime

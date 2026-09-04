@@ -468,7 +468,7 @@ async def fetch(query: Query, *, transport=None):
                 follow_redirects=False,
                 trust_env=False,
                 headers={
-                    "User-Agent": "AlphaFoundry-Research/1.0",
+                    "User-Agent": "Research Workbench-Research/1.0",
                     "Accept": "application/json,text/html",
                 },
             ) as client:

@@ -65,7 +65,7 @@ class ResearchService:
             self.owned = info.get("cwd") == str(self.expected_cwd.resolve())
         if not self.owned:
             raise RuntimeFailure(
-                "该连接不是已确认的 AlphaFoundry 专属实例，禁止修改", "read_only_runtime"
+                "该连接不是已确认的 Research Workbench 专属实例，禁止修改", "read_only_runtime"
             )
 
     async def start(self):
@@ -190,11 +190,11 @@ class ResearchService:
                 self.owned = info.get("cwd") == str(self.expected_cwd.resolve())
             ready = self.connected == {"mux", "host"}
             auth = await self.client.rpc(
-                "credentials.describe", {"refs": ["ALPHAFOUNDRY_DSH_API_KEY"]}
+                "credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]}
             )
             configured = (
                 auth.get("credentials", {})
-                .get("ALPHAFOUNDRY_DSH_API_KEY", {})
+                .get("RESEARCH_DSH_API_KEY", {})
                 .get("configured", False)
             )
             return {
@@ -228,7 +228,7 @@ class ResearchService:
             busy = {item["sessionId"] for item in native["items"] if item["running"]}
             if api_key:
                 await self.client.rpc(
-                    "credentials.set", {"ref": "ALPHAFOUNDRY_DSH_API_KEY", "value": api_key}
+                    "credentials.set", {"ref": "RESEARCH_DSH_API_KEY", "value": api_key}
                 )
             for sid, row in self.store.data["sessions"].items():
                 if row["created"] and sid not in busy:
@@ -266,7 +266,7 @@ class ResearchService:
                     {
                         "sessionId": sid,
                         "cwd": str(self.store.directory(sid)),
-                        "agentPreset": "alphafoundry-research",
+                        "agentPreset": "research-web",
                     },
                 )
                 row["created"] = True

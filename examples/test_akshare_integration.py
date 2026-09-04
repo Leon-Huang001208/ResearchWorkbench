@@ -179,7 +179,7 @@ def main():
     """主函数"""
     print()
     print("=" * 60)
-    print("AlphaFoundry AkShare Integration Test")
+    print("Research Workbench AkShare Integration Test")
     print("=" * 60)
     print()
 

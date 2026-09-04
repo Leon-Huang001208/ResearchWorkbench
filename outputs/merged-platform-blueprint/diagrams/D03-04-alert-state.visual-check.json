@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D03-04-alert-state.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D03-04-alert-state.html",
     "sha256": "181ef14a5b8d0f33c24fe04cca27b6da17d1f86d5068774f67715c32d8c8fb61",
     "bytes": 631135
   },

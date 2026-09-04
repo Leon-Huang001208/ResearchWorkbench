@@ -1,5 +1,5 @@
 """
-AlphaFoundry Sidecar Launcher
+Research Workbench Sidecar Launcher
 ==============================
 极简桥接器：找到项目源码的 Python，然后 exec backend_launcher.py。
 
@@ -7,13 +7,13 @@ AlphaFoundry Sidecar Launcher
 改项目源码后不需要重新打包 sidecar exe。
 
 路径解析优先级：
-  项目根目录：ALPHAFOUNDRY_PROJECT_ROOT 环境变量
+  项目根目录：RESEARCH_PROJECT_ROOT 环境变量
             > exe 同级目录的 project_root.txt
-            > 硬编码默认值 D:/Projects/AlphaFoundry
-  Python 路径：ALPHAFOUNDRY_PYTHON 环境变量
-            > USERPROFILE/AppData/Local/anaconda3/envs/alphafoundry/python.exe
-            > HOME/AppData/Local/anaconda3/envs/alphafoundry/python.exe
-            > USERPROFILE/anaconda3/envs/alphafoundry/python.exe
+            > 硬编码默认值 D:/Projects/Research Workbench
+  Python 路径：RESEARCH_PYTHON 环境变量
+            > USERPROFILE/AppData/Local/anaconda3/envs/research_workbench/python.exe
+            > HOME/AppData/Local/anaconda3/envs/research_workbench/python.exe
+            > USERPROFILE/anaconda3/envs/research_workbench/python.exe
             > shutil.which("python3") / which("python")
 """
 
@@ -27,12 +27,12 @@ from pathlib import Path
 
 def _find_project_root() -> Path:
     """定位项目根目录。"""
-    env_root = os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT")
+    env_root = os.environ.get("RESEARCH_PROJECT_ROOT")
     if env_root:
         root = Path(env_root).expanduser()
         if root.exists():
             return root
-        raise RuntimeError(f"ALPHAFOUNDRY_PROJECT_ROOT 不存在: {root}")
+        raise RuntimeError(f"RESEARCH_PROJECT_ROOT 不存在: {root}")
 
     # exe 同级目录的 project_root.txt（安装时由 installer 写入）
     if getattr(sys, "frozen", False):
@@ -47,22 +47,22 @@ def _find_project_root() -> Path:
             return root
 
     raise RuntimeError(
-        "无法定位 AlphaFoundry 项目根目录。请设置 ALPHAFOUNDRY_PROJECT_ROOT "
+        "无法定位 Research Workbench 项目根目录。请设置 RESEARCH_PROJECT_ROOT "
         "或在 sidecar 同级目录提供有效的 project_root.txt。"
     )
 
 
 def _find_python() -> str:
-    """按优先级找 conda alphafoundry 环境的 Python。"""
+    """按优先级找 conda research_workbench 环境的 Python。"""
     userprofile = os.environ.get("USERPROFILE", "")
     home = os.environ.get("HOME", "")
 
     candidates = [
-        os.environ.get("ALPHAFOUNDRY_PYTHON"),
-        str(Path(userprofile) / "AppData/Local/anaconda3/envs/alphafoundry/python.exe"),
-        str(Path(home) / "AppData/Local/anaconda3/envs/alphafoundry/python.exe"),
-        str(Path(userprofile) / "anaconda3/envs/alphafoundry/python.exe"),
-        str(Path(home) / "anaconda3/envs/alphafoundry/python.exe"),
+        os.environ.get("RESEARCH_PYTHON"),
+        str(Path(userprofile) / "AppData/Local/anaconda3/envs/research_workbench/python.exe"),
+        str(Path(home) / "AppData/Local/anaconda3/envs/research_workbench/python.exe"),
+        str(Path(userprofile) / "anaconda3/envs/research_workbench/python.exe"),
+        str(Path(home) / "anaconda3/envs/research_workbench/python.exe"),
     ]
 
     for candidate in candidates:
@@ -78,7 +78,7 @@ def main() -> None:
     python_bin = _find_python()
 
     # 告知 backend_launcher.py 项目在哪里
-    os.environ["ALPHAFOUNDRY_PROJECT_ROOT"] = str(project_root)
+    os.environ["RESEARCH_PROJECT_ROOT"] = str(project_root)
 
     launcher = str(project_root / "scripts" / "desktop" / "backend_launcher.py")
 

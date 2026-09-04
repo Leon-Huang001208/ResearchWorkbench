@@ -1,7 +1,7 @@
 """Local embedding model resolution helpers.
 
 The sentence-transformers API accepts both Hugging Face model ids and local
-directories. AlphaFoundry keeps local embeddings offline by default: model ids
+directories. Research Workbench keeps local embeddings offline by default: model ids
 are loaded from cache only unless downloads are explicitly enabled.
 """
 
@@ -15,9 +15,9 @@ from core.observability import get_logger
 
 logger = get_logger(__name__)
 
-DISABLE_LOCAL_EMBEDDINGS_ENV = "ALPHAFOUNDRY_DISABLE_LOCAL_EMBEDDINGS"
-LOCAL_EMBEDDING_MODEL_PATH_ENV = "ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH"
-ALLOW_EMBEDDING_DOWNLOAD_ENV = "ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD"
+DISABLE_LOCAL_EMBEDDINGS_ENV = "RESEARCH_DISABLE_LOCAL_EMBEDDINGS"
+LOCAL_EMBEDDING_MODEL_PATH_ENV = "RESEARCH_LOCAL_EMBEDDING_MODEL_PATH"
+ALLOW_EMBEDDING_DOWNLOAD_ENV = "RESEARCH_ALLOW_EMBEDDING_DOWNLOAD"
 
 
 def local_embeddings_disabled() -> bool:

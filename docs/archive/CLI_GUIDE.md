@@ -1,6 +1,6 @@
 # CLI 使用指南
 
-本指南详细介绍 AlphaFoundry 的命令行工具使用方法。
+本指南详细介绍 Research Workbench 的命令行工具使用方法。
 
 ## 目录
 
@@ -16,7 +16,7 @@
 
 ```bash
 # 验证安装
-af --help
+rwb --help
 ```
 
 ## analyze 命令
@@ -26,7 +26,7 @@ af --help
 ### 基本用法
 
 ```bash
-af analyze --asset <资产代码>
+rwb analyze --asset <资产代码>
 ```
 
 ### 参数说明
@@ -43,7 +43,7 @@ af analyze --asset <资产代码>
 #### 1. 基本分析
 
 ```bash
-af analyze --asset 600000.SH
+rwb analyze --asset 600000.SH
 ```
 
 输出：
@@ -58,25 +58,25 @@ Snapshot generated successfully for 600000.SH
 #### 2. 输出 Markdown 报告
 
 ```bash
-af analyze --asset 600000.SH --output report.md
+rwb analyze --asset 600000.SH --output report.md
 ```
 
 #### 3. 输出 Word 文档
 
 ```bash
-af analyze --asset 600000.SH --output report.docx
+rwb analyze --asset 600000.SH --output report.docx
 ```
 
 #### 4. 指定快照时间
 
 ```bash
-af analyze --asset 600000.SH --as-of 2026-05-03T12:00:00
+rwb analyze --asset 600000.SH --as-of 2026-05-03T12:00:00
 ```
 
 #### 5. 不使用模拟数据
 
 ```bash
-af analyze --asset 600000.SH --no-mock
+rwb analyze --asset 600000.SH --no-mock
 ```
 
 注意：这需要配置真实的数据源适配器。
@@ -88,7 +88,7 @@ af analyze --asset 600000.SH --no-mock
 ### 基本用法
 
 ```bash
-af scenario --topic <研究主题>
+rwb scenario --topic <研究主题>
 ```
 
 ### 参数说明
@@ -104,19 +104,19 @@ af scenario --topic <研究主题>
 #### 1. 基本情景分析
 
 ```bash
-af scenario --topic "人工智能产业发展对股票市场的影响"
+rwb scenario --topic "人工智能产业发展对股票市场的影响"
 ```
 
 #### 2. 输出到文件
 
 ```bash
-af scenario --topic "美联储政策走向" --output scenario.md
+rwb scenario --topic "美联储政策走向" --output scenario.md
 ```
 
 #### 3. 指定相关资产
 
 ```bash
-af scenario --topic "新能源汽车政策" --subject 600000.SH --subject 000001.SZ
+rwb scenario --topic "新能源汽车政策" --subject 600000.SH --subject 000001.SZ
 ```
 
 ## ingest 命令
@@ -126,7 +126,7 @@ af scenario --topic "新能源汽车政策" --subject 600000.SH --subject 000001
 ### 基本用法
 
 ```bash
-af ingest --file <文件路径>
+rwb ingest --file <文件路径>
 ```
 
 ### 参数说明
@@ -143,13 +143,13 @@ af ingest --file <文件路径>
 #### 1. 摄入 PDF 文档
 
 ```bash
-af ingest --file report.pdf --source-type report --source-name "券商研报"
+rwb ingest --file report.pdf --source-type report --source-name "券商研报"
 ```
 
 #### 2. 摄入文本文件
 
 ```bash
-af ingest --file news.txt --source-type news --title "重要新闻"
+rwb ingest --file news.txt --source-type news --title "重要新闻"
 ```
 
 ## review 命令
@@ -161,7 +161,7 @@ af ingest --file news.txt --source-type news --title "重要新闻"
 列出待审核的项目。
 
 ```bash
-af review list
+rwb review list
 ```
 
 #### 参数
@@ -175,7 +175,7 @@ af review list
 批准一个断言或事件。
 
 ```bash
-af review approve <assertion_id>
+rwb review approve <assertion_id>
 ```
 
 #### 参数
@@ -190,7 +190,7 @@ af review approve <assertion_id>
 拒绝一个断言或事件。
 
 ```bash
-af review reject <assertion_id>
+rwb review reject <assertion_id>
 ```
 
 #### 参数
@@ -205,7 +205,7 @@ af review reject <assertion_id>
 显示审核统计信息。
 
 ```bash
-af review stats
+rwb review stats
 ```
 
 ### 使用示例
@@ -213,7 +213,7 @@ af review stats
 #### 1. 列出待审核项目
 
 ```bash
-af review list
+rwb review list
 ```
 
 输出：
@@ -230,19 +230,19 @@ Pending review items:
 #### 2. 批准一个断言
 
 ```bash
-af review approve assertion_1234 --reviewer "研究员A"
+rwb review approve assertion_1234 --reviewer "研究员A"
 ```
 
 #### 3. 拒绝一个断言
 
 ```bash
-af review reject assertion_1234 --reviewer "研究员A"
+rwb review reject assertion_1234 --reviewer "研究员A"
 ```
 
 #### 4. 查看统计
 
 ```bash
-af review stats
+rwb review stats
 ```
 
 输出：
@@ -264,8 +264,8 @@ Rejected assertions: 3
 ### 示例
 
 ```bash
-af --log-level DEBUG analyze --asset 600000.SH
-af --log-file app.log analyze --asset 600000.SH
+rwb --log-level DEBUG analyze --asset 600000.SH
+rwb --log-file app.log analyze --asset 600000.SH
 ```
 
 ## 退出代码
@@ -281,7 +281,7 @@ af --log-file app.log analyze --asset 600000.SH
 ### Q: 如何获取更多调试信息？
 
 ```bash
-af --log-level DEBUG analyze --asset 600000.SH
+rwb --log-level DEBUG analyze --asset 600000.SH
 ```
 
 ### Q: 生成的报告在哪里？
@@ -289,7 +289,7 @@ af --log-level DEBUG analyze --asset 600000.SH
 默认在当前目录，您也可以指定完整路径：
 
 ```bash
-af analyze --asset 600000.SH --output ./output/report.md
+rwb analyze --asset 600000.SH --output ./output/report.md
 ```
 
 ### Q: 支持哪些资产代码格式？

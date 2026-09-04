@@ -263,7 +263,7 @@ class CnstockCrawler:
     LONG_BREAK_INTERVAL = 15
     MIN_LONG_BREAK_DELAY = 60.0
     MAX_LONG_BREAK_DELAY = 120.0
-    WAF_BLOCK_MARKERS = (
+    WRESEARCH_BLOCK_MARKERS = (
         "renderData",
         "aliyun_waf_aa",
         "acw_sc__v2",
@@ -428,7 +428,7 @@ class CnstockCrawler:
         出现 waf 字样就放弃正文解析。
         """
         lower_text = (html or "").lower()
-        return any(marker.lower() in lower_text for marker in self.WAF_BLOCK_MARKERS)
+        return any(marker.lower() in lower_text for marker in self.WRESEARCH_BLOCK_MARKERS)
 
     def _extract_article_detail_from_html(self, html: str) -> Dict[str, str]:
         next_data_match = re.search(

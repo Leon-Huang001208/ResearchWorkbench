@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Industry Chain Module
+   Research Workbench — Industry Chain Module
    ============================================================ */
 
 import { apiCall, toast, esc } from './core.js';

@@ -1,6 +1,6 @@
 # DataHub backend implementation — Task 1
 
-Date: 2026-09-02. Worktree: `/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1`.
+Date: 2026-09-02. Worktree: `/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1`.
 Scope: DataHub backend, fixed providers, immutable snapshots, native approval/auth bridge, API/service/launcher wiring, four Skills/persona/templates, tests and documentation. No UI source changes.
 
 ## Delivered behavior
@@ -16,7 +16,7 @@ Scope: DataHub backend, fixed providers, immutable snapshots, native approval/au
 
 ## TDD evidence
 
-Interpreter in all commands below: `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`.
+Interpreter in all commands below: `python`.
 
 | RED command / observation | GREEN evidence |
 | --- | --- |

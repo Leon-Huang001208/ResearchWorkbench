@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D06-01-core-capabilities.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D06-01-core-capabilities.html",
     "sha256": "0fdca43546a57f449b595719c373dd0471e16bd51d255f55df188904c859fc73",
     "bytes": 635760
   },

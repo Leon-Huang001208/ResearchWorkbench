@@ -1,4 +1,4 @@
-# AlphaFoundry × LSH 合并平台 V1 交付报告
+# Research Workbench × LSH 合并平台 V1 交付报告
 
 ## 范围与边界
 

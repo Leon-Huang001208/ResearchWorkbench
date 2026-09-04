@@ -1,1 +1,1 @@
-"""AlphaFoundry API Module"""
+"""Research Workbench API Module"""

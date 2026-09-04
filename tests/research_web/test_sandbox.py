@@ -253,7 +253,7 @@ def test_native_tool_contract_and_trusted_cwd(tmp_path):
         + """
 let tool;
 apply({ tools: {register(t) {tool=t;}}, logger: {info(){},warn(){},error(){}}}, config);
-if(tool.name!=='af_run_script') throw Error('missing native tool');
+if(tool.name!=='research_run_script') throw Error('missing native tool');
 for(const code of ['', '中'.repeat(30000)]) {
   try { await tool.execute({code},{signal:new AbortController().signal}); throw Error('unbounded source accepted'); }
   catch(e) { if(!String(e).includes('bounded code')) throw e; }

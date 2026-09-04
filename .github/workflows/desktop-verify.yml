@@ -107,7 +107,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sidecar="build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          sidecar="build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
           if [[ ! -f "$sidecar" ]]; then
             echo "Expected sidecar was not produced: $sidecar" >&2
             exit 1
@@ -118,7 +118,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          $sidecar = "build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
           if (-not (Test-Path -LiteralPath $sidecar -PathType Leaf)) {
             throw "Expected sidecar was not produced: $sidecar"
           }
@@ -130,12 +130,12 @@ jobs:
           set -euo pipefail
           brew install postgresql@17 pgvector
           PG_BIN="$(brew --prefix postgresql@17)/bin"
-          PGDATA="$RUNNER_TEMP/alphafoundry-pgdata"
+          PGDATA="$RUNNER_TEMP/research-workbench-pgdata"
           rm -rf "$PGDATA"
           "$PG_BIN/initdb" --pgdata "$PGDATA" --username postgres --auth trust
           "$PG_BIN/pg_ctl" -D "$PGDATA" -o "-p 55432 -h 127.0.0.1" -w start
-          "$PG_BIN/createdb" --host 127.0.0.1 --port 55432 --username postgres alphafoundry
-          "$PG_BIN/psql" --host 127.0.0.1 --port 55432 --username postgres --dbname alphafoundry \
+          "$PG_BIN/createdb" --host 127.0.0.1 --port 55432 --username postgres research_workbench
+          "$PG_BIN/psql" --host 127.0.0.1 --port 55432 --username postgres --dbname research_workbench \
             --command "CREATE EXTENSION IF NOT EXISTS vector;"
 
       - name: Start pgvector on Windows
@@ -175,14 +175,14 @@ jobs:
             throw 'Helper-owned PostgreSQL did not become ready'
           }
 
-          $databaseExists = & (Join-Path $pgBin 'psql.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname postgres --tuples-only --command "SELECT 1 FROM pg_database WHERE datname = 'alphafoundry';"
+          $databaseExists = & (Join-Path $pgBin 'psql.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname postgres --tuples-only --command "SELECT 1 FROM pg_database WHERE datname = 'research_workbench';"
           if ($LASTEXITCODE -ne 0) {
             throw 'Unable to query helper-owned PostgreSQL databases'
           }
           if (-not ($databaseExists -match '1')) {
-            & (Join-Path $pgBin 'createdb.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres alphafoundry
+            & (Join-Path $pgBin 'createdb.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres research_workbench
             if ($LASTEXITCODE -ne 0) {
-              throw 'Unable to create the helper-owned alphafoundry database'
+              throw 'Unable to create the helper-owned research_workbench database'
             }
           }
 
@@ -200,7 +200,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw 'Unable to build and install the native pgvector extension'
           }
-          & (Join-Path $pgBin 'psql.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname alphafoundry --command 'CREATE EXTENSION IF NOT EXISTS vector;'
+          & (Join-Path $pgBin 'psql.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname research_workbench --command 'CREATE EXTENSION IF NOT EXISTS vector;'
           if ($LASTEXITCODE -ne 0) {
             throw 'Unable to enable the pgvector extension'
           }
@@ -209,14 +209,14 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:${{ matrix.postgres_port }}/alphafoundry
-          ALPHAFOUNDRY_DESKTOP: "1"
-          ALPHAFOUNDRY_RUN_MODE: desktop
-          ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
-          ALPHAFOUNDRY_DESKTOP_DATA_DIR: ${{ runner.temp }}/alphafoundry-desktop-verify
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:${{ matrix.postgres_port }}/research_workbench
+          RESEARCH_DESKTOP: "1"
+          RESEARCH_RUN_MODE: desktop
+          RESEARCH_PROJECT_ROOT: ${{ github.workspace }}
+          RESEARCH_DESKTOP_DATA_DIR: ${{ runner.temp }}/research-workbench-desktop-verify
         run: |
           set -euo pipefail
-          sidecar="build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          sidecar="build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
           python scripts/desktop/check_sidecar_health.py \
             --executable "$sidecar" \
             --port 8765 \
@@ -226,14 +226,14 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:${{ matrix.postgres_port }}/alphafoundry
-          ALPHAFOUNDRY_DESKTOP: "1"
-          ALPHAFOUNDRY_RUN_MODE: desktop
-          ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
-          ALPHAFOUNDRY_DESKTOP_DATA_DIR: ${{ runner.temp }}/alphafoundry-desktop-verify
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:${{ matrix.postgres_port }}/research_workbench
+          RESEARCH_DESKTOP: "1"
+          RESEARCH_RUN_MODE: desktop
+          RESEARCH_PROJECT_ROOT: ${{ github.workspace }}
+          RESEARCH_DESKTOP_DATA_DIR: ${{ runner.temp }}/research-workbench-desktop-verify
         run: |
           $ErrorActionPreference = 'Stop'
-          $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          $sidecar = "build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
           python scripts/desktop/check_sidecar_health.py `
             --executable $sidecar `
             --port 8765 `
@@ -243,14 +243,14 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:1/alphafoundry
-          ALPHAFOUNDRY_DESKTOP: "1"
-          ALPHAFOUNDRY_RUN_MODE: desktop
-          ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
-          ALPHAFOUNDRY_DESKTOP_DATA_DIR: ${{ runner.temp }}/alphafoundry-desktop-setup-smoke
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:1/research_workbench
+          RESEARCH_DESKTOP: "1"
+          RESEARCH_RUN_MODE: desktop
+          RESEARCH_PROJECT_ROOT: ${{ github.workspace }}
+          RESEARCH_DESKTOP_DATA_DIR: ${{ runner.temp }}/research-workbench-desktop-setup-smoke
         run: |
           set -euo pipefail
-          sidecar="build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          sidecar="build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
           python scripts/desktop/check_sidecar_health.py \
             --executable "$sidecar" \
             --port 8766 \
@@ -262,14 +262,14 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         env:
-          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:1/alphafoundry
-          ALPHAFOUNDRY_DESKTOP: "1"
-          ALPHAFOUNDRY_RUN_MODE: desktop
-          ALPHAFOUNDRY_PROJECT_ROOT: ${{ github.workspace }}
-          ALPHAFOUNDRY_DESKTOP_DATA_DIR: ${{ runner.temp }}/alphafoundry-desktop-setup-smoke
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:1/research_workbench
+          RESEARCH_DESKTOP: "1"
+          RESEARCH_RUN_MODE: desktop
+          RESEARCH_PROJECT_ROOT: ${{ github.workspace }}
+          RESEARCH_DESKTOP_DATA_DIR: ${{ runner.temp }}/research-workbench-desktop-setup-smoke
         run: |
           $ErrorActionPreference = 'Stop'
-          $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
+          $sidecar = "build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}${{ matrix.executable_suffix }}"
           python scripts/desktop/check_sidecar_health.py `
             --executable $sidecar `
             --port 8766 `
@@ -286,7 +286,7 @@ jobs:
             exit 0
           fi
           PG_BIN="$(brew --prefix postgresql@17)/bin"
-          PGDATA="$RUNNER_TEMP/alphafoundry-pgdata"
+          PGDATA="$RUNNER_TEMP/research-workbench-pgdata"
           if [[ -x "$PG_BIN/pg_ctl" && -d "$PGDATA" ]]; then
             "$PG_BIN/pg_ctl" -D "$PGDATA" -m fast -w stop || true
           fi
@@ -317,7 +317,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: alphafoundry-desktop-${{ matrix.triple }}
+          name: research-workbench-desktop-${{ matrix.triple }}
           path: |
             src-tauri/target/release/bundle/**
             build/desktop-sidecar/health-smoke.log

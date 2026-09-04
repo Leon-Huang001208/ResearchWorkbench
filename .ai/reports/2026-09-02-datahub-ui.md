@@ -2,7 +2,7 @@
 
 ## 范围
 
-- 工作树：`/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1`
+- 工作树：`/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1`
 - 分支：`codex/dsh-web-v1`
 - 基线：`364c0bc2201c545bb09276202e11b79b05fd11c3`
 - 仅修改 Research Web UI、对应 JS 测试与 UI 文档；未修改 DataHub 后端、运行时、全局 UI 或桌面端。

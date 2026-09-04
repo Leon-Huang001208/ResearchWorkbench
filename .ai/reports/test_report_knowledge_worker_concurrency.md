@@ -9,7 +9,7 @@
 ## Changed Source Files
 
 - `workers/knowledge_worker.py` — 重写：PID管理、信号处理、asyncio.Semaphore并发
-- `app/cli/commands/ingest.py` — 添加 `af knowledge start|stop|status` 命令组
+- `app/cli/commands/ingest.py` — 添加 `rwb knowledge start|stop|status` 命令组
 - `app/cli/main.py` — 注册 knowledge 命令组
 - `app/api/routes/knowledge.py` — 新建：Knowledge Worker REST API
 - `app/api/main.py` — 注册 knowledge router

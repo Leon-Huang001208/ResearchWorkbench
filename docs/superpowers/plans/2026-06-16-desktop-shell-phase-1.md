@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add the first AlphaFoundry desktop shell while keeping the existing FastAPI-served Web Workbench unchanged.
+**Goal:** Add the first Research Workbench desktop shell while keeping the existing FastAPI-served Web Workbench unchanged.
 
 **Architecture:** Tauri owns the native window and bundled desktop assets. The existing Python/FastAPI application remains the backend and serves the current HTML/JS/CSS UI on `127.0.0.1:8765`; the desktop bootstrap page waits for `/health` and then navigates to the existing workbench. A Python launcher is the packaging boundary for a future sidecar binary.
 
@@ -42,7 +42,7 @@ The tests import the launcher by path so `scripts/` does not need to become a Py
 
 - [x] **Step 2: Add a minimal Tauri 2 Rust application**
 
-The app installs shell/log/dialog/process plugins, attempts to start an `alphafoundry-backend` sidecar in packaged builds, and logs a clear fallback message when the sidecar is not present during development.
+The app installs shell/log/dialog/process plugins, attempts to start an `research-workbench-backend` sidecar in packaged builds, and logs a clear fallback message when the sidecar is not present during development.
 
 - [x] **Step 3: Add Tauri config**
 
@@ -68,7 +68,7 @@ The page polls `http://127.0.0.1:8765/health`, shows retry state, and navigates 
 
 - [x] **Step 1: Document the desktop architecture**
 
-Explain what exists now, what still needs CI/signing/updater work, and how the cc-switch pattern maps to AlphaFoundry.
+Explain what exists now, what still needs CI/signing/updater work, and how the cc-switch pattern maps to Research Workbench.
 
 ### Task 5: Verification
 

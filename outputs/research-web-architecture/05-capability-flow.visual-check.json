@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/05-capability-flow.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/outputs/research-web-architecture/05-capability-flow.html",
     "sha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5",
     "bytes": 639651
   },

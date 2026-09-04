@@ -2,7 +2,7 @@
 Abstract base class for model gateway providers.
 
 Defines the BaseProvider interface for model providers that implement chat completions,
-structured outputs, and embeddings for the ModelGatewayImpl in AlphaFoundry.
+structured outputs, and embeddings for the ModelGatewayImpl in Research Workbench.
 """
 
 from abc import ABC, abstractmethod

@@ -20,8 +20,8 @@ def timing_group():
     Timing 管理命令
 
     示例:
-        af timing evaluate --scores '[{"model_name": "regime", "score": 0.8, "confidence": 0.9, "rationale": "test"}]'
-        af timing regime-weights --regime hot_money_theme
+        rwb timing evaluate --scores '[{"model_name": "regime", "score": 0.8, "confidence": 0.9, "rationale": "test"}]'
+        rwb timing regime-weights --regime hot_money_theme
     """
     pass
 

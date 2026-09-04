@@ -1,10 +1,10 @@
-# AlphaFoundry 主机容量资源监控第三期 Implementation Plan
+# Research Workbench 主机容量资源监控第三期 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
-**Goal:** 在系统监控页并列显示 AlphaFoundry 归因与整机 CPU/内存容量；页面关闭后仍每分钟采样、保存 24 小时并产生可处置事件。
+**Goal:** 在系统监控页并列显示 Research Workbench 归因与整机 CPU/内存容量；页面关闭后仍每分钟采样、保存 24 小时并产生可处置事件。
 
-**Architecture:** ResourceMonitoringService 继续限制在 AlphaFoundry 进程树，并只调用操作系统 CPU/内存总量 API。新增 ResourceMonitorRuntime 在数据库就绪后每分钟采集、写入现有 HealthMetrics.extra，并用一个共享状态评估告警。API 只返回白名单，前端显示 5 分钟应用曲线和 24 小时主机曲线。
+**Architecture:** ResourceMonitoringService 继续限制在 Research Workbench 进程树，并只调用操作系统 CPU/内存总量 API。新增 ResourceMonitorRuntime 在数据库就绪后每分钟采集、写入现有 HealthMetrics.extra，并用一个共享状态评估告警。API 只返回白名单，前端显示 5 分钟应用曲线和 24 小时主机曲线。
 
 **Tech Stack:** Python、psutil、FastAPI、SQLAlchemy、Pydantic、ECharts、pytest、ruff、black、isort。
 
@@ -14,10 +14,10 @@
 
 | 文件 | 责任 |
 | --- | --- |
-| services/resource_monitor_service.py | 当前 AlphaFoundry 快照和无全局进程枚举的主机汇总。 |
+| services/resource_monitor_service.py | 当前 Research Workbench 快照和无全局进程枚举的主机汇总。 |
 | services/resource_host_history_service.py（新增） | 分钟去重、历史写入、读取与过期清理。 |
 | services/resource_monitor_runtime.py（新增） | API 生命周期中的单一后台线程。 |
-| services/resource_monitor_alert_service.py | 主机/AlphaFoundry 分来源事件、升级和恢复。 |
+| services/resource_monitor_alert_service.py | 主机/Research Workbench 分来源事件、升级和恢复。 |
 | data_layer/repositories/monitoring_repository.py | 按精确 ID 删除过期指标。 |
 | app/api/main.py、app/api/routes/system.py | runtime 生命周期和 API 白名单。 |
 | app/web/templates/index.html、app/web/static/js/resource-monitor.js、app/web/static/style.css | 双范围卡片、图表与来源标签。 |
@@ -182,7 +182,7 @@ Expected: FAIL，因为 runtime 尚不存在。
             self.last_error_type = type(exc).__name__
             logger.warning("resource monitor runtime cycle failed", error_type=self.last_error_type)
 
-在 app/api/main.py 的 ensure_schema 后启动；shutdown 时最先停止。使用延迟导入和单例防止重复 startup。ALPHAFOUNDRY_PREVIEW=1 保持不启动后台线程。
+在 app/api/main.py 的 ensure_schema 后启动；shutdown 时最先停止。使用延迟导入和单例防止重复 startup。RESEARCH_PREVIEW=1 保持不启动后台线程。
 
 - [ ] **Step 4: 验证并提交。**
 
@@ -214,7 +214,7 @@ Expected: PASS.
             service.evaluate(_snapshot_with_host(cpu_percent=20.0, memory_available_percent=50.0))
         assert repo.alerts[0].status is AlertStatus.RESOLVED
 
-覆盖可用内存 15%/8%、主机字段不可用不触发、同一未解决事件去重，以及现有应用事件 source_scope 为 alphafoundry。
+覆盖可用内存 15%/8%、主机字段不可用不触发、同一未解决事件去重，以及现有应用事件 source_scope 为 research_workbench。
 
 - [ ] **Step 2: 运行失败测试。**
 
@@ -312,7 +312,7 @@ Expected: FAIL，双范围 DOM 与主机历史请求不存在。
 
 - [ ] **Step 3: 实现四卡、四图和安全渲染。**
 
-顶部改为 alpha-cpu、host-cpu、alpha-memory、host-memory 四卡；磁盘、网络、采样时间移入辅助行。保留两张 5 分钟 AlphaFoundry 图，再加两张 24 小时整机 CPU/可用内存图。
+顶部改为 alpha-cpu、host-cpu、alpha-memory、host-memory 四卡；磁盘、网络、采样时间移入辅助行。保留两张 5 分钟 Research Workbench 图，再加两张 24 小时整机 CPU/可用内存图。
 
 JS 新增 hostHistoryController、hostHistoryPoints 与两张 chart；首次进入、从隐藏恢复、之后每 60 秒请求：
 
@@ -324,7 +324,7 @@ JS 新增 hostHistoryController、hostHistoryPoints 与两张 chart；首次进�
     )
     hostHistoryPoints = Array.isArray(result?.points) ? result.points : []
 
-主机字段为 null 显示“暂不可用”。事件根据 metadata.source_scope 显示“整机容量”或“AlphaFoundry”。所有动态文本使用 textContent。更新 app.js 中资源脚本的 cache version。
+主机字段为 null 显示“暂不可用”。事件根据 metadata.source_scope 显示“整机容量”或“Research Workbench”。所有动态文本使用 textContent。更新 app.js 中资源脚本的 cache version。
 
 - [ ] **Step 4: 验证并提交。**
 
@@ -332,7 +332,7 @@ Run: node --check app/web/static/js/resource-monitor.js && python -m pytest test
 Expected: PASS.
 
     git add app/web/templates/index.html app/web/static/js/resource-monitor.js app/web/static/style.css app/web/static/js/app.js tests/unit/test_resource_monitor_frontend_static.py
-    git commit -m "feat: compare AlphaFoundry and host capacity"
+    git commit -m "feat: compare Research Workbench and host capacity"
 
 ### Task 7: 文档、质量链和隔离预览
 
@@ -344,7 +344,7 @@ Expected: PASS.
 
 - [ ] **Step 1: 更新文档和索引。**
 
-记录两条路径：页面请求的 5 分钟 AlphaFoundry 原始快照，以及 runtime 持续写入的主机 24 小时分钟汇总。明确剩余内存取 available，不展示其他进程，本期无原生通知。
+记录两条路径：页面请求的 5 分钟 Research Workbench 原始快照，以及 runtime 持续写入的主机 24 小时分钟汇总。明确剩余内存取 available，不展示其他进程，本期无原生通知。
 
 Run: python scripts/generate_py_file_index.py
 Expected: exit 0，索引更新。

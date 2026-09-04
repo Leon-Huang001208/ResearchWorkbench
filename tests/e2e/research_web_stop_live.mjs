@@ -9,13 +9,13 @@ let browser;
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 try {
   await mkdir(output,{recursive:true}); await mkdir('logs',{recursive:true});
-  const {chromium}=await import(process.env.ALPHAFOUNDRY_PLAYWRIGHT_MODULE || 'playwright-core');
+  const {chromium}=await import(process.env.RESEARCH_PLAYWRIGHT_MODULE || 'playwright-core');
   browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
   const context=await browser.newContext({viewport:{width:1600,height:1000}});
   const page=await context.newPage();
   await page.goto(`${origin}/?acceptance=stop-live#/fingpt`);
   await page.getByRole('link',{name:'DSH 已连接',exact:true}).waitFor();
-  await page.getByRole('textbox',{name:'研究问题',exact:true}).fill('独立手动停止测试：只调用一次af_run_script执行Python，创建outputs/cancel-proof.txt，以w打开，每0.5秒追加一行递增数字并flush，最多120次。不要联网、不要读取任何附件、不启子Agent、不要第二脚本或读回。我将在工具实际执行两秒后点击停止。不要把超时当作取消。');
+  await page.getByRole('textbox',{name:'研究问题',exact:true}).fill('独立手动停止测试：只调用一次research_run_script执行Python，创建outputs/cancel-proof.txt，以w打开，每0.5秒追加一行递增数字并flush，最多120次。不要联网、不要读取任何附件、不启子Agent、不要第二脚本或读回。我将在工具实际执行两秒后点击停止。不要把超时当作取消。');
   const accepted=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname.endsWith('/messages'));
   await page.getByRole('button',{name:'开始研究',exact:true}).click(); assert.equal((await accepted).status(),202);
   record.session=new URLSearchParams(page.url().split('#')[1].split('?')[1]).get('session');
@@ -24,10 +24,10 @@ try {
   let detail; const deadline=Date.now()+60000;
   do {
     detail=await read();
-    if(detail.activities.some(a=>a.title==='af_run_script'&&a.status==='running')) break;
+    if(detail.activities.some(a=>a.title==='research_run_script'&&a.status==='running')) break;
     await pause(200);
   }while(Date.now()<deadline);
-  assert.ok(detail.activities.some(a=>a.title==='af_run_script'&&a.status==='running'));
+  assert.ok(detail.activities.some(a=>a.title==='research_run_script'&&a.status==='running'));
   await pause(1500);
   detail=await read(); record.before={status:detail.status,activities:detail.activities};
   const responsePromise=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname.endsWith('/cancel'));

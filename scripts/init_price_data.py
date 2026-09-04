@@ -93,7 +93,7 @@ def generate_realistic_price_data(
 
 def main():
     print("\n" + "=" * 80)
-    print("  AlphaFoundry - 初始化真实价格数据")
+    print("  Research Workbench - 初始化真实价格数据")
     print("=" * 80 + "\n")
 
     # 1. 创建表

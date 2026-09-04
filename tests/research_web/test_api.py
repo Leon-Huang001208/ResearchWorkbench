@@ -74,12 +74,12 @@ def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
     import httpx
     from test_datahub import nav_page, nav_row
 
-    from app.research_web.datahub import Query
+    from app.research_web.datahub import BusinessQuery
 
     client, native, service = api
-    capabilities = client.get("/api/research/data/capabilities")
-    assert capabilities.status_code == 200
-    assert len(capabilities.json()["items"]) == 5
+    catalog = client.get("/api/research/data/catalog")
+    assert catalog.status_code == 200
+    assert len(catalog.json()["capabilities"]) == 13
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     assert client.get(f"/api/research/sessions/{sid}").json()["datasets"] == []
     called = []
@@ -92,13 +92,17 @@ def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
     payload = {
         "session_id": sid,
         "call_id": "api-test",
-        "query": Query(source="fund_nav", code="000001").model_dump(),
+        "query": BusinessQuery(
+            capability="fund_data", parameters={"dataset": "nav", "code": "000001"}
+        ).model_dump(),
     }
-    for path in ("query", "cancel"):
+    for path in ("business-query", "cancel"):
         assert client.post(f"/api/research/internal/data/{path}", json=payload).status_code == 403
     assert called == []
     headers = {"X-Research-Data-Key": service.datahub.control["token"]}
-    response = client.post("/api/research/internal/data/query", json=payload, headers=headers)
+    response = client.post(
+        "/api/research/internal/data/business-query", json=payload, headers=headers
+    )
     assert response.status_code == 200, response.text
     dataset = response.json()
     did = dataset["dataset_id"]

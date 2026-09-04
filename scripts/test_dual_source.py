@@ -291,7 +291,7 @@ def test_coordinator():
 def main():
     """运行所有测试"""
     print("=" * 60)
-    print("AlphaFoundry Dual-Source System Tests")
+    print("Research Workbench Dual-Source System Tests")
     print("=" * 60)
 
     results = {}

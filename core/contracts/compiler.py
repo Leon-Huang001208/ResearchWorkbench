@@ -1,7 +1,7 @@
 """
 报告编译器核心契约.
 
-定义 AlphaFoundry "outline-first + evidence-first" 报告编译器的核心数据结构。
+定义 Research Workbench "outline-first + evidence-first" 报告编译器的核心数据结构。
 该编译器把报告生成从"单次长文生成"重构为"任务分解→来源规划→检索→事实抽取
 →大纲→分节写作→引用绑定→批判→渲染"的多阶段流水线。
 

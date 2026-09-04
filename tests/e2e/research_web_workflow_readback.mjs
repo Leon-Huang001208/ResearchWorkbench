@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import path from 'node:path';
-const origin=new URL(process.env.ALPHAFOUNDRY_WEB_URL || 'http://127.0.0.1:8088');
+const origin=new URL(process.env.RESEARCH_WEB_URL || 'http://127.0.0.1:8088');
 if (!['127.0.0.1','localhost'].includes(origin.hostname) || origin.protocol!=='http:') throw new Error('Local acceptance only');
 const sid='43170801-cfeb-4c89-914a-a6973dbb8c9a';
 const output=path.resolve('outputs/research-web-ui-acceptance/workflow');
@@ -11,7 +11,7 @@ const log=path.resolve('logs/research-web-workflow-readback.jsonl');
 let browser;
 try {
   await mkdir(output,{recursive:true}); await mkdir(path.dirname(log),{recursive:true});
-  const {chromium}=await import(process.env.ALPHAFOUNDRY_PLAYWRIGHT_MODULE || 'playwright-core');
+  const {chromium}=await import(process.env.RESEARCH_PLAYWRIGHT_MODULE || 'playwright-core');
   browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
   const context=await browser.newContext({viewport:{width:1600,height:1100},acceptDownloads:true});
   const response=await context.request.get(`${origin.origin}/api/research/sessions/${sid}`);

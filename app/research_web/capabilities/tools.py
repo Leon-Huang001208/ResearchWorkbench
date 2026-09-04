@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from ..datahub.catalog import build_catalog
-from ..datahub.contracts import BUSINESS_TOOLS, SOURCES, Query
+from ..datahub.contracts import BUSINESS_TOOLS
 from .models import CapabilityError
 
 PIN = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
@@ -20,19 +20,12 @@ DECLARATIONS = {
         ["output"],
         "仅 continuable 子 Agent 的原生作用域可见；向直接父 Agent 汇报，不结束回合",
     ),
-    "af_run_script": (
+    "research_run_script": (
         "研究 Python",
         "runtime/research-tools.mjs",
         {"code": "string"},
         ["code"],
         "仅本会话，严格沙箱；不允许联网或安装依赖",
-    ),
-    "af_public_data": (
-        "公开研究资料（旧版）",
-        "runtime/public-data.mjs",
-        {},
-        ["source"],
-        "仅兼容历史会话；新研究使用 datahub_* 业务工具",
     ),
     "web_search": (
         "网页检索",
@@ -77,7 +70,7 @@ DECLARATIONS = {
         "原生父子归属；内部控制",
     ),
 }
-SELECTABLE = {"af_run_script", "web_search", *BUSINESS_TOOLS.values()}
+SELECTABLE = {"research_run_script", "web_search", *BUSINESS_TOOLS.values()}
 
 DATA_PROPERTIES = {
     "search_assets": ({"query": "string", "market": "string", "asset_type": "string"}, ["query"]),
@@ -155,8 +148,6 @@ def tool_catalog():
             "properties": {key: {"type": value} for key, value in fields.items()},
             "required": required,
         }
-        if name == "af_public_data":
-            parameters = Query.model_json_schema()
         if name == "web_search":
             parameters["properties"]["queries"]["items"] = {"type": "string"}
         items.append(
@@ -170,12 +161,10 @@ def tool_catalog():
                 "parameters": parameters,
                 "source": source,
                 "source_commit": PIN if source.startswith("packages/") else None,
-                "approval": (
-                    "native-per-call" if name == "af_public_data" else "native-policy-unchanged"
-                ),
+                "approval": "native-policy-unchanged",
                 "conditions": ["需专属研究工具 preset，目录声明不代表实例在线或授权", condition],
                 "availability": "declared",
-                "data_sources": SOURCES if name == "af_public_data" else {},
+                "data_sources": {},
             }
         )
     data_catalog = build_catalog()

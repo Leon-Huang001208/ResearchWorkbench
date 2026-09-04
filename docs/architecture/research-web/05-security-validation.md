@@ -39,7 +39,7 @@ node --check app/research_web/ui/app.mjs
 git diff --check
 ```
 
-UI 布局验收：`node tests/e2e/research_web_layout.mjs`，可用 `ALPHAFOUNDRY_PLAYWRIGHT_MODULE` 指定已经安装的本地 Playwright 模块入口；该脚本不安装依赖、不改变当前浏览器会话、不提交研究。证据输出至 `outputs/research-web-ui-acceptance/`，日志为 `logs/research-web-layout.jsonl`。它不把截图自动标为视觉优良。
+UI 布局验收：`node tests/e2e/research_web_layout.mjs`，可用 `RESEARCH_PLAYWRIGHT_MODULE` 指定已经安装的本地 Playwright 模块入口；该脚本不安装依赖、不改变当前浏览器会话、不提交研究。证据输出至 `outputs/research-web-ui-acceptance/`，日志为 `logs/research-web-layout.jsonl`。它不把截图自动标为视觉优良。
 
 ## 未覆盖的部署保证
 

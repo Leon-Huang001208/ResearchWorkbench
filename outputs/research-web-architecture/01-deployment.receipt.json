@@ -6,12 +6,12 @@
   "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/01-deployment.json",
   "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/01-deployment.html",
   "specification": {
-    "sha256": "17383b082d437bf402b7cbd989468b3c4a015f4911439d376623c10bd6096610",
-    "bytes": 3229
+    "sha256": "010a5f12c41cf72491b77c9ba7904b7bbab2c1617efcafa349d9f6a6481e9d16",
+    "bytes": 4303
   },
   "artifact": {
-    "sha256": "b8a3d318c8ff357d9bf716cf28af8173e7a28009f34b846479e49683370cab5c",
-    "bytes": 635322
+    "sha256": "a19b8c1258b946b79c332987b848761c4a45e0d8836df792314289d01bf2ea46",
+    "bytes": 641186
   },
   "validation": {
     "checksPassed": 9,

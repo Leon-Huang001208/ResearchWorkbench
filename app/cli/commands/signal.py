@@ -18,10 +18,10 @@ def signal_group():
     信号管理命令
 
     示例:
-        af signal create --subject 600519.SH --thesis "看好白酒股"
-        af signal list
-        af signal validate --id <signal_id>
-        af signal promote --id <signal_id> --status candidate
+        rwb signal create --subject 600519.SH --thesis "看好白酒股"
+        rwb signal list
+        rwb signal validate --id <signal_id>
+        rwb signal promote --id <signal_id> --status candidate
     """
     pass
 

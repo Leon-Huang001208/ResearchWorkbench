@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AlphaFoundry 双源数据系统使用示例
+Research Workbench 双源数据系统使用示例
 
 演示如何使用：
 1. MultiSourceCoordinator - 主入口
@@ -169,7 +169,7 @@ def example_audit_log():
 def main():
     """运行示例"""
     print("=" * 60)
-    print("AlphaFoundry Dual Source System - Examples")
+    print("Research Workbench Dual Source System - Examples")
     print("=" * 60)
 
     try:

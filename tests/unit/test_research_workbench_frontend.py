@@ -39,5 +39,5 @@ def test_asset_research_entry_uses_shared_prefill_contract():
 
     assert "openResearchCenter" in app_script
     assert "buildResearchPrefill" in asset_script
-    assert "alphafoundry:open-research-center" in asset_script
+    assert "research_workbench:open-research-center" in asset_script
     assert "subject_type" in asset_script

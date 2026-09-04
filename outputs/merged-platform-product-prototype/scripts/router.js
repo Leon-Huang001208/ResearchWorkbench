@@ -18,7 +18,7 @@
     try {
       if (activePage) activePage.unmount();
       app.state={...app.state,route:parsed.pathname,routePattern:parsed.pattern,query:parsed.query,params:parsed.params,activeAssetId:parsed.params.assetId || app.state.activeAssetId,activePackKey:parsed.query.pack || app.state.activePackKey};
-      document.title=`${page.title} · AlphaFoundry`;
+      document.title=`${page.title} · Research Workbench`;
       root.innerHTML=`<section class="page-frame" data-page-route="${parsed.pattern}">${page.render(app.state)}</section>`;
       activePage=page; page.mount(root,app.state); window.AlphaShell?.sync(app.state); window.AlphaJourneys?.render();
       window.scrollTo({top:0,left:0,behavior:'auto'}); root.focus({preventScroll:true});

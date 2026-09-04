@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    os.getenv("ALPHAFOUNDRY_RUN_LIVE_E2E_TESTS") != "1",
+    os.getenv("RESEARCH_RUN_LIVE_E2E_TESTS") != "1",
     reason="live E2E asset search test requires an already-running web server on 127.0.0.1:8000",
 )
 

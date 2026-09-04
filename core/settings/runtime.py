@@ -42,19 +42,19 @@ def resolve_runtime_context(
     """Resolve config location and service URL without mutating process state."""
     values = os.environ if environ is None else environ
     root = Path(
-        values.get("ALPHAFOUNDRY_PROJECT_ROOT", project_root or Path(__file__).parents[2])
+        values.get("RESEARCH_PROJECT_ROOT", project_root or Path(__file__).parents[2])
     ).expanduser()
     mode = _resolve_mode(values)
-    explicit_config = values.get("ALPHAFOUNDRY_CONFIG_FILE")
+    explicit_config = values.get("RESEARCH_CONFIG_FILE")
     data_dir = app_data_dir() if mode == "desktop" else None
     env_path = _resolve_env_path(mode, root, data_dir, explicit_config)
     backend_url = values.get(
-        "ALPHAFOUNDRY_BACKEND_URL",
+        "RESEARCH_BACKEND_URL",
         DEFAULT_DESKTOP_BACKEND_URL if mode == "desktop" else DEFAULT_WEB_BACKEND_URL,
     ).rstrip("/")
 
     if not backend_url.startswith(("http://", "https://")):
-        raise RuntimeConfigurationError("ALPHAFOUNDRY_BACKEND_URL 必须使用 http 或 https 协议")
+        raise RuntimeConfigurationError("RESEARCH_BACKEND_URL 必须使用 http 或 https 协议")
 
     return RuntimeContext(
         mode=mode,
@@ -71,7 +71,7 @@ def initialize_runtime_environment() -> RuntimeContext:
     """Load the selected configuration as the desktop application's authoritative source."""
     context = resolve_runtime_context()
     if context.data_dir is not None:
-        os.environ.setdefault("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(context.data_dir))
+        os.environ.setdefault("RESEARCH_DESKTOP_DATA_DIR", str(context.data_dir))
     if context.env_path is not None and context.env_path.exists():
         # 系统配置页写入该文件；重启后必须以其最新值覆盖启动器遗留的同名变量。
         load_dotenv(context.env_path, override=True)
@@ -79,11 +79,11 @@ def initialize_runtime_environment() -> RuntimeContext:
 
 
 def _resolve_mode(values: Mapping[str, str]) -> RuntimeMode:
-    raw_mode = values.get("ALPHAFOUNDRY_RUN_MODE")
+    raw_mode = values.get("RESEARCH_RUN_MODE")
     if raw_mode is None:
-        raw_mode = "desktop" if values.get("ALPHAFOUNDRY_DESKTOP") else "web-dev"
+        raw_mode = "desktop" if values.get("RESEARCH_DESKTOP") else "web-dev"
     if raw_mode not in {"desktop", "web-dev", "web-prod"}:
-        raise RuntimeConfigurationError("ALPHAFOUNDRY_RUN_MODE 必须是 desktop、web-dev 或 web-prod")
+        raise RuntimeConfigurationError("RESEARCH_RUN_MODE 必须是 desktop、web-dev 或 web-prod")
     return raw_mode  # type: ignore[return-value]
 
 

@@ -3,8 +3,8 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/04-data-file-flow.json",
-  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/04-data-file-flow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
     "sha256": "2a01c862632de64b8e647a4ba9a6e524e594a17d17653c6fd720a1dd01a77cdc",
     "bytes": 5839

@@ -31,8 +31,8 @@ def ingest_file_command(file: str, source_type: str, source_name: str, title: st
     摄入文档并提取断言和事件
 
     示例:
-        af ingest file --file report.pdf --source-type report --source-name "券商研报"
-        af ingest file -f news.txt -t news
+        rwb ingest file --file report.pdf --source-type report --source-name "券商研报"
+        rwb ingest file -f news.txt -t news
     """
     file_path = Path(file)
 
@@ -67,7 +67,7 @@ def ingest_file_command(file: str, source_type: str, source_name: str, title: st
         click.echo("=" * 60)
 
         if result["assertions_pending"] > 0 or result["events_pending"] > 0:
-            click.echo("\nTip: Use 'af review list' to review pending items.")
+            click.echo("\nTip: Use 'rwb review list' to review pending items.")
 
     except Exception as e:
         click.echo(f"\n✗ Failed to ingest file: {e}", err=True)
@@ -106,8 +106,8 @@ def crawl_run_command(
     运行单次采集任务
 
     示例:
-        af crawl run --source cls --days 1
-        af crawl run --source cnstock --days 2 --max-docs 100
+        rwb crawl run --source cls --days 1
+        rwb crawl run --source cnstock --days 2 --max-docs 100
     """
     # 解析来源类型
     try:
@@ -166,7 +166,7 @@ def crawl_backfill_command(source: str, days: int, max_docs: Optional[int]):
     运行补漏任务
 
     示例:
-        af crawl backfill --source cls --days 7
+        rwb crawl backfill --source cls --days 7
     """
     try:
         source_type = SourceType(source)
@@ -205,8 +205,8 @@ def crawl_status_command(source: Optional[str]):
     查看采集状态
 
     示例:
-        af crawl status
-        af crawl status --source cls
+        rwb crawl status
+        rwb crawl status --source cls
     """
     if source:
         try:
@@ -274,7 +274,7 @@ def crawl_scheduler_start_command():
     启动采集调度器（后台独立进程）
 
     示例:
-        af crawl scheduler-start
+        rwb crawl scheduler-start
     """
     import subprocess
     import sys
@@ -327,8 +327,8 @@ def knowledge_start_command(workers: int):
     """启动知识加工 Worker（后台独立进程）
 
     示例:
-        af knowledge start
-        af knowledge start --workers 4
+        rwb knowledge start
+        rwb knowledge start --workers 4
     """
     import subprocess
     import sys
@@ -380,7 +380,7 @@ def knowledge_stop_command():
     """停止所有知识加工 Worker 进程
 
     示例:
-        af knowledge stop
+        rwb knowledge stop
     """
     import os as _os
     import signal as _signal
@@ -414,7 +414,7 @@ def knowledge_status_command():
     """查看所有知识加工 Worker 状态
 
     示例:
-        af knowledge status
+        rwb knowledge status
     """
     from workers.knowledge_worker import get_all_worker_statuses
 

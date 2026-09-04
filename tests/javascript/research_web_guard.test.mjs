@@ -8,9 +8,9 @@ test('research guard fails closed and cannot expose arbitrary shell or host file
   let guard;
   const ctx = { tools: { guard: (fn) => { guard = fn; } }, logger: { warn() {} } };
   apply(ctx);
-  assert.ok(guard({ name: 'af_run_script', agent: makeAgent() }));
+  assert.ok(guard({ name: 'research_run_script', agent: makeAgent() }));
   apply(ctx, { enabled: true });
-  assert.equal(guard({ name: 'af_run_script', agent: makeAgent() }), undefined);
+  assert.equal(guard({ name: 'research_run_script', agent: makeAgent() }), undefined);
   for (const name of ['bash', 'read_file', 'web_fetch', 'mcp_anything', 'subagent_fork']) {
     assert.ok(guard({ name, agent: makeAgent() }));
   }

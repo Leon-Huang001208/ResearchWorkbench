@@ -11,7 +11,7 @@
 ## 已观察的结果
 
 1. Web 新建 FinGPT，从输入框提交固定样本 10、20、30；真实回答平均值 20。
-2. 第二轮生成 `outputs/ui-acceptance.html`，929 字节；真实 `af_run_script` 活动出现在活动面板。
+2. 第二轮生成 `outputs/ui-acceptance.html`，929 字节；真实 `research_run_script` 活动出现在活动面板。
 3. 在隔离预览中读到中文标题、样本表和平均值 20.0。下载接口实际 GET 200，attachment、no-store、nosniff；HTML 含三根 SVG 柱。
 4. 模型第二轮聊天结尾却写平均值 30.0。此为真实模型内容错误，不能因文件结构检查成功而宣称回答正确。第三轮要求实际读文件，模型通过脚本读取后纠正为 20.0；未改文件。
 5. 通过 Web 重命名后，以不同验收查询串重新加载同一会话，标题和六条消息恢复；无自动重复提交。
@@ -41,8 +41,8 @@ Task 3 初检更新：目录已接新 API；控制器按新 listbox/移动关闭
 
 ### 对话创建闭环与真实下载
 
-- 第三轮实际 ZIP `7bfeb10ff04085cba5f42633`（2308 字节）经 Web 审查导入，静态检查通过。人工阅读实际指令后，明确点击发布为 `1ba298cc4b754aee9496b7d1c5c78bf7` v1；原生名称 `af-1ba298cc4b754aee9496b7d1c5c78bf7-v1`，编译 SHA256 `d8d991bbcb96089c48b9a1ce1d8fb059942bf26c54800817e3331241e6c55f3a`。原无效草稿未发布，仍保留。
-- 从 FinGPT 新入口选择此能力发送新研究，真实会话 `7ee7b736-673a-4aff-8006-73de6c10b600`，标题「能力验收 · 自建 Skill 统计报告」。输入 [12,18,30,40]，DSH 原生指令进入消息，三次真实 `af_run_script` 完成计算、写文件、读回校验；n=4、sum=100、mean=25。
+- 第三轮实际 ZIP `7bfeb10ff04085cba5f42633`（2308 字节）经 Web 审查导入，静态检查通过。人工阅读实际指令后，明确点击发布为 `1ba298cc4b754aee9496b7d1c5c78bf7` v1；原生名称 `rwb-1ba298cc4b754aee9496b7d1c5c78bf7-v1`，编译 SHA256 `d8d991bbcb96089c48b9a1ce1d8fb059942bf26c54800817e3331241e6c55f3a`。原无效草稿未发布，仍保留。
+- 从 FinGPT 新入口选择此能力发送新研究，真实会话 `7ee7b736-673a-4aff-8006-73de6c10b600`，标题「能力验收 · 自建 Skill 统计报告」。输入 [12,18,30,40]，DSH 原生指令进入消息，三次真实 `research_run_script` 完成计算、写文件、读回校验；n=4、sum=100、mean=25。
 - 实际文件 `outputs/sample-statistics.html`，ID `3320abdf473d5e3d84d3df8f`，1285 字节，SHA256 `ff0b305c0b1815120654c944f00635094e930f98474ca7517d46d520e91878e0`。本任务要求 HTML，独立 delivery=completed、缺失=[]、格式检查通过。能力 ID、版本、只读资源路径与编译哈希实际保存在研究记录。
 - `research_web_custom_skill_readback.mjs` 实际通过刷新版本记录、文件交付状态、无权限 iframe 预览、浏览器下载事件及字节哈希、样本值检查。控制器已人工查看 `custom-skill/preview.png`。此脚本只 GET/HEAD、没有重新发模型请求。
 - 读回脚本首两次因为错误假设桌面面板默认关闭、两张表使用非唯一选择器而失败；修正为真实 aria-expanded 和「统计结果」表后通过。没有因此修改产品行为或削弱文件检查。
@@ -51,7 +51,7 @@ Task 3 初检更新：目录已接新 API；控制器按新 listbox/移动关闭
 ### 手动导入与版本生命周期
 
 - 将真实模型生成的 SKILL.md 下载后由浏览器文件控件导入，不扫描全局目录。候选 `528c5a3dd15849b0a7f29fbdf5441b01` 初始缺产品元数据、检查 invalid；未静默补齐并发布。
-- 在产品编辑表单填入名称「验收·手动导入样本」、slug `ui-import-sample-20260903`、text 输入、HTML 输出、af_run_script 需求及空依赖，明确修改 frontmatter 同名。保存后单独「检查草稿」通过，再明确发布 v1。
+- 在产品编辑表单填入名称「验收·手动导入样本」、slug `ui-import-sample-20260903`、text 输入、HTML 输出、research_run_script 需求及空依赖，明确修改 frontmatter 同名。保存后单独「检查草稿」通过，再明确发布 v1。
 - 表单修改说明与指令、检查并发布 v2，GET 不可变版本确认两版指令不同；停用后使用按钮不可用；明确回滚 v1，刷新后当前版本仍 v1、enabled=true，v2 保留且可查看。浏览器实际导出 v1 ZIP，非空 PK 容器，回执记录 SHA256。
 - `research_web_manual_skill_lifecycle.mjs` 完成以上 UI 动作，限制写请求仅能力管理路径，零模型调用。初次脚本误断言 import=200（实际201）、保存即检查（实际须显式检查）、发布响应包含compiled_sha256（实际在版本响应）；分别修正脚本并对同一专用候选断点继续，没有重复导入或覆盖其他能力。这些是验收脚本契约假设错误，不记录为产品缺陷。
 - 控制器人工查看 `manual-skill/rollback-version.png`，目录/详情/两个历史版本可读。截图时运行时状态尚在初始加载，不能据该静态图宣称 DSH 离线；另已实时 GET runtime connected=true。
@@ -78,20 +78,20 @@ DSH原生子Agent `3c6101ae-fb53-469f-ab8a-fac757453306` 核验净值与分红�
 ## 新上传 PDF 与运行中刷新
 
 - 新真实会话 `63d128e4-e39d-4cd0-a1ec-2e5fa5d5e7c8`，标题「UI 验收 · PDF 上传与页码引用」。上传国金DSH报告，附件ID `a928b9cc44bdbe2640728740`，实际安全文件名 `d5c567bd66a8-dsh-report.pdf`。
-- 从Web选择 document-reading v1，明确发送一次，记录idempotency key；执行中刷新后无第二次POST。真实af_run_script读取物理14/15页（索引13/14），PDF18页。回答分别引用arXiv/海外大师股票研究及基金评价案例，锚点可核对；无联网或安装。
+- 从Web选择 document-reading v1，明确发送一次，记录idempotency key；执行中刷新后无第二次POST。真实research_run_script读取物理14/15页（索引13/14），PDF18页。回答分别引用arXiv/海外大师股票研究及基金评价案例，锚点可核对；无联网或安装。
 - 验收脚本初次误认上传文件无前缀，保留了另一空会话0ad0d27e…的附件而没有发模型请求。第二次真实研究已完成，脚本末段误用activity.name而实际为title，改成真实契约后只读重验同一63d…会话PASS、零新增模型请求。未把脚本第一次运行说成完整通过。
 - 最终回执 `pdf-live/receipt.json` 为readback模式；回答和PDF下载保留，已人工查看回答截图。截图初始runtime尚未加载显示未连接，不表示研究失败，任务实际completed。
 
 ## 原生审批拒绝
 
-新专用会话 `839ec20a-b2ce-461c-9602-eb4798bde1c1`，标题「UI 验收 · 原生审批拒绝」。真实请求af_public_data，fund_nav000001/2025-01-01至01-10；控制器点击拒绝而非允许。工具活动failed、detail=`Error: Public data approval rejected; HTTP not sent`；最终会话completed，无审批、文件、数据或子Agent。模型明确未取数且不重试。未修改其他会话审批。
+新专用会话 `839ec20a-b2ce-461c-9602-eb4798bde1c1`，标题「UI 验收 · 原生审批拒绝」。真实请求datahub_get_fund_data，fund_nav000001/2025-01-01至01-10；控制器点击拒绝而非允许。工具活动failed、detail=`Error: Public data approval rejected; HTTP not sent`；最终会话completed，无审批、文件、数据或子Agent。模型明确未取数且不重试。未修改其他会话审批。
 
 根SKILL.md伴随文件选择修复也已在当前Web真实复验：不再invalid_resource，返回正确name_conflict（相同ZIP能力已发布），未覆盖已发布能力。
 
 ## 真实手动停止与额外发现
 
 - 会话610ba6cb-8dcd-40d4-96e8-e238a24e2249首次脚本60秒超时，模型误说手动停止完成；控制器明确纠正且不计通过。第二次在超时边缘点击停止，原生出现 `turn/end carries non-JSON-serializable data`，界面failed/can_cancel=false但delivery pending。保留该原生日志与会话，继续诊断，不覆盖状态成成功。
-- 新专用会话 `c825aae3-db16-41d6-9657-d77e2780832c` 由 `research_web_stop_live.mjs` 从真实Web提交一次研究，检测af_run_script实际running后1.5秒点击停止，取消HTTP200。结果status=cancelled、can_cancel=false、delivery=not_required。
+- 新专用会话 `c825aae3-db16-41d6-9657-d77e2780832c` 由 `research_web_stop_live.mjs` 从真实Web提交一次研究，检测research_run_script实际running后1.5秒点击停止，取消HTTP200。结果status=cancelled、can_cancel=false、delivery=not_required。
 - 实际脚本在1808ms停止，`cancel-proof.txt` 仅4行/8字节。三次下载间隔2秒，哈希均 `16fbd7d1f18d2fedb247d73edc3bc6aa040f5ab99bd3b48c35b79e543d22179b`，未继续写入。独立回执和截图在stop-live目录。这是实际取消证据，不以先前超时作为替代。
 - Claw首页68e8775已独立复审Approved；最终布局脚本15/15通过，四Skill可在两个模式进入草稿、两个Workflow首页展示及真实分类、目录搜索/空态/详情、slash键盘与移动抽屉均验证，无模型调用。控制器已人工查看最终15张截图，未见水平越界和按钮遮挡；长内容正常纵向滚动。
 

@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D06-05-core-dataflow.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D06-05-core-dataflow.html",
     "sha256": "4a0962689ce45045ab4adc41fa43aa33859cc1a55543dd8fe09e0816f4da32cc",
     "bytes": 637769
   },

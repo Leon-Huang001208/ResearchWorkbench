@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run AlphaFoundry Wind index/ETF structure field probe."
+        description="Run Research Workbench Wind index/ETF structure field probe."
     )
     parser.add_argument(
         "--workbook",

@@ -12,7 +12,7 @@
 
 ## 实际验证
 
-使用已有虚拟环境`/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`。
+使用已有虚拟环境`python`。
 
 | 实际命令或旅程 | 结果 |
 |---|---|

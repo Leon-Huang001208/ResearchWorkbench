@@ -2,7 +2,7 @@
 Core contracts for identifier-related data structures.
 
 This module defines Pydantic models that standardize canonical identifiers
-for various asset types across the AlphaFoundry system, ensuring consistent
+for various asset types across the Research Workbench system, ensuring consistent
 asset referencing.
 """
 

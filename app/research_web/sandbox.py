@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-LOGGER = logging.getLogger("alphafoundry.research_web.sandbox")
+LOGGER = logging.getLogger("research_web.sandbox")
 MAX_CODE_BYTES = 65_536
 _cancelled = False
 

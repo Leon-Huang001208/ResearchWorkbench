@@ -18,7 +18,7 @@ DataHub：静态目录 → 白名单路由 → Provider → 快照与审计
 东方财富 / 财联社 / 后续完成适配的专业或公开来源
 ```
 
-新 Tool 统一使用 `datahub_*` 子系统前缀，而不是 `af_*` 产品品牌前缀。这样未来产品改名不会破坏 Skill、会话历史或 DSH 工具协议。`af_public_data` 只作为旧会话兼容别名保留，仍可回放历史活动，但不再出现在新研究的可选 Tool 中；新 Skill 与 Workflow 不再依赖它。
+Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌前缀。这样未来产品改名不会破坏 Skill、会话历史或 DSH 工具协议。`datahub_get_fund_data` 是基金数据能力的正式工具名。
 
 ## 全源静态目录
 
@@ -111,12 +111,10 @@ refresh=true始终新建；同原生调用ID重放返回同一结果，同ID不�
 - `GET /api/research/data/sources/{id}`：来源鉴权/依赖、状态、限制和支持的数据集。
 - `POST /api/research/data/sources/{id}/probes`：以 `Idempotency-Key` 异步检测单一来源。
 - `GET /api/research/data/probes/{id}`：读取安全化探测状态、耗时和失败代码。
-- `GET /api/research/data/capabilities`：旧 `{items,missing}` 兼容目录，仅服务历史 `af_public_data`。
 - `GET /api/research/sessions/{sid}/datasets`：`{items:[summary]}`；老会话返回空数组。
 - `GET /api/research/sessions/{sid}/datasets/{did}`：完整manifest、manifest_sha256及下载引用。
 - `GET .../{did}/rows?offset=0&limit=100`：`{items,offset,limit,total}`，limit最大500。
 - `GET .../{did}/files/{rows.json|rows.csv|manifest.json}`：已校验的当前会话数据文件下载。
-- `POST /api/research/internal/data/query`：`{session_id,call_id,query}`。
 - `POST /api/research/internal/data/business-query`：`{session_id,call_id,query:{capability,parameters,source,allow_fallback,refresh}}`；新 `datahub_*` 入口。
 - `POST /api/research/internal/data/cancel`：`{session_id,call_id}`。
 

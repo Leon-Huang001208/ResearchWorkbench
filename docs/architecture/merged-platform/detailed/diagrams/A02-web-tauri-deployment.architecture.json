@@ -12,7 +12,7 @@
     {"id":"dsh","type":"external","label":"DSH 侧车","sublabel":"无数据库权限","pos":[960,80],"size":[155,64]},
     {"id":"notify","type":"backend","label":"通知桥","sublabel":"站内箱 → 系统通知","pos":[710,430],"size":[155,64]}
   ],
-  "boundaries":[{"kind":"region","label":"AlphaFoundry 模块化单体","wraps":["frontend","api","services","postgres","router","notify"],"pad":24},{"kind":"security-group","label":"Runtime 白名单边界","wraps":["router"],"pad":12}],
+  "boundaries":[{"kind":"region","label":"Research Workbench 模块化单体","wraps":["frontend","api","services","postgres","router","notify"],"pad":24},{"kind":"security-group","label":"Runtime 白名单边界","wraps":["router"],"pad":12}],
   "connections":[
     {"from":"browser","to":"frontend","label":"HTTPS","variant":"emphasis"},{"from":"tauri","to":"frontend","label":"本地资源","variant":"emphasis"},{"from":"frontend","to":"api","label":"JSON / SSE"},{"from":"api","to":"services","label":"Contract"},{"from":"services","to":"postgres","label":"Owner Repo"},
     {"from":"services","to":"router","label":"运行请求","fromSide":"top","toSide":"bottom"},{"from":"router","to":"dsh","label":"白名单工具","variant":"security"},{"from":"services","to":"notify","label":"通知记录","fromSide":"bottom","toSide":"top","labelAt":[788,370]},{"from":"notify","to":"tauri","label":"系统通知","variant":"dashed","fromSide":"left","toSide":"right"}

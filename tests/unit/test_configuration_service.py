@@ -15,7 +15,7 @@ from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode
 from services.configuration_service import ConfigurationError, ConfigurationService
 
 SECRET_VALUES = {
-    "DATABASE_URL": "postgresql+psycopg://user:db-secret@localhost:5432/alphafoundry",
+    "DATABASE_URL": "postgresql+psycopg://user:db-secret@localhost:5432/research_workbench",
     "IFIND_USERNAME": "ifind-user",
     "IFIND_PASSWORD": "ifind-secret",
     "TAVILY_API_KEY": "tavily-secret",
@@ -48,10 +48,10 @@ def test_database_url_persists_with_restart_required(monkeypatch, tmp_path):
     for key in SECRET_VALUES:
         monkeypatch.delenv(key, raising=False)
     runtime_settings = Settings(
-        DATABASE_URL="postgresql+psycopg://active:old@localhost:5432/alphafoundry"
+        DATABASE_URL="postgresql+psycopg://active:old@localhost:5432/research_workbench"
     )
     service = ConfigurationService(env_path=tmp_path / ".env", runtime_settings=runtime_settings)
-    new_url = "postgresql+psycopg://next:next-secret@localhost:5432/alphafoundry"
+    new_url = "postgresql+psycopg://next:next-secret@localhost:5432/research_workbench"
 
     result = service.update_section("database", {"database_url": new_url})
 
@@ -59,7 +59,7 @@ def test_database_url_persists_with_restart_required(monkeypatch, tmp_path):
     assert result["restart_required"] is True
     assert (
         runtime_settings.DATABASE_URL
-        == "postgresql+psycopg://active:old@localhost:5432/alphafoundry"
+        == "postgresql+psycopg://active:old@localhost:5432/research_workbench"
     )
     assert new_url in (tmp_path / ".env").read_text(encoding="utf-8")
     assert "next-secret" not in json.dumps(result)
@@ -89,7 +89,7 @@ def test_configuration_service_rejects_web_production_control_plane(tmp_path):
 
 
 def test_database_probe_reports_missing_pgvector_without_persistence(monkeypatch, tmp_path):
-    database_url = "postgresql+psycopg://user:db-secret@localhost:5432/alphafoundry"
+    database_url = "postgresql+psycopg://user:db-secret@localhost:5432/research_workbench"
     env_path = tmp_path / ".env"
     env_path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
     service = ConfigurationService(env_path=env_path, runtime_settings=Settings())
@@ -120,7 +120,7 @@ def test_database_probe_reports_missing_pgvector_without_persistence(monkeypatch
 
 
 def test_database_probe_returns_ready_result_from_readiness_stub(monkeypatch, tmp_path):
-    database_url = "postgresql+psycopg://user:password@localhost:5432/alphafoundry"
+    database_url = "postgresql+psycopg://user:password@localhost:5432/research_workbench"
     service = ConfigurationService(env_path=tmp_path / ".env", runtime_settings=Settings())
     probe = Mock(
         return_value=DatabaseReadiness(
@@ -496,7 +496,7 @@ def test_snapshot_reports_not_detected_for_an_absent_ifind_sdk_without_mocking_f
     monkeypatch.setattr(
         configuration_service,
         "IFIND_SDK_MODULE",
-        "alphafoundry_missing_ifind_sdk_for_contract_test",
+        "research_workbench_missing_ifind_sdk_for_contract_test",
     )
 
     capability = service.get_snapshot()["environment"]["capabilities"][1]

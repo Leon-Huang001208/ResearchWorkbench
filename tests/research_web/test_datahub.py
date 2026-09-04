@@ -452,7 +452,7 @@ def test_launcher_prepares_private_bridge_config_without_secret_environment(tmp_
     assert (
         control["token"]
         not in (
-            data / "runtime/home/.agent-presets/alphafoundry-research/agent.cordis.yml"
+            data / "runtime/home/.agent-presets/research-web/agent.cordis.yml"
         ).read_text()
     )
 

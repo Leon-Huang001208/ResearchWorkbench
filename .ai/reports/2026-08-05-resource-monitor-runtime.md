@@ -8,7 +8,7 @@
 - 新增 `ResourceMonitorRuntime`，使用单一 `threading.Thread`、`Event` 和 `time.monotonic()` 周期性采集资源快照。
 - 每次周期创建一个数据库会话和 `MonitoringRepositoryImpl`，在该会话内调用 `ResourceHostHistoryService.record_if_due()` 与 `ResourceMonitorAlertService.evaluate()`。
 - 运行时共享一个 `ResourceAlertState`，每次创建的告警服务都显式消费同一状态，因此压力和恢复连续计数不会在分钟周期之间重置。
-- API 在数据库就绪且 `ensure_schema()` 完成后启动运行时；`ALPHAFOUNDRY_PREVIEW=1` 和桌面 `setup_required` 均不启动。关闭时先停止运行时，再停止现有数据调度器。
+- API 在数据库就绪且 `ensure_schema()` 完成后启动运行时；`RESEARCH_PREVIEW=1` 和桌面 `setup_required` 均不启动。关闭时先停止运行时，再停止现有数据调度器。
 
 ## 失败处理
 

@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Wind Excel Data Panel Module
+   Research Workbench — Wind Excel Data Panel Module
    ============================================================ */
 
 import { apiCall, toast, esc } from './core.js';

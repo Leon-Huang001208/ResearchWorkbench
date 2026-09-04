@@ -23,7 +23,7 @@
 
 ## 已执行命令
 
-以下Python均使用当前macOS已有解释器 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`，未安装依赖。
+以下Python均使用当前macOS已有解释器 `python`，未安装依赖。
 
 ```text
 node --test tests/javascript/research_web_architecture.test.mjs

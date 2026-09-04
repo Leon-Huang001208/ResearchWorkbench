@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-architecture/01-system-deployment.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-architecture/01-system-deployment.html",
     "sha256": "c10ddda62b0984503d52e9e02b257c6da6c6ac2f7cce84cb12c5829d22963765",
     "bytes": 635966
   },

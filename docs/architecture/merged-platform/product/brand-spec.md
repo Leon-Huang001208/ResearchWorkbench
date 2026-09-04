@@ -1,6 +1,6 @@
-# AlphaFoundry 合并平台产品品牌规范
+# Research Workbench 合并平台产品品牌规范
 
-本规范约束 Web 与 Tauri 共用的产品界面。它不保留旧 AlphaFoundry 的开发工具式视觉，而采用专业金融研究工作台：深海军蓝产品壳、浅色研究画布、高密度事实卡片、可追溯研究空间，以及相互独立的 FinGPT 与 Claw 入口。
+本规范约束 Web 与 Tauri 共用的产品界面。它不保留旧 Research Workbench 的开发工具式视觉，而采用专业金融研究工作台：深海军蓝产品壳、浅色研究画布、高密度事实卡片、可追溯研究空间，以及相互独立的 FinGPT 与 Claw 入口。
 
 ## 设计原则
 
@@ -13,7 +13,7 @@
 ## 品牌与色彩
 
 - Logo 源文件：`src-tauri/icons/icon-black-gold-geometric.png`
-- 原型副本：`outputs/merged-platform-product-prototype/assets/alphafoundry-logo.png`
+- 原型副本：`outputs/merged-platform-product-prototype/assets/research-workbench-logo.png`
 - SHA-256：`0299470cd0c0466c7e2ca67258f927c75b568e8614033909f18aa6589ca25a06`
 - 产品壳：`#061b2e`
 - 主画布：`#f5f7fb`

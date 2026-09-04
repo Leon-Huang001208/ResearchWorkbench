@@ -3,7 +3,7 @@
 
 ## 概述
 
-Yahoo Finance 作为 AlphaFoundry 的补充数据源，提供全球市场数据服务：
+Yahoo Finance 作为 Research Workbench 的补充数据源，提供全球市场数据服务：
 
 - **美股**：AAPL, MSFT, GOOGL 等
 - **港股**：00700.HK, 00005.HK 等

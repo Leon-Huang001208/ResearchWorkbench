@@ -409,7 +409,7 @@ class ResourceMonitorAlertService:
             {
                 "event_kind": event_kind,
                 "dedupe_key": dedupe_key,
-                "source_scope": "alphafoundry",
+                "source_scope": "research_workbench",
             }
         )
         return self._create_event(
@@ -566,7 +566,7 @@ class ResourceMonitorAlertService:
     @staticmethod
     def _title_for(event_kind: str, metadata: Dict[str, Any]) -> str:
         if event_kind == "task_failed":
-            return f"任务失败：{metadata.get('label') or metadata.get('task_kind') or 'AlphaFoundry 任务'}"
+            return f"任务失败：{metadata.get('label') or metadata.get('task_kind') or 'Research Workbench 任务'}"
         if event_kind == "resource_pressure":
             role = metadata.get("role")
             process_label = (
@@ -584,13 +584,13 @@ class ResourceMonitorAlertService:
     @staticmethod
     def _description_for(event_kind: str, metadata: Dict[str, Any]) -> str:
         if event_kind == "task_failed":
-            return "任务执行失败；请查看 AlphaFoundry 日志获取受控诊断信息。"
+            return "任务执行失败；请查看 Research Workbench 日志获取受控诊断信息。"
         if event_kind == "resource_pressure":
             return "受控进程连续三个采样周期超出资源压力阈值。"
         if event_kind == "managed_process_unavailable":
-            return "已登记的 AlphaFoundry Worker 在采样时不可用。"
+            return "已登记的 Research Workbench Worker 在采样时不可用。"
         if event_kind == "host_cpu_pressure":
             return "整机 CPU 连续三个采样周期达到 " f"{metadata.get('threshold_percent')}% 容量压力阈值。"
         if event_kind == "host_memory_pressure":
             return "整机可用内存连续三个采样周期低于 " f"{metadata.get('threshold_percent')}% 容量压力阈值。"
-        return "AlphaFoundry API 进程资源采样暂不可用。"
+        return "Research Workbench API 进程资源采样暂不可用。"

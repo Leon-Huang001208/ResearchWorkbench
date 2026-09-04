@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Automatically build and validate AlphaFoundry desktop artifacts on native macOS Apple Silicon and Windows x64 runners before release, then release both target artifacts under one tag.
+**Goal:** Automatically build and validate Research Workbench desktop artifacts on native macOS Apple Silicon and Windows x64 runners before release, then release both target artifacts under one tag.
 
 **Architecture:** A pull-request/push verification workflow performs native sidecar and Tauri bundle builds without publishing. The existing release workflow uses the identical two-target matrix to create draft-release artifacts. Static regression tests guard the workflow contract: target OS runners, target-specific sidecar names, build sequence, and artifact retention.
 
@@ -171,7 +171,7 @@
       set -euo pipefail
       suffix=""
       if [[ "${{ runner.os }}" == "Windows" ]]; then suffix=".exe"; fi
-      test -f "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}${suffix}"
+      test -f "build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}${suffix}"
 
   - name: Copy backend sidecar into Tauri
     run: python scripts/desktop/prepare_tauri_sidecar.py
@@ -191,7 +191,7 @@
     if: always()
     uses: actions/upload-artifact@v4
     with:
-      name: alphafoundry-desktop-${{ matrix.id }}
+      name: research-workbench-desktop-${{ matrix.id }}
       path: src-tauri/target/release/bundle/**
       if-no-files-found: warn
       retention-days: 14
@@ -252,14 +252,14 @@
   - name: Verify generated sidecar (macOS)
     if: runner.os == 'macOS'
     shell: bash
-    run: test -f build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}
+    run: test -f build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}
 
   - name: Verify generated sidecar (Windows)
     if: runner.os == 'Windows'
     shell: pwsh
     run: |
       $ErrorActionPreference = 'Stop'
-      $path = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}.exe"
+      $path = "build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}.exe"
       if (-not (Test-Path $path)) { throw "Missing generated sidecar: $path" }
   ```
 

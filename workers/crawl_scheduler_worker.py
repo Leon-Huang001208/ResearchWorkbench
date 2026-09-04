@@ -18,8 +18,8 @@ logger = get_logger(__name__)
 
 # 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
 PROJECT_DIR = (
-    Path(os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
-    if "ALPHAFOUNDRY_PROJECT_ROOT" in os.environ
+    Path(os.environ["RESEARCH_PROJECT_ROOT"])
+    if "RESEARCH_PROJECT_ROOT" in os.environ
     else Path(__file__).resolve().parent.parent
 )
 PID_FILE = PROJECT_DIR / "logs" / "scheduler.pid"

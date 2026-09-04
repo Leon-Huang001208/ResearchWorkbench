@@ -47,7 +47,7 @@ test('theme initializes before CSS; navigation has no appearance control and set
   const html = await readFile(new URL('index.html', ui), 'utf8');
   assert.ok(html.indexOf('/static/theme.js') < html.indexOf('/static/styles.css'));
   const { renderAppearancePicker, renderBrandMark, renderPrimaryRail } = await import(new URL('shell.mjs', ui));
-  assert.match(renderBrandMark(), /huaan-brand\/source-logo.png/);
+  assert.match(renderBrandMark(), /assets\/brand\/source-logo.png/);
   assert.doesNotMatch(renderBrandMark(), /HUAAN|华安|<svg/);
   assert.doesNotMatch(renderPrimaryRail({ page: 'settings' }), /data-theme-(?:select|option)/);
   const picker = renderAppearancePicker();
@@ -62,11 +62,11 @@ test('theme initializes before CSS; navigation has no appearance control and set
 
 test('favicon files are transparent 16px and 32px PNGs and the old tab icon is not referenced', async () => {
   const html = await readFile(new URL('index.html', ui), 'utf8');
-  assert.match(html, /huaan-brand\/favicon-16\.png/);
-  assert.match(html, /huaan-brand\/favicon-32\.png/);
-  assert.doesNotMatch(html, /rel="icon"[^>]*alphafoundry-logo\.png/);
+  assert.match(html, /assets\/brand\/favicon-16\.png/);
+  assert.match(html, /assets\/brand\/favicon-32\.png/);
+  assert.doesNotMatch(html, /rel="icon"[^>]*research-workbench-logo\.png/);
   for (const size of [16, 32]) {
-    const png = await readFile(new URL(`assets/huaan-brand/favicon-${size}.png`, ui));
+    const png = await readFile(new URL(`assets/brand/favicon-${size}.png`, ui));
     assert.equal(png.subarray(1, 4).toString(), 'PNG');
     assert.equal(png.readUInt32BE(16), size);
     assert.equal(png.readUInt32BE(20), size);

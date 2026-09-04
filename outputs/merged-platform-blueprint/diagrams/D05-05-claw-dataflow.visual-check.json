@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D05-05-claw-dataflow.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D05-05-claw-dataflow.html",
     "sha256": "c062657a6f10bd2cff2940f6fcfac39089eae398bc296fe21919c8656f8e5155",
     "bytes": 637826
   },

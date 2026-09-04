@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make AlphaFoundry's shared agent workflow explicit and reusable across Codex and Claude Code without changing the current FastAPI + native JavaScript frontend architecture.
+Make Research Workbench's shared agent workflow explicit and reusable across Codex and Claude Code without changing the current FastAPI + native JavaScript frontend architecture.
 
 ## Scope
 

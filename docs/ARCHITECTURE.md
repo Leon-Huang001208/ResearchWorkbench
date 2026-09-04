@@ -1,4 +1,4 @@
-# AlphaFoundry 架构文档
+# Research Workbench 架构文档
 
 ## 当前研究产品：DSH Web（2026-09-04）
 
@@ -11,7 +11,7 @@
 该入口不启动旧 API 生命周期，不要求 PostgreSQL/pgvector，不使用 Evidence、Claim、Quality Gate、
 LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
 
-当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页展示 13 项能力与 21 个登记来源；只有东方财富基金和财联社目前完成可调用适配。DSH 使用品牌无关的 `datahub_*` 业务 Tool，旧 `af_public_data` 仅为兼容别名。登记、配置和最近探测分别显示，不能把代码存在解释为已连接。
+当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页展示 13 项能力与 21 个登记来源；只有东方财富基金和财联社目前完成可调用适配。DSH 使用品牌无关的 `datahub_*` 业务 Tool；`datahub_get_fund_data` 是基金能力的正式工具名，不是产品品牌别名。登记、配置和最近探测分别显示，不能把代码存在解释为已连接。
 
 产品索引只记录归属、文件与幂等受理收据；研究正文以 DSH 日志为准。附件及产物按会话隔离，
 研究脚本经内核文件访问约束执行，HTML 产物在不具同源权限的预览中打开。
@@ -20,7 +20,7 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 
 以下合并平台与量化设计保留作历史记录，不是本轮研究链路的实现前置条件。
 
-## 历史：AlphaFoundry × LSH 合并平台 V1 基线
+## 历史：Research Workbench × LSH 合并平台 V1 基线
 
 合并平台保持本文件定义的模块化单体、FastAPI 与 PostgreSQL + pgvector 主干，并增加四个边界明确的产品模块：FinGPT / Claw、facts-only 市场首页、Research Pack、资产观察。DSH 仅是可选 `RuntimeProvider` 侧车，不得直连数据库；事实、研究与个人观察三层严格隔离。该目标态、20 张新增表、四段迁移、API/状态/失败语义和九张架构图见 [`docs/architecture/merged-platform/`](architecture/merged-platform/README.md)。
 
@@ -32,7 +32,7 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 
 ## 历史量化平台：系统总览
 
-AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。
+Research Workbench 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。
 
 系统的核心定位是 **AI 驱动的事件型量化（Event-driven Quant）**，而不是 tick 高频、K 线深度学习、纯技术指标或 LSTM 收盘价预测。Agent 层负责解释世界，Timing 层负责交易节奏，Quant 层负责统计验证。
 
@@ -270,7 +270,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
   - `ThesisReviewService`：论点审查服务
   - `TimingEngineService`：择时引擎服务
 
-- **core/settings/**：全局配置管理。`runtime.py` 在业务模块和数据库 engine 初始化前解析运行模式、跨平台用户数据目录、唯一 `.env` 位置及本地后端 URL；桌面端使用 `%LOCALAPPDATA%/AlphaFoundry`（Windows）或 `~/Library/Application Support/AlphaFoundry`（macOS），Web 生产仅接受部署环境变量或显式配置文件。
+- **core/settings/**：全局配置管理。`runtime.py` 在业务模块和数据库 engine 初始化前解析运行模式、跨平台用户数据目录、唯一 `.env` 位置及本地后端 URL；桌面端使用 `%LOCALAPPDATA%/Research Workbench`（Windows）或 `~/Library/Application Support/Research Workbench`（macOS），Web 生产仅接受部署环境变量或显式配置文件。
 
 **关键契约**：所有核心领域对象都定义在 `contracts/` 中，所有跨层交互必须使用这些 Pydantic 模型，保证类型安全和数据验证。
 
@@ -519,7 +519,7 @@ Word 占位符
 │  Crawl Scheduler Worker (workers/crawl_scheduler_worker.py) │
 │  - 管理 APScheduler 定时抓取任务                              │
 │  - 启动时并发回填所有数据源                                    │
-│  - PID: logs/scheduler.pid, CLI: af crawl scheduler-start    │
+│  - PID: logs/scheduler.pid, CLI: rwb crawl scheduler-start    │
 │  - API: POST /api/scheduler/start|stop, GET /api/scheduler/status │
 └──────────────────────────────────────────────────────────────┘
                                │
@@ -538,7 +538,7 @@ Word 占位符
 │  - 并发消费 ingestion_queue (默认 8 并发)                     │
 │  - KnowledgePipeline 加工: 分块→分类→实体提取→事件提取→去重   │
 │  - PID: logs/knowledge_worker.pid                            │
-│  - CLI: af knowledge start|stop|status                       │
+│  - CLI: rwb knowledge start|stop|status                       │
 │  - API: POST /api/knowledge/start|stop, GET /api/knowledge/status │
 │  - 两层并发: item 级 (asyncio.Semaphore, 8) + chunk 级        │
 │    (ThreadPoolExecutor, 8)                                    │
@@ -589,7 +589,7 @@ AKShare 数据源
 
 ## 事件型量化闭环
 
-AlphaFoundry 的主线不是"预测明天涨跌"，而是预测**哪些事件会形成持续市场共识**。完整闭环如下：
+Research Workbench 的主线不是"预测明天涨跌"，而是预测**哪些事件会形成持续市场共识**。完整闭环如下：
 
 ```
 全球事件流
@@ -649,7 +649,7 @@ Signal Lab 对事件型信号的最低验证集合包括：
 
 ## AI-native Investment OS
 
-AlphaFoundry 不应继续停留在功能模块集合，而要逐步具备横向操作系统能力。当前必须优先实现能提高 alpha 验证速度的能力，而不是一次性堆满所有未来模块。
+Research Workbench 不应继续停留在功能模块集合，而要逐步具备横向操作系统能力。当前必须优先实现能提高 alpha 验证速度的能力，而不是一次性堆满所有未来模块。
 
 | OS 能力 | 作用 | 当前策略 | 状态 |
 |---|---|---|---|
@@ -688,7 +688,7 @@ Event → Return
 
 ## World Model + Agent Swarm
 
-AlphaFoundry 会走向 Multi-Agent System，但 Agent 只作为横向认知竞争层。系统主体仍是 Data、Knowledge、Event、Signal Validation、Portfolio 和 Risk 这些可审计模块。
+Research Workbench 会走向 Multi-Agent System，但 Agent 只作为横向认知竞争层。系统主体仍是 Data、Knowledge、Event、Signal Validation、Portfolio 和 Risk 这些可审计模块。
 
 ```
 Data Layer
@@ -976,15 +976,15 @@ class BaseProvider(ABC):
 
 ## 资源监控第二期数据流
 
-资源监控属于应用层的本地可观测性能力，边界是 AlphaFoundry 自身：API 进程树、项目写入 PID 文件的抓取调度器/知识 Worker，以及这些进程写入的受控任务快照。采样器不会全量枚举系统进程，也不会返回其他应用的进程详情。
+资源监控属于应用层的本地可观测性能力，边界是 Research Workbench 自身：API 进程树、项目写入 PID 文件的抓取调度器/知识 Worker，以及这些进程写入的受控任务快照。采样器不会全量枚举系统进程，也不会返回其他应用的进程详情。
 
-`services/resource_task_registry.py` 为抓取、PDF、知识处理、Wind 和报告任务生成每 PID 原子快照；`ResourceMonitoringService` 读取这些快照，并将独立 Worker 标记为精确进程资源、API 内任务标记为共享进程估算。页面路径只读取进程内 5 分钟 AlphaFoundry 快照；运行时路径则由 `ResourceMonitorRuntime` 在数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时常驻，每分钟汇总安全的主机 CPU/内存容量、写入并保留 24 小时历史，再评估告警。主机“剩余内存”始终指 `psutil.virtual_memory().available`，不是以 `total - used` 推算。`ResourceMonitorAlertService` 将失败、受控 Worker 缺失、采样失败和 AlphaFoundry 压力以 `source_scope=alphafoundry` 映射到已有 Monitoring 告警/事件表；整机 CPU/可用内存容量压力使用 `source_scope=host_capacity`，状态均为 `open → acknowledged → resolved`。实时图只保留内存中的 5 分钟点位；异常事件持久化并默认查询 90 天，任何未恢复事件始终返回。该能力只在系统监控页面和 API 中呈现异常，不发送原生桌面通知。
+`services/resource_task_registry.py` 为抓取、PDF、知识处理、Wind 和报告任务生成每 PID 原子快照；`ResourceMonitoringService` 读取这些快照，并将独立 Worker 标记为精确进程资源、API 内任务标记为共享进程估算。页面路径只读取进程内 5 分钟 Research Workbench 快照；运行时路径则由 `ResourceMonitorRuntime` 在数据库就绪且非 `RESEARCH_PREVIEW=1` 时常驻，每分钟汇总安全的主机 CPU/内存容量、写入并保留 24 小时历史，再评估告警。主机“剩余内存”始终指 `psutil.virtual_memory().available`，不是以 `total - used` 推算。`ResourceMonitorAlertService` 将失败、受控 Worker 缺失、采样失败和 Research Workbench 压力以 `source_scope=research_workbench` 映射到已有 Monitoring 告警/事件表；整机 CPU/可用内存容量压力使用 `source_scope=host_capacity`，状态均为 `open → acknowledged → resolved`。实时图只保留内存中的 5 分钟点位；异常事件持久化并默认查询 90 天，任何未恢复事件始终返回。该能力只在系统监控页面和 API 中呈现异常，不发送原生桌面通知。
 
 ```text
 受控任务/Worker → 每 PID 安全快照
-API 进程树 + 明确 PID → 页面 5 分钟 AlphaFoundry 快照
+API 进程树 + 明确 PID → 页面 5 分钟 Research Workbench 快照
 ResourceMonitorRuntime（非预览）→ 每分钟主机容量汇总 → 24 小时历史
-资源异常（alphafoundry / host_capacity）→ MonitoringRepository 的告警与事件
+资源异常（research_workbench / host_capacity）→ MonitoringRepository 的告警与事件
 /api/system/resource-usage/host-history → 24 小时主机容量曲线
 /api/system/resource-events → 系统监控页置顶与历史（无原生通知）
 ```

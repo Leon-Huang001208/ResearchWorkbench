@@ -21,16 +21,18 @@
 
 ## 开发启动
 
-在本隔离工作树根目录运行两个终端。使用已安装项目依赖的 Python 环境；本机验证解释器为 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`。
+安装项目命令后，使用项目级后台管理器启动；命令返回或终端关闭后，两个进程仍继续运行：
 
 ```bash
-python -m app.research_web.launch_runtime --source /Users/leon/Developer/deepseek-harness --data /Users/leon/.alphafoundry/research-web --source-mode --research-tools
-python -m uvicorn app.research_web.main:app --host 127.0.0.1 --port 8088 --timeout-graceful-shutdown 5
+rwb web start
+rwb web status
+rwb web restart
+rwb web stop
 ```
 
-入口：`http://127.0.0.1:8088/#/settings`。模型密钥只在此填写，不从 3080 或仓库环境文件复制。
+入口：`http://127.0.0.1:8088/#/fingpt`。3081 与 8088 的 PID、命令指纹和日志保存在 `~/.research-workbench/run/` 与 `logs/`；停止仅操作归属一致的进程，不触碰原有 3080。模型密钥只在设置页填写，不从 3080 或旧数据目录复制。
 DSH 源码固定 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；CLI 版本为 `0.1.1-rc.2`，`host.describe` 当前协议实现报告 `0.0.1`。启动器记录实际本地源码/构建闭包哈希。
-现有 `lib` 构建不完整，所以本轮使用固定源码和已安装 tsx 启动；这不是经过发布验证的独立构建包。
+管理器默认使用固定源码中已构建的 DSH CLI；启动失败会回收本次新建进程并保留日志，不会接管占用端口的外部进程。
 不带 `--research-tools` 可启动禁工具聊天模式；无法完成沙箱启动检查时不要开放脚本。
 
 ## 数据与模块
@@ -46,7 +48,7 @@ DSH 源码固定 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；CLI 版本为 `0.1
 - `datahub/`：固定来源、分页、私有原始响应、会话不可变资料、校验读取与缓存；见 [DataHub](research-web-datahub.md)。
 - `runtime/public-data.mjs`：原生审批、可信会话身份、认证回环DataHub及取消薄桥接，不再重复上游解析；见 [公开数据工具](research-web-public-data.md)。
 
-数据根默认 `~/.alphafoundry/research-web`（可通过 `AF_RESEARCH_DATA` 指定）。其下：
+数据根默认 `~/.research-workbench/research-web`（可通过 `RESEARCH_DATA_HOME` 指定）。其下：
 
 ```text
 index.json                   # 归属、默认模型和幂等受理收据
@@ -59,6 +61,8 @@ sessions/<uuid>/outputs/     # 真正生成的文件
 ```
 
 不得使用多个 Uvicorn worker 并发写同一索引。研究正文只读 DSH 日志；浏览器断线不取消任务也不自动重提。
+
+旧研究数据使用 `rwb migrate-research-data --dry-run` 先核对数量、大小和哈希，再执行复制。迁移保留会话、附件、能力版本、数据集、产物和原生会话索引；明确排除模型凭据、控制令牌、运行时 overlay、临时文件和日志。新目录验证通过后才可加 `--archive-source` 将旧目录移为只读备份，模型授权需在新设置页重新填写一次。
 
 ## 验证命令
 
@@ -94,5 +98,5 @@ Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真�
 - 早期基金示例只有20条单页数据；后续DataHub批次已完成2025净值13页243条、基本资料16项、分红25条、披露持仓220条，并由两个真实子Agent共用快照产出文件。见[DataHub验收](../.ai/reports/2026-09-02-datahub-acceptance.md)。仍缺基准序列、复权总回报、合同/定期报告原文及完整持仓，不能据此宣称完整基金尽调。文件格式验证不替代数据与结论复核。
 - 已验证真实无效模型报错并恢复、BFF 中断后审批/草稿恢复、同键不重发、父与子脚本停止。未模拟提供方生成到一半时的任意故障类型；真实图片模型识别仍未覆盖。
 - 本轮仍是本机回环单人 Web；脚本隔离仅验证当前 macOS Seatbelt，未验证 Linux 部署。未新增任何依赖或第三方 MCP。
-- 早期固定Python启动探针 PID 38291 留在macOS内核 `UE` 状态；SIGKILL后未确认回收，临时目录 `/private/tmp/af-dsh-sandbox-probe.frLuyJ` 保留。它不是模型脚本；旧实验profile快照不完整，不能保证其权限/句柄状态。当前有效runner的全部取消测试已正常回收。
+- 早期固定Python启动探针 PID 38291 留在macOS内核 `UE` 状态；SIGKILL后未确认回收，临时目录 `/private/tmp/rwb-dsh-sandbox-probe.frLuyJ` 保留。它不是模型脚本；旧实验profile快照不完整，不能保证其权限/句柄状态。当前有效runner的全部取消测试已正常回收。
 - 未涉及桌面/Windows、市场首页/主题/自选、旧系统数据删除。

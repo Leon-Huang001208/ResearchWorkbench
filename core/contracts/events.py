@@ -2,7 +2,7 @@
 Core contracts for event-related data structures.
 
 This module defines Pydantic models that standardize event representations
-across the AlphaFoundry system, including canonical events extracted from
+across the Research Workbench system, including canonical events extracted from
 documents with metadata, impact targeting, and scoring.
 """
 

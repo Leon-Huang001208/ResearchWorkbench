@@ -117,7 +117,7 @@ def test_report_generation(snapshot):
 
 def main():
     """主函数"""
-    print("AlphaFoundry - 资产分析端到端测试")
+    print("Research Workbench - 资产分析端到端测试")
     print("=" * 50)
 
     # 配置日志

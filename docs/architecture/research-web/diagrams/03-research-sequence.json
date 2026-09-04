@@ -27,7 +27,7 @@
     {"id": "resumeStream", "from": "web", "to": "api", "y": 314, "label": "SSE 重连 / 历史补齐"},
     {"id": "toolCall", "from": "dsh", "to": "approval", "y": 390, "label": "datahub_* 请求审批", "variant": "security"},
     {"id": "approvalResult", "from": "approval", "to": "dsh", "y": 436, "label": "允许一次 / 拒绝 / 取消", "variant": "return"},
-    {"id": "businessQuery", "from": "dsh", "to": "datahub", "y": 482, "label": "认证回环 BusinessQuery", "variant": "security"},
+    {"id": "businessQuery", "from": "dsh", "to": "datahub", "y": 482, "label": "POST /internal/data/business-query", "variant": "security"},
     {"id": "providerQuery", "from": "datahub", "to": "provider", "y": 528, "label": "已注册来源 + 有界参数", "variant": "emphasis"},
     {"id": "providerResult", "from": "provider", "to": "datahub", "y": 574, "label": "原始响应 / 明确失败", "variant": "return"},
     {"id": "saveSnapshot", "from": "datahub", "to": "snapshot", "y": 620, "label": "标准化、Hash、原子发布", "variant": "emphasis"},
@@ -48,7 +48,7 @@
   ],
   "cards": [
     {"dot": "cyan", "title": "可恢复", "items": ["提交立即返回受理，长任务不受旧整任务超时约束", "刷新从 DSH 历史补齐，不自动重复提交"]},
-    {"dot": "rose", "title": "先审批后联网", "items": ["拒绝、取消或 Guard 拒绝时不向上游发送请求", "来源凭据不进入浏览器、提示词或普通日志"]},
+    {"dot": "rose", "title": "先审批后联网", "items": ["拒绝、取消或 Guard 拒绝时不向上游发送请求", "旧产品前缀工具和平行 query 接口已删除"]},
     {"dot": "emerald", "title": "两种终态", "items": ["DSH 回合结束与文件交付完成分别判断", "数据快照可用不代表研究数据完整或报告正确"]}
   ]
 }

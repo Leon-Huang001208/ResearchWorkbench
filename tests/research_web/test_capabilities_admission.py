@@ -36,7 +36,7 @@ def test_pre_capability_receipt_still_replays_without_model(api):
     assert not any(method == "session.prompt" for method, _ in native.calls)
 
 
-def test_new_messages_accept_brand_neutral_data_tools_and_reject_legacy_alias(api):
+def test_new_messages_accept_brand_neutral_data_tools_and_reject_unknown_tools(api):
     client, _native, _service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     accepted = client.post(
@@ -49,7 +49,7 @@ def test_new_messages_accept_brand_neutral_data_tools_and_reject_legacy_alias(ap
     legacy_sid = client.post("/api/research/sessions", json={}).json()["id"]
     rejected = client.post(
         f"/api/research/sessions/{legacy_sid}/messages",
-        json={"text": "旧入口", "tool_ids": ["af_public_data"]},
+        json={"text": "未知入口", "tool_ids": ["removed_product_tool"]},
         headers={"Idempotency-Key": "legacy-data-tool"},
     )
     assert rejected.status_code == 422
@@ -85,7 +85,7 @@ def test_selected_version_snapshot_formats_and_receipt(api, formats, required):
         "text": "开展研究",
         "capability_id": cid,
         "capability_version": 1,
-        "tool_ids": ["af_run_script"],
+        "tool_ids": ["research_run_script"],
     }
     if formats is not None:
         payload["expected_formats"] = formats
@@ -233,7 +233,7 @@ def test_publication_io_failure_keeps_old_mapping_or_blocks(api, monkeypatch):
     original = os.replace
 
     def denied(source, destination):
-        if str(destination).endswith(f"af-{cid}-v2"):
+        if str(destination).endswith(f"rwb-{cid}-v2"):
             raise OSError("simulated native rename failure")
         return original(source, destination)
 

@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
-const origin = new URL(process.env.ALPHAFOUNDRY_WEB_URL || 'http://127.0.0.1:8088');
+const origin = new URL(process.env.RESEARCH_WEB_URL || 'http://127.0.0.1:8088');
 if (!['localhost', '127.0.0.1'].includes(origin.hostname) || origin.protocol !== 'http:') throw new Error('Local acceptance only');
 const session = '7ee7b736-673a-4aff-8006-73de6c10b600';
 const file = '3320abdf473d5e3d84d3df8f';
@@ -14,7 +14,7 @@ const log = path.resolve('logs/research-web-custom-skill-readback.jsonl');
 let browser;
 try {
   await mkdir(output,{recursive:true}); await mkdir(path.dirname(log),{recursive:true});
-  const {chromium} = await import(process.env.ALPHAFOUNDRY_PLAYWRIGHT_MODULE || 'playwright-core');
+  const {chromium} = await import(process.env.RESEARCH_PLAYWRIGHT_MODULE || 'playwright-core');
   browser = await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
   const context = await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});
   const page = await context.newPage(); const errors=[];

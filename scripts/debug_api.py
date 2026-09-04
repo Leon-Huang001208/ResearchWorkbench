@@ -79,7 +79,7 @@ async def test_analysis_card():
 
 def main():
     """主函数"""
-    print("AlphaFoundry - API Debug")
+    print("Research Workbench - API Debug")
     print("=" * 50)
 
     try:

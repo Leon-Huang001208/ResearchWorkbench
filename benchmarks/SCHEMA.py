@@ -1,4 +1,4 @@
-"""Benchmark data schema and evaluation metrics for AlphaFoundry.
+"""Benchmark data schema and evaluation metrics for Research Workbench.
 
 Provides Pydantic models for benchmark cases and results, along with
 metric computation utilities.

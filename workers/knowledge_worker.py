@@ -19,8 +19,8 @@ logger = get_logger(__name__)
 
 # 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
 PROJECT_DIR = (
-    Path(os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
-    if "ALPHAFOUNDRY_PROJECT_ROOT" in os.environ
+    Path(os.environ["RESEARCH_PROJECT_ROOT"])
+    if "RESEARCH_PROJECT_ROOT" in os.environ
     else Path(__file__).resolve().parent.parent
 )
 
@@ -697,7 +697,7 @@ def _parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     # frozen 模式下由 watchdog 通过环境变量注入 worker_id（子进程无法传 CLI 参数）
     if args.worker_id is None:
-        env_id = os.environ.get("ALPHAFOUNDRY_WORKER_ID")
+        env_id = os.environ.get("RESEARCH_WORKER_ID")
         if env_id:
             try:
                 args.worker_id = int(env_id)

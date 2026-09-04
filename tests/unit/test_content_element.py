@@ -441,7 +441,7 @@ class TestDocument:
         doc = Document(
             document_id="doc_001",
             title="2026年Q2市场回顾",
-            subtitle="AlphaFoundry 自动生成",
+            subtitle="Research Workbench 自动生成",
             sections=[
                 Section(
                     section_id="s1",
@@ -454,10 +454,10 @@ class TestDocument:
                     ],
                 )
             ],
-            metadata={"author": "AlphaFoundry", "version": "2.0"},
+            metadata={"author": "Research Workbench", "version": "2.0"},
         )
         assert doc.title == "2026年Q2市场回顾"
-        assert doc.subtitle == "AlphaFoundry 自动生成"
+        assert doc.subtitle == "Research Workbench 自动生成"
         assert len(doc.sections) == 1
         assert doc.version == "1.0"
 

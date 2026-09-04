@@ -34,8 +34,8 @@ DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
 
 
 def backend_endpoint(path: str) -> str:
-    """Return an AlphaFoundry API endpoint from the effective runtime URL."""
-    base_url = os.environ.get("ALPHAFOUNDRY_BACKEND_URL", DEFAULT_BACKEND_URL).rstrip("/")
+    """Return an Research Workbench API endpoint from the effective runtime URL."""
+    base_url = os.environ.get("RESEARCH_BACKEND_URL", DEFAULT_BACKEND_URL).rstrip("/")
     return f"{base_url}/{path.lstrip('/')}"
 
 

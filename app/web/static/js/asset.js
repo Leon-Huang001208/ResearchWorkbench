@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Asset Analysis Module
+   Research Workbench — Asset Analysis Module
    ============================================================ */
 
 import { apiCall, toast, esc, getChartColors, fmtVolume, fmtAmount, fmtMarketCap, fmtRevenue, fmtNetProfit } from './core.js';
@@ -112,7 +112,7 @@ const THEME_OBSERVATION_PRESETS = {
         ],
         news: [
             { title: '主题热度上升，资金关注相关产业链方向', source: '市场监控', time: '实时' },
-            { title: '相关 ETF 与指数同步异动，等待进一步拆解成分贡献', source: 'AlphaFoundry', time: '实时' },
+            { title: '相关 ETF 与指数同步异动，等待进一步拆解成分贡献', source: 'Research Workbench', time: '实时' },
         ],
         notes: [
             '该主题来自市场矩阵实时异动。',
@@ -1070,7 +1070,7 @@ function startResearchFromAsset() {
         toast('请先选择一个资产或主题', 'warning');
         return;
     }
-    document.dispatchEvent(new CustomEvent('alphafoundry:open-research-center', {
+    document.dispatchEvent(new CustomEvent('research_workbench:open-research-center', {
         detail: prefill,
     }));
 }

@@ -1,4 +1,4 @@
-"""af ask 命令：联网查询后回答问题"""
+"""rwb ask 命令：联网查询后回答问题"""
 
 import click
 

@@ -9,7 +9,7 @@
 - 使用稳定去重键 `host_cpu_pressure` 与 `host_memory_pressure`。同一未解决 warning 在连续三个 critical 样本后通过带 `status != resolved` 条件的原子更新变为 critical，仅更新详情，保留 alert ID、确认与解决状态；关联 incident 不在升级时重写。
 - 连续三个健康有效样本自动解决；缺失、`None`、布尔、NaN、无穷或不在 0–100 范围内的主机字段不触发压力或恢复，并会中断该指标的压力/恢复连续计数。
 - 所有资源事件创建均使用去重键与周期序号的确定性 ID；仓储在 savepoint 中处理并发主键冲突，并用独立读取事务返回现有未解决事件，避免 SQLite 旧读快照。已解决事件不会被重开，后续压力周期生成新的事件 ID。
-- 原有 API、任务、Worker 与受控进程事件统一标记 `source_scope=alphafoundry`；主机事件标记 `source_scope=host_capacity`，其元数据只保存事件类别、来源、两项容量百分比、阈值和内部去重键，不保存原始采集错误。
+- 原有 API、任务、Worker 与受控进程事件统一标记 `source_scope=research_workbench`；主机事件标记 `source_scope=host_capacity`，其元数据只保存事件类别、来源、两项容量百分比、阈值和内部去重键，不保存原始采集错误。
 
 ## 验证
 

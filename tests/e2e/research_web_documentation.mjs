@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {mkdir, writeFile, appendFile} from 'node:fs/promises';
 import path from 'node:path';
 
-const origin = new URL(process.env.ALPHAFOUNDRY_WEB_URL || 'http://127.0.0.1:8088');
+const origin = new URL(process.env.RESEARCH_WEB_URL || 'http://127.0.0.1:8088');
 if (origin.protocol !== 'http:' || !['localhost','127.0.0.1'].includes(origin.hostname)) throw new Error('Local Web only');
 const output = path.resolve('outputs/research-web-ui-acceptance/documentation');
 const receipt = {status:'running', steps:[], requests:[]};
 let browser;
 try {
   await mkdir(output,{recursive:true}); await mkdir('logs',{recursive:true});
-  const {chromium} = await import(process.env.ALPHAFOUNDRY_PLAYWRIGHT_MODULE || 'playwright-core');
+  const {chromium} = await import(process.env.RESEARCH_PLAYWRIGHT_MODULE || 'playwright-core');
   browser = await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
   const context = await browser.newContext({viewport:{width:1440,height:900}});
   await context.route('**/*',route => ['GET','HEAD'].includes(route.request().method()) ? route.continue() : route.abort());

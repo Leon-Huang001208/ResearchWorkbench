@@ -11,7 +11,7 @@
 
 ## Executed evidence
 
-- Created isolated database `alphafoundry_codex_bd12bba2` on local PostgreSQL 18.3 with pgvector 0.8.5.
+- Created isolated database `research_workbench_codex_bd12bba2` on local PostgreSQL 18.3 with pgvector 0.8.5.
 - Ran the complete Alembic graph from an empty database: `001 → 018`, head `018`.
 - Queried the migrated database and confirmed the merged-platform core tables, pgvector 0.8.5, and the `uq_research_session_run_id` database constraint.
 - Ran `tests/integration/test_postgresql_smoke.py` together with `tests/integration/test_postgresql_platform_semantics.py`: `3 passed`.

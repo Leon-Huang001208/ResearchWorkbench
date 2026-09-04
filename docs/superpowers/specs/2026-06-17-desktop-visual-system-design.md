@@ -1,11 +1,11 @@
-# AlphaFoundry Desktop Visual System Design
+# Research Workbench Desktop Visual System Design
 
 Date: 2026-06-17
 Updated: 2026-06-18
 
 ## Goal
 
-Redesign the AlphaFoundry web workbench for the desktop shell so it feels like a native macOS professional application while preserving the density and speed expected from an institutional research terminal.
+Redesign the Research Workbench web workbench for the desktop shell so it feels like a native macOS professional application while preserving the density and speed expected from an institutional research terminal.
 
 The approved baseline is:
 
@@ -18,18 +18,18 @@ This design is for the Tauri desktop experience first. The existing FastAPI-serv
 
 The current desktop baseline is local-first:
 
-- The installed macOS app at `/Applications/AlphaFoundry.app` is the primary daily entry point.
+- The installed macOS app at `/Applications/Research Workbench.app` is the primary daily entry point.
 - The app starts a local backend on `127.0.0.1:8765`.
-- The backend reads the active project root from `~/Library/Application Support/AlphaFoundry/dev-project-root`.
-- The active project root is `/Users/leon/Desktop/Projects/AlphaFoundry`.
+- The backend reads the active project root from `~/Library/Application Support/Research Workbench/dev-project-root`.
+- The active project root is `/Users/leon/Desktop/Projects/ResearchWorkbench`.
 - Normal frontend/backend/template iteration should take effect after quitting and reopening the desktop app.
 - The browser remains a debugging fallback, not the default user experience.
-- The active database is local PostgreSQL: `postgresql://leon@localhost:5432/alphafoundry`.
+- The active database is local PostgreSQL: `postgresql://leon@localhost:5432/research_workbench`.
 - Background workers continue to run locally for crawl scheduling and knowledge processing.
 
 ## Product Feel
 
-AlphaFoundry should feel like a buy-side research operating system:
+Research Workbench should feel like a buy-side research operating system:
 
 - Calm, professional, and operational.
 - Dense enough for market monitoring and research throughput.
@@ -57,7 +57,7 @@ The desktop shell borrows from Apple where it improves long-running professional
 - Inspector-style contextual side panel.
 - Persisted workspace state.
 
-The shell keeps AlphaFoundry's terminal DNA where research velocity matters:
+The shell keeps Research Workbench's terminal DNA where research velocity matters:
 
 - Compact tables.
 - Monospace numeric data.
@@ -369,7 +369,7 @@ Theme choices must not affect:
 
 ### Dark Appearance
 
-Dark appearance remains the primary AlphaFoundry experience.
+Dark appearance remains the primary Research Workbench experience.
 
 It should use the graphite terminal palette defined in Visual Tokens:
 
@@ -516,7 +516,7 @@ Empty states should stay operational:
 
 ### Runtime Status
 
-Runtime status is part of the desktop visual system because AlphaFoundry is now a local app with local services.
+Runtime status is part of the desktop visual system because Research Workbench is now a local app with local services.
 
 Required states:
 
@@ -556,10 +556,10 @@ The redesign can be implemented incrementally.
 
 Status: completed for macOS local development.
 
-- macOS Tauri shell exists and can be installed as `/Applications/AlphaFoundry.app`.
-- The app uses the red/gold AlphaFoundry icon.
+- macOS Tauri shell exists and can be installed as `/Applications/Research Workbench.app`.
+- The app uses the red/gold Research Workbench icon.
 - The installed app starts the local backend from the active project root.
-- The active project root is configured through `~/Library/Application Support/AlphaFoundry/dev-project-root`.
+- The active project root is configured through `~/Library/Application Support/Research Workbench/dev-project-root`.
 - The backend serves the existing workbench on `127.0.0.1:8765`.
 - The backend connects to local PostgreSQL.
 - `crawl_scheduler_worker` and `knowledge_worker` run locally under watchdog supervision.
@@ -621,8 +621,8 @@ The redesign is successful when:
 - Market monitoring remains dense and scannable.
 - Report and template work feels calmer and more native.
 - AI output reads like an analyst inspector, not a chat sidebar.
-- The desktop shell feels coherent with macOS without losing AlphaFoundry's institutional terminal identity.
-- The user can work from `AlphaFoundry.app` without opening the browser.
+- The desktop shell feels coherent with macOS without losing Research Workbench's institutional terminal identity.
+- The user can work from `Research Workbench.app` without opening the browser.
 - Local backend, local database, scheduler, and knowledge worker health are visible when needed.
 - Normal project iteration takes effect after quitting and reopening the installed app.
 

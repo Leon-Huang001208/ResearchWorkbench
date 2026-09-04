@@ -1,7 +1,7 @@
 """
-Core interfaces (abstract base classes) for AlphaFoundry components.
+Core interfaces (abstract base classes) for Research Workbench components.
 
-This package defines abstract base classes (interfaces) for key AlphaFoundry components,
+This package defines abstract base classes (interfaces) for key Research Workbench components,
 including data adapters, model gateways, reasoning engines, report composers, repositories,
 and signal validators.
 """

@@ -109,18 +109,18 @@ def test_ui_hides_only_registered_task_suffix_and_keeps_native_log(delivery_api)
     assert submit(delivery_api, [], skill="fund-evaluation").status_code == 202
     finish(delivery_api)
     prompt = [payload for method, payload in native.calls if method == "session.prompt"][-1]
-    assert "[AF_TASK:" in prompt["content"][0]["text"]
+    assert "[RESEARCH_TASK:" in prompt["content"][0]["text"]
     assert detail(delivery_api)["messages"][0]["text"] == "/fund-evaluation 交付本次研究"
     original = next(iter(service.events[sid].values()))["event"]["data"]["content"][0]["text"]
-    assert "[AF_TASK:" in original
+    assert "[RESEARCH_TASK:" in original
     service.events[sid][999] = {
         "event": {
             "seq": 999,
             "type": "user/message",
-            "data": {"id": "other", "content": "原样保留\n\n[AF_TASK:not-owned]"},
+            "data": {"id": "other", "content": "原样保留\n\n[RESEARCH_TASK:not-owned]"},
         }
     }
-    assert detail(delivery_api)["messages"][-1]["text"].endswith("[AF_TASK:not-owned]")
+    assert detail(delivery_api)["messages"][-1]["text"].endswith("[RESEARCH_TASK:not-owned]")
 
 
 def test_quoted_prior_task_marker_does_not_hide_new_user_requirements(delivery_api):

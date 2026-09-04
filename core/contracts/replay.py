@@ -2,7 +2,7 @@
 Core contracts for replay tasks and results (historical event batch replay and signal calibration).
 
 This module defines Pydantic models for replay jobs, single-event replay results,
-aggregate replay results, and replay job creation requests in AlphaFoundry.
+aggregate replay results, and replay job creation requests in Research Workbench.
 """
 
 from datetime import datetime

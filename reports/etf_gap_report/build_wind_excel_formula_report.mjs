@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { FileBlob, SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 
-const ROOT = "/Users/leon/Desktop/Projects/AlphaFoundry";
+const ROOT = "/Users/leon/Desktop/Projects/ResearchWorkbench";
 const DEFAULT_INPUT = "/Users/leon/Desktop/公募基金_概况.xlsx";
 const NODE_MODULES = "/Users/leon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules";
 const OUTPUT_DIR = path.join(ROOT, "outputs/etf_gap_report_20260702");

@@ -1,4 +1,4 @@
-# AlphaFoundry 核心业务场景全流程测试报告
+# Research Workbench 核心业务场景全流程测试报告
 
 ## 测试时间
 2026-05-09

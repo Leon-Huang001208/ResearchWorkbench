@@ -2,7 +2,7 @@
 Abstract base class (interface) for reasoning engines.
 
 Defines the interface for reasoning engines, which perform asset analysis, scenario
-generation, and reasoning trace retrieval in AlphaFoundry.
+generation, and reasoning trace retrieval in Research Workbench.
 """
 
 from abc import ABC, abstractmethod

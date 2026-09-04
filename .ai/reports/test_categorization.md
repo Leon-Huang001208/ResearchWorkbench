@@ -1,21 +1,21 @@
-# Test Categorization: af-auto-001-01a
+# Test Categorization: rwb-auto-001-01a
 
-**Task**: af-auto-001-01a (Categorize failing tests)  
-**Status**: ✓ COMPLETED (by bootstrap analysis)  
-**Date**: 2026-05-11  
-**Branch**: af-auto-001-categorize-failing-tests
+**Task**: rwb-auto-001-01a (Categorize failing tests)
+**Status**: ✓ COMPLETED (by bootstrap analysis)
+**Date**: 2026-05-11
+**Branch**: rwb-auto-001-categorize-failing-tests
 
 ---
 
 ## Summary
 
-The task of categorizing failing tests has already been completed by the bootstrap analysis performed in `af-auto-001-bootstrap`.
+The task of categorizing failing tests has already been completed by the bootstrap analysis performed in `rwb-auto-001-bootstrap`.
 
 ### Success Criteria Verification
 
 | Criterion | Status | Evidence |
 |-----------|--------|----------|
-| Create detailed categorization of all failing tests | ✓ | See `.ai/reports/af_auto_001_bootstrap_analysis.md` |
+| Create detailed categorization of all failing tests | ✓ | See `.ai/reports/rwb_auto_001_bootstrap_analysis.md` |
 | Group tests by failure pattern | ✓ | 12 distinct categories identified |
 | Create test_categorization report | ✓ | This report + bootstrap analysis |
 | Identify which tests share same root cause | ✓ | Dependency graph created |
@@ -58,8 +58,8 @@ As identified in bootstrap analysis:
 
 ## Next Steps
 
-Proceed directly to **af-auto-001-01b: Fix API test failures**, since the categorization is complete.
+Proceed directly to **rwb-auto-001-01b: Fix API test failures**, since the categorization is complete.
 
 ---
 
-**Conclusion**: Task af-auto-001-01a is successfully completed! The bootstrap analysis provided comprehensive categorization that meets all requirements.
+**Conclusion**: Task rwb-auto-001-01a is successfully completed! The bootstrap analysis provided comprehensive categorization that meets all requirements.

@@ -14,7 +14,7 @@ import httpx
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    os.getenv("ALPHAFOUNDRY_RUN_LIVE_API_TESTS") != "1",
+    os.getenv("RESEARCH_RUN_LIVE_API_TESTS") != "1",
     reason="live API smoke test requires an already-running server on 127.0.0.1:8000",
 )
 

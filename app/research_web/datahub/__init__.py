@@ -14,7 +14,7 @@ from ..store import StoreError
 from . import providers
 from .broker import resolve
 from .catalog import build_catalog, catalog_detail
-from .contracts import SCHEMA_VERSION, SOURCES, BusinessQuery, Query
+from .contracts import BusinessQuery, Query
 from .security import load_control
 from .snapshots import Snapshots
 
@@ -41,33 +41,6 @@ class DataHub:
             and value.isascii()
             and hmac.compare_digest(value, self.control["token"])
         )
-
-    @staticmethod
-    def capabilities():
-        return {
-            "items": [
-                {
-                    "id": key,
-                    "name": name,
-                    "source": key,
-                    "approval_required": True,
-                    "available": True,
-                    "schema_version": SCHEMA_VERSION,
-                    "description": "父Agent单次原生审批；Web只读已有快照。",
-                    "parameters": [
-                        "source",
-                        "code",
-                        "limit",
-                        "start_date",
-                        "end_date",
-                        "year",
-                        "refresh",
-                    ],
-                }
-                for key, name in SOURCES.items()
-            ],
-            "missing": ["benchmark_timeseries", "contract_download", "report_download"],
-        }
 
     def _latest_probes(self):
         latest = {}

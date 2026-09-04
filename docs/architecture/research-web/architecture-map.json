@@ -41,6 +41,7 @@
         "app/research_web/__init__.py",
         "app/research_web/main.py",
         "app/research_web/service.py",
+        "app/research_web/service_manager.py",
         "app/research_web/client.py",
         "app/research_web/projection.py"
       ],
@@ -85,6 +86,7 @@
       "id": "files",
       "sources": [
         "app/research_web/store.py",
+        "app/research_web/data_migration.py",
         "app/research_web/delivery.py",
         "app/research_web/delivery_validation.py",
         "app/research_web/resources/"
@@ -93,6 +95,8 @@
         "docs/architecture/research-web/03-data-files.md"
       ],
       "diagrams": [
+        "01-deployment",
+        "02-module-dependencies",
         "04-data-file-flow",
         "07-delivery-state"
       ],
@@ -183,9 +187,24 @@
         {
           "subjects": [
             "browser",
-            "openData"
+            "openData",
+            "manageStack"
           ],
           "source": "app/research_web/ui/app.mjs"
+        },
+        {
+          "subjects": [
+            "serviceManager",
+            "manageStack"
+          ],
+          "source": "app/research_web/service_manager.py"
+        },
+        {
+          "subjects": [
+            "dataMigration",
+            "migrateData"
+          ],
+          "source": "app/research_web/data_migration.py"
         },
         {
           "subjects": [
@@ -266,6 +285,22 @@
             "web-http"
           ],
           "source": "app/research_web/main.py"
+        },
+        {
+          "subjects": [
+            "manager",
+            "processState",
+            "manage-web",
+            "process-state"
+          ],
+          "source": "app/research_web/service_manager.py"
+        },
+        {
+          "subjects": [
+            "migration",
+            "migrate-session"
+          ],
+          "source": "app/research_web/data_migration.py"
         },
         {
           "subjects": [
@@ -757,13 +792,6 @@
     },
     {
       "method": "GET",
-      "path": "/api/research/data/capabilities",
-      "source": "app/research_web/datahub/routes.py",
-      "declaredPath": "/data/capabilities",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "GET",
       "path": "/api/research/data/catalog",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/data/catalog",
@@ -823,13 +851,6 @@
       "path": "/api/research/sessions/{sid}/datasets/{did}/files/{name}",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/sessions/{sid}/datasets/{did}/files/{name}",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/internal/data/query",
-      "source": "app/research_web/datahub/routes.py",
-      "declaredPath": "/internal/data/query",
       "prefix": "/api/research"
     },
     {

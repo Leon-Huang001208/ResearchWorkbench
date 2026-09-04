@@ -1,4 +1,4 @@
-"""Build the AlphaFoundry Python backend as a Tauri sidecar executable."""
+"""Build the Research Workbench Python backend as a Tauri sidecar executable."""
 from __future__ import annotations
 
 import os
@@ -63,7 +63,7 @@ def target_triple() -> str:
 def sidecar_name(triple: str) -> str:
     """Return the executable name PyInstaller should produce for Tauri."""
     suffix = ".exe" if triple.endswith("windows-msvc") or "windows" in triple else ""
-    return f"alphafoundry-backend-{triple}{suffix}"
+    return f"research-workbench-backend-{triple}{suffix}"
 
 
 def add_data_arg(source: Path, destination: Path) -> str:

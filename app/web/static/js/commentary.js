@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Commentary Production Center
+   Research Workbench — Commentary Production Center
    ============================================================ */
 
 import { apiCall, esc, toast } from './core.js';

@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Review Queue Module
+   Research Workbench — Review Queue Module
    ============================================================ */
 
 import { apiCall, toast, esc } from './core.js';

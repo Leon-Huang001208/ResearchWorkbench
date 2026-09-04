@@ -1,5 +1,5 @@
 /**
- * AlphaFoundry 跨平台后端启动桥接脚本
+ * Research Workbench 跨平台后端启动桥接脚本
  *
  * Tauri 的 beforeDevCommand 需要一个长时间运行的命令来启动后端。
  * 本脚本根据平台自动选择 shell 启动器（Windows → .cmd, 其他 → .sh），

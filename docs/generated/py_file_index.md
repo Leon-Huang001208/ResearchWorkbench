@@ -6,13 +6,13 @@ Do not manually edit this file.
 ## `app/__init__.py`
 
 Module docstring:
-> AlphaFoundry Application Layer
+> Research Workbench Application Layer
 
 
 ## `app/api/__init__.py`
 
 Module docstring:
-> AlphaFoundry API Module
+> Research Workbench API Module
 
 
 ## `app/api/configuration_models.py`
@@ -104,7 +104,7 @@ Functions:
 ## `app/api/main.py`
 
 Module docstring:
-> AlphaFoundry API
+> Research Workbench API
 
 Imports:
 - `app.api.configuration_security`
@@ -2133,7 +2133,7 @@ Functions:
 - `_sanitize_host_capacity`
   - 将主机容量汇总收敛为稳定、无进程信息的公开字段。
 - `_sanitize_alpha_capacity`
-  - 将 AlphaFoundry 对整机的占用汇总限制为公开数值字段。
+  - 将 Research Workbench 对整机的占用汇总限制为公开数值字段。
 - `_sanitize_host_history_point`
   - 将持久化指标转换为最小的长期主机容量 API 点位。
 - `_host_history_sort_key`
@@ -2149,7 +2149,7 @@ Functions:
 - `_serialize_resource_event`
   - 将 Pydantic 资源告警映射为仅含安全字段的 JSON 响应。
 - `get_resource_usage`
-  - 返回 AlphaFoundry 受控进程与主机容量的当前资源快照。
+  - 返回 Research Workbench 受控进程与主机容量的当前资源快照。
 - `get_resource_usage_history`
   - 返回指定时间窗口内已采集的资源快照。
 - `get_resource_host_history`
@@ -2456,7 +2456,7 @@ Functions:
 ## `app/cli/commands/ask.py`
 
 Module docstring:
-> af ask 命令：联网查询后回答问题
+> rwb ask 命令：联网查询后回答问题
 
 Imports:
 - `click`
@@ -2501,7 +2501,7 @@ Functions:
 ## `app/cli/commands/data.py`
 
 Module docstring:
-> 统一数据命令组 — af data ingest|backfill|validate|status|list|file|schedule|workers
+> 统一数据命令组 — rwb data ingest|backfill|validate|status|list|file|schedule|workers
 
 Imports:
 - `__future__`
@@ -2741,7 +2741,7 @@ Functions:
 ## `app/cli/main.py`
 
 Module docstring:
-> AlphaFoundry CLI 主入口
+> Research Workbench CLI 主入口
 
 Imports:
 - `app.cli.commands.akshare`
@@ -2762,7 +2762,7 @@ Imports:
 
 Functions:
 - `cli`
-  - AlphaFoundry - 买方投研情报系统
+  - Research Workbench - 买方投研情报系统
 
 
 ## `app/research_web/__init__.py`
@@ -3459,7 +3459,7 @@ Classes:
 ## `core/__init__.py`
 
 Module docstring:
-> AlphaFoundry Core 模块
+> Research Workbench Core 模块
 
 
 ## `core/adapters/__init__.py`
@@ -4062,7 +4062,7 @@ Classes:
 ## `core/contracts/documents_v1.py`
 
 Module docstring:
-> AlphaFoundry v1 统一文档契约.
+> Research Workbench v1 统一文档契约.
 
 Imports:
 - `datetime`
@@ -4096,7 +4096,7 @@ Classes:
 - `DocumentReview`
   - 审核信息
 - `DocumentV1`
-  - AlphaFoundry v1 统一文档模型.
+  - Research Workbench v1 统一文档模型.
 - `TelegramSchema`
   - 电报/快讯特定 schema
 - `NewsSchema`
@@ -4992,7 +4992,7 @@ Classes:
 ## `core/interfaces/__init__.py`
 
 Module docstring:
-> Core interfaces (abstract base classes) for AlphaFoundry components.
+> Core interfaces (abstract base classes) for Research Workbench components.
 
 Imports:
 - `data_adapter`
@@ -5501,7 +5501,7 @@ Imports:
 
 Functions:
 - `app_data_dir`
-  - 返回当前平台下的 AlphaFoundry 应用数据根目录。
+  - 返回当前平台下的 Research Workbench 应用数据根目录。
 - `wind_workbook_dir`
   - Wind 实时工作簿所在目录。
 - `default_wind_workbook_path`
@@ -5659,7 +5659,7 @@ Functions:
 ## `data_layer/__init__.py`
 
 Module docstring:
-> AlphaFoundry Data Layer - 数据层。按需导入，避免启动时全量加载。
+> Research Workbench Data Layer - 数据层。按需导入，避免启动时全量加载。
 
 
 ## `data_layer/adapters/__init__.py`
@@ -8146,7 +8146,7 @@ Classes:
 ## `data_layer/repositories/documents_v1.py`
 
 Module docstring:
-> AlphaFoundry v1 文档 Repository.
+> Research Workbench v1 文档 Repository.
 
 Imports:
 - `base`
@@ -11546,7 +11546,7 @@ Classes:
 ## `reporting/__init__.py`
 
 Module docstring:
-> AlphaFoundry Reporting - 报告合成层.
+> Research Workbench Reporting - 报告合成层.
 
 Imports:
 - `reporting`
@@ -12527,7 +12527,7 @@ Classes:
   - Retrieves factual evidence for a section query.
   - methods: retrieve
 - `DatabaseEvidenceRetriever`
-  - Keyword evidence retriever over existing AlphaFoundry database tables.
+  - Keyword evidence retriever over existing Research Workbench database tables.
   - methods: retrieve, _retrieve_ingestion_items, _retrieve_events, _retrieve_recent_ingestion_items, _retrieve_recent_events, _extract_terms, _compact_text
 - `ReportProjectGenerationService`
   - Generates Word placeholders from project config, evidence, and LLM.
@@ -13131,7 +13131,7 @@ Functions:
 ## `storage/migrations/versions/009_add_structured_market_data_tables.py`
 
 Module docstring:
-> Add structured market data tables (AF-AUTO-007)
+> Add structured market data tables (RWB-AUTO-007)
 
 Imports:
 - `alembic`
@@ -13482,7 +13482,7 @@ Imports:
 
 Functions:
 - `backend_endpoint`
-  - Return an AlphaFoundry API endpoint from the effective runtime URL.
+  - Return an Research Workbench API endpoint from the effective runtime URL.
 - `get_random_headers`
   - 生成随机请求头，防爬
 - `fetch_with_retry`
@@ -13651,7 +13651,7 @@ Functions:
 ## `scripts/bootstrap_db.py`
 
 Module docstring:
-> Bootstrap database for AlphaFoundry: initialize schema, verify connectivity, seed minimal configuration.
+> Bootstrap database for Research Workbench: initialize schema, verify connectivity, seed minimal configuration.
 
 Imports:
 - `core.observability`
@@ -13977,7 +13977,7 @@ Functions:
 ## `scripts/desktop/backend_launcher.py`
 
 Module docstring:
-> Desktop backend launcher for the AlphaFoundry Tauri shell.
+> Desktop backend launcher for the Research Workbench Tauri shell.
 
 Imports:
 - `__future__`
@@ -14028,7 +14028,7 @@ Functions:
 ## `scripts/desktop/build_sidecar.py`
 
 Module docstring:
-> Build the AlphaFoundry Python backend as a Tauri sidecar executable.
+> Build the Research Workbench Python backend as a Tauri sidecar executable.
 
 Imports:
 - `__future__`
@@ -14122,7 +14122,7 @@ Functions:
 ## `scripts/desktop/sidecar_launcher.py`
 
 Module docstring:
-> AlphaFoundry Sidecar Launcher
+> Research Workbench Sidecar Launcher
 
 Imports:
 - `__future__`
@@ -14135,7 +14135,7 @@ Functions:
 - `_find_project_root`
   - 定位项目根目录。
 - `_find_python`
-  - 按优先级找 conda alphafoundry 环境的 Python。
+  - 按优先级找 conda research_workbench 环境的 Python。
 - `main`
 
 
@@ -14222,7 +14222,7 @@ Functions:
 ## `scripts/example_dual_source.py`
 
 Module docstring:
-> AlphaFoundry 双源数据系统使用示例
+> Research Workbench 双源数据系统使用示例
 
 Imports:
 - `datetime`

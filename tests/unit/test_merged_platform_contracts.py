@@ -1,4 +1,4 @@
-"""Contract tests for the merged AlphaFoundry platform shared kernel."""
+"""Contract tests for the merged Research Workbench platform shared kernel."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta

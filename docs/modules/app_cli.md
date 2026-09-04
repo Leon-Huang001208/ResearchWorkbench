@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-`app/cli` provides command-line access to AlphaFoundry workflows. It wraps service calls into user-facing commands.
+`app/cli` provides command-line access to Research Workbench workflows. It wraps service calls into user-facing commands.
 
 ---
 
@@ -46,8 +46,8 @@ Update this section when:
 
 Purpose:
 
-- 联网问答命令：`af ask`。
-- `af ask "问题"` — 始终先联网搜索，再综合生成带引用的答案。
+- 联网问答命令：`rwb ask`。
+- `rwb ask "问题"` — 始终先联网搜索，再综合生成带引用的答案。
 - `-n/--max-results N` — 联网搜索最大结果数（默认 5）。
 - `--no-fetch-content` — 不抓取网页正文，只用搜索 API 返回的摘要。
 - 无搜索 API key 时自动降级为不联网直答，并在答案前标注 `[未联网]`。
@@ -62,22 +62,22 @@ Related service:
 
 Purpose:
 
-- 统一数据摄入 CLI（Connector 架构）：`af data` 命令组。
-- `af data list` — 列出所有可用数据源及 datasets。
-- `af data ingest -s <src> -d <dataset>` — 统一数据摄入入口；CLS 电报数据集为 `telegram`。
-- `af data backfill -s <src>` — 历史数据回填。
-- `af data validate -s <src> -d <dataset>` — 数据校验。
-- `af data status [--source <s>]` — 聚合 connector 健康 + Worker + Scheduler 状态。
-- `af data file -f <path>` — 摄入单个文件。
-- `af data schedule start|stop|status` — 采集调度器管理。
-- `af data workers start|stop|status` — 知识加工 Worker 管理。
+- 统一数据摄入 CLI（Connector 架构）：`rwb data` 命令组。
+- `rwb data list` — 列出所有可用数据源及 datasets。
+- `rwb data ingest -s <src> -d <dataset>` — 统一数据摄入入口；CLS 电报数据集为 `telegram`。
+- `rwb data backfill -s <src>` — 历史数据回填。
+- `rwb data validate -s <src> -d <dataset>` — 数据校验。
+- `rwb data status [--source <s>]` — 聚合 connector 健康 + Worker + Scheduler 状态。
+- `rwb data file -f <path>` — 摄入单个文件。
+- `rwb data schedule start|stop|status` — 采集调度器管理。
+- `rwb data workers start|stop|status` — 知识加工 Worker 管理。
 
 Related:
 - `core/connectors/registry.py` — `ConnectorRegistry`
 - `connectors/` — 具体连接器实现
 
 Update this section when:
-- New `af data` subcommands are added.
+- New `rwb data` subcommands are added.
 - CLI → Connector integration changes.
 - Dataset names or help examples change.
 
@@ -88,10 +88,10 @@ Update this section when:
 Purpose:
 
 - 数据摄入和 Worker 管理命令。
-- `af ingest file` — 摄入文件（PDF/TXT/MD）并提取断言和事件。
-- `af crawl run|backfill|status|scheduler-start` — 数据采集命令组。
-- `af knowledge start|stop|status` — Knowledge Worker 进程管理命令。
-- `af knowledge start --workers N` — 启动 N 个 Worker 进程实现水平扩展。
+- `rwb ingest file` — 摄入文件（PDF/TXT/MD）并提取断言和事件。
+- `rwb crawl run|backfill|status|scheduler-start` — 数据采集命令组。
+- `rwb knowledge start|stop|status` — Knowledge Worker 进程管理命令。
+- `rwb knowledge start --workers N` — 启动 N 个 Worker 进程实现水平扩展。
 
 Related service:
 

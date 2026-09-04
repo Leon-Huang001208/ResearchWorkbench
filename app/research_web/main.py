@@ -32,7 +32,7 @@ from .store import Store, StoreError
 
 log = get_logger(__name__)
 UI = Path(__file__).parent / "ui"
-ROOT = Path(os.environ.get("AF_RESEARCH_DATA", str(Path.home() / ".alphafoundry" / "research-web")))
+ROOT = Path(os.environ.get("RESEARCH_DATA_HOME", str(Path.home() / ".research-workbench" / "research-web")))
 UPLOAD_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".md", ".csv", ".xlsx"}
 
 
@@ -83,7 +83,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     async def lifespan(app):
         setup_logging()
         active = service or ResearchService(
-            DSHClient(os.environ.get("AF_DSH_URL", "http://127.0.0.1:3081")),
+            DSHClient(os.environ.get("RESEARCH_RUNTIME_URL", "http://127.0.0.1:3081")),
             Store(ROOT),
             owned=False,
             expected_cwd=ROOT / "runtime" / "work",
@@ -96,7 +96,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         finally:
             await active.close()
 
-    app = FastAPI(title="AlphaFoundry Research Web", lifespan=lifespan)
+    app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
     app.include_router(datahub_router)
     app.include_router(capabilities_router)
     app.include_router(documentation_router)

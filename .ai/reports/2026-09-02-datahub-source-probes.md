@@ -21,7 +21,7 @@
 
 ## 实际命令方式
 
-使用现有 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python -c ...`，调用httpx与BeautifulSoup，解析内容仅打印协议、字段和上述汇总。完整执行代码及stdout保存在本任务工具记录。
+使用现有 `python -c ...`，调用httpx与BeautifulSoup，解析内容仅打印协议、字段和上述汇总。完整执行代码及stdout保存在本任务工具记录。
 
 基线回归：Python76 passed in12.88s；JS32 passed、0skip。原始输出在隔离工作树 `logs/datahub-baseline-pytest.log` 与 `logs/datahub-baseline-js.log`。这些是修改前基线，不代替最终回归。
 

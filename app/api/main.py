@@ -1,4 +1,4 @@
-"""AlphaFoundry API"""
+"""Research Workbench API"""
 
 import os
 import sys
@@ -62,7 +62,7 @@ _durable_scheduler_runtime: Any | None = None
 
 
 app = FastAPI(
-    title="AlphaFoundry API",
+    title="Research Workbench API",
     description="本地优先、可企业化的买方投研情报系统",
 )
 
@@ -70,7 +70,7 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup() -> None:
     """Preflight persistence before initializing database-dependent services."""
-    logger.info("AlphaFoundry API starting up...")
+    logger.info("Research Workbench API starting up...")
     readiness = probe_postgresql(settings.DATABASE_URL)
     app.state.database_readiness = readiness
     if not readiness.ready:
@@ -86,7 +86,7 @@ async def startup() -> None:
         )
         raise RuntimeError(_DATABASE_READINESS_STARTUP_ERROR)
 
-    if os.environ.get("ALPHAFOUNDRY_PREVIEW") == "1":
+    if os.environ.get("RESEARCH_PREVIEW") == "1":
         logger.info("Skipped database initialization and background services for branch preview")
         return
 
@@ -204,7 +204,7 @@ def _start_data_acquisition_schedulers() -> None:
 @app.on_event("shutdown")
 def shutdown() -> None:
     """Shutdown hook"""
-    logger.info("AlphaFoundry API shutting down...")
+    logger.info("Research Workbench API shutting down...")
     _stop_resource_monitor_runtime()
     _stop_durable_scheduler_runtime()
     # 停止数据获取调度器
@@ -275,7 +275,7 @@ app.add_middleware(
     allow_origins=APPLICATION_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "PUT", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-AlphaFoundry-Config-Token"],
+    allow_headers=["Content-Type", "X-Research Workbench-Config-Token"],
 )
 
 # ─── TrustedHost（防止 Host header 注入）────────────────

@@ -8,7 +8,7 @@ let currentWorkspace = null;
 let currentSession = null;
 let pendingPrefill = null;
 const LOCAL_PROJECT_ID = 'local';
-const RESEARCH_CONTEXT_KEY = 'alphafoundry.research-context.v1';
+const RESEARCH_CONTEXT_KEY = 'research-web.context.v1';
 
 export function initResearchWorkbench() {
     if (initialized) return;

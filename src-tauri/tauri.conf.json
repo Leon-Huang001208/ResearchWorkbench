@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AlphaFoundry",
+  "productName": "Research Workbench",
   "version": "0.1.0",
-  "identifier": "com.alphafoundry.desktop",
+  "identifier": "io.researchworkbench.desktop",
   "build": {
     "frontendDist": "../desktop/dist",
     "devUrl": "http://127.0.0.1:8765",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "AlphaFoundry",
+        "title": "Research Workbench",
         "width": 1280,
         "height": 820,
         "minWidth": 1100,
@@ -36,7 +36,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/alphafoundry-backend"
+      "binaries/research-workbench-backend"
     ],
     "macOS": {
       "minimumSystemVersion": "12.0"

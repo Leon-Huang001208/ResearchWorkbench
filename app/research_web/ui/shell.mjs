@@ -7,7 +7,7 @@ import { renderWorkflowPlan } from './capabilities.mjs';
 const navItems = [['fingpt', 'chat', 'FinGPT'], ['claw', 'layers', 'Claw'], ['skills', 'grid', '能力中心'], ['history', 'history', '研究历史']];
 
 export function renderBrandMark() {
-  return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/huaan-brand/source-logo.png" alt="" width="211" height="239"></span>';
+  return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/brand/source-logo.png" alt="" width="211" height="239"></span>';
 }
 
 export function renderAppearancePicker() {
@@ -36,7 +36,7 @@ export function renderGlobalSearch(query, sessions, skills) {
 }
 
 export function renderPrimaryRail({ page, secondaryOpen = false } = {}) {
-  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="AlphaFoundry Research">${renderBrandMark()}<span class="brand-name">AlphaFoundry</span></a><button class="new-research" data-new aria-label="新研究">${icon('compose')}<span>新研究</span></button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${navItems.map(([target, glyph, title]) => `<a href="#/${target}" class="rail-link ${page === target ? 'active' : ''}" ${page === target ? 'aria-current="page"' : ''} title="${e(title)}"><span class="rail-icon" aria-hidden="true">${icon(glyph)}</span><span class="rail-label">${e(title)}</span></a>`).join('')}</div><button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">☰</button><div class="navigation-footer"><a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a><button class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="折叠会话侧栏">${icon('sidebar')}</button></div></nav>`;
+  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="new-research" data-new aria-label="新研究">${icon('compose')}<span>新研究</span></button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${navItems.map(([target, glyph, title]) => `<a href="#/${target}" class="rail-link ${page === target ? 'active' : ''}" ${page === target ? 'aria-current="page"' : ''} title="${e(title)}"><span class="rail-icon" aria-hidden="true">${icon(glyph)}</span><span class="rail-label">${e(title)}</span></a>`).join('')}</div><button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">☰</button><div class="navigation-footer"><a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a><button class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="折叠会话侧栏">${icon('sidebar')}</button></div></nav>`;
 }
 
 function renderClawWorkspace(detail, workspaces, selectedWorkspace) {

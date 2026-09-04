@@ -18,8 +18,8 @@ SECRET_DATABASE_URL = "postgresql+psycopg://alice:top-secret@db.internal:5432/pr
 def _context(mode: str) -> RuntimeContext:
     return RuntimeContext(
         mode=mode,  # type: ignore[arg-type]
-        project_root=Path("/tmp/alphafoundry"),
-        data_dir=Path("/tmp/alphafoundry") if mode == "desktop" else None,
+        project_root=Path("/tmp/research_workbench"),
+        data_dir=Path("/tmp/research_workbench") if mode == "desktop" else None,
         env_path=None,
         backend_url="http://127.0.0.1:8765",
         can_write_config=mode != "web-prod",
@@ -141,7 +141,7 @@ def test_desktop_preview_skips_database_initialization_and_automatic_services(
     monkeypatch.setattr(main, "_start_resource_monitor_runtime", start_runtime)
     monkeypatch.setattr(main, "_start_durable_scheduler_runtime", start_durable_scheduler)
     monkeypatch.setattr(main, "RUNTIME_CONTEXT", _context("desktop"))
-    monkeypatch.setenv("ALPHAFOUNDRY_PREVIEW", "1")
+    monkeypatch.setenv("RESEARCH_PREVIEW", "1")
 
     asyncio.run(main.startup())
 

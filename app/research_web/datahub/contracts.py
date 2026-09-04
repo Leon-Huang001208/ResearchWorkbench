@@ -116,13 +116,6 @@ class Query(BaseModel):
         ).hexdigest()
 
 
-class InternalQuery(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
-    call_id: str = Field(min_length=1, max_length=256, pattern=r"^[a-zA-Z0-9_.:-]+$")
-    query: Query
-
-
 class InternalCancel(BaseModel):
     model_config = ConfigDict(extra="forbid")
     session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")

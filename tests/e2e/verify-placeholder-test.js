@@ -24,7 +24,7 @@ test('Verify asset analysis placeholder text is "代码/名称/简拼"', async (
 
   // 7. Take screenshot
   await page.screenshot({
-    path: '/Users/leon/Desktop/Projects/AlphaFoundry/tests/e2e/screenshots/asset-placeholder-verification.png',
+    path: '/Users/leon/Desktop/Projects/ResearchWorkbench/tests/e2e/screenshots/asset-placeholder-verification.png',
     fullPage: true
   });
   console.log('✓ Screenshot saved');

@@ -99,16 +99,16 @@ data/raw/
 
 ```bash
 # 单次抓取
-af crawl run --source cls --days 1
+rwb crawl run --source cls --days 1
 
 # 补漏抓取
-af crawl backfill --source cls --days 7
+rwb crawl backfill --source cls --days 7
 
 # 查看状态
-af crawl status [--source cls]
+rwb crawl status [--source cls]
 
 # 启动调度器（前台运行）
-af crawl scheduler-start
+rwb crawl scheduler-start
 ```
 
 ### 6. 仓储层增强 (`data_layer/repositories/documents_v1.py`)
@@ -241,16 +241,16 @@ status = scheduler.get_status()
 
 ```bash
 # 抓取财联社最近 1 天
-af crawl run --source cls --days 1
+rwb crawl run --source cls --days 1
 
 # 补漏最近 7 天
-af crawl backfill --source cls --days 7
+rwb crawl backfill --source cls --days 7
 
 # 查看所有来源状态
-af crawl status
+rwb crawl status
 
 # 启动调度器
-af crawl scheduler-start
+rwb crawl scheduler-start
 ```
 
 ## 验收标准对照

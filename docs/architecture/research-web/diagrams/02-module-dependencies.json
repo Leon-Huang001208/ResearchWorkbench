@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
   "diagram_type": "architecture",
-  "meta": {"title": "Research Web 模块依赖与 DataHub 边界", "output": "02-module-dependencies.html", "quality_profile": "showcase", "viewBox": [1320, 720], "views": [
-    {"id": "catalog", "label": "浏览数据目录", "focus": ["browser", "dataUi", "routes", "catalog"], "note": "目录读取只访问静态声明和安全化状态，不实例化连接器。"},
+  "meta": {"title": "Research Web 模块依赖、服务管理与 DataHub 边界", "output": "02-module-dependencies.html", "quality_profile": "showcase", "viewBox": [1320, 700], "views": [
+    {"id": "catalog", "label": "启动与浏览目录", "focus": ["serviceManager", "browser", "dataUi", "routes", "catalog"], "note": "服务启动后，目录读取只访问静态声明和安全化状态，不实例化连接器。"},
     {"id": "query", "label": "审批后取数", "focus": ["dsh", "nativeTool", "routes", "broker", "providers", "sources"], "note": "DSH 只提交业务参数，DataHub 在白名单内选源并执行已适配 Provider。"},
-    {"id": "snapshot", "label": "共享会话快照", "focus": ["providers", "snapshots", "routes", "browser", "dsh"], "note": "解析结果和 Manifest 归属当前会话，Web 与子 Agent 读取同一快照。"}
+    {"id": "snapshot", "label": "共享与迁移快照", "focus": ["providers", "dataMigration", "snapshots", "routes", "browser", "dsh"], "note": "解析和迁移结果均核验归属与哈希，Web 与子 Agent 读取同一会话快照。"}
   ]},
   "components": [
+    {"id": "serviceManager", "type": "backend", "label": "服务管理器", "sublabel": "rwb web · 归属 / 健康 / 回滚", "pos": [430, 70], "size": [165, 68]},
     {"id": "browser", "type": "frontend", "label": "Research Web", "sublabel": "FinGPT / Claw / 能力中心", "pos": [40, 210], "size": [150, 68]},
     {"id": "dataUi", "type": "frontend", "label": "数据目录 UI", "sublabel": "能力 / 来源双视图", "pos": [235, 210], "size": [150, 68]},
     {"id": "routes", "type": "backend", "label": "FastAPI 数据路由", "sublabel": "/api/research/data", "pos": [430, 210], "size": [165, 68]},
@@ -17,12 +18,14 @@
     {"id": "snapshots", "type": "database", "label": "会话数据快照", "sublabel": "JSON / CSV / Manifest / Hash", "pos": [900, 400], "size": [170, 72]},
     {"id": "dsh", "type": "external", "label": "DSH", "sublabel": "唯一研究执行引擎", "pos": [235, 400], "size": [150, 68]},
     {"id": "nativeTool", "type": "security", "label": "datahub_* Tool", "sublabel": "原生审批 / Guard 白名单", "pos": [450, 400], "size": [165, 72]}
+    ,{"id": "dataMigration", "type": "security", "label": "研究数据迁移", "sublabel": "白名单复制 / SHA-256 核验", "pos": [900, 550], "size": [170, 72]}
   ],
   "boundaries": [
-    {"kind": "security-group", "label": "FastAPI 进程内 DataHub", "wraps": ["routes", "catalog", "broker", "providers", "snapshots"]},
+    {"kind": "security-group", "label": "FastAPI 进程内 DataHub", "wraps": ["serviceManager", "routes", "catalog", "broker", "providers", "snapshots", "dataMigration"]},
     {"kind": "security-group", "label": "受控研究执行", "wraps": ["dsh", "nativeTool"]}
   ],
   "connections": [
+    {"id": "manageStack", "from": "serviceManager", "to": "routes", "label": "启动 8088 / 3081 并检查", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [513, 152]},
     {"id": "openData", "from": "browser", "to": "dataUi", "label": "选择数据页", "labelAt": [213, 194]},
     {"id": "readCatalog", "from": "dataUi", "to": "routes", "label": "GET 静态目录", "variant": "emphasis", "labelAt": [408, 194]},
     {"id": "catalogRead", "from": "routes", "to": "catalog", "label": "声明与状态"},
@@ -32,11 +35,12 @@
     {"id": "selectProvider", "from": "broker", "to": "providers", "label": "白名单选源", "variant": "emphasis", "labelAt": [875, 194]},
     {"id": "fetchSource", "from": "providers", "to": "sources", "label": "固定目标请求", "variant": "security", "labelAt": [1090, 194]},
     {"id": "publishSnapshot", "from": "providers", "to": "snapshots", "label": "标准化后发布", "variant": "emphasis", "labelAt": [1040, 335]},
-    {"id": "readDataset", "from": "snapshots", "to": "routes", "label": "会话归属读取", "fromSide": "left", "toSide": "bottom", "via": [[780, 436], [780, 310], [512.5, 310]], "labelAt": [820, 420]}
+    {"id": "readDataset", "from": "snapshots", "to": "routes", "label": "会话归属读取", "fromSide": "left", "toSide": "bottom", "via": [[780, 436], [780, 310], [512.5, 310]], "labelAt": [820, 420]},
+    {"id": "migrateData", "from": "dataMigration", "to": "snapshots", "label": "核验后导入研究状态", "variant": "security", "fromSide": "top", "toSide": "bottom"}
   ],
   "cards": [
     {"dot": "cyan", "title": "目录不等于连接", "items": ["代码存在、适配、配置、健康和允许调用分别展示", "打开或刷新目录不联网、不启动 Excel、不产生费用"]},
     {"dot": "emerald", "title": "稳定业务契约", "items": ["新工具使用 datahub_* 子系统前缀，与产品品牌解耦", "来源参数只能使用目录 ID，不能传 URL、凭据、模块或路径"]},
-    {"dot": "rose", "title": "当前真实边界", "items": ["仅东方财富基金与财联社完成按需 Provider 适配", "其他来源可浏览和检测状态，但不会被伪报为可调用"]}
+    {"dot": "rose", "title": "当前真实边界", "items": ["仅东方财富基金与财联社完成按需 Provider 适配", "服务管理器只操作指纹一致进程；迁移不复制凭据或控制令牌"]}
   ]
 }

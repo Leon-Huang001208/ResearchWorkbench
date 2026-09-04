@@ -1,4 +1,4 @@
-# AlphaFoundry Research Web 当前架构
+# Research Workbench Research Web 当前架构
 
 这是当前研究产品的唯一架构主入口。源码范围为 `app/research_web/`；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。
 
@@ -24,13 +24,17 @@
 
 ## 启动与验收基线
 
-从 `/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1` 运行；本机已安装解释器为 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`。以下命令中的 `python` 应使用该解释器。两个进程分别启动，端口已有服务时不要重复启动或重启他人的实例：
+从仓库根目录使用安装后的项目命令。管理器只启动和停止指纹匹配的项目进程，端口已有其他服务时直接失败：
 
 ```bash
-python -m app.research_web.launch_runtime --source /Users/leon/Developer/deepseek-harness --data /Users/leon/.alphafoundry/research-web --source-mode --research-tools
-python -m uvicorn app.research_web.main:app --host 127.0.0.1 --port 8088 --timeout-graceful-shutdown 5
+rwb web start
+rwb web status
+rwb web restart
+rwb web stop
 ```
 
-模型仅在产品设置中授权。专属运行时使用 3081；用户原 3080 不被更改。上述本机路径是已验证开发环境，不是跨机器安装约定。
+模型仅在产品设置中授权。专属运行时使用 3081，Web 使用 8088；用户原 3080 不被更改。后台状态和日志保存在 `~/.research-workbench/`，终端退出不结束服务。
+
+旧研究目录先用 `rwb migrate-research-data --dry-run` 查看迁移摘要，再执行复制。凭据不会迁移；新实例需在设置页重新填写。Web 恢复验证通过后可使用 `--archive-source` 将旧目录改为只读迁移备份。
 
 本次起点为 `304930d`，分支 `codex/dsh-web-v1`。此前记录见 [原研究验收](../../research-web-acceptance.md)、[DataHub 资料共享验收](../../../.ai/reports/2026-09-02-datahub-acceptance.md)；本轮另行完成自建Skill、手动导入版本管理、PDF、双Agent Workflow与实际文件验收，没有以旧结果替代新功能。

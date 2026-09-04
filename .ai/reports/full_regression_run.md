@@ -1,6 +1,6 @@
 # Full Regression Run
 
-**任务**: af-auto-001-01e (Full regression run)
+**任务**: rwb-auto-001-01e (Full regression run)
 **日期**: 2026-05-11
 **状态**: Done (partial success)
 
@@ -12,7 +12,7 @@
 
 ## Comparison to Bootstrap
 
-| Metric | Bootstrap (af-auto-001-bootstrap) | Now (af-auto-001-01e) | Improvement |
+| Metric | Bootstrap (rwb-auto-001-bootstrap) | Now (rwb-auto-001-01e) | Improvement |
 |--------|-----------------------------------|-----------------------|-------------|
 | Passed | 765 | 778 | +13 |
 | Failed | 70 | 57 | -13 |
@@ -21,11 +21,11 @@
 
 ## Tests Successfully Fixed by Previous Tasks
 
-### API Tests (af-auto-001-01b)
+### API Tests (rwb-auto-001-01b)
 - `test_analyze_asset` - Fixed by using AsyncMock
 - `test_analyze_with_as_of` - Fixed by using datetime objects
 
-### Database Tests (af-auto-001-01c)
+### Database Tests (rwb-auto-001-01c)
 - `test_retrieve_similar_cases`
 - `test_retrieve_similar_failures`
 - `test_retrieve_similar_successes`
@@ -33,7 +33,7 @@
 - `test_bootstrap_idempotent`
 - And more database-related tests
 
-### Signal Lab Tests (af-auto-001-01d)
+### Signal Lab Tests (rwb-auto-001-01d)
 - All 54 signal_lab tests pass (no fixes needed - they were already passing)
 
 ## Remaining Failures (57 failed, 5 errors)

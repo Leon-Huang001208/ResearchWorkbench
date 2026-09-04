@@ -424,7 +424,7 @@ def test_dsh_callback_correlates_and_completes_persisted_run():
                 name="DSH callback",
                 capabilities={"single_agent"},
                 status="healthy",
-                config_ref="env:ALPHAFOUNDRY_TEST_UNUSED_DSH",
+                config_ref="env:RESEARCH_TEST_UNUSED_DSH",
                 checked_at=NOW,
             )
         )

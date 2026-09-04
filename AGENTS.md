@@ -1,4 +1,4 @@
-# AlphaFoundry Agent Rules
+# Research Workbench Agent Rules
 
 ## Start here
 

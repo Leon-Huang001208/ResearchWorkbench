@@ -220,6 +220,6 @@ async def export_performance_report():
         buffer,
         media_type="application/json",
         headers={
-            "Content-Disposition": f'attachment; filename="alphafoundry-performance-{datetime.utcnow().strftime("%Y%m%d")}.json"'
+            "Content-Disposition": f'attachment; filename="research-workbench-performance-{datetime.utcnow().strftime("%Y%m%d")}.json"'
         },
     )

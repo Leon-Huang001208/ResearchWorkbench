@@ -8,7 +8,7 @@
     "quality_profile": "showcase"
   },
   "lanes": [
-    {"id": "source", "label": "LSH → AlphaFoundry"},
+    {"id": "source", "label": "LSH → Research Workbench"},
     {"id": "verification", "label": "等价与零调用"},
     {"id": "archive", "label": "稳定版本归档"},
     {"id": "exceptions", "label": "阻断与恢复", "variant": "exception"}

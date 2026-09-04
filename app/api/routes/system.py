@@ -19,8 +19,8 @@ logger = get_logger(__name__)
 
 # 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
 PROJECT_DIR = (
-    Path(os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
-    if "ALPHAFOUNDRY_PROJECT_ROOT" in os.environ
+    Path(os.environ["RESEARCH_PROJECT_ROOT"])
+    if "RESEARCH_PROJECT_ROOT" in os.environ
     else Path(__file__).resolve().parent.parent.parent.parent
 )
 
@@ -97,7 +97,7 @@ def _sanitize_host_capacity(host: Any) -> Dict[str, int | float | None]:
 
 
 def _sanitize_alpha_capacity(alpha: Any) -> Dict[str, int | float | None]:
-    """将 AlphaFoundry 对整机的占用汇总限制为公开数值字段。"""
+    """将 Research Workbench 对整机的占用汇总限制为公开数值字段。"""
     values = alpha if isinstance(alpha, dict) else {}
     return {field: _number_or_none(values.get(field)) for field in _ALPHA_CAPACITY_FIELDS}
 
@@ -236,7 +236,7 @@ def _serialize_resource_event(event: Any) -> Dict[str, Any]:
 def get_resource_usage(
     service: Any = Depends(get_resource_monitoring_service),
 ) -> Dict[str, Any]:
-    """返回 AlphaFoundry 受控进程与主机容量的当前资源快照。"""
+    """返回 Research Workbench 受控进程与主机容量的当前资源快照。"""
     snapshot = service.collect_snapshot()
     return _sanitize_resource_snapshot(snapshot)
 

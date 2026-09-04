@@ -6,7 +6,7 @@ This file retains project context not covered by AGENTS.md and Claude-specific w
 
 ## 架构速览
 
-AlphaFoundry 是本地优先、模块化单体的 AI-native Investment Operating System：PostgreSQL + pgvector 是事实源，跨层数据通过 `core/contracts/` 中的 Pydantic v2 契约交换。
+Research Workbench 是本地优先、模块化单体的 AI-native Investment Operating System：PostgreSQL + pgvector 是事实源，跨层数据通过 `core/contracts/` 中的 Pydantic v2 契约交换。
 
 ```text
 外部数据 → connectors / data_layer → ingestion_queue → knowledge_layer
@@ -24,7 +24,7 @@ AlphaFoundry 是本地优先、模块化单体的 AI-native Investment Operating
 
 ## Runtime selection
 
-使用当前操作系统中满足 Python >=3.11 的项目环境。Windows 上先激活文档说明的 `alphafoundry` 环境；这是本机环境约定，不是跨平台硬路径。macOS/Linux 同样使用当前系统中满足版本要求的项目环境。跨平台命令中绝不可复制特定机器或系统的绝对解释器路径。
+使用当前操作系统中满足 Python >=3.11 的项目环境。Windows 上先激活文档说明的 `research_workbench` 环境；这是本机环境约定，不是跨平台硬路径。macOS/Linux 同样使用当前系统中满足版本要求的项目环境。跨平台命令中绝不可复制特定机器或系统的绝对解释器路径。
 
 ## 开发命令
 

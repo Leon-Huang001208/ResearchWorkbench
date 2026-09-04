@@ -34,7 +34,7 @@ test('tools are read-only declarations with selection only for selectable resear
   assert.match(renderToolDetail(tool), /data-use-tool="datahub_get_fund_data"/);
   assert.match(renderToolDetail(tool), /每次审批/);
   assert.doesNotMatch(renderToolDetail({ ...tool, selectable: false }), /data-use-tool/);
-  assert.doesNotMatch(renderToolDetail({ ...tool, id: 'af_public_data', selectable: false }), /data-use-tool/);
+  assert.doesNotMatch(renderToolDetail({ ...tool, id: 'datahub_get_fund_data', selectable: false }), /data-use-tool/);
 });
 
 test('data catalog separates capabilities from sources and never turns registered code into availability', async () => {
@@ -66,7 +66,7 @@ test('completed source probes refresh the open source detail without touching an
 
 test('workflow steps are ordered templates, never completed activity evidence', async () => {
   const { renderWorkflowPlan } = await load('capabilities.mjs');
-  const html = renderWorkflowPlan({ kind: 'workflow', id: 'wf', version: 3, steps: [{ title: '核对资料', instruction: '读取来源', skill_id: 'my-skill', tools: ['af_run_script'] }] });
+  const html = renderWorkflowPlan({ kind: 'workflow', id: 'wf', version: 3, steps: [{ title: '核对资料', instruction: '读取来源', skill_id: 'my-skill', tools: ['research_run_script'] }] });
   assert.match(html, /预设步骤.*不代表.*执行/s);
   assert.match(html, /核对资料/);
   assert.doesNotMatch(html, /已完成|completed|data-complete/);
@@ -101,11 +101,11 @@ test('selected capability version and tool intent survive drafts, send retries a
   const bodies = []; const keys = [];
   const controller = createController({ api: { detail: async () => session(), message: async (_id, body, key) => { bodies.push(body); keys.push(key); throw new Error('活动回合冲突'); } }, makeID: () => 'stable' });
   await controller.open({ page: 'fingpt', sessionId: 's1' });
-  controller.setCapability(cap()); controller.setTools(['af_public_data']); controller.setDraft('问题'); controller.setFormats([]);
+  controller.setCapability(cap()); controller.setTools(['datahub_get_fund_data']); controller.setDraft('问题'); controller.setFormats([]);
   await controller.open({ page: 'history', sessionId: null }); await controller.open({ page: 'fingpt', sessionId: 's1' });
   await controller.send(); await controller.send();
   assert.equal(bodies[0].capability_id, 'my-skill'); assert.equal(bodies[0].capability_version, 2);
-  assert.deepEqual(bodies[0].tool_ids, ['af_public_data']); assert.deepEqual(bodies[0].expected_formats, []);
+  assert.deepEqual(bodies[0].tool_ids, ['datahub_get_fund_data']); assert.deepEqual(bodies[0].expected_formats, []);
   assert.deepEqual(keys, ['stable', 'stable']); assert.equal(controller.state.draft, '问题');
   controller.setFormats(null); await controller.send(); assert.equal('expected_formats' in bodies[2], false);
 });
@@ -184,11 +184,11 @@ test('complete editor payload captures inputs, ordered steps, explicit formats, 
   const { readEditor, editableDraft } = await load('capability-editor.mjs');
   const previous = { kind: 'workflow', metadata: { inputs: [{ name: 'question' }] }, steps: [{ title: 'old' }], files: [{ path: 'scripts/run.py', content: 'print(1)', sha256: 'old-hash' }], reviewed_scripts: ['old-hash'] };
   const values = new FormData();
-  for (const [key, value] of Object.entries({ name: '流程', slug: 'flow', description: '研究流程', category: '研究', scenarios: '研究\n交付', 'input-0-name': 'question', 'input-0-label': '问题', 'input-0-type': 'text', 'input-0-required': 'on', 'step-0-title': '核对', 'step-0-instruction': '核对来源', 'step-0-skill': 'my-skill', 'step-0-tools': 'af_run_script', 'file-0-path': 'scripts/run.py', 'file-0-content': 'print(2)' })) values.append(key, value);
+  for (const [key, value] of Object.entries({ name: '流程', slug: 'flow', description: '研究流程', category: '研究', scenarios: '研究\n交付', 'input-0-name': 'question', 'input-0-label': '问题', 'input-0-type': 'text', 'input-0-required': 'on', 'step-0-title': '核对', 'step-0-instruction': '核对来源', 'step-0-skill': 'my-skill', 'step-0-tools': 'research_run_script', 'file-0-path': 'scripts/run.py', 'file-0-content': 'print(2)' })) values.append(key, value);
   const draft = readEditor(values, previous);
   assert.deepEqual(draft.reviewed_scripts, []); assert.equal(draft.files[0].sha256, undefined);
   assert.deepEqual(draft.metadata.default_formats, []); assert.equal(draft.metadata.inputs[0].required, true);
-  assert.equal(draft.steps[0].skill_id, 'my-skill'); assert.deepEqual(draft.steps[0].tools, ['af_run_script']);
+  assert.equal(draft.steps[0].skill_id, 'my-skill'); assert.deepEqual(draft.steps[0].tools, ['research_run_script']);
   assert.deepEqual(editableDraft(draft).files, [{ path: 'scripts/run.py', content: 'print(2)' }]);
 });
 

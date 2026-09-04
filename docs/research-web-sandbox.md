@@ -1,18 +1,18 @@
 # Research Web 脚本沙箱（macOS 实验性）
 
-本模块是 AlphaFoundry 的独立、默认拒绝脚本边界，不修改 DSH upstream。模型只提供 Python 源码；可信服务提供解释器、脚本 runner、研究根目录及限额。它不是 DSH 自带 `sandbox-local` 的写入限制，也不是容器或虚拟机。
+本模块是 Research Workbench 的独立、默认拒绝脚本边界，不修改 DSH upstream。模型只提供 Python 源码；可信服务提供解释器、脚本 runner、研究根目录及限额。它不是 DSH 自带 `sandbox-local` 的写入限制，也不是容器或虚拟机。
 
 ## 启用契约
 
 1. 独立 DSH 实例使用独立 `DSH_HOME`、专用端口和干净启动环境；不要继承模型密钥或数据库环境变量。模型凭据由该实例 Web 表单另行配置。
-2. 在 DSH host 根作用域安装单调的 `ctx.tools.guard` 白名单。只启用经过审核的 `af_run_script` 及必要的原生子 Agent/消息工具；不得挂载裸 `fs-local`、shell、文件读写、搜索或其他宿主执行工具。仅仅隐藏工具描述或使用 `restrict` 不是安全边界。
+2. 在 DSH host 根作用域安装单调的 `ctx.tools.guard` 白名单。只启用经过审核的 `research_run_script` 及必要的原生子 Agent/消息工具；不得挂载裸 `fs-local`、shell、文件读写、搜索或其他宿主执行工具。仅仅隐藏工具描述或使用 `restrict` 不是安全边界。
 3. 将 `app/research_web/runtime/research-tools.mjs` 作为原生 Cordis 插件注册到所需 agent preset。插件 `inject = ['tools', 'sessions']`，调用 `ctx.tools.register`；无额外 DSH 包导入或 MCP 进程。
 4. 插件配置由服务控制，不允许模型参数覆盖：
 
    ```yaml
-   python: /Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python
+   python: python
    runnerPath: /absolute/pinned/build/app/research_web/sandbox.py
-   researchRoot: /Users/leon/.alphafoundry/research-web
+   researchRoot: /Users/leon/.research-workbench/research-web
    timeoutSeconds: 15
    maxOutputBytes: 65536
    ```
@@ -70,7 +70,7 @@ Seatbelt 使用 `allow default` 加 `deny file-read-data` 与明确运行库/会
 测试只创建临时 canary，不读取真实秘密。测试故意隔离仓库全局 `conftest.py`，避免加载应用数据库设置：
 
 ```sh
-/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python -m pytest --confcutdir=tests/research_web tests/research_web/test_sandbox.py -q
+python -m pytest --confcutdir=tests/research_web tests/research_web/test_sandbox.py -q
 node --check app/research_web/runtime/research-tools.mjs
 ```
 

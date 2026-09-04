@@ -154,7 +154,7 @@ def test_pressure_opens_once_then_resolves_after_three_recovered_samples() -> No
     assert len(repo.alerts) == 1
     alert = repo.alerts[0]
     assert alert.metadata["event_kind"] == "resource_pressure"
-    assert alert.metadata["source_scope"] == "alphafoundry"
+    assert alert.metadata["source_scope"] == "research_workbench"
     assert alert.status == AlertStatus.OPEN
 
     service.evaluate(_snapshot_with_process(cpu=95.0))
@@ -221,7 +221,7 @@ def test_failed_task_creates_deduplicated_critical_event() -> None:
     assert alert.subsystem == Subsystem.RESOURCE_MONITORING
     assert alert.metadata["task_kind"] == "crawl"
     assert alert.metadata["source_key"] == "cls"
-    assert alert.metadata["source_scope"] == "alphafoundry"
+    assert alert.metadata["source_scope"] == "research_workbench"
     assert len(repo.incidents) == 1
 
 
@@ -423,7 +423,7 @@ def test_host_event_metadata_drops_raw_collection_errors() -> None:
     assert "permission denied" not in str(repo.alerts[0].metadata)
 
 
-def test_all_alphafoundry_event_categories_have_an_explicit_source_scope() -> None:
+def test_all_research_workbench_event_categories_have_an_explicit_source_scope() -> None:
     repo = FakeRepository()
     service = ResourceMonitorAlertService(repo)
     snapshot = _snapshot_with_process(cpu=95.0)
@@ -440,7 +440,7 @@ def test_all_alphafoundry_event_categories_have_an_explicit_source_scope() -> No
         "managed_process_unavailable",
         "resource_pressure",
     }
-    assert {alert.metadata["source_scope"] for alert in repo.alerts} == {"alphafoundry"}
+    assert {alert.metadata["source_scope"] for alert in repo.alerts} == {"research_workbench"}
 
 
 def test_list_events_keeps_open_event_even_when_before_history_window() -> None:

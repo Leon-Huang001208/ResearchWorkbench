@@ -44,12 +44,12 @@ function previewOptions(argv) {
 
 function stableDesktopDataDir() {
     if (IS_WINDOWS) {
-        return path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "AlphaFoundry");
+        return path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "Research Workbench");
     }
     if (process.platform === "darwin") {
-        return path.join(os.homedir(), "Library", "Application Support", "AlphaFoundry");
+        return path.join(os.homedir(), "Library", "Application Support", "Research Workbench");
     }
-    return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"), "AlphaFoundry");
+    return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"), "Research Workbench");
 }
 
 async function executable(pathname) {
@@ -62,12 +62,12 @@ async function executable(pathname) {
 }
 
 async function resolveTauriCli() {
-    const configuredCli = process.env.ALPHAFOUNDRY_TAURI_CLI;
+    const configuredCli = process.env.RESEARCH_TAURI_CLI;
     if (configuredCli) {
         if (await executable(configuredCli)) {
             return configuredCli;
         }
-        throw new Error(`ALPHAFOUNDRY_TAURI_CLI is not executable: ${configuredCli}`);
+        throw new Error(`RESEARCH_TAURI_CLI is not executable: ${configuredCli}`);
     }
 
     const cliName = IS_WINDOWS ? "tauri.cmd" : "tauri";
@@ -94,8 +94,8 @@ async function resolveTauriCli() {
     }
 
     throw new Error(
-        "Cannot find Tauri CLI. Run npm ci once in a checked-out AlphaFoundry worktree, " +
-            "or set ALPHAFOUNDRY_TAURI_CLI to an executable path.",
+        "Cannot find Tauri CLI. Run npm ci once in a checked-out Research Workbench worktree, " +
+            "or set RESEARCH_TAURI_CLI to an executable path.",
     );
 }
 
@@ -116,15 +116,15 @@ function previewConfig(port) {
 
 async function main() {
     const { port, useStableData } = previewOptions(process.argv.slice(2));
-    const temporaryDir = await mkdtemp(path.join(os.tmpdir(), "alphafoundry-preview-"));
+    const temporaryDir = await mkdtemp(path.join(os.tmpdir(), "research-workbench-preview-"));
     const configPath = path.join(temporaryDir, "tauri.preview.conf.json");
-    const dataDir = process.env.ALPHAFOUNDRY_DESKTOP_DATA_DIR || (
+    const dataDir = process.env.RESEARCH_DESKTOP_DATA_DIR || (
         useStableData ? stableDesktopDataDir() : path.join(temporaryDir, "data")
     );
     const tauriCli = await resolveTauriCli();
     await writeFile(configPath, `${JSON.stringify(previewConfig(port), null, 2)}\n`, "utf8");
 
-    console.info(`Starting AlphaFoundry branch preview at http://${HOST}:${port}`);
+    console.info(`Starting Research Workbench branch preview at http://${HOST}:${port}`);
     console.info(`Preview runtime data: ${dataDir}`);
     if (useStableData) {
         console.info("Preview is reusing stable desktop configuration; background workers remain disabled.");
@@ -133,16 +133,16 @@ async function main() {
         cwd: PROJECT_ROOT,
         env: {
             ...process.env,
-            ALPHAFOUNDRY_BACKEND_URL: `http://${HOST}:${port}`,
-            ALPHAFOUNDRY_DESKTOP_DATA_DIR: dataDir,
-            ALPHAFOUNDRY_DESKTOP_PORT: String(port),
-            ALPHAFOUNDRY_PREVIEW: "1",
+            RESEARCH_BACKEND_URL: `http://${HOST}:${port}`,
+            RESEARCH_DESKTOP_DATA_DIR: dataDir,
+            RESEARCH_DESKTOP_PORT: String(port),
+            RESEARCH_PREVIEW: "1",
         },
         stdio: "inherit",
     });
 
     child.on("error", (error) => {
-        console.error("Unable to start AlphaFoundry branch preview:", error.message);
+        console.error("Unable to start Research Workbench branch preview:", error.message);
     });
     child.on("exit", async (code, signal) => {
         try {
@@ -155,6 +155,6 @@ async function main() {
 }
 
 main().catch((error) => {
-    console.error("AlphaFoundry branch preview failed:", error.message);
+    console.error("Research Workbench branch preview failed:", error.message);
     process.exitCode = 1;
 });

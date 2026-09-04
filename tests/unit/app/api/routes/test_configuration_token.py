@@ -23,7 +23,7 @@ class TestGetConfigToken:
     """GET /api/config/token 端点"""
 
     def test_returns_token_without_csrf_header(self, client):
-        """不带 X-AlphaFoundry-Config-Token 也能拿到 token"""
+        """不带 X-Research Workbench-Config-Token 也能拿到 token"""
         resp = client.get("/api/config/token")
         assert resp.status_code == 200
         data = resp.json()
@@ -107,7 +107,7 @@ class TestGetConfigToken:
             "/api/config",
             headers={
                 "Origin": "http://localhost:8765",
-                "X-AlphaFoundry-Config-Token": CONFIGURATION_CSRF_TOKEN,
+                "X-Research Workbench-Config-Token": CONFIGURATION_CSRF_TOKEN,
             },
         )
 

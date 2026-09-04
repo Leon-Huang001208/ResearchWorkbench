@@ -79,14 +79,14 @@ export function filterEnvironmentLockedPayload(
 
 export function configurationRequestOptions(options = {}) {
     const metaToken = globalThis.document
-        ?.querySelector('meta[name="alphafoundry-config-token"]')
+        ?.querySelector('meta[name="research-config-token"]')
         ?.content || '';
     const csrfToken = _configToken || metaToken;
     return {
         ...options,
         headers: {
             ...(options.headers || {}),
-            'X-AlphaFoundry-Config-Token': csrfToken,
+            'X-Research Workbench-Config-Token': csrfToken,
         },
     };
 }
@@ -2025,7 +2025,7 @@ function initConfigModal() {
 
 export async function openDatabaseConfiguration() {
     try {
-        document.dispatchEvent(new CustomEvent('alphafoundry:open-database-configuration'));
+        document.dispatchEvent(new CustomEvent('research_workbench:open-database-configuration'));
         await initConfigurationPage();
         openConfigModal('database');
         const modal = document.getElementById('config-edit-modal');

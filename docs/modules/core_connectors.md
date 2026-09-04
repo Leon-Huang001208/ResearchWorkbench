@@ -102,11 +102,11 @@ register(SourceSpec(
 `connector_class` 是 Connector 架构下的 canonical 字段，必须指向 `BaseConnector` 子类；`adapter_class` 仅作为历史兼容别名保留。`connector_dataset` 声明调度时传给 `connector.run()` 的 dataset，`pipeline_kind` 声明 `document` 或 `market` 分流。`SourceSpec` 也可声明 `fallback_group` 与 `fallback_priority`。`core.source_registry.get_fallback_groups()` 会按优先级升序返回每个组，`DatasetRouter` 再据此构建如 `daily_quotes_cn -> cjpy -> wind -> baostock` 的降级链。
 
 CLI 通过 `ConnectorRegistry` 统一调度：
-- `af data list` — 列出已注册数据源
-- `af data ingest` — 执行数据摄入
-- `af data backfill` — 历史数据回填
-- `af data validate` — 数据验证
-- `af data status` — 数据源状态
+- `rwb data list` — 列出已注册数据源
+- `rwb data ingest` — 执行数据摄入
+- `rwb data backfill` — 历史数据回填
+- `rwb data validate` — 数据验证
+- `rwb data status` — 数据源状态
 
 ---
 

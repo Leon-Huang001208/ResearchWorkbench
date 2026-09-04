@@ -1,6 +1,6 @@
-# AlphaFoundry Desktop Packaging
+# Research Workbench Desktop Packaging
 
-AlphaFoundry is moving toward a Tauri desktop shell while keeping the current FastAPI Web Workbench intact.
+Research Workbench is moving toward a Tauri desktop shell while keeping the current FastAPI Web Workbench intact.
 
 ## Current Shape
 
@@ -9,12 +9,12 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 - Tauri loads `http://127.0.0.1:8765` in dev mode.
 - Packaged builds include `desktop/dist/index.html`, which waits for `/health` and then opens the existing workbench.
 - The Python sidecar bundles the built-in industry graph resources from `data/industry_graphs/` so thesis generation is available without user-created data files.
-- The Tauri shell expects a sidecar named `alphafoundry-backend`. The current macOS ARM development shim is `src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin` and delegates to the Python launcher.
+- The Tauri shell expects a sidecar named `research-workbench-backend`. The current macOS ARM development shim is `src-tauri/binaries/research-workbench-backend-aarch64-apple-darwin` and delegates to the Python launcher.
 - `tauri dev` lets `beforeDevCommand` start the backend. Packaged debug and release builds start the bundled sidecar.
-- 桌面端运行时配置由 `core/settings/runtime.py` 统一解析：Windows 使用 `%LOCALAPPDATA%\AlphaFoundry`，macOS 使用 `~/Library/Application Support/AlphaFoundry`；可用 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 覆盖。
+- 桌面端运行时配置由 `core/settings/runtime.py` 统一解析：Windows 使用 `%LOCALAPPDATA%\Research Workbench`，macOS 使用 `~/Library/Application Support/Research Workbench`；可用 `RESEARCH_DESKTOP_DATA_DIR` 覆盖。
 - 安装包不会下载、安装或管理 PostgreSQL/pgvector。首次启动找不到可用数据库时会进入数据库配置模式，而不会静默降级 SQLite。
 - 启动器会先初始化桌面运行环境和用户配置目录，再加载数据库预检；因此数据库不可用时仍会保持桌面配置模式，而不会误按 Web 模式退出。
-- `ALPHAFOUNDRY_BACKEND_URL` 是 worker、scheduler 和本地 API 调用的唯一地址来源；桌面默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
+- `RESEARCH_BACKEND_URL` 是 worker、scheduler 和本地 API 调用的唯一地址来源；桌面默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
 
 ## Desktop Runtime Configuration
 
@@ -22,7 +22,7 @@ AlphaFoundry is moving toward a Tauri desktop shell while keeping the current Fa
 
 Desktop builds do not bundle, download, install, upgrade, uninstall, or manage a database server. If the first launch cannot reach a usable PostgreSQL + pgvector instance, the desktop app stays healthy in **database setup mode**: only System Configuration is available and all database-dependent workbench features remain blocked.
 
-Install PostgreSQL 15+ and pgvector yourself, create the `alphafoundry` database, and enable the extension:
+Install PostgreSQL 15+ and pgvector yourself, create the `research_workbench` database, and enable the extension:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -31,21 +31,21 @@ CREATE EXTENSION IF NOT EXISTS vector;
 The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux. Save a PostgreSQL psycopg v3 URL in System Configuration, then restart the desktop app before the full workbench can use the new connection:
 
 ```dotenv
-DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
+DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/research_workbench
 ```
 
 ### Location and migration
 
-- Windows: `%LOCALAPPDATA%\AlphaFoundry`
-- macOS: `~/Library/Application Support/AlphaFoundry`
-- Override: `ALPHAFOUNDRY_DESKTOP_DATA_DIR`
-- Explicit configuration file: `ALPHAFOUNDRY_CONFIG_FILE`
+- Windows: `%LOCALAPPDATA%\Research Workbench`
+- macOS: `~/Library/Application Support/Research Workbench`
+- Override: `RESEARCH_DESKTOP_DATA_DIR`
+- Explicit configuration file: `RESEARCH_CONFIG_FILE`
 
-Windows upgrades detect a legacy `%APPDATA%\AlphaFoundry\.env` and copy it only when the new local directory has no `.env`; an existing local configuration is never overwritten. To move to another computer, close AlphaFoundry, copy the application data directory, export/import PostgreSQL with `pg_dump` / `pg_restore`, update `DATABASE_URL` if needed, then run `python scripts/bootstrap_db.py`.
+Windows upgrades detect a legacy `%APPDATA%\Research Workbench\.env` and copy it only when the new local directory has no `.env`; an existing local configuration is never overwritten. To move to another computer, close Research Workbench, copy the application data directory, export/import PostgreSQL with `pg_dump` / `pg_restore`, update `DATABASE_URL` if needed, then run `python scripts/bootstrap_db.py`.
 
 ### Local-only control plane
 
-The desktop backend accepts only `localhost` or `127.0.0.1` as its listener. If the selected port is occupied, the launcher stops without terminating the unknown owning process. Configuration endpoints are restricted to loopback clients, do not return persisted secrets, and are disabled in `web-prod` mode. Database and advanced logging configuration changes are persisted for the next restart rather than falsely claiming that the current SQLAlchemy engine or logging handlers have switched. The runtime `.env` file is the authoritative persisted configuration; process variables do not lock fields in the desktop configuration page. `ALPHAFOUNDRY_BACKEND_URL` is the single base URL used by workers and scheduled API calls.
+The desktop backend accepts only `localhost` or `127.0.0.1` as its listener. If the selected port is occupied, the launcher stops without terminating the unknown owning process. Configuration endpoints are restricted to loopback clients, do not return persisted secrets, and are disabled in `web-prod` mode. Database and advanced logging configuration changes are persisted for the next restart rather than falsely claiming that the current SQLAlchemy engine or logging handlers have switched. The runtime `.env` file is the authoritative persisted configuration; process variables do not lock fields in the desktop configuration page. `RESEARCH_BACKEND_URL` is the single base URL used by workers and scheduled API calls.
 
 ### Persisted notification bridge
 
@@ -55,7 +55,7 @@ Local `cargo check` only proves that the macOS development build compiles. Windo
 
 ## Why This Differs From cc-switch
 
-cc-switch keeps most local backend behavior in Rust Tauri commands. AlphaFoundry keeps investment research, AI, document, market data, and report generation logic in Python because those modules already depend on FastAPI, SQLAlchemy, pandas, document tooling, model gateways, and financial data adapters.
+cc-switch keeps most local backend behavior in Rust Tauri commands. Research Workbench keeps investment research, AI, document, market data, and report generation logic in Python because those modules already depend on FastAPI, SQLAlchemy, pandas, document tooling, model gateways, and financial data adapters.
 
 The shared pattern is the desktop delivery layer:
 
@@ -108,7 +108,7 @@ This reads the existing local desktop configuration but does not start duplicate
 database initialization, knowledge workers, crawler workers, or schedulers in
 the preview process.
 
-The preview launcher reuses an already-installed Tauri CLI from an AlphaFoundry
+The preview launcher reuses an already-installed Tauri CLI from an Research Workbench
 worktree when available; it does not require copying the project or installing
 Node dependencies for every worktree. Close the preview window to stop its
 backend and remove its temporary Tauri configuration. The user should review this
@@ -123,10 +123,10 @@ npm run desktop:build:debug
 The debug `.app` starts the bundled sidecar. If you build without replacing the shim, it delegates to the local Python launcher:
 
 ```bash
-src-tauri/binaries/alphafoundry-backend-aarch64-apple-darwin --host 127.0.0.1 --port 8765
+src-tauri/binaries/research-workbench-backend-aarch64-apple-darwin --host 127.0.0.1 --port 8765
 ```
 
-Set `ALPHAFOUNDRY_PYTHON=/path/to/python` when you want to force a specific Python environment.
+Set `RESEARCH_PYTHON=/path/to/python` when you want to force a specific Python environment.
 
 ## Local Packaging Flow
 
@@ -152,7 +152,7 @@ The generated sidecar is intentionally written under `build/desktop-sidecar/dist
 
 ## 跨平台开发与发布验证流程
 
-AlphaFoundry 采用“一套源码、各目标平台原生构建”的策略：Tauri 壳和 Python 业务代码共用，但 Python sidecar 是平台相关的原生可执行文件，必须分别为 macOS 和 Windows 打包。macOS 产物不能用于 Windows，反之亦然。
+Research Workbench 采用“一套源码、各目标平台原生构建”的策略：Tauri 壳和 Python 业务代码共用，但 Python sidecar 是平台相关的原生可执行文件，必须分别为 macOS 和 Windows 打包。macOS 产物不能用于 Windows，反之亦然。
 
 ### 日常开发
 
@@ -204,7 +204,7 @@ Optional updater settings:
 - `TAURI_UPDATER_PUBKEY` repository secret: public key written into generated `src-tauri/tauri.release.conf.json`.
 - `TAURI_SIGNING_PRIVATE_KEY` repository secret: private key used by Tauri to sign updater artifacts.
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repository secret: password for the private key if one is configured.
-- `ALPHAFOUNDRY_UPDATER_ENDPOINT` repository variable: optional override for the updater `latest.json` URL. If omitted, the endpoint defaults to GitHub Releases: `https://github.com/Leon-Huang001208/AlphaFoundry/releases/latest/download/latest.json`.
+- `RESEARCH_UPDATER_ENDPOINT` repository variable: optional override for the updater `latest.json` URL. If omitted, the endpoint defaults to GitHub Releases: `https://github.com/Leon-Huang001208/ResearchWorkbench/releases/latest/download/latest.json`.
 
 When `TAURI_UPDATER_PUBKEY` is missing, CI still builds installable bundles but does not request updater artifacts.
 

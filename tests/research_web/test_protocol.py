@@ -118,7 +118,7 @@ def test_runtime_url_is_loopback_only():
 def test_native_tool_result_error_updates_matching_call():
     result = project(
         [
-            event(1, "tool/call", {"callId": "c", "name": "af_run_script", "arguments": "{}"}),
+            event(1, "tool/call", {"callId": "c", "name": "research_run_script", "arguments": "{}"}),
             event(
                 2,
                 "tool/result",
@@ -142,7 +142,7 @@ def test_native_tool_result_error_updates_matching_call():
         {
             "id": "c",
             "type": "tool",
-            "title": "af_run_script",
+            "title": "research_run_script",
             "status": "failed",
             "detail": "permission denied",
         }
@@ -151,7 +151,7 @@ def test_native_tool_result_error_updates_matching_call():
 
 def test_script_failure_payload_is_not_shown_as_successful_execution():
     entries = [
-        event(1, "tool/call", {"callId": "c", "name": "af_run_script", "arguments": "{}"}),
+        event(1, "tool/call", {"callId": "c", "name": "research_run_script", "arguments": "{}"}),
         event(
             2,
             "tool/result",

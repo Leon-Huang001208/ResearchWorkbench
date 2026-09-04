@@ -23,7 +23,7 @@ def _parse_args() -> argparse.Namespace:
         "--workbook",
         type=Path,
         default=DEFAULT_WORKBOOK_PATH,
-        help="Path to AlphaFoundry_Wind_Realtime.xlsx",
+        help="Path to Research Workbench_Wind_Realtime.xlsx",
     )
     parser.add_argument(
         "--chunk-size",

@@ -2,7 +2,7 @@
 Core contracts for production monitoring, drift detection, and alerting.
 
 This module defines Pydantic models for health metrics collection, data drift
-detection, alert triggering, and incident recording in AlphaFoundry, ensuring
+detection, alert triggering, and incident recording in Research Workbench, ensuring
 consistent monitoring and alerting across subsystems.
 """
 
@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 class Subsystem(str, Enum):
     """被监控的子系统.
 
-    Enumeration of subsystems that are monitored in AlphaFoundry.
+    Enumeration of subsystems that are monitored in Research Workbench.
 
     Attributes:
         INGESTION: Ingestion subsystem.

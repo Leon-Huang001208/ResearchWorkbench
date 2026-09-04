@@ -3,7 +3,7 @@ Core contracts for the analyst decision console.
 
 This module defines Pydantic models for decision workspaces, decision actions,
 auditing records, and post-mortem (review) records, standardizing the data
-structures used in the AlphaFoundry decision-making workflow.
+structures used in the Research Workbench decision-making workflow.
 """
 
 from datetime import datetime

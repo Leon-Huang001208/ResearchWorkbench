@@ -1,4 +1,4 @@
-# AlphaFoundry 数据存储设计文档
+# Research Workbench 数据存储设计文档
 
 ## 目录
 
@@ -12,7 +12,7 @@
 
 ## 概述
 
-AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模块化单体架构，通过仓储模式实现数据访问。
+Research Workbench 使用 PostgreSQL + pgvector 作为主要数据存储，采用模块化单体架构，通过仓储模式实现数据访问。
 
 ### 核心设计原则
 
@@ -296,7 +296,7 @@ Fund Intelligence MVP 由 `data_layer/repositories/fund_repository.py` 管理，
 
 ---
 
-### 4. 市场结构化事实层 (AF-AUTO-007)
+### 4. 市场结构化事实层 (RWB-AUTO-007)
 
 #### stock_master（股票基础信息表）
 

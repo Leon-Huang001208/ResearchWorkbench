@@ -1,4 +1,4 @@
-"""AlphaFoundry API"""
+"""Research Workbench API"""
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 app = FastAPI(
-    title="AlphaFoundry API",
+    title="Research Workbench API",
     description="本地优先、可企业化的买方投研情报系统",
 )
 
@@ -30,7 +30,7 @@ app = FastAPI(
 def startup() -> None:
     """Startup hook: configure logging and check database connection"""
     configure_logging()
-    logger.info("AlphaFoundry API starting up...")
+    logger.info("Research Workbench API starting up...")
     # Explicit database connection check on API startup + schema ensure
     from data_layer.repositories.base import check_database_connection, ensure_schema
 
@@ -48,7 +48,7 @@ def startup() -> None:
 @app.on_event("shutdown")
 def shutdown() -> None:
     """Shutdown hook"""
-    logger.info("AlphaFoundry API shutting down...")
+    logger.info("Research Workbench API shutting down...")
 
 
 # ─── CORS（开发模式允许所有来源）─────────────────────────

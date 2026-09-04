@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-AlphaFoundry 使用示例
+Research Workbench 使用示例
 
-本文件展示如何使用 AlphaFoundry 的 Python API。
+本文件展示如何使用 Research Workbench 的 Python API。
 """
 
 from datetime import UTC, datetime
 from pathlib import Path
 
 print("=" * 60)
-print("AlphaFoundry 使用示例")
+print("Research Workbench 使用示例")
 print("=" * 60)
 
 
@@ -161,7 +161,7 @@ def example_5_retrieve_history():
 
 def main():
     """运行所有示例"""
-    print("AlphaFoundry 示例集合")
+    print("Research Workbench 示例集合")
 
     try:
         example_1_basic_analysis()

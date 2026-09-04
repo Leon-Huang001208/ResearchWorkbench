@@ -9,7 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = REPO_ROOT / "src-tauri" / "tauri.release.conf.json"
 DEFAULT_ENDPOINT = (
-    "https://github.com/Leon-Huang001208/AlphaFoundry/releases/latest/download/latest.json"
+    "https://github.com/Leon-Huang001208/ResearchWorkbench/releases/latest/download/latest.json"
 )
 
 
@@ -34,7 +34,7 @@ def write_config() -> Path:
     if not public_key:
         raise RuntimeError("TAURI_UPDATER_PUBKEY is required to generate updater config")
 
-    endpoint = os.environ.get("ALPHAFOUNDRY_UPDATER_ENDPOINT", "").strip() or DEFAULT_ENDPOINT
+    endpoint = os.environ.get("RESEARCH_UPDATER_ENDPOINT", "").strip() or DEFAULT_ENDPOINT
     OUTPUT.write_text(
         json.dumps(release_config(public_key, endpoint), indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",

@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A08-migration-deletion-gate.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A08-migration-deletion-gate.html",
     "sha256": "f785a8e8c9f40eccfa5ed66a3fc6e36fb641883f2a62006249a23fde1f26bfa7",
     "bytes": 634752
   },

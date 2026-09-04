@@ -1,6 +1,6 @@
 # Backup, Restore, and Migration Discipline
 
-This document describes the operational hygiene for persistent data in AlphaFoundry, covering automated backup, restore procedures, restore drills, and schema migration discipline.
+This document describes the operational hygiene for persistent data in Research Workbench, covering automated backup, restore procedures, restore drills, and schema migration discipline.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ This document describes the operational hygiene for persistent data in AlphaFoun
 
 ## Backup Procedures
 
-AlphaFoundry provides automated backup scripts supporting both PostgreSQL (primary) and SQLite (development).
+Research Workbench provides automated backup scripts supporting both PostgreSQL (primary) and SQLite (development).
 
 ### Automated Backup (PostgreSQL Production)
 
@@ -39,7 +39,7 @@ Backup files are automatically compressed with gzip to save space.
 If you're using SQLite in development:
 
 ```bash
-./scripts/backup_db.py --sqlite-path ./data/alphafoundry.db
+./scripts/backup_db.py --sqlite-path ./data/research_workbench.db
 ```
 
 Or if your DATABASE_URL is already configured for SQLite:
@@ -72,16 +72,16 @@ You can test restore locally by restoring to a different database:
 
 ```bash
 # Set up a test database in PostgreSQL
-createdb alphafoundry_test
+createdb research_workbench_test
 
 # Restore the backup to the test database
-./scripts/restore_db.py ./backups/backup_<timestamp>.sql.gz --database-url postgresql://user:password@localhost:5432/alphafoundry_test
+./scripts/restore_db.py ./backups/backup_<timestamp>.sql.gz --database-url postgresql://user:password@localhost:5432/research_workbench_test
 ```
 
 ### SQLite Restore
 
 ```bash
-./scripts/restore_db.py /path/to/backup.sql.gz --sqlite-path ./data/alphafoundry.db
+./scripts/restore_db.py /path/to/backup.sql.gz --sqlite-path ./data/research_workbench.db
 ```
 
 ---
@@ -125,7 +125,7 @@ Perform a restore drill **quarterly** to validate backups and ensure the team ca
 
 ## Schema Migration Discipline
 
-AlphaFoundry uses **Alembic** for SQLAlchemy schema migrations.
+Research Workbench uses **Alembic** for SQLAlchemy schema migrations.
 
 ### Workflow for Schema Changes
 

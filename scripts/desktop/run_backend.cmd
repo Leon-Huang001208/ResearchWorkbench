@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 REM ============================================================================
-REM AlphaFoundry Windows 桌面端后端启动脚本 (cmd 原生, 不需要 Git Bash)
+REM Research Workbench Windows 桌面端后端启动脚本 (cmd 原生, 不需要 Git Bash)
 REM
 REM 用法:
 REM   scripts\desktop\run_backend.cmd
@@ -18,26 +18,26 @@ REM ── 解析 Python 解释器 ───────────────
 set "PYTHON_BIN="
 
 REM 1. 环境变量覆盖
-if defined ALPHAFOUNDRY_PYTHON (
-    if exist "%ALPHAFOUNDRY_PYTHON%" (
-        set "PYTHON_BIN=%ALPHAFOUNDRY_PYTHON%"
+if defined RESEARCH_PYTHON (
+    if exist "%RESEARCH_PYTHON%" (
+        set "PYTHON_BIN=%RESEARCH_PYTHON%"
     )
 )
 
-REM 2. alphafoundry conda 环境 (最高优先级自动探测)
+REM 2. research_workbench conda 环境 (最高优先级自动探测)
 if not defined PYTHON_BIN (
-    if exist "%USERPROFILE%\AppData\Local\anaconda3\envs\alphafoundry\python.exe" (
-        set "PYTHON_BIN=%USERPROFILE%\AppData\Local\anaconda3\envs\alphafoundry\python.exe"
+    if exist "%USERPROFILE%\AppData\Local\anaconda3\envs\research_workbench\python.exe" (
+        set "PYTHON_BIN=%USERPROFILE%\AppData\Local\anaconda3\envs\research_workbench\python.exe"
     )
 )
 if not defined PYTHON_BIN (
-    if exist "%USERPROFILE%\anaconda3\envs\alphafoundry\python.exe" (
-        set "PYTHON_BIN=%USERPROFILE%\anaconda3\envs\alphafoundry\python.exe"
+    if exist "%USERPROFILE%\anaconda3\envs\research_workbench\python.exe" (
+        set "PYTHON_BIN=%USERPROFILE%\anaconda3\envs\research_workbench\python.exe"
     )
 )
 if not defined PYTHON_BIN (
-    if exist "%USERPROFILE%\miniforge3\envs\alphafoundry\python.exe" (
-        set "PYTHON_BIN=%USERPROFILE%\miniforge3\envs\alphafoundry\python.exe"
+    if exist "%USERPROFILE%\miniforge3\envs\research_workbench\python.exe" (
+        set "PYTHON_BIN=%USERPROFILE%\miniforge3\envs\research_workbench\python.exe"
     )
 )
 
@@ -68,16 +68,16 @@ if not defined PYTHON_BIN (
 REM ── 检查是否找到 Python ────────────────────────────────────────
 if not defined PYTHON_BIN (
     echo [ERROR] Cannot find Python interpreter.
-    echo         Set ALPHAFOUNDRY_PYTHON env var or install Anaconda with alphafoundry environment.
+    echo         Set RESEARCH_PYTHON env var or install Anaconda with research_workbench environment.
     exit /b 1
 )
 
-echo [AlphaFoundry] Using Python: %PYTHON_BIN%
+echo [Research Workbench] Using Python: %PYTHON_BIN%
 
 REM ── 设置桌面环境变量 ──────────────────────────────────────────
-set "ALPHAFOUNDRY_DESKTOP=1"
-set "ALPHAFOUNDRY_DESKTOP_URL=http://127.0.0.1:8765"
-set "ALPHAFOUNDRY_DEV=1"
+set "RESEARCH_DESKTOP=1"
+set "RESEARCH_DESKTOP_URL=http://127.0.0.1:8765"
+set "RESEARCH_DEV=1"
 
 REM ── 默认启用 reload（如果命令行没有传 --reload 则追加）────────
 set "HAS_RELOAD=0"

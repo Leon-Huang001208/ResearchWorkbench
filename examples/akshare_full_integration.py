@@ -2,7 +2,7 @@
 """
 AkShare 完整集成示例
 
-演示如何将 AkShare 数据与 AlphaFoundry 系统集成，包括：
+演示如何将 AkShare 数据与 Research Workbench 系统集成，包括：
 1. 获取行情数据并转为资产分析快照
 2. 获取新闻并转为文档封包
 3. 获取财务数据并更新资产信息
@@ -252,7 +252,7 @@ def example_5_combined_workflow():
 def main():
     """运行所有集成示例"""
     logger.info("\n" + "=" * 60)
-    logger.info("AlphaFoundry - AkShare Integration Examples")
+    logger.info("Research Workbench - AkShare Integration Examples")
     logger.info("=" * 60)
 
     examples = [
@@ -294,11 +294,11 @@ def main():
     logger.info("\n" + "=" * 60)
     logger.info("CLI Usage Quick Reference:")
     logger.info("=" * 60)
-    logger.info("  af akshare health                - Check AkShare status")
-    logger.info("  af akshare stocks --limit 50     - Fetch stock list")
-    logger.info("  af akshare news --limit 20       - Fetch finance news")
-    logger.info("  af akshare macro --indicator all - Fetch macro data")
-    logger.info("  af akshare quotes -s 600000.SH   - Fetch historical quotes")
+    logger.info("  rwb akshare health                - Check AkShare status")
+    logger.info("  rwb akshare stocks --limit 50     - Fetch stock list")
+    logger.info("  rwb akshare news --limit 20       - Fetch finance news")
+    logger.info("  rwb akshare macro --indicator all - Fetch macro data")
+    logger.info("  rwb akshare quotes -s 600000.SH   - Fetch historical quotes")
     logger.info("=" * 60)
 
     return 0 if all_passed else 1

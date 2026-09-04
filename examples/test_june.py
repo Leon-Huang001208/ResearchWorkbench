@@ -243,7 +243,7 @@ def test_ingest_service():
 def main():
     """主函数"""
     print("\n" + "=" * 60)
-    print("AlphaFoundry 六月里程碑 - 功能测试")
+    print("Research Workbench 六月里程碑 - 功能测试")
     print("=" * 60)
 
     tests_passed = 0

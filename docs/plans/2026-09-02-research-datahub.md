@@ -6,7 +6,7 @@
 
 - 在 `codex/dsh-web-v1` 的现有隔离工作树实现，基线 `708fbdb`；主工作树、用户3080与其他会话不改动。
 - DSH仍是唯一研究引擎。不得放宽原生工具白名单、子Agent策略、脚本沙箱、模型配置和执行上限。
-- 不安装依赖。Python使用现有 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`，Node使用现有运行时。
+- 不安装依赖。Python使用现有 `python`，Node使用现有运行时。
 - 先测试失败，再实现。错误与日志沿用项目设施，不记录凭据或完整私人内容。每个Python变更配测试、模块文档、CHANGELOG、任务报告。
 - 每次外部查询仍先经过DSH原生审批，拒绝/取消不得取数。供应商、参数、目录、会话身份不能由模型任意指定。
 - 数据集是研究输入，不能计作报告交付文件；不恢复Evidence/Claim/Quality Gate，不让模型抄写原始数据作为权威副本。
@@ -15,7 +15,7 @@
 
 责任：`app/research_web/datahub/` 新模块；现有main/service/launch_runtime最小接线；runtime/public-data.mjs改为薄桥接；四个Skill及persona的资料使用说明；相关Python/JS测试及 `docs/research-web-datahub.md`。不修改UI源码，由Task2负责。
 
-实现结构：FastAPI内部DataHub模块，包含明确的查询契约、固定来源Provider、快照存储和薄路由。Web与DSH使用同一服务。无新的守护进程、后台调度或全局数据索引。现有af_public_data名称保持，参数增加日期范围，仍只向模型暴露业务参数；移除原生JS中的重复上游解析。
+实现结构：FastAPI内部DataHub模块，包含明确的查询契约、固定来源Provider、快照存储和薄路由。Web与DSH使用同一服务。无新的守护进程、后台调度或全局数据索引。现有datahub_get_fund_data名称保持，参数增加日期范围，仍只向模型暴露业务参数；移除原生JS中的重复上游解析。
 
 传输边界：原生插件在trustedDirectory验证并原生审批后，使用可信配置中的回环BFF地址调用DataHub内部查询端点。通过专属随机凭据校验内部请求，凭据保存在研究根的私有控制目录（0600、拒绝符号链接），不进入提示词、脚本环境、普通API或日志。插件从实际DSH父系目录解析产品会话ID，不接受模型的session/path/url/header。BFF校验现有Store归属，所有内部入口需要认证。禁止自动跟随重定向。未认证浏览器请求不得绕过审批发起查询。凭据创建与读取由启动/服务代码负责，不能动已有模型密钥。
 

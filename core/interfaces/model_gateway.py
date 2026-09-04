@@ -2,7 +2,7 @@
 Abstract base class (interface) for model gateways and response models.
 
 Defines the ModelGateway interface (for unified access to LLM providers) and response
-models (ModelResponse, EmbeddingResponse) in AlphaFoundry.
+models (ModelResponse, EmbeddingResponse) in Research Workbench.
 """
 
 from abc import ABC, abstractmethod

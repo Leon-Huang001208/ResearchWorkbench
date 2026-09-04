@@ -1,4 +1,4 @@
-# Task: Build Interactive Web Frontend for AlphaFoundry
+# Task: Build Interactive Web Frontend for Research Workbench
 
 **Assignee:** 龙太子 (Dragon Prince)
 **Status:** ✅ completed

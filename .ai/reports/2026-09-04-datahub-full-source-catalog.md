@@ -9,7 +9,7 @@
 - 后端静态目录：13 项业务能力、21 个来源及 ProviderBinding；GET 目录不导入连接器、不联网。
 - 就绪状态：代码、适配、配置、依赖、允许、可调用和最近健康分别表达。
 - DataHub 业务边界：`BusinessQuery` 拒绝 URL、请求头、凭据、模块和路径；Broker 只选择目录白名单来源。
-- 新 DSH Tool：13 个 `datahub_*` 名称，与 AlphaFoundry 品牌解耦；旧 `af_public_data` 仅保留运行时兼容，已从新研究可选目录和消息受理白名单移除。
+- 新 DSH Tool：13 个 `datahub_*` 名称，与 Research Workbench 品牌解耦；旧 `datahub_get_fund_data` 仅保留运行时兼容，已从新研究可选目录和消息受理白名单移除。
 - 当前真实 Provider：东方财富基金和财联社；其他来源只展示登记与缺口，不伪报可调用。
 - 前端数据页：能力/来源双视图、汇总、筛选、详情、来源矩阵、放入草稿和单源异步探测。
 - 快照：业务查询 Manifest 记录 capability、实际 Provider、尝试来源、稳定参数及底层 Provider 查询。

@@ -138,11 +138,11 @@
 | **strategy-backtester** | v0.5.0 (MVP) | `tool_fetch_market_data` + 技术指标 | 均线策略回测 |
 | **fundamental-analyst** | v0.5.0 | `tool_fetch_stock_financials/reports` | 盈利/成长/偿债/估值评分 |
 
-### 2.2 与 AlphaFoundry 架构对照
+### 2.2 与 Research Workbench 架构对照
 
 #### 2.2.1 数据层对照
 
-| AlphaFoundry 数据域 | `AssetAnalysisSnapshot` 字段 | 插件覆盖工具 | 匹配度 |
+| Research Workbench 数据域 | `AssetAnalysisSnapshot` 字段 | 插件覆盖工具 | 匹配度 |
 |:---|:---|:---|:---|
 | 行情 | `price_volume` | `tool_fetch_market_data`, `tool_fetch_stock_historical/realtime/minute` | ✅ 完整 |
 | 财务 | `financial` | `tool_fetch_stock_financials`, `tool_fetch_stock_financial_reports` | ✅ 完整 |
@@ -156,11 +156,11 @@
 | **情绪** | ❌ 不存在 | 4 个情绪工具 + `market-sentinel` | 🆕 新增能力 |
 | **选股** | ❌ 不存在 | `tool_screen_equity_factors` | 🆕 新增能力 |
 
-**结论：插件对 AlphaFoundry 现有数据域 100% 覆盖，并新增 3 个关键能力域。**
+**结论：插件对 Research Workbench 现有数据域 100% 覆盖，并新增 3 个关键能力域。**
 
 #### 2.2.2 契约差异（需适配层）
 
-| 维度 | AlphaFoundry | 插件 | 差异 | 适配难度 |
+| 维度 | Research Workbench | 插件 | 差异 | 适配难度 |
 |:---|:---|:---|:---|:---|
 | **输出类型** | `DocumentEnvelope` / `AssetAnalysisSnapshot` (Pydantic) | `Dict[str, Any]` (`{success, data, message}`) | 结构不兼容 | 🟡 中 |
 | **调用方式** | `DataAdapter.fetch(**kwargs)` (同步/异步方法) | `tool_runner.py` (子进程) / OpenClaw Tool API | 调用路径不同 | 🟡 中 |
@@ -174,7 +174,7 @@
 **① 输出契约不兼容**
 
 ```python
-# AlphaFoundry 期望
+# Research Workbench 期望
 DocumentEnvelope(
     doc_id="sha256...",
     source_type="vendor_snapshot",  # 枚举受限
@@ -213,7 +213,7 @@ DocumentEnvelope(
 
 ### 2.3 Skill 层价值评估
 
-| Skill | AlphaFoundry 价值 | 集成方式 |
+| Skill | Research Workbench 价值 | 集成方式 |
 |:---|:---|:---|
 | **fundamental-analyst** | ⭐⭐⭐⭐⭐ 完美补充财务分析流水线 | 可映射到 `AssetAnalysisSnapshot.financial` + `valuation` |
 | **technical-analyst** | ⭐⭐⭐⭐⭐ 填补技术面空白 | 输出可映射到新的 `technical` 字段 |
@@ -277,7 +277,7 @@ class ChinaStockAdapter(BaseDataAdapter):
 
 ```
 ┌──────────────────────────────────────────────────┐
-│              AlphaFoundry 数据层                  │
+│              Research Workbench 数据层                  │
 │                                                   │
 │  ┌─────────────┐     ┌──────────────────────┐    │
 │  │ IFinDAdapter │     │ ChinaStockAdapter    │    │
@@ -315,7 +315,7 @@ class ChinaStockAdapter(BaseDataAdapter):
 | 维度 | 评估 |
 |:---|:---|
 | **安全性** | ✅ 通过审计，无阻断性问题 |
-| **数据覆盖** | ✅ 100% 覆盖 AlphaFoundry 现有数据域 + 3 个新增能力域 |
+| **数据覆盖** | ✅ 100% 覆盖 Research Workbench 现有数据域 + 3 个新增能力域 |
 | **契约兼容** | ⚠️ 需编写适配层（中等工作量） |
 | **与 iFinD 关系** | ✅ 互补（免费降级 + 技术指标/情绪等新能力） |
 | **Skill 价值** | ✅ 高价值，提供结构化分析框架 |

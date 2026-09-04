@@ -8,6 +8,8 @@
 
 当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
+当前产品身份统一为 **Research Workbench**。浏览器标题、消息署名、ARIA 标签、favicon 与品牌图片都从现行中性品牌资产读取；主题偏好使用 `research-web.appearance.v1`。产品壳不再发布旧名称或旧命令，但 `/api/research/*` 与现有 hash 路由保持稳定。
+
 ## 模块
 
 | 文件 | 职责 |

@@ -7,7 +7,7 @@ export const empty = (title, description = '') => `<div class="empty"><span clas
 
 export function renderConversation(detail, questionDrafts = new Map()) {
   if (!detail) return '';
-  const messages = (detail.messages || []).map((message) => `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}"><div class="message-byline"><span class="avatar">${message.role === 'user' ? '你' : 'A'}</span><strong>${e(message.role === 'user' ? '你' : message.role === 'assistant' ? 'AlphaFoundry' : message.role)}</strong></div><div class="markdown">${renderMarkdown(message.text)}</div></article>`).join('');
+  const messages = (detail.messages || []).map((message) => `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}"><div class="message-byline"><span class="avatar">${message.role === 'user' ? '你' : 'A'}</span><strong>${e(message.role === 'user' ? '你' : message.role === 'assistant' ? 'Research Workbench' : message.role)}</strong></div><div class="markdown">${renderMarkdown(message.text)}</div></article>`).join('');
   const approvals = (detail.approvals || []).map((approval) => `<section class="decision-card"><div class="eyebrow">需要你的授权</div><h3>${e(approval.title)}</h3><div class="markdown">${renderMarkdown(approval.detail)}</div><div class="button-row"><button class="button primary" data-approval="${e(approval.id)}" data-decision="approve">允许</button><button class="button danger-outline" data-approval="${e(approval.id)}" data-decision="deny">拒绝</button></div></section>`).join('');
   const questions = (detail.questions || []).map((question) => {
     const draft = questionDrafts.get(question.id) || [];
