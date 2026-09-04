@@ -3,8 +3,8 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/02-module-dependencies.json",
-  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/docs/architecture/research-web/diagrams/02-module-dependencies.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
     "sha256": "5913f7d0709d17cf1be6da0cc9706bc938acc47a5dd20837240061d3e52048b8",
     "bytes": 5629

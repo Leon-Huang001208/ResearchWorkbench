@@ -3,8 +3,8 @@
   "ok": true,
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/03-research-sequence.json",
-  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/03-research-sequence.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/docs/architecture/research-web/diagrams/03-research-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/03-research-sequence.html",
   "specification": {
     "sha256": "8f80d5fd8463852cb729a821a13ac7d40b98b80c5dc0461595a203e491927202",
     "bytes": 4706

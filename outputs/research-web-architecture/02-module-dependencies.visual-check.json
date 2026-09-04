@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/02-module-dependencies.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
     "sha256": "f4314400f2787c2db7e466c3b922caad6371c4837254cea1c5a665f44ec5b270",
     "bytes": 645187
   },

@@ -3,8 +3,8 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/05-capability-flow.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/outputs/research-web-architecture/05-capability-flow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/docs/architecture/research-web/diagrams/05-capability-flow.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/05-capability-flow.html",
   "specification": {
     "sha256": "1f19790e4a68a12825af9cf1cea95472504d68e78d2f8a2ca3e08ec7533c192c",
     "bytes": 4127

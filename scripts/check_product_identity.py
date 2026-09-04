@@ -13,12 +13,17 @@ RETIRED = re.compile(
     "Alpha" + r"Foundry|alpha" + r"foundry|alpha" + r"-foundry|io\.alpha" + r"foundry|"
     r"\baf(?:_|-|\s+(?:web|data|ingest|ask|report|crawl|knowledge))",
 )
+GIT_RETIRED = (
+    "Alpha" + r"Foundry|alpha" + r"foundry|alpha" + r"-foundry|io\.alpha" + r"foundry|"
+    r"(^|[^[:alnum:]_])af(_|-|[[:space:]]+(web|data|ingest|ask|report|crawl|knowledge))"
+)
 LEGACY_PRODUCT_DIR = ".alpha" + "foundry"
 LEGACY_DATA_TOKENS = (
     f"{LEGACY_PRODUCT_DIR}/research-web",
     f'"{LEGACY_PRODUCT_DIR}" / "research-web"',
 )
 LEGACY_ALLOWLIST = {"app/cli/main.py"}
+OFFLINE_FILE_FLAG = 0x40000000
 
 
 def tracked_files() -> list[str]:
@@ -31,13 +36,50 @@ def tracked_files() -> list[str]:
     return [item.decode() for item in result.stdout.split(b"\0") if item]
 
 
+def committed_findings() -> dict[str, list[tuple[int, str]]]:
+    result = subprocess.run(
+        ["git", "grep", "-n", "-I", "-E", GIT_RETIRED, "HEAD", "--", "."],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode not in {0, 1}:
+        raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout)
+    findings: dict[str, list[tuple[int, str]]] = {}
+    for match in result.stdout.splitlines():
+        parts = match.split(":", maxsplit=3)
+        if len(parts) != 4:
+            continue
+        try:
+            line_number = int(parts[2])
+        except ValueError:
+            continue
+        findings.setdefault(parts[1], []).append((line_number, parts[3]))
+    return findings
+
+
 def check_identity() -> list[str]:
     findings: list[str] = []
-    for relative in tracked_files():
+    tracked = tracked_files()
+    committed = committed_findings()
+    for relative in tracked:
         if RETIRED.search(relative):
             findings.append(f"retired path: {relative}")
             continue
         path = PROJECT_ROOT / relative
+        try:
+            is_offline = bool(path.stat().st_flags & OFFLINE_FILE_FLAG)
+        except OSError:
+            is_offline = True
+        if is_offline:
+            for line_number, line in committed.get(relative, []):
+                if relative in LEGACY_ALLOWLIST and any(
+                    token in line for token in LEGACY_DATA_TOKENS
+                ):
+                    continue
+                findings.append(f"{relative}:{line_number}: retired product identity")
+            continue
         try:
             content = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):

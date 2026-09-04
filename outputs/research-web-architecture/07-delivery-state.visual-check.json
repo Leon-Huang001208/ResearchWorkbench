@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/outputs/research-web-architecture/07-delivery-state.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/07-delivery-state.html",
     "sha256": "1d38ae1f3252caf0f3138d1f7487dd43924b60ee20db8728a6a934505fccdc2c",
     "bytes": 633636
   },
