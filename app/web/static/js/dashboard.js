@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Dashboard Module
+   Research Workbench — Dashboard Module
    Market Overview + Live Monitor tabs
    ============================================================ */
 

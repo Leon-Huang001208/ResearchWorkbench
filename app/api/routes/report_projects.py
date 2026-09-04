@@ -1631,7 +1631,7 @@ def _build_word_pdf_preview(path: Path) -> bytes | None:
 
 
 def _find_microsoft_word_app() -> Path | None:
-    if sys.platform != "darwin" or os.environ.get("ALPHAFOUNDRY_DISABLE_WORD_PREVIEW") == "1":
+    if sys.platform != "darwin" or os.environ.get("RESEARCH_DISABLE_WORD_PREVIEW") == "1":
         return None
     app_path = Path("/Applications/Microsoft Word.app")
     return app_path if app_path.exists() else None
@@ -1717,7 +1717,7 @@ def _applescript_string(value: str) -> str:
 
 
 def _find_soffice_command() -> str | None:
-    env_path = os.environ.get("ALPHAFOUNDRY_SOFFICE")
+    env_path = os.environ.get("RESEARCH_SOFFICE")
     candidates = [
         env_path,
         shutil.which("soffice"),
@@ -1734,7 +1734,7 @@ def _export_docx_pdf_with_soffice(
     source_path: Path, cache_path: Path, soffice: str
 ) -> bytes | None:
     try:
-        with tempfile.TemporaryDirectory(prefix="alphafoundry-soffice-preview-") as tmp_dir:
+        with tempfile.TemporaryDirectory(prefix="research-workbench-soffice-preview-") as tmp_dir:
             tmp_path = Path(tmp_dir)
             profile_dir = tmp_path / "profile"
             output_dir = tmp_path / "output"
@@ -2145,14 +2145,14 @@ def _word_page_preview_html(
     double_button_state = ' aria-disabled="true" disabled' if double_button_disabled else ""
     double_button_title = "双页（需要至少两页）" if double_button_disabled else "双页"
     default_layout = "single" if double_button_disabled else "double"
-    storage_key = json.dumps(f"alphafoundry.wordPreview.{file_name}", ensure_ascii=False)
+    storage_key = json.dumps(f"research-workbench.wordPreview.{file_name}", ensure_ascii=False)
     return (
         '<!doctype html><html><head><meta charset="utf-8">'
         f"<title>{escaped_name}</title>"
         "<script>(function(){"
         "function apply(theme,scheme){document.documentElement.setAttribute('data-theme',theme||'dark');"
         "document.documentElement.setAttribute('data-color-scheme',scheme||'claude');}"
-        "function localTheme(){try{return{theme:localStorage.getItem('af-theme'),scheme:localStorage.getItem('af-color-scheme')}}"
+        "function localTheme(){try{return{theme:localStorage.getItem('rwb-theme'),scheme:localStorage.getItem('rwb-color-scheme')}}"
         "catch(error){return{theme:null,scheme:null}}}"
         "function parentTheme(){try{if(window.parent&&window.parent!==window&&window.parent.document){"
         "var parentRoot=parent.document.documentElement;"
@@ -2164,9 +2164,9 @@ def _word_page_preview_html(
         "try{if(window.parent&&window.parent!==window&&window.parent.document){"
         "new MutationObserver(syncTheme).observe(parent.document.documentElement,"
         "{attributes:true,attributeFilter:['data-theme','data-color-scheme']});}}catch(error){}"
-        "window.addEventListener('storage',function(event){if(event.key==='af-theme'||event.key==='af-color-scheme')syncTheme();});"
+        "window.addEventListener('storage',function(event){if(event.key==='rwb-theme'||event.key==='rwb-color-scheme')syncTheme();});"
         "window.addEventListener('message',function(event){var data=event.data||{};"
-        "if(data.type==='alphafoundry-theme')apply(data.theme,data.scheme);});"
+        "if(data.type==='research-workbench-theme')apply(data.theme,data.scheme);});"
         "})();</script>"
         "<style>"
         ":root{color-scheme:light dark;--accent:#d97706;--accent-hover:#b45309;--accent-light:#fff8e1;"
@@ -2352,7 +2352,7 @@ def _word_page_preview_html(
         "const pageRange=document.querySelector('[data-preview-page-range]');"
         "const loading=document.querySelector('[data-preview-loading]');"
         "const error=document.querySelector('[data-preview-error]');"
-        "const storageKey=root?.dataset.previewStorageKey||'alphafoundry.wordPreview';"
+        "const storageKey=root?.dataset.previewStorageKey||'research-workbench.wordPreview';"
         "let currentPage=1;"
         "let zoom=.48;"
         "const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));"
@@ -2451,7 +2451,7 @@ def _build_quicklook_preview_image(path: Path) -> bytes | None:
         return None
 
     try:
-        with tempfile.TemporaryDirectory(prefix="alphafoundry-docx-preview-") as tmp_dir:
+        with tempfile.TemporaryDirectory(prefix="research-workbench-docx-preview-") as tmp_dir:
             result = subprocess.run(
                 [qlmanage, "-t", "-s", "2200", "-o", tmp_dir, str(path)],
                 check=False,

@@ -1,7 +1,7 @@
 """
 Core contracts for dashboard data structures.
 
-This module defines Pydantic models that standardize the data for the AlphaFoundry
+This module defines Pydantic models that standardize the data for the Research Workbench
 dashboard, including sections for today's events, research queue, candidate board,
 and learning insights.
 """

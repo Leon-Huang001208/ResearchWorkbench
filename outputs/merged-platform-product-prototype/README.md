@@ -1,4 +1,4 @@
-# AlphaFoundry 合并平台可点击原型
+# Research Workbench 合并平台可点击原型
 
 打开 [index.html](index.html) 即可浏览。原型无需安装依赖，覆盖市场首页、主题研究、资产观察、FinGPT、Claw、自选与提醒、研究库、能力与日程 8 个页面。
 

@@ -131,7 +131,7 @@ async def test_multiple_stocks():
 
 async def main():
     print("\n" + "╔" + "═" * 58 + "╗")
-    print("║" + " " * 10 + "AlphaFoundry AKShare 连接测试" + " " * 26 + "║")
+    print("║" + " " * 10 + "Research Workbench AKShare 连接测试" + " " * 26 + "║")
     print("╚" + "═" * 58 + "╝")
 
     success = 0

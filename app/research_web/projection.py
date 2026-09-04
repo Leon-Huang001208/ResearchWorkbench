@@ -96,7 +96,7 @@ def project(entries: list[dict]) -> dict:
             started = tool_started.get(aid)
             if started is not None and timestamp is not None and timestamp > started:
                 row["duration_ms"] = timestamp - started
-            if row.get("title") == "af_run_script" and row["status"] == "completed":
+            if row.get("title") == "research_run_script" and row["status"] == "completed":
                 try:
                     script = json.loads(row["detail"])
                     outcome = script.get("status") if isinstance(script, dict) else None

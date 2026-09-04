@@ -8,8 +8,8 @@ LOGS_DIR="$PROJECT_DIR/logs"
 mkdir -p "$LOGS_DIR"
 cd "$PROJECT_DIR"
 
-# Use the alphafoundry conda environment's Python interpreter
-PYTHON="C:/Users/H01402/AppData/Local/anaconda3/envs/alphafoundry/python.exe"
+# Use the research_workbench conda environment's Python interpreter
+PYTHON="C:/Users/H01402/AppData/Local/anaconda3/envs/research_workbench/python.exe"
 
 # The desktop shell may export a local proxy (for example 127.0.0.1:7890).
 # If that proxy is not running, crawler requests fail before reaching sources.
@@ -17,7 +17,7 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
 export NO_PROXY="*"
 
 echo "=========================================="
-echo "  AlphaFoundry - Starting All Services"
+echo "  Research Workbench - Starting All Services"
 echo "=========================================="
 
 is_alive() {
@@ -177,7 +177,7 @@ fi
 
 echo ""
 echo "=========================================="
-echo "  AlphaFoundry is running!"
+echo "  Research Workbench is running!"
 echo "  Web:    http://127.0.0.1:8000"
 echo "  Health: http://127.0.0.1:8000/api/system/health"
 echo "  Logs:   $LOGS_DIR/"

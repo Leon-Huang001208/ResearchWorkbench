@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AlphaFoundry 完整功能演示
+Research Workbench 完整功能演示
 演示所有核心功能的使用方法
 """
 
@@ -219,7 +219,7 @@ def demo_report_generation():
 def main():
     """主函数 - 运行所有演示"""
     print("\n" + "=" * 70)
-    print("  AlphaFoundry - 完整功能演示")
+    print("  Research Workbench - 完整功能演示")
     print("=" * 70)
 
     try:
@@ -234,8 +234,8 @@ def main():
         print("\n✓ 所有功能演示成功！")
         print("\n下一步:")
         print("  1. 尝试使用 CLI 命令:")
-        print("     - af scenario --topic '人工智能产业发展'")
-        print("     - af ingest --file data/samples/example_report.txt")
+        print("     - rwb scenario --topic '人工智能产业发展'")
+        print("     - rwb ingest --file data/samples/example_report.txt")
         print("\n  2. 查看更多文档:")
         print("     - docs/CLI_GUIDE.md")
         print("     - docs/JUNE_MILESTONE.md")

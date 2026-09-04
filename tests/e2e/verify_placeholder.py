@@ -37,7 +37,7 @@ def main():
             print(f"❌ FAIL: Expected '{expected}', got '{placeholder}'")
 
         # 6. Take screenshot
-        screenshot_path = "/Users/leon/Desktop/Projects/AlphaFoundry/tests/e2e/screenshots/asset-placeholder-verification.png"
+        screenshot_path = "/Users/leon/Desktop/Projects/ResearchWorkbench/tests/e2e/screenshots/asset-placeholder-verification.png"
         page.screenshot(path=screenshot_path, full_page=True)
         print(f"📸 Screenshot saved to {screenshot_path}")
 
@@ -51,7 +51,7 @@ def main():
                 "width": input_bounding["width"] + 40,
                 "height": input_bounding["height"] + 40,
             }
-            detail_screenshot = "/Users/leon/Desktop/Projects/AlphaFoundry/tests/e2e/screenshots/asset-placeholder-detail.png"
+            detail_screenshot = "/Users/leon/Desktop/Projects/ResearchWorkbench/tests/e2e/screenshots/asset-placeholder-detail.png"
             page.screenshot(path=detail_screenshot, clip=clip)
             print(f"📸 Detail screenshot saved to {detail_screenshot}")
 

@@ -11,7 +11,9 @@ test('product shell keeps the compact product navigation, real recent work and s
   const html = shell.renderSidebar({ page: 'fingpt', sessionId: null, sessions, skills, collapsed: false });
   const rail = shell.renderPrimaryRail({ page: 'fingpt' });
   for (const expected of ['FinGPT', 'Claw', '能力中心', '历史', '设置']) assert.match(rail, new RegExp(expected));
-  for (const expected of ['data-collapse-sidebar', '半导体设备需求', '运行任务']) assert.match(html, new RegExp(expected));
+  assert.match(rail, /data-collapse-sidebar/);
+  assert.doesNotMatch(rail, /data-theme-(?:select|option)/);
+  for (const expected of ['半导体设备需求', '运行任务']) assert.match(html, new RegExp(expected));
   const matches = shell.filterGlobalSearch('公司研究', sessions, skills);
   assert.deepEqual(matches.map((item) => item.kind), ['skill']);
   assert.match(shell.renderGlobalSearch('', sessions, skills), /data-global-search/);
@@ -104,7 +106,7 @@ test('a collapsed desktop secondary sidebar becomes an exposed narrow-screen dra
   const shell = await import(new URL('shell.mjs', root));
   const drawer = shell.renderSidebar({ page: 'fingpt', sessions: [], collapsed: true, mobileOpen: true });
   assert.match(drawer, /secondary-sidebar mobile-open collapsed/);
-  assert.doesNotMatch(drawer, /aria-hidden="true"/);
+  assert.doesNotMatch(drawer.match(/<aside[^>]*>/)[0], /aria-hidden="true"/);
 });
 
 test('Claw switches session and current-workspace projections without mixing other sessions', async () => {

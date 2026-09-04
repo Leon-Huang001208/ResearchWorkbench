@@ -1,7 +1,7 @@
 # Test Report: K-line Technical Indicators Enhancement (KDJ, RSI, Chip Distribution)
 
-**Task ID**: AF-AUTO-013 (continuation — KDJ/RSI/Chip Distribution + Wind fixes)  
-**Date**: 2026-06-03  
+**Task ID**: RWB-AUTO-013 (continuation — KDJ/RSI/Chip Distribution + Wind fixes)
+**Date**: 2026-06-03
 **Status**: ✅ PASSED
 
 ---

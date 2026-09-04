@@ -121,7 +121,7 @@ class TestIngestCLI:
 
             assert result.exit_code == 0
             assert "Tip" in result.output
-            assert "af review list" in result.output
+            assert "rwb review list" in result.output
 
     def test_ingest_error_handling(self, tmp_path):
         """测试错误处理"""

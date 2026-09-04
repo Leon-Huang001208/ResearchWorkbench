@@ -23,10 +23,10 @@ Desktop packages must be assembled only on the target operating system. The shar
 
 ```text
 macOS Apple Silicon runner
-  Python source -> alphafoundry-backend-aarch64-apple-darwin -> macOS Tauri bundle
+  Python source -> research-workbench-backend-aarch64-apple-darwin -> macOS Tauri bundle
 
 Windows x64 runner
-  Python source -> alphafoundry-backend-x86_64-pc-windows-msvc.exe -> Windows Tauri bundle
+  Python source -> research-workbench-backend-x86_64-pc-windows-msvc.exe -> Windows Tauri bundle
 ```
 
 The two outputs are independent. A successful macOS build neither creates nor validates a Windows executable.

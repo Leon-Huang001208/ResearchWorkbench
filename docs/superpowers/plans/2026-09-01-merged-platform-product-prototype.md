@@ -16,7 +16,7 @@
 
 - `outputs/merged-platform-product-prototype/index.html`：应用入口和无脚本提示。
 - `outputs/merged-platform-product-prototype/brand-spec.md`：Logo、Token、引用和禁止漂移规则。
-- `outputs/merged-platform-product-prototype/assets/alphafoundry-logo.png`：真实品牌资产副本。
+- `outputs/merged-platform-product-prototype/assets/research-workbench-logo.png`：真实品牌资产副本。
 - `outputs/merged-platform-product-prototype/styles/tokens.css`：颜色、字体、间距、圆角、阴影和断点 Token。
 - `outputs/merged-platform-product-prototype/styles/base.css`：Reset、可访问性、字体和通用状态。
 - `outputs/merged-platform-product-prototype/styles/shell.css`：顶栏、产品导航、模块侧栏、主区和研究空间。
@@ -49,7 +49,7 @@
 - Create: `tests/javascript/merged_platform_product_prototype.test.mjs`
 - Create: `outputs/merged-platform-product-prototype/index.html`
 - Create: `outputs/merged-platform-product-prototype/brand-spec.md`
-- Create: `outputs/merged-platform-product-prototype/assets/alphafoundry-logo.png`
+- Create: `outputs/merged-platform-product-prototype/assets/research-workbench-logo.png`
 
 - [ ] **Step 1: Write the failing static structure test**
 
@@ -62,7 +62,7 @@ const root = new URL('../../outputs/merged-platform-product-prototype/', import.
 const text = (path) => readFile(new URL(path, root), 'utf8');
 
 const requiredFiles = [
-  'index.html', 'brand-spec.md', 'assets/alphafoundry-logo.png',
+  'index.html', 'brand-spec.md', 'assets/research-workbench-logo.png',
   'styles/tokens.css', 'styles/base.css', 'styles/shell.css',
   'styles/components.css', 'styles/pages.css', 'styles/responsive.css',
   'scripts/store.js', 'scripts/router.js', 'scripts/data-adapter.js',
@@ -101,7 +101,7 @@ Copy, do not redraw, the existing asset:
 
 ```bash
 mkdir -p outputs/merged-platform-product-prototype/assets
-cp src-tauri/icons/icon-black-gold-geometric.png outputs/merged-platform-product-prototype/assets/alphafoundry-logo.png
+cp src-tauri/icons/icon-black-gold-geometric.png outputs/merged-platform-product-prototype/assets/research-workbench-logo.png
 ```
 
 `brand-spec.md` must record the source path, SHA-256, AlphaEngine screenshots as product-shell reference, Zhengyan as interaction reference, and these Token values:
@@ -118,7 +118,7 @@ cp src-tauri/icons/icon-black-gold-geometric.png outputs/merged-platform-product
 --market-down: #16866b;
 ```
 
-State explicitly that the existing AlphaFoundry VS Code-style UI is not preserved, and that Zhengyan's purple gradient/glass treatment is not copied.
+State explicitly that the existing Research Workbench VS Code-style UI is not preserved, and that Zhengyan's purple gradient/glass treatment is not copied.
 
 - [ ] **Step 4: Create the HTML load order**
 
@@ -127,7 +127,7 @@ State explicitly that the existing AlphaFoundry VS Code-style UI is not preserve
 - [ ] **Step 5: Commit the scaffold**
 
 ```bash
-git add tests/javascript/merged_platform_product_prototype.test.mjs outputs/merged-platform-product-prototype/index.html outputs/merged-platform-product-prototype/brand-spec.md outputs/merged-platform-product-prototype/assets/alphafoundry-logo.png
+git add tests/javascript/merged_platform_product_prototype.test.mjs outputs/merged-platform-product-prototype/index.html outputs/merged-platform-product-prototype/brand-spec.md outputs/merged-platform-product-prototype/assets/research-workbench-logo.png
 git commit -m "feat: scaffold merged platform prototype"
 ```
 

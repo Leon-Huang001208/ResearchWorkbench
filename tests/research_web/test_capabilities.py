@@ -33,7 +33,7 @@ def candidate(name="我的研究", slug="my-research"):
             "inputs": [{"name": "question", "label": "研究问题", "type": "text", "required": True}],
             "scenarios": ["解读研究资料"],
             "default_formats": ["md"],
-            "required_tools": ["af_run_script"],
+            "required_tools": ["research_run_script"],
             "dependencies": [],
         },
         "instructions": f"---\nname: {slug}\ndescription: 有来源的研究\n---\n# 研究\n只读取本会话资料，不编造来源。",
@@ -65,10 +65,13 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     assert len(client.get("/api/research/workflows").json()["items"]) == 2
     tools = client.get("/api/research/tools").json()["items"]
     assert {t["id"] for t in tools if t["selectable"]} == {
-        "af_run_script",
-        "af_public_data",
+        "research_run_script",
+        "datahub_get_fund_data",
+        "datahub_search_news",
         "web_search",
     }
+    assert len(tools) == 21
+    assert sum(t["id"] == "datahub_get_fund_data" for t in tools) == 1
     assert all(t["parameters"] and t["source"] and t["conditions"] for t in tools)
     assert native.calls == []
 
@@ -115,7 +118,7 @@ def test_draft_check_publish_copy_versions_disable_rollback_export(api):
 def test_metadata_dependencies_tools_invalid_preserved(api):
     client, _, _ = api
     value = candidate()
-    value["metadata"]["dependencies"] = ["af-nonexistent-distribution-987==1.0"]
+    value["metadata"]["dependencies"] = ["rwb-nonexistent-distribution-987==1.0"]
     row = create(client, value)
     base = f"/api/research/capabilities/{row['id']}"
     checks = client.post(base + "/check").json()
@@ -160,7 +163,7 @@ def test_import_unsafe_zip_keeps_report_without_extraction(api, filename):
     assert row["status"] == "invalid"
     assert row["checks"]["issues"]
     assert not (service.store.root.parent / "escape.md").exists()
-    assert not list(service.capabilities.native_root.glob("af-*"))
+    assert not list(service.capabilities.native_root.glob("rwb-*"))
 
 
 def test_zip_link_duplicate_limits_and_missing_metadata(api):
@@ -205,7 +208,7 @@ def test_workflow_compiles_native_skill_template_not_execution(api):
             "title": "资料核对",
             "instruction": "核对来源和缺失",
             "skill_id": "document-reading",
-            "tools": ["af_run_script"],
+            "tools": ["research_run_script"],
         },
         {"title": "交付", "instruction": "仅生成实际文件", "tools": []},
     ]

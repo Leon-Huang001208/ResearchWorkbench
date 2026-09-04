@@ -18,7 +18,7 @@
     {"id": "events", "type": "messagebus", "label": "domain_event / SSE", "sublabel": "持久权威 / 投递适配", "pos": [671, 560], "size": [180, 64]}
   ],
   "boundaries": [
-    {"kind": "region", "label": "AlphaFoundry 本地运行边界", "wraps": ["clients", "api", "services", "postgres", "events"], "pad": 22},
+    {"kind": "region", "label": "Research Workbench 本地运行边界", "wraps": ["clients", "api", "services", "postgres", "events"], "pad": 22},
     {"kind": "security-group", "label": "业务数据边界", "wraps": ["api", "services", "postgres"], "pad": 14}
   ],
   "connections": [

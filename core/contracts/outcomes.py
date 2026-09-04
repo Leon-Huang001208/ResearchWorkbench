@@ -3,7 +3,7 @@ Core contracts for event signal outcome evaluation.
 
 This module defines Pydantic models for evaluating signal outcomes (success,
 failure, decay, lessons), providing a consistent evaluation standard for the
-Memory & Learning layer in AlphaFoundry.
+Memory & Learning layer in Research Workbench.
 """
 
 from datetime import datetime

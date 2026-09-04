@@ -30,8 +30,8 @@ class TestWatchdogCmdBuild:
         with patch("workers.watchdog._is_frozen", return_value=False):
             env = _build_worker_env(None)
 
-        assert "ALPHAFOUNDRY_WORKER_MODE" not in env
-        assert "ALPHAFOUNDRY_WORKER_ID" not in env
+        assert "RESEARCH_WORKER_MODE" not in env
+        assert "RESEARCH_WORKER_ID" not in env
 
     def test_frozen_mode_env_injects_worker_mode(self):
         from workers.watchdog import _build_worker_env
@@ -39,7 +39,7 @@ class TestWatchdogCmdBuild:
         with patch("workers.watchdog._is_frozen", return_value=True):
             env = _build_worker_env(None)
 
-        assert env["ALPHAFOUNDRY_WORKER_MODE"] == "1"
+        assert env["RESEARCH_WORKER_MODE"] == "1"
 
     def test_frozen_knowledge_worker_env_removes_watchdog_mode_flags(self):
         from workers.watchdog import _build_worker_env
@@ -47,16 +47,16 @@ class TestWatchdogCmdBuild:
         with patch.dict(
             "os.environ",
             {
-                "ALPHAFOUNDRY_WATCHDOG_MODE": "1",
-                "ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE": "1",
+                "RESEARCH_WATCHDOG_MODE": "1",
+                "RESEARCH_SCHEDULER_WATCHDOG_MODE": "1",
             },
         ):
             with patch("workers.watchdog._is_frozen", return_value=True):
                 env = _build_worker_env(None)
 
-        assert "ALPHAFOUNDRY_WATCHDOG_MODE" not in env
-        assert "ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE" not in env
-        assert env["ALPHAFOUNDRY_WORKER_MODE"] == "1"
+        assert "RESEARCH_WATCHDOG_MODE" not in env
+        assert "RESEARCH_SCHEDULER_WATCHDOG_MODE" not in env
+        assert env["RESEARCH_WORKER_MODE"] == "1"
 
     def test_frozen_scheduler_worker_env_removes_watchdog_mode_flags(self):
         from workers.watchdog import _build_worker_env
@@ -64,16 +64,16 @@ class TestWatchdogCmdBuild:
         with patch.dict(
             "os.environ",
             {
-                "ALPHAFOUNDRY_WATCHDOG_MODE": "1",
-                "ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE": "1",
+                "RESEARCH_WATCHDOG_MODE": "1",
+                "RESEARCH_SCHEDULER_WATCHDOG_MODE": "1",
             },
         ):
             with patch("workers.watchdog._is_frozen", return_value=True):
-                env = _build_worker_env(None, "ALPHAFOUNDRY_SCHEDULER_MODE")
+                env = _build_worker_env(None, "RESEARCH_SCHEDULER_MODE")
 
-        assert "ALPHAFOUNDRY_WATCHDOG_MODE" not in env
-        assert "ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE" not in env
-        assert env["ALPHAFOUNDRY_SCHEDULER_MODE"] == "1"
+        assert "RESEARCH_WATCHDOG_MODE" not in env
+        assert "RESEARCH_SCHEDULER_WATCHDOG_MODE" not in env
+        assert env["RESEARCH_SCHEDULER_MODE"] == "1"
 
     def test_worker_id_injected_into_env(self):
         from workers.watchdog import _build_worker_env
@@ -81,8 +81,8 @@ class TestWatchdogCmdBuild:
         with patch("workers.watchdog._is_frozen", return_value=True):
             env = _build_worker_env(3)
 
-        assert env["ALPHAFOUNDRY_WORKER_MODE"] == "1"
-        assert env["ALPHAFOUNDRY_WORKER_ID"] == "3"
+        assert env["RESEARCH_WORKER_MODE"] == "1"
+        assert env["RESEARCH_WORKER_ID"] == "3"
 
     def test_worker_id_injected_even_in_dev_mode(self):
         from workers.watchdog import _build_worker_env
@@ -90,4 +90,4 @@ class TestWatchdogCmdBuild:
         with patch("workers.watchdog._is_frozen", return_value=False):
             env = _build_worker_env(7)
 
-        assert env["ALPHAFOUNDRY_WORKER_ID"] == "7"
+        assert env["RESEARCH_WORKER_ID"] == "7"

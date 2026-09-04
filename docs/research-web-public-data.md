@@ -1,7 +1,6 @@
 # 研究公开数据原生工具
 
-`runtime/public-data.mjs`保留DSH原生工具名`af_public_data`，现在是DataHub薄桥接；
-上游请求、分页、解析与快照统一在FastAPI的`datahub/`模块。完整接口与数据口径见[DataHub](research-web-datahub.md)。
+`runtime/public-data.mjs` 注册 13 个品牌无关的 `datahub_*` 业务 Tool。上游请求、分页、解析与快照统一在 FastAPI 的 `datahub/` 模块。产品改名不要求重命名 `datahub_*` 协议；完整目录、接口与数据口径见 [DataHub](research-web-datahub.md)。
 
 ## 不变边界
 
@@ -12,7 +11,7 @@
 
 ## 新契约
 
-业务参数source/code/limit/start_date/end_date/year/refresh；支持fund_nav、cls_telegraph、fund_profile、fund_distributions、fund_holdings。
+业务契约使用 `capability`、能力限定 `parameters`、可选目录 `source`、`allow_fallback` 和 `refresh`；不接受任意 URL、头、凭据、模块或路径。目前 `datahub_get_fund_data` 与 `datahub_search_news` 分别映射到已适配的东方财富基金与财联社 Provider。
 NAV成对日期在最多十年内且非未来，按实际PageSize/PageIndex/TotalCount分页；旧limit仍仅最近一页、最多100条，不能冒称完整历史。
 补充来源每项单独审批；持仓year可选。基准文字不等于序列，当前资料不等于历史时点，累计净值不等于总回报。
 
@@ -22,7 +21,7 @@ NAV成对日期在最多十年内且非未来，按实际PageSize/PageIndex/Tota
 原生abort/桥接失败发认证cancel，BFF也在会话取消和关闭时停止取数；无法确认远端取消只记固定失败事件，不伪装成功。
 
 返回字符串字段dataset_id/source/status/manifest_json/files_json/sample_json；最多三行样本。
-旧rows_json整份数据返回已移除，模型使用af_run_script读取files_json的inputs/datasets只读相对路径。
+旧rows_json整份数据返回已移除，模型使用research_run_script读取files_json的inputs/datasets只读相对路径。
 原始响应仅私有留档，输入资料不混普通附件、报告产物或交付检查。
 
 ## 验证

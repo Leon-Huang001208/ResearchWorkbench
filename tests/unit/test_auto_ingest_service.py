@@ -4,7 +4,7 @@ import importlib
 
 
 def test_backend_endpoint_uses_runtime_override(monkeypatch):
-    monkeypatch.setenv("ALPHAFOUNDRY_BACKEND_URL", "http://127.0.0.1:8765/")
+    monkeypatch.setenv("RESEARCH_BACKEND_URL", "http://127.0.0.1:8765/")
 
     from cron_jobs import auto_ingest_service
 
@@ -17,7 +17,7 @@ def test_backend_endpoint_uses_runtime_override(monkeypatch):
 
 
 def test_backend_endpoint_defaults_to_web_development_url(monkeypatch):
-    monkeypatch.delenv("ALPHAFOUNDRY_BACKEND_URL", raising=False)
+    monkeypatch.delenv("RESEARCH_BACKEND_URL", raising=False)
 
     from cron_jobs import auto_ingest_service
 

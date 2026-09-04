@@ -204,7 +204,7 @@ class ContentBuilder:
                     ]
                 }
             ],
-            "metadata": {"author": "AlphaFoundry"},
+            "metadata": {"author": "Research Workbench"},
         }
 
         Args:

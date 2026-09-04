@@ -1,5 +1,5 @@
 
-// AlphaFoundry 前端脚本
+// Research Workbench 前端脚本
 const outputArea = document.getElementById("output-area");
 const btnTestSimple = document.getElementById("btn-test-simple");
 const btnTestSignal = document.getElementById("btn-test-signal");
@@ -27,7 +27,7 @@ btnTestSignal.addEventListener("click", async () => {
 
 // 页面加载完成
 window.addEventListener("DOMContentLoaded", () => {
-    log("AlphaFoundry Web Workbench");
+    log("Research Workbench Web Workbench");
     log("=============================");
     log("");
     log("快速开始:");
@@ -36,10 +36,10 @@ window.addEventListener("DOMContentLoaded", () => {
     log("3. 运行示例: python examples/test_simple.py");
     log("");
     log("CLI 命令:");
-    log("- 资产分析: af analyze --asset 600000.SH");
-    log("- 情景分析: af scenario --topic \"人工智能产业发展\"");
-    log("- 信号管理: af signal --help");
-    log("- 运行回测: af backtest --help");
+    log("- 资产分析: rwb analyze --asset 600000.SH");
+    log("- 情景分析: rwb scenario --topic \"人工智能产业发展\"");
+    log("- 信号管理: rwb signal --help");
+    log("- 运行回测: rwb backtest --help");
     log("");
     log("=============================");
 });

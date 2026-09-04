@@ -3,8 +3,8 @@
   "ok": true,
   "command": "deliver",
   "type": "lifecycle",
-  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/07-delivery-state.json",
-  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/07-delivery-state.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/07-delivery-state.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/outputs/research-web-architecture/07-delivery-state.html",
   "specification": {
     "sha256": "9185ea97723099545931bc5b24c43b48b809d65325f2fee6b08468aea061db35",
     "bytes": 2941

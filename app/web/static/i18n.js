@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Internationalization (i18n)
+   Research Workbench — Internationalization (i18n)
    ============================================================ */
 
 const I18N = (() => {
@@ -8,7 +8,7 @@ const I18N = (() => {
     // ─── Translation Dictionaries ────────────────────────────
     const zh = {
         // Brand / Global
-        'brand': 'AlphaFoundry',
+        'brand': 'Research Workbench',
         'search.placeholder': '搜索实体、事件、信号...',
 
         // Navigation
@@ -246,7 +246,7 @@ const I18N = (() => {
 
     const en = {
         // Brand / Global
-        'brand': 'AlphaFoundry',
+        'brand': 'Research Workbench',
         'search.placeholder': 'Search entities, events, signals...',
 
         // Navigation
@@ -485,7 +485,7 @@ const I18N = (() => {
     // ─── Available Languages ─────────────────────────────────
     const LANGS = { zh, en };
 
-    let currentLang = localStorage.getItem('af-lang') || 'zh';
+    let currentLang = localStorage.getItem('rwb-lang') || 'zh';
 
     // ─── Core API ────────────────────────────────────────────
 
@@ -516,7 +516,7 @@ const I18N = (() => {
             return;
         }
         currentLang = lang;
-        localStorage.setItem('af-lang', lang);
+        localStorage.setItem('rwb-lang', lang);
         applyAll();
     }
 

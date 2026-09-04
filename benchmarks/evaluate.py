@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Benchmark evaluation script for AlphaFoundry.
+"""Benchmark evaluation script for Research Workbench.
 
 Loads gold datasets, runs EventExtractor (keyword mode, no LLM required),
 and reports precision/recall/F1 metrics.
@@ -219,7 +219,7 @@ def print_result(result: BenchmarkResult) -> None:
 
 async def main() -> None:
     """Main entry point for benchmark evaluation."""
-    parser = argparse.ArgumentParser(description="AlphaFoundry Benchmark Evaluation")
+    parser = argparse.ArgumentParser(description="Research Workbench Benchmark Evaluation")
     parser.add_argument(
         "--dataset",
         type=str,

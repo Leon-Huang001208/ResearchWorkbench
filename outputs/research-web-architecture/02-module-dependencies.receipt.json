@@ -6,12 +6,12 @@
   "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/02-module-dependencies.json",
   "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "6bb99ccd04456fa4b3728235dd77ba36b7b0e92c95a102465af5cceb00eb3261",
-    "bytes": 3897
+    "sha256": "5913f7d0709d17cf1be6da0cc9706bc938acc47a5dd20837240061d3e52048b8",
+    "bytes": 5629
   },
   "artifact": {
-    "sha256": "af9d27f1297e2da79cc12b55e76496e22edcf967855d34a1980ac132962ae740",
-    "bytes": 638638
+    "sha256": "f4314400f2787c2db7e466c3b922caad6371c4837254cea1c5a665f44ec5b270",
+    "bytes": 645187
   },
   "validation": {
     "checksPassed": 9,

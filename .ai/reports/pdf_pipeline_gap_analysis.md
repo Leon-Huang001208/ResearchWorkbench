@@ -1,4 +1,4 @@
-# PDF Pipeline Gap Analysis — AF-AUTO-006-00
+# PDF Pipeline Gap Analysis — RWB-AUTO-006-00
 
 **Date:** 2026-05-18  
 **Status:** Complete (Audit Done)
@@ -64,45 +64,45 @@
 
 ## 缺失部分 ❌
 
-### 1. Pydantic 契约 (af-auto-006-01)
+### 1. Pydantic 契约 (rwb-auto-006-01)
 - 无 `core/contracts/pdf_conversion.py`
 - `PDFConversionResult` 是 dataclass，非 Pydantic model
 - 无策略类型枚举 (StrategyType)
 - 无转换状态枚举 (ConversionStatus)
 
-### 2. 转换器目录结构 (af-auto-006-01/02/03/04)
+### 2. 转换器目录结构 (rwb-auto-006-01/02/03/04)
 - 无 `data_layer/converters/` 目录
 - 转换器在 `data_layer/crawlers/utils/pdf_converter.py`（位置不当）
 - 无 MinerUStrategy
 
-### 3. PDFConversionService (af-auto-006-05)
+### 3. PDFConversionService (rwb-auto-006-05)
 - 无核心编排服务
 - 状态流转未标准化
 
-### 4. 输出持久化 (af-auto-006-06)
+### 4. 输出持久化 (rwb-auto-006-06)
 - 目录结构未正式定义
 - 文件命名约定不一致
 
-### 5. DocumentV1 集成 (af-auto-006-07)
+### 5. DocumentV1 集成 (rwb-auto-006-07)
 - 转换成功后无 DocumentV1DB 创建
 - 转换成功后无 DocumentChunkV1DB 创建
 - 无 pdf_id/conversion_id 写入 doc_metadata
 
-### 6. Admin API (af-auto-006-08)
+### 6. Admin API (rwb-auto-006-08)
 - 无 POST /api/admin/pdf/convert
 - 无 GET /api/admin/pdf/stats (独立端点)
 - 无 GET /api/admin/pdf/pending
 - 无 POST /api/admin/pdf/retry
 
-### 7. pyproject.toml (af-auto-006-01a)
+### 7. pyproject.toml (rwb-auto-006-01a)
 - 无 `[pdf]` optional dependency group (markitdown)
 - 无 `[pdf-full]` optional dependency group (mineru)
 
-### 8. 集成测试 (af-auto-006-09)
+### 8. 集成测试 (rwb-auto-006-09)
 - 无真实 PDF fixture
 - 无端到端测试
 
-### 9. 文档 (af-auto-006-10)
+### 9. 文档 (rwb-auto-006-10)
 - 无 `docs/modules/pdf_conversion_pipeline.md`
 - ARCHITECTURE.md 未包含 PDF 流
 - DATA_SOURCES.md / REFERENCE.md / CHANGELOG.md 未更新
@@ -113,17 +113,17 @@
 
 按任务依赖顺序：
 
-1. **af-auto-006-01a** → pyproject.toml optional deps
-2. **af-auto-006-01** → Pydantic 契约 + 策略基类重构到 `data_layer/converters/`
-3. **af-auto-006-02** → RawTextStrategy 增强（无需新依赖）
-4. **af-auto-006-03** → MarkItDownStrategy 增强（可与 02 并行）
-5. **af-auto-006-04** → MinerUStrategy 新增（可与 02/03 并行）
-6. **af-auto-006-05** → PDFConversionService（依赖 02+03）
-7. **af-auto-006-06** → 输出持久化
-8. **af-auto-006-07** → DocumentV1/DocumentChunkV1 集成
-9. **af-auto-006-08** → Admin API
-10. **af-auto-006-09** → 集成测试
-11. **af-auto-006-10** → 文档更新
+1. **rwb-auto-006-01a** → pyproject.toml optional deps
+2. **rwb-auto-006-01** → Pydantic 契约 + 策略基类重构到 `data_layer/converters/`
+3. **rwb-auto-006-02** → RawTextStrategy 增强（无需新依赖）
+4. **rwb-auto-006-03** → MarkItDownStrategy 增强（可与 02 并行）
+5. **rwb-auto-006-04** → MinerUStrategy 新增（可与 02/03 并行）
+6. **rwb-auto-006-05** → PDFConversionService（依赖 02+03）
+7. **rwb-auto-006-06** → 输出持久化
+8. **rwb-auto-006-07** → DocumentV1/DocumentChunkV1 集成
+9. **rwb-auto-006-08** → Admin API
+10. **rwb-auto-006-09** → 集成测试
+11. **rwb-auto-006-10** → 文档更新
 
 ---
 

@@ -1,14 +1,14 @@
 # End-to-End Smoke Test Report
 
-**Task**: af-auto-000-12  
-**Date**: 2026-05-11  
+**Task**: rwb-auto-000-12
+**Date**: 2026-05-11
 **Status**: Complete
 
 ---
 
 ## Executive Summary
 
-The end-to-end smoke test was executed successfully. All critical components of AlphaFoundry work together correctly, data flows through the system, and all API endpoints are functional.
+The end-to-end smoke test was executed successfully. All critical components of Research Workbench work together correctly, data flows through the system, and all API endpoints are functional.
 
 ---
 
@@ -41,7 +41,7 @@ The end-to-end smoke test was executed successfully. All critical components of 
 **Results**:
 - Signal Lab summary endpoint: `/api/signal-lab/summary` - 200 OK
 - Feature groups endpoint: `/api/signal-lab/features/groups` - 200 OK
-- Found 6 feature groups: 
+- Found 6 feature groups:
   - `price_volume`
   - `valuation`
   - `financial`
@@ -97,28 +97,28 @@ The end-to-end smoke test was executed successfully. All critical components of 
 
 This completes the high-priority task set:
 
-1. ✅ af-auto-000-01 - Run Existing Tests (840 tests, 91% pass rate)
-2. ✅ af-auto-000-02 - Verify Core Services (43 complete services)
-3. ✅ af-auto-000-03 - Test Database (42 tables, 1776 documents)
-4. ✅ af-auto-000-04 - Verify API Endpoints (FastAPI working)
-5. ✅ af-auto-000-04b - Normalize Autonomous Control Layer
-6. ✅ af-auto-000-04c - Harden Autonomous Control Layer
-7. ✅ af-auto-000-04d - Integrate Claude Code Executor
-8. ✅ af-auto-000-04e - Enforce Dependency-Aware Execution
-9. ✅ af-auto-000-04f - Fix Strict Priority Selection
-10. ✅ af-auto-000-04g - Add Non-Interactive Execution Mode
-11. ✅ af-auto-000-09 - Test Signal Lab Feature Pipeline (48 features)
-12. ✅ af-auto-000-12 - Run End-to-End Smoke Tests
+1. ✅ rwb-auto-000-01 - Run Existing Tests (840 tests, 91% pass rate)
+2. ✅ rwb-auto-000-02 - Verify Core Services (43 complete services)
+3. ✅ rwb-auto-000-03 - Test Database (42 tables, 1776 documents)
+4. ✅ rwb-auto-000-04 - Verify API Endpoints (FastAPI working)
+5. ✅ rwb-auto-000-04b - Normalize Autonomous Control Layer
+6. ✅ rwb-auto-000-04c - Harden Autonomous Control Layer
+7. ✅ rwb-auto-000-04d - Integrate Claude Code Executor
+8. ✅ rwb-auto-000-04e - Enforce Dependency-Aware Execution
+9. ✅ rwb-auto-000-04f - Fix Strict Priority Selection
+10. ✅ rwb-auto-000-04g - Add Non-Interactive Execution Mode
+11. ✅ rwb-auto-000-09 - Test Signal Lab Feature Pipeline (48 features)
+12. ✅ rwb-auto-000-12 - Run End-to-End Smoke Tests
 
 ---
 
 ## All Iterations Status
 
-✅ **Iteration 1**: Web Workbench v1 Enhancements - COMPLETE  
-✅ **Iteration 2**: Signal Lab Enhancements - COMPLETE  
-✅ **Iteration 3**: Memory & Learning Enhancements - COMPLETE  
-✅ **Iteration 4**: Timing Engine Enhancements - COMPLETE (already existed)  
-✅ **Iteration 5**: Dashboard & Report Export - COMPLETE  
+✅ **Iteration 1**: Web Workbench v1 Enhancements - COMPLETE
+✅ **Iteration 2**: Signal Lab Enhancements - COMPLETE
+✅ **Iteration 3**: Memory & Learning Enhancements - COMPLETE
+✅ **Iteration 4**: Timing Engine Enhancements - COMPLETE (already existed)
+✅ **Iteration 5**: Dashboard & Report Export - COMPLETE
 
 ---
 
@@ -136,4 +136,4 @@ And accessed at: http://127.0.0.1:8000
 
 ## Conclusion
 
-The end-to-end smoke test was completely successful. All high-priority tasks have been completed, and AlphaFoundry is in a healthy, working state.
+The end-to-end smoke test was completely successful. All high-priority tasks have been completed, and Research Workbench is in a healthy, working state.

@@ -1,16 +1,16 @@
-# AlphaFoundry 重构设计
+# Research Workbench 重构设计
 
-**项目名称**: AlphaFoundry  
-**日期**: 2026-05-03  
-**依据**: `/Users/leon/Downloads/deep-research-report.md`  
-**定位**: 本地优先、可企业化的 AI-native Investment Operating System  
+**项目名称**: Research Workbench
+**日期**: 2026-05-03
+**依据**: `/Users/leon/Downloads/deep-research-report.md`
+**定位**: 本地优先、可企业化的 AI-native Investment Operating System
 **原则**: 模块化单体、统一数据契约、可审计事实层、可替换基础设施
 
 ---
 
 ## 1. 重构结论
 
-AlphaFoundry 是面向基金研究员和量化研究员工作流的 AI-native Investment Operating System。它不再沿用“由 LLM 维护 Markdown 的知识库”作为产品定义，也不把量化理解为预测 K 线，而是以结构化事实层、事件数据库、时间化产业链图谱、情景推理层、模板写作层、择时层、记忆学习层和量化验证层为核心。
+Research Workbench 是面向基金研究员和量化研究员工作流的 AI-native Investment Operating System。它不再沿用“由 LLM 维护 Markdown 的知识库”作为产品定义，也不把量化理解为预测 K 线，而是以结构化事实层、事件数据库、时间化产业链图谱、情景推理层、模板写作层、择时层、记忆学习层和量化验证层为核心。
 
 核心判断如下：
 
@@ -644,7 +644,7 @@ MVP 不接 OMS，不做自动下单。`TradeCandidate` 仅作为未来接口保�
 ## 12. 目录结构建议
 
 ```text
-AlphaFoundry/
+Research Workbench/
 ├── app/
 │   ├── api/
 │   ├── cli/

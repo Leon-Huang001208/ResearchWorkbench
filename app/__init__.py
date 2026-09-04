@@ -1,3 +1,3 @@
-"""AlphaFoundry Application Layer"""
+"""Research Workbench Application Layer"""
 
 __version__ = "0.1.0"

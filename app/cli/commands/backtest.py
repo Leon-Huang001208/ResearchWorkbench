@@ -30,8 +30,8 @@ def backtest_command(
     运行信号回测
 
     示例:
-        af backtest --file prices.csv --initial-capital 1000000
-        af backtest --symbol 600519.SH --position-size 0.2
+        rwb backtest --file prices.csv --initial-capital 1000000
+        rwb backtest --symbol 600519.SH --position-size 0.2
     """
     import numpy as np
     import pandas as pd

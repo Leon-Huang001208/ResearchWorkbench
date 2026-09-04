@@ -9,15 +9,15 @@
 - [行业 Word](http://127.0.0.1:8088/api/research/sessions/dfee9d43-e59d-461b-a7c6-49b12b291519/files/485d2792cbb2780e2fceb969/download)、[行业 Excel](http://127.0.0.1:8088/api/research/sessions/dfee9d43-e59d-461b-a7c6-49b12b291519/files/59f6ea9432b3b2ff09b9b276/download)
 
 这些是本机真实模型的实际产物，不是固定样板答案。链接要求本地两个服务运行。
-文件均保存在 `~/.alphafoundry/research-web/sessions/<会话ID>/outputs/`，历史由专属 DSH 保存。
+文件均保存在 `~/.research-workbench/research-web/sessions/<会话ID>/outputs/`，历史由专属 DSH 保存。
 
 ## 运行方式
 
-在 `/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1` 分别启动：
+在 `/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1` 分别启动：
 
 ```bash
-/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python -m app.research_web.launch_runtime --source /Users/leon/Developer/deepseek-harness --data /Users/leon/.alphafoundry/research-web --source-mode --research-tools
-/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python -m uvicorn app.research_web.main:app --host 127.0.0.1 --port 8088 --timeout-graceful-shutdown 5
+python -m app.research_web.launch_runtime --source /Users/leon/Developer/deepseek-harness --data /Users/leon/.research-workbench/research-web --source-mode --research-tools
+python -m uvicorn app.research_web.main:app --host 127.0.0.1 --port 8088 --timeout-graceful-shutdown 5
 ```
 
 使用已存在的 Python 环境，没有安装新包。Web 8088、专属 DSH 3081；用户原有 3080 未重启、未复制凭据。
@@ -29,7 +29,7 @@
 | 旅程 | 会话 / 结果 |
 | --- | --- |
 | 多轮及刷新 | `9792827c-3bd2-437f-96ef-fbbcd7260c4d`：17×23=391，追问+9=400，刷新后继续÷8=50；均由真实模型生成 |
-| PDF 解读 | `28d73296-9908-4095-b89b-f46a4758d852`：已上传18页国金证券DSH研报，原生 document-reading Skill 与 af_run_script 读取正文；独立抽取核对第4/6/10/15页，对应 Harness、日志恢复、Skills和基金评价 |
+| PDF 解读 | `28d73296-9908-4095-b89b-f46a4758d852`：已上传18页国金证券DSH研报，原生 document-reading Skill 与 research_run_script 读取正文；独立抽取核对第4/6/10/15页，对应 Harness、日志恢复、Skills和基金评价 |
 | 原生搜索 | `76cb8df9-36a5-403f-8e4d-fcd4d085b26d`：真实 web_search 返回 DSH 官方仓库等来源，不伪装为已阅读全部网页 |
 | 基金公开数据+文件 | `5ef2fb20-59f9-4203-8484-c2afefc1c922`：原生 fund-evaluation、两次人工批准、公开净值、Python计算和PNG、DOCX/HTML/XLSX/MD；独立格式检查通过 |
 | 双子 Agent 报告 | `dfee9d43-e59d-461b-a7c6-49b12b291519`：两个真实子会话 `45ed716e-2efd-44aa-99cc-ad36000cbf9c` 和 `baeafee5-9726-4f13-a18a-6b80e05dc9a8`，分别读取PDF能力与评测部分，写 agent_a.md / agent_b.md；主 Agent 汇总文件，XLSX含11项能力/风险与来源页码 |
@@ -58,7 +58,7 @@
 
 现有沙箱仅验证macOS本机；没有做Windows、桌面、Linux部署、多人权限或任意MCP。图片上传已有协议/前端测试，但本轮未做真实视觉模型识别。提供方中途断流的所有类型未逐一人为制造；本轮模型故障使用真实无效模型响应，连接故障使用实际BFF断开。
 
-早期探针 PID38291 仍为内核 `UE` 状态，临时目录 `/private/tmp/af-dsh-sandbox-probe.frLuyJ` 保留；本次只读复查，未自动重启系统。当前研究脚本的真实停止与回归均另有通过证据。
+早期探针 PID38291 仍为内核 `UE` 状态，临时目录 `/private/tmp/rwb-dsh-sandbox-probe.frLuyJ` 保留；本次只读复查，未自动重启系统。当前研究脚本的真实停止与回归均另有通过证据。
 
 ## 回归入口
 

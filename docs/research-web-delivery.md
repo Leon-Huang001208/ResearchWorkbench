@@ -30,7 +30,7 @@ DSH 的 `completed` 在 UI 显示“执行已结束”，不表示文件已经�
 1. 新请求在受理前对 `outputs/` 支持格式的文件做安全 descriptor 读取和 SHA-256
    快照。文件清单仅存元数据；宿主不调用 Office、HTML 或图像解析器。
 2. 快照、格式要求、任务标记和幂等收据原子写入既有 `index.json`；原生 prompt
-   含唯一 `[AF_TASK:…]` 标记和文件交付要求。
+   含唯一 `[RESEARCH_TASK:…]` 标记和文件交付要求。
 3. 校验器必须在原生 `user/message` 中找到当前标记，并找到其后的 `turn/end`，
    且父会话、子 Agent 均不再运行且双事件通道可用，才检查本任务产物。
 4. 只接受新路径或相同路径但哈希已变的 `outputs/` 文件。`inputs/`、隐藏文件、

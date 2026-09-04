@@ -2,7 +2,7 @@
 Core contracts for assertion-related data structures.
 
 This module defines Pydantic models that standardize assertion representations
-across the AlphaFoundry system. Assertions are factual statements extracted from
+across the Research Workbench system. Assertions are factual statements extracted from
 documents, with metadata about their source, validity, and review status.
 """
 

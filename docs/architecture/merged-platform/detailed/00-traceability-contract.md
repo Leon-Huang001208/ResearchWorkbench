@@ -1,4 +1,4 @@
-# AlphaFoundry × LSH 详细蓝图追踪契约
+# Research Workbench × LSH 详细蓝图追踪契约
 
 ## 1. 目的
 

@@ -1,4 +1,4 @@
-"""采集 AlphaFoundry 根进程及其后代的受限资源快照。"""
+"""采集 Research Workbench 根进程及其后代的受限资源快照。"""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ _NON_DEGRADING_PROCESS_FIELDS = frozenset({"io_counters", "network_connection_co
 
 @dataclass(frozen=True)
 class ManagedProcess:
-    """由 AlphaFoundry 显式登记、可在 API 树之外运行的进程。"""
+    """由 Research Workbench 显式登记、可在 API 树之外运行的进程。"""
 
     pid: int
     role: str
@@ -74,7 +74,7 @@ def _default_managed_processes() -> list[ManagedProcess]:
 
 
 class ResourceMonitoringService:
-    """仅监控 API 进程树及 AlphaFoundry 显式登记 Worker 的本机资源。"""
+    """仅监控 API 进程树及 Research Workbench 显式登记 Worker 的本机资源。"""
 
     def __init__(
         self,
@@ -132,7 +132,7 @@ class ResourceMonitoringService:
                 process.pid,
                 ManagedProcess(
                     pid=process.pid,
-                    role="AlphaFoundry child process",
+                    role="Research Workbench child process",
                     attribution_kind="child_process",
                 ),
             )
@@ -164,7 +164,7 @@ class ResourceMonitoringService:
                     process.pid,
                     ManagedProcess(
                         pid=process.pid,
-                        role="AlphaFoundry child process",
+                        role="Research Workbench child process",
                         attribution_kind="child_process",
                     ),
                 )

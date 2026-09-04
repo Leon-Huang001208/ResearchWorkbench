@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run AlphaFoundry benchmark evaluation
+# Run Research Workbench benchmark evaluation
 # Usage: bash benchmarks/run_benchmark.sh [--dataset DATASET_NAME] [--json]
 #
 # Exit code 0 if evaluation completes successfully, 1 otherwise.
@@ -14,7 +14,7 @@ cd "$PROJECT_ROOT"
 export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH:-}"
 
 echo "========================================"
-echo "  AlphaFoundry Benchmark Runner"
+echo "  Research Workbench Benchmark Runner"
 echo "========================================"
 echo ""
 

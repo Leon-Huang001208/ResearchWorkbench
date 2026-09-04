@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A07-security-boundaries.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A07-security-boundaries.html",
     "sha256": "c267bf818d3ad8687945d659354651224aaa241979989c9da2947c390ec9daf9",
     "bytes": 638194
   },

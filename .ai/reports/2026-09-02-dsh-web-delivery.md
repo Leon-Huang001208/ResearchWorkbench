@@ -2,7 +2,7 @@
 
 ## 范围与结论
 
-隔离工作树：`/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-delivery`。
+隔离工作树：`/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-delivery`。
 分支 `codex/dsh-web-delivery`，起点 `2fedf0c`。
 
 已实现可选格式要求、基金评价等 Skill 默认值、哈希快照与幂等收据绑定、独立交付
@@ -34,7 +34,7 @@
 ## 实际运行命令及结果
 
 以下 `python` 均为已存在的
-`/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`。
+`python`。
 
 ```sh
 DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness python -m pytest tests/research_web --confcutdir=tests/research_web -q
@@ -54,7 +54,7 @@ git diff --cached --check
 结果：Python **55 passed in 9.53s**（其中 14 条交付用例）；JavaScript **23 passed**；
 app.mjs 语法、ruff、black、isort 通过。mypy 默认范围 12 文件通过，新交付模块
 额外启用 `--check-untyped-defs` 的 2 文件检查通过（仅原有未使用配置段提示）。
-测试 stdout 保存在 `/tmp/af-delivery-pytest.log`；应用/沙箱事件继续使用已有日志设施。
+测试 stdout 保存在 `/tmp/rwb-delivery-pytest.log`；应用/沙箱事件继续使用已有日志设施。
 `check_task_completion.py` 通过；`check_doc_sync.py` 退出 0，但 Research Web 尚未
 命中旧映射（输出无对应同步规则），不能将其视为文档内容自动审查。暂存差异空白检查通过。
 
@@ -109,7 +109,7 @@ docs/CHANGELOG.md
 本轮命令同上，实际结果：完整 Python **65 passed in 11.48s**、JavaScript
 **25 passed**；ruff、black、isort、app.mjs 语法、mypy 12 文件及新增模块
 `--check-untyped-defs` 2 文件、差异空白检查通过。完整 Python 输出：
-`/tmp/af-delivery-review-all.log`；初始失败输出：`/tmp/af-delivery-review-red.log`。
+`/tmp/rwb-delivery-review-all.log`；初始失败输出：`/tmp/rwb-delivery-review-red.log`。
 本轮仍未操作服务/密钥/主工作树，未执行真实模型或浏览器验收。Harness
 `task-8825dc0e-dsh-web` 的最终 outcome 由主任务维护，未更改。
 
@@ -128,8 +128,8 @@ incomplete 落盘；新增用例同时检查返回结果和持久化收据。
 tests/research_web --confcutdir=tests/research_web -q`。改动文件的 ruff、black、
 isort、delivery.py 的 mypy `--check-untyped-defs` 与差异空白检查均通过。
 本次未重跑未改动的 JS；前轮 25 passed 不冒充本轮新增执行。
-失败/通过日志分别为 `/tmp/af-delivery-publish-red.log`、
-`/tmp/af-delivery-publish-green.log`、`/tmp/af-delivery-publish-all.log`。
+失败/通过日志分别为 `/tmp/rwb-delivery-publish-red.log`、
+`/tmp/rwb-delivery-publish-green.log`、`/tmp/rwb-delivery-publish-all.log`。
 
 这是发布时点复核，不是不可变文件归档；发布后的外部修改不在本补丁保证范围。
 未操作主工作树、运行服务、凭据或主 Harness outcome。

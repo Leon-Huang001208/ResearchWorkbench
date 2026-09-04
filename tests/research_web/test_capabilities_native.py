@@ -72,17 +72,17 @@ try {
   const workflow=await provider.get(candidates.find(c=>c.name==='fund-research-workflow'),{cwd:root});
   assert.match(workflow.content,/步骤模板（未执行）/);
   const stage=join(root,'new-skill');
-  await mkdir(stage);await writeFile(join(stage,'SKILL.md'),'---\nname: af-test-v1\ndescription: 测试\n---\n版本一');
-  await rename(stage,join(nativeRoot,'af-test-v1'));
+  await mkdir(stage);await writeFile(join(stage,'SKILL.md'),'---\nname: rwb-test-v1\ndescription: 测试\n---\n版本一');
+  await rename(stage,join(nativeRoot,'rwb-test-v1'));
   for(let i=0;i<100 && invalidations===0;i++) await new Promise(r=>setTimeout(r,20));
   assert.ok(invalidations>0,'native watcher must invalidate on new approved package');
   const updated=await provider.list({cwd:root});
-  assert.ok(updated.some(c=>c.name==='af-test-v1'));
+  assert.ok(updated.some(c=>c.name==='rwb-test-v1'));
   assert.equal((await provider.get(company,{cwd:root})).content,original);
-  const count=invalidations;await rename(join(nativeRoot,'af-test-v1'),join(root,'retained-v1'));
+  const count=invalidations;await rename(join(nativeRoot,'rwb-test-v1'),join(root,'retained-v1'));
   for(let i=0;i<100 && invalidations===count;i++) await new Promise(r=>setTimeout(r,20));
   assert.ok(invalidations>count);
-  assert.ok(!(await provider.list({cwd:root})).some(c=>c.name==='af-test-v1'));
+  assert.ok(!(await provider.list({cwd:root})).some(c=>c.name==='rwb-test-v1'));
   console.log(JSON.stringify({discovered:6,loaded:true,watch:true,hostRootExcluded:true}));
 } finally {await provider.dispose();controller.abort();}
 """
@@ -117,5 +117,4 @@ console.log(JSON.stringify(tools.map(t=>({id:t.name,parameters:t.parameters}))))
         assert set(schema["properties"]) == set(properties), name
         for key, value in schema["properties"].items():
             # DataHub has additional business validation layered over native JSON schema.
-            if name != "af_public_data":
-                assert value["type"] == properties[key]["type"]
+            assert value["type"] == properties[key]["type"]

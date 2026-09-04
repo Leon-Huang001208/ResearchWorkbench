@@ -1,5 +1,5 @@
 """
-AlphaFoundry v1 文档 Repository.
+Research Workbench v1 文档 Repository.
 
 实现 Issue #42 要求的数据库操作，包括：
 - document_v1 表的 CRUD 操作

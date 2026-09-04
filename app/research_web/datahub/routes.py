@@ -3,17 +3,48 @@
 import asyncio
 from typing import Literal
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import JSONResponse, Response
 
-from .contracts import InternalCancel, InternalQuery
+from ..store import StoreError
+from .contracts import InternalBusinessQuery, InternalCancel
 
 router = APIRouter(prefix="/api/research")
 
 
-@router.get("/data/capabilities")
-async def capabilities(request: Request):
-    return request.app.state.research.datahub.capabilities()
+@router.get("/data/catalog")
+async def catalog(request: Request):
+    return request.app.state.research.datahub.catalog()
+
+
+@router.get("/data/capabilities/{capability_id}")
+async def capability_detail(capability_id: str, request: Request):
+    detail = request.app.state.research.datahub.catalog_capability(capability_id)
+    if detail is None:
+        raise StoreError("数据能力不存在")
+    return detail
+
+
+@router.get("/data/sources/{source_id}")
+async def source_detail(source_id: str, request: Request):
+    detail = request.app.state.research.datahub.catalog_source(source_id)
+    if detail is None:
+        raise StoreError("数据来源不存在")
+    return detail
+
+
+@router.post("/data/sources/{source_id}/probes", status_code=202)
+async def start_probe(
+    source_id: str,
+    request: Request,
+    idempotency_key: str = Header(min_length=8, max_length=128),
+):
+    return request.app.state.research.datahub.start_probe(source_id, idempotency_key)
+
+
+@router.get("/data/probes/{probe_id}")
+async def probe(probe_id: str, request: Request):
+    return request.app.state.research.datahub.probe(probe_id)
 
 
 @router.get("/sessions/{sid}/datasets")
@@ -49,8 +80,8 @@ async def download(
     )
 
 
-@router.post("/internal/data/query")
-async def query(body: InternalQuery, request: Request):
+@router.post("/internal/data/business-query")
+async def business_query(body: InternalBusinessQuery, request: Request):
     service = request.app.state.research
     await service.ensure_owned()
     try:

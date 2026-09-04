@@ -1,7 +1,7 @@
 """
 Web search provider interfaces for real-time online query augmentation.
 
-当用户提问时，AlphaFoundry 优先联网搜索补充证据，再交给 LLM 生成带引用的答案。
+当用户提问时，Research Workbench 优先联网搜索补充证据，再交给 LLM 生成带引用的答案。
 本模块定义 WebSearchProvider 抽象接口与 WebSearchResult 数据模型，具体实现见
 data_layer/web_search/（Tavily、Bing 等）。
 """

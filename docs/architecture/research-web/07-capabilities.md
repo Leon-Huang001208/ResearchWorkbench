@@ -60,7 +60,9 @@ Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH
 
 显式 `expected_formats` 优先；未提供时使用所选能力默认格式。详情显示能力/版本和 Workflow 预设步骤，执行活动及最终文件从原生历史与真实产物读取，不由模板推断完成状态。
 
-Tool 目录只读展示九个注册/白名单匹配工具。其中用户可选 `af_run_script`、`af_public_data`、`web_search`；Skill 加载及 Agent 控制工具标为内部能力。DataHub 来源嵌入 `af_public_data` 参数说明，不是额外开放的网络工具。目录 `availability=declared` 不代表实例在线、供应商可用或已授权。
+Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数据工具，共 21 项。数据 Tool 使用子系统前缀而非产品品牌，因此将来产品改名不需要迁移研究协议。当前可选择的 Tool 为 `research_run_script`、`web_search`，以及有可调用 Provider 的 `datahub_get_fund_data`、`datahub_search_news`；其他 `datahub_*` 能力可以浏览，但会明确显示没有已适配来源，不能运行。
+
+能力中心现在有 Skill、Tool、Workflow、数据四个页签。“数据”不是新的执行类型，而是 DataHub 的只读目录投影：支持按业务能力和按来源双视图，展示字段、参数、市场覆盖、候选来源和六维就绪状态。把数据能力“放入研究草稿”只加入对应 `datahub_*` Tool，不立即联网或产生费用。DSH 原生网页搜索仍留在 Tool 目录，不冒充 DataHub 数据源。
 
 ## 验证边界
 

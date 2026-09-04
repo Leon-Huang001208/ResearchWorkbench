@@ -4,7 +4,7 @@ Core contracts for paper trading and portfolio simulation.
 This module defines Pydantic models for simulating trading and portfolio
 performance, including PaperPortfolio, RebalanceEvent, SimulationResult,
 PerformanceMetrics, and more, for tracking simulated portfolio performance
-over time in AlphaFoundry.
+over time in Research Workbench.
 """
 
 from datetime import datetime

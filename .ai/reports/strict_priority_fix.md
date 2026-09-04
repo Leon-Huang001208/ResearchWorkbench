@@ -1,7 +1,7 @@
 # Strict Priority Fix Report
 
-**Task**: af-auto-000-04f  
-**Date**: 2026-05-11  
+**Task**: rwb-auto-000-04f
+**Date**: 2026-05-11
 **Status**: Complete
 
 ---
@@ -109,7 +109,7 @@ Let's verify by creating a test scenario (conceptual):
 | File | Change |
 |------|--------|
 | `.ai/scripts/run-automation.sh` | Rewrote get_next_task() to collect ready tasks by priority group, updated header text |
-| `.ai/tasks/task.json` | Added af-auto-000-04f |
+| `.ai/tasks/task.json` | Added rwb-auto-000-04f |
 | `.ai/progress/progress.md` | Updated progress |
 | `.ai/reports/strict_priority_fix.md` | This report |
 
@@ -131,7 +131,7 @@ Let's verify by creating a test scenario (conceptual):
 
 1. ✅ **.ai/scripts/run-automation.sh** - Fixed priority logic and header
 2. ✅ **.ai/reports/strict_priority_fix.md** - This report
-3. ✅ **task.json** - Updated with af-auto-000-04f
+3. ✅ **task.json** - Updated with rwb-auto-000-04f
 4. ✅ **progress.md** - Updated with task progress
 
 ---

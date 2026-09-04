@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Monitor Module
+   Research Workbench — Monitor Module
    Crawl feed polling + Workers status
    ============================================================ */
 

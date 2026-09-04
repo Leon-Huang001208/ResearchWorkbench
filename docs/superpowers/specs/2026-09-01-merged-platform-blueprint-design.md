@@ -1,4 +1,4 @@
-# AlphaFoundry × LSH 详细架构与产品蓝图设计
+# Research Workbench × LSH 详细架构与产品蓝图设计
 
 日期：2026-09-01
 
@@ -116,7 +116,7 @@ Web 应用和 Tauri 桌面壳复用同一前端，不维护两套 UI。
 
 ### 5.3 视觉语言
 
-现有 AlphaFoundry UI 不作为视觉约束。新设计使用：
+现有 Research Workbench UI 不作为视觉约束。新设计使用：
 
 - AlphaEngine 的机构级产品壳和信息密度。
 - Zhengyan 的统一输入、会话后台运行、右侧研究空间和响应式交互。
@@ -125,7 +125,7 @@ Web 应用和 Tauri 桌面壳复用同一前端，不维护两套 UI。
 - 小圆角、细边框、低阴影和 8px 间距网格。
 - 不照搬 Zhengyan 的紫色渐变和大面积玻璃效果。
 
-正式产品原型必须使用真实 AlphaFoundry Logo，并在 `brand-spec.md` 中记录资产路径和设计 Token。
+正式产品原型必须使用真实 Research Workbench Logo，并在 `brand-spec.md` 中记录资产路径和设计 Token。
 
 ## 6. 详细架构交付结构
 

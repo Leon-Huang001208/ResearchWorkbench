@@ -595,7 +595,7 @@ def test_production_dependency_executes_registered_local_dsh_adapter(db_session,
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     monkeypatch.setenv(
-        "ALPHAFOUNDRY_TEST_DSH_URL",
+        "RESEARCH_TEST_DSH_URL",
         f"http://127.0.0.1:{server.server_address[1]}/execute",
     )
     try:
@@ -607,7 +607,7 @@ def test_production_dependency_executes_registered_local_dsh_adapter(db_session,
                 name="DSH production",
                 capabilities={"single_agent"},
                 status="healthy",
-                config_ref="env:ALPHAFOUNDRY_TEST_DSH_URL",
+                config_ref="env:RESEARCH_TEST_DSH_URL",
                 checked_at=datetime(2026, 8, 10, tzinfo=UTC),
             )
         )
@@ -682,7 +682,7 @@ def test_production_http_dsh_terminal_never_falls_back(
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     monkeypatch.setenv(
-        "ALPHAFOUNDRY_TERMINAL_DSH_URL",
+        "RESEARCH_TERMINAL_DSH_URL",
         f"http://127.0.0.1:{server.server_address[1]}/execute",
     )
     try:
@@ -693,7 +693,7 @@ def test_production_http_dsh_terminal_never_falls_back(
                 name="DSH terminal production",
                 capabilities={"single_agent"},
                 status="healthy",
-                config_ref="env:ALPHAFOUNDRY_TERMINAL_DSH_URL",
+                config_ref="env:RESEARCH_TERMINAL_DSH_URL",
                 checked_at=datetime(2026, 8, 10, tzinfo=UTC),
             )
         )
@@ -752,7 +752,7 @@ def test_running_sse_stages_are_committed_before_slow_provider_returns(tmp_path,
     server_thread = Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
     monkeypatch.setenv(
-        "ALPHAFOUNDRY_SLOW_DSH_URL",
+        "RESEARCH_SLOW_DSH_URL",
         f"http://127.0.0.1:{server.server_address[1]}/execute",
     )
     engine = create_engine(
@@ -772,7 +772,7 @@ def test_running_sse_stages_are_committed_before_slow_provider_returns(tmp_path,
                     name="Slow DSH",
                     capabilities={"single_agent"},
                     status="healthy",
-                    config_ref="env:ALPHAFOUNDRY_SLOW_DSH_URL",
+                    config_ref="env:RESEARCH_SLOW_DSH_URL",
                     checked_at=datetime(2026, 8, 10, tzinfo=UTC),
                 )
             )
@@ -1086,7 +1086,7 @@ def test_production_skill_with_declared_but_unregistered_tool_is_blocked(db_sess
         now=datetime(2026, 8, 10, tzinfo=UTC),
     )
     monkeypatch.setenv(
-        "ALPHAFOUNDRY_AUTHORIZED_RESEARCH_TOOLS",
+        "RESEARCH_AUTHORIZED_RESEARCH_TOOLS",
         "mcp:configured-only",
     )
     service = get_research_run_service(db_session)

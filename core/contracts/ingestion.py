@@ -1,7 +1,7 @@
 """
 Core contracts for the unified ingestion queue.
 
-This module defines Pydantic models for the unified ingestion queue in AlphaFoundry,
+This module defines Pydantic models for the unified ingestion queue in Research Workbench,
 including queue items, statistics, enqueue requests/responses, process responses,
 and retry responses.
 """

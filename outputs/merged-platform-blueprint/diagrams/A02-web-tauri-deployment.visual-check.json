@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A02-web-tauri-deployment.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A02-web-tauri-deployment.html",
     "sha256": "968814fd96fb2b2174499d20e9942c598b9cbdbadae36b53120922434d13be5c",
     "bytes": 638228
   },

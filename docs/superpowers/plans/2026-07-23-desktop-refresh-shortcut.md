@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let developers reload the AlphaFoundry desktop Web Workbench with `F5`, `Cmd+R`, or `Ctrl+R` without closing the Tauri window or restarting the Python sidecar.
+**Goal:** Let developers reload the Research Workbench desktop Web Workbench with `F5`, `Cmd+R`, or `Ctrl+R` without closing the Tauri window or restarting the Python sidecar.
 
 **Architecture:** Add one document-level `keydown` handler inside the existing Workbench `DOMContentLoaded` initializer in `app/web/static/js/app.js`. The handler intercepts only `F5` and `Ctrl`/`Cmd` + `R`, suppresses the WebView default action, then performs a normal `window.location.reload()`. Update the cache-busted module URL, static regression coverage, and user-facing desktop documentation; do not add Tauri Rust, native-menu, or sidecar changes.
 
@@ -23,10 +23,10 @@
 | `docs/modules/app_web.md` | Record the new Workbench-wide keyboard behavior. |
 | `docs/FILE_GUIDE.md` | Describe `app.js` as owning the Workbench refresh shortcut. |
 | `docs/CHANGELOG.md` | Add a user-visible Unreleased entry. |
-| `.ai/reports/test_report_af-auto-011-00.md` | Record changed files, commands, outcomes, skips, and residual risk. |
-| `.ai/progress/progress_af-auto-011-00.md` | Record task progress and gate outcomes. |
+| `.ai/reports/test_report_rwb-auto-011-00.md` | Record changed files, commands, outcomes, skips, and residual risk. |
+| `.ai/progress/progress_rwb-auto-011-00.md` | Record task progress and gate outcomes. |
 | `.ai/progress/progress.md` | Append the current task’s progress summary. |
-| `.ai/tasks/task_af_auto_011.json` | Track this task from `doing` to `done` only after every mandatory gate passes. |
+| `.ai/tasks/task_rwb_auto_011.json` | Track this task from `doing` to `done` only after every mandatory gate passes. |
 
 ### Task 1: Establish a failing static regression test
 
@@ -242,21 +242,21 @@ Expected: one documentation-only commit with no source or test changes.
 ### Task 4: Record task evidence and run all mandatory completion gates
 
 **Files:**
-- Create: `.ai/tasks/task_af_auto_011.json`
-- Create: `.ai/reports/test_report_af-auto-011-00.md`
-- Create: `.ai/progress/progress_af-auto-011-00.md`
+- Create: `.ai/tasks/task_rwb_auto_011.json`
+- Create: `.ai/reports/test_report_rwb-auto-011-00.md`
+- Create: `.ai/progress/progress_rwb-auto-011-00.md`
 - Modify: `.ai/progress/progress.md`
-- Modify: `.ai/tasks/task_af_auto_011.json`
+- Modify: `.ai/tasks/task_rwb_auto_011.json`
 
 - [ ] **Step 1: Create the task record with status `doing` before completion gates**
 
-Create `.ai/tasks/task_af_auto_011.json` with:
+Create `.ai/tasks/task_rwb_auto_011.json` with:
 
 ```json
 {
   "tasks": [
     {
-      "id": "af-auto-011-00",
+      "id": "rwb-auto-011-00",
       "title": "Add desktop Workbench refresh shortcuts",
       "description": "Add F5, Cmd+R, and Ctrl+R page refresh handling to the Tauri-hosted Web Workbench without restarting the desktop window or Python sidecar.",
       "priority": "medium",
@@ -284,9 +284,9 @@ Create `.ai/tasks/task_af_auto_011.json` with:
     }
   ],
   "metadata": {
-    "project_name": "AlphaFoundry",
-    "task_set_id": "af-auto-011",
-    "task_set_description": "AF-AUTO-011: desktop Workbench refresh shortcuts",
+    "project_name": "Research Workbench",
+    "task_set_id": "rwb-auto-011",
+    "task_set_description": "RWB-AUTO-011: desktop Workbench refresh shortcuts",
     "status": "doing",
     "started_at": "2026-07-23",
     "total_tasks": 1
@@ -313,14 +313,14 @@ Expected: every command exits with code 0. If any command fails due to a pre-exi
 
 - [ ] **Step 3: Create the audit report after commands finish**
 
-Create `.ai/reports/test_report_af-auto-011-00.md` with these completed sections and factual command outcomes:
+Create `.ai/reports/test_report_rwb-auto-011-00.md` with these completed sections and factual command outcomes:
 
 ```markdown
-# Test Report: af-auto-011-00
+# Test Report: rwb-auto-011-00
 
 ## Task ID
 
-- af-auto-011-00
+- rwb-auto-011-00
 
 ## Changed Source Files
 
@@ -363,10 +363,10 @@ Create `.ai/reports/test_report_af-auto-011-00.md` with these completed sections
 
 - [ ] **Step 4: Update both progress records with factual evidence**
 
-Create `.ai/progress/progress_af-auto-011-00.md` and append a matching entry to `.ai/progress/progress.md` that list:
+Create `.ai/progress/progress_rwb-auto-011-00.md` and append a matching entry to `.ai/progress/progress.md` that list:
 
 ```markdown
-## af-auto-011-00 — Desktop Workbench refresh shortcuts
+## rwb-auto-011-00 — Desktop Workbench refresh shortcuts
 
 - Added F5, Cmd+R, and Ctrl+R page refresh handling in `app/web/static/js/app.js`.
 - Bumped the `app.js` cache version in `app/web/templates/index.html`.
@@ -379,7 +379,7 @@ Create `.ai/progress/progress_af-auto-011-00.md` and append a matching entry to 
 
 - [ ] **Step 5: Mark the task `done` only after all gates have passed**
 
-In `.ai/tasks/task_af_auto_011.json`, change only:
+In `.ai/tasks/task_rwb_auto_011.json`, change only:
 
 ```json
 "status": "doing"
@@ -391,15 +391,15 @@ to:
 "status": "done"
 ```
 
-and update the metadata status to `done`. Do not edit the task title, description, success criteria, or verification command list. If any required gate failed, set the task status to `blocked` instead and create `.ai/reports/blocking_report_af-auto-011-00.md` with the command, full error, required human action, and safe next step.
+and update the metadata status to `done`. Do not edit the task title, description, success criteria, or verification command list. If any required gate failed, set the task status to `blocked` instead and create `.ai/reports/blocking_report_rwb-auto-011-00.md` with the command, full error, required human action, and safe next step.
 
 - [ ] **Step 6: Commit task evidence only when completion gates passed**
 
 ```bash
 git add \
-  .ai/tasks/task_af_auto_011.json \
-  .ai/reports/test_report_af-auto-011-00.md \
-  .ai/progress/progress_af-auto-011-00.md \
+  .ai/tasks/task_rwb_auto_011.json \
+  .ai/reports/test_report_rwb-auto-011-00.md \
+  .ai/progress/progress_rwb-auto-011-00.md \
   .ai/progress/progress.md \
   docs/generated/py_file_index.md
 git commit -m "chore: record desktop refresh shortcut verification"

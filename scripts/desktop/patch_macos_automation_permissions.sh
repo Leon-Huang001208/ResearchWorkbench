@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_PATH="${ALPHAFOUNDRY_APP_PATH:-/Applications/AlphaFoundry.app}"
+APP_PATH="${RESEARCH_APP_PATH:-/Applications/Research Workbench.app}"
 INFO_PLIST="$APP_PATH/Contents/Info.plist"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 USAGE_KEY="NSAppleEventsUsageDescription"
-USAGE_DESCRIPTION="${ALPHAFOUNDRY_APPLE_EVENTS_USAGE_DESCRIPTION:-AlphaFoundry needs to automate Microsoft Excel to open and refresh Wind realtime market workbooks.}"
+USAGE_DESCRIPTION="${RESEARCH_APPLE_EVENTS_USAGE_DESCRIPTION:-Research Workbench needs to automate Microsoft Excel to open and refresh Wind realtime market workbooks.}"
 
 log() {
   printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -17,7 +17,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 if [[ ! -f "$INFO_PLIST" ]]; then
-  log "AlphaFoundry Info.plist is missing: $INFO_PLIST"
+  log "Research Workbench Info.plist is missing: $INFO_PLIST"
   exit 1
 fi
 
@@ -41,7 +41,7 @@ fi
 
 if command -v codesign >/dev/null 2>&1; then
   codesign --force --deep --sign - "$APP_PATH" >/dev/null
-  log "Re-signed AlphaFoundry app after Info.plist patch"
+  log "Re-signed Research Workbench app after Info.plist patch"
 else
   log "codesign is unavailable; Info.plist was patched but app was not re-signed"
   exit 1

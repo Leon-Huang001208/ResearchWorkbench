@@ -204,7 +204,7 @@ def test_sidecar_health_check_returns_zero_after_first_http_200(monkeypatch, tmp
     monkeypatch.setattr(helper.os, "killpg", lambda pgid, sig: None, raising=False)
     monkeypatch.setattr(helper, "wait_for_port_release", lambda port, logger: True, raising=False)
     monkeypatch.setenv(
-        "DATABASE_URL", "postgresql+psycopg://desktop_user:secret@127.0.0.1:55432/alphafoundry"
+        "DATABASE_URL", "postgresql+psycopg://desktop_user:secret@127.0.0.1:55432/research_workbench"
     )
     log_file = tmp_path / "health-smoke.log"
 

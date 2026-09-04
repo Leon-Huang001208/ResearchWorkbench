@@ -1,8 +1,8 @@
-# AlphaFoundry 数据源架构设计
+# Research Workbench 数据源架构设计
 
 ## 概述
 
-AlphaFoundry 不是简单的"爬虫系统"，而是**多源证据融合 + 事件驱动投研 + 量化验证系统**。
+Research Workbench 不是简单的"爬虫系统"，而是**多源证据融合 + 事件驱动投研 + 量化验证系统**。
 
 核心原则：
 

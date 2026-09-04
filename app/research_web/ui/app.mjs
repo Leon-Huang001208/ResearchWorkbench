@@ -1,18 +1,20 @@
 import { createAPI, createController, parseRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderHistory, modelOptions, renderRename } from './views.mjs';
+import { icon } from './icons.mjs';
 import { renderComposer, renderQuickSkills, slashKey, skillMatches } from './composer.mjs';
-import { renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
+import { renderAppearancePicker, renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
-import { createCapabilityController } from './capability-controller.mjs';
+import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { renderCapabilityCatalog, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
+import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStep } from './capability-editor.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], errors: {}, modelFailures: [] };
+const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
-let searchOpen = false; let slashIndex = 0; let contextCollapsed = false;
+let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
 const workflowVersions = new Map();
@@ -35,12 +37,12 @@ function notice(message, kind = 'error') { return message ? `<div class="notice 
 function composer() {
   const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
-  return renderComposer({ page: state.route.page, draft: state.draft, attachments: state.attachments, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, runtimeReady: catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false });
+  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, page: state.route.page, draft: state.draft, attachments: state.attachments, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, runtimeReady: catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false });
 }
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="landing-brand"><img src="/static/assets/alphafoundry-logo.png" alt="" width="56" height="56"><span class="eyebrow">${claw ? 'CLAW · GOAL WORKSPACE' : 'FINGPT · RESEARCH PARTNER'}</span></div><h1>${claw ? '把研究目标变成可交付结果' : 'FinGPT，您的即时投研伙伴'}</h1><p class="landing-subtitle">${claw ? '描述目标、边界和希望交付的文件。DSH 仅在你开始研究后协调真实 Agent、工具与资料。' : '从一个好问题开始。连接真实信息，理解复杂问题，沉淀研究成果。'}</p>${composer()}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}<div class="capability-notes"><div><span aria-hidden="true">⌕</span><strong>深入理解</strong><p>围绕问题持续追问，在同一会话中推进研究。</p></div><div><span aria-hidden="true">▤</span><strong>带上你的资料</strong><p>支持 PDF、图片、Markdown、CSV 与 Excel。</p></div><div><span aria-hidden="true">◇</span><strong>${claw ? '明确交付' : '看见研究过程'}</strong><p>${claw ? '设置输出格式，先准备草稿，再由你确认开始。' : '查看真实工具活动、Agent 协作与产出文件。'}</p></div></div></div>`;
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${composer()}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
 function researchPage() {
@@ -50,12 +52,12 @@ function researchPage() {
   const detail = state.detail;
   const workspaceView = detail.mode === 'claw' && clawSidebarView === 'workspace';
   const canvas = workspaceView ? renderClawWorkspaceCanvas({ detail, selectedPreview, busy: state.busy }) : `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts)}</div>`;
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row"><button class="button small" data-rename ${state.busy ? 'disabled' : ''}>重命名</button>${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${renameDraft !== null ? renderRename(renameDraft) : ''}${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${canvas}<div class="composer-dock">${composer()}</div>`;
+  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row"><button class="button small" data-rename ${state.busy ? 'disabled' : ''}>重命名</button>${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${renameDraft !== null ? renderRename(renameDraft) : ''}${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${renderResearchAttention(detail)}${canvas}<div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
   const runtime = catalog.runtime;
-  return `<section class="settings-card"><h2>架构与实现文档</h2><p class="muted">只读查看当前架构图；检查回执不替代实现与人工验收。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开架构文档 ↗</a></section><header class="page-header"><div><div class="eyebrow">WORKSPACE SETTINGS</div><h1>运行时与模型</h1><p class="muted">Research Web 只连接 DSH，不启动其他研究管线。</p></div><button class="button" data-refresh>刷新状态</button></header><section class="settings-card"><div class="section-heading"><h2>DSH 连接</h2><span class="badge ${runtime?.connected ? 'live' : 'danger'}">${runtimeLabel()}</span></div><dl class="runtime-details"><div><dt>Provider</dt><dd>${e(runtime?.provider || '未提供')}</dd></div><div><dt>模型</dt><dd>${e(runtime?.model || '未配置')}</dd></div><div><dt>版本</dt><dd>${e(runtime?.version || '未提供')}</dd></div><div><dt>管理方式</dt><dd>${runtime ? runtime.owned_runtime ? '由 AlphaFoundry 管理' : '外部运行时' : '未知'}</dd></div></dl>${runtime?.message ? `<p class="muted">${e(runtime.message)}</p>` : ''}</section><section class="settings-card"><h2>模型配置</h2><p class="muted">选择模型并按需更新 API Key。秘密值不回填，也不会存入浏览器存储。</p><form id="settings-form" autocomplete="off"><label for="settings-model">可用模型</label><select id="settings-model">${modelOptions(catalog.models, runtime?.model)}</select><div class="form-grid"><label>Provider<input id="provider" name="provider" required autocomplete="off" value="${e(runtime?.provider || '')}" placeholder="例如 openai"></label><label>模型 ID<input id="model-id" name="model" required autocomplete="off" value="${e(runtime?.model || '')}" placeholder="输入运行时支持的模型 ID"></label></div><label for="api-key">API Key <span class="muted">（可选，仅更新时填写）</span></label><input id="api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" placeholder="留空则不更改现有凭据"><p class="muted small">只发送给当前同源后端；保存成功后清空输入。模型变更作用于 DSH 运行时。</p><button class="button primary" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? '正在保存…' : '保存配置'}</button></form></section>${catalog.modelFailures.length ? notice('部分模型目录未能加载；可填写已知的 Provider 与模型 ID。', 'warning') : ''}`;
+  return `<section class="settings-card"><h2>架构与实现文档</h2><p class="muted">只读查看当前架构图；检查回执不替代实现与人工验收。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开架构文档 ↗</a></section><header class="page-header"><div><div class="eyebrow">WORKSPACE SETTINGS</div><h1>设置</h1><p class="muted">Research Web 只连接 DSH，不启动其他研究管线。</p></div><button class="button" data-refresh>刷新状态</button></header><section class="settings-card appearance-settings"><h2>外观</h2><p class="muted">选择浅色、深色，或跟随系统。仅保存在此浏览器，不影响研究任务。</p>${renderAppearancePicker()}</section><section class="settings-card"><div class="section-heading"><h2>DSH 连接</h2><span class="badge ${runtime?.connected ? 'live' : 'danger'}">${runtimeLabel()}</span></div><dl class="runtime-details"><div><dt>Provider</dt><dd>${e(runtime?.provider || '未提供')}</dd></div><div><dt>模型</dt><dd>${e(runtime?.model || '未配置')}</dd></div><div><dt>版本</dt><dd>${e(runtime?.version || '未提供')}</dd></div><div><dt>管理方式</dt><dd>${runtime ? runtime.owned_runtime ? '由 Research Workbench 管理' : '外部运行时' : '未知'}</dd></div></dl>${runtime?.message ? `<p class="muted">${e(runtime.message)}</p>` : ''}</section><section class="settings-card"><h2>模型配置</h2><p class="muted">选择模型并按需更新 API Key。秘密值不回填，也不会存入浏览器存储。</p><form id="settings-form" autocomplete="off"><label for="settings-model">可用模型</label><select id="settings-model">${modelOptions(catalog.models, runtime?.model)}</select><div class="form-grid"><label>Provider<input id="provider" name="provider" required autocomplete="off" value="${e(runtime?.provider || '')}" placeholder="例如 openai"></label><label>模型 ID<input id="model-id" name="model" required autocomplete="off" value="${e(runtime?.model || '')}" placeholder="输入运行时支持的模型 ID"></label></div><label for="api-key">API Key <span class="muted">（可选，仅更新时填写）</span></label><input id="api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" placeholder="留空则不更改现有凭据"><p class="muted small">只发送给当前同源后端；保存成功后清空输入。模型变更作用于 DSH 运行时。</p><button class="button primary" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? '正在保存…' : '保存配置'}</button></form></section>${catalog.modelFailures.length ? notice('部分模型目录未能加载；可填写已知的 Provider 与模型 ID。', 'warning') : ''}`;
 }
 
 function mainPage() {
@@ -71,9 +73,10 @@ function capabilityPage() {
   if (cap.form === 'editor') return messages + renderCapabilityEditor({ draft: cap.editor, id: cap.editorId, items: catalog.capabilities, tools: catalog.tools, busy: cap.busy });
   if (cap.form === 'conversation') return messages + renderCreationForm(cap.kind, cap.goal, state.busy);
   if (cap.form === 'copy') return messages + renderCopyForm(cap.detail, cap.copy, cap.busy);
+  if (cap.dataDetail) return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) : renderDataCapabilityDetail(cap.dataDetail));
   if (cap.tool) return messages + renderToolDetail(cap.tool);
   if (cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: catalog.sessions.some(session => isRunning(session.status)) });
-  return messages + renderCapabilityCatalog({ ...cap, items: catalog.capabilities, tools: catalog.tools, error: catalog.errors.capabilities || catalog.errors.tools || '' });
+  return messages + renderCapabilityCatalog({ ...cap, items: catalog.capabilities, tools: catalog.tools, dataCatalog: catalog.dataCatalog, error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.dataCatalog || '' });
 }
 
 function sidebar() {
@@ -98,14 +101,15 @@ function render() {
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
   const research = ['fingpt', 'claw'].includes(state.route.page);
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}">${renderTopbar({ runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: [...catalog.capabilities, ...catalog.tools], searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', capabilities: '能力目录', tools: '工具目录' })[name]}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: [...catalog.capabilities, ...catalog.tools, ...(catalog.dataCatalog.capabilities || [])], searchOpen })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', capabilities: '能力目录', tools: '工具目录', dataCatalog: '数据目录' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
+  window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', history: '研究历史', skills: '能力中心', settings: '设置' })[state.route.page]} · AlphaFoundry`;
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', history: '研究历史', skills: '能力中心', settings: '设置' })[state.route.page]} · Research Workbench`;
 }
 
 async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools']) {
@@ -114,6 +118,12 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
       const data = await api[name]();
       if (name === 'runtime') catalog.runtime = data;
       else if (name === 'models') { catalog.models = data.groups || []; catalog.modelFailures = data.failures || []; }
+      else if (name === 'dataCatalog') catalog.dataCatalog = {
+        summary: data?.summary || {},
+        capabilities: Array.isArray(data?.capabilities) ? data.capabilities : [],
+        sources: Array.isArray(data?.sources) ? data.sources : [],
+        bindings: Array.isArray(data?.bindings) ? data.bindings : [],
+      };
       else catalog[name] = data.items || [];
       delete catalog.errors[name];
     } catch (error) { catalog.errors[name] = error.message; if (name === 'runtime') catalog.runtime = null; }
@@ -130,7 +140,7 @@ async function showRoute() {
   document.querySelector('#main')?.scrollTo({ top: 0 });
   await loadWorkflowVersion();
   if (state.route.page === 'history') await loadCatalog(['sessions']);
-  if (state.route.page === 'skills') await loadCatalog(['capabilities', 'tools', 'sessions']);
+  if (state.route.page === 'skills') await loadCatalog(['capabilities', 'tools', 'dataCatalog', 'sessions']);
 }
 
 async function ensureSession() {
@@ -183,6 +193,10 @@ root.addEventListener('change', async (event) => {
   if (target.id === 'skill-select') { if (target.value) await selectCapability(target.value); else { controller.setCapability(null); render(); } }
   if ('capSource' in target.dataset) { capabilityState.source = target.value; render(); }
   if ('capCategory' in target.dataset) { capabilityState.category = target.value; render(); }
+  if ('dataCategory' in target.dataset) { capabilityState.category = target.value; render(); }
+  if ('dataMarket' in target.dataset) { capabilityState.dataMarket = target.value; render(); }
+  if ('dataStatus' in target.dataset) { capabilityState.dataStatus = target.value; render(); }
+  if ('dataAuth' in target.dataset) { capabilityState.dataAuth = target.value; render(); }
   if (target.closest('#cap-editor-form')) captureEditor();
   if (target.id === 'cap-import-file' && target.files?.length) await capabilityController.import(target.files[0]);
   if ('autoFormats' in target.dataset) { controller.setFormats(target.checked ? null : []); render(); }
@@ -296,6 +310,7 @@ root.addEventListener('click', async (event) => {
     render();
   }
   if ('clawSidebarView' in data) { clawSidebarView = data.clawSidebarView; render(); }
+  if ('showAttention' in data) { contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextCollapsed = false; contextTab = 'activity'; render(); }
   if ('contextTab' in data) { contextTab = data.contextTab; render(); }
   if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
@@ -380,8 +395,45 @@ async function loadWorkflowVersion() {
 
 async function handleCapabilityClick(data) {
   const cap = capabilityState;
-  if ('capRefresh' in data) { await loadCatalog(['capabilities', 'tools']); return true; }
-  if ('capKind' in data) { cap.kind = data.capKind; cap.category = ''; cap.query = ''; render(); return true; }
+  if ('capRefresh' in data) { await loadCatalog(cap.kind === 'data' ? ['dataCatalog', 'tools'] : ['capabilities', 'tools']); return true; }
+  if ('capKind' in data) { cap.kind = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; render(); return true; }
+  if ('dataView' in data) { cap.dataView = data.dataView; cap.category = ''; cap.query = ''; cap.dataMarket = ''; cap.dataStatus = ''; cap.dataAuth = ''; render(); return true; }
+  if ('dataCapabilityDetail' in data) {
+    const result = await capabilityController.run(() => api.dataCapability(data.dataCapabilityDetail));
+    if (result) { cap.dataDetail = result; cap.dataDetailKind = 'capability'; render(); }
+    return true;
+  }
+  if ('dataSourceDetail' in data) {
+    const result = await capabilityController.run(() => api.dataSource(data.dataSourceDetail));
+    if (result) { cap.dataDetail = result; cap.dataDetailKind = 'source'; render(); }
+    return true;
+  }
+  if ('probeSource' in data) {
+    const key = `probe-${data.probeSource}-${crypto.randomUUID()}`;
+    const accepted = await capabilityController.run(() => api.probeDataSource(data.probeSource, key));
+    if (!accepted?.id) return true;
+    cap.probe = accepted; render();
+    for (let attempt = 0; attempt < 20 && cap.probe?.status === 'checking'; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const current = await capabilityController.run(() => api.dataProbe(accepted.id));
+      if (!current) break;
+      cap.probe = current;
+      if (current.status !== 'checking') {
+        await loadCatalog(['dataCatalog']);
+        if (cap.dataDetailKind === 'source') {
+          const detail = await capabilityController.run(() => refreshProbedSourceDetail(api, cap.dataDetail, data.probeSource));
+          if (detail) cap.dataDetail = detail;
+        }
+        render();
+      } else render();
+    }
+    return true;
+  }
+  if ('useDataTool' in data) {
+    const tool = catalog.tools.find(item => item.id === data.useDataTool && item.selectable);
+    if (!tool) { state.error = '这项数据能力目前没有可调用来源。'; render(); return true; }
+    await goToResearchDraft(); controller.setTools([...state.toolIds, tool.id]); render(); document.querySelector('#prompt')?.focus(); return true;
+  }
   if ('capClose' in data) { capabilityController.close(); return true; }
   if ('capCancelEdit' in data) { cap.form = ''; cap.editor = null; render(); return true; }
   if ('capCreate' in data) { capabilityController.create(data.capCreate); return true; }

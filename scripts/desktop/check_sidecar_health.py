@@ -61,7 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
 def configure_logger(log_file: Path) -> tuple[logging.Logger, logging.Handler]:
     """Create a dedicated file logger without changing global logging configuration."""
     log_file.parent.mkdir(parents=True, exist_ok=True)
-    logger = logging.getLogger("alphafoundry.desktop.sidecar_health")
+    logger = logging.getLogger("research_workbench.desktop.sidecar_health")
     logger.setLevel(logging.INFO)
     logger.propagate = False
     handler = logging.FileHandler(log_file, encoding="utf-8")

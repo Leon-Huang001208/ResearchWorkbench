@@ -75,8 +75,8 @@ class TestRequireConfigurationOriginOnly:
 - [ ] **Step 2: 运行测试，确认失败**
 
 ```bash
-cd d:\Projects\AlphaFoundry
-C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m pytest tests/unit/app/api/test_configuration_security.py -v
+cd d:\Projects\Research Workbench
+C:\Users\H01402\AppData\Local\anaconda3\envs\research_workbench\python.exe -m pytest tests/unit/app/api/test_configuration_security.py -v
 ```
 
 预期：`ImportError` 或 `cannot import name 'require_configuration_origin_only'`
@@ -103,7 +103,7 @@ def require_configuration_origin_only(
 - [ ] **Step 4: 运行测试，确认全部通过**
 
 ```bash
-C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m pytest tests/unit/app/api/test_configuration_security.py -v
+C:\Users\H01402\AppData\Local\anaconda3\envs\research_workbench\python.exe -m pytest tests/unit/app/api/test_configuration_security.py -v
 ```
 
 预期：6 个测试全部 PASS
@@ -111,7 +111,7 @@ C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m pytest t
 - [ ] **Step 5: Commit**
 
 ```bash
-cd d:\Projects\AlphaFoundry
+cd d:\Projects\Research Workbench
 git add app/api/configuration_security.py tests/unit/app/api/test_configuration_security.py
 git commit -m "feat(config): add require_configuration_origin_only dependency for token endpoint"
 ```
@@ -148,7 +148,7 @@ class TestGetConfigToken:
     """GET /api/config/token 端点"""
 
     def test_returns_token_without_csrf_header(self, client):
-        """不带 X-AlphaFoundry-Config-Token 也能拿到 token"""
+        """不带 X-Research Workbench-Config-Token 也能拿到 token"""
         resp = client.get("/api/config/token")
         assert resp.status_code == 200
         data = resp.json()
@@ -186,7 +186,7 @@ class TestGetConfigToken:
 - [ ] **Step 2: 运行测试，确认失败**
 
 ```bash
-C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m pytest tests/unit/app/api/routes/test_configuration_token.py -v
+C:\Users\H01402\AppData\Local\anaconda3\envs\research_workbench\python.exe -m pytest tests/unit/app/api/routes/test_configuration_token.py -v
 ```
 
 预期：`FAILED` — `GET /api/config/token` 返回 404（路由不存在）
@@ -224,7 +224,7 @@ def get_config_token() -> dict[str, str]:
 - [ ] **Step 4: 运行测试，确认全部通过**
 
 ```bash
-C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m pytest tests/unit/app/api/routes/test_configuration_token.py -v
+C:\Users\H01402\AppData\Local\anaconda3\envs\research_workbench\python.exe -m pytest tests/unit/app/api/routes/test_configuration_token.py -v
 ```
 
 预期：5 个测试全部 PASS
@@ -273,14 +273,14 @@ async function fetchConfigToken() {
 ```js
 export function configurationRequestOptions(options = {}) {
     const metaToken = globalThis.document
-        ?.querySelector('meta[name="alphafoundry-config-token"]')
+        ?.querySelector('meta[name="research-config-token"]')
         ?.content || '';
     const csrfToken = _configToken || metaToken;
     return {
         ...options,
         headers: {
             ...(options.headers || {}),
-            'X-AlphaFoundry-Config-Token': csrfToken,
+            'X-Research Workbench-Config-Token': csrfToken,
         },
     };
 }
@@ -345,9 +345,9 @@ git commit -m "feat(config): fetch csrf token dynamically on page init, eliminat
 - [ ] **Step 1: 运行格式检查**
 
 ```bash
-cd d:\Projects\AlphaFoundry
-C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m ruff check app/api/configuration_security.py app/api/routes/configuration.py
-C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m black app/api/configuration_security.py app/api/routes/configuration.py --check
+cd d:\Projects\Research Workbench
+C:\Users\H01402\AppData\Local\anaconda3\envs\research_workbench\python.exe -m ruff check app/api/configuration_security.py app/api/routes/configuration.py
+C:\Users\H01402\AppData\Local\anaconda3\envs\research_workbench\python.exe -m black app/api/configuration_security.py app/api/routes/configuration.py --check
 ```
 
 预期：无错误
@@ -355,7 +355,7 @@ C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m black ap
 - [ ] **Step 2: 运行配置相关测试**
 
 ```bash
-C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m pytest tests/unit/app/api/test_configuration_security.py tests/unit/app/api/routes/test_configuration_token.py -v
+C:\Users\H01402\AppData\Local\anaconda3\envs\research_workbench\python.exe -m pytest tests/unit/app/api/test_configuration_security.py tests/unit/app/api/routes/test_configuration_token.py -v
 ```
 
 预期：全部 PASS
@@ -363,7 +363,7 @@ C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m pytest t
 - [ ] **Step 3: 运行完整测试套件**
 
 ```bash
-C:\Users\H01402\AppData\Local\anaconda3\envs\alphafoundry\python.exe -m pytest tests/ -v --tb=short -q 2>&1 | tail -20
+C:\Users\H01402\AppData\Local\anaconda3\envs\research_workbench\python.exe -m pytest tests/ -v --tb=short -q 2>&1 | tail -20
 ```
 
 预期：新增测试通过，原有测试无回归

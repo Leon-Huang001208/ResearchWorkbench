@@ -1,4 +1,4 @@
-"""Desktop backend launcher for the AlphaFoundry Tauri shell."""
+"""Desktop backend launcher for the Research Workbench Tauri shell."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ APP_IMPORT = "app.api.main:app"
 
 def resolve_project_root() -> Path:
     """Resolve the source root or PyInstaller bundle root for the launcher."""
-    configured_root = os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT")
+    configured_root = os.environ.get("RESEARCH_PROJECT_ROOT")
     if configured_root:
         return Path(configured_root).expanduser()
     bundle_root = getattr(sys, "_MEIPASS", None) if getattr(sys, "frozen", False) else None
@@ -48,7 +48,7 @@ PROJECT_ROOT = resolve_project_root()
 
 def build_parser() -> argparse.ArgumentParser:
     """Build CLI parser for the packaged desktop backend."""
-    parser = argparse.ArgumentParser(description="Run the AlphaFoundry desktop backend")
+    parser = argparse.ArgumentParser(description="Run the Research Workbench desktop backend")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--log-dir", type=Path, default=DEFAULT_LOG_DIR)
@@ -87,11 +87,11 @@ def _migrate_legacy_roaming_env(data_dir: Path) -> None:
     if platform.system() != "Windows" or (data_dir / ".env").exists():
         return
     roaming_root = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    legacy_env = roaming_root / "AlphaFoundry" / ".env"
+    legacy_env = roaming_root / "Research Workbench" / ".env"
     if legacy_env.is_file():
         data_dir.mkdir(parents=True, exist_ok=True)
         copy2(legacy_env, data_dir / ".env")
-        logging.getLogger("alphafoundry.desktop").info(
+        logging.getLogger("research_workbench.desktop").info(
             "Migrated desktop configuration from legacy roaming directory"
         )
 
@@ -105,7 +105,7 @@ def _ensure_default_env(data_dir: Path) -> Path:
             handle.write(desktop_env_template())
         if os.name != "nt":
             env_path.chmod(0o600)
-        logging.getLogger("alphafoundry.desktop").info(
+        logging.getLogger("research_workbench.desktop").info(
             "Created default .env at %s — edit DATABASE_URL and LLM settings as needed", env_path
         )
     return env_path
@@ -121,7 +121,7 @@ def apply_frozen_desktop_defaults() -> Path | None:
 
     桌面端必须连接 PostgreSQL + pgvector；缺少有效配置时由 API 进入设置模式。
     """
-    if not (is_frozen() or os.environ.get("ALPHAFOUNDRY_DESKTOP")):
+    if not (is_frozen() or os.environ.get("RESEARCH_DESKTOP")):
         return None
 
     data_dir = desktop_data_dir()
@@ -133,7 +133,7 @@ def apply_frozen_desktop_defaults() -> Path | None:
     (data_dir / "raw_text").mkdir(parents=True, exist_ok=True)
 
     # ── 先写好目录环境变量（.env 加载前需要 data_dir 已知）──
-    os.environ.setdefault("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(data_dir))
+    os.environ.setdefault("RESEARCH_DESKTOP_DATA_DIR", str(data_dir))
 
     # ── 首次安装：生成默认 .env 模板 ──
     env_path = _ensure_default_env(data_dir)
@@ -161,13 +161,13 @@ def _start_knowledge_worker(data_dir: Path | None, log_dir: Path) -> subprocess.
 
     watchdog 在 worker 崩溃时按指数退避自动重启，避免队列消费长时间中断。
 
-    frozen 模式下通过 ALPHAFOUNDRY_WATCHDOG_MODE=1 让子进程以 watchdog 模式启动；
+    frozen 模式下通过 RESEARCH_WATCHDOG_MODE=1 让子进程以 watchdog 模式启动；
     dev 模式下直接用 sys.executable（conda Python）运行 workers.watchdog 模块。
 
     继承当前进程的环境变量（含已设置的 DATABASE_URL、LLM 配置等）。
     stdout/stderr 重定向到 log_dir/knowledge_worker.log。
     """
-    logger = logging.getLogger("alphafoundry.desktop")
+    logger = logging.getLogger("research_workbench.desktop")
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
         worker_log = log_dir / "knowledge_worker.log"
@@ -175,7 +175,7 @@ def _start_knowledge_worker(data_dir: Path | None, log_dir: Path) -> subprocess.
         if is_frozen():
             # frozen exe 通过环境变量区分运行模式
             cmd = [sys.executable]
-            child_env = {**os.environ, "ALPHAFOUNDRY_WATCHDOG_MODE": "1"}
+            child_env = {**os.environ, "RESEARCH_WATCHDOG_MODE": "1"}
         else:
             # dev 模式：直接用 Python 模块运行 watchdog（sys.executable 已是 conda Python）
             cmd = [sys.executable, "-m", "workers.watchdog"]
@@ -198,13 +198,13 @@ def _start_knowledge_worker(data_dir: Path | None, log_dir: Path) -> subprocess.
 def _start_crawl_scheduler(data_dir: Path | None, log_dir: Path) -> subprocess.Popen | None:
     """通过 watchdog 启动 crawl_scheduler_worker，watchdog 负责崩溃后自动重启。
 
-    frozen 模式下通过 ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE=1 让子进程以
+    frozen 模式下通过 RESEARCH_SCHEDULER_WATCHDOG_MODE=1 让子进程以
     scheduler watchdog 模式启动；dev 模式下直接用 sys.executable 运行
     workers.watchdog 模块并传入 --worker crawl_scheduler_worker 参数。
 
     stdout/stderr 重定向到 log_dir/crawl_scheduler_worker.log。
     """
-    logger = logging.getLogger("alphafoundry.desktop")
+    logger = logging.getLogger("research_workbench.desktop")
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
         sched_log = log_dir / "crawl_scheduler_worker.log"
@@ -212,7 +212,7 @@ def _start_crawl_scheduler(data_dir: Path | None, log_dir: Path) -> subprocess.P
         pid_file = str(log_dir / "scheduler_watchdog.pid")
         if is_frozen():
             cmd = [sys.executable]
-            child_env = {**os.environ, "ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE": "1"}
+            child_env = {**os.environ, "RESEARCH_SCHEDULER_WATCHDOG_MODE": "1"}
         else:
             cmd = [
                 sys.executable,
@@ -221,7 +221,7 @@ def _start_crawl_scheduler(data_dir: Path | None, log_dir: Path) -> subprocess.P
                 "--worker",
                 "crawl_scheduler_worker",
                 "--worker-mode-env",
-                "ALPHAFOUNDRY_SCHEDULER_MODE",
+                "RESEARCH_SCHEDULER_MODE",
                 "--pid-file",
                 pid_file,
             ]
@@ -243,7 +243,7 @@ def _start_crawl_scheduler(data_dir: Path | None, log_dir: Path) -> subprocess.P
 
 def _kill_stale_process_on_port(host: str, port: int) -> bool:
     """Check whether the desktop listener port is available without touching other processes."""
-    logger = logging.getLogger("alphafoundry.desktop")
+    logger = logging.getLogger("research_workbench.desktop")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(1)
         if sock.connect_ex((host, port)) != 0:
@@ -285,10 +285,10 @@ def run_backend(host: str, port: int, reload: bool) -> None:
     # 桌面端关闭后 worker/sidecar 子进程可能残留在 Windows 上
     # 继续占用端口，导致下次启动失败。此处自动检测并强杀。
     if not _kill_stale_process_on_port(host, port):
-        _logger = logging.getLogger("alphafoundry.desktop")
+        _logger = logging.getLogger("research_workbench.desktop")
         _logger.error(
             "Cannot free port %s:%d — startup aborted. "
-            "Please check for non-AlphaFoundry processes using this port.",
+            "Please check for non-Research Workbench processes using this port.",
             host,
             port,
         )
@@ -317,25 +317,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     _require_loopback_host(args.host)
 
     # ── 开发模式自动启用 reload ──────────────────────────────────
-    # ALPHAFOUNDRY_DEV=1 时即使命令行没传 --reload 也自动启用，
+    # RESEARCH_DEV=1 时即使命令行没传 --reload 也自动启用，
     # 避免用户手动启动时忘记加 --reload 导致改代码不生效。
-    if not args.reload and os.environ.get("ALPHAFOUNDRY_DEV") == "1":
+    if not args.reload and os.environ.get("RESEARCH_DEV") == "1":
         args.reload = True
-        logging.getLogger("alphafoundry.desktop").info(
-            "Auto-enabled uvicorn reload (ALPHAFOUNDRY_DEV=1)"
+        logging.getLogger("research_workbench.desktop").info(
+            "Auto-enabled uvicorn reload (RESEARCH_DEV=1)"
         )
 
-    os.environ["ALPHAFOUNDRY_DESKTOP"] = "1"
-    os.environ["ALPHAFOUNDRY_RUN_MODE"] = "desktop"
-    os.environ["ALPHAFOUNDRY_BACKEND_URL"] = f"http://{args.host}:{args.port}"
+    os.environ["RESEARCH_DESKTOP"] = "1"
+    os.environ["RESEARCH_RUN_MODE"] = "desktop"
+    os.environ["RESEARCH_BACKEND_URL"] = f"http://{args.host}:{args.port}"
 
     data_dir = apply_frozen_desktop_defaults()
     if data_dir is not None and args.log_dir == DEFAULT_LOG_DIR:
         args.log_dir = data_dir / "logs"
     log_file = configure_launcher_logging(args.log_dir)
-    logger = logging.getLogger("alphafoundry.desktop")
-    os.environ.setdefault("ALPHAFOUNDRY_DESKTOP", "1")
-    os.environ.setdefault("ALPHAFOUNDRY_DESKTOP_URL", f"http://{args.host}:{args.port}")
+    logger = logging.getLogger("research_workbench.desktop")
+    os.environ.setdefault("RESEARCH_DESKTOP", "1")
+    os.environ.setdefault("RESEARCH_DESKTOP_URL", f"http://{args.host}:{args.port}")
 
     _worker_proc: subprocess.Popen | None = None
     _sched_proc: subprocess.Popen | None = None
@@ -351,7 +351,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "unexpected_error",
         )
     else:
-        if os.environ.get("ALPHAFOUNDRY_PREVIEW") == "1":
+        if os.environ.get("RESEARCH_PREVIEW") == "1":
             logger.info("Skipped background workers for isolated desktop preview")
         elif readiness.ready:
             _worker_proc = _start_knowledge_worker(data_dir, args.log_dir)
@@ -364,12 +364,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         logger.info(
-            "Starting AlphaFoundry desktop backend",
+            "Starting Research Workbench desktop backend",
             extra={"host": args.host, "port": args.port, "log_file": str(log_file)},
         )
         run_backend(args.host, args.port, args.reload)
     except Exception:
-        logger.exception("AlphaFoundry desktop backend failed")
+        logger.exception("Research Workbench desktop backend failed")
         return 1
     finally:
         # uvicorn 退出后，优雅终止 watchdog（守护 knowledge_worker）和 scheduler。
@@ -392,13 +392,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     # frozen 模式下通过环境变量区分运行模式
-    if os.environ.get("ALPHAFOUNDRY_WATCHDOG_MODE") == "1":
+    if os.environ.get("RESEARCH_WATCHDOG_MODE") == "1":
         # knowledge worker watchdog 子进程模式：拉起并守护 knowledge_worker
         apply_frozen_desktop_defaults()
         from workers.watchdog import main as watchdog_main
 
         watchdog_main()
-    elif os.environ.get("ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE") == "1":
+    elif os.environ.get("RESEARCH_SCHEDULER_WATCHDOG_MODE") == "1":
         # crawl scheduler watchdog 子进程模式：拉起并守护 crawl_scheduler_worker
         apply_frozen_desktop_defaults()
         import sys as _sys
@@ -408,14 +408,14 @@ if __name__ == "__main__":
             "--worker",
             "crawl_scheduler_worker",
             "--worker-mode-env",
-            "ALPHAFOUNDRY_SCHEDULER_MODE",
+            "RESEARCH_SCHEDULER_MODE",
             "--pid-file",
             str(Path(os.environ.get("LOG_DIR", "logs")) / "scheduler_watchdog.pid"),
         ]
         from workers.watchdog import main as watchdog_main
 
         watchdog_main()
-    elif os.environ.get("ALPHAFOUNDRY_WORKER_MODE") == "1":
+    elif os.environ.get("RESEARCH_WORKER_MODE") == "1":
         # knowledge worker 子进程模式
         apply_frozen_desktop_defaults()
         import asyncio
@@ -423,7 +423,7 @@ if __name__ == "__main__":
         from workers.knowledge_worker import main as worker_main
 
         asyncio.run(worker_main())
-    elif os.environ.get("ALPHAFOUNDRY_SCHEDULER_MODE") == "1":
+    elif os.environ.get("RESEARCH_SCHEDULER_MODE") == "1":
         # crawl scheduler 子进程模式
         apply_frozen_desktop_defaults()
         from workers.crawl_scheduler_worker import main as scheduler_main

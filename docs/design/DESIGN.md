@@ -1,8 +1,8 @@
-# AlphaFoundry DESIGN.md
+# Research Workbench DESIGN.md
 
 ## Product Identity
 
-AlphaFoundry is an AI-native financial research operating system.
+Research Workbench is an AI-native financial research operating system.
 
 The interface should feel like:
 

@@ -1,8 +1,8 @@
-# AlphaFoundry × LSH Merged Platform V1 Implementation Plan
+# Research Workbench × LSH Merged Platform V1 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将 AlphaFoundry 与 LSH 的可迁移能力收敛为一个 PostgreSQL 事实源、一个 FastAPI 业务内核、四个边界清晰的产品模块，以及可选的 DSH Runtime 侧车。
+**Goal:** 将 Research Workbench 与 LSH 的可迁移能力收敛为一个 PostgreSQL 事实源、一个 FastAPI 业务内核、四个边界清晰的产品模块，以及可选的 DSH Runtime 侧车。
 
 **Architecture:** 保持现有模块化单体和 Tauri + Python sidecar 交付形态。新增共享事实契约、主题观测、研究工作区、观察列表与提醒等领域对象；现有 Research Run、资产、指数、ETF、基金、Evidence 与 Connector 作为底座复用。DSH 只实现 `RuntimeProvider`，不得直接读写数据库。
 

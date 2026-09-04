@@ -6,15 +6,15 @@ from pathlib import Path
 def test_desktop_runtime_uses_local_data_directory_and_desktop_backend_url(monkeypatch, tmp_path):
     from core.settings import runtime
 
-    monkeypatch.setenv("ALPHAFOUNDRY_RUN_MODE", "desktop")
-    monkeypatch.delenv("ALPHAFOUNDRY_CONFIG_FILE", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_BACKEND_URL", raising=False)
-    monkeypatch.setattr(runtime, "app_data_dir", lambda: tmp_path / "Local" / "AlphaFoundry")
+    monkeypatch.setenv("RESEARCH_RUN_MODE", "desktop")
+    monkeypatch.delenv("RESEARCH_CONFIG_FILE", raising=False)
+    monkeypatch.delenv("RESEARCH_BACKEND_URL", raising=False)
+    monkeypatch.setattr(runtime, "app_data_dir", lambda: tmp_path / "Local" / "Research Workbench")
 
     context = runtime.resolve_runtime_context(environ=dict(__import__("os").environ))
 
     assert context.mode == "desktop"
-    assert context.data_dir == tmp_path / "Local" / "AlphaFoundry"
+    assert context.data_dir == tmp_path / "Local" / "Research Workbench"
     assert context.env_path == context.data_dir / ".env"
     assert context.backend_url == "http://127.0.0.1:8765"
     assert context.can_write_config is True
@@ -26,9 +26,9 @@ def test_explicit_config_file_and_backend_url_override_mode_defaults(monkeypatch
     config_file = tmp_path / "controlled.env"
     context = resolve_runtime_context(
         environ={
-            "ALPHAFOUNDRY_RUN_MODE": "desktop",
-            "ALPHAFOUNDRY_CONFIG_FILE": str(config_file),
-            "ALPHAFOUNDRY_BACKEND_URL": "https://api.example.invalid/base/",
+            "RESEARCH_RUN_MODE": "desktop",
+            "RESEARCH_CONFIG_FILE": str(config_file),
+            "RESEARCH_BACKEND_URL": "https://api.example.invalid/base/",
         },
         project_root=tmp_path / "project",
     )
@@ -41,7 +41,7 @@ def test_web_production_does_not_implicitly_read_project_env(tmp_path):
     from core.settings.runtime import resolve_runtime_context
 
     context = resolve_runtime_context(
-        environ={"ALPHAFOUNDRY_RUN_MODE": "web-prod"},
+        environ={"RESEARCH_RUN_MODE": "web-prod"},
         project_root=tmp_path,
     )
 
@@ -55,7 +55,7 @@ def test_web_development_uses_project_env(tmp_path):
     from core.settings.runtime import resolve_runtime_context
 
     context = resolve_runtime_context(
-        environ={"ALPHAFOUNDRY_RUN_MODE": "web-dev"},
+        environ={"RESEARCH_RUN_MODE": "web-dev"},
         project_root=tmp_path,
     )
 
@@ -66,11 +66,11 @@ def test_web_development_uses_project_env(tmp_path):
 def test_legacy_desktop_marker_is_supported(monkeypatch, tmp_path):
     from core.settings.runtime import resolve_runtime_context
 
-    monkeypatch.setattr("core.settings.runtime.app_data_dir", lambda: tmp_path / "AlphaFoundry")
-    context = resolve_runtime_context(environ={"ALPHAFOUNDRY_DESKTOP": "1"})
+    monkeypatch.setattr("core.settings.runtime.app_data_dir", lambda: tmp_path / "Research Workbench")
+    context = resolve_runtime_context(environ={"RESEARCH_DESKTOP": "1"})
 
     assert context.mode == "desktop"
-    assert context.env_path == tmp_path / "AlphaFoundry" / ".env"
+    assert context.env_path == tmp_path / "Research Workbench" / ".env"
 
 
 def test_runtime_context_rejects_unknown_mode(tmp_path):
@@ -78,10 +78,10 @@ def test_runtime_context_rejects_unknown_mode(tmp_path):
 
     try:
         resolve_runtime_context(
-            environ={"ALPHAFOUNDRY_RUN_MODE": "unsupported"}, project_root=tmp_path
+            environ={"RESEARCH_RUN_MODE": "unsupported"}, project_root=tmp_path
         )
     except RuntimeConfigurationError as exc:
-        assert "ALPHAFOUNDRY_RUN_MODE" in str(exc)
+        assert "RESEARCH_RUN_MODE" in str(exc)
     else:
         raise AssertionError("Expected RuntimeConfigurationError")
 
@@ -104,8 +104,8 @@ def test_desktop_settings_default_storage_uses_application_data_directory(monkey
     context = RuntimeContext(
         mode="desktop",
         project_root=tmp_path / "project",
-        data_dir=tmp_path / "AlphaFoundry",
-        env_path=tmp_path / "AlphaFoundry" / ".env",
+        data_dir=tmp_path / "Research Workbench",
+        env_path=tmp_path / "Research Workbench" / ".env",
         backend_url="http://127.0.0.1:8765",
         can_write_config=True,
     )
@@ -136,7 +136,7 @@ def test_resolve_runtime_env_path_delegates_to_context(tmp_path):
     from core.settings.config import resolve_runtime_env_path
 
     resolved = resolve_runtime_env_path(
-        environ={"ALPHAFOUNDRY_CONFIG_FILE": str(tmp_path / "explicit.env")},
+        environ={"RESEARCH_CONFIG_FILE": str(tmp_path / "explicit.env")},
         project_root=tmp_path,
     )
 

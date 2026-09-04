@@ -1,34 +1,46 @@
 {
   "schema_version": 1,
   "diagram_type": "architecture",
-  "meta": {"title": "Research Web · 源码模块依赖", "quality_profile": "showcase", "legend": {"entries": {"frontend": {"label": "前端模块"}, "backend": {"label": "后端模块"}, "database": {"label": "版本与资料服务"}, "external": {"label": "原生运行时"}}}},
-  "layout": {"mode": "grid", "origin": [40,70], "cols": 4, "cellW": 200, "cellH": 86, "gapX": 115, "gapY": 135},
+  "meta": {"title": "Research Web 模块依赖、服务管理与 DataHub 边界", "output": "02-module-dependencies.html", "quality_profile": "showcase", "viewBox": [1320, 700], "views": [
+    {"id": "catalog", "label": "启动与浏览目录", "focus": ["serviceManager", "browser", "dataUi", "routes", "catalog"], "note": "服务启动后，目录读取只访问静态声明和安全化状态，不实例化连接器。"},
+    {"id": "query", "label": "审批后取数", "focus": ["dsh", "nativeTool", "routes", "broker", "providers", "sources"], "note": "DSH 只提交业务参数，DataHub 在白名单内选源并执行已适配 Provider。"},
+    {"id": "snapshot", "label": "共享与迁移快照", "focus": ["providers", "dataMigration", "snapshots", "routes", "browser", "dsh"], "note": "解析和迁移结果均核验归属与哈希，Web 与子 Agent 读取同一会话快照。"}
+  ]},
   "components": [
-    {"id": "web-controller", "type": "frontend", "label": "页面控制器", "sublabel": "app.mjs · core.mjs", "row": 0, "col": 0, "size": [200,86]},
-    {"id": "web-api", "type": "backend", "label": "Web API 入口", "sublabel": "main.py · 同源边界", "row": 0, "col": 1, "size": [200,86]},
-    {"id": "research-service", "type": "backend", "label": "研究服务", "sublabel": "service.py · projection.py", "row": 0, "col": 2, "size": [200,86]},
-    {"id": "dsh-transport", "type": "backend", "label": "DSH 适配", "sublabel": "client.py · 有限 RPC 与双 WS", "row": 0, "col": 3, "size": [200,86]},
-    {"id": "ui-modules", "type": "frontend", "label": "独立交互模块", "sublabel": "产品壳 · 输入框 · 能力与编辑器", "row": 1, "col": 0, "size": [200,86]},
-    {"id": "domain-routers", "type": "backend", "label": "领域接口", "sublabel": "capabilities / datahub routes", "row": 1, "col": 1, "size": [200,86]},
-    {"id": "owned-files", "type": "database", "label": "归属与文件交付", "sublabel": "store.py · delivery.py · 沙箱", "row": 1, "col": 2, "size": [200,86]},
-    {"id": "native-dsh", "type": "external", "label": "专属 DSH", "sublabel": "原生循环 · 工具 · Skill · 子 Agent", "row": 1, "col": 3, "size": [200,86]},
-    {"id": "capability-packages", "type": "database", "label": "能力包管理", "sublabel": "catalog · packages · models", "row": 2, "col": 0, "size": [200,86]},
-    {"id": "data-services", "type": "database", "label": "DataHub 服务", "sublabel": "providers · snapshots · security", "row": 2, "col": 1, "size": [200,86]}
+    {"id": "serviceManager", "type": "backend", "label": "服务管理器", "sublabel": "rwb web · 归属 / 健康 / 回滚", "pos": [430, 70], "size": [165, 68]},
+    {"id": "browser", "type": "frontend", "label": "Research Web", "sublabel": "FinGPT / Claw / 能力中心", "pos": [40, 210], "size": [150, 68]},
+    {"id": "dataUi", "type": "frontend", "label": "数据目录 UI", "sublabel": "能力 / 来源双视图", "pos": [235, 210], "size": [150, 68]},
+    {"id": "routes", "type": "backend", "label": "FastAPI 数据路由", "sublabel": "/api/research/data", "pos": [430, 210], "size": [165, 68]},
+    {"id": "catalog", "type": "backend", "label": "静态能力目录", "sublabel": "13 能力 / 21 来源 / 绑定", "pos": [680, 70], "size": [170, 70]},
+    {"id": "broker", "type": "backend", "label": "DataHub 路由", "sublabel": "过滤 / 选源 / 参数翻译", "pos": [680, 210], "size": [170, 70]},
+    {"id": "providers", "type": "backend", "label": "已适配 Provider", "sublabel": "东方财富基金 / 财联社", "pos": [900, 210], "size": [170, 70]},
+    {"id": "sources", "type": "external", "label": "注册数据来源", "sublabel": "正式 / DataHub / 旧适配器", "pos": [1110, 210], "size": [150, 70]},
+    {"id": "snapshots", "type": "database", "label": "会话数据快照", "sublabel": "JSON / CSV / Manifest / Hash", "pos": [900, 400], "size": [170, 72]},
+    {"id": "dsh", "type": "external", "label": "DSH", "sublabel": "唯一研究执行引擎", "pos": [235, 400], "size": [150, 68]},
+    {"id": "nativeTool", "type": "security", "label": "datahub_* Tool", "sublabel": "原生审批 / Guard 白名单", "pos": [450, 400], "size": [165, 72]}
+    ,{"id": "dataMigration", "type": "security", "label": "研究数据迁移", "sublabel": "白名单复制 / SHA-256 核验", "pos": [900, 550], "size": [170, 72]}
+  ],
+  "boundaries": [
+    {"kind": "security-group", "label": "FastAPI 进程内 DataHub", "wraps": ["serviceManager", "routes", "catalog", "broker", "providers", "snapshots", "dataMigration"]},
+    {"kind": "security-group", "label": "受控研究执行", "wraps": ["dsh", "nativeTool"]}
   ],
   "connections": [
-    {"id": "web-product-api", "from": "web-controller", "to": "web-api", "label": "REST / SSE", "variant": "emphasis"},
-    {"id": "api-research", "from": "web-api", "to": "research-service", "label": "会话与审批", "variant": "emphasis"},
-    {"id": "service-client", "from": "research-service", "to": "dsh-transport", "label": "原生协议", "variant": "emphasis"},
-    {"id": "web-components", "from": "web-controller", "to": "ui-modules", "label": "导入并接线", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
-    {"id": "api-routers", "from": "web-api", "to": "domain-routers", "label": "挂载路由", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
-    {"id": "service-files", "from": "research-service", "to": "owned-files", "label": "索引与交付", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
-    {"id": "client-dsh", "from": "dsh-transport", "to": "native-dsh", "label": "回环传输", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
-    {"id": "routes-packages", "from": "domain-routers", "to": "capability-packages", "label": "能力生命周期"},
-    {"id": "routes-data", "from": "domain-routers", "to": "data-services", "label": "取数与快照", "fromSide": "bottom", "toSide": "top", "labelDy": 24}
+    {"id": "manageStack", "from": "serviceManager", "to": "routes", "label": "启动 8088 / 3081 并检查", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [513, 152]},
+    {"id": "openData", "from": "browser", "to": "dataUi", "label": "选择数据页", "labelAt": [213, 194]},
+    {"id": "readCatalog", "from": "dataUi", "to": "routes", "label": "GET 静态目录", "variant": "emphasis", "labelAt": [408, 194]},
+    {"id": "catalogRead", "from": "routes", "to": "catalog", "label": "声明与状态"},
+    {"id": "submitBusiness", "from": "dsh", "to": "nativeTool", "label": "业务 Tool 调用", "variant": "security", "labelAt": [418, 490]},
+    {"id": "internalQuery", "from": "nativeTool", "to": "routes", "label": "认证回环请求", "variant": "security", "fromSide": "top", "toSide": "bottom", "via": [[532.5, 330], [512.5, 330]], "labelAt": [575, 340]},
+    {"id": "routeQuery", "from": "routes", "to": "broker", "label": "BusinessQuery", "variant": "emphasis", "labelAt": [710, 290]},
+    {"id": "selectProvider", "from": "broker", "to": "providers", "label": "白名单选源", "variant": "emphasis", "labelAt": [875, 194]},
+    {"id": "fetchSource", "from": "providers", "to": "sources", "label": "固定目标请求", "variant": "security", "labelAt": [1090, 194]},
+    {"id": "publishSnapshot", "from": "providers", "to": "snapshots", "label": "标准化后发布", "variant": "emphasis", "labelAt": [1040, 335]},
+    {"id": "readDataset", "from": "snapshots", "to": "routes", "label": "会话归属读取", "fromSide": "left", "toSide": "bottom", "via": [[780, 436], [780, 310], [512.5, 310]], "labelAt": [820, 420]},
+    {"id": "migrateData", "from": "dataMigration", "to": "snapshots", "label": "核验后导入研究状态", "variant": "security", "fromSide": "top", "toSide": "bottom"}
   ],
   "cards": [
-    {"dot": "cyan", "title": "前端分工", "items": ["目录、详情、编辑器与显式操作控制器分开", "输入框和首页消费同一能力目录"]},
-    {"dot": "amber", "title": "研究服务共享边界", "items": ["能力目录变更与研究提交共用互斥锁", "图示主要依赖，细节以模块与接口清单为准"]},
-    {"dot": "rose", "title": "唯一执行引擎", "items": ["原生 DSH 执行，Web 不增加 Agent 编排器", "运行状态与文件交付分别计算"]}
+    {"dot": "cyan", "title": "目录不等于连接", "items": ["代码存在、适配、配置、健康和允许调用分别展示", "打开或刷新目录不联网、不启动 Excel、不产生费用"]},
+    {"dot": "emerald", "title": "稳定业务契约", "items": ["新工具使用 datahub_* 子系统前缀，与产品品牌解耦", "来源参数只能使用目录 ID，不能传 URL、凭据、模块或路径"]},
+    {"dot": "rose", "title": "当前真实边界", "items": ["仅东方财富基金与财联社完成按需 Provider 适配", "服务管理器只操作指纹一致进程；迁移不复制凭据或控制令牌"]}
   ]
 }

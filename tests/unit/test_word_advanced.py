@@ -38,7 +38,7 @@ def multi_section_doc():
     """多章节文档，用于测试页眉/页脚/目录."""
     return Document(
         document_id="test_w_adv_001",
-        title="AlphaFoundry 周报",
+        title="Research Workbench 周报",
         subtitle="2026年第29周",
         sections=[
             Section(
@@ -94,7 +94,7 @@ def multi_section_doc():
                 ],
             ),
         ],
-        metadata={"author": "AlphaFoundry AI", "date": "2026-07-20"},
+        metadata={"author": "Research Workbench AI", "date": "2026-07-20"},
     )
 
 

@@ -2,7 +2,7 @@
 Core contracts for the timing engine (factors, event study metrics, readiness score).
 
 This module defines Pydantic models for the timing engine, including timing factors,
-event study metrics, and readiness score in AlphaFoundry.
+event study metrics, and readiness score in Research Workbench.
 """
 
 from typing import List

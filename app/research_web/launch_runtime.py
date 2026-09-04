@@ -43,7 +43,7 @@ def prepare(
             raise RuntimeError("Runtime 目录不可为符号链接")
     if (work / ".env").exists() or (home / ".env").exists():
         raise RuntimeError("专属 Runtime 中存在未授权 .env，拒绝隐式导入")
-    preset = home / ".agent-presets" / "alphafoundry-research"
+    preset = home / ".agent-presets" / "research-web"
     preset.mkdir(parents=True, exist_ok=True, mode=0o700)
     package = Path(__file__).parent / "runtime"
     if research_tools:
@@ -71,26 +71,26 @@ def prepare(
             [
                 "- id: llm-deepseek",
                 "  config:",
-                "    apiKeyEnv: ALPHAFOUNDRY_DSH_API_KEY",
+                "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "    thinking: disabled",
                 "    maxTokens: 4096",
                 "- id: web-search-deepseek",
                 "  config:",
-                "    apiKeyEnv: ALPHAFOUNDRY_DSH_API_KEY",
+                "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "- id: agent-default-model",
                 "  config:",
                 "    provider: deepseek-official",
                 "    model: deepseek-v4-flash",
                 "- id: agent-presets",
                 "  config:",
-                "    default: alphafoundry-research",
+                "    default: research-web",
                 "- id: session-title-llm",
                 "  disabled: true",
                 "- id: tools",
                 "  config:",
                 "    mode: native",
                 "- insert:",
-                "    - id: alphafoundry-tool-guard",
+                "    - id: research-tool-guard",
                 f"      name: {json.dumps(str(guard))}",
                 "      config:",
                 f"        enabled: {'true' if research_tools else 'false'}",

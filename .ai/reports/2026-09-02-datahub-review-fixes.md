@@ -11,7 +11,7 @@
 
 ## RED / GREEN
 
-以下`python`均为`/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`；测试仅MockTransport，日志中的HTTP目的地不是实际网络访问。
+以下`python`均为`python`；测试仅MockTransport，日志中的HTTP目的地不是实际网络访问。
 
 - 升级RED：`python -m pytest tests/research_web/test_api.py::test_datahub_read_only_catalog_authenticated_queries_and_upgrade --confcutdir=tests/research_web -q`，1 failed，追加handoff为空而缺少origin_dataset_id。仅实现映射后同命令1 passed / 0.51s。
 - 进程中断RED：`python -m pytest tests/research_web/test_datahub.py::test_crash_between_snapshot_renames_does_not_poison_catalog_or_retry_pending --confcutdir=tests/research_web -q`，1 failed / 0.24s，重建Hub后summaries在公共UUID缺失处抛StoreError。测试通过在第二次rename前抛BaseException模拟进程退出，不执行常规异常清理；重建对象使用同一磁盘资料和新HTTP客户端。

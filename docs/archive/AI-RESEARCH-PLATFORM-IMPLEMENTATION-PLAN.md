@@ -1,8 +1,8 @@
-# AlphaFoundry Implementation Plan
+# Research Workbench Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build AlphaFoundry as a local-first AI research intelligence and alpha discovery platform based on `/Users/leon/Downloads/deep-research-report.md`.
+**Goal:** Build Research Workbench as a local-first AI research intelligence and alpha discovery platform based on `/Users/leon/Downloads/deep-research-report.md`.
 
 **Architecture:** Build a modular monolith with explicit contracts, a PostgreSQL canonical fact store, a model gateway, structured event/assertion extraction, scenario reasoning, template report composition, and research-only signal validation. Existing code is treated as legacy material and must not constrain the new architecture.
 
@@ -65,9 +65,9 @@ Primary responsibilities:
 
 ```toml
 [project]
-name = "alphafoundry"
+name = "research_workbench"
 version = "0.1.0"
-description = "AlphaFoundry: local-first AI research intelligence and alpha discovery platform"
+description = "Research Workbench: local-first AI research intelligence and alpha discovery platform"
 requires-python = ">=3.11"
 dependencies = [
   "pydantic>=2.7",
@@ -1064,7 +1064,7 @@ Expected: FAIL because `app.api.main` does not exist.
 # app/api/main.py
 from fastapi import FastAPI
 
-app = FastAPI(title="AlphaFoundry", version="0.1.0")
+app = FastAPI(title="Research Workbench", version="0.1.0")
 
 
 @app.get("/health")

@@ -1,7 +1,7 @@
 """
 通用文档模型契约 - Document / Section / DesignTokens.
 
-定义 AlphaFoundry 报告框架的顶层文档结构。Document 是任何内容结构
+定义 Research Workbench 报告框架的顶层文档结构。Document 是任何内容结构
 的统一容器，由 Section 组成，Section 由 ContentBlock 组成，
 ContentBlock 由 ContentElement 组成。
 

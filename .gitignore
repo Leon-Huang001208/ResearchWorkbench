@@ -46,7 +46,7 @@ credentials.json
 # Debug artifacts
 scripts/debug/
 
-# AlphaFoundry new
+# Research Workbench new
 # 忽略所有 .env 变体（含 .env、.env.local、.env_mac、.env.<host> 等备份），但保留模板
 .env*
 !.env.example

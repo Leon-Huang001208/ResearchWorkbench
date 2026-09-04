@@ -2,10 +2,10 @@
 
 用法:
     python -m workers.watchdog [--worker knowledge_worker] [--worker-id N]
-    python -m workers.watchdog --worker crawl_scheduler_worker [--worker-mode-env ALPHAFOUNDRY_SCHEDULER_MODE]
+    python -m workers.watchdog --worker crawl_scheduler_worker [--worker-mode-env RESEARCH_SCHEDULER_MODE]
 
 watchdog 自身由 desktop backend_launcher 启动（frozen 模式下通过
-ALPHAFOUNDRY_WATCHDOG_MODE=1 / ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE=1 进入
+RESEARCH_WATCHDOG_MODE=1 / RESEARCH_SCHEDULER_WATCHDOG_MODE=1 进入
 watchdog 模式），再由 watchdog spawn worker 子进程。worker 崩溃时 watchdog
 按指数退避自动重启，达到 MAX_RESTARTS_PER_HOUR 上限则放弃并退出。
 """
@@ -35,8 +35,8 @@ logger = get_logger(__name__)
 
 # 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
 PROJECT_DIR = (
-    Path(os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
-    if "ALPHAFOUNDRY_PROJECT_ROOT" in os.environ
+    Path(os.environ["RESEARCH_PROJECT_ROOT"])
+    if "RESEARCH_PROJECT_ROOT" in os.environ
     else Path(__file__).resolve().parent.parent
 )
 
@@ -78,7 +78,7 @@ _job_handle = None
 def _build_worker_cmd(worker_module: str, worker_id: int | None) -> list[str]:
     """构造 worker 子进程启动命令。
 
-    frozen 模式下复用同一个 exe，通过 ALPHAFOUNDRY_WORKER_MODE=1 让
+    frozen 模式下复用同一个 exe，通过 RESEARCH_WORKER_MODE=1 让
     backend_launcher 入口以 worker 模式启动；dev 模式直接用 conda Python
     运行 workers.{module} 模块。
     """
@@ -88,26 +88,26 @@ def _build_worker_cmd(worker_module: str, worker_id: int | None) -> list[str]:
 
 
 def _build_worker_env(
-    worker_id: int | None, worker_mode_env: str = "ALPHAFOUNDRY_WORKER_MODE"
+    worker_id: int | None, worker_mode_env: str = "RESEARCH_WORKER_MODE"
 ) -> dict[str, str]:
     """构造 worker 子进程环境变量。frozen 模式需注入运行模式标记。
 
     Args:
-        worker_id: 多实例 ID，注入为 ALPHAFOUNDRY_WORKER_ID（knowledge_worker 专用）。
+        worker_id: 多实例 ID，注入为 RESEARCH_WORKER_ID（knowledge_worker 专用）。
         worker_mode_env: frozen 模式下注入的运行模式环境变量名，默认为
-            ALPHAFOUNDRY_WORKER_MODE（knowledge_worker）；crawl_scheduler_worker
-            应传 ALPHAFOUNDRY_SCHEDULER_MODE。
+            RESEARCH_WORKER_MODE（knowledge_worker）；crawl_scheduler_worker
+            应传 RESEARCH_SCHEDULER_MODE。
     """
     env = dict(os.environ)
     # frozen watchdog 通过这些标记进入 launcher 的 watchdog 分支；worker 子进程
     # 不能继承它们，否则会再次作为 watchdog 启动而递归。
-    env.pop("ALPHAFOUNDRY_WATCHDOG_MODE", None)
-    env.pop("ALPHAFOUNDRY_SCHEDULER_WATCHDOG_MODE", None)
+    env.pop("RESEARCH_WATCHDOG_MODE", None)
+    env.pop("RESEARCH_SCHEDULER_WATCHDOG_MODE", None)
     if _is_frozen():
         env[worker_mode_env] = "1"
     if worker_id is not None:
-        # knowledge_worker.main() 读取 ALPHAFOUNDRY_WORKER_ID 作为多实例 ID
-        env["ALPHAFOUNDRY_WORKER_ID"] = str(worker_id)
+        # knowledge_worker.main() 读取 RESEARCH_WORKER_ID 作为多实例 ID
+        env["RESEARCH_WORKER_ID"] = str(worker_id)
     return env
 
 
@@ -129,7 +129,7 @@ def _terminate_child() -> None:
 def run_worker(
     worker_module: str,
     worker_id: int | None = None,
-    worker_mode_env: str = "ALPHAFOUNDRY_WORKER_MODE",
+    worker_mode_env: str = "RESEARCH_WORKER_MODE",
 ) -> int:
     """启动 worker 子进程，返回 exit code"""
     global _current_child, _job_handle
@@ -182,11 +182,11 @@ def main() -> None:
     )
     parser.add_argument(
         "--worker-mode-env",
-        default="ALPHAFOUNDRY_WORKER_MODE",
+        default="RESEARCH_WORKER_MODE",
         help=(
             "frozen 模式下注入子进程的运行模式环境变量名 "
-            "(default: ALPHAFOUNDRY_WORKER_MODE for knowledge_worker; "
-            "use ALPHAFOUNDRY_SCHEDULER_MODE for crawl_scheduler_worker)"
+            "(default: RESEARCH_WORKER_MODE for knowledge_worker; "
+            "use RESEARCH_SCHEDULER_MODE for crawl_scheduler_worker)"
         ),
     )
     parser.add_argument(

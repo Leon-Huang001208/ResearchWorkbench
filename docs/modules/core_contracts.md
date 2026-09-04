@@ -67,7 +67,7 @@ When files in this module change, check:
 | `core/contracts/ingestion_record.py` | 摄入记录契约：`IngestionRecord`、`IngestionStats`、`IngestionRunResult`、`ValidationReport` |
 | `core/contracts/retrieval.py` | 检索配置和 Profile：`RetrievalProfile`、`RetrievalFilters`、`RetrievalQuery` |
 | `core/contracts/outcome_journal.py` | 结果日志：`SignalOutcomeDB` |
-| `core/contracts/monitoring.py` | 生产监控告警、事件和健康指标契约；`Subsystem.RESOURCE_MONITORING` 标识仅属于 AlphaFoundry 资源监控的持久化事件 |
+| `core/contracts/monitoring.py` | 生产监控告警、事件和健康指标契约；`Subsystem.RESOURCE_MONITORING` 标识仅属于 Research Workbench 资源监控的持久化事件 |
 | `core/contracts/research.py` | 通用可恢复研究契约：`ResearchSubject` 统一股票、ETF、指数、商品、宏观和行业对象，`ResearchTemplateDefinition` 暴露模板能力；`ResearchRun` 配套任务、不可变产物、观点、质量门禁、证据输入和决策卡。旧 `target_id` 兼容映射为 security subject，证据分类由模板验证。 |
 | `core/contracts/platform_shared.py` | 合并平台共享核：稳定资产身份、无 userinfo/有 host 的结构化 HTTP 来源引用、六字段事实响应、新鲜度、Observation、持久领域事件与单飞调度契约；URL 对外仍为 string，公共时间字段拒绝 naive datetime。 |
 | `core/contracts/theme_research.py` | Research Pack Manifest、统一主题 Observation、主题快照与数据健康契约；Manifest 拒绝多余/空字段，数据集、KPI、产业链和资产引用必须唯一且可解析，只能引用受信任的内置 normalize/validate/derive 插件 ID。 |

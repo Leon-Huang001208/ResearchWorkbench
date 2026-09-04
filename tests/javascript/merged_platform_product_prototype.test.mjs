@@ -5,7 +5,7 @@ import test from 'node:test';
 const root = new URL('../../outputs/merged-platform-product-prototype/', import.meta.url);
 const text = (file) => readFile(new URL(file, root), 'utf8');
 const requiredFiles = [
-  'index.html', 'brand-spec.md', 'assets/alphafoundry-logo.png',
+  'index.html', 'brand-spec.md', 'assets/research-workbench-logo.png',
   'styles/tokens.css', 'styles/base.css', 'styles/shell.css',
   'styles/components.css', 'styles/pages.css', 'styles/responsive.css',
   'scripts/store.js', 'scripts/router.js', 'scripts/data-adapter.js',

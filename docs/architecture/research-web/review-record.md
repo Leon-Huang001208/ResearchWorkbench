@@ -44,3 +44,50 @@
 - 额外停止异常修复经28项正反向与并发回归、独立复审Approved；整套287 Python和123 JS通过，无skip。原610ba6cb异常任务保留verification_failed，新一轮真实模型已恢复，旧失败不被覆盖。
 - 图07按实际新路径重新生成，showcase9/9、零错误警告，四视口与1440深色/2048浅色人工查看绑定新哈希。八图其余拓扑未因文本状态核对制造无意义改动。
 - 最终15组布局、文档交互及模型旅程的只读回归通过；手动导入/发布/回滚与真实Workflow、自建Skill报告都保留实际版本和文件。详见 [最终报告](../../../.ai/reports/2026-09-03-research-ui-final.md)。
+
+## 2026-09-03 — Codex 风格与双色主题合入
+
+- 用户在侧对话批准视觉稿，并明确要求继续合入正式 Web；以已提交的 30748f7 为合入基线，保留完整能力中心和原生研究控制器。
+- 新增 theme.js / appearance.css，仅属现有 Web 展示组件内部：主题枚举保存在浏览器，不进入会话、Skill、DSH 或 DataHub。图 02 的“独立交互模块”仍涵盖产品壳；图 01 部署与图 03 请求序列无新增服务/接口/研究依赖，不制造无意义图源和回执变更。
+- 真实布局变化和源码对应写入 docs/research-web-ui.md、docs/research-web-appearance.md；清单补充主题和浏览器回归测试。原八图与绑定哈希视觉证据保持原样，未宣称本次重新生成或重新视觉验收架构图。
+- 本轮只读正式页面验证、前端回归及未覆盖边界见 .ai/reports/2026-09-03-research-web-appearance.md。
+- v2 保真修正：shell/composer/capabilities 仅调整呈现，新增静态 icons.mjs；800px 编辑区与四列首页卡片有测量基线，搜索改为按需弹层，模型并入输入栏。数据/接口与八图拓扑未改变。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"新增 Light/Dark 浏览器外观属于现有 Web 展示组件内部；单列导航和折叠面板不改变研究 API、能力调用、文件归属或 DSH 部署依赖，图02已以独立交互模块概括此层。","diagrams":[]} -->
+
+## 2026-09-04 — 全源数据目录与品牌无关 Tool
+
+- 能力中心新增“数据”页，以同一静态目录提供按业务能力、按数据来源两种视图。目录读取不联网；手动探测一次只针对一个来源。
+- 登记 13 项数据能力和 21 个来源，并拆分代码存在、完成适配、配置、依赖、允许调用、可调用和最近健康状态。当前仅东方财富基金与财联社进入真实 Provider 路由。
+- 新研究 Tool 改用稳定子系统前缀 `datahub_*`，与 Research Workbench 品牌解耦；`datahub_get_fund_data` 是正式基金能力工具，不要求未来产品改名时迁移协议。
+- 图 02、03、04 按实际目录、路由、原生审批、Provider 和会话快照重新建模；图 01、05–08 的部署、能力包生命周期、运行状态、交付状态和文档门禁拓扑未改变。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"能力中心新增数据目录模块、双视图、来源矩阵、详情与单源探测交互。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"新增静态能力/来源目录、业务查询路由、Provider 就绪状态与探测，并把选源和快照纳入真实研究序列。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"原生桥新增十三个品牌无关 datahub_* Tool，审批后调用业务查询入口；旧工具只保留兼容。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"capabilities","structure":"changed","reason":"只读 Tool 目录加入十三个 DataHub 业务能力，并按实际可调用 Provider 控制可选择状态。","diagrams":["02-module-dependencies"]} -->
+
+- 最终浏览器验收发现手动探测完成后，当前来源详情仍保留旧的 `health=untested`；已先加入失败回归，再让 UI 在目录刷新后只重读同一来源详情。复验财联社显示“已接入 / 健康”，网络记录没有探测其他来源。该修复属于既有单源探测交互内部状态同步，不增加模块、接口或拓扑，因此不再次制造图源改动；02/03/04 已覆盖来源详情、单源探测和目录刷新关系。
+- 命名收口后运行时只注册 `research_run_script` 与 `datahub_*` 子系统工具；旧产品前缀脚本和数据工具不再保留。`datahub_get_fund_data` 继续作为正式基金能力工具参与新草稿与消息受理。
+
+## 2026-09-04 — Research Workbench 全仓身份与持久化启动
+
+- 对外名称、Python distribution、CLI、桌面 sidecar、bundle、数据库默认名、数据目录、主题键、环境变量和运行时工具完成硬切换；当前产品不再发布旧 CLI 或旧产品前缀工具。
+- 新增 `service_manager.py` 与 `rwb web start|status|stop|restart`。管理器固定项目 3081/8088，持久化 PID、命令指纹、项目路径和数据根；启动健康检查失败只回滚本次进程，停止不操作用户原有 3080。
+- 新增 `data_migration.py` 与 `rwb migrate-research-data`。迁移通过文件数、大小与 SHA-256 核对会话、附件、能力、数据集、产物和原生历史；不复制模型凭据、DataHub 控制令牌、overlay、临时文件或日志。
+- DataHub 只保留 `business-query` 与 13 个业务工具；删除旧平行目录和查询接口。Tool 目录当前为 8 个研究/控制工具加 13 个数据工具。
+- 部署图、模块依赖图和研究序列图因后台服务管理、迁移和硬切接口变化重新生成；DataHub 文件流、能力生命周期、运行/交付状态及文档更新拓扑没有语义变化，不制造无意义图源改动。
+
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"新增项目级3081/8088持久进程管理、归属指纹、健康等待和失败回滚；删除旧产品工具注册。","diagrams":["01-deployment","02-module-dependencies"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"DataHub只保留品牌无关business-query；研究提交继续通过DSH原生审批和SSE恢复。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"files","structure":"changed","reason":"新增旧研究数据的白名单复制、哈希核验和只读归档，明确排除凭据与运行时生成文件。","diagrams":["01-deployment","02-module-dependencies"]} -->
+- 本轮完整 Research Web 回归为 308 项 Python 通过、133 项 JavaScript 通过，零失败零跳过。新增服务管理与迁移模块通过 Ruff、Black、isort 及隔离依赖的 mypy；全仓 Ruff 仍有 123 个旧 CLI 历史规则问题，未把旧基线误报为本轮通过。macOS Tauri debug app bundle 已构建；Windows 原生 CI 与真实安装冒烟另行记录。真实公开最小探测仅验证东方财富基金和财联社当时健康，不把其余登记来源称为已接入。
+
+### 改名与持久服务最终结构判定
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"品牌资源、标题、ARIA 与主题存储键完成硬切换，仍由既有产品壳模块提供，不新增前端运行边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增项目级持久服务管理并保持既有研究 RPC、SSE 与恢复协议，部署边界已反映到图01。","diagrams":["01-deployment"]} -->
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"移除旧平行查询入口，运行时只经品牌无关 business-query 和 datahub_* 工具进入现有路由，更新图02与图03。","diagrams":["02-module-dependencies","03-research-sequence"]} -->
+<!-- architecture-review {"group":"files","structure":"changed","reason":"新增白名单研究数据复制、逐文件哈希核验与只读归档边界，更新部署和模块依赖图。","diagrams":["01-deployment","02-module-dependencies"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"专属3081与8088由持久进程管理器统一启动、核验和安全停止，3080明确排除在项目所有权外。","diagrams":["01-deployment","02-module-dependencies"]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力技术标识和依赖改为品牌无关命名，但包管理、版本发布和DSH调用边界保持不变。","diagrams":[]} -->

@@ -27,7 +27,7 @@ class TestPdfIntegration:
         assert result.strategy_used == "raw_text"
         assert result.page_count >= 1
         assert len(result.raw_text) > 0
-        assert "AlphaFoundry" in result.raw_text
+        assert "Research Workbench" in result.raw_text
         assert "<!-- page: 1 -->" in result.raw_text
         assert result.token_count > 0
         assert result.quality_score is not None

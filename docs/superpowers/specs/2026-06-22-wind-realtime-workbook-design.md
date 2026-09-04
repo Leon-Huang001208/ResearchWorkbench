@@ -2,12 +2,12 @@
 
 ## 背景
 
-AlphaFoundry 当前通过 `xlwings` 临时向 Excel 写入 Wind 公式，再等待单元格从
+Research Workbench 当前通过 `xlwings` 临时向 Excel 写入 Wind 公式，再等待单元格从
 `Fetching...` 变为结果。这个方式适合少量点查，不适合市场云图这种需要一次性
 比较数十到上百个指数的页面。
 
 Wind Excel 插件本身支持实时公式持续刷新。新的设计把 Wind 公式固定铺在一个
-专用工作簿里，让 Excel 负责实时刷新，AlphaFoundry 只读取已经刷好的快照。
+专用工作簿里，让 Excel 负责实时刷新，Research Workbench 只读取已经刷好的快照。
 
 ## 目标
 
@@ -51,26 +51,26 @@ wind_code,name,family,category,is_active,priority,is_concept,view_key,view_label
 默认路径（跨平台，由 `core/settings/paths.py` 解析）：
 
 ```text
-Windows: %LOCALAPPDATA%\AlphaFoundry\wind\AlphaFoundry_Wind_Realtime.xlsx
-macOS:   ~/Library/Application Support/AlphaFoundry/wind/AlphaFoundry_Wind_Realtime.xlsx
-Linux:   $XDG_DATA_HOME/AlphaFoundry/wind/AlphaFoundry_Wind_Realtime.xlsx
+Windows: %LOCALAPPDATA%\Research Workbench\wind\Research Workbench_Wind_Realtime.xlsx
+macOS:   ~/Library/Application Support/Research Workbench/wind/Research Workbench_Wind_Realtime.xlsx
+Linux:   $XDG_DATA_HOME/Research Workbench/wind/Research Workbench_Wind_Realtime.xlsx
 ```
 
 环境变量覆盖（优先级：显式参数 > 环境变量 > 平台默认）：
 
 ```text
-ALPHAFOUNDRY_WIND_WORKBOOK_PATH=/path/to/custom.xlsx
+RESEARCH_WIND_WORKBOOK_PATH=/path/to/custom.xlsx
 ```
 
 开发环境可选路径：
 
 ```text
-data/runtime/wind/AlphaFoundry_Wind_Realtime.xlsx
+data/runtime/wind/Research Workbench_Wind_Realtime.xlsx
 ```
 
 这个文件只用于本机运行，不提交到 git。后端启动时按配置查找工作簿；如果找不到
 或未打开，应返回清晰的健康状态，而不是阻塞页面。从旧 macOS 风格路径
-（`~/Library/Application Support/AlphaFoundry/wind/...`）升级时，
+（`~/Library/Application Support/Research Workbench/wind/...`）升级时，
 `WindWorkbookManager` 会自动将旧工作簿迁移到新规范路径，避免重新 prime 公式。
 
 ### Wind 插件登录检测
@@ -91,7 +91,7 @@ data/runtime/wind/AlphaFoundry_Wind_Realtime.xlsx
 
 内容包括：
 
-- 这个文件由 AlphaFoundry 维护。
+- 这个文件由 Research Workbench 维护。
 - 使用前需要打开 Excel 并登录 Wind 插件。
 - 不要手工修改公式区。
 - 若要新增指数，应改 `IndexCatalog` 或源 CSV。
@@ -114,7 +114,7 @@ expected_update_seconds,60,超过该秒数视为数据可能过期
 formula_version,1,公式模板版本
 last_generated_at,ISO时间,工作簿最后生成时间
 timezone,Asia/Shanghai,时间区域
-data_owner,AlphaFoundry,数据维护方
+data_owner,Research Workbench,数据维护方
 ```
 
 ### IndexCatalog
@@ -275,7 +275,7 @@ wind_index_catalog.csv
 工作簿生成/同步脚本
         |
         v
-AlphaFoundry_Wind_Realtime.xlsx
+Research Workbench_Wind_Realtime.xlsx
         |
         v
 Excel + Wind 插件持续刷新 RealtimeRaw
@@ -320,10 +320,10 @@ Snapshot / Health
 
 1. 更新 `data_sources/wind_index_catalog.csv`。
 2. 运行工作簿同步脚本。
-3. 打开 `AlphaFoundry_Wind_Realtime.xlsx`。
+3. 打开 `Research Workbench_Wind_Realtime.xlsx`。
 4. 等 Wind 插件刷新。
 5. 在 Health 页确认有效数量和更新时间。
-6. 在 AlphaFoundry 页面选择对应口径验证。
+6. 在 Research Workbench 页面选择对应口径验证。
 
 ## 测试计划
 

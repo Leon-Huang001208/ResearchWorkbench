@@ -18,7 +18,7 @@ class ConfigurationField:
 DESKTOP_CONFIGURATION_FIELDS = (
     ConfigurationField(
         key="DATABASE_URL",
-        default="postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry",
+        default="postgresql+psycopg://user:password@127.0.0.1:5432/research_workbench",
         secret=True,
         restart_required=True,
     ),
@@ -35,12 +35,12 @@ DESKTOP_CONFIGURATION_FIELDS = (
 
 def desktop_env_template() -> str:
     """Return the secure first-run desktop configuration template."""
-    return """# AlphaFoundry 桌面版配置
+    return """# Research Workbench 桌面版配置
 # 本文件由桌面版首次启动时生成。桌面端必须连接用户自行安装的 PostgreSQL + pgvector。
 # 保存 DATABASE_URL 后重启应用才会切换数据库连接。
 
 # 数据库（PostgreSQL + pgvector；使用 psycopg v3 驱动）
-DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
+DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/research_workbench
 
 # 日志级别
 LOG_LEVEL=INFO

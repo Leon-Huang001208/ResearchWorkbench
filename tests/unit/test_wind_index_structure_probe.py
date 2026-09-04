@@ -8,7 +8,7 @@ def test_build_probe_workbook_writes_formula_catalog_and_results(tmp_path):
 
     from services.wind_index_structure_probe import build_index_structure_probe_workbook
 
-    workbook_path = tmp_path / "AlphaFoundry_Wind_Index_Structure_Probe.xlsx"
+    workbook_path = tmp_path / "Research Workbench_Wind_Index_Structure_Probe.xlsx"
     build_index_structure_probe_workbook(
         workbook_path=workbook_path,
         trade_date="2026-06-24",

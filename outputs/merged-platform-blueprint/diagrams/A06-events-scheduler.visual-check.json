@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A06-events-scheduler.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A06-events-scheduler.html",
     "sha256": "7d78252970406dd4ba9eb31ebf0b436caa61cd4c7cf4786295d0a67ae6dfbd66",
     "bytes": 643130
   },

@@ -120,7 +120,7 @@
 ### Changed
 - 完成第一个里程碑：事实层与报告骨架
 
-[Unreleased]: https://github.com/leon/AlphaFoundry/compare/v0.3.0...HEAD
-[v0.3.0]: https://github.com/leon/AlphaFoundry/compare/v0.2.0...v0.3.0
-[v0.2.0]: https://github.com/leon/AlphaFoundry/compare/v0.1.0...v0.2.0
-[v0.1.0]: https://github.com/leon/AlphaFoundry/releases/tag/v0.1.0
+[Unreleased]: https://github.com/leon/Research Workbench/compare/v0.3.0...HEAD
+[v0.3.0]: https://github.com/leon/Research Workbench/compare/v0.2.0...v0.3.0
+[v0.2.0]: https://github.com/leon/Research Workbench/compare/v0.1.0...v0.2.0
+[v0.1.0]: https://github.com/leon/Research Workbench/releases/tag/v0.1.0

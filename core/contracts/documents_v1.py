@@ -1,5 +1,5 @@
 """
-AlphaFoundry v1 统一文档契约.
+Research Workbench v1 统一文档契约.
 
 本模块定义了 Issue #42 要求的统一文档 schema，支持多种来源类型（电报、新闻、研报、公众号、会议纪要等）
 映射到同一个主模型，并提供完整的元数据、分类、质量评分和时效性字段。
@@ -207,7 +207,7 @@ class DocumentReview(BaseModel):
 
 class DocumentV1(BaseModel):
     """
-    AlphaFoundry v1 统一文档模型.
+    Research Workbench v1 统一文档模型.
 
     这是 Issue #42 要求的统一 JSON 主 schema，整合了所有来源类型的文档。
     """

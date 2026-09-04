@@ -1,4 +1,4 @@
-# AF-AUTO-001-04: Phase 2 Coverage Report
+# RWB-AUTO-001-04: Phase 2 Coverage Report
 
 **Status**: Complete  
 **Completed**: 2026-05-11

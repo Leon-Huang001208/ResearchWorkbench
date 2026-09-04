@@ -21,8 +21,8 @@ def scenario_command(topic: str, output: str, subject: tuple) -> None:
     生成多情景分析报告
 
     示例:
-        af scenario --topic "美联储政策走向" --output report.md
-        af scenario -t "人工智能产业发展" -s 600519.SH -s 000001.SZ
+        rwb scenario --topic "美联储政策走向" --output report.md
+        rwb scenario -t "人工智能产业发展" -s 600519.SH -s 000001.SZ
     """
     click.echo(f"Generating scenario analysis for: {topic}")
 

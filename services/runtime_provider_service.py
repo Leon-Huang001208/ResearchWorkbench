@@ -35,7 +35,7 @@ def load_authorized_tool_registry() -> frozenset[str]:
 
     configured = {
         item.strip()
-        for item in os.environ.get("ALPHAFOUNDRY_AUTHORIZED_RESEARCH_TOOLS", "").split(",")
+        for item in os.environ.get("RESEARCH_AUTHORIZED_RESEARCH_TOOLS", "").split(",")
         if item.strip()
     }
     return frozenset(set(SAFE_INTERNAL_TOOL_IDS) | configured)
@@ -281,7 +281,7 @@ class ProductionResearchExecutionAdapters:
             raise ValueError("production provider adapter only accepts DSH")
         endpoint = self._resolve_local_dsh_endpoint(provider)
         request_hash = stable_runtime_request_hash(payload)
-        timeout_seconds = float(os.environ.get("ALPHAFOUNDRY_DSH_TIMEOUT_SECONDS", "30"))
+        timeout_seconds = float(os.environ.get("RESEARCH_DSH_TIMEOUT_SECONDS", "30"))
         if timeout_seconds <= 0:
             raise RuntimeBlockedError("DSH timeout must be positive", code="blocked_runtime")
         request_body = {
@@ -545,7 +545,7 @@ class ProductionResearchExecutionAdapters:
         if explicit is not None:
             return float(explicit)
         try:
-            rate = float(os.environ.get("ALPHAFOUNDRY_MODEL_COST_PER_1K_TOKENS", "0.01"))
+            rate = float(os.environ.get("RESEARCH_MODEL_COST_PER_1K_TOKENS", "0.01"))
         except ValueError as exc:
             raise RuntimeFailedError(
                 "Model cost configuration is invalid", code="invalid_model_cost_config"

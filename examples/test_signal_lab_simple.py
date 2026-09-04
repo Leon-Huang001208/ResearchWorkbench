@@ -52,7 +52,7 @@ import numpy as np
 import pandas as pd
 
 print("=" * 60)
-print("  AlphaFoundry Signal Lab - 简单测试")
+print("  Research Workbench Signal Lab - 简单测试")
 print("=" * 60)
 
 # Test 1: Features module

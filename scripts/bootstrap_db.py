@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Bootstrap database for AlphaFoundry: initialize schema, verify connectivity, seed minimal configuration.
+Bootstrap database for Research Workbench: initialize schema, verify connectivity, seed minimal configuration.
 
 Usage:
     python scripts/bootstrap_db.py
@@ -140,7 +140,7 @@ def verify_schema():
 def main():
     """Main bootstrap flow."""
     try:
-        logger.info("Starting AlphaFoundry database bootstrap...")
+        logger.info("Starting Research Workbench database bootstrap...")
         logger.info(f"Environment: {settings.APP_ENV}, Database: {engine.dialect.name}")
 
         # Step 1: Verify connectivity

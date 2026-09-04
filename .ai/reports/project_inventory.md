@@ -1,14 +1,14 @@
-# AlphaFoundry Project Inventory
+# Research Workbench Project Inventory
 
 > **Document Version**: 1.0  
 > **Audit Date**: 2026-05-10  
-> **Repository Path**: /Users/leon/Desktop/Projects/AlphaFoundry
+> **Repository Path**: /Users/leon/Desktop/Projects/ResearchWorkbench
 
 ---
 
 ## Executive Summary
 
-AlphaFoundry is a sophisticated, AI-native investment operating system built in Python. It employs a modular monolith architecture with PostgreSQL/pgvector as its primary data store. The system focuses on event-driven quantitative research and investment decision support.
+Research Workbench is a sophisticated, AI-native investment operating system built in Python. It employs a modular monolith architecture with PostgreSQL/pgvector as its primary data store. The system focuses on event-driven quantitative research and investment decision support.
 
 ### Key Statistics
 
@@ -31,7 +31,7 @@ AlphaFoundry is a sophisticated, AI-native investment operating system built in 
 ## Directory Structure
 
 ```
-AlphaFoundry/
+Research Workbench/
 ├── app/                           # Application Layer
 │   ├── api/                       # FastAPI REST API
 │   │   ├── main.py                # API entry point

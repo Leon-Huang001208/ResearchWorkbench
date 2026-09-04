@@ -2,13 +2,13 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_PATH="${ALPHAFOUNDRY_APP_PATH:-/Applications/AlphaFoundry.app}"
-BASE_URL="${ALPHAFOUNDRY_DESKTOP_URL:-http://127.0.0.1:8765}"
+APP_PATH="${RESEARCH_APP_PATH:-/Applications/Research Workbench.app}"
+BASE_URL="${RESEARCH_DESKTOP_URL:-http://127.0.0.1:8765}"
 HEALTH_URL="${BASE_URL%/}/health"
-MAX_ATTEMPTS="${ALPHAFOUNDRY_RESTART_HEALTH_ATTEMPTS:-90}"
-LOG_DIR="${ALPHAFOUNDRY_RESTART_LOG_DIR:-$REPO_ROOT/logs}"
+MAX_ATTEMPTS="${RESEARCH_RESTART_HEALTH_ATTEMPTS:-90}"
+LOG_DIR="${RESEARCH_RESTART_LOG_DIR:-$REPO_ROOT/logs}"
 LOG_FILE="$LOG_DIR/desktop-restart.log"
-ICON_SOURCE="${ALPHAFOUNDRY_ICON_SOURCE:-$REPO_ROOT/src-tauri/icons/icon.icns}"
+ICON_SOURCE="${RESEARCH_ICON_SOURCE:-$REPO_ROOT/src-tauri/icons/icon.icns}"
 ICON_DEST="$APP_PATH/Contents/Resources/icon.icns"
 PATCH_AUTOMATION_SCRIPT="$REPO_ROOT/scripts/desktop/patch_macos_automation_permissions.sh"
 
@@ -57,21 +57,21 @@ sync_installed_icon() {
 }
 
 if [[ ! -d "$APP_PATH" ]]; then
-  log "AlphaFoundry app is missing: $APP_PATH"
+  log "Research Workbench app is missing: $APP_PATH"
   exit 1
 fi
 
-log "Restarting AlphaFoundry from $APP_PATH"
+log "Restarting Research Workbench from $APP_PATH"
 sync_installed_icon
 
-osascript -e 'tell application "AlphaFoundry" to quit' >/dev/null 2>&1 || true
+osascript -e 'tell application "Research Workbench" to quit' >/dev/null 2>&1 || true
 sleep 2
 
 while IFS= read -r pid; do
   [[ -n "$pid" ]] || continue
-  log "Stopping stale AlphaFoundry app process: pid=$pid"
+  log "Stopping stale Research Workbench app process: pid=$pid"
   kill "$pid" 2>/dev/null || true
-done < <(pgrep -f "$APP_PATH/Contents/MacOS/alphafoundry" 2>/dev/null || true)
+done < <(pgrep -f "$APP_PATH/Contents/MacOS/research_workbench" 2>/dev/null || true)
 
 sleep 1
 kill_listeners_on_desktop_port
@@ -85,16 +85,16 @@ else
   log "macOS automation permission patch script is missing or not executable: $PATCH_AUTOMATION_SCRIPT"
 fi
 
-log "Opening AlphaFoundry"
+log "Opening Research Workbench"
 open "$APP_PATH"
 
 for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
   if response="$(curl_health 2>/dev/null)"; then
-    log "AlphaFoundry is healthy after $attempt attempt(s): $response"
+    log "Research Workbench is healthy after $attempt attempt(s): $response"
     exit 0
   fi
   sleep 1
 done
 
-log "AlphaFoundry did not become healthy at $HEALTH_URL within $MAX_ATTEMPTS seconds"
+log "Research Workbench did not become healthy at $HEALTH_URL within $MAX_ATTEMPTS seconds"
 exit 1

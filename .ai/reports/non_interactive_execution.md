@@ -1,7 +1,7 @@
 # Non-Interactive Execution Mode Report
 
-**Task**: af-auto-000-04g  
-**Date**: 2026-05-11  
+**Task**: rwb-auto-000-04g
+**Date**: 2026-05-11
 **Status**: Complete
 
 ---
@@ -69,21 +69,21 @@ execute_task() {
 
 ```bash
 # Skip interactive prompt with --yes flag
-.ai/scripts/run-automation.sh execute af-auto-000-09 --yes
+.ai/scripts/run-automation.sh execute rwb-auto-000-09 --yes
 ```
 
 ### Environment Variable
 
 ```bash
 # Skip interactive prompt with AUTO_CONFIRM=1
-AUTO_CONFIRM=1 .ai/scripts/run-automation.sh execute af-auto-000-09
+AUTO_CONFIRM=1 .ai/scripts/run-automation.sh execute rwb-auto-000-09
 ```
 
 ### Default (Interactive)
 
 ```bash
 # Default behavior: still waits for user confirmation
-.ai/scripts/run-automation.sh execute af-auto-000-09
+.ai/scripts/run-automation.sh execute rwb-auto-000-09
 ```
 
 ---
@@ -110,7 +110,7 @@ bash -n .ai/scripts/run-automation.sh
 
 The default interactive behavior remains unchanged - users can still run:
 ```bash
-.ai/scripts/run-automation.sh execute af-auto-000-09
+.ai/scripts/run-automation.sh execute rwb-auto-000-09
 ```
 and it will still wait for Enter confirmation.
 
@@ -145,7 +145,7 @@ and it will still wait for Enter confirmation.
 Non-interactive execution mode has been successfully added to the orchestrator. The feature:
 - ✓ Maintains backward compatibility (interactive by default)
 - ✓ Supports `--yes` flag
-- ✓ Supports `AUTO_CONFIRM=1` environment variable  
+- ✓ Supports `AUTO_CONFIRM=1` environment variable
 - ✓ No business logic was changed
 - ✓ All requirements have been met
 

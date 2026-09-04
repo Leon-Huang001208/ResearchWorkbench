@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A03-module-dependencies.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/A03-module-dependencies.html",
     "sha256": "32c9d77516c030ae0e4356a231c6d24a03c0366d9e355c1b97114005baa174ca",
     "bytes": 636267
   },

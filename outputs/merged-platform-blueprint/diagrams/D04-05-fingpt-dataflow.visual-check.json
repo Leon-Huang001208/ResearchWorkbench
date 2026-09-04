@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D04-05-fingpt-dataflow.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D04-05-fingpt-dataflow.html",
     "sha256": "149b5f2057e61351a167aa1e89974a69bf2a99a8a8c3fd0e16a4244379a3b7bc",
     "bytes": 637720
   },

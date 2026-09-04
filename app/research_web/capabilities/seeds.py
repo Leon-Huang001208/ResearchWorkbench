@@ -43,7 +43,14 @@ def seed_packages():
                         "default_formats": (
                             [] if slug == "document-reading" else ["docx", "html", "xlsx"]
                         ),
-                        "required_tools": ["af_run_script"],
+                        "required_tools": [
+                            "research_run_script",
+                            *(
+                                ["datahub_get_fund_data"]
+                                if slug == "fund-evaluation"
+                                else ["datahub_search_news"]
+                            ),
+                        ],
                         "dependencies": [],
                     },
                     "instructions": (folder / "SKILL.md").read_text(),
@@ -87,7 +94,7 @@ def seed_packages():
                         ],
                         "scenarios": [name],
                         "default_formats": ["docx", "html", "xlsx"],
-                        "required_tools": ["af_run_script"],
+                        "required_tools": ["research_run_script"],
                         "dependencies": [],
                     },
                     "instructions": "",
@@ -98,7 +105,7 @@ def seed_packages():
                             "title": "资料准备",
                             "instruction": preparation,
                             "tools": (
-                                ["af_public_data"]
+                                ["datahub_get_fund_data"]
                                 if linked == "fund-evaluation"
                                 else ["web_search"]
                             ),
@@ -107,13 +114,13 @@ def seed_packages():
                             "title": "来源核对",
                             "instruction": "区分来源、日期与缺失；资料不足不补造。",
                             "skill_id": "document-reading",
-                            "tools": ["af_run_script"],
+                            "tools": ["research_run_script"],
                         },
                         {
                             "title": "分析与交付",
                             "instruction": "调用关联 Skill，实际生成所需文件并核验；显式输出格式优先。",
                             "skill_id": linked,
-                            "tools": ["af_run_script"],
+                            "tools": ["research_run_script"],
                         },
                     ],
                 },

@@ -2,7 +2,7 @@
 
 ## 任务概览
 
-- Task ID: af-auto-010-wind-formula-verification
+- Task ID: rwb-auto-010-wind-formula-verification
 - Date: 2026-06-01
 - Work type: Formula verification + adapter/test cleanup
 
@@ -47,7 +47,7 @@
 - `docs/FILE_GUIDE.md` — 更正公式数量
 
 ### check_doc_sync 例外说明
-- `docs/modules/core_contracts.md` 未更新：`core/contracts/__init__.py` 和 `core/contracts/factors.py` 的变更是前序动态多因子 MVP 任务的 pre-existing 修改 (af-auto-006)，非本次 Wind 公式验证引入。已在之前的扩展报告中记录为合理例外。
+- `docs/modules/core_contracts.md` 未更新：`core/contracts/__init__.py` 和 `core/contracts/factors.py` 的变更是前序动态多因子 MVP 任务的 pre-existing 修改 (rwb-auto-006)，非本次 Wind 公式验证引入。已在之前的扩展报告中记录为合理例外。
 
 ## 最终判定
 ✅ **All checks pass. Formula verification complete.**

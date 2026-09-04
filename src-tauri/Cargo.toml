@@ -1,15 +1,15 @@
 [package]
-name = "alphafoundry-desktop"
+name = "research-workbench-desktop"
 version = "0.1.0"
-description = "AlphaFoundry desktop shell"
-authors = ["AlphaFoundry Team"]
+description = "Research Workbench desktop shell"
+authors = ["Research Workbench Team"]
 license = "UNLICENSED"
-repository = "https://github.com/Leon-Huang001208/AlphaFoundry"
+repository = "https://github.com/Leon-Huang001208/ResearchWorkbench"
 edition = "2021"
 rust-version = "1.85.0"
 
 [lib]
-name = "alphafoundry_desktop_lib"
+name = "research_workbench_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

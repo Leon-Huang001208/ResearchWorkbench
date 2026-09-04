@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** Add the first backend slice of Fund Intelligence so AlphaFoundry can store funds, NAVs, holdings, managers, and expose fund detail/portfolio exposure data through API endpoints.
+**Goal:** Add the first backend slice of Fund Intelligence so Research Workbench can store funds, NAVs, holdings, managers, and expose fund detail/portfolio exposure data through API endpoints.
 
 **Architecture:** Keep the feature as a focused vertical module. Domain contracts live in `core/contracts/funds.py`, persistence lives in `data_layer/repositories/fund_repository.py`, orchestration lives in `services/fund_intelligence_service.py`, and HTTP exposure lives in `app/api/routes/funds.py`. This MVP avoids frontend implementation and external data ingestion; it creates the durable seam for later Wind/AKShare/announcement ingestion.
 

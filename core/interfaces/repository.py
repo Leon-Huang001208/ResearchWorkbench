@@ -3,7 +3,7 @@ Abstract base classes (interfaces) for repositories.
 
 Defines the generic Repository interface and specialized repositories for entities,
 documents, assertions, events, reasoning traces, and asset analysis snapshots in
-AlphaFoundry.
+Research Workbench.
 """
 
 from abc import ABC, abstractmethod

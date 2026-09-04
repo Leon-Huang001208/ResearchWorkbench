@@ -1,4 +1,4 @@
-"""Static contracts for the AlphaFoundry system center resource monitor."""
+"""Static contracts for the Research Workbench system center resource monitor."""
 
 import re
 from pathlib import Path
@@ -126,7 +126,7 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
     assert "function setSystemTab" in app_js
     assert "function getSystemNavigationStorage" in app_js
     assert "function setSystemNavigationStorage" in app_js
-    assert "af-system-tab" in app_js
+    assert "rwb-system-tab" in app_js
     assert "data-system-tab" in app_js
     assert re.search(
         r"navigateTo\(\s*['\"]system['\"]\s*,\s*\{\s*systemTab:\s*['\"]config['\"]\s*}\s*\)",
@@ -136,7 +136,7 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
         r"if\s*\(\s*(?P<saved>\w+)\s*===\s*['\"]resource-monitor['\"]\s*\|\|\s*(?P=saved)\s*===\s*['\"]config['\"]\s*\)",
         app_js,
     )
-    assert "setSystemNavigationStorage('af-active-section', 'system');" in app_js
+    assert "setSystemNavigationStorage('rwb-active-section', 'system');" in app_js
     system_router = _function_body(app_js, "systemTarget")
     assert re.search(
         r"return\s+SYSTEM_TABS\.has\(\s*\w+\s*\)\s*\?\s*\w+\s*:\s*['\"]resource-monitor['\"]",
@@ -156,11 +156,11 @@ def test_system_center_navigation_preserves_monitor_lifecycle_contract() -> None
         app_js,
     )
     initial_navigation = _function_body(app_js, "getInitialSection")
-    assert re.search(r"setSystemNavigationStorage\(['\"]af-system-tab['\"]\s*,\s*\w+\s*\)", initial_navigation)
+    assert re.search(r"setSystemNavigationStorage\(['\"]rwb-system-tab['\"]\s*,\s*\w+\s*\)", initial_navigation)
     assert "return 'system';" in initial_navigation
     initial_navigation = re.search(
         r"const\s+(?P<section>\w+)\s*=\s*getInitialSection\(\);\s*"
-        r"const\s+initialSystemTab\s*=\s*getSystemNavigationStorage\('af-system-tab'\);[\s\S]*?"
+        r"const\s+initialSystemTab\s*=\s*getSystemNavigationStorage\('rwb-system-tab'\);[\s\S]*?"
         r"navigateTo\(\s*(?P=section)\s*,\s*\{\s*systemTab:\s*initialSystemTab\s*}\s*\)",
         app_js,
     )
@@ -368,7 +368,7 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "ingestSnapshot(snapshot, 'history')" in source
     assert "if (source === 'snapshot')" in source
     assert "publicStatus(snapshot.status) === 'unavailable'" in source
-    assert "未发现 AlphaFoundry 进程" in source
+    assert "未发现 Research Workbench 进程" in source
     assert "const DEPARTED_PROCESS_TTL_MS" in source
     assert "const MAX_DEPARTED_PROCESSES" in source
     assert "function pruneDepartedProcesses" in source
@@ -392,7 +392,7 @@ def test_resource_monitor_module_handles_lifecycle_bounds_and_safe_process_dom()
     assert "source_scope" in source
     assert "sourceScopeLabel(metadata.source_scope)" in source
     assert "整机容量" in source
-    assert "AlphaFoundry" in source
+    assert "Research Workbench" in source
     assert "function updateResourceEvent" in source
     assert "异常历史暂不可用，保留上一份记录" in source
     assert "function isFieldUnavailable" in source

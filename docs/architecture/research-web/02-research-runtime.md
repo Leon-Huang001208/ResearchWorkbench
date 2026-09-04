@@ -1,5 +1,11 @@
 # 研究协议、执行状态与恢复
 
+## 持久化本地启动边界
+
+`rwb web start|status|stop|restart` 由 `app/research_web/service_manager.py` 管理专属 DSH 3081 与 Web 8088。管理器把 PID、进程组、命令指纹、项目路径和日志位置写入 `~/.research-workbench/`，先等待 `host.describe`，再启动 FastAPI 并检查 `/api/research/runtime`。重复启动是幂等操作；失败回滚只处理本次创建且指纹匹配的进程，既有 3080 不在其所有权范围内。普通重启发现活动研究时拒绝执行，只有显式 `--force` 才允许中断。
+
+研究协议本身仍是下述 DSH RPC、双事件通道和 Web SSE 投影。服务管理器只负责本机进程生命周期，不创建第二套研究运行时，也不改变会话、审批或恢复语义。
+
 ## 提交与流式
 
 1. `POST /api/research/sessions` 创建真实 DSH 会话和产品归属目录。

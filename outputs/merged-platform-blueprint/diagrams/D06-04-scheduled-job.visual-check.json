@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D06-04-scheduled-job.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/merged-platform-v1/outputs/merged-platform-blueprint/diagrams/D06-04-scheduled-job.html",
     "sha256": "dedfa30204ee1cdc8c2854de63f658d67e4a3805f71cd2dd4c57e2986e8ecf0a",
     "bytes": 631255
   },

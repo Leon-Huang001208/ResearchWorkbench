@@ -221,7 +221,7 @@ def demo_trade_candidates(service: SignalService):
 def main():
     """主函数 - 运行完整演示"""
     print("\n" + "=" * 60)
-    print("  AlphaFoundry Signal Lab - 完整演示")
+    print("  Research Workbench Signal Lab - 完整演示")
     print("=" * 60)
 
     try:
@@ -256,8 +256,8 @@ def main():
         print("=" * 60)
 
         print("\n下一步:")
-        print("  - 运行 CLI: af signal --help")
-        print("  - 运行 CLI: af backtest --help")
+        print("  - 运行 CLI: rwb signal --help")
+        print("  - 运行 CLI: rwb backtest --help")
         print("  - 查看文档: docs/")
 
     except Exception as e:

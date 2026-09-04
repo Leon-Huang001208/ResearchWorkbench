@@ -852,8 +852,8 @@ def get_scheduler_process_status(pid_file: str | None = None) -> Dict[str, Any]:
         import os as _os
 
         _project_root = (
-            Path(_os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
-            if "ALPHAFOUNDRY_PROJECT_ROOT" in _os.environ
+            Path(_os.environ["RESEARCH_PROJECT_ROOT"])
+            if "RESEARCH_PROJECT_ROOT" in _os.environ
             else Path(__file__).parent.parent
         )
         pid_file = str(_project_root / "logs" / "scheduler.pid")

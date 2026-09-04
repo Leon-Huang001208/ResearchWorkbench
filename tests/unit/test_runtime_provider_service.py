@@ -524,7 +524,7 @@ def test_production_service_wires_real_asset_tool_and_only_preregistered_mcp(
     mcp_registry.register("mcp:approved", lambda arguments: {"echo": arguments["value"]})
     monkeypatch.setattr(research_tool_registry, "_default_mcp_registry", mcp_registry)
     monkeypatch.setenv(
-        "ALPHAFOUNDRY_AUTHORIZED_RESEARCH_TOOLS",
+        "RESEARCH_AUTHORIZED_RESEARCH_TOOLS",
         "mcp:approved,mcp:configured-without-handler",
     )
 

@@ -3,7 +3,7 @@ Core contracts for portfolio construction and risk budgeting.
 
 This module defines Pydantic models for converting multiple concurrent signals
 into a consistent investment portfolio, translating scored signals into ranked
-allocations under explicit constraints in AlphaFoundry.
+allocations under explicit constraints in Research Workbench.
 """
 
 from datetime import datetime

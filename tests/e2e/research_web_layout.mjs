@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
-const origin = new URL(process.env.ALPHAFOUNDRY_WEB_URL || 'http://127.0.0.1:8088');
+const origin = new URL(process.env.RESEARCH_WEB_URL || 'http://127.0.0.1:8088');
 if (!['127.0.0.1', 'localhost'].includes(origin.hostname) || origin.protocol !== 'http:') {
   throw new Error('Layout acceptance is limited to a local HTTP deployment');
 }
@@ -29,7 +29,7 @@ async function assertContained(page) {
 async function run() {
   await mkdir(output, {recursive: true});
   await mkdir(path.dirname(logs), {recursive: true});
-  const {chromium} = await import(process.env.ALPHAFOUNDRY_PLAYWRIGHT_MODULE || 'playwright-core');
+  const {chromium} = await import(process.env.RESEARCH_PLAYWRIGHT_MODULE || 'playwright-core');
   browser = await chromium.launch({headless: true,
     executablePath: process.env.CHROME_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
   for (const [width,height] of viewports) {

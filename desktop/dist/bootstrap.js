@@ -26,7 +26,7 @@ async function isBackendReady(baseUrl) {
 }
 
 async function waitForBackend() {
-    const baseUrl = window.ALPHAFOUNDRY_BACKEND_URL || DEFAULT_BACKEND_URL;
+    const baseUrl = window.RESEARCH_BACKEND_URL || DEFAULT_BACKEND_URL;
     if (retryButton) retryButton.hidden = true;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {

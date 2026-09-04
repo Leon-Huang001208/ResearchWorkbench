@@ -30,15 +30,43 @@ test('capability details escape hostile content and separate builtin read-only s
 
 test('tools are read-only declarations with selection only for selectable research tools', async () => {
   const { renderToolDetail } = await load('capabilities.mjs');
-  const tool = { id: 'af_public_data', name: '公开研究资料', selectable: true, parameters: { type: 'object' }, conditions: ['每次审批'], approval: 'native-per-call' };
-  assert.match(renderToolDetail(tool), /data-use-tool="af_public_data"/);
+  const tool = { id: 'datahub_get_fund_data', name: '基金数据', selectable: true, parameters: { type: 'object' }, conditions: ['每次审批'], approval: 'native-per-call' };
+  assert.match(renderToolDetail(tool), /data-use-tool="datahub_get_fund_data"/);
   assert.match(renderToolDetail(tool), /每次审批/);
   assert.doesNotMatch(renderToolDetail({ ...tool, selectable: false }), /data-use-tool/);
+  assert.doesNotMatch(renderToolDetail({ ...tool, id: 'datahub_get_fund_data', selectable: false }), /data-use-tool/);
+});
+
+test('data catalog separates capabilities from sources and never turns registered code into availability', async () => {
+  const { filterDataCatalog, renderDataCatalog, renderDataCapabilityDetail, renderDataSourceDetail } = await load('data-catalog.mjs');
+  const readiness = { code_exists: true, integration_completed: false, configured: false, dependency_ready: false, allowed: false, callable: false, integration_state: 'disabled', health: 'untested' };
+  const catalog = {
+    summary: { capabilities: 1, sources: 2, callable_sources: 1, needs_configuration: 1, unavailable: 0 },
+    capabilities: [{ id: 'market_bars', name: '历史行情', category: '行情', description: '历史行情', tool_id: 'datahub_get_market_bars', parameters: [], fields: ['date', 'close'], markets: ['A股'], source_count: 2, callable_source_count: 0 }],
+    sources: [{ id: 'wind', name: 'Wind', family: 'formal', source_type: 'professional', description: '终端来源', auth_type: 'terminal', config_keys: [], dependencies: ['WindPy'], markets: ['A股'], fee: 'account', readiness }],
+  };
+  assert.deepEqual(filterDataCatalog(catalog, { view: 'capabilities', query: '行情' }).map(item => item.id), ['market_bars']);
+  assert.deepEqual(filterDataCatalog(catalog, { view: 'sources', auth: 'terminal' }).map(item => item.id), ['wind']);
+  const html = renderDataCatalog({ catalog });
+  assert.match(html, /按数据能力/); assert.match(html, /按数据来源/); assert.match(html, /有代码.*不等于.*已适配/s);
+  assert.match(html, /data-use-data-tool="datahub_get_market_bars" disabled/);
+  const detail = renderDataCapabilityDetail({ ...catalog.capabilities[0], bindings: [{ source: catalog.sources[0], priority: 1, datasets: ['daily'] }] });
+  assert.match(detail, /目前没有.*不能运行/s);
+  assert.match(renderDataSourceDetail({ ...catalog.sources[0], bindings: [] }), /代码存在.*DataHub 已适配.*配置齐备/s);
+});
+
+test('completed source probes refresh the open source detail without touching another detail', async () => {
+  const { refreshProbedSourceDetail } = await load('capability-controller.mjs');
+  const calls = [];
+  const api = { dataSource: async id => { calls.push(id); return { id, readiness: { health: 'healthy' } }; } };
+  assert.equal(await refreshProbedSourceDetail(api, { id: 'wind' }, 'cls'), null);
+  assert.deepEqual(await refreshProbedSourceDetail(api, { id: 'cls' }, 'cls'), { id: 'cls', readiness: { health: 'healthy' } });
+  assert.deepEqual(calls, ['cls']);
 });
 
 test('workflow steps are ordered templates, never completed activity evidence', async () => {
   const { renderWorkflowPlan } = await load('capabilities.mjs');
-  const html = renderWorkflowPlan({ kind: 'workflow', id: 'wf', version: 3, steps: [{ title: '核对资料', instruction: '读取来源', skill_id: 'my-skill', tools: ['af_run_script'] }] });
+  const html = renderWorkflowPlan({ kind: 'workflow', id: 'wf', version: 3, steps: [{ title: '核对资料', instruction: '读取来源', skill_id: 'my-skill', tools: ['research_run_script'] }] });
   assert.match(html, /预设步骤.*不代表.*执行/s);
   assert.match(html, /核对资料/);
   assert.doesNotMatch(html, /已完成|completed|data-complete/);
@@ -73,11 +101,11 @@ test('selected capability version and tool intent survive drafts, send retries a
   const bodies = []; const keys = [];
   const controller = createController({ api: { detail: async () => session(), message: async (_id, body, key) => { bodies.push(body); keys.push(key); throw new Error('活动回合冲突'); } }, makeID: () => 'stable' });
   await controller.open({ page: 'fingpt', sessionId: 's1' });
-  controller.setCapability(cap()); controller.setTools(['af_public_data']); controller.setDraft('问题'); controller.setFormats([]);
+  controller.setCapability(cap()); controller.setTools(['datahub_get_fund_data']); controller.setDraft('问题'); controller.setFormats([]);
   await controller.open({ page: 'history', sessionId: null }); await controller.open({ page: 'fingpt', sessionId: 's1' });
   await controller.send(); await controller.send();
   assert.equal(bodies[0].capability_id, 'my-skill'); assert.equal(bodies[0].capability_version, 2);
-  assert.deepEqual(bodies[0].tool_ids, ['af_public_data']); assert.deepEqual(bodies[0].expected_formats, []);
+  assert.deepEqual(bodies[0].tool_ids, ['datahub_get_fund_data']); assert.deepEqual(bodies[0].expected_formats, []);
   assert.deepEqual(keys, ['stable', 'stable']); assert.equal(controller.state.draft, '问题');
   controller.setFormats(null); await controller.send(); assert.equal('expected_formats' in bodies[2], false);
 });
@@ -156,11 +184,11 @@ test('complete editor payload captures inputs, ordered steps, explicit formats, 
   const { readEditor, editableDraft } = await load('capability-editor.mjs');
   const previous = { kind: 'workflow', metadata: { inputs: [{ name: 'question' }] }, steps: [{ title: 'old' }], files: [{ path: 'scripts/run.py', content: 'print(1)', sha256: 'old-hash' }], reviewed_scripts: ['old-hash'] };
   const values = new FormData();
-  for (const [key, value] of Object.entries({ name: '流程', slug: 'flow', description: '研究流程', category: '研究', scenarios: '研究\n交付', 'input-0-name': 'question', 'input-0-label': '问题', 'input-0-type': 'text', 'input-0-required': 'on', 'step-0-title': '核对', 'step-0-instruction': '核对来源', 'step-0-skill': 'my-skill', 'step-0-tools': 'af_run_script', 'file-0-path': 'scripts/run.py', 'file-0-content': 'print(2)' })) values.append(key, value);
+  for (const [key, value] of Object.entries({ name: '流程', slug: 'flow', description: '研究流程', category: '研究', scenarios: '研究\n交付', 'input-0-name': 'question', 'input-0-label': '问题', 'input-0-type': 'text', 'input-0-required': 'on', 'step-0-title': '核对', 'step-0-instruction': '核对来源', 'step-0-skill': 'my-skill', 'step-0-tools': 'research_run_script', 'file-0-path': 'scripts/run.py', 'file-0-content': 'print(2)' })) values.append(key, value);
   const draft = readEditor(values, previous);
   assert.deepEqual(draft.reviewed_scripts, []); assert.equal(draft.files[0].sha256, undefined);
   assert.deepEqual(draft.metadata.default_formats, []); assert.equal(draft.metadata.inputs[0].required, true);
-  assert.equal(draft.steps[0].skill_id, 'my-skill'); assert.deepEqual(draft.steps[0].tools, ['af_run_script']);
+  assert.equal(draft.steps[0].skill_id, 'my-skill'); assert.deepEqual(draft.steps[0].tools, ['research_run_script']);
   assert.deepEqual(editableDraft(draft).files, [{ path: 'scripts/run.py', content: 'print(2)' }]);
 });
 
@@ -219,7 +247,7 @@ test('real app event handlers close/select slash, search and drawers without any
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /topbar search-open/);
     await click({ skillDetail: 'my-skill' }); assert.equal(globalThis.location.hash, '#/skills');
     assert.match(rootElement.innerHTML, /能力详情/);
-    await click({ capClose: '' }); assert.match(rootElement.innerHTML, /RESEARCH CAPABILITIES/);
+    await click({ capClose: '' }); assert.match(rootElement.innerHTML, /role="tablist" aria-label="能力类型"/);
     await click({ capKind: 'workflow' }); assert.match(rootElement.innerHTML, /没有匹配的能力/);
     assert.equal(calls.some(([, method]) => method !== 'GET'), false);
     assert.doesNotMatch(JSON.stringify(logs), /真实候选|my-skill|\/api\/research/);
@@ -324,6 +352,8 @@ test('failed workflow version reads retry on explicit refresh and clear only the
     await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(versionReads, 2, 'explicit refresh must retry the failed immutable-version read');
+    assert.doesNotMatch(rootElement.innerHTML, /版本恢复后的步骤/, 'research panel is collapsed by default');
+    await handlers.get('click')({ target: { closest: () => ({ dataset: { toggleContext: '' }, disabled: false }) } });
     assert.match(rootElement.innerHTML, /版本恢复后的步骤/);
     assert.doesNotMatch(rootElement.innerHTML, /未能读取本次 Workflow/);
     await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });

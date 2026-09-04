@@ -2,18 +2,18 @@
 
 ## 职责
 
-迁移流程把 LSH 的可迁移主题数据与受限研究能力收敛到 AlphaFoundry，不做一次性大切换。旧 LSH 入口先由兼容适配器转发；只有功能等价、数据校验、回归、调用归零和归档证据齐全后才删除。等价迁移完成后，LSH 保持只读归档一个稳定版本。
+迁移流程把 LSH 的可迁移主题数据与受限研究能力收敛到 Research Workbench，不做一次性大切换。旧 LSH 入口先由兼容适配器转发；只有功能等价、数据校验、回归、调用归零和归档证据齐全后才删除。等价迁移完成后，LSH 保持只读归档一个稳定版本。
 
 ## 数据归属
 
-- AlphaFoundry PostgreSQL 最终拥有全部迁移后的 `theme_observation`、Workspace/Run 与个人观察数据。
+- Research Workbench PostgreSQL 最终拥有全部迁移后的 `theme_observation`、Workspace/Run 与个人观察数据。
 - LSH CSV/SQLite/Flask 仅是迁移来源；source file hash、row identity、行级结果和原始归档路径必须保留。
 - `lsh-capability-map.yaml` 记录 source、target、classification、data_migration、parity_test、call_count_zero、archive_path、status。
 - 策略、交易和基金审批能力冻结为只读归档，不作为重复能力删除；其策略评分、YAML 交易规则、纸面订单、账户、模拟交易、`score_hint`、`driver-summary` 不迁入新事实模型。
 
 ## 禁止依赖
 
-- 不双写 AlphaFoundry 与 LSH，不让 DSH/Vibe/Flask 继续成为事实源。
+- 不双写 Research Workbench 与 LSH，不让 DSH/Vibe/Flask 继续成为事实源。
 - 不在校验前 apply，不因导入失败覆盖有效目标记录，不删除唯一数据副本。
 - 不用静态代码搜索代替运行时零调用证据，不用 UI 相似代替 API/数据等价测试。
 - 不把 archive 当备份；归档前必须有可恢复的数据导出、哈希和版本标签。

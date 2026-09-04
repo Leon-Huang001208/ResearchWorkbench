@@ -2,7 +2,7 @@
 
 ## 职责
 
-合并平台把 AlphaFoundry 的模块化单体、FastAPI、Research Run、结构化资产事实和 PostgreSQL + pgvector 作为主干，只迁入 LSH 中有来源、有时间语义、可确定性校验的数据集与受限研究运行时能力。FastAPI 是唯一业务 API，PostgreSQL 是唯一权威存储；DSH 仅以可选侧车实现 `RuntimeProvider`。
+合并平台把 Research Workbench 的模块化单体、FastAPI、Research Run、结构化资产事实和 PostgreSQL + pgvector 作为主干，只迁入 LSH 中有来源、有时间语义、可确定性校验的数据集与受限研究运行时能力。FastAPI 是唯一业务 API，PostgreSQL 是唯一权威存储；DSH 仅以可选侧车实现 `RuntimeProvider`。
 
 四个产品模块的职责如下：
 

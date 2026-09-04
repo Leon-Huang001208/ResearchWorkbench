@@ -1,7 +1,7 @@
 # Test Report: Test Suite Regression Fix
 
 ## Task
-Fix all failing tests in the AlphaFoundry test suite.
+Fix all failing tests in the Research Workbench test suite.
 
 ## Summary
 Reduced test failures from 52 failures + 5 errors → 1243 passed, 1 skipped, 3 environmental failures (E2E requiring Playwright browser + template API timeout).

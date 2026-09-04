@@ -1,5 +1,5 @@
 """
-Tests for Issue #42: AlphaFoundry v1 Document Schema.
+Tests for Issue #42: Research Workbench v1 Document Schema.
 
 测试统一文档 schema 的核心功能。
 """

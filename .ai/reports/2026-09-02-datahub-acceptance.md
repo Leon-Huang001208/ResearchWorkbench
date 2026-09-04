@@ -100,11 +100,11 @@ NAV的rows.json SHA256为`1a2486310858638f71666abfb7b9ec36ba6fa6b4d74a3d503e7f2f
 当前8088/3081保留运行。若以后停止，在本隔离工作树、已有依赖环境两个终端启动：
 
 ```bash
-python -m app.research_web.launch_runtime --source /Users/leon/Developer/deepseek-harness --data /Users/leon/.alphafoundry/research-web --source-mode --research-tools
+python -m app.research_web.launch_runtime --source /Users/leon/Developer/deepseek-harness --data /Users/leon/.research-workbench/research-web --source-mode --research-tools
 python -m uvicorn app.research_web.main:app --host 127.0.0.1 --port 8088 --timeout-graceful-shutdown 5
 ```
 
-本机已验证Python为`/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`；DSH源码提交/模型/权限沿用原锁定配置。不要在当前实例仍运行时重复启动。
+本机已验证Python为`python`；DSH源码提交/模型/权限沿用原锁定配置。不要在当前实例仍运行时重复启动。
 
 未实施Seek-Alpha业务工具、DataHub原生MCP出口、基准时间序列、合同/报告原文服务、完整头寸、多用户/远程部署与桌面Windows；本批不宣称具备这些能力。
 财联社既有公开来源纳入5项能力目录，新增桥接有离线回归；本批真实研究只新增四类基金来源，没有把前一批财联社实网验收当作新桥接的重新实网验收。

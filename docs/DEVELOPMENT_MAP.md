@@ -1,8 +1,8 @@
-# AlphaFoundry Development Map
+# Research Workbench Development Map
 
-This file maps AlphaFoundry subsystems to source files, tests, and required documentation updates.
+This file maps Research Workbench subsystems to source files, tests, and required documentation updates.
 
-## Current Web research implementation (2026-09-03)
+## Current Web research implementation (2026-09-04)
 
 Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
 Read the canonical [Research Web architecture](architecture/research-web/README.md),
@@ -12,7 +12,7 @@ current source modules, Markdown, diagrams and tests. Local acceptance is record
 The legacy subsystems below remain historical implementations, not dependencies to add to this new chain.
 Tests: `tests/research_web/` (use `--confcutdir=tests/research_web`) and `tests/javascript/research_web*.test.mjs`.
 DSH owns the execution loop, skills, subagents and transcript; no second orchestration/fact database.
-DataHub query/snapshot/bridge contracts live in `app/research_web/datahub/` and [DataHub](research-web-datahub.md).
+DataHub catalog, brand-neutral business tools, broker, Provider, probe and snapshot contracts live in `app/research_web/datahub/`, `app/research_web/runtime/public-data.mjs` and [DataHub](research-web-datahub.md). `catalog.py` is the no-network source of truth for the 13-capability / 21-source UI; `broker.py` resolves only callable bindings. The legacy connector map below does not make a Research Web provider callable.
 
 Claude must read this file before changing code.
 
@@ -28,7 +28,7 @@ app/api
 
 Responsibilities:
 
-- Expose AlphaFoundry capabilities through FastAPI.
+- Expose Research Workbench capabilities through FastAPI.
 - Provide endpoints for dashboard, ingest, search, scenarios, signal lab, monitoring, governance, reports, and memory.
 - Keep API routes thin and delegate business logic to `services`.
 
@@ -84,7 +84,7 @@ app/cli
 
 Responsibilities:
 
-- Provide command-line access to AlphaFoundry workflows.
+- Provide command-line access to Research Workbench workflows.
 - Wrap service calls into user-facing commands.
 
 Main files:

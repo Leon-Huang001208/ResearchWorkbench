@@ -1,8 +1,8 @@
-# AlphaFoundry 研究界面、能力中心与实时架构实施
+# Research Workbench 研究界面、能力中心与实时架构实施
 
 ## Spec
 
-依据用户 2026-09-03 已批准的《AlphaFoundry Web：研究界面、能力中心与实时架构文档》。用户提供三张 AlphaEngine 截图作为布局参考。本文拆解实现与验收，不替换已批准范围。
+依据用户 2026-09-03 已批准的《Research Workbench Web：研究界面、能力中心与实时架构文档》。用户提供三张 AlphaEngine 截图作为布局参考。本文拆解实现与验收，不替换已批准范围。
 
 ## Global Constraints
 
@@ -21,7 +21,7 @@
 
 阅读 AGENTS、docs/ARCHITECTURE.md、DEVELOPMENT_MAP.md、frontend 文档及当前 UI 模块。截图路径：`/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/codex-clipboard-5b3df224-3ab4-41d0-9ec6-eb097ce64cfc.png`（FinGPT）、`codex-clipboard-51362d6b-c11a-47c0-83cd-07961374b5e5.png`（Claw）、`codex-clipboard-98cdeaa9-1dad-4614-94a6-38405c481cfa.png`（能力卡片，同一目录）。
 
-深蓝顶栏、窄主导航、浅二级侧栏、白研究画布；保留 AlphaFoundry 品牌。主导航 FinGPT/Claw/能力中心/历史，底部设置。顶栏搜索实际会话标题和能力名称/简介。可折叠侧栏显示实际最近会话/运行任务。FinGPT 和 Claw 独立首页：中央输入、四个真实研究 Skill 快捷入口和分类卡片，Claw 强调目标和交付。卡片只打开详情或放入草稿，不发起模型。第一批仍使用现有 Skill API，第二批用同一目录替换；不得用演示能力填充。
+深蓝顶栏、窄主导航、浅二级侧栏、白研究画布；保留 Research Workbench 品牌。主导航 FinGPT/Claw/能力中心/历史，底部设置。顶栏搜索实际会话标题和能力名称/简介。可折叠侧栏显示实际最近会话/运行任务。FinGPT 和 Claw 独立首页：中央输入、四个真实研究 Skill 快捷入口和分类卡片，Claw 强调目标和交付。卡片只打开详情或放入草稿，不发起模型。第一批仍使用现有 Skill API，第二批用同一目录替换；不得用演示能力填充。
 
 拆出 shell.mjs 与 composer.mjs 等有职责边界模块，不重写 SSE 控制器。输入保留现有附件、Skill、模型、格式，加入 slash 搜索、拖放/粘贴现有支持文件。右侧 Activity/资料/文件标签和抽屉；日志参数默认折叠，错误仍可见。Claw 会话/工作区切换只显示当前会话资料/文件。
 
@@ -45,7 +45,7 @@ Workflow 包含名称说明、输入字段、有序步骤、关联 Skill/Tool、
 
 消息可选 capability_id/version，校验启用、版本、依赖，记录所用版本/资源。显式 expected_formats 优先，否则能力默认；保留 skill_id 兼容。对话创建：专用创建会话产出候选包，通过会话实际产物导入草稿后用户检查发布，绝不自动发布或执行包。
 
-安全/协议测试覆盖 zip 风险、元数据、冲突、依赖/工具、历史版本、跨会话、并发发布/运行、离线目录、原生发现、Workflow 编译、格式优先。Python `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`；DSH `/Users/leon/Developer/deepseek-harness`。执行聚焦 RED/GREEN，再完整 research_web pytest（`--confcutdir=tests/research_web`）及 ruff/black/isort/mypy 相关检查。不安装包。
+安全/协议测试覆盖 zip 风险、元数据、冲突、依赖/工具、历史版本、跨会话、并发发布/运行、离线目录、原生发现、Workflow 编译、格式优先。Python `python`；DSH `/Users/leon/Developer/deepseek-harness`。执行聚焦 RED/GREEN，再完整 research_web pytest（`--confcutdir=tests/research_web`）及 ruff/black/isort/mypy 相关检查。不安装包。
 
 ## Task 3: 能力中心前端闭环
 

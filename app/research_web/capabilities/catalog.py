@@ -442,7 +442,7 @@ class CapabilityCatalog:
 
     def _compile(self, row, version):
         draft = row["draft"]
-        name = row["id"] if row["source"] == "builtin" else f"af-{row['id']}-v{version}"
+        name = row["id"] if row["source"] == "builtin" else f"rwb-{row['id']}-v{version}"
         if row["kind"] == "skill":
             _, body = frontmatter(draft["instructions"])
         else:

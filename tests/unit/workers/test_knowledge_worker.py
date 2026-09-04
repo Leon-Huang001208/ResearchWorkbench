@@ -217,7 +217,7 @@ class TestParseArgsWorkerId:
         from workers.knowledge_worker import _parse_args
 
         monkeypatch.setattr("sys.argv", ["knowledge_worker"])
-        monkeypatch.setenv("ALPHAFOUNDRY_WORKER_ID", "4")
+        monkeypatch.setenv("RESEARCH_WORKER_ID", "4")
 
         args = _parse_args()
 
@@ -227,7 +227,7 @@ class TestParseArgsWorkerId:
         from workers.knowledge_worker import _parse_args
 
         monkeypatch.setattr("sys.argv", ["knowledge_worker", "--worker-id", "2"])
-        monkeypatch.setenv("ALPHAFOUNDRY_WORKER_ID", "9")
+        monkeypatch.setenv("RESEARCH_WORKER_ID", "9")
 
         args = _parse_args()
 
@@ -237,7 +237,7 @@ class TestParseArgsWorkerId:
         from workers.knowledge_worker import _parse_args
 
         monkeypatch.setattr("sys.argv", ["knowledge_worker"])
-        monkeypatch.delenv("ALPHAFOUNDRY_WORKER_ID", raising=False)
+        monkeypatch.delenv("RESEARCH_WORKER_ID", raising=False)
 
         args = _parse_args()
 
@@ -247,7 +247,7 @@ class TestParseArgsWorkerId:
         from workers.knowledge_worker import _parse_args
 
         monkeypatch.setattr("sys.argv", ["knowledge_worker"])
-        monkeypatch.setenv("ALPHAFOUNDRY_WORKER_ID", "not-a-number")
+        monkeypatch.setenv("RESEARCH_WORKER_ID", "not-a-number")
 
         args = _parse_args()
 

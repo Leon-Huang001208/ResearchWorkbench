@@ -23,7 +23,7 @@ def test_asset_js_keeps_committee_surface_but_requires_explicit_research():
 
     assert "'/api/assets/agent-committee'" not in source
     assert "/api/asset-observation/assets/" in source
-    assert "alphafoundry:open-research-center" in source
+    assert "research_workbench:open-research-center" in source
     assert "loadAssetAgentCommittee" not in source
     assert "renderAssetAgentCommittee" in source
     assert "renderAssetAgentCommitteeError" in source

@@ -72,7 +72,7 @@ class Delivery:
         before = self.snapshot(sid) if formats else {}
         return {
             "task_id": task,
-            "marker": f"[AF_TASK:{task}]",
+            "marker": f"[RESEARCH_TASK:{task}]",
             "status": "pending",
             "required_formats": formats,
             "missing_formats": formats.copy(),

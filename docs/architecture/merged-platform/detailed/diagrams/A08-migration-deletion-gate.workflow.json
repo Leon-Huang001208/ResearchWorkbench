@@ -1,7 +1,7 @@
 {
   "schema_version":1,"diagram_type":"workflow",
   "meta":{"title":"A08 · LSH 迁移、归档与删除门禁","output":"A08-migration-deletion-gate.html","quality_profile":"showcase","animation":"trace","viewBox":[1100,420],"views":[{"id":"migration","label":"迁移主线","focus":["inventory","dryrun","classify","import","verify","retire"],"note":"从源清点到等价验证，门禁通过后才能归档和删除。"},{"id":"quarantine","label":"隔离重试","focus":["classify","quarantine","dryrun"],"note":"隔离记录保留原始值，修复后重新 dry-run。"},{"id":"rollback","label":"回退边界","focus":["verify","rollback","import","retire"],"note":"任何不等价结果都阻断退役并恢复导入前态。"}]},
-  "lanes":[{"id":"main","label":"迁移主线 · LSH → AlphaFoundry"},{"id":"exception","label":"隔离与回退","variant":"exception"}],
+  "lanes":[{"id":"main","label":"迁移主线 · LSH → Research Workbench"},{"id":"exception","label":"隔离与回退","variant":"exception"}],
   "phases":[{"id":"prepare","label":"清点与试跑","fromCol":0,"toCol":1},{"id":"move","label":"分类与导入","fromCol":2,"toCol":3,"variant":"emphasis"},{"id":"retirement","label":"验证与退役","fromCol":4,"toCol":5,"variant":"security"}],
   "mainPath":["inventory","dryrun","classify","import","verify","retire"],
   "nodes":[

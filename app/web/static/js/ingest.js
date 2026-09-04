@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Document Ingest Module
+   Research Workbench — Document Ingest Module
    ============================================================ */
 
 import { apiCall, toast, esc } from './core.js';

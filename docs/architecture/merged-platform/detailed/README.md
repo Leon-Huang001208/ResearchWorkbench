@@ -1,4 +1,4 @@
-# AlphaFoundry × LSH 详细实施蓝图
+# Research Workbench × LSH 详细实施蓝图
 
 本目录把产品能力、页面、65 个 HTTP/SSE 接口、Service、数据 Owner、领域事件和状态机连接成可执行追踪链。开发时先确定 `CAP-*`，再沿 `PAGE-* → API-* → SVC-* → DATA-* / EVT-*` 实施，禁止从页面直接推导数据库结构。
 

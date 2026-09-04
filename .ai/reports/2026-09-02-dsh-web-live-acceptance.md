@@ -2,7 +2,7 @@
 
 ## 范围与结果
 
-- 实施工作树：`/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1`，分支 `codex/dsh-web-v1`，起点 `2fedf0c`。
+- 实施工作树：`/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1`，分支 `codex/dsh-web-v1`，起点 `2fedf0c`。
 - 已集成交付检查的三个提交 `b838d51`、`f288088`、`c5c45df`；本报告记录随后真实模型发现的问题与最终集成验收。
 - 已通过本机真实 DSH 的多轮/刷新、PDF 引页、公开数据与图表/XLSX、双子 Agent 报告、基金 DOCX/HTML/XLSX、允许/拒绝/取消、后台子任务停止、模型失败恢复、断线恢复与重复提交旅程。
 - [可访问地址、真实会话、下载文件和启动命令](../../docs/research-web-acceptance.md) 为交付入口；模型答案和文件来自实际执行，不使用演示或模拟结果替代。
@@ -12,7 +12,7 @@
 
 | 变更 | 回归 / 真实证据 |
 | --- | --- |
-| 注册 `af_public_data`，只接受CLS/基金查询参数，原生审批先于HTTP，请求/响应/重定向限制 | `research_web_public_data.test.mjs`；真实CLS三条、基金20条净值；原生审批允许、拒绝、取消日志 |
+| 注册 `datahub_get_fund_data`，只接受CLS/基金查询参数，原生审批先于HTTP，请求/响应/重定向限制 | `research_web_public_data.test.mjs`；真实CLS三条、基金20条净值；原生审批允许、拒绝、取消日志 |
 | 严格沙箱导入可信技能辅助脚本 | `test_sandbox.py`；真实PDF读取、两个子Agent分析、Office与PNG生成 |
 | 子Agent交互按原生归属响应，父会话离线仍可停止后台子任务 | `test_event_recovery.py`；父已结束、子仍运行时Web停止，35秒后无结束产物 |
 | 修复旧turn结束/新turn开始投影顺序、内部提交标记展示、真实时间和用量 | `test_protocol.py`、`test_delivery.py`、`research_web_ui.test.mjs`；刷新、重连和Claw活动面板浏览器检查 |
@@ -29,7 +29,7 @@
 
 ## 实际回归命令
 
-下列 `python` 为现有 `/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python`，工作目录为上述隔离工作树。
+下列 `python` 为现有 `python`，工作目录为上述隔离工作树。
 
 ```bash
 DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness python -m pytest tests/research_web --confcutdir=tests/research_web -q

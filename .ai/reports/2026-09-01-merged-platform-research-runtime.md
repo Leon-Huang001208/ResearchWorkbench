@@ -1,4 +1,4 @@
-# AlphaFoundry 合并平台 Task 6：FinGPT / Claw 研究运行时
+# Research Workbench 合并平台 Task 6：FinGPT / Claw 研究运行时
 
 ## 范围
 
@@ -53,7 +53,7 @@ RED：
 GREEN：
 
 ```text
-/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python -m pytest \
+python -m pytest \
   tests/unit/test_agent_team_service.py tests/unit/test_runtime_provider_service.py \
   tests/unit/test_scheduler_coordinator.py tests/unit/test_research_workspace_service.py \
   tests/unit/test_research_workspace_api.py tests/unit/test_research_run_service.py \
@@ -63,14 +63,14 @@ GREEN：
   tests/unit/test_merged_platform_migration.py -q
 172 passed, 5 warnings
 
-/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python -m pytest \
+python -m pytest \
   tests/unit/test_runtime_provider_service.py tests/unit/test_agent_team_service.py \
   tests/unit/test_research_workspace_service.py tests/unit/test_research_workspace_api.py \
   tests/unit/test_agent_schedule_runtime.py tests/unit/test_scheduler_coordinator.py \
   tests/unit/test_research_run_service.py tests/unit/test_merged_platform_migration.py -q
 96 passed, 5 warnings
 
-/Users/leon/Desktop/Projects/AlphaFoundry-runtime-agnostic-core/.venv/bin/python -m pytest \
+python -m pytest \
   tests/unit/test_agent_schedule_runtime.py tests/unit/test_runtime_provider_service.py \
   tests/unit/test_agent_team_service.py tests/unit/test_scheduler_coordinator.py -q
 54 passed, 4 warnings

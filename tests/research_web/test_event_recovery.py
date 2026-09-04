@@ -64,7 +64,7 @@ async def test_child_approval_replayed_before_child_list_is_routed_to_owned_pare
             "sessionId": "child",
             "type": "approval/requested",
             "approvalId": "approval-1",
-            "toolName": "af_public_data",
+            "toolName": "datahub_get_fund_data",
             "reason": "query",
         },
     }

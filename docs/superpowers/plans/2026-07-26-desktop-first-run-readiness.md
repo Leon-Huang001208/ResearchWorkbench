@@ -52,7 +52,7 @@ def test_probe_reports_ready_only_after_select_and_vector_extension(monkeypatch)
 
     monkeypatch.setattr("services.database_readiness.create_engine", lambda *_a, **_k: Engine())
 
-    result = probe_postgresql("postgresql+psycopg://user:secret@localhost:5432/alphafoundry")
+    result = probe_postgresql("postgresql+psycopg://user:secret@localhost:5432/research_workbench")
 
     assert result.ready is True
     assert result.code is DatabaseReadinessCode.READY
@@ -129,7 +129,7 @@ def test_database_test_returns_pgvector_failure_without_persisting(monkeypatch, 
 
     result = service.test_section(
         "database",
-        {"database_url": "postgresql+psycopg://user:secret@localhost:5432/alphafoundry"},
+        {"database_url": "postgresql+psycopg://user:secret@localhost:5432/research_workbench"},
     )
 
     assert result["success"] is False
@@ -257,10 +257,10 @@ from unittest.mock import MagicMock
 def test_frozen_backend_launcher_allows_missing_postgres_for_setup(monkeypatch, tmp_path):
     launcher = load_launcher_module()
     monkeypatch.setattr(launcher.sys, "frozen", True, raising=False)
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("RESEARCH_DESKTOP_DATA_DIR", str(tmp_path))
     monkeypatch.setenv(
         "DATABASE_URL",
-        "postgresql+psycopg://invalid:invalid@127.0.0.1:1/alphafoundry",
+        "postgresql+psycopg://invalid:invalid@127.0.0.1:1/research_workbench",
     )
 
     assert launcher.apply_frozen_desktop_defaults() == tmp_path

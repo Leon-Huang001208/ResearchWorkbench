@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from uuid import uuid4
 
-log = logging.getLogger("alphafoundry.research.documents")
+log = logging.getLogger("research_web.documents")
 
 
 def read_pdf(path: str | Path, max_pages: int = 150) -> list[dict]:

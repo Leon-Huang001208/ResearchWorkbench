@@ -26,11 +26,11 @@ def memory_group():
     Memory & Learning 管理命令
 
     示例:
-        af memory record-episode --episode-id test-001 --event-id evt-001 --event-type earnings --market-regime bullish --initial-reaction up --outcome-horizon 20d --outcome-return 0.05 --outcome-excess-return 0.03
-        af memory list-episodes
-        af memory summarize earnings
-        af memory record-failure --failure-id fail-001 --source-id test-001 --failure-type timing_error --root-cause "Bad timing" --corrective-action "Adjust timing model"
-        af memory list-failures
+        rwb memory record-episode --episode-id test-001 --event-id evt-001 --event-type earnings --market-regime bullish --initial-reaction up --outcome-horizon 20d --outcome-return 0.05 --outcome-excess-return 0.03
+        rwb memory list-episodes
+        rwb memory summarize earnings
+        rwb memory record-failure --failure-id fail-001 --source-id test-001 --failure-type timing_error --root-cause "Bad timing" --corrective-action "Adjust timing model"
+        rwb memory list-failures
     """
     pass
 

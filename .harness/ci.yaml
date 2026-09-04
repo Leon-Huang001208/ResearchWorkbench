@@ -1,6 +1,6 @@
 pipeline:
-  name: AlphaFoundry全自动CI流水线
-  identifier: AlphaFoundry_CI
+  name: Research Workbench全自动CI流水线
+  identifier: Research Workbench_CI
   projectIdentifier: default
   orgIdentifier: default
   tags: {}
@@ -68,7 +68,7 @@ pipeline:
             type: KubernetesDirect
             spec:
               connectorRef: account.K8sCluster
-              namespace: alpha-foundry
+              namespace: research-workbench
           execution:
             steps:
               - step:
@@ -104,7 +104,7 @@ triggers:
       source:
         type: Github
         spec:
-          repoName: Leon-Huang001208/AlphaFoundry
+          repoName: Leon-Huang001208/Research Workbench
           events:
             - Push
           autoAbortPreviousExecutions: true

@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
-const origin=new URL(process.env.ALPHAFOUNDRY_WEB_URL || 'http://127.0.0.1:8088');
+const origin=new URL(process.env.RESEARCH_WEB_URL || 'http://127.0.0.1:8088');
 if (!['localhost','127.0.0.1'].includes(origin.hostname) || origin.protocol!=='http:') throw new Error('Local acceptance only');
 const name='验收·手动导入样本'; const slug='ui-import-sample-20260903';
 const output=path.resolve('outputs/research-web-ui-acceptance/manual-skill');
@@ -14,11 +14,11 @@ const sourceFile='ebcedea5342a8bcef06c8a96';
 let browser; let capabilityId; const mutations=[];
 try {
   await mkdir(output,{recursive:true}); await mkdir(path.dirname(log),{recursive:true});
-  const {chromium}=await import(process.env.ALPHAFOUNDRY_PLAYWRIGHT_MODULE || 'playwright-core');
+  const {chromium}=await import(process.env.RESEARCH_PLAYWRIGHT_MODULE || 'playwright-core');
   browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
   const context=await browser.newContext({viewport:{width:1600,height:1000},acceptDownloads:true});
   const catalog=await (await context.request.get(`${origin.origin}/api/research/capabilities`)).json();
-  assert.ok(!catalog.items.some(item=>(item.name===name || item.metadata?.slug===slug) && item.id!==process.env.ALPHAFOUNDRY_ACCEPTANCE_DRAFT),'Acceptance name exists; do not overwrite or auto-repeat');
+  assert.ok(!catalog.items.some(item=>(item.name===name || item.metadata?.slug===slug) && item.id!==process.env.RESEARCH_ACCEPTANCE_DRAFT),'Acceptance name exists; do not overwrite or auto-repeat');
   const source=await context.request.get(`${origin.origin}/api/research/sessions/${sourceSession}/files/${sourceFile}/download`);
   assert.equal(source.status(),200); const sourceBytes=await source.body();
   assert.match(sourceBytes.toString('utf8'),/ui-sample-report-verified/);
@@ -36,7 +36,7 @@ try {
   });
   await page.goto(`${origin.origin}/?acceptance=manual-skill#/skills`);
   await page.getByRole('heading',{name:'能力中心',exact:true}).waitFor();
-  const resume=process.env.ALPHAFOUNDRY_ACCEPTANCE_DRAFT;
+  const resume=process.env.RESEARCH_ACCEPTANCE_DRAFT;
   let candidate;
   if (resume) {
     assert.match(resume,/^[a-f0-9]{32}$/);
@@ -66,7 +66,7 @@ try {
   await page.locator('#cap-input-0-name').fill('values'); await page.locator('#cap-input-0-label').fill('数值列表与问题');
   await page.locator('#cap-input-0-type').selectOption('text');
   for(const format of ['md','html','docx','xlsx','png']) await page.locator(`#cap-default-${format}`).setChecked(format==='html');
-  await page.locator('input[name="required_tools"][value="af_run_script"]').check();
+  await page.locator('input[name="required_tools"][value="research_run_script"]').check();
   await page.locator('#cap-dependencies').fill('');
   await page.getByRole('button',{name:'保存草稿',exact:true}).click();
   const detail=page.getByRole('region',{name:'能力详情',exact:true});

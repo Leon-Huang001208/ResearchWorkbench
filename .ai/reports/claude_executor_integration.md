@@ -1,7 +1,7 @@
 # Claude Code Executor Integration Report
 
-**Task**: af-auto-000-04d  
-**Date**: 2026-05-11  
+**Task**: rwb-auto-000-04d
+**Date**: 2026-05-11
 **Status**: Complete
 
 ---
@@ -33,16 +33,16 @@ This report documents the integration of Claude Code CLI into the `.ai` autonomo
 - Clean up temporary prompt files after execution
 - Proper exit code semantics for Claude execution
 
-### 2. task.json - Added af-auto-000-04d
+### 2. task.json - Added rwb-auto-000-04d
 
 **File**: .ai/tasks/task.json
 
-- Added af-auto-000-04d task definition
+- Added rwb-auto-000-04d task definition
 - Updated total task count from 14 to 15
 - Updated high priority count from 8 to 9
 - Task marked as 'doing' during execution, will be 'done' when complete
 
-### 3. progress.md - Updated with af-auto-000-04d
+### 3. progress.md - Updated with rwb-auto-000-04d
 
 **File**: .ai/progress/progress.md
 
@@ -94,10 +94,10 @@ The `generate_claude_prompt` function creates prompts with:
 .ai/scripts/run-automation.sh execute
 
 # Execute specific task with Claude Code
-.ai/scripts/run-automation.sh execute af-auto-000-12
+.ai/scripts/run-automation.sh execute rwb-auto-000-12
 
 # Mark complete after manual execution
-.ai/scripts/run-automation.sh complete af-auto-000-12
+.ai/scripts/run-automation.sh complete rwb-auto-000-12
 ```
 
 ---
@@ -119,7 +119,7 @@ The `generate_claude_prompt` function creates prompts with:
 
 1. ✅ **.ai/scripts/run-automation.sh** - Enhanced with execute command
 2. ✅ **.ai/reports/claude_executor_integration.md** - This report
-3. ✅ **task.json** - Updated with af-auto-000-04d
+3. ✅ **task.json** - Updated with rwb-auto-000-04d
 4. ✅ **progress.md** - Updated with current task
 
 ---

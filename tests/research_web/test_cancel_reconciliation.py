@@ -138,7 +138,7 @@ def test_missing_any_reconciliation_evidence_keeps_delivery_pending(
     elif missing == "no_marker":
         state["entries"] = []
     elif missing == "wrong_marker":
-        state["entries"][0]["event"]["data"]["content"] = "[AF_TASK:" + "0" * 24 + "]"
+        state["entries"][0]["event"]["data"]["content"] = "[RESEARCH_TASK:" + "0" * 24 + "]"
     elif missing == "later_task":
         state["entries"].append(
             {"event": {"seq": 493, "type": "user/message", "data": {"content": "newer task"}}}
@@ -174,7 +174,7 @@ def test_missing_any_reconciliation_evidence_keeps_delivery_pending(
     elif missing == "diagnostics":
         state["diagnostics"] = [{"error": "unreadable session"}]
     elif missing == "approval":
-        service.approvals["approval"] = {"sessionId": sid, "toolName": "af_run_script"}
+        service.approvals["approval"] = {"sessionId": sid, "toolName": "research_run_script"}
     elif missing == "question":
         service.questions["question"] = {"sessionId": sid, "questions": []}
     elif missing in {"mux_only", "host_only"}:

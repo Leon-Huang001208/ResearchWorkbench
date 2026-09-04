@@ -1,4 +1,4 @@
-"""Add structured market data tables (AF-AUTO-007)
+"""Add structured market data tables (RWB-AUTO-007)
 
 Revision ID: 009
 Revises: 008

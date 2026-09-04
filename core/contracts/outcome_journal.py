@@ -3,7 +3,7 @@ Core contracts for the outcome journal (trade outcome tracking and failure memor
 
 This module defines Pydantic models for structured outcome recording, failure
 classification, similar case retrieval, and weekly review reports, supporting
-the failure-memory engine in AlphaFoundry.
+the failure-memory engine in Research Workbench.
 """
 
 from datetime import datetime

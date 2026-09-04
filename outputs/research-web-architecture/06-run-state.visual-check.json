@@ -5,7 +5,7 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/06-run-state.html",
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/outputs/research-web-architecture/06-run-state.html",
     "sha256": "629ab462b473c0fc8edec81010cfc9f80e4fc997dd91d201289ed7532df7dee1",
     "bytes": 634523
   },

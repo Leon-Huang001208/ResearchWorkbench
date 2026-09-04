@@ -2,7 +2,7 @@
 Abstract base class (interface) for data adapters.
 
 Defines the interface for data adapters that fetch and parse data from various sources
-into DocumentEnvelope objects in AlphaFoundry.
+into DocumentEnvelope objects in Research Workbench.
 """
 
 from abc import ABC

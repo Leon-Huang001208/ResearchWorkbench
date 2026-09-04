@@ -4,6 +4,46 @@ DataHub是`app/research_web/datahub/`内的FastAPI进程模块，不是新守护
 DSH仍是唯一研究引擎；Web只读资料，原生插件获单次审批后查询同一DataHub。
 不导入旧Connector.run、AKShare生命周期或旧报告编译链；没有新增依赖。
 
+## 当前定位与命名
+
+DataHub 是后台数据总机：统一描述“能查什么”、选择“从哪里查”、把供应商参数翻译成稳定业务参数、标准化结果，并把本次研究使用的数据保存为会话隔离快照。它不替代 DSH、Skill 或 Tool，也不是前端直接执行的能力类型。
+
+```text
+FinGPT / Claw / Skill
+          ↓
+datahub_* 业务 Tool
+          ↓
+DataHub：静态目录 → 白名单路由 → Provider → 快照与审计
+          ↓
+东方财富 / 财联社 / 后续完成适配的专业或公开来源
+```
+
+Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌前缀。这样未来产品改名不会破坏 Skill、会话历史或 DSH 工具协议。`datahub_get_fund_data` 是基金数据能力的正式工具名。
+
+## 全源静态目录
+
+`catalog.py` 声明 13 项业务能力和 21 个来源；读取目录不会导入 Connector、访问外网、启动 Excel 或产生供应商费用。
+
+业务能力包括证券搜索、交易日历、历史行情、实时快照、指数、财务、资金与交易事件、因子与宏观、基金、新闻、公告、研究资料和网页搜索。登记来源包括 Wind、天软、iFinD、AKShare、BaoStock、Tushare、Yahoo、ChinaStock、本地缓存、中证指数、深交所、巨潮、财联社、中国证券网两类内容、知丘三类内容、东方财富基金、Tavily 和 Bing。
+
+每个来源分别展示：
+
+- `code_exists`：仓库存在相应请求或适配代码。
+- `integration_state`：是否已经抽取为 DataHub Provider。
+- `configured` / `dependency_ready`：当前配置与依赖是否具备。
+- `allowed` / `callable`：是否允许进入业务路由、当前是否实际可调用。
+- `health` / `last_checked_at`：最近一次显式探测结果，而不是页面加载时偷偷检测。
+
+目前只有东方财富基金和财联社完成 DataHub Provider 适配。其余来源用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。探测完成后，前端重新读取当前打开的来源详情，使健康状态和检测时间与刷新后的目录一致；它不会因此检测其他来源。
+
+## 稳定业务 Tool
+
+DSH 注册 `datahub_search_assets`、`datahub_get_trading_calendar`、`datahub_get_market_bars`、`datahub_get_market_snapshot`、`datahub_get_index_data`、`datahub_get_financials`、`datahub_get_market_activity`、`datahub_get_factor_macro`、`datahub_get_fund_data`、`datahub_search_news`、`datahub_search_announcements`、`datahub_search_research` 和 `datahub_search_web`。
+
+工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。当前只有基金与新闻工具存在可调用 Provider，其他 Tool 会明确失败，不降级成网页猜测或演示结果。
+
+`broker.py` 根据能力绑定、覆盖范围、完成适配、配置、依赖和允许状态选源。`source=auto` 只选择一个最终 Provider，不拼接不同口径；显式来源默认不换源，只有请求明确 `allow_fallback=true` 才允许继续选择。结果记录实际 Provider 与尝试来源。
+
 ## 查询与来源
 
 | source | 固定公开来源 | 范围 |
@@ -66,12 +106,16 @@ refresh=true始终新建；同原生调用ID重放返回同一结果，同ID不�
 
 ## API契约
 
-- `GET /api/research/data/capabilities`：`{items:[{id,name,source,approval_required,available,schema_version,parameters}],missing}`。
+- `GET /api/research/data/catalog`：13 项能力、21 个来源、绑定矩阵和诚实汇总；纯静态读取。
+- `GET /api/research/data/capabilities/{id}`：能力参数、字段、覆盖范围和全部候选来源。
+- `GET /api/research/data/sources/{id}`：来源鉴权/依赖、状态、限制和支持的数据集。
+- `POST /api/research/data/sources/{id}/probes`：以 `Idempotency-Key` 异步检测单一来源。
+- `GET /api/research/data/probes/{id}`：读取安全化探测状态、耗时和失败代码。
 - `GET /api/research/sessions/{sid}/datasets`：`{items:[summary]}`；老会话返回空数组。
 - `GET /api/research/sessions/{sid}/datasets/{did}`：完整manifest、manifest_sha256及下载引用。
 - `GET .../{did}/rows?offset=0&limit=100`：`{items,offset,limit,total}`，limit最大500。
 - `GET .../{did}/files/{rows.json|rows.csv|manifest.json}`：已校验的当前会话数据文件下载。
-- `POST /api/research/internal/data/query`：`{session_id,call_id,query}`。
+- `POST /api/research/internal/data/business-query`：`{session_id,call_id,query:{capability,parameters,source,allow_fallback,refresh}}`；新 `datahub_*` 入口。
 - `POST /api/research/internal/data/cancel`：`{session_id,call_id}`。
 
 所有internal入口在解析请求体之前检查`X-Research-Data-Key`；无认证浏览器不能绕过原生审批取数。
@@ -90,7 +134,7 @@ XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/H
 ## 验证与限制
 
 离线：`python -m pytest tests/research_web --confcutdir=tests/research_web -q`及`DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness node --test tests/javascript/research_web*.test.mjs`。
-还执行ruff/black/isort/mypy及项目任务完整性检查，具体结果见`.ai/reports/2026-09-02-datahub-implementation.md`。
+还执行ruff/black/isort/mypy及项目任务完整性检查；2026-09-04 全源目录、真实公开探测、Web 五视口和 Archify 证据见`.ai/reports/2026-09-04-datahub-full-source-catalog.md`，早期 DataHub 实现记录见`.ai/reports/2026-09-02-datahub-implementation.md`。
 真实来源只读核对由父任务记录在`.ai/reports/2026-09-02-datahub-source-probes.md`，不把离线测试当真实模型闭环。
 2026-09-02集成验收已从Web完成四次原生审批、2025净值13页243条及三类补充资料、FinGPT升级复制、两个真实子Agent共享资料，以及DOCX/HTML/XLSX/PNG输出。
 最终XLSX四张原始表逐值与CSV一致（243/16/25/220行），来源文件hash一致；首末观测区间变动和回撤已独立重算，数值与百分比格式均核对。

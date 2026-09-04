@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Application Entry Point
+   Research Workbench — Application Entry Point
    Theme/i18n, Navigation, SSE, DOM init
    ============================================================ */
 
@@ -138,18 +138,18 @@ window.switchCommentaryWorkspace = switchCommentaryWorkspace;
 // ─── Theme & i18n Init ───────────────────────────────────────
 (function initTheme() {
     const desktopVisualVersion = '20260618-desktop-phase1';
-    const savedTheme = localStorage.getItem('af-theme');
-    if (localStorage.getItem('af-desktop-visual-version') !== desktopVisualVersion) {
-        localStorage.setItem('af-theme', savedTheme || 'dark');
-        localStorage.setItem('af-color-scheme', 'claude');
-        localStorage.setItem('af-desktop-visual-version', desktopVisualVersion);
+    const savedTheme = localStorage.getItem('rwb-theme');
+    if (localStorage.getItem('rwb-desktop-visual-version') !== desktopVisualVersion) {
+        localStorage.setItem('rwb-theme', savedTheme || 'dark');
+        localStorage.setItem('rwb-color-scheme', 'claude');
+        localStorage.setItem('rwb-desktop-visual-version', desktopVisualVersion);
     }
-    document.documentElement.setAttribute('data-theme', localStorage.getItem('af-theme') || 'dark');
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('rwb-theme') || 'dark');
 })();
 
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('af-theme', theme);
+    localStorage.setItem('rwb-theme', theme);
     document.querySelectorAll('#settings-panel-theme .settings-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.themeVal === theme);
     });
@@ -173,13 +173,13 @@ function switchLang(lang) {
 window.switchLang = switchLang;
 
 (function initColorScheme() {
-    const saved = localStorage.getItem('af-color-scheme') || 'claude';
+    const saved = localStorage.getItem('rwb-color-scheme') || 'claude';
     document.documentElement.setAttribute('data-color-scheme', saved);
 })();
 
 function applyColorScheme(scheme) {
     document.documentElement.setAttribute('data-color-scheme', scheme);
-    localStorage.setItem('af-color-scheme', scheme);
+    localStorage.setItem('rwb-color-scheme', scheme);
     document.querySelectorAll('#settings-panel-color .settings-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.colorScheme === scheme);
     });
@@ -248,7 +248,7 @@ function setSystemTab(section) {
         if (selected) button.setAttribute('aria-current', 'page');
         else button.removeAttribute('aria-current');
     });
-    setSystemNavigationStorage('af-system-tab', section);
+    setSystemNavigationStorage('rwb-system-tab', section);
 }
 
 function navigateTo(section, options = {}) {
@@ -263,10 +263,10 @@ function navigateTo(section, options = {}) {
     const sectionEl = document.getElementById(`section-${targetSection}`);
     if (sectionEl) sectionEl.classList.add('active');
     if (section === 'system') {
-        setSystemNavigationStorage('af-active-section', 'system');
+        setSystemNavigationStorage('rwb-active-section', 'system');
         setSystemTab(targetSection);
     } else {
-        localStorage.setItem('af-active-section', section);
+        localStorage.setItem('rwb-active-section', section);
     }
 
     if (targetSection === 'dashboard') {
@@ -301,16 +301,16 @@ function navigateTo(section, options = {}) {
 window.navigateTo = navigateTo;
 
 function getInitialSection() {
-    const savedSection = getSystemNavigationStorage('af-active-section');
+    const savedSection = getSystemNavigationStorage('rwb-active-section');
     if (savedSection === 'resource-monitor' || savedSection === 'config') {
-        setSystemNavigationStorage('af-system-tab', savedSection);
-        setSystemNavigationStorage('af-active-section', 'system');
+        setSystemNavigationStorage('rwb-system-tab', savedSection);
+        setSystemNavigationStorage('rwb-active-section', 'system');
         return 'system';
     }
     if (savedSection === 'system') {
-        const savedSystemTab = getSystemNavigationStorage('af-system-tab');
+        const savedSystemTab = getSystemNavigationStorage('rwb-system-tab');
         const initialSystemTab = SYSTEM_TABS.has(savedSystemTab) ? savedSystemTab : 'resource-monitor';
-        setSystemNavigationStorage('af-system-tab', initialSystemTab);
+        setSystemNavigationStorage('rwb-system-tab', initialSystemTab);
         return 'system';
     }
     if (savedSection && document.getElementById(`section-${savedSection}`)) {
@@ -418,10 +418,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    document.addEventListener('alphafoundry:open-database-configuration', () => {
+    document.addEventListener('research_workbench:open-database-configuration', () => {
         navigateTo('system', { systemTab: 'config' });
     });
-    document.addEventListener('alphafoundry:open-research-center', event => {
+    document.addEventListener('research_workbench:open-research-center', event => {
         if (!navigateTo('research')) return;
         openResearchCenter(event.detail || {});
     });
@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     connectSSE();
     const initialSection = getInitialSection();
-    const initialSystemTab = getSystemNavigationStorage('af-system-tab');
+    const initialSystemTab = getSystemNavigationStorage('rwb-system-tab');
     navigateTo(initialSection, { systemTab: initialSystemTab });
     updateStatusBar();
     setInterval(updateStatusBar, 30000);

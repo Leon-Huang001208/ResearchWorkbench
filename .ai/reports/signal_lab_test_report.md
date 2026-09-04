@@ -1,14 +1,14 @@
 # Signal Lab 测试报告
 
-**任务**: af-auto-000-09  
-**日期**: 2026-05-11  
+**任务**: rwb-auto-000-09
+**日期**: 2026-05-11
 **状态**: Complete
 
 ---
 
 ## 执行摘要
 
-Signal Lab 是 AlphaFoundry 的信号研究模块，提供特征工程、标签生成、信号评分和回测功能。本次测试验证了 Signal Lab 的核心功能完整性。
+Signal Lab 是 Research Workbench 的信号研究模块，提供特征工程、标签生成、信号评分和回测功能。本次测试验证了 Signal Lab 的核心功能完整性。
 
 ---
 

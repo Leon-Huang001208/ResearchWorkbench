@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Templates Module
+   Research Workbench — Templates Module
    Template management, placeholder config, render, upload, DnD
    ============================================================ */
 
@@ -1583,7 +1583,7 @@ function renderRecentGenerationPanel(template) {
 
 // ─── Full Preview Viewer (page-image based) ──────────────────
 
-const FULL_PREVIEW_STORAGE_KEY = 'alpha-foundry-full-word-preview';
+const FULL_PREVIEW_STORAGE_KEY = 'research-workbench-full-word-preview';
 const FULL_PREVIEW_MIN_ZOOM = 0.18;
 const FULL_PREVIEW_MAX_ZOOM = 1.8;
 const FULL_PREVIEW_ZOOM_STEP = 0.08;
@@ -2052,7 +2052,7 @@ async function openReportProjectOutputFolder(slug, fileName = '') {
         toast('已打开报告所在文件夹', 'success');
     } catch (e) {
         if (String(e.message || '').includes('Not Found')) {
-            toast('打开文件夹失败：当前后端还没加载新接口，请重启 AlphaFoundry', 'error');
+            toast('打开文件夹失败：当前后端还没加载新接口，请重启 Research Workbench', 'error');
             return;
         }
         toast('打开文件夹失败: ' + e.message, 'error');

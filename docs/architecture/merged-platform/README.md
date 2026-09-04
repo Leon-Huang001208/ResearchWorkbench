@@ -1,4 +1,4 @@
-# AlphaFoundry × LSH 合并平台 V1 架构包
+# Research Workbench × LSH 合并平台 V1 架构包
 
 > 历史架构基线：不代表当前 Research Web 的运行架构。当前唯一主入口为
 > [Research Web 架构](../research-web/README.md)。本目录保留用于历史追溯，不作为恢复旧业务模块的实施要求。

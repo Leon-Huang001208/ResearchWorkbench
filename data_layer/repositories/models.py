@@ -740,7 +740,7 @@ class StockPriceData(Base):
 
 
 # =============================================================================
-# Issue #42: AlphaFoundry v1 统一文档表
+# Issue #42: Research Workbench v1 统一文档表
 # =============================================================================
 
 
@@ -1436,7 +1436,7 @@ class ResearchQualityGateDB(Base):
 
 
 # =============================================================================
-# AF-AUTO-002-07: PDF 元数据表与转换结果表
+# RWB-AUTO-002-07: PDF 元数据表与转换结果表
 # =============================================================================
 
 
@@ -1444,7 +1444,7 @@ class PDFArtifactV1DB(Base):
     """
     PDF 制品表 - 存储下载的 PDF 文件元数据.
 
-    AF-AUTO-002-05: ZQ PDF First Report Ingestion
+    RWB-AUTO-002-05: ZQ PDF First Report Ingestion
     """
 
     __tablename__ = "pdf_artifact_v1"
@@ -1495,7 +1495,7 @@ class PDFConversionV1DB(Base):
     """
     PDF 转换结果表 - 存储 PDF 转换为 Markdown 或文本的结果.
 
-    AF-AUTO-002-06: PDF to Markdown Conversion Pipeline
+    RWB-AUTO-002-06: PDF to Markdown Conversion Pipeline
     """
 
     __tablename__ = "pdf_conversion_v1"
@@ -1539,7 +1539,7 @@ class CrawlStateV1DB(Base):
     """
     爬虫状态表 - 持久化存储爬虫状态、水位线、去重信息.
 
-    AF-AUTO-002-03: Incremental Fetch Until Known
+    RWB-AUTO-002-03: Incremental Fetch Until Known
     """
 
     __tablename__ = "crawl_state_v1"
@@ -1586,7 +1586,7 @@ class ProcessedItemV1DB(Base):
     """
     已处理项目表 - 用于去重，支持快速检查项目是否已处理.
 
-    AF-AUTO-002-03: Incremental Fetch Until Known
+    RWB-AUTO-002-03: Incremental Fetch Until Known
     """
 
     __tablename__ = "processed_item_v1"
@@ -1616,7 +1616,7 @@ class ProcessedItemV1DB(Base):
 
 
 # =============================================================================
-# AF-AUTO-007: 市场结构化事实表
+# RWB-AUTO-007: 市场结构化事实表
 # =============================================================================
 
 
@@ -2114,7 +2114,7 @@ class DynamicFactorWeightDB(Base):
 
 
 # =============================================================================
-# AlphaFoundry x LSH merged platform: shared fact kernel and product modules
+# Research Workbench x LSH merged platform: shared fact kernel and product modules
 # =============================================================================
 
 

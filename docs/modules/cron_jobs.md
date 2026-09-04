@@ -27,7 +27,7 @@ Schedule:
 - `15:15` — `ingest_stock_master()`: sync stock list via `POST /api/market-data/stocks/sync`.
 - `15:30` — `ingest_daily_bars()`: sync daily bars via `POST /api/market-data/daily-bars/sync`.
 - `15:45` — `ingest_stock_snapshots()`: trigger asset analysis via `POST /api/assets/analyze`.
-- API 调用通过 `ALPHAFOUNDRY_BACKEND_URL` 构造：桌面端默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
+- API 调用通过 `RESEARCH_BACKEND_URL` 构造：桌面端默认 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。
 - 摄入队列由常驻 Knowledge Worker 消费，而非 cron 定时消费。
 
 Backward-compat aliases: `ingest_cls_data()` delegates to `ingest_all_sources()`. `ingest_cnstock_data()` and `ingest_zq_data()` are no-ops.

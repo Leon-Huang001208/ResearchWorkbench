@@ -22,11 +22,11 @@
   - 记录模板工作台的占位符类型优先级约定。
 - 修改 `docs/CHANGELOG.md`
   - 记录修复的用户可见行为。
-- 新建/更新 `.ai/reports/test_report_af_auto_011_placeholder_type_priority.md`
+- 新建/更新 `.ai/reports/test_report_rwb_auto_011_placeholder_type_priority.md`
   - 记录命令、浏览器复现与最终验证结果。
-- 新建/更新 `.ai/progress/progress_af_auto_011_placeholder_type_priority.md` 和 `.ai/progress/progress.md`
+- 新建/更新 `.ai/progress/progress_rwb_auto_011_placeholder_type_priority.md` 和 `.ai/progress/progress.md`
   - 记录本任务的实施、验证和风险。
-- 新建/更新 `.ai/tasks/task_af_auto_011_placeholder_type_priority.json`
+- 新建/更新 `.ai/tasks/task_rwb_auto_011_placeholder_type_priority.json`
   - 仅在全部必需门禁通过后标记为 `done`；保留任务描述。
 
 ### Task 1: 写入失败回归测试
@@ -159,10 +159,10 @@ Expected: PASS。
 **Files:**
 - Modify: `docs/modules/app_web.md:42-46`
 - Modify: `docs/CHANGELOG.md`
-- Create or Modify: `.ai/reports/test_report_af_auto_011_placeholder_type_priority.md`
-- Create or Modify: `.ai/progress/progress_af_auto_011_placeholder_type_priority.md`
+- Create or Modify: `.ai/reports/test_report_rwb_auto_011_placeholder_type_priority.md`
+- Create or Modify: `.ai/progress/progress_rwb_auto_011_placeholder_type_priority.md`
 - Modify: `.ai/progress/progress.md`
-- Create or Modify: `.ai/tasks/task_af_auto_011_placeholder_type_priority.json`
+- Create or Modify: `.ai/tasks/task_rwb_auto_011_placeholder_type_priority.json`
 
 - [ ] **Step 1: 更新 app/web 模块文档**
 
@@ -185,9 +185,9 @@ Expected: PASS。
 使用以下结构记录实际结果，不能预填为通过：
 
 ```markdown
-# Test Report: af-auto-011-placeholder-type-priority
+# Test Report: rwb-auto-011-placeholder-type-priority
 
-Task ID: af-auto-011-placeholder-type-priority
+Task ID: rwb-auto-011-placeholder-type-priority
 Changed source files:
 Changed test files:
 Changed docs:
@@ -207,10 +207,10 @@ Final test decision:
 ### Task 4: 浏览器验收与完整门禁
 
 **Files:**
-- Modify: `.ai/reports/test_report_af_auto_011_placeholder_type_priority.md`
-- Modify: `.ai/progress/progress_af_auto_011_placeholder_type_priority.md`
+- Modify: `.ai/reports/test_report_rwb_auto_011_placeholder_type_priority.md`
+- Modify: `.ai/progress/progress_rwb_auto_011_placeholder_type_priority.md`
 - Modify: `.ai/progress/progress.md`
-- Modify: `.ai/tasks/task_af_auto_011_placeholder_type_priority.json`
+- Modify: `.ai/tasks/task_rwb_auto_011_placeholder_type_priority.json`
 - Generated: `docs/generated/py_file_index.md`（仅生成器实际产生变更时纳入）
 
 - [ ] **Step 1: 启动本地服务并进入报告模板配置页**
@@ -285,7 +285,7 @@ Expected: 每条命令都成功退出。若任一命令失败，修复可安全�
 若用户明确要求提交：
 
 ```bash
-git add app/web/static/js/templates.js tests/unit/test_report_template_workbench_frontend.py docs/modules/app_web.md docs/CHANGELOG.md docs/superpowers/specs/2026-07-24-report-placeholder-explicit-type-priority-design.md docs/superpowers/plans/2026-07-24-report-placeholder-explicit-type-priority.md .ai/reports/test_report_af_auto_011_placeholder_type_priority.md .ai/progress/progress_af_auto_011_placeholder_type_priority.md .ai/progress/progress.md .ai/tasks/task_af_auto_011_placeholder_type_priority.json
+git add app/web/static/js/templates.js tests/unit/test_report_template_workbench_frontend.py docs/modules/app_web.md docs/CHANGELOG.md docs/superpowers/specs/2026-07-24-report-placeholder-explicit-type-priority-design.md docs/superpowers/plans/2026-07-24-report-placeholder-explicit-type-priority.md .ai/reports/test_report_rwb_auto_011_placeholder_type_priority.md .ai/progress/progress_rwb_auto_011_placeholder_type_priority.md .ai/progress/progress.md .ai/tasks/task_rwb_auto_011_placeholder_type_priority.json
 git commit -m "fix: preserve explicit report placeholder types"
 ```
 

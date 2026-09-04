@@ -1,5 +1,5 @@
 """
-统一数据命令组 — af data ingest|backfill|validate|status|list|file|schedule|workers
+统一数据命令组 — rwb data ingest|backfill|validate|status|list|file|schedule|workers
 
 替换分散的 ingest / crawl / knowledge 命令，提供统一入口。
 旧命令保留为别名（向后兼容）。
@@ -103,10 +103,10 @@ def data_group() -> None:
 
     \b
     常用命令:
-      af data list                    列出所有可用数据源
-      af data ingest -s cls -d telegram   摄入数据
-      af data status                  查看数据状态
-      af data validate -s akshare -d stock_daily  校验数据
+      rwb data list                    列出所有可用数据源
+      rwb data ingest -s cls -d telegram   摄入数据
+      rwb data status                  查看数据状态
+      rwb data validate -s akshare -d stock_daily  校验数据
     """
     pass
 
@@ -121,7 +121,7 @@ def data_list_command() -> None:
     """列出所有可用数据源及其支持的数据集
 
     示例:
-        af data list
+        rwb data list
     """
     sources = _get_available_sources()
 
@@ -148,12 +148,12 @@ def data_list_command() -> None:
                 click.echo(f"    - {ds}")
 
     click.echo("\n" + "=" * 70)
-    click.echo("Use: af data ingest --source <source> --dataset <dataset> [options]")
+    click.echo("Use: rwb data ingest --source <source> --dataset <dataset> [options]")
     click.echo()
 
 
 # ---------------------------------------------------------------------------
-# data ingest — 执行数据摄入（替代 af crawl run）
+# data ingest — 执行数据摄入（替代 rwb crawl run）
 # ---------------------------------------------------------------------------
 
 
@@ -187,10 +187,10 @@ def data_ingest_command(
 
     \b
     示例:
-        af data ingest -s cls -d telegram --days 2
-        af data ingest -s akshare -d stock_daily --codes "600519.SH" --start-date 2026-01-01 --end-date 2026-06-01
-        af data ingest -s auto -d daily_quotes --codes "600519.SH" --days 5   # 自动降级: Cjpy → Wind → BaoStock
-        af data ingest -s cnstock -d news --max-items 50
+        rwb data ingest -s cls -d telegram --days 2
+        rwb data ingest -s akshare -d stock_daily --codes "600519.SH" --start-date 2026-01-01 --end-date 2026-06-01
+        rwb data ingest -s auto -d daily_quotes --codes "600519.SH" --days 5   # 自动降级: Cjpy → Wind → BaoStock
+        rwb data ingest -s cnstock -d news --max-items 50
     """
     reg = _ensure_registry()
 
@@ -240,7 +240,7 @@ def data_ingest_command(
     if source not in sources:
         click.echo(f"✗ Unknown source: {source}", err=True)
         click.echo(f"  Available: {', '.join(sorted(sources.keys()))}")
-        click.echo("  Use 'af data list' to see all sources and datasets.")
+        click.echo("  Use 'rwb data list' to see all sources and datasets.")
         raise click.Abort()
 
     source_info = sources[source]
@@ -296,7 +296,7 @@ def data_ingest_command(
 
 
 # ---------------------------------------------------------------------------
-# data backfill — 历史数据回填（替代 af crawl backfill）
+# data backfill — 历史数据回填（替代 rwb crawl backfill）
 # ---------------------------------------------------------------------------
 
 
@@ -321,10 +321,10 @@ def data_backfill_command(
 
     \b
     示例:
-        af data backfill -s cls --days 30
-        af data backfill --all --days 90
-        af data backfill --all --days 30 --max-pages 50
-        af data backfill --status
+        rwb data backfill -s cls --days 30
+        rwb data backfill --all --days 90
+        rwb data backfill --all --days 30 --max-pages 50
+        rwb data backfill --status
     """
     # ── --status: 显示各文档源数据覆盖状态 ──
     if show_status:
@@ -398,8 +398,8 @@ def _backfill_single_source(
         if source in sources:
             connector = _get_connector(source)
             if connector and spec is None:
-                click.echo(f"⚠ Source '{source}' is connector-only; use af data ingest instead.")
-                click.echo(f"  Try: af data ingest -s {source} -d <dataset> --days {days}")
+                click.echo(f"⚠ Source '{source}' is connector-only; use rwb data ingest instead.")
+                click.echo(f"  Try: rwb data ingest -s {source} -d <dataset> --days {days}")
                 return
         click.echo(f"✗ Unknown source: {source}", err=True)
         enabled = [s.source_type.value for s in get_enabled()]
@@ -644,7 +644,7 @@ def _show_backfill_status() -> None:
             click.echo(f"    Effective:  {gap_info}")
 
     click.echo("\n" + "=" * 75)
-    click.echo("Use: af data backfill --all --days <N>  to backfill all document sources")
+    click.echo("Use: rwb data backfill --all --days <N>  to backfill all document sources")
     click.echo()
 
 
@@ -670,8 +670,8 @@ def data_validate_command(
 
     \b
     示例:
-        af data validate -s akshare -d stock_daily
-        af data validate -s wind -d daily_quotes --start-date 2026-05-01
+        rwb data validate -s akshare -d stock_daily
+        rwb data validate -s wind -d daily_quotes --start-date 2026-05-01
     """
     sources = _get_available_sources()
     if source not in sources:
@@ -726,7 +726,7 @@ def data_validate_command(
 
 
 # ---------------------------------------------------------------------------
-# data status — 查看数据整体状态（替代 af crawl status + af knowledge status）
+# data status — 查看数据整体状态（替代 rwb crawl status + rwb knowledge status）
 # ---------------------------------------------------------------------------
 
 
@@ -739,8 +739,8 @@ def data_status_command(source: Optional[str]) -> None:
 
     \b
     示例:
-        af data status
-        af data status -s cls
+        rwb data status
+        rwb data status -s cls
     """
     # 1. Connector 健康状态
     if source:
@@ -858,7 +858,7 @@ def data_status_command(source: Optional[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# data file — 摄入单个文件（替代 af ingest file）
+# data file — 摄入单个文件（替代 rwb ingest file）
 # ---------------------------------------------------------------------------
 
 
@@ -872,8 +872,8 @@ def data_file_command(file: str, source_type: str, source_name: str, title: str)
 
     \b
     示例:
-        af data file -f report.pdf -t report -s "券商研报"
-        af data file -f news.txt -t news
+        rwb data file -f report.pdf -t report -s "券商研报"
+        rwb data file -f news.txt -t news
     """
     from services.ingest_service import IngestService
 
@@ -909,7 +909,7 @@ def data_file_command(file: str, source_type: str, source_name: str, title: str)
         click.echo("=" * 60)
 
         if result["assertions_pending"] > 0 or result["events_pending"] > 0:
-            click.echo("\nTip: Use 'af review list' to review pending items.")
+            click.echo("\nTip: Use 'rwb review list' to review pending items.")
 
     except Exception as e:
         click.echo(f"\n✗ Failed to ingest file: {e}", err=True)
@@ -940,9 +940,9 @@ def data_stream_command(source: str, codes: str, fields: str, once: bool, timeou
 
     \b
     示例:
-        af data stream --codes SH600519
-        af data stream --codes SH600519,SZ000001 --fields price,StockName
-        af data stream --codes SH600519 --once --timeout 10
+        rwb data stream --codes SH600519
+        rwb data stream --codes SH600519,SZ000001 --fields price,StockName
+        rwb data stream --codes SH600519 --once --timeout 10
 
     \b
     常用字段:
@@ -1029,9 +1029,9 @@ def schedule_group() -> None:
 
     \b
     示例:
-        af data schedule start
-        af data schedule stop
-        af data schedule status
+        rwb data schedule start
+        rwb data schedule stop
+        rwb data schedule status
     """
     pass
 
@@ -1041,7 +1041,7 @@ def schedule_start_command() -> None:
     """启动采集调度器（后台进程）
 
     示例:
-        af data schedule start
+        rwb data schedule start
     """
     import subprocess
     import sys
@@ -1077,7 +1077,7 @@ def schedule_stop_command() -> None:
     """停止采集调度器
 
     示例:
-        af data schedule stop
+        rwb data schedule stop
     """
     import os as _os
     import signal as _signal
@@ -1110,7 +1110,7 @@ def schedule_status_command() -> None:
     """查看采集调度器状态
 
     示例:
-        af data schedule status
+        rwb data schedule status
     """
     from services.crawl_scheduler import build_scheduler_status, get_scheduler_process_status
 
@@ -1151,9 +1151,9 @@ def schedule_market_group() -> None:
 
     \b
     示例:
-        af data schedule market start
-        af data schedule market stop
-        af data schedule market status
+        rwb data schedule market start
+        rwb data schedule market stop
+        rwb data schedule market status
     """
     pass
 
@@ -1165,7 +1165,7 @@ def market_schedule_start_command() -> None:
     每日收盘后自动拉取行情，定期检测数据缺口并回补。
 
     示例:
-        af data schedule market start
+        rwb data schedule market start
     """
     import os as _os
     import subprocess
@@ -1213,7 +1213,7 @@ def market_schedule_stop_command() -> None:
     """停止市场数据调度器
 
     示例:
-        af data schedule market stop
+        rwb data schedule market stop
     """
     import os as _os
     import signal as _signal
@@ -1246,7 +1246,7 @@ def market_schedule_status_command() -> None:
     """查看市场数据调度器状态
 
     示例:
-        af data schedule market status
+        rwb data schedule market status
     """
     import json as _json
     import os as _os
@@ -1319,9 +1319,9 @@ def workers_group() -> None:
 
     \b
     示例:
-        af data workers start
-        af data workers stop
-        af data workers status
+        rwb data workers start
+        rwb data workers stop
+        rwb data workers status
     """
     pass
 
@@ -1332,8 +1332,8 @@ def workers_start_command(num: int) -> None:
     """启动知识加工 Worker（后台进程）
 
     示例:
-        af data workers start
-        af data workers start -n 4
+        rwb data workers start
+        rwb data workers start -n 4
     """
     import subprocess
     import sys
@@ -1386,7 +1386,7 @@ def workers_stop_command() -> None:
     """停止所有知识加工 Worker 进程
 
     示例:
-        af data workers stop
+        rwb data workers stop
     """
     import os as _os
     import signal as _signal
@@ -1420,7 +1420,7 @@ def workers_status_command() -> None:
     """查看所有知识加工 Worker 状态
 
     示例:
-        af data workers status
+        rwb data workers status
     """
     from workers.knowledge_worker import get_all_worker_statuses
 

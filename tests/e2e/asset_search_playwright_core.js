@@ -24,7 +24,7 @@ async function loadChromium() {
   }
 }
 
-const BASE_URL = process.env.ALPHAFOUNDRY_WEB_URL || 'http://127.0.0.1:8002';
+const BASE_URL = process.env.RESEARCH_WEB_URL || 'http://127.0.0.1:8002';
 const CHROME_PATH =
   process.env.CHROME_EXECUTABLE_PATH ||
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';

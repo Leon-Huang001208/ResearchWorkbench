@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/04-data-file-flow.json",
-  "output": "/Users/leon/Desktop/Projects/AlphaFoundry/.worktrees/dsh-web-v1/outputs/research-web-architecture/04-data-file-flow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/dsh-web-v1/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
-    "sha256": "84e73a18abc25df46a6bd216ed886dbc9492e66ccd27c8807b013df4310b0bcf",
-    "bytes": 3336
+    "sha256": "2a01c862632de64b8e647a4ba9a6e524e594a17d17653c6fd720a1dd01a77cdc",
+    "bytes": 5839
   },
   "artifact": {
-    "sha256": "3f8b6ffb3266a50572600acbf2db51aa08ae81709a31c21fea764ce20c5f6d60",
-    "bytes": 638035
+    "sha256": "8524b0971442a2a593fdc6da0fa7332290fc0f2015785f3a6f0bbf34c6bd1c7c",
+    "bytes": 648638
   },
   "validation": {
     "checksPassed": 9,

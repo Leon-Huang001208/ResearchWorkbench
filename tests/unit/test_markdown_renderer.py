@@ -47,7 +47,7 @@ def minimal_doc():
                 ],
             )
         ],
-        metadata={"author": "AlphaFoundry"},
+        metadata={"author": "Research Workbench"},
     )
 
 
@@ -60,7 +60,7 @@ class TestMarkdownRendererBasic:
             assert "# 测试报告" in content
             assert "*自动生成*" in content
             assert "这是第一段内容" in content
-            assert "*author*: AlphaFoundry" in content
+            assert "*author*: Research Workbench" in content
 
     def test_render_to_buffer(self, renderer, minimal_doc):
         """渲染到内存缓冲区."""

@@ -1,7 +1,7 @@
-# Test Coverage Improvement Plan - af-auto-000-10
+# Test Coverage Improvement Plan - rwb-auto-000-10
 
-**Task ID**: af-auto-000-10  
-**Date**: 2026-05-11  
+**Task ID**: rwb-auto-000-10
+**Date**: 2026-05-11
 **Status**: Complete
 
 ---

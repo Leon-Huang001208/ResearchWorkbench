@@ -19,20 +19,20 @@
 - `tests/unit/test_resource_monitor_frontend_static.py`：导航、菜单和无成功徽标契约。
 - Web 文档与 `.ai/reports/2026-08-06-system-center-resource-monitor-ui.md`：术语与验证证据。
 
-在独立 worktree `/Users/leon/Desktop/Projects/AlphaFoundry-worktrees/system-center-ui`、分支 `codex/system-center-ui` 实施，避免主工作区未提交配置改动。
+在独立 worktree `/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/system-center-ui`、分支 `codex/system-center-ui` 实施，避免主工作区未提交配置改动。
 
 ### Task 1: 建立 worktree 与失败测试
 
 **Files:**
-- Create: `/Users/leon/Desktop/Projects/AlphaFoundry-worktrees/system-center-ui`
+- Create: `/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/system-center-ui`
 - Modify: `tests/unit/test_resource_monitor_frontend_static.py`
 
 - [ ] **Step 1: 创建干净工作区**
 
 ```bash
 git worktree add -b codex/system-center-ui \
-  /Users/leon/Desktop/Projects/AlphaFoundry-worktrees/system-center-ui master
-git -C /Users/leon/Desktop/Projects/AlphaFoundry-worktrees/system-center-ui status --short
+  /Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/system-center-ui master
+git -C /Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/system-center-ui status --short
 ```
 
 Expected: 新 worktree 干净，主工作区的配置 WIP 不出现。
@@ -117,16 +117,16 @@ function setSystemTab(section) {
         button.setAttribute('aria-selected', String(selected));
         button.tabIndex = selected ? 0 : -1;
     });
-    localStorage.setItem('af-system-tab', section);
+    localStorage.setItem('rwb-system-tab', section);
 }
 ```
 
-将 `navigateTo(section)` 改成 `navigateTo(section, options = {})`；用 `systemTarget(section, options.systemTab)` 得到真实 section，以它驱动区块激活、`startResourceMonitoring()`、`stopResourceMonitoring()` 与 `initConfigurationPage()`。侧栏只激活 `data-section="system"`，`af-active-section` 保存 `system`，并调用 `setSystemTab(targetSection)`。
+将 `navigateTo(section)` 改成 `navigateTo(section, options = {})`；用 `systemTarget(section, options.systemTab)` 得到真实 section，以它驱动区块激活、`startResourceMonitoring()`、`stopResourceMonitoring()` 与 `initConfigurationPage()`。侧栏只激活 `data-section="system"`，`rwb-active-section` 保存 `system`，并调用 `setSystemTab(targetSection)`。
 
 把数据库配置事件改为：
 
 ```js
-document.addEventListener('alphafoundry:open-database-configuration', () => {
+document.addEventListener('research_workbench:open-database-configuration', () => {
     navigateTo('system', { systemTab: 'config' });
 });
 ```
