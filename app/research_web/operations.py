@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
+import subprocess
 import time
 from collections import Counter, defaultdict
 from datetime import UTC, date, datetime, timedelta
@@ -252,12 +254,41 @@ def _managed_state(root: Path, role: str, port: int) -> dict:
     try:
         if path.is_file() and not path.is_symlink():
             candidate = json.loads(path.read_text())
+            command = candidate.get("command")
+            signature = candidate.get("signature")
             pid = candidate.get("pid")
-            if isinstance(pid, int) and pid > 1:
+            fingerprint = hashlib.sha256(
+                json.dumps(command, ensure_ascii=False, separators=(",", ":")).encode()
+            ).hexdigest()
+            valid = (
+                candidate.get("version") == 1
+                and candidate.get("role") == role
+                and candidate.get("port") == port
+                and candidate.get("data_root") == str(root.resolve())
+                and candidate.get("project_root") == str(Path(__file__).parents[2].resolve())
+                and isinstance(command, list)
+                and all(isinstance(item, str) for item in command)
+                and candidate.get("fingerprint") == fingerprint
+                and isinstance(signature, list)
+                and signature
+                and all(isinstance(item, str) for item in signature)
+                and isinstance(pid, int)
+                and pid > 1
+            )
+            if valid:
                 os.kill(pid, 0)
-                state = candidate
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                result = subprocess.run(
+                    ["ps", "-p", str(pid), "-o", "command="],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=2,
+                )
+                if result.returncode == 0 and all(item in result.stdout for item in signature):
+                    state = candidate
+    except (OSError, ValueError, TypeError, json.JSONDecodeError, subprocess.SubprocessError):
         state = None
+        log.warning("operations_managed_state_unavailable", role=role)
     started = state.get("started_at") if state else None
     return {
         "id": role,

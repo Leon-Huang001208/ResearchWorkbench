@@ -10,6 +10,7 @@
 - 新增异步、幂等的研究台数据查询；真实数据形成会话隔离快照，状态与失败代码可查询。
 - 新增页面到 FinGPT/Claw 的交接：先核对数据集归属，再逐文件复制并复核 SHA-256；页面上下文限制 64 KiB，不共享源会话路径，也不重复取数。
 - 新增只读“运行与用量”，聚合 DSH 原生 usage、回合、子 Agent、工具、审批、DataHub 快照、服务健康及 Research Workbench 数据根占用。未知 usage 不记作零，模型价格未配置时不推算费用。
+- 受管进程必须同时匹配状态文件、命令指纹、项目/数据根和实际 PID 命令签名；“进程存在”与实时健康仍为两个独立字段。
 - 新增 CJPY/天软 Provider 边界：仅在依赖与终端配置齐备时可用；固定地址、受限能力、20 秒超时及 5,000 行上限。当前环境未安装/配置，目录如实显示阻塞。
 - 将旧市场解读逻辑改造成 DSH 原生 `market-commentary` Skill 与步骤式 Workflow；不恢复旧报告编译、事实断言或第二套 Agent 编排。
 - 更新 Research Web 当前架构 Markdown、API 清单及 Archify 的模块依赖、研究序列、DataHub/文件流三张图。
@@ -24,8 +25,8 @@
 
 ## 验证
 
-- Research Web Python：`318 passed, 3 skipped in 44.30s`。
-- 新增研究台/监控聚焦回归：`6 passed`；覆盖幂等、选择性复制、无效数据集、超大上下文、敏感内容与单次历史加载。
+- Research Web Python：`319 passed, 3 skipped in 49.11s`。
+- 新增研究台/监控聚焦回归：`7 passed`；覆盖幂等、选择性复制、无效数据集、超大上下文、敏感内容、单次历史加载及伪造/失配进程状态。
 - JavaScript：137 项，`136 passed, 1 expected skip, 0 failed`。
 - 本轮 Python 文件通过 Ruff、Black、isort；JavaScript 通过 Node 语法检查；`git diff --check` 通过。
 - mypy 以 Python 3.12 检查本轮 CJPY Provider 未报错；全量仍有旧 `core/observability` logger 类型基线，未伪报全量通过。
@@ -36,4 +37,4 @@
 
 - 当前隔离验收 Web：`http://127.0.0.1:18088/`；3081 健康，但 `credential_configured=false`。新数据目录按迁移边界不复制 API Key，必须由用户在设置页重新填写后才能完成本轮真实模型回归。
 - 在真实 FinGPT/Claw、文件交付、停止/审批/恢复门禁通过前，不合并 `master`，不推送迁移标签，也不删除 worktree、旧目录或构建产物。
-- 已保护外部 runtime core 未提交源码：分支 `codex/archive-runtime-core-20260905`，提交 `7a10e07`；清理该目录前还需生成可独立恢复的 bundle 并校验。
+- 已保护外部 runtime core 未提交源码：分支 `codex/archive-runtime-core-20260905`，提交 `7a10e07`。完整历史 bundle 已写入 `~/.research-workbench/migration-backups/runtime-core-20260905.bundle`，校验通过，SHA-256 为 `10ad84253b482f3b6a7b612482dc7e541b83ba7f738c109b8553698df9254807`。

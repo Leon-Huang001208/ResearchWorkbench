@@ -7,7 +7,7 @@
 - 模型与回合：DSH `session.list`、历史事件和 `projection.py` 中的原生 usage。没有 usage 的历史记录为未知，不记作零。
 - Agent 与工具：真实 Claw 会话、`subagent.list/history`、工具开始/结束事件，以及产品审批/取消审计。
 - DataHub：查询审计、私有 manifest 和公开快照文件；失败只暴露安全化错误码。
-- 服务：`rwb web` PID/指纹状态加实时 `/host.describe` 健康检查；进程存在与健康通过分开显示。
+- 服务：只有 `rwb web` 状态文件、命令指纹、项目/数据根与实际 PID 命令签名同时匹配时才显示“进程存在”；实时 `/host.describe` 健康检查单独显示。
 - 存储：只遍历 `~/.research-workbench/research-web` 和项目私有 `dsh-source` 的允许分类，不扫描用户磁盘其他位置。
 
 ## API 与读取策略

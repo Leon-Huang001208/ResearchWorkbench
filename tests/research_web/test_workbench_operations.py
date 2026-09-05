@@ -1,14 +1,18 @@
 """Research desk handoff and read-only operations regressions."""
 
 import asyncio
+import hashlib
 import json
+import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from app.research_web.main import create_app
+from app.research_web.operations import _managed_state
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
 
@@ -233,3 +237,37 @@ def test_operations_summary_loads_each_session_history_once(api):
     response = client.get("/api/research/operations/summary?range=today")
     assert response.status_code == 200, response.text
     assert service.client.history_calls == 1
+
+
+def test_managed_process_requires_matching_state_fingerprint_and_command(tmp_path, monkeypatch):
+    root = tmp_path / "research-web"
+    run = tmp_path / "run"
+    root.mkdir()
+    run.mkdir()
+    command = ["python", "-m", "uvicorn", "app.research_web.main:app"]
+    signature = ["app.research_web.main:app", "8088"]
+    payload = json.dumps(command, ensure_ascii=False, separators=(",", ":"))
+    state = {
+        "version": 1,
+        "role": "web",
+        "pid": os.getpid(),
+        "port": 8088,
+        "started_at": 1.0,
+        "project_root": str(Path(__file__).parents[2].resolve()),
+        "data_root": str(root.resolve()),
+        "command": command,
+        "fingerprint": hashlib.sha256(payload.encode()).hexdigest(),
+        "signature": signature,
+    }
+    (run / "web.json").write_text(json.dumps(state))
+    monkeypatch.setattr(
+        "app.research_web.operations.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=0, stdout="python -m uvicorn app.research_web.main:app --port 8088"
+        ),
+    )
+    assert _managed_state(root, "web", 8088)["process_running"] is True
+
+    state["command"].append("--tampered")
+    (run / "web.json").write_text(json.dumps(state))
+    assert _managed_state(root, "web", 8088)["process_running"] is False
