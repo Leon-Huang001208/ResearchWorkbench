@@ -44,8 +44,9 @@
                 <button class="activity-btn" data-section="research" title="研究中心"><i class="codicon codicon-microscope"></i><span>研究中心</span></button>
                 <button class="activity-btn" data-section="funds" title="基金情报"><i class="codicon codicon-library"></i><span>基金情报</span></button>
                 <button class="activity-btn" data-section="signal-lab" title="Signal Lab"><i class="codicon codicon-beaker"></i><span>Signal Lab</span></button>
-                <button class="activity-btn" data-section="commentary" title="点评生产"><i class="codicon codicon-comment-discussion"></i><span>点评生产</span></button>
-                <button class="activity-btn active" data-section="templates" title="模板管理"><i class="codicon codicon-file-code"></i><span>报告生产</span></button>
+                <button class="activity-btn" data-section="fingpt" title="FinGPT"><i class="codicon codicon-comment-discussion"></i><span>FinGPT</span></button>
+                <button class="activity-btn active" data-section="commentary" title="内容生产"><i class="codicon codicon-run-all"></i><span>内容生产</span></button>
+                <button class="activity-btn" data-section="templates" title="报告项目"><i class="codicon codicon-file"></i><span>报告项目</span></button>
                 <button class="activity-btn" data-section="pipeline-monitor" title="管线监控"><i class="codicon codicon-pulse"></i><span>运行监控</span></button>
                 <button class="activity-btn" data-section="event-signal" title="事件信号"><i class="codicon codicon-zap"></i><span>事件信号</span></button>
                 <button class="activity-btn" data-section="signals" title="信号管理"><i class="codicon codicon-pulse"></i><span>信号管理</span></button>
@@ -1597,13 +1598,38 @@
                 </div>
             </section>
 
+            <!-- FinGPT: DSH owns complete chat records; AlphaFoundry owns task governance. -->
+            <section id="section-fingpt" class="content-section">
+                <div class="fingpt-page" data-state="loading">
+                    <header class="fingpt-header">
+                        <div><span class="commentary-kicker">AlphaFoundry · DSH Web</span><h2>FinGPT</h2><p>在对话中完成投研；行情、数据库、证据和产物仍由 AlphaFoundry 管控。</p></div>
+                        <div class="fingpt-runtime-state" id="fingpt-runtime-state" aria-live="polite"><i class="codicon codicon-sync"></i> 正在检查 DSH Host</div>
+                    </header>
+                    <section class="fingpt-presets" aria-label="预置任务">
+                        <button class="fingpt-preset primary" data-fingpt-preset="daily-market-commentary"><i class="codicon codicon-calendar"></i><strong>每日市场点评</strong><small>完整 Workflow：市场 Tool → DSH Skill → 质量门禁 → 文档</small></button>
+                        <button class="fingpt-preset" data-fingpt-preset="one-pager"><i class="codicon codicon-note"></i><strong>一页纸</strong><small>通用 Agent 任务</small></button>
+                        <button class="fingpt-preset" data-fingpt-preset="theme-research"><i class="codicon codicon-microscope"></i><strong>主题研究</strong><small>通用 Agent 任务</small></button>
+                        <button class="fingpt-preset" data-fingpt-preset="chart"><i class="codicon codicon-graph-line"></i><strong>画图</strong><small>通用 Agent 任务</small></button>
+                        <button class="fingpt-preset" data-fingpt-preset="research-checklist"><i class="codicon codicon-checklist"></i><strong>调研清单</strong><small>通用 Agent 任务</small></button>
+                    </section>
+                    <section class="fingpt-shell" aria-label="FinGPT 对话">
+                        <div id="fingpt-host-unavailable" class="fingpt-diagnostic" role="status"><i class="codicon codicon-debug-disconnect"></i><div><strong>DSH 对话 Host 未就绪</strong><p id="fingpt-diagnostic-copy">正在检查本机运行状态。</p><code>npm run dsh:web</code></div><button id="btn-fingpt-retry" class="btn-secondary" type="button">重新检查</button></div>
+                        <iframe id="fingpt-dsh-frame" title="FinGPT DSH 对话" referrerpolicy="no-referrer" hidden></iframe>
+                    </section>
+                    <section class="fingpt-governance-grid">
+                        <article><div class="fingpt-panel-title"><h3>最近任务</h3><span>AlphaFoundry 索引</span></div><div id="fingpt-task-list" class="fingpt-list"><p>尚无任务。</p></div></article>
+                        <article><div class="fingpt-panel-title"><h3>会话归档</h3><span>完整正文保存在 DSH</span></div><div id="fingpt-session-list" class="fingpt-list"><p>尚无已同步会话。</p></div></article>
+                    </section>
+                </div>
+            </section>
+
             <!-- Commentary Production Section -->
             <section id="section-commentary" class="content-section">
                 <div class="commentary-workbench">
                     <div id="commentary-workbench-toolbar" class="commentary-workbench-toolbar">
                         <div class="commentary-workbench-title">
-                            <span class="commentary-kicker">Commentary Studio</span>
-                            <h2>点评生产中心</h2>
+                            <span class="commentary-kicker">Workflow Studio</span>
+                            <h2>内容生产中心</h2>
                         </div>
                         <div class="commentary-status-strip" aria-label="点评生产状态">
                             <span><strong id="commentary-evidence-count">--</strong><small>证据</small></span>
@@ -1627,11 +1653,13 @@
                     </div>
 
                     <div class="commentary-workspace-tabs" role="tablist" aria-label="点评生产工作区">
-                        <button class="commentary-workspace-tab active" type="button" data-commentary-workspace="template">选择模板</button>
+                        <button class="commentary-workspace-tab active" type="button" data-commentary-workspace="template">工作流</button>
                         <button class="commentary-workspace-tab" type="button" data-commentary-workspace="subject">确认对象</button>
                         <button class="commentary-workspace-tab" type="button" data-commentary-workspace="content">内容清单</button>
                         <button class="commentary-workspace-tab" type="button" data-commentary-workspace="draft">草稿生成</button>
                         <button class="commentary-workspace-tab" type="button" data-commentary-workspace="history">历史记录</button>
+                        <button class="commentary-workspace-tab" type="button" data-commentary-workspace="workflow-config">工作流设置</button>
+                        <button class="commentary-workspace-tab" type="button" data-commentary-workspace="report-projects">报告项目</button>
                     </div>
 
                     <div class="commentary-command-center">
@@ -1904,6 +1932,30 @@
                                     <div id="commentary-history-list" class="commentary-history-list">
                                         <p class="empty-state compact">暂无历史记录。</p>
                                     </div>
+                                </section>
+
+                                <section class="commentary-workspace-panel" data-commentary-workspace-panel="workflow-config">
+                                    <section class="commentary-step-hero">
+                                        <div>
+                                            <span class="commentary-kicker">Workflow configuration</span>
+                                            <h3>每日市场点评</h3>
+                                            <p>这里的配置是工作流真源：可调整段落、图表和定时规则；市场、新闻和数据库均以 Tool 进入，Skill 只负责分析与叙事。</p>
+                                        </div>
+                                    </section>
+                                    <div id="daily-market-workflow-config" class="commentary-content-workbench">
+                                        <p class="empty-state compact">正在读取工作流配置…</p>
+                                    </div>
+                                </section>
+
+                                <section class="commentary-workspace-panel" data-commentary-workspace-panel="report-projects">
+                                    <section class="commentary-step-hero">
+                                        <div>
+                                            <span class="commentary-kicker">Report workflows</span>
+                                            <h3>报告项目</h3>
+                                            <p>现有 Word/PPT 报告项目保留为同一内容生产中心的另一类工作流。选择项目后可继续使用既有模板、数据映射和原生文档渲染能力。</p>
+                                        </div>
+                                        <button class="btn-primary" type="button" onclick="window.navigateTo?.('templates')"><i class="codicon codicon-file-code"></i> 打开报告项目</button>
+                                    </section>
                                 </section>
 
                                 <!-- Generation Loading Overlay -->

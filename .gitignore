@@ -21,6 +21,9 @@ build/
 # Node / desktop build artifacts
 node_modules
 node_modules/
+vendor/deepseek-harness/
+.runtime/dsh-home/
+runtimes/dsh/plugin/lib/
 src-tauri/target/
 src-tauri/tauri.release.conf.json
 

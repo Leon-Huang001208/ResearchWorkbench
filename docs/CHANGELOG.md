@@ -8,6 +8,12 @@
 
 ### Added
 
+- **配置驱动的每日市场点评 Workflow Studio**：`workflow_specs/daily_market_commentary.yaml` 成为每日市场点评的唯一真源，默认固化三段式、1000–1500 字、16:15 Asia/Shanghai 交易日运行与两张原生图表。内容生产中心以文档型写作块为主，并保留 Markdown/Word 投影；市场快照、宽度、成交额、行业/主题、ETF 映射和新闻由 AlphaFoundry Tool 获取，DSH Skill 仅负责归因、反证和叙事。解释性冲突转为条件风险，未解决数值/期间/关键来源冲突才阻断产物。
+
+- **每日市场点评实时 Tool 数据源**：新增不落库的 `LiveAkShareMarketCommentaryTools`，由 AlphaFoundry 原生读取 AKShare 指数、全 A 宽度、同花顺行业板块和新闻证据，DSH Skill 仅接收结构化结果。AKShare 新闻采集器兼容新版财新主新闻入口；所有新闻源失败时保持质量门禁阻断，绝不补造引用。
+
+- **Runtime-agnostic 投研能力内核（v2）**：新增 Runtime-neutral 领域契约、每日市场点评 Workflow、项目托管隔离 DSH Host 的 HTTP/SSE Bridge Bundle、PostgreSQL 计划/步骤/事件/证据/不可变产物迁移（015）及 `/api/v2` 能力发现、执行、取消、恢复、SSE 事件和受限 Runtime Tool 接口。`npm run dsh:bootstrap` / `npm run dsh:web` 锁定 `dsh-v0.1.1-rc.2`，不将 DSH SDK 放入 AlphaFoundry 根依赖；Codex/Claude 保留占位 Runtime。
+
 - **通用研究中心与机构级 Research Run（首个闭环）**：新增 PostgreSQL 权威 `ResearchRun` 运行时及 013/014 迁移，保存规范化 `ResearchSubject`、任务、证据输入、不可变版本化 Artifact、当前 Claim/Gate 投影和恢复信息。首版 LangGraph 只作为无事实持久化的执行层，完成来源规划、证据归一、Research Notes、叙事/财报综合、反方检验、质量门禁及发布投影；任何引用、数值、模板证据覆盖或冲突门禁失败均进入 `blocked`，补证后可恢复。
   - 新增 `/api/research-templates` 模板目录，以及 `/api/research-runs` 列表、创建、执行、读取、补证、恢复、产物和完成后 Markdown/Word 导出接口；未知、规划中或对象类型不兼容的模板在持久化前返回 `422`。旧 `target_id` 请求兼容映射为 `security` ResearchSubject。
   - 工作台新增统一“研究中心”，用问题、研究对象、时点、附件和模板卡片发起所有领域研究；A股公司深研可执行，宏观、商品、指数和行业模板显示为规划中。原始证据 JSON 已从普通入口移除，阻塞任务改用结构化补证恢复。
@@ -1044,6 +1050,7 @@
 - [x] v0.4.0: Web Workbench v1 + Memory Learning + 完整数据采集
 
 ### 🔄 进行中
+- [x] FinGPT DSH Web 壳：顶级对话入口、一次性启动任务、DSH 会话治理索引与每日市场点评 Workflow 入口。
 - [ ] Portfolio OS：风险预算、exposure、factor neutrality、theme exposure、liquidity
 - [ ] Evaluation OS：Agent/Signal/Timing/Narrative 系统级评估
 - [ ] Feedback Learning：根据市场结果更新权重和模型

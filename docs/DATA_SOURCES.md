@@ -83,6 +83,11 @@ pip install akshare
 
 AKShare已包含在项目依赖中，开箱即用。
 
+每日市场点评把 AKShare 保持在 AlphaFoundry 的 Connector/Adapter 层，并通过受控 Tool
+读取指数、全 A 宽度、同花顺行业板块和新闻证据；DSH Skill 只接收验证后的 Tool 输出。
+AKShare 新版移除旧新浪滚动新闻接口时，新闻采集器会降级到当前支持的财新主新闻流；所有
+新闻源均不可用时，点评质量门禁会阻断报告，而不会注入模拟引用。
+
 ### 方式二：安装全部数据源
 
 ```bash

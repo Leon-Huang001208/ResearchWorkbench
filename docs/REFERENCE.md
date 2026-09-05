@@ -525,6 +525,28 @@ Research Run 是单一 `ResearchSubject`、单一 `as_of` 时点的可恢复深�
 
 发布硬门禁为：每个观点存在引用、财务/行业/估值/风险/一致预期全覆盖、数值字段完整且不存在未解决冲突。门禁失败返回 `blocked`，导出接口返回 `409`。决策卡只含研究结论、置信度、驱动、催化剂、风险、失效条件、待验证事项和数据覆盖度；不含仓位或交易指令。
 
+### Runtime-neutral Workflow API（v2）
+
+`/api/v2` 保留现有 Research Run v1 的兼容边界，并为 Runtime-neutral 工作流提供独立账本。首个 Workflow 为每日市场点评；`workflow_specs/daily_market_commentary.yaml` 是可编辑真源。创建请求可传入确定性 `market_inputs` 以便回放；省略时明确使用 AlphaFoundry 原生实时市场 Tool，而不会将数据获取交给 DSH。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/v2/runtimes` | 返回 Runtime Descriptor 与能力位图。 |
+| `GET` / `PUT` | `/api/v2/workflows/daily-market-commentary` | 获取或保存每日市场点评的已校验工作流规格（段落、图表、质量策略和交易日定时）。 |
+| `GET` | `/api/v2/capabilities` | 返回可发现 Runtime 和 Workflow 能力。 |
+| `POST` | `/api/v2/runtime-tools/{capability_id}` | 仅 DSH Bundle 调用：回环来源、独立 Tool Token、部署 allowlist 与空输入均通过后执行原生确定性 Tool。请求必须携带 `run_id`、`execution_id` 与 `correlation_id`；密钥不会被回显或记录。 |
+| `POST` | `/api/v2/market-commentary/runs` | 创建每日市场点评 Plan，不隐式执行。 |
+| `POST` | `/api/v2/runs/{run_id}/execute` | 执行工作流；无 Skill capability 时阻断。 |
+| `POST` | `/api/v2/runs/{run_id}/cancel` | 标记取消。 |
+| `POST` | `/api/v2/runs/{run_id}/resume` | 仅恢复 blocked/failed 工作流。 |
+| `GET` | `/api/v2/runs/{run_id}/events?after_sequence=N` | 以 SSE 重放事件账本，供断线续传。 |
+
+### 项目管理的隔离 DSH Host
+
+`npm run dsh:bootstrap` 将官方 `dsh-v0.1.1-rc.2` checkout 固定到 `vendor/deepseek-harness/`，在 `.runtime/dsh-home` 安装 `runtimes/dsh/plugin` Bundle 并生成 manifest 与 DSH Skills；`npm run dsh:web` 只绑定 `127.0.0.1` 启动该隔离 Profile。启动器通过 `ALPHAFOUNDRY_DSH_SKILLS_DIR` 配置 DSH 的 `customSkillDirs`，并禁用默认 Skill 根目录，使部署产物成为唯一的 Skill 来源。它不读取用户现有 DSH 配置或凭据。DSH Bridge 与 AlphaFoundry API 都必须绑定在回环地址；两条方向各使用独立 Bearer Token：`ALPHAFOUNDRY_DSH_BRIDGE_TOKEN` 用于 AlphaFoundry 调用 DSH，`ALPHAFOUNDRY_DSH_TOOL_TOKEN` 用于 DSH 调用原生 Tool。Host 重启后使用稳定的 `run_id` 派生 session identity，通过 DSH resume API 恢复。未配置 Bridge 环境变量时，`dsh-local` Runtime 不声明 Skill 能力，工作流会显式阻断，不会回退到 fixture 或自由文本解析。
+
+FinGPT Web 壳使用 `ALPHAFOUNDRY_DSH_WEB_URL`（默认 `http://127.0.0.1:3280`）和 `ALPHAFOUNDRY_UI_ORIGIN`（例如 `http://127.0.0.1:8767`）。两者必须是 loopback HTTP Origin。FinGPT 只通过一次性 `launch_id` 启动 DSH 通用任务；DSH 使用 Tool Token 向 `/api/v2/fingpt/launches/{launch_id}/consume` 消费该 ID，再将已脱敏会话元数据回传 `/api/v2/fingpt/dsh-events`。不要把 Token、模型 Key 或数据库 URL 写入 Profile、前端配置、URL 或日志。
+
 ---
 
 ### 仪表盘 API

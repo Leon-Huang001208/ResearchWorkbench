@@ -30,6 +30,14 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ## 分层架构
 
+### Runtime-agnostic 投研能力内核（v2）
+
+投研能力在 `core/contracts/runtime.py` 中以 Runtime-neutral 的版本化契约定义。`ToolSpec`、`SkillSpec`、`WorkflowSpec`、`EvidenceRecord`、`TemplateSpec` 与 `EvaluatorSpec` 由 AlphaFoundry 持有；Runtime 只能经 `RuntimeInterface` 端口接入。适配器依赖 Core Domain，反向依赖被禁止。
+
+每日市场点评是配置驱动的 `DailyMarketCommentaryWorkflow`：`workflow_specs/daily_market_commentary.yaml` 是段落、图表、质量策略和定时规则的唯一真源。市场快照、宽度、成交额、行业/主题、ETF 映射方向和新闻为原生确定性 Tools；收盘复盘、涨跌归因、反向证据与报告叙事为 Runtime Skill；Evaluator、两张图表、文档型写作块、Markdown/Word 投影、工作流编排和持久化均由 AlphaFoundry 原生执行。解释性反证写入条件风险，只有未解决的数值、期间或关键来源矛盾阻断最终产物。`runtime_workflow_run`、`runtime_workflow_step`、`runtime_event`、`runtime_evidence` 和 `runtime_artifact` 组成 PostgreSQL 权威账本；SSE 按事件序号续传。
+
+DSH 是 AlphaFoundry 项目管理的隔离 Runtime：`npm run dsh:bootstrap` 获取并构建固定 `dsh-v0.1.1-rc.2` checkout 至 `vendor/deepseek-harness/`，在 `.runtime/dsh-home` 创建专用 Profile，而不会读取用户已有的 `$DSH_HOME`。`runtimes/dsh/plugin` 通过 `ctx.webServer` 暴露 loopback-only Bridge，并通过 `defineTool` 注册部署 manifest 中的 allowlist Tool。AlphaFoundry→DSH Bridge Token 与 DSH→AlphaFoundry Tool Token 相互独立且仅从进程环境读取。所有 Skill 只能通过 `alphafoundry_submit_skill_result` 返回声明的结构化结果，插件和 AlphaFoundry 都执行 JSON Schema 校验。Workflow 编排、Tool 计算、Evaluator、Renderer 和 PostgreSQL 账本始终留在 AlphaFoundry。Codex 与 Claude Code 保持能力发现占位，不承载投研业务逻辑。
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  应用层 (app)                                                │
@@ -960,6 +968,23 @@ ResourceMonitorRuntime（非预览）→ 每分钟主机容量汇总 → 24 小�
 ```
 
 系统中心的“系统中心 / 系统配置”是同一 Web 工作台路由内的两个可见状态，而不是两个独立应用。`configuration.js` 仅负责编辑受支持的配置集合：账号与 Key 列表使用可访问的集合语义，高级设置按运行时、LLM 和文本分块分组；已保存的秘密仍不回填，受启动环境管理的字段仍由前端锁定和服务端校验共同保护。
+
+## FinGPT：内嵌 DSH Web 的投研对话功能
+
+FinGPT 是 AlphaFoundry 的顶级功能页，不替代研究中心、报告项目或内容生产中心。页面外壳、任务、市场/数据库 Tool、证据、质量门禁和 Artifact 由 AlphaFoundry 管理；内嵌的本机 DSH Web 负责完整对话、Tool 调用轨迹和会话日志。
+
+```text
+AlphaFoundry UI（FinGPT）
+  ├─ 预置任务 / 任务与 Artifact 索引
+  └─ loopback iframe → DSH Web（完整会话）
+                           └─ DSH Agent → AlphaFoundry Tool / Workflow
+                                                ├─ 市场、数据库、证据
+                                                └─ 质量门禁与 Markdown / Word Artifact
+```
+
+`fingpt_session_index`、`fingpt_task`、`fingpt_sync_event`、`fingpt_evidence_reference` 和 `fingpt_artifact_link` 只保存治理所需的索引、状态、外部证据指针及 AlphaFoundry Artifact 引用，绝不复制 DSH 消息正文。DSH Web 搜索在索引中标为 `external_uningested`；只有经过 AlphaFoundry 证据管线捕获后，才能作为权威引用。
+
+DSH Host 仅允许 `127.0.0.1` / `localhost`。iframe 的 `postMessage` 只传递短期、单次使用的 `launch_id`，并在 DSH 侧以精确的 `ALPHAFOUNDRY_UI_ORIGIN` 校验；Bearer Token、模型 Key 和数据库配置均不进入 iframe、URL 或浏览器消息。`daily-market-commentary` 是唯一完成的确定性 Workflow；一页纸、主题研究、画图和调研清单是明确标记的通用 Agent 任务。
 
 ## 相关文档
 

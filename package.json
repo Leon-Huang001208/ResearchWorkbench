@@ -13,7 +13,9 @@
     "desktop:prepare-sidecar": "python scripts/desktop/prepare_tauri_sidecar.py",
     "desktop:release-config": "python scripts/desktop/write_tauri_release_config.py",
     "desktop:build:release": "tauri build --config src-tauri/tauri.release.conf.json",
-    "desktop:restart": "bash scripts/desktop/restart_app.sh"
+    "desktop:restart": "bash scripts/desktop/restart_app.sh",
+    "dsh:bootstrap": "node scripts/dsh/bootstrap_harness.mjs",
+    "dsh:web": "node scripts/dsh/run_harness.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.8.4"

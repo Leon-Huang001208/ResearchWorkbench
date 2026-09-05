@@ -155,6 +155,13 @@ def _start_data_acquisition_schedulers() -> None:
     except Exception as e:
         logger.error("启动爬虫调度器失败: %s", e, exc_info=True)
 
+    try:
+        from services.daily_market_commentary_scheduler import get_daily_market_commentary_scheduler
+
+        get_daily_market_commentary_scheduler().start()
+    except Exception as exc:
+        logger.warning("每日市场点评调度器未启动", error_type=type(exc).__name__)
+
     # 检查 APScheduler 可用性
     try:
         import apscheduler  # noqa: F401
@@ -216,6 +223,13 @@ def _stop_data_acquisition_schedulers() -> None:
     except Exception as e:
         logger.error("停止爬虫调度器失败: %s", e, exc_info=True)
 
+    try:
+        from services.daily_market_commentary_scheduler import get_daily_market_commentary_scheduler
+
+        get_daily_market_commentary_scheduler().stop()
+    except Exception as exc:
+        logger.warning("每日市场点评调度器停止失败", error_type=type(exc).__name__)
+
 
 # ─── CORS（收紧为配置驱动的域名白名单）──────────────────
 app.add_middleware(
@@ -242,6 +256,7 @@ from app.api.routes import (  # noqa: E402
     dashboard,
     decision_console,
     event_ingestion,
+    fingpt,
     factors,
     funds,
     governance,
@@ -265,6 +280,7 @@ from app.api.routes import (  # noqa: E402
     report,
     report_projects,
     research_runs,
+    runtime_workflows,
     review,
     scenarios,
     scheduler,
@@ -303,6 +319,8 @@ app.include_router(search.router)
 app.include_router(replay.router)
 app.include_router(research_runs.router)
 app.include_router(research_runs.template_router)
+app.include_router(runtime_workflows.router)
+app.include_router(fingpt.router)
 app.include_router(portfolio.router)
 app.include_router(paper_trading.router)
 app.include_router(governance.router)

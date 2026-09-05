@@ -1,0 +1,56 @@
+workflow_id: daily-market-commentary
+version: 2.0.0
+title: 每日市场点评
+runtime_id: dsh-local
+schedule:
+  enabled: true
+  timezone: Asia/Shanghai
+  trading_days_only: true
+  hour: 16
+  minute: 15
+data_policy:
+  source_priority:
+    - licensed_database
+    - local_market_database
+    - akshare
+  news_source_priority:
+    - integrated_web_search
+    - licensed_news_database
+    - akshare_news
+  focus_direction_count: 3
+  attribution_priority:
+    - specific_event_catalyst
+    - industry_fundamentals
+    - policy
+    - commodity_or_macro
+    - flow_and_style
+sections:
+  - key: market
+    heading: 今日市场行情
+    max_paragraphs: 2
+    requirement: 宽基相对强弱、市场广度、成交额和一句话市场定性。
+  - key: style
+    heading: 行业与风格变化
+    max_paragraphs: 6
+    requirement: 只分析最重要的2至3个方向；每个方向说明涨跌原因、指数含义和后续验证项。
+  - key: outlook
+    heading: 后市展望
+    max_paragraphs: 3
+    requirement: 只给一个基准情景和不超过3个观察变量；不得给出交易建议或目标点位。
+charts:
+  - chart_id: broad-index-relative-performance
+    title: 宽基指数相对表现
+    chart_type: bar
+    enabled: true
+  - chart_id: industry-theme-leaders-laggards
+    title: 行业与主题领涨领跌
+    chart_type: bar
+    enabled: true
+rendering:
+  primary_artifact: document_block
+  exports: [markdown, word]
+quality_policy:
+  block_on_unresolved_numeric_date_source_conflict: true
+  conditional_risk_for_interpretive_conflict: true
+  min_evidence_count: 1
+  target_length_chars: [1000, 1500]
