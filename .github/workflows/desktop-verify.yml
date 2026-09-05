@@ -137,6 +137,8 @@ jobs:
           "$PG_BIN/createdb" --host 127.0.0.1 --port 55432 --username postgres research_workbench
           "$PG_BIN/psql" --host 127.0.0.1 --port 55432 --username postgres --dbname research_workbench \
             --command "CREATE EXTENSION IF NOT EXISTS vector;"
+          "$PG_BIN/psql" --host 127.0.0.1 --port 55432 --username postgres --dbname research_workbench \
+            --command "CREATE EXTENSION IF NOT EXISTS btree_gist;"
 
       - name: Start pgvector on Windows
         if: runner.os == 'Windows'
@@ -203,6 +205,10 @@ jobs:
           & (Join-Path $pgBin 'psql.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname research_workbench --command 'CREATE EXTENSION IF NOT EXISTS vector;'
           if ($LASTEXITCODE -ne 0) {
             throw 'Unable to enable the pgvector extension'
+          }
+          & (Join-Path $pgBin 'psql.exe') --host 127.0.0.1 --port ${{ matrix.postgres_port }} --username postgres --dbname research_workbench --command 'CREATE EXTENSION IF NOT EXISTS btree_gist;'
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to enable the btree_gist extension'
           }
 
       - name: Smoke test macOS sidecar /health

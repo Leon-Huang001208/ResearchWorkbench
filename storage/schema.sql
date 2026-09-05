@@ -1,8 +1,9 @@
 -- Research Workbench 数据库架构
 -- PostgreSQL + pgvector
 
--- 启用 pgvector 扩展
+-- 启用数据库模型所需扩展
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 -- 实体表
 CREATE TABLE IF NOT EXISTS entity (

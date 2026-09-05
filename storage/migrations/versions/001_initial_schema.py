@@ -17,8 +17,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # 创建 pgvector 扩展
+    """Enable required PostgreSQL extensions before creating the initial schema."""
+    # 创建数据库模型所需扩展
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    op.execute("CREATE EXTENSION IF NOT EXISTS btree_gist")
 
     # 实体表
     op.create_table(

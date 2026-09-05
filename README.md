@@ -243,7 +243,7 @@ pip install -e ".[pdf-full]"   # 完整支持 (含 MinerU, opendatalab/mineru)
 ### 配置数据库
 
 1. 安装并启动本地 PostgreSQL 15+，安装 pgvector 扩展。
-1. 创建数据库 `research_workbench`，在该库中执行 `CREATE EXTENSION IF NOT EXISTS vector;`。
+1. 创建数据库 `research_workbench`，在该库中执行 `CREATE EXTENSION IF NOT EXISTS vector;` 和 `CREATE EXTENSION IF NOT EXISTS btree_gist;`。
 1. 复制 `.env.example` 为 `.env`，并配置：
 
 ```env

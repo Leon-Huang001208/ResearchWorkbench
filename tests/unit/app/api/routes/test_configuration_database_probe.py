@@ -23,7 +23,7 @@ def test_database_probe_api_accepts_valid_csrf_and_returns_readiness_contract(
         return_value=DatabaseReadiness(
             ready=True,
             code=DatabaseReadinessCode.READY,
-            message="数据库连接正常，pgvector 已就绪。",
+            message="数据库连接正常，必需扩展已就绪。",
             remediation=("无需处理。",),
         )
     )
@@ -45,7 +45,7 @@ def test_database_probe_api_accepts_valid_csrf_and_returns_readiness_contract(
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
-        "message": "数据库连接正常，pgvector 已就绪。",
+        "message": "数据库连接正常，必需扩展已就绪。",
         "code": "ready",
         "remediation": ["无需处理。"],
     }

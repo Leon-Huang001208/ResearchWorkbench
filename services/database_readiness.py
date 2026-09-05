@@ -1,4 +1,4 @@
-"""无副作用的 PostgreSQL 与 pgvector 就绪预检。"""
+"""无副作用的 PostgreSQL 必需扩展就绪预检。"""
 
 from __future__ import annotations
 
@@ -17,9 +17,7 @@ from core.observability import get_logger
 try:
     from psycopg.errors import InvalidCatalogName
 
-    _PSYCOPG_DATABASE_UNAVAILABLE_ERRORS: tuple[type[BaseException], ...] = (
-        InvalidCatalogName,
-    )
+    _PSYCOPG_DATABASE_UNAVAILABLE_ERRORS: tuple[type[BaseException], ...] = (InvalidCatalogName,)
 except ImportError:  # pragma: no cover - psycopg is a project dependency in production.
     _PSYCOPG_DATABASE_UNAVAILABLE_ERRORS = ()
 
@@ -33,6 +31,7 @@ _DATABASE_UNAVAILABLE_SQLSTATE = "3D000"
 _DEFAULT_TIMEOUT_SECONDS = 5.0
 _MAX_TIMEOUT_SECONDS = 3600.0
 _PGVECTOR_QUERY = "SELECT 1 FROM pg_extension WHERE extname = 'vector'"
+_BTREE_GIST_QUERY = "SELECT 1 FROM pg_extension WHERE extname = 'btree_gist'"
 
 
 class DatabaseReadinessCode(str, Enum):
@@ -43,6 +42,7 @@ class DatabaseReadinessCode(str, Enum):
     CONNECTION_FAILED = "connection_failed"
     DATABASE_UNAVAILABLE = "database_unavailable"
     PGVECTOR_MISSING = "pgvector_missing"
+    BTREE_GIST_MISSING = "btree_gist_missing"
     UNEXPECTED_ERROR = "unexpected_error"
 
 
@@ -57,7 +57,7 @@ class DatabaseReadiness:
 
 
 _RESULT_DETAILS: dict[DatabaseReadinessCode, tuple[bool, str, tuple[str, ...]]] = {
-    DatabaseReadinessCode.READY: (True, "数据库连接正常，pgvector 已就绪。", ("无需处理。",)),
+    DatabaseReadinessCode.READY: (True, "数据库连接正常，必需扩展已就绪。", ("无需处理。",)),
     DatabaseReadinessCode.INVALID_URL: (
         False,
         "数据库连接地址无效。",
@@ -78,6 +78,11 @@ _RESULT_DETAILS: dict[DatabaseReadinessCode, tuple[bool, str, tuple[str, ...]]] 
         "数据库未启用 pgvector 扩展。",
         ("请在目标数据库中启用 vector 扩展后重试。",),
     ),
+    DatabaseReadinessCode.BTREE_GIST_MISSING: (
+        False,
+        "数据库未启用 btree_gist 扩展。",
+        ("请在目标数据库中启用 btree_gist 扩展后重试。",),
+    ),
     DatabaseReadinessCode.UNEXPECTED_ERROR: (
         False,
         "数据库预检发生未知错误。",
@@ -90,7 +95,7 @@ def probe_postgresql(
     database_url: str,
     timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
 ) -> DatabaseReadiness:
-    """验证 psycopg3 PostgreSQL 连接与 pgvector，不写入数据库或修改配置。"""
+    """验证 psycopg3 PostgreSQL 连接与必需扩展，不写入数据库或修改配置。"""
     if not _is_supported_database_url(database_url):
         return _result(
             DatabaseReadinessCode.INVALID_URL,
@@ -120,13 +125,21 @@ def probe_postgresql(
             connection.execute(text(f"SET LOCAL statement_timeout = {statement_timeout_ms}"))
             connection.execute(text("SELECT 1"))
             has_pgvector = connection.execute(text(_PGVECTOR_QUERY)).scalar() is not None
-        result = _result(
-            DatabaseReadinessCode.READY
-            if has_pgvector
-            else DatabaseReadinessCode.PGVECTOR_MISSING,
-            stage="pgvector",
-            error_type="None",
-        )
+            has_btree_gist = (
+                connection.execute(text(_BTREE_GIST_QUERY)).scalar() is not None
+                if has_pgvector
+                else False
+            )
+        if not has_pgvector:
+            readiness_code = DatabaseReadinessCode.PGVECTOR_MISSING
+            readiness_stage = "pgvector"
+        elif not has_btree_gist:
+            readiness_code = DatabaseReadinessCode.BTREE_GIST_MISSING
+            readiness_stage = "btree_gist"
+        else:
+            readiness_code = DatabaseReadinessCode.READY
+            readiness_stage = "extensions"
+        result = _result(readiness_code, stage=readiness_stage, error_type="None")
     except Exception as exc:
         if _is_database_unavailable(exc):
             result = _result(
@@ -198,9 +211,10 @@ def _is_database_unavailable(exc: BaseException) -> bool:
     root = _root_exception(exc)
     if isinstance(root, _PSYCOPG_DATABASE_UNAVAILABLE_ERRORS):
         return True
-    return getattr(root, "sqlstate", None) == _DATABASE_UNAVAILABLE_SQLSTATE or getattr(
-        root, "pgcode", None
-    ) == _DATABASE_UNAVAILABLE_SQLSTATE
+    return (
+        getattr(root, "sqlstate", None) == _DATABASE_UNAVAILABLE_SQLSTATE
+        or getattr(root, "pgcode", None) == _DATABASE_UNAVAILABLE_SQLSTATE
+    )
 
 
 def _root_exception(exc: BaseException) -> BaseException:

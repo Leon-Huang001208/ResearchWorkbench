@@ -350,6 +350,7 @@ def test_windows_pgvector_smoke_builds_a_native_extension():
     assert '--params "\'/Password:postgres' not in source
     assert "nmake /F Makefile.win install" in source
     assert "CREATE EXTENSION IF NOT EXISTS vector;" in source
+    assert "CREATE EXTENSION IF NOT EXISTS btree_gist;" in source
     assert "PGPASSWORD = 'postgres'" in source
     assert "pgvector/pgvector:pg16" not in source
 

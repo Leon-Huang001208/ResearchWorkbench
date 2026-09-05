@@ -452,7 +452,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
+| `data_layer/repositories/base.py` | 仓储基类与 Schema 初始化入口；连接错误提示明确要求目标 PostgreSQL 启用 `vector` 与 `btree_gist` |
 | `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型；包含合并平台 20 张 additive 表，复用既有资产事实与 Research Run 表 |
 | `data_layer/repositories/asset_observation_repository.py` | 资产观察仓储：只写 canonical identity/Watchlist/Alert/Notification 表并读取既有 stock/index/ETF/fund 事实；仅 `flush`，事务提交由 `get_db` 管理 |
 | `data_layer/repositories/market_home_repository.py` | 首页仓储：读取既有行情、事件与主题 Observation，管理不可变 close 快照，并从持久 `domain_event` 恢复小型失效引用；仅 `flush` |

@@ -4,6 +4,8 @@
 
 `storage` provides database schema, Alembic migrations, and storage conventions.
 
+PostgreSQL schema initialization requires both `vector` and `btree_gist`; the initial migration and static schema enable them explicitly before creating tables and constraints.
+
 ---
 
 ## Design Rules

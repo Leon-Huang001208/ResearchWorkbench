@@ -22,10 +22,11 @@ Research Workbench is moving toward a Tauri desktop shell while keeping the curr
 
 Desktop builds do not bundle, download, install, upgrade, uninstall, or manage a database server. If the first launch cannot reach a usable PostgreSQL + pgvector instance, the desktop app stays healthy in **database setup mode**: only System Configuration is available and all database-dependent workbench features remain blocked.
 
-Install PostgreSQL 15+ and pgvector yourself, create the `research_workbench` database, and enable the extension:
+Install PostgreSQL 15+ and pgvector yourself, create the `research_workbench` database, and enable both required extensions:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 ```
 
 The first launch creates a per-user `.env` with owner-only permissions on macOS/Linux, but intentionally leaves `DATABASE_URL` commented out rather than supplying a usable-looking account. Save an actual PostgreSQL psycopg v3 URL in System Configuration, then restart the desktop app before the full workbench can use the new connection. Background workers stay paused while the database preflight fails:

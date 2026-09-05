@@ -28,7 +28,7 @@ def _context(mode: str) -> RuntimeContext:
 
 def _readiness(code: DatabaseReadinessCode) -> DatabaseReadiness:
     details = {
-        DatabaseReadinessCode.READY: (True, "数据库连接正常，pgvector 已就绪。", ("无需处理。",)),
+        DatabaseReadinessCode.READY: (True, "数据库连接正常，必需扩展已就绪。", ("无需处理。",)),
         DatabaseReadinessCode.CONNECTION_FAILED: (
             False,
             "无法连接到数据库。",
@@ -194,7 +194,7 @@ def test_setup_readiness_returns_safe_restart_required_status(
         "database": {
             "ready": True,
             "code": "ready",
-            "message": "数据库连接正常，pgvector 已就绪。",
+            "message": "数据库连接正常，必需扩展已就绪。",
             "remediation": ["无需处理。"],
         },
         "restart_required": True,

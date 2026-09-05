@@ -36,6 +36,8 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 
 Research Workbench 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。
 
+PostgreSQL 启动前置检查要求目标库同时启用 `vector` 与 `btree_gist`：前者支持向量检索，后者支持资产代码有效期的文本 GiST 排他约束。缺少任一扩展时，桌面端进入 setup-required，Web 服务拒绝在不完整 schema 上启动。
+
 系统的核心定位是 **AI 驱动的事件型量化（Event-driven Quant）**，而不是 tick 高频、K 线深度学习、纯技术指标或 LSTM 收盘价预测。Agent 层负责解释世界，Timing 层负责交易节奏，Quant 层负责统计验证。
 
 ### 设计哲学

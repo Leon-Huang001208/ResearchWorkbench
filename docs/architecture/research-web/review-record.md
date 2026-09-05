@@ -109,3 +109,10 @@
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"本次仅修复历史研究服务的日志门禁；当前Research Web仍由DSH执行，不调用旧Supervisor、LangGraph或Session/Run链。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"历史市场首页事务失效helper在data/service分层内下沉，不改变Research Web DataHub目录、Provider、Tool或快照数据流。","diagrams":[]} -->
+
+## 2026-09-05 — 桌面数据库必需扩展预检
+
+- 原生桌面 CI 在全新 PostgreSQL 上验证出 `asset_identifier` 的文本 GiST 排他约束依赖 `btree_gist`。数据库预检、初始迁移、静态 schema、两端 CI 初始化和安装文档现统一要求 `vector` 与 `btree_gist`。
+- 该修复只补齐既有 PostgreSQL 节点的启动前置条件和错误分类，不改变当前 Research Web 的 Web／FastAPI／DSH 部署、DataHub 取数、能力包、运行状态或文件交付拓扑，因此八张 Archify 图不重生成。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"既有PostgreSQL节点增加btree_gist必需扩展预检与脱敏修复状态，不新增服务、接口调用路径或数据流。","diagrams":[]} -->

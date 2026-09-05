@@ -38,7 +38,8 @@ def check_database_connection() -> None:
         )
         if dialect == "postgresql":
             message = (
-                "无法连接 PostgreSQL。请确认服务已启动、DATABASE_URL 指向已创建的 " "research_workbench 数据库，并已安装 pgvector 扩展。"
+                "无法连接 PostgreSQL。请确认服务已启动、DATABASE_URL 指向已创建的 "
+                "research_workbench 数据库，并已启用 vector 与 btree_gist 扩展。"
             )
         elif dialect == "sqlite":
             message = "无法连接 SQLite。请确认 DATABASE_URL 指向可访问的数据库文件。"
@@ -48,7 +49,7 @@ def check_database_connection() -> None:
 
 
 def ensure_schema() -> None:
-    """Ensure database schema matches ORM models.
+    """Create registered ORM objects after required extension preflight succeeds.
 
     For SQLite, first create all tables, then check and add missing columns (ALTER TABLE ADD COLUMN).
     """

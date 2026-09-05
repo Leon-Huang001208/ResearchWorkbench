@@ -11,6 +11,7 @@
 - GitHub repository and local `origin` now use `Leon-Huang001208/ResearchWorkbench`; `master` was pushed without history rewriting after reconstructing one missing historical documentation tree to its exact original hash.
 - Moved market-home fact invalidation helpers into the data repository layer so fact writers no longer import services. Added structured logging with re-raise semantics at the legacy Agent supervisor, research graph, Session/Run orchestration and template registry execution boundaries; Research Web and DSH behavior are unchanged.
 - Restored the three tracked, brand-neutral built-in industry graph JSON resources that the hard rename had unintentionally removed, so both native CI runners can satisfy the sidecar packaging contract.
+- Native desktop smoke now initializes and preflights both `vector` and `btree_gist`; a missing GiST text operator class is reported as `btree_gist_missing` before schema creation instead of timing out the sidecar health check.
 
 ### Research Web appearance · 2026-09-03
 

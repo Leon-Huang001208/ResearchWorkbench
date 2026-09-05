@@ -8183,7 +8183,7 @@ Functions:
 - `check_database_connection`
   - Check database connectivity on startup without exposing connection details.
 - `ensure_schema`
-  - Ensure database schema matches ORM models.
+  - Create registered ORM objects after required extension preflight succeeds.
 - `get_db`
   - Get database session for FastAPI dependency injection.
 - `get_session`
@@ -13175,6 +13175,7 @@ Imports:
 
 Functions:
 - `upgrade`
+  - Enable required PostgreSQL extensions before creating the initial schema.
 - `downgrade`
 
 
