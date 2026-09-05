@@ -15,14 +15,14 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "f4314400f2787c2db7e466c3b922caad6371c4837254cea1c5a665f44ec5b270",
-      "specificationSha256": "5913f7d0709d17cf1be6da0cc9706bc938acc47a5dd20837240061d3e52048b8",
+      "artifactSha256": "14b4471f54ea72fb9d327c0d49d2ecb43cd64105a17956534847d4c532eaaa40",
+      "specificationSha256": "b433cff3d89e80250798abbc131b70b7869d1b4cfa5253f7660146cc12c72248",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-04",
+      "date": "2026-09-05",
       "captures": ["02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png"],
       "findings": [],
-      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；持久服务管理、数据迁移、数据目录、FastAPI 内 DataHub、受控 datahub_* Tool、Provider 与快照边界可读，无遮挡、裁剪或穿线。图只证明结构表达，不证明登记来源已连接。"
+      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；研究台、产品 API、DataHub、CJPY 条件 Provider、会话快照及只读运行聚合边界清晰，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明登记来源已连接或历史 usage 完整。"
     },
     {
       "id": "05-capability-flow",
@@ -51,31 +51,31 @@
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "1964900fa0b098047bb6f5ed047823c52ff4e1e5e1d4ba05eac4afc19c475f0a",
-      "specificationSha256": "8f80d5fd8463852cb729a821a13ac7d40b98b80c5dc0461595a203e491927202",
+      "artifactSha256": "79edec64d989d7d1eb0316dcf4526e9658a1ac968a9de014dd3383c8a9edf27b",
+      "specificationSha256": "4882584939b70da5bf2a27626ab7b9f6130c3063d77f2cca678f753d63a3b18e",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-04",
+      "date": "2026-09-05",
       "captures": [
         "03-research-sequence.visual-check.1440x900.dark.png",
         "03-research-sequence.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；提交、原生审批、品牌无关的 datahub_* BusinessQuery、单一 Provider、快照、SSE 与独立 delivery 顺序可读，未见遮挡或裁剪。视觉查看不证明上游数据完整。"
+      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；研究台异步查询、所选快照交接、DSH 受理、原生审批、DataHub 取数、SSE 恢复与独立文件状态顺序可读，未见遮挡或裁剪。视觉查看不证明上游数据完整。"
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "8524b0971442a2a593fdc6da0fa7332290fc0f2015785f3a6f0bbf34c6bd1c7c",
-      "specificationSha256": "2a01c862632de64b8e647a4ba9a6e524e594a17d17653c6fd720a1dd01a77cdc",
+      "artifactSha256": "7466ee30ed983fad76aeaeb8edaf287744866b4294b368e8489fa05b5a518d1f",
+      "specificationSha256": "a1e3c23f53158600198aff0101c6151b6a01e618713923da066d141469db3bcd",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-04",
+      "date": "2026-09-05",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.dark.png",
         "04-data-file-flow.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；五阶段数据流、目录零联网、审批路由、标准化快照及父子 Agent 共用路径均可辨认，无穿线或裁剪。1440 使用图内缩放查看细节；图不替代真实取数验收。"
+      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；五阶段数据流、目录零联网、审批路由、标准化快照、页面显式交接及 DSH 父子 Agent 共用路径均可辨认，无穿线或裁剪。图不替代真实取数与会话隔离验收。"
     },
     {
       "id": "06-run-state",

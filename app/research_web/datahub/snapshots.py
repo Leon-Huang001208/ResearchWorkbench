@@ -136,7 +136,7 @@ class Snapshots:
         manifest = {
             "id": did,
             "dataset_id": did,
-            "name": f"{SOURCES[query.source]} {query.code or ''}".strip(),
+            "name": f"{SOURCES.get(query.source, query.source)} {getattr(query, 'code', None) or ''}".strip(),
             "source": query.source,
             "provider": result.provider_id or query.source,
             "capability": getattr(request_query, "capability", query.source),
@@ -156,7 +156,12 @@ class Snapshots:
             "duplicates_removed": result.duplicates,
             "cache_hit": False,
             "fields": result.fields,
-            "requested_range": {"start_date": query.start_date, "end_date": query.end_date},
+            "requested_range": {
+                "start_date": getattr(query, "start_date", None)
+                or getattr(query, "parameters", {}).get("start_date"),
+                "end_date": getattr(query, "end_date", None)
+                or getattr(query, "parameters", {}).get("end_date"),
+            },
             "actual_range": {
                 "start_date": dates[0] if dates else None,
                 "end_date": dates[-1] if dates else None,
@@ -240,11 +245,20 @@ class Snapshots:
 
     def copy_for_upgrade(self, old_sid, new_sid):
         """User-triggered copy only, never cross-session caching or file links."""
+        return self.copy_selected(old_sid, new_sid, self.ids(old_sid))
+
+    def copy_selected(self, old_sid, new_sid, dataset_ids):
+        """Copy an explicit, validated subset into another owned session."""
         from .contracts import BusinessQuery, Query
         from .providers import Result
 
         self.store.session(new_sid)
-        for did in self.ids(old_sid):
+        available = set(self.ids(old_sid))
+        requested = list(dict.fromkeys(dataset_ids))
+        if any(did not in available for did in requested):
+            raise StoreError("交接数据集不存在或不属于来源会话")
+        copied = []
+        for did in requested:
             original = self.detail(old_sid, did)
             raw = []
             with directory(self.store.root, (*self._private(old_sid), did), private=True) as fd:
@@ -274,10 +288,13 @@ class Snapshots:
                 if "capability" in original.get("query", {})
                 else None
             )
-            self.publish(
-                new_sid,
-                Query.model_validate(original.get("provider_query", original["query"])),
-                result,
-                origin=original,
-                request_query=request_query,
+            copied.append(
+                self.publish(
+                    new_sid,
+                    Query.model_validate(original.get("provider_query", original["query"])),
+                    result,
+                    origin=original,
+                    request_query=request_query,
+                )
             )
+        return copied

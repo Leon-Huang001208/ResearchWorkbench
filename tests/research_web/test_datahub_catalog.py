@@ -1,6 +1,8 @@
 """Static full-source catalog, manual probes and business routing."""
 
 import asyncio
+import sys
+from types import ModuleType
 
 import httpx
 import pytest
@@ -58,9 +60,26 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(m
     wind = next(source for source in catalog["sources"] if source["id"] == "wind")
     assert wind["readiness"]["integration_completed"] is False
     assert wind["readiness"]["callable"] is False
+    tinysoft = next(source for source in catalog["sources"] if source["id"] == "tinysoft")
+    assert tinysoft["readiness"]["integration_completed"] is True
+    assert tinysoft["readiness"]["dependency_ready"] is False
+    assert tinysoft["readiness"]["integration_state"] == "blocked_config"
+    assert tinysoft["readiness"]["callable"] is False
     fund = next(cap for cap in catalog["capabilities"] if cap["id"] == "fund_data")
     assert fund["tool_id"] == "datahub_get_fund_data"
     assert fund["source_count"] == 2 and fund["callable_source_count"] == 1
+    tinysoft_bindings = {
+        row["capability_id"]: row["implemented"]
+        for row in catalog["bindings"]
+        if row["source_id"] == "tinysoft"
+    }
+    assert {key for key, implemented in tinysoft_bindings.items() if implemented} == {
+        "search_assets",
+        "trading_calendar",
+        "market_bars",
+        "market_snapshot",
+    }
+    assert tinysoft_bindings["fund_data"] is False
 
 
 def test_business_query_rejects_provider_escape_hatches():
@@ -77,6 +96,58 @@ def test_business_query_rejects_provider_escape_hatches():
         BusinessQuery(capability="search_news", source="../../evil")
     with pytest.raises(ValueError):
         BusinessQuery(capability="search_news", parameters={"asset": "000001.SZ"})
+
+
+@pytest.mark.asyncio
+async def test_tinysoft_provider_uses_business_contract_without_legacy_lifecycle(monkeypatch):
+    import app.research_web.datahub.providers_cjpy as provider
+
+    package = ModuleType("cjpy")
+    base = ModuleType("cjpy.base")
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def _create_session(self):
+            return type("Session", (), {"trust_env": True})()
+
+    base.CjClient = Client
+    package.base = base
+    package.get_market_data = lambda **kwargs: [
+        {"证券代码": kwargs["code"], "日期": "2026-09-04", "收盘价": 12.3}
+    ]
+    monkeypatch.setitem(sys.modules, "cjpy", package)
+    monkeypatch.setitem(sys.modules, "cjpy.base", base)
+    monkeypatch.setenv("CJ_KEY", "fixture-key")
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_bars",
+            source="tinysoft",
+            parameters={
+                "asset": "600000.SH",
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-04",
+            },
+        )
+    )
+    assert result.status == "complete"
+    assert result.provider_id == "tinysoft"
+    assert result.rows == [{"证券代码": "SH600000", "日期": "2026-09-04", "收盘价": 12.3}]
+    assert result.fields["收盘价"] == {"unit": None, "currency": None}
+    assert all("fixture-key" not in item.decode() for item in result.raw)
+
+
+@pytest.mark.asyncio
+async def test_tinysoft_missing_key_is_safe_blocked_config(monkeypatch):
+    import app.research_web.datahub.providers_cjpy as provider
+
+    monkeypatch.delenv("CJ_KEY", raising=False)
+    result = await provider.fetch(
+        BusinessQuery(capability="search_assets", source="tinysoft", parameters={"query": ""})
+    )
+    assert result.status == "failed"
+    assert result.limitations == ["blocked_config"]
 
 
 @pytest.mark.asyncio

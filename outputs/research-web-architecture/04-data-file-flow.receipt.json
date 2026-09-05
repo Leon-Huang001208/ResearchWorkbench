@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/docs/architecture/research-web/diagrams/04-data-file-flow.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/04-data-file-flow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
-    "sha256": "2a01c862632de64b8e647a4ba9a6e524e594a17d17653c6fd720a1dd01a77cdc",
-    "bytes": 5839
+    "sha256": "a1e3c23f53158600198aff0101c6151b6a01e618713923da066d141469db3bcd",
+    "bytes": 5971
   },
   "artifact": {
-    "sha256": "8524b0971442a2a593fdc6da0fa7332290fc0f2015785f3a6f0bbf34c6bd1c7c",
-    "bytes": 648638
+    "sha256": "7466ee30ed983fad76aeaeb8edaf287744866b4294b368e8489fa05b5a518d1f",
+    "bytes": 649700
   },
   "validation": {
     "checksPassed": 9,

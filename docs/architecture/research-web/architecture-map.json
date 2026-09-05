@@ -23,6 +23,7 @@
         "tests/javascript/research_web_ui.test.mjs",
         "tests/javascript/research_web_ui_layout.test.mjs",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
+        "tests/javascript/research_web_workbench.test.mjs",
         "tests/e2e/research_web_layout.mjs",
         "tests/e2e/research_web_live_readback.mjs",
         "tests/e2e/research_web_custom_skill_readback.mjs",
@@ -154,6 +155,43 @@
       ]
     },
     {
+      "id": "workbench",
+      "sources": [
+        "app/research_web/workbench.py"
+      ],
+      "documents": [
+        "docs/research-web-ui.md",
+        "docs/architecture/research-web/03-data-files.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies",
+        "03-research-sequence",
+        "04-data-file-flow"
+      ],
+      "tests": [
+        "tests/research_web/test_workbench_operations.py",
+        "tests/javascript/research_web_workbench.test.mjs"
+      ]
+    },
+    {
+      "id": "operations",
+      "sources": [
+        "app/research_web/operations.py"
+      ],
+      "documents": [
+        "docs/research-web-operations.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/04-api.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies"
+      ],
+      "tests": [
+        "tests/research_web/test_workbench_operations.py",
+        "tests/javascript/research_web_workbench.test.mjs"
+      ]
+    },
+    {
       "id": "documentation",
       "sources": [
         "app/research_web/documentation.py",
@@ -203,17 +241,10 @@
         },
         {
           "subjects": [
-            "dataMigration",
-            "migrateData"
-          ],
-          "source": "app/research_web/data_migration.py"
-        },
-        {
-          "subjects": [
             "dataUi",
             "readCatalog"
           ],
-          "source": "app/research_web/ui/data-catalog.mjs"
+          "source": "app/research_web/ui/workbench.mjs"
         },
         {
           "subjects": [
@@ -221,7 +252,7 @@
             "internalQuery",
             "readDataset"
           ],
-          "source": "app/research_web/datahub/routes.py"
+          "source": "app/research_web/workbench.py"
         },
         {
           "subjects": [
@@ -248,6 +279,12 @@
         },
         {
           "subjects": [
+            "providers"
+          ],
+          "source": "app/research_web/datahub/providers_cjpy.py"
+        },
+        {
+          "subjects": [
             "snapshots",
             "publishSnapshot"
           ],
@@ -258,6 +295,14 @@
             "dsh"
           ],
           "source": "app/research_web/runtime/research.cordis.yml"
+        },
+        {
+          "subjects": [
+            "operations",
+            "collectData",
+            "collectRuntime"
+          ],
+          "source": "app/research_web/operations.py"
         },
         {
           "subjects": [
@@ -356,15 +401,28 @@
             "web",
             "submitMessage",
             "resumeStream",
-            "sseProjection"
+            "sseProjection",
+            "deskQuery",
+            "handoff",
+            "queryStatus"
           ],
           "source": "app/research_web/ui/core.mjs"
         },
         {
           "subjects": [
+            "deskQuery",
+            "queryRoute",
+            "queryStatus",
+            "handoff",
+            "copySnapshot",
+            "createTarget"
+          ],
+          "source": "app/research_web/workbench.py"
+        },
+        {
+          "subjects": [
             "api",
-            "dshSubmit",
-            "accepted"
+            "dshSubmit"
           ],
           "source": "app/research_web/main.py"
         },
@@ -372,8 +430,7 @@
           "subjects": [
             "dsh",
             "toolCall",
-            "streamActivity",
-            "deliveryState"
+            "streamActivity"
           ],
           "source": "app/research_web/service.py"
         },
@@ -388,7 +445,8 @@
           "subjects": [
             "datahub",
             "businessQuery",
-            "manifestResult"
+            "manifestResult",
+            "queryRoute"
           ],
           "source": "app/research_web/datahub/__init__.py"
         },
@@ -404,7 +462,8 @@
           "subjects": [
             "snapshot",
             "saveSnapshot",
-            "datasetRead"
+            "datasetRead",
+            "copySnapshot"
           ],
           "source": "app/research_web/datahub/snapshots.py"
         }
@@ -453,6 +512,13 @@
         },
         {
           "subjects": [
+            "providers",
+            "upstreams"
+          ],
+          "source": "app/research_web/datahub/providers_cjpy.py"
+        },
+        {
+          "subjects": [
             "normalize"
           ],
           "source": "app/research_web/datahub/__init__.py"
@@ -461,25 +527,33 @@
           "subjects": [
             "snapshots",
             "snapshotPublish",
-            "parentRead",
-            "childRead",
+            "snapshotHandoff",
             "webRead"
           ],
           "source": "app/research_web/datahub/snapshots.py"
         },
         {
           "subjects": [
-            "parent",
-            "children"
+            "agents",
+            "agentRead"
           ],
           "source": "app/research_web/runtime/research.cordis.yml"
         },
         {
           "subjects": [
             "web",
-            "catalogView"
+            "catalogView",
+            "selectHandoff"
           ],
-          "source": "app/research_web/ui/data-catalog.mjs"
+          "source": "app/research_web/ui/workbench.mjs"
+        },
+        {
+          "subjects": [
+            "handoff",
+            "selectHandoff",
+            "snapshotHandoff"
+          ],
+          "source": "app/research_web/workbench.py"
         }
       ]
     },
@@ -868,6 +942,83 @@
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/internal/data/cancel",
       "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/data/queries",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/data/queries",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/queries",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/data/queries",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/queries/{query_id}",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/data/queries/{query_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/handoffs",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/handoffs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/artifacts",
+      "source": "app/research_web/workbench.py",
+      "declaredPath": "/artifacts",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/operations/usage",
+      "source": "app/research_web/operations.py",
+      "declaredPath": "/usage",
+      "prefix": "/api/research/operations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/operations/tools",
+      "source": "app/research_web/operations.py",
+      "declaredPath": "/tools",
+      "prefix": "/api/research/operations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/operations/datahub",
+      "source": "app/research_web/operations.py",
+      "declaredPath": "/datahub",
+      "prefix": "/api/research/operations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/operations/services",
+      "source": "app/research_web/operations.py",
+      "declaredPath": "/services",
+      "prefix": "/api/research/operations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/operations/storage",
+      "source": "app/research_web/operations.py",
+      "declaredPath": "/storage",
+      "prefix": "/api/research/operations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/operations/summary",
+      "source": "app/research_web/operations.py",
+      "declaredPath": "/summary",
+      "prefix": "/api/research/operations"
     },
     {
       "method": "GET",

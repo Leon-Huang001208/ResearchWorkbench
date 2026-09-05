@@ -50,6 +50,14 @@ class Store:
         except (OSError, ValueError) as exc:
             log.error("research_index_unreadable", error_type=type(exc).__name__)
             raise StoreError("会话索引不可读取；未覆盖原索引") from exc
+        # Additive local indexes keep earlier Research Web data readable.
+        self.data.setdefault("sessions", {})
+        self.data.setdefault("receipts", {})
+        self.data.setdefault("data_queries", {})
+        self.data.setdefault("data_query_keys", {})
+        self.data.setdefault("handoffs", {})
+        self.data.setdefault("handoff_keys", {})
+        self.data.setdefault("operation_audit", [])
 
     def save(self):
         fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
@@ -85,6 +93,29 @@ class Store:
         self.save()
         log.info("research_session_registered", session_id=sid, mode=mode)
         return row
+
+    def audit(self, kind: str, outcome: str, **safe_metadata) -> None:
+        """Persist a bounded, content-free operational event."""
+        allowed = {
+            "session_id",
+            "tool",
+            "source",
+            "capability",
+            "duration_ms",
+            "rows",
+            "failure_code",
+        }
+        event = {
+            "kind": kind,
+            "outcome": outcome,
+            "at": time.time(),
+            **{key: value for key, value in safe_metadata.items() if key in allowed},
+        }
+        events = self.data["operation_audit"]
+        events.append(event)
+        if len(events) > 10000:
+            del events[:-10000]
+        self.save()
 
     def session(self, sid: str) -> dict:
         if not re.fullmatch(r"[a-f0-9-]{36}", sid) or sid not in self.data["sessions"]:

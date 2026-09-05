@@ -10,11 +10,13 @@
 |---|---|---|
 | Web API | `app/research_web/main.py` | 同源/回环访问约束、产品路由、上传下载、SSE |
 | 研究适配 | `app/research_web/service.py` | 会话归属、幂等受理、运行投影、审批与子任务状态 |
+| 研究台 API | `app/research_web/workbench.py` | 页面按需查询、查询状态、快照交接与实际产物索引 |
+| 运行聚合 | `app/research_web/operations.py` | 从 DSH 历史、DataHub manifest、服务状态和项目数据根生成只读指标 |
 | 原生传输 | `app/research_web/client.py` | 有限 RPC 名称、关联 ID、历史分页、双 WS |
 | 事件投影 | `app/research_web/projection.py` | 从真实日志重建消息、活动、状态、用量，不执行研究 |
 | 本地索引 | `app/research_web/store.py` | 原子索引、会话目录、文件 ID、安全打开 |
 | 文件交付 | `app/research_web/delivery.py` | 本任务基线、有效输出集合、缺失格式和原因 |
-| DataHub | `app/research_web/datahub/` | 13 项能力/21 个来源静态目录、白名单选源、Provider、单源探测、不可变资料和共享分析 |
+| DataHub | `app/research_web/datahub/` | 13 项能力/21 个来源静态目录、白名单选源、Provider、单源探测、不可变资料和共享分析；CJPY 仅覆盖四项明确能力 |
 | 受限脚本 | `app/research_web/sandbox.py` | 文件访问、环境和进程终止边界 |
 | 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、私有模块链接校验、原生插件与白名单 |
 | 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的进程归属、健康检查、项目私有 DSH 源码选择、持久后台启动、停止和失败回滚 |
@@ -22,13 +24,15 @@
 | 能力管理 | `app/research_web/capabilities/` | 草稿、受检资源、版本、原生目录投影与只读 Tool 声明 |
 | 产品壳与输入框 | `ui/shell.mjs`、`ui/composer.mjs` | 双侧栏、会话与能力检索、草稿输入；不执行研究 |
 | 能力前端 | `ui/capabilities.mjs`、`ui/data-catalog.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs` | Skill/Tool/Workflow/数据卡片与详情、候选表单、步骤编辑、来源矩阵与显式版本/探测操作 |
+| 研究台与监控前端 | `ui/workbench.mjs`、`ui/operations.mjs` | 六页按需数据入口、显式交接、实际产物和只读运行指标；不直接执行研究或删除数据 |
 
-数据目录和能力中心 UI 已接入当前源码；上表指源码职责，不表示登记的 21 个来源都已适配、配置或完成真实连接验收。当前仅东方财富基金与财联社可由 DataHub 业务路由调用。
+数据目录和能力中心 UI 已接入当前源码；上表指源码职责，不表示登记的 21 个来源都已适配、配置或完成真实连接验收。当前东方财富基金与财联社可直接调用；天软 CJPY 只在安装依赖并提供授权配置后进入四项能力的路由。
 
 ## 存储归属
 
 - DSH 原生日志是研究正文和执行事件的持久来源。BFF 不另建聊天事实库。
 - 产品 `index.json` 保存会话归属、文件标识、默认模型元数据、幂等和交付收据，不保存 API Key。
+- 同一索引保存研究台查询、交接收据和安全化操作审计；它们是指向 DSH/manifest 的产品索引，不是第二套研究或指标事实库。
 - `sessions/<sid>/inputs/` 是上传资料；`resources/` 是研究脚本可读的审核资源；`outputs/` 是研究可写产物。
 - DataHub 私有原始响应与会话可读数据集分开。所有共享资料仍绑定目标会话及原始哈希，不提供任意路径读取接口。
 - 原生凭据只存在专属 DSH 私有目录，不提供给研究脚本环境。

@@ -12,7 +12,7 @@ from .contracts import BusinessQuery, Query
 @dataclass(frozen=True)
 class Resolution:
     provider_id: str
-    query: Query
+    query: Query | BusinessQuery
     attempted_sources: list[dict]
 
 
@@ -29,6 +29,7 @@ def resolve(query: BusinessQuery, *, probes=None, environ=None) -> Resolution:
     bindings = [
         binding for binding in catalog["bindings"] if binding["capability_id"] == query.capability
     ]
+    binding_by_source = {binding["source_id"]: binding for binding in bindings}
     sources = {source["id"]: source for source in catalog["sources"]}
     if query.source != "auto":
         if query.source not in sources:
@@ -50,7 +51,9 @@ def resolve(query: BusinessQuery, *, probes=None, environ=None) -> Resolution:
     for source_id in ordered:
         readiness = sources[source_id]["readiness"]
         reason = None
-        if not readiness["integration_completed"]:
+        if not binding_by_source[source_id]["implemented"]:
+            reason = "capability_not_integrated"
+        elif not readiness["integration_completed"]:
             reason = "not_integrated"
         elif not readiness["configured"]:
             reason = "blocked_config"
@@ -105,6 +108,13 @@ def resolve(query: BusinessQuery, *, probes=None, environ=None) -> Resolution:
             limit=_integer(parameters.get("limit"), "limit", 30),
             refresh=query.refresh,
         )
+    elif selected == "tinysoft" and query.capability in {
+        "search_assets",
+        "trading_calendar",
+        "market_bars",
+        "market_snapshot",
+    }:
+        legacy = query.model_copy(update={"source": "tinysoft"})
     else:
         raise StoreError("所选来源已登记但尚未实现按需查询适配")
     return Resolution(selected, legacy, attempts)

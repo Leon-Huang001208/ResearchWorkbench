@@ -1,11 +1,22 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'history', 'skills', 'settings']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'operations', 'settings']);
+const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'reports']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
-  const page = pages.has(path) ? path : 'fingpt';
-  return { page, sessionId: ['fingpt', 'claw'].includes(page) ? new URLSearchParams(query).get('session') : null };
+  const [pageSegment, sectionSegment] = path.split('/');
+  const page = pages.has(pageSegment) ? pageSegment : 'fingpt';
+  const params = new URLSearchParams(query);
+  const route = {
+    page,
+    sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
+  };
+  if (page === 'workbench') {
+    const requestedSection = sectionSegment || params.get('section');
+    route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
+  }
+  return route;
 }
 export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
 export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting', 'waiting_approval', 'awaiting_approval', 'waiting_input', 'busy', 'cancelling'].includes(status);
@@ -65,6 +76,17 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     dataSource: (id) => request(`/data/sources/${segment(id)}`),
     probeDataSource: (id, key) => request(`/data/sources/${segment(id)}/probes`, { method: 'POST', body: {}, key }),
     dataProbe: (id) => request(`/data/probes/${segment(id)}`),
+    startDataQuery: (body, key) => request('/data/queries', { method: 'POST', body, key }),
+    dataQueries: (section = '') => request(`/data/queries${section ? `?section=${segment(section)}` : ''}`),
+    dataQuery: (id) => request(`/data/queries/${segment(id)}`),
+    handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
+    artifacts: (sessionId = '') => request(`/artifacts${sessionId ? `?session_id=${segment(sessionId)}` : ''}`),
+    operationsUsage: (range = '7d') => request(`/operations/usage?range=${segment(range)}`),
+    operationsTools: (range = '7d') => request(`/operations/tools?range=${segment(range)}`),
+    operationsDatahub: (range = '7d') => request(`/operations/datahub?range=${segment(range)}`),
+    operationsSummary: (range = '7d') => request(`/operations/summary?range=${segment(range)}`),
+    operationsServices: () => request('/operations/services'),
+    operationsStorage: () => request('/operations/storage'),
     capability: (id) => request(capabilityPath(id)),
     createCapability: (body) => request('/capabilities', { method: 'POST', body }),
     saveCapability: (id, body) => request(`${capabilityPath(id)}/draft`, { method: 'PATCH', body }),

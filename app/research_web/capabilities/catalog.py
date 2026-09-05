@@ -50,7 +50,10 @@ class CapabilityCatalog:
                 self.data = json.loads(self.index.read_text())
             else:
                 self.data = {"schema_version": 1, "items": {}, "pending": None}
-                for cid, draft in seed_packages():
+            # Built-ins are additive so existing local catalogs receive newly
+            # shipped reviewed capabilities without rewriting user packages.
+            for cid, draft in seed_packages():
+                if cid not in self.data["items"]:
                     self._create(draft, "builtin", cid=cid)
                     self.publish(cid)
         except (OSError, ValueError, KeyError, TypeError) as exc:

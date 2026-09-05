@@ -22,6 +22,7 @@ def project(entries: list[dict]) -> dict:
     tool_started: dict = {}
     turn_started, duration_ms = None, 0
     status, error, tokens = "idle", None, 0
+    input_tokens, output_tokens, usage_observed = 0, 0, False
     title = None
     for entry in sorted(entries, key=lambda row: row["event"]["seq"]):
         event = entry["event"]
@@ -56,12 +57,29 @@ def project(entries: list[dict]) -> dict:
                 }
                 partials.pop(mid, None)
                 usage = data.get("usage") or {}
-                tokens += (
-                    usage.get(
-                        "totalTokens", usage.get("inputTokens", 0) + usage.get("outputTokens", 0)
-                    )
-                    or 0
-                )
+                if usage:
+                    observed_input = usage.get("inputTokens")
+                    observed_output = usage.get("outputTokens")
+                    observed_total = usage.get("totalTokens")
+                    if isinstance(observed_input, (int, float)) and not isinstance(
+                        observed_input, bool
+                    ):
+                        input_tokens += max(0, int(observed_input))
+                        usage_observed = True
+                    if isinstance(observed_output, (int, float)) and not isinstance(
+                        observed_output, bool
+                    ):
+                        output_tokens += max(0, int(observed_output))
+                        usage_observed = True
+                    if isinstance(observed_total, (int, float)) and not isinstance(
+                        observed_total, bool
+                    ):
+                        tokens += max(0, int(observed_total))
+                        usage_observed = True
+                    elif usage_observed:
+                        tokens += max(0, int(observed_input or 0)) + max(
+                            0, int(observed_output or 0)
+                        )
             elif mid not in messages:
                 chunk = data["chunk"]
                 blocks = partials.setdefault(mid, {"seq": seq, "blocks": {}})["blocks"]
@@ -141,7 +159,15 @@ def project(entries: list[dict]) -> dict:
         ),
         "activities": list(activities.values()),
         "status": status,
-        "usage": {"tokens": tokens} if tokens else {},
+        "usage": (
+            {
+                "tokens": tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+            }
+            if usage_observed
+            else {}
+        ),
     }
     if error:
         if "no API key" in error:

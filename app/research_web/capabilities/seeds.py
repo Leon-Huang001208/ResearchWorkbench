@@ -1,4 +1,4 @@
-"""Four existing reviewed Skills and two explicitly non-executed workflow templates."""
+"""Reviewed built-in Skills and explicitly non-executed workflow templates."""
 
 from pathlib import Path
 
@@ -12,6 +12,7 @@ def seed_packages():
         ("company-research", "公司研究", "公司"),
         ("industry-research", "行业研究", "行业"),
         ("fund-evaluation", "基金评价", "基金"),
+        ("market-commentary", "市场解读", "市场"),
     ]
     packages = []
     for slug, name, category in specs:
@@ -62,6 +63,12 @@ def seed_packages():
         )
     for slug, name, linked, preparation in [
         (
+            "market-commentary-workflow",
+            "市场资料筛选与解读交付",
+            "market-commentary",
+            "由父 Agent 经原生审批取得市场资讯快照，核对日期、覆盖和来源后再进行筛选。",
+        ),
+        (
             "fund-research-workflow",
             "基金资料准备与受限评价",
             "fund-evaluation",
@@ -107,7 +114,11 @@ def seed_packages():
                             "tools": (
                                 ["datahub_get_fund_data"]
                                 if linked == "fund-evaluation"
-                                else ["web_search"]
+                                else (
+                                    ["datahub_search_news"]
+                                    if linked == "market-commentary"
+                                    else ["web_search"]
+                                )
                             ),
                         },
                         {

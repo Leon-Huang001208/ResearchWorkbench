@@ -9,7 +9,7 @@
 | `models.py` | 元数据、输入字段、步骤与产品错误契约 | 执行研究 |
 | `packages.py` | 有界 MD/ZIP 读取、路径/类型/编码检查、保留问题 | 安装依赖、解压到任意路径或运行脚本 |
 | `catalog.py` | 草稿、检查、不可变版本、原生目录投影、会话资源快照 | Agent 编排 |
-| `seeds.py` | 四个研究 Skill、两个步骤式 Workflow 的内置元数据 | 虚构在线市场 |
+| `seeds.py` | 五个研究 Skill、三个步骤式 Workflow 的内置元数据 | 虚构在线市场 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
 
@@ -60,7 +60,9 @@ Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH
 
 显式 `expected_formats` 优先；未提供时使用所选能力默认格式。详情显示能力/版本和 Workflow 预设步骤，执行活动及最终文件从原生历史与真实产物读取，不由模板推断完成状态。
 
-Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数据工具，共 21 项。数据 Tool 使用子系统前缀而非产品品牌，因此将来产品改名不需要迁移研究协议。当前可选择的 Tool 为 `research_run_script`、`web_search`，以及有可调用 Provider 的 `datahub_get_fund_data`、`datahub_search_news`；其他 `datahub_*` 能力可以浏览，但会明确显示没有已适配来源，不能运行。
+Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数据工具，共 21 项。数据 Tool 使用子系统前缀而非产品品牌，因此将来产品改名不需要迁移研究协议。当前可选择的 Tool 为 `research_run_script`、`web_search`，以及有可调用 Provider 的 `datahub_get_fund_data`、`datahub_search_news`；安装并配置天软 CJPY 后，四个对应业务 Tool 才会成为可选。其他 `datahub_*` 能力可以浏览，但会明确显示没有已实现且就绪的绑定，不能运行。
+
+本轮从旧市场内容能力中只迁入可独立运行的“市场解读” Skill 和“市场资料筛选与解读交付” Workflow：脚本读取当前会话已有结构化资讯，按时间、来源和关键词执行透明排序并生成文件。它不导入旧 UI、数据库、调度器、事实断言或报告编译链；没有实际数据时不得生成市场结论。
 
 能力中心现在有 Skill、Tool、Workflow、数据四个页签。“数据”不是新的执行类型，而是 DataHub 的只读目录投影：支持按业务能力和按来源双视图，展示字段、参数、市场覆盖、候选来源和六维就绪状态。把数据能力“放入研究草稿”只加入对应 `datahub_*` Tool，不立即联网或产生费用。DSH 原生网页搜索仍留在 Tool 目录，不冒充 DataHub 数据源。
 

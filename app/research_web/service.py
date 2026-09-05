@@ -54,7 +54,11 @@ class ResearchService:
         self.child_views: dict[str, tuple[float, dict]] = {}
         self.listeners: set[asyncio.Event] = set()
         self.lock = asyncio.Lock()
+        # Product-level query and handoff admission must be serialized separately
+        # from native DSH session mutations, which already use ``self.lock``.
+        self.workbench_lock = asyncio.Lock()
         self.pump = None
+        self.last_runtime_success_at: float | None = None
         self.default_model = store.data.get(
             "model", {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
         )
@@ -122,6 +126,7 @@ class ResearchService:
             self.event_revision += 1
             if envelope.get("type") == "connected":
                 self.connected.add(channel)
+                self.last_runtime_success_at = time.time()
                 self.notify()
                 continue
             frame = envelope["payload"]
@@ -186,24 +191,23 @@ class ResearchService:
     async def runtime(self):
         try:
             info = await self.client.rpc("host.describe", {})
+            self.last_runtime_success_at = time.time()
             if self.expected_cwd is not None:
                 self.owned = info.get("cwd") == str(self.expected_cwd.resolve())
             ready = self.connected == {"mux", "host"}
-            auth = await self.client.rpc(
-                "credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]}
-            )
+            auth = await self.client.rpc("credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]})
             configured = (
-                auth.get("credentials", {})
-                .get("RESEARCH_DSH_API_KEY", {})
-                .get("configured", False)
+                auth.get("credentials", {}).get("RESEARCH_DSH_API_KEY", {}).get("configured", False)
             )
             return {
                 "connected": ready,
+                "health_check_passed": True,
                 "provider": info.get("provider"),
                 "model": self.default_model["model"],
                 "version": info["version"],
                 "owned_runtime": self.owned,
                 "credential_configured": configured,
+                "last_successful_communication_at": self.last_runtime_success_at,
                 "message": (
                     ("DSH 已连接" if configured else "DSH 已连接；请先在下方配置 API Key")
                     if ready
@@ -213,10 +217,12 @@ class ResearchService:
         except RuntimeFailure as exc:
             return {
                 "connected": False,
+                "health_check_passed": False,
                 "provider": "DSH",
                 "model": None,
                 "version": None,
                 "owned_runtime": self.owned,
+                "last_successful_communication_at": self.last_runtime_success_at,
                 "message": str(exc),
             }
 
@@ -864,7 +870,7 @@ class ResearchService:
         if not request or request.get("ownerSessionId", request["sessionId"]) != sid:
             raise StoreError("审批已失效或不属于该会话")
         log.info("research_approval_response", decision=decision)
-        return await self.client.respond(
+        result = await self.client.respond(
             request["rpc_id"],
             {
                 "sessionId": request["sessionId"],
@@ -872,6 +878,13 @@ class ResearchService:
                 "outcome": "allowed-once" if decision == "approve" else "rejected",
             },
         )
+        self.store.audit(
+            "approval",
+            "approved" if decision == "approve" else "denied",
+            session_id=sid,
+            tool=request.get("toolName"),
+        )
+        return result
 
     async def cancel(self, sid):
         await self.ensure_owned()
@@ -916,6 +929,7 @@ class ResearchService:
             except RuntimeFailure as exc:
                 log.warning("research_cancel_followup_unavailable", code=exc.code)
         self.notify()
+        self.store.audit("research", "cancelled", session_id=sid)
         return result
 
     async def answer(self, sid, qid, answers):

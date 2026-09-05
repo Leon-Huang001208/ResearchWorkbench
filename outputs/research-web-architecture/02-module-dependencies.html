@@ -4840,7 +4840,7 @@
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"catalog","label":"启动与浏览目录","focus":["serviceManager","browser","dataUi","routes","catalog"],"note":"服务启动后，目录读取只访问静态声明和安全化状态，不实例化连接器。"},{"id":"query","label":"审批后取数","focus":["dsh","nativeTool","routes","broker","providers","sources"],"note":"DSH 只提交业务参数，DataHub 在白名单内选源并执行已适配 Provider。"},{"id":"snapshot","label":"共享与迁移快照","focus":["providers","dataMigration","snapshots","routes","browser","dsh"],"note":"解析和迁移结果均核验归属与哈希，Web 与子 Agent 读取同一会话快照。"}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"catalog","label":"启动与浏览目录","focus":["serviceManager","browser","dataUi","routes","catalog"],"note":"服务启动后，目录读取只访问静态声明和安全化状态，不实例化连接器。"},{"id":"query","label":"审批后取数","focus":["dsh","nativeTool","routes","broker","providers","sources"],"note":"DSH 只提交业务参数，DataHub 在白名单内选源并执行已适配 Provider。"},{"id":"snapshot","label":"共享快照与监控","focus":["providers","snapshots","operations","routes","browser","dsh"],"note":"研究台交接会话隔离快照；运行页只聚合既有 DSH、DataHub、服务与文件记录。"}]</script>
 
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -4910,7 +4910,7 @@
 
         <!-- Boundaries (behind everything) -->
         <rect data-graph-role="structural-frame" data-composition-frame-kind="security-group" data-composition-frame-id="0" x="400" y="40" width="700" height="602" rx="8" class="c-security-group" stroke-width="1"/>
-        <text x="408" y="58" class="t-security" font-size="9" font-weight="600">FastAPI 进程内 DataHub</text>
+        <text x="408" y="58" class="t-security" font-size="9" font-weight="600">FastAPI 进程内产品服务</text>
 
         <rect data-graph-role="structural-frame" data-composition-frame-kind="security-group" data-composition-frame-id="1" x="205" y="370" width="440" height="122" rx="8" class="c-security-group" stroke-width="1"/>
         <text x="213" y="388" class="t-security" font-size="9" font-weight="600">受控研究执行</text>
@@ -4927,11 +4927,12 @@
         <path data-edge-from="providers" data-edge-to="sources" data-edge-label="固定目标请求" data-edge-key="8" data-edge-id="fetchSource" data-composition-points="1070,245;1110,245" d="M 1070 245 L 1110 245" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="providers" data-edge-to="snapshots" data-edge-label="标准化后发布" data-edge-key="9" data-edge-id="publishSnapshot" data-composition-points="985,280;985,400" d="M 985 280 L 985 400" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="snapshots" data-edge-to="routes" data-edge-label="会话归属读取" data-edge-key="10" data-edge-id="readDataset" data-composition-points="900,436;780,436;780,310;512.5,310;512.5,278" d="M 900 436 L 788 436 Q 780 436 780 428 L 780 318 Q 780 310 772 310 L 520.5 310 Q 512.5 310 512.5 302 L 512.5 278" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="dataMigration" data-edge-to="snapshots" data-edge-label="核验后导入研究状态" data-edge-key="11" data-edge-id="migrateData" data-composition-points="985,550;985,472" d="M 985 550 L 985 472" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="snapshots" data-edge-to="operations" data-edge-label="Manifest 与目录占用" data-edge-key="11" data-edge-id="collectData" data-composition-points="985,472;985,550" d="M 985 472 L 985 550" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="dsh" data-edge-to="operations" data-edge-label="usage / Agent / Tool 事件" data-edge-key="12" data-edge-id="collectRuntime" data-composition-points="310,468;310,650;820,650;820,586;900,586" d="M 310 468 L 310 642 Q 310 650 318 650 L 812 650 Q 820 650 820 642 L 820 594 Q 820 586 828 586 L 900 586" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
 
         <!-- Components -->
-        <g id="node-serviceManager" data-node-id="serviceManager" data-node-label="服务管理器" tabindex="0" role="button" aria-label="Focus 服务管理器, rwb web · 归属 / 健康 / 回滚, FastAPI 进程内 DataHub" aria-pressed="false" data-node-kind="backend" data-node-sublabel="rwb web · 归属 / 健康 / 回滚" data-node-context="FastAPI 进程内 DataHub">
-          <title>服务管理器 · rwb web · 归属 / 健康 / 回滚 · FastAPI 进程内 DataHub</title>
+        <g id="node-serviceManager" data-node-id="serviceManager" data-node-label="服务管理器" tabindex="0" role="button" aria-label="Focus 服务管理器, rwb web · 归属 / 健康 / 回滚, FastAPI 进程内产品服务" aria-pressed="false" data-node-kind="backend" data-node-sublabel="rwb web · 归属 / 健康 / 回滚" data-node-context="FastAPI 进程内产品服务">
+          <title>服务管理器 · rwb web · 归属 / 健康 / 回滚 · FastAPI 进程内产品服务</title>
           <rect x="430" y="70" width="165" height="68" rx="6" class="c-mask"/>
           <rect x="430" y="70" width="165" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(436 76) scale(0.6875)">
@@ -4941,8 +4942,8 @@
         <text data-detail="context" x="512.5" y="118" class="t-muted" font-size="9" text-anchor="middle">rwb web · 归属 / 健康 / 回滚</text>
         </g>
 
-        <g id="node-browser" data-node-id="browser" data-node-label="Research Web" tabindex="0" role="button" aria-label="Focus Research Web, FinGPT / Claw / 能力中心, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="FinGPT / Claw / 能力中心" data-node-context="Architecture component">
-          <title>Research Web · FinGPT / Claw / 能力中心 · Architecture component</title>
+        <g id="node-browser" data-node-id="browser" data-node-label="Research Web" tabindex="0" role="button" aria-label="Focus Research Web, FinGPT / Claw / 研究台 / 监控, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="FinGPT / Claw / 研究台 / 监控" data-node-context="Architecture component">
+          <title>Research Web · FinGPT / Claw / 研究台 / 监控 · Architecture component</title>
           <rect x="40" y="210" width="150" height="68" rx="6" class="c-mask"/>
           <rect x="40" y="210" width="150" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(46 216) scale(0.6875)">
@@ -4952,11 +4953,11 @@
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
           <text data-detail-anchor x="115" y="242" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Research Web</text>
-        <text data-detail="context" x="115" y="258" class="t-muted" font-size="9" text-anchor="middle">FinGPT / Claw / 能力中心</text>
+        <text data-detail="context" x="115" y="258" class="t-muted" font-size="8.1" text-anchor="middle">FinGPT / Claw / 研究台 / 监控</text>
         </g>
 
-        <g id="node-dataUi" data-node-id="dataUi" data-node-label="数据目录 UI" tabindex="0" role="button" aria-label="Focus 数据目录 UI, 能力 / 来源双视图, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="能力 / 来源双视图" data-node-context="Architecture component">
-          <title>数据目录 UI · 能力 / 来源双视图 · Architecture component</title>
+        <g id="node-dataUi" data-node-id="dataUi" data-node-label="研究台与数据目录" tabindex="0" role="button" aria-label="Focus 研究台与数据目录, 六页 / 双视图 / 页面交接, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="六页 / 双视图 / 页面交接" data-node-context="Architecture component">
+          <title>研究台与数据目录 · 六页 / 双视图 / 页面交接 · Architecture component</title>
           <rect x="235" y="210" width="150" height="68" rx="6" class="c-mask"/>
           <rect x="235" y="210" width="150" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(241 216) scale(0.6875)">
@@ -4965,23 +4966,23 @@
             <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
-          <text data-detail-anchor x="310" y="242" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">数据目录 UI</text>
-        <text data-detail="context" x="310" y="258" class="t-muted" font-size="9" text-anchor="middle">能力 / 来源双视图</text>
+          <text data-detail-anchor x="310" y="242" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">研究台与数据目录</text>
+        <text data-detail="context" x="310" y="258" class="t-muted" font-size="9" text-anchor="middle">六页 / 双视图 / 页面交接</text>
         </g>
 
-        <g id="node-routes" data-node-id="routes" data-node-label="FastAPI 数据路由" tabindex="0" role="button" aria-label="Focus FastAPI 数据路由, /api/research/data, FastAPI 进程内 DataHub" aria-pressed="false" data-node-kind="backend" data-node-sublabel="/api/research/data" data-node-context="FastAPI 进程内 DataHub">
-          <title>FastAPI 数据路由 · /api/research/data · FastAPI 进程内 DataHub</title>
+        <g id="node-routes" data-node-id="routes" data-node-label="FastAPI 产品 API" tabindex="0" role="button" aria-label="Focus FastAPI 产品 API, 查询 / 交接 / operations, FastAPI 进程内产品服务" aria-pressed="false" data-node-kind="backend" data-node-sublabel="查询 / 交接 / operations" data-node-context="FastAPI 进程内产品服务">
+          <title>FastAPI 产品 API · 查询 / 交接 / operations · FastAPI 进程内产品服务</title>
           <rect x="430" y="210" width="165" height="68" rx="6" class="c-mask"/>
           <rect x="430" y="210" width="165" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(436 216) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-detail-anchor x="512.5" y="242" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">FastAPI 数据路由</text>
-        <text data-detail="context" x="512.5" y="258" class="t-muted" font-size="9" text-anchor="middle">/api/research/data</text>
+          <text data-detail-anchor x="512.5" y="242" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">FastAPI 产品 API</text>
+        <text data-detail="context" x="512.5" y="258" class="t-muted" font-size="9" text-anchor="middle">查询 / 交接 / operations</text>
         </g>
 
-        <g id="node-catalog" data-node-id="catalog" data-node-label="静态能力目录" tabindex="0" role="button" aria-label="Focus 静态能力目录, 13 能力 / 21 来源 / 绑定, FastAPI 进程内 DataHub" aria-pressed="false" data-node-kind="backend" data-node-sublabel="13 能力 / 21 来源 / 绑定" data-node-context="FastAPI 进程内 DataHub">
-          <title>静态能力目录 · 13 能力 / 21 来源 / 绑定 · FastAPI 进程内 DataHub</title>
+        <g id="node-catalog" data-node-id="catalog" data-node-label="静态能力目录" tabindex="0" role="button" aria-label="Focus 静态能力目录, 13 能力 / 21 来源 / 绑定, FastAPI 进程内产品服务" aria-pressed="false" data-node-kind="backend" data-node-sublabel="13 能力 / 21 来源 / 绑定" data-node-context="FastAPI 进程内产品服务">
+          <title>静态能力目录 · 13 能力 / 21 来源 / 绑定 · FastAPI 进程内产品服务</title>
           <rect x="680" y="70" width="170" height="70" rx="6" class="c-mask"/>
           <rect x="680" y="70" width="170" height="70" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(686 76) scale(0.6875)">
@@ -4991,8 +4992,8 @@
         <text data-detail="context" x="765" y="119" class="t-muted" font-size="9" text-anchor="middle">13 能力 / 21 来源 / 绑定</text>
         </g>
 
-        <g id="node-broker" data-node-id="broker" data-node-label="DataHub 路由" tabindex="0" role="button" aria-label="Focus DataHub 路由, 过滤 / 选源 / 参数翻译, FastAPI 进程内 DataHub" aria-pressed="false" data-node-kind="backend" data-node-sublabel="过滤 / 选源 / 参数翻译" data-node-context="FastAPI 进程内 DataHub">
-          <title>DataHub 路由 · 过滤 / 选源 / 参数翻译 · FastAPI 进程内 DataHub</title>
+        <g id="node-broker" data-node-id="broker" data-node-label="DataHub 路由" tabindex="0" role="button" aria-label="Focus DataHub 路由, 过滤 / 选源 / 参数翻译, FastAPI 进程内产品服务" aria-pressed="false" data-node-kind="backend" data-node-sublabel="过滤 / 选源 / 参数翻译" data-node-context="FastAPI 进程内产品服务">
+          <title>DataHub 路由 · 过滤 / 选源 / 参数翻译 · FastAPI 进程内产品服务</title>
           <rect x="680" y="210" width="170" height="70" rx="6" class="c-mask"/>
           <rect x="680" y="210" width="170" height="70" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(686 216) scale(0.6875)">
@@ -5002,15 +5003,15 @@
         <text data-detail="context" x="765" y="259" class="t-muted" font-size="9" text-anchor="middle">过滤 / 选源 / 参数翻译</text>
         </g>
 
-        <g id="node-providers" data-node-id="providers" data-node-label="已适配 Provider" tabindex="0" role="button" aria-label="Focus 已适配 Provider, 东方财富基金 / 财联社, FastAPI 进程内 DataHub" aria-pressed="false" data-node-kind="backend" data-node-sublabel="东方财富基金 / 财联社" data-node-context="FastAPI 进程内 DataHub">
-          <title>已适配 Provider · 东方财富基金 / 财联社 · FastAPI 进程内 DataHub</title>
+        <g id="node-providers" data-node-id="providers" data-node-label="已适配 Provider" tabindex="0" role="button" aria-label="Focus 已适配 Provider, 东方财富 / 财联社 / CJPY 条件接入, FastAPI 进程内产品服务" aria-pressed="false" data-node-kind="backend" data-node-sublabel="东方财富 / 财联社 / CJPY 条件接入" data-node-context="FastAPI 进程内产品服务">
+          <title>已适配 Provider · 东方财富 / 财联社 / CJPY 条件接入 · FastAPI 进程内产品服务</title>
           <rect x="900" y="210" width="170" height="70" rx="6" class="c-mask"/>
           <rect x="900" y="210" width="170" height="70" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(906 216) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-detail-anchor x="985" y="243" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">已适配 Provider</text>
-        <text data-detail="context" x="985" y="259" class="t-muted" font-size="9" text-anchor="middle">东方财富基金 / 财联社</text>
+        <text data-detail="context" x="985" y="259" class="t-muted" font-size="8.1" text-anchor="middle">东方财富 / 财联社 / CJPY 条件接入</text>
         </g>
 
         <g id="node-sources" data-node-id="sources" data-node-label="注册数据来源" tabindex="0" role="button" aria-label="Focus 注册数据来源, 正式 / DataHub / 旧适配器, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="正式 / DataHub / 旧适配器" data-node-context="Architecture component">
@@ -5025,8 +5026,8 @@
         <text data-detail="context" x="1185" y="259" class="t-muted" font-size="9" text-anchor="middle">正式 / DataHub / 旧适配器</text>
         </g>
 
-        <g id="node-snapshots" data-node-id="snapshots" data-node-label="会话数据快照" tabindex="0" role="button" aria-label="Focus 会话数据快照, JSON / CSV / Manifest / Hash, FastAPI 进程内 DataHub" aria-pressed="false" data-node-kind="database" data-node-sublabel="JSON / CSV / Manifest / Hash" data-node-context="FastAPI 进程内 DataHub">
-          <title>会话数据快照 · JSON / CSV / Manifest / Hash · FastAPI 进程内 DataHub</title>
+        <g id="node-snapshots" data-node-id="snapshots" data-node-label="会话数据快照" tabindex="0" role="button" aria-label="Focus 会话数据快照, JSON / CSV / Manifest / Hash, FastAPI 进程内产品服务" aria-pressed="false" data-node-kind="database" data-node-sublabel="JSON / CSV / Manifest / Hash" data-node-context="FastAPI 进程内产品服务">
+          <title>会话数据快照 · JSON / CSV / Manifest / Hash · FastAPI 进程内产品服务</title>
           <rect x="900" y="400" width="170" height="72" rx="6" class="c-mask"/>
           <rect x="900" y="400" width="170" height="72" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(906 406) scale(0.6875)">
@@ -5061,16 +5062,15 @@
         <text data-detail="context" x="532.5" y="450" class="t-muted" font-size="9" text-anchor="middle">原生审批 / Guard 白名单</text>
         </g>
 
-        <g id="node-dataMigration" data-node-id="dataMigration" data-node-label="研究数据迁移" tabindex="0" role="button" aria-label="Focus 研究数据迁移, 白名单复制 / SHA-256 核验, FastAPI 进程内 DataHub" aria-pressed="false" data-node-kind="security" data-node-sublabel="白名单复制 / SHA-256 核验" data-node-context="FastAPI 进程内 DataHub">
-          <title>研究数据迁移 · 白名单复制 / SHA-256 核验 · FastAPI 进程内 DataHub</title>
+        <g id="node-operations" data-node-id="operations" data-node-label="运行与用量聚合" tabindex="0" role="button" aria-label="Focus 运行与用量聚合, 历史 / Audit / 服务 / 存储, FastAPI 进程内产品服务" aria-pressed="false" data-node-kind="backend" data-node-sublabel="历史 / Audit / 服务 / 存储" data-node-context="FastAPI 进程内产品服务">
+          <title>运行与用量聚合 · 历史 / Audit / 服务 / 存储 · FastAPI 进程内产品服务</title>
           <rect x="900" y="550" width="170" height="72" rx="6" class="c-mask"/>
-          <rect x="900" y="550" width="170" height="72" rx="6" class="c-security" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(906 556) scale(0.6875)">
-            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
-            <path d="m5.8 8 1.5 1.5 3-3"/>
+          <rect x="900" y="550" width="170" height="72" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(906 556) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-detail-anchor x="985" y="584" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">研究数据迁移</text>
-        <text data-detail="context" x="985" y="600" class="t-muted" font-size="9" text-anchor="middle">白名单复制 / SHA-256 核验</text>
+          <text data-detail-anchor x="985" y="584" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">运行与用量聚合</text>
+        <text data-detail="context" x="985" y="600" class="t-muted" font-size="9" text-anchor="middle">历史 / Audit / 服务 / 存储</text>
         </g>
 
         <!-- Connection labels -->
@@ -5118,9 +5118,13 @@
           <rect x="786.2" y="410" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="820" y="420" class="t-muted" font-size="8" text-anchor="middle">会话归属读取</text>
         </g>
-        <g data-detail="context" data-edge-from="dataMigration" data-edge-to="snapshots" data-edge-label="核验后导入研究状态" data-edge-key="11" data-edge-id="migrateData">
-          <rect x="936.8" y="530" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
-          <text x="985" y="540" class="t-security" font-size="8" text-anchor="middle">核验后导入研究状态</text>
+        <g data-detail="context" data-edge-from="snapshots" data-edge-to="operations" data-edge-label="Manifest 与目录占用" data-edge-key="11" data-edge-id="collectData">
+          <rect x="934.4" y="476" width="101.2" height="14" rx="3" class="c-mask"/>
+          <text x="985" y="486" class="t-messagebus" font-size="8" text-anchor="middle">Manifest 与目录占用</text>
+        </g>
+        <g data-detail="context" data-edge-from="dsh" data-edge-to="operations" data-edge-label="usage / Agent / Tool 事件" data-edge-key="12" data-edge-id="collectRuntime">
+          <rect x="510" y="630" width="130" height="14" rx="3" class="c-mask"/>
+          <text x="575" y="640" class="t-messagebus" font-size="8" text-anchor="middle">usage / Agent / Tool 事件</text>
         </g>
 
         <!-- Legend -->
@@ -5358,8 +5362,8 @@
           <h3>当前真实边界</h3>
         </div>
         <ul>
-          <li>&bull; 仅东方财富基金与财联社完成按需 Provider 适配</li>
-          <li>&bull; 服务管理器只操作指纹一致进程；迁移不复制凭据或控制令牌</li>
+          <li>&bull; 东方财富基金与财联社可直接调用；CJPY 仅在依赖、配置齐备时路由</li>
+          <li>&bull; 监控只读聚合真实记录；未知 usage 不写成零，也不读取问题正文或凭据</li>
         </ul>
       </div>
     </div>

@@ -116,3 +116,19 @@
 - 该修复只补齐既有 PostgreSQL 节点的启动前置条件和错误分类，不改变当前 Research Web 的 Web／FastAPI／DSH 部署、DataHub 取数、能力包、运行状态或文件交付拓扑，因此八张 Archify 图不重生成。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"既有PostgreSQL节点增加btree_gist必需扩展预检与脱敏修复状态，不新增服务、接口调用路径或数据流。","diagrams":[]} -->
+
+## 2026-09-05 — Web 功能合并、页面交接与只读运行监控
+
+- 新增研究台六个页面。页面查询通过 `POST /api/research/data/queries` 进入现有 DataHub；交接只复制用户选中的会话数据集，并把筛选、来源和截止时间写入目标会话的上下文文件。FinGPT、Claw 后续仍由 DSH 执行。
+- 新增“运行与用量”只读投影。模型 usage、Agent/Tool 活动、DataHub Audit、服务归属/健康和 Research Workbench 数据根占用均来自已有记录；未知 usage 和未配置价格分别显示，接口不返回问题正文、附件内容、审批参数或凭据。
+- CJPY 仅迁移受支持的证券目录、交易日历、行情和快照 Provider；无依赖或配置时保持 blocked，不把登记的数据集冒充已实现。新增市场解读 Skill/Workflow 仅消费已物化文件，不引入第二研究引擎。
+- 图 02、03、04 分别更新模块依赖、研究台查询/交接序列和共享资料流；其余图的部署进程、能力发布生命周期、运行状态、文件交付状态及文档门禁没有结构变化。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"产品壳新增研究台和运行与用量路由，并加入页面查询、快照交接和只读监控交互。","diagrams":["02-module-dependencies","03-research-sequence"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"研究台在创建目标DSH会话前新增受控查询和页面交接，原研究提交、SSE与审批协议保持不变。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"新增页面异步查询、CJPY条件Provider、所选数据集复制和真实调用审计，仍使用同一DataHub与快照存储。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"files","structure":"changed","reason":"会话快照增加按dataset_id复制和Hash核验，用于研究台向目标会话交接。","diagrams":["04-data-file-flow"]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"新增市场解读原生Skill包但DSH、Guard、脚本沙箱和父子Agent运行边界未改变。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录增加市场解读Skill和Workflow种子，仍复用既有检查、版本、发布和原生发现流程。","diagrams":[]} -->
+<!-- architecture-review {"group":"workbench","structure":"changed","reason":"新增六页研究台后端查询、页面上下文固化、快照交接和实际产物索引。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"operations","structure":"changed","reason":"新增不参与执行的只读聚合模块，读取DSH历史、DataHub审计、服务管理状态和受限数据目录。","diagrams":["02-module-dependencies"]} -->

@@ -9,14 +9,19 @@ import { createCapabilityController, refreshProbedSourceDetail } from './capabil
 import { renderCapabilityCatalog, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStep } from './capability-editor.mjs';
+import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
+import { renderOperations } from './operations.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
+let workbenchQueries = []; let workbenchContext = {}; let workbenchBusy = false;
+let operationsRange = '7d';
+let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -63,8 +68,18 @@ function settingsPage() {
 function mainPage() {
   if (['fingpt', 'claw'].includes(state.route.page)) return researchPage();
   if (state.route.page === 'settings') return settingsPage();
+  if (state.route.page === 'workbench') return workbenchPage();
+  if (state.route.page === 'operations') return operationsPage();
   if (state.route.page === 'history') return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>研究历史</h1><p class="muted">所有 FinGPT 与 Claw 会话，随时回来继续。</p></div><button class="button" data-refresh>刷新</button></header><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索研究历史"></label><div id="history-results">${renderHistory(catalog.sessions, historyFilter)}</div>`;
   return capabilityPage();
+}
+
+function workbenchPage() {
+  return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy });
+}
+
+function operationsPage() {
+  return renderOperations(operationsData, operationsRange);
 }
 
 function capabilityPage() {
@@ -109,7 +124,7 @@ function render() {
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', history: '研究历史', skills: '能力中心', settings: '设置' })[state.route.page]} · Research Workbench`;
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page]} · Research Workbench`;
 }
 
 async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools']) {
@@ -124,10 +139,43 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
         sources: Array.isArray(data?.sources) ? data.sources : [],
         bindings: Array.isArray(data?.bindings) ? data.bindings : [],
       };
+      else if (name === 'artifacts') catalog.artifacts = data.items || [];
       else catalog[name] = data.items || [];
       delete catalog.errors[name];
     } catch (error) { catalog.errors[name] = error.message; if (name === 'runtime') catalog.runtime = null; }
   }));
+  render();
+}
+
+async function loadOperations() {
+  try {
+    const summary = await api.operationsSummary(operationsRange);
+    for (const name of ['usage', 'tools', 'datahub', 'services', 'storage']) {
+      operationsData[name] = summary[name] || null;
+      delete catalog.errors[`operations-${name}`];
+    }
+  } catch (error) {
+    for (const name of ['usage', 'tools', 'datahub', 'services', 'storage']) operationsData[name] = null;
+    catalog.errors['operations-summary'] = error.message;
+  }
+  render();
+}
+
+async function loadWorkbench() {
+  const section = state.route.section || 'market';
+  await Promise.all([
+    loadCatalog(['dataCatalog', 'artifacts']),
+    (async () => {
+      try {
+        const data = await api.dataQueries(section);
+        workbenchQueries = Array.isArray(data.items) ? data.items : [];
+        delete catalog.errors.workbenchQueries;
+      } catch (error) {
+        workbenchQueries = [];
+        catalog.errors.workbenchQueries = error.message;
+      }
+    })(),
+  ]);
   render();
 }
 
@@ -141,6 +189,8 @@ async function showRoute() {
   await loadWorkflowVersion();
   if (state.route.page === 'history') await loadCatalog(['sessions']);
   if (state.route.page === 'skills') await loadCatalog(['capabilities', 'tools', 'dataCatalog', 'sessions']);
+  if (state.route.page === 'workbench') await loadWorkbench();
+  if (state.route.page === 'operations') await loadOperations();
 }
 
 async function ensureSession() {
@@ -246,6 +296,27 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (event.target.matches('[data-workbench-query]')) {
+    if (workbenchBusy) return;
+    workbenchBusy = true; state.error = ''; render();
+    try {
+      const query = readWorkbenchQuery(event.target);
+      const section = state.route.section || 'market';
+      const previous = [...workbenchQueries].reverse().find(item => item.section === section);
+      workbenchContext = { section, source: query.source, parameters: query.parameters, requested_at: new Date().toISOString() };
+      let record = await api.startDataQuery({ session_id: previous?.session_id || null, section, query }, crypto.randomUUID());
+      workbenchQueries = [...workbenchQueries.filter(item => item.id !== record.id), record]; render();
+      for (let attempt = 0; attempt < 80 && record.status === 'running'; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        record = await api.dataQuery(record.id);
+        workbenchQueries = [...workbenchQueries.filter(item => item.id !== record.id), record]; render();
+      }
+      if (record.status === 'completed') success = '真实数据快照已生成，可交给 FinGPT 或 Claw。';
+      else if (record.status === 'failed') state.error = `查询失败：${record.failure_code || '未知错误'}`;
+    } catch (error) { state.error = error.message; }
+    finally { workbenchBusy = false; render(); }
+    return;
+  }
   if (event.target.id === 'cap-editor-form') { captureEditor(); await capabilityController.save(); return; }
   if (event.target.id === 'cap-copy-form') { await capabilityController.copy(); return; }
   if (event.target.id === 'cap-creation-form') {
@@ -295,7 +366,32 @@ root.addEventListener('click', async (event) => {
   if ('clearCapability' in data) { controller.setCapability(null); render(); }
   if ('removeTool' in data) { controller.setTools(state.toolIds.filter(id => id !== data.removeTool)); render(); }
   if ('new' in data) { history.pushState(null, '', state.route.page === 'claw' ? '#/claw' : '#/fingpt'); await showRoute(); controller.setDraft(''); render(); document.querySelector('#prompt')?.focus(); }
-  if ('refresh' in data) { success = ''; await loadCatalog(); await controller.refresh(); }
+  if ('refresh' in data) {
+    success = '';
+    if (state.route.page === 'workbench') await loadWorkbench();
+    else if (state.route.page === 'operations') await loadOperations();
+    else { await loadCatalog(); await controller.refresh(); }
+  }
+  if ('operationsRange' in data) { operationsRange = data.operationsRange; await loadOperations(); }
+  if ('workbenchHandoff' in data) {
+    if (workbenchBusy || !data.sourceSession) return;
+    workbenchBusy = true; state.error = ''; render();
+    try {
+      const result = await api.handoff({
+        source_session_id: data.sourceSession,
+        target_mode: data.workbenchHandoff,
+        section: state.route.section || 'market',
+        dataset_ids: JSON.parse(data.datasetIds || '[]'),
+        context: workbenchContext,
+      }, crypto.randomUUID());
+      history.pushState(null, '', `#/${result.mode}?session=${encodeURIComponent(result.session_id)}`);
+      await showRoute();
+      controller.setDraft(result.draft || '请基于研究台交接资料继续研究。');
+      await loadCatalog(['sessions']);
+      success = '页面参数和数据集已冻结到新会话，确认草稿后再发送。';
+    } catch (error) { state.error = error.message; }
+    finally { workbenchBusy = false; render(); }
+  }
   if ('reloadSession' in data) await showRoute();
   if ('toggleSidebar' in data) {
     const narrow = window.matchMedia('(max-width: 1050px)').matches;

@@ -13,7 +13,7 @@ import httpx
 
 from core.observability import get_logger
 
-from .contracts import Query
+from .contracts import BusinessQuery, Query
 
 log = get_logger(__name__)
 MAX_PAGES = 100
@@ -458,7 +458,13 @@ async def supplement(client, query, result):
     supplement_rows(query, result, raw)
 
 
-async def fetch(query: Query, *, transport=None):
+async def fetch(query: Query | BusinessQuery, *, transport=None):
+    if isinstance(query, BusinessQuery):
+        if query.source != "tinysoft":
+            raise ProviderError("business_provider_not_implemented")
+        from .providers_cjpy import fetch as cjpy_fetch
+
+        return await cjpy_fetch(query)
     result = Result()
     try:
         async with asyncio.timeout(DEADLINE):
@@ -510,6 +516,10 @@ async def fetch(query: Query, *, transport=None):
 
 async def probe(source_id: str, *, transport=None):
     """Minimal public read used only after an explicit per-source probe request."""
+    if source_id == "tinysoft":
+        from .providers_cjpy import probe as cjpy_probe
+
+        return await cjpy_probe()
     if source_id == "eastmoney_fund":
         query = Query(source="fund_profile", code="000001", limit=1)
     elif source_id == "cls":

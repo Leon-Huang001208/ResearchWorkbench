@@ -5,6 +5,8 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 目录读取不依赖会话、在线 DSH 或模型调用。工具目录为当前研究 composition 的只读声明，
 不表示运行实例在线、凭据已配置或某次取数已获批准。
 
+当前内置能力新增“市场解读” Skill 和“市场解读与报告” Workflow。其透明排序脚本只消费已经物化的行情、板块与事件文件并生成研究草稿，不联网、不写 DataHub，也不替 DSH 编排 Agent。旧内容生产代码只按这种可独立验证的脚本、提示和模板迁移；Evidence、Claim、Quality Gate 与旧报告编译链没有恢复。
+
 ## API（全部位于 `/api/research`）
 
 | 方法与路径 | 输入 / 返回 |
@@ -23,7 +25,7 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 | GET `/capabilities/{id}/versions/{version}` | 原始指令、元数据、文件及步骤，`read_only:true` |
 | GET `/capabilities/{id}/versions/{version}/export` | ZIP：原始 SKILL.md、capability.json、可选 workflow.json、资源 |
 | GET `/tools` | 21 项真实 guard/注册声明：8 项研究/控制工具和 13 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
-| GET `/workflows` | 同一能力目录中两项种子及用户 Workflow；没有平行目录 |
+| GET `/workflows` | 同一能力目录中三项种子及用户 Workflow；没有平行目录 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |
 

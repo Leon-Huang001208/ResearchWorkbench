@@ -34,13 +34,15 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 - `allowed` / `callable`：是否允许进入业务路由、当前是否实际可调用。
 - `health` / `last_checked_at`：最近一次显式探测结果，而不是页面加载时偷偷检测。
 
-目前只有东方财富基金和财联社完成 DataHub Provider 适配。其余来源用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。探测完成后，前端重新读取当前打开的来源详情，使健康状态和检测时间与刷新后的目录一致；它不会因此检测其他来源。
+东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。其余来源用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
 
 ## 稳定业务 Tool
 
 DSH 注册 `datahub_search_assets`、`datahub_get_trading_calendar`、`datahub_get_market_bars`、`datahub_get_market_snapshot`、`datahub_get_index_data`、`datahub_get_financials`、`datahub_get_market_activity`、`datahub_get_factor_macro`、`datahub_get_fund_data`、`datahub_search_news`、`datahub_search_announcements`、`datahub_search_research` 和 `datahub_search_web`。
 
-工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。当前只有基金与新闻工具存在可调用 Provider，其他 Tool 会明确失败，不降级成网页猜测或演示结果。
+工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。默认环境只有基金与新闻工具存在可调用 Provider；天软依赖与授权齐备时，证券搜索、交易日历、历史行情和实时快照也可调用。其他 Tool 会明确失败，不降级成网页猜测或演示结果。
+
+天软 Provider 使用固定 `http://tsl.tinysoft.com.cn/tslweb/api`，不继承代理环境，限制 20 秒和 5000 行；授权值只在 Provider 内使用，不进入结果、普通日志或提示词。返回数据保留供应商原字段和 raw JSON，不猜测单位。项目未自动安装 `cjpy`，因此没有依赖的环境必须诚实显示阻塞。
 
 `broker.py` 根据能力绑定、覆盖范围、完成适配、配置、依赖和允许状态选源。`source=auto` 只选择一个最终 Provider，不拼接不同口径；显式来源默认不换源，只有请求明确 `allow_fallback=true` 才允许继续选择。结果记录实际 Provider 与尝试来源。
 
@@ -117,6 +119,10 @@ refresh=true始终新建；同原生调用ID重放返回同一结果，同ID不�
 - `GET .../{did}/files/{rows.json|rows.csv|manifest.json}`：已校验的当前会话数据文件下载。
 - `POST /api/research/internal/data/business-query`：`{session_id,call_id,query:{capability,parameters,source,allow_fallback,refresh}}`；新 `datahub_*` 入口。
 - `POST /api/research/internal/data/cancel`：`{session_id,call_id}`。
+- `POST /api/research/data/queries`：研究台按业务能力发起幂等查询并创建源会话快照。
+- `GET /api/research/data/queries` / `GET /api/research/data/queries/{id}`：读取查询历史、状态和安全化失败原因。
+- `POST /api/research/handoffs`：复制并核验所选快照，把页面上下文交给新 FinGPT/Claw 会话。
+- `GET /api/research/artifacts`：汇总已有会话的实际输出文件，不扫描任意目录。
 
 所有internal入口在解析请求体之前检查`X-Research-Data-Key`；无认证浏览器不能绕过原生审批取数。
 公开GET不发起上游请求。浏览器API仍受现有同源边界限制，无CORS、多用户登录或远程部署支持。

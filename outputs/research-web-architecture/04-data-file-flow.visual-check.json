@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/04-data-file-flow.html",
-    "sha256": "8524b0971442a2a593fdc6da0fa7332290fc0f2015785f3a6f0bbf34c6bd1c7c",
-    "bytes": 648638
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/04-data-file-flow.html",
+    "sha256": "7466ee30ed983fad76aeaeb8edaf287744866b4294b368e8489fa05b5a518d1f",
+    "bytes": 649700
   },
   "state": {
     "detail": "read",

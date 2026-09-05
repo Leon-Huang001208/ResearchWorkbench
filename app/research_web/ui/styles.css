@@ -63,7 +63,9 @@ textarea { resize: vertical; }
 .rail-brand, .rail-link { display: grid; place-items: center; width: 54px; min-height: 54px; border: 0; border-radius: 10px; background: transparent; color: inherit; font-size: 18px; text-decoration: none; }
 .rail-label { font-size: 10px; line-height: 1.2; padding-bottom: 5px; }
 .rail-brand { margin-bottom: 10px; color: white; font-weight: 800; font-size: 15px; background: #18344e; }
-.primary-nav { display: grid; gap: 5px; }
+.primary-nav { display: grid; gap: 3px; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.primary-nav::-webkit-scrollbar { display: none; }
+.primary-nav .rail-link { min-height: 47px; }
 .rail-link:hover { color: white; background: #173650; text-decoration: none; }
 .rail-link.active { color: #8ab5ff; background: #163d60; box-shadow: inset 2px 0 0 #6fa5ff; }
 .rail-toggle { margin-top: 8px; cursor: pointer; font-size: 18px; }
@@ -336,6 +338,46 @@ textarea { resize: vertical; }
 .editor-row { padding: 16px; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 12px; background: #f8faff; }
 .editor-row .button-row { margin-top: 12px; }
 .mono { font-family: "SFMono-Regular", Consolas, monospace; }
+.workbench-tabs { display: flex; gap: 4px; overflow-x: auto; margin: 0 0 22px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.workbench-tabs a { min-width: 82px; padding: 8px 14px; border-radius: 7px; color: var(--muted); text-align: center; white-space: nowrap; font-size: 12px; }
+.workbench-tabs a:hover { background: var(--canvas); text-decoration: none; }
+.workbench-tabs a.active { background: var(--blue-soft); color: var(--blue); font-weight: 650; }
+.desk-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 24px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.desk-hero h2 { margin: 5px 0 7px; }
+.desk-hero p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
+.workbench-query-form, .desk-result, .operations-section { padding: 22px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.workbench-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.workbench-form-grid label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+.workbench-query-form .button-row { align-items: center; margin-top: 18px; }
+.desk-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.desk-metrics div { min-width: 0; padding: 12px; border-radius: 8px; background: var(--canvas); }
+.desk-metrics dt { color: var(--muted); font-size: 10px; }
+.desk-metrics dd { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 600; }
+.empty.compact { padding: 28px 16px; }
+.artifact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.artifact-card { display: flex; justify-content: space-between; gap: 16px; min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.artifact-card h3 { margin: 5px 0; overflow-wrap: anywhere; }
+.artifact-card .button-row { align-items: flex-end; }
+.range-tabs { display: inline-flex; gap: 3px; margin-bottom: 18px; padding: 4px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.range-tabs button { min-height: 31px; padding: 5px 12px; border: 0; border-radius: 6px; color: var(--muted); background: transparent; font-size: 11px; }
+.range-tabs button.active { color: var(--blue); background: var(--blue-soft); font-weight: 650; }
+.metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.metric-card { min-width: 0; padding: 15px; border-radius: 9px; background: var(--canvas); }
+.metric-card span, .metric-card small { display: block; color: var(--muted); font-size: 10px; }
+.metric-card strong { display: block; margin: 6px 0 4px; overflow-wrap: anywhere; font-size: 20px; }
+.ops-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px 18px; margin-top: 16px; }
+.ops-list > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 11px; }
+.ops-list span { color: var(--muted); text-align: right; }
+.service-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.service-grid article { padding: 16px; border: 1px solid var(--line); border-radius: 9px; }
+.service-grid article > div { display: flex; align-items: center; gap: 8px; }
+.service-grid dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 14px 0 0; font-size: 11px; }
+.service-grid dt { color: var(--muted); }
+.service-grid dd { margin: 0; text-align: right; }
+.storage-list > div { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 13px 0; border-top: 1px solid var(--line); }
+.storage-list > div:first-child { border-top: 0; }
+.storage-list span, .storage-list small { display: block; }
+.storage-list small { margin-top: 3px; color: var(--muted); font-size: 10px; }
 @media (min-width: 1700px) {
   .app-shell { grid-template-columns: 72px 255px minmax(0, 1fr) 338px; }
   .app-shell.wide-page { grid-template-columns: 72px 255px minmax(0, 1fr); }
@@ -354,6 +396,7 @@ textarea { resize: vertical; }
   .skills-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .capability-notes { gap: 18px; padding-left: 0; padding-right: 0; }
   .claw-workspace-content { grid-template-columns: 1fr; }
+  .workbench-form-grid, .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .claw-workspace-content .context-section + .context-section { border-top: 1px solid var(--line); border-left: 0; }
 }
 @media (max-width: 1050px) {
@@ -392,6 +435,10 @@ textarea { resize: vertical; }
   .topbar-right select { max-width: 150px; width: 29vw; min-height: 32px; padding: 5px; font-size: 10px; }
   .topbar-right > .icon-button { display: none; }
   .page-content { padding: 22px 18px 0; }
+  .desk-hero, .artifact-card { flex-direction: column; }
+  .workbench-form-grid, .metrics-grid, .artifact-grid, .service-grid, .ops-list, .desk-metrics { grid-template-columns: 1fr; }
+  .desk-hero .button-row, .artifact-card .button-row { width: 100%; }
+  .desk-hero .button, .artifact-card .button { flex: 1; }
   .landing { padding-top: 40px; }
   .landing h1 { font-size: 25px; }
   .landing-subtitle { font-size: 12px; margin-bottom: 25px; }

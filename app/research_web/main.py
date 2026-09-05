@@ -27,12 +27,16 @@ from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
+from .operations import router as operations_router
 from .service import ResearchService
 from .store import Store, StoreError
+from .workbench import router as workbench_router
 
 log = get_logger(__name__)
 UI = Path(__file__).parent / "ui"
-ROOT = Path(os.environ.get("RESEARCH_DATA_HOME", str(Path.home() / ".research-workbench" / "research-web")))
+ROOT = Path(
+    os.environ.get("RESEARCH_DATA_HOME", str(Path.home() / ".research-workbench" / "research-web"))
+)
 UPLOAD_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".md", ".csv", ".xlsx"}
 
 
@@ -100,6 +104,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(datahub_router)
     app.include_router(capabilities_router)
     app.include_router(documentation_router)
+    app.include_router(workbench_router)
+    app.include_router(operations_router)
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
     )

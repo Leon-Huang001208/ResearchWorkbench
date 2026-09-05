@@ -4,7 +4,7 @@
   "meta": {"title": "DataHub 选源、标准化与共享资料流", "output": "04-data-file-flow.html", "quality_profile": "showcase", "viewBox": [1900, 820], "views": [
     {"id": "catalog", "label": "能力与来源目录", "focus": ["sourceSpecs", "catalog", "web"], "note": "前端浏览全部登记来源，但只有满足五维就绪条件的来源可调用。"},
     {"id": "materialize", "label": "取数与物化", "focus": ["tool", "policy", "router", "providers", "upstreams", "normalize", "snapshots"], "note": "业务参数经白名单路由到单一来源，结果标准化后形成不可变会话快照。"},
-    {"id": "share", "label": "同一资料包复用", "focus": ["snapshots", "parent", "children", "web"], "note": "父任务、子 Agent 与 Web 读取同一 dataset_id 和 Manifest，不重复付费取数。"}
+    {"id": "share", "label": "页面交接与资料包复用", "focus": ["snapshots", "handoff", "agents", "web"], "note": "研究台只交接选定快照；DSH 父任务和子 Agent 读取相同 Hash 的资料包。"}
   ]},
   "stages": [{"label": "声明与请求"}, {"label": "访问控制"}, {"label": "选源与获取"}, {"label": "标准化存储"}, {"label": "研究消费"}],
   "nodes": [
@@ -14,12 +14,12 @@
     {"id": "catalog", "type": "backend", "label": "能力目录", "sublabel": "适配 / 配置 / 健康 / 允许", "stage": 1, "row": 0, "tag": "read-only"},
     {"id": "router", "type": "backend", "label": "DataHub 路由", "sublabel": "市场过滤 / 优先级 / 单源", "stage": 2, "row": 1, "tag": "auto 或显式"},
     {"id": "providers", "type": "backend", "label": "Provider 适配器", "sublabel": "请求 / 分页 / 解析", "stage": 2, "row": 2, "tag": "已适配才执行"},
-    {"id": "upstreams", "type": "cloud", "label": "外部数据来源", "sublabel": "东方财富 / 财联社 / 后续来源", "stage": 2, "row": 3, "tag": "固定目标"},
+    {"id": "upstreams", "type": "cloud", "label": "外部数据来源", "sublabel": "东方财富 / 财联社 / CJPY", "stage": 2, "row": 3, "tag": "固定目标"},
     {"id": "normalize", "type": "backend", "label": "统一结果封装", "sublabel": "范围 / 单位 / 缺失 / 来源", "stage": 3, "row": 2, "width": 124, "tag": "DataResult"},
     {"id": "snapshots", "type": "database", "label": "会话隔离快照", "sublabel": "JSON / CSV / Manifest / SHA-256", "stage": 3, "row": 4, "width": 124, "tag": "原子发布"},
-    {"id": "web", "type": "frontend", "label": "数据目录与详情", "sublabel": "双视图 / 手动检测", "stage": 4, "row": 0, "tag": "只读"},
-    {"id": "parent", "type": "backend", "label": "DSH 父任务", "sublabel": "准备共享资料包", "stage": 4, "row": 2, "tag": "一次取数"},
-    {"id": "children", "type": "backend", "label": "DSH 子 Agent", "sublabel": "读取同一 dataset_id", "stage": 4, "row": 4, "tag": "不重复联网"}
+    {"id": "web", "type": "frontend", "label": "研究台与数据目录", "sublabel": "查询 / 详情 / 手动检测", "stage": 4, "row": 0, "tag": "显式操作"},
+    {"id": "handoff", "type": "security", "label": "页面交接", "sublabel": "数据集 / 上下文 / Hash", "stage": 4, "row": 2, "tag": "会话隔离"},
+    {"id": "agents", "type": "backend", "label": "DSH Agent 团队", "sublabel": "父子任务读取同一资料包", "stage": 4, "row": 4, "tag": "不重复联网"}
   ],
   "flows": [
     {"id": "catalogProjection", "from": "sourceSpecs", "to": "catalog", "label": "声明与绑定", "classification": "static"},
@@ -31,8 +31,9 @@
     {"id": "externalFetch", "from": "providers", "to": "upstreams", "label": "有界只读请求", "classification": "external", "variant": "security", "fromSide": "bottom", "toSide": "top"},
     {"id": "parsedResult", "from": "providers", "to": "normalize", "label": "解析行与原始响应", "classification": "provider result", "variant": "emphasis"},
     {"id": "snapshotPublish", "from": "normalize", "to": "snapshots", "label": "校验后原子发布", "classification": "session-owned", "variant": "emphasis"},
-    {"id": "parentRead", "from": "snapshots", "to": "parent", "label": "Manifest 与数据文件", "classification": "read-only", "channelX": 835, "labelAt": [680, 530]},
-    {"id": "childRead", "from": "snapshots", "to": "children", "label": "相同 Hash 的资料", "classification": "shared snapshot", "variant": "dashed", "fromSide": "right", "toSide": "left", "labelAt": [852, 650]},
+    {"id": "selectHandoff", "from": "web", "to": "handoff", "label": "选定快照与页面上下文", "classification": "explicit", "variant": "security"},
+    {"id": "snapshotHandoff", "from": "snapshots", "to": "handoff", "label": "复制并核验归属 / Hash", "classification": "session-owned", "channelX": 835, "labelAt": [680, 530]},
+    {"id": "agentRead", "from": "handoff", "to": "agents", "label": "只读资料包", "classification": "shared snapshot", "variant": "dashed"},
     {"id": "webRead", "from": "snapshots", "to": "web", "label": "当前会话数据集", "classification": "paginated", "channelX": 875, "labelAt": [890, 330]}
   ],
   "cards": [

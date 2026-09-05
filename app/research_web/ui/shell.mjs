@@ -4,7 +4,14 @@ import { renderActivities, renderDatasets, renderDelivery, renderFiles } from '.
 import { icon } from './icons.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
 
-const navItems = [['fingpt', 'chat', 'FinGPT'], ['claw', 'layers', 'Claw'], ['skills', 'grid', '能力中心'], ['history', 'history', '研究历史']];
+const navItems = [
+  ['fingpt', 'chat', 'FinGPT'],
+  ['claw', 'layers', 'Claw'],
+  ['workbench', 'chart', '研究台'],
+  ['skills', 'grid', '能力中心'],
+  ['history', 'history', '研究历史'],
+  ['operations', 'activity', '运行与用量'],
+];
 
 export function renderBrandMark() {
   return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/brand/source-logo.png" alt="" width="211" height="239"></span>';
@@ -70,6 +77,6 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
 }
 
 export function renderTopbar({ page = 'fingpt', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
-  const title = ({ fingpt: 'FinGPT', claw: 'Claw', skills: '能力中心', history: '研究历史', settings: '设置' })[page] || 'FinGPT';
+  const title = ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', skills: '能力中心', history: '研究历史', operations: '运行与用量', settings: '设置' })[page] || 'FinGPT';
   return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><div class="topbar-title"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><span>${e(title)}</span><span class="title-separator">/</span><span class="page-subtitle">${e(detail?.title || (['fingpt', 'claw'].includes(page) ? '新研究' : '工作台'))}</span></div><button type="button" class="icon-button mobile-search-toggle" data-toggle-search aria-label="${searchOpen ? '关闭全局搜索' : '打开全局搜索'}" aria-expanded="${searchOpen}">${icon('search')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div><div class="topbar-right"><a href="#/settings" class="runtime-status"><span class="tiny-dot ${runtime?.connected ? 'active' : ''}"></span>${e(runtimeLabel || 'DSH 未连接')}</a><button class="icon-button" data-refresh aria-label="刷新服务状态" title="刷新服务状态">↻</button></div></header>`;
 }

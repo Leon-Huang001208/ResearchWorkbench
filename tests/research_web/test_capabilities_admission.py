@@ -307,7 +307,7 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
     assert result.status_code == 202
     root = service.store.directory(sid)
     assert (root / "resources/capabilities/document-reading/1/templates/report.md").is_file()
-    assert len(service.store.receipt(sid, "native-auto-skill")["capability_catalog"]) == 6
+    assert len(service.store.receipt(sid, "native-auto-skill")["capability_catalog"]) == 8
 
 
 def test_creation_zip_is_scoped_downloadable_and_importable(api):

@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/docs/architecture/research-web/diagrams/02-module-dependencies.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/02-module-dependencies.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "5913f7d0709d17cf1be6da0cc9706bc938acc47a5dd20837240061d3e52048b8",
-    "bytes": 5629
+    "sha256": "b433cff3d89e80250798abbc131b70b7869d1b4cfa5253f7660146cc12c72248",
+    "bytes": 5971
   },
   "artifact": {
-    "sha256": "f4314400f2787c2db7e466c3b922caad6371c4837254cea1c5a665f44ec5b270",
-    "bytes": 645187
+    "sha256": "14b4471f54ea72fb9d327c0d49d2ecb43cd64105a17956534847d4c532eaaa40",
+    "bytes": 646203
   },
   "validation": {
     "checksPassed": 9,
