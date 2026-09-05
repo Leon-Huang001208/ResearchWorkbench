@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### Research Workbench remote and layer boundary · 2026-09-05
+
+- GitHub repository and local `origin` now use `Leon-Huang001208/ResearchWorkbench`; `master` was pushed without history rewriting after reconstructing one missing historical documentation tree to its exact original hash.
+- Moved market-home fact invalidation helpers into the data repository layer so fact writers no longer import services. Added structured logging with re-raise semantics at the legacy Agent supervisor, research graph, Session/Run orchestration and template registry execution boundaries; Research Web and DSH behavior are unchanged.
+- Restored the three tracked, brand-neutral built-in industry graph JSON resources that the hard rename had unintentionally removed, so both native CI runners can satisfy the sidecar packaging contract.
+
 ### Research Web appearance · 2026-09-03
 
 - 在最新能力中心实现上合入 Codex 风格、Light/Dark/系统主题和用户原图符号 Logo（浅蓝深白）。单列导航和按需研究面板保留 Skill/Tool/Workflow、真实 DSH 与文件契约；不触碰模型配置或已有会话。详见 [外观文档](research-web-appearance.md)。

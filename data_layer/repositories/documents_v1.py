@@ -36,7 +36,9 @@ from core.contracts import (
 from core.contracts.market_home import MarketHomeSectionKey
 from core.observability import get_logger
 from core.utils.id_gen import generate_id
-from services.market_home_invalidation import record_market_home_fact_update
+from data_layer.repositories.market_home_invalidation import (
+    record_market_home_fact_update,
+)
 
 from .base import BaseRepository
 from .models import (

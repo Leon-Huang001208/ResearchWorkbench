@@ -16,6 +16,10 @@ from sqlalchemy.orm import Session
 from core.contracts.market_home import MarketHomeSectionKey
 from core.observability import get_logger
 from data_layer.repositories.base import BaseRepository
+from data_layer.repositories.market_home_invalidation import (
+    aware_utc,
+    record_market_home_fact_update,
+)
 from data_layer.repositories.models import (
     ETFDailyMetricDB,
     ETFMasterDB,
@@ -29,10 +33,6 @@ from data_layer.repositories.models import (
     StockQuoteSnapshotDB,
     StockShareholderDB,
     StockValuationDB,
-)
-from services.market_home_invalidation import (
-    aware_utc,
-    record_market_home_fact_update,
 )
 
 logger = get_logger(__name__)

@@ -111,6 +111,20 @@ Related service:
 
 Update this section when live fact sources, snapshot identity, or durable event replay semantics change.
 
+### `data_layer/repositories/market_home_invalidation.py`
+
+Purpose:
+
+- Normalize writer timestamps to UTC and append idempotent market-home invalidation events in the caller's open fact transaction.
+- Provide one data-layer helper shared by market bars, document events and theme observations without importing the service layer.
+- Log only idempotency keys, section keys and normalized timestamps; transaction commit/rollback remains owned by the caller.
+
+Related coordinator:
+
+- `services/market_home_invalidation.py` owns close-snapshot scheduling and materialization, not fact writer persistence.
+
+Update this section when fact-writer invalidation or transaction semantics change.
+
 ---
 
 ### `data_layer/repositories/market_data_repository.py`

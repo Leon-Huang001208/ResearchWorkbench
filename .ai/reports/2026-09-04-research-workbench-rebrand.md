@@ -18,18 +18,22 @@
 
 ## 验证证据
 
-- Research Web Python：`313 passed`，包含私有 DSH 默认路径、profile 模块边界与 `exec` 后进程归属回归。
-- Research Web JavaScript：`133 passed`，零 skip。
+- Research Web Python 最新完整回归：`310 passed, 3 skipped`，包含私有 DSH 默认路径、profile 模块边界与 `exec` 后进程归属回归；跳过项受当前运行环境条件控制。
+- Research Web JavaScript 最新完整回归：`132 passed, 1 skipped`；跳过项是固定 DSH schema 条件检查。
 - 服务管理、迁移与运行时聚焦回归：最终 `20 passed`，归属签名修正后相关测试 `12 passed`。
 - 新增 Python 文件：Ruff、Black、isort 通过；mypy 以 Python 3.12、`--follow-imports skip` 验证 2 个模块通过。全仓 Ruff 仍报告 123 个旧 CLI 历史问题，未在本轮扩大修复范围。
 - Research 架构一致性检查：零 violations。
 - macOS：`npm run desktop:build:debug` 成功生成 `Research Workbench.app`。
 - 数据迁移：698 个文件、20,400,249 bytes，内容清单 SHA-256 `f33ea96b027cd0e03a0325f70646a3808f4ea6b033c2164938a2235eb887e232`；恢复 26 个会话后，旧研究目录已转为带时间戳的只读迁移归档。
 - 持久服务实测：8088 与专属 3081 均为 healthy，重复 `rwb web start --no-open` 保持 PID 不变；原有 3080 PID 77454 未被修改。`/api/research/runtime` 返回真实模型 `deepseek-v4-flash`，新目录按安全边界不含凭据。
-- GitHub API 已把远程仓库改名为 `Leon-Huang001208/ResearchWorkbench`，本地 `origin` fetch/push 同步更新并通过 `git ls-remote` 验证。
+- GitHub API 已把远程仓库改名为 `Leon-Huang001208/ResearchWorkbench`，本地 `origin` fetch/push 同步更新并通过 `git ls-remote` 验证；`master` 首次推送后本地与远端均为 `36c5c4d28e7e9178adb852619aa2ed12153b9ce7`。
+- 推送前 `git fsck --connectivity-only --no-reflogs` 发现一次 2026-08-06 本地历史合并缺少 `docs/superpowers` 树对象；依据两个父提交合并后的完整 Blob 清单重建，生成哈希与缺失对象 `68958c5d3c7afb95fff27b1a9d1434f8cb9343e3` 完全一致。仓库随后无 missing/broken link 并正常推送，未强推或改写提交。
+- GitHub 首轮 Project Constraints 正确发现 4 个旧服务缺少异常边界、2 个数据仓库反向依赖服务层；现已把事务内市场首页失效 helper 下沉到数据层，并在旧研究执行边界加入结构化异常日志后原样抛出。聚焦回归 `54 passed`。
+- 首轮 Desktop Verify 的 macOS/Windows job 均在 PyInstaller 阶段发现 `data/industry_graphs/` 缺失；这是硬改名提交误删的 3 个既有中性资源。已从改名前父提交逐文件恢复，三个 Git Blob 哈希分别精确匹配 `d0abee1c...`、`5e7d726b...`、`e99f44ad...`，sidecar 资源契约回归通过，等待下一轮原生 CI。
+- 边界修复后的聚焦旧链回归为 `97 passed`。完整 Research Web Python 为 `310 passed, 3 skipped`，JavaScript 为 `132 passed, 1 skipped`；跳过项是环境/固定 DSH schema 条件，不是失败。项目约束、文档同步、Research Web 架构一致性和产品身份检查均通过。
 
 ## 尚未完成或不能宣称
 
-- 本地最终提交仍需推送并等待 GitHub Actions 的真实结果；未完成前不把远程 CI 记为通过。
+- GitHub `master` 已完成首轮推送；Project Constraints 的边界修复正在复验，Desktop Verify 仍需等待本轮真实结果，未完成前不把远程 CI 记为通过。
 - Windows 原生 CI 尚未获得本轮结果，真实 Windows 安装级冒烟未执行，因此桌面新版不可宣称可发布。
 - DeepSeek Key 按迁移边界不复制；新数据目录首次运行需要用户在设置页重新填写。

@@ -35,8 +35,10 @@ from core.contracts.theme_research import (
     WorkspacePrefillRequest,
 )
 from core.observability import get_logger
+from data_layer.repositories.market_home_invalidation import (
+    record_market_home_fact_update,
+)
 from data_layer.repositories.theme_research_repository import ThemeResearchRepository
-from services.market_home_invalidation import record_market_home_fact_update
 from services.theme_pack_registry import ThemePackRegistry, ThemePackValidationError
 
 logger = get_logger(__name__)

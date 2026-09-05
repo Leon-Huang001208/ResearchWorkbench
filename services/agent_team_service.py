@@ -146,7 +146,7 @@ class AgentTeamService:
                     expanded_results,
                 )
             else:
-                raw_decision = supervisor(supervisor_context)
+                raw_decision = self._call_supervisor(supervisor, supervisor_context)
             decision = AgentSupervisorResult.model_validate(raw_decision)
             if (
                 decision.tokens_used > supervisor_context.reserve_tokens
@@ -204,7 +204,7 @@ class AgentTeamService:
                         "remaining_seconds": remaining_seconds,
                     }
                 )
-                raw_result = worker(assignment)
+                raw_result = self._call_worker(worker, assignment)
                 result = AgentWorkerResult.model_validate(raw_result)
                 validate_safe_output(result.payload)
                 self._check_deadline(team, started_at)
@@ -238,6 +238,35 @@ class AgentTeamService:
             cost_used=cost,
             blackboard=blackboard,
         )
+
+    @staticmethod
+    def _call_supervisor(
+        supervisor: Callable[[AgentSupervisorContext], dict[str, Any] | AgentSupervisorResult],
+        context: AgentSupervisorContext,
+    ) -> dict[str, Any] | AgentSupervisorResult:
+        try:
+            return supervisor(context)
+        except Exception:
+            logger.exception(
+                "agent supervisor execution failed",
+                team_id=context.team_id,
+                next_step=context.next_step,
+            )
+            raise
+
+    @staticmethod
+    def _call_worker(
+        worker: Callable[[AgentAssignment], dict[str, Any] | AgentWorkerResult],
+        assignment: AgentAssignment,
+    ) -> dict[str, Any] | AgentWorkerResult:
+        try:
+            return worker(assignment)
+        except Exception:
+            logger.exception(
+                "agent worker execution failed",
+                role=assignment.role,
+            )
+            raise
 
     def execute_batch(
         self,

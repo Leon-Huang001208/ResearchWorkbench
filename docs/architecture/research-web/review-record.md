@@ -101,3 +101,11 @@
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"服务管理器改用项目私有固定提交DSH源码作为默认路径，仍管理同一3081/8088及相同健康检查和恢复协议。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"固定构建的profile模块链接增加私有源码边界校验，仍由同一launch_runtime组装同一3081运行时，没有新增节点或依赖关系。","diagrams":[]} -->
+
+## 2026-09-05 — 远端门禁暴露的历史分层修复
+
+- GitHub 首轮 Project Constraints 对全仓硬改名变更集执行检查，发现历史市场首页 fact writer 从 data layer 反向导入 service helper。helper 已下沉到 `data_layer/repositories/market_home_invalidation.py`，调度服务仍保留原有 scheduler/materializer 职责。
+- 历史 Agent Team、LangGraph、Session/Run 和模板注册表增加异常日志并原样抛出。这些模块不是当前 Research Web 的执行链；当前 Web → FastAPI → DSH、DataHub、文件和能力包拓扑均未变化，因此八张图不重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"本次仅修复历史研究服务的日志门禁；当前Research Web仍由DSH执行，不调用旧Supervisor、LangGraph或Session/Run链。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"历史市场首页事务失效helper在data/service分层内下沉，不改变Research Web DataHub目录、Provider、Tool或快照数据流。","diagrams":[]} -->

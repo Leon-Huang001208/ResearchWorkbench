@@ -14,6 +14,8 @@ Tests: `tests/research_web/` (use `--confcutdir=tests/research_web`) and `tests/
 DSH owns the execution loop, skills, subagents and transcript; no second orchestration/fact database.
 DataHub catalog, brand-neutral business tools, broker, Provider, probe and snapshot contracts live in `app/research_web/datahub/`, `app/research_web/runtime/public-data.mjs` and [DataHub](research-web-datahub.md). `catalog.py` is the no-network source of truth for the 13-capability / 21-source UI; `broker.py` resolves only callable bindings. The legacy connector map below does not make a Research Web provider callable.
 
+Legacy market-home fact writers share `data_layer/repositories/market_home_invalidation.py` for UTC normalization and transaction-coupled invalidation outbox writes. `services/market_home_invalidation.py` owns scheduler/materializer coordination only. Boundary logging for legacy research execution lives in `services/agent_team_service.py`, `services/research_graph.py`, `services/research_orchestration_service.py` and `services/research_templates.py`; exceptions remain visible to callers after structured logging.
+
 Claude must read this file before changing code.
 
 ---

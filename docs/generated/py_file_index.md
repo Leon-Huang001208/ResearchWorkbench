@@ -6,7 +6,7 @@ Do not manually edit this file.
 ## `app/__init__.py`
 
 Module docstring:
-> Research Workbench Application Layer
+> Research Workbench 应用层。
 
 
 ## `app/api/__init__.py`
@@ -2741,28 +2741,39 @@ Functions:
 ## `app/cli/main.py`
 
 Module docstring:
-> Research Workbench CLI 主入口
+> Research Workbench CLI 主入口。
 
 Imports:
-- `app.cli.commands.akshare`
-- `app.cli.commands.analyze`
-- `app.cli.commands.ask`
-- `app.cli.commands.backtest`
-- `app.cli.commands.data`
-- `app.cli.commands.ingest`
-- `app.cli.commands.memory`
-- `app.cli.commands.report`
-- `app.cli.commands.review`
-- `app.cli.commands.scenario`
-- `app.cli.commands.signal`
-- `app.cli.commands.timing`
+- `app.research_web.data_migration`
+- `app.research_web.service_manager`
 - `click`
-- `core.observability`
+- `importlib`
+- `json`
+- `logging`
+- `pathlib`
 - `sys`
+
+Classes:
+- `LazyCommandGroup`
+  - Expose legacy commands without importing their runtime until selected.
+  - methods: list_commands, get_command, format_commands
 
 Functions:
 - `cli`
-  - Research Workbench - 买方投研情报系统
+  - Research Workbench - 本地优先的研究工作台。
+- `web`
+  - 管理 Web 与专属 DSH 后台服务。
+- `_run_web_action`
+- `web_start`
+  - 幂等启动 3081 DSH 和 8088 Web。
+- `web_status`
+  - 查看两个项目服务的归属与健康状态。
+- `web_stop`
+  - 停止仅属于当前项目的 8088/3081 进程。
+- `web_restart`
+  - 在无活动研究时重启项目服务。
+- `migrate_research_data`
+  - 迁移研究会话、附件、能力版本、数据集和产物，不复制凭据。
 
 
 ## `app/research_web/__init__.py`
@@ -2922,6 +2933,7 @@ Module docstring:
 > Offline read-only projection of the pinned composition and final-veto registry.
 
 Imports:
+- `datahub.catalog`
 - `datahub.contracts`
 - `models`
 - `pathlib`
@@ -2955,6 +2967,43 @@ Classes:
   - methods: __init__, __aenter__, __aexit__, close, rpc, respond, frames, history
 
 
+## `app/research_web/data_migration.py`
+
+Module docstring:
+> Copy Research Web user data into the Research Workbench data home safely.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+- `tempfile`
+
+Classes:
+- `DataMigrationError`
+  - A migration could not be completed without risking user data.
+- `FileRecord`
+
+Functions:
+- `_is_allowed`
+- `_is_sensitive`
+- `_candidate_files`
+- `_hash_file`
+- `build_manifest`
+- `_summary`
+- `_existing_manifest`
+- `migrate_data`
+  - Copy only user-owned research state, excluding credentials and runtime overlays.
+- `archive_source`
+  - Move a verified legacy source aside and make the backup read-only.
+
+
 ## `app/research_web/datahub/__init__.py`
 
 Module docstring:
@@ -2962,6 +3011,8 @@ Module docstring:
 
 Imports:
 - `asyncio`
+- `broker`
+- `catalog`
 - `contracts`
 - `core.observability`
 - `datetime`
@@ -2971,10 +3022,58 @@ Imports:
 - `security`
 - `snapshots`
 - `store`
+- `time`
+- `uuid`
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, capabilities, detail, summaries, copy_for_upgrade, list, rows, short, query, _query, cancel, close
+  - methods: __init__, authenticate, _latest_probes, catalog, catalog_capability, catalog_source, start_probe, _probe, probe, detail, summaries, copy_for_upgrade, list, rows, short, query, _query, cancel, close
+
+
+## `app/research_web/datahub/broker.py`
+
+Module docstring:
+> Provider selection and strict translation from stable business requests.
+
+Imports:
+- `__future__`
+- `catalog`
+- `contracts`
+- `dataclasses`
+- `store`
+
+Classes:
+- `Resolution`
+
+Functions:
+- `_integer`
+- `resolve`
+
+
+## `app/research_web/datahub/catalog.py`
+
+Module docstring:
+> Static DataHub capability/source catalog. Reads configuration only; never imports providers.
+
+Imports:
+- `__future__`
+- `contracts`
+- `datetime`
+- `os`
+- `pydantic`
+- `typing`
+
+Classes:
+- `SourceReadiness`
+- `DataSourceDescriptor`
+- `ProviderBinding`
+- `DataCapability`
+
+Functions:
+- `_configured`
+- `build_catalog`
+  - Return a fresh JSON-ready catalog without importing or constructing any connector.
+- `catalog_detail`
 
 
 ## `app/research_web/datahub/contracts.py`
@@ -2993,8 +3092,11 @@ Imports:
 Classes:
 - `Query`
   - methods: valid_business_query, fingerprint
-- `InternalQuery`
 - `InternalCancel`
+- `BusinessQuery`
+  - Stable DSH-facing request; provider selection stays inside DataHub.
+  - methods: safe_parameters, fingerprint
+- `InternalBusinessQuery`
 
 
 ## `app/research_web/datahub/providers.py`
@@ -3034,6 +3136,8 @@ Functions:
 - `supplement_rows`
 - `supplement`
 - `fetch`
+- `probe`
+  - Minimal public read used only after an explicit per-source probe request.
 
 
 ## `app/research_web/datahub/routes.py`
@@ -3046,15 +3150,20 @@ Imports:
 - `contracts`
 - `fastapi`
 - `fastapi.responses`
+- `store`
 - `typing`
 
 Functions:
-- `capabilities`
+- `catalog`
+- `capability_detail`
+- `source_detail`
+- `start_probe`
+- `probe`
 - `datasets`
 - `detail`
 - `rows`
 - `download`
-- `query`
+- `business_query`
 - `cancel`
 
 
@@ -3204,6 +3313,8 @@ Imports:
 - `sys`
 
 Functions:
+- `prepare_runtime_module_fallback`
+  - Heal DSH profile module links and reject dependencies outside the pinned tree.
 - `prepare`
 - `main`
 
@@ -3366,6 +3477,43 @@ Imports:
 Classes:
 - `ResearchService`
   - methods: __init__, ensure_owned, start, close, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+
+
+## `app/research_web/service_manager.py`
+
+Module docstring:
+> Persistent, project-owned process manager for the Research Workbench Web stack.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `dataclasses`
+- `hashlib`
+- `http.client`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+- `signal`
+- `socket`
+- `subprocess`
+- `sys`
+- `tempfile`
+- `time`
+- `typing`
+- `uuid`
+- `webbrowser`
+
+Classes:
+- `ServiceManagerError`
+  - Safe CLI-facing service lifecycle failure.
+- `ManagedProcess`
+- `WebServiceManager`
+  - Start and stop only processes whose private state and command both match.
+  - methods: __init__, _processes, _prepare_private_directories, _state_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, status
+
+Functions:
+- `format_status`
 
 
 ## `app/research_web/skills/company-research/scripts/workflow.py`
@@ -8154,10 +8302,10 @@ Imports:
 - `core.contracts.market_home`
 - `core.observability`
 - `core.utils.id_gen`
+- `data_layer.repositories.market_home_invalidation`
 - `datetime`
 - `hashlib`
 - `models`
-- `services.market_home_invalidation`
 - `sqlalchemy`
 - `sqlalchemy.orm`
 - `typing`
@@ -8343,11 +8491,11 @@ Imports:
 - `core.contracts.market_home`
 - `core.observability`
 - `data_layer.repositories.base`
+- `data_layer.repositories.market_home_invalidation`
 - `data_layer.repositories.models`
 - `datetime`
 - `hashlib`
 - `json`
-- `services.market_home_invalidation`
 - `sqlalchemy`
 - `sqlalchemy.dialects.postgresql`
 - `sqlalchemy.orm`
@@ -8361,6 +8509,27 @@ Classes:
 Functions:
 - `_is_postgresql`
   - 检测当前数据库是否为 PostgreSQL
+
+
+## `data_layer/repositories/market_home_invalidation.py`
+
+Module docstring:
+> Transaction-coupled market-home invalidation helpers for fact repositories.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.contracts.market_home`
+- `core.observability`
+- `data_layer.repositories.market_home_repository`
+- `datetime`
+- `sqlalchemy.orm`
+
+Functions:
+- `aware_utc`
+  - Normalize legacy naive writer timestamps without changing aware instants.
+- `record_market_home_fact_update`
+  - Flush idempotent outbox rows in the caller's uncommitted fact transaction.
 
 
 ## `data_layer/repositories/market_home_repository.py`
@@ -13824,6 +13993,25 @@ Functions:
 - `main`
 
 
+## `scripts/check_product_identity.py`
+
+Module docstring:
+> Fail when the current tracked product leaks retired names or command prefixes.
+
+Imports:
+- `__future__`
+- `pathlib`
+- `re`
+- `subprocess`
+- `sys`
+
+Functions:
+- `tracked_files`
+- `committed_findings`
+- `check_identity`
+- `main`
+
+
 ## `scripts/check_task_completion.py`
 
 Module docstring:
@@ -14015,6 +14203,8 @@ Functions:
   - 启动 watchdog 进程，由 watchdog 负责拉起并守护 knowledge_worker。
 - `_start_crawl_scheduler`
   - 通过 watchdog 启动 crawl_scheduler_worker，watchdog 负责崩溃后自动重启。
+- `_crawler_autostart_enabled`
+  - Return whether this desktop instance may launch the crawl scheduler on startup.
 - `_kill_stale_process_on_port`
   - Check whether the desktop listener port is available without touching other processes.
 - `run_backend`

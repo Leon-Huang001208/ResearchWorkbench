@@ -251,7 +251,7 @@
 | `asset_observation_service.py` | 资产观察服务：组合既有四类资产事实、公开同类集合规则并管理 canonical Watchlist、规则/事件与站内通知 |
 | `alert_evaluation_service.py` | 确定性提醒评估：fresh + 单位兼容门禁、false→true 单次边沿、持续真值去重、false 自动解决和跨周期 cooldown |
 | `market_home_service.py` | facts-only 首页协调：Asia/Shanghai 交易状态、五区独立降级/SLA、mainline-v1 百分位评分与幂等 close 快照 |
-| `market_home_invalidation.py` | 权威 fact writer 同事务 outbox helper 与可停止的持久 close-snapshot 调度运行时 |
+| `market_home_invalidation.py` | 可停止的持久 close-snapshot 调度与物化运行时；fact writer 同事务 helper 位于 data layer |
 | `theme_pack_registry.py` / `theme_research_service.py` | 受信任内置 Pack 注册、无损宽表归一/隔离/断点摄入及六类主题读模型 |
 | `research_workspace_service.py` / `research_orchestration_service.py` | Workspace/Session/Message/Note 作用域、原子 Session→Run 绑定、终态归档 outbox |
 | `runtime_provider_service.py` / `agent_team_service.py` | FinGPT/Claw Runtime 路由、关联 DSH 结果、Skill schema/安全/预算和团队共享黑板执行 |
@@ -456,6 +456,7 @@
 | `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型；包含合并平台 20 张 additive 表，复用既有资产事实与 Research Run 表 |
 | `data_layer/repositories/asset_observation_repository.py` | 资产观察仓储：只写 canonical identity/Watchlist/Alert/Notification 表并读取既有 stock/index/ETF/fund 事实；仅 `flush`，事务提交由 `get_db` 管理 |
 | `data_layer/repositories/market_home_repository.py` | 首页仓储：读取既有行情、事件与主题 Observation，管理不可变 close 快照，并从持久 `domain_event` 恢复小型失效引用；仅 `flush` |
+| `data_layer/repositories/market_home_invalidation.py` | Fact writer 事务 helper：UTC 归一化并在调用方未提交事务中写入幂等首页失效 outbox，不依赖 service 层 |
 | `data_layer/repositories/research_run_repository.py` | 研究运行仓储：持久化运行、任务、证据输入、版本化产物、当前观点及质量门禁投影 |
 | `data_layer/repositories/research_workspace_repository.py` | Workspace/Session/Message/Runtime/Skill/Team/Schedule/Note 仓储、Run scope、幂等 reservation、SSE 事件和租约 fencing |
 | `data_layer/repositories/theme_research_repository.py` | 不可变 Pack 版本、统一 Theme Observation、摄入审计/checkpoint 与六类类型化查询投影 |

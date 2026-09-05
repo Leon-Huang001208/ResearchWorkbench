@@ -29,6 +29,12 @@ Research Workbench 使用 PostgreSQL + pgvector 作为主要数据存储，采�
 - 启动连通性诊断按实际 SQLAlchemy 方言给出不含连接字符串、用户名、密码或主机名的修复提示；PostgreSQL 场景会提示确认 pgvector 扩展。
 - SQLite 兼容逻辑仍仅服务于现有测试或非权威缓存路径，不是桌面端的规范持久化方案。
 
+### Fact writer 与首页失效边界
+
+- 行情、文档事件和主题 Observation 在自身事实事务内调用 `data_layer.repositories.market_home_invalidation.record_market_home_fact_update` 写入幂等失效 outbox；成功事实与失效记录一起提交，失败时一起回滚。
+- 数据仓库不导入 `services`。`services.market_home_invalidation` 只协调收盘任务、快照物化和持久调度，不作为数据层 helper 的归属位置。
+- `aware_utc` 统一旧 naive 时间戳和带时区时间戳的 UTC 表达，不改变已带时区的实际时刻。
+
 ---
 
 ## PostgreSQL 表结构

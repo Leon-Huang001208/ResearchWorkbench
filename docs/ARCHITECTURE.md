@@ -13,6 +13,8 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 
 当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页展示 13 项能力与 21 个登记来源；只有东方财富基金和财联社目前完成可调用适配。DSH 使用品牌无关的 `datahub_*` 业务 Tool；`datahub_get_fund_data` 是基金能力的正式工具名，不是产品品牌别名。登记、配置和最近探测分别显示，不能把代码存在解释为已连接。
 
+历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
+
 产品索引只记录归属、文件与幂等受理收据；研究正文以 DSH 日志为准。附件及产物按会话隔离，
 研究脚本经内核文件访问约束执行，HTML 产物在不具同源权限的预览中打开。
 具体启动、契约、已验证与未完成事项见 [DSH Web 实施记录](research-web.md)

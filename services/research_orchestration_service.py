@@ -46,19 +46,28 @@ class ResearchOrchestrationService:
         """Create and bind in one database transaction/savepoint."""
 
         db = self.workspace_service.repository.db
-        with db.begin_nested():
-            self.workspace_service.get_session_scoped(
-                session_id,
-                project_id=project_id,
+        try:
+            with db.begin_nested():
+                self.workspace_service.get_session_scoped(
+                    session_id,
+                    project_id=project_id,
+                    workspace_id=workspace_id,
+                )
+                run = self.run_service.create(request, idempotency_key=idempotency_key)
+                session = self.workspace_service.link_session_run(
+                    session_id,
+                    run.run_id,
+                    project_id=project_id,
+                    workspace_id=workspace_id,
+                )
+        except Exception:
+            logger.exception(
+                "research Session-to-Run binding failed",
+                session_id=session_id,
                 workspace_id=workspace_id,
-            )
-            run = self.run_service.create(request, idempotency_key=idempotency_key)
-            session = self.workspace_service.link_session_run(
-                session_id,
-                run.run_id,
                 project_id=project_id,
-                workspace_id=workspace_id,
             )
+            raise
         logger.info(
             "research Session bound to Run",
             session_id=session_id,
@@ -79,21 +88,31 @@ class ResearchOrchestrationService:
     ) -> ResearchRun:
         """Execute only after revalidating the full project/workspace/session scope."""
 
-        session = self.workspace_service.get_session_scoped(
-            session_id,
-            project_id=project_id,
-            workspace_id=workspace_id,
-        )
-        if session.run_id != run_id:
-            raise ValueError("run is not linked to the scoped session")
-        self.workspace_service.assert_run_scope(
-            run_id,
-            project_id=project_id,
-            workspace_id=workspace_id,
-        )
-        return self.run_service.execute(
-            run_id,
-            idempotency_key=idempotency_key,
-            project_id=project_id,
-            workspace_id=workspace_id,
-        )
+        try:
+            session = self.workspace_service.get_session_scoped(
+                session_id,
+                project_id=project_id,
+                workspace_id=workspace_id,
+            )
+            if session.run_id != run_id:
+                raise ValueError("run is not linked to the scoped session")
+            self.workspace_service.assert_run_scope(
+                run_id,
+                project_id=project_id,
+                workspace_id=workspace_id,
+            )
+            return self.run_service.execute(
+                run_id,
+                idempotency_key=idempotency_key,
+                project_id=project_id,
+                workspace_id=workspace_id,
+            )
+        except Exception:
+            logger.exception(
+                "scoped research Run execution failed",
+                session_id=session_id,
+                run_id=run_id,
+                workspace_id=workspace_id,
+                project_id=project_id,
+            )
+            raise
