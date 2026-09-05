@@ -19,7 +19,7 @@
 ## 验证证据
 
 - Research Web Python 最新完整回归：`310 passed, 3 skipped`，包含私有 DSH 默认路径、profile 模块边界与 `exec` 后进程归属回归；跳过项受当前运行环境条件控制。
-- Research Web JavaScript 最新完整回归：`132 passed, 1 skipped`；跳过项是固定 DSH schema 条件检查。
+- Research Web JavaScript 最新完整回归：`133 passed, 0 skipped, 0 failed`。
 - 服务管理、迁移与运行时聚焦回归：最终 `20 passed`，归属签名修正后相关测试 `12 passed`。
 - 新增 Python 文件：Ruff、Black、isort 通过；mypy 以 Python 3.12、`--follow-imports skip` 验证 2 个模块通过。全仓 Ruff 仍报告 123 个旧 CLI 历史问题，未在本轮扩大修复范围。
 - Research 架构一致性检查：零 violations。
@@ -30,11 +30,12 @@
 - 推送前 `git fsck --connectivity-only --no-reflogs` 发现一次 2026-08-06 本地历史合并缺少 `docs/superpowers` 树对象；依据两个父提交合并后的完整 Blob 清单重建，生成哈希与缺失对象 `68958c5d3c7afb95fff27b1a9d1434f8cb9343e3` 完全一致。仓库随后无 missing/broken link 并正常推送，未强推或改写提交。
 - GitHub 首轮 Project Constraints 正确发现 4 个旧服务缺少异常边界、2 个数据仓库反向依赖服务层；现已把事务内市场首页失效 helper 下沉到数据层，并在旧研究执行边界加入结构化异常日志后原样抛出。聚焦回归 `54 passed`。
 - 首轮 Desktop Verify 的 macOS/Windows job 均在 PyInstaller 阶段发现 `data/industry_graphs/` 缺失；这是硬改名提交误删的 3 个既有中性资源。已从改名前父提交逐文件恢复，三个 Git Blob 哈希分别精确匹配 `d0abee1c...`、`5e7d726b...`、`e99f44ad...`，sidecar 资源契约回归通过，等待下一轮原生 CI。
-- 第二轮 macOS sidecar 已成功构建，但新数据库健康冒烟在建表前暴露 `btree_gist` 未启用：`asset_identifier` 的文本 GiST 排他约束无法创建。新增 `btree_gist_missing` 只读预检状态，在建表前给出脱敏修复说明；初始迁移、静态 schema、macOS/Windows CI 初始化和安装文档均明确启用 `vector` 与 `btree_gist`。修复前新增回归按预期失败，修复后聚焦回归 `17 passed`，等待第三轮原生 CI。
-- 边界修复后的聚焦旧链回归为 `97 passed`。完整 Research Web Python 为 `310 passed, 3 skipped`，JavaScript 为 `132 passed, 1 skipped`；跳过项是环境/固定 DSH schema 条件，不是失败。项目约束、文档同步、Research Web 架构一致性和产品身份检查均通过。
+- 第二轮 macOS sidecar 已成功构建，但新数据库健康冒烟在建表前暴露 `btree_gist` 未启用：`asset_identifier` 的文本 GiST 排他约束无法创建。新增 `btree_gist_missing` 只读预检状态，在建表前给出脱敏修复说明；初始迁移、静态 schema、macOS/Windows CI 初始化和安装文档均明确启用 `vector` 与 `btree_gist`。修复前新增回归按预期失败，修复后聚焦回归 `17 passed`；相关数据库、配置、API 和桌面链最终回归 `92 passed`。
+- 边界修复后的聚焦旧链回归为 `97 passed`。完整 Research Web Python 为 `310 passed, 3 skipped`，JavaScript 为 `133 passed, 0 skipped, 0 failed`；Python 跳过项是环境条件，不是失败。项目约束、文档同步、Research Web 架构一致性和产品身份检查均通过。
+- 实施提交 `ce33e0d0280eabb08d3de79325f9e790c3721937` 的 GitHub Project Constraints run [33940566374](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/33940566374) 通过。
+- Desktop Verify run [33940566326](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/33940566326) 通过：macOS Apple Silicon 与 Windows x64 均完成原生 sidecar 构建、对应平台可执行文件检查、真实 PostgreSQL `vector`/`btree_gist` 初始化与 `/health` 冒烟、setup-required 降级检查、Tauri bundle 构建和产物上传。
 
 ## 尚未完成或不能宣称
 
-- GitHub `master` 已推送至 `a0aed4dcf6467c67e0e58bb337b25465e30a633a`；Project Constraints run `33939114919` 已通过。Desktop Verify 的必需扩展修复仍需等待下一轮真实结果，未完成前不把桌面远程 CI 记为通过。
-- Windows 原生 CI 尚未获得最终通过结果，真实 Windows 安装级冒烟未执行，因此桌面新版不可宣称可发布。
+- 真实 Windows 环境的安装级冒烟尚未执行；原生 Windows CI 已验证构建和健康检查，但桌面新版仍不可宣称达到发布门槛。
 - DeepSeek Key 按迁移边界不复制；新数据目录首次运行需要用户在设置页重新填写。
