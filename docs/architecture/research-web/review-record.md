@@ -159,3 +159,13 @@
 <!-- architecture-review {"group":"ui","structure":"changed","reason":"主导航新增资产观察，Claw首页与能力中心新增真实具体报告Workflow目录和详情。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"report-workflows","structure":"changed","reason":"具体报告资源、不可变版本、迁移、Excel刷新与Claw运行进入当前产品模块依赖。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"资产后端查询、快照交接和个人观察存储边界未变；本轮补充独立导航、真实指标回退和来源状态展示。","diagrams":[]} -->
+
+## 2026-09-06 — 断电后的持久服务恢复
+
+- 真实断电场景复现为 8088/3081 均停止、状态文件仍在；代码提交、报告 Workflow、会话和数据目录没有丢失。
+- `WebServiceManager` 现在可清理来自先前 checkout 的死 PID 状态；只有 `_pid_exists` 明确返回 false 才移除，存活 PID 或无法确认的状态仍拒绝操作。
+- macOS 将虚拟环境及 `.pth` 标为 hidden 导致 Python 跳过 editable 项目路径；清除该项目虚拟环境的 hidden 文件标志后，标准 `rwb web status` 从任意目录恢复可用，没有安装或升级依赖。
+- 使用同一项目入口重新启动专属 DSH 3081 和 Web 8088，两个健康检查通过；浏览器重新核对 Claw 报告 Workflow 与资产观察，console 零错误。
+- 本次不新增服务、端口、模块或接口，但 stale 状态恢复是启动时的重要安全分支；图 03 增补 CLI、Service Manager、死 PID 判定与 3081/8088 健康检查序列，并重新生成 HTML 与视觉证据。
+
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"断电恢复增加可验证的dead PID清理分支，并在启动序列中明确3081 host.describe与8088 runtime健康检查；未知或存活进程仍失败关闭。","diagrams":["03-research-sequence"]} -->

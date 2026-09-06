@@ -6,12 +6,12 @@
   "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/03-research-sequence.json",
   "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/03-research-sequence.html",
   "specification": {
-    "sha256": "4882584939b70da5bf2a27626ab7b9f6130c3063d77f2cca678f753d63a3b18e",
-    "bytes": 5524
+    "sha256": "cca9fe66d88594834a45c3a412ad42f467f15ef5d52d325fa4c665bfd199591b",
+    "bytes": 6727
   },
   "artifact": {
-    "sha256": "79edec64d989d7d1eb0316dcf4526e9658a1ac968a9de014dd3383c8a9edf27b",
-    "bytes": 647787
+    "sha256": "a01dddcf1e08f63f0ee41a321648c29a571ee8ea51d5f75936117f35b7249782",
+    "bytes": 652730
   },
   "validation": {
     "checksPassed": 9,

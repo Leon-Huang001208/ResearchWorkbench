@@ -442,6 +442,22 @@
       "evidence": [
         {
           "subjects": [
+            "cli",
+            "start"
+          ],
+          "source": "research_workbench_entrypoint/__main__.py"
+        },
+        {
+          "subjects": [
+            "manager",
+            "staleState",
+            "startRuntime",
+            "startWeb"
+          ],
+          "source": "app/research_web/service_manager.py"
+        },
+        {
+          "subjects": [
             "web",
             "submitMessage",
             "resumeStream",
