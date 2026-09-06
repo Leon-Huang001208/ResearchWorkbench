@@ -108,6 +108,7 @@ class WorkbookRefreshPolicy(StrictModel):
     required_cells: list[str] = Field(default_factory=list, max_length=256)
     required_date_cell: str | None = Field(default=None, max_length=160)
     required_date: date | None = None
+    max_age_days: int | None = Field(default=None, ge=0, le=3660)
     reject_zero_cells: list[str] = Field(default_factory=list, max_length=256)
     stability_checks: int = Field(default=2, ge=1, le=20)
     poll_interval_seconds: float = Field(default=0.25, ge=0, le=30)
@@ -136,8 +137,9 @@ class WorkbookRefreshPolicy(StrictModel):
 
     @model_validator(mode="after")
     def date_fields_are_paired(self) -> WorkbookRefreshPolicy:
-        if (self.required_date_cell is None) != (self.required_date is None):
-            raise ValueError("required_date_cell 与 required_date 必须同时声明")
+        has_date_rule = self.required_date is not None or self.max_age_days is not None
+        if (self.required_date_cell is None) != (not has_date_rule):
+            raise ValueError("日期规则必须声明 required_date_cell 与日期下限或最大陈旧天数")
         providers = [item.provider for item in self.providers]
         if len(providers) != len(set(providers)):
             raise ValueError("Provider 不能重复声明")
