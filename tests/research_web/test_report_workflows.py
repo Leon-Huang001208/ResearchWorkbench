@@ -178,6 +178,30 @@ def test_preflight_requires_declared_providers_for_mixed_workbook(tmp_path: Path
         service.create_run_workspace("weekly-fund", 1)
 
 
+def test_preflight_blocks_external_formula_workbook_without_refresh_policy(tmp_path: Path):
+    wind = WorkbookProviderRequirement(provider="wind_excel")
+    service = ReportWorkflowService(tmp_path)
+    service.create_draft(_manifest(wind))
+    service.upload_resource(
+        "weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": ("WSD(\"x\")", 1)})
+    )
+    service.upload_resource(
+        "weekly-fund", "workbooks/undeclared.xlsx", _xlsx({"A1": ("WSD(\"y\")", 2)})
+    )
+    service.create_version("weekly-fund")
+
+    result = service.preflight("weekly-fund", 1)
+
+    assert result == {
+        "status": "blocked_data",
+        "code": "refresh_policy_missing",
+        "path": "workbooks/undeclared.xlsx",
+    }
+    with pytest.raises(WorkflowError) as error:
+        service.publish_version("weekly-fund", 1)
+    assert error.value.code == "refresh_policy_missing"
+
+
 class FakeProvider:
     def __init__(self, provider_id="wind_excel", ready=True, values=None, replacement=None):
         self.provider_id = provider_id
@@ -317,6 +341,37 @@ def test_refresh_order_manifest_and_global_excel_lock(tmp_path: Path):
     for result in results:
         manifest = json.loads(Path(result.manifest_path).read_text())
         assert manifest["output_sha256"] == result.resource.sha256
+
+
+def test_run_workspace_refreshes_writable_copy_without_mutating_master(tmp_path: Path):
+    wind = WorkbookProviderRequirement(provider="wind_excel")
+    service = ReportWorkflowService(tmp_path)
+    service.create_draft(_manifest(wind))
+    original = _xlsx({"A1": ("WSD(\"x\")", "old")})
+    refreshed = _xlsx({"A1": ("WSD(\"x\")", "ready")})
+    service.upload_resource("weekly-fund", "workbooks/model.xlsx", original)
+    service.create_version("weekly-fund")
+    service.publish_version("weekly-fund", 1)
+    run = service.create_run_workspace("weekly-fund", 1)
+    run_root = Path(run["path"])
+    run_workbook = run_root / "workbooks/model.xlsx"
+    assert run_workbook.stat().st_mode & 0o200
+
+    provider = FakeProvider(replacement=refreshed)
+    result = service.refresh_workbook(
+        run["run_id"],
+        "workbooks/model.xlsx",
+        refresh_service=WorkbookRefreshService(providers={"wind_excel": provider}),
+    )
+
+    master = service.root / "weekly-fund/versions/1/workbooks/model.xlsx"
+    assert result.status == "ready"
+    assert result.resource.path == "workbooks/model.xlsx"
+    assert master.read_bytes() == original
+    assert run_workbook.read_bytes() == refreshed
+    manifest = service.read_refresh_manifest(run["run_id"])
+    assert manifest["workbook"] == "workbooks/model.xlsx"
+    assert manifest["output_sha256"] == result.resource.sha256
 
 
 def test_datahub_fallback_must_be_explicitly_equivalent(tmp_path: Path):

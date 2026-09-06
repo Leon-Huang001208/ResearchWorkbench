@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum
+from pathlib import PurePosixPath
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -115,7 +116,14 @@ class WorkbookRefreshPolicy(StrictModel):
     @field_validator("workbook")
     @classmethod
     def workbook_is_scoped(cls, value: str) -> str:
-        if not value.startswith("workbooks/") or not value.lower().endswith(".xlsx"):
+        path = PurePosixPath(value)
+        if (
+            not value.startswith("workbooks/")
+            or not value.lower().endswith(".xlsx")
+            or path.is_absolute()
+            or "\\" in value
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
             raise ValueError("工作簿必须是 workbooks/ 下的 xlsx 文件")
         return value
 

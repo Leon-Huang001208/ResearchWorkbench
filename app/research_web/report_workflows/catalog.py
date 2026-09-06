@@ -384,12 +384,25 @@ class ReportWorkflowService:
         manifest = self.manifest(workflow_id, version)
         for resource in manifest.resources:
             self.resource_path(workflow_id, version, resource.path)
-        for policy in manifest.workbook_policies:
-            try:
-                workbook = self.resource_path(workflow_id, version, policy.workbook)
-            except WorkflowError as exc:
-                return {"status": "blocked_data", "code": exc.code}
+        policies = {policy.workbook: policy for policy in manifest.workbook_policies}
+        workbook_paths = {
+            resource.path
+            for resource in manifest.resources
+            if resource.role is WorkflowResourceRole.WORKBOOK
+            and resource.path.lower().endswith(".xlsx")
+        }
+        for workbook_path in sorted(workbook_paths):
+            workbook = self.resource_path(workflow_id, version, workbook_path)
             scan = scan_workbook_formulas(workbook)
+            policy = policies.get(workbook_path)
+            if policy is None:
+                if scan.provider is not WorkbookFormulaProvider.NONE:
+                    return {
+                        "status": "blocked_data",
+                        "code": "refresh_policy_missing",
+                        "path": workbook_path,
+                    }
+                continue
             required = (
                 {"wind_excel", "ifind_excel"}
                 if scan.provider is WorkbookFormulaProvider.MIXED
@@ -413,6 +426,9 @@ class ReportWorkflowService:
                         "code": "fallback_mapping_missing",
                         "path": mapping,
                     }
+        for policy in manifest.workbook_policies:
+            if policy.workbook not in workbook_paths:
+                return {"status": "blocked_data", "code": "resource_not_found"}
         return {"status": "ready", "code": None}
 
     def publish_version(self, workflow_id: str, version: int) -> dict:
@@ -451,6 +467,8 @@ class ReportWorkflowService:
         try:
             shutil.copytree(source, target, symlinks=True)
             _ensure_tree_safe(target)
+            for path in target.rglob("*"):
+                path.chmod(0o700 if path.is_dir() else 0o600)
         except (OSError, WorkflowError) as exc:
             if target.exists() and not target.is_symlink():
                 shutil.rmtree(target, ignore_errors=True)

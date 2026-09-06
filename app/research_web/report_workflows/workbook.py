@@ -384,11 +384,19 @@ class WorkbookRefreshService:
         if run_directory.exists() and run_directory.is_symlink():
             return self._blocked("unsafe_run_directory")
         run_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        destination = run_directory / Path(policy.workbook).name
-        if destination.exists() and destination.is_symlink():
+        run_root = run_directory.resolve()
+        destination = run_directory.joinpath(*PurePosixPath(policy.workbook).parts)
+        if (
+            (destination.exists() and destination.is_symlink())
+            or not destination.resolve(strict=False).is_relative_to(run_root)
+        ):
             return self._blocked("unsafe_run_directory")
         try:
+            destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            if destination.exists():
+                destination.chmod(0o600)
             shutil.copy2(source, destination)
+            destination.chmod(0o600)
         except OSError as exc:
             log.warning("report_workbook_copy_failed", error_type=type(exc).__name__)
             return self._blocked("workbook_copy_failed")
@@ -458,7 +466,7 @@ class WorkbookRefreshService:
                 destination.unlink(missing_ok=True)
                 return self._blocked(code, provider_id)
             resource = WorkflowResource(
-                path=destination.name,
+                path=policy.workbook,
                 role=WorkflowResourceRole.WORKBOOK,
                 sha256=_sha256(destination),
                 size=destination.stat().st_size,
@@ -469,7 +477,7 @@ class WorkbookRefreshService:
                 "provider": provider_id or WorkbookFormulaProvider.NONE.value,
                 "source_sha256": _sha256(source),
                 "output_sha256": resource.sha256,
-                "workbook": destination.name,
+                "workbook": policy.workbook,
                 "formula_provider": scan.provider.value,
                 "refreshed_at": datetime.now().astimezone().isoformat(),
             }
