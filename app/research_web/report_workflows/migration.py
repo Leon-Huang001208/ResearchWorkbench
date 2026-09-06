@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import shutil
@@ -17,6 +18,7 @@ from .models import WorkflowError
 from .workbook import scan_workbook_formulas
 
 log = get_logger(__name__)
+SOURCE_REF = "legacy-report-projects"
 KNOWN = {
     "华安ETF周报": ("huaan-etf-weekly", ["docx", "html", "xlsx"]),
     "创业板50周报": ("chinext-50-weekly", ["docx", "html", "xlsx"]),
@@ -47,6 +49,13 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _project_sha256(project: dict) -> str:
+    payload = sorted((item["logical_path"], item["sha256"]) for item in project["resources"])
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+    ).hexdigest()
 
 
 class ReportWorkflowMigration:
@@ -117,7 +126,7 @@ class ReportWorkflowMigration:
             "name": str(config.get("name") or folder.name),
             "status": "enabled" if complete else "needs_attention",
             "formats": formats,
-            "source": str(folder),
+            "source_ref": f"{SOURCE_REF}/{folder.name}",
             "resources": resources,
             "history": history,
             "config": config,
@@ -221,18 +230,36 @@ class ReportWorkflowMigration:
                         "source_path": str(path),
                     }
                 )
+        for project in projects:
+            project["source_sha256"] = _project_sha256(project)
+
+        outcomes: dict[str, str] = {}
+        for project in projects:
+            outcome = self._classify(project) if dry_run else self._apply(project)
+            outcomes[project["id"]] = outcome
+            if outcome == "conflict":
+                project["status"] = "needs_attention"
+                quarantined.append(
+                    {
+                        "workflow_id": project["id"],
+                        "reason": "source_hash_conflict",
+                        "incoming_source_sha256": project["source_sha256"],
+                    }
+                )
         accepted = [
-            {key: value for key, value in resource.items() if key != "source_path"}
+            {
+                **{key: value for key, value in resource.items() if key != "source_path"},
+                "workflow_id": project["id"],
+                "migration_status": outcomes[project["id"]],
+            }
             for project in projects
+            if outcomes[project["id"]] != "conflict"
             for resource in project["resources"]
         ]
-        if not dry_run:
-            for project in projects:
-                self._apply(project)
         report = {
             "id": uuid4().hex,
             "dry_run": dry_run,
-            "source": str(root),
+            "source": SOURCE_REF,
             "source_sha256": hashlib.sha256(
                 json.dumps(
                     sorted(
@@ -244,7 +271,13 @@ class ReportWorkflowMigration:
             ).hexdigest(),
             "project_count": len(projects),
             "projects": [
-                {"id": item["id"], "name": item["name"], "status": item["status"]}
+                {
+                    "id": item["id"],
+                    "name": item["name"],
+                    "status": item["status"],
+                    "source_sha256": item["source_sha256"],
+                    "migration_status": outcomes[item["id"]],
+                }
                 for item in projects
             ],
             "accepted": accepted,
@@ -258,13 +291,42 @@ class ReportWorkflowMigration:
         )
         return report
 
-    def _apply(self, project: dict) -> None:
+    def _classify(self, project: dict) -> str:
         with self.catalog._exclusive():
-            self._apply_locked(project)
+            row = self.catalog.data["workflows"].get(project["id"])
+            if row is None:
+                return "pending"
+            existing = (row.get("migration") or {}).get("source_sha256")
+            return "already_present" if existing == project["source_sha256"] else "conflict"
+
+    def _apply(self, project: dict) -> str:
+        with self.catalog._exclusive():
+            row = self.catalog.data["workflows"].get(project["id"])
+            if row is not None:
+                existing = (row.get("migration") or {}).get("source_sha256")
+                if existing == project["source_sha256"]:
+                    return "already_present"
+                row["status"] = "needs_attention"
+                row["migration_conflict"] = {
+                    "source_ref": project["source_ref"],
+                    "incoming_source_sha256": project["source_sha256"],
+                    "detected_at": time.time(),
+                }
+                self.catalog._save()
+                return "conflict"
+            before = copy.deepcopy(self.catalog.data)
+            try:
+                self._apply_locked(project)
+            except Exception:
+                self.catalog.data = before
+                self.catalog._save()
+                target = self.catalog.root / project["id"]
+                if target.is_dir() and not target.is_symlink():
+                    shutil.rmtree(target, ignore_errors=True)
+                raise
+            return "created"
 
     def _apply_locked(self, project: dict) -> None:
-        if project["id"] in self.catalog.data["workflows"]:
-            return
         workbook_policies = []
         providers = {}
         refresh = project["config"].get("excel_refresh") or {}
@@ -347,7 +409,11 @@ class ReportWorkflowMigration:
         row = self.catalog._row(project["id"])
         row.update(
             status=project["status"],
-            migration={"source": project["source"], "applied_at": time.time()},
+            migration={
+                "source_ref": project["source_ref"],
+                "source_sha256": project["source_sha256"],
+                "applied_at": time.time(),
+            },
         )
         if project["status"] != "needs_attention":
             version = self.catalog.create_version(project["id"])
@@ -367,7 +433,7 @@ class ReportWorkflowMigration:
                     "path": item["path"],
                     "sha256": item["sha256"],
                     "size": item["size"],
-                    "stored_path": str(target),
+                    "stored_ref": f"history/{target.name}",
                     "historical": True,
                 }
             )

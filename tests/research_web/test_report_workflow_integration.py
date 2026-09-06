@@ -251,6 +251,21 @@ def test_refresh_success_delegates_once_to_claw_and_locks_version(api, tmp_path,
     session = service.store.session(value["session_id"])
     assert session["report_workflow"]["workflow_id"] == "weekly-report"
     assert session["report_workflow"]["version"] == 1
+    public = service.report_workflows.runtime.public_run(
+        {
+            "nested": {
+                "items": [
+                    {
+                        "manifest_path": str(tmp_path / "private" / "manifest.json"),
+                        "source_path": str(tmp_path / "private" / "source.xlsx"),
+                    }
+                ]
+            }
+        }
+    )
+    assert public == {"nested": {"items": [{"manifest_path": "private-file"}]}}
+    assert str(tmp_path) not in json.dumps(value, ensure_ascii=False)
+    assert str(tmp_path) not in service.report_workflows.catalog.index.read_text()
 
 
 def test_schedule_is_shanghai_non_reentrant_and_catches_up_once(api, tmp_path):
@@ -307,10 +322,13 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
 
     dry = service.report_workflows.migration.migrate(source, dry_run=True)
     assert dry["project_count"] == 4
+    assert dry["source"] == "legacy-report-projects"
+    assert str(tmp_path) not in json.dumps(dry, ensure_ascii=False)
     assert not client.get("/api/research/report-workflows").json()["items"]
     applied = service.report_workflows.migration.migrate(source, dry_run=False)
     again = service.report_workflows.migration.migrate(source, dry_run=False)
     assert applied["project_count"] == again["project_count"] == 4
+    assert {item["migration_status"] for item in again["projects"]} == {"already_present"}
     items = client.get("/api/research/report-workflows").json()["items"]
     assert {item["id"] for item in items} == {
         "huaan-etf-weekly",
@@ -327,7 +345,23 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     ]
     assert any(item["reason"] == "path_content_conflict" for item in applied["quarantined"])
     assert not any(".preview-cache" in item["path"] for item in applied["accepted"])
+    assert str(tmp_path) not in json.dumps(applied, ensure_ascii=False)
+    assert str(tmp_path) not in json.dumps(migrated, ensure_ascii=False)
+    assert str(tmp_path) not in service.report_workflows.catalog.index.read_text()
     assert source.exists()
+
+    (source / "华安ETF周报" / "templates" / "report.docx").write_bytes(b"changed-template")
+    conflict = service.report_workflows.migration.migrate(source, dry_run=False)
+    project = next(item for item in conflict["projects"] if item["id"] == "huaan-etf-weekly")
+    assert project["migration_status"] == "conflict"
+    assert project["status"] == "needs_attention"
+    assert any(
+        item.get("workflow_id") == "huaan-etf-weekly" and item["reason"] == "source_hash_conflict"
+        for item in conflict["quarantined"]
+    )
+    assert not any(item.get("workflow_id") == "huaan-etf-weekly" for item in conflict["accepted"])
+    detail = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
+    assert detail["status"] == "needs_attention"
 
 
 def test_migration_rejects_symlink_source(api, tmp_path):
@@ -351,7 +385,8 @@ def test_migration_api_uses_configured_source_not_request_path(api, tmp_path, mo
         params={"dry_run": "true", "source": str(tmp_path / "private")},
     )
     assert response.status_code == 200, response.text
-    assert response.json()["source"] == str(configured.resolve())
+    assert response.json()["source"] == "legacy-report-projects"
+    assert str(tmp_path) not in response.text
 
 
 def test_operations_include_versioned_report_workflow_runs(api):

@@ -16,7 +16,7 @@ from pydantic import ValidationError
 from .catalog import ReportWorkflowService
 from .migration import ReportWorkflowMigration
 from .models import ReportWorkflowManifest, WorkflowError
-from .runtime import ReportWorkflowRuntime
+from .runtime import ReportWorkflowRuntime, _public_metadata
 from .workbook import WorkbookRefreshService
 
 
@@ -42,9 +42,7 @@ class ReportWorkflowManager:
 
     @staticmethod
     def _public_artifact(item: dict) -> dict:
-        return {
-            key: value for key, value in item.items() if key not in {"stored_path", "source_path"}
-        }
+        return _public_metadata(item)
 
     def summary(self, workflow_id: str) -> dict:
         row = self._row(workflow_id)
@@ -76,6 +74,7 @@ class ReportWorkflowManager:
             "versions": self.versions(workflow_id),
             "schedule": self.runtime.schedule(workflow_id),
             "migration": row.get("migration"),
+            "migration_conflict": row.get("migration_conflict"),
             "historical_artifacts": [
                 self._public_artifact(item) for item in row.get("historical_artifacts", [])
             ],

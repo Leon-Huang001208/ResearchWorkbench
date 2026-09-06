@@ -11,7 +11,7 @@ import threading
 import time
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -23,6 +23,26 @@ from .models import RefreshStatus, WorkflowError, WorkflowSchedule
 log = get_logger(__name__)
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 ACTIVE = {"queued", "preparing_data", "running", "blocked_approval", "validating"}
+
+
+def _public_metadata(value):
+    """Recursively redact host paths if an internal adapter returns one unexpectedly."""
+
+    if isinstance(value, dict):
+        return {
+            key: _public_metadata(item)
+            for key, item in value.items()
+            if key not in {"source_path", "stored_path"}
+        }
+    if isinstance(value, list):
+        return [_public_metadata(item) for item in value]
+    if isinstance(value, tuple):
+        return [_public_metadata(item) for item in value]
+    if isinstance(value, str) and (
+        Path(value).is_absolute() or PureWindowsPath(value).is_absolute()
+    ):
+        return "private-file"
+    return value
 
 
 class ReportWorkflowRuntime:
@@ -70,29 +90,29 @@ class ReportWorkflowRuntime:
             return copy.deepcopy(row)
 
     def _append_refresh_manifest(self, run_id: str, path: str) -> dict:
+        run_root = self.catalog.run_path(run_id)
+        manifest = Path(path)
+        if (
+            manifest.is_symlink()
+            or not manifest.is_file()
+            or not manifest.resolve().is_relative_to(run_root.resolve())
+        ):
+            raise WorkflowError("刷新清单引用无效", "refresh_manifest_invalid", 409)
+        reference = manifest.resolve().relative_to(run_root.resolve()).as_posix()
         with self.catalog._exclusive():
             try:
                 row = self.catalog.data["runs"][run_id]
             except KeyError as exc:
                 raise WorkflowError("报告运行不存在", "run_not_found", 404) from exc
             manifests = row.setdefault("refresh_manifests", [])
-            if path not in manifests:
-                manifests.append(path)
+            if reference not in manifests:
+                manifests.append(reference)
             row["updated_at"] = time.time()
             self.catalog._save()
             return copy.deepcopy(row)
 
     def run_path(self, run_id: str) -> Path:
-        row = self._run(run_id)
-        root = self.catalog.root / "runs"
-        path = Path(row["path"])
-        if (
-            path.is_symlink()
-            or not path.is_dir()
-            or not path.resolve().is_relative_to(root.resolve())
-        ):
-            raise WorkflowError("报告运行目录不可读取", "unsafe_run_directory", 409)
-        return path
+        return self.catalog.run_path(run_id)
 
     def assert_not_active(self, workflow_id: str) -> None:
         with self.catalog._exclusive():
@@ -123,7 +143,7 @@ class ReportWorkflowRuntime:
             "failure_code": None,
             "created_at": time.time(),
             "updated_at": time.time(),
-            "path": str(self.catalog.root / "runs" / run_id),
+            "run_ref": f"runs/{run_id}",
         }
         with self.catalog._exclusive():
             self.catalog.data["runs"][run_id] = row
@@ -132,7 +152,7 @@ class ReportWorkflowRuntime:
 
     @staticmethod
     def public_run(row: dict) -> dict:
-        return {key: value for key, value in row.items() if key != "path"}
+        return _public_metadata({key: value for key, value in row.items() if key != "path"})
 
     def runs(self, workflow_id: str) -> list[dict]:
         with self.catalog._exclusive():
@@ -158,8 +178,11 @@ class ReportWorkflowRuntime:
                     "published"
                 ):
                     raise WorkflowError("Workflow 尚无已发布版本", "version_required", 409)
-                if workflow.get("status", "enabled") == "disabled":
+                workflow_status = workflow.get("status", "draft")
+                if workflow_status == "disabled":
                     raise WorkflowError("Workflow 已停用", "workflow_disabled", 409)
+                if workflow_status != "enabled":
+                    raise WorkflowError("Workflow 尚未启用", "workflow_not_enabled", 409)
                 run_id = uuid4().hex
                 if any(
                     item.get("workflow_id") == workflow_id and item.get("status") in ACTIVE
@@ -183,7 +206,9 @@ class ReportWorkflowRuntime:
                     failure_code=None,
                     created_at=time.time(),
                     updated_at=time.time(),
+                    run_ref=f"runs/{run_id}",
                 )
+                row.pop("path", None)
                 workflow = self.catalog._row(workflow_id)
                 workflow["latest_run"] = run_id
                 self.catalog._save()
