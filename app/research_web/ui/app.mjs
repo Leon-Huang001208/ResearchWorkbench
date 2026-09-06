@@ -6,9 +6,9 @@ import { renderComposer, renderQuickSkills, slashKey, skillMatches } from './com
 import { renderAppearancePicker, renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
-import { renderCapabilityCatalog, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
+import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityCatalog, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
-import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStep, newWorkflowStep } from './capability-editor.mjs';
+import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
@@ -87,7 +87,7 @@ function operationsPage() {
 function capabilityPage() {
   const cap = capabilityState;
   const messages = notice(cap.error) + notice(cap.success, 'success');
-  if (cap.form === 'editor') return messages + renderCapabilityEditor({ draft: cap.editor, id: cap.editorId, items: catalog.capabilities, tools: catalog.tools, busy: cap.busy });
+  if (cap.form === 'editor') return messages + renderCapabilityEditor({ draft: cap.editor, id: cap.editorId, items: catalog.capabilities, tools: catalog.tools, busy: cap.busy, announcement: cap.stepAnnouncement || '' });
   if (cap.form === 'conversation') return messages + renderCreationForm(cap.kind, cap.goal, state.busy);
   if (cap.form === 'copy') return messages + renderCopyForm(cap.detail, cap.copy, cap.busy);
   if (cap.dataDetail) return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) : renderDataCapabilityDetail(cap.dataDetail));
@@ -289,6 +289,15 @@ root.addEventListener('input', (event) => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if ('capKind' in (event.target.dataset || {})) {
+    const result = capabilityTabKey(event.key, event.target.dataset.capKind);
+    if (result.handled) {
+      event.preventDefault();
+      const cap = capabilityState;
+      cap.kind = result.kind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = '';
+      render(); document.getElementById(`capability-tab-${result.kind}`)?.focus({ preventScroll: true }); return;
+    }
+  }
   if (event.target.id === 'prompt' && (slashOpen || state.draft.trimStart().startsWith('/')) && !event.isComposing) {
     const result = slashKey(event.key, slashIndex, currentSlashMatches());
     if (result.handled) {
@@ -481,7 +490,7 @@ root.addEventListener('submit', async (event) => {
 });
 
 root.addEventListener('click', async (event) => {
-  const button = event.target.closest('button'); if (!button || button.disabled) return;
+  const button = event.target.closest('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
   if (await handleCapabilityClick(data)) return;
   if ('toggleSearch' in data) { searchOpen = !searchOpen; sidebarOpen = false; contextOpen = false; if (!searchOpen) globalSearch = ''; render(); if (searchOpen) document.querySelector('#global-search')?.focus(); }
@@ -583,9 +592,11 @@ async function goToResearchDraft() {
 
 async function selectCapability(id) {
   const item = catalog.capabilities.find(cap => cap.id === id);
-  if (!item?.enabled || !item.version) { state.error = '所选能力未启用或尚未发布，请刷新能力目录。'; render(); return; }
+  const eligibility = reportWorkflowEligibility(item);
+  if (eligibility.report && !eligibility.eligible) { state.error = `报告 Workflow 暂不可用：${eligibility.reason}`; render(); return; }
+  if (!eligibility.report && (!item?.enabled || !item.version)) { state.error = '所选能力未启用或尚未发布，请刷新能力目录。'; render(); return; }
   await goToResearchDraft();
-  controller.setCapability(item);
+  controller.setCapability(eligibility.report ? { ...item, version: eligibility.version } : item);
   if (state.draft.trimStart().startsWith('/')) controller.setDraft('');
   slashOpen = false; globalSearch = ''; searchOpen = false; render();
   document.querySelector('#prompt')?.focus();
@@ -686,7 +697,11 @@ async function handleCapabilityClick(data) {
   if ('inputRemove' in data) editor.metadata.inputs.splice(Number(data.inputRemove), 1);
   if ('stepAdd' in data) editor.steps.push(newWorkflowStep());
   if ('stepRemove' in data) editor.steps.splice(Number(data.stepRemove), 1);
-  if ('stepMove' in data) editor.steps = moveStep(editor.steps, Number(data.stepMove), Number(data.direction));
+  let stepFocus = '';
+  if ('stepMove' in data) {
+    const feedback = moveStepWithFeedback(editor.steps, Number(data.stepMove), Number(data.direction));
+    editor.steps = feedback.steps; cap.stepAnnouncement = feedback.announcement; stepFocus = feedback.focusId;
+  }
   if ('packageFileAdd' in data) editor.files.push({ path: '', content: '' });
   if ('packageFileRemove' in data) { editor.files.splice(Number(data.packageFileRemove), 1); editor.reviewed_scripts = []; }
   if ('reviewScript' in data) await capabilityController.run(async () => {
@@ -697,7 +712,9 @@ async function handleCapabilityClick(data) {
     editor.reviewed_scripts = [...new Set([...editor.reviewed_scripts, file.sha256])];
     cap.success = '已记录你对当前脚本字节的审查确认；仍需保存并检查。';
   });
-  render(); return true;
+  render();
+  if (stepFocus) document.getElementById(stepFocus)?.focus({ preventScroll: true });
+  return true;
 }
 
 controller.subscribe(() => { catalog.sessions = reconcileSessionSummary(catalog.sessions, state.detail); render(); void loadWorkflowVersion(); });

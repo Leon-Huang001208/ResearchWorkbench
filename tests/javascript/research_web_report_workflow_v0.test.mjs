@@ -16,6 +16,8 @@ const reportWorkflow = () => ({
     default_formats: ['docx', 'html', 'xlsx'],
     report_workflow: {
       package_version: 4,
+      published: true,
+      readiness: 'ready',
       resources: [
         { kind: 'template', path: 'templates/report.docx', name: '周报 Word 模板' },
         { kind: 'workbook', path: 'workbooks/source.xlsx', name: 'Wind Excel 底稿' },
@@ -64,6 +66,28 @@ test('Claw landing report Workflow cards only place a locked version into draft'
   assert.doesNotMatch(html, /type="submit"|data-run-report|立即执行/);
 });
 
+test('report Workflow selection requires its own published ready package version', async () => {
+  const { reportWorkflowEligibility, renderCapabilityCatalog, renderCapabilityDetail } = await import(new URL('capabilities.mjs', root));
+  const { renderQuickSkills } = await import(new URL('composer.mjs', root));
+  const ready = reportWorkflow();
+  assert.deepEqual(reportWorkflowEligibility(ready), { report: ready.metadata.report_workflow, eligible: true, version: 4, reason: '' });
+  for (const report of [
+    { published: true, readiness: 'ready' },
+    { package_version: 4, readiness: 'ready' },
+    { package_version: 4, published: true, readiness: 'blocked' },
+  ]) {
+    const unavailable = { ...ready, metadata: { ...ready.metadata, report_workflow: report } };
+    const eligibility = reportWorkflowEligibility(unavailable);
+    assert.equal(eligibility.eligible, false);
+    const landing = renderQuickSkills([unavailable], { page: 'claw' });
+    assert.match(landing, /报告 Workflow 暂不可用/);
+    assert.match(landing, /data-skill-shortcut="huaan-etf-weekly"[^>]*disabled/);
+    assert.doesNotMatch(landing, /锁定 v4 放入草稿/);
+    assert.match(renderCapabilityCatalog({ items: [unavailable], kind: 'workflow' }), /data-use-skill="huaan-etf-weekly" disabled/);
+    assert.match(renderCapabilityDetail(unavailable), /data-use-skill="huaan-etf-weekly" disabled/);
+  }
+});
+
 test('Claw session summary is read-only and does not claim execution evidence', async () => {
   const { renderLockedWorkflowSummary } = await import(new URL('shell.mjs', root));
   const html = renderLockedWorkflowSummary({
@@ -79,14 +103,21 @@ test('Claw session summary is read-only and does not claim execution evidence', 
   assert.doesNotMatch(html, /已完成步骤|data-complete/);
 });
 
-test('workflow editor keeps stable client keys while rows move', async () => {
-  const { ensureStepKeys, moveStep, readEditor, renderCapabilityEditor } = await import(new URL('capability-editor.mjs', root));
+test('workflow editor keeps stable client keys and focus feedback while rows move', async () => {
+  const { ensureStepKeys, moveStep, moveStepWithFeedback, readEditor, renderCapabilityEditor } = await import(new URL('capability-editor.mjs', root));
   const steps = ensureStepKeys([{ title: '取数', type: '取数' }, { title: '刷新', type: '刷新底稿' }], (() => { let id = 0; return () => `step-${++id}`; })());
   assert.deepEqual(steps.map(step => step.client_key), ['step-1', 'step-2']);
   const moved = moveStep(steps, 1, -1);
   assert.deepEqual(moved.map(step => step.client_key), ['step-2', 'step-1']);
-  const html = renderCapabilityEditor({ draft: { kind: 'workflow', metadata: {}, files: [], steps: moved } });
+  const feedback = moveStepWithFeedback(steps, 1, -1);
+  assert.deepEqual(feedback.steps.map(step => step.client_key), ['step-2', 'step-1']);
+  assert.equal(feedback.focusId, 'cap-step-step-2-move-up');
+  assert.match(feedback.announcement, /刷新.*第 1 步/);
+  const html = renderCapabilityEditor({ draft: { kind: 'workflow', metadata: {}, files: [], steps: moved }, announcement: feedback.announcement });
   assert.match(html, /data-step-key="step-2"/);
+  assert.match(html, /id="cap-step-step-2-move-up"/);
+  assert.match(html, /aria-label="上移步骤 刷新"/);
+  assert.match(html, /aria-live="polite"[^>]*>刷新已移动到第 1 步/);
   assert.match(html, /步骤类型/);
   for (const type of ['取数', '刷新底稿', '检索', '分析', '段落', '图表', '表格', '文件组装', '交付检查']) assert.match(html, new RegExp(type));
 
@@ -97,4 +128,13 @@ test('workflow editor keeps stable client keys while rows move', async () => {
   const read = readEditor(values, { kind: 'workflow', metadata: {}, files: [], steps: moved });
   assert.equal(read.steps[0].client_key, 'step-2');
   assert.equal(read.steps[0].type, '刷新底稿');
+});
+
+test('standalone report studio front-end and unreachable adapters are removed', async () => {
+  const fs = await import('node:fs');
+  assert.equal(fs.existsSync(new URL('report-studio.mjs', root)), false);
+  const core = fs.readFileSync(new URL('core.mjs', root), 'utf8');
+  for (const dead of ['reportProjects:', 'createReportProject:', 'runReportProject:', 'saveReportSchedule:']) assert.equal(core.includes(dead), false);
+  const css = fs.readFileSync(new URL('styles.css', root), 'utf8');
+  assert.doesNotMatch(css, /report-studio-layout|report-project-card|report-overview-grid/);
 });

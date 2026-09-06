@@ -2,6 +2,7 @@ import { escapeHTML as e } from './markdown.mjs';
 import { isRunning } from './core.mjs';
 import { icon } from './icons.mjs';
 import { renderFormatPicker, modelOptions } from './views.mjs';
+import { reportWorkflowEligibility } from './capabilities.mjs';
 
 const quickSkillIDs = ['document-reading', 'company-research', 'industry-research', 'fund-evaluation'];
 
@@ -12,7 +13,10 @@ export function researchQuickSkills(skills = []) {
 
 export function skillMatches(query, skills = []) {
   const normalized = String(query || '').trim().toLocaleLowerCase();
-  const enabled = (Array.isArray(skills) ? skills : []).filter((skill) => skill?.enabled !== false);
+  const enabled = (Array.isArray(skills) ? skills : []).filter((skill) => {
+    const eligibility = reportWorkflowEligibility(skill);
+    return eligibility.report ? eligibility.eligible : skill?.enabled !== false;
+  });
   if (!normalized) return enabled;
   return enabled.filter((skill) => `${skill?.name || ''} ${skill?.description || ''}`.toLocaleLowerCase().includes(normalized));
 }
@@ -26,19 +30,19 @@ export function slashKey(key, index, matches) {
 
 export function renderQuickSkills(skills = [], { page = 'fingpt', category = '' } = {}) {
   const claw = page === 'claw';
-  const items = claw ? (Array.isArray(skills) ? skills : []).filter(item => item?.kind === 'workflow' && item.enabled === true) : researchQuickSkills(skills);
+  const items = claw ? (Array.isArray(skills) ? skills : []).filter(item => item?.kind === 'workflow' && (item.enabled === true || reportWorkflowEligibility(item).report)) : researchQuickSkills(skills);
   const categories = [...new Set(items.map(item => item.category).filter(Boolean))];
   const selectedCategory = categories.includes(category) ? category : '';
   const visible = items.filter(item => !selectedCategory || item.category === selectedCategory);
   const filters = categories.length ? `<div class="capability-filters"><label for="quick-category">分类<select id="quick-category" data-quick-category><option value="">全部分类</option>${categories.map(value => `<option value="${e(value)}" ${selectedCategory === value ? 'selected' : ''}>${e(value)}</option>`).join('')}</select></label></div>` : '';
   const cards = visible.map((skill) => {
     const report = skill.metadata?.report_workflow || skill.report_workflow;
+    const eligibility = reportWorkflowEligibility(skill);
     const resourceKinds = new Set((report?.resources || []).map(resource => resource.kind));
     const resourceLabel = [resourceKinds.has('template') ? 'Word 模板' : '', resourceKinds.has('workbook') ? 'Excel 底稿' : ''].filter(Boolean).join(' · ');
-    const version = report?.package_version || skill.version;
-    const actionLabel = report ? `锁定 v${version} 放入草稿` : `将${skill.name}放入草稿`;
-    const actionTitle = report ? `锁定 v${version} 放入草稿，不会执行` : '放入草稿，不会发送';
-    return `<article class="quick-skill-card ${report ? 'quick-report-workflow' : ''}"><button type="button" class="quick-skill-title" data-skill-detail="${e(skill.id)}">${icon(({ 'document-reading': 'document', 'company-research': 'company', 'industry-research': 'industry', 'fund-evaluation': 'chart' })[skill.id] || 'layers')}<h3>${e(skill.name)}</h3></button>${report ? `<span class="badge">报告 Workflow</span><p class="quick-input">${e(resourceLabel || '报告资源待检查')} · ${e(report.schedule?.enabled ? report.schedule.label || '日程已启用' : '手动运行')}</p>` : `<p class="quick-input">${e(claw ? '步骤式研究模板' : (skill.metadata?.inputs || []).map(input => input.label).join('、') || '研究问题与资料')}</p>`}<span class="sr-only">${e(skill.description || '')} 场景：${e((skill.metadata?.scenarios || []).join('、') || '未提供')} 输入：${e((skill.metadata?.inputs || []).map(input => `${input.label}（${input.type}${input.required ? ' · 必填' : ''}）`).join('、') || '未提供')} 输出：${e((skill.metadata?.default_formats || []).join('、') || '无需文件')}</span><button type="button" class="quick-use icon-button" data-skill-shortcut="${e(skill.id)}" aria-label="${e(actionLabel)}" title="${e(actionTitle)}" ${skill.enabled === false ? 'disabled' : ''}>${icon('arrow')}</button></article>`;
+    const actionLabel = report ? eligibility.eligible ? `锁定 v${eligibility.version} 放入草稿` : `报告 Workflow 暂不可用：${eligibility.reason}` : `将${skill.name}放入草稿`;
+    const actionTitle = report ? eligibility.eligible ? `锁定 v${eligibility.version} 放入草稿，不会执行` : `暂不可用：${eligibility.reason}` : '放入草稿，不会发送';
+    return `<article class="quick-skill-card ${report ? 'quick-report-workflow' : ''}"><button type="button" class="quick-skill-title" data-skill-detail="${e(skill.id)}">${icon(({ 'document-reading': 'document', 'company-research': 'company', 'industry-research': 'industry', 'fund-evaluation': 'chart' })[skill.id] || 'layers')}<h3>${e(skill.name)}</h3></button>${report ? `<span class="badge">报告 Workflow</span><p class="quick-input">${e(resourceLabel || '报告资源待检查')} · ${e(report.schedule?.enabled ? report.schedule.label || '日程已启用' : '手动运行')}</p>${eligibility.eligible ? '' : `<p class="small muted" role="status">报告 Workflow 暂不可用：${e(eligibility.reason)}</p>`}` : `<p class="quick-input">${e(claw ? '步骤式研究模板' : (skill.metadata?.inputs || []).map(input => input.label).join('、') || '研究问题与资料')}</p>`}<span class="sr-only">${e(skill.description || '')} 场景：${e((skill.metadata?.scenarios || []).join('、') || '未提供')} 输入：${e((skill.metadata?.inputs || []).map(input => `${input.label}（${input.type}${input.required ? ' · 必填' : ''}）`).join('、') || '未提供')} 输出：${e((skill.metadata?.default_formats || []).join('、') || '无需文件')}</span><button type="button" class="quick-use icon-button" data-skill-shortcut="${e(skill.id)}" aria-label="${e(actionLabel)}" title="${e(actionTitle)}" ${skill.enabled === false || (report && !eligibility.eligible) ? 'disabled' : ''}>${icon('arrow')}</button></article>`;
   }).join('');
   return `<section class="quick-skills" aria-label="${claw ? '研究步骤模板快捷入口' : '研究 Skill 快捷入口'}"><details class="quick-directory"><summary>浏览研究入口与分类</summary><div class="section-heading"><h2>${claw ? '研究步骤模板' : '从真实研究 Skill 开始'}</h2><a href="#/skills" class="text-button">查看能力中心</a></div>${claw ? '<p class="small muted">步骤是研究模板，不代表已经执行；也可通过上方能力选择使用真实 Skill。</p>' : ''}${filters}</details>${cards ? `<div class="quick-skill-grid">${cards}</div>` : `<p class="muted small quick-skill-empty">${claw ? '尚无已启用的研究步骤模板' : '尚无可用研究 Skill'}；请在能力中心检查目录后刷新。</p>`}</section>`;
 }
