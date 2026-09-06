@@ -67,6 +67,13 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _safe_unlink(path: Path, event: str) -> None:
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as exc:
+        log.warning(event, error_type=type(exc).__name__)
+
+
 @dataclass(frozen=True)
 class WorkbookFormulaScan:
     provider: WorkbookFormulaProvider
@@ -76,7 +83,7 @@ class WorkbookFormulaScan:
 def _safe_xlsx(path: Path) -> Path:
     try:
         resolved = path.resolve(strict=True)
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise WorkflowError("工作簿不可读取", "workbook_unreadable", 400) from exc
     if path.is_symlink() or not resolved.is_file() or resolved.suffix.lower() != ".xlsx":
         raise WorkflowError("工作簿不可读取", "workbook_unreadable", 400)
@@ -86,7 +93,7 @@ def _safe_xlsx(path: Path) -> Path:
 def _target_lock(path: Path) -> threading.Lock:
     try:
         key = str(path.resolve(strict=False))
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise WorkflowError("刷新锁不可用", "refresh_lock_unavailable", 503) from exc
     with _TARGET_LOCKS_GUARD:
         lock = _TARGET_LOCKS.get(key)
@@ -654,6 +661,12 @@ def _drain_worker_messages(result_queue: Any, *, wait: bool) -> list[dict[str, A
     return messages
 
 
+def _worker_child_pids(messages: list[dict[str, Any]]) -> set[int]:
+    return {
+        pid for message in messages for pid in message.get("child_pids", []) if isinstance(pid, int)
+    }
+
+
 def _run_provider_worker(
     target: Any,
     args: tuple[Any, ...],
@@ -676,12 +689,7 @@ def _run_provider_worker(
                 process.join(min(0.1, remaining))
         if process.is_alive():
             messages = _drain_worker_messages(result_queue, wait=True)
-            child_pids = {
-                pid
-                for message in messages
-                for pid in message.get("child_pids", [])
-                if isinstance(pid, int)
-            }
+            child_pids = _worker_child_pids(messages)
             worker_cleaned = _terminate_worker_tree(process)
             children_cleaned = _terminate_child_processes(child_pids)
             cleaned = worker_cleaned and children_cleaned
@@ -695,12 +703,15 @@ def _run_provider_worker(
                 ),
             }
         messages = _drain_worker_messages(result_queue, wait=True)
+        child_pids = _worker_child_pids(messages)
         results = [message for message in messages if message.get("status") != "started"]
-        if not results:
-            return {"status": "blocked", "code": "provider_worker_failed"}
-        result = results[-1]
-        if result.get("status") == "ready":
+        result = results[-1] if results else None
+        if result is not None and result.get("status") == "ready":
             return {"status": "ready"}
+        if not _terminate_child_processes(child_pids):
+            return {"status": "blocked", "code": "provider_worker_cleanup_failed"}
+        if result is None:
+            return {"status": "blocked", "code": "provider_worker_failed"}
         return {
             "status": "blocked",
             "code": _safe_provider_code(result.get("code"), "provider_worker_failed"),
@@ -739,6 +750,8 @@ def _run_provider_refresh(
     policy: WorkbookRefreshPolicy,
     fallback_mappings: dict[str, dict[str, Any]],
     cancellation_event: threading.Event | None = None,
+    *,
+    timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
     return _run_provider_worker(
         _provider_refresh_worker,
@@ -748,9 +761,13 @@ def _run_provider_refresh(
             json.loads(policy.model_dump_json()),
             fallback_mappings,
         ),
-        policy.timeout_seconds,
+        timeout_seconds if timeout_seconds is not None else policy.timeout_seconds,
         cancellation_event,
     )
+
+
+def _remaining_refresh_timeout(deadline: float) -> float:
+    return max(0.0, deadline - time.monotonic())
 
 
 def _required_provider_ids(provider: WorkbookFormulaProvider) -> set[str]:
@@ -842,6 +859,7 @@ class WorkbookRefreshService:
         policy: WorkbookRefreshPolicy,
         fallback_mappings: dict[str, dict[str, Any]],
         cancellation_event: threading.Event | None,
+        deadline: float,
     ) -> tuple[WorkbookProviderProtocol | None, str | None, dict[str, dict[str, Any]]]:
         needed = _required_provider_ids(scan.provider)
         declared = {item.provider.value: item for item in policy.providers}
@@ -857,8 +875,11 @@ class WorkbookRefreshService:
             if isinstance(candidate, XlwingsExcelProvider) and sys.platform != "darwin":
                 readiness = {"status": "blocked", "code": "unsupported_platform"}
             else:
+                remaining = _remaining_refresh_timeout(deadline)
+                if remaining <= 0:
+                    return None, "provider_timeout", {}
                 readiness = (
-                    _run_provider_readiness(candidate, policy.timeout_seconds, cancellation_event)
+                    _run_provider_readiness(candidate, remaining, cancellation_event)
                     if candidate is not None
                     else {"status": "blocked", "code": "provider_not_ready"}
                 )
@@ -885,8 +906,11 @@ class WorkbookRefreshService:
             if any(path not in fallback_mappings for path in required_mappings):
                 return None, "fallback_mapping_missing", {}
             fallback = self.providers.get("datahub")
+            remaining = _remaining_refresh_timeout(deadline)
+            if remaining <= 0:
+                return None, "provider_timeout", {}
             fallback_readiness = (
-                _run_provider_readiness(fallback, policy.timeout_seconds, cancellation_event)
+                _run_provider_readiness(fallback, remaining, cancellation_event)
                 if fallback is not None
                 else {"status": "blocked"}
             )
@@ -913,31 +937,41 @@ class WorkbookRefreshService:
         refresh_date: date | None = None,
         cancellation_event: threading.Event | None = None,
     ) -> WorkbookRefreshResult:
-        source = _safe_xlsx(Path(source))
-        scan = scan_workbook_formulas(source)
         deadline = time.monotonic() + policy.timeout_seconds
+        try:
+            source = _safe_xlsx(Path(source))
+            scan = scan_workbook_formulas(source)
+        except WorkflowError as exc:
+            return self._blocked(exc.code)
         provider, selection_error, selected_mappings = self._select_provider(
-            scan, policy, fallback_mappings or {}, cancellation_event
+            scan, policy, fallback_mappings or {}, cancellation_event, deadline
         )
         if selection_error:
             return self._blocked(selection_error.split(":", 1)[0])
         run_directory = Path(run_directory)
-        if run_directory.exists() and run_directory.is_symlink():
-            return self._blocked("unsafe_run_directory")
-        run_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        run_root = run_directory.resolve()
-        destination = run_directory.joinpath(*PurePosixPath(policy.workbook).parts)
-        if (destination.exists() and destination.is_symlink()) or not destination.resolve(
-            strict=False
-        ).is_relative_to(run_root):
-            return self._blocked("unsafe_run_directory")
         provider_id = provider.provider_id if provider is not None else None
-        manifest_name = hashlib.sha256(policy.workbook.encode()).hexdigest() + ".json"
-        manifest_path = run_directory / "refresh-manifests" / manifest_name
-        lock_directory = run_directory / ".refresh-locks"
-        if lock_directory.is_symlink() or not lock_directory.resolve(strict=False).is_relative_to(
-            run_root
-        ):
+        try:
+            if run_directory.exists() and run_directory.is_symlink():
+                return self._blocked("unsafe_run_directory", provider_id)
+            run_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+            run_root = run_directory.resolve()
+            destination = run_directory.joinpath(*PurePosixPath(policy.workbook).parts)
+            if (destination.exists() and destination.is_symlink()) or not destination.resolve(
+                strict=False
+            ).is_relative_to(run_root):
+                return self._blocked("unsafe_run_directory", provider_id)
+            manifest_name = hashlib.sha256(policy.workbook.encode()).hexdigest() + ".json"
+            manifest_path = run_directory / "refresh-manifests" / manifest_name
+            lock_directory = run_directory / ".refresh-locks"
+            if lock_directory.is_symlink() or not lock_directory.resolve(
+                strict=False
+            ).is_relative_to(run_root):
+                return self._blocked("unsafe_run_directory", provider_id)
+        except (OSError, RuntimeError) as exc:
+            log.warning(
+                "report_workbook_run_directory_unavailable",
+                error_type=type(exc).__name__,
+            )
             return self._blocked("unsafe_run_directory", provider_id)
         lock_path = lock_directory / f"{manifest_name}.lock"
         try:
@@ -983,13 +1017,15 @@ class WorkbookRefreshService:
         promoted = False
         if cancellation_event is not None and cancellation_event.is_set():
             return self._blocked("refresh_cancelled", provider_id)
+        if _remaining_refresh_timeout(deadline) <= 0:
+            return self._blocked("provider_timeout", provider_id)
         try:
             destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             manifest_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             shutil.copy2(source, staging)
             staging.chmod(0o600)
         except OSError as exc:
-            staging.unlink(missing_ok=True)
+            _safe_unlink(staging, "report_workbook_staging_cleanup_failed")
             log.warning("report_workbook_copy_failed", error_type=type(exc).__name__)
             return self._blocked("workbook_copy_failed", provider_id)
 
@@ -1001,12 +1037,16 @@ class WorkbookRefreshService:
                     cancellation_event=cancellation_event,
                     deadline=deadline,
                 ):
+                    remaining = _remaining_refresh_timeout(deadline)
+                    if remaining <= 0:
+                        return self._blocked("provider_timeout", provider_id)
                     worker_result = _run_provider_refresh(
                         provider,
                         staging,
                         policy,
                         selected_mappings,
                         cancellation_event,
+                        timeout_seconds=remaining,
                     )
                 if worker_result.get("status") != "ready":
                     return self._blocked(
@@ -1015,6 +1055,8 @@ class WorkbookRefreshService:
                     )
             if cancellation_event is not None and cancellation_event.is_set():
                 return self._blocked("refresh_cancelled", provider_id)
+            if _remaining_refresh_timeout(deadline) <= 0:
+                return self._blocked("provider_timeout", provider_id)
             cells, errors, date_1904 = read_cached_workbook(staging)
             if code := _validate_values(
                 cells,
@@ -1023,7 +1065,6 @@ class WorkbookRefreshService:
                 date_1904=date_1904,
                 refresh_date=refresh_date,
             ):
-                staging.unlink(missing_ok=True)
                 return self._blocked(code, provider_id)
             resource = WorkflowResource(
                 path=policy.workbook,
@@ -1054,19 +1095,13 @@ class WorkbookRefreshService:
             promoted = True
             destination.chmod(0o600)
             os.replace(manifest_staging, manifest_path)
-            try:
-                backup.unlink(missing_ok=True)
-            except OSError as exc:
-                log.warning(
-                    "report_workbook_backup_cleanup_failed",
-                    error_type=type(exc).__name__,
-                )
+            _safe_unlink(backup, "report_workbook_backup_cleanup_failed")
             log.info("report_workbook_refresh_ready", provider=manifest["provider"])
             return WorkbookRefreshResult(
                 status=RefreshStatus.READY,
                 provider=manifest["provider"],
                 resource=resource,
-                manifest_path=str(manifest_path),
+                manifest_path=f"refresh-manifests/{manifest_path.name}",
             )
         except TimeoutError:
             return self._blocked("refresh_not_stable", provider_id)
@@ -1076,13 +1111,19 @@ class WorkbookRefreshService:
                 provider=provider_id,
                 error_type=type(exc).__name__,
             )
-            if backup.exists():
-                destination.unlink(missing_ok=True)
-                os.replace(backup, destination)
-            elif promoted:
-                destination.unlink(missing_ok=True)
+            try:
+                if backup.exists():
+                    _safe_unlink(destination, "report_workbook_rollback_cleanup_failed")
+                    os.replace(backup, destination)
+                elif promoted:
+                    _safe_unlink(destination, "report_workbook_rollback_cleanup_failed")
+            except OSError as rollback_exc:
+                log.warning(
+                    "report_workbook_rollback_failed",
+                    error_type=type(rollback_exc).__name__,
+                )
             return self._blocked("provider_refresh_failed", provider_id)
         finally:
-            staging.unlink(missing_ok=True)
-            manifest_staging.unlink(missing_ok=True)
-            backup.unlink(missing_ok=True)
+            _safe_unlink(staging, "report_workbook_staging_cleanup_failed")
+            _safe_unlink(manifest_staging, "report_workbook_manifest_cleanup_failed")
+            _safe_unlink(backup, "report_workbook_backup_cleanup_failed")

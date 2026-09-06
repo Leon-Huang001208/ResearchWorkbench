@@ -227,3 +227,20 @@ class WorkbookRefreshResult(StrictModel):
     resource: WorkflowResource | None = None
     manifest_path: str | None = None
     issues: list[dict[str, str]] = Field(default_factory=list, max_length=256)
+
+    @field_validator("manifest_path")
+    @classmethod
+    def manifest_path_is_a_logical_reference(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        path = PurePosixPath(value)
+        if (
+            path.is_absolute()
+            or "\\" in value
+            or any(part in {"", ".", ".."} for part in path.parts)
+            or len(path.parts) != 2
+            or path.parts[0] != "refresh-manifests"
+            or not path.name.endswith(".json")
+        ):
+            raise ValueError("刷新清单必须是 run workspace 内的逻辑引用")
+        return value
