@@ -21,9 +21,9 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from core.observability import get_logger, setup_logging
 
-from .capabilities.models import CapabilityError
 from .asset_routes import router as asset_router
 from .asset_workspace import AssetWorkspaceError
+from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
 from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
@@ -32,6 +32,8 @@ from .documentation import router as documentation_router
 from .operations import router as operations_router
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
+from .report_workflow_routes import router as report_workflow_router
+from .report_workflows.models import WorkflowError
 from .service import ResearchService
 from .store import Store, StoreError
 from .workbench import router as workbench_router
@@ -111,6 +113,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(documentation_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
+    app.include_router(report_workflow_router)
+    # Legacy report-project paths remain readable, but the versioned Workflow
+    # runtime owns overlapping /report-runs paths.
     app.include_router(report_router)
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
@@ -177,6 +182,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.exception_handler(ReportStudioError)
     async def report_studio_error(request, exc):
+        return JSONResponse(
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
+        )
+
+    @app.exception_handler(WorkflowError)
+    async def report_workflow_error(request, exc):
+        log.warning("report_workflow_request_rejected", code=exc.code)
         return JSONResponse(
             {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )
