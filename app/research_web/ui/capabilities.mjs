@@ -22,7 +22,8 @@ export function reportWorkflowEligibility(item) {
     : report.readiness?.status || report.readiness?.state || (report.readiness?.ready === true ? 'ready' : '');
   const published = report.published === true || report.package_status === 'published' || report.status === 'published';
   let reason = '';
-  if (!Number.isInteger(version) || version < 1) reason = '报告包没有明确版本';
+  if (item?.enabled !== true) reason = '能力已停用';
+  else if (!Number.isInteger(version) || version < 1) reason = '报告包没有明确版本';
   else if (!published) reason = '报告包尚未发布';
   else if (!['ready', 'available'].includes(readiness)) reason = report.readiness_reason || report.readiness?.reason || report.readiness?.code || '报告包尚未就绪';
   return { report, eligible: !reason, version: Number.isInteger(version) && version > 0 ? version : null, reason };

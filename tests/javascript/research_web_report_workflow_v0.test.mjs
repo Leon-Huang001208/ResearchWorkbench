@@ -86,6 +86,16 @@ test('report Workflow selection requires its own published ready package version
     assert.match(renderCapabilityCatalog({ items: [unavailable], kind: 'workflow' }), /data-use-skill="huaan-etf-weekly" disabled/);
     assert.match(renderCapabilityDetail(unavailable), /data-use-skill="huaan-etf-weekly" disabled/);
   }
+  const disabled = { ...ready, enabled: false, status: 'disabled' };
+  assert.deepEqual(reportWorkflowEligibility(disabled), { report: disabled.metadata.report_workflow, eligible: false, version: 4, reason: '能力已停用' });
+  for (const html of [
+    renderQuickSkills([disabled], { page: 'claw' }),
+    renderCapabilityCatalog({ items: [disabled], kind: 'workflow' }),
+    renderCapabilityDetail(disabled),
+  ]) {
+    assert.match(html, /能力已停用/);
+    assert.match(html, /data-(?:skill-shortcut|use-skill)="huaan-etf-weekly"[^>]*disabled/);
+  }
 });
 
 test('Claw session summary is read-only and does not claim execution evidence', async () => {
