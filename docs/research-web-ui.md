@@ -4,7 +4,7 @@
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 真实模型与浏览器旅程见 [验收记录](research-web-acceptance.md)。
 
-页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/history`、`#/skills`、`#/operations`、`#/settings`。研究台支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`；会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
+页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations`、`#/settings`。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
 当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
@@ -28,7 +28,9 @@
 | `data-catalog.mjs` | DataHub 的 13 项能力 / 21 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
 | `capability-controller.mjs` | 显式创建/复制/导入/编辑/检查/发布/停用/启用/版本/回滚操作及失败保稿 |
-| `workbench.mjs` | 市场、资产、基金、产业链、资料、报告六页真实状态、按需查询、快照交接和产物入口 |
+| `workbench.mjs` | 市场、基金、产业链、资料等研究台入口，按需查询并把真实快照交接给研究会话 |
+| `asset-workspace.mjs` | 独立资产观察：概览、行情图、财务/事件/资料分块、自选、笔记、提醒和来源口径；缺失数据不填演示值 |
+| `report-workflows.mjs` | Claw 与能力中心中的真实报告 Workflow 卡片和详情；显示锁定版本、模板、Excel 底稿、数据插件、步骤、日程和历史产物 |
 | `operations.mjs` | 只读展示模型 usage、Agent/Tool、DataHub、服务健康和项目数据根占用 |
 
 ## 接口与行为
@@ -36,7 +38,8 @@
 所有请求仅访问同源 `/api/research`；读取运行时、模型目录、工作空间、历史、`/capabilities` 与只读 `/tools` 后展示真实响应。错误可见，不生成本地演示结果。目录部分加载失败会独立报告并保留上次成功结果；DSH 离线时产品后端仍可读取已保存目录。Web 服务也离线时只能保留本页已加载状态，不宣称提供离线 PWA 或跨刷新缓存。
 
 - 新研究先 `POST /sessions`，再对新会话 `POST /messages`；消息带 `Idempotency-Key`。同一个失败草稿重试复用相同键；收到 `accepted: true` 才清空原稿。界面不伪造用户/助手消息或进度。
-- 研究台页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。
+- 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`，没有真实值时不补价格、估值、主题或同类比较。
+- Claw 首页先读取 `/report-workflows`，单独展示已迁移的报告 Workflow；通用 Workflow 卡不会冒充具体报告。点击详情只查看资源与版本，点击运行才创建独立 Claw 会话。AI 周报处于 `needs_attention` 时禁止运行。
 - 运行与用量页使用单个 `/operations/summary` 汇总请求，避免并发遍历同一 DSH 历史造成瞬时健康误判；页面无停止、重启或删除按钮。缺失 usage 与模型价格分别显示“未知”和“费用未配置”。
 - 会话详情来自 `GET /sessions/{id}`；SSE `snapshot` 替换真实详情，`runtime_error` 显示运行错误。事件连接恢复只重新读取快照，不重发消息。跨会话旧响应会被忽略；较旧 HTTP 快照不会覆盖后来到达的 SSE 输出。
 - 历史打开、重命名、取消、批准/拒绝均调用对应真实接口。运行时提问通过问题响应接口回复；根回合结束但子 Agent 仍活跃时保留运行状态和停止入口。

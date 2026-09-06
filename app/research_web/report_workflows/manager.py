@@ -306,8 +306,112 @@ class ReportWorkflowManager:
         if configured:
             source = Path(configured)
         else:
+            managed = self.service.store.root / "report-projects"
+            if self._managed_report_projects_available(managed):
+                return self._migrate_managed_report_projects(managed, dry_run=dry_run)
             project_root = Path(
                 os.environ.get("RESEARCH_PROJECT_ROOT", str(Path(__file__).resolve().parents[3]))
             )
             source = project_root / "report_projects"
         return self.migration.migrate(source, dry_run=dry_run)
+
+    @staticmethod
+    def _managed_report_projects_available(root: Path) -> bool:
+        expected = {
+            "huaan-etf-weekly",
+            "chinext-50-weekly",
+            "huaan-etf-compass",
+            "ai-weekly",
+        }
+        if root.is_symlink() or not root.is_dir():
+            return False
+        return any(
+            (root / workflow_id / "versions" / "1" / "assets").is_dir() for workflow_id in expected
+        )
+
+    @staticmethod
+    def _hardlink_tree(source: Path, target: Path) -> None:
+        if source.is_symlink() or not source.is_dir():
+            raise WorkflowError("已管理的旧报告资源不可读取", "migration_source_invalid", 422)
+        try:
+            source_root = source.resolve(strict=True)
+            target.mkdir(parents=True, exist_ok=True)
+            for item in sorted(source.rglob("*")):
+                if item.is_symlink():
+                    raise WorkflowError(
+                        "已管理的旧报告资源包含链接",
+                        "migration_source_invalid",
+                        422,
+                    )
+                resolved = item.resolve(strict=True)
+                try:
+                    relative = resolved.relative_to(source_root)
+                except ValueError as exc:
+                    raise WorkflowError(
+                        "已管理的旧报告资源越界",
+                        "migration_source_invalid",
+                        422,
+                    ) from exc
+                destination = target / relative
+                if item.is_dir():
+                    destination.mkdir(parents=True, exist_ok=True)
+                elif item.is_file():
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    os.link(item, destination)
+                else:
+                    raise WorkflowError(
+                        "已管理的旧报告资源类型不受支持",
+                        "migration_source_invalid",
+                        422,
+                    )
+        except WorkflowError:
+            raise
+        except OSError as exc:
+            raise WorkflowError(
+                "已管理的旧报告资源无法建立迁移视图",
+                "migration_staging_unavailable",
+                503,
+            ) from exc
+
+    def _migrate_managed_report_projects(self, root: Path, *, dry_run: bool) -> dict:
+        """Expose the already-copied legacy store through the strict importer.
+
+        A hard-link staging view keeps the existing importer as the only parser and
+        validation boundary without duplicating the large historical artifact set.
+        The view is removed after each attempt; the managed source remains untouched.
+        """
+
+        names = {
+            "huaan-etf-weekly": "华安ETF周报",
+            "chinext-50-weekly": "创业板50周报",
+            "huaan-etf-compass": "华安ETF投资风向标",
+            "ai-weekly": "AI周报",
+        }
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix="report-workflow-migration-", dir=self.service.store.root
+            ) as temporary:
+                staging = Path(temporary)
+                for workflow_id, legacy_name in names.items():
+                    project = root / workflow_id
+                    assets = project / "versions" / "1" / "assets"
+                    if not assets.is_dir():
+                        continue
+                    destination = staging / legacy_name
+                    self._hardlink_tree(assets, destination)
+                    history = project / "history"
+                    if history.is_dir():
+                        self._hardlink_tree(history, destination / "generated")
+                report = self.migration.migrate(staging, dry_run=dry_run)
+        except WorkflowError:
+            raise
+        except OSError as exc:
+            log.warning(
+                "managed_report_workflow_migration_failed",
+                error_type=type(exc).__name__,
+            )
+            raise WorkflowError(
+                "已管理的旧报告资源无法迁移", "migration_source_invalid", 503
+            ) from exc
+        report["source"] = "managed-report-projects"
+        return report

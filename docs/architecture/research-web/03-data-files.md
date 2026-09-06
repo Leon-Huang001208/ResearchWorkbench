@@ -12,9 +12,19 @@ DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运
 
 ## 研究台查询与交接
 
-`workbench.py` 为市场、资产、基金、产业链、资料和报告六页提供产品 API。页面打开只读取目录、历史查询与实际产物；用户提交后才创建源会话并调用 DataHub。查询状态与幂等键写入产品索引，最终数据仍以 DataHub manifest 和文件为准。
+`workbench.py` 为市场、基金、产业链和资料等研究台入口，以及独立资产观察提供产品 API。页面打开只读取目录、历史查询、资产个人观察与实际产物；用户提交后才创建源会话并调用 DataHub。查询状态与幂等键写入产品索引，最终数据仍以 DataHub manifest 和文件为准。
 
-“交给 FinGPT / Claw”先验证所选 dataset 确实属于来源会话，再新建目标会话，将选定 dataset 逐文件复制并复核 SHA-256，最后把页面筛选、来源、截止时间和 dataset 映射写入 `inputs/page-context/`。页面上下文上限为 64 KiB；查询与交接分别通过幂等键及准入锁防止并发重复创建。交接不重新联网，不创建符号链接，也不让目标会话读取源会话路径。报告页仅汇总 DSH `outputs/` 中已经通过现有文件索引的真实产物。
+“交给 FinGPT / Claw”先验证所选 dataset 确实属于来源会话，再新建目标会话，将选定 dataset 逐文件复制并复核 SHA-256，最后把页面筛选、来源、截止时间和 dataset 映射写入 `inputs/page-context/`。页面上下文上限为 64 KiB；查询与交接分别通过幂等键及准入锁防止并发重复创建。交接不重新联网，不创建符号链接，也不让目标会话读取源会话路径。
+
+资产观察通过 `ui/asset-workspace.mjs` 恢复为独立产品入口。概览、历史行情、财务、资金与交易事件、公告、新闻、研究资料、同类比较、主题暴露和来源口径逐块保留真实状态；有数据才显示市场指标和图形。自选、观察笔记和提醒仍存放在 Research Web 数据根，不依赖旧 PostgreSQL，也不恢复旧 Agent 委员会、信号、情景或回测链。
+
+## 报告 Workflow 资源与迁移
+
+具体报告不再放入研究台的通用“报告页”。`report_workflows/` 管理每篇报告的不可变版本、资源、运行和日程，`report_workflow_routes.py` 提供产品 API，Claw/DSH 是唯一研究执行引擎。Word/PPT 模板、Excel 底稿、映射、素材和交付规则属于该 Workflow 版本；每次运行复制到独立 Run 目录，不能修改母版。
+
+启动迁移优先读取 `~/.research-workbench/research-web/report-projects/` 中已经管理的原项目；只有该目录无项目时才回退仓库旧目录。迁移对每个文件核验类型、路径和 SHA-256，拒绝链接与越界，支持 dry-run 和幂等重复执行。当前实际目录包含创业板50周报、华安ETF周报、华安ETF投资风向标和 AI 周报；前三者已发布 v1，AI 周报因资源不完整保持 `needs_attention`。历史产物只建立只读索引，不伪装成新 DSH 运行。
+
+Excel 刷新由受控 `workbook_refresh` 逻辑在运行副本上串行执行。Provider、登录态、公式错误、数据日期和必填单元格校验失败时进入 `blocked_data`；只有 Workflow 明确声明等价映射时才允许 DataHub 备用，不能按文件名猜测公式来源或静默切换口径。
 
 详细已实现来源和口径见 [DataHub 模块](../../research-web-datahub.md)。来源截止时间、报告期、抓取时间、请求与实际范围、分页结束和覆盖不足必须分别保留。数据集存在不代表资料完整。
 

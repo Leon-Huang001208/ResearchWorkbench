@@ -22,9 +22,10 @@
 | 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的进程归属、健康检查、项目私有 DSH 源码选择、持久后台启动、停止和失败回滚 |
 | 数据迁移 | `app/research_web/data_migration.py` | 会话/附件/能力/数据集/产物的哈希复制；排除凭据并支持只读归档 |
 | 能力管理 | `app/research_web/capabilities/` | 草稿、受检资源、版本、原生目录投影与只读 Tool 声明 |
+| 报告 Workflow | `app/research_web/report_workflows/`、`report_workflow_routes.py` | 具体报告的模板/底稿资源、不可变版本、迁移、Claw 运行、Excel 刷新、日程与独立交付 |
 | 产品壳与输入框 | `ui/shell.mjs`、`ui/composer.mjs` | 双侧栏、会话与能力检索、草稿输入；不执行研究 |
 | 能力前端 | `ui/capabilities.mjs`、`ui/data-catalog.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs` | Skill/Tool/Workflow/数据卡片与详情、候选表单、步骤编辑、来源矩阵与显式版本/探测操作 |
-| 研究台与监控前端 | `ui/workbench.mjs`、`ui/operations.mjs` | 六页按需数据入口、显式交接、实际产物和只读运行指标；不直接执行研究或删除数据 |
+| 研究台、资产与监控前端 | `ui/workbench.mjs`、`ui/asset-workspace.mjs`、`ui/report-workflows.mjs`、`ui/operations.mjs` | 研究台按需数据入口、独立资产观察、报告 Workflow 目录/详情、显式交接和只读运行指标；不直接执行研究或删除数据 |
 
 数据目录和能力中心 UI 已接入当前源码；上表指源码职责，不表示登记的 21 个来源都已适配、配置或完成真实连接验收。当前东方财富基金与财联社可直接调用；天软 CJPY 只在安装依赖并提供授权配置后进入四项能力的路由。
 

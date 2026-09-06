@@ -12,7 +12,10 @@ test('routes and navigation expose research desk and read-only operations withou
   assert.equal(parseRoute('#/workbench/funds').section, 'funds');
   assert.equal(parseRoute('#/operations').page, 'operations');
   const rail = shell.renderPrimaryRail({ page: 'workbench' });
-  for (const label of ['研究台', '运行与用量']) assert.match(rail, new RegExp(label));
+  for (const label of ['资产观察', '研究台', '运行与用量']) assert.match(rail, new RegExp(label));
+  const assetRail = shell.renderPrimaryRail({ page: 'workbench', section: 'assets' });
+  assert.match(assetRail, /href="#\/workbench\/assets" class="rail-link active"[^>]*aria-current="page"/);
+  assert.doesNotMatch(assetRail, /href="#\/workbench" class="rail-link active"/);
   assert.doesNotMatch(rail, /报告工作室|#\/reports/);
 });
 
@@ -50,10 +53,22 @@ test('asset workspace renders independent states, native chart and personal obse
     },
     watchlists: [{ id: 'w1', name: '核心观察', items: [] }], notes: [], alerts: [], notifications: [],
   });
-  for (const label of ['资产概览', '历史行情', '财务指标', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
+  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '52周高', '同类比较', '主题暴露', '来源与口径', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
+  assert.match(html, /akshare · 截止 2026-09-05/);
   assert.match(html, /<svg[^>]+aria-label="历史收盘价走势"/);
   assert.match(html, /query_failed/);
   assert.doesNotMatch(html, /echarts|chart\.js|unpkg|演示/);
+});
+
+test('asset workspace never turns absent market values into zero', async () => {
+  const assets = await import(new URL('asset-workspace.mjs', root));
+  const html = assets.renderAssetWorkspace({
+    observation: { asset: '600519', asset_type: 'stock', blocks: {} },
+    rows: { overview: [], history: [] },
+  });
+  for (const label of ['开盘', '最高', '最低', '成交量', '成交额', '换手率', '52周高', '52周低']) {
+    assert.match(html, new RegExp(`${label}</dt><dd>—</dd>`));
+  }
 });
 
 test('operations page makes unknown usage and missing pricing explicit', async () => {

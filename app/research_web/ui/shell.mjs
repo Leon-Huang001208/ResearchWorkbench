@@ -5,12 +5,13 @@ import { icon } from './icons.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
 
 const navItems = [
-  ['fingpt', 'chat', 'FinGPT'],
-  ['claw', 'layers', 'Claw'],
-  ['workbench', 'chart', '研究台'],
-  ['skills', 'grid', '能力中心'],
-  ['history', 'history', '研究历史'],
-  ['operations', 'activity', '运行与用量'],
+  { page: 'fingpt', glyph: 'chat', title: 'FinGPT', href: '#/fingpt' },
+  { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
+  { page: 'workbench', section: 'assets', glyph: 'chart', title: '资产观察', href: '#/workbench/assets' },
+  { page: 'workbench', glyph: 'chart', title: '研究台', href: '#/workbench' },
+  { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
+  { page: 'history', glyph: 'history', title: '研究历史', href: '#/history' },
+  { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },
 ];
 
 export function renderBrandMark() {
@@ -33,17 +34,25 @@ export function filterGlobalSearch(query, sessions = [], skills = []) {
   const normalized = String(query || '').trim().toLocaleLowerCase();
   if (!normalized) return [];
   const work = (Array.isArray(sessions) ? sessions : []).filter((session) => `${session?.title || ''} ${session?.mode || ''}`.toLocaleLowerCase().includes(normalized)).map((session) => ({ kind: 'session', item: session }));
-  const capabilities = (Array.isArray(skills) ? skills : []).filter((skill) => `${skill?.name || ''} ${skill?.description || ''}`.toLocaleLowerCase().includes(normalized)).map((skill) => ({ kind: skill.kind === 'tool' ? 'tool' : 'skill', item: skill }));
+  const capabilities = (Array.isArray(skills) ? skills : []).filter((skill) => `${skill?.name || ''} ${skill?.description || ''}`.toLocaleLowerCase().includes(normalized)).map((skill) => ({
+    kind: skill.kind === 'tool' ? 'tool' : skill.kind === 'report-workflow' ? 'report-workflow' : 'skill',
+    item: skill,
+  }));
   return [...work, ...capabilities].slice(0, 8);
 }
 
 export function renderGlobalSearch(query, sessions, skills) {
   const results = filterGlobalSearch(query, sessions, skills);
-  return `<div class="global-search"><label class="sr-only" for="global-search">搜索会话标题和能力名称或简介</label>${icon('search')}<input id="global-search" data-global-search type="search" value="${e(query || '')}" placeholder="搜索会话标题、能力名称或简介…" autocomplete="off">${query ? `<div class="global-results" role="listbox">${results.length ? results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e(item.mode || 'FinGPT')}</span></a>` : `<button type="button" role="option" data-global-result="${kind}" ${kind === 'tool' ? 'data-tool-detail' : 'data-skill-shortcut'}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此 Skill 未提供描述。')}</span></button>`).join('') : '<p class="muted small">没有匹配的真实会话或 Skill。</p>'}</div>` : ''}</div>`;
+  const attribute = (kind) => ({ tool: 'data-tool-detail', 'report-workflow': 'data-report-workflow-detail' })[kind] || 'data-skill-shortcut';
+  return `<div class="global-search"><label class="sr-only" for="global-search">搜索会话标题和能力名称或简介</label>${icon('search')}<input id="global-search" data-global-search type="search" value="${e(query || '')}" placeholder="搜索会话标题、能力名称或简介…" autocomplete="off">${query ? `<div class="global-results" role="listbox">${results.length ? results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e(item.mode || 'FinGPT')}</span></a>` : `<button type="button" role="option" data-global-result="${kind}" ${attribute(kind)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('') : '<p class="muted small">没有匹配的真实会话或能力。</p>'}</div>` : ''}</div>`;
 }
 
-export function renderPrimaryRail({ page, secondaryOpen = false } = {}) {
-  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="new-research" data-new aria-label="新研究">${icon('compose')}<span>新研究</span></button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${navItems.map(([target, glyph, title]) => `<a href="#/${target}" class="rail-link ${page === target ? 'active' : ''}" ${page === target ? 'aria-current="page"' : ''} title="${e(title)}"><span class="rail-icon" aria-hidden="true">${icon(glyph)}</span><span class="rail-label">${e(title)}</span></a>`).join('')}</div><button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">☰</button><div class="navigation-footer"><a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a><button class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="折叠会话侧栏">${icon('sidebar')}</button></div></nav>`;
+export function renderPrimaryRail({ page, section = '', secondaryOpen = false } = {}) {
+  const links = navItems.map((item) => {
+    const active = page === item.page && (item.section ? section === item.section : !(item.page === 'workbench' && section === 'assets'));
+    return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
+  }).join('');
+  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="new-research" data-new aria-label="新研究">${icon('compose')}<span>新研究</span></button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">☰</button><div class="navigation-footer"><a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a><button class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="折叠会话侧栏">${icon('sidebar')}</button></div></nav>`;
 }
 
 function renderClawWorkspace(detail, workspaces, selectedWorkspace) {
@@ -89,7 +98,7 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
   return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 
-export function renderTopbar({ page = 'fingpt', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
-  const title = ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', skills: '能力中心', history: '研究历史', operations: '运行与用量', settings: '设置' })[page] || 'FinGPT';
+export function renderTopbar({ page = 'fingpt', section = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
+  const title = page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', skills: '能力中心', history: '研究历史', operations: '运行与用量', settings: '设置' })[page] || 'FinGPT';
   return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><div class="topbar-title"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><span>${e(title)}</span><span class="title-separator">/</span><span class="page-subtitle">${e(detail?.title || (['fingpt', 'claw'].includes(page) ? '新研究' : '工作台'))}</span></div><button type="button" class="icon-button mobile-search-toggle" data-toggle-search aria-label="${searchOpen ? '关闭全局搜索' : '打开全局搜索'}" aria-expanded="${searchOpen}">${icon('search')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div><div class="topbar-right"><a href="#/settings" class="runtime-status"><span class="tiny-dot ${runtime?.connected ? 'active' : ''}"></span>${e(runtimeLabel || 'DSH 未连接')}</a><button class="icon-button" data-refresh aria-label="刷新服务状态" title="刷新服务状态">↻</button></div></header>`;
 }

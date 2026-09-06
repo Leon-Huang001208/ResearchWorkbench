@@ -10,13 +10,26 @@ test('product shell keeps the compact product navigation, real recent work and s
   const skills = [{ id: 'company-research', name: '公司研究', description: '基于资料完成公司研究' }];
   const html = shell.renderSidebar({ page: 'fingpt', sessionId: null, sessions, skills, collapsed: false });
   const rail = shell.renderPrimaryRail({ page: 'fingpt' });
-  for (const expected of ['FinGPT', 'Claw', '能力中心', '历史', '设置']) assert.match(rail, new RegExp(expected));
+  for (const expected of ['FinGPT', 'Claw', '资产观察', '能力中心', '历史', '设置']) assert.match(rail, new RegExp(expected));
   assert.match(rail, /data-collapse-sidebar/);
   assert.doesNotMatch(rail, /data-theme-(?:select|option)/);
   for (const expected of ['半导体设备需求', '运行任务']) assert.match(html, new RegExp(expected));
   const matches = shell.filterGlobalSearch('公司研究', sessions, skills);
   assert.deepEqual(matches.map((item) => item.kind), ['skill']);
   assert.match(shell.renderGlobalSearch('', sessions, skills), /data-global-search/);
+});
+
+test('global search opens report Workflows through their real package detail', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  const html = shell.renderGlobalSearch('创业板', [], [{
+    id: 'chinext-50-weekly',
+    kind: 'report-workflow',
+    name: '创业板50周报',
+    description: '固定模板报告',
+  }]);
+  assert.match(html, /data-global-result="report-workflow"/);
+  assert.match(html, /data-report-workflow-detail="chinext-50-weekly"/);
+  assert.doesNotMatch(html, /data-skill-shortcut="chinext-50-weekly"/);
 });
 
 test('composer provides non-submitting real Skill shortcuts and file drop/paste affordances', async () => {

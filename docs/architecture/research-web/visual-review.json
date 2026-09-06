@@ -15,14 +15,14 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "14b4471f54ea72fb9d327c0d49d2ecb43cd64105a17956534847d4c532eaaa40",
-      "specificationSha256": "b433cff3d89e80250798abbc131b70b7869d1b4cfa5253f7660146cc12c72248",
+      "artifactSha256": "cbe123546f11a1235e4d635a7e141543f9d9bde23be77980ad2acfc828484636",
+      "specificationSha256": "1df3852fe10ed5b894fe3a87536d26dc7ebf0cf501e251a2730de54f88892d00",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-05",
+      "date": "2026-09-06",
       "captures": ["02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png"],
       "findings": [],
-      "notes": "已人工查看 1440 深色与 2048 浅色最终截图；研究台、产品 API、DataHub、CJPY 条件 Provider、会话快照及只读运行聚合边界清晰，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明登记来源已连接或历史 usage 完整。"
+      "notes": "已人工查看 1440 浅色与 2048 深色最终截图；资产观察独立入口、具体报告 Workflow、不可变模板/底稿、Claw/DSH、Excel 刷新、DataHub 和会话快照关系清晰，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明 Wind/iFinD 当前已登录或报告已实际运行。"
     },
     {
       "id": "05-capability-flow",

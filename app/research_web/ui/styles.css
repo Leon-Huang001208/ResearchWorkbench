@@ -355,6 +355,35 @@ textarea { resize: vertical; }
 .locked-workflow-summary p { grid-column: 1 / -1; margin: 0; }
 .quick-report-workflow { position: relative; align-items: flex-start; }
 .quick-report-workflow > .badge { margin: 2px 0 8px 12px; }
+.report-workflow-library { max-width: 1120px; margin: 34px auto 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.report-workflow-library.compact { margin-top: 28px; }
+.report-workflow-library .section-heading { align-items: flex-start; }
+.report-workflow-library-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.report-workflow-library-card { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.report-workflow-library-card.unavailable { background: color-mix(in srgb, var(--surface) 88%, var(--canvas)); }
+.report-workflow-library-card > header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.report-workflow-library-card h3 { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 15px; }
+.report-workflow-library-card > p { min-height: 39px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+.report-workflow-icon { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 8px; background: var(--blue-soft); color: var(--blue); }
+.report-workflow-icon svg { width: 17px; height: 17px; }
+.report-workflow-library-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
+.report-workflow-library-card dl div { min-width: 0; padding: 9px; border-radius: 7px; background: var(--canvas); }
+.report-workflow-library-card dt { color: var(--muted); font-size: 9px; }
+.report-workflow-library-card dd { margin: 4px 0 0; overflow-wrap: anywhere; font-size: 10px; font-weight: 650; }
+.report-workflow-page { max-width: 1160px; margin: 0 auto; }
+.report-workflow-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.report-workflow-overview article { padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.report-workflow-overview span, .report-workflow-overview strong { display: block; }
+.report-workflow-overview span { color: var(--muted); font-size: 9px; }
+.report-workflow-overview strong { margin-top: 5px; overflow-wrap: anywhere; font-size: 12px; }
+.report-workflow-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.report-workflow-detail-grid > section { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.report-workflow-detail-grid h2 { margin-top: 0; font-size: 14px; }
+.report-workflow-detail-grid .resource-list li { grid-template-columns: auto minmax(0, 1fr) auto; padding: 8px 0; border-top: 1px solid var(--line); font-size: 10px; }
+.report-workflow-detail-grid .resource-list strong, .artifact-row strong { overflow-wrap: anywhere; }
+.report-block-list { display: grid; gap: 7px; padding-left: 20px; }
+.report-block-list li, .artifact-row, .version-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 10px; }
+.report-block-list li span { grid-column: 1 / -1; color: var(--muted); }
 .capability-editor fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
 .capability-editor label:not(.check-label) { display: grid; gap: 7px; margin-bottom: 12px; }
 .capability-editor input:not([type="checkbox"]), .capability-editor textarea, .capability-editor select { width: 100%; }
@@ -412,6 +441,10 @@ textarea { resize: vertical; }
 .asset-price { display: grid; gap: 3px; text-align: right; }
 .asset-price strong { font-size: 25px; }
 .asset-price span { font-size: 11px; }
+.asset-market-metrics { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 1px; margin: 0 0 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--line); }
+.asset-market-metrics div { min-width: 0; padding: 12px; background: var(--surface); }
+.asset-market-metrics dt { color: var(--muted); font-size: 9px; }
+.asset-market-metrics dd { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 11px; font-weight: 650; }
 .positive { color: #bd3f45; }
 .negative { color: #198456; }
 .asset-workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
@@ -439,6 +472,12 @@ textarea { resize: vertical; }
 .personal-entry { padding: 9px 0; margin: 0; border-top: 1px solid var(--line); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
 .tiny-dot { display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: var(--muted); }
 .tiny-dot.active { background: var(--blue); }
+.asset-research-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(300px, 1.4fr); gap: 14px; margin-bottom: 18px; }
+.asset-research-context > article { min-width: 0; padding: 17px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.asset-research-context h2 { margin: 4px 0 8px; font-size: 14px; }
+.asset-source-matrix ul { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.asset-source-matrix li { display: grid; grid-template-columns: minmax(90px, .8fr) minmax(90px, 1fr) minmax(120px, 1.3fr); gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 9px; }
+.asset-source-matrix li span { color: var(--muted); overflow-wrap: anywhere; }
 @media (min-width: 1700px) {
   .app-shell { grid-template-columns: 72px 255px minmax(0, 1fr) 338px; }
   .app-shell.wide-page { grid-template-columns: 72px 255px minmax(0, 1fr); }
@@ -459,8 +498,11 @@ textarea { resize: vertical; }
   .claw-workspace-content { grid-template-columns: 1fr; }
   .workbench-form-grid, .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .asset-search { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .asset-market-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .asset-search .button { justify-self: start; }
   .asset-workspace-grid { grid-template-columns: 1fr; }
+  .asset-research-context { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .asset-source-matrix { grid-column: 1 / -1; }
   .asset-personal { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .claw-workspace-content .context-section + .context-section { border-top: 1px solid var(--line); border-left: 0; }
 }
@@ -503,6 +545,7 @@ textarea { resize: vertical; }
   .desk-hero, .artifact-card { flex-direction: column; }
   .workbench-form-grid, .metrics-grid, .artifact-grid, .service-grid, .ops-list, .desk-metrics { grid-template-columns: 1fr; }
   .asset-search, .asset-identity, .asset-blocks, .asset-personal { grid-template-columns: 1fr; }
+  .asset-market-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .asset-price { text-align: left; }
   .asset-identity .button-row { width: 100%; }
   .asset-identity .button { flex: 1; }
@@ -528,6 +571,8 @@ textarea { resize: vertical; }
   .form-grid { grid-template-columns: 1fr; }
   .capability-detail, .capability-editor { padding: 16px; }
   .report-workflow-grid { grid-template-columns: 1fr; }
+  .report-workflow-library-grid, .report-workflow-overview, .report-workflow-detail-grid, .asset-research-context { grid-template-columns: 1fr; }
+  .asset-source-matrix { grid-column: auto; }
   .report-workflow-detail > header, .locked-workflow-summary { grid-template-columns: 1fr; flex-direction: column; }
   .locked-workflow-summary p { grid-column: 1; }
   .workflow-step-row .button, .workflow-step-row select { min-height: 44px; }

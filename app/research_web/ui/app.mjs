@@ -12,10 +12,11 @@ import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor,
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
+import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let quickCategory = '';
@@ -24,6 +25,7 @@ let workbenchQueries = []; let workbenchContext = {}; let workbenchBusy = false;
 let assetState = { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [] };
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
+let reportWorkflowDetail = null; let reportWorkflowBusy = false;
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -49,7 +51,7 @@ function composer() {
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${composer()}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${composer()}${claw ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : ''}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
 function researchPage() {
@@ -93,7 +95,9 @@ function capabilityPage() {
   if (cap.dataDetail) return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) : renderDataCapabilityDetail(cap.dataDetail));
   if (cap.tool) return messages + renderToolDetail(cap.tool);
   if (cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: catalog.sessions.some(session => isRunning(session.status)) });
-  return messages + renderCapabilityCatalog({ ...cap, items: catalog.capabilities, tools: catalog.tools, dataCatalog: catalog.dataCatalog, error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.dataCatalog || '' });
+  if (reportWorkflowDetail) return messages + renderReportWorkflowDetail(reportWorkflowDetail, { busy: reportWorkflowBusy });
+  const standard = renderCapabilityCatalog({ ...cap, items: catalog.capabilities, tools: catalog.tools, dataCatalog: catalog.dataCatalog, error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.dataCatalog || '' });
+  return standard + (cap.kind === 'workflow' ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy }) : '');
 }
 
 function sidebar() {
@@ -104,6 +108,7 @@ function primaryRail() {
   const narrow = window.matchMedia('(max-width: 1050px)').matches;
   return renderPrimaryRail({
     page: state.route.page,
+    section: state.route.section,
     secondaryOpen: narrow ? sidebarOpen : !sidebarCollapsed,
   });
 }
@@ -118,7 +123,8 @@ function render() {
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
   const research = ['fingpt', 'claw'].includes(state.route.page);
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: [...catalog.capabilities, ...catalog.tools, ...(catalog.dataCatalog.capabilities || [])], searchOpen })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', capabilities: '能力目录', tools: '工具目录', dataCatalog: '数据目录' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
+  const searchableCapabilities = [...catalog.capabilities, ...catalog.tools, ...catalog.reportWorkflows.map(item => ({ ...item, kind: 'report-workflow' })), ...(catalog.dataCatalog.capabilities || [])];
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
   window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -126,10 +132,10 @@ function render() {
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page]} · Research Workbench`;
+  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page])} · Research Workbench`;
 }
 
-async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools']) {
+async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows']) {
   await Promise.all(names.map(async (name) => {
     try {
       const data = await api[name]();
@@ -253,8 +259,9 @@ async function showRoute() {
   if (state.route.page === 'history') await loadCatalog(['sessions']);
   if (state.route.page === 'skills') {
     if (state.route.capabilityKind) capabilityState.kind = state.route.capabilityKind;
-    await loadCatalog(['capabilities', 'tools', 'dataCatalog', 'sessions']);
+    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'sessions']);
   }
+  if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
 }
@@ -624,8 +631,48 @@ async function loadWorkflowVersion() {
 
 async function handleCapabilityClick(data) {
   const cap = capabilityState;
-  if ('capRefresh' in data) { await loadCatalog(cap.kind === 'data' ? ['dataCatalog', 'tools'] : ['capabilities', 'tools']); return true; }
-  if ('capKind' in data) { cap.kind = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; render(); return true; }
+  if ('capRefresh' in data) { await loadCatalog(cap.kind === 'data' ? ['dataCatalog', 'tools'] : cap.kind === 'workflow' ? ['capabilities', 'tools', 'reportWorkflows'] : ['capabilities', 'tools']); return true; }
+  if ('capKind' in data) { cap.kind = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; reportWorkflowDetail = null; render(); return true; }
+  if ('closeReportWorkflow' in data) { reportWorkflowDetail = null; render(); return true; }
+  if ('reportWorkflowDetail' in data) {
+    const ticket = pageGeneration;
+    cap.detail = null; cap.tool = null; cap.dataDetail = null; cap.form = '';
+    reportWorkflowBusy = true; state.error = ''; render();
+    try {
+      const detail = await api.reportWorkflow(data.reportWorkflowDetail);
+      if (ticket !== pageGeneration) return true;
+      reportWorkflowDetail = detail;
+      if (state.route.page !== 'skills' || capabilityState.kind !== 'workflow') {
+        history.pushState(null, '', '#/skills?kind=workflow');
+        await showRoute();
+        reportWorkflowDetail = detail;
+      }
+    } catch (error) { state.error = error.message; }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
+  if ('runReportWorkflow' in data) {
+    reportWorkflowBusy = true; state.error = ''; success = ''; render();
+    try {
+      let run = await api.runReportWorkflow(data.runReportWorkflow);
+      for (let attempt = 0; attempt < 12 && !run.session_id && ['queued', 'preparing_data', 'running'].includes(run.status); attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        run = await api.reportRun(run.id);
+      }
+      await loadCatalog(['reportWorkflows', 'sessions']);
+      if (run.session_id) {
+        history.pushState(null, '', `#/claw?session=${encodeURIComponent(run.session_id)}`);
+        await showRoute();
+        success = '已创建锁定报告 Workflow 版本的 Claw 会话。';
+      } else if (['blocked_data', 'blocked_approval', 'delivery_incomplete', 'failed', 'cancelled', 'skipped_overlap'].includes(run.status)) {
+        state.error = `报告 Workflow 未进入 Claw：${run.failure_code || run.status}。`;
+      } else {
+        success = '报告 Workflow 已受理，正在准备 Excel 底稿。';
+      }
+    } catch (error) { state.error = error.message; }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
   if ('dataView' in data) { cap.dataView = data.dataView; cap.category = ''; cap.query = ''; cap.dataMarket = ''; cap.dataStatus = ''; cap.dataAuth = ''; render(); return true; }
   if ('dataCapabilityDetail' in data) {
     const result = await capabilityController.run(() => api.dataCapability(data.dataCapabilityDetail));

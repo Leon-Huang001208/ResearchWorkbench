@@ -594,6 +594,36 @@ def test_migration_api_uses_configured_source_not_request_path(api, tmp_path, mo
     assert str(tmp_path) not in response.text
 
 
+def test_migration_prefers_already_managed_report_projects(api, tmp_path, monkeypatch):
+    client, service, _ = api
+    monkeypatch.delenv("RESEARCH_REPORT_MIGRATION_SOURCE", raising=False)
+    managed = service.store.root / "report-projects"
+    assets = managed / "chinext-50-weekly" / "versions" / "1" / "assets"
+    (assets / "templates").mkdir(parents=True)
+    (assets / "data").mkdir()
+    (assets / "project.yaml").write_text("name: 创业板50周报\n")
+    (assets / "templates" / "report.docx").write_bytes(b"managed-template")
+    _xlsx(assets / "data" / "source.xlsx", formula="1+1")
+    history = managed / "chinext-50-weekly" / "history"
+    history.mkdir(parents=True)
+    (history / "old-report.pdf").write_bytes(b"managed-history")
+
+    dry = client.post("/api/research/report-workflows/migrations?dry_run=true")
+    assert dry.status_code == 200, dry.text
+    assert dry.json()["source"] == "managed-report-projects"
+    assert dry.json()["project_count"] == 1
+    assert client.get("/api/research/report-workflows").json()["items"] == []
+
+    applied = client.post("/api/research/report-workflows/migrations?dry_run=false")
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["source"] == "managed-report-projects"
+    detail = client.get("/api/research/report-workflows/chinext-50-weekly").json()
+    assert detail["name"] == "创业板50周报"
+    assert detail["status"] == "enabled"
+    assert any(item["path"].endswith("old-report.pdf") for item in detail["historical_artifacts"])
+    assert not list(service.store.root.glob("report-workflow-migration-*"))
+
+
 def test_operations_include_versioned_report_workflow_runs(api):
     client, service, _ = api
     service.report_workflows.runtime._new_run(

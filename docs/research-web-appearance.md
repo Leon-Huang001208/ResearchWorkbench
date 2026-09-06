@@ -11,7 +11,7 @@
 | `appearance.css` | 中性色语义变量、单列导航、研究画布、抽屉、数据目录网格/来源矩阵、可选研究面板与品牌符号呈现 |
 | `shell.mjs` | 同一导航列中组合 FinGPT、Claw、研究台、能力中心、研究历史、运行与用量及会话区；保留设置入口与符号 Logo |
 | `app.mjs` | 使用真实研究数据组合页面；按路由加载研究台和只读监控；仅打开时显示活动/资料/文件面板；重渲染同步主题控件 |
-| `workbench.mjs` / `operations.mjs` | 六个研究台页面、真实查询与快照交接，以及内容脱敏的用量、任务、DataHub、服务和存储投影 |
+| `workbench.mjs` / `asset-workspace.mjs` / `report-workflows.mjs` / `operations.mjs` | 研究台、独立资产观察、Claw 具体报告 Workflow，以及内容脱敏的用量、任务、DataHub、服务和存储投影 |
 | `composer.mjs` / `capabilities.mjs` | 采用样品的紧凑入口、输入工具栏和三列能力卡；保留全部版本、输入与格式契约 |
 | `icons.mjs` | 复用 v2 静态线性控件图标，未知名称安全回退；不解析外部 SVG |
 | `core.mjs` / `views.mjs` | 继续维护原研究契约，不迁入设计原型的控制器或模拟数据 |
@@ -68,3 +68,7 @@ node tests/e2e/research_web_appearance.mjs --live
 浏览器修复回归记录：输出格式弹层样式必须限定 `.composer .format-options`，不得覆盖能力编辑器的同名常规字段；折叠按钮与设置入口同在导航 footer，避免不同层叠上下文遮住点击。
 
 证据输出：`outputs/research-web-appearance/{isolated,live}/verification.json` 和同目录截图。实际结果在本轮 `.ai/reports/2026-09-03-research-web-appearance.md` 记录；这里的命令与状态要求不等同于已通过声明。
+
+## 2026-09-06 可见性纠正
+
+资产观察从研究台子页提升为主导航独立入口，仍使用同一 Codex 风格壳；Claw 首页新增具体报告 Workflow 区，能力中心 Workflow 页可查看其资源详情。两处都读取真实后端目录和区块状态，不复制旧 AlphaFoundry UI，也不把通用 Workflow 卡片当成华安 ETF 或创业板 50 报告。桌面保持紧凑卡片，窄屏自然收为单列；未发布或 `needs_attention` 项保持禁用而不是显示假成功。

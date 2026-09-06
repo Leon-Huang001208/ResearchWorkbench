@@ -66,6 +66,28 @@ test('Claw landing report Workflow cards only place a locked version into draft'
   assert.doesNotMatch(html, /type="submit"|data-run-report|立即执行/);
 });
 
+test('real migrated report Workflows have a dedicated Claw shelf and package detail', async () => {
+  const { renderReportWorkflowShelf, renderReportWorkflowDetail } = await import(new URL('report-workflows.mjs', root));
+  const summary = {
+    id: 'chinext-50-weekly', name: '创业板50周报', description: '基于固定 Word 模板与 Wind/iFinD 底稿生成周报。',
+    status: 'enabled', current_version: 1, delivery_formats: ['docx', 'html', 'xlsx'], providers: ['wind_excel', 'ifind_excel'], latest_run: null,
+  };
+  const shelf = renderReportWorkflowShelf([summary]);
+  for (const expected of ['创业板50周报', 'DOCX / HTML / XLSX', 'wind_excel、ifind_excel', '查看模板与底稿', '交给 Claw 执行']) assert.match(shelf, new RegExp(expected));
+  assert.match(shelf, /data-report-workflow-detail="chinext-50-weekly"/);
+  assert.match(shelf, /data-run-report-workflow="chinext-50-weekly"/);
+  const detail = renderReportWorkflowDetail({
+    ...summary,
+    versions: [{ version: 1, current: true, published: true, manifest: {
+      resources: [{ role: 'template', path: 'templates/report.docx', size: 1024 }, { role: 'workbook', path: 'workbooks/source.xlsx', size: 2048 }],
+      workbook_policies: [{ workbook: 'workbooks/source.xlsx', providers: [{ provider: 'wind_excel' }, { provider: 'ifind_excel' }] }],
+      blocks: [{ kind: 'chart', title: '站位图', required: true }],
+    }}],
+    schedule: { enabled: false }, historical_artifacts: [{ name: '创业板50周报.docx', size: 4096 }],
+  });
+  for (const expected of ['templates/report.docx', 'workbooks/source.xlsx', 'wind_excel + ifind_excel', '站位图', '创业板50周报.docx']) assert.ok(detail.includes(expected));
+});
+
 test('report Workflow selection requires its own published ready package version', async () => {
   const { reportWorkflowEligibility, renderCapabilityCatalog, renderCapabilityDetail } = await import(new URL('capabilities.mjs', root));
   const { renderQuickSkills } = await import(new URL('composer.mjs', root));

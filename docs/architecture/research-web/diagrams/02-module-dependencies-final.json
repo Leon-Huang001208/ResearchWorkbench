@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Research Web 当前模块依赖",
+    "output": "02-module-dependencies.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
+      "revision": "1fa65835559bceb02b8e03231ce67ed13305738a"
+    },
+    "viewBox": [1380, 780],
+    "views": [
+      {"id": "reportPath", "label": "报告 Workflow", "focus": ["browser", "api", "reportManager", "reportStore", "dsh", "workbookTool", "excel"], "note": "Claw 执行锁定版本；模板和 Excel 底稿属于 Workflow，运行目录不覆盖母版。"},
+      {"id": "assetPath", "label": "资产观察", "focus": ["browser", "api", "assetWorkspace", "datahub", "providers", "snapshots"], "note": "资产页按区块查询真实来源；已加载资料固化为会话快照后再交给 FinGPT 或 Claw。"},
+      {"id": "sharedExecution", "label": "共享执行边界", "focus": ["reportManager", "dsh", "datahub", "snapshots"], "note": "DSH 是唯一研究执行引擎；DataHub 负责数据路由与快照，不编排 Agent。"}
+    ]
+  },
+  "components": [
+    {"id": "browser", "type": "frontend", "label": "Research Web", "sublabel": "FinGPT · Claw · 资产观察 · 能力中心", "pos": [50, 290], "size": [185, 78], "sources": [{"path": "app/research_web/ui/app.mjs"}, {"path": "app/research_web/ui/shell.mjs"}]},
+    {"id": "api", "type": "backend", "label": "FastAPI BFF", "sublabel": "/api/research/*", "pos": [300, 290], "size": [165, 78], "sources": [{"path": "app/research_web/main.py"}]},
+    {"id": "assetWorkspace", "type": "backend", "label": "资产观察服务", "sublabel": "区块状态 · 自选 · 笔记 · 提醒", "pos": [540, 95], "size": [190, 78], "sources": [{"path": "app/research_web/workbench.py"}, {"path": "app/research_web/ui/asset-workspace.mjs"}]},
+    {"id": "reportManager", "type": "backend", "label": "Report Workflow", "sublabel": "版本 · 资源 · 运行 · 日程", "pos": [540, 290], "size": [190, 78], "sources": [{"path": "app/research_web/report_workflows/manager.py"}, {"path": "app/research_web/report_workflow_routes.py"}]},
+    {"id": "datahub", "type": "backend", "label": "DataHub", "sublabel": "目录 · 选源 · 校验 · 快照", "pos": [540, 500], "size": [190, 78], "sources": [{"path": "app/research_web/datahub/broker.py"}]},
+    {"id": "reportStore", "type": "database", "label": "Workflow 版本包", "sublabel": "模板 · Excel 底稿 · 映射 · Hash", "pos": [805, 95], "size": [205, 78], "sources": [{"path": "app/research_web/report_workflows/catalog.py"}]},
+    {"id": "dsh", "type": "external", "label": "专属 DSH 3081", "sublabel": "Claw · Skill · 子 Agent", "pos": [805, 290], "size": [205, 78], "sources": [{"path": "app/research_web/client.py"}, {"path": "app/research_web/report_workflows/runtime.py"}]},
+    {"id": "snapshots", "type": "database", "label": "会话隔离快照", "sublabel": "数据集 · 产物 · manifest", "pos": [805, 500], "size": [205, 78], "sources": [{"path": "app/research_web/datahub/snapshots.py"}, {"path": "app/research_web/store.py"}]},
+    {"id": "workbookTool", "type": "backend", "label": "workbook_refresh Tool", "sublabel": "复制 · 重算 · 校验 · 保存", "pos": [1080, 190], "size": [210, 78], "sources": [{"path": "app/research_web/report_workflows/workbook.py"}]},
+    {"id": "excel", "type": "external", "label": "Excel + 插件", "sublabel": "Wind / iFinD · 本机登录态", "pos": [1080, 360], "size": [210, 78]},
+    {"id": "providers", "type": "external", "label": "登记数据源", "sublabel": "公开源 · 专业源 · 旧解析适配", "pos": [1080, 535], "size": [210, 78], "sources": [{"path": "app/research_web/datahub/catalog.py"}, {"path": "app/research_web/datahub/providers.py"}]}
+  ],
+  "boundaries": [
+    {"kind": "region", "label": "Research Workbench Web 单进程边界", "wraps": ["api", "assetWorkspace", "reportManager", "datahub", "reportStore", "snapshots", "workbookTool"], "pad": 24}
+  ],
+  "connections": [
+    {"id": "webApi", "from": "browser", "to": "api", "label": "同源 HTTP / SSE", "variant": "emphasis", "labelAt": [268, 286]},
+    {"id": "assetRoute", "from": "api", "to": "assetWorkspace", "label": "资产观察 API"},
+    {"id": "reportRoute", "from": "api", "to": "reportManager", "variant": "emphasis"},
+    {"id": "dataRoute", "from": "api", "to": "datahub", "label": "业务数据查询"},
+    {"id": "reportVersions", "from": "reportManager", "to": "reportStore", "label": "锁定不可变版本"},
+    {"id": "startClaw", "from": "reportManager", "to": "dsh", "label": "创建 Claw 会话", "variant": "emphasis", "labelAt": [768, 382]},
+    {"id": "refreshWorkbook", "from": "dsh", "to": "workbookTool", "label": "受控刷新请求"},
+    {"id": "controlExcel", "from": "workbookTool", "to": "excel", "label": "串行本机自动化", "labelAt": [1185, 282]},
+    {"id": "routeProvider", "from": "datahub", "to": "providers", "label": "白名单 Provider", "fromSide": "bottom", "toSide": "bottom", "via": [[635, 660], [1185, 660]], "labelAt": [920, 682]},
+    {"id": "publishSnapshot", "from": "datahub", "to": "snapshots", "label": "校验后发布 Hash", "labelAt": [768, 496]},
+    {"id": "shareSnapshot", "from": "snapshots", "to": "dsh", "label": "父子 Agent 共用", "variant": "dashed", "fromSide": "right", "toSide": "right", "via": [[1040, 539], [1040, 329]], "labelAt": [1085, 470]},
+    {"id": "deliverArtifact", "from": "dsh", "to": "snapshots", "label": "实际文件与交付状态", "labelAt": [950, 435]}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "资产观察不是演示页", "items": ["每个区块独立呈现 complete / partial / empty / unavailable / error", "无真实数据时不补价格、估值、主题或同类比较"]},
+    {"dot": "violet", "title": "报告不是通用模板卡", "items": ["华安 ETF、创业板 50 等每篇报告拥有自己的模板与底稿", "Claw 只执行已发布且锁定版本的 Workflow"]},
+    {"dot": "amber", "title": "Excel 失败即阻塞", "items": ["Wind / iFinD 登录、公式、日期或必填项失败进入 blocked_data", "运行副本与母版隔离，不静默回退其他口径"]}
+  ]
+}
+

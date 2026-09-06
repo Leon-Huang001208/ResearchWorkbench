@@ -77,3 +77,11 @@ Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数
 Workflow 历史页面按研究记录的不可变版本读取预设步骤；请求失败显示缺失说明且允许显式刷新重试，不能永久缓存失败空步骤，也不能用当前目录替代旧版。恢复后只清除该版本读取错误，不隐藏其他运行错误。预设步骤不显示自动完成勾选。
 
 Claw首页直接展示同一目录中的已启用Workflow（含自建），FinGPT保留四个内置Skill快捷入口；分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
+
+## 具体报告 Workflow
+
+通用能力目录的 Workflow 规定可复用研究步骤；`app/research_web/report_workflows/` 则管理“每篇报告一个 Workflow”的真实资源包。两者都由 Claw/DSH 执行，但具体报告额外锁定 Word/PPT 模板、Excel 底稿、品牌素材、映射、交付契约和日程，不能由一张通用模板卡替代。
+
+Claw 首页和能力中心 Workflow 页从 `GET /api/research/report-workflows` 读取该目录，分别显示状态、当前版本、交付格式、Excel Provider 和最近运行。详情读取模板/底稿、刷新策略、报告区块、版本、日程和历史产物；只有 `enabled` 且存在当前发布版本的项目可以创建运行。AI 周报保持 `needs_attention` 时只能查看。
+
+当前真实迁移结果为：创业板50周报 v1、华安ETF周报 v1、华安ETF投资风向标 v1，以及待补全的 AI 周报。迁移后的文件存放在产品数据根 `report-workflows/`；旧 `report-projects/` 在验证和最终清理门禁前保留，不作为运行时的平行执行器。
