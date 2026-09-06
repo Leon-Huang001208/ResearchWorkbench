@@ -58,6 +58,14 @@ class MissingExcelProvider:
         return {"ready": False, "code": "xlwings_missing"}
 
 
+class AvailableExcelProvider:
+    provider_id = "ifind_excel"
+
+    @staticmethod
+    def readiness():
+        return {"ready": True, "code": None}
+
+
 def _xlsx(path: Path, formula: str = "WSS(A1)") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
@@ -184,12 +192,38 @@ def test_provider_probe_is_safe_and_missing_xlwings_blocks_run(api, tmp_path):
     _create_version(client, tmp_path)
     client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
     service.report_workflows.refresh.providers["wind_excel"] = MissingExcelProvider()
+    service.report_workflows.refresh.providers["ifind_excel"] = AvailableExcelProvider()
+    providers = client.get("/api/research/report-workflows/providers").json()["items"]
+    wind = next(item for item in providers if item["id"] == "wind_excel")
+    ifind = next(item for item in providers if item["id"] == "ifind_excel")
+    assert wind == {
+        "id": "wind_excel",
+        "ready": False,
+        "integration_state": "blocked_dependency",
+        "health": "untested",
+        "code": "xlwings_missing",
+    }
+    assert ifind == {
+        "id": "ifind_excel",
+        "ready": False,
+        "integration_state": "ready",
+        "health": "untested",
+        "code": "needs_probe",
+    }
     probe = client.post(
         "/api/research/report-workflows/providers/wind_excel/probe",
         headers={"Idempotency-Key": "probe-one"},
     )
     assert probe.status_code == 200
     assert probe.json()["ready"] is False
+    unverified = client.post(
+        "/api/research/report-workflows/providers/ifind_excel/probe",
+        headers={"Idempotency-Key": "probe-ifind"},
+    )
+    assert unverified.status_code == 200
+    assert unverified.json()["ready"] is False
+    assert unverified.json()["health"] == "unverified"
+    assert unverified.json()["code"] == "provider_health_unverified"
     run = client.post("/api/research/report-workflows/weekly-report/runs")
     assert run.status_code == 202
     for _ in range(50):
@@ -216,9 +250,12 @@ def test_refresh_success_delegates_once_to_claw_and_locks_version(api, tmp_path,
         output = run_root / workbook
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(b"refreshed")
-        manifest = run_root / "refresh-manifest.json"
+        manifest = run_root / "refresh-manifests" / ("a" * 64 + ".json")
+        manifest.parent.mkdir()
         manifest.write_text(json.dumps({"status": "ready", "output_sha256": "a" * 64}))
-        return WorkbookRefreshResult(status="ready", manifest_path=str(manifest))
+        return WorkbookRefreshResult(
+            status="ready", manifest_path=f"refresh-manifests/{manifest.name}"
+        )
 
     monkeypatch.setattr(service.report_workflows.catalog, "refresh_workbook", ready)
     sent = []
@@ -313,9 +350,25 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     ai = source / "AI周报" / "templates"
     ai.mkdir(parents=True)
     (ai / "report.docx").write_bytes(b"draft")
-    duplicate = source / "华安ETF周报 2" / "templates"
+    primary_history = source / "华安ETF周报" / "generated"
+    primary_history.mkdir()
+    (primary_history / "weekly.pdf").write_bytes(b"historical-weekly")
+    duplicate_root = source / "华安ETF周报 2"
+    duplicate = duplicate_root / "templates"
     duplicate.mkdir(parents=True)
     (duplicate / "report.docx").write_bytes(b"different")
+    (duplicate_root / "data").mkdir()
+    (duplicate_root / "data" / "same.xlsx").write_bytes(
+        (source / "华安ETF周报" / "data" / "source.xlsx").read_bytes()
+    )
+    (duplicate_root / "generated").mkdir()
+    (duplicate_root / "generated" / "weekly.pdf").write_bytes(b"conflicting-history")
+    (duplicate_root / "outputs").mkdir()
+    (duplicate_root / "outputs" / "weekly-copy.pdf").write_bytes(b"historical-weekly")
+    (duplicate_root / "runs" / "run-001").mkdir(parents=True)
+    (duplicate_root / "runs" / "run-001" / "report.docx").write_bytes(b"historical-run")
+    (duplicate_root / ".preview-cache").mkdir()
+    (duplicate_root / ".preview-cache" / "large-preview.png").write_bytes(b"preview-only")
     preview_cache = source / "华安ETF周报" / ".preview-cache"
     preview_cache.mkdir()
     (preview_cache / "generated.png").write_bytes(b"cache-only")
@@ -323,6 +376,17 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     dry = service.report_workflows.migration.migrate(source, dry_run=True)
     assert dry["project_count"] == 4
     assert dry["source"] == "legacy-report-projects"
+    huaan_dry = next(item for item in dry["projects"] if item["id"] == "huaan-etf-weekly")
+    assert huaan_dry["resource_count"] == 4
+    assert huaan_dry["history_count"] == 2
+    assert dry["resource_count"] == len(dry["accepted"])
+    assert dry["history_count"] == 2
+    assert not any(
+        part in item["path"].split("/")
+        for item in dry["accepted"]
+        for part in ("generated", "runs", "jobs", "outputs", ".preview-cache")
+    )
+    assert any(item["reason"] == "historical_path_content_conflict" for item in dry["quarantined"])
     assert str(tmp_path) not in json.dumps(dry, ensure_ascii=False)
     assert not client.get("/api/research/report-workflows").json()["items"]
     applied = service.report_workflows.migration.migrate(source, dry_run=False)

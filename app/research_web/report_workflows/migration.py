@@ -41,6 +41,7 @@ ALLOWED = {
     ".yml",
     ".html",
 }
+HISTORY_PARTS = {"generated", "runs", "jobs", "outputs"}
 
 
 def _sha256(path: Path) -> str:
@@ -112,7 +113,7 @@ class ReportWorkflowMigration:
                 "size": path.stat().st_size,
                 "source_path": str(path),
             }
-            if any(part in {"generated", "runs", "jobs", "outputs"} for part in relative.parts):
+            if any(part in HISTORY_PARTS for part in relative.parts):
                 history.append(item)
             elif path.suffix.lower() in ALLOWED:
                 resources.append(item)
@@ -203,16 +204,44 @@ class ReportWorkflowMigration:
         duplicate = root / "华安ETF周报 2"
         primary = next((item for item in projects if item["id"] == "huaan-etf-weekly"), None)
         if duplicate.is_dir() and primary:
-            existing = {item["logical_path"]: item["sha256"] for item in primary["resources"]}
-            hashes = set(existing.values())
+            resource_paths = {item["logical_path"]: item["sha256"] for item in primary["resources"]}
+            history_paths = {item["path"]: item["sha256"] for item in primary["history"]}
+            hashes = {item["sha256"] for item in [*primary["resources"], *primary["history"]]}
             for path in sorted(duplicate.rglob("*")):
-                if not path.is_file() or path.is_symlink() or path.suffix.lower() not in ALLOWED:
+                if not path.is_file() or path.is_symlink():
                     continue
-                logical = self._logical_path(path.relative_to(duplicate))
+                relative = path.relative_to(duplicate)
+                if ".preview-cache" in relative.parts:
+                    continue
+                historical = any(part in HISTORY_PARTS for part in relative.parts)
+                if not historical and path.suffix.lower() not in ALLOWED:
+                    continue
                 digest = _sha256(path)
                 if digest in hashes:
                     continue
-                if logical in existing:
+                item = {
+                    "path": relative.as_posix(),
+                    "logical_path": self._logical_path(relative),
+                    "sha256": digest,
+                    "size": path.stat().st_size,
+                    "source_path": str(path),
+                }
+                if historical:
+                    if item["path"] in history_paths:
+                        quarantined.append(
+                            {
+                                "path": item["path"],
+                                "sha256": digest,
+                                "reason": "historical_path_content_conflict",
+                            }
+                        )
+                        continue
+                    primary["history"].append(item)
+                    history_paths[item["path"]] = digest
+                    hashes.add(digest)
+                    continue
+                logical = item["logical_path"]
+                if logical in resource_paths:
                     quarantined.append(
                         {
                             "path": logical,
@@ -221,15 +250,9 @@ class ReportWorkflowMigration:
                         }
                     )
                     continue
-                primary["resources"].append(
-                    {
-                        "path": path.relative_to(duplicate).as_posix(),
-                        "logical_path": logical,
-                        "sha256": digest,
-                        "size": path.stat().st_size,
-                        "source_path": str(path),
-                    }
-                )
+                primary["resources"].append(item)
+                resource_paths[logical] = digest
+                hashes.add(digest)
         for project in projects:
             project["source_sha256"] = _project_sha256(project)
 
@@ -270,6 +293,16 @@ class ReportWorkflowMigration:
                 ).encode()
             ).hexdigest(),
             "project_count": len(projects),
+            "resource_count": sum(len(item["resources"]) for item in projects),
+            "resource_bytes": sum(
+                resource["size"] for item in projects for resource in item["resources"]
+            ),
+            "history_count": sum(len(item["history"]) for item in projects),
+            "history_bytes": sum(
+                artifact["size"] for item in projects for artifact in item["history"]
+            ),
+            "accepted_count": len(accepted),
+            "accepted_bytes": sum(item["size"] for item in accepted),
             "projects": [
                 {
                     "id": item["id"],
@@ -277,6 +310,10 @@ class ReportWorkflowMigration:
                     "status": item["status"],
                     "source_sha256": item["source_sha256"],
                     "migration_status": outcomes[item["id"]],
+                    "resource_count": len(item["resources"]),
+                    "resource_bytes": sum(resource["size"] for resource in item["resources"]),
+                    "history_count": len(item["history"]),
+                    "history_bytes": sum(artifact["size"] for artifact in item["history"]),
                 }
                 for item in projects
             ],

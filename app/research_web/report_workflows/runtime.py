@@ -6,12 +6,13 @@ import asyncio
 import copy
 import inspect
 import json
+import re
 import shutil
 import threading
 import time
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -89,16 +90,27 @@ class ReportWorkflowRuntime:
             self.catalog._save()
             return copy.deepcopy(row)
 
-    def _append_refresh_manifest(self, run_id: str, path: str) -> dict:
+    def _append_refresh_manifest(self, run_id: str, path: str | None) -> dict:
         run_root = self.catalog.run_path(run_id)
-        manifest = Path(path)
+        if path is None:
+            raise WorkflowError("刷新清单引用无效", "refresh_manifest_invalid", 409)
+        logical = PurePosixPath(path)
+        if (
+            logical.is_absolute()
+            or "\\" in path
+            or len(logical.parts) != 2
+            or logical.parts[0] != "refresh-manifests"
+            or not re.fullmatch(r"[a-f0-9]{64}\.json", logical.name)
+        ):
+            raise WorkflowError("刷新清单引用无效", "refresh_manifest_invalid", 409)
+        manifest = run_root.joinpath(*logical.parts)
         if (
             manifest.is_symlink()
             or not manifest.is_file()
             or not manifest.resolve().is_relative_to(run_root.resolve())
         ):
             raise WorkflowError("刷新清单引用无效", "refresh_manifest_invalid", 409)
-        reference = manifest.resolve().relative_to(run_root.resolve()).as_posix()
+        reference = logical.as_posix()
         with self.catalog._exclusive():
             try:
                 row = self.catalog.data["runs"][run_id]

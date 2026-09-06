@@ -13,11 +13,16 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
+from core.observability import get_logger
+
 from .catalog import ReportWorkflowService
 from .migration import ReportWorkflowMigration
 from .models import ReportWorkflowManifest, WorkflowError
 from .runtime import ReportWorkflowRuntime, _public_metadata
 from .workbook import WorkbookRefreshService
+
+log = get_logger(__name__)
+_SAFE_READINESS_CODES = {"unsupported_platform", "xlwings_missing"}
 
 
 class ReportWorkflowManager:
@@ -237,15 +242,37 @@ class ReportWorkflowManager:
         for provider_id, provider in sorted(self.refresh.providers.items()):
             if provider_id == "datahub":
                 continue
-            readiness = provider.readiness()
+            readiness = self._dependency_readiness(provider_id, provider)
+            dependency_ready = readiness["ready"]
             items.append(
                 {
                     "id": provider_id,
-                    "ready": bool(readiness.get("ready")),
-                    "code": readiness.get("code"),
+                    "ready": False,
+                    "integration_state": "ready" if dependency_ready else "blocked_dependency",
+                    "health": "untested",
+                    "code": "needs_probe" if dependency_ready else readiness["code"],
                 }
             )
         return items
+
+    @staticmethod
+    def _dependency_readiness(provider_id: str, provider) -> dict:
+        try:
+            readiness = provider.readiness()
+        except Exception as exc:  # noqa: BLE001 - provider errors must stay content-free.
+            log.warning(
+                "report_provider_dependency_check_failed",
+                provider=provider_id,
+                error_type=type(exc).__name__,
+            )
+            return {"ready": False, "code": "provider_dependency_check_failed"}
+        ready = bool(readiness.get("ready"))
+        if ready:
+            return {"ready": True, "code": None}
+        code = str(readiness.get("code") or "provider_dependency_unavailable")
+        if code not in _SAFE_READINESS_CODES:
+            code = "provider_dependency_unavailable"
+        return {"ready": False, "code": code}
 
     def probe(self, provider_id: str, key: str) -> dict:
         name = f"{provider_id}:{key}"
@@ -254,12 +281,15 @@ class ReportWorkflowManager:
         provider = self.refresh.providers.get(provider_id)
         if provider is None or provider_id == "datahub":
             raise WorkflowError("Excel Provider 不存在", "provider_not_found", 404)
-        readiness = provider.readiness()
+        readiness = self._dependency_readiness(provider_id, provider)
+        dependency_ready = readiness["ready"]
         result = {
             "id": name,
             "provider": provider_id,
-            "ready": bool(readiness.get("ready")),
-            "code": readiness.get("code"),
+            "ready": False,
+            "integration_state": "ready" if dependency_ready else "blocked_dependency",
+            "health": "unverified" if dependency_ready else "unavailable",
+            "code": "provider_health_unverified" if dependency_ready else readiness["code"],
             "checked_at": time.time(),
         }
         self._probes[name] = result
