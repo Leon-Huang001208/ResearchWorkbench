@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import json
 import multiprocessing
@@ -399,6 +400,17 @@ def _multiprocess_excel_refresh(source, run_directory, event_path, result_queue)
     result_queue.put(result.status.value)
 
 
+def _hold_posix_file_lock(lock_path, ready, release):
+    import fcntl
+
+    path = Path(lock_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        ready.set()
+        release.wait(10)
+
+
 def _run_two_processes(target, args_one, args_two):
     context = multiprocessing.get_context("spawn")
     result_queue = context.Queue()
@@ -431,6 +443,39 @@ def test_xlwings_missing_is_safe_and_does_not_expose_import_message(monkeypatch)
     result = WindExcelProvider().readiness()
     assert result == {"ready": False, "code": "xlwings_missing"}
     assert "secret" not in json.dumps(result)
+
+
+def test_official_excel_provider_blocks_windows_without_starting_worker(
+    tmp_path: Path, monkeypatch
+):
+    monkeypatch.setattr(workbook_module.sys, "platform", "win32")
+
+    def unexpected_import(*args, **kwargs):
+        pytest.fail("unsupported platforms must not import xlwings")
+
+    monkeypatch.setattr(workbook_module.importlib, "import_module", unexpected_import)
+    assert WindExcelProvider().readiness() == {
+        "ready": False,
+        "code": "unsupported_platform",
+    }
+
+    def unexpected_worker(*args, **kwargs):
+        pytest.fail("unsupported platforms must not start an Excel worker")
+
+    monkeypatch.setattr(workbook_module, "_run_provider_readiness", unexpected_worker)
+    source = tmp_path / "source.xlsx"
+    source.write_bytes(_xlsx({"A1": ('WSD("x")', "ready")}))
+    result = WorkbookRefreshService().refresh(
+        source,
+        tmp_path / "run",
+        WorkbookRefreshPolicy(
+            workbook="workbooks/model.xlsx",
+            providers=[WorkbookProviderRequirement(provider="wind_excel")],
+        ),
+    )
+
+    assert result.code == "unsupported_platform"
+    assert not (tmp_path / "run/workbooks/model.xlsx").exists()
 
 
 def test_xlwings_open_failure_quits_hidden_excel_instance():
@@ -516,6 +561,113 @@ def test_refresh_cancellation_kills_worker_and_prevents_output_promotion(tmp_pat
     assert not workbook_module._process_exists(worker_pid)
     assert not (tmp_path / "run/workbooks/model.xlsx").exists()
     assert not list((tmp_path / "run/refresh-manifests").glob("*.json"))
+
+
+def test_refresh_cancellation_interrupts_target_lock_wait_without_output(tmp_path: Path):
+    source = tmp_path / "source.xlsx"
+    source.write_bytes(_xlsx({"A1": (None, "ready")}))
+    run_directory = tmp_path / "run"
+    policy = WorkbookRefreshPolicy(
+        workbook="workbooks/model.xlsx",
+        timeout_seconds=5,
+    )
+    manifest_name = hashlib.sha256(policy.workbook.encode()).hexdigest() + ".json"
+    lock_path = run_directory / ".refresh-locks" / f"{manifest_name}.lock"
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    release = context.Event()
+    holder = context.Process(
+        target=_hold_posix_file_lock,
+        args=(str(lock_path), ready, release),
+    )
+    holder.start()
+    assert ready.wait(5)
+    cancellation = threading.Event()
+    results = []
+    thread = threading.Thread(
+        target=lambda: results.append(
+            WorkbookRefreshService().refresh(
+                source,
+                run_directory,
+                policy,
+                cancellation_event=cancellation,
+            )
+        )
+    )
+    try:
+        thread.start()
+        time.sleep(0.15)
+        cancellation.set()
+        thread.join(1)
+        still_waiting = thread.is_alive()
+    finally:
+        release.set()
+        holder.join(5)
+        if holder.is_alive():
+            holder.terminate()
+            holder.join(5)
+        thread.join(5)
+
+    assert still_waiting is False
+    assert results[0].code == "refresh_cancelled"
+    assert not (run_directory / "workbooks/model.xlsx").exists()
+    assert not list((run_directory / "refresh-manifests").glob("*.json"))
+
+
+def test_refresh_lock_timeout_is_sanitized_and_writes_no_output(tmp_path: Path):
+    source = tmp_path / "source.xlsx"
+    source.write_bytes(_xlsx({"A1": (None, "ready")}))
+    run_directory = tmp_path / "run"
+    policy = WorkbookRefreshPolicy(
+        workbook="workbooks/model.xlsx",
+        timeout_seconds=0.1,
+    )
+    manifest_name = hashlib.sha256(policy.workbook.encode()).hexdigest() + ".json"
+    lock_path = run_directory / ".refresh-locks" / f"{manifest_name}.lock"
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    release = context.Event()
+    holder = context.Process(
+        target=_hold_posix_file_lock,
+        args=(str(lock_path), ready, release),
+    )
+    holder.start()
+    assert ready.wait(5)
+    try:
+        started = time.monotonic()
+        result = WorkbookRefreshService().refresh(source, run_directory, policy)
+        elapsed = time.monotonic() - started
+    finally:
+        release.set()
+        holder.join(5)
+        if holder.is_alive():
+            holder.terminate()
+            holder.join(5)
+
+    assert elapsed < 1
+    assert result.code == "refresh_lock_timeout"
+    assert not (run_directory / "workbooks/model.xlsx").exists()
+    assert not list((run_directory / "refresh-manifests").glob("*.json"))
+
+
+def test_refresh_lock_open_error_is_sanitized(tmp_path: Path, monkeypatch):
+    source = tmp_path / "source.xlsx"
+    source.write_bytes(_xlsx({"A1": (None, "ready")}))
+
+    monkeypatch.setattr(
+        workbook_module.os,
+        "open",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("secret path")),
+    )
+
+    result = WorkbookRefreshService().refresh(
+        source,
+        tmp_path / "run",
+        WorkbookRefreshPolicy(workbook="workbooks/model.xlsx"),
+    )
+
+    assert result.code == "refresh_lock_unavailable"
+    assert "secret" not in result.model_dump_json()
 
 
 def test_target_and_excel_locks_serialize_across_processes(tmp_path: Path):

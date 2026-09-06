@@ -12,7 +12,6 @@ import queue
 import re
 import shutil
 import signal
-import subprocess
 import sys
 import tempfile
 import threading
@@ -85,7 +84,10 @@ def _safe_xlsx(path: Path) -> Path:
 
 
 def _target_lock(path: Path) -> threading.Lock:
-    key = str(path.resolve(strict=False))
+    try:
+        key = str(path.resolve(strict=False))
+    except OSError as exc:
+        raise WorkflowError("刷新锁不可用", "refresh_lock_unavailable", 503) from exc
     with _TARGET_LOCKS_GUARD:
         lock = _TARGET_LOCKS.get(key)
         if lock is None:
@@ -94,49 +96,87 @@ def _target_lock(path: Path) -> threading.Lock:
         return lock
 
 
-def _lock_stream(stream: Any) -> None:
-    if os.name == "nt":
-        module = __import__("msvcrt")
-        stream.seek(0)
-        if not stream.read(1):
-            stream.write(b"0")
-            stream.flush()
-        stream.seek(0)
-        module.locking(stream.fileno(), module.LK_LOCK, 1)
-    else:
-        module = __import__("fcntl")
-        module.flock(stream.fileno(), module.LOCK_EX)
+def _try_lock_stream(stream: Any) -> bool:
+    if os.name != "posix":
+        raise WorkflowError("当前平台不支持刷新锁", "unsupported_platform", 503)
+    module = __import__("fcntl")
+    try:
+        module.flock(stream.fileno(), module.LOCK_EX | module.LOCK_NB)
+    except BlockingIOError:
+        return False
+    except OSError as exc:
+        raise WorkflowError("刷新锁不可用", "refresh_lock_unavailable", 503) from exc
+    return True
 
 
 def _unlock_stream(stream: Any) -> None:
-    if os.name == "nt":
-        module = __import__("msvcrt")
-        stream.seek(0)
-        module.locking(stream.fileno(), module.LK_UNLCK, 1)
-    else:
-        module = __import__("fcntl")
-        module.flock(stream.fileno(), module.LOCK_UN)
+    module = __import__("fcntl")
+    module.flock(stream.fileno(), module.LOCK_UN)
+
+
+def _check_lock_wait(
+    cancellation_event: threading.Event | None,
+    deadline: float,
+) -> None:
+    if cancellation_event is not None and cancellation_event.is_set():
+        raise WorkflowError("刷新已取消", "refresh_cancelled", 409)
+    if time.monotonic() >= deadline:
+        raise WorkflowError("等待刷新锁超时", "refresh_lock_timeout", 409)
 
 
 @contextmanager
-def _file_lock(path: Path, thread_lock: threading.Lock):
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+def _file_lock(
+    path: Path,
+    thread_lock: threading.Lock,
+    *,
+    cancellation_event: threading.Event | None,
+    deadline: float,
+):
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    except OSError as exc:
+        raise WorkflowError("刷新锁不可用", "refresh_lock_unavailable", 503) from exc
     flags = os.O_CREAT | os.O_RDWR
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
+    descriptor: int | None = None
+    stream = None
+    thread_locked = False
+    file_locked = False
     try:
+        while not thread_lock.acquire(blocking=False):
+            _check_lock_wait(cancellation_event, deadline)
+            time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
+        thread_locked = True
+        _check_lock_wait(cancellation_event, deadline)
         descriptor = os.open(path, flags, 0o600)
+        stream = os.fdopen(descriptor, "a+b")
+        descriptor = None
+        while not _try_lock_stream(stream):
+            _check_lock_wait(cancellation_event, deadline)
+            time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
+        file_locked = True
+        yield
     except OSError as exc:
         raise WorkflowError("刷新锁不可用", "refresh_lock_unavailable", 503) from exc
-    with thread_lock, os.fdopen(descriptor, "a+b") as stream:
-        locked = False
-        try:
-            _lock_stream(stream)
-            locked = True
-            yield
-        finally:
-            if locked:
+    finally:
+        if file_locked and stream is not None:
+            try:
                 _unlock_stream(stream)
+            except OSError as exc:
+                log.warning("report_refresh_lock_release_failed", error_type=type(exc).__name__)
+        if stream is not None:
+            try:
+                stream.close()
+            except OSError as exc:
+                log.warning("report_refresh_lock_close_failed", error_type=type(exc).__name__)
+        elif descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError as exc:
+                log.warning("report_refresh_lock_close_failed", error_type=type(exc).__name__)
+        if thread_locked:
+            thread_lock.release()
 
 
 @contextmanager
@@ -324,12 +364,12 @@ class XlwingsExcelProvider:
         self._app = None
 
     def readiness(self) -> dict[str, Any]:
+        if sys.platform != "darwin":
+            return {"ready": False, "code": "unsupported_platform"}
         try:
             self._xlwings = importlib.import_module("xlwings")
         except (ImportError, OSError):
             return {"ready": False, "code": "xlwings_missing"}
-        if sys.platform not in {"win32", "darwin"}:
-            return {"ready": False, "code": "excel_unavailable"}
         return {"ready": True, "code": None}
 
     def open_workbook(self, path: Path) -> Any:
@@ -405,6 +445,7 @@ _SAFE_PROVIDER_CODES = {
     "provider_worker_cleanup_failed",
     "provider_worker_failed",
     "refresh_cancelled",
+    "unsupported_platform",
     "worker_isolation_failed",
     "xlwings_missing",
 }
@@ -536,17 +577,7 @@ def _provider_refresh_worker(
 def _terminate_worker_tree(process: Any) -> bool:
     pid = getattr(process, "pid", None)
     owns_process_group = False
-    if os.name == "nt" and isinstance(pid, int):
-        try:
-            subprocess.run(
-                ["taskkill", "/PID", str(pid), "/T", "/F"],
-                check=False,
-                capture_output=True,
-                timeout=_WORKER_STOP_SECONDS,
-            )
-        except (OSError, subprocess.SubprocessError):
-            process.terminate()
-    elif isinstance(pid, int):
+    if os.name == "posix" and isinstance(pid, int):
         try:
             if os.getpgid(pid) == pid:
                 owns_process_group = True
@@ -584,18 +615,8 @@ def _terminate_child_processes(pids: set[int]) -> bool:
     safe_pids = {pid for pid in pids if pid > 1 and pid != os.getpid()}
     if not safe_pids:
         return True
-    if os.name == "nt":
-        for pid in safe_pids:
-            try:
-                subprocess.run(
-                    ["taskkill", "/PID", str(pid), "/T", "/F"],
-                    check=False,
-                    capture_output=True,
-                    timeout=_WORKER_STOP_SECONDS,
-                )
-            except (OSError, subprocess.SubprocessError):
-                return False
-        return True
+    if os.name != "posix":
+        return False
     for pid in safe_pids:
         try:
             os.kill(pid, signal.SIGTERM)
@@ -829,18 +850,25 @@ class WorkbookRefreshService:
         if not needed:
             return None, None, {}
         unavailable: list[WorkbookProviderRequirement] = []
+        unavailable_codes: list[str] = []
         selected: WorkbookProviderProtocol | None = None
         for provider_id in sorted(needed):
             candidate = self.providers.get(provider_id)
-            readiness = (
-                _run_provider_readiness(candidate, policy.timeout_seconds, cancellation_event)
-                if candidate is not None
-                else {"status": "blocked"}
-            )
+            if isinstance(candidate, XlwingsExcelProvider) and sys.platform != "darwin":
+                readiness = {"status": "blocked", "code": "unsupported_platform"}
+            else:
+                readiness = (
+                    _run_provider_readiness(candidate, policy.timeout_seconds, cancellation_event)
+                    if candidate is not None
+                    else {"status": "blocked", "code": "provider_not_ready"}
+                )
             if readiness.get("code") == "refresh_cancelled":
                 return None, "refresh_cancelled", {}
             if readiness.get("status") != "ready":
                 unavailable.append(declared[provider_id])
+                unavailable_codes.append(
+                    _safe_provider_code(readiness.get("code"), "provider_not_ready")
+                )
             elif selected is None:
                 selected = candidate
         if not unavailable:
@@ -868,7 +896,12 @@ class WorkbookRefreshService:
                 if not callable(getattr(fallback, "configure_fallback", None)):
                     return None, "fallback_contract_invalid", {}
                 return fallback, None, selected_mappings
-        return None, "provider_not_ready", {}
+        code = (
+            "unsupported_platform"
+            if "unsupported_platform" in unavailable_codes
+            else "provider_not_ready"
+        )
+        return None, code, {}
 
     def refresh(
         self,
@@ -882,6 +915,7 @@ class WorkbookRefreshService:
     ) -> WorkbookRefreshResult:
         source = _safe_xlsx(Path(source))
         scan = scan_workbook_formulas(source)
+        deadline = time.monotonic() + policy.timeout_seconds
         provider, selection_error, selected_mappings = self._select_provider(
             scan, policy, fallback_mappings or {}, cancellation_event
         )
@@ -907,7 +941,12 @@ class WorkbookRefreshService:
             return self._blocked("unsafe_run_directory", provider_id)
         lock_path = lock_directory / f"{manifest_name}.lock"
         try:
-            with _file_lock(lock_path, _target_lock(destination)):
+            with _file_lock(
+                lock_path,
+                _target_lock(destination),
+                cancellation_event=cancellation_event,
+                deadline=deadline,
+            ):
                 return self._refresh_locked(
                     source,
                     destination,
@@ -919,6 +958,7 @@ class WorkbookRefreshService:
                     selected_mappings,
                     refresh_date or datetime.now().astimezone().date(),
                     cancellation_event,
+                    deadline,
                 )
         except WorkflowError as exc:
             return self._blocked(exc.code, provider_id)
@@ -935,6 +975,7 @@ class WorkbookRefreshService:
         selected_mappings: dict[str, dict[str, Any]],
         refresh_date: date,
         cancellation_event: threading.Event | None,
+        deadline: float,
     ) -> WorkbookRefreshResult:
         staging = destination.parent / f".{destination.stem}.{uuid4().hex}.refreshing.xlsx"
         manifest_staging = manifest_path.parent / f".{manifest_path.name}.{uuid4().hex}.tmp"
@@ -954,7 +995,12 @@ class WorkbookRefreshService:
 
         try:
             if provider is not None:
-                with _file_lock(_GLOBAL_EXCEL_LOCK_PATH, _EXCEL_REFRESH_LOCK):
+                with _file_lock(
+                    _GLOBAL_EXCEL_LOCK_PATH,
+                    _EXCEL_REFRESH_LOCK,
+                    cancellation_event=cancellation_event,
+                    deadline=deadline,
+                ):
                     worker_result = _run_provider_refresh(
                         provider,
                         staging,
