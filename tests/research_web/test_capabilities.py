@@ -55,7 +55,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 8
+    assert len(rows) == 9
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
@@ -64,12 +64,19 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         "市场解读",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
-    assert len(client.get("/api/research/workflows").json()["items"]) == 3
+    workflows = client.get("/api/research/workflows").json()["items"]
+    assert len(workflows) == 4
+    assert "report-production-workflow" in {row["id"] for row in workflows}
     tools = client.get("/api/research/tools").json()["items"]
     assert {t["id"] for t in tools if t["selectable"]} == {
         "research_run_script",
         "datahub_get_fund_data",
         "datahub_search_news",
+        "datahub_search_assets",
+        "datahub_get_market_bars",
+        "datahub_get_market_snapshot",
+        "datahub_get_financials",
+        "datahub_get_market_activity",
         "web_search",
     }
     assert len(tools) == 21

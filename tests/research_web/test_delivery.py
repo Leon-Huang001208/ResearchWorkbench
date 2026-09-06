@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -151,6 +152,29 @@ def test_completed_turn_with_missing_files_is_not_delivered(delivery_api):
     assert row["delivery"]["status"] == "incomplete"
     assert row["delivery"]["missing_formats"] == ["docx", "xlsx"]
     assert row["delivery"]["files"] == []
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="strict parser requires native macOS sandbox")
+def test_pptx_delivery_reopens_and_rejects_corrupt_package(delivery_api):
+    _, _, service, sid = delivery_api
+    assert submit(delivery_api, ["pptx"]).status_code == 202
+    root = service.store.directory(sid)
+    good = root / "outputs" / "report.pptx"
+    with zipfile.ZipFile(good, "w") as package:
+        package.writestr("[Content_Types].xml", "<Types/>")
+        package.writestr(
+            "ppt/slides/slide1.xml",
+            '<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><a:t>真实报告</a:t></p:sld>',
+        )
+    (root / "outputs" / "broken.pptx").write_bytes(b"not-an-opc-package")
+    finish(delivery_api)
+
+    row = detail(delivery_api)["delivery"]
+    assert row["status"] == "completed"
+    files = {item["name"]: item for item in row["files"]}
+    assert files["report.pptx"]["valid"] is True
+    assert files["broken.pptx"]["valid"] is False
+    assert files["broken.pptx"]["reason"]
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="strict parser requires native macOS sandbox")

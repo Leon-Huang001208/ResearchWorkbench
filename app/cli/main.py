@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import click
 
@@ -13,11 +14,13 @@ from app.research_web.data_migration import (
     archive_source,
     migrate_data,
 )
+from app.research_web.report_studio import ReportStudio, ReportStudioError
 from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
     format_status,
 )
+from app.research_web.store import Store
 
 LEGACY_RESEARCH_DATA_DIR = ".alpha" + "foundry"
 archive_legacy_source = archive_source
@@ -45,7 +48,9 @@ class LazyCommandGroup(click.Group):
     def list_commands(self, ctx: click.Context) -> list[str]:
         return sorted(set(super().list_commands(ctx)) | set(LAZY_COMMANDS))
 
-    def get_command(self, ctx: click.Context, command_name: str) -> click.Command | None:
+    def get_command(
+        self, ctx: click.Context, command_name: str
+    ) -> click.Command | None:
         command = super().get_command(ctx, command_name)
         if command is not None or command_name not in LAZY_COMMANDS:
             return command
@@ -61,7 +66,9 @@ class LazyCommandGroup(click.Group):
             raise click.ClickException(f"子命令 {command_name} 注册无效")
         return loaded
 
-    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_commands(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
         rows: list[tuple[str, str]] = []
         for command_name in self.list_commands(ctx):
             if command_name in LAZY_COMMANDS:
@@ -90,14 +97,20 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 @click.group(cls=LazyCommandGroup)
-@click.option("--log-level", default="INFO", help="日志级别：DEBUG, INFO, WARNING, ERROR")
+@click.option(
+    "--log-level", default="INFO", help="日志级别：DEBUG, INFO, WARNING, ERROR"
+)
 @click.option("--log-file", help="日志文件路径")
 @click.version_option(version="0.1.0")
 @click.pass_context
 def cli(ctx: click.Context, log_level: str, log_file: str | None) -> None:
     """Research Workbench - 本地优先的研究工作台。"""
     log_path: str | None = str(log_file) if log_file else None
-    if ctx.invoked_subcommand in {"web", "migrate-research-data"}:
+    if ctx.invoked_subcommand in {
+        "web",
+        "migrate-research-data",
+        "migrate-report-projects",
+    }:
         numeric_level = getattr(logging, log_level.upper(), None)
         if not isinstance(numeric_level, int):
             raise click.BadParameter("无效日志级别", param_hint="--log-level")
@@ -113,7 +126,9 @@ def web() -> None:
     """管理 Web 与专属 DSH 后台服务。"""
 
 
-def _run_web_action(action: str, *, force: bool = False, open_browser: bool = True) -> None:
+def _run_web_action(
+    action: str, *, force: bool = False, open_browser: bool = True
+) -> None:
     manager = WebServiceManager()
     try:
         if action == "start":
@@ -171,7 +186,9 @@ def web_restart(force: bool, no_open: bool) -> None:
 )
 @click.option("--dry-run", is_flag=True, help="只计算迁移范围和哈希，不写文件")
 @click.option("--archive-source", is_flag=True, help="校验完成后将旧目录移为只读备份")
-def migrate_research_data(source: Path, target: Path, dry_run: bool, archive_source: bool) -> None:
+def migrate_research_data(
+    source: Path, target: Path, dry_run: bool, archive_source: bool
+) -> None:
     """迁移研究会话、附件、能力版本、数据集和产物，不复制凭据。"""
     try:
         result = migrate_data(source, target, dry_run=dry_run)
@@ -179,6 +196,32 @@ def migrate_research_data(source: Path, target: Path, dry_run: bool, archive_sou
             result["source_archive"] = str(archive_legacy_source(source))
         click.echo(json.dumps(result, ensure_ascii=False, indent=2))
     except DataMigrationError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@cli.command("migrate-report-projects")
+@click.option(
+    "--source",
+    type=click.Path(path_type=Path),
+    default=lambda: Path(__file__).resolve().parents[2] / "report_projects",
+    show_default="<project>/report_projects",
+)
+@click.option(
+    "--target",
+    type=click.Path(path_type=Path),
+    default=lambda: Path.home() / ".research-workbench" / "research-web",
+    show_default="~/.research-workbench/research-web",
+)
+@click.option(
+    "--apply", "apply_changes", is_flag=True, help="复制并登记项目；默认仅预检"
+)
+def migrate_report_projects(source: Path, target: Path, apply_changes: bool) -> None:
+    """预检或迁移旧报告项目；不删除源目录，也不执行其中脚本。"""
+    try:
+        studio = ReportStudio(SimpleNamespace(store=Store(target)))
+        result = studio.migration(source, dry_run=not apply_changes)
+        click.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    except (ReportStudioError, OSError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
 
 

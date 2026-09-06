@@ -10,7 +10,9 @@ import { renderCapabilityCatalog, renderCapabilityDetail, renderToolDetail, rend
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStep } from './capability-editor.mjs';
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
+import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
+import { renderReportStudio } from './report-studio.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
@@ -20,8 +22,10 @@ let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
 let workbenchQueries = []; let workbenchContext = {}; let workbenchBusy = false;
+let assetState = { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [] };
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
+let reportState = { projects: [], project: null, runs: [], artifacts: [], artifactTotal: 0, busy: false };
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -70,16 +74,21 @@ function mainPage() {
   if (state.route.page === 'settings') return settingsPage();
   if (state.route.page === 'workbench') return workbenchPage();
   if (state.route.page === 'operations') return operationsPage();
+  if (state.route.page === 'reports') return reportStudioPage();
   if (state.route.page === 'history') return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>研究历史</h1><p class="muted">所有 FinGPT 与 Claw 会话，随时回来继续。</p></div><button class="button" data-refresh>刷新</button></header><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索研究历史"></label><div id="history-results">${renderHistory(catalog.sessions, historyFilter)}</div>`;
   return capabilityPage();
 }
 
 function workbenchPage() {
-  return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy });
+  return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy, assetState });
 }
 
 function operationsPage() {
   return renderOperations(operationsData, operationsRange);
+}
+
+function reportStudioPage() {
+  return renderReportStudio(reportState);
 }
 
 function capabilityPage() {
@@ -124,7 +133,7 @@ function render() {
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page]} · Research Workbench`;
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', reports: '报告工作室', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page]} · Research Workbench`;
 }
 
 async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools']) {
@@ -161,8 +170,41 @@ async function loadOperations() {
   render();
 }
 
+async function loadReportStudio(projectId = reportState.project?.id) {
+  try {
+    const projects = await api.reportProjects();
+    reportState.projects = projects.items || [];
+    const selected = projectId || reportState.projects[0]?.id;
+    if (!selected) {
+      reportState = { projects: reportState.projects, project: null, runs: [], artifacts: [], artifactTotal: 0, busy: false };
+      render(); return;
+    }
+    const [project, runs, artifacts] = await Promise.all([
+      api.reportProject(selected), api.reportRuns(selected), api.reportArtifacts(selected),
+    ]);
+    const latestById = new Map((runs.items || []).map(item => [item.id, item]));
+    reportState = {
+      projects: reportState.projects.map(item => ({ ...item, latest_run_detail: latestById.get(item.latest_run) || null })),
+      project,
+      runs: runs.items || [],
+      artifacts: artifacts.items || [],
+      artifactTotal: artifacts.total ?? (artifacts.items || []).length,
+      busy: reportState.busy,
+    };
+    delete catalog.errors.reportStudio;
+  } catch (error) {
+    catalog.errors.reportStudio = error.message;
+  }
+  render();
+}
+
 async function loadWorkbench() {
   const section = state.route.section || 'market';
+  if (section === 'assets') {
+    await Promise.all([loadCatalog(['dataCatalog']), loadAssetWorkspace()]);
+    render();
+    return;
+  }
   await Promise.all([
     loadCatalog(['dataCatalog', 'artifacts']),
     (async () => {
@@ -179,6 +221,57 @@ async function loadWorkbench() {
   render();
 }
 
+async function loadAssetWorkspace() {
+  try {
+    const [observations, watchlists, notes, alerts, notifications] = await Promise.all([
+      api.assetObservations(), api.watchlists(), api.assetNotes(), api.assetAlerts(), api.assetNotifications(),
+    ]);
+    const items = Array.isArray(observations.items) ? observations.items : [];
+    const observation = items[0] || null;
+    const rows = {};
+    if (observation?.session_id) {
+      await Promise.all(Object.entries(observation.blocks || {}).map(async ([name, block]) => {
+        const datasetId = block?.dataset?.dataset_id;
+        if (!datasetId) return;
+        try {
+          const result = await api.datasetRows(observation.session_id, datasetId, 0, 200);
+          rows[name] = Array.isArray(result.items) ? result.items : [];
+        } catch (error) {
+          safeLog('asset_dataset_rows_failed', { block: name, code: error.code || 'request_failed' });
+          rows[name] = [];
+        }
+      }));
+    }
+    assetState = {
+      observations: items,
+      observation,
+      rows,
+      watchlists: watchlists.items || [],
+      notes: notes.items || [],
+      alerts: alerts.items || [],
+      notifications: notifications.items || [],
+    };
+    workbenchContext = observation ? {
+      section: 'assets',
+      asset: observation.asset,
+      asset_type: observation.asset_type,
+      source: observation.source,
+      requested_at: observation.created_at,
+      completed_at: observation.completed_at,
+      dataset_ids: observation.dataset_ids || [],
+      blocks: Object.fromEntries(Object.entries(observation.blocks || {}).map(([name, block]) => [name, {
+        status: block.status,
+        as_of: block.dataset?.as_of || null,
+        provider: block.dataset?.provider || null,
+      }])),
+    } : {};
+    delete catalog.errors.assetWorkspace;
+  } catch (error) {
+    assetState = { ...assetState, observation: null, rows: {} };
+    catalog.errors.assetWorkspace = error.message;
+  }
+}
+
 async function showRoute() {
   quickCategory = '';
   const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; globalSearch = ''; searchOpen = false; renameDraft = null; questionDrafts.clear();
@@ -191,6 +284,7 @@ async function showRoute() {
   if (state.route.page === 'skills') await loadCatalog(['capabilities', 'tools', 'dataCatalog', 'sessions']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
+  if (state.route.page === 'reports') await loadReportStudio();
 }
 
 async function ensureSession() {
@@ -296,6 +390,122 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (event.target.matches('[data-report-project-create]')) {
+    const values = new FormData(event.target);
+    reportState.busy = true; render();
+    try {
+      const project = await api.createReportProject({
+        id: String(values.get('id')).trim(),
+        name: String(values.get('name')).trim(),
+        project_type: String(values.get('project_type')),
+      });
+      success = '报告项目草稿已创建；请上传模板或底稿并发布版本。';
+      await loadReportStudio(project.id);
+    } catch (error) { state.error = error.message; }
+    finally { reportState.busy = false; render(); }
+    return;
+  }
+  if (event.target.matches('[data-report-version]')) {
+    const values = new FormData(event.target);
+    const id = event.target.dataset.reportVersion;
+    const file = values.get('file');
+    const formats = values.getAll('format').map(String);
+    reportState.busy = true; render();
+    try {
+      if (file?.size) await api.uploadReportProjectFile(id, file);
+      let sections; let dataRecipe;
+      try {
+        sections = JSON.parse(String(values.get('sections') || '[]'));
+        dataRecipe = JSON.parse(String(values.get('data_recipe') || '[]'));
+      } catch { throw new Error('章节定义和 DataHub 数据配方必须是有效 JSON。'); }
+      if (!Array.isArray(sections) || !Array.isArray(dataRecipe)) throw new Error('章节定义和 DataHub 数据配方必须是数组。');
+      await api.createReportVersion(id, {
+        workflow: { id: 'report-production-workflow', version: null },
+        output_formats: formats,
+        sections,
+        data_recipe: dataRecipe,
+        instructions: String(values.get('instructions') || '').trim() || '使用锁定模板、底稿和数据要求生成报告；明确来源、截止时间和缺失项。',
+      });
+      success = '报告项目新版本已发布；已有活动运行仍保持其原锁定版本。';
+      await loadReportStudio(id);
+    } catch (error) { state.error = error.message; }
+    finally { reportState.busy = false; render(); }
+    return;
+  }
+  if (event.target.matches('[data-report-schedule]')) {
+    const values = new FormData(event.target);
+    const id = event.target.dataset.reportSchedule;
+    const kind = String(values.get('kind'));
+    const payload = {
+      kind,
+      enabled: values.get('enabled') === 'on',
+      once_at: kind === 'once' ? String(values.get('once_at') || '') || null : null,
+      weekday: kind === 'weekly' ? Number(values.get('weekday')) : null,
+      hour: kind === 'weekly' ? Number(values.get('hour')) : null,
+      minute: kind === 'weekly' ? Number(values.get('minute')) : null,
+    };
+    reportState.busy = true; render();
+    try { await api.saveReportSchedule(id, payload); success = '报告项目日程已保存。'; await loadReportStudio(id); }
+    catch (error) { state.error = error.message; }
+    finally { reportState.busy = false; render(); }
+    return;
+  }
+  if (event.target.matches('[data-asset-observation]')) {
+    if (workbenchBusy) return;
+    workbenchBusy = true; state.error = ''; render();
+    try {
+      const payload = readAssetObservation(event.target);
+      let record = await api.createAssetObservation(payload, crypto.randomUUID());
+      assetState = { ...assetState, observation: record, observations: [record, ...assetState.observations.filter(item => item.id !== record.id)] };
+      render();
+      for (let attempt = 0; attempt < 120 && record.status === 'running'; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        record = await api.assetObservation(record.id);
+        assetState = { ...assetState, observation: record, observations: [record, ...assetState.observations.filter(item => item.id !== record.id)] };
+        render();
+      }
+      await loadAssetWorkspace();
+      success = record.status === 'completed'
+        ? '资产各区块已按真实数据源更新，可冻结快照并交给研究。'
+        : '资产区块查询已结束；请查看各区块的失败或缺失状态。';
+    } catch (error) { state.error = error.message; }
+    finally { workbenchBusy = false; render(); }
+    return;
+  }
+  if (event.target.matches('[data-watchlist-item]')) {
+    const values = new FormData(event.target);
+    try {
+      await api.addWatchlistItem(String(values.get('watchlist_id')), {
+        asset: String(values.get('asset')),
+        asset_type: assetState.observation?.asset_type || 'stock',
+        name: String(assetState.rows?.overview?.[0]?.name || values.get('asset')),
+      });
+      success = '已加入本地自选列表。'; await loadAssetWorkspace(); render();
+    } catch (error) { state.error = error.message; render(); }
+    return;
+  }
+  if (event.target.matches('[data-asset-note]')) {
+    const values = new FormData(event.target);
+    try {
+      await api.createAssetNote({ asset: String(values.get('asset')), text: String(values.get('text')).trim() });
+      success = '观察笔记已保存。'; await loadAssetWorkspace(); render();
+    } catch (error) { state.error = error.message; render(); }
+    return;
+  }
+  if (event.target.matches('[data-asset-alert]')) {
+    const values = new FormData(event.target);
+    try {
+      await api.createAssetAlert({
+        asset: String(values.get('asset')),
+        field: String(values.get('field')),
+        operator: String(values.get('operator')),
+        threshold: Number(values.get('threshold')),
+        cooldown_minutes: 60,
+      });
+      success = '提醒规则已保存，将在新快照到达时评估。'; await loadAssetWorkspace(); render();
+    } catch (error) { state.error = error.message; render(); }
+    return;
+  }
   if (event.target.matches('[data-workbench-query]')) {
     if (workbenchBusy) return;
     workbenchBusy = true; state.error = ''; render();
@@ -370,9 +580,42 @@ root.addEventListener('click', async (event) => {
     success = '';
     if (state.route.page === 'workbench') await loadWorkbench();
     else if (state.route.page === 'operations') await loadOperations();
+    else if (state.route.page === 'reports') await loadReportStudio();
     else { await loadCatalog(); await controller.refresh(); }
   }
   if ('operationsRange' in data) { operationsRange = data.operationsRange; await loadOperations(); }
+  if ('reportProject' in data) { await loadReportStudio(data.reportProject); return; }
+  if ('reportStatus' in data && data.projectId) {
+    reportState.busy = true; state.error = ''; render();
+    try { await api.updateReportProject(data.projectId, { status: data.reportStatus }); success = data.reportStatus === 'enabled' ? '报告项目已启用。' : '报告项目已停用；活动运行不受影响。'; await loadReportStudio(data.projectId); }
+    catch (error) { state.error = error.message; }
+    finally { reportState.busy = false; render(); }
+    return;
+  }
+  if ('rollbackReportVersion' in data && data.projectId) {
+    reportState.busy = true; state.error = ''; render();
+    try { await api.rollbackReportVersion(data.projectId, Number(data.rollbackReportVersion)); success = `已回滚到 v${data.rollbackReportVersion}；新运行将锁定该版本。`; await loadReportStudio(data.projectId); }
+    catch (error) { state.error = error.message; }
+    finally { reportState.busy = false; render(); }
+    return;
+  }
+  if ('runReportProject' in data) {
+    reportState.busy = true; state.error = ''; render();
+    try {
+      const run = await api.runReportProject(data.runReportProject);
+      success = run.status === 'skipped_overlap' ? '已有活动运行，本次已记录为重叠跳过。' : '报告任务已创建，Claw 将使用锁定版本执行。';
+      await loadReportStudio(data.runReportProject);
+    } catch (error) { state.error = error.message; }
+    finally { reportState.busy = false; render(); }
+    return;
+  }
+  if ('cancelReportRun' in data) {
+    reportState.busy = true; render();
+    try { await api.cancelReportRun(data.cancelReportRun); success = '已提交单次报告取消。'; await loadReportStudio(); }
+    catch (error) { state.error = error.message; }
+    finally { reportState.busy = false; render(); }
+    return;
+  }
   if ('workbenchHandoff' in data) {
     if (workbenchBusy || !data.sourceSession) return;
     workbenchBusy = true; state.error = ''; render();

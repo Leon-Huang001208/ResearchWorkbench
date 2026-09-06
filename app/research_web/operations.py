@@ -25,7 +25,9 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/api/research/operations")
 
 
-def _window(value: str, start: date | None, end: date | None) -> tuple[float, float, dict]:
+def _window(
+    value: str, start: date | None, end: date | None
+) -> tuple[float, float, dict]:
     today = datetime.now(UTC).date()
     if value == "custom":
         if start is None or end is None or start > end or (end - start).days > 366:
@@ -38,7 +40,9 @@ def _window(value: str, start: date | None, end: date | None) -> tuple[float, fl
         left, right = today - timedelta(days=days - 1), today
     return (
         datetime.combine(left, datetime.min.time(), tzinfo=UTC).timestamp(),
-        datetime.combine(right + timedelta(days=1), datetime.min.time(), tzinfo=UTC).timestamp(),
+        datetime.combine(
+            right + timedelta(days=1), datetime.min.time(), tzinfo=UTC
+        ).timestamp(),
         {"range": value, "start": left.isoformat(), "end": right.isoformat()},
     )
 
@@ -66,9 +70,17 @@ async def _projections(service, start_at: float, end_at: float):
                     if event_time is None or start_at <= event_time < end_at:
                         relevant.append(entry)
                 return row, project(relevant), detail
-            except (RuntimeFailure, StoreError, OSError, ValueError, KeyError, TypeError) as exc:
+            except (
+                RuntimeFailure,
+                StoreError,
+                OSError,
+                ValueError,
+                KeyError,
+                TypeError,
+            ) as exc:
                 log.warning(
-                    "operations_session_projection_unavailable", error_type=type(exc).__name__
+                    "operations_session_projection_unavailable",
+                    error_type=type(exc).__name__,
                 )
                 return None
 
@@ -88,7 +100,13 @@ def _audit(service, start_at: float, end_at: float):
 
 async def usage_projection(service, start_at, end_at, window, rows=None):
     rows = rows if rows is not None else await _projections(service, start_at, end_at)
-    totals = {"input": 0, "output": 0, "total": 0, "known_sessions": 0, "unknown_sessions": 0}
+    totals = {
+        "input": 0,
+        "output": 0,
+        "total": 0,
+        "known_sessions": 0,
+        "unknown_sessions": 0,
+    }
     models = Counter()
     statuses = Counter()
     turns = 0
@@ -104,16 +122,22 @@ async def usage_projection(service, start_at, end_at, window, rows=None):
             totals["unknown_sessions"] += 1
         models[row.get("model") or "未知模型"] += 1
         statuses[view.get("status") or row.get("status") or "unknown"] += 1
-        turns += sum(1 for message in view.get("messages", []) if message.get("role") == "user")
+        turns += sum(
+            1 for message in view.get("messages", []) if message.get("role") == "user"
+        )
         if view.get("duration_ms") is not None:
             durations.append(view["duration_ms"])
     return {
         "window": window,
         "sessions": len(rows),
         "turns": turns,
-        "average_duration_ms": round(sum(durations) / len(durations)) if durations else None,
+        "average_duration_ms": round(sum(durations) / len(durations))
+        if durations
+        else None,
         "tokens": {**totals, "known": totals["known_sessions"] > 0},
-        "models": [{"model": name, "sessions": count} for name, count in models.most_common()],
+        "models": [
+            {"model": name, "sessions": count} for name, count in models.most_common()
+        ],
         "outcomes": dict(statuses),
         "cost": {"status": "not_configured", "amount": None, "currency": None},
     }
@@ -132,7 +156,9 @@ async def tools_projection(service, start_at, end_at, window, rows=None):
         if row.get("mode") == "claw":
             claw_tasks += 1
         if view.get("status") == "running":
-            running.append({"session_id": row["id"], "title": row["title"], "mode": row["mode"]})
+            running.append(
+                {"session_id": row["id"], "title": row["title"], "mode": row["mode"]}
+            )
         for item in view.get("activities", []):
             name = item.get("title") or "未知工具"
             calls[name] += 1
@@ -159,7 +185,9 @@ async def tools_projection(service, start_at, end_at, window, rows=None):
                 "calls": count,
                 "failures": failures[name],
                 "average_duration_ms": (
-                    round(sum(durations[name]) / len(durations[name])) if durations[name] else None
+                    round(sum(durations[name]) / len(durations[name]))
+                    if durations[name]
+                    else None
                 ),
             }
             for name, count in calls.most_common()
@@ -180,7 +208,9 @@ async def tools_projection(service, start_at, end_at, window, rows=None):
                 else None
             ),
             "failure_rate": (
-                round(subagents["failed"] / sum(subagents.values()) * 100, 1) if subagents else None
+                round(subagents["failed"] / sum(subagents.values()) * 100, 1)
+                if subagents
+                else None
             ),
             "average_duration_ms": (
                 round(sum(subagent_durations) / len(subagent_durations))
@@ -198,22 +228,36 @@ def datahub_projection(service, start_at, end_at, window):
         try:
             manifests.extend(service.datahub.list(row["id"]))
         except (StoreError, OSError, ValueError, KeyError, TypeError) as exc:
-            log.warning("operations_dataset_manifest_unavailable", error_type=type(exc).__name__)
+            log.warning(
+                "operations_dataset_manifest_unavailable", error_type=type(exc).__name__
+            )
     manifests = [
         item
         for item in manifests
-        if start_at <= (datetime.fromisoformat(item["retrieved_at"]).timestamp()) < end_at
+        if start_at
+        <= (datetime.fromisoformat(item["retrieved_at"]).timestamp())
+        < end_at
     ]
     outcomes = Counter(item.get("status", "unknown") for item in manifests)
-    sources = Counter(item.get("provider") or item.get("source") or "unknown" for item in manifests)
+    sources = Counter(
+        item.get("provider") or item.get("source") or "unknown" for item in manifests
+    )
     bytes_total = sum(
         int(file.get("size", 0))
         for item in manifests
         for file in item.get("files", [])
         if file.get("name") != "manifest.json"
     )
-    audit = [item for item in _audit(service, start_at, end_at) if item.get("kind") == "datahub"]
-    durations = [item["duration_ms"] for item in audit if isinstance(item.get("duration_ms"), int)]
+    audit = [
+        item
+        for item in _audit(service, start_at, end_at)
+        if item.get("kind") == "datahub"
+    ]
+    durations = [
+        item["duration_ms"]
+        for item in audit
+        if isinstance(item.get("duration_ms"), int)
+    ]
     capabilities = Counter(item.get("capability", "unknown") for item in audit)
     recent_errors = [
         {
@@ -230,9 +274,12 @@ def datahub_projection(service, start_at, end_at, window):
         "window": window,
         "calls": len(audit) if audit else len(manifests),
         "outcomes": dict(outcomes),
-        "average_duration_ms": round(sum(durations) / len(durations)) if durations else None,
+        "average_duration_ms": round(sum(durations) / len(durations))
+        if durations
+        else None,
         "sources": [
-            {"source": source, "snapshots": count} for source, count in sources.most_common()
+            {"source": source, "snapshots": count}
+            for source, count in sources.most_common()
         ],
         "capabilities": [
             {"capability": capability, "calls": count}
@@ -245,6 +292,38 @@ def datahub_projection(service, start_at, end_at, window):
             "rows": sum(item.get("row_count", 0) for item in manifests),
         },
         "readiness": catalog["summary"],
+    }
+
+
+def reports_projection(service, start_at, end_at, window):
+    rows = [
+        row
+        for row in service.store.data.get("report_runs", {}).values()
+        if start_at <= float(row.get("created_at", 0)) < end_at
+    ]
+    outcomes = Counter(row.get("status", "unknown") for row in rows)
+    delivery = Counter(row.get("delivery_status", "unknown") for row in rows)
+    projects = Counter(row.get("project_id", "unknown") for row in rows)
+    schedules = [
+        row.get("schedule", {})
+        for row in service.store.data.get("report_projects", {}).values()
+    ]
+    return {
+        "window": window,
+        "runs": len(rows),
+        "active": sum(
+            row.get("status") in {"queued", "preparing_data", "running", "validating"}
+            for row in rows
+        ),
+        "outcomes": dict(outcomes),
+        "delivery": dict(delivery),
+        "artifacts": sum(len(row.get("artifacts", [])) for row in rows),
+        "dataset_snapshots": sum(len(row.get("dataset_ids", [])) for row in rows),
+        "enabled_schedules": sum(bool(row.get("enabled")) for row in schedules),
+        "projects": [
+            {"project_id": project_id, "runs": count}
+            for project_id, count in projects.most_common()
+        ],
     }
 
 
@@ -265,7 +344,8 @@ def _managed_state(root: Path, role: str, port: int) -> dict:
                 and candidate.get("role") == role
                 and candidate.get("port") == port
                 and candidate.get("data_root") == str(root.resolve())
-                and candidate.get("project_root") == str(Path(__file__).parents[2].resolve())
+                and candidate.get("project_root")
+                == str(Path(__file__).parents[2].resolve())
                 and isinstance(command, list)
                 and all(isinstance(item, str) for item in command)
                 and candidate.get("fingerprint") == fingerprint
@@ -284,9 +364,17 @@ def _managed_state(root: Path, role: str, port: int) -> dict:
                     text=True,
                     timeout=2,
                 )
-                if result.returncode == 0 and all(item in result.stdout for item in signature):
+                if result.returncode == 0 and all(
+                    item in result.stdout for item in signature
+                ):
                     state = candidate
-    except (OSError, ValueError, TypeError, json.JSONDecodeError, subprocess.SubprocessError):
+    except (
+        OSError,
+        ValueError,
+        TypeError,
+        json.JSONDecodeError,
+        subprocess.SubprocessError,
+    ):
         state = None
         log.warning("operations_managed_state_unavailable", role=role)
     started = state.get("started_at") if state else None
@@ -297,7 +385,9 @@ def _managed_state(root: Path, role: str, port: int) -> dict:
         "pid": state.get("pid") if state else None,
         "started_at": started,
         "uptime_seconds": (
-            max(0, round(time.time() - started)) if isinstance(started, (int, float)) else None
+            max(0, round(time.time() - started))
+            if isinstance(started, (int, float))
+            else None
         ),
     }
 
@@ -321,7 +411,9 @@ async def services_projection(service):
             "connected": runtime.get("connected", False),
             "health_check_passed": runtime.get("health_check_passed", False),
             "version": runtime.get("version"),
-            "last_successful_communication_at": runtime.get("last_successful_communication_at"),
+            "last_successful_communication_at": runtime.get(
+                "last_successful_communication_at"
+            ),
         },
         "sse_connections": len(service.listeners),
         "running_research": active,
@@ -365,6 +457,7 @@ def storage_projection(service):
         ),
         ("datasets", "数据集", sessions, lambda p: "datasets" in p.parts),
         ("artifacts", "报告与产物", sessions, lambda p: "outputs" in p.parts),
+        ("report_projects", "报告项目、模板与历史产物", root / "report-projects", None),
         ("logs", "日志", root.parent / "logs", None),
         ("dsh_source", "DSH 源码", root.parent / "dsh-source", None),
     ]
@@ -443,6 +536,7 @@ async def summary(
         "usage": await usage_projection(service, left, right, window, rows),
         "tools": await tools_projection(service, left, right, window, rows),
         "datahub": datahub_projection(service, left, right, window),
+        "reports": reports_projection(service, left, right, window),
         "services": await services_projection(service),
         "storage": storage_projection(service),
     }

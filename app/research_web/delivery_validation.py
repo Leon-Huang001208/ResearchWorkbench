@@ -5,6 +5,7 @@ import io
 import json
 import os
 import stat
+import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -78,6 +79,21 @@ def validate_content(raw, extension):
             return "Excel 可打开，但非元数据工作表没有至少两行有效内容（表头及数据）"
         finally:
             book.close()
+    elif extension == "pptx":
+        # PPTX is an OPC ZIP package.  For the first report-studio release we
+        # verify that it reopens and contains visible slide text; layout edits
+        # remain the responsibility of the reviewed template projection.
+        with zipfile.ZipFile(stream) as package:
+            names = package.namelist()
+            slides = [
+                name
+                for name in names
+                if name.startswith("ppt/slides/slide") and name.endswith(".xml")
+            ]
+            if "[Content_Types].xml" not in names or not slides:
+                return "PPTX 缺少必要的演示文稿结构"
+            if not any(b"<a:t>" in package.read(name) for name in slides):
+                return "PPTX 可打开，但没有可见文本内容"
     elif extension == "png":
         from PIL import Image
 

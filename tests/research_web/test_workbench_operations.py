@@ -23,7 +23,11 @@ class NativeFixture:
 
     async def rpc(self, method, payload):
         if method == "host.describe":
-            return {"version": "fixture", "provider": "fixture", "cwd": payload.get("cwd")}
+            return {
+                "version": "fixture",
+                "provider": "fixture",
+                "cwd": payload.get("cwd"),
+            }
         if method == "credentials.describe":
             return {"credentials": {"RESEARCH_DSH_API_KEY": {"configured": True}}}
         if method == "session.list":
@@ -54,7 +58,13 @@ def nav_payload():
         "PageIndex": 1,
         "Data": {
             "LSJZList": [
-                {"FSRQ": "2025-12-31", "DWJZ": "1.2", "LJJZ": "1.3", "JZZZL": "0.1", "FHSP": ""}
+                {
+                    "FSRQ": "2025-12-31",
+                    "DWJZ": "1.2",
+                    "LJJZ": "1.3",
+                    "JZZZL": "0.1",
+                    "FHSP": "",
+                }
             ],
             "FundType": "002",
         },
@@ -137,7 +147,11 @@ def test_handoff_copies_only_selected_datasets_and_freezes_page_context(api):
             "target_mode": "claw",
             "section": "funds",
             "dataset_ids": [one["dataset_id"]],
-            "context": {"code": "000001", "source": "eastmoney_fund", "as_of": "2025-12-31"},
+            "context": {
+                "code": "000001",
+                "source": "eastmoney_fund",
+                "as_of": "2025-12-31",
+            },
         },
         headers={"Idempotency-Key": "handoff-0001"},
     )
@@ -149,7 +163,8 @@ def test_handoff_copies_only_selected_datasets_and_freezes_page_context(api):
     assert copied[0]["origin_dataset_id"] == one["dataset_id"]
     assert copied[0]["origin_dataset_id"] != two["dataset_id"]
     context_path = (
-        service.store.directory(target["session_id"]) / response.json()["context_file"]["path"]
+        service.store.directory(target["session_id"])
+        / response.json()["context_file"]["path"]
     )
     frozen = json.loads(context_path.read_text())
     assert frozen["section"] == "funds"
@@ -188,6 +203,7 @@ def test_artifacts_and_operations_never_return_contents_or_secrets(api, tmp_path
         "artifacts",
         "logs",
         "dsh_source",
+        "report_projects",
     }
     assert Path(storage["scope"]).resolve() == tmp_path.resolve()
 
@@ -237,9 +253,12 @@ def test_operations_summary_loads_each_session_history_once(api):
     response = client.get("/api/research/operations/summary?range=today")
     assert response.status_code == 200, response.text
     assert service.client.history_calls == 1
+    assert "reports" in response.json()
 
 
-def test_managed_process_requires_matching_state_fingerprint_and_command(tmp_path, monkeypatch):
+def test_managed_process_requires_matching_state_fingerprint_and_command(
+    tmp_path, monkeypatch
+):
     root = tmp_path / "research-web"
     run = tmp_path / "run"
     root.mkdir()
@@ -263,7 +282,8 @@ def test_managed_process_requires_matching_state_fingerprint_and_command(tmp_pat
     monkeypatch.setattr(
         "app.research_web.operations.subprocess.run",
         lambda *args, **kwargs: SimpleNamespace(
-            returncode=0, stdout="python -m uvicorn app.research_web.main:app --port 8088"
+            returncode=0,
+            stdout="python -m uvicorn app.research_web.main:app --port 8088",
         ),
     )
     assert _managed_state(root, "web", 8088)["process_running"] is True

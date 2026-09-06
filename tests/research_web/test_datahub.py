@@ -538,6 +538,30 @@ async def test_cls_timestamp_validation_and_ttl_expiry(hub_module, tmp_path, mon
     await hub.close()
 
 
+@pytest.mark.asyncio
+async def test_cls_keeps_valid_rows_when_provider_includes_empty_content(hub_module, tmp_path):
+    def respond(request):
+        return httpx.Response(
+            200,
+            json={
+                "errno": 0,
+                "data": {
+                    "roll_data": [
+                        {"id": 123, "ctime": 1788326831, "content": "有效电报"},
+                        {"id": 124, "ctime": 1788326830, "content": ""},
+                    ]
+                },
+            },
+        )
+
+    hub, _, sid = make_hub(hub_module, tmp_path, respond)
+    result = await hub.query(sid, "cls-partial", hub_module.Query(source="cls_telegraph", limit=2))
+    assert result["status"] == "partial"
+    assert result["row_count"] == 1
+    assert any("1 条空内容已跳过" in item for item in result["limitations"])
+    await hub.close()
+
+
 def test_non_ascii_auth_and_empty_userinfo_are_rejected(hub_module, tmp_path):
     store = Store(tmp_path)
     hub = hub_module.DataHub(store)

@@ -554,13 +554,18 @@ BINDING_SPECS = {
     "search_web": [("tavily", ["web_search"]), ("bing", ["web_search"])],
 }
 
-INTEGRATED = {"eastmoney_fund", "cls", "tinysoft"}
+INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare"}
 DISABLED = {"szse", "cninfo"}
 IMPLEMENTED_BINDINGS = {
     ("tinysoft", "search_assets"),
     ("tinysoft", "trading_calendar"),
     ("tinysoft", "market_bars"),
     ("tinysoft", "market_snapshot"),
+    ("akshare", "search_assets"),
+    ("akshare", "market_bars"),
+    ("akshare", "market_snapshot"),
+    ("akshare", "financials"),
+    ("akshare", "market_activity"),
 }
 
 
@@ -575,9 +580,9 @@ def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
 def _dependency_ready(source_id: str, dependencies: list[str]) -> bool:
     if not dependencies:
         return True
-    if source_id == "tinysoft":
+    if source_id in {"tinysoft", "akshare"}:
         try:
-            return find_spec("cjpy") is not None
+            return find_spec("cjpy" if source_id == "tinysoft" else "akshare") is not None
         except (ImportError, AttributeError, ValueError):
             return False
     return False
@@ -639,7 +644,8 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
         for priority, (source_id, datasets) in enumerate(candidates, 1):
             source = by_source[source_id]
             implemented = source_id in INTEGRATED and (
-                source_id != "tinysoft" or (source_id, capability_id) in IMPLEMENTED_BINDINGS
+                source_id not in {"tinysoft", "akshare"}
+                or (source_id, capability_id) in IMPLEMENTED_BINDINGS
             )
             bindings.append(
                 ProviderBinding(

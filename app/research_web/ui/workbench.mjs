@@ -1,4 +1,5 @@
 import { escapeHTML as e } from './markdown.mjs';
+import { renderAssetWorkspace } from './asset-workspace.mjs';
 
 export const SECTIONS = [
   ['market', '市场', '市场概览、板块、事件和资讯', 'search_news'],
@@ -6,7 +7,6 @@ export const SECTIONS = [
   ['funds', '基金', '基本资料、净值、分红和持仓', 'fund_data'],
   ['industry', '产业链', '上下游结构、公司和产业资料', 'search_research'],
   ['documents', '资料', '上传文件、公告、新闻、研报和数据集', 'search_announcements'],
-  ['reports', '报告', 'DSH 实际生成的报告、表格和图表', null],
 ];
 
 const bytes = (value = 0) => value < 1024 ? `${value} B` : value < 1048576 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1048576).toFixed(1)} MB`;
@@ -51,11 +51,12 @@ export function readWorkbenchQuery(form) {
   return { capability: form.dataset.capability, source: String(values.get('source') || 'auto'), parameters };
 }
 
-export function renderWorkbench({ section = 'market', catalog = {}, queries = [], artifacts = [], busy = false } = {}) {
+export function renderWorkbench({ section = 'market', catalog = {}, queries = [], artifacts = [], busy = false, assetState = {} } = {}) {
+  if (section === 'assets') return `<nav class="workbench-tabs" aria-label="研究台页面">${SECTIONS.map(([id, label]) => `<a href="#/workbench/${id}" class="${section === id ? 'active' : ''}" ${section === id ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>${renderAssetWorkspace({ ...assetState, busy })}`;
   const definition = SECTIONS.find(item => item[0] === section) || SECTIONS[0];
   const capability = (catalog.capabilities || []).find(item => item.id === definition[3]);
   const query = latestQuery(queries, section);
   const sessionId = query?.session_id || '';
   const datasetIds = query?.dataset?.dataset_id ? [query.dataset.dataset_id] : [];
-  return `<header class="page-header workbench-header"><div><div class="eyebrow">RESEARCH DESK</div><h1>研究台</h1><p class="muted">先固化真实数据与页面参数，再交给 DSH 研究；不同 Agent 共用同一份快照。</p></div><button class="button" data-refresh>刷新目录与产物</button></header><nav class="workbench-tabs" aria-label="研究台页面">${SECTIONS.map(([id, label]) => `<a href="#/workbench?section=${id}" class="${section === id ? 'active' : ''}" ${section === id ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav><section class="desk-hero"><div><span class="eyebrow">${e(definition[1])}</span><h2>${e(definition[2])}</h2><p>${capability ? `${e(capability.description)} · ${capability.source_count} 个登记来源，${capability.callable_source_count} 个当前可调用。` : '此页只读取当前会话实际产物，空目录保持为空。'}</p></div><div class="button-row"><button class="button" data-workbench-handoff="fingpt" data-source-session="${e(sessionId)}" data-dataset-ids="${e(JSON.stringify(datasetIds))}" ${sessionId && !busy ? '' : 'disabled'}>交给 FinGPT</button><button class="button primary" data-workbench-handoff="claw" data-source-session="${e(sessionId)}" data-dataset-ids="${e(JSON.stringify(datasetIds))}" ${sessionId && !busy ? '' : 'disabled'}>交给 Claw</button></div></section>${section === 'reports' ? artifactGrid(artifacts) : `${queryForm(section, capability, catalog)}${queryResult(query)}${section === 'documents' ? artifactGrid(artifacts) : ''}`}`;
+  return `<header class="page-header workbench-header"><div><div class="eyebrow">RESEARCH DESK</div><h1>研究台</h1><p class="muted">先固化真实数据与页面参数，再交给 DSH 研究；不同 Agent 共用同一份快照。</p></div><button class="button" data-refresh>刷新目录与产物</button></header><nav class="workbench-tabs" aria-label="研究台页面">${SECTIONS.map(([id, label]) => `<a href="#/workbench/${id}" class="${section === id ? 'active' : ''}" ${section === id ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav><section class="desk-hero"><div><span class="eyebrow">${e(definition[1])}</span><h2>${e(definition[2])}</h2><p>${capability ? `${e(capability.description)} · ${capability.source_count} 个登记来源，${capability.callable_source_count} 个当前可调用。` : '此页只读取当前会话实际产物，空目录保持为空。'}</p></div><div class="button-row"><button class="button" data-workbench-handoff="fingpt" data-source-session="${e(sessionId)}" data-dataset-ids="${e(JSON.stringify(datasetIds))}" ${sessionId && !busy ? '' : 'disabled'}>交给 FinGPT</button><button class="button primary" data-workbench-handoff="claw" data-source-session="${e(sessionId)}" data-dataset-ids="${e(JSON.stringify(datasetIds))}" ${sessionId && !busy ? '' : 'disabled'}>交给 Claw</button></div></section>${queryForm(section, capability, catalog)}${queryResult(query)}${section === 'documents' ? artifactGrid(artifacts) : ''}`;
 }

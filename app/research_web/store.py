@@ -26,6 +26,7 @@ PUBLIC_EXTENSIONS = {
     ".csv",
     ".xlsx",
     ".docx",
+    ".pptx",
     ".html",
     ".svg",
     ".json",
@@ -58,6 +59,16 @@ class Store:
         self.data.setdefault("handoffs", {})
         self.data.setdefault("handoff_keys", {})
         self.data.setdefault("operation_audit", [])
+        self.data.setdefault("asset_observations", {})
+        self.data.setdefault("asset_observation_keys", {})
+        self.data.setdefault("watchlists", {})
+        self.data.setdefault("asset_notes", {})
+        self.data.setdefault("asset_alerts", {})
+        self.data.setdefault("asset_notifications", {})
+        self.data.setdefault("report_projects", {})
+        self.data.setdefault("report_runs", {})
+        self.data.setdefault("report_schedules", {})
+        self.data.setdefault("report_migrations", [])
 
     def save(self):
         fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
@@ -104,6 +115,8 @@ class Store:
             "duration_ms",
             "rows",
             "failure_code",
+            "project_id",
+            "report_run_id",
         }
         event = {
             "kind": kind,

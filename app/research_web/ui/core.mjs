@@ -1,7 +1,7 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'operations', 'settings']);
-const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'reports']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'reports', 'skills', 'history', 'operations', 'settings']);
+const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -79,6 +79,30 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     startDataQuery: (body, key) => request('/data/queries', { method: 'POST', body, key }),
     dataQueries: (section = '') => request(`/data/queries${section ? `?section=${segment(section)}` : ''}`),
     dataQuery: (id) => request(`/data/queries/${segment(id)}`),
+    datasetRows: (sid, did, offset = 0, limit = 200) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}/rows?offset=${segment(offset)}&limit=${segment(limit)}`),
+    assetObservations: () => request('/assets/observations'),
+    assetObservation: (id) => request(`/assets/observations/${segment(id)}`),
+    createAssetObservation: (body, key) => request('/assets/observations', { method: 'POST', body, key }),
+    watchlists: () => request('/watchlists'),
+    createWatchlist: (body) => request('/watchlists', { method: 'POST', body }),
+    addWatchlistItem: (id, body) => request(`/watchlists/${segment(id)}/items`, { method: 'POST', body }),
+    assetNotes: () => request('/asset-notes'),
+    createAssetNote: (body) => request('/asset-notes', { method: 'POST', body }),
+    assetAlerts: () => request('/asset-alerts'),
+    createAssetAlert: (body) => request('/asset-alerts', { method: 'POST', body }),
+    assetNotifications: () => request('/asset-notifications'),
+    reportProjects: () => request('/report-projects'),
+    createReportProject: (body) => request('/report-projects', { method: 'POST', body }),
+    reportProject: (id) => request(`/report-projects/${segment(id)}`),
+    updateReportProject: (id, body) => request(`/report-projects/${segment(id)}`, { method: 'PATCH', body }),
+    uploadReportProjectFile: (id, file) => { const body = new FormData(); body.append('file', file); return request(`/report-projects/${segment(id)}/files`, { method: 'POST', body }); },
+    createReportVersion: (id, body) => request(`/report-projects/${segment(id)}/versions`, { method: 'POST', body }),
+    rollbackReportVersion: (id, version) => request(`/report-projects/${segment(id)}/rollback`, { method: 'POST', body: { version } }),
+    reportRuns: (id) => request(`/report-projects/${segment(id)}/runs`),
+    reportArtifacts: (id, offset = 0, limit = 50) => request(`/report-projects/${segment(id)}/artifacts?offset=${segment(offset)}&limit=${segment(limit)}`),
+    runReportProject: (id) => request(`/report-projects/${segment(id)}/runs`, { method: 'POST', body: {} }),
+    cancelReportRun: (id) => request(`/report-runs/${segment(id)}/cancel`, { method: 'POST', body: {} }),
+    saveReportSchedule: (id, body) => request(`/report-projects/${segment(id)}/schedule`, { method: 'PUT', body }),
     handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
     artifacts: (sessionId = '') => request(`/artifacts${sessionId ? `?session_id=${segment(sessionId)}` : ''}`),
     operationsUsage: (range = '7d') => request(`/operations/usage?range=${segment(range)}`),

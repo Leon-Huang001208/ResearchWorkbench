@@ -22,12 +22,16 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from core.observability import get_logger, setup_logging
 
 from .capabilities.models import CapabilityError
+from .asset_routes import router as asset_router
+from .asset_workspace import AssetWorkspaceError
 from .capabilities.routes import router as capabilities_router
 from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
 from .operations import router as operations_router
+from .report_routes import router as report_router
+from .report_studio import ReportStudioError
 from .service import ResearchService
 from .store import Store, StoreError
 from .workbench import router as workbench_router
@@ -53,7 +57,7 @@ class Prompt(BaseModel):
     capability_id: str | None = None
     capability_version: int | None = Field(default=None, ge=1, strict=True)
     tool_ids: list[str] = Field(default_factory=list, max_length=3)
-    expected_formats: list[Literal["md", "html", "docx", "xlsx", "png"]] | None = Field(
+    expected_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png"]] | None = Field(
         default=None, max_length=5
     )
 
@@ -102,10 +106,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
     app.include_router(datahub_router)
+    app.include_router(asset_router)
     app.include_router(capabilities_router)
     app.include_router(documentation_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
+    app.include_router(report_router)
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
     )
@@ -160,6 +166,19 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     async def store_error(request, exc):
         return JSONResponse(
             {"error": {"code": "invalid_resource", "message": str(exc)}}, status_code=400
+        )
+
+    @app.exception_handler(AssetWorkspaceError)
+    async def asset_workspace_error(request, exc):
+        return JSONResponse(
+            {"error": {"code": "asset_workspace_error", "message": str(exc)}},
+            status_code=exc.status,
+        )
+
+    @app.exception_handler(ReportStudioError)
+    async def report_studio_error(request, exc):
+        return JSONResponse(
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )
 
     @app.exception_handler(CapabilityError)

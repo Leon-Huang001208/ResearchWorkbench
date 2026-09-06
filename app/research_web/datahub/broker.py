@@ -115,6 +115,14 @@ def resolve(query: BusinessQuery, *, probes=None, environ=None) -> Resolution:
         "market_snapshot",
     }:
         legacy = query.model_copy(update={"source": "tinysoft"})
+    elif selected == "akshare" and query.capability in {
+        "search_assets",
+        "market_bars",
+        "market_snapshot",
+        "financials",
+        "market_activity",
+    }:
+        legacy = query.model_copy(update={"source": "akshare"})
     else:
         raise StoreError("所选来源已登记但尚未实现按需查询适配")
     return Resolution(selected, legacy, attempts)

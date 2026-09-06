@@ -378,6 +378,76 @@ textarea { resize: vertical; }
 .storage-list > div:first-child { border-top: 0; }
 .storage-list span, .storage-list small { display: block; }
 .storage-list small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.asset-search { display: grid; grid-template-columns: minmax(170px, 1.4fr) repeat(4, minmax(120px, 1fr)) auto; gap: 12px; align-items: end; padding: 18px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.asset-search label, .asset-personal label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+.asset-identity { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 22px; align-items: center; padding: 24px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.asset-identity h1 { margin: 5px 0 4px; font-size: 25px; }
+.asset-identity p { margin: 0; color: var(--muted); font-size: 11px; }
+.asset-price { display: grid; gap: 3px; text-align: right; }
+.asset-price strong { font-size: 25px; }
+.asset-price span { font-size: 11px; }
+.positive { color: #bd3f45; }
+.negative { color: #198456; }
+.asset-workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.asset-blocks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.asset-block { min-width: 0; min-height: 210px; padding: 18px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.asset-block > header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+.asset-block h2 { margin: 4px 0 0; font-size: 15px; }
+.asset-block.partial { border-color: #d4aa55; }
+.asset-block.error, .asset-block.unavailable { border-color: #c97878; }
+.asset-chart { display: block; width: 100%; height: 220px; margin-top: 12px; color: var(--muted); }
+.asset-chart line { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.asset-chart polyline { fill: none; stroke: var(--blue); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.asset-chart text { fill: var(--muted); font-size: 11px; }
+.chart-empty, .asset-skeleton { display: grid; min-height: 130px; place-items: center; color: var(--muted); font-size: 11px; }
+.asset-skeleton { border-radius: 8px; background: linear-gradient(90deg, var(--canvas), var(--surface), var(--canvas)); }
+.asset-table-wrap { margin-top: 14px; overflow: auto; }
+.asset-table { width: 100%; border-collapse: collapse; font-size: 10px; white-space: nowrap; }
+.asset-table th, .asset-table td { padding: 8px 9px; border-bottom: 1px solid var(--line); text-align: left; }
+.asset-table th { color: var(--muted); font-weight: 600; }
+.asset-personal { position: sticky; top: 78px; display: grid; gap: 14px; }
+.asset-personal > section { padding: 18px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.asset-personal form { display: grid; gap: 9px; margin: 12px 0; }
+.asset-personal textarea { min-height: 92px; resize: vertical; }
+.mini-form { display: grid; grid-template-columns: 1fr 64px 1fr; gap: 6px; }
+.personal-entry { padding: 9px 0; margin: 0; border-top: 1px solid var(--line); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.tiny-dot { display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: var(--muted); }
+.tiny-dot.active { background: var(--blue); }
+.report-studio-layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 18px; align-items: start; }
+.report-projects { position: sticky; top: 78px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.report-project-card { width: 100%; display: grid; gap: 6px; margin-top: 9px; padding: 14px; border: 1px solid transparent; border-radius: 9px; color: var(--text); background: transparent; text-align: left; }
+.report-project-card:hover, .report-project-card.active { border-color: var(--line); background: var(--canvas); }
+.report-project-card.active { box-shadow: inset 3px 0 var(--blue); }
+.report-project-card strong { font-size: 12px; }
+.report-project-card span, .report-project-card small { color: var(--muted); font-size: 10px; }
+.report-project-card i { color: var(--blue); font-size: 9px; font-style: normal; }
+.report-create { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.report-create summary { color: var(--blue); cursor: pointer; font-size: 10px; }
+.report-create form { display: grid; gap: 8px; margin-top: 12px; }
+.report-create label { display: grid; gap: 4px; color: var(--muted); font-size: 9px; }
+.report-detail { min-width: 0; }
+.report-detail > header { display: flex; justify-content: space-between; gap: 20px; padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.report-detail h2 { margin: 5px 0; }
+.report-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.report-overview-grid > article, .report-section { padding: 20px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.report-overview-grid h3, .report-section h3 { margin: 0 0 14px; font-size: 13px; }
+.report-overview-grid dl { margin: 0; }
+.report-overview-grid dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 10px; }
+.report-overview-grid dt { color: var(--muted); }
+.report-overview-grid dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.report-overview-grid form { display: grid; gap: 9px; }
+.report-overview-grid form label { display: grid; gap: 5px; color: var(--muted); font-size: 10px; }
+.report-overview-grid .format-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-overview-grid .format-options label { display: flex; align-items: center; gap: 4px; }
+.report-section { margin-top: 14px; }
+.report-runs, .report-artifacts, .report-versions { display: grid; gap: 9px; }
+.report-versions { margin-top: 12px; }
+.report-runs article, .report-artifacts article, .report-versions article { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.report-versions article > div { display: grid; gap: 3px; }
+.report-versions small { color: var(--muted); font-size: 9px; }
+.report-runs article > div, .report-artifacts article > div { min-width: 0; display: flex; align-items: center; gap: 9px; }
+.report-runs strong, .report-artifacts strong { overflow-wrap: anywhere; font-size: 11px; }
+.report-runs small, .report-artifacts small { color: var(--muted); font-size: 9px; }
 @media (min-width: 1700px) {
   .app-shell { grid-template-columns: 72px 255px minmax(0, 1fr) 338px; }
   .app-shell.wide-page { grid-template-columns: 72px 255px minmax(0, 1fr); }
@@ -397,6 +467,11 @@ textarea { resize: vertical; }
   .capability-notes { gap: 18px; padding-left: 0; padding-right: 0; }
   .claw-workspace-content { grid-template-columns: 1fr; }
   .workbench-form-grid, .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .asset-search { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .asset-search .button { justify-self: start; }
+  .asset-workspace-grid { grid-template-columns: 1fr; }
+  .asset-personal { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-studio-layout { grid-template-columns: 230px minmax(0, 1fr); }
   .claw-workspace-content .context-section + .context-section { border-top: 1px solid var(--line); border-left: 0; }
 }
 @media (max-width: 1050px) {
@@ -437,6 +512,13 @@ textarea { resize: vertical; }
   .page-content { padding: 22px 18px 0; }
   .desk-hero, .artifact-card { flex-direction: column; }
   .workbench-form-grid, .metrics-grid, .artifact-grid, .service-grid, .ops-list, .desk-metrics { grid-template-columns: 1fr; }
+  .asset-search, .asset-identity, .asset-blocks, .asset-personal { grid-template-columns: 1fr; }
+  .asset-price { text-align: left; }
+  .asset-identity .button-row { width: 100%; }
+  .asset-identity .button { flex: 1; }
+  .report-studio-layout, .report-overview-grid { grid-template-columns: 1fr; }
+  .report-projects { position: static; }
+  .report-detail > header, .report-runs article, .report-artifacts article { flex-direction: column; align-items: flex-start; }
   .desk-hero .button-row, .artifact-card .button-row { width: 100%; }
   .desk-hero .button, .artifact-card .button { flex: 1; }
   .landing { padding-top: 40px; }

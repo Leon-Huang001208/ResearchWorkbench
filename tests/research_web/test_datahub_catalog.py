@@ -20,11 +20,12 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(m
     import app.research_web.datahub.catalog as module
 
     monkeypatch.setattr(module.os, "environ", {})
+    monkeypatch.setattr(module, "find_spec", lambda name: object() if name == "akshare" else None)
     catalog = build_catalog()
     assert catalog["summary"] == {
         "capabilities": 13,
         "sources": 21,
-        "callable_sources": 2,
+        "callable_sources": 3,
         "needs_configuration": 9,
         "unavailable": 0,
     }
@@ -54,6 +55,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(m
     }
     assert all(source["readiness"]["code_exists"] for source in catalog["sources"])
     assert {source["id"] for source in catalog["sources"] if source["readiness"]["callable"]} == {
+        "akshare",
         "cls",
         "eastmoney_fund",
     }
@@ -80,6 +82,88 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(m
         "market_snapshot",
     }
     assert tinysoft_bindings["fund_data"] is False
+    akshare_bindings = {
+        row["capability_id"]: row["implemented"]
+        for row in catalog["bindings"]
+        if row["source_id"] == "akshare"
+    }
+    assert {key for key, implemented in akshare_bindings.items() if implemented} == {
+        "search_assets",
+        "market_bars",
+        "market_snapshot",
+        "financials",
+        "market_activity",
+    }
+
+
+@pytest.mark.asyncio
+async def test_akshare_provider_normalizes_business_data_without_legacy_run(monkeypatch):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+    package.stock_zh_a_daily = lambda **kwargs: pd.DataFrame(
+        [
+            {
+                "日期": "2026-09-04",
+                "开盘": 10.0,
+                "收盘": 10.5,
+                "最高": 10.8,
+                "最低": 9.9,
+                "成交量": 1000,
+                "成交额": 10500,
+                "换手率": 1.2,
+            }
+        ]
+    )
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_bars",
+            source="akshare",
+            parameters={
+                "asset": "600519.SH",
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-05",
+                "frequency": "daily",
+                "adjustment": "qfq",
+            },
+        )
+    )
+    assert result.status == "complete"
+    assert result.provider_id == "akshare"
+    assert result.rows == [
+        {
+            "asset": "600519.SH",
+            "date": "2026-09-04",
+            "open": 10.0,
+            "close": 10.5,
+            "high": 10.8,
+            "low": 9.9,
+            "volume": 1000.0,
+            "turnover": 10500.0,
+            "turnover_rate_pct": 1.2,
+        }
+    ]
+    assert result.fields["close"] == {"unit": "CNY", "currency": "CNY"}
+
+
+@pytest.mark.asyncio
+async def test_akshare_provider_sanitizes_unexpected_transport_failure(monkeypatch):
+    import app.research_web.datahub.providers_akshare as provider
+
+    monkeypatch.setattr(provider, "_invoke", lambda query: (_ for _ in ()).throw(OSError("secret")))
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="search_assets",
+            source="akshare",
+            parameters={"query": ""},
+        )
+    )
+    assert result.status == "failed"
+    assert result.limitations[-1] == "provider_error"
+    assert "secret" not in str(result.limitations)
 
 
 def test_business_query_rejects_provider_escape_hatches():
@@ -195,7 +279,7 @@ async def test_business_query_routes_only_integrated_sources_and_snapshots(tmp_p
         await hub.query(
             sid,
             "not-integrated",
-            BusinessQuery(capability="market_bars", parameters={"asset": "000001.SZ"}),
+            BusinessQuery(capability="factor_macro", parameters={"series": "CPI"}),
         )
     await hub.close()
 

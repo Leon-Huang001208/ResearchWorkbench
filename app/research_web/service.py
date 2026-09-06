@@ -18,10 +18,12 @@ from .capabilities.catalog import CapabilityCatalog
 from .capabilities.models import CapabilityError, Metadata, Step
 from .capabilities.packages import MAX_COMPRESSED, import_package
 from .capabilities.tools import SELECTABLE
+from .asset_workspace import AssetWorkspace
 from .client import DSHClient, RuntimeFailure
 from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
 from .projection import project
+from .report_studio import ReportStudio
 from .store import Store, StoreError
 
 log = get_logger(__name__)
@@ -42,6 +44,8 @@ class ResearchService:
         self.delivery = Delivery(store, delivery_python)
         self.capabilities = CapabilityCatalog(store.root)
         self.datahub = DataHub(store)
+        self.asset_workspace = AssetWorkspace(self)
+        self.report_studio = ReportStudio(self)
         self.connected: set[str] = set()
         self.event_revision = 0
         self.events: dict[str, dict[int, dict]] = {}
@@ -74,8 +78,11 @@ class ResearchService:
 
     async def start(self):
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
+        await self.report_studio.start()
 
     async def close(self):
+        await self.report_studio.close()
+        await self.asset_workspace.close()
         await self.datahub.close()
         if self.pump:
             self.pump.cancel()

@@ -80,6 +80,12 @@ def seed_packages():
             "company-research",
             "确认公司身份、期间与用户上传资料；仅通过现有工具补充有来源的材料。",
         ),
+        (
+            "report-production-workflow",
+            "报告项目资料准备与文件交付",
+            "company-research",
+            "核对报告项目锁定版本、模板、底稿、数据配方和必需输出；先准备一份共享资料包。",
+        ),
     ]:
         packages.append(
             (

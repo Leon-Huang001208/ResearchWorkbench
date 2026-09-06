@@ -15,7 +15,7 @@ from .projection import content_text
 from .store import StoreError
 
 log = get_logger(__name__)
-FORMATS = ("md", "html", "docx", "xlsx", "png")
+FORMATS = ("md", "html", "docx", "xlsx", "pptx", "png")
 SKILL_DEFAULTS = {
     "fund-evaluation": ["docx", "html", "xlsx"],
     "company-research": ["docx", "html", "xlsx"],
