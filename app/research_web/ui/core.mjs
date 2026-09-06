@@ -1,6 +1,6 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'reports', 'skills', 'history', 'operations', 'settings']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'operations', 'settings']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 
 export function parseRoute(hash = '') {
@@ -12,11 +12,16 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'skills' && ['skill', 'tool', 'workflow', 'data'].includes(params.get('kind'))) route.capabilityKind = params.get('kind');
   if (page === 'workbench') {
     const requestedSection = sectionSegment || params.get('section');
     route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
   }
   return route;
+}
+
+export function legacyRouteTarget(hash = '') {
+  return /^#\/reports\/?$/.test(String(hash)) ? '#/skills?kind=workflow' : null;
 }
 export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
 export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting', 'waiting_approval', 'awaiting_approval', 'waiting_input', 'busy', 'cancelling'].includes(status);

@@ -4,16 +4,16 @@ import { readFile } from 'node:fs/promises';
 
 const root = new URL('../../app/research_web/ui/', import.meta.url);
 
-test('routes and navigation expose research desk and read-only operations', async () => {
+test('routes and navigation expose research desk and read-only operations without a report studio', async () => {
   const { parseRoute } = await import(new URL('core.mjs', root));
   const shell = await import(new URL('shell.mjs', root));
   assert.equal(parseRoute('#/workbench?section=funds').page, 'workbench');
   assert.equal(parseRoute('#/workbench?section=funds').section, 'funds');
   assert.equal(parseRoute('#/workbench/funds').section, 'funds');
   assert.equal(parseRoute('#/operations').page, 'operations');
-  assert.equal(parseRoute('#/reports').page, 'reports');
   const rail = shell.renderPrimaryRail({ page: 'workbench' });
-  for (const label of ['研究台', '报告工作室', '运行与用量']) assert.match(rail, new RegExp(label));
+  for (const label of ['研究台', '运行与用量']) assert.match(rail, new RegExp(label));
+  assert.doesNotMatch(rail, /报告工作室|#\/reports/);
 });
 
 test('research desk renders five real-state sections and gives reports a dedicated module', async () => {
@@ -71,32 +71,13 @@ test('operations page makes unknown usage and missing pricing explicit', async (
   assert.doesNotMatch(html, /data-restart|data-stop|data-delete|清库/);
 });
 
-test('app uses dedicated workbench, report and operations modules', async () => {
+test('app uses dedicated workbench and operations modules without a report studio route', async () => {
   const source = await readFile(new URL('app.mjs', root), 'utf8');
-  for (const expected of ['./workbench.mjs', './report-studio.mjs', './operations.mjs', 'workbenchPage', 'reportStudioPage', 'operationsPage']) {
+  for (const expected of ['./workbench.mjs', './operations.mjs', 'workbenchPage', 'operationsPage']) {
     assert.ok(source.includes(expected));
   }
+  for (const removed of ['./report-studio.mjs', 'reportStudioPage', "state.route.page === 'reports'"]) assert.equal(source.includes(removed), false);
   assert.ok(source.includes('api.dataQueries(section)'));
   assert.ok(source.includes('loadAssetWorkspace'));
   assert.ok(source.includes('api.operationsSummary(operationsRange)'));
-});
-
-test('report studio separates project, locked workflow, schedule, run and delivery state', async () => {
-  const reports = await import(new URL('report-studio.mjs', root));
-  const project = {
-    id: 'huaan-etf-weekly', name: '华安ETF周报', project_type: 'weekly', status: 'ready', current_version: 1,
-    versions: [{ version: 1, workflow: { id: 'report-production-workflow' }, output_formats: ['docx', 'html', 'xlsx'], files: [{ path: 'templates/report.docx' }], data_recipe: [] }],
-    schedule: { kind: 'weekly', enabled: true, weekday: 4, hour: 17, minute: 0, next_run_at: '2026-09-11T09:00:00+00:00' },
-  };
-  const html = reports.renderReportStudio({
-    projects: [project], project,
-    runs: [{ id: 'run-1', trigger: 'manual', status: 'running', delivery_status: 'pending', version: 1, session_id: 'session-1', created_at: 1 }],
-    artifacts: [{ id: 'file-1', name: '周报.docx', size: 42, historical: true, url: '/download' }],
-  });
-  assert.match(html, /报告工作室/);
-  assert.match(html, /report-production-workflow/);
-  assert.match(html, /data-report-schedule/);
-  assert.match(html, /Claw 执行中/);
-  assert.match(html, /历史只读产物/);
-  assert.doesNotMatch(html, /Evidence|Claim|Quality Gate/);
 });

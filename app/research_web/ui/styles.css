@@ -329,6 +329,32 @@ textarea { resize: vertical; }
 .workflow-plan li { margin: 14px 0; font-size: 12px; }
 .workflow-plan small { display: block; overflow-wrap: anywhere; }
 .workflow-plan p { margin: 5px 0; }
+.workflow-plan .step-type { display: inline-block; margin: 0 8px 5px 0; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 9px; }
+.capability-intro { margin: -6px 0 20px; padding: 12px 14px; border-left: 2px solid var(--blue); background: var(--blue-soft); color: var(--muted); font-size: 11px; line-height: 1.7; }
+.report-workflow-card { box-shadow: inset 0 2px var(--blue); }
+.report-workflow-card .card-top { width: 100%; flex-wrap: wrap; }
+.report-workflow-card .card-top .badge { margin-left: auto; }
+.report-workflow-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
+.report-workflow-card-meta span { padding: 4px 7px; border-radius: 6px; background: var(--canvas); color: var(--muted); font-size: 9px; }
+.report-workflow-detail { margin: 24px 0; padding: 20px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.report-workflow-detail > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.report-workflow-detail h3 { margin: 4px 0 0; }
+.report-workflow-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.report-workflow-grid article { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); }
+.report-workflow-grid h4, .report-workflow-steps > h4 { margin: 0 0 10px; font-size: 12px; }
+.report-workflow-grid ul, .resource-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.report-workflow-grid li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
+.resource-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); justify-content: start; }
+.resource-list li > span { padding: 2px 5px; border-radius: 4px; background: var(--blue-soft); color: var(--blue); }
+.resource-list code { grid-column: 1 / -1; color: var(--muted); overflow-wrap: anywhere; }
+.report-workflow-steps { margin-top: 16px; }
+.step-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.locked-workflow-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; margin-bottom: 14px; padding: 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.locked-workflow-summary > div { display: grid; gap: 4px; min-width: 0; }
+.locked-workflow-summary strong, .locked-workflow-summary .mono { overflow-wrap: anywhere; }
+.locked-workflow-summary p { grid-column: 1 / -1; margin: 0; }
+.quick-report-workflow { position: relative; align-items: flex-start; }
+.quick-report-workflow > .badge { margin: 2px 0 8px 12px; }
 .capability-editor fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
 .capability-editor label:not(.check-label) { display: grid; gap: 7px; margin-bottom: 12px; }
 .capability-editor input:not([type="checkbox"]), .capability-editor textarea, .capability-editor select { width: 100%; }
@@ -540,6 +566,10 @@ textarea { resize: vertical; }
   .settings-card { padding: 20px; }
   .form-grid { grid-template-columns: 1fr; }
   .capability-detail, .capability-editor { padding: 16px; }
+  .report-workflow-grid { grid-template-columns: 1fr; }
+  .report-workflow-detail > header, .locked-workflow-summary { grid-template-columns: 1fr; flex-direction: column; }
+  .locked-workflow-summary p { grid-column: 1; }
+  .workflow-step-row .button, .workflow-step-row select { min-height: 44px; }
   .capability-filters { gap: 10px; }
   .capability-filters .search-box { flex-basis: 100%; }
   .composer-tools { flex-wrap: wrap; }

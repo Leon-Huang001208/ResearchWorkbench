@@ -8,7 +8,6 @@ const navItems = [
   ['fingpt', 'chat', 'FinGPT'],
   ['claw', 'layers', 'Claw'],
   ['workbench', 'chart', '研究台'],
-  ['reports', 'document', '报告工作室'],
   ['skills', 'grid', '能力中心'],
   ['history', 'history', '研究历史'],
   ['operations', 'activity', '运行与用量'],
@@ -59,6 +58,19 @@ export function renderClawWorkspaceCanvas({ detail, selectedPreview = null, busy
   return `<section class="claw-workspace-canvas" aria-label="当前 Claw 会话工作区"><header class="claw-workspace-header"><div><span class="eyebrow">CURRENT CLAW WORKSPACE</span><h2>${e(detail?.title || '当前 Claw 会话')}</h2><p class="muted">只显示当前会话的资料与文件；不会读取或混入其他会话。</p></div></header><div class="claw-workspace-content">${datasets}${files}</div></section>`;
 }
 
+const deliveryLabel = (status) => ({ pending: '等待交付', validating: '交付校验中', complete: '交付完整', incomplete: '交付不完整' })[status] || (status ? `交付：${status}` : '交付状态未知');
+
+export function renderLockedWorkflowSummary(detail) {
+  if (detail?.mode !== 'claw') return '';
+  const locked = detail.report_workflow || (detail.capability?.kind === 'workflow' ? detail.capability : null);
+  if (!locked?.workflow_id && !locked?.id) return '';
+  const id = locked.workflow_id || locked.id;
+  const name = locked.name || detail.capability?.name || id;
+  const version = locked.version || detail.capability?.version;
+  const delivery = locked.delivery_status || detail.delivery?.status;
+  return `<section class="locked-workflow-summary" aria-label="锁定 Workflow 只读摘要"><div><span class="eyebrow">锁定 Workflow · 只读摘要</span><strong>${e(name)}</strong><span class="mono">${e(id)}${version ? ` · v${e(version)}` : ''}</span></div><span class="badge ${delivery === 'complete' ? 'live' : delivery === 'incomplete' ? 'danger' : ''}">${e(deliveryLabel(delivery))}</span><p class="muted small">步骤执行证据以活动记录为准；文件是否完成以独立交付校验为准。</p></section>`;
+}
+
 export function renderSidebar({ page, sessionId, sessions = [], workspaces = [], selectedWorkspace = '', collapsed = false, mobileOpen = false, detail = null, clawSidebarView = 'sessions' } = {}) {
   const allSessions = Array.isArray(sessions) ? sessions : [];
   const recent = allSessions.slice(0, 10);
@@ -73,11 +85,11 @@ export function renderSidebar({ page, sessionId, sessions = [], workspaces = [],
 export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpen = false, selectedPreview = null, busy = false, workflow = null } = {}) {
   if (!detail) return '';
   const tabs = [['activity', '活动'], ['datasets', '资料'], ['files', '文件']];
-  const panel = selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview)}</section>` : `${renderDelivery(detail?.delivery)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
+  const panel = selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview)}</section>` : `${renderLockedWorkflowSummary(detail)}${renderDelivery(detail?.delivery)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
   return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 
 export function renderTopbar({ page = 'fingpt', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
-  const title = ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', reports: '报告工作室', skills: '能力中心', history: '研究历史', operations: '运行与用量', settings: '设置' })[page] || 'FinGPT';
+  const title = ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', skills: '能力中心', history: '研究历史', operations: '运行与用量', settings: '设置' })[page] || 'FinGPT';
   return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><div class="topbar-title"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><span>${e(title)}</span><span class="title-separator">/</span><span class="page-subtitle">${e(detail?.title || (['fingpt', 'claw'].includes(page) ? '新研究' : '工作台'))}</span></div><button type="button" class="icon-button mobile-search-toggle" data-toggle-search aria-label="${searchOpen ? '关闭全局搜索' : '打开全局搜索'}" aria-expanded="${searchOpen}">${icon('search')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div><div class="topbar-right"><a href="#/settings" class="runtime-status"><span class="tiny-dot ${runtime?.connected ? 'active' : ''}"></span>${e(runtimeLabel || 'DSH 未连接')}</a><button class="icon-button" data-refresh aria-label="刷新服务状态" title="刷新服务状态">↻</button></div></header>`;
 }
