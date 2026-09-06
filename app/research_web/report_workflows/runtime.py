@@ -423,6 +423,31 @@ class ReportWorkflowRuntime:
             row.setdefault("schedule", {})["next_run_at"] = value.astimezone(UTC).isoformat()
             self.catalog._save()
 
+    def _record_schedule_failure(
+        self, workflow_id: str, code: str, now: datetime, *, disable: bool = False
+    ) -> None:
+        safe_code = code if re.fullmatch(r"[a-z0-9_]{1,64}", code) else "schedule_failed"
+        with self.catalog._exclusive():
+            row = self.catalog.data["workflows"].get(workflow_id)
+            if row is None:
+                return
+            schedule = row.get("schedule")
+            if not isinstance(schedule, dict):
+                schedule = {"kind": "manual", "enabled": False}
+                row["schedule"] = schedule
+            schedule.update(
+                last_error_code=safe_code,
+                last_error_at=now.astimezone(UTC).isoformat(),
+            )
+            if disable:
+                schedule.update(enabled=False, next_run_at=None)
+            self.catalog._save()
+        log.warning(
+            "report_workflow_schedule_failed",
+            workflow_id=workflow_id,
+            error_code=safe_code,
+        )
+
     async def tick(self, now: datetime | None = None) -> None:
         now = now or datetime.now(UTC)
         with self.catalog._exclusive():
@@ -431,16 +456,43 @@ class ReportWorkflowRuntime:
                 for workflow_id, row in self.catalog.data["workflows"].items()
             ]
         for workflow_id, schedule in scheduled:
-            due = schedule.get("next_run_at")
-            if not schedule.get("enabled") or not due or datetime.fromisoformat(due) > now:
+            if not schedule.get("enabled"):
                 continue
-            await self.start_run(workflow_id, trigger="schedule")
+            try:
+                due = schedule.get("next_run_at")
+                if not isinstance(due, str):
+                    raise TypeError("missing due time")
+                if datetime.fromisoformat(due) > now:
+                    continue
+            except (TypeError, ValueError):
+                self._record_schedule_failure(workflow_id, "schedule_invalid", now, disable=True)
+                continue
+            try:
+                await self.start_run(workflow_id, trigger="schedule")
+            except WorkflowError as exc:
+                disable = exc.code in {
+                    "workflow_disabled",
+                    "workflow_not_enabled",
+                    "version_required",
+                }
+                self._record_schedule_failure(workflow_id, exc.code, now, disable=disable)
+                continue
+            except Exception as exc:  # noqa: BLE001 - isolate each persisted schedule.
+                log.error(
+                    "report_workflow_schedule_trigger_failed",
+                    workflow_id=workflow_id,
+                    error_type=type(exc).__name__,
+                )
+                self._record_schedule_failure(workflow_id, "schedule_trigger_failed", now)
+                continue
             with self.catalog._exclusive():
                 # start_run may update the persisted catalog. Re-read while holding
                 # the lock instead of mutating the stale schedule captured above.
                 row = self.catalog._row(workflow_id)
                 schedule = row.get("schedule") or {}
                 schedule["last_triggered_at"] = now.isoformat()
+                schedule["last_error_code"] = None
+                schedule["last_error_at"] = None
                 if schedule["kind"] == "once":
                     schedule.update(enabled=False, next_run_at=None)
                 else:

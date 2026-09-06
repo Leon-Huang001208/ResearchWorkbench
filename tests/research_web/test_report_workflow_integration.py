@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.research_web.main import create_app
+from app.research_web.report_workflows import migration as migration_module
 from app.research_web.report_workflows.models import (
     WorkbookRefreshResult,
     WorkflowError,
@@ -330,6 +331,77 @@ def test_schedule_is_shanghai_non_reentrant_and_catches_up_once(api, tmp_path):
     )
 
 
+def test_scheduler_isolates_disabled_workflow_and_continues_due_items(api, tmp_path, monkeypatch):
+    client, service, _ = api
+    for workflow_id in ("disabled-report", "ready-report"):
+        _create_version(client, tmp_path, workflow_id)
+        client.post(f"/api/research/report-workflows/{workflow_id}/versions/1/publish")
+        client.put(
+            f"/api/research/report-workflows/{workflow_id}/schedule",
+            json={"kind": "weekly", "enabled": True, "weekday": 6, "hour": 11, "minute": 0},
+        )
+    client.post("/api/research/report-workflows/disabled-report/disable")
+    now = datetime(2026, 9, 6, 4, 0, tzinfo=UTC)
+    for workflow_id in ("disabled-report", "ready-report"):
+        service.report_workflows.runtime._set_schedule_due_for_test(
+            workflow_id, now - timedelta(days=7)
+        )
+    called = []
+
+    async def start_run(workflow_id, **kwargs):
+        if workflow_id == "disabled-report":
+            raise WorkflowError("Workflow 已停用", "workflow_disabled", 409)
+        called.append((workflow_id, kwargs))
+        return {"id": "scheduled"}
+
+    monkeypatch.setattr(service.report_workflows.runtime, "start_run", start_run)
+    asyncio.run(service.report_workflows.runtime.tick(now))
+
+    assert called == [("ready-report", {"trigger": "schedule"})]
+    failed_schedule = service.report_workflows.runtime.schedule("disabled-report")
+    assert failed_schedule["last_error_code"] == "workflow_disabled"
+    assert failed_schedule["enabled"] is False
+    assert service.report_workflows.runtime.schedule("ready-report")["last_error_code"] is None
+
+
+def test_scheduler_isolates_malformed_and_unexpected_failures(api, tmp_path, monkeypatch):
+    client, service, _ = api
+    for workflow_id in ("malformed-report", "error-report", "later-report"):
+        _create_version(client, tmp_path, workflow_id)
+        client.post(f"/api/research/report-workflows/{workflow_id}/versions/1/publish")
+        client.put(
+            f"/api/research/report-workflows/{workflow_id}/schedule",
+            json={"kind": "weekly", "enabled": True, "weekday": 6, "hour": 11, "minute": 0},
+        )
+    now = datetime(2026, 9, 6, 4, 0, tzinfo=UTC)
+    for workflow_id in ("error-report", "later-report"):
+        service.report_workflows.runtime._set_schedule_due_for_test(
+            workflow_id, now - timedelta(days=7)
+        )
+    with service.report_workflows.catalog._exclusive():
+        malformed = service.report_workflows.catalog._row("malformed-report")["schedule"]
+        malformed["next_run_at"] = "not-a-date"
+        service.report_workflows.catalog._save()
+    called = []
+
+    async def start_run(workflow_id, **kwargs):
+        if workflow_id == "error-report":
+            raise RuntimeError("private provider detail")
+        called.append((workflow_id, kwargs))
+        return {"id": "scheduled"}
+
+    monkeypatch.setattr(service.report_workflows.runtime, "start_run", start_run)
+    asyncio.run(service.report_workflows.runtime.tick(now))
+
+    assert called == [("later-report", {"trigger": "schedule"})]
+    malformed = service.report_workflows.runtime.schedule("malformed-report")
+    assert malformed["last_error_code"] == "schedule_invalid"
+    assert malformed["enabled"] is False
+    failed = service.report_workflows.runtime.schedule("error-report")
+    assert failed["last_error_code"] == "schedule_trigger_failed"
+    assert "private provider detail" not in json.dumps(failed)
+
+
 def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     client, service, _ = api
     source = tmp_path / "report_projects"
@@ -414,6 +486,20 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     assert str(tmp_path) not in service.report_workflows.catalog.index.read_text()
     assert source.exists()
 
+    new_history = source / "华安ETF周报" / "generated" / "new.pdf"
+    new_history.write_bytes(b"new-history")
+    history_update = service.report_workflows.migration.migrate(source, dry_run=False)
+    history_project = next(
+        item for item in history_update["projects"] if item["id"] == "huaan-etf-weekly"
+    )
+    assert history_project["migration_status"] == "history_updated"
+    migrated = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
+    assert any(item["path"] == "generated/new.pdf" for item in migrated["historical_artifacts"])
+    assert migrated["migration"]["history_sha256"] == history_project["history_sha256"]
+    stable = service.report_workflows.migration.migrate(source, dry_run=False)
+    stable_project = next(item for item in stable["projects"] if item["id"] == "huaan-etf-weekly")
+    assert stable_project["migration_status"] == "already_present"
+
     (source / "华安ETF周报" / "templates" / "report.docx").write_bytes(b"changed-template")
     conflict = service.report_workflows.migration.migrate(source, dry_run=False)
     project = next(item for item in conflict["projects"] if item["id"] == "huaan-etf-weekly")
@@ -426,6 +512,61 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     assert not any(item.get("workflow_id") == "huaan-etf-weekly" for item in conflict["accepted"])
     detail = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
     assert detail["status"] == "needs_attention"
+
+
+def test_migration_rejects_project_and_duplicate_directory_symlinks(api, tmp_path):
+    _, service, _ = api
+    source = tmp_path / "report_projects"
+    primary = source / "华安ETF周报"
+    (primary / "templates").mkdir(parents=True)
+    (primary / "project.yaml").write_text("name: 华安ETF周报\n")
+    (primary / "templates" / "report.docx").write_bytes(b"safe-template")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.docx").write_bytes(b"outside-secret")
+    (source / "创业板50周报").symlink_to(outside, target_is_directory=True)
+    (source / "华安ETF周报 2").symlink_to(outside, target_is_directory=True)
+    (primary / "linked-assets").symlink_to(outside, target_is_directory=True)
+
+    report = service.report_workflows.migration.migrate(source, dry_run=True)
+
+    assert report["project_count"] == 1
+    assert any(
+        item["path"] == "创业板50周报" and item["reason"] == "unsafe_project_directory"
+        for item in report["rejected"]
+    )
+    assert any(item["reason"] == "unsafe_duplicate_directory" for item in report["quarantined"])
+    assert not any(
+        item["sha256"] == migration_module._sha256(outside / "secret.docx")
+        for item in report["accepted"]
+    )
+
+
+def test_migration_fails_closed_when_source_changes_after_scan(api, tmp_path, monkeypatch):
+    _, service, _ = api
+    source = tmp_path / "report_projects"
+    folder = source / "华安ETF周报"
+    (folder / "templates").mkdir(parents=True)
+    (folder / "project.yaml").write_text("name: 华安ETF周报\n")
+    template = folder / "templates" / "report.docx"
+    template.write_bytes(b"scanned-content")
+    original_sha256 = migration_module._sha256
+    changed = False
+
+    def race(path):
+        nonlocal changed
+        digest = original_sha256(path)
+        if path == template and not changed:
+            changed = True
+            path.write_bytes(b"changed-after-scan")
+        return digest
+
+    monkeypatch.setattr(migration_module, "_sha256", race)
+    with pytest.raises(WorkflowError) as caught:
+        service.report_workflows.migration.migrate(source, dry_run=False)
+
+    assert caught.value.code == "migration_source_changed"
+    assert service.report_workflows.list() == []
 
 
 def test_migration_rejects_symlink_source(api, tmp_path):

@@ -5,8 +5,11 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import shutil
+import tempfile
 import time
+from contextlib import suppress
 from pathlib import Path
 from uuid import uuid4
 
@@ -52,10 +55,25 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _project_sha256(project: dict) -> str:
-    payload = sorted((item["logical_path"], item["sha256"]) for item in project["resources"])
+def _items_sha256(items: list[dict], path_key: str) -> str:
+    payload = sorted((item[path_key], item["sha256"]) for item in items)
     return hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _set_project_identity(project: dict) -> None:
+    project["resource_sha256"] = _items_sha256(project["resources"], "logical_path")
+    project["history_sha256"] = _items_sha256(project["history"], "path")
+    project["source_sha256"] = hashlib.sha256(
+        json.dumps(
+            {
+                "resources": project["resource_sha256"],
+                "history": project["history_sha256"],
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
     ).hexdigest()
 
 
@@ -72,6 +90,7 @@ class ReportWorkflowMigration:
         return (Path("assets") / relative).as_posix()
 
     def _scan(self, folder: Path, workflow_id: str, formats: list[str]) -> dict:
+        root = folder.resolve(strict=True)
         config = {}
         for filename in ("project.yaml", "report_config.yaml"):
             candidate = folder / filename
@@ -90,7 +109,7 @@ class ReportWorkflowMigration:
             if (
                 candidate.is_file()
                 and not candidate.is_symlink()
-                and candidate.resolve().is_relative_to(folder.resolve())
+                and candidate.resolve().is_relative_to(root)
             ):
                 try:
                     loaded = yaml.safe_load(candidate.read_text())
@@ -100,8 +119,32 @@ class ReportWorkflowMigration:
                     pass
         resources = []
         history = []
+        scan_issues = []
         for path in sorted(folder.rglob("*")):
-            if not path.is_file() or path.is_symlink() or path.name == ".DS_Store":
+            if path.is_symlink():
+                scan_issues.append(
+                    {"path": path.relative_to(folder).as_posix(), "reason": "unsafe_symlink"}
+                )
+                continue
+            try:
+                resolved = path.resolve(strict=True)
+            except OSError:
+                scan_issues.append(
+                    {
+                        "path": path.relative_to(folder).as_posix(),
+                        "reason": "source_unreadable",
+                    }
+                )
+                continue
+            if not resolved.is_relative_to(root):
+                scan_issues.append(
+                    {
+                        "path": path.relative_to(folder).as_posix(),
+                        "reason": "source_outside_project",
+                    }
+                )
+                continue
+            if not resolved.is_file() or path.name == ".DS_Store":
                 continue
             relative = path.relative_to(folder)
             if ".preview-cache" in relative.parts:
@@ -109,9 +152,10 @@ class ReportWorkflowMigration:
             item = {
                 "path": relative.as_posix(),
                 "logical_path": self._logical_path(relative),
-                "sha256": _sha256(path),
-                "size": path.stat().st_size,
-                "source_path": str(path),
+                "sha256": _sha256(resolved),
+                "size": resolved.stat().st_size,
+                "source_path": str(resolved),
+                "source_root": str(root),
             }
             if any(part in HISTORY_PARTS for part in relative.parts):
                 history.append(item)
@@ -132,6 +176,7 @@ class ReportWorkflowMigration:
             "history": history,
             "config": config,
             "report_config": report_config,
+            "scan_issues": scan_issues,
         }
 
     @staticmethod
@@ -190,41 +235,100 @@ class ReportWorkflowMigration:
             raise WorkflowError("迁移源目录不可读取", "migration_source_invalid", 422) from exc
         if root.is_symlink() or not root.is_dir():
             raise WorkflowError("迁移源目录不可读取", "migration_source_invalid", 422)
-        projects = []
-        rejected = []
-        quarantined = []
+        projects: list[dict] = []
+        rejected: list[dict] = []
+        quarantined: list[dict] = []
         for folder in sorted(root.iterdir()):
-            if not folder.is_dir() or folder.name == "华安ETF周报 2":
+            if folder.name == "华安ETF周报 2":
                 continue
             spec = KNOWN.get(folder.name)
+            if folder.is_symlink():
+                if spec:
+                    rejected.append({"path": folder.name, "reason": "unsafe_project_directory"})
+                continue
+            try:
+                resolved = folder.resolve(strict=True)
+            except OSError:
+                if spec:
+                    rejected.append({"path": folder.name, "reason": "source_unreadable"})
+                continue
+            if not resolved.is_dir() or not resolved.is_relative_to(root):
+                if spec:
+                    rejected.append({"path": folder.name, "reason": "unsafe_project_directory"})
+                continue
             if not spec:
                 rejected.append({"path": folder.name, "reason": "unknown_project"})
                 continue
-            projects.append(self._scan(folder, *spec))
+            project = self._scan(resolved, *spec)
+            projects.append(project)
+            quarantined.extend(
+                {**issue, "workflow_id": project["id"]} for issue in project.get("scan_issues", [])
+            )
         duplicate = root / "华安ETF周报 2"
         primary = next((item for item in projects if item["id"] == "huaan-etf-weekly"), None)
-        if duplicate.is_dir() and primary:
+        duplicate_root = None
+        if duplicate.is_symlink():
+            quarantined.append({"path": duplicate.name, "reason": "unsafe_duplicate_directory"})
+        elif duplicate.exists():
+            try:
+                resolved = duplicate.resolve(strict=True)
+                if resolved.is_dir() and resolved.is_relative_to(root):
+                    duplicate_root = resolved
+                else:
+                    quarantined.append(
+                        {"path": duplicate.name, "reason": "unsafe_duplicate_directory"}
+                    )
+            except OSError:
+                quarantined.append({"path": duplicate.name, "reason": "unsafe_duplicate_directory"})
+        if duplicate_root is not None and primary:
             resource_paths = {item["logical_path"]: item["sha256"] for item in primary["resources"]}
             history_paths = {item["path"]: item["sha256"] for item in primary["history"]}
             hashes = {item["sha256"] for item in [*primary["resources"], *primary["history"]]}
-            for path in sorted(duplicate.rglob("*")):
-                if not path.is_file() or path.is_symlink():
+            for path in sorted(duplicate_root.rglob("*")):
+                if path.is_symlink():
+                    quarantined.append(
+                        {
+                            "path": path.relative_to(duplicate_root).as_posix(),
+                            "reason": "unsafe_symlink",
+                        }
+                    )
                     continue
-                relative = path.relative_to(duplicate)
+                try:
+                    resolved = path.resolve(strict=True)
+                except OSError:
+                    quarantined.append(
+                        {
+                            "path": path.relative_to(duplicate_root).as_posix(),
+                            "reason": "source_unreadable",
+                        }
+                    )
+                    continue
+                if not resolved.is_relative_to(duplicate_root):
+                    quarantined.append(
+                        {
+                            "path": path.relative_to(duplicate_root).as_posix(),
+                            "reason": "source_outside_project",
+                        }
+                    )
+                    continue
+                if not resolved.is_file():
+                    continue
+                relative = resolved.relative_to(duplicate_root)
                 if ".preview-cache" in relative.parts:
                     continue
                 historical = any(part in HISTORY_PARTS for part in relative.parts)
-                if not historical and path.suffix.lower() not in ALLOWED:
+                if not historical and resolved.suffix.lower() not in ALLOWED:
                     continue
-                digest = _sha256(path)
+                digest = _sha256(resolved)
                 if digest in hashes:
                     continue
-                item = {
+                item: dict = {
                     "path": relative.as_posix(),
                     "logical_path": self._logical_path(relative),
                     "sha256": digest,
-                    "size": path.stat().st_size,
-                    "source_path": str(path),
+                    "size": resolved.stat().st_size,
+                    "source_path": str(resolved),
+                    "source_root": str(duplicate_root),
                 }
                 if historical:
                     if item["path"] in history_paths:
@@ -254,7 +358,7 @@ class ReportWorkflowMigration:
                 resource_paths[logical] = digest
                 hashes.add(digest)
         for project in projects:
-            project["source_sha256"] = _project_sha256(project)
+            _set_project_identity(project)
 
         outcomes: dict[str, str] = {}
         for project in projects:
@@ -271,7 +375,11 @@ class ReportWorkflowMigration:
                 )
         accepted = [
             {
-                **{key: value for key, value in resource.items() if key != "source_path"},
+                **{
+                    key: value
+                    for key, value in resource.items()
+                    if key not in {"source_path", "source_root"}
+                },
                 "workflow_id": project["id"],
                 "migration_status": outcomes[project["id"]],
             }
@@ -286,10 +394,16 @@ class ReportWorkflowMigration:
             "source_sha256": hashlib.sha256(
                 json.dumps(
                     sorted(
-                        (item["logical_path"], item["sha256"])
+                        (project["id"], kind, item[path_key], item["sha256"])
                         for project in projects
-                        for item in project["resources"]
-                    )
+                        for kind, values, path_key in (
+                            ("resource", project["resources"], "logical_path"),
+                            ("history", project["history"], "path"),
+                        )
+                        for item in values
+                    ),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
                 ).encode()
             ).hexdigest(),
             "project_count": len(projects),
@@ -309,6 +423,8 @@ class ReportWorkflowMigration:
                     "name": item["name"],
                     "status": item["status"],
                     "source_sha256": item["source_sha256"],
+                    "resource_sha256": item["resource_sha256"],
+                    "history_sha256": item["history_sha256"],
                     "migration_status": outcomes[item["id"]],
                     "resource_count": len(item["resources"]),
                     "resource_bytes": sum(resource["size"] for resource in item["resources"]),
@@ -333,16 +449,115 @@ class ReportWorkflowMigration:
             row = self.catalog.data["workflows"].get(project["id"])
             if row is None:
                 return "pending"
-            existing = (row.get("migration") or {}).get("source_sha256")
-            return "already_present" if existing == project["source_sha256"] else "conflict"
+            return self._migration_state(row, project)
+
+    @staticmethod
+    def _migration_state(row: dict, project: dict) -> str:
+        migration = row.get("migration") or {}
+        # Before split identities were introduced, source_sha256 represented only
+        # the immutable resource package. Preserve idempotency for those records.
+        existing_resources = migration.get("resource_sha256") or migration.get("source_sha256")
+        if existing_resources != project["resource_sha256"]:
+            return "conflict"
+        if migration.get("history_sha256") == project["history_sha256"]:
+            return "already_present"
+        return "history_updated"
+
+    @staticmethod
+    def _verified_bytes(item: dict) -> bytes:
+        try:
+            source = Path(item["source_path"])
+            root = Path(item["source_root"]).resolve(strict=True)
+            if source.is_symlink():
+                raise OSError("symlink")
+            resolved = source.resolve(strict=True)
+            if not resolved.is_file() or not resolved.is_relative_to(root):
+                raise OSError("outside source root")
+            raw = resolved.read_bytes()
+        except (KeyError, OSError) as exc:
+            raise WorkflowError(
+                "迁移源文件在导入前发生变化", "migration_source_changed", 409
+            ) from exc
+        digest = hashlib.sha256(raw).hexdigest()
+        if digest != item["sha256"] or len(raw) != item["size"]:
+            raise WorkflowError("迁移源文件在导入前发生变化", "migration_source_changed", 409)
+        return raw
+
+    def _verify_project(self, project: dict) -> dict[str, bytes]:
+        return {
+            item["source_path"]: self._verified_bytes(item)
+            for item in [*project["resources"], *project["history"]]
+        }
+
+    @staticmethod
+    def _atomic_history_file(target: Path, raw: bytes, expected_sha256: str) -> bool:
+        if target.exists():
+            if target.is_symlink() or not target.is_file() or _sha256(target) != expected_sha256:
+                raise WorkflowError("历史产物存储冲突", "migration_history_conflict", 409)
+            return False
+        fd, temporary = tempfile.mkstemp(prefix="history-", dir=target.parent)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chmod(temporary, 0o400)
+            os.replace(temporary, target)
+            return True
+        except OSError as exc:
+            raise WorkflowError(
+                "历史产物无法安全保存", "migration_history_unavailable", 503
+            ) from exc
+        finally:
+            if os.path.exists(temporary):
+                with suppress(OSError):
+                    os.unlink(temporary)
+
+    def _append_history_locked(self, row: dict, project: dict, payloads: dict[str, bytes]) -> None:
+        history_root = self.catalog.root / project["id"] / "history"
+        history_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        existing = list(row.get("historical_artifacts", []))
+        existing_hashes = {item.get("sha256") for item in existing}
+        for item in project["history"]:
+            if item["sha256"] in existing_hashes:
+                continue
+            target = history_root / f"{item['sha256'][:12]}-{Path(item['path']).name}"
+            self._atomic_history_file(target, payloads[item["source_path"]], item["sha256"])
+            existing.append(
+                {
+                    "id": item["sha256"],
+                    "path": item["path"],
+                    "sha256": item["sha256"],
+                    "size": item["size"],
+                    "stored_ref": f"history/{target.name}",
+                    "historical": True,
+                }
+            )
+            existing_hashes.add(item["sha256"])
+        row["historical_artifacts"] = existing
+        migration = row.setdefault("migration", {})
+        migration.update(
+            source_ref=project["source_ref"],
+            source_sha256=project["source_sha256"],
+            resource_sha256=project["resource_sha256"],
+            history_sha256=project["history_sha256"],
+            applied_at=time.time(),
+        )
 
     def _apply(self, project: dict) -> str:
+        # Capture and revalidate every byte before the first catalog mutation.
+        # All later writes consume this immutable snapshot, closing scan/read TOCTOU.
+        payloads = self._verify_project(project)
         with self.catalog._exclusive():
             row = self.catalog.data["workflows"].get(project["id"])
             if row is not None:
-                existing = (row.get("migration") or {}).get("source_sha256")
-                if existing == project["source_sha256"]:
+                state = self._migration_state(row, project)
+                if state == "already_present":
                     return "already_present"
+                if state == "history_updated":
+                    self._append_history_locked(row, project, payloads)
+                    self.catalog._save()
+                    return "history_updated"
                 row["status"] = "needs_attention"
                 row["migration_conflict"] = {
                     "source_ref": project["source_ref"],
@@ -353,7 +568,7 @@ class ReportWorkflowMigration:
                 return "conflict"
             before = copy.deepcopy(self.catalog.data)
             try:
-                self._apply_locked(project)
+                self._apply_locked(project, payloads)
             except Exception:
                 self.catalog.data = before
                 self.catalog._save()
@@ -363,7 +578,7 @@ class ReportWorkflowMigration:
                 raise
             return "created"
 
-    def _apply_locked(self, project: dict) -> None:
+    def _apply_locked(self, project: dict, payloads: dict[str, bytes]) -> None:
         workbook_policies = []
         providers = {}
         refresh = project["config"].get("excel_refresh") or {}
@@ -372,7 +587,10 @@ class ReportWorkflowMigration:
             if not item["logical_path"].startswith("workbooks/"):
                 continue
             try:
-                formula_provider = scan_workbook_formulas(Path(item["source_path"])).provider.value
+                with tempfile.NamedTemporaryFile(suffix=".xlsx") as workbook:
+                    workbook.write(payloads[item["source_path"]])
+                    workbook.flush()
+                    formula_provider = scan_workbook_formulas(Path(workbook.name)).provider.value
             except WorkflowError:
                 project["status"] = "needs_attention"
                 continue
@@ -440,15 +658,15 @@ class ReportWorkflowMigration:
                     Path(logical).parent / f"{resource['sha256'][:12]}-{Path(logical).name}"
                 ).as_posix()
             seen[logical] = resource["sha256"]
-            self.catalog.upload_resource(
-                project["id"], logical, Path(resource["source_path"]).read_bytes()
-            )
+            self.catalog.upload_resource(project["id"], logical, payloads[resource["source_path"]])
         row = self.catalog._row(project["id"])
         row.update(
             status=project["status"],
             migration={
                 "source_ref": project["source_ref"],
                 "source_sha256": project["source_sha256"],
+                "resource_sha256": project["resource_sha256"],
+                "history_sha256": project["history_sha256"],
                 "applied_at": time.time(),
             },
         )
@@ -456,23 +674,5 @@ class ReportWorkflowMigration:
             version = self.catalog.create_version(project["id"])
             self.catalog.publish_version(project["id"], version.version)
             row["status"] = "enabled"
-        history_root = self.catalog.root / project["id"] / "history"
-        history_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        history = []
-        for item in project["history"]:
-            target = history_root / f"{item['sha256'][:12]}-{Path(item['path']).name}"
-            if not target.exists():
-                shutil.copy2(item["source_path"], target)
-                target.chmod(0o400)
-            history.append(
-                {
-                    "id": item["sha256"],
-                    "path": item["path"],
-                    "sha256": item["sha256"],
-                    "size": item["size"],
-                    "stored_ref": f"history/{target.name}",
-                    "historical": True,
-                }
-            )
-        row["historical_artifacts"] = history
+        self._append_history_locked(row, project, payloads)
         self.catalog._save()
