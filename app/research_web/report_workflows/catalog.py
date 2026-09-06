@@ -189,7 +189,9 @@ class ReportWorkflowService:
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         for folder in (self.root / "runs",):
             if folder.is_symlink():
-                raise WorkflowError("Report Workflow 运行目录不能是链接", "unsafe_workflow_root", 503)
+                raise WorkflowError(
+                    "Report Workflow 运行目录不能是链接", "unsafe_workflow_root", 503
+                )
             folder.mkdir(exist_ok=True, mode=0o700)
         self.index = self.root / "catalog.json"
         self.lock_path = self.root / "catalog.lock"
@@ -258,8 +260,10 @@ class ReportWorkflowService:
             indexed_versions = set(row.get("versions", {}))
             for child in versions.iterdir():
                 if (
-                    child.name.startswith(".building-") or child.name not in indexed_versions
-                ) and child.is_dir() and not child.is_symlink():
+                    (child.name.startswith(".building-") or child.name not in indexed_versions)
+                    and child.is_dir()
+                    and not child.is_symlink()
+                ):
                     shutil.rmtree(child, ignore_errors=True)
 
     def _save(self) -> None:
@@ -317,12 +321,7 @@ class ReportWorkflowService:
             except Exception:
                 self.data = before
                 self._loaded_digest = _index_digest(before)
-                if (
-                    workflow_id
-                    and not base_existed
-                    and base.is_dir()
-                    and not base.is_symlink()
-                ):
+                if workflow_id and not base_existed and base.is_dir() and not base.is_symlink():
                     shutil.rmtree(base, ignore_errors=True)
                 raise
 
@@ -421,9 +420,11 @@ class ReportWorkflowService:
             role = (
                 WorkflowResourceRole.WORKFLOW
                 if relative == "workflow.yaml"
-                else WorkflowResourceRole.VALIDATION
-                if relative == "validation.yaml"
-                else _role(relative)
+                else (
+                    WorkflowResourceRole.VALIDATION
+                    if relative == "validation.yaml"
+                    else _role(relative)
+                )
             )
             resources.append(
                 WorkflowResource(
@@ -482,9 +483,7 @@ class ReportWorkflowService:
                     path.chmod(0o400)
             row["versions"][str(number)] = {"published": False}
             self._save()
-            log.info(
-                "report_workflow_version_created", workflow_id=workflow_id, version=number
-            )
+            log.info("report_workflow_version_created", workflow_id=workflow_id, version=number)
             return manifest
         except (OSError, ValidationError, WorkflowError) as exc:
             if temporary.exists() and not temporary.is_symlink():
@@ -527,8 +526,10 @@ class ReportWorkflowService:
             raise WorkflowError("Workflow 资源不存在", "resource_not_found", 404)
         package = self._version_path(workflow_id, version)
         target = package.joinpath(*relative.parts)
-        if target.is_symlink() or not target.is_file() or not target.resolve().is_relative_to(
-            package.resolve()
+        if (
+            target.is_symlink()
+            or not target.is_file()
+            or not target.resolve().is_relative_to(package.resolve())
         ):
             raise WorkflowError("Workflow 资源不可读取", "unsafe_workflow_path", 409)
         if target.stat().st_size != expected.size or _sha256(target) != expected.sha256:
@@ -561,9 +562,11 @@ class ReportWorkflowService:
             required = (
                 {"wind_excel", "ifind_excel"}
                 if scan.provider is WorkbookFormulaProvider.MIXED
-                else {scan.provider.value}
-                if scan.provider is not WorkbookFormulaProvider.NONE
-                else set()
+                else (
+                    {scan.provider.value}
+                    if scan.provider is not WorkbookFormulaProvider.NONE
+                    else set()
+                )
             )
             declared = {item.provider.value for item in policy.providers}
             missing = sorted(required - declared)
@@ -681,9 +684,18 @@ class ReportWorkflowService:
             version=selected,
             report_run_id=run_id,
         )
-        return {"run_id": run_id, "workflow_id": workflow_id, "version": selected, "path": str(target)}
+        return {
+            "run_id": run_id,
+            "workflow_id": workflow_id,
+            "version": selected,
+            "path": str(target),
+        }
 
     def run_path(self, run_id: str) -> Path:
+        with self._exclusive():
+            return self._run_path(run_id)
+
+    def _run_path(self, run_id: str) -> Path:
         if not re.fullmatch(r"[a-f0-9]{32}", run_id) or run_id not in self.data["runs"]:
             raise WorkflowError("Workflow 运行不存在", "run_not_found", 404)
         root = self.root / "runs" / run_id
@@ -712,8 +724,10 @@ class ReportWorkflowService:
 
     @staticmethod
     def _read_refresh_file(root: Path, path: Path) -> dict:
-        if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(
-            root.resolve()
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or not path.resolve().is_relative_to(root.resolve())
         ):
             raise WorkflowError("刷新清单不存在", "refresh_manifest_not_found", 404)
         try:
@@ -733,38 +747,51 @@ class ReportWorkflowService:
         *,
         refresh_service: WorkbookRefreshService | None = None,
         refresh_date: date | None = None,
+        cancellation_event: threading.Event | None = None,
     ):
-        if run_id not in self.data["runs"]:
-            raise WorkflowError("Workflow 运行不存在", "run_not_found", 404)
-        row = self.data["runs"][run_id]
-        manifest = self.manifest(row["workflow_id"], row["version"])
-        policy = next((item for item in manifest.workbook_policies if item.workbook == workbook), None)
-        if policy is None:
-            raise WorkflowError("工作簿没有刷新策略", "refresh_policy_not_found", 404)
-        source = self.resource_path(row["workflow_id"], row["version"], workbook)
-        run_root = self.root / "runs" / run_id
-        mappings: dict[str, dict[str, Any]] = {}
-        for requirement in policy.providers:
-            mapping = requirement.equivalent_datahub_mapping
-            if mapping is None:
-                continue
-            mapping_path = self.resource_path(row["workflow_id"], row["version"], mapping)
-            try:
-                value = (
-                    json.loads(mapping_path.read_text())
-                    if mapping_path.suffix.lower() == ".json"
-                    else yaml.safe_load(mapping_path.read_text())
-                )
-            except (OSError, ValueError, TypeError, yaml.YAMLError) as exc:
-                log.warning("report_workflow_mapping_read_failed", error_type=type(exc).__name__)
-                raise WorkflowError("DataHub mapping 不可读取", "fallback_mapping_invalid", 409) from exc
-            if not isinstance(value, dict):
-                raise WorkflowError("DataHub mapping 必须是对象", "fallback_mapping_invalid", 409)
-            mappings[mapping] = value
+        with self._exclusive():
+            if run_id not in self.data["runs"]:
+                raise WorkflowError("Workflow 运行不存在", "run_not_found", 404)
+            row = copy.deepcopy(self.data["runs"][run_id])
+            manifest = self.manifest(row["workflow_id"], row["version"])
+            policy = next(
+                (item for item in manifest.workbook_policies if item.workbook == workbook),
+                None,
+            )
+            if policy is None:
+                raise WorkflowError("工作簿没有刷新策略", "refresh_policy_not_found", 404)
+            source = self.resource_path(row["workflow_id"], row["version"], workbook)
+            run_root = self._run_path(run_id)
+            mappings: dict[str, dict[str, Any]] = {}
+            for requirement in policy.providers:
+                mapping = requirement.equivalent_datahub_mapping
+                if mapping is None:
+                    continue
+                mapping_path = self.resource_path(row["workflow_id"], row["version"], mapping)
+                try:
+                    value = (
+                        json.loads(mapping_path.read_text())
+                        if mapping_path.suffix.lower() == ".json"
+                        else yaml.safe_load(mapping_path.read_text())
+                    )
+                except (OSError, ValueError, TypeError, yaml.YAMLError) as exc:
+                    log.warning(
+                        "report_workflow_mapping_read_failed",
+                        error_type=type(exc).__name__,
+                    )
+                    raise WorkflowError(
+                        "DataHub mapping 不可读取", "fallback_mapping_invalid", 409
+                    ) from exc
+                if not isinstance(value, dict):
+                    raise WorkflowError(
+                        "DataHub mapping 必须是对象", "fallback_mapping_invalid", 409
+                    )
+                mappings[mapping] = value
         return (refresh_service or WorkbookRefreshService()).refresh(
             source,
             run_root,
             policy,
             fallback_mappings=mappings,
             refresh_date=refresh_date,
+            cancellation_event=cancellation_event,
         )

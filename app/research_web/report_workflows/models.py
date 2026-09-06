@@ -95,8 +95,7 @@ class WorkbookProviderRequirement(StrictModel):
     @classmethod
     def mapping_must_be_a_package_resource(cls, value: str | None) -> str | None:
         if value is not None and (
-            not value.startswith("mappings/")
-            or not value.endswith((".yaml", ".yml", ".json"))
+            not value.startswith("mappings/") or not value.endswith((".yaml", ".yml", ".json"))
         ):
             raise ValueError("等价 DataHub mapping 必须位于 mappings/ 下")
         return value
@@ -182,8 +181,10 @@ class WorkflowSchedule(StrictModel):
             raise ValueError("手动 Workflow 不能启用自动调度")
         if self.kind is ScheduleKind.ONCE and self.enabled and not self.once_at:
             raise ValueError("一次性调度必须声明 once_at")
-        if self.kind is ScheduleKind.WEEKLY and self.enabled and any(
-            value is None for value in (self.weekday, self.hour, self.minute)
+        if (
+            self.kind is ScheduleKind.WEEKLY
+            and self.enabled
+            and any(value is None for value in (self.weekday, self.hour, self.minute))
         ):
             raise ValueError("每周调度必须声明 weekday/hour/minute")
         return self
@@ -191,9 +192,7 @@ class WorkflowSchedule(StrictModel):
 
 class ReportWorkflowManifest(StrictModel):
     schema_version: int = Field(default=1, ge=1, le=1)
-    workflow_id: str = Field(
-        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", min_length=2, max_length=80
-    )
+    workflow_id: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", min_length=2, max_length=80)
     name: str = Field(min_length=1, max_length=160)
     description: str = Field(default="", max_length=4000)
     version: int = Field(ge=1)

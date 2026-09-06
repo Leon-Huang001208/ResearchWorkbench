@@ -8,9 +8,13 @@ import json
 import math
 import multiprocessing
 import os
+import queue
 import re
 import shutil
+import signal
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 import weakref
@@ -39,21 +43,21 @@ from .models import (
 log = get_logger(__name__)
 _EXCEL_REFRESH_LOCK = threading.Lock()
 _TARGET_LOCKS_GUARD = threading.Lock()
-_TARGET_LOCKS: weakref.WeakValueDictionary[str, threading.Lock] = (
-    weakref.WeakValueDictionary()
-)
+_TARGET_LOCKS: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
 _MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 _DOC_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 _PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 _FORMULA_ERRORS = {"#DIV/0!", "#N/A", "#NAME?", "#NULL!", "#NUM!", "#REF!", "#VALUE!"}
-_WIND_PATTERN = re.compile(
-    r"\b(?:WSD|WSS|WSI|WSET|WST|WQID|WPF|EDB)\s*\(", re.IGNORECASE
-)
+_WIND_PATTERN = re.compile(r"\b(?:WSD|WSS|WSI|WSET|WST|WQID|WPF|EDB)\s*\(", re.IGNORECASE)
 _IFIND_PATTERN = re.compile(r"\b(?:THS(?:_[A-Z0-9]+)?|IFIND)\s*\(", re.IGNORECASE)
 _MAX_ZIP_MEMBERS = 512
 _MAX_ZIP_MEMBER = 32 * 1024 * 1024
 _MAX_ZIP_EXPANDED = 96 * 1024 * 1024
 _MAX_ZIP_RATIO = 200
+_WORKER_STOP_SECONDS = 2
+_GLOBAL_EXCEL_LOCK_PATH = Path(tempfile.gettempdir()) / (
+    f"research-workbench-excel-{getattr(os, 'getuid', lambda: 0)()}.lock"
+)
 
 
 def _sha256(path: Path) -> str:
@@ -90,6 +94,51 @@ def _target_lock(path: Path) -> threading.Lock:
         return lock
 
 
+def _lock_stream(stream: Any) -> None:
+    if os.name == "nt":
+        module = __import__("msvcrt")
+        stream.seek(0)
+        if not stream.read(1):
+            stream.write(b"0")
+            stream.flush()
+        stream.seek(0)
+        module.locking(stream.fileno(), module.LK_LOCK, 1)
+    else:
+        module = __import__("fcntl")
+        module.flock(stream.fileno(), module.LOCK_EX)
+
+
+def _unlock_stream(stream: Any) -> None:
+    if os.name == "nt":
+        module = __import__("msvcrt")
+        stream.seek(0)
+        module.locking(stream.fileno(), module.LK_UNLCK, 1)
+    else:
+        module = __import__("fcntl")
+        module.flock(stream.fileno(), module.LOCK_UN)
+
+
+@contextmanager
+def _file_lock(path: Path, thread_lock: threading.Lock):
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags, 0o600)
+    except OSError as exc:
+        raise WorkflowError("刷新锁不可用", "refresh_lock_unavailable", 503) from exc
+    with thread_lock, os.fdopen(descriptor, "a+b") as stream:
+        locked = False
+        try:
+            _lock_stream(stream)
+            locked = True
+            yield
+        finally:
+            if locked:
+                _unlock_stream(stream)
+
+
 @contextmanager
 def _open_archive(path: Path):
     try:
@@ -114,9 +163,7 @@ def _open_archive(path: Path):
                 or expanded > _MAX_ZIP_EXPANDED
                 or ratio > _MAX_ZIP_RATIO
             ):
-                raise WorkflowError(
-                    "工作簿压缩包超出安全限制", "unsafe_workbook_archive", 422
-                )
+                raise WorkflowError("工作簿压缩包超出安全限制", "unsafe_workbook_archive", 422)
         yield archive
     finally:
         archive.close()
@@ -151,11 +198,11 @@ def scan_workbook_formulas(path: Path) -> WorkbookFormulaScan:
     provider = (
         WorkbookFormulaProvider.MIXED
         if wind and ifind
-        else WorkbookFormulaProvider.WIND
-        if wind
-        else WorkbookFormulaProvider.IFIND
-        if ifind
-        else WorkbookFormulaProvider.NONE
+        else (
+            WorkbookFormulaProvider.WIND
+            if wind
+            else WorkbookFormulaProvider.IFIND if ifind else WorkbookFormulaProvider.NONE
+        )
     )
     return WorkbookFormulaScan(provider=provider, formulas=tuple(formulas))
 
@@ -251,7 +298,6 @@ def read_cached_workbook(path: Path) -> tuple[dict[str, Any], list[str], bool]:
 
 class WorkbookProviderProtocol(Protocol):
     provider_id: str
-    bounded_calls: bool
 
     def readiness(self) -> dict[str, Any]: ...
 
@@ -272,9 +318,6 @@ class XlwingsExcelProvider:
     """Lazy xlwings bridge; public failures are deliberately content-free."""
 
     provider_id = ""
-    # Official providers execute refresh in a killable worker process. Direct
-    # methods remain for adapter tests, not for production refresh orchestration.
-    bounded_calls = True
 
     def __init__(self) -> None:
         self._xlwings = None
@@ -338,30 +381,10 @@ class XlwingsExcelProvider:
                 self._app = None
 
     def refresh_with_timeout(self, path: Path, policy: WorkbookRefreshPolicy) -> str | None:
-        """Run all COM/AppScript work in a terminable spawned process."""
+        """Run all provider work in an isolated, killable process tree."""
 
-        context = multiprocessing.get_context("spawn")
-        result_queue = context.Queue(maxsize=1)
-        process = context.Process(
-            target=_xlwings_refresh_worker,
-            args=(self.provider_id, str(path), json.loads(policy.model_dump_json()), result_queue),
-        )
-        process.start()
-        process.join(policy.timeout_seconds)
-        if process.is_alive():
-            process.terminate()
-            process.join(5)
-            result_queue.close()
-            return "provider_timeout"
-        try:
-            result = result_queue.get_nowait()
-        except Exception:  # noqa: BLE001 - multiprocessing queues vary by platform.
-            result = {"status": "blocked", "code": "provider_worker_failed"}
-        finally:
-            result_queue.close()
-        return None if result.get("status") == "ready" else result.get(
-            "code", "provider_worker_failed"
-        )
+        result = _run_provider_refresh(self, path, policy, {})
+        return None if result.get("status") == "ready" else str(result["code"])
 
 
 class WindExcelProvider(XlwingsExcelProvider):
@@ -372,26 +395,101 @@ class IFindExcelProvider(XlwingsExcelProvider):
     provider_id = "ifind_excel"
 
 
-def _xlwings_refresh_worker(
-    provider_id: str, path: str, policy_data: dict[str, Any], result_queue: Any
-) -> None:
-    """Isolated Excel worker; only safe status codes cross the process boundary."""
+_SAFE_PROVIDER_CODES = {
+    "excel_unavailable",
+    "fallback_contract_invalid",
+    "plugin_not_ready",
+    "provider_not_ready",
+    "provider_refresh_failed",
+    "provider_timeout",
+    "provider_worker_cleanup_failed",
+    "provider_worker_failed",
+    "refresh_cancelled",
+    "worker_isolation_failed",
+    "xlwings_missing",
+}
 
-    app = None
-    book = None
+
+def _provider_payload(provider: WorkbookProviderProtocol) -> dict[str, Any]:
+    if isinstance(provider, XlwingsExcelProvider):
+        return {"kind": "xlwings", "provider_id": provider.provider_id}
+    return {"kind": "injected", "provider": provider}
+
+
+def _resolve_provider(payload: dict[str, Any]) -> WorkbookProviderProtocol:
+    if payload.get("kind") == "xlwings":
+        provider_id = payload.get("provider_id")
+        if provider_id == "wind_excel":
+            return WindExcelProvider()
+        if provider_id == "ifind_excel":
+            return IFindExcelProvider()
+        raise RuntimeError("provider_not_ready")
+    provider = payload.get("provider")
+    if provider is None:
+        raise RuntimeError("provider_not_ready")
+    return provider
+
+
+def _isolate_worker_process() -> None:
+    if os.name == "posix":
+        try:
+            os.setsid()
+        except OSError as exc:
+            raise RuntimeError("worker_isolation_failed") from exc
+
+
+def _safe_provider_code(value: Any, default: str) -> str:
+    return value if isinstance(value, str) and value in _SAFE_PROVIDER_CODES else default
+
+
+def _provider_readiness_worker(payload: dict[str, Any], result_queue: Any) -> None:
     try:
+        _isolate_worker_process()
+        result = _resolve_provider(payload).readiness()
+        if result.get("ready"):
+            result_queue.put({"status": "ready"})
+        else:
+            result_queue.put(
+                {
+                    "status": "blocked",
+                    "code": _safe_provider_code(result.get("code"), "provider_not_ready"),
+                }
+            )
+    except Exception as exc:  # noqa: BLE001 - worker boundary returns safe codes only.
+        result_queue.put(
+            {
+                "status": "blocked",
+                "code": _safe_provider_code(str(exc), "provider_worker_failed"),
+            }
+        )
+
+
+def _provider_refresh_worker(
+    payload: dict[str, Any],
+    path: str,
+    policy_data: dict[str, Any],
+    fallback_mappings: dict[str, dict[str, Any]],
+    result_queue: Any,
+) -> None:
+    handle = None
+    provider: WorkbookProviderProtocol | None = None
+    result = {"status": "blocked", "code": "provider_refresh_failed"}
+    try:
+        _isolate_worker_process()
+        provider = _resolve_provider(payload)
         policy = WorkbookRefreshPolicy.model_validate(policy_data)
-        xlwings = importlib.import_module("xlwings")
-        app = xlwings.App(visible=False, add_book=False)
-        book = app.books.open(path, update_links=True, read_only=False)
-        api = getattr(book, "api", None)
-        refresh = getattr(api, "RefreshAll", None)
-        if not callable(refresh):
-            raise RuntimeError("plugin_not_ready")  # noqa: TRY004
-        refresh()
-        app_api = getattr(getattr(book, "app", None), "api", None)
-        calculate = getattr(app_api, "CalculateFullRebuild", None)
-        calculate() if callable(calculate) else book.app.calculate()
+        if fallback_mappings:
+            configure = getattr(provider, "configure_fallback", None)
+            if not callable(configure):
+                raise RuntimeError("fallback_contract_invalid")
+            configure(fallback_mappings)
+        handle = provider.open_workbook(Path(path))
+        if isinstance(provider, XlwingsExcelProvider):
+            excel_pid = getattr(provider._app, "pid", None)
+            if isinstance(excel_pid, int) and excel_pid > 1:
+                result_queue.put({"status": "started", "child_pids": [excel_pid]})
+        provider.refresh_all(handle)
+        provider.calculate_full(handle)
         references = list(
             dict.fromkeys(
                 [
@@ -405,10 +503,7 @@ def _xlwings_refresh_worker(
         stable = 0
         deadline = time.monotonic() + policy.timeout_seconds
         while stable < policy.stability_checks:
-            values = {}
-            for reference in references:
-                sheet_name, cell = reference.rsplit("!", 1)
-                values[reference] = book.sheets[sheet_name].range(cell).value
+            values = provider.read_cells(handle, references)
             stable = stable + 1 if values == previous else 1
             previous = values
             if stable >= policy.stability_checks:
@@ -416,29 +511,225 @@ def _xlwings_refresh_worker(
             if time.monotonic() >= deadline:
                 raise TimeoutError
             time.sleep(policy.poll_interval_seconds)
-        book.save()
-        result_queue.put({"status": "ready", "provider": provider_id})
+        provider.save(handle)
+        result = {"status": "ready"}
     except TimeoutError:
-        result_queue.put({"status": "blocked", "code": "provider_timeout"})
-    except Exception:  # noqa: BLE001 - never serialize provider exception details.
-        result_queue.put({"status": "blocked", "code": "provider_refresh_failed"})
+        result = {"status": "blocked", "code": "provider_timeout"}
+    except Exception as exc:  # noqa: BLE001 - never serialize provider exception details.
+        result = {
+            "status": "blocked",
+            "code": _safe_provider_code(str(exc), "provider_refresh_failed"),
+        }
     finally:
-        if book is not None:
+        if handle is not None and provider is not None:
             try:
-                book.close()
+                provider.close(handle)
             except Exception as exc:  # noqa: BLE001 - final cleanup boundary.
                 log.warning(
                     "report_workbook_worker_close_failed",
                     error_type=type(exc).__name__,
                 )
-        if app is not None:
+                result = {"status": "blocked", "code": "provider_refresh_failed"}
+        result_queue.put(result)
+
+
+def _terminate_worker_tree(process: Any) -> bool:
+    pid = getattr(process, "pid", None)
+    owns_process_group = False
+    if os.name == "nt" and isinstance(pid, int):
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                check=False,
+                capture_output=True,
+                timeout=_WORKER_STOP_SECONDS,
+            )
+        except (OSError, subprocess.SubprocessError):
+            process.terminate()
+    elif isinstance(pid, int):
+        try:
+            if os.getpgid(pid) == pid:
+                owns_process_group = True
+                os.killpg(pid, signal.SIGTERM)
+            else:
+                process.terminate()
+        except OSError:
+            process.terminate()
+    else:
+        process.terminate()
+    process.join(_WORKER_STOP_SECONDS)
+    if owns_process_group and isinstance(pid, int):
+        try:
+            os.killpg(pid, signal.SIGKILL)
+        except OSError:
+            pass
+    if process.is_alive():
+        kill = getattr(process, "kill", None)
+        kill() if callable(kill) else process.terminate()
+    process.join(_WORKER_STOP_SECONDS)
+    return not process.is_alive()
+
+
+def _process_exists(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _terminate_child_processes(pids: set[int]) -> bool:
+    safe_pids = {pid for pid in pids if pid > 1 and pid != os.getpid()}
+    if not safe_pids:
+        return True
+    if os.name == "nt":
+        for pid in safe_pids:
             try:
-                app.quit()
-            except Exception as exc:  # noqa: BLE001 - final cleanup boundary.
-                log.warning(
-                    "report_workbook_worker_quit_failed",
-                    error_type=type(exc).__name__,
+                subprocess.run(
+                    ["taskkill", "/PID", str(pid), "/T", "/F"],
+                    check=False,
+                    capture_output=True,
+                    timeout=_WORKER_STOP_SECONDS,
                 )
+            except (OSError, subprocess.SubprocessError):
+                return False
+        return True
+    for pid in safe_pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            return False
+    deadline = time.monotonic() + 0.2
+    while time.monotonic() < deadline and any(_process_exists(pid) for pid in safe_pids):
+        time.sleep(0.02)
+    for pid in safe_pids:
+        if not _process_exists(pid):
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            return False
+    deadline = time.monotonic() + _WORKER_STOP_SECONDS
+    while time.monotonic() < deadline and any(_process_exists(pid) for pid in safe_pids):
+        time.sleep(0.02)
+    return not any(_process_exists(pid) for pid in safe_pids)
+
+
+def _drain_worker_messages(result_queue: Any, *, wait: bool) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
+    while True:
+        try:
+            item = result_queue.get(timeout=0.1 if wait and not messages else 0)
+        except (queue.Empty, TimeoutError):
+            break
+        if isinstance(item, dict):
+            messages.append(item)
+    return messages
+
+
+def _run_provider_worker(
+    target: Any,
+    args: tuple[Any, ...],
+    timeout_seconds: float,
+    cancellation_event: threading.Event | None = None,
+) -> dict[str, Any]:
+    context = multiprocessing.get_context("spawn")
+    result_queue = context.Queue(maxsize=4)
+    process = context.Process(target=target, args=(*args, result_queue))
+    try:
+        process.start()
+        if cancellation_event is None:
+            process.join(timeout_seconds)
+        else:
+            deadline = time.monotonic() + timeout_seconds
+            while process.is_alive() and not cancellation_event.is_set():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                process.join(min(0.1, remaining))
+        if process.is_alive():
+            messages = _drain_worker_messages(result_queue, wait=True)
+            child_pids = {
+                pid
+                for message in messages
+                for pid in message.get("child_pids", [])
+                if isinstance(pid, int)
+            }
+            worker_cleaned = _terminate_worker_tree(process)
+            children_cleaned = _terminate_child_processes(child_pids)
+            cleaned = worker_cleaned and children_cleaned
+            cancelled = cancellation_event is not None and cancellation_event.is_set()
+            return {
+                "status": "blocked",
+                "code": (
+                    "refresh_cancelled"
+                    if cleaned and cancelled
+                    else "provider_timeout" if cleaned else "provider_worker_cleanup_failed"
+                ),
+            }
+        messages = _drain_worker_messages(result_queue, wait=True)
+        results = [message for message in messages if message.get("status") != "started"]
+        if not results:
+            return {"status": "blocked", "code": "provider_worker_failed"}
+        result = results[-1]
+        if result.get("status") == "ready":
+            return {"status": "ready"}
+        return {
+            "status": "blocked",
+            "code": _safe_provider_code(result.get("code"), "provider_worker_failed"),
+        }
+    except Exception as exc:  # noqa: BLE001 - process failures are sanitized.
+        log.warning("report_provider_worker_failed", error_type=type(exc).__name__)
+        try:
+            alive = process.is_alive()
+        except (AssertionError, ValueError):
+            alive = False
+        if alive:
+            _terminate_worker_tree(process)
+        return {"status": "blocked", "code": "provider_worker_failed"}
+    finally:
+        close = getattr(result_queue, "close", None)
+        if callable(close):
+            close()
+
+
+def _run_provider_readiness(
+    provider: WorkbookProviderProtocol,
+    timeout_seconds: float,
+    cancellation_event: threading.Event | None = None,
+) -> dict[str, Any]:
+    return _run_provider_worker(
+        _provider_readiness_worker,
+        (_provider_payload(provider),),
+        timeout_seconds,
+        cancellation_event,
+    )
+
+
+def _run_provider_refresh(
+    provider: WorkbookProviderProtocol,
+    path: Path,
+    policy: WorkbookRefreshPolicy,
+    fallback_mappings: dict[str, dict[str, Any]],
+    cancellation_event: threading.Event | None = None,
+) -> dict[str, Any]:
+    return _run_provider_worker(
+        _provider_refresh_worker,
+        (
+            _provider_payload(provider),
+            str(path),
+            json.loads(policy.model_dump_json()),
+            fallback_mappings,
+        ),
+        policy.timeout_seconds,
+        cancellation_event,
+    )
 
 
 def _required_provider_ids(provider: WorkbookFormulaProvider) -> set[str]:
@@ -486,8 +777,10 @@ def _validate_values(
             return "required_cell_empty"
     for reference in policy.reject_zero_cells:
         value = cells.get(reference)
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isclose(
-            float(value), 0.0, abs_tol=0.0
+        if (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isclose(float(value), 0.0, abs_tol=0.0)
         ):
             return "unexpected_zero"
     if policy.required_date_cell:
@@ -527,6 +820,7 @@ class WorkbookRefreshService:
         scan: WorkbookFormulaScan,
         policy: WorkbookRefreshPolicy,
         fallback_mappings: dict[str, dict[str, Any]],
+        cancellation_event: threading.Event | None,
     ) -> tuple[WorkbookProviderProtocol | None, str | None, dict[str, dict[str, Any]]]:
         needed = _required_provider_ids(scan.provider)
         declared = {item.provider.value: item for item in policy.providers}
@@ -538,16 +832,20 @@ class WorkbookRefreshService:
         selected: WorkbookProviderProtocol | None = None
         for provider_id in sorted(needed):
             candidate = self.providers.get(provider_id)
-            readiness = candidate.readiness() if candidate is not None else {"ready": False}
-            if not readiness.get("ready"):
+            readiness = (
+                _run_provider_readiness(candidate, policy.timeout_seconds, cancellation_event)
+                if candidate is not None
+                else {"status": "blocked"}
+            )
+            if readiness.get("code") == "refresh_cancelled":
+                return None, "refresh_cancelled", {}
+            if readiness.get("status") != "ready":
                 unavailable.append(declared[provider_id])
             elif selected is None:
                 selected = candidate
         if not unavailable:
             # A mixed workbook is refreshed once in the same Excel process. Both
             # add-ins were checked before selecting the bridge used to open Excel.
-            if selected is not None and not getattr(selected, "bounded_calls", False):
-                return None, "provider_timeout_unenforced", {}
             return selected, None, {}
         required_mappings = [declared[item].equivalent_datahub_mapping for item in sorted(needed)]
         if all(required_mappings):
@@ -556,12 +854,17 @@ class WorkbookRefreshService:
                 for path in required_mappings
                 if path is not None and path in fallback_mappings
             }
-            if len(selected_mappings) != len(required_mappings):
+            if any(path not in fallback_mappings for path in required_mappings):
                 return None, "fallback_mapping_missing", {}
             fallback = self.providers.get("datahub")
-            if fallback is not None and fallback.readiness().get("ready"):
-                if not getattr(fallback, "bounded_calls", False):
-                    return None, "provider_timeout_unenforced", {}
+            fallback_readiness = (
+                _run_provider_readiness(fallback, policy.timeout_seconds, cancellation_event)
+                if fallback is not None
+                else {"status": "blocked"}
+            )
+            if fallback_readiness.get("code") == "refresh_cancelled":
+                return None, "refresh_cancelled", {}
+            if fallback is not None and fallback_readiness.get("status") == "ready":
                 if not callable(getattr(fallback, "configure_fallback", None)):
                     return None, "fallback_contract_invalid", {}
                 return fallback, None, selected_mappings
@@ -575,11 +878,12 @@ class WorkbookRefreshService:
         *,
         fallback_mappings: dict[str, dict[str, Any]] | None = None,
         refresh_date: date | None = None,
+        cancellation_event: threading.Event | None = None,
     ) -> WorkbookRefreshResult:
         source = _safe_xlsx(Path(source))
         scan = scan_workbook_formulas(source)
         provider, selection_error, selected_mappings = self._select_provider(
-            scan, policy, fallback_mappings or {}
+            scan, policy, fallback_mappings or {}, cancellation_event
         )
         if selection_error:
             return self._blocked(selection_error.split(":", 1)[0])
@@ -589,26 +893,35 @@ class WorkbookRefreshService:
         run_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         run_root = run_directory.resolve()
         destination = run_directory.joinpath(*PurePosixPath(policy.workbook).parts)
-        if (
-            (destination.exists() and destination.is_symlink())
-            or not destination.resolve(strict=False).is_relative_to(run_root)
-        ):
+        if (destination.exists() and destination.is_symlink()) or not destination.resolve(
+            strict=False
+        ).is_relative_to(run_root):
             return self._blocked("unsafe_run_directory")
         provider_id = provider.provider_id if provider is not None else None
         manifest_name = hashlib.sha256(policy.workbook.encode()).hexdigest() + ".json"
         manifest_path = run_directory / "refresh-manifests" / manifest_name
-        with _target_lock(destination):
-            return self._refresh_locked(
-                source,
-                destination,
-                manifest_path,
-                scan,
-                policy,
-                provider,
-                provider_id,
-                selected_mappings,
-                refresh_date or datetime.now().astimezone().date(),
-            )
+        lock_directory = run_directory / ".refresh-locks"
+        if lock_directory.is_symlink() or not lock_directory.resolve(strict=False).is_relative_to(
+            run_root
+        ):
+            return self._blocked("unsafe_run_directory", provider_id)
+        lock_path = lock_directory / f"{manifest_name}.lock"
+        try:
+            with _file_lock(lock_path, _target_lock(destination)):
+                return self._refresh_locked(
+                    source,
+                    destination,
+                    manifest_path,
+                    scan,
+                    policy,
+                    provider,
+                    provider_id,
+                    selected_mappings,
+                    refresh_date or datetime.now().astimezone().date(),
+                    cancellation_event,
+                )
+        except WorkflowError as exc:
+            return self._blocked(exc.code, provider_id)
 
     def _refresh_locked(
         self,
@@ -621,15 +934,17 @@ class WorkbookRefreshService:
         provider_id: str | None,
         selected_mappings: dict[str, dict[str, Any]],
         refresh_date: date,
+        cancellation_event: threading.Event | None,
     ) -> WorkbookRefreshResult:
         staging = destination.parent / f".{destination.stem}.{uuid4().hex}.refreshing.xlsx"
         manifest_staging = manifest_path.parent / f".{manifest_path.name}.{uuid4().hex}.tmp"
         backup = destination.parent / f".{destination.name}.{uuid4().hex}.backup"
         promoted = False
+        if cancellation_event is not None and cancellation_event.is_set():
+            return self._blocked("refresh_cancelled", provider_id)
         try:
             destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             manifest_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-            manifest_path.unlink(missing_ok=True)
             shutil.copy2(source, staging)
             staging.chmod(0o600)
         except OSError as exc:
@@ -637,52 +952,23 @@ class WorkbookRefreshService:
             log.warning("report_workbook_copy_failed", error_type=type(exc).__name__)
             return self._blocked("workbook_copy_failed", provider_id)
 
-        handle = None
         try:
             if provider is not None:
-                if selected_mappings:
-                    configure_fallback = getattr(provider, "configure_fallback", None)
-                    if callable(configure_fallback):
-                        configure_fallback(selected_mappings)
-                with _EXCEL_REFRESH_LOCK:
-                    if isinstance(provider, XlwingsExcelProvider):
-                        if code := provider.refresh_with_timeout(staging, policy):
-                            staging.unlink(missing_ok=True)
-                            return self._blocked(code, provider_id)
-                    else:
-                        handle = provider.open_workbook(staging)
-                        try:
-                            provider.refresh_all(handle)
-                            provider.calculate_full(handle)
-                            references = list(
-                                dict.fromkeys(
-                                    [
-                                        *policy.required_cells,
-                                        *policy.reject_zero_cells,
-                                        *(
-                                            [policy.required_date_cell]
-                                            if policy.required_date_cell
-                                            else []
-                                        ),
-                                    ]
-                                )
-                            )
-                            previous: dict[str, Any] | None = None
-                            stable = 0
-                            deadline = time.monotonic() + policy.timeout_seconds
-                            while stable < policy.stability_checks:
-                                values = provider.read_cells(handle, references)
-                                stable = stable + 1 if values == previous else 1
-                                previous = values
-                                if stable >= policy.stability_checks:
-                                    break
-                                if time.monotonic() >= deadline:
-                                    raise TimeoutError("refresh_not_stable")
-                                time.sleep(policy.poll_interval_seconds)
-                            provider.save(handle)
-                        finally:
-                            provider.close(handle)
-                            handle = None
+                with _file_lock(_GLOBAL_EXCEL_LOCK_PATH, _EXCEL_REFRESH_LOCK):
+                    worker_result = _run_provider_refresh(
+                        provider,
+                        staging,
+                        policy,
+                        selected_mappings,
+                        cancellation_event,
+                    )
+                if worker_result.get("status") != "ready":
+                    return self._blocked(
+                        _safe_provider_code(worker_result.get("code"), "provider_refresh_failed"),
+                        provider_id,
+                    )
+            if cancellation_event is not None and cancellation_event.is_set():
+                return self._blocked("refresh_cancelled", provider_id)
             cells, errors, date_1904 = read_cached_workbook(staging)
             if code := _validate_values(
                 cells,
@@ -713,6 +999,8 @@ class WorkbookRefreshService:
                 json.dump(manifest, stream, ensure_ascii=False, indent=2)
                 stream.flush()
                 os.fsync(stream.fileno())
+            if cancellation_event is not None and cancellation_event.is_set():
+                return self._blocked("refresh_cancelled", provider_id)
             if destination.exists():
                 destination.chmod(0o600)
                 os.replace(destination, backup)
@@ -720,7 +1008,13 @@ class WorkbookRefreshService:
             promoted = True
             destination.chmod(0o600)
             os.replace(manifest_staging, manifest_path)
-            backup.unlink(missing_ok=True)
+            try:
+                backup.unlink(missing_ok=True)
+            except OSError as exc:
+                log.warning(
+                    "report_workbook_backup_cleanup_failed",
+                    error_type=type(exc).__name__,
+                )
             log.info("report_workbook_refresh_ready", provider=manifest["provider"])
             return WorkbookRefreshResult(
                 status=RefreshStatus.READY,
@@ -736,13 +1030,6 @@ class WorkbookRefreshService:
                 provider=provider_id,
                 error_type=type(exc).__name__,
             )
-            if handle is not None and provider is not None:
-                try:
-                    provider.close(handle)
-                except Exception as close_exc:  # noqa: BLE001 - best-effort provider cleanup.
-                    log.warning(
-                        "report_workbook_close_failed", error_type=type(close_exc).__name__
-                    )
             if backup.exists():
                 destination.unlink(missing_ok=True)
                 os.replace(backup, destination)
