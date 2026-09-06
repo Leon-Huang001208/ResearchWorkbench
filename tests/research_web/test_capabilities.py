@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from test_api import NativeFixture
 
+from app.research_web.capabilities.catalog import CapabilityCatalog
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
@@ -75,6 +76,57 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     assert sum(t["id"] == "datahub_get_fund_data" for t in tools) == 1
     assert all(t["parameters"] and t["source"] and t["conditions"] for t in tools)
     assert native.calls == []
+
+
+def test_catalog_migrates_persisted_legacy_tool_ids_as_new_versions(tmp_path):
+    catalog = CapabilityCatalog(tmp_path)
+    custom = catalog.create(candidate())
+    catalog.publish(custom["id"])
+
+    for cid in ("document-reading", custom["id"]):
+        row = catalog.row(cid)
+        row["draft"]["metadata"]["required_tools"] = ["af_run_script"]
+        row["draft"]["instructions"] = row["draft"]["instructions"].replace(
+            "research_run_script", "af_run_script"
+        )
+        active = row["versions"][str(row["version"])]
+        active["metadata"]["required_tools"] = ["af_run_script"]
+        active["instructions"] = active["instructions"].replace(
+            "research_run_script", "af_run_script"
+        )
+
+    workflow = catalog.row("fund-research-workflow")
+    for record in (workflow["draft"], workflow["versions"]["1"]):
+        record["metadata"]["required_tools"] = ["af_run_script"]
+        record["steps"][0]["tools"] = ["af_public_data"]
+        record["steps"][1]["tools"] = ["af_run_script"]
+        record["steps"][2]["tools"] = ["af_run_script"]
+    catalog.save()
+
+    migrated = CapabilityCatalog(tmp_path)
+    for cid in (
+        "document-reading",
+        "fund-research-workflow",
+        "market-commentary-workflow",
+        custom["id"],
+    ):
+        row = migrated.row(cid)
+        assert row["version"] == 2
+        active = row["versions"]["2"]
+        assert "af_run_script" not in json.dumps(active, ensure_ascii=False)
+        assert "af_public_data" not in json.dumps(active, ensure_ascii=False)
+        assert migrated.selection(cid)["version"] == 2
+    assert migrated.row("document-reading")["versions"]["1"]["metadata"]["required_tools"] == [
+        "af_run_script"
+    ]
+    assert migrated.row("fund-research-workflow")["versions"]["2"]["steps"][0]["tools"] == [
+        "datahub_get_fund_data"
+    ]
+
+    reloaded = CapabilityCatalog(tmp_path)
+    assert reloaded.row("document-reading")["version"] == 2
+    assert reloaded.row("market-commentary-workflow")["version"] == 2
+    assert reloaded.row(custom["id"])["version"] == 2
 
 
 def test_draft_check_publish_copy_versions_disable_rollback_export(api):

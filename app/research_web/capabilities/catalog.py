@@ -29,6 +29,10 @@ from .tools import tool_catalog
 
 log = get_logger(__name__)
 
+LEGACY_SCRIPT_TOOL = "af_run_script"
+LEGACY_PUBLIC_DATA_TOOL = "af_public_data"
+SCRIPT_TOOL = "research_run_script"
+
 
 class CapabilityCatalog:
     def __init__(self, root: Path):
@@ -56,11 +60,101 @@ class CapabilityCatalog:
                 if cid not in self.data["items"]:
                     self._create(draft, "builtin", cid=cid)
                     self.publish(cid)
+            self._migrate_legacy_tool_ids(dict(seed_packages()))
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.error("capability_catalog_unreadable", error_type=type(exc).__name__)
             raise CapabilityError(
                 "能力目录无法读取；未覆盖原索引", "catalog_unavailable", 503
             ) from exc
+
+    @staticmethod
+    def _replace_script_tool(value):
+        if isinstance(value, str):
+            return value.replace(LEGACY_SCRIPT_TOOL, SCRIPT_TOOL)
+        if isinstance(value, list):
+            return [CapabilityCatalog._replace_script_tool(item) for item in value]
+        if isinstance(value, dict):
+            return {
+                key: CapabilityCatalog._replace_script_tool(item) for key, item in value.items()
+            }
+        return value
+
+    @staticmethod
+    def _contains_legacy_tool(value):
+        serialized = json.dumps(value, ensure_ascii=False)
+        return LEGACY_SCRIPT_TOOL in serialized or LEGACY_PUBLIC_DATA_TOOL in serialized
+
+    def _workflow_bindings_stale(self, row):
+        """Return whether an active workflow is pinned to a superseded Skill version."""
+
+        if row["kind"] != "workflow" or not row["version"]:
+            return False
+        active = row["versions"].get(str(row["version"]))
+        if not active:
+            return False
+        for binding in active.get("bindings", []):
+            linked = self.data["items"].get(binding.get("id"))
+            if (
+                linked is None
+                or linked.get("status") != "enabled"
+                or linked.get("version") != binding.get("version")
+            ):
+                return True
+        return False
+
+    def _migrate_legacy_tool_ids(self, builtins):
+        """Create immutable successor versions for pre-rename capability records."""
+
+        if self.data.get("pending"):
+            return
+        rows = sorted(
+            self.data["items"].values(), key=lambda row: (row["kind"] == "workflow", row["id"])
+        )
+        for row in rows:
+            active = row["versions"].get(str(row["version"])) if row["version"] else None
+            has_legacy_tool = self._contains_legacy_tool(active or row["draft"])
+            has_stale_binding = self._workflow_bindings_stale(row)
+            if not has_legacy_tool and not has_stale_binding:
+                continue
+            original = copy.deepcopy(row)
+            try:
+                if row["source"] == "builtin" and row["id"] in builtins:
+                    candidate = copy.deepcopy(builtins[row["id"]])
+                else:
+                    candidate = self._replace_script_tool(copy.deepcopy(active or row["draft"]))
+                    if self._contains_legacy_tool(candidate):
+                        log.warning(
+                            "capability_legacy_tool_requires_review", capability_id=row["id"]
+                        )
+                        continue
+                    candidate["kind"] = row["kind"]
+                row["draft"] = self._draft(candidate)
+                row.update(has_draft=True, checks=None, updated_at=time.time())
+                if row["version"]:
+                    self.publish(
+                        row["id"],
+                        _allow_builtin_migration=True,
+                        _status=row["status"],
+                    )
+                else:
+                    checks = self.validate(row["kind"], row["draft"])
+                    row.update(checks=checks, status=checks["status"])
+                    self.save()
+                log.info(
+                    "capability_legacy_tool_migrated",
+                    capability_id=row["id"],
+                    version=row["version"],
+                    legacy_tool=has_legacy_tool,
+                    stale_binding=has_stale_binding,
+                )
+            except (OSError, CapabilityError, ValueError, TypeError) as exc:
+                self.data["items"][row["id"]] = original
+                self.save()
+                log.error(
+                    "capability_legacy_tool_migration_failed",
+                    capability_id=row["id"],
+                    error_type=type(exc).__name__,
+                )
 
     def save(self):
         fd, name = tempfile.mkstemp(prefix="catalog-", dir=self.root)
@@ -471,11 +565,13 @@ class CapabilityCatalog:
         )
         return name, compiled
 
-    def publish(self, cid):
+    def publish(self, cid, *, _allow_builtin_migration=False, _status="enabled"):
         self.assert_consistent()
         row = self.row(cid)
-        if row["source"] == "builtin" and row["version"]:
+        if row["source"] == "builtin" and row["version"] and not _allow_builtin_migration:
             raise CapabilityError("内置能力只能复制", "builtin_read_only", 409)
+        if _status not in {"enabled", "disabled"}:
+            raise CapabilityError("能力目标状态无效", "invalid_state")
         checks = self.check(cid)
         if not checks["valid"]:
             raise CapabilityError("草稿检查未通过；已保留文件与问题", checks["status"], 422)
@@ -519,7 +615,7 @@ class CapabilityCatalog:
                 "版本资源写入失败；草稿和旧版本保留，可重试发布", "publication_failed", 503
             ) from exc
         row["versions"][str(version)] = record
-        self._activate(cid, version, "enabled")
+        self._activate(cid, version, _status)
         row["has_draft"] = False
         self.save()
         return self.detail(cid)

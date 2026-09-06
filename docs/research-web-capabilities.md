@@ -72,6 +72,12 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 不能再用于发送（包括未选择能力、由模型自主发现的发送），须停用该 Workflow 或编辑重新发布。
 步骤是计划模板，不应由前端标记为已经执行。
 
+产品硬改名后的历史目录可能仍保存 `af_run_script` / `af_public_data`。目录启动迁移不会
+覆盖历史版本：内置包从当前受审种子创建新的不可变版本；仅包含旧脚本名的用户包安全替换为
+`research_run_script` 后创建新版本；含歧义旧数据工具的用户包保留并要求人工审查。Skill 版本
+升级后，已启用且仍绑定旧 Skill 版本的 Workflow 也会按依赖顺序创建新版本并重新绑定，防止
+一个过期 Workflow 让整个可发现目录阻断研究提交。迁移幂等，失败会恢复原条目并记录错误。
+
 ### 会话与提交
 
 已有 `POST /sessions/{sid}/messages` 增加 `capability_id`、`capability_version`（正整数）及

@@ -35,6 +35,11 @@
 
 ## 合并与清理门禁
 
-- 当前隔离验收 Web：`http://127.0.0.1:18088/`；3081 健康，但 `credential_configured=false`。新数据目录按迁移边界不复制 API Key，必须由用户在设置页重新填写后才能完成本轮真实模型回归。
+- 当前隔离验收 Web：`http://127.0.0.1:18088/`；3081 健康且用户已在设置页配置凭据。设置页经真实浏览器重新加载，完整显示且无控制台错误。
+- 首次真实 FinGPT 提交被全目录门禁拒绝，原因是硬改名前持久能力版本仍含旧 Tool ID，且部分 Workflow 绑定已升级 Skill 的旧版本。新增失败回归后，目录按 Skill → Workflow 创建不可变后继版本；真实数据根 10 个已启用能力全部通过 selection 校验。
+- FinGPT 会话 `3504a20b-13ad-453f-b837-7e25f21892a2` 已真实使用 `deepseek-v4-flash` 读取会话快照 `e988cbe3-d449-4689-a7e8-7c5f9293f3f9`，列出 3 条财联社记录，并明确来源、`as_of`、未完成分页和不联网限制；回合任务 `52bce86a9ba4c6d95e76dd89` 完成，文件交付为 `not_required`。
+- Claw 会话 `cdbcf18c-955d-4941-9070-6af9e2df3a79` 已从 FinGPT 会话交接东方财富基金与财联社两个隔离快照；两个真实子 Agent `a867cf6a…`、`bd857a99…` 分别运行 47,054 ms / 26,157 ms，记录 16,805 / 13,903 tokens，并共用同一批资料而未重复取数。
+- 同一 Claw 旅程实际生成并通过重开检查的 `fund000001_analysis.xlsx`（5 个工作表、60 个数值净值单元格）、DOCX、HTML、Markdown 和 XLSX 报告文件；这些产物来自真实会话输出目录，不是静态示例或历史文件误计。
+- 全仓 `pytest -q` 仍受旧测试基线阻塞：`tests/research_web/test_api.py` 与 `tests/unit/test_api.py` 同名收集冲突，旧 ZQ 测试缺少可选 `Crypto`。本轮不安装无关依赖；Web 合并门禁使用隔离的 `tests/research_web --confcutdir=tests/research_web`，并单独记录旧基线。
 - 在真实 FinGPT/Claw、文件交付、停止/审批/恢复门禁通过前，不合并 `master`，不推送迁移标签，也不删除 worktree、旧目录或构建产物。
 - 已保护外部 runtime core 未提交源码：分支 `codex/archive-runtime-core-20260905`，提交 `7a10e07`。完整历史 bundle 已写入 `~/.research-workbench/migration-backups/runtime-core-20260905.bundle`，校验通过，SHA-256 为 `10ad84253b482f3b6a7b612482dc7e541b83ba7f738c109b8553698df9254807`。
