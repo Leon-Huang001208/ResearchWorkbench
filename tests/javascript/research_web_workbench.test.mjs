@@ -49,15 +49,36 @@ test('asset workspace renders independent states, native chart and personal obse
     observation,
     rows: {
       overview: [{ asset: '600519.SH', name: '贵州茅台', price: 1500, change_pct: 2.1 }],
-      history: [{ date: '2026-09-04', close: 1490, volume: 10 }, { date: '2026-09-05', close: 1500, volume: 12 }],
+      history: [
+        { date: '2026-09-04', open: 1482, high: 1498, low: 1476, close: 1490, volume: 10, turnover_rate: 0.42 },
+        { date: '2026-09-05', open: 1492, high: 1512, low: 1488, close: 1500, volume: 12, turnover_rate: 0.51 },
+      ],
     },
     watchlists: [{ id: 'w1', name: '核心观察', items: [] }], notes: [], alerts: [], notifications: [],
   });
-  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '52周高', '同类比较', '主题暴露', '来源与口径', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
+  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '52周高', 'K 线与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '同类比较', '主题暴露', '来源与口径', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
   assert.match(html, /akshare · 截止 2026-09-05/);
-  assert.match(html, /<svg[^>]+aria-label="历史收盘价走势"/);
+  assert.match(html, /<svg[^>]+aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的行情图"/);
+  assert.match(html, /class="asset-candle (?:up|down)"/);
+  assert.match(html, /换 <strong>0\.51%<\/strong>/);
   assert.match(html, /query_failed/);
   assert.doesNotMatch(html, /echarts|chart\.js|unpkg|演示/);
+});
+
+test('asset terminal derives technical indicators only from supplied market bars', async () => {
+  const { enrichMarketBars } = await import(new URL('asset-workspace.mjs', root));
+  const rows = Array.from({ length: 30 }, (_, index) => ({
+    date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+    open: 100 + index, high: 102 + index, low: 99 + index, close: 101 + index,
+    volume: 1000 + index * 10, amount: 100000 + index * 1000, turnover_rate: 1 + index / 100,
+  }));
+  const bars = enrichMarketBars(rows);
+  const latest = bars.at(-1);
+  assert.equal(bars.length, 30);
+  for (const key of ['ma5', 'ma10', 'ma20', 'bollUpper', 'bollLower', 'dif', 'dea', 'macd', 'k', 'd', 'j', 'rsi']) {
+    assert.equal(Number.isFinite(latest[key]), true, `${key} should be calculated`);
+  }
+  assert.equal(latest.turnover, 1.29);
 });
 
 test('asset workspace never turns absent market values into zero', async () => {

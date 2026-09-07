@@ -454,7 +454,7 @@ textarea { resize: vertical; }
 .storage-list > div:first-child { border-top: 0; }
 .storage-list span, .storage-list small { display: block; }
 .storage-list small { margin-top: 3px; color: var(--muted); font-size: 10px; }
-.asset-search { display: grid; grid-template-columns: minmax(170px, 1.4fr) repeat(4, minmax(120px, 1fr)) auto; gap: 12px; align-items: end; padding: 18px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.asset-search { display: grid; grid-template-columns: minmax(170px, 1.4fr) repeat(5, minmax(108px, 1fr)) auto; gap: 12px; align-items: end; padding: 18px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .asset-search label, .asset-personal label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
 .asset-identity { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 22px; align-items: center; padding: 24px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .asset-identity h1 { margin: 5px 0 4px; font-size: 25px; }
@@ -468,6 +468,37 @@ textarea { resize: vertical; }
 .asset-market-metrics dd { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 11px; font-weight: 650; }
 .positive { color: #bd3f45; }
 .negative { color: #198456; }
+.asset-market-terminal { margin: 0 0 18px; padding: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.asset-market-terminal > header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+.asset-market-terminal h2 { margin: 4px 0 0; font-size: 15px; }
+.asset-terminal-period { color: var(--muted); font-size: 10px; }
+.asset-terminal-quote { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 14px -18px 0; padding: 9px 18px; border-block: 1px solid var(--line); background: var(--canvas); color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.asset-terminal-quote strong { margin-left: 3px; color: var(--text); font-weight: 650; }
+.asset-terminal-legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 10px 0 5px; font-size: 9px; font-weight: 650; }
+.asset-terminal-legend .ma5 { color: #e08a2e; }
+.asset-terminal-legend .ma10 { color: #2876c7; }
+.asset-terminal-legend .ma20 { color: #8b5fc7; }
+.asset-terminal-legend .boll { color: #a07f18; }
+.asset-terminal-legend .up { color: #d94747; }
+.asset-terminal-legend .down { color: #1f9d70; }
+.asset-chart-scroll { width: 100%; overflow-x: auto; }
+.asset-terminal-chart { display: block; width: 100%; min-width: 760px; height: auto; max-height: 590px; background: color-mix(in srgb, var(--canvas) 76%, transparent); }
+.asset-chart-grid line { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.asset-chart-grid text, .asset-axis-value { fill: var(--muted); font-size: 9px; }
+.asset-candle line { stroke-width: 1; vector-effect: non-scaling-stroke; }
+.asset-candle.up line, .asset-candle.up rect, .asset-volume.up, .asset-macd.up { stroke: #d94747; fill: #d94747; }
+.asset-candle.down line, .asset-candle.down rect, .asset-volume.down, .asset-macd.down { stroke: #1f9d70; fill: #1f9d70; }
+.asset-volume, .asset-macd { opacity: .72; }
+.asset-series { fill: none; stroke-width: 1.25; vector-effect: non-scaling-stroke; }
+.asset-series.ma5 { stroke: #e08a2e; }
+.asset-series.ma10 { stroke: #2876c7; }
+.asset-series.ma20 { stroke: #8b5fc7; }
+.asset-series.boll { stroke: #a07f18; stroke-dasharray: 3 2; opacity: .72; }
+.asset-series.dif, .asset-series.k { stroke: #e08a2e; }
+.asset-series.dea, .asset-series.d { stroke: #2876c7; }
+.asset-series.j { stroke: #9b56c8; }
+.asset-series.rsi { stroke: #9b56c8; stroke-width: 1.5; }
+.asset-threshold { stroke: var(--muted); stroke-width: .75; stroke-dasharray: 3 3; opacity: .65; vector-effect: non-scaling-stroke; }
 .asset-workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
 .asset-blocks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .asset-block { min-width: 0; min-height: 210px; padding: 18px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }

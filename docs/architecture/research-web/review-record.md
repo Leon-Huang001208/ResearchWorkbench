@@ -238,3 +238,10 @@
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"仅更新既有3081 Research Runtime的固定DSH源码提交和构建闭包，不改变服务、端口或启动数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录只读元数据改用与Runtime一致的DSH固定提交，工具集合、权限和模块关系保持不变。","diagrams":[]} -->
+
+## 2026-09-07 — 资产观察终端图表保留
+
+- 新 Research 壳层不再把历史行情降级为单条收盘价折线；恢复 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI、换手率与细行情栏。
+- 图表保持无新增依赖的原生 SVG 实现，所有价格与技术指标只由当前 DataHub 历史行情快照计算；数据不足时显示明确空态，不注入旧页面的演示行情。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"资产观察仍沿用既有前端、DataHub快照和路由边界，仅恢复已承诺的行情图表层。","diagrams":[]} -->
