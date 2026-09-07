@@ -1,6 +1,6 @@
 # Research Web 接口清单
 
-路由由运行中 8088 的 OpenAPI 与 `main.py`、`asset_routes.py`、`report_workflow_routes.py`、`report_routes.py`、`workbench.py`、`operations.py`、`datahub/routes.py`、`capabilities/routes.py`、`documentation.py` 核对，共 113 项声明（包括根页）。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
+路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 113 个唯一 HTTP 操作、115 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 
 | Method | 路径 | 源码 |
 |---|---|---|
@@ -12,6 +12,8 @@
 | POST | `/api/research/sessions` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}` | `app/research_web/main.py` |
 | PATCH | `/api/research/sessions/{sid}` | `app/research_web/main.py` |
+| DELETE | `/api/research/sessions/{sid}` | `app/research_web/main.py` |
+| POST | `/api/research/sessions/{sid}/restore` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/messages` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/cancel` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/approvals/{aid}` | `app/research_web/main.py` |

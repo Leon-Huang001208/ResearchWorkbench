@@ -28,6 +28,18 @@ from .report_workflows.manager import ReportWorkflowManager
 from .store import Store, StoreError
 
 log = get_logger(__name__)
+SESSION_DELETE_BLOCKED_STATUSES = {
+    "running",
+    "queued",
+    "pending",
+    "waiting",
+    "waiting_approval",
+    "awaiting_approval",
+    "waiting_input",
+    "busy",
+    "cancelling",
+}
+SESSION_RETENTION_SECONDS = 30 * 24 * 60 * 60
 
 
 class ResearchService:
@@ -81,6 +93,7 @@ class ResearchService:
     async def start(self):
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
         await self.report_workflows.start()
+        await self.purge_expired_sessions()
 
     async def close(self):
         await self.report_workflows.close()
@@ -305,17 +318,47 @@ class ResearchService:
         }
         if isinstance(result["updated_at"], (int, float)):
             result["updated_at"] = datetime.fromtimestamp(result["updated_at"], UTC).isoformat()
+        if row.get("deleted_at") is not None:
+            deleted_at = row["deleted_at"]
+            result["deleted_at"] = (
+                datetime.fromtimestamp(deleted_at, UTC).isoformat()
+                if isinstance(deleted_at, (int, float))
+                else deleted_at
+            )
+            if isinstance(deleted_at, (int, float)):
+                result["purge_at"] = datetime.fromtimestamp(
+                    deleted_at + SESSION_RETENTION_SECONDS, UTC
+                ).isoformat()
+            if row.get("purge_started_at") is not None:
+                result["purge_state"] = "pending"
         return result
 
-    async def list_sessions(self):
+    async def list_sessions(self, view="active"):
+        if view not in {"active", "deleted", "all"}:
+            raise StoreError("未知的会话列表视图", "invalid_session_view", 422)
+        if view in {"deleted", "all"}:
+            await self.purge_expired_sessions()
         rows = sorted(
-            self.store.data["sessions"].values(), key=lambda row: row["updated_at"], reverse=True
+            self.store.data["sessions"].values(),
+            key=lambda row: row.get("deleted_at") or row["updated_at"],
+            reverse=True,
         )
-        native = await self.client.rpc("session.list", {})
+        rows = [
+            row
+            for row in rows
+            if view == "all"
+            or (view == "deleted" and row.get("deleted_at") is not None)
+            or (view == "active" and row.get("deleted_at") is None)
+        ]
+        active_rows = [row for row in rows if row.get("deleted_at") is None]
+        native = await self.client.rpc("session.list", {}) if active_rows else {"items": []}
         running = {item["sessionId"]: item["running"] for item in native["items"]}
         results = []
         for row in rows:
             result = self.summary(row)
+            if row.get("deleted_at") is not None:
+                results.append(result)
+                continue
             children = (
                 await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
                 if row["created"]
@@ -331,6 +374,105 @@ class ResearchService:
                 result["status"] = detail["status"]
             results.append(result)
         return results
+
+    async def soft_delete_session(self, sid: str):
+        await self.ensure_owned()
+        async with self.lock:
+            row = self.store.session(sid, include_deleted=True)
+            if row.get("deleted_at") is not None:
+                return self.summary(row)
+            native = await self.client.rpc("session.list", {})
+            native_running = any(
+                item.get("sessionId") == sid and item.get("running") is True
+                for item in native.get("items", [])
+            )
+            children = (
+                await self.client.rpc("subagent.list", {"parentSessionId": sid})
+                if row.get("created")
+                else {"entries": []}
+            )
+            child_running = any(
+                child.get("activity") == "running" for child in children.get("entries", [])
+            )
+            waiting = any(
+                value.get("ownerSessionId", value.get("sessionId")) == sid
+                for value in [*self.approvals.values(), *self.questions.values()]
+            )
+            if (
+                row.get("status") in SESSION_DELETE_BLOCKED_STATUSES
+                or native_running
+                or child_running
+                or waiting
+            ):
+                raise StoreError(
+                    "会话仍在运行或等待处理，结束当前任务后才能删除",
+                    "session_busy",
+                    409,
+                )
+            return self.summary(self.store.soft_delete(sid))
+
+    async def restore_session(self, sid: str):
+        await self.ensure_owned()
+        async with self.lock:
+            row = self.store.session(sid, include_deleted=True)
+            return self.summary(self.store.restore(row["id"]))
+
+    async def permanent_delete_session(self, sid: str):
+        """Delete the DSH transcript first, then all Workbench-owned session data."""
+        await self.ensure_owned()
+        async with self.lock:
+            row = self.store.session(sid, include_deleted=True)
+            if row.get("deleted_at") is None:
+                raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
+            if row.get("native_deleted_at") is None:
+                native = await self.client.rpc(
+                    "session.delete", {"sessionId": sid, "cascade": True}
+                )
+                deleted_ids = native.get("deletedSessionIds")
+                if not isinstance(deleted_ids, list) or sid not in deleted_ids:
+                    raise RuntimeFailure(
+                        "DSH 未确认原生日志已经删除，Workbench 数据保持不变",
+                        "native_session_delete_unconfirmed",
+                    )
+                self.store.mark_native_deleted(sid)
+            self.store.purge(sid)
+            self.events.pop(sid, None)
+            self.loaded.discard(sid)
+            self.approvals = {
+                key: value
+                for key, value in self.approvals.items()
+                if value.get("ownerSessionId", value.get("sessionId")) != sid
+            }
+            self.questions = {
+                key: value
+                for key, value in self.questions.items()
+                if value.get("ownerSessionId", value.get("sessionId")) != sid
+            }
+            self.running.pop(sid, None)
+            self.notify()
+            return {"id": sid, "purged": True}
+
+    async def purge_expired_sessions(self, now: float | None = None) -> int:
+        """Best-effort purge of sessions whose recoverable window has elapsed."""
+        cutoff = (time.time() if now is None else now) - SESSION_RETENTION_SECONDS
+        expired = [
+            row["id"]
+            for row in self.store.data["sessions"].values()
+            if isinstance(row.get("deleted_at"), (int, float))
+            and row["deleted_at"] <= cutoff
+        ]
+        purged = 0
+        for sid in expired:
+            try:
+                await self.permanent_delete_session(sid)
+                purged += 1
+            except (RuntimeFailure, StoreError, OSError) as exc:
+                log.warning(
+                    "research_session_auto_purge_failed",
+                    session_id=sid,
+                    error_type=type(exc).__name__,
+                )
+        return purged
 
     async def detail(self, sid):
         row = self.store.session(sid)

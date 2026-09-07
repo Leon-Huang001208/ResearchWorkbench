@@ -4840,7 +4840,7 @@
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"catalog","label":"能力与来源目录","focus":["sourceSpecs","catalog","web"],"note":"前端浏览全部登记来源，但只有满足五维就绪条件的来源可调用。"},{"id":"materialize","label":"取数与物化","focus":["tool","policy","router","providers","upstreams","normalize","snapshots"],"note":"业务参数经白名单路由到单一来源，结果标准化后形成不可变会话快照。"},{"id":"share","label":"页面交接与资料包复用","focus":["snapshots","handoff","agents","web"],"note":"研究台只交接选定快照；DSH 父任务和子 Agent 读取相同 Hash 的资料包。"}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"catalog","label":"能力与来源目录","focus":["sourceSpecs","catalog","web"],"note":"前端浏览全部登记来源，但只有满足五维就绪条件的来源可调用。"},{"id":"materialize","label":"自动取数与物化","focus":["tool","policy","router","providers","upstreams","normalize","snapshots"],"note":"已启用工具的业务参数通过本地校验后直接路由到单一来源，结果标准化为不可变会话快照。"},{"id":"share","label":"页面交接与资料包复用","focus":["snapshots","handoff","agents","web"],"note":"研究台只交接选定快照；DSH 父任务和子 Agent 读取相同 Hash 的资料包。"}]</script>
 
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -4928,7 +4928,7 @@
         <path data-edge-from="sourceSpecs" data-edge-to="catalog" data-edge-label="声明与绑定" data-edge-key="0" data-edge-id="catalogProjection" data-composition-points="156,157;259,157" d="M 156 157 L 259 157" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="catalog" data-edge-to="web" data-edge-label="GET 目录 / 详情" data-edge-key="1" data-edge-id="catalogView" data-composition-points="371,157;400,157;400,130;875,130;875,157;904,157" d="M 371 157 L 400 157 L 400 130 L 875 130 L 875 157 L 904 157" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="tool" data-edge-to="policy" data-edge-label="业务参数" data-edge-key="2" data-edge-id="businessIntent" data-composition-points="156,499;259,499" d="M 156 499 L 259 499" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="policy" data-edge-to="router" data-edge-label="批准的 BusinessQuery" data-edge-key="3" data-edge-id="approvedQuery" data-composition-points="371,499;422.5,499;422.5,271;474,271" d="M 371 499 L 422.5 499 L 422.5 271 L 474 271" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="policy" data-edge-to="router" data-edge-label="校验后的 BusinessQuery" data-edge-key="3" data-edge-id="validatedQuery" data-composition-points="371,499;422.5,499;422.5,271;474,271" d="M 371 499 L 422.5 499 L 422.5 271 L 474 271" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="catalog" data-edge-to="router" data-edge-label="候选来源与就绪状态" data-edge-key="4" data-edge-id="catalogRoute" data-composition-points="371,157;422.5,157;422.5,271;474,271" d="M 371 157 L 422.5 157 L 422.5 271 L 474 271" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="router" data-edge-to="providers" data-edge-label="选择一个已适配来源" data-edge-key="5" data-edge-id="providerSelection" data-composition-points="530,300;530,300;530,356;530,356" d="M 530 300 L 530 300 L 530 356 L 530 356" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="providers" data-edge-to="upstreams" data-edge-label="有界只读请求" data-edge-key="6" data-edge-id="externalFetch" data-composition-points="530,414;530,414;530,470;530,470" d="M 530 414 L 530 414 L 530 470 L 530 470" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
@@ -4965,17 +4965,17 @@
         <text data-detail="fine" x="100" y="517" class="t-external" font-size="7" text-anchor="middle">DSH</text>
         </g>
 
-        <g id="node-policy" data-node-id="policy" data-node-label="审批与参数边界" tabindex="0" role="button" aria-label="Focus 审批与参数边界, 来源 ID / 禁止 URL 与凭据, 02 / 访问控制" aria-pressed="false" data-node-kind="security" data-node-sublabel="来源 ID / 禁止 URL 与凭据" data-node-tag="fail closed" data-node-context="02 / 访问控制">
-          <title>审批与参数边界 · 来源 ID / 禁止 URL 与凭据 · 02 / 访问控制 · fail closed</title>
+        <g id="node-policy" data-node-id="policy" data-node-label="工具与参数边界" tabindex="0" role="button" aria-label="Focus 工具与参数边界, enabledTools / Schema, 02 / 访问控制" aria-pressed="false" data-node-kind="security" data-node-sublabel="enabledTools / Schema" data-node-tag="automatic" data-node-context="02 / 访问控制">
+          <title>工具与参数边界 · enabledTools / Schema · 02 / 访问控制 · automatic</title>
           <rect x="259" y="470" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="259" y="470" width="112" height="58" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(265 476) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-detail-anchor x="315" y="491" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">审批与参数边界</text>
-          <text data-detail="context" x="315" y="507" class="t-muted" font-size="6.9" text-anchor="middle">来源 ID / 禁止 URL 与凭据</text>
-        <text data-detail="fine" x="315" y="517" class="t-security" font-size="7" text-anchor="middle">fail closed</text>
+          <text data-detail-anchor x="315" y="491" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">工具与参数边界</text>
+          <text data-detail="context" x="315" y="507" class="t-muted" font-size="7" text-anchor="middle">enabledTools / Schema</text>
+        <text data-detail="fine" x="315" y="517" class="t-security" font-size="7" text-anchor="middle">automatic</text>
         </g>
 
         <g id="node-catalog" data-node-id="catalog" data-node-label="能力目录" tabindex="0" role="button" aria-label="Focus 能力目录, 适配 / 配置 / 健康 / 允许, 02 / 访问控制" aria-pressed="false" data-node-kind="backend" data-node-sublabel="适配 / 配置 / 健康 / 允许" data-node-tag="read-only" data-node-context="02 / 访问控制">
@@ -5107,9 +5107,9 @@
           <text x="207.5" y="489" class="t-security" font-size="8" text-anchor="middle">业务参数</text>
         <text data-detail="fine" x="207.5" y="500" class="t-dim" font-size="7" text-anchor="middle">no credentials</text>
         </g>
-        <g data-detail="context" data-edge-from="policy" data-edge-to="router" data-edge-label="批准的 BusinessQuery" data-edge-key="3" data-edge-id="approvedQuery">
-          <rect x="368" y="417" width="110" height="27" rx="4" class="c-mask"/>
-          <text x="423" y="428" class="t-security" font-size="8" text-anchor="middle">批准的 BusinessQuery</text>
+        <g data-detail="context" data-edge-from="policy" data-edge-to="router" data-edge-label="校验后的 BusinessQuery" data-edge-key="3" data-edge-id="validatedQuery">
+          <rect x="363.1" y="417" width="119.8" height="27" rx="4" class="c-mask"/>
+          <text x="423" y="428" class="t-security" font-size="8" text-anchor="middle">校验后的 BusinessQuery</text>
         <text data-detail="fine" x="423" y="439" class="t-dim" font-size="7" text-anchor="middle">bounded</text>
         </g>
         <g data-detail="context" data-edge-from="catalog" data-edge-to="router" data-edge-label="候选来源与就绪状态" data-edge-key="4" data-edge-id="catalogRoute">
@@ -5383,7 +5383,7 @@
         </div>
         <ul>
           <li>&bull; 登记来源只说明系统知道它，不代表配置、在线或获得授权</li>
-          <li>&bull; 手动检测仅探测指定来源；目录 GET 永不触发上游请求</li>
+          <li>&bull; Runtime 只注册至少有一个可调用来源的工具；目录 GET 永不触发上游请求</li>
         </ul>
       </div>
 

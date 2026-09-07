@@ -2,6 +2,8 @@
 
 import asyncio
 import sys
+import threading
+from importlib import import_module
 from types import ModuleType
 
 import httpx
@@ -16,11 +18,15 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store, StoreError
 
 
-def test_catalog_contains_all_declared_sources_without_constructing_connectors(monkeypatch):
+def test_catalog_contains_all_declared_sources_without_constructing_connectors(
+    monkeypatch,
+):
     import app.research_web.datahub.catalog as module
 
     monkeypatch.setattr(module.os, "environ", {})
-    monkeypatch.setattr(module, "find_spec", lambda name: object() if name == "akshare" else None)
+    monkeypatch.setattr(
+        module, "find_spec", lambda name: object() if name == "akshare" else None
+    )
     catalog = build_catalog()
     assert catalog["summary"] == {
         "capabilities": 13,
@@ -54,7 +60,9 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(m
         "bing",
     }
     assert all(source["readiness"]["code_exists"] for source in catalog["sources"])
-    assert {source["id"] for source in catalog["sources"] if source["readiness"]["callable"]} == {
+    assert {
+        source["id"] for source in catalog["sources"] if source["readiness"]["callable"]
+    } == {
         "akshare",
         "cls",
         "eastmoney_fund",
@@ -62,7 +70,9 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(m
     wind = next(source for source in catalog["sources"] if source["id"] == "wind")
     assert wind["readiness"]["integration_completed"] is False
     assert wind["readiness"]["callable"] is False
-    tinysoft = next(source for source in catalog["sources"] if source["id"] == "tinysoft")
+    tinysoft = next(
+        source for source in catalog["sources"] if source["id"] == "tinysoft"
+    )
     assert tinysoft["readiness"]["integration_completed"] is True
     assert tinysoft["readiness"]["dependency_ready"] is False
     assert tinysoft["readiness"]["integration_state"] == "blocked_config"
@@ -96,8 +106,80 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(m
     }
 
 
+def test_provider_deadlines_are_unified_below_bridge_timeout():
+    import app.research_web.datahub.providers_akshare as akshare_provider
+    import app.research_web.datahub.providers_cjpy as tinysoft_provider
+
+    assert akshare_provider.DEADLINE == tinysoft_provider.DEADLINE == 15
+    assert akshare_provider.DEADLINE < 22
+
+
 @pytest.mark.asyncio
-async def test_akshare_provider_normalizes_business_data_without_legacy_run(monkeypatch):
+@pytest.mark.parametrize(
+    ("module_name", "entrypoint", "capability"),
+    [
+        ("app.research_web.datahub.providers_akshare", "_invoke", "search_assets"),
+        ("app.research_web.datahub.providers_cjpy", "_sync_query", "search_assets"),
+    ],
+)
+async def test_provider_timeout_is_bounded_busy_then_recovers(
+    monkeypatch, module_name, entrypoint, capability
+):
+    provider = import_module(module_name)
+    started = threading.Event()
+    release = threading.Event()
+    invoke_count = 0
+
+    class EmptyFrame:
+        def to_dict(self, orient):
+            assert orient == "records"
+            return []
+
+    def blocking_query(*_args, **_kwargs):
+        nonlocal invoke_count
+        invoke_count += 1
+        if invoke_count == 1:
+            started.set()
+            release.wait(timeout=1)
+        if module_name.endswith("providers_akshare"):
+            return EmptyFrame(), lambda rows, _query: rows
+        return []
+
+    monkeypatch.setattr(provider, "DEADLINE", 0.005)
+    monkeypatch.setattr(provider, entrypoint, blocking_query)
+    first = await provider.fetch(
+        BusinessQuery(capability=capability, source="auto", parameters={"query": ""})
+    )
+    assert started.is_set()
+    assert first.status == "failed"
+    assert "deadline" in first.limitations
+
+    second = await provider.fetch(
+        BusinessQuery(capability=capability, source="auto", parameters={"query": ""})
+    )
+    assert second.status == "failed"
+    assert "provider_busy" in second.limitations
+    assert invoke_count == 1
+
+    release.set()
+    monkeypatch.setattr(provider, "DEADLINE", 0.2)
+    for _ in range(50):
+        await asyncio.sleep(0.005)
+        recovered = await provider.fetch(
+            BusinessQuery(
+                capability=capability, source="auto", parameters={"query": ""}
+            )
+        )
+        if "provider_busy" not in recovered.limitations:
+            break
+    assert recovered.status == "empty"
+    assert invoke_count == 2
+
+
+@pytest.mark.asyncio
+async def test_akshare_provider_normalizes_business_data_without_legacy_run(
+    monkeypatch,
+):
     import pandas as pd
 
     import app.research_web.datahub.providers_akshare as provider
@@ -153,7 +235,9 @@ async def test_akshare_provider_normalizes_business_data_without_legacy_run(monk
 async def test_akshare_provider_sanitizes_unexpected_transport_failure(monkeypatch):
     import app.research_web.datahub.providers_akshare as provider
 
-    monkeypatch.setattr(provider, "_invoke", lambda query: (_ for _ in ()).throw(OSError("secret")))
+    monkeypatch.setattr(
+        provider, "_invoke", lambda query: (_ for _ in ()).throw(OSError("secret"))
+    )
     result = await provider.fetch(
         BusinessQuery(
             capability="search_assets",
@@ -183,7 +267,9 @@ def test_business_query_rejects_provider_escape_hatches():
 
 
 @pytest.mark.asyncio
-async def test_tinysoft_provider_uses_business_contract_without_legacy_lifecycle(monkeypatch):
+async def test_tinysoft_provider_uses_business_contract_without_legacy_lifecycle(
+    monkeypatch,
+):
     import app.research_web.datahub.providers_cjpy as provider
 
     package = ModuleType("cjpy")
@@ -217,7 +303,9 @@ async def test_tinysoft_provider_uses_business_contract_without_legacy_lifecycle
     )
     assert result.status == "complete"
     assert result.provider_id == "tinysoft"
-    assert result.rows == [{"证券代码": "SH600000", "日期": "2026-09-04", "收盘价": 12.3}]
+    assert result.rows == [
+        {"证券代码": "SH600000", "日期": "2026-09-04", "收盘价": 12.3}
+    ]
     assert result.fields["收盘价"] == {"unit": None, "currency": None}
     assert all("fixture-key" not in item.decode() for item in result.raw)
 
@@ -228,7 +316,9 @@ async def test_tinysoft_missing_key_is_safe_blocked_config(monkeypatch):
 
     monkeypatch.delenv("CJ_KEY", raising=False)
     result = await provider.fetch(
-        BusinessQuery(capability="search_assets", source="tinysoft", parameters={"query": ""})
+        BusinessQuery(
+            capability="search_assets", source="tinysoft", parameters={"query": ""}
+        )
     )
     assert result.status == "failed"
     assert result.limitations == ["blocked_config"]
@@ -267,7 +357,9 @@ async def test_business_query_routes_only_integrated_sources_and_snapshots(tmp_p
     assert result["provider"] == "cls"
     assert result["capability"] == "search_news"
     assert result["row_count"] == 1
-    assert result["attempted_sources"] == [{"source": "cls", "status": "selected", "reason": None}]
+    assert result["attempted_sources"] == [
+        {"source": "cls", "status": "selected", "reason": None}
+    ]
     assert len(calls) == 1
     with pytest.raises(StoreError, match="指定来源不支持"):
         await hub.query(
@@ -295,7 +387,9 @@ def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path):
             200,
             json={
                 "errno": 0,
-                "data": {"roll_data": [{"id": 123, "ctime": 1788326831, "content": "news"}]},
+                "data": {
+                    "roll_data": [{"id": 123, "ctime": 1788326831, "content": "news"}]
+                },
             },
         )
 
@@ -304,7 +398,12 @@ def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path):
         catalog = client.get("/api/research/data/catalog")
         assert catalog.status_code == 200
         assert external == []
-        assert client.get("/api/research/data/capabilities/search_news").json()["source_count"] == 7
+        assert (
+            client.get("/api/research/data/capabilities/search_news").json()[
+                "source_count"
+            ]
+            == 7
+        )
         assert client.get("/api/research/data/sources/cls").json()["bindings"]
         headers = {"Idempotency-Key": "probe-cls-0001"}
         first = client.post("/api/research/data/sources/cls/probes", headers=headers)
@@ -327,7 +426,8 @@ def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path):
 def test_probe_for_unintegrated_source_never_touches_network(tmp_path):
     calls = []
     hub = DataHub(
-        Store(tmp_path), transport=httpx.MockTransport(lambda request: calls.append(request))
+        Store(tmp_path),
+        transport=httpx.MockTransport(lambda request: calls.append(request)),
     )
 
     async def run():

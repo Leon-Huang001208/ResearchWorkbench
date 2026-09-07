@@ -18,6 +18,8 @@
 4. DSH `events.mux` 与 `events.host` 同时连接，事件按原生 seq 归一。Web 通过 `GET .../{sid}/events` 接收 `snapshot` 或 `runtime_error`，心跳不代表执行进度。
 5. 刷新读取同一会话。必要时分页读取 `session.history`，结合 `session.list` 和 `subagent.list/history` 恢复真实状态。恢复不另建会话、不重提消息。
 
+会话删除使用 `DELETE /api/research/sessions/{sid}` 做产品内软删除，不清除 DSH 原生日志或会话文件；`POST /api/research/sessions/{sid}/restore` 只恢复同一产品归属记录。两者都校验会话归属，不能用于发现、修改或恢复其他 DSH 实例的会话。
+
 相同键与相同内容返回原受理收据；同键换内容拒绝。受理结果未知时先查历史中的本任务标记，不能以 UI 重试按钮无限重复执行。
 
 ## 运行状态（不是 Workflow 节点状态）

@@ -3,7 +3,7 @@
 能力中心属于 `app/research_web/capabilities/`。产品保存草稿、不可变版本、来源和校验结果；
 DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，没有第二个运行器。
 目录读取不依赖会话、在线 DSH 或模型调用。工具目录为当前研究 composition 的只读声明，
-不表示运行实例在线、凭据已配置或某次取数已获批准。
+不表示运行实例在线、凭据已配置或某个 DataHub Tool 已进入当前 Runtime 的 `enabledTools`。
 
 当前内置能力新增“市场解读” Skill 和“市场解读与报告” Workflow。其透明排序脚本只消费已经物化的行情、板块与事件文件并生成研究草稿，不联网、不写 DataHub，也不替 DSH 编排 Agent。旧内容生产代码只按这种可独立验证的脚本、提示和模板迁移；Evidence、Claim、Quality Gate 与旧报告编译链没有恢复。
 
@@ -172,7 +172,7 @@ DSH 固定提交 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`。
 Web 先以 session.models 冷恢复再 skill.list 核对；缺 exact native_name 时409拒绝，不改写会话历史。
 界面应提示等待已授权目录接线；仍缺失时新建/显式升级会话并复用资料，不自动重写旧 preset 记录。
 
-tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。能力中心“数据”页另从 DataHub 静态目录投影 13 项业务能力、21 个来源和绑定矩阵；它不是第四种运行器，加入草稿只会选择相应 `datahub_*` Tool。
+tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。DataHub 元数据标记为 `automatic`；Runtime 启动时只注册至少有一个可调用来源的固定工具。能力中心“数据”页另从 DataHub 静态目录投影 13 项业务能力、21 个来源和绑定矩阵；它不是第四种运行器，加入草稿只会表达相应 `datahub_*` Tool 意图，不能绕过 `enabledTools`。
 真实原生注册测试覆盖 skill/subagent/report/send_message/interrupt_agent/list_agents/web_search
 及本项目 research_run_script/datahub_get_fund_data；DataHub 的 Query schema 与五个 SOURCES 直接复用。
 report 仅原生子 Agent 作用域可用；所有工具权限、模型、执行上限及审批策略均未改变。

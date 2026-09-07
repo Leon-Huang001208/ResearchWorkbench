@@ -13,6 +13,16 @@ def test_documentation_route_is_mounted_without_research_runtime():
     assert "/api/research/documentation/{name}" in paths
 
 
+def test_api_atlas_is_a_fixed_read_only_document(docs):
+    client, root = docs
+    (root / "api-atlas.html").write_text(
+        "<h1>Research Web API Atlas</h1>", encoding="utf-8"
+    )
+    response = client.get("/api/research/documentation/api-atlas.html")
+    assert response.status_code == 200
+    assert "Research Web API Atlas" in response.text
+
+
 @pytest.fixture
 def docs(tmp_path, monkeypatch):
     from app.research_web import documentation
@@ -43,7 +53,9 @@ def test_generated_html_works_but_remains_opaque_and_offline(docs):
     assert "script-src 'self'" in product_policy
     assert "sandbox allow-scripts" not in product_policy
     assert (
-        client.get("/api/research/documentation/index.html", headers={"Origin": "null"}).status_code
+        client.get(
+            "/api/research/documentation/index.html", headers={"Origin": "null"}
+        ).status_code
         == 403
     )
 
@@ -78,7 +90,9 @@ def test_documentation_rejects_symlink_file_and_root(docs, tmp_path, monkeypatch
     link = tmp_path / "linked-root"
     link.symlink_to(root, target_is_directory=True)
     monkeypatch.setattr(documentation, "ARTIFACT_ROOT", link)
-    assert client.get("/api/research/documentation/01-deployment.html").status_code == 404
+    assert (
+        client.get("/api/research/documentation/01-deployment.html").status_code == 404
+    )
 
 
 def test_missing_artifact_returns_explicit_non_sensitive_error(docs):

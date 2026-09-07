@@ -167,6 +167,17 @@ def test_pptx_delivery_reopens_and_rejects_corrupt_package(delivery_api):
             '<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><a:t>真实报告</a:t></p:sld>',
         )
     (root / "outputs" / "broken.pptx").write_bytes(b"not-an-opc-package")
+    with zipfile.ZipFile(root / "outputs" / "unresolved.pptx", "w") as package:
+        package.writestr("[Content_Types].xml", "<Types/>")
+        package.writestr(
+            "ppt/slides/slide1.xml",
+            (
+                '<p:sld xmlns:p="urn:p" xmlns:a="urn:a"><a:p>'
+                "<a:r><a:t>{{科创</a:t></a:r>"
+                "<a:r><a:t>芯片}}</a:t></a:r>"
+                "</a:p></p:sld>"
+            ),
+        )
     finish(delivery_api)
 
     row = detail(delivery_api)["delivery"]
@@ -175,6 +186,8 @@ def test_pptx_delivery_reopens_and_rejects_corrupt_package(delivery_api):
     assert files["report.pptx"]["valid"] is True
     assert files["broken.pptx"]["valid"] is False
     assert files["broken.pptx"]["reason"]
+    assert files["unresolved.pptx"]["valid"] is False
+    assert "占位符" in files["unresolved.pptx"]["reason"]
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="strict parser requires native macOS sandbox")

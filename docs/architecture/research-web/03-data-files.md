@@ -2,13 +2,23 @@
 
 ## 一个数据服务，两种消费者
 
-DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运行的第四种能力，也不是新服务。Web 通过“能力中心 → 数据”浏览 13 项业务数据能力、21 个登记来源及其绑定矩阵；DSH 通过品牌无关的 `datahub_*` 业务 Tool 取数。Tool 先走原生审批，再以私有认证回环调用同一套 DataHub 路由、Provider 和快照服务。`datahub_get_fund_data` 是正式基金数据工具；运行时不再注册旧产品前缀工具。
+DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运行的第四种能力，也不是新服务。Web 通过“能力中心 → 数据”浏览 13 项业务数据能力、21 个登记来源及其绑定矩阵；DSH 通过品牌无关的 `datahub_*` 业务 Tool 取数。Research Runtime 启动时只注册至少有一个可调用来源的工具；已注册查询不再逐次审批，而是经 `enabledTools`、严格参数 Schema、会话身份和私有认证回环直接调用同一套 DataHub 路由、Provider 和快照服务。`datahub_get_fund_data` 是正式基金数据工具；运行时不再注册旧产品前缀工具。
 
 目录读取只访问 `datahub/catalog.py` 的静态声明，不实例化旧 Connector、不联网、不启动 Excel，也不产生供应商费用。目录分别展示代码存在、完成适配、配置齐备、依赖齐备、允许调用和最近健康状态；只有完成 Provider 适配且满足条件的绑定才进入自动路由。东方财富基金和财联社可直接调用；天软 CJPY 已实现证券目录、交易日历、历史行情和实时快照 Provider，但本机缺依赖或授权时保持 `blocked_dependency` / `blocked_config`，其他登记能力不会借来源级状态冒充已实现。
 
 上游仅接受注册来源 ID 和能力限定参数，不接受任意 URL、模块、路径、请求头或凭据。`datahub/broker.py` 先按能力绑定、启用状态和覆盖条件筛选，再选择单一 Provider；显式来源默认不静默换源。访问边界限制域名、重定向、体积、时长及取消；请求失败与空数据不同，返回状态、原因、尝试来源和实际覆盖。原始响应留在私有区域，解析数据以 JSON/CSV 和 Manifest 保存至当前研究可读资源目录。
 
+桥接上限为 22 秒；AKShare 与天软同步 Provider 在 15 秒内返回终态。超时写出 `failed/deadline` 快照而不是顶层活动异常；第三方同步调用若仍在运行，每个 Provider 的单线程门闩让新请求快速返回 `failed/provider_busy`，避免排队和线程累积。Python 不能强制终止已经进入 SDK 的线程，因此该线程仍会运行到供应商调用自行结束。
+
 主任务准备资料后，子 Agent 读取同一组数据集引用。升级 FinGPT → Claw 时复制并验证目标会话资料，保留 origin dataset / manifest hash 与新 ID 映射，避免让新会话访问旧路径。
+
+## Report Workflow 的 Excel 与文件链
+
+具体报告的 Word/PPT 模板、Excel 底稿、映射、校验规则和交付格式属于不可变 Workflow 版本。运行先复制母版到独立 Run 目录，再由 `report_workflows/workbook.py` 串行控制本机 Excel：检查声明的 Wind/iFinD Provider，刷新、完整重算、等待稳定、保存并产生刷新 manifest。插件未登录、公式错误、日期或必填项不合格、异常零值和超时均进入 `blocked_data`；没有显式字段及口径等价映射时不使用 DataHub 或旧缓存替代。
+
+`report_workflows/tooling.py` 只从刷新后的运行副本提取有界内容，并一次性生成 `report-data.json` 共享快照及 SHA-256。Claw 父任务和至少两个真实子 Agent 读取同一快照，不重复刷新。模型只负责生成会话自有的 `report_payload.json`；即使 Claw 提前创建了同名 Office 文件，Report Workflow 也必须经 `report_rendering.py` 与 `report_render_script.py` 做确定性模板组装，再由独立交付检查重开文件、检查 HTML 非空、占位符、数据日期和文件哈希。PPTX 占位符按段落合并 `<a:t>` 文本片段后替换和检查，跨文本片段的残留同样会被拒绝。Payload 可按 `*_blocks` 家族组织，但显式 `missing` 始终优先于解释文字：缺失区块可显示原因，不能因此通过完整交付门禁。Claw 回合结束只进入交付检查，缺 Payload、投影失败、必需区块或约定格式时保持 `delivery_incomplete`。
+
+如果 Payload 晚于父回合结束才写入，重试仅在当前会话和当前 Run 的文件边界内查找新建或更新文件，直接恢复确定性组装，不再刷新 Excel 或重启 Claw。旧历史产物、附件和运行前已有文件均不计入本次交付。
 
 ## 研究台查询与交接
 
@@ -57,4 +67,4 @@ HTML 产物使用无同源权限的 sandbox 预览与限制 CSP。下载不执�
 
 停止异常复核直接记录失败原因，不解析文件；只有完整原生结束证据才进入实际文件校验。收据内部的停止意图不暴露给模型或浏览器，错误码与解释可见。详见 [交付实现](../../research-web-delivery.md)。
 
-来源：`delivery.py`、`delivery_validation.py`、`store.py`、`sandbox.py` 和 `datahub/`。既有协议、文件安全、取消、审批、数据快照与真实文件验收在本次 UI/能力改动后需要重跑。
+来源：`delivery.py`、`delivery_validation.py`、`store.py`、`sandbox.py` 和 `datahub/`。既有协议、文件安全、取消、自动工具过滤、数据快照与真实文件验收在本次 UI/能力改动后需要重跑。

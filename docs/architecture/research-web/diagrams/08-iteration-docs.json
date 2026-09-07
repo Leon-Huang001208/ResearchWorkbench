@@ -122,7 +122,7 @@
       "id": "html",
       "type": "database",
       "label": "生成 HTML",
-      "sublabel": "固定八图 · deliver 回执",
+      "sublabel": "固定十图 · deliver 回执",
       "row": 1,
       "col": 3,
       "size": [

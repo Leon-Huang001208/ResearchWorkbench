@@ -170,7 +170,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.exception_handler(StoreError)
     async def store_error(request, exc):
         return JSONResponse(
-            {"error": {"code": "invalid_resource", "message": str(exc)}}, status_code=400
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )
 
     @app.exception_handler(AssetWorkspaceError)
@@ -239,9 +239,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         return {"items": [{"id": "research", "name": "我的研究"}]}
 
     @app.get("/api/research/sessions")
-    async def sessions(request: Request):
+    async def sessions(request: Request, view: Literal["active", "deleted", "all"] = "active"):
         service = svc(request)
-        return {"items": await service.list_sessions()}
+        return {"items": await service.list_sessions(view)}
 
     @app.post("/api/research/sessions", status_code=201)
     async def create_session(body: NewSession, request: Request):
@@ -260,6 +260,18 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         row["title"] = body.title
         service.store.save()
         return service.summary(row)
+
+    @app.delete("/api/research/sessions/{sid}")
+    async def delete_session(sid: str, request: Request):
+        return await svc(request).soft_delete_session(sid)
+
+    @app.post("/api/research/sessions/{sid}/restore")
+    async def restore_session(sid: str, request: Request):
+        return await svc(request).restore_session(sid)
+
+    @app.delete("/api/research/sessions/{sid}/permanent")
+    async def permanently_delete_session(sid: str, request: Request):
+        return await svc(request).permanent_delete_session(sid)
 
     @app.post("/api/research/sessions/{sid}/messages", status_code=202)
     async def send(

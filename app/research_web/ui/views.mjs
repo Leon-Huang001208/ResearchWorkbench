@@ -7,7 +7,11 @@ export const empty = (title, description = '') => `<div class="empty"><span clas
 
 export function renderConversation(detail, questionDrafts = new Map()) {
   if (!detail) return '';
-  const messages = (detail.messages || []).map((message) => `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}"><div class="message-byline"><span class="avatar">${message.role === 'user' ? '你' : 'A'}</span><strong>${e(message.role === 'user' ? '你' : message.role === 'assistant' ? 'Research Workbench' : message.role)}</strong></div><div class="markdown">${renderMarkdown(message.text)}</div></article>`).join('');
+  const assistantLabel = detail.mode === 'fingpt' ? 'FinGPT 回复' : detail.mode === 'claw' ? 'Claw 回复' : '助手回复';
+  const messages = (detail.messages || []).map((message) => {
+    const label = message.role === 'user' ? '用户消息' : message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
+    return `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text)}</div></article>`;
+  }).join('');
   const approvals = (detail.approvals || []).map((approval) => `<section class="decision-card"><div class="eyebrow">需要你的授权</div><h3>${e(approval.title)}</h3><div class="markdown">${renderMarkdown(approval.detail)}</div><div class="button-row"><button class="button primary" data-approval="${e(approval.id)}" data-decision="approve">允许</button><button class="button danger-outline" data-approval="${e(approval.id)}" data-decision="deny">拒绝</button></div></section>`).join('');
   const questions = (detail.questions || []).map((question) => {
     const draft = questionDrafts.get(question.id) || [];
@@ -16,8 +20,18 @@ export function renderConversation(detail, questionDrafts = new Map()) {
   return `${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(detail.error)}</div>` : ''}`;
 }
 
-export function renderRename(title) {
-  return `<form id="rename-form" class="decision-card rename-form"><label for="rename-title">为这个研究会话命名</label><input id="rename-title" name="title" value="${e(title)}" required maxlength="120"><div class="button-row"><button type="submit" class="button primary">保存名称</button><button type="button" class="button" data-cancel-rename>取消</button></div></form>`;
+export function renderRename(title, error = '', busy = false) {
+  return `<div class="dialog-backdrop" data-dialog-backdrop><form id="rename-form" class="session-dialog rename-form" role="dialog" aria-modal="true" aria-labelledby="rename-heading"><div><div class="eyebrow">会话管理</div><h2 id="rename-heading">重命名会话</h2></div><label for="rename-title">会话名称</label><input id="rename-title" name="title" value="${e(title)}" required maxlength="120" autocomplete="off" ${busy ? 'disabled' : ''}>${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<div class="button-row"><button type="button" class="button" data-cancel-rename ${busy ? 'disabled' : ''}>取消</button><button type="submit" class="button primary" ${busy ? 'disabled' : ''}>${busy ? '正在保存…' : '保存名称'}</button></div></form></div>`;
+}
+
+export function renderDeleteConfirm(session, error = '', busy = false) {
+  if (!session) return '';
+  return `<div class="dialog-backdrop" data-dialog-backdrop><form id="delete-session-form" class="session-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-heading"><div><div class="eyebrow">移至已删除</div><h2 id="delete-heading">删除“${e(session.title || '未命名会话')}”？</h2></div><p>会话将移至“已删除”并保留 30 天，期间可以恢复；研究记录和文件不会立即清除。</p>${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<div class="button-row"><button type="button" class="button" data-cancel-delete ${busy ? 'disabled' : ''}>取消</button><button type="submit" class="button danger" ${busy ? 'disabled' : ''}>${busy ? '正在删除…' : '移至已删除'}</button></div></form></div>`;
+}
+
+export function renderPurgeConfirm(session, error = '', busy = false) {
+  if (!session) return '';
+  return `<div class="dialog-backdrop" data-dialog-backdrop><form id="purge-session-form" class="session-dialog" role="dialog" aria-modal="true" aria-labelledby="purge-heading"><div><div class="eyebrow">永久删除</div><h2 id="purge-heading">永久删除“${e(session.title || '未命名会话')}”？</h2></div><p>此操作无法撤销。DSH 原生对话日志、附件、数据集、产物和 Workbench 索引记录都会被清除。</p>${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<div class="button-row"><button type="button" class="button" data-cancel-purge ${busy ? 'disabled' : ''}>取消</button><button type="submit" class="button danger" ${busy ? 'disabled' : ''}>${busy ? '正在永久删除…' : '永久删除'}</button></div></form></div>`;
 }
 
 export function renderFormatPicker(formats, capability) {
@@ -107,10 +121,22 @@ export function renderFiles(files = [], selected = null) {
   return `${rows || '<p class="muted small">尚无文件。上传附件或让 DSH 生成报告后，真实文件将显示于此。</p>'}${preview}`;
 }
 
-export function renderHistory(sessions, filter = '') {
-  const visible = sessions.filter((session) => `${session.title} ${session.mode}`.toLowerCase().includes(filter.toLowerCase()));
-  if (!visible.length) return empty(filter ? '没有匹配的会话' : '还没有研究会话', filter ? '试试不同的关键词。' : '从 FinGPT 或 Claw 开始，研究历史会自动保留。');
+export function renderHistory(sessions, filter = '', mode = null, view = 'active') {
+  const visible = sessions.filter((session) => (!mode || session.mode === mode) && `${session.title} ${session.mode}`.toLowerCase().includes(filter.toLowerCase()));
+  const modeLabel = mode === 'claw' ? 'Claw' : mode === 'fingpt' ? 'FinGPT' : '';
+  if (!visible.length) return empty(filter ? '没有匹配的会话' : view === 'deleted' ? '“已删除”中没有会话' : `还没有${modeLabel ? ` ${modeLabel}` : ''}研究会话`, filter ? '试试不同的关键词。' : view === 'deleted' ? '删除的会话会在这里保留 30 天。' : modeLabel ? `从 ${modeLabel} 开始研究后，会话会自动保留。` : '从 FinGPT 或 Claw 开始，研究历史会自动保留。');
+  if (view === 'deleted') {
+    return `<div class="history-list deleted-history">${visible.map((session) => `<article class="history-row deleted-row"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')} · ${e(retentionText(session.purge_at))}</span></div><time>${formatTime(session.deleted_at)}</time><div class="history-actions"><button type="button" class="button small" data-restore-session="${e(session.id)}">恢复</button><button type="button" class="button small danger-outline" data-purge-session="${e(session.id)}">永久删除</button></div></article>`).join('')}</div>`;
+  }
   return `<div class="history-list">${visible.map((session) => `<a class="history-row" href="${sessionHash(session)}"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')}${session.model ? ` · ${e(session.model)}` : ''}</span></div>${badge(session.status)}<time>${formatTime(session.updated_at)}</time><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
+}
+
+function retentionText(value) {
+  const deadline = new Date(value).getTime();
+  if (!Number.isFinite(deadline)) return '删除期限未知';
+  const remaining = Math.max(0, deadline - Date.now());
+  const days = Math.ceil(remaining / 86400000);
+  return days > 0 ? `${days} 天后永久删除` : '等待永久删除';
 }
 
 function formatTime(value) {

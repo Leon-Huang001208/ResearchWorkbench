@@ -12,6 +12,10 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'history') {
+    route.historyMode = ['fingpt', 'claw'].includes(params.get('mode')) ? params.get('mode') : null;
+    route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
+  }
   if (page === 'skills' && ['skill', 'tool', 'workflow', 'data'].includes(params.get('kind'))) route.capabilityKind = params.get('kind');
   if (page === 'workbench') {
     const requestedSection = sectionSegment || params.get('section');
@@ -74,12 +78,21 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   const capabilityPath = (id) => `/capabilities/${segment(id)}`;
   return {
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
-    sessions: () => request('/sessions'), skills: () => request('/skills'),
+    sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
     capabilities: () => request('/capabilities'), tools: () => request('/tools'),
     reportWorkflows: () => request('/report-workflows'),
     reportWorkflow: (id) => request(`/report-workflows/${segment(id)}`),
     runReportWorkflow: (id) => request(`/report-workflows/${segment(id)}/runs`, { method: 'POST', body: {} }),
+    reportWorkflowRuns: (id) => request(`/report-workflows/${segment(id)}/runs`),
+    reportProviders: () => request('/report-workflows/providers'),
+    probeReportProvider: (id, key) => request(`/report-workflows/providers/${segment(id)}/probe`, { method: 'POST', body: {}, key }),
     reportRun: (id) => request(`/report-runs/${segment(id)}`),
+    cancelReportRun: (id) => request(`/report-runs/${segment(id)}/cancel`, { method: 'POST', body: {} }),
+    retryReportRun: (id) => request(`/report-runs/${segment(id)}/retry`, { method: 'POST', body: {} }),
+    reportRunDelivery: (id) => request(`/report-runs/${segment(id)}/delivery`),
+    reportRunRefreshManifests: (id) => request(`/report-runs/${segment(id)}/refresh-manifests`),
+    reportSchedule: (id) => request(`/report-workflows/${segment(id)}/schedule`),
+    saveReportSchedule: (id, body) => request(`/report-workflows/${segment(id)}/schedule`, { method: 'PUT', body }),
     dataCatalog: () => request('/data/catalog'),
     dataCapability: (id) => request(`/data/capabilities/${segment(id)}`),
     dataSource: (id) => request(`/data/sources/${segment(id)}`),
@@ -124,6 +137,9 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     detail: (id) => request(sessionPath(id)),
     message: (id, body, key) => request(`${sessionPath(id)}/messages`, { method: 'POST', body, key }),
     rename: (id, title) => request(sessionPath(id), { method: 'PATCH', body: { title } }),
+    deleteSession: (id) => request(sessionPath(id), { method: 'DELETE' }),
+    restoreSession: (id) => request(`${sessionPath(id)}/restore`, { method: 'POST', body: {} }),
+    purgeSession: (id) => request(`${sessionPath(id)}/permanent`, { method: 'DELETE' }),
     cancel: (id) => request(`${sessionPath(id)}/cancel`, { method: 'POST', body: {} }),
     upgrade: (id) => request(`${sessionPath(id)}/upgrade`, { method: 'POST', body: {} }),
     files: (id) => request(`${sessionPath(id)}/files`),

@@ -6,12 +6,12 @@
   "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/04-data-file-flow.json",
   "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
-    "sha256": "a1e3c23f53158600198aff0101c6151b6a01e618713923da066d141469db3bcd",
-    "bytes": 5971
+    "sha256": "7555b5758f9b7f4df74388c5920cb9d4ff17c56fc0a8259487cdf8ec7d613513",
+    "bytes": 6018
   },
   "artifact": {
-    "sha256": "7466ee30ed983fad76aeaeb8edaf287744866b4294b368e8489fa05b5a518d1f",
-    "bytes": 649700
+    "sha256": "4bed24eeec485f8bc81103b80b006a0dd21d69589af930956a9c3ca8c1e7b49b",
+    "bytes": 649719
   },
   "validation": {
     "checksPassed": 9,

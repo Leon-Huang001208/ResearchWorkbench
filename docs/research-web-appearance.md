@@ -29,9 +29,9 @@
 
 ## 品牌资产（brand-spec）
 
-资产为用户提供图片的原始字节，位置：`app/research_web/ui/assets/brand/source-logo.png`，SHA-256 `bcb4aaff2e6c11912389148f11886412c624f585252806887dc057d94c6e78b6`。
+资产的可复核来源为用户提供的原始字节：`app/research_web/ui/assets/brand/source-logo.png`，SHA-256 `bcb4aaff2e6c11912389148f11886412c624f585252806887dc057d94c6e78b6`。原图保留且不重画、生成、修改或重新编码。
 
-不重画、生成或修改源图。显示时裁切原图 x=51、y=22、宽108、高120的图案区域，排除“华安基金 / HUAAN FUNDS”文字。浅色模式保留原蓝色，深色模式使用 CSS 灰度、反色和亮度变换呈现白色图案；混合模式去除源图白底，不加白色底板、边框或徽章。Research Workbench 名称仍是产品名称，不声明与原图品牌的机构关系。
+正式页面使用 `app/research_web/ui/assets/brand/brand-mark.png`：由原图固定裁切 x=51、y=22、宽108、高120的图案区域生成的 108×120 RGBA 透明派生资产，排除“华安基金 / HUAAN FUNDS”文字。白色及近白色底已转换为透明，并移除边缘白色杂边。浅色模式直接显示蓝色图案，深色模式以 `brightness(0) invert(1)` 显示白色图案；两种主题均无矩形底板、混合模式、边框或徽章，图像直接填满既有 27×30 显示视口。Research Workbench 名称仍是产品名称，不声明与原图品牌的机构关系。
 
 ## 状态与安全
 
@@ -72,3 +72,9 @@ node tests/e2e/research_web_appearance.mjs --live
 ## 2026-09-06 可见性纠正
 
 资产观察从研究台子页提升为主导航独立入口，仍使用同一 Codex 风格壳；Claw 首页新增具体报告 Workflow 区，能力中心 Workflow 页可查看其资源详情。两处都读取真实后端目录和区块状态，不复制旧 AlphaFoundry UI，也不把通用 Workflow 卡片当成华安 ETF 或创业板 50 报告。桌面保持紧凑卡片，窄屏自然收为单列；未发布或 `needs_attention` 项保持禁用而不是显示假成功。
+
+## 2026-09-07 对话呈现与异常摘要
+
+用户消息改为贴右的内容宽度气泡，桌面最大 78%，760px 以下最大 92%；助手继续使用左侧正文。可见头像及“你”/“Research Workbench”署名已删除，`article.message`、角色 class、Markdown 与流式更新容器保持不变。消息以不可见 ARIA 名称保留“用户消息”“FinGPT 回复”或“Claw 回复”语义。
+
+会话异常横幅分别读取失败活动和异常 `subagents`，显示“7 项活动失败”或“2 项活动失败，1 个子 Agent 异常”等明确文案；零异常时不显示，历史失败明细与“查看详情”仍保留。本轮在 390、768、1280、1440 四档及深色主题完成只读浏览器检查。

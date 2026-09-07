@@ -7,6 +7,8 @@ import json
 import math
 import os
 import re
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Any
 
@@ -17,7 +19,29 @@ from .providers import ProviderError, Result
 
 log = get_logger(__name__)
 SOURCE_URL = "https://www.chinajoin.com/"
+DEADLINE = 15
 MAX_ROWS = 5000
+_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="datahub-tinysoft")
+_CAPACITY = threading.BoundedSemaphore(1)
+
+
+def _release_capacity(_future: Future) -> None:
+    try:
+        _CAPACITY.release()
+    except ValueError:
+        log.error("tinysoft_capacity_release_failed")
+
+
+def _submit(query: BusinessQuery) -> Future | None:
+    if not _CAPACITY.acquire(blocking=False):
+        return None
+    try:
+        future = _EXECUTOR.submit(_sync_query, query)
+    except Exception:
+        _CAPACITY.release()
+        raise
+    future.add_done_callback(_release_capacity)
+    return future
 
 
 def _json_value(value: Any) -> Any:
@@ -92,7 +116,11 @@ def _sync_query(query: BusinessQuery):
         rows = _rows(cjpy.get_stocks(client=client))
         needle = str(parameters.get("query", "")).strip().casefold()
         if needle:
-            rows = [row for row in rows if needle in json.dumps(row, ensure_ascii=False).casefold()]
+            rows = [
+                row
+                for row in rows
+                if needle in json.dumps(row, ensure_ascii=False).casefold()
+            ]
     elif query.capability == "trading_calendar":
         rows = _rows(
             cjpy.get_trading_days(
@@ -137,8 +165,20 @@ def _sync_query(query: BusinessQuery):
 async def fetch(query: BusinessQuery) -> Result:
     result = Result(source_url=SOURCE_URL, provider_id="tinysoft")
     try:
-        async with asyncio.timeout(20):
-            result.rows = await asyncio.to_thread(_sync_query, query)
+        future = _submit(query)
+    except Exception as exc:  # noqa: BLE001 - executor/provider submission can fail arbitrarily.
+        result.status = "failed"
+        result.limitations = ["provider_error"]
+        log.warning("tinysoft_submit_failed", error_type=type(exc).__name__)
+        return result
+    if future is None:
+        result.status = "failed"
+        result.limitations = ["provider_busy"]
+        log.warning("tinysoft_provider_busy", capability=query.capability)
+        return result
+    try:
+        async with asyncio.timeout(DEADLINE):
+            result.rows = await asyncio.wrap_future(future)
         result.raw = [json.dumps(result.rows, ensure_ascii=False).encode()]
         result.raw_bytes = len(result.raw[0])
         result.pages_fetched = 1
@@ -170,6 +210,8 @@ async def probe() -> dict:
     query = BusinessQuery(capability="search_assets", source="tinysoft", parameters={})
     result = await fetch(query)
     return {
-        "health": "healthy" if result.status in {"complete", "empty"} else "unavailable",
+        "health": "healthy"
+        if result.status in {"complete", "empty"}
+        else "unavailable",
         "failure_code": result.limitations[-1] if result.status == "failed" else None,
     }

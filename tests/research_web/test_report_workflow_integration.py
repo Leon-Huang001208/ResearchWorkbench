@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from app.research_web.main import create_app
 from app.research_web.report_workflows import migration as migration_module
+from app.research_web.report_workflows import runtime as runtime_module
 from app.research_web.report_workflows.models import (
     WorkbookRefreshResult,
     WorkflowError,
@@ -71,6 +72,19 @@ def _xlsx(path: Path, formula: str = "WSS(A1)") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr(
+            "xl/workbook.xml",
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        )
+        archive.writestr(
+            "xl/_rels/workbook.xml.rels",
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" '
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
+            'Target="worksheets/sheet1.xml"/></Relationships>',
+        )
+        archive.writestr(
             "xl/worksheets/sheet1.xml",
             '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
             f'<sheetData><row><c r="A1"><f>{formula}</f><v>1</v></c></row></sheetData>'
@@ -92,7 +106,9 @@ def _manifest(workflow_id="weekly-report"):
                 "required_cells": ["Sheet1!A1"],
             }
         ],
-        "blocks": [{"id": "summary", "title": "摘要", "kind": "narrative", "required": True}],
+        "blocks": [
+            {"id": "summary", "title": "摘要", "kind": "narrative", "required": True}
+        ],
         "delivery": {
             "formats": ["docx", "html", "xlsx"],
             "required_artifacts": [],
@@ -125,6 +141,14 @@ def _create_version(client: TestClient, tmp_path: Path, workflow_id="weekly-repo
     return version.json()
 
 
+def _record_successful_manual_run(service, workflow_id: str, version: int = 1) -> None:
+    run_id = f"manual-pass-{workflow_id}"
+    service.report_workflows.runtime._new_run(
+        run_id, workflow_id, version, "manual", "completed"
+    )
+    service.report_workflows.runtime._update_run(run_id, delivery_status="complete")
+
+
 def test_report_workflow_api_coexists_with_capability_workflows(api, tmp_path):
     client, service, _ = api
     assert service.report_studio.scheduler_task is None
@@ -132,9 +156,14 @@ def test_report_workflow_api_coexists_with_capability_workflows(api, tmp_path):
     assert client.get("/api/research/workflows").status_code == 200
     version = _create_version(client, tmp_path)
     assert version["version"] == 1
-    assert client.get("/api/research/report-workflows").json()["items"][0]["id"] == "weekly-report"
     assert (
-        client.post("/api/research/report-workflows/weekly-report/versions/1/publish").status_code
+        client.get("/api/research/report-workflows").json()["items"][0]["id"]
+        == "weekly-report"
+    )
+    assert (
+        client.post(
+            "/api/research/report-workflows/weekly-report/versions/1/publish"
+        ).status_code
         == 200
     )
     detail = client.get("/api/research/report-workflows/weekly-report").json()
@@ -143,17 +172,23 @@ def test_report_workflow_api_coexists_with_capability_workflows(api, tmp_path):
     resources = client.get(
         "/api/research/report-workflows/weekly-report/versions/1/resources"
     ).json()["items"]
-    resource = next(item for item in resources if item["path"] == "workbooks/source.xlsx")
+    resource = next(
+        item for item in resources if item["path"] == "workbooks/source.xlsx"
+    )
     downloaded = client.get(
         "/api/research/report-workflows/weekly-report/versions/1/resources/workbooks/source.xlsx"
     )
     assert downloaded.content and resource["sha256"]
     assert (
-        client.post("/api/research/report-workflows/weekly-report/disable").json()["status"]
+        client.post("/api/research/report-workflows/weekly-report/disable").json()[
+            "status"
+        ]
         == "disabled"
     )
     assert (
-        client.post("/api/research/report-workflows/weekly-report/versions/1/rollback").status_code
+        client.post(
+            "/api/research/report-workflows/weekly-report/versions/1/rollback"
+        ).status_code
         == 200
     )
     copied = client.post(
@@ -241,7 +276,9 @@ def test_provider_probe_is_safe_and_missing_xlwings_blocks_run(api, tmp_path):
     assert service.report_workflows.runtime.tasks == {}
 
 
-def test_refresh_success_delegates_once_to_claw_and_locks_version(api, tmp_path, monkeypatch):
+def test_refresh_success_delegates_once_to_claw_and_locks_version(
+    api, tmp_path, monkeypatch
+):
     client, service, _ = api
     _create_version(client, tmp_path)
     client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
@@ -250,7 +287,7 @@ def test_refresh_success_delegates_once_to_claw_and_locks_version(api, tmp_path,
         run_root = service.report_workflows.runtime.run_path(run_id)
         output = run_root / workbook
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(b"refreshed")
+        output.write_bytes((tmp_path / "source.xlsx").read_bytes())
         manifest = run_root / "refresh-manifests" / ("a" * 64 + ".json")
         manifest.parent.mkdir()
         manifest.write_text(json.dumps({"status": "ready", "output_sha256": "a" * 64}))
@@ -273,7 +310,9 @@ def test_refresh_success_delegates_once_to_claw_and_locks_version(api, tmp_path,
 
     monkeypatch.setattr(service, "create", fake_create)
     monkeypatch.setattr(service, "send", fake_send)
-    monkeypatch.setattr(service.report_workflows.runtime, "_wait_for_delivery", lambda run_id: None)
+    monkeypatch.setattr(
+        service.report_workflows.runtime, "_wait_for_delivery", lambda run_id: None
+    )
     run = client.post("/api/research/report-workflows/weekly-report/runs").json()
     for _ in range(50):
         value = client.get(f"/api/research/report-runs/{run['id']}").json()
@@ -285,10 +324,21 @@ def test_refresh_success_delegates_once_to_claw_and_locks_version(api, tmp_path,
     assert value["version"] == 1
     assert value["status"] == "running"
     assert value["session_id"]
-    assert len(sent) == 1 and sent[0][3]["capability_id"] == "report-production-workflow"
+    assert (
+        len(sent) == 1 and sent[0][3]["capability_id"] == "report-production-workflow"
+    )
     session = service.store.session(value["session_id"])
     assert session["report_workflow"]["workflow_id"] == "weekly-report"
     assert session["report_workflow"]["version"] == 1
+    run_context = json.loads(
+        (
+            service.store.directory(value["session_id"])
+            / "inputs/report-workflow/run-context.json"
+        ).read_text()
+    )
+    assert run_context["dataset_snapshot_sha256"] == value["dataset_snapshot_sha256"]
+    assert len(run_context["dataset_snapshot_sha256"]) == 64
+    assert "outputs/report_payload.json" in sent[0][1]
     public = service.report_workflows.runtime.public_run(
         {
             "nested": {
@@ -296,20 +346,180 @@ def test_refresh_success_delegates_once_to_claw_and_locks_version(api, tmp_path,
                     {
                         "manifest_path": str(tmp_path / "private" / "manifest.json"),
                         "source_path": str(tmp_path / "private" / "source.xlsx"),
+                        "url": "/api/research/sessions/session-id/files/artifact-id",
                     }
                 ]
             }
         }
     )
-    assert public == {"nested": {"items": [{"manifest_path": "private-file"}]}}
+    assert public == {
+        "nested": {
+            "items": [
+                {
+                    "manifest_path": "private-file",
+                    "url": "/api/research/sessions/session-id/files/artifact-id",
+                }
+            ]
+        }
+    }
     assert str(tmp_path) not in json.dumps(value, ensure_ascii=False)
     assert str(tmp_path) not in service.report_workflows.catalog.index.read_text()
+
+
+def test_terminal_claw_payload_is_always_projected_before_delivery_is_accepted(
+    api, tmp_path, monkeypatch
+):
+    client, service, _ = api
+    _create_version(client, tmp_path)
+    client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
+    runtime = service.report_workflows.runtime
+    runtime._new_run("projection-run", "weekly-report", 1, "manual", "running")
+    runtime._update_run("projection-run", session_id="session-one")
+    projected = []
+
+    async def detail(_sid):
+        return {
+            "status": "completed",
+            "can_cancel": False,
+            "approvals": [],
+            "delivery": {
+                "status": "completed",
+                "files": [{"id": "report.docx", "format": "docx"}],
+                "missing_formats": [],
+            },
+        }
+
+    async def project(store, sid, formats):
+        projected.append((store, sid, formats))
+        return {"status": "completed", "files": ["outputs/report.docx"]}
+
+    async def immediate_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(service, "detail", detail)
+    monkeypatch.setattr(runtime_module, "render_report_payload", project)
+    monkeypatch.setattr(runtime_module.asyncio, "sleep", immediate_sleep)
+
+    asyncio.run(runtime._wait_for_delivery("projection-run"))
+
+    run = runtime._run("projection-run")
+    assert projected and projected[0][1:] == (
+        "session-one",
+        ["docx", "html", "xlsx"],
+    )
+    assert run["status"] == "completed"
+    assert run["delivery_status"] == "complete"
+    assert run["projection_status"] == "completed"
+
+
+def test_delivery_requires_declared_real_subagents(api, tmp_path, monkeypatch):
+    client, service, _ = api
+    manifest = _manifest()
+    manifest["minimum_subagents"] = 2
+    created = client.post("/api/research/report-workflows", json=manifest)
+    assert created.status_code == 201
+    workbook = tmp_path / "source.xlsx"
+    _xlsx(workbook)
+    client.post(
+        "/api/research/report-workflows/weekly-report/resources",
+        data={"path": "workbooks/source.xlsx"},
+        files={"file": ("source.xlsx", workbook.read_bytes())},
+    )
+    client.post("/api/research/report-workflows/weekly-report/versions")
+    client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
+    runtime = service.report_workflows.runtime
+    runtime._new_run("subagent-run", "weekly-report", 1, "manual", "running")
+    runtime._update_run("subagent-run", session_id="session-one")
+
+    async def detail(_sid):
+        return {
+            "status": "completed",
+            "can_cancel": False,
+            "approvals": [],
+            "subagents": [{"id": "only-one", "status": "completed"}],
+            "delivery": {
+                "status": "completed",
+                "files": [{"id": "report.docx", "format": "docx"}],
+                "missing_formats": [],
+            },
+        }
+
+    async def immediate_sleep(_seconds):
+        return None
+
+    async def project(_store, _sid, _formats):
+        return {"status": "completed", "files": ["outputs/report.docx"]}
+
+    monkeypatch.setattr(service, "detail", detail)
+    monkeypatch.setattr(runtime_module, "render_report_payload", project)
+    monkeypatch.setattr(runtime_module.asyncio, "sleep", immediate_sleep)
+
+    asyncio.run(runtime._wait_for_delivery("subagent-run"))
+
+    run = runtime._run("subagent-run")
+    assert run["status"] == "delivery_incomplete"
+    assert run["delivery_status"] == "incomplete"
+    assert run["subagents"] == [{"id": "only-one", "status": "completed"}]
+    assert run["missing"] == ["subagents:2"]
+
+
+def test_delivery_retry_consumes_late_payload_without_starting_another_claw_session(
+    api, tmp_path, monkeypatch
+):
+    client, service, _ = api
+    _create_version(client, tmp_path)
+    client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
+    runtime = service.report_workflows.runtime
+    session = service.store.create("claw", "late report payload")
+    output = service.store.directory(session["id"]) / "outputs" / "report_payload.json"
+    output.write_text(
+        json.dumps(
+            {
+                "title": "迟到的真实报告",
+                "as_of": "2026-09-07",
+                "sections": [{"id": "summary", "title": "摘要", "content": "已完成。"}],
+            },
+            ensure_ascii=False,
+        )
+    )
+    runtime._new_run(
+        "late-payload-run", "weekly-report", 1, "manual", "delivery_incomplete"
+    )
+    runtime._update_run(
+        "late-payload-run",
+        session_id=session["id"],
+        dataset_snapshot_sha256="a" * 64,
+        projection_attempted_at=123,
+        projection_status="missing_payload",
+        delivery_status="incomplete",
+    )
+    resumed = asyncio.Event()
+
+    async def resume(run_id):
+        assert run_id == "late-payload-run"
+        resumed.set()
+
+    async def reject_new_session(*_args, **_kwargs):
+        raise AssertionError("late payload must not create another Claw session")
+
+    monkeypatch.setattr(runtime, "_resume_delivery", resume)
+    monkeypatch.setattr(service, "create", reject_new_session)
+
+    result = asyncio.run(runtime.retry("late-payload-run"))
+    asyncio.run(asyncio.sleep(0))
+
+    assert result["status"] == "validating"
+    assert result["session_id"] == session["id"]
+    assert result["projection_attempted_at"] is None
+    assert result["projection_status"] is None
+    assert resumed.is_set()
 
 
 def test_schedule_is_shanghai_non_reentrant_and_catches_up_once(api, tmp_path):
     client, service, _ = api
     _create_version(client, tmp_path)
     client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
+    _record_successful_manual_run(service, "weekly-report")
     now = datetime(2026, 9, 6, 4, 0, tzinfo=UTC)
     saved = client.put(
         "/api/research/report-workflows/weekly-report/schedule",
@@ -319,26 +529,53 @@ def test_schedule_is_shanghai_non_reentrant_and_catches_up_once(api, tmp_path):
     service.report_workflows.runtime._set_schedule_due_for_test(
         "weekly-report", now - timedelta(days=14)
     )
-    service.report_workflows.runtime._new_run("overlap", "weekly-report", 1, "manual", "running")
+    service.report_workflows.runtime._new_run(
+        "overlap", "weekly-report", 1, "manual", "running"
+    )
     asyncio.run(service.report_workflows.runtime.tick(now))
     runs = service.report_workflows.runtime.runs("weekly-report")
     assert sum(item["trigger"] == "schedule" for item in runs) == 1
     assert (
-        next(item for item in runs if item["trigger"] == "schedule")["status"] == "skipped_overlap"
+        next(item for item in runs if item["trigger"] == "schedule")["status"]
+        == "skipped_overlap"
     )
     assert (
-        service.report_workflows.runtime.schedule("weekly-report")["next_run_at"] > now.isoformat()
+        service.report_workflows.runtime.schedule("weekly-report")["next_run_at"]
+        > now.isoformat()
     )
 
 
-def test_scheduler_isolates_disabled_workflow_and_continues_due_items(api, tmp_path, monkeypatch):
+def test_schedule_cannot_be_enabled_before_successful_manual_delivery(api, tmp_path):
+    client, _, _ = api
+    _create_version(client, tmp_path)
+    client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
+
+    response = client.put(
+        "/api/research/report-workflows/weekly-report/schedule",
+        json={"kind": "weekly", "enabled": True, "weekday": 6, "hour": 11, "minute": 0},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "manual_run_required"
+
+
+def test_scheduler_isolates_disabled_workflow_and_continues_due_items(
+    api, tmp_path, monkeypatch
+):
     client, service, _ = api
     for workflow_id in ("disabled-report", "ready-report"):
         _create_version(client, tmp_path, workflow_id)
         client.post(f"/api/research/report-workflows/{workflow_id}/versions/1/publish")
+        _record_successful_manual_run(service, workflow_id)
         client.put(
             f"/api/research/report-workflows/{workflow_id}/schedule",
-            json={"kind": "weekly", "enabled": True, "weekday": 6, "hour": 11, "minute": 0},
+            json={
+                "kind": "weekly",
+                "enabled": True,
+                "weekday": 6,
+                "hour": 11,
+                "minute": 0,
+            },
         )
     client.post("/api/research/report-workflows/disabled-report/disable")
     now = datetime(2026, 9, 6, 4, 0, tzinfo=UTC)
@@ -361,17 +598,29 @@ def test_scheduler_isolates_disabled_workflow_and_continues_due_items(api, tmp_p
     failed_schedule = service.report_workflows.runtime.schedule("disabled-report")
     assert failed_schedule["last_error_code"] == "workflow_disabled"
     assert failed_schedule["enabled"] is False
-    assert service.report_workflows.runtime.schedule("ready-report")["last_error_code"] is None
+    assert (
+        service.report_workflows.runtime.schedule("ready-report")["last_error_code"]
+        is None
+    )
 
 
-def test_scheduler_isolates_malformed_and_unexpected_failures(api, tmp_path, monkeypatch):
+def test_scheduler_isolates_malformed_and_unexpected_failures(
+    api, tmp_path, monkeypatch
+):
     client, service, _ = api
     for workflow_id in ("malformed-report", "error-report", "later-report"):
         _create_version(client, tmp_path, workflow_id)
         client.post(f"/api/research/report-workflows/{workflow_id}/versions/1/publish")
+        _record_successful_manual_run(service, workflow_id)
         client.put(
             f"/api/research/report-workflows/{workflow_id}/schedule",
-            json={"kind": "weekly", "enabled": True, "weekday": 6, "hour": 11, "minute": 0},
+            json={
+                "kind": "weekly",
+                "enabled": True,
+                "weekday": 6,
+                "hour": 11,
+                "minute": 0,
+            },
         )
     now = datetime(2026, 9, 6, 4, 0, tzinfo=UTC)
     for workflow_id in ("error-report", "later-report"):
@@ -379,7 +628,9 @@ def test_scheduler_isolates_malformed_and_unexpected_failures(api, tmp_path, mon
             workflow_id, now - timedelta(days=7)
         )
     with service.report_workflows.catalog._exclusive():
-        malformed = service.report_workflows.catalog._row("malformed-report")["schedule"]
+        malformed = service.report_workflows.catalog._row("malformed-report")[
+            "schedule"
+        ]
         malformed["next_run_at"] = "not-a-date"
         service.report_workflows.catalog._save()
     called = []
@@ -415,9 +666,9 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
             "placeholders:\n  market_summary:\n    title: 市场概览\n    type: paragraph\n"
             "charts:\n  performance:\n    title: 市场表现图\n"
         )
-        (folder / "templates" / ("deck.pptx" if "风向标" in name else "report.docx")).write_bytes(
-            b"template"
-        )
+        (
+            folder / "templates" / ("deck.pptx" if "风向标" in name else "report.docx")
+        ).write_bytes(b"template")
         _xlsx(folder / "data" / "source.xlsx", formula="1+1")
     ai = source / "AI周报" / "templates"
     ai.mkdir(parents=True)
@@ -440,7 +691,9 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     (duplicate_root / "runs" / "run-001").mkdir(parents=True)
     (duplicate_root / "runs" / "run-001" / "report.docx").write_bytes(b"historical-run")
     (duplicate_root / ".preview-cache").mkdir()
-    (duplicate_root / ".preview-cache" / "large-preview.png").write_bytes(b"preview-only")
+    (duplicate_root / ".preview-cache" / "large-preview.png").write_bytes(
+        b"preview-only"
+    )
     preview_cache = source / "华安ETF周报" / ".preview-cache"
     preview_cache.mkdir()
     (preview_cache / "generated.png").write_bytes(b"cache-only")
@@ -448,7 +701,9 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     dry = service.report_workflows.migration.migrate(source, dry_run=True)
     assert dry["project_count"] == 4
     assert dry["source"] == "legacy-report-projects"
-    huaan_dry = next(item for item in dry["projects"] if item["id"] == "huaan-etf-weekly")
+    huaan_dry = next(
+        item for item in dry["projects"] if item["id"] == "huaan-etf-weekly"
+    )
     assert huaan_dry["resource_count"] == 4
     assert huaan_dry["history_count"] == 2
     assert dry["resource_count"] == len(dry["accepted"])
@@ -458,13 +713,18 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
         for item in dry["accepted"]
         for part in ("generated", "runs", "jobs", "outputs", ".preview-cache")
     )
-    assert any(item["reason"] == "historical_path_content_conflict" for item in dry["quarantined"])
+    assert any(
+        item["reason"] == "historical_path_content_conflict"
+        for item in dry["quarantined"]
+    )
     assert str(tmp_path) not in json.dumps(dry, ensure_ascii=False)
     assert not client.get("/api/research/report-workflows").json()["items"]
     applied = service.report_workflows.migration.migrate(source, dry_run=False)
     again = service.report_workflows.migration.migrate(source, dry_run=False)
     assert applied["project_count"] == again["project_count"] == 4
-    assert {item["migration_status"] for item in again["projects"]} == {"already_present"}
+    assert {item["migration_status"] for item in again["projects"]} == {
+        "already_present"
+    }
     items = client.get("/api/research/report-workflows").json()["items"]
     assert {item["id"] for item in items} == {
         "huaan-etf-weekly",
@@ -472,14 +732,19 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
         "huaan-etf-compass",
         "ai-weekly",
     }
-    assert next(item for item in items if item["id"] == "ai-weekly")["status"] == "needs_attention"
+    assert (
+        next(item for item in items if item["id"] == "ai-weekly")["status"]
+        == "needs_attention"
+    )
     migrated = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
     blocks = migrated["versions"][0]["manifest"]["blocks"]
     assert [(item["title"], item["kind"]) for item in blocks] == [
         ("市场概览", "narrative"),
         ("市场表现图", "chart"),
     ]
-    assert any(item["reason"] == "path_content_conflict" for item in applied["quarantined"])
+    assert any(
+        item["reason"] == "path_content_conflict" for item in applied["quarantined"]
+    )
     assert not any(".preview-cache" in item["path"] for item in applied["accepted"])
     assert str(tmp_path) not in json.dumps(applied, ensure_ascii=False)
     assert str(tmp_path) not in json.dumps(migrated, ensure_ascii=False)
@@ -494,24 +759,107 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     )
     assert history_project["migration_status"] == "history_updated"
     migrated = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
-    assert any(item["path"] == "generated/new.pdf" for item in migrated["historical_artifacts"])
+    assert any(
+        item["path"] == "generated/new.pdf" for item in migrated["historical_artifacts"]
+    )
     assert migrated["migration"]["history_sha256"] == history_project["history_sha256"]
     stable = service.report_workflows.migration.migrate(source, dry_run=False)
-    stable_project = next(item for item in stable["projects"] if item["id"] == "huaan-etf-weekly")
+    stable_project = next(
+        item for item in stable["projects"] if item["id"] == "huaan-etf-weekly"
+    )
     assert stable_project["migration_status"] == "already_present"
 
-    (source / "华安ETF周报" / "templates" / "report.docx").write_bytes(b"changed-template")
+    (source / "华安ETF周报" / "templates" / "report.docx").write_bytes(
+        b"changed-template"
+    )
     conflict = service.report_workflows.migration.migrate(source, dry_run=False)
-    project = next(item for item in conflict["projects"] if item["id"] == "huaan-etf-weekly")
+    project = next(
+        item for item in conflict["projects"] if item["id"] == "huaan-etf-weekly"
+    )
     assert project["migration_status"] == "conflict"
     assert project["status"] == "needs_attention"
     assert any(
-        item.get("workflow_id") == "huaan-etf-weekly" and item["reason"] == "source_hash_conflict"
+        item.get("workflow_id") == "huaan-etf-weekly"
+        and item["reason"] == "source_hash_conflict"
         for item in conflict["quarantined"]
     )
-    assert not any(item.get("workflow_id") == "huaan-etf-weekly" for item in conflict["accepted"])
+    assert not any(
+        item.get("workflow_id") == "huaan-etf-weekly" for item in conflict["accepted"]
+    )
     detail = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
     assert detail["status"] == "needs_attention"
+
+
+def test_migrated_chinext_v2_excludes_mislabeled_wind_workbook(api, tmp_path):
+    client, service, _ = api
+    source = tmp_path / "report_projects"
+    folder = source / "创业板50周报"
+    (folder / "templates").mkdir(parents=True)
+    (folder / "data").mkdir()
+    (folder / "config").mkdir()
+    (folder / "project.yaml").write_text("name: 创业板50周报\n")
+    (folder / "config" / "report_config.yaml").write_text(
+        "placeholders:\n  market:\n    title: 市场概览\n    type: paragraph\n"
+    )
+    (folder / "templates" / "report.docx").write_bytes(b"template")
+    _xlsx(folder / "data" / "创业板50周报（Wind版）.xlsx", formula='THS_HQ("x")')
+    _xlsx(folder / "data" / "创业板50周报（iFind版）.xlsx", formula='THS_HQ("x")')
+
+    service.report_workflows.migration.migrate(source, dry_run=False)
+    upgraded = service.report_workflows.migration.upgrade_all_v2()
+
+    assert upgraded == {"upgraded": ["chinext-50-weekly"], "unchanged": []}
+    detail = client.get("/api/research/report-workflows/chinext-50-weekly").json()
+    assert detail["current_version"] == 2
+    manifest = detail["versions"][-1]["manifest"]
+    assert [item["workbook"] for item in manifest["workbook_policies"]] == [
+        "workbooks/创业板50周报（iFind版）.xlsx"
+    ]
+    assert manifest["workbook_policies"][0]["timeout_seconds"] == 180
+    assert manifest["delivery"]["primary_workbook"] == (
+        "workbooks/创业板50周报（iFind版）.xlsx"
+    )
+    assert manifest["minimum_subagents"] == 2
+    assert manifest["excluded_workbooks"] == ["workbooks/创业板50周报（Wind版）.xlsx"]
+    assert any(
+        item["path"] == "mappings/resource-status.yaml"
+        for item in manifest["resources"]
+    )
+    assert service.report_workflows.migration.upgrade_all_v2() == {
+        "upgraded": [],
+        "unchanged": ["chinext-50-weekly"],
+    }
+
+
+def test_migrated_huaan_excludes_pre_refresh_backup_workbook(api, tmp_path):
+    client, service, _ = api
+    source = tmp_path / "report_projects"
+    folder = source / "华安ETF周报"
+    (folder / "templates").mkdir(parents=True)
+    (folder / "data").mkdir()
+    (folder / "config").mkdir()
+    (folder / "project.yaml").write_text(
+        "name: 华安ETF周报\nactive_excel_workbook: 周报数据.xlsx\n"
+        "excel_refresh:\n  provider: wind_excel\n"
+    )
+    (folder / "config" / "report_config.yaml").write_text(
+        "placeholders:\n  market:\n    title: 市场概览\n    type: paragraph\n"
+    )
+    (folder / "templates" / "report.docx").write_bytes(b"template")
+    _xlsx(folder / "data" / "周报数据.xlsx", formula='WSS("x")')
+    _xlsx(folder / "data" / "周报图表.before_excel_update.xlsx", formula='WSS("x")')
+
+    service.report_workflows.migration.migrate(source, dry_run=False)
+    service.report_workflows.migration.upgrade_all_v2()
+
+    detail = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
+    manifest = detail["versions"][-1]["manifest"]
+    assert manifest["excluded_workbooks"] == [
+        "workbooks/周报图表.before_excel_update.xlsx"
+    ]
+    assert [item["workbook"] for item in manifest["workbook_policies"]] == [
+        "workbooks/周报数据.xlsx"
+    ]
 
 
 def test_migration_rejects_project_and_duplicate_directory_symlinks(api, tmp_path):
@@ -535,14 +883,18 @@ def test_migration_rejects_project_and_duplicate_directory_symlinks(api, tmp_pat
         item["path"] == "创业板50周报" and item["reason"] == "unsafe_project_directory"
         for item in report["rejected"]
     )
-    assert any(item["reason"] == "unsafe_duplicate_directory" for item in report["quarantined"])
+    assert any(
+        item["reason"] == "unsafe_duplicate_directory" for item in report["quarantined"]
+    )
     assert not any(
         item["sha256"] == migration_module._sha256(outside / "secret.docx")
         for item in report["accepted"]
     )
 
 
-def test_migration_fails_closed_when_source_changes_after_scan(api, tmp_path, monkeypatch):
+def test_migration_fails_closed_when_source_changes_after_scan(
+    api, tmp_path, monkeypatch
+):
     _, service, _ = api
     source = tmp_path / "report_projects"
     folder = source / "华安ETF周报"
@@ -580,7 +932,9 @@ def test_migration_rejects_symlink_source(api, tmp_path):
     assert getattr(caught.value, "code", None) == "migration_source_invalid"
 
 
-def test_migration_api_uses_configured_source_not_request_path(api, tmp_path, monkeypatch):
+def test_migration_api_uses_configured_source_not_request_path(
+    api, tmp_path, monkeypatch
+):
     client, _, _ = api
     configured = tmp_path / "configured" / "report_projects"
     configured.mkdir(parents=True)
@@ -620,7 +974,10 @@ def test_migration_prefers_already_managed_report_projects(api, tmp_path, monkey
     detail = client.get("/api/research/report-workflows/chinext-50-weekly").json()
     assert detail["name"] == "创业板50周报"
     assert detail["status"] == "enabled"
-    assert any(item["path"].endswith("old-report.pdf") for item in detail["historical_artifacts"])
+    assert any(
+        item["path"].endswith("old-report.pdf")
+        for item in detail["historical_artifacts"]
+    )
     assert not list(service.store.root.glob("report-workflow-migration-*"))
 
 
@@ -629,14 +986,26 @@ def test_operations_include_versioned_report_workflow_runs(api):
     service.report_workflows.runtime._new_run(
         "versioned-run", "weekly-report", 3, "schedule", "completed"
     )
+    service.report_workflows.runtime._update_run(
+        "versioned-run",
+        refresh_manifests=["refresh-manifests/" + "a" * 64 + ".json"],
+        dataset_snapshot="snapshots/report-data.json",
+        subagents=[{"id": "agent-1", "status": "completed"}],
+        artifacts=[{"name": "report.docx", "size": 4096}],
+    )
     response = client.get("/api/research/operations/summary?range=today")
     assert response.status_code == 200, response.text
     reports = response.json()["reports"]
     assert reports["runs"] == 1
     assert reports["outcomes"] == {"completed": 1}
+    assert reports["excel_refreshes"] == 1
+    assert reports["dataset_snapshots"] == 1
+    assert reports["subagents"] == 1
+    assert reports["artifact_bytes"] == 4096
     assert reports["projects"] == [{"project_id": "weekly-report", "runs": 1}]
     storage_ids = {
-        item["id"] for item in client.get("/api/research/operations/storage").json()["categories"]
+        item["id"]
+        for item in client.get("/api/research/operations/storage").json()["categories"]
     }
     assert "report_workflows" in storage_ids
 
@@ -658,7 +1027,9 @@ def test_refresh_manifest_route_flattens_per_workbook_entries(api, monkeypatch):
         },
     )
 
-    response = client.get("/api/research/report-runs/multi-workbook-run/refresh-manifests")
+    response = client.get(
+        "/api/research/report-runs/multi-workbook-run/refresh-manifests"
+    )
 
     assert response.status_code == 200
     assert [item["workbook"] for item in response.json()["items"]] == [
@@ -683,7 +1054,9 @@ def test_refresh_cancellation_waits_for_bounded_worker_cleanup(api, monkeypatch)
 
     async def scenario():
         pending = asyncio.create_task(
-            service.report_workflows.runtime._refresh_workbook("run-id", "workbooks/source.xlsx")
+            service.report_workflows.runtime._refresh_workbook(
+                "run-id", "workbooks/source.xlsx"
+            )
         )
         assert await asyncio.to_thread(started.wait, 1)
         pending.cancel()

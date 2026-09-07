@@ -16,7 +16,7 @@
 | `diagrams[]` | `id`、JSON `source`、HTML `artifact`、`receipt`、`visualReceipt`、`evidence` |
 | `evidence[]` | 图中 `subjects`（节点或关系 ID）对应实际源码 `source`；可增加字符串 `contains` 定位具体声明 |
 
-清单包含八图、各节点与关系的关联来源及实际 `/api/research/` 路由，不允许以空清单绕过检查。
+清单包含十图、各节点与关系的关联来源及实际 `/api/research/` 路由，不允许以空清单绕过检查。新增报告 Workflow 运行序列与 Excel 数据流也必须经过同一哈希、视觉和人工审阅门禁。
 
 ## 更新检查规则
 
@@ -44,4 +44,4 @@ JSON 改动需要重新生成对应 HTML 和交付回执。检查实际字节的
 
 核对记录使用 `<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"具体说明为什么本次模块边界与状态未变，不能只写已更新。","diagrams":[]} -->`。结构变化使用 `changed` 并列出本次真实改动的对应图源 ID；结构未变无需制造图源变更，但仍更新说明和记录。
 
-Web 只读入口 `/api/research/documentation/index.html` 及八个固定图文件由 `documentation.py` 提供；逐级 nofollow、硬链接拒绝、4 MiB 限额与隔离 CSP，不提供仓库或 Runtime 私有路径。
+Web 只读入口 `/api/research/documentation/index.html`、由接口清单生成的 `api-atlas.html` 及十个固定图文件由 `documentation.py` 提供；逐级 nofollow、硬链接拒绝、4 MiB 限额与隔离 CSP，不提供仓库或 Runtime 私有路径。

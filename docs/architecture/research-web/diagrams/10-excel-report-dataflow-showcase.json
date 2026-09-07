@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Excel 底稿、共享快照与报告文件数据流",
+    "output": "10-excel-report-dataflow.html",
+    "quality_profile": "showcase",
+    "viewBox": [1450, 720],
+    "views": [
+      {"id": "immutable-inputs", "label": "不可变输入", "focus": ["version", "runCopy", "providerPolicy"], "note": "模板和底稿来自锁定版本；运行只使用独立副本，Provider 要求来自 manifest。"},
+      {"id": "excel-snapshot", "label": "刷新、校验与快照", "focus": ["runCopy", "excel", "refreshManifest", "extract", "snapshot"], "note": "Wind/iFinD 刷新结果必须通过公式、日期、必填项和异常零值检查后才发布共享快照。"},
+      {"id": "research-delivery", "label": "研究与确定性交付", "focus": ["snapshot", "agents", "payload", "assembler", "artifacts"], "note": "模型内容和文件组装分离；所有子 Agent 读取同一快照，产物保留校验结果与哈希。"}
+    ]
+  },
+  "stages": [
+    {"label": "锁定资源"}, {"label": "运行与刷新"}, {"label": "校验与提取"}, {"label": "快照与研究"}, {"label": "内容与交付"}
+  ],
+  "nodes": [
+    {"id": "version", "type": "database", "label": "Workflow 版本包", "sublabel": "模板 / 底稿 / 映射 / Hash", "stage": 0, "row": 0, "tag": "只读母版"},
+    {"id": "providerPolicy", "type": "security", "label": "Provider 策略", "sublabel": "Wind / iFinD / 混合", "stage": 0, "row": 4, "tag": "显式声明"},
+    {"id": "runCopy", "type": "database", "label": "Run 资源副本", "sublabel": "隔离目录 / 锁定版本", "stage": 1, "row": 0, "tag": "不覆盖母版"},
+    {"id": "excel", "type": "external", "label": "Excel + 已登录插件", "sublabel": "刷新 / 重算 / 保存", "stage": 1, "row": 4, "tag": "串行"},
+    {"id": "refreshManifest", "type": "security", "label": "刷新 manifest", "sublabel": "Provider / 日期 / 公式 / Hash", "stage": 2, "row": 0, "width": 132, "tag": "fail-closed"},
+    {"id": "extract", "type": "backend", "label": "底稿提取 Tool", "sublabel": "非空单元格 / 口径 / 缺失", "stage": 2, "row": 4, "tag": "有界读取"},
+    {"id": "snapshot", "type": "database", "label": "共享报告快照", "sublabel": "report-data.json / SHA-256", "stage": 3, "row": 0, "tag": "单次发布"},
+    {"id": "agents", "type": "external", "label": "Claw 父子 Agent", "sublabel": "共用同一快照", "stage": 3, "row": 4, "tag": "不重复刷新"},
+    {"id": "payload", "type": "database", "label": "结构化报告内容", "sublabel": "report_payload.json", "stage": 4, "row": 0, "tag": "区块 + 缺失"},
+    {"id": "assembler", "type": "security", "label": "组装与验证 Tool", "sublabel": "模板填充 / 重开 / 哈希", "stage": 4, "row": 2, "tag": "无网络"},
+    {"id": "artifacts", "type": "database", "label": "本次报告产物", "sublabel": "Office / HTML / 校验状态", "stage": 4, "row": 4, "tag": "会话隔离"}
+  ],
+  "flows": [
+    {"id": "copyVersion", "from": "version", "to": "runCopy", "label": "复制锁定资源", "classification": "immutable source", "variant": "emphasis"},
+    {"id": "applyPolicy", "from": "providerPolicy", "to": "excel", "label": "指定插件与刷新条件", "classification": "declared policy", "variant": "security"},
+    {"id": "openCopy", "from": "runCopy", "to": "excel", "label": "只打开运行副本", "classification": "local workbook", "labelDy": -28},
+    {"id": "recordRefresh", "from": "excel", "to": "refreshManifest", "label": "刷新结果、数据日期与文件哈希", "classification": "validated evidence", "variant": "security", "labelDy": 28},
+    {"id": "authorizeSnapshot", "from": "refreshManifest", "to": "extract", "label": "仅 ready 才继续", "classification": "fail closed", "variant": "security", "labelDy": -28},
+    {"id": "publishSnapshot", "from": "extract", "to": "snapshot", "label": "原子写入一次共享快照", "classification": "run owned", "variant": "emphasis"},
+    {"id": "agentRead", "from": "snapshot", "to": "agents", "label": "同一 SHA-256", "classification": "read only", "variant": "dashed"},
+    {"id": "authorPayload", "from": "agents", "to": "payload", "label": "区块正文、来源与缺失项", "classification": "model authored", "variant": "emphasis", "labelAt": [835, 330]},
+    {"id": "projectPayload", "from": "payload", "to": "assembler", "label": "严格结构与必需区块", "classification": "validated JSON", "variant": "security"},
+    {"id": "deliver", "from": "assembler", "to": "artifacts", "label": "生成、重开、校验、哈希", "classification": "session owned", "variant": "emphasis"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "模板与数据底稿属于 Workflow", "items": ["每个版本拥有自己的 Word/PPT 模板和 Excel 公式底稿", "Skill 复用研究方法，Tool 复用确定性动作"]},
+    {"dot": "amber", "title": "Excel 优先但不盲信缓存", "items": ["插件、公式、日期、异常零值或过期数据失败即阻塞", "仅显式口径等价映射可启用 DataHub 备用"]},
+    {"dot": "emerald", "title": "产物可以追溯", "items": ["刷新、快照、payload 和最终文件各自保留 SHA-256", "旧产物不计入本次运行；迟到 payload 可直接组装"]}
+  ]
+}

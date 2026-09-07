@@ -43,10 +43,10 @@ DSH 源码固定 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；CLI 版本为 `0.1
 - `main.py`：回环 Web API、安全来源边界、上传与隔离预览；无旧业务启动钩子。
 - `ui/`：正式五页与原生模块，详见 [UI 文档](research-web-ui.md)。
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
-- `skills/`：资料解读、公司研究、行业研究、基金评价四类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
+- `skills/`：市场解读（`market-commentary`）、资料解读、公司研究、行业研究、基金评价五类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
 - `resources/`：实际 PDF 页码抽取、Office/HTML/Markdown 文件生成与重开检查。
 - `datahub/`：固定来源、分页、私有原始响应、会话不可变资料、校验读取与缓存；见 [DataHub](research-web-datahub.md)。
-- `runtime/public-data.mjs`：原生审批、可信会话身份、认证回环DataHub及取消薄桥接，不再重复上游解析；见 [公开数据工具](research-web-public-data.md)。
+- `runtime/public-data.mjs`：启动时只注册已有可调用来源的 `datahub_*` 工具，并通过可信会话身份与认证回环 DataHub 自动桥接、联动取消，不再重复上游解析或逐次确认；见 [公开数据工具](research-web-public-data.md)。
 
 数据根默认 `~/.research-workbench/research-web`（可通过 `RESEARCH_DATA_HOME` 指定）。其下：
 
@@ -86,7 +86,7 @@ Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真�
 - DSH 重启后先用 `session.models` 恢复记录中的 preset，再查询 `skill.list`；不会创建替代会话或重复发送。
 - 子 Agent 活动来自 `subagent.list/history` 的父子归属接口；每个子 Agent 展示最近100条消息的投影，`history_truncated` 明确说明更早内容未加载，1秒缓存减少重复读取。
 - 父回合结束但子 Agent 仍运行时，详情和历史保持运行状态；停止调用原生父会话取消及直接子 Agent interrupt，不把受理当作已停止。
-- 父 Agent 已离线的 `session-not-found` 不阻断原生父子归属下的子任务取消；其他错误仍明确报告。原生后台子 Agent 审批策略为 `never`，需审批的取数由父 Agent 完成，再传给子 Agent 分析，不修改原生策略。
+- 父 Agent 已离线的 `session-not-found` 不阻断原生父子归属下的子任务取消；其他错误仍明确报告。原生后台子 Agent 审批策略为 `never`：当前 Runtime 已暴露的 DataHub callable 工具由父 Agent 自动取数，子 Agent 复用父 Agent 已取得的同一数据集；只有 DataHub 以外仍需审批的工具沿用原策略，由父 Agent 取得结果后交给子 Agent 分析。
 - 子 Agent 展示原生用量、错误和已结束回合累计耗时；工具耗时来自原生事件时间戳。未提供时不填零。截断历史时提示统计不完整。内部任务标记只在 Web 展示层隐藏，本会话原生日志保留完整契约。
 - 模型配置、创建及发送共用单进程锁；配置完成才发布产品默认模型，运行中的原生会话不被热切换。
 - 图片附件转换为原生 image content（单张8MiB、合计16MiB），DSH负责媒体校验和模型兼容性；其他文件作为只读inputs路径交给研究工具。上传30MiB上限不表示模型能接收等大图片。
@@ -94,9 +94,9 @@ Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真�
 
 ## 验收与保留限制
 
-- 原生 `web_search`、财联社电报、基金净值及批准/拒绝/等待中取消已有真实模型证据；不开放任意网页 fetch、MCP 或自动依赖安装。
+- 原生 `web_search` 已有真实模型证据；财联社电报、基金净值及其批准/拒绝/等待中取消则是旧 DataHub 逐次审批机制下的历史证据。当前 DataHub 已替换为启动时仅暴露 callable 工具并自动取数；仍不开放任意网页 fetch、MCP 或自动依赖安装。
 - 早期基金示例只有20条单页数据；后续DataHub批次已完成2025净值13页243条、基本资料16项、分红25条、披露持仓220条，并由两个真实子Agent共用快照产出文件。见[DataHub验收](../.ai/reports/2026-09-02-datahub-acceptance.md)。仍缺基准序列、复权总回报、合同/定期报告原文及完整持仓，不能据此宣称完整基金尽调。文件格式验证不替代数据与结论复核。
-- 已验证真实无效模型报错并恢复、BFF 中断后审批/草稿恢复、同键不重发、父与子脚本停止。未模拟提供方生成到一半时的任意故障类型；真实图片模型识别仍未覆盖。
+- 已验证真实无效模型报错并恢复、同键不重发、父与子脚本停止。BFF 中断后的审批/草稿恢复是旧 DataHub 逐次审批机制下的历史证据；当前已替换为 callable 工具自动取数，不再出现 DataHub 审批提示。未模拟提供方生成到一半时的任意故障类型；真实图片模型识别仍未覆盖。
 - 本轮仍是本机回环单人 Web；脚本隔离仅验证当前 macOS Seatbelt，未验证 Linux 部署。未新增任何依赖或第三方 MCP。
 - 早期固定Python启动探针 PID 38291 留在macOS内核 `UE` 状态；SIGKILL后未确认回收，临时目录 `/private/tmp/rwb-dsh-sandbox-probe.frLuyJ` 保留。它不是模型脚本；旧实验profile快照不完整，不能保证其权限/句柄状态。当前有效runner的全部取消测试已正常回收。
 - 未涉及桌面/Windows、市场首页/主题/自选、旧系统数据删除。

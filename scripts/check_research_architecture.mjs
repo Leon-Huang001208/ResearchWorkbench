@@ -8,7 +8,18 @@ import { fileURLToPath } from 'node:url';
 
 export const MAP_PATH = 'docs/architecture/research-web/architecture-map.json';
 const ARTIFACT_ROOT = 'outputs/research-web-architecture';
-const REQUIRED_DIAGRAMS = ['01-deployment', '02-module-dependencies', '03-research-sequence', '04-data-file-flow', '05-capability-flow', '06-run-state', '07-delivery-state', '08-iteration-docs'];
+const REQUIRED_DIAGRAMS = [
+  '01-deployment',
+  '02-module-dependencies',
+  '03-research-sequence',
+  '04-data-file-flow',
+  '05-capability-flow',
+  '06-run-state',
+  '07-delivery-state',
+  '08-iteration-docs',
+  '09-report-workflow-sequence',
+  '10-excel-report-dataflow',
+];
 const VIEWPORTS = ['1440x900', '1600x1000', '1920x1080', '2048x1320'];
 const GRAPH_FIELDS = {architecture:['components','connections'],sequence:['participants','messages'],dataflow:['nodes','flows'],lifecycle:['states','transitions'],workflow:['nodes','edges']};
 const SOURCE_EXTENSIONS = /\.(?:py|[cm]?js|css|html|md|json|ya?ml|toml|sh|txt)$/i;
@@ -186,7 +197,7 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
   for (const api of actualAPIs) if (!declaredSet.has(apiKey(api))) issue('api_inventory',api.source,`API missing from inventory: ${api.method} ${api.path}`);
 
   const ids=map.diagrams.map(diagram=>diagram.id);
-  if (ids.length!==8 || new Set(ids).size!==8 || REQUIRED_DIAGRAMS.some(id=>!ids.includes(id))) issue('diagram_inventory',MAP_PATH,'Exactly the eight required diagrams must be delivered');
+  if (ids.length!==REQUIRED_DIAGRAMS.length || new Set(ids).size!==REQUIRED_DIAGRAMS.length || REQUIRED_DIAGRAMS.some(id=>!ids.includes(id))) issue('diagram_inventory',MAP_PATH,`Exactly the ${REQUIRED_DIAGRAMS.length} required diagrams must be delivered`);
   const human=json(map.visualReview);
   for (const diagram of map.diagrams) {
     const expected={artifact:'.html',receipt:'.receipt.json',visualReceipt:'.visual-check.json'};

@@ -31,7 +31,9 @@ assert "services.ask_factory" not in sys.modules
 def test_stable_entrypoint_prioritizes_current_repository(monkeypatch):
     import research_workbench_entrypoint
 
-    project_root = str(Path(research_workbench_entrypoint.__file__).resolve().parents[1])
+    project_root = str(
+        Path(research_workbench_entrypoint.__file__).resolve().parents[1]
+    )
     monkeypatch.setattr(sys, "path", ["/sibling-project", *sys.path])
 
     class StopAfterImport(RuntimeError):
@@ -47,3 +49,21 @@ def test_stable_entrypoint_prioritizes_current_repository(monkeypatch):
         pass
 
     assert sys.path[0] == project_root
+
+
+def test_repository_launcher_does_not_depend_on_editable_site_path():
+    project_root = Path(__file__).resolve().parents[2]
+    launcher = project_root / "rwb"
+
+    completed = subprocess.run(
+        [str(launcher), "--help"],
+        cwd=project_root,
+        env={"PATH": "/usr/bin:/bin", "PYTHONPATH": "/missing-project"},
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert "web" in completed.stdout

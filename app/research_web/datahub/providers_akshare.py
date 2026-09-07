@@ -6,6 +6,8 @@ import asyncio
 import json
 import math
 import re
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -15,7 +17,28 @@ from .contracts import BusinessQuery
 from .providers import MAX_ROWS, ProviderError, Result
 
 log = get_logger(__name__)
-DEADLINE = 35
+DEADLINE = 15
+_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="datahub-akshare")
+_CAPACITY = threading.BoundedSemaphore(1)
+
+
+def _release_capacity(_future: Future) -> None:
+    try:
+        _CAPACITY.release()
+    except ValueError:
+        log.error("datahub_akshare_capacity_release_failed")
+
+
+def _submit(query: BusinessQuery) -> Future | None:
+    if not _CAPACITY.acquire(blocking=False):
+        return None
+    try:
+        future = _EXECUTOR.submit(_invoke, query)
+    except Exception:
+        _CAPACITY.release()
+        raise
+    future.add_done_callback(_release_capacity)
+    return future
 
 
 def _symbol(value: str) -> str:
@@ -30,7 +53,9 @@ def _market_symbol(value: str) -> str:
     prefix = (
         "sh"
         if symbol.startswith(("5", "6", "9"))
-        else "bj" if symbol.startswith(("4", "8")) else "sz"
+        else "bj"
+        if symbol.startswith(("4", "8"))
+        else "sz"
     )
     return f"{prefix}{symbol}"
 
@@ -55,7 +80,10 @@ def _records(frame) -> list[dict]:
     rows = frame.to_dict(orient="records")
     if not isinstance(rows, list):
         raise ProviderError("invalid_dataframe")
-    return [{str(key): _clean(value) for key, value in row.items()} for row in rows[:MAX_ROWS]]
+    return [
+        {str(key): _clean(value) for key, value in row.items()}
+        for row in rows[:MAX_ROWS]
+    ]
 
 
 def _pick(row: dict, *names: str):
@@ -99,7 +127,13 @@ def _normalize_assets(rows: list[dict], query: BusinessQuery) -> list[dict]:
             continue
         if needle and needle not in code.casefold() and needle not in name.casefold():
             continue
-        market = "SH" if code.startswith(("5", "6", "9")) else "BJ" if code.startswith(("4", "8")) else "SZ"
+        market = (
+            "SH"
+            if code.startswith(("5", "6", "9"))
+            else "BJ"
+            if code.startswith(("4", "8"))
+            else "SZ"
+        )
         normalized.append(
             {
                 "asset_id": f"{code}.{market}",
@@ -136,7 +170,9 @@ def _normalize_bars(rows: list[dict], query: BusinessQuery) -> list[dict]:
 
 
 def _normalize_snapshot(rows: list[dict], query: BusinessQuery) -> list[dict]:
-    requested = {str(value).split(".")[0] for value in query.parameters.get("assets", [])}
+    requested = {
+        str(value).split(".")[0] for value in query.parameters.get("assets", [])
+    }
     normalized = []
     for row in rows:
         code = str(_pick(row, "代码", "code") or "").strip()
@@ -144,7 +180,13 @@ def _normalize_snapshot(rows: list[dict], query: BusinessQuery) -> list[dict]:
             continue
         if not re.fullmatch(r"[0-9]{6}", code):
             continue
-        market = "SH" if code.startswith(("5", "6", "9")) else "BJ" if code.startswith(("4", "8")) else "SZ"
+        market = (
+            "SH"
+            if code.startswith(("5", "6", "9"))
+            else "BJ"
+            if code.startswith(("4", "8"))
+            else "SZ"
+        )
         normalized.append(
             {
                 "asset": f"{code}.{market}",
@@ -232,13 +274,23 @@ def _invoke(query: BusinessQuery):
         return pd.DataFrame(snapshots), _normalize_snapshot
     if capability == "financials":
         return (
-            ak.stock_financial_abstract_ths(symbol=_symbol(str(parameters["asset"])), indicator="按报告期"),
+            ak.stock_financial_abstract_ths(
+                symbol=_symbol(str(parameters["asset"])), indicator="按报告期"
+            ),
             _normalize_generic,
         )
     if capability == "market_activity":
         symbol = _symbol(str(parameters["asset"]))
-        market = "sh" if symbol.startswith("6") else "bj" if symbol.startswith(("4", "8")) else "sz"
-        return ak.stock_individual_fund_flow(stock=symbol, market=market), _normalize_generic
+        market = (
+            "sh"
+            if symbol.startswith("6")
+            else "bj"
+            if symbol.startswith(("4", "8"))
+            else "sz"
+        )
+        return ak.stock_individual_fund_flow(
+            stock=symbol, market=market
+        ), _normalize_generic
     raise ProviderError("capability_not_implemented")
 
 
@@ -250,8 +302,20 @@ async def fetch(query: BusinessQuery) -> Result:
         "当前快照不代表交易所级实时行情。",
     ]
     try:
+        future = _submit(query)
+    except Exception as exc:  # noqa: BLE001 - executor/provider submission can fail arbitrarily.
+        result.status = "failed"
+        result.limitations.append("provider_error")
+        log.warning("datahub_akshare_submit_failed", error_type=type(exc).__name__)
+        return result
+    if future is None:
+        result.status = "failed"
+        result.limitations.append("provider_busy")
+        log.warning("datahub_akshare_busy", capability=query.capability)
+        return result
+    try:
         async with asyncio.timeout(DEADLINE):
-            frame, normalizer = await asyncio.to_thread(_invoke, query)
+            frame, normalizer = await asyncio.wrap_future(future)
             source_rows = _records(frame)
             result.rows = normalizer(source_rows, query)
             result.pages_fetched = 1
@@ -259,10 +323,16 @@ async def fetch(query: BusinessQuery) -> Result:
             result.pagination_complete = len(source_rows) <= MAX_ROWS
             result.status = "complete" if result.rows else "empty"
             result.as_of = max(
-                (str(row.get("date") or row.get("as_of")) for row in result.rows if row.get("date") or row.get("as_of")),
+                (
+                    str(row.get("date") or row.get("as_of"))
+                    for row in result.rows
+                    if row.get("date") or row.get("as_of")
+                ),
                 default=None,
             )
-            result.raw = [json.dumps(source_rows, ensure_ascii=False, default=str).encode()]
+            result.raw = [
+                json.dumps(source_rows, ensure_ascii=False, default=str).encode()
+            ]
             result.raw_bytes = len(result.raw[0])
     except asyncio.CancelledError:
         log.info("datahub_akshare_cancelled", capability=query.capability)
@@ -297,13 +367,26 @@ async def fetch(query: BusinessQuery) -> Result:
 
 
 async def probe() -> dict:
+    query = BusinessQuery(
+        capability="search_assets", source="akshare", parameters={"query": ""}
+    )
+    try:
+        future = _submit(query)
+    except Exception as exc:  # noqa: BLE001 - probe must contain arbitrary provider failures.
+        log.warning(
+            "datahub_akshare_probe_submit_failed", error_type=type(exc).__name__
+        )
+        return {"health": "unavailable", "failure_code": "probe_failed"}
+    if future is None:
+        log.info("datahub_akshare_probe_busy")
+        return {"health": "unavailable", "failure_code": "provider_busy"}
     try:
         async with asyncio.timeout(DEADLINE):
-            frame, _ = await asyncio.to_thread(
-                _invoke,
-                BusinessQuery(capability="search_assets", source="akshare", parameters={"query": ""}),
-            )
-            return {"health": "healthy" if len(_records(frame)) else "degraded", "failure_code": None}
+            frame, _ = await asyncio.wrap_future(future)
+            return {
+                "health": "healthy" if len(_records(frame)) else "degraded",
+                "failure_code": None,
+            }
     except Exception as exc:
         if isinstance(exc, asyncio.CancelledError):
             raise

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Form, Header, Request, UploadFile
@@ -52,9 +53,15 @@ async def excel_providers(request: Request):
 async def probe_excel_provider(
     provider_id: str,
     request: Request,
-    idempotency_key: str = Header(alias="Idempotency-Key", min_length=1, max_length=160),
+    idempotency_key: str = Header(
+        alias="Idempotency-Key", min_length=1, max_length=160
+    ),
 ):
-    return request.app.state.research.report_workflows.probe(provider_id, idempotency_key)
+    return await asyncio.to_thread(
+        request.app.state.research.report_workflows.probe,
+        provider_id,
+        idempotency_key,
+    )
 
 
 @router.post("/report-workflows/migrations")
@@ -68,7 +75,9 @@ async def report_workflow(workflow_id: str, request: Request):
 
 
 @router.patch("/report-workflows/{workflow_id}/draft")
-async def update_report_workflow_draft(workflow_id: str, body: DraftUpdate, request: Request):
+async def update_report_workflow_draft(
+    workflow_id: str, body: DraftUpdate, request: Request
+):
     return request.app.state.research.report_workflows.update_draft(
         workflow_id, **body.model_dump()
     )
@@ -127,31 +136,43 @@ async def disable_report_workflow(workflow_id: str, request: Request):
 
 @router.post("/report-workflows/{workflow_id}/versions/{version}/preflight")
 async def preflight_report_version(workflow_id: str, version: int, request: Request):
-    return request.app.state.research.report_workflows.catalog.preflight(workflow_id, version)
+    return request.app.state.research.report_workflows.catalog.preflight(
+        workflow_id, version
+    )
 
 
 @router.get("/report-workflows/{workflow_id}/versions/{version}/resources")
 async def report_resources(workflow_id: str, version: int, request: Request):
-    items = request.app.state.research.report_workflows.catalog.list_resources(workflow_id, version)
+    items = request.app.state.research.report_workflows.catalog.list_resources(
+        workflow_id, version
+    )
     return {"items": [item.model_dump(mode="json") for item in items]}
 
 
-@router.get("/report-workflows/{workflow_id}/versions/{version}/resources/{resource_path:path}")
+@router.get(
+    "/report-workflows/{workflow_id}/versions/{version}/resources/{resource_path:path}"
+)
 async def download_report_resource(
     workflow_id: str, version: int, resource_path: str, request: Request
 ):
-    path = request.app.state.research.report_workflows.resource(workflow_id, version, resource_path)
+    path = request.app.state.research.report_workflows.resource(
+        workflow_id, version, resource_path
+    )
     return FileResponse(path, filename=path.name)
 
 
 @router.post("/report-workflows/{workflow_id}/runs", status_code=202)
 async def run_report_workflow(workflow_id: str, request: Request):
-    return await request.app.state.research.report_workflows.runtime.start_run(workflow_id)
+    return await request.app.state.research.report_workflows.runtime.start_run(
+        workflow_id
+    )
 
 
 @router.get("/report-workflows/{workflow_id}/runs")
 async def report_workflow_runs(workflow_id: str, request: Request):
-    return {"items": request.app.state.research.report_workflows.runtime.runs(workflow_id)}
+    return {
+        "items": request.app.state.research.report_workflows.runtime.runs(workflow_id)
+    }
 
 
 @router.get("/report-workflows/{workflow_id}/schedule")
@@ -160,7 +181,9 @@ async def report_workflow_schedule(workflow_id: str, request: Request):
 
 
 @router.put("/report-workflows/{workflow_id}/schedule")
-async def save_report_workflow_schedule(workflow_id: str, body: WorkflowSchedule, request: Request):
+async def save_report_workflow_schedule(
+    workflow_id: str, body: WorkflowSchedule, request: Request
+):
     return request.app.state.research.report_workflows.runtime.put_schedule(
         workflow_id, body.model_dump()
     )

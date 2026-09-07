@@ -31,7 +31,14 @@ def candidate(name="我的研究", slug="my-research"):
             "slug": slug,
             "description": "基于上传资料开展有来源的研究",
             "category": "资料研究",
-            "inputs": [{"name": "question", "label": "研究问题", "type": "text", "required": True}],
+            "inputs": [
+                {
+                    "name": "question",
+                    "label": "研究问题",
+                    "type": "text",
+                    "required": True,
+                }
+            ],
             "scenarios": ["解读研究资料"],
             "default_formats": ["md"],
             "required_tools": ["research_run_script"],
@@ -79,9 +86,32 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 21
+    assert len(tools) == 28
+    workflow_tools = {
+        t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"
+    }
+    assert workflow_tools == {
+        "report_workbook_refresh",
+        "report_workbook_extract",
+        "report_template_inspect",
+        "report_chart_render",
+        "report_docx_assemble",
+        "report_pptx_assemble",
+        "report_delivery_validate",
+    }
+    assert all(not t["selectable"] for t in tools if t["id"] in workflow_tools)
     assert sum(t["id"] == "datahub_get_fund_data" for t in tools) == 1
     assert all(t["parameters"] and t["source"] and t["conditions"] for t in tools)
+    datahub_tools = [t for t in tools if t["source"] == "runtime/public-data.mjs"]
+    assert all(t["approval"] == "automatic" for t in datahub_tools)
+    assert all(
+        t["conditions"]
+        == [
+            "已配置且可用的 DataHub 来源自动执行，无逐次确认",
+            "无可调用来源的能力不会注册到 Runtime",
+        ]
+        for t in datahub_tools
+    )
     assert native.calls == []
 
 
@@ -123,12 +153,12 @@ def test_catalog_migrates_persisted_legacy_tool_ids_as_new_versions(tmp_path):
         assert "af_run_script" not in json.dumps(active, ensure_ascii=False)
         assert "af_public_data" not in json.dumps(active, ensure_ascii=False)
         assert migrated.selection(cid)["version"] == 2
-    assert migrated.row("document-reading")["versions"]["1"]["metadata"]["required_tools"] == [
-        "af_run_script"
-    ]
-    assert migrated.row("fund-research-workflow")["versions"]["2"]["steps"][0]["tools"] == [
-        "datahub_get_fund_data"
-    ]
+    assert migrated.row("document-reading")["versions"]["1"]["metadata"][
+        "required_tools"
+    ] == ["af_run_script"]
+    assert migrated.row("fund-research-workflow")["versions"]["2"]["steps"][0][
+        "tools"
+    ] == ["datahub_get_fund_data"]
 
     reloaded = CapabilityCatalog(tmp_path)
     assert reloaded.row("document-reading")["version"] == 2
@@ -162,9 +192,13 @@ def test_draft_check_publish_copy_versions_disable_rollback_export(api):
     with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
         assert archive.read("SKILL.md").decode() == candidate()["instructions"]
         assert json.loads(archive.read("capability.json"))["name"] == "我的研究"
-    assert client.post("/api/research/capabilities", json=candidate()).status_code == 409
     assert (
-        client.patch("/api/research/capabilities/company-research/draft", json=changed).status_code
+        client.post("/api/research/capabilities", json=candidate()).status_code == 409
+    )
+    assert (
+        client.patch(
+            "/api/research/capabilities/company-research/draft", json=changed
+        ).status_code
         == 409
     )
     copied = client.post(
@@ -190,7 +224,10 @@ def test_metadata_dependencies_tools_invalid_preserved(api):
     value["metadata"]["inputs"] = []
     client.patch(base + "/draft", json=value)
     checks = client.post(base + "/check").json()
-    assert {c["code"] for c in checks["issues"]} >= {"tool_unavailable", "metadata_invalid"}
+    assert {c["code"] for c in checks["issues"]} >= {
+        "tool_unavailable",
+        "metadata_invalid",
+    }
     assert client.get(base).json()["draft"]["metadata"]["required_tools"] == ["shell"]
 
 
@@ -255,7 +292,9 @@ def test_zip_link_duplicate_limits_and_missing_metadata(api):
         files={"file": ("SKILL.md", candidate()["instructions"].encode())},
     )
     assert response.json()["status"] == "invalid"
-    assert any(i["code"] == "metadata_invalid" for i in response.json()["checks"]["issues"])
+    assert any(
+        i["code"] == "metadata_invalid" for i in response.json()["checks"]["issues"]
+    )
 
 
 def test_workflow_compiles_native_skill_template_not_execution(api):
@@ -278,7 +317,11 @@ def test_workflow_compiles_native_skill_template_not_execution(api):
     compiled = (
         service.capabilities.native_root / result.json()["native_name"] / "SKILL.md"
     ).read_text()
-    assert "步骤模板" in compiled and "未执行" in compiled and "document-reading" in compiled
+    assert (
+        "步骤模板" in compiled
+        and "未执行" in compiled
+        and "document-reading" in compiled
+    )
     assert "1. 资料核对" in compiled and "2. 交付" in compiled
 
 
@@ -286,7 +329,10 @@ def test_research_script_requires_explicit_review_and_never_executes(api):
     client, _, _ = api
     value = candidate()
     value["files"].append(
-        {"path": "scripts/research.py", "content": "raise RuntimeError('never execute')"}
+        {
+            "path": "scripts/research.py",
+            "content": "raise RuntimeError('never execute')",
+        }
     )
     row = create(client, value)
     base = f"/api/research/capabilities/{row['id']}"
@@ -294,7 +340,9 @@ def test_research_script_requires_explicit_review_and_never_executes(api):
     assert any(i["code"] == "script_review_required" for i in check["issues"])
     assert client.post(base + "/publish").status_code == 422
     reviewed = next(
-        f["sha256"] for f in client.get(base).json()["draft"]["files"] if f["path"].endswith(".py")
+        f["sha256"]
+        for f in client.get(base).json()["draft"]["files"]
+        if f["path"].endswith(".py")
     )
     value["reviewed_scripts"] = [reviewed]
     assert client.patch(base + "/draft", json=value).status_code == 200

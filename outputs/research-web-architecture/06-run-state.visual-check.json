@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/06-run-state.html",
-    "sha256": "629ab462b473c0fc8edec81010cfc9f80e4fc997dd91d201289ed7532df7dee1",
-    "bytes": 634523
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/06-run-state.html",
+    "sha256": "12db8cb4ba6e704a23b6e0705d58d3733f76512670b21c4b1f3a572bfc511c8b",
+    "bytes": 634543
   },
   "state": {
     "detail": "read",

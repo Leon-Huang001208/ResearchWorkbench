@@ -9,6 +9,7 @@
 - DataHub：查询审计、私有 manifest 和公开快照文件；失败只暴露安全化错误码。
 - 服务：只有 `rwb web` 状态文件、命令指纹、项目/数据根与实际 PID 命令签名同时匹配时才显示“进程存在”；实时 `/host.describe` 健康检查单独显示。
 - 存储：只遍历 `~/.research-workbench/research-web` 和项目私有 `dsh-source` 的允许分类，不扫描用户磁盘其他位置。
+- 报告 Workflow：从版本化运行记录聚合状态、Excel 刷新次数、共享快照、真实子 Agent、实际产物数量和字节数。旧历史产物不计入新运行，损坏 manifest 只返回安全化缺失状态。
 
 ## API 与读取策略
 

@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_PATH=$0
+while [ -L "$SCRIPT_PATH" ]; do
+  SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
+  SCRIPT_LINK=$(readlink "$SCRIPT_PATH")
+  case "$SCRIPT_LINK" in
+    /*) SCRIPT_PATH=$SCRIPT_LINK ;;
+    *) SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_LINK" ;;
+  esac
+done
+PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
+PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+
+if [ ! -x "$PYTHON_BIN" ]; then
+  echo "Research Workbench Python 环境不存在：$PYTHON_BIN" >&2
+  exit 1
+fi
+
+if [ -n "${PYTHONPATH:-}" ]; then
+  export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+else
+  export PYTHONPATH="$PROJECT_ROOT"
+fi
+
+exec "$PYTHON_BIN" -m research_workbench_entrypoint "$@"

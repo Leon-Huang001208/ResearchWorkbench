@@ -39,11 +39,18 @@ def source():
     if not configured:
         pytest.skip("DSH_SOURCE_ROOT required for native source validation")
     root = Path(configured)
-    assert subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip() == PIN
+    assert (
+        subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=root, text=True
+        ).strip()
+        == PIN
+    )
     return root
 
 
-def test_native_provider_discovers_loads_and_watches_only_product_root(source, tmp_path):
+def test_native_provider_discovers_loads_and_watches_only_product_root(
+    source, tmp_path
+):
     catalog = CapabilityCatalog(tmp_path)
     script = r"""
 import assert from 'node:assert/strict';
@@ -87,7 +94,12 @@ try {
 } finally {await provider.dispose();controller.abort();}
 """
     result = json.loads(node(source, script, tmp_path, catalog.native_root).strip())
-    assert result == {"discovered": 6, "loaded": True, "watch": True, "hostRootExcluded": True}
+    assert result == {
+        "discovered": 6,
+        "loaded": True,
+        "watch": True,
+        "hostRootExcluded": True,
+    }
 
 
 def test_tool_catalog_matches_actual_pinned_registrations(source):
@@ -105,12 +117,17 @@ for(const path of ['packages/skill/tool-skill/src/index.ts','packages/subagent/t
 const web=await import(pathToFileURL(join(process.cwd(),'packages/web/tool-web/src/index.ts')));
 web.apply(ctx,{search:true,fetch:false,searchMaxResults:8,searchMaxQueries:4,fetchTimeoutMs:30000,searchTimeoutMs:60000,fetchMaxOutputChars:200000});
 (await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')))).apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used',timeoutSeconds:60,maxOutputBytes:262144});
-(await import(pathToFileURL(join(root,'app/research_web/runtime/public-data.mjs')))).apply(ctx,{researchRoot:'/tmp/never-used'});
+const enabledTools=['datahub_search_assets','datahub_get_trading_calendar','datahub_get_market_bars','datahub_get_market_snapshot','datahub_get_index_data','datahub_get_financials','datahub_get_market_activity','datahub_get_factor_macro','datahub_get_fund_data','datahub_search_news','datahub_search_announcements','datahub_search_research','datahub_search_web'];
+(await import(pathToFileURL(join(root,'app/research_web/runtime/public-data.mjs')))).apply(ctx,{researchRoot:'/tmp/never-used',enabledTools});
 console.log(JSON.stringify(tools.map(t=>({id:t.name,parameters:t.parameters}))));
 """
     captured = json.loads(node(source, script, Path(__file__).parents[2]).strip())
     actual = {t["id"]: t["parameters"] for t in captured}
-    public = {t["id"]: t["parameters"] for t in tool_catalog()["items"]}
+    public = {
+        t["id"]: t["parameters"]
+        for t in tool_catalog()["items"]
+        if t.get("execution_surface") == "dsh_native"
+    }
     assert set(public) == set(actual)
     for name, schema in public.items():
         properties = actual[name].get("properties", actual[name])

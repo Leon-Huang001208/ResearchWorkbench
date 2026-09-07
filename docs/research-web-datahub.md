@@ -1,7 +1,7 @@
 # Research Web DataHub
 
 DataHub是`app/research_web/datahub/`内的FastAPI进程模块，不是新守护进程、调度器或全局行情数据库。
-DSH仍是唯一研究引擎；Web只读资料，原生插件获单次审批后查询同一DataHub。
+DSH仍是唯一研究引擎；Web只读资料，原生插件通过受控回环桥接查询同一DataHub。已配置且可用的来源自动执行，不逐次确认。
 不导入旧Connector.run、AKShare生命周期或旧报告编译链；没有新增依赖。
 
 ## 当前定位与命名
@@ -22,7 +22,7 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 
 ## 全源静态目录
 
-`catalog.py` 声明 13 项业务能力和 21 个来源；读取目录不会导入 Connector、访问外网、启动 Excel 或产生供应商费用。
+`catalog.py` 始终声明并供页面展示 13 项业务能力和 21 个来源；读取目录不会导入 Connector、访问外网、启动 Excel 或产生供应商费用。目录展示范围不等于 Runtime 工具范围：真实 Runtime 只注册启动时 `callable_source_count > 0` 的能力对应工具。
 
 业务能力包括证券搜索、交易日历、历史行情、实时快照、指数、财务、资金与交易事件、因子与宏观、基金、新闻、公告、研究资料和网页搜索。登记来源包括 Wind、天软、iFinD、AKShare、BaoStock、Tushare、Yahoo、ChinaStock、本地缓存、中证指数、深交所、巨潮、财联社、中国证券网两类内容、知丘三类内容、东方财富基金、Tavily 和 Bing。
 
@@ -34,15 +34,17 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 - `allowed` / `callable`：是否允许进入业务路由、当前是否实际可调用。
 - `health` / `last_checked_at`：最近一次显式探测结果，而不是页面加载时偷偷检测。
 
-东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。其余来源用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
+东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
 
 ## 稳定业务 Tool
 
-DSH 注册 `datahub_search_assets`、`datahub_get_trading_calendar`、`datahub_get_market_bars`、`datahub_get_market_snapshot`、`datahub_get_index_data`、`datahub_get_financials`、`datahub_get_market_activity`、`datahub_get_factor_macro`、`datahub_get_fund_data`、`datahub_search_news`、`datahub_search_announcements`、`datahub_search_research` 和 `datahub_search_web`。
+静态业务工具集合包括 `datahub_search_assets`、`datahub_get_trading_calendar`、`datahub_get_market_bars`、`datahub_get_market_snapshot`、`datahub_get_index_data`、`datahub_get_financials`、`datahub_get_market_activity`、`datahub_get_factor_macro`、`datahub_get_fund_data`、`datahub_search_news`、`datahub_search_announcements`、`datahub_search_research` 和 `datahub_search_web`。启动器从离线目录读取每项能力的 `callable_source_count`，把大于零的工具 ID 物化到本次 Runtime 的 `enabledTools`；Runtime 只注册这个子集。配置、依赖或允许状态变化后，必须启动或重启 Runtime 才会重新物化，不会在运行中的会话里偷偷增删工具。
 
-工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。默认环境只有基金与新闻工具存在可调用 Provider；天软依赖与授权齐备时，证券搜索、交易日历、历史行情和实时快照也可调用。其他 Tool 会明确失败，不降级成网页猜测或演示结果。
+工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。已配置且可用的来源会自动查询，包括需要账户或付费授权的来源，不再弹出逐次确认。没有可调用来源的能力不会注册为 Runtime 工具；Agent 不应调用或重试不存在的工具，也不能降级成网页猜测或演示结果。
 
-天软 Provider 使用固定 `http://tsl.tinysoft.com.cn/tslweb/api`，不继承代理环境，限制 20 秒和 5000 行；授权值只在 Provider 内使用，不进入结果、普通日志或提示词。返回数据保留供应商原字段和 raw JSON，不猜测单位。项目未自动安装 `cjpy`，因此没有依赖的环境必须诚实显示阻塞。
+天软 Provider 通过 CJPY SDK 的专用客户端访问固定 `http://tsl.tinysoft.com.cn/tslweb/api`，Provider 边界限制 15 秒和 5000 行；授权值只在 Provider 内使用，不进入结果、普通日志或提示词。返回数据保留供应商原字段和 raw JSON，不猜测单位。项目未自动安装 `cjpy`，因此没有依赖的环境必须诚实显示阻塞。
+
+自动执行只移除 DataHub 的逐次确认，不放宽其他边界：回环 token、`trustedDirectory` 父系验证、能力/来源白名单与固定参数 schema、会话隔离快照、取消联动、22 秒原生桥接超时和 15 秒 Provider deadline 均继续生效。
 
 `broker.py` 根据能力绑定、覆盖范围、完成适配、配置、依赖和允许状态选源。`source=auto` 只选择一个最终 Provider，不拼接不同口径；显式来源默认不换源，只有请求明确 `allow_fallback=true` 才允许继续选择。结果记录实际 Provider 与尝试来源。
 
@@ -65,7 +67,7 @@ HTML资料将换行表头仅用于匹配时去空白，原文字段名仍保留�
 
 ## 限额与状态
 
-固定HTTP目的地、不跟重定向、trust_env=False，不继承认证/代理，不自动重试。整体查询15秒；每响应1MiB、总原始响应16MiB、最多100页/5000行。
+内置直接 HTTP Provider 使用固定目的地、不跟重定向、`trust_env=False`，不继承认证或代理，也不自动重试；这些约束不表示 AKShare 或天软 SDK 的底层 HTTP 实现具备同一组限制。直接 HTTP 响应限制为每个1MiB、总原始响应16MiB和最多100页；DataHub Provider deadline 为15秒，原生桥接总超时为22秒，标准化结果最多5000行。
 实际NAV响应的TotalCount/PageSize/PageIndex在顶层，记录在Data.LSJZList。请求100实际可能仅20；不能用“少于请求数量”当完成。
 实际页码、页大小、总量和日期逐页验证，重复页/总量或页大小变化停止并保留已经得到的原始响应与解析记录。
 无穷值、坏日期、超出请求范围、必填数值缺失均明确失败/不完整。
@@ -76,14 +78,16 @@ HTML资料将换行表头仅用于匹配时去空白，原文字段名仍保留�
 - `partial`：已经取得部分可用行但后来失败/触限/冲突；不得自动命中完整缓存。
 - `failed`：没有可用行且取数或解析失败；manifest明确标记失败，不伪装报告交付。
 
+AKShare 和天软是同步 SDK/库 Provider，其底层线程在 Python 内不能被安全强杀。两者分别使用专用单线程执行器、并发容量 1 和15秒 Provider deadline：首次超时返回带 `deadline` 限制的 `failed` dataset；线程真正退出前，后续请求立即返回带 `provider_busy` 限制的 `failed` dataset，不排队、不另起线程。该 Provider 释放容量后才接受下一次查询，不影响其他 Provider 的独立容量。
+
 同值重复日期去重并记录；唯一日期数少于供应商总量时status=partial，即使来源页确已结束、pagination_complete=true。
-冲突日期从可用解析记录移除、不任选其一，原始响应保留。取消立即停止HTTP，不发布快照；私有调用收据保留cancelled。
+冲突日期从可用解析记录移除、不任选其一，原始响应保留。直接 HTTP Provider 的取消会立即停止 HTTP；同步 SDK Provider 的取消只终止等待且不发布快照，底层线程按上一段约束隔离至自然退出。私有调用收据保留 cancelled。
 BFF关闭及现有会话cancel均取消相关请求。原生abort通过独立短超时取消请求联动；取消先到的调用ID写入tombstone。
 
 ## 私有控制与会话存储
 
 启动器/服务创建独立随机控制凭据`.control/datahub.json`，0600；父目录0700。
-原生可信插件在trustedDirectory沿实际DSH父系验证后、原生审批允许后读取固定文件。
+原生可信插件在trustedDirectory沿实际DSH父系验证后读取固定文件；DataHub 调用按当前可用工具自动执行。
 拒绝symlink、hardlink、错误属主或过宽权限；token不进入脚本环境、prompt、普通API或日志，不读取/复用模型密钥。
 地址默认`http://127.0.0.1:8088`，首次可信启动可用`--datahub-url http://127.0.0.1:<port>`指定隔离BFF端口；只接受无userinfo/query/fragment/path的回环HTTP origin。已有地址不符报错，不静默覆盖。
 
@@ -124,7 +128,7 @@ refresh=true始终新建；同原生调用ID重放返回同一结果，同ID不�
 - `POST /api/research/handoffs`：复制并核验所选快照，把页面上下文交给新 FinGPT/Claw 会话。
 - `GET /api/research/artifacts`：汇总已有会话的实际输出文件，不扫描任意目录。
 
-所有internal入口在解析请求体之前检查`X-Research-Data-Key`；无认证浏览器不能绕过原生审批取数。
+所有internal入口在解析请求体之前检查`X-Research-Data-Key`；无认证浏览器不能绕过受控回环桥接直接取数。
 公开GET不发起上游请求。浏览器API仍受现有同源边界限制，无CORS、多用户登录或远程部署支持。
 `service.detail.datasets`供SSE/UI：id/dataset_id/name/source/source_url/status/row_count/requested_range/actual_range/pagination_complete/retrieved_at/cache_hit/limitations/missing/pages_fetched/provider_total/as_of/files；不推全部行、fields或raw_files。
 files条目包含name/path/sha256/size/url/kind=dataset；url为上述专用下载路径。
@@ -132,7 +136,7 @@ files条目包含name/path/sha256/size/url/kind=dataset；url为上述专用下�
 
 ## Skill与研究口径
 
-四个Skill及persona要求：父Agent先批准准备资料，读取manifest核对缺失后，复杂Claw任务再分两个子Agent读取同一数据集，不重复取数。
+五个内置研究 Skill 及 persona 要求：父 Agent 只调用当前 Runtime 已暴露的 `datahub_*` 工具；可用来源自动查询，不逐次确认。工具未暴露时不调用、不重试；读取 manifest 核对缺失后，复杂 Claw 任务再分两个子 Agent 复用父 Agent 已取得的同一数据集，不重复取数。
 计算限定已获得数据；累计净值不是总回报指数。未取得期初前一估值日及分红复权口径时只称“首末观测区间净值变动”，不冒称完整日历年度收益。
 业绩基准文字不是基准序列；目前未取得可靠基准序列、合同/报告下载服务。20行最近快照不能证明三年表现。
 XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/HTML使用同一ID/日期。输入快照不算报告产物。
@@ -142,7 +146,7 @@ XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/H
 离线：`python -m pytest tests/research_web --confcutdir=tests/research_web -q`及`DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness node --test tests/javascript/research_web*.test.mjs`。
 还执行ruff/black/isort/mypy及项目任务完整性检查；2026-09-04 全源目录、真实公开探测、Web 五视口和 Archify 证据见`.ai/reports/2026-09-04-datahub-full-source-catalog.md`，早期 DataHub 实现记录见`.ai/reports/2026-09-02-datahub-implementation.md`。
 真实来源只读核对由父任务记录在`.ai/reports/2026-09-02-datahub-source-probes.md`，不把离线测试当真实模型闭环。
-2026-09-02集成验收已从Web完成四次原生审批、2025净值13页243条及三类补充资料、FinGPT升级复制、两个真实子Agent共享资料，以及DOCX/HTML/XLSX/PNG输出。
+2026-09-02集成验收曾按当时机制从Web完成四次原生审批，并取得2025净值13页243条及三类补充资料、完成FinGPT升级复制、两个真实子Agent共享资料，以及DOCX/HTML/XLSX/PNG输出。该记录是旧逐次审批机制的历史证据，不代表当前 Runtime 仍逐次审批；当前行为以上文自动执行和启动时工具物化契约为准。
 最终XLSX四张原始表逐值与CSV一致（243/16/25/220行），来源文件hash一致；首末观测区间变动和回撤已独立重算，数值与百分比格式均核对。
 首次模型产物曾有回撤百分比放大和无效公式，经真实会话修订后才作为final文件交付；格式检查不是自动语义正确性保证，也不代表任意基金评价已验证。
 详细会话、修订、下载和边界证据见[本批真实验收](../.ai/reports/2026-09-02-datahub-acceptance.md)。本批仅更新专属3081/8088；没有修改3080、固定DSH、模型、原生额度或Seatbelt权限。

@@ -77,14 +77,18 @@ def _atomic_json(path: Path, value: dict) -> None:
         os.replace(temporary, path)
     except OSError as exc:
         log.error("report_workflow_catalog_write_failed", error_type=type(exc).__name__)
-        raise WorkflowError("Report Workflow 索引无法保存", "catalog_unavailable", 503) from exc
+        raise WorkflowError(
+            "Report Workflow 索引无法保存", "catalog_unavailable", 503
+        ) from exc
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
 
 
 def _index_digest(value: dict[str, Any]) -> str:
-    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    payload = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
@@ -145,10 +149,14 @@ def _ensure_tree_safe(base: Path) -> Path:
     try:
         resolved = base.resolve(strict=True)
     except OSError as exc:
-        raise WorkflowError("Workflow 目录不可读取", "workflow_unavailable", 503) from exc
+        raise WorkflowError(
+            "Workflow 目录不可读取", "workflow_unavailable", 503
+        ) from exc
     for path in base.rglob("*"):
         if path.is_symlink():
-            raise WorkflowError("Workflow 资源不能是符号链接", "unsafe_workflow_path", 409)
+            raise WorkflowError(
+                "Workflow 资源不能是符号链接", "unsafe_workflow_path", 409
+            )
         if not path.resolve().is_relative_to(resolved):
             raise WorkflowError("Workflow 资源超出目录", "unsafe_workflow_path", 409)
     return resolved
@@ -185,7 +193,9 @@ class ReportWorkflowService:
     def __init__(self, data_root: Path) -> None:
         self.root = Path(data_root) / "report-workflows"
         if self.root.is_symlink():
-            raise WorkflowError("Report Workflow 根目录不能是链接", "unsafe_workflow_root", 503)
+            raise WorkflowError(
+                "Report Workflow 根目录不能是链接", "unsafe_workflow_root", 503
+            )
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         for folder in (self.root / "runs",):
             if folder.is_symlink():
@@ -214,7 +224,9 @@ class ReportWorkflowService:
             self.data = value
             self._loaded_digest = _index_digest(value)
         except (OSError, ValueError, TypeError) as exc:
-            log.error("report_workflow_catalog_unreadable", error_type=type(exc).__name__)
+            log.error(
+                "report_workflow_catalog_unreadable", error_type=type(exc).__name__
+            )
             raise WorkflowError(
                 "Report Workflow 索引不可读取；未覆盖原索引", "catalog_unavailable", 503
             ) from exc
@@ -247,11 +259,19 @@ class ReportWorkflowService:
         for child in self.root.iterdir():
             if child.name in {"runs", "catalog.json", "catalog.lock"}:
                 continue
-            if child.name not in indexed_workflows and child.is_dir() and not child.is_symlink():
+            if (
+                child.name not in indexed_workflows
+                and child.is_dir()
+                and not child.is_symlink()
+            ):
                 shutil.rmtree(child, ignore_errors=True)
         runs = self.root / "runs"
         for child in runs.iterdir():
-            if child.name not in indexed_runs and child.is_dir() and not child.is_symlink():
+            if (
+                child.name not in indexed_runs
+                and child.is_dir()
+                and not child.is_symlink()
+            ):
                 shutil.rmtree(child, ignore_errors=True)
         for workflow_id, row in self.data["workflows"].items():
             versions = self.root / workflow_id / "versions"
@@ -260,7 +280,10 @@ class ReportWorkflowService:
             indexed_versions = set(row.get("versions", {}))
             for child in versions.iterdir():
                 if (
-                    (child.name.startswith(".building-") or child.name not in indexed_versions)
+                    (
+                        child.name.startswith(".building-")
+                        or child.name not in indexed_versions
+                    )
                     and child.is_dir()
                     and not child.is_symlink()
                 ):
@@ -277,7 +300,9 @@ class ReportWorkflowService:
             else {"schema_version": 1, "workflows": {}, "runs": {}}
         )
         if _index_digest(disk) != self._loaded_digest:
-            raise WorkflowError("Report Workflow 索引已被其他进程更新", "catalog_conflict", 409)
+            raise WorkflowError(
+                "Report Workflow 索引已被其他进程更新", "catalog_conflict", 409
+            )
         _atomic_json(self.index, self.data)
         self._loaded_digest = _index_digest(self.data)
 
@@ -289,13 +314,17 @@ class ReportWorkflowService:
         try:
             return self.data["workflows"][workflow_id]
         except KeyError as exc:
-            raise WorkflowError("Report Workflow 不存在", "workflow_not_found", 404) from exc
+            raise WorkflowError(
+                "Report Workflow 不存在", "workflow_not_found", 404
+            ) from exc
 
     def _draft(self, workflow_id: str) -> Path:
         row = self._row(workflow_id)
         path = self.root / workflow_id / "draft"
         if not path.is_dir() or path.is_symlink():
-            raise WorkflowError("Workflow 草稿目录不可读取", "workflow_unavailable", 503)
+            raise WorkflowError(
+                "Workflow 草稿目录不可读取", "workflow_unavailable", 503
+            )
         if row.get("draft_manifest", {}).get("workflow_id") != workflow_id:
             raise WorkflowError("Workflow 草稿归属不一致", "workflow_unavailable", 503)
         return path
@@ -317,11 +346,18 @@ class ReportWorkflowService:
             base = self.root / workflow_id
             base_existed = base.exists() or base.is_symlink()
             try:
-                return self._create_draft(manifest, workflow=workflow, validation=validation)
+                return self._create_draft(
+                    manifest, workflow=workflow, validation=validation
+                )
             except Exception:
                 self.data = before
                 self._loaded_digest = _index_digest(before)
-                if workflow_id and not base_existed and base.is_dir() and not base.is_symlink():
+                if (
+                    workflow_id
+                    and not base_existed
+                    and base.is_dir()
+                    and not base.is_symlink()
+                ):
                     shutil.rmtree(base, ignore_errors=True)
                 raise
 
@@ -339,7 +375,9 @@ class ReportWorkflowService:
                 else ReportWorkflowManifest.model_validate(manifest)
             )
         except ValidationError as exc:
-            raise WorkflowError("Workflow manifest 不符合契约", "invalid_manifest", 422) from exc
+            raise WorkflowError(
+                "Workflow manifest 不符合契约", "invalid_manifest", 422
+            ) from exc
         workflow_id = contract.workflow_id
         if workflow_id in self.data["workflows"]:
             raise WorkflowError("Report Workflow 已存在", "workflow_conflict", 409)
@@ -351,7 +389,9 @@ class ReportWorkflowService:
             for folder in _RESOURCE_ROOTS:
                 (draft / folder).mkdir(parents=True, exist_ok=False, mode=0o700)
             (draft / "workflow.yaml").write_text(
-                yaml.safe_dump(workflow or {"steps": []}, allow_unicode=True, sort_keys=False)
+                yaml.safe_dump(
+                    workflow or {"steps": []}, allow_unicode=True, sort_keys=False
+                )
             )
             (draft / "validation.yaml").write_text(
                 yaml.safe_dump(
@@ -367,8 +407,12 @@ class ReportWorkflowService:
                 )
             )
         except OSError as exc:
-            log.error("report_workflow_draft_create_failed", error_type=type(exc).__name__)
-            raise WorkflowError("Workflow 草稿无法创建", "workflow_unavailable", 503) from exc
+            log.error(
+                "report_workflow_draft_create_failed", error_type=type(exc).__name__
+            )
+            raise WorkflowError(
+                "Workflow 草稿无法创建", "workflow_unavailable", 503
+            ) from exc
         self.data["workflows"][workflow_id] = {
             "draft_manifest": _yaml_data(contract.model_copy(update={"resources": []})),
             "versions": {},
@@ -378,11 +422,15 @@ class ReportWorkflowService:
         log.info("report_workflow_draft_created", workflow_id=workflow_id)
         return contract
 
-    def upload_resource(self, workflow_id: str, path: str, raw: bytes) -> WorkflowResource:
+    def upload_resource(
+        self, workflow_id: str, path: str, raw: bytes
+    ) -> WorkflowResource:
         with self._exclusive():
             return self._upload_resource(workflow_id, path, raw)
 
-    def _upload_resource(self, workflow_id: str, path: str, raw: bytes) -> WorkflowResource:
+    def _upload_resource(
+        self, workflow_id: str, path: str, raw: bytes
+    ) -> WorkflowResource:
         if path.startswith("versions/"):
             raise WorkflowError("已发布版本不可变", "version_immutable", 409)
         relative = _resource_path(path)
@@ -395,8 +443,12 @@ class ReportWorkflowService:
             target.write_bytes(raw)
             target.chmod(0o600)
         except OSError as exc:
-            log.warning("report_workflow_resource_write_failed", error_type=type(exc).__name__)
-            raise WorkflowError("Workflow 资源无法保存", "workflow_unavailable", 503) from exc
+            log.warning(
+                "report_workflow_resource_write_failed", error_type=type(exc).__name__
+            )
+            raise WorkflowError(
+                "Workflow 资源无法保存", "workflow_unavailable", 503
+            ) from exc
         resource = WorkflowResource(
             path=relative.as_posix(),
             role=_role(relative.as_posix()),
@@ -470,12 +522,15 @@ class ReportWorkflowService:
                     **row["draft_manifest"],
                     "version": number,
                     "resources": [
-                        json.loads(item.model_dump_json()) for item in self._resources(temporary)
+                        json.loads(item.model_dump_json())
+                        for item in self._resources(temporary)
                     ],
                 }
             )
             (temporary / "manifest.yaml").write_text(
-                yaml.safe_dump(_yaml_data(manifest), allow_unicode=True, sort_keys=False)
+                yaml.safe_dump(
+                    _yaml_data(manifest), allow_unicode=True, sort_keys=False
+                )
             )
             os.replace(temporary, target)
             for path in target.rglob("*"):
@@ -483,15 +538,23 @@ class ReportWorkflowService:
                     path.chmod(0o400)
             row["versions"][str(number)] = {"published": False}
             self._save()
-            log.info("report_workflow_version_created", workflow_id=workflow_id, version=number)
+            log.info(
+                "report_workflow_version_created",
+                workflow_id=workflow_id,
+                version=number,
+            )
             return manifest
         except (OSError, ValidationError, WorkflowError) as exc:
             if temporary.exists() and not temporary.is_symlink():
                 shutil.rmtree(temporary, ignore_errors=True)
             if isinstance(exc, WorkflowError):
                 raise
-            log.error("report_workflow_version_create_failed", error_type=type(exc).__name__)
-            raise WorkflowError("Workflow 版本无法创建", "workflow_unavailable", 503) from exc
+            log.error(
+                "report_workflow_version_create_failed", error_type=type(exc).__name__
+            )
+            raise WorkflowError(
+                "Workflow 版本无法创建", "workflow_unavailable", 503
+            ) from exc
 
     def _version_path(self, workflow_id: str, version: int) -> Path:
         row = self._row(workflow_id)
@@ -507,8 +570,12 @@ class ReportWorkflowService:
             raw = yaml.safe_load((package / "manifest.yaml").read_text())
             manifest = ReportWorkflowManifest.model_validate(raw)
         except (OSError, ValueError, TypeError, ValidationError, yaml.YAMLError) as exc:
-            log.warning("report_workflow_manifest_read_failed", error_type=type(exc).__name__)
-            raise WorkflowError("Workflow manifest 不可读取", "invalid_manifest", 409) from exc
+            log.warning(
+                "report_workflow_manifest_read_failed", error_type=type(exc).__name__
+            )
+            raise WorkflowError(
+                "Workflow manifest 不可读取", "invalid_manifest", 409
+            ) from exc
         if manifest.workflow_id != workflow_id or manifest.version != version:
             raise WorkflowError("Workflow manifest 归属不一致", "invalid_manifest", 409)
         return manifest
@@ -521,7 +588,9 @@ class ReportWorkflowService:
         if relative.is_absolute() or ".." in relative.parts or "\\" in path:
             raise WorkflowError("资源路径不允许", "unsafe_resource_path", 422)
         manifest = self.manifest(workflow_id, version)
-        expected = next((item for item in manifest.resources if item.path == path), None)
+        expected = next(
+            (item for item in manifest.resources if item.path == path), None
+        )
         if expected is None:
             raise WorkflowError("Workflow 资源不存在", "resource_not_found", 404)
         package = self._version_path(workflow_id, version)
@@ -533,7 +602,9 @@ class ReportWorkflowService:
         ):
             raise WorkflowError("Workflow 资源不可读取", "unsafe_workflow_path", 409)
         if target.stat().st_size != expected.size or _sha256(target) != expected.sha256:
-            raise WorkflowError("Workflow 资源哈希不一致", "resource_hash_mismatch", 409)
+            raise WorkflowError(
+                "Workflow 资源哈希不一致", "resource_hash_mismatch", 409
+            )
         return target
 
     def preflight(self, workflow_id: str, version: int) -> dict:
@@ -547,7 +618,17 @@ class ReportWorkflowService:
             if resource.role is WorkflowResourceRole.WORKBOOK
             and resource.path.lower().endswith(".xlsx")
         }
+        excluded_workbooks = set(manifest.excluded_workbooks)
+        missing_exclusions = sorted(excluded_workbooks - workbook_paths)
+        if missing_exclusions:
+            return {
+                "status": "blocked_data",
+                "code": "excluded_workbook_missing",
+                "path": missing_exclusions[0],
+            }
         for workbook_path in sorted(workbook_paths):
+            if workbook_path in excluded_workbooks:
+                continue
             workbook = self.resource_path(workflow_id, version, workbook_path)
             scan = scan_workbook_formulas(workbook)
             policy = policies.get(workbook_path)
@@ -578,7 +659,9 @@ class ReportWorkflowService:
                 }
             for requirement in policy.providers:
                 mapping = requirement.equivalent_datahub_mapping
-                if mapping and not any(item.path == mapping for item in manifest.resources):
+                if mapping and not any(
+                    item.path == mapping for item in manifest.resources
+                ):
                     return {
                         "status": "blocked_data",
                         "code": "fallback_mapping_missing",
@@ -607,8 +690,16 @@ class ReportWorkflowService:
         row["versions"][str(version)]["published"] = True
         row["current_version"] = version
         self._save()
-        log.info("report_workflow_version_published", workflow_id=workflow_id, version=version)
-        return {"workflow_id": workflow_id, "current_version": version, "status": "published"}
+        log.info(
+            "report_workflow_version_published",
+            workflow_id=workflow_id,
+            version=version,
+        )
+        return {
+            "workflow_id": workflow_id,
+            "current_version": version,
+            "status": "published",
+        }
 
     def rollback_version(self, workflow_id: str, version: int) -> dict:
         with self._exclusive():
@@ -630,10 +721,20 @@ class ReportWorkflowService:
             raise WorkflowError("Workflow 预检未通过", preflight["code"], 409)
         row["current_version"] = version
         self._save()
-        log.info("report_workflow_version_rolled_back", workflow_id=workflow_id, version=version)
-        return {"workflow_id": workflow_id, "current_version": version, "status": "published"}
+        log.info(
+            "report_workflow_version_rolled_back",
+            workflow_id=workflow_id,
+            version=version,
+        )
+        return {
+            "workflow_id": workflow_id,
+            "current_version": version,
+            "status": "published",
+        }
 
-    def create_run_workspace(self, workflow_id: str, version: int | None = None) -> dict:
+    def create_run_workspace(
+        self, workflow_id: str, version: int | None = None
+    ) -> dict:
         with self._exclusive():
             before = copy.deepcopy(self.data)
             runs_root = self.root / "runs"
@@ -648,7 +749,9 @@ class ReportWorkflowService:
                         shutil.rmtree(path, ignore_errors=True)
                 raise
 
-    def _create_run_workspace(self, workflow_id: str, version: int | None = None) -> dict:
+    def _create_run_workspace(
+        self, workflow_id: str, version: int | None = None
+    ) -> dict:
         row = self._row(workflow_id)
         selected = version or row.get("current_version")
         if selected is None:
@@ -671,7 +774,9 @@ class ReportWorkflowService:
             if target.exists() and not target.is_symlink():
                 shutil.rmtree(target, ignore_errors=True)
             log.error("report_workflow_run_copy_failed", error_type=type(exc).__name__)
-            raise WorkflowError("Workflow 运行空间无法创建", "run_workspace_failed", 503) from exc
+            raise WorkflowError(
+                "Workflow 运行空间无法创建", "run_workspace_failed", 503
+            ) from exc
         self.data["runs"][run_id] = {
             "workflow_id": workflow_id,
             "version": selected,
@@ -706,7 +811,11 @@ class ReportWorkflowService:
         root = self.run_path(run_id)
         if workbook is not None:
             policy_path = PurePosixPath(workbook)
-            if policy_path.is_absolute() or ".." in policy_path.parts or "\\" in workbook:
+            if (
+                policy_path.is_absolute()
+                or ".." in policy_path.parts
+                or "\\" in workbook
+            ):
                 raise WorkflowError("工作簿路径无效", "unsafe_resource_path", 422)
             name = hashlib.sha256(workbook.encode()).hexdigest() + ".json"
             path = root / "refresh-manifests" / name
@@ -717,7 +826,9 @@ class ReportWorkflowService:
                 return {
                     "schema_version": 1,
                     "status": "ready",
-                    "workbooks": [self._read_refresh_file(root, item) for item in candidates],
+                    "workbooks": [
+                        self._read_refresh_file(root, item) for item in candidates
+                    ],
                 }
             path = candidates[0] if candidates else root / "refresh-manifest.json"
         return self._read_refresh_file(root, path)
@@ -733,7 +844,9 @@ class ReportWorkflowService:
         try:
             value = json.loads(path.read_text())
         except (OSError, ValueError, TypeError) as exc:
-            raise WorkflowError("刷新清单不可读取", "refresh_manifest_invalid", 409) from exc
+            raise WorkflowError(
+                "刷新清单不可读取", "refresh_manifest_invalid", 409
+            ) from exc
         if value.get("status") != "ready" or not re.fullmatch(
             r"[a-f0-9]{64}", str(value.get("output_sha256", ""))
         ):
@@ -755,11 +868,17 @@ class ReportWorkflowService:
             row = copy.deepcopy(self.data["runs"][run_id])
             manifest = self.manifest(row["workflow_id"], row["version"])
             policy = next(
-                (item for item in manifest.workbook_policies if item.workbook == workbook),
+                (
+                    item
+                    for item in manifest.workbook_policies
+                    if item.workbook == workbook
+                ),
                 None,
             )
             if policy is None:
-                raise WorkflowError("工作簿没有刷新策略", "refresh_policy_not_found", 404)
+                raise WorkflowError(
+                    "工作簿没有刷新策略", "refresh_policy_not_found", 404
+                )
             source = self.resource_path(row["workflow_id"], row["version"], workbook)
             run_root = self._run_path(run_id)
             mappings: dict[str, dict[str, Any]] = {}
@@ -767,7 +886,9 @@ class ReportWorkflowService:
                 mapping = requirement.equivalent_datahub_mapping
                 if mapping is None:
                     continue
-                mapping_path = self.resource_path(row["workflow_id"], row["version"], mapping)
+                mapping_path = self.resource_path(
+                    row["workflow_id"], row["version"], mapping
+                )
                 try:
                     value = (
                         json.loads(mapping_path.read_text())

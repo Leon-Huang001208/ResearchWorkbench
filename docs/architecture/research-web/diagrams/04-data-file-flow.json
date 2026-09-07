@@ -3,14 +3,14 @@
   "diagram_type": "dataflow",
   "meta": {"title": "DataHub 选源、标准化与共享资料流", "output": "04-data-file-flow.html", "quality_profile": "showcase", "viewBox": [1900, 820], "views": [
     {"id": "catalog", "label": "能力与来源目录", "focus": ["sourceSpecs", "catalog", "web"], "note": "前端浏览全部登记来源，但只有满足五维就绪条件的来源可调用。"},
-    {"id": "materialize", "label": "取数与物化", "focus": ["tool", "policy", "router", "providers", "upstreams", "normalize", "snapshots"], "note": "业务参数经白名单路由到单一来源，结果标准化后形成不可变会话快照。"},
+    {"id": "materialize", "label": "自动取数与物化", "focus": ["tool", "policy", "router", "providers", "upstreams", "normalize", "snapshots"], "note": "已启用工具的业务参数通过本地校验后直接路由到单一来源，结果标准化为不可变会话快照。"},
     {"id": "share", "label": "页面交接与资料包复用", "focus": ["snapshots", "handoff", "agents", "web"], "note": "研究台只交接选定快照；DSH 父任务和子 Agent 读取相同 Hash 的资料包。"}
   ]},
   "stages": [{"label": "声明与请求"}, {"label": "访问控制"}, {"label": "选源与获取"}, {"label": "标准化存储"}, {"label": "研究消费"}],
   "nodes": [
     {"id": "sourceSpecs", "type": "backend", "label": "静态来源声明", "sublabel": "21 来源 / 绑定 / 限制", "stage": 0, "row": 0, "tag": "不联网"},
     {"id": "tool", "type": "external", "label": "datahub_* Tool", "sublabel": "稳定业务参数", "stage": 0, "row": 3, "tag": "DSH"},
-    {"id": "policy", "type": "security", "label": "审批与参数边界", "sublabel": "来源 ID / 禁止 URL 与凭据", "stage": 1, "row": 3, "tag": "fail closed"},
+    {"id": "policy", "type": "security", "label": "工具与参数边界", "sublabel": "enabledTools / Schema", "stage": 1, "row": 3, "tag": "automatic"},
     {"id": "catalog", "type": "backend", "label": "能力目录", "sublabel": "适配 / 配置 / 健康 / 允许", "stage": 1, "row": 0, "tag": "read-only"},
     {"id": "router", "type": "backend", "label": "DataHub 路由", "sublabel": "市场过滤 / 优先级 / 单源", "stage": 2, "row": 1, "tag": "auto 或显式"},
     {"id": "providers", "type": "backend", "label": "Provider 适配器", "sublabel": "请求 / 分页 / 解析", "stage": 2, "row": 2, "tag": "已适配才执行"},
@@ -25,7 +25,7 @@
     {"id": "catalogProjection", "from": "sourceSpecs", "to": "catalog", "label": "声明与绑定", "classification": "static"},
     {"id": "catalogView", "from": "catalog", "to": "web", "label": "GET 目录 / 详情", "classification": "read-only", "fromSide": "right", "toSide": "left", "via": [[400, 157], [400, 130], [875, 130], [875, 157]], "labelAt": [650, 120]},
     {"id": "businessIntent", "from": "tool", "to": "policy", "label": "业务参数", "classification": "no credentials", "variant": "security"},
-    {"id": "approvedQuery", "from": "policy", "to": "router", "label": "批准的 BusinessQuery", "classification": "bounded", "variant": "security", "labelAt": [423, 428]},
+    {"id": "validatedQuery", "from": "policy", "to": "router", "label": "校验后的 BusinessQuery", "classification": "bounded", "variant": "security", "labelAt": [423, 428]},
     {"id": "catalogRoute", "from": "catalog", "to": "router", "label": "候选来源与就绪状态", "classification": "routing metadata", "variant": "emphasis"},
     {"id": "providerSelection", "from": "router", "to": "providers", "label": "选择一个已适配来源", "classification": "single provider", "variant": "emphasis", "fromSide": "bottom", "toSide": "top"},
     {"id": "externalFetch", "from": "providers", "to": "upstreams", "label": "有界只读请求", "classification": "external", "variant": "security", "fromSide": "bottom", "toSide": "top"},
@@ -38,7 +38,7 @@
   ],
   "cards": [
     {"dot": "cyan", "title": "DataHub 的价值", "items": ["Skill 不需要知道 Wind、AKShare 或东方财富的私有参数", "Web 展示与 DSH 分析共享来源目录、口径和数据文件"]},
-    {"dot": "orange", "title": "诚实的接入状态", "items": ["登记来源只说明系统知道它，不代表配置、在线或获得授权", "手动检测仅探测指定来源；目录 GET 永不触发上游请求"]},
+    {"dot": "orange", "title": "诚实的接入状态", "items": ["登记来源只说明系统知道它，不代表配置、在线或获得授权", "Runtime 只注册至少有一个可调用来源的工具；目录 GET 永不触发上游请求"]},
     {"dot": "emerald", "title": "可重复研究", "items": ["结果保存请求范围、实际覆盖、单位、缺失、限制与来源链接", "父子 Agent 共享同一快照，减少重复请求与截止日漂移"]}
   ]
 }

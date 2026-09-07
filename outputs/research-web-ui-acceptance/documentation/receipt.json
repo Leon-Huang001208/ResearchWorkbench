@@ -1,12 +1,21 @@
 {
   "status": "passed",
   "steps": [
-    "settings_popup_eight_diagrams",
+    "settings_popup_ten_diagrams",
+    "api_atlas_counts_and_search",
     "sandbox_navigation_01-deployment.html",
     "viewer_theme_and_node_details",
     "sandbox_navigation_08-iteration-docs.html"
   ],
   "requests": [
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/api-atlas.html",
+      "status": 200
+    },
     {
       "path": "/api/research/documentation/index.html",
       "status": 200

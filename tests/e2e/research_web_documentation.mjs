@@ -25,8 +25,21 @@ try {
   const popupPromise=context.waitForEvent('page'); await link.click();
   const docs=await popupPromise; await docs.waitForLoadState('domcontentloaded');
   await docs.getByRole('heading',{name:'从研究问题，到真实文件交付',exact:true}).waitFor();
-  assert.equal(await docs.locator('.card').count(),8); receipt.steps.push('settings_popup_eight_diagrams');
+  assert.equal(await docs.locator('.card').count(),10); receipt.steps.push('settings_popup_ten_diagrams');
   await docs.screenshot({path:path.join(output,'index.png'),fullPage:true});
+  const atlasResponsePromise=docs.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/api-atlas.html'));
+  await docs.getByRole('link',{name:/打开当前 API Atlas/}).click();
+  const atlasResponse=await atlasResponsePromise;
+  assert.equal(atlasResponse.status(),200,'API Atlas must load from the isolated documentation endpoint');
+  await docs.getByRole('heading',{name:'Research Web API Atlas',exact:true}).waitFor();
+  assert.equal(await docs.locator('.api').count(),115,'Atlas must retain every source declaration');
+  assert.equal(await docs.locator('.metric').filter({hasText:'唯一接口'}).locator('b').innerText(),'113');
+  await docs.getByRole('searchbox',{name:'搜索接口',exact:true}).fill('report-workflows');
+  assert.ok(await docs.locator('.api:visible').count()>0,'Atlas search must retain matching report Workflow routes');
+  await docs.getByRole('searchbox',{name:'搜索接口',exact:true}).fill('missing-route-for-acceptance');
+  await docs.getByText('没有匹配的接口。',{exact:true}).waitFor({state:'visible'});
+  receipt.steps.push('api_atlas_counts_and_search');
+  await docs.goto(`${origin.origin}/api/research/documentation/index.html`);
   for(const filename of ['01-deployment.html','08-iteration-docs.html']) {
     await docs.goto(`${origin.origin}/api/research/documentation/index.html`);
     const responsePromise=docs.waitForResponse(r=>new URL(r.url()).pathname.endsWith(`/${filename}`));

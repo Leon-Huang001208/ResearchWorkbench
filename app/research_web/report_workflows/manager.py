@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+import copy
 import json
 import os
 import tempfile
@@ -37,6 +38,10 @@ class ReportWorkflowManager:
         self._probes: dict[str, dict] = {}
 
     async def start(self) -> None:
+        try:
+            self.migration.upgrade_all_v2()
+        except WorkflowError as exc:
+            log.warning("report_workflow_v2_upgrade_failed", code=exc.code)
         await self.runtime.start()
 
     async def close(self) -> None:
@@ -52,6 +57,12 @@ class ReportWorkflowManager:
     def summary(self, workflow_id: str) -> dict:
         row = self._row(workflow_id)
         draft = row["draft_manifest"]
+        latest_run = None
+        latest_run_id = row.get("latest_run")
+        if latest_run_id in self.catalog.data.get("runs", {}):
+            latest_run = self.runtime.public_run(
+                copy.deepcopy(self.catalog.data["runs"][latest_run_id])
+            )
         return {
             "id": workflow_id,
             "name": draft["name"],
@@ -62,13 +73,16 @@ class ReportWorkflowManager:
             "delivery_formats": draft.get("delivery", {}).get("formats", []),
             "providers": [item["provider"] for item in draft.get("providers", [])],
             "next_run_at": row.get("schedule", {}).get("next_run_at"),
-            "latest_run": row.get("latest_run"),
+            "latest_run": latest_run,
             "updated_at": row.get("updated_at"),
         }
 
     def list(self) -> list[dict]:
         with self.catalog._exclusive():
-            items = [self.summary(workflow_id) for workflow_id in self.catalog.data["workflows"]]
+            items = [
+                self.summary(workflow_id)
+                for workflow_id in self.catalog.data["workflows"]
+            ]
         return sorted(items, key=lambda item: (item["name"], item["id"]))
 
     def detail(self, workflow_id: str) -> dict:
@@ -81,8 +95,11 @@ class ReportWorkflowManager:
             "migration": row.get("migration"),
             "migration_conflict": row.get("migration_conflict"),
             "historical_artifacts": [
-                self._public_artifact(item) for item in row.get("historical_artifacts", [])
+                self._public_artifact(item)
+                for item in row.get("historical_artifacts", [])
             ],
+            "providers_status": self.provider_status(),
+            "runs": self.runtime.runs(workflow_id),
         }
 
     def create_draft(self, body: dict) -> dict:
@@ -104,7 +121,9 @@ class ReportWorkflowManager:
                     os.fsync(stream.fileno())
                 os.replace(temporary, path)
             except (OSError, yaml.YAMLError) as exc:
-                raise WorkflowError("Workflow 草稿无法保存", "workflow_unavailable", 503) from exc
+                raise WorkflowError(
+                    "Workflow 草稿无法保存", "workflow_unavailable", 503
+                ) from exc
         finally:
             if os.path.exists(temporary):
                 with suppress(OSError):
@@ -130,13 +149,17 @@ class ReportWorkflowManager:
                         "Workflow manifest 不符合契约", "invalid_manifest", 422
                     ) from exc
                 if value.workflow_id != workflow_id:
-                    raise WorkflowError("Workflow 草稿归属不一致", "invalid_manifest", 422)
+                    raise WorkflowError(
+                        "Workflow 草稿归属不一致", "invalid_manifest", 422
+                    )
                 row["draft_manifest"] = json.loads(
                     value.model_copy(update={"resources": []}).model_dump_json()
                 )
             if workflow is not None:
                 if not isinstance(workflow.get("steps", []), list):
-                    raise WorkflowError("Workflow 步骤必须是列表", "invalid_workflow", 422)
+                    raise WorkflowError(
+                        "Workflow 步骤必须是列表", "invalid_workflow", 422
+                    )
                 self._atomic_yaml(draft / "workflow.yaml", workflow)
             if validation is not None:
                 self._atomic_yaml(draft / "validation.yaml", validation)
@@ -144,7 +167,9 @@ class ReportWorkflowManager:
             self.catalog._save()
         return self.detail(workflow_id)
 
-    def copy(self, workflow_id: str, new_id: str, name: str, version: int | None = None) -> dict:
+    def copy(
+        self, workflow_id: str, new_id: str, name: str, version: int | None = None
+    ) -> dict:
         with self.catalog._exclusive():
             source = self._row(workflow_id)
             selected = version or source.get("current_version")
@@ -167,7 +192,9 @@ class ReportWorkflowManager:
                 self.catalog.upload_resource(
                     new_id,
                     resource.path,
-                    self.catalog.resource_path(workflow_id, selected, resource.path).read_bytes(),
+                    self.catalog.resource_path(
+                        workflow_id, selected, resource.path
+                    ).read_bytes(),
                 )
             row = self._row(new_id)
             row.update(status="draft", created_at=time.time(), updated_at=time.time())
@@ -244,11 +271,23 @@ class ReportWorkflowManager:
                 continue
             readiness = self._dependency_readiness(provider_id, provider)
             dependency_ready = readiness["ready"]
+            probes = [
+                value
+                for value in self._probes.values()
+                if value.get("provider") == provider_id
+            ]
+            latest = max(
+                probes, key=lambda value: value.get("checked_at", 0), default=None
+            )
             items.append(
-                {
+                {**latest, "probe_id": latest["id"], "id": provider_id}
+                if latest
+                else {
                     "id": provider_id,
                     "ready": False,
-                    "integration_state": "ready" if dependency_ready else "blocked_dependency",
+                    "integration_state": "ready"
+                    if dependency_ready
+                    else "blocked_dependency",
                     "health": "untested",
                     "code": "needs_probe" if dependency_ready else readiness["code"],
                 }
@@ -283,14 +322,68 @@ class ReportWorkflowManager:
             raise WorkflowError("Excel Provider 不存在", "provider_not_found", 404)
         readiness = self._dependency_readiness(provider_id, provider)
         dependency_ready = readiness["ready"]
+        started = time.monotonic()
+        candidate = None
+        if dependency_ready:
+            with self.catalog._exclusive():
+                for workflow_id, row in sorted(self.catalog.data["workflows"].items()):
+                    version = row.get("current_version")
+                    if row.get("status") != "enabled" or version is None:
+                        continue
+                    manifest = self.catalog.manifest(workflow_id, int(version))
+                    for policy in manifest.workbook_policies:
+                        if any(
+                            item.provider.value == provider_id
+                            for item in policy.providers
+                        ):
+                            candidate = (workflow_id, int(version), policy)
+                            break
+                    if candidate:
+                        break
+        probe_result = None
+        if candidate is not None:
+            workflow_id, version, policy = candidate
+            source = self.catalog.resource_path(workflow_id, version, policy.workbook)
+            try:
+                with tempfile.TemporaryDirectory(
+                    prefix=f"provider-probe-{provider_id}-", dir=self.service.store.root
+                ) as temporary:
+                    probe_result = self.refresh.refresh(
+                        source,
+                        Path(temporary),
+                        policy,
+                    )
+            except (OSError, WorkflowError) as exc:
+                log.warning(
+                    "report_provider_probe_failed",
+                    provider=provider_id,
+                    error_type=type(exc).__name__,
+                )
         result = {
             "id": name,
             "provider": provider_id,
-            "ready": False,
+            "ready": bool(probe_result and probe_result.status.value == "ready"),
             "integration_state": "ready" if dependency_ready else "blocked_dependency",
-            "health": "unverified" if dependency_ready else "unavailable",
-            "code": "provider_health_unverified" if dependency_ready else readiness["code"],
+            "health": (
+                "healthy"
+                if probe_result and probe_result.status.value == "ready"
+                else "unavailable"
+                if probe_result
+                else "unverified"
+                if dependency_ready
+                else "unavailable"
+            ),
+            "code": (
+                None
+                if probe_result and probe_result.status.value == "ready"
+                else probe_result.code
+                if probe_result
+                else "provider_health_unverified"
+                if dependency_ready
+                else readiness["code"]
+            ),
             "checked_at": time.time(),
+            "duration_ms": round((time.monotonic() - started) * 1000),
         }
         self._probes[name] = result
         return result
@@ -310,7 +403,9 @@ class ReportWorkflowManager:
             if self._managed_report_projects_available(managed):
                 return self._migrate_managed_report_projects(managed, dry_run=dry_run)
             project_root = Path(
-                os.environ.get("RESEARCH_PROJECT_ROOT", str(Path(__file__).resolve().parents[3]))
+                os.environ.get(
+                    "RESEARCH_PROJECT_ROOT", str(Path(__file__).resolve().parents[3])
+                )
             )
             source = project_root / "report_projects"
         return self.migration.migrate(source, dry_run=dry_run)
@@ -326,13 +421,16 @@ class ReportWorkflowManager:
         if root.is_symlink() or not root.is_dir():
             return False
         return any(
-            (root / workflow_id / "versions" / "1" / "assets").is_dir() for workflow_id in expected
+            (root / workflow_id / "versions" / "1" / "assets").is_dir()
+            for workflow_id in expected
         )
 
     @staticmethod
     def _hardlink_tree(source: Path, target: Path) -> None:
         if source.is_symlink() or not source.is_dir():
-            raise WorkflowError("已管理的旧报告资源不可读取", "migration_source_invalid", 422)
+            raise WorkflowError(
+                "已管理的旧报告资源不可读取", "migration_source_invalid", 422
+            )
         try:
             source_root = source.resolve(strict=True)
             target.mkdir(parents=True, exist_ok=True)

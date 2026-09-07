@@ -10,12 +10,11 @@ const navItems = [
   { page: 'workbench', section: 'assets', glyph: 'chart', title: '资产观察', href: '#/workbench/assets' },
   { page: 'workbench', glyph: 'chart', title: '研究台', href: '#/workbench' },
   { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
-  { page: 'history', glyph: 'history', title: '研究历史', href: '#/history' },
   { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },
 ];
 
 export function renderBrandMark() {
-  return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/brand/source-logo.png" alt="" width="211" height="239"></span>';
+  return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/brand/brand-mark.png" alt="" width="108" height="120"></span>';
 }
 
 export function renderAppearancePicker() {
@@ -24,10 +23,14 @@ export function renderAppearancePicker() {
 }
 
 export function renderResearchAttention(detail) {
-  const errors = [...(detail?.activities || []), ...(detail?.agents || [])].filter(item => item.error || ['failed', 'error'].includes(item.status)).length;
+  const abnormal = (items) => (Array.isArray(items) ? items : []).filter(item => item?.error || ['failed', 'error'].includes(item?.status)).length;
+  const failedActivities = abnormal(detail?.activities);
+  const abnormalSubagents = abnormal(detail?.subagents);
+  const errors = failedActivities + abnormalSubagents;
   const incomplete = ['incomplete', 'verification_failed'].includes(detail?.delivery?.status);
   if (!errors && !incomplete) return '';
-  return `<div class="notice warning research-attention" role="status"><span>${errors ? `${errors} 项活动或 Agent 异常。` : ''}${incomplete ? '文件交付尚未完成。' : ''}</span><button type="button" class="text-button" data-show-attention>查看详情</button></div>`;
+  const summary = [failedActivities ? `${failedActivities} 项活动失败` : '', abnormalSubagents ? `${abnormalSubagents} 个子 Agent 异常` : ''].filter(Boolean).join('，');
+  return `<div class="notice warning research-attention" role="status"><span>${summary ? `${summary}。` : ''}${incomplete ? '文件交付尚未完成。' : ''}</span><button type="button" class="text-button" data-show-attention>查看详情</button></div>`;
 }
 
 export function filterGlobalSearch(query, sessions = [], skills = []) {
@@ -48,11 +51,13 @@ export function renderGlobalSearch(query, sessions, skills) {
 }
 
 export function renderPrimaryRail({ page, section = '', secondaryOpen = false } = {}) {
+  const researchPage = ['fingpt', 'claw'].includes(page);
   const links = navItems.map((item) => {
     const active = page === item.page && (item.section ? section === item.section : !(item.page === 'workbench' && section === 'assets'));
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');
-  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="new-research" data-new aria-label="新研究">${icon('compose')}<span>新研究</span></button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">☰</button><div class="navigation-footer"><a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a><button class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="折叠会话侧栏">${icon('sidebar')}</button></div></nav>`;
+  const sidebarToggle = researchPage ? `<button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">☰</button>` : '';
+  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="icon-button rail-mobile-close" data-toggle-sidebar aria-label="关闭导航">×</button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div>${sidebarToggle}<div class="navigation-footer"><a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a></div></nav>`;
 }
 
 function renderClawWorkspace(detail, workspaces, selectedWorkspace) {
@@ -80,15 +85,26 @@ export function renderLockedWorkflowSummary(detail) {
   return `<section class="locked-workflow-summary" aria-label="锁定 Workflow 只读摘要"><div><span class="eyebrow">锁定 Workflow · 只读摘要</span><strong>${e(name)}</strong><span class="mono">${e(id)}${version ? ` · v${e(version)}` : ''}</span></div><span class="badge ${delivery === 'complete' ? 'live' : delivery === 'incomplete' ? 'danger' : ''}">${e(deliveryLabel(delivery))}</span><p class="muted small">步骤执行证据以活动记录为准；文件是否完成以独立交付校验为准。</p></section>`;
 }
 
-export function renderSidebar({ page, sessionId, sessions = [], workspaces = [], selectedWorkspace = '', collapsed = false, mobileOpen = false, detail = null, clawSidebarView = 'sessions' } = {}) {
-  const allSessions = Array.isArray(sessions) ? sessions : [];
-  const recent = allSessions.slice(0, 10);
-  const running = allSessions.filter((session) => isRunning(session.status));
-  const clawTabs = page === 'claw' ? `<div class="claw-sidebar-tabs" role="tablist"><button type="button" role="tab" class="${clawSidebarView === 'sessions' ? 'active' : ''}" aria-selected="${clawSidebarView === 'sessions'}" data-claw-sidebar-view="sessions">会话</button><button type="button" role="tab" class="${clawSidebarView === 'workspace' ? 'active' : ''}" aria-selected="${clawSidebarView === 'workspace'}" data-claw-sidebar-view="workspace">当前工作区</button></div>` : '';
-  const sessionsView = `<div class="secondary-session-view"><details class="workspace-picker"><summary>工作空间</summary><label class="sr-only" for="workspace-select">工作空间</label><select id="workspace-select"><option value="">默认工作空间</option>${workspaces.map((workspace) => `<option value="${e(workspace.id)}" ${selectedWorkspace === workspace.id ? 'selected' : ''}>${e(workspace.name)}</option>`).join('')}</select></details><div class="recent-section"><div class="running-heading recent-heading ${running.length ? '' : 'no-running'}"><span class="eyebrow">运行任务</span><span class="count">${running.length}</span></div>${running.length ? running.map((session) => `<a href="${sessionHash(session)}" class="recent-item"><span class="tiny-dot active"></span><span>${e(session.title || '未命名会话')}</span></a>`).join('') : ''}<div class="recent-heading"><span class="eyebrow">最近研究</span><a href="#/history" aria-label="查看全部历史">↗</a></div><div class="recent-sessions">${recent.length ? recent.map((session) => `<a href="${sessionHash(session)}" class="recent-item ${sessionId === session.id ? 'active' : ''}" title="${e(session.title)}"><span class="tiny-dot ${isRunning(session.status) ? 'active' : ''}"></span><span>${e(session.title || '未命名会话')}</span></a>`).join('') : '<p class="muted small sidebar-empty">开始第一项研究后，会话将显示在这里。</p>'}</div></div></div>`;
+export function renderSessionRow(session, currentSessionId = null, openMenuId = null) {
+  const active = currentSessionId === session.id;
+  const busy = isRunning(session.status);
+  const title = session.title || '未命名会话';
+  return `<div class="session-row ${active ? 'active' : ''} ${openMenuId === session.id ? 'menu-open' : ''}"><a href="${sessionHash(session)}" class="recent-item ${active ? 'active' : ''}" title="${e(title)}" ${active ? 'aria-current="page"' : ''}><span class="tiny-dot ${busy ? 'active' : ''}"></span><span>${e(title)}</span></a><button type="button" class="session-actions-trigger" data-session-menu="${e(session.id)}" aria-label="${e(title)}的更多操作" aria-haspopup="menu" aria-expanded="${openMenuId === session.id}">${icon('more')}</button></div>`;
+}
+
+export function renderSidebar({ page, sessionId, sessions = [], workspaces = [], selectedWorkspace = '', collapsed = false, mobileOpen = false, detail = null, clawSidebarView = 'sessions', openMenuId = null } = {}) {
+  if (!['fingpt', 'claw'].includes(page)) return '';
+  const modeLabel = page === 'claw' ? 'Claw' : 'FinGPT';
+  const modeSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => session?.mode === page);
+  const running = modeSessions.filter((session) => isRunning(session.status));
+  const recent = modeSessions.filter((session) => !isRunning(session.status)).slice(0, 10);
+  const historyHref = `#/history?mode=${page}`;
+  const clawTabs = page === 'claw' ? `<div class="claw-sidebar-tabs" role="tablist" aria-label="Claw 侧栏视图"><button type="button" role="tab" class="${clawSidebarView === 'sessions' ? 'active' : ''}" aria-selected="${clawSidebarView === 'sessions'}" data-claw-sidebar-view="sessions">会话</button><button type="button" role="tab" class="${clawSidebarView === 'workspace' ? 'active' : ''}" aria-selected="${clawSidebarView === 'workspace'}" data-claw-sidebar-view="workspace">工作空间</button></div>` : '';
+  const sessionsView = `<div class="secondary-session-view"><button class="new-research" data-new aria-label="新建 ${modeLabel} 研究">${icon('compose')}<span>新研究</span></button><div class="recent-section"><div class="running-heading recent-heading ${running.length ? '' : 'no-running'}"><span class="eyebrow">运行任务</span><span class="count">${running.length}</span></div>${running.length ? running.map((session) => renderSessionRow(session, sessionId, openMenuId)).join('') : ''}<div class="recent-heading"><span class="eyebrow">最近研究</span><a href="${historyHref}" aria-label="查看全部 ${modeLabel} 研究">查看全部</a></div><div class="recent-sessions">${recent.length ? recent.map((session) => renderSessionRow(session, sessionId, openMenuId)).join('') : `<p class="muted small sidebar-empty">开始第一项 ${modeLabel} 研究后，会话将显示在这里。</p>`}</div></div></div>`;
   const body = page === 'claw' && clawSidebarView === 'workspace' ? renderClawWorkspace(detail, workspaces, selectedWorkspace) : sessionsView;
   const hidden = collapsed && !mobileOpen;
-  return `<aside class="sidebar secondary-sidebar ${mobileOpen ? 'mobile-open' : ''} ${collapsed ? 'collapsed' : ''}" aria-label="会话与工作区侧栏" ${hidden ? 'aria-hidden="true"' : ''}><div class="sidebar-top"><button class="icon-button sidebar-close" data-toggle-sidebar aria-label="关闭会话侧栏">×</button></div>${clawTabs}${body}</aside>`;
+  const ariaLabel = page === 'claw' ? 'Claw 会话与工作空间侧栏' : 'FinGPT 会话侧栏';
+  return `<aside class="sidebar secondary-sidebar ${mobileOpen ? 'mobile-open' : ''} ${collapsed ? 'collapsed' : ''}" aria-label="${ariaLabel}" ${hidden ? 'aria-hidden="true"' : ''}><div class="sidebar-top"><h2>${modeLabel}</h2><button class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="折叠 ${modeLabel} 二级侧栏">${icon('sidebar')}</button></div>${clawTabs}${body}</aside>`;
 }
 
 export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpen = false, selectedPreview = null, busy = false, workflow = null } = {}) {

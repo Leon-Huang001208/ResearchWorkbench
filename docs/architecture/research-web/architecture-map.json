@@ -100,7 +100,9 @@
         "01-deployment",
         "02-module-dependencies",
         "04-data-file-flow",
-        "07-delivery-state"
+        "07-delivery-state",
+        "09-report-workflow-sequence",
+        "10-excel-report-dataflow"
       ],
       "tests": [
         "tests/research_web/test_store.py",
@@ -125,7 +127,8 @@
         "02-module-dependencies",
         "03-research-sequence",
         "04-data-file-flow",
-        "06-run-state"
+        "06-run-state",
+        "09-report-workflow-sequence"
       ],
       "tests": [
         "tests/research_web/test_runtime_launch.py",
@@ -172,9 +175,15 @@
         "docs/architecture/research-web/07-capabilities.md"
       ],
       "diagrams": [
-        "02-module-dependencies"
+        "02-module-dependencies",
+        "06-run-state",
+        "07-delivery-state",
+        "09-report-workflow-sequence",
+        "10-excel-report-dataflow"
       ],
       "tests": [
+        "tests/research_web/test_report_workflows.py",
+        "tests/research_web/test_report_rendering.py",
         "tests/research_web/test_report_workflow_integration.py",
         "tests/javascript/research_web_report_workflow_v0.test.mjs"
       ]
@@ -306,8 +315,7 @@
         {
           "subjects": [
             "startClaw",
-            "shareSnapshot",
-            "deliverArtifact"
+            "payload"
           ],
           "source": "app/research_web/report_workflows/runtime.py"
         },
@@ -327,6 +335,13 @@
         },
         {
           "subjects": [
+            "assemblyTool",
+            "assemble"
+          ],
+          "source": "app/research_web/report_rendering.py"
+        },
+        {
+          "subjects": [
             "datahub"
           ],
           "source": "app/research_web/datahub/broker.py"
@@ -334,12 +349,6 @@
         {
           "subjects": [
             "snapshots"
-          ],
-          "source": "app/research_web/datahub/snapshots.py"
-        },
-        {
-          "subjects": [
-            "publishSnapshot"
           ],
           "source": "app/research_web/datahub/snapshots.py"
         },
@@ -496,8 +505,8 @@
         },
         {
           "subjects": [
-            "approval",
-            "approvalResult"
+            "policy",
+            "policyResult"
           ],
           "source": "app/research_web/runtime/public-data.mjs"
         },
@@ -550,7 +559,7 @@
             "tool",
             "policy",
             "businessIntent",
-            "approvedQuery"
+            "validatedQuery"
           ],
           "source": "app/research_web/runtime/public-data.mjs"
         },
@@ -668,7 +677,7 @@
     },
     {
       "id": "06-run-state",
-      "source": "docs/architecture/research-web/diagrams/06-run-state.json",
+      "source": "docs/architecture/research-web/diagrams/06-run-state-final.json",
       "artifact": "outputs/research-web-architecture/06-run-state.html",
       "receipt": "outputs/research-web-architecture/06-run-state.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/06-run-state.visual-check.json",
@@ -696,6 +705,64 @@
             "stop"
           ],
           "source": "app/research_web/service.py"
+        }
+      ]
+    },
+    {
+      "id": "09-report-workflow-sequence",
+      "source": "docs/architecture/research-web/diagrams/09-report-workflow-sequence.json",
+      "artifact": "outputs/research-web-architecture/09-report-workflow-sequence.html",
+      "receipt": "outputs/research-web-architecture/09-report-workflow-sequence.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/09-report-workflow-sequence.visual-check.json",
+      "evidence": [
+        {
+          "subjects": ["api", "catalog", "manualRun", "lockVersion", "runEvidence"],
+          "source": "app/research_web/report_workflow_routes.py"
+        },
+        {
+          "subjects": ["excelTool", "excel", "refreshCopy", "excelRefresh", "excelResult", "refreshManifest", "blockedData"],
+          "source": "app/research_web/report_workflows/workbook.py"
+        },
+        {
+          "subjects": ["dsh", "snapshot", "materialize", "createClaw", "readSnapshot", "activity", "writePayload", "turnEnd", "latePayload", "deliveryState"],
+          "source": "app/research_web/report_workflows/runtime.py"
+        },
+        {
+          "subjects": ["renderer", "files", "project", "assembleFiles", "reopen"],
+          "source": "app/research_web/report_rendering.py"
+        },
+        {
+          "subjects": ["web", "download"],
+          "source": "app/research_web/ui/report-workflows.mjs"
+        }
+      ]
+    },
+    {
+      "id": "10-excel-report-dataflow",
+      "source": "docs/architecture/research-web/diagrams/10-excel-report-dataflow-showcase.json",
+      "artifact": "outputs/research-web-architecture/10-excel-report-dataflow.html",
+      "receipt": "outputs/research-web-architecture/10-excel-report-dataflow.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/10-excel-report-dataflow.visual-check.json",
+      "evidence": [
+        {
+          "subjects": ["version", "providerPolicy", "runCopy", "copyVersion", "applyPolicy"],
+          "source": "app/research_web/report_workflows/catalog.py"
+        },
+        {
+          "subjects": ["excel", "refreshManifest", "openCopy", "recordRefresh", "authorizeSnapshot"],
+          "source": "app/research_web/report_workflows/workbook.py"
+        },
+        {
+          "subjects": ["extract", "snapshot", "publishSnapshot"],
+          "source": "app/research_web/report_workflows/tooling.py"
+        },
+        {
+          "subjects": ["agents", "payload", "agentRead", "authorPayload"],
+          "source": "app/research_web/report_workflows/runtime.py"
+        },
+        {
+          "subjects": ["assembler", "artifacts", "projectPayload", "deliver"],
+          "source": "app/research_web/report_rendering.py"
         }
       ]
     },
@@ -847,6 +914,20 @@
       "path": "/api/research/sessions/{sid}",
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/sessions/{sid}",
+      "prefix": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/research/sessions/{sid}",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/sessions/{sid}",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/sessions/{sid}/restore",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/sessions/{sid}/restore",
       "prefix": ""
     },
     {

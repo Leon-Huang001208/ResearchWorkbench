@@ -42,7 +42,7 @@ Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH
 
 检查分别报告元数据、原生 frontmatter、调用方式、工具白名单、关联 Skill 状态/版本、依赖版本、脚本语法和安装行为。只有依赖问题时为 `blocked_dependencies`，其他不兼容为 `invalid`；检查通过仍只是 `draft`，需要发布才启用。前端必须展示问题，不能只删除不兼容文件后宣称成功。
 
-这不是任意 Python 的静态安全证明。运行时文件、网络、进程、环境边界仍由现有沙箱及原生审批强制执行。
+这不是任意 Python 的静态安全证明。运行时文件、网络与进程边界仍由现有沙箱及各工具策略强制执行；仅 DataHub 的已配置只读查询取消逐次审批，其他高风险操作的审批策略不变。
 
 ## 发布、停用与回滚
 
@@ -58,13 +58,17 @@ Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH
 
 ## 研究请求与版本证据
 
-`capability_id` / `capability_version` 可选，保留旧 `skill_id`；可选 `tool_ids` 只表达使用意图，不改变审批策略。发送前验证所选启用版本、依赖及 Workflow 关联版本，将当前已启用包的资源复制为会话只读快照，并记录当时能力目录。这样即使 DSH 自主选用其他已启用 Skill，也有本轮资源与版本证据。
+`capability_id` / `capability_version` 可选，保留旧 `skill_id`；可选 `tool_ids` 只表达使用意图，不扩大运行时已注册工具。发送前验证所选启用版本、依赖及 Workflow 关联版本，将当前已启用包的资源复制为会话只读快照，并记录当时能力目录。这样即使 DSH 自主选用其他已启用 Skill，也有本轮资源与版本证据。
 
 显式 `expected_formats` 优先；未提供时使用所选能力默认格式。详情显示能力/版本和 Workflow 预设步骤，执行活动及最终文件从原生历史与真实产物读取，不由模板推断完成状态。
 
-Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数据工具，共 21 项。数据 Tool 使用子系统前缀而非产品品牌，因此将来产品改名不需要迁移研究协议。当前可选择的 Tool 为 `research_run_script`、`web_search`，以及有可调用 Provider 的 `datahub_get_fund_data`、`datahub_search_news`；安装并配置天软 CJPY 后，四个对应业务 Tool 才会成为可选。其他 `datahub_*` 能力可以浏览，但会明确显示没有已实现且就绪的绑定，不能运行。
+Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数据工具，共 21 项。数据 Tool 使用子系统前缀而非产品品牌，因此将来产品改名不需要迁移研究协议。能力目录仍可浏览全部登记项，但 Research Runtime 启动时只把至少有一个可调用 Provider 的固定 DataHub 工具写入 `enabledTools`；配置变化在重启后生效。已注册的只读 DataHub 查询自动执行，未注册能力不会出现在模型工具列表中。
 
 本轮从旧市场内容能力中只迁入可独立运行的“市场解读” Skill 和“市场资料筛选与解读交付” Workflow：脚本读取当前会话已有结构化资讯，按时间、来源和关键词执行透明排序并生成文件。它不导入旧 UI、数据库、调度器、事实断言或报告编译链；没有实际数据时不得生成市场结论。
+
+具体报告使用 `Report Workflow`，不是独立报告执行引擎。每个不可变版本持有自己的 Word/PPT 模板、Excel 公式底稿、品牌素材、映射、结构化步骤和交付合同；共享 Skill 负责检索、市场解读、图表分析和段落写作，共享 Tool 负责 Excel 刷新、底稿提取、模板检查、图表渲染、Office 组装和文件验证。运行修改的是 Run 副本，永不覆盖 Workflow 母版。
+
+华安 ETF 周报、创业板 50 周报、华安 ETF 投资风向标和 AI 周报均在 Claw 与能力中心展示。创业板 50 的活动工作簿按公式识别为 iFinD，误标 Wind 文件只保留为 `legacy_mislabeled`；AI 周报继续 `needs_attention`。日程默认关闭，且只有手动运行达到 `completed` 且文件交付为 `complete` 后才能启用。
 
 能力中心现在有 Skill、Tool、Workflow、数据四个页签。“数据”不是新的执行类型，而是 DataHub 的只读目录投影：支持按业务能力和按来源双视图，展示字段、参数、市场覆盖、候选来源和六维就绪状态。把数据能力“放入研究草稿”只加入对应 `datahub_*` Tool，不立即联网或产生费用。DSH 原生网页搜索仍留在 Tool 目录，不冒充 DataHub 数据源。
 

@@ -1,0 +1,105 @@
+{
+  "status": "passed",
+  "results": [
+    {
+      "mode": "fingpt",
+      "width": 1440,
+      "height": 900,
+      "status": "passed",
+      "imagePath": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-nav-v0/fingpt-1440x900.png",
+      "measured": {
+        "rail": {
+          "x": 0,
+          "y": 0,
+          "width": 68,
+          "height": 900
+        },
+        "sidebar": {
+          "x": 68,
+          "y": 0,
+          "width": 248,
+          "height": 900
+        },
+        "overflow": {
+          "width": 1440,
+          "scrollWidth": 1440
+        }
+      }
+    },
+    {
+      "mode": "fingpt",
+      "width": 390,
+      "height": 844,
+      "status": "passed",
+      "imagePath": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-nav-v0/fingpt-390x844.png",
+      "measured": {
+        "rail": {
+          "x": 0,
+          "y": 56,
+          "width": 68,
+          "height": 788
+        },
+        "sidebar": {
+          "x": 68,
+          "y": 56,
+          "width": 248,
+          "height": 788
+        },
+        "overflow": {
+          "width": 390,
+          "scrollWidth": 390
+        }
+      }
+    },
+    {
+      "mode": "claw",
+      "width": 1440,
+      "height": 900,
+      "status": "passed",
+      "imagePath": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-nav-v0/claw-1440x900.png",
+      "measured": {
+        "rail": {
+          "x": 0,
+          "y": 0,
+          "width": 68,
+          "height": 900
+        },
+        "sidebar": {
+          "x": 68,
+          "y": 0,
+          "width": 248,
+          "height": 900
+        },
+        "overflow": {
+          "width": 1440,
+          "scrollWidth": 1440
+        }
+      }
+    },
+    {
+      "mode": "claw",
+      "width": 390,
+      "height": 844,
+      "status": "passed",
+      "imagePath": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-nav-v0/claw-390x844.png",
+      "measured": {
+        "rail": {
+          "x": 0,
+          "y": 56,
+          "width": 68,
+          "height": 788
+        },
+        "sidebar": {
+          "x": 68,
+          "y": 56,
+          "width": 248,
+          "height": 788
+        },
+        "overflow": {
+          "width": 390,
+          "scrollWidth": 390
+        }
+      }
+    }
+  ]
+}

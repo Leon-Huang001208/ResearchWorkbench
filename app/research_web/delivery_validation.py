@@ -4,8 +4,10 @@ import hashlib
 import io
 import json
 import os
+import re
 import stat
 import zipfile
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -23,6 +25,9 @@ METADATA_SHEETS = {
     "参考资料",
     "参考文献",
 }
+PPTX_PARAGRAPH = re.compile(r"<a:p(?:\s[^>]*)?>(.*?)</a:p>", re.DOTALL)
+PPTX_TEXT = re.compile(r"<a:t(?:\s[^>]*)?>(.*?)</a:t>", re.DOTALL)
+PPTX_PLACEHOLDER = re.compile(r"\{\{[^{}\r\n]{1,200}\}\}")
 
 
 class VisibleHTML(HTMLParser):
@@ -94,6 +99,16 @@ def validate_content(raw, extension):
                 return "PPTX 缺少必要的演示文稿结构"
             if not any(b"<a:t>" in package.read(name) for name in slides):
                 return "PPTX 可打开，但没有可见文本内容"
+            for name in slides:
+                xml = package.read(name).decode("utf-8")
+                paragraphs = PPTX_PARAGRAPH.findall(xml)
+                bodies = paragraphs or [xml]
+                for body in bodies:
+                    visible = "".join(
+                        unescape(value) for value in PPTX_TEXT.findall(body)
+                    )
+                    if PPTX_PLACEHOLDER.search(visible):
+                        return "PPTX 仍有未替换占位符"
     elif extension == "png":
         from PIL import Image
 

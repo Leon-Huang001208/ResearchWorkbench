@@ -79,13 +79,26 @@ test('real migrated report Workflows have a dedicated Claw shelf and package det
   const detail = renderReportWorkflowDetail({
     ...summary,
     versions: [{ version: 1, current: true, published: true, manifest: {
-      resources: [{ role: 'template', path: 'templates/report.docx', size: 1024 }, { role: 'workbook', path: 'workbooks/source.xlsx', size: 2048 }],
+      resources: [{ role: 'template', path: 'templates/report.docx', size: 1024 }, { role: 'workbook', path: 'workbooks/source.xlsx', size: 2048 }, { role: 'workbook', path: 'workbooks/创业板50周报（Wind版）.xlsx', size: 2048 }],
+      providers: [{ provider: 'wind_excel', required: true }, { provider: 'ifind_excel', required: true }],
       workbook_policies: [{ workbook: 'workbooks/source.xlsx', providers: [{ provider: 'wind_excel' }, { provider: 'ifind_excel' }] }],
+      excluded_workbooks: ['workbooks/创业板50周报（Wind版）.xlsx'],
       blocks: [{ kind: 'chart', title: '站位图', required: true }],
     }}],
+    providers_status: [{ id: 'wind_excel', integration_state: 'ready', health: 'untested', ready: false, code: 'needs_probe' }],
+    runs: [{
+      id: 'run-live', status: 'delivery_incomplete', delivery_status: 'incomplete', version: 1, trigger: 'manual',
+      session_id: '11111111-1111-4111-8111-111111111111', dataset_snapshot_sha256: 'a'.repeat(64),
+      refresh_manifests: ['refresh-manifests/manifest.json'],
+      subagents: [{ id: 'agent-1', name: '行业研究', status: 'completed' }],
+      artifacts: [{ name: 'report.docx', format: 'docx', url: '/api/research/sessions/session/files/file' }],
+      missing: ['block:industry'],
+    }],
     schedule: { enabled: false }, historical_artifacts: [{ name: '创业板50周报.docx', size: 4096 }],
   });
   for (const expected of ['templates/report.docx', 'workbooks/source.xlsx', 'wind_excel + ifind_excel', '站位图', '创业板50周报.docx']) assert.ok(detail.includes(expected));
+  for (const expected of ['保留但不运行', '检测 Wind Excel', 'data-probe-report-provider="wind_excel"', 'run-live', '失败重试']) assert.ok(detail.includes(expected));
+  for (const expected of ['刷新清单 1', '共享快照', '行业研究', 'report.docx', 'block:industry', '#/claw?session=11111111-1111-4111-8111-111111111111']) assert.ok(detail.includes(expected));
 });
 
 test('report Workflow selection requires its own published ready package version', async () => {
@@ -166,7 +179,8 @@ test('standalone report studio front-end and unreachable adapters are removed', 
   const fs = await import('node:fs');
   assert.equal(fs.existsSync(new URL('report-studio.mjs', root)), false);
   const core = fs.readFileSync(new URL('core.mjs', root), 'utf8');
-  for (const dead of ['reportProjects:', 'createReportProject:', 'runReportProject:', 'saveReportSchedule:']) assert.equal(core.includes(dead), false);
+  for (const dead of ['reportProjects:', 'createReportProject:', 'runReportProject:']) assert.equal(core.includes(dead), false);
+  assert.match(core, /saveReportSchedule:/);
   const css = fs.readFileSync(new URL('styles.css', root), 'utf8');
   assert.doesNotMatch(css, /report-studio-layout|report-project-card|report-overview-grid/);
 });

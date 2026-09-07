@@ -139,9 +139,11 @@ test('slash keyboard selection consumes arrows, Enter and Escape without acciden
 });
 
 test('shell has visible navigation, explicit mobile search/close and no empty landing panel', () => {
-  assert.match(shell.renderPrimaryRail({ page: 'fingpt' }), /class="rail-label">FinGPT/);
+  const rail = shell.renderPrimaryRail({ page: 'fingpt' });
+  assert.match(rail, /class="rail-label">FinGPT/);
+  assert.match(rail, /rail-mobile-close.*aria-label="关闭导航"/);
   assert.match(shell.renderTopbar({}), /data-toggle-search/);
-  assert.match(shell.renderSidebar({ collapsed: true, mobileOpen: true }), /sidebar-close.*aria-label="关闭会话侧栏"/);
+  assert.match(shell.renderSidebar({ page: 'fingpt', collapsed: true, mobileOpen: true }), /sidebar-collapse.*aria-label="折叠 FinGPT 二级侧栏"/);
   assert.equal(shell.renderContextPanel({}), '');
 });
 

@@ -6,17 +6,27 @@ const root = new URL('../../app/research_web/ui/', import.meta.url);
 
 test('product shell keeps the compact product navigation, real recent work and searchable catalog', async () => {
   const shell = await import(new URL('shell.mjs', root));
-  const sessions = [{ id: 'run-1', title: '半导体设备需求', mode: 'fingpt', status: 'running' }];
+  const sessions = [
+    { id: 'run-1', title: '半导体设备需求', mode: 'fingpt', status: 'running' },
+    { id: 'run-2', title: 'Claw 不应混入', mode: 'claw', status: 'running' },
+  ];
   const skills = [{ id: 'company-research', name: '公司研究', description: '基于资料完成公司研究' }];
   const html = shell.renderSidebar({ page: 'fingpt', sessionId: null, sessions, skills, collapsed: false });
   const rail = shell.renderPrimaryRail({ page: 'fingpt' });
-  for (const expected of ['FinGPT', 'Claw', '资产观察', '能力中心', '历史', '设置']) assert.match(rail, new RegExp(expected));
-  assert.match(rail, /data-collapse-sidebar/);
+  for (const expected of ['FinGPT', 'Claw', '资产观察', '能力中心', '设置']) assert.match(rail, new RegExp(expected));
+  assert.doesNotMatch(rail, /研究历史|data-new/);
+  assert.doesNotMatch(rail, /data-collapse-sidebar/);
+  assert.match(html, /data-collapse-sidebar/);
   assert.doesNotMatch(rail, /data-theme-(?:select|option)/);
-  for (const expected of ['半导体设备需求', '运行任务']) assert.match(html, new RegExp(expected));
+  for (const expected of ['FinGPT', '新研究', '半导体设备需求', '运行任务']) assert.match(html, new RegExp(expected));
+  assert.ok(html.includes('#/history?mode=fingpt'));
+  assert.doesNotMatch(html, /Claw 不应混入|工作空间/);
   const matches = shell.filterGlobalSearch('公司研究', sessions, skills);
   assert.deepEqual(matches.map((item) => item.kind), ['skill']);
   assert.match(shell.renderGlobalSearch('', sessions, skills), /data-global-search/);
+  const styles = await readFile(new URL('styles.css', root), 'utf8');
+  assert.match(styles, /\.mobile-search-toggle\s*\{\s*display:\s*inline-flex;/);
+  assert.doesNotMatch(styles, /\.mobile-search-toggle[^\{]*\{\s*display:\s*none;/);
 });
 
 test('global search opens report Workflows through their real package detail', async () => {
@@ -44,7 +54,7 @@ test('composer provides non-submitting real Skill shortcuts and file drop/paste 
   const shortcuts = composer.researchQuickSkills(skills);
   assert.deepEqual(shortcuts.map((skill) => skill.id), skills.slice(0, 4).map((skill) => skill.id));
   const html = composer.renderComposer({ page: 'claw', draft: '', attachments: [], expectedFormats: null, skills, skillId: '', disabled: false, taskPending: false, detail: null });
-  for (const expected of ['data-dropzone', 'data-slash-search', 'data-paste-support', '任务目标或补充信息']) assert.match(html, new RegExp(expected));
+  for (const expected of ['data-dropzone', 'data-slash-search', 'data-paste-support', '选择 Skill 或 Workflow', '任务目标或补充信息']) assert.match(html, new RegExp(expected));
   assert.match(composer.renderQuickSkills(skills), /data-skill-shortcut/);
   assert.doesNotMatch(html, /fetch\(|POST \/api\/research/);
 });
@@ -54,6 +64,8 @@ test('app wires shell-only interactions without changing controller routes or AP
   for (const expected of ['renderSidebar', 'renderContextPanel', 'renderComposer', 'skillShortcut', 'globalSearch', 'clipboardData', 'dataTransfer']) assert.match(app, new RegExp(expected));
   assert.match(app, /#\/fingpt/);
   assert.match(app, /#\/claw/);
+  assert.match(app, /has-secondary/);
+  assert.doesNotMatch(app, /<div class="navigation-column">/);
   assert.doesNotMatch(app, /fetch\(['"`]https?:\/\//);
 });
 
@@ -81,6 +93,7 @@ test('landing category filters derive from the displayed catalog kind and escape
   ];
   const html = renderQuickSkills(catalog, { page: 'fingpt', category: '资料研究' });
   assert.match(html, /id="quick-category"[^>]*data-quick-category/);
+  assert.match(html, /<details class="quick-directory" open>/);
   assert.match(html, /<label[^>]*for="quick-category"/);
   assert.match(html, /value="资料研究" selected/);
   assert.match(html, /&lt;风险&gt;/);
@@ -111,8 +124,20 @@ test('primary rail stays independent while only the secondary session sidebar co
   assert.match(rail, /primary-rail/);
   assert.match(rail, /data-toggle-sidebar/);
   assert.match(rail, /FinGPT/);
+  assert.doesNotMatch(rail, /data-new|研究历史/);
   assert.match(secondary, /secondary-sidebar/);
+  assert.match(secondary, /data-new/);
+  assert.match(secondary, /data-collapse-sidebar/);
   assert.doesNotMatch(secondary, /main-nav/);
+});
+
+test('desktop layout renders a real global rail and a separate mode-owned second column', async () => {
+  const css = await readFile(new URL('appearance.css', root), 'utf8');
+  assert.match(css, /\.app-shell\.has-secondary[^\{]*\{[^}]*grid-template-columns:\s*68px 248px minmax\(0, 1fr\)/);
+  assert.match(css, /grid-template-areas:\s*'rail sidebar top' 'rail sidebar main'/);
+  assert.match(css, /\.primary-rail\s*\{[^}]*grid-area:\s*rail[^}]*width:\s*68px|\.navigation-open \.primary-rail\s*\{[^}]*width:\s*68px/);
+  assert.match(css, /\.secondary-sidebar\s*\{[^}]*grid-area:\s*sidebar/);
+  assert.match(css, /\.navigation-open \.secondary-sidebar[^\{]*\{[^}]*left:\s*68px|inset:\s*64px auto 0 68px/);
 });
 
 test('a collapsed desktop secondary sidebar becomes an exposed narrow-screen drawer when opened', async () => {
@@ -130,6 +155,32 @@ test('Claw switches session and current-workspace projections without mixing oth
   assert.match(workspace, /当前资料/);
   assert.match(workspace, /当前产物\.docx/);
   assert.doesNotMatch(workspace, /href="#\/fingpt\?session=other"/);
+});
+
+test('research sidebars own their mode-specific new action and recent sessions', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  const sessions = [
+    { id: 'fingpt-1', title: 'FinGPT 最近研究', mode: 'fingpt', status: 'idle' },
+    { id: 'claw-1', title: 'Claw 最近研究', mode: 'claw', status: 'running' },
+  ];
+  const fingpt = shell.renderSidebar({ page: 'fingpt', sessionId: 'fingpt-1', sessions });
+  assert.match(fingpt, /aria-label="FinGPT 会话侧栏"/);
+  assert.match(fingpt, /data-new/);
+  assert.match(fingpt, /FinGPT 最近研究/);
+  assert.match(fingpt, /#\/history\?mode=fingpt/);
+  assert.doesNotMatch(fingpt, /Claw 最近研究|data-claw-sidebar-view|workspace-select/);
+
+  const claw = shell.renderSidebar({ page: 'claw', sessionId: 'claw-1', sessions });
+  assert.match(claw, /aria-label="Claw 会话与工作空间侧栏"/);
+  assert.match(claw, /data-new/);
+  assert.match(claw, /Claw 最近研究/);
+  assert.match(claw, /#\/history\?mode=claw/);
+  assert.doesNotMatch(claw, /FinGPT 最近研究/);
+
+  for (const page of ['skills', 'history', 'operations', 'settings', 'workbench']) {
+    assert.equal(shell.renderSidebar({ page, sessions }), '');
+    assert.doesNotMatch(shell.renderPrimaryRail({ page }), /class="rail-link rail-toggle|打开会话侧栏|关闭会话侧栏/);
+  }
 });
 
 test('Claw workspace tab renders current-session datasets and safe file actions in the main canvas', async () => {

@@ -1,5 +1,17 @@
 # 架构迭代核对记录
 
+## 2026-09-07 — FinGPT 对话、DataHub 自动查询与异常统计
+
+- 对话展示仍位于现有 UI 模块，不新增服务、接口或状态存储；用户右侧气泡、无可见署名、模式化 ARIA 与分类异常横幅属于既有会话投影的呈现修正。图 02 更新 UI 到现有 BFF/DSH 的关系说明。
+- DataHub 原生桥删除逐次审批，改为 Runtime 启动时从离线能力目录生成 `enabledTools`；严格参数、来源、会话、loopback、控制令牌、取消和响应上限不变。图 02、03、04 同步自动查询与 fail-closed 边界。
+- AKShare 与天软 Provider 截止时间为 15 秒；超时发布 `failed/deadline` 快照，单线程门闩在底层同步调用结束前返回 `provider_busy`，不新增后台队列或执行服务。
+- 既有会话的失败历史不迁移；只更正 `subagents` 统计字段和横幅措辞。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"对话消息去除可见身份行，用户气泡右对齐，并将失败活动与异常 subagents 分类汇总；仍复用既有消息、Markdown、SSE 和会话接口。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"DataHub Tool 从逐次审批改为 enabledTools 启动过滤与自动只读查询，并增加严格参数校验、15 秒 Provider 终态和 provider_busy 隔离。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"Research Runtime 启动时按离线可调用来源生成 enabledTools；未满足来源条件的工具不注册，配置变化重启生效。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"capabilities","structure":"changed","reason":"DataHub 工具审批元数据改为 automatic，能力目录继续展示全量登记项但不扩大 Runtime 注册边界。","diagrams":["02-module-dependencies"]} -->
+
 ## 2026-09-03 — 研究 UI 与能力中心（进行中）
 
 - 起点：`304930d`；隔离分支 `codex/dsh-web-v1`。
@@ -169,3 +181,40 @@
 - 本次不新增服务、端口、模块或接口，但 stale 状态恢复是启动时的重要安全分支；图 03 增补 CLI、Service Manager、死 PID 判定与 3081/8088 健康检查序列，并重新生成 HTML 与视觉证据。
 
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"断电恢复增加可验证的dead PID清理分支，并在启动序列中明确3081 host.describe与8088 runtime健康检查；未知或存活进程仍失败关闭。","diagrams":["03-research-sequence"]} -->
+
+## 2026-09-07 — Report Workflow 真实 Excel、Claw 与文件交付
+
+- `rwb` 改为仓库自举启动器，不再依赖 hidden worktree 的 editable `.pth`；3080 不在项目进程所有权内。
+- Excel 公式检测补齐 Wind 短公式、`EDB`、`S_INFO_*`、`S_WQ_*` 以及 iFinD `THS_*` / `thsiFinD`。迁移只新增不可变版本：创业板 50 误标 Wind 资源保留为 `legacy_mislabeled`，华安静态底稿不执行无意义刷新。
+- 华安 ETF 周报真实运行 `d3c6b827e2f2442980335ae2cbfc170e` 完成两份 Wind 底稿刷新、共享快照 `9e15975b2460d92d2ce024cd2fedc4e08ed7b0a3e1401bf346d6322d91548b60` 和两个真实子 Agent。DOCX、HTML、XLSX 均已生成、非空且可重开；模型 Payload 缺少必需区块，所以保持 `delivery_incomplete`，不伪报完成，不启用日程。
+- iFinD 探测已真实打开、刷新并保存工作簿，但公式仍返回错误；本机未找到 iFinD Excel 插件安装证据。创业板 50 因此未完成真实报告验收。
+- Report Workflow 的实际拓扑、运行序列、Excel 数据流、运行状态和独立交付状态同步到图 02、06、07、09、10。文档门禁同步扩展为固定十图并更新图 08。所有最终图均 showcase 9/9、零错误零警告和四视口无溢出；已人工查看 1440 与 2048 最终截图，未把结构图验收替代研究内容验收。
+
+<!-- architecture-review {"group":"report-workflows","structure":"changed","reason":"新增真实Excel Provider刷新、运行副本、共享快照、Claw多Agent、迟到Payload恢复、确定性组装与独立交付检查。","diagrams":["02-module-dependencies","06-run-state","07-delivery-state","09-report-workflow-sequence","10-excel-report-dataflow"]} -->
+<!-- architecture-review {"group":"files","structure":"changed","reason":"报告运行只认可本次新建或更新文件，并增加Office重开、区块缺失、迟到Payload和Hash证据。","diagrams":["07-delivery-state","09-report-workflow-sequence","10-excel-report-dataflow"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"报告运行在刷新和快照后创建独立Claw会话并要求真实子Agent；启动器改为仓库自举路径。","diagrams":["02-module-dependencies","06-run-state","09-report-workflow-sequence"]} -->
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"Claw与能力中心的具体报告Workflow详情新增资源、Provider、版本、运行证据、取消重试、日程和产物入口。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"operations","structure":"changed","reason":"只读运行聚合加入报告运行、Excel刷新、共享快照、子Agent和本次产物体积。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"documentation","structure":"changed","reason":"当前架构清单从八图扩展为十图，并把报告运行序列与Excel数据流纳入固定白名单、哈希、四视口和人工审阅门禁。","diagrams":["08-iteration-docs"]} -->
+
+## 2026-09-07 — 报告缺失语义与 API Atlas 对账
+
+- 报告 Payload 的所有 `*_blocks` 家族统一投影；显式 `missing` 高于区块内的解释文字。解释缺失原因仍会进入报告，但不能把未交付内容变成完整交付。
+- API Atlas 现在分别显示 113 个唯一 HTTP 操作与 115 项源码声明。报告运行详情和取消各有一条兼容声明，文档不再把重复声明当作两个不同接口。
+- 顶栏搜索入口在桌面、平板和手机均可见；首页折叠式分类与能力选择器按真实用户路径完成 15 组只读浏览器验收。
+- 以上变更收紧既有交付判断、文档计数和控件可达性，不新增服务、接口、状态或跨模块关系，因此十张架构图无需再次生成。
+
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"显式missing改为交付判定最高优先级，仍由既有Payload投影与独立交付检查节点完成。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API Atlas区分唯一操作和源码声明，仍由同一架构清单生成并通过既有只读文档端点交付。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"恢复既有全局搜索控件在桌面视口的可达性，并按真实折叠控件路径修正验收；页面和模块关系不变。","diagrams":[]} -->
+
+## 2026-09-07 — PPTX 跨片段投影与投资风向标真实验收
+
+- 真实投资风向标产物暴露出 PowerPoint 会把一个 `{{占位符}}` 拆到多个 `<a:t>` 文本片段。渲染器现在按段落跨片段替换，交付验证按相同语义拒绝残留；可打开且含文字不再等同于占位符已完成。
+- Report Workflow 的完成判定收紧为“结构化 Payload → 受审查确定性投影 → 独立交付验证”。Claw 提前创建的同名 Office 文件不能跳过投影；投影缺失或失败明确进入 `delivery_incomplete`。
+- 迁移报告新版本最低子 Agent 数统一为 2。华安 ETF 投资风向标 v3 运行 `d7e47d9d680647dc878fd42f243dc74b` 完成两个真实子 Agent、确定性 PPTX 投影、ZIP 重开和零残留占位符检查。
+- 这次修正落实图 07、09 已表达的投影与交付先后关系，没有增加节点、接口、状态或跨模块依赖，因此十张 Archify 图源无需再次生成。
+
+<!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"强制执行既有Payload到确定性投影再到独立交付检查的顺序，并把迁移报告最低子Agent数固定为2；图09已完整表达该关系。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"PPTX占位符检查扩展为跨a:t文本片段，仍属于既有确定性组装和交付验证节点内部语义。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"补齐既有会话软删除与恢复接口清单；研究提交、DSH事件、恢复和归属边界均未改变。","diagrams":[]} -->

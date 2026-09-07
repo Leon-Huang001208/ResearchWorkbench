@@ -1,6 +1,6 @@
 import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
-import { badge, empty, renderConversation, renderHistory, modelOptions, renderRename } from './views.mjs';
+import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, modelOptions, renderPurgeConfirm, renderRename } from './views.mjs';
 import { icon } from './icons.mjs';
 import { renderComposer, renderQuickSkills, slashKey, skillMatches } from './composer.mjs';
 import { renderAppearancePicker, renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
@@ -16,7 +16,7 @@ import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, models: [], sessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let quickCategory = '';
@@ -29,6 +29,8 @@ let reportWorkflowDetail = null; let reportWorkflowBusy = false;
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
+let renameSession = null; let deleteSession = null; let purgeSession = null;
+let sessionMenu = null; let sessionActionBusy = false; let sessionActionError = '';
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
@@ -61,7 +63,7 @@ function researchPage() {
   const detail = state.detail;
   const workspaceView = detail.mode === 'claw' && clawSidebarView === 'workspace';
   const canvas = workspaceView ? renderClawWorkspaceCanvas({ detail, selectedPreview, busy: state.busy }) : `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts)}</div>`;
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row"><button class="button small" data-rename ${state.busy ? 'disabled' : ''}>重命名</button>${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${renameDraft !== null ? renderRename(renameDraft) : ''}${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${renderResearchAttention(detail)}${canvas}<div class="composer-dock">${composer()}</div>`;
+  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${renderResearchAttention(detail)}${canvas}<div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -74,7 +76,16 @@ function mainPage() {
   if (state.route.page === 'settings') return settingsPage();
   if (state.route.page === 'workbench') return workbenchPage();
   if (state.route.page === 'operations') return operationsPage();
-  if (state.route.page === 'history') return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>研究历史</h1><p class="muted">所有 FinGPT 与 Claw 会话，随时回来继续。</p></div><button class="button" data-refresh>刷新</button></header><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索研究历史"></label><div id="history-results">${renderHistory(catalog.sessions, historyFilter)}</div>`;
+  if (state.route.page === 'history') {
+    const mode = state.route.historyMode;
+    const view = state.route.historyView || 'active';
+    const modeLabel = mode === 'claw' ? 'Claw' : mode === 'fingpt' ? 'FinGPT' : '';
+    const modeQuery = mode ? `mode=${mode}` : '';
+    const activeHref = `#/history${modeQuery ? `?${modeQuery}` : ''}`;
+    const deletedHref = `#/history?${modeQuery ? `${modeQuery}&` : ''}view=deleted`;
+    const sessions = view === 'deleted' ? catalog.deletedSessions : catalog.sessions;
+    return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>${modeLabel ? `${modeLabel} 研究历史` : '研究历史'}</h1><p class="muted">${view === 'deleted' ? '删除的会话保留 30 天，可恢复或立即永久删除。' : modeLabel ? `所有 ${modeLabel} 会话，随时回来继续。` : '所有 FinGPT 与 Claw 会话，随时回来继续。'}</p></div><button class="button" data-refresh>刷新</button></header><nav class="history-tabs" aria-label="研究历史视图"><a href="${activeHref}" class="${view === 'active' ? 'active' : ''}" ${view === 'active' ? 'aria-current="page"' : ''}>研究</a><a href="${deletedHref}" class="${view === 'deleted' ? 'active' : ''}" ${view === 'deleted' ? 'aria-current="page"' : ''}>已删除</a></nav><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索${modeLabel ? ` ${modeLabel}` : ''}研究历史"></label><div id="history-results">${renderHistory(sessions, historyFilter, mode, view)}</div>`;
+  }
   return capabilityPage();
 }
 
@@ -101,7 +112,20 @@ function capabilityPage() {
 }
 
 function sidebar() {
-  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView });
+  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, openMenuId: sessionMenu?.id });
+}
+
+function sessionActionsLayer() {
+  const menuSession = sessionMenu ? catalog.sessions.find(item => item.id === sessionMenu.id) : null;
+  const menu = menuSession ? `<div class="session-action-menu" role="menu" aria-label="会话操作" style="--menu-top:${sessionMenu.top}px;--menu-left:${sessionMenu.left}px"><button type="button" role="menuitem" data-menu-rename="${e(menuSession.id)}">${icon('rename')}<span>重命名</span></button><button type="button" role="menuitem" class="danger-item" data-menu-delete="${e(menuSession.id)}" ${isRunning(menuSession.status) ? 'disabled aria-describedby="session-delete-reason"' : ''}>${icon('trash')}<span>删除</span></button>${isRunning(menuSession.status) ? '<p id="session-delete-reason" class="menu-reason">任务运行或等待处理时不能删除</p>' : ''}</div>` : '';
+  const dialog = renameSession
+    ? renderRename(renameDraft || '', sessionActionError, sessionActionBusy)
+    : deleteSession
+      ? renderDeleteConfirm(deleteSession, sessionActionError, sessionActionBusy)
+      : purgeSession
+        ? renderPurgeConfirm(purgeSession, sessionActionError, sessionActionBusy)
+        : '';
+  return menu + dialog;
 }
 
 function primaryRail() {
@@ -122,9 +146,10 @@ function render() {
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
   const research = ['fingpt', 'claw'].includes(state.route.page);
+  const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = [...catalog.capabilities, ...catalog.tools, ...catalog.reportWorkflows.map(item => ({ ...item, kind: 'report-workflow' })), ...(catalog.dataCatalog.capabilities || [])];
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
   window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -138,7 +163,7 @@ function render() {
 async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows']) {
   await Promise.all(names.map(async (name) => {
     try {
-      const data = await api[name]();
+      const data = name === 'deletedSessions' ? await api.sessions('deleted') : await api[name]();
       if (name === 'runtime') catalog.runtime = data;
       else if (name === 'models') { catalog.models = data.groups || []; catalog.modelFailures = data.failures || []; }
       else if (name === 'dataCatalog') catalog.dataCatalog = {
@@ -250,13 +275,13 @@ async function showRoute() {
     location.hash = legacyTarget;
   }
   quickCategory = '';
-  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; globalSearch = ''; searchOpen = false; renameDraft = null; questionDrafts.clear();
+  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear();
   await controller.open(parseRoute(location.hash));
   if (ticket !== pageGeneration) return;
   if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
   document.querySelector('#main')?.scrollTo({ top: 0 });
   await loadWorkflowVersion();
-  if (state.route.page === 'history') await loadCatalog(['sessions']);
+  if (state.route.page === 'history') await loadCatalog([state.route.historyView === 'deleted' ? 'deletedSessions' : 'sessions']);
   if (state.route.page === 'skills') {
     if (state.route.capabilityKind) capabilityState.kind = state.route.capabilityKind;
     await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'sessions']);
@@ -292,7 +317,12 @@ root.addEventListener('input', (event) => {
     const question = state.detail?.questions?.find((item) => item.id === form.dataset.questionForm);
     if (question) { const answers = collectAnswers(form, question); if (answers) questionDrafts.set(question.id, answers); }
   }
-  if (event.target.id === 'history-search') { historyFilter = event.target.value; document.querySelector('#history-results').innerHTML = renderHistory(catalog.sessions, historyFilter); }
+  if (event.target.id === 'history-search') {
+    historyFilter = event.target.value;
+    const view = state.route.historyView || 'active';
+    const sessions = view === 'deleted' ? catalog.deletedSessions : catalog.sessions;
+    document.querySelector('#history-results').innerHTML = renderHistory(sessions, historyFilter, state.route.historyMode, view);
+  }
 });
 
 root.addEventListener('keydown', (event) => {
@@ -315,7 +345,14 @@ root.addEventListener('keydown', (event) => {
     }
   }
   if (event.target.id === 'prompt' && event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); document.querySelector('#composer')?.requestSubmit(); }
-  if (event.key === 'Escape') { event.preventDefault(); sidebarOpen = false; contextOpen = false; slashOpen = false; globalSearch = ''; searchOpen = false; renameDraft = null; render(); }
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    const focusSession = sessionMenu?.id || renameSession?.id || deleteSession?.id || purgeSession?.id;
+    sidebarOpen = false; contextOpen = false; slashOpen = false; globalSearch = ''; searchOpen = false;
+    renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionError = '';
+    render();
+    if (focusSession) document.querySelector(`[data-session-menu="${focusSession}"]`)?.focus({ preventScroll: true });
+  }
 });
 
 root.addEventListener('change', async (event) => {
@@ -378,6 +415,28 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (event.target.matches('[data-report-schedule-form]')) {
+    if (reportWorkflowBusy) return;
+    const workflowId = event.target.dataset.reportScheduleForm;
+    const values = new FormData(event.target);
+    const kind = String(values.get('kind') || 'manual');
+    const enabled = values.get('enabled') === 'on' && kind !== 'manual';
+    const body = {
+      kind, enabled, timezone: 'Asia/Shanghai',
+      once_at: kind === 'once' ? String(values.get('once_at') || '') || null : null,
+      weekday: kind === 'weekly' ? Number(values.get('weekday')) : null,
+      hour: kind === 'weekly' ? Number(values.get('hour')) : null,
+      minute: kind === 'weekly' ? Number(values.get('minute')) : null,
+    };
+    reportWorkflowBusy = true; state.error = ''; success = ''; render();
+    try {
+      await api.saveReportSchedule(workflowId, body);
+      reportWorkflowDetail = await api.reportWorkflow(workflowId);
+      success = enabled ? '报告 Workflow 日程已启用。' : '报告 Workflow 日程已保存但未启用。';
+    } catch (error) { state.error = error.message; }
+    finally { reportWorkflowBusy = false; render(); }
+    return;
+  }
   if (event.target.matches('[data-asset-observation]')) {
     if (workbenchBusy) return;
     workbenchBusy = true; state.error = ''; render();
@@ -463,10 +522,45 @@ root.addEventListener('submit', async (event) => {
     return;
   }
   if (event.target.id === 'rename-form') {
-    const id = state.detail?.id; const title = String(new FormData(event.target).get('title') || '').trim();
-    if (!id || !title) { state.error = '会话名称不能为空。'; render(); return; }
-    const result = await controller.action(() => api.rename(id, title));
-    if (result && state.detail?.id === id) { renameDraft = null; await loadCatalog(['sessions']); }
+    const id = renameSession?.id; const title = String(new FormData(event.target).get('title') || '').trim();
+    if (!id || !title || sessionActionBusy) { sessionActionError = '会话名称不能为空。'; render(); return; }
+    sessionActionBusy = true; sessionActionError = ''; render();
+    try {
+      const result = await api.rename(id, title);
+      if (state.detail?.id === id) state.detail.title = result.title || title;
+      renameSession = null; renameDraft = null; success = '会话名称已更新。';
+      await loadCatalog(['sessions']);
+    } catch (error) { sessionActionError = error.message; }
+    finally { sessionActionBusy = false; render(); }
+    return;
+  }
+  if (event.target.id === 'delete-session-form') {
+    if (!deleteSession?.id || sessionActionBusy) return;
+    const removed = deleteSession;
+    sessionActionBusy = true; sessionActionError = ''; render();
+    try {
+      await api.deleteSession(removed.id);
+      deleteSession = null; success = '会话已移至“已删除”，将在 30 天后永久删除。';
+      if (state.route.sessionId === removed.id) {
+        history.pushState(null, '', `#/${removed.mode === 'claw' ? 'claw' : 'fingpt'}`);
+        await showRoute();
+      }
+      await loadCatalog(['sessions']);
+    } catch (error) { sessionActionError = error.message; }
+    finally { sessionActionBusy = false; render(); }
+    return;
+  }
+  if (event.target.id === 'purge-session-form') {
+    if (!purgeSession?.id || sessionActionBusy) return;
+    const removed = purgeSession;
+    sessionActionBusy = true; sessionActionError = ''; render();
+    try {
+      await api.purgeSession(removed.id);
+      purgeSession = null; success = '会话及其 DSH 日志、附件、数据集和产物已永久删除。';
+      await loadCatalog(['deletedSessions', 'sessions']);
+    } catch (error) { sessionActionError = error.message; }
+    finally { sessionActionBusy = false; render(); }
+    return;
   }
   if (event.target.dataset.questionForm) {
     const id = state.detail?.id; const question = state.detail?.questions?.find((item) => item.id === event.target.dataset.questionForm);
@@ -497,8 +591,56 @@ root.addEventListener('submit', async (event) => {
 });
 
 root.addEventListener('click', async (event) => {
+  if (event.target.matches('[data-dialog-backdrop]')) {
+    renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionActionError = ''; render();
+    return;
+  }
+  if (sessionMenu && !event.target.closest('.session-action-menu') && !event.target.closest('[data-session-menu]')) {
+    sessionMenu = null; render();
+  }
   const button = event.target.closest('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
+  if ('sessionMenu' in data) {
+    const id = data.sessionMenu;
+    if (sessionMenu?.id === id) { sessionMenu = null; render(); return; }
+    const rect = button.getBoundingClientRect(); const width = 156;
+    const mobile = window.matchMedia('(max-width: 1050px)').matches;
+    const drawerRight = Math.min(window.innerWidth, 68 + 248);
+    const minLeft = mobile ? 76 : 8;
+    const maxLeft = (mobile ? drawerRight : window.innerWidth) - width - 8;
+    const preferredLeft = rect.right + 8;
+    const left = Math.max(minLeft, Math.min(maxLeft, preferredLeft));
+    const top = Math.max(8, Math.min(window.innerHeight - 112, rect.top));
+    sessionMenu = { id, left, top }; sessionActionError = ''; render();
+    document.querySelector('.session-action-menu [role="menuitem"]')?.focus({ preventScroll: true });
+    return;
+  }
+  if ('menuRename' in data) {
+    renameSession = catalog.sessions.find(item => item.id === data.menuRename) || null;
+    if (renameSession) { renameDraft = renameSession.title || ''; sessionMenu = null; sessionActionError = ''; render(); document.querySelector('#rename-title')?.focus(); document.querySelector('#rename-title')?.select(); }
+    return;
+  }
+  if ('menuDelete' in data) {
+    deleteSession = catalog.sessions.find(item => item.id === data.menuDelete) || null;
+    if (deleteSession) { sessionMenu = null; sessionActionError = ''; render(); document.querySelector('#delete-session-form button[type="submit"]')?.focus(); }
+    return;
+  }
+  if ('cancelRename' in data) { const id = renameSession?.id; renameDraft = null; renameSession = null; sessionActionError = ''; render(); if (id) document.querySelector(`[data-session-menu="${id}"]`)?.focus({ preventScroll: true }); return; }
+  if ('cancelDelete' in data) { const id = deleteSession?.id; deleteSession = null; sessionActionError = ''; render(); if (id) document.querySelector(`[data-session-menu="${id}"]`)?.focus({ preventScroll: true }); return; }
+  if ('cancelPurge' in data) { purgeSession = null; sessionActionError = ''; render(); return; }
+  if ('restoreSession' in data) {
+    if (sessionActionBusy) return;
+    sessionActionBusy = true; state.error = ''; render();
+    try { await api.restoreSession(data.restoreSession); success = '会话已恢复。'; await loadCatalog(['deletedSessions', 'sessions']); }
+    catch (error) { state.error = error.message; }
+    finally { sessionActionBusy = false; render(); }
+    return;
+  }
+  if ('purgeSession' in data) {
+    purgeSession = catalog.deletedSessions.find(item => item.id === data.purgeSession) || null;
+    sessionActionError = ''; render(); document.querySelector('#purge-session-form button[type="submit"]')?.focus();
+    return;
+  }
   if (await handleCapabilityClick(data)) return;
   if ('toggleSearch' in data) { searchOpen = !searchOpen; sidebarOpen = false; contextOpen = false; if (!searchOpen) globalSearch = ''; render(); if (searchOpen) document.querySelector('#global-search')?.focus(); }
   if ('clearCapability' in data) { controller.setCapability(null); render(); }
@@ -508,6 +650,7 @@ root.addEventListener('click', async (event) => {
     success = '';
     if (state.route.page === 'workbench') await loadWorkbench();
     else if (state.route.page === 'operations') await loadOperations();
+    else if (state.route.page === 'history' && state.route.historyView === 'deleted') await loadCatalog(['deletedSessions']);
     else { await loadCatalog(); await controller.refresh(); }
   }
   if ('operationsRange' in data) { operationsRange = data.operationsRange; await loadOperations(); }
@@ -550,7 +693,6 @@ root.addEventListener('click', async (event) => {
   if ('upload' in data) document.querySelector('#file-input')?.click();
   if ('slashSearch' in data) { slashOpen = !slashOpen; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
-  if ('cancelRename' in data) { renameDraft = null; render(); }
   if ('noFormats' in data) { controller.setFormats([]); render(); }
   if ('preview' in data) { selectedPreview = data.preview; render(); }
   if ('closePreview' in data) { selectedPreview = null; render(); }
@@ -568,9 +710,6 @@ root.addEventListener('click', async (event) => {
   if (!id) return;
   if ('cancel' in data) { await controller.action(() => api.cancel(id)); await loadCatalog(['sessions']); }
   if ('approval' in data) await controller.action(() => api.approve(id, data.approval, data.decision));
-  if ('rename' in data) {
-    renameDraft = state.detail.title || ''; render(); document.querySelector('#rename-title')?.focus();
-  }
   if ('upgrade' in data) {
     const upgraded = await controller.upgrade();
     if (upgraded?.id) { await showRoute(); await loadCatalog(['sessions']); }
@@ -673,6 +812,38 @@ async function handleCapabilityClick(data) {
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
+  if ('probeReportProvider' in data) {
+    reportWorkflowBusy = true; state.error = ''; success = ''; render();
+    try {
+      const result = await api.probeReportProvider(data.probeReportProvider, crypto.randomUUID());
+      success = result.ready
+        ? `${data.probeReportProvider} 探测通过。`
+        : `${data.probeReportProvider} 探测未通过：${result.code || '状态未知'}。`;
+      if (reportWorkflowDetail) reportWorkflowDetail = await api.reportWorkflow(reportWorkflowDetail.id);
+    } catch (error) { state.error = error.message; }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
+  if ('cancelReportRun' in data) {
+    reportWorkflowBusy = true; state.error = ''; render();
+    try {
+      await api.cancelReportRun(data.cancelReportRun);
+      if (reportWorkflowDetail) reportWorkflowDetail = await api.reportWorkflow(reportWorkflowDetail.id);
+      success = '报告运行已取消。';
+    } catch (error) { state.error = error.message; }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
+  if ('retryReportRun' in data) {
+    reportWorkflowBusy = true; state.error = ''; render();
+    try {
+      const run = await api.retryReportRun(data.retryReportRun);
+      if (reportWorkflowDetail) reportWorkflowDetail = await api.reportWorkflow(reportWorkflowDetail.id);
+      success = `已创建重试运行 ${run.id}。`;
+    } catch (error) { state.error = error.message; }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
   if ('dataView' in data) { cap.dataView = data.dataView; cap.category = ''; cap.query = ''; cap.dataMarket = ''; cap.dataStatus = ''; cap.dataAuth = ''; render(); return true; }
   if ('dataCapabilityDetail' in data) {
     const result = await capabilityController.run(() => api.dataCapability(data.dataCapabilityDetail));
@@ -766,6 +937,8 @@ async function handleCapabilityClick(data) {
 
 controller.subscribe(() => { catalog.sessions = reconcileSessionSummary(catalog.sessions, state.detail); render(); void loadWorkflowVersion(); });
 window.addEventListener('hashchange', () => { void showRoute(); });
+window.addEventListener('resize', () => { if (sessionMenu) { sessionMenu = null; render(); } });
+window.addEventListener('scroll', () => { if (sessionMenu) { sessionMenu = null; render(); } }, true);
 document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); document.querySelector('#main')?.focus(); });
 window.addEventListener('unhandledrejection', (event) => { event.preventDefault(); safeLog('unhandled_async_error'); state.error = '操作出现异常，请刷新状态后重试。'; render(); });
 await showRoute();

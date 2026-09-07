@@ -95,7 +95,8 @@ class WorkbookProviderRequirement(StrictModel):
     @classmethod
     def mapping_must_be_a_package_resource(cls, value: str | None) -> str | None:
         if value is not None and (
-            not value.startswith("mappings/") or not value.endswith((".yaml", ".yml", ".json"))
+            not value.startswith("mappings/")
+            or not value.endswith((".yaml", ".yml", ".json"))
         ):
             raise ValueError("等价 DataHub mapping 必须位于 mappings/ 下")
         return value
@@ -103,7 +104,9 @@ class WorkbookProviderRequirement(StrictModel):
 
 class WorkbookRefreshPolicy(StrictModel):
     workbook: str = Field(min_length=1, max_length=240)
-    providers: list[WorkbookProviderRequirement] = Field(default_factory=list, max_length=2)
+    providers: list[WorkbookProviderRequirement] = Field(
+        default_factory=list, max_length=2
+    )
     required_cells: list[str] = Field(default_factory=list, max_length=256)
     required_date_cell: str | None = Field(default=None, max_length=160)
     required_date: date | None = None
@@ -138,7 +141,9 @@ class WorkbookRefreshPolicy(StrictModel):
     def date_fields_are_paired(self) -> WorkbookRefreshPolicy:
         has_date_rule = self.required_date is not None or self.max_age_days is not None
         if (self.required_date_cell is None) != (not has_date_rule):
-            raise ValueError("日期规则必须声明 required_date_cell 与日期下限或最大陈旧天数")
+            raise ValueError(
+                "日期规则必须声明 required_date_cell 与日期下限或最大陈旧天数"
+            )
         providers = [item.provider for item in self.providers]
         if len(providers) != len(set(providers)):
             raise ValueError("Provider 不能重复声明")
@@ -156,6 +161,7 @@ class ReportBlock(StrictModel):
 class DeliveryContract(StrictModel):
     formats: list[DeliveryFormat] = Field(min_length=1, max_length=7)
     required_artifacts: list[str] = Field(default_factory=list, max_length=32)
+    primary_workbook: str | None = Field(default=None, max_length=240)
     block_on_data_failure: bool = True
 
     @field_validator("formats")
@@ -163,6 +169,22 @@ class DeliveryContract(StrictModel):
     def formats_are_unique(cls, value: list[DeliveryFormat]) -> list[DeliveryFormat]:
         if len(value) != len(set(value)):
             raise ValueError("交付格式不能重复")
+        return value
+
+    @field_validator("primary_workbook")
+    @classmethod
+    def primary_workbook_is_scoped(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        path = PurePosixPath(value)
+        if (
+            not value.startswith("workbooks/")
+            or not value.lower().endswith(".xlsx")
+            or path.is_absolute()
+            or "\\" in value
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
+            raise ValueError("主交付底稿必须是 workbooks/ 下的 xlsx 文件")
         return value
 
 
@@ -192,22 +214,48 @@ class WorkflowSchedule(StrictModel):
 
 class ReportWorkflowManifest(StrictModel):
     schema_version: int = Field(default=1, ge=1, le=1)
-    workflow_id: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", min_length=2, max_length=80)
+    workflow_id: str = Field(
+        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", min_length=2, max_length=80
+    )
     name: str = Field(min_length=1, max_length=160)
     description: str = Field(default="", max_length=4000)
     version: int = Field(ge=1)
-    providers: list[WorkbookProviderRequirement] = Field(default_factory=list, max_length=2)
+    providers: list[WorkbookProviderRequirement] = Field(
+        default_factory=list, max_length=2
+    )
     resources: list[WorkflowResource] = Field(default_factory=list, max_length=512)
-    workbook_policies: list[WorkbookRefreshPolicy] = Field(default_factory=list, max_length=64)
+    workbook_policies: list[WorkbookRefreshPolicy] = Field(
+        default_factory=list, max_length=64
+    )
+    excluded_workbooks: list[str] = Field(default_factory=list, max_length=64)
     blocks: list[ReportBlock] = Field(default_factory=list, max_length=128)
+    minimum_subagents: int = Field(default=0, ge=0, le=8)
     delivery: DeliveryContract
     schedule: WorkflowSchedule = Field(default_factory=WorkflowSchedule)
+
+    @field_validator("excluded_workbooks")
+    @classmethod
+    def excluded_workbooks_are_scoped(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("排除的工作簿不能重复")
+        for item in value:
+            path = PurePosixPath(item)
+            if (
+                not item.startswith("workbooks/")
+                or not item.lower().endswith(".xlsx")
+                or path.is_absolute()
+                or "\\" in item
+                or any(part in {"", ".", ".."} for part in path.parts)
+            ):
+                raise ValueError("排除的工作簿必须是 workbooks/ 下的 xlsx 文件")
+        return value
 
     @model_validator(mode="after")
     def validate_unique_contracts(self) -> ReportWorkflowManifest:
         provider_ids = [item.provider for item in self.providers]
         resource_paths = [item.path for item in self.resources]
         workbook_paths = [item.workbook for item in self.workbook_policies]
+        excluded_paths = self.excluded_workbooks
         block_ids = [item.id for item in self.blocks]
         if len(provider_ids) != len(set(provider_ids)):
             raise ValueError("Provider 不能重复声明")
@@ -215,6 +263,8 @@ class ReportWorkflowManifest(StrictModel):
             raise ValueError("资源路径不能重复")
         if len(workbook_paths) != len(set(workbook_paths)):
             raise ValueError("工作簿策略不能重复")
+        if set(workbook_paths) & set(excluded_paths):
+            raise ValueError("工作簿不能同时启用刷新并排除运行")
         if len(block_ids) != len(set(block_ids)):
             raise ValueError("报告区块标识不能重复")
         return self

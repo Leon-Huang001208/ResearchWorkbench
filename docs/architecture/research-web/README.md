@@ -17,7 +17,7 @@
 7. [能力管理](07-capabilities.md)：Skill、Tool、Workflow、数据目录，及包、版本、原生发现和会话只读资源。
 8. [运行与用量](../../research-web-operations.md)：真实 usage、Agent、工具、DataHub、服务健康和项目存储聚合。
 
-可交互图文位于仓库 `outputs/research-web-architecture/`，也可从 Web 设置的「架构文档」打开。JSON 图源在本目录 `diagrams/`。八图均以实际源码为依据，具有 showcase 9/9、零错误零警告、四视口与绑定哈希的人工截图核对记录。图形证据与产品验收分开保存。
+可交互图文位于仓库 `outputs/research-web-architecture/`，也可从 Web 设置的「架构文档」打开。JSON 图源在本目录 `diagrams/`。十图均以实际源码为依据；本轮新增报告运行序列与 Excel 数据流，并更新模块依赖、运行状态和交付状态。最终图均达到 showcase 9/9、零错误零警告，并通过四视口检查与人工截图核对。图形证据与产品验收分开保存。
 
 ## 不在本轮范围
 
@@ -39,3 +39,10 @@ rwb web stop
 旧研究目录先用 `rwb migrate-research-data --dry-run` 查看迁移摘要，再执行复制。凭据不会迁移；新实例需在设置页重新填写。Web 恢复验证通过后可使用 `--archive-source` 将旧目录改为只读迁移备份。
 
 当前实施分支为 `codex/web-consolidation`。此前记录见 [原研究验收](../../research-web-acceptance.md)、[DataHub 资料共享验收](../../../.ai/reports/2026-09-02-datahub-acceptance.md)；本轮在这些真实会话和文件基础上新增研究台与监控，并重新执行公开来源、接口、浏览器和全套 Research Web 回归。
+
+## 当前报告 Workflow 验收边界
+
+- 华安 ETF 周报已完成两份 Wind 底稿真实刷新、一次共享快照和两个真实 Claw 子 Agent；DOCX、HTML、XLSX 均已生成并可重开。
+- 该次运行仍为 `delivery_incomplete`：模型 Payload 未覆盖全部必需区块。文件有效不等于内容合同完整，因此没有改记 `completed`，也未开放日程。
+- 创业板 50 的活动底稿实际为 iFinD/同花顺公式；误标 Wind 的文件只作 `legacy_mislabeled` 历史资源。当前机器未发现 iFinD Excel 插件，真实探测返回 `formula_error`，所以该 Workflow 尚不能完成真实刷新。
+- 华安 ETF 投资风向标和 AI 周报尚未满足本轮完整真实运行门槛。分支因此暂不合并、不推送、不清理旧 worktree；这些动作只在必需验收全部通过后执行。
