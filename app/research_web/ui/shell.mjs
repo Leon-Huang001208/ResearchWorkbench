@@ -7,7 +7,7 @@ import { renderWorkflowPlan } from './capabilities.mjs';
 const navItems = [['fingpt', 'chat', 'FinGPT'], ['claw', 'layers', 'Claw'], ['skills', 'grid', '能力中心'], ['history', 'history', '研究历史']];
 
 export function renderBrandMark() {
-  return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/brand/source-logo.png" alt="" width="211" height="239"></span>';
+  return '<span class="brand-mark" aria-hidden="true"><img src="/static/assets/brand/brand-mark.png" alt="" width="108" height="120"></span>';
 }
 
 export function renderAppearancePicker() {

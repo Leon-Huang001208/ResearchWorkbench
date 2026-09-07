@@ -28,9 +28,9 @@
 
 ## 品牌资产（brand-spec）
 
-资产为用户提供图片的原始字节，位置：`app/research_web/ui/assets/brand/source-logo.png`，SHA-256 `bcb4aaff2e6c11912389148f11886412c624f585252806887dc057d94c6e78b6`。
+资产的可复核来源为用户提供的原始字节：`app/research_web/ui/assets/brand/source-logo.png`，SHA-256 `bcb4aaff2e6c11912389148f11886412c624f585252806887dc057d94c6e78b6`。原图保留且不重画、生成、修改或重新编码。
 
-不重画、生成或修改源图。显示时裁切原图 x=51、y=22、宽108、高120的图案区域，排除“华安基金 / HUAAN FUNDS”文字。浅色模式保留原蓝色，深色模式使用 CSS 灰度、反色和亮度变换呈现白色图案；混合模式去除源图白底，不加白色底板、边框或徽章。Research Workbench 名称仍是产品名称，不声明与原图品牌的机构关系。
+正式页面使用 `app/research_web/ui/assets/brand/brand-mark.png`：由原图固定裁切 x=51、y=22、宽108、高120的图案区域生成的 108×120 RGBA 透明派生资产，排除“华安基金 / HUAAN FUNDS”文字。白色及近白色底已转换为透明，并移除边缘白色杂边。浅色模式直接显示蓝色图案，深色模式以 `brightness(0) invert(1)` 显示白色图案；两种主题均无矩形底板、混合模式、边框或徽章，图像直接填满既有 27×30 显示视口。Research Workbench 名称仍是产品名称，不声明与原图品牌的机构关系。
 
 ## 状态与安全
 
