@@ -110,7 +110,7 @@ test('brand mark is a transparent 108×120 RGBA crop while source bytes stay imm
   const { width, height, rgba } = decodeRgbaPng(await readFile(new URL('assets/brand/brand-mark.png', ui)));
   assert.equal(width, 108); assert.equal(height, 120);
   for (const [x, y] of [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]]) assert.equal(rgba[(y * width + x) * 4 + 3], 0, `corner ${x},${y} must be transparent`);
-  const opaqueBluePixels = [...rgba.keys()].filter(index => index % 4 === 0).filter(index => rgba[index + 3] > 0 && rgba[index] < 90 && rgba[index + 1] > 80 && rgba[index + 2] > 100);
+  const opaqueBluePixels = [...rgba.keys()].filter(index => index % 4 === 0).filter(index => rgba[index + 3] === 255 && rgba[index] < 90 && rgba[index + 1] > 80 && rgba[index + 2] > 100);
   assert.ok(opaqueBluePixels.length > 0, 'brand mark must retain opaque blue logo pixels');
 });
 
