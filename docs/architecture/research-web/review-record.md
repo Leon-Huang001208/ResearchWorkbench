@@ -230,3 +230,11 @@
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新增永久删除操作并补充启动及六小时保留期调度，仍由既有BFF校验归属后调用DSH会话API。","diagrams":[]} -->
 <!-- architecture-review {"group":"files","structure":"unchanged","reason":"DSH确认后才清理既有会话目录、数据集、产物与索引；软删除和失败重试期间保持原文件边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API清单和会话生命周期文档同步新增永久删除操作，没有改变文档门禁或图册拓扑。","diagrams":[]} -->
+
+## 2026-09-07 — DSH 会话删除固定版本
+
+- Research Runtime 与能力目录固定到本地 DSH 合并提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`，启动时继续要求源码提交和已审核构建闭包同时匹配。
+- 该升级只替换既有 3081 Runtime 的固定实现版本；服务、端口、模块依赖和能力目录结构保持不变，因此无需重绘架构图。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"仅更新既有3081 Research Runtime的固定DSH源码提交和构建闭包，不改变服务、端口或启动数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录只读元数据改用与Runtime一致的DSH固定提交，工具集合、权限和模块关系保持不变。","diagrams":[]} -->

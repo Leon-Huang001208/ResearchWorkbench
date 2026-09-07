@@ -11,7 +11,7 @@ from ..datahub.catalog import build_catalog
 from ..datahub.contracts import BUSINESS_TOOLS
 from .models import CapabilityError
 
-PIN = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+PIN = "b3e26660f0a7bca680f06366aec3bb8d731c725e"
 DECLARATIONS = {
     "report": (
         "子 Agent 汇报",

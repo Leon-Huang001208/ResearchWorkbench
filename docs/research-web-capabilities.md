@@ -152,7 +152,7 @@ macOS 移动目录需更新 `..`：native 投影顶层目录为服务自有 0700
 
 ## 原生接线与工具真实性
 
-DSH 固定提交 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`。
+DSH 固定提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`。
 核对 upstream `packages/skill/skill-filesystem/README.md` 和 FileSystemSkillProvider 源码：
 发现仅一层 bundle，watch 触发 invalidate，每次 get 重读正文，无版本 pin 或 install RPC。
 产品以不可变包 + 带版本的原生名称实现绑定；自建名称为 `rwb-<产品id>-vN`，内置保留原 ID。

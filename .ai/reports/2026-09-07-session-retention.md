@@ -20,6 +20,7 @@ Workbench 的会话目录包含本产品上传附件、数据集和产物，永�
 
 - Research Workbench：`tests/research_web` 431 passed、3 skipped；相关协议与删除 API 聚焦回归 32 passed；JavaScript 161 passed。
 - DSH：原生持久层、JSONL、SQLite、API Proxy、查询索引、投影缓存和 Workspace 共 646 passed；Host/Client TypeScript 构建与 oxlint 通过。
+- 固定版本：Research Runtime 与能力目录统一使用 DSH 本地合并提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`。
 - DSH 文档：28 项 `doc-sync` 门禁全部通过，英文／中文说明、RPC 目录和 Cordis 目录一致。
 - 浏览器：导航壳 4 项、页面／视口 15 项及完整浅色／深色外观回归通过；覆盖 1440、1600、1920、820、390px，零模型写入、零横向溢出、零脚本错误。
 - 独立 3181 DSH 真实进程完成 `session.create → session.delete(cascade=true) → session.list/history`：删除响应包含根 ID，列表为空，历史明确返回 `session-not-found`。
