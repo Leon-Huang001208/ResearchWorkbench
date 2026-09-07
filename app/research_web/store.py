@@ -234,9 +234,7 @@ class Store:
             if key.startswith(f"{sid}:"):
                 self.data["receipts"].pop(key, None)
         self.data["operation_audit"] = [
-            event
-            for event in self.data["operation_audit"]
-            if event.get("session_id") != sid
+            event for event in self.data["operation_audit"] if event.get("session_id") != sid
         ]
         for project in self.data["report_projects"].values():
             if project.get("latest_run") in removed["report_runs"]:

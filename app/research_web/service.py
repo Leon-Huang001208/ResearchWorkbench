@@ -40,6 +40,7 @@ SESSION_DELETE_BLOCKED_STATUSES = {
     "cancelling",
 }
 SESSION_RETENTION_SECONDS = 30 * 24 * 60 * 60
+SESSION_PURGE_INTERVAL_SECONDS = 6 * 60 * 60
 
 
 class ResearchService:
@@ -76,6 +77,7 @@ class ResearchService:
         # from native DSH session mutations, which already use ``self.lock``.
         self.workbench_lock = asyncio.Lock()
         self.pump = None
+        self.retention_task: asyncio.Task | None = None
         self.last_runtime_success_at: float | None = None
         self.default_model = store.data.get(
             "model", {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
@@ -94,8 +96,16 @@ class ResearchService:
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
         await self.report_workflows.start()
         await self.purge_expired_sessions()
+        self.retention_task = asyncio.create_task(
+            self._retention_loop(), name="research-session-retention"
+        )
 
     async def close(self):
+        if self.retention_task:
+            self.retention_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.retention_task
+            self.retention_task = None
         await self.report_workflows.close()
         await self.asset_workspace.close()
         await self.datahub.close()
@@ -104,6 +114,20 @@ class ResearchService:
             with suppress(asyncio.CancelledError):
                 await self.pump
         await self.client.close()
+
+    async def _retention_loop(self):
+        """Retry expired tombstones while the service remains online."""
+        while True:
+            await asyncio.sleep(SESSION_PURGE_INTERVAL_SECONDS)
+            try:
+                await self.purge_expired_sessions()
+            except asyncio.CancelledError:
+                raise
+            except (RuntimeFailure, StoreError, OSError) as exc:
+                log.warning(
+                    "research_session_retention_cycle_failed",
+                    error_type=type(exc).__name__,
+                )
 
     def notify(self):
         for listener in self.listeners:
@@ -415,6 +439,15 @@ class ResearchService:
         await self.ensure_owned()
         async with self.lock:
             row = self.store.session(sid, include_deleted=True)
+            deleted_at = row.get("deleted_at")
+            if isinstance(deleted_at, (int, float)) and deleted_at <= (
+                time.time() - SESSION_RETENTION_SECONDS
+            ):
+                raise StoreError(
+                    "会话已超过 30 天恢复期限，等待永久删除",
+                    "session_restore_expired",
+                    410,
+                )
             return self.summary(self.store.restore(row["id"]))
 
     async def permanent_delete_session(self, sid: str):
@@ -458,8 +491,7 @@ class ResearchService:
         expired = [
             row["id"]
             for row in self.store.data["sessions"].values()
-            if isinstance(row.get("deleted_at"), (int, float))
-            and row["deleted_at"] <= cutoff
+            if isinstance(row.get("deleted_at"), (int, float)) and row["deleted_at"] <= cutoff
         ]
         purged = 0
         for sid in expired:

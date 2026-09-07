@@ -31,7 +31,7 @@ export function renderDeleteConfirm(session, error = '', busy = false) {
 
 export function renderPurgeConfirm(session, error = '', busy = false) {
   if (!session) return '';
-  return `<div class="dialog-backdrop" data-dialog-backdrop><form id="purge-session-form" class="session-dialog" role="dialog" aria-modal="true" aria-labelledby="purge-heading"><div><div class="eyebrow">永久删除</div><h2 id="purge-heading">永久删除“${e(session.title || '未命名会话')}”？</h2></div><p>此操作无法撤销。DSH 原生对话日志、附件、数据集、产物和 Workbench 索引记录都会被清除。</p>${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<div class="button-row"><button type="button" class="button" data-cancel-purge ${busy ? 'disabled' : ''}>取消</button><button type="submit" class="button danger" ${busy ? 'disabled' : ''}>${busy ? '正在永久删除…' : '永久删除'}</button></div></form></div>`;
+  return `<div class="dialog-backdrop" data-dialog-backdrop><form id="purge-session-form" class="session-dialog" role="dialog" aria-modal="true" aria-labelledby="purge-heading"><div><div class="eyebrow">永久删除</div><h2 id="purge-heading">永久删除“${e(session.title || '未命名会话')}”？</h2></div><p>此操作无法撤销。DSH 原生对话日志，以及 Workbench 保存的本会话附件、数据集、产物和索引记录都会被清除。</p>${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<div class="button-row"><button type="button" class="button" data-cancel-purge ${busy ? 'disabled' : ''}>取消</button><button type="submit" class="button danger" ${busy ? 'disabled' : ''}>${busy ? '正在永久删除…' : '永久删除'}</button></div></form></div>`;
 }
 
 export function renderFormatPicker(formats, capability) {

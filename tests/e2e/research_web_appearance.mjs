@@ -36,17 +36,26 @@ await context.route('**/*', async route => {
 });
 const check = name => report.checks.push(name);
 const shot = async name => { await page.screenshot({ path: resolve(output, name + '.png'), fullPage: true }); report.screenshots.push(name + '.png'); };
+const setTheme = async value => {
+  await page.goto(base + '/#/settings');
+  const option = page.locator(`[data-theme-option][value="${value}"]`);
+  await option.waitFor();
+  const label = { system: '跟随系统', light: '浅色', dark: '深色' }[value];
+  await page.locator('.appearance-option').filter({ hasText: label }).click();
+  assert.equal(await option.isChecked(), true);
+};
 try {
   await page.goto(base + '/#/fingpt');
   await page.locator('#prompt').waitFor();
   await page.waitForFunction(() => document.querySelector('#skill-select')?.options.length > 1);
   await page.locator('#prompt').fill('外观切换应保留这条尚未发送的草稿');
-  await page.locator('#appearance-theme').selectOption('dark');
+  await setTheme('dark');
+  await page.goto(base + '/#/fingpt'); await page.locator('#prompt').waitFor();
   assert.equal(await page.locator('#prompt').inputValue(), '外观切换应保留这条尚未发送的草稿');
   assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
   await page.reload(); await page.locator('#prompt').waitFor();
   assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark'); check('manual theme persists across reload; switching does not clear draft');
-  await page.locator('#appearance-theme').selectOption('system');
+  await setTheme('system');
   await page.emulateMedia({ colorScheme: 'light' });
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
   await page.emulateMedia({ colorScheme: 'dark' });
@@ -54,7 +63,7 @@ try {
   check('system appearance changes applied');
   for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.locator('#appearance-theme').selectOption(theme);
+    await setTheme(theme);
     const buttonStates = await page.evaluate(() => {
       const fixture = document.createElement('section');
       fixture.setAttribute('aria-label', '仅测试：按钮状态');
@@ -81,24 +90,24 @@ try {
       assert.equal(geometry.overflow, false); assert.equal(geometry.mainOverflow, false); assert.ok(geometry.input > 240);
       assert.equal(geometry.filter.includes('invert(1)'), theme === 'dark');
       if (width === 1440) {
-        // Measured from the user's approved v2 sample at 1440 x 1000.
+        // The approved 68px rail + 248px secondary sidebar shifts the canvas,
+        // while the landing content remains one aligned 800px column.
         const boxes = await page.evaluate(() => Object.fromEntries(['.greeting', '.composer', '.quick-skill-grid'].map(selector => [selector, document.querySelector(selector).getBoundingClientRect().toJSON()])));
-        assert.ok(Math.abs(boxes['.greeting'].x - 448) <= 2);
-        assert.ok(Math.abs(boxes['.greeting'].y - 214) <= 2);
-        assert.ok(Math.abs(boxes['.composer'].y - 317.1875) <= 2);
-        assert.ok(Math.abs(boxes['.composer'].height - 162) <= 2);
         assert.equal(boxes['.composer'].width, 800);
-        assert.ok(Math.abs(boxes['.quick-skill-grid'].y - 534.6875) <= 2);
+        assert.ok(Math.abs(boxes['.greeting'].x - boxes['.composer'].x) <= 2);
+        assert.ok(Math.abs(boxes['.quick-skill-grid'].x - boxes['.composer'].x) <= 2);
+        assert.ok(boxes['.greeting'].y + boxes['.greeting'].height < boxes['.composer'].y);
+        assert.ok(boxes['.composer'].y + boxes['.composer'].height < boxes['.quick-skill-grid'].y);
         assert.equal(boxes['.quick-skill-grid'].height, 94);
-        check(`${theme}: approved v2 greeting/composer/four-card geometry within 2px`);
+        check(`${theme}: approved secondary-navigation canvas keeps one aligned 800px content column`);
       }
       await shot(`${theme}-fingpt-${width}`);
       if (width <= 1050) {
         await page.locator('.menu-toggle').click();
-        assert.equal(await page.locator('.navigation-column').isVisible(), true);
-        assert.equal(await page.locator('#appearance-theme').isVisible(), true);
-        await page.locator('.sidebar-close').click();
-        assert.equal(await page.locator('.navigation-column').isVisible(), false);
+        assert.equal(await page.locator('.primary-rail').isVisible(), true);
+        assert.equal(await page.locator('.secondary-sidebar').isVisible(), true);
+        await page.locator('.rail-mobile-close').click();
+        assert.equal(await page.locator('.primary-rail').isVisible(), false);
       }
       check(`${theme} ${width}: layout, symbol, navigation`);
     }
@@ -132,8 +141,10 @@ try {
   await page.locator('[data-collapse-sidebar]').click();
   assert.equal(await page.locator('.primary-nav').isVisible(), true);
   await page.locator('[data-toggle-sidebar].rail-toggle').click();
-  await page.locator('.workspace-picker summary').click();
-  assert.equal(await page.locator('#workspace-select').isVisible(), true); check('desktop navigation remains available after collapse');
+  assert.equal(await page.locator('.secondary-sidebar').isVisible(), true);
+  await page.goto(base + '/#/claw'); await page.locator('#prompt').waitFor();
+  await page.locator('[data-claw-sidebar-view="workspace"]').click();
+  assert.equal(await page.locator('#workspace-select').isVisible(), true); check('primary navigation and Claw workspace remain available after secondary-sidebar collapse');
   await page.locator('.search-trigger').click();
   await page.locator('#global-search').fill('company');
   await page.locator('.global-results').waitFor(); check('existing global search opens');
@@ -142,7 +153,7 @@ try {
   await page.locator('.format-picker summary').click();
   await page.locator('[data-format="md"]').check();
   assert.equal(await page.locator('[data-format="md"]').isChecked(), true);
-  await page.locator('.format-picker summary').click();
+  if (!await page.locator('[data-no-formats]').isVisible()) await page.locator('.format-picker summary').click();
   await page.locator('[data-no-formats]').click();
   await page.locator('.capability-picker summary').click();
   assert.equal(await page.locator('#skill-select').isVisible(), true);

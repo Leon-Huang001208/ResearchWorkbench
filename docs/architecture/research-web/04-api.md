@@ -1,6 +1,6 @@
 # Research Web 接口清单
 
-路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 113 个唯一 HTTP 操作、115 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
+路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 114 个唯一 HTTP 操作、116 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 
 | Method | 路径 | 源码 |
 |---|---|---|
@@ -14,6 +14,7 @@
 | PATCH | `/api/research/sessions/{sid}` | `app/research_web/main.py` |
 | DELETE | `/api/research/sessions/{sid}` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/restore` | `app/research_web/main.py` |
+| DELETE | `/api/research/sessions/{sid}/permanent` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/messages` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/cancel` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/approvals/{aid}` | `app/research_web/main.py` |
@@ -124,6 +125,7 @@
 
 - 消息提交使用 `Idempotency-Key`；受理返回 202，不是执行或交付成功。受理未知时不自动重试。
 - 会话、附件、文件、数据集必须属于产品索引中的当前会话；模型参数不能选择任意宿主路径。
+- `GET /sessions` 默认只返回正常会话，`view=deleted|all` 显式读取墓碑；软删除写入 30 天可恢复窗口，恢复不触碰 DSH。永久删除和到期清理先调用 DSH `session.delete(cascade=true)`，确认根 ID 位于 `deletedSessionIds` 后才清理本产品目录与索引；运行中或删除已开始的会话拒绝恢复。服务启动与每 6 小时的在线保留期任务都会重试过期墓碑。
 - `GET /data/catalog` 与详情接口只读取静态目录；`POST /data/sources/{id}/probes` 才检测一个指定来源，使用 `Idempotency-Key` 去重。探测结果只返回安全化错误码和耗时，不返回凭据或上游正文。
 - 研究取数只使用 `internal/data/business-query`，接受稳定业务能力、白名单来源 ID 和能力限定参数；旧产品前缀工具及其平行查询接口已经移除。浏览器不能直接调用 internal 入口。
 - 研究台查询和交接均使用 `Idempotency-Key` 并经过串行准入。交接在创建目标会话前验证请求中的数据集归属，并限制页面上下文为 64 KiB；查询受理或 DSH 回合结束均不等于报告交付完成。

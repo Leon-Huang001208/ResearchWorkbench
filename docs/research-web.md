@@ -84,6 +84,7 @@ Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真�
 
 - Session 提交只等待受理；`events.mux` 与 `events.host` 同时连接。完整内容从原生日志分页读取，事件重连清除投影基线但不重新提交。
 - DSH 重启后先用 `session.models` 恢复记录中的 preset，再查询 `skill.list`；不会创建替代会话或重复发送。
+- 会话删除分两阶段：首次删除只在产品索引写入 `deleted_at`，从正常列表隐藏并保留 30 天；期间可从“已删除”恢复。用户主动永久删除、服务启动或在线保留期任务发现到期时，会调用 DSH `session.delete` 级联删除原生会话日志；只有响应明确包含根会话 ID 后，才删除 Workbench 的会话目录、附件、数据集、产物与索引记录。DSH 清理失败会保留不可恢复流程的墓碑并继续重试，不把产品隐藏误报为永久删除。
 - 子 Agent 活动来自 `subagent.list/history` 的父子归属接口；每个子 Agent 展示最近100条消息的投影，`history_truncated` 明确说明更早内容未加载，1秒缓存减少重复读取。
 - 父回合结束但子 Agent 仍运行时，详情和历史保持运行状态；停止调用原生父会话取消及直接子 Agent interrupt，不把受理当作已停止。
 - 父 Agent 已离线的 `session-not-found` 不阻断原生父子归属下的子任务取消；其他错误仍明确报告。原生后台子 Agent 审批策略为 `never`：当前 Runtime 已暴露的 DataHub callable 工具由父 Agent 自动取数，子 Agent 复用父 Agent 已取得的同一数据集；只有 DataHub 以外仍需审批的工具沿用原策略，由父 Agent 取得结果后交给子 Agent 分析。

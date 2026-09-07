@@ -15,6 +15,7 @@ class NativeFixture:
     def __init__(self):
         self.calls = []
         self.fail_prompt = False
+        self.confirm_delete = True
 
     async def rpc(self, method, payload):
         self.calls.append((method, payload))
@@ -27,7 +28,7 @@ class NativeFixture:
         if method == "session.list":
             return {"items": []}
         if method == "session.delete":
-            return {"deletedSessionIds": [payload["sessionId"]]}
+            return {"deletedSessionIds": [payload["sessionId"]] if self.confirm_delete else []}
         if method == "skill.list":
             return {"skills": []}
         return {"accepted": True}
@@ -152,6 +153,20 @@ def test_expired_deleted_session_is_purged_when_deleted_view_is_loaded(api):
     assert sid not in service.store.data["sessions"]
 
 
+def test_expired_deleted_session_cannot_be_restored_before_the_next_purge_cycle(api):
+    client, _, service = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    client.delete(f"/api/research/sessions/{sid}")
+    service.store.session(sid, include_deleted=True)["deleted_at"] = 0
+    service.store.save()
+
+    response = client.post(f"/api/research/sessions/{sid}/restore")
+
+    assert response.status_code == 410
+    assert response.json()["error"]["code"] == "session_restore_expired"
+    assert service.store.session(sid, include_deleted=True)["deleted_at"] == 0
+
+
 def test_permanent_delete_requires_soft_delete(api):
     client, _, _ = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
@@ -160,6 +175,46 @@ def test_permanent_delete_requires_soft_delete(api):
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "session_not_deleted"
+
+
+def test_permanent_delete_keeps_tombstone_when_dsh_does_not_confirm(api):
+    client, native, service = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    artifact = service.store.directory(sid) / "outputs" / "retained.md"
+    artifact.write_text("仍可重试")
+    client.delete(f"/api/research/sessions/{sid}")
+    native.confirm_delete = False
+
+    response = client.delete(f"/api/research/sessions/{sid}/permanent")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "native_session_delete_unconfirmed"
+    assert service.store.session(sid, include_deleted=True)["deleted_at"]
+    assert artifact.read_text() == "仍可重试"
+
+
+@pytest.mark.asyncio
+async def test_online_retention_loop_purges_without_opening_deleted_view(tmp_path, monkeypatch):
+    import app.research_web.service as service_module
+
+    monkeypatch.setattr(service_module, "SESSION_PURGE_INTERVAL_SECONDS", 0.01)
+    service = ResearchService(NativeFixture(), Store(tmp_path))
+    row = service.store.create("fingpt", "到期研究")
+    service.store.soft_delete(row["id"])
+    service.store.session(row["id"], include_deleted=True)["deleted_at"] = 0
+    service.store.save()
+
+    task = asyncio.create_task(service._retention_loop())
+    try:
+        for _ in range(100):
+            if row["id"] not in service.store.data["sessions"]:
+                break
+            await asyncio.sleep(0.01)
+        assert row["id"] not in service.store.data["sessions"]
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
 
 def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):

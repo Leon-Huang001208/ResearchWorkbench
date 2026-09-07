@@ -32,8 +32,9 @@ test('routing accepts only product routes and safely round trips session identif
   assert.equal(typeof core.parseRoute, 'function');
   assert.deepEqual(core.parseRoute('#/claw?session=a%2Fb'), { page: 'claw', sessionId: 'a/b' });
   assert.deepEqual(core.parseRoute('#/market'), { page: 'fingpt', sessionId: null });
-  assert.deepEqual(core.parseRoute('#/history?mode=fingpt'), { page: 'history', sessionId: null, historyMode: 'fingpt' });
-  assert.deepEqual(core.parseRoute('#/history?mode=unknown'), { page: 'history', sessionId: null, historyMode: null });
+  assert.deepEqual(core.parseRoute('#/history?mode=fingpt'), { page: 'history', sessionId: null, historyMode: 'fingpt', historyView: 'active' });
+  assert.deepEqual(core.parseRoute('#/history?mode=claw&view=deleted'), { page: 'history', sessionId: null, historyMode: 'claw', historyView: 'deleted' });
+  assert.deepEqual(core.parseRoute('#/history?mode=unknown&view=unknown'), { page: 'history', sessionId: null, historyMode: null, historyView: 'active' });
   assert.equal(core.sessionHash(session('a/b')), '#/fingpt?session=a%2Fb');
 });
 

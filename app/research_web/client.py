@@ -21,6 +21,7 @@ METHODS = frozenset(
         "session.list",
         "session.history",
         "session.rename",
+        "session.delete",
         "session.prompt",
         "session.cancel",
         "session.models",

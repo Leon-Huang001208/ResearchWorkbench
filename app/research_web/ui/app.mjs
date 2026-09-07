@@ -591,14 +591,15 @@ root.addEventListener('submit', async (event) => {
 });
 
 root.addEventListener('click', async (event) => {
-  if (event.target.matches('[data-dialog-backdrop]')) {
+  const clickTarget = event.target;
+  if (clickTarget?.matches?.('[data-dialog-backdrop]')) {
     renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionActionError = ''; render();
     return;
   }
-  if (sessionMenu && !event.target.closest('.session-action-menu') && !event.target.closest('[data-session-menu]')) {
+  if (sessionMenu && !clickTarget?.closest?.('.session-action-menu') && !clickTarget?.closest?.('[data-session-menu]')) {
     sessionMenu = null; render();
   }
-  const button = event.target.closest('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
+  const button = clickTarget?.closest?.('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
   if ('sessionMenu' in data) {
     const id = data.sessionMenu;

@@ -218,3 +218,21 @@ test('running tasks are selected from the complete real session catalog before r
   assert.match(html, /会话 10/);
   assert.match(html, /运行任务[\s\S]*会话 10/);
 });
+
+test('session rows keep the link and menu trigger as sibling controls', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  const result = shell.renderSessionRow({ id: 's1', title: '现金流研究', mode: 'fingpt', status: 'idle' }, 's1', 's1');
+  assert.match(result, /class="session-row active menu-open"/);
+  assert.match(result, /<a[^>]+class="recent-item active"/);
+  assert.match(result, /<\/a><button[^>]+data-session-menu="s1"/);
+  assert.doesNotMatch(result, /<a\b(?:(?!<\/a>).)*<button/s);
+});
+
+test('deleted history exposes recovery, retention and permanent deletion without reopening the session', async () => {
+  const views = await import(new URL('views.mjs', root));
+  const result = views.renderHistory([{ id: 'gone', title: '已删除研究', mode: 'claw', deleted_at: '2026-09-01T00:00:00Z', purge_at: '2026-10-01T00:00:00Z' }], '', 'claw', 'deleted');
+  assert.match(result, /data-restore-session="gone"/);
+  assert.match(result, /data-purge-session="gone"/);
+  assert.match(result, /永久删除/);
+  assert.doesNotMatch(result, /href="#\/claw\?session=gone"/);
+});

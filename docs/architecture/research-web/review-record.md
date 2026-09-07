@@ -218,3 +218,15 @@
 <!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"强制执行既有Payload到确定性投影再到独立交付检查的顺序，并把迁移报告最低子Agent数固定为2；图09已完整表达该关系。","diagrams":[]} -->
 <!-- architecture-review {"group":"files","structure":"unchanged","reason":"PPTX占位符检查扩展为跨a:t文本片段，仍属于既有确定性组装和交付验证节点内部语义。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"补齐既有会话软删除与恢复接口清单；研究提交、DSH事件、恢复和归属边界均未改变。","diagrams":[]} -->
+
+## 2026-09-07 — 会话永久删除与有限保留期
+
+- 会话管理继续使用模式二级侧栏的行级菜单；软删除进入“已删除”并保留 30 天，可恢复或立即永久删除。
+- 永久删除新增明确 API：Workbench 先要求 DSH `session.delete(cascade=true)` 返回根会话确认，再清理本产品会话目录与索引；失败保留墓碑和文件以便重试。
+- 服务启动时立即清理到期墓碑，长期运行期间每 6 小时重试一次，消除只有重启或打开已删除页才会触发清理的缺口。
+- 这是既有 UI、Research API 与文件所有权边界内的生命周期补全；DSH 全局内容寻址附件可能共享，不做单会话误删，十张架构图无需增加新节点。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"会话重命名、软删除、恢复与永久删除收归既有模式二级侧栏和历史视图，路由与页面模块关系不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新增永久删除操作并补充启动及六小时保留期调度，仍由既有BFF校验归属后调用DSH会话API。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"DSH确认后才清理既有会话目录、数据集、产物与索引；软删除和失败重试期间保持原文件边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API清单和会话生命周期文档同步新增永久删除操作，没有改变文档门禁或图册拓扑。","diagrams":[]} -->

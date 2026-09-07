@@ -931,6 +931,13 @@
       "prefix": ""
     },
     {
+      "method": "DELETE",
+      "path": "/api/research/sessions/{sid}/permanent",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/sessions/{sid}/permanent",
+      "prefix": ""
+    },
+    {
       "method": "POST",
       "path": "/api/research/sessions/{sid}/messages",
       "source": "app/research_web/main.py",
