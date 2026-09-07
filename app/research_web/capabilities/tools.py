@@ -201,9 +201,7 @@ def tool_catalog():
         re.DOTALL,
     )
     if not match:
-        raise CapabilityError(
-            "原生工具 guard 声明不可核对", "tool_registry_unavailable", 503
-        )
+        raise CapabilityError("原生工具 guard 声明不可核对", "tool_registry_unavailable", 503)
     allowed = set(re.findall(r"'([^']+)'", match[1]))
     items = []
     for name, (label, source, fields, required, condition) in DECLARATIONS.items():
@@ -299,13 +297,10 @@ def tool_catalog():
                 "kind": "tool",
                 "description": description,
                 "selectable": False,
-                "read_only": tool_id
-                in {"report_workbook_extract", "report_template_inspect"},
+                "read_only": tool_id in {"report_workbook_extract", "report_template_inspect"},
                 "parameters": {
                     "type": "object",
-                    "properties": {
-                        key: {"type": value} for key, value in fields.items()
-                    },
+                    "properties": {key: {"type": value} for key, value in fields.items()},
                     "required": list(fields),
                     "additionalProperties": False,
                 },

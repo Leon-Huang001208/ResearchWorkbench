@@ -107,14 +107,10 @@ def prepare(
     datahub_url: str | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
-    commit = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=source, text=True
-    ).strip()
+    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
     if commit != PINNED_COMMIT:
         raise RuntimeError("DSH 源码提交与已验证版本不符；未自动升级")
-    executable = source / (
-        "apps/cli/src/bin.ts" if source_mode else "apps/cli/lib/bin.js"
-    )
+    executable = source / ("apps/cli/src/bin.ts" if source_mode else "apps/cli/lib/bin.js")
     if not executable.is_file():
         raise RuntimeError("DSH 构建不存在；请先授权构建依赖")
     runtime = data / "runtime"
@@ -144,9 +140,7 @@ def prepare(
             "__RESEARCH_ROOT__": data,
         }.items():
             content = content.replace(key, json.dumps(str(value)))
-        content = content.replace(
-            "__PUBLIC_DATA_ENABLED_TOOLS__", json.dumps(public_data_tools)
-        )
+        content = content.replace("__PUBLIC_DATA_ENABLED_TOOLS__", json.dumps(public_data_tools))
         (preset / "agent.cordis.yml").write_text(content)
         log.info(
             "datahub_runtime_tools_prepared",
