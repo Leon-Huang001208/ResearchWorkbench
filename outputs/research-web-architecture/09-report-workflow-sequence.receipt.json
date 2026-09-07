@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/09-report-workflow-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/09-report-workflow-sequence.html",
+  "specification": {"sha256": "a25b612acc8b2b6b1b4d09a716cc4f17b8b55d36164d7f4036397b3807fa378a", "bytes": 6136},
+  "artifact": {"sha256": "af6724121a415da77b7095f02181269812de2d4a17775dae8542fab27dc89427", "bytes": 649642},
+  "validation": {"checksPassed": 9, "checkCount": 9, "compositionProfile": "showcase", "compositionStatus": "pass", "errors": 0, "warnings": 0}
+}

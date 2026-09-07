@@ -32,6 +32,27 @@ async def test_rpc_envelope_and_no_legacy_timeout():
 
 
 @pytest.mark.asyncio
+async def test_native_session_delete_uses_the_allowlisted_rpc_envelope():
+    def reply(request):
+        body = json.loads(request.content)
+        assert body["method"] == "session.delete"
+        assert body["payload"] == {"sessionId": "s", "cascade": True}
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": {"deletedSessionIds": ["s"]}},
+            },
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        assert await client.rpc("session.delete", {"sessionId": "s", "cascade": True}) == {
+            "deletedSessionIds": ["s"]
+        }
+
+
+@pytest.mark.asyncio
 async def test_rpc_rejects_wrong_correlation_and_never_falls_back():
     async with DSHClient(
         "http://127.0.0.1:3081",
@@ -118,7 +139,9 @@ def test_runtime_url_is_loopback_only():
 def test_native_tool_result_error_updates_matching_call():
     result = project(
         [
-            event(1, "tool/call", {"callId": "c", "name": "research_run_script", "arguments": "{}"}),
+            event(
+                1, "tool/call", {"callId": "c", "name": "research_run_script", "arguments": "{}"}
+            ),
             event(
                 2,
                 "tool/result",

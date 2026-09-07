@@ -32,6 +32,9 @@ test('routing accepts only product routes and safely round trips session identif
   assert.equal(typeof core.parseRoute, 'function');
   assert.deepEqual(core.parseRoute('#/claw?session=a%2Fb'), { page: 'claw', sessionId: 'a/b' });
   assert.deepEqual(core.parseRoute('#/market'), { page: 'fingpt', sessionId: null });
+  assert.deepEqual(core.parseRoute('#/history?mode=fingpt'), { page: 'history', sessionId: null, historyMode: 'fingpt', historyView: 'active' });
+  assert.deepEqual(core.parseRoute('#/history?mode=claw&view=deleted'), { page: 'history', sessionId: null, historyMode: 'claw', historyView: 'deleted' });
+  assert.deepEqual(core.parseRoute('#/history?mode=unknown&view=unknown'), { page: 'history', sessionId: null, historyMode: null, historyView: 'active' });
   assert.equal(core.sessionHash(session('a/b')), '#/fingpt?session=a%2Fb');
 });
 
@@ -117,6 +120,23 @@ test('session view is honest when empty and safely renders activity, approvals a
   assert.match(result, /研究期间/);
   assert.doesNotMatch(result, /<script>|Claim|Evidence|Quality Gate|4 \/ 6/);
   assert.match(views.renderConversation(session()), /尚无消息/);
+});
+
+test('conversation distinguishes user and FinGPT messages without visible avatars or bylines', () => {
+  const result = views.renderConversation(session('s1', { messages: [
+    { role: 'user', text: '请分析现金流' },
+    { role: 'assistant', text: '先看经营现金流。' },
+  ] }));
+  assert.match(result, /<article class="message user" aria-label="用户消息"><div class="markdown">/);
+  assert.match(result, /<article class="message assistant" aria-label="FinGPT 回复"><div class="markdown">/);
+  assert.doesNotMatch(result, /message-byline|class="avatar"|<strong>你<\/strong>|Research Workbench/);
+});
+
+test('conversation attributes assistant replies to the active research mode', () => {
+  const assistant = [{ role: 'assistant', text: '真实回复' }];
+  assert.match(views.renderConversation(session('fin', { mode: 'fingpt', messages: assistant })), /aria-label="FinGPT 回复"/);
+  assert.match(views.renderConversation(session('claw', { mode: 'claw', messages: assistant })), /aria-label="Claw 回复"/);
+  assert.match(views.renderConversation(session('other', { mode: 'other', messages: assistant })), /aria-label="助手回复"/);
 });
 
 test('entrypoint is self hosted and settings do not persist secrets in browser storage', async () => {

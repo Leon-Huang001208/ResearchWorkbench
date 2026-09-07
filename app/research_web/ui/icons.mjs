@@ -21,5 +21,9 @@ const paths = {
   folder: '<path d="M3 6h7l2 3h9v11H3V6Z"/>',
   activity: '<path d="M2 12h5l3-7 4 14 3-7h5"/>',
   database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/>',
+  more: '<circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/>',
+  rename: '<path d="M4 20h4l11-11-4-4L4 16v4ZM13 7l4 4"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/>',
+  restore: '<path d="M4 11a8 8 0 1 1 2 6M4 5v6h6"/>',
 };
 export const icon = name => `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${Object.hasOwn(paths, name) ? paths[name] : paths.document}</svg>`;

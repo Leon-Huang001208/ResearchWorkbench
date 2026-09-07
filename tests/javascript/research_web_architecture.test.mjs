@@ -7,11 +7,12 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
 const checkerURL = new URL('../../scripts/check_research_architecture.mjs', import.meta.url);
+const atlasURL = new URL('../../scripts/build_research_web_api_atlas.mjs', import.meta.url);
 const mapPath = 'docs/architecture/research-web/architecture-map.json';
 const source = 'app/research_web/main.py';
 const document = 'docs/module.md';
 const review = 'docs/architecture/research-web/review-record.md';
-const ids = ['01-deployment', '02-module-dependencies', '03-research-sequence', '04-data-file-flow', '05-capability-flow', '06-run-state', '07-delivery-state', '08-iteration-docs'];
+const ids = ['01-deployment', '02-module-dependencies', '03-research-sequence', '04-data-file-flow', '05-capability-flow', '06-run-state', '07-delivery-state', '08-iteration-docs', '09-report-workflow-sequence', '10-excel-report-dataflow'];
 const hash = value => ({ sha256: createHash('sha256').update(value).digest('hex'), bytes: Buffer.byteLength(value) });
 
 function fixture(t) {
@@ -55,8 +56,20 @@ async function check(f, changedFiles=[]) {
   return checkResearchArchitecture({projectRoot:f.root,changedFiles});
 }
 
-test('portable offline fixture validates eight diagrams and ignores development absolute paths', async t => {
+test('portable offline fixture validates ten diagrams and ignores development absolute paths', async t => {
   assert.deepEqual((await check(fixture(t))).violations, []);
+});
+
+test('API Atlas distinguishes unique operations from overlapping source declarations', t => {
+  const f=fixture(t); const map=f.read(mapPath);
+  map.apis.push({...map.apis[0],source:'app/research_web/compat.py'});
+  f.write('app/research_web/compat.py','@router.get("/runtime")\nasync def compatibility_runtime(): pass\n');
+  f.write(mapPath,map);
+  const result=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
+  const html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
+  assert.match(html,/<span>唯一接口<\/span><b>1<\/b>/);
+  assert.match(html,/<span>源码声明<\/span><b>2<\/b>/);
 });
 
 for (const file of [source,'app/research_web/runtime/guard.mjs','app/research_web/ui/styles.css','app/research_web/skills/demo/SKILL.md','app/research_web/runtime/research.cordis.yml']) {
@@ -92,7 +105,7 @@ const mutations = [
   ['missing screenshot','reference_missing',f=>fs.unlinkSync(path.join(f.root,'outputs/research-web-architecture/01-deployment.1440x900.dark.png'))],
   ['only three viewports','visual_receipt',f=>{const p=f.read(mapPath).diagrams[0].visualReceipt;const v=f.read(p);v.containment.viewports.pop();f.write(p,v);} ],
   ['showcase warning','delivery_validation',f=>{const p=f.read(mapPath).diagrams[0].receipt;const v=f.read(p);v.validation.warnings=1;f.write(p,v);} ],
-  ['seven diagram inventory','diagram_inventory',f=>{const m=f.read(mapPath);m.diagrams.pop();f.write(mapPath,m);} ],
+  ['incomplete diagram inventory','diagram_inventory',f=>{const m=f.read(mapPath);m.diagrams.pop();f.write(mapPath,m);} ],
   ['symlink reference','reference_unsafe',f=>{fs.unlinkSync(path.join(f.root,document));fs.symlinkSync(path.join(f.root,source),path.join(f.root,document));}],
 ];
 for(const [name,code,mutate] of mutations) test(name,async t=>{const f=fixture(t);mutate(f);const result=await check(f);assert.ok(result.violations.some(v=>v.code===code),JSON.stringify(result));});

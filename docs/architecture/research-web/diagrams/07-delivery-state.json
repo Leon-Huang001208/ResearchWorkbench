@@ -1,26 +1,26 @@
 {
   "schema_version": 1, "diagram_type": "lifecycle",
-  "meta": {"title": "文件交付 · 独立于研究回合的检查", "quality_profile": "showcase", "viewBox": [1050, 670], "legend": {"entries": {"start": {"label": "任务受理"}, "active": {"label": "内部检查阶段"}, "waiting": {"label": "受理未知"}, "success": {"label": "有效文件齐备"}, "neutral": {"label": "无需文件"}, "failure": {"label": "缺失或检查失败"}}}},
-  "lanes": [{"id": "main", "label": "交付路径"}, {"id": "waiting", "label": "受理状态"}, {"id": "terminal", "label": "其他检查结果"}],
+  "meta": {"title": "报告文件交付 · 独立于 Claw 回合的检查", "quality_profile": "showcase", "viewBox": [1050, 670], "legend": {"entries": {"start": {"label": "任务受理"}, "active": {"label": "内部检查阶段"}, "waiting": {"label": "内容或受理未知"}, "success": {"label": "有效文件齐备"}, "neutral": {"label": "无需文件"}, "failure": {"label": "缺失或检查失败"}}}},
+  "lanes": [{"id": "main", "label": "交付路径"}, {"id": "waiting", "label": "恢复状态"}, {"id": "terminal", "label": "其他检查结果"}],
   "states": [
     {"id": "pending", "type": "start", "label": "等待结束确认", "sublabel": "pending", "lane": "main", "col": 0},
-    {"id": "checking", "type": "active", "label": "核对执行与文件", "sublabel": "内部阶段 · 无独立 API 状态", "lane": "main", "col": 2},
-    {"id": "delivered", "type": "success", "label": "交付完成", "sublabel": "completed", "lane": "main", "col": 4},
-    {"id": "unknown", "type": "waiting", "label": "受理待确认", "sublabel": "admission_unknown", "lane": "waiting", "col": 0},
+    {"id": "checking", "type": "active", "label": "组装并重开文件", "sublabel": "validating", "lane": "main", "col": 2},
+    {"id": "delivered", "type": "success", "label": "交付完成", "sublabel": "complete", "lane": "main", "col": 4},
+    {"id": "unknown", "type": "waiting", "label": "迟到 Payload", "sublabel": "admission_unknown / late_payload", "lane": "waiting", "col": 0},
     {"id": "not-required", "type": "neutral", "label": "无需文件", "sublabel": "not_required", "lane": "terminal", "col": 0},
     {"id": "incomplete", "type": "failure", "label": "交付未完成", "sublabel": "incomplete · 返回缺失格式", "lane": "terminal", "col": 1},
     {"id": "verify-failed", "type": "failure", "label": "验证失败", "sublabel": "verification_failed", "lane": "terminal", "col": 2}
   ],
   "transitions": [
-    {"id": "unknown-admission", "from": "pending", "to": "unknown", "label": "受理响应未确认"},
-    {"id": "recover-marker", "from": "unknown", "to": "checking", "label": "原生日志确认且执行结束", "fromSide": "top", "toSide": "bottom"},
+    {"id": "unknown-admission", "from": "pending", "to": "unknown", "label": "回合先结束或受理未确认"},
+    {"id": "recover-marker", "from": "unknown", "to": "checking", "label": "边界内 Payload 就绪", "fromSide": "top", "toSide": "bottom"},
     {"id": "no-format", "from": "checking", "to": "not-required", "label": "未要求文件", "fromSide": "left", "toSide": "left", "via": [[320, 157], [320, 100], [16, 100], [16, 479]]},
-    {"id": "missing-file", "from": "checking", "to": "incomplete", "label": "缺失或文件无效", "fromSide": "right", "toSide": "top", "via": [[520, 157], [520, 390], [556, 390]]},
-    {"id": "parser-error", "from": "checking", "to": "verify-failed", "label": "检查或终态异常", "variant": "security", "fromSide": "top", "toSide": "right", "via": [[402, 80], [840, 80], [840, 479]]}
+    {"id": "missing-file", "from": "checking", "to": "incomplete", "label": "缺失区块、格式或文件无效", "fromSide": "right", "toSide": "top", "via": [[520, 157], [520, 390], [556, 390]]},
+    {"id": "parser-error", "from": "checking", "to": "verify-failed", "label": "重开或检查异常", "variant": "security", "fromSide": "top", "toSide": "right", "via": [[402, 80], [840, 80], [840, 479]]}
   ],
   "cards": [
-    {"dot": "cyan", "title": "本任务文件", "items": ["提交前保存 outputs 哈希基线", "仅认可新建或内容更新的有效文件"]},
-    {"dot": "amber", "title": "何时检查", "items": ["父回合结束、子任务停止、双通道连接正常", "Office 重开与文件解析在严格沙箱执行"]},
-    {"dot": "rose", "title": "不冒充完成", "items": ["明确停止且已空闲但缺结束事件：验证失败", "该异常不解析文件、不补造原生终止事件"]}
+    {"dot": "cyan", "title": "只认可本次运行文件", "items": ["运行前保存 outputs 哈希基线，附件与旧历史产物不计入交付", "DOCX、XLSX、PPTX 必须可重开；HTML 必须非空且隔离预览"]},
+    {"dot": "amber", "title": "迟到 Payload 可恢复", "items": ["仅读取当前会话和当前运行目录中新建或更新的 report_payload.json", "重试直接执行确定性组装，不重新刷新 Excel 或启动 Claw"]},
+    {"dot": "rose", "title": "不冒充完成", "items": ["缺必需区块、输出格式、数据日期或来源时返回具体 missing", "文件存在不等于 complete；检查失败保留已有结果和失败原因"]}
   ]
 }

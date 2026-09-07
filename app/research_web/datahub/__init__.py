@@ -170,6 +170,9 @@ class DataHub:
     def copy_for_upgrade(self, old_sid, new_sid):
         return self.snapshots.copy_for_upgrade(old_sid, new_sid)
 
+    def copy_selected(self, old_sid, new_sid, dataset_ids):
+        return self.snapshots.copy_selected(old_sid, new_sid, dataset_ids)
+
     def list(self, sid):
         return sorted(
             (self.detail(sid, did) for did in self.snapshots.ids(sid)),

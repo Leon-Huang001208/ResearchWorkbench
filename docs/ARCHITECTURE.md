@@ -11,7 +11,7 @@
 该入口不启动旧 API 生命周期，不要求 PostgreSQL/pgvector，不使用 Evidence、Claim、Quality Gate、
 LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
 
-当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页展示 13 项能力与 21 个登记来源；只有东方财富基金和财联社目前完成可调用适配。DSH 使用品牌无关的 `datahub_*` 业务 Tool；`datahub_get_fund_data` 是基金能力的正式工具名，不是产品品牌别名。登记、配置和最近探测分别显示，不能把代码存在解释为已连接。
+当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 13 项能力与 21 个登记来源；真实 Runtime 仅在启动或重启时物化 `callable_source_count > 0` 的品牌无关 `datahub_*` 业务 Tool。已配置且可用的公开、账户或付费来源自动查询、不逐次确认；不可用工具不注册。`datahub_get_fund_data` 是基金能力的正式工具名，不是产品品牌别名。登记、配置和最近探测分别显示，不能把代码存在解释为已连接。
 
 历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
 

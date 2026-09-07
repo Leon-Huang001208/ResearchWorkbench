@@ -1,5 +1,17 @@
 # 架构迭代核对记录
 
+## 2026-09-07 — FinGPT 对话、DataHub 自动查询与异常统计
+
+- 对话展示仍位于现有 UI 模块，不新增服务、接口或状态存储；用户右侧气泡、无可见署名、模式化 ARIA 与分类异常横幅属于既有会话投影的呈现修正。图 02 更新 UI 到现有 BFF/DSH 的关系说明。
+- DataHub 原生桥删除逐次审批，改为 Runtime 启动时从离线能力目录生成 `enabledTools`；严格参数、来源、会话、loopback、控制令牌、取消和响应上限不变。图 02、03、04 同步自动查询与 fail-closed 边界。
+- AKShare 与天软 Provider 截止时间为 15 秒；超时发布 `failed/deadline` 快照，单线程门闩在底层同步调用结束前返回 `provider_busy`，不新增后台队列或执行服务。
+- 既有会话的失败历史不迁移；只更正 `subagents` 统计字段和横幅措辞。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"对话消息去除可见身份行，用户气泡右对齐，并将失败活动与异常 subagents 分类汇总；仍复用既有消息、Markdown、SSE 和会话接口。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"DataHub Tool 从逐次审批改为 enabledTools 启动过滤与自动只读查询，并增加严格参数校验、15 秒 Provider 终态和 provider_busy 隔离。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"Research Runtime 启动时按离线可调用来源生成 enabledTools；未满足来源条件的工具不注册，配置变化重启生效。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"capabilities","structure":"changed","reason":"DataHub 工具审批元数据改为 automatic，能力目录继续展示全量登记项但不扩大 Runtime 注册边界。","diagrams":["02-module-dependencies"]} -->
+
 ## 2026-09-03 — 研究 UI 与能力中心（进行中）
 
 - 起点：`304930d`；隔离分支 `codex/dsh-web-v1`。
@@ -116,3 +128,120 @@
 - 该修复只补齐既有 PostgreSQL 节点的启动前置条件和错误分类，不改变当前 Research Web 的 Web／FastAPI／DSH 部署、DataHub 取数、能力包、运行状态或文件交付拓扑，因此八张 Archify 图不重生成。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"既有PostgreSQL节点增加btree_gist必需扩展预检与脱敏修复状态，不新增服务、接口调用路径或数据流。","diagrams":[]} -->
+
+## 2026-09-05 — Web 功能合并、页面交接与只读运行监控
+
+- 新增研究台六个页面。页面查询通过 `POST /api/research/data/queries` 进入现有 DataHub；交接只复制用户选中的会话数据集，并把筛选、来源和截止时间写入目标会话的上下文文件。FinGPT、Claw 后续仍由 DSH 执行。
+- 新增“运行与用量”只读投影。模型 usage、Agent/Tool 活动、DataHub Audit、服务归属/健康和 Research Workbench 数据根占用均来自已有记录；未知 usage 和未配置价格分别显示，接口不返回问题正文、附件内容、审批参数或凭据。
+- CJPY 仅迁移受支持的证券目录、交易日历、行情和快照 Provider；无依赖或配置时保持 blocked，不把登记的数据集冒充已实现。新增市场解读 Skill/Workflow 仅消费已物化文件，不引入第二研究引擎。
+- 图 02、03、04 分别更新模块依赖、研究台查询/交接序列和共享资料流；其余图的部署进程、能力发布生命周期、运行状态、文件交付状态及文档门禁没有结构变化。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"产品壳新增研究台和运行与用量路由，并加入页面查询、快照交接和只读监控交互。","diagrams":["02-module-dependencies","03-research-sequence"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"研究台在创建目标DSH会话前新增受控查询和页面交接，原研究提交、SSE与审批协议保持不变。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"新增页面异步查询、CJPY条件Provider、所选数据集复制和真实调用审计，仍使用同一DataHub与快照存储。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"files","structure":"changed","reason":"会话快照增加按dataset_id复制和Hash核验，用于研究台向目标会话交接。","diagrams":["04-data-file-flow"]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"新增市场解读原生Skill包但DSH、Guard、脚本沙箱和父子Agent运行边界未改变。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录增加市场解读Skill和Workflow种子，仍复用既有检查、版本、发布和原生发现流程。","diagrams":[]} -->
+<!-- architecture-review {"group":"workbench","structure":"changed","reason":"新增六页研究台后端查询、页面上下文固化、快照交接和实际产物索引。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+<!-- architecture-review {"group":"operations","structure":"changed","reason":"新增不参与执行的只读聚合模块，读取DSH历史、DataHub审计、服务管理状态和受限数据目录。","diagrams":["02-module-dependencies"]} -->
+
+## 2026-09-05 — 运行监控进程归属校验收紧
+
+- 运行页面的受管进程判定从单独检查 PID 存活，收紧为状态文件版本、角色、端口、数据根、项目根、命令指纹和实际 PID 命令签名全部一致；实时 HTTP 健康仍独立显示。
+- 这是既有“运行聚合读取 Service Manager 状态”节点内部的真实性校验，不增加模块、服务、接口或数据流；图 02 已覆盖 Operations → Service Manager 关系，因此不制造无意义图源和回执变更。
+
+<!-- architecture-review {"group":"operations","structure":"unchanged","reason":"仅收紧既有Service Manager状态读取的进程归属校验，Operations模块、API和依赖关系不变。","diagrams":[]} -->
+
+## 2026-09-05 — 能力硬改名历史版本迁移
+
+- 真实 FinGPT 受理暴露出持久能力目录仍含旧 `af_run_script` / `af_public_data`，且内置 Skill 升级后 Workflow 仍绑定旧版本；发送前的全目录安全门因此按设计拒绝研究。
+- `CapabilityCatalog` 现在按 Skill → Workflow 顺序创建新的不可变版本：内置包使用当前种子，安全用户包只替换旧脚本名，歧义数据工具保留人工审查；过期 Workflow 重新绑定当前已启用 Skill 版本。历史版本不覆盖，迁移可重复启动且不会继续增版。
+- 修复后真实数据根的 10 个已启用 Skill／Workflow 全部通过 selection 校验，FinGPT 会话 `3504a20b-13ad-453f-b837-7e25f21892a2` 成功读取既有财联社快照并完成回答。
+- 该修复属于既有能力版本/依赖检查节点内部的持久数据兼容，不新增服务、接口、状态或数据流；图 05 已描述检查、发布与版本关系，因此八张 Archify 图无需重生成。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"为硬改名后的持久能力目录补充不可变版本迁移和Workflow重新绑定；仍复用既有检查、发布、原生投影与会话快照边界。","diagrams":[]} -->
+
+## 2026-09-06 — 具体报告 Workflow 与资产观察可见性纠正
+
+- 修复报告资源只迁入存储但未进入产品目录的问题：Claw 首页和能力中心现在读取真实 `/report-workflows`，显示创业板50周报、华安ETF周报、华安ETF投资风向标和待补全 AI 周报。卡片与详情来自锁定版本，不再由通用 Workflow 冒充。
+- 迁移默认优先读取产品数据根中已经管理的 `report-projects/`，逐文件校验路径、类型和 SHA-256；重复执行 4 个项目均为 `already_present`，没有新增版本或重复历史。
+- 资产观察从研究台内隐藏入口提升为主导航独立页面；保留真实行情/财务/事件/公告/新闻/研报区块、自选、笔记、提醒、来源口径和 FinGPT/Claw 快照交接。缺失的同类比较与主题暴露明确显示 unavailable，不恢复旧 Agent 委员会或演示数据。
+- 图 02 重绘为当前模块关系，加入具体报告 Workflow、模板/底稿、Excel 刷新、独立资产观察和会话快照边界；showcase 9/9、零错误零警告，四视口无溢出，并人工查看 1440 浅色与 2048 深色截图。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"主导航新增资产观察，Claw首页与能力中心新增真实具体报告Workflow目录和详情。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"report-workflows","structure":"changed","reason":"具体报告资源、不可变版本、迁移、Excel刷新与Claw运行进入当前产品模块依赖。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"资产后端查询、快照交接和个人观察存储边界未变；本轮补充独立导航、真实指标回退和来源状态展示。","diagrams":[]} -->
+
+## 2026-09-06 — 断电后的持久服务恢复
+
+- 真实断电场景复现为 8088/3081 均停止、状态文件仍在；代码提交、报告 Workflow、会话和数据目录没有丢失。
+- `WebServiceManager` 现在可清理来自先前 checkout 的死 PID 状态；只有 `_pid_exists` 明确返回 false 才移除，存活 PID 或无法确认的状态仍拒绝操作。
+- macOS 将虚拟环境及 `.pth` 标为 hidden 导致 Python 跳过 editable 项目路径；清除该项目虚拟环境的 hidden 文件标志后，标准 `rwb web status` 从任意目录恢复可用，没有安装或升级依赖。
+- 使用同一项目入口重新启动专属 DSH 3081 和 Web 8088，两个健康检查通过；浏览器重新核对 Claw 报告 Workflow 与资产观察，console 零错误。
+- 本次不新增服务、端口、模块或接口，但 stale 状态恢复是启动时的重要安全分支；图 03 增补 CLI、Service Manager、死 PID 判定与 3081/8088 健康检查序列，并重新生成 HTML 与视觉证据。
+
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"断电恢复增加可验证的dead PID清理分支，并在启动序列中明确3081 host.describe与8088 runtime健康检查；未知或存活进程仍失败关闭。","diagrams":["03-research-sequence"]} -->
+
+## 2026-09-07 — Report Workflow 真实 Excel、Claw 与文件交付
+
+- `rwb` 改为仓库自举启动器，不再依赖 hidden worktree 的 editable `.pth`；3080 不在项目进程所有权内。
+- Excel 公式检测补齐 Wind 短公式、`EDB`、`S_INFO_*`、`S_WQ_*` 以及 iFinD `THS_*` / `thsiFinD`。迁移只新增不可变版本：创业板 50 误标 Wind 资源保留为 `legacy_mislabeled`，华安静态底稿不执行无意义刷新。
+- 华安 ETF 周报真实运行 `d3c6b827e2f2442980335ae2cbfc170e` 完成两份 Wind 底稿刷新、共享快照 `9e15975b2460d92d2ce024cd2fedc4e08ed7b0a3e1401bf346d6322d91548b60` 和两个真实子 Agent。DOCX、HTML、XLSX 均已生成、非空且可重开；模型 Payload 缺少必需区块，所以保持 `delivery_incomplete`，不伪报完成，不启用日程。
+- iFinD 探测已真实打开、刷新并保存工作簿，但公式仍返回错误；本机未找到 iFinD Excel 插件安装证据。创业板 50 因此未完成真实报告验收。
+- Report Workflow 的实际拓扑、运行序列、Excel 数据流、运行状态和独立交付状态同步到图 02、06、07、09、10。文档门禁同步扩展为固定十图并更新图 08。所有最终图均 showcase 9/9、零错误零警告和四视口无溢出；已人工查看 1440 与 2048 最终截图，未把结构图验收替代研究内容验收。
+
+<!-- architecture-review {"group":"report-workflows","structure":"changed","reason":"新增真实Excel Provider刷新、运行副本、共享快照、Claw多Agent、迟到Payload恢复、确定性组装与独立交付检查。","diagrams":["02-module-dependencies","06-run-state","07-delivery-state","09-report-workflow-sequence","10-excel-report-dataflow"]} -->
+<!-- architecture-review {"group":"files","structure":"changed","reason":"报告运行只认可本次新建或更新文件，并增加Office重开、区块缺失、迟到Payload和Hash证据。","diagrams":["07-delivery-state","09-report-workflow-sequence","10-excel-report-dataflow"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"报告运行在刷新和快照后创建独立Claw会话并要求真实子Agent；启动器改为仓库自举路径。","diagrams":["02-module-dependencies","06-run-state","09-report-workflow-sequence"]} -->
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"Claw与能力中心的具体报告Workflow详情新增资源、Provider、版本、运行证据、取消重试、日程和产物入口。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"operations","structure":"changed","reason":"只读运行聚合加入报告运行、Excel刷新、共享快照、子Agent和本次产物体积。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"documentation","structure":"changed","reason":"当前架构清单从八图扩展为十图，并把报告运行序列与Excel数据流纳入固定白名单、哈希、四视口和人工审阅门禁。","diagrams":["08-iteration-docs"]} -->
+
+## 2026-09-07 — 报告缺失语义与 API Atlas 对账
+
+- 报告 Payload 的所有 `*_blocks` 家族统一投影；显式 `missing` 高于区块内的解释文字。解释缺失原因仍会进入报告，但不能把未交付内容变成完整交付。
+- API Atlas 现在分别显示 113 个唯一 HTTP 操作与 115 项源码声明。报告运行详情和取消各有一条兼容声明，文档不再把重复声明当作两个不同接口。
+- 顶栏搜索入口在桌面、平板和手机均可见；首页折叠式分类与能力选择器按真实用户路径完成 15 组只读浏览器验收。
+- 以上变更收紧既有交付判断、文档计数和控件可达性，不新增服务、接口、状态或跨模块关系，因此十张架构图无需再次生成。
+
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"显式missing改为交付判定最高优先级，仍由既有Payload投影与独立交付检查节点完成。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API Atlas区分唯一操作和源码声明，仍由同一架构清单生成并通过既有只读文档端点交付。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"恢复既有全局搜索控件在桌面视口的可达性，并按真实折叠控件路径修正验收；页面和模块关系不变。","diagrams":[]} -->
+
+## 2026-09-07 — PPTX 跨片段投影与投资风向标真实验收
+
+- 真实投资风向标产物暴露出 PowerPoint 会把一个 `{{占位符}}` 拆到多个 `<a:t>` 文本片段。渲染器现在按段落跨片段替换，交付验证按相同语义拒绝残留；可打开且含文字不再等同于占位符已完成。
+- Report Workflow 的完成判定收紧为“结构化 Payload → 受审查确定性投影 → 独立交付验证”。Claw 提前创建的同名 Office 文件不能跳过投影；投影缺失或失败明确进入 `delivery_incomplete`。
+- 迁移报告新版本最低子 Agent 数统一为 2。华安 ETF 投资风向标 v3 运行 `d7e47d9d680647dc878fd42f243dc74b` 完成两个真实子 Agent、确定性 PPTX 投影、ZIP 重开和零残留占位符检查。
+- 这次修正落实图 07、09 已表达的投影与交付先后关系，没有增加节点、接口、状态或跨模块依赖，因此十张 Archify 图源无需再次生成。
+
+<!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"强制执行既有Payload到确定性投影再到独立交付检查的顺序，并把迁移报告最低子Agent数固定为2；图09已完整表达该关系。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"PPTX占位符检查扩展为跨a:t文本片段，仍属于既有确定性组装和交付验证节点内部语义。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"补齐既有会话软删除与恢复接口清单；研究提交、DSH事件、恢复和归属边界均未改变。","diagrams":[]} -->
+
+## 2026-09-07 — 会话永久删除与有限保留期
+
+- 会话管理继续使用模式二级侧栏的行级菜单；软删除进入“已删除”并保留 30 天，可恢复或立即永久删除。
+- 永久删除新增明确 API：Workbench 先要求 DSH `session.delete(cascade=true)` 返回根会话确认，再清理本产品会话目录与索引；失败保留墓碑和文件以便重试。
+- 服务启动时立即清理到期墓碑，长期运行期间每 6 小时重试一次，消除只有重启或打开已删除页才会触发清理的缺口。
+- 这是既有 UI、Research API 与文件所有权边界内的生命周期补全；DSH 全局内容寻址附件可能共享，不做单会话误删，十张架构图无需增加新节点。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"会话重命名、软删除、恢复与永久删除收归既有模式二级侧栏和历史视图，路由与页面模块关系不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新增永久删除操作并补充启动及六小时保留期调度，仍由既有BFF校验归属后调用DSH会话API。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"DSH确认后才清理既有会话目录、数据集、产物与索引；软删除和失败重试期间保持原文件边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API清单和会话生命周期文档同步新增永久删除操作，没有改变文档门禁或图册拓扑。","diagrams":[]} -->
+
+## 2026-09-07 — DSH 会话删除固定版本
+
+- Research Runtime 与能力目录固定到本地 DSH 合并提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`，启动时继续要求源码提交和已审核构建闭包同时匹配。
+- 该升级只替换既有 3081 Runtime 的固定实现版本；服务、端口、模块依赖和能力目录结构保持不变，因此无需重绘架构图。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"仅更新既有3081 Research Runtime的固定DSH源码提交和构建闭包，不改变服务、端口或启动数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录只读元数据改用与Runtime一致的DSH固定提交，工具集合、权限和模块关系保持不变。","diagrams":[]} -->
+
+## 2026-09-07 — 资产观察终端图表保留
+
+- 新 Research 壳层不再把历史行情降级为单条收盘价折线；恢复 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI、换手率与细行情栏。
+- 图表保持无新增依赖的原生 SVG 实现，所有价格与技术指标只由当前 DataHub 历史行情快照计算；数据不足时显示明确空态，不注入旧页面的演示行情。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"资产观察仍沿用既有前端、DataHub快照和路由边界，仅恢复已承诺的行情图表层。","diagrams":[]} -->

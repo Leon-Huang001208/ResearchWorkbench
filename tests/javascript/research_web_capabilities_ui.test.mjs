@@ -18,6 +18,19 @@ test('one catalog filters kind, source, category and Chinese search, including d
   assert.match(renderCapabilityCatalog({ items: [], error: '读取失败' }), /读取失败/);
 });
 
+test('capability kind tabs implement roving keyboard tabs and owned panels', async () => {
+  const { capabilityTabKey, renderCapabilityCatalog } = await load('capabilities.mjs');
+  assert.deepEqual(capabilityTabKey('ArrowRight', 'skill'), { handled: true, kind: 'tool' });
+  assert.deepEqual(capabilityTabKey('ArrowLeft', 'skill'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityTabKey('Home', 'workflow'), { handled: true, kind: 'skill' });
+  assert.deepEqual(capabilityTabKey('End', 'tool'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityTabKey('Enter', 'tool'), { handled: false });
+  const html = renderCapabilityCatalog({ items: [cap()], kind: 'skill' });
+  assert.match(html, /id="capability-tab-skill"[^>]*tabindex="0"[^>]*aria-controls="capability-panel-skill"/);
+  assert.match(html, /id="capability-tab-tool"[^>]*tabindex="-1"/);
+  assert.match(html, /id="capability-panel-skill" role="tabpanel"[^>]*aria-labelledby="capability-tab-skill"/);
+});
+
 test('capability details escape hostile content and separate builtin read-only state from editable drafts', async () => {
   const { renderCapabilityDetail } = await load('capabilities.mjs');
   const html = renderCapabilityDetail(cap({ name: '<img src=x onerror=alert(1)>', builtin: true, draft: { instructions: '<script>bad</script>', files: [], steps: [] } }));
@@ -126,9 +139,11 @@ test('slash keyboard selection consumes arrows, Enter and Escape without acciden
 });
 
 test('shell has visible navigation, explicit mobile search/close and no empty landing panel', () => {
-  assert.match(shell.renderPrimaryRail({ page: 'fingpt' }), /class="rail-label">FinGPT/);
+  const rail = shell.renderPrimaryRail({ page: 'fingpt' });
+  assert.match(rail, /class="rail-label">FinGPT/);
+  assert.match(rail, /rail-mobile-close.*aria-label="关闭导航"/);
   assert.match(shell.renderTopbar({}), /data-toggle-search/);
-  assert.match(shell.renderSidebar({ collapsed: true, mobileOpen: true }), /sidebar-close.*aria-label="关闭会话侧栏"/);
+  assert.match(shell.renderSidebar({ page: 'fingpt', collapsed: true, mobileOpen: true }), /sidebar-collapse.*aria-label="折叠 FinGPT 二级侧栏"/);
   assert.equal(shell.renderContextPanel({}), '');
 });
 

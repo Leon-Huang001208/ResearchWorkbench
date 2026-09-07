@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "报告 Workflow 真实运行与交付序列",
+    "output": "09-report-workflow-sequence.html",
+    "quality_profile": "showcase",
+    "viewBox": [2200, 1260],
+    "column_fit": "spread",
+    "views": [
+      {"id": "lock-refresh", "label": "锁定版本与刷新底稿", "focus": ["web", "api", "catalog", "excelTool", "excel", "snapshot"], "note": "每次运行复制不可变版本资源；Excel 刷新失败时在创建 Claw 会话前阻塞。"},
+      {"id": "claw-research", "label": "Claw 多 Agent 研究", "focus": ["api", "snapshot", "dsh"], "note": "父任务和至少两个真实子 Agent 读取同一快照哈希，不重复刷新底稿。"},
+      {"id": "deterministic-delivery", "label": "确定性组装与交付", "focus": ["dsh", "api", "renderer", "files", "web"], "note": "模型只写结构化 payload；受审查 Tool 组装并重开文件，缺失区块与文件状态独立记录。"}
+    ]
+  },
+  "participants": [
+    {"id": "web", "type": "frontend", "label": "Claw 页面", "sublabel": "Workflow 详情 / 运行证据"},
+    {"id": "api", "type": "backend", "label": "Report Runtime", "sublabel": "状态 / 日程 / 恢复"},
+    {"id": "catalog", "type": "database", "label": "Workflow 版本包", "sublabel": "模板 / 底稿 / 映射"},
+    {"id": "excelTool", "type": "backend", "label": "Excel 刷新 Tool", "sublabel": "串行 / fail-closed"},
+    {"id": "excel", "type": "external", "label": "Excel + Provider", "sublabel": "Wind / iFinD"},
+    {"id": "snapshot", "type": "database", "label": "运行快照", "sublabel": "manifest / SHA-256"},
+    {"id": "dsh", "type": "external", "label": "DSH Claw", "sublabel": "父任务 + 子 Agent"},
+    {"id": "renderer", "type": "security", "label": "受审查组装 Tool", "sublabel": "无网络 / 有界文件"},
+    {"id": "files", "type": "database", "label": "本次交付文件", "sublabel": "DOCX / HTML / XLSX / PPTX"}
+  ],
+  "segments": [
+    {"from": 150, "to": 470, "label": "预检与 Excel 刷新"},
+    {"from": 490, "to": 800, "label": "共享快照与 Claw 研究"},
+    {"from": 820, "to": 1150, "label": "结构化内容与独立交付"}
+  ],
+  "messages": [
+    {"id": "manualRun", "from": "web", "to": "api", "y": 180, "label": "POST /report-workflows/{id}/runs", "variant": "emphasis"},
+    {"id": "lockVersion", "from": "api", "to": "catalog", "y": 224, "label": "锁定发布版本并复制 Run 目录", "variant": "security"},
+    {"id": "refreshCopy", "from": "api", "to": "excelTool", "y": 268, "label": "刷新运行副本"},
+    {"id": "excelRefresh", "from": "excelTool", "to": "excel", "y": 312, "label": "打开 / RefreshAll / 完整重算", "variant": "emphasis"},
+    {"id": "excelResult", "from": "excel", "to": "excelTool", "y": 356, "label": "保存结果或明确公式错误", "variant": "return"},
+    {"id": "refreshManifest", "from": "excelTool", "to": "snapshot", "y": 400, "label": "刷新 manifest + 文件哈希", "variant": "security"},
+    {"id": "blockedData", "from": "excelTool", "to": "api", "y": 444, "label": "失败 → blocked_data，不创建研究", "variant": "return"},
+    {"id": "materialize", "from": "api", "to": "snapshot", "y": 520, "label": "提取一次共享数据快照", "variant": "emphasis"},
+    {"id": "createClaw", "from": "api", "to": "dsh", "y": 564, "label": "创建锁定版本的 Claw 会话", "variant": "emphasis"},
+    {"id": "readSnapshot", "from": "snapshot", "to": "dsh", "y": 608, "label": "父任务与子 Agent 读取同一 Hash", "variant": "dashed"},
+    {"id": "activity", "from": "dsh", "to": "api", "y": 652, "label": "真实子 Agent / Tool / 用量事件", "variant": "dashed"},
+    {"id": "writePayload", "from": "dsh", "to": "snapshot", "y": 696, "label": "outputs/report_payload.json", "variant": "emphasis"},
+    {"id": "turnEnd", "from": "dsh", "to": "api", "y": 740, "label": "回合结束 ≠ 报告完成", "variant": "return"},
+    {"id": "project", "from": "api", "to": "renderer", "y": 852, "label": "校验 payload 与必需区块", "variant": "security"},
+    {"id": "assembleFiles", "from": "renderer", "to": "files", "y": 896, "label": "填充模板并生成约定格式", "variant": "emphasis"},
+    {"id": "reopen", "from": "files", "to": "renderer", "y": 940, "label": "重开 Office / HTML、检查哈希", "variant": "return"},
+    {"id": "deliveryState", "from": "renderer", "to": "api", "y": 984, "label": "complete 或 missing / invalid", "variant": "return"},
+    {"id": "latePayload", "from": "web", "to": "api", "y": 1028, "label": "失败重试：复用晚到 payload", "variant": "dashed"},
+    {"id": "runEvidence", "from": "api", "to": "web", "y": 1072, "label": "刷新清单 / 快照 / Agent / 缺失 / 产物"},
+    {"id": "download", "from": "web", "to": "files", "y": 1116, "label": "会话隔离预览与下载"}
+  ],
+  "activations": [
+    {"participant": "api", "from": 174, "to": 1078, "type": "backend"},
+    {"participant": "excelTool", "from": 260, "to": 452, "type": "backend"},
+    {"participant": "excel", "from": 304, "to": 364, "type": "external"},
+    {"participant": "snapshot", "from": 392, "to": 704, "type": "database"},
+    {"participant": "dsh", "from": 556, "to": 748, "type": "external"},
+    {"participant": "renderer", "from": 844, "to": 992, "type": "security"},
+    {"participant": "files", "from": 888, "to": 1124, "type": "database"}
+  ],
+  "cards": [
+    {"dot": "violet", "title": "每篇报告一个不可变 Workflow", "items": ["Word/PPT 模板、Excel 底稿、映射和交付契约随版本锁定", "运行只修改 Run 副本；历史版本与历史产物不会被覆盖"]},
+    {"dot": "amber", "title": "数据失败先于模型", "items": ["插件、公式、日期、必填单元格或异常零值失败进入 blocked_data", "没有显式口径等价映射时不静默切换 DataHub 来源"]},
+    {"dot": "emerald", "title": "回合与交付两条证据链", "items": ["至少两个真实子 Agent 共用一个快照哈希", "文件存在、可重开且必需区块齐备后才标记完整完成"]}
+  ]
+}

@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/docs/architecture/research-web/diagrams/02-module-dependencies.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "5913f7d0709d17cf1be6da0cc9706bc938acc47a5dd20837240061d3e52048b8",
-    "bytes": 5629
+    "sha256": "795a0cf2b936202ec091ae57a4698ac06691ce7005c492a4d6d5ea373adeb39b",
+    "bytes": 6733
   },
   "artifact": {
-    "sha256": "f4314400f2787c2db7e466c3b922caad6371c4837254cea1c5a665f44ec5b270",
-    "bytes": 645187
+    "sha256": "59add299883e23f631fbb58c80c3f732683853be8f37cb554114cb5c2409d519",
+    "bytes": 648208
   },
   "validation": {
     "checksPassed": 9,
@@ -20,5 +20,11 @@
     "compositionStatus": "pass",
     "errors": 0,
     "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/Leon-Huang001208/ResearchWorkbench",
+    "revision": "4049f385ed84df41dc6c70e8dbec4c6073f27d30",
+    "references": 19
   }
 }

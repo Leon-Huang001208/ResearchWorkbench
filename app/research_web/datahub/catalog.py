@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from importlib.util import find_spec
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -86,7 +87,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "formal",
         "professional",
         "terminal",
-        [],
+        ["CJ_KEY"],
         ["WindPy/xlwings"],
         ["A股", "港股", "债券", "基金"],
         "account",
@@ -102,7 +103,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         ["cjpy"],
         ["A股", "基金目录"],
         "account",
-        "首版仅登记现有代码；基金能力只含目录。",
+        "已接入证券目录、交易日历、历史行情和实时快照；其他登记能力不会被自动路由选中。",
     ),
     (
         "ifind",
@@ -553,8 +554,19 @@ BINDING_SPECS = {
     "search_web": [("tavily", ["web_search"]), ("bing", ["web_search"])],
 }
 
-INTEGRATED = {"eastmoney_fund", "cls"}
+INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare"}
 DISABLED = {"szse", "cninfo"}
+IMPLEMENTED_BINDINGS = {
+    ("tinysoft", "search_assets"),
+    ("tinysoft", "trading_calendar"),
+    ("tinysoft", "market_bars"),
+    ("tinysoft", "market_snapshot"),
+    ("akshare", "search_assets"),
+    ("akshare", "market_bars"),
+    ("akshare", "market_snapshot"),
+    ("akshare", "financials"),
+    ("akshare", "market_activity"),
+}
 
 
 def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
@@ -563,6 +575,17 @@ def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
     if not keys:
         return False
     return any(bool(environ.get(key, "").strip()) for key in keys)
+
+
+def _dependency_ready(source_id: str, dependencies: list[str]) -> bool:
+    if not dependencies:
+        return True
+    if source_id in {"tinysoft", "akshare"}:
+        try:
+            return find_spec("cjpy" if source_id == "tinysoft" else "akshare") is not None
+        except (ImportError, AttributeError, ValueError):
+            return False
+    return False
 
 
 def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dict:
@@ -574,7 +597,7 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
         sid, name, family, source_type, auth, keys, deps, markets, fee, limitation = source_spec
         integrated = sid in INTEGRATED
         configured = _configured(auth, keys, env)
-        dependency_ready = integrated or not deps
+        dependency_ready = _dependency_ready(sid, deps)
         allowed = integrated and sid not in DISABLED
         if sid in DISABLED or not integrated:
             state: IntegrationState = "disabled"
@@ -620,6 +643,10 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
     for capability_id, candidates in BINDING_SPECS.items():
         for priority, (source_id, datasets) in enumerate(candidates, 1):
             source = by_source[source_id]
+            implemented = source_id in INTEGRATED and (
+                source_id not in {"tinysoft", "akshare"}
+                or (source_id, capability_id) in IMPLEMENTED_BINDINGS
+            )
             bindings.append(
                 ProviderBinding(
                     capability_id=capability_id,
@@ -629,7 +656,7 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
                     markets=source["markets"],
                     assets=[],
                     coverage=source["description"],
-                    implemented=source["readiness"]["integration_completed"],
+                    implemented=implemented,
                 ).model_dump(mode="json")
             )
     capabilities = []
@@ -637,7 +664,8 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
         cid, name, category, description, parameters, fields, markets, assets = capability_spec
         linked = [binding for binding in bindings if binding["capability_id"] == cid]
         callable_count = sum(
-            by_source[binding["source_id"]]["readiness"]["callable"] for binding in linked
+            binding["implemented"] and by_source[binding["source_id"]]["readiness"]["callable"]
+            for binding in linked
         )
         capabilities.append(
             DataCapability(

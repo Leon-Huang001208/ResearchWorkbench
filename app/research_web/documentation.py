@@ -11,11 +11,14 @@ from core.observability import get_logger
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/api/research")
-ARTIFACT_ROOT = Path(__file__).absolute().parents[2] / "outputs" / "research-web-architecture"
+ARTIFACT_ROOT = (
+    Path(__file__).absolute().parents[2] / "outputs" / "research-web-architecture"
+)
 DOCUMENT_NAMES = frozenset(
     f"{name}.html"
     for name in (
         "index",
+        "api-atlas",
         "01-deployment",
         "02-module-dependencies",
         "03-research-sequence",
@@ -24,6 +27,8 @@ DOCUMENT_NAMES = frozenset(
         "06-run-state",
         "07-delivery-state",
         "08-iteration-docs",
+        "09-report-workflow-sequence",
+        "10-excel-report-dataflow",
     )
 )
 DOCUMENT_CSP = (
@@ -45,7 +50,9 @@ def read_document(name: str) -> bytes:
             next_directory = os.open(component, flags, dir_fd=directory)
             os.close(directory)
             directory = next_directory
-        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        descriptor = os.open(
+            name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory
+        )
         with os.fdopen(descriptor, "rb") as stream:
             metadata = os.fstat(stream.fileno())
             if (
@@ -79,5 +86,7 @@ def architecture_document(name: str):
         )
     log.info("research_documentation_read", document=name, bytes=len(content))
     return Response(
-        content, media_type="text/html", headers={"Content-Security-Policy": DOCUMENT_CSP}
+        content,
+        media_type="text/html",
+        headers={"Content-Security-Policy": DOCUMENT_CSP},
     )

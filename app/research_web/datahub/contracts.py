@@ -15,6 +15,7 @@ SOURCES = {
     "fund_profile": "基金基本资料",
     "fund_distributions": "基金分红",
     "fund_holdings": "基金披露持仓",
+    "tinysoft": "天软",
 }
 
 DataCapabilityId = Literal[

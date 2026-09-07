@@ -51,16 +51,21 @@ async function run() {
     });
     try {
       for (const mode of ['fingpt','claw','skills']) {
-        await page.goto(`${origin.origin}/?acceptance=layout#/${mode}`, {waitUntil:'domcontentloaded'});
+        await page.goto(`${origin.origin}/?acceptance=layout&mode=${mode}#/${mode}`, {waitUntil:'domcontentloaded'});
         await page.getByRole('link', {name:'DSH 已连接',exact:true}).waitFor({timeout:15000});
-        assert.equal(await page.getByRole('navigation',{name:'产品主导航',exact:true}).count(), 1);
+        if (width > 1050) {
+          assert.equal(await page.getByRole('navigation',{name:'产品主导航',exact:true}).count(), 1, `Primary navigation must render (${width}×${height}, ${mode})`);
+        } else {
+          await page.getByRole('button',{name:'打开导航',exact:true}).waitFor();
+          assert.equal(await page.getByRole('navigation',{name:'产品主导航',exact:true}).count(), 0, `Narrow layouts must keep navigation in its drawer until requested (${width}×${height}, ${mode})`);
+        }
         if (width >= 1440) {
           const labelVisible = await page.getByRole('link',{name:'FinGPT',exact:true}).evaluate(el =>
             [...el.querySelectorAll('span')].some(span => {
               const r = span.getBoundingClientRect();
               return span.textContent.trim() === 'FinGPT' && r.width > 20 && r.height > 8;
             }));
-          assert.equal(labelVisible, true, 'Desktop rail must have a visible FinGPT label');
+          assert.equal(labelVisible, true, `Desktop rail must have a visible FinGPT label (${width}×${height}, ${mode})`);
         }
         const metrics = await assertContained(page);
         if (mode !== 'skills') {
@@ -68,7 +73,12 @@ async function run() {
           await shortcut.waitFor();
           const expected=mode==='claw'?['基金资料准备与受限评价','公司资料研究与报告交付']:['资料解读','公司研究','行业研究','基金评价'];
           for (const name of expected) await shortcut.getByRole('heading',{name,exact:true}).waitFor();
+          const directory=shortcut.locator('details.quick-directory');
+          if (!await directory.evaluate(element => element.open)) {
+            await directory.locator('summary').click();
+          }
           const filter=page.locator('#quick-category');
+          await filter.waitFor({state:'visible'});
           const categories=await filter.locator('option').evaluateAll(items=>items.map(item=>item.value));
           if(categories.length>1) {
             await filter.selectOption(categories[1]);
@@ -77,28 +87,30 @@ async function run() {
           }
           assert.equal(await page.getByRole('complementary',{name:'研究活动、资料与文件',exact:true}).isVisible(),false,
             'Landing must not display an empty research panel');
-          await page.getByRole('button',{name:'/ Skill',exact:true}).click();
+          await page.getByRole('button',{name:'选择 Skill 或 Workflow',exact:true}).click();
           await page.getByRole('listbox',{name:'匹配的研究能力',exact:true}).waitFor();
           assert.ok(await page.getByRole('option').count() >= 4);
           await page.getByRole('textbox',{name:mode==='claw'?'任务目标或补充信息':'研究问题',exact:true}).press('Escape');
           await page.getByRole('listbox',{name:'匹配的研究能力',exact:true}).waitFor({state:'hidden',timeout:1500});
           const prompt=page.getByRole('textbox',{name:mode==='claw'?'任务目标或补充信息':'研究问题',exact:true});
-          await page.getByRole('button',{name:'/ Skill',exact:true}).click();
+          await page.getByRole('button',{name:'选择 Skill 或 Workflow',exact:true}).click();
           await prompt.press('ArrowDown'); await prompt.press('Enter');
           await page.getByRole('listbox',{name:'匹配的研究能力',exact:true}).waitFor({state:'hidden',timeout:1500});
           await page.getByRole('button',{name:'移除所选能力',exact:true}).waitFor();
           // All builtins can enter both research-mode drafts without execution.
           for (const name of ['资料解读','公司研究','行业研究','基金评价']) {
+            await page.locator('details.capability-picker > summary').click();
             await page.getByRole('combobox',{name:'使用 Skill 或 Workflow',exact:true}).selectOption({label:name});
-            await page.locator('.capability-chips > span').filter({hasText:`${name} · v1`}).waitFor();
+            await page.locator('.capability-chips > span').filter({hasText:`${name} · v`}).waitFor();
           }
           await page.getByRole('button',{name:'移除所选能力',exact:true}).click();
           if (width <= 1050) {
-            await page.getByRole('button',{name:'打开会话侧栏',exact:true}).click();
-            const sidebar = page.getByRole('complementary',{name:'会话与工作区侧栏',exact:true});
+            await page.getByRole('button',{name:'打开导航',exact:true}).click();
+            const sidebarName = mode === 'claw' ? 'Claw 会话与工作空间侧栏' : 'FinGPT 会话侧栏';
+            const sidebar = page.getByRole('complementary',{name:sidebarName,exact:true});
             await sidebar.waitFor();
             assert.notEqual(await sidebar.getAttribute('aria-hidden'), 'true');
-            await sidebar.getByRole('button',{name:'关闭会话侧栏',exact:true}).click();
+            await page.getByRole('button',{name:'打开导航',exact:true}).click();
           }
         } else {
           await page.getByRole('searchbox',{name:'搜索能力名称和简介',exact:true}).fill('基金');
@@ -116,7 +128,7 @@ async function run() {
           await page.getByRole('heading',{name:'基金资料准备与受限评价',exact:true}).waitFor();
           await page.getByRole('tab',{name:'Tool',exact:true}).click();
           await page.getByText('只读目录声明，不代表实例在线、凭据齐备或已获审批。工具选择不改变任何原生权限。',{exact:true}).waitFor();
-          assert.equal(await page.getByRole('button',{name:'手动新建',exact:true}).count(),0);
+          assert.equal(await page.getByRole('button',{name:'手动新建',exact:true}).count(),0, `Capability catalog must not expose a fake create button (${width}×${height})`);
           await page.getByRole('tab',{name:'Skill',exact:true}).click();
         }
         const mobileSearch=page.getByRole('button',{name:'打开全局搜索',exact:true});

@@ -1,4 +1,4 @@
-/** Approval-gated native bridge. Provider parsing and immutable snapshots live in DataHub. */
+/** Native DataHub bridge. Provider parsing and immutable snapshots live in DataHub. */
 import { constants } from 'node:fs';
 import { open, lstat, realpath } from 'node:fs/promises';
 import { basename, isAbsolute, join } from 'node:path';
@@ -23,18 +23,39 @@ const BUSINESS = {
 };
 const MAX_BYTES = 1048576;
 
-function stableBusinessQuery(capability, args, properties) {
+function isDenseStringArray(value) {
+  if (!Array.isArray(value) || value.length > 32768) return false;
+  for (let index=0;index<value.length;index++) if (!Object.hasOwn(value,index) || typeof value[index] !== 'string') return false;
+  return true;
+}
+
+function stableBusinessQuery(capability, args, properties, required) {
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw Error('Business data arguments must be an object');
   const common=['source','allow_fallback','refresh'];
   const allowed=new Set([...common,...Object.keys(properties)]);
   if (Object.keys(args).some(key=>!allowed.has(key))) throw Error('Only registered business data arguments are accepted');
-  if (args.source !== undefined && (typeof args.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(args.source))) throw Error('Data source is not a registered identifier');
-  if (args.allow_fallback !== undefined && typeof args.allow_fallback !== 'boolean') throw Error('allow_fallback must be boolean');
-  if (args.refresh !== undefined && typeof args.refresh !== 'boolean') throw Error('refresh must be boolean');
+  for (const key of required) if (!Object.hasOwn(args,key) || args[key] === undefined) throw Error(`Business data argument ${key} is required`);
+  for (const [key,schema] of Object.entries(properties)) {
+    if (!Object.hasOwn(args,key)) continue;
+    const value=args[key];
+    if (value === undefined) continue;
+    const valid=schema.type === 'string' ? typeof value === 'string'
+      : schema.type === 'integer' ? Number.isSafeInteger(value)
+      : schema.type === 'array' ? isDenseStringArray(value)
+      : false;
+    if (!valid) throw Error(`Business data argument ${key} has an invalid type`);
+    if (schema.enum && !schema.enum.includes(value)) throw Error(`Business data argument ${key} is not an allowed value`);
+  }
+  const source=Object.hasOwn(args,'source') ? args.source : undefined;
+  const allowFallback=Object.hasOwn(args,'allow_fallback') ? args.allow_fallback : undefined;
+  const refresh=Object.hasOwn(args,'refresh') ? args.refresh : undefined;
+  if (source !== undefined && (typeof source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(source))) throw Error('Data source is not a registered identifier');
+  if (allowFallback !== undefined && typeof allowFallback !== 'boolean') throw Error('allow_fallback must be boolean');
+  if (refresh !== undefined && typeof refresh !== 'boolean') throw Error('refresh must be boolean');
   const parameters=Object.fromEntries(Object.entries(args).filter(([key])=>!common.includes(key)));
   const raw=JSON.stringify(parameters);
   if (Buffer.byteLength(raw)>32768) throw Error('Business data arguments exceed size limit');
-  return {capability,source:args.source || 'auto',allow_fallback:args.allow_fallback || false,parameters,refresh:args.refresh || false};
+  return {capability,source:source || 'auto',allow_fallback:allowFallback || false,parameters,refresh:refresh || false};
 }
 
 async function privateControl(root) {
@@ -78,25 +99,27 @@ function smallResult(value) {
 
 export function apply(ctx, config) {
   if (typeof config?.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('Public data requires an absolute research root');
+  if (!Array.isArray(config.enabledTools)) throw Error('Public data enabledTools must be an array');
+  const enabledTools=new Set();
+  for (const toolName of config.enabledTools) {
+    if (typeof toolName !== 'string' || !Object.hasOwn(BUSINESS,toolName)) throw Error(`Public data enabledTools contains unknown tool: ${toolName}`);
+    if (enabledTools.has(toolName)) throw Error(`Public data enabledTools contains duplicate tool: ${toolName}`);
+    enabledTools.add(toolName);
+  }
   const outputKeys=['dataset_id','source','status','manifest_json','files_json','sample_json'];
   for (const [toolName,[capability,description,properties,required]] of Object.entries(BUSINESS)) {
+    if (!enabledTools.has(toolName)) continue;
     const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'}};
     ctx.tools.register({
       name:toolName,
-      description:`${description}。由 DataHub 按静态目录选源、校验并保存会话隔离快照；目录登记不代表来源已适配或在线。`,
+      description:`${description}。当前工具列表仅包含启动时 DataHub 目录可调用的能力；由 DataHub 选源、校验并保存会话隔离快照。`,
       parameters:{type:'object',properties:{...properties,...common},required,additionalProperties:false},
       output:{schema:{type:'object',properties:Object.fromEntries(outputKeys.map(key=>[key,{type:'string'}])),required:outputKeys,additionalProperties:false},render(_args,value){return [{type:'text',text:JSON.stringify(value)}];}},
       async execute(args,exec) {
-        const query=stableBusinessQuery(capability,args,properties);exec.signal.throwIfAborted();
+        const query=stableBusinessQuery(capability,args,properties,required);exec.signal.throwIfAborted();
         const cwd=await trustedDirectory(ctx,exec,config);exec.signal.throwIfAborted();
         if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(exec.agent.session.header.id) || !/^[a-zA-Z0-9_.:-]{1,120}$/.test(exec.callId)) throw Error('Native call identity is invalid');
         const identity={session_id:basename(cwd),call_id:`${exec.agent.session.header.id}:${exec.callId}`};
-        const approval=ctx.get('approval');
-        if (!approval) throw Error('Native approval unavailable; HTTP not sent');
-        const source=query.source==='auto'?'DataHub 自动选源':query.source;
-        const outcome=await approval.request({agent:exec.agent,toolName,callId:exec.callId,reason:`${description}；来源：${source}。只发送业务参数，不发送附件、聊天、模型凭据或宿主路径。`,signal:exec.signal});
-        if (outcome!=='allowed-once') {ctx.logger.info('business_data_not_authorized tool=%s outcome=%s',toolName,outcome);throw Error(`Business data approval ${outcome}; HTTP not sent`);}
-        exec.signal.throwIfAborted();
         const control=await privateControl(config.researchRoot);exec.signal.throwIfAborted();
         const headers={'Content-Type':'application/json','X-Research-Data-Key':control.token};
         const signal=AbortSignal.any([exec.signal,AbortSignal.timeout(22000)]);

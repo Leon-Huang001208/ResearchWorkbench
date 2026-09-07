@@ -21,18 +21,28 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from core.observability import get_logger, setup_logging
 
+from .asset_routes import router as asset_router
+from .asset_workspace import AssetWorkspaceError
 from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
 from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
+from .operations import router as operations_router
+from .report_routes import router as report_router
+from .report_studio import ReportStudioError
+from .report_workflow_routes import router as report_workflow_router
+from .report_workflows.models import WorkflowError
 from .service import ResearchService
 from .store import Store, StoreError
+from .workbench import router as workbench_router
 
 log = get_logger(__name__)
 UI = Path(__file__).parent / "ui"
-ROOT = Path(os.environ.get("RESEARCH_DATA_HOME", str(Path.home() / ".research-workbench" / "research-web")))
+ROOT = Path(
+    os.environ.get("RESEARCH_DATA_HOME", str(Path.home() / ".research-workbench" / "research-web"))
+)
 UPLOAD_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".md", ".csv", ".xlsx"}
 
 
@@ -49,7 +59,7 @@ class Prompt(BaseModel):
     capability_id: str | None = None
     capability_version: int | None = Field(default=None, ge=1, strict=True)
     tool_ids: list[str] = Field(default_factory=list, max_length=3)
-    expected_formats: list[Literal["md", "html", "docx", "xlsx", "png"]] | None = Field(
+    expected_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png"]] | None = Field(
         default=None, max_length=5
     )
 
@@ -98,8 +108,15 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
     app.include_router(datahub_router)
+    app.include_router(asset_router)
     app.include_router(capabilities_router)
     app.include_router(documentation_router)
+    app.include_router(workbench_router)
+    app.include_router(operations_router)
+    app.include_router(report_workflow_router)
+    # Legacy report-project paths remain readable, but the versioned Workflow
+    # runtime owns overlapping /report-runs paths.
+    app.include_router(report_router)
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
     )
@@ -153,7 +170,27 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.exception_handler(StoreError)
     async def store_error(request, exc):
         return JSONResponse(
-            {"error": {"code": "invalid_resource", "message": str(exc)}}, status_code=400
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
+        )
+
+    @app.exception_handler(AssetWorkspaceError)
+    async def asset_workspace_error(request, exc):
+        return JSONResponse(
+            {"error": {"code": "asset_workspace_error", "message": str(exc)}},
+            status_code=exc.status,
+        )
+
+    @app.exception_handler(ReportStudioError)
+    async def report_studio_error(request, exc):
+        return JSONResponse(
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
+        )
+
+    @app.exception_handler(WorkflowError)
+    async def report_workflow_error(request, exc):
+        log.warning("report_workflow_request_rejected", code=exc.code)
+        return JSONResponse(
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )
 
     @app.exception_handler(CapabilityError)
@@ -202,9 +239,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         return {"items": [{"id": "research", "name": "我的研究"}]}
 
     @app.get("/api/research/sessions")
-    async def sessions(request: Request):
+    async def sessions(request: Request, view: Literal["active", "deleted", "all"] = "active"):
         service = svc(request)
-        return {"items": await service.list_sessions()}
+        return {"items": await service.list_sessions(view)}
 
     @app.post("/api/research/sessions", status_code=201)
     async def create_session(body: NewSession, request: Request):
@@ -223,6 +260,18 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         row["title"] = body.title
         service.store.save()
         return service.summary(row)
+
+    @app.delete("/api/research/sessions/{sid}")
+    async def delete_session(sid: str, request: Request):
+        return await svc(request).soft_delete_session(sid)
+
+    @app.post("/api/research/sessions/{sid}/restore")
+    async def restore_session(sid: str, request: Request):
+        return await svc(request).restore_session(sid)
+
+    @app.delete("/api/research/sessions/{sid}/permanent")
+    async def permanently_delete_session(sid: str, request: Request):
+        return await svc(request).permanent_delete_session(sid)
 
     @app.post("/api/research/sessions/{sid}/messages", status_code=202)
     async def send(

@@ -164,23 +164,33 @@ class WebServiceManager:
             return None
         try:
             state = json.loads(path.read_text(encoding="utf-8"))
-            if (
-                state.get("version") != 1
-                or state.get("role") != process.role
-                or state.get("port") != process.port
-                or state.get("project_root") != str(self.project_root)
-                or state.get("data_root") != str(self.data_root)
-                or not isinstance(state.get("command"), list)
-                or state.get("fingerprint") != self._fingerprint(state["command"])
-                or state.get("signature") != list(process.signature)
-                or not isinstance(state.get("pid"), int)
-                or state["pid"] <= 1
-            ):
-                raise ValueError("state mismatch")
-            return state
-        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        except (OSError, TypeError, json.JSONDecodeError) as exc:
             log.warning("research_service_state_invalid", role=process.role)
             raise ServiceManagerError(f"{process.role} 服务状态无法安全确认") from exc
+        valid = (
+            state.get("version") == 1
+            and state.get("role") == process.role
+            and state.get("port") == process.port
+            and state.get("project_root") == str(self.project_root)
+            and state.get("data_root") == str(self.data_root)
+            and isinstance(state.get("command"), list)
+            and state.get("fingerprint") == self._fingerprint(state["command"])
+            and state.get("signature") == list(process.signature)
+            and isinstance(state.get("pid"), int)
+            and state["pid"] > 1
+        )
+        if valid:
+            return state
+        pid = state.get("pid")
+        if isinstance(pid, int) and pid > 1 and not self._pid_exists(pid):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                raise ServiceManagerError(f"{process.role} 过期服务状态无法清理") from exc
+            log.info("research_service_stale_state_removed", role=process.role, pid=pid)
+            return None
+        log.warning("research_service_state_invalid", role=process.role)
+        raise ServiceManagerError(f"{process.role} 服务状态无法安全确认")
 
     @staticmethod
     def _pid_exists(pid: int) -> bool:

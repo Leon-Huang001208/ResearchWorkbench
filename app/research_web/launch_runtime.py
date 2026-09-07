@@ -12,11 +12,30 @@ from pathlib import Path
 from core.observability import get_logger, setup_logging
 
 from .capabilities.catalog import CapabilityCatalog
+from .datahub.catalog import build_catalog
+from .datahub.contracts import BUSINESS_TOOLS
 from .datahub.security import load_control
 from .store import StoreError
 
 log = get_logger(__name__)
-PINNED_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+PINNED_COMMIT = "b3e26660f0a7bca680f06366aec3bb8d731c725e"
+
+
+def enabled_datahub_tools() -> list[str]:
+    """Resolve the fixed business tool IDs backed by callable offline catalog sources."""
+    try:
+        capabilities = build_catalog()["capabilities"]
+        callable_capabilities = {
+            item["id"] for item in capabilities if item["callable_source_count"] > 0
+        }
+        return [
+            tool_id
+            for capability_id, tool_id in BUSINESS_TOOLS.items()
+            if capability_id in callable_capabilities
+        ]
+    except Exception as exc:
+        log.error("datahub_runtime_tool_catalog_failed", error_type=type(exc).__name__)
+        raise RuntimeError("DataHub 可调用工具目录无效，拒绝启动 Runtime") from exc
 
 
 def prepare_runtime_module_fallback(source: Path, home: Path, node: str) -> int:
@@ -107,6 +126,7 @@ def prepare(
     package = Path(__file__).parent / "runtime"
     if research_tools:
         load_control(data, datahub_url)
+        public_data_tools = enabled_datahub_tools()
         runner = package.parent / "sandbox.py"
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
@@ -120,7 +140,13 @@ def prepare(
             "__RESEARCH_ROOT__": data,
         }.items():
             content = content.replace(key, json.dumps(str(value)))
+        content = content.replace("__PUBLIC_DATA_ENABLED_TOOLS__", json.dumps(public_data_tools))
         (preset / "agent.cordis.yml").write_text(content)
+        log.info(
+            "datahub_runtime_tools_prepared",
+            enabled_tool_count=len(public_data_tools),
+            enabled_tool_ids=public_data_tools,
+        )
     else:
         shutil.copyfile(package / "agent.cordis.yml", preset / "agent.cordis.yml")
     guard = (package / "guard.mjs").resolve()
@@ -214,7 +240,9 @@ def main():
     parser.add_argument("--node", default="/usr/local/bin/node")
     parser.add_argument("--port", type=int, default=3081)
     parser.add_argument(
-        "--datahub-url", default=None, help="Trusted loopback BFF origin; default 127.0.0.1:8088"
+        "--datahub-url",
+        default=None,
+        help="Trusted loopback BFF origin; default 127.0.0.1:8088",
     )
     parser.add_argument(
         "--source-mode",
@@ -249,7 +277,13 @@ def main():
         )
         os.chdir(work)
         os.execve(args.node, command, env)
-    except (OSError, ValueError, RuntimeError, StoreError, subprocess.SubprocessError) as exc:
+    except (
+        OSError,
+        ValueError,
+        RuntimeError,
+        StoreError,
+        subprocess.SubprocessError,
+    ) as exc:
         log.error("owned_dsh_launch_failed", error=str(exc))
         raise SystemExit(1) from exc
 

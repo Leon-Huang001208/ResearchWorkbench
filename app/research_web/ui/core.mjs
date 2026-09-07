@@ -1,11 +1,31 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'history', 'skills', 'settings']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'operations', 'settings']);
+const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
-  const page = pages.has(path) ? path : 'fingpt';
-  return { page, sessionId: ['fingpt', 'claw'].includes(page) ? new URLSearchParams(query).get('session') : null };
+  const [pageSegment, sectionSegment] = path.split('/');
+  const page = pages.has(pageSegment) ? pageSegment : 'fingpt';
+  const params = new URLSearchParams(query);
+  const route = {
+    page,
+    sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
+  };
+  if (page === 'history') {
+    route.historyMode = ['fingpt', 'claw'].includes(params.get('mode')) ? params.get('mode') : null;
+    route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
+  }
+  if (page === 'skills' && ['skill', 'tool', 'workflow', 'data'].includes(params.get('kind'))) route.capabilityKind = params.get('kind');
+  if (page === 'workbench') {
+    const requestedSection = sectionSegment || params.get('section');
+    route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
+  }
+  return route;
+}
+
+export function legacyRouteTarget(hash = '') {
+  return /^#\/reports\/?$/.test(String(hash)) ? '#/skills?kind=workflow' : null;
 }
 export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
 export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting', 'waiting_approval', 'awaiting_approval', 'waiting_input', 'busy', 'cancelling'].includes(status);
@@ -58,13 +78,49 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   const capabilityPath = (id) => `/capabilities/${segment(id)}`;
   return {
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
-    sessions: () => request('/sessions'), skills: () => request('/skills'),
+    sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
     capabilities: () => request('/capabilities'), tools: () => request('/tools'),
+    reportWorkflows: () => request('/report-workflows'),
+    reportWorkflow: (id) => request(`/report-workflows/${segment(id)}`),
+    runReportWorkflow: (id) => request(`/report-workflows/${segment(id)}/runs`, { method: 'POST', body: {} }),
+    reportWorkflowRuns: (id) => request(`/report-workflows/${segment(id)}/runs`),
+    reportProviders: () => request('/report-workflows/providers'),
+    probeReportProvider: (id, key) => request(`/report-workflows/providers/${segment(id)}/probe`, { method: 'POST', body: {}, key }),
+    reportRun: (id) => request(`/report-runs/${segment(id)}`),
+    cancelReportRun: (id) => request(`/report-runs/${segment(id)}/cancel`, { method: 'POST', body: {} }),
+    retryReportRun: (id) => request(`/report-runs/${segment(id)}/retry`, { method: 'POST', body: {} }),
+    reportRunDelivery: (id) => request(`/report-runs/${segment(id)}/delivery`),
+    reportRunRefreshManifests: (id) => request(`/report-runs/${segment(id)}/refresh-manifests`),
+    reportSchedule: (id) => request(`/report-workflows/${segment(id)}/schedule`),
+    saveReportSchedule: (id, body) => request(`/report-workflows/${segment(id)}/schedule`, { method: 'PUT', body }),
     dataCatalog: () => request('/data/catalog'),
     dataCapability: (id) => request(`/data/capabilities/${segment(id)}`),
     dataSource: (id) => request(`/data/sources/${segment(id)}`),
     probeDataSource: (id, key) => request(`/data/sources/${segment(id)}/probes`, { method: 'POST', body: {}, key }),
     dataProbe: (id) => request(`/data/probes/${segment(id)}`),
+    startDataQuery: (body, key) => request('/data/queries', { method: 'POST', body, key }),
+    dataQueries: (section = '') => request(`/data/queries${section ? `?section=${segment(section)}` : ''}`),
+    dataQuery: (id) => request(`/data/queries/${segment(id)}`),
+    datasetRows: (sid, did, offset = 0, limit = 200) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}/rows?offset=${segment(offset)}&limit=${segment(limit)}`),
+    assetObservations: () => request('/assets/observations'),
+    assetObservation: (id) => request(`/assets/observations/${segment(id)}`),
+    createAssetObservation: (body, key) => request('/assets/observations', { method: 'POST', body, key }),
+    watchlists: () => request('/watchlists'),
+    createWatchlist: (body) => request('/watchlists', { method: 'POST', body }),
+    addWatchlistItem: (id, body) => request(`/watchlists/${segment(id)}/items`, { method: 'POST', body }),
+    assetNotes: () => request('/asset-notes'),
+    createAssetNote: (body) => request('/asset-notes', { method: 'POST', body }),
+    assetAlerts: () => request('/asset-alerts'),
+    createAssetAlert: (body) => request('/asset-alerts', { method: 'POST', body }),
+    assetNotifications: () => request('/asset-notifications'),
+    handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
+    artifacts: (sessionId = '') => request(`/artifacts${sessionId ? `?session_id=${segment(sessionId)}` : ''}`),
+    operationsUsage: (range = '7d') => request(`/operations/usage?range=${segment(range)}`),
+    operationsTools: (range = '7d') => request(`/operations/tools?range=${segment(range)}`),
+    operationsDatahub: (range = '7d') => request(`/operations/datahub?range=${segment(range)}`),
+    operationsSummary: (range = '7d') => request(`/operations/summary?range=${segment(range)}`),
+    operationsServices: () => request('/operations/services'),
+    operationsStorage: () => request('/operations/storage'),
     capability: (id) => request(capabilityPath(id)),
     createCapability: (body) => request('/capabilities', { method: 'POST', body }),
     saveCapability: (id, body) => request(`${capabilityPath(id)}/draft`, { method: 'PATCH', body }),
@@ -81,6 +137,9 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     detail: (id) => request(sessionPath(id)),
     message: (id, body, key) => request(`${sessionPath(id)}/messages`, { method: 'POST', body, key }),
     rename: (id, title) => request(sessionPath(id), { method: 'PATCH', body: { title } }),
+    deleteSession: (id) => request(sessionPath(id), { method: 'DELETE' }),
+    restoreSession: (id) => request(`${sessionPath(id)}/restore`, { method: 'POST', body: {} }),
+    purgeSession: (id) => request(`${sessionPath(id)}/permanent`, { method: 'DELETE' }),
     cancel: (id) => request(`${sessionPath(id)}/cancel`, { method: 'POST', body: {} }),
     upgrade: (id) => request(`${sessionPath(id)}/upgrade`, { method: 'POST', body: {} }),
     files: (id) => request(`${sessionPath(id)}/files`),

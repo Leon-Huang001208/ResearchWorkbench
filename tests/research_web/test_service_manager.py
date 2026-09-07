@@ -72,6 +72,20 @@ def test_stale_pid_is_removed(manager, monkeypatch):
     assert not manager._state_path(process.role).exists()
 
 
+def test_dead_state_from_previous_checkout_is_removed(manager, monkeypatch):
+    manager._prepare_private_directories()
+    process = manager._processes()[0]
+    manager._write_state(process, 12345)
+    state_path = manager._state_path(process.role)
+    state = json.loads(state_path.read_text())
+    state["project_root"] = "/previous/checkout"
+    state_path.write_text(json.dumps(state))
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+
+    assert manager._owned_state(process) is None
+    assert not state_path.exists()
+
+
 def test_pid_reuse_or_foreign_command_fails_closed(manager, monkeypatch):
     manager._prepare_private_directories()
     process = manager._processes()[0]

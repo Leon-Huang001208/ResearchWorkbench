@@ -139,13 +139,29 @@ test('settings icon uses a bounded symmetric stroke gear and a fixed rail size',
   assert.match(css, /\.rail-icon \.ui-icon \{ width: 18px; height: 18px; flex: 0 0 18px; \}/);
 });
 
-test('closed research panel still exposes actual failures and incomplete delivery', async () => {
+test('closed research panel counts failed activities and abnormal subagents separately', async () => {
   const { renderResearchAttention } = await import(new URL('shell.mjs', ui));
   assert.equal(renderResearchAttention({}), '');
-  const html = renderResearchAttention({ activities: [{ status: 'failed' }], agents: [{ error: 'failed' }], delivery: { status: 'incomplete' } });
-  assert.match(html, /2 项活动或 Agent 异常/);
+  assert.match(renderResearchAttention({ activities: Array.from({ length: 7 }, () => ({ status: 'failed' })) }), />7 项活动失败。</);
+  assert.match(renderResearchAttention({ subagents: [{ error: 'failed' }] }), />1 个子 Agent 异常。</);
+  const html = renderResearchAttention({
+    activities: [{ status: 'failed' }, { status: 'completed', error: '真实失败' }],
+    subagents: [{ status: 'error' }],
+    agents: Array.from({ length: 8 }, () => ({ status: 'failed' })),
+    delivery: { status: 'incomplete' },
+  });
+  assert.match(html, /2 项活动失败，1 个子 Agent 异常。/);
+  assert.doesNotMatch(html, /8 个|10 项|活动或 Agent/);
   assert.match(html, /文件交付尚未完成/);
   assert.match(html, /data-show-attention/);
+});
+
+test('conversation layout right-aligns fluid user bubbles and keeps assistant replies as body text', async () => {
+  const css = await readFile(new URL('styles.css', ui), 'utf8');
+  assert.match(css, /\.message\.user\s*\{[^}]*justify-content:\s*flex-end/);
+  assert.match(css, /\.message\.user \.markdown\s*\{[^}]*width:\s*fit-content[^}]*max-width:\s*78%/);
+  assert.match(css, /\.message\.assistant \.markdown\s*\{[^}]*padding-left:\s*0/);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*?\.message\.user \.markdown\s*\{[^}]*max-width:\s*92%/);
 });
 
 test('approved v2 composition keeps title, sidebar actions and model inside composer', async () => {
@@ -154,7 +170,8 @@ test('approved v2 composition keeps title, sidebar actions and model inside comp
   const header = shell.renderTopbar({ page: 'fingpt' });
   assert.match(header, /topbar-title/);
   assert.doesNotMatch(header, /id="model-select"/);
-  assert.match(shell.renderPrimaryRail({ page: 'fingpt' }), /data-new/);
+  assert.doesNotMatch(shell.renderPrimaryRail({ page: 'fingpt' }), /data-new/);
+  assert.match(shell.renderSidebar({ page: 'fingpt' }), /data-new/);
   const composer = renderComposer({ draft: '', expectedFormats: null });
   assert.match(composer, /id="model-select"/);
   assert.match(composer, /composer-send/);

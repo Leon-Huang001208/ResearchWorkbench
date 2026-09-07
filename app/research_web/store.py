@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import stat
 import tempfile
 import time
@@ -26,6 +27,7 @@ PUBLIC_EXTENSIONS = {
     ".csv",
     ".xlsx",
     ".docx",
+    ".pptx",
     ".html",
     ".svg",
     ".json",
@@ -33,7 +35,10 @@ PUBLIC_EXTENSIONS = {
 
 
 class StoreError(Exception):
-    pass
+    def __init__(self, message: str, code: str = "invalid_resource", status: int = 400):
+        super().__init__(message)
+        self.code = code
+        self.status = status
 
 
 class Store:
@@ -50,6 +55,24 @@ class Store:
         except (OSError, ValueError) as exc:
             log.error("research_index_unreadable", error_type=type(exc).__name__)
             raise StoreError("会话索引不可读取；未覆盖原索引") from exc
+        # Additive local indexes keep earlier Research Web data readable.
+        self.data.setdefault("sessions", {})
+        self.data.setdefault("receipts", {})
+        self.data.setdefault("data_queries", {})
+        self.data.setdefault("data_query_keys", {})
+        self.data.setdefault("handoffs", {})
+        self.data.setdefault("handoff_keys", {})
+        self.data.setdefault("operation_audit", [])
+        self.data.setdefault("asset_observations", {})
+        self.data.setdefault("asset_observation_keys", {})
+        self.data.setdefault("watchlists", {})
+        self.data.setdefault("asset_notes", {})
+        self.data.setdefault("asset_alerts", {})
+        self.data.setdefault("asset_notifications", {})
+        self.data.setdefault("report_projects", {})
+        self.data.setdefault("report_runs", {})
+        self.data.setdefault("report_schedules", {})
+        self.data.setdefault("report_migrations", [])
 
     def save(self):
         fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
@@ -86,10 +109,139 @@ class Store:
         log.info("research_session_registered", session_id=sid, mode=mode)
         return row
 
-    def session(self, sid: str) -> dict:
+    def audit(self, kind: str, outcome: str, **safe_metadata) -> None:
+        """Persist a bounded, content-free operational event."""
+        allowed = {
+            "session_id",
+            "tool",
+            "source",
+            "capability",
+            "duration_ms",
+            "rows",
+            "failure_code",
+            "project_id",
+            "report_run_id",
+        }
+        event = {
+            "kind": kind,
+            "outcome": outcome,
+            "at": time.time(),
+            **{key: value for key, value in safe_metadata.items() if key in allowed},
+        }
+        events = self.data["operation_audit"]
+        events.append(event)
+        if len(events) > 10000:
+            del events[:-10000]
+        self.save()
+
+    def session(self, sid: str, *, include_deleted: bool = False) -> dict:
         if not re.fullmatch(r"[a-f0-9-]{36}", sid) or sid not in self.data["sessions"]:
             raise StoreError("研究会话不存在或不属于当前产品")
-        return self.data["sessions"][sid]
+        row = self.data["sessions"][sid]
+        if row.get("deleted_at") is not None and not include_deleted:
+            raise StoreError("研究会话已移至已删除", "session_deleted", 410)
+        return row
+
+    def soft_delete(self, sid: str) -> dict:
+        row = self.session(sid, include_deleted=True)
+        if row.get("deleted_at") is None:
+            row["deleted_at"] = time.time()
+            self.save()
+            log.info("research_session_soft_deleted", session_id=sid, mode=row.get("mode"))
+        return row
+
+    def restore(self, sid: str) -> dict:
+        row = self.session(sid, include_deleted=True)
+        if row.get("purge_started_at") is not None:
+            raise StoreError(
+                "会话永久删除已经开始，不能恢复；可重试完成清理",
+                "session_purge_started",
+                409,
+            )
+        if row.get("deleted_at") is not None:
+            row.pop("deleted_at", None)
+            row.pop("native_deleted_at", None)
+            self.save()
+            log.info("research_session_restored", session_id=sid, mode=row.get("mode"))
+        return row
+
+    def mark_native_deleted(self, sid: str) -> dict:
+        row = self.session(sid, include_deleted=True)
+        if row.get("deleted_at") is None:
+            raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
+        if row.get("native_deleted_at") is None:
+            row["native_deleted_at"] = time.time()
+            row["purge_started_at"] = time.time()
+            self.save()
+        return row
+
+    def purge(self, sid: str) -> None:
+        """Permanently remove one deleted Workbench session and its owned records."""
+        row = self.session(sid, include_deleted=True)
+        if row.get("deleted_at") is None:
+            raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
+        if row.get("native_deleted_at") is None:
+            raise StoreError("DSH 原生日志尚未删除", "native_session_not_deleted", 409)
+
+        path = self.root / "sessions" / sid
+        if path.parent != self.root / "sessions" or not path.resolve().is_relative_to(self.root):
+            raise StoreError("非法会话目录")
+        if path.is_symlink():
+            path.unlink()
+        elif path.exists():
+            shutil.rmtree(path)
+
+        removed = {
+            "data_queries": {
+                key
+                for key, value in self.data["data_queries"].items()
+                if value.get("session_id") == sid
+            },
+            "handoffs": {
+                key
+                for key, value in self.data["handoffs"].items()
+                if value.get("session_id") == sid
+            },
+            "asset_observations": {
+                key
+                for key, value in self.data["asset_observations"].items()
+                if value.get("session_id") == sid
+            },
+            "report_runs": {
+                key
+                for key, value in self.data["report_runs"].items()
+                if sid
+                in {
+                    value.get("session_id"),
+                    value.get("research_session_id"),
+                    value.get("delivery_session_id"),
+                }
+            },
+        }
+        for table, keys in removed.items():
+            for key in keys:
+                self.data[table].pop(key, None)
+        for key, value in list(self.data["data_query_keys"].items()):
+            if value in removed["data_queries"]:
+                self.data["data_query_keys"].pop(key, None)
+        for key, value in list(self.data["handoff_keys"].items()):
+            if value in removed["handoffs"]:
+                self.data["handoff_keys"].pop(key, None)
+        for key, value in list(self.data["asset_observation_keys"].items()):
+            if value in removed["asset_observations"]:
+                self.data["asset_observation_keys"].pop(key, None)
+        for key in list(self.data["receipts"]):
+            if key.startswith(f"{sid}:"):
+                self.data["receipts"].pop(key, None)
+        self.data["operation_audit"] = [
+            event for event in self.data["operation_audit"] if event.get("session_id") != sid
+        ]
+        for project in self.data["report_projects"].values():
+            if project.get("latest_run") in removed["report_runs"]:
+                project["latest_run"] = None
+        self.data["sessions"].pop(sid, None)
+        self.save()
+        log.info("research_session_purged", session_id=sid, mode=row.get("mode"))
 
     def directory(self, sid: str) -> Path:
         self.session(sid)

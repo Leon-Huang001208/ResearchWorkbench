@@ -4,11 +4,11 @@
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 真实模型与浏览器旅程见 [验收记录](research-web-acceptance.md)。
 
-页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/history`、`#/skills`、`#/settings`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
+页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations`、`#/settings`。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
-当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
+当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、DataHub 以外的原生审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
-当前产品身份统一为 **Research Workbench**。浏览器标题、消息署名、ARIA 标签、favicon 与品牌图片都从现行中性品牌资产读取；主题偏好使用 `research-web.appearance.v1`。产品壳不再发布旧名称或旧命令，但 `/api/research/*` 与现有 hash 路由保持稳定。
+当前产品身份统一为 **Research Workbench**。浏览器标题、favicon 与品牌图片从现行中性品牌资产读取；消息不显示可见署名，其辅助名称按当前会话模式生成。主题偏好使用 `research-web.appearance.v1`。产品壳不再发布旧名称或旧命令，但 `/api/research/*` 与现有 hash 路由保持稳定。
 
 ## 模块
 
@@ -28,15 +28,24 @@
 | `data-catalog.mjs` | DataHub 的 13 项能力 / 21 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
 | `capability-controller.mjs` | 显式创建/复制/导入/编辑/检查/发布/停用/启用/版本/回滚操作及失败保稿 |
+| `workbench.mjs` | 市场、基金、产业链、资料等研究台入口，按需查询并把真实快照交接给研究会话 |
+| `asset-workspace.mjs` | 独立资产观察：概览、OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI、财务/事件/资料分块、自选、笔记、提醒和来源口径；指标只从 DataHub 行情行计算，缺失数据不填演示值 |
+| `report-workflows.mjs` | Claw 与能力中心中的真实报告 Workflow 卡片和详情；显示锁定版本、模板、Excel 底稿、数据插件、步骤、日程和历史产物 |
+| `operations.mjs` | 只读展示模型 usage、Agent/Tool、DataHub、服务健康和项目数据根占用 |
 
 ## 接口与行为
 
 所有请求仅访问同源 `/api/research`；读取运行时、模型目录、工作空间、历史、`/capabilities` 与只读 `/tools` 后展示真实响应。错误可见，不生成本地演示结果。目录部分加载失败会独立报告并保留上次成功结果；DSH 离线时产品后端仍可读取已保存目录。Web 服务也离线时只能保留本页已加载状态，不宣称提供离线 PWA 或跨刷新缓存。
 
 - 新研究先 `POST /sessions`，再对新会话 `POST /messages`；消息带 `Idempotency-Key`。同一个失败草稿重试复用相同键；收到 `accepted: true` 才清空原稿。界面不伪造用户/助手消息或进度。
+- 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。没有真实值时不补价格、估值、主题或同类比较。
+- Claw 首页先读取 `/report-workflows`，单独展示已迁移的报告 Workflow；通用 Workflow 卡不会冒充具体报告。点击详情只查看资源与版本，点击运行才创建独立 Claw 会话。AI 周报处于 `needs_attention` 时禁止运行。
+- 运行与用量页使用单个 `/operations/summary` 汇总请求，避免并发遍历同一 DSH 历史造成瞬时健康误判；页面无停止、重启或删除按钮。缺失 usage 与模型价格分别显示“未知”和“费用未配置”。
 - 会话详情来自 `GET /sessions/{id}`；SSE `snapshot` 替换真实详情，`runtime_error` 显示运行错误。事件连接恢复只重新读取快照，不重发消息。跨会话旧响应会被忽略；较旧 HTTP 快照不会覆盖后来到达的 SSE 输出。
-- 历史打开、重命名、取消、批准/拒绝均调用对应真实接口。运行时提问通过问题响应接口回复；根回合结束但子 Agent 仍活跃时保留运行状态和停止入口。
-- Agent 卡片显示实际 tokens、错误、已结束回合累计耗时及历史截断提示；活动使用原生工具时戳显示耗时，并以 Agent 名称关联。无测量值不伪造数字。聊天隐藏本次内部任务后缀，但保留用户引用的旧标记和正文。
+- FinGPT/Claw 二级侧栏中的每条会话使用“会话链接 + 同级更多按钮”，菜单提供重命名和删除，正文页不再放独立重命名按钮。菜单在外部点击、Escape、路由切换、滚动或窗口变化时关闭并恢复触发按钮焦点；移动端保留至少 44px 触控区。重命名、取消、批准/拒绝均调用对应真实接口。运行时提问通过问题响应接口回复；根回合结束但子 Agent 仍活跃时保留运行状态和停止入口。
+- 删除先把会话移入“已删除”并保留 30 天；模式历史页可在“研究 / 已删除”间切换，已删除项可恢复或经二次确认立即永久删除。到期清理在服务启动时执行，并由在线任务每 6 小时重试；永久删除必须先获得 DSH 原生删除确认，再清理 Workbench 附件、数据集、产物与索引。删除中或已完成原生删除的墓碑不能恢复；运行、排队、等待输入／授权或取消中的会话不能删除。
+- 当前会话的用户消息右对齐，Assistant 消息左对齐；两者都不显示可见头像或署名。每条消息容器的 `aria-label` 同时作为 accessible name：用户为“用户消息”；Assistant 按当前会话 mode 分别为“FinGPT 回复”或“Claw 回复”，其他或未知 mode 使用中性的“助手回复”。该视觉变更只作用于当前渲染，不改写历史消息正文或角色。
+- Agent 卡片显示实际 tokens、错误、已结束回合累计耗时及历史截断提示；活动使用原生工具时戳显示耗时，并以 Agent 名称关联。无测量值不伪造数字。聊天隐藏本次内部任务后缀，但保留用户引用的旧标记和正文。异常横幅分别统计并表述失败活动与异常子 Agent，不把两者合并为含混总数，也不改写历史记录。
 - 重命名和原生问题使用应用内表单；不调用 `window.prompt`。SSE 重渲染保留当前表单草稿；问题可选择选项并补充文本，仍提交既有原生 `answers` 契约。
   - `multiSelect` 缺省/false 为单选 radio，true 为多选 checkbox；前端收集与后端均拒绝单选多值。
 - 编辑器提供显式 `expected_formats` 与按 Skill 默认格式；选择随草稿/幂等请求保存。父/子任务和交付检查未结束时不排队新消息，允许先准备草稿。右侧单独展示 `delivery` 的要求、实际文件、缺失/损坏原因；“执行已结束”不等于“文件交付已检查”。详见 [交付契约](research-web-delivery.md)。
@@ -68,15 +77,15 @@ git diff --check
 
 ## 产品壳与研究首页（2026-09-03）
 
-当前产品入口与会话区组合在单一 256px 导航列，桌面折叠为 72px；≤1050px 整列变为可开关抽屉。导航底部和设置页都能选择外观，手机保留原有全局搜索按钮。顶栏展示当前页面/会话标题；侧栏搜索入口与手机搜索按钮打开同一个弹层，只搜索已加载的真实会话与 Skill/Workflow/Tool。研究面板默认收起，展开后仍显示实际活动、资料、文件及固定版本 Workflow；异常和未完成交付在主画布保留提示。原 hash 路由、data selector 和全部能力操作契约不变。
+当前产品采用 68px 一级导航与 248px 模式二级侧栏。一级导航只承担 FinGPT、Claw、资产观察、研究台、能力中心、运行与用量和设置；“新研究”、运行任务、最近研究属于当前 FinGPT/Claw 二级侧栏。Claw 二级侧栏再以“会话 / 工作空间”标签切换，非 FinGPT/Claw 页面不渲染二级侧栏；≤1050px 时这些导航进入可开关抽屉。导航底部和设置页都能选择外观，手机保留原有全局搜索按钮。顶栏展示当前页面/会话标题；搜索只覆盖已加载的真实会话与 Skill/Workflow/Tool。研究面板默认收起，展开后仍显示实际活动、资料、文件及固定版本 Workflow；异常和未完成交付在主画布保留提示。原 hash 路由、data selector 和全部能力操作契约不变。
 
 FinGPT 与 Claw 分别呈现首页。FinGPT 面向问题研究，其四个快捷入口严格筛选同一 `/capabilities` 目录中的 `document-reading`、`company-research`、`industry-research`、`fund-evaluation`。Claw 明确目标、约束与预期交付；快捷区标题为“研究步骤模板”，只展示同目录 `kind=workflow` 且 `enabled=true` 的真实模板（包括已发布自建模板），不硬编码模板 ID，也不把缺项替换为 Skill 卡片。Claw 仍可通过上方能力选择框/slash 使用真实 Skill，并明确模板不代表已执行。目录缺项显示空态，不补造卡片。
 
 两种首页分类选项仅来自各自快捷区条目的实际 `category`，`#quick-category[data-quick-category]` 只在本页内存筛选；切换路由时复位，目录更新后未知分类按全部显示。筛选不请求后端、不改变草稿或执行能力。首页卡片使用 v2 四列紧凑布局（手机两列），默认显示名称和简短输入要求；完整说明在能力详情查看，分类放入“浏览研究入口与分类”折叠区。能力中心保持三列卡片，显示简介、来源、输出和实际状态；场景/输入可原位展开，不删除元数据。既有 `data-skill-detail` / `data-skill-shortcut` 按钮保持：详情进入能力中心，选择将不可变的 `capability_id` / `capability_version` 放入此前 FinGPT 或 Claw 的当前草稿，不创建会话或启动模型；旧 `skill_id` 仅保留 API 兼容。
 
-首页采用样品的左对齐标题、800px 编辑区、单行桌面工具栏。模型从顶栏移入编辑器，格式和完整能力下拉按需展开；输入框继续使用既有附件、模型和格式契约。`/` 搜索已启用 Skill/Workflow，ArrowUp/ArrowDown 选择、Enter 放入草稿、Escape 关闭；slash 草稿不会意外提交模型。显式 `expected_formats`（含空数组）优先，否则根据所选目录元数据显示默认格式并由后端绑定；删除了前端平行的硬编码默认格式表。工具意图使用 `tool_ids`，不改变原生审批。运行时未就绪只禁止真实发送，仍允许浏览和准备草稿。
+首页采用样品的左对齐标题、800px 编辑区、单行桌面工具栏。模型从顶栏移入编辑器，格式和完整能力下拉按需展开；输入框继续使用既有附件、模型和格式契约。`/` 搜索已启用 Skill/Workflow，ArrowUp/ArrowDown 选择、Enter 放入草稿、Escape 关闭；slash 草稿不会意外提交模型。显式 `expected_formats`（含空数组）优先，否则根据所选目录元数据显示默认格式并由后端绑定；删除了前端平行的硬编码默认格式表。工具意图使用 `tool_ids`；当前 Runtime 已暴露的 DataHub 工具在调用时自动执行、不逐次确认，其他原生审批契约不变。运行时未就绪只禁止真实发送，仍允许浏览和准备草稿。
 
-拖放/粘贴文件复用既有 multipart 流程。空首页不分配右侧空面板；研究详情中桌面也可显式收起/展开。活动/资料/文件标签仍只读取当前会话，Claw 会话/当前工作区切换继续复用安全下载与隔离预览，原生审批、停止、子 Agent 和交付语义不变。
+拖放/粘贴文件复用既有 multipart 流程。空首页不分配右侧空面板；研究详情中桌面也可显式收起/展开。活动/资料/文件标签仍只读取当前会话，Claw 会话/当前工作区切换继续复用安全下载与隔离预览。DataHub 按启动时已物化的可用工具自动查询；其他原生审批、停止、子 Agent 和交付语义不变。
 
 ## 能力中心闭环
 
@@ -108,6 +117,7 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 | 编辑/保存/版本 | 失败保留完整候选；保存可由新控制器重新读取；版本与工具意图参与幂等消息 | `research_web_capabilities_ui.test.mjs` |
 | 离线/键盘 | 运行时离线禁发送但可编辑；真实 app 事件处理器消费 slash/Escape/移动抽屉和搜索 | 无网络 DOM 边界测试；不替代真实浏览器 |
 | Claw 工作区 | 会话恢复聊天；当前工作区主画布只投影当前 `detail` 的资料与文件，复用安全下载/预览 | `research_web_ui_layout.test.mjs` |
+| 会话管理 | 行级菜单重命名/软删除；已删除视图恢复或永久删除；30 天后在线自动清理 | UI 布局测试 + `test_api.py` 生命周期测试 |
 | 首页模板/分类 | Claw 仅已启用 Workflow；FinGPT 四 Skill；分类本地筛选，卡片与上方 Skill 选择只准备版本草稿 | 布局渲染测试 + 实际 app 事件无网络 DOM 边界测试；视口/hover 由控制器另验 |
 | 数据目录 | 13 项能力、21 个来源双视图；未适配/未配置/不可调用分别可见，显式探测只访问一源 | `research_web_capabilities_ui.test.mjs` + `test_datahub_catalog.py` |
 

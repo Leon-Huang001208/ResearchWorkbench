@@ -9,7 +9,7 @@
 
 输入契约见 [当前架构契约](architecture/research-web/06-documentation-contract.md)，
 清单见 [architecture-map.json](architecture/research-web/architecture-map.json)。
-最终必须包含 01–08 八图，不能用部分完成状态跳过门禁。
+最终必须包含 01–10 十图，不能用部分完成状态跳过门禁。其中 09 是报告运行序列，10 是 Excel 刷新、共享快照与文件组装数据流。
 
 ## 本地命令
 
@@ -38,7 +38,7 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
   不支持的 `api_route`/`route`/`websocket` 声明明确报 `api_declaration_unsupported`，不静默漏检。
 - 变更组的每份模块说明和本次 review-record 必须出现在变更清单；核对记录有明确结构决策。
 - 图源、HTML 的实际 SHA-256 和字节数必须匹配 deliver；要求 showcase 9/9、零错误零警告。
-  HTML、deliver 回执和视觉回执还必须使用根目录内按八图 ID 固定的规范文件名；
+  HTML、deliver 回执和视觉回执还必须使用根目录内按十图 ID 固定的规范文件名；
   `../`、非规范别名和其他文件名在读取前即被拒绝。
 - 视觉回执必须绑定当前 HTML，四个固定视口 1440×900 / 1600×1000 / 1920×1080 /
   2048×1320 包含性通过；截图存在。人工记录独立绑定同一 JSON/HTML 哈希与实际查看截图。
@@ -59,7 +59,7 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 
 设置页固定链接 `/api/research/documentation/index.html`，用新页和
 `rel="noopener noreferrer"` 隔离 opener；不自动触发模型或任何能力操作。
-`app/research_web/documentation.py` 仅允许 index 与八张图的固定 HTML 文件名，根目录固定为
+`app/research_web/documentation.py` 仅允许 index 与十张图的固定 HTML 文件名，根目录固定为
 `outputs/research-web-architecture/`。不提供 Markdown、JSON 回执、截图、目录浏览或任意路径读取。
 缺失/非法文件返回无路径泄漏的 `documentation_unavailable` 404。
 
@@ -70,14 +70,16 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 只有成功的固定文档路由保留自己的 CSP：`sandbox allow-scripts`，无 `allow-same-origin`，
 无网络连接、表单提交或 base URL 权限；只允许内联 viewer 脚本、样式与 data 图片。
 原产品 `script-src 'self'` 与研究文件的空 sandbox 预览政策不变。图册的 opaque origin 会让
-相对图页链接带 `Sec-Fetch-Site: cross-site`：中间件仅对固定九个公开 HTML 的 GET 请求提供
+相对图页链接带 `Sec-Fetch-Site: cross-site`：中间件仅对固定十二个公开 HTML（入口、API Atlas 加十图）的 GET 请求提供
 窄例外，且须同时满足 `Sec-Fetch-Mode: navigate`、`Sec-Fetch-Dest: document` 和
 `Sec-Fetch-User: ?1`。跨站 fetch、iframe、非 GET、未知路径和研究 API 仍拒绝；不开放 CORS。
 no-store、no-referrer、nosniff 仍由现有中间件执行。
 
 ## 测试与日志
 
-`tests/javascript/research_web_architecture.test.mjs` 构造独立临时八图 fixture，验证有效输入，
+API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单离线生成；只包含 Method、路径、领域和仓库相对源码，不访问运行服务或外网。
+
+`tests/javascript/research_web_architecture.test.mjs` 构造独立临时十图 fixture，验证有效输入，
 源码无说明、未映射模块、失效接口/前缀、图源或 HTML 与旧回执、缺图、断链、丢失截图和
 旧人工哈希等负向案例；fixture 的文本图片不是实际视觉证据，不进入生成文档目录。
 `tests/research_web/test_doc_sync.py` 验证 Python 委托和 Git 失败边界；
