@@ -6,8 +6,10 @@ This catalog never installs tools or grants execution authority.
 
 import re
 from pathlib import Path
+from typing import Any
 
 from ..datahub.catalog import build_catalog
+from ..datahub.connections import MySQLConnectionStore
 from ..datahub.contracts import BUSINESS_TOOLS
 from .models import CapabilityError
 
@@ -199,7 +201,7 @@ WORKFLOW_TOOL_DECLARATIONS = {
 }
 
 
-def tool_catalog():
+def tool_catalog(data_root: Path | None = None):
     guard = (Path(__file__).parents[1] / "runtime/guard.mjs").read_text()
     match = re.search(
         r"(?:export\s+)?const\s+RESEARCH_TOOLS\s*=\s*new Set\(\[(.*?)\]\)",
@@ -213,7 +215,7 @@ def tool_catalog():
     for name, (label, source, fields, required, condition) in DECLARATIONS.items():
         if name not in allowed:
             continue
-        parameters = {
+        parameters: dict[str, Any] = {
             "type": "object",
             "properties": {key: {"type": value} for key, value in fields.items()},
             "required": required,
@@ -241,7 +243,8 @@ def tool_catalog():
                 "data_sources": {},
             }
         )
-    data_catalog = build_catalog()
+    statuses = MySQLConnectionStore(data_root).statuses() if data_root is not None else None
+    data_catalog = build_catalog(connection_statuses=statuses)
     capabilities = {item["id"]: item for item in data_catalog["capabilities"]}
     for capability_id, tool_id in BUSINESS_TOOLS.items():
         if tool_id not in allowed:

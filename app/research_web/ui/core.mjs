@@ -17,6 +17,7 @@ export function parseRoute(hash = '') {
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
   }
   if (page === 'skills' && ['skill', 'tool', 'workflow', 'data'].includes(params.get('kind'))) route.capabilityKind = params.get('kind');
+  if (page === 'settings' && /^[a-z0-9_]+$/.test(params.get('connection') || '')) route.connectionId = params.get('connection');
   if (page === 'workbench') {
     const requestedSection = sectionSegment || params.get('section');
     route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
@@ -96,6 +97,12 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     dataCatalog: () => request('/data/catalog'),
     dataCapability: (id) => request(`/data/capabilities/${segment(id)}`),
     dataSource: (id) => request(`/data/sources/${segment(id)}`),
+    connections: () => request('/data/connections'),
+    sourceConfiguration: (id) => request(`/data/sources/${segment(id)}/configuration`),
+    saveSourceConfiguration: (id, body) => request(`/data/sources/${segment(id)}/configuration`, { method: 'PUT', body }),
+    deleteSourceConfiguration: (id) => request(`/data/sources/${segment(id)}/configuration`, { method: 'DELETE' }),
+    connectionMigrationPreview: () => request('/data/connections/migration-preview'),
+    migrateConnections: (body) => request('/data/connections/migrations', { method: 'POST', body }),
     mysqlConfiguration: () => request('/data/sources/mysql/configuration'),
     saveMysqlConfiguration: (body) => request('/data/sources/mysql/configuration', { method: 'PUT', body }),
     deleteMysqlConfiguration: () => request('/data/sources/mysql/configuration', { method: 'DELETE' }),

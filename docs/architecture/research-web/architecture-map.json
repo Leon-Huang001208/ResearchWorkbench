@@ -1046,23 +1046,44 @@
     },
     {
       "method": "GET",
-      "path": "/api/research/data/sources/mysql/configuration",
+      "path": "/api/research/data/connections",
       "source": "app/research_web/datahub/routes.py",
-      "declaredPath": "/data/sources/mysql/configuration",
+      "declaredPath": "/data/connections",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/connections/migration-preview",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/connections/migration-preview",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/data/connections/migrations",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/connections/migrations",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/sources/{source_id}/configuration",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/{source_id}/configuration",
       "prefix": "/api/research"
     },
     {
       "method": "PUT",
-      "path": "/api/research/data/sources/mysql/configuration",
+      "path": "/api/research/data/sources/{source_id}/configuration",
       "source": "app/research_web/datahub/routes.py",
-      "declaredPath": "/data/sources/mysql/configuration",
+      "declaredPath": "/data/sources/{source_id}/configuration",
       "prefix": "/api/research"
     },
     {
       "method": "DELETE",
-      "path": "/api/research/data/sources/mysql/configuration",
+      "path": "/api/research/data/sources/{source_id}/configuration",
       "source": "app/research_web/datahub/routes.py",
-      "declaredPath": "/data/sources/mysql/configuration",
+      "declaredPath": "/data/sources/{source_id}/configuration",
       "prefix": "/api/research"
     },
     {

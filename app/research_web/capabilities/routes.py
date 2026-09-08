@@ -25,8 +25,8 @@ async def catalog(request: Request, kind: str | None = None):
 
 
 @router.get("/tools")
-async def tools():
-    return tool_catalog()
+def tools(request: Request):
+    return tool_catalog(request.app.state.research.store.root)
 
 
 @router.get("/workflows")

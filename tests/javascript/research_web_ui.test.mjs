@@ -36,6 +36,8 @@ test('routing accepts only product routes and safely round trips session identif
   assert.deepEqual(core.parseRoute('#/history?mode=fingpt'), { page: 'history', sessionId: null, historyMode: 'fingpt', historyView: 'active' });
   assert.deepEqual(core.parseRoute('#/history?mode=claw&view=deleted'), { page: 'history', sessionId: null, historyMode: 'claw', historyView: 'deleted' });
   assert.deepEqual(core.parseRoute('#/history?mode=unknown&view=unknown'), { page: 'history', sessionId: null, historyMode: null, historyView: 'active' });
+  assert.deepEqual(core.parseRoute('#/settings?connection=ifind'), { page: 'settings', sessionId: null, connectionId: 'ifind' });
+  assert.deepEqual(core.parseRoute('#/settings?connection=../../runtime'), { page: 'settings', sessionId: null });
   assert.equal(core.sessionHash(session('a/b')), '#/fingpt?session=a%2Fb');
 });
 
@@ -149,15 +151,23 @@ test('entrypoint is self hosted and settings do not persist secrets in browser s
   assert.match(app, /password/);
 });
 
-test('MySQL password references are cleared immediately after request serialization', async () => {
+test('connection secrets are cleared immediately after request serialization', async () => {
   const app = await readFile(new URL('app.mjs', root), 'utf8');
-  const request = app.indexOf('api.saveMysqlConfiguration(payload)');
-  const clearPayload = app.indexOf('delete payload.password', request);
+  const request = app.indexOf('api.saveSourceConfiguration(sourceId, payload)');
+  const clearPayload = app.indexOf('forgetConfigurationSecrets(payload)', request);
   const awaitResult = app.indexOf('await controller.action', request);
   assert.ok(request >= 0 && clearPayload > request);
   assert.ok(clearPayload < awaitResult, 'payload must be cleared before waiting for the response');
-  assert.match(app.slice(request, awaitResult), /values\.delete\('password'\)/);
-  assert.match(app.slice(request, awaitResult), /password = ''/);
+  assert.match(app.slice(request, awaitResult), /values\.keys\(\)/);
+  assert.match(app, /querySelectorAll\('input\[type="password"\]'\)/);
+});
+
+test('connection probe feedback uses health and shared ZhiQiu removal discloses scope', async () => {
+  const app = await readFile(new URL('app.mjs', root), 'utf8');
+  assert.match(app, /current\.health === 'healthy'/);
+  assert.match(app, /知丘研报、公众号与纪要共享/);
+  assert.match(app, /<details class="settings-card model-settings">/);
+  assert.doesNotMatch(app, /current\.status === 'healthy'/);
 });
 
 test('a stale refresh never overwrites a newer SSE snapshot', async () => {
@@ -222,6 +232,24 @@ test('API exposes local MySQL configuration without a password read path', async
     ['/api/research/data/sources/mysql/configuration','DELETE'],
   ]);
   assert.equal(Object.hasOwn(JSON.parse(calls[0][1].body || '{}'),'password'),false);
+});
+
+test('API exposes the unified connection center and generic configuration contract', async () => {
+  const calls=[];const api=core.createAPI({fetcher:async(url,options)=>{calls.push([url,options]);return new Response('{}');},logger(){}});
+  await api.connections();
+  await api.sourceConfiguration('ifind');
+  await api.saveSourceConfiguration('ifind',{backend:'auto',accounts:[]});
+  await api.deleteSourceConfiguration('ifind');
+  await api.connectionMigrationPreview();
+  await api.migrateConnections({source_ids:['ifind'],confirm:true});
+  assert.deepEqual(calls.map(([url,options])=>[url,options.method]),[
+    ['/api/research/data/connections','GET'],
+    ['/api/research/data/sources/ifind/configuration','GET'],
+    ['/api/research/data/sources/ifind/configuration','PUT'],
+    ['/api/research/data/sources/ifind/configuration','DELETE'],
+    ['/api/research/data/connections/migration-preview','GET'],
+    ['/api/research/data/connections/migrations','POST'],
+  ]);
 });
 
 test('MySQL source detail shows the four-stage local connection state and settings link', () => {

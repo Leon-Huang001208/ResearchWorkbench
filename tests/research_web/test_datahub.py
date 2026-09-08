@@ -522,6 +522,35 @@ def test_launcher_enables_only_callable_datahub_tools(tmp_path, monkeypatch):
     assert "enabledTools: []" in empty_preset
 
 
+def test_launcher_passes_all_user_connection_statuses_to_runtime_catalog(tmp_path, monkeypatch):
+    from app.research_web import launch_runtime
+
+    expected = {
+        "tinysoft": {
+            "configured": True,
+            "secret_configured": True,
+            "credential_store_available": True,
+        }
+    }
+    observed = {}
+
+    class ConnectionStore:
+        def __init__(self, root):
+            assert root == tmp_path
+
+        def statuses(self):
+            return expected
+
+    def catalog(**kwargs):
+        observed.update(kwargs)
+        return {"capabilities": []}
+
+    monkeypatch.setattr(launch_runtime, "MySQLConnectionStore", ConnectionStore)
+    monkeypatch.setattr(launch_runtime, "build_catalog", catalog)
+    assert launch_runtime.enabled_datahub_tools(tmp_path) == []
+    assert observed == {"connection_statuses": expected}
+
+
 def test_launcher_rejects_invalid_datahub_tool_catalog(tmp_path, monkeypatch):
     from app.research_web import launch_runtime
 

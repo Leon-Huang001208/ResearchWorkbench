@@ -285,3 +285,15 @@
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅纠正既有资产指标卡的成交额与换手率字段映射，不改变模块、API或数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"资产观察继续读取同一DataHub标准行；只区分既有turnover与turnover_rate_pct口径。","diagrams":[]} -->
+
+## 2026-09-08 — 统一数据源连接中心
+
+- 设置页将 22 个来源统一为分组列表与同页详情，并分别展示配置、检测、适配和可调用状态；移动端改为上下布局。该变化仍位于现有产品壳和 DataHub 页面边界内。
+- DataHub 增加通用来源配置、系统凭据引用、平台诊断和旧环境迁移；没有新增外部服务、数据快照类型或绕过 Provider 的查询路径。
+- Runtime 与能力目录改为读取统一连接状态，但仍只在启动时按 `integration_completed && callable` 生成 `enabledTools`，既有 DSH 与 DataHub 拓扑不变。
+- Wind、iFinD 和 Excel 的本机检测只形成诊断证据；未完成 Provider 适配时不进入 Runtime。真实厂商组件与账号环境尚未验收。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"连接中心复用现有设置页、产品壳和同源API，仅把来源列表与真实配置诊断组合为响应式主从视图。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"通用配置、凭据引用、探测和迁移均封装在现有DataHub节点内，Provider路由与会话快照数据流保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Runtime改读统一来源状态但仍在启动时生成enabledTools，没有新增执行服务、注册阶段或查询通道。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力工具目录复用统一连接摘要计算可选性，能力包、版本、原生注册和权限边界保持不变。","diagrams":[]} -->

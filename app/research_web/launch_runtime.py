@@ -25,8 +25,8 @@ PINNED_COMMIT = "c919b2a460753859665db3f60143d525fb9140cf"
 def enabled_datahub_tools(data: Path | None = None) -> list[str]:
     """Resolve the fixed business tool IDs backed by callable offline catalog sources."""
     try:
-        mysql_status = MySQLConnectionStore(data).status() if data is not None else None
-        capabilities = build_catalog(mysql_status=mysql_status)["capabilities"]
+        connection_statuses = MySQLConnectionStore(data).statuses() if data is not None else None
+        capabilities = build_catalog(connection_statuses=connection_statuses)["capabilities"]
         callable_capabilities = {
             item["id"] for item in capabilities if item["callable_source_count"] > 0
         }

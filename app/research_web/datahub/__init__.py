@@ -14,22 +14,26 @@ from ..store import StoreError
 from . import providers
 from .broker import resolve
 from .catalog import build_catalog, catalog_detail
+from .connection_center import build_connection_center
 from .connections import MySQLConnectionStore
 from .contracts import BusinessQuery, Query
+from .probes import probe_source
 from .security import load_control
 from .snapshots import Snapshots
 
 log = get_logger(__name__)
 __all__ = ["BusinessQuery", "DataHub", "Query", "load_control"]
+PROBE_TIMEOUT = 15
 
 
 class DataHub:
-    def __init__(self, store, *, transport=None, url=None):
+    def __init__(self, store, *, transport=None, url=None, probe_runner=None):
         self.store = store
         self.snapshots = Snapshots(store)
         self.connections = MySQLConnectionStore(store.root)
         self.control = load_control(store.root, url)
         self.transport = transport
+        self.probe_runner = probe_runner or probe_source
         self.tasks: dict[tuple[str, str], asyncio.Task] = {}
         self.probe_tasks: dict[str, asyncio.Task] = {}
         self.probes: dict[str, dict] = {}
@@ -55,14 +59,19 @@ class DataHub:
         return latest
 
     def catalog(self):
-        return build_catalog(probes=self._latest_probes(), mysql_status=self.connections.status())
+        return build_catalog(
+            probes=self._latest_probes(), connection_statuses=self.connections.statuses()
+        )
+
+    def connection_center(self):
+        return build_connection_center(self.catalog(), self.connections)
 
     def catalog_capability(self, capability_id):
         return catalog_detail(
             "capability",
             capability_id,
             probes=self._latest_probes(),
-            mysql_status=self.connections.status(),
+            connection_statuses=self.connections.statuses(),
         )
 
     def catalog_source(self, source_id):
@@ -70,7 +79,7 @@ class DataHub:
             "source",
             source_id,
             probes=self._latest_probes(),
-            mysql_status=self.connections.status(),
+            connection_statuses=self.connections.statuses(),
         )
 
     def start_probe(self, source_id, idempotency_key):
@@ -106,13 +115,31 @@ class DataHub:
         source_id = record["source_id"]
         started = time.monotonic()
         try:
-            source = self.catalog_source(source_id)
+            source = await asyncio.to_thread(self.catalog_source, source_id)
             state = source["readiness"]["integration_state"]
-            if state != "ready":
+            if source_id in {"wind", "ifind"}:
+                configuration = await asyncio.to_thread(
+                    self.connections.source_configuration, source_id
+                )
+                if configuration is None:
+                    outcome = {"health": "unavailable", "failure_code": state}
+                else:
+                    outcome = await asyncio.wait_for(
+                        self.probe_runner(
+                            source_id,
+                            configuration.model_dump(),
+                            self.connections.read_source_secret,
+                        ),
+                        timeout=PROBE_TIMEOUT,
+                    )
+            elif state != "ready":
                 outcome = {"health": "unavailable", "failure_code": state}
             else:
-                outcome = await providers.probe(
-                    source_id, transport=self.transport, connections=self.connections
+                outcome = await asyncio.wait_for(
+                    providers.probe(
+                        source_id, transport=self.transport, connections=self.connections
+                    ),
+                    timeout=PROBE_TIMEOUT,
                 )
             checked = datetime.now(UTC).isoformat()
             record.update(
@@ -127,7 +154,18 @@ class DataHub:
         except asyncio.CancelledError:
             record.update(status="cancelled", health="untested", failure_code="probe_cancelled")
             raise
-        except (providers.ProviderError, StoreError, KeyError, TypeError, ValueError) as exc:
+        except TimeoutError as exc:
+            checked = datetime.now(UTC).isoformat()
+            record.update(
+                status="completed",
+                health="unavailable",
+                failure_code="probe_timeout",
+                duration_ms=max(0, round((time.monotonic() - started) * 1000)),
+                last_checked_at=checked,
+                completed_at=checked,
+            )
+            log.warning("datahub_probe_timed_out", source=source_id, error_type=type(exc).__name__)
+        except Exception as exc:  # noqa: BLE001 - probe boundary must close vendor errors.
             checked = datetime.now(UTC).isoformat()
             record.update(
                 status="completed",
@@ -279,7 +317,7 @@ class DataHub:
                 resolution = resolve(
                     query,
                     probes=self._latest_probes(),
-                    mysql_status=self.connections.status(),
+                    connection_statuses=self.connections.statuses(),
                 )
                 provider_query = resolution.query
                 source_label = resolution.provider_id
