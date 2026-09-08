@@ -37,7 +37,9 @@ HOST_PROCESS_MODULES = {"asyncio", "os", "pty"}
 
 def _is_host_process_entry(module, name):
     if module == "os":
-        return name in {"popen", "system"} or name.startswith(("spawn", "posix_spawn"))
+        return name in {"popen", "system"} or name.startswith(
+            ("exec", "fork", "spawn", "posix_spawn")
+        )
     if module == "pty":
         return name == "spawn"
     return module == "asyncio" and name in {
@@ -489,6 +491,10 @@ class CapabilityCatalog:
                     module_aliases = {}
                     imported_entries = set()
                     subprocess_imported = False
+                    star_imported = False
+                    # This publication check is deliberately conservative: an import
+                    # binding remains trusted evidence after local reassignment because
+                    # complete Python scope and control-flow resolution is out of scope.
                     for node in ast.walk(tree):
                         if isinstance(node, ast.Import):
                             for alias in node.names:
@@ -500,20 +506,29 @@ class CapabilityCatalog:
                             if node.module == "subprocess":
                                 subprocess_imported = True
                             elif node.module in HOST_PROCESS_MODULES:
+                                star_imported = star_imported or any(
+                                    alias.name == "*" for alias in node.names
+                                )
                                 imported_entries.update(
                                     alias.asname or alias.name
                                     for alias in node.names
                                     if _is_host_process_entry(node.module, alias.name)
                                 )
-                    uses_host_process_entry = bool(imported_entries) or any(
-                        isinstance(node, ast.Call)
-                        and isinstance(node.func, ast.Attribute)
-                        and isinstance(node.func.value, ast.Name)
-                        and node.func.value.id in module_aliases
-                        and _is_host_process_entry(
-                            module_aliases[node.func.value.id], node.func.attr
+                    uses_host_process_entry = (
+                        star_imported
+                        or any(
+                            isinstance(node, ast.Attribute)
+                            and isinstance(node.value, ast.Name)
+                            and node.value.id in module_aliases
+                            and _is_host_process_entry(module_aliases[node.value.id], node.attr)
+                            for node in ast.walk(tree)
                         )
-                        for node in ast.walk(tree)
+                        or any(
+                            isinstance(node, ast.Name)
+                            and isinstance(node.ctx, ast.Load)
+                            and node.id in imported_entries
+                            for node in ast.walk(tree)
+                        )
                     )
                     if subprocess_imported or uses_host_process_entry:
                         issues.append(

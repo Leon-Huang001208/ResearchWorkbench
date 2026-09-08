@@ -45,14 +45,19 @@ def test_reviewed_script_cannot_spawn_host_processes(api, tmp_path):
         "import subprocess as process_module",
         "from subprocess import run as launch",
         "import subprocess\nlauncher = subprocess.run",
-        "import os as host_os\nhost_os.system('echo blocked')",
-        "from os import popen as host_popen\nhost_popen('echo blocked')",
-        "import os\nos.spawnlp(os.P_NOWAIT, 'echo', 'echo', 'blocked')",
-        "from os import posix_spawn as launch\nlaunch('/bin/echo', ['/bin/echo'], {})",
-        "import pty as pseudo_terminal\npseudo_terminal.spawn('/bin/sh')",
-        "from pty import spawn as launch\nlaunch('/bin/sh')",
-        "import asyncio as aio\naio.create_subprocess_exec('echo', 'blocked')",
-        "from asyncio import create_subprocess_shell as launch\nlaunch('echo blocked')",
+        "import os as host_os\nlaunch = host_os.system",
+        "from os import popen as host_popen\nlaunch = host_popen",
+        "import os\nlaunch = os.spawnlp",
+        "from os import posix_spawn as launch\ncopy = launch",
+        "import os\nlaunch = os.forkpty",
+        "from os import execve as replace_process\nlaunch = replace_process",
+        "import pty as pseudo_terminal\nlaunch = pseudo_terminal.spawn",
+        "from pty import spawn as launch\ncopy = launch",
+        "import asyncio as aio\nlaunch = aio.create_subprocess_exec",
+        "from asyncio import create_subprocess_shell as launch\ncopy = launch",
+        "from os import *",
+        "from pty import *",
+        "from asyncio import *",
     ],
     ids=[
         "subprocess-module-alias",
@@ -62,10 +67,15 @@ def test_reviewed_script_cannot_spawn_host_processes(api, tmp_path):
         "os-popen-from-import",
         "os-spawn-family",
         "os-posix-spawn-family",
+        "os-fork-family",
+        "os-exec-family-from-import",
         "pty-spawn-alias",
         "pty-spawn-from-import",
         "asyncio-exec-alias",
         "asyncio-shell-from-import",
+        "os-star-import",
+        "pty-star-import",
+        "asyncio-star-import",
     ],
 )
 def test_reviewed_script_rejects_incompatible_runtime_entrypoints(api, content):
@@ -93,6 +103,23 @@ def test_host_process_names_without_matching_import_are_allowed(api, content):
 
     assert "runtime_incompatible_script" not in {item["code"] for item in check["issues"]}
     assert check["valid"]
+
+
+def test_import_binding_shadowing_remains_conservatively_blocked(api):
+    """Publication checks deliberately do not attempt complete Python scope analysis."""
+
+    client, _, _ = api
+    content = (
+        "import os\n"
+        "class Local:\n"
+        "    system = staticmethod(lambda *args: None)\n"
+        "os = Local()\n"
+        "os.system('still conservatively blocked')"
+    )
+
+    check = check_script(client, content)
+
+    assert "runtime_incompatible_script" in {item["code"] for item in check["issues"]}
 
 
 @pytest.mark.parametrize(
