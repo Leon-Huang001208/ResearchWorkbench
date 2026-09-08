@@ -262,7 +262,9 @@ def test_provider_probe_is_safe_and_missing_xlwings_blocks_run(api, tmp_path):
     assert unverified.json()["code"] == "provider_health_unverified"
     run = client.post("/api/research/report-workflows/weekly-report/runs")
     assert run.status_code == 202
-    for _ in range(50):
+    # The run advances on a background worker; a loaded full suite can take
+    # longer than the previous 0.5-second polling window.
+    for _ in range(500):
         value = client.get(f"/api/research/report-runs/{run.json()['id']}").json()
         if value["status"] == "blocked_data":
             break

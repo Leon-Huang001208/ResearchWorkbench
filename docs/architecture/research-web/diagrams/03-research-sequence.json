@@ -15,7 +15,7 @@
     {"id": "dsh", "type": "external", "label": "DSH", "sublabel": "研究执行"},
     {"id": "policy", "type": "security", "label": "本地查询边界", "sublabel": "enabledTools / Schema / 会话"},
     {"id": "datahub", "type": "backend", "label": "DataHub", "sublabel": "目录 / 路由 / 校验"},
-    {"id": "provider", "type": "cloud", "label": "数据 Provider", "sublabel": "固定上游"},
+    {"id": "provider", "type": "cloud", "label": "数据 Provider", "sublabel": "固定上游 / 用户配置 MySQL"},
     {"id": "snapshot", "type": "database", "label": "会话快照", "sublabel": "Manifest + JSON/CSV"}
   ],
   "segments": [

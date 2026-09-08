@@ -53,6 +53,7 @@
 | GET | `/api/research/data/catalog` | `app/research_web/datahub/routes.py` |
 | GET | `/api/research/data/capabilities/{capability_id}` | `app/research_web/datahub/routes.py` |
 | GET | `/api/research/data/sources/{source_id}` | `app/research_web/datahub/routes.py` |
+| GET / PUT / DELETE | `/api/research/data/sources/mysql/configuration` | `app/research_web/datahub/routes.py` |
 | POST | `/api/research/data/sources/{source_id}/probes` | `app/research_web/datahub/routes.py` |
 | GET | `/api/research/data/probes/{probe_id}` | `app/research_web/datahub/routes.py` |
 | GET | `/api/research/sessions/{sid}/datasets` | `app/research_web/datahub/routes.py` |

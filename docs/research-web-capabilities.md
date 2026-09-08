@@ -24,7 +24,7 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 | GET `/capabilities/{id}/versions` | `{items:[{version,native_name,metadata,published_at,sha256,current}]}` |
 | GET `/capabilities/{id}/versions/{version}` | 原始指令、元数据、文件及步骤，`read_only:true` |
 | GET `/capabilities/{id}/versions/{version}/export` | ZIP：原始 SKILL.md、capability.json、可选 workflow.json、资源 |
-| GET `/tools` | 21 项真实 guard/注册声明：8 项研究/控制工具和 13 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
+| GET `/tools` | 23 项真实 guard/注册声明：8 项研究/控制工具和 15 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
 | GET `/workflows` | 同一能力目录中三项种子及用户 Workflow；没有平行目录 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |
@@ -172,7 +172,7 @@ DSH 固定提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`。
 Web 先以 session.models 冷恢复再 skill.list 核对；缺 exact native_name 时409拒绝，不改写会话历史。
 界面应提示等待已授权目录接线；仍缺失时新建/显式升级会话并复用资料，不自动重写旧 preset 记录。
 
-tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。DataHub 元数据标记为 `automatic`；Runtime 启动时只注册至少有一个可调用来源的固定工具。能力中心“数据”页另从 DataHub 静态目录投影 13 项业务能力、21 个来源和绑定矩阵；它不是第四种运行器，加入草稿只会表达相应 `datahub_*` Tool 意图，不能绕过 `enabledTools`。
+tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。DataHub 元数据标记为 `automatic`；Runtime 启动时只注册至少有一个可调用来源的固定工具。能力中心“数据”页另从 DataHub 静态目录投影 15 项业务能力、22 个来源和绑定矩阵；其中“因子库研究”只通过 schema、受控单表和会话脚本工具工作，不能直连数据库或绕过 `enabledTools`。
 真实原生注册测试覆盖 skill/subagent/report/send_message/interrupt_agent/list_agents/web_search
 及本项目 research_run_script/datahub_get_fund_data；DataHub 的 Query schema 与五个 SOURCES 直接复用。
 report 仅原生子 Agent 作用域可用；所有工具权限、模型、执行上限及审批策略均未改变。

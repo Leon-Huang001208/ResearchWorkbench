@@ -2,7 +2,7 @@
 
 DataHub是`app/research_web/datahub/`内的FastAPI进程模块，不是新守护进程、调度器或全局行情数据库。
 DSH仍是唯一研究引擎；Web只读资料，原生插件通过受控回环桥接查询同一DataHub。已配置且可用的来源自动执行，不逐次确认。
-不导入旧Connector.run、AKShare生命周期或旧报告编译链；没有新增依赖。
+不导入旧Connector.run、AKShare生命周期或旧报告编译链。通用 MySQL Provider 使用项目依赖 PyMySQL 与 keyring；它不是固定阿里云账号适配器。
 
 ## 当前定位与命名
 
@@ -15,16 +15,16 @@ datahub_* 业务 Tool
           ↓
 DataHub：静态目录 → 白名单路由 → Provider → 快照与审计
           ↓
-东方财富 / 财联社 / 后续完成适配的专业或公开来源
+东方财富 / 财联社 / 用户 MySQL / 后续完成适配的来源
 ```
 
 Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌前缀。这样未来产品改名不会破坏 Skill、会话历史或 DSH 工具协议。`datahub_get_fund_data` 是基金数据能力的正式工具名。
 
 ## 全源静态目录
 
-`catalog.py` 始终声明并供页面展示 13 项业务能力和 21 个来源；读取目录不会导入 Connector、访问外网、启动 Excel 或产生供应商费用。目录展示范围不等于 Runtime 工具范围：真实 Runtime 只注册启动时 `callable_source_count > 0` 的能力对应工具。
+`catalog.py` 始终声明并供页面展示 15 项业务能力和 22 个来源；读取目录不会连接数据库、导入旧 Connector、访问外网、启动 Excel 或产生供应商费用。目录展示范围不等于 Runtime 工具范围：真实 Runtime 只注册启动时 `callable_source_count > 0` 的能力对应工具。
 
-业务能力包括证券搜索、交易日历、历史行情、实时快照、指数、财务、资金与交易事件、因子与宏观、基金、新闻、公告、研究资料和网页搜索。登记来源包括 Wind、天软、iFinD、AKShare、BaoStock、Tushare、Yahoo、ChinaStock、本地缓存、中证指数、深交所、巨潮、财联社、中国证券网两类内容、知丘三类内容、东方财富基金、Tavily 和 Bing。
+业务能力在原有十三项基础上增加数据库目录和数据库单表查询。登记来源增加通用 `mysql`，显示名为“用户 MySQL 数据库”；连接名称可由本机用户命名为“阿里云因子库”等，不把品牌、主机、账号或口令固化到技术标识。
 
 每个来源分别展示：
 
@@ -38,7 +38,7 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 
 ## 稳定业务 Tool
 
-静态业务工具集合包括 `datahub_search_assets`、`datahub_get_trading_calendar`、`datahub_get_market_bars`、`datahub_get_market_snapshot`、`datahub_get_index_data`、`datahub_get_financials`、`datahub_get_market_activity`、`datahub_get_factor_macro`、`datahub_get_fund_data`、`datahub_search_news`、`datahub_search_announcements`、`datahub_search_research` 和 `datahub_search_web`。启动器从离线目录读取每项能力的 `callable_source_count`，把大于零的工具 ID 物化到本次 Runtime 的 `enabledTools`；Runtime 只注册这个子集。配置、依赖或允许状态变化后，必须启动或重启 Runtime 才会重新物化，不会在运行中的会话里偷偷增删工具。
+静态业务工具集合在原有十三项之外增加 `datahub_get_database_schema` 与 `datahub_query_table`。启动器从离线目录读取每项能力的 `callable_source_count`，把大于零的工具 ID 物化到本次 Runtime 的 `enabledTools`；保存 MySQL 配置后可立即在 DataHub 探测，但必须启动或重启 Runtime 才会物化这两个工具。
 
 工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。已配置且可用的来源会自动查询，包括需要账户或付费授权的来源，不再弹出逐次确认。没有可调用来源的能力不会注册为 Runtime 工具；Agent 不应调用或重试不存在的工具，也不能降级成网页猜测或演示结果。
 
@@ -47,6 +47,15 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 自动执行只移除 DataHub 的逐次确认，不放宽其他边界：回环 token、`trustedDirectory` 父系验证、能力/来源白名单与固定参数 schema、会话隔离快照、取消联动、22 秒原生桥接超时和 15 秒 Provider deadline 均继续生效。
 
 `broker.py` 根据能力绑定、覆盖范围、完成适配、配置、依赖和允许状态选源。`source=auto` 只选择一个最终 Provider，不拼接不同口径；显式来源默认不换源，只有请求明确 `allow_fallback=true` 才允许继续选择。结果记录实际 Provider 与尝试来源。
+
+### 用户 MySQL 边界
+
+- 非秘密字段 `label`、`host`、`port`、`user`、`charset`、`tls_mode` 原子写入 `<RESEARCH_DATA_HOME>/connections/mysql.json`。密码固定使用系统凭据库服务 `ResearchWorkbench.DataHub`、账户 `mysql:default:password`；API 只返回 `secret_configured`，不回填密码。
+- 凭据库不可用、锁定或写入失败返回 `credential_store_unavailable`，不降级到环境变量或明文。保存与删除使用补偿流程；删除连接不级联删除既有会话快照。
+- `required_no_verify` 使用显式 SSLContext 强制 TLS、关闭证书验证，不允许明文降级。来源详情和每份快照均含 `tls_certificate_unverified`。
+- 每次探测与查询先执行 `SHOW GRANTS`；仅允许 `USAGE`、`SELECT`、`SHOW VIEW`，检测到写入、DDL、管理、`ALL PRIVILEGES` 或 `GRANT OPTION` 即以 `unsafe_privileges` 阻断。
+- schema 工具按数据库→表/视图→列逐级枚举，排除 `information_schema`、`mysql`、`performance_schema`、`sys`。表查询只生成单表参数化 SELECT，标识符必须精确来自 information_schema；禁止原始 SQL、JOIN、子查询、表达式、聚合、存储过程与 DDL/DML。
+- 表查询默认 500 行、最多 5000 行，offset 最大 100000；最多 20 个过滤、100 个 IN 值和 5 个排序项。同步驱动运行在独立容量为 1 的线程执行器内，deadline 15 秒，原始响应 16 MiB。事务只读，成功或失败均 rollback 并关闭连接。
 
 ## 查询与来源
 
@@ -93,6 +102,7 @@ BFF关闭及现有会话cancel均取消相关请求。原生abort通过独立短
 
 ```text
 .control/datahub.json                         # 新产品控制凭据，只给可信服务/原生插件
+connections/mysql.json                        # MySQL非秘密配置；密码在系统凭据库
 .control/calls/<sid>/<call-hash>.json          # 稳定调用ID + 参数指纹 + 受理/结果
 .control/snapshots/<sid>/<dataset_id>/         # 原始响应 + 权威manifest
 sessions/<sid>/inputs/datasets/<dataset_id>/   # 只读rows.json、rows.csv、manifest.json
@@ -112,7 +122,8 @@ refresh=true始终新建；同原生调用ID重放返回同一结果，同ID不�
 
 ## API契约
 
-- `GET /api/research/data/catalog`：13 项能力、21 个来源、绑定矩阵和诚实汇总；纯静态读取。
+- `GET /api/research/data/catalog`：15 项能力、22 个来源、绑定矩阵和诚实汇总；不连接来源。
+- `GET|PUT|DELETE /api/research/data/sources/mysql/configuration`：读取安全状态、原子保存完整非秘密配置与可选新密码，或删除本机连接；响应永不包含密码。
 - `GET /api/research/data/capabilities/{id}`：能力参数、字段、覆盖范围和全部候选来源。
 - `GET /api/research/data/sources/{id}`：来源鉴权/依赖、状态、限制和支持的数据集。
 - `POST /api/research/data/sources/{id}/probes`：以 `Idempotency-Key` 异步检测单一来源。
@@ -145,6 +156,8 @@ XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/H
 
 离线：`python -m pytest tests/research_web --confcutdir=tests/research_web -q`及`DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness node --test tests/javascript/research_web*.test.mjs`。
 还执行ruff/black/isort/mypy及项目任务完整性检查；2026-09-04 全源目录、真实公开探测、Web 五视口和 Archify 证据见`.ai/reports/2026-09-04-datahub-full-source-catalog.md`，早期 DataHub 实现记录见`.ai/reports/2026-09-02-datahub-implementation.md`。
+
+MySQL 的单元与界面验收使用模拟 Keyring、PyMySQL 连接和安全化 API 响应，不使用对话中出现过的旧口令。真实连接只有在用户轮换口令、重新保存并显式发起探测后才可验收；Research Web 在 Windows 与 Linux 上的系统凭据库后端仍需对应操作系统 CI 验证。桌面 sidecar、Tauri 安装包和安装级烟测不在本次范围内。
 真实来源只读核对由父任务记录在`.ai/reports/2026-09-02-datahub-source-probes.md`，不把离线测试当真实模型闭环。
 2026-09-02集成验收曾按当时机制从Web完成四次原生审批，并取得2025净值13页243条及三类补充资料、完成FinGPT升级复制、两个真实子Agent共享资料，以及DOCX/HTML/XLSX/PNG输出。该记录是旧逐次审批机制的历史证据，不代表当前 Runtime 仍逐次审批；当前行为以上文自动执行和启动时工具物化契约为准。
 最终XLSX四张原始表逐值与CSV一致（243/16/25/220行），来源文件hash一致；首末观测区间变动和回撤已独立重算，数值与百分比格式均核对。

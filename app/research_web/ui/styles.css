@@ -304,9 +304,18 @@ textarea { resize: vertical; }
 .runtime-details { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
 .runtime-details dt { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
 .runtime-details dd { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
-#settings-form { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
-#settings-form label { font-size: 12px; }
+#settings-form, #mysql-settings-form { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+#settings-form label, #mysql-settings-form label { font-size: 12px; }
 #settings-form .button { align-self: flex-start; }
+.settings-group { max-width: 860px; }
+.settings-group-heading { margin: 8px 0 18px; }
+.settings-group-heading h2 { margin: 4px 0 6px; }
+.mysql-settings { border-left: 3px solid var(--blue); }
+.mysql-settings .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.connection-state-chain { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 18px 0; }
+.connection-state-chain span { min-height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12px; }
+.connection-state-chain span.done { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--line)); background: color-mix(in srgb, var(--green) 7%, transparent); }
+.connection-state-chain span.active { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 5px 0; }
 .form-grid label { display: flex; flex-direction: column; gap: 7px; }
 .skills-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
@@ -563,6 +572,7 @@ textarea { resize: vertical; }
   .claw-workspace-content .context-section + .context-section { border-top: 1px solid var(--line); border-left: 0; }
 }
 @media (max-width: 1050px) {
+  #mysql-settings-form input, #mysql-settings-form select, #mysql-settings-form .button { min-height: 44px; }
   .app-shell, .app-shell.wide-page, .app-shell.sidebar-collapsed, .app-shell.sidebar-collapsed.wide-page { grid-template-columns: 72px minmax(0, 1fr); grid-template-areas: "top top" "rail main"; }
   .context-panel { display: none; }
   .secondary-sidebar { display: none; }
@@ -624,6 +634,8 @@ textarea { resize: vertical; }
   .history-row { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; padding: 16px 13px; }
   .history-row time, .history-row > span:last-child { display: none; }
   .settings-card { padding: 20px; }
+  #mysql-settings-form input, #mysql-settings-form select, #mysql-settings-form .button { min-height: 44px; }
+  .connection-state-chain { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .capability-detail, .capability-editor { padding: 16px; }
   .report-workflow-grid { grid-template-columns: 1fr; }

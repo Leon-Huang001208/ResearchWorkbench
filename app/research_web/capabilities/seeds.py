@@ -13,6 +13,7 @@ def seed_packages():
         ("industry-research", "行业研究", "行业"),
         ("fund-evaluation", "基金评价", "基金"),
         ("market-commentary", "市场解读", "市场"),
+        ("factor-database-research", "因子库研究", "因子研究"),
     ]
     packages = []
     for slug, name, category in specs:
@@ -47,9 +48,13 @@ def seed_packages():
                         "required_tools": [
                             "research_run_script",
                             *(
-                                ["datahub_get_fund_data"]
-                                if slug == "fund-evaluation"
-                                else ["datahub_search_news"]
+                                ["datahub_get_database_schema", "datahub_query_table"]
+                                if slug == "factor-database-research"
+                                else (
+                                    ["datahub_get_fund_data"]
+                                    if slug == "fund-evaluation"
+                                    else ["datahub_search_news"]
+                                )
                             ),
                         ],
                         "dependencies": [],
