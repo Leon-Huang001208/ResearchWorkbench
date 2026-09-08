@@ -41,6 +41,7 @@ def valid_digest():
     citation = {"locator": "p.12", "source": "用户上传研报"}
     return {
         "schemaVersion": 1,
+        "resultLevel": "重要",
         "source": {
             "title": "样例研报",
             "publishedAt": "2026-09-01",
@@ -104,6 +105,16 @@ def valid_digest():
             ],
         },
     }
+
+
+def no_delta_digest():
+    digest = valid_digest()
+    digest["resultLevel"] = "框架价值"
+    digest["claimLayers"]["newEvidence"] = []
+    digest["claimLayers"]["inferences"] = []
+    digest["noDeltaExplanation"] = "相对明确基线未发现决策相关新证据，仅保留来源中的行业框架。"
+    digest["limitations"].append("无可核验新增证据")
+    return digest
 
 
 def test_builtin_metadata_text_boundaries_and_reviewed_resources(api):
@@ -227,6 +238,63 @@ def test_validator_accepts_complete_structure_and_rejects_evidence_gaps(caplog):
     assert any("invalidationSignals" in item for item in result["errors"])
     assert any("audience" in item for item in result["errors"])
     assert any(record.name.startswith("research.skill") for record in caplog.records)
+
+
+def test_validator_accepts_honest_full_text_result_without_delta():
+    module = load_script("validate_digest.py")
+    result = module.validate_digest(no_delta_digest())
+    assert result["valid"] is True
+    assert any("newEvidence is empty" in item for item in result["warnings"])
+    assert any("inferences is empty" in item for item in result["warnings"])
+
+
+@pytest.mark.parametrize("layer", ["facts", "sourceOpinions", "newEvidence", "inferences"])
+@pytest.mark.parametrize("problem", ["missing", "not_array"])
+def test_validator_requires_each_claim_layer_array(layer, problem):
+    module = load_script("validate_digest.py")
+    digest = no_delta_digest()
+    if problem == "missing":
+        digest["claimLayers"].pop(layer)
+    else:
+        digest["claimLayers"][layer] = {"unexpected": "object"}
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    assert any(f"claimLayers.{layer}" in item for item in result["errors"])
+
+
+def test_validator_rejects_completely_empty_claim_layers():
+    module = load_script("validate_digest.py")
+    digest = no_delta_digest()
+    digest["claimLayers"] = {
+        "facts": [],
+        "sourceOpinions": [],
+        "newEvidence": [],
+        "inferences": [],
+    }
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    assert any("facts or sourceOpinions" in item for item in result["errors"])
+
+
+@pytest.mark.parametrize("result_level", ["重要", "有限增量"])
+def test_validator_rejects_claimed_delta_level_without_new_evidence(result_level):
+    module = load_script("validate_digest.py")
+    digest = no_delta_digest()
+    digest["resultLevel"] = result_level
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    assert any("requires non-empty claimLayers.newEvidence" in item for item in result["errors"])
+
+
+def test_validator_requires_explanation_and_limitation_for_no_delta():
+    module = load_script("validate_digest.py")
+    digest = no_delta_digest()
+    digest.pop("noDeltaExplanation")
+    digest["limitations"] = []
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    assert any("noDeltaExplanation" in item for item in result["errors"])
+    assert any("limitations" in item for item in result["errors"])
 
 
 @pytest.mark.parametrize("field", ["keyAssumptions", "validationIndicators"])

@@ -23,6 +23,8 @@ ACTION_LABELS = {
     "无明确行动",
 }
 READABLE_ACCESS = {"full_text", "user_supplied_text"}
+RESULT_LEVELS = {"重要", "有限增量", "框架价值", "可跳过"}
+DELTA_LEVELS = {"重要", "有限增量"}
 
 
 def _text(value: Any) -> bool:
@@ -70,8 +72,8 @@ def _check_citations(value: Any, location: str, errors: list[str]) -> None:
 
 
 def _check_claims(value: Any, location: str, errors: list[str]) -> None:
-    if not isinstance(value, list) or not value:
-        errors.append(f"{location} must be a non-empty array")
+    if not isinstance(value, list):
+        errors.append(f"{location} must be an array")
         return
     for index, claim in enumerate(value):
         item_location = f"{location}[{index}]"
@@ -117,6 +119,9 @@ def validate_digest(digest: Any) -> dict[str, Any]:
         if type(digest.get("schemaVersion")) is not int or digest.get("schemaVersion") != 1:
             errors.append("schemaVersion must be integer 1")
         _check_xml_text(digest, "digest", errors)
+        result_level = digest.get("resultLevel")
+        if result_level not in RESULT_LEVELS:
+            errors.append("resultLevel is invalid")
 
         source = digest.get("source")
         if not isinstance(source, dict):
@@ -145,6 +150,24 @@ def validate_digest(digest: Any) -> dict[str, Any]:
         else:
             for layer in LAYERS:
                 _check_claims(layers.get(layer), f"claimLayers.{layer}", errors)
+            facts = layers.get("facts")
+            opinions = layers.get("sourceOpinions")
+            if isinstance(facts, list) and isinstance(opinions, list) and not (facts or opinions):
+                errors.append("claimLayers needs at least facts or sourceOpinions")
+            new_evidence = layers.get("newEvidence")
+            if isinstance(new_evidence, list) and not new_evidence:
+                if result_level in DELTA_LEVELS:
+                    errors.append(
+                        f"resultLevel {result_level} requires non-empty claimLayers.newEvidence"
+                    )
+                if not _text(digest.get("noDeltaExplanation")):
+                    errors.append("noDeltaExplanation is required when newEvidence is empty")
+                warnings.append("claimLayers.newEvidence is empty; no delta is asserted")
+            inferences = layers.get("inferences")
+            if isinstance(inferences, list) and not inferences:
+                warnings.append(
+                    "claimLayers.inferences is empty; no research inference is asserted"
+                )
 
         counter = digest.get("counterEvidence")
         if not isinstance(counter, list) or not counter:
