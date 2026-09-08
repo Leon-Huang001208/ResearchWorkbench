@@ -32,6 +32,18 @@ log = get_logger(__name__)
 LEGACY_SCRIPT_TOOL = "af_run_script"
 LEGACY_PUBLIC_DATA_TOOL = "af_public_data"
 SCRIPT_TOOL = "research_run_script"
+HOST_PROCESS_MODULES = {"asyncio", "os", "pty"}
+
+
+def _is_host_process_entry(module, name):
+    if module == "os":
+        return name in {"popen", "system"} or name.startswith(("spawn", "posix_spawn"))
+    if module == "pty":
+        return name == "spawn"
+    return module == "asyncio" and name in {
+        "create_subprocess_exec",
+        "create_subprocess_shell",
+    }
 
 
 class CapabilityCatalog:
@@ -474,45 +486,36 @@ class CapabilityCatalog:
                         for n in ast.walk(tree)
                         if isinstance(n, ast.Constant) and isinstance(n.value, str)
                     }
-                    subprocess_names = {
-                        alias.asname or alias.name
-                        for n in ast.walk(tree)
-                        if isinstance(n, ast.Import)
-                        for alias in n.names
-                        if alias.name == "subprocess"
-                    }
-                    subprocess_calls = {
-                        "Popen",
-                        "call",
-                        "check_call",
-                        "check_output",
-                        "getoutput",
-                        "getstatusoutput",
-                        "run",
-                    }
-                    imported_subprocess_calls = {
-                        alias.asname or alias.name
-                        for n in ast.walk(tree)
-                        if isinstance(n, ast.ImportFrom) and n.module == "subprocess"
-                        for alias in n.names
-                        if alias.name in subprocess_calls
-                    }
-                    if any(
-                        isinstance(n, ast.Call)
-                        and (
-                            (
-                                isinstance(n.func, ast.Attribute)
-                                and isinstance(n.func.value, ast.Name)
-                                and n.func.value.id in subprocess_names
-                                and n.func.attr in subprocess_calls
-                            )
-                            or (
-                                isinstance(n.func, ast.Name)
-                                and n.func.id in imported_subprocess_calls
-                            )
+                    module_aliases = {}
+                    imported_entries = set()
+                    subprocess_imported = False
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Import):
+                            for alias in node.names:
+                                if alias.name == "subprocess":
+                                    subprocess_imported = True
+                                elif alias.name in HOST_PROCESS_MODULES:
+                                    module_aliases[alias.asname or alias.name] = alias.name
+                        elif isinstance(node, ast.ImportFrom):
+                            if node.module == "subprocess":
+                                subprocess_imported = True
+                            elif node.module in HOST_PROCESS_MODULES:
+                                imported_entries.update(
+                                    alias.asname or alias.name
+                                    for alias in node.names
+                                    if _is_host_process_entry(node.module, alias.name)
+                                )
+                    uses_host_process_entry = bool(imported_entries) or any(
+                        isinstance(node, ast.Call)
+                        and isinstance(node.func, ast.Attribute)
+                        and isinstance(node.func.value, ast.Name)
+                        and node.func.value.id in module_aliases
+                        and _is_host_process_entry(
+                            module_aliases[node.func.value.id], node.func.attr
                         )
-                        for n in ast.walk(tree)
-                    ):
+                        for node in ast.walk(tree)
+                    )
+                    if subprocess_imported or uses_host_process_entry:
                         issues.append(
                             issue(
                                 "runtime_incompatible_script",

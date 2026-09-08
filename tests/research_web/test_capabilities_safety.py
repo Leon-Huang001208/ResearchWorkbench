@@ -15,16 +15,19 @@ from app.research_web.capabilities.models import CapabilityError
 api = api_fixture
 
 
-def test_reviewed_script_cannot_spawn_host_processes(api, tmp_path):
-    client, _, _ = api
-    marker = tmp_path / "must-not-exist"
-    content = "import subprocess\n" f"subprocess.run(['touch', {str(marker)!r}], check=True)\n"
+def check_script(client, content):
     value = candidate()
     value["files"] = [{"path": "scripts/research.py", "content": content}]
     value["reviewed_scripts"] = [hashlib.sha256(content.encode()).hexdigest()]
     row = create(client, value)
+    return client.post(f"/api/research/capabilities/{row['id']}/check").json()
 
-    check = client.post(f"/api/research/capabilities/{row['id']}/check").json()
+
+def test_reviewed_script_cannot_spawn_host_processes(api, tmp_path):
+    client, _, _ = api
+    marker = tmp_path / "must-not-exist"
+    content = "import subprocess\n" f"subprocess.run(['touch', {str(marker)!r}], check=True)\n"
+    check = check_script(client, content)
 
     runtime_issues = [
         item for item in check["issues"] if item["code"] == "runtime_incompatible_script"
@@ -37,14 +40,78 @@ def test_reviewed_script_cannot_spawn_host_processes(api, tmp_path):
 
 
 @pytest.mark.parametrize(
-    "name,content",
+    "content",
     [
-        ("scripts/install_hook.py", "print('installer')"),
-        ("scripts/research.py", "import ensurepip\nensurepip.bootstrap()"),
-        ("scripts/research.py", "import subprocess\nsubprocess.run(['pip', 'install', 'evil'])"),
+        "import subprocess as process_module",
+        "from subprocess import run as launch",
+        "import subprocess\nlauncher = subprocess.run",
+        "import os as host_os\nhost_os.system('echo blocked')",
+        "from os import popen as host_popen\nhost_popen('echo blocked')",
+        "import os\nos.spawnlp(os.P_NOWAIT, 'echo', 'echo', 'blocked')",
+        "from os import posix_spawn as launch\nlaunch('/bin/echo', ['/bin/echo'], {})",
+        "import pty as pseudo_terminal\npseudo_terminal.spawn('/bin/sh')",
+        "from pty import spawn as launch\nlaunch('/bin/sh')",
+        "import asyncio as aio\naio.create_subprocess_exec('echo', 'blocked')",
+        "from asyncio import create_subprocess_shell as launch\nlaunch('echo blocked')",
+    ],
+    ids=[
+        "subprocess-module-alias",
+        "subprocess-from-import",
+        "subprocess-callable-transfer",
+        "os-system-alias",
+        "os-popen-from-import",
+        "os-spawn-family",
+        "os-posix-spawn-family",
+        "pty-spawn-alias",
+        "pty-spawn-from-import",
+        "asyncio-exec-alias",
+        "asyncio-shell-from-import",
     ],
 )
-def test_installer_scripts_remain_invalid_even_if_reviewed(api, name, content):
+def test_reviewed_script_rejects_incompatible_runtime_entrypoints(api, content):
+    client, _, _ = api
+
+    check = check_script(client, content)
+
+    assert "runtime_incompatible_script" in {item["code"] for item in check["issues"]}
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "class Local:\n    run = staticmethod(lambda *args: None)\nsubprocess = Local()\nsubprocess.run([])",
+        "class Local:\n    system = staticmethod(lambda *args: None)\nos = Local()\nos.system('safe')",
+        "class Local:\n    spawn = staticmethod(lambda *args: None)\npty = Local()\npty.spawn('safe')",
+        "class Local:\n    create_subprocess_exec = staticmethod(lambda *args: None)\nasyncio = Local()\nasyncio.create_subprocess_exec('safe')",
+    ],
+    ids=["subprocess-shadow", "os-shadow", "pty-shadow", "asyncio-shadow"],
+)
+def test_host_process_names_without_matching_import_are_allowed(api, content):
+    client, _, _ = api
+
+    check = check_script(client, content)
+
+    assert "runtime_incompatible_script" not in {item["code"] for item in check["issues"]}
+    assert check["valid"]
+
+
+@pytest.mark.parametrize(
+    "name,content,expected_codes",
+    [
+        ("scripts/install_hook.py", "print('installer')", {"unsafe_file"}),
+        (
+            "scripts/research.py",
+            "import ensurepip\nensurepip.bootstrap()",
+            {"installer_forbidden"},
+        ),
+        (
+            "scripts/research.py",
+            "import subprocess\nsubprocess.run(['pip', 'install', 'evil'])",
+            {"installer_forbidden", "runtime_incompatible_script"},
+        ),
+    ],
+)
+def test_installer_scripts_remain_invalid_even_if_reviewed(api, name, content, expected_codes):
     client, _, _ = api
     value = candidate()
     value["files"] = [{"path": name, "content": content}]
@@ -53,12 +120,7 @@ def test_installer_scripts_remain_invalid_even_if_reviewed(api, name, content):
     check = client.post(f"/api/research/capabilities/{row['id']}/check").json()
     codes = {item["code"] for item in check["issues"]}
     assert not check["valid"]
-    if name == "scripts/install_hook.py":
-        assert "unsafe_file" in codes
-    else:
-        assert "installer_forbidden" in codes
-    if "subprocess.run" in content:
-        assert "runtime_incompatible_script" in codes
+    assert codes >= expected_codes
 
 
 def test_symlink_directory_entry_and_nested_yaml_fail_closed(api):
