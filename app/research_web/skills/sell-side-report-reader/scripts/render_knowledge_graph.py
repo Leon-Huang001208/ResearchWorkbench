@@ -6,7 +6,6 @@ import argparse
 import html
 import json
 import logging
-import re
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +17,29 @@ GAP = 72
 MARGIN = 48
 
 
+def _xml_text(value: str, location: str) -> str:
+    if not all(
+        character in "\t\n\r"
+        or "\x20" <= character <= "\ud7ff"
+        or "\ue000" <= character <= "\ufffd"
+        or "\U00010000" <= character <= "\U0010ffff"
+        for character in value
+    ):
+        raise ValueError(f"{location} contains text forbidden by XML 1.0")
+    return value
+
+
+def _validate_xml_values(value: Any, location: str) -> None:
+    if isinstance(value, str):
+        _xml_text(value, location)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _validate_xml_values(item, f"{location}.{key}")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_xml_values(item, f"{location}[{index}]")
+
+
 def _source_locators(edge: dict[str, Any]) -> list[str]:
     citations = edge.get("citations")
     if not isinstance(citations, list) or not citations:
@@ -27,17 +49,14 @@ def _source_locators(edge: dict[str, Any]) -> list[str]:
         locator = citation.get("locator") if isinstance(citation, dict) else None
         if not isinstance(locator, str) or not locator.strip():
             raise ValueError("Every relationship needs a source locator")
-        locator = locator.strip()
+        locator = _xml_text(locator.strip(), "relationship source locator")
         if locator not in values:
             values.append(locator)
     return values
 
 
-def _safe_id(value: str) -> str:
-    return re.sub(r"[^A-Za-z0-9_.-]", "-", value) or "node"
-
-
 def _build_svg(digest: dict[str, Any], title: str) -> str:
+    _validate_xml_values(digest, "digest")
     framework = digest.get("knowledgeFramework")
     if not isinstance(framework, dict):
         raise TypeError("knowledgeFramework must be an object")
@@ -60,6 +79,8 @@ def _build_svg(digest: dict[str, Any], title: str) -> str:
             or not label.strip()
         ):
             raise ValueError("Every node needs a non-empty id and label")
+        _xml_text(node_id, "node id")
+        _xml_text(label, "node label")
         if node_id in node_map:
             raise ValueError("Node ids must be unique")
         node_map[node_id] = {"id": node_id, "label": label}
@@ -73,6 +94,7 @@ def _build_svg(digest: dict[str, Any], title: str) -> str:
             raise ValueError("Every relationship needs two distinct declared nodes")
         if not isinstance(relation, str) or not relation.strip():
             raise ValueError("Every relationship needs a type")
+        _xml_text(relation, "relationship type")
         for locator in _source_locators(edge):
             if locator not in locators:
                 locators.append(locator)
@@ -83,7 +105,11 @@ def _build_svg(digest: dict[str, Any], title: str) -> str:
         str(node["id"]): (MARGIN + index * (NODE_WIDTH + GAP), 112)
         for index, node in enumerate(nodes)
     }
-    graph_title = title.strip() or str(framework.get("scope") or "关键传导关系")
+    if not isinstance(title, str):
+        raise TypeError("title must be text")
+    scope = framework.get("scope")
+    graph_title = title.strip() or (scope if isinstance(scope, str) else "关键传导关系")
+    graph_title = _xml_text(graph_title, "graph title")
     graph_title = f"据研报重绘｜{graph_title}"
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
@@ -117,12 +143,12 @@ def _build_svg(digest: dict[str, Any], title: str) -> str:
             f'<text x="{(start_x + end_x) / 2:.1f}" y="{route_y - 7:.1f}" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#496078">{relation}</text>'
         )
 
-    for node in nodes:
+    for index, node in enumerate(nodes):
         node_id = str(node["id"])
         x, y = positions[node_id]
         parts.extend(
             [
-                f'<g id="node-{_safe_id(node_id)}">',
+                f'<g id="node-{index}">',
                 f'<rect x="{x}" y="{y}" width="{NODE_WIDTH}" height="{NODE_HEIGHT}" rx="10" fill="#eef6ff" stroke="#2774ae"/>',
                 f'<text x="{x + NODE_WIDTH / 2:.1f}" y="{y + NODE_HEIGHT / 2:.1f}" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif" font-size="14" fill="#17212b">{html.escape(str(node["label"]))}</text>',
                 "</g>",

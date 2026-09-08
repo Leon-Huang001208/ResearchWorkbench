@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 LOGGER = logging.getLogger("research.skill.sell_side.validator")
+MAX_NODES = 12
 LAYERS = ("facts", "sourceOpinions", "newEvidence", "inferences")
 ATTRIBUTIONS = {"研报明示", "研报隐含", "无明确操作含义"}
 ACTION_LABELS = {
@@ -30,6 +31,28 @@ def _text(value: Any) -> bool:
 
 def _text_list(value: Any) -> bool:
     return isinstance(value, list) and bool(value) and all(_text(item) for item in value)
+
+
+def _xml_compatible(value: str) -> bool:
+    return all(
+        character in "\t\n\r"
+        or "\x20" <= character <= "\ud7ff"
+        or "\ue000" <= character <= "\ufffd"
+        or "\U00010000" <= character <= "\U0010ffff"
+        for character in value
+    )
+
+
+def _check_xml_text(value: Any, location: str, errors: list[str]) -> None:
+    if isinstance(value, str):
+        if not _xml_compatible(value):
+            errors.append(f"{location} contains text forbidden by XML 1.0")
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _check_xml_text(item, f"{location}.{key}", errors)
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _check_xml_text(item, f"{location}[{index}]", errors)
 
 
 def _check_citations(value: Any, location: str, errors: list[str]) -> None:
@@ -91,8 +114,9 @@ def validate_digest(digest: Any) -> dict[str, Any]:
     if not isinstance(digest, dict):
         errors.append("digest must be an object")
     else:
-        if digest.get("schemaVersion") != 1:
-            errors.append("schemaVersion must be 1")
+        if type(digest.get("schemaVersion")) is not int or digest.get("schemaVersion") != 1:
+            errors.append("schemaVersion must be integer 1")
+        _check_xml_text(digest, "digest", errors)
 
         source = digest.get("source")
         if not isinstance(source, dict):
@@ -175,8 +199,8 @@ def validate_digest(digest: Any) -> dict[str, Any]:
             else:
                 nodes = framework.get("nodes")
                 edges = framework.get("edges")
-                if not isinstance(nodes, list) or len(nodes) < 2:
-                    errors.append("knowledgeFramework.nodes needs at least two nodes")
+                if not isinstance(nodes, list) or not 2 <= len(nodes) <= MAX_NODES:
+                    errors.append(f"knowledgeFramework.nodes needs 2-{MAX_NODES} nodes")
                     node_ids: set[str] = set()
                 else:
                     node_ids = set()

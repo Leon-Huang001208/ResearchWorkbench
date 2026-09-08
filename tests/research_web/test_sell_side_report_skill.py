@@ -6,8 +6,10 @@ import io
 import json
 import sys
 import zipfile
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from uuid import uuid4
+from xml.etree import ElementTree
 
 import pytest
 import yaml
@@ -264,17 +266,107 @@ def test_validator_returns_structured_errors_for_invalid_edge_endpoints(field, e
     assert any(f"knowledgeFramework.edges[0].{field}" in item for item in result["errors"])
 
 
-def test_validator_cli_reports_invalid_endpoint_without_traceback(tmp_path, monkeypatch, capsys):
+def test_validator_cli_reports_invalid_endpoint_without_traceback(tmp_path, monkeypatch):
     module = load_script("validate_digest.py")
     digest = valid_digest()
     digest["knowledgeFramework"]["edges"][0]["from"] = {}
     path = tmp_path / "invalid-digest.json"
     path.write_text(json.dumps(digest, ensure_ascii=False), encoding="utf-8")
     monkeypatch.setattr(sys, "argv", ["validate_digest.py", str(path)])
-    assert module.main() == 1
-    result = json.loads(capsys.readouterr().out)
+    stdout, stderr = io.StringIO(), io.StringIO()
+    with redirect_stdout(stdout), redirect_stderr(stderr):
+        assert module.main() == 1
+    result = json.loads(stdout.getvalue())
     assert result["valid"] is False
     assert any("edges[0].from" in item for item in result["errors"])
+    assert "Traceback" not in stderr.getvalue()
+
+
+def test_validator_rejects_boolean_schema_version():
+    module = load_script("validate_digest.py")
+    digest = valid_digest()
+    digest["schemaVersion"] = True
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    assert "schemaVersion must be integer 1" in result["errors"]
+
+
+def test_validator_rejects_more_than_twelve_knowledge_nodes():
+    module = load_script("validate_digest.py")
+    digest = valid_digest()
+    digest["knowledgeFramework"]["nodes"] = [
+        {"id": f"n{index}", "label": f"节点 {index}"} for index in range(13)
+    ]
+    digest["knowledgeFramework"]["edges"] = [
+        {
+            "from": f"n{index}",
+            "to": f"n{index + 1}",
+            "relation": "驱动",
+            "citations": [{"locator": "p.12", "source": "用户上传研报"}],
+        }
+        for index in range(12)
+    ]
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    assert any("2-12 nodes" in item for item in result["errors"])
+
+
+def test_twelve_node_digest_validates_then_renders_as_xml():
+    validator = load_script("validate_digest.py")
+    renderer = load_script("render_knowledge_graph.py")
+    digest = valid_digest()
+    digest["knowledgeFramework"]["nodes"] = [
+        {"id": f"n{index}", "label": f"节点 {index}"} for index in range(12)
+    ]
+    digest["knowledgeFramework"]["edges"] = [
+        {
+            "from": f"n{index}",
+            "to": f"n{index + 1}",
+            "relation": "驱动",
+            "citations": [{"locator": "p.12", "source": "用户上传研报"}],
+        }
+        for index in range(11)
+    ]
+    assert validator.validate_digest(digest)["valid"] is True
+    svg = renderer.build_svg(digest)
+    assert ElementTree.fromstring(svg).tag.endswith("svg")
+
+
+@pytest.mark.parametrize("invalid_text", ["contains\x00nul", "contains\x01control"])
+@pytest.mark.parametrize("location", ["source", "node", "edge", "locator"])
+def test_validator_and_renderer_reject_xml_incompatible_text(invalid_text, location):
+    validator = load_script("validate_digest.py")
+    renderer = load_script("render_knowledge_graph.py")
+    digest = valid_digest()
+    if location == "source":
+        digest["source"]["title"] = invalid_text
+    elif location == "node":
+        digest["knowledgeFramework"]["nodes"][0]["label"] = invalid_text
+    elif location == "edge":
+        digest["knowledgeFramework"]["edges"][0]["relation"] = invalid_text
+    else:
+        digest["knowledgeFramework"]["edges"][0]["citations"][0]["locator"] = invalid_text
+    result = validator.validate_digest(digest)
+    assert result["valid"] is False
+    assert any("XML 1.0" in item for item in result["errors"])
+    with pytest.raises(ValueError, match="XML 1.0"):
+        renderer.build_svg(digest)
+
+
+def test_svg_dom_ids_do_not_collide_after_identifier_normalization():
+    module = load_script("render_knowledge_graph.py")
+    digest = valid_digest()
+    digest["knowledgeFramework"]["nodes"] = [
+        {"id": "a b", "label": "节点一"},
+        {"id": "a?b", "label": "节点二"},
+    ]
+    digest["knowledgeFramework"]["edges"][0].update({"from": "a b", "to": "a?b"})
+    first = module.build_svg(digest)
+    second = module.build_svg(digest)
+    assert first == second
+    root = ElementTree.fromstring(first)
+    group_ids = [item.attrib["id"] for item in root.iter() if item.tag.rsplit("}", 1)[-1] == "g"]
+    assert group_ids == ["node-0", "node-1"]
 
 
 def test_svg_is_deterministic_escaped_and_rejects_unsupported_relationship(caplog):
