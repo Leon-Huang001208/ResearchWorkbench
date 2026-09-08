@@ -15,14 +15,14 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "59add299883e23f631fbb58c80c3f732683853be8f37cb554114cb5c2409d519",
-      "specificationSha256": "795a0cf2b936202ec091ae57a4698ac06691ce7005c492a4d6d5ea373adeb39b",
+      "artifactSha256": "d6a85a422500ffdafa0e8e261ad7a433f7fffb03eb4b649c7e971d020977a4a4",
+      "specificationSha256": "278080ca4c50508c32e9bf5bf57ef0444ed61a1de284c170e6220b718f980eca",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-07",
-      "captures": ["02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png"],
+      "date": "2026-09-08",
+      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.1440x900.dark.png"],
       "findings": [],
-      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；现有模块关系清晰，DataHub 节点明确 enabledTools、自动查询与快照边界，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明来源当前在线或报告已实际运行。"
+      "notes": "已人工查看 1440 浅色与深色最终截图；登记来源明确包含用户 MySQL，DataHub 节点保留 enabledTools、自动查询与快照边界，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明来源当前在线或报告已实际运行。"
     },
     {
       "id": "05-capability-flow",
@@ -51,31 +51,31 @@
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "fa24da18510ca9f8436a67fc82e33fb427a6c933f606db764f6cbeb30614b4ab",
-      "specificationSha256": "d85922a31358690af39c9c049ebab4d55826f03d12ffc6ef0a8cf992393ae032",
+      "artifactSha256": "7691b26a7e3b3317ddeab9975afc5ca3a89e19c65527016a9147fa0c2080b18f",
+      "specificationSha256": "ba392eba0d1946c8a5d5db3e369843eb21542332f2c9741c9673923e9a3d0ffc",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-07",
+      "date": "2026-09-08",
       "captures": [
-        "03-research-sequence.visual-check.1440x900.dark.png",
-        "03-research-sequence.visual-check.2048x1320.light.png"
+        "03-research-sequence.visual-check.1440x900.light.png",
+        "03-research-sequence.visual-check.1440x900.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；启动恢复、研究提交、enabledTools/Schema 本地边界、DataHub 自动查询、快照和 SSE 恢复均可读，未见遮挡或裁剪。视觉查看不证明服务永远在线或上游数据完整。"
+      "notes": "已人工查看 1440 浅色与深色最终截图；启动恢复、研究提交、enabledTools/Schema 本地边界、用户配置 MySQL Provider、快照和 SSE 恢复均可读，未见遮挡或裁剪。视觉查看不证明服务永远在线或上游数据完整。"
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "4bed24eeec485f8bc81103b80b006a0dd21d69589af930956a9c3ca8c1e7b49b",
-      "specificationSha256": "7555b5758f9b7f4df74388c5920cb9d4ff17c56fc0a8259487cdf8ec7d613513",
+      "artifactSha256": "a018697374b7bd2968dfede5b1575d7cc3677622be16747d32bdba89953842d5",
+      "specificationSha256": "e22d8ef6e49a8bee9f7176e0293a2657db53bd47ce20d536187d9cf433f1f205",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-07",
+      "date": "2026-09-08",
       "captures": [
-        "04-data-file-flow.visual-check.1440x900.dark.png",
-        "04-data-file-flow.visual-check.2048x1320.light.png"
+        "04-data-file-flow.visual-check.1440x900.light.png",
+        "04-data-file-flow.visual-check.1440x900.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；五阶段数据流、目录零联网、enabledTools/Schema 自动查询边界、标准化快照、页面交接及父子 Agent 共用路径均可辨认，无穿线或裁剪。图不替代真实取数与会话隔离验收。"
+      "notes": "已人工查看 1440 浅色与深色最终截图；五阶段数据流、22 个来源目录、用户 MySQL、enabledTools/Schema 自动查询边界、标准化快照、页面交接及父子 Agent 共用路径均可辨认，无穿线或裁剪。图不替代真实取数与会话隔离验收。"
     },
     {
       "id": "06-run-state",

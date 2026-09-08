@@ -1,5 +1,11 @@
 # 架构迭代核对记录
 
+## 2026-09-08 — 用户本地 MySQL DataHub
+
+- DataHub 增加本机连接配置与系统凭据库边界、逐级 schema 和参数化单表工具；目录更新为 15 项能力、22 个来源。真实 MySQL 与原生 Windows 验证尚未执行，不能由离线模拟推导可达性或平台兼容。
+
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"新增用户本地 MySQL 配置与系统凭据库边界、两个受控业务工具及单线程 Provider。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+
 ## 2026-09-07 — FinGPT 对话、DataHub 自动查询与异常统计
 
 - 对话展示仍位于现有 UI 模块，不新增服务、接口或状态存储；用户右侧气泡、无可见署名、模式化 ARIA 与分类异常横幅属于既有会话投影的呈现修正。图 02 更新 UI 到现有 BFF/DSH 的关系说明。

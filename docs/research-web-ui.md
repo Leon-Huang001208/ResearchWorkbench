@@ -25,7 +25,7 @@
 | `shell.mjs` | 页面标题、导航搜索弹层、可收起的产品导航、真实运行/最近会话与会话右侧标签面板 |
 | `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索及附件拖放/粘贴入口；不直接发起研究 |
 | `capabilities.mjs` | 同一能力目录的筛选、卡片、详情、检查结果、只读 Tool、不可变版本与 Workflow 模板渲染 |
-| `data-catalog.mjs` | DataHub 的 13 项能力 / 21 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
+| `data-catalog.mjs` | DataHub 的 15 项能力 / 22 个来源双视图、诚实就绪状态、来源矩阵、MySQL 配置状态链和单源探测渲染 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
 | `capability-controller.mjs` | 显式创建/复制/导入/编辑/检查/发布/停用/启用/版本/回滚操作及失败保稿 |
 | `workbench.mjs` | 市场、基金、产业链、资料等研究台入口，按需查询并把真实快照交接给研究会话 |
@@ -55,6 +55,7 @@
 - 附件使用 multipart `files` 字段上传；返回 ID 作为 `attachment_ids` 提交。上传成功仅代表后端收到了文件，不代表模型已读取或工具沙箱已执行。
 - 文件下载只使用真实返回且经过检查的同源会话文件 URL。HTML 预览 iframe 使用空 `sandbox` 和 `no-referrer`，前端拒绝外部或任意路径的预览地址；后端仍负责授权、路径隔离和响应 CSP。
 - 模型切换和配置调用 `PUT /runtime/model`。API Key 为密码输入，不回填，不写 localStorage/sessionStorage，不进入日志；提交时清空输入框。失败后如需更新 Key，用户需重新输入。
+- 设置页“连接与授权”把模型服务、数据源和本机集成分开。MySQL 表单仅显示本地非秘密字段；密码通过配置 API 交给系统凭据库，输入提交后立即清空，GET 永不回填。数据目录的 MySQL 来源详情显示“未配置 → 已保存 → 已检测 → 可调用”，连接检测仍须用户显式触发；Wind、iFinD 和 Excel 只说明后续本机适配方向，不提供未实现入口。
 - 前端安全 console 事件只包含固定事件名、请求 method 和 HTTP status；不记录 URL、会话 ID、输入、文件名、响应正文或凭据。服务端持久日志由 Research Web 后端负责写入项目日志设施。
 
 ## Markdown 与安全边界
@@ -119,7 +120,7 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 | Claw 工作区 | 会话恢复聊天；当前工作区主画布只投影当前 `detail` 的资料与文件，复用安全下载/预览 | `research_web_ui_layout.test.mjs` |
 | 会话管理 | 行级菜单重命名/软删除；已删除视图恢复或永久删除；30 天后在线自动清理 | UI 布局测试 + `test_api.py` 生命周期测试 |
 | 首页模板/分类 | Claw 仅已启用 Workflow；FinGPT 四 Skill；分类本地筛选，卡片与上方 Skill 选择只准备版本草稿 | 布局渲染测试 + 实际 app 事件无网络 DOM 边界测试；视口/hover 由控制器另验 |
-| 数据目录 | 13 项能力、21 个来源双视图；未适配/未配置/不可调用分别可见，显式探测只访问一源 | `research_web_capabilities_ui.test.mjs` + `test_datahub_catalog.py` |
+| 数据目录 | 15 项能力、22 个来源双视图；MySQL 展示本地配置状态链，未适配/未配置/不可调用分别可见，显式探测只访问一源 | `research_web_capabilities_ui.test.mjs` + `research_web_ui.test.mjs` + `test_datahub_catalog.py` |
 
 实现子任务未启动模型；集成控制器已另行执行真实Web验收。`tests/e2e/research_web_layout.mjs`覆盖1440/1600/1920、820平板与390手机共15页面组合，搜索、分类、slash键盘、抽屉及四Skill双模式草稿通过；控制器已实际查看全部15张最终截图。屏幕阅读器和桌面平台未验证。新真实模型旅程（自建Skill、PDF、Workflow双Agent文件）和只读历史回归见 [本轮记录](../.ai/reports/2026-09-03-research-ui-live.md)。
 

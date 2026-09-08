@@ -16,7 +16,7 @@ import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, mysqlConfiguration: null, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let quickCategory = '';
@@ -68,7 +68,10 @@ function researchPage() {
 
 function settingsPage() {
   const runtime = catalog.runtime;
-  return `<section class="settings-card"><h2>架构与实现文档</h2><p class="muted">只读查看当前架构图；检查回执不替代实现与人工验收。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开架构文档 ↗</a></section><header class="page-header"><div><div class="eyebrow">WORKSPACE SETTINGS</div><h1>设置</h1><p class="muted">Research Web 只连接 DSH，不启动其他研究管线。</p></div><button class="button" data-refresh>刷新状态</button></header><section class="settings-card appearance-settings"><h2>外观</h2><p class="muted">选择浅色、深色，或跟随系统。仅保存在此浏览器，不影响研究任务。</p>${renderAppearancePicker()}</section><section class="settings-card"><div class="section-heading"><h2>DSH 连接</h2><span class="badge ${runtime?.connected ? 'live' : 'danger'}">${runtimeLabel()}</span></div><dl class="runtime-details"><div><dt>Provider</dt><dd>${e(runtime?.provider || '未提供')}</dd></div><div><dt>模型</dt><dd>${e(runtime?.model || '未配置')}</dd></div><div><dt>版本</dt><dd>${e(runtime?.version || '未提供')}</dd></div><div><dt>管理方式</dt><dd>${runtime ? runtime.owned_runtime ? '由 Research Workbench 管理' : '外部运行时' : '未知'}</dd></div></dl>${runtime?.message ? `<p class="muted">${e(runtime.message)}</p>` : ''}</section><section class="settings-card"><h2>模型配置</h2><p class="muted">选择模型并按需更新 API Key。秘密值不回填，也不会存入浏览器存储。</p><form id="settings-form" autocomplete="off"><label for="settings-model">可用模型</label><select id="settings-model">${modelOptions(catalog.models, runtime?.model)}</select><div class="form-grid"><label>Provider<input id="provider" name="provider" required autocomplete="off" value="${e(runtime?.provider || '')}" placeholder="例如 openai"></label><label>模型 ID<input id="model-id" name="model" required autocomplete="off" value="${e(runtime?.model || '')}" placeholder="输入运行时支持的模型 ID"></label></div><label for="api-key">API Key <span class="muted">（可选，仅更新时填写）</span></label><input id="api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" placeholder="留空则不更改现有凭据"><p class="muted small">只发送给当前同源后端；保存成功后清空输入。模型变更作用于 DSH 运行时。</p><button class="button primary" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? '正在保存…' : '保存配置'}</button></form></section>${catalog.modelFailures.length ? notice('部分模型目录未能加载；可填写已知的 Provider 与模型 ID。', 'warning') : ''}`;
+  const mysql = catalog.mysqlConfiguration || {};
+  const mysqlStatus = !mysql.configured ? '未配置' : mysql.secret_configured ? '已保存' : '缺少密码';
+  const mysqlNotice = mysql.credential_store_available === false ? notice('本机凭据库不可用或已锁定；不会降级保存明文密码。', 'error') : mysql.restart_required ? notice('配置已保存。可立即前往检测；研究工具需重启研究服务后重新物化。', 'warning') : '';
+  return `<header class="page-header"><div><div class="eyebrow">WORKSPACE SETTINGS</div><h1>设置</h1><p class="muted">连接与资料均保存在此设备的本地隔离环境。</p></div><button class="button" data-refresh>刷新状态</button></header><section class="settings-group"><div class="settings-group-heading"><span class="eyebrow">CONNECTIONS & ACCESS</span><h2>连接与授权</h2><p class="muted">平台提供受控调用边界；模型、数据源和本机集成由当前用户自行授权。</p></div><section class="settings-card"><div class="section-heading"><div><p class="eyebrow">模型服务</p><h2>DSH 与模型配置</h2></div><span class="badge ${runtime?.connected ? 'live' : 'danger'}">${runtimeLabel()}</span></div><dl class="runtime-details"><div><dt>Provider</dt><dd>${e(runtime?.provider || '未提供')}</dd></div><div><dt>模型</dt><dd>${e(runtime?.model || '未配置')}</dd></div><div><dt>版本</dt><dd>${e(runtime?.version || '未提供')}</dd></div><div><dt>管理方式</dt><dd>${runtime ? runtime.owned_runtime ? '由 Research Workbench 管理' : '外部运行时' : '未知'}</dd></div></dl><form id="settings-form" autocomplete="off"><label for="settings-model">可用模型</label><select id="settings-model">${modelOptions(catalog.models, runtime?.model)}</select><div class="form-grid"><label>Provider<input id="provider" name="provider" required autocomplete="off" value="${e(runtime?.provider || '')}" placeholder="例如 openai"></label><label>模型 ID<input id="model-id" name="model" required autocomplete="off" value="${e(runtime?.model || '')}" placeholder="输入运行时支持的模型 ID"></label></div><label for="api-key">API Key <span class="muted">（可选，仅更新时填写）</span></label><input id="api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" placeholder="留空则不更改现有凭据"><p class="muted small">只发送给专属 DSH；保存成功后清空，不回填。</p><button class="button primary" type="submit" ${state.busy ? 'disabled' : ''}>保存模型配置</button></form></section><section class="settings-card mysql-settings"><div class="section-heading"><div><p class="eyebrow">数据源</p><h2>MySQL 数据库</h2></div><span class="badge ${mysql.configured && mysql.secret_configured ? 'live' : ''}">${e(mysqlStatus)}</span></div><p class="muted">非秘密配置写入本地数据目录；密码仅存系统凭据库。首版支持一个默认连接。</p>${mysqlNotice}<form id="mysql-settings-form" autocomplete="off"><div class="form-grid"><label>连接名称<input name="label" required value="${e(mysql.label || '')}" placeholder="例如 阿里云因子库"></label><label>主机<input name="host" required value="${e(mysql.host || '')}" autocomplete="off" placeholder="数据库主机名或 IP"></label><label>端口<input name="port" type="number" min="1" max="65535" required value="${e(mysql.port || 3306)}"></label><label>用户名<input name="user" required value="${e(mysql.user || '')}" autocomplete="off" placeholder="只读账号"></label><label>密码 <span class="muted">（留空保留）</span><input id="mysql-password" name="password" type="password" autocomplete="new-password" spellcheck="false" placeholder="不会回填或复制"></label><label>字符集<select name="charset"><option value="utf8mb4" ${mysql.charset === 'utf8mb4' || !mysql.charset ? 'selected' : ''}>utf8mb4</option><option value="utf8" ${mysql.charset === 'utf8' ? 'selected' : ''}>utf8</option><option value="gbk" ${mysql.charset === 'gbk' ? 'selected' : ''}>gbk</option></select></label><label>TLS 模式<select name="tls_mode"><option value="required_no_verify">必须加密 · 不验证证书</option></select></label></div><p class="notice warning small">required_no_verify 会强制 TLS，但无法验证服务端证书身份。</p><div class="button-row"><button class="button primary" type="submit" ${state.busy ? 'disabled' : ''}>保存连接</button><button class="button" type="button" data-mysql-cancel>取消</button><button class="button danger" type="button" data-mysql-remove ${!mysql.configured ? 'disabled' : ''}>移除</button><a class="button" href="#/skills?kind=data">前往检测</a></div></form></section><section class="settings-card"><p class="eyebrow">本机集成</p><h2>Wind、iFinD 与 Excel</h2><p class="muted">这些来源需要用户本机登录和兼容性检测。本轮仅说明后续适配方向，不提供未实现的配置入口，也不宣称 Windows 或 Excel 已兼容。</p></section></section><section class="settings-card appearance-settings"><h2>外观</h2><p class="muted">选择浅色、深色，或跟随系统。仅保存在此浏览器，不影响研究任务。</p>${renderAppearancePicker()}</section><section class="settings-card"><h2>架构与实现文档</h2><p class="muted">只读查看当前架构图；检查回执不替代实现与人工验收。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开架构文档 ↗</a></section>${catalog.modelFailures.length ? notice('部分模型目录未能加载；可填写已知的 Provider 与模型 ID。', 'warning') : ''}`;
 }
 
 function mainPage() {
@@ -149,7 +152,7 @@ function render() {
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = [...catalog.capabilities, ...catalog.tools, ...catalog.reportWorkflows.map(item => ({ ...item, kind: 'report-workflow' })), ...(catalog.dataCatalog.capabilities || [])];
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录', mysqlConfiguration: 'MySQL 连接配置' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
   window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -172,6 +175,7 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
         sources: Array.isArray(data?.sources) ? data.sources : [],
         bindings: Array.isArray(data?.bindings) ? data.bindings : [],
       };
+      else if (name === 'mysqlConfiguration') catalog.mysqlConfiguration = data;
       else if (name === 'artifacts') catalog.artifacts = data.items || [];
       else catalog[name] = data.items || [];
       delete catalog.errors[name];
@@ -282,6 +286,7 @@ async function showRoute() {
   document.querySelector('#main')?.scrollTo({ top: 0 });
   await loadWorkflowVersion();
   if (state.route.page === 'history') await loadCatalog([state.route.historyView === 'deleted' ? 'deletedSessions' : 'sessions']);
+  if (state.route.page === 'settings') await loadCatalog(['mysqlConfiguration']);
   if (state.route.page === 'skills') {
     if (state.route.capabilityKind) capabilityState.kind = state.route.capabilityKind;
     await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'sessions']);
@@ -588,6 +593,18 @@ root.addEventListener('submit', async (event) => {
     delete payload.api_key;
     if (result?.configured) { success = '配置已保存。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
   }
+  if (event.target.id === 'mysql-settings-form') {
+    const values = new FormData(event.target); let password = String(values.get('password') || '');
+    const payload = { label: String(values.get('label') || '').trim(), host: String(values.get('host') || '').trim(), port: Number(values.get('port')), user: String(values.get('user') || '').trim(), charset: String(values.get('charset')), tls_mode: String(values.get('tls_mode')), ...(password ? { password } : {}) };
+    const passwordInput = document.querySelector('#mysql-password'); if (passwordInput) passwordInput.value = '';
+    const submit = () => {
+      const pending = api.saveMysqlConfiguration(payload);
+      delete payload.password; values.delete('password'); password = '';
+      return pending;
+    };
+    const result = await controller.action(submit, { refreshAfter: false });
+    if (result?.configured) { catalog.mysqlConfiguration = result; success = 'MySQL 连接已保存；密码不会回填。'; await loadCatalog(['dataCatalog', 'tools']); }
+  }
 });
 
 root.addEventListener('click', async (event) => {
@@ -601,6 +618,12 @@ root.addEventListener('click', async (event) => {
   }
   const button = clickTarget?.closest?.('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
+  if ('mysqlCancel' in data) { await loadCatalog(['mysqlConfiguration']); document.querySelector('#mysql-settings-form input[name="label"]')?.focus(); return; }
+  if ('mysqlRemove' in data) {
+    const result = await controller.action(() => api.deleteMysqlConfiguration(), { refreshAfter: false });
+    if (result?.deleted) { catalog.mysqlConfiguration = null; success = '本机 MySQL 配置和系统凭据已移除；历史快照保持可读。'; await loadCatalog(['mysqlConfiguration', 'dataCatalog', 'tools']); }
+    return;
+  }
   if ('sessionMenu' in data) {
     const id = data.sessionMenu;
     if (sessionMenu?.id === id) { sessionMenu = null; render(); return; }
