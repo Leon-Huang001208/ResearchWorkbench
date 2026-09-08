@@ -9,6 +9,33 @@ const cap = (extra = {}) => ({ id: 'my-skill', kind: 'skill', name: '我的研�
 const load = (name) => import(new URL(name, root));
 const session = () => ({ id: 's1', mode: 'fingpt', status: 'idle', messages: [] });
 
+const builtinResearchSkills = [
+  ['document-reading', '资料解读', '资料研究', '一般资料提取', [], ['research_run_script', 'datahub_search_news']],
+  ['company-research', '公司研究', '公司', '完整公司研究', ['docx', 'html', 'xlsx'], ['research_run_script', 'datahub_search_news']],
+  ['industry-research', '行业研究', '行业', '通用行业报告', ['docx', 'html', 'xlsx'], ['research_run_script', 'datahub_search_news']],
+  ['fund-evaluation', '基金评价', '基金', '基金研究', ['docx', 'html', 'xlsx'], ['research_run_script', 'datahub_get_fund_data']],
+  ['market-commentary', '市场解读', '市场', '多事件市场复盘', ['docx', 'html', 'xlsx'], ['research_run_script', 'datahub_search_news']],
+  ['sell-side-report-reader', '研报增量分析', '研报与资料', '卖方研报的增量与证伪', [], ['research_run_script', 'web_search']],
+  ['finance-news-event-research', '金融事件研究', '事件与政策', '单一时间戳事件的传导链', [], ['web_search']],
+  ['industry-chain-research', '产业链与主题研究', '行业与主题', '价值流与瓶颈映射', [], ['web_search']],
+  ['earnings-consensus-research', '业绩与一致预期', '公司与业绩', '财报兑现与预期差', [], ['web_search']],
+  ['macro-asset-research', '宏观与跨资产', '宏观与资产', '政策与跨资产传导', [], ['web_search']],
+].map(([id, name, category, description, defaultFormats, requiredTools]) => cap({
+  id,
+  name,
+  category,
+  description,
+  builtin: true,
+  version: 1,
+  metadata: {
+    default_formats: defaultFormats,
+    inputs: [{ name: 'question', label: '研究问题与资料', type: 'text', required: true }],
+    scenarios: [description],
+    required_tools: requiredTools,
+    dependencies: [],
+  },
+}));
+
 test('one catalog filters kind, source, category and Chinese search, including disabled entries for inspection', async () => {
   const { filterCapabilities, renderCapabilityCatalog } = await load('capabilities.mjs');
   const items = [cap(), cap({ id: 'builtin', builtin: true }), cap({ id: 'off', status: 'disabled', enabled: false }), cap({ id: 'wf', kind: 'workflow' })];
@@ -16,6 +43,40 @@ test('one catalog filters kind, source, category and Chinese search, including d
   assert.match(renderCapabilityCatalog({ items, kind: 'skill', query: '不存在' }), /没有匹配/);
   assert.match(renderCapabilityCatalog({ items, kind: 'skill' }), /已停用/);
   assert.match(renderCapabilityCatalog({ items: [], error: '读取失败' }), /读取失败/);
+});
+
+test('capability center renders, filters, opens and selects the ten built-in Skills without a router card', async () => {
+  const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
+  assert.equal(builtinResearchSkills.length, 10);
+  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 10);
+
+  const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });
+  const selectableIDs = [...catalog.matchAll(/data-use-skill="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(selectableIDs, builtinResearchSkills.map(item => item.id));
+  for (const item of builtinResearchSkills) {
+    assert.match(catalog, new RegExp(item.name));
+    assert.match(catalog, new RegExp(`<option value="${item.category}"`));
+  }
+
+  assert.deepEqual(
+    filterCapabilities(builtinResearchSkills, { kind: 'skill', category: '公司与业绩' }).map(item => item.id),
+    ['earnings-consensus-research'],
+  );
+  assert.deepEqual(
+    filterCapabilities(builtinResearchSkills, { kind: 'skill', query: '预期差' }).map(item => item.id),
+    ['earnings-consensus-research'],
+  );
+  assert.deepEqual(
+    filterCapabilities(builtinResearchSkills, { kind: 'skill', query: 'macro-asset-research' }).map(item => item.id),
+    ['macro-asset-research'],
+  );
+
+  const detail = renderCapabilityDetail(builtinResearchSkills.find(item => item.id === 'sell-side-report-reader'));
+  assert.match(detail, /研报增量分析/);
+  assert.match(detail, /research_run_script、web_search/);
+  assert.match(detail, /无需文件/);
+  assert.match(detail, /data-use-skill="sell-side-report-reader"/);
+  assert.doesNotMatch(catalog, /zhengyan-research-router/);
 });
 
 test('capability kind tabs implement roving keyboard tabs and owned panels', async () => {
