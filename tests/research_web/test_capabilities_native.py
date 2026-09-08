@@ -39,18 +39,11 @@ def source():
     if not configured:
         pytest.skip("DSH_SOURCE_ROOT required for native source validation")
     root = Path(configured)
-    assert (
-        subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=root, text=True
-        ).strip()
-        == PIN
-    )
+    assert subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip() == PIN
     return root
 
 
-def test_native_provider_discovers_loads_and_watches_only_product_root(
-    source, tmp_path
-):
+def test_native_provider_discovers_loads_and_watches_only_product_root(source, tmp_path):
     catalog = CapabilityCatalog(tmp_path)
     script = r"""
 import assert from 'node:assert/strict';
