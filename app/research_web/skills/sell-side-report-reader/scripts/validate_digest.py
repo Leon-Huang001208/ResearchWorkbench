@@ -206,6 +206,13 @@ def validate_digest(digest: Any) -> dict[str, Any]:
                             if not _text(edge.get(field)):
                                 errors.append(f"{location}.{field} is required")
                         source, target = edge.get("from"), edge.get("to")
+                        if (
+                            not isinstance(source, str)
+                            or not source.strip()
+                            or not isinstance(target, str)
+                            or not target.strip()
+                        ):
+                            continue
                         if source not in node_ids or target not in node_ids:
                             errors.append(f"{location} endpoints must reference a declared node")
                         elif source == target:

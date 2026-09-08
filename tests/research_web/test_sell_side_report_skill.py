@@ -252,6 +252,31 @@ def test_validator_rejects_inconsistent_knowledge_graph(problem):
     assert any(expected in item for item in result["errors"])
 
 
+@pytest.mark.parametrize("endpoint", [[], {}, "   "])
+@pytest.mark.parametrize("field", ["from", "to"])
+def test_validator_returns_structured_errors_for_invalid_edge_endpoints(field, endpoint):
+    module = load_script("validate_digest.py")
+    digest = valid_digest()
+    digest["knowledgeFramework"]["edges"][0][field] = endpoint
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    assert isinstance(result["errors"], list)
+    assert any(f"knowledgeFramework.edges[0].{field}" in item for item in result["errors"])
+
+
+def test_validator_cli_reports_invalid_endpoint_without_traceback(tmp_path, monkeypatch, capsys):
+    module = load_script("validate_digest.py")
+    digest = valid_digest()
+    digest["knowledgeFramework"]["edges"][0]["from"] = {}
+    path = tmp_path / "invalid-digest.json"
+    path.write_text(json.dumps(digest, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["validate_digest.py", str(path)])
+    assert module.main() == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["valid"] is False
+    assert any("edges[0].from" in item for item in result["errors"])
+
+
 def test_svg_is_deterministic_escaped_and_rejects_unsupported_relationship(caplog):
     module = load_script("render_knowledge_graph.py")
     digest = valid_digest()
