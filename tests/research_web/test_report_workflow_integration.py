@@ -106,9 +106,7 @@ def _manifest(workflow_id="weekly-report"):
                 "required_cells": ["Sheet1!A1"],
             }
         ],
-        "blocks": [
-            {"id": "summary", "title": "摘要", "kind": "narrative", "required": True}
-        ],
+        "blocks": [{"id": "summary", "title": "摘要", "kind": "narrative", "required": True}],
         "delivery": {
             "formats": ["docx", "html", "xlsx"],
             "required_artifacts": [],
@@ -143,9 +141,7 @@ def _create_version(client: TestClient, tmp_path: Path, workflow_id="weekly-repo
 
 def _record_successful_manual_run(service, workflow_id: str, version: int = 1) -> None:
     run_id = f"manual-pass-{workflow_id}"
-    service.report_workflows.runtime._new_run(
-        run_id, workflow_id, version, "manual", "completed"
-    )
+    service.report_workflows.runtime._new_run(run_id, workflow_id, version, "manual", "completed")
     service.report_workflows.runtime._update_run(run_id, delivery_status="complete")
 
 
@@ -156,14 +152,9 @@ def test_report_workflow_api_coexists_with_capability_workflows(api, tmp_path):
     assert client.get("/api/research/workflows").status_code == 200
     version = _create_version(client, tmp_path)
     assert version["version"] == 1
+    assert client.get("/api/research/report-workflows").json()["items"][0]["id"] == "weekly-report"
     assert (
-        client.get("/api/research/report-workflows").json()["items"][0]["id"]
-        == "weekly-report"
-    )
-    assert (
-        client.post(
-            "/api/research/report-workflows/weekly-report/versions/1/publish"
-        ).status_code
+        client.post("/api/research/report-workflows/weekly-report/versions/1/publish").status_code
         == 200
     )
     detail = client.get("/api/research/report-workflows/weekly-report").json()
@@ -172,23 +163,17 @@ def test_report_workflow_api_coexists_with_capability_workflows(api, tmp_path):
     resources = client.get(
         "/api/research/report-workflows/weekly-report/versions/1/resources"
     ).json()["items"]
-    resource = next(
-        item for item in resources if item["path"] == "workbooks/source.xlsx"
-    )
+    resource = next(item for item in resources if item["path"] == "workbooks/source.xlsx")
     downloaded = client.get(
         "/api/research/report-workflows/weekly-report/versions/1/resources/workbooks/source.xlsx"
     )
     assert downloaded.content and resource["sha256"]
     assert (
-        client.post("/api/research/report-workflows/weekly-report/disable").json()[
-            "status"
-        ]
+        client.post("/api/research/report-workflows/weekly-report/disable").json()["status"]
         == "disabled"
     )
     assert (
-        client.post(
-            "/api/research/report-workflows/weekly-report/versions/1/rollback"
-        ).status_code
+        client.post("/api/research/report-workflows/weekly-report/versions/1/rollback").status_code
         == 200
     )
     copied = client.post(
@@ -278,9 +263,7 @@ def test_provider_probe_is_safe_and_missing_xlwings_blocks_run(api, tmp_path):
     assert service.report_workflows.runtime.tasks == {}
 
 
-def test_refresh_success_delegates_once_to_claw_and_locks_version(
-    api, tmp_path, monkeypatch
-):
+def test_refresh_success_delegates_once_to_claw_and_locks_version(api, tmp_path, monkeypatch):
     client, service, _ = api
     _create_version(client, tmp_path)
     client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
@@ -312,9 +295,7 @@ def test_refresh_success_delegates_once_to_claw_and_locks_version(
 
     monkeypatch.setattr(service, "create", fake_create)
     monkeypatch.setattr(service, "send", fake_send)
-    monkeypatch.setattr(
-        service.report_workflows.runtime, "_wait_for_delivery", lambda run_id: None
-    )
+    monkeypatch.setattr(service.report_workflows.runtime, "_wait_for_delivery", lambda run_id: None)
     run = client.post("/api/research/report-workflows/weekly-report/runs").json()
     for _ in range(50):
         value = client.get(f"/api/research/report-runs/{run['id']}").json()
@@ -326,16 +307,13 @@ def test_refresh_success_delegates_once_to_claw_and_locks_version(
     assert value["version"] == 1
     assert value["status"] == "running"
     assert value["session_id"]
-    assert (
-        len(sent) == 1 and sent[0][3]["capability_id"] == "report-production-workflow"
-    )
+    assert len(sent) == 1 and sent[0][3]["capability_id"] == "report-production-workflow"
     session = service.store.session(value["session_id"])
     assert session["report_workflow"]["workflow_id"] == "weekly-report"
     assert session["report_workflow"]["version"] == 1
     run_context = json.loads(
         (
-            service.store.directory(value["session_id"])
-            / "inputs/report-workflow/run-context.json"
+            service.store.directory(value["session_id"]) / "inputs/report-workflow/run-context.json"
         ).read_text()
     )
     assert run_context["dataset_snapshot_sha256"] == value["dataset_snapshot_sha256"]
@@ -484,9 +462,7 @@ def test_delivery_retry_consumes_late_payload_without_starting_another_claw_sess
             ensure_ascii=False,
         )
     )
-    runtime._new_run(
-        "late-payload-run", "weekly-report", 1, "manual", "delivery_incomplete"
-    )
+    runtime._new_run("late-payload-run", "weekly-report", 1, "manual", "delivery_incomplete")
     runtime._update_run(
         "late-payload-run",
         session_id=session["id"],
@@ -531,19 +507,15 @@ def test_schedule_is_shanghai_non_reentrant_and_catches_up_once(api, tmp_path):
     service.report_workflows.runtime._set_schedule_due_for_test(
         "weekly-report", now - timedelta(days=14)
     )
-    service.report_workflows.runtime._new_run(
-        "overlap", "weekly-report", 1, "manual", "running"
-    )
+    service.report_workflows.runtime._new_run("overlap", "weekly-report", 1, "manual", "running")
     asyncio.run(service.report_workflows.runtime.tick(now))
     runs = service.report_workflows.runtime.runs("weekly-report")
     assert sum(item["trigger"] == "schedule" for item in runs) == 1
     assert (
-        next(item for item in runs if item["trigger"] == "schedule")["status"]
-        == "skipped_overlap"
+        next(item for item in runs if item["trigger"] == "schedule")["status"] == "skipped_overlap"
     )
     assert (
-        service.report_workflows.runtime.schedule("weekly-report")["next_run_at"]
-        > now.isoformat()
+        service.report_workflows.runtime.schedule("weekly-report")["next_run_at"] > now.isoformat()
     )
 
 
@@ -561,9 +533,7 @@ def test_schedule_cannot_be_enabled_before_successful_manual_delivery(api, tmp_p
     assert response.json()["error"]["code"] == "manual_run_required"
 
 
-def test_scheduler_isolates_disabled_workflow_and_continues_due_items(
-    api, tmp_path, monkeypatch
-):
+def test_scheduler_isolates_disabled_workflow_and_continues_due_items(api, tmp_path, monkeypatch):
     client, service, _ = api
     for workflow_id in ("disabled-report", "ready-report"):
         _create_version(client, tmp_path, workflow_id)
@@ -600,15 +570,10 @@ def test_scheduler_isolates_disabled_workflow_and_continues_due_items(
     failed_schedule = service.report_workflows.runtime.schedule("disabled-report")
     assert failed_schedule["last_error_code"] == "workflow_disabled"
     assert failed_schedule["enabled"] is False
-    assert (
-        service.report_workflows.runtime.schedule("ready-report")["last_error_code"]
-        is None
-    )
+    assert service.report_workflows.runtime.schedule("ready-report")["last_error_code"] is None
 
 
-def test_scheduler_isolates_malformed_and_unexpected_failures(
-    api, tmp_path, monkeypatch
-):
+def test_scheduler_isolates_malformed_and_unexpected_failures(api, tmp_path, monkeypatch):
     client, service, _ = api
     for workflow_id in ("malformed-report", "error-report", "later-report"):
         _create_version(client, tmp_path, workflow_id)
@@ -630,9 +595,7 @@ def test_scheduler_isolates_malformed_and_unexpected_failures(
             workflow_id, now - timedelta(days=7)
         )
     with service.report_workflows.catalog._exclusive():
-        malformed = service.report_workflows.catalog._row("malformed-report")[
-            "schedule"
-        ]
+        malformed = service.report_workflows.catalog._row("malformed-report")["schedule"]
         malformed["next_run_at"] = "not-a-date"
         service.report_workflows.catalog._save()
     called = []
@@ -668,9 +631,9 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
             "placeholders:\n  market_summary:\n    title: 市场概览\n    type: paragraph\n"
             "charts:\n  performance:\n    title: 市场表现图\n"
         )
-        (
-            folder / "templates" / ("deck.pptx" if "风向标" in name else "report.docx")
-        ).write_bytes(b"template")
+        (folder / "templates" / ("deck.pptx" if "风向标" in name else "report.docx")).write_bytes(
+            b"template"
+        )
         _xlsx(folder / "data" / "source.xlsx", formula="1+1")
     ai = source / "AI周报" / "templates"
     ai.mkdir(parents=True)
@@ -693,9 +656,7 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     (duplicate_root / "runs" / "run-001").mkdir(parents=True)
     (duplicate_root / "runs" / "run-001" / "report.docx").write_bytes(b"historical-run")
     (duplicate_root / ".preview-cache").mkdir()
-    (duplicate_root / ".preview-cache" / "large-preview.png").write_bytes(
-        b"preview-only"
-    )
+    (duplicate_root / ".preview-cache" / "large-preview.png").write_bytes(b"preview-only")
     preview_cache = source / "华安ETF周报" / ".preview-cache"
     preview_cache.mkdir()
     (preview_cache / "generated.png").write_bytes(b"cache-only")
@@ -703,9 +664,7 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     dry = service.report_workflows.migration.migrate(source, dry_run=True)
     assert dry["project_count"] == 4
     assert dry["source"] == "legacy-report-projects"
-    huaan_dry = next(
-        item for item in dry["projects"] if item["id"] == "huaan-etf-weekly"
-    )
+    huaan_dry = next(item for item in dry["projects"] if item["id"] == "huaan-etf-weekly")
     assert huaan_dry["resource_count"] == 4
     assert huaan_dry["history_count"] == 2
     assert dry["resource_count"] == len(dry["accepted"])
@@ -715,18 +674,13 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
         for item in dry["accepted"]
         for part in ("generated", "runs", "jobs", "outputs", ".preview-cache")
     )
-    assert any(
-        item["reason"] == "historical_path_content_conflict"
-        for item in dry["quarantined"]
-    )
+    assert any(item["reason"] == "historical_path_content_conflict" for item in dry["quarantined"])
     assert str(tmp_path) not in json.dumps(dry, ensure_ascii=False)
     assert not client.get("/api/research/report-workflows").json()["items"]
     applied = service.report_workflows.migration.migrate(source, dry_run=False)
     again = service.report_workflows.migration.migrate(source, dry_run=False)
     assert applied["project_count"] == again["project_count"] == 4
-    assert {item["migration_status"] for item in again["projects"]} == {
-        "already_present"
-    }
+    assert {item["migration_status"] for item in again["projects"]} == {"already_present"}
     items = client.get("/api/research/report-workflows").json()["items"]
     assert {item["id"] for item in items} == {
         "huaan-etf-weekly",
@@ -734,19 +688,14 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
         "huaan-etf-compass",
         "ai-weekly",
     }
-    assert (
-        next(item for item in items if item["id"] == "ai-weekly")["status"]
-        == "needs_attention"
-    )
+    assert next(item for item in items if item["id"] == "ai-weekly")["status"] == "needs_attention"
     migrated = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
     blocks = migrated["versions"][0]["manifest"]["blocks"]
     assert [(item["title"], item["kind"]) for item in blocks] == [
         ("市场概览", "narrative"),
         ("市场表现图", "chart"),
     ]
-    assert any(
-        item["reason"] == "path_content_conflict" for item in applied["quarantined"]
-    )
+    assert any(item["reason"] == "path_content_conflict" for item in applied["quarantined"])
     assert not any(".preview-cache" in item["path"] for item in applied["accepted"])
     assert str(tmp_path) not in json.dumps(applied, ensure_ascii=False)
     assert str(tmp_path) not in json.dumps(migrated, ensure_ascii=False)
@@ -761,33 +710,22 @@ def test_migration_is_dry_run_idempotent_and_keeps_ai_blocked(api, tmp_path):
     )
     assert history_project["migration_status"] == "history_updated"
     migrated = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
-    assert any(
-        item["path"] == "generated/new.pdf" for item in migrated["historical_artifacts"]
-    )
+    assert any(item["path"] == "generated/new.pdf" for item in migrated["historical_artifacts"])
     assert migrated["migration"]["history_sha256"] == history_project["history_sha256"]
     stable = service.report_workflows.migration.migrate(source, dry_run=False)
-    stable_project = next(
-        item for item in stable["projects"] if item["id"] == "huaan-etf-weekly"
-    )
+    stable_project = next(item for item in stable["projects"] if item["id"] == "huaan-etf-weekly")
     assert stable_project["migration_status"] == "already_present"
 
-    (source / "华安ETF周报" / "templates" / "report.docx").write_bytes(
-        b"changed-template"
-    )
+    (source / "华安ETF周报" / "templates" / "report.docx").write_bytes(b"changed-template")
     conflict = service.report_workflows.migration.migrate(source, dry_run=False)
-    project = next(
-        item for item in conflict["projects"] if item["id"] == "huaan-etf-weekly"
-    )
+    project = next(item for item in conflict["projects"] if item["id"] == "huaan-etf-weekly")
     assert project["migration_status"] == "conflict"
     assert project["status"] == "needs_attention"
     assert any(
-        item.get("workflow_id") == "huaan-etf-weekly"
-        and item["reason"] == "source_hash_conflict"
+        item.get("workflow_id") == "huaan-etf-weekly" and item["reason"] == "source_hash_conflict"
         for item in conflict["quarantined"]
     )
-    assert not any(
-        item.get("workflow_id") == "huaan-etf-weekly" for item in conflict["accepted"]
-    )
+    assert not any(item.get("workflow_id") == "huaan-etf-weekly" for item in conflict["accepted"])
     detail = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
     assert detail["status"] == "needs_attention"
 
@@ -818,15 +756,10 @@ def test_migrated_chinext_v2_excludes_mislabeled_wind_workbook(api, tmp_path):
         "workbooks/创业板50周报（iFind版）.xlsx"
     ]
     assert manifest["workbook_policies"][0]["timeout_seconds"] == 180
-    assert manifest["delivery"]["primary_workbook"] == (
-        "workbooks/创业板50周报（iFind版）.xlsx"
-    )
+    assert manifest["delivery"]["primary_workbook"] == ("workbooks/创业板50周报（iFind版）.xlsx")
     assert manifest["minimum_subagents"] == 2
     assert manifest["excluded_workbooks"] == ["workbooks/创业板50周报（Wind版）.xlsx"]
-    assert any(
-        item["path"] == "mappings/resource-status.yaml"
-        for item in manifest["resources"]
-    )
+    assert any(item["path"] == "mappings/resource-status.yaml" for item in manifest["resources"])
     assert service.report_workflows.migration.upgrade_all_v2() == {
         "upgraded": [],
         "unchanged": ["chinext-50-weekly"],
@@ -856,9 +789,7 @@ def test_migrated_huaan_excludes_pre_refresh_backup_workbook(api, tmp_path):
 
     detail = client.get("/api/research/report-workflows/huaan-etf-weekly").json()
     manifest = detail["versions"][-1]["manifest"]
-    assert manifest["excluded_workbooks"] == [
-        "workbooks/周报图表.before_excel_update.xlsx"
-    ]
+    assert manifest["excluded_workbooks"] == ["workbooks/周报图表.before_excel_update.xlsx"]
     assert [item["workbook"] for item in manifest["workbook_policies"]] == [
         "workbooks/周报数据.xlsx"
     ]
@@ -885,18 +816,14 @@ def test_migration_rejects_project_and_duplicate_directory_symlinks(api, tmp_pat
         item["path"] == "创业板50周报" and item["reason"] == "unsafe_project_directory"
         for item in report["rejected"]
     )
-    assert any(
-        item["reason"] == "unsafe_duplicate_directory" for item in report["quarantined"]
-    )
+    assert any(item["reason"] == "unsafe_duplicate_directory" for item in report["quarantined"])
     assert not any(
         item["sha256"] == migration_module._sha256(outside / "secret.docx")
         for item in report["accepted"]
     )
 
 
-def test_migration_fails_closed_when_source_changes_after_scan(
-    api, tmp_path, monkeypatch
-):
+def test_migration_fails_closed_when_source_changes_after_scan(api, tmp_path, monkeypatch):
     _, service, _ = api
     source = tmp_path / "report_projects"
     folder = source / "华安ETF周报"
@@ -934,9 +861,7 @@ def test_migration_rejects_symlink_source(api, tmp_path):
     assert getattr(caught.value, "code", None) == "migration_source_invalid"
 
 
-def test_migration_api_uses_configured_source_not_request_path(
-    api, tmp_path, monkeypatch
-):
+def test_migration_api_uses_configured_source_not_request_path(api, tmp_path, monkeypatch):
     client, _, _ = api
     configured = tmp_path / "configured" / "report_projects"
     configured.mkdir(parents=True)
@@ -976,10 +901,7 @@ def test_migration_prefers_already_managed_report_projects(api, tmp_path, monkey
     detail = client.get("/api/research/report-workflows/chinext-50-weekly").json()
     assert detail["name"] == "创业板50周报"
     assert detail["status"] == "enabled"
-    assert any(
-        item["path"].endswith("old-report.pdf")
-        for item in detail["historical_artifacts"]
-    )
+    assert any(item["path"].endswith("old-report.pdf") for item in detail["historical_artifacts"])
     assert not list(service.store.root.glob("report-workflow-migration-*"))
 
 
@@ -1006,8 +928,7 @@ def test_operations_include_versioned_report_workflow_runs(api):
     assert reports["artifact_bytes"] == 4096
     assert reports["projects"] == [{"project_id": "weekly-report", "runs": 1}]
     storage_ids = {
-        item["id"]
-        for item in client.get("/api/research/operations/storage").json()["categories"]
+        item["id"] for item in client.get("/api/research/operations/storage").json()["categories"]
     }
     assert "report_workflows" in storage_ids
 
@@ -1029,9 +950,7 @@ def test_refresh_manifest_route_flattens_per_workbook_entries(api, monkeypatch):
         },
     )
 
-    response = client.get(
-        "/api/research/report-runs/multi-workbook-run/refresh-manifests"
-    )
+    response = client.get("/api/research/report-runs/multi-workbook-run/refresh-manifests")
 
     assert response.status_code == 200
     assert [item["workbook"] for item in response.json()["items"]] == [
@@ -1056,9 +975,7 @@ def test_refresh_cancellation_waits_for_bounded_worker_cleanup(api, monkeypatch)
 
     async def scenario():
         pending = asyncio.create_task(
-            service.report_workflows.runtime._refresh_workbook(
-                "run-id", "workbooks/source.xlsx"
-            )
+            service.report_workflows.runtime._refresh_workbook("run-id", "workbooks/source.xlsx")
         )
         assert await asyncio.to_thread(started.wait, 1)
         pending.cancel()

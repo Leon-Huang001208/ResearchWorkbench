@@ -72,7 +72,7 @@ node tests/e2e/research_web_appearance.mjs --live
 
 ## 2026-09-06 可见性纠正
 
-资产观察从研究台子页提升为主导航独立入口，仍使用同一 Codex 风格壳，并保留 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI、换手率与细行情栏；图表只渲染 DataHub 返回的真实行情行，缺失时显示空态。Claw 首页新增具体报告 Workflow 区，能力中心 Workflow 页可查看其资源详情。两处都读取真实后端目录和区块状态，不复制旧 AlphaFoundry 的演示数据，也不把通用 Workflow 卡片当成华安 ETF 或创业板 50 报告。桌面保持工具型信息密度，窄屏允许行情图横向查看且其余区域自然收为单列；未发布或 `needs_attention` 项保持禁用而不是显示假成功。
+资产观察从研究台子页提升为主导航独立入口，仍使用同一 Codex 风格壳，并保留 OHLC K 线、MA/BOLL、成交量、成交额、换手率、MACD、KDJ、RSI 与细行情栏；图表只渲染 DataHub 返回的真实行情行，缺失时显示空态。成交额与换手率按 DataHub 的 `turnover` / `turnover_rate_pct` 分栏显示，任一缺失都保持未知，不以另一字段代填。Claw 首页新增具体报告 Workflow 区，能力中心 Workflow 页可查看其资源详情。两处都读取真实后端目录和区块状态，不复制旧 AlphaFoundry 的演示数据，也不把通用 Workflow 卡片当成华安 ETF 或创业板 50 报告。桌面保持工具型信息密度，窄屏允许行情图横向查看且其余区域自然收为单列；未发布或 `needs_attention` 项保持禁用而不是显示假成功。
 
 ## 2026-09-07 对话呈现与异常摘要
 

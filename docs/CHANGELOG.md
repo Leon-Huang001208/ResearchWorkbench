@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### DSH Fork 运行时迁移与资产字段校正 · 2026-09-08
+
+- Research Runtime 固定到公开 Fork `Leon-Huang001208/deepseek-harness` 的 `workbench-runtime` 提交 `c919b2a460753859665db3f60143d525fb9140cf`，兼容最新版 Typert Gateway、Remote mux、浏览器会话认证和原生级联 `session/delete`；Workbench 对外 HTTP 契约不变。
+- 会话软删除前重新核对 DSH 权威运行状态，避免 Web 本地索引残留 `running` 阻塞已完成会话；软删、恢复、30 天保留、到期清理和立即永久删除继续保留原有语义。
+- 资产观察按 DataHub 标准字段将 `turnover` 作为成交额、`turnover_rate_pct` 作为换手率；来源没有换手率时显示未知，不再把成交额错误渲染为百分比。K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和日/周/月切换保持不变。
+
 ### 用户自配置 MySQL DataHub · 2026-09-08
 
 - 新增通用 `mysql` 来源、数据库目录与受控单表查询，DataHub 更新为 15 项能力、22 个来源；原始 SQL、系统库、未知标识、危险授权和超限参数在业务查询前阻断。

@@ -39,18 +39,11 @@ def source():
     if not configured:
         pytest.skip("DSH_SOURCE_ROOT required for native source validation")
     root = Path(configured)
-    assert (
-        subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=root, text=True
-        ).strip()
-        == PIN
-    )
+    assert subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip() == PIN
     return root
 
 
-def test_native_provider_discovers_loads_and_watches_only_product_root(
-    source, tmp_path
-):
+def test_native_provider_discovers_loads_and_watches_only_product_root(source, tmp_path):
     catalog = CapabilityCatalog(tmp_path)
     script = r"""
 import assert from 'node:assert/strict';
@@ -68,7 +61,7 @@ const provider=new FileSystemSkillProvider(ctx,{signal:controller.signal,invalid
 try {
   const candidates=await provider.list({cwd:root});
   assert.ok(Array.isArray(candidates));
-  assert.equal(candidates.length,6);
+  assert.equal(candidates.length,10);
   assert.ok(!candidates.some(c=>c.name==='host-canary'));
   const company=candidates.find(c=>c.name==='company-research');
   const loaded=await provider.get(company,{cwd:root});
@@ -90,12 +83,12 @@ try {
   for(let i=0;i<100 && invalidations===count;i++) await new Promise(r=>setTimeout(r,20));
   assert.ok(invalidations>count);
   assert.ok(!(await provider.list({cwd:root})).some(c=>c.name==='rwb-test-v1'));
-  console.log(JSON.stringify({discovered:6,loaded:true,watch:true,hostRootExcluded:true}));
+  console.log(JSON.stringify({discovered:10,loaded:true,watch:true,hostRootExcluded:true}));
 } finally {await provider.dispose();controller.abort();}
 """
     result = json.loads(node(source, script, tmp_path, catalog.native_root).strip())
     assert result == {
-        "discovered": 6,
+        "discovered": 10,
         "loaded": True,
         "watch": True,
         "hostRootExcluded": True,
@@ -108,16 +101,15 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 const root=process.argv[1];
 const tools=[];
-const ctx={tools:{register(tool){tools.push(tool);return ()=>{};}},on(){return ()=>{};},effect(){},get(){return undefined;},logger:{info(){},warn(){}},systemPrompt:{section(){return ()=>{};}},subagents:{getProvider(){return {name:'spawn',capabilities:{depthLimit:true},prepareContinuable(){}};}}};
+const ctx={tools:{register(tool){tools.push(tool);return ()=>{};}},on(){return ()=>{};},effect(){},get(){return undefined;},logger:{info(){},warn(){}},systemPrompt:{section(){return ()=>{};},getSectionOrder(){return 0;}},sessionProjections:{register(){return ()=>{};}},subagents:{getProvider(){return {name:'spawn',capabilities:{depthLimit:true},prepareContinuable(){}};}}};
 for(const path of ['packages/skill/tool-skill/src/index.ts','packages/subagent/tool-subagent-control/src/index.ts','packages/subagent/tool-subagent-control/src/list-agents.ts']){
   (await import(pathToFileURL(join(process.cwd(),path)))).apply(ctx);
 }
 (await import(pathToFileURL(join(process.cwd(),'packages/subagent/tool-subagent/src/index.ts')))).apply(ctx,{provider:'spawn',maxDepth:1,backgroundMode:'continuable'});
-(await import(pathToFileURL(join(process.cwd(),'packages/subagent/tool-subagent-report/src/index.ts')))).installReportTool(ctx,ctx,'next-step');
 const web=await import(pathToFileURL(join(process.cwd(),'packages/web/tool-web/src/index.ts')));
 web.apply(ctx,{search:true,fetch:false,searchMaxResults:8,searchMaxQueries:4,fetchTimeoutMs:30000,searchTimeoutMs:60000,fetchMaxOutputChars:200000});
 (await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')))).apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used',timeoutSeconds:60,maxOutputBytes:262144});
-const enabledTools=['datahub_search_assets','datahub_get_trading_calendar','datahub_get_market_bars','datahub_get_market_snapshot','datahub_get_index_data','datahub_get_financials','datahub_get_market_activity','datahub_get_factor_macro','datahub_get_fund_data','datahub_search_news','datahub_search_announcements','datahub_search_research','datahub_search_web'];
+const enabledTools=['datahub_search_assets','datahub_get_trading_calendar','datahub_get_market_bars','datahub_get_market_snapshot','datahub_get_index_data','datahub_get_financials','datahub_get_market_activity','datahub_get_factor_macro','datahub_get_fund_data','datahub_search_news','datahub_search_announcements','datahub_search_research','datahub_search_web','datahub_get_database_schema','datahub_query_table'];
 (await import(pathToFileURL(join(root,'app/research_web/runtime/public-data.mjs')))).apply(ctx,{researchRoot:'/tmp/never-used',enabledTools});
 console.log(JSON.stringify(tools.map(t=>({id:t.name,parameters:t.parameters}))));
 """

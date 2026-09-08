@@ -11,15 +11,8 @@ from ..datahub.catalog import build_catalog
 from ..datahub.contracts import BUSINESS_TOOLS
 from .models import CapabilityError
 
-PIN = "b3e26660f0a7bca680f06366aec3bb8d731c725e"
+PIN = "c919b2a460753859665db3f60143d525fb9140cf"
 DECLARATIONS = {
-    "report": (
-        "子 Agent 汇报",
-        "packages/subagent/tool-subagent-report/src/index.ts",
-        {"output": "string"},
-        ["output"],
-        "仅 continuable 子 Agent 的原生作用域可见；向直接父 Agent 汇报，不结束回合",
-    ),
     "research_run_script": (
         "研究 Python",
         "runtime/research-tools.mjs",
@@ -51,8 +44,8 @@ DECLARATIONS = {
     "send_message": (
         "子 Agent 消息",
         "packages/subagent/tool-subagent-control/src/index.ts",
-        {"subagent_id": "string", "message": "string"},
-        ["subagent_id", "message"],
+        {"agent_id": "string", "message": "string"},
+        ["agent_id", "message"],
         "仅原生授权的直接子 Agent；内部控制",
     ),
     "interrupt_agent": (

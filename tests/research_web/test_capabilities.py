@@ -87,7 +87,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 30
+    assert len(tools) == 29
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}
     assert workflow_tools == {
         "report_workbook_refresh",

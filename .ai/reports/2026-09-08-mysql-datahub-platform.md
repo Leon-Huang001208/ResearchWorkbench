@@ -1,7 +1,7 @@
 # 用户自配置 MySQL DataHub 交付报告
 
-**任务 ID**：`aliyun-datahub-provider`  
-**日期**：2026-09-08  
+**任务 ID**：`aliyun-datahub-provider`
+**日期**：2026-09-08
 **状态**：Web 实现与 macOS 本机模拟验收完成；真实 MySQL 及非 macOS Web 凭据库验证待执行
 
 ## 交付范围

@@ -152,7 +152,7 @@ macOS 移动目录需更新 `..`：native 投影顶层目录为服务自有 0700
 
 ## 原生接线与工具真实性
 
-DSH 固定提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`。
+DSH 固定提交 `c919b2a460753859665db3f60143d525fb9140cf`。
 核对 upstream `packages/skill/skill-filesystem/README.md` 和 FileSystemSkillProvider 源码：
 发现仅一层 bundle，watch 触发 invalidate，每次 get 重读正文，无版本 pin 或 install RPC。
 产品以不可变包 + 带版本的原生名称实现绑定；自建名称为 `rwb-<产品id>-vN`，内置保留原 ID。
@@ -175,7 +175,7 @@ Web 先以 session.models 冷恢复再 skill.list 核对；缺 exact native_name
 tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。DataHub 元数据标记为 `automatic`；Runtime 启动时只注册至少有一个可调用来源的固定工具。能力中心“数据”页另从 DataHub 静态目录投影 15 项业务能力、22 个来源和绑定矩阵；其中“因子库研究”只通过 schema、受控单表和会话脚本工具工作，不能直连数据库或绕过 `enabledTools`。
 真实原生注册测试覆盖 skill/subagent/report/send_message/interrupt_agent/list_agents/web_search
 及本项目 research_run_script/datahub_get_fund_data；DataHub 的 Query schema 与五个 SOURCES 直接复用。
-report 仅原生子 Agent 作用域可用；所有工具权限、模型、执行上限及审批策略均未改变。
+新版 DSH 已移除独立 `report` 工具；子 Agent 通过原生 continuable 结果链路回传，所有工具权限、模型、执行上限及审批策略均未改变。
 
 ## 验证映射
 

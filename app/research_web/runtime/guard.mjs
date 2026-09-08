@@ -8,14 +8,14 @@ export const RESEARCH_TOOLS = new Set([
   'datahub_get_market_activity', 'datahub_get_factor_macro', 'datahub_get_fund_data',
   'datahub_search_news', 'datahub_search_announcements', 'datahub_search_research', 'datahub_search_web',
   'datahub_get_database_schema', 'datahub_query_table',
-  'skill', 'web_search', 'subagent', 'report', 'send_message', 'interrupt_agent', 'list_agents',
+  'skill', 'web_search', 'subagent', 'send_message', 'interrupt_agent', 'list_agents',
 ]);
 
 export function apply(ctx, config = {}) {
   const calls = new WeakMap();
   ctx.tools.guard((execution) => {
     if (config.enabled === true && RESEARCH_TOOLS.has(execution.name) && execution.agent) {
-      const turn = execution.agent.session.events.findLast((event) => event.type === 'turn/start')?.data.turn;
+      const turn = execution.agent.session.snapshotEvents().findLast((event) => event.type === 'turn/start')?.data.turn;
       let budget = calls.get(execution.agent);
       if (!budget || budget.turn !== turn) { budget = { turn, calls: 0, children: 0 }; calls.set(execution.agent, budget); }
       budget.calls++;
