@@ -65,6 +65,16 @@ SKILL_SPECS = (
         "evidence_protocol": False,
     },
     {
+        "slug": "sell-side-report-reader",
+        "name": "研报增量分析",
+        "description": "聚焦卖方研报或研究文章的增量、公开时序、可信度与证伪；不用于一般资料提取或个人买卖建议。",
+        "category": "研报与资料",
+        "scenarios": ["研报增量与公开时序研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "web_search"],
+        "evidence_protocol": True,
+    },
+    {
         "slug": "finance-news-event-research",
         "name": "金融事件研究",
         "description": "聚焦单一、有时间戳的金融事件，核验事实并分析传导链；不用于多事件市场复盘或盘前综述。",

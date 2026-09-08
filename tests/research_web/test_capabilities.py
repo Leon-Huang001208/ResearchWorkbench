@@ -64,7 +64,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 13
+    assert len(rows) == 14
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
@@ -75,6 +75,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         "产业链与主题研究",
         "业绩与一致预期",
         "宏观与跨资产",
+        "研报增量分析",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]
@@ -209,6 +210,7 @@ def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
         "industry-chain-research": ("产业链与主题研究", "行业与主题"),
         "earnings-consensus-research": ("业绩与一致预期", "公司与业绩"),
         "macro-asset-research": ("宏观与跨资产", "宏观与资产"),
+        "sell-side-report-reader": ("研报增量分析", "研报与资料"),
     }
     for slug, (name, category) in specialists.items():
         row = rows[slug]
@@ -220,7 +222,11 @@ def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
         assert metadata["slug"] == header["name"] == slug
         assert metadata["name"] == name and metadata["category"] == category
         assert metadata["default_formats"] == []
-        assert metadata["required_tools"] == ["web_search"]
+        assert metadata["required_tools"] == (
+            ["research_run_script", "web_search"]
+            if slug == "sell-side-report-reader"
+            else ["web_search"]
+        )
         assert metadata["dependencies"] == []
         assert "不" in metadata["description"]
     assert not any("router" in capability_id for capability_id in rows)
@@ -235,6 +241,7 @@ def test_specialist_exports_bundle_one_evidence_protocol_snapshot_and_reimports(
         "industry-chain-research",
         "earnings-consensus-research",
         "macro-asset-research",
+        "sell-side-report-reader",
     )
     protocol_hashes = set()
     exported = None
