@@ -10,6 +10,8 @@
 原生 RPC / 双 WebSocket；DSH 是唯一研究引擎，并负责执行循环、历史、Skill 和子 Agent。
 该入口不启动旧 API 生命周期，不要求 PostgreSQL/pgvector，不使用 Evidence、Claim、Quality Gate、
 LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
+产品壳只在运行时需要配置、事件通道连接中或健康失败时显示顶栏提示；健康状态静默，完整 DSH
+诊断与手动刷新继续由设置、运行与用量及对应业务页面承担，不改变运行时 API 或事件拓扑。
 
 当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 13 项能力与 21 个登记来源；真实 Runtime 仅在启动或重启时物化 `callable_source_count > 0` 的品牌无关 `datahub_*` 业务 Tool。已配置且可用的公开、账户或付费来源自动查询、不逐次确认；不可用工具不注册。`datahub_get_fund_data` 是基金能力的正式工具名，不是产品品牌别名。登记、配置和最近探测分别显示，不能把代码存在解释为已连接。
 

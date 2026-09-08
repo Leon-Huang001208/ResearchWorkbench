@@ -14,7 +14,12 @@ try {
   const context=await browser.newContext({viewport:{width:1600,height:1000}});
   const page=await context.newPage();
   await page.goto(`${origin}/?acceptance=stop-live#/fingpt`);
-  await page.getByRole('link',{name:'DSH 已连接',exact:true}).waitFor();
+  const runtimeResponse=await context.request.get(`${origin}/api/research/runtime`);
+  assert.equal(runtimeResponse.status(),200);
+  const runtime=await runtimeResponse.json();
+  assert.equal(runtime.connected,true);
+  assert.notEqual(runtime.credential_configured,false);
+  await page.getByRole('textbox',{name:'研究问题',exact:true}).waitFor();
   await page.getByRole('textbox',{name:'研究问题',exact:true}).fill('独立手动停止测试：只调用一次research_run_script执行Python，创建outputs/cancel-proof.txt，以w打开，每0.5秒追加一行递增数字并flush，最多120次。不要联网、不要读取任何附件、不启子Agent、不要第二脚本或读回。我将在工具实际执行两秒后点击停止。不要把超时当作取消。');
   const accepted=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname.endsWith('/messages'));
   await page.getByRole('button',{name:'开始研究',exact:true}).click(); assert.equal((await accepted).status(),202);

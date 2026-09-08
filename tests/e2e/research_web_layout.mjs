@@ -52,7 +52,7 @@ async function run() {
     try {
       for (const mode of ['fingpt','claw','skills']) {
         await page.goto(`${origin.origin}/?acceptance=layout&mode=${mode}#/${mode}`, {waitUntil:'domcontentloaded'});
-        await page.getByRole('link', {name:'DSH 已连接',exact:true}).waitFor({timeout:15000});
+        await page.locator('#app > .app-shell').waitFor({timeout:15000});
         if (width > 1050) {
           assert.equal(await page.getByRole('navigation',{name:'产品主导航',exact:true}).count(), 1, `Primary navigation must render (${width}×${height}, ${mode})`);
         } else {

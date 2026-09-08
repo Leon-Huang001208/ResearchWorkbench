@@ -29,6 +29,31 @@ test('product shell keeps the compact product navigation, real recent work and s
   assert.doesNotMatch(styles, /\.mobile-search-toggle[^\{]*\{\s*display:\s*none;/);
 });
 
+test('topbar hides healthy runtime chrome and only surfaces actionable runtime states', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  const healthy = shell.renderTopbar({ runtime: { connected: true, credential_configured: true }, runtimeLabel: 'DSH 已连接' });
+  assert.doesNotMatch(healthy, /runtime-status|DSH 已连接|data-refresh|刷新服务状态/);
+
+  const needsModel = shell.renderTopbar({ runtime: { connected: true, credential_configured: false }, runtimeLabel: 'DSH 待授权' });
+  assert.match(needsModel, /class="runtime-status warning"/);
+  assert.match(needsModel, />需要配置模型<\/a>/);
+
+  const connecting = shell.renderTopbar({ runtime: { connected: false, health_check_passed: true }, runtimeLabel: 'DSH 事件通道连接中' });
+  assert.match(connecting, /class="runtime-status warning"/);
+  assert.match(connecting, />研究服务连接中<\/a>/);
+
+  const unavailable = shell.renderTopbar({ runtime: { connected: false, health_check_passed: false }, runtimeLabel: 'DSH 不可用' });
+  assert.match(unavailable, /class="runtime-status danger"/);
+  assert.match(unavailable, />研究服务不可用<\/a>/);
+
+  const unloaded = shell.renderTopbar({ runtime: null, runtimeLabel: 'DSH 未连接' });
+  assert.doesNotMatch(unloaded, /runtime-status|DSH 未连接/);
+  for (const html of [needsModel, connecting, unavailable, unloaded]) {
+    assert.match(html, /href="#\/settings"|topbar-title/);
+    assert.doesNotMatch(html, /data-refresh|刷新服务状态/);
+  }
+});
+
 test('global search opens report Workflows through their real package detail', async () => {
   const shell = await import(new URL('shell.mjs', root));
   const html = shell.renderGlobalSearch('创业板', [], [{

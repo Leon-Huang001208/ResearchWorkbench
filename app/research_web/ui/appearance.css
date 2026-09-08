@@ -78,6 +78,10 @@ p { text-wrap: pretty; }
 .global-results { background: var(--surface); border-color: var(--control-line); box-shadow: var(--shadow); }
 .global-results a:hover, .global-results button:hover { background: var(--hover); }
 .runtime-status { color: var(--muted); font-size: 12px; }
+.runtime-status:hover { background: var(--hover); text-decoration: none; }
+.runtime-status.warning { color: var(--warning); }
+.runtime-status.danger { color: var(--danger); }
+.runtime-status.warning .tiny-dot, .runtime-status.danger .tiny-dot { background: currentColor; }
 .topbar select { background: var(--canvas); border-color: transparent; color: var(--muted); font-size: 12px; max-width: 195px; }
 .tiny-dot { background: var(--muted); }
 .tiny-dot.active { background: var(--green); }
@@ -215,7 +219,7 @@ p { text-wrap: pretty; }
   .global-results { width: min(300px, 80vw); }
   .topbar-right { gap: 4px; }
   .topbar-right select { max-width: 110px; width: 26vw; font-size: 10px; padding: 4px; }
-  .topbar-right .runtime-status { font-size: 0; }
+  .topbar-right .runtime-status { min-height: 44px; font-size: 11px; }
   .topbar-right .tiny-dot { width: 7px; height: 7px; }
   .page-content { padding: 24px 16px; }
   .landing { padding-top: 24px; }

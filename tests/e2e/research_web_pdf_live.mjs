@@ -27,7 +27,12 @@ try {
     await page.goto(`${origin.origin}/?acceptance=pdf-readback#/fingpt?session=${sid}`);
   } else {
   await page.goto(`${origin.origin}/?acceptance=pdf-live#/fingpt`);
-  await page.getByRole('link',{name:'DSH 已连接',exact:true}).waitFor();
+  const runtimeResponse=await context.request.get(`${origin.origin}/api/research/runtime`);
+  assert.equal(runtimeResponse.status(),200);
+  const runtime=await runtimeResponse.json();
+  assert.equal(runtime.connected,true);
+  assert.notEqual(runtime.credential_configured,false);
+  await page.getByRole('textbox',{name:'研究问题',exact:true}).waitFor();
   await page.locator('#file-input').setInputFiles(path.join(output,'dsh-report.pdf'));
   await page.getByRole('button',{name:/^移除附件 [a-f0-9]+-dsh-report\.pdf$/}).waitFor();
   sid=new URLSearchParams(page.url().split('?session=')[1] ? `session=${page.url().split('?session=')[1]}` : '').get('session');

@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Research Web 顶栏运行状态降噪 · 2026-09-08
+
+- 运行时健康且已授权时不再常驻显示“DSH 已连接”，顶栏只在缺少模型配置、事件通道连接中或研究服务不可用时提供通往设置的提示。
+- 删除顶栏全局刷新按钮；设置、历史、研究台、资产观察和运行与用量等页面的局部刷新行为保持不变。只读与真实模型 E2E 改用页面就绪或 `/api/research/runtime` 真实状态作为前置条件。
+
 ### Research Workbench remote and layer boundary · 2026-09-05
 
 - GitHub repository and local `origin` now use `Leon-Huang001208/ResearchWorkbench`; `master` was pushed without history rewriting after reconstructing one missing historical documentation tree to its exact original hash.

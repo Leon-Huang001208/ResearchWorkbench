@@ -116,5 +116,14 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
 
 export function renderTopbar({ page = 'fingpt', section = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
   const title = page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', skills: '能力中心', history: '研究历史', operations: '运行与用量', settings: '设置' })[page] || 'FinGPT';
-  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><div class="topbar-title"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><span>${e(title)}</span><span class="title-separator">/</span><span class="page-subtitle">${e(detail?.title || (['fingpt', 'claw'].includes(page) ? '新研究' : '工作台'))}</span></div><button type="button" class="icon-button mobile-search-toggle" data-toggle-search aria-label="${searchOpen ? '关闭全局搜索' : '打开全局搜索'}" aria-expanded="${searchOpen}">${icon('search')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div><div class="topbar-right"><a href="#/settings" class="runtime-status"><span class="tiny-dot ${runtime?.connected ? 'active' : ''}"></span>${e(runtimeLabel || 'DSH 未连接')}</a><button class="icon-button" data-refresh aria-label="刷新服务状态" title="刷新服务状态">↻</button></div></header>`;
+  let runtimeAttention = '';
+  if (runtime && (!runtime.connected || runtime.credential_configured === false)) {
+    const [label, tone] = runtime.connected
+      ? ['需要配置模型', 'warning']
+      : runtime.health_check_passed
+        ? ['研究服务连接中', 'warning']
+        : ['研究服务不可用', 'danger'];
+    runtimeAttention = `<div class="topbar-right"><a href="#/settings" class="runtime-status ${tone}" title="${e(runtime.message || runtimeLabel || label)}"><span class="tiny-dot" aria-hidden="true"></span>${label}</a></div>`;
+  }
+  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><div class="topbar-title"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><span>${e(title)}</span><span class="title-separator">/</span><span class="page-subtitle">${e(detail?.title || (['fingpt', 'claw'].includes(page) ? '新研究' : '工作台'))}</span></div><button type="button" class="icon-button mobile-search-toggle" data-toggle-search aria-label="${searchOpen ? '关闭全局搜索' : '打开全局搜索'}" aria-expanded="${searchOpen}">${icon('search')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div>${runtimeAttention}</header>`;
 }

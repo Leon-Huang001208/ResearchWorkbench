@@ -31,7 +31,6 @@ try {
   async function openSession(sid,mode,title) {
     await page.goto(`${origin.origin}/?acceptance=historical#/${mode}?session=${sid}`);
     await page.getByRole('heading',{name:title,exact:true}).waitFor();
-    await page.getByRole('link',{name:'DSH 已连接',exact:true}).waitFor();
     const panel = page.getByRole('complementary',{name:'研究活动、资料与文件',exact:true});
     if (!await panel.isVisible()) await page.getByRole('button',{name:'活动与文件',exact:true}).click();
     return panel;
