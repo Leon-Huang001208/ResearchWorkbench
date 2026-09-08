@@ -474,6 +474,52 @@ class CapabilityCatalog:
                         for n in ast.walk(tree)
                         if isinstance(n, ast.Constant) and isinstance(n.value, str)
                     }
+                    subprocess_names = {
+                        alias.asname or alias.name
+                        for n in ast.walk(tree)
+                        if isinstance(n, ast.Import)
+                        for alias in n.names
+                        if alias.name == "subprocess"
+                    }
+                    subprocess_calls = {
+                        "Popen",
+                        "call",
+                        "check_call",
+                        "check_output",
+                        "getoutput",
+                        "getstatusoutput",
+                        "run",
+                    }
+                    imported_subprocess_calls = {
+                        alias.asname or alias.name
+                        for n in ast.walk(tree)
+                        if isinstance(n, ast.ImportFrom) and n.module == "subprocess"
+                        for alias in n.names
+                        if alias.name in subprocess_calls
+                    }
+                    if any(
+                        isinstance(n, ast.Call)
+                        and (
+                            (
+                                isinstance(n.func, ast.Attribute)
+                                and isinstance(n.func.value, ast.Name)
+                                and n.func.value.id in subprocess_names
+                                and n.func.attr in subprocess_calls
+                            )
+                            or (
+                                isinstance(n.func, ast.Name)
+                                and n.func.id in imported_subprocess_calls
+                            )
+                        )
+                        for n in ast.walk(tree)
+                    ):
+                        issues.append(
+                            issue(
+                                "runtime_incompatible_script",
+                                "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+                                file["path"],
+                            )
+                        )
                     if (
                         modules & {"pip", "ensurepip", "setuptools", "distutils"}
                         or ("install" in strings and strings & {"pip", "pip3", "uv", "conda"})

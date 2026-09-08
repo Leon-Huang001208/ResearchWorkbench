@@ -1,5 +1,6 @@
 """Additional fail-closed import and publication recovery checks."""
 
+import hashlib
 import io
 import stat
 import zipfile
@@ -14,6 +15,27 @@ from app.research_web.capabilities.models import CapabilityError
 api = api_fixture
 
 
+def test_reviewed_script_cannot_spawn_host_processes(api, tmp_path):
+    client, _, _ = api
+    marker = tmp_path / "must-not-exist"
+    content = "import subprocess\n" f"subprocess.run(['touch', {str(marker)!r}], check=True)\n"
+    value = candidate()
+    value["files"] = [{"path": "scripts/research.py", "content": content}]
+    value["reviewed_scripts"] = [hashlib.sha256(content.encode()).hexdigest()]
+    row = create(client, value)
+
+    check = client.post(f"/api/research/capabilities/{row['id']}/check").json()
+
+    runtime_issues = [
+        item for item in check["issues"] if item["code"] == "runtime_incompatible_script"
+    ]
+    assert not check["valid"]
+    assert runtime_issues
+    assert "禁止派生进程" in runtime_issues[0]["message"]
+    assert "宿主命令" in runtime_issues[0]["message"]
+    assert not marker.exists()
+
+
 @pytest.mark.parametrize(
     "name,content",
     [
@@ -23,15 +45,20 @@ api = api_fixture
     ],
 )
 def test_installer_scripts_remain_invalid_even_if_reviewed(api, name, content):
-    import hashlib
-
     client, _, _ = api
     value = candidate()
     value["files"] = [{"path": name, "content": content}]
     value["reviewed_scripts"] = [hashlib.sha256(content.encode()).hexdigest()]
     row = create(client, value)
     check = client.post(f"/api/research/capabilities/{row['id']}/check").json()
+    codes = {item["code"] for item in check["issues"]}
     assert not check["valid"]
+    if name == "scripts/install_hook.py":
+        assert "unsafe_file" in codes
+    else:
+        assert "installer_forbidden" in codes
+    if "subprocess.run" in content:
+        assert "runtime_incompatible_script" in codes
 
 
 def test_symlink_directory_entry_and_nested_yaml_fail_closed(api):
