@@ -44,8 +44,9 @@ export function enrichMarketBars(rows = []) {
     date: String(row.date || row.trade_date || row.datetime || row.time || ''),
     open: marketValue(row, ['open', '开盘']), high: marketValue(row, ['high', '最高']),
     low: marketValue(row, ['low', '最低']), close: marketValue(row, ['close', '收盘', 'price', 'last']),
-    volume: marketValue(row, ['volume', 'vol', '成交量']), amount: marketValue(row, ['amount', '成交额']),
-    turnover: marketValue(row, ['turnover', 'turnover_rate', '换手率']),
+    volume: marketValue(row, ['volume', 'vol', '成交量']),
+    amount: marketValue(row, ['amount', 'turnover', '成交额']),
+    turnover: marketValue(row, ['turnover_rate_pct', 'turnover_rate', '换手率']),
   })).filter(bar => bar.close !== null).sort((left, right) => left.date.localeCompare(right.date));
   const closes = bars.map(bar => bar.close);
   const ema12 = exponentialAverage(closes, 12); const ema26 = exponentialAverage(closes, 26);
@@ -152,7 +153,7 @@ function marketMetrics(rows = {}) {
   const closes = history.map(row => finite(firstValue(row, ['close', '收盘']))).filter(value => value !== null);
   const high52 = closes.length ? Math.max(...closes.slice(-252)) : null;
   const low52 = closes.length ? Math.min(...closes.slice(-252)) : null;
-  return `<dl class="asset-market-metrics" aria-label="资产核心指标">${metric('开盘', firstValue(source, ['open', '开盘']))}${metric('最高', firstValue(source, ['high', '最高']))}${metric('最低', firstValue(source, ['low', '最低']))}${metric('成交量', firstValue(source, ['volume', '成交量']), '')}${metric('成交额', firstValue(source, ['amount', '成交额']), '')}${metric('换手率', firstValue(source, ['turnover', 'turnover_rate', '换手率']), '%')}${metric('52周高', high52)}${metric('52周低', low52)}</dl>`;
+  return `<dl class="asset-market-metrics" aria-label="资产核心指标">${metric('开盘', firstValue(source, ['open', '开盘']))}${metric('最高', firstValue(source, ['high', '最高']))}${metric('最低', firstValue(source, ['low', '最低']))}${metric('成交量', firstValue(source, ['volume', '成交量']), '')}${metric('成交额', firstValue(source, ['amount', 'turnover', '成交额']), '')}${metric('换手率', firstValue(source, ['turnover_rate_pct', 'turnover_rate', '换手率']), '%')}${metric('52周高', high52)}${metric('52周低', low52)}</dl>`;
 }
 
 function personalPanel({ observation, watchlists = [], notes = [], alerts = [], notifications = [] }) {

@@ -6,6 +6,7 @@ import hashlib
 import http.client
 import json
 import os
+import re
 import shutil
 import signal
 import socket
@@ -21,12 +22,17 @@ from uuid import uuid4
 
 from core.observability import get_logger
 
+from .launch_runtime import PINNED_COMMIT
+
 log = get_logger(__name__)
 
 WEB_PORT = 8088
 RUNTIME_PORT = 3081
 WEB_URL = f"http://127.0.0.1:{WEB_PORT}/#/fingpt"
 ACTIVE_STATES = {"running", "awaiting_approval", "disconnected", "interrupted"}
+RUNTIME_TOKEN_PATTERN = re.compile(
+    r"dsh web: http://127\.0\.0\.1:(\d+)/\?token=([A-Za-z0-9_-]{43})"
+)
 
 
 class ServiceManagerError(RuntimeError):
@@ -52,6 +58,8 @@ class WebServiceManager:
         runtime_source: Path | None = None,
         python: str | None = None,
         node: str | None = None,
+        web_port: int = WEB_PORT,
+        runtime_port: int = RUNTIME_PORT,
     ) -> None:
         self.project_root = (project_root or Path(__file__).parents[2]).resolve()
         configured_data = os.environ.get("RESEARCH_DATA_HOME")
@@ -68,6 +76,9 @@ class WebServiceManager:
         ).resolve()
         self.python = python or sys.executable
         self.node = node or shutil.which("node") or "/usr/local/bin/node"
+        self.web_port = web_port
+        self.runtime_port = runtime_port
+        self.web_url = f"http://127.0.0.1:{self.web_port}/#/fingpt"
         self.run_root = self.data_root.parent / "run"
         self.log_root = self.data_root.parent / "logs"
 
@@ -83,9 +94,9 @@ class WebServiceManager:
             "--node",
             self.node,
             "--port",
-            str(RUNTIME_PORT),
+            str(self.runtime_port),
             "--datahub-url",
-            f"http://127.0.0.1:{WEB_PORT}",
+            f"http://127.0.0.1:{self.web_port}",
             "--research-tools",
         )
         web_command = (
@@ -98,24 +109,24 @@ class WebServiceManager:
             "--host",
             "127.0.0.1",
             "--port",
-            str(WEB_PORT),
+            str(self.web_port),
         )
         return (
             ManagedProcess(
                 "runtime",
-                RUNTIME_PORT,
+                self.runtime_port,
                 runtime_command,
                 (
                     str(self.runtime_source / "apps/cli/lib/bin.js"),
                     str(self.data_root / "runtime/overlay.yml"),
-                    str(RUNTIME_PORT),
+                    str(self.runtime_port),
                 ),
             ),
             ManagedProcess(
                 "web",
-                WEB_PORT,
+                self.web_port,
                 web_command,
-                ("app.research_web.main:app", str(self.project_root), str(WEB_PORT)),
+                ("app.research_web.main:app", str(self.project_root), str(self.web_port)),
             ),
         )
 
@@ -127,6 +138,9 @@ class WebServiceManager:
 
     def _state_path(self, role: str) -> Path:
         return self.run_root / f"{role}.json"
+
+    def _runtime_auth_path(self) -> Path:
+        return self.data_root / "runtime" / "auth.json"
 
     @staticmethod
     def _fingerprint(command: tuple[str, ...] | list[str]) -> str:
@@ -234,11 +248,16 @@ class WebServiceManager:
 
     @staticmethod
     def _json_request(
-        port: int, method: str, path: str, payload: dict[str, Any] | None = None
+        port: int,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         connection = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
         body = json.dumps(payload).encode() if payload is not None else None
         headers = {"Content-Type": "application/json"} if body is not None else {}
+        headers.update(extra_headers or {})
         try:
             connection.request(method, path, body=body, headers=headers)
             response = connection.getresponse()
@@ -254,19 +273,125 @@ class WebServiceManager:
         finally:
             connection.close()
 
+    def _read_runtime_auth(self) -> dict[str, str] | None:
+        path = self._runtime_auth_path()
+        if not path.exists():
+            return None
+        try:
+            identity = path.lstat()
+            value = json.loads(path.read_text(encoding="utf-8"))
+            expected = {
+                "authority": f"127.0.0.1:{self.runtime_port}",
+                "cwd": str((self.data_root / "runtime/work").resolve()),
+                "source_commit": PINNED_COMMIT,
+            }
+            if (
+                path.is_symlink()
+                or not path.is_file()
+                or identity.st_mode & 0o077
+                or not isinstance(value, dict)
+                or any(value.get(key) != item for key, item in expected.items())
+                or not isinstance(value.get("cookie"), str)
+                or not value["cookie"].startswith("dsh-auth-")
+                or "\r" in value["cookie"]
+                or "\n" in value["cookie"]
+                or len(value["cookie"]) > 4096
+                or not isinstance(value.get("version"), str)
+            ):
+                raise ValueError("invalid runtime auth record")
+            return {key: str(item) for key, item in value.items()}
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            log.warning("research_runtime_auth_invalid")
+            return None
+
+    def _runtime_launch_token(self) -> str | None:
+        log_path = self.log_root / "runtime.log"
+        try:
+            with log_path.open("rb") as stream:
+                stream.seek(0, os.SEEK_END)
+                size = stream.tell()
+                stream.seek(max(0, size - 2 * 1024 * 1024))
+                text = stream.read().decode("utf-8", errors="replace")
+        except OSError:
+            return None
+        matches = [
+            token
+            for port, token in RUNTIME_TOKEN_PATTERN.findall(text)
+            if int(port) == self.runtime_port
+        ]
+        return matches[-1] if matches else None
+
+    def _exchange_runtime_cookie(self, token: str) -> str | None:
+        connection = http.client.HTTPConnection("127.0.0.1", self.runtime_port, timeout=2)
+        try:
+            connection.request("GET", f"/?token={token}")
+            response = connection.getresponse()
+            response.read(4096)
+            raw = response.getheader("Set-Cookie")
+            if response.status != 303 or raw is None:
+                return None
+            cookie = raw.split(";", 1)[0]
+            if (
+                not cookie.startswith("dsh-auth-")
+                or "\r" in cookie
+                or "\n" in cookie
+                or len(cookie) > 4096
+            ):
+                return None
+            return cookie
+        except (OSError, http.client.HTTPException):
+            return None
+        finally:
+            connection.close()
+
+    def _write_runtime_auth(self, cookie: str) -> dict[str, str]:
+        runtime = self.data_root / "runtime"
+        runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
+        package = json.loads((self.runtime_source / "package.json").read_text(encoding="utf-8"))
+        value = {
+            "authority": f"127.0.0.1:{self.runtime_port}",
+            "cookie": cookie,
+            "cwd": str((runtime / "work").resolve()),
+            "source_commit": PINNED_COMMIT,
+            "version": str(package["version"]),
+        }
+        fd, name = tempfile.mkstemp(prefix="auth-", dir=runtime)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                json.dump(value, stream, ensure_ascii=False, indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chmod(name, 0o600)
+            os.replace(name, self._runtime_auth_path())
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            Path(name).unlink(missing_ok=True)
+            raise ServiceManagerError("无法写入 DSH 认证控制文件") from exc
+        return value
+
     def _runtime_healthy(self) -> bool:
         rpc_id = str(uuid4())
+        auth = self._read_runtime_auth()
+        if auth is None:
+            token = self._runtime_launch_token()
+            cookie = self._exchange_runtime_cookie(token) if token else None
+            if cookie is None:
+                return False
+            try:
+                auth = self._write_runtime_auth(cookie)
+            except (OSError, ValueError, json.JSONDecodeError, ServiceManagerError):
+                return False
         try:
             value = self._json_request(
-                RUNTIME_PORT,
+                self.runtime_port,
                 "POST",
-                "/api/host.describe",
+                "/api/session/list",
                 {
                     "type": "client-request",
                     "rpcId": rpc_id,
-                    "method": "host.describe",
-                    "payload": {},
+                    "method": "session/list",
+                    "payload": {"args": {"_request": {}}},
                 },
+                {"Cookie": auth["cookie"]},
             )
             return (
                 value.get("type") == "server-response"
@@ -278,7 +403,7 @@ class WebServiceManager:
 
     def _web_healthy(self) -> bool:
         try:
-            value = self._json_request(WEB_PORT, "GET", "/api/research/runtime")
+            value = self._json_request(self.web_port, "GET", "/api/research/runtime")
             return value.get("connected") is True
         except ServiceManagerError:
             return False
@@ -298,12 +423,15 @@ class WebServiceManager:
         environment.update(
             {
                 "RESEARCH_DATA_HOME": str(self.data_root),
-                "RESEARCH_RUNTIME_URL": f"http://127.0.0.1:{RUNTIME_PORT}",
+                "RESEARCH_RUNTIME_URL": f"http://127.0.0.1:{self.runtime_port}",
+                "RESEARCH_RUNTIME_AUTH": str(self._runtime_auth_path()),
                 "RESEARCH_DSH_SOURCE": str(self.runtime_source),
                 "PYTHONUNBUFFERED": "1",
             }
         )
         try:
+            if process.role == "runtime":
+                self._runtime_auth_path().unlink(missing_ok=True)
             stream = log_path.open("ab", buffering=0)
             try:
                 child = subprocess.Popen(
@@ -346,12 +474,12 @@ class WebServiceManager:
                 self._spawn(runtime)
                 created.append(runtime)
             if not self._wait(self._runtime_healthy, 35):
-                raise ServiceManagerError("DSH 3081 启动超时，请查看 runtime.log")
+                raise ServiceManagerError(f"DSH {self.runtime_port} 启动超时，请查看 runtime.log")
             if self._ensure_startable(web):
                 self._spawn(web)
                 created.append(web)
             if not self._wait(self._web_healthy, 35):
-                raise ServiceManagerError("Web 8088 启动超时，请查看 web.log")
+                raise ServiceManagerError(f"Web {self.web_port} 启动超时，请查看 web.log")
         except Exception:
             for process in reversed(created):
                 try:
@@ -360,12 +488,12 @@ class WebServiceManager:
                     log.error("research_service_rollback_failed", role=process.role)
             raise
         if open_browser:
-            webbrowser.open(WEB_URL)
+            webbrowser.open(self.web_url)
         return self.status()
 
     def _active_research(self) -> list[str]:
         try:
-            result = self._json_request(WEB_PORT, "GET", "/api/research/sessions")
+            result = self._json_request(self.web_port, "GET", "/api/research/sessions")
         except ServiceManagerError:
             raise ServiceManagerError("无法核对活动研究；未执行重启，可显式使用 --force")
         return [
@@ -392,6 +520,8 @@ class WebServiceManager:
                 raise ServiceManagerError(f"无法确认 {process.role} 进程归属")
             os.killpg(pid, signal.SIGKILL)
         self._state_path(process.role).unlink(missing_ok=True)
+        if process.role == "runtime":
+            self._runtime_auth_path().unlink(missing_ok=True)
         log.info("research_service_stopped", role=process.role, pid=pid)
         return True
 
@@ -417,7 +547,7 @@ class WebServiceManager:
 
     def status(self) -> dict[str, Any]:
         self._prepare_private_directories()
-        result: dict[str, Any] = {"url": WEB_URL, "services": {}}
+        result: dict[str, Any] = {"url": self.web_url, "services": {}}
         for process in self._processes():
             state = self._owned_state(process)
             healthy = self._runtime_healthy() if process.role == "runtime" else self._web_healthy()

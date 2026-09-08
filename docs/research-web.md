@@ -31,9 +31,15 @@ rwb web stop
 ```
 
 入口：`http://127.0.0.1:8088/#/fingpt`。3081 与 8088 的 PID、命令指纹和日志保存在 `~/.research-workbench/run/` 与 `logs/`；停止仅操作归属一致的进程，不触碰原有 3080。模型密钥只在设置页填写，不从 3080 或旧数据目录复制。
-DSH 源码固定 `b3e26660f0a7bca680f06366aec3bb8d731c725e`；CLI 版本为 `0.1.1-rc.2`，`host.describe` 当前协议实现报告 `0.0.1`。该本地合并提交包含原生 `session.delete`，启动器记录实际源码提交与构建闭包哈希。
+DSH 源码固定 `c919b2a460753859665db3f60143d525fb9140cf`；CLI 版本为 `0.1.3-alpha.2`。该 Fork 运行分支基于官方最新架构提供原生 `session/delete`，Workbench 兼容桥通过 Typert Gateway 的斜杠命名 RPC、Remote mux 和浏览器会话认证接入；启动器仍记录实际源码提交与构建闭包哈希。
 管理器默认使用固定源码中已构建的 DSH CLI；启动失败会回收本次新建进程并保留日志，不会接管占用端口的外部进程。
 不带 `--research-tools` 可启动禁工具聊天模式；无法完成沙箱启动检查时不要开放脚本。
+
+Fork 维护约定：`Leon-Huang001208/deepseek-harness` 的 `master` 只用
+`git merge --ff-only upstream/master` 跟踪官方仓库，官方 `upstream` 禁止推送；产品补丁保留在
+`workbench-runtime`，定期合入 Fork `master` 并完成 DSH 与 Workbench 全量回归后才能推送。每次
+`workbench-runtime` 提交变化，都必须同步本文件、启动器与能力目录的固定 SHA、私有运行副本和
+`build-lock.json`。若官方提供等价永久删除能力，应移除重复补丁，只保留必要的 Workbench 兼容桥。
 
 ## 数据与模块
 

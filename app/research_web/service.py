@@ -203,6 +203,12 @@ class ResearchService:
                     self.store.save()
             elif kind == "host/session-status":
                 self.running[sid] = frame["running"]
+                # Current DSH publishes list-state invalidations separately
+                # from its durable follow stream. Reload the authoritative log
+                # on the next detail read, especially after a turn settles.
+                self.loaded.discard(sid)
+            elif kind == "host/session-activity":
+                self.loaded.discard(sid)
             elif kind == "host/agent-error":
                 self.errors[sid] = frame["message"]
             elif kind == "approval/requested":
@@ -410,6 +416,12 @@ class ResearchService:
                 item.get("sessionId") == sid and item.get("running") is True
                 for item in native.get("items", [])
             )
+            current_status = row.get("status", "idle")
+            if current_status in SESSION_DELETE_BLOCKED_STATUSES and not native_running:
+                entries = await self.client.history(sid) if row.get("created") else []
+                current_status = project(entries)["status"]
+                if current_status == "running":
+                    current_status = "interrupted"
             children = (
                 await self.client.rpc("subagent.list", {"parentSessionId": sid})
                 if row.get("created")
@@ -423,7 +435,7 @@ class ResearchService:
                 for value in [*self.approvals.values(), *self.questions.values()]
             )
             if (
-                row.get("status") in SESSION_DELETE_BLOCKED_STATUSES
+                current_status in SESSION_DELETE_BLOCKED_STATUSES
                 or native_running
                 or child_running
                 or waiting
@@ -433,6 +445,9 @@ class ResearchService:
                     "session_busy",
                     409,
                 )
+            row["status"] = current_status
+            row["updated_at"] = time.time()
+            self.store.save()
             return self.summary(self.store.soft_delete(sid))
 
     async def restore_session(self, sid: str):
@@ -458,9 +473,16 @@ class ResearchService:
             if row.get("deleted_at") is None:
                 raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
             if row.get("native_deleted_at") is None:
-                native = await self.client.rpc(
-                    "session.delete", {"sessionId": sid, "cascade": True}
-                )
+                try:
+                    native = await self.client.rpc("session.delete", {"sessionId": sid})
+                except RuntimeFailure as exc:
+                    if exc.code != "session/not-found":
+                        raise
+                    # A prior delete may have committed before Workbench wrote
+                    # its tombstone acknowledgement. Authoritative absence is
+                    # sufficient to finish the retained local purge safely.
+                    native = {"deletedSessionIds": [sid]}
+                    log.info("research_native_session_already_absent", session_id=sid)
                 deleted_ids = native.get("deletedSessionIds")
                 if not isinstance(deleted_ids, list) or sid not in deleted_ids:
                     raise RuntimeFailure(
@@ -851,6 +873,13 @@ class ResearchService:
                 prompt += (
                     "\n\n使用 DSH 原生子 Agent 分工研究；只使用实际可用工具，不虚构执行或产物。"
                 )
+            prompt += (
+                "\n\n语言契约：除非用户在当前请求中明确要求其他语言，"
+                "所有可见过程说明、工具调用前后说明、提问、错误解释、总结和最终答复"
+                "均使用简体中文。代码、API 名称、专有名词和必要原文引用可保留原语言，"
+                "但解释必须使用中文。英文工具、资料或子 Agent 结果必须先翻译或中文归纳，"
+                "不得直接以英文回答透传。"
+            )
             if native_skill:
                 prompt = f"/{native_skill} " + prompt
             try:
@@ -1095,7 +1124,7 @@ class ResearchService:
                 request["accepted"] = True
                 self.store.save()
         except RuntimeFailure as exc:
-            if exc.code != "session-not-found":
+            if exc.code not in {"session-not-found", "session/not-found"}:
                 raise
             log.info("research_cancel_parent_offline", session_id=sid)
             result = {"accepted": True}

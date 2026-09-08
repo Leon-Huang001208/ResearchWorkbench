@@ -18,7 +18,7 @@ from .datahub.security import load_control
 from .store import StoreError
 
 log = get_logger(__name__)
-PINNED_COMMIT = "b3e26660f0a7bca680f06366aec3bb8d731c725e"
+PINNED_COMMIT = "c919b2a460753859665db3f60143d525fb9140cf"
 
 
 def enabled_datahub_tools() -> list[str]:
@@ -48,7 +48,7 @@ def prepare_runtime_module_fallback(source: Path, home: Path, node: str) -> int:
 import { pathToFileURL } from 'node:url';
 const [modulePath, anchor, home] = process.argv.slice(1);
 const runtime = await import(pathToFileURL(modulePath).href);
-runtime.healProfilesModuleFallback(anchor, home);
+await runtime.healProfilesModuleFallback({ installAnchor: anchor, home });
 """
     environment = {
         "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",

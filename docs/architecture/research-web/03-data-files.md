@@ -28,7 +28,7 @@ DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运
 
 “交给 FinGPT / Claw”先验证所选 dataset 确实属于来源会话，再新建目标会话，将选定 dataset 逐文件复制并复核 SHA-256，最后把页面筛选、来源、截止时间和 dataset 映射写入 `inputs/page-context/`。页面上下文上限为 64 KiB；查询与交接分别通过幂等键及准入锁防止并发重复创建。交接不重新联网，不创建符号链接，也不让目标会话读取源会话路径。
 
-资产观察通过 `ui/asset-workspace.mjs` 恢复为独立产品入口。概览、历史行情、财务、资金与交易事件、公告、新闻、研究资料、同类比较、主题暴露和来源口径逐块保留真实状态；历史行情有数据时显示 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI、换手率和细行情栏，技术指标仅在浏览器内由当前 DataHub 快照确定性派生，不写回或伪装为来源字段。自选、观察笔记和提醒仍存放在 Research Web 数据根，不依赖旧 PostgreSQL，也不恢复旧 Agent 委员会、信号、情景或回测链。
+资产观察通过 `ui/asset-workspace.mjs` 恢复为独立产品入口。概览、历史行情、财务、资金与交易事件、公告、新闻、研究资料、同类比较、主题暴露和来源口径逐块保留真实状态；历史行情有数据时显示 OHLC K 线、MA/BOLL、成交量、成交额、MACD、KDJ、RSI、换手率和细行情栏，技术指标仅在浏览器内由当前 DataHub 快照确定性派生，不写回或伪装为来源字段。DataHub 标准行的 `turnover` 是成交额，`turnover_rate_pct` 是换手率；UI 分别映射并对缺失值保持未知，不在两个口径间回填。自选、观察笔记和提醒仍存放在 Research Web 数据根，不依赖旧 PostgreSQL，也不恢复旧 Agent 委员会、信号、情景或回测链。
 
 ## 报告 Workflow 资源与迁移
 

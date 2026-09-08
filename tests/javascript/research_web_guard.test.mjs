@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { apply } from '../../app/research_web/runtime/guard.mjs';
 
-const makeAgent = () => ({ session: { events: [{ type: 'turn/start', data: { turn: 1 } }] } });
+const makeAgent = () => {
+  const events = [{ type: 'turn/start', data: { turn: 1 } }];
+  return { session: { snapshotEvents: () => events }, events };
+};
 
 test('research guard fails closed and cannot expose arbitrary shell or host files', () => {
   let guard;
@@ -22,6 +25,6 @@ test('research guard limits native children and resets budget only on a new turn
   const agent = makeAgent();
   for (let index = 0; index < 4; index++) assert.equal(guard({ name: 'subagent', agent }), undefined);
   assert.ok(guard({ name: 'subagent', agent }));
-  agent.session.events.push({ type: 'turn/start', data: { turn: 2 } });
+  agent.events.push({ type: 'turn/start', data: { turn: 2 } });
   assert.equal(guard({ name: 'subagent', agent }), undefined);
 });

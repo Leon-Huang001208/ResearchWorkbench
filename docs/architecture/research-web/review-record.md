@@ -1,5 +1,15 @@
 # 架构迭代核对记录
 
+## 2026-09-08 — DSH 最新版 Gateway 兼容迁移
+
+- Research Runtime 固定到基于官方最新 `master` 重建的 Fork 运行分支；Workbench 兼容桥把原有白名单调用映射到 Typert Gateway 的斜杠端点、`payload.args`、Cookie 鉴权和 Remote 复用流，对外 HTTP、会话、消息、DataHub、文件与删除接口不变。
+- 服务管理器增加一次性启动令牌换 Cookie、`0600` 控制文件核验和可配置备用端口；生产 3081/8088 在隔离验收完成前保持旧运行版本。
+- 新版 DSH 已移除独立 `report` 工具；Claw 子 Agent 结果通过原生 continuable 链路回传，能力目录和最终工具 guard 不再声明不存在的工具。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"兼容桥只把既有白名单RPC、历史恢复、审批和事件投影映射到新版Typert Gateway与Remote协议；Workbench对外API、会话语义和SSE边界不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"固定DSH版本、Cookie鉴权和备用端口属于既有专属Runtime与Service Manager节点内部升级，不新增生产服务、端口或执行引擎。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"移除新版DSH已不存在的独立report工具并同步真实参数名；Skill、DataHub和子Agent能力仍经相同原生工具注册与guard边界。","diagrams":[]} -->
+
 ## 2026-09-07 — FinGPT 对话、DataHub 自动查询与异常统计
 
 - 对话展示仍位于现有 UI 模块，不新增服务、接口或状态存储；用户右侧气泡、无可见署名、模式化 ARIA 与分类异常横幅属于既有会话投影的呈现修正。图 02 更新 UI 到现有 BFF/DSH 的关系说明。
@@ -233,7 +243,7 @@
 
 ## 2026-09-07 — DSH 会话删除固定版本
 
-- Research Runtime 与能力目录固定到本地 DSH 合并提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`，启动时继续要求源码提交和已审核构建闭包同时匹配。
+- Research Runtime 与能力目录固定到 Fork 的 DSH 运行提交 `c919b2a460753859665db3f60143d525fb9140cf`，启动时继续要求源码提交和已审核构建闭包同时匹配。
 - 该升级只替换既有 3081 Runtime 的固定实现版本；服务、端口、模块依赖和能力目录结构保持不变，因此无需重绘架构图。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"仅更新既有3081 Research Runtime的固定DSH源码提交和构建闭包，不改变服务、端口或启动数据流。","diagrams":[]} -->
@@ -261,3 +271,11 @@
 - 该变更只调整既有 `shell.mjs` 产品壳内部的条件渲染与状态样式，不新增模块、接口、状态或跨模块依赖，因此十张架构图无需重生成。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"顶栏仅隐藏健康运行时状态并移除全局刷新入口；异常提示、设置诊断、页面级刷新和现有运行时契约保持不变。","diagrams":[]} -->
+
+## 2026-09-08 — 资产成交额与换手率口径纠正
+
+- 资产观察把 DataHub 标准字段 `turnover` 显示为成交额，把 `turnover_rate_pct` 显示为换手率；缺失值保持未知。
+- 该修复不改变 DataHub 快照、资产观察 API、图表节点或数据流，只纠正既有 UI 字段映射，十张架构图无需更新。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅纠正既有资产指标卡的成交额与换手率字段映射，不改变模块、API或数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"资产观察继续读取同一DataHub标准行；只区分既有turnover与turnover_rate_pct口径。","diagrams":[]} -->
