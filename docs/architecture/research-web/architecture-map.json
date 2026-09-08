@@ -80,6 +80,8 @@
       "tests": [
         "tests/research_web/test_datahub.py",
         "tests/research_web/test_datahub_catalog.py",
+        "tests/research_web/test_mysql_configuration.py",
+        "tests/research_web/test_mysql_provider.py",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/javascript/research_web_public_data.test.mjs"
       ]
@@ -588,6 +590,13 @@
         },
         {
           "subjects": [
+            "providers",
+            "upstreams"
+          ],
+          "source": "app/research_web/datahub/providers_mysql.py"
+        },
+        {
+          "subjects": [
             "normalize"
           ],
           "source": "app/research_web/datahub/__init__.py"
@@ -1033,6 +1042,27 @@
       "path": "/api/research/data/sources/{source_id}",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/data/sources/{source_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/sources/mysql/configuration",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/mysql/configuration",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/data/sources/mysql/configuration",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/mysql/configuration",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/research/data/sources/mysql/configuration",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/mysql/configuration",
       "prefix": "/api/research"
     },
     {

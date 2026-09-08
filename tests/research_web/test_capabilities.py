@@ -62,13 +62,14 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 9
+    assert len(rows) == 10
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
         "行业研究",
         "基金评价",
         "市场解读",
+        "因子库研究",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]
@@ -86,7 +87,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 27
+    assert len(tools) == 29
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}
     assert workflow_tools == {
         "report_workbook_refresh",

@@ -61,7 +61,7 @@ const provider=new FileSystemSkillProvider(ctx,{signal:controller.signal,invalid
 try {
   const candidates=await provider.list({cwd:root});
   assert.ok(Array.isArray(candidates));
-  assert.equal(candidates.length,9);
+  assert.equal(candidates.length,10);
   assert.ok(!candidates.some(c=>c.name==='host-canary'));
   const company=candidates.find(c=>c.name==='company-research');
   const loaded=await provider.get(company,{cwd:root});
@@ -83,12 +83,12 @@ try {
   for(let i=0;i<100 && invalidations===count;i++) await new Promise(r=>setTimeout(r,20));
   assert.ok(invalidations>count);
   assert.ok(!(await provider.list({cwd:root})).some(c=>c.name==='rwb-test-v1'));
-  console.log(JSON.stringify({discovered:9,loaded:true,watch:true,hostRootExcluded:true}));
+  console.log(JSON.stringify({discovered:10,loaded:true,watch:true,hostRootExcluded:true}));
 } finally {await provider.dispose();controller.abort();}
 """
     result = json.loads(node(source, script, tmp_path, catalog.native_root).strip())
     assert result == {
-        "discovered": 9,
+        "discovered": 10,
         "loaded": True,
         "watch": True,
         "hostRootExcluded": True,
@@ -109,7 +109,7 @@ for(const path of ['packages/skill/tool-skill/src/index.ts','packages/subagent/t
 const web=await import(pathToFileURL(join(process.cwd(),'packages/web/tool-web/src/index.ts')));
 web.apply(ctx,{search:true,fetch:false,searchMaxResults:8,searchMaxQueries:4,fetchTimeoutMs:30000,searchTimeoutMs:60000,fetchMaxOutputChars:200000});
 (await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')))).apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used',timeoutSeconds:60,maxOutputBytes:262144});
-const enabledTools=['datahub_search_assets','datahub_get_trading_calendar','datahub_get_market_bars','datahub_get_market_snapshot','datahub_get_index_data','datahub_get_financials','datahub_get_market_activity','datahub_get_factor_macro','datahub_get_fund_data','datahub_search_news','datahub_search_announcements','datahub_search_research','datahub_search_web'];
+const enabledTools=['datahub_search_assets','datahub_get_trading_calendar','datahub_get_market_bars','datahub_get_market_snapshot','datahub_get_index_data','datahub_get_financials','datahub_get_market_activity','datahub_get_factor_macro','datahub_get_fund_data','datahub_search_news','datahub_search_announcements','datahub_search_research','datahub_search_web','datahub_get_database_schema','datahub_query_table'];
 (await import(pathToFileURL(join(root,'app/research_web/runtime/public-data.mjs')))).apply(ctx,{researchRoot:'/tmp/never-used',enabledTools});
 console.log(JSON.stringify(tools.map(t=>({id:t.name,parameters:t.parameters}))));
 """

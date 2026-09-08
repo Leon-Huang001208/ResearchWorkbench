@@ -22,6 +22,8 @@ const BUSINESS_TOOL_IDS = [
   'datahub_search_announcements',
   'datahub_search_research',
   'datahub_search_web',
+  'datahub_get_database_schema',
+  'datahub_query_table',
 ];
 const dataset = {dataset_id:randomUUID(),source:'fund_nav',status:'complete',row_count:243,
   retrieved_at:'2026-09-02T00:00:00Z',as_of:'2025-12-31',pagination_complete:true,
@@ -44,13 +46,32 @@ async function fixture(options = {}) {
     approvalReads(){return approvalReads;},approvalRequests(){return approvalRequests;}};
 }
 
-test('only the thirteen brand-neutral business tools are registered',async()=>{
+test('only the fifteen brand-neutral business tools are registered',async()=>{
   const f=await fixture();
-  assert.equal(f.tools.size,13);
+  assert.equal(f.tools.size,15);
   assert.ok(f.tools.has('datahub_get_market_bars'));
   assert.ok(!f.tools.has('research_public_data'));
   assert.ok(f.tools.has('datahub_search_news'));
   assert.ok(f.tools.has('datahub_get_fund_data'));
+  assert.ok(f.tools.has('datahub_get_database_schema'));
+  assert.ok(f.tools.has('datahub_query_table'));
+});
+
+test('mysql table tool validates nested filters and ordering before HTTP',async()=>{
+  const f=await fixture();let calls=0;const original=globalThis.fetch;
+  globalThis.fetch=async()=>{calls++;return reply({...dataset,source:'mysql'});};
+  const tool=f.tools.get('datahub_query_table');
+  const valid={database:'factor_db',table:'daily_factor',columns:['code','bp'],filters:[{column:'bp',operator:'gte',value:0.1}],order_by:[{column:'bp',direction:'desc'}]};
+  try {
+    await tool.execute(valid,f.exec);assert.equal(calls,1);
+    for(const args of [
+      {...valid,sql:'select 1'},
+      {...valid,filters:[{column:'bp',operator:'gte',value:0.1,extra:true}]},
+      {...valid,order_by:[{column:'bp',direction:'sideways'}]},
+      {...valid,columns:['code',2]},
+    ]) await assert.rejects(tool.execute(args,f.exec));
+    assert.equal(calls,1);
+  } finally {globalThis.fetch=original;}
 });
 
 test('enabledTools registers only fixed business tools and invalid configuration fails closed',async()=>{

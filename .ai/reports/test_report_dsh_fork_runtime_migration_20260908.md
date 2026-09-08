@@ -14,8 +14,9 @@
 
 - DSH 删除链路相关 Vitest：344 项通过。
 - DSH 正式构建：通过；`doc-sync` 33 项门禁通过。
-- Workbench JavaScript 最终全量：163 项通过、1 项因可选 DSH Schema 环境跳过；字段修复后的资产模块 8 项通过。
-- Workbench Python 首轮：440 项通过、2 项旧预期失败；将旧工具总数和删除夹具适配到最新版协议后，最终全量 442 项通过。
+- Workbench 合入用户自配置 MySQL DataHub 后，JavaScript 最终全量：167 项通过、1 项因可选 DSH Schema 环境跳过；字段修复后的资产模块 8 项通过。
+- Workbench Python 首轮：440 项通过、2 项旧预期失败；将旧工具总数和删除夹具适配到最新版协议并保留 MySQL 能力后，最终全量 467 项通过、3 项跳过。
+- 合并态能力目录为 10 个内置 Skill／Workflow、15 个固定业务工具；MySQL 工具仍按来源配置动态启用。
 - 备用端口 13081/18088：FinGPT 与 Claw “最近一周 A 股市场点评”均完成，所有可见助手消息为中文，DataHub 审批为 0；Claw 两个子 Agent 完成。
 - 真实会话生命周期：FinGPT 软删、恢复、再次软删、永久删除通过；Claw 父会话和两个子 Agent 级联永久删除后，Workbench 索引和 DSH `session/list` 均无对应 ID。
 - Playwright：资产观察 1440×900 与 390×844 无横向溢出、无控制台错误；真实来源缺少历史行情时显示明确空态。成交额 `3,336,029,501` 修复后归入成交额，换手率显示未知。

@@ -14,6 +14,7 @@ from ..store import StoreError
 from . import providers
 from .broker import resolve
 from .catalog import build_catalog, catalog_detail
+from .connections import MySQLConnectionStore
 from .contracts import BusinessQuery, Query
 from .security import load_control
 from .snapshots import Snapshots
@@ -26,6 +27,7 @@ class DataHub:
     def __init__(self, store, *, transport=None, url=None):
         self.store = store
         self.snapshots = Snapshots(store)
+        self.connections = MySQLConnectionStore(store.root)
         self.control = load_control(store.root, url)
         self.transport = transport
         self.tasks: dict[tuple[str, str], asyncio.Task] = {}
@@ -53,13 +55,23 @@ class DataHub:
         return latest
 
     def catalog(self):
-        return build_catalog(probes=self._latest_probes())
+        return build_catalog(probes=self._latest_probes(), mysql_status=self.connections.status())
 
     def catalog_capability(self, capability_id):
-        return catalog_detail("capability", capability_id, probes=self._latest_probes())
+        return catalog_detail(
+            "capability",
+            capability_id,
+            probes=self._latest_probes(),
+            mysql_status=self.connections.status(),
+        )
 
     def catalog_source(self, source_id):
-        return catalog_detail("source", source_id, probes=self._latest_probes())
+        return catalog_detail(
+            "source",
+            source_id,
+            probes=self._latest_probes(),
+            mysql_status=self.connections.status(),
+        )
 
     def start_probe(self, source_id, idempotency_key):
         if not re.fullmatch(r"[a-z0-9_]{1,64}", source_id):
@@ -99,7 +111,9 @@ class DataHub:
             if state != "ready":
                 outcome = {"health": "unavailable", "failure_code": state}
             else:
-                outcome = await providers.probe(source_id, transport=self.transport)
+                outcome = await providers.probe(
+                    source_id, transport=self.transport, connections=self.connections
+                )
             checked = datetime.now(UTC).isoformat()
             record.update(
                 status="completed",
@@ -262,14 +276,20 @@ class DataHub:
             request_query = query
             resolution = None
             if isinstance(query, BusinessQuery):
-                resolution = resolve(query, probes=self._latest_probes())
+                resolution = resolve(
+                    query,
+                    probes=self._latest_probes(),
+                    mysql_status=self.connections.status(),
+                )
                 provider_query = resolution.query
                 source_label = resolution.provider_id
             else:
                 provider_query = query
                 source_label = query.source
             log.info("datahub_query_started", session_id=sid, source=source_label)
-            result = await providers.fetch(provider_query, transport=self.transport)
+            result = await providers.fetch(
+                provider_query, transport=self.transport, connections=self.connections
+            )
             if resolution:
                 result.provider_id = resolution.provider_id
                 result.attempted_sources = resolution.attempted_sources

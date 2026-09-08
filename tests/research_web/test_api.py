@@ -275,7 +275,7 @@ def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
     client, native, service = api
     catalog = client.get("/api/research/data/catalog")
     assert catalog.status_code == 200
-    assert len(catalog.json()["capabilities"]) == 13
+    assert len(catalog.json()["capabilities"]) == 15
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     assert client.get(f"/api/research/sessions/{sid}").json()["datasets"] == []
     called = []

@@ -10,6 +10,7 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
   }
 }));
 const [markdown, core, views] = modules;
+const dataCatalog = await import(new URL('data-catalog.mjs', root));
 const session = (id = 's1', extra = {}) => ({ id, title: '真实会话', mode: 'fingpt', status: 'idle', messages: [], activities: [], subagents: [], files: [], approvals: [], questions: [], ...extra });
 
 test('Markdown renders real headings, paragraphs, code, lists, tables and source links', () => {
@@ -148,6 +149,17 @@ test('entrypoint is self hosted and settings do not persist secrets in browser s
   assert.match(app, /password/);
 });
 
+test('MySQL password references are cleared immediately after request serialization', async () => {
+  const app = await readFile(new URL('app.mjs', root), 'utf8');
+  const request = app.indexOf('api.saveMysqlConfiguration(payload)');
+  const clearPayload = app.indexOf('delete payload.password', request);
+  const awaitResult = app.indexOf('await controller.action', request);
+  assert.ok(request >= 0 && clearPayload > request);
+  assert.ok(clearPayload < awaitResult, 'payload must be cleared before waiting for the response');
+  assert.match(app.slice(request, awaitResult), /values\.delete\('password'\)/);
+  assert.match(app.slice(request, awaitResult), /password = ''/);
+});
+
 test('a stale refresh never overwrites a newer SSE snapshot', async () => {
   let handlers; let resolveRefresh; let reads = 0;
   const controller = core.createController({ api: {
@@ -197,6 +209,25 @@ test('API uploads actual files as multipart and sends secrets only in configurat
   await api.configure({ provider: 'deepseek-official', model: 'deepseek-v4-flash', api_key: 'very-private' });
   assert.equal(JSON.parse(calls[1][1].body).api_key, 'very-private');
   assert.doesNotMatch(JSON.stringify(logs), /very-private|contents|input.md/);
+});
+
+test('API exposes local MySQL configuration without a password read path', async () => {
+  const calls=[];const api=core.createAPI({fetcher:async(url,options)=>{calls.push([url,options]);return new Response(JSON.stringify({configured:true,secret_configured:true}));},logger(){}});
+  await api.mysqlConfiguration();
+  await api.saveMysqlConfiguration({label:'因子库',host:'db.test',port:3306,user:'reader',charset:'gbk',tls_mode:'required_no_verify',password:'one-shot'});
+  await api.deleteMysqlConfiguration();
+  assert.deepEqual(calls.map(([url,options])=>[url,options.method]),[
+    ['/api/research/data/sources/mysql/configuration','GET'],
+    ['/api/research/data/sources/mysql/configuration','PUT'],
+    ['/api/research/data/sources/mysql/configuration','DELETE'],
+  ]);
+  assert.equal(Object.hasOwn(JSON.parse(calls[0][1].body || '{}'),'password'),false);
+});
+
+test('MySQL source detail shows the four-stage local connection state and settings link', () => {
+  const html=dataCatalog.renderDataSourceDetail({id:'mysql',name:'用户 MySQL 数据库',family:'datahub',source_type:'database',description:'本机配置',auth_type:'account',dependencies:['PyMySQL','keyring'],markets:['用户数据库'],bindings:[],readiness:{code_exists:true,integration_completed:true,configured:true,dependency_ready:true,allowed:true,callable:false,integration_state:'ready',health:'untested'}},false);
+  for(const label of ['未配置','已保存','已检测','可调用']) assert.match(html,new RegExp(label));
+  assert.match(html,/href="#\/settings"/);
 });
 
 test('SSE malformed payload reports errors and closing a stream releases it', () => {

@@ -145,6 +145,19 @@ DATA_PROPERTIES = {
         ["query"],
     ),
     "search_web": ({"query": "string", "limit": "integer"}, ["query"]),
+    "database_schema": ({"database": "string", "table": "string"}, []),
+    "table_query": (
+        {
+            "database": "string",
+            "table": "string",
+            "columns": "array",
+            "filters": "array",
+            "order_by": "array",
+            "offset": "integer",
+            "limit": "integer",
+        },
+        ["database", "table", "columns"],
+    ),
 }
 
 WORKFLOW_TOOL_DECLARATIONS = {
@@ -236,7 +249,7 @@ def tool_catalog():
         capability = capabilities[capability_id]
         fields, required = DATA_PROPERTIES[capability_id]
         properties = {key: {"type": value} for key, value in fields.items()}
-        for key in ("assets", "fields", "statements", "periods", "series"):
+        for key in ("assets", "fields", "statements", "periods", "series", "columns"):
             if key in properties:
                 properties[key]["items"] = {"type": "string"}
         properties.update(

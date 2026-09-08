@@ -24,8 +24,8 @@ def _integer(value, name, default, minimum=1, maximum=100):
     return value
 
 
-def resolve(query: BusinessQuery, *, probes=None, environ=None) -> Resolution:
-    catalog = build_catalog(probes=probes, environ=environ)
+def resolve(query: BusinessQuery, *, probes=None, environ=None, mysql_status=None) -> Resolution:
+    catalog = build_catalog(probes=probes, environ=environ, mysql_status=mysql_status)
     bindings = [
         binding for binding in catalog["bindings"] if binding["capability_id"] == query.capability
     ]
@@ -123,6 +123,8 @@ def resolve(query: BusinessQuery, *, probes=None, environ=None) -> Resolution:
         "market_activity",
     }:
         legacy = query.model_copy(update={"source": "akshare"})
+    elif selected == "mysql" and query.capability in {"database_schema", "table_query"}:
+        legacy = query.model_copy(update={"source": "mysql"})
     else:
         raise StoreError("所选来源已登记但尚未实现按需查询适配")
     return Resolution(selected, legacy, attempts)

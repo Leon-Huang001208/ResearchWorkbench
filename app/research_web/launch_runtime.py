@@ -13,6 +13,7 @@ from core.observability import get_logger, setup_logging
 
 from .capabilities.catalog import CapabilityCatalog
 from .datahub.catalog import build_catalog
+from .datahub.connections import MySQLConnectionStore
 from .datahub.contracts import BUSINESS_TOOLS
 from .datahub.security import load_control
 from .store import StoreError
@@ -21,10 +22,11 @@ log = get_logger(__name__)
 PINNED_COMMIT = "c919b2a460753859665db3f60143d525fb9140cf"
 
 
-def enabled_datahub_tools() -> list[str]:
+def enabled_datahub_tools(data: Path | None = None) -> list[str]:
     """Resolve the fixed business tool IDs backed by callable offline catalog sources."""
     try:
-        capabilities = build_catalog()["capabilities"]
+        mysql_status = MySQLConnectionStore(data).status() if data is not None else None
+        capabilities = build_catalog(mysql_status=mysql_status)["capabilities"]
         callable_capabilities = {
             item["id"] for item in capabilities if item["callable_source_count"] > 0
         }
@@ -126,7 +128,7 @@ def prepare(
     package = Path(__file__).parent / "runtime"
     if research_tools:
         load_control(data, datahub_url)
-        public_data_tools = enabled_datahub_tools()
+        public_data_tools = enabled_datahub_tools(data)
         runner = package.parent / "sandbox.py"
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")

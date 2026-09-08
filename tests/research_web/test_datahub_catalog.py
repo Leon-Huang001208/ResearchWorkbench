@@ -24,15 +24,13 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     import app.research_web.datahub.catalog as module
 
     monkeypatch.setattr(module.os, "environ", {})
-    monkeypatch.setattr(
-        module, "find_spec", lambda name: object() if name == "akshare" else None
-    )
+    monkeypatch.setattr(module, "find_spec", lambda name: object() if name == "akshare" else None)
     catalog = build_catalog()
     assert catalog["summary"] == {
-        "capabilities": 13,
-        "sources": 21,
+        "capabilities": 15,
+        "sources": 22,
         "callable_sources": 3,
-        "needs_configuration": 9,
+        "needs_configuration": 10,
         "unavailable": 0,
     }
     ids = {source["id"] for source in catalog["sources"]}
@@ -58,11 +56,10 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "eastmoney_fund",
         "tavily",
         "bing",
+        "mysql",
     }
     assert all(source["readiness"]["code_exists"] for source in catalog["sources"])
-    assert {
-        source["id"] for source in catalog["sources"] if source["readiness"]["callable"]
-    } == {
+    assert {source["id"] for source in catalog["sources"] if source["readiness"]["callable"]} == {
         "akshare",
         "cls",
         "eastmoney_fund",
@@ -70,9 +67,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     wind = next(source for source in catalog["sources"] if source["id"] == "wind")
     assert wind["readiness"]["integration_completed"] is False
     assert wind["readiness"]["callable"] is False
-    tinysoft = next(
-        source for source in catalog["sources"] if source["id"] == "tinysoft"
-    )
+    tinysoft = next(source for source in catalog["sources"] if source["id"] == "tinysoft")
     assert tinysoft["readiness"]["integration_completed"] is True
     assert tinysoft["readiness"]["dependency_ready"] is False
     assert tinysoft["readiness"]["integration_state"] == "blocked_config"
@@ -104,6 +99,14 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "financials",
         "market_activity",
     }
+    mysql = next(source for source in catalog["sources"] if source["id"] == "mysql")
+    assert mysql["name"] == "用户 MySQL 数据库"
+    assert mysql["readiness"]["integration_state"] == "blocked_config"
+    assert {
+        item["tool_id"]
+        for item in catalog["capabilities"]
+        if item["id"] in {"database_schema", "table_query"}
+    } == {"datahub_get_database_schema", "datahub_query_table"}
 
 
 def test_provider_deadlines_are_unified_below_bridge_timeout():
@@ -112,6 +115,33 @@ def test_provider_deadlines_are_unified_below_bridge_timeout():
 
     assert akshare_provider.DEADLINE == tinysoft_provider.DEADLINE == 15
     assert akshare_provider.DEADLINE < 22
+
+
+def test_mysql_tools_become_callable_only_with_local_profile_secret_and_dependencies(monkeypatch):
+    import app.research_web.datahub.catalog as module
+
+    monkeypatch.setattr(
+        module, "find_spec", lambda name: object() if name in {"pymysql", "keyring"} else None
+    )
+    status = {
+        "configured": True,
+        "secret_configured": True,
+        "credential_store_available": True,
+    }
+    catalog = build_catalog(environ={}, mysql_status=status)
+    mysql = next(source for source in catalog["sources"] if source["id"] == "mysql")
+    assert mysql["readiness"]["integration_state"] == "ready"
+    assert mysql["readiness"]["callable"] is True
+    capabilities = {item["id"]: item for item in catalog["capabilities"]}
+    assert capabilities["database_schema"]["callable_source_count"] == 1
+    assert capabilities["table_query"]["callable_source_count"] == 1
+
+    blocked = build_catalog(
+        environ={}, mysql_status={**status, "credential_store_available": False}
+    )
+    source = next(item for item in blocked["sources"] if item["id"] == "mysql")
+    assert source["readiness"]["callable"] is False
+    assert source["readiness"]["integration_state"] == "blocked_config"
 
 
 @pytest.mark.asyncio
@@ -166,9 +196,7 @@ async def test_provider_timeout_is_bounded_busy_then_recovers(
     for _ in range(50):
         await asyncio.sleep(0.005)
         recovered = await provider.fetch(
-            BusinessQuery(
-                capability=capability, source="auto", parameters={"query": ""}
-            )
+            BusinessQuery(capability=capability, source="auto", parameters={"query": ""})
         )
         if "provider_busy" not in recovered.limitations:
             break
@@ -235,9 +263,7 @@ async def test_akshare_provider_normalizes_business_data_without_legacy_run(
 async def test_akshare_provider_sanitizes_unexpected_transport_failure(monkeypatch):
     import app.research_web.datahub.providers_akshare as provider
 
-    monkeypatch.setattr(
-        provider, "_invoke", lambda query: (_ for _ in ()).throw(OSError("secret"))
-    )
+    monkeypatch.setattr(provider, "_invoke", lambda query: (_ for _ in ()).throw(OSError("secret")))
     result = await provider.fetch(
         BusinessQuery(
             capability="search_assets",
@@ -303,9 +329,7 @@ async def test_tinysoft_provider_uses_business_contract_without_legacy_lifecycle
     )
     assert result.status == "complete"
     assert result.provider_id == "tinysoft"
-    assert result.rows == [
-        {"证券代码": "SH600000", "日期": "2026-09-04", "收盘价": 12.3}
-    ]
+    assert result.rows == [{"证券代码": "SH600000", "日期": "2026-09-04", "收盘价": 12.3}]
     assert result.fields["收盘价"] == {"unit": None, "currency": None}
     assert all("fixture-key" not in item.decode() for item in result.raw)
 
@@ -316,9 +340,7 @@ async def test_tinysoft_missing_key_is_safe_blocked_config(monkeypatch):
 
     monkeypatch.delenv("CJ_KEY", raising=False)
     result = await provider.fetch(
-        BusinessQuery(
-            capability="search_assets", source="tinysoft", parameters={"query": ""}
-        )
+        BusinessQuery(capability="search_assets", source="tinysoft", parameters={"query": ""})
     )
     assert result.status == "failed"
     assert result.limitations == ["blocked_config"]
@@ -357,9 +379,7 @@ async def test_business_query_routes_only_integrated_sources_and_snapshots(tmp_p
     assert result["provider"] == "cls"
     assert result["capability"] == "search_news"
     assert result["row_count"] == 1
-    assert result["attempted_sources"] == [
-        {"source": "cls", "status": "selected", "reason": None}
-    ]
+    assert result["attempted_sources"] == [{"source": "cls", "status": "selected", "reason": None}]
     assert len(calls) == 1
     with pytest.raises(StoreError, match="指定来源不支持"):
         await hub.query(
@@ -387,9 +407,7 @@ def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path):
             200,
             json={
                 "errno": 0,
-                "data": {
-                    "roll_data": [{"id": 123, "ctime": 1788326831, "content": "news"}]
-                },
+                "data": {"roll_data": [{"id": 123, "ctime": 1788326831, "content": "news"}]},
             },
         )
 
@@ -398,12 +416,7 @@ def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path):
         catalog = client.get("/api/research/data/catalog")
         assert catalog.status_code == 200
         assert external == []
-        assert (
-            client.get("/api/research/data/capabilities/search_news").json()[
-                "source_count"
-            ]
-            == 7
-        )
+        assert client.get("/api/research/data/capabilities/search_news").json()["source_count"] == 7
         assert client.get("/api/research/data/sources/cls").json()["bindings"]
         headers = {"Idempotency-Key": "probe-cls-0001"}
         first = client.post("/api/research/data/sources/cls/probes", headers=headers)

@@ -7,6 +7,7 @@ export const RESEARCH_TOOLS = new Set([
   'datahub_get_market_snapshot', 'datahub_get_index_data', 'datahub_get_financials',
   'datahub_get_market_activity', 'datahub_get_factor_macro', 'datahub_get_fund_data',
   'datahub_search_news', 'datahub_search_announcements', 'datahub_search_research', 'datahub_search_web',
+  'datahub_get_database_schema', 'datahub_query_table',
   'skill', 'web_search', 'subagent', 'send_message', 'interrupt_agent', 'list_agents',
 ]);
 

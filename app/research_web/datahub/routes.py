@@ -5,16 +5,56 @@ from typing import Literal
 
 from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import JSONResponse, Response
+from pydantic import ConfigDict, SecretStr
 
 from ..store import StoreError
+from .connections import CredentialStoreError, MySQLConfiguration
 from .contracts import InternalBusinessQuery, InternalCancel
 
 router = APIRouter(prefix="/api/research")
 
 
+class MySQLConfigurationUpdate(MySQLConfiguration):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    password: SecretStr | None = None
+
+
+def _credential_error(exc: CredentialStoreError):
+    code = str(exc)
+    status = 503 if code == "credential_store_unavailable" else 409
+    return JSONResponse(
+        {"error": {"code": code, "message": "本机凭据库或连接配置不可用"}},
+        status_code=status,
+    )
+
+
 @router.get("/data/catalog")
 async def catalog(request: Request):
     return request.app.state.research.datahub.catalog()
+
+
+@router.get("/data/sources/mysql/configuration")
+async def mysql_configuration(request: Request):
+    return request.app.state.research.datahub.connections.status()
+
+
+@router.put("/data/sources/mysql/configuration")
+async def save_mysql_configuration(body: MySQLConfigurationUpdate, request: Request):
+    try:
+        password = body.password.get_secret_value() if body.password is not None else None
+        configuration = MySQLConfiguration.model_validate(body.model_dump(exclude={"password"}))
+        return request.app.state.research.datahub.connections.save(configuration, password=password)
+    except CredentialStoreError as exc:
+        return _credential_error(exc)
+
+
+@router.delete("/data/sources/mysql/configuration")
+async def delete_mysql_configuration(request: Request):
+    try:
+        return request.app.state.research.datahub.connections.delete()
+    except CredentialStoreError as exc:
+        return _credential_error(exc)
 
 
 @router.get("/data/capabilities/{capability_id}")

@@ -308,7 +308,8 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
     root = service.store.directory(sid)
     assert (root / "resources/capabilities/document-reading/1/templates/report.md").is_file()
     catalog = service.store.receipt(sid, "native-auto-skill")["capability_catalog"]
-    assert len(catalog) == 9
+    assert len(catalog) == 10
+    assert "factor-database-research" in {row["id"] for row in catalog}
     assert "report-production-workflow" in {row["id"] for row in catalog}
 
 
