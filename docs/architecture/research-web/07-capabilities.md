@@ -78,7 +78,7 @@ Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数
 
 ## 验证边界
 
-包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 10 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情、选择和不存在路由卡片。找不到项目解释器时测试明确失败，不回退到手写目录。
+包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 10 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
 
 2026-09-03 实际对话产物经人工审查发布 `1ba298cc4b754aee9496b7d1c5c78bf7` v1，在新会话 `7ee7b736-673a-4aff-8006-73de6c10b600` 生成并下载 HTML，保存原生名称及编译哈希。手动导入 `528c5a3dd15849b0a7f29fbdf5441b01` 从不完整元数据草稿，经表单编辑、检查、v1、v2、停用、回滚v1、刷新、ZIP导出完成闭环。记录在 `.ai/reports/2026-09-03-research-ui-live.md`；失败首稿与原版本保留。
 

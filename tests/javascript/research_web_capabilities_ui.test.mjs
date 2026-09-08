@@ -14,19 +14,20 @@ const cap = (extra = {}) => ({ id: 'my-skill', kind: 'skill', name: '我的研�
 const load = (name) => import(new URL(name, root));
 const session = () => ({ id: 's1', mode: 'fingpt', status: 'idle', messages: [] });
 
-function projectPython() {
+function projectPython({ callerCwd = process.cwd(), environment = process.env } = {}) {
   const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
-  const override = process.env.RWB_TEST_PYTHON;
+  const override = environment.RWB_TEST_PYTHON;
   if (override) {
-    try { accessSync(override, constants.X_OK); return override; }
-    catch { throw new Error(`RWB_TEST_PYTHON is not an executable file: ${override}`); }
+    const resolved = path.resolve(callerCwd, override);
+    try { accessSync(resolved, constants.X_OK); return resolved; }
+    catch { throw new Error(`RWB_TEST_PYTHON is not an executable file: ${resolved}`); }
   }
   const candidates = [
     path.join(projectRoot, '.venv', executable),
     path.basename(path.dirname(projectRoot)) === '.worktrees'
       ? path.join(path.dirname(path.dirname(projectRoot)), '.venv', executable)
       : null,
-    process.env.VIRTUAL_ENV ? path.join(process.env.VIRTUAL_ENV, executable) : null,
+    environment.VIRTUAL_ENV ? path.join(environment.VIRTUAL_ENV, executable) : null,
   ].filter(Boolean);
   for (const candidate of [...new Set(candidates)]) {
     try { accessSync(candidate, constants.X_OK); return candidate; }
@@ -57,6 +58,27 @@ function productBuiltinResearchSkills() {
   if (!payload) throw new Error(`Product CapabilityCatalog returned no marked JSON payload. stdout: ${result.stdout}`);
   return JSON.parse(payload.slice(marker.length)).items;
 }
+
+test('relative Python override resolves once against the caller cwd and runs from the worktree', () => {
+  const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
+  const ownerRoot = path.basename(path.dirname(projectRoot)) === '.worktrees'
+    ? path.dirname(path.dirname(projectRoot))
+    : projectRoot;
+  const relativeOverride = path.join('.venv', executable);
+  const resolved = projectPython({
+    callerCwd: ownerRoot,
+    environment: { ...process.env, RWB_TEST_PYTHON: relativeOverride },
+  });
+  assert.equal(resolved, path.resolve(ownerRoot, relativeOverride));
+  assert.equal(path.isAbsolute(resolved), true);
+  const probe = spawnSync(resolved, ['-c', 'print("rwb-relative-python-ok")'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(probe.error, undefined);
+  assert.equal(probe.status, 0, probe.stderr);
+  assert.equal(probe.stdout.trim(), 'rwb-relative-python-ok');
+});
 
 test('one catalog filters kind, source, category and Chinese search, including disabled entries for inspection', async () => {
   const { filterCapabilities, renderCapabilityCatalog } = await load('capabilities.mjs');
@@ -321,7 +343,10 @@ test('real app event handlers close/select slash, search and drawers without any
   const selectors = { '#app': rootElement, '#main': main, '#prompt': prompt, '#global-search': { focus() {} }, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
-  const detail = cap({ draft: { kind: 'skill', metadata: cap().metadata, instructions: '真实候选', files: [], steps: [] } });
+  const builtinResearchSkills = productBuiltinResearchSkills();
+  const selectedSkill = builtinResearchSkills.find(item => item.id === 'sell-side-report-reader');
+  assert.ok(selectedSkill, 'real product catalog must contain the report specialist');
+  const detail = { ...selectedSkill, draft: { kind: 'skill', metadata: selectedSkill.metadata, instructions: '真实候选', files: [], steps: [] } };
   try {
     Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
     Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: true }), addEventListener() {} } });
@@ -329,7 +354,7 @@ test('real app event handlers close/select slash, search and drawers without any
     Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState: (_a, _b, hash) => { globalThis.location.hash = hash; } } });
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
       calls.push([url, options.method]);
-      const payload = url.endsWith('/runtime') ? { connected: true, credential_configured: true } : url.endsWith('/models') ? { groups: [] } : url.endsWith('/capabilities/my-skill') ? detail : { items: url.endsWith('/capabilities') ? [cap()] : [] };
+      const payload = url.endsWith('/runtime') ? { connected: true, credential_configured: true } : url.endsWith('/models') ? { groups: [] } : url.endsWith(`/capabilities/${selectedSkill.id}`) ? detail : { items: url.endsWith('/capabilities') ? builtinResearchSkills : [] };
       return new Response(JSON.stringify(payload));
     } });
     console.info = (...args) => logs.push(args);
@@ -339,19 +364,20 @@ test('real app event handlers close/select slash, search and drawers without any
     const key = async (key) => handlers.get('keydown')({ key, target: { id: 'prompt' }, preventDefault() {}, isComposing: false });
     await input('prompt', '/'); assert.match(rootElement.innerHTML, /id="slash-options"/);
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /id="slash-options"/);
-    await key('Enter'); await new Promise(resolve => setImmediate(resolve));
-    assert.match(rootElement.innerHTML, /capability-chips.*我的研究 · v2/s);
-    assert.doesNotMatch(rootElement.innerHTML, /id="slash-options"/);
+    await click({ useSkill: selectedSkill.id });
+    assert.match(rootElement.innerHTML, new RegExp(`capability-chips.*${selectedSkill.name} · v${selectedSkill.version}`, 's'));
+    assert.match(rootElement.innerHTML, new RegExp(`<option value="${selectedSkill.id}" selected>`));
+    assert.match(rootElement.innerHTML, /<textarea id="prompt"[^>]*><\/textarea>/);
     await click({ toggleSidebar: '' }); assert.match(rootElement.innerHTML, /secondary-sidebar mobile-open/);
     await click({ toggleSidebar: '' }); assert.doesNotMatch(rootElement.innerHTML, /secondary-sidebar mobile-open/);
     await click({ toggleSearch: '' }); assert.match(rootElement.innerHTML, /topbar search-open/);
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /topbar search-open/);
-    await click({ skillDetail: 'my-skill' }); assert.equal(globalThis.location.hash, '#/skills');
+    await click({ skillDetail: selectedSkill.id }); assert.equal(globalThis.location.hash, '#/skills');
     assert.match(rootElement.innerHTML, /能力详情/);
     await click({ capClose: '' }); assert.match(rootElement.innerHTML, /role="tablist" aria-label="能力类型"/);
     await click({ capKind: 'workflow' }); assert.match(rootElement.innerHTML, /没有匹配的能力/);
     assert.equal(calls.some(([, method]) => method !== 'GET'), false);
-    assert.doesNotMatch(JSON.stringify(logs), /真实候选|my-skill|\/api\/research/);
+    assert.doesNotMatch(JSON.stringify(logs), /真实候选|sell-side-report-reader|\/api\/research/);
   } finally {
     console.info = originalLog;
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
