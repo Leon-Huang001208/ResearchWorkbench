@@ -80,6 +80,8 @@ def valid_digest():
             "audience": "跟踪该产业链的研究者",
             "horizon": "未来3个月",
             "conditions": ["库存继续回落"],
+            "keyAssumptions": ["产量指引口径与历史可比"],
+            "validationIndicators": ["库存与利用率"],
             "citations": [citation],
             "invalidationSignals": ["库存重新上升"],
         },
@@ -223,6 +225,31 @@ def test_validator_accepts_complete_structure_and_rejects_evidence_gaps(caplog):
     assert any("invalidationSignals" in item for item in result["errors"])
     assert any("audience" in item for item in result["errors"])
     assert any(record.name.startswith("research.skill") for record in caplog.records)
+
+
+@pytest.mark.parametrize("field", ["keyAssumptions", "validationIndicators"])
+def test_validator_rejects_each_missing_action_requirement(field):
+    module = load_script("validate_digest.py")
+    digest = valid_digest()
+    digest["actionAssessment"].pop(field)
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    assert any(f"actionAssessment.{field}" in item for item in result["errors"])
+
+
+@pytest.mark.parametrize("problem", ["duplicate_node", "dangling_edge"])
+def test_validator_rejects_inconsistent_knowledge_graph(problem):
+    module = load_script("validate_digest.py")
+    digest = valid_digest()
+    framework = digest["knowledgeFramework"]
+    if problem == "duplicate_node":
+        framework["nodes"][1]["id"] = framework["nodes"][0]["id"]
+    else:
+        framework["edges"][0]["to"] = "missing-node"
+    result = module.validate_digest(digest)
+    assert result["valid"] is False
+    expected = "unique" if problem == "duplicate_node" else "declared node"
+    assert any(expected in item for item in result["errors"])
 
 
 def test_svg_is_deterministic_escaped_and_rejects_unsupported_relationship(caplog):

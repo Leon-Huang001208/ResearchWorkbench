@@ -155,7 +155,12 @@ def validate_digest(digest: Any) -> dict[str, Any]:
             for field in ("audience", "horizon"):
                 if not _text(action.get(field)):
                     errors.append(f"actionAssessment.{field} is required")
-            for field in ("conditions", "invalidationSignals"):
+            for field in (
+                "conditions",
+                "keyAssumptions",
+                "validationIndicators",
+                "invalidationSignals",
+            ):
                 if not _text_list(action.get(field)):
                     errors.append(f"actionAssessment.{field} must be a non-empty text array")
             _check_citations(action.get("citations"), "actionAssessment", errors)
@@ -172,6 +177,23 @@ def validate_digest(digest: Any) -> dict[str, Any]:
                 edges = framework.get("edges")
                 if not isinstance(nodes, list) or len(nodes) < 2:
                     errors.append("knowledgeFramework.nodes needs at least two nodes")
+                    node_ids: set[str] = set()
+                else:
+                    node_ids = set()
+                    for index, node in enumerate(nodes):
+                        location = f"knowledgeFramework.nodes[{index}]"
+                        if not isinstance(node, dict):
+                            errors.append(f"{location} must be an object")
+                            continue
+                        node_id = node.get("id")
+                        if not isinstance(node_id, str) or not node_id.strip():
+                            errors.append(f"{location}.id is required")
+                        elif node_id in node_ids:
+                            errors.append("knowledgeFramework node ids must be unique")
+                        else:
+                            node_ids.add(node_id)
+                        if not _text(node.get("label")):
+                            errors.append(f"{location}.label is required")
                 if not isinstance(edges, list) or not edges:
                     errors.append("knowledgeFramework.edges needs at least one sourced relation")
                 else:
@@ -183,6 +205,11 @@ def validate_digest(digest: Any) -> dict[str, Any]:
                         for field in ("from", "to", "relation"):
                             if not _text(edge.get(field)):
                                 errors.append(f"{location}.{field} is required")
+                        source, target = edge.get("from"), edge.get("to")
+                        if source not in node_ids or target not in node_ids:
+                            errors.append(f"{location} endpoints must reference a declared node")
+                        elif source == target:
+                            errors.append(f"{location} endpoints must be distinct")
                         _check_citations(edge.get("citations"), location, errors)
 
     result = {"valid": not errors, "errors": errors, "warnings": warnings}

@@ -53,7 +53,12 @@ def _build_svg(digest: dict[str, Any], title: str) -> str:
         if not isinstance(node, dict):
             raise TypeError("Every node must be an object")
         node_id, label = node.get("id"), node.get("label")
-        if not isinstance(node_id, str) or not node_id or not isinstance(label, str) or not label:
+        if (
+            not isinstance(node_id, str)
+            or not node_id.strip()
+            or not isinstance(label, str)
+            or not label.strip()
+        ):
             raise ValueError("Every node needs a non-empty id and label")
         if node_id in node_map:
             raise ValueError("Node ids must be unique")
