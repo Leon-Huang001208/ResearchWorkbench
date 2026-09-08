@@ -72,7 +72,18 @@ class CapabilityCatalog:
             # shipped reviewed capabilities without rewriting user packages.
             for cid, draft in seed_packages():
                 if cid not in self.data["items"]:
-                    self._create(draft, "builtin", cid=cid)
+                    try:
+                        self._create(draft, "builtin", cid=cid)
+                    except CapabilityError as exc:
+                        if exc.code != "name_conflict":
+                            raise
+                        log.warning(
+                            "capability_builtin_seed_conflict",
+                            capability_id=cid,
+                            conflict_code=exc.code,
+                            action="skipped",
+                        )
+                        continue
                     self.publish(cid)
             self._migrate_legacy_tool_ids(dict(seed_packages()))
         except (OSError, ValueError, KeyError, TypeError) as exc:

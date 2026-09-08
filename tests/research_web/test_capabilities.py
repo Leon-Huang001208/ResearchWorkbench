@@ -5,6 +5,7 @@ import io
 import json
 import stat
 import zipfile
+from copy import deepcopy
 
 import pytest
 import yaml
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient
 from test_api import NativeFixture
 
 from app.research_web.capabilities.catalog import CapabilityCatalog
+from app.research_web.capabilities.seeds import seed_packages
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
@@ -55,6 +57,54 @@ def create(client, value=None):
     response = client.post("/api/research/capabilities", json=value or candidate())
     assert response.status_code == 201, response.text
     return response.json()
+
+
+@pytest.mark.parametrize(
+    ("name", "slug"),
+    [
+        ("我的事件研究", "finance-news-event-research"),
+        ("金融事件研究", "my-finance-event-research"),
+    ],
+)
+def test_new_builtin_name_or_slug_conflict_skips_only_that_seed(tmp_path, monkeypatch, name, slug):
+    target = "finance-news-event-research"
+    shipped = seed_packages
+    monkeypatch.setattr(
+        "app.research_web.capabilities.catalog.seed_packages",
+        lambda: [item for item in shipped() if item[0] != target],
+    )
+    existing = CapabilityCatalog(tmp_path)
+    created = existing.create(candidate(name=name, slug=slug))
+    existing.publish(created["id"])
+    original_user_row = deepcopy(existing.row(created["id"]))
+
+    monkeypatch.setattr("app.research_web.capabilities.catalog.seed_packages", shipped)
+    warnings = []
+    monkeypatch.setattr(
+        "app.research_web.capabilities.catalog.log.warning",
+        lambda event, **fields: warnings.append((event, fields)),
+    )
+    upgraded = CapabilityCatalog(tmp_path)
+
+    assert upgraded.row(created["id"]) == original_user_row
+    assert target not in upgraded.data["items"]
+    assert {
+        "document-reading",
+        "industry-chain-research",
+        "earnings-consensus-research",
+        "macro-asset-research",
+        "sell-side-report-reader",
+    } <= upgraded.data["items"].keys()
+    assert warnings == [
+        (
+            "capability_builtin_seed_conflict",
+            {
+                "capability_id": target,
+                "conflict_code": "name_conflict",
+                "action": "skipped",
+            },
+        )
+    ]
 
 
 def test_offline_seed_catalog_tools_and_workflows_without_session(api):
