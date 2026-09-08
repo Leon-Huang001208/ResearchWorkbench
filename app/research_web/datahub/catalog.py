@@ -89,7 +89,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "formal",
         "professional",
         "terminal",
-        ["CJ_KEY"],
+        [],
         ["WindPy/xlwings"],
         ["A股", "港股", "债券", "基金"],
         "account",
@@ -101,7 +101,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "formal",
         "professional",
         "terminal",
-        [],
+        ["CJ_KEY"],
         ["cjpy"],
         ["A股", "基金目录"],
         "account",
@@ -616,21 +616,28 @@ def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
 def _dependency_ready(source_id: str, dependencies: list[str]) -> bool:
     if not dependencies:
         return True
-    if source_id in {"tinysoft", "akshare", "mysql"}:
+    if source_id in {"wind", "tinysoft", "ifind", "akshare", "mysql"}:
         try:
             modules = {
+                "wind": ("WindPy", "xlwings"),
                 "tinysoft": ("cjpy",),
+                "ifind": ("iFinD", "iFinDPy"),
                 "akshare": ("akshare",),
                 "mysql": ("pymysql", "keyring"),
             }[source_id]
-            return all(find_spec(module) is not None for module in modules)
+            readiness = [find_spec(module) is not None for module in modules]
+            return any(readiness) if source_id in {"wind", "ifind"} else all(readiness)
         except (ImportError, AttributeError, ValueError):
             return False
     return False
 
 
 def build_catalog(
-    *, probes: dict[str, dict] | None = None, environ=None, mysql_status: dict | None = None
+    *,
+    probes: dict[str, dict] | None = None,
+    environ=None,
+    mysql_status: dict | None = None,
+    connection_statuses: dict[str, dict] | None = None,
 ) -> dict:
     """Return a fresh JSON-ready catalog without importing or constructing any connector."""
     env = dict(os.environ if environ is None else environ)
@@ -639,15 +646,26 @@ def build_catalog(
     for source_spec in SOURCE_SPECS:
         sid, name, family, source_type, auth, keys, deps, markets, fee, limitation = source_spec
         integrated = sid in INTEGRATED
-        configured = (
-            bool(
-                mysql_status
-                and mysql_status.get("configured")
-                and mysql_status.get("secret_configured")
-            )
-            if sid == "mysql"
-            else _configured(auth, keys, env)
-        )
+        connection_status = (connection_statuses or {}).get(sid)
+        if sid == "mysql" and connection_status is None:
+            connection_status = mysql_status
+        if sid in {
+            "wind",
+            "tinysoft",
+            "ifind",
+            "tushare",
+            "zhiqiu_reports",
+            "zhiqiu_wechat",
+            "zhiqiu_transcript",
+            "tavily",
+            "bing",
+            "mysql",
+        }:
+            configured = bool(connection_status and connection_status.get("configured"))
+            if sid != "wind":
+                configured = configured and bool((connection_status or {}).get("secret_configured"))
+        else:
+            configured = _configured(auth, keys, env)
         dependency_ready = _dependency_ready(sid, deps)
         allowed = integrated and sid not in DISABLED
         if sid in DISABLED or not integrated:
@@ -658,11 +676,7 @@ def build_catalog(
             state = "blocked_dependency"
         else:
             state = "ready"
-        if (
-            sid == "mysql"
-            and mysql_status
-            and not mysql_status.get("credential_store_available", True)
-        ):
+        if connection_status and not connection_status.get("credential_store_available", True):
             state = "blocked_config"
         probe = probe_map.get(sid, {})
         health = probe.get("health", "untested")

@@ -143,6 +143,18 @@ def test_mysql_tools_become_callable_only_with_local_profile_secret_and_dependen
     assert source["readiness"]["callable"] is False
     assert source["readiness"]["integration_state"] == "blocked_config"
 
+    missing_secret = build_catalog(
+        environ={},
+        mysql_status={
+            "configured": True,
+            "secret_configured": False,
+            "credential_store_available": True,
+        },
+    )
+    source = next(item for item in missing_secret["sources"] if item["id"] == "mysql")
+    assert source["readiness"]["callable"] is False
+    assert source["readiness"]["integration_state"] == "blocked_config"
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(

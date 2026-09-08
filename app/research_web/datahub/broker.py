@@ -24,8 +24,20 @@ def _integer(value, name, default, minimum=1, maximum=100):
     return value
 
 
-def resolve(query: BusinessQuery, *, probes=None, environ=None, mysql_status=None) -> Resolution:
-    catalog = build_catalog(probes=probes, environ=environ, mysql_status=mysql_status)
+def resolve(
+    query: BusinessQuery,
+    *,
+    probes=None,
+    environ=None,
+    mysql_status=None,
+    connection_statuses=None,
+) -> Resolution:
+    catalog = build_catalog(
+        probes=probes,
+        environ=environ,
+        mysql_status=mysql_status,
+        connection_statuses=connection_statuses,
+    )
     bindings = [
         binding for binding in catalog["bindings"] if binding["capability_id"] == query.capability
     ]

@@ -5,6 +5,8 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 目录读取不依赖会话、在线 DSH 或模型调用。工具目录为当前研究 composition 的只读声明，
 不表示运行实例在线、凭据已配置或某个 DataHub Tool 已进入当前 Runtime 的 `enabledTools`。
 
+DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；只有 `integration_completed && callable` 的来源才会让对应工具进入 Runtime 注册集合。配置变更后页面可以立即重新检测，但原生工具集合仍以研究服务重启时的快照为准。
+
 当前内置能力新增“市场解读” Skill 和“市场解读与报告” Workflow。其透明排序脚本只消费已经物化的行情、板块与事件文件并生成研究草稿，不联网、不写 DataHub，也不替 DSH 编排 Agent。旧内容生产代码只按这种可独立验证的脚本、提示和模板迁移；Evidence、Claim、Quality Gate 与旧报告编译链没有恢复。
 
 ## API（全部位于 `/api/research`）

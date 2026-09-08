@@ -467,9 +467,18 @@ async def supplement(client, query, result):
 async def fetch(query: Query | BusinessQuery, *, transport=None, connections=None):
     if isinstance(query, BusinessQuery):
         if query.source == "tinysoft":
-            from .providers_cjpy import fetch as business_fetch
+            from .providers_cjpy import fetch as tinysoft_fetch
+
+            token = (
+                await asyncio.to_thread(connections.read_source_secret, "tinysoft")
+                if connections is not None
+                else None
+            )
+            return await tinysoft_fetch(query, token=token)
         elif query.source == "akshare":
-            from .providers_akshare import fetch as business_fetch
+            from .providers_akshare import fetch as akshare_fetch
+
+            return await akshare_fetch(query)
         elif query.source == "mysql":
             from .providers_mysql import fetch as mysql_fetch
 
@@ -479,7 +488,6 @@ async def fetch(query: Query | BusinessQuery, *, transport=None, connections=Non
             return await mysql_fetch(query, configuration, password)
         else:
             raise ProviderError("business_provider_not_implemented")
-        return await business_fetch(query)
     result = Result()
     try:
         async with asyncio.timeout(DEADLINE):
@@ -534,7 +542,13 @@ async def probe(source_id: str, *, transport=None, connections=None):
     if source_id == "tinysoft":
         from .providers_cjpy import probe as cjpy_probe
 
-        return await cjpy_probe()
+        return await cjpy_probe(
+            token=(
+                await asyncio.to_thread(connections.read_source_secret, "tinysoft")
+                if connections
+                else None
+            )
+        )
     if source_id == "akshare":
         from .providers_akshare import probe as akshare_probe
 
@@ -544,7 +558,7 @@ async def probe(source_id: str, *, transport=None, connections=None):
 
         if connections is None:
             raise ProviderError("mysql_configuration_unavailable")
-        configuration, password = connections.credentials()
+        configuration, password = await asyncio.to_thread(connections.credentials)
         return await mysql_probe(configuration, password)
     if source_id == "eastmoney_fund":
         query = Query(source="fund_profile", code="000001", limit=1)

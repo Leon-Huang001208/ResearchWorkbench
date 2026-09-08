@@ -34,6 +34,8 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 - `allowed` / `callable`：是否允许进入业务路由、当前是否实际可调用。
 - `health` / `last_checked_at`：最近一次显式探测结果，而不是页面加载时偷偷检测。
 
+设置页另由 `GET /data/connections` 提供不含秘密的统一连接投影，按专业数据源、API 数据源、公开来源和本机集成分组。MySQL、iFinD、知丘、天软、Tushare、Tavily 与 Bing 的非秘密配置写入 `<RESEARCH_DATA_HOME>/connections/`，秘密使用 `ResearchWorkbench.DataHub` 系统凭据库命名空间；Wind 只记录接入偏好，不接收账号密码。Wind Client API 探测只读取当前会话连接状态且不会代为登录；Excel 路径在没有真实工作簿心跳时明确保持未验证。配置保存、来源探测、Provider 适配和 Runtime 可调用是四个独立事实。
+
 东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
 
 ## 稳定业务 Tool
@@ -123,7 +125,10 @@ refresh=true始终新建；同原生调用ID重放返回同一结果，同ID不�
 ## API契约
 
 - `GET /api/research/data/catalog`：15 项能力、22 个来源、绑定矩阵和诚实汇总；不连接来源。
-- `GET|PUT|DELETE /api/research/data/sources/mysql/configuration`：读取安全状态、原子保存完整非秘密配置与可选新密码，或删除本机连接；响应永不包含密码。
+- `GET /api/research/data/connections`：22 个来源的安全连接摘要、分组、当前平台能力、迁移状态和允许操作；不返回秘密。
+- `GET|PUT|DELETE /api/research/data/sources/{source_id}/configuration`：对支持配置的来源读取安全状态、原子保存非秘密配置与可选新秘密，或删除本机配置；响应永不包含密码、Token 或 Key。MySQL 既有 URL 和响应字段保持兼容。
+- `GET /api/research/data/connections/migration-preview`：只列旧环境变量是否存在、冲突与目标来源，不返回值。
+- `POST /api/research/data/connections/migrations`：仅在请求含明确来源与二次确认时迁移；先写入并回读凭据库，再原子清理对应 `.env`，失败时补偿恢复。
 - `GET /api/research/data/capabilities/{id}`：能力参数、字段、覆盖范围和全部候选来源。
 - `GET /api/research/data/sources/{id}`：来源鉴权/依赖、状态、限制和支持的数据集。
 - `POST /api/research/data/sources/{id}/probes`：以 `Idempotency-Key` 异步检测单一来源。
