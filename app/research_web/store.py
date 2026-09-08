@@ -175,6 +175,30 @@ class Store:
             self.save()
         return row
 
+    def _remove_owned_tree(self, path: Path) -> None:
+        """Remove a service-owned tree without following nested symbolic links."""
+        try:
+            relative = path.relative_to(self.root)
+        except ValueError as exc:
+            raise StoreError("非法会话目录") from exc
+        if not relative.parts:
+            raise StoreError("非法会话目录")
+        if path.is_symlink():
+            path.unlink()
+            return
+        if not path.exists():
+            return
+        if not path.is_dir():
+            raise StoreError("会话目录状态非法", "session_purge_failed", 503)
+
+        for current, directories, _ in os.walk(path, topdown=True, followlinks=False):
+            directory = Path(current)
+            directory.chmod(
+                directory.stat(follow_symlinks=False).st_mode | stat.S_IWUSR | stat.S_IXUSR
+            )
+            directories[:] = [name for name in directories if not (directory / name).is_symlink()]
+        shutil.rmtree(path)
+
     def purge(self, sid: str) -> None:
         """Permanently remove one deleted Workbench session and its owned records."""
         row = self.session(sid, include_deleted=True)
@@ -183,13 +207,25 @@ class Store:
         if row.get("native_deleted_at") is None:
             raise StoreError("DSH 原生日志尚未删除", "native_session_not_deleted", 409)
 
-        path = self.root / "sessions" / sid
-        if path.parent != self.root / "sessions" or not path.resolve().is_relative_to(self.root):
-            raise StoreError("非法会话目录")
-        if path.is_symlink():
-            path.unlink()
-        elif path.exists():
-            shutil.rmtree(path)
+        paths = [
+            self.root / "sessions" / sid,
+            self.root / ".control" / "snapshots" / sid,
+            self.root / ".control" / "calls" / sid,
+        ]
+        try:
+            for path in paths:
+                self._remove_owned_tree(path)
+        except OSError as exc:
+            log.warning(
+                "research_session_purge_files_failed",
+                session_id=sid,
+                error_type=type(exc).__name__,
+            )
+            raise StoreError(
+                "会话文件清理失败，可重试完成永久删除",
+                "session_purge_failed",
+                503,
+            ) from exc
 
         removed = {
             "data_queries": {

@@ -139,6 +139,34 @@ def test_deleted_session_can_be_permanently_deleted_with_native_confirmation(api
     assert client.get(f"/api/research/sessions/{sid}").status_code == 400
 
 
+def test_permanent_delete_removes_sealed_capabilities_and_private_datahub_state(api):
+    client, _, service = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    session_root = service.store.directory(sid)
+    sealed = session_root / "resources" / "capabilities" / "fund-research-workflow" / "2"
+    sealed.mkdir(parents=True)
+    capability = sealed / "SKILL.md"
+    capability.write_text("# sealed capability")
+    capability.chmod(0o400)
+    sealed.chmod(0o500)
+
+    private_paths = [
+        service.store.root / ".control" / "snapshots" / sid,
+        service.store.root / ".control" / "calls" / sid,
+    ]
+    for private in private_paths:
+        private.mkdir(parents=True)
+        (private / "record.json").write_text("{}")
+
+    assert client.delete(f"/api/research/sessions/{sid}").status_code == 200
+
+    response = client.delete(f"/api/research/sessions/{sid}/permanent")
+
+    assert response.status_code == 200, response.text
+    assert not session_root.exists()
+    assert all(not private.exists() for private in private_paths)
+
+
 def test_expired_deleted_session_is_purged_when_deleted_view_is_loaded(api):
     client, _, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
