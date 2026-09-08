@@ -1,40 +1,62 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { accessSync, constants } from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { createAPI, createController } from '../../app/research_web/ui/core.mjs';
 import * as composer from '../../app/research_web/ui/composer.mjs';
 import * as shell from '../../app/research_web/ui/shell.mjs';
 
 const root = new URL('../../app/research_web/ui/', import.meta.url);
+const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
 const cap = (extra = {}) => ({ id: 'my-skill', kind: 'skill', name: '我的研究', description: '真实资料', category: '资料研究', status: 'enabled', enabled: true, version: 2, builtin: false, metadata: { default_formats: ['md'], inputs: [{ name: 'file', label: '资料', type: 'file', required: true }], scenarios: ['研究'], required_tools: [], dependencies: [] }, ...extra });
 const load = (name) => import(new URL(name, root));
 const session = () => ({ id: 's1', mode: 'fingpt', status: 'idle', messages: [] });
 
-const builtinResearchSkills = [
-  ['document-reading', '资料解读', '资料研究', '一般资料提取', [], ['research_run_script', 'datahub_search_news']],
-  ['company-research', '公司研究', '公司', '完整公司研究', ['docx', 'html', 'xlsx'], ['research_run_script', 'datahub_search_news']],
-  ['industry-research', '行业研究', '行业', '通用行业报告', ['docx', 'html', 'xlsx'], ['research_run_script', 'datahub_search_news']],
-  ['fund-evaluation', '基金评价', '基金', '基金研究', ['docx', 'html', 'xlsx'], ['research_run_script', 'datahub_get_fund_data']],
-  ['market-commentary', '市场解读', '市场', '多事件市场复盘', ['docx', 'html', 'xlsx'], ['research_run_script', 'datahub_search_news']],
-  ['sell-side-report-reader', '研报增量分析', '研报与资料', '卖方研报的增量与证伪', [], ['research_run_script', 'web_search']],
-  ['finance-news-event-research', '金融事件研究', '事件与政策', '单一时间戳事件的传导链', [], ['web_search']],
-  ['industry-chain-research', '产业链与主题研究', '行业与主题', '价值流与瓶颈映射', [], ['web_search']],
-  ['earnings-consensus-research', '业绩与一致预期', '公司与业绩', '财报兑现与预期差', [], ['web_search']],
-  ['macro-asset-research', '宏观与跨资产', '宏观与资产', '政策与跨资产传导', [], ['web_search']],
-].map(([id, name, category, description, defaultFormats, requiredTools]) => cap({
-  id,
-  name,
-  category,
-  description,
-  builtin: true,
-  version: 1,
-  metadata: {
-    default_formats: defaultFormats,
-    inputs: [{ name: 'question', label: '研究问题与资料', type: 'text', required: true }],
-    scenarios: [description],
-    required_tools: requiredTools,
-    dependencies: [],
-  },
-}));
+function projectPython() {
+  const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
+  const override = process.env.RWB_TEST_PYTHON;
+  if (override) {
+    try { accessSync(override, constants.X_OK); return override; }
+    catch { throw new Error(`RWB_TEST_PYTHON is not an executable file: ${override}`); }
+  }
+  const candidates = [
+    path.join(projectRoot, '.venv', executable),
+    path.basename(path.dirname(projectRoot)) === '.worktrees'
+      ? path.join(path.dirname(path.dirname(projectRoot)), '.venv', executable)
+      : null,
+    process.env.VIRTUAL_ENV ? path.join(process.env.VIRTUAL_ENV, executable) : null,
+  ].filter(Boolean);
+  for (const candidate of [...new Set(candidates)]) {
+    try { accessSync(candidate, constants.X_OK); return candidate; }
+    catch { /* Try the next explicit project environment. */ }
+  }
+  throw new Error(`No project Python found. Set RWB_TEST_PYTHON to an executable interpreter. Checked: ${candidates.join(', ')}`);
+}
+
+function productBuiltinResearchSkills() {
+  const marker = '__RWB_CAPABILITY_CATALOG__';
+  const script = [
+    'import json, tempfile',
+    'from pathlib import Path',
+    'from app.research_web.capabilities.catalog import CapabilityCatalog',
+    'with tempfile.TemporaryDirectory(prefix="rwb-ui-capabilities-") as directory:',
+    '    catalog = CapabilityCatalog(Path(directory))',
+    `    print(${JSON.stringify(marker)} + json.dumps(catalog.list(kind="skill"), ensure_ascii=False))`,
+  ].join('\n');
+  const result = spawnSync(projectPython(), ['-c', script], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+  });
+  if (result.error || result.status !== 0) {
+    throw new Error(`Product CapabilityCatalog failed (status ${result.status ?? 'spawn-error'}): ${result.error?.message || result.stderr || result.stdout}`);
+  }
+  const payload = result.stdout.split(/\r?\n/).find(line => line.startsWith(marker));
+  if (!payload) throw new Error(`Product CapabilityCatalog returned no marked JSON payload. stdout: ${result.stdout}`);
+  return JSON.parse(payload.slice(marker.length)).items;
+}
 
 test('one catalog filters kind, source, category and Chinese search, including disabled entries for inspection', async () => {
   const { filterCapabilities, renderCapabilityCatalog } = await load('capabilities.mjs');
@@ -47,29 +69,32 @@ test('one catalog filters kind, source, category and Chinese search, including d
 
 test('capability center renders, filters, opens and selects the ten built-in Skills without a router card', async () => {
   const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
+  const builtinResearchSkills = productBuiltinResearchSkills();
   assert.equal(builtinResearchSkills.length, 10);
   assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 10);
+  assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin && item.enabled), true);
 
   const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });
   const selectableIDs = [...catalog.matchAll(/data-use-skill="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(selectableIDs, builtinResearchSkills.map(item => item.id));
   for (const item of builtinResearchSkills) {
-    assert.match(catalog, new RegExp(item.name));
-    assert.match(catalog, new RegExp(`<option value="${item.category}"`));
+    assert.ok(catalog.includes(item.name));
+    assert.ok(catalog.includes(`<option value="${item.category}"`));
   }
 
-  assert.deepEqual(
-    filterCapabilities(builtinResearchSkills, { kind: 'skill', category: '公司与业绩' }).map(item => item.id),
-    ['earnings-consensus-research'],
-  );
-  assert.deepEqual(
-    filterCapabilities(builtinResearchSkills, { kind: 'skill', query: '预期差' }).map(item => item.id),
-    ['earnings-consensus-research'],
-  );
-  assert.deepEqual(
-    filterCapabilities(builtinResearchSkills, { kind: 'skill', query: 'macro-asset-research' }).map(item => item.id),
-    ['macro-asset-research'],
-  );
+  for (const category of new Set(builtinResearchSkills.map(item => item.category))) {
+    const expected = builtinResearchSkills.filter(item => item.category === category).map(item => item.id);
+    assert.deepEqual(filterCapabilities(builtinResearchSkills, { kind: 'skill', category }).map(item => item.id), expected);
+  }
+
+  const chineseItem = builtinResearchSkills.find(item => /[\u3400-\u9fff]/u.test(item.name));
+  assert.ok(chineseItem, 'real catalog must contain a Chinese Skill name');
+  const chineseQuery = chineseItem.name.match(/[\u3400-\u9fff]{2,}/u)[0].slice(0, 2);
+  assert.ok(filterCapabilities(builtinResearchSkills, { kind: 'skill', query: chineseQuery }).some(item => item.id === chineseItem.id));
+
+  const technicalItem = builtinResearchSkills.find(item => item.id.includes('-'));
+  assert.ok(technicalItem, 'real catalog must contain a technical Skill ID');
+  assert.deepEqual(filterCapabilities(builtinResearchSkills, { kind: 'skill', query: technicalItem.id }).map(item => item.id), [technicalItem.id]);
 
   const detail = renderCapabilityDetail(builtinResearchSkills.find(item => item.id === 'sell-side-report-reader'));
   assert.match(detail, /研报增量分析/);

@@ -24,7 +24,8 @@ Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py
 内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在
 `tests/research_web/test_capabilities*.py` 和 `tests/research_web/test_sell_side_report_skill.py`；
 分类、详情、选择、搜索及无路由卡片覆盖在
-`tests/javascript/research_web_capabilities_ui.test.mjs`。契约文档见
+`tests/javascript/research_web_capabilities_ui.test.mjs`；该测试从项目 Python 环境中的真实
+`CapabilityCatalog.list(kind="skill")` 获取目录，不维护第二份内置元数据。契约文档见
 [能力包与版本](research-web-capabilities.md)及
 [架构能力管理](architecture/research-web/07-capabilities.md)。
 

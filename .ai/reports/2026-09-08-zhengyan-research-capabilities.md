@@ -55,8 +55,11 @@
   会话快照、脚本安全、降级情景、结构化摘要和 SVG。
 - 两项 skip 均来自 `test_capabilities_native.py`：当前未提供 `DSH_SOURCE_ROOT`，因此未运行固定
   DSH 源码的原生 discovery/工具注册集成；不是通过项。
-- JavaScript/UI：`47 passed`。新增测试验证能力中心展示十个唯一 Skill，分类、中文/技术 ID 搜索、
-  详情、放入草稿，以及不存在 `zhengyan-research-router` 卡片。
+- JavaScript/UI：`47 passed`。新增测试通过项目 Python 环境实例化产品
+  `CapabilityCatalog`，从 `list(kind="skill")` 获取真实种子目录，再交给现有页面函数验证十个
+  唯一内置 Skill、分类、中文/技术 ID 搜索、详情、放入草稿，以及不存在
+  `zhengyan-research-router` 卡片。解释器按 `RWB_TEST_PYTHON`、当前仓库 `.venv`、worktree
+  所属项目 `.venv`、激活虚拟环境查找；均不可用时明确失败，不回退到手写元数据。
 - `ruff check` 通过；本分支能力变更涉及的 9 个 Python 文件均通过 `black --check` 和
   `isort --check-only`。`test_capabilities_native.py` 的纯格式修复记录在 `40b47235`。
 - 能力产品源码四文件的聚焦 mypy 通过。全 `app/research_web` mypy 仍在本任务未修改的
