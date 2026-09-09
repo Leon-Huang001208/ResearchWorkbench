@@ -52,7 +52,7 @@ function renderDocumentationSettings() {
 }
 
 function renderSettingsBody(options) {
-  const { section, runtime, models, runtimeLabel, busy, modelFailures, connections, selectedConfiguration, migrationOpen, hash } = options;
+  const { section, runtime, models, runtimeLabel, busy, modelFailures, connections, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
   if (section === 'model') return renderModelSettings({ runtime, models, runtimeLabel, busy, modelFailures });
   if (section === 'data' || section === 'local') {
     return renderConnectionCenter({
@@ -60,6 +60,7 @@ function renderSettingsBody(options) {
       selectedId: settingsConnectionId(hash, connections?.sources || [], section),
       configuration: selectedConfiguration,
       migrationOpen,
+      detailOpen: connectionDetailOpen,
       scope: section,
     });
   }
