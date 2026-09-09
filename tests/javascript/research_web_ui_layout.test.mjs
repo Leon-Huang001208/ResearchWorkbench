@@ -165,6 +165,14 @@ test('desktop layout renders a real global rail and a separate mode-owned second
   assert.match(css, /\.navigation-open \.secondary-sidebar[^\{]*\{[^}]*left:\s*68px|inset:\s*64px auto 0 68px/);
 });
 
+test('capability tabs keep hover and pressed feedback within the underline navigation language', async () => {
+  const css = await readFile(new URL('appearance.css', root), 'utf8');
+  assert.match(css, /\.capability-tabs \.button:hover:not\(:disabled\)\s*\{[^}]*background:\s*transparent;[^}]*border-bottom-color:\s*var\(--control-line\);[^}]*color:\s*var\(--text\);/);
+  assert.match(css, /\.capability-tabs \.button:active:not\(:disabled\)\s*\{[^}]*background:\s*transparent;/);
+  assert.match(css, /\.capability-tabs \.button\[aria-selected='true'\][^\{]*\{[^}]*background:\s*transparent;[^}]*border-bottom-color:\s*var\(--text\);[^}]*color:\s*var\(--text\);/);
+  assert.doesNotMatch(css, /\.capability-tabs \.button\.primary/);
+});
+
 test('a collapsed desktop secondary sidebar becomes an exposed narrow-screen drawer when opened', async () => {
   const shell = await import(new URL('shell.mjs', root));
   const drawer = shell.renderSidebar({ page: 'fingpt', sessions: [], collapsed: true, mobileOpen: true });

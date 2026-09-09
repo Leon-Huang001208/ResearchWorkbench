@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Research Web 设置分页 · 2026-09-09
+
+- 设置拆为通用、模型服务、数据源、本机集成和架构文档五个 Hash 子页，桌面增加粘滞分类栏，窄屏改为 44px 横向标签；每次只渲染当前子页。
+- 保留 `#/settings?connection=<id>` 兼容并转入数据源或本机集成；子页刷新只读取当前范围，模型、连接、迁移、主题和密钥清除契约不变。后端 API、DataHub、Runtime 和架构拓扑未变。
+
 ### DSH Fork 运行时迁移与资产字段校正 · 2026-09-08
 
 - Research Runtime 固定到公开 Fork `Leon-Huang001208/deepseek-harness` 的 `workbench-runtime` 提交 `c919b2a460753859665db3f60143d525fb9140cf`，兼容最新版 Typert Gateway、Remote mux、浏览器会话认证和原生级联 `session/delete`；Workbench 对外 HTTP 契约不变。

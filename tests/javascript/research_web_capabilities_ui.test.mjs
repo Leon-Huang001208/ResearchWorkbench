@@ -137,6 +137,10 @@ test('capability kind tabs implement roving keyboard tabs and owned panels', asy
   assert.match(html, /id="capability-tab-skill"[^>]*tabindex="0"[^>]*aria-controls="capability-panel-skill"/);
   assert.match(html, /id="capability-tab-tool"[^>]*tabindex="-1"/);
   assert.match(html, /id="capability-panel-skill" role="tabpanel"[^>]*aria-labelledby="capability-tab-skill"/);
+  const selectedTab = html.match(/<button[^>]*id="capability-tab-skill"[^>]*>/)?.[0] || '';
+  assert.match(selectedTab, /aria-selected="true"/);
+  assert.match(selectedTab, /class="button"/);
+  assert.doesNotMatch(selectedTab, /\bprimary\b/);
 });
 
 test('capability details escape hostile content and separate builtin read-only state from editable drafts', async () => {
