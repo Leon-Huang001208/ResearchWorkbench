@@ -160,7 +160,7 @@ async function runAcceptance() {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
   }
-  return { status: 'passed', origin, results };
+  return { status: 'passed', results };
 }
 
 try {
