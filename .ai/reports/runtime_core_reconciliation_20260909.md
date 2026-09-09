@@ -25,6 +25,8 @@ The former `AlphaFoundry-runtime-agnostic-core` worktree is being reconciled as 
 
 The first project-constraints CI run rejected two recovered service modules because their earlier implementation did not meet the repository's explicit logging and exception-boundary rule. The repair adds validated descriptor registration logging and a workflow execution boundary that records a safe failed status, logs both execution and failure-status persistence errors, and re-raises the original exception. A regression test asserts the durable failed status.
 
+The first native desktop verification run also found that the recovered navigation labels had replaced the established phase-one visual baseline. The repair restores the current ResearchWorkbench `点评生产` and `报告生产` navigation contract while retaining FinGPT as an additive destination.
+
 ## Platform boundary
 
 This reconciliation changes runtime, migrations, web behavior, and desktop packaging inputs. macOS and Windows native CI evidence is therefore required. A real Windows installation-level smoke test remains a release prerequisite and is not claimed by this branch reconciliation.
