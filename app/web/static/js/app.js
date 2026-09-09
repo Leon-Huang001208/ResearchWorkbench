@@ -23,10 +23,11 @@ import { globalSearch, renderSearchResults, navigateToSignalDetail } from './sea
 import { initNavigationCuration } from './navigation-curation.js';
 import { initWindPanel } from './wind.js';
 import { initFundsPanel } from './funds.js?v=20260625a';
-import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, exportCommentaryMarkdown, toggleAutoRefresh, switchCommentaryWorkspace } from './commentary.js?v=20260707logic1';
+import { initCommentaryCenter, selectCommentaryTemplate, loadCommentaryContext, generateCommentaryDraft, copyCommentaryDraft, exportCommentaryMarkdown, toggleAutoRefresh, switchCommentaryWorkspace } from './commentary.js?v=20260827workflow1';
 import { initConfigurationPage } from './configuration.js?v=20260727modalhierarchy1';
 import { initSetupWizard } from './setup-wizard.js?v=20260726setup1';
 import { initResearchWorkbench, openResearchCenter } from './research-workbench.js?v=20260811researchcenter1';
+import { initFinGPT } from './fingpt.js?v=20260827fingpt1';
 import { initDesktopNotifications } from './desktop-notifications.js';
 
 // ─── Window Exports (for HTML onclick handlers) ────────────────
@@ -284,6 +285,7 @@ function navigateTo(section, options = {}) {
     if (targetSection === 'signal-lab') loadSignalLab();
     if (targetSection === 'templates') loadTemplatesPage();
     if (targetSection === 'commentary') initCommentaryCenter();
+    if (targetSection === 'fingpt') initFinGPT();
     if (targetSection === 'research') initResearchWorkbench();
     if (targetSection === 'wind') initWindPanel();
     if (targetSection === 'funds') initFundsPanel();

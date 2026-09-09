@@ -42,6 +42,12 @@
 
 ### Added
 
+- **配置驱动的每日市场点评 Workflow Studio**：`workflow_specs/daily_market_commentary.yaml` 成为每日市场点评的唯一真源，默认固化三段式、1000–1500 字、16:15 Asia/Shanghai 交易日运行与两张原生图表。内容生产中心以文档型写作块为主，并保留 Markdown/Word 投影；市场快照、宽度、成交额、行业/主题、ETF 映射和新闻由 AlphaFoundry Tool 获取，DSH Skill 仅负责归因、反证和叙事。解释性冲突转为条件风险，未解决数值/期间/关键来源冲突才阻断产物。
+
+- **每日市场点评实时 Tool 数据源**：新增不落库的 `LiveAkShareMarketCommentaryTools`，由 AlphaFoundry 原生读取 AKShare 指数、全 A 宽度、同花顺行业板块和新闻证据，DSH Skill 仅接收结构化结果。AKShare 新闻采集器兼容新版财新主新闻入口；所有新闻源失败时保持质量门禁阻断，绝不补造引用。
+
+- **Runtime-agnostic 投研能力内核（v2）**：新增 Runtime-neutral 领域契约、每日市场点评 Workflow、项目托管隔离 DSH Host 的 HTTP/SSE Bridge Bundle、PostgreSQL 计划/步骤/事件/证据/不可变产物迁移（019）及 `/api/v2` 能力发现、执行、取消、恢复、SSE 事件和受限 Runtime Tool 接口。`npm run dsh:bootstrap` / `npm run dsh:web` 锁定 `dsh-v0.1.1-rc.2`，不将 DSH SDK 放入 ResearchWorkbench 根依赖；Codex/Claude 保留占位 Runtime。
+
 - **Research Web 研究界面、能力中心与当前架构**：完成独立FinGPT/Claw首页、产品壳、输入框与折叠研究面板；Skill/Tool/Workflow统一目录、对话创建、手动导入与版本管理连接真实DSH。八图与Markdown入口为 `docs/architecture/research-web/`，加入源码/API/图文哈希一致性和负向门禁。完成本机真实创建调用、PDF、双Agent Workflow文件验收；补齐明确停止后缺终止事件的失败复核及并发保护，不伪造成功。旧merged-platform保留为历史，未做桌面或远端发布。详见本轮`.ai/reports/2026-09-03-research-ui-live.md`。
 
 - **Research Web DataHub后端与可信原生桥接**：FastAPI内共享公开查询/不可变资料快照，NAV按真实20行响应分页并校验覆盖，加入基金基本资料/分红/持仓；原生审批后才通过私有随机凭据请求回环DataHub，取消与DSH联动。资料CSV/JSON、manifest/hash只读归属、缓存/刷新与显式Claw升级复制；输入资料不计报告产物。四个Skill同步数据口径/原始记录底稿要求。详见 `docs/research-web-datahub.md`；UI及真实模型闭环另行验收。
@@ -1119,6 +1125,7 @@
 - [x] v0.4.0: Web Workbench v1 + Memory Learning + 完整数据采集
 
 ### 🔄 进行中
+- [x] FinGPT DSH Web 壳：顶级对话入口、一次性启动任务、DSH 会话治理索引与每日市场点评 Workflow 入口。
 - [ ] Portfolio OS：风险预算、exposure、factor neutrality、theme exposure、liquidity
 - [ ] Evaluation OS：Agent/Signal/Timing/Narrative 系统级评估
 - [ ] Feedback Learning：根据市场结果更新权重和模型

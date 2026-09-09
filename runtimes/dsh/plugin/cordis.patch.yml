@@ -1,0 +1,11 @@
+- insert:
+    - id: alphafoundry-skill-filesystem
+      name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        includeDefaultRoots: false
+        customSkillDirs:
+          - !!js process.env.ALPHAFOUNDRY_DSH_SKILLS_DIR
+    - id: alphafoundry-runtime-bridge
+      name: '@alphafoundry/dsh-runtime-plugin'
+      config:
+        uiOrigin: !!js process.env.ALPHAFOUNDRY_UI_ORIGIN

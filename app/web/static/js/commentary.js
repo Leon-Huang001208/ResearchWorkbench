@@ -93,6 +93,12 @@ function bindCommentaryActions() {
             switchCommentaryWorkspace(tab.dataset.commentaryWorkspace);
         });
     document
+        .getElementById('daily-market-workflow-config')
+        ?.addEventListener('click', event => {
+            if (!event.target.closest('[data-save-daily-workflow]')) return;
+            saveDailyMarketWorkflowConfig();
+        });
+    document
         .getElementById('commentary-evidence-list')
         ?.addEventListener('change', event => {
             const checkbox = event.target?.closest?.('[data-commentary-evidence-key]');
@@ -1056,6 +1062,9 @@ function buildDraftRequest(recipe) {
 
 export async function generateCommentaryDraft() {
     const recipe = activeRecipe();
+    if (recipe.id === 'daily-close') {
+        return generateDailyMarketWorkflow();
+    }
     try {
         updateCommentaryWorkflow({ draft: 'active', quality: 'pending' });
         setText('commentary-overview-draft-state', '生成中');
@@ -1089,6 +1098,103 @@ export async function generateCommentaryDraft() {
         renderDraft(draft);
         saveToVersionHistory({ draft_markdown: draft.paragraphs.join('\n\n'), model: 'rule_based_fallback' });
         toast('本地兜底草稿已生成', 'error');
+    }
+}
+
+async function generateDailyMarketWorkflow() {
+    try {
+        updateCommentaryWorkflow({ draft: 'active', quality: 'pending' });
+        setText('commentary-overview-draft-state', '工作流执行中');
+        showGenerationOverlay('正在运行市场 Tool、证据检索和 DSH 分析 Skill…');
+        const now = new Date();
+        const created = await apiCall('POST', '/api/v2/market-commentary/runs', {
+            as_of: now.toISOString(),
+            question: '生成当日A股每日收盘点评',
+            runtime_id: 'dsh-local',
+        });
+        const result = await apiCall('POST', `/api/v2/runs/${encodeURIComponent(created.run_id)}/execute`, {});
+        hideGenerationOverlay();
+        if (result.status !== 'completed' || !result.report_document) {
+            const blocked = result.gates?.filter(gate => !gate.passed).map(gate => gate.message).join('；') || '质量门禁未通过';
+            throw new Error(blocked);
+        }
+        const document = result.report_document;
+        const draftMarkdown = [`# ${document.title}`, '', ...document.sections.flatMap(section => [`## ${section.heading}`, section.content, ''])].join('\n');
+        renderBackendDraft({
+            draft_markdown: draftMarkdown,
+            sections: document.sections,
+            warnings: result.gates.filter(gate => !gate.passed).map(gate => gate.message),
+            citations: result.evidence.map(item => ({ title: item.source_name, source: item.source_ref })),
+            model: 'DSH · native workflow',
+        });
+        renderDailyMarketCharts(document.charts || []);
+        saveToVersionHistory({ draft_markdown: draftMarkdown, model: 'DSH · native workflow' });
+        toast('每日市场点评工作流已完成', 'success');
+    } catch (error) {
+        hideGenerationOverlay();
+        console.error('[commentary] daily workflow failed', error);
+        setText('commentary-overview-draft-state', '工作流未完成');
+        toast(`每日市场点评未生成：${error?.message || '请检查运行时和数据源'}`, 'error');
+    }
+}
+
+function renderDailyMarketCharts(charts) {
+    const output = document.getElementById('commentary-draft-output');
+    if (!output || !charts.length) return;
+    const block = document.createElement('div');
+    block.className = 'commentary-draft-confidence';
+    block.innerHTML = charts.map(chart => `<span><strong>${esc(chart.title)}</strong><small>${chart.data.length} 条数据已写入文档渲染队列</small></span>`).join('');
+    output.appendChild(block);
+}
+
+let dailyMarketWorkflowSpec = null;
+
+async function loadDailyMarketWorkflowConfig() {
+    const container = document.getElementById('daily-market-workflow-config');
+    if (!container) return;
+    try {
+        dailyMarketWorkflowSpec = await apiCall('GET', '/api/v2/workflows/daily-market-commentary');
+        const spec = dailyMarketWorkflowSpec;
+        container.innerHTML = `
+            <div class="commentary-overview-card">
+                <div class="commentary-section-title-row"><h3>定时与运行时</h3><span>配置真源</span></div>
+                <label><span>执行时间</span><input id="daily-workflow-time" value="${String(spec.schedule.hour).padStart(2, '0')}:${String(spec.schedule.minute).padStart(2, '0')}" pattern="[0-2][0-9]:[0-5][0-9]"></label>
+                <label><span><input id="daily-workflow-enabled" type="checkbox" ${spec.schedule.enabled ? 'checked' : ''}> 中国交易日自动执行</span></label>
+            </div>
+            <div class="commentary-overview-card">
+                <div class="commentary-section-title-row"><h3>文档结构</h3><span>可在 YAML/API 中增删字段</span></div>
+                ${spec.sections.map((section, index) => `<label><span>${esc(section.key)}</span><input data-daily-section-heading="${index}" value="${esc(section.heading)}"><small>${esc(section.requirement)}</small></label>`).join('')}
+            </div>
+            <div class="commentary-overview-card">
+                <div class="commentary-section-title-row"><h3>图表</h3><span>原生 Renderer 生成</span></div>
+                ${spec.charts.map((chart, index) => `<label><span><input data-daily-chart-enabled="${index}" type="checkbox" ${chart.enabled ? 'checked' : ''}> ${esc(chart.title)}</span></label>`).join('')}
+                <button class="btn-primary" type="button" data-save-daily-workflow>保存工作流设置</button>
+            </div>`;
+    } catch (error) {
+        console.error('daily_market_workflow_config_load_failed', error);
+        container.innerHTML = '<p class="empty-state compact">工作流配置不可用，请检查 API。</p>';
+    }
+}
+
+async function saveDailyMarketWorkflowConfig() {
+    if (!dailyMarketWorkflowSpec) return;
+    const [hour, minute] = document.getElementById('daily-workflow-time')?.value?.split(':').map(Number) || [];
+    if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour > 23 || minute > 59) {
+        toast('请输入有效时间，例如 16:15', 'error');
+        return;
+    }
+    const spec = structuredClone(dailyMarketWorkflowSpec);
+    spec.schedule.hour = hour;
+    spec.schedule.minute = minute;
+    spec.schedule.enabled = Boolean(document.getElementById('daily-workflow-enabled')?.checked);
+    spec.sections.forEach((section, index) => { section.heading = document.querySelector(`[data-daily-section-heading="${index}"]`)?.value?.trim() || section.heading; });
+    spec.charts.forEach((chart, index) => { chart.enabled = Boolean(document.querySelector(`[data-daily-chart-enabled="${index}"]`)?.checked); });
+    try {
+        dailyMarketWorkflowSpec = await apiCall('PUT', '/api/v2/workflows/daily-market-commentary', spec);
+        toast('工作流设置已保存', 'success');
+    } catch (error) {
+        console.error('daily_market_workflow_config_save_failed', error);
+        toast('工作流设置保存失败', 'error');
     }
 }
 
@@ -1349,4 +1455,5 @@ export function initCommentaryCenter() {
     updateCommentaryWorkflow();
     loadCommentaryRecipes().finally(() => loadCommentaryContext());
     loadCommentaryRuns();
+    loadDailyMarketWorkflowConfig();
 }

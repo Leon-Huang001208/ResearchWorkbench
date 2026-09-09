@@ -7655,6 +7655,26 @@ tr:hover td {
     }
 }
 
+/* FinGPT is an AlphaFoundry shell around the local DSH Web client. */
+.fingpt-page { max-width: 1480px; margin: 0 auto; padding: 28px 34px 40px; }
+.fingpt-header { display:flex; justify-content:space-between; gap:24px; align-items:flex-start; margin-bottom:22px; }
+.fingpt-header h2 { margin:4px 0 6px; font-size:28px; }
+.fingpt-header p { margin:0; color:var(--vscode-descriptionForeground); }
+.fingpt-runtime-state { border:1px solid var(--vscode-editorWidget-border); border-radius:18px; padding:9px 13px; background:var(--vscode-editorWidget-background); color:var(--vscode-descriptionForeground); white-space:nowrap; }
+.fingpt-runtime-state.ready { color:var(--vscode-testing-iconPassed); border-color:color-mix(in srgb, var(--vscode-testing-iconPassed) 40%, transparent); }
+.fingpt-presets { display:grid; grid-template-columns:repeat(5,minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+.fingpt-preset { min-height:116px; display:flex; flex-direction:column; align-items:flex-start; gap:7px; text-align:left; border:1px solid var(--vscode-editorWidget-border); border-radius:12px; padding:16px; color:var(--vscode-foreground); background:var(--vscode-editorWidget-background); cursor:pointer; transition:border-color .15s ease, transform .15s ease; }
+.fingpt-preset:hover:not(:disabled) { border-color:var(--vscode-focusBorder); transform:translateY(-1px); }
+.fingpt-preset:disabled { cursor:wait; opacity:.6; }
+.fingpt-preset.primary { border-color:var(--vscode-button-background); background:color-mix(in srgb, var(--vscode-button-background) 9%, var(--vscode-editorWidget-background)); }
+.fingpt-preset i { color:var(--vscode-textLink-foreground); font-size:20px; }.fingpt-preset small { color:var(--vscode-descriptionForeground); line-height:1.4; }
+.fingpt-shell { min-height:560px; border:1px solid var(--vscode-editorWidget-border); border-radius:14px; overflow:hidden; background:var(--vscode-editor-background); }
+#fingpt-dsh-frame { display:block; width:100%; height:680px; border:0; background:var(--vscode-editor-background); }
+.fingpt-diagnostic { min-height:560px; padding:32px; display:flex; gap:16px; align-items:center; justify-content:center; color:var(--vscode-descriptionForeground); }.fingpt-diagnostic > i { font-size:32px; color:var(--vscode-testing-iconFailed); }.fingpt-diagnostic strong { color:var(--vscode-foreground); }.fingpt-diagnostic p { margin:6px 0; }.fingpt-diagnostic code { display:inline-block; padding:5px 7px; border-radius:5px; background:var(--vscode-textCodeBlock-background); }.fingpt-diagnostic button { margin-left:8px; }
+.fingpt-governance-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; }.fingpt-governance-grid article { border:1px solid var(--vscode-editorWidget-border); border-radius:12px; padding:16px; background:var(--vscode-editorWidget-background); }.fingpt-panel-title { display:flex; justify-content:space-between; align-items:center; gap:12px; }.fingpt-panel-title h3 { margin:0; font-size:15px; }.fingpt-panel-title span,.fingpt-list p { color:var(--vscode-descriptionForeground); font-size:12px; }.fingpt-row { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-top:1px solid var(--vscode-editorWidget-border); }.fingpt-row strong { font-size:13px; }.fingpt-row span { font-size:12px; color:var(--vscode-descriptionForeground); }
+@media (max-width: 1120px) { .fingpt-presets { grid-template-columns:repeat(3,1fr); } }
+@media (max-width: 760px) { .fingpt-page { padding:20px; }.fingpt-header,.fingpt-governance-grid { display:block; }.fingpt-runtime-state { margin-top:12px; white-space:normal; }.fingpt-presets { grid-template-columns:1fr 1fr; }.fingpt-governance-grid article { margin-top:12px; }.fingpt-shell,.fingpt-diagnostic { min-height:420px; } #fingpt-dsh-frame { height:520px; } }
+
 @media (max-width: 768px) {
     .market-overview-grid {
         grid-template-columns: 1fr;

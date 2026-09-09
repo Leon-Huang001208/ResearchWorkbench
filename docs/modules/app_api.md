@@ -87,6 +87,14 @@ Update this section when:
 
 ---
 
+### `app/api/routes/runtime_workflows.py`
+
+Purpose:
+
+- 暴露 `/api/v2` Runtime-neutral 工作流端点：能力与 Runtime 发现、每日市场点评创建/执行/取消/恢复、运行状态和可恢复 SSE 事件流。
+- `GET` / `PUT /api/v2/workflows/daily-market-commentary` 读取或保存经 Pydantic 校验的 YAML 工作流真源；页面配置不直接拼接任意模型提示词。
+- 路由只协调 `RuntimeWorkflowService`；市场数据、Skill 执行、Evaluator 和 Renderer 的业务边界仍在 services/core。
+
 ### `app/api/routes/factors.py`
 
 Purpose:
@@ -497,6 +505,17 @@ When files in this module change, check:
 `/resource-usage` only collects and returns its snapshot; the runtime continuously evaluates resource events. API responses expose only whitelisted task attribution metadata and never exception text, commands, request bodies, secrets, or internal deduplication keys. Research Workbench events have `source_scope=research_workbench`; host CPU/available-memory events have `source_scope=host_capacity`. These endpoints do not emit native desktop notifications.
 
 The route opens a database session only for the individual resource-event or host-history operation; no monitoring repository session is retained between HTTP requests.
+
+## FinGPT API
+
+`app/api/routes/fingpt.py` exposes `/api/v2/fingpt` for the embedded DSH Web shell:
+
+- `GET /health` provides a safe loopback DSH availability diagnosis and a non-secret iframe URL.
+- `GET /sessions`, `GET /tasks`, and `GET /tasks/{task_id}/artifacts` return AlphaFoundry governance indexes, never DSH transcript bodies.
+- `POST /tasks` creates a preset task. `POST /tasks/{task_id}/execute` executes only the deterministic `daily-market-commentary` Workflow.
+- `POST /launches/{launch_id}/consume` and `POST /dsh-events` accept only loopback DSH calls carrying the dedicated Tool-direction bearer token. Launch IDs are short-lived and single-use.
+
+The DSH callback accepts a strict, sanitized metadata envelope. Raw assistant/user messages, provider failures, credentials and database settings are not accepted or stored by these routes.
 - `docs/generated/py_file_index.md`
 
 ---

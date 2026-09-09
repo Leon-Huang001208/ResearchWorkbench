@@ -106,6 +106,10 @@
 | `app/api/routes/report.py` | 报告 API：生成各类报告 |
 | `app/api/routes/report_projects.py` | 报告项目 API：列出/重命名/排序项目，保存 `report_config.yaml` / `prompt_templates.md` 源码，返回 `compiled_plan` 生成预检计划，委托 `ReportProjectRunService` 配置驱动生成 DOCX/PPTX，返回下载和 HTML 预览入口 |
 | `app/api/routes/research_runs.py` | 通用研究模板与运行 API：列出模板/任务，创建、执行、补证恢复、读取决策卡/观点/质量门禁，并仅在完成后导出 Markdown/Word |
+| `app/api/routes/runtime_workflows.py` | v2 Runtime-neutral 工作流 API：每日市场点评创建、执行、取消、恢复、能力发现与基于序号的 SSE 事件读取 |
+| `workflow_specs/daily_market_commentary.yaml` | 每日市场点评的可编辑真源：三段式文档、两个默认图表、质量策略和 16:15 交易日定时 |
+| `services/daily_market_commentary_spec.py` | 每日市场点评 YAML 的 Pydantic 契约、加载和原子保存服务 |
+| `services/daily_market_commentary_scheduler.py` | 以工作流规格为准的可停止 APScheduler 入口；执行失败仅记录安全日志 |
 | `app/api/routes/research_workspaces.py` / `research_sessions.py` | 项目作用域 Workspace、单 Run Session、Message/Note 与原子 Session→Run 纵切 API |
 | `app/api/routes/runtime_providers.py` / `research_skills.py` | LangGraph/DSH Provider 声明和关联回传、声明式白名单 Skill API |
 | `app/api/routes/agent_teams.py` / `agent_schedules.py` | Supervisor 团队、共享黑板、硬预算与持久 Agent 日程 API |
@@ -175,6 +179,7 @@
 | `core/contracts/paper_trading.py` | 模拟交易结构：PaperAccount、PaperOrder、PaperTrade |
 | `core/contracts/portfolio.py` | 组合结构：Portfolio、Position、PortfolioMetrics |
 | `core/contracts/raw_storage.py` | 原始存储结构：RawFile、RawStorageMetadata |
+| `core/contracts/runtime.py` | Runtime-neutral Tool/Skill/Workflow、能力发现、统一事件/证据/报告契约；不得依赖任何 Runtime SDK |
 | `core/contracts/replay.py` | 回放结构：ReplaySession、ReplayStep、ReplayResult |
 | `core/contracts/reporting.py` | 报告结构：Report、ReportType、ReportSection、ReportTemplate |
 | `core/contracts/research.py` | 通用研究结构：ResearchSubject、ResearchTemplateDefinition、ResearchRun、任务、产物、观点、质量门禁、决策卡与证据输入 |
@@ -394,7 +399,7 @@
 | `data_layer/crawlers/akshare/config.py` | AkShareConfig 配置类：采集配置 |
 | `data_layer/crawlers/akshare/market.py` | 市场数据采集器：股票列表、历史行情、实时行情、指数历史数据 |
 | `data_layer/crawlers/akshare/financial.py` | 财务数据采集器：财务摘要、财务指标、利润表、资产负债表、现金流量表 |
-| `data_layer/crawlers/akshare/news.py` | 新闻数据采集器：新浪财经新闻、东方财富新闻、个股新闻 |
+| `data_layer/crawlers/akshare/news.py` | 新闻数据采集器：新浪财经、东方财富、财新主新闻流与个股新闻；旧接口不可用时以当前 AKShare 财新入口降级 |
 | `data_layer/crawlers/akshare/macro.py` | 宏观数据采集器 |
 | `data_layer/crawlers/akshare/utils.py` | 工具函数：clean_symbol、normalize_symbol、parse_date、parse_datetime、safe_float 等（⚠️ 被其他模块复用） |
 
@@ -652,6 +657,8 @@
 |---|---|
 | `scripts/backup_db.py` | 数据库备份脚本：支持 PostgreSQL 完整备份、自动压缩、保留策略 |
 | `scripts/desktop/build_sidecar.py` | 桌面 sidecar 打包：纳入后端、前端、报告资源和 `data/industry_graphs/` 内置图谱 |
+| `scripts/dsh/bootstrap_harness.mjs` | 项目托管 DSH 引导：锁定官方 revision、构建 vendor checkout、安装隔离 Profile Bundle 并生成 Tool/Skill 部署物；不读取用户 DSH Home。 |
+| `scripts/dsh/run_harness.mjs` | 项目托管 DSH 启动器：仅回环启动专用 Profile，并把部署目录和 Skill 根从隔离 `.runtime/dsh-home` 注入 Host。 |
 | `scripts/desktop/backend_launcher.py` | 桌面后端启动器：按 `RESEARCH_CRAWLER_AUTOSTART` 决定是否启动爬虫调度器，关闭时仍启动知识 Worker |
 | `scripts/restore_db.py` | 数据库恢复脚本：支持从备份恢复、时间点恢复；压缩恢复路径显式校验解压命令和管道句柄 |
 | `scripts/backfill_pdf_artifacts.py` | PDF 制品回补：扫描磁盘 PDF 并注册到 pdf_artifact_v1 以触发自动转换 |
@@ -759,6 +766,14 @@
 API 路由在 `app/api/routes/`，文件名 = 功能 + `.py`，例如：
 - 仪表盘 API → `dashboard.py`
 - 信号实验室 API → `signal_lab.py`
+- FinGPT 对话治理 API → `fingpt.py`
+
+### 查找 FinGPT / DSH 集成
+
+- FinGPT 页面壳 → `app/web/static/js/fingpt.js`
+- DSH Bridge Bundle → `runtimes/dsh/plugin/index.ts`
+- FinGPT 索引持久化 → `data_layer/repositories/fingpt_repository.py`
+- FinGPT 数据库迁移 → `storage/migrations/versions/020_add_fingpt_shell.py`
 
 ### 查找 CLI
 CLI 命令在 `app/cli/commands/`，文件名 = 功能 + `.py`，例如：
