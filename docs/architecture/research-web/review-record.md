@@ -322,3 +322,12 @@
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"数据源分类、搜索、状态筛选和详情面板均复用既有设置页与同源连接API，只改变浏览器内信息架构。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"设置分页只调整现有产品壳内的Hash路由、纯渲染和子页加载范围，同源API、凭据库、DataHub和Runtime拓扑保持不变。","diagrams":[]} -->
+
+## 2026-09-09 — 本机集成诊断型重设计
+
+- `#/settings/local` 改为“总体结论 → 环境检查 → 接入详情 → 可用数据能力”的单列诊断结构；单来源隐藏选择侧栏，多来源才显示紧凑选择器。
+- 总体结论与组件环境证据分层，组件已就绪不会覆盖 `callable=false`；探测继续使用既有连接目录、启动探测和读取探测状态接口。
+- 检测期间补齐持续忙碌态，终态刷新连接目录；失败、超时和格式异常进入既有错误提示与安全日志。本次未新增 API、服务、存储、跨层依赖或数据流，十张架构图无需重生成。
+- 使用当前服务返回的本机状态组合完成只读可视核对：未适配状态显示“尚未接入可调用链路”，四项组件证据后置为比较列表，接入阶段默认折叠；未把该核对表述为桌面或 Windows 验收。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机集成诊断仅重排既有设置页的信息层级、状态文案和探测忙碌态，仍复用相同Hash路由、连接API、DataHub与Runtime边界。","diagrams":[]} -->
