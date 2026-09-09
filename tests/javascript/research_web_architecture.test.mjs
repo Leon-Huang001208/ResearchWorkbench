@@ -128,8 +128,7 @@ test('project constraints delegates to the same architecture gate',async t=>{
 });
 
 test('settings contains a fixed read-only architecture entry with opener isolation',()=>{
-  const app=fs.readFileSync(new URL('../../app/research_web/ui/app.mjs',import.meta.url),'utf8');
-  const settings=app.slice(app.indexOf('function settingsPage()'),app.indexOf('function mainPage()'));
+  const settings=fs.readFileSync(new URL('../../app/research_web/ui/settings.mjs',import.meta.url),'utf8');
   assert.match(settings,/href="\/api\/research\/documentation\/index\.html"/);
   assert.match(settings,/target="_blank" rel="noopener noreferrer"/);
 });

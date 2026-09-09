@@ -1,9 +1,9 @@
 import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
-import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, modelOptions, renderPurgeConfirm, renderRename } from './views.mjs';
+import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
 import { icon } from './icons.mjs';
 import { renderComposer, renderQuickSkills, slashKey, skillMatches } from './composer.mjs';
-import { renderAppearancePicker, renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
+import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityCatalog, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
@@ -13,7 +13,8 @@ import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
-import { buildConfigurationPayload, renderConnectionCenter, selectedConnectionId } from './connections.mjs';
+import { buildConfigurationPayload } from './connections.mjs';
+import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
@@ -76,14 +77,27 @@ function researchPage() {
   return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${renderResearchAttention(detail)}${canvas}<div class="composer-dock">${composer()}</div>`;
 }
 
-function modelSettingsCard(runtime) {
-  return `<details class="settings-card model-settings"><summary><div><p class="eyebrow">模型服务</p><h2>DSH 与模型配置</h2><p class="muted small">${e(runtime?.provider || '未提供')} · ${e(runtime?.model || '未配置')}</p></div><span class="badge ${runtime?.connected ? 'live' : 'danger'}">${runtimeLabel()}</span></summary><div class="model-settings-body"><dl class="runtime-details"><div><dt>Provider</dt><dd>${e(runtime?.provider || '未提供')}</dd></div><div><dt>模型</dt><dd>${e(runtime?.model || '未配置')}</dd></div><div><dt>版本</dt><dd>${e(runtime?.version || '未提供')}</dd></div><div><dt>管理方式</dt><dd>${runtime ? runtime.owned_runtime ? '由 Research Workbench 管理' : '外部运行时' : '未知'}</dd></div></dl><form id="settings-form" autocomplete="off"><label for="settings-model">可用模型</label><select id="settings-model">${modelOptions(catalog.models, runtime?.model)}</select><div class="form-grid"><label>Provider<input id="provider" name="provider" required autocomplete="off" value="${e(runtime?.provider || '')}" placeholder="例如 openai"></label><label>模型 ID<input id="model-id" name="model" required autocomplete="off" value="${e(runtime?.model || '')}" placeholder="输入运行时支持的模型 ID"></label></div><label for="api-key">API Key <span class="muted">（可选，仅更新时填写）</span></label><input id="api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" placeholder="留空则不更改现有凭据"><p class="muted small">只发送给专属 DSH；保存成功后清空，不回填。</p><button class="button primary" type="submit" ${state.busy ? 'disabled' : ''}>保存模型配置</button></form></div></details>`;
+function settingsPage() {
+  return renderSettingsPage({
+    route: state.route,
+    runtime: catalog.runtime,
+    models: catalog.models,
+    runtimeLabel: runtimeLabel(),
+    busy: state.busy,
+    modelFailures: catalog.modelFailures,
+    connections: catalog.connections,
+    selectedConfiguration: selectedConnectionConfiguration,
+    migrationOpen,
+    hash: location.hash,
+  });
 }
 
-function settingsPage() {
-  const runtime = catalog.runtime;
-  const sourceId = state.route.connectionId || selectedConnectionId(location.hash, catalog.connections.sources);
-  return `<header class="page-header"><div><div class="eyebrow">WORKSPACE SETTINGS</div><h1>设置</h1><p class="muted">连接、会话与数据快照均保存在运行 8088 服务的本地隔离环境。</p></div><button class="button" data-refresh>刷新状态</button></header><section class="settings-group"><div class="settings-group-heading"><span class="eyebrow">CONNECTIONS & ACCESS</span><h2>连接与授权</h2><p class="muted">平台提供受控调用边界；模型、数据源和本机集成由当前用户自行授权。</p></div>${modelSettingsCard(runtime)}${renderConnectionCenter({ connections: catalog.connections, selectedId: sourceId, configuration: selectedConnectionConfiguration, migrationOpen })}</section><section class="settings-card appearance-settings"><h2>外观</h2><p class="muted">选择浅色、深色，或跟随系统。仅保存在此浏览器，不影响研究任务。</p>${renderAppearancePicker()}</section><section class="settings-card"><h2>架构与实现文档</h2><p class="muted">只读查看当前架构图；检查回执不替代实现与人工验收。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开架构文档 ↗</a></section>${catalog.modelFailures.length ? notice('部分模型目录未能加载；可填写已知的 Provider 与模型 ID。', 'warning') : ''}`;
+function currentSettingsSection() {
+  return resolveSettingsSection(state.route, catalog.connections.sources);
+}
+
+function currentSettingsConnectionId() {
+  return settingsConnectionId(location.hash, catalog.connections.sources, currentSettingsSection());
 }
 
 function mainPage() {
@@ -164,7 +178,7 @@ function render() {
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = [...catalog.capabilities, ...catalog.tools, ...catalog.reportWorkflows.map(item => ({ ...item, kind: 'report-workflow' })), ...(catalog.dataCatalog.capabilities || [])];
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录', connections: '连接中心', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录', connections: '连接中心', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
   window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -299,15 +313,21 @@ async function showRoute() {
   const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear();
   await controller.open(parseRoute(location.hash));
   if (ticket !== pageGeneration) return;
+  if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
   if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
   document.querySelector('#main')?.scrollTo({ top: 0 });
   await loadWorkflowVersion();
   if (state.route.page === 'history') await loadCatalog([state.route.historyView === 'deleted' ? 'deletedSessions' : 'sessions']);
   if (state.route.page === 'settings') {
     migrationOpen = false;
-    await loadCatalog(['connections']);
-    const selectedId = state.route.connectionId || selectedConnectionId(location.hash, catalog.connections.sources);
-    if (selectedId) await loadConnectionConfiguration(selectedId);
+    selectedConnectionConfiguration = null;
+    const section = currentSettingsSection();
+    const catalogs = settingsRefreshCatalogs(section);
+    if (catalogs.length) await loadCatalog(catalogs);
+    if (['data', 'local'].includes(section)) {
+      const selectedId = currentSettingsConnectionId();
+      if (selectedId) await loadConnectionConfiguration(selectedId);
+    }
   }
   if (state.route.page === 'skills') {
     if (state.route.capabilityKind) capabilityState.kind = state.route.capabilityKind;
@@ -669,8 +689,12 @@ root.addEventListener('click', async (event) => {
   const data = button.dataset;
   if ('connectionSelect' in data) {
     const sourceId = data.connectionSelect;
+    const source = catalog.connections.sources.find((item) => item.id === sourceId);
+    const section = source?.group === 'local' ? 'local' : 'data';
+    state.route.settingsSection = section;
     state.route.connectionId = sourceId;
-    history.pushState(null, '', `#/settings?connection=${encodeURIComponent(sourceId)}`);
+    delete state.route.legacySettingsConnection;
+    history.pushState(null, '', `#/settings/${section}?connection=${encodeURIComponent(sourceId)}`);
     selectedConnectionConfiguration = null; state.error = ''; render();
     await loadConnectionConfiguration(sourceId);
     document.querySelector('#connection-title')?.focus?.({ preventScroll: true });
@@ -762,7 +786,16 @@ root.addEventListener('click', async (event) => {
     if (state.route.page === 'workbench') await loadWorkbench();
     else if (state.route.page === 'operations') await loadOperations();
     else if (state.route.page === 'history' && state.route.historyView === 'deleted') await loadCatalog(['deletedSessions']);
-    else if (state.route.page === 'settings') { await loadCatalog(['runtime', 'models', 'connections']); await loadConnectionConfiguration(state.route.connectionId || selectedConnectionId(location.hash, catalog.connections.sources)); }
+    else if (state.route.page === 'settings') {
+      const section = currentSettingsSection();
+      if (['data', 'local'].includes(section)) selectedConnectionConfiguration = null;
+      const catalogs = settingsRefreshCatalogs(section);
+      if (catalogs.length) await loadCatalog(catalogs);
+      if (['data', 'local'].includes(section)) {
+        const selectedId = currentSettingsConnectionId();
+        if (selectedId) await loadConnectionConfiguration(selectedId);
+      }
+    }
     else { await loadCatalog(); await controller.refresh(); }
   }
   if ('operationsRange' in data) { operationsRange = data.operationsRange; await loadOperations(); }

@@ -4,7 +4,7 @@
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 真实模型与浏览器旅程见 [验收记录](research-web-acceptance.md)。
 
-页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations`、`#/settings`。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
+页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations` 与设置子路由。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
 当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、DataHub 以外的原生审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
@@ -22,6 +22,7 @@
 | `markdown.mjs` | 安全文本转义、URL 白名单、有限 Markdown 子集 |
 | `views.mjs` | 会话、审批、问题、活动、Agent、文件、历史与模型选项的渲染 |
 | `app.mjs` | 页面组合和真实用户交互；配置秘密不进入持久浏览器存储 |
+| `settings.mjs` | 设置分类路由解析和纯渲染；每次只组合当前子页，数据加载、提交与错误仍由 `app.mjs` 控制 |
 | `shell.mjs` | 页面标题、导航搜索弹层、可收起的产品导航、真实运行/最近会话与会话右侧标签面板 |
 | `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索及附件拖放/粘贴入口；不直接发起研究 |
 | `capabilities.mjs` | 同一能力目录的筛选、卡片、详情、检查结果、只读 Tool、不可变版本与 Workflow 模板渲染 |
@@ -56,7 +57,7 @@
 - 附件使用 multipart `files` 字段上传；返回 ID 作为 `attachment_ids` 提交。上传成功仅代表后端收到了文件，不代表模型已读取或工具沙箱已执行。
 - 文件下载只使用真实返回且经过检查的同源会话文件 URL。HTML 预览 iframe 使用空 `sandbox` 和 `no-referrer`，前端拒绝外部或任意路径的预览地址；后端仍负责授权、路径隔离和响应 CSP。
 - 模型切换和配置调用 `PUT /runtime/model`。API Key 为密码输入，不回填，不写 localStorage/sessionStorage，不进入日志；提交时清空输入框。失败后如需更新 Key，用户需重新输入。
-- 设置页“连接与授权”保留独立、默认折叠的 DSH 模型配置，并把 22 个 DataHub 来源统一放入“专业数据源、API 数据源、公开来源、本机集成”四组。桌面为来源列表与同页详情，窄屏上下排列；每个来源分别显示“已配置、已检测、已适配、可调用”，检测到组件或保存凭据不会自动变成可调用。
+- 设置在产品主导航内增加独立分类导航，拆为通用、模型服务、数据源、本机集成和架构文档；每次只渲染当前子页。DSH 模型配置不再折叠；DataHub 远程来源和本机能力互不混入，仍分别显示“已配置、已检测、已适配、可调用”。桌面分类栏粘滞于内容侧，760px 以下改为可横向滚动且不低于 44px 的标签。
 - MySQL 详情仅显示本地非秘密字段；密码通过统一配置 API 交给系统凭据库，输入提交后立即清空，GET 永不回填。Wind 只保存 `auto/client_api/excel` 偏好，不收集账号密码；Client API 探测读取当前会话状态但不代为登录，Excel 未提供真实工作簿心跳时保持未验证。iFinD 和知丘使用账号池，天软、Tushare、Tavily、Bing 使用单一秘密；所有秘密都只进入系统凭据库。尚未完成 DataHub 适配或无需鉴权的来源只展示真实状态与诊断，不渲染无效配置表单。
 - Excel 是本机集成诊断，不是账号来源。Excel 自动化、Wind 插件、iFinD 插件和报告工作流逐层展示当前 8088 服务所在平台的检测结果；仅完成实际心跳或授权工作簿探测时才标记可用。旧 `.env` 迁移先显示不含值的预览，用户选择目标并二次确认后才调用迁移接口。
 - 前端安全 console 事件只包含固定事件名、请求 method 和 HTTP status；不记录 URL、会话 ID、输入、文件名、响应正文或凭据。服务端持久日志由 Research Web 后端负责写入项目日志设施。
@@ -70,12 +71,12 @@
 ## 验证与限制
 
 ```bash
-node --test tests/javascript/research_web_ui.test.mjs
+node --test tests/javascript/research_web*.test.mjs
 node --check app/research_web/ui/app.mjs
 git diff --check
 ```
 
-独立 JS 测试涵盖真实解析/渲染、恶意 HTML/URL、API 结构化错误、multipart 上传、日志秘密隔离、幂等重试、跨会话竞态、SSE 重连/清理、Claw 升级草稿、生成文件 sandbox，以及资料卡状态/范围/不完整警示和固定下载路由。
+独立 JS 测试涵盖真实解析/渲染、设置五个子路由与旧深链、单页正文和来源分组、恶意 HTML/URL、API 结构化错误、multipart 上传、日志秘密隔离、幂等重试、跨会话竞态、SSE 重连/清理、Claw 升级草稿、生成文件 sandbox，以及资料卡状态/范围/不完整警示和固定下载路由。
 
 浏览器视觉、键盘/移动端状态和真实 DSH 全链路由集成任务另行验证。DSH 模型凭据、工具沙箱、文件读取与 Agent 执行能力取决于实际后端，不由 UI 模拟。此变更不涉及桌面安装或 Windows 运行验证。
 
@@ -111,7 +112,7 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 
 | 状态 | 已实现的 UI 语义 | 验证证据 |
 | --- | --- | --- |
-| 默认 / hover | 导航、真实 Skill 卡和标签可聚焦；hover 仅轻微强调 | `research_web_ui_layout.test.mjs` 渲染契约 |
+| 默认 / hover | 导航、真实 Skill 卡和标签可聚焦；能力中心顶层页签只以文字与弱细线轻微强调，选中态由 `aria-selected` 和 2px 指示线表达，hover/按下不复用主按钮填充态 | `research_web_ui_layout.test.mjs` 与 `research_web_capabilities_ui.test.mjs` 渲染契约 |
 | loading / disabled | 原有控制器 busy/loading 状态禁用上传、选择与提交；不清除草稿 | 既有 `research_web_ui.test.mjs` 控制器覆盖 |
 | running | 运行任务显示在侧栏；停止仍使用已有取消接口 | 壳层渲染 + 既有 controller/API 测试 |
 | error | 目录/API 错误保留可见；失败活动默认展开并显示错误 | `views.mjs` 渲染与 UI 回归 |
