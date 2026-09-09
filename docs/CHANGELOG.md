@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### 遗留分支归并 · 2026-09-09
+
+- 以不改动当前源码树的 retirement merge 记录 `dsh-web-ui`、`dsh-web-runner`、`dsh-web-delivery` 和旧 `datahub-cjpy` 的历史祖先关系；前三者的补丁已等价进入主线，旧 DataHub 则由当前会话隔离 DataHub/CJPY Provider 架构取代。
+- 未引入旧 `019_add_datahub` 迁移、vendored CJPY wheel 或旧单体 `/api/datahub`，避免覆盖当前 `019`/`020` Runtime 迁移、可选依赖与 Web-only 产品边界。
+
 ### Web-only 阶段边界 · 2026-09-09
 
 - 当前产品迭代仅交付 Web；仅有网页、通用 Web API/Runtime 或共享依赖变更时，不再触发 sidecar、Tauri、安装包或原生桌面 CI。
