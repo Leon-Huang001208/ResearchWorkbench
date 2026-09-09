@@ -2,10 +2,11 @@ const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
 const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'operations', 'settings']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
+const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
-  const [pageSegment, sectionSegment] = path.split('/');
+  const [pageSegment, sectionSegment, ...extraSegments] = path.split('/');
   const page = pages.has(pageSegment) ? pageSegment : 'fingpt';
   const params = new URLSearchParams(query);
   const route = {
@@ -17,7 +18,17 @@ export function parseRoute(hash = '') {
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
   }
   if (page === 'skills' && ['skill', 'tool', 'workflow', 'data'].includes(params.get('kind'))) route.capabilityKind = params.get('kind');
-  if (page === 'settings' && /^[a-z0-9_]+$/.test(params.get('connection') || '')) route.connectionId = params.get('connection');
+  if (page === 'settings') {
+    const connection = params.get('connection');
+    const hasSafeConnection = /^[a-z0-9_]+$/.test(connection || '');
+    const requestedSection = extraSegments.length ? '' : (sectionSegment || (hasSafeConnection ? 'data' : 'general'));
+    route.settingsSection = settingsSections.has(requestedSection) ? requestedSection : 'general';
+    if (extraSegments.length || (sectionSegment && !settingsSections.has(sectionSegment))) route.settingsSectionFallback = true;
+    if (hasSafeConnection) {
+      route.connectionId = connection;
+      if (!sectionSegment) route.legacySettingsConnection = true;
+    }
+  }
   if (page === 'workbench') {
     const requestedSection = sectionSegment || params.get('section');
     route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';

@@ -42,7 +42,7 @@ export function filterCapabilities(items = [], { kind = 'skill', source = 'all',
 }
 
 function capabilityTabs(kind) {
-  return `<div class="capability-tabs" role="tablist" aria-label="能力类型">${[['skill', 'Skill'], ['tool', 'Tool'], ['workflow', 'Workflow'], ['data', '数据']].map(([value, label]) => `<button type="button" role="tab" id="capability-tab-${value}" tabindex="${kind === value ? '0' : '-1'}" aria-controls="capability-panel-${value}" aria-selected="${kind === value}" class="button ${kind === value ? 'primary' : ''}" data-cap-kind="${value}">${label}</button>`).join('')}</div>`;
+  return `<div class="capability-tabs" role="tablist" aria-label="能力类型">${[['skill', 'Skill'], ['tool', 'Tool'], ['workflow', 'Workflow'], ['data', '数据']].map(([value, label]) => `<button type="button" role="tab" id="capability-tab-${value}" tabindex="${kind === value ? '0' : '-1'}" aria-controls="capability-panel-${value}" aria-selected="${kind === value}" class="button" data-cap-kind="${value}">${label}</button>`).join('')}</div>`;
 }
 
 const capabilityPanel = (kind, content) => `<div id="capability-panel-${kind}" role="tabpanel" aria-labelledby="capability-tab-${kind}" tabindex="0">${content}</div>`;

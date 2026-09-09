@@ -113,6 +113,22 @@ test('settings deep link accepts only known safe source identifiers', () => {
   assert.equal(selectedConnectionId('#/settings?connection=ifind', sources), 'ifind');
   assert.equal(selectedConnectionId('#/settings?connection=../../runtime', sources), 'wind');
   assert.equal(selectedConnectionId('#/settings', sources), 'wind');
+  assert.equal(selectedConnectionId('#/settings/data?connection=mysql', sources, 'data'), 'mysql');
+  assert.equal(selectedConnectionId('#/settings/local?connection=mysql', sources, 'local'), 'local_cache');
+  assert.equal(selectedConnectionId('#/settings/local?connection=local_cache', sources, 'local'), 'local_cache');
+});
+
+test('connection center separates remote data sources from local integrations', () => {
+  const data = renderConnectionCenter({ connections: model, selectedId: 'wind', configuration: {}, scope: 'data' });
+  assert.match(data, /data-connection-scope="data"/);
+  assert.match(data, /data-connection-select="wind"/);
+  assert.doesNotMatch(data, /data-connection-select="local_cache"/);
+  assert.match(data, /data-migration-review/);
+
+  const local = renderConnectionCenter({ connections: model, selectedId: 'local_cache', configuration: null, scope: 'local' });
+  assert.match(local, /data-connection-scope="local"/);
+  assert.match(local, /data-connection-select="local_cache"/);
+  assert.doesNotMatch(local, /data-connection-select="wind"|data-migration-review/);
 });
 
 test('legacy migration requires source selection and an explicit second confirmation', () => {

@@ -67,6 +67,12 @@ function normalizedGroups(connections) {
   return groupOrder.map(([id, label]) => ({ id, label, source_ids: sources.filter((source) => source.group === id).map((source) => source.id) }));
 }
 
+function scopedSources(sources, scope) {
+  if (scope === 'local') return sources.filter((source) => source?.group === 'local');
+  if (scope === 'data') return sources.filter((source) => source?.group !== 'local');
+  return sources;
+}
+
 function renderNavigation(connections, selectedId) {
   const sources = Array.isArray(connections?.sources) ? connections.sources : [];
   const byId = new Map(sources.map((source) => [source.id, source]));
@@ -155,10 +161,11 @@ function renderMigration(migration, open) {
   return `<section class="legacy-migration"><div><p class="eyebrow">旧配置迁移</p><h3>检测到可迁移的环境变量</h3><p class="muted small">预览只显示变量是否存在和目标来源，不读取或展示秘密值。迁移需要再次确认。</p></div><button class="button" type="button" data-migration-review aria-expanded="${Boolean(open)}">查看迁移</button>${review}</section>`;
 }
 
-export function selectedConnectionId(hash, sources = []) {
+export function selectedConnectionId(hash, sources = [], scope = 'all') {
   const query = String(hash || '').split('?')[1] || '';
   const requested = new URLSearchParams(query).get('connection');
-  return sources.some((source) => source.id === requested) ? requested : (sources[0]?.id || '');
+  const available = scopedSources(sources, scope);
+  return available.some((source) => source.id === requested) ? requested : (available[0]?.id || '');
 }
 
 export function buildConfigurationPayload(sourceId, values) {
@@ -188,9 +195,12 @@ export function buildConfigurationPayload(sourceId, values) {
   throw new Error('该来源不支持配置。');
 }
 
-export function renderConnectionCenter({ connections, selectedId, configuration, migrationOpen = false }) {
-  const sources = Array.isArray(connections?.sources) ? connections.sources : [];
+export function renderConnectionCenter({ connections, selectedId, configuration, migrationOpen = false, scope = 'all' }) {
+  const allSources = Array.isArray(connections?.sources) ? connections.sources : [];
+  const sources = scopedSources(allSources, scope);
+  const scopedConnections = { ...connections, sources };
   const resolved = sources.some((source) => source.id === selectedId) ? selectedId : (sources[0]?.id || '');
   const source = sources.find((item) => item.id === resolved);
-  return `<section class="connection-center" data-selected-connection="${e(resolved)}"><div class="connection-center-heading"><div><p class="eyebrow">DATA CONNECTIONS</p><h2>数据源连接中心</h2><p class="muted">${sources.length} 个来源统一展示；配置、检测、适配与可调用分别核验。</p></div><a class="button" href="#/skills?kind=data">DataHub 目录</a></div>${renderMigration(connections?.migration, migrationOpen)}<div class="connection-center-layout">${renderNavigation(connections, resolved)}${renderDetail(source, configuration, connections)}</div></section>`;
+  const local = scope === 'local';
+  return `<section class="connection-center" data-connection-scope="${e(scope)}" data-selected-connection="${e(resolved)}"><div class="connection-center-heading"><div><p class="eyebrow">${local ? 'LOCAL INTEGRATIONS' : 'DATA CONNECTIONS'}</p><h2>${local ? '本机能力与插件' : '数据源连接中心'}</h2><p class="muted">${local ? '状态来自当前 8088 服务所在设备；组件存在不等于可以调用。' : `${sources.length} 个来源统一展示；配置、检测、适配与可调用分别核验。`}</p></div><a class="button" href="#/skills?kind=data">DataHub 目录</a></div>${local ? '' : renderMigration(connections?.migration, migrationOpen)}<div class="connection-center-layout">${renderNavigation(scopedConnections, resolved)}${renderDetail(source, configuration, connections)}</div></section>`;
 }

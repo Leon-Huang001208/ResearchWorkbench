@@ -306,3 +306,11 @@
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"通用配置、凭据引用、探测和迁移均封装在现有DataHub节点内，Provider路由与会话快照数据流保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Runtime改读统一来源状态但仍在启动时生成enabledTools，没有新增执行服务、注册阶段或查询通道。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力工具目录复用统一连接摘要计算可选性，能力包、版本、原生注册和权限边界保持不变。","diagrams":[]} -->
+
+## 2026-09-09 — 设置分页
+
+- 设置在现有产品壳内增加五个 Hash 子页和响应式分类导航，每次只渲染当前分类。
+- 远程数据源与本机集成只在前端投影中分组；仍读取同一 `/data/connections` 安全响应，提交、探测、迁移、凭据库和 Runtime 契约不变。
+- 该变化只新增 UI 模块并调整现有前端组合，不新增 API、服务节点、跨层依赖或数据流，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"设置分页只调整现有产品壳内的Hash路由、纯渲染和子页加载范围，同源API、凭据库、DataHub和Runtime拓扑保持不变。","diagrams":[]} -->

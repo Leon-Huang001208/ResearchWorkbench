@@ -36,8 +36,8 @@ test('routing accepts only product routes and safely round trips session identif
   assert.deepEqual(core.parseRoute('#/history?mode=fingpt'), { page: 'history', sessionId: null, historyMode: 'fingpt', historyView: 'active' });
   assert.deepEqual(core.parseRoute('#/history?mode=claw&view=deleted'), { page: 'history', sessionId: null, historyMode: 'claw', historyView: 'deleted' });
   assert.deepEqual(core.parseRoute('#/history?mode=unknown&view=unknown'), { page: 'history', sessionId: null, historyMode: null, historyView: 'active' });
-  assert.deepEqual(core.parseRoute('#/settings?connection=ifind'), { page: 'settings', sessionId: null, connectionId: 'ifind' });
-  assert.deepEqual(core.parseRoute('#/settings?connection=../../runtime'), { page: 'settings', sessionId: null });
+  assert.deepEqual(core.parseRoute('#/settings?connection=ifind'), { page: 'settings', sessionId: null, settingsSection: 'data', connectionId: 'ifind', legacySettingsConnection: true });
+  assert.deepEqual(core.parseRoute('#/settings?connection=../../runtime'), { page: 'settings', sessionId: null, settingsSection: 'general' });
   assert.equal(core.sessionHash(session('a/b')), '#/fingpt?session=a%2Fb');
 });
 
@@ -164,9 +164,11 @@ test('connection secrets are cleared immediately after request serialization', a
 
 test('connection probe feedback uses health and shared ZhiQiu removal discloses scope', async () => {
   const app = await readFile(new URL('app.mjs', root), 'utf8');
+  const settings = await readFile(new URL('settings.mjs', root), 'utf8');
   assert.match(app, /current\.health === 'healthy'/);
   assert.match(app, /知丘研报、公众号与纪要共享/);
-  assert.match(app, /<details class="settings-card model-settings">/);
+  assert.match(settings, /class="settings-card model-settings"/);
+  assert.doesNotMatch(settings, /<details/);
   assert.doesNotMatch(app, /current\.status === 'healthy'/);
 });
 
@@ -255,7 +257,7 @@ test('API exposes the unified connection center and generic configuration contra
 test('MySQL source detail shows the four-stage local connection state and settings link', () => {
   const html=dataCatalog.renderDataSourceDetail({id:'mysql',name:'用户 MySQL 数据库',family:'datahub',source_type:'database',description:'本机配置',auth_type:'account',dependencies:['PyMySQL','keyring'],markets:['用户数据库'],bindings:[],readiness:{code_exists:true,integration_completed:true,configured:true,dependency_ready:true,allowed:true,callable:false,integration_state:'ready',health:'untested'}},false);
   for(const label of ['未配置','已保存','已检测','可调用']) assert.match(html,new RegExp(label));
-  assert.match(html,/href="#\/settings"/);
+  assert.match(html,/href="#\/settings\/data\?connection=mysql"/);
 });
 
 test('SSE malformed payload reports errors and closing a stream releases it', () => {
