@@ -7,8 +7,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const uiRoot = path.join(projectRoot, 'app/research_web/ui');
-const outputRoot = path.join(projectRoot, 'outputs/research-web-connections-acceptance');
-const logPath = path.join(projectRoot, 'logs/research-web-connections-acceptance.jsonl');
+const outputRoot = path.resolve(process.env.RWB_CONNECTION_WORKBENCH_OUTPUT || path.join(projectRoot, 'outputs/research-web-connections-acceptance'));
+const logPath = path.resolve(process.env.RWB_CONNECTION_WORKBENCH_LOG || path.join(projectRoot, 'logs/research-web-connections-acceptance.jsonl'));
 const playwrightPath = process.env.PLAYWRIGHT_CORE_PATH || '/Users/leon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright-core/index.mjs';
 const viewports = [[1440, 1000], [768, 1024], [390, 844]];
 
@@ -160,7 +160,7 @@ async function runAcceptance() {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));
   }
-  return { status: 'passed', origin, results };
+  return { status: 'passed', results };
 }
 
 try {
