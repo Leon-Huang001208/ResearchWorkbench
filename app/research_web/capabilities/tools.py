@@ -6,20 +6,15 @@ This catalog never installs tools or grants execution authority.
 
 import re
 from pathlib import Path
+from typing import Any
 
 from ..datahub.catalog import build_catalog
+from ..datahub.connections import MySQLConnectionStore
 from ..datahub.contracts import BUSINESS_TOOLS
 from .models import CapabilityError
 
-PIN = "b3e26660f0a7bca680f06366aec3bb8d731c725e"
+PIN = "c919b2a460753859665db3f60143d525fb9140cf"
 DECLARATIONS = {
-    "report": (
-        "子 Agent 汇报",
-        "packages/subagent/tool-subagent-report/src/index.ts",
-        {"output": "string"},
-        ["output"],
-        "仅 continuable 子 Agent 的原生作用域可见；向直接父 Agent 汇报，不结束回合",
-    ),
     "research_run_script": (
         "研究 Python",
         "runtime/research-tools.mjs",
@@ -51,8 +46,8 @@ DECLARATIONS = {
     "send_message": (
         "子 Agent 消息",
         "packages/subagent/tool-subagent-control/src/index.ts",
-        {"subagent_id": "string", "message": "string"},
-        ["subagent_id", "message"],
+        {"agent_id": "string", "message": "string"},
+        ["agent_id", "message"],
         "仅原生授权的直接子 Agent；内部控制",
     ),
     "interrupt_agent": (
@@ -152,6 +147,19 @@ DATA_PROPERTIES = {
         ["query"],
     ),
     "search_web": ({"query": "string", "limit": "integer"}, ["query"]),
+    "database_schema": ({"database": "string", "table": "string"}, []),
+    "table_query": (
+        {
+            "database": "string",
+            "table": "string",
+            "columns": "array",
+            "filters": "array",
+            "order_by": "array",
+            "offset": "integer",
+            "limit": "integer",
+        },
+        ["database", "table", "columns"],
+    ),
 }
 
 WORKFLOW_TOOL_DECLARATIONS = {
@@ -193,7 +201,7 @@ WORKFLOW_TOOL_DECLARATIONS = {
 }
 
 
-def tool_catalog():
+def tool_catalog(data_root: Path | None = None):
     guard = (Path(__file__).parents[1] / "runtime/guard.mjs").read_text()
     match = re.search(
         r"(?:export\s+)?const\s+RESEARCH_TOOLS\s*=\s*new Set\(\[(.*?)\]\)",
@@ -207,7 +215,7 @@ def tool_catalog():
     for name, (label, source, fields, required, condition) in DECLARATIONS.items():
         if name not in allowed:
             continue
-        parameters = {
+        parameters: dict[str, Any] = {
             "type": "object",
             "properties": {key: {"type": value} for key, value in fields.items()},
             "required": required,
@@ -235,7 +243,8 @@ def tool_catalog():
                 "data_sources": {},
             }
         )
-    data_catalog = build_catalog()
+    statuses = MySQLConnectionStore(data_root).statuses() if data_root is not None else None
+    data_catalog = build_catalog(connection_statuses=statuses)
     capabilities = {item["id"]: item for item in data_catalog["capabilities"]}
     for capability_id, tool_id in BUSINESS_TOOLS.items():
         if tool_id not in allowed:
@@ -243,7 +252,7 @@ def tool_catalog():
         capability = capabilities[capability_id]
         fields, required = DATA_PROPERTIES[capability_id]
         properties = {key: {"type": value} for key, value in fields.items()}
-        for key in ("assets", "fields", "statements", "periods", "series"):
+        for key in ("assets", "fields", "statements", "periods", "series", "columns"):
             if key in properties:
                 properties[key]["items"] = {"type": "string"}
         properties.update(

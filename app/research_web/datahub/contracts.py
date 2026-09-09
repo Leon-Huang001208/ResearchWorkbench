@@ -16,6 +16,7 @@ SOURCES = {
     "fund_distributions": "基金分红",
     "fund_holdings": "基金披露持仓",
     "tinysoft": "天软",
+    "mysql": "用户 MySQL 数据库",
 }
 
 DataCapabilityId = Literal[
@@ -32,6 +33,8 @@ DataCapabilityId = Literal[
     "search_announcements",
     "search_research",
     "search_web",
+    "database_schema",
+    "table_query",
 ]
 
 DATA_CAPABILITIES: tuple[DataCapabilityId, ...] = (
@@ -48,6 +51,8 @@ DATA_CAPABILITIES: tuple[DataCapabilityId, ...] = (
     "search_announcements",
     "search_research",
     "search_web",
+    "database_schema",
+    "table_query",
 )
 
 CAPABILITY_PARAMETERS = {
@@ -64,6 +69,8 @@ CAPABILITY_PARAMETERS = {
     "search_announcements": {"asset", "query", "start_date", "end_date"},
     "search_research": {"query", "document_type", "limit"},
     "search_web": {"query", "limit"},
+    "database_schema": {"database", "table"},
+    "table_query": {"database", "table", "columns", "filters", "order_by", "offset", "limit"},
 }
 
 BUSINESS_TOOLS = {
@@ -72,6 +79,63 @@ BUSINESS_TOOLS = {
     )
     for capability in DATA_CAPABILITIES
 }
+BUSINESS_TOOLS["table_query"] = "datahub_query_table"
+
+
+class DatabaseSchemaParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    database: str | None = Field(default=None, min_length=1, max_length=128)
+    table: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def ordered_scope(self):
+        if self.table and not self.database:
+            raise ValueError("查询表结构前必须指定数据库")
+        return self
+
+
+class TableFilter(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    column: str = Field(min_length=1, max_length=128)
+    operator: Literal["eq", "ne", "lt", "lte", "gt", "gte", "in", "between", "is_null", "not_null"]
+    value: Any = None
+
+    @model_validator(mode="after")
+    def valid_value(self):
+        if self.operator == "in" and (
+            not isinstance(self.value, list) or not 1 <= len(self.value) <= 100
+        ):
+            raise ValueError("IN 必须包含 1 到 100 个值")
+        if self.operator == "between" and (
+            not isinstance(self.value, list) or len(self.value) != 2
+        ):
+            raise ValueError("BETWEEN 必须包含两个值")
+        if self.operator not in {"in", "between", "is_null", "not_null"} and isinstance(
+            self.value, (dict, list)
+        ):
+            raise ValueError("比较值必须是标量")
+        return self
+
+
+class TableOrder(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    column: str = Field(min_length=1, max_length=128)
+    direction: Literal["asc", "desc"] = "asc"
+
+
+class TableQueryParameters(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    database: str = Field(min_length=1, max_length=128)
+    table: str = Field(min_length=1, max_length=128)
+    columns: list[str] = Field(min_length=1, max_length=200)
+    filters: list[TableFilter] = Field(default_factory=list, max_length=20)
+    order_by: list[TableOrder] = Field(default_factory=list, max_length=5)
+    offset: int = Field(default=0, ge=0, le=100000)
+    limit: int = Field(default=500, ge=1, le=5000)
 
 
 class Query(BaseModel):
@@ -156,6 +220,12 @@ class BusinessQuery(BaseModel):
         encoded = json.dumps(self.parameters, ensure_ascii=False, sort_keys=True, default=str)
         if len(encoded.encode()) > 32 * 1024:
             raise ValueError("业务参数过大")
+        if self.capability == "database_schema":
+            DatabaseSchemaParameters.model_validate(self.parameters)
+        elif self.capability == "table_query":
+            TableQueryParameters.model_validate(self.parameters)
+            if self.source not in {"auto", "mysql"}:
+                raise ValueError("表查询仅支持已配置的 MySQL 来源")
         return self
 
     def fingerprint(self, *, include_refresh=False):

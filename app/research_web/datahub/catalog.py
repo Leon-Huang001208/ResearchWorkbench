@@ -37,7 +37,9 @@ class DataSourceDescriptor(BaseModel):
     id: str
     name: str
     family: Literal["formal", "datahub", "legacy"]
-    source_type: Literal["official", "professional", "public", "library", "search", "local"]
+    source_type: Literal[
+        "official", "professional", "public", "library", "search", "local", "database"
+    ]
     description: str
     auth_type: Literal["none", "api_key", "account", "terminal", "local"]
     config_keys: list[str] = Field(default_factory=list)
@@ -87,7 +89,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "formal",
         "professional",
         "terminal",
-        ["CJ_KEY"],
+        [],
         ["WindPy/xlwings"],
         ["A股", "港股", "债券", "基金"],
         "account",
@@ -99,7 +101,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "formal",
         "professional",
         "terminal",
-        [],
+        ["CJ_KEY"],
         ["cjpy"],
         ["A股", "基金目录"],
         "account",
@@ -333,6 +335,18 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "possibly_metered",
         "旧网页搜索 Provider，尚未接入 DataHub 业务工具。",
     ),
+    (
+        "mysql",
+        "用户 MySQL 数据库",
+        "datahub",
+        "database",
+        "account",
+        [],
+        ["PyMySQL", "keyring"],
+        ["用户数据库"],
+        "account",
+        "用户在本机配置；仅支持受控单表只读查询，required_no_verify 不验证 TLS 证书。",
+    ),
 )
 
 CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
@@ -466,6 +480,26 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
         ["公开网页"],
         ["网页"],
     ),
+    (
+        "database_schema",
+        "数据库目录",
+        "数据源",
+        "逐级读取用户 MySQL 数据库、表、视图和列结构。",
+        ["database", "table"],
+        ["database", "table_name", "table_type", "column_name", "column_type"],
+        ["用户数据库"],
+        ["数据库"],
+    ),
+    (
+        "table_query",
+        "数据库单表查询",
+        "数据源",
+        "对已核验的库表列执行参数化只读单表查询。",
+        ["database", "table", "columns", "filters", "order_by", "offset", "limit"],
+        ["用户选择列"],
+        ["用户数据库"],
+        ["表", "视图"],
+    ),
 )
 
 BINDING_SPECS = {
@@ -552,9 +586,11 @@ BINDING_SPECS = {
         ("zhiqiu_wechat", ["news"]),
     ],
     "search_web": [("tavily", ["web_search"]), ("bing", ["web_search"])],
+    "database_schema": [("mysql", ["databases", "tables", "columns"])],
+    "table_query": [("mysql", ["single_table_select"])],
 }
 
-INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare"}
+INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare", "mysql"}
 DISABLED = {"szse", "cninfo"}
 IMPLEMENTED_BINDINGS = {
     ("tinysoft", "search_assets"),
@@ -580,15 +616,29 @@ def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
 def _dependency_ready(source_id: str, dependencies: list[str]) -> bool:
     if not dependencies:
         return True
-    if source_id in {"tinysoft", "akshare"}:
+    if source_id in {"wind", "tinysoft", "ifind", "akshare", "mysql"}:
         try:
-            return find_spec("cjpy" if source_id == "tinysoft" else "akshare") is not None
+            modules = {
+                "wind": ("WindPy", "xlwings"),
+                "tinysoft": ("cjpy",),
+                "ifind": ("iFinD", "iFinDPy"),
+                "akshare": ("akshare",),
+                "mysql": ("pymysql", "keyring"),
+            }[source_id]
+            readiness = [find_spec(module) is not None for module in modules]
+            return any(readiness) if source_id in {"wind", "ifind"} else all(readiness)
         except (ImportError, AttributeError, ValueError):
             return False
     return False
 
 
-def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dict:
+def build_catalog(
+    *,
+    probes: dict[str, dict] | None = None,
+    environ=None,
+    mysql_status: dict | None = None,
+    connection_statuses: dict[str, dict] | None = None,
+) -> dict:
     """Return a fresh JSON-ready catalog without importing or constructing any connector."""
     env = dict(os.environ if environ is None else environ)
     probe_map = probes or {}
@@ -596,7 +646,26 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
     for source_spec in SOURCE_SPECS:
         sid, name, family, source_type, auth, keys, deps, markets, fee, limitation = source_spec
         integrated = sid in INTEGRATED
-        configured = _configured(auth, keys, env)
+        connection_status = (connection_statuses or {}).get(sid)
+        if sid == "mysql" and connection_status is None:
+            connection_status = mysql_status
+        if sid in {
+            "wind",
+            "tinysoft",
+            "ifind",
+            "tushare",
+            "zhiqiu_reports",
+            "zhiqiu_wechat",
+            "zhiqiu_transcript",
+            "tavily",
+            "bing",
+            "mysql",
+        }:
+            configured = bool(connection_status and connection_status.get("configured"))
+            if sid != "wind":
+                configured = configured and bool((connection_status or {}).get("secret_configured"))
+        else:
+            configured = _configured(auth, keys, env)
         dependency_ready = _dependency_ready(sid, deps)
         allowed = integrated and sid not in DISABLED
         if sid in DISABLED or not integrated:
@@ -607,6 +676,8 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
             state = "blocked_dependency"
         else:
             state = "ready"
+        if connection_status and not connection_status.get("credential_store_available", True):
+            state = "blocked_config"
         probe = probe_map.get(sid, {})
         health = probe.get("health", "untested")
         callable_now = state == "ready" and allowed and health not in {"unavailable"}
@@ -622,7 +693,10 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
                 dependencies=deps,
                 markets=markets,
                 fee=fee,
-                limitations=[limitation],
+                limitations=[
+                    limitation,
+                    *(["tls_certificate_unverified"] if sid == "mysql" else []),
+                ],
                 readiness=SourceReadiness(
                     code_exists=True,
                     integration_completed=integrated,
@@ -684,6 +758,8 @@ def build_catalog(*, probes: dict[str, dict] | None = None, environ=None) -> dic
                             "index",
                             "series",
                             "dataset",
+                            *({"database"} if cid == "database_schema" else set()),
+                            *({"database", "table", "columns"} if cid == "table_query" else set()),
                             *(
                                 {"query"}
                                 if cid in {"search_assets", "search_research", "search_web"}

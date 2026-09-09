@@ -22,6 +22,7 @@ def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monke
     target.mkdir(parents=True)
 
     def run(*args, **kwargs):
+        assert "healProfilesModuleFallback({ installAnchor: anchor, home })" in args[0][3]
         modules = home / "profiles/node_modules/@deepseek-ai"
         modules.mkdir(parents=True)
         (modules / "dsh-example").symlink_to(target)

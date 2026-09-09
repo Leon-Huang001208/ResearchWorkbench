@@ -31,9 +31,15 @@ rwb web stop
 ```
 
 入口：`http://127.0.0.1:8088/#/fingpt`。3081 与 8088 的 PID、命令指纹和日志保存在 `~/.research-workbench/run/` 与 `logs/`；停止仅操作归属一致的进程，不触碰原有 3080。模型密钥只在设置页填写，不从 3080 或旧数据目录复制。
-DSH 源码固定 `b3e26660f0a7bca680f06366aec3bb8d731c725e`；CLI 版本为 `0.1.1-rc.2`，`host.describe` 当前协议实现报告 `0.0.1`。该本地合并提交包含原生 `session.delete`，启动器记录实际源码提交与构建闭包哈希。
+DSH 源码固定 `c919b2a460753859665db3f60143d525fb9140cf`；CLI 版本为 `0.1.3-alpha.2`。该 Fork 运行分支基于官方最新架构提供原生 `session/delete`，Workbench 兼容桥通过 Typert Gateway 的斜杠命名 RPC、Remote mux 和浏览器会话认证接入；启动器仍记录实际源码提交与构建闭包哈希。
 管理器默认使用固定源码中已构建的 DSH CLI；启动失败会回收本次新建进程并保留日志，不会接管占用端口的外部进程。
 不带 `--research-tools` 可启动禁工具聊天模式；无法完成沙箱启动检查时不要开放脚本。
+
+Fork 维护约定：`Leon-Huang001208/deepseek-harness` 的 `master` 只用
+`git merge --ff-only upstream/master` 跟踪官方仓库，官方 `upstream` 禁止推送；产品补丁保留在
+`workbench-runtime`，定期合入 Fork `master` 并完成 DSH 与 Workbench 全量回归后才能推送。每次
+`workbench-runtime` 提交变化，都必须同步本文件、启动器与能力目录的固定 SHA、私有运行副本和
+`build-lock.json`。若官方提供等价永久删除能力，应移除重复补丁，只保留必要的 Workbench 兼容桥。
 
 ## 数据与模块
 
@@ -43,7 +49,7 @@ DSH 源码固定 `b3e26660f0a7bca680f06366aec3bb8d731c725e`；CLI 版本为 `0.1
 - `main.py`：回环 Web API、安全来源边界、上传与隔离预览；无旧业务启动钩子。
 - `ui/`：正式五页与原生模块，详见 [UI 文档](research-web-ui.md)。
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
-- `skills/`：市场解读（`market-commentary`）、资料解读、公司研究、行业研究、基金评价五类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
+- `skills/`：市场解读、资料解读、公司研究、行业研究、基金评价和因子库研究六类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
 - `resources/`：实际 PDF 页码抽取、Office/HTML/Markdown 文件生成与重开检查。
 - `datahub/`：固定来源、分页、私有原始响应、会话不可变资料、校验读取与缓存；见 [DataHub](research-web-datahub.md)。
 - `runtime/public-data.mjs`：启动时只注册已有可调用来源的 `datahub_*` 工具，并通过可信会话身份与认证回环 DataHub 自动桥接、联动取消，不再重复上游解析或逐次确认；见 [公开数据工具](research-web-public-data.md)。
@@ -52,6 +58,7 @@ DSH 源码固定 `b3e26660f0a7bca680f06366aec3bb8d731c725e`；CLI 版本为 `0.1
 
 ```text
 index.json                   # 归属、默认模型和幂等受理收据
+connections/mysql.json       # 当前用户 MySQL 非秘密配置；密码不在此文件
 runtime/home/                # 专属DSH历史与凭据
 runtime/work/                # 干净启动目录，无.env
 runtime/*-lock.json           # 本地源码/构建锁
@@ -59,6 +66,8 @@ sessions/<uuid>/inputs/      # 上传资料，只读给研究脚本
 sessions/<uuid>/resources/   # 审核过的辅助脚本和模板，只读
 sessions/<uuid>/outputs/     # 真正生成的文件
 ```
+
+MySQL 密码由服务名 `ResearchWorkbench.DataHub`、账户键 `mysql:default:password` 保存到操作系统凭据库；凭据库不可用时闭合失败，不降级到环境变量或明文文件。模型 API Key 仍由专属 DSH 管理，两类秘密不共享命名空间。
 
 不得使用多个 Uvicorn worker 并发写同一索引。研究正文只读 DSH 日志；浏览器断线不取消任务也不自动重提。
 
@@ -98,6 +107,6 @@ Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真�
 - 原生 `web_search` 已有真实模型证据；财联社电报、基金净值及其批准/拒绝/等待中取消则是旧 DataHub 逐次审批机制下的历史证据。当前 DataHub 已替换为启动时仅暴露 callable 工具并自动取数；仍不开放任意网页 fetch、MCP 或自动依赖安装。
 - 早期基金示例只有20条单页数据；后续DataHub批次已完成2025净值13页243条、基本资料16项、分红25条、披露持仓220条，并由两个真实子Agent共用快照产出文件。见[DataHub验收](../.ai/reports/2026-09-02-datahub-acceptance.md)。仍缺基准序列、复权总回报、合同/定期报告原文及完整持仓，不能据此宣称完整基金尽调。文件格式验证不替代数据与结论复核。
 - 已验证真实无效模型报错并恢复、同键不重发、父与子脚本停止。BFF 中断后的审批/草稿恢复是旧 DataHub 逐次审批机制下的历史证据；当前已替换为 callable 工具自动取数，不再出现 DataHub 审批提示。未模拟提供方生成到一半时的任意故障类型；真实图片模型识别仍未覆盖。
-- 本轮仍是本机回环单人 Web；脚本隔离仅验证当前 macOS Seatbelt，未验证 Linux 部署。未新增任何依赖或第三方 MCP。
+- 本轮仍是本机回环单人 Web；浏览器交互与 MySQL Keyring 已在 macOS 本机验证，Windows/Linux 的 Web 服务凭据库后端仍需对应操作系统 CI 验证。MySQL 引入 PyMySQL 与 keyring，不新增第三方 MCP；桌面 sidecar、Tauri 安装包及安装级烟测不在本次范围内。
 - 早期固定Python启动探针 PID 38291 留在macOS内核 `UE` 状态；SIGKILL后未确认回收，临时目录 `/private/tmp/rwb-dsh-sandbox-probe.frLuyJ` 保留。它不是模型脚本；旧实验profile快照不完整，不能保证其权限/句柄状态。当前有效runner的全部取消测试已正常回收。
-- 未涉及桌面/Windows、市场首页/主题/自选、旧系统数据删除。
+- 未涉及桌面应用适配、市场首页/主题/自选、旧系统数据删除。

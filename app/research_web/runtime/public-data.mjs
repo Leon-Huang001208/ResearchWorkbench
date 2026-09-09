@@ -20,6 +20,13 @@ const BUSINESS = {
   datahub_search_announcements: ['search_announcements','搜索公司公告',{asset:{type:'string'},query:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},[]],
   datahub_search_research: ['search_research','搜索研报、公众号和会议纪要',{query:{type:'string'},document_type:{type:'string'},limit:{type:'integer'}},['query']],
   datahub_search_web: ['search_web','通过已配置供应商搜索公开网页',{query:{type:'string'},limit:{type:'integer'}},['query']],
+  datahub_get_database_schema: ['database_schema','逐级读取用户 MySQL 数据库、表和列结构',{database:{type:'string'},table:{type:'string'}},[]],
+  datahub_query_table: ['table_query','参数化查询已核验的 MySQL 单表',{
+    database:{type:'string'},table:{type:'string'},columns:{type:'array',items:{type:'string'}},
+    filters:{type:'array',items:{type:'object',properties:{column:{type:'string'},operator:{type:'string',enum:['eq','ne','lt','lte','gt','gte','in','between','is_null','not_null']},value:{}},required:['column','operator'],additionalProperties:false}},
+    order_by:{type:'array',items:{type:'object',properties:{column:{type:'string'},direction:{type:'string',enum:['asc','desc']}},required:['column'],additionalProperties:false}},
+    offset:{type:'integer'},limit:{type:'integer'},
+  },['database','table','columns']],
 };
 const MAX_BYTES = 1048576;
 
@@ -27,6 +34,24 @@ function isDenseStringArray(value) {
   if (!Array.isArray(value) || value.length > 32768) return false;
   for (let index=0;index<value.length;index++) if (!Object.hasOwn(value,index) || typeof value[index] !== 'string') return false;
   return true;
+}
+
+function validSchema(value,schema) {
+  if (!schema.type) return value === null || ['string','number','boolean'].includes(typeof value) || (Array.isArray(value) && value.length <= 100 && value.every(item=>validSchema(item,{})));
+  if (schema.type === 'string') return typeof value === 'string' && (!schema.enum || schema.enum.includes(value));
+  if (schema.type === 'integer') return Number.isSafeInteger(value);
+  if (schema.type === 'array') {
+    if (!Array.isArray(value) || value.length > 5000) return false;
+    for (let index=0;index<value.length;index++) if (!Object.hasOwn(value,index) || !validSchema(value[index],schema.items)) return false;
+    return true;
+  }
+  if (schema.type === 'object') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (schema.additionalProperties === false && Object.keys(value).some(key=>!Object.hasOwn(schema.properties,key))) return false;
+    if ((schema.required || []).some(key=>!Object.hasOwn(value,key))) return false;
+    return Object.entries(value).every(([key,item])=>validSchema(item,schema.properties[key]));
+  }
+  return false;
 }
 
 function stableBusinessQuery(capability, args, properties, required) {
@@ -39,10 +64,7 @@ function stableBusinessQuery(capability, args, properties, required) {
     if (!Object.hasOwn(args,key)) continue;
     const value=args[key];
     if (value === undefined) continue;
-    const valid=schema.type === 'string' ? typeof value === 'string'
-      : schema.type === 'integer' ? Number.isSafeInteger(value)
-      : schema.type === 'array' ? isDenseStringArray(value)
-      : false;
+    const valid=validSchema(value,schema);
     if (!valid) throw Error(`Business data argument ${key} has an invalid type`);
     if (schema.enum && !schema.enum.includes(value)) throw Error(`Business data argument ${key} is not an allowed value`);
   }

@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/03-research-sequence.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/03-research-sequence.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/docs/architecture/research-web/diagrams/03-research-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/outputs/research-web-architecture/03-research-sequence.html",
   "specification": {
-    "sha256": "d85922a31358690af39c9c049ebab4d55826f03d12ffc6ef0a8cf992393ae032",
-    "bytes": 6886
+    "sha256": "ba392eba0d1946c8a5d5db3e369843eb21542332f2c9741c9673923e9a3d0ffc",
+    "bytes": 6907
   },
   "artifact": {
-    "sha256": "fa24da18510ca9f8436a67fc82e33fb427a6c933f606db764f6cbeb30614b4ab",
-    "bytes": 652930
+    "sha256": "7691b26a7e3b3317ddeab9975afc5ca3a89e19c65527016a9147fa0c2080b18f",
+    "bytes": 653014
   },
   "validation": {
     "checksPassed": 9,

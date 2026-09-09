@@ -25,11 +25,12 @@
 | `shell.mjs` | 页面标题、导航搜索弹层、可收起的产品导航、真实运行/最近会话与会话右侧标签面板 |
 | `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索及附件拖放/粘贴入口；不直接发起研究 |
 | `capabilities.mjs` | 同一能力目录的筛选、卡片、详情、检查结果、只读 Tool、不可变版本与 Workflow 模板渲染 |
-| `data-catalog.mjs` | DataHub 的 13 项能力 / 21 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
+| `data-catalog.mjs` | DataHub 的 15 项能力 / 22 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
+| `connections.mjs` | 设置页统一连接中心、来源分组/同页详情、配置状态矩阵、秘密型表单和旧环境变量迁移确认；不自行读取或持久化凭据 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
 | `capability-controller.mjs` | 显式创建/复制/导入/编辑/检查/发布/停用/启用/版本/回滚操作及失败保稿 |
 | `workbench.mjs` | 市场、基金、产业链、资料等研究台入口，按需查询并把真实快照交接给研究会话 |
-| `asset-workspace.mjs` | 独立资产观察：概览、OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI、财务/事件/资料分块、自选、笔记、提醒和来源口径；指标只从 DataHub 行情行计算，缺失数据不填演示值 |
+| `asset-workspace.mjs` | 独立资产观察：概览、OHLC K 线、MA/BOLL、成交量、成交额、换手率、MACD、KDJ、RSI、财务/事件/资料分块、自选、笔记、提醒和来源口径；指标只从 DataHub 行情行计算，缺失数据不填演示值 |
 | `report-workflows.mjs` | Claw 与能力中心中的真实报告 Workflow 卡片和详情；显示锁定版本、模板、Excel 底稿、数据插件、步骤、日程和历史产物 |
 | `operations.mjs` | 只读展示模型 usage、Agent/Tool、DataHub、服务健康和项目数据根占用 |
 
@@ -38,7 +39,7 @@
 所有请求仅访问同源 `/api/research`；读取运行时、模型目录、工作空间、历史、`/capabilities` 与只读 `/tools` 后展示真实响应。错误可见，不生成本地演示结果。目录部分加载失败会独立报告并保留上次成功结果；DSH 离线时产品后端仍可读取已保存目录。Web 服务也离线时只能保留本页已加载状态，不宣称提供离线 PWA 或跨刷新缓存。
 
 - 新研究先 `POST /sessions`，再对新会话 `POST /messages`；消息带 `Idempotency-Key`。同一个失败草稿重试复用相同键；收到 `accepted: true` 才清空原稿。界面不伪造用户/助手消息或进度。
-- 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。没有真实值时不补价格、估值、主题或同类比较。
+- 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。DataHub 标准字段 `turnover` 表示成交额，`turnover_rate_pct` 表示换手率；两者不得混用，缺少换手率时显示未知。没有真实值时不补价格、估值、主题或同类比较。
 - Claw 首页先读取 `/report-workflows`，单独展示已迁移的报告 Workflow；通用 Workflow 卡不会冒充具体报告。点击详情只查看资源与版本，点击运行才创建独立 Claw 会话。AI 周报处于 `needs_attention` 时禁止运行。
 - 运行与用量页使用单个 `/operations/summary` 汇总请求，避免并发遍历同一 DSH 历史造成瞬时健康误判；页面无停止、重启或删除按钮。缺失 usage 与模型价格分别显示“未知”和“费用未配置”。
 - 会话详情来自 `GET /sessions/{id}`；SSE `snapshot` 替换真实详情，`runtime_error` 显示运行错误。事件连接恢复只重新读取快照，不重发消息。跨会话旧响应会被忽略；较旧 HTTP 快照不会覆盖后来到达的 SSE 输出。
@@ -55,6 +56,9 @@
 - 附件使用 multipart `files` 字段上传；返回 ID 作为 `attachment_ids` 提交。上传成功仅代表后端收到了文件，不代表模型已读取或工具沙箱已执行。
 - 文件下载只使用真实返回且经过检查的同源会话文件 URL。HTML 预览 iframe 使用空 `sandbox` 和 `no-referrer`，前端拒绝外部或任意路径的预览地址；后端仍负责授权、路径隔离和响应 CSP。
 - 模型切换和配置调用 `PUT /runtime/model`。API Key 为密码输入，不回填，不写 localStorage/sessionStorage，不进入日志；提交时清空输入框。失败后如需更新 Key，用户需重新输入。
+- 设置页“连接与授权”保留独立、默认折叠的 DSH 模型配置，并把 22 个 DataHub 来源统一放入“专业数据源、API 数据源、公开来源、本机集成”四组。桌面为来源列表与同页详情，窄屏上下排列；每个来源分别显示“已配置、已检测、已适配、可调用”，检测到组件或保存凭据不会自动变成可调用。
+- MySQL 详情仅显示本地非秘密字段；密码通过统一配置 API 交给系统凭据库，输入提交后立即清空，GET 永不回填。Wind 只保存 `auto/client_api/excel` 偏好，不收集账号密码；Client API 探测读取当前会话状态但不代为登录，Excel 未提供真实工作簿心跳时保持未验证。iFinD 和知丘使用账号池，天软、Tushare、Tavily、Bing 使用单一秘密；所有秘密都只进入系统凭据库。尚未完成 DataHub 适配或无需鉴权的来源只展示真实状态与诊断，不渲染无效配置表单。
+- Excel 是本机集成诊断，不是账号来源。Excel 自动化、Wind 插件、iFinD 插件和报告工作流逐层展示当前 8088 服务所在平台的检测结果；仅完成实际心跳或授权工作簿探测时才标记可用。旧 `.env` 迁移先显示不含值的预览，用户选择目标并二次确认后才调用迁移接口。
 - 前端安全 console 事件只包含固定事件名、请求 method 和 HTTP status；不记录 URL、会话 ID、输入、文件名、响应正文或凭据。服务端持久日志由 Research Web 后端负责写入项目日志设施。
 
 ## Markdown 与安全边界
@@ -119,7 +123,7 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 | Claw 工作区 | 会话恢复聊天；当前工作区主画布只投影当前 `detail` 的资料与文件，复用安全下载/预览 | `research_web_ui_layout.test.mjs` |
 | 会话管理 | 行级菜单重命名/软删除；已删除视图恢复或永久删除；30 天后在线自动清理 | UI 布局测试 + `test_api.py` 生命周期测试 |
 | 首页模板/分类 | Claw 仅已启用 Workflow；FinGPT 四 Skill；分类本地筛选，卡片与上方 Skill 选择只准备版本草稿 | 布局渲染测试 + 实际 app 事件无网络 DOM 边界测试；视口/hover 由控制器另验 |
-| 数据目录 | 13 项能力、21 个来源双视图；未适配/未配置/不可调用分别可见，显式探测只访问一源 | `research_web_capabilities_ui.test.mjs` + `test_datahub_catalog.py` |
+| 数据目录 | 15 项能力、22 个来源双视图；MySQL 展示本地配置状态链，未适配/未配置/不可调用分别可见，显式探测只访问一源 | `research_web_capabilities_ui.test.mjs` + `research_web_ui.test.mjs` + `test_datahub_catalog.py` |
 
 实现子任务未启动模型；集成控制器已另行执行真实Web验收。`tests/e2e/research_web_layout.mjs`覆盖1440/1600/1920、820平板与390手机共15页面组合，搜索、分类、slash键盘、抽屉及四Skill双模式草稿通过；控制器已实际查看全部15张最终截图。屏幕阅读器和桌面平台未验证。新真实模型旅程（自建Skill、PDF、Workflow双Agent文件）和只读历史回归见 [本轮记录](../.ai/reports/2026-09-03-research-ui-live.md)。
 

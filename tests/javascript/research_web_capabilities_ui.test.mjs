@@ -89,11 +89,11 @@ test('one catalog filters kind, source, category and Chinese search, including d
   assert.match(renderCapabilityCatalog({ items: [], error: '读取失败' }), /读取失败/);
 });
 
-test('capability center renders, filters, opens and selects the ten built-in Skills without a router card', async () => {
+test('capability center renders, filters, opens and selects every built-in Skill without a router card', async () => {
   const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
   const builtinResearchSkills = productBuiltinResearchSkills();
-  assert.equal(builtinResearchSkills.length, 10);
-  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 10);
+  assert.equal(builtinResearchSkills.length, 11);
+  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 11);
   assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin && item.enabled), true);
 
   const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });

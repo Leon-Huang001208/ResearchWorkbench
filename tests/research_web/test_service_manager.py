@@ -41,6 +41,27 @@ def test_process_contract_uses_brand_neutral_runtime_and_fixed_ports(manager):
     assert not any(part.startswith("af" + "_") for item in (runtime, web) for part in item.command)
 
 
+def test_process_contract_supports_isolated_staging_ports(manager):
+    staged = WebServiceManager(
+        project_root=manager.project_root,
+        data_root=manager.data_root,
+        runtime_source=manager.runtime_source,
+        python=manager.python,
+        node=manager.node,
+        web_port=18088,
+        runtime_port=13081,
+    )
+
+    runtime, web = staged._processes()
+
+    assert runtime.port == 13081
+    assert web.port == 18088
+    assert runtime.command[runtime.command.index("--port") + 1] == "13081"
+    assert runtime.command[runtime.command.index("--datahub-url") + 1] == ("http://127.0.0.1:18088")
+    assert web.command[-1] == "18088"
+    assert staged.web_url == "http://127.0.0.1:18088/#/fingpt"
+
+
 def test_default_runtime_source_is_project_private(tmp_path, monkeypatch):
     monkeypatch.delenv("RESEARCH_DSH_SOURCE", raising=False)
     data_root = tmp_path / ".research-workbench" / "research-web"
@@ -169,3 +190,54 @@ def test_status_formatter_is_concise():
     assert "runtime: healthy" in rendered
     assert "web: stopped" in rendered
     assert "8088/#/fingpt" in rendered
+
+
+def test_runtime_health_exchanges_cookie_and_writes_private_auth(manager, monkeypatch):
+    manager._prepare_private_directories()
+    (manager.runtime_source / "package.json").write_text(
+        json.dumps({"version": "0.1.3-alpha.2"}), encoding="utf-8"
+    )
+    monkeypatch.setattr(manager, "_runtime_launch_token", lambda: "t" * 43)
+    monkeypatch.setattr(manager, "_exchange_runtime_cookie", lambda token: "dsh-auth-test=value")
+    requests = []
+
+    def request(port, method, path, payload=None, extra_headers=None):
+        requests.append((port, method, path, payload, extra_headers))
+        return {
+            "type": "server-response",
+            "rpcId": payload["rpcId"],
+            "result": {"ok": True, "value": {"items": []}},
+        }
+
+    monkeypatch.setattr(manager, "_json_request", request)
+
+    assert manager._runtime_healthy() is True
+    auth_path = manager._runtime_auth_path()
+    assert auth_path.stat().st_mode & 0o777 == 0o600
+    auth = json.loads(auth_path.read_text(encoding="utf-8"))
+    assert auth["cookie"] == "dsh-auth-test=value"
+    assert auth["authority"] == "127.0.0.1:3081"
+    assert requests[0][0:3] == (3081, "POST", "/api/session/list")
+    assert requests[0][3]["payload"] == {"args": {"_request": {}}}
+    assert requests[0][4] == {"Cookie": "dsh-auth-test=value"}
+
+
+def test_runtime_auth_fails_closed_for_foreign_authority(manager):
+    manager._prepare_private_directories()
+    auth_path = manager._runtime_auth_path()
+    auth_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_path.write_text(
+        json.dumps(
+            {
+                "authority": "127.0.0.1:9999",
+                "cookie": "dsh-auth-test=value",
+                "cwd": str((manager.data_root / "runtime/work").resolve()),
+                "source_commit": "c919b2a460753859665db3f60143d525fb9140cf",
+                "version": "0.1.3-alpha.2",
+            }
+        ),
+        encoding="utf-8",
+    )
+    auth_path.chmod(0o600)
+
+    assert manager._read_runtime_auth() is None

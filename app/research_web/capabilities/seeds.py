@@ -65,6 +65,20 @@ SKILL_SPECS = (
         "evidence_protocol": False,
     },
     {
+        "slug": "factor-database-research",
+        "name": "因子库研究",
+        "description": "基于实际材料开展因子库研究，保留来源、口径及数据缺失，按需交付真实文件。",
+        "category": "因子研究",
+        "scenarios": ["因子库研究"],
+        "default_formats": ["docx", "html", "xlsx"],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_database_schema",
+            "datahub_query_table",
+        ],
+        "evidence_protocol": False,
+    },
+    {
         "slug": "sell-side-report-reader",
         "name": "研报增量分析",
         "description": "聚焦卖方研报或研究文章的增量、公开时序、可信度与证伪；不用于一般资料提取或个人买卖建议。",

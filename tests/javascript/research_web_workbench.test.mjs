@@ -70,7 +70,8 @@ test('asset terminal derives technical indicators only from supplied market bars
   const rows = Array.from({ length: 30 }, (_, index) => ({
     date: `2026-08-${String(index + 1).padStart(2, '0')}`,
     open: 100 + index, high: 102 + index, low: 99 + index, close: 101 + index,
-    volume: 1000 + index * 10, amount: 100000 + index * 1000, turnover_rate: 1 + index / 100,
+    volume: 1000 + index * 10, turnover: 100000 + index * 1000,
+    turnover_rate_pct: 1 + index / 100,
   }));
   const bars = enrichMarketBars(rows);
   const latest = bars.at(-1);
@@ -78,7 +79,19 @@ test('asset terminal derives technical indicators only from supplied market bars
   for (const key of ['ma5', 'ma10', 'ma20', 'bollUpper', 'bollLower', 'dif', 'dea', 'macd', 'k', 'd', 'j', 'rsi']) {
     assert.equal(Number.isFinite(latest[key]), true, `${key} should be calculated`);
   }
+  assert.equal(latest.amount, 129000);
   assert.equal(latest.turnover, 1.29);
+});
+
+test('asset metrics keep canonical turnover amount separate from turnover rate', async () => {
+  const assets = await import(new URL('asset-workspace.mjs', root));
+  const html = assets.renderAssetWorkspace({
+    observation: { asset: '600519.SH', asset_type: 'stock', blocks: {} },
+    rows: { overview: [{ turnover: 3336029501, turnover_rate_pct: null }], history: [] },
+  });
+  assert.match(html, /成交额<\/dt><dd>3,336,029,501<\/dd>/);
+  assert.match(html, /换手率<\/dt><dd>—<\/dd>/);
+  assert.doesNotMatch(html, /3,336,029,501%/);
 });
 
 test('asset workspace never turns absent market values into zero', async () => {

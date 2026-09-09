@@ -5,10 +5,13 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 目录读取不依赖会话、在线 DSH 或模型调用。工具目录为当前研究 composition 的只读声明，
 不表示运行实例在线、凭据已配置或某个 DataHub Tool 已进入当前 Runtime 的 `enabledTools`。
 
-当前目录包含 10 个内置 Skill 和 4 个内置 Workflow。2026-09-08 新增的五个专用研究
-Skill 通过现有原生发现机制路由，没有新增路由卡片、能力类型或执行器；此前五个通用 Skill
-与四个 Workflow 的稳定 ID 和历史版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示
-和模板迁移；Evidence、Claim、Quality Gate 与旧报告编译链没有恢复。
+DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；只有 `integration_completed && callable` 的来源才会让对应工具进入 Runtime 注册集合。配置变更后页面可以立即重新检测，但原生工具集合仍以研究服务重启时的快照为准。
+
+当前目录包含 11 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
+统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
+机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
+版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
+Quality Gate 与旧报告编译链没有恢复。
 
 ## API（全部位于 `/api/research`）
 
@@ -27,7 +30,7 @@ Skill 通过现有原生发现机制路由，没有新增路由卡片、能力�
 | GET `/capabilities/{id}/versions` | `{items:[{version,native_name,metadata,published_at,sha256,current}]}` |
 | GET `/capabilities/{id}/versions/{version}` | 原始指令、元数据、文件及步骤，`read_only:true` |
 | GET `/capabilities/{id}/versions/{version}/export` | ZIP：原始 SKILL.md、capability.json、可选 workflow.json、资源 |
-| GET `/tools` | 21 项真实 guard/注册声明：8 项研究/控制工具和 13 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
+| GET `/tools` | 23 项真实 guard/注册声明：8 项研究/控制工具和 15 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
 | GET `/workflows` | 同一能力目录中四项种子及用户 Workflow；没有平行目录 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |
@@ -77,8 +80,8 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 
 ### 内置研究 Skill 边界
 
-能力中心由 `seeds.py` 的声明式元数据生成 10 个内置 Skill。原有资料解读、公司研究、行业研究、
-基金评价和市场解读保持通用入口；新增能力只在下列窄场景触发：
+能力中心由 `seeds.py` 的声明式元数据生成 11 个内置 Skill。资料解读、公司研究、行业研究、
+基金评价、市场解读和因子库研究保持各自既有入口；本批新增能力只在下列窄场景触发：
 
 | 专用 Skill | 正向触发 | 反向边界 |
 | --- | --- | --- |
@@ -195,7 +198,7 @@ macOS 移动目录需更新 `..`：native 投影顶层目录为服务自有 0700
 
 ## 原生接线与工具真实性
 
-DSH 固定提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`。
+DSH 固定提交 `c919b2a460753859665db3f60143d525fb9140cf`。
 核对 upstream `packages/skill/skill-filesystem/README.md` 和 FileSystemSkillProvider 源码：
 发现仅一层 bundle，watch 触发 invalidate，每次 get 重读正文，无版本 pin 或 install RPC。
 产品以不可变包 + 带版本的原生名称实现绑定；自建名称为 `rwb-<产品id>-vN`，内置保留原 ID。
@@ -215,16 +218,16 @@ DSH 固定提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`。
 Web 先以 session.models 冷恢复再 skill.list 核对；缺 exact native_name 时409拒绝，不改写会话历史。
 界面应提示等待已授权目录接线；仍缺失时新建/显式升级会话并复用资料，不自动重写旧 preset 记录。
 
-tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。DataHub 元数据标记为 `automatic`；Runtime 启动时只注册至少有一个可调用来源的固定工具。能力中心“数据”页另从 DataHub 静态目录投影 13 项业务能力、21 个来源和绑定矩阵；它不是第四种运行器，加入草稿只会表达相应 `datahub_*` Tool 意图，不能绕过 `enabledTools`。
+tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集，并附参数、来源、审批和条件。DataHub 元数据标记为 `automatic`；Runtime 启动时只注册至少有一个可调用来源的固定工具。能力中心“数据”页另从 DataHub 静态目录投影 15 项业务能力、22 个来源和绑定矩阵；其中“因子库研究”只通过 schema、受控单表和会话脚本工具工作，不能直连数据库或绕过 `enabledTools`。
 真实原生注册测试覆盖 skill/subagent/report/send_message/interrupt_agent/list_agents/web_search
 及本项目 research_run_script/datahub_get_fund_data；DataHub 的 Query schema 与五个 SOURCES 直接复用。
-report 仅原生子 Agent 作用域可用；所有工具权限、模型、执行上限及审批策略均未改变。
+新版 DSH 已移除独立 `report` 工具；子 Agent 通过原生 continuable 结果链路回传，所有工具权限、模型、执行上限及审批策略均未改变。
 
 ## 验证映射
 
 | 源码 | 测试 | 验证边界 |
 | --- | --- | --- |
-| capabilities/models/packages/catalog/seeds、skills | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 10 Skill/4 Workflow 离线种子、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
+| capabilities/models/packages/catalog/seeds、skills | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 11 Skill/4 Workflow 离线种子、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
 | capabilities/routes、main/service/store | test_capabilities_admission.py、既有 research_web 回归 | 原生名称核对、格式优先、幂等、跨会话、并发、创建产物 |
 | tools、launch_runtime、research.cordis.yml | test_capabilities_native.py | 固定源码真实 provider list/get/watch 与实际注册；不调用模型 |
 

@@ -9,7 +9,7 @@
 | `models.py` | 元数据、输入字段、步骤与产品错误契约 | 执行研究 |
 | `packages.py` | 有界 MD/ZIP 读取、路径/类型/编码检查、保留问题 | 安装依赖、解压到任意路径或运行脚本 |
 | `catalog.py` | 草稿、检查、不可变版本、原生目录投影、会话资源快照 | Agent 编排 |
-| `seeds.py` | 十个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
+| `seeds.py` | 十一个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
 
@@ -54,7 +54,7 @@ Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH
 
 原生 FileSystemSkillProvider 仅观察产品专属目录，关闭默认宿主 roots 与链接跟随。使用原生发现/加载，不虚构安装 RPC。首版不删除历史版本或用户源包。
 
-固定 DSH 源码提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e` 的会话记录保存 preset ID，而非整份 Skill root 配置快照；能力目录与 Runtime 启动校验使用同一提交标识。冷恢复按 preset ID 重新组合当前配置，已挂载 Agent 则保留现有 generation。因此更新需先确认无活动任务，不能在研究中替换 preset 后假定已生效。Web 提交前实际核对 `skill.list` 中的原生名称；未发现时明确拒绝，不伪装调用成功。2026-09-03 已验证专属服务空闲后更新、旧会话冷恢复发现六个原生能力、恢复八条历史并成功继续第五轮；这不替代自建能力发布调用验收。
+固定 DSH 源码提交 `c919b2a460753859665db3f60143d525fb9140cf` 的会话记录保存 preset ID，而非整份 Skill root 配置快照；能力目录与 Runtime 启动校验使用同一提交标识。冷恢复按 preset ID 重新组合当前配置，已挂载 Agent 则保留现有 generation。因此更新需先确认无活动任务，不能在研究中替换 preset 后假定已生效。Web 提交前实际核对 `skills/list` 中的原生名称；未发现时明确拒绝，不伪装调用成功。2026-09-03 已验证专属服务空闲后更新、旧会话冷恢复发现六个原生能力、恢复八条历史并成功继续第五轮；这不替代自建能力发布调用验收。
 
 ## 研究请求与版本证据
 
@@ -62,7 +62,9 @@ Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH
 
 显式 `expected_formats` 优先；未提供时使用所选能力默认格式。详情显示能力/版本和 Workflow 预设步骤，执行活动及最终文件从原生历史与真实产物读取，不由模板推断完成状态。
 
-Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数据工具，共 21 项。数据 Tool 使用子系统前缀而非产品品牌，因此将来产品改名不需要迁移研究协议。能力目录仍可浏览全部登记项，但 Research Runtime 启动时只把至少有一个可调用 Provider 的固定 DataHub 工具写入 `enabledTools`；配置变化在重启后生效。已注册的只读 DataHub 查询自动执行，未注册能力不会出现在模型工具列表中。
+Tool 目录只读展示 8 个研究/控制工具与 15 个 `datahub_*` 业务数据工具，共 23 项。新增数据库目录与单表查询仅在本机 MySQL 配置、凭据和依赖就绪后由 Research Runtime 写入 `enabledTools`；配置变化在重启后生效。已注册的只读 DataHub 查询自动执行，未注册能力不会出现在模型工具列表中。
+
+工具目录与 Runtime 使用统一连接中心的来源状态：保存配置、探测健康、完成适配、允许调用和当前可调用分别计算，不因 Wind/iFinD/Excel 被本机检测到就虚构 Provider。能力 API 接收当前数据根后读取同一安全摘要；秘密、主机账号明文和探测临时响应不会进入能力包、原生 Skill 或 Tool schema。
 
 本轮从旧市场内容能力中只迁入可独立运行的“市场解读” Skill 和“市场资料筛选与解读交付” Workflow：脚本读取当前会话已有结构化资讯，按时间、来源和关键词执行透明排序并生成文件。它不导入旧 UI、数据库、调度器、事实断言或报告编译链；没有实际数据时不得生成市场结论。
 
@@ -78,13 +80,13 @@ Tool 目录只读展示 8 个研究/控制工具与 13 个 `datahub_*` 业务数
 
 ## 验证边界
 
-包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 10 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
+包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 11 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
 
 2026-09-03 实际对话产物经人工审查发布 `1ba298cc4b754aee9496b7d1c5c78bf7` v1，在新会话 `7ee7b736-673a-4aff-8006-73de6c10b600` 生成并下载 HTML，保存原生名称及编译哈希。手动导入 `528c5a3dd15849b0a7f29fbdf5441b01` 从不完整元数据草稿，经表单编辑、检查、v1、v2、停用、回滚v1、刷新、ZIP导出完成闭环。记录在 `.ai/reports/2026-09-03-research-ui-live.md`；失败首稿与原版本保留。
 
 Workflow 历史页面按研究记录的不可变版本读取预设步骤；请求失败显示缺失说明且允许显式刷新重试，不能永久缓存失败空步骤，也不能用当前目录替代旧版。恢复后只清除该版本读取错误，不隐藏其他运行错误。预设步骤不显示自动完成勾选。
 
-Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 10 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
+Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 11 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
 
 ## 具体报告 Workflow
 

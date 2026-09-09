@@ -1,5 +1,21 @@
 # 架构迭代核对记录
 
+## 2026-09-08 — DSH 最新版 Gateway 兼容迁移
+
+- Research Runtime 固定到基于官方最新 `master` 重建的 Fork 运行分支；Workbench 兼容桥把原有白名单调用映射到 Typert Gateway 的斜杠端点、`payload.args`、Cookie 鉴权和 Remote 复用流，对外 HTTP、会话、消息、DataHub、文件与删除接口不变。
+- 服务管理器增加一次性启动令牌换 Cookie、`0600` 控制文件核验和可配置备用端口；生产 3081/8088 在隔离验收完成前保持旧运行版本。
+- 新版 DSH 已移除独立 `report` 工具；Claw 子 Agent 结果通过原生 continuable 链路回传，能力目录和最终工具 guard 不再声明不存在的工具。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"兼容桥只把既有白名单RPC、历史恢复、审批和事件投影映射到新版Typert Gateway与Remote协议；Workbench对外API、会话语义和SSE边界不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"固定DSH版本、Cookie鉴权和备用端口属于既有专属Runtime与Service Manager节点内部升级，不新增生产服务、端口或执行引擎。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"移除新版DSH已不存在的独立report工具并同步真实参数名；Skill、DataHub和子Agent能力仍经相同原生工具注册与guard边界。","diagrams":[]} -->
+
+## 2026-09-08 — 用户本地 MySQL DataHub
+
+- DataHub 增加本机连接配置与系统凭据库边界、逐级 schema 和参数化单表工具；目录更新为 15 项能力、22 个来源。真实 MySQL 与原生 Windows 验证尚未执行，不能由离线模拟推导可达性或平台兼容。
+
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"新增用户本地 MySQL 配置与系统凭据库边界、两个受控业务工具及单线程 Provider。","diagrams":["02-module-dependencies","03-research-sequence","04-data-file-flow"]} -->
+
 ## 2026-09-07 — FinGPT 对话、DataHub 自动查询与异常统计
 
 - 对话展示仍位于现有 UI 模块，不新增服务、接口或状态存储；用户右侧气泡、无可见署名、模式化 ARIA 与分类异常横幅属于既有会话投影的呈现修正。图 02 更新 UI 到现有 BFF/DSH 的关系说明。
@@ -233,7 +249,7 @@
 
 ## 2026-09-07 — DSH 会话删除固定版本
 
-- Research Runtime 与能力目录固定到本地 DSH 合并提交 `b3e26660f0a7bca680f06366aec3bb8d731c725e`，启动时继续要求源码提交和已审核构建闭包同时匹配。
+- Research Runtime 与能力目录固定到 Fork 的 DSH 运行提交 `c919b2a460753859665db3f60143d525fb9140cf`，启动时继续要求源码提交和已审核构建闭包同时匹配。
 - 该升级只替换既有 3081 Runtime 的固定实现版本；服务、端口、模块依赖和能力目录结构保持不变，因此无需重绘架构图。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"仅更新既有3081 Research Runtime的固定DSH源码提交和构建闭包，不改变服务、端口或启动数据流。","diagrams":[]} -->
@@ -264,9 +280,29 @@
 
 ## 2026-09-08 — 五项专用研究 Skill 与证据协议
 
-- 能力目录从五个通用 Skill 扩展为十个 Skill；四个 Workflow 保持不变。新增研报增量、单一金融事件、产业链与主题、业绩与一致预期、宏观与跨资产五项窄边界能力，不登记独立路由 Skill。
+- 在并行加入“因子库研究”的当前主分支上，能力目录为十一个 Skill；四个 Workflow 保持不变。新增研报增量、单一金融事件、产业链与主题、业绩与一致预期、宏观与跨资产五项窄边界能力，不登记独立路由 Skill。
 - 品牌中立证据协议以一份共享源码维护，种子构建时复制进各专用包并随不可变版本哈希封存。研报校验与 SVG 重绘脚本使用既有研究沙箱和 PDF helper，不增加工具、依赖或宿主权限。
 - 能力检查新增 `runtime_incompatible_script`，拒绝受审脚本中的子进程及宿主进程入口。本轮没有新增 API、能力类型、执行器、服务或跨模块关系，既有能力发布与会话快照图已覆盖，因此十张架构图无需重生成。
 
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录增加五个专用Skill、版本化证据协议和进程入口检查，仍复用既有种子、检查、发布、原生发现与会话快照边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"新增Skill资源继续使用既有原生发现目录、研究脚本沙箱和PDF helper，未增加进程、网络、文件或依赖权限。","diagrams":[]} -->
+
+## 2026-09-08 — 资产成交额与换手率口径纠正
+
+- 资产观察把 DataHub 标准字段 `turnover` 显示为成交额，把 `turnover_rate_pct` 显示为换手率；缺失值保持未知。
+- 该修复不改变 DataHub 快照、资产观察 API、图表节点或数据流，只纠正既有 UI 字段映射，十张架构图无需更新。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅纠正既有资产指标卡的成交额与换手率字段映射，不改变模块、API或数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"资产观察继续读取同一DataHub标准行；只区分既有turnover与turnover_rate_pct口径。","diagrams":[]} -->
+
+## 2026-09-08 — 统一数据源连接中心
+
+- 设置页将 22 个来源统一为分组列表与同页详情，并分别展示配置、检测、适配和可调用状态；移动端改为上下布局。该变化仍位于现有产品壳和 DataHub 页面边界内。
+- DataHub 增加通用来源配置、系统凭据引用、平台诊断和旧环境迁移；没有新增外部服务、数据快照类型或绕过 Provider 的查询路径。
+- Runtime 与能力目录改为读取统一连接状态，但仍只在启动时按 `integration_completed && callable` 生成 `enabledTools`，既有 DSH 与 DataHub 拓扑不变。
+- Wind、iFinD 和 Excel 的本机检测只形成诊断证据；未完成 Provider 适配时不进入 Runtime。真实厂商组件与账号环境尚未验收。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"连接中心复用现有设置页、产品壳和同源API，仅把来源列表与真实配置诊断组合为响应式主从视图。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"通用配置、凭据引用、探测和迁移均封装在现有DataHub节点内，Provider路由与会话快照数据流保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Runtime改读统一来源状态但仍在启动时生成enabledTools，没有新增执行服务、注册阶段或查询通道。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力工具目录复用统一连接摘要计算可选性，能力包、版本、原生注册和权限边界保持不变。","diagrams":[]} -->

@@ -50,6 +50,7 @@ def _is_host_process_entry(module, name):
 
 class CapabilityCatalog:
     def __init__(self, root: Path):
+        self.data_root = root
         self.root = root / "capabilities"
         self.native_root = self.root / "native-skills"
         for path in (
@@ -411,7 +412,7 @@ class CapabilityCatalog:
                     )
             except CapabilityError as exc:
                 issues.append(issue(exc.code, str(exc), "SKILL.md"))
-        allowed = {tool["id"] for tool in tool_catalog()["items"]}
+        allowed = {tool["id"] for tool in tool_catalog(self.data_root)["items"]}
         required_tools = metadata.get("required_tools", [])
         requirements = metadata.get("dependencies", [])
         required_tools = list(required_tools) if isinstance(required_tools, list) else []

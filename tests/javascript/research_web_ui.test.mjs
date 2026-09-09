@@ -10,6 +10,7 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
   }
 }));
 const [markdown, core, views] = modules;
+const dataCatalog = await import(new URL('data-catalog.mjs', root));
 const session = (id = 's1', extra = {}) => ({ id, title: '真实会话', mode: 'fingpt', status: 'idle', messages: [], activities: [], subagents: [], files: [], approvals: [], questions: [], ...extra });
 
 test('Markdown renders real headings, paragraphs, code, lists, tables and source links', () => {
@@ -35,6 +36,8 @@ test('routing accepts only product routes and safely round trips session identif
   assert.deepEqual(core.parseRoute('#/history?mode=fingpt'), { page: 'history', sessionId: null, historyMode: 'fingpt', historyView: 'active' });
   assert.deepEqual(core.parseRoute('#/history?mode=claw&view=deleted'), { page: 'history', sessionId: null, historyMode: 'claw', historyView: 'deleted' });
   assert.deepEqual(core.parseRoute('#/history?mode=unknown&view=unknown'), { page: 'history', sessionId: null, historyMode: null, historyView: 'active' });
+  assert.deepEqual(core.parseRoute('#/settings?connection=ifind'), { page: 'settings', sessionId: null, connectionId: 'ifind' });
+  assert.deepEqual(core.parseRoute('#/settings?connection=../../runtime'), { page: 'settings', sessionId: null });
   assert.equal(core.sessionHash(session('a/b')), '#/fingpt?session=a%2Fb');
 });
 
@@ -148,6 +151,25 @@ test('entrypoint is self hosted and settings do not persist secrets in browser s
   assert.match(app, /password/);
 });
 
+test('connection secrets are cleared immediately after request serialization', async () => {
+  const app = await readFile(new URL('app.mjs', root), 'utf8');
+  const request = app.indexOf('api.saveSourceConfiguration(sourceId, payload)');
+  const clearPayload = app.indexOf('forgetConfigurationSecrets(payload)', request);
+  const awaitResult = app.indexOf('await controller.action', request);
+  assert.ok(request >= 0 && clearPayload > request);
+  assert.ok(clearPayload < awaitResult, 'payload must be cleared before waiting for the response');
+  assert.match(app.slice(request, awaitResult), /values\.keys\(\)/);
+  assert.match(app, /querySelectorAll\('input\[type="password"\]'\)/);
+});
+
+test('connection probe feedback uses health and shared ZhiQiu removal discloses scope', async () => {
+  const app = await readFile(new URL('app.mjs', root), 'utf8');
+  assert.match(app, /current\.health === 'healthy'/);
+  assert.match(app, /知丘研报、公众号与纪要共享/);
+  assert.match(app, /<details class="settings-card model-settings">/);
+  assert.doesNotMatch(app, /current\.status === 'healthy'/);
+});
+
 test('a stale refresh never overwrites a newer SSE snapshot', async () => {
   let handlers; let resolveRefresh; let reads = 0;
   const controller = core.createController({ api: {
@@ -197,6 +219,43 @@ test('API uploads actual files as multipart and sends secrets only in configurat
   await api.configure({ provider: 'deepseek-official', model: 'deepseek-v4-flash', api_key: 'very-private' });
   assert.equal(JSON.parse(calls[1][1].body).api_key, 'very-private');
   assert.doesNotMatch(JSON.stringify(logs), /very-private|contents|input.md/);
+});
+
+test('API exposes local MySQL configuration without a password read path', async () => {
+  const calls=[];const api=core.createAPI({fetcher:async(url,options)=>{calls.push([url,options]);return new Response(JSON.stringify({configured:true,secret_configured:true}));},logger(){}});
+  await api.mysqlConfiguration();
+  await api.saveMysqlConfiguration({label:'因子库',host:'db.test',port:3306,user:'reader',charset:'gbk',tls_mode:'required_no_verify',password:'one-shot'});
+  await api.deleteMysqlConfiguration();
+  assert.deepEqual(calls.map(([url,options])=>[url,options.method]),[
+    ['/api/research/data/sources/mysql/configuration','GET'],
+    ['/api/research/data/sources/mysql/configuration','PUT'],
+    ['/api/research/data/sources/mysql/configuration','DELETE'],
+  ]);
+  assert.equal(Object.hasOwn(JSON.parse(calls[0][1].body || '{}'),'password'),false);
+});
+
+test('API exposes the unified connection center and generic configuration contract', async () => {
+  const calls=[];const api=core.createAPI({fetcher:async(url,options)=>{calls.push([url,options]);return new Response('{}');},logger(){}});
+  await api.connections();
+  await api.sourceConfiguration('ifind');
+  await api.saveSourceConfiguration('ifind',{backend:'auto',accounts:[]});
+  await api.deleteSourceConfiguration('ifind');
+  await api.connectionMigrationPreview();
+  await api.migrateConnections({source_ids:['ifind'],confirm:true});
+  assert.deepEqual(calls.map(([url,options])=>[url,options.method]),[
+    ['/api/research/data/connections','GET'],
+    ['/api/research/data/sources/ifind/configuration','GET'],
+    ['/api/research/data/sources/ifind/configuration','PUT'],
+    ['/api/research/data/sources/ifind/configuration','DELETE'],
+    ['/api/research/data/connections/migration-preview','GET'],
+    ['/api/research/data/connections/migrations','POST'],
+  ]);
+});
+
+test('MySQL source detail shows the four-stage local connection state and settings link', () => {
+  const html=dataCatalog.renderDataSourceDetail({id:'mysql',name:'用户 MySQL 数据库',family:'datahub',source_type:'database',description:'本机配置',auth_type:'account',dependencies:['PyMySQL','keyring'],markets:['用户数据库'],bindings:[],readiness:{code_exists:true,integration_completed:true,configured:true,dependency_ready:true,allowed:true,callable:false,integration_state:'ready',health:'untested'}},false);
+  for(const label of ['未配置','已保存','已检测','可调用']) assert.match(html,new RegExp(label));
+  assert.match(html,/href="#\/settings"/);
 });
 
 test('SSE malformed payload reports errors and closing a stream releases it', () => {

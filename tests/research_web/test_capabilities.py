@@ -114,7 +114,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 14
+    assert len(rows) == 15
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
@@ -126,6 +126,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         "业绩与一致预期",
         "宏观与跨资产",
         "研报增量分析",
+        "因子库研究",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]
@@ -143,7 +144,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 28
+    assert len(tools) == 29
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}
     assert workflow_tools == {
         "report_workbook_refresh",
@@ -203,6 +204,16 @@ def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
             "市场",
             ["docx", "html", "xlsx"],
             ["research_run_script", "datahub_search_news"],
+        ),
+        "factor-database-research": (
+            "因子库研究",
+            "因子研究",
+            ["docx", "html", "xlsx"],
+            [
+                "research_run_script",
+                "datahub_get_database_schema",
+                "datahub_query_table",
+            ],
         ),
     }
     for slug, (name, category, formats, tools) in existing.items():

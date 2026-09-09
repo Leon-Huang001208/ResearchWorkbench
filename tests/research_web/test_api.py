@@ -16,6 +16,7 @@ class NativeFixture:
         self.calls = []
         self.fail_prompt = False
         self.confirm_delete = True
+        self.running = set()
 
     async def rpc(self, method, payload):
         self.calls.append((method, payload))
@@ -26,7 +27,12 @@ class NativeFixture:
         if method == "subagent.list":
             return {"entries": []}
         if method == "session.list":
-            return {"items": []}
+            return {
+                "items": [
+                    {"sessionId": session_id, "running": True}
+                    for session_id in sorted(self.running)
+                ]
+            }
         if method == "session.delete":
             return {"deletedSessionIds": [payload["sessionId"]] if self.confirm_delete else []}
         if method == "skill.list":
@@ -106,10 +112,11 @@ def test_session_soft_delete_restore_is_recoverable_and_never_archives_native_hi
 
 
 def test_session_soft_delete_rejects_busy_and_unknown_sessions(api):
-    client, _, service = api
+    client, native, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     service.store.session(sid)["status"] = "running"
     service.store.save()
+    native.running.add(sid)
 
     busy = client.delete(f"/api/research/sessions/{sid}")
     assert busy.status_code == 409
@@ -120,6 +127,19 @@ def test_session_soft_delete_rejects_busy_and_unknown_sessions(api):
     assert unknown.status_code == 400
     assert unknown.json()["error"]["code"] == "invalid_resource"
     assert client.get("/api/research/sessions?view=unknown").status_code == 422
+
+
+def test_session_soft_delete_reconciles_stale_cached_running_state(api):
+    client, _, service = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    service.store.data["sessions"][sid]["status"] = "running"
+    service.store.save()
+
+    response = client.delete(f"/api/research/sessions/{sid}")
+
+    assert response.status_code == 200
+    assert response.json()["deleted_at"]
+    assert response.json()["status"] == "idle"
 
 
 def test_deleted_session_can_be_permanently_deleted_with_native_confirmation(api):
@@ -133,7 +153,7 @@ def test_deleted_session_can_be_permanently_deleted_with_native_confirmation(api
 
     assert response.status_code == 200
     assert response.json() == {"id": sid, "purged": True}
-    assert ("session.delete", {"sessionId": sid, "cascade": True}) in native.calls
+    assert ("session.delete", {"sessionId": sid}) in native.calls
     assert not artifact.exists()
     assert sid not in service.store.data["sessions"]
     assert client.get(f"/api/research/sessions/{sid}").status_code == 400
@@ -158,7 +178,8 @@ def test_permanent_delete_removes_sealed_capabilities_and_private_datahub_state(
         private.mkdir(parents=True)
         (private / "record.json").write_text("{}")
 
-    assert client.delete(f"/api/research/sessions/{sid}").status_code == 200
+    deleted = client.delete(f"/api/research/sessions/{sid}")
+    assert deleted.status_code == 200, deleted.text
 
     response = client.delete(f"/api/research/sessions/{sid}/permanent")
 
@@ -254,7 +275,7 @@ def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
     client, native, service = api
     catalog = client.get("/api/research/data/catalog")
     assert catalog.status_code == 200
-    assert len(catalog.json()["capabilities"]) == 13
+    assert len(catalog.json()["capabilities"]) == 15
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     assert client.get(f"/api/research/sessions/{sid}").json()["datasets"] == []
     called = []
@@ -589,3 +610,21 @@ def test_image_attachment_is_forwarded_as_native_image_not_just_a_path(api):
     prompt = next(payload for method, payload in native.calls if method == "session.prompt")
     assert prompt["content"][1]["type"] == "image"
     assert base64.b64decode(prompt["content"][1]["data"]) == image_bytes
+
+
+def test_each_claw_turn_appends_the_visible_language_contract_last(api):
+    client, native, _ = api
+    sid = client.post("/api/research/sessions", json={"mode": "claw"}).json()["id"]
+
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={"text": "分析市场", "tool_ids": ["research_run_script"]},
+        headers={"Idempotency-Key": "language-contract"},
+    )
+
+    assert response.status_code == 202
+    prompt = next(payload for method, payload in native.calls if method == "session.prompt")
+    text = prompt["content"][0]["text"]
+    assert text.index("用户选择的研究工具意图") < text.index("使用 DSH 原生子 Agent")
+    assert text.rstrip().endswith("不得直接以英文回答透传。")
+    assert "所有可见过程说明、工具调用前后说明、提问、错误解释、总结和最终答复" in text

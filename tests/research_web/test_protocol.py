@@ -14,8 +14,10 @@ async def test_rpc_envelope_and_no_legacy_timeout():
     def reply(request):
         body = json.loads(request.content)
         assert body["type"] == "client-request"
-        assert body["method"] == "session.prompt"
-        assert body["payload"]["mode"] == "queue"
+        assert request.url.path == "/api/session/prompt"
+        assert body["method"] == "session/prompt"
+        assert body["payload"]["args"]["request"]["mode"] == "queue"
+        assert body["payload"]["args"]["request"]["requestId"]
         return httpx.Response(
             200,
             json={
@@ -35,8 +37,9 @@ async def test_rpc_envelope_and_no_legacy_timeout():
 async def test_native_session_delete_uses_the_allowlisted_rpc_envelope():
     def reply(request):
         body = json.loads(request.content)
-        assert body["method"] == "session.delete"
-        assert body["payload"] == {"sessionId": "s", "cascade": True}
+        assert request.url.path == "/api/session/delete"
+        assert body["method"] == "session/delete"
+        assert body["payload"] == {"args": {"request": {"sessionId": "s"}}}
         return httpx.Response(
             200,
             json={
@@ -68,7 +71,7 @@ async def test_rpc_rejects_wrong_correlation_and_never_falls_back():
         ),
     ) as client:
         with pytest.raises(RuntimeFailure, match="协议"):
-            await client.rpc("host.describe", {})
+            await client.rpc("session.list", {})
 
 
 def event(seq, kind, data):
@@ -202,8 +205,87 @@ def test_script_failure_payload_is_not_shown_as_successful_execution():
 
 @pytest.mark.asyncio
 async def test_native_respond_receipt_does_not_require_rpc_id_echo():
+    def reply(request):
+        body = json.loads(request.content)
+        assert request.url.path == "/api/$events/result"
+        assert body["payload"] == {
+            "args": {
+                "clientId": "event-client",
+                "eventId": "approval-rpc",
+                "outcome": {"kind": "result", "value": "rejected"},
+            }
+        }
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": None},
+            },
+        )
+
     async with DSHClient(
         "http://127.0.0.1:3081",
-        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"accepted": True})),
+        transport=httpx.MockTransport(reply),
     ) as client:
+        client._event_client_id = "event-client"
+        client._pending_events["approval-rpc"] = "approval/request"
         assert await client.respond("approval-rpc", {"outcome": "rejected"}) == {"accepted": True}
+
+
+@pytest.mark.asyncio
+async def test_current_gateway_cookie_is_sent_without_exposing_it_in_payloads():
+    def reply(request):
+        assert request.headers["cookie"] == "dsh-auth-test=value"
+        body = json.loads(request.content)
+        assert "dsh-auth-test" not in json.dumps(body)
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": {"items": []}},
+            },
+        )
+
+    async with DSHClient(
+        "http://127.0.0.1:3081",
+        transport=httpx.MockTransport(reply),
+        auth_cookie="dsh-auth-test=value",
+    ) as client:
+        assert await client.rpc("session.list", {}) == {"items": []}
+
+
+def test_current_remote_events_are_projected_to_the_stable_workbench_surface():
+    client = DSHClient(
+        "http://127.0.0.1:3081",
+        transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+    )
+    assert client._event_envelope(
+        {"type": "ready", "clientId": "client-1", "host": {"home": "/tmp"}}
+    ) == {"type": "connected", "channel": "host"}
+    assert client._event_envelope(
+        {"type": "emit", "event": "api-session/status", "args": ["s", False]}
+    )["payload"] == {"type": "host/session-status", "sessionId": "s", "running": False}
+    requested = client._event_envelope(
+        {
+            "type": "waterfall",
+            "event": "approval/request",
+            "eventId": "event-1",
+            "agentId": "s",
+            "request": {"toolName": "bash", "reason": "危险操作"},
+        }
+    )
+    assert requested["payload"] == {
+        "type": "approval/requested",
+        "sessionId": "s",
+        "approvalId": "event-1",
+        "toolName": "bash",
+        "reason": "危险操作",
+    }
+    resolved = client._event_envelope({"type": "cancel", "eventId": "event-1"})
+    assert resolved["payload"] == {
+        "type": "approval/resolved",
+        "sessionId": "s",
+        "approvalId": "event-1",
+    }

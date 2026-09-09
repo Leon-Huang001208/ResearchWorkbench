@@ -13,10 +13,11 @@ import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
+import { buildConfigurationPayload, renderConnectionCenter, selectedConnectionId } from './connections.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let quickCategory = '';
@@ -26,6 +27,7 @@ let assetState = { observations: [], observation: null, rows: {}, watchlists: []
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
+let selectedConnectionConfiguration = null; let migrationOpen = false;
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -44,6 +46,14 @@ function runtimeLabel() {
 }
 
 function notice(message, kind = 'error') { return message ? `<div class="notice ${kind}" role="${kind === 'error' ? 'alert' : 'status'}">${e(message)}</div>` : ''; }
+
+function forgetConfigurationSecrets(value) {
+  if (!value || typeof value !== 'object') return;
+  for (const key of Object.keys(value)) {
+    if (['password', 'token', 'api_key', 'cj_key'].includes(key)) delete value[key];
+    else forgetConfigurationSecrets(value[key]);
+  }
+}
 
 function composer() {
   const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
@@ -66,9 +76,14 @@ function researchPage() {
   return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${renderResearchAttention(detail)}${canvas}<div class="composer-dock">${composer()}</div>`;
 }
 
+function modelSettingsCard(runtime) {
+  return `<details class="settings-card model-settings"><summary><div><p class="eyebrow">模型服务</p><h2>DSH 与模型配置</h2><p class="muted small">${e(runtime?.provider || '未提供')} · ${e(runtime?.model || '未配置')}</p></div><span class="badge ${runtime?.connected ? 'live' : 'danger'}">${runtimeLabel()}</span></summary><div class="model-settings-body"><dl class="runtime-details"><div><dt>Provider</dt><dd>${e(runtime?.provider || '未提供')}</dd></div><div><dt>模型</dt><dd>${e(runtime?.model || '未配置')}</dd></div><div><dt>版本</dt><dd>${e(runtime?.version || '未提供')}</dd></div><div><dt>管理方式</dt><dd>${runtime ? runtime.owned_runtime ? '由 Research Workbench 管理' : '外部运行时' : '未知'}</dd></div></dl><form id="settings-form" autocomplete="off"><label for="settings-model">可用模型</label><select id="settings-model">${modelOptions(catalog.models, runtime?.model)}</select><div class="form-grid"><label>Provider<input id="provider" name="provider" required autocomplete="off" value="${e(runtime?.provider || '')}" placeholder="例如 openai"></label><label>模型 ID<input id="model-id" name="model" required autocomplete="off" value="${e(runtime?.model || '')}" placeholder="输入运行时支持的模型 ID"></label></div><label for="api-key">API Key <span class="muted">（可选，仅更新时填写）</span></label><input id="api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" placeholder="留空则不更改现有凭据"><p class="muted small">只发送给专属 DSH；保存成功后清空，不回填。</p><button class="button primary" type="submit" ${state.busy ? 'disabled' : ''}>保存模型配置</button></form></div></details>`;
+}
+
 function settingsPage() {
   const runtime = catalog.runtime;
-  return `<section class="settings-card"><h2>架构与实现文档</h2><p class="muted">只读查看当前架构图；检查回执不替代实现与人工验收。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开架构文档 ↗</a></section><header class="page-header"><div><div class="eyebrow">WORKSPACE SETTINGS</div><h1>设置</h1><p class="muted">Research Web 只连接 DSH，不启动其他研究管线。</p></div><button class="button" data-refresh>刷新状态</button></header><section class="settings-card appearance-settings"><h2>外观</h2><p class="muted">选择浅色、深色，或跟随系统。仅保存在此浏览器，不影响研究任务。</p>${renderAppearancePicker()}</section><section class="settings-card"><div class="section-heading"><h2>DSH 连接</h2><span class="badge ${runtime?.connected ? 'live' : 'danger'}">${runtimeLabel()}</span></div><dl class="runtime-details"><div><dt>Provider</dt><dd>${e(runtime?.provider || '未提供')}</dd></div><div><dt>模型</dt><dd>${e(runtime?.model || '未配置')}</dd></div><div><dt>版本</dt><dd>${e(runtime?.version || '未提供')}</dd></div><div><dt>管理方式</dt><dd>${runtime ? runtime.owned_runtime ? '由 Research Workbench 管理' : '外部运行时' : '未知'}</dd></div></dl>${runtime?.message ? `<p class="muted">${e(runtime.message)}</p>` : ''}</section><section class="settings-card"><h2>模型配置</h2><p class="muted">选择模型并按需更新 API Key。秘密值不回填，也不会存入浏览器存储。</p><form id="settings-form" autocomplete="off"><label for="settings-model">可用模型</label><select id="settings-model">${modelOptions(catalog.models, runtime?.model)}</select><div class="form-grid"><label>Provider<input id="provider" name="provider" required autocomplete="off" value="${e(runtime?.provider || '')}" placeholder="例如 openai"></label><label>模型 ID<input id="model-id" name="model" required autocomplete="off" value="${e(runtime?.model || '')}" placeholder="输入运行时支持的模型 ID"></label></div><label for="api-key">API Key <span class="muted">（可选，仅更新时填写）</span></label><input id="api-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false" placeholder="留空则不更改现有凭据"><p class="muted small">只发送给当前同源后端；保存成功后清空输入。模型变更作用于 DSH 运行时。</p><button class="button primary" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? '正在保存…' : '保存配置'}</button></form></section>${catalog.modelFailures.length ? notice('部分模型目录未能加载；可填写已知的 Provider 与模型 ID。', 'warning') : ''}`;
+  const sourceId = state.route.connectionId || selectedConnectionId(location.hash, catalog.connections.sources);
+  return `<header class="page-header"><div><div class="eyebrow">WORKSPACE SETTINGS</div><h1>设置</h1><p class="muted">连接、会话与数据快照均保存在运行 8088 服务的本地隔离环境。</p></div><button class="button" data-refresh>刷新状态</button></header><section class="settings-group"><div class="settings-group-heading"><span class="eyebrow">CONNECTIONS & ACCESS</span><h2>连接与授权</h2><p class="muted">平台提供受控调用边界；模型、数据源和本机集成由当前用户自行授权。</p></div>${modelSettingsCard(runtime)}${renderConnectionCenter({ connections: catalog.connections, selectedId: sourceId, configuration: selectedConnectionConfiguration, migrationOpen })}</section><section class="settings-card appearance-settings"><h2>外观</h2><p class="muted">选择浅色、深色，或跟随系统。仅保存在此浏览器，不影响研究任务。</p>${renderAppearancePicker()}</section><section class="settings-card"><h2>架构与实现文档</h2><p class="muted">只读查看当前架构图；检查回执不替代实现与人工验收。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开架构文档 ↗</a></section>${catalog.modelFailures.length ? notice('部分模型目录未能加载；可填写已知的 Provider 与模型 ID。', 'warning') : ''}`;
 }
 
 function mainPage() {
@@ -149,7 +164,7 @@ function render() {
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = [...catalog.capabilities, ...catalog.tools, ...catalog.reportWorkflows.map(item => ({ ...item, kind: 'report-workflow' })), ...(catalog.dataCatalog.capabilities || [])];
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录', connections: '连接中心', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
   window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -171,6 +186,12 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
         capabilities: Array.isArray(data?.capabilities) ? data.capabilities : [],
         sources: Array.isArray(data?.sources) ? data.sources : [],
         bindings: Array.isArray(data?.bindings) ? data.bindings : [],
+      };
+      else if (name === 'connections') catalog.connections = {
+        groups: Array.isArray(data?.groups) ? data.groups : [],
+        sources: Array.isArray(data?.sources) ? data.sources : Array.isArray(data?.items) ? data.items : [],
+        platform: data?.platform || {},
+        migration: data?.migration || {},
       };
       else if (name === 'artifacts') catalog.artifacts = data.items || [];
       else catalog[name] = data.items || [];
@@ -282,6 +303,12 @@ async function showRoute() {
   document.querySelector('#main')?.scrollTo({ top: 0 });
   await loadWorkflowVersion();
   if (state.route.page === 'history') await loadCatalog([state.route.historyView === 'deleted' ? 'deletedSessions' : 'sessions']);
+  if (state.route.page === 'settings') {
+    migrationOpen = false;
+    await loadCatalog(['connections']);
+    const selectedId = state.route.connectionId || selectedConnectionId(location.hash, catalog.connections.sources);
+    if (selectedId) await loadConnectionConfiguration(selectedId);
+  }
   if (state.route.page === 'skills') {
     if (state.route.capabilityKind) capabilityState.kind = state.route.capabilityKind;
     await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'sessions']);
@@ -289,6 +316,19 @@ async function showRoute() {
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
+}
+
+async function loadConnectionConfiguration(sourceId) {
+  const source = catalog.connections.sources.find((item) => item.id === sourceId);
+  if (!source || source.configuration_supported === false) { selectedConnectionConfiguration = null; render(); return; }
+  try {
+    selectedConnectionConfiguration = await api.sourceConfiguration(sourceId);
+    delete catalog.errors.connectionConfiguration;
+  } catch (error) {
+    selectedConnectionConfiguration = null;
+    if (error.code !== 'configuration_not_supported' && error.code !== 'not_found') catalog.errors.connectionConfiguration = error.message;
+  }
+  render();
 }
 
 async function ensureSession() {
@@ -588,6 +628,32 @@ root.addEventListener('submit', async (event) => {
     delete payload.api_key;
     if (result?.configured) { success = '配置已保存。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
   }
+  if (event.target.matches('[data-connection-config]')) {
+    const sourceId = event.target.dataset.connectionConfig;
+    const values = new FormData(event.target);
+    let payload;
+    try { payload = buildConfigurationPayload(sourceId, values); }
+    catch (error) { state.error = error.message; render(); return; }
+    event.target.querySelectorAll('input[type="password"]').forEach((input) => { input.value = ''; });
+    const submit = () => {
+      const pending = api.saveSourceConfiguration(sourceId, payload);
+      forgetConfigurationSecrets(payload);
+      for (const key of [...values.keys()]) if (/(?:password|token|api_key|cj_key)$/i.test(key)) values.delete(key);
+      return pending;
+    };
+    const result = await controller.action(submit, { refreshAfter: false });
+    if (result) {
+      success = `${catalog.connections.sources.find((item) => item.id === sourceId)?.name || sourceId} 配置已保存；秘密不会回填。`;
+      await loadCatalog(['connections', 'dataCatalog', 'tools']);
+      await loadConnectionConfiguration(sourceId);
+    }
+  }
+  if (event.target.matches('[data-migration-confirm]')) {
+    const values = new FormData(event.target); const sourceIds = values.getAll('source_ids').map(String);
+    if (!sourceIds.length || values.get('confirm') !== 'on') { state.error = '请选择迁移目标并完成二次确认。'; render(); return; }
+    const result = await controller.action(() => api.migrateConnections({ source_ids: sourceIds, confirm: true }), { refreshAfter: false });
+    if (result) { migrationOpen = false; success = '旧配置已写入系统凭据库并完成回读验证。'; await loadCatalog(['connections', 'dataCatalog', 'tools']); }
+  }
 });
 
 root.addEventListener('click', async (event) => {
@@ -601,6 +667,50 @@ root.addEventListener('click', async (event) => {
   }
   const button = clickTarget?.closest?.('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
+  if ('connectionSelect' in data) {
+    const sourceId = data.connectionSelect;
+    state.route.connectionId = sourceId;
+    history.pushState(null, '', `#/settings?connection=${encodeURIComponent(sourceId)}`);
+    selectedConnectionConfiguration = null; state.error = ''; render();
+    await loadConnectionConfiguration(sourceId);
+    document.querySelector('#connection-title')?.focus?.({ preventScroll: true });
+    return;
+  }
+  if ('connectionCancel' in data) { await loadConnectionConfiguration(data.connectionCancel); return; }
+  if ('connectionRemove' in data) {
+    const sourceId = data.connectionRemove;
+    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
+    const sharedImpact = sourceId.startsWith('zhiqiu_') ? '该账号池由知丘研报、公众号与纪要共享，三项授权都会被移除。' : '';
+    if (!globalThis.confirm?.(`移除 ${sourceLabel} 的本机配置与凭据？${sharedImpact}历史快照不会删除。`)) return;
+    const result = await controller.action(() => api.deleteSourceConfiguration(sourceId), { refreshAfter: false });
+    if (result) { success = '本机配置和系统凭据已移除；历史快照保持可读。'; selectedConnectionConfiguration = null; await loadCatalog(['connections', 'dataCatalog', 'tools']); await loadConnectionConfiguration(sourceId); }
+    return;
+  }
+  if ('connectionProbe' in data) {
+    const sourceId = data.connectionProbe; state.error = ''; success = '';
+    const accepted = await controller.action(() => api.probeDataSource(sourceId, `probe-${sourceId}-${crypto.randomUUID()}`), { refreshAfter: false });
+    if (!accepted?.id) return;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const current = await api.dataProbe(accepted.id);
+      if (!['checking', 'queued'].includes(current.status)) {
+        success = current.health === 'healthy' ? `${sourceId} 检测通过。` : `${sourceId} 检测完成：${current.failure_code || current.health || current.status}。`;
+        await loadCatalog(['connections', 'dataCatalog']); await loadConnectionConfiguration(sourceId); return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    state.error = '检测仍在进行，请稍后刷新状态。'; render(); return;
+  }
+  if ('accountAdd' in data) {
+    const accounts = Array.isArray(selectedConnectionConfiguration?.accounts) ? selectedConnectionConfiguration.accounts : [];
+    selectedConnectionConfiguration = { ...(selectedConnectionConfiguration || {}), accounts: [...accounts, { id: `account-${accounts.length + 1}`, username: '' }] };
+    render(); return;
+  }
+  if ('migrationReview' in data) {
+    try { const preview = await api.connectionMigrationPreview(); catalog.connections.migration = preview; migrationOpen = true; delete catalog.errors.migration; }
+    catch (error) { catalog.errors.migration = error.message; }
+    render(); return;
+  }
+  if ('migrationCancel' in data) { migrationOpen = false; render(); return; }
   if ('sessionMenu' in data) {
     const id = data.sessionMenu;
     if (sessionMenu?.id === id) { sessionMenu = null; render(); return; }
@@ -652,6 +762,7 @@ root.addEventListener('click', async (event) => {
     if (state.route.page === 'workbench') await loadWorkbench();
     else if (state.route.page === 'operations') await loadOperations();
     else if (state.route.page === 'history' && state.route.historyView === 'deleted') await loadCatalog(['deletedSessions']);
+    else if (state.route.page === 'settings') { await loadCatalog(['runtime', 'models', 'connections']); await loadConnectionConfiguration(state.route.connectionId || selectedConnectionId(location.hash, catalog.connections.sources)); }
     else { await loadCatalog(); await controller.refresh(); }
   }
   if ('operationsRange' in data) { operationsRange = data.operationsRange; await loadOperations(); }

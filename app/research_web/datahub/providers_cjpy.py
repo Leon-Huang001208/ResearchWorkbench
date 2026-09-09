@@ -32,11 +32,11 @@ def _release_capacity(_future: Future) -> None:
         log.error("tinysoft_capacity_release_failed")
 
 
-def _submit(query: BusinessQuery) -> Future | None:
+def _submit(query: BusinessQuery, token: str | None = None) -> Future | None:
     if not _CAPACITY.acquire(blocking=False):
         return None
     try:
-        future = _EXECUTOR.submit(_sync_query, query)
+        future = _EXECUTOR.submit(_sync_query, query, token)
     except Exception:
         _CAPACITY.release()
         raise
@@ -87,8 +87,8 @@ def _rows(value: Any) -> list[dict]:
     return [_json_value(row) for row in rows]
 
 
-def _client():
-    token = os.environ.get("CJ_KEY", "").strip()
+def _client(token: str | None = None):
+    token = token if token is not None else os.environ.get("CJ_KEY", "").strip()
     if not token:
         raise ProviderError("blocked_config")
     try:
@@ -105,8 +105,8 @@ def _client():
     return DirectClient(token=token, timeout=15, verify=True)
 
 
-def _sync_query(query: BusinessQuery):
-    client = _client()
+def _sync_query(query: BusinessQuery, token: str | None = None):
+    client = _client(token)
     try:
         import cjpy
     except ImportError as exc:
@@ -116,11 +116,7 @@ def _sync_query(query: BusinessQuery):
         rows = _rows(cjpy.get_stocks(client=client))
         needle = str(parameters.get("query", "")).strip().casefold()
         if needle:
-            rows = [
-                row
-                for row in rows
-                if needle in json.dumps(row, ensure_ascii=False).casefold()
-            ]
+            rows = [row for row in rows if needle in json.dumps(row, ensure_ascii=False).casefold()]
     elif query.capability == "trading_calendar":
         rows = _rows(
             cjpy.get_trading_days(
@@ -162,10 +158,10 @@ def _sync_query(query: BusinessQuery):
     return rows
 
 
-async def fetch(query: BusinessQuery) -> Result:
+async def fetch(query: BusinessQuery, *, token: str | None = None) -> Result:
     result = Result(source_url=SOURCE_URL, provider_id="tinysoft")
     try:
-        future = _submit(query)
+        future = _submit(query, token)
     except Exception as exc:  # noqa: BLE001 - executor/provider submission can fail arbitrarily.
         result.status = "failed"
         result.limitations = ["provider_error"]
@@ -206,12 +202,10 @@ async def fetch(query: BusinessQuery) -> Result:
     return result
 
 
-async def probe() -> dict:
+async def probe(*, token: str | None = None) -> dict:
     query = BusinessQuery(capability="search_assets", source="tinysoft", parameters={})
-    result = await fetch(query)
+    result = await fetch(query, token=token)
     return {
-        "health": "healthy"
-        if result.status in {"complete", "empty"}
-        else "unavailable",
+        "health": "healthy" if result.status in {"complete", "empty"} else "unavailable",
         "failure_code": result.limitations[-1] if result.status == "failed" else None,
     }
