@@ -1435,6 +1435,161 @@ class ResearchQualityGateDB(Base):
     __table_args__ = (UniqueConstraint("run_id", "gate_key", name="uq_research_quality_gate"),)
 
 
+class RuntimeWorkflowRunDB(Base):
+    """Durable v2 workflow plan and execution state, independent of a runtime SDK."""
+
+    __tablename__ = "runtime_workflow_run"
+
+    run_id = Column(Text, primary_key=True)
+    workflow_id = Column(Text, nullable=False, index=True)
+    workflow_version = Column(Text, nullable=False)
+    runtime_id = Column(Text, nullable=False, index=True)
+    request_payload = Column(JSON, nullable=False, default=dict)
+    workflow_payload = Column(JSON, nullable=False, default=dict)
+    status = Column(Text, nullable=False, default="draft", index=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class RuntimeWorkflowStepDB(Base):
+    """Latest durable state for an individual workflow step."""
+
+    __tablename__ = "runtime_workflow_step"
+
+    step_execution_id = Column(Text, primary_key=True)
+    run_id = Column(Text, ForeignKey("runtime_workflow_run.run_id"), nullable=False, index=True)
+    step_id = Column(Text, nullable=False)
+    capability_id = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="planned")
+    attempt = Column(Integer, nullable=False, default=0)
+    output_payload = Column(JSON, nullable=False, default=dict)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (UniqueConstraint("run_id", "step_id", name="uq_runtime_workflow_step"),)
+
+
+class RuntimeEventDB(Base):
+    """Append-only event ledger used to resume SSE clients."""
+
+    __tablename__ = "runtime_event"
+
+    event_id = Column(Text, primary_key=True)
+    run_id = Column(Text, ForeignKey("runtime_workflow_run.run_id"), nullable=False, index=True)
+    sequence = Column(Integer, nullable=False)
+    event_type = Column(Text, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    occurred_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (UniqueConstraint("run_id", "sequence", name="uq_runtime_event_sequence"),)
+
+
+class RuntimeEvidenceDB(Base):
+    """Evidence ledger for runtime-neutral workflow executions."""
+
+    __tablename__ = "runtime_evidence"
+
+    evidence_id = Column(Text, primary_key=True)
+    run_id = Column(Text, ForeignKey("runtime_workflow_run.run_id"), nullable=False, index=True)
+    source_ref = Column(Text, nullable=False)
+    source_name = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False)
+    observed_at = Column(DateTime(timezone=True), nullable=True)
+    conflict = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class RuntimeArtifactDB(Base):
+    """Immutable v2 artifacts.  New revisions receive a distinct content hash."""
+
+    __tablename__ = "runtime_artifact"
+
+    artifact_id = Column(Text, primary_key=True)
+    run_id = Column(Text, ForeignKey("runtime_workflow_run.run_id"), nullable=False, index=True)
+    artifact_type = Column(Text, nullable=False)
+    content_hash = Column(Text, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (UniqueConstraint("run_id", "artifact_type", "content_hash", name="uq_runtime_artifact_hash"),)
+
+
+class FinGPTSessionIndexDB(Base):
+    """Governance index for a DSH session; conversation bodies remain in DSH."""
+
+    __tablename__ = "fingpt_session_index"
+
+    dsh_session_id = Column(Text, primary_key=True)
+    task_id = Column(Text, nullable=True, index=True)
+    title = Column(Text, nullable=True)
+    status = Column(Text, nullable=False, default="active", index=True)
+    sync_cursor = Column(Integer, nullable=False, default=-1)
+    session_metadata = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FinGPTTaskDB(Base):
+    """AlphaFoundry-owned FinGPT task state; never stores complete chat messages."""
+
+    __tablename__ = "fingpt_task"
+
+    task_id = Column(Text, primary_key=True)
+    preset_id = Column(Text, nullable=True, index=True)
+    title = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="created", index=True)
+    dsh_session_id = Column(Text, nullable=True, index=True)
+    workflow_run_id = Column(Text, ForeignKey("runtime_workflow_run.run_id"), nullable=True, index=True)
+    launch_id = Column(Text, nullable=True, unique=True, index=True)
+    launch_expires_at = Column(DateTime(timezone=True), nullable=True)
+    launch_consumed_at = Column(DateTime(timezone=True), nullable=True)
+    task_metadata = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FinGPTSyncEventDB(Base):
+    """Idempotent, sanitised DSH event index -- never a chat transcript."""
+
+    __tablename__ = "fingpt_sync_event"
+
+    event_key = Column(Text, primary_key=True)
+    dsh_session_id = Column(Text, ForeignKey("fingpt_session_index.dsh_session_id"), nullable=False, index=True)
+    sequence = Column(Integer, nullable=False, default=-1)
+    event_type = Column(Text, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    received_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FinGPTEvidenceReferenceDB(Base):
+    """External and captured evidence references attached to a FinGPT task."""
+
+    __tablename__ = "fingpt_evidence_reference"
+
+    reference_id = Column(Text, primary_key=True)
+    task_id = Column(Text, ForeignKey("fingpt_task.task_id"), nullable=True, index=True)
+    dsh_session_id = Column(Text, nullable=True, index=True)
+    source_ref = Column(Text, nullable=False)
+    source_name = Column(Text, nullable=False)
+    provenance = Column(Text, nullable=False, default="external_uningested")
+    captured_evidence_id = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FinGPTArtifactLinkDB(Base):
+    """Pointers to immutable AlphaFoundry artifacts, not copied render payloads."""
+
+    __tablename__ = "fingpt_artifact_link"
+
+    link_id = Column(Text, primary_key=True)
+    task_id = Column(Text, ForeignKey("fingpt_task.task_id"), nullable=False, index=True)
+    artifact_id = Column(Text, ForeignKey("runtime_artifact.artifact_id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    __table_args__ = (UniqueConstraint("task_id", "artifact_id", name="uq_fingpt_task_artifact"),)
+
+
 # =============================================================================
 # RWB-AUTO-002-07: PDF 元数据表与转换结果表
 # =============================================================================

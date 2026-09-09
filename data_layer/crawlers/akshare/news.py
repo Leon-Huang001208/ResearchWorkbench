@@ -2,7 +2,7 @@
 AkShare 新闻数据获取器
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import List, Optional
 
 import pandas as pd
@@ -59,7 +59,9 @@ class AkShareNewsFetcher(BaseAkShareFetcher):
                     url = str(row.get("链接", "") or row.get("url", ""))
 
                     # 关键词过滤
-                    if keywords and not any(k in title or k in content for k in keywords):
+                    if keywords and not any(
+                        k in title or k in content for k in keywords
+                    ):
                         continue
 
                     publish_time = self._parse_time(row)
@@ -124,7 +126,9 @@ class AkShareNewsFetcher(BaseAkShareFetcher):
                     url = str(row.get("链接", "") or row.get("url", ""))
 
                     # 关键词过滤
-                    if keywords and not any(k in title or k in content for k in keywords):
+                    if keywords and not any(
+                        k in title or k in content for k in keywords
+                    ):
                         continue
 
                     publish_time = self._parse_time(row)
@@ -147,6 +151,62 @@ class AkShareNewsFetcher(BaseAkShareFetcher):
 
         except Exception as e:
             logger.error(f"Failed to fetch eastmoney news: {e}")
+            return []
+
+    def fetch_caixin_news(
+        self, limit: Optional[int] = None, keywords: Optional[List[str]] = None
+    ) -> List[NewsData]:
+        """Fetch the current AKShare-supported Caixin main news feed.
+
+        AKShare removed the legacy Sina rolling-news entry point in newer
+        releases.  This fallback keeps the adapter useful without presenting
+        a missing provider as an empty, successful market-news response.
+        """
+        self._initialize()
+        limit = limit or self.config.news_limit
+        logger.debug(f"Fetching caixin news, limit={limit}")
+
+        try:
+            fetch = getattr(self.ak, "stock_news_main_cx", None)
+            if not callable(fetch):
+                logger.warning("AKShare Caixin news entry point is unavailable")
+                return []
+            df = fetch()
+            if df is None or df.empty:
+                logger.warning("No Caixin news returned")
+                return []
+
+            result: List[NewsData] = []
+            for _, row in df.iterrows():
+                try:
+                    tag = str(row.get("tag", "")).strip()
+                    content = str(row.get("summary", "")).strip()
+                    url = str(row.get("url", "")).strip()
+                    title = tag or content
+                    if not title or not content:
+                        continue
+                    if keywords and not any(
+                        k in title or k in content for k in keywords
+                    ):
+                        continue
+                    result.append(
+                        NewsData(
+                            title=title,
+                            content=content,
+                            publish_time=datetime.now(UTC),
+                            source="caixin",
+                            url=url,
+                            extra=row.to_dict(),
+                        )
+                    )
+                    if len(result) >= limit:
+                        break
+                except Exception as e:
+                    logger.debug(f"Error processing Caixin news row: {e}")
+            logger.info(f"Fetched {len(result)} Caixin news items")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to fetch Caixin news: {e}")
             return []
 
     def fetch_all_news(
@@ -178,6 +238,11 @@ class AkShareNewsFetcher(BaseAkShareFetcher):
             elif source == "eastmoney":
                 source_news = self.fetch_eastmoney_news(limit=source_limit, keywords=keywords)
                 all_news.extend(source_news)
+
+        if len(all_news) < limit:
+            all_news.extend(
+                self.fetch_caixin_news(limit=limit - len(all_news), keywords=keywords)
+            )
 
         # 去重（基于标题）
         seen_titles = set()
