@@ -7,7 +7,7 @@ export const settingsSections = Object.freeze([
   { id: 'general', label: '通用', eyebrow: 'GENERAL', description: '管理仅影响当前浏览器的显示偏好。' },
   { id: 'model', label: '模型服务', eyebrow: 'MODEL SERVICE', description: '配置 Research Runtime 使用的模型服务。', refreshable: true },
   { id: 'data', label: '数据源', eyebrow: 'DATA CONNECTIONS', description: '管理专业数据源、API 数据源与公开来源。', refreshable: true },
-  { id: 'local', label: '本机集成', eyebrow: 'LOCAL INTEGRATIONS', description: '查看当前服务所在设备的本机能力。', refreshable: true },
+  { id: 'local', label: '本机集成', eyebrow: 'LOCAL INTEGRATIONS', description: '检查当前服务设备上的 Excel、Wind、iFinD 与报告工作流。', refreshable: true },
   { id: 'docs', label: '架构文档', eyebrow: 'DOCUMENTATION', description: '只读查看当前架构与实现说明。' },
 ]);
 
@@ -62,6 +62,7 @@ function renderSettingsBody(options) {
       migrationOpen,
       detailOpen: connectionDetailOpen,
       scope: section,
+      busy,
     });
   }
   if (section === 'docs') return renderDocumentationSettings();

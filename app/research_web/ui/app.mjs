@@ -1,4 +1,4 @@
-import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary } from './core.mjs';
+import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
 import { icon } from './icons.mjs';
@@ -28,7 +28,7 @@ let assetState = { observations: [], observation: null, rows: {}, watchlists: []
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
-let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true;
+let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false;
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -121,7 +121,7 @@ function settingsPage() {
     runtime: catalog.runtime,
     models: catalog.models,
     runtimeLabel: runtimeLabel(),
-    busy: state.busy,
+    busy: state.busy || connectionProbeBusy,
     modelFailures: catalog.modelFailures,
     connections: catalog.connections,
     selectedConfiguration: selectedConnectionConfiguration,
@@ -784,17 +784,23 @@ root.addEventListener('click', async (event) => {
   }
   if ('connectionProbe' in data) {
     const sourceId = data.connectionProbe; state.error = ''; success = '';
-    const accepted = await controller.action(() => api.probeDataSource(sourceId, `probe-${sourceId}-${crypto.randomUUID()}`), { refreshAfter: false });
-    if (!accepted?.id) return;
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      const current = await api.dataProbe(accepted.id);
-      if (!['checking', 'queued'].includes(current.status)) {
-        success = current.health === 'healthy' ? `${sourceId} 检测通过。` : `${sourceId} 检测完成：${current.failure_code || current.health || current.status}。`;
-        await loadCatalog(['connections', 'dataCatalog']); await loadConnectionConfiguration(sourceId); return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 250));
+    const sourceLabel = sourceId === 'local_cache' ? '本机环境' : (catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId);
+    connectionProbeBusy = true; render();
+    try {
+      const accepted = await controller.action(() => api.probeDataSource(sourceId, `probe-${sourceId}-${crypto.randomUUID()}`), { refreshAfter: false });
+      if (!accepted) return;
+      if (typeof accepted.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的探测任务，请刷新后重试。');
+      const current = await waitForDataProbe((probeId) => api.dataProbe(probeId), accepted.id);
+      success = current.health === 'healthy' ? `${sourceLabel}检测通过。` : `${sourceLabel}检测完成，请根据状态说明处理。`;
+      await loadCatalog(['connections', 'dataCatalog']);
+      await loadConnectionConfiguration(sourceId);
+    } catch (error) {
+      state.error = error?.message || '检测失败，请重试。';
+      safeLog('connection_probe_failed', { status: error?.code || error?.name || 'unknown' });
+    } finally {
+      connectionProbeBusy = false; render();
     }
-    state.error = '检测仍在进行，请稍后刷新状态。'; render(); return;
+    return;
   }
   if ('accountAdd' in data) {
     const accounts = Array.isArray(selectedConnectionConfiguration?.accounts) ? selectedConnectionConfiguration.accounts : [];

@@ -56,6 +56,19 @@ export function collectQuestionAnswers(values, items) {
   });
 }
 
+export async function waitForDataProbe(getProbe, probeId, { maxAttempts = 40, delay = 250, sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)) } = {}) {
+  const attempts = Number.isInteger(maxAttempts) && maxAttempts > 0 ? maxAttempts : 40;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const current = await getProbe(probeId);
+    if (!current || typeof current !== 'object' || Array.isArray(current) || typeof current.status !== 'string' || !current.status) {
+      throw new Error('探测状态响应格式异常，请检查后端日志。');
+    }
+    if (!['checking', 'queued'].includes(current.status)) return current;
+    if (attempt + 1 < attempts && delay > 0) await sleep(delay);
+  }
+  throw new Error('检测仍在进行，请稍后刷新状态。');
+}
+
 // Never log prompts, response bodies, filenames, credentials or session identifiers.
 export function safeLog(event, metadata = {}) {
   console.info('[ResearchWeb]', event, { status: metadata.status, method: metadata.method });

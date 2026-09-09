@@ -108,8 +108,16 @@ test('data and local pages never mix source groups', () => {
   assert.doesNotMatch(data, /data-connection-select="local_cache"/);
 
   const local = renderSettingsPage({ ...baseOptions, route: parseRoute('#/settings/local'), hash: '#/settings/local?connection=local_cache' });
-  assert.match(local, /data-connection-select="local_cache"/);
+  assert.match(local, /data-selected-connection="local_cache"/);
+  assert.doesNotMatch(local, /data-connection-select=/);
   assert.doesNotMatch(local, /data-connection-select="wind"/);
+  assert.equal((local.match(/<h1>本机集成<\/h1>/g) || []).length, 1);
+  assert.match(local, /检查当前服务设备上的 Excel、Wind、iFinD 与报告工作流/);
+});
+
+test('local settings forwards busy state to the environment probe action', () => {
+  const html = renderSettingsPage({ ...baseOptions, busy: true, route: parseRoute('#/settings/local'), hash: '#/settings/local' });
+  assert.match(html, /data-connection-probe="local_cache"[^>]*disabled[^>]*>检测中…/);
 });
 
 test('settings navigation and responsive CSS keep desktop rail and 44px mobile tabs', async () => {
@@ -118,5 +126,7 @@ test('settings navigation and responsive CSS keep desktop rail and 44px mobile t
   assert.match(css, /\.settings-layout\s*\{[^}]*grid-template-columns:\s*200px minmax\(0, 1fr\)/);
   assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*?\.settings-navigation\s*\{[^}]*display:\s*flex/);
   assert.match(css, /\.settings-navigation-link\s*\{[^}]*min-height:\s*44px/);
+  assert.match(css, /\.local-diagnosis-action \.button\s*\{[^}]*min-height:\s*44px/);
+  assert.match(css, /@media \(max-width:\s*860px\)[\s\S]*?\.local-check-row\s*\{[^}]*grid-template-columns:\s*1fr/);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)/);
 });
