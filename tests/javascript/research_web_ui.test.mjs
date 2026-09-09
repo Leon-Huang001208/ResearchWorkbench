@@ -62,6 +62,19 @@ test('API does not assume success for malformed responses or transport failures'
   await assert.rejects(offline.runtime(), /网络/);
 });
 
+test('data probe polling handles completion, failure, malformed status and timeout', async () => {
+  assert.equal(typeof core.waitForDataProbe, 'function');
+  const statuses = [{ status: 'checking' }, { status: 'completed', health: 'healthy' }];
+  const completed = await core.waitForDataProbe(async () => statuses.shift(), 'probe-1', { delay: 0 });
+  assert.equal(completed.health, 'healthy');
+
+  const failed = await core.waitForDataProbe(async () => ({ status: 'failed', health: 'unavailable' }), 'probe-2', { delay: 0 });
+  assert.equal(failed.status, 'failed');
+
+  await assert.rejects(core.waitForDataProbe(async () => ({ health: 'healthy' }), 'probe-3', { delay: 0 }), /响应格式异常/);
+  await assert.rejects(core.waitForDataProbe(async () => ({ status: 'queued' }), 'probe-4', { maxAttempts: 2, delay: 0 }), /仍在进行/);
+});
+
 test('controller preserves draft on failed sends and retries with the same idempotency key', async () => {
   assert.equal(typeof core.createController, 'function');
   const keys = []; let failures = 1;

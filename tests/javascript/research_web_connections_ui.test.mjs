@@ -115,12 +115,91 @@ test('unadapted and no-auth sources show diagnostics without a fake form', () =>
   assert.match(html, /检测/);
 });
 
-test('platform integration detail reports each verified layer independently', () => {
-  const html = renderConnectionCenter({ connections: model, selectedId: 'local_cache', configuration: null });
-  for (const label of ['Excel 自动化', 'Wind 插件', 'iFinD 插件', '报告工作流']) assert.match(html, new RegExp(label));
-  assert.match(html, /未登录/);
-  assert.match(html, /未安装/);
-  assert.match(html, /未验证/);
+test('local integration page leads with one overall diagnosis and defers technical stages', () => {
+  const html = renderConnectionCenter({ connections: model, selectedId: 'local_cache', configuration: null, scope: 'local' });
+  assert.match(html, /尚未接入可调用链路/);
+  assert.match(html, /检测本机环境/);
+  assert.match(html, /本机组件状态只说明设备环境/);
+  assert.match(html, /<details[^>]*class="local-technical-details"/);
+  for (const label of ['服务已识别', '完成环境检测', '接入研究工作流', '可在研究任务中调用']) assert.match(html, new RegExp(label));
+  assert.doesNotMatch(html, /connection-state-matrix|已配置.*可调用/s);
+  assert.match(html, /查看可用数据能力/);
+});
+
+test('local integration diagnosis covers callable, waiting, failed and empty states', () => {
+  const local = sources.find((source) => source.id === 'local_cache');
+  const render = (source) => renderConnectionCenter({
+    connections: { ...model, sources: source ? [source] : [] },
+    selectedId: source?.id || '',
+    configuration: null,
+    scope: 'local',
+  });
+  assert.match(render({ ...local, integration_completed: true, callable: true, probe_status: 'healthy', probed: true }), /本机工作流可用/);
+  assert.match(render({ ...local, integration_completed: true, callable: false, probe_status: 'untested', probed: false }), /等待检测/);
+  assert.match(render({ ...local, integration_completed: true, callable: false, probe_status: 'checking', probed: true }), /正在检测本机环境/);
+  assert.match(render({ ...local, integration_completed: true, callable: false, probe_status: 'failed', probed: true }), /检测未通过/);
+  assert.match(render(null), /未发现本机能力定义/);
+});
+
+test('local checks normalize component statuses and prefer API explanations', () => {
+  const local = { ...sources.find((source) => source.id === 'local_cache'), integration_completed: true, probe_status: 'failed', probed: true };
+  const first = renderConnectionCenter({
+    connections: {
+      ...model,
+      sources: [local],
+      platform: {
+        excel_automation: { status: 'available', message: 'API message wins', detail: 'ignored detail' },
+        wind_excel: { status: 'not_logged_in', detail: 'API detail fallback' },
+        ifind_excel: { status: 'not_installed' },
+        report_workflow: { status: 'unverified' },
+      },
+    },
+    selectedId: local.id,
+    scope: 'local',
+  });
+  for (const label of ['环境已就绪', '未登录', '未安装', '待验证']) assert.match(first, new RegExp(label));
+  assert.match(first, /API message wins/);
+  assert.match(first, /API detail fallback/);
+  assert.doesNotMatch(first, /ignored detail/);
+
+  const second = renderConnectionCenter({
+    connections: {
+      ...model,
+      sources: [local],
+      platform: {
+        excel_automation: { status: 'untested' },
+        wind_excel: { status: 'degraded' },
+        ifind_excel: { status: 'error' },
+        report_workflow: { status: 'not_applicable' },
+      },
+    },
+    selectedId: local.id,
+    scope: 'local',
+  });
+  for (const label of ['待检测', '受限', '异常', '不适用']) assert.match(second, new RegExp(label));
+});
+
+test('ready component evidence never overrides a non-callable local workflow conclusion', () => {
+  const source = {
+    ...sources.find((item) => item.id === 'local_cache'),
+    configured: true,
+    integration_completed: false,
+    callable: false,
+    probe_status: 'untested',
+  };
+  const html = renderConnectionCenter({ connections: { ...model, sources: [source] }, selectedId: source.id, scope: 'local' });
+  assert.match(html, /尚未接入可调用链路/);
+  assert.match(html, /Excel 自动化[\s\S]*环境已就绪/);
+  assert.doesNotMatch(html, /本机工作流可用/);
+});
+
+test('local probe action reflects busy state without changing the data workbench', () => {
+  const local = renderConnectionCenter({ connections: model, selectedId: 'local_cache', scope: 'local', busy: true });
+  assert.match(local, /data-connection-probe="local_cache"[^>]*disabled[^>]*>检测中…/);
+
+  const data = renderConnectionCenter({ connections: model, selectedId: 'wind', configuration: {}, scope: 'data', busy: true });
+  assert.match(data, /data-connection-workbench/);
+  assert.doesNotMatch(data, /local-diagnostics|检测中…/);
 });
 
 test('configuration payloads are strict per source and never retain empty secrets', () => {
@@ -154,8 +233,12 @@ test('connection center separates remote data sources from local integrations', 
 
   const local = renderConnectionCenter({ connections: model, selectedId: 'local_cache', configuration: null, scope: 'local' });
   assert.match(local, /data-connection-scope="local"/);
-  assert.match(local, /data-connection-select="local_cache"/);
+  assert.doesNotMatch(local, /data-connection-select=/);
   assert.doesNotMatch(local, /data-connection-select="wind"|data-migration-review/);
+
+  const extraLocal = { ...sources.find((source) => source.id === 'local_cache'), id: 'local_reports', name: '报告工作流' };
+  const multiple = renderConnectionCenter({ connections: { ...model, sources: [...sources, extraLocal] }, selectedId: 'local_cache', scope: 'local' });
+  assert.equal((multiple.match(/data-connection-select=/g) || []).length, 2);
 });
 
 test('legacy migration requires source selection and an explicit second confirmation', () => {

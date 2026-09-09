@@ -10,6 +10,24 @@ const statusText = {
   degraded: '受限', detected: '已检测到组件', failed: '失败', error: '异常', unknown: '待检测',
 };
 const integrationLabels = { excel_automation: 'Excel 自动化', wind_excel: 'Wind 插件', ifind_excel: 'iFinD 插件', report_workflow: '报告工作流' };
+const localIntegrationKeys = Object.keys(integrationLabels);
+const localStatusDefinitions = {
+  healthy: ['环境已就绪', 'ready', '当前服务设备已通过这项环境检查。'],
+  available: ['环境已就绪', 'ready', '当前服务设备已通过这项环境检查。'],
+  ready: ['环境已就绪', 'ready', '当前服务设备已通过这项环境检查。'],
+  checking: ['待检测', 'pending', '正在检测当前服务设备，请稍候。'],
+  untested: ['待检测', 'pending', '尚未执行这项环境检查。'],
+  unknown: ['待检测', 'pending', '尚未执行这项环境检查。'],
+  unverified: ['待验证', 'pending', '尚未通过真实工作簿或工作流运行验证。'],
+  detected: ['待验证', 'pending', '已检测到组件，仍需真实工作簿或工作流验证。'],
+  not_installed: ['未安装', 'attention', '当前服务设备未检测到所需组件。'],
+  not_logged_in: ['未登录', 'attention', '已检测到组件，但当前本机会话尚未登录。'],
+  degraded: ['受限', 'attention', '组件可被识别，但能力受限。'],
+  failed: ['异常', 'danger', '环境检查失败，请查看服务日志后重试。'],
+  error: ['异常', 'danger', '环境检查失败，请查看服务日志后重试。'],
+  unavailable: ['异常', 'danger', '当前服务设备暂不满足使用条件。'],
+  not_applicable: ['不适用', 'neutral', '当前操作系统不适用这项能力。'],
+};
 
 function get(values, key) {
   return typeof values?.get === 'function' ? values.get(key) : values?.[key];
@@ -187,6 +205,96 @@ function renderIntegration(platform) {
   }).join('')}</div><p class="notice warning small">插件只有完成实际心跳或带真实工作簿探测后才会标记可用；操作系统能力按当前运行环境判断。</p>`;
 }
 
+function localOverallDiagnosis(source) {
+  if (!source) return {
+    title: '未发现本机能力定义',
+    label: '需刷新',
+    tone: 'neutral',
+    description: '连接目录中没有返回本机能力。请刷新状态；若问题持续，请查看服务日志。',
+  };
+  if (source.callable === true) return {
+    title: '本机工作流可用',
+    label: '可调用',
+    tone: 'ready',
+    description: '当前服务设备已完成检测和接入，可供研究任务调用。',
+  };
+  if (source.integration_completed !== true) return {
+    title: '尚未接入可调用链路',
+    label: '尚未接入',
+    tone: 'attention',
+    description: '本机组件状态只说明设备环境；系统完成接入适配后，研究任务才能调用。',
+  };
+  if (['checking', 'queued'].includes(String(source.probe_status || source.health || ''))) return {
+    title: '正在检测本机环境',
+    label: '检测中',
+    tone: 'pending',
+    description: '正在读取当前服务设备的组件与工作流状态，完成后会自动刷新结果。',
+  };
+  if (!isProbed(source)) return {
+    title: '等待检测',
+    label: '待检测',
+    tone: 'pending',
+    description: '尚未运行本机环境探测。完成检测后会更新组件与工作流状态。',
+  };
+  return {
+    title: '检测未通过',
+    label: '需处理',
+    tone: 'danger',
+    description: '已完成环境探测，但至少一项条件仍未满足。请根据下方结果处理后重试。',
+  };
+}
+
+function localComponentState(item = {}) {
+  const status = String(item.status || 'unknown');
+  const [label, tone, fallback] = localStatusDefinitions[status] || ['异常', 'danger', '服务返回了尚未识别的状态，请刷新或查看日志。'];
+  const apiExplanation = [item.message, item.detail].find((value) => typeof value === 'string' && value.trim());
+  return { label, tone, explanation: apiExplanation?.trim() || fallback };
+}
+
+function platformLabel(platform = {}) {
+  const os = String(platform.os || '').toLocaleLowerCase();
+  if (['darwin', 'macos', 'mac'].includes(os)) return 'macOS';
+  if (['win32', 'windows', 'win'].includes(os)) return 'Windows';
+  if (os === 'linux') return 'Linux';
+  return '系统待识别';
+}
+
+function renderLocalSourceSwitcher(sources, selectedId) {
+  if (sources.length < 2) return '';
+  return `<nav class="local-source-switcher" aria-label="本机能力组">${sources.map((source) => `<button type="button" data-connection-select="${e(source.id)}" aria-pressed="${source.id === selectedId}" class="${source.id === selectedId ? 'selected' : ''}">${e(sourceName(source))}</button>`).join('')}</nav>`;
+}
+
+function renderLocalChecks(platform = {}) {
+  return `<section class="local-checks" aria-labelledby="local-checks-title"><div class="local-section-heading"><div><p class="eyebrow">ENVIRONMENT CHECKS</p><h2 id="local-checks-title">本机环境检查</h2></div><p class="muted small">检测结果描述当前服务设备，不等同于研究任务已经可调用。</p></div><div class="local-check-table" role="table" aria-label="本机环境检测结果"><div class="local-check-header" role="row"><span role="columnheader">检测项</span><span role="columnheader">状态</span><span role="columnheader">具体说明</span></div>${localIntegrationKeys.map((key) => {
+    const item = platform[key] || { status: 'unknown' };
+    const state = localComponentState(item);
+    return `<div class="local-check-row" role="row"><strong role="cell" data-label="检测项">${e(item.label || integrationLabels[key])}</strong><span role="cell" data-label="状态"><span class="local-status ${e(state.tone)}"><span aria-hidden="true"></span>${e(state.label)}</span></span><p role="cell" data-label="具体说明">${e(state.explanation)}</p></div>`;
+  }).join('')}</div></section>`;
+}
+
+function renderLocalTechnicalDetails(source) {
+  const state = sourceState(source);
+  const stages = [
+    ['服务已识别', state.configured, '服务目录已确认这组本机能力。', '服务目录尚未确认这组本机能力。'],
+    ['完成环境检测', state.probed, '已从当前服务设备读取组件状态。', '尚未从当前服务设备完成环境探测。'],
+    ['接入研究工作流', state.integrated, '检测结果已接入 Research Runtime 的本机工作流。', '环境证据尚未接入 Research Runtime 的可调用链路。'],
+    ['可在研究任务中调用', state.callable, '研究任务可通过受控工具调用本机能力。', '研究任务当前不能调用这组本机能力。'],
+  ];
+  const completed = stages.filter(([, active]) => active).length;
+  return `<details class="local-technical-details"><summary><span>接入详情</span><span class="muted small">${completed} / ${stages.length} 已完成</span></summary><ol class="local-stage-list">${stages.map(([label, active, completedCopy, pendingCopy], index) => `<li class="${active ? 'complete' : ''}"><span class="local-stage-marker" aria-hidden="true">${active ? '✓' : index + 1}</span><div><div class="local-stage-title"><strong>${e(label)}</strong><span>${active ? '已完成' : '未完成'}</span></div><p>${e(active ? completedCopy : pendingCopy)}</p></div></li>`).join('')}</ol></details>`;
+}
+
+function renderLocalDiagnostics(connections, sources, selectedId, busy) {
+  const source = sources.find((item) => item.id === selectedId) || sources[0];
+  const diagnosis = localOverallDiagnosis(source);
+  const actions = Array.isArray(source?.actions) ? source.actions : [];
+  const probe = actions.includes('probe') ? `<button class="button primary" type="button" data-connection-probe="${e(source.id)}" ${busy ? 'disabled aria-busy="true"' : ''}>${busy ? '检测中…' : '检测本机环境'}</button>` : '';
+  const selector = renderLocalSourceSwitcher(sources, source?.id || '');
+  const footer = '<a class="local-capability-link" href="#/skills?kind=data">查看可用数据能力 <span aria-hidden="true">→</span></a>';
+  if (!source) return `${selector}<section class="local-diagnostics"><section class="local-diagnosis-card neutral" aria-live="polite"><div class="local-diagnosis-copy"><div class="local-diagnosis-meta"><span>总体结论</span><span class="local-status neutral"><span aria-hidden="true"></span>${e(diagnosis.label)}</span></div><h2>${e(diagnosis.title)}</h2><p>${e(diagnosis.description)}</p></div></section>${footer}</section>`;
+  return `${selector}<section class="local-diagnostics"><section class="local-diagnosis-card ${e(diagnosis.tone)}" aria-labelledby="local-diagnosis-title" aria-live="polite"><div class="local-diagnosis-copy"><div class="local-diagnosis-meta"><span>总体结论</span><span class="local-status ${e(diagnosis.tone)}"><span aria-hidden="true"></span>${e(diagnosis.label)}</span></div><h2 id="local-diagnosis-title">${e(diagnosis.title)}</h2><p>${e(diagnosis.description)}</p><p class="local-device-label">当前服务设备 · ${e(platformLabel(connections?.platform))}</p></div>${probe ? `<div class="local-diagnosis-action">${probe}<span>重新检测会更新下方结果</span></div>` : ''}</section>${renderLocalChecks(connections?.platform)}${renderLocalTechnicalDetails(source)}${footer}</section>`;
+}
+
 function renderUnavailable(source) {
   const probe = Array.isArray(source.actions) && source.actions.includes('probe') ? `<button class="button" type="button" data-connection-probe="${e(source.id)}">检测状态</button>` : '';
   return `<p class="muted">${e(source.description || '当前只提供来源状态与诊断。')}</p>${source.integration_completed ? '' : '<p class="notice warning small">尚未适配 DataHub 查询边界。保存配置或检测成功都不会把它误标为可调用。</p>'}<div class="button-row">${probe}<a class="button" href="#/skills?kind=data">查看 DataHub 目录</a></div>`;
@@ -251,7 +359,7 @@ export function buildConfigurationPayload(sourceId, values) {
   throw new Error('该来源不支持配置。');
 }
 
-export function renderConnectionCenter({ connections, selectedId, configuration, migrationOpen = false, detailOpen = true, scope = 'all' }) {
+export function renderConnectionCenter({ connections, selectedId, configuration, migrationOpen = false, detailOpen = true, scope = 'all', busy = false }) {
   const allSources = Array.isArray(connections?.sources) ? connections.sources : [];
   const sources = scopedSources(allSources, scope);
   const scopedConnections = { ...connections, sources };
@@ -259,5 +367,5 @@ export function renderConnectionCenter({ connections, selectedId, configuration,
   const source = sources.find((item) => item.id === resolved);
   const local = scope === 'local';
   if (!local) return `<section class="connection-center" data-connection-scope="${e(scope)}" data-selected-connection="${e(resolved)}">${renderMigration(connections?.migration, migrationOpen)}${renderDataWorkbench(scopedConnections, resolved, source, configuration, detailOpen)}</section>`;
-  return `<section class="connection-center" data-connection-scope="${e(scope)}" data-selected-connection="${e(resolved)}"><div class="connection-center-heading"><div><p class="eyebrow">LOCAL INTEGRATIONS</p><h2>本机能力与插件</h2><p class="muted">状态来自当前 8088 服务所在设备；组件存在不等于可以调用。</p></div></div><div class="connection-center-layout">${renderNavigation(scopedConnections, resolved)}${renderDetail(source, configuration, connections)}</div></section>`;
+  return `<section class="connection-center local-connection-center" data-connection-scope="${e(scope)}" data-selected-connection="${e(resolved)}">${renderLocalDiagnostics(connections, sources, resolved, busy)}</section>`;
 }
