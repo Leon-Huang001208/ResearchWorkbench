@@ -3,20 +3,21 @@ import test from 'node:test';
 
 import {
   buildConfigurationPayload,
+  filterConnectionSources,
   renderConnectionCenter,
   selectedConnectionId,
 } from '../../app/research_web/ui/connections.mjs';
 
 const ids = [
-  'wind', 'tinysoft', 'ifind', 'tushare', 'mysql',
-  'tavily', 'bing', 'zhiqiu_reports', 'zhiqiu_wechat', 'zhiqiu_transcript',
+  'wind', 'tinysoft', 'ifind', 'mysql',
+  'tushare', 'tavily', 'bing', 'zhiqiu_reports', 'zhiqiu_wechat', 'zhiqiu_transcript',
   'akshare', 'baostock', 'yahoo', 'chinastock', 'csindex', 'szse', 'cninfo',
   'cls', 'cnstock_flash', 'cnstock_news', 'eastmoney_fund', 'local_cache',
 ];
 
 const groups = [
-  { id: 'professional', label: '专业数据源', source_ids: ids.slice(0, 5) },
-  { id: 'api', label: 'API 数据源', source_ids: ids.slice(5, 10) },
+  { id: 'professional', label: '专业数据源', source_ids: ids.slice(0, 4) },
+  { id: 'api', label: 'API 数据源', source_ids: ids.slice(4, 10) },
   { id: 'public', label: '公开来源', source_ids: ids.slice(10, 21) },
   { id: 'local', label: '本机集成', source_ids: ids.slice(21) },
 ];
@@ -50,13 +51,39 @@ const model = {
   migration: { available: true, targets: ['tushare'], conflicts: [] },
 };
 
-test('connection center renders all 22 sources in grouped compact navigation', () => {
-  const html = renderConnectionCenter({ connections: model, selectedId: 'mysql', configuration: { configured: true, secret_configured: true, label: '因子库', host: 'db.internal', port: 3306, user: 'reader', charset: 'gbk', tls_mode: 'required_no_verify' } });
-  assert.equal((html.match(/data-connection-select=/g) || []).length, 22);
-  for (const label of ['专业数据源', 'API 数据源', '公开来源', '本机集成']) assert.match(html, new RegExp(label));
+test('connection center renders a categorized workbench without mixing groups in the first view', () => {
+  const html = renderConnectionCenter({ connections: model, selectedId: 'mysql', configuration: { configured: true, secret_configured: true, label: '因子库', host: 'db.internal', port: 3306, user: 'reader', charset: 'gbk', tls_mode: 'required_no_verify' }, scope: 'data' });
+  assert.equal((html.match(/data-connection-select=/g) || []).length, 21);
+  for (const label of ['专业数据源', 'API 数据源', '公开来源']) assert.match(html, new RegExp(label));
+  assert.doesNotMatch(html, /data-connection-select="local_cache"|本机集成/);
   for (const label of ['已配置', '已检测', '已适配', '可调用']) assert.match(html, new RegExp(label));
   assert.match(html, /id="connection-config-mysql"/);
   assert.doesNotMatch(html, /本轮仅说明后续适配方向/);
+});
+
+test('data workbench exposes summaries, discovery controls, category tabs and a closable detail drawer', () => {
+  const html = renderConnectionCenter({ connections: model, selectedId: 'wind', configuration: { preferred_adapter: 'auto' }, scope: 'data' });
+  for (const label of ['已连接', '待配置', '需处理', '来源总数']) assert.match(html, new RegExp(label));
+  assert.match(html, /data-connection-search/);
+  assert.match(html, /data-connection-status/);
+  assert.match(html, /data-connection-group="professional"[^>]*aria-selected="true"/);
+  assert.match(html, /data-connection-group="api"/);
+  assert.match(html, /data-connection-group="public"/);
+  assert.match(html, /data-connection-drawer/);
+  assert.match(html, /data-connection-detail-close/);
+  assert.match(html, /href="#\/skills\?kind=data"[^>]*>添加数据源</);
+  assert.equal((html.match(/data-connection-card/g) || []).length, 21);
+  assert.match(html, /data-connection-card[^>]*data-connection-group-name="api"[^>]*hidden/);
+  assert.match(html, /data-connection-card[^>]*data-connection-group-name="public"[^>]*hidden/);
+  const closed = renderConnectionCenter({ connections: model, selectedId: 'wind', configuration: {}, scope: 'data', detailOpen: false });
+  assert.match(closed, /data-connection-drawer hidden/);
+});
+
+test('connection filtering stays category-first until a global search is entered', () => {
+  assert.deepEqual(filterConnectionSources(sources, { group: 'professional' }).map((source) => source.id), ids.slice(0, 4));
+  assert.deepEqual(filterConnectionSources(sources, { group: 'professional', query: 'tavily' }).map((source) => source.id), ['tavily']);
+  assert.deepEqual(filterConnectionSources(sources, { group: 'professional', status: 'connected' }).map((source) => source.id), ['mysql']);
+  assert.deepEqual(filterConnectionSources(sources, { group: 'api', status: 'attention' }).map((source) => source.id), ids.slice(4, 10));
 });
 
 test('Wind detail is session based and does not render username or password fields', () => {

@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "origin": "http://127.0.0.1:60042",
+  "results": [
+    {
+      "width": 1440,
+      "height": 1000,
+      "status": "passed",
+      "screenshot": "outputs/research-web-connections-acceptance/settings-data-1440x1000.png"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "status": "passed",
+      "screenshot": "outputs/research-web-connections-acceptance/settings-data-768x1024.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "status": "passed",
+      "screenshot": "outputs/research-web-connections-acceptance/settings-data-390x844.png"
+    }
+  ]
+}

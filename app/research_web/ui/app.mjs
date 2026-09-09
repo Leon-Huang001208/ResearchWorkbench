@@ -28,7 +28,7 @@ let assetState = { observations: [], observation: null, rows: {}, watchlists: []
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
-let selectedConnectionConfiguration = null; let migrationOpen = false;
+let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true;
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -54,6 +54,44 @@ function forgetConfigurationSecrets(value) {
     if (['password', 'token', 'api_key', 'cj_key'].includes(key)) delete value[key];
     else forgetConfigurationSecrets(value[key]);
   }
+}
+
+function applyConnectionWorkspaceFilters(workbench) {
+  if (!workbench) return;
+  try {
+    const query = String(workbench.querySelector('[data-connection-search]')?.value || '').trim().toLocaleLowerCase();
+    const status = workbench.querySelector('[data-connection-status]')?.value || 'all';
+    const group = workbench.dataset.activeGroup || 'professional';
+    let visible = 0;
+    workbench.querySelectorAll('[data-connection-card]').forEach((card) => {
+      const matchesGroup = query ? true : card.dataset.connectionGroupName === group;
+      const matchesStatus = status === 'all' || card.dataset.connectionStatusName === status;
+      const matchesQuery = !query || String(card.dataset.connectionSearchText || '').includes(query);
+      card.hidden = !(matchesGroup && matchesStatus && matchesQuery);
+      if (!card.hidden) visible += 1;
+    });
+    const count = workbench.querySelector('[data-connection-result-count]');
+    if (count) count.textContent = String(visible);
+    const emptyState = workbench.querySelector('[data-connection-empty]');
+    if (emptyState) emptyState.hidden = visible > 0;
+    const searchScope = workbench.querySelector('[data-connection-search-scope]');
+    if (searchScope) searchScope.hidden = !query;
+    const grid = workbench.querySelector('#connection-source-grid');
+    if (grid) grid.setAttribute('aria-labelledby', `connection-group-${group}`);
+  } catch (error) {
+    safeLog('connection_workspace_filter_failed', { status: error?.name || 'unknown' });
+  }
+}
+
+function closeConnectionDrawer(workbench, { restoreFocus = true } = {}) {
+  const drawer = workbench?.querySelector('[data-connection-drawer]');
+  if (!drawer || drawer.hidden) return false;
+  connectionDetailOpen = false;
+  drawer.hidden = true;
+  const selectedCard = workbench.querySelector('[data-connection-select][aria-pressed="true"]');
+  selectedCard?.setAttribute('aria-expanded', 'false');
+  if (restoreFocus) selectedCard?.focus?.({ preventScroll: true });
+  return true;
 }
 
 function composer() {
@@ -88,6 +126,7 @@ function settingsPage() {
     connections: catalog.connections,
     selectedConfiguration: selectedConnectionConfiguration,
     migrationOpen,
+    connectionDetailOpen,
     hash: location.hash,
   });
 }
@@ -320,6 +359,7 @@ async function showRoute() {
   if (state.route.page === 'history') await loadCatalog([state.route.historyView === 'deleted' ? 'deletedSessions' : 'sessions']);
   if (state.route.page === 'settings') {
     migrationOpen = false;
+    connectionDetailOpen = true;
     selectedConnectionConfiguration = null;
     const section = currentSettingsSection();
     const catalogs = settingsRefreshCatalogs(section);
@@ -372,6 +412,7 @@ root.addEventListener('input', (event) => {
   if ('capQuery' in event.target.dataset) { capabilityState.query = event.target.value; render(); }
   if ('globalSearch' in event.target.dataset) { globalSearch = event.target.value; render(); }
   if (event.target.id === 'rename-title') renameDraft = event.target.value;
+  if ('connectionSearch' in (event.target.dataset || {})) applyConnectionWorkspaceFilters(event.target.closest('[data-connection-workbench]'));
   const form = event.target.closest('[data-question-form]');
   if (form) {
     const question = state.detail?.questions?.find((item) => item.id === form.dataset.questionForm);
@@ -386,6 +427,17 @@ root.addEventListener('input', (event) => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if ('connectionGroup' in (event.target.dataset || {}) && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+    const tabs = [...event.target.closest('[role="tablist"]')?.querySelectorAll('[data-connection-group]') || []];
+    if (tabs.length) {
+      event.preventDefault();
+      const current = tabs.indexOf(event.target);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[next].click();
+      tabs[next].focus({ preventScroll: true });
+    }
+    return;
+  }
   if ('capKind' in (event.target.dataset || {})) {
     const result = capabilityTabKey(event.key, event.target.dataset.capKind);
     if (result.handled) {
@@ -406,6 +458,8 @@ root.addEventListener('keydown', (event) => {
   }
   if (event.target.id === 'prompt' && event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); document.querySelector('#composer')?.requestSubmit(); }
   if (event.key === 'Escape') {
+    const workbench = event.target.closest?.('[data-connection-workbench]') || document.querySelector('[data-connection-workbench]');
+    if (closeConnectionDrawer(workbench)) { event.preventDefault(); return; }
     event.preventDefault();
     const focusSession = sessionMenu?.id || renameSession?.id || deleteSession?.id || purgeSession?.id;
     sidebarOpen = false; contextOpen = false; slashOpen = false; globalSearch = ''; searchOpen = false;
@@ -417,6 +471,7 @@ root.addEventListener('keydown', (event) => {
 
 root.addEventListener('change', async (event) => {
   const target = event.target;
+  if ('connectionStatus' in (target.dataset || {})) applyConnectionWorkspaceFilters(target.closest('[data-connection-workbench]'));
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
   if ('quickCategory' in target.dataset) { quickCategory = target.value; render(); }
   if (target.id === 'skill-select') { if (target.value) await selectCapability(target.value); else { controller.setCapability(null); render(); } }
@@ -687,6 +742,23 @@ root.addEventListener('click', async (event) => {
   }
   const button = clickTarget?.closest?.('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
+  if ('connectionGroup' in data) {
+    const workbench = button.closest('[data-connection-workbench]');
+    if (!workbench) return;
+    workbench.dataset.activeGroup = data.connectionGroup;
+    workbench.querySelectorAll('[data-connection-group]').forEach((tab) => {
+      const selected = tab === button;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+    });
+    closeConnectionDrawer(workbench, { restoreFocus: false });
+    applyConnectionWorkspaceFilters(workbench);
+    return;
+  }
+  if ('connectionDetailClose' in data) {
+    closeConnectionDrawer(button.closest('[data-connection-workbench]'));
+    return;
+  }
   if ('connectionSelect' in data) {
     const sourceId = data.connectionSelect;
     const source = catalog.connections.sources.find((item) => item.id === sourceId);
@@ -695,7 +767,7 @@ root.addEventListener('click', async (event) => {
     state.route.connectionId = sourceId;
     delete state.route.legacySettingsConnection;
     history.pushState(null, '', `#/settings/${section}?connection=${encodeURIComponent(sourceId)}`);
-    selectedConnectionConfiguration = null; state.error = ''; render();
+    selectedConnectionConfiguration = null; connectionDetailOpen = true; state.error = ''; render();
     await loadConnectionConfiguration(sourceId);
     document.querySelector('#connection-title')?.focus?.({ preventScroll: true });
     return;

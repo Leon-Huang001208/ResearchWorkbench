@@ -57,7 +57,7 @@
 - 附件使用 multipart `files` 字段上传；返回 ID 作为 `attachment_ids` 提交。上传成功仅代表后端收到了文件，不代表模型已读取或工具沙箱已执行。
 - 文件下载只使用真实返回且经过检查的同源会话文件 URL。HTML 预览 iframe 使用空 `sandbox` 和 `no-referrer`，前端拒绝外部或任意路径的预览地址；后端仍负责授权、路径隔离和响应 CSP。
 - 模型切换和配置调用 `PUT /runtime/model`。API Key 为密码输入，不回填，不写 localStorage/sessionStorage，不进入日志；提交时清空输入框。失败后如需更新 Key，用户需重新输入。
-- 设置在产品主导航内增加独立分类导航，拆为通用、模型服务、数据源、本机集成和架构文档；每次只渲染当前子页。DSH 模型配置不再折叠；DataHub 远程来源和本机能力互不混入，仍分别显示“已配置、已检测、已适配、可调用”。桌面分类栏粘滞于内容侧，760px 以下改为可横向滚动且不低于 44px 的标签。
+- 设置在产品主导航内增加独立分类导航，拆为通用、模型服务、数据源、本机集成和架构文档；每次只渲染当前子页。DSH 模型配置不再折叠；DataHub 远程来源和本机能力互不混入，仍分别显示“已配置、已检测、已适配、可调用”。数据源页以真实连接状态概览、专业/API/公开分类、跨分类搜索和状态筛选组织 21 个远程来源，只展开当前分类；选择来源后在右侧详情面板复用原配置与探测表单。桌面分类栏粘滞于内容侧，760px 以下改为可横向滚动且不低于 44px 的标签。
 - MySQL 详情仅显示本地非秘密字段；密码通过统一配置 API 交给系统凭据库，输入提交后立即清空，GET 永不回填。Wind 只保存 `auto/client_api/excel` 偏好，不收集账号密码；Client API 探测读取当前会话状态但不代为登录，Excel 未提供真实工作簿心跳时保持未验证。iFinD 和知丘使用账号池，天软、Tushare、Tavily、Bing 使用单一秘密；所有秘密都只进入系统凭据库。尚未完成 DataHub 适配或无需鉴权的来源只展示真实状态与诊断，不渲染无效配置表单。
 - Excel 是本机集成诊断，不是账号来源。Excel 自动化、Wind 插件、iFinD 插件和报告工作流逐层展示当前 8088 服务所在平台的检测结果；仅完成实际心跳或授权工作簿探测时才标记可用。旧 `.env` 迁移先显示不含值的预览，用户选择目标并二次确认后才调用迁移接口。
 - 前端安全 console 事件只包含固定事件名、请求 method 和 HTTP status；不记录 URL、会话 ID、输入、文件名、响应正文或凭据。服务端持久日志由 Research Web 后端负责写入项目日志设施。
@@ -117,7 +117,7 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 | running | 运行任务显示在侧栏；停止仍使用已有取消接口 | 壳层渲染 + 既有 controller/API 测试 |
 | error | 目录/API 错误保留可见；失败活动默认展开并显示错误 | `views.mjs` 渲染与 UI 回归 |
 | empty | 缺少真实会话、Skill、资料或文件时显示操作性空状态，不填演示数据 | 壳层与既有 views 测试 |
-| keyboard | skip link、焦点恢复、Enter 发送、Escape 关闭抽屉沿用；`/` 可搜索真实 Skill | 单元及真实浏览器slash/Escape/ArrowDown/Enter、移动抽屉检查 |
+| keyboard | skip link、焦点恢复、Enter 发送、Escape 关闭抽屉沿用；`/` 可搜索真实 Skill；数据源分类支持左右方向键/Home/End，详情可由 Escape 关闭并把焦点还给来源卡片 | 单元及真实浏览器 slash/Escape/ArrowDown/ArrowRight/Enter、移动抽屉检查 |
 | 能力禁用/缺依赖/冲突 | 停用能力只可查看；导入检查问题和操作错误可见，不自动发布或安装 | `research_web_capabilities_ui.test.mjs` |
 | 编辑/保存/版本 | 失败保留完整候选；保存可由新控制器重新读取；版本与工具意图参与幂等消息 | `research_web_capabilities_ui.test.mjs` |
 | 离线/键盘 | 运行时离线禁发送但可编辑；真实 app 事件处理器消费 slash/Escape/移动抽屉和搜索 | 无网络 DOM 边界测试；不替代真实浏览器 |
@@ -125,8 +125,9 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 | 会话管理 | 行级菜单重命名/软删除；已删除视图恢复或永久删除；30 天后在线自动清理 | UI 布局测试 + `test_api.py` 生命周期测试 |
 | 首页模板/分类 | Claw 仅已启用 Workflow；FinGPT 四 Skill；分类本地筛选，卡片与上方 Skill 选择只准备版本草稿 | 布局渲染测试 + 实际 app 事件无网络 DOM 边界测试；视口/hover 由控制器另验 |
 | 数据目录 | 15 项能力、22 个来源双视图；MySQL 展示本地配置状态链，未适配/未配置/不可调用分别可见，显式探测只访问一源 | `research_web_capabilities_ui.test.mjs` + `research_web_ui.test.mjs` + `test_datahub_catalog.py` |
+| 数据源工作台 | 21 个远程来源按专业/API/公开分类；搜索跨分类，状态筛选叠加当前视图；详情关闭不修改连接或凭据状态，空结果提供可恢复提示 | `research_web_connections_ui.test.mjs` + `research_web_connections_workbench.mjs` |
 
-实现子任务未启动模型；集成控制器已另行执行真实Web验收。`tests/e2e/research_web_layout.mjs`覆盖1440/1600/1920、820平板与390手机共15页面组合，搜索、分类、slash键盘、抽屉及四Skill双模式草稿通过；控制器已实际查看全部15张最终截图。屏幕阅读器和桌面平台未验证。新真实模型旅程（自建Skill、PDF、Workflow双Agent文件）和只读历史回归见 [本轮记录](../.ai/reports/2026-09-03-research-ui-live.md)。
+实现子任务未启动模型；集成控制器已另行执行真实Web验收。`tests/e2e/research_web_layout.mjs`覆盖1440/1600/1920、820平板与390手机共15页面组合，搜索、分类、slash键盘、抽屉及四Skill双模式草稿通过；`tests/e2e/research_web_connections_workbench.mjs`使用只读本地目录夹具覆盖 1440×1000、768×1024 与 390×844 的数据源分类、跨分类搜索、状态筛选、详情关闭、键盘和水平溢出。屏幕阅读器和桌面平台未验证。新真实模型旅程（自建Skill、PDF、Workflow双Agent文件）和只读历史回归见 [本轮记录](../.ai/reports/2026-09-03-research-ui-live.md)。
 
 设置中的「架构文档」链接只打开 `/api/research/documentation/index.html`，新页以noopener/noreferrer隔离；目录与八图由固定路由、受限文件读取及独立CSP提供，详见 [文档模块](research-web-documentation.md)，不会开放仓库或Runtime目录。
 

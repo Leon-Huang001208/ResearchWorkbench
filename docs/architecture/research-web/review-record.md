@@ -313,4 +313,12 @@
 - 远程数据源与本机集成只在前端投影中分组；仍读取同一 `/data/connections` 安全响应，提交、探测、迁移、凭据库和 Runtime 契约不变。
 - 该变化只新增 UI 模块并调整现有前端组合，不新增 API、服务节点、跨层依赖或数据流，十张架构图无需重生成。
 
+## 2026-09-09 — 数据源分类工作台
+
+- 数据源设置页将 21 个远程来源从全量长列表改为状态概览、三类标签、搜索/筛选、卡片网格与同页详情面板；本机集成页保持原投影。
+- 搜索、筛选和详情开关均为浏览器内展示状态；来源 ID、Hash 深链、配置字段、凭据库、探测 API、DataHub 路由和 Runtime 物化规则不变。
+- 该变化只调整 `ui/connections.mjs`、事件委托和外观样式，不新增服务、端点或数据流，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"数据源分类、搜索、状态筛选和详情面板均复用既有设置页与同源连接API，只改变浏览器内信息架构。","diagrams":[]} -->
+
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"设置分页只调整现有产品壳内的Hash路由、纯渲染和子页加载范围，同源API、凭据库、DataHub和Runtime拓扑保持不变。","diagrams":[]} -->

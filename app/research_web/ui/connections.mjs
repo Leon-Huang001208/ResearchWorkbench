@@ -53,9 +53,33 @@ function compactStatus(source) {
   return ['不可调用', 'danger'];
 }
 
-function renderSourceButton(source, selected) {
+function connectionStatusKey(source) {
+  const [label] = compactStatus(source);
+  if (label === '可调用') return 'connected';
+  if (label === '待配置') return 'pending';
+  return 'attention';
+}
+
+function searchableSourceText(source) {
+  return [sourceName(source), source?.id, authLabel(source), compactStatus(source)[0], source?.description]
+    .filter(Boolean)
+    .join(' ')
+    .toLocaleLowerCase();
+}
+
+export function filterConnectionSources(sources = [], { group = 'professional', query = '', status = 'all' } = {}) {
+  const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+  return sources.filter((source) => {
+    const groupMatches = normalizedQuery ? true : source?.group === group;
+    const statusMatches = status === 'all' || connectionStatusKey(source) === status;
+    return groupMatches && statusMatches && (!normalizedQuery || searchableSourceText(source).includes(normalizedQuery));
+  });
+}
+
+function renderSourceButton(source, selected, { card = false, visible = true } = {}) {
   const [label, kind] = compactStatus(source);
-  return `<button type="button" class="connection-source ${selected ? 'selected' : ''}" data-connection-select="${e(source.id)}" aria-pressed="${selected}"><span class="connection-source-copy"><strong>${e(sourceName(source))}</strong><small>${e(authLabel(source))}</small></span><span class="badge ${kind}">${e(label)}</span></button>`;
+  const cardAttributes = card ? ` data-connection-card data-connection-group-name="${e(source.group || '')}" data-connection-status-name="${e(connectionStatusKey(source))}" data-connection-search-text="${e(searchableSourceText(source))}" ${visible ? '' : 'hidden'}` : '';
+  return `<button type="button" class="connection-source ${card ? 'connection-card' : ''} ${selected ? 'selected' : ''}" data-connection-select="${e(source.id)}"${cardAttributes} aria-pressed="${selected}" aria-expanded="${selected}"><span class="connection-source-copy"><strong>${e(sourceName(source))}</strong><small>${e(authLabel(source))}</small></span><span class="badge ${kind}">${e(label)}</span></button>`;
 }
 
 function groupSourceIds(group) { return group?.source_ids || group?.items || group?.sources || []; }
@@ -81,6 +105,37 @@ function renderNavigation(connections, selectedId) {
     if (!items.length) return '';
     return `<section class="connection-source-group"><h3>${e(group.label || group.name || group.id)}</h3>${items.map((source) => renderSourceButton(source, source.id === selectedId)).join('')}</section>`;
   }).join('')}</nav>`;
+}
+
+function renderConnectionSummary(sources) {
+  const counts = sources.reduce((summary, source) => {
+    summary[connectionStatusKey(source)] += 1;
+    return summary;
+  }, { connected: 0, pending: 0, attention: 0 });
+  const items = [
+    ['已连接', counts.connected, 'connected'],
+    ['待配置', counts.pending, 'pending'],
+    ['需处理', counts.attention, 'attention'],
+    ['来源总数', sources.length, 'total'],
+  ];
+  return `<dl class="connection-summary" aria-label="数据源状态概览">${items.map(([label, value, kind]) => `<div class="connection-summary-item ${kind}"><dt><span aria-hidden="true"></span>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>`;
+}
+
+function renderGroupTabs(connections, activeGroup) {
+  const sources = Array.isArray(connections?.sources) ? connections.sources : [];
+  const available = new Set(sources.map((source) => source.group));
+  const groups = normalizedGroups(connections).filter((group) => group.id !== 'local' && available.has(group.id));
+  return `<div class="connection-group-tabs" role="tablist" aria-label="数据源分类">${groups.map((group) => `<button type="button" role="tab" id="connection-group-${e(group.id)}" data-connection-group="${e(group.id)}" aria-controls="connection-source-grid" aria-selected="${group.id === activeGroup}" tabindex="${group.id === activeGroup ? '0' : '-1'}">${e(group.label || group.name || group.id)}</button>`).join('')}</div>`;
+}
+
+function renderDataWorkbench(connections, selectedId, source, configuration, detailOpen) {
+  const sources = Array.isArray(connections?.sources) ? connections.sources : [];
+  const selectedGroup = source?.group && source.group !== 'local' ? source.group : '';
+  const activeGroup = selectedGroup || normalizedGroups(connections).find((group) => group.id !== 'local' && sources.some((item) => item.group === group.id))?.id || 'professional';
+  const visibleCount = filterConnectionSources(sources, { group: activeGroup }).length;
+  const detail = renderDetail(source, configuration, connections, { drawer: true });
+  const renderedDetail = detailOpen ? detail : detail.replace(' data-connection-drawer', ' data-connection-drawer hidden');
+  return `<div class="connection-workbench" data-connection-workbench data-active-group="${e(activeGroup)}">${renderConnectionSummary(sources)}<div class="connection-toolbar"><label class="connection-search"><span class="sr-only">搜索数据源</span><input type="search" data-connection-search placeholder="搜索数据源" autocomplete="off"></label><label class="connection-status-filter"><span class="sr-only">筛选连接状态</span><select data-connection-status><option value="all">全部状态</option><option value="connected">已连接</option><option value="pending">待配置</option><option value="attention">需处理</option></select></label><a class="button primary connection-add-source" href="#/skills?kind=data">添加数据源</a></div>${renderGroupTabs(connections, activeGroup)}<div class="connection-workbench-stage"><section class="connection-source-panel" aria-labelledby="connection-results-label"><div class="connection-results-heading"><p id="connection-results-label"><strong data-connection-result-count>${visibleCount}</strong> 个来源</p><p class="muted small" data-connection-search-scope hidden>正在跨全部分类搜索</p></div><div class="connection-card-grid" id="connection-source-grid" role="tabpanel" aria-labelledby="connection-group-${e(activeGroup)}">${sources.map((item) => renderSourceButton(item, item.id === selectedId, { card: true, visible: item.group === activeGroup })).join('')}</div><div class="connection-empty" data-connection-empty hidden><strong>没有匹配的数据源</strong><p class="muted small">尝试清除搜索词或调整状态筛选。</p></div></section>${renderedDetail}</div></div>`;
 }
 
 function field(label, name, value = '', options = {}) {
@@ -137,7 +192,7 @@ function renderUnavailable(source) {
   return `<p class="muted">${e(source.description || '当前只提供来源状态与诊断。')}</p>${source.integration_completed ? '' : '<p class="notice warning small">尚未适配 DataHub 查询边界。保存配置或检测成功都不会把它误标为可调用。</p>'}<div class="button-row">${probe}<a class="button" href="#/skills?kind=data">查看 DataHub 目录</a></div>`;
 }
 
-function renderDetail(source, configuration, connections) {
+function renderDetail(source, configuration, connections, { drawer = false } = {}) {
   if (!source) return '<section class="connection-detail"><p class="muted">请选择一个数据源。</p></section>';
   let body;
   if (source.id === 'mysql') body = renderMysql(source, configuration);
@@ -147,7 +202,8 @@ function renderDetail(source, configuration, connections) {
   else if (tokenLabels[source.id]) body = renderToken(source, configuration);
   else if (source.id === 'local_cache' || source.group === 'local') body = renderIntegration(connections?.platform);
   else body = renderUnavailable(source);
-  return `<section class="connection-detail" aria-labelledby="connection-title"><header class="connection-detail-header"><div><p class="eyebrow">${e(authLabel(source))}</p><h2 id="connection-title">${e(sourceName(source))}</h2><p class="muted">${e(source.description || '')}</p></div></header>${renderStateMatrix(source)}${body}</section>`;
+  const close = drawer ? '<button class="connection-detail-close" type="button" data-connection-detail-close aria-label="关闭数据源详情">×</button>' : '';
+  return `<section class="connection-detail ${drawer ? 'connection-drawer' : ''}" ${drawer ? 'id="connection-detail" data-connection-drawer' : ''} aria-labelledby="connection-title"><header class="connection-detail-header"><div><p class="eyebrow">${e(authLabel(source))}</p><h2 id="connection-title" tabindex="-1">${e(sourceName(source))}</h2><p class="muted">${e(source.description || '')}</p></div>${close}</header>${renderStateMatrix(source)}${body}</section>`;
 }
 
 function renderMigration(migration, open) {
@@ -195,12 +251,13 @@ export function buildConfigurationPayload(sourceId, values) {
   throw new Error('该来源不支持配置。');
 }
 
-export function renderConnectionCenter({ connections, selectedId, configuration, migrationOpen = false, scope = 'all' }) {
+export function renderConnectionCenter({ connections, selectedId, configuration, migrationOpen = false, detailOpen = true, scope = 'all' }) {
   const allSources = Array.isArray(connections?.sources) ? connections.sources : [];
   const sources = scopedSources(allSources, scope);
   const scopedConnections = { ...connections, sources };
   const resolved = sources.some((source) => source.id === selectedId) ? selectedId : (sources[0]?.id || '');
   const source = sources.find((item) => item.id === resolved);
   const local = scope === 'local';
-  return `<section class="connection-center" data-connection-scope="${e(scope)}" data-selected-connection="${e(resolved)}"><div class="connection-center-heading"><div><p class="eyebrow">${local ? 'LOCAL INTEGRATIONS' : 'DATA CONNECTIONS'}</p><h2>${local ? '本机能力与插件' : '数据源连接中心'}</h2><p class="muted">${local ? '状态来自当前 8088 服务所在设备；组件存在不等于可以调用。' : `${sources.length} 个来源统一展示；配置、检测、适配与可调用分别核验。`}</p></div><a class="button" href="#/skills?kind=data">DataHub 目录</a></div>${local ? '' : renderMigration(connections?.migration, migrationOpen)}<div class="connection-center-layout">${renderNavigation(scopedConnections, resolved)}${renderDetail(source, configuration, connections)}</div></section>`;
+  if (!local) return `<section class="connection-center" data-connection-scope="${e(scope)}" data-selected-connection="${e(resolved)}">${renderMigration(connections?.migration, migrationOpen)}${renderDataWorkbench(scopedConnections, resolved, source, configuration, detailOpen)}</section>`;
+  return `<section class="connection-center" data-connection-scope="${e(scope)}" data-selected-connection="${e(resolved)}"><div class="connection-center-heading"><div><p class="eyebrow">LOCAL INTEGRATIONS</p><h2>本机能力与插件</h2><p class="muted">状态来自当前 8088 服务所在设备；组件存在不等于可以调用。</p></div></div><div class="connection-center-layout">${renderNavigation(scopedConnections, resolved)}${renderDetail(source, configuration, connections)}</div></section>`;
 }
