@@ -23,6 +23,8 @@ The former `AlphaFoundry-runtime-agnostic-core` worktree is being reconciled as 
 - `git diff --cached origin/master --check` passed for the reconciled changes.
 - Python unit tests could not run locally because no project virtual environment exists and the system Python does not include `pytest`; no dependency was installed. Native GitHub CI remains mandatory before this branch can be cleaned up.
 
+The first project-constraints CI run rejected two recovered service modules because their earlier implementation did not meet the repository's explicit logging and exception-boundary rule. The repair adds validated descriptor registration logging and a workflow execution boundary that records a safe failed status, logs both execution and failure-status persistence errors, and re-raises the original exception. A regression test asserts the durable failed status.
+
 ## Platform boundary
 
 This reconciliation changes runtime, migrations, web behavior, and desktop packaging inputs. macOS and Windows native CI evidence is therefore required. A real Windows installation-level smoke test remains a release prerequisite and is not claimed by this branch reconciliation.

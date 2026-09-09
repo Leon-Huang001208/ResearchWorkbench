@@ -7,6 +7,9 @@ from core.contracts.runtime import (
     RuntimeDescriptor,
     RuntimeUnavailableError,
 )
+from core.observability import get_logger
+
+logger = get_logger(__name__)
 
 
 class RuntimeRegistry:
@@ -14,7 +17,16 @@ class RuntimeRegistry:
         self._descriptors: dict[str, RuntimeDescriptor] = {}
 
     def register(self, descriptor: RuntimeDescriptor) -> None:
-        self._descriptors[descriptor.runtime_id] = descriptor
+        try:
+            runtime_id = descriptor.runtime_id
+        except (AttributeError, TypeError) as exc:
+            logger.exception(
+                "runtime descriptor registration failed",
+                error_type=type(exc).__name__,
+            )
+            raise ValueError("runtime descriptor is invalid") from exc
+        self._descriptors[runtime_id] = descriptor
+        logger.info("runtime descriptor registered", runtime_id=runtime_id)
 
     def list(self) -> list[RuntimeDescriptor]:
         return list(self._descriptors.values())

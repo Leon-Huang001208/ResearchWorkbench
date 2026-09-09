@@ -213,6 +213,29 @@ def test_runtime_workflow_service_persists_replayable_event_ledger(db_session):
     assert replay[-1].event_type == "RunCompleted"
 
 
+def test_runtime_workflow_service_records_failed_status_before_reraising(
+    db_session, monkeypatch
+):
+    service = _service(db_session)
+    created = service.create_daily_market_commentary(
+        DailyMarketCommentaryRequest(
+            as_of=datetime(2026, 8, 26, tzinfo=UTC),
+            question="生成今日市场收盘点评",
+            market_inputs={"snapshot": {"indices": [{"name": "沪深300"}]}},
+        )
+    )
+
+    def fail_run(*_args, **_kwargs):
+        raise RuntimeError("simulated runtime failure")
+
+    monkeypatch.setattr(DailyMarketCommentaryWorkflow, "run", fail_run)
+
+    with pytest.raises(RuntimeError, match="simulated runtime failure"):
+        service.execute(created["run_id"])
+
+    assert service.get(created["run_id"]).status == "failed"
+
+
 def test_default_runtime_service_does_not_fall_back_to_fixture_without_dsh_bridge(
     db_session, monkeypatch
 ):

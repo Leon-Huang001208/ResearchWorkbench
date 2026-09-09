@@ -93,11 +93,31 @@ class RuntimeWorkflowService:
             spec=configured_spec(request.workflow_overrides),
         )
         self._repository.update_status(run_id, "running")
-        result = workflow.run(run_id=run_id, as_of=request.as_of, question=request.question)
-        self._repository.append_events(result.events)
-        self._repository.replace_evidence(run_id, result.evidence)
-        self._repository.append_result_artifact(result)
-        self._repository.update_status(run_id, result.status, error_message=result.error_message)
+        try:
+            result = workflow.run(run_id=run_id, as_of=request.as_of, question=request.question)
+            self._repository.append_events(result.events)
+            self._repository.replace_evidence(run_id, result.evidence)
+            self._repository.append_result_artifact(result)
+            self._repository.update_status(run_id, result.status, error_message=result.error_message)
+        except Exception as exc:
+            logger.exception(
+                "runtime workflow execution failed",
+                run_id=run_id,
+                error_type=type(exc).__name__,
+            )
+            try:
+                self._repository.update_status(
+                    run_id,
+                    "failed",
+                    error_message=f"Runtime execution failed: {type(exc).__name__}",
+                )
+            except Exception as status_exc:
+                logger.exception(
+                    "runtime workflow failure status persistence failed",
+                    run_id=run_id,
+                    error_type=type(status_exc).__name__,
+                )
+            raise
         logger.info("runtime workflow executed", run_id=run_id, status=result.status)
         return result
 
