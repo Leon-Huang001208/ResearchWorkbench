@@ -16,7 +16,12 @@ The product topbar keeps healthy runtime state silent and exposes only actionabl
 availability states; page-scoped refresh controls remain owned by their existing modules.
 Settings uses five mutually exclusive hash subpages rendered by `ui/settings.mjs`; `ui/app.mjs` retains
 control of catalog loads, form submissions and errors. Remote DataHub sources and local platform
-integrations are filtered before rendering.
+integrations are filtered before rendering. The data subpage is a category-first workbench implemented
+by `ui/connections.mjs` and `ui/appearance.css`: 21 remote sources remain discoverable through three
+group tabs, global search and status filtering, while the selected source reuses the existing configuration
+form inside a closable detail drawer. Its DOM contracts are covered by
+`tests/javascript/research_web_connections_ui.test.mjs`; responsive interaction and overflow are covered by
+`tests/e2e/research_web_connections_workbench.mjs` at 1440×1000, 768×1024 and 390×844.
 DataHub catalog, brand-neutral business tools, broker, Provider, probe and snapshot contracts live in `app/research_web/datahub/`, `app/research_web/launch_runtime.py`, `app/research_web/runtime/public-data.mjs` and [DataHub](research-web-datahub.md). `catalog.py` is the no-network source of truth for the 15-capability / 22-source UI. `datahub/connections.py` owns per-source local non-secret configuration, OS keyring boundaries and the explicitly confirmed legacy-environment migration; `providers_mysql.py` owns MySQL privilege checks, exact schema identifiers and bounded single-table reads. The Settings UI reads the safe `/data/connections` projection and generic source-configuration endpoints. Runtime start/restart materializes only tools whose capability has `callable_source_count > 0`. The legacy connector map below does not make a Research Web provider callable.
 
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
