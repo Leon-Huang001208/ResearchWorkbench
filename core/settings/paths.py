@@ -1,15 +1,15 @@
 """跨平台应用数据路径解析。
 
-集中管理 AlphaFoundry 在不同操作系统下的数据目录约定，避免各模块
+集中管理 Research Workbench 在不同操作系统下的数据目录约定，避免各模块
 各自内联实现导致路径分叉（历史上有 ``APPDATA`` 与 ``LOCALAPPDATA``
 混用的情况）。
 
 约定：
-- Windows: ``%LOCALAPPDATA%/AlphaFoundry``（机器本地，不随配置漫游）
-- macOS:   ``~/Library/Application Support/AlphaFoundry``
-- Linux:   ``$XDG_DATA_HOME/AlphaFoundry``（默认 ``~/.local/share/AlphaFoundry``）
+- Windows: ``%LOCALAPPDATA%/Research Workbench``（机器本地，不随配置漫游）
+- macOS:   ``~/Library/Application Support/Research Workbench``
+- Linux:   ``$XDG_DATA_HOME/Research Workbench``（默认 ``~/.local/share/Research Workbench``）
 
-所有路径均可被环境变量 ``ALPHAFOUNDRY_DESKTOP_DATA_DIR`` 整体覆盖。
+所有路径均可被环境变量 ``RESEARCH_DESKTOP_DATA_DIR`` 整体覆盖。
 """
 
 from __future__ import annotations
@@ -21,14 +21,14 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_APP_DIR_NAME = "AlphaFoundry"
+_APP_DIR_NAME = "Research Workbench"
 
 # 允许整体覆盖应用数据根目录（与 core/settings/config.py 保持一致）
-_DATA_DIR_OVERRIDE_ENV = "ALPHAFOUNDRY_DESKTOP_DATA_DIR"
+_DATA_DIR_OVERRIDE_ENV = "RESEARCH_DESKTOP_DATA_DIR"
 
 
 def app_data_dir(roaming: bool = False) -> Path:
-    """返回当前平台下的 AlphaFoundry 应用数据根目录。
+    """返回当前平台下的 Research Workbench 应用数据根目录。
 
     Args:
         roaming: 仅 Windows 生效。``True`` 使用 ``%APPDATA%``（随配置漫游），
@@ -61,7 +61,7 @@ def wind_workbook_dir() -> Path:
 
 def default_wind_workbook_path() -> Path:
     """Wind 实时工作簿默认路径。"""
-    return wind_workbook_dir() / "AlphaFoundry_Wind_Realtime.xlsx"
+    return wind_workbook_dir() / "Research Workbench_Wind_Realtime.xlsx"
 
 
 def default_market_sector_cache_path() -> Path:
@@ -72,7 +72,7 @@ def default_market_sector_cache_path() -> Path:
 def legacy_macos_style_wind_workbook_path() -> Path:
     """旧的 macOS 风格工作簿路径（仅用于迁移检测）。
 
-    历史版本将工作簿放在 ``~/Library/Application Support/AlphaFoundry/wind/``
+    历史版本将工作簿放在 ``~/Library/Application Support/Research Workbench/wind/``
     下，在 Windows 上会被解析到 ``C:\\Users\\<user>\\Library\\...`` 这种
     非规范目录。本函数返回该旧路径，供迁移逻辑检测并搬移到规范位置。
     """
@@ -82,7 +82,7 @@ def legacy_macos_style_wind_workbook_path() -> Path:
         / "Application Support"
         / _APP_DIR_NAME
         / "wind"
-        / "AlphaFoundry_Wind_Realtime.xlsx"
+        / "Research Workbench_Wind_Realtime.xlsx"
     )
 
 

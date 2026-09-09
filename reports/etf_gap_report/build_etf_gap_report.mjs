@@ -6,7 +6,7 @@ import { FileBlob, SpreadsheetFile, Workbook } from "@oai/artifact-tool";
 
 const execFileAsync = promisify(execFile);
 
-const ROOT = "/Users/leon/Desktop/Projects/AlphaFoundry";
+const ROOT = "/Users/leon/Desktop/Projects/ResearchWorkbench";
 const DEFAULT_INPUT = "/Users/leon/Desktop/公募基金_概况.xlsx";
 const WIND_SKILL_DIR = path.join(ROOT, ".agents/skills/wind-mcp-skill");
 const NODE_BIN = "/Users/leon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node";

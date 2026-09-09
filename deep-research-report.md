@@ -1,18 +1,18 @@
-# AlphaFoundry 深度研究报告生成系统设计研究
+# Research Workbench 深度研究报告生成系统设计研究
 
 ## 执行摘要
 
-结论先行：如果 AlphaPai、AlphaEngine 这类系统确实能持续产出比你当前 AlphaFoundry 更高质量的结构化行研报告，那么它们的优势大概率**不主要来自“模型更大”**，而来自一条更完整的“**规划—检索—抽取—大纲—写作—校验—渲染**”流水线。公开可验证的同类系统里，OpenAI Deep Research 明确披露了多步规划、回溯、网页/文件/PDF 分析、Python 作图与句段级引用能力；Gemini Deep Research 明确披露了个性化研究计划、并行/串行子任务执行、研究过程可视化以及多轮自我批判；Anthropic 面向金融行业的方案则明确强调了接入金融数据提供商和企业平台的 MCP 连接能力。这些公开能力描述，与 STORM、RAPID、FoRAG、CRAG、RAPTOR 等研究论文中的长文生成和检索增强架构高度一致。citeturn6view0turn6view2turn6view3turn6view5turn27academia0turn25academia0turn25academia1turn8academia2turn8academia0
+结论先行：如果 AlphaPai、AlphaEngine 这类系统确实能持续产出比你当前 Research Workbench 更高质量的结构化行研报告，那么它们的优势大概率**不主要来自“模型更大”**，而来自一条更完整的“**规划—检索—抽取—大纲—写作—校验—渲染**”流水线。公开可验证的同类系统里，OpenAI Deep Research 明确披露了多步规划、回溯、网页/文件/PDF 分析、Python 作图与句段级引用能力；Gemini Deep Research 明确披露了个性化研究计划、并行/串行子任务执行、研究过程可视化以及多轮自我批判；Anthropic 面向金融行业的方案则明确强调了接入金融数据提供商和企业平台的 MCP 连接能力。这些公开能力描述，与 STORM、RAPID、FoRAG、CRAG、RAPTOR 等研究论文中的长文生成和检索增强架构高度一致。citeturn6view0turn6view2turn6view3turn6view5turn27academia0turn25academia0turn25academia1turn8academia2turn8academia0
 
-对 AlphaFoundry 而言，在**只有 API 访问、没有 GPU** 的前提下，最有性价比的路径不是先做微调，而是先把系统改造成“**证据优先**”而不是“**模板优先**”。实操上，最值得优先建设的是：混合检索、来源分级、事实抽取与归一化、JSON Schema 约束的大纲与表格生成、句级引用绑定、以及自动评测闭环。原因是这几层能力已经可以完全依赖托管 API 来实现：例如 OpenAI 已提供托管式 file search / vector store、结构化输出、函数调用，以及 prompt caching、Batch API、Flex processing 等成本优化能力；这些能力本身就足以支撑一个多阶段 research compiler，而不需要自建推理集群。citeturn21view0turn21view2turn21view3turn30view1turn30view3turn24view0turn24view2turn23view3
+对 Research Workbench 而言，在**只有 API 访问、没有 GPU** 的前提下，最有性价比的路径不是先做微调，而是先把系统改造成“**证据优先**”而不是“**模板优先**”。实操上，最值得优先建设的是：混合检索、来源分级、事实抽取与归一化、JSON Schema 约束的大纲与表格生成、句级引用绑定、以及自动评测闭环。原因是这几层能力已经可以完全依赖托管 API 来实现：例如 OpenAI 已提供托管式 file search / vector store、结构化输出、函数调用，以及 prompt caching、Batch API、Flex processing 等成本优化能力；这些能力本身就足以支撑一个多阶段 research compiler，而不需要自建推理集群。citeturn21view0turn21view2turn21view3turn30view1turn30view3turn24view0turn24view2turn23view3
 
-从研发优先级看，我的建议是：先用 **两到三周** 把 AlphaFoundry 从“单次长文生成”升级为“**outline-first + evidence-first**”；再用 **四到六周** 做来源分级、事实表与引用校验；最后用 **八到十二周** 引入 critic、自评/他评、A/B 实验与可选的托管式微调。按照这个路径，通常可以在不训练模型的前提下，先拿到最关键的质量跃迁：结构逻辑更稳、数据表可复核、引用更可信、编辑成本明显下降。STORM 显示，围绕“预写作阶段”的多视角研究与大纲构建，能显著提升长文的组织性与覆盖度；RAPID 与 FoRAG 进一步说明，**先大纲后写作**和**基于检索的事实优化**对复杂长文非常关键。citeturn27academia0turn25academia0turn25academia1
+从研发优先级看，我的建议是：先用 **两到三周** 把 Research Workbench 从“单次长文生成”升级为“**outline-first + evidence-first**”；再用 **四到六周** 做来源分级、事实表与引用校验；最后用 **八到十二周** 引入 critic、自评/他评、A/B 实验与可选的托管式微调。按照这个路径，通常可以在不训练模型的前提下，先拿到最关键的质量跃迁：结构逻辑更稳、数据表可复核、引用更可信、编辑成本明显下降。STORM 显示，围绕“预写作阶段”的多视角研究与大纲构建，能显著提升长文的组织性与覆盖度；RAPID 与 FoRAG 进一步说明，**先大纲后写作**和**基于检索的事实优化**对复杂长文非常关键。citeturn27academia0turn25academia0turn25academia1
 
 你已经上传了一个“光模块”研究报告样稿作为问题背景。把这类样稿从“较强模板感、证据链松散、段落生成”升级为“研究编译器产物”，是完全可做的，而且很适合从光模块这种**高技术密度、强规格约束、强上市公司披露依赖**的赛道开始打样。fileciteturn0file0
 
 ## 研究边界与关键假设
 
-这份报告对 AlphaPai 和 AlphaEngine 的判断，采用的是“**公开可验证能力 + 同类系统官方描述 + 相关论文**”的推断框架，而不是内部技术披露。原因很简单：我在本次检索中没有拿到它们可直接验证的内部架构文档，所以以下分析把它们视为“**深度研究/长文行研生成系统**”的同类产品来研究。为避免误导，我把判断分成三层：**直接证据**、**高概率推断**、**工程建议**。OpenAI 与 Google 官方材料属于直接证据；STORM、RAPID、FoRAG、CRAG、RAPTOR、Self-RAG 等论文属于“机制层面的高概率证据”；AlphaFoundry 的路线图则是结合你当前约束做出的工程建议。citeturn6view0turn6view2turn6view3turn27academia0turn25academia0turn25academia1turn8academia2turn8academia0turn17academia2
+这份报告对 AlphaPai 和 AlphaEngine 的判断，采用的是“**公开可验证能力 + 同类系统官方描述 + 相关论文**”的推断框架，而不是内部技术披露。原因很简单：我在本次检索中没有拿到它们可直接验证的内部架构文档，所以以下分析把它们视为“**深度研究/长文行研生成系统**”的同类产品来研究。为避免误导，我把判断分成三层：**直接证据**、**高概率推断**、**工程建议**。OpenAI 与 Google 官方材料属于直接证据；STORM、RAPID、FoRAG、CRAG、RAPTOR、Self-RAG 等论文属于“机制层面的高概率证据”；Research Workbench 的路线图则是结合你当前约束做出的工程建议。citeturn6view0turn6view2turn6view3turn27academia0turn25academia0turn25academia1turn8academia2turn8academia0turn17academia2
 
 我在以下方面做了明确假设。第一，你可以稳定调用一家或多家大模型 API，并能在服务端保存文件、元数据、向量索引和异步任务状态。第二，你的目标输出不是“聊天回答”，而是**五到二十页**的中文结构化行研报告，典型主题类似光模块、零部件、半导体设备、供应链、竞品与市场格局。第三，你可以接入公开网络，且在合规前提下拉取官方财报、公告、规格文档、专利、标准组织资料、公司官网与权威新闻。第四，你没有 GPU，因此不把“自训 embedding / reranker / reward model”作为主路径，而优先使用托管向量检索、结构化输出、工具调用、批处理和弹性处理。OpenAI 官方文档已明确提供 embeddings、file search、vector stores、structured outputs、function calling、Batch API、Flex processing 和 prompt caching；Gemini 和 Anthropic 的官方材料也明确展示了“研究 + 连接器/私有数据”的产品方向。citeturn21view0turn21view2turn21view3turn30view1turn30view3turn24view0turn24view2turn23view3turn6view2turn6view5
 
@@ -20,11 +20,11 @@
 
 ## 同类系统的可能架构
 
-下面这张表，把可行架构按“复杂度—质量—成本”做了聚类。为了直观起见，我把你当前 AlphaFoundry 很可能所在的位置也标出来了。
+下面这张表，把可行架构按“复杂度—质量—成本”做了聚类。为了直观起见，我把你当前 Research Workbench 很可能所在的位置也标出来了。
 
 | 架构模式 | 核心机制 | 公开证据或研究原型 | 优点 | 局限 | 相对成本 | 预期质量 |
 |---|---|---|---|---|---|---|
-| 单轮模板生成 | 一个 prompt + 固定章节模板 + 少量检索 | 更像很多早期“AI 写报告”产品；你当前描述的 AlphaFoundry 大概率接近这一档 | 上线快、实现简单 | 模板感强、段落空泛、引用易失真、表格难复核 | 低 | 低到中 |
+| 单轮模板生成 | 一个 prompt + 固定章节模板 + 少量检索 | 更像很多早期“AI 写报告”产品；你当前描述的 Research Workbench 大概率接近这一档 | 上线快、实现简单 | 模板感强、段落空泛、引用易失真、表格难复核 | 低 | 低到中 |
 | 大纲优先 RAG | 先生成 outline，再按节检索和写作 | STORM、RAPID、FoRAG citeturn27academia0turn25academia0turn25academia1 | 结构显著改善，便于分节控长 | 仍可能受检索质量影响 | 中 | 中到高 |
 | Agentic deep research | 任务分解、并行/串行子任务、持续检索、critic 回扫 | OpenAI Deep Research、Gemini Deep Research、Anthropic 金融连接器 citeturn6view0turn6view2turn6view3turn6view5 | 适合复杂主题，能综合多源、自动扩展证据 | 延迟更高，系统/观测复杂度更高 | 中到高 | 高 |
 | 证据图谱式 report compiler | 检索之外再做事实抽取、实体归一、表格与引用绑定、渲染分离 | CRAG、RAPTOR、LongCite、Structured Outputs / Function Calling citeturn8academia2turn8academia0turn28academia2turn30view1turn30view3 | 最适合严肃行研，数字可复核，引用精细 | 初期工程量最大 | 高 | 很高 |
@@ -54,9 +54,9 @@
 
 为了让检索真正服务报告，不建议把二级研究和新闻直接塞给 writer。更稳妥的做法是设定一条固定优先级：**内部/上传文件 > 一级官方源 > 准一级源 > 二级可信源 > 商业授权摘要**。其中，任何会进入表格、图表或摘要结论页的数字，必须先落到“已归一化的事实表”上，再由表格/图表渲染器去消费，绝不允许 writer 从长文本里“边看边编表”。LongCite 把句级引文问题当作单独任务来做，OpenAI 也明确提到 Deep Research 能引用具体句段；这两个信号都在告诉我们，高质量系统会把“生成”和“引用绑定”拆开。citeturn28academia2turn6view0
 
-## AlphaFoundry 的落地设计
+## Research Workbench 的落地设计
 
-我对 AlphaFoundry 的首选设计，不是一个“更聪明的主模型”，而是一个**多技能的报告编译器**。它的骨架应当像下面这样。
+我对 Research Workbench 的首选设计，不是一个“更聪明的主模型”，而是一个**多技能的报告编译器**。它的骨架应当像下面这样。
 
 ```mermaid
 flowchart TD
@@ -80,7 +80,7 @@ flowchart TD
     L --> M[最终报告渲染]
 ```
 
-这个设计的理论基础并不神秘。OpenAI 和 Gemini 的官方产品都已经把“规划、搜索、推理、报告”拆成了显式阶段；STORM、RAPID、FoRAG 证明了大纲前置与计划驱动写作对长文结构的价值；CRAG、RAPTOR 和 Self-RAG 说明，对复杂长文，检索本身也必须带有**质量评估、层级摘要和自反思**。因此，AlphaFoundry 的关键不是“要不要做 agent”，而是“**哪些环节必须 agent 化，哪些环节必须结构化**”。我的建议是：研究规划与章节写作可以 agent 化；事实抽取、表格生成、引用绑定、质量检查则必须尽量结构化。citeturn6view0turn6view3turn27academia0turn25academia0turn25academia1turn8academia2turn8academia0turn17academia2
+这个设计的理论基础并不神秘。OpenAI 和 Gemini 的官方产品都已经把“规划、搜索、推理、报告”拆成了显式阶段；STORM、RAPID、FoRAG 证明了大纲前置与计划驱动写作对长文结构的价值；CRAG、RAPTOR 和 Self-RAG 说明，对复杂长文，检索本身也必须带有**质量评估、层级摘要和自反思**。因此，Research Workbench 的关键不是“要不要做 agent”，而是“**哪些环节必须 agent 化，哪些环节必须结构化**”。我的建议是：研究规划与章节写作可以 agent 化；事实抽取、表格生成、引用绑定、质量检查则必须尽量结构化。citeturn6view0turn6view3turn27academia0turn25academia0turn25academia1turn8academia2turn8academia0turn17academia2
 
 下面这张表，是我建议的技能拆分。
 
@@ -250,7 +250,7 @@ user: |
 
 ```mermaid
 gantt
-    title AlphaFoundry 增强路线图
+    title Research Workbench 增强路线图
     dateFormat  YYYY-MM-DD
     section 基础修复
     Outline-first 与 JSON Schema        :a1, 2026-07-20, 10d
@@ -278,7 +278,7 @@ gantt
 
 ## 示例输出
 
-下面给你一个适合 AlphaFoundry 实现的“光模块报告”短版提纲示例。这个提纲不是为了显示文采，而是为了体现“结论—证据—反证—图表”四位一体的结构。
+下面给你一个适合 Research Workbench 实现的“光模块报告”短版提纲示例。这个提纲不是为了显示文采，而是为了体现“结论—证据—反证—图表”四位一体的结构。
 
 **示例提纲**
 
@@ -294,7 +294,7 @@ gantt
 
 下面给你一个**带引用的示例段落**。它不是在判断真实市场规模，而是在展示“研究型写法”应该如何组织证据。
 
-> 在光模块主题上，AlphaFoundry 不应让模型直接从网页摘要“写行业判断”，而应先把**监管披露、规格标准与公司资料**拆成可检索证据层。原因是这三类来源分别承担不同角色：SEC 的 EDGAR 既支持公开检索，也提供实时更新的 submissions 与 companyfacts/XBRL 接口，适合承接财务与申报口径；巨潮资讯网则是深交所法定信息披露平台，并且提供数据平台/API，适合承接中国上市公司公告、问询与定期报告；而光模块技术路线本身又强依赖规格组织与互操作文档，OSFP MSA 明确覆盖 400G、800G、1.6T 与更高密度形态，OIF 当前工作也直接覆盖 1600ZR、800G coherent、224G CEI 与 CMIS 等关键主题。换句话说，高质量“光模块报告”本质上是把**财务口径、技术规格与时间线事件**先编译成事实表，再由写作器按章节生成可审阅文本，而不是一次性生成一篇看似完整但难以复核的长文。citeturn12view1turn12view2turn14view0turn38view1turn38view2
+> 在光模块主题上，Research Workbench 不应让模型直接从网页摘要“写行业判断”，而应先把**监管披露、规格标准与公司资料**拆成可检索证据层。原因是这三类来源分别承担不同角色：SEC 的 EDGAR 既支持公开检索，也提供实时更新的 submissions 与 companyfacts/XBRL 接口，适合承接财务与申报口径；巨潮资讯网则是深交所法定信息披露平台，并且提供数据平台/API，适合承接中国上市公司公告、问询与定期报告；而光模块技术路线本身又强依赖规格组织与互操作文档，OSFP MSA 明确覆盖 400G、800G、1.6T 与更高密度形态，OIF 当前工作也直接覆盖 1600ZR、800G coherent、224G CEI 与 CMIS 等关键主题。换句话说，高质量“光模块报告”本质上是把**财务口径、技术规格与时间线事件**先编译成事实表，再由写作器按章节生成可审阅文本，而不是一次性生成一篇看似完整但难以复核的长文。citeturn12view1turn12view2turn14view0turn38view1turn38view2
 
 下面这个图不是市场份额图，而是我建议的**高质量光模块深度报告证据配比示意图**。它可以直接由 facts store 自动渲染。
 
@@ -308,4 +308,4 @@ pie showData
 
 如果把这份报告压缩成一句实施建议，那就是：
 
-**先把 AlphaFoundry 从“写报告的模型”改成“编译报告的系统”，你就已经走在超过同类产品的正确方向上了。**
+**先把 Research Workbench 从“写报告的模型”改成“编译报告的系统”，你就已经走在超过同类产品的正确方向上了。**

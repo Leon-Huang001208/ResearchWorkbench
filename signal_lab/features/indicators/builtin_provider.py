@@ -171,7 +171,7 @@ class BuiltinProvider:
         close = df["close"].values
 
         sar = np.zeros_like(close)
-        af = 0.02
+        rwb = 0.02
         max_af = 0.2
         ep = high[0] if close[1] > close[0] else low[0]
         uptrend = close[1] > close[0]
@@ -179,27 +179,27 @@ class BuiltinProvider:
 
         for i in range(1, len(df)):
             if uptrend:
-                sar[i] = sar[i - 1] + af * (ep - sar[i - 1])
+                sar[i] = sar[i - 1] + rwb * (ep - sar[i - 1])
                 sar[i] = min(sar[i], low[i - 1], low[i] if i > 1 else low[i])
                 if high[i] > ep:
                     ep = high[i]
-                    af = min(af + 0.02, max_af)
+                    rwb = min(rwb + 0.02, max_af)
                 if low[i] < sar[i]:
                     uptrend = False
                     sar[i] = ep
                     ep = low[i]
-                    af = 0.02
+                    rwb = 0.02
             else:
-                sar[i] = sar[i - 1] + af * (ep - sar[i - 1])
+                sar[i] = sar[i - 1] + rwb * (ep - sar[i - 1])
                 sar[i] = max(sar[i], high[i - 1], high[i] if i > 1 else high[i])
                 if low[i] < ep:
                     ep = low[i]
-                    af = min(af + 0.02, max_af)
+                    rwb = min(rwb + 0.02, max_af)
                 if high[i] > sar[i]:
                     uptrend = True
                     sar[i] = ep
                     ep = high[i]
-                    af = 0.02
+                    rwb = 0.02
 
         return float(sar[-1]) if not np.isnan(sar[-1]) else None
 

@@ -1,0 +1,146 @@
+pack_key: gold
+kind: theme_research
+name: 黄金
+version: 1.0.0
+compatibility_version: merged-platform-v1
+status: discovered
+boundary: 黄金价格、供需、ETF、现货/SGE、央行储备与宏观事实；不包含交易信号或目标仓位。
+plugins: []
+datasets:
+  - dataset_key: gold_price
+    schema_version: '1'
+    frequency: daily
+    source_priority: [lbma, world_gold_council]
+    source_tiers: {lbma: official}
+    freshness_seconds: 86400
+    fields: &gold_long_fields
+      - {name: observation_date, data_type: date}
+      - {name: subject, data_type: string}
+      - {name: metric, data_type: string}
+      - {name: value, data_type: number}
+      - {name: unit, data_type: string}
+      - {name: source_name, data_type: string}
+      - {name: source_url, data_type: string, required: false}
+      - {name: status, data_type: string}
+      - {name: last_checked, data_type: datetime}
+    identity_fields: [observation_date, subject, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: subject
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+    emitted_metric_keys: [close]
+  - dataset_key: gold_supply_demand
+    schema_version: '1'
+    frequency: quarterly
+    source_priority: [world_gold_council]
+    freshness_seconds: 10368000
+    fields: *gold_long_fields
+    identity_fields: [observation_date, subject, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: subject
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+  - dataset_key: gold_etf_flow
+    schema_version: '1'
+    frequency: daily
+    source_priority: [world_gold_council, exchange]
+    freshness_seconds: 172800
+    fields: *gold_long_fields
+    identity_fields: [observation_date, subject, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: subject
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+  - dataset_key: spot_market
+    schema_version: '1'
+    frequency: daily
+    source_priority: [lbma]
+    freshness_seconds: 86400
+    fields: *gold_long_fields
+    identity_fields: [observation_date, subject, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: subject
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+  - dataset_key: sge_spot
+    schema_version: '1'
+    frequency: daily
+    source_priority: [shanghai_gold_exchange]
+    freshness_seconds: 86400
+    fields: *gold_long_fields
+    identity_fields: [observation_date, subject, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: subject
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+  - dataset_key: central_bank_reserves
+    schema_version: '1'
+    frequency: monthly
+    source_priority: [imf, central_bank]
+    freshness_seconds: 3456000
+    fields: *gold_long_fields
+    identity_fields: [observation_date, subject, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: subject
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+    emitted_metric_keys: [central_bank_net_purchase]
+  - dataset_key: gold_macro
+    schema_version: '1'
+    frequency: daily
+    source_priority: [official_macro]
+    freshness_seconds: 604800
+    fields: *gold_long_fields
+    identity_fields: [observation_date, subject, metric]
+    observed_at_field: observation_date
+    available_at_field: last_checked
+    subject_field: subject
+    metric_field: metric
+    value_field: value
+    unit_field: unit
+    source_name_field: source_name
+    source_url_field: source_url
+    freshness_field: status
+kpis:
+  - {kpi_key: gold_close, name: 国际金价, unit: USD/oz, frequency: daily, dataset_key: gold_price, metric_key: close}
+  - {kpi_key: central_bank_net_purchase, name: 央行净购金, unit: tonne, frequency: monthly, dataset_key: central_bank_reserves, metric_key: central_bank_net_purchase}
+value_chain:
+  - {node_key: mining, name: 金矿开采, stage: upstream, evidence_refs: [dataset:gold_supply_demand]}
+  - {node_key: refining, name: 冶炼精炼, stage: midstream, evidence_refs: [dataset:gold_supply_demand]}
+  - {node_key: investment, name: 投资与储备需求, stage: downstream, evidence_refs: [dataset:gold_etf_flow, dataset:central_bank_reserves]}
+event_types: [central_bank_purchase, real_yield_change, supply_disruption]
+asset_exposures:
+  - asset: {asset_id: 'etf:518880.SH', asset_type: etf, display_name: 黄金ETF}
+    exposure_type: direct
+    rationale_ref: manifest:gold:gold_etf_flow
+research_template_keys: [gold_macro_supply_demand, gold_event_review]

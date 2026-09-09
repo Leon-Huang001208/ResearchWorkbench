@@ -2,7 +2,7 @@
 Core contracts for reporting (section specs and outputs).
 
 This module defines Pydantic models for report section specifications and
-section outputs in AlphaFoundry.
+section outputs in Research Workbench.
 """
 
 from datetime import datetime

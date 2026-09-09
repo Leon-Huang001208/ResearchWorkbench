@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "研究请求与 Runtime 路由",
+    "output": "outputs/merged-platform-architecture/04-research-request.html",
+    "viewBox": [1260, 720],
+    "column_fit": "spread",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {"id": "user", "type": "external", "label": "用户"},
+    {"id": "ui", "type": "frontend", "label": "FinGPT / Claw"},
+    {"id": "api", "type": "backend", "label": "FastAPI"},
+    {"id": "runService", "type": "backend", "label": "Research Run"},
+    {"id": "router", "type": "security", "label": "Runtime Router"},
+    {"id": "dsh", "type": "external", "label": "DSH 侧车"},
+    {"id": "langgraph", "type": "backend", "label": "LangGraph"},
+    {"id": "store", "type": "database", "label": "PostgreSQL"}
+  ],
+  "segments": [
+    {"from": 145, "to": 265, "label": "接收与持久化"},
+    {"from": 280, "to": 475, "label": "能力路由"},
+    {"from": 490, "to": 640, "label": "完成与归档"}
+  ],
+  "messages": [
+    {"id": "ask", "from": "user", "to": "ui", "y": 160, "label": "提交问题与模式", "variant": "emphasis"},
+    {"id": "create", "from": "ui", "to": "api", "y": 190, "label": "POST /api/research-runs", "variant": "emphasis"},
+    {"id": "normalize", "from": "api", "to": "runService", "y": 220, "label": "校验 Workspace 与证据"},
+    {"id": "persist", "from": "runService", "to": "store", "y": 250, "label": "保存 draft / task", "variant": "security"},
+    {"id": "route", "from": "runService", "to": "router", "y": 290, "label": "请求 mode + capabilities", "variant": "emphasis"},
+    {"id": "dshRequest", "from": "router", "to": "dsh", "y": 320, "label": "DSH 可用时执行", "variant": "dashed"},
+    {"id": "dshCallback", "from": "dsh", "to": "api", "y": 350, "label": "白名单工具回调", "variant": "security"},
+    {"id": "dshOutcome", "from": "dsh", "to": "api", "y": 380, "label": "result/error + run_id + 幂等键", "variant": "return"},
+    {"id": "dshTerminal", "from": "api", "to": "runService", "y": 410, "label": "校验并映射权威终态", "variant": "security"},
+    {"id": "fallback", "from": "router", "to": "langgraph", "y": 440, "label": "FinGPT 不可用时回退", "variant": "dashed"},
+    {"id": "blocked", "from": "router", "to": "runService", "y": 470, "label": "Claw 缺能力：blocked_runtime", "variant": "return"},
+    {"id": "result", "from": "langgraph", "to": "runService", "y": 500, "label": "阶段结果 / quality gates", "variant": "return"},
+    {"id": "finalPersist", "from": "runService", "to": "store", "y": 530, "label": "Run / Claim / Artifact", "variant": "security"},
+    {"id": "archive", "from": "runService", "to": "store", "y": 560, "label": "completed 自动归档 Workspace", "variant": "emphasis"},
+    {"id": "respond", "from": "api", "to": "ui", "y": 590, "label": "状态、阶段与资源 ID", "variant": "return"},
+    {"id": "show", "from": "ui", "to": "user", "y": 620, "label": "展示结果或明确阻断", "variant": "return"}
+  ]
+}

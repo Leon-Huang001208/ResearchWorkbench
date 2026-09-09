@@ -54,8 +54,8 @@ def akshare_stocks_command(limit: int, output: str | None):
     """获取股票列表
 
     示例:
-        af akshare stocks --limit 100
-        af akshare stocks -n 50 -o stocks.json
+        rwb akshare stocks --limit 100
+        rwb akshare stocks -n 50 -o stocks.json
     """
     click.echo(f"Fetching stock list (limit={limit})...")
 
@@ -120,9 +120,9 @@ def akshare_news_command(limit: int, keyword: tuple[str], source: str, output: s
     """获取财经新闻
 
     示例:
-        af akshare news --limit 50
-        af akshare news -k 银行 -k 金融 -s sina
-        af akshare news -n 20 -o news.json
+        rwb akshare news --limit 50
+        rwb akshare news -k 银行 -k 金融 -s sina
+        rwb akshare news -n 20 -o news.json
     """
     click.echo(f"Fetching news (limit={limit}, source={source})...")
 
@@ -206,9 +206,9 @@ def akshare_macro_command(indicator: str, output: str | None):
     """获取宏观经济数据
 
     示例:
-        af akshare macro --indicator gdp
-        af akshare macro -i all
-        af akshare macro -i cpi -o macro.json
+        rwb akshare macro --indicator gdp
+        rwb akshare macro -i all
+        rwb akshare macro -i cpi -o macro.json
     """
     click.echo(f"Fetching macro data (indicator={indicator})...")
 
@@ -304,9 +304,9 @@ def akshare_quotes_command(
     """获取历史行情数据
 
     示例:
-        af akshare quotes --symbol 600000.SH
-        af akshare quotes -s 000001.SZ --start-date 2024-01-01 --period weekly
-        af akshare quotes -s 600519.SH -o quotes.csv
+        rwb akshare quotes --symbol 600000.SH
+        rwb akshare quotes -s 000001.SZ --start-date 2024-01-01 --period weekly
+        rwb akshare quotes -s 600519.SH -o quotes.csv
     """
     click.echo(f"Fetching quotes for {symbol}...")
     click.echo(f"  Period: {period}")

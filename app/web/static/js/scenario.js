@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Scenario Analysis Module
+   Research Workbench — Scenario Analysis Module
    ============================================================ */
 
 import { apiCall, toast, esc, getChartColors } from './core.js';

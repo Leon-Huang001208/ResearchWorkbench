@@ -2,7 +2,7 @@
 
 ## 目标
 
-让 macOS Apple Silicon 和 Windows x64 的 AlphaFoundry 桌面用户，在 PostgreSQL 或 pgvector 尚未就绪时仍可启动应用、完成配置，并获得不泄露敏感信息的明确修复指引。用户连接到已有 PostgreSQL 后，重启应用即可进入完整工作台。
+让 macOS Apple Silicon 和 Windows x64 的 Research Workbench 桌面用户，在 PostgreSQL 或 pgvector 尚未就绪时仍可启动应用、完成配置，并获得不泄露敏感信息的明确修复指引。用户连接到已有 PostgreSQL 后，重启应用即可进入完整工作台。
 
 本期不安装 PostgreSQL、不创建系统服务、不引入云数据库，也不迁移现有 API Key/密码到系统凭据库。这些属于后续独立阶段，不能阻塞当前已有用户配置的使用。
 
@@ -58,7 +58,7 @@
 
 ### 配置和平台边界
 
-仍使用当前的每操作系统用户数据目录与 `.env`：Windows `%LOCALAPPDATA%\\AlphaFoundry\\.env`，macOS `~/Library/Application Support/AlphaFoundry/.env`。进程环境变量优先级最高，页面对其锁定字段保持不可编辑。
+仍使用当前的每操作系统用户数据目录与 `.env`：Windows `%LOCALAPPDATA%\\Research Workbench\\.env`，macOS `~/Library/Application Support/Research Workbench/.env`。进程环境变量优先级最高，页面对其锁定字段保持不可编辑。
 
 本期不会自动安装 PostgreSQL、pgvector、iFinD、Wind 或任何系统组件。失败提示根据 macOS/Windows 说明安装 PostgreSQL 15+、启用 `CREATE EXTENSION IF NOT EXISTS vector`，然后回到配置页连接已有实例。
 

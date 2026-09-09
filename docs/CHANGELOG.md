@@ -6,13 +6,86 @@
 
 ## [Unreleased]
 
+### Research Web 设置分页 · 2026-09-09
+
+- 设置拆为通用、模型服务、数据源、本机集成和架构文档五个 Hash 子页，桌面增加粘滞分类栏，窄屏改为 44px 横向标签；每次只渲染当前子页。
+- 保留 `#/settings?connection=<id>` 兼容并转入数据源或本机集成；子页刷新只读取当前范围，模型、连接、迁移、主题和密钥清除契约不变。后端 API、DataHub、Runtime 和架构拓扑未变。
+
+### DSH Fork 运行时迁移与资产字段校正 · 2026-09-08
+
+- Research Runtime 固定到公开 Fork `Leon-Huang001208/deepseek-harness` 的 `workbench-runtime` 提交 `c919b2a460753859665db3f60143d525fb9140cf`，兼容最新版 Typert Gateway、Remote mux、浏览器会话认证和原生级联 `session/delete`；Workbench 对外 HTTP 契约不变。
+- 会话软删除前重新核对 DSH 权威运行状态，避免 Web 本地索引残留 `running` 阻塞已完成会话；软删、恢复、30 天保留、到期清理和立即永久删除继续保留原有语义。
+- 资产观察按 DataHub 标准字段将 `turnover` 作为成交额、`turnover_rate_pct` 作为换手率；来源没有换手率时显示未知，不再把成交额错误渲染为百分比。K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和日/周/月切换保持不变。
+
+### 用户自配置 MySQL DataHub · 2026-09-08
+
+- 新增通用 `mysql` 来源、数据库目录与受控单表查询，DataHub 更新为 15 项能力、22 个来源；原始 SQL、系统库、未知标识、危险授权和超限参数在业务查询前阻断。
+- 非秘密连接配置原子保存到本机 `RESEARCH_DATA_HOME`，密码仅进入系统凭据库；设置页支持保存、保留密码、移除和前往检测，密码不回填。新增“因子库研究”内置 Skill。
+- MySQL 强制 TLS 但 `required_no_verify` 不验证证书，所有来源详情与快照明确记录风险。加入 PyMySQL 与 keyring 依赖；真实 MySQL 及非 macOS 的 Web 凭据库后端仍需轮换凭据和对应操作系统 CI 验证。桌面 sidecar 与安装包不在本次范围内。
+
+### Research Web 顶栏运行状态降噪 · 2026-09-08
+
+- 运行时健康且已授权时不再常驻显示“DSH 已连接”，顶栏只在缺少模型配置、事件通道连接中或研究服务不可用时提供通往设置的提示。
+- 删除顶栏全局刷新按钮；设置、历史、研究台、资产观察和运行与用量等页面的局部刷新行为保持不变。只读与真实模型 E2E 改用页面就绪或 `/api/research/runtime` 真实状态作为前置条件。
+
+### Research Workbench remote and layer boundary · 2026-09-05
+
+- GitHub repository and local `origin` now use `Leon-Huang001208/ResearchWorkbench`; `master` was pushed without history rewriting after reconstructing one missing historical documentation tree to its exact original hash.
+- Moved market-home fact invalidation helpers into the data repository layer so fact writers no longer import services. Added structured logging with re-raise semantics at the legacy Agent supervisor, research graph, Session/Run orchestration and template registry execution boundaries; Research Web and DSH behavior are unchanged.
+- Restored the three tracked, brand-neutral built-in industry graph JSON resources that the hard rename had unintentionally removed, so both native CI runners can satisfy the sidecar packaging contract.
+- Native desktop smoke now initializes and preflights both `vector` and `btree_gist`; a missing GiST text operator class is reported as `btree_gist_missing` before schema creation instead of timing out the sidecar health check.
+
+### Research Web appearance · 2026-09-03
+
+- 在最新能力中心实现上合入 Codex 风格、Light/Dark/系统主题和用户原图符号 Logo（浅蓝深白）。单列导航和按需研究面板保留 Skill/Tool/Workflow、真实 DSH 与文件契约；不触碰模型配置或已有会话。详见 [外观文档](research-web-appearance.md)。
+- 按用户指定 v2 样品校正正式布局：左对齐标题、800px 输入框、四列快捷入口、侧栏新研究/搜索、编辑器模型与格式选择、紧凑能力卡；新增几何回归，避免仅换配色而未还原结构。
+
 ### Added
 
 - **配置驱动的每日市场点评 Workflow Studio**：`workflow_specs/daily_market_commentary.yaml` 成为每日市场点评的唯一真源，默认固化三段式、1000–1500 字、16:15 Asia/Shanghai 交易日运行与两张原生图表。内容生产中心以文档型写作块为主，并保留 Markdown/Word 投影；市场快照、宽度、成交额、行业/主题、ETF 映射和新闻由 AlphaFoundry Tool 获取，DSH Skill 仅负责归因、反证和叙事。解释性冲突转为条件风险，未解决数值/期间/关键来源冲突才阻断产物。
 
 - **每日市场点评实时 Tool 数据源**：新增不落库的 `LiveAkShareMarketCommentaryTools`，由 AlphaFoundry 原生读取 AKShare 指数、全 A 宽度、同花顺行业板块和新闻证据，DSH Skill 仅接收结构化结果。AKShare 新闻采集器兼容新版财新主新闻入口；所有新闻源失败时保持质量门禁阻断，绝不补造引用。
 
-- **Runtime-agnostic 投研能力内核（v2）**：新增 Runtime-neutral 领域契约、每日市场点评 Workflow、项目托管隔离 DSH Host 的 HTTP/SSE Bridge Bundle、PostgreSQL 计划/步骤/事件/证据/不可变产物迁移（015）及 `/api/v2` 能力发现、执行、取消、恢复、SSE 事件和受限 Runtime Tool 接口。`npm run dsh:bootstrap` / `npm run dsh:web` 锁定 `dsh-v0.1.1-rc.2`，不将 DSH SDK 放入 AlphaFoundry 根依赖；Codex/Claude 保留占位 Runtime。
+- **Runtime-agnostic 投研能力内核（v2）**：新增 Runtime-neutral 领域契约、每日市场点评 Workflow、项目托管隔离 DSH Host 的 HTTP/SSE Bridge Bundle、PostgreSQL 计划/步骤/事件/证据/不可变产物迁移（019）及 `/api/v2` 能力发现、执行、取消、恢复、SSE 事件和受限 Runtime Tool 接口。`npm run dsh:bootstrap` / `npm run dsh:web` 锁定 `dsh-v0.1.1-rc.2`，不将 DSH SDK 放入 ResearchWorkbench 根依赖；Codex/Claude 保留占位 Runtime。
+
+- **Research Web 研究界面、能力中心与当前架构**：完成独立FinGPT/Claw首页、产品壳、输入框与折叠研究面板；Skill/Tool/Workflow统一目录、对话创建、手动导入与版本管理连接真实DSH。八图与Markdown入口为 `docs/architecture/research-web/`，加入源码/API/图文哈希一致性和负向门禁。完成本机真实创建调用、PDF、双Agent Workflow文件验收；补齐明确停止后缺终止事件的失败复核及并发保护，不伪造成功。旧merged-platform保留为历史，未做桌面或远端发布。详见本轮`.ai/reports/2026-09-03-research-ui-live.md`。
+
+- **Research Web DataHub后端与可信原生桥接**：FastAPI内共享公开查询/不可变资料快照，NAV按真实20行响应分页并校验覆盖，加入基金基本资料/分红/持仓；原生审批后才通过私有随机凭据请求回环DataHub，取消与DSH联动。资料CSV/JSON、manifest/hash只读归属、缓存/刷新与显式Claw升级复制；输入资料不计报告产物。四个Skill同步数据口径/原始记录底稿要求。详见 `docs/research-web-datahub.md`；UI及真实模型闭环另行验收。
+  - 审查修复：升级草稿在保留原文后追加旧→新资料路径/hash映射；快照以私有目录最后发布为提交标记，进程中断孤儿不污染目录；分红未核实币种改为null，保留每10份分红原文。
+
+- **Research Web 真实模型闭环验收**：接入经DSH原生审批的财联社电报/基金净值，完成多轮及PDF页码研究、公开数据文件包、双子Agent报告、真实停止/拒绝/断线恢复。修复辅助脚本导入、事件时序、父离线取消和内部标记显示；展示原生Agent用量/耗时。新增交付缺失/损坏/旧文件与发布前hash复核。证据和本机文件链接见 `docs/research-web-acceptance.md`；无新依赖、未改3080/原生DSH版本/执行权限，基金示例明确为受限评价。
+
+- **Research Web 文件交付检查**：新增显式输出格式与 Skill 默认值、绑定幂等收据的哈希快照、单会话串行归属和严格沙箱内 DOCX/XLSX/HTML/Markdown/PNG 实际解析。详情单列交付状态、缺失/损坏原因，执行结束不等于文件交付完成；重命名和原生问题改用应用内表单。详见 `docs/research-web-delivery.md`；不代表真实模型完整产品验收。
+  - XLSX 分析底稿检查排除明确的来源/说明元数据表；原生 questions 按 multiSelect 区分单选/多选，前后端拒绝单选多填。
+  - 交付结果发布前以安全描述符复核已解析文件的大小及哈希，阻止解析后被修改或删除的文件误记为有效交付。
+
+- **DSH 原生 Research Web（独立入口）**：`app.research_web.main:app` 提供 `/api/research`、FinGPT/Claw、历史、设置、附件和真实文件下载。采用 HTTP RPC + 双 WebSocket → SSE，历史由 DSH 持久化；不启动旧 ResearchRun、Evidence/Claim、LangGraph、数据库和桌面服务。新增幂等受理、断线恢复、专属实例归属核验、原生审批/问题响应及受限 HTML 预览。原生模型成功旅程仍需专属实例 API Key，不能把代码/回归测试标记为全部产品验收。
+
+- **FinGPT / Claw 项目化研究运行时**：新增项目隔离的 Workspace、单 Run Session、幂等 Message、版本化 Research Note、Runtime Provider、声明式 Skill、Supervisor Agent Team 与持久 Agent Schedule API。产品路径通过 Session 原子创建/绑定/执行既有 Research Run；绑定后的读取、补证、恢复、下载和 SSE 均要求 project/workspace scope。FinGPT 可从 DSH 确定性回退内置 LangGraph，Claw 缺能力时持久为 `blocked_runtime`；关联 Provider result、团队 Blackboard/usage 和研究阶段事件进入原 Research Run/Artifact 链路，不创建平行运行模型。
+  - Skill 在执行前重验封闭 internal/MCP registry、JSON Schema、敏感输出、token/费用 reservation 和 deadline；Agent assignment 显式携带预算上下文。调度器支持持久租约、执行中续租、fencing、latest coalesce 与 due schedule 物化。
+
+- **四个无损 Research Pack 与 LSH 迁移器**：黄金、航天航空、光伏、AI 基础设施/光模块 Manifest 和 `/api/themes` 六类读模型已接入统一 `theme_observation`。Manifest 只能引用已审查的内置 normalize/validate/derive 插件 ID，生命周期和版本以数据库为权威。宽表会展开为独立 Observation；只有 identity/payload 等价才判 duplicate，同 identity 不同值进入 `identity_conflict` quarantine，不覆盖事实。迁移器默认 dry-run，支持 hash 校验断点恢复与 accepted/quarantined/rejected/duplicate/applied 审计；策略、交易、基金审批和禁止评分字段继续冻结归档。
+
+- **持久首页刷新与统一调度链路**：行情、文档事件和 Theme Observation 权威 writer 在自身事务提交前写入幂等区块失效 outbox。API 就绪后只启动一个进程级 `DurableSchedulerRuntime`，在启动前注册市场收盘、资产提醒与 Agent 日程；它实际领取 `market_home.close_snapshot` 并生成五条不可变快照，也按 UTC 分钟桶为全部 active profile 领取 `asset_alert.evaluate` 并持久通知。各领域回调使用独立事务，每区返回按自身事实水位计算的 `age_seconds`。
+
+- **全市场 facts-only 首页纵切**：新增 `/api/market-home` live、单区 drill-down、历史/创建 close snapshot 与 durable SSE 接口。首页固定五区独立降级，按 Asia/Shanghai 给出五态交易状态；`mainline-v1` 公开四项同行百分位、`0.35/0.30/0.25/0.10` 权重、样本数和确定性 leading/weakening 排序。行情、聚合和事件分别执行 30/60/15 秒 SLA，缺失事实不填零、不调用 AI；历史只读不可变快照，SSE 只发送 `event_id/section_key/as_of` 并支持 `Last-Event-ID`。
+
+- **资产观察纵切与持久化提醒**：新增 `/api/asset-observation` 领域 API、请求级 Repository/Service、四类 canonical asset 详情与透明 peer-set、多 Watchlist、确定性 Alert 边沿/冷却/确认/解决，以及站内 Notification 投递状态。资产详情只读取既有股票、指数、ETF、主动基金事实表；Watchlist Item 只保存稳定 `asset_id`，供应商代码变化不改变列表身份。stale/unavailable/quarantined、来源冲突和单位不匹配均不得产生提醒，持续真值不会重复触发。
+  - 桌面壳新增官方 `tauri-plugin-notification`（Rust 与 JavaScript 锁文件），capability 仅开放 permission query、permission request 和 notify 三项。Rust bridge 只接受已持久化、长度受限且不含控制字符的通知摘要；权限拒绝或桌面投递失败不会删除站内记录。
+  - 本地 macOS `cargo check` 与 Python 契约/服务/API 测试已通过；原生 Windows CI 和真实 Windows 安装级通知冒烟尚未执行，不构成 Windows 可用性证明。
+
+- **合并平台共享契约与 015–018 数据基线**：新增五个 Pydantic 契约模块，固定四类资产、`fresh/stale/unavailable/quarantined`、事实响应六字段、单位/缺失值语义、受限 Skill、Agent 预算/日程、主题 Pack、facts-only 首页与资产提醒状态。新增 20 张 SQLAlchemy 模型和四段可逆 Alembic 迁移；`domain_event` 为持久权威，`theme_observation` 为唯一主题事实表，Research Note/Watchlist 分别复用既有 Run/Claim 与 canonical asset identity。SQLite 已覆盖 015→018 实际升降级，未新增平行资产或 Research Run 表。
+  - 审查收口后，Skill 工具权限改为封闭 internal allowlist 与平台可信 registry 双重校验，Manifest 或误配置 registry 均不能授权任意内部能力；新增平台契约拒绝 naive datetime。`asset_identifier` 以 PostgreSQL exclusion constraint（SQLite 等价触发器）强制半开有效期不重叠；Message 归属只从 Session 推导，Research Note 以 CHECK 强制 Claim-only 或 Run+paragraph 互斥来源。
+  - 独立质量审查进一步使用结构化 HTTP URL 校验拒绝 SourceRef userinfo/无 host，并保持 API string 序列化；SkillManifest 拒绝多余自授权字段。数据库命名 CHECK 强制 Job/Schedule no-reentry/latest、完整 lease pair、Session mode/scope 和 Message 恰一非空内容源；SQLite 同时覆盖 overlap UPDATE 与两种合法 Note 形态。MarketHomeEnvelope 强制五个固定 section key 各出现一次。
+
+- **Research Workbench × LSH 合并平台 V1 架构包**：新增 `docs/architecture/merged-platform/` 七份专题正文、索引、九份 Archify JSON 图源与 `outputs/merged-platform-architecture/` 九张交互 HTML，固定模块化单体 + 可选 DSH 侧车、唯一 FastAPI、唯一 PostgreSQL + pgvector、共享事实契约及 FinGPT/Claw、市场首页、Research Pack、资产观察四模块边界。
+  - 架构明确事实/研究/个人观察三层隔离，20 张新增表与 015–018 四段迁移；主题六类读模型首版为查询投影，不增加物化表。
+  - DSH 不直连数据库；FinGPT 可由 DSH 回退 LangGraph，Claw 缺团队能力返回 `blocked_runtime`；Skill 声明式且只允许白名单工具/MCP，团队由 Supervisor + Shared Blackboard 协调并受预算与 deadline 限制。
+  - 首页限定 facts-only，公开 `mainline-v1` 权重与 30s/60s/15s SLA；Research Pack 首批覆盖黄金、航天、光伏、AI 基础设施，统一写入 `theme_observation`，不迁 LSH 的策略/交易、`score_hint` 或 `driver-summary`。
+  - 资产观察限定 stock/index/etf/active_fund、Watchlist 与 false→true Alert；站内通知由后端持久化，Task 3 将添加已获授权的官方 `tauri-plugin-notification`，原生平台 CI 与真实 Windows 安装烟测仍是发布门禁。
+  - LSH 能力只有在数据迁移、parity、回归、零调用和归档路径齐全后才可删除；等价迁移后只读归档一个稳定版本。
+
+- **可关闭的爬虫自动启动**：桌面启动器和 `scripts/start_all.sh` 现在尊重 `RESEARCH_CRAWLER_AUTOSTART`；设为 `0` 后，应用重启只保留知识 Worker，不再启动爬虫调度器或其 watchdog，手动启动能力保持不变。
 
 - **通用研究中心与机构级 Research Run（首个闭环）**：新增 PostgreSQL 权威 `ResearchRun` 运行时及 013/014 迁移，保存规范化 `ResearchSubject`、任务、证据输入、不可变版本化 Artifact、当前 Claim/Gate 投影和恢复信息。首版 LangGraph 只作为无事实持久化的执行层，完成来源规划、证据归一、Research Notes、叙事/财报综合、反方检验、质量门禁及发布投影；任何引用、数值、模板证据覆盖或冲突门禁失败均进入 `blocked`，补证后可恢复。
   - 新增 `/api/research-templates` 模板目录，以及 `/api/research-runs` 列表、创建、执行、读取、补证、恢复、产物和完成后 Markdown/Word 导出接口；未知、规划中或对象类型不兼容的模板在持久化前返回 `422`。旧 `target_id` 请求兼容映射为 `security` ResearchSubject。
@@ -22,13 +95,13 @@
 
 - **系统中心资源与配置导航**：侧栏将“系统监控”和“系统配置”收拢为唯一“系统”入口，默认打开“资源与异常”，并以页内标签进入既有系统配置。旧版本地导航会迁移到该入口和相应子标签，资源采样仅在资源标签可见时运行。正常且无待处理异常时不再显示 `ok` 徽标；仅显示待处理异常或“采样暂不可用，保留上一帧数据”。异常历史状态/严重度筛选改为深色单选浮层，支持选择、外部点击与 `Escape` 关闭；置顶异常改为紧凑行。资源、告警和配置 API 未变。
 
-- **双范围资源监控界面**：系统监控页将 AlphaFoundry 与整机容量分为四个文字范围明确的摘要卡；保留 AlphaFoundry 最近 5 分钟 CPU/RSS 曲线，并新增整机 CPU 与可用内存最近 24 小时曲线。整机历史仅在页面可见且激活时于首次、恢复和每 60 秒读取；请求失败会保留上一份成功曲线并提示不可用，离开页面会取消请求并释放图表。异常只在页面中置顶和查询，不会发送原生桌面通知。
+- **双范围资源监控界面**：系统监控页将 Research Workbench 与整机容量分为四个文字范围明确的摘要卡；保留 Research Workbench 最近 5 分钟 CPU/RSS 曲线，并新增整机 CPU 与可用内存最近 24 小时曲线。整机历史仅在页面可见且激活时于首次、恢复和每 60 秒读取；请求失败会保留上一份成功曲线并提示不可用，离开页面会取消请求并释放图表。异常只在页面中置顶和查询，不会发送原生桌面通知。
 
-- **主机容量 API**：`GET /api/system/resource-usage` 现公开严格七字段的安全主机容量摘要，新增 `GET /api/system/resource-usage/host-history?hours=24` 返回最多 24 小时、按时间排序的分钟级容量与 AlphaFoundry 汇总比例；“剩余内存”直接采用主机 `available` 值。历史读取失败返回稳定 503，绝不枚举或返回其他系统进程、原始健康指标或内部字段；资源事件元数据新增安全的整机来源和阈值字段。
+- **主机容量 API**：`GET /api/system/resource-usage` 现公开严格七字段的安全主机容量摘要，新增 `GET /api/system/resource-usage/host-history?hours=24` 返回最多 24 小时、按时间排序的分钟级容量与 Research Workbench 汇总比例；“剩余内存”直接采用主机 `available` 值。历史读取失败返回稳定 503，绝不枚举或返回其他系统进程、原始健康指标或内部字段；资源事件元数据新增安全的整机来源和阈值字段。
 
 - **资源告警并发安全**：整机 CPU/可用内存容量告警在连续三次有效压力或恢复样本后变更；无效读数中断连续计数。所有资源告警周期通过确定性主键和 savepoint 冲突恢复至多创建一条未解决事件，已解决事件保留为历史；warning 升级 critical 使用仅匹配未解决状态的原子详情更新，绝不覆盖用户的确认或解决状态。
 
-- **资源监控常驻运行时**：API 在数据库就绪且非分支预览时启动单一后台线程，每分钟采集资源快照，并在同一数据库会话内写入整机容量历史和评估既有资源告警；`ALPHAFOUNDRY_PREVIEW=1` 明确不启动该线程。`ResourceAlertState` 保留跨周期压力/恢复计数，确保现有连续压力规则正常工作。采样、持久化、告警或线程生命周期异常仅记录结构化异常类型，后续周期和 API 启停不会被阻断；关闭 API 时以可配置有限超时等待线程，超时安全降级为 warning。
+- **资源监控常驻运行时**：API 在数据库就绪且非分支预览时启动单一后台线程，每分钟采集资源快照，并在同一数据库会话内写入整机容量历史和评估既有资源告警；`RESEARCH_PREVIEW=1` 明确不启动该线程。`ResourceAlertState` 保留跨周期压力/恢复计数，确保现有连续压力规则正常工作。采样、持久化、告警或线程生命周期异常仅记录结构化异常类型，后续周期和 API 启停不会被阻断；关闭 API 时以可配置有限超时等待线程，超时安全降级为 warning。
 
 - **整机容量分钟历史**：复用既有 `health_metrics.extra` 保存白名单后的主机 CPU/内存容量摘要；每 UTC 分钟至多一条，查询最多 1500 点，超过 24 小时仅按精确 ID 清理 `host_capacity` 记录，不影响资源事件或其他监控指标。
 
@@ -36,7 +109,7 @@
 
 - **进程资源监控工作台**：新增“系统监控”页面和 `GET /api/system/resource-usage`、`GET /api/system/resource-usage/history`。接口及页面只采集 API 根进程及递归子进程；历史窗口默认 300 秒、范围为 2–300 秒，前端至多保留 150 点，并在页面不可见或离开时取消轮询。页面展示 CPU/内存趋势、进程资源表及详情；ECharts、I/O 或连接数不可用时仍保留摘要/表格并以稳定公开降级码提示。响应对命令参数、内部异常类型和采集细节脱敏。
 
-- **资源监控第二期**：资源采样扩展为 API 进程树加 AlphaFoundry 自身登记的调度器/知识 Worker PID，不扫描系统其他应用。抓取、PDF、知识处理、Wind 与报告任务会写入安全归因快照；独立 Worker 显示精确进程资源，API 内任务明确标记为共享估算。新增 `GET /api/system/resource-events` 及确认/解决端点，复用已有告警/事件持久化状态机，将任务失败、受控 Worker 缺失、采样失败和持续资源压力置顶并保留历史；实时曲线仍只保留 5 分钟，异常历史默认查询 90 天且不自动删除。
+- **资源监控第二期**：资源采样扩展为 API 进程树加 Research Workbench 自身登记的调度器/知识 Worker PID，不扫描系统其他应用。抓取、PDF、知识处理、Wind 与报告任务会写入安全归因快照；独立 Worker 显示精确进程资源，API 内任务明确标记为共享估算。新增 `GET /api/system/resource-events` 及确认/解决端点，复用已有告警/事件持久化状态机，将任务失败、受控 Worker 缺失、采样失败和持续资源压力置顶并保留历史；实时曲线仍只保留 5 分钟，异常历史默认查询 90 天且不自动删除。
 
 - **报告项目排序**：模板工作台可保存完整项目卡片排序；排序写入各项目 `project.yaml` 的 `display_order`，重新打开仍保持一致。
 
@@ -48,7 +121,7 @@
 
 - **报告模板加载诊断**：报告项目扫描现在在保留可用项目的同时返回缺失活动模板、配置损坏等非致命诊断；模板工作台并行加载旧模板库与报告项目，明确显示单源/双源加载失败或资产扫描问题，不再把这些状态误报为“暂无模板”。
 
-- **跨平台运行时配置内核**：新增 `core/settings/runtime.py`，在业务模块和 SQLAlchemy engine 初始化前统一解析桌面、Web 开发、Web 生产三种运行模式；统一 `ALPHAFOUNDRY_CONFIG_FILE`、`ALPHAFOUNDRY_DESKTOP_DATA_DIR` 和 `ALPHAFOUNDRY_BACKEND_URL` 的优先级。Windows 桌面用户数据统一进入 `%LOCALAPPDATA%\AlphaFoundry`，macOS 进入 `~/Library/Application Support/AlphaFoundry`。
+- **跨平台运行时配置内核**：新增 `core/settings/runtime.py`，在业务模块和 SQLAlchemy engine 初始化前统一解析桌面、Web 开发、Web 生产三种运行模式；统一 `RESEARCH_CONFIG_FILE`、`RESEARCH_DESKTOP_DATA_DIR` 和 `RESEARCH_BACKEND_URL` 的优先级。Windows 桌面用户数据统一进入 `%LOCALAPPDATA%\Research Workbench`，macOS 进入 `~/Library/Application Support/Research Workbench`。
 
 ### Changed
 
@@ -71,7 +144,7 @@
 - **配置锁定提示上下文化**：首页不再展示受系统环境变量管理的名单；配置弹窗仅在受影响字段、动态行或集合旁显示友好说明，内部环境键名仅用于前端判断。Provider、任务路由和账号/Key 池采用原子集合锁定：任一受管键使整个集合只读且在保存和连接测试请求中不提交，避免覆盖启动时注入的配置或触发后端整组替换拒绝；同分区未锁标量仍可保存。
 
 - **桌面端 PostgreSQL 标准化**：桌面启动器不再在缺少数据库配置时静默创建 SQLite 文件；首次启动生成 PostgreSQL `.env` 模板，缺少有效 PostgreSQL URL 时给出可操作错误。桌面和网页端均以 PostgreSQL + pgvector 为权威存储。
-- **本地服务 URL 收敛**：auto-ingest 的所有 health/API 调用改由 `ALPHAFOUNDRY_BACKEND_URL` 构造，桌面端随 launcher 使用 8765，Web 开发默认使用 8000。
+- **本地服务 URL 收敛**：auto-ingest 的所有 health/API 调用改由 `RESEARCH_BACKEND_URL` 构造，桌面端随 launcher 使用 8765，Web 开发默认使用 8000。
 - **配置秘密保护**：配置 API 和工作台不再回显或回填已保存的 API Key、密码、Token 或完整数据库 URL；保存数据库 URL 仅持久化并要求重启，保持当前 SQLAlchemy engine 不变。
 - **数据库诊断**：PostgreSQL 连接错误不再将底层异常或凭据返回给调用方，并补齐 `postgresql+psycopg` 配置校验支持；按实际 SQLAlchemy 方言提供脱敏连接诊断。
 - **发布与配置优先级加固**：PyInstaller 单文件 sidecar 在 frozen 模式从 `sys._MEIPASS` 定位捆绑资源；桌面监听器仅支持已完整验证的 `localhost`/`127.0.0.1`，端口冲突时不再终止未知进程；移除 `postgres:postgres` 默认凭据，并将进程环境变量注入的配置字段标记为只读，防止页面保存后在重启时被覆盖。联网搜索配置测试改为使用提交的候选 provider/key 池，并在池内请求失败、429 限流或 402 配额耗尽时正确隔离失效 key。
@@ -92,7 +165,7 @@
 - **桌面端启动加速（97s → 25s，-75%）**: 通过 PEP 562 `__getattr__` 懒加载和函数内延迟导入，消除启动时不必要的全量模块导入链。
   - **P0 修复（阻断启动的主链）**: 6 个路由文件（`app/api/routes/commentary.py`、`assets.py`、`ingest.py`、`ingestion_queue.py`、`pipeline.py`、`event_ingestion.py`）的重型依赖（`ModelGatewayImpl`、`KnowledgePipeline`、`ResearchPipeline`、`IngestService`、`StructuredEventIngestor`）从模块顶层移入 Dependency 函数体内，首次请求时才加载。
   - **P1 加固（防止后续回归）**: `core/model_gateway/gateway.py` 的 `LocalEmbeddingProvider` 导入从模块顶层移入 `_init_providers()` 方法内（`protocol == "local"` 分支）；`core/model_gateway/providers/__init__.py` 移除 `LocalEmbeddingProvider` 的模块级导出；`services/signal_validator_impl.py` 的 `signal_lab.*` 导入移入 `__init__` 方法内；`services/commentary_news_selector.py` 的 `reporting.*` 导入移入 `select()` 方法内。
-  - **P2 优化（CLI 加速）**: `signal_lab/backtests/__init__.py` 的 `VectorBTBacktester` 改为 PEP 562 `__getattr__` 懒加载，CLI `af backtest` 首次运行前不再卡 ~10s。
+  - **P2 优化（CLI 加速）**: `signal_lab/backtests/__init__.py` 的 `VectorBTBacktester` 改为 PEP 562 `__getattr__` 懒加载，CLI `rwb backtest` 首次运行前不再卡 ~10s。
   - **包级懒加载**: `services/__init__.py` 和 `data_layer/__init__.py` 清空所有模块级 re-export，改为 `__getattr__` 按需导入。
   - **关键导入链分析**: 三条主要瓶颈链——`sentence_transformers`（~52s，通过 `ModelGatewayImpl` → `LocalEmbeddingProvider`）、`ingestion` 全链（~77s 累积）、`vectorbt`（~10s，通过 `signal_lab.backtests.__init__`）。
   - 剩余 25s 由 `anthropic`/`openai` SDK（~8s）、`akshare`（~3s）、基础设施（EventLog、MarketDataCache、timing models）构成，可进一步优化但不再阻塞桌面启动。
@@ -115,13 +188,13 @@
   - **抽象接口**: `core/interfaces/web_search.py`——`WebSearchProvider` / `WebSearchResult`，统一搜索结果模型。
   - **Provider 实现**: `data_layer/web_search/`——`TavilyProvider`（默认，专为 LLM 设计，直接返回正文）、`BingProvider`（返回摘要+URL，正文由 `page_fetcher` 补抓）、`page_fetcher`（httpx 抓 HTML + trafilatura 抽正文，抓取失败优雅降级）、`factory`（按 `WEB_SEARCH_PROVIDER` 切换）。
   - **服务内核**: `services/web_search_service.py`（搜索+补抓+格式化）、`services/ask_service.py`（联网搜索→注入 prompt→`ModelGateway` 生成）、`services/ask_factory.py`（`build_ask_service()` 装配，单例 ModelGateway）。
-  - **入口**: CLI `af ask "问题"`（`-n/--max-results`、`--no-fetch-content`）；API `POST /api/llm/ask`（返回 `{answer, online, model, sources}`）。
+  - **入口**: CLI `rwb ask "问题"`（`-n/--max-results`、`--no-fetch-content`）；API `POST /api/llm/ask`（返回 `{answer, online, model, sources}`）。
   - **配置**: `core/settings/config.py` 新增 `WEB_SEARCH_PROVIDER`/`TAVILY_API_KEY`/`BING_API_KEY`/`WEB_SEARCH_MAX_RESULTS`/`WEB_SEARCH_FETCH_CONTENT`/`WEB_SEARCH_MAX_CHARS`/`WEB_SEARCH_TIMEOUT`。
   - **测试**: `tests/unit/test_web_search.py`——13 个测试覆盖 format 编号、正文补抓与降级、ask 注入与无 key 降级、provider 切换、kwargs 不泄漏。全通过。
   - **认知代理接入（阶段 3）**: `cognitive_agents/workflow.py`——`AgentWorkflowRunner` 支持可选的 `web_search_service` 参数，在信息收集阶段（`news`/`financial_report`/`industry_data`/`social_media`）evidence 不足（< 2 条）时自动调 `_enrich_evidence_from_web()` 联网补充，搜索结果转为 `EvidenceItem`（新格式）和 legacy dict（旧格式），双注入 `context.evidence_bundle` 和 `context.evidence`，兼容四种信息 Agent 的 `_build_prompt` 直接引用 `context.evidence` 的风格。
   - **报告生成接入（阶段 3）**: `reporting/projects/generation.py`——`ReportProjectGenerationService` 支持可选的 `web_search_service` 参数，在 `_generate_configured_placeholder()` 中 DB 检索无结果时，调 `_enrich_evidence_from_web()` 联网搜索补充，搜索结果转为 `EvidenceSnippet` 追加到 evidence 列表，走同一 `format_evidence_context` → `build_generation_messages` 路径。
   - **测试（阶段 3）**: `tests/unit/test_web_search_phase3.py`——14 个测试覆盖 EvidenceItem/EvidenceSnippet 转换、`_enrich_evidence_from_web` 注入、角色过滤（信息触发/非信息跳过）、空结果降级、异常优雅处理。
-  - **文档**: `docs/modules/services.md` 新增 `web_search_service` / `ask_service` 段；`docs/modules/app_cli.md` 新增 `af ask` 段；`docs/DATA_SOURCES.md` 新增「联网搜索」小节；`docs/generated/py_file_index.md` 已更新。
+  - **文档**: `docs/modules/services.md` 新增 `web_search_service` / `ask_service` 段；`docs/modules/app_cli.md` 新增 `rwb ask` 段；`docs/DATA_SOURCES.md` 新增「联网搜索」小节；`docs/generated/py_file_index.md` 已更新。
 
 - **报告编译器第三阶段 3.2（Citation Verifier + Numeric Checker）**: 新增两个独立验证模块，提供比 critic 更细粒度的引用质量与数字真实性验证，全规则驱动不调用 LLM。
   - **引用验证器**: 新建 `citation_verifier.py`，四维检查：引用精度（fact 所在句子的数值+文本重叠分数，<0.5 告警）、孤立引用（fact_ids 指向不存在的 fact → error）、来源多样性（单源 >80% 标记 info）、引用覆盖率（<80% 标记 info）。`_find_sentence_with_citation()` 按中英文分句点定位引用标记所在句子，`_compute_precision_score()` 值匹配 + 文本重叠双因子评分。
@@ -172,13 +245,15 @@
 
 ### Fixed
 
+- **知识 Worker 数据库失败日志风暴**：桌面初始 `.env` 不再写入可连接的示例账户；Knowledge Worker 在数据库预检失败时暂停而非持续重试。运行中数据库故障改用有上限的指数退避，并仅为连续故障的首次记录完整堆栈，避免日志无限增长。
+
 - **配置工作台交互恢复**：修复 `app/web/static/js/configuration.js` 在环境变量锁定逻辑后遗漏 `bindModalFormEvents(form, section)` 声明的问题。该模块由 Workbench 主入口静态导入，遗漏声明曾产生语法错误并阻止全局导航与点击事件注册；新增静态调用/声明契约及 Node 语法回归测试。
 
 - **knowledge_worker watchdog + Windows Job Object 自愈**: 解决 worker 崩溃后无自动恢复、以及 Windows 强杀导致 worker 孤儿残留两个遗留风险。
   - `workers/_process_tree.py` — 新增模块，通过 ctypes 实现 Windows Job Object（`KILL_ON_JOB_CLOSE`），`ensure_child_dies_with_parent(child_pid)` 把子进程绑定到 Job，Job handle 关闭/父进程退出时内核自动终止子进程，即使父进程被 `TerminateProcess` 强杀也不会孤儿残留。非 Windows 返回 None（靠 POSIX 进程组）。
   - `workers/watchdog.py` — `run_worker()` 调 `ensure_child_dies_with_parent(proc.pid)` 并持有 `_job_handle` 全局引用，确保 worker 随 watchdog 生命周期终止。
-  - `workers/knowledge_worker.py` — `_parse_args()` 在 `--worker-id` 缺省时 fallback 读 `ALPHAFOUNDRY_WORKER_ID` 环境变量（frozen 子进程无法传 CLI 参数）。
-  - `scripts/desktop/backend_launcher.py` — `_start_knowledge_worker()` 改为启动 watchdog（frozen: `ALPHAFOUNDRY_WATCHDOG_MODE=1`；dev: `python -m workers.watchdog`），`__main__` 新增 watchdog 模式分支。
+  - `workers/knowledge_worker.py` — `_parse_args()` 在 `--worker-id` 缺省时 fallback 读 `RESEARCH_WORKER_ID` 环境变量（frozen 子进程无法传 CLI 参数）。
+  - `scripts/desktop/backend_launcher.py` — `_start_knowledge_worker()` 改为启动 watchdog（frozen: `RESEARCH_WATCHDOG_MODE=1`；dev: `python -m workers.watchdog`），`__main__` 新增 watchdog 模式分支。
   - `tests/unit/workers/test_process_tree.py` / `test_watchdog.py` / `test_knowledge_worker.py` — 覆盖 Job Object 端到端（`CloseHandle` 杀子进程）、frozen/dev 命令构造、PID 自愈、worker_id 透传。
 
 - **知丘账号配置链路断裂修复**：系统配置工作台保存 5 个知丘账号后，`.env` 只剩 2 个、且运行时 `AccountManager` 读不到任何账号（5 个账号被连续失败误杀到全部永久禁用）。
@@ -236,7 +311,7 @@
   - `tests/unit/data_layer/repositories/test_market_data_repository.py` — 补充指数 provider/master、成分快照幂等、个股指数反查、ETF 链接和 ETF 指标 upsert 测试。
 
 - **Wind 指数结构字段探针**: 新增固定 Excel 函数模板，用于后台静默验证指数全成分、成分权重、ETF 跟踪指数、净值、份额和规模等候选 Wind 字段。
-  - `services/wind_index_structure_probe.py` — 生成 `AlphaFoundry_Wind_Index_Structure_Probe.xlsx`，维护 `FormulaCatalog`、`ProbeTargets`、`ProbeResults` 和 `Health`，支持隐藏 Excel 计算并读取缓存结果。
+  - `services/wind_index_structure_probe.py` — 生成 `Research Workbench_Wind_Index_Structure_Probe.xlsx`，维护 `FormulaCatalog`、`ProbeTargets`、`ProbeResults` 和 `Health`，支持隐藏 Excel 计算并读取缓存结果。
   - `services/wind_index_structure_ingestion.py` — 将成功探针结果写入指数主表、ETF 主表、指数 ETF 关系和 ETF 日度指标；当前已验证 `fund_trackindexcode`、`nav`、`unit_total`、`netasset_total` / `fund_fundscale`。
   - `scripts/run_wind_index_structure_probe.py` — 新增 CLI，可生成模板、可选 `--prime` 隐藏刷新、可选 `--read` 输出 JSON 结果、可选 `--persist` 写入结构表；`--skip-build` 用于读取/落库现有缓存，避免覆盖刚刷新的工作簿。
   - `tests/unit/test_wind_index_structure_probe.py` / `tests/unit/test_wind_index_structure_ingestion.py` — 验证探针工作簿结构、候选公式、结果解析和落库映射。
@@ -249,7 +324,7 @@
   - `tests/unit/test_official_index_structure_ingestion.py` — 覆盖中证权重快照、国证成分落库和个股指数反查。
   - `tests/unit/test_market_data_scheduler_index_structure.py` / `tests/unit/test_official_index_structure_script.py` — 覆盖调度器批量 job 和脚本 active discovery 参数解析。
 
-- **Tauri 桌面壳 Phase 1**: 新增 AlphaFoundry 桌面化骨架，保留现有 FastAPI Web 工作台不变，通过 Tauri 外壳承载本地 `127.0.0.1:8765` 服务，并为后续 macOS/Windows/Linux 安装包、sidecar 后端和自动更新发布链路铺路。
+- **Tauri 桌面壳 Phase 1**: 新增 Research Workbench 桌面化骨架，保留现有 FastAPI Web 工作台不变，通过 Tauri 外壳承载本地 `127.0.0.1:8765` 服务，并为后续 macOS/Windows/Linux 安装包、sidecar 后端和自动更新发布链路铺路。
   - `scripts/desktop/backend_launcher.py` — 新增桌面后端启动器，负责以桌面端默认端口运行 `app.api.main:app` 并写入 `logs/desktop-backend.log`。
   - `src-tauri/` / `package.json` — 新增 Tauri 2 配置、Rust shell、sidecar 进程管理骨架和桌面构建命令。
   - `desktop/dist/` — 新增桌面启动页，轮询 `/health` 后跳转到现有工作台。
@@ -283,10 +358,10 @@
   - `workers/knowledge_worker.py` — `get_all_worker_statuses()` 检测到 PID 文件存在但进程已死亡时，自动删除孤儿 PID 文件并跳过，不再返回死进程条目；所有调用方（CLI 启停、`/api/system/workers/status`）本就按 `alive=True` 过滤，行为不受影响。
   - `tests/unit/workers/test_knowledge_worker.py` — 新增 `TestWorkerStatusSelfHealing`，覆盖孤儿文件清理、存活 worker 保留、混合场景。
 - **Knowledge Worker watchdog 自动启动**: desktop backend launcher 改为启动 watchdog 进程，由 watchdog 拉起并守护 `knowledge_worker`，worker 崩溃时按指数退避自动重启（上限 10 次/小时），避免队列消费因 worker 单次崩溃长时间中断。
-  - `workers/watchdog.py` — 重写：支持 frozen 模式（复用 exe + `ALPHAFOUNDRY_WORKER_MODE=1` 启动 worker 子进程，而非 `python -m`）、新增 `_build_worker_cmd`/`_build_worker_env`、`--worker-id` 透传、PID 文件管理、改用 `core.observability` 日志。
-  - `workers/knowledge_worker.py` — `_parse_args()` 在 `--worker-id` 缺省时 fallback 到 `ALPHAFOUNDRY_WORKER_ID` 环境变量，使 frozen 模式下 watchdog 注入的 worker_id 能被读取。
-  - `scripts/desktop/backend_launcher.py` — `_start_knowledge_worker()` 改为启动 watchdog（frozen: `ALPHAFOUNDRY_WATCHDOG_MODE=1`；dev: `python -m workers.watchdog`）；`__main__` 入口新增 watchdog 模式分支；终止逻辑更新为终止 watchdog（watchdog 信号 handler 负责终止 worker，孤儿残留由 PID 自愈兜底）。
-  - `tests/unit/workers/test_watchdog.py` — 新增 `TestWatchdogCmdBuild`，覆盖 frozen/dev 模式命令构造、`ALPHAFOUNDRY_WORKER_MODE`/`ALPHAFOUNDRY_WORKER_ID` 环境变量注入。
+  - `workers/watchdog.py` — 重写：支持 frozen 模式（复用 exe + `RESEARCH_WORKER_MODE=1` 启动 worker 子进程，而非 `python -m`）、新增 `_build_worker_cmd`/`_build_worker_env`、`--worker-id` 透传、PID 文件管理、改用 `core.observability` 日志。
+  - `workers/knowledge_worker.py` — `_parse_args()` 在 `--worker-id` 缺省时 fallback 到 `RESEARCH_WORKER_ID` 环境变量，使 frozen 模式下 watchdog 注入的 worker_id 能被读取。
+  - `scripts/desktop/backend_launcher.py` — `_start_knowledge_worker()` 改为启动 watchdog（frozen: `RESEARCH_WATCHDOG_MODE=1`；dev: `python -m workers.watchdog`）；`__main__` 入口新增 watchdog 模式分支；终止逻辑更新为终止 watchdog（watchdog 信号 handler 负责终止 worker，孤儿残留由 PID 自愈兜底）。
+  - `tests/unit/workers/test_watchdog.py` — 新增 `TestWatchdogCmdBuild`，覆盖 frozen/dev 模式命令构造、`RESEARCH_WORKER_MODE`/`RESEARCH_WORKER_ID` 环境变量注入。
   - `tests/unit/workers/test_knowledge_worker.py` — 新增 `TestParseArgsWorkerId`，覆盖 worker_id 从环境变量读取、CLI 优先、缺省、非法值忽略。
 - **资产观察首屏加载过慢**: 资产分析页首次请求从全历史改为近一年，并 bump `asset.js` 静态资源版本，保留 K 线“全部”按钮供用户主动查看全历史，避免首屏等待超大分析响应时看起来像页面打不开。
 - **资产观察搜索被 CDN 阻塞**: Chart.js、ECharts 和 D3 改为异步加载，避免 `cdn.jsdelivr.net` 超时阻塞本地工作台启动和资产搜索；ECharts 未就绪时 K 线区域显示“图表资源仍在加载，基础数据已显示”。
@@ -307,8 +382,8 @@
   - `KnowledgeWorker` stuck-item recovery now handles legacy `processing` rows where `processed_at` is NULL.
   - CLI/docs examples use the actual CLS dataset `telegram`.
   - `SourceSpec.connector_class` is now the canonical connector path; legacy `adapter_class` remains as a compatibility alias and is normalized in `SourceSpec.__post_init__()`.
-  - Full-gate isolation now disables local embedding model loading during tests by default and skips live API/E2E smoke tests unless `ALPHAFOUNDRY_RUN_LIVE_API_TESTS=1` or `ALPHAFOUNDRY_RUN_LIVE_E2E_TESTS=1` is set.
-  - Local sentence-transformers loading is now local-first: `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH` points to a downloaded model directory, Hugging Face model ids are cache-only by default, and `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` is required for first-time downloads.
+  - Full-gate isolation now disables local embedding model loading during tests by default and skips live API/E2E smoke tests unless `RESEARCH_RUN_LIVE_API_TESTS=1` or `RESEARCH_RUN_LIVE_E2E_TESTS=1` is set.
+  - Local sentence-transformers loading is now local-first: `RESEARCH_LOCAL_EMBEDDING_MODEL_PATH` points to a downloaded model directory, Hugging Face model ids are cache-only by default, and `RESEARCH_ALLOW_EMBEDDING_DOWNLOAD=1` is required for first-time downloads.
   - `pyproject.toml` replaces the package-level mypy `ignore_errors` baseline with an explicit error-code debt list plus `ignore_missing_imports` for third-party stub gaps, so mypy still walks every checked project source file.
   - Script-level mypy debt was reduced for operational recovery/data seeding scripts: backup restore pipes now narrow subprocess streams before use, object backfill/import paths coerce ORM fields at runtime boundaries, derived-state rebuild supplies complete timing model score fields, and factor seeding normalizes pandas/DB scalars before arithmetic. `mypy --explicit-package-bases app cognitive_agents connectors core data_layer ingestion knowledge_layer reporting services signal_lab storage workers tests scripts` now passes across 669 files.
 
@@ -446,16 +521,16 @@
       - 子类覆盖轻量 hook（`_daily_bar_datasets()` / `_build_daily_bar_row()` / `_persist_extra_records()`），不用覆盖整个 persist()
       - 静态工具方法 `_format_date()` / `_to_decimal()` / `_parse_date()` 从 3 个子类各约 55-65 行合并到基类
     - 净减少约 329 行代码，100% 向后兼容，1526 测试全通过
-  - **统一 CLI**: 新增 `af data` 命令组 (`app/cli/commands/data.py`) 替代分散的 ingest/crawl/knowledge
-    - `af data list` — 列出所有可用数据源及 datasets
-    - `af data ingest -s <src> -d <dataset>` — 统一数据摄入入口
-    - `af data backfill -s <src>` — 历史数据回填
-    - `af data validate -s <src> -d <dataset>` — 数据校验（新增）
-    - `af data status [--source <s>]` — 聚合 connector 健康 + Worker + Scheduler 状态
-    - `af data file -f <path>` — 摄入单个文件
-    - `af data schedule start|stop|status` — 采集调度器管理
-    - `af data workers start|stop|status` — 知识加工 Worker 管理
-    - 旧命令 `af crawl` / `af ingest` / `af knowledge` 保留为向后兼容别名
+  - **统一 CLI**: 新增 `rwb data` 命令组 (`app/cli/commands/data.py`) 替代分散的 ingest/crawl/knowledge
+    - `rwb data list` — 列出所有可用数据源及 datasets
+    - `rwb data ingest -s <src> -d <dataset>` — 统一数据摄入入口
+    - `rwb data backfill -s <src>` — 历史数据回填
+    - `rwb data validate -s <src> -d <dataset>` — 数据校验（新增）
+    - `rwb data status [--source <s>]` — 聚合 connector 健康 + Worker + Scheduler 状态
+    - `rwb data file -f <path>` — 摄入单个文件
+    - `rwb data schedule start|stop|status` — 采集调度器管理
+    - `rwb data workers start|stop|status` — 知识加工 Worker 管理
+    - 旧命令 `rwb crawl` / `rwb ingest` / `rwb knowledge` 保留为向后兼容别名
   - **Skill**: 新增 data-connector-development Skill 文档
     - Template Method + Hook 模式说明
     - Wrapper-first 策略指南
@@ -610,7 +685,7 @@
 - **knowledge-worker-concurrency**: Knowledge Worker item 级并发 + 完整生命周期管理
   - `workers/knowledge_worker.py` — 重写为 PID 管理 + 信号处理 + `asyncio.Semaphore` item 级并发（默认 8 并发）
   - 两层并发架构：item 级 (asyncio.Semaphore, 8) + chunk 级 (ThreadPoolExecutor, 8)
-  - CLI 命令：`af knowledge start|stop|status` (app/cli/commands/ingest.py)
+  - CLI 命令：`rwb knowledge start|stop|status` (app/cli/commands/ingest.py)
   - API 端点：`POST /api/knowledge/start|stop`, `GET /api/knowledge/status` (app/api/routes/knowledge.py)
   - 配置项：`KNOWLEDGE_WORKER_POLL_INTERVAL`, `BATCH_SIZE`, `MAX_CONCURRENCY`, `SHUTDOWN_TIMEOUT` (core/settings/config.py)
 - **source-registry**: 数据源注册中心 — 可插拔源模块架构
@@ -632,7 +707,7 @@
   - Pipeline 实例复用：`process_one()` 接受共享 `KnowledgePipeline`，Worker 启动时创建单例（含 `ModelGateway`），不再每个 item 创建全套组件
   - 空队列指数退避：连续空轮询时 sleep 从 3s 指数增长到 60s cap，有数据时立即重置
   - 长文档并发 LLM 提取：`KnowledgePipeline` 注入 `ModelGateway` 后，>1000 字符自动走 `ConcurrentLLMExtractor` 分块并发提取
-  - 多进程水平扩展：`af knowledge start --workers N` 启动 N 个独立 Worker 进程，各自独立 PID 文件和 polling，DB 层原子状态转换天然支持多消费者
+  - 多进程水平扩展：`rwb knowledge start --workers N` 启动 N 个独立 Worker 进程，各自独立 PID 文件和 polling，DB 层原子状态转换天然支持多消费者
   - `workers/knowledge_worker.py` — `--worker-id` 参数，`_create_pipeline()` 单例，指数退避，`get_all_worker_statuses()`
   - `app/cli/commands/ingest.py` — `knowledge start --workers N`，`stop`/`status` 支持多 worker
   - `app/api/routes/knowledge.py` — `start?workers=N`（最大 16），`stop`/`status` 多 worker 聚合

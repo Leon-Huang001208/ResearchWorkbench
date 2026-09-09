@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/docs/architecture/research-web/diagrams/05-capability-flow.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/05-capability-flow.html",
+  "specification": {
+    "sha256": "1f19790e4a68a12825af9cf1cea95472504d68e78d2f8a2ca3e08ec7533c192c",
+    "bytes": 4127
+  },
+  "artifact": {
+    "sha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5",
+    "bytes": 639651
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

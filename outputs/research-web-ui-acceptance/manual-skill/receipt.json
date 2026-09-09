@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "capabilityId": "528c5a3dd15849b0a7f29fbdf5441b01",
+  "sourceSession": "793dc010-bb08-429d-957a-c858c6654d39",
+  "sourceFile": "ebcedea5342a8bcef06c8a96",
+  "version": 1,
+  "sourceSha256": "7b624bfddf689c4b7a0807672fa8d4f2f6d23867d54d9a3ab89983afc647fce6",
+  "exportSha256": "5e60d298f549ecfd1b5109dc343c26053c74a1aa502d66a78ea0305eb428808b",
+  "checks": [
+    "manual_import_invalid_preserved",
+    "form_corrected_schema",
+    "published_v1",
+    "published_edited_v2",
+    "disabled",
+    "rollback_v1",
+    "refresh_persisted",
+    "browser_export"
+  ],
+  "mutations": [
+    {
+      "method": "POST",
+      "path": "/api/research/capabilities/528c5a3dd15849b0a7f29fbdf5441b01/disable"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/capabilities/528c5a3dd15849b0a7f29fbdf5441b01/rollback"
+    }
+  ],
+  "modelCalls": 0
+}

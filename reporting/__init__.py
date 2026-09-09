@@ -1,4 +1,4 @@
-"""AlphaFoundry Reporting - 报告合成层."""
+"""Research Workbench Reporting - 报告合成层."""
 
 from reporting import builder, composer, content, projections, rendering, templates
 

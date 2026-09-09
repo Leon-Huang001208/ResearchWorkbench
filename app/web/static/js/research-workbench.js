@@ -4,11 +4,16 @@ let initialized = false;
 let templates = [];
 let selectedTemplateKey = null;
 let currentRun = null;
+let currentWorkspace = null;
+let currentSession = null;
 let pendingPrefill = null;
+const LOCAL_PROJECT_ID = 'local';
+const RESEARCH_CONTEXT_KEY = 'research-web.context.v1';
 
 export function initResearchWorkbench() {
     if (initialized) return;
     initialized = true;
+    restoreResearchContext();
     const form = document.getElementById('research-run-form');
     const dateInput = document.getElementById('research-as-of');
     if (!form || !dateInput) return;
@@ -186,20 +191,51 @@ async function submitResearchRun(event) {
             .filter(Boolean);
         const date = document.getElementById('research-as-of')?.value;
         const subjectId = document.getElementById('research-subject-id')?.value.trim();
-        const created = await apiCall('POST', '/api/research-runs', {
-            template_key: template.template_key,
-            subject: {
-                subject_type: document.getElementById('research-subject-type')?.value,
-                subject_id: subjectId,
-                display_name: document.getElementById('research-subject-name')?.value.trim() || subjectId,
-            },
-            as_of: `${date}T00:00:00Z`,
-            question: document.getElementById('research-question')?.value.trim(),
-            attachment_refs: attachments,
+        const question = document.getElementById('research-question')?.value.trim();
+        await ensureResearchContext({
+            title: document.getElementById('research-subject-name')?.value.trim() || subjectId,
+            question,
         });
-        const run = await apiCall('POST', `/api/research-runs/${encodeURIComponent(created.run_id)}/execute`);
+        const createKey = globalThis.crypto?.randomUUID?.() || `run-${Date.now()}`;
+        const binding = await apiCall(
+            'POST',
+            `/api/research-sessions/${encodeURIComponent(currentSession.session_id)}/runs`,
+            {
+                project_id: LOCAL_PROJECT_ID,
+                workspace_id: currentWorkspace.workspace_id,
+                run: {
+                    template_key: template.template_key,
+                    subject: {
+                        subject_type: document.getElementById('research-subject-type')?.value,
+                        subject_id: subjectId,
+                        display_name: document.getElementById('research-subject-name')?.value.trim() || subjectId,
+                    },
+                    as_of: `${date}T00:00:00Z`,
+                    question,
+                    attachment_refs: attachments,
+                    mode: 'fingpt',
+                    skill_keys: [],
+                },
+            },
+            { headers: { 'Idempotency-Key': createKey } }
+        );
+        const executeKey = globalThis.crypto?.randomUUID?.() || `execute-${Date.now()}`;
+        const run = await apiCall(
+            'POST',
+            `/api/research-sessions/${encodeURIComponent(currentSession.session_id)}/runs/${encodeURIComponent(binding.run.run_id)}/execute`,
+            {
+                project_id: LOCAL_PROJECT_ID,
+                workspace_id: currentWorkspace.workspace_id,
+            },
+            { headers: { 'Idempotency-Key': executeKey } }
+        );
         currentRun = run;
-        const result = await apiCall('GET', `/api/research-runs/${encodeURIComponent(created.run_id)}/outputs`);
+        const result = await apiCall(
+            'GET',
+            `/api/research-runs/${encodeURIComponent(run.run_id)}/outputs`,
+            null,
+            { headers: researchScopeHeaders() }
+        );
         renderResearchOutputs(result);
         setRunStatus(run.status);
         await loadRunHistory();
@@ -212,7 +248,70 @@ async function submitResearchRun(event) {
         outputs.innerHTML = `<div class="error-state-inline">${esc(error.message || '研究任务执行失败。')}</div>`;
         toast('研究任务执行失败', 'error');
     } finally {
+        currentSession = null;
+        persistResearchContext();
         setSubmitLoading(false);
+    }
+}
+
+async function ensureResearchContext({ title, question }) {
+    if (!currentWorkspace) {
+        const key = globalThis.crypto?.randomUUID?.() || `workspace-${Date.now()}`;
+        currentWorkspace = await apiCall('POST', '/api/research-workspaces', {
+            project_id: LOCAL_PROJECT_ID,
+            title: title || '研究工作区',
+        }, { headers: { 'Idempotency-Key': key } });
+    }
+    const key = globalThis.crypto?.randomUUID?.() || `session-${Date.now()}`;
+    currentSession = await apiCall('POST', '/api/research-sessions', {
+        mode: 'workspace',
+        workspace_id: currentWorkspace.workspace_id,
+        project_id: LOCAL_PROJECT_ID,
+    }, { headers: { 'Idempotency-Key': key } });
+    persistResearchContext();
+    const messageKey = globalThis.crypto?.randomUUID?.() || `message-${Date.now()}`;
+    await apiCall(
+        'POST',
+        `/api/research-sessions/${encodeURIComponent(currentSession.session_id)}/messages`,
+        { role: 'user', content: question },
+        { headers: { 'Idempotency-Key': messageKey, ...researchScopeHeaders() } }
+    );
+}
+
+function researchScopeHeaders() {
+    if (!currentWorkspace?.workspace_id) return {};
+    return {
+        'X-Project-ID': LOCAL_PROJECT_ID,
+        'X-Workspace-ID': currentWorkspace.workspace_id,
+    };
+}
+
+function persistResearchContext() {
+    try {
+        localStorage.setItem(RESEARCH_CONTEXT_KEY, JSON.stringify({
+            project_id: LOCAL_PROJECT_ID,
+            workspace: currentWorkspace,
+            session: currentSession,
+        }));
+    } catch (error) {
+        console.warn('[research-center] context persistence failed', {
+            errorType: error?.name || 'UnknownError',
+        });
+    }
+}
+
+function restoreResearchContext() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(RESEARCH_CONTEXT_KEY) || 'null');
+        if (saved?.project_id !== LOCAL_PROJECT_ID) return;
+        if (saved.workspace?.workspace_id) currentWorkspace = saved.workspace;
+        currentSession = null;
+    } catch (error) {
+        console.warn('[research-center] context restore failed', {
+            errorType: error?.name || 'UnknownError',
+        });
+        currentWorkspace = null;
+        currentSession = null;
     }
 }
 
@@ -242,8 +341,17 @@ function setRunStatus(statusValue) {
 async function loadRunHistory() {
     const container = document.getElementById('research-run-history');
     if (!container) return;
+    if (!currentWorkspace?.workspace_id) {
+        container.innerHTML = '<div class="empty-state">创建研究工作区后显示历史任务。</div>';
+        return;
+    }
     try {
-        const runs = await apiCall('GET', '/api/research-runs');
+        const runs = await apiCall(
+            'GET',
+            '/api/research-runs',
+            null,
+            { headers: researchScopeHeaders() }
+        );
         if (!runs.length) {
             container.innerHTML = '<div class="empty-state">还没有研究任务。</div>';
             return;
@@ -267,8 +375,18 @@ async function handleHistoryClick(event) {
     if (!item) return;
     const runId = item.dataset.runId;
     try {
-        currentRun = await apiCall('GET', `/api/research-runs/${encodeURIComponent(runId)}`);
-        const result = await apiCall('GET', `/api/research-runs/${encodeURIComponent(runId)}/outputs`);
+        currentRun = await apiCall(
+            'GET',
+            `/api/research-runs/${encodeURIComponent(runId)}`,
+            null,
+            { headers: researchScopeHeaders() }
+        );
+        const result = await apiCall(
+            'GET',
+            `/api/research-runs/${encodeURIComponent(runId)}/outputs`,
+            null,
+            { headers: researchScopeHeaders() }
+        );
         renderResearchOutputs(result);
         setRunStatus(currentRun.status);
     } catch (error) {
@@ -292,8 +410,8 @@ function renderResearchOutputs(result) {
     const card = result.decision_card;
     const downloads = result.status === 'completed'
         ? `<div class="research-downloads">
-            <a class="btn-secondary" href="/api/research-runs/${encodeURIComponent(result.run_id)}/downloads/markdown">下载 Markdown</a>
-            <a class="btn-secondary" href="/api/research-runs/${encodeURIComponent(result.run_id)}/downloads/word">下载 Word</a>
+            <button class="btn-secondary" type="button" data-download="markdown">下载 Markdown</button>
+            <button class="btn-secondary" type="button" data-download="word">下载 Word</button>
         </div>`
         : '';
     const decisionCard = card ? `
@@ -344,17 +462,33 @@ async function handleEvidenceSubmit(event) {
     button.disabled = true;
     try {
         const evidenceId = globalThis.crypto?.randomUUID?.() || `${Date.now()}`;
-        await apiCall('POST', `/api/research-runs/${encodeURIComponent(currentRun.run_id)}/evidence`, {
-            evidence_id: `user-${evidenceId}`,
-            evidence_kind: data.get('evidence_kind'),
-            source_tier: data.get('source_tier'),
-            source_name: data.get('source_name'),
-            source_ref: data.get('source_ref'),
-            summary: data.get('summary'),
-            claim_text: data.get('claim_text'),
-        });
-        currentRun = await apiCall('POST', `/api/research-runs/${encodeURIComponent(currentRun.run_id)}/resume`);
-        const result = await apiCall('GET', `/api/research-runs/${encodeURIComponent(currentRun.run_id)}/outputs`);
+        await apiCall(
+            'POST',
+            `/api/research-runs/${encodeURIComponent(currentRun.run_id)}/evidence`,
+            {
+                evidence_id: `user-${evidenceId}`,
+                evidence_kind: data.get('evidence_kind'),
+                source_tier: data.get('source_tier'),
+                source_name: data.get('source_name'),
+                source_ref: data.get('source_ref'),
+                summary: data.get('summary'),
+                claim_text: data.get('claim_text'),
+            },
+            { headers: researchScopeHeaders() }
+        );
+        const resumeKey = globalThis.crypto?.randomUUID?.() || `resume-${Date.now()}`;
+        currentRun = await apiCall(
+            'POST',
+            `/api/research-runs/${encodeURIComponent(currentRun.run_id)}/resume`,
+            null,
+            { headers: { 'Idempotency-Key': resumeKey, ...researchScopeHeaders() } }
+        );
+        const result = await apiCall(
+            'GET',
+            `/api/research-runs/${encodeURIComponent(currentRun.run_id)}/outputs`,
+            null,
+            { headers: researchScopeHeaders() }
+        );
         renderResearchOutputs(result);
         setRunStatus(currentRun.status);
         await loadRunHistory();
@@ -369,9 +503,36 @@ async function handleEvidenceSubmit(event) {
     }
 }
 
-function handleOutputClick(event) {
+async function handleOutputClick(event) {
     const action = event.target.closest('[data-action]')?.dataset.action;
     if (action === 'back-to-asset') window.navigateTo?.('asset-analysis');
+    const download = event.target.closest('[data-download]')?.dataset.download;
+    if (download && currentRun) {
+        try {
+            await downloadResearchArtifact(currentRun.run_id, download);
+        } catch (error) {
+            console.error('[research-center] artifact download failed', {
+                runId: currentRun.run_id,
+                artifactType: download,
+                errorType: error?.name || 'UnknownError',
+            });
+            toast('研究产物下载失败', 'error');
+        }
+    }
+}
+
+async function downloadResearchArtifact(runId, artifactType) {
+    const response = await fetch(
+        `/api/research-runs/${encodeURIComponent(runId)}/downloads/${encodeURIComponent(artifactType)}`,
+        { headers: researchScopeHeaders() }
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blobUrl = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `${runId}.${artifactType === 'word' ? 'docx' : 'md'}`;
+    link.click();
+    URL.revokeObjectURL(blobUrl);
 }
 
 function templateName(templateKey) {

@@ -1,6 +1,8 @@
 # 数据源配置指南
 
-AlphaFoundry支持多数据源，按优先级自动切换。
+> 当前 Research Web 的运行时来源目录以 `app/research_web/datahub/catalog.py` 与 [Research Web DataHub 文档](research-web-datahub.md) 为准。能力中心展示 13 项能力和 21 个登记来源，并分别标识“代码存在、完成适配、配置、依赖、允许调用、健康”。目前仅东方财富基金和财联社完成 DataHub 可调用适配。下文主要描述历史摄入/Connector 平台；其中的“已实现”或“专业源”不等于已接入当前 Research Web，也不会自动进入 `datahub_*` 路由。
+
+Research Workbench支持多数据源，按优先级自动切换。
 
 ## 支持的数据源
 
@@ -198,7 +200,7 @@ PR欢迎！
 
 ## PDF 转换
 
-AlphaFoundry 支持将 PDF 研报自动转换为 Markdown/文本，支持三种策略自动降级。
+Research Workbench 支持将 PDF 研报自动转换为 Markdown/文本，支持三种策略自动降级。
 
 ### 架构
 
@@ -244,7 +246,7 @@ pip install -e ".[pdf-full]"
 
 ## 联网搜索（查询时实时联网）
 
-与上述批量采集数据源不同，联网搜索面向"用户提问时实时上网搜索"，用于「提问优先联网查询」能力（`af ask` / `POST /api/llm/ask`）。不进 Connector 生命周期，不持久化入库，仅作为 LLM 回答的临时参考资料。
+与上述批量采集数据源不同，联网搜索面向"用户提问时实时上网搜索"，用于「提问优先联网查询」能力（`rwb ask` / `POST /api/llm/ask`）。不进 Connector 生命周期，不持久化入库，仅作为 LLM 回答的临时参考资料。
 
 | Provider | 配置项 | 说明 |
 | --- | --- | --- |

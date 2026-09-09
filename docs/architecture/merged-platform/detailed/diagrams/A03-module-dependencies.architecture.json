@@ -1,0 +1,20 @@
+{
+  "schema_version":1,"diagram_type":"architecture",
+  "meta":{"title":"A03 · 模块依赖与禁止跨表访问","output":"A03-module-dependencies.html","quality_profile":"showcase","views":[{"id":"legal","label":"合法依赖链","focus":["page","api","service","contract","repo","owned"],"note":"页面经 API、Service 和 Contract 到达所属 Repository。"},{"id":"forbidden","label":"禁止路径","focus":["foreign","guard","service"],"note":"跨模块需求必须调用目标 Service，不得直接访问外部表。"}]},
+  "components":[
+    {"id":"page","type":"frontend","label":"页面模块","sublabel":"PAGE-P01…P08","pos":[30,250],"size":[135,64]},
+    {"id":"api","type":"cloud","label":"API Route","sublabel":"薄路由","pos":[215,250],"size":[135,64]},
+    {"id":"service","type":"backend","label":"Owning Service","sublabel":"业务规则","pos":[400,250],"size":[145,64]},
+    {"id":"contract","type":"security","label":"Shared Contract","sublabel":"跨模块类型","pos":[600,250],"size":[145,64]},
+    {"id":"repo","type":"backend","label":"Owned Repository","sublabel":"只管所属表","pos":[800,250],"size":[150,64]},
+    {"id":"owned","type":"database","label":"Owned Tables","sublabel":"DATA-*","pos":[1010,250],"size":[145,64]},
+    {"id":"foreign","type":"database","label":"其他模块表","sublabel":"禁止直连","pos":[800,430],"size":[150,64]},
+    {"id":"guard","type":"security","label":"边界门禁","sublabel":"测试 + Review","pos":[600,430],"size":[145,64]},
+    {"id":"target","type":"backend","label":"目标模块 Service","sublabel":"公开 Contract","pos":[400,80],"size":[145,64]}
+  ],
+  "connections":[
+    {"from":"page","to":"api","label":"请求","variant":"emphasis"},{"from":"api","to":"service","label":"调用"},{"from":"service","to":"contract","label":"类型"},{"from":"contract","to":"repo","label":"授权"},{"from":"repo","to":"owned","label":"读写","variant":"emphasis"},
+    {"from":"service","to":"target","label":"跨模块","variant":"dashed","fromSide":"top","toSide":"bottom"},{"from":"repo","to":"foreign","label":"拒绝","variant":"security","fromSide":"bottom","toSide":"top","labelAt":[875,370]},{"from":"foreign","to":"guard","label":"违规证据","variant":"security"},{"from":"guard","to":"service","label":"阻断","variant":"security","fromSide":"top","toSide":"bottom"}
+  ],
+  "cards":[{"dot":"emerald","title":"允许","items":["Route 保持薄层并调用 Service","跨模块通过公开 Contract 和目标 Service"]},{"dot":"rose","title":"禁止","items":["不得从一个模块 Repository 访问另一个模块表","不得在页面或 Route 内拼装跨域 SQL"]},{"dot":"amber","title":"门禁","items":["Catalog 声明 Service 与数据 Owner","集成测试和代码审查验证边界"]}]
+}

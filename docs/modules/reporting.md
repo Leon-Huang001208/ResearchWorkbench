@@ -215,7 +215,7 @@ Purpose:
 - Keep `/api/report-projects/{slug}/render` thin: the route reads project/config files, delegates to `ReportProjectRunService`, and maps the result into the existing response model.
 - Desktop workbench generation uses `POST /api/report-projects/{slug}/render-jobs` and polls the returned `status_url`; `reporting/projects/jobs.py` owns the in-process queue, same-project deduplication, bounded history, and terminal error/result snapshots.
 - The queue has one top-level worker to avoid competing report runs on local MPS resources. Section-level external model calls remain bounded-parallel, while local embedding/reranker model construction and inference are lock-protected.
-- Running jobs are process-local and do not resume after an AlphaFoundry restart. Generated artifacts and run logs remain persisted in their project directories.
+- Running jobs are process-local and do not resume after an Research Workbench restart. Generated artifacts and run logs remain persisted in their project directories.
 
 Update this section when:
 - Run-log structure changes.

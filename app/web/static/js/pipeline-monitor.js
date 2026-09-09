@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Pipeline Monitor Module
+   Research Workbench — Pipeline Monitor Module
    实时管线状态监控 + 活动日志
    ============================================================ */
 

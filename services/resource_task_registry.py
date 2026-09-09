@@ -29,16 +29,16 @@ def _utc_now() -> str:
 
 
 def _runtime_directory() -> Path:
-    """解析仅供 AlphaFoundry 使用的任务快照目录。"""
-    explicit = os.environ.get("ALPHAFOUNDRY_RUNTIME_DIR")
+    """解析仅供 Research Workbench 使用的任务快照目录。"""
+    explicit = os.environ.get("RESEARCH_RUNTIME_DIR")
     if explicit:
         return Path(explicit) / "resource-monitor-tasks"
 
-    desktop_data_dir = os.environ.get("ALPHAFOUNDRY_DESKTOP_DATA_DIR")
+    desktop_data_dir = os.environ.get("RESEARCH_DESKTOP_DATA_DIR")
     if desktop_data_dir:
         return Path(desktop_data_dir) / "runtime" / "resource-monitor-tasks"
 
-    project_root = Path(os.environ.get("ALPHAFOUNDRY_PROJECT_ROOT", Path.cwd()))
+    project_root = Path(os.environ.get("RESEARCH_PROJECT_ROOT", Path.cwd()))
     return project_root / "logs" / "resource-monitor-tasks"
 
 
@@ -201,7 +201,7 @@ class ResourceTaskRegistry:
                         "state": "failed",
                         "failed_at": _utc_now(),
                         "error_type": getattr(exc_type, "__name__", "Exception"),
-                        "error_summary": "任务执行失败；详情请查看 AlphaFoundry 日志。",
+                        "error_summary": "任务执行失败；详情请查看 Research Workbench 日志。",
                     },
                 )
                 del self._recent_failures[_MAX_RECENT_FAILURES:]

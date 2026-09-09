@@ -64,7 +64,7 @@ def configure_logging(level: str = "INFO", log_file: str | None = None) -> None:
         handlers.append(file_handler)
     else:
         file_handler = logging.FileHandler(
-            log_dir / f"alphafoundry_{datetime.now().strftime('%Y%m%d')}.log",
+            log_dir / f"research_workbench_{datetime.now().strftime('%Y%m%d')}.log",
             encoding="utf-8",
         )
         file_handler.setFormatter(formatter)
@@ -140,7 +140,7 @@ def _setup_structlog(log_dir: Path) -> None:
     stdout_stream = _utf8_stream(sys.stdout)
     handler = logging.StreamHandler(stdout_stream)
     file_handler = logging.FileHandler(
-        log_dir / f"alphafoundry_{datetime.now().strftime('%Y%m%d')}.log",
+        log_dir / f"research_workbench_{datetime.now().strftime('%Y%m%d')}.log",
         encoding="utf-8",
     )
 
@@ -184,7 +184,7 @@ def _setup_simple_logging(log_dir: Path) -> None:
     handler.setFormatter(formatter)
 
     file_handler = logging.FileHandler(
-        log_dir / f"alphafoundry_{datetime.now().strftime('%Y%m%d')}.log",
+        log_dir / f"research_workbench_{datetime.now().strftime('%Y%m%d')}.log",
         encoding="utf-8",
     )
     file_handler.setFormatter(formatter)

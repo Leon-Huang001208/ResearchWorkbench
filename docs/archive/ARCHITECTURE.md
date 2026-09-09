@@ -1,8 +1,8 @@
-# AlphaFoundry 架构文档
+# Research Workbench 架构文档
 
 ## 系统总览
 
-AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。
+Research Workbench 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。
 
 系统的核心定位是 **AI 驱动的事件型量化（Event-driven Quant）**，而不是 tick 高频、K 线深度学习、纯技术指标或 LSTM 收盘价预测。Agent 层负责解释世界，Timing 层负责交易节奏，Quant 层负责统计验证。
 
@@ -118,7 +118,7 @@ AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System�
 
 ## 事件型量化闭环
 
-AlphaFoundry 的主线不是“预测明天涨跌”，而是预测**哪些事件会形成持续市场共识**。完整闭环如下：
+Research Workbench 的主线不是“预测明天涨跌”，而是预测**哪些事件会形成持续市场共识**。完整闭环如下：
 
 ```text
 全球事件流
@@ -176,7 +176,7 @@ Signal Lab 对事件型信号的最低验证集合包括：
 
 ## AI-native Investment OS
 
-AlphaFoundry 不应继续停留在功能模块集合，而要逐步具备横向操作系统能力。当前必须优先实现能提高 alpha 验证速度的能力，而不是一次性堆满所有未来模块。
+Research Workbench 不应继续停留在功能模块集合，而要逐步具备横向操作系统能力。当前必须优先实现能提高 alpha 验证速度的能力，而不是一次性堆满所有未来模块。
 
 | OS 能力 | 作用 | 当前策略 |
 |---|---|---|
@@ -213,7 +213,7 @@ Event → Return
 
 ## World Model + Agent Swarm
 
-AlphaFoundry 会走向 Multi-Agent System，但 Agent 只作为横向认知竞争层。系统主体仍是 Data、Knowledge、Event、Signal Validation、Portfolio 和 Risk 这些可审计模块。
+Research Workbench 会走向 Multi-Agent System，但 Agent 只作为横向认知竞争层。系统主体仍是 Data、Knowledge、Event、Signal Validation、Portfolio 和 Risk 这些可审计模块。
 
 ```text
 Data Layer

@@ -33,7 +33,7 @@ class TestHealthCheck:
     def test_index(self):
         resp = client.get("/")
         assert resp.status_code == 200
-        assert "AlphaFoundry" in resp.text
+        assert "Research Workbench" in resp.text
 
 
 # ─── 资产分析 ───────────────────────────────────────────

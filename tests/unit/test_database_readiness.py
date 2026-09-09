@@ -17,6 +17,7 @@ EXPECTED_CODES = {
     "connection_failed",
     "database_unavailable",
     "pgvector_missing",
+    "btree_gist_missing",
     "unexpected_error",
 }
 
@@ -77,7 +78,7 @@ def test_public_api_exposes_enum_and_frozen_readiness_result():
 
 def test_probe_reports_ready_after_connectivity_and_pgvector_checks(monkeypatch):
     """A reachable database with pgvector reports the immutable ready result."""
-    engine = _Engine([None, 1, "vector"])
+    engine = _Engine([None, 1, "vector", "btree_gist"])
     create_engine = MagicMock(return_value=engine)
     safe_logger = MagicMock()
     monkeypatch.setattr(database_readiness, "create_engine", create_engine)
@@ -87,12 +88,13 @@ def test_probe_reports_ready_after_connectivity_and_pgvector_checks(monkeypatch)
 
     assert result.code is database_readiness.DatabaseReadinessCode.READY
     assert result.ready is True
-    assert result.message == "数据库连接正常，pgvector 已就绪。"
+    assert result.message == "数据库连接正常，必需扩展已就绪。"
     assert result.remediation == ("无需处理。",)
     assert engine.connection.statements == [
         "SET LOCAL statement_timeout = 5000",
         "SELECT 1",
         "SELECT 1 FROM pg_extension WHERE extname = 'vector'",
+        "SELECT 1 FROM pg_extension WHERE extname = 'btree_gist'",
     ]
     assert engine.disposed is True
     assert create_engine.call_args.args == (SECRET_DATABASE_URL,)
@@ -109,7 +111,7 @@ def test_probe_reports_ready_after_connectivity_and_pgvector_checks(monkeypatch)
 
 def test_probe_uses_a_verified_numeric_server_statement_timeout(monkeypatch):
     """The query timeout is generated only from a validated numeric API argument."""
-    engine = _Engine([None, 1, "vector"])
+    engine = _Engine([None, 1, "vector", "btree_gist"])
     create_engine = MagicMock(return_value=engine)
     monkeypatch.setattr(database_readiness, "create_engine", create_engine)
 
@@ -203,6 +205,21 @@ def test_probe_reports_missing_pgvector_and_disposes_engine(monkeypatch):
     assert result.ready is False
     assert result.message == "数据库未启用 pgvector 扩展。"
     assert result.remediation == ("请在目标数据库中启用 vector 扩展后重试。",)
+    assert engine.disposed is True
+    _assert_safe_result(result)
+
+
+def test_probe_reports_missing_btree_gist_and_disposes_engine(monkeypatch):
+    """GiST text constraints require btree_gist before schema creation begins."""
+    engine = _Engine([None, 1, "vector", None])
+    monkeypatch.setattr(database_readiness, "create_engine", lambda *args, **kwargs: engine)
+
+    result = database_readiness.probe_postgresql(SECRET_DATABASE_URL)
+
+    assert result.code is database_readiness.DatabaseReadinessCode.BTREE_GIST_MISSING
+    assert result.ready is False
+    assert result.message == "数据库未启用 btree_gist 扩展。"
+    assert result.remediation == ("请在目标数据库中启用 btree_gist 扩展后重试。",)
     assert engine.disposed is True
     _assert_safe_result(result)
 

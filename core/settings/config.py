@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     BACKEND_URL: str = RUNTIME_CONTEXT.backend_url
 
     # 未配置时使用不可用占位符，避免意外连接到已知的默认数据库账户。
-    DATABASE_URL: str = "postgresql+psycopg://invalid:invalid@127.0.0.1:1/alphafoundry"
+    DATABASE_URL: str = "postgresql+psycopg://invalid:invalid@127.0.0.1:1/research_workbench"
 
     # ── 多 provider profiles + 任务路由 ──
     PROVIDER_PROFILES: dict[str, ProviderProfile] = Field(default_factory=dict)

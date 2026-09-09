@@ -18,8 +18,8 @@ SECRET_DATABASE_URL = "postgresql+psycopg://alice:top-secret@db.internal:5432/pr
 def _context(mode: str) -> RuntimeContext:
     return RuntimeContext(
         mode=mode,  # type: ignore[arg-type]
-        project_root=Path("/tmp/alphafoundry"),
-        data_dir=Path("/tmp/alphafoundry") if mode == "desktop" else None,
+        project_root=Path("/tmp/research_workbench"),
+        data_dir=Path("/tmp/research_workbench") if mode == "desktop" else None,
         env_path=None,
         backend_url="http://127.0.0.1:8765",
         can_write_config=mode != "web-prod",
@@ -28,7 +28,7 @@ def _context(mode: str) -> RuntimeContext:
 
 def _readiness(code: DatabaseReadinessCode) -> DatabaseReadiness:
     details = {
-        DatabaseReadinessCode.READY: (True, "数据库连接正常，pgvector 已就绪。", ("无需处理。",)),
+        DatabaseReadinessCode.READY: (True, "数据库连接正常，必需扩展已就绪。", ("无需处理。",)),
         DatabaseReadinessCode.CONNECTION_FAILED: (
             False,
             "无法连接到数据库。",
@@ -62,6 +62,7 @@ def test_desktop_startup_enters_setup_required_without_schema_or_schedulers(
     start_schedulers = MagicMock()
     start_wind = MagicMock()
     start_runtime = MagicMock()
+    start_durable_scheduler = MagicMock()
     monkeypatch.setattr(
         main, "probe_postgresql", lambda *_: _readiness(DatabaseReadinessCode.PGVECTOR_MISSING)
     )
@@ -69,6 +70,7 @@ def test_desktop_startup_enters_setup_required_without_schema_or_schedulers(
     monkeypatch.setattr(main, "_start_data_acquisition_schedulers", start_schedulers)
     monkeypatch.setattr(main, "_start_wind_workbook_background", start_wind)
     monkeypatch.setattr(main, "_start_resource_monitor_runtime", start_runtime)
+    monkeypatch.setattr(main, "_start_durable_scheduler_runtime", start_durable_scheduler)
     monkeypatch.setattr(main, "RUNTIME_CONTEXT", _context("desktop"))
 
     asyncio.run(main.startup())
@@ -78,6 +80,7 @@ def test_desktop_startup_enters_setup_required_without_schema_or_schedulers(
     start_schedulers.assert_not_called()
     start_wind.assert_not_called()
     start_runtime.assert_not_called()
+    start_durable_scheduler.assert_not_called()
 
 
 @pytest.mark.parametrize("mode", ["web-dev", "web-prod"])
@@ -100,6 +103,7 @@ def test_desktop_startup_initializes_schema_and_automatic_services_when_ready(
     start_schedulers = MagicMock()
     start_wind = MagicMock()
     start_runtime = MagicMock()
+    start_durable_scheduler = MagicMock()
     monkeypatch.setattr(
         main, "probe_postgresql", lambda *_: _readiness(DatabaseReadinessCode.READY)
     )
@@ -107,6 +111,7 @@ def test_desktop_startup_initializes_schema_and_automatic_services_when_ready(
     monkeypatch.setattr(main, "_start_data_acquisition_schedulers", start_schedulers)
     monkeypatch.setattr(main, "_start_wind_workbook_background", start_wind)
     monkeypatch.setattr(main, "_start_resource_monitor_runtime", start_runtime)
+    monkeypatch.setattr(main, "_start_durable_scheduler_runtime", start_durable_scheduler)
     monkeypatch.setattr(main, "RUNTIME_CONTEXT", _context("desktop"))
 
     asyncio.run(main.startup())
@@ -116,6 +121,7 @@ def test_desktop_startup_initializes_schema_and_automatic_services_when_ready(
     start_schedulers.assert_called_once_with()
     start_wind.assert_called_once_with()
     start_runtime.assert_called_once_with()
+    start_durable_scheduler.assert_called_once_with()
 
 
 def test_desktop_preview_skips_database_initialization_and_automatic_services(
@@ -125,6 +131,7 @@ def test_desktop_preview_skips_database_initialization_and_automatic_services(
     start_schedulers = MagicMock()
     start_wind = MagicMock()
     start_runtime = MagicMock()
+    start_durable_scheduler = MagicMock()
     monkeypatch.setattr(
         main, "probe_postgresql", lambda *_: _readiness(DatabaseReadinessCode.READY)
     )
@@ -132,8 +139,9 @@ def test_desktop_preview_skips_database_initialization_and_automatic_services(
     monkeypatch.setattr(main, "_start_data_acquisition_schedulers", start_schedulers)
     monkeypatch.setattr(main, "_start_wind_workbook_background", start_wind)
     monkeypatch.setattr(main, "_start_resource_monitor_runtime", start_runtime)
+    monkeypatch.setattr(main, "_start_durable_scheduler_runtime", start_durable_scheduler)
     monkeypatch.setattr(main, "RUNTIME_CONTEXT", _context("desktop"))
-    monkeypatch.setenv("ALPHAFOUNDRY_PREVIEW", "1")
+    monkeypatch.setenv("RESEARCH_PREVIEW", "1")
 
     asyncio.run(main.startup())
 
@@ -142,6 +150,7 @@ def test_desktop_preview_skips_database_initialization_and_automatic_services(
     start_schedulers.assert_not_called()
     start_wind.assert_not_called()
     start_runtime.assert_not_called()
+    start_durable_scheduler.assert_not_called()
 
 
 def test_shutdown_stops_resource_monitor_before_other_schedulers(monkeypatch) -> None:
@@ -154,10 +163,15 @@ def test_shutdown_stops_resource_monitor_before_other_schedulers(monkeypatch) ->
         "_stop_data_acquisition_schedulers",
         lambda: call_order.append("schedulers"),
     )
+    monkeypatch.setattr(
+        main,
+        "_stop_durable_scheduler_runtime",
+        lambda: call_order.append("durable_scheduler"),
+    )
 
     main.shutdown()
 
-    assert call_order == ["runtime", "schedulers"]
+    assert call_order == ["runtime", "durable_scheduler", "schedulers"]
 
 
 def test_setup_readiness_returns_safe_restart_required_status(
@@ -180,7 +194,7 @@ def test_setup_readiness_returns_safe_restart_required_status(
         "database": {
             "ready": True,
             "code": "ready",
-            "message": "数据库连接正常，pgvector 已就绪。",
+            "message": "数据库连接正常，必需扩展已就绪。",
             "remediation": ["无需处理。"],
         },
         "restart_required": True,

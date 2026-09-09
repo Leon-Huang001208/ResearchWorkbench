@@ -2,7 +2,7 @@
 Core contracts for document-related data structures.
 
 This module defines Pydantic models that standardize document representations
-across the AlphaFoundry system, including envelopes that wrap raw documents
+across the Research Workbench system, including envelopes that wrap raw documents
 and their metadata.
 """
 

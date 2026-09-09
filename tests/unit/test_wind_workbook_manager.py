@@ -9,15 +9,15 @@ def test_wind_workbook_manager_autostart_requires_desktop_mac(monkeypatch, tmp_p
     from services import wind_workbook_manager as module
     from services.wind_workbook_manager import WindWorkbookManager
 
-    monkeypatch.delenv("ALPHAFOUNDRY_DESKTOP", raising=False)
-    monkeypatch.delenv("ALPHAFOUNDRY_WIND_WORKBOOK_AUTOSTART", raising=False)
+    monkeypatch.delenv("RESEARCH_DESKTOP", raising=False)
+    monkeypatch.delenv("RESEARCH_WIND_WORKBOOK_AUTOSTART", raising=False)
     monkeypatch.setattr(module.platform, "system", lambda: "Darwin")
 
     manager = WindWorkbookManager(workbook_path=tmp_path / "book.xlsx")
 
     assert manager.autostart_enabled() is False
 
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP", "1")
+    monkeypatch.setenv("RESEARCH_DESKTOP", "1")
     assert manager.autostart_enabled() is True
 
 
@@ -25,8 +25,8 @@ def test_wind_workbook_manager_autostart_env_override(monkeypatch, tmp_path):
     from services import wind_workbook_manager as module
     from services.wind_workbook_manager import WindWorkbookManager
 
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP", "1")
-    monkeypatch.setenv("ALPHAFOUNDRY_WIND_WORKBOOK_AUTOSTART", "0")
+    monkeypatch.setenv("RESEARCH_DESKTOP", "1")
+    monkeypatch.setenv("RESEARCH_WIND_WORKBOOK_AUTOSTART", "0")
     monkeypatch.setattr(module.platform, "system", lambda: "Darwin")
 
     manager = WindWorkbookManager(workbook_path=tmp_path / "book.xlsx")
@@ -58,8 +58,8 @@ def test_wind_workbook_manager_starts_one_background_thread(monkeypatch, tmp_pat
         def is_alive(self):
             return self._alive
 
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP", "1")
-    monkeypatch.delenv("ALPHAFOUNDRY_WIND_WORKBOOK_AUTOSTART", raising=False)
+    monkeypatch.setenv("RESEARCH_DESKTOP", "1")
+    monkeypatch.delenv("RESEARCH_WIND_WORKBOOK_AUTOSTART", raising=False)
     monkeypatch.setattr(module.platform, "system", lambda: "Darwin")
     monkeypatch.setattr(module, "Thread", FakeThread)
 
@@ -158,7 +158,7 @@ def test_wind_workbook_manager_rebuilds_stale_open_workbook(monkeypatch, tmp_pat
     built: list[tuple[Path, Path]] = []
     primed: list[Path] = []
 
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP", "1")
+    monkeypatch.setenv("RESEARCH_DESKTOP", "1")
     monkeypatch.setattr(module.platform, "system", lambda: "Darwin")
     monkeypatch.setitem(sys.modules, "xlwings", fake_xlwings)
     monkeypatch.setattr(
@@ -239,7 +239,7 @@ def test_wind_workbook_manager_does_not_reprime_existing_workbook_without_manual
     )
     primed: list[Path] = []
 
-    monkeypatch.setenv("ALPHAFOUNDRY_DESKTOP", "1")
+    monkeypatch.setenv("RESEARCH_DESKTOP", "1")
     monkeypatch.setattr(module.platform, "system", lambda: "Darwin")
     monkeypatch.setitem(sys.modules, "xlwings", fake_xlwings)
     monkeypatch.setattr(

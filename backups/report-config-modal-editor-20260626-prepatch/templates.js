@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Templates Module
+   Research Workbench — Templates Module
    Template management, placeholder config, render, upload, DnD
    ============================================================ */
 
@@ -1487,7 +1487,7 @@ async function openReportProjectOutputFolder(slug, fileName = '') {
         toast('已打开报告所在文件夹', 'success');
     } catch (e) {
         if (String(e.message || '').includes('Not Found')) {
-            toast('打开文件夹失败：当前后端还没加载新接口，请重启 AlphaFoundry', 'error');
+            toast('打开文件夹失败：当前后端还没加载新接口，请重启 Research Workbench', 'error');
             return;
         }
         toast('打开文件夹失败: ' + e.message, 'error');
@@ -1948,7 +1948,7 @@ function getStoredCommonDefaults(template) {
             semantic_candidate_k: 80,
             keyword_weight: 0.6,
             semantic_weight: 0.4,
-            embedding_model: '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/embeddings/bge-large-zh-v1.5',
+            embedding_model: '/Users/leon/Desktop/Projects/ResearchWorkbench/data/models/embeddings/bge-large-zh-v1.5',
             source_types: []
         },
         report_period: {
@@ -1959,7 +1959,7 @@ function getStoredCommonDefaults(template) {
         rerank: {
             enabled: true,
             provider: 'bge-reranker',
-            model: '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/rerankers/bge-reranker-large',
+            model: '/Users/leon/Desktop/Projects/ResearchWorkbench/data/models/rerankers/bge-reranker-large',
             top_n: 30,
             min_score: 0.35
         }
@@ -2185,7 +2185,7 @@ function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
                     </label>
                     <label class="template-common-field">
                         <span>Embedding 模型</span>
-                        <input type="text" data-common-rule-field="retrieval.embedding_model" value="${esc(retrieval.embedding_model || '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/embeddings/bge-large-zh-v1.5')}">
+                        <input type="text" data-common-rule-field="retrieval.embedding_model" value="${esc(retrieval.embedding_model || '/Users/leon/Desktop/Projects/ResearchWorkbench/data/models/embeddings/bge-large-zh-v1.5')}">
                     </label>
                 </div>
             </div>
@@ -2215,7 +2215,7 @@ function renderAdvancedCommonRules(template, retrieval = {}, rerank = {}) {
                     </label>
                     <label class="template-common-field">
                         <span>Reranker 模型</span>
-                        <input type="text" data-common-rule-field="rerank.model" value="${esc(rerank.model || '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/rerankers/bge-reranker-large')}">
+                        <input type="text" data-common-rule-field="rerank.model" value="${esc(rerank.model || '/Users/leon/Desktop/Projects/ResearchWorkbench/data/models/rerankers/bge-reranker-large')}">
                     </label>
                     <label class="template-common-field">
                         <span>参与重排的候选证据数</span>
@@ -3846,7 +3846,7 @@ function buildDefaultsBlock(defaults) {
     lines.push(`    semantic_candidate_k: ${retrieval.semantic_candidate_k ?? retrieval.semantic_candidates ?? 80}`);
     lines.push(`    keyword_weight: ${retrieval.keyword_weight ?? 0.6}`);
     lines.push(`    semantic_weight: ${retrieval.semantic_weight ?? 0.4}`);
-    lines.push(`    embedding_model: ${retrieval.embedding_model || '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/embeddings/bge-large-zh-v1.5'}`);
+    lines.push(`    embedding_model: ${retrieval.embedding_model || '/Users/leon/Desktop/Projects/ResearchWorkbench/data/models/embeddings/bge-large-zh-v1.5'}`);
     const sourceTypes = Array.isArray(retrieval.source_types) ? retrieval.source_types : [];
     if (sourceTypes.length) {
         lines.push('    source_types:');
@@ -3855,7 +3855,7 @@ function buildDefaultsBlock(defaults) {
     lines.push('  rerank:');
     lines.push(`    enabled: ${rerank.enabled !== false}`);
     lines.push(`    provider: ${rerank.provider || 'bge-reranker'}`);
-    lines.push(`    model: ${rerank.model || '/Users/leon/Desktop/Projects/AlphaFoundry/data/models/rerankers/bge-reranker-large'}`);
+    lines.push(`    model: ${rerank.model || '/Users/leon/Desktop/Projects/ResearchWorkbench/data/models/rerankers/bge-reranker-large'}`);
     lines.push(`    top_n: ${rerank.top_n ?? rerank.candidates ?? 30}`);
     lines.push(`    min_score: ${rerank.min_score ?? 0.35}`);
     return lines.join('\n');

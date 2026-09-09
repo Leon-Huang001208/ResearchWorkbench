@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "D04-04 · FinGPT Research Run 状态机",
+    "output": "D04-04-fingpt-run.html",
+    "viewBox": [
+      1800,
+      720
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "fingpt-life-1",
+        "label": "主链",
+        "focus": [
+          "queued",
+          "retrieving",
+          "reasoning",
+          "quality",
+          "completed"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "fingpt-life-2",
+        "label": "边界",
+        "focus": [
+          "reasoning",
+          "blocked"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "fingpt-life-3",
+        "label": "异常",
+        "focus": [
+          "blocked",
+          "cancelled",
+          "retrieving"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "主状态"
+    },
+    {
+      "id": "alternate",
+      "label": "等待或降级"
+    },
+    {
+      "id": "terminal",
+      "label": "终止或恢复"
+    }
+  ],
+  "states": [
+    {
+      "id": "queued",
+      "type": "start",
+      "label": "已排队",
+      "sublabel": "持久化 Run",
+      "lane": "main",
+      "col": 0,
+      "step": "01"
+    },
+    {
+      "id": "retrieving",
+      "type": "active",
+      "label": "检索中",
+      "sublabel": "收集来源",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "reasoning",
+      "type": "active",
+      "label": "研究中",
+      "sublabel": "生成 Claim",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "quality",
+      "type": "decision",
+      "label": "质量门",
+      "sublabel": "证据与引用检查",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "completed",
+      "type": "success",
+      "label": "已完成",
+      "sublabel": "归档 Artifact",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "blocked",
+      "type": "waiting",
+      "label": "等待输入",
+      "sublabel": "附件或范围缺失",
+      "lane": "alternate",
+      "col": 2
+    },
+    {
+      "id": "cancelled",
+      "type": "failure",
+      "label": "已取消",
+      "sublabel": "用户停止",
+      "lane": "terminal",
+      "col": 2
+    }
+  ],
+  "transitions": [
+    {
+      "from": "reasoning",
+      "to": "blocked",
+      "variant": "security",
+      "route": "drop"
+    },
+    {
+      "from": "blocked",
+      "to": "cancelled",
+      "variant": "security",
+      "route": "drop"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主路径",
+      "items": [
+        "已排队",
+        "检索中",
+        "研究中",
+        "质量门",
+        "已完成"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "等待/降级",
+      "items": [
+        "等待输入",
+        "附件或范围缺失",
+        "不把等待态伪装成成功"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "终止与恢复",
+      "items": [
+        "已取消",
+        "用户停止",
+        "恢复必须回到明确活动态"
+      ]
+    }
+  ]
+}

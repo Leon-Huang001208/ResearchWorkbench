@@ -57,7 +57,7 @@ def minimal_doc():
                 ],
             )
         ],
-        metadata={"author": "AlphaFoundry"},
+        metadata={"author": "Research Workbench"},
     )
 
 

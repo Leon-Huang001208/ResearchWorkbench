@@ -20,6 +20,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Test portable Research Web architecture gate
+        run: node --test tests/javascript/research_web_architecture.test.mjs
+
       - name: Enforce project constraints
         shell: bash
         run: |
@@ -32,8 +35,14 @@ jobs:
             base="${{ github.event.before }}"
           fi
           if [[ -n "$base" ]]; then
-            while IFS= read -r changed_file; do
+            changed_files=$(mktemp "$RUNNER_TEMP/project-constraints.XXXXXX")
+            trap 'rm -f -- "$changed_files"' EXIT
+            if ! git diff --name-only -z "$base" "$GITHUB_SHA" -- > "$changed_files"; then
+              printf 'Project constraints: git diff failed; refusing incomplete change input.\n' >&2
+              exit 1
+            fi
+            while IFS= read -r -d '' changed_file; do
               [[ -n "$changed_file" ]] && arguments+=(--changed-file "$changed_file")
-            done < <(git diff --name-only "$base" "$GITHUB_SHA")
+            done < "$changed_files"
           fi
           node .agents/project-constraints.mjs "${arguments[@]}"

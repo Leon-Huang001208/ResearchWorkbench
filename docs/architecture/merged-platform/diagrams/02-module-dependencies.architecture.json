@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "合并平台模块依赖",
+    "output": "outputs/merged-platform-architecture/02-module-dependencies.html",
+    "viewBox": [1380, 850],
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {"id": "api", "type": "backend", "label": "FastAPI 路由层", "sublabel": "唯一公共入口", "pos": [40, 355], "size": [160, 66]},
+    {"id": "research", "type": "backend", "label": "FinGPT / Claw", "sublabel": "Workspace 与 Run", "pos": [300, 80], "size": [165, 66]},
+    {"id": "home", "type": "frontend", "label": "市场首页", "sublabel": "facts-only", "pos": [300, 250], "size": [165, 66]},
+    {"id": "packs", "type": "backend", "label": "Research Pack", "sublabel": "主题查询投影", "pos": [300, 450], "size": [165, 66]},
+    {"id": "assets", "type": "backend", "label": "资产观察", "sublabel": "Watchlist 与 Alert", "pos": [300, 650], "size": [165, 66]},
+    {"id": "contracts", "type": "security", "label": "共享事实契约", "sublabel": "身份 · 来源 · 时间", "pos": [620, 355], "size": [178, 70], "tag": "禁止跨库耦合"},
+    {"id": "repositories", "type": "backend", "label": "Repository 边界", "sublabel": "模块所有权", "pos": [910, 355], "size": [170, 66]},
+    {"id": "database", "type": "database", "label": "PostgreSQL + pgvector", "sublabel": "共享权威状态", "pos": [1190, 355], "size": [180, 66]},
+    {"id": "dsh", "type": "external", "label": "DSH 侧车", "sublabel": "RuntimeProvider", "pos": [620, 80], "size": [178, 66]}
+  ],
+  "connections": [
+    {"id": "api_research", "from": "api", "to": "research"},
+    {"id": "api_home", "from": "api", "to": "home"},
+    {"id": "api_packs", "from": "api", "to": "packs"},
+    {"id": "api_assets", "from": "api", "to": "assets"},
+    {"id": "research_contracts", "from": "research", "to": "contracts", "label": "只读事实"},
+    {"id": "home_contracts", "from": "home", "to": "contracts"},
+    {"id": "packs_contracts", "from": "packs", "to": "contracts"},
+    {"id": "assets_contracts", "from": "assets", "to": "contracts", "label": "AssetRef"},
+    {"id": "contracts_repo", "from": "contracts", "to": "repositories", "label": "类型化访问", "variant": "security"},
+    {"id": "repo_db", "from": "repositories", "to": "database", "label": "事务", "variant": "emphasis"},
+    {"id": "research_dsh", "from": "research", "to": "dsh", "label": "能力路由", "variant": "dashed"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "依赖规则", "items": ["四个产品模块只依赖共享契约与自己的服务", "跨模块读取通过公共服务，不导入对方 repository", "前端与 DSH 都不能绕过 FastAPI"]},
+    {"dot": "rose", "title": "禁止回写", "items": ["研究、Note 和 Agent 黑板不写事实表", "首页不调用模型生成摘要", "Pack 和资产观察不复制现有资产事实"]}
+  ]
+}

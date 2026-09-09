@@ -1,0 +1,60 @@
+{
+  "status": "passed",
+  "samples": [
+    {
+      "time": "2026-09-03T08:23:45.214Z",
+      "bytes": 8,
+      "lines": 4,
+      "sha256": "16fbd7d1f18d2fedb247d73edc3bc6aa040f5ab99bd3b48c35b79e543d22179b"
+    },
+    {
+      "time": "2026-09-03T08:23:47.222Z",
+      "bytes": 8,
+      "lines": 4,
+      "sha256": "16fbd7d1f18d2fedb247d73edc3bc6aa040f5ab99bd3b48c35b79e543d22179b"
+    },
+    {
+      "time": "2026-09-03T08:23:49.230Z",
+      "bytes": 8,
+      "lines": 4,
+      "sha256": "16fbd7d1f18d2fedb247d73edc3bc6aa040f5ab99bd3b48c35b79e543d22179b"
+    }
+  ],
+  "session": "c825aae3-db16-41d6-9657-d77e2780832c",
+  "before": {
+    "status": "running",
+    "activities": [
+      {
+        "id": "call_00_CLeX5cgZeyUcPOtBT9vc0859",
+        "type": "tool",
+        "title": "research_run_script",
+        "status": "running",
+        "detail": "{\"code\": \"\\nimport time\\n\\npath = 'outputs/cancel-proof.txt'\\nwith open(path, 'w', encoding='utf-8') as f:\\n    for i in range(1, 121):\\n        f.write(f\\\"{i}\\\\n\\\")\\n        f.flush()\\n        time.sleep(0.5)\\nprint(\\\"finished_all_120\\\")\\n\"}"
+      }
+    ]
+  },
+  "cancelStatus": 200,
+  "after": {
+    "status": "cancelled",
+    "delivery": {
+      "task_id": "4a0595262052b26c3b88d984",
+      "status": "not_required",
+      "required_formats": [],
+      "missing_formats": [],
+      "files": [],
+      "reasons": [],
+      "checked_at": 1788423825.07434
+    },
+    "activities": [
+      {
+        "id": "call_00_CLeX5cgZeyUcPOtBT9vc0859",
+        "type": "tool",
+        "title": "research_run_script",
+        "status": "failed",
+        "detail": "Error: research script cancelled",
+        "duration_ms": 1808
+      }
+    ],
+    "can_cancel": false
+  }
+}

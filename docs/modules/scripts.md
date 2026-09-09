@@ -28,14 +28,15 @@ Purpose:
 - Starts the desktop FastAPI backend, workers, and crawl scheduler on the loopback-only desktop listener (`127.0.0.1` or `localhost`).
 - Resolves the source root in development and `sys._MEIPASS` in a PyInstaller one-file bundle before starting the backend or child workers.
 - Creates or migrates the per-user desktop `.env`, requires PostgreSQL + pgvector rather than silently creating a SQLite database, keeps user secrets out of launcher diagnostics, and refuses to terminate an unknown process that already owns the selected port.
-- When `ALPHAFOUNDRY_PREVIEW=1` is set by the branch-preview launcher, verifies desktop readiness but does not start duplicate knowledge-worker or crawler watchdogs.
+- When `RESEARCH_PREVIEW=1` is set by the branch-preview launcher, verifies desktop readiness but does not start duplicate knowledge-worker or crawler watchdogs.
+- `RESEARCH_CRAWLER_AUTOSTART=0` keeps the knowledge worker available but prevents the crawl-scheduler watchdog from starting after an application restart; explicit manual scheduler starts remain available.
 
 ### `scripts/desktop/run_preview.js`
 
 Purpose:
 
 - Starts the current Git worktree in a separate Tauri development instance, using a temporary Tauri configuration with a dedicated loopback port (default `8766`).
-- Reuses an available Tauri CLI from another AlphaFoundry worktree when the current worktree has no `node_modules`, so previewing does not require copying project dependencies.
+- Reuses an available Tauri CLI from another Research Workbench worktree when the current worktree has no `node_modules`, so previewing does not require copying project dependencies.
 - Uses temporary runtime data by default; `--use-stable-data` explicitly reuses the user's desktop configuration for full-workbench acceptance while the preview environment disables startup mutation and background work.
 
 ### `scripts/desktop/build_sidecar.py`
@@ -70,6 +71,21 @@ Update this section when:
 - Output format changes
 - Included directories change
 
+### `scripts/migrate_lsh_theme_data.py`
+
+Purpose:
+
+- Discover the reviewed LSH theme CSV set and route rows only through installed Pack manifests.
+- Default to `--dry-run`; `--apply` is explicit and uses the configured database transaction.
+- Emit accepted, quarantined, rejected, duplicate and applied counts plus per-file SHA-256 hashes and resumable checkpoints.
+- `--resume-from` accepts only a checkpoint whose source hash still matches; a changed file must restart and cannot silently continue at an old row number.
+- Preserve all mapped measures from wide rows as separate Observations. Identity collisions with different values are quarantined as `identity_conflict`, never counted as harmless duplicates or overwritten.
+- Keep strategy, trading, fund approval, `score_hint` and `driver-summary` inputs frozen/rejected rather than migrating them into facts.
+
+Update this section when:
+
+- LSH discovery, mapping, identity, resume, report or commit semantics change.
+
 ### `scripts/check_task_completion.py`
 
 Purpose:
@@ -88,7 +104,23 @@ Purpose:
 - Verifies source changes have corresponding documentation updates
 - Maps source directories to required docs
 - Ensures generated index is updated
-- Detects changes via shared `core/utils/git.py` (includes untracked files)
+- Detects source changes with NUL-delimited Git output (includes individual untracked files)
+
+Research Web uses the repository-owned `scripts/check_research_architecture.mjs` core,
+also invoked by `.agents/project-constraints.mjs` and the existing Project Constraints CI.
+`check_doc_sync.py` accepts `--project`, `--base` and repeated `--changed-file`, using
+NUL-delimited Git output to include individual untracked files and failing closed on Git errors.
+The shared core checks all eight required diagrams, current API/source/test references,
+canonical links, byte hashes, showcase 9/9 receipts, four viewport containment receipts,
+and explicit same-hash human screenshot reviews. Source changes require mapped Markdown
+and an `architecture-review` marker in the review record; unknown Research Web source fails.
+No global Archify installation or network is required. JSONL diagnostics are written under
+`logs/research-architecture-check.jsonl`; Python also uses the project logging facility.
+Invalid top-level maps and unsupported HTTP declaration syntax fail closed; literal positional
+and `path=` keyword routes are checked. Generated artifact/receipt paths use fixed canonical
+filenames. CI checks Git's exit status before consuming NUL-delimited changed filenames.
+Full CLI/security/update contracts and fixture tests are documented in
+[Research Web documentation gate](../research-web-documentation.md).
 
 Update this section when:
 - DOC_RULES mapping changes
@@ -99,7 +131,7 @@ Update this section when:
 
 Purpose:
 - Starts the FastAPI desktop backend and its knowledge-worker and crawl-scheduler watchdogs.
-- Resolves the shared project/resource root with `ALPHAFOUNDRY_PROJECT_ROOT` first, then PyInstaller's `sys._MEIPASS` for frozen one-file sidecars, and finally the source-tree fallback.
+- Resolves the shared project/resource root with `RESEARCH_PROJECT_ROOT` first, then PyInstaller's `sys._MEIPASS` for frozen one-file sidecars, and finally the source-tree fallback.
 - Passes that resolved root as the backend cwd and to watchdog child environments, so frozen processes load bundled resources from the same self-contained directory.
 
 Update this section when:

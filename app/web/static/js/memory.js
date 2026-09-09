@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Memory & Learning Module
+   Research Workbench — Memory & Learning Module
    ============================================================ */
 
 import { apiCall, esc } from './core.js';

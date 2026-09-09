@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "status": "reviewed",
+  "diagrams": [
+    {
+      "id": "08-iteration-docs",
+      "artifactSha256": "675cc55e53e7ad1eef1b0bdc587d620bbe673b6112bc6c55534222d698824ce9",
+      "specificationSha256": "eb7fbcc5f6a7f6218954a8e24e9617ea9ccb883a9b0c09197a37322b165fc234",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-07",
+      "captures": ["08-iteration-docs.visual-check.1440x900.dark.png", "08-iteration-docs.visual-check.2048x1320.light.png"],
+      "findings": [],
+      "notes": "已人工查看更新后 1440 浅色与 2048 浅色/深色最终截图；固定十图、源码/API/文档/测试映射、CI 和只读入口关系可读，未见穿线、遮挡或裁剪。作者更新图文与自动一致性检查分开，检查不代替语义或产品验收。"
+    },
+    {
+      "id": "02-module-dependencies",
+      "artifactSha256": "d6a85a422500ffdafa0e8e261ad7a433f7fffb03eb4b649c7e971d020977a4a4",
+      "specificationSha256": "278080ca4c50508c32e9bf5bf57ef0444ed61a1de284c170e6220b718f980eca",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-08",
+      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.1440x900.dark.png"],
+      "findings": [],
+      "notes": "已人工查看 1440 浅色与深色最终截图；登记来源明确包含用户 MySQL，DataHub 节点保留 enabledTools、自动查询与快照边界，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明来源当前在线或报告已实际运行。"
+    },
+    {
+      "id": "05-capability-flow",
+      "artifactSha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5",
+      "specificationSha256": "1f19790e4a68a12825af9cf1cea95472504d68e78d2f8a2ca3e08ec7533c192c",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-03",
+      "captures": ["05-capability-flow.visual-check.1440x900.dark.png", "05-capability-flow.visual-check.2048x1320.light.png"],
+      "findings": [],
+      "notes": "已人工查看两张最终截图；发布与研究分层，无穿线/裁剪。图示为实际模块关系，不是另一个 Workflow 执行器。四视口自动检查独立记录；首次 Chrome load 超时，原样重验成功，未将失败回执算通过。"
+    },
+    {
+      "id": "01-deployment",
+      "artifactSha256": "a19b8c1258b946b79c332987b848761c4a45e0d8836df792314289d01bf2ea46",
+      "specificationSha256": "010a5f12c41cf72491b77c9ba7904b7bbab2c1617efcafa349d9f6a6481e9d16",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-04",
+      "captures": [
+        "01-deployment.visual-check.1440x900.dark.png",
+        "01-deployment.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看上述最终哈希对应截图；持久化服务管理、8088/3081 所有权、3080 安全边界、运行状态文件及会话迁移路径清晰，未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+    },
+    {
+      "id": "03-research-sequence",
+      "artifactSha256": "7691b26a7e3b3317ddeab9975afc5ca3a89e19c65527016a9147fa0c2080b18f",
+      "specificationSha256": "ba392eba0d1946c8a5d5db3e369843eb21542332f2c9741c9673923e9a3d0ffc",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-08",
+      "captures": [
+        "03-research-sequence.visual-check.1440x900.light.png",
+        "03-research-sequence.visual-check.1440x900.dark.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看 1440 浅色与深色最终截图；启动恢复、研究提交、enabledTools/Schema 本地边界、用户配置 MySQL Provider、快照和 SSE 恢复均可读，未见遮挡或裁剪。视觉查看不证明服务永远在线或上游数据完整。"
+    },
+    {
+      "id": "04-data-file-flow",
+      "artifactSha256": "a018697374b7bd2968dfede5b1575d7cc3677622be16747d32bdba89953842d5",
+      "specificationSha256": "e22d8ef6e49a8bee9f7176e0293a2657db53bd47ce20d536187d9cf433f1f205",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-08",
+      "captures": [
+        "04-data-file-flow.visual-check.1440x900.light.png",
+        "04-data-file-flow.visual-check.1440x900.dark.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看 1440 浅色与深色最终截图；五阶段数据流、22 个来源目录、用户 MySQL、enabledTools/Schema 自动查询边界、标准化快照、页面交接及父子 Agent 共用路径均可辨认，无穿线或裁剪。图不替代真实取数与会话隔离验收。"
+    },
+    {
+      "id": "06-run-state",
+      "artifactSha256": "12db8cb4ba6e704a23b6e0705d58d3733f76512670b21c4b1f3a572bfc511c8b",
+      "specificationSha256": "9fb37a9d06c87643d5afd8357610da69a803292d54c7f4ea35b5b0e812691e60",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-07",
+      "captures": [
+        "06-run-state.visual-check.1440x900.dark.png",
+        "06-run-state.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；研究回合状态与报告 Workflow 状态分层清楚，blocked_data、delivery_incomplete、重试和取消路径可读，未见遮挡、穿线或裁剪。视觉检查不证明实际 Provider 可用。"
+    },
+    {
+      "id": "07-delivery-state",
+      "artifactSha256": "07eec3a6c7dee2527b4b30acba604144fefa06cca5fff21c29a3bec5a149bbe5",
+      "specificationSha256": "d0970e68d57a64df0f6a3f8f6a78157ab881421414d9391cf10b0566e41aee7c",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-07",
+      "captures": [
+        "07-delivery-state.visual-check.1440x900.dark.png",
+        "07-delivery-state.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；文件交付状态与 Claw 回合状态明确分离，pending、validating、complete、incomplete 及重验路径可读，未见遮挡、穿线或裁剪。"
+    },
+    {
+      "id": "09-report-workflow-sequence",
+      "artifactSha256": "af6724121a415da77b7095f02181269812de2d4a17775dae8542fab27dc89427",
+      "specificationSha256": "a25b612acc8b2b6b1b4d09a716cc4f17b8b55d36164d7f4036397b3807fa378a",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-07",
+      "captures": [
+        "09-report-workflow-sequence.visual-check.1440x900.dark.png",
+        "09-report-workflow-sequence.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；从版本锁定、Excel 刷新、共享快照、Claw 双子 Agent、payload 到确定性组装和交付检查的顺序完整可读，异常返回路径没有与成功路径混淆。"
+    },
+    {
+      "id": "10-excel-report-dataflow",
+      "artifactSha256": "3ec5148d6b85b6bb849449d4a94f7aab36a2d8bf48db57d99f5f9b628be13d61",
+      "specificationSha256": "dfc2820bd15d395029977cff84d3990995da0ca33331e4cb6fecb73188f2b642",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-09-07",
+      "captures": [
+        "10-excel-report-dataflow.visual-check.1440x900.dark.png",
+        "10-excel-report-dataflow.visual-check.2048x1320.light.png"
+      ],
+      "findings": [],
+      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；Workflow 母版只读、Run 副本刷新、Provider 校验、快照复用及产物发布边界清楚，主路径平衡且无明显空带、遮挡、穿线或裁剪。"
+    }
+  ]
+}

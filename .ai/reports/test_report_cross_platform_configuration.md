@@ -8,7 +8,7 @@ Task ID: ad-hoc-cross-platform-configuration
 - `scripts/desktop/backend_launcher.py`, `build_sidecar.py`, and `sidecar_launcher.py` — package a self-contained sidecar, resolve PyInstaller bundle roots correctly, enforce loopback-only IPv4 startup, require PostgreSQL, migrate the legacy Windows config, and refuse to kill unknown port owners.
 - `services/configuration_service.py`, `app/api/configuration_models.py`, `app/api/configuration_security.py`, `app/api/main.py`, and `app/web/static/js/configuration.js` — hide persisted secrets, restrict configuration to loopback, disable it in production, expose/disable environment-locked fields, require restart for database and logging changes, and sanitize health errors.
 - `data_layer/repositories/base.py` — emit dialect-specific, sanitized startup connection diagnostics and avoid raw database exception strings in session logs.
-- `cron_jobs/auto_ingest_service.py` — uses `ALPHAFOUNDRY_BACKEND_URL` for internal API endpoints.
+- `cron_jobs/auto_ingest_service.py` — uses `RESEARCH_BACKEND_URL` for internal API endpoints.
 - `data_layer/web_search/factory.py` and `key_pool.py` — build a temporary web-search provider from submitted candidate configuration rather than global runtime settings during validation.
 
 ## Changed test files

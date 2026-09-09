@@ -7,7 +7,7 @@ def test_build_realtime_workbook_writes_view_ranges(tmp_path):
     from services.wind_realtime_workbook import build_realtime_workbook
 
     catalog_path = tmp_path / "wind_index_catalog.csv"
-    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    workbook_path = tmp_path / "Research Workbench_Wind_Realtime.xlsx"
     catalog_path.write_text(
         "wind_code,name,family,category,is_active,priority,is_concept,view_key,view_label\n"
         "CI005001.WI,石油石化,citic_l1,中信一级行业,true,100,false,citic_l1,中信一级\n"
@@ -46,7 +46,7 @@ def test_build_realtime_workbook_splits_large_view_wss_formulas(tmp_path, monkey
     from services import wind_realtime_workbook as module
 
     catalog_path = tmp_path / "wind_index_catalog.csv"
-    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    workbook_path = tmp_path / "Research Workbench_Wind_Realtime.xlsx"
     catalog_path.write_text(
         "wind_code,name,family,category,is_active,priority,is_concept,view_key,view_label\n"
         "884001.WI,概念一,wind_concept,热门概念,true,100,true,wind_hot_concept,Wind热门概念\n"
@@ -195,5 +195,5 @@ def test_resolve_workbook_path_defaults_when_no_env(monkeypatch):
 
     monkeypatch.delenv(module.WIND_WORKBOOK_PATH_ENV, raising=False)
     result = module.resolve_workbook_path(None)
-    assert result.name == "AlphaFoundry_Wind_Realtime.xlsx"
+    assert result.name == "Research Workbench_Wind_Realtime.xlsx"
     assert result == module.DEFAULT_WORKBOOK_PATH

@@ -2,7 +2,7 @@
 Abstract base class (interface) for report composers.
 
 Defines the interface for report composers, which generate reports by composing sections
-and exporting to Markdown or Word in AlphaFoundry.
+and exporting to Markdown or Word in Research Workbench.
 """
 
 from abc import ABC, abstractmethod

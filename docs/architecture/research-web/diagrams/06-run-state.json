@@ -1,0 +1,28 @@
+{
+  "schema_version": 1, "diagram_type": "lifecycle",
+  "meta": {"title": "研究运行 · 原生状态的产品投影", "quality_profile": "showcase", "viewBox": [1100, 700], "legend": {"entries": {"start": {"label": "会话初始"}, "active": {"label": "执行中"}, "waiting": {"label": "等待或未知"}, "success": {"label": "回合结束"}, "failure": {"label": "异常或停止"}}}},
+  "lanes": [{"id": "main", "label": "主路径"}, {"id": "wait", "label": "等待与连接"}, {"id": "terminal", "label": "其他回合结果"}],
+  "states": [
+    {"id": "idle", "type": "start", "label": "待输入", "sublabel": "idle", "lane": "main", "col": 0},
+    {"id": "running", "type": "active", "label": "执行中", "sublabel": "running · 包含子 Agent", "lane": "main", "col": 2},
+    {"id": "completed", "type": "success", "label": "回合完成", "sublabel": "completed ≠ 文件完成", "lane": "main", "col": 4},
+    {"id": "approval", "type": "waiting", "label": "等待审批", "sublabel": "awaiting_approval", "lane": "wait", "col": 0},
+    {"id": "disconnected", "type": "waiting", "label": "连接中断", "sublabel": "disconnected · 不判完成", "lane": "wait", "col": 2},
+    {"id": "cancelled", "type": "failure", "label": "用户停止", "sublabel": "cancelled", "lane": "terminal", "col": 0},
+    {"id": "failed", "type": "failure", "label": "执行失败", "sublabel": "failed · 保留错误", "lane": "terminal", "col": 1},
+    {"id": "other", "type": "failure", "label": "未完成结果", "sublabel": "interrupted / blocked / incomplete", "lane": "terminal", "col": 2, "width": 140}
+  ],
+  "transitions": [
+    {"id": "need-approval", "from": "running", "to": "approval", "label": "请求授权", "variant": "security", "fromSide": "bottom", "toSide": "top"},
+    {"id": "approval-answer", "from": "approval", "to": "running", "label": "响应后继续", "fromSide": "left", "toSide": "left", "route": "left-channel", "channelX": 285},
+    {"id": "lost-events", "from": "completed", "to": "disconnected", "label": "连接状态优先", "fromSide": "bottom", "toSide": "top"},
+    {"id": "stop", "from": "approval", "to": "cancelled", "label": "取消执行", "variant": "security"},
+    {"id": "error", "from": "running", "to": "failed", "label": "原生 error", "variant": "security", "fromSide": "right", "toSide": "right", "route": "right-channel", "channelX": 625, "labelAt": [625, 350]},
+    {"id": "non-success", "from": "disconnected", "to": "other", "label": "恢复后以历史为准"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "真实执行状态", "items": ["只有父回合与子 Agent 均停止才允许下一任务", "工具失败独立显示，不自动等同于整轮失败"]},
+    {"dot": "amber", "title": "断线是未知", "items": ["任意状态均可能被 disconnected 覆盖", "重连从历史重建，不自动重发原请求"]},
+    {"dot": "rose", "title": "继续与交付", "items": ["异常终态可在恢复后发新消息继续", "本图不是 Workflow 步骤完成证明"]}
+  ]
+}

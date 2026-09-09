@@ -18,7 +18,7 @@ class ConfigurationField:
 DESKTOP_CONFIGURATION_FIELDS = (
     ConfigurationField(
         key="DATABASE_URL",
-        default="postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry",
+        default="",
         secret=True,
         restart_required=True,
     ),
@@ -30,17 +30,19 @@ DESKTOP_CONFIGURATION_FIELDS = (
     ConfigurationField(key="LLM_EXTRACT_LONG_TEXT_THRESHOLD", default="1000"),
     ConfigurationField(key="CRAWLER_QUIET_START", default="0"),
     ConfigurationField(key="CRAWLER_QUIET_END", default="6"),
+    ConfigurationField(key="RESEARCH_CRAWLER_AUTOSTART", default="1", restart_required=True),
 )
 
 
 def desktop_env_template() -> str:
     """Return the secure first-run desktop configuration template."""
-    return """# AlphaFoundry 桌面版配置
+    return """# Research Workbench 桌面版配置
 # 本文件由桌面版首次启动时生成。桌面端必须连接用户自行安装的 PostgreSQL + pgvector。
 # 保存 DATABASE_URL 后重启应用才会切换数据库连接。
 
 # 数据库（PostgreSQL + pgvector；使用 psycopg v3 驱动）
-DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
+# 请取消下一行注释并改为已创建的本地 PostgreSQL 账户；保存后重启应用。
+# DATABASE_URL=postgresql+psycopg://<username>:<password>@127.0.0.1:5432/research_workbench
 
 # 日志级别
 LOG_LEVEL=INFO
@@ -69,4 +71,7 @@ LLM_EXTRACT_LONG_TEXT_THRESHOLD=1000
 # ── 爬虫夜间静默（本地时间整点）──
 CRAWLER_QUIET_START=0
 CRAWLER_QUIET_END=6
+
+# 是否在应用启动时自动启动爬虫调度器（修改后重启应用生效）
+RESEARCH_CRAWLER_AUTOSTART=1
 """

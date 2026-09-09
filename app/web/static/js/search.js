@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Global Search Module
+   Research Workbench — Global Search Module
    ============================================================ */
 
 import { apiCall, esc } from './core.js';

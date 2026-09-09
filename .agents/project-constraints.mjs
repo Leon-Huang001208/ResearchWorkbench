@@ -1,9 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
+import {checkResearchArchitecture, MAP_PATH, writeCheckLog} from "../scripts/check_research_architecture.mjs";
 
 const CONFIGURATION_PATH = ".agents/project-constraints.json";
-const TOP_LEVEL_KEYS = new Set(["schemaVersion", "requiredFiles", "changeRules", "contentRules", "dependencyRules", "ciRules"]);
+const TOP_LEVEL_KEYS = new Set(["schemaVersion", "requiredFiles", "changeRules", "contentRules", "dependencyRules", "ciRules", "researchArchitectureMap"]);
 
 function isWithin(root, candidate) {
   return candidate === root || candidate.startsWith(`${root}${path.sep}`);
@@ -89,7 +90,9 @@ function loadConfiguration(root) {
     workflow: normalizeRelative(item.workflow, "CI workflow"),
     requireAll: assertTextArray(item.requireAll, "CI rule required content")
   })));
-  return {requiredFiles, changeRules, contentRules, dependencyRules, ciRules};
+  const researchArchitectureMap = configuration.researchArchitectureMap;
+  if (researchArchitectureMap !== undefined && researchArchitectureMap !== MAP_PATH) throw new Error("invalid research architecture map");
+  return {requiredFiles, changeRules, contentRules, dependencyRules, ciRules, researchArchitectureMap};
 }
 
 function violation(code, rule, pathValue, message) {
@@ -152,6 +155,11 @@ export function checkProjectConstraints({projectRoot, changedFiles = []}) {
     if (missing.length > 0) {
       violations.push(violation("ci_content_missing", rule.name, rule.workflow, `CI 工作流缺少约束文本：${missing.join("、")}`));
     }
+  }
+  if (configuration.researchArchitectureMap) {
+    const architecture = checkResearchArchitecture({projectRoot: root, changedFiles: checkedFiles});
+    violations.push(...architecture.violations);
+    writeCheckLog(root, architecture);
   }
   return {schemaVersion: 1, projectRoot: root, checkedFiles, violations};
 }

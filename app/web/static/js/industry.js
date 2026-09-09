@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Industry Chain Module
+   Research Workbench — Industry Chain Module
    ============================================================ */
 
 import { apiCall, toast, esc } from './core.js';
@@ -7,7 +7,7 @@ import { apiCall, toast, esc } from './core.js';
 async function loadIndustryChain() {
     const industry = document.getElementById('industry-select').value;
     try {
-        const data = await apiCall('GET', `/api/graph/industry-chain/${encodeURIComponent(industry)}`);
+        const data = await apiCall('GET', `/api/themes/${encodeURIComponent(industry)}/value-chain`);
         renderIndustryGraph(data);
     } catch (e) {
         toast(e.message, 'error');
@@ -17,8 +17,12 @@ async function loadIndustryChain() {
 async function loadPropagationPath() {
     const eventId = document.getElementById('event-id').value.trim();
     if (!eventId) return toast('请输入事件 ID', 'error');
+    const industry = document.getElementById('industry-select').value;
     try {
-        const data = await apiCall('GET', `/api/graph/propagation/${encodeURIComponent(eventId)}`);
+        const data = await apiCall(
+            'GET',
+            `/api/themes/${encodeURIComponent(industry)}/events?event_id=${encodeURIComponent(eventId)}`
+        );
         renderPropagationGraph(data);
     } catch (e) {
         toast(e.message, 'error');

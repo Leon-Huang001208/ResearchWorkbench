@@ -1,0 +1,170 @@
+{
+  "status": "passed",
+  "results": [
+    {
+      "mode": "fingpt",
+      "width": 1440,
+      "height": 900,
+      "status": "passed",
+      "metrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "claw",
+      "width": 1440,
+      "height": 900,
+      "status": "passed",
+      "metrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "skills",
+      "width": 1440,
+      "height": 900,
+      "status": "passed",
+      "metrics": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "fingpt",
+      "width": 1600,
+      "height": 1000,
+      "status": "passed",
+      "metrics": {
+        "width": 1600,
+        "scrollWidth": 1600,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "claw",
+      "width": 1600,
+      "height": 1000,
+      "status": "passed",
+      "metrics": {
+        "width": 1600,
+        "scrollWidth": 1600,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "skills",
+      "width": 1600,
+      "height": 1000,
+      "status": "passed",
+      "metrics": {
+        "width": 1600,
+        "scrollWidth": 1600,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "fingpt",
+      "width": 1920,
+      "height": 1080,
+      "status": "passed",
+      "metrics": {
+        "width": 1920,
+        "scrollWidth": 1920,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "claw",
+      "width": 1920,
+      "height": 1080,
+      "status": "passed",
+      "metrics": {
+        "width": 1920,
+        "scrollWidth": 1920,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "skills",
+      "width": 1920,
+      "height": 1080,
+      "status": "passed",
+      "metrics": {
+        "width": 1920,
+        "scrollWidth": 1920,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "fingpt",
+      "width": 820,
+      "height": 1180,
+      "status": "passed",
+      "metrics": {
+        "width": 820,
+        "scrollWidth": 820,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "claw",
+      "width": 820,
+      "height": 1180,
+      "status": "passed",
+      "metrics": {
+        "width": 820,
+        "scrollWidth": 820,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "skills",
+      "width": 820,
+      "height": 1180,
+      "status": "passed",
+      "metrics": {
+        "width": 820,
+        "scrollWidth": 820,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "fingpt",
+      "width": 390,
+      "height": 844,
+      "status": "passed",
+      "metrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "claw",
+      "width": 390,
+      "height": 844,
+      "status": "passed",
+      "metrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "overflowing": []
+      }
+    },
+    {
+      "mode": "skills",
+      "width": 390,
+      "height": 844,
+      "status": "passed",
+      "metrics": {
+        "width": 390,
+        "scrollWidth": 390,
+        "overflowing": []
+      }
+    }
+  ]
+}

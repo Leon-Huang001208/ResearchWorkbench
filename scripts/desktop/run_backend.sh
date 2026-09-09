@@ -11,16 +11,16 @@ case "$(uname -s 2>/dev/null || echo 'Windows')" in
 esac
 
 # ── Python 解释器探测（Windows 优先探测 conda 环境）─────────────
-if [[ -n "${ALPHAFOUNDRY_PYTHON:-}" ]]; then
-    PYTHON_BIN="$ALPHAFOUNDRY_PYTHON"
+if [[ -n "${RESEARCH_PYTHON:-}" ]]; then
+    PYTHON_BIN="$RESEARCH_PYTHON"
 elif [[ "$IS_WINDOWS" == "1" ]]; then
-    # Windows (Git Bash / MSYS2): 优先探测 alphafoundry conda 环境
-    if [[ -x "$USERPROFILE/AppData/Local/anaconda3/envs/alphafoundry/python.exe" ]]; then
-        PYTHON_BIN="$USERPROFILE/AppData/Local/anaconda3/envs/alphafoundry/python.exe"
-    elif [[ -x "$HOME/AppData/Local/anaconda3/envs/alphafoundry/python.exe" ]]; then
-        PYTHON_BIN="$HOME/AppData/Local/anaconda3/envs/alphafoundry/python.exe"
-    elif [[ -x "$USERPROFILE/anaconda3/envs/alphafoundry/python.exe" ]]; then
-        PYTHON_BIN="$USERPROFILE/anaconda3/envs/alphafoundry/python.exe"
+    # Windows (Git Bash / MSYS2): 优先探测 research_workbench conda 环境
+    if [[ -x "$USERPROFILE/AppData/Local/anaconda3/envs/research_workbench/python.exe" ]]; then
+        PYTHON_BIN="$USERPROFILE/AppData/Local/anaconda3/envs/research_workbench/python.exe"
+    elif [[ -x "$HOME/AppData/Local/anaconda3/envs/research_workbench/python.exe" ]]; then
+        PYTHON_BIN="$HOME/AppData/Local/anaconda3/envs/research_workbench/python.exe"
+    elif [[ -x "$USERPROFILE/anaconda3/envs/research_workbench/python.exe" ]]; then
+        PYTHON_BIN="$USERPROFILE/anaconda3/envs/research_workbench/python.exe"
     elif [[ -x "$USERPROFILE/AppData/Local/anaconda3/python.exe" ]]; then
         PYTHON_BIN="$USERPROFILE/AppData/Local/anaconda3/python.exe"
     elif command -v python3.11 >/dev/null 2>&1; then
@@ -28,7 +28,7 @@ elif [[ "$IS_WINDOWS" == "1" ]]; then
     elif command -v python3 >/dev/null 2>&1; then
         PYTHON_BIN="$(command -v python3)"
     else
-        echo "[ERROR] Cannot find Python on Windows. Set ALPHAFOUNDRY_PYTHON env var." >&2
+        echo "[ERROR] Cannot find Python on Windows. Set RESEARCH_PYTHON env var." >&2
         exit 1
     fi
 elif command -v python3.11 >/dev/null 2>&1; then

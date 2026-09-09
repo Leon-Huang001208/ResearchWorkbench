@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Core Utilities
+   Research Workbench — Core Utilities
    ============================================================ */
 
 // ─── API ────────────────────────────────────────────────────
@@ -8,7 +8,7 @@ const API_BASE = '';
 export async function apiCall(method, url, body = null, options = {}) {
     const opts = {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
         signal: options.signal,
     };
     if (body) opts.body = JSON.stringify(body);

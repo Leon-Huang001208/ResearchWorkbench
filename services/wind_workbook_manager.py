@@ -28,8 +28,8 @@ from services.wind_realtime_workbook import (
 
 logger = get_logger(__name__)
 
-WIND_WORKBOOK_AUTOSTART_ENV = "ALPHAFOUNDRY_WIND_WORKBOOK_AUTOSTART"
-WIND_WORKBOOK_HIDE_EXCEL_ENV = "ALPHAFOUNDRY_WIND_WORKBOOK_HIDE_EXCEL"
+WIND_WORKBOOK_AUTOSTART_ENV = "RESEARCH_WIND_WORKBOOK_AUTOSTART"
+WIND_WORKBOOK_HIDE_EXCEL_ENV = "RESEARCH_WIND_WORKBOOK_HIDE_EXCEL"
 WIND_WORKBOOK_RECOVERY_COOLDOWN_SECONDS = 30.0
 DEFAULT_CATALOG_PATH = Path(__file__).resolve().parents[1] / DEFAULT_WIND_INDEX_CATALOG_PATH
 
@@ -72,7 +72,7 @@ class WindWorkbookManager:
         )
 
     def autostart_enabled(self) -> bool:
-        default = os.getenv("ALPHAFOUNDRY_DESKTOP") == "1" and platform.system() == "Darwin"
+        default = os.getenv("RESEARCH_DESKTOP") == "1" and platform.system() == "Darwin"
         return _env_flag(WIND_WORKBOOK_AUTOSTART_ENV, default=default)
 
     def hide_excel_enabled(self) -> bool:

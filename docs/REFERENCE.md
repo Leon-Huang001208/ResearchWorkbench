@@ -1,4 +1,4 @@
-# AlphaFoundry 参考手册
+# Research Workbench 参考手册
 
 ## 目录
 
@@ -14,20 +14,20 @@
 
 ## 系统资源监控 API
 
-所有端点仅面向 AlphaFoundry 受控进程和任务，不枚举其他桌面应用。
+所有端点仅面向 Research Workbench 受控进程和任务，不枚举其他桌面应用。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/api/system/resource-usage` | 当前资源快照、独立 Worker 精确归因、API 内任务共享估算及安全的整机容量汇总；该请求不评估资源告警。 |
 | `GET` | `/api/system/resource-usage/history?window_seconds=300` | 内存中的实时资源序列，范围 2–300 秒，不作为长期错误历史。 |
-| `GET` | `/api/system/resource-usage/host-history?hours=24` | 持久化的分钟级整机容量历史，范围 1–24 小时；仅返回容量与 AlphaFoundry 汇总比例。 |
+| `GET` | `/api/system/resource-usage/host-history?hours=24` | 持久化的分钟级整机容量历史，范围 1–24 小时；仅返回容量与 Research Workbench 汇总比例。 |
 | `GET` | `/api/system/resource-events?days=90&status=all` | 持久化异常历史；支持 `severity`、`task_kind`、`source_key`，未恢复事件不受时间窗口隐藏。 |
 | `POST` | `/api/system/resource-events/{alert_id}/acknowledge` | 将未恢复事件标记为已确认。 |
 | `POST` | `/api/system/resource-events/{alert_id}/resolve` | 人工解决事件，JSON 可含 `{"notes":"..."}`（最多 500 字）。 |
 
 资源事件元数据只包含任务类型、数据源键、PID、角色、置信度和安全资源值。整机事件还可包含来源范围、主机 CPU/可用内存百分比及阈值百分比；不返回命令参数、请求内容、秘密、异常原文或内部去重键。
 
-数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 的 API 实例会在启动后以单一后台线程每分钟采样、持久化主机容量历史并评估资源事件；桌面数据库配置模式和分支预览均不会启动该常驻任务。采样或后台生命周期错误只记录安全的错误类型，后续周期继续执行，API 关闭时会先等待该任务停止。
+数据库就绪且非 `RESEARCH_PREVIEW=1` 的 API 实例会在启动后以单一后台线程每分钟采样、持久化主机容量历史并评估资源事件；桌面数据库配置模式和分支预览均不会启动该常驻任务。采样或后台生命周期错误只记录安全的错误类型，后续周期继续执行，API 关闭时会先等待该任务停止。
 
 ### 系统中心界面
 
@@ -35,30 +35,104 @@
 
 分支验收可从对应 Git worktree 运行 `npm run desktop:preview -- --port 8766 --use-stable-data`。该预览在独立 loopback 端口运行，并显式禁用资源监控的常驻采集/告警后台线程；它不是安装包或正式桌面端验证。
 
+## 资产观察 API
+
+所有响应使用 canonical `asset_id`；资产详情继续读取既有事实表。错误响应不会包含数据库约束或内部异常文本：非法业务输入为 400，不存在为 404，写冲突为 409，Pydantic 字段错误为 422。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `GET` | `/api/asset-observation/assets/{asset_id}` | stock/index/etf/active_fund 统一事实 envelope 与来源/时效字段 |
+| `GET` | `/api/asset-observation/assets/{asset_id}/peers` | 透明 peer 规则、样本数和 canonical 资产列表 |
+| `POST/GET` | `/api/asset-observation/watchlists` | 创建/查询 profile 下的多个列表 |
+| `POST` | `/api/asset-observation/watchlists/{watchlist_id}/items` | 以 canonical asset ID 幂等添加或更新条目 |
+| `POST/GET` | `/api/asset-observation/alert-rules` | 创建/查询提醒规则；数值阈值必须带单位 |
+| `PATCH` | `/api/asset-observation/alert-rules/{rule_id}/status` | draft/active/paused/retired 状态切换 |
+| `GET` | `/api/asset-observation/alert-events` | 查询持久化触发边沿 |
+| `POST` | `/api/asset-observation/alert-events/{event_id}/acknowledge` | 确认一个事件 |
+| `POST` | `/api/asset-observation/alert-events/{event_id}/resolve` | 人工解决一个事件 |
+| `GET` | `/api/asset-observation/notifications` | 读取 profile 站内通知，支持 `unread_only` |
+| `PATCH` | `/api/asset-observation/notifications/{notification_id}/delivery` | 写入站内/桌面投递结果，不改变 Alert Event |
+
+## 全市场首页 API
+
+首页固定返回全球背景、A 股状态、市场主线、重要事件、资产异动五个 facts-only 区块。每区独立报告来源、事实时间、新鲜度与降级原因；单区失败不会让整页返回 500，也不会用零值或 AI 文本补齐。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `GET` | `/api/market-home/live` | 当前交易日五区 live 投影与 `pre_open/open/lunch_break/closed/non_trading_day` 状态 |
+| `GET` | `/api/market-home/drill-down/{section_key}` | 单区来源、时间、单位和透明计算组成 |
+| `GET` | `/api/market-home/snapshots/{trading_day}` | 只读指定交易日的五条不可变 close 快照；绝不以当前 live 数据重算历史 |
+| `POST` | `/api/market-home/snapshots/{trading_day}` | 收盘后幂等固化 close 快照；重复调用返回既有结果 |
+| `GET` | `/api/market-home/events` | 持久 `domain_event` 驱动的 SSE 失效引用，支持 `Last-Event-ID`；载荷只含 `event_id/section_key/as_of` |
+
+`mainline-v1` 先在同行内对涨幅、成交额相对 20 日中位数、上涨家数占比和已验证事件密度计算百分位，再按 `0.35/0.30/0.25/0.10` 加权；响应公开全部分项、样本数、公式版本与确定性 `leading/weakening` 排序。行情/聚合/事件 SLA 分别为 30/60/15 秒，超期值标记为 stale。
+
+---
+
+## 主题 Research Pack API
+
+四个首批 Pack 为 `gold`、`aerospace`、`photovoltaic`、`ai_infrastructure`。事实只来自统一 `theme_observation`；snapshot/KPI/value-chain/events/assets/health 是类型化读模型，不是平行事实表。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `GET` | `/api/themes` | 列出数据库权威版本和生命周期状态的 Pack Manifest |
+| `GET` | `/api/themes/{pack_key}/snapshot` | 指定 `as_of` 的主题事实快照、来源与质量状态 |
+| `GET` | `/api/themes/{pack_key}/kpis` | Manifest KPI 映射后的多指标序列 |
+| `GET` | `/api/themes/{pack_key}/value-chain` | 产业链节点与关系投影 |
+| `GET` | `/api/themes/{pack_key}/events` | 经来源和验证状态约束的主题事件 |
+| `GET` | `/api/themes/{pack_key}/assets` | 统一资产身份下的主题暴露；创业板 50 仅为指数资产关联 |
+| `GET` | `/api/themes/{pack_key}/health` | 数据集覆盖、新鲜度、隔离/拒绝计数和降级原因 |
+| `POST` | `/api/themes/{pack_key}/research-workspaces` | 返回研究 Workspace 预填请求，不把研究结论写回事实区 |
+
+LSH CSV 迁移只通过 `scripts/migrate_lsh_theme_data.py` 执行，默认 dry-run。报告按文件输出 source hash、checkpoint、accepted/quarantined/rejected/duplicate/applied；`--resume-from` 会验证文件 hash。策略、交易、基金审批及禁止评分字段不会进入主题事实。
+
+## FinGPT / Claw 研究运行时 API
+
+Workspace 是项目隔离边界，Session 是一次会话且最多绑定一个 Run。产品入口应使用 Session 纵切创建/执行；兼容 `/api/research-runs` 创建接口保留在 additive 过渡期。所有绑定 Run 的读取与变更需同时携带 `X-Project-ID`、`X-Workspace-ID`。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `POST/GET` | `/api/research-workspaces` | 幂等创建或按项目列出 Workspace |
+| `GET` | `/api/research-workspaces/{workspace_id}` | 读取项目作用域内 Workspace |
+| `POST/GET` | `/api/research-workspaces/{workspace_id}/notes` | 固定 Claim 或 Run paragraph 为版本化 Research Note |
+| `POST` | `/api/research-sessions` | 创建 temporary 或 project/workspace scoped Session |
+| `POST/GET` | `/api/research-sessions/{session_id}/messages` | 幂等追加/读取作用域消息 |
+| `POST` | `/api/research-sessions/{session_id}/runs` | 原子创建并绑定 Research Run；需要 `Idempotency-Key` |
+| `POST` | `/api/research-sessions/{session_id}/runs/{run_id}/execute` | 作用域执行 FinGPT 或 Claw；需要 `Idempotency-Key` |
+| `GET` | `/api/research-runs/{run_id}/events` | 持久有序研究阶段 SSE，支持 `Last-Event-ID` |
+| `GET/PUT` | `/api/runtime-providers[/{provider_id}]` | 列出或保存 LangGraph/DSH 能力与健康声明 |
+| `POST` | `/api/runtime-providers/{provider_id}/results` | 接收与 request/Run 关联、hash 校验的幂等 DSH 终态 |
+| `POST/GET` | `/api/research-skills` | 保存/列出声明式、白名单约束的 Skill |
+| `POST/GET` | `/api/agent-teams` | 保存/列出 Supervisor + Shared Blackboard 团队 |
+| `POST/GET` | `/api/agent-schedules` | 保存/列出 no-reentry/latest-coalesced 日程 |
+| `POST` | `/api/agent-schedules/{schedule_id}/trigger` | 幂等物化一次持久 ScheduledJob |
+
+FinGPT 在 DSH 不可用时可确定性回退 LangGraph。Claw 缺少健康 team runtime、Skill 授权或预算时持久为 `blocked_runtime`，不会改变成单 Agent 任务。Skill 不允许任意代码、Shell、文件系统或任意 URL；外部 MCP 必须已注册并获授权。
+
 ---
 
 ## CLI 命令
 
 ### 0. data - 统一数据命令组（推荐）
 
-**新增于 2026-06-02**。统一替代分散的 `af crawl` / `af ingest` / `af knowledge` 命令。
+**新增于 2026-06-02**。统一替代分散的 `rwb crawl` / `rwb ingest` / `rwb knowledge` 命令。
 
 旧命令保留为别名，可继续使用但建议迁移。
 
-#### `af data list` — 列出所有数据源
+#### `rwb data list` — 列出所有数据源
 
 ```bash
-af data list
+rwb data list
 # 显示所有已注册的 connector 及支持的 datasets
 ```
 
-#### `af data ingest` — 执行数据摄入
+#### `rwb data ingest` — 执行数据摄入
 
 ```bash
-af data ingest --source cls --dataset telegram --days 2
-af data ingest -s akshare -d stock_daily --codes "600519.SH" --start-date 2026-01-01 --end-date 2026-06-01
-af data ingest -s wind -d daily_quotes --codes "600519.SH" --days 5
-af data ingest -s cnstock -d news --max-items 50
+rwb data ingest --source cls --dataset telegram --days 2
+rwb data ingest -s akshare -d stock_daily --codes "600519.SH" --start-date 2026-01-01 --end-date 2026-06-01
+rwb data ingest -s wind -d daily_quotes --codes "600519.SH" --days 5
+rwb data ingest -s cnstock -d news --max-items 50
 ```
 
 | 参数 | 必需 | 说明 |
@@ -71,47 +145,47 @@ af data ingest -s cnstock -d news --max-items 50
 | `--days` | ❌ | 最近 N 天（与 start-date/end-date 互斥） |
 | `--max-items` | ❌ | 最大抓取数量 |
 
-#### `af data backfill` — 历史数据回填
+#### `rwb data backfill` — 历史数据回填
 
 ```bash
-af data backfill -s cls --days 30
+rwb data backfill -s cls --days 30
 ```
 
-#### `af data validate` — 校验已有数据
+#### `rwb data validate` — 校验已有数据
 
 ```bash
-af data validate -s akshare -d stock_daily
-af data validate -s wind -d daily_quotes --start-date 2026-05-01
+rwb data validate -s akshare -d stock_daily
+rwb data validate -s wind -d daily_quotes --start-date 2026-05-01
 ```
 
-#### `af data status` — 查看数据状态
+#### `rwb data status` — 查看数据状态
 
 ```bash
-af data status              # 所有数据源概览
-af data status -s akshare   # 单个数据源详情
+rwb data status              # 所有数据源概览
+rwb data status -s akshare   # 单个数据源详情
 ```
 
-#### `af data file` — 摄入单个文件
+#### `rwb data file` — 摄入单个文件
 
 ```bash
-af data file -f report.pdf -t report -s "券商研报"
+rwb data file -f report.pdf -t report -s "券商研报"
 ```
 
-#### `af data schedule` — 采集调度器管理
+#### `rwb data schedule` — 采集调度器管理
 
 ```bash
-af data schedule start      # 启动后台调度器
-af data schedule stop       # 停止调度器
-af data schedule status     # 查看调度器状态
+rwb data schedule start      # 启动后台调度器
+rwb data schedule stop       # 停止调度器
+rwb data schedule status     # 查看调度器状态
 ```
 
-#### `af data workers` — 知识加工 Worker 管理
+#### `rwb data workers` — 知识加工 Worker 管理
 
 ```bash
-af data workers start       # 启动 Worker（默认 1 个）
-af data workers start -n 4  # 启动 4 个 Worker
-af data workers stop        # 停止所有 Worker
-af data workers status      # 查看 Worker 状态
+rwb data workers start       # 启动 Worker（默认 1 个）
+rwb data workers start -n 4  # 启动 4 个 Worker
+rwb data workers stop        # 停止所有 Worker
+rwb data workers status      # 查看 Worker 状态
 ```
 
 ---
@@ -123,7 +197,7 @@ af data workers status      # 查看 Worker 状态
 #### 基本用法
 
 ```bash
-af analyze --asset <资产代码>
+rwb analyze --asset <资产代码>
 ```
 
 #### 参数说明
@@ -139,10 +213,10 @@ af analyze --asset <资产代码>
 
 ```bash
 # 基本分析
-af analyze --asset 600000.SH
+rwb analyze --asset 600000.SH
 
 # 输出报告
-af analyze --asset 600000.SH --output report.md
+rwb analyze --asset 600000.SH --output report.md
 ```
 
 ---
@@ -154,7 +228,7 @@ af analyze --asset 600000.SH --output report.md
 #### 基本用法
 
 ```bash
-af scenario --topic <研究主题>
+rwb scenario --topic <研究主题>
 ```
 
 #### 参数说明
@@ -168,8 +242,8 @@ af scenario --topic <研究主题>
 #### 使用示例
 
 ```bash
-af scenario --topic "人工智能产业发展对股票市场的影响"
-af scenario --topic "美联储政策走向" --output scenario.md
+rwb scenario --topic "人工智能产业发展对股票市场的影响"
+rwb scenario --topic "美联储政策走向" --output scenario.md
 ```
 
 ---
@@ -181,7 +255,7 @@ af scenario --topic "美联储政策走向" --output scenario.md
 #### 基本用法
 
 ```bash
-af ingest --file <文件路径>
+rwb ingest --file <文件路径>
 ```
 
 #### 参数说明
@@ -196,7 +270,7 @@ af ingest --file <文件路径>
 #### 使用示例
 
 ```bash
-af ingest --file report.pdf --source-type report --source-name "券商研报"
+rwb ingest --file report.pdf --source-type report --source-name "券商研报"
 ```
 
 ---
@@ -217,16 +291,16 @@ af ingest --file report.pdf --source-type report --source-name "券商研报"
 
 ```bash
 # 创建信号
-af signal create --asset 600519.SH --thesis "白酒行业景气度回升" --confidence 0.8
+rwb signal create --asset 600519.SH --thesis "白酒行业景气度回升" --confidence 0.8
 
 # 列出信号
-af signal list --status draft
+rwb signal list --status draft
 
 # 验证信号
-af signal validate --signal-id signal_123
+rwb signal validate --signal-id signal_123
 
 # 升级信号
-af signal promote --signal-id signal_123 --to-status review
+rwb signal promote --signal-id signal_123 --to-status review
 ```
 
 ---
@@ -245,9 +319,9 @@ af signal promote --signal-id signal_123 --to-status review
 #### 使用示例
 
 ```bash
-af review list
-af review approve assertion_1234 --reviewer "研究员A"
-af review stats
+rwb review list
+rwb review approve assertion_1234 --reviewer "研究员A"
+rwb review stats
 ```
 
 ---
@@ -259,7 +333,7 @@ af review stats
 #### 基本用法
 
 ```bash
-af backtest --signal <信号ID> --initial-capital 1000000
+rwb backtest --signal <信号ID> --initial-capital 1000000
 ```
 
 #### 参数说明
@@ -274,7 +348,7 @@ af backtest --signal <信号ID> --initial-capital 1000000
 #### 使用示例
 
 ```bash
-af backtest --signal signal_123 --initial-capital 1000000
+rwb backtest --signal signal_123 --initial-capital 1000000
 ```
 
 ---
@@ -293,9 +367,9 @@ af backtest --signal signal_123 --initial-capital 1000000
 #### 使用示例
 
 ```bash
-af report asset --asset 600519.SH --output asset_report.md
-af report weekly --output weekly_review.md
-af report full --asset 600519.SH --output full_report.md
+rwb report asset --asset 600519.SH --output asset_report.md
+rwb report weekly --output weekly_review.md
+rwb report full --asset 600519.SH --output full_report.md
 ```
 
 ---
@@ -314,9 +388,9 @@ af report full --asset 600519.SH --output full_report.md
 #### 使用示例
 
 ```bash
-af akshare quotes --asset 600519.SH --start-date 2025-01-01
-af akshare financial --asset 600519.SH
-af akshare news --asset 600519.SH --limit 10
+rwb akshare quotes --asset 600519.SH --start-date 2025-01-01
+rwb akshare financial --asset 600519.SH
+rwb akshare news --asset 600519.SH --limit 10
 ```
 
 ---
@@ -335,8 +409,8 @@ af akshare news --asset 600519.SH --limit 10
 #### 使用示例
 
 ```bash
-af memory search --thesis "新能源销量超预期" --limit 5
-af memory weekly --output weekly_review.md
+rwb memory search --thesis "新能源销量超预期" --limit 5
+rwb memory weekly --output weekly_review.md
 ```
 
 ---
@@ -348,7 +422,7 @@ af memory weekly --output weekly_review.md
 #### 使用示例
 
 ```bash
-af timing --signal signal_123
+rwb timing --signal signal_123
 ```
 
 ---
@@ -367,13 +441,13 @@ af timing --signal signal_123
 
 ```bash
 # 启动 Knowledge Worker
-af knowledge start
+rwb knowledge start
 
 # 查看状态
-af knowledge status
+rwb knowledge status
 
 # 停止 Knowledge Worker
-af knowledge stop
+rwb knowledge stop
 ```
 
 #### 配置环境变量
@@ -1265,7 +1339,7 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 
 #### GET /api/system/resource-usage
 
-返回当前 API 根进程及其递归子进程的资源快照。该接口仅采集 AlphaFoundry 当前进程树，不会枚举或返回整台机器上的其他进程。
+返回当前 API 根进程及其递归子进程的资源快照。该接口仅采集 Research Workbench 当前进程树，不会枚举或返回整台机器上的其他进程。
 
 **响应示例**:
 
@@ -1335,7 +1409,7 @@ Wind Excel 适配器通过 xlwings → AppleScript → macOS Excel Wind 插件�
 
 返回持久化的分钟级整机容量历史。查询参数 `hours` 可选，默认 `24`，可接受范围为 `1` 至 `24`（含边界）；超出范围返回 `422`。服务以当前 UTC 时间减去 `hours` 作为仓储 `since` 过滤，因此 `?hours=1` 不会返回更早的点位。仓储读取不可用时返回 `503` 和稳定详情 `Host resource history unavailable`；仓储成功但没有点位时仍返回 `200` 与空 `points`。点位按 `sampled_at` 升序排列，且不包含主机进程、采集告警、原始 `extra` 或内部字段。
 
-这些点由正常（非 `ALPHAFOUNDRY_PREVIEW=1`）且数据库就绪的 API 运行时每分钟持久化；分支桌面预览刻意不启动该常驻任务，所以预览中空历史不表示 24 小时采集异常。
+这些点由正常（非 `RESEARCH_PREVIEW=1`）且数据库就绪的 API 运行时每分钟持久化；分支桌面预览刻意不启动该常驻任务，所以预览中空历史不表示 24 小时采集异常。
 
 **响应示例**:
 
@@ -2502,7 +2576,7 @@ print(f"D+20 衰减收益: {event_result.metadata['decay_by_day'][20]:.2%}")
 ### 完整目录树
 
 ```
-AlphaFoundry/
+Research Workbench/
 ├── app/                          # 应用层
 │   ├── __init__.py
 │   ├── api/                      # FastAPI 后端 API
@@ -2789,12 +2863,12 @@ pytest tests/unit/data_layer/crawlers/test_akshare.py
 pytest --cov=core --cov=data_layer --cov-report=html
 ```
 
-默认测试环境会设置 `ALPHAFOUNDRY_DISABLE_LOCAL_EMBEDDINGS=1`，避免单元测试加载 embedding 模型。运行时本地 embedding 支持 `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH=/path/to/model` 指向已下载模型目录；未设置本地路径时，sentence-transformers 只读本机 Hugging Face cache，只有设置 `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载。需要真实服务的 API smoke 测试默认跳过，设置 `ALPHAFOUNDRY_RUN_LIVE_API_TESTS=1` 后才会访问 `127.0.0.1:8000`；浏览器 E2E smoke 默认跳过，设置 `ALPHAFOUNDRY_RUN_LIVE_E2E_TESTS=1` 后才会运行。
+默认测试环境会设置 `RESEARCH_DISABLE_LOCAL_EMBEDDINGS=1`，避免单元测试加载 embedding 模型。运行时本地 embedding 支持 `RESEARCH_LOCAL_EMBEDDING_MODEL_PATH=/path/to/model` 指向已下载模型目录；未设置本地路径时，sentence-transformers 只读本机 Hugging Face cache，只有设置 `RESEARCH_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载。需要真实服务的 API smoke 测试默认跳过，设置 `RESEARCH_RUN_LIVE_API_TESTS=1` 后才会访问 `127.0.0.1:8000`；浏览器 E2E smoke 默认跳过，设置 `RESEARCH_RUN_LIVE_E2E_TESTS=1` 后才会运行。
 
 ### Q: 必须使用数据库吗？
 
 - **默认模式**：需要 PostgreSQL + pgvector；桌面端由用户自行安装并在用户数据目录的 `.env` 中配置 `DATABASE_URL`。
-- **桌面配置位置**：Windows 为 `%LOCALAPPDATA%\\AlphaFoundry\\.env`，macOS 为 `~/Library/Application Support/AlphaFoundry/.env`；可通过 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 或 `ALPHAFOUNDRY_CONFIG_FILE` 覆盖。
+- **桌面配置位置**：Windows 为 `%LOCALAPPDATA%\\Research Workbench\\.env`，macOS 为 `~/Library/Application Support/Research Workbench/.env`；可通过 `RESEARCH_DESKTOP_DATA_DIR` 或 `RESEARCH_CONFIG_FILE` 覆盖。
 - **配置优先级**：启动参数 > 进程环境变量 > 显式配置文件 > 模式默认 `.env` > 代码默认值。桌面端配置页以运行时 `.env` 为权威持久化来源，进程环境变量不会锁定字段；重启后仍按上述优先级解析。桌面端默认服务地址为 `http://127.0.0.1:8765`，Web 开发默认 `http://127.0.0.1:8000`。在功能分支 worktree 中可执行 `npm run desktop:preview` 启动独立桌面验收实例（默认 `8766`）；需要沿用本地桌面配置时使用 `npm run desktop:preview -- --use-stable-data`，该预览实例不初始化数据库或启动自动任务。
 - **演示模式**：如果需要快速测试，可以使用模拟数据
 

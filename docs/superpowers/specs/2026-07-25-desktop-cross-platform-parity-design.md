@@ -4,7 +4,7 @@
 
 ## 背景与目标
 
-AlphaFoundry 的目标桌面平台固定为：
+Research Workbench 的目标桌面平台固定为：
 
 - macOS Apple Silicon（`aarch64-apple-darwin`）
 - Windows x64（`x86_64-pc-windows-msvc`）
@@ -44,14 +44,14 @@ Tauri 2 + 原生 Python sidecar + 对应安装包
 - `core/settings/registry.py` 定义可配置字段及其是否是密钥、是否需要重启。
 - `core/settings/paths.py` 解析用户数据根目录及日志、对象、缓存、Wind 工作簿等派生路径。
 
-桌面数据目录保持下列规范，且始终允许通过 `ALPHAFOUNDRY_DESKTOP_DATA_DIR` 覆盖：
+桌面数据目录保持下列规范，且始终允许通过 `RESEARCH_DESKTOP_DATA_DIR` 覆盖：
 
 | 平台 | 数据目录 |
 | --- | --- |
-| macOS Apple Silicon | `~/Library/Application Support/AlphaFoundry` |
-| Windows x64 | `%LOCALAPPDATA%\\AlphaFoundry` |
+| macOS Apple Silicon | `~/Library/Application Support/Research Workbench` |
+| Windows x64 | `%LOCALAPPDATA%\\Research Workbench` |
 
-用户可编辑的 `.env`、日志、对象存储、报告项目和 Wind 工作簿全部位于该数据根目录或由它派生；源码目录、Tauri bundle 目录和 PyInstaller 临时目录不得保存可变用户数据。Windows 继续提供从旧 `%APPDATA%\\AlphaFoundry` 的一次性、非覆盖式迁移。
+用户可编辑的 `.env`、日志、对象存储、报告项目和 Wind 工作簿全部位于该数据根目录或由它派生；源码目录、Tauri bundle 目录和 PyInstaller 临时目录不得保存可变用户数据。Windows 继续提供从旧 `%APPDATA%\\Research Workbench` 的一次性、非覆盖式迁移。
 
 共享配置字段不放在前端。前端只经由本地 API 读取已脱敏的描述信息、写入允许修改的值，并明确展示“环境变量锁定”和“重启后生效”状态。
 
@@ -108,8 +108,8 @@ Tauri 的公共配置保持单一版本；平台差异只使用 Tauri 的 `bundl
 
 桌面后端只监听 `127.0.0.1` 或 `localhost`，端口冲突时绝不终止未知进程。启动器统一注入：
 
-- `ALPHAFOUNDRY_RUN_MODE=desktop`
-- `ALPHAFOUNDRY_BACKEND_URL`
+- `RESEARCH_RUN_MODE=desktop`
+- `RESEARCH_BACKEND_URL`
 - 用户数据、日志与对象目录的默认值
 
 首次启动仍会生成配置模板，但不应静默降级到 SQLite；必须配置 PostgreSQL + pgvector。打包端到端健康检查使用隔离的、可重复的测试 PostgreSQL 配置或受控的健康检查模式，不能伪造“Windows 已启动”。

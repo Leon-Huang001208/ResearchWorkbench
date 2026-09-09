@@ -2300,7 +2300,7 @@ def test_preview_report_project_file_prefers_word_pdf_preview(tmp_path: Path, mo
     assert "data-preview-thumbnails-toggle" in response.text
     assert "data-preview-thumbnails" in response.text
     assert ".docx-preview-stage{grid-row:2;grid-column:2;" in response.text
-    assert "localStorage.getItem('af-color-scheme')" in response.text
+    assert "localStorage.getItem('rwb-color-scheme')" in response.text
     assert "parent.document.documentElement" in response.text
     assert "MutationObserver" in response.text
     assert "attributeFilter:['data-theme','data-color-scheme']" in response.text

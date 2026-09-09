@@ -35,7 +35,11 @@ def upgrade() -> None:
     )
     op.create_index("idx_timing_decision_signal_id", "timing_decision", ["signal_id"])
     op.create_index("idx_timing_decision_action", "timing_decision", ["action"])
-    op.create_index("idx_timing_decision_created_at", "timing_decision", ["created_at DESC"])
+    op.create_index(
+        "idx_timing_decision_created_at",
+        "timing_decision",
+        [sa.text("created_at DESC")],
+    )
 
 
 def downgrade() -> None:

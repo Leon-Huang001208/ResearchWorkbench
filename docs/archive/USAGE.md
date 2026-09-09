@@ -1,5 +1,5 @@
 
-# AlphaFoundry 使用说明
+# Research Workbench 使用说明
 
 ## 目录
 1. [项目概述](#项目概述)
@@ -14,7 +14,7 @@
 
 ## 项目概述
 
-AlphaFoundry 是一个**本地优先、可企业化的买方投研情报系统**，专为基金研究员设计。
+Research Workbench 是一个**本地优先、可企业化的买方投研情报系统**，专为基金研究员设计。
 
 ### 核心特性
 - **资产分析卡**：标准化资产快照，覆盖8大维度
@@ -27,7 +27,7 @@ AlphaFoundry 是一个**本地优先、可企业化的买方投研情报系统**
 ## 目录结构
 
 ```
-AlphaFoundry/
+Research Workbench/
 ├── app/                    # 应用层
 │   ├── api/                # FastAPI 接口（待完善）
 │   ├── cli/                # 命令行工具
@@ -93,7 +93,7 @@ AlphaFoundry/
 
 1. **进入项目目录**
 ```bash
-cd ~/Desktop/Projects/AlphaFoundry
+cd ~/Desktop/Projects/Research Workbench
 ```
 
 2. **（可选）创建虚拟环境**
@@ -132,18 +132,18 @@ python examples/test_signal_lab_simple.py
 
 ## CLI 命令
 
-AlphaFoundry 提供了 `af` 命令行工具，支持以下命令：
+Research Workbench 提供了 `af` 命令行工具，支持以下命令：
 
 ### 1. analyze - 资产分析
 生成资产分析快照。
 
 ```bash
 # 基本用法
-af analyze --asset 600000.SH
+rwb analyze --asset 600000.SH
 
 # 输出报告
-af analyze --asset 600000.SH --output report.md
-af analyze --asset 600000.SH --output report.docx
+rwb analyze --asset 600000.SH --output report.md
+rwb analyze --asset 600000.SH --output report.docx
 ```
 
 ### 2. scenario - 情景分析
@@ -151,17 +151,17 @@ af analyze --asset 600000.SH --output report.docx
 
 ```bash
 # 基本用法
-af scenario --topic "人工智能产业发展对股票市场的影响"
+rwb scenario --topic "人工智能产业发展对股票市场的影响"
 
 # 输出到文件
-af scenario --topic "美联储政策走向" --output scenario.md
+rwb scenario --topic "美联储政策走向" --output scenario.md
 ```
 
 ### 3. ingest - 文档摄入
 摄入文档并提取断言和事件。
 
 ```bash
-af ingest --file report.pdf --source-type report --source-name "券商研报"
+rwb ingest --file report.pdf --source-type report --source-name "券商研报"
 ```
 
 ### 4. review - 审核管理
@@ -169,13 +169,13 @@ af ingest --file report.pdf --source-type report --source-name "券商研报"
 
 ```bash
 # 列出待审核项目
-af review list
+rwb review list
 
 # 批准断言
-af review approve assertion_1234
+rwb review approve assertion_1234
 
 # 查看统计
-af review stats
+rwb review stats
 ```
 
 ### 5. signal - 信号管理
@@ -183,10 +183,10 @@ af review stats
 
 ```bash
 # 创建信号
-af signal create --subject 600519.SH --thesis "看好白酒股" --score 0.8
+rwb signal create --subject 600519.SH --thesis "看好白酒股" --score 0.8
 
 # 列出信号
-af signal list
+rwb signal list
 ```
 
 ### 6. backtest - 回测
@@ -194,7 +194,7 @@ af signal list
 
 ```bash
 # 使用示例数据回测
-af backtest --symbol 600519.SH --initial-capital 1000000
+rwb backtest --symbol 600519.SH --initial-capital 1000000
 ```
 
 ---
@@ -244,7 +244,7 @@ candidate = service.generate_trade_candidate(signal)
 
 ## 信号实验室
 
-信号实验室是 AlphaFoundry 的核心模块，支持特征工程、标签生成、信号评分和回测。
+信号实验室是 Research Workbench 的核心模块，支持特征工程、标签生成、信号评分和回测。
 
 ### 1. 特征工程
 ```python

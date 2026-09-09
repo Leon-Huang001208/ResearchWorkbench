@@ -1,0 +1,28 @@
+{
+  "schema_version":1,"diagram_type":"workflow",
+  "meta":{"title":"A08 · LSH 迁移、归档与删除门禁","output":"A08-migration-deletion-gate.html","quality_profile":"showcase","animation":"trace","viewBox":[1100,420],"views":[{"id":"migration","label":"迁移主线","focus":["inventory","dryrun","classify","import","verify","retire"],"note":"从源清点到等价验证，门禁通过后才能归档和删除。"},{"id":"quarantine","label":"隔离重试","focus":["classify","quarantine","dryrun"],"note":"隔离记录保留原始值，修复后重新 dry-run。"},{"id":"rollback","label":"回退边界","focus":["verify","rollback","import","retire"],"note":"任何不等价结果都阻断退役并恢复导入前态。"}]},
+  "lanes":[{"id":"main","label":"迁移主线 · LSH → Research Workbench"},{"id":"exception","label":"隔离与回退","variant":"exception"}],
+  "phases":[{"id":"prepare","label":"清点与试跑","fromCol":0,"toCol":1},{"id":"move","label":"分类与导入","fromCol":2,"toCol":3,"variant":"emphasis"},{"id":"retirement","label":"验证与退役","fromCol":4,"toCol":5,"variant":"security"}],
+  "mainPath":["inventory","dryrun","classify","import","verify","retire"],
+  "nodes":[
+    {"id":"inventory","lane":"main","col":0,"width":72,"type":"database","label":"源数据清点","sublabel":"哈希 + 范围"},
+    {"id":"dryrun","lane":"main","col":1,"width":50,"type":"backend","label":"Dry-run"},
+    {"id":"classify","lane":"main","col":2,"width":50,"type":"security","label":"分类"},
+    {"id":"import","lane":"main","col":3,"width":40,"type":"database","label":"导入"},
+    {"id":"verify","lane":"main","col":4,"width":40,"type":"security","label":"验证"},
+    {"id":"retire","lane":"main","col":5,"width":40,"type":"security","label":"退役"},
+    {"id":"quarantine","lane":"exception","col":2,"width":72,"type":"messagebus","label":"隔离记录","sublabel":"保留原值"},
+    {"id":"rollback","lane":"exception","col":4,"width":64,"type":"security","label":"回退","sublabel":"恢复前态"}
+  ],
+  "edges":[
+    {"from":"inventory","to":"dryrun","label":"源哈希","variant":"emphasis"},
+    {"from":"dryrun","to":"classify"},
+    {"from":"classify","to":"import","label":"accepted","variant":"emphasis"},
+    {"from":"import","to":"verify"},
+    {"from":"verify","to":"retire","variant":"security"},
+    {"from":"classify","to":"quarantine","label":"quarantined","variant":"security","role":"error","route":"drop","fromSide":"bottom","toSide":"top"},
+    {"from":"quarantine","to":"dryrun","label":"修复重试","variant":"dashed","role":"return","route":"return-left","fromSide":"left","toSide":"left","labelDx":-44},
+    {"from":"verify","to":"rollback","variant":"security","role":"error","route":"drop","fromSide":"bottom","toSide":"top"},
+    {"from":"rollback","to":"import","label":"恢复","variant":"dashed","role":"return","route":"bottom-channel","fromSide":"bottom","toSide":"bottom","labelDy":22}
+  ]
+}

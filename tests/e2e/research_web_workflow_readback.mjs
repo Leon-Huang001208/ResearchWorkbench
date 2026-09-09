@@ -1,0 +1,74 @@
+/** Read-only verification of the real two-child Workflow and its delivered files. */
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {mkdir, readFile, writeFile} from 'node:fs/promises';
+import path from 'node:path';
+const origin=new URL(process.env.RESEARCH_WEB_URL || 'http://127.0.0.1:8088');
+if (!['127.0.0.1','localhost'].includes(origin.hostname) || origin.protocol!=='http:') throw new Error('Local acceptance only');
+const sid='43170801-cfeb-4c89-914a-a6973dbb8c9a';
+const output=path.resolve('outputs/research-web-ui-acceptance/workflow');
+const log=path.resolve('logs/research-web-workflow-readback.jsonl');
+let browser;
+try {
+  await mkdir(output,{recursive:true}); await mkdir(path.dirname(log),{recursive:true});
+  const {chromium}=await import(process.env.RESEARCH_PLAYWRIGHT_MODULE || 'playwright-core');
+  browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+  const context=await browser.newContext({viewport:{width:1600,height:1100},acceptDownloads:true});
+  const response=await context.request.get(`${origin.origin}/api/research/sessions/${sid}`);
+  assert.equal(response.status(),200); const data=await response.json();
+  assert.equal(data.status,'completed'); assert.equal(data.can_cancel,false);
+  assert.equal(data.capability.id,'fund-research-workflow'); assert.equal(data.capability.version,1);
+  assert.equal(data.delivery.status,'completed'); assert.deepEqual(data.delivery.missing_formats,[]);
+  assert.equal(data.subagents.length,2); assert.ok(data.subagents.every(a=>a.status==='completed' && a.usage.tokens>0));
+  assert.equal(data.datasets.length,4);
+  const page=await context.newPage(); const errors=[];
+  page.on('pageerror',error=>errors.push(error.name));
+  await page.route('**/*',async route=>{if(!['GET','HEAD'].includes(route.request().method())){errors.push('unexpected_write');await route.abort();}else await route.continue();});
+  await page.goto(`${origin.origin}/?acceptance=workflow-readback#/claw?session=${sid}`);
+  await page.getByRole('heading',{name:'Workflow 验收 · 基金资料共享与受限评价',exact:true}).waitFor();
+  await page.reload();
+  await page.getByRole('heading',{name:'Workflow 验收 · 基金资料共享与受限评价',exact:true}).waitFor();
+  const panel=page.getByRole('complementary',{name:'研究活动、资料与文件',exact:true});
+  if(!await panel.isVisible()) await page.getByRole('button',{name:'活动与文件',exact:true}).click();
+  await panel.getByRole('tab',{name:'活动',exact:true}).click();
+  await panel.getByText('文件交付已检查',{exact:true}).waitFor();
+  const steps=panel.getByRole('region',{name:'Workflow 预设步骤',exact:true});
+  await steps.getByText('资料准备',{exact:true}).waitFor();
+  assert.equal(await steps.locator('li').count(),3); assert.match(await steps.innerText(),/不代表已经执行/);
+  assert.equal(await panel.locator('.agent-card').count(),2);
+  await panel.getByText('核验净值与分红计算',{exact:true}).first().waitFor();
+  await panel.getByText('核验基本资料与持仓',{exact:true}).first().waitFor();
+  await page.screenshot({path:path.join(output,'steps-and-agents.png'),fullPage:true});
+  await panel.locator('.agent-card').first().scrollIntoViewIfNeeded();
+  await page.screenshot({path:path.join(output,'real-agent-cards.png'),fullPage:true});
+  await panel.getByRole('tab',{name:'资料',exact:true}).click();
+  assert.equal(await panel.locator('.dataset-card').count(),4);
+  assert.match(await panel.innerText(),/243 条/); assert.match(await panel.innerText(),/13 页/);
+  await page.screenshot({path:path.join(output,'shared-datasets.png'),fullPage:true});
+  await panel.getByRole('tab',{name:'文件',exact:true}).click();
+  const downloads=[];
+  for(const format of ['docx','html','xlsx']) {
+    const file=data.delivery.files.find(f=>f.format===format); assert.ok(file?.valid);
+    const row=panel.locator('.file-card').filter({hasText:file.name});
+    const pending=page.waitForEvent('download'); await row.getByRole('link',{name:'下载',exact:true}).click();
+    const download=await pending; assert.equal(download.suggestedFilename(),file.name);
+    const target=path.join(output,file.name); await download.saveAs(target);
+    const bytes=await readFile(target); const sha256=createHash('sha256').update(bytes).digest('hex');
+    assert.equal(sha256,file.sha256); assert.equal(bytes.length,file.size);
+    downloads.push({name:file.name,id:file.id,sha256,bytes:bytes.length});
+  }
+  const htmlRow=panel.locator('.file-card').filter({hasText:data.delivery.files.find(f=>f.format==='html').name});
+  await htmlRow.getByRole('button',{name:'预览',exact:true}).click();
+  assert.equal(await page.locator('iframe').getAttribute('sandbox'),'');
+  await page.frameLocator('iframe').locator('body').filter({hasText:'受限评价'}).waitFor();
+  await page.screenshot({path:path.join(output,'report-preview.png'),fullPage:true});
+  assert.deepEqual(errors,[]);
+  await writeFile(path.join(output,'receipt.json'),JSON.stringify({status:'passed',session:sid,capability:data.capability,agents:data.subagents,datasets:data.datasets.map(d=>({id:d.id,name:d.name})),downloads,checks:['refresh_version','three_unchecked_template_steps','two_real_children','four_shared_datasets','delivery_complete','browser_download_hashes','isolated_preview'],modelCalls:0},null,2));
+  await writeFile(log,JSON.stringify({event:'workflow_readback',status:'passed',session:sid})+'\n');
+  console.log('Real Workflow: version, shared snapshots, two children and three required downloads verified');
+} catch(error) {
+  await mkdir(output,{recursive:true}); await mkdir(path.dirname(log),{recursive:true});
+  await writeFile(path.join(output,'receipt.json'),JSON.stringify({status:'failed',session:sid,error:error.message},null,2));
+  await writeFile(log,JSON.stringify({event:'workflow_readback',status:'failed',error_type:error.name})+'\n');
+  console.error(error.message); process.exitCode=1;
+} finally {if(browser) await browser.close();}

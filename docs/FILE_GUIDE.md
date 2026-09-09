@@ -1,4 +1,4 @@
-# AlphaFoundry 文件指南
+# Research Workbench 文件指南
 
 本指南详细说明项目中每个主要文件和目录的作用，帮助新开发者快速理解项目结构。
 
@@ -57,6 +57,7 @@
 | `scripts/` | 脚本工具，包含数据初始化、备份、测试等脚本 |
 | `tests/` | 测试目录，包含单元测试、集成测试等 |
 | `docs/` | 文档目录，包含项目文档、架构设计、文件指南等 |
+| `outputs/merged-platform-architecture/` | 合并平台九张经 Archify showcase 验证的独立 HTML 架构图 |
 | `data/` | 运行时数据目录；其中受版本控制的 `data/industry_graphs/` 提供内置产业链图谱，其余缓存和原始数据通常不提交 |
 | `logs/` | 日志目录，存放应用日志、Web 服务日志等 |
 | `backups/` | 备份目录，存放数据库备份 |
@@ -67,6 +68,23 @@
 
 ## app/ - 应用层
 
+### app/research_web/ — 当前研究产品
+
+当前 Web 唯一入口见 [研究架构](architecture/research-web/README.md)，不启动下列历史 API／量化后台。
+
+| 文件/目录 | 职责 |
+|---|---|
+| `app/research_web/main.py` | FastAPI、产品边界与现有会话路由 |
+| `app/research_web/service.py` / `client.py` | DSH协议适配、原生历史与SSE状态 |
+| `app/research_web/ui/` | 原生JS产品壳、FinGPT/Claw、输入框、能力目录/编辑器 |
+| `app/research_web/capabilities/` | Skill/Workflow包、检查、不可变版本、只读Tool目录 |
+| `app/research_web/datahub/` | 按需数据能力与会话数据集快照 |
+| `app/research_web/store.py` / `delivery.py` | 归属/文件索引与独立交付检查 |
+| `app/research_web/documentation.py` | 固定图册HTML白名单与隔离CSP |
+| `scripts/check_research_architecture.mjs` | 无全局Archify依赖的源码/文档/图/回执一致性检查 |
+| `docs/architecture/research-web/` | 当前Markdown、映射清单与八张JSON图源 |
+| `outputs/research-web-architecture/` | 八图HTML、交付/视觉回执与人工核对所用截图 |
+
 ### app/api/ - FastAPI 后端接口
 
 | 文件/目录 | 说明 |
@@ -74,6 +92,7 @@
 | `app/api/main.py` | API 入口点，初始化 FastAPI 应用，注册所有路由；显式分支预览模式只保留就绪检查，不执行数据库初始化或自动后台服务 |
 | `app/api/models.py` | API 请求/响应模型（Pydantic） |
 | `app/api/routes/audit.py` | 审计 API：查询审计日志 |
+| `app/api/routes/asset_observation.py` | 资产观察 API：四类 canonical asset 详情/同类组、多 Watchlist、Alert Rule/Event 与持久化 Notification；薄路由统一映射安全 400/404/409/500 |
 | `app/api/routes/dashboard.py` | 仪表盘 API：获取仪表盘汇总数据 |
 | `app/api/routes/funds.py` | 基金智能 API：基金详情、单基金暴露、基金组合穿透、结构化 rows 导入 |
 | `app/api/routes/governance.py` | 治理 API：版本控制、配置管理 |
@@ -91,6 +110,10 @@
 | `workflow_specs/daily_market_commentary.yaml` | 每日市场点评的可编辑真源：三段式文档、两个默认图表、质量策略和 16:15 交易日定时 |
 | `services/daily_market_commentary_spec.py` | 每日市场点评 YAML 的 Pydantic 契约、加载和原子保存服务 |
 | `services/daily_market_commentary_scheduler.py` | 以工作流规格为准的可停止 APScheduler 入口；执行失败仅记录安全日志 |
+| `app/api/routes/research_workspaces.py` / `research_sessions.py` | 项目作用域 Workspace、单 Run Session、Message/Note 与原子 Session→Run 纵切 API |
+| `app/api/routes/runtime_providers.py` / `research_skills.py` | LangGraph/DSH Provider 声明和关联回传、声明式白名单 Skill API |
+| `app/api/routes/agent_teams.py` / `agent_schedules.py` | Supervisor 团队、共享黑板、硬预算与持久 Agent 日程 API |
+| `app/api/routes/theme_research.py` | Research Pack 目录及 snapshot/KPI/value-chain/events/assets/health 类型化读模型 |
 | `app/api/routes/scenarios.py` | 情景 API：生成多情景分析 |
 | `app/api/routes/search.py` | 搜索 API：全局跨对象搜索 |
 | `app/api/routes/signal_lab.py` | 信号实验室 API：特征、标签、评分、回测 |
@@ -124,9 +147,9 @@
 | `app/web/static/js/templates.js` | 模板工作台模块：报告项目选择、Word 占位符映射、YAML/Markdown Prompt 源码切换与保存、后端 `compiled_plan` 生成预检、配置驱动生成、下载和 Word HTML 预览 |
 | `app/web/static/js/pipeline-monitor.js` | 管线监控模块：5 阶段流程可视化、实时活动日志（SSE + 15s 轮询）、累计统计、手动触发闭环 |
 | `app/web/static/js/monitor.js` | 系统监控模块：Worker 心跳、队列深度、服务状态 |
-| `app/web/static/js/resource-monitor.js` | AlphaFoundry 受控资源监控：仅在系统中心“系统中心”标签可见时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 AlphaFoundry/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、紧凑置顶异常、确认/解决和可键盘操作的安全历史筛选；正常状态不显示 `ok` 徽标，采样不可用时保留上一帧 |
+| `app/web/static/js/resource-monitor.js` | Research Workbench 受控资源监控：仅在系统中心“系统中心”标签可见时轮询快照/300 秒历史（最多 150 点）、每 60 秒读取 24 小时整机容量历史与持久化异常（默认 90 天）；明确比较 Research Workbench/整机 CPU、内存范围，展示独立 Worker 精确资源、API 内任务共享估算、紧凑置顶异常、确认/解决和可键盘操作的安全历史筛选；正常状态不显示 `ok` 徽标，采样不可用时保留上一帧 |
 | `app/web/static/js/asset.js` | 资产分析模块：Wind 风格 5 面板 K 线图（K 线+成交量/MACD/KDJ/RSI，首次加载默认请求近一年数据，支持日/周/月聚合与 MA120/MA250）、筹码分布图（筹码峰及上/下界标注）、资产搜索、分析卡渲染 |
-| `app/web/static/js/research-workbench.js` | 研究工作台：提交单证券 A 股研究、呈现门禁/来源关联观点/决策卡/报告预览，以及完成后的 Markdown/Word 下载链接 |
+| `app/web/static/js/research-workbench.js` | 研究工作台：复用本地 Workspace、每次提交创建新的单 Run Session，通过原子 Session→Run 接口执行，并以项目/工作区 scope 读取历史、补证、恢复及下载完成产物 |
 
 ---
 
@@ -160,6 +183,11 @@
 | `core/contracts/replay.py` | 回放结构：ReplaySession、ReplayStep、ReplayResult |
 | `core/contracts/reporting.py` | 报告结构：Report、ReportType、ReportSection、ReportTemplate |
 | `core/contracts/research.py` | 通用研究结构：ResearchSubject、ResearchTemplateDefinition、ResearchRun、任务、产物、观点、质量门禁、决策卡与证据输入 |
+| `core/contracts/platform_shared.py` | 合并平台共享契约：AssetRef/Identifier、结构化安全 SourceRef、六字段事实上下文、Observation、DomainEvent、ScheduledJob；公共时间字段拒绝 naive datetime |
+| `core/contracts/theme_research.py` | Research Pack Manifest、主题 Observation/快照、KPI/产业链/资产暴露和数据健康 |
+| `core/contracts/research_workspace.py` | 严格 Session/Message、RuntimeProvider、拒绝多余字段且受封闭 internal allowlist 与平台 registry 双重校验的 Skill、Agent Team/预算/日程、互斥来源 Note |
+| `core/contracts/market_home.py` | facts-only 首页五区块全集校验、交易状态、主线透明分项与不可变快照 |
+| `core/contracts/asset_observation.py` | 资产统一快照、PeerSet、Watchlist、Alert 与 Notification |
 | `core/contracts/retrieval.py` | 检索结构：SearchQuery、SearchResult、RAGContext |
 | `core/contracts/review_framework.py` | 审查框架结构：ReviewTask、ReviewComment、ReviewStatus |
 | `core/contracts/scenarios.py` | 情景结构：ScenarioSet、Scenario、ScenarioProbability |
@@ -177,7 +205,7 @@
 
 | 目录/文件 | 说明 |
 |---|---|
-| `core/model_gateway/local_embedding_config.py` | 本地 embedding 模型解析：支持 `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH`，默认 Hugging Face cache-only，只有 `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载 |
+| `core/model_gateway/local_embedding_config.py` | 本地 embedding 模型解析：支持 `RESEARCH_LOCAL_EMBEDDING_MODEL_PATH`，默认 Hugging Face cache-only，只有 `RESEARCH_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载 |
 | `core/model_gateway/providers/` | 模型提供商实现 |
 | `core/model_gateway/providers/volcano.py` | 火山引擎提供商实现 |
 
@@ -225,6 +253,14 @@
 | `services/__init__.py` | 导出所有服务 |
 | **资产分析** | |
 | `asset_analysis_service.py` | 资产分析服务：生成资产分析快照、K线技术指标计算（KDJ/RSI）、筹码分布计算、Wind 直连数据补齐 |
+| `asset_observation_service.py` | 资产观察服务：组合既有四类资产事实、公开同类集合规则并管理 canonical Watchlist、规则/事件与站内通知 |
+| `alert_evaluation_service.py` | 确定性提醒评估：fresh + 单位兼容门禁、false→true 单次边沿、持续真值去重、false 自动解决和跨周期 cooldown |
+| `market_home_service.py` | facts-only 首页协调：Asia/Shanghai 交易状态、五区独立降级/SLA、mainline-v1 百分位评分与幂等 close 快照 |
+| `market_home_invalidation.py` | 可停止的持久 close-snapshot 调度与物化运行时；fact writer 同事务 helper 位于 data layer |
+| `theme_pack_registry.py` / `theme_research_service.py` | 受信任内置 Pack 注册、无损宽表归一/隔离/断点摄入及六类主题读模型 |
+| `research_workspace_service.py` / `research_orchestration_service.py` | Workspace/Session/Message/Note 作用域、原子 Session→Run 绑定、终态归档 outbox |
+| `runtime_provider_service.py` / `agent_team_service.py` | FinGPT/Claw Runtime 路由、关联 DSH 结果、Skill schema/安全/预算和团队共享黑板执行 |
+| `scheduler_coordinator.py` | PostgreSQL 持久任务租约、执行中续租、fencing、latest coalesce 与 AgentSchedule 物化 |
 | `fund_data_ingestion_service.py` | 基金数据接入服务：从本地 rows/CSV 规范化导入基金主数据、净值、持仓和基金经理任职 |
 | `fund_intelligence_service.py` | 基金智能服务：基金详情组装、收益风险指标计算、单基金/组合持仓穿透 |
 | `macro_sensitivity.py` | 宏观敏感性计算：通过时间序列回归计算个股对宏观因子的敏感度 |
@@ -277,10 +313,10 @@
 | **监控与治理** | |
 | `monitoring_service.py` | 监控服务：健康检查、指标采集、告警管理 |
 | `resource_monitor_service.py` | 资源监控服务：采集 API 进程树与项目既有调度器/知识 Worker PID，并只通过主机级 psutil API 汇总整机 CPU/内存容量；不枚举其他系统进程，读取受控任务快照并标识精确进程或共享估算，维护页面使用的 150 点（5 分钟）内存历史并将字段权限/平台问题降级记录 |
-| `resource_monitor_runtime.py` | 资源监控运行时：仅在数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入 24 小时主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
+| `resource_monitor_runtime.py` | 资源监控运行时：仅在数据库就绪且非 `RESEARCH_PREVIEW=1` 时以单一可停止后台线程每分钟采集资源快照，并在一个数据库会话内写入 24 小时主机容量历史和评估既有资源告警；异常只记录安全错误类型并继续下一周期 |
 | `resource_host_history_service.py` | 整机容量历史服务：把安全白名单后的 CPU/内存整机汇总写入既有健康指标 JSON，每 UTC 分钟至多一条，按请求的 1–24 小时 UTC 窗口查询最多 1500 点并仅保留 24 小时；“剩余内存”使用主机 `available` 值，仓储读取失败以受控不可用信号交由 API 返回稳定 503 |
 | `resource_task_registry.py` | 资源任务登记器：为抓取、PDF、知识处理、Wind 与报告任务写入每 PID 原子安全快照，失败记录不含异常原文 |
-| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败、持续进程压力及整机 CPU/可用内存容量压力；AlphaFoundry 事件标记 `source_scope=alphafoundry`，主机容量事件标记 `source_scope=host_capacity`。通过共享 `ResourceAlertState` 保留跨周期压力/恢复计数，主机事件以稳定键原地升级，未恢复事件始终可查询；异常只在 Web/API 呈现，不触发原生通知 |
+| `resource_monitor_alert_service.py` | 资源异常协调器：复用 Monitoring 告警/事件状态机，去重并处理任务失败、受控 PID 缺失、采样失败、持续进程压力及整机 CPU/可用内存容量压力；Research Workbench 事件标记 `source_scope=research_workbench`，主机容量事件标记 `source_scope=host_capacity`。通过共享 `ResourceAlertState` 保留跨周期压力/恢复计数，主机事件以稳定键原地升级，未恢复事件始终可查询；异常只在 Web/API 呈现，不触发原生通知 |
 | `configuration_service.py` | 本地配置服务：跨平台文件锁与原子 `.env` 写入、配置分区验证、秘密掩码和受控热刷新；生产 Web 模式禁用控制面，数据库修改要求重启 |
 | `governance_service.py` | 治理服务：版本控制、配置管理、审计 |
 | `audit_service.py` | 审计服务：审计日志查询和管理 |
@@ -421,9 +457,14 @@
 
 | 文件 | 说明 |
 |---|---|
-| `data_layer/repositories/base.py` | 仓储基类：BaseRepository，提供通用数据库操作方法 |
-| `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型 |
+| `data_layer/repositories/base.py` | 仓储基类与 Schema 初始化入口；连接错误提示明确要求目标 PostgreSQL 启用 `vector` 与 `btree_gist` |
+| `data_layer/repositories/models.py` | SQLAlchemy ORM 模型：定义所有数据库表模型；包含合并平台 20 张 additive 表，复用既有资产事实与 Research Run 表 |
+| `data_layer/repositories/asset_observation_repository.py` | 资产观察仓储：只写 canonical identity/Watchlist/Alert/Notification 表并读取既有 stock/index/ETF/fund 事实；仅 `flush`，事务提交由 `get_db` 管理 |
+| `data_layer/repositories/market_home_repository.py` | 首页仓储：读取既有行情、事件与主题 Observation，管理不可变 close 快照，并从持久 `domain_event` 恢复小型失效引用；仅 `flush` |
+| `data_layer/repositories/market_home_invalidation.py` | Fact writer 事务 helper：UTC 归一化并在调用方未提交事务中写入幂等首页失效 outbox，不依赖 service 层 |
 | `data_layer/repositories/research_run_repository.py` | 研究运行仓储：持久化运行、任务、证据输入、版本化产物、当前观点及质量门禁投影 |
+| `data_layer/repositories/research_workspace_repository.py` | Workspace/Session/Message/Runtime/Skill/Team/Schedule/Note 仓储、Run scope、幂等 reservation、SSE 事件和租约 fencing |
+| `data_layer/repositories/theme_research_repository.py` | 不可变 Pack 版本、统一 Theme Observation、摄入审计/checkpoint 与六类类型化查询投影 |
 | `data_layer/repositories/market_data_repository.py` | 市场数据仓储：PostgreSQL upsert / SQLite fallback，管理股票主表、日行情、估值、财务、股东、指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 | `data_layer/repositories/monitoring_repository.py` | 监控仓储：持久化健康指标、告警与事件；支持仅更新未解决告警详情，并以确定性周期 ID / savepoint 冲突恢复和独立读取事务创建单一未解决资源事件 |
 | `data_layer/repositories/fund_repository.py` | 基金智能仓储：管理基金主数据、日净值、股票持仓和基金经理任职 MVP 表 |
@@ -618,6 +659,7 @@
 | `scripts/desktop/build_sidecar.py` | 桌面 sidecar 打包：纳入后端、前端、报告资源和 `data/industry_graphs/` 内置图谱 |
 | `scripts/dsh/bootstrap_harness.mjs` | 项目托管 DSH 引导：锁定官方 revision、构建 vendor checkout、安装隔离 Profile Bundle 并生成 Tool/Skill 部署物；不读取用户 DSH Home。 |
 | `scripts/dsh/run_harness.mjs` | 项目托管 DSH 启动器：仅回环启动专用 Profile，并把部署目录和 Skill 根从隔离 `.runtime/dsh-home` 注入 Host。 |
+| `scripts/desktop/backend_launcher.py` | 桌面后端启动器：按 `RESEARCH_CRAWLER_AUTOSTART` 决定是否启动爬虫调度器，关闭时仍启动知识 Worker |
 | `scripts/restore_db.py` | 数据库恢复脚本：支持从备份恢复、时间点恢复；压缩恢复路径显式校验解压命令和管道句柄 |
 | `scripts/backfill_pdf_artifacts.py` | PDF 制品回补：扫描磁盘 PDF 并注册到 pdf_artifact_v1 以触发自动转换 |
 | `scripts/seed_factor_data.py` | 因子数据播种管线：双数据源（AKShare + Wind WSD）、限流重试（指数退避 + 关键词检测）、JSON 断点续传、3 Phase 流水线（市场数据摄入 → 技术因子 → 财务因子）；pandas/DB 标量先标准化再参与收益和财务因子计算 |
@@ -626,6 +668,7 @@
 | `scripts/bootstrap_db.py` | 数据库初始化脚本：验证连接、创建表、验证 schema、植入默认配置 |
 | `scripts/import_real_data.py` | 导入真实数据脚本：导入 benchmarks/ 中的真实数据存档，返回运行时字符串 doc_id |
 | `scripts/minimal_reingest_bootstrap.py` | 最小重摄入引导脚本：从零重建系统，使用基准样本和上游连接器 |
+| `scripts/migrate_lsh_theme_data.py` | LSH 主题数据默认 dry-run/显式 apply 迁移：source hash、断点恢复、宽表展开、冲突隔离和无损审计报告 |
 | `scripts/backfill_from_objects.py` | 从对象存储回填脚本：从幸存的原始制品重建源文档和事实层；抽取前将 ORM 文档字段规整为字符串边界值 |
 | `scripts/rebuild_derived_state.py` | 重建派生状态脚本：从恢复的事实记录重建派生系统状态（信号、择时决策、结果、回放），并按 `TimingModelScore` 完整契约重建择时评分 |
 | `scripts/smoke_runner.py` | 冒烟测试脚本：端到端一键 MVP 验证 |
@@ -634,7 +677,7 @@
 | `scripts/check_market_data_schema.py` | 结构化行情数据表 Schema 检查：验证 8 张市场数据表是否存在 |
 | `scripts/bootstrap_market_data.py` | 结构化行情数据初始化脚本：同步股票列表和核心股票日行情 |
 | `scripts/run_official_index_structure_ingestion.py` | 中证/国证官方指数成分摄入脚本：默认静默抓取核心指数，或用 `--discover-active --max-count` 从 official catalog 发现 active 指数并批量写入结构表 |
-| `scripts/run_wind_index_structure_probe.py` | Wind 指数结构探针脚本：生成 `AlphaFoundry_Wind_Index_Structure_Probe.xlsx`，可选隐藏 Excel prime、读取缓存结果并持久化到结构表 |
+| `scripts/run_wind_index_structure_probe.py` | Wind 指数结构探针脚本：生成 `Research Workbench_Wind_Index_Structure_Probe.xlsx`，可选隐藏 Excel prime、读取缓存结果并持久化到结构表 |
 | `workers/market_data_scheduler_worker.py` | 市场数据调度 Worker：后台运行日行情与 18:10 指数结构日更任务；默认关闭旧 gap check 回补链路 |
 | `scripts/view_db.py` | 数据库查看工具：方便查询统计、事件、文档等 |
 | `scripts/replace_huaan_word_charts_office.py` | 华安 ETF 周报图表替换脚本：通过 Excel/Word 原生复制粘贴生成可编辑 Word chart parts |
@@ -654,16 +697,22 @@
 | `tests/unit/test_factor_repository.py` | 因子仓储单元测试：13 个测试覆盖空记录、upsert 委托、查询方法、session 生命周期 |
 | `tests/unit/test_factor_store_service.py` | 因子存储服务单元测试：27 个测试覆盖 Pydantic 契约 ↔ ORM 双向转换、CRUD 路径、端到端流程 |
 | `tests/unit/test_factor_api.py` | 因子 API 单元测试：13 个测试覆盖所有端点、请求验证、空数据处理 |
+| `tests/unit/test_asset_observation_service.py` | 资产观察 Service/Repository 测试：四类 envelope、透明 peer、canonical identity 和 Alert edge/cooldown/降级 |
+| `tests/unit/test_market_home_service.py` | 首页 Service 测试：mainline-v1 分项/百分位/平局、交易边界、五区降级、SLA、历史隔离和 close 幂等 |
+| `tests/unit/test_market_home_repository.py` | 首页 Repository 测试：close 往返、完整主线事实门禁及持久 SSE 恢复 |
+| `tests/unit/test_market_home_api.py` | 首页 API 测试：live/drill-down/snapshot、稳定错误与最小 SSE 载荷 |
+| `tests/unit/test_asset_observation_api.py` | 资产观察 API 测试：路由注册、Watchlist/Rule/Event/Notification 生命周期及安全错误映射 |
+| `tests/unit/test_desktop_notification_bridge.py` | Tauri 通知桥静态测试：官方插件双端注册、三项最小 capability 与受限持久化 payload |
 | `tests/unit/test_factor_computation_service.py` | 因子计算服务单元测试：11 个测试覆盖空定义/空值/完整循环/资源关闭 |
 | `tests/unit/test_resource_monitor_service.py` | 资源监控服务测试：受控 PID 边界、预热、I/O 差分、历史上限、字段/子进程降级、Worker 精确归因和 API 共享估算 |
 | `tests/unit/test_resource_host_history_service.py` | 整机容量历史测试：分钟去重、24 小时精确清理、类型隔离、安全字段白名单和受控坏快照处理 |
 | `tests/unit/test_resource_monitor_runtime.py` | 资源监控运行时测试：采样、历史/告警协调、共享状态、失败续跑与线程生命周期 |
 | `tests/unit/test_resource_task_registry.py` | 资源任务登记器测试：原子快照、并发、失败脱敏、任务类别与损坏文件降级 |
-| `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：AlphaFoundry 事件来源标记、持续进程压力去重/恢复、整机 CPU/可用内存三级阈值、原地升级、缺失字段安全降级及未恢复事件历史 |
+| `tests/unit/test_resource_monitor_alert_service.py` | 资源事件协调器测试：Research Workbench 事件来源标记、持续进程压力去重/恢复、整机 CPU/可用内存三级阈值、原地升级、缺失字段安全降级及未恢复事件历史 |
 | `tests/unit/data_layer/repositories/test_monitoring_repository.py` | 监控仓储单元测试：未解决告警详情的条件更新、SQLite 双服务并发的主机/任务单一事件、以及已解决周期历史保留 |
 | `tests/unit/app/api/routes/test_resource_monitoring.py` | 资源事件 API 测试：历史查询、确认和人工解决响应契约 |
 | `tests/unit/app/api/routes/test_system_resource_usage.py` | 系统资源 API 测试：只读快照/历史契约、窗口边界、脱敏降级和懒加载依赖 |
-| `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：系统中心导航迁移与生命周期、轮询取消、150 点限制、AlphaFoundry/整机双范围卡与 24 小时历史、安全 DOM 渲染、详情抽屉、无常态成功徽标、筛选浮层和响应式样式 |
+| `tests/unit/test_resource_monitor_frontend_static.py` | 资源监控前端静态契约：系统中心导航迁移与生命周期、轮询取消、150 点限制、Research Workbench/整机双范围卡与 24 小时历史、安全 DOM 渲染、详情抽屉、无常态成功徽标、筛选浮层和响应式样式 |
 | `tests/unit/test_dynamic_factors.py` | 动态多因子核心测试：覆盖矩阵构建、因子评估、动态权重、事件-因子融合 |
 | `tests/integration/` | 集成测试目录 |
 
@@ -680,6 +729,8 @@
 | `docs/ARCHITECTURE.md` | 架构文档：系统总览、分层架构、数据流、设计理念 |
 | `docs/CHANGELOG.md` | 更新日志：记录所有 notable 项目变更 |
 | `docs/FILE_GUIDE.md` | 本文件：文件指南，详细说明每个主要文件的作用 |
+| `docs/architecture/merged-platform/` | Research Workbench × LSH 合并平台 V1 架构包：系统边界、共享契约、FinGPT/Claw、市场首页、Research Pack、资产观察、迁移门禁及 Archify JSON 图源 |
+| `outputs/merged-platform-architecture/` | 九张可交互 HTML：系统部署、模块依赖、核心 ER、研究请求、Research Run、首页数据流、Pack、资产提醒、迁移门禁 |
 | `docs/DATA_STORAGE.md` | 数据存储文档：PostgreSQL 表结构、数据契约、仓储接口 |
 | `docs/DATA_SOURCES.md` | 数据源文档：各数据源说明、配置、使用方法 |
 | `docs/backup_restore.md` | 备份恢复文档：备份策略、恢复策略、季度恢复演练 |
@@ -722,7 +773,7 @@ API 路由在 `app/api/routes/`，文件名 = 功能 + `.py`，例如：
 - FinGPT 页面壳 → `app/web/static/js/fingpt.js`
 - DSH Bridge Bundle → `runtimes/dsh/plugin/index.ts`
 - FinGPT 索引持久化 → `data_layer/repositories/fingpt_repository.py`
-- FinGPT 数据库迁移 → `storage/migrations/versions/016_add_fingpt_shell.py`
+- FinGPT 数据库迁移 → `storage/migrations/versions/020_add_fingpt_shell.py`
 
 ### 查找 CLI
 CLI 命令在 `app/cli/commands/`，文件名 = 功能 + `.py`，例如：

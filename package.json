@@ -1,5 +1,5 @@
 {
-  "name": "alphafoundry-desktop",
+  "name": "research-workbench-desktop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,5 +19,8 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.8.4"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-notification": "2.4.0"
   }
 }

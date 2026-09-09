@@ -4,7 +4,7 @@
 
 ## Goal
 
-Allow a developer using the AlphaFoundry desktop workbench to reload the currently displayed workbench page without exiting or restarting the Tauri desktop window.
+Allow a developer using the Research Workbench desktop workbench to reload the currently displayed workbench page without exiting or restarting the Tauri desktop window.
 
 ## Scope
 

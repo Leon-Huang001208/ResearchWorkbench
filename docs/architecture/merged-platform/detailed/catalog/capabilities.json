@@ -1,0 +1,43 @@
+{
+  "schema_version": "merged-platform-blueprint-v1",
+  "capabilities": [
+    {"id":"CAP-RES-001","domain":"research-core","name":"shared-workspace","decision":"merge","description":"FinGPT 与 Claw 共用研究项目和工作区。","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"]},
+    {"id":"CAP-RES-002","domain":"research-core","name":"shared-evidence","decision":"merge","description":"统一 Evidence、Claim 与 Artifact 的来源追踪。","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"]},
+    {"id":"CAP-RES-003","domain":"research-core","name":"shared-research-notes","decision":"merge","description":"将 Claim 或段落置顶为版本化 Research Note。","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"]},
+    {"id":"CAP-RES-004","domain":"research-core","name":"session-history","decision":"merge","description":"统一会话、消息、附件和后台运行历史。","page_ids":["PAGE-P04","PAGE-P05"]},
+    {"id":"CAP-FIN-001","domain":"fingpt","name":"instant-research","decision":"retain","description":"用户驱动的即时金融研究问答。","page_ids":["PAGE-P04"]},
+    {"id":"CAP-FIN-002","domain":"fingpt","name":"report-distillation","decision":"retain","description":"从来源和报告中提炼 Evidence 与 Claim。","page_ids":["PAGE-P04"]},
+    {"id":"CAP-FIN-003","domain":"fingpt","name":"upgrade-to-claw","decision":"add","description":"将当前研究上下文升级为 Claw 任务。","page_ids":["PAGE-P04","PAGE-P05"]},
+    {"id":"CAP-CLW-001","domain":"claw","name":"supervisor","decision":"retain","description":"Supervisor 动态拆解和编排 Agent 任务。","page_ids":["PAGE-P05"]},
+    {"id":"CAP-CLW-002","domain":"claw","name":"agent-team","decision":"retain","description":"按声明式团队定义协同执行研究任务。","page_ids":["PAGE-P05","PAGE-P08"]},
+    {"id":"CAP-CLW-003","domain":"claw","name":"agent-schedule","decision":"retain","description":"持久化日程、租约、合并补跑和非重入控制。","page_ids":["PAGE-P05","PAGE-P08"]},
+    {"id":"CAP-CLW-004","domain":"claw","name":"duplicated-chat-shell","decision":"remove","description":"删除 Claw 与 FinGPT 重复的新建会话和独立研究历史。","page_ids":[]},
+    {"id":"CAP-CLW-005","domain":"claw","name":"shared-blackboard","decision":"add","description":"团队通过共享黑板交换结构化中间结果。","page_ids":["PAGE-P05"]},
+    {"id":"CAP-MKT-001","domain":"market","name":"five-section-home","decision":"add","description":"固定展示全球背景、A股状态、市场主线、重要事件和资产异动。","page_ids":["PAGE-P01"]},
+    {"id":"CAP-MKT-002","domain":"market","name":"transparent-mainline-ranking","decision":"add","description":"返回版本化主线排名及全部分项。","page_ids":["PAGE-P01"]},
+    {"id":"CAP-MKT-003","domain":"market","name":"immutable-close-snapshot","decision":"add","description":"盘后生成不可变收盘快照，历史只读对应交易日。","page_ids":["PAGE-P01"]},
+    {"id":"CAP-THM-001","domain":"theme","name":"pack-catalog","decision":"add","description":"展示四个首批 Research Pack 及生命周期。","page_ids":["PAGE-P02"]},
+    {"id":"CAP-THM-002","domain":"theme","name":"typed-theme-read-models","decision":"add","description":"提供快照、KPI、产业链、事件、资产暴露和数据健康。","page_ids":["PAGE-P02"]},
+    {"id":"CAP-THM-003","domain":"theme","name":"pack-quality-gate","decision":"add","description":"校验 Manifest、Observation、插件和兼容版本。","page_ids":["PAGE-P02","PAGE-P08"]},
+    {"id":"CAP-AST-001","domain":"asset","name":"unified-asset-snapshot","decision":"add","description":"统一股票、指数、ETF 和主动基金详情。","page_ids":["PAGE-P03"]},
+    {"id":"CAP-AST-002","domain":"asset","name":"peer-comparison","decision":"add","description":"返回可解释的同类集合定义和样本数。","page_ids":["PAGE-P03"]},
+    {"id":"CAP-AST-003","domain":"asset","name":"asset-event-context","decision":"add","description":"聚合资产事件、主题暴露和来源上下文。","page_ids":["PAGE-P03"]},
+    {"id":"CAP-ALT-001","domain":"asset","name":"alert-state-machine","decision":"add","description":"false 到 true 触发、冷却去重、恢复后 resolved。","page_ids":["PAGE-P06"]},
+    {"id":"CAP-ALT-002","domain":"asset","name":"watchlists","decision":"merge","description":"统一自选列表和多资产观察项。","page_ids":["PAGE-P03","PAGE-P06"]},
+    {"id":"CAP-ALT-003","domain":"asset","name":"durable-notification-inbox","decision":"add","description":"站内收件箱持久化通知并可投递桌面通知。","page_ids":["PAGE-P06"]},
+    {"id":"CAP-PLT-001","domain":"platform-core","name":"runtime-provider","decision":"add","description":"通过 RuntimeProvider 路由 LangGraph、DSH 和未来远程运行时。","page_ids":["PAGE-P08"]},
+    {"id":"CAP-PLT-002","domain":"platform-core","name":"allowlisted-mcp","decision":"add","description":"外部 MCP 必须预注册、授权和审计。","page_ids":["PAGE-P08"]},
+    {"id":"CAP-PLT-003","domain":"platform-core","name":"declarative-skills","decision":"add","description":"Skill 仅声明提示、Schema 与受控工具能力。","page_ids":["PAGE-P08"]},
+    {"id":"CAP-PLT-004","domain":"platform-core","name":"scheduler-coordinator","decision":"merge","description":"用 PostgreSQL 租约统一刷新、Agent 日程和提醒评估。","page_ids":["PAGE-P08"]}
+  ],
+  "pages": [
+    {"id":"PAGE-P01","route":"/market-home","name":"全市场首页","domain":"market","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},
+    {"id":"PAGE-P02","route":"/themes","name":"主题研究","domain":"theme","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},
+    {"id":"PAGE-P03","route":"/assets/:assetId","name":"资产观察","domain":"asset","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},
+    {"id":"PAGE-P04","route":"/fingpt","name":"FinGPT","domain":"fingpt","states":["default","loading","empty","partial","error","permission_denied"]},
+    {"id":"PAGE-P05","route":"/claw","name":"Claw","domain":"claw","states":["default","loading","empty","partial","blocked_runtime","error","permission_denied"]},
+    {"id":"PAGE-P06","route":"/watchlists","name":"自选与提醒","domain":"asset","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},
+    {"id":"PAGE-P07","route":"/research-library","name":"研究资料库","domain":"research-core","states":["default","loading","empty","partial","error","permission_denied"]},
+    {"id":"PAGE-P08","route":"/capabilities","name":"能力中心","domain":"platform-core","states":["default","loading","empty","partial","error","permission_denied"]}
+  ]
+}

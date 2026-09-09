@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "D01-04 · 交易日与首页快照状态机",
+    "output": "D01-04-market-state.html",
+    "viewBox": [
+      1800,
+      720
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "market-life-1",
+        "label": "主链",
+        "focus": [
+          "pre_open",
+          "open_am",
+          "lunch",
+          "open_pm",
+          "closed"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "market-life-2",
+        "label": "边界",
+        "focus": [
+          "lunch",
+          "non_trading"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "market-life-3",
+        "label": "异常",
+        "focus": [
+          "non_trading",
+          "degraded",
+          "open_am"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "主状态"
+    },
+    {
+      "id": "alternate",
+      "label": "等待或降级"
+    },
+    {
+      "id": "terminal",
+      "label": "终止或恢复"
+    }
+  ],
+  "states": [
+    {
+      "id": "pre_open",
+      "type": "start",
+      "label": "盘前",
+      "sublabel": "准备 live 投影",
+      "lane": "main",
+      "col": 0,
+      "step": "01"
+    },
+    {
+      "id": "open_am",
+      "type": "active",
+      "label": "开盘",
+      "sublabel": "30/60 秒刷新",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "lunch",
+      "type": "active",
+      "label": "午休",
+      "sublabel": "保留上午状态",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "open_pm",
+      "type": "decision",
+      "label": "午后开盘",
+      "sublabel": "恢复 live 刷新",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "closed",
+      "type": "success",
+      "label": "收盘",
+      "sublabel": "生成不可变快照",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "non_trading",
+      "type": "neutral",
+      "label": "非交易日",
+      "sublabel": "只读最近快照",
+      "lane": "alternate",
+      "col": 2
+    },
+    {
+      "id": "degraded",
+      "type": "failure",
+      "label": "数据降级",
+      "sublabel": "stale / unavailable",
+      "lane": "terminal",
+      "col": 2
+    }
+  ],
+  "transitions": [
+    {
+      "from": "lunch",
+      "to": "non_trading",
+      "variant": "security",
+      "route": "drop"
+    },
+    {
+      "from": "non_trading",
+      "to": "degraded",
+      "variant": "security",
+      "route": "drop"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主路径",
+      "items": [
+        "盘前",
+        "开盘",
+        "午休",
+        "午后开盘",
+        "收盘"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "等待/降级",
+      "items": [
+        "非交易日",
+        "只读最近快照",
+        "不把等待态伪装成成功"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "终止与恢复",
+      "items": [
+        "数据降级",
+        "stale / unavailable",
+        "恢复必须回到明确活动态"
+      ]
+    }
+  ]
+}

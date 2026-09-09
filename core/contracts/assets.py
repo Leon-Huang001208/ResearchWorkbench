@@ -2,7 +2,7 @@
 Core contracts for asset-related data structures.
 
 This module defines Pydantic models that standardize asset data representations
-across the AlphaFoundry system, ensuring consistent data exchange between
+across the Research Workbench system, ensuring consistent data exchange between
 services, data layers, and APIs.
 """
 

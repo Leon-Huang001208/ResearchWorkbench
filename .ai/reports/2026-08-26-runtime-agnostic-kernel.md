@@ -4,7 +4,7 @@
 
 - 新增 Runtime-neutral Core contracts，Core 未导入任何 DSH/Codex/Claude SDK。
 - 每日市场点评以 `WorkflowSpec` 编排 5 个原生 Tools、4 个 Runtime Skills、原生 Evaluator 和 Renderer；报告叙事必须在质量门禁通过后才能执行。
-- 新增 v2 PostgreSQL 账本模型、015 Alembic 迁移、`/api/v2` 工作流与可恢复 SSE 路由。
+- 新增 v2 PostgreSQL 账本模型、019 Alembic 迁移、`/api/v2` 工作流与可恢复 SSE 路由。
 - DSHAdapter 使用 HTTP/SSE Bridge Transport；独立 TypeScript Bundle 以 `@deepseek-ai/dsh-tools@0.1.1-rc.2` 和 Cordis 作为 peer dependencies。Bundle 强制回环、双向独立 Token、allowlist、幂等键、超时、稳定 session identity 和 `alphafoundry_submit_skill_result` 双重 Schema 校验。`npm run dsh:bootstrap` / `npm run dsh:web` 参考蒸研的 vendor checkout + 隔离 Profile 模式，项目管理固定 DSH Host，但不将 DSH SDK 写入根依赖或锁文件。
 - Archify 已交付架构图和时序图；两图结构 showcase 验证为 9/9。
 

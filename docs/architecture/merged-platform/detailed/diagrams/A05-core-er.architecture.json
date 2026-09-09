@@ -1,0 +1,25 @@
+{
+  "schema_version":1,"diagram_type":"architecture",
+  "meta":{"title":"A05 · 合并平台核心实体关系","output":"A05-core-er.html","quality_profile":"showcase","views":[{"id":"identity","label":"资产与主题","focus":["asset","identifier","observation","pack","snapshot"],"note":"稳定 Asset ID 连接供应商代码、主题观测和快照。"},{"id":"research","label":"研究对象","focus":["workspace","session","run","note"],"note":"Workspace 聚合会话并继续复用 Research Run。"},{"id":"personal","label":"观察与调度","focus":["watchlist","alert","notification","job"],"note":"个人观察和持久化调度独立于事实表。"}]},
+  "components":[
+    {"id":"asset","type":"database","label":"asset_registry","sublabel":"稳定资产身份","pos":[40,90],"size":[145,64]},
+    {"id":"identifier","type":"database","label":"asset_identifier","sublabel":"供应商代码有效期","pos":[250,90],"size":[155,64]},
+    {"id":"observation","type":"database","label":"theme_observation","sublabel":"统一主题事实","pos":[460,90],"size":[165,64]},
+    {"id":"pack","type":"database","label":"theme_pack","sublabel":"Manifest 生命周期","pos":[680,90],"size":[145,64]},
+    {"id":"snapshot","type":"database","label":"market_home_snapshot","sublabel":"不可变收盘快照","pos":[880,90],"size":[175,64]},
+    {"id":"workspace","type":"database","label":"research_workspace","sublabel":"研究项目根","pos":[250,300],"size":[165,64]},
+    {"id":"session","type":"database","label":"research_session","sublabel":"FinGPT / Claw 会话","pos":[470,300],"size":[165,64]},
+    {"id":"run","type":"database","label":"research_run（复用）","sublabel":"Evidence / Claim / Artifact","pos":[690,300],"size":[190,64]},
+    {"id":"note","type":"database","label":"research_note","sublabel":"版本化置顶内容","pos":[930,300],"size":[165,64]},
+    {"id":"watchlist","type":"database","label":"watchlist / item","sublabel":"稳定 Asset ID","pos":[40,500],"size":[165,64]},
+    {"id":"alert","type":"database","label":"alert_rule / event","sublabel":"状态与冷却","pos":[260,500],"size":[165,64]},
+    {"id":"notification","type":"database","label":"notification","sublabel":"站内收件箱","pos":[480,500],"size":[165,64]},
+    {"id":"job","type":"database","label":"scheduled_job","sublabel":"租约与合并补跑","pos":[730,500],"size":[165,64]}
+  ],
+  "connections":[
+    {"from":"asset","to":"identifier","label":"1:N"},{"from":"identifier","to":"observation","label":"解析"},{"from":"pack","to":"observation","label":"定义"},{"from":"observation","to":"snapshot","label":"聚合","fromSide":"bottom","toSide":"bottom","via":[[542.5,190],[967.5,190]],"labelAt":[880,190]},
+    {"from":"workspace","to":"session","label":"1:N"},{"from":"session","to":"run","label":"触发"},{"from":"run","to":"note","label":"置顶"},
+    {"from":"asset","to":"watchlist","label":"引用","variant":"dashed","fromSide":"bottom","toSide":"top","labelAt":[113,225]},{"from":"watchlist","to":"alert","label":"规则"},{"from":"alert","to":"notification","label":"触发"},{"from":"job","to":"alert","label":"评估","variant":"dashed","fromSide":"bottom","toSide":"bottom","via":[[812.5,610],[342.5,610]],"labelAt":[580,610]}
+  ],
+  "cards":[{"dot":"emerald","title":"继续复用","items":["research_run、Evidence、Claim、Artifact 不建平行表","股票、指数、ETF、基金事实结构继续复用"]},{"dot":"cyan","title":"新增根实体","items":["Asset Registry 统一跨供应商身份","Workspace、Pack、Watchlist 和 Job 分别成为边界根"]},{"dot":"rose","title":"完整性","items":["供应商代码有效期不得重叠","快照不可变，Note 不进入事实区"]}]
+}

@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-`app/api` exposes AlphaFoundry capabilities through FastAPI.
+`app/api` exposes Research Workbench capabilities through FastAPI.
 
 API routes should be thin and delegate business logic to `services`.
 
@@ -27,7 +27,7 @@ Purpose:
 - Creates and configures the FastAPI application lifecycle.
 - Performs startup health initialization and registers API routes.
 - Returns only the stable `ready` or `unavailable` persistence state from `/health`; underlying database exceptions remain in server-side structured logs rather than HTTP responses.
-- In an explicit `ALPHAFOUNDRY_PREVIEW=1` desktop process, preserves the readiness contract but skips schema initialization and automatic Wind/market/crawl background services, so branch acceptance does not mutate the shared runtime.
+- In an explicit `RESEARCH_PREVIEW=1` desktop process, preserves the readiness contract but skips schema initialization and automatic Wind/market/crawl background services, so branch acceptance does not mutate the shared runtime.
 
 Update this section when:
 
@@ -225,6 +225,26 @@ Update this section when:
 - Dependency injection configuration changes.
 - Structured data fallback logic changes.
 
+### `app/api/routes/asset_observation.py`
+
+Purpose:
+
+- Expose the canonical asset-observation API under `/api/asset-observation`.
+- Return four typed asset families through `AssetSnapshotEnvelope` without creating parallel fact tables.
+- Expose transparent peer-set metadata, multiple profile watchlists, Alert Rule/Event lifecycle, and persisted Notification delivery state.
+- Keep route handling thin, record structured write identifiers, and map failures to safe 400/404/409/500 responses without leaking internal exception strings.
+
+Related services and repository:
+
+- `services/asset_observation_service.py`
+- `services/alert_evaluation_service.py`
+- `data_layer/repositories/asset_observation_repository.py`
+
+Update this section when:
+
+- Asset-observation paths, request models, response contracts, or error mapping change.
+- Watchlist/Alert/Notification lifecycle behavior changes.
+
 ---
 
 ### `app/api/routes/funds.py`
@@ -296,9 +316,9 @@ Update this section when:
 Purpose:
 
 - Cross-domain, evidence-first research-center API. `ResearchRun` in PostgreSQL is the sole run-state authority; the route delegates template validation and domain behavior to `ResearchRunService`.
-- `GET /api/research-templates` — list framework-free metadata for available and planned templates. `GET /api/research-runs` lists recent runs.
-- `POST /api/research-runs` — create a draft from one normalized `ResearchSubject`, `template_key`, `as_of`, question, attachment references, and optional internal normalized evidence. Legacy `target_id` maps to a security subject.
-- `POST /api/research-runs/{run_id}/execute` — execute the resumable graph; quality-gate failures end in `blocked`, otherwise the run becomes `completed`.
+- `GET /api/research-templates` — list framework-free metadata for available and planned templates. `GET /api/research-runs` lists recent runs inside the supplied project/workspace scope.
+- Compatibility `POST /api/research-runs` remains additive, while the product path uses `POST /api/research-sessions/{session_id}/runs` so Session ownership and Run creation bind atomically under one project/workspace scope.
+- `POST /api/research-sessions/{session_id}/runs/{run_id}/execute` — execute through `RuntimeProvider` routing; FinGPT may fall back from DSH to built-in LangGraph, while Claw persists `blocked_runtime` instead of silently changing semantics.
 - `GET /api/research-runs/{run_id}` / `GET /api/research-runs/{run_id}/outputs` — return state, source plan, blockers, gates, immutable artifacts, current claims, decision card, notes, and Markdown projection.
 - `POST /api/research-runs/{run_id}/evidence` and `POST /api/research-runs/{run_id}/resume` — append corrective evidence then resume only a blocked run.
 - `GET /api/research-runs/{run_id}/downloads/markdown` and `/downloads/word` — export only a completed run; no trade instruction, position, or order is produced.
@@ -318,6 +338,43 @@ Update this section when:
 
 ---
 
+### Merged research runtime route groups
+
+Purpose:
+
+- `research_workspaces.py` / `research_sessions.py` own project-scoped Workspaces, one-Run Sessions, idempotent Messages, atomic Session→Run creation and scoped execution.
+- `runtime_providers.py` owns provider declarations and typed, idempotent DSH result callbacks that are correlated to the originating request and Run.
+- `research_skills.py` owns declarative Skill manifests. Execution revalidates the closed internal/MCP registry, input/output JSON Schema, budget and deadline before accepting output.
+- `agent_teams.py` owns Supervisor-led team definitions and bounded shared-blackboard execution.
+- `agent_schedules.py` owns persistent no-reentry/latest-coalesced schedules; due schedules materialize into leased `scheduled_job` work.
+- `research_runs.py` streams durable ordered stage events with `Last-Event-ID`; scoped Run reads require both `X-Project-ID` and `X-Workspace-ID`.
+
+The public route set is additive:
+
+```text
+/api/research-workspaces
+/api/research-sessions
+/api/research-runs
+/api/runtime-providers
+/api/research-skills
+/api/agent-teams
+/api/agent-schedules
+```
+
+Create, execute, resume and schedule-trigger operations require an `Idempotency-Key`. Runtime failures are returned without rolling back their persisted `blocked_runtime`/`failed` state.
+
+---
+
+### `app/api/routes/theme_research.py`
+
+Purpose:
+
+- Expose the four installed Research Packs through catalog, snapshot, KPI, value-chain, event, related-asset and data-health read models.
+- Create only a research Workspace prefill from a theme; the route never writes model output into theme facts.
+- Keep `theme_observation` ingestion behind the migration/service boundary rather than accepting arbitrary fact writes over HTTP.
+
+---
+
 ### `app/api/routes/system.py`
 
 Purpose:
@@ -328,15 +385,15 @@ Purpose:
 - `GET /api/system/workers/status` — aggregated worker/scheduler status + queue stats + processing stats (today, last_7_days, last_30_days, total, yesterday_same_time, daily_avg_7d).
 - `GET /api/system/status-bar` — dashboard status bar data (git branch, DB type, LLM provider, document count, error/warning counts).
 - `POST /api/system/event` — publish a system event to the event bus (for external integration/testing).
-- `GET /api/system/resource-usage` — current AlphaFoundry process snapshot plus a seven-field machine-capacity aggregate; it never enumerates or returns machine-wide process details, and its remaining-memory fields use the host `available` value.
+- `GET /api/system/resource-usage` — current Research Workbench process snapshot plus a seven-field machine-capacity aggregate; it never enumerates or returns machine-wide process details, and its remaining-memory fields use the host `available` value.
 - `GET /api/system/resource-usage/history?window_seconds=` — bounded in-memory snapshot history; `window_seconds` defaults to `300` and must be in the inclusive range `2`–`300`.
 - `GET /api/system/resource-usage/host-history?hours=` — persisted minute-level host-capacity history; `hours` defaults to `24` and must be in the inclusive range `1`–`24`.
 
 Resource usage dependency:
 
 - `get_resource_monitoring_service()` lazy-imports and retains one `ResourceMonitoringService` instance on first request, avoiding an eager `psutil` import at API startup.
-- 数据库就绪且不是 `ALPHAFOUNDRY_PREVIEW=1` 时，启动钩子会以函数内延迟导入创建并缓存一个 `ResourceMonitorRuntime`。它每分钟在单独数据库会话内采样、写入主机历史并评估既有资源告警；预览明确不启动该常驻线程。关闭钩子先安全停止该线程，运行时启动或停止失败只记录 `error_type`，不阻断 API。
-- Responses redact command arguments and map collection failures to public warning codes only: `field_unavailable`, `root_process_unavailable`, or `partial_data`. Internal exception classes and details are not exposed; per-process `unavailable_reason` is the stable `field_unavailable` value when data is unavailable. The `host` object always contains only CPU/available-memory capacity fields, and long-term history exposes only those fields plus AlphaFoundry CPU/memory proportions.
+- 数据库就绪且不是 `RESEARCH_PREVIEW=1` 时，启动钩子会以函数内延迟导入创建并缓存一个 `ResourceMonitorRuntime`。它每分钟在单独数据库会话内采样、写入主机历史并评估既有资源告警；预览明确不启动该常驻线程。关闭钩子先安全停止该线程，运行时启动或停止失败只记录 `error_type`，不阻断 API。
+- Responses redact command arguments and map collection failures to public warning codes only: `field_unavailable`, `root_process_unavailable`, or `partial_data`. Internal exception classes and details are not exposed; per-process `unavailable_reason` is the stable `field_unavailable` value when data is unavailable. The `host` object always contains only CPU/available-memory capacity fields, and long-term history exposes only those fields plus Research Workbench CPU/memory proportions.
 
 Related service:
 
@@ -372,6 +429,25 @@ Update this section when:
 - Heartbeat interval changes.
 - Event format changes.
 - Reconnection/replay behavior changes.
+
+---
+
+### `app/api/routes/market_home.py`
+
+Purpose:
+
+- Expose the facts-only five-section live aggregate, one-section drill-down, and immutable close snapshots.
+- Stream only `event_id`, `section_key`, and `as_of` invalidation references from durable `domain_event` records, including `Last-Event-ID` replay.
+- Map invalid close dates, missing snapshots, immutable conflicts, and internal failures to stable public errors without leaking exception text.
+- Start one durable close-snapshot consumer after database readiness and stop it during API shutdown; branch preview and setup-required modes do not start background work.
+
+Related modules:
+
+- `services/market_home_service.py`
+- `data_layer/repositories/market_home_repository.py`
+- `core/contracts/market_home.py`
+
+Update this section when the five-section set, mainline formula, SLA, snapshot, or SSE replay contract changes.
 
 ---
 
@@ -418,15 +494,15 @@ When files in this module change, check:
 
 ## Resource monitoring endpoints
 
-`app/api/routes/system.py` provides the AlphaFoundry-only resource monitoring API:
+`app/api/routes/system.py` provides the Research Workbench-only resource monitoring API:
 
 - `GET /api/system/resource-usage` returns the API process tree plus explicitly registered scheduler and knowledge Worker PIDs, together with a seven-field host-capacity aggregate. API in-process tasks are marked as shared estimates; independent Worker processes are marked as exact process measurements.
 - `GET /api/system/resource-usage/history` remains the in-memory, five-minute diagnostic series.
-- `GET /api/system/resource-usage/host-history` returns the persisted, sorted minute-level host-capacity series for the requested 1–24 hour window. The route forwards `hours` as the repository `since` filter; each point is limited to `sampled_at`, safe `host` capacity fields, and safe AlphaFoundry CPU/memory proportion fields. A repository read failure is distinct from valid no-data: it returns the stable 503 contract rather than an empty 200 series.
+- `GET /api/system/resource-usage/host-history` returns the persisted, sorted minute-level host-capacity series for the requested 1–24 hour window. The route forwards `hours` as the repository `since` filter; each point is limited to `sampled_at`, safe `host` capacity fields, and safe Research Workbench CPU/memory proportion fields. A repository read failure is distinct from valid no-data: it returns the stable 503 contract rather than an empty 200 series.
 - `GET /api/system/resource-events` returns persisted resource events for the requested history window and always includes unresolved events.
 - `POST /api/system/resource-events/{alert_id}/acknowledge` and `POST /api/system/resource-events/{alert_id}/resolve` apply the existing alert lifecycle.
 
-`/resource-usage` only collects and returns its snapshot; the runtime continuously evaluates resource events. API responses expose only whitelisted task attribution metadata and never exception text, commands, request bodies, secrets, or internal deduplication keys. AlphaFoundry events have `source_scope=alphafoundry`; host CPU/available-memory events have `source_scope=host_capacity`. These endpoints do not emit native desktop notifications.
+`/resource-usage` only collects and returns its snapshot; the runtime continuously evaluates resource events. API responses expose only whitelisted task attribution metadata and never exception text, commands, request bodies, secrets, or internal deduplication keys. Research Workbench events have `source_scope=research_workbench`; host CPU/available-memory events have `source_scope=host_capacity`. These endpoints do not emit native desktop notifications.
 
 The route opens a database session only for the individual resource-event or host-history operation; no monitoring repository session is retained between HTTP requests.
 

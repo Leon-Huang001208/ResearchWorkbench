@@ -1,5 +1,5 @@
 # Control Layer Hardening Report
-**Task**: af-auto-000-04c
+**Task**: rwb-auto-000-04c
 **Date**: 2026-05-11
 **Status**: Complete
 
@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This report documents the hardening of the `.ai` autonomous control layer for AlphaFoundry. The changes transform the basic script set into a reliable, auditable workflow controller with clear failure semantics.
+This report documents the hardening of the `.ai` autonomous control layer for Research Workbench. The changes transform the basic script set into a reliable, auditable workflow controller with clear failure semantics.
 
 ---
 
@@ -25,7 +25,7 @@ This report documents the hardening of the `.ai` autonomous control layer for Al
 
 **New Rules Added**:
 ```
-1. NO business logic modification during audit tasks (af-auto-000)
+1. NO business logic modification during audit tasks (rwb-auto-000)
 2. ONLY commit .ai directory and CLAUDE.md changes for audit tasks
 3. FAIL LOUDLY - scripts MUST exit with non-zero code on real failures
 4. NO fake success states - don't report "✓" unless verified
@@ -224,4 +224,4 @@ The `.ai` control layer is now hardened into a reliable foundation. The scripts:
 - Have explicit safety guarantees
 - Can orchestrate task state properly
 
-The layer is ready for use in managing the af-auto-000 audit workflow.
+The layer is ready for use in managing the rwb-auto-000 audit workflow.

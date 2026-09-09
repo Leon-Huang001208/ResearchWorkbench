@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-if [[ -n "${ALPHAFOUNDRY_PYTHON:-}" ]]; then
-    PYTHON_BIN="$ALPHAFOUNDRY_PYTHON"
+if [[ -n "${RESEARCH_PYTHON:-}" ]]; then
+    PYTHON_BIN="$RESEARCH_PYTHON"
 elif command -v python3.11 >/dev/null 2>&1; then
     PYTHON_BIN="$(command -v python3.11)"
 elif [[ -x "$HOME/opt/anaconda3/bin/python" ]]; then
@@ -20,7 +20,7 @@ fi
 
 if [[ -z "$PYTHON_BIN" || ! -x "$PYTHON_BIN" ]]; then
     echo "Python runtime not found or not executable: $PYTHON_BIN" >&2
-    echo "Set ALPHAFOUNDRY_PYTHON=/path/to/python and retry." >&2
+    echo "Set RESEARCH_PYTHON=/path/to/python and retry." >&2
     exit 1
 fi
 

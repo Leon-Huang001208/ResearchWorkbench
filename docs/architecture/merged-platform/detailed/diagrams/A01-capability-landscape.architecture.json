@@ -1,0 +1,21 @@
+{
+  "schema_version":1,"diagram_type":"architecture",
+  "meta":{"title":"A01 · 产品能力到实施追踪","output":"A01-capability-landscape.html","quality_profile":"showcase","views":[{"id":"decision","label":"能力决策","focus":["goal","domain","decision","trace"],"note":"从用户目标进入领域，明确保留、合并、删除或新增。"},{"id":"delivery","label":"实施落点","focus":["trace","page","api","service","data"],"note":"每个活跃能力必须落到页面、API、服务和数据 Owner。"}]},
+  "components":[
+    {"id":"goal","type":"external","label":"用户目标","sublabel":"发现、研究、观察、执行","pos":[40,250],"size":[140,68]},
+    {"id":"domain","type":"frontend","label":"产品领域","sublabel":"市场 / 主题 / 资产 / 研究","pos":[250,250],"size":[150,68]},
+    {"id":"decision","type":"security","label":"能力决策","sublabel":"retain / merge / remove / add","pos":[470,250],"size":[160,68]},
+    {"id":"trace","type":"backend","label":"追踪 Catalog","sublabel":"CAP / PAGE / API","pos":[700,250],"size":[155,68]},
+    {"id":"page","type":"frontend","label":"页面与状态","sublabel":"8 个核心页面","pos":[930,90],"size":[150,64]},
+    {"id":"api","type":"cloud","label":"API Atlas","sublabel":"HTTP / SSE","pos":[930,200],"size":[150,64]},
+    {"id":"service","type":"backend","label":"Service / Contract","sublabel":"模块边界","pos":[930,310],"size":[150,64]},
+    {"id":"data","type":"database","label":"数据 Owner","sublabel":"事实 / 研究 / 个人","pos":[930,420],"size":[150,64]},
+    {"id":"removed","type":"external","label":"重复能力删除","sublabel":"必须声明替代能力","pos":[470,430],"size":[160,64]}
+  ],
+  "connections":[
+    {"from":"goal","to":"domain","label":"归类","variant":"emphasis"},{"from":"domain","to":"decision","label":"评估"},{"from":"decision","to":"trace","label":"编号","variant":"security"},
+    {"from":"trace","to":"page","fromSide":"right","toSide":"left"},{"from":"trace","to":"api","fromSide":"right","toSide":"left"},{"from":"trace","to":"service","fromSide":"right","toSide":"left"},{"from":"trace","to":"data","fromSide":"right","toSide":"left"},
+    {"from":"decision","to":"removed","label":"remove","variant":"dashed","fromSide":"bottom","toSide":"top","labelAt":[550,370]},{"from":"removed","to":"trace","label":"替代链","variant":"dashed","fromSide":"right","toSide":"bottom"}
+  ],
+  "cards":[{"dot":"emerald","title":"保留与合并","items":["FinGPT 即时研究保留","Claw 任务编排保留","研究工作区与证据内核合并"]},{"dot":"rose","title":"删除门槛","items":["删除项不再拥有平行页面和接口","必须明确 replacement_capability_ids"]},{"dot":"cyan","title":"实施验收","items":["活跃能力可追踪到页面、接口、服务和数据","Catalog 由测试和生成器双重校验"]}]
+}

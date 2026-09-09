@@ -23,7 +23,7 @@
 Purpose:
 - Base repository class providing common database access patterns.
 - Creates the process-wide SQLAlchemy engine only after `core.settings` has resolved its runtime configuration.
-- Reports PostgreSQL startup failures without returning connection credentials; desktop callers must install PostgreSQL + pgvector instead of receiving a SQLite fallback.
+- Reports PostgreSQL startup failures without returning connection credentials; desktop callers must install PostgreSQL + pgvector and enable both `vector` and `btree_gist` instead of receiving a SQLite fallback.
 
 Update this section when:
 - Base query methods change.
@@ -35,6 +35,10 @@ Update this section when:
 
 Purpose:
 - SQLAlchemy ORM model definitions for all database tables.
+- 定义合并平台 20 张新增表：共享事实核 5 张、主题/首页 2 张、研究运行时 8 张、个人观察 5 张；继续复用既有 Research Run 与股票/指数/ETF/基金事实表。
+- `domain_event` 是持久事件权威；`scheduled_job` 保存租约与幂等状态，并以命名 CHECK 强制 no-reentry/latest 和完整 lease pair；`theme_observation` 是唯一主题事实表，主题六类读模型不物化。
+- `asset_identifier` 在 PostgreSQL 以半开时间范围 exclusion constraint 阻止同一供应商代码的有效期重叠，并要求 `valid_to > valid_from`；文本等值 GiST 运算符由必需的 `btree_gist` 扩展提供。
+- `research_session` 以 CHECK 强制 mode/scope 一致，`research_message` 通过 Session 推导 Workspace 且 content/content_ref 恰一非空；`agent_schedule` 以 CHECK 强制 no-reentry/latest；`research_note` 以 CHECK 强制 Claim-only 或 Run+paragraph 两种互斥来源并复用既有 Run/Claim，`watchlist_item` 只引用 `asset_registry.asset_id`。
 
 Update this section when:
 - New tables are added.
@@ -53,6 +57,73 @@ Related service:
 
 Update this section when:
 - Research state, artifact idempotency, or projection replacement semantics change.
+
+### `data_layer/repositories/research_workspace_repository.py`
+
+Purpose:
+
+- Persist project-scoped Workspace, one-Run Session, idempotent Message, Runtime Provider, Skill, Agent Team/Schedule and versioned Research Note records without creating a second Research Run table.
+- Reserve create/execute/resume/provider-result idempotency keys atomically and reject cross-operation, cross-request or cross-Run replay.
+- Enforce Run ownership through Session scope, persist ordered stage events for `Last-Event-ID`, and store archive-pending outbox work outside the completed Run transaction.
+- Lease `scheduled_job` rows using owner, expiry and fencing token; completion/renewal from a stale worker is rejected.
+
+### `data_layer/repositories/theme_research_repository.py`
+
+Purpose:
+
+- Persist immutable Pack versions and the single `theme_observation` fact model; lifecycle reads are database-authoritative rather than request-local registry state.
+- Preserve source hashes, row identity, full normalized payload, quality flags and ingestion checkpoints for dry-run/apply/resume audit.
+- Read typed snapshot/KPI/value-chain/event/asset/health projections without materializing six parallel fact tables.
+- Flush theme facts and market-home invalidation outbox in the caller transaction; failures roll back both.
+
+### `data_layer/repositories/asset_observation_repository.py`
+
+Purpose:
+
+- Read canonical identity and current identifier validity from `asset_registry` / `asset_identifier`.
+- Compose stock, index, ETF, and active-fund projections by reading existing structured fact tables; it never owns or duplicates those facts.
+- Persist only Watchlist, Watchlist Item, Alert Rule/Event, and Notification personal state.
+- Keep Watchlist membership stable across vendor-code changes by using canonical `asset_id`.
+- Flush writes without committing; `data_layer.repositories.base.get_db` owns the request transaction.
+
+Related services:
+
+- `services/asset_observation_service.py`
+- `services/alert_evaluation_service.py`
+
+Update this section when:
+
+- Canonical asset projection or peer-selection queries change.
+- Watchlist/Alert/Notification persistence or transaction boundaries change.
+
+### `data_layer/repositories/market_home_repository.py`
+
+Purpose:
+
+- Read the five live facts-only projections from existing quote, event, and theme-observation tables without owning those facts.
+- Persist and read the five immutable close rows in `market_home_snapshot`; historical reads never call live providers.
+- Resume `market_home.section_invalidated` records from durable `domain_event` by `Last-Event-ID`, exposing only the three-field invalidation contract.
+- Flush writes without committing; `data_layer.repositories.base.get_db` owns the request transaction.
+
+Related service:
+
+- `services/market_home_service.py`
+
+Update this section when live fact sources, snapshot identity, or durable event replay semantics change.
+
+### `data_layer/repositories/market_home_invalidation.py`
+
+Purpose:
+
+- Normalize writer timestamps to UTC and append idempotent market-home invalidation events in the caller's open fact transaction.
+- Provide one data-layer helper shared by market bars, document events and theme observations without importing the service layer.
+- Log only idempotency keys, section keys and normalized timestamps; transaction commit/rollback remains owned by the caller.
+
+Related coordinator:
+
+- `services/market_home_invalidation.py` owns close-snapshot scheduling and materialization, not fact writer persistence.
+
+Update this section when fact-writer invalidation or transaction semantics change.
 
 ---
 
@@ -280,7 +351,7 @@ Update this section when:
 Resource monitoring usage:
 
 - 资源监控第二期复用 `alert_payload` 与 `incident_record`，通过 `Subsystem.RESOURCE_MONITORING` 过滤事件，不创建重复告警表。
-- 资源事件的任务/来源/PID/置信度归因存放在既有 JSON `metadata`；AlphaFoundry 受控任务事件使用 `source_scope=alphafoundry`，整机 CPU/可用内存容量事件使用 `source_scope=host_capacity`；不得存储秘密、命令参数或异常原文。
+- 资源事件的任务/来源/PID/置信度归因存放在既有 JSON `metadata`；Research Workbench 受控任务事件使用 `source_scope=research_workbench`，整机 CPU/可用内存容量事件使用 `source_scope=host_capacity`；不得存储秘密、命令参数或异常原文。
 - 未解决的资源告警在 API 查询中始终返回，即使其早于默认 90 天历史窗口。
 - `update_alert_details_if_unresolved()` 以 `alert_id` 和 `status != resolved` 为条件原子更新 severity、标题、描述、阈值及安全 metadata；它不会写入确认或解决字段，已解决记录仅返回当前值。
 - `get_or_create_open_resource_alert()` 按任意资源事件去重键查询未解决事件，并以周期序号确定性主键在 savepoint 中创建；并发主键冲突后使用独立只读事务返回当前未解决事件，避免 SQLite 旧读快照且不回滚调用者事务。已解决历史保留，后续周期生成新 ID。

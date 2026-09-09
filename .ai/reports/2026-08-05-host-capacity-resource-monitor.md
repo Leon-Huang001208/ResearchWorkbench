@@ -6,12 +6,12 @@
 
 ## Documented contracts
 
-- The system-monitor page uses the in-process AlphaFoundry diagnostic path: a maximum five-minute / 150-point snapshot history of the API process tree and explicitly registered AlphaFoundry Workers. It does not enumerate other machine processes.
-- `ResourceMonitorRuntime` is the distinct persistent path. When database readiness succeeds and `ALPHAFOUNDRY_PREVIEW != 1`, one stoppable thread samples host capacity each minute, persists a whitelisted aggregate, retains 24 hours, and evaluates resource events.
+- The system-monitor page uses the in-process Research Workbench diagnostic path: a maximum five-minute / 150-point snapshot history of the API process tree and explicitly registered Research Workbench Workers. It does not enumerate other machine processes.
+- `ResourceMonitorRuntime` is the distinct persistent path. When database readiness succeeds and `RESEARCH_PREVIEW != 1`, one stoppable thread samples host capacity each minute, persists a whitelisted aggregate, retains 24 hours, and evaluates resource events.
 - `GET /api/system/resource-usage/host-history?hours=1..24` reads that persisted history. `memory_available_bytes` and `memory_available_percent` mean the operating system `available` value, not `total - used`.
-- Alert metadata distinguishes controlled application events with `source_scope=alphafoundry` from host CPU/available-memory capacity events with `source_scope=host_capacity`.
+- Alert metadata distinguishes controlled application events with `source_scope=research_workbench` from host CPU/available-memory capacity events with `source_scope=host_capacity`.
 - Resource events are presented by the API/system-monitor page; no native desktop notification is emitted.
-- Branch previews deliberately set `ALPHAFOUNDRY_PREVIEW=1`; the persistent runtime does not start there, so previews cannot establish 24-hour background collection.
+- Branch previews deliberately set `RESEARCH_PREVIEW=1`; the persistent runtime does not start there, so previews cannot establish 24-hour background collection.
 
 ## Files updated
 
@@ -43,11 +43,11 @@
 ## Isolated desktop-preview evidence
 
 1. Read-only port inspection found no listener on `127.0.0.1:8766`; the stable desktop listener on `8765` was not inspected, started, stopped, or changed.
-2. Started the documented isolated command: `npm run desktop:preview -- --port 8766`. It created a temporary runtime-data directory and set `ALPHAFOUNDRY_PREVIEW=1`.
+2. Started the documented isolated command: `npm run desktop:preview -- --port 8766`. It created a temporary runtime-data directory and set `RESEARCH_PREVIEW=1`.
 3. `GET http://127.0.0.1:8766/api/system/health/minimal` returned HTTP 200.
 4. `GET http://127.0.0.1:8766/api/system/resource-usage` returned HTTP 200 with `status="degraded"`, a seven-field `host` aggregate, one API process, and public `field_unavailable` warnings for local I/O/connection fields. This verifies the endpoint response under the isolated preview.
 5. `GET http://127.0.0.1:8766/api/system/resource-usage/host-history?hours=24` returned HTTP 503 with `{"detail":"Host resource history unavailable"}`. Preview logs show database setup-required mode and the database session failure; this is the documented unavailable-storage contract, not a successful 24-hour-history verification.
-6. Preview startup logged that background workers were skipped, and the application startup path skips `ResourceMonitorRuntime` when `ALPHAFOUNDRY_PREVIEW=1`. The isolated preview was then stopped with its own process interrupt; no listener remained on 8766.
+6. Preview startup logged that background workers were skipped, and the application startup path skips `ResourceMonitorRuntime` when `RESEARCH_PREVIEW=1`. The isolated preview was then stopped with its own process interrupt; no listener remained on 8766.
 
 ## Remaining risks and unverified boundaries
 

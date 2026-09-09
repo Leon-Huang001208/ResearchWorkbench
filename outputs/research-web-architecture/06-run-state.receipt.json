@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/06-run-state-final.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/06-run-state.html",
+  "specification": {
+    "sha256": "9fb37a9d06c87643d5afd8357610da69a803292d54c7f4ea35b5b0e812691e60",
+    "bytes": 3014
+  },
+  "artifact": {
+    "sha256": "12db8cb4ba6e704a23b6e0705d58d3733f76512670b21c4b1f3a572bfc511c8b",
+    "bytes": 634543
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

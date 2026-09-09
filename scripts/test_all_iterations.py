@@ -14,7 +14,7 @@ from app.api.main import app
 client = TestClient(app)
 
 print("=" * 80)
-print("AlphaFoundry - All Iterations Final Test")
+print("Research Workbench - All Iterations Final Test")
 print("=" * 80)
 
 

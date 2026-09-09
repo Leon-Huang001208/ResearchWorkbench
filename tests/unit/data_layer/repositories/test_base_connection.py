@@ -24,7 +24,7 @@ def test_database_connection_error_is_dialect_specific_and_sanitized(
         "SELECT 1",
         {},
         ConnectionError(
-            "cannot reach postgresql://secret-user:super-secret@db.internal:5432/alphafoundry"
+            "cannot reach postgresql://secret-user:super-secret@db.internal:5432/research_workbench"
         ),
     )
     monkeypatch.setattr(base, "engine", engine)

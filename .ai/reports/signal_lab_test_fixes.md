@@ -1,6 +1,6 @@
 # Signal Lab Test Fixes
 
-**任务**: af-auto-001-01d (Fix signal_lab test failures)
+**任务**: rwb-auto-001-01d (Fix signal_lab test failures)
 **日期**: 2026-05-11
 **状态**: Completed
 

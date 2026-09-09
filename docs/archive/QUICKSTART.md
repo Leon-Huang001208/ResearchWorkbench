@@ -1,6 +1,6 @@
 # 快速开始指南
 
-本指南将帮助您快速上手 AlphaFoundry。
+本指南将帮助您快速上手 Research Workbench。
 
 ## 目录
 
@@ -21,7 +21,7 @@
 1. **克隆或进入项目目录**
 
 ```bash
-cd AlphaFoundry
+cd Research Workbench
 ```
 
 2. **创建虚拟环境（推荐）**
@@ -58,7 +58,7 @@ cp .env.example .env
 
 ```env
 # 数据库（可选，模拟模式不需要）
-DATABASE_URL=postgresql://user:password@localhost:5432/alphafoundry
+DATABASE_URL=postgresql://user:password@localhost:5432/research_workbench
 
 # 模型网关（可选，报告生成使用）
 MODEL_PROVIDER=openai_compatible
@@ -92,7 +92,7 @@ alembic upgrade head
 
 ```bash
 # 使用模拟数据分析一支股票
-af analyze --asset 600000.SH
+rwb analyze --asset 600000.SH
 ```
 
 这将：
@@ -133,13 +133,13 @@ with get_db() as db:
 ### Markdown 报告
 
 ```bash
-af analyze --asset 600000.SH --output analysis.md
+rwb analyze --asset 600000.SH --output analysis.md
 ```
 
 ### Word 文档
 
 ```bash
-af analyze --asset 600000.SH --output analysis.docx
+rwb analyze --asset 600000.SH --output analysis.docx
 ```
 
 ### 自定义报告（Python API）

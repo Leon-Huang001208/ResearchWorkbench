@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       release_name:
-        description: "Release title. Empty uses AlphaFoundry Desktop <tag>."
+        description: "Release title. Empty uses Research Workbench Desktop <tag>."
         required: false
         type: string
   push:
@@ -37,7 +37,7 @@ jobs:
       TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      ALPHAFOUNDRY_UPDATER_ENDPOINT: ${{ vars.ALPHAFOUNDRY_UPDATER_ENDPOINT }}
+      RESEARCH_UPDATER_ENDPOINT: ${{ vars.RESEARCH_UPDATER_ENDPOINT }}
 
     steps:
       - name: Checkout
@@ -59,7 +59,7 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${{ inputs.release_name }}" ]]; then
             release_name="${{ inputs.release_name }}"
           else
-            release_name="AlphaFoundry Desktop ${release_tag}"
+            release_name="Research Workbench Desktop ${release_tag}"
           fi
 
           echo "RELEASE_TAG=${release_tag}" >> "$GITHUB_ENV"
@@ -81,7 +81,7 @@ jobs:
           if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and '${{ inputs.release_name }}') {
             $releaseName = '${{ inputs.release_name }}'
           } else {
-            $releaseName = "AlphaFoundry Desktop $releaseTag"
+            $releaseName = "Research Workbench Desktop $releaseTag"
           }
 
           "RELEASE_TAG=$releaseTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -155,7 +155,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sidecar="build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}"
+          sidecar="build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}"
           if [[ ! -f "$sidecar" ]]; then
             echo "Expected sidecar was not produced: $sidecar" >&2
             exit 1
@@ -166,7 +166,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $sidecar = "build/desktop-sidecar/dist/alphafoundry-backend-${{ matrix.triple }}.exe"
+          $sidecar = "build/desktop-sidecar/dist/research-workbench-backend-${{ matrix.triple }}.exe"
           if (-not (Test-Path -LiteralPath $sidecar -PathType Leaf)) {
             throw "Expected sidecar was not produced: $sidecar"
           }

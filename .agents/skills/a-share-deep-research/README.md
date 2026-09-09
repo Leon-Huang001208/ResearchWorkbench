@@ -2,7 +2,7 @@
 
 ## 用途
 
-`a-share-deep-research` 是 AlphaFoundry 通用研究中心注册的首个可执行 Research Template，将单一 A 股公司研究约束为可恢复、可追溯的 Research Run。它不是独立页面；宏观、商品、指数和行业使用各自模板。该模板不输出仓位、交易指令或自动下单结果。
+`a-share-deep-research` 是 Research Workbench 通用研究中心注册的首个可执行 Research Template，将单一 A 股公司研究约束为可恢复、可追溯的 Research Run。它不是独立页面；宏观、商品、指数和行业使用各自模板。该模板不输出仓位、交易指令或自动下单结果。
 
 ## 使用方式
 

@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from fastapi import Header, HTTPException, Request
 
-CONFIGURATION_CSRF_META_PLACEHOLDER = "__ALPHAFOUNDRY_CONFIG_TOKEN__"
+CONFIGURATION_CSRF_META_PLACEHOLDER = "__RESEARCH_CONFIG_TOKEN__"
 CONFIGURATION_CSRF_TOKEN = secrets.token_urlsafe(32)
 DEFAULT_TRUSTED_HOSTS = ("localhost", "127.0.0.1", "testserver")
 DESKTOP_CORS_ORIGINS = (
@@ -31,7 +31,7 @@ def parse_cors_origins(raw_origins: str | None) -> list[str]:
             parsed = urlsplit(origin)
             _ = parsed.port
         except ValueError as exc:
-            raise ValueError("ALPHAFOUNDRY_CORS_ORIGINS contains an invalid origin") from exc
+            raise ValueError("RESEARCH_CORS_ORIGINS contains an invalid origin") from exc
         if (
             origin == "*"
             or parsed.scheme not in {"http", "https"}
@@ -42,7 +42,7 @@ def parse_cors_origins(raw_origins: str | None) -> list[str]:
             or parsed.query
             or parsed.fragment
         ):
-            raise ValueError("ALPHAFOUNDRY_CORS_ORIGINS contains an invalid origin")
+            raise ValueError("RESEARCH_CORS_ORIGINS contains an invalid origin")
         if origin not in origins:
             origins.append(origin)
     return origins
@@ -73,7 +73,7 @@ def parse_trusted_hosts(raw_hosts: str | None) -> list[str]:
     for raw_host in raw_hosts.split(","):
         host = raw_host.strip()
         if host == "*" or not _is_hostname_or_ipv4(host):
-            raise ValueError("ALPHAFOUNDRY_TRUSTED_HOSTS contains an invalid host")
+            raise ValueError("RESEARCH_TRUSTED_HOSTS contains an invalid host")
         if host not in hosts:
             hosts.append(host)
     return hosts
@@ -88,13 +88,13 @@ def validate_cors_trusted_host_consistency(
         hostname = urlsplit(origin).hostname
         if hostname not in trusted:
             raise ValueError(
-                "ALPHAFOUNDRY_CORS_ORIGINS host must also be listed in "
-                "ALPHAFOUNDRY_TRUSTED_HOSTS"
+                "RESEARCH_CORS_ORIGINS host must also be listed in "
+                "RESEARCH_TRUSTED_HOSTS"
             )
 
 
-CONFIGURATION_TRUSTED_HOSTS = parse_trusted_hosts(os.environ.get("ALPHAFOUNDRY_TRUSTED_HOSTS"))
-CONFIGURATION_CORS_ORIGINS = parse_cors_origins(os.environ.get("ALPHAFOUNDRY_CORS_ORIGINS"))
+CONFIGURATION_TRUSTED_HOSTS = parse_trusted_hosts(os.environ.get("RESEARCH_TRUSTED_HOSTS"))
+CONFIGURATION_CORS_ORIGINS = parse_cors_origins(os.environ.get("RESEARCH_CORS_ORIGINS"))
 validate_cors_trusted_host_consistency(CONFIGURATION_CORS_ORIGINS, CONFIGURATION_TRUSTED_HOSTS)
 APPLICATION_CORS_ORIGINS = list(dict.fromkeys((*DESKTOP_CORS_ORIGINS, *CONFIGURATION_CORS_ORIGINS)))
 
@@ -136,7 +136,7 @@ def _require_loopback_client(request: Request) -> None:
 
 def require_configuration_csrf_token(
     request: Request,
-    submitted_token: Annotated[str | None, Header(alias="X-AlphaFoundry-Config-Token")] = None,
+    submitted_token: Annotated[str | None, Header(alias="X-Research Workbench-Config-Token")] = None,
     origin: Annotated[str | None, Header(alias="Origin")] = None,
 ) -> None:
     """Require local access, a trusted origin, and the process CSRF token."""

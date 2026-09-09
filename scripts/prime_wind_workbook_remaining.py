@@ -36,7 +36,7 @@ print(f"Total formula rows: {len(formulas)}", flush=True)
 book = None
 for app in xw.apps:
     for b in app.books:
-        if "AlphaFoundry_Wind_Realtime" in b.name:
+        if "Research Workbench_Wind_Realtime" in b.name:
             book = b
             break
 

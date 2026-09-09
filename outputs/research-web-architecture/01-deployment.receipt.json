@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/docs/architecture/research-web/diagrams/01-deployment.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/outputs/research-web-architecture/01-deployment.html",
+  "specification": {
+    "sha256": "010a5f12c41cf72491b77c9ba7904b7bbab2c1617efcafa349d9f6a6481e9d16",
+    "bytes": 4303
+  },
+  "artifact": {
+    "sha256": "a19b8c1258b946b79c332987b848761c4a45e0d8836df792314289d01bf2ea46",
+    "bytes": 641186
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

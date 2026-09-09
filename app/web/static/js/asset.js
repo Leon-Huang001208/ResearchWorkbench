@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Asset Analysis Module
+   Research Workbench — Asset Analysis Module
    ============================================================ */
 
 import { apiCall, toast, esc, getChartColors, fmtVolume, fmtAmount, fmtMarketCap, fmtRevenue, fmtNetProfit } from './core.js';
@@ -112,7 +112,7 @@ const THEME_OBSERVATION_PRESETS = {
         ],
         news: [
             { title: '主题热度上升，资金关注相关产业链方向', source: '市场监控', time: '实时' },
-            { title: '相关 ETF 与指数同步异动，等待进一步拆解成分贡献', source: 'AlphaFoundry', time: '实时' },
+            { title: '相关 ETF 与指数同步异动，等待进一步拆解成分贡献', source: 'Research Workbench', time: '实时' },
         ],
         notes: [
             '该主题来自市场矩阵实时异动。',
@@ -966,15 +966,52 @@ async function analyzeAssetByCode(code, timeRange = null) {
     if (result) result.classList.add('hidden');
     if (loading) loading.classList.remove('hidden');
     try {
-        const data = await apiCall('POST', '/api/assets/analysis-card', { canonical_id: code, time_range: range });
-        renderAssetAnalysisCard(data);
+        const snapshot = await apiCall(
+            'GET',
+            `/api/asset-observation/assets/${encodeURIComponent(code)}`
+        );
+        renderAssetAnalysisCard(normalizeAssetObservationSnapshot(snapshot));
         if (result) result.classList.remove('hidden');
-        loadAssetAgentCommittee(code, range);
     } catch (e) {
         toast(e.message, 'error');
     } finally {
         if (loading) loading.classList.add('hidden');
     }
+}
+
+function normalizeAssetObservationSnapshot(snapshot = {}) {
+    const asset = snapshot.asset || {};
+    const market = snapshot.market_data || {};
+    const details = snapshot.type_payload || {};
+    const currentPrice = market.last ?? market.close ?? market.nav ?? market.unit_nav ?? null;
+    return {
+        canonical_id: asset.asset_id,
+        basic_info: {
+            ...details,
+            name: asset.display_name || asset.asset_id,
+            symbol: snapshot.identifiers?.[0] || asset.asset_id,
+            asset_type: asset.asset_type,
+        },
+        current_price: currentPrice,
+        price_change: market.change ?? null,
+        price_change_pct: market.change_pct ?? market.daily_return ?? null,
+        volume: market.volume ?? null,
+        amount: market.amount ?? null,
+        turnover: market.turnover ?? null,
+        price_bars: (snapshot.history || []).map(point => ({
+            ...point,
+            date: point.date || point.as_of,
+        })),
+        recent_events: snapshot.events || [],
+        financial: {
+            pe_ttm: market.pe ?? null,
+            pb_mrq: market.pb ?? null,
+        },
+        themes: snapshot.themes || [],
+        freshness_status: snapshot.freshness_status,
+        quality_flags: snapshot.quality_flags || [],
+        source_refs: snapshot.source_refs || [],
+    };
 }
 
 async function analyzeAsset() {
@@ -1033,7 +1070,7 @@ function startResearchFromAsset() {
         toast('请先选择一个资产或主题', 'warning');
         return;
     }
-    document.dispatchEvent(new CustomEvent('alphafoundry:open-research-center', {
+    document.dispatchEvent(new CustomEvent('research_workbench:open-research-center', {
         detail: prefill,
     }));
 }
@@ -1095,22 +1132,6 @@ function resetAssetAgentCommittee() {
     setAssetAgentCommitteeStatus('分析中', 'loading');
     if (summary) summary.innerHTML = '<div class="empty-state">正在运行宏观、基本面、技术面 Agent...</div>';
     if (views) views.innerHTML = '';
-}
-
-async function loadAssetAgentCommittee(code, range) {
-    resetAssetAgentCommittee();
-    try {
-        const data = await apiCall('POST', '/api/assets/agent-committee', {
-            canonical_id: code,
-            time_range: range,
-            question: '这个标的是否值得进入研究池？',
-        });
-        if (currentCanonicalId !== code) return;
-        renderAssetAgentCommittee(data);
-    } catch (e) {
-        if (currentCanonicalId !== code) return;
-        renderAssetAgentCommitteeError(e.message);
-    }
 }
 
 function renderAssetAgentCommitteeError(message) {

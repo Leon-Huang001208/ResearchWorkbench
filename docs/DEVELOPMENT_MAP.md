@@ -1,6 +1,38 @@
-# AlphaFoundry Development Map
+# Research Workbench Development Map
 
-This file maps AlphaFoundry subsystems to source files, tests, and required documentation updates.
+This file maps Research Workbench subsystems to source files, tests, and required documentation updates.
+
+## Current Web research implementation (2026-09-04)
+
+Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
+Read the canonical [Research Web architecture](architecture/research-web/README.md),
+[implementation notes](research-web.md) and [UI contract](research-web-ui.md) first for this product.
+The machine-readable [architecture map](architecture/research-web/architecture-map.json) connects
+current source modules, Markdown, diagrams and tests. Local acceptance is recorded separately from structural consistency.
+The legacy subsystems below remain historical implementations, not dependencies to add to this new chain.
+Tests: `tests/research_web/` (use `--confcutdir=tests/research_web`) and `tests/javascript/research_web*.test.mjs`.
+DSH owns the execution loop, skills, subagents and transcript; no second orchestration/fact database.
+The product topbar keeps healthy runtime state silent and exposes only actionable configuration or
+availability states; page-scoped refresh controls remain owned by their existing modules.
+Settings uses five mutually exclusive hash subpages rendered by `ui/settings.mjs`; `ui/app.mjs` retains
+control of catalog loads, form submissions and errors. Remote DataHub sources and local platform
+integrations are filtered before rendering.
+DataHub catalog, brand-neutral business tools, broker, Provider, probe and snapshot contracts live in `app/research_web/datahub/`, `app/research_web/launch_runtime.py`, `app/research_web/runtime/public-data.mjs` and [DataHub](research-web-datahub.md). `catalog.py` is the no-network source of truth for the 15-capability / 22-source UI. `datahub/connections.py` owns per-source local non-secret configuration, OS keyring boundaries and the explicitly confirmed legacy-environment migration; `providers_mysql.py` owns MySQL privilege checks, exact schema identifiers and bounded single-table reads. The Settings UI reads the safe `/data/connections` projection and generic source-configuration endpoints. Runtime start/restart materializes only tools whose capability has `callable_source_count > 0`. The legacy connector map below does not make a Research Web provider callable.
+
+Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
+`app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill 加五个专用 Skill 共 11 项，四个
+Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-protocol.md` 是专用 Skill 的共享证据
+协议源码，构建时复制到每个包的 `references/` 并进入不可变版本哈希；它本身不进入发现目录。
+研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱
+内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在
+`tests/research_web/test_capabilities*.py` 和 `tests/research_web/test_sell_side_report_skill.py`；
+分类、详情、选择、搜索及无路由卡片覆盖在
+`tests/javascript/research_web_capabilities_ui.test.mjs`；该测试从项目 Python 环境中的真实
+`CapabilityCatalog.list(kind="skill")` 获取目录，不维护第二份内置元数据。契约文档见
+[能力包与版本](research-web-capabilities.md)及
+[架构能力管理](architecture/research-web/07-capabilities.md)。
+
+Legacy market-home fact writers share `data_layer/repositories/market_home_invalidation.py` for UTC normalization and transaction-coupled invalidation outbox writes. `services/market_home_invalidation.py` owns scheduler/materializer coordination only. Boundary logging for legacy research execution lives in `services/agent_team_service.py`, `services/research_graph.py`, `services/research_orchestration_service.py` and `services/research_templates.py`; exceptions remain visible to callers after structured logging.
 
 Claude must read this file before changing code.
 
@@ -16,7 +48,7 @@ app/api
 
 Responsibilities:
 
-- Expose AlphaFoundry capabilities through FastAPI.
+- Expose Research Workbench capabilities through FastAPI.
 - Provide endpoints for dashboard, ingest, search, scenarios, signal lab, monitoring, governance, reports, and memory.
 - Keep API routes thin and delegate business logic to `services`.
 
@@ -72,7 +104,7 @@ app/cli
 
 Responsibilities:
 
-- Provide command-line access to AlphaFoundry workflows.
+- Provide command-line access to Research Workbench workflows.
 - Wrap service calls into user-facing commands.
 
 Main files:
@@ -916,3 +948,43 @@ Update triggers:
 - Base class lifecycle changes
 - Registry API changes
 - New concrete connector implementation
+
+---
+
+## 20. Runtime Configuration and Worker Operations
+
+Subsystem:
+
+```text
+core/settings
+workers
+```
+
+Responsibilities:
+
+- Generate safe first-run desktop configuration templates.
+- Guard PostgreSQL-backed workers from invalid configuration and control retry logging.
+
+Main files:
+
+```text
+core/settings/registry.py
+workers/knowledge_worker.py
+```
+
+Required tests:
+
+- Desktop configuration template tests.
+- Worker database-readiness and retry/backoff tests.
+
+Required docs:
+
+```text
+docs/ARCHITECTURE.md
+docs/CHANGELOG.md
+```
+
+Update triggers:
+
+- Desktop database template default changes.
+- Worker startup, database readiness, retry, or log-volume behavior changes.

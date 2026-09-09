@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Protocol
+from typing import Protocol
 
 from core.contracts.research import (
     ResearchSubject,
@@ -15,8 +16,7 @@ logger = get_logger(__name__)
 
 
 class ResearchGraphExecutor(Protocol):
-    def invoke(self, state: dict) -> dict:
-        ...
+    def invoke(self, state: dict) -> dict: ...
 
 
 class ResearchTemplateValidationError(ValueError):
@@ -94,10 +94,18 @@ def build_default_research_template_registry() -> ResearchTemplateRegistry:
             task_key="a_share_deep_research_graph",
             graph_factory=AShareDeepResearchGraph,
         ),
-        _planned_template("macro_research", "宏观研究", "追踪增长、通胀、流动性与政策传导。", ["macro"]),
-        _planned_template("commodity_research", "商品研究", "分析供需、库存、成本曲线与周期位置。", ["commodity"]),
-        _planned_template("index_research", "指数研究", "拆解指数、ETF、权重结构与风格暴露。", ["index", "etf"]),
-        _planned_template("industry_research", "行业研究", "研究产业链、竞争格局、景气与关键事件。", ["industry"]),
+        _planned_template(
+            "macro_research", "宏观研究", "追踪增长、通胀、流动性与政策传导。", ["macro"]
+        ),
+        _planned_template(
+            "commodity_research", "商品研究", "分析供需、库存、成本曲线与周期位置。", ["commodity"]
+        ),
+        _planned_template(
+            "index_research", "指数研究", "拆解指数、ETF、权重结构与风格暴露。", ["index", "etf"]
+        ),
+        _planned_template(
+            "industry_research", "行业研究", "研究产业链、竞争格局、景气与关键事件。", ["industry"]
+        ),
     ]
     return ResearchTemplateRegistry(templates)
 
@@ -129,5 +137,9 @@ def get_default_research_template_registry() -> ResearchTemplateRegistry:
     """Build the executor registry lazily to keep API imports lightweight."""
     global _default_registry
     if _default_registry is None:
-        _default_registry = build_default_research_template_registry()
+        try:
+            _default_registry = build_default_research_template_registry()
+        except Exception:
+            logger.exception("default research template registry initialization failed")
+            raise
     return _default_registry

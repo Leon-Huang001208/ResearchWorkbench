@@ -15,7 +15,7 @@ from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode
 from services.configuration_service import ConfigurationError, ConfigurationService
 
 SECRET_VALUES = {
-    "DATABASE_URL": "postgresql+psycopg://user:db-secret@localhost:5432/alphafoundry",
+    "DATABASE_URL": "postgresql+psycopg://user:db-secret@localhost:5432/research_workbench",
     "IFIND_USERNAME": "ifind-user",
     "IFIND_PASSWORD": "ifind-secret",
     "TAVILY_API_KEY": "tavily-secret",
@@ -48,10 +48,10 @@ def test_database_url_persists_with_restart_required(monkeypatch, tmp_path):
     for key in SECRET_VALUES:
         monkeypatch.delenv(key, raising=False)
     runtime_settings = Settings(
-        DATABASE_URL="postgresql+psycopg://active:old@localhost:5432/alphafoundry"
+        DATABASE_URL="postgresql+psycopg://active:old@localhost:5432/research_workbench"
     )
     service = ConfigurationService(env_path=tmp_path / ".env", runtime_settings=runtime_settings)
-    new_url = "postgresql+psycopg://next:next-secret@localhost:5432/alphafoundry"
+    new_url = "postgresql+psycopg://next:next-secret@localhost:5432/research_workbench"
 
     result = service.update_section("database", {"database_url": new_url})
 
@@ -59,7 +59,7 @@ def test_database_url_persists_with_restart_required(monkeypatch, tmp_path):
     assert result["restart_required"] is True
     assert (
         runtime_settings.DATABASE_URL
-        == "postgresql+psycopg://active:old@localhost:5432/alphafoundry"
+        == "postgresql+psycopg://active:old@localhost:5432/research_workbench"
     )
     assert new_url in (tmp_path / ".env").read_text(encoding="utf-8")
     assert "next-secret" not in json.dumps(result)
@@ -89,7 +89,7 @@ def test_configuration_service_rejects_web_production_control_plane(tmp_path):
 
 
 def test_database_probe_reports_missing_pgvector_without_persistence(monkeypatch, tmp_path):
-    database_url = "postgresql+psycopg://user:db-secret@localhost:5432/alphafoundry"
+    database_url = "postgresql+psycopg://user:db-secret@localhost:5432/research_workbench"
     env_path = tmp_path / ".env"
     env_path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
     service = ConfigurationService(env_path=env_path, runtime_settings=Settings())
@@ -120,13 +120,13 @@ def test_database_probe_reports_missing_pgvector_without_persistence(monkeypatch
 
 
 def test_database_probe_returns_ready_result_from_readiness_stub(monkeypatch, tmp_path):
-    database_url = "postgresql+psycopg://user:password@localhost:5432/alphafoundry"
+    database_url = "postgresql+psycopg://user:password@localhost:5432/research_workbench"
     service = ConfigurationService(env_path=tmp_path / ".env", runtime_settings=Settings())
     probe = Mock(
         return_value=DatabaseReadiness(
             ready=True,
             code=DatabaseReadinessCode.READY,
-            message="数据库连接正常，pgvector 已就绪。",
+            message="数据库连接正常，必需扩展已就绪。",
             remediation=("无需处理。",),
         )
     )
@@ -137,7 +137,7 @@ def test_database_probe_returns_ready_result_from_readiness_stub(monkeypatch, tm
     probe.assert_called_once_with(database_url, service.connection_timeout)
     assert result == {
         "success": True,
-        "message": "数据库连接正常，pgvector 已就绪。",
+        "message": "数据库连接正常，必需扩展已就绪。",
         "code": "ready",
         "remediation": ["无需处理。"],
     }
@@ -426,7 +426,7 @@ def test_web_search_account_pool_is_persisted_despite_process_environment(
 
     saved = env_path.read_text(encoding="utf-8")
     assert saved != original
-    assert "WEB_SEARCH_API_KEYS='[{\"name\":\"configured\",\"key\":\"replacement-secret\"}]'" in saved
+    assert 'WEB_SEARCH_API_KEYS=\'[{"name":"configured","key":"replacement-secret"}]\'' in saved
     assert result["applied"] is True
     result = service.update_section("web_search", {"timeout": 20})
     assert result["section"]["timeout"] == 20
@@ -453,7 +453,9 @@ def test_snapshot_reports_windows_x64_psql_without_exposing_its_path(monkeypatch
     service = _environment_service(tmp_path, data_dir=tmp_path / "data")
     monkeypatch.setattr(configuration_service.platform, "system", lambda: "Windows")
     monkeypatch.setattr(configuration_service.platform, "machine", lambda: "AMD64")
-    monkeypatch.setattr(shutil, "which", lambda command: r"C:\\Program Files\\PostgreSQL\\bin\\psql.exe")
+    monkeypatch.setattr(
+        shutil, "which", lambda command: r"C:\\Program Files\\PostgreSQL\\bin\\psql.exe"
+    )
     monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)
 
     snapshot = service.get_snapshot()
@@ -496,7 +498,7 @@ def test_snapshot_reports_not_detected_for_an_absent_ifind_sdk_without_mocking_f
     monkeypatch.setattr(
         configuration_service,
         "IFIND_SDK_MODULE",
-        "alphafoundry_missing_ifind_sdk_for_contract_test",
+        "research_workbench_missing_ifind_sdk_for_contract_test",
     )
 
     capability = service.get_snapshot()["environment"]["capabilities"][1]
@@ -532,7 +534,9 @@ def test_snapshot_reports_unknown_when_ifind_sdk_discovery_raises(monkeypatch, t
     assert capability["status"] == "unknown"
 
 
-def test_snapshot_reports_none_data_path_when_runtime_context_has_no_data_dir(monkeypatch, tmp_path):
+def test_snapshot_reports_none_data_path_when_runtime_context_has_no_data_dir(
+    monkeypatch, tmp_path
+):
     service = _environment_service(tmp_path, data_dir=None)
     monkeypatch.setattr(shutil, "which", lambda command: None)
     monkeypatch.setattr(configuration_service.importlib.util, "find_spec", lambda name: None)

@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Closed Loop Module
+   Research Workbench — Closed Loop Module
    ============================================================ */
 
 import { apiCall, toast } from './core.js';

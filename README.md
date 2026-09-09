@@ -1,10 +1,10 @@
-# AlphaFoundry
+# Research Workbench
 
 本地优先、可企业化的 AI Alpha Research Engine。
 
 ## 概述
 
-AlphaFoundry 是一个面向基金研究员和量化研究员的 **AI-native Investment Operating System**。它不把"量化"理解为预测 K 线或明天收盘价，而是把 AI 的信息理解能力转化为可交易、可回测、可审计、可学习的事件型 Alpha 信号。
+Research Workbench 是一个面向基金研究员和量化研究员的 **AI-native Investment Operating System**。它不把"量化"理解为预测 K 线或明天收盘价，而是把 AI 的信息理解能力转化为可交易、可回测、可审计、可学习的事件型 Alpha 信号。
 
 系统定位为 **AI Alpha Research Engine**：AI 负责发现事件、理解产业链、识别预期差和传播路径；Timing Engine 负责判断市场现在是否认可这个逻辑；Signal Lab 负责验证事件是否产生可重复收益、构建评分、控制风险并输出研究级交易候选。系统采用模块化单体架构，使用 PostgreSQL + pgvector 作为核心事实存储，Markdown/Wiki 仅作为人类可读的投影层。
 
@@ -92,7 +92,20 @@ python scripts/import_real_data.py
 python view_db.py all
 ```
 
-### 3. 启动 Web 服务
+### 3. 启动研究 Web
+
+安装当前仓库后，由项目级管理器从 `~/.research-workbench/dsh-source/` 的固定提交私有构建持久启动专属 DSH 3081 与 Web 8088：
+
+```bash
+rwb web start
+rwb web status
+```
+
+启动成功后访问 <http://127.0.0.1:8088/#/fingpt>。命令退出或关闭终端不会终止服务；`rwb web stop` 只停止最终 Node CLI/overlay 与端口归属签名匹配的 8088/3081，不操作其他 DSH 实例。日志和进程状态位于 `~/.research-workbench/logs/` 与 `~/.research-workbench/run/`。需要临时使用其他已审核源码时，可显式设置 `RESEARCH_DSH_SOURCE`。
+
+首次从旧研究 Web 切换时执行 `rwb migrate-research-data --dry-run`，确认摘要后再执行 `rwb migrate-research-data`。迁移保留会话、附件、能力版本、数据集和产物，但不复制模型密钥；需要在设置页重新填写。
+
+### 4. 启动历史业务 API（可选）
 
 ```bash
 uvicorn app.api.main:app --reload
@@ -114,7 +127,7 @@ npm run desktop:preview
 
 预览实例默认使用 `8766` 和独立的临时运行数据；关闭预览窗口后会停止。需要在原有数据库配置下验收完整工作台时，显式传入 `-- --use-stable-data`；预览不会初始化数据库或启动重复的后台任务。详见 `docs/desktop_packaging.md`。
 
-### 4. 验证服务
+### 5. 验证历史业务 API
 
 检查健康状态：
 
@@ -133,7 +146,7 @@ curl http://127.0.0.1:8000/api/dashboard
 - 首页：http://127.0.0.1:8000/
 - API 文档：http://127.0.0.1:8000/docs
 
-### 5. 启动自动数据抓取
+### 6. 启动自动数据抓取
 
 如需持续获取最新数据：
 
@@ -155,23 +168,23 @@ python auto_ingest_service.py
 python auto_ingest_service.py --daemon
 ```
 
-### 6. 使用 CLI 命令
+### 7. 使用 CLI 命令
 
 ```bash
 # 资产分析
-af analyze --asset 600000.SH
+rwb analyze --asset 600000.SH
 
 # 情景分析
-af scenario --topic "人工智能产业发展对股票市场的影响"
+rwb scenario --topic "人工智能产业发展对股票市场的影响"
 
 # 数据摄入
-af ingest --file report.pdf
+rwb ingest --file report.pdf
 
 # 生成研报
-af report --asset 600519.SH --type full
+rwb report --asset 600519.SH --type full
 ```
 
-### 7. 播种因子数据
+### 8. 播种因子数据
 
 运行因子数据种子管线，播种市场数据并计算技术面和财务面因子：
 
@@ -217,7 +230,7 @@ python scripts/seed_factor_data.py --stock-count 200 --source auto --resume .ai/
 ### 安装
 
 ```bash
-cd ~/Desktop/Projects/AlphaFoundry
+cd ~/Desktop/Projects/ResearchWorkbench
 
 # 安装依赖
 pip install -e ".[dev]"
@@ -230,11 +243,11 @@ pip install -e ".[pdf-full]"   # 完整支持 (含 MinerU, opendatalab/mineru)
 ### 配置数据库
 
 1. 安装并启动本地 PostgreSQL 15+，安装 pgvector 扩展。
-1. 创建数据库 `alphafoundry`，在该库中执行 `CREATE EXTENSION IF NOT EXISTS vector;`。
+1. 创建数据库 `research_workbench`，在该库中执行 `CREATE EXTENSION IF NOT EXISTS vector;` 和 `CREATE EXTENSION IF NOT EXISTS btree_gist;`。
 1. 复制 `.env.example` 为 `.env`，并配置：
 
 ```env
-DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
+DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/research_workbench
 ```
 
 1. 初始化数据库：
@@ -243,7 +256,7 @@ DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5432/alphafoundry
 python scripts/bootstrap_db.py
 ```
 
-桌面端用户配置文件位于 `%LOCALAPPDATA%\AlphaFoundry\.env`（Windows）或 `~/Library/Application Support/AlphaFoundry/.env`（macOS）。迁移时复制该目录，并使用 `pg_dump` / `pg_restore` 迁移 PostgreSQL 数据库；详见 `docs/desktop_packaging.md`。
+桌面端用户配置文件位于 `%LOCALAPPDATA%\Research Workbench\.env`（Windows）或 `~/Library/Application Support/Research Workbench/.env`（macOS）。迁移时复制该目录，并使用 `pg_dump` / `pg_restore` 迁移 PostgreSQL 数据库；详见 `docs/desktop_packaging.md`。
 
 ### 复制环境变量模板
 
@@ -319,7 +332,7 @@ python scripts/rebuild_derived_state.py
 ## 项目结构
 
 ```
-AlphaFoundry/
+Research Workbench/
 ├── app/                          # 应用层
 │   ├── api/                      # FastAPI 后端 API
 │   │   ├── main.py               # API 入口
@@ -548,7 +561,7 @@ AlphaFoundry/
 pytest
 ```
 
-默认测试环境会禁用本地 embedding 模型加载。运行时可用 `ALPHAFOUNDRY_LOCAL_EMBEDDING_MODEL_PATH=/path/to/model` 指向已下载的 sentence-transformers 模型目录；未设置本地路径时只读本机 Hugging Face cache，只有设置 `ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载。需要访问已启动 API 服务的 smoke 测试请设置 `ALPHAFOUNDRY_RUN_LIVE_API_TESTS=1`；需要运行浏览器 E2E smoke 请设置 `ALPHAFOUNDRY_RUN_LIVE_E2E_TESTS=1`。
+默认测试环境会禁用本地 embedding 模型加载。运行时可用 `RESEARCH_LOCAL_EMBEDDING_MODEL_PATH=/path/to/model` 指向已下载的 sentence-transformers 模型目录；未设置本地路径时只读本机 Hugging Face cache，只有设置 `RESEARCH_ALLOW_EMBEDDING_DOWNLOAD=1` 才允许联网下载。需要访问已启动 API 服务的 smoke 测试请设置 `RESEARCH_RUN_LIVE_API_TESTS=1`；需要运行浏览器 E2E smoke 请设置 `RESEARCH_RUN_LIVE_E2E_TESTS=1`。
 
 ### 代码格式化
 

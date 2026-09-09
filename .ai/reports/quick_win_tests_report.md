@@ -1,4 +1,4 @@
-# AF-AUTO-001-02: Quick-Win Tests Report
+# RWB-AUTO-001-02: Quick-Win Tests Report
 
 **Status**: Done  
 **Completed**: 2026-05-11
@@ -37,4 +37,4 @@ Full regression results: 812 passed, 57 failed, 5 errors
 
 ## Next Task
 
-af-auto-001-04: Phase 2 - Critical Services Test Coverage
+rwb-auto-001-04: Phase 2 - Critical Services Test Coverage

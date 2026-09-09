@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/07-delivery-state.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/07-delivery-state.html",
+  "specification": {
+    "sha256": "d0970e68d57a64df0f6a3f8f6a78157ab881421414d9391cf10b0566e41aee7c",
+    "bytes": 3144
+  },
+  "artifact": {
+    "sha256": "07eec3a6c7dee2527b4b30acba604144fefa06cca5fff21c29a3bec5a149bbe5",
+    "bytes": 633863
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

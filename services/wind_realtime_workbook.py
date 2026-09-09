@@ -23,13 +23,13 @@ SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 DEFAULT_WORKBOOK_PATH = default_wind_workbook_path()
 """Wind 实时工作簿默认路径（跨平台，导入时按当前平台解析）。
 
-可被环境变量 ``ALPHAFOUNDRY_WIND_WORKBOOK_PATH`` 覆盖，详见
+可被环境变量 ``RESEARCH_WIND_WORKBOOK_PATH`` 覆盖，详见
 :func:`resolve_workbook_path`。保留为模块级常量以兼容历史导入
 （``wind_workbook_manager`` 与 ``scripts/prime_wind_realtime_workbook``）。
 """
 
 # 工作簿路径环境变量覆盖
-WIND_WORKBOOK_PATH_ENV = "ALPHAFOUNDRY_WIND_WORKBOOK_PATH"
+WIND_WORKBOOK_PATH_ENV = "RESEARCH_WIND_WORKBOOK_PATH"
 
 SNAPSHOT_HEADERS = [
     "view_key",
@@ -441,7 +441,7 @@ def resolve_workbook_path(path: str | Path | None = None) -> Path:
 
     优先级：
         1. 显式参数 ``path``（非空）
-        2. 环境变量 ``ALPHAFOUNDRY_WIND_WORKBOOK_PATH``
+        2. 环境变量 ``RESEARCH_WIND_WORKBOOK_PATH``
         3. 当前平台规范默认路径（见 :func:`core.settings.paths.default_wind_workbook_path`）
     """
     if path is not None and str(path).strip() != "":
@@ -468,7 +468,7 @@ def build_realtime_workbook(
         workbook.remove(workbook.active)
         sheets = {name: workbook.create_sheet(name) for name in WORKBOOK_SHEETS}
 
-        sheets["README"]["A1"] = "AlphaFoundry Wind Realtime Workbook"
+        sheets["README"]["A1"] = "Research Workbench Wind Realtime Workbook"
         sheets["README"][
             "A2"
         ] = "Open this workbook in Excel and log in to Wind before using Wind market views."
@@ -479,7 +479,7 @@ def build_realtime_workbook(
         sheets["Config"].append(["formula_version", "1", "公式模板版本"])
         sheets["Config"].append(["last_generated_at", generated_at, "工作簿最后生成时间"])
         sheets["Config"].append(["timezone", "Asia/Shanghai", "时间区域"])
-        sheets["Config"].append(["data_owner", "AlphaFoundry", "数据维护方"])
+        sheets["Config"].append(["data_owner", "Research Workbench", "数据维护方"])
 
         sheets["IndexCatalog"].append(CATALOG_HEADERS)
         sheets["RealtimeRaw"].append(RAW_HEADERS)

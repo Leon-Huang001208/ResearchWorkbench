@@ -3,7 +3,7 @@ Core contracts for industry chain-related data structures.
 
 This module defines Pydantic models for industry chain graphs, nodes, edges,
 propagation paths, and thesis cards, standardizing the representation of
-industry chain relationships and impact propagation in AlphaFoundry.
+industry chain relationships and impact propagation in Research Workbench.
 """
 
 from enum import Enum

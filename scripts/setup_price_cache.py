@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 def main():
     print("\n" + "=" * 80)
-    print("  AlphaFoundry - 设置价格数据缓存")
+    print("  Research Workbench - 设置价格数据缓存")
     print("=" * 80 + "\n")
 
     # 1. 创建表结构

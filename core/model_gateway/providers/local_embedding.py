@@ -3,7 +3,7 @@ Local embedding provider using sentence-transformers.
 
 Loads sentence-transformers embedding models from a local directory or an
 existing Hugging Face cache. Network downloads are disabled by default; set
-ALPHAFOUNDRY_ALLOW_EMBEDDING_DOWNLOAD=1 to permit first-time downloads.
+RESEARCH_ALLOW_EMBEDDING_DOWNLOAD=1 to permit first-time downloads.
 """
 
 import time

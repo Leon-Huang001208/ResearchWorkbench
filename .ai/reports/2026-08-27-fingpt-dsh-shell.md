@@ -3,7 +3,7 @@
 ## 交付范围
 
 - 新增 FinGPT 顶级页面，嵌入 loopback DSH Web iframe，并在 Host 不可用时显示启动诊断。
-- 新增可治理但不复制聊天正文的任务、会话索引、同步事件、证据引用与 Artifact 关联模型，以及 016 迁移。
+- 新增可治理但不复制聊天正文的任务、会话索引、同步事件、证据引用与 Artifact 关联模型，以及 020 迁移。
 - 每日市场点评作为完整的 AlphaFoundry Workflow；其余四张卡明确启动通用 DSH Agent 任务。
 - DSH Bundle 新增一次性 `launch_id` 接收端、严格 UI Origin 检查和脱敏会话事件同步。
 
@@ -36,4 +36,4 @@
 - 修复通用预置任务在 iframe 初始加载尚未完成时可能只创建 AlphaFoundry 任务、却没有投递给 DSH 的竞态。
 - AlphaFoundry Web 现在等待来自精确 DSH Origin 的 `alphafoundry.fingpt.ready`；DSH frame 同时支持无凭据 `alphafoundry.fingpt.ping` 回应。任务 `postMessage` 仅在握手完成后发送，保留既有 Origin 校验与一次性 `launch_id` 约束。
 - 真实浏览器复现显示 iframe 的 HTTP 请求 Origin 为 DSH 自身（而不是父页面）。Bridge 现校验请求 Origin 必须等于本机 DSH frame origin，而 DSH frame 继续在接收 `postMessage` 时严格校验 AlphaFoundry UI origin；同一 launch 路由的 403 复现已在修复后变为 202。
-- 纠正 DSH `session/event` 的双参数回调映射，并在 AlphaFoundry 已配置 PostgreSQL 上执行 014→015→016 迁移。成功启动的任务和 DSH 事件 POST 均有本地 API 202 日志；完整模型回合及 Artifact 仍未在本次预览中声明为完成。
+- 纠正 DSH `session/event` 的双参数回调映射；原始分支曾在 AlphaFoundry 上验证 014→015→016，归并后对应迁移重编号为 019→020，需由 ResearchWorkbench 原生 CI 重新验证。成功启动的任务和 DSH 事件 POST 均有本地 API 202 日志；完整模型回合及 Artifact 仍未在本次预览中声明为完成。

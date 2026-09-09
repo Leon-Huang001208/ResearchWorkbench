@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {"title": "能力包 · 草稿、发布与原生调用", "quality_profile": "showcase", "viewBox": [1600, 700]},
+  "lanes": [
+    {"id": "drafts", "label": "编辑与审查"},
+    {"id": "publish", "label": "原子发布边界"},
+    {"id": "research", "label": "研究请求"},
+    {"id": "blocked", "label": "保留并说明", "variant": "exception"}
+  ],
+  "mainPath": ["input", "draft", "check", "version", "native", "select", "snapshot", "dsh"],
+  "nodes": [
+    {"id": "input", "lane": "drafts", "col": 0, "type": "frontend", "label": "创建或导入", "sublabel": "表单 / 对话产物 / ZIP"},
+    {"id": "draft", "lane": "drafts", "col": 2, "type": "database", "label": "可编辑草稿", "sublabel": "说明 · 文件 · 步骤"},
+    {"id": "check", "lane": "drafts", "col": 4, "type": "security", "label": "包检查", "sublabel": "元数据 · 依赖 · 工具"},
+    {"id": "version", "lane": "publish", "col": 4, "type": "database", "label": "不可变版本", "sublabel": "用户确认 · 空闲锁"},
+    {"id": "native", "lane": "publish", "col": 2, "type": "backend", "label": "原生目录投影", "sublabel": "仅当前启用版本"},
+    {"id": "select", "lane": "publish", "col": 0, "type": "security", "label": "版本与依赖复核", "sublabel": "显式选择与提交"},
+    {"id": "snapshot", "lane": "research", "col": 0, "type": "database", "label": "会话资源快照", "sublabel": "只读 · 哈希 · 版本收据"},
+    {"id": "dsh", "lane": "research", "col": 2, "type": "cloud", "label": "DSH 原生调用", "sublabel": "Workflow 也是指令包"},
+    {"id": "issues", "lane": "blocked", "col": 1, "type": "security", "label": "保留草稿与问题", "sublabel": "不安装 · 不自动发布"},
+    {"id": "busy", "lane": "blocked", "col": 3, "type": "security", "label": "活动或状态未知", "sublabel": "拒绝变更原生目录"}
+  ],
+  "edges": [
+    {"id": "input-draft", "from": "input", "to": "draft"},
+    {"id": "draft-check", "from": "draft", "to": "check"},
+    {"id": "check-version", "from": "check", "to": "version", "route": "drop", "fromSide": "bottom", "toSide": "top"},
+    {"id": "version-native", "from": "version", "to": "native"},
+    {"id": "native-select", "from": "native", "to": "select"},
+    {"id": "select-snapshot", "from": "select", "to": "snapshot", "route": "drop", "fromSide": "bottom", "toSide": "top"},
+    {"id": "snapshot-dsh", "from": "snapshot", "to": "dsh"},
+    {"id": "check-invalid", "from": "check", "to": "issues", "role": "error", "variant": "security", "route": "return-left", "fromSide": "left", "toSide": "left"},
+    {"id": "version-busy", "from": "version", "to": "busy", "role": "error", "variant": "security", "route": "drop", "fromSide": "bottom", "toSide": "top"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "产品管理包，DSH 执行", "items": ["内置只能复制；自建、对话和导入共用版本模型", "Workflow 是研究步骤模板，不是第二执行器"]},
+    {"dot": "amber", "title": "发布不能影响活动任务", "items": ["发布、停用、回滚和提交共享研究互斥边界", "切换未确认时拒绝新任务，不伪报启用成功"]},
+    {"dot": "rose", "title": "导入不增加权限", "items": ["不扫描全局目录；脚本审查后仍受现有沙箱约束", "工具选择不替代原生审批，缺失依赖不自动安装"]}
+  ]
+}

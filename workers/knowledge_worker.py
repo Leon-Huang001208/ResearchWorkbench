@@ -13,14 +13,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.observability import get_logger
+from core.settings import settings
+from services.database_readiness import probe_postgresql
 from services.system_event_bus import event_bus
 
 logger = get_logger(__name__)
 
 # 优先使用环境变量，打包部署（Tauri sidecar）时 __file__ 指向 exe 内部路径失效
 PROJECT_DIR = (
-    Path(os.environ["ALPHAFOUNDRY_PROJECT_ROOT"])
-    if "ALPHAFOUNDRY_PROJECT_ROOT" in os.environ
+    Path(os.environ["RESEARCH_PROJECT_ROOT"])
+    if "RESEARCH_PROJECT_ROOT" in os.environ
     else Path(__file__).resolve().parent.parent
 )
 
@@ -41,6 +43,30 @@ DISABLED_EXTRACTION_SOURCES = {
     if source.strip()
 }
 WORKER_NAME = "knowledge_worker"
+
+
+def _database_is_ready(database_url: str) -> bool:
+    """Return whether the worker may access its PostgreSQL-backed queue."""
+    readiness = probe_postgresql(database_url)
+    if readiness.ready:
+        return True
+
+    logger.error(
+        "Knowledge worker is paused because the database is not ready",
+        readiness_code=readiness.code.value,
+    )
+    return False
+
+
+def _loop_error_backoff(consecutive_errors: int) -> float:
+    """Return a capped exponential retry delay for transient worker-loop failures."""
+    exponent = max(consecutive_errors - 1, 0)
+    return min(POLL_INTERVAL * (2**exponent), MAX_BACKOFF)
+
+
+def _should_log_loop_traceback(consecutive_errors: int) -> bool:
+    """Keep a traceback for the first failure without repeating it in every retry."""
+    return consecutive_errors == 1
 
 
 def _pid_file_for(worker_id: Optional[int] = None) -> Path:
@@ -519,6 +545,11 @@ async def main(worker_id: Optional[int] = None) -> None:
         max_backoff=MAX_BACKOFF,
     )
 
+    if not _database_is_ready(settings.DATABASE_URL):
+        event_bus.record_worker_heartbeat(worker_label, "paused: database not ready")
+        _write_heartbeat(worker_label, "paused: database not ready")
+        return
+
     _write_pid(worker_id)
 
     pipeline = _create_pipeline()
@@ -526,6 +557,7 @@ async def main(worker_id: Optional[int] = None) -> None:
     stop_event = asyncio.Event()
     shutting_down = False
     consecutive_empty = 0
+    consecutive_loop_errors = 0
 
     def _force_exit() -> None:
         # Flush all log handlers before forced exit
@@ -556,6 +588,7 @@ async def main(worker_id: Optional[int] = None) -> None:
     logger.info(f"[{worker_label}] Started, consuming ingestion_queue")
 
     while not shutting_down:
+        db: Any | None = None
         try:
             db = SessionLocal()
             repo = IngestionQueueRepository(db)
@@ -568,6 +601,7 @@ async def main(worker_id: Optional[int] = None) -> None:
 
             items = repo.dequeue(limit=BATCH_SIZE)
             db.commit()  # release row locks so processing tasks can update same rows
+            consecutive_loop_errors = 0
 
             if not items:
                 consecutive_empty += 1
@@ -597,10 +631,24 @@ async def main(worker_id: Optional[int] = None) -> None:
                 pass
 
         except Exception as e:
-            logger.error(f"[{worker_label}] Loop error", error=str(e), exc_info=True)
-            await asyncio.sleep(POLL_INTERVAL)
+            consecutive_loop_errors += 1
+            backoff = _loop_error_backoff(consecutive_loop_errors)
+            log_fields = {
+                "error_type": type(e).__name__,
+                "consecutive_errors": consecutive_loop_errors,
+                "retry_after_seconds": backoff,
+            }
+            if _should_log_loop_traceback(consecutive_loop_errors):
+                logger.error(f"[{worker_label}] Loop error", exc_info=True, **log_fields)
+            else:
+                logger.warning(
+                    f"[{worker_label}] Loop error; traceback suppressed until recovery",
+                    **log_fields,
+                )
+            await asyncio.sleep(backoff)
         finally:
-            db.close()
+            if db is not None:
+                db.close()
 
     _remove_pid(worker_id)
     logger.info(f"[{worker_label}] Stopped")
@@ -697,7 +745,7 @@ def _parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     # frozen 模式下由 watchdog 通过环境变量注入 worker_id（子进程无法传 CLI 参数）
     if args.worker_id is None:
-        env_id = os.environ.get("ALPHAFOUNDRY_WORKER_ID")
+        env_id = os.environ.get("RESEARCH_WORKER_ID")
         if env_id:
             try:
                 args.worker_id = int(env_id)

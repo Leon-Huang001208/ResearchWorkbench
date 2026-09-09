@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Signal Detail Module
+   Research Workbench — Signal Detail Module
    Signal detail view, audit trail timeline
    ============================================================ */
 

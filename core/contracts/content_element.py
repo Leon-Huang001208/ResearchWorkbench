@@ -1,7 +1,7 @@
 """
 通用内容元素契约 - 格式无关的可组合内容元素类型层级.
 
-定义 AlphaFoundry 报告框架的核心内容抽象层。所有内容结构（报告、PPT、
+定义 Research Workbench 报告框架的核心内容抽象层。所有内容结构（报告、PPT、
 简报等）都由这些基础元素组合而成，通过统一的 Document 模型描述，
 并由各格式渲染器（Word/PPT/Markdown/HTML）消费。
 

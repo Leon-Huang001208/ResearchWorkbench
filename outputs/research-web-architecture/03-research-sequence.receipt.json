@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/docs/architecture/research-web/diagrams/03-research-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/outputs/research-web-architecture/03-research-sequence.html",
+  "specification": {
+    "sha256": "ba392eba0d1946c8a5d5db3e369843eb21542332f2c9741c9673923e9a3d0ffc",
+    "bytes": 6907
+  },
+  "artifact": {
+    "sha256": "7691b26a7e3b3317ddeab9975afc5ca3a89e19c65527016a9147fa0c2080b18f",
+    "bytes": 653014
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

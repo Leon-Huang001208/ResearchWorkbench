@@ -1,8 +1,52 @@
-# AlphaFoundry 架构文档
+# Research Workbench 架构文档
 
-## 系统总览
+## 当前研究产品：DSH Web（2026-09-04）
 
-AlphaFoundry 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。
+当前实现的唯一架构主入口是 [Research Web 架构](architecture/research-web/README.md)。
+部署、协议、数据文件、图源与源码对应清单在该目录维护；本轮能力管理与界面迭代的完成情况见
+[架构核对记录](architecture/research-web/review-record.md)，未完成验收不视为可交付。
+
+当前研究入口为 `app.research_web.main:app`。Web → FastAPI 轻量适配 → 专属 DSH
+原生 RPC / 双 WebSocket；DSH 是唯一研究引擎，并负责执行循环、历史、Skill 和子 Agent。
+该入口不启动旧 API 生命周期，不要求 PostgreSQL/pgvector，不使用 Evidence、Claim、Quality Gate、
+LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
+产品壳只在运行时需要配置、事件通道连接中或健康失败时显示顶栏提示；健康状态静默，完整 DSH
+诊断与手动刷新继续由设置、运行与用量及对应业务页面承担，不改变运行时 API 或事件拓扑。设置在同一产品壳内使用五个互斥的 Hash 子页，仅按当前子页加载运行时或连接状态；不新增服务、端点或数据流。
+
+当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 15 项能力与 22 个登记来源；统一连接中心从当前设备 `<RESEARCH_DATA_HOME>/connections/` 读取各来源非秘密配置，MySQL、iFinD、知丘及 Key 型来源的秘密固定存入操作系统凭据库。Wind 只依赖用户本机已登录会话，Excel 作为分层本机能力诊断。真实 Runtime 仅在启动或重启时物化 `callable_source_count > 0` 的品牌无关 `datahub_*` 业务 Tool。MySQL 只开放逐级 schema 和参数化单表查询，不接受原始 SQL；登记、配置、探测、适配和可调用状态分别显示，组件检测成功不等于可调用。
+
+能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 11 个内置 Skill 和 4 个
+Workflow；其中五个专用研究 Skill 仍通过同一 DSH 原生发现、不可变版本和会话快照链执行，
+没有新增路由 Skill、API 类型或执行器。品牌中立证据协议以
+`app/research_web/skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制进每个
+专用包并随版本哈希封存。专用包默认聊天交付，只有 Runtime 实际暴露所需工具且用户明确要求
+文件时才生成文件；决定性原文不可访问时明确降级。研报 PDF 复用沙箱的
+`research_helpers.read_pdf`，校验与 SVG 重绘脚本不能派生宿主进程。
+
+历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
+
+产品索引只记录归属、文件与幂等受理收据；研究正文以 DSH 日志为准。附件及产物按会话隔离，
+研究脚本经内核文件访问约束执行，HTML 产物在不具同源权限的预览中打开。
+具体启动、契约、已验证与未完成事项见 [DSH Web 实施记录](research-web.md)
+和 [脚本边界](research-web-sandbox.md)。
+
+以下合并平台与量化设计保留作历史记录，不是本轮研究链路的实现前置条件。
+
+## 历史：Research Workbench × LSH 合并平台 V1 基线
+
+合并平台保持本文件定义的模块化单体、FastAPI 与 PostgreSQL + pgvector 主干，并增加四个边界明确的产品模块：FinGPT / Claw、facts-only 市场首页、Research Pack、资产观察。DSH 仅是可选 `RuntimeProvider` 侧车，不得直连数据库；事实、研究与个人观察三层严格隔离。该目标态、20 张新增表、四段迁移、API/状态/失败语义和九张架构图见 [`docs/architecture/merged-platform/`](architecture/merged-platform/README.md)。
+
+共享契约、集中 ORM 模型与 `015`–`018` 四段迁移，以及资产观察、facts-only 市场首页、四个 Research Pack、Workspace/Session/Runtime/Skill/Agent Team 纵切均按架构包落地。四段迁移只增加架构包列出的 20 张表，继续复用既有 Research Run 与股票、指数、ETF、基金事实表。新增平台契约拒绝 naive datetime 和含凭据/无 host 的来源 URL；Skill internal 工具必须同时命中封闭安全集合与平台可信 registry，MCP 必须命中 registry。数据库命名 CHECK/trigger/exclusion constraint 共同守住 scheduler、Session/Message、资产代码有效期和 Note 来源；首页 Envelope 强制五个固定 section 各出现一次，Service 对五区分别降级并以透明 `mainline-v1` 计算主线，历史只读 close snapshot，SSE 只投递持久失效引用。
+
+事实 writer 通过同事务 outbox 使行情、事件和主题更新可以持久失效首页区块；通用 Scheduler Coordinator 以租约续期、fencing 和 latest coalesce 同时承载收盘快照与 Agent 日程。主题迁移先完整归一宽表再判重，冲突值隔离而不覆盖；研究运行时用项目/Workspace scope 绑定 Session 与既有 Research Run，Provider 回传必须关联 request/Run，FinGPT 只在语义允许时回退 LangGraph，Claw 的团队黑板与预算结果进入研究产物。研究事实和个人观察仍不能写入市场事实区。
+
+该架构只迁移 LSH 中可追溯、可校验的数据与受限运行时能力，不迁入策略评分、订单、模拟交易、`score_hint`、`driver-summary` 或旧策略/交易范围。等价迁移后，LSH 只读归档一个稳定版本。
+
+## 历史量化平台：系统总览
+
+Research Workbench 是一个**本地优先**的 AI-native Investment Operating System，采用**模块化单体**架构设计，使用 **PostgreSQL + pgvector** 作为核心事实存储。
+
+PostgreSQL 启动前置检查要求目标库同时启用 `vector` 与 `btree_gist`：前者支持向量检索，后者支持资产代码有效期的文本 GiST 排他约束。缺少任一扩展时，桌面端进入 setup-required，Web 服务拒绝在不完整 schema 上启动。
 
 系统的核心定位是 **AI 驱动的事件型量化（Event-driven Quant）**，而不是 tick 高频、K 线深度学习、纯技术指标或 LSTM 收盘价预测。Agent 层负责解释世界，Timing 层负责交易节奏，Quant 层负责统计验证。
 
@@ -248,7 +292,7 @@ DSH 是 AlphaFoundry 项目管理的隔离 Runtime：`npm run dsh:bootstrap` 获
   - `ThesisReviewService`：论点审查服务
   - `TimingEngineService`：择时引擎服务
 
-- **core/settings/**：全局配置管理。`runtime.py` 在业务模块和数据库 engine 初始化前解析运行模式、跨平台用户数据目录、唯一 `.env` 位置及本地后端 URL；桌面端使用 `%LOCALAPPDATA%/AlphaFoundry`（Windows）或 `~/Library/Application Support/AlphaFoundry`（macOS），Web 生产仅接受部署环境变量或显式配置文件。
+- **core/settings/**：全局配置管理。`runtime.py` 在业务模块和数据库 engine 初始化前解析运行模式、跨平台用户数据目录、唯一 `.env` 位置及本地后端 URL；桌面端使用 `%LOCALAPPDATA%/Research Workbench`（Windows）或 `~/Library/Application Support/Research Workbench`（macOS），Web 生产仅接受部署环境变量或显式配置文件。首次生成的桌面模板不写入可连接的示例数据库账户，用户必须显式配置 `DATABASE_URL`。
 
 **关键契约**：所有核心领域对象都定义在 `contracts/` 中，所有跨层交互必须使用这些 Pydantic 模型，保证类型安全和数据验证。
 
@@ -497,7 +541,7 @@ Word 占位符
 │  Crawl Scheduler Worker (workers/crawl_scheduler_worker.py) │
 │  - 管理 APScheduler 定时抓取任务                              │
 │  - 启动时并发回填所有数据源                                    │
-│  - PID: logs/scheduler.pid, CLI: af crawl scheduler-start    │
+│  - PID: logs/scheduler.pid, CLI: rwb crawl scheduler-start    │
 │  - API: POST /api/scheduler/start|stop, GET /api/scheduler/status │
 └──────────────────────────────────────────────────────────────┘
                                │
@@ -516,10 +560,12 @@ Word 占位符
 │  - 并发消费 ingestion_queue (默认 8 并发)                     │
 │  - KnowledgePipeline 加工: 分块→分类→实体提取→事件提取→去重   │
 │  - PID: logs/knowledge_worker.pid                            │
-│  - CLI: af knowledge start|stop|status                       │
+│  - CLI: rwb knowledge start|stop|status                       │
 │  - API: POST /api/knowledge/start|stop, GET /api/knowledge/status │
 │  - 两层并发: item 级 (asyncio.Semaphore, 8) + chunk 级        │
 │    (ThreadPoolExecutor, 8)                                    │
+│  - 启动前预检 PostgreSQL；不可用时暂停，运行时故障按指数退避 │
+│    并仅保留首次完整堆栈，避免错误日志无限增长                  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -567,7 +613,7 @@ AKShare 数据源
 
 ## 事件型量化闭环
 
-AlphaFoundry 的主线不是"预测明天涨跌"，而是预测**哪些事件会形成持续市场共识**。完整闭环如下：
+Research Workbench 的主线不是"预测明天涨跌"，而是预测**哪些事件会形成持续市场共识**。完整闭环如下：
 
 ```
 全球事件流
@@ -627,7 +673,7 @@ Signal Lab 对事件型信号的最低验证集合包括：
 
 ## AI-native Investment OS
 
-AlphaFoundry 不应继续停留在功能模块集合，而要逐步具备横向操作系统能力。当前必须优先实现能提高 alpha 验证速度的能力，而不是一次性堆满所有未来模块。
+Research Workbench 不应继续停留在功能模块集合，而要逐步具备横向操作系统能力。当前必须优先实现能提高 alpha 验证速度的能力，而不是一次性堆满所有未来模块。
 
 | OS 能力 | 作用 | 当前策略 | 状态 |
 |---|---|---|---|
@@ -666,7 +712,7 @@ Event → Return
 
 ## World Model + Agent Swarm
 
-AlphaFoundry 会走向 Multi-Agent System，但 Agent 只作为横向认知竞争层。系统主体仍是 Data、Knowledge、Event、Signal Validation、Portfolio 和 Risk 这些可审计模块。
+Research Workbench 会走向 Multi-Agent System，但 Agent 只作为横向认知竞争层。系统主体仍是 Data、Knowledge、Event、Signal Validation、Portfolio 和 Risk 这些可审计模块。
 
 ```
 Data Layer
@@ -954,15 +1000,15 @@ class BaseProvider(ABC):
 
 ## 资源监控第二期数据流
 
-资源监控属于应用层的本地可观测性能力，边界是 AlphaFoundry 自身：API 进程树、项目写入 PID 文件的抓取调度器/知识 Worker，以及这些进程写入的受控任务快照。采样器不会全量枚举系统进程，也不会返回其他应用的进程详情。
+资源监控属于应用层的本地可观测性能力，边界是 Research Workbench 自身：API 进程树、项目写入 PID 文件的抓取调度器/知识 Worker，以及这些进程写入的受控任务快照。采样器不会全量枚举系统进程，也不会返回其他应用的进程详情。
 
-`services/resource_task_registry.py` 为抓取、PDF、知识处理、Wind 和报告任务生成每 PID 原子快照；`ResourceMonitoringService` 读取这些快照，并将独立 Worker 标记为精确进程资源、API 内任务标记为共享进程估算。页面路径只读取进程内 5 分钟 AlphaFoundry 快照；运行时路径则由 `ResourceMonitorRuntime` 在数据库就绪且非 `ALPHAFOUNDRY_PREVIEW=1` 时常驻，每分钟汇总安全的主机 CPU/内存容量、写入并保留 24 小时历史，再评估告警。主机“剩余内存”始终指 `psutil.virtual_memory().available`，不是以 `total - used` 推算。`ResourceMonitorAlertService` 将失败、受控 Worker 缺失、采样失败和 AlphaFoundry 压力以 `source_scope=alphafoundry` 映射到已有 Monitoring 告警/事件表；整机 CPU/可用内存容量压力使用 `source_scope=host_capacity`，状态均为 `open → acknowledged → resolved`。实时图只保留内存中的 5 分钟点位；异常事件持久化并默认查询 90 天，任何未恢复事件始终返回。该能力只在系统监控页面和 API 中呈现异常，不发送原生桌面通知。
+`services/resource_task_registry.py` 为抓取、PDF、知识处理、Wind 和报告任务生成每 PID 原子快照；`ResourceMonitoringService` 读取这些快照，并将独立 Worker 标记为精确进程资源、API 内任务标记为共享进程估算。页面路径只读取进程内 5 分钟 Research Workbench 快照；运行时路径则由 `ResourceMonitorRuntime` 在数据库就绪且非 `RESEARCH_PREVIEW=1` 时常驻，每分钟汇总安全的主机 CPU/内存容量、写入并保留 24 小时历史，再评估告警。主机“剩余内存”始终指 `psutil.virtual_memory().available`，不是以 `total - used` 推算。`ResourceMonitorAlertService` 将失败、受控 Worker 缺失、采样失败和 Research Workbench 压力以 `source_scope=research_workbench` 映射到已有 Monitoring 告警/事件表；整机 CPU/可用内存容量压力使用 `source_scope=host_capacity`，状态均为 `open → acknowledged → resolved`。实时图只保留内存中的 5 分钟点位；异常事件持久化并默认查询 90 天，任何未恢复事件始终返回。该能力只在系统监控页面和 API 中呈现异常，不发送原生桌面通知。
 
 ```text
 受控任务/Worker → 每 PID 安全快照
-API 进程树 + 明确 PID → 页面 5 分钟 AlphaFoundry 快照
+API 进程树 + 明确 PID → 页面 5 分钟 Research Workbench 快照
 ResourceMonitorRuntime（非预览）→ 每分钟主机容量汇总 → 24 小时历史
-资源异常（alphafoundry / host_capacity）→ MonitoringRepository 的告警与事件
+资源异常（research_workbench / host_capacity）→ MonitoringRepository 的告警与事件
 /api/system/resource-usage/host-history → 24 小时主机容量曲线
 /api/system/resource-events → 系统监控页置顶与历史（无原生通知）
 ```

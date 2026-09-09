@@ -1,4 +1,4 @@
-# AlphaFoundry 数据存储设计文档
+# Research Workbench 数据存储设计文档
 
 ## 目录
 
@@ -12,7 +12,7 @@
 
 ## 概述
 
-AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模块化单体架构，通过仓储模式实现数据访问。
+Research Workbench 使用 PostgreSQL + pgvector 作为主要数据存储，采用模块化单体架构，通过仓储模式实现数据访问。
 
 ### 核心设计原则
 
@@ -24,10 +24,16 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 
 ### 连接配置与运行时边界
 
-- 桌面端标准事实源为用户自行安装的 PostgreSQL + pgvector；`DATABASE_URL` 必须在启动前解析，桌面启动器不会回退至 SQLite。
+- 桌面端标准事实源为用户自行安装的 PostgreSQL + pgvector；目标数据库还必须启用 PostgreSQL 自带的 `btree_gist`，供文本字段的 GiST 排他约束使用。`DATABASE_URL` 必须在启动前解析，桌面启动器不会回退至 SQLite。
 - SQLAlchemy `engine` 与 `SessionLocal` 在设置初始化后按进程创建；配置页保存新的 `DATABASE_URL` 只会原子写入配置并要求重启，不会在当前进程热切换数据库。
-- 启动连通性诊断按实际 SQLAlchemy 方言给出不含连接字符串、用户名、密码或主机名的修复提示；PostgreSQL 场景会提示确认 pgvector 扩展。
+- 启动连通性诊断按实际 SQLAlchemy 方言给出不含连接字符串、用户名、密码或主机名的修复提示；PostgreSQL 场景分别检查 `vector` 与 `btree_gist`，缺少任一扩展时在建表前进入可修复状态。
 - SQLite 兼容逻辑仍仅服务于现有测试或非权威缓存路径，不是桌面端的规范持久化方案。
+
+### Fact writer 与首页失效边界
+
+- 行情、文档事件和主题 Observation 在自身事实事务内调用 `data_layer.repositories.market_home_invalidation.record_market_home_fact_update` 写入幂等失效 outbox；成功事实与失效记录一起提交，失败时一起回滚。
+- 数据仓库不导入 `services`。`services.market_home_invalidation` 只协调收盘任务、快照物化和持久调度，不作为数据层 helper 的归属位置。
+- `aware_utc` 统一旧 naive 时间戳和带时区时间戳的 UTC 表达，不改变已带时区的实际时刻。
 
 ---
 
@@ -230,6 +236,20 @@ AlphaFoundry 使用 PostgreSQL + pgvector 作为主要数据存储，采用模�
 
 Fund Intelligence MVP 由 `data_layer/repositories/fund_repository.py` 管理，当前通过仓储 `ensure_schema()` 创建表；后续若进入正式迁移链，可迁入 Alembic 和全局 ORM 模型。
 
+### 4. 资产观察与个人状态
+
+资产观察不创建行情、净值或基金事实副本。`asset_registry` 保存稳定 canonical `asset_id`，`asset_identifier` 保存半开有效期的供应商代码；`watchlist_item` 只引用 canonical ID，因此代码换源或变更不会丢失列表归属。`AssetObservationRepository` 读取既有 `stock_*`、`index_*`、`etf_*`、`fund_*` 表来组合详情，只写下列个人状态表，且仅执行 `flush`，事务由 API 的 `get_db` 提交或回滚。
+
+| 表 | 权威内容 | 关键约束 |
+|---|---|---|
+| `watchlist` | profile 下的命名列表与顺序 | `(profile_id, name)` 唯一 |
+| `watchlist_item` | 列表中的 canonical asset、顺序和注释 | `(watchlist_id, asset_id)` 唯一 |
+| `alert_rule` | metric/operator/threshold/unit/freshness/cooldown 与评估状态 | 只引用 `asset_registry.asset_id` |
+| `alert_event` | false→true 边沿、确认与解决 | `dedupe_key` 唯一 |
+| `notification` | 站内通知及可选桌面投递状态 | 桌面失败不删除站内记录 |
+
+提醒评估将 stale、unavailable、quarantined、冲突质量标记与单位不匹配记录为非触发结果；持续为真不新增 Event，回到 false 时解决当前 Event，后续新边沿仍受上次触发 cooldown 约束。
+
 #### fund_master（基金主数据表）
 
 | 字段 | 类型 | 说明 |
@@ -282,7 +302,7 @@ Fund Intelligence MVP 由 `data_layer/repositories/fund_repository.py` 管理，
 
 ---
 
-### 4. 市场结构化事实层 (AF-AUTO-007)
+### 4. 市场结构化事实层 (RWB-AUTO-007)
 
 #### stock_master（股票基础信息表）
 
@@ -1975,6 +1995,7 @@ class ExampleRepositoryImpl(BaseRepository):
 |------|------|------|
 | 001 | 001_initial_schema.py | 初始 schema |
 | 002 | 002_add_asset_snapshot.py | 添加资产快照表 |
+| 002_pdf_crawl_state | 002_pdf_crawl_state_schema.py | 建立 `document_v1` 权威表及 PDF、爬取状态表；新库不依赖 ORM 预建表。 |
 | 003 | 003_temporal_industry_graph.py | 添加时间化产业链表 |
 | 004 | 004_signal_tables.py | 添加信号相关表 |
 | 005 | 005_timing_tables.py | 添加择时相关表 |
@@ -1987,6 +2008,22 @@ class ExampleRepositoryImpl(BaseRepository):
 | 012 | 012_add_index_structure_tables.py | 添加指数发布方、指数主表、成分权重快照、指数 ETF 关系和 ETF 日度规模/资金流表 |
 | 013 | 013_add_research_run_tables.py | 添加 `research_run`、`research_task`、`research_artifact`、`research_claim`、`research_quality_gate`；不可变 Artifact 保存每次运行产物，Claim/Gate 保存当前可查询投影。 |
 | 014 | 014_add_research_subject.py | 向 `research_run` 添加通用研究对象类型与 JSON payload；旧 `target_id` 保留且默认解释为 security。 |
+| 015 | 015_add_platform_fact_core.py | 新增 `asset_registry`、`asset_identifier`、`theme_observation`、`scheduled_job`、`domain_event`。 |
+| 016 | 016_add_theme_and_market_home.py | 新增 `theme_pack` 与不可变 `market_home_snapshot`。 |
+| 017 | 017_add_research_workspace_runtime.py | 新增 8 张研究工作区/运行时表，并通过外键复用既有 Research Run 与 Claim。 |
+| 018 | 018_add_asset_observation.py | 新增 Watchlist、规则、Alert Event 与站内 Notification 五张个人观察表。 |
+
+合并平台迁移严格保持 20 张 additive 表：不创建 `source_ref`、第二套 `research_run`、股票/指数/ETF/基金事实表或六张主题投影表。生产以 PostgreSQL 为权威；SQLite 仅用于 ORM 与 015→018 升降级兼容测试。`asset_identifier` 使用半开有效期 `[valid_from, valid_to)`，要求 `valid_to > valid_from`；生产 PostgreSQL 以 GiST exclusion constraint 拒绝同一 scheme/value/market 的重叠区间，SQLite 迁移用 insert/update 触发器保持等价测试语义。`scheduled_job` 的命名 CHECK 强制 no-reentry、latest coalesce 和完整 lease owner/expiry pair；`agent_schedule` 同样强制 no-reentry/latest。`research_session` 的 CHECK 强制 mode/Workspace scope 一致；`research_message` 不重复保存 Workspace、归属从 Session 推导，并要求 content/content_ref 恰一非空；`research_note` 的 CHECK 只允许 Claim-only 或 Run+paragraph 两种来源。`domain_event` 是持久事件源，进程内事件总线只负责投递。
+
+Alembic CLI 只接受显式 `DATABASE_URL` 覆盖；仓库中的 URL 故意指向不可达地址，避免开发凭据被提交或误迁移其他数据库。2026-09-01 已在隔离的 PostgreSQL 18.3 + pgvector 0.8.5 空库上实际执行完整 `001 → 018`，并验证 `FOR UPDATE SKIP LOCKED` 单飞、租约过期接管、fencing 拒绝旧 worker、创建幂等和项目隔离；该验证不等同于生产数据迁移或 Windows 平台验证。
+
+市场首页 live 投影只读取既有 `stock_quote_snapshot`、`document_event_v1` 与 `theme_observation` 事实。每个交易日收盘后，`market_home_snapshot` 按 `trading_day + close + section_key + mainline-v1` 保存五条不可变查询结果；历史读取缺失时返回不存在，不得用当前 live 事实重算。`MarketHomeRepository` 只 `flush`，请求事务由 `get_db` 提交；SSE 重连以 `domain_event.event_id` 定位，只从事件 payload 投影 `event_id/section_key/as_of`，不返回事实本体。
+
+权威行情、文档事件和 Theme Observation writer 在提交事实前，把受影响首页区块写入同一事务的 `domain_event`；事实失败时 outbox 一并回滚。进程级唯一 `DurableSchedulerRuntime` 通过 `scheduled_job` 租约与 fencing 统一领取 `market_home.close_snapshot`、`asset_alert.evaluate` 和 Agent 日程任务；各领域 handler 使用独立 Session 提交/回滚/关闭，收盘五区快照、提醒通知与 job 终态分别在受控事务中持久化。首页 API 的每个 section 都公开按该 section 事实水位计算的 `age_seconds`。
+
+Research Pack 每个宽表指标会展开为独立 `theme_observation`，但保留同一 source hash、row identity 和规范化原始 payload，避免丢失 mom/yoy/ytd、模型价格或置信度等列。只有 identity 与 payload 都等价才是 duplicate；同 identity 不同值进入 `identity_conflict` quarantine，不覆盖任何已接收事实。Pack 生命周期读取 `theme_pack` 的不可变版本记录，Manifest discovered 状态不会覆盖已验证/启用的数据库状态。
+
+研究运行时继续复用 013/014 的 `research_run`。`research_session.run_id` 建立唯一 Workspace 归属，任何绑定 Run 的操作必须匹配 `(project_id, workspace_id)`；provider request/result、执行/恢复幂等 reservation 和阶段事件使用 `domain_event` 保存相关 ID 与 hash。DSH 不拥有数据库权限，只能通过关联 callback 交付 typed terminal result。completed Run 与 archive-pending outbox 使用隔离事务，归档失败不得回滚研究终态。
 
 ### 常用命令
 

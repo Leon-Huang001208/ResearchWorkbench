@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/10-excel-report-dataflow-showcase.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/10-excel-report-dataflow.html",
+  "specification": {"sha256": "dfc2820bd15d395029977cff84d3990995da0ca33331e4cb6fecb73188f2b642", "bytes": 5338},
+  "artifact": {"sha256": "3ec5148d6b85b6bb849449d4a94f7aab36a2d8bf48db57d99f5f9b628be13d61", "bytes": 646478},
+  "validation": {"checksPassed": 9, "checkCount": 9, "compositionProfile": "showcase", "compositionStatus": "pass", "errors": 0, "warnings": 0}
+}

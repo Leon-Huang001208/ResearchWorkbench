@@ -10,6 +10,10 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from core.observability import get_logger
+
+logger = get_logger(__name__)
+
 
 class ResearchGraphState(TypedDict, total=False):
     run_id: str
@@ -55,7 +59,15 @@ class AShareDeepResearchGraph:
         self._graph = graph.compile()
 
     def invoke(self, state: ResearchGraphState) -> ResearchGraphState:
-        return self._graph.invoke(state)
+        try:
+            return self._graph.invoke(state)
+        except Exception:
+            logger.exception(
+                "A-share research graph execution failed",
+                run_id=state.get("run_id"),
+                target_id=state.get("target_id"),
+            )
+            raise
 
     def _plan_sources(self, state: ResearchGraphState) -> ResearchGraphState:
         tiers = ("licensed", "official", "public", "user")

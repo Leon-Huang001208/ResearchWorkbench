@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Application Entry Point
+   Research Workbench — Application Entry Point
    Theme/i18n, Navigation, SSE, DOM init
    ============================================================ */
 
@@ -120,18 +120,18 @@ window.initFundsPanel = initFundsPanel;
 // ─── Theme & i18n Init ───────────────────────────────────────
 (function initTheme() {
     const desktopVisualVersion = '20260618-desktop-phase1';
-    const savedTheme = localStorage.getItem('af-theme');
-    if (localStorage.getItem('af-desktop-visual-version') !== desktopVisualVersion) {
-        localStorage.setItem('af-theme', savedTheme || 'dark');
-        localStorage.setItem('af-color-scheme', 'claude');
-        localStorage.setItem('af-desktop-visual-version', desktopVisualVersion);
+    const savedTheme = localStorage.getItem('rwb-theme');
+    if (localStorage.getItem('rwb-desktop-visual-version') !== desktopVisualVersion) {
+        localStorage.setItem('rwb-theme', savedTheme || 'dark');
+        localStorage.setItem('rwb-color-scheme', 'claude');
+        localStorage.setItem('rwb-desktop-visual-version', desktopVisualVersion);
     }
-    document.documentElement.setAttribute('data-theme', localStorage.getItem('af-theme') || 'dark');
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('rwb-theme') || 'dark');
 })();
 
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('af-theme', theme);
+    localStorage.setItem('rwb-theme', theme);
     document.querySelectorAll('#settings-panel-theme .settings-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.themeVal === theme);
     });
@@ -155,13 +155,13 @@ function switchLang(lang) {
 window.switchLang = switchLang;
 
 (function initColorScheme() {
-    const saved = localStorage.getItem('af-color-scheme') || 'claude';
+    const saved = localStorage.getItem('rwb-color-scheme') || 'claude';
     document.documentElement.setAttribute('data-color-scheme', saved);
 })();
 
 function applyColorScheme(scheme) {
     document.documentElement.setAttribute('data-color-scheme', scheme);
-    localStorage.setItem('af-color-scheme', scheme);
+    localStorage.setItem('rwb-color-scheme', scheme);
     document.querySelectorAll('#settings-panel-color .settings-opt').forEach(b => {
         b.classList.toggle('active', b.dataset.colorScheme === scheme);
     });
@@ -185,7 +185,7 @@ function navigateTo(section) {
     document.querySelectorAll(`.activity-btn[data-section="${section}"]`).forEach(b => b.classList.add('active'));
     const sectionEl = document.getElementById(`section-${section}`);
     if (sectionEl) sectionEl.classList.add('active');
-    localStorage.setItem('af-active-section', section);
+    localStorage.setItem('rwb-active-section', section);
 
     if (section === 'dashboard') {
         loadDashboard();
@@ -209,7 +209,7 @@ function navigateTo(section) {
 window.navigateTo = navigateTo;
 
 function getInitialSection() {
-    const savedSection = localStorage.getItem('af-active-section');
+    const savedSection = localStorage.getItem('rwb-active-section');
     if (savedSection && document.getElementById(`section-${savedSection}`)) {
         return savedSection;
     }

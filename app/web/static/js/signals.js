@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Signal Management Module
+   Research Workbench — Signal Management Module
    ============================================================ */
 
 import { apiCall, toast, esc } from './core.js';

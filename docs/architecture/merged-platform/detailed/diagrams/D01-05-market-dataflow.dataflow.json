@@ -1,0 +1,250 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "D01-05 · 全市场首页事实数据流",
+    "output": "D01-05-market-dataflow.html",
+    "viewBox": [
+      1600,
+      850
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "market-data-1",
+        "label": "主链",
+        "focus": [
+          "source",
+          "normalize",
+          "quality",
+          "derive",
+          "store",
+          "read"
+        ],
+        "note": "按实施主链查看功能落点。"
+      },
+      {
+        "id": "market-data-2",
+        "label": "边界",
+        "focus": [
+          "quality",
+          "quarantine",
+          "store"
+        ],
+        "note": "查看模块所有权和通信边界。"
+      },
+      {
+        "id": "market-data-3",
+        "label": "异常",
+        "focus": [
+          "store",
+          "read",
+          "event"
+        ],
+        "note": "查看降级、阻塞或恢复分支。"
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "来源"
+    },
+    {
+      "label": "标准化"
+    },
+    {
+      "label": "质量与计算"
+    },
+    {
+      "label": "事实存储"
+    },
+    {
+      "label": "读模型与事件"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "source",
+      "type": "cloud",
+      "label": "全球与A股行情",
+      "sublabel": "验证事件",
+      "stage": 0,
+      "row": 1,
+      "tag": "SourceRef"
+    },
+    {
+      "id": "normalize",
+      "type": "backend",
+      "label": "交易时段判定",
+      "sublabel": "统一 ID / 单位 / 时间",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "quality",
+      "type": "security",
+      "label": "质量门",
+      "sublabel": "fresh/stale/unavailable",
+      "stage": 2,
+      "row": 1,
+      "tag": "QualityFlags"
+    },
+    {
+      "id": "derive",
+      "type": "backend",
+      "label": "透明主线评分",
+      "sublabel": "同行百分位归一",
+      "stage": 3,
+      "row": 3
+    },
+    {
+      "id": "quarantine",
+      "type": "messagebus",
+      "label": "隔离区",
+      "sublabel": "保留原值与原因",
+      "stage": 2,
+      "row": 4
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "领域事实存储",
+      "sublabel": "Owned tables · PostgreSQL",
+      "stage": 3,
+      "row": 1,
+      "width": 160
+    },
+    {
+      "id": "read",
+      "type": "frontend",
+      "label": "类型化读模型",
+      "sublabel": "live 投影",
+      "stage": 4,
+      "row": 1,
+      "width": 144
+    },
+    {
+      "id": "event",
+      "type": "messagebus",
+      "label": "领域事件",
+      "sublabel": "区块失效事件",
+      "stage": 4,
+      "row": 3,
+      "width": 144
+    }
+  ],
+  "flows": [
+    {
+      "from": "source",
+      "to": "normalize",
+      "label": "观测",
+      "classification": "ObservationEnvelope",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "normalize",
+      "to": "quality",
+      "label": "标准化事实",
+      "classification": "typed",
+      "variant": "security",
+      "route": "straight"
+    },
+    {
+      "from": "quality",
+      "to": "store",
+      "label": "通过",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        625,
+        210
+      ]
+    },
+    {
+      "from": "quality",
+      "to": "derive",
+      "label": "计算",
+      "route": "auto",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelAt": [
+        650,
+        430
+      ]
+    },
+    {
+      "from": "derive",
+      "to": "store",
+      "label": "派生",
+      "route": "vertical-channel",
+      "labelAt": [
+        760,
+        405
+      ]
+    },
+    {
+      "from": "quality",
+      "to": "quarantine",
+      "label": "隔离",
+      "variant": "security",
+      "route": "vertical-channel",
+      "labelAt": [
+        530,
+        455
+      ]
+    },
+    {
+      "from": "store",
+      "to": "read",
+      "label": "投影",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        890,
+        210
+      ]
+    },
+    {
+      "from": "store",
+      "to": "event",
+      "label": "事件",
+      "variant": "dashed",
+      "route": "bottom-channel",
+      "labelAt": [
+        885,
+        430
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "统一事实语义",
+      "items": [
+        "observed_at / available_at / as_of",
+        "source_refs / freshness_status",
+        "quality_flags 明确展示"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "可复现计算",
+      "items": [
+        "交易时段判定",
+        "同行百分位归一",
+        "透明主线评分"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "质量边界",
+      "items": [
+        "as_of + source_refs",
+        "fresh/stale/unavailable",
+        "历史只读快照"
+      ]
+    }
+  ]
+}

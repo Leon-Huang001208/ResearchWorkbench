@@ -1,4 +1,4 @@
-"""Static wiring tests for the AlphaFoundry desktop shell scaffold."""
+"""Static wiring tests for the Research Workbench desktop shell scaffold."""
 
 import importlib.util
 import json
@@ -27,7 +27,7 @@ PREPARE_SIDECAR = ROOT / "scripts" / "desktop" / "prepare_tauri_sidecar.py"
 WRITE_RELEASE_CONFIG = ROOT / "scripts" / "desktop" / "write_tauri_release_config.py"
 DESKTOP_RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-release.yml"
 DESKTOP_VERIFY_WORKFLOW = ROOT / ".github" / "workflows" / "desktop-verify.yml"
-MACOS_ARM_SIDECAR = ROOT / "src-tauri" / "binaries" / "alphafoundry-backend-aarch64-apple-darwin"
+MACOS_ARM_SIDECAR = ROOT / "src-tauri" / "binaries" / "research-workbench-backend-aarch64-apple-darwin"
 MACOS_ICON = ROOT / "src-tauri" / "icons" / "icon.icns"
 WINDOWS_ICON = ROOT / "src-tauri" / "icons" / "icon.ico"
 
@@ -51,7 +51,7 @@ def load_module(name: str, path: Path):
 def test_tauri_config_wraps_existing_fastapi_workbench():
     config = json.loads(TAURI_CONFIG.read_text(encoding="utf-8"))
 
-    assert config["productName"] == "AlphaFoundry"
+    assert config["productName"] == "Research Workbench"
     assert config["build"]["devUrl"] == "http://127.0.0.1:8765"
     assert "node scripts/desktop/run_backend.js" in config["build"]["beforeDevCommand"]
     assert config["build"]["frontendDist"] == "../desktop/dist"
@@ -61,7 +61,7 @@ def test_tauri_config_wraps_existing_fastapi_workbench():
         "icons/icon.icns",
         "icons/icon.ico",
     ]
-    assert "binaries/alphafoundry-backend" in config["bundle"]["externalBin"]
+    assert "binaries/research-workbench-backend" in config["bundle"]["externalBin"]
     assert "http://127.0.0.1:8765" in config["app"]["security"]["csp"]
 
 
@@ -114,13 +114,13 @@ def test_windows_icon_is_available_for_tauri_resource_generation():
 def test_tauri_rust_shell_starts_backend_sidecar():
     source = TAURI_LIB.read_text(encoding="utf-8")
 
-    assert 'const BACKEND_SIDECAR: &str = "alphafoundry-backend";' in source
+    assert 'const BACKEND_SIDECAR: &str = "research-workbench-backend";' in source
     assert "cfg!(dev)" in source
     assert "app.shell().sidecar(BACKEND_SIDECAR)" in source
     assert "beforeDevCommand starts the backend" in source
     assert "start_backend_sidecar" in source
     assert "stop_backend_sidecar" in source
-    assert "ALPHAFOUNDRY_DESKTOP_PORT" in source
+    assert "RESEARCH_DESKTOP_PORT" in source
     assert "backend_port()" in source
     assert "tauri_plugin_shell::init()" in source
 
@@ -129,7 +129,7 @@ def test_macos_arm_sidecar_shim_invokes_python_launcher():
     source = MACOS_ARM_SIDECAR.read_text(encoding="utf-8")
 
     assert source.startswith("#!/usr/bin/env bash")
-    assert "ALPHAFOUNDRY_PROJECT_ROOT" in source
+    assert "RESEARCH_PROJECT_ROOT" in source
     assert "dev-project-root" in source
     assert "resolve_project_root" in source
     assert "scripts/desktop/run_backend.sh" in source
@@ -147,7 +147,7 @@ def test_macos_arm_sidecar_shim_invokes_python_launcher():
 def test_desktop_backend_shell_selects_python_runtime():
     source = RUN_BACKEND_SH.read_text(encoding="utf-8")
 
-    assert "ALPHAFOUNDRY_PYTHON" in source
+    assert "RESEARCH_PYTHON" in source
     assert "python3.11" in source
     assert "anaconda3/bin/python" in source
     assert "backend_launcher.py" in source
@@ -158,9 +158,9 @@ def test_desktop_restart_script_reopens_installed_app_and_checks_health():
     source = RESTART_APP_SH.read_text(encoding="utf-8")
 
     assert source.startswith("#!/usr/bin/env bash")
-    assert "ALPHAFOUNDRY_APP_PATH" in source
+    assert "RESEARCH_APP_PATH" in source
     assert "patch_macos_automation_permissions.sh" in source
-    assert "/Applications/AlphaFoundry.app" in source
+    assert "/Applications/Research Workbench.app" in source
     assert "127.0.0.1:8765" in source
     assert "desktop-restart.log" in source
     assert "src-tauri/icons/icon.icns" in source
@@ -177,7 +177,7 @@ def test_macos_automation_permission_patch_script_sets_apple_events_usage():
     source = PATCH_MACOS_AUTOMATION_SH.read_text(encoding="utf-8")
 
     assert source.startswith("#!/usr/bin/env bash")
-    assert "ALPHAFOUNDRY_APP_PATH" in source
+    assert "RESEARCH_APP_PATH" in source
     assert "NSAppleEventsUsageDescription" in source
     assert "Microsoft Excel" in source
     assert "/usr/libexec/PlistBuddy" in source
@@ -192,7 +192,7 @@ def test_sidecar_build_script_uses_pyinstaller_and_tauri_naming():
     assert "build_sidecar.py" in shell
     assert "PyInstaller" in source
     assert "--onefile" in source
-    assert "alphafoundry-backend-{triple}" in source
+    assert "research-workbench-backend-{triple}" in source
     assert "aarch64-apple-darwin" in source
     assert '"build" / "desktop-sidecar" / "dist"' in source
     assert '"app",' in source
@@ -218,7 +218,7 @@ def test_prepare_sidecar_copies_generated_binary_to_tauri_binaries():
 
 def test_release_config_uses_updater_secret_and_latest_json_endpoint(monkeypatch):
     module = load_module("write_tauri_release_config", WRITE_RELEASE_CONFIG)
-    monkeypatch.delenv("ALPHAFOUNDRY_UPDATER_ENDPOINT", raising=False)
+    monkeypatch.delenv("RESEARCH_UPDATER_ENDPOINT", raising=False)
 
     config = module.release_config("public-key", module.DEFAULT_ENDPOINT)
 
@@ -228,10 +228,10 @@ def test_release_config_uses_updater_secret_and_latest_json_endpoint(monkeypatch
 
 
 def test_backend_launcher_allows_project_root_override(monkeypatch):
-    monkeypatch.setenv("ALPHAFOUNDRY_PROJECT_ROOT", "/tmp/alphafoundry")
+    monkeypatch.setenv("RESEARCH_PROJECT_ROOT", "/tmp/research_workbench")
     launcher = load_launcher_module()
 
-    assert launcher.PROJECT_ROOT == Path("/tmp/alphafoundry")
+    assert launcher.PROJECT_ROOT == Path("/tmp/research_workbench")
 
 
 def test_frozen_backend_launcher_resolves_project_root_from_pyinstaller_bundle(
@@ -239,7 +239,7 @@ def test_frozen_backend_launcher_resolves_project_root_from_pyinstaller_bundle(
 ):
     bundle_root = tmp_path / "_MEI12345"
     bundle_root.mkdir()
-    monkeypatch.delenv("ALPHAFOUNDRY_PROJECT_ROOT", raising=False)
+    monkeypatch.delenv("RESEARCH_PROJECT_ROOT", raising=False)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "_MEIPASS", str(bundle_root), raising=False)
 
@@ -271,10 +271,10 @@ def test_desktop_preview_launcher_uses_isolated_port_and_runtime_data():
     source = RUN_PREVIEW_JS.read_text(encoding="utf-8")
 
     assert "const DEFAULT_PORT = 8766;" in source
-    assert "ALPHAFOUNDRY_DESKTOP_DATA_DIR" in source
+    assert "RESEARCH_DESKTOP_DATA_DIR" in source
     assert "--use-stable-data" in source
-    assert "ALPHAFOUNDRY_PREVIEW" in source
-    assert "ALPHAFOUNDRY_DESKTOP_PORT" in source
+    assert "RESEARCH_PREVIEW" in source
+    assert "RESEARCH_DESKTOP_PORT" in source
     assert "mkdtemp" in source
     assert "--config" in source
     assert '"worktree", "list", "--porcelain"' in source
@@ -320,8 +320,8 @@ def test_desktop_verify_smokes_setup_required_on_both_native_runners():
     assert source.count("Smoke test setup-required sidecar /health") == 2
     assert source.count("--expected-persistence-status setup_required") == 2
     assert source.count("--port 8766") == 2
-    assert "postgresql+psycopg://postgres:postgres@127.0.0.1:1/alphafoundry" in source
-    assert "alphafoundry-desktop-setup-smoke" in source
+    assert "postgresql+psycopg://postgres:postgres@127.0.0.1:1/research_workbench" in source
+    assert "research-workbench-desktop-setup-smoke" in source
     assert "build/desktop-sidecar/setup-smoke.log" in source
     for path_filter in (
         "app/api/main.py",
@@ -350,6 +350,7 @@ def test_windows_pgvector_smoke_builds_a_native_extension():
     assert '--params "\'/Password:postgres' not in source
     assert "nmake /F Makefile.win install" in source
     assert "CREATE EXTENSION IF NOT EXISTS vector;" in source
+    assert "CREATE EXTENSION IF NOT EXISTS btree_gist;" in source
     assert "PGPASSWORD = 'postgres'" in source
     assert "pgvector/pgvector:pg16" not in source
 
@@ -364,7 +365,7 @@ def test_desktop_bootstrap_waits_for_backend_health():
     html = BOOTSTRAP_HTML.read_text(encoding="utf-8")
     source = BOOTSTRAP_JS.read_text(encoding="utf-8")
 
-    assert "AlphaFoundry" in html
+    assert "Research Workbench" in html
     assert "DEFAULT_BACKEND_URL = 'http://127.0.0.1:8765'" in source
     assert "fetch(`${baseUrl}/health`" in source
     assert "window.location.replace(`${baseUrl}/`)" in source
@@ -493,7 +494,7 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "renderMarketCommandCenter(mo)" in dashboard_js
     assert "function renderMarketCommandCenter" in dashboard_js
     assert "refreshMarketOverviewOnly" in dashboard_js
-    assert "/api/dashboard/market-overview?force_refresh=" in dashboard_js
+    assert "/api/market-home/live?force_refresh=" in dashboard_js
     assert "toast('行情刷新失败'" in dashboard_js
     assert "loadDashboard({ silent: !options.manual })" not in dashboard_js
     assert "renderMarketHeatmap" in dashboard_js
@@ -599,8 +600,8 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     assert "primeMarketSectorViewRequest(activeMarketSectorView)" in dashboard_js
     assert "...previousViews" in dashboard_js
     assert "sectors.slice(0, MARKET_SECTOR_LIST_LIMIT)" in dashboard_js
-    assert "limit=${MARKET_SECTOR_FETCH_LIMIT}" in dashboard_js
-    assert "force_refresh=true" in dashboard_js
+    assert "/api/dashboard/sector-movers" not in dashboard_js
+    assert "force_refresh=${forceRefresh ? 'true' : 'false'}" in dashboard_js
     assert "hasFreshSectorData" in dashboard_js
     assert "if (force && !hasFreshSectorData && current) return" in dashboard_js
     assert "marketSectorViewRequestCache.delete(viewKey)" in dashboard_js
@@ -610,10 +611,10 @@ def test_desktop_workbench_uses_phase_one_visual_baseline():
     )
     assert "combined.slice(0, MARKET_HEATMAP_ITEM_LIMIT)" in dashboard_js
     assert "return { up: [], down: [] }" in dashboard_js
-    assert "/api/dashboard/sector-movers?view_key=" in dashboard_js
-    assert "const savedTheme = localStorage.getItem('af-theme')" in js
-    assert "localStorage.setItem('af-theme', savedTheme || 'dark')" in js
-    assert "localStorage.setItem('af-theme', 'dark')" not in js
+    assert "/api/market-home/live" in dashboard_js
+    assert "const savedTheme = localStorage.getItem('rwb-theme')" in js
+    assert "localStorage.setItem('rwb-theme', savedTheme || 'dark')" in js
+    assert "localStorage.setItem('rwb-theme', 'dark')" not in js
     assert "applyTheme(document.documentElement.getAttribute('data-theme') || 'dark')" in js
     assert (
         "applyColorScheme(document.documentElement.getAttribute('data-color-scheme') || 'claude')"
@@ -799,12 +800,12 @@ raise SystemExit(launcher.main(["--log-dir", {str(tmp_path / "logs")!r}]))
 """
     environment = os.environ.copy()
     for key in (
-        "ALPHAFOUNDRY_DESKTOP",
-        "ALPHAFOUNDRY_RUN_MODE",
-        "ALPHAFOUNDRY_BACKEND_URL",
-        "ALPHAFOUNDRY_DESKTOP_URL",
-        "ALPHAFOUNDRY_DESKTOP_DATA_DIR",
-        "ALPHAFOUNDRY_CONFIG_FILE",
+        "RESEARCH_DESKTOP",
+        "RESEARCH_RUN_MODE",
+        "RESEARCH_BACKEND_URL",
+        "RESEARCH_DESKTOP_URL",
+        "RESEARCH_DESKTOP_DATA_DIR",
+        "RESEARCH_CONFIG_FILE",
     ):
         environment.pop(key, None)
 
@@ -824,10 +825,10 @@ raise SystemExit(launcher.main(["--log-dir", {str(tmp_path / "logs")!r}]))
 
 def test_legacy_roaming_env_migrates_without_overwriting(monkeypatch, tmp_path):
     launcher = load_launcher_module()
-    legacy_env = tmp_path / "Roaming" / "AlphaFoundry" / ".env"
+    legacy_env = tmp_path / "Roaming" / "Research Workbench" / ".env"
     legacy_env.parent.mkdir(parents=True)
     legacy_env.write_text("DATABASE_URL=postgresql+psycopg://legacy\n", encoding="utf-8")
-    data_dir = tmp_path / "Local" / "AlphaFoundry"
+    data_dir = tmp_path / "Local" / "Research Workbench"
 
     monkeypatch.setattr(launcher.platform, "system", lambda: "Windows")
     monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
@@ -875,17 +876,17 @@ def test_desktop_launcher_refuses_to_kill_unknown_port_owner(monkeypatch):
 def isolate_desktop_launcher_environment(monkeypatch, launcher):
     """Register launcher-owned environment keys for pytest cleanup."""
     launcher_keys = {
-        "ALPHAFOUNDRY_DESKTOP_DATA_DIR",
-        "ALPHAFOUNDRY_DESKTOP",
-        "ALPHAFOUNDRY_RUN_MODE",
-        "ALPHAFOUNDRY_BACKEND_URL",
-        "ALPHAFOUNDRY_DESKTOP_URL",
+        "RESEARCH_DESKTOP_DATA_DIR",
+        "RESEARCH_DESKTOP",
+        "RESEARCH_RUN_MODE",
+        "RESEARCH_BACKEND_URL",
+        "RESEARCH_DESKTOP_URL",
         "LOG_DIR",
         "OBJECT_STORAGE_PATH",
         "PDF_MARKDOWN_DIR",
         "PDF_RAW_TEXT_DIR",
-        "ALPHAFOUNDRY_DEV",
-        "ALPHAFOUNDRY_PREVIEW",
+        "RESEARCH_DEV",
+        "RESEARCH_PREVIEW",
     }
     for line in launcher.desktop_env_template().splitlines():
         key, separator, _value = line.partition("=")
@@ -909,7 +910,7 @@ def test_frozen_backend_launcher_keeps_setup_mode_for_missing_or_invalid_postgre
 
     assert data_dir == tmp_path
     assert (tmp_path / ".env").exists()
-    assert not (tmp_path / "alphafoundry.db").exists()
+    assert not (tmp_path / "research_workbench.db").exists()
     assert "sqlite" not in (tmp_path / ".env").read_text(encoding="utf-8")
 
 
@@ -953,7 +954,7 @@ def test_desktop_launcher_skips_watchdogs_when_database_url_is_missing_or_invali
 
     assert readiness_codes in (["invalid_url"], ["connection_failed"])
     assert (tmp_path / ".env").exists()
-    assert not (tmp_path / "alphafoundry.db").exists()
+    assert not (tmp_path / "research_workbench.db").exists()
     assert calls == [("run_backend", "127.0.0.1", 8765, False)]
 
 
@@ -998,13 +999,48 @@ def test_desktop_launcher_starts_watchdogs_when_database_is_ready(monkeypatch, t
     ]
 
 
+def test_desktop_launcher_skips_crawl_scheduler_when_autostart_is_disabled(monkeypatch, tmp_path):
+    from services import database_readiness
+
+    launcher = load_launcher_module()
+    calls = []
+    isolate_desktop_launcher_environment(monkeypatch, launcher)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:password@127.0.0.1/db")
+    monkeypatch.setenv("RESEARCH_CRAWLER_AUTOSTART", "0")
+    monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
+    monkeypatch.setattr(
+        database_readiness,
+        "probe_postgresql",
+        lambda _database_url: SimpleNamespace(ready=True, code=SimpleNamespace(value="ready")),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_knowledge_worker",
+        lambda *_args: calls.append("knowledge_worker"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "_start_crawl_scheduler",
+        lambda *_args: calls.append("crawl_scheduler"),
+    )
+    monkeypatch.setattr(
+        launcher,
+        "run_backend",
+        lambda host, port, reload: calls.append(("run_backend", host, port, reload)),
+    )
+
+    assert launcher.main(["--log-dir", str(tmp_path / "logs")]) == 0
+
+    assert calls == ["knowledge_worker", ("run_backend", "127.0.0.1", 8765, False)]
+
+
 def test_desktop_preview_launcher_skips_background_workers(monkeypatch, tmp_path):
     from services import database_readiness
 
     launcher = load_launcher_module()
     calls = []
     isolate_desktop_launcher_environment(monkeypatch, launcher)
-    monkeypatch.setenv("ALPHAFOUNDRY_PREVIEW", "1")
+    monkeypatch.setenv("RESEARCH_PREVIEW", "1")
     monkeypatch.setattr(launcher, "apply_frozen_desktop_defaults", lambda: tmp_path)
     monkeypatch.setattr(
         database_readiness,

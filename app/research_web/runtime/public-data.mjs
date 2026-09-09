@@ -1,0 +1,161 @@
+/** Native DataHub bridge. Provider parsing and immutable snapshots live in DataHub. */
+import { constants } from 'node:fs';
+import { open, lstat, realpath } from 'node:fs/promises';
+import { basename, isAbsolute, join } from 'node:path';
+import { trustedDirectory } from './research-tools.mjs';
+
+export const name = 'research-data-tools';
+export const inject = ['tools', 'sessions'];
+const BUSINESS = {
+  datahub_search_assets: ['search_assets','识别证券、基金和指数代码',{query:{type:'string'},market:{type:'string'},asset_type:{type:'string'}},['query']],
+  datahub_get_trading_calendar: ['trading_calendar','读取交易日历',{market:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['market','start_date','end_date']],
+  datahub_get_market_bars: ['market_bars','读取历史行情与复权口径',{asset:{type:'string'},start_date:{type:'string'},end_date:{type:'string'},frequency:{type:'string'},adjustment:{type:'string'}},['asset','start_date','end_date']],
+  datahub_get_market_snapshot: ['market_snapshot','读取当前或最近行情快照',{assets:{type:'array',items:{type:'string'}},fields:{type:'array',items:{type:'string'}}},['assets']],
+  datahub_get_index_data: ['index_data','读取指数行情、成分或估值',{index:{type:'string'},dataset:{type:'string'},date:{type:'string'}},['index','dataset']],
+  datahub_get_financials: ['financials','读取财务报表与标准化指标',{asset:{type:'string'},statements:{type:'array',items:{type:'string'}},periods:{type:'array',items:{type:'string'}}},['asset']],
+  datahub_get_market_activity: ['market_activity','读取资金与交易事件',{asset:{type:'string'},dataset:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['asset','dataset']],
+  datahub_get_factor_macro: ['factor_macro','读取因子、技术指标和宏观序列',{series:{type:'array',items:{type:'string'}},assets:{type:'array',items:{type:'string'}},start_date:{type:'string'},end_date:{type:'string'}},['series']],
+  datahub_get_fund_data: ['fund_data','读取基金净值、资料、分红或持仓',{dataset:{type:'string',enum:['nav','profile','distributions','holdings']},code:{type:'string'},start_date:{type:'string'},end_date:{type:'string'},year:{type:'integer'},limit:{type:'integer'}},['dataset','code']],
+  datahub_search_news: ['search_news','搜索新闻与快讯',{query:{type:'string'},limit:{type:'integer'},start_date:{type:'string'},end_date:{type:'string'}},[]],
+  datahub_search_announcements: ['search_announcements','搜索公司公告',{asset:{type:'string'},query:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},[]],
+  datahub_search_research: ['search_research','搜索研报、公众号和会议纪要',{query:{type:'string'},document_type:{type:'string'},limit:{type:'integer'}},['query']],
+  datahub_search_web: ['search_web','通过已配置供应商搜索公开网页',{query:{type:'string'},limit:{type:'integer'}},['query']],
+  datahub_get_database_schema: ['database_schema','逐级读取用户 MySQL 数据库、表和列结构',{database:{type:'string'},table:{type:'string'}},[]],
+  datahub_query_table: ['table_query','参数化查询已核验的 MySQL 单表',{
+    database:{type:'string'},table:{type:'string'},columns:{type:'array',items:{type:'string'}},
+    filters:{type:'array',items:{type:'object',properties:{column:{type:'string'},operator:{type:'string',enum:['eq','ne','lt','lte','gt','gte','in','between','is_null','not_null']},value:{}},required:['column','operator'],additionalProperties:false}},
+    order_by:{type:'array',items:{type:'object',properties:{column:{type:'string'},direction:{type:'string',enum:['asc','desc']}},required:['column'],additionalProperties:false}},
+    offset:{type:'integer'},limit:{type:'integer'},
+  },['database','table','columns']],
+};
+const MAX_BYTES = 1048576;
+
+function isDenseStringArray(value) {
+  if (!Array.isArray(value) || value.length > 32768) return false;
+  for (let index=0;index<value.length;index++) if (!Object.hasOwn(value,index) || typeof value[index] !== 'string') return false;
+  return true;
+}
+
+function validSchema(value,schema) {
+  if (!schema.type) return value === null || ['string','number','boolean'].includes(typeof value) || (Array.isArray(value) && value.length <= 100 && value.every(item=>validSchema(item,{})));
+  if (schema.type === 'string') return typeof value === 'string' && (!schema.enum || schema.enum.includes(value));
+  if (schema.type === 'integer') return Number.isSafeInteger(value);
+  if (schema.type === 'array') {
+    if (!Array.isArray(value) || value.length > 5000) return false;
+    for (let index=0;index<value.length;index++) if (!Object.hasOwn(value,index) || !validSchema(value[index],schema.items)) return false;
+    return true;
+  }
+  if (schema.type === 'object') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (schema.additionalProperties === false && Object.keys(value).some(key=>!Object.hasOwn(schema.properties,key))) return false;
+    if ((schema.required || []).some(key=>!Object.hasOwn(value,key))) return false;
+    return Object.entries(value).every(([key,item])=>validSchema(item,schema.properties[key]));
+  }
+  return false;
+}
+
+function stableBusinessQuery(capability, args, properties, required) {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) throw Error('Business data arguments must be an object');
+  const common=['source','allow_fallback','refresh'];
+  const allowed=new Set([...common,...Object.keys(properties)]);
+  if (Object.keys(args).some(key=>!allowed.has(key))) throw Error('Only registered business data arguments are accepted');
+  for (const key of required) if (!Object.hasOwn(args,key) || args[key] === undefined) throw Error(`Business data argument ${key} is required`);
+  for (const [key,schema] of Object.entries(properties)) {
+    if (!Object.hasOwn(args,key)) continue;
+    const value=args[key];
+    if (value === undefined) continue;
+    const valid=validSchema(value,schema);
+    if (!valid) throw Error(`Business data argument ${key} has an invalid type`);
+    if (schema.enum && !schema.enum.includes(value)) throw Error(`Business data argument ${key} is not an allowed value`);
+  }
+  const source=Object.hasOwn(args,'source') ? args.source : undefined;
+  const allowFallback=Object.hasOwn(args,'allow_fallback') ? args.allow_fallback : undefined;
+  const refresh=Object.hasOwn(args,'refresh') ? args.refresh : undefined;
+  if (source !== undefined && (typeof source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(source))) throw Error('Data source is not a registered identifier');
+  if (allowFallback !== undefined && typeof allowFallback !== 'boolean') throw Error('allow_fallback must be boolean');
+  if (refresh !== undefined && typeof refresh !== 'boolean') throw Error('refresh must be boolean');
+  const parameters=Object.fromEntries(Object.entries(args).filter(([key])=>!common.includes(key)));
+  const raw=JSON.stringify(parameters);
+  if (Buffer.byteLength(raw)>32768) throw Error('Business data arguments exceed size limit');
+  return {capability,source:source || 'auto',allow_fallback:allowFallback || false,parameters,refresh:refresh || false};
+}
+
+async function privateControl(root) {
+  const canonical = await realpath(root);
+  const dir = join(canonical,'.control');
+  const parent = await lstat(dir);
+  if (!parent.isDirectory() || parent.isSymbolicLink() || parent.mode & 0o077 || parent.uid !== process.getuid()) throw Error('Private DataHub directory is unsafe');
+  const handle = await open(join(dir,'datahub.json'),constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const info = await handle.stat();
+    if (!info.isFile() || info.nlink !== 1 || info.mode & 0o077 || info.uid !== process.getuid() || info.size > 4096) throw Error('Private DataHub file is unsafe');
+    const after = await lstat(dir);
+    if (after.ino !== parent.ino || after.dev !== parent.dev || after.isSymbolicLink()) throw Error('Private DataHub directory changed');
+    const buffer = Buffer.alloc(4097); const {bytesRead} = await handle.read(buffer,0,buffer.length,0);
+    if (bytesRead > 4096) throw Error('Private DataHub configuration exceeds its cap');
+    const value = JSON.parse(buffer.subarray(0,bytesRead).toString('utf8'));
+    const url = new URL(value.url);
+    if (url.protocol !== 'http:' || !['127.0.0.1','[::1]'].includes(url.hostname) || !url.port || /[@?#]/.test(value.url) || url.username || url.password || !['','/'].includes(url.pathname) || typeof value.token !== 'string' || !/^[A-Za-z0-9_-]{43,128}$/.test(value.token)) throw Error('Private DataHub origin or token is invalid');
+    return {url:url.origin,token:value.token};
+  } finally {await handle.close();}
+}
+
+async function boundedJson(response, signal) {
+  if (!response.ok || response.redirected) {await response.body?.cancel();throw Error(`DataHub request failed (HTTP ${response.status})`);}
+  if (!response.headers.get('content-type')?.includes('application/json') || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) {await response.body?.cancel();throw Error('DataHub response type or size is invalid');}
+  const reader=response.body.getReader();const chunks=[];let size=0;
+  try {
+    while(true) {signal.throwIfAborted();const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>MAX_BYTES)throw Error('DataHub response size exceeds limit');chunks.push(value);}
+  } finally {await reader.cancel();}
+  signal.throwIfAborted();
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+function smallResult(value) {
+  if (!value || typeof value.dataset_id !== 'string' || typeof value.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(value.source) || !['complete','snapshot','empty','partial','failed'].includes(value.status) || !Array.isArray(value.files) || !Array.isArray(value.sample) || value.sample.length > 3 || !Number.isSafeInteger(value.row_count)) throw Error('DataHub response schema is invalid');
+  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256'];
+  return {dataset_id:value.dataset_id,source:value.source,status:value.status,
+    manifest_json:JSON.stringify(Object.fromEntries(keys.filter(key=>key in value).map(key=>[key,value[key]]))),
+    files_json:JSON.stringify(value.files.map(({name,path,sha256})=>({name,path,sha256}))),sample_json:JSON.stringify(value.sample)};
+}
+
+export function apply(ctx, config) {
+  if (typeof config?.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('Public data requires an absolute research root');
+  if (!Array.isArray(config.enabledTools)) throw Error('Public data enabledTools must be an array');
+  const enabledTools=new Set();
+  for (const toolName of config.enabledTools) {
+    if (typeof toolName !== 'string' || !Object.hasOwn(BUSINESS,toolName)) throw Error(`Public data enabledTools contains unknown tool: ${toolName}`);
+    if (enabledTools.has(toolName)) throw Error(`Public data enabledTools contains duplicate tool: ${toolName}`);
+    enabledTools.add(toolName);
+  }
+  const outputKeys=['dataset_id','source','status','manifest_json','files_json','sample_json'];
+  for (const [toolName,[capability,description,properties,required]] of Object.entries(BUSINESS)) {
+    if (!enabledTools.has(toolName)) continue;
+    const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'}};
+    ctx.tools.register({
+      name:toolName,
+      description:`${description}。当前工具列表仅包含启动时 DataHub 目录可调用的能力；由 DataHub 选源、校验并保存会话隔离快照。`,
+      parameters:{type:'object',properties:{...properties,...common},required,additionalProperties:false},
+      output:{schema:{type:'object',properties:Object.fromEntries(outputKeys.map(key=>[key,{type:'string'}])),required:outputKeys,additionalProperties:false},render(_args,value){return [{type:'text',text:JSON.stringify(value)}];}},
+      async execute(args,exec) {
+        const query=stableBusinessQuery(capability,args,properties,required);exec.signal.throwIfAborted();
+        const cwd=await trustedDirectory(ctx,exec,config);exec.signal.throwIfAborted();
+        if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(exec.agent.session.header.id) || !/^[a-zA-Z0-9_.:-]{1,120}$/.test(exec.callId)) throw Error('Native call identity is invalid');
+        const identity={session_id:basename(cwd),call_id:`${exec.agent.session.header.id}:${exec.callId}`};
+        const control=await privateControl(config.researchRoot);exec.signal.throwIfAborted();
+        const headers={'Content-Type':'application/json','X-Research-Data-Key':control.token};
+        const signal=AbortSignal.any([exec.signal,AbortSignal.timeout(22000)]);
+        let cancellation;
+        const cancel=()=>cancellation ??= (async()=>{try {const response=await globalThis.fetch(control.url+'/api/research/internal/data/cancel',{method:'POST',headers,body:JSON.stringify(identity),redirect:'error',credentials:'omit',signal:AbortSignal.timeout(2500)});await response.body?.cancel();if(!response.ok)throw Error('cancel rejected');} catch {ctx.logger.warn('datahub_cancel_not_confirmed');}})();
+        signal.addEventListener('abort',cancel,{once:true});
+        ctx.logger.info('business_data_request_started tool=%s',toolName);
+        try {
+          const response=await globalThis.fetch(control.url+'/api/research/internal/data/business-query',{method:'POST',headers,body:JSON.stringify({...identity,query}),redirect:'error',credentials:'omit',signal});
+          const result=smallResult(await boundedJson(response,signal));
+          ctx.logger.info('business_data_request_completed tool=%s',toolName);return result;
+        } catch(error) {await cancel();ctx.logger.warn('business_data_request_failed tool=%s type=%s',toolName,error.name);throw error;}
+        finally {signal.removeEventListener('abort',cancel);if(cancellation)await cancellation;}
+      },
+    });
+  }
+}

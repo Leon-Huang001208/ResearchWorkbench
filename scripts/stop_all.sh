@@ -6,7 +6,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 LOGS_DIR="$PROJECT_DIR/logs"
 
 echo "=========================================="
-echo "  AlphaFoundry - Stopping All Services"
+echo "  Research Workbench - Stopping All Services"
 echo "=========================================="
 
 stop_by_pid() {

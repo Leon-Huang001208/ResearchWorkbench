@@ -2,7 +2,7 @@
 
 ## Task Info
 
-- **Task ID**: af-auto-kline-upgrade (standalone feature)
+- **Task ID**: rwb-auto-kline-upgrade (standalone feature)
 - **Date**: 2026-06-03
 - **Plan**: `.ai/plans/52-wind-parsed-breeze.md`
 
@@ -71,7 +71,7 @@
 | `services/asset_analysis_service.py` ~1200 行超限 | 历史遗留 |
 | CDN 缺少 SRI、无 CSP 头 | 历史问题 |
 | `AnalyzeRequest.time_range` 死代码 | `/analyze` 路径未使用，保留向后兼容 |
-| 全量 mypy 未通过 | AF-AUTO-010 进行中 |
+| 全量 mypy 未通过 | RWB-AUTO-010 进行中 |
 
 ## Final Test Decision
 

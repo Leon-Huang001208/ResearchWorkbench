@@ -1,4 +1,4 @@
-"""AlphaFoundry Data MCP Server — 将数据摄入 CLI/Connector 暴露为 MCP tools.
+"""Research Workbench Data MCP Server — 将数据摄入 CLI/Connector 暴露为 MCP tools.
 
 设计原则（改进.md）：
 - MCP 是最外层的薄封装，核心能力由 Connector Python API 直接提供
@@ -16,7 +16,7 @@ Usage:
     ```json
     {
       "mcpServers": {
-        "af-data": {
+        "rwb-data": {
           "type": "stdio",
           "command": "python3",
           "args": ["-m", "mcp.server"]
@@ -432,7 +432,7 @@ def data_status(source: str | None = None) -> str:
 
 
 def main() -> None:
-    """启动 AlphaFoundry Data MCP Server (stdio transport)."""
+    """启动 Research Workbench Data MCP Server (stdio transport)."""
     import sys
 
     try:
@@ -447,14 +447,14 @@ def main() -> None:
         )
         sys.exit(1)
 
-    server = Server("af-data")
+    server = Server("rwb-data")
 
     @server.list_tools()
     async def handle_list_tools() -> list[Tool]:
         return [
             Tool(
                 name="list_data_sources",
-                description="列出 AlphaFoundry 所有可用数据源及其支持的数据集。返回每个数据源的 source 名称、类型（document/market）、可用数据集列表。使用此工具了解有哪些数据可以摄入。",
+                description="列出 Research Workbench 所有可用数据源及其支持的数据集。返回每个数据源的 source 名称、类型（document/market）、可用数据集列表。使用此工具了解有哪些数据可以摄入。",
                 inputSchema={
                     "type": "object",
                     "properties": {},

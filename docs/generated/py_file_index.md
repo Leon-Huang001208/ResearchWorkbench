@@ -6,13 +6,13 @@ Do not manually edit this file.
 ## `app/__init__.py`
 
 Module docstring:
-> AlphaFoundry Application Layer
+> Research Workbench 应用层。
 
 
 ## `app/api/__init__.py`
 
 Module docstring:
-> AlphaFoundry API Module
+> Research Workbench API Module
 
 
 ## `app/api/configuration_models.py`
@@ -104,7 +104,7 @@ Functions:
 ## `app/api/main.py`
 
 Module docstring:
-> AlphaFoundry API
+> Research Workbench API
 
 Imports:
 - `app.api.configuration_security`
@@ -138,12 +138,16 @@ Functions:
   - Start the optional Wind workbook task only after persistence is ready.
 - `_start_resource_monitor_runtime`
   - 在数据库已就绪后启动单一资源监控运行时。
+- `_start_durable_scheduler_runtime`
+  - Start the single durable worker after domain handlers are registered.
 - `_start_data_acquisition_schedulers`
   - 自动启动数据获取调度器
 - `shutdown`
   - Shutdown hook
 - `_stop_resource_monitor_runtime`
   - 停止已缓存的资源监控线程，不阻断 API 关闭。
+- `_stop_durable_scheduler_runtime`
+  - Stop the single durable worker during API shutdown.
 - `_stop_data_acquisition_schedulers`
   - 停止数据获取调度器
 - `index`
@@ -231,6 +235,101 @@ Classes:
 
 Module docstring:
 > API 路由
+
+
+## `app/api/routes/agent_schedules.py`
+
+Module docstring:
+> Agent schedule CRUD and idempotent manual trigger API.
+
+Imports:
+- `__future__`
+- `core.contracts.platform_shared`
+- `core.contracts.research_workspace`
+- `core.observability`
+- `data_layer.repositories.base`
+- `datetime`
+- `fastapi`
+- `pydantic`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `TriggerScheduleRequest`
+- `ScheduleWorkerRequest`
+- `ScheduleWorkResponse`
+
+Functions:
+- `get_schedule_dependencies`
+- `list_schedules`
+- `save_schedule`
+- `trigger_schedule`
+- `work_schedule`
+  - Claim, run, renew/fence, and complete one persisted Agent Team job.
+
+
+## `app/api/routes/agent_teams.py`
+
+Module docstring:
+> Supervisor Agent Team definition API.
+
+Imports:
+- `__future__`
+- `core.contracts.research_workspace`
+- `core.observability`
+- `data_layer.repositories.base`
+- `fastapi`
+- `sqlalchemy.orm`
+
+Functions:
+- `get_agent_team_service`
+- `list_agent_teams`
+- `save_agent_team`
+
+
+## `app/api/routes/asset_observation.py`
+
+Module docstring:
+> Thin FastAPI routes for canonical asset observation and personal alerts.
+
+Imports:
+- `__future__`
+- `core.contracts.asset_observation`
+- `core.observability`
+- `data_layer.repositories.base`
+- `fastapi`
+- `pydantic`
+- `services.asset_observation_service`
+- `sqlalchemy.exc`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `WatchlistCreateRequest`
+- `WatchlistItemCreateRequest`
+- `AlertRuleCreateRequest`
+- `AlertRuleStatusRequest`
+- `NotificationDeliveryRequest`
+- `DueAlertEvaluationRequest`
+
+Functions:
+- `get_asset_observation_service`
+  - Build the request-scoped asset observation service lazily.
+- `_raise_safe_http_error`
+- `get_asset_snapshot`
+- `get_asset_peers`
+- `create_watchlist`
+- `list_watchlists`
+- `add_watchlist_item`
+- `create_alert_rule`
+- `list_alert_rules`
+- `evaluate_due_alerts`
+- `update_alert_rule_status`
+- `list_alert_events`
+- `acknowledge_alert_event`
+- `resolve_alert_event`
+- `list_notifications`
+- `mark_notification_delivery`
 
 
 ## `app/api/routes/assets.py`
@@ -910,6 +1009,40 @@ Functions:
   - 查询某只股票的日行情数据
 - `list_etl_runs`
   - 查询最近的 ETL 运行记录
+
+
+## `app/api/routes/market_home.py`
+
+Module docstring:
+> Thin API routes for the facts-only market home.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `core.contracts.market_home`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.market_home_repository`
+- `datetime`
+- `fastapi`
+- `fastapi.responses`
+- `json`
+- `services.market_home_service`
+- `sqlalchemy.orm`
+- `typing`
+
+Functions:
+- `get_market_home_service`
+  - Inject the request-scoped market-home service without eager heavy imports.
+- `get_live_market_home`
+- `get_market_home_drill_down`
+- `get_market_home_snapshot`
+- `create_market_home_snapshot`
+- `_format_market_home_sse_event`
+  - Serialize only the durable invalidation reference, never section facts.
+- `_market_home_event_stream`
+- `stream_market_home_events`
 
 
 ## `app/api/routes/memory.py`
@@ -1613,17 +1746,22 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `asyncio`
 - `core.contracts.research`
+- `core.contracts.research_workspace`
 - `core.observability`
 - `data_layer.repositories.base`
 - `data_layer.repositories.research_run_repository`
+- `datetime`
 - `fastapi`
 - `fastapi.responses`
+- `json`
 - `services.research_templates`
 - `sqlalchemy.orm`
 - `typing`
 
 Functions:
+- `_scope_kwargs`
 - `get_research_run_service`
   - Inject the aggregate service with the request-scoped database session.
 - `create_research_run`
@@ -1635,12 +1773,102 @@ Functions:
 - `get_research_run`
 - `execute_research_run`
 - `resume_research_run`
+- `stream_research_run_events`
+  - Stream only durable status references with ordered cursor replay.
 - `add_research_evidence`
 - `get_research_outputs`
 - `download_research_markdown`
   - Download the report projection only after all publishing gates passed.
 - `download_research_word`
   - Download the Word report projection only after all publishing gates passed.
+
+
+## `app/api/routes/research_sessions.py`
+
+Module docstring:
+> Thin API routes for research sessions and idempotent messages.
+
+Imports:
+- `__future__`
+- `app.api.routes.research_runs`
+- `app.api.routes.research_workspaces`
+- `core.contracts.research`
+- `core.contracts.research_workspace`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `pydantic`
+- `typing`
+
+Classes:
+- `SessionCreateRequest`
+- `MessageCreateRequest`
+- `PromoteSessionRequest`
+- `SessionRunCreateRequest`
+- `SessionRunExecuteRequest`
+
+Functions:
+- `get_research_orchestration_service`
+- `_http_error`
+- `create_session`
+- `get_session`
+- `promote_session`
+- `append_message`
+- `list_messages`
+- `create_session_run`
+  - Atomically create and bind one project-scoped Research Run.
+- `execute_session_run`
+  - Execute a Run only inside its explicitly supplied project/workspace scope.
+
+
+## `app/api/routes/research_skills.py`
+
+Module docstring:
+> Declarative Skill API with platform-owned execution authorization.
+
+Imports:
+- `__future__`
+- `app.api.routes.runtime_providers`
+- `core.contracts.research_workspace`
+- `core.observability`
+- `datetime`
+- `fastapi`
+
+Functions:
+- `get_authorized_tool_registry`
+  - Read the administrator-owned registry; requests cannot add capabilities.
+- `list_skills`
+- `save_skill`
+
+
+## `app/api/routes/research_workspaces.py`
+
+Module docstring:
+> Thin API routes for project-isolated research workspaces and notes.
+
+Imports:
+- `__future__`
+- `core.contracts.research_workspace`
+- `core.observability`
+- `data_layer.repositories.base`
+- `fastapi`
+- `pydantic`
+- `services.research_workspace_service`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `WorkspaceCreateRequest`
+- `NoteCreateRequest`
+
+Functions:
+- `get_research_workspace_service`
+- `_http_error`
+- `create_workspace`
+- `list_workspaces`
+- `get_workspace`
+- `list_workspace_notes`
+- `create_workspace_note`
 
 
 ## `app/api/routes/review.py`
@@ -1665,6 +1893,32 @@ Functions:
   - 拒绝审核项
 - `review_stats`
   - 审核统计
+
+
+## `app/api/routes/runtime_providers.py`
+
+Module docstring:
+> Runtime provider declarations and health API.
+
+Imports:
+- `__future__`
+- `app.api.routes.research_runs`
+- `core.contracts.research_workspace`
+- `core.observability`
+- `data_layer.repositories.base`
+- `fastapi`
+- `pydantic`
+- `sqlalchemy.orm`
+
+Classes:
+- `ProviderResultRequest`
+
+Functions:
+- `get_runtime_provider_service`
+- `list_runtime_providers`
+- `upsert_runtime_provider`
+- `accept_provider_result`
+  - Accept one typed, idempotent DSH terminal callback.
 
 
 ## `app/api/routes/scenarios.py`
@@ -1879,7 +2133,7 @@ Functions:
 - `_sanitize_host_capacity`
   - 将主机容量汇总收敛为稳定、无进程信息的公开字段。
 - `_sanitize_alpha_capacity`
-  - 将 AlphaFoundry 对整机的占用汇总限制为公开数值字段。
+  - 将 Research Workbench 对整机的占用汇总限制为公开数值字段。
 - `_sanitize_host_history_point`
   - 将持久化指标转换为最小的长期主机容量 API 点位。
 - `_host_history_sort_key`
@@ -1895,7 +2149,7 @@ Functions:
 - `_serialize_resource_event`
   - 将 Pydantic 资源告警映射为仅含安全字段的 JSON 响应。
 - `get_resource_usage`
-  - 返回 AlphaFoundry 受控进程与主机容量的当前资源快照。
+  - 返回 Research Workbench 受控进程与主机容量的当前资源快照。
 - `get_resource_usage_history`
   - 返回指定时间窗口内已采集的资源快照。
 - `get_resource_host_history`
@@ -1924,6 +2178,41 @@ Functions:
   - 扫描 logs/ 目录下的 .heartbeat.json 文件，返回 {worker_name: {timestamp, activity}}
 - `get_workers_status`
   - 聚合返回所有后台 worker 的实时状态和队列统计
+
+
+## `app/api/routes/theme_research.py`
+
+Module docstring:
+> Thin FastAPI routes for declarative Theme Research Packs.
+
+Imports:
+- `__future__`
+- `core.contracts.theme_research`
+- `core.observability`
+- `data_layer.repositories.base`
+- `fastapi`
+- `pathlib`
+- `pydantic`
+- `services.theme_research_service`
+- `sqlalchemy.orm`
+- `typing`
+
+Classes:
+- `WorkspacePrefillCreateRequest`
+  - User-selected title for a theme-scoped research workspace command.
+
+Functions:
+- `get_theme_research_service`
+  - Build request-scoped dependencies without eager service imports in app startup.
+- `_raise_safe_http_error`
+- `list_theme_catalog`
+- `get_theme_snapshot`
+- `get_theme_kpis`
+- `get_theme_value_chain`
+- `get_theme_events`
+- `get_theme_assets`
+- `get_theme_health`
+- `create_theme_research_workspace_request`
 
 
 ## `app/api/routes/thesis_generator.py`
@@ -2167,7 +2456,7 @@ Functions:
 ## `app/cli/commands/ask.py`
 
 Module docstring:
-> af ask 命令：联网查询后回答问题
+> rwb ask 命令：联网查询后回答问题
 
 Imports:
 - `click`
@@ -2212,7 +2501,7 @@ Functions:
 ## `app/cli/commands/data.py`
 
 Module docstring:
-> 统一数据命令组 — af data ingest|backfill|validate|status|list|file|schedule|workers
+> 统一数据命令组 — rwb data ingest|backfill|validate|status|list|file|schedule|workers
 
 Imports:
 - `__future__`
@@ -2452,34 +2741,873 @@ Functions:
 ## `app/cli/main.py`
 
 Module docstring:
-> AlphaFoundry CLI 主入口
+> Research Workbench CLI 主入口。
 
 Imports:
-- `app.cli.commands.akshare`
-- `app.cli.commands.analyze`
-- `app.cli.commands.ask`
-- `app.cli.commands.backtest`
-- `app.cli.commands.data`
-- `app.cli.commands.ingest`
-- `app.cli.commands.memory`
-- `app.cli.commands.report`
-- `app.cli.commands.review`
-- `app.cli.commands.scenario`
-- `app.cli.commands.signal`
-- `app.cli.commands.timing`
+- `app.research_web.data_migration`
+- `app.research_web.service_manager`
 - `click`
-- `core.observability`
+- `importlib`
+- `json`
+- `logging`
+- `pathlib`
 - `sys`
+
+Classes:
+- `LazyCommandGroup`
+  - Expose legacy commands without importing their runtime until selected.
+  - methods: list_commands, get_command, format_commands
 
 Functions:
 - `cli`
-  - AlphaFoundry - 买方投研情报系统
+  - Research Workbench - 本地优先的研究工作台。
+- `web`
+  - 管理 Web 与专属 DSH 后台服务。
+- `_run_web_action`
+- `web_start`
+  - 幂等启动 3081 DSH 和 8088 Web。
+- `web_status`
+  - 查看两个项目服务的归属与健康状态。
+- `web_stop`
+  - 停止仅属于当前项目的 8088/3081 进程。
+- `web_restart`
+  - 在无活动研究时重启项目服务。
+- `migrate_research_data`
+  - 迁移研究会话、附件、能力版本、数据集和产物，不复制凭据。
+
+
+## `app/research_web/__init__.py`
+
+Module docstring:
+> Standalone native-DSH research product; no legacy app lifecycle.
+
+
+## `app/research_web/capabilities/__init__.py`
+
+Module docstring:
+> Product-owned immutable instruction packages; DSH remains the only executor.
+
+
+## `app/research_web/capabilities/catalog.py`
+
+Module docstring:
+> Single-process package catalog, immutable versions and native discovery projection.
+
+Imports:
+- `ast`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `importlib.metadata`
+- `io`
+- `json`
+- `models`
+- `os`
+- `packages`
+- `packaging.requirements`
+- `pathlib`
+- `pydantic`
+- `re`
+- `seeds`
+- `shutil`
+- `sys`
+- `tempfile`
+- `time`
+- `tools`
+- `uuid`
+- `yaml`
+- `zipfile`
+
+Classes:
+- `CapabilityCatalog`
+  - methods: __init__, save, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+
+
+## `app/research_web/capabilities/models.py`
+
+Module docstring:
+> Editable package contracts; validation issues are retained with drafts.
+
+Imports:
+- `pydantic`
+- `store`
+- `typing`
+
+Classes:
+- `CapabilityError`
+  - methods: __init__
+- `InputField`
+- `Metadata`
+- `Step`
+- `DraftInput`
+- `CopyInput`
+- `VersionInput`
+- `CreationInput`
+- `ArtifactInput`
+
+Functions:
+- `issue`
+
+
+## `app/research_web/capabilities/packages.py`
+
+Module docstring:
+> Bounded inert imports. No extractall, subprocess, installer or network access.
+
+Imports:
+- `base64`
+- `binascii`
+- `core.observability`
+- `hashlib`
+- `io`
+- `json`
+- `models`
+- `pathlib`
+- `re`
+- `stat`
+- `xml.etree`
+- `yaml`
+- `zipfile`
+
+Functions:
+- `valid_path`
+- `encode_file`
+- `media_evidence`
+  - Bounded container evidence only: no rendering, decompression or code execution.
+- `gif_blocks_end`
+- `decode_file`
+- `normalize_files`
+- `frontmatter`
+- `import_package`
+
+
+## `app/research_web/capabilities/routes.py`
+
+Module docstring:
+> Local product package APIs; runtime mutations share ResearchService.lock.
+
+Imports:
+- `fastapi`
+- `fastapi.responses`
+- `models`
+- `packages`
+- `tools`
+
+Functions:
+- `catalog`
+- `tools`
+- `workflows`
+- `create`
+- `import_file`
+- `creation`
+- `from_artifact`
+- `detail`
+- `edit`
+- `copy`
+- `check`
+- `publish`
+- `disable`
+- `enable`
+- `rollback`
+- `versions`
+- `export`
+- `version_detail`
+
+
+## `app/research_web/capabilities/seeds.py`
+
+Module docstring:
+> Four existing reviewed Skills and two explicitly non-executed workflow templates.
+
+Imports:
+- `packages`
+- `pathlib`
+
+Functions:
+- `seed_packages`
+
+
+## `app/research_web/capabilities/tools.py`
+
+Module docstring:
+> Offline read-only projection of the pinned composition and final-veto registry.
+
+Imports:
+- `datahub.catalog`
+- `datahub.contracts`
+- `models`
+- `pathlib`
+- `re`
+
+Functions:
+- `tool_catalog`
+
+
+## `app/research_web/client.py`
+
+Module docstring:
+> Allowlisted, loopback-only native DSH transport, never a generic RPC proxy.
+
+Imports:
+- `asyncio`
+- `collections.abc`
+- `core.observability`
+- `httpx`
+- `json`
+- `typing`
+- `urllib.parse`
+- `uuid`
+- `websockets`
+
+Classes:
+- `RuntimeFailure`
+  - Safe product-facing error; never includes raw credentials or HTTP body.
+  - methods: __init__
+- `DSHClient`
+  - methods: __init__, __aenter__, __aexit__, close, rpc, respond, frames, history
+
+
+## `app/research_web/data_migration.py`
+
+Module docstring:
+> Copy Research Web user data into the Research Workbench data home safely.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+- `tempfile`
+
+Classes:
+- `DataMigrationError`
+  - A migration could not be completed without risking user data.
+- `FileRecord`
+
+Functions:
+- `_is_allowed`
+- `_is_sensitive`
+- `_candidate_files`
+- `_hash_file`
+- `build_manifest`
+- `_summary`
+- `_existing_manifest`
+- `migrate_data`
+  - Copy only user-owned research state, excluding credentials and runtime overlays.
+- `archive_source`
+  - Move a verified legacy source aside and make the backup read-only.
+
+
+## `app/research_web/datahub/__init__.py`
+
+Module docstring:
+> One in-process DataHub shared by read-only Web and approved native tools.
+
+Imports:
+- `asyncio`
+- `broker`
+- `catalog`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `hmac`
+- `json`
+- `re`
+- `security`
+- `snapshots`
+- `store`
+- `time`
+- `uuid`
+
+Classes:
+- `DataHub`
+  - methods: __init__, authenticate, _latest_probes, catalog, catalog_capability, catalog_source, start_probe, _probe, probe, detail, summaries, copy_for_upgrade, list, rows, short, query, _query, cancel, close
+
+
+## `app/research_web/datahub/broker.py`
+
+Module docstring:
+> Provider selection and strict translation from stable business requests.
+
+Imports:
+- `__future__`
+- `catalog`
+- `contracts`
+- `dataclasses`
+- `store`
+
+Classes:
+- `Resolution`
+
+Functions:
+- `_integer`
+- `resolve`
+
+
+## `app/research_web/datahub/catalog.py`
+
+Module docstring:
+> Static DataHub capability/source catalog. Reads configuration only; never imports providers.
+
+Imports:
+- `__future__`
+- `contracts`
+- `datetime`
+- `os`
+- `pydantic`
+- `typing`
+
+Classes:
+- `SourceReadiness`
+- `DataSourceDescriptor`
+- `ProviderBinding`
+- `DataCapability`
+
+Functions:
+- `_configured`
+- `build_catalog`
+  - Return a fresh JSON-ready catalog without importing or constructing any connector.
+- `catalog_detail`
+
+
+## `app/research_web/datahub/contracts.py`
+
+Module docstring:
+> Business-only queries; no provider endpoints, paths, sessions or credentials.
+
+Imports:
+- `datetime`
+- `hashlib`
+- `json`
+- `pydantic`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `Query`
+  - methods: valid_business_query, fingerprint
+- `InternalCancel`
+- `BusinessQuery`
+  - Stable DSH-facing request; provider selection stays inside DataHub.
+  - methods: safe_parameters, fingerprint
+- `InternalBusinessQuery`
+
+
+## `app/research_web/datahub/providers.py`
+
+Module docstring:
+> Fixed public providers, bounded streaming, audited parsing; no legacy lifecycle.
+
+Imports:
+- `asyncio`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `hashlib`
+- `httpx`
+- `json`
+- `math`
+- `re`
+- `zoneinfo`
+
+Classes:
+- `ProviderError`
+  - Fixed non-sensitive reasons, safe for manifests and logs.
+- `Result`
+
+Functions:
+- `numeric`
+- `valid_date`
+- `response_bytes`
+- `json_payload`
+- `nav_observation`
+- `fund_nav`
+- `cls_telegraph`
+- `original_text`
+- `profile_cell_text`
+  - Provider omits closing td: stop before any following nested table cell.
+- `supplement_rows`
+- `supplement`
+- `fetch`
+- `probe`
+  - Minimal public read used only after an explicit per-source probe request.
+
+
+## `app/research_web/datahub/routes.py`
+
+Module docstring:
+> Read-only browser catalog; authenticated native-only query and cancel ingress.
+
+Imports:
+- `asyncio`
+- `contracts`
+- `fastapi`
+- `fastapi.responses`
+- `store`
+- `typing`
+
+Functions:
+- `catalog`
+- `capability_detail`
+- `source_detail`
+- `start_probe`
+- `probe`
+- `datasets`
+- `detail`
+- `rows`
+- `download`
+- `business_query`
+- `cancel`
+
+
+## `app/research_web/datahub/security.py`
+
+Module docstring:
+> Private control and descriptor-relative IO; never reuse model credentials.
+
+Imports:
+- `contextlib`
+- `core.observability`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `secrets`
+- `stat`
+- `store`
+- `urllib.parse`
+- `uuid`
+
+Functions:
+- `directory`
+  - All descendants opened with NOFOLLOW; trusted root is canonical.
+- `read_file`
+- `write_new`
+- `atomic_json`
+- `json_bytes`
+- `checked_url`
+- `load_control`
+  - Startup/service-owned fixed file. Existing abnormal permissions fail closed.
+
+
+## `app/research_web/datahub/snapshots.py`
+
+Module docstring:
+> Immutable session snapshots; private hashes authorize public dataset reads.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `csv`
+- `datetime`
+- `hashlib`
+- `io`
+- `json`
+- `os`
+- `re`
+- `security`
+- `store`
+- `uuid`
+
+Classes:
+- `Snapshots`
+  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, copy_for_upgrade
+
+Functions:
+- `sha`
+- `csv_bytes`
+
+
+## `app/research_web/delivery.py`
+
+Module docstring:
+> File delivery metadata and strict sandbox validation, separate from DSH execution.
+
+Imports:
+- `asyncio`
+- `client`
+- `core.observability`
+- `hashlib`
+- `json`
+- `pathlib`
+- `projection`
+- `store`
+- `sys`
+- `time`
+
+Classes:
+- `Delivery`
+  - methods: __init__, snapshot, current, begin, public, reconcile_cancel, refresh
+
+Functions:
+- `expected_formats`
+
+
+## `app/research_web/delivery_validation.py`
+
+Module docstring:
+> Trusted parser source, executed ONLY via sandbox.run_script, never on the host.
+
+Imports:
+- `hashlib`
+- `html.parser`
+- `io`
+- `json`
+- `os`
+- `pathlib`
+- `stat`
+
+Classes:
+- `VisibleHTML`
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+
+Functions:
+- `meaningful`
+- `validate_content`
+- `validate_file`
+
+
+## `app/research_web/documentation.py`
+
+Module docstring:
+> Serve only reviewed architecture HTML names, never a repository file browser.
+
+Imports:
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `os`
+- `pathlib`
+- `stat`
+
+Functions:
+- `read_document`
+  - Open every directory and the final file without following links (POSIX only).
+- `architecture_document`
+
+
+## `app/research_web/launch_runtime.py`
+
+Module docstring:
+> Launch only an owned DSH instance with a fixed build and clean environment.
+
+Imports:
+- `argparse`
+- `capabilities.catalog`
+- `core.observability`
+- `datahub.security`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+- `store`
+- `subprocess`
+- `sys`
+
+Functions:
+- `prepare_runtime_module_fallback`
+  - Heal DSH profile module links and reject dependencies outside the pinned tree.
+- `prepare`
+- `main`
+
+
+## `app/research_web/main.py`
+
+Module docstring:
+> Web-only startup: python -m uvicorn app.research_web.main:app --port 8088.
+
+Imports:
+- `asyncio`
+- `capabilities.models`
+- `capabilities.routes`
+- `client`
+- `contextlib`
+- `core.observability`
+- `datahub.routes`
+- `documentation`
+- `fastapi`
+- `fastapi.exceptions`
+- `fastapi.responses`
+- `fastapi.staticfiles`
+- `json`
+- `mimetypes`
+- `os`
+- `pathlib`
+- `pydantic`
+- `re`
+- `service`
+- `shutil`
+- `starlette.middleware.trustedhost`
+- `store`
+- `typing`
+- `urllib.parse`
+- `uuid`
+
+Classes:
+- `NewSession`
+- `Prompt`
+- `Rename`
+- `Approval`
+- `AnswerItem`
+- `Answers`
+- `ModelConfig`
+
+Functions:
+- `create_app`
+
+
+## `app/research_web/projection.py`
+
+Module docstring:
+> Pure projection of native DSH events; no parallel research execution model.
+
+Imports:
+- `json`
+
+Functions:
+- `content_text`
+- `project`
+
+
+## `app/research_web/resources/__init__.py`
+
+Module docstring:
+> Audited document helpers copied read-only into each research workspace.
+
+
+## `app/research_web/resources/research_helpers.py`
+
+Module docstring:
+> Deterministic document extraction/delivery helpers for the isolated runner.
+
+Imports:
+- `html`
+- `logging`
+- `pathlib`
+- `uuid`
+
+Functions:
+- `read_pdf`
+- `safe_cell`
+- `write_deliverables`
+
+
+## `app/research_web/sandbox.py`
+
+Module docstring:
+> Fail-closed macOS research runner; intentionally independent of application settings.
+
+Imports:
+- `__future__`
+- `argparse`
+- `dataclasses`
+- `functools`
+- `json`
+- `logging`
+- `math`
+- `os`
+- `pathlib`
+- `selectors`
+- `signal`
+- `subprocess`
+- `sys`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `SandboxError`
+  - A deployment or request failed validation before code execution.
+- `SandboxConfig`
+- `ScriptResult`
+
+Functions:
+- `child_environment`
+  - An explicit environment, never a filtered copy of the host environment.
+- `validate_session`
+  - Accept only a real UUID directory directly below this deployment's sessions.
+- `_runtime`
+  - Inspect only the explicitly configured interpreter, with site startup disabled.
+- `seatbelt_profile`
+  - Build a read-data allowlist and narrow mutation grants (metadata stays visible).
+- `_kill_group`
+  - Stop every child; report incomplete kernel teardown rather than hanging forever.
+- `run_script`
+  - Execute bounded Python source under kernel-enforced research capabilities.
+- `_request_cancel`
+- `main`
+  - Single-request JSON supervisor used by the native DSH tool, not a server.
+
+
+## `app/research_web/service.py`
+
+Module docstring:
+> Research BFF: native events, safe ownership, idempotent admission, no agent loop.
+
+Imports:
+- `asyncio`
+- `base64`
+- `capabilities.catalog`
+- `capabilities.models`
+- `capabilities.packages`
+- `capabilities.tools`
+- `client`
+- `contextlib`
+- `core.observability`
+- `datahub`
+- `datetime`
+- `delivery`
+- `hashlib`
+- `json`
+- `pathlib`
+- `projection`
+- `shutil`
+- `store`
+- `time`
+- `websockets.exceptions`
+
+Classes:
+- `ResearchService`
+  - methods: __init__, ensure_owned, start, close, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+
+
+## `app/research_web/service_manager.py`
+
+Module docstring:
+> Persistent, project-owned process manager for the Research Workbench Web stack.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `dataclasses`
+- `hashlib`
+- `http.client`
+- `json`
+- `os`
+- `pathlib`
+- `shutil`
+- `signal`
+- `socket`
+- `subprocess`
+- `sys`
+- `tempfile`
+- `time`
+- `typing`
+- `uuid`
+- `webbrowser`
+
+Classes:
+- `ServiceManagerError`
+  - Safe CLI-facing service lifecycle failure.
+- `ManagedProcess`
+- `WebServiceManager`
+  - Start and stop only processes whose private state and command both match.
+  - methods: __init__, _processes, _prepare_private_directories, _state_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, status
+
+Functions:
+- `format_status`
+
+
+## `app/research_web/skills/company-research/scripts/workflow.py`
+
+Module docstring:
+> Generate actual deliverables from an analyst-created JSON input; no fabricated defaults.
+
+Imports:
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `main`
+
+
+## `app/research_web/skills/document-reading/scripts/workflow.py`
+
+Module docstring:
+> Generate actual deliverables from an analyst-created JSON input; no fabricated defaults.
+
+Imports:
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `main`
+
+
+## `app/research_web/skills/fund-evaluation/scripts/workflow.py`
+
+Module docstring:
+> Generate actual deliverables from an analyst-created JSON input; no fabricated defaults.
+
+Imports:
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `main`
+
+
+## `app/research_web/skills/industry-research/scripts/workflow.py`
+
+Module docstring:
+> Generate actual deliverables from an analyst-created JSON input; no fabricated defaults.
+
+Imports:
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `main`
+
+
+## `app/research_web/store.py`
+
+Module docstring:
+> Atomic single-process product ownership index. DSH owns all transcripts.
+
+Imports:
+- `core.observability`
+- `hashlib`
+- `json`
+- `mimetypes`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+- `tempfile`
+- `time`
+- `uuid`
+
+Classes:
+- `StoreError`
+- `Store`
+  - methods: __init__, save, create, session, directory, reserve, receipt, files, file_path, open_file
 
 
 ## `core/__init__.py`
 
 Module docstring:
-> AlphaFoundry Core 模块
+> Research Workbench Core 模块
 
 
 ## `core/adapters/__init__.py`
@@ -2665,6 +3793,50 @@ Imports:
 Classes:
 - `Assertion`
   - 断言 - 从文档中提取的事实陈述.
+
+
+## `core/contracts/asset_observation.py`
+
+Module docstring:
+> Asset observation, peer set, watchlist, alert, and notification contracts.
+
+Imports:
+- `__future__`
+- `core.contracts.platform_shared`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `AssetSnapshotEnvelope`
+  - Unified fact response for stock, index, ETF, and active fund details.
+- `PeerSet`
+  - Transparent peer-selection rule and resulting sample.
+- `Watchlist`
+  - Named, profile-scoped collection of canonical assets.
+- `WatchlistItem`
+  - Watchlist entry identified only by stable canonical asset ID.
+- `AlertOperator`
+  - Supported deterministic alert comparison operators.
+- `AlertRuleStatus`
+  - Lifecycle state of an alert rule.
+- `AlertRule`
+  - Unit-aware rule evaluated only against usable fact observations.
+  - methods: validate_threshold
+- `AlertEvaluationStatus`
+  - Outcome of one rule evaluation.
+- `AlertEvaluation`
+  - Auditable result of evaluating an alert rule.
+- `AlertEventStatus`
+  - Lifecycle of one false-to-true alert cycle.
+- `AlertEvent`
+  - Persisted false-to-true edge with deduplication identity.
+- `NotificationStatus`
+  - In-app authority and optional desktop delivery projection states.
+- `Notification`
+  - Safe persisted inbox message independent of desktop permission.
+- `AlertBatchEvaluationSummary`
+  - Aggregate outcome for one server-side due-alert evaluation batch.
 
 
 ## `core/contracts/assets.py`
@@ -3038,7 +4210,7 @@ Classes:
 ## `core/contracts/documents_v1.py`
 
 Module docstring:
-> AlphaFoundry v1 统一文档契约.
+> Research Workbench v1 统一文档契约.
 
 Imports:
 - `datetime`
@@ -3072,7 +4244,7 @@ Classes:
 - `DocumentReview`
   - 审核信息
 - `DocumentV1`
-  - AlphaFoundry v1 统一文档模型.
+  - Research Workbench v1 统一文档模型.
 - `TelegramSchema`
   - 电报/快讯特定 schema
 - `NewsSchema`
@@ -3325,6 +4497,50 @@ Classes:
   - 数据校验报告 — connector.validate_existing() 的返回类型.
 
 
+## `core/contracts/market_home.py`
+
+Module docstring:
+> Facts-only market home contracts and transparent mainline components.
+
+Imports:
+- `__future__`
+- `core.contracts.platform_shared`
+- `dataclasses`
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `TradingStatus`
+  - A-share trading-session state used by market home.
+- `MarketHomeSectionKey`
+  - The five fixed facts-only market home sections.
+- `SectionStatus`
+  - Independent readiness state of one home section.
+- `SectionDegradation`
+  - Stable partial-failure description for one market section.
+- `MainlineCandidate`
+  - Internal facts projection consumed by the versioned mainline formula.
+- `MainlineCandidateBatch`
+  - Quality-gated same-watermark inputs plus explicit rejected components.
+- `MainlineComponents`
+  - Versioned inputs to the transparent market-mainline score.
+- `MainlineRank`
+  - Ranked theme with every score component exposed.
+- `MarketHomeSection`
+  - Independently degradable, source-backed home section.
+  - methods: validate_failure_provenance
+- `MarketHomeEnvelope`
+  - Facts-only market home response with five explicit sections.
+  - methods: validate_section_set
+- `MarketHomeSnapshot`
+  - Immutable close or point-in-time projection for historical reads.
+  - methods: validate_snapshot_provenance
+- `MarketHomeInvalidationEvent`
+  - Small durable SSE reference that never embeds a section payload.
+
+
 ## `core/contracts/monitoring.py`
 
 Module docstring:
@@ -3469,6 +4685,48 @@ Classes:
   - 转换状态响应
 
 
+## `core/contracts/platform_shared.py`
+
+Module docstring:
+> Shared identity, provenance, freshness, event, and scheduling contracts.
+
+Imports:
+- `__future__`
+- `enum`
+- `pydantic`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `AssetType`
+  - Asset classes supported by the merged observation surface.
+- `FreshnessStatus`
+  - Point-in-time usability of a fact response.
+- `SourceTier`
+  - Trust tier of a traceable source.
+- `AssetRef`
+  - Stable internal asset identity without duplicating asset facts.
+- `AssetIdentifier`
+  - Time-bounded vendor or market identifier for an asset.
+  - methods: validate_validity_window
+- `SourceRef`
+  - Safe, credential-free pointer to the origin of a fact.
+  - methods: validate_traceability
+- `FactResponseBase`
+  - Mandatory temporal and provenance context for every fact response.
+  - methods: validate_time_order
+- `ObservationEnvelope`
+  - Typed fact observation with explicit missing-value and unit semantics.
+  - methods: validate_value_semantics
+- `DomainEvent`
+  - Durable domain-event record; transports carry only its reference.
+- `ScheduledJobStatus`
+  - Durable scheduler state owned by PostgreSQL.
+- `ScheduledJob`
+  - Single-flight scheduled work with lease and idempotency semantics.
+  - methods: validate_single_flight
+
+
 ## `core/contracts/portfolio.py`
 
 Module docstring:
@@ -3609,6 +4867,61 @@ Classes:
 - `ResearchRunOutputs`
 
 
+## `core/contracts/research_workspace.py`
+
+Module docstring:
+> Workspace, runtime, Skill, Agent Team, and schedule contracts.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `enum`
+- `pydantic`
+- `re`
+- `typing`
+
+Classes:
+- `WorkspaceStatus`
+  - Lifecycle state of a local research workspace.
+- `ResearchWorkspace`
+  - Project-isolated container for sessions, runs, and notes.
+- `SessionMode`
+  - Whether a session is ephemeral or bound to a workspace.
+- `SessionStatus`
+  - Lifecycle of a research conversation.
+- `ResearchSession`
+  - Temporary or workspace-scoped research conversation.
+  - methods: validate_scope
+- `ResearchMessage`
+  - Persisted message whose workspace scope is derived from its session.
+  - methods: validate_content
+- `RuntimeProviderStatus`
+  - Health state advertised by a research runtime provider.
+- `ProviderTerminalStatus`
+  - Typed terminal state returned by a runtime provider.
+- `RuntimeProvider`
+  - Capability declaration for LangGraph or the optional DSH sidecar.
+- `ProviderExecutionResult`
+  - Idempotent, credential-free result returned by DSH or another provider.
+  - methods: validate_terminal_shape
+- `SkillManifest`
+  - Declarative Skill requiring a closed internal allowlist and trusted registry.
+  - methods: validate_allowed_tools, validate_tool_registry
+- `AgentBudget`
+  - Hard execution bounds checked before every Agent step.
+- `AgentTeamDefinition`
+  - Supervisor-led team whose workers communicate through a blackboard.
+  - methods: validate_supervisor
+- `BlackboardEntry`
+  - Typed assignment/result written to a team-owned shared blackboard.
+- `AgentSchedule`
+  - No-reentry schedule that coalesces missed executions to the latest.
+  - methods: validate_execution_policy
+- `ResearchNote`
+  - Versioned user-selected Claim or paragraph reference.
+  - methods: validate_source_reference
+
+
 ## `core/contracts/retrieval.py`
 
 Module docstring:
@@ -3720,6 +5033,66 @@ Classes:
   - 交易候选 - 从信号转化的具体交易建议.
 
 
+## `core/contracts/theme_research.py`
+
+Module docstring:
+> Declarative Research Pack and theme-observation contracts.
+
+Imports:
+- `__future__`
+- `core.contracts.platform_shared`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `PackLifecycle`
+  - Validated lifecycle of a Research Pack.
+- `DatasetField`
+  - One typed CSV/connector field declared by a dataset.
+- `ObservationFieldMapping`
+  - One fact emitted from a long or wide source row.
+  - methods: validate_mapping
+- `DatasetManifest`
+  - One source dataset declared by a theme pack.
+  - methods: validate_field_mapping
+- `KPIDefinition`
+  - Unit-bearing KPI definition used by typed pack projections.
+- `ValueChainNode`
+  - Declared node in a pack's evidence-backed value chain.
+- `ThemeAssetExposure`
+  - Evidence-backed relationship between a theme and an existing asset.
+- `PluginBinding`
+  - Reference to a trusted, versioned in-process transform.
+- `ThemePackManifest`
+  - Versioned and permission-bounded declaration of a Research Pack.
+  - methods: validate_kpi_datasets
+- `ThemeObservation`
+  - Only persisted fact shape shared by every theme pack.
+- `ThemeSnapshot`
+  - Typed, read-only projection of a theme at one point in time.
+- `PackHealth`
+  - Coverage and import outcomes for a theme pack.
+- `ThemeKPIValue`
+  - One unit-bearing KPI point backed by a persisted observation.
+- `ThemeKPIProjection`
+  - Typed KPI series read model.
+- `ThemeValueChainProjection`
+  - Manifest-declared value-chain nodes with evidence references.
+- `ThemeEventProjection`
+  - Verified events and unverified leads remain visibly separated.
+- `ThemeAssetProjection`
+  - Asset exposure projection that never copies asset facts.
+- `WorkspacePrefillRequest`
+  - Safe hand-off to the research module; it does not write theme facts.
+- `IngestionCheckpoint`
+  - Restart token for a deterministic source file scan.
+- `IngestionRowResult`
+  - Safe row-level outcome without embedding unvalidated source content.
+- `ThemeIngestionReport`
+  - Dry-run/apply report for one immutable source file.
+
+
 ## `core/contracts/timing_engine.py`
 
 Module docstring:
@@ -3767,7 +5140,7 @@ Classes:
 ## `core/interfaces/__init__.py`
 
 Module docstring:
-> Core interfaces (abstract base classes) for AlphaFoundry components.
+> Core interfaces (abstract base classes) for Research Workbench components.
 
 Imports:
 - `data_adapter`
@@ -4276,7 +5649,7 @@ Imports:
 
 Functions:
 - `app_data_dir`
-  - 返回当前平台下的 AlphaFoundry 应用数据根目录。
+  - 返回当前平台下的 Research Workbench 应用数据根目录。
 - `wind_workbook_dir`
   - Wind 实时工作簿所在目录。
 - `default_wind_workbook_path`
@@ -4434,7 +5807,7 @@ Functions:
 ## `data_layer/__init__.py`
 
 Module docstring:
-> AlphaFoundry Data Layer - 数据层。按需导入，避免启动时全量加载。
+> Research Workbench Data Layer - 数据层。按需导入，避免启动时全量加载。
 
 
 ## `data_layer/adapters/__init__.py`
@@ -6713,6 +8086,39 @@ Classes:
   - methods: _to_domain, _to_model, save, get, list, delete, get_by_subject, get_pending_review
 
 
+## `data_layer/repositories/asset_observation_repository.py`
+
+Module docstring:
+> Persistence adapter for canonical assets, watchlists, alerts, and notifications.
+
+Imports:
+- `__future__`
+- `core.contracts.asset_observation`
+- `core.contracts.platform_shared`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.fund_repository`
+- `data_layer.repositories.models`
+- `datetime`
+- `decimal`
+- `hashlib`
+- `sqlalchemy`
+- `sqlalchemy.exc`
+- `typing`
+- `uuid`
+
+Classes:
+- `AssetObservationRepository`
+  - Request-scoped repository; methods flush but never commit.
+  - methods: get_asset_projection, list_peer_assets, create_watchlist, list_watchlists, add_watchlist_item, get_watchlist, get_asset, create_alert_rule, list_alert_rules, list_active_alert_rules, list_active_alert_profile_ids, evaluation_savepoint, alert_rule_for_update_statement, lock_alert_rule, get_alert_rule, update_alert_rule_status, get_rule_state, update_rule_state, create_alert_event, get_active_alert_event, create_notification, list_alert_events, acknowledge_alert_event, resolve_alert_event, list_notifications, requeue_expired_delivery_claims, claim_notification_delivery, complete_notification_delivery, mark_pending_notification_outcome, _notification_after_update, get_notification, to_watchlist, to_watchlist_item, to_alert_rule, to_alert_event, to_notification, _current_identifiers, _fact_candidate_values, _empty_projection, _load_stock_projection, _load_index_projection, _load_etf_projection, _load_fund_projection, _freshness, _peer_dimension_matches
+
+Functions:
+- `_utc_now`
+- `_aware`
+- `_json_value`
+- `_source_ref`
+
+
 ## `data_layer/repositories/asset_snapshot_repository.py`
 
 Module docstring:
@@ -6777,7 +8183,7 @@ Functions:
 - `check_database_connection`
   - Check database connectivity on startup without exposing connection details.
 - `ensure_schema`
-  - Ensure database schema matches ORM models.
+  - Create registered ORM objects after required extension preflight succeeds.
 - `get_db`
   - Get database session for FastAPI dependency injection.
 - `get_session`
@@ -6888,14 +8294,17 @@ Classes:
 ## `data_layer/repositories/documents_v1.py`
 
 Module docstring:
-> AlphaFoundry v1 文档 Repository.
+> Research Workbench v1 文档 Repository.
 
 Imports:
 - `base`
 - `core.contracts`
+- `core.contracts.market_home`
 - `core.observability`
 - `core.utils.id_gen`
+- `data_layer.repositories.market_home_invalidation`
 - `datetime`
+- `hashlib`
 - `models`
 - `sqlalchemy`
 - `sqlalchemy.orm`
@@ -7079,10 +8488,14 @@ Module docstring:
 > MarketDataRepository — 市场结构化数据的 upsert/查询层
 
 Imports:
+- `core.contracts.market_home`
 - `core.observability`
 - `data_layer.repositories.base`
+- `data_layer.repositories.market_home_invalidation`
 - `data_layer.repositories.models`
 - `datetime`
+- `hashlib`
+- `json`
 - `sqlalchemy`
 - `sqlalchemy.dialects.postgresql`
 - `sqlalchemy.orm`
@@ -7096,6 +8509,58 @@ Classes:
 Functions:
 - `_is_postgresql`
   - 检测当前数据库是否为 PostgreSQL
+
+
+## `data_layer/repositories/market_home_invalidation.py`
+
+Module docstring:
+> Transaction-coupled market-home invalidation helpers for fact repositories.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.contracts.market_home`
+- `core.observability`
+- `data_layer.repositories.market_home_repository`
+- `datetime`
+- `sqlalchemy.orm`
+
+Functions:
+- `aware_utc`
+  - Normalize legacy naive writer timestamps without changing aware instants.
+- `record_market_home_fact_update`
+  - Flush idempotent outbox rows in the caller's uncommitted fact transaction.
+
+
+## `data_layer/repositories/market_home_repository.py`
+
+Module docstring:
+> Persistence and facts-only read projection for the market home module.
+
+Imports:
+- `__future__`
+- `core.contracts.market_home`
+- `core.contracts.platform_shared`
+- `core.observability`
+- `data_layer.repositories.models`
+- `datetime`
+- `decimal`
+- `sqlalchemy`
+- `sqlalchemy.exc`
+- `sqlalchemy.orm`
+- `typing`
+- `uuid`
+- `zoneinfo`
+
+Classes:
+- `MarketHomeRepository`
+  - Own snapshots/events and query only existing authoritative fact tables.
+  - methods: __init__, get_close_snapshots, insert_close_snapshots, read_mainline_candidates, read_live_section, list_invalidation_events, record_invalidation, ensure_close_snapshot_job, _read_observation_section, _read_a_share_status, _read_asset_moves, _read_important_events, _latest_quote_rows, _add_quote_watermark, _quote_section, _observation_sources, _utc_day_bounds, _to_snapshot, _to_invalidation_event, _to_scheduled_job
+
+Functions:
+- `_aware`
+  - Restore UTC awareness lost by SQLite while retaining PostgreSQL offsets.
+- `_number`
 
 
 ## `data_layer/repositories/memory_asset_snapshot_repo.py`
@@ -7141,6 +8606,7 @@ Imports:
 - `data_layer.repositories.base`
 - `datetime`
 - `sqlalchemy`
+- `sqlalchemy.dialects.postgresql`
 - `sqlalchemy.orm`
 
 Classes:
@@ -7298,6 +8764,46 @@ Classes:
   - 因子评估指标
 - `DynamicFactorWeightDB`
   - 动态因子权重快照
+- `AssetRegistryDB`
+  - Canonical identity that maps to existing asset fact tables.
+- `AssetIdentifierDB`
+  - Time-bounded vendor or market code for a canonical asset.
+- `ThemeObservationDB`
+  - Only persisted fact table shared by every Research Pack.
+- `ScheduledJobDB`
+  - PostgreSQL-coordinated single-flight scheduled work.
+- `DomainEventDB`
+  - Durable event authority; in-process buses are delivery adapters only.
+- `ThemePackDB`
+  - Versioned manifest and validation result for a Research Pack.
+- `MarketHomeSnapshotDB`
+  - Immutable market-home section snapshot for historical reads.
+- `ResearchWorkspaceDB`
+  - Project-isolated home for research sessions, runs, and notes.
+- `ResearchSessionDB`
+  - Temporary or workspace-scoped persisted conversation.
+- `ResearchMessageDB`
+  - Idempotent message whose workspace scope is derived from its session.
+- `RuntimeProviderDB`
+  - Research runtime capability and health declaration without secrets.
+- `SkillDefinitionDB`
+  - Versioned persisted SkillManifest.
+- `AgentTeamDB`
+  - Supervisor-led Agent Team with persisted hard bounds.
+- `AgentScheduleDB`
+  - Team schedule delegating lease ownership to scheduled_job.
+- `ResearchNoteDB`
+  - Immutable revision with exactly one Claim or paragraph source shape.
+- `WatchlistDB`
+  - Named local-profile asset collection.
+- `WatchlistItemDB`
+  - Watchlist membership keyed by canonical asset identity.
+- `AlertRuleDB`
+  - Unit-aware deterministic alert rule for one canonical asset.
+- `AlertEventDB`
+  - Persisted false-to-true alert edge and lifecycle.
+- `NotificationDB`
+  - Authoritative in-app notification with optional desktop delivery state.
 
 Functions:
 - `utc_now`
@@ -7518,6 +9024,35 @@ Classes:
   - methods: __init__, create_run, get_run_or_raise, get_evidence_inputs, list_runs, append_evidence_input, update_run, create_task, get_task_or_raise, update_task, append_artifact, replace_claims, replace_quality_gates, list_artifacts, list_claims, list_quality_gates, _to_run, _to_artifact, _to_task, _to_claim, _to_gate
 
 
+## `data_layer/repositories/research_workspace_repository.py`
+
+Module docstring:
+> Persistence boundary for research workspaces, runtimes, teams, and schedules.
+
+Imports:
+- `__future__`
+- `core.contracts.platform_shared`
+- `core.contracts.research_workspace`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `datetime`
+- `hashlib`
+- `json`
+- `sqlalchemy`
+- `sqlalchemy.exc`
+- `sqlalchemy.orm`
+- `uuid`
+
+Classes:
+- `ResearchWorkspaceRepository`
+  - Request-scoped repository. Methods flush but transaction ownership stays outside.
+  - methods: __init__, create_workspace, find_idempotent_resource, get_idempotent_record, record_idempotent_resource, get_workspace, get_workspace_scoped, list_workspaces, create_session, get_session, get_session_scoped, promote_session, append_message, list_messages, link_session_run, archive_completed_run, run_belongs_to_workspace, assert_run_scope, get_run_scope, get_session_for_run_scoped, validate_paragraph_ref, claim_run_id, create_note, next_note_revision, reserve_operation, claim_run_execution, run_lock_statement, list_latest_notes, save_runtime_provider, list_runtime_providers, accept_provider_result, save_skill, list_skills, get_skill, save_agent_team, list_agent_teams, get_agent_team, save_agent_schedule, get_schedule_row, list_agent_schedules, reserve_agent_schedule_execution, get_agent_schedule_execution_result, record_agent_schedule_execution_result, due_agent_schedule_rows, get_job, find_job_by_idempotency, active_job, add_job, claimable_due_job, due_job_lock_statement, count_pending_jobs, record_run_event, record_archive_pending, mark_archive_processed, list_run_events, _next_event_sequence, _append_event, to_scheduled_job, _to_workspace, _to_session, _to_message, _to_note, _to_provider, _to_team, _to_schedule
+
+Functions:
+- `_aware`
+
+
 ## `data_layer/repositories/search_repository.py`
 
 Module docstring:
@@ -7554,6 +9089,38 @@ Classes:
 - `SignalRepositoryImpl`
   - 信号仓储实现
   - methods: save, get, list, update_status, save_trade_candidate, _to_domain
+
+
+## `data_layer/repositories/theme_research_repository.py`
+
+Module docstring:
+> Persistence adapter for Research Pack manifests and theme observations.
+
+Imports:
+- `__future__`
+- `core.contracts.theme_research`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.models`
+- `datetime`
+- `hashlib`
+- `sqlalchemy`
+- `sqlalchemy.exc`
+- `threading`
+- `typing`
+- `uuid`
+
+Classes:
+- `ThemeResearchRepository`
+  - Own Pack metadata and the one shared theme fact table.
+  - methods: lock_ingestion_namespace, lock_observation_identity, _pg_advisory_xact_lock, save_manifest, update_pack_status, get_manifest, observation_exists, get_observation_by_identity, insert_observation, list_observations, count_observations, record_ingestion_report, ingestion_totals, _to_observation
+
+Functions:
+- `_release_sqlite_theme_locks`
+  - Release process-local compatibility locks after the outer transaction.
+- `_aware`
+- `_manifest_content_hash`
+  - Compute the repository-owned canonical declaration hash.
 
 
 ## `data_layer/repositories/timing_repository.py`
@@ -10148,7 +11715,7 @@ Classes:
 ## `reporting/__init__.py`
 
 Module docstring:
-> AlphaFoundry Reporting - 报告合成层.
+> Research Workbench Reporting - 报告合成层.
 
 Imports:
 - `reporting`
@@ -11129,7 +12696,7 @@ Classes:
   - Retrieves factual evidence for a section query.
   - methods: retrieve
 - `DatabaseEvidenceRetriever`
-  - Keyword evidence retriever over existing AlphaFoundry database tables.
+  - Keyword evidence retriever over existing Research Workbench database tables.
   - methods: retrieve, _retrieve_ingestion_items, _retrieve_events, _retrieve_recent_ingestion_items, _retrieve_recent_events, _extract_terms, _compact_text
 - `ReportProjectGenerationService`
   - Generates Word placeholders from project config, evidence, and LLM.
@@ -11586,6 +13153,7 @@ Imports:
 - `alembic`
 - `data_layer.repositories.models`
 - `logging.config`
+- `os`
 - `sqlalchemy`
 
 Functions:
@@ -11607,6 +13175,7 @@ Imports:
 
 Functions:
 - `upgrade`
+  - Enable required PostgreSQL extensions before creating the initial schema.
 - `downgrade`
 
 
@@ -11732,7 +13301,7 @@ Functions:
 ## `storage/migrations/versions/009_add_structured_market_data_tables.py`
 
 Module docstring:
-> Add structured market data tables (AF-AUTO-007)
+> Add structured market data tables (RWB-AUTO-007)
 
 Imports:
 - `alembic`
@@ -11817,6 +13386,74 @@ Imports:
 Functions:
 - `upgrade`
 - `downgrade`
+
+
+## `storage/migrations/versions/015_add_platform_fact_core.py`
+
+Module docstring:
+> Add merged-platform fact core, durable events, and scheduler coordination.
+
+Imports:
+- `alembic`
+- `collections.abc`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+  - Create the five shared fact-kernel tables.
+- `downgrade`
+  - Drop the fact-kernel tables in dependency-safe order.
+
+
+## `storage/migrations/versions/016_add_theme_and_market_home.py`
+
+Module docstring:
+> Add Research Pack manifests and immutable market-home snapshots.
+
+Imports:
+- `alembic`
+- `collections.abc`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+  - Create the two theme and facts-only home tables.
+- `downgrade`
+  - Drop theme and market-home tables.
+
+
+## `storage/migrations/versions/017_add_research_workspace_runtime.py`
+
+Module docstring:
+> Add research workspaces, bounded runtimes, Skills, teams, and notes.
+
+Imports:
+- `alembic`
+- `collections.abc`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+  - Create the eight additive research-runtime tables.
+- `downgrade`
+  - Drop research-runtime tables in reverse dependency order.
+
+
+## `storage/migrations/versions/018_add_asset_observation.py`
+
+Module docstring:
+> Add watchlists, deterministic alerts, and persistent notifications.
+
+Imports:
+- `alembic`
+- `collections.abc`
+- `sqlalchemy`
+
+Functions:
+- `upgrade`
+  - Create the five personal-observation tables.
+- `downgrade`
+  - Drop personal-observation tables in reverse dependency order.
 
 
 ## `ingestion/__init__.py`
@@ -12015,7 +13652,7 @@ Imports:
 
 Functions:
 - `backend_endpoint`
-  - Return an AlphaFoundry API endpoint from the effective runtime URL.
+  - Return an Research Workbench API endpoint from the effective runtime URL.
 - `get_random_headers`
   - 生成随机请求头，防爬
 - `fetch_with_retry`
@@ -12184,7 +13821,7 @@ Functions:
 ## `scripts/bootstrap_db.py`
 
 Module docstring:
-> Bootstrap database for AlphaFoundry: initialize schema, verify connectivity, seed minimal configuration.
+> Bootstrap database for Research Workbench: initialize schema, verify connectivity, seed minimal configuration.
 
 Imports:
 - `core.observability`
@@ -12328,11 +13965,17 @@ Module docstring:
 
 Imports:
 - `__future__`
-- `core.utils.git`
+- `argparse`
+- `core.observability`
 - `pathlib`
+- `subprocess`
 - `sys`
 
 Functions:
+- `collect_changes`
+  - Use NUL-delimited Git output, including individual untracked files.
+- `check_research_docs`
+  - Invoke the repository-owned Node core used by project-constraints CI.
 - `main`
 
 
@@ -12348,6 +13991,25 @@ Imports:
 - `sys`
 
 Functions:
+- `main`
+
+
+## `scripts/check_product_identity.py`
+
+Module docstring:
+> Fail when the current tracked product leaks retired names or command prefixes.
+
+Imports:
+- `__future__`
+- `pathlib`
+- `re`
+- `subprocess`
+- `sys`
+
+Functions:
+- `tracked_files`
+- `committed_findings`
+- `check_identity`
 - `main`
 
 
@@ -12504,7 +14166,7 @@ Functions:
 ## `scripts/desktop/backend_launcher.py`
 
 Module docstring:
-> Desktop backend launcher for the AlphaFoundry Tauri shell.
+> Desktop backend launcher for the Research Workbench Tauri shell.
 
 Imports:
 - `__future__`
@@ -12542,6 +14204,8 @@ Functions:
   - 启动 watchdog 进程，由 watchdog 负责拉起并守护 knowledge_worker。
 - `_start_crawl_scheduler`
   - 通过 watchdog 启动 crawl_scheduler_worker，watchdog 负责崩溃后自动重启。
+- `_crawler_autostart_enabled`
+  - Return whether this desktop instance may launch the crawl scheduler on startup.
 - `_kill_stale_process_on_port`
   - Check whether the desktop listener port is available without touching other processes.
 - `run_backend`
@@ -12555,7 +14219,7 @@ Functions:
 ## `scripts/desktop/build_sidecar.py`
 
 Module docstring:
-> Build the AlphaFoundry Python backend as a Tauri sidecar executable.
+> Build the Research Workbench Python backend as a Tauri sidecar executable.
 
 Imports:
 - `__future__`
@@ -12649,7 +14313,7 @@ Functions:
 ## `scripts/desktop/sidecar_launcher.py`
 
 Module docstring:
-> AlphaFoundry Sidecar Launcher
+> Research Workbench Sidecar Launcher
 
 Imports:
 - `__future__`
@@ -12662,7 +14326,7 @@ Functions:
 - `_find_project_root`
   - 定位项目根目录。
 - `_find_python`
-  - 按优先级找 conda alphafoundry 环境的 Python。
+  - 按优先级找 conda research_workbench 环境的 Python。
 - `main`
 
 
@@ -12749,7 +14413,7 @@ Functions:
 ## `scripts/example_dual_source.py`
 
 Module docstring:
-> AlphaFoundry 双源数据系统使用示例
+> Research Workbench 双源数据系统使用示例
 
 Imports:
 - `datetime`
@@ -12925,6 +14589,47 @@ Functions:
 - `_replace_zip_entries`
 - `merge_layout_with_native_charts`
   - Create a docx preserving layout_template and replacing chart images.
+
+
+## `scripts/migrate_lsh_theme_data.py`
+
+Module docstring:
+> Dry-run-first migration of traceable LSH theme CSV files.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `core.contracts.theme_research`
+- `core.observability`
+- `data_layer.repositories.base`
+- `data_layer.repositories.theme_research_repository`
+- `datetime`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `services.theme_pack_registry`
+- `services.theme_research_service`
+- `sqlalchemy`
+- `sqlalchemy.exc`
+- `sqlalchemy.orm`
+- `sys`
+- `tempfile`
+- `typing`
+
+Classes:
+- `MigrationCLIError`
+  - The migration command cannot safely scan or publish its report.
+
+Functions:
+- `build_parser`
+- `run_migration`
+  - Scan all known top-level LSH Pack CSVs and atomically publish a report.
+- `_load_resume_checkpoints`
+- `_iter_sources`
+- `_write_report_atomic`
+- `main`
 
 
 ## `scripts/minimal_reingest_bootstrap.py`

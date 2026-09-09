@@ -1,7 +1,7 @@
 """
 报告编译器主编排器 - 报告编译器第一阶段.
 
-ReportCompiler 是 AlphaFoundry "outline-first + evidence-first" 报告编译器的统一入口。
+ReportCompiler 是 Research Workbench "outline-first + evidence-first" 报告编译器的统一入口。
 对应 deep-research-report.md 的 mermaid 流水线图：
 
     用户需求 → 任务分解器 → 来源规划器 → 证据检索器 → 事实抽取与归一化

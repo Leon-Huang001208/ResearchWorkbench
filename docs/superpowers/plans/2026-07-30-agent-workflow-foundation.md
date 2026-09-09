@@ -44,7 +44,7 @@ Expected: the commands confirm that neither a tracked root AGENTS.md nor tracked
 Write AGENTS.md with these exact sections and requirements:
 
 ~~~md
-# AlphaFoundry Agent Rules
+# Research Workbench Agent Rules
 
 ## Start here
 - Reply in Chinese unless the user requests another language.
@@ -129,7 +129,7 @@ Replace the hard-coded interpreter section with:
 ~~~md
 ## Runtime selection
 
-Use the Python interpreter provided by the active operating system environment. On Windows, activate the documented alphafoundry environment before invoking Python; on macOS and Linux, use the repository's configured development interpreter. Never copy a platform-specific absolute interpreter path into a cross-platform command.
+Use the Python interpreter provided by the active operating system environment. On Windows, activate the documented research_workbench environment before invoking Python; on macOS and Linux, use the repository's configured development interpreter. Never copy a platform-specific absolute interpreter path into a cross-platform command.
 ~~~
 
 Retain the development command block, but replace literal Python invocations with python -m where appropriate. Remove repeated mandatory test, documentation, final-response, and task-report lists that AGENTS.md now owns.

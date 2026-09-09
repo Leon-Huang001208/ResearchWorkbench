@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="alphafoundry-config-token" content="__ALPHAFOUNDRY_CONFIG_TOKEN__">
-    <title>AlphaFoundry — 买方投研情报系统</title>
+    <meta name="research-config-token" content="__RESEARCH_CONFIG_TOKEN__">
+    <title>Research Workbench — 买方投研情报系统</title>
     <link rel="icon" type="image/png" href="/static/favicon.png?v=20260621a">
     <link rel="apple-touch-icon" href="/static/favicon.png?v=20260621a">
     <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -33,7 +33,7 @@
             <div class="desktop-brand">
                 <img class="desktop-brand-icon" src="/static/favicon.png?v=20260621a" alt="" aria-hidden="true">
                 <div class="desktop-brand-copy">
-                    <strong>AlphaFoundry</strong>
+                    <strong>Research Workbench</strong>
                     <span>本地投研工作台</span>
                 </div>
             </div>
@@ -964,13 +964,13 @@
                     <span id="resource-monitor-status" class="resource-monitor-status" aria-live="polite" hidden></span>
                 </div>
 
-                <div id="resource-monitor-summary" class="resource-monitor-summary" aria-label="AlphaFoundry 与整机容量摘要">
-                    <article class="resource-summary-card" data-resource-scope="alpha"><span class="resource-summary-scope">范围：AlphaFoundry</span><span>CPU</span><strong data-resource-summary="alpha-cpu">采样中</strong></article>
+                <div id="resource-monitor-summary" class="resource-monitor-summary" aria-label="Research Workbench 与整机容量摘要">
+                    <article class="resource-summary-card" data-resource-scope="alpha"><span class="resource-summary-scope">范围：Research Workbench</span><span>CPU</span><strong data-resource-summary="alpha-cpu">采样中</strong></article>
                     <article class="resource-summary-card" data-resource-scope="host"><span class="resource-summary-scope">范围：整机容量</span><span>CPU</span><strong data-resource-summary="host-cpu">暂不可用</strong></article>
-                    <article class="resource-summary-card" data-resource-scope="alpha"><span class="resource-summary-scope">范围：AlphaFoundry</span><span>内存</span><strong data-resource-summary="alpha-memory">采样中</strong></article>
+                    <article class="resource-summary-card" data-resource-scope="alpha"><span class="resource-summary-scope">范围：Research Workbench</span><span>内存</span><strong data-resource-summary="alpha-memory">采样中</strong></article>
                     <article class="resource-summary-card" data-resource-scope="host"><span class="resource-summary-scope">范围：整机容量</span><span>内存</span><strong data-resource-summary="host-memory">暂不可用</strong></article>
                 </div>
-                <div class="resource-monitor-auxiliary" aria-label="AlphaFoundry 辅助采样信息">
+                <div class="resource-monitor-auxiliary" aria-label="Research Workbench 辅助采样信息">
                     <span>磁盘读/写 <strong data-resource-summary="disk">--</strong></span>
                     <span>网络连接 <strong data-resource-summary="connections">--</strong></span>
                     <span>最近采样 <strong data-resource-summary="sampled-at">--</strong></span>
@@ -999,12 +999,12 @@
 
                 <div class="resource-monitor-chart-grid">
                     <section class="resource-monitor-panel" aria-labelledby="resource-monitor-cpu-title">
-                        <h3 id="resource-monitor-cpu-title">AlphaFoundry CPU（最近 5 分钟）</h3>
-                        <div id="resource-monitor-cpu-chart" class="resource-monitor-chart" aria-label="AlphaFoundry CPU 使用率趋势"></div>
+                        <h3 id="resource-monitor-cpu-title">Research Workbench CPU（最近 5 分钟）</h3>
+                        <div id="resource-monitor-cpu-chart" class="resource-monitor-chart" aria-label="Research Workbench CPU 使用率趋势"></div>
                     </section>
                     <section class="resource-monitor-panel" aria-labelledby="resource-monitor-memory-title">
-                        <h3 id="resource-monitor-memory-title">AlphaFoundry 内存（最近 5 分钟）</h3>
-                        <div id="resource-monitor-memory-chart" class="resource-monitor-chart" aria-label="AlphaFoundry 内存使用趋势"></div>
+                        <h3 id="resource-monitor-memory-title">Research Workbench 内存（最近 5 分钟）</h3>
+                        <div id="resource-monitor-memory-chart" class="resource-monitor-chart" aria-label="Research Workbench 内存使用趋势"></div>
                     </section>
                     <section class="resource-monitor-panel" aria-labelledby="resource-monitor-host-cpu-title">
                         <h3 id="resource-monitor-host-cpu-title">整机 CPU（最近 24 小时）</h3>
@@ -2568,7 +2568,7 @@
                         startupTs = data.startup_ts;
                     } else if (startupTs !== data.startup_ts) {
                         // 后端已重启，刷新页面获取最新前端资源
-                        console.log('[AlphaFoundry] Backend restarted, auto-refreshing...');
+                        console.log('[Research Workbench] Backend restarted, auto-refreshing...');
                         location.reload();
                     }
                 })

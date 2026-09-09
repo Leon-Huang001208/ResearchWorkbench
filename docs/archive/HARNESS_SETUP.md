@@ -8,7 +8,7 @@
 
 ## 启用步骤（只需执行一次）
 1. **登录Harness控制台**：https://app.harness.io/
-2. **创建新项目**：选择`Continuous Integration`模块，关联GitHub仓库`Leon-Huang001208/AlphaFoundry`
+2. **创建新项目**：选择`Continuous Integration`模块，关联GitHub仓库`Leon-Huang001208/Research Workbench`
 3. **导入流水线配置**：选择`Import from Git`，导入`.harness/ci.yaml`文件
 4. **配置GitHub集成**：在Harness中添加GitHub连接器，授予仓库读写权限
 5. **配置K8s连接器**：添加你的K8s集群连接器，配置部署命名空间

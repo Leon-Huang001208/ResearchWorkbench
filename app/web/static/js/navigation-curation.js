@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Navigation Curation
+   Research Workbench — Navigation Curation
    Keeps the current WebUI focused without deleting in-development pages.
    ============================================================ */
 
@@ -11,7 +11,7 @@ const ARCHIVED_SECTIONS = [
     'ingest',
 ];
 
-const STORAGE_KEY = 'af-show-archived-sections';
+const STORAGE_KEY = 'rwb-show-archived-sections';
 
 function isArchivedSection(section) {
     return ARCHIVED_SECTIONS.includes(section);

@@ -114,10 +114,10 @@
 #### Scenario 命令
 ```bash
 # 生成多情景分析
-af scenario --topic "人工智能产业发展"
+rwb scenario --topic "人工智能产业发展"
 
 # 输出到文件
-af scenario --topic "美联储政策" --output report.md
+rwb scenario --topic "美联储政策" --output report.md
 ```
 
 **文件**: `app/cli/commands/scenario.py`
@@ -125,7 +125,7 @@ af scenario --topic "美联储政策" --output report.md
 #### Ingest 命令
 ```bash
 # 摄入文档
-af ingest --file report.pdf --source-type report --source-name "券商研报"
+rwb ingest --file report.pdf --source-type report --source-name "券商研报"
 ```
 
 **文件**: `app/cli/commands/ingest.py`
@@ -133,16 +133,16 @@ af ingest --file report.pdf --source-type report --source-name "券商研报"
 #### Review 命令
 ```bash
 # 列出待审核项目
-af review list
+rwb review list
 
 # 批准断言
-af review approve <assertion_id>
+rwb review approve <assertion_id>
 
 # 拒绝断言
-af review reject <assertion_id>
+rwb review reject <assertion_id>
 
 # 查看统计
-af review stats
+rwb review stats
 ```
 
 **文件**: `app/cli/commands/review.py`
@@ -226,7 +226,7 @@ python examples/test_simple.py
 
 ```
 ============================================================
-AlphaFoundry 六月里程碑 - 功能测试（简化版）
+Research Workbench 六月里程碑 - 功能测试（简化版）
 ============================================================
 ============================================================
 测试实体解析

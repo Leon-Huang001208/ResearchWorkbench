@@ -18,7 +18,7 @@ def get_db_url():
         return settings.DATABASE_URL
     # 常见默认SQLite路径
     default_paths = [
-        "./data/alphafoundry.db",
+        "./data/research_workbench.db",
         "./data/db/alpha_foundry.db",
         "./alpha_foundry.db",
         "/tmp/alpha_foundry.db",

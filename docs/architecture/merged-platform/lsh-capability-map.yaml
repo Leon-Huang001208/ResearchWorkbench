@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "capabilities": [
+    {
+      "key": "lsh.flask.skill_snapshot",
+      "source": "GET /api/v1/skills/<skill>/snapshot",
+      "target": "/api/themes/{theme_key}/snapshot",
+      "classification": "duplicate_api",
+      "disposition": "remove_after_gate",
+      "status": "mapped",
+      "evidence": {"data_migration": false, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    },
+    {
+      "key": "lsh.flask.skill_datasets",
+      "source": "GET /api/v1/skills/<skill>/datasets/<dataset>",
+      "target": "/api/themes/{theme_key}/kpis",
+      "classification": "duplicate_api",
+      "disposition": "remove_after_gate",
+      "status": "mapped",
+      "evidence": {"data_migration": false, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    },
+    {
+      "key": "lsh.flask.ai_market_dashboard",
+      "source": "GET /api/v1/ai-market-dashboard",
+      "target": "/api/market-home/live",
+      "classification": "duplicate_api",
+      "disposition": "remove_after_gate",
+      "status": "mapped",
+      "evidence": {"data_migration": false, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    },
+    {
+      "key": "lsh.flask.workspace_research",
+      "source": "POST /api/v1/research/runs",
+      "target": "/api/research-runs",
+      "classification": "duplicate_runtime_api",
+      "disposition": "remove_after_gate",
+      "status": "mapped",
+      "evidence": {"data_migration": false, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    },
+    {
+      "key": "lsh.static.dashboards",
+      "source": "static/*dashboard.html",
+      "target": "/api/market-home/live",
+      "classification": "duplicate_ui",
+      "disposition": "remove_after_gate",
+      "status": "inventory",
+      "evidence": {"data_migration": false, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    },
+    {
+      "key": "lsh.sqlite.fact_store",
+      "source": "LSH SQLite business database",
+      "target": "PostgreSQL theme_observation",
+      "classification": "duplicate_fact_store",
+      "disposition": "remove_after_gate",
+      "status": "inventory",
+      "evidence": {"data_migration": false, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    },
+    {
+      "key": "lsh.runtime.dsh",
+      "source": "DSH/Vibe parallel runtime",
+      "target": "/api/runtime-providers",
+      "classification": "runtime_adapter",
+      "disposition": "remove_after_gate",
+      "status": "adapted",
+      "evidence": {"data_migration": true, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    },
+    {
+      "key": "lsh.strategy.paper_trading",
+      "source": "/api/v1/strategies/* and /api/v1/agent/paper/*",
+      "target": null,
+      "classification": "strategy_trading",
+      "disposition": "freeze_read_only",
+      "status": "inventory",
+      "evidence": {"data_migration": false, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    },
+    {
+      "key": "lsh.fund.approvals",
+      "source": "/api/v1/strategies/fund-mappings and proposals",
+      "target": null,
+      "classification": "fund_approval",
+      "disposition": "freeze_read_only",
+      "status": "inventory",
+      "evidence": {"data_migration": false, "parity_test": false, "regression": false, "call_count_zero": false, "archive_path": null, "stable_version_observed": false}
+    }
+  ]
+}

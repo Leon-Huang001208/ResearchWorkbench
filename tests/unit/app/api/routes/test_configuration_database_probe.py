@@ -17,13 +17,13 @@ from services.database_readiness import DatabaseReadiness, DatabaseReadinessCode
 def test_database_probe_api_accepts_valid_csrf_and_returns_readiness_contract(
     monkeypatch, tmp_path
 ):
-    database_url = "postgresql+psycopg://user:password@localhost:5432/alphafoundry"
+    database_url = "postgresql+psycopg://user:password@localhost:5432/research_workbench"
     service = ConfigurationService(env_path=tmp_path / ".env", runtime_settings=Settings())
     probe = Mock(
         return_value=DatabaseReadiness(
             ready=True,
             code=DatabaseReadinessCode.READY,
-            message="数据库连接正常，pgvector 已就绪。",
+            message="数据库连接正常，必需扩展已就绪。",
             remediation=("无需处理。",),
         )
     )
@@ -38,14 +38,14 @@ def test_database_probe_api_accepts_valid_csrf_and_returns_readiness_contract(
         json={"database_url": database_url},
         headers={
             "Origin": "http://localhost:8765",
-            "X-AlphaFoundry-Config-Token": CONFIGURATION_CSRF_TOKEN,
+            "X-Research Workbench-Config-Token": CONFIGURATION_CSRF_TOKEN,
         },
     )
 
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
-        "message": "数据库连接正常，pgvector 已就绪。",
+        "message": "数据库连接正常，必需扩展已就绪。",
         "code": "ready",
         "remediation": ["无需处理。"],
     }

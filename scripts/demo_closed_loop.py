@@ -136,7 +136,7 @@ def query_new_data():
 def main():
     """主函数"""
     print("\n" + "╔" + "═" * 78 + "╗")
-    print("║" + " " * 18 + "AlphaFoundry 最小可行闭环演示" + " " * 36 + "║")
+    print("║" + " " * 18 + "Research Workbench 最小可行闭环演示" + " " * 36 + "║")
     print("╚" + "═" * 78 + "╝")
 
     # 检查状态

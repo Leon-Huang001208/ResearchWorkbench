@@ -4,7 +4,7 @@
 
 **Goal:** Build a Wind realtime workbook pipeline so market sector views read pre-refreshed Excel snapshots instead of writing hundreds of Wind formulas on user click.
 
-**Architecture:** Keep `data_sources/wind_index_catalog.csv` as the versioned index catalog, generate a local `AlphaFoundry_Wind_Realtime.xlsx` workbook with formula and snapshot sheets, and add a backend reader that prefers workbook snapshots for Wind views. Existing Wind formula fetching remains as a fallback, while the frontend gets 60-second silent refresh for the active market view.
+**Architecture:** Keep `data_sources/wind_index_catalog.csv` as the versioned index catalog, generate a local `Research Workbench_Wind_Realtime.xlsx` workbook with formula and snapshot sheets, and add a backend reader that prefers workbook snapshots for Wind views. Existing Wind formula fetching remains as a fallback, while the frontend gets 60-second silent refresh for the active market view.
 
 **Tech Stack:** Python 3.11, `openpyxl` for workbook generation/tests, `xlwings` for reading an already-open live Excel workbook, FastAPI dashboard routes, existing `DashboardService`, vanilla JS dashboard frontend.
 
@@ -198,9 +198,9 @@ DEFAULT_WORKBOOK_PATH = (
     Path.home()
     / "Library"
     / "Application Support"
-    / "AlphaFoundry"
+    / "Research Workbench"
     / "wind"
-    / "AlphaFoundry_Wind_Realtime.xlsx"
+    / "Research Workbench_Wind_Realtime.xlsx"
 )
 
 SNAPSHOT_HEADERS = [
@@ -370,7 +370,7 @@ from services.wind_realtime_workbook import build_realtime_workbook
 
 def test_build_realtime_workbook_creates_expected_sheets_and_formulas(tmp_path):
     catalog_path = tmp_path / "wind_index_catalog.csv"
-    workbook_path = tmp_path / "AlphaFoundry_Wind_Realtime.xlsx"
+    workbook_path = tmp_path / "Research Workbench_Wind_Realtime.xlsx"
     save_wind_index_catalog(
         [
             WindIndexCatalogEntry(
@@ -437,7 +437,7 @@ def build_realtime_workbook(catalog_path: str | Path, workbook_path: str | Path 
     wb.remove(wb.active)
     sheets = {name: wb.create_sheet(name) for name in WORKBOOK_SHEETS}
 
-    sheets["README"]["A1"] = "AlphaFoundry Wind Realtime Workbook"
+    sheets["README"]["A1"] = "Research Workbench Wind Realtime Workbook"
     sheets["README"]["A2"] = "Open this workbook in Excel and log in to Wind before using Wind market views."
 
     sheets["Config"].append(["key", "value", "description"])
@@ -446,7 +446,7 @@ def build_realtime_workbook(catalog_path: str | Path, workbook_path: str | Path 
     sheets["Config"].append(["formula_version", "1", "公式模板版本"])
     sheets["Config"].append(["last_generated_at", datetime.now(UTC).isoformat(), "工作簿最后生成时间"])
     sheets["Config"].append(["timezone", "Asia/Shanghai", "时间区域"])
-    sheets["Config"].append(["data_owner", "AlphaFoundry", "数据维护方"])
+    sheets["Config"].append(["data_owner", "Research Workbench", "数据维护方"])
 
     sheets["IndexCatalog"].append(CATALOG_HEADERS)
     sheets["RealtimeRaw"].append(RAW_HEADERS)
@@ -533,7 +533,7 @@ from services.wind_realtime_workbook import DEFAULT_WORKBOOK_PATH, build_realtim
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Build AlphaFoundry Wind realtime workbook")
+    parser = argparse.ArgumentParser(description="Build Research Workbench Wind realtime workbook")
     parser.add_argument("--catalog", default=str(DEFAULT_WIND_INDEX_CATALOG_PATH))
     parser.add_argument("--output", default=str(DEFAULT_WORKBOOK_PATH))
     return parser
@@ -559,10 +559,10 @@ Run:
 
 ```bash
 /Users/leon/opt/anaconda3/bin/python -m pytest tests/unit/test_wind_realtime_workbook.py -q
-/Users/leon/opt/anaconda3/bin/python scripts/build_wind_realtime_workbook.py --catalog data_sources/wind_index_catalog.csv --output /tmp/AlphaFoundry_Wind_Realtime.xlsx
+/Users/leon/opt/anaconda3/bin/python scripts/build_wind_realtime_workbook.py --catalog data_sources/wind_index_catalog.csv --output /tmp/Research Workbench_Wind_Realtime.xlsx
 ```
 
-Expected: tests PASS, script prints `/tmp/AlphaFoundry_Wind_Realtime.xlsx`.
+Expected: tests PASS, script prints `/tmp/Research Workbench_Wind_Realtime.xlsx`.
 
 - [ ] **Step 6: Commit**
 
@@ -731,7 +731,7 @@ class WindRealtimeWorkbookReader:
     @staticmethod
     def _message_for_status(status: str) -> str:
         messages = {
-            "workbook_not_open": "请打开 AlphaFoundry Wind 实时工作簿",
+            "workbook_not_open": "请打开 Research Workbench Wind 实时工作簿",
             "xlwings_unavailable": "xlwings 不可用，无法连接 Excel",
             "snapshot_empty": "Wind快照暂无可用数据",
         }
@@ -805,7 +805,7 @@ def test_get_market_sector_view_falls_back_when_workbook_has_no_real_data(mock_w
         "down": [],
         "has_real_data": False,
         "status": "workbook_not_open",
-        "message": "请打开 AlphaFoundry Wind 实时工作簿",
+        "message": "请打开 Research Workbench Wind 实时工作簿",
         "source": "wind_workbook",
     }
     mock_provider = mock_wind_provider_cls.return_value
@@ -1022,10 +1022,10 @@ Expected: all commands exit 0.
 Run:
 
 ```bash
-/Users/leon/opt/anaconda3/bin/python scripts/build_wind_realtime_workbook.py --catalog data_sources/wind_index_catalog.csv --output /tmp/AlphaFoundry_Wind_Realtime.xlsx
+/Users/leon/opt/anaconda3/bin/python scripts/build_wind_realtime_workbook.py --catalog data_sources/wind_index_catalog.csv --output /tmp/Research Workbench_Wind_Realtime.xlsx
 ```
 
-Expected: command prints `/tmp/AlphaFoundry_Wind_Realtime.xlsx`; the file exists and contains the expected sheets.
+Expected: command prints `/tmp/Research Workbench_Wind_Realtime.xlsx`; the file exists and contains the expected sheets.
 
 - [ ] **Step 3: Restart the backend**
 
@@ -1044,7 +1044,7 @@ kill -TERM <PID>
 Start backend:
 
 ```bash
-ALPHAFOUNDRY_PYTHON=/Users/leon/opt/anaconda3/bin/python bash scripts/desktop/run_backend.sh --host 127.0.0.1 --port 8765
+RESEARCH_PYTHON=/Users/leon/opt/anaconda3/bin/python bash scripts/desktop/run_backend.sh --host 127.0.0.1 --port 8765
 ```
 
 Expected: backend logs `Uvicorn running on http://127.0.0.1:8765`.
@@ -1054,7 +1054,7 @@ Expected: backend logs `Uvicorn running on http://127.0.0.1:8765`.
 Run:
 
 ```bash
-NO_PROXY=127.0.0.1,localhost /usr/bin/time -p curl -sS -m 8 'http://127.0.0.1:8765/api/dashboard' > /tmp/af_dashboard.json
+NO_PROXY=127.0.0.1,localhost /usr/bin/time -p curl -sS -m 8 'http://127.0.0.1:8765/api/dashboard' > /tmp/rwb_dashboard.json
 ```
 
 Expected: exits 0; `real` time is under 3 seconds on a warm backend.
@@ -1064,11 +1064,11 @@ Expected: exits 0; `real` time is under 3 seconds on a warm backend.
 Run with the runtime workbook not open:
 
 ```bash
-NO_PROXY=127.0.0.1,localhost curl -sS -m 8 'http://127.0.0.1:8765/api/dashboard/sector-movers?view_key=wind_l4&limit=10' > /tmp/af_wind_l4.json
+NO_PROXY=127.0.0.1,localhost curl -sS -m 8 'http://127.0.0.1:8765/api/dashboard/sector-movers?view_key=wind_l4&limit=10' > /tmp/rwb_wind_l4.json
 /Users/leon/opt/anaconda3/bin/python - <<'PY'
 import json
 from pathlib import Path
-payload = json.loads(Path('/tmp/af_wind_l4.json').read_text())
+payload = json.loads(Path('/tmp/rwb_wind_l4.json').read_text())
 print(payload.get("status"), payload.get("message"), len(payload.get("up", [])), len(payload.get("down", [])))
 PY
 ```

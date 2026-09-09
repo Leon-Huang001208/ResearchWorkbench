@@ -3,16 +3,21 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Column,
     Date,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     Text,
     UniqueConstraint,
+    func,
+    text,
 )
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import relationship
 
 from data_layer.repositories.base import Base
@@ -735,7 +740,7 @@ class StockPriceData(Base):
 
 
 # =============================================================================
-# Issue #42: AlphaFoundry v1 统一文档表
+# Issue #42: Research Workbench v1 统一文档表
 # =============================================================================
 
 
@@ -1586,7 +1591,7 @@ class FinGPTArtifactLinkDB(Base):
 
 
 # =============================================================================
-# AF-AUTO-002-07: PDF 元数据表与转换结果表
+# RWB-AUTO-002-07: PDF 元数据表与转换结果表
 # =============================================================================
 
 
@@ -1594,7 +1599,7 @@ class PDFArtifactV1DB(Base):
     """
     PDF 制品表 - 存储下载的 PDF 文件元数据.
 
-    AF-AUTO-002-05: ZQ PDF First Report Ingestion
+    RWB-AUTO-002-05: ZQ PDF First Report Ingestion
     """
 
     __tablename__ = "pdf_artifact_v1"
@@ -1645,7 +1650,7 @@ class PDFConversionV1DB(Base):
     """
     PDF 转换结果表 - 存储 PDF 转换为 Markdown 或文本的结果.
 
-    AF-AUTO-002-06: PDF to Markdown Conversion Pipeline
+    RWB-AUTO-002-06: PDF to Markdown Conversion Pipeline
     """
 
     __tablename__ = "pdf_conversion_v1"
@@ -1689,7 +1694,7 @@ class CrawlStateV1DB(Base):
     """
     爬虫状态表 - 持久化存储爬虫状态、水位线、去重信息.
 
-    AF-AUTO-002-03: Incremental Fetch Until Known
+    RWB-AUTO-002-03: Incremental Fetch Until Known
     """
 
     __tablename__ = "crawl_state_v1"
@@ -1736,7 +1741,7 @@ class ProcessedItemV1DB(Base):
     """
     已处理项目表 - 用于去重，支持快速检查项目是否已处理.
 
-    AF-AUTO-002-03: Incremental Fetch Until Known
+    RWB-AUTO-002-03: Incremental Fetch Until Known
     """
 
     __tablename__ = "processed_item_v1"
@@ -1766,7 +1771,7 @@ class ProcessedItemV1DB(Base):
 
 
 # =============================================================================
-# AF-AUTO-007: 市场结构化事实表
+# RWB-AUTO-007: 市场结构化事实表
 # =============================================================================
 
 
@@ -2261,3 +2266,498 @@ class DynamicFactorWeightDB(Base):
     weights = Column(JSON, nullable=False, default=dict)
     raw_scores = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+# =============================================================================
+# Research Workbench x LSH merged platform: shared fact kernel and product modules
+# =============================================================================
+
+
+class AssetRegistryDB(Base):
+    """Canonical identity that maps to existing asset fact tables."""
+
+    __tablename__ = "asset_registry"
+
+    asset_id = Column(Text, primary_key=True)
+    asset_type = Column(Text, nullable=False, index=True)
+    canonical_name = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="active", index=True)
+    registry_metadata = Column(JSON, nullable=False, default=dict, name="metadata")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AssetIdentifierDB(Base):
+    """Time-bounded vendor or market code for a canonical asset."""
+
+    __tablename__ = "asset_identifier"
+
+    identifier_id = Column(Text, primary_key=True)
+    asset_id = Column(
+        Text, ForeignKey("asset_registry.asset_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    scheme = Column(Text, nullable=False, index=True)
+    value = Column(Text, nullable=False, index=True)
+    market = Column(Text, nullable=False)
+    valid_from = Column(DateTime(timezone=True), nullable=False, index=True)
+    valid_to = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    __table_args__ = (
+        UniqueConstraint(
+            "scheme",
+            "value",
+            "market",
+            "valid_from",
+            name="uq_asset_identifier_identity",
+        ),
+        CheckConstraint(
+            "valid_to IS NULL OR valid_to > valid_from",
+            name="ck_asset_identifier_valid_window",
+        ),
+        ExcludeConstraint(
+            (scheme, "="),
+            (value, "="),
+            (market, "="),
+            (func.tstzrange(valid_from, valid_to, "[)"), "&&"),
+            name="ex_asset_identifier_no_overlap",
+            using="gist",
+        ).ddl_if(dialect="postgresql"),
+    )
+
+
+class ThemeObservationDB(Base):
+    """Only persisted fact table shared by every Research Pack."""
+
+    __tablename__ = "theme_observation"
+    __table_args__ = (
+        UniqueConstraint(
+            "pack_key",
+            "dataset_key",
+            "row_identity",
+            "source_hash",
+            name="uq_theme_observation_source_row",
+        ),
+    )
+
+    observation_id = Column(Text, primary_key=True)
+    pack_key = Column(Text, nullable=False, index=True)
+    dataset_key = Column(Text, nullable=False, index=True)
+    row_identity = Column(Text, nullable=False)
+    subject_ref = Column(Text, nullable=False, index=True)
+    metric_key = Column(Text, nullable=False, index=True)
+    value = Column(JSON, nullable=True)
+    unit = Column(Text, nullable=True)
+    missing_reason = Column(Text, nullable=True)
+    as_of = Column(DateTime(timezone=True), nullable=False, index=True)
+    observed_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    available_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    source_refs = Column(JSON, nullable=False, default=list)
+    freshness_status = Column(Text, nullable=False, index=True)
+    quality_flags = Column(JSON, nullable=False, default=list)
+    source_hash = Column(Text, nullable=False, index=True)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class ScheduledJobDB(Base):
+    """PostgreSQL-coordinated single-flight scheduled work."""
+
+    __tablename__ = "scheduled_job"
+    __table_args__ = (
+        UniqueConstraint("owner", "idempotency_key", name="uq_scheduled_job_idempotency"),
+        CheckConstraint(
+            "allow_concurrent = false",
+            name="ck_scheduled_job_allow_concurrent_false",
+        ),
+        CheckConstraint(
+            "coalesce_policy = 'latest'",
+            name="ck_scheduled_job_coalesce_latest",
+        ),
+        CheckConstraint(
+            "(lease_owner IS NULL AND lease_expires_at IS NULL) OR "
+            "(lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL)",
+            name="ck_scheduled_job_lease_pair",
+        ),
+    )
+
+    job_id = Column(Text, primary_key=True)
+    owner = Column(Text, nullable=False, index=True)
+    job_type = Column(Text, nullable=False, index=True)
+    idempotency_key = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="idle", index=True)
+    scheduled_for = Column(DateTime(timezone=True), nullable=False, index=True)
+    allow_concurrent = Column(Boolean, nullable=False, default=False)
+    coalesce_policy = Column(Text, nullable=False, default="latest")
+    lease_owner = Column(Text, nullable=True, index=True)
+    lease_expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    attempt = Column(Integer, nullable=False, default=0)
+    payload = Column(JSON, nullable=False, default=dict)
+    last_error_code = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class DomainEventDB(Base):
+    """Durable event authority; in-process buses are delivery adapters only."""
+
+    __tablename__ = "domain_event"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_domain_event_idempotency"),
+        UniqueConstraint(
+            "aggregate_type",
+            "aggregate_id",
+            "sequence",
+            name="uq_domain_event_aggregate_sequence",
+        ),
+    )
+
+    event_id = Column(Text, primary_key=True)
+    event_type = Column(Text, nullable=False, index=True)
+    aggregate_type = Column(Text, nullable=False, index=True)
+    aggregate_id = Column(Text, nullable=False, index=True)
+    sequence = Column(Integer, nullable=False)
+    occurred_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    payload_ref = Column(Text, nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    idempotency_key = Column(Text, nullable=False)
+    published_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class ThemePackDB(Base):
+    """Versioned manifest and validation result for a Research Pack."""
+
+    __tablename__ = "theme_pack"
+    __table_args__ = (UniqueConstraint("pack_key", "version", name="uq_theme_pack_version"),)
+
+    pack_id = Column(Text, primary_key=True)
+    pack_key = Column(Text, nullable=False, index=True)
+    version = Column(Text, nullable=False)
+    compatibility_version = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, index=True)
+    manifest = Column(JSON, nullable=False, default=dict)
+    content_hash = Column(Text, nullable=False, index=True)
+    validation_result = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class MarketHomeSnapshotDB(Base):
+    """Immutable market-home section snapshot for historical reads."""
+
+    __tablename__ = "market_home_snapshot"
+    __table_args__ = (
+        UniqueConstraint(
+            "trading_day",
+            "snapshot_kind",
+            "section_key",
+            "formula_version",
+            name="uq_market_home_snapshot_identity",
+        ),
+    )
+
+    snapshot_id = Column(Text, primary_key=True)
+    trading_day = Column(Date, nullable=False, index=True)
+    snapshot_kind = Column(Text, nullable=False, index=True)
+    section_key = Column(Text, nullable=False, index=True)
+    formula_version = Column(Text, nullable=False)
+    as_of = Column(DateTime(timezone=True), nullable=False, index=True)
+    observed_at = Column(DateTime(timezone=True), nullable=False)
+    available_at = Column(DateTime(timezone=True), nullable=False)
+    source_refs = Column(JSON, nullable=False, default=list)
+    freshness_status = Column(Text, nullable=False, index=True)
+    quality_flags = Column(JSON, nullable=False, default=list)
+    payload = Column(JSON, nullable=False, default=dict)
+    input_fact_refs = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class ResearchWorkspaceDB(Base):
+    """Project-isolated home for research sessions, runs, and notes."""
+
+    __tablename__ = "research_workspace"
+
+    workspace_id = Column(Text, primary_key=True)
+    project_id = Column(Text, nullable=False, index=True)
+    title = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="active", index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ResearchSessionDB(Base):
+    """Temporary or workspace-scoped persisted conversation."""
+
+    __tablename__ = "research_session"
+    __table_args__ = (
+        CheckConstraint(
+            "(mode = 'workspace' AND workspace_id IS NOT NULL "
+            "AND length(trim(workspace_id)) > 0) OR "
+            "(mode = 'temporary' AND workspace_id IS NULL)",
+            name="ck_research_session_scope",
+        ),
+        UniqueConstraint("run_id", name="uq_research_session_run_id"),
+    )
+
+    session_id = Column(Text, primary_key=True)
+    workspace_id = Column(
+        Text,
+        ForeignKey("research_workspace.workspace_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    run_id = Column(Text, ForeignKey("research_run.run_id"), nullable=True, index=True)
+    mode = Column(Text, nullable=False, index=True)
+    status = Column(Text, nullable=False, default="active", index=True)
+    idempotency_key = Column(Text, nullable=False, unique=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class ResearchMessageDB(Base):
+    """Idempotent message whose workspace scope is derived from its session."""
+
+    __tablename__ = "research_message"
+    __table_args__ = (
+        UniqueConstraint("session_id", "idempotency_key", name="uq_research_message_idempotency"),
+        CheckConstraint(
+            "(content IS NOT NULL AND length(trim(content)) > 0 AND content_ref IS NULL) OR "
+            "(content IS NULL AND content_ref IS NOT NULL "
+            "AND length(trim(content_ref)) > 0)",
+            name="ck_research_message_content_source",
+        ),
+    )
+
+    message_id = Column(Text, primary_key=True)
+    session_id = Column(
+        Text,
+        ForeignKey("research_session.session_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role = Column(Text, nullable=False)
+    content = Column(Text, nullable=True)
+    content_ref = Column(Text, nullable=True)
+    idempotency_key = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+
+
+class RuntimeProviderDB(Base):
+    """Research runtime capability and health declaration without secrets."""
+
+    __tablename__ = "runtime_provider"
+
+    provider_id = Column(Text, primary_key=True)
+    provider_type = Column(Text, nullable=False, index=True)
+    name = Column(Text, nullable=False)
+    capabilities = Column(JSON, nullable=False, default=list)
+    status = Column(Text, nullable=False, index=True)
+    config_ref = Column(Text, nullable=True)
+    checked_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class SkillDefinitionDB(Base):
+    """Versioned persisted SkillManifest."""
+
+    __tablename__ = "skill_definition"
+    __table_args__ = (UniqueConstraint("skill_key", "version", name="uq_skill_definition_version"),)
+
+    skill_id = Column(Text, primary_key=True)
+    skill_key = Column(Text, nullable=False, index=True)
+    version = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="draft", index=True)
+    manifest = Column(JSON, nullable=False, default=dict)
+    allowed_tools = Column(JSON, nullable=False, default=list)
+    content_hash = Column(Text, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AgentTeamDB(Base):
+    """Supervisor-led Agent Team with persisted hard bounds."""
+
+    __tablename__ = "agent_team"
+
+    team_id = Column(Text, primary_key=True)
+    workspace_id = Column(
+        Text,
+        ForeignKey("research_workspace.workspace_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    name = Column(Text, nullable=False)
+    supervisor_role = Column(Text, nullable=False)
+    roles = Column(JSON, nullable=False, default=list)
+    budget = Column(JSON, nullable=False, default=dict)
+    skill_keys = Column(JSON, nullable=False, default=list)
+    status = Column(Text, nullable=False, default="draft", index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AgentScheduleDB(Base):
+    """Team schedule delegating lease ownership to scheduled_job."""
+
+    __tablename__ = "agent_schedule"
+    __table_args__ = (
+        CheckConstraint(
+            "allow_concurrent = false",
+            name="ck_agent_schedule_allow_concurrent_false",
+        ),
+        CheckConstraint(
+            "coalesce_policy = 'latest'",
+            name="ck_agent_schedule_coalesce_latest",
+        ),
+    )
+
+    schedule_id = Column(Text, primary_key=True)
+    team_id = Column(
+        Text, ForeignKey("agent_team.team_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    scheduled_job_id = Column(Text, ForeignKey("scheduled_job.job_id"), nullable=True, index=True)
+    cron_expression = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="active", index=True)
+    allow_concurrent = Column(Boolean, nullable=False, default=False)
+    coalesce_policy = Column(Text, nullable=False, default="latest")
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    next_run_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class ResearchNoteDB(Base):
+    """Immutable revision with exactly one Claim or paragraph source shape."""
+
+    __tablename__ = "research_note"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "note_key", "revision", name="uq_research_note_revision"),
+        CheckConstraint(
+            "(source_kind = 'claim' AND claim_id IS NOT NULL AND run_id IS NULL "
+            "AND paragraph_ref IS NULL) OR "
+            "(source_kind = 'paragraph' AND claim_id IS NULL AND run_id IS NOT NULL "
+            "AND paragraph_ref IS NOT NULL)",
+            name="ck_research_note_source_shape",
+        ),
+    )
+
+    note_id = Column(Text, primary_key=True)
+    note_key = Column(Text, nullable=False)
+    workspace_id = Column(
+        Text,
+        ForeignKey("research_workspace.workspace_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    run_id = Column(Text, ForeignKey("research_run.run_id"), nullable=True, index=True)
+    claim_id = Column(Text, ForeignKey("research_claim.claim_id"), nullable=True, index=True)
+    revision = Column(Integer, nullable=False)
+    source_kind = Column(Text, nullable=False)
+    paragraph_ref = Column(Text, nullable=True)
+    summary = Column(Text, nullable=False)
+    pinned = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+
+
+class WatchlistDB(Base):
+    """Named local-profile asset collection."""
+
+    __tablename__ = "watchlist"
+    __table_args__ = (UniqueConstraint("profile_id", "name", name="uq_watchlist_profile_name"),)
+
+    watchlist_id = Column(Text, primary_key=True)
+    profile_id = Column(Text, nullable=False, index=True)
+    name = Column(Text, nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class WatchlistItemDB(Base):
+    """Watchlist membership keyed by canonical asset identity."""
+
+    __tablename__ = "watchlist_item"
+    __table_args__ = (UniqueConstraint("watchlist_id", "asset_id", name="uq_watchlist_item_asset"),)
+
+    item_id = Column(Text, primary_key=True)
+    watchlist_id = Column(
+        Text, ForeignKey("watchlist.watchlist_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    asset_id = Column(
+        Text, ForeignKey("asset_registry.asset_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position = Column(Integer, nullable=False, default=0)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AlertRuleDB(Base):
+    """Unit-aware deterministic alert rule for one canonical asset."""
+
+    __tablename__ = "alert_rule"
+
+    rule_id = Column(Text, primary_key=True)
+    asset_id = Column(
+        Text, ForeignKey("asset_registry.asset_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    metric_type = Column(Text, nullable=False, index=True)
+    metric_key = Column(Text, nullable=False)
+    operator = Column(Text, nullable=False)
+    threshold = Column(JSON, nullable=False)
+    unit = Column(Text, nullable=True)
+    required_freshness = Column(Text, nullable=False, default="fresh")
+    cooldown_seconds = Column(Integer, nullable=False, default=0)
+    status = Column(Text, nullable=False, default="draft", index=True)
+    state = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AlertEventDB(Base):
+    """Persisted false-to-true alert edge and lifecycle."""
+
+    __tablename__ = "alert_event"
+    __table_args__ = (
+        Index(
+            "uq_alert_event_rule_active",
+            "rule_id",
+            unique=True,
+            postgresql_where=text("status IN ('open', 'acknowledged')"),
+            sqlite_where=text("status IN ('open', 'acknowledged')"),
+        ),
+    )
+
+    event_id = Column(Text, primary_key=True)
+    rule_id = Column(
+        Text, ForeignKey("alert_rule.rule_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    observation_id = Column(Text, nullable=False, index=True)
+    dedupe_key = Column(Text, nullable=False, unique=True)
+    status = Column(Text, nullable=False, default="open", index=True)
+    triggered_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class NotificationDB(Base):
+    """Authoritative in-app notification with optional desktop delivery state."""
+
+    __tablename__ = "notification"
+
+    notification_id = Column(Text, primary_key=True)
+    alert_event_id = Column(
+        Text, ForeignKey("alert_event.event_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    profile_id = Column(Text, nullable=False, index=True)
+    title = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(Text, nullable=False, default="pending", index=True)
+    delivery_metadata = Column(JSON, nullable=False, default=dict)
+    delivery_claim_token = Column(Text, nullable=True)
+    delivery_claimed_at = Column(DateTime(timezone=True), nullable=True)
+    delivery_attempt = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
+    read_at = Column(DateTime(timezone=True), nullable=True)

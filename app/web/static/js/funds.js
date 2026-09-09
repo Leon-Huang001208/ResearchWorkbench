@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Fund Intelligence Panel
+   Research Workbench — Fund Intelligence Panel
    ============================================================ */
 
 import { apiCall, toast, esc } from './core.js';

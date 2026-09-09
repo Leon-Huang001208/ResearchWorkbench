@@ -4,7 +4,7 @@
 
 本文档回答三个问题：
 
-1. AlphaFoundry 距离“全自动化闭环迭代”还差什么。
+1. Research Workbench 距离“全自动化闭环迭代”还差什么。
 2. 哪些部分已经有骨架，哪些部分需要继续工程化。
 3. 量化动态多因子模型能不能做、怎么做、如何与事件信号结合。
 
@@ -27,7 +27,7 @@
 
 ### 1.1 目标不是“自动预测股价”
 
-AlphaFoundry 的目标应保持为：
+Research Workbench 的目标应保持为：
 
 ```text
 AI 驱动的事件型量化系统
@@ -1066,7 +1066,7 @@ P3 现在只进路线图，不应成为近期主线。
 
 ## 15. 目标差距的最终判断
 
-AlphaFoundry 当前已经有：
+Research Workbench 当前已经有：
 
 ```text
 AI 投研系统的主体骨架
@@ -1099,4 +1099,4 @@ Event
 → Weight Update
 ```
 
-只要这条链能持续运行，并且每个环节都能回答“是否提升了超额收益或降低了风险”，AlphaFoundry 才会从 AI 投研系统真正进入 AI-native Investment Operating System。
+只要这条链能持续运行，并且每个环节都能回答“是否提升了超额收益或降低了风险”，Research Workbench 才会从 AI 投研系统真正进入 AI-native Investment Operating System。

@@ -1,5 +1,5 @@
 /* ============================================================
-   AlphaFoundry — Signal Lab Module
+   Research Workbench — Signal Lab Module
    ============================================================ */
 
 import { apiCall, toast, esc } from './core.js';

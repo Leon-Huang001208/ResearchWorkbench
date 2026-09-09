@@ -27,8 +27,10 @@ def test_research_workbench_keeps_its_stable_navigation_and_dom_surface():
     assert "subject_type" in script
     assert "template.available" in script
     assert "result.status === 'completed'" in script
-    assert "/downloads/markdown" in script
-    assert "/downloads/word" in script
+    assert "/downloads/${encodeURIComponent(artifactType)}" in script
+    assert "currentSession = null;\n        persistResearchContext();" in script
+    assert "if (!currentWorkspace?.workspace_id)" in script
+    assert "if (saved.session?.session_id) currentSession = saved.session;" not in script
 
 
 def test_asset_research_entry_uses_shared_prefill_contract():
@@ -37,5 +39,5 @@ def test_asset_research_entry_uses_shared_prefill_contract():
 
     assert "openResearchCenter" in app_script
     assert "buildResearchPrefill" in asset_script
-    assert "alphafoundry:open-research-center" in asset_script
+    assert "research_workbench:open-research-center" in asset_script
     assert "subject_type" in asset_script

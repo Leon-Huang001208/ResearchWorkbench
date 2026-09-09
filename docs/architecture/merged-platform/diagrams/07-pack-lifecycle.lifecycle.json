@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Research Pack 生命周期",
+    "output": "outputs/merged-platform-architecture/07-pack-lifecycle.html",
+    "viewBox": [1080, 610],
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {"id": "main", "label": "Pack 版本"},
+    {"id": "data", "label": "数据健康"},
+    {"id": "exceptions", "label": "隔离与恢复"}
+  ],
+  "states": [
+    {"id": "discovered", "type": "start", "label": "Discovered", "sublabel": "manifest 已发现", "lane": "main", "col": 0, "step": "01"},
+    {"id": "validated", "type": "decision", "label": "Validated", "sublabel": "schema 与权限通过", "lane": "main", "col": 1, "step": "02"},
+    {"id": "enabled", "type": "active", "label": "Enabled", "sublabel": "查询投影可用", "lane": "main", "col": 2, "step": "03"},
+    {"id": "degraded", "type": "waiting", "label": "Degraded", "sublabel": "必要数据过期", "lane": "main", "col": 3, "step": "04"},
+    {"id": "disabled", "type": "success", "label": "Disabled", "sublabel": "历史只读", "lane": "main", "col": 4, "step": "05"},
+    {"id": "quarantine", "type": "waiting", "label": "Quarantined", "sublabel": "缺失或冲突行", "lane": "data", "col": 0, "yOffset": 44, "tag": "不写事实"},
+    {"id": "rejected", "type": "failure", "label": "Rejected", "sublabel": "权限或字段非法", "lane": "exceptions", "col": 1, "yOffset": -44, "tag": "审计"}
+  ],
+  "transitions": [
+    {"id": "rowQuarantine", "from": "enabled", "to": "quarantine", "label": "坏行隔离", "variant": "security", "route": "drop", "labelDx": -36},
+    {"id": "dataRecovered", "from": "degraded", "to": "enabled", "label": "恢复", "variant": "emphasis", "route": "top-channel", "labelDy": -22}
+  ]
+}

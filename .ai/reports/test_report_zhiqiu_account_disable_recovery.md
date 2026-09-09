@@ -135,7 +135,7 @@ python -m pytest tests/unit/test_connectors/ -v
 ### 端到端验证
 
 - Python 直接验证：`get_available_accounts()` 返回 5 个账号，全部 `is_disabled=false`
-- Playwright 截图：AlphaFoundry 工作台正常运行，系统配置页面 5 个知丘账号可见
+- Playwright 截图：Research Workbench 工作台正常运行，系统配置页面 5 个知丘账号可见
 - API `/api/scheduler/status`：三个知丘源 `enabled=true, should_run=true`，调度器在运行
 
 ---

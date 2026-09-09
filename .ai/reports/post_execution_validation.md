@@ -1,7 +1,7 @@
 
 # Post-Execution Artifact Validation
 
-**Task ID**: af-auto-000-04h
+**Task ID**: rwb-auto-000-04h
 **Date**: 2026-05-11
 **Status**: ✅ Complete
 
@@ -87,14 +87,14 @@ Then mark as done with: .ai/scripts/run-automation.sh complete <ID>
 ### File: `.ai/tasks/task.json`
 
 **Added task:**
-- `af-auto-000-04h` - This task itself
+- `rwb-auto-000-04h` - This task itself
 
 ## Usage
 
 The validation runs automatically as part of `execute`:
 
 ```bash
-.ai/scripts/run-automation.sh execute af-auto-000-XX
+.ai/scripts/run-automation.sh execute rwb-auto-000-XX
 ```
 
 If validation fails, the script exits with code 1 and shows:

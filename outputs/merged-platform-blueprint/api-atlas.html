@@ -1,0 +1,1449 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Research Workbench API Atlas</title>
+<style>
+:root{--navy:#061b2e;--blue:#2864dc;--gold:#c99737;--ink:#19212f;--muted:#69758a;--line:#dce3ee;--canvas:#f5f7fb;--surface:#fff;--green:#16866b;--red:#d94b45}*{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"PingFang SC",sans-serif}.top{background:var(--navy);color:#fff;padding:28px clamp(20px,4vw,64px)}.top h1{margin:0 0 6px;font-size:clamp(24px,3vw,38px)}.top p{margin:0;color:#b9c8db}.shell{max-width:1500px;margin:auto;padding:24px}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:-42px}.metric{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 8px 24px #061b2e12}.metric b{display:block;font-size:26px}.toolbar{position:sticky;top:0;z-index:4;display:flex;gap:10px;align-items:center;margin:20px 0;padding:12px;background:#f5f7fbeb;backdrop-filter:blur(12px)}select,input{border:1px solid var(--line);border-radius:9px;background:#fff;padding:10px 12px;color:var(--ink)}input{flex:1}.capabilities{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0}.capability,.tag{display:inline-flex;border-radius:999px;background:#edf3ff;color:#2355ad;padding:3px 8px;margin:2px;font-size:12px}.capability.remove{background:#fff0ee;color:#a63e37}.capability.merge{background:#edf8f4;color:#116c55}.api-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.api-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;scroll-margin-top:90px}.api-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.api-head code{font-size:14px;word-break:break-all}.api-head a{margin-left:auto;color:var(--blue);text-decoration:none}.method{font-weight:800;border-radius:6px;padding:4px 7px}.method-get{background:#e9f7f2;color:var(--green)}.method-post{background:#edf3ff;color:var(--blue)}.method-patch{background:#fff6dc;color:#8a650f}.method-delete{background:#fff0ee;color:var(--red)}.api-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}.api-grid dl{margin:0}.api-grid dt{color:var(--muted);font-size:12px}.api-grid dd{margin:0 0 8px}.trace-row{border-top:1px solid var(--line);padding-top:10px}.tag.event{background:#fff6dc;color:#7b5b12}.tag.trace{text-decoration:none}details{margin-top:10px}summary{cursor:pointer;color:var(--blue)}pre{white-space:pre-wrap;overflow:auto;background:#0d2236;color:#d9e6f5;border-radius:8px;padding:12px;font-size:11px}.empty{display:none;padding:48px;text-align:center;color:var(--muted)}@media(max-width:900px){.summary{grid-template-columns:repeat(2,1fr)}.api-list{grid-template-columns:1fr}}@media(max-width:560px){.shell{padding:14px}.summary{grid-template-columns:1fr;margin-top:-24px}.toolbar{flex-wrap:wrap}.toolbar input{flex-basis:100%}.api-grid{grid-template-columns:1fr}}
+</style></head><body>
+<header class="top"><h1>Research Workbench × LSH API Atlas</h1><p>从产品能力追踪到 HTTP/SSE、Service、数据 Owner、事件和异常语义。</p></header>
+<main class="shell"><section class="summary"><div class="metric"><b>28</b>产品能力</div><div class="metric"><b>8</b>核心页面</div><div class="metric"><b>65</b>接口方法</div><div class="metric"><b>12</b>领域事件</div></section>
+<section class="toolbar" aria-label="接口筛选"><select data-filter="domain" aria-label="领域"><option value="">全部领域</option><option>asset</option><option>claw</option><option>market</option><option>platform-core</option><option>research-core</option><option>theme</option></select><select data-filter="method" aria-label="方法"><option value="">全部方法</option><option>DELETE</option><option>GET</option><option>PATCH</option><option>POST</option></select><input type="search" data-filter="search" placeholder="搜索 API、路径或模型" aria-label="搜索接口"></section>
+<section class="capabilities" aria-label="能力索引"><span id="cap-CAP-RES-001" class="capability merge">CAP-RES-001 · shared-workspace · merge</span><span id="cap-CAP-RES-002" class="capability merge">CAP-RES-002 · shared-evidence · merge</span><span id="cap-CAP-RES-003" class="capability merge">CAP-RES-003 · shared-research-notes · merge</span><span id="cap-CAP-RES-004" class="capability merge">CAP-RES-004 · session-history · merge</span><span id="cap-CAP-FIN-001" class="capability retain">CAP-FIN-001 · instant-research · retain</span><span id="cap-CAP-FIN-002" class="capability retain">CAP-FIN-002 · report-distillation · retain</span><span id="cap-CAP-FIN-003" class="capability add">CAP-FIN-003 · upgrade-to-claw · add</span><span id="cap-CAP-CLW-001" class="capability retain">CAP-CLW-001 · supervisor · retain</span><span id="cap-CAP-CLW-002" class="capability retain">CAP-CLW-002 · agent-team · retain</span><span id="cap-CAP-CLW-003" class="capability retain">CAP-CLW-003 · agent-schedule · retain</span><span id="cap-CAP-CLW-004" class="capability remove">CAP-CLW-004 · duplicated-chat-shell · remove</span><span id="cap-CAP-CLW-005" class="capability add">CAP-CLW-005 · shared-blackboard · add</span><span id="cap-CAP-MKT-001" class="capability add">CAP-MKT-001 · five-section-home · add</span><span id="cap-CAP-MKT-002" class="capability add">CAP-MKT-002 · transparent-mainline-ranking · add</span><span id="cap-CAP-MKT-003" class="capability add">CAP-MKT-003 · immutable-close-snapshot · add</span><span id="cap-CAP-THM-001" class="capability add">CAP-THM-001 · pack-catalog · add</span><span id="cap-CAP-THM-002" class="capability add">CAP-THM-002 · typed-theme-read-models · add</span><span id="cap-CAP-THM-003" class="capability add">CAP-THM-003 · pack-quality-gate · add</span><span id="cap-CAP-AST-001" class="capability add">CAP-AST-001 · unified-asset-snapshot · add</span><span id="cap-CAP-AST-002" class="capability add">CAP-AST-002 · peer-comparison · add</span><span id="cap-CAP-AST-003" class="capability add">CAP-AST-003 · asset-event-context · add</span><span id="cap-CAP-ALT-001" class="capability add">CAP-ALT-001 · alert-state-machine · add</span><span id="cap-CAP-ALT-002" class="capability merge">CAP-ALT-002 · watchlists · merge</span><span id="cap-CAP-ALT-003" class="capability add">CAP-ALT-003 · durable-notification-inbox · add</span><span id="cap-CAP-PLT-001" class="capability add">CAP-PLT-001 · runtime-provider · add</span><span id="cap-CAP-PLT-002" class="capability add">CAP-PLT-002 · allowlisted-mcp · add</span><span id="cap-CAP-PLT-003" class="capability add">CAP-PLT-003 · declarative-skills · add</span><span id="cap-CAP-PLT-004" class="capability merge">CAP-PLT-004 · scheduler-coordinator · merge</span></section><section class="api-list"><article class="api-card" id="API-RES-001" data-domain="research-core" data-method="GET" data-search="api-res-001 /api/research-workspaces researchworkspacequery researchworkspacepage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-workspaces</code><a href="#API-RES-001">API-RES-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchWorkspaceQuery</dd><dt>响应</dt><dd>ResearchWorkspacePage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-001">CAP-RES-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;401&quot;: &quot;authentication_required&quot;,
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-002" data-domain="research-core" data-method="POST" data-search="api-res-002 /api/research-workspaces researchworkspacecreate researchworkspace">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/research-workspaces</code><a href="#API-RES-002">API-RES-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchWorkspaceCreate</dd><dt>响应</dt><dd>ResearchWorkspace · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-001">CAP-RES-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-003" data-domain="research-core" data-method="GET" data-search="api-res-003 /api/research-workspaces/{workspace_id} researchworkspacepath researchworkspace">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-workspaces/{workspace_id}</code><a href="#API-RES-003">API-RES-003</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchWorkspacePath</dd><dt>响应</dt><dd>ResearchWorkspace · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-001">CAP-RES-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-004" data-domain="research-core" data-method="PATCH" data-search="api-res-004 /api/research-workspaces/{workspace_id} researchworkspaceupdate researchworkspace">
+  <div class="api-head"><span class="method method-patch">PATCH</span><code>/api/research-workspaces/{workspace_id}</code><a href="#API-RES-004">API-RES-004</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchWorkspaceUpdate</dd><dt>响应</dt><dd>ResearchWorkspace · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-001">CAP-RES-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-005" data-domain="research-core" data-method="GET" data-search="api-res-005 /api/research-sessions researchsessionquery researchsessionpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-sessions</code><a href="#API-RES-005">API-RES-005</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchSessionQuery</dd><dt>响应</dt><dd>ResearchSessionPage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-004">CAP-RES-004</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-006" data-domain="research-core" data-method="POST" data-search="api-res-006 /api/research-sessions researchsessioncreate researchsession">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/research-sessions</code><a href="#API-RES-006">API-RES-006</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchSessionCreate</dd><dt>响应</dt><dd>ResearchSession · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-004">CAP-RES-004</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-007" data-domain="research-core" data-method="GET" data-search="api-res-007 /api/research-sessions/{session_id} researchsessionpath researchsession">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-sessions/{session_id}</code><a href="#API-RES-007">API-RES-007</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchSessionPath</dd><dt>响应</dt><dd>ResearchSession · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-004">CAP-RES-004</a><a class="tag trace" href="#cap-CAP-FIN-001">CAP-FIN-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-008" data-domain="research-core" data-method="PATCH" data-search="api-res-008 /api/research-sessions/{session_id} researchsessionupdate researchsession">
+  <div class="api-head"><span class="method method-patch">PATCH</span><code>/api/research-sessions/{session_id}</code><a href="#API-RES-008">API-RES-008</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchSessionUpdate</dd><dt>响应</dt><dd>ResearchSession · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-004">CAP-RES-004</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-009" data-domain="research-core" data-method="GET" data-search="api-res-009 /api/research-sessions/{session_id}/messages researchmessagequery researchmessagepage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-sessions/{session_id}/messages</code><a href="#API-RES-009">API-RES-009</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchMessageQuery</dd><dt>响应</dt><dd>ResearchMessagePage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-002">CAP-RES-002</a><a class="tag trace" href="#cap-CAP-RES-003">CAP-RES-003</a><a class="tag trace" href="#cap-CAP-FIN-001">CAP-FIN-001</a><a class="tag trace" href="#cap-CAP-FIN-002">CAP-FIN-002</a><a class="tag trace" href="#cap-CAP-FIN-003">CAP-FIN-003</a><a class="tag trace" href="#cap-CAP-CLW-001">CAP-CLW-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-010" data-domain="research-core" data-method="POST" data-search="api-res-010 /api/research-sessions/{session_id}/messages researchmessagecreate researchmessage">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/research-sessions/{session_id}/messages</code><a href="#API-RES-010">API-RES-010</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchMessageCreate</dd><dt>响应</dt><dd>ResearchMessage · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-001</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-002">CAP-RES-002</a><a class="tag trace" href="#cap-CAP-FIN-001">CAP-FIN-001</a><a class="tag trace" href="#cap-CAP-FIN-002">CAP-FIN-002</a><a class="tag trace" href="#cap-CAP-CLW-005">CAP-CLW-005</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-011" data-domain="research-core" data-method="GET" data-search="api-res-011 /api/research-runs researchrunquery researchrunpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-runs</code><a href="#API-RES-011">API-RES-011</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchRunQuery</dd><dt>响应</dt><dd>ResearchRunPage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-002</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-002">CAP-RES-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-012" data-domain="research-core" data-method="POST" data-search="api-res-012 /api/research-runs researchruncreate researchrun">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/research-runs</code><a href="#API-RES-012">API-RES-012</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchRunCreate</dd><dt>响应</dt><dd>ResearchRun · resource</dd><dt>成功</dt><dd>202</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-002</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-001</span><span class="tag ">DATA-PLT-001</span><span class="tag ">DATA-RES-002</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-RES-002">CAP-RES-002</a><span class="tag event">EVT-RES-001</span></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;,
+    &quot;429&quot;: &quot;budget_or_rate_limit&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:execute&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-013" data-domain="research-core" data-method="GET" data-search="api-res-013 /api/research-runs/{run_id} researchrunpath researchrun">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-runs/{run_id}</code><a href="#API-RES-013">API-RES-013</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchRunPath</dd><dt>响应</dt><dd>ResearchRun · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-002</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-014" data-domain="research-core" data-method="POST" data-search="api-res-014 /api/research-runs/{run_id}/cancel researchruncancel researchrun">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/research-runs/{run_id}/cancel</code><a href="#API-RES-014">API-RES-014</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchRunCancel</dd><dt>响应</dt><dd>ResearchRun · control</dd><dt>成功</dt><dd>202</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-002</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-002</span><span class="tag ">DATA-RES-002</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><span class="tag event">EVT-RES-004</span></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:execute&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-015" data-domain="research-core" data-method="POST" data-search="api-res-015 /api/research-runs/{run_id}/retry researchrunretry researchrun">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/research-runs/{run_id}/retry</code><a href="#API-RES-015">API-RES-015</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchRunRetry</dd><dt>响应</dt><dd>ResearchRun · control</dd><dt>成功</dt><dd>202</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-002</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-002</span><span class="tag ">DATA-PLT-001</span><span class="tag ">DATA-RES-002</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><span class="tag event">EVT-RES-001</span></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;429&quot;: &quot;budget_or_rate_limit&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:execute&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-RES-016" data-domain="research-core" data-method="GET" data-search="api-res-016 /api/research-runs/{run_id}/events researchruneventcursor researchruneventstream">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-runs/{run_id}/events</code><a href="#API-RES-016">API-RES-016</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ResearchRunEventCursor</dd><dt>响应</dt><dd>ResearchRunEventStream · event-stream</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-RES-002</dd><dt>数据</dt><dd><span class="tag ">DATA-RES-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><span class="tag event">EVT-RES-001</span><span class="tag event">EVT-RES-002</span><span class="tag event">EVT-RES-003</span><span class="tag event">EVT-RES-004</span><span class="tag event">EVT-RES-005</span></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: {
+    &quot;last_event_id&quot;: true,
+    &quot;heartbeat_seconds&quot;: 15,
+    &quot;reconnect_delay_ms&quot;: 2000,
+    &quot;terminal_events&quot;: [
+      &quot;research.run.completed&quot;,
+      &quot;research.run.failed&quot;
+    ],
+    &quot;replay_boundary&quot;: &quot;run-retention-window&quot;
+  }
+}</pre></details>
+</article>
+<article class="api-card" id="API-PLT-001" data-domain="platform-core" data-method="GET" data-search="api-plt-001 /api/runtime-providers runtimeproviderquery runtimeproviderpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/runtime-providers</code><a href="#API-PLT-001">API-PLT-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>RuntimeProviderQuery</dd><dt>响应</dt><dd>RuntimeProviderPage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-PLT-001">CAP-PLT-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;capability:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-PLT-002" data-domain="platform-core" data-method="POST" data-search="api-plt-002 /api/runtime-providers runtimeprovidercreate runtimeprovider">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/runtime-providers</code><a href="#API-PLT-002">API-PLT-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>RuntimeProviderCreate</dd><dt>响应</dt><dd>RuntimeProvider · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-PLT-001">CAP-PLT-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;capability:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-PLT-003" data-domain="platform-core" data-method="GET" data-search="api-plt-003 /api/runtime-providers/{provider_id} runtimeproviderpath runtimeprovider">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/runtime-providers/{provider_id}</code><a href="#API-PLT-003">API-PLT-003</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>RuntimeProviderPath</dd><dt>响应</dt><dd>RuntimeProvider · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-PLT-001">CAP-PLT-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;capability:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-PLT-004" data-domain="platform-core" data-method="PATCH" data-search="api-plt-004 /api/runtime-providers/{provider_id} runtimeproviderupdate runtimeprovider">
+  <div class="api-head"><span class="method method-patch">PATCH</span><code>/api/runtime-providers/{provider_id}</code><a href="#API-PLT-004">API-PLT-004</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>RuntimeProviderUpdate</dd><dt>响应</dt><dd>RuntimeProvider · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-PLT-001">CAP-PLT-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;capability:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-PLT-005" data-domain="platform-core" data-method="GET" data-search="api-plt-005 /api/research-skills skillquery skillpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-skills</code><a href="#API-PLT-005">API-PLT-005</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>SkillQuery</dd><dt>响应</dt><dd>SkillPage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-002</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-PLT-002">CAP-PLT-002</a><a class="tag trace" href="#cap-CAP-PLT-003">CAP-PLT-003</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;capability:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-PLT-006" data-domain="platform-core" data-method="POST" data-search="api-plt-006 /api/research-skills skilldefinitioncreate skilldefinition">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/research-skills</code><a href="#API-PLT-006">API-PLT-006</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>SkillDefinitionCreate</dd><dt>响应</dt><dd>SkillDefinition · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-002</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-PLT-002">CAP-PLT-002</a><a class="tag trace" href="#cap-CAP-PLT-003">CAP-PLT-003</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;capability:write&quot;,
+    &quot;tool_policy&quot;: &quot;allowlist-only&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-PLT-007" data-domain="platform-core" data-method="GET" data-search="api-plt-007 /api/research-skills/{skill_id} skillpath skilldefinition">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/research-skills/{skill_id}</code><a href="#API-PLT-007">API-PLT-007</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>SkillPath</dd><dt>响应</dt><dd>SkillDefinition · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-002</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-PLT-002">CAP-PLT-002</a><a class="tag trace" href="#cap-CAP-PLT-003">CAP-PLT-003</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;capability:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-PLT-008" data-domain="platform-core" data-method="PATCH" data-search="api-plt-008 /api/research-skills/{skill_id} skilldefinitionupdate skilldefinition">
+  <div class="api-head"><span class="method method-patch">PATCH</span><code>/api/research-skills/{skill_id}</code><a href="#API-PLT-008">API-PLT-008</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>SkillDefinitionUpdate</dd><dt>响应</dt><dd>SkillDefinition · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-002</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-PLT-002">CAP-PLT-002</a><a class="tag trace" href="#cap-CAP-PLT-003">CAP-PLT-003</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;capability:write&quot;,
+    &quot;tool_policy&quot;: &quot;allowlist-only&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-AGT-001" data-domain="claw" data-method="GET" data-search="api-agt-001 /api/agent-teams agentteamquery agentteampage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/agent-teams</code><a href="#API-AGT-001">API-AGT-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentTeamQuery</dd><dt>响应</dt><dd>AgentTeamPage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-002</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-FIN-003">CAP-FIN-003</a><a class="tag trace" href="#cap-CAP-CLW-001">CAP-CLW-001</a><a class="tag trace" href="#cap-CAP-CLW-002">CAP-CLW-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;agent:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-AGT-002" data-domain="claw" data-method="POST" data-search="api-agt-002 /api/agent-teams agentteamcreate agentteamdefinition">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/agent-teams</code><a href="#API-AGT-002">API-AGT-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentTeamCreate</dd><dt>响应</dt><dd>AgentTeamDefinition · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-002</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-CLW-002">CAP-CLW-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;agent:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-AGT-003" data-domain="claw" data-method="GET" data-search="api-agt-003 /api/agent-teams/{team_id} agentteampath agentteamdefinition">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/agent-teams/{team_id}</code><a href="#API-AGT-003">API-AGT-003</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentTeamPath</dd><dt>响应</dt><dd>AgentTeamDefinition · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-002</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-CLW-002">CAP-CLW-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;agent:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-AGT-004" data-domain="claw" data-method="PATCH" data-search="api-agt-004 /api/agent-teams/{team_id} agentteamupdate agentteamdefinition">
+  <div class="api-head"><span class="method method-patch">PATCH</span><code>/api/agent-teams/{team_id}</code><a href="#API-AGT-004">API-AGT-004</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentTeamUpdate</dd><dt>响应</dt><dd>AgentTeamDefinition · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-PLT-002</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span><span class="tag ">DATA-PLT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-CLW-002">CAP-CLW-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;agent:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-SCH-001" data-domain="platform-core" data-method="GET" data-search="api-sch-001 /api/agent-schedules agentschedulequery agentschedulepage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/agent-schedules</code><a href="#API-SCH-001">API-SCH-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentScheduleQuery</dd><dt>响应</dt><dd>AgentSchedulePage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-SCH-001</dd><dt>数据</dt><dd><span class="tag ">DATA-SCH-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-CLW-003">CAP-CLW-003</a><a class="tag trace" href="#cap-CAP-PLT-004">CAP-PLT-004</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;schedule:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-SCH-002" data-domain="platform-core" data-method="POST" data-search="api-sch-002 /api/agent-schedules agentschedulecreate agentschedule">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/agent-schedules</code><a href="#API-SCH-002">API-SCH-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentScheduleCreate</dd><dt>响应</dt><dd>AgentSchedule · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-SCH-001</dd><dt>数据</dt><dd><span class="tag ">DATA-PLT-001</span><span class="tag ">DATA-SCH-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-CLW-003">CAP-CLW-003</a><a class="tag trace" href="#cap-CAP-PLT-004">CAP-PLT-004</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;schedule:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-SCH-003" data-domain="platform-core" data-method="GET" data-search="api-sch-003 /api/agent-schedules/{schedule_id} agentschedulepath agentschedule">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/agent-schedules/{schedule_id}</code><a href="#API-SCH-003">API-SCH-003</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentSchedulePath</dd><dt>响应</dt><dd>AgentSchedule · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-SCH-001</dd><dt>数据</dt><dd><span class="tag ">DATA-SCH-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-CLW-003">CAP-CLW-003</a><a class="tag trace" href="#cap-CAP-PLT-004">CAP-PLT-004</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;schedule:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-SCH-004" data-domain="platform-core" data-method="PATCH" data-search="api-sch-004 /api/agent-schedules/{schedule_id} agentscheduleupdate agentschedule">
+  <div class="api-head"><span class="method method-patch">PATCH</span><code>/api/agent-schedules/{schedule_id}</code><a href="#API-SCH-004">API-SCH-004</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentScheduleUpdate</dd><dt>响应</dt><dd>AgentSchedule · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-SCH-001</dd><dt>数据</dt><dd><span class="tag ">DATA-SCH-001</span><span class="tag ">DATA-SCH-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-CLW-003">CAP-CLW-003</a><a class="tag trace" href="#cap-CAP-PLT-004">CAP-PLT-004</a><span class="tag event">EVT-SCH-002</span></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;schedule:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-SCH-005" data-domain="platform-core" data-method="DELETE" data-search="api-sch-005 /api/agent-schedules/{schedule_id} agentscheduledelete deletedresource">
+  <div class="api-head"><span class="method method-delete">DELETE</span><code>/api/agent-schedules/{schedule_id}</code><a href="#API-SCH-005">API-SCH-005</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AgentScheduleDelete</dd><dt>响应</dt><dd>DeletedResource · control</dd><dt>成功</dt><dd>204</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-SCH-001</dd><dt>数据</dt><dd><span class="tag ">DATA-SCH-001</span><span class="tag ">DATA-SCH-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-CLW-003">CAP-CLW-003</a><a class="tag trace" href="#cap-CAP-PLT-004">CAP-PLT-004</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;schedule:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-MKT-001" data-domain="market" data-method="GET" data-search="api-mkt-001 /api/market-home markethomequery markethomesnapshot">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/market-home</code><a href="#API-MKT-001">API-MKT-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>MarketHomeQuery</dd><dt>响应</dt><dd>MarketHomeSnapshot · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-MKT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-MKT-001</span><span class="tag ">DATA-AST-002</span><span class="tag ">DATA-THM-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-MKT-001">CAP-MKT-001</a><a class="tag trace" href="#cap-CAP-MKT-002">CAP-MKT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;422&quot;: &quot;semantic_validation_error&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;market:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-MKT-002" data-domain="market" data-method="GET" data-search="api-mkt-002 /api/market-home/snapshots/{trading_day} markethomesnapshotpath markethomesnapshot">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/market-home/snapshots/{trading_day}</code><a href="#API-MKT-002">API-MKT-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>MarketHomeSnapshotPath</dd><dt>响应</dt><dd>MarketHomeSnapshot · fact</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-MKT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-MKT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-MKT-001">CAP-MKT-001</a><a class="tag trace" href="#cap-CAP-MKT-003">CAP-MKT-003</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;market:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-MKT-003" data-domain="market" data-method="GET" data-search="api-mkt-003 /api/market-home/events markethomeeventcursor markethomeinvalidationstream">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/market-home/events</code><a href="#API-MKT-003">API-MKT-003</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>MarketHomeEventCursor</dd><dt>响应</dt><dd>MarketHomeInvalidationStream · event-stream</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-MKT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-MKT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-MKT-001">CAP-MKT-001</a><span class="tag event">EVT-MKT-001</span></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;market:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: {
+    &quot;last_event_id&quot;: true,
+    &quot;heartbeat_seconds&quot;: 15,
+    &quot;reconnect_delay_ms&quot;: 2000,
+    &quot;terminal_events&quot;: [],
+    &quot;replay_boundary&quot;: &quot;latest-section-revision&quot;
+  }
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-001" data-domain="theme" data-method="GET" data-search="api-thm-001 /api/theme-packs themepackquery themepackpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/theme-packs</code><a href="#API-THM-001">API-THM-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemePackQuery</dd><dt>响应</dt><dd>ThemePackPage · fact</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-001">CAP-THM-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;theme:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-002" data-domain="theme" data-method="GET" data-search="api-thm-002 /api/theme-packs/{pack_key} themepackpath themepackmanifest">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/theme-packs/{pack_key}</code><a href="#API-THM-002">API-THM-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemePackPath</dd><dt>响应</dt><dd>ThemePackManifest · fact</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-001">CAP-THM-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;theme:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-003" data-domain="theme" data-method="GET" data-search="api-thm-003 /api/theme-packs/{pack_key}/snapshot themepacksnapshotquery themesnapshot">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/theme-packs/{pack_key}/snapshot</code><a href="#API-THM-003">API-THM-003</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemePackSnapshotQuery</dd><dt>响应</dt><dd>ThemeSnapshot · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-001</span><span class="tag ">DATA-THM-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-002">CAP-THM-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;theme:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-004" data-domain="theme" data-method="GET" data-search="api-thm-004 /api/theme-packs/{pack_key}/kpis themekpiquery themekpiseries">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/theme-packs/{pack_key}/kpis</code><a href="#API-THM-004">API-THM-004</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemeKpiQuery</dd><dt>响应</dt><dd>ThemeKpiSeries · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-002">CAP-THM-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;theme:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-005" data-domain="theme" data-method="GET" data-search="api-thm-005 /api/theme-packs/{pack_key}/value-chain themepackpath themevaluechain">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/theme-packs/{pack_key}/value-chain</code><a href="#API-THM-005">API-THM-005</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemePackPath</dd><dt>响应</dt><dd>ThemeValueChain · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-001</span><span class="tag ">DATA-THM-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-002">CAP-THM-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;theme:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-006" data-domain="theme" data-method="GET" data-search="api-thm-006 /api/theme-packs/{pack_key}/events themeeventquery themeeventpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/theme-packs/{pack_key}/events</code><a href="#API-THM-006">API-THM-006</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemeEventQuery</dd><dt>响应</dt><dd>ThemeEventPage · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-002">CAP-THM-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;theme:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-007" data-domain="theme" data-method="GET" data-search="api-thm-007 /api/theme-packs/{pack_key}/assets themeassetquery themeassetexposurepage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/theme-packs/{pack_key}/assets</code><a href="#API-THM-007">API-THM-007</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemeAssetQuery</dd><dt>响应</dt><dd>ThemeAssetExposurePage · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-002</span><span class="tag ">DATA-AST-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-002">CAP-THM-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;theme:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-008" data-domain="theme" data-method="GET" data-search="api-thm-008 /api/theme-packs/{pack_key}/data-health themepackpath themedatahealth">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/theme-packs/{pack_key}/data-health</code><a href="#API-THM-008">API-THM-008</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemePackPath</dd><dt>响应</dt><dd>ThemeDataHealth · fact</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-001</span><span class="tag ">DATA-THM-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-002">CAP-THM-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;theme:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-THM-009" data-domain="theme" data-method="POST" data-search="api-thm-009 /api/theme-packs/{pack_key}/research-workspaces themeworkspacecreate researchworkspace">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/theme-packs/{pack_key}/research-workspaces</code><a href="#API-THM-009">API-THM-009</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>ThemeWorkspaceCreate</dd><dt>响应</dt><dd>ResearchWorkspace · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-THM-001</dd><dt>数据</dt><dd><span class="tag ">DATA-THM-001</span><span class="tag ">DATA-THM-002</span><span class="tag ">DATA-RES-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-THM-002">CAP-THM-002</a><a class="tag trace" href="#cap-CAP-THM-003">CAP-THM-003</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;research:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-AST-001" data-domain="asset" data-method="GET" data-search="api-ast-001 /api/assets/search assetsearchquery assetsearchpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/assets/search</code><a href="#API-AST-001">API-AST-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AssetSearchQuery</dd><dt>响应</dt><dd>AssetSearchPage · fact</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-AST-001</dd><dt>数据</dt><dd><span class="tag ">DATA-AST-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-AST-001">CAP-AST-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;422&quot;: &quot;semantic_validation_error&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;asset:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-AST-002" data-domain="asset" data-method="GET" data-search="api-ast-002 /api/assets/{asset_id} assetsnapshotquery assetsnapshotenvelope">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/assets/{asset_id}</code><a href="#API-AST-002">API-AST-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AssetSnapshotQuery</dd><dt>响应</dt><dd>AssetSnapshotEnvelope · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-AST-001</dd><dt>数据</dt><dd><span class="tag ">DATA-AST-001</span><span class="tag ">DATA-AST-002</span><span class="tag ">DATA-THM-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-AST-001">CAP-AST-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;asset:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-AST-003" data-domain="asset" data-method="GET" data-search="api-ast-003 /api/assets/{asset_id}/peers assetpeerquery assetpeercomparison">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/assets/{asset_id}/peers</code><a href="#API-AST-003">API-AST-003</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AssetPeerQuery</dd><dt>响应</dt><dd>AssetPeerComparison · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-AST-001</dd><dt>数据</dt><dd><span class="tag ">DATA-AST-001</span><span class="tag ">DATA-AST-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-AST-002">CAP-AST-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;asset:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-AST-004" data-domain="asset" data-method="GET" data-search="api-ast-004 /api/assets/{asset_id}/events asseteventquery asseteventpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/assets/{asset_id}/events</code><a href="#API-AST-004">API-AST-004</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AssetEventQuery</dd><dt>响应</dt><dd>AssetEventPage · fact</dd><dt>成功</dt><dd>200, 206</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-AST-001</dd><dt>数据</dt><dd><span class="tag ">DATA-AST-001</span><span class="tag ">DATA-AST-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-AST-003">CAP-AST-003</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;503&quot;: &quot;provider_or_data_unavailable&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;asset:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [
+    &quot;as_of&quot;,
+    &quot;observed_at&quot;,
+    &quot;available_at&quot;,
+    &quot;source_refs&quot;,
+    &quot;freshness_status&quot;,
+    &quot;quality_flags&quot;
+  ],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-001" data-domain="asset" data-method="GET" data-search="api-alt-001 /api/watchlists watchlistquery watchlistpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/watchlists</code><a href="#API-ALT-001">API-ALT-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>WatchlistQuery</dd><dt>响应</dt><dd>WatchlistPage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-002">CAP-ALT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;watchlist:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-002" data-domain="asset" data-method="POST" data-search="api-alt-002 /api/watchlists watchlistcreate watchlist">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/watchlists</code><a href="#API-ALT-002">API-ALT-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>WatchlistCreate</dd><dt>响应</dt><dd>Watchlist · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-002">CAP-ALT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;watchlist:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-003" data-domain="asset" data-method="GET" data-search="api-alt-003 /api/watchlists/{watchlist_id} watchlistpath watchlist">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/watchlists/{watchlist_id}</code><a href="#API-ALT-003">API-ALT-003</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>WatchlistPath</dd><dt>响应</dt><dd>Watchlist · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-002">CAP-ALT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;watchlist:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-004" data-domain="asset" data-method="PATCH" data-search="api-alt-004 /api/watchlists/{watchlist_id} watchlistupdate watchlist">
+  <div class="api-head"><span class="method method-patch">PATCH</span><code>/api/watchlists/{watchlist_id}</code><a href="#API-ALT-004">API-ALT-004</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>WatchlistUpdate</dd><dt>响应</dt><dd>Watchlist · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-001</span><span class="tag ">DATA-ALT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-002">CAP-ALT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;watchlist:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-005" data-domain="asset" data-method="DELETE" data-search="api-alt-005 /api/watchlists/{watchlist_id} watchlistdelete deletedresource">
+  <div class="api-head"><span class="method method-delete">DELETE</span><code>/api/watchlists/{watchlist_id}</code><a href="#API-ALT-005">API-ALT-005</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>WatchlistDelete</dd><dt>响应</dt><dd>DeletedResource · control</dd><dt>成功</dt><dd>204</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-001</span><span class="tag ">DATA-ALT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-002">CAP-ALT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;watchlist:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-006" data-domain="asset" data-method="POST" data-search="api-alt-006 /api/watchlists/{watchlist_id}/items watchlistitemcreate watchlistitem">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/watchlists/{watchlist_id}/items</code><a href="#API-ALT-006">API-ALT-006</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>WatchlistItemCreate</dd><dt>响应</dt><dd>WatchlistItem · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-AST-001</span><span class="tag ">DATA-ALT-001</span><span class="tag ">DATA-ALT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-002">CAP-ALT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;watchlist:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-007" data-domain="asset" data-method="DELETE" data-search="api-alt-007 /api/watchlists/{watchlist_id}/items/{item_id} watchlistitemdelete deletedresource">
+  <div class="api-head"><span class="method method-delete">DELETE</span><code>/api/watchlists/{watchlist_id}/items/{item_id}</code><a href="#API-ALT-007">API-ALT-007</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>WatchlistItemDelete</dd><dt>响应</dt><dd>DeletedResource · control</dd><dt>成功</dt><dd>204</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-001</span><span class="tag ">DATA-ALT-001</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-002">CAP-ALT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;watchlist:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-008" data-domain="asset" data-method="GET" data-search="api-alt-008 /api/alert-rules alertrulequery alertrulepage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/alert-rules</code><a href="#API-ALT-008">API-ALT-008</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AlertRuleQuery</dd><dt>响应</dt><dd>AlertRulePage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-002">CAP-ALT-002</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;alert:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-009" data-domain="asset" data-method="POST" data-search="api-alt-009 /api/alert-rules alertrulecreate alertrule">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/alert-rules</code><a href="#API-ALT-009">API-ALT-009</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AlertRuleCreate</dd><dt>响应</dt><dd>AlertRule · resource</dd><dt>成功</dt><dd>201</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-AST-001</span><span class="tag ">DATA-ALT-002</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-001">CAP-ALT-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;400&quot;: &quot;validation_error&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;alert:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-010" data-domain="asset" data-method="GET" data-search="api-alt-010 /api/alert-rules/{rule_id} alertrulepath alertrule">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/alert-rules/{rule_id}</code><a href="#API-ALT-010">API-ALT-010</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AlertRulePath</dd><dt>响应</dt><dd>AlertRule · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-001">CAP-ALT-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;alert:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-011" data-domain="asset" data-method="PATCH" data-search="api-alt-011 /api/alert-rules/{rule_id} alertruleupdate alertrule">
+  <div class="api-head"><span class="method method-patch">PATCH</span><code>/api/alert-rules/{rule_id}</code><a href="#API-ALT-011">API-ALT-011</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AlertRuleUpdate</dd><dt>响应</dt><dd>AlertRule · resource</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-002</span><span class="tag ">DATA-ALT-002</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-001">CAP-ALT-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;,
+    &quot;422&quot;: &quot;semantic_validation_error&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;alert:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-012" data-domain="asset" data-method="DELETE" data-search="api-alt-012 /api/alert-rules/{rule_id} alertruledelete deletedresource">
+  <div class="api-head"><span class="method method-delete">DELETE</span><code>/api/alert-rules/{rule_id}</code><a href="#API-ALT-012">API-ALT-012</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AlertRuleDelete</dd><dt>响应</dt><dd>DeletedResource · control</dd><dt>成功</dt><dd>204</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-002</span><span class="tag ">DATA-ALT-002</span></dd><dt>幂等</dt><dd>header-key</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-001">CAP-ALT-001</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;,
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;alert:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-013" data-domain="asset" data-method="GET" data-search="api-alt-013 /api/alert-events alerteventquery alerteventpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/alert-events</code><a href="#API-ALT-013">API-ALT-013</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AlertEventQuery</dd><dt>响应</dt><dd>AlertEventPage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-002</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-001">CAP-ALT-001</a><span class="tag event">EVT-ALT-001</span><span class="tag event">EVT-ALT-002</span><span class="tag event">EVT-ALT-003</span></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;alert:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-ALT-014" data-domain="asset" data-method="POST" data-search="api-alt-014 /api/alert-events/{event_id}/acknowledge alerteventacknowledge alertevent">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/alert-events/{event_id}/acknowledge</code><a href="#API-ALT-014">API-ALT-014</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>AlertEventAcknowledge</dd><dt>响应</dt><dd>AlertEvent · control</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-ALT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-ALT-002</span><span class="tag ">DATA-ALT-002</span></dd><dt>幂等</dt><dd>resource-state</dd></dl>
+  </div>
+  <div class="trace-row"></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;alert:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-NOT-001" data-domain="platform-core" data-method="GET" data-search="api-not-001 /api/notifications notificationquery notificationpage">
+  <div class="api-head"><span class="method method-get">GET</span><code>/api/notifications</code><a href="#API-NOT-001">API-NOT-001</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>NotificationQuery</dd><dt>响应</dt><dd>NotificationPage · collection</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-NOT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-NOT-001</span></dd><dt>幂等</dt><dd>safe-read</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-003">CAP-ALT-003</a><span class="tag event">EVT-NOT-001</span></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;403&quot;: &quot;permission_denied&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;notification:read&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article>
+<article class="api-card" id="API-NOT-002" data-domain="platform-core" data-method="POST" data-search="api-not-002 /api/notifications/{notification_id}/read notificationread notification">
+  <div class="api-head"><span class="method method-post">POST</span><code>/api/notifications/{notification_id}/read</code><a href="#API-NOT-002">API-NOT-002</a></div>
+  <div class="api-grid">
+    <dl><dt>请求</dt><dd>NotificationRead</dd><dt>响应</dt><dd>Notification · control</dd><dt>成功</dt><dd>200</dd></dl>
+    <dl><dt>Owner</dt><dd>SVC-NOT-001</dd><dt>数据</dt><dd><span class="tag ">DATA-NOT-001</span><span class="tag ">DATA-NOT-001</span></dd><dt>幂等</dt><dd>resource-state</dd></dl>
+  </div>
+  <div class="trace-row"><a class="tag trace" href="#cap-CAP-ALT-003">CAP-ALT-003</a></div>
+  <details><summary>错误、安全与完整契约</summary><pre>{
+  &quot;errors&quot;: {
+    &quot;404&quot;: &quot;not_found&quot;,
+    &quot;409&quot;: &quot;conflict_or_idempotency_mismatch&quot;
+  },
+  &quot;security&quot;: {
+    &quot;principal&quot;: &quot;local_user&quot;,
+    &quot;scope&quot;: &quot;notification:write&quot;
+  },
+  &quot;fact_envelope_fields&quot;: [],
+  &quot;sse&quot;: null
+}</pre></details>
+</article></section><p class="empty">没有符合筛选条件的接口。</p></main>
+<script type="application/json" id="atlas-data">{"capabilities":{"schema_version":"merged-platform-blueprint-v1","capabilities":[{"id":"CAP-RES-001","domain":"research-core","name":"shared-workspace","decision":"merge","description":"FinGPT 与 Claw 共用研究项目和工作区。","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"]},{"id":"CAP-RES-002","domain":"research-core","name":"shared-evidence","decision":"merge","description":"统一 Evidence、Claim 与 Artifact 的来源追踪。","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"]},{"id":"CAP-RES-003","domain":"research-core","name":"shared-research-notes","decision":"merge","description":"将 Claim 或段落置顶为版本化 Research Note。","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"]},{"id":"CAP-RES-004","domain":"research-core","name":"session-history","decision":"merge","description":"统一会话、消息、附件和后台运行历史。","page_ids":["PAGE-P04","PAGE-P05"]},{"id":"CAP-FIN-001","domain":"fingpt","name":"instant-research","decision":"retain","description":"用户驱动的即时金融研究问答。","page_ids":["PAGE-P04"]},{"id":"CAP-FIN-002","domain":"fingpt","name":"report-distillation","decision":"retain","description":"从来源和报告中提炼 Evidence 与 Claim。","page_ids":["PAGE-P04"]},{"id":"CAP-FIN-003","domain":"fingpt","name":"upgrade-to-claw","decision":"add","description":"将当前研究上下文升级为 Claw 任务。","page_ids":["PAGE-P04","PAGE-P05"]},{"id":"CAP-CLW-001","domain":"claw","name":"supervisor","decision":"retain","description":"Supervisor 动态拆解和编排 Agent 任务。","page_ids":["PAGE-P05"]},{"id":"CAP-CLW-002","domain":"claw","name":"agent-team","decision":"retain","description":"按声明式团队定义协同执行研究任务。","page_ids":["PAGE-P05","PAGE-P08"]},{"id":"CAP-CLW-003","domain":"claw","name":"agent-schedule","decision":"retain","description":"持久化日程、租约、合并补跑和非重入控制。","page_ids":["PAGE-P05","PAGE-P08"]},{"id":"CAP-CLW-004","domain":"claw","name":"duplicated-chat-shell","decision":"remove","description":"删除 Claw 与 FinGPT 重复的新建会话和独立研究历史。","page_ids":[]},{"id":"CAP-CLW-005","domain":"claw","name":"shared-blackboard","decision":"add","description":"团队通过共享黑板交换结构化中间结果。","page_ids":["PAGE-P05"]},{"id":"CAP-MKT-001","domain":"market","name":"five-section-home","decision":"add","description":"固定展示全球背景、A股状态、市场主线、重要事件和资产异动。","page_ids":["PAGE-P01"]},{"id":"CAP-MKT-002","domain":"market","name":"transparent-mainline-ranking","decision":"add","description":"返回版本化主线排名及全部分项。","page_ids":["PAGE-P01"]},{"id":"CAP-MKT-003","domain":"market","name":"immutable-close-snapshot","decision":"add","description":"盘后生成不可变收盘快照，历史只读对应交易日。","page_ids":["PAGE-P01"]},{"id":"CAP-THM-001","domain":"theme","name":"pack-catalog","decision":"add","description":"展示四个首批 Research Pack 及生命周期。","page_ids":["PAGE-P02"]},{"id":"CAP-THM-002","domain":"theme","name":"typed-theme-read-models","decision":"add","description":"提供快照、KPI、产业链、事件、资产暴露和数据健康。","page_ids":["PAGE-P02"]},{"id":"CAP-THM-003","domain":"theme","name":"pack-quality-gate","decision":"add","description":"校验 Manifest、Observation、插件和兼容版本。","page_ids":["PAGE-P02","PAGE-P08"]},{"id":"CAP-AST-001","domain":"asset","name":"unified-asset-snapshot","decision":"add","description":"统一股票、指数、ETF 和主动基金详情。","page_ids":["PAGE-P03"]},{"id":"CAP-AST-002","domain":"asset","name":"peer-comparison","decision":"add","description":"返回可解释的同类集合定义和样本数。","page_ids":["PAGE-P03"]},{"id":"CAP-AST-003","domain":"asset","name":"asset-event-context","decision":"add","description":"聚合资产事件、主题暴露和来源上下文。","page_ids":["PAGE-P03"]},{"id":"CAP-ALT-001","domain":"asset","name":"alert-state-machine","decision":"add","description":"false 到 true 触发、冷却去重、恢复后 resolved。","page_ids":["PAGE-P06"]},{"id":"CAP-ALT-002","domain":"asset","name":"watchlists","decision":"merge","description":"统一自选列表和多资产观察项。","page_ids":["PAGE-P03","PAGE-P06"]},{"id":"CAP-ALT-003","domain":"asset","name":"durable-notification-inbox","decision":"add","description":"站内收件箱持久化通知并可投递桌面通知。","page_ids":["PAGE-P06"]},{"id":"CAP-PLT-001","domain":"platform-core","name":"runtime-provider","decision":"add","description":"通过 RuntimeProvider 路由 LangGraph、DSH 和未来远程运行时。","page_ids":["PAGE-P08"]},{"id":"CAP-PLT-002","domain":"platform-core","name":"allowlisted-mcp","decision":"add","description":"外部 MCP 必须预注册、授权和审计。","page_ids":["PAGE-P08"]},{"id":"CAP-PLT-003","domain":"platform-core","name":"declarative-skills","decision":"add","description":"Skill 仅声明提示、Schema 与受控工具能力。","page_ids":["PAGE-P08"]},{"id":"CAP-PLT-004","domain":"platform-core","name":"scheduler-coordinator","decision":"merge","description":"用 PostgreSQL 租约统一刷新、Agent 日程和提醒评估。","page_ids":["PAGE-P08"]}],"pages":[{"id":"PAGE-P01","route":"/market-home","name":"全市场首页","domain":"market","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},{"id":"PAGE-P02","route":"/themes","name":"主题研究","domain":"theme","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},{"id":"PAGE-P03","route":"/assets/:assetId","name":"资产观察","domain":"asset","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},{"id":"PAGE-P04","route":"/fingpt","name":"FinGPT","domain":"fingpt","states":["default","loading","empty","partial","error","permission_denied"]},{"id":"PAGE-P05","route":"/claw","name":"Claw","domain":"claw","states":["default","loading","empty","partial","blocked_runtime","error","permission_denied"]},{"id":"PAGE-P06","route":"/watchlists","name":"自选与提醒","domain":"asset","states":["default","loading","empty","partial","stale","unavailable","quarantined","error","permission_denied"]},{"id":"PAGE-P07","route":"/research-library","name":"研究资料库","domain":"research-core","states":["default","loading","empty","partial","error","permission_denied"]},{"id":"PAGE-P08","route":"/capabilities","name":"能力中心","domain":"platform-core","states":["default","loading","empty","partial","error","permission_denied"]}]},"atlas":{"schema_version":"merged-platform-blueprint-v1","error_catalog":{"400":"validation_error","401":"authentication_required","403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error","429":"budget_or_rate_limit","503":"provider_or_data_unavailable"},"interfaces":[{"id":"API-RES-001","domain":"research-core","method":"GET","path":"/api/research-workspaces","request_model":"ResearchWorkspaceQuery","response_model":"ResearchWorkspacePage","response_kind":"collection","success_statuses":[200],"errors":{"401":"authentication_required","403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"research:read"},"fact_envelope_fields":[]},{"id":"API-RES-002","domain":"research-core","method":"POST","path":"/api/research-workspaces","request_model":"ResearchWorkspaceCreate","response_model":"ResearchWorkspace","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-RES-001","read_data_owner_ids":[],"write_data_owner_ids":["DATA-RES-001"],"event_ids":[],"security":{"principal":"local_user","scope":"research:write"},"fact_envelope_fields":[]},{"id":"API-RES-003","domain":"research-core","method":"GET","path":"/api/research-workspaces/{workspace_id}","request_model":"ResearchWorkspacePath","response_model":"ResearchWorkspace","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"research:read"},"fact_envelope_fields":[]},{"id":"API-RES-004","domain":"research-core","method":"PATCH","path":"/api/research-workspaces/{workspace_id}","request_model":"ResearchWorkspaceUpdate","response_model":"ResearchWorkspace","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":["DATA-RES-001"],"event_ids":[],"security":{"principal":"local_user","scope":"research:write"},"fact_envelope_fields":[]},{"id":"API-RES-005","domain":"research-core","method":"GET","path":"/api/research-sessions","request_model":"ResearchSessionQuery","response_model":"ResearchSessionPage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"research:read"},"fact_envelope_fields":[]},{"id":"API-RES-006","domain":"research-core","method":"POST","path":"/api/research-sessions","request_model":"ResearchSessionCreate","response_model":"ResearchSession","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":["DATA-RES-001"],"event_ids":[],"security":{"principal":"local_user","scope":"research:write"},"fact_envelope_fields":[]},{"id":"API-RES-007","domain":"research-core","method":"GET","path":"/api/research-sessions/{session_id}","request_model":"ResearchSessionPath","response_model":"ResearchSession","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"research:read"},"fact_envelope_fields":[]},{"id":"API-RES-008","domain":"research-core","method":"PATCH","path":"/api/research-sessions/{session_id}","request_model":"ResearchSessionUpdate","response_model":"ResearchSession","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":["DATA-RES-001"],"event_ids":[],"security":{"principal":"local_user","scope":"research:write"},"fact_envelope_fields":[]},{"id":"API-RES-009","domain":"research-core","method":"GET","path":"/api/research-sessions/{session_id}/messages","request_model":"ResearchMessageQuery","response_model":"ResearchMessagePage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"research:read"},"fact_envelope_fields":[]},{"id":"API-RES-010","domain":"research-core","method":"POST","path":"/api/research-sessions/{session_id}/messages","request_model":"ResearchMessageCreate","response_model":"ResearchMessage","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-RES-001","read_data_owner_ids":["DATA-RES-001"],"write_data_owner_ids":["DATA-RES-001"],"event_ids":[],"security":{"principal":"local_user","scope":"research:write"},"fact_envelope_fields":[]},{"id":"API-RES-011","domain":"research-core","method":"GET","path":"/api/research-runs","request_model":"ResearchRunQuery","response_model":"ResearchRunPage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-RES-002","read_data_owner_ids":["DATA-RES-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"research:read"},"fact_envelope_fields":[]},{"id":"API-RES-012","domain":"research-core","method":"POST","path":"/api/research-runs","request_model":"ResearchRunCreate","response_model":"ResearchRun","response_kind":"resource","success_statuses":[202],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error","429":"budget_or_rate_limit","503":"provider_or_data_unavailable"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-RES-002","read_data_owner_ids":["DATA-RES-001","DATA-PLT-001"],"write_data_owner_ids":["DATA-RES-002"],"event_ids":["EVT-RES-001"],"security":{"principal":"local_user","scope":"research:execute"},"fact_envelope_fields":[]},{"id":"API-RES-013","domain":"research-core","method":"GET","path":"/api/research-runs/{run_id}","request_model":"ResearchRunPath","response_model":"ResearchRun","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-RES-002","read_data_owner_ids":["DATA-RES-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"research:read"},"fact_envelope_fields":[]},{"id":"API-RES-014","domain":"research-core","method":"POST","path":"/api/research-runs/{run_id}/cancel","request_model":"ResearchRunCancel","response_model":"ResearchRun","response_kind":"control","success_statuses":[202],"errors":{"404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-RES-002","read_data_owner_ids":["DATA-RES-002"],"write_data_owner_ids":["DATA-RES-002"],"event_ids":["EVT-RES-004"],"security":{"principal":"local_user","scope":"research:execute"},"fact_envelope_fields":[],"effect":"control-only"},{"id":"API-RES-015","domain":"research-core","method":"POST","path":"/api/research-runs/{run_id}/retry","request_model":"ResearchRunRetry","response_model":"ResearchRun","response_kind":"control","success_statuses":[202],"errors":{"404":"not_found","409":"conflict_or_idempotency_mismatch","429":"budget_or_rate_limit","503":"provider_or_data_unavailable"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-RES-002","read_data_owner_ids":["DATA-RES-002","DATA-PLT-001"],"write_data_owner_ids":["DATA-RES-002"],"event_ids":["EVT-RES-001"],"security":{"principal":"local_user","scope":"research:execute"},"fact_envelope_fields":[],"effect":"control-only"},{"id":"API-RES-016","domain":"research-core","method":"GET","path":"/api/research-runs/{run_id}/events","request_model":"ResearchRunEventCursor","response_model":"ResearchRunEventStream","response_kind":"event-stream","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-RES-002","read_data_owner_ids":["DATA-RES-002"],"write_data_owner_ids":[],"event_ids":["EVT-RES-001","EVT-RES-002","EVT-RES-003","EVT-RES-004","EVT-RES-005"],"security":{"principal":"local_user","scope":"research:read"},"fact_envelope_fields":[],"sse":{"last_event_id":true,"heartbeat_seconds":15,"reconnect_delay_ms":2000,"terminal_events":["research.run.completed","research.run.failed"],"replay_boundary":"run-retention-window"}},{"id":"API-PLT-001","domain":"platform-core","method":"GET","path":"/api/runtime-providers","request_model":"RuntimeProviderQuery","response_model":"RuntimeProviderPage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-PLT-001","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"capability:read"},"fact_envelope_fields":[]},{"id":"API-PLT-002","domain":"platform-core","method":"POST","path":"/api/runtime-providers","request_model":"RuntimeProviderCreate","response_model":"RuntimeProvider","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-PLT-001","read_data_owner_ids":[],"write_data_owner_ids":["DATA-PLT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"capability:write"},"fact_envelope_fields":[]},{"id":"API-PLT-003","domain":"platform-core","method":"GET","path":"/api/runtime-providers/{provider_id}","request_model":"RuntimeProviderPath","response_model":"RuntimeProvider","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-PLT-001","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"capability:read"},"fact_envelope_fields":[]},{"id":"API-PLT-004","domain":"platform-core","method":"PATCH","path":"/api/runtime-providers/{provider_id}","request_model":"RuntimeProviderUpdate","response_model":"RuntimeProvider","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-PLT-001","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":["DATA-PLT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"capability:write"},"fact_envelope_fields":[]},{"id":"API-PLT-005","domain":"platform-core","method":"GET","path":"/api/research-skills","request_model":"SkillQuery","response_model":"SkillPage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-PLT-002","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"capability:read"},"fact_envelope_fields":[]},{"id":"API-PLT-006","domain":"platform-core","method":"POST","path":"/api/research-skills","request_model":"SkillDefinitionCreate","response_model":"SkillDefinition","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-PLT-002","read_data_owner_ids":[],"write_data_owner_ids":["DATA-PLT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"capability:write","tool_policy":"allowlist-only"},"fact_envelope_fields":[]},{"id":"API-PLT-007","domain":"platform-core","method":"GET","path":"/api/research-skills/{skill_id}","request_model":"SkillPath","response_model":"SkillDefinition","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-PLT-002","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"capability:read"},"fact_envelope_fields":[]},{"id":"API-PLT-008","domain":"platform-core","method":"PATCH","path":"/api/research-skills/{skill_id}","request_model":"SkillDefinitionUpdate","response_model":"SkillDefinition","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-PLT-002","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":["DATA-PLT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"capability:write","tool_policy":"allowlist-only"},"fact_envelope_fields":[]},{"id":"API-AGT-001","domain":"claw","method":"GET","path":"/api/agent-teams","request_model":"AgentTeamQuery","response_model":"AgentTeamPage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-PLT-002","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"agent:read"},"fact_envelope_fields":[]},{"id":"API-AGT-002","domain":"claw","method":"POST","path":"/api/agent-teams","request_model":"AgentTeamCreate","response_model":"AgentTeamDefinition","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-PLT-002","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":["DATA-PLT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"agent:write"},"fact_envelope_fields":[]},{"id":"API-AGT-003","domain":"claw","method":"GET","path":"/api/agent-teams/{team_id}","request_model":"AgentTeamPath","response_model":"AgentTeamDefinition","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-PLT-002","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"agent:read"},"fact_envelope_fields":[]},{"id":"API-AGT-004","domain":"claw","method":"PATCH","path":"/api/agent-teams/{team_id}","request_model":"AgentTeamUpdate","response_model":"AgentTeamDefinition","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-PLT-002","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":["DATA-PLT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"agent:write"},"fact_envelope_fields":[]},{"id":"API-SCH-001","domain":"platform-core","method":"GET","path":"/api/agent-schedules","request_model":"AgentScheduleQuery","response_model":"AgentSchedulePage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-SCH-001","read_data_owner_ids":["DATA-SCH-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"schedule:read"},"fact_envelope_fields":[]},{"id":"API-SCH-002","domain":"platform-core","method":"POST","path":"/api/agent-schedules","request_model":"AgentScheduleCreate","response_model":"AgentSchedule","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-SCH-001","read_data_owner_ids":["DATA-PLT-001"],"write_data_owner_ids":["DATA-SCH-001"],"event_ids":[],"security":{"principal":"local_user","scope":"schedule:write"},"fact_envelope_fields":[]},{"id":"API-SCH-003","domain":"platform-core","method":"GET","path":"/api/agent-schedules/{schedule_id}","request_model":"AgentSchedulePath","response_model":"AgentSchedule","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-SCH-001","read_data_owner_ids":["DATA-SCH-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"schedule:read"},"fact_envelope_fields":[]},{"id":"API-SCH-004","domain":"platform-core","method":"PATCH","path":"/api/agent-schedules/{schedule_id}","request_model":"AgentScheduleUpdate","response_model":"AgentSchedule","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-SCH-001","read_data_owner_ids":["DATA-SCH-001"],"write_data_owner_ids":["DATA-SCH-001"],"event_ids":["EVT-SCH-002"],"security":{"principal":"local_user","scope":"schedule:write"},"fact_envelope_fields":[]},{"id":"API-SCH-005","domain":"platform-core","method":"DELETE","path":"/api/agent-schedules/{schedule_id}","request_model":"AgentScheduleDelete","response_model":"DeletedResource","response_kind":"control","success_statuses":[204],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-SCH-001","read_data_owner_ids":["DATA-SCH-001"],"write_data_owner_ids":["DATA-SCH-001"],"event_ids":[],"security":{"principal":"local_user","scope":"schedule:write"},"fact_envelope_fields":[]},{"id":"API-MKT-001","domain":"market","method":"GET","path":"/api/market-home","request_model":"MarketHomeQuery","response_model":"MarketHomeSnapshot","response_kind":"fact","success_statuses":[200,206],"errors":{"422":"semantic_validation_error","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-MKT-001","read_data_owner_ids":["DATA-MKT-001","DATA-AST-002","DATA-THM-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"market:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-MKT-002","domain":"market","method":"GET","path":"/api/market-home/snapshots/{trading_day}","request_model":"MarketHomeSnapshotPath","response_model":"MarketHomeSnapshot","response_kind":"fact","success_statuses":[200],"errors":{"404":"not_found","422":"semantic_validation_error"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-MKT-001","read_data_owner_ids":["DATA-MKT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"market:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-MKT-003","domain":"market","method":"GET","path":"/api/market-home/events","request_model":"MarketHomeEventCursor","response_model":"MarketHomeInvalidationStream","response_kind":"event-stream","success_statuses":[200],"errors":{"503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-MKT-001","read_data_owner_ids":["DATA-MKT-001"],"write_data_owner_ids":[],"event_ids":["EVT-MKT-001"],"security":{"principal":"local_user","scope":"market:read"},"fact_envelope_fields":[],"sse":{"last_event_id":true,"heartbeat_seconds":15,"reconnect_delay_ms":2000,"terminal_events":[],"replay_boundary":"latest-section-revision"}},{"id":"API-THM-001","domain":"theme","method":"GET","path":"/api/theme-packs","request_model":"ThemePackQuery","response_model":"ThemePackPage","response_kind":"fact","success_statuses":[200],"errors":{"503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"theme:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-THM-002","domain":"theme","method":"GET","path":"/api/theme-packs/{pack_key}","request_model":"ThemePackPath","response_model":"ThemePackManifest","response_kind":"fact","success_statuses":[200],"errors":{"404":"not_found","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"theme:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-THM-003","domain":"theme","method":"GET","path":"/api/theme-packs/{pack_key}/snapshot","request_model":"ThemePackSnapshotQuery","response_model":"ThemeSnapshot","response_kind":"fact","success_statuses":[200,206],"errors":{"404":"not_found","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-001","DATA-THM-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"theme:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-THM-004","domain":"theme","method":"GET","path":"/api/theme-packs/{pack_key}/kpis","request_model":"ThemeKpiQuery","response_model":"ThemeKpiSeries","response_kind":"fact","success_statuses":[200,206],"errors":{"404":"not_found","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"theme:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-THM-005","domain":"theme","method":"GET","path":"/api/theme-packs/{pack_key}/value-chain","request_model":"ThemePackPath","response_model":"ThemeValueChain","response_kind":"fact","success_statuses":[200,206],"errors":{"404":"not_found","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-001","DATA-THM-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"theme:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-THM-006","domain":"theme","method":"GET","path":"/api/theme-packs/{pack_key}/events","request_model":"ThemeEventQuery","response_model":"ThemeEventPage","response_kind":"fact","success_statuses":[200,206],"errors":{"404":"not_found","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"theme:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-THM-007","domain":"theme","method":"GET","path":"/api/theme-packs/{pack_key}/assets","request_model":"ThemeAssetQuery","response_model":"ThemeAssetExposurePage","response_kind":"fact","success_statuses":[200,206],"errors":{"404":"not_found","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-002","DATA-AST-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"theme:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-THM-008","domain":"theme","method":"GET","path":"/api/theme-packs/{pack_key}/data-health","request_model":"ThemePackPath","response_model":"ThemeDataHealth","response_kind":"fact","success_statuses":[200],"errors":{"404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-001","DATA-THM-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"theme:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-THM-009","domain":"theme","method":"POST","path":"/api/theme-packs/{pack_key}/research-workspaces","request_model":"ThemeWorkspaceCreate","response_model":"ResearchWorkspace","response_kind":"resource","success_statuses":[201],"errors":{"404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error","503":"provider_or_data_unavailable"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-THM-001","read_data_owner_ids":["DATA-THM-001","DATA-THM-002"],"write_data_owner_ids":["DATA-RES-001"],"event_ids":[],"security":{"principal":"local_user","scope":"research:write"},"fact_envelope_fields":[]},{"id":"API-AST-001","domain":"asset","method":"GET","path":"/api/assets/search","request_model":"AssetSearchQuery","response_model":"AssetSearchPage","response_kind":"fact","success_statuses":[200],"errors":{"422":"semantic_validation_error","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-AST-001","read_data_owner_ids":["DATA-AST-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"asset:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-AST-002","domain":"asset","method":"GET","path":"/api/assets/{asset_id}","request_model":"AssetSnapshotQuery","response_model":"AssetSnapshotEnvelope","response_kind":"fact","success_statuses":[200,206],"errors":{"404":"not_found","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-AST-001","read_data_owner_ids":["DATA-AST-001","DATA-AST-002","DATA-THM-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"asset:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-AST-003","domain":"asset","method":"GET","path":"/api/assets/{asset_id}/peers","request_model":"AssetPeerQuery","response_model":"AssetPeerComparison","response_kind":"fact","success_statuses":[200,206],"errors":{"404":"not_found","422":"semantic_validation_error","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-AST-001","read_data_owner_ids":["DATA-AST-001","DATA-AST-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"asset:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-AST-004","domain":"asset","method":"GET","path":"/api/assets/{asset_id}/events","request_model":"AssetEventQuery","response_model":"AssetEventPage","response_kind":"fact","success_statuses":[200,206],"errors":{"404":"not_found","503":"provider_or_data_unavailable"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-AST-001","read_data_owner_ids":["DATA-AST-001","DATA-AST-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"asset:read"},"fact_envelope_fields":["as_of","observed_at","available_at","source_refs","freshness_status","quality_flags"]},{"id":"API-ALT-001","domain":"asset","method":"GET","path":"/api/watchlists","request_model":"WatchlistQuery","response_model":"WatchlistPage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"watchlist:read"},"fact_envelope_fields":[]},{"id":"API-ALT-002","domain":"asset","method":"POST","path":"/api/watchlists","request_model":"WatchlistCreate","response_model":"Watchlist","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-ALT-001","read_data_owner_ids":[],"write_data_owner_ids":["DATA-ALT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"watchlist:write"},"fact_envelope_fields":[]},{"id":"API-ALT-003","domain":"asset","method":"GET","path":"/api/watchlists/{watchlist_id}","request_model":"WatchlistPath","response_model":"Watchlist","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-001"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"watchlist:read"},"fact_envelope_fields":[]},{"id":"API-ALT-004","domain":"asset","method":"PATCH","path":"/api/watchlists/{watchlist_id}","request_model":"WatchlistUpdate","response_model":"Watchlist","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-001"],"write_data_owner_ids":["DATA-ALT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"watchlist:write"},"fact_envelope_fields":[]},{"id":"API-ALT-005","domain":"asset","method":"DELETE","path":"/api/watchlists/{watchlist_id}","request_model":"WatchlistDelete","response_model":"DeletedResource","response_kind":"control","success_statuses":[204],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-001"],"write_data_owner_ids":["DATA-ALT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"watchlist:write"},"fact_envelope_fields":[]},{"id":"API-ALT-006","domain":"asset","method":"POST","path":"/api/watchlists/{watchlist_id}/items","request_model":"WatchlistItemCreate","response_model":"WatchlistItem","response_kind":"resource","success_statuses":[201],"errors":{"404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-AST-001","DATA-ALT-001"],"write_data_owner_ids":["DATA-ALT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"watchlist:write"},"fact_envelope_fields":[]},{"id":"API-ALT-007","domain":"asset","method":"DELETE","path":"/api/watchlists/{watchlist_id}/items/{item_id}","request_model":"WatchlistItemDelete","response_model":"DeletedResource","response_kind":"control","success_statuses":[204],"errors":{"404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-001"],"write_data_owner_ids":["DATA-ALT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"watchlist:write"},"fact_envelope_fields":[]},{"id":"API-ALT-008","domain":"asset","method":"GET","path":"/api/alert-rules","request_model":"AlertRuleQuery","response_model":"AlertRulePage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"alert:read"},"fact_envelope_fields":[]},{"id":"API-ALT-009","domain":"asset","method":"POST","path":"/api/alert-rules","request_model":"AlertRuleCreate","response_model":"AlertRule","response_kind":"resource","success_statuses":[201],"errors":{"400":"validation_error","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-AST-001"],"write_data_owner_ids":["DATA-ALT-002"],"event_ids":[],"security":{"principal":"local_user","scope":"alert:write"},"fact_envelope_fields":[]},{"id":"API-ALT-010","domain":"asset","method":"GET","path":"/api/alert-rules/{rule_id}","request_model":"AlertRulePath","response_model":"AlertRule","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-002"],"write_data_owner_ids":[],"event_ids":[],"security":{"principal":"local_user","scope":"alert:read"},"fact_envelope_fields":[]},{"id":"API-ALT-011","domain":"asset","method":"PATCH","path":"/api/alert-rules/{rule_id}","request_model":"AlertRuleUpdate","response_model":"AlertRule","response_kind":"resource","success_statuses":[200],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch","422":"semantic_validation_error"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-002"],"write_data_owner_ids":["DATA-ALT-002"],"event_ids":[],"security":{"principal":"local_user","scope":"alert:write"},"fact_envelope_fields":[]},{"id":"API-ALT-012","domain":"asset","method":"DELETE","path":"/api/alert-rules/{rule_id}","request_model":"AlertRuleDelete","response_model":"DeletedResource","response_kind":"control","success_statuses":[204],"errors":{"403":"permission_denied","404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"header-key"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-002"],"write_data_owner_ids":["DATA-ALT-002"],"event_ids":[],"security":{"principal":"local_user","scope":"alert:write"},"fact_envelope_fields":[]},{"id":"API-ALT-013","domain":"asset","method":"GET","path":"/api/alert-events","request_model":"AlertEventQuery","response_model":"AlertEventPage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-002"],"write_data_owner_ids":[],"event_ids":["EVT-ALT-001","EVT-ALT-002","EVT-ALT-003"],"security":{"principal":"local_user","scope":"alert:read"},"fact_envelope_fields":[]},{"id":"API-ALT-014","domain":"asset","method":"POST","path":"/api/alert-events/{event_id}/acknowledge","request_model":"AlertEventAcknowledge","response_model":"AlertEvent","response_kind":"control","success_statuses":[200],"errors":{"404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"resource-state"},"service_id":"SVC-ALT-001","read_data_owner_ids":["DATA-ALT-002"],"write_data_owner_ids":["DATA-ALT-002"],"event_ids":[],"security":{"principal":"local_user","scope":"alert:write"},"fact_envelope_fields":[],"effect":"control-only"},{"id":"API-NOT-001","domain":"platform-core","method":"GET","path":"/api/notifications","request_model":"NotificationQuery","response_model":"NotificationPage","response_kind":"collection","success_statuses":[200],"errors":{"403":"permission_denied"},"idempotency":{"required":false,"mode":"safe-read"},"service_id":"SVC-NOT-001","read_data_owner_ids":["DATA-NOT-001"],"write_data_owner_ids":[],"event_ids":["EVT-NOT-001"],"security":{"principal":"local_user","scope":"notification:read"},"fact_envelope_fields":[]},{"id":"API-NOT-002","domain":"platform-core","method":"POST","path":"/api/notifications/{notification_id}/read","request_model":"NotificationRead","response_model":"Notification","response_kind":"control","success_statuses":[200],"errors":{"404":"not_found","409":"conflict_or_idempotency_mismatch"},"idempotency":{"required":true,"mode":"resource-state"},"service_id":"SVC-NOT-001","read_data_owner_ids":["DATA-NOT-001"],"write_data_owner_ids":["DATA-NOT-001"],"event_ids":[],"security":{"principal":"local_user","scope":"notification:write"},"fact_envelope_fields":[],"effect":"control-only"}]},"traceability":{"schema_version":"merged-platform-blueprint-v1","services":[{"id":"SVC-RES-001","name":"ResearchWorkspaceService","module":"research-core"},{"id":"SVC-RES-002","name":"ResearchRunService","module":"research-core"},{"id":"SVC-MKT-001","name":"MarketHomeService","module":"market"},{"id":"SVC-THM-001","name":"ThemePackService","module":"theme"},{"id":"SVC-AST-001","name":"AssetObservationService","module":"asset"},{"id":"SVC-ALT-001","name":"AlertEvaluationService","module":"asset"},{"id":"SVC-PLT-001","name":"RuntimeRouterService","module":"platform-core"},{"id":"SVC-PLT-002","name":"CapabilityRegistryService","module":"platform-core"},{"id":"SVC-SCH-001","name":"SchedulerCoordinator","module":"platform-core"},{"id":"SVC-NOT-001","name":"NotificationService","module":"platform-core"}],"data_owners":[{"id":"DATA-RES-001","name":"research_workspace_store","zone":"research"},{"id":"DATA-RES-002","name":"research_run_store","zone":"research"},{"id":"DATA-RES-003","name":"research_note_store","zone":"research"},{"id":"DATA-MKT-001","name":"market_home_snapshot_store","zone":"fact"},{"id":"DATA-THM-001","name":"theme_pack_store","zone":"fact"},{"id":"DATA-THM-002","name":"theme_observation_store","zone":"fact"},{"id":"DATA-AST-001","name":"asset_registry_store","zone":"fact"},{"id":"DATA-AST-002","name":"asset_fact_projection","zone":"fact"},{"id":"DATA-ALT-001","name":"watchlist_store","zone":"personal"},{"id":"DATA-ALT-002","name":"alert_store","zone":"personal"},{"id":"DATA-NOT-001","name":"notification_store","zone":"personal"},{"id":"DATA-PLT-001","name":"runtime_capability_store","zone":"personal"},{"id":"DATA-SCH-001","name":"scheduled_job_store","zone":"personal"}],"events":[{"id":"EVT-RES-001","name":"research.run.queued"},{"id":"EVT-RES-002","name":"research.run.progress"},{"id":"EVT-RES-003","name":"research.run.completed"},{"id":"EVT-RES-004","name":"research.run.failed"},{"id":"EVT-RES-005","name":"research.run.blocked_runtime"},{"id":"EVT-MKT-001","name":"market_home.section_invalidated"},{"id":"EVT-ALT-001","name":"alert.triggered"},{"id":"EVT-ALT-002","name":"alert.resolved"},{"id":"EVT-ALT-003","name":"alert.skipped_data_stale"},{"id":"EVT-SCH-001","name":"scheduled_job.leased"},{"id":"EVT-SCH-002","name":"scheduled_job.coalesced"},{"id":"EVT-NOT-001","name":"notification.created"}],"traces":[{"capability_id":"CAP-RES-001","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"],"api_ids":["API-RES-001","API-RES-002","API-RES-003","API-RES-004"],"service_ids":["SVC-RES-001"],"data_owner_ids":["DATA-RES-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-RES-002","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"],"api_ids":["API-RES-009","API-RES-010","API-RES-011","API-RES-012"],"service_ids":["SVC-RES-002"],"data_owner_ids":["DATA-RES-002"],"event_ids":["EVT-RES-001","EVT-RES-002","EVT-RES-003","EVT-RES-004"],"local_interaction":false},{"capability_id":"CAP-RES-003","page_ids":["PAGE-P04","PAGE-P05","PAGE-P07"],"api_ids":["API-RES-009"],"service_ids":["SVC-RES-002"],"data_owner_ids":["DATA-RES-003"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-RES-004","page_ids":["PAGE-P04","PAGE-P05"],"api_ids":["API-RES-005","API-RES-006","API-RES-007","API-RES-008"],"service_ids":["SVC-RES-001"],"data_owner_ids":["DATA-RES-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-FIN-001","page_ids":["PAGE-P04"],"api_ids":["API-RES-007","API-RES-009","API-RES-010"],"service_ids":["SVC-RES-001","SVC-RES-002"],"data_owner_ids":["DATA-RES-001","DATA-RES-002"],"event_ids":["EVT-RES-001","EVT-RES-002","EVT-RES-003"],"local_interaction":false},{"capability_id":"CAP-FIN-002","page_ids":["PAGE-P04"],"api_ids":["API-RES-009","API-RES-010"],"service_ids":["SVC-RES-002"],"data_owner_ids":["DATA-RES-002"],"event_ids":["EVT-RES-002","EVT-RES-003"],"local_interaction":false},{"capability_id":"CAP-FIN-003","page_ids":["PAGE-P04","PAGE-P05"],"api_ids":["API-RES-009","API-AGT-001"],"service_ids":["SVC-RES-002"],"data_owner_ids":["DATA-RES-002"],"event_ids":["EVT-RES-001"],"local_interaction":false},{"capability_id":"CAP-CLW-001","page_ids":["PAGE-P05"],"api_ids":["API-RES-009","API-AGT-001"],"service_ids":["SVC-RES-002"],"data_owner_ids":["DATA-RES-002"],"event_ids":["EVT-RES-001","EVT-RES-002","EVT-RES-005"],"local_interaction":false},{"capability_id":"CAP-CLW-002","page_ids":["PAGE-P05","PAGE-P08"],"api_ids":["API-AGT-001","API-AGT-002","API-AGT-003","API-AGT-004"],"service_ids":["SVC-PLT-002"],"data_owner_ids":["DATA-PLT-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-CLW-003","page_ids":["PAGE-P05","PAGE-P08"],"api_ids":["API-SCH-001","API-SCH-002","API-SCH-003","API-SCH-004","API-SCH-005"],"service_ids":["SVC-SCH-001"],"data_owner_ids":["DATA-SCH-001"],"event_ids":["EVT-SCH-001","EVT-SCH-002"],"local_interaction":false},{"capability_id":"CAP-CLW-004","page_ids":[],"api_ids":[],"service_ids":[],"data_owner_ids":[],"event_ids":[],"local_interaction":false,"replacement_capability_ids":["CAP-RES-001","CAP-RES-004"]},{"capability_id":"CAP-CLW-005","page_ids":["PAGE-P05"],"api_ids":["API-RES-010"],"service_ids":["SVC-RES-002"],"data_owner_ids":["DATA-RES-002"],"event_ids":["EVT-RES-002"],"local_interaction":false},{"capability_id":"CAP-MKT-001","page_ids":["PAGE-P01"],"api_ids":["API-MKT-001","API-MKT-002","API-MKT-003"],"service_ids":["SVC-MKT-001"],"data_owner_ids":["DATA-MKT-001"],"event_ids":["EVT-MKT-001"],"local_interaction":false},{"capability_id":"CAP-MKT-002","page_ids":["PAGE-P01"],"api_ids":["API-MKT-001"],"service_ids":["SVC-MKT-001"],"data_owner_ids":["DATA-MKT-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-MKT-003","page_ids":["PAGE-P01"],"api_ids":["API-MKT-002"],"service_ids":["SVC-MKT-001"],"data_owner_ids":["DATA-MKT-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-THM-001","page_ids":["PAGE-P02"],"api_ids":["API-THM-001","API-THM-002"],"service_ids":["SVC-THM-001"],"data_owner_ids":["DATA-THM-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-THM-002","page_ids":["PAGE-P02"],"api_ids":["API-THM-003","API-THM-004","API-THM-005","API-THM-006","API-THM-007","API-THM-008","API-THM-009"],"service_ids":["SVC-THM-001"],"data_owner_ids":["DATA-THM-001","DATA-THM-002"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-THM-003","page_ids":["PAGE-P02","PAGE-P08"],"api_ids":["API-THM-009"],"service_ids":["SVC-THM-001"],"data_owner_ids":["DATA-THM-001","DATA-THM-002"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-AST-001","page_ids":["PAGE-P03"],"api_ids":["API-AST-001","API-AST-002"],"service_ids":["SVC-AST-001"],"data_owner_ids":["DATA-AST-001","DATA-AST-002"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-AST-002","page_ids":["PAGE-P03"],"api_ids":["API-AST-003"],"service_ids":["SVC-AST-001"],"data_owner_ids":["DATA-AST-001","DATA-AST-002"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-AST-003","page_ids":["PAGE-P03"],"api_ids":["API-AST-004"],"service_ids":["SVC-AST-001"],"data_owner_ids":["DATA-AST-001","DATA-AST-002"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-ALT-001","page_ids":["PAGE-P06"],"api_ids":["API-ALT-009","API-ALT-010","API-ALT-011","API-ALT-012","API-ALT-013"],"service_ids":["SVC-ALT-001"],"data_owner_ids":["DATA-ALT-002"],"event_ids":["EVT-ALT-001","EVT-ALT-002","EVT-ALT-003"],"local_interaction":false},{"capability_id":"CAP-ALT-002","page_ids":["PAGE-P03","PAGE-P06"],"api_ids":["API-ALT-001","API-ALT-002","API-ALT-003","API-ALT-004","API-ALT-005","API-ALT-006","API-ALT-007","API-ALT-008"],"service_ids":["SVC-ALT-001"],"data_owner_ids":["DATA-ALT-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-ALT-003","page_ids":["PAGE-P06"],"api_ids":["API-NOT-001","API-NOT-002"],"service_ids":["SVC-NOT-001"],"data_owner_ids":["DATA-NOT-001"],"event_ids":["EVT-NOT-001"],"local_interaction":false},{"capability_id":"CAP-PLT-001","page_ids":["PAGE-P08"],"api_ids":["API-PLT-001","API-PLT-002","API-PLT-003","API-PLT-004"],"service_ids":["SVC-PLT-001"],"data_owner_ids":["DATA-PLT-001"],"event_ids":["EVT-RES-005"],"local_interaction":false},{"capability_id":"CAP-PLT-002","page_ids":["PAGE-P08"],"api_ids":["API-PLT-005","API-PLT-006","API-PLT-007","API-PLT-008"],"service_ids":["SVC-PLT-002"],"data_owner_ids":["DATA-PLT-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-PLT-003","page_ids":["PAGE-P08"],"api_ids":["API-PLT-005","API-PLT-006","API-PLT-007","API-PLT-008"],"service_ids":["SVC-PLT-002"],"data_owner_ids":["DATA-PLT-001"],"event_ids":[],"local_interaction":false},{"capability_id":"CAP-PLT-004","page_ids":["PAGE-P08"],"api_ids":["API-SCH-001","API-SCH-002","API-SCH-003","API-SCH-004","API-SCH-005"],"service_ids":["SVC-SCH-001"],"data_owner_ids":["DATA-SCH-001"],"event_ids":["EVT-SCH-001","EVT-SCH-002"],"local_interaction":false}]}}</script><script>
+const domain=document.querySelector('[data-filter="domain"]');const method=document.querySelector('[data-filter="method"]');const search=document.querySelector('[data-filter="search"]');const cards=[...document.querySelectorAll('.api-card')];const empty=document.querySelector('.empty');function filter(){const q=search.value.trim().toLowerCase();let count=0;for(const card of cards){const show=(!domain.value||card.dataset.domain===domain.value)&&(!method.value||card.dataset.method===method.value)&&(!q||card.dataset.search.includes(q));card.hidden=!show;if(show)count+=1}empty.style.display=count?'none':'block'}for(const control of [domain,method,search])control.addEventListener('input',filter);
+</script></body></html>

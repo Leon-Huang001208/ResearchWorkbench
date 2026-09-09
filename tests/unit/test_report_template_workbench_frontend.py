@@ -1614,8 +1614,8 @@ def test_initial_load_uses_navigation_to_activate_content_section():
     source = APP_JS.read_text(encoding="utf-8")
 
     assert "function getInitialSection()" in source
-    assert "getSystemNavigationStorage('af-active-section')" in source
-    assert "localStorage.setItem('af-active-section', section)" in source
+    assert "getSystemNavigationStorage('rwb-active-section')" in source
+    assert "localStorage.setItem('rwb-active-section', section)" in source
     storage_helpers = source[
         source.index("function getSystemNavigationStorage") : source.index("function setSystemTab")
     ]
@@ -1627,12 +1627,12 @@ def test_initial_load_uses_navigation_to_activate_content_section():
         source.index("function getInitialSection()") : source.index("// ─── SSE Real-time Stream")
     ]
     assert "if (savedSection === 'system')" in initial_section_source
-    assert "getSystemNavigationStorage('af-system-tab')" in initial_section_source
+    assert "getSystemNavigationStorage('rwb-system-tab')" in initial_section_source
     assert "SYSTEM_TABS.has(savedSystemTab) ? savedSystemTab : 'resource-monitor'" in initial_section_source
-    assert "setSystemNavigationStorage('af-system-tab', initialSystemTab);" in initial_section_source
+    assert "setSystemNavigationStorage('rwb-system-tab', initialSystemTab);" in initial_section_source
     assert "localStorage." not in initial_section_source
     assert "const initialSection = getInitialSection();" in source
-    assert "const initialSystemTab = getSystemNavigationStorage('af-system-tab');" in source
+    assert "const initialSystemTab = getSystemNavigationStorage('rwb-system-tab');" in source
     assert "navigateTo(initialSection, { systemTab: initialSystemTab });" in source
     assert (
         "loadDashboard();\n    startCrawlFeedPolling();\n    startWorkersPolling();" not in source

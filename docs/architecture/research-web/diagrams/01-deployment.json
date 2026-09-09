@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Research Workbench Web · 当前部署与持久服务边界",
+    "quality_profile": "showcase",
+    "legend": {"entries": {"frontend": {"label": "浏览器界面"}, "backend": {"label": "本地服务"}, "database": {"label": "本地文件存储"}, "security": {"label": "执行隔离"}, "external": {"label": "外部模型"}}}
+  },
+  "layout": {"mode": "grid", "origin": [40, 60], "cols": 4, "cellW": 200, "cellH": 86, "gapX": 115, "gapY": 80},
+  "components": [
+    {"id": "manager", "type": "backend", "label": "rwb 服务管理", "sublabel": "PID 指纹 · 健康等待 · 回滚", "row": 0, "col": 1, "size": [200, 86]},
+    {"id": "web", "type": "frontend", "label": "研究 Web", "sublabel": "FinGPT · Claw · 能力入口", "row": 1, "col": 0, "size": [200, 86]},
+    {"id": "bff", "type": "backend", "label": "FastAPI", "sublabel": "回环单 worker · :8088", "row": 1, "col": 1, "size": [200, 86]},
+    {"id": "dsh", "type": "backend", "label": "专属 DSH", "sublabel": "唯一研究引擎 · :3081", "row": 1, "col": 2, "size": [200, 86]},
+    {"id": "model", "type": "external", "label": "DeepSeek", "sublabel": "用户授权的模型接口", "row": 1, "col": 3, "size": [200, 86]},
+    {"id": "index", "type": "database", "label": "产品索引", "sublabel": "归属 · 文件 · 幂等收据", "row": 3, "col": 1, "size": [200, 86]},
+    {"id": "history", "type": "database", "label": "DSH 私有目录", "sublabel": "原生会话历史与凭据", "row": 0, "col": 2, "size": [200, 86]},
+    {"id": "migration", "type": "security", "label": "研究数据迁移", "sublabel": "白名单复制 · 数量/大小/SHA", "row": 2, "col": 0, "size": [200, 86]},
+    {"id": "processState", "type": "database", "label": "运行状态与日志", "sublabel": "~/.research-workbench/run · logs", "row": 0, "col": 0, "size": [200, 86]},
+    {"id": "session", "type": "database", "label": "会话研究目录", "sublabel": "inputs · resources · outputs", "row": 2, "col": 1, "size": [200, 86]},
+    {"id": "sandbox", "type": "security", "label": "受限研究脚本", "sublabel": "内核文件约束 · 环境白名单", "row": 2, "col": 2, "size": [200, 86]}
+  ],
+  "connections": [
+    {"id": "manage-web", "from": "manager", "to": "bff", "label": "启动 8088 / 3081 并健康检查", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [455, 160]},
+    {"id": "process-state", "from": "manager", "to": "processState", "label": "PID / 指纹 / 日志", "fromSide": "left", "toSide": "right"},
+    {"id": "migrate-session", "from": "migration", "to": "session", "label": "核验后复制研究数据", "variant": "security", "fromSide": "right", "toSide": "left"},
+    {"id": "web-http", "from": "web", "to": "bff", "label": "HTTP / SSE", "variant": "emphasis"},
+    {"id": "runtime-wire", "from": "bff", "to": "dsh", "label": "RPC / 双 WS", "variant": "emphasis"},
+    {"id": "inference", "from": "dsh", "to": "model", "label": "模型调用"},
+    {"id": "ownership", "from": "session", "to": "index", "label": "归属与幂等收据", "fromSide": "bottom", "toSide": "top", "labelAt": [455, 492]},
+    {"id": "native-log", "from": "dsh", "to": "history", "label": "原生日志", "fromSide": "top", "toSide": "bottom"},
+    {"id": "files", "from": "bff", "to": "session", "label": "上传与下载", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "execute", "from": "dsh", "to": "sandbox", "label": "白名单工具", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
+    {"id": "isolated-files", "from": "sandbox", "to": "session", "label": "会话内读写", "variant": "security", "fromSide": "left", "toSide": "right"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "启动边界", "items": ["rwb 仅管理指纹匹配的 8088 / 3081", "终端退出后继续运行；不操作用户原 3080"]},
+    {"dot": "rose", "title": "迁移与安全", "items": ["研究状态逐文件核对 SHA-256，凭据不迁移", "脚本不可读取模型凭据；DSH 内部负责模型授权"]},
+    {"dot": "amber", "title": "部署限制", "items": ["当前验证为本机 macOS 单人 Web", "不是公网、多租户或跨平台部署保证"]}
+  ]
+}

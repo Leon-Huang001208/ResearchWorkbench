@@ -18,11 +18,13 @@ def test_asset_page_has_agent_committee_panel():
     assert "多 Agent 委员会" in html
 
 
-def test_asset_js_fetches_and_renders_agent_committee():
+def test_asset_js_keeps_committee_surface_but_requires_explicit_research():
     source = ASSET_JS.read_text(encoding="utf-8")
 
-    assert "'/api/assets/agent-committee'" in source
-    assert "loadAssetAgentCommittee" in source
+    assert "'/api/assets/agent-committee'" not in source
+    assert "/api/asset-observation/assets/" in source
+    assert "research_workbench:open-research-center" in source
+    assert "loadAssetAgentCommittee" not in source
     assert "renderAssetAgentCommittee" in source
     assert "renderAssetAgentCommitteeError" in source
 

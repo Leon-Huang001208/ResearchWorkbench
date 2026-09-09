@@ -170,7 +170,7 @@ class EvidenceRetriever(Protocol):
 
 
 class DatabaseEvidenceRetriever:
-    """Keyword evidence retriever over existing AlphaFoundry database tables."""
+    """Keyword evidence retriever over existing Research Workbench database tables."""
 
     def retrieve(
         self,

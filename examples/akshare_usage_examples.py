@@ -2,7 +2,7 @@
 """
 AkShare 使用示例
 
-展示如何在 AlphaFoundry 中使用 AkShare 适配器
+展示如何在 Research Workbench 中使用 AkShare 适配器
 """
 
 import logging
@@ -165,7 +165,7 @@ def run_all_examples():
     """运行所有示例"""
     print()
     print("=" * 60)
-    print("AlphaFoundry AkShare Usage Examples")
+    print("Research Workbench AkShare Usage Examples")
     print("=" * 60)
     print()
 

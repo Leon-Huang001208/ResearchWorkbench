@@ -12,7 +12,7 @@ from data_layer.repositories.base import Base
 
 def pytest_configure(config):
     """Keep default test runs deterministic and offline."""
-    os.environ.setdefault("ALPHAFOUNDRY_DISABLE_LOCAL_EMBEDDINGS", "1")
+    os.environ.setdefault("RESEARCH_DISABLE_LOCAL_EMBEDDINGS", "1")
 
 
 @pytest.fixture(scope="function")
