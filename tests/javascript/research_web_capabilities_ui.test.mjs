@@ -1,13 +1,84 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { accessSync, constants } from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { createAPI, createController } from '../../app/research_web/ui/core.mjs';
 import * as composer from '../../app/research_web/ui/composer.mjs';
 import * as shell from '../../app/research_web/ui/shell.mjs';
 
 const root = new URL('../../app/research_web/ui/', import.meta.url);
+const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
 const cap = (extra = {}) => ({ id: 'my-skill', kind: 'skill', name: '我的研究', description: '真实资料', category: '资料研究', status: 'enabled', enabled: true, version: 2, builtin: false, metadata: { default_formats: ['md'], inputs: [{ name: 'file', label: '资料', type: 'file', required: true }], scenarios: ['研究'], required_tools: [], dependencies: [] }, ...extra });
 const load = (name) => import(new URL(name, root));
 const session = () => ({ id: 's1', mode: 'fingpt', status: 'idle', messages: [] });
+
+function projectPython({ callerCwd = process.cwd(), environment = process.env } = {}) {
+  const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
+  const override = environment.RWB_TEST_PYTHON;
+  if (override) {
+    const resolved = path.resolve(callerCwd, override);
+    try { accessSync(resolved, constants.X_OK); return resolved; }
+    catch { throw new Error(`RWB_TEST_PYTHON is not an executable file: ${resolved}`); }
+  }
+  const candidates = [
+    path.join(projectRoot, '.venv', executable),
+    path.basename(path.dirname(projectRoot)) === '.worktrees'
+      ? path.join(path.dirname(path.dirname(projectRoot)), '.venv', executable)
+      : null,
+    environment.VIRTUAL_ENV ? path.join(environment.VIRTUAL_ENV, executable) : null,
+  ].filter(Boolean);
+  for (const candidate of [...new Set(candidates)]) {
+    try { accessSync(candidate, constants.X_OK); return candidate; }
+    catch { /* Try the next explicit project environment. */ }
+  }
+  throw new Error(`No project Python found. Set RWB_TEST_PYTHON to an executable interpreter. Checked: ${candidates.join(', ')}`);
+}
+
+function productBuiltinResearchSkills() {
+  const marker = '__RWB_CAPABILITY_CATALOG__';
+  const script = [
+    'import json, tempfile',
+    'from pathlib import Path',
+    'from app.research_web.capabilities.catalog import CapabilityCatalog',
+    'with tempfile.TemporaryDirectory(prefix="rwb-ui-capabilities-") as directory:',
+    '    catalog = CapabilityCatalog(Path(directory))',
+    `    print(${JSON.stringify(marker)} + json.dumps(catalog.list(kind="skill"), ensure_ascii=False))`,
+  ].join('\n');
+  const result = spawnSync(projectPython(), ['-c', script], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+  });
+  if (result.error || result.status !== 0) {
+    throw new Error(`Product CapabilityCatalog failed (status ${result.status ?? 'spawn-error'}): ${result.error?.message || result.stderr || result.stdout}`);
+  }
+  const payload = result.stdout.split(/\r?\n/).find(line => line.startsWith(marker));
+  if (!payload) throw new Error(`Product CapabilityCatalog returned no marked JSON payload. stdout: ${result.stdout}`);
+  return JSON.parse(payload.slice(marker.length)).items;
+}
+
+test('relative Python override resolves once against the caller cwd and runs from the worktree', () => {
+  const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
+  const ownerRoot = path.basename(path.dirname(projectRoot)) === '.worktrees'
+    ? path.dirname(path.dirname(projectRoot))
+    : projectRoot;
+  const relativeOverride = path.join('.venv', executable);
+  const resolved = projectPython({
+    callerCwd: ownerRoot,
+    environment: { ...process.env, RWB_TEST_PYTHON: relativeOverride },
+  });
+  assert.equal(resolved, path.resolve(ownerRoot, relativeOverride));
+  assert.equal(path.isAbsolute(resolved), true);
+  const probe = spawnSync(resolved, ['-c', 'print("rwb-relative-python-ok")'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(probe.error, undefined);
+  assert.equal(probe.status, 0, probe.stderr);
+  assert.equal(probe.stdout.trim(), 'rwb-relative-python-ok');
+});
 
 test('one catalog filters kind, source, category and Chinese search, including disabled entries for inspection', async () => {
   const { filterCapabilities, renderCapabilityCatalog } = await load('capabilities.mjs');
@@ -16,6 +87,43 @@ test('one catalog filters kind, source, category and Chinese search, including d
   assert.match(renderCapabilityCatalog({ items, kind: 'skill', query: '不存在' }), /没有匹配/);
   assert.match(renderCapabilityCatalog({ items, kind: 'skill' }), /已停用/);
   assert.match(renderCapabilityCatalog({ items: [], error: '读取失败' }), /读取失败/);
+});
+
+test('capability center renders, filters, opens and selects every built-in Skill without a router card', async () => {
+  const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
+  const builtinResearchSkills = productBuiltinResearchSkills();
+  assert.equal(builtinResearchSkills.length, 11);
+  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 11);
+  assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin && item.enabled), true);
+
+  const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });
+  const selectableIDs = [...catalog.matchAll(/data-use-skill="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(selectableIDs, builtinResearchSkills.map(item => item.id));
+  for (const item of builtinResearchSkills) {
+    assert.ok(catalog.includes(item.name));
+    assert.ok(catalog.includes(`<option value="${item.category}"`));
+  }
+
+  for (const category of new Set(builtinResearchSkills.map(item => item.category))) {
+    const expected = builtinResearchSkills.filter(item => item.category === category).map(item => item.id);
+    assert.deepEqual(filterCapabilities(builtinResearchSkills, { kind: 'skill', category }).map(item => item.id), expected);
+  }
+
+  const chineseItem = builtinResearchSkills.find(item => /[\u3400-\u9fff]/u.test(item.name));
+  assert.ok(chineseItem, 'real catalog must contain a Chinese Skill name');
+  const chineseQuery = chineseItem.name.match(/[\u3400-\u9fff]{2,}/u)[0].slice(0, 2);
+  assert.ok(filterCapabilities(builtinResearchSkills, { kind: 'skill', query: chineseQuery }).some(item => item.id === chineseItem.id));
+
+  const technicalItem = builtinResearchSkills.find(item => item.id.includes('-'));
+  assert.ok(technicalItem, 'real catalog must contain a technical Skill ID');
+  assert.deepEqual(filterCapabilities(builtinResearchSkills, { kind: 'skill', query: technicalItem.id }).map(item => item.id), [technicalItem.id]);
+
+  const detail = renderCapabilityDetail(builtinResearchSkills.find(item => item.id === 'sell-side-report-reader'));
+  assert.match(detail, /研报增量分析/);
+  assert.match(detail, /research_run_script、web_search/);
+  assert.match(detail, /无需文件/);
+  assert.match(detail, /data-use-skill="sell-side-report-reader"/);
+  assert.doesNotMatch(catalog, /zhengyan-research-router/);
 });
 
 test('capability kind tabs implement roving keyboard tabs and owned panels', async () => {
@@ -235,7 +343,10 @@ test('real app event handlers close/select slash, search and drawers without any
   const selectors = { '#app': rootElement, '#main': main, '#prompt': prompt, '#global-search': { focus() {} }, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
-  const detail = cap({ draft: { kind: 'skill', metadata: cap().metadata, instructions: '真实候选', files: [], steps: [] } });
+  const builtinResearchSkills = productBuiltinResearchSkills();
+  const selectedSkill = builtinResearchSkills.find(item => item.id === 'sell-side-report-reader');
+  assert.ok(selectedSkill, 'real product catalog must contain the report specialist');
+  const detail = { ...selectedSkill, draft: { kind: 'skill', metadata: selectedSkill.metadata, instructions: '真实候选', files: [], steps: [] } };
   try {
     Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
     Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: true }), addEventListener() {} } });
@@ -243,7 +354,7 @@ test('real app event handlers close/select slash, search and drawers without any
     Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState: (_a, _b, hash) => { globalThis.location.hash = hash; } } });
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
       calls.push([url, options.method]);
-      const payload = url.endsWith('/runtime') ? { connected: true, credential_configured: true } : url.endsWith('/models') ? { groups: [] } : url.endsWith('/capabilities/my-skill') ? detail : { items: url.endsWith('/capabilities') ? [cap()] : [] };
+      const payload = url.endsWith('/runtime') ? { connected: true, credential_configured: true } : url.endsWith('/models') ? { groups: [] } : url.endsWith(`/capabilities/${selectedSkill.id}`) ? detail : { items: url.endsWith('/capabilities') ? builtinResearchSkills : [] };
       return new Response(JSON.stringify(payload));
     } });
     console.info = (...args) => logs.push(args);
@@ -253,19 +364,20 @@ test('real app event handlers close/select slash, search and drawers without any
     const key = async (key) => handlers.get('keydown')({ key, target: { id: 'prompt' }, preventDefault() {}, isComposing: false });
     await input('prompt', '/'); assert.match(rootElement.innerHTML, /id="slash-options"/);
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /id="slash-options"/);
-    await key('Enter'); await new Promise(resolve => setImmediate(resolve));
-    assert.match(rootElement.innerHTML, /capability-chips.*我的研究 · v2/s);
-    assert.doesNotMatch(rootElement.innerHTML, /id="slash-options"/);
+    await click({ useSkill: selectedSkill.id });
+    assert.match(rootElement.innerHTML, new RegExp(`capability-chips.*${selectedSkill.name} · v${selectedSkill.version}`, 's'));
+    assert.match(rootElement.innerHTML, new RegExp(`<option value="${selectedSkill.id}" selected>`));
+    assert.match(rootElement.innerHTML, /<textarea id="prompt"[^>]*><\/textarea>/);
     await click({ toggleSidebar: '' }); assert.match(rootElement.innerHTML, /secondary-sidebar mobile-open/);
     await click({ toggleSidebar: '' }); assert.doesNotMatch(rootElement.innerHTML, /secondary-sidebar mobile-open/);
     await click({ toggleSearch: '' }); assert.match(rootElement.innerHTML, /topbar search-open/);
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /topbar search-open/);
-    await click({ skillDetail: 'my-skill' }); assert.equal(globalThis.location.hash, '#/skills');
+    await click({ skillDetail: selectedSkill.id }); assert.equal(globalThis.location.hash, '#/skills');
     assert.match(rootElement.innerHTML, /能力详情/);
     await click({ capClose: '' }); assert.match(rootElement.innerHTML, /role="tablist" aria-label="能力类型"/);
     await click({ capKind: 'workflow' }); assert.match(rootElement.innerHTML, /没有匹配的能力/);
     assert.equal(calls.some(([, method]) => method !== 'GET'), false);
-    assert.doesNotMatch(JSON.stringify(logs), /真实候选|my-skill|\/api\/research/);
+    assert.doesNotMatch(JSON.stringify(logs), /真实候选|sell-side-report-reader|\/api\/research/);
   } finally {
     console.info = originalLog;
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }

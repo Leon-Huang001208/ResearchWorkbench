@@ -1,15 +1,19 @@
 """Offline capability lifecycle and hostile-package regression tests."""
 
+import hashlib
 import io
 import json
 import stat
 import zipfile
+from copy import deepcopy
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 from test_api import NativeFixture
 
 from app.research_web.capabilities.catalog import CapabilityCatalog
+from app.research_web.capabilities.seeds import seed_packages
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
@@ -55,6 +59,54 @@ def create(client, value=None):
     return response.json()
 
 
+@pytest.mark.parametrize(
+    ("name", "slug"),
+    [
+        ("我的事件研究", "finance-news-event-research"),
+        ("金融事件研究", "my-finance-event-research"),
+    ],
+)
+def test_new_builtin_name_or_slug_conflict_skips_only_that_seed(tmp_path, monkeypatch, name, slug):
+    target = "finance-news-event-research"
+    shipped = seed_packages
+    monkeypatch.setattr(
+        "app.research_web.capabilities.catalog.seed_packages",
+        lambda: [item for item in shipped() if item[0] != target],
+    )
+    existing = CapabilityCatalog(tmp_path)
+    created = existing.create(candidate(name=name, slug=slug))
+    existing.publish(created["id"])
+    original_user_row = deepcopy(existing.row(created["id"]))
+
+    monkeypatch.setattr("app.research_web.capabilities.catalog.seed_packages", shipped)
+    warnings = []
+    monkeypatch.setattr(
+        "app.research_web.capabilities.catalog.log.warning",
+        lambda event, **fields: warnings.append((event, fields)),
+    )
+    upgraded = CapabilityCatalog(tmp_path)
+
+    assert upgraded.row(created["id"]) == original_user_row
+    assert target not in upgraded.data["items"]
+    assert {
+        "document-reading",
+        "industry-chain-research",
+        "earnings-consensus-research",
+        "macro-asset-research",
+        "sell-side-report-reader",
+    } <= upgraded.data["items"].keys()
+    assert warnings == [
+        (
+            "capability_builtin_seed_conflict",
+            {
+                "capability_id": target,
+                "conflict_code": "name_conflict",
+                "action": "skipped",
+            },
+        )
+    ]
+
+
 def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     client, native, service = api
     service.connected.clear()
@@ -62,13 +114,18 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 10
+    assert len(rows) == 15
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
         "行业研究",
         "基金评价",
         "市场解读",
+        "金融事件研究",
+        "产业链与主题研究",
+        "业绩与一致预期",
+        "宏观与跨资产",
+        "研报增量分析",
         "因子库研究",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
@@ -112,6 +169,174 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         for t in datahub_tools
     )
     assert native.calls == []
+
+
+def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
+    client, _, _ = api
+    rows = {row["id"]: row for row in client.get("/api/research/capabilities").json()["items"]}
+    existing = {
+        "document-reading": (
+            "资料解读",
+            "资料研究",
+            [],
+            ["research_run_script", "datahub_search_news"],
+        ),
+        "company-research": (
+            "公司研究",
+            "公司",
+            ["docx", "html", "xlsx"],
+            ["research_run_script", "datahub_search_news"],
+        ),
+        "industry-research": (
+            "行业研究",
+            "行业",
+            ["docx", "html", "xlsx"],
+            ["research_run_script", "datahub_search_news"],
+        ),
+        "fund-evaluation": (
+            "基金评价",
+            "基金",
+            ["docx", "html", "xlsx"],
+            ["research_run_script", "datahub_get_fund_data"],
+        ),
+        "market-commentary": (
+            "市场解读",
+            "市场",
+            ["docx", "html", "xlsx"],
+            ["research_run_script", "datahub_search_news"],
+        ),
+        "factor-database-research": (
+            "因子库研究",
+            "因子研究",
+            ["docx", "html", "xlsx"],
+            [
+                "research_run_script",
+                "datahub_get_database_schema",
+                "datahub_query_table",
+            ],
+        ),
+    }
+    for slug, (name, category, formats, tools) in existing.items():
+        metadata = rows[slug]["metadata"]
+        assert rows[slug]["version"] == 1
+        assert metadata == {
+            "slug": slug,
+            "name": name,
+            "description": f"基于实际材料开展{name}，保留来源、口径及数据缺失，按需交付真实文件。",
+            "category": category,
+            "inputs": [
+                {
+                    "name": "question",
+                    "label": "研究问题与资料",
+                    "type": "text",
+                    "required": True,
+                }
+            ],
+            "scenarios": [name],
+            "default_formats": formats,
+            "required_tools": tools,
+            "dependencies": [],
+        }
+
+    workflows = {
+        "market-commentary-workflow": "市场资料筛选与解读交付",
+        "fund-research-workflow": "基金资料准备与受限评价",
+        "company-research-workflow": "公司资料研究与报告交付",
+        "report-production-workflow": "报告项目资料准备与文件交付",
+    }
+    for slug, name in workflows.items():
+        row = rows[slug]
+        assert row["version"] == 1
+        assert row["metadata"] == {
+            "slug": slug,
+            "name": name,
+            "description": "有序研究步骤模板；并不表示任何步骤已经执行。",
+            "category": "研究流程",
+            "inputs": [
+                {
+                    "name": "question",
+                    "label": "对象、期间与资料",
+                    "type": "text",
+                    "required": True,
+                }
+            ],
+            "scenarios": [name],
+            "default_formats": ["docx", "html", "xlsx"],
+            "required_tools": ["research_run_script"],
+            "dependencies": [],
+        }
+
+    specialists = {
+        "finance-news-event-research": ("金融事件研究", "事件与政策"),
+        "industry-chain-research": ("产业链与主题研究", "行业与主题"),
+        "earnings-consensus-research": ("业绩与一致预期", "公司与业绩"),
+        "macro-asset-research": ("宏观与跨资产", "宏观与资产"),
+        "sell-side-report-reader": ("研报增量分析", "研报与资料"),
+    }
+    for slug, (name, category) in specialists.items():
+        row = rows[slug]
+        metadata = row["metadata"]
+        detail = client.get(f"/api/research/capabilities/{slug}").json()
+        header = yaml.safe_load(detail["draft"]["instructions"].split("---", 2)[1])
+        assert row["kind"] == "skill" and row["source"] == "builtin"
+        assert row["version"] == 1 and row["enabled"] is True
+        assert metadata["slug"] == header["name"] == slug
+        assert metadata["name"] == name and metadata["category"] == category
+        assert metadata["default_formats"] == []
+        assert metadata["required_tools"] == (
+            ["research_run_script", "web_search"]
+            if slug == "sell-side-report-reader"
+            else ["web_search"]
+        )
+        assert metadata["dependencies"] == []
+        assert "不" in metadata["description"]
+    assert not any("router" in capability_id for capability_id in rows)
+
+
+def test_specialist_exports_bundle_one_evidence_protocol_snapshot_and_reimports(
+    api, monkeypatch, tmp_path
+):
+    client, _, _ = api
+    slugs = (
+        "finance-news-event-research",
+        "industry-chain-research",
+        "earnings-consensus-research",
+        "macro-asset-research",
+        "sell-side-report-reader",
+    )
+    protocol_hashes = set()
+    exported = None
+    for slug in slugs:
+        response = client.get(f"/api/research/capabilities/{slug}/versions/1/export")
+        assert response.status_code == 200
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            names = archive.namelist()
+            assert names.count("references/evidence-protocol.md") == 1
+            protocol = archive.read("references/evidence-protocol.md")
+            protocol_hashes.add(hashlib.sha256(protocol).hexdigest())
+            assert b"DataHub" in protocol
+            visible_package = b"\n".join(
+                archive.read(name) for name in names if name.endswith((".md", ".json"))
+            )
+            assert b"ZhengYan" not in visible_package and b"OpenAI" not in visible_package
+        exported = response.content
+    assert len(protocol_hashes) == 1
+
+    monkeypatch.setattr("app.research_web.capabilities.catalog.seed_packages", list)
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path / "reimport"))
+    with TestClient(create_app(service)) as import_client:
+        imported = import_client.post(
+            "/api/research/capabilities/import",
+            files={"file": ("specialist.zip", exported, "application/zip")},
+        )
+        assert imported.status_code == 201, imported.text
+        draft = imported.json()["draft"]
+        bundled = next(
+            item for item in draft["files"] if item["path"] == "references/evidence-protocol.md"
+        )
+        assert bundled["sha256"] in protocol_hashes
+        assert bundled["content"].encode() == protocol
 
 
 def test_catalog_migrates_persisted_legacy_tool_ids_as_new_versions(tmp_path):

@@ -9,7 +9,7 @@
 | `models.py` | 元数据、输入字段、步骤与产品错误契约 | 执行研究 |
 | `packages.py` | 有界 MD/ZIP 读取、路径/类型/编码检查、保留问题 | 安装依赖、解压到任意路径或运行脚本 |
 | `catalog.py` | 草稿、检查、不可变版本、原生目录投影、会话资源快照 | Agent 编排 |
-| `seeds.py` | 五个研究 Skill、三个步骤式 Workflow 的内置元数据 | 虚构在线市场 |
+| `seeds.py` | 十一个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
 
@@ -40,7 +40,7 @@ Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH
 
 安全读取限制：压缩 10 MiB、展开 30 MiB、最多 128 条目、单文件 10 MiB。禁止绝对路径、穿越、链接、特殊文件、嵌套压缩、安装钩子和二进制可执行文件。研究 Python 只允许 `scripts/` 下受检资源；脚本须按实际 SHA-256 审查确认。导入和检查不执行脚本，也不安装缺失依赖。
 
-检查分别报告元数据、原生 frontmatter、调用方式、工具白名单、关联 Skill 状态/版本、依赖版本、脚本语法和安装行为。只有依赖问题时为 `blocked_dependencies`，其他不兼容为 `invalid`；检查通过仍只是 `draft`，需要发布才启用。前端必须展示问题，不能只删除不兼容文件后宣称成功。
+检查分别报告元数据、原生 frontmatter、调用方式、工具白名单、关联 Skill 状态/版本、依赖版本、脚本语法、安装行为和进程启动入口。即使脚本哈希已经审查，导入 `subprocess` 或引用受检的 `os`/`pty`/`asyncio` 进程入口仍以 `runtime_incompatible_script` 拒绝发布。只有依赖问题时为 `blocked_dependencies`，其他不兼容为 `invalid`；检查通过仍只是 `draft`，需要发布才启用。前端必须展示问题，不能只删除不兼容文件后宣称成功。
 
 这不是任意 Python 的静态安全证明。运行时文件、网络与进程边界仍由现有沙箱及各工具策略强制执行；仅 DataHub 的已配置只读查询取消逐次审批，其他高风险操作的审批策略不变。
 
@@ -68,6 +68,10 @@ Tool 目录只读展示 8 个研究/控制工具与 15 个 `datahub_*` 业务数
 
 本轮从旧市场内容能力中只迁入可独立运行的“市场解读” Skill 和“市场资料筛选与解读交付” Workflow：脚本读取当前会话已有结构化资讯，按时间、来源和关键词执行透明排序并生成文件。它不导入旧 UI、数据库、调度器、事实断言或报告编译链；没有实际数据时不得生成市场结论。
 
+2026-09-08 在不改变上述包、版本和执行拓扑的前提下增加五个品牌中立专用 Skill：研报增量分析、金融事件研究、产业链与主题研究、业绩与一致预期、宏观与跨资产。它们分别避开一般资料提取、多事件市场复盘、通用行业报告和完整公司研究；触发与反向条件直接写入 Skill frontmatter 和产品元数据，不登记独立路由 Skill。五项均以 `default_formats=[]` 默认在聊天中回答，文件和 DataHub 仅在 Runtime 实际暴露且用户明确要求时使用。
+
+共享证据协议以 `skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制到每个专用包的 `references/evidence-protocol.md`，随不可变版本保存自己的 SHA-256 快照。协议统一来源层级、证据分层、日期口径、基线、反向证据、情景和非个性化建议。搜索摘要不能替代原文，决定性来源不可读时必须降级为“证据不足”或“无法判断”。研报 PDF 通过现有 `research_helpers.read_pdf` 读取；结构化摘要校验和 SVG 知识图谱是沙箱内受审脚本，不使用宿主路径、Poppler、shell 或子进程。v1 不裁剪 PDF 原页，没有可靠来源定位时不生成关系图并标记视觉证据受限。
+
 具体报告使用 `Report Workflow`，不是独立报告执行引擎。每个不可变版本持有自己的 Word/PPT 模板、Excel 公式底稿、品牌素材、映射、结构化步骤和交付合同；共享 Skill 负责检索、市场解读、图表分析和段落写作，共享 Tool 负责 Excel 刷新、底稿提取、模板检查、图表渲染、Office 组装和文件验证。运行修改的是 Run 副本，永不覆盖 Workflow 母版。
 
 华安 ETF 周报、创业板 50 周报、华安 ETF 投资风向标和 AI 周报均在 Claw 与能力中心展示。创业板 50 的活动工作簿按公式识别为 iFinD，误标 Wind 文件只保留为 `legacy_mislabeled`；AI 周报继续 `needs_attention`。日程默认关闭，且只有手动运行达到 `completed` 且文件交付为 `complete` 后才能启用。
@@ -76,13 +80,13 @@ Tool 目录只读展示 8 个研究/控制工具与 15 个 `datahub_*` 业务数
 
 ## 验证边界
 
-包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。
+包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 11 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
 
 2026-09-03 实际对话产物经人工审查发布 `1ba298cc4b754aee9496b7d1c5c78bf7` v1，在新会话 `7ee7b736-673a-4aff-8006-73de6c10b600` 生成并下载 HTML，保存原生名称及编译哈希。手动导入 `528c5a3dd15849b0a7f29fbdf5441b01` 从不完整元数据草稿，经表单编辑、检查、v1、v2、停用、回滚v1、刷新、ZIP导出完成闭环。记录在 `.ai/reports/2026-09-03-research-ui-live.md`；失败首稿与原版本保留。
 
 Workflow 历史页面按研究记录的不可变版本读取预设步骤；请求失败显示缺失说明且允许显式刷新重试，不能永久缓存失败空步骤，也不能用当前目录替代旧版。恢复后只清除该版本读取错误，不隐藏其他运行错误。预设步骤不显示自动完成勾选。
 
-Claw首页直接展示同一目录中的已启用Workflow（含自建），FinGPT保留四个内置Skill快捷入口；分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
+Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 11 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
 
 ## 具体报告 Workflow
 

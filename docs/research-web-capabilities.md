@@ -7,7 +7,11 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 
 DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；只有 `integration_completed && callable` 的来源才会让对应工具进入 Runtime 注册集合。配置变更后页面可以立即重新检测，但原生工具集合仍以研究服务重启时的快照为准。
 
-当前内置能力新增“市场解读” Skill 和“市场解读与报告” Workflow。其透明排序脚本只消费已经物化的行情、板块与事件文件并生成研究草稿，不联网、不写 DataHub，也不替 DSH 编排 Agent。旧内容生产代码只按这种可独立验证的脚本、提示和模板迁移；Evidence、Claim、Quality Gate 与旧报告编译链没有恢复。
+当前目录包含 11 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
+统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
+机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
+版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
+Quality Gate 与旧报告编译链没有恢复。
 
 ## API（全部位于 `/api/research`）
 
@@ -27,7 +31,7 @@ DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是�
 | GET `/capabilities/{id}/versions/{version}` | 原始指令、元数据、文件及步骤，`read_only:true` |
 | GET `/capabilities/{id}/versions/{version}/export` | ZIP：原始 SKILL.md、capability.json、可选 workflow.json、资源 |
 | GET `/tools` | 23 项真实 guard/注册声明：8 项研究/控制工具和 15 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
-| GET `/workflows` | 同一能力目录中三项种子及用户 Workflow；没有平行目录 |
+| GET `/workflows` | 同一能力目录中四项种子及用户 Workflow；没有平行目录 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |
 
@@ -74,6 +78,43 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 不能再用于发送（包括未选择能力、由模型自主发现的发送），须停用该 Workflow 或编辑重新发布。
 步骤是计划模板，不应由前端标记为已经执行。
 
+### 内置研究 Skill 边界
+
+能力中心由 `seeds.py` 的声明式元数据生成 11 个内置 Skill。资料解读、公司研究、行业研究、
+基金评价、市场解读和因子库研究保持各自既有入口；本批新增能力只在下列窄场景触发：
+
+| 专用 Skill | 正向触发 | 反向边界 |
+| --- | --- | --- |
+| 研报增量分析 (`sell-side-report-reader`) | 卖方研报或研究文章的增量、公开时序、可信度与证伪 | 一般通读、提取和格式转换使用资料解读 |
+| 金融事件研究 (`finance-news-event-research`) | 单一、有时间戳的公告、政策、新闻或突发事件及其传导链 | 多事件复盘、盘前或市场综述使用市场解读 |
+| 产业链与主题研究 (`industry-chain-research`) | 价值流、瓶颈、主题阶段及受益/受损映射 | 完整供需、竞争格局和行业关键指标使用行业研究 |
+| 业绩与一致预期 (`earnings-consensus-research`) | 单家公司业绩、指引、预期差与机构分歧 | 完整业务、财务、竞争力、估值与风险使用公司研究 |
+| 宏观与跨资产 (`macro-asset-research`) | 宏观制度、政策、流动性及利率、汇率、股票、信用和商品传导 | 不用于单一公司、产业链或日常多事件复盘 |
+
+不登记独立研究路由 Skill；触发与反向条件写入每个包的 frontmatter、产品说明和分类，交给
+现有 DSH Skill discovery。五个专用 Skill 的 `default_formats=[]`，默认在聊天中回答；只有用户
+明确要求文件且当前 Runtime 实际暴露对应工具时，才生成并核验 Markdown、HTML、DOCX 或 XLSX。
+这不更改其他四个既有通用 Skill 的历史默认格式；资料解读原本也以聊天交付为默认。
+
+### 共享证据协议与运行时降级
+
+`app/research_web/skills/_shared/evidence-protocol.md` 是品牌中立的唯一维护源码，不是可调用
+Skill。种子构建把相同字节复制到每个专用能力包的 `references/evidence-protocol.md`；发布后
+它与该版本其他资源一起计算 SHA-256、封存和导出，因此后续协议修改不会改写历史版本。
+协议统一来源层级、事实/来源观点/新增证据/研究推断、日期与口径、比较基线、反向证据、
+情景、失效信号和非个性化建议边界。
+
+金融事件、产业链、业绩和宏观能力只声明 `web_search`；研报增量分析声明
+`research_run_script` 与 `web_search`。DataHub 和文件生成工具只有在 Runtime 实际暴露时才
+使用，不是包的必然前提。搜索摘要只用于寻找候选来源；决定性原文、完整正文或附件无法读取
+时输出“证据不足”或“无法判断”，不能用摘要或模型记忆补齐。
+
+研报 PDF 文本只通过现有 `research_helpers.read_pdf` 读取。结构化摘要校验与 SVG 知识图谱
+脚本作为包内受审 Python 资源在研究沙箱执行，包含显式错误处理和日志；没有宿主路径、安装、
+shell、Poppler 或子进程依赖。v1 不裁剪 PDF 原页；可读图片附件可作原图证据，关系均有来源
+定位时可重绘 SVG，否则明确“视觉证据受限”。行动含义必须标明研报明示/隐含、适用对象、
+时间窗、条件、来源定位和失效信号，不转换为个人仓位或买卖建议。
+
 产品硬改名后的历史目录可能仍保存 `af_run_script` / `af_public_data`。目录启动迁移不会
 覆盖历史版本：内置包从当前受审种子创建新的不可变版本；仅包含旧脚本名的用户包安全替换为
 `research_run_script` 后创建新版本；含歧义旧数据工具的用户包保留并要求人工审查。Skill 版本
@@ -85,7 +126,7 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 已有 `POST /sessions/{sid}/messages` 增加 `capability_id`、`capability_version`（正整数）及
 `tool_ids`（仅表达已登记可选工具的使用意图）。推荐客户端始终传选中的版本。新数据能力统一选择 `datahub_*`；工具名使用子系统语义，不依赖产品名称。
 版本省略时首次受理绑定当时版本；同一幂等键重试使用原收据，不重新执行、不因后来停用而重发。
-非当前版本需要先显式回滚；`skill_id` 保留兼容，四个内置 ID 不变。
+非当前版本需要先显式回滚；`skill_id` 保留兼容，原有五个内置 Skill ID 不变。
 显式 `expected_formats`（包括空数组）优先，否则用能力默认格式。
 
 发送前在同一锁内验证状态、真实 `skill.list` 的 exact native_name、依赖和包哈希，
@@ -134,8 +175,11 @@ png/jpg/jpeg/webp/gif/svg/pdf 资料，及 `scripts/*.py` 研究脚本。
 WebP RIFF/图像块、SVG 根元素、PDF 头/交叉引用位置/EOF；拒绝空 ZIP、32/64 位 Mach-O、XZ 等伪装资源。
 此检查不解压图像、不渲染、不执行内容，也不保证所有像素/文档对象可解码或证明资源无恶意。
 SVG 拒绝 DTD/实体及未知编码。合法格式不因此获得额外执行权限。
-研究脚本语法、静态缺失 imports、显式依赖及安装行为检查；脚本哈希须加入 reviewed_scripts。
-不存在自动依赖安装。URL/extras/marker 依赖声明不支持，明确报错。
+研究脚本检查语法、静态缺失 imports、显式依赖、安装行为与宿主进程入口；脚本哈希须加入
+reviewed_scripts。即使脚本哈希已经审查、没有安装行为，只要导入 `subprocess`，或引用
+`os`/`pty`/`asyncio` 中受检的进程启动入口，也以
+`runtime_incompatible_script` 拒绝发布。静态检查不执行脚本。不存在自动依赖安装；
+URL/extras/marker 依赖声明不支持，明确报错。
 导入检查保留失败问题；用户完整编辑候选是显式处理，不悄悄修复并声称原包兼容。
 
 发布、停用、启用、回滚、发送共用 ResearchService.lock；原生父任务、子 Agent、诊断异常、
@@ -183,7 +227,7 @@ tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集�
 
 | 源码 | 测试 | 验证边界 |
 | --- | --- | --- |
-| capabilities/models/packages/catalog/seeds | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py | 离线种子、元数据、恶意ZIP、媒体容器、脚本审查、目录全量校验、不可变版本/故障重试、回滚唯一性 |
+| capabilities/models/packages/catalog/seeds、skills | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 11 Skill/4 Workflow 离线种子、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
 | capabilities/routes、main/service/store | test_capabilities_admission.py、既有 research_web 回归 | 原生名称核对、格式优先、幂等、跨会话、并发、创建产物 |
 | tools、launch_runtime、research.cordis.yml | test_capabilities_native.py | 固定源码真实 provider list/get/watch 与实际注册；不调用模型 |
 

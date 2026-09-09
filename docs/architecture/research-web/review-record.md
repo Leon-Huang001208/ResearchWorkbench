@@ -278,6 +278,15 @@
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"顶栏仅隐藏健康运行时状态并移除全局刷新入口；异常提示、设置诊断、页面级刷新和现有运行时契约保持不变。","diagrams":[]} -->
 
+## 2026-09-08 — 五项专用研究 Skill 与证据协议
+
+- 在并行加入“因子库研究”的当前主分支上，能力目录为十一个 Skill；四个 Workflow 保持不变。新增研报增量、单一金融事件、产业链与主题、业绩与一致预期、宏观与跨资产五项窄边界能力，不登记独立路由 Skill。
+- 品牌中立证据协议以一份共享源码维护，种子构建时复制进各专用包并随不可变版本哈希封存。研报校验与 SVG 重绘脚本使用既有研究沙箱和 PDF helper，不增加工具、依赖或宿主权限。
+- 能力检查新增 `runtime_incompatible_script`，拒绝受审脚本中的子进程及宿主进程入口。本轮没有新增 API、能力类型、执行器、服务或跨模块关系，既有能力发布与会话快照图已覆盖，因此十张架构图无需重生成。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录增加五个专用Skill、版本化证据协议和进程入口检查，仍复用既有种子、检查、发布、原生发现与会话快照边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"新增Skill资源继续使用既有原生发现目录、研究脚本沙箱和PDF helper，未增加进程、网络、文件或依赖权限。","diagrams":[]} -->
+
 ## 2026-09-08 — 资产成交额与换手率口径纠正
 
 - 资产观察把 DataHub 标准字段 `turnover` 显示为成交额，把 `turnover_rate_pct` 显示为换手率；缺失值保持未知。

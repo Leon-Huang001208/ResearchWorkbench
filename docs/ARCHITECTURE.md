@@ -15,6 +15,14 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 
 当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 15 项能力与 22 个登记来源；统一连接中心从当前设备 `<RESEARCH_DATA_HOME>/connections/` 读取各来源非秘密配置，MySQL、iFinD、知丘及 Key 型来源的秘密固定存入操作系统凭据库。Wind 只依赖用户本机已登录会话，Excel 作为分层本机能力诊断。真实 Runtime 仅在启动或重启时物化 `callable_source_count > 0` 的品牌无关 `datahub_*` 业务 Tool。MySQL 只开放逐级 schema 和参数化单表查询，不接受原始 SQL；登记、配置、探测、适配和可调用状态分别显示，组件检测成功不等于可调用。
 
+能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 11 个内置 Skill 和 4 个
+Workflow；其中五个专用研究 Skill 仍通过同一 DSH 原生发现、不可变版本和会话快照链执行，
+没有新增路由 Skill、API 类型或执行器。品牌中立证据协议以
+`app/research_web/skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制进每个
+专用包并随版本哈希封存。专用包默认聊天交付，只有 Runtime 实际暴露所需工具且用户明确要求
+文件时才生成文件；决定性原文不可访问时明确降级。研报 PDF 复用沙箱的
+`research_helpers.read_pdf`，校验与 SVG 重绘脚本不能派生宿主进程。
+
 历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
 
 产品索引只记录归属、文件与幂等受理收据；研究正文以 DSH 日志为准。附件及产物按会话隔离，

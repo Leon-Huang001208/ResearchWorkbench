@@ -308,9 +308,17 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
     root = service.store.directory(sid)
     assert (root / "resources/capabilities/document-reading/1/templates/report.md").is_file()
     catalog = service.store.receipt(sid, "native-auto-skill")["capability_catalog"]
-    assert len(catalog) == 10
-    assert "factor-database-research" in {row["id"] for row in catalog}
-    assert "report-production-workflow" in {row["id"] for row in catalog}
+    assert len(catalog) == 15
+    capability_ids = {row["id"] for row in catalog}
+    assert {
+        "finance-news-event-research",
+        "industry-chain-research",
+        "earnings-consensus-research",
+        "macro-asset-research",
+        "sell-side-report-reader",
+    } <= capability_ids
+    assert "factor-database-research" in capability_ids
+    assert "report-production-workflow" in capability_ids
 
 
 def test_creation_zip_is_scoped_downloadable_and_importable(api):

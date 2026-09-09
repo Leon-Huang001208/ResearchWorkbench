@@ -1,5 +1,6 @@
 """Additional fail-closed import and publication recovery checks."""
 
+import hashlib
 import io
 import stat
 import zipfile
@@ -14,24 +15,166 @@ from app.research_web.capabilities.models import CapabilityError
 api = api_fixture
 
 
+def check_script(client, content):
+    value = candidate()
+    value["files"] = [{"path": "scripts/research.py", "content": content}]
+    value["reviewed_scripts"] = [hashlib.sha256(content.encode()).hexdigest()]
+    row = create(client, value)
+    return client.post(f"/api/research/capabilities/{row['id']}/check").json()
+
+
+def test_reviewed_script_cannot_spawn_host_processes(api, tmp_path):
+    client, _, _ = api
+    marker = tmp_path / "must-not-exist"
+    content = "import subprocess\n" f"subprocess.run(['touch', {str(marker)!r}], check=True)\n"
+    check = check_script(client, content)
+
+    runtime_issues = [
+        item for item in check["issues"] if item["code"] == "runtime_incompatible_script"
+    ]
+    assert not check["valid"]
+    assert runtime_issues
+    assert "禁止派生进程" in runtime_issues[0]["message"]
+    assert "宿主命令" in runtime_issues[0]["message"]
+    assert not marker.exists()
+
+
 @pytest.mark.parametrize(
-    "name,content",
+    "content",
     [
-        ("scripts/install_hook.py", "print('installer')"),
-        ("scripts/research.py", "import ensurepip\nensurepip.bootstrap()"),
-        ("scripts/research.py", "import subprocess\nsubprocess.run(['pip', 'install', 'evil'])"),
+        "import subprocess as process_module",
+        "from subprocess import run as launch",
+        "import subprocess\nlauncher = subprocess.run",
+        "import os as host_os\nlaunch = host_os.system",
+        "from os import popen as host_popen\nlaunch = host_popen",
+        "import os\nlaunch = os.spawnlp",
+        "from os import posix_spawn as launch\ncopy = launch",
+        "import os\nlaunch = os.forkpty",
+        "from os import execve as replace_process\nlaunch = replace_process",
+        "import pty as pseudo_terminal\nlaunch = pseudo_terminal.spawn",
+        "from pty import spawn as launch\ncopy = launch",
+        "import asyncio as aio\nlaunch = aio.create_subprocess_exec",
+        "from asyncio import create_subprocess_shell as launch\ncopy = launch",
+        "import multiprocessing as process_pool",
+        "import multiprocessing.pool as worker_pool",
+        "from multiprocessing import Process as Worker",
+        "from multiprocessing.pool import Pool as WorkerPool",
+        "import concurrent.futures as future_pool\nlaunch = future_pool.ProcessPoolExecutor",
+        "import concurrent.futures\nlaunch = concurrent.futures.ProcessPoolExecutor",
+        "from concurrent.futures import ProcessPoolExecutor as Pool\nlaunch = Pool",
+        "from concurrent import futures as future_pool\nlaunch = future_pool.ProcessPoolExecutor",
+        "import pty as pseudo_terminal\nlaunch = pseudo_terminal.fork",
+        "from pty import fork as launch\ncopy = launch",
+        "from os import *",
+        "from pty import *",
+        "from asyncio import *",
+    ],
+    ids=[
+        "subprocess-module-alias",
+        "subprocess-from-import",
+        "subprocess-callable-transfer",
+        "os-system-alias",
+        "os-popen-from-import",
+        "os-spawn-family",
+        "os-posix-spawn-family",
+        "os-fork-family",
+        "os-exec-family-from-import",
+        "pty-spawn-alias",
+        "pty-spawn-from-import",
+        "asyncio-exec-alias",
+        "asyncio-shell-from-import",
+        "multiprocessing-module-alias",
+        "multiprocessing-submodule-alias",
+        "multiprocessing-process-from-import",
+        "multiprocessing-pool-submodule-from-import",
+        "process-pool-module-alias",
+        "process-pool-dotted-module",
+        "process-pool-from-import",
+        "process-pool-from-concurrent",
+        "pty-fork-alias",
+        "pty-fork-from-import",
+        "os-star-import",
+        "pty-star-import",
+        "asyncio-star-import",
     ],
 )
-def test_installer_scripts_remain_invalid_even_if_reviewed(api, name, content):
-    import hashlib
+def test_reviewed_script_rejects_incompatible_runtime_entrypoints(api, content):
+    client, _, _ = api
 
+    check = check_script(client, content)
+
+    assert "runtime_incompatible_script" in {item["code"] for item in check["issues"]}
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "class Local:\n    run = staticmethod(lambda *args: None)\nsubprocess = Local()\nsubprocess.run([])",
+        "class Local:\n    system = staticmethod(lambda *args: None)\nos = Local()\nos.system('safe')",
+        "class Local:\n    spawn = staticmethod(lambda *args: None)\npty = Local()\npty.spawn('safe')",
+        "class Local:\n    create_subprocess_exec = staticmethod(lambda *args: None)\nasyncio = Local()\nasyncio.create_subprocess_exec('safe')",
+        "import concurrent.futures as future_pool\nexecutor = future_pool.ThreadPoolExecutor",
+    ],
+    ids=[
+        "subprocess-shadow",
+        "os-shadow",
+        "pty-shadow",
+        "asyncio-shadow",
+        "thread-pool-is-allowed",
+    ],
+)
+def test_host_process_names_without_matching_import_are_allowed(api, content):
+    client, _, _ = api
+
+    check = check_script(client, content)
+
+    assert "runtime_incompatible_script" not in {item["code"] for item in check["issues"]}
+    assert check["valid"]
+
+
+def test_import_binding_shadowing_remains_conservatively_blocked(api):
+    """Publication checks deliberately do not attempt complete Python scope analysis."""
+
+    client, _, _ = api
+    content = (
+        "import os\n"
+        "class Local:\n"
+        "    system = staticmethod(lambda *args: None)\n"
+        "os = Local()\n"
+        "os.system('still conservatively blocked')"
+    )
+
+    check = check_script(client, content)
+
+    assert "runtime_incompatible_script" in {item["code"] for item in check["issues"]}
+
+
+@pytest.mark.parametrize(
+    "name,content,expected_codes",
+    [
+        ("scripts/install_hook.py", "print('installer')", {"unsafe_file"}),
+        (
+            "scripts/research.py",
+            "import ensurepip\nensurepip.bootstrap()",
+            {"installer_forbidden"},
+        ),
+        (
+            "scripts/research.py",
+            "import subprocess\nsubprocess.run(['pip', 'install', 'evil'])",
+            {"installer_forbidden", "runtime_incompatible_script"},
+        ),
+    ],
+)
+def test_installer_scripts_remain_invalid_even_if_reviewed(api, name, content, expected_codes):
     client, _, _ = api
     value = candidate()
     value["files"] = [{"path": name, "content": content}]
     value["reviewed_scripts"] = [hashlib.sha256(content.encode()).hexdigest()]
     row = create(client, value)
     check = client.post(f"/api/research/capabilities/{row['id']}/check").json()
+    codes = {item["code"] for item in check["issues"]}
     assert not check["valid"]
+    assert codes >= expected_codes
 
 
 def test_symlink_directory_entry_and_nested_yaml_fail_closed(api):

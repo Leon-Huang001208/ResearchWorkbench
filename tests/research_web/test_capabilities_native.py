@@ -61,7 +61,7 @@ const provider=new FileSystemSkillProvider(ctx,{signal:controller.signal,invalid
 try {
   const candidates=await provider.list({cwd:root});
   assert.ok(Array.isArray(candidates));
-  assert.equal(candidates.length,10);
+  assert.equal(candidates.length,15);
   assert.ok(!candidates.some(c=>c.name==='host-canary'));
   const company=candidates.find(c=>c.name==='company-research');
   const loaded=await provider.get(company,{cwd:root});
@@ -83,12 +83,12 @@ try {
   for(let i=0;i<100 && invalidations===count;i++) await new Promise(r=>setTimeout(r,20));
   assert.ok(invalidations>count);
   assert.ok(!(await provider.list({cwd:root})).some(c=>c.name==='rwb-test-v1'));
-  console.log(JSON.stringify({discovered:10,loaded:true,watch:true,hostRootExcluded:true}));
+  console.log(JSON.stringify({discovered:15,loaded:true,watch:true,hostRootExcluded:true}));
 } finally {await provider.dispose();controller.abort();}
 """
     result = json.loads(node(source, script, tmp_path, catalog.native_root).strip())
     assert result == {
-        "discovered": 10,
+        "discovered": 15,
         "loaded": True,
         "watch": True,
         "hostRootExcluded": True,

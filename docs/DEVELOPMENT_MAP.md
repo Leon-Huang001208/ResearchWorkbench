@@ -16,6 +16,19 @@ The product topbar keeps healthy runtime state silent and exposes only actionabl
 availability states; page-scoped refresh controls remain owned by their existing modules.
 DataHub catalog, brand-neutral business tools, broker, Provider, probe and snapshot contracts live in `app/research_web/datahub/`, `app/research_web/launch_runtime.py`, `app/research_web/runtime/public-data.mjs` and [DataHub](research-web-datahub.md). `catalog.py` is the no-network source of truth for the 15-capability / 22-source UI. `datahub/connections.py` owns per-source local non-secret configuration, OS keyring boundaries and the explicitly confirmed legacy-environment migration; `providers_mysql.py` owns MySQL privilege checks, exact schema identifiers and bounded single-table reads. The Settings UI reads the safe `/data/connections` projection and generic source-configuration endpoints. Runtime start/restart materializes only tools whose capability has `callable_source_count > 0`. The legacy connector map below does not make a Research Web provider callable.
 
+Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
+`app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill 加五个专用 Skill 共 11 项，四个
+Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-protocol.md` 是专用 Skill 的共享证据
+协议源码，构建时复制到每个包的 `references/` 并进入不可变版本哈希；它本身不进入发现目录。
+研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱
+内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在
+`tests/research_web/test_capabilities*.py` 和 `tests/research_web/test_sell_side_report_skill.py`；
+分类、详情、选择、搜索及无路由卡片覆盖在
+`tests/javascript/research_web_capabilities_ui.test.mjs`；该测试从项目 Python 环境中的真实
+`CapabilityCatalog.list(kind="skill")` 获取目录，不维护第二份内置元数据。契约文档见
+[能力包与版本](research-web-capabilities.md)及
+[架构能力管理](architecture/research-web/07-capabilities.md)。
+
 Legacy market-home fact writers share `data_layer/repositories/market_home_invalidation.py` for UTC normalization and transaction-coupled invalidation outbox writes. `services/market_home_invalidation.py` owns scheduler/materializer coordination only. Boundary logging for legacy research execution lives in `services/agent_team_service.py`, `services/research_graph.py`, `services/research_orchestration_service.py` and `services/research_templates.py`; exceptions remain visible to callers after structured logging.
 
 Claude must read this file before changing code.

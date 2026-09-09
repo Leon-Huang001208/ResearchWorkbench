@@ -32,6 +32,20 @@ log = get_logger(__name__)
 LEGACY_SCRIPT_TOOL = "af_run_script"
 LEGACY_PUBLIC_DATA_TOOL = "af_public_data"
 SCRIPT_TOOL = "research_run_script"
+HOST_PROCESS_MODULES = {"asyncio", "os", "pty"}
+
+
+def _is_host_process_entry(module, name):
+    if module == "os":
+        return name in {"popen", "system"} or name.startswith(
+            ("exec", "fork", "spawn", "posix_spawn")
+        )
+    if module == "pty":
+        return name in {"fork", "spawn"}
+    return module == "asyncio" and name in {
+        "create_subprocess_exec",
+        "create_subprocess_shell",
+    }
 
 
 class CapabilityCatalog:
@@ -59,7 +73,18 @@ class CapabilityCatalog:
             # shipped reviewed capabilities without rewriting user packages.
             for cid, draft in seed_packages():
                 if cid not in self.data["items"]:
-                    self._create(draft, "builtin", cid=cid)
+                    try:
+                        self._create(draft, "builtin", cid=cid)
+                    except CapabilityError as exc:
+                        if exc.code != "name_conflict":
+                            raise
+                        log.warning(
+                            "capability_builtin_seed_conflict",
+                            capability_id=cid,
+                            conflict_code=exc.code,
+                            action="skipped",
+                        )
+                        continue
                     self.publish(cid)
             self._migrate_legacy_tool_ids(dict(seed_packages()))
         except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -475,6 +500,108 @@ class CapabilityCatalog:
                         for n in ast.walk(tree)
                         if isinstance(n, ast.Constant) and isinstance(n.value, str)
                     }
+                    module_aliases = {}
+                    imported_entries = set()
+                    subprocess_imported = False
+                    multiprocessing_imported = False
+                    process_pool_aliases = set()
+                    concurrent_futures_imported = False
+                    star_imported = False
+                    # This publication check is deliberately conservative: an import
+                    # binding remains trusted evidence after local reassignment because
+                    # complete Python scope and control-flow resolution is out of scope.
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Import):
+                            for alias in node.names:
+                                if alias.name == "subprocess":
+                                    subprocess_imported = True
+                                elif alias.name == "multiprocessing" or alias.name.startswith(
+                                    "multiprocessing."
+                                ):
+                                    multiprocessing_imported = True
+                                elif alias.name == "concurrent.futures":
+                                    if alias.asname:
+                                        process_pool_aliases.add(alias.asname)
+                                    else:
+                                        concurrent_futures_imported = True
+                                elif alias.name in HOST_PROCESS_MODULES:
+                                    module_aliases[alias.asname or alias.name] = alias.name
+                        elif isinstance(node, ast.ImportFrom):
+                            if node.module == "subprocess":
+                                subprocess_imported = True
+                            elif node.module and (
+                                node.module == "multiprocessing"
+                                or node.module.startswith("multiprocessing.")
+                            ):
+                                multiprocessing_imported = True
+                            elif node.module == "concurrent.futures":
+                                imported_entries.update(
+                                    alias.asname or alias.name
+                                    for alias in node.names
+                                    if alias.name == "ProcessPoolExecutor"
+                                )
+                            elif node.module == "concurrent":
+                                process_pool_aliases.update(
+                                    alias.asname or alias.name
+                                    for alias in node.names
+                                    if alias.name == "futures"
+                                )
+                            elif node.module in HOST_PROCESS_MODULES:
+                                star_imported = star_imported or any(
+                                    alias.name == "*" for alias in node.names
+                                )
+                                imported_entries.update(
+                                    alias.asname or alias.name
+                                    for alias in node.names
+                                    if _is_host_process_entry(node.module, alias.name)
+                                )
+                    uses_host_process_entry = (
+                        star_imported
+                        or any(
+                            isinstance(node, ast.Attribute)
+                            and isinstance(node.value, ast.Name)
+                            and node.value.id in module_aliases
+                            and _is_host_process_entry(module_aliases[node.value.id], node.attr)
+                            for node in ast.walk(tree)
+                        )
+                        or any(
+                            isinstance(node, ast.Name)
+                            and isinstance(node.ctx, ast.Load)
+                            and node.id in imported_entries
+                            for node in ast.walk(tree)
+                        )
+                    )
+                    uses_process_pool = any(
+                        isinstance(node, ast.Attribute)
+                        and node.attr == "ProcessPoolExecutor"
+                        and (
+                            (
+                                isinstance(node.value, ast.Name)
+                                and node.value.id in process_pool_aliases
+                            )
+                            or (
+                                concurrent_futures_imported
+                                and isinstance(node.value, ast.Attribute)
+                                and node.value.attr == "futures"
+                                and isinstance(node.value.value, ast.Name)
+                                and node.value.value.id == "concurrent"
+                            )
+                        )
+                        for node in ast.walk(tree)
+                    )
+                    if (
+                        subprocess_imported
+                        or multiprocessing_imported
+                        or uses_host_process_entry
+                        or uses_process_pool
+                    ):
+                        issues.append(
+                            issue(
+                                "runtime_incompatible_script",
+                                "研究沙箱禁止派生进程或执行宿主命令；检查仅静态分析脚本，不执行脚本",
+                                file["path"],
+                            )
+                        )
                     if (
                         modules & {"pip", "ensurepip", "setuptools", "distutils"}
                         or ("install" in strings and strings & {"pip", "pip3", "uv", "conda"})
