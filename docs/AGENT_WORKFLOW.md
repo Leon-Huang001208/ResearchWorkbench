@@ -27,6 +27,8 @@
 
 worktree 只隔离文件冲突，绝不取代桌面端原生 Windows CI，也不能取代真实 Windows 安装级烟测。凡影响 `src-tauri/`、`desktop/`、`scripts/desktop/`、sidecar、桌面配置或路径、安装包、自动更新、Excel/Wind 集成的改动，都必须以 [`desktop_packaging.md`](desktop_packaging.md) 的跨平台开发与发布验证流程为准。
 
+当前产品迭代阶段为 **Web-only**。仅修改 `app/web/`、`app/research_web/`、通用 Web API/Runtime、共享 Python/Node 依赖或 Web 文档时，不进入桌面端例外，也不运行 sidecar、Tauri、安装包或原生桌面 CI。只有用户明确重新开启桌面工作，或任务直接修改 `src-tauri/`、`desktop/`、`scripts/desktop/`、`services/desktop_platform/` 等桌面专属路径时，才恢复下列桌面验收。
+
 交付时应明确以下不可省略的验收范围：
 
 1. 原生 Windows CI 至少覆盖依赖安装、Python sidecar（`.exe`）构建、Tauri Windows 安装包构建、真实 PostgreSQL + pgvector 的 `ready` `/health` 检查，以及数据库不可达时的 `setup_required` `/health` 检查。
@@ -53,3 +55,4 @@ macOS 本地运行或隔离 worktree 都不能证明 Windows 可用。
 - 为独立功能修改多份配置和测试：使用独立 worktree，交付 worktree 路径、分支、针对性测试和合并计划。
 - 分析失败的 Windows CI 日志并提出有界修复：可用后台/远程执行，交付日志范围、分析报告、修复 diff、运行命令及未在真实 Windows 复测的限制。
 - 修改 Tauri sidecar 或 Wind/Excel 集成：即使在独立 worktree 中完成，也必须等待原生 Windows CI；若准备发布，还要安排真实 Windows 安装级烟测。
+- 只修改 Research Web 页面、Web API 或 Runtime：按 Web 测试与项目约束交付，不运行 Desktop Verify。
