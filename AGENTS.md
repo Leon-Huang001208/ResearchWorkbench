@@ -39,6 +39,8 @@
 
 Applies to `src-tauri/`, `desktop/`, `scripts/desktop/`, desktop configuration and paths, sidecars, installers, updates, Excel/Wind integration, and any change that could affect desktop runtime behavior.
 
+Current phase boundary: product iteration is Web-only until the user explicitly reopens desktop work. Changes limited to `app/web/`, `app/research_web/`, general Web API/runtime code, shared Python/Node dependencies, or Web documentation are not desktop deliverables and must not trigger sidecar, Tauri, installer, or native desktop CI acceptance. The desktop rules below apply only when the task explicitly targets desktop behavior or changes a desktop-owned path such as `src-tauri/`, `desktop/`, `scripts/desktop/`, or `services/desktop_platform/`.
+
 1. Mac local development and tests do not prove Windows support; never claim Windows has been verified without native evidence.
 2. Every related change must run on a native Windows CI runner, covering dependency installation, Python sidecar build, Tauri Windows installer build, and basic startup/health checks.
 3. Before release, run an installation-level smoke test on a real Windows environment. This is mandatory for Excel/Wind, permissions, upgrade, and installer changes.

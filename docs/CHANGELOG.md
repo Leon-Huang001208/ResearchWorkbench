@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Web-only 阶段边界 · 2026-09-09
+
+- 当前产品迭代仅交付 Web；仅有网页、通用 Web API/Runtime 或共享依赖变更时，不再触发 sidecar、Tauri、安装包或原生桌面 CI。
+- Desktop Verify 保留给明确的桌面任务和桌面专属路径；未来重新开启桌面开发时继续执行原生 Windows/macOS 与安装级验收。
+
 ### Runtime-core CI 收口 · 2026-09-09
 
 - 为 Runtime descriptor 注册和 Workflow 执行补齐结构化日志、异常边界及失败状态持久化；保留原始异常并在失败状态写入也异常时单独记录。

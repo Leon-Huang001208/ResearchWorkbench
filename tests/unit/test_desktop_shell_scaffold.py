@@ -324,15 +324,27 @@ def test_desktop_verify_smokes_setup_required_on_both_native_runners():
     assert "research-workbench-desktop-setup-smoke" in source
     assert "build/desktop-sidecar/setup-smoke.log" in source
     for path_filter in (
+        "src-tauri/**",
+        "desktop/**",
+        "scripts/desktop/**",
+        "services/desktop_platform/**",
+    ):
+        assert source.count(f'      - "{path_filter}"') == 2
+    for web_only_filter in (
         "app/api/main.py",
         "app/api/routes/setup.py",
         "app/api/configuration_models.py",
         "app/web/**",
+        "app/research_web/**",
         "services/database_readiness.py",
         "workers/watchdog.py",
+        "pyproject.toml",
+        "package.json",
+        "package-lock.json",
         "docs/desktop_packaging.md",
+        ".github/workflows/desktop-verify.yml",
     ):
-        assert source.count(path_filter) == 2
+        assert web_only_filter not in source
 
 
 def test_windows_pgvector_smoke_builds_a_native_extension():
