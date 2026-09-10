@@ -360,6 +360,14 @@
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows仅增加固定私有控制文件的安全路径回退，DataHub服务、Provider、API和快照数据流保持不变。","diagrams":[]} -->
 
+## 2026-09-10 — Windows DSH 认证控制文件读取兼容
+
+- Windows 原生回环冒烟证明 `st_mode` 的 POSIX group/other 位不能代表 Windows ACL；旧判断会把正常控制文件误判为权限不安全。
+- Web 客户端与服务管理器改为复用同一有界读取器，所有平台继续拒绝非普通文件、硬链接、符号链接、重解析点、超限内容和读取期间的身份替换；仅 POSIX 执行 mode 位检查。
+- 认证格式、回环 RPC、服务节点和数据流均未变化，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"共享认证控制文件读取器统一既有客户端与服务管理器的文件校验，不改变回环RPC、认证格式、服务节点或数据流。","diagrams":[]} -->
+
 ## 2026-09-10 — 能力工作区 v0 四类分区
 
 - `#/skills` 固定为 Skill、Tool、Workflow、数据四个互斥主标签，并在类型内提供能力库、我的、运行计划或连接入口；旧 kind/view 深链继续归一到对应分区。

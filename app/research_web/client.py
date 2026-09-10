@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import stat
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -16,6 +15,8 @@ import httpx
 import websockets
 
 from core.observability import get_logger
+
+from .runtime_auth import RuntimeAuthFileError, read_runtime_auth_record
 
 log = get_logger(__name__)
 METHODS = frozenset(
@@ -64,13 +65,10 @@ def _default_auth_path() -> Path:
 def _runtime_metadata(path: Path, authority: str) -> dict[str, str]:
     """Read one manager-owned authentication record through a fail-closed boundary."""
     try:
-        identity = path.lstat()
-        if not stat.S_ISREG(identity.st_mode) or path.is_symlink() or identity.st_mode & 0o077:
-            raise RuntimeFailure("DSH 认证控制文件权限不安全", "runtime_auth_invalid")
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except RuntimeFailure:
-        raise
-    except (OSError, TypeError, json.JSONDecodeError) as exc:
+        value = read_runtime_auth_record(path)
+    except RuntimeAuthFileError as exc:
+        raise RuntimeFailure("DSH 认证控制文件权限不安全", "runtime_auth_invalid") from exc
+    except (OSError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise RuntimeFailure("DSH 认证控制文件不可用", "runtime_auth_unavailable") from exc
     required = {"authority", "cookie", "cwd", "source_commit", "version"}
     if not isinstance(value, dict) or not required.issubset(value):

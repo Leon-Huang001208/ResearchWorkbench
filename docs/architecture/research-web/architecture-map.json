@@ -45,6 +45,7 @@
         "app/research_web/service.py",
         "app/research_web/service_manager.py",
         "app/research_web/client.py",
+        "app/research_web/runtime_auth.py",
         "app/research_web/projection.py",
         "app/research_web/local_integrations/"
       ],
@@ -63,6 +64,7 @@
         "tests/research_web/test_api.py",
         "tests/research_web/test_local_integrations.py",
         "tests/research_web/test_protocol.py",
+        "tests/research_web/test_runtime_auth.py",
         "tests/research_web/test_event_recovery.py",
         "tests/research_web/test_cancel_reconciliation.py",
         "tests/research_web/test_service_manager.py"

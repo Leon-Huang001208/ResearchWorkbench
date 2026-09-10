@@ -13,6 +13,7 @@
 | 研究台 API | `app/research_web/workbench.py` | 页面按需查询、查询状态、快照交接与实际产物索引 |
 | 运行聚合 | `app/research_web/operations.py` | 从 DSH 历史、DataHub manifest、服务状态和项目数据根生成只读指标 |
 | 原生传输 | `app/research_web/client.py` | 有限 RPC 名称、关联 ID、历史分页、双 WS |
+| 运行时认证文件 | `app/research_web/runtime_auth.py` | Web 客户端与服务管理器共用的有界读取、别名拒绝和打开前后身份核对 |
 | 事件投影 | `app/research_web/projection.py` | 从真实日志重建消息、活动、状态、用量，不执行研究 |
 | 本地索引 | `app/research_web/store.py` | 原子索引、会话目录、文件 ID、安全打开 |
 | 文件交付 | `app/research_web/delivery.py` | 本任务基线、有效输出集合、缺失格式和原因 |
