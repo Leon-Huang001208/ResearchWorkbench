@@ -38,7 +38,8 @@
 - 同一提交的 Windows 本机集成运行 `34449520615`：Python/Node 契约通过，真实回环服务启动失败。安全化 stderr 定位为 `runtime/auth.json` 在 Windows 被 POSIX mode 校验误拒绝。
 - 修复后运行 `34454453713`：`macOS Web Runtime contract` 与 `Windows Web Runtime contract` 均通过，分别完成原生 macOS/Windows 的 Python、Node、Runtime staging、路径语义和配置契约验证。
 - 同一修复提交的 Windows 本机集成运行 `34454453756` 通过；除 Python/Node 契约外，已在 `windows-2022` runner 实际启动回环服务并完成健康探测和诊断产物上传。
-- 上述原生 runner 结果验证的是模拟 Runtime 和本机服务边界，不包含真实 Tabbit Browser/CLI 交互。最终 macOS 真实冒烟修复提交推送后仍需再次取得这两项原生 CI 通过结果。
+- 最终 macOS 真实冒烟修复提交运行 `34473278363`：`macOS Web Runtime contract` 与 `Windows Web Runtime contract` 均通过；运行 `34473278373` 的 `Windows local integrations` 也通过，包含回环服务健康探测和诊断产物。项目约束运行 `34473278395` 通过。
+- 上述原生 runner 结果验证的是模拟 Runtime 和本机服务边界，不包含真实 Windows Tabbit Browser/CLI 交互。
 
 ## macOS 真实浏览器验收
 
@@ -54,7 +55,7 @@
 
 ## Windows 交付边界
 
-- Windows 交付要求为原生 `Windows Web Runtime contract`、`Windows local integrations`、回环服务健康探测与诊断产物通过；最终修复提交推送后需由 PR CI 再次确认。
+- Windows 交付要求为原生 `Windows Web Runtime contract`、`Windows local integrations`、回环服务健康探测与诊断产物通过；最终修复提交已由上述 PR CI 全部确认。
 - 没有真实 Windows Tabbit Browser/CLI 环境，因此真实页面授权、claim 与写审批未验证。该项明确记录为“代码与原生 CI 已交付、真实 Tabbit 未验证”，不再阻止本次 Web-only PR 合并。
 - 此边界不修改通用桌面 Windows 发布门禁；未来发布桌面安装包时仍须在真实 Windows 环境完成安装级冒烟测试。
 
