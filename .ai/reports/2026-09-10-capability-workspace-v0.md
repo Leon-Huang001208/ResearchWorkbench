@@ -34,4 +34,4 @@
 
 ## 当前检查点
 
-这是 web-design-engineer 的可浏览 v0 确认点。阶段二通用调度、MCP Registry、安装／授权／Runtime 代理和交付渠道尚未实现，等待用户确认视觉与信息架构后继续。
+用户已确认 web-design-engineer 的可浏览 v0 视觉与四类信息架构。阶段二通用调度、MCP Registry、安装／授权／Runtime 代理和交付渠道尚未实现，也不属于本次交付。
