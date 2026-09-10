@@ -6,6 +6,8 @@
 
 `runtime/auth.json` 由客户端和服务管理器通过 `runtime_auth.py` 读取。读取器限制 4 KiB，拒绝非普通文件、硬链接、符号链接、Windows 重解析点及打开前后身份变化；POSIX 要求 group/other 无权限，Windows 不把 `st_mode` 的 POSIX 投影解释为 ACL。
 
+服务管理器创建数据、运行状态和日志目录时采用相同的平台边界：所有平台拒绝非目录、符号链接与 Windows 重解析点，仅 POSIX 使用 group/other mode 位判断目录权限；Windows 不以该投影替代 ACL 结论。
+
 断电或系统重启会结束后台进程，本轮没有安装开机登录项；恢复时重新执行 `rwb web start`。如果状态文件来自先前 checkout 或命令版本，管理器只有在记录的 PID 已确认不存在时才移除该 stale 状态并重建；PID 仍存在、状态损坏或归属无法确认时继续失败关闭，绝不接管或终止未知进程。
 
 研究协议本身仍是下述 DSH RPC、Remote 复用流和 Web SSE 投影。Workbench 兼容桥把既有白名单方法映射到新版斜杠端点与 `{payload:{args}}` 信封；Cookie 只进入 HTTP/WS Header，不进入请求正文、会话记录或浏览器接口。服务管理器只负责本机进程生命周期，不创建第二套研究运行时，也不改变会话、审批或恢复语义。

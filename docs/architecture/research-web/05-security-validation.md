@@ -9,6 +9,7 @@
 | Web → FastAPI | 本地 Host、同源、输入 schema；不开放任意代理 URL | `main.py` / `test_api.py` |
 | 本机诊断 → 宿主 | 只读取标准应用位置、已知注册项和模块可用性；不启动软件，投影排除绝对路径、秘密、命令和环境变量 | `local_integrations/` / `test_local_integrations.py` |
 | FastAPI → DSH | 固定回环 RPC、共享有界认证控制读取、文件身份/别名检查、方法白名单、双事件通道 | `runtime_auth.py`、`client.py` / `test_runtime_auth.py`、`test_protocol.py`、`test_event_recovery.py` |
+| 服务管理 → 私有目录 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL | `service_manager.py` / `test_service_manager.py` |
 | 用户 → 会话文件 | 会话归属、规范路径、安全文件描述符、有限上传体积和类型 | `store.py`、`main.py` / `test_store.py`、`test_artifacts.py` |
 | DSH → 工具 | 精确注册工具集合，子 Agent 深度、并发和步骤限制 | `runtime/guard.mjs` / `research_web_guard.test.mjs` |
 | DSH → 公开数据 | 原生审批；私有认证 BFF 入口，固定来源/参数，无任意 URL、重定向或自动安装 | `runtime/public-data.mjs`、`datahub/` / `research_web_public_data.test.mjs`、`test_datahub.py` |

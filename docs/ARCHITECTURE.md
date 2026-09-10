@@ -21,6 +21,8 @@ Research Web 在 Windows 上启动 DataHub 私有回环控制文件时使用受�
 
 DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒绝非普通文件、硬链接、符号链接、Windows 重解析点及打开期间的身份替换；POSIX 额外要求 group/other 无权限，Windows 不把无语义的 POSIX mode 投影当作 ACL。Web 客户端与服务管理器复用该边界，不改变回环 RPC 或认证格式。
 
+服务管理器的数据、状态和日志私有目录采用对应的平台判断：所有平台拒绝非目录、符号链接和 Windows 重解析点；仅 POSIX 依据 group/other mode 位拒绝宽松权限，Windows 不以该投影替代 ACL。
+
 能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 11 个内置 Skill 和 4 个
 Workflow；其中五个专用研究 Skill 仍通过同一 DSH 原生发现、不可变版本和会话快照链执行，
 没有新增路由 Skill、API 类型或执行器。品牌中立证据协议以

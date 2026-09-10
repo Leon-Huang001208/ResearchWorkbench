@@ -31,6 +31,7 @@ DataHub catalog, brand-neutral business tools, broker, Provider, probe and snaps
 
 `app/research_web/datahub/security.py` keeps descriptor-relative, no-follow IO on POSIX and a Windows-only startup control-file fallback that validates canonical containment, reparse points, regular-file identity, hard-link count and size. Native `windows-2022` CI must start the full loopback service before local-integration support is considered verified.
 `app/research_web/runtime_auth.py` is the shared DSH authentication-record reader for `client.py` and `service_manager.py`. It bounds content, rejects aliases and identity replacement on every platform, applies POSIX mode checks only on POSIX, and is exercised by the same native Windows service smoke test.
+`app/research_web/service_manager.py` applies the same platform distinction to its private data, state and log directories: type, symlink and Windows reparse checks remain universal, while group/other mode checks remain POSIX-only.
 
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
 `app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill 加五个专用 Skill 共 11 项，四个

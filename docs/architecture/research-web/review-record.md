@@ -367,3 +367,11 @@
 - 认证格式、回环 RPC、服务节点和数据流均未变化，十张架构图无需重生成。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"共享认证控制文件读取器统一既有客户端与服务管理器的文件校验，不改变回环RPC、认证格式、服务节点或数据流。","diagrams":[]} -->
+
+## 2026-09-10 — Windows 私有运行目录校验兼容
+
+- 原生 CI 证明 DSH 认证文件读取已通过后，服务管理器仍在数据、运行状态和日志目录上误用 Windows `st_mode` 的 POSIX 权限投影。
+- 目录校验现继续拒绝非目录、符号链接与 Windows 重解析点，仅在 POSIX 检查 group/other mode 位；服务、接口、存储位置和数据流均未变化。
+- 新增 Windows/POSIX 目录 mode 回归，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"服务管理器仅修正私有运行目录的跨平台安全判断，不改变服务节点、接口、存储位置或数据流。","diagrams":[]} -->
