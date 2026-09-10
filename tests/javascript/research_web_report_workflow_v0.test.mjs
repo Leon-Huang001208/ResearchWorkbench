@@ -41,7 +41,7 @@ test('legacy report route redirects exactly to the Workflow capability view', as
   assert.equal(legacyRouteTarget('#/reports/'), '#/skills?kind=workflow');
   assert.equal(legacyRouteTarget('#/reports-old'), null);
   assert.equal(legacyRouteTarget('#/reports?project=huaan'), null);
-  assert.deepEqual(parseRoute('#/skills?kind=workflow'), { page: 'skills', sessionId: null, capabilityKind: 'workflow' });
+  assert.deepEqual(parseRoute('#/skills?kind=workflow'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'workflow' });
 });
 
 test('report Workflow information architecture lives inside capability detail', async () => {

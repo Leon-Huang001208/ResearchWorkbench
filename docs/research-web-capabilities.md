@@ -5,6 +5,16 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 目录读取不依赖会话、在线 DSH 或模型调用。工具目录为当前研究 composition 的只读声明，
 不表示运行实例在线、凭据已配置或某个 DataHub Tool 已进入当前 Runtime 的 `enabledTools`。
 
+`#/skills` 的 v0 能力工作区以 `kind=skill|tool|workflow|data` 作为四个互斥主标签，默认进入
+`kind=skill`，不再提供“全部类型”混合流。类型内继续使用 `view=library|mine|plans|connections`：
+Skill 提供能力库/我的 Skill，Tool 提供工具目录/连接状态，Workflow 提供能力库/我的 Workflow/
+运行计划，数据提供数据能力/数据源与连接。无 kind 的旧 `view=plans` 映射到 Workflow，
+`view=connections` 映射到 Tool；既有 kind 深链继续有效，不适用的 view 会回落到该类型目录。
+`ui/capability-workspace.mjs` 只聚合本节已有的能力、Tool、数据目录、报告 Workflow 和连接安全摘要，
+不建立线上 Skill 商店，也不把缺少可信字段的记录标为 NEW、热门或排名。快览弹窗只展示目录事实；
+“立即使用”仍调用既有选用逻辑并返回 FinGPT/Claw 草稿，不自动发送。编辑、版本、回滚和报告
+Workflow 管理继续进入原专用管理视图。
+
 DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；只有 `integration_completed && callable` 的来源才会让对应工具进入 Runtime 注册集合。配置变更后页面可以立即重新检测，但原生工具集合仍以研究服务重启时的快照为准。
 
 当前目录包含 11 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
