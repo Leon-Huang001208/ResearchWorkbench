@@ -44,8 +44,12 @@ Fork 维护约定：`Leon-Huang001208/deepseek-harness` 的 `master` 只用
 ## Windows 本机集成验证
 
 本机集成诊断由 `.github/workflows/research-web-windows-verify.yml` 在原生
-`windows-2022` runner 上验证。作业运行本机集成/API 与页面契约回归，实际启动回环服务、
+`windows-2022` runner 上验证。作业运行本机集成 API、探测生命周期与页面契约，实际启动回环服务、
 调用专用状态接口并完成一次探测，再上传仅含平台、汇总及 Wind/iFinD 非秘密状态的证据。
+
+Research Web 启动时读取的产品索引、能力种子与 Report Workflow 目录显式使用 UTF-8，避免 Windows
+默认代码页把中文能力文档误判为不可读。该作业覆盖整个 `app/research_web/` 变更范围，确保
+启动依赖变化也会触发原生 Windows 验证；DataHub 的全量平台回归由独立测试负责。
 
 GitHub runner 未预装厂商软件时，结果只证明 Windows 检测链路和服务可运行，不证明
 Office、Wind 或 iFinD 已登录或可调用。

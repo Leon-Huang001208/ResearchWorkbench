@@ -202,7 +202,9 @@ WORKFLOW_TOOL_DECLARATIONS = {
 
 
 def tool_catalog(data_root: Path | None = None):
-    guard = (Path(__file__).parents[1] / "runtime/guard.mjs").read_text()
+    guard = (Path(__file__).parents[1] / "runtime/guard.mjs").read_text(
+        encoding="utf-8"
+    )
     match = re.search(
         r"(?:export\s+)?const\s+RESEARCH_TOOLS\s*=\s*new Set\(\[(.*?)\]\)",
         guard,

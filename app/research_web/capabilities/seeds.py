@@ -183,7 +183,7 @@ def _skill_package(root, spec, protocol):
         {
             "kind": "skill",
             "metadata": metadata,
-            "instructions": (folder / "SKILL.md").read_text(),
+            "instructions": (folder / "SKILL.md").read_text(encoding="utf-8"),
             "files": files,
             "steps": [],
             "reviewed_scripts": [item["sha256"] for item in files if item["path"].endswith(".py")],

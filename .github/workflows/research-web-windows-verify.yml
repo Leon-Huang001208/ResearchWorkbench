@@ -4,14 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "app/research_web/local_integrations/**"
-      - "app/research_web/main.py"
-      - "app/research_web/service.py"
-      - "app/research_web/ui/app.mjs"
-      - "app/research_web/ui/appearance.css"
-      - "app/research_web/ui/connections.mjs"
-      - "app/research_web/ui/core.mjs"
-      - "app/research_web/ui/settings.mjs"
+      - "app/research_web/**"
       - "tests/research_web/test_local_integrations.py"
       - "tests/javascript/research_web_local_integrations_ui.test.mjs"
       - "tests/javascript/research_web_settings_ui.test.mjs"
@@ -21,14 +14,7 @@ on:
     branches:
       - master
     paths:
-      - "app/research_web/local_integrations/**"
-      - "app/research_web/main.py"
-      - "app/research_web/service.py"
-      - "app/research_web/ui/app.mjs"
-      - "app/research_web/ui/appearance.css"
-      - "app/research_web/ui/connections.mjs"
-      - "app/research_web/ui/core.mjs"
-      - "app/research_web/ui/settings.mjs"
+      - "app/research_web/**"
       - "tests/research_web/test_local_integrations.py"
       - "tests/javascript/research_web_local_integrations_ui.test.mjs"
       - "tests/javascript/research_web_settings_ui.test.mjs"
@@ -67,12 +53,20 @@ jobs:
       - name: Install project test environment
         run: python -m pip install -e ".[dev]"
 
+      - name: Prepare Windows verification evidence
+        shell: pwsh
+        run: |
+          $artifactRoot = Join-Path $env:RUNNER_TEMP 'research-web-windows-evidence'
+          New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+          [ordered]@{
+            runner = 'windows-2022'
+            status = 'started'
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $artifactRoot 'run.json') -Encoding utf8
+
       - name: Run local integration contracts on Windows
         run: >-
           python -m pytest
           tests/research_web/test_local_integrations.py
-          tests/research_web/test_api.py
-          tests/research_web/test_connection_center.py
           --confcutdir=tests/research_web
           -q
 
