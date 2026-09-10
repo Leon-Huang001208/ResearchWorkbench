@@ -131,4 +131,6 @@ Workflow 表单提供有序步骤、关联 Skill、工具意图和输出格式�
 
 设置中的「架构文档」链接只打开 `/api/research/documentation/index.html`，新页以noopener/noreferrer隔离；目录与八图由固定路由、受限文件读取及独立CSP提供，详见 [文档模块](research-web-documentation.md)，不会开放仓库或Runtime目录。
 
+Windows 专项 CI 会在原生 runner 上启动同一 Research Web 服务并调用本机集成状态与探测接口，再执行设置页 DOM 契约；它验证页面消费真实 Windows 投影，不用预制“已安装”数据替代厂商软件证据。
+
 已受理但原生不运行、交付仍等待时显示「重新核对停止」，调用已有取消端点。离线不可操作，复核前发送仍禁用；后端严格核对后只允许以verification_failed说明缺失终止记录，不能用UI按钮将任务伪报成功。普通运行任务仍使用「停止」。

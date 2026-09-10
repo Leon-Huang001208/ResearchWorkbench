@@ -206,7 +206,10 @@ def test_windows_ci_runs_native_contracts_and_loopback_probe():
     assert "runs-on: windows-2022" in workflow
     assert 'python-version: "3.11"' in workflow
     assert 'node-version: "20"' in workflow
+    assert '- "app/research_web/**"' in workflow
     assert "tests/research_web/test_local_integrations.py" in workflow
+    assert "tests/research_web/test_api.py" not in workflow
+    assert "tests/research_web/test_connection_center.py" not in workflow
     assert "tests/javascript/research_web_local_integrations_ui.test.mjs" in workflow
     assert "app.research_web.main:app" in workflow
     assert "http://127.0.0.1:8088/api/research/local-integrations" in workflow
