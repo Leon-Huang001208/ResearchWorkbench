@@ -626,7 +626,10 @@ def test_excel_verifier_does_not_accept_wrapper_only_full_rebuild(tmp_path, monk
     }
 
 
-def test_wind_verifier_runs_smoke_then_full_and_preserves_published_source(tmp_path, monkeypatch):
+@pytest.mark.parametrize("mutate_source", [False, True])
+def test_wind_verifier_runs_bounded_smoke_then_full_and_guards_published_source(
+    tmp_path, monkeypatch, mutate_source
+):
     from app.research_web.report_workflows import catalog as catalog_module
     from app.research_web.report_workflows import workbook as workbook_module
     from app.research_web.report_workflows.models import (
@@ -639,7 +642,20 @@ def test_wind_verifier_runs_smoke_then_full_and_preserves_published_source(tmp_p
     source.write_bytes(b"immutable-published-workbook")
     original = source.read_bytes()
     calls = []
-    policy = SimpleNamespace(workbook="workbooks/wind.xlsx", required_cells=[])
+
+    class Policy:
+        workbook = "workbooks/wind.xlsx"
+        required_cells = []
+        timeout_seconds = 900.0
+
+        def model_copy(self, *, update):
+            return SimpleNamespace(
+                workbook=self.workbook,
+                required_cells=self.required_cells,
+                timeout_seconds=update["timeout_seconds"],
+            )
+
+    policy = Policy()
 
     class Catalog:
         def __init__(self, root):
@@ -663,7 +679,16 @@ def test_wind_verifier_runs_smoke_then_full_and_preserves_published_source(tmp_p
 
     class Refresh:
         def refresh(self, selected_source, stage, selected_policy):
-            calls.append((selected_source, stage.name, selected_policy.workbook))
+            calls.append(
+                (
+                    selected_source,
+                    stage.name,
+                    selected_policy.workbook,
+                    selected_policy.timeout_seconds,
+                )
+            )
+            if mutate_source:
+                selected_source.write_bytes(b"malicious-provider-mutation")
             return SimpleNamespace(status=RefreshStatus.READY, code=None)
 
     monkeypatch.setattr(catalog_module, "ReportWorkflowService", Catalog)
@@ -676,12 +701,68 @@ def test_wind_verifier_runs_smoke_then_full_and_preserves_published_source(tmp_p
 
     result = verifiers._verify_wind(tmp_path, tmp_path / "verification")
 
-    assert result == {"outcome": "available", "code": None}
-    assert calls == [
-        (source, "smoke", "workbooks/wind.xlsx"),
-        (source, "full", "workbooks/wind.xlsx"),
-    ]
-    assert source.read_bytes() == original
+    if mutate_source:
+        assert result == {"outcome": "failed", "code": "source_hash_changed"}
+        assert [call[1] for call in calls] == ["smoke"]
+        assert source.read_bytes() != original
+    else:
+        assert result == {"outcome": "available", "code": None}
+        assert [(call[0], call[1], call[2]) for call in calls] == [
+            (source, "smoke", "workbooks/wind.xlsx"),
+            (source, "full", "workbooks/wind.xlsx"),
+        ]
+        assert source.read_bytes() == original
+    assert all(0 < call[3] <= verifiers.VERIFICATION_TIMEOUT_SECONDS for call in calls)
+    if len(calls) == 2:
+        assert calls[1][3] <= calls[0][3]
+
+
+def test_wind_verifier_stops_before_refresh_when_global_budget_is_exhausted(tmp_path, monkeypatch):
+    from app.research_web.report_workflows import catalog as catalog_module
+    from app.research_web.report_workflows import workbook as workbook_module
+    from app.research_web.report_workflows.models import WorkbookFormulaProvider
+
+    source = tmp_path / "published" / "workbooks" / "wind.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"immutable-published-workbook")
+    policy = SimpleNamespace(
+        workbook="workbooks/wind.xlsx",
+        required_cells=[],
+        timeout_seconds=30.0,
+    )
+    policy.model_copy = lambda **_kwargs: policy
+
+    class Catalog:
+        def __init__(self, _root):
+            return None
+
+        def _row(self, _workflow_id):
+            return {"current_version": 1}
+
+        def manifest(self, _workflow_id, _version):
+            return SimpleNamespace(workbook_policies=[policy])
+
+        def resource_path(self, _workflow_id, _version, _workbook):
+            return source
+
+    class Refresh:
+        def refresh(self, *_args):
+            raise AssertionError("refresh must not start after the global deadline")
+
+    times = iter((100.0, 281.0))
+    monkeypatch.setattr(catalog_module, "ReportWorkflowService", Catalog)
+    monkeypatch.setattr(workbook_module, "WorkbookRefreshService", Refresh)
+    monkeypatch.setattr(
+        workbook_module,
+        "scan_workbook_formulas",
+        lambda _path: SimpleNamespace(provider=WorkbookFormulaProvider.WIND),
+    )
+    monkeypatch.setattr(verifiers.time, "monotonic", lambda: next(times))
+
+    assert verifiers._verify_wind(tmp_path, tmp_path / "verification") == {
+        "outcome": "timeout",
+        "code": "verification_timed_out",
+    }
 
 
 def test_posix_timeout_cleanup_terminates_the_worker_process_group(monkeypatch):
@@ -743,6 +824,7 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
 
     monkeypatch.setattr(verifiers.sys, "platform", "darwin")
     monkeypatch.setattr(verifiers, "VERIFICATION_TIMEOUT_SECONDS", 0.0)
+    monkeypatch.setattr(verifiers, "PROCESS_COORDINATION_GRACE_SECONDS", 0.0)
     monkeypatch.setattr(verifiers.multiprocessing, "get_context", lambda _name: Context())
     monkeypatch.setattr(
         verifiers,

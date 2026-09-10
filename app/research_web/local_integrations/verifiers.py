@@ -19,7 +19,7 @@ from core.observability import get_logger
 
 log = get_logger(__name__)
 VERIFICATION_TIMEOUT_SECONDS = 180.0
-WIND_VERIFICATION_TIMEOUT_SECONDS = 900.0
+PROCESS_COORDINATION_GRACE_SECONDS = 1.0
 
 
 def _sha256(path: Path) -> str:
@@ -161,12 +161,21 @@ def _verify_wind(data_root: Path, run_root: Path) -> dict[str, Any]:
             return {"outcome": "failed", "code": "wind_workbook_unavailable"}
         policies.sort(key=lambda pair: (len(pair[0].required_cells), pair[0].workbook))
         service = WorkbookRefreshService()
+        deadline = time.monotonic() + VERIFICATION_TIMEOUT_SECONDS
         phases = (("smoke", policies[:1]), ("full", policies))
         for phase, selected_policies in phases:
             for policy, source in selected_policies:
+                remaining = deadline - time.monotonic()
+                if remaining <= PROCESS_COORDINATION_GRACE_SECONDS:
+                    return {"outcome": "timeout", "code": "verification_timed_out"}
+                policy_timeout = min(
+                    float(policy.timeout_seconds),
+                    remaining - PROCESS_COORDINATION_GRACE_SECONDS,
+                )
+                bounded_policy = policy.model_copy(update={"timeout_seconds": policy_timeout})
                 before = _sha256(source)
                 try:
-                    result = service.refresh(source, run_root / phase, policy)
+                    result = service.refresh(source, run_root / phase, bounded_policy)
                 except Exception:
                     if _sha256(source) != before:
                         return {"outcome": "failed", "code": "source_hash_changed"}
@@ -281,12 +290,9 @@ def verify_target(
         name=f"local-verification-{target}",
     )
     process.start()
-    timeout = (
-        WIND_VERIFICATION_TIMEOUT_SECONDS
-        if target == "wind_excel"
-        else VERIFICATION_TIMEOUT_SECONDS
+    deadline = time.monotonic() + (
+        VERIFICATION_TIMEOUT_SECONDS + PROCESS_COORDINATION_GRACE_SECONDS
     )
-    deadline = time.monotonic() + timeout
     while process.is_alive():
         if cancellation_event is not None and cancellation_event.is_set():
             _terminate_process_tree(process)
