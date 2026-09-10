@@ -1,5 +1,10 @@
 # Research Web 接口清单
 
+能力工作区 v0 没有新增后端 API。`#/skills` 新增的 `view=library|mine|plans|connections` 是纯前端
+路由参数，继续读取本页已有的 capabilities、tools、data catalog、data connections 与
+report-workflows 接口；旧 `kind=skill|workflow|tool|data` 深链保持兼容。通用 Automation 与 MCP
+Registry API 属于后续阶段，在对应持久模型和安全边界落地前不出现在本清单中。
+
 路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 122 个唯一 HTTP 操作、124 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 
 | Method | 路径 | 源码 |

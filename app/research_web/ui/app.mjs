@@ -6,7 +6,8 @@ import { renderComposer, renderQuickSkills, slashKey, skillMatches } from './com
 import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
-import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityCatalog, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
+import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
+import { capabilityWorkspaceViewKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
@@ -34,6 +35,7 @@ let pageGeneration = 0;
 let renameDraft = null;
 let renameSession = null; let deleteSession = null; let purgeSession = null;
 let sessionMenu = null; let sessionActionBusy = false; let sessionActionError = '';
+let capabilityDialogReturnSelector = '';
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
@@ -91,6 +93,23 @@ function closeConnectionDrawer(workbench, { restoreFocus = true } = {}) {
   const selectedCard = workbench.querySelector('[data-connection-select][aria-pressed="true"]');
   selectedCard?.setAttribute('aria-expanded', 'false');
   if (restoreFocus) selectedCard?.focus?.({ preventScroll: true });
+  return true;
+}
+
+function capabilityPreviewIsOpen() {
+  return capabilityState.form !== 'manage' && Boolean(capabilityState.detail || capabilityState.tool || (capabilityState.dataDetail && capabilityState.dataDetailKind === 'capability'));
+}
+
+function focusCapabilityPreview() {
+  document.querySelector('.capability-preview-dialog [data-cap-close]')?.focus?.({ preventScroll: true });
+}
+
+function closeCapabilityPreview({ restoreFocus = true } = {}) {
+  if (!capabilityPreviewIsOpen()) return false;
+  const selector = capabilityDialogReturnSelector;
+  capabilityDialogReturnSelector = '';
+  capabilityController.close();
+  if (restoreFocus && selector) document.querySelector(selector)?.focus?.({ preventScroll: true });
   return true;
 }
 
@@ -171,12 +190,18 @@ function capabilityPage() {
   if (cap.form === 'editor') return messages + renderCapabilityEditor({ draft: cap.editor, id: cap.editorId, items: catalog.capabilities, tools: catalog.tools, busy: cap.busy, announcement: cap.stepAnnouncement || '' });
   if (cap.form === 'conversation') return messages + renderCreationForm(cap.kind, cap.goal, state.busy);
   if (cap.form === 'copy') return messages + renderCopyForm(cap.detail, cap.copy, cap.busy);
-  if (cap.dataDetail) return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) : renderDataCapabilityDetail(cap.dataDetail));
-  if (cap.tool) return messages + renderToolDetail(cap.tool);
-  if (cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: catalog.sessions.some(session => isRunning(session.status)) });
+  if (cap.form === 'manage' && cap.dataDetail) return messages + (cap.dataDetailKind === 'source' ? renderDataSourceDetail(cap.dataDetail, cap.busy) : renderDataCapabilityDetail(cap.dataDetail));
+  if (cap.form === 'manage' && cap.tool) return messages + renderToolDetail(cap.tool);
+  if (cap.form === 'manage' && cap.detail) return messages + renderCapabilityDetail(cap.detail, { busy: cap.busy, versions: cap.versions, versionDetail: cap.versionDetail, running: catalog.sessions.some(session => isRunning(session.status)) });
   if (reportWorkflowDetail) return messages + renderReportWorkflowDetail(reportWorkflowDetail, { busy: reportWorkflowBusy });
-  const standard = renderCapabilityCatalog({ ...cap, items: catalog.capabilities, tools: catalog.tools, dataCatalog: catalog.dataCatalog, error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.dataCatalog || '' });
-  return standard + (cap.kind === 'workflow' ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy }) : '');
+  const workspace = renderCapabilityWorkspace({
+    capabilities: catalog.capabilities, tools: catalog.tools, reportWorkflows: catalog.reportWorkflows,
+    dataCatalog: catalog.dataCatalog, connections: catalog.connections, view: cap.view, kind: cap.kindFilter,
+    source: cap.source, category: cap.category, status: cap.status, query: cap.query,
+    busy: cap.busy || reportWorkflowBusy,
+    error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.dataCatalog || catalog.errors.connections || '',
+  });
+  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, busy: cap.busy });
 }
 
 function sidebar() {
@@ -370,8 +395,10 @@ async function showRoute() {
     }
   }
   if (state.route.page === 'skills') {
-    if (state.route.capabilityKind) capabilityState.kind = state.route.capabilityKind;
-    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'sessions']);
+    capabilityState.view = state.route.capabilityView || 'library';
+    capabilityState.kindFilter = state.route.capabilityKind || 'all';
+    if (['skill', 'workflow'].includes(state.route.capabilityKind)) capabilityState.kind = state.route.capabilityKind;
+    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', 'sessions']);
   }
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
   if (state.route.page === 'workbench') await loadWorkbench();
@@ -427,6 +454,29 @@ root.addEventListener('input', (event) => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (capabilityPreviewIsOpen() && event.key === 'Tab') {
+    const dialog = document.querySelector('.capability-preview-dialog');
+    const focusable = [...(dialog?.querySelectorAll?.('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
+    if (focusable.length) {
+      const first = focusable[0]; const last = focusable.at(-1);
+      if (!dialog.contains(document.activeElement) || (event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
+        event.preventDefault(); (event.shiftKey ? last : first).focus({ preventScroll: true });
+      }
+    }
+    return;
+  }
+  if (capabilityPreviewIsOpen() && event.key === 'Escape') {
+    event.preventDefault(); closeCapabilityPreview(); return;
+  }
+  if ('capView' in (event.target.dataset || {})) {
+    const result = capabilityWorkspaceViewKey(event.key, event.target.dataset.capView);
+    if (result.handled) {
+      event.preventDefault();
+      const target = document.getElementById(`capability-view-${result.view}`);
+      if (target) { target.click(); target.focus({ preventScroll: true }); }
+      return;
+    }
+  }
   if ('connectionGroup' in (event.target.dataset || {}) && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
     const tabs = [...event.target.closest('[role="tablist"]')?.querySelectorAll('[data-connection-group]') || []];
     if (tabs.length) {
@@ -443,7 +493,7 @@ root.addEventListener('keydown', (event) => {
     if (result.handled) {
       event.preventDefault();
       const cap = capabilityState;
-      cap.kind = result.kind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = '';
+      cap.kind = result.kind; cap.kindFilter = result.kind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = '';
       render(); document.getElementById(`capability-tab-${result.kind}`)?.focus({ preventScroll: true }); return;
     }
   }
@@ -477,6 +527,12 @@ root.addEventListener('change', async (event) => {
   if (target.id === 'skill-select') { if (target.value) await selectCapability(target.value); else { controller.setCapability(null); render(); } }
   if ('capSource' in target.dataset) { capabilityState.source = target.value; render(); }
   if ('capCategory' in target.dataset) { capabilityState.category = target.value; render(); }
+  if ('capStatus' in target.dataset) { capabilityState.status = target.value; render(); }
+  if ('capKindFilter' in target.dataset) {
+    capabilityState.kindFilter = target.value;
+    if (['skill', 'workflow'].includes(target.value)) capabilityState.kind = target.value;
+    capabilityState.category = ''; render();
+  }
   if ('dataCategory' in target.dataset) { capabilityState.category = target.value; render(); }
   if ('dataMarket' in target.dataset) { capabilityState.dataMarket = target.value; render(); }
   if ('dataStatus' in target.dataset) { capabilityState.dataStatus = target.value; render(); }
@@ -733,6 +789,9 @@ root.addEventListener('submit', async (event) => {
 
 root.addEventListener('click', async (event) => {
   const clickTarget = event.target;
+  if (clickTarget?.matches?.('[data-capability-dialog-backdrop]')) {
+    closeCapabilityPreview(); return;
+  }
   if (clickTarget?.matches?.('[data-dialog-backdrop]')) {
     renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionActionError = ''; render();
     return;
@@ -922,10 +981,11 @@ root.addEventListener('click', async (event) => {
   if ('closeSkillDetail' in data) { capabilityController.close(); render(); }
   if ('skillDetail' in data) {
     const ticket = pageGeneration;
+    capabilityDialogReturnSelector = `[data-cap-preview-trigger="${catalog.capabilities.find(item => item.id === data.skillDetail)?.kind || 'skill'}:${data.skillDetail}"]`;
     await capabilityController.open(data.skillDetail);
     if (ticket !== pageGeneration) return;
     if (state.route.page !== 'skills') { history.pushState(null, '', '#/skills'); await showRoute(); }
-    document.querySelector('#main')?.scrollTo({ top: 0 });
+    focusCapabilityPreview();
   }
   if ('skillShortcut' in data) await selectCapability(data.skillShortcut);
   if ('useSkill' in data) await selectCapability(data.useSkill);
@@ -964,6 +1024,8 @@ async function selectCapability(id) {
   const eligibility = reportWorkflowEligibility(item);
   if (eligibility.report && !eligibility.eligible) { state.error = `报告 Workflow 暂不可用：${eligibility.reason}`; render(); return; }
   if (!eligibility.report && (!item?.enabled || !item.version)) { state.error = '所选能力未启用或尚未发布，请刷新能力目录。'; render(); return; }
+  capabilityDialogReturnSelector = '';
+  if (capabilityPreviewIsOpen()) capabilityController.close();
   await goToResearchDraft();
   controller.setCapability(eligibility.report ? { ...item, version: eligibility.version } : item);
   if (state.draft.trimStart().startsWith('/')) controller.setDraft('');
@@ -993,8 +1055,8 @@ async function loadWorkflowVersion() {
 
 async function handleCapabilityClick(data) {
   const cap = capabilityState;
-  if ('capRefresh' in data) { await loadCatalog(cap.kind === 'data' ? ['dataCatalog', 'tools'] : cap.kind === 'workflow' ? ['capabilities', 'tools', 'reportWorkflows'] : ['capabilities', 'tools']); return true; }
-  if ('capKind' in data) { cap.kind = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; reportWorkflowDetail = null; render(); return true; }
+  if ('capRefresh' in data) { await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections']); return true; }
+  if ('capKind' in data) { cap.kind = data.capKind; cap.kindFilter = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; reportWorkflowDetail = null; render(); return true; }
   if ('closeReportWorkflow' in data) { reportWorkflowDetail = null; render(); return true; }
   if ('reportWorkflowDetail' in data) {
     const ticket = pageGeneration;
@@ -1004,7 +1066,7 @@ async function handleCapabilityClick(data) {
       const detail = await api.reportWorkflow(data.reportWorkflowDetail);
       if (ticket !== pageGeneration) return true;
       reportWorkflowDetail = detail;
-      if (state.route.page !== 'skills' || capabilityState.kind !== 'workflow') {
+      if (state.route.page !== 'skills') {
         history.pushState(null, '', '#/skills?kind=workflow');
         await showRoute();
         reportWorkflowDetail = detail;
@@ -1069,8 +1131,9 @@ async function handleCapabilityClick(data) {
   }
   if ('dataView' in data) { cap.dataView = data.dataView; cap.category = ''; cap.query = ''; cap.dataMarket = ''; cap.dataStatus = ''; cap.dataAuth = ''; render(); return true; }
   if ('dataCapabilityDetail' in data) {
+    capabilityDialogReturnSelector = `[data-cap-preview-trigger="data:${data.dataCapabilityDetail}"]`;
     const result = await capabilityController.run(() => api.dataCapability(data.dataCapabilityDetail));
-    if (result) { cap.dataDetail = result; cap.dataDetailKind = 'capability'; render(); }
+    if (result) { cap.dataDetail = result; cap.dataDetailKind = 'capability'; cap.form = ''; render(); focusCapabilityPreview(); }
     return true;
   }
   if ('dataSourceDetail' in data) {
@@ -1102,9 +1165,11 @@ async function handleCapabilityClick(data) {
   if ('useDataTool' in data) {
     const tool = catalog.tools.find(item => item.id === data.useDataTool && item.selectable);
     if (!tool) { state.error = '这项数据能力目前没有可调用来源。'; render(); return true; }
+    capabilityDialogReturnSelector = ''; if (capabilityPreviewIsOpen()) capabilityController.close();
     await goToResearchDraft(); controller.setTools([...state.toolIds, tool.id]); render(); document.querySelector('#prompt')?.focus(); return true;
   }
-  if ('capClose' in data) { capabilityController.close(); return true; }
+  if ('capClose' in data) { if (!closeCapabilityPreview()) capabilityController.close(); return true; }
+  if ('capManage' in data) { cap.form = 'manage'; render(); document.querySelector('#main')?.scrollTo({ top: 0 }); return true; }
   if ('capCancelEdit' in data) { cap.form = ''; cap.editor = null; render(); return true; }
   if ('capCreate' in data) { capabilityController.create(data.capCreate); return true; }
   if ('capImport' in data) { document.querySelector('#cap-import-file')?.click(); return true; }
@@ -1114,10 +1179,17 @@ async function handleCapabilityClick(data) {
   if ('capVersion' in data) { await capabilityController.version(Number(data.capVersion)); return true; }
   if ('capAction' in data) { await capabilityController.action(data.capAction); return true; }
   if ('capRollback' in data) { await capabilityController.action('rollback', Number(data.capRollback)); return true; }
-  if ('toolDetail' in data) { cap.tool = catalog.tools.find(tool => tool.id === data.toolDetail); if (state.route.page !== 'skills') { history.pushState(null, '', '#/skills'); await showRoute(); } else render(); return true; }
+  if ('toolDetail' in data) {
+    capabilityDialogReturnSelector = `[data-cap-preview-trigger="tool:${data.toolDetail}"]`;
+    cap.tool = catalog.tools.find(tool => tool.id === data.toolDetail); cap.form = '';
+    if (state.route.page !== 'skills') { history.pushState(null, '', '#/skills'); await showRoute(); }
+    else render();
+    focusCapabilityPreview(); return true;
+  }
   if ('useTool' in data) {
     const tool = catalog.tools.find(item => item.id === data.useTool && item.selectable);
     if (!tool) { state.error = '此工具不可单独选择。'; render(); return true; }
+    capabilityDialogReturnSelector = ''; if (capabilityPreviewIsOpen()) capabilityController.close();
     await goToResearchDraft(); controller.setTools([...state.toolIds, tool.id]); render(); document.querySelector('#prompt')?.focus(); return true;
   }
   if ('capArtifact' in data) {

@@ -3,6 +3,7 @@ const segment = (value) => encodeURIComponent(value);
 const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'operations', 'settings']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
+const capabilityViews = new Set(['library', 'mine', 'plans', 'connections']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -17,7 +18,10 @@ export function parseRoute(hash = '') {
     route.historyMode = ['fingpt', 'claw'].includes(params.get('mode')) ? params.get('mode') : null;
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
   }
-  if (page === 'skills' && ['skill', 'tool', 'workflow', 'data'].includes(params.get('kind'))) route.capabilityKind = params.get('kind');
+  if (page === 'skills') {
+    route.capabilityView = capabilityViews.has(params.get('view')) ? params.get('view') : 'library';
+    if (['skill', 'tool', 'workflow', 'data'].includes(params.get('kind'))) route.capabilityKind = params.get('kind');
+  }
   if (page === 'settings') {
     const connection = params.get('connection');
     const hasSafeConnection = /^[a-z0-9_]+$/.test(connection || '');
