@@ -1,5 +1,17 @@
 # 架构迭代核对记录
 
+## 2026-09-10 — Mac 本机集成真实验证
+
+- 设置页新增独立的本机集成验证任务 API；发现仍无副作用，只有用户显式操作才启动 Office 或 Wind。
+- Excel、Word 与 PowerPoint 使用各自 Office 容器内的确定性验证文件；Wind 仅刷新已发布报告工作簿的运行副本，源版本保持只读。
+- 图 03 增加 Web → 验证管理器 → Office/Wind 的显式任务序列；DataHub、能力包与报告 Workflow 仍使用既有模块和存储边界。
+
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增本机验证创建与轮询接口，并将显式用户动作、异步任务和安全结果投影纳入现有Research Web API。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"新增可终止的Office/Wind验证子进程、受管Office容器临时文件和本轮Excel实例清理，不进入DSH研究执行链。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"iFinD HTTP探测补齐登录、健康、只读查询和登出，继续复用既有连接配置与系统凭据库，不新增DataHub服务或存储。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"本机页只链接并消费既有报告Workflow元数据进行受管副本验证，不改变Skill、Tool或Workflow的发布与调用拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机设置页在既有诊断列表增加逐项验证按钮、进度和最近验证时间，不新增产品壳或页面模块。","diagrams":[]} -->
+
 ## 2026-09-08 — DSH 最新版 Gateway 兼容迁移
 
 - Research Runtime 固定到基于官方最新 `master` 重建的 Fork 运行分支；Workbench 兼容桥把原有白名单调用映射到 Typert Gateway 的斜杠端点、`payload.args`、Cookie 鉴权和 Remote 复用流，对外 HTTP、会话、消息、DataHub、文件与删除接口不变。
@@ -340,7 +352,7 @@
 - v0 尚未实现文件夹同步、扩展配对、MCP 授权和 Office/Wind 真实操作验证；这些项目保持待配置或待验证，Windows 仅有可测试的无副作用投影。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机诊断控制台继续位于既有设置Hash子页，只改用专用同源投影并重排浏览器内信息层级。","diagrams":[]} -->
-<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新增进程内本机诊断管理器与同源接口，不增加外部服务、研究执行通道或跨进程数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增显式验证接口、受管本机验证器及可终止 Office/Wind 子进程调用路径；研究执行与 DSH 通道仍保持独立。","diagrams":["03-research-sequence"]} -->
 
 ## 2026-09-10 — Windows 本机集成原生验证
 
@@ -385,3 +397,14 @@
 - 新增 Windows/POSIX 目录 mode 回归，十张架构图无需重生成。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"服务管理器仅修正私有运行目录的跨平台安全判断，不改变服务节点、接口、存储位置或数据流。","diagrams":[]} -->
+
+## 2026-09-10 — Mac 本机集成显式真实验证
+
+- 本机发现继续保持无副作用；新增显式、幂等的 Office/Wind 验证任务与查询接口，目标固定为 Excel、Word、PowerPoint 和 Wind Excel。
+- 验证在受管临时目录与独立进程组中运行，统一使用 180 秒预算、进程树清理、安全状态投影与原子证据；Wind 只刷新已管理报告版本的副本并核对源文件哈希。
+- iFinD HTTP 继续复用数据源配置与凭据库，只把登录、健康、最小只读查询和关闭结果投影到本机页。没有账号时保持待配置，不伪造通过。
+- 这增加两条同源 API 和宿主验证分支，但不新增外部服务、研究执行通道或 DSH 工具；现有模块依赖图已包含本机诊断管理器，十张架构图无需重绘。
+
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"本机诊断新增显式验证创建与查询接口，并在进程内管理器中编排有界宿主验证任务。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"验证临时副本仍位于既有产品私有运行存储边界内，新增的是有界清理与源文件哈希保护，不新增持久文件节点或跨模块数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"设置页在现有本机诊断列表中增加逐项验证操作、进度和最近验证时间，Hash 路由与产品壳不变。","diagrams":[]} -->

@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import multiprocessing
 import os
-import queue
 import re
 import shutil
 import signal
@@ -15,14 +14,17 @@ import sys
 import time
 from pathlib import Path
 from threading import Event
-from typing import Any
+from typing import Any, Callable
 from uuid import uuid4
 
 from core.observability import get_logger
 
 log = get_logger(__name__)
 VERIFICATION_TIMEOUT_SECONDS = 180.0
-PROCESS_COORDINATION_GRACE_SECONDS = 1.0
+# The report workbook worker may need up to about seven seconds to terminate
+# its process group and the exact Excel PID it reported. Keep that cleanup
+# inside the outer verifier lifetime so a provider timeout cannot orphan Excel.
+PROCESS_COORDINATION_GRACE_SECONDS = 10.0
 MAX_VERIFICATION_RUNS = 16
 MAX_VERIFICATION_STORAGE_BYTES = 512 * 1024 * 1024
 VERIFICATION_RUN_RETENTION_SECONDS = 24 * 60 * 60
@@ -149,16 +151,52 @@ def _office_artifact_path(target: str, run_root: Path) -> Path:
     metadata = documents_root.lstat()
     if documents_root.is_symlink() or not stat.S_ISDIR(metadata.st_mode):
         raise OSError("unsafe Office documents root")
-    token = run_root.name if SAFE_RUN_NAME.fullmatch(run_root.name) else uuid4().hex
+    if not SAFE_RUN_NAME.fullmatch(run_root.name):
+        raise OSError("unsafe verification run identifier")
+    token = run_root.name
     suffix = {"excel": ".xlsx", "word": ".docx", "powerpoint": ".pptx"}[target]
     return documents_root / f"research-workbench-{token}{suffix}"
 
 
-def _verify_excel_macos(run_root: Path) -> dict[str, Any]:
+def _remove_office_artifact(target: str, run_root: Path) -> bool:
+    try:
+        path = _office_artifact_path(target, run_root)
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            return True
+        if path.is_symlink() or not stat.S_ISREG(metadata.st_mode):
+            log.warning("local_office_verification_cleanup_refused", target=target)
+            return False
+        path.unlink()
+        return True
+    except OSError as exc:
+        log.warning(
+            "local_office_verification_cleanup_failed",
+            target=target,
+            error_type=type(exc).__name__,
+        )
+        return False
+
+
+def _verify_excel_macos(
+    run_root: Path,
+    process_reporter: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
     path: Path | None = None
-    cleanup_failed = False
+    app = book = None
+    result: dict[str, Any] = {
+        "outcome": "failed",
+        "code": "office_verification_failed",
+    }
     try:
         path = _office_artifact_path("excel", run_root)
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            return {"outcome": "failed", "code": "verification_storage_unsafe"}
         from openpyxl import Workbook
 
         seed = Workbook()
@@ -166,56 +204,69 @@ def _verify_excel_macos(run_root: Path) -> dict[str, Any]:
             seed.save(path)
         finally:
             seed.close()
-        script = """on run argv
-set smokeWorkbook to missing value
-set reopenedWorkbook to missing value
-set targetFile to POSIX file (item 1 of argv)
-tell application "Microsoft Excel"
-try
-open targetFile
-set smokeWorkbook to active workbook
-set smokeSheet to worksheet 1 of smokeWorkbook
-set value of range "A1" of smokeSheet to 19
-set value of range "A2" of smokeSheet to 23
-set formula of range "A3" of smokeSheet to "=A1+A2"
-calculate full rebuild
-save smokeWorkbook
-close smokeWorkbook saving no
-set smokeWorkbook to missing value
-open targetFile
-set reopenedWorkbook to active workbook
-set verifiedValue to value of range "A3" of worksheet 1 of reopenedWorkbook
-close reopenedWorkbook saving no
-set reopenedWorkbook to missing value
-if verifiedValue is not 42 then error "verification failed"
-on error errorMessage number errorNumber
-if reopenedWorkbook is not missing value then close reopenedWorkbook saving no
-if smokeWorkbook is not missing value then close smokeWorkbook saving no
-error errorMessage number errorNumber
-end try
-end tell
-end run"""
-        return _run_osascript(script, str(path))
-    except (ImportError, OSError) as exc:
-        log.warning("local_excel_verification_prepare_failed", error_type=type(exc).__name__)
-        return {"outcome": "failed", "code": "office_verification_failed"}
+        import xlwings as xw
+
+        app = xw.App(visible=False, add_book=False)
+        if process_reporter is not None:
+            from app.research_web.report_workflows.workbook import (
+                _capture_excel_process_identity,
+            )
+
+            excel_pid = getattr(app, "pid", None)
+            identity = (
+                _capture_excel_process_identity(excel_pid) if isinstance(excel_pid, int) else None
+            )
+            if identity is None:
+                raise RuntimeError("excel_process_identity_unavailable")
+            process_reporter(identity)
+        book = app.books.open(str(path), update_links=False, read_only=False)
+        sheet = book.sheets[0]
+        sheet.range("A1").value = 19
+        sheet.range("A2").value = 23
+        sheet.range("A3").formula = "=A1+A2"
+        full_rebuild = getattr(getattr(app, "api", None), "calculate_full_rebuild", None)
+        if not callable(full_rebuild):
+            result = {
+                "outcome": "formula_error",
+                "code": "excel_full_rebuild_unavailable",
+            }
+        else:
+            full_rebuild()
+            book.save()
+            book.close()
+            book = app.books.open(str(path), update_links=False, read_only=True)
+            value = book.sheets[0].range("A3").value
+            result = (
+                {"outcome": "available", "code": None}
+                if value == 42
+                else {"outcome": "formula_error", "code": "excel_calculation_failed"}
+            )
+    except Exception as exc:  # noqa: BLE001 - proprietary automation errors are unstable.
+        log.warning("local_excel_verification_failed", error_type=type(exc).__name__)
+        result = _permission_outcome(str(exc))
     finally:
-        if path is not None:
+        if book is not None:
             try:
-                path.unlink(missing_ok=True)
-            except OSError as exc:
-                cleanup_failed = True
-                log.warning(
-                    "local_excel_verification_cleanup_failed",
-                    error_type=type(exc).__name__,
-                )
-        if cleanup_failed:
-            log.warning("local_excel_verification_artifact_retained")
+                book.close()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("local_excel_book_close_failed", error_type=type(exc).__name__)
+        if app is not None:
+            try:
+                app.quit()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("local_excel_app_close_failed", error_type=type(exc).__name__)
+                result = {"outcome": "failed", "code": "cleanup_failed"}
+        if path is not None and not _remove_office_artifact("excel", run_root):
+            result = {"outcome": "failed", "code": "cleanup_failed"}
+    return result
 
 
-def _verify_excel(run_root: Path) -> dict[str, Any]:
+def _verify_excel(
+    run_root: Path,
+    process_reporter: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
     if sys.platform == "darwin":
-        return _verify_excel_macos(run_root)
+        return _verify_excel_macos(run_root, process_reporter)
     path = run_root / "excel-smoke.xlsx"
     app = book = None
     try:
@@ -261,19 +312,37 @@ def _verify_excel(run_root: Path) -> dict[str, Any]:
 
 
 def _verify_word(run_root: Path) -> dict[str, Any]:
-    path = str(run_root / "word-smoke.docx")
+    try:
+        path = _office_artifact_path("word", run_root)
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            return {"outcome": "failed", "code": "verification_storage_unsafe"}
+        from docx import Document
+
+        seed = Document()
+        seed.add_paragraph("Research Workbench seed")
+        seed.save(str(path))
+    except (ImportError, OSError) as exc:
+        log.warning("local_word_verification_prepare_failed", error_type=type(exc).__name__)
+        return {"outcome": "failed", "code": "office_verification_failed"}
     script = """on run argv
 set smokeDocument to missing value
 set reopenedDocument to missing value
+set targetFile to POSIX file (item 1 of argv)
+set targetName to item 2 of argv
 tell application "Microsoft Word"
 try
-set targetFile to POSIX file (item 1 of argv)
-set smokeDocument to make new document
+open targetFile
+set smokeDocument to document targetName
 set content of text object of smokeDocument to "Research Workbench verification"
-save as smokeDocument file name targetFile file format format document
+save smokeDocument
 close smokeDocument saving no
 set smokeDocument to missing value
-set reopenedDocument to open targetFile
+open targetFile
+set reopenedDocument to document targetName
 set verifiedText to content of text object of reopenedDocument
 close reopenedDocument saving no
 set reopenedDocument to missing value
@@ -285,24 +354,48 @@ error errorMessage number errorNumber
 end try
 end tell
 end run"""
-    return _run_osascript(script, path)
+    result = _run_osascript(script, str(path), path.name)
+    if not _remove_office_artifact("word", run_root):
+        return {"outcome": "failed", "code": "cleanup_failed"}
+    return result
 
 
 def _verify_powerpoint(run_root: Path) -> dict[str, Any]:
-    path = str(run_root / "powerpoint-smoke.pptx")
+    try:
+        path = _office_artifact_path("powerpoint", run_root)
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            return {"outcome": "failed", "code": "verification_storage_unsafe"}
+        from pptx import Presentation
+
+        seed = Presentation()
+        slide = seed.slides.add_slide(seed.slide_layouts[0])
+        slide.shapes.title.text = "Research Workbench seed"
+        seed.save(str(path))
+    except (ImportError, OSError) as exc:
+        log.warning(
+            "local_powerpoint_verification_prepare_failed",
+            error_type=type(exc).__name__,
+        )
+        return {"outcome": "failed", "code": "office_verification_failed"}
     script = """on run argv
 set smokePresentation to missing value
 set reopenedPresentation to missing value
+set targetFile to POSIX file (item 1 of argv)
+set targetName to item 2 of argv
 tell application "Microsoft PowerPoint"
 try
-set targetFile to POSIX file (item 1 of argv)
-set smokePresentation to make new presentation
-make new slide at end of slides of smokePresentation with properties {layout:slide layout title}
+open targetFile
+set smokePresentation to presentation targetName
 set content of text range of text frame of shape 1 of slide 1 of smokePresentation to "Research Workbench verification"
-save smokePresentation in targetFile as save as Open XML presentation
+save smokePresentation
 close smokePresentation
 set smokePresentation to missing value
-set reopenedPresentation to open targetFile
+open targetFile
+set reopenedPresentation to presentation targetName
 set verifiedText to content of text range of text frame of shape 1 of slide 1 of reopenedPresentation
 close reopenedPresentation
 set reopenedPresentation to missing value
@@ -314,7 +407,10 @@ error errorMessage number errorNumber
 end try
 end tell
 end run"""
-    return _run_osascript(script, path)
+    result = _run_osascript(script, str(path), path.name)
+    if not _remove_office_artifact("powerpoint", run_root):
+        return {"outcome": "failed", "code": "cleanup_failed"}
+    return result
 
 
 def _verify_wind(data_root: Path, run_root: Path) -> dict[str, Any]:
@@ -387,7 +483,10 @@ def _child(target: str, data_root: str, run_root: str, results) -> None:
         root = Path(run_root)
         root.mkdir(parents=True, exist_ok=False, mode=0o700)
         outcome = {
-            "excel": lambda: _verify_excel(root),
+            "excel": lambda: _verify_excel(
+                root,
+                lambda identity: results.put({"status": "started", "child_processes": [identity]}),
+            ),
             "word": lambda: _verify_word(root),
             "powerpoint": lambda: _verify_powerpoint(root),
             "wind_excel": lambda: _verify_wind(Path(data_root), root),
@@ -467,8 +566,14 @@ def verify_target(
     run_root, storage_error = _prepare_run_directory(state_root)
     if run_root is None:
         return {"outcome": "failed", "code": storage_error or "verification_storage_unsafe"}
+    from app.research_web.report_workflows.workbook import (
+        _drain_worker_messages,
+        _terminate_managed_excel_processes,
+        _worker_child_processes,
+    )
+
     context = multiprocessing.get_context("spawn")
-    results = context.Queue(maxsize=1)
+    results = context.Queue(maxsize=4)
     process = context.Process(
         target=_child,
         args=(target, str(state_root.parent), str(run_root), results),
@@ -481,25 +586,43 @@ def verify_target(
         )
         while process.is_alive():
             if cancellation_event is not None and cancellation_event.is_set():
-                cleaned = _terminate_process_tree(process)
+                messages = _drain_worker_messages(results, wait=True)
+                worker_cleaned = _terminate_process_tree(process)
+                children_cleaned = _terminate_managed_excel_processes(
+                    _worker_child_processes(messages)
+                )
+                cleaned = worker_cleaned and children_cleaned
                 return {
                     "outcome": "failed",
                     "code": "verification_cancelled" if cleaned else "cleanup_failed",
                 }
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                cleaned = _terminate_process_tree(process)
+                messages = _drain_worker_messages(results, wait=True)
+                worker_cleaned = _terminate_process_tree(process)
+                children_cleaned = _terminate_managed_excel_processes(
+                    _worker_child_processes(messages)
+                )
+                cleaned = worker_cleaned and children_cleaned
                 return {
                     "outcome": "timeout" if cleaned else "failed",
                     "code": "verification_timed_out" if cleaned else "cleanup_failed",
                 }
             process.join(min(0.25, remaining))
-        try:
-            return results.get_nowait()
-        except queue.Empty:
+        messages = _drain_worker_messages(results, wait=True)
+        child_processes = _worker_child_processes(messages)
+        outcomes = [message for message in messages if message.get("status") != "started"]
+        if not _terminate_managed_excel_processes(child_processes):
+            return {"outcome": "failed", "code": "cleanup_failed"}
+        if not outcomes:
             return {"outcome": "failed", "code": "verification_failed"}
+        return outcomes[-1]
     finally:
         results.close()
         results.join_thread()
+        if target in {"excel", "word", "powerpoint"} and not _remove_office_artifact(
+            target, run_root
+        ):
+            log.warning("local_office_verification_artifact_retained", target=target)
         if not _remove_run_directory(run_root):
             log.warning("local_verification_run_retained")

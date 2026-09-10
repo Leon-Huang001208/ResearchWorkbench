@@ -489,6 +489,14 @@
         },
         {
           "subjects": [
+            "startVerification",
+            "pollVerification",
+            "renderVerification"
+          ],
+          "source": "app/research_web/ui/connections.mjs"
+        },
+        {
+          "subjects": [
             "deskQuery",
             "queryRoute",
             "queryStatus",
@@ -504,6 +512,26 @@
             "dshSubmit"
           ],
           "source": "app/research_web/main.py"
+        },
+        {
+          "subjects": [
+            "acceptVerification"
+          ],
+          "source": "app/research_web/local_integrations/routes.py"
+        },
+        {
+          "subjects": [
+            "localVerifier",
+            "runVerification",
+            "verificationResult"
+          ],
+          "source": "app/research_web/local_integrations/verifiers.py"
+        },
+        {
+          "subjects": [
+            "office"
+          ],
+          "source": "app/research_web/local_integrations/verifiers.py"
         },
         {
           "subjects": [
@@ -903,6 +931,20 @@
       "path": "/api/research/local-integrations/probes/{probe_id}",
       "source": "app/research_web/local_integrations/routes.py",
       "declaredPath": "/local-integrations/probes/{probe_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/local-integrations/verifications",
+      "source": "app/research_web/local_integrations/routes.py",
+      "declaredPath": "/local-integrations/verifications",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/local-integrations/verifications/{verification_id}",
+      "source": "app/research_web/local_integrations/routes.py",
+      "declaredPath": "/local-integrations/verifications/{verification_id}",
       "prefix": "/api/research"
     },
     {

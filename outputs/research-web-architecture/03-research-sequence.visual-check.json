@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/outputs/research-web-architecture/03-research-sequence.html",
-    "sha256": "7691b26a7e3b3317ddeab9975afc5ca3a89e19c65527016a9147fa0c2080b18f",
-    "bytes": 653014
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live/outputs/research-web-architecture/03-research-sequence.html",
+    "sha256": "adfc5ca2f86c63eef31c31b9a437cbb95f7b04bd35474b6f2acdc41440813772",
+    "bytes": 661627
   },
   "state": {
     "detail": "read",

@@ -552,6 +552,8 @@ class LocalIntegrationManager:
                 catalog = ReportWorkflowService(self.state_root.parent)
                 row = catalog._row("huaan-etf-weekly")
                 version = row.get("current_version")
+                if not isinstance(version, int):
+                    raise ValueError("workflow_version_unavailable")
                 manifest = catalog.manifest("huaan-etf-weekly", version)
                 facts["workflow"] = {
                     "version": version,
@@ -689,8 +691,13 @@ class LocalIntegrationManager:
                 ("Wind/WFT/WFT.exe", "Wind/Wind.NET.Client/WindNET.exe"),
             )
             appdata = self.environment.environment_variables.get("APPDATA")
-            addin = bool(appdata) and _named_entry_exists(
-                (Path(appdata),), ("Microsoft/AddIns/WindAddin.xlam", "Wind/WindAddin.xlam")
+            addin = (
+                _named_entry_exists(
+                    (Path(appdata),),
+                    ("Microsoft/AddIns/WindAddin.xlam", "Wind/WindAddin.xlam"),
+                )
+                if appdata
+                else False
             )
         else:
             return self._unsupported_office_items(checked_at)

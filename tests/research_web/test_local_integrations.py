@@ -6,6 +6,7 @@ import copy
 import json
 import os
 import platform
+import queue
 import signal
 import sys
 import threading
@@ -815,27 +816,139 @@ def test_verification_api_rejects_unknown_targets_and_requires_idempotency(tmp_p
         )
 
 
-def test_macos_excel_verifier_uses_sandbox_file_and_argv(tmp_path, monkeypatch):
+def test_macos_excel_verifier_uses_sandbox_file_and_owned_app(tmp_path, monkeypatch):
     documents = tmp_path / "Documents"
     documents.mkdir()
+    run_root = tmp_path / ("a" * 32)
+    run_root.mkdir()
+    values = {"A3": 42}
+
+    class Range:
+        def __init__(self, reference):
+            self.reference = reference
+            self.formula = None
+
+        @property
+        def value(self):
+            return values.get(self.reference)
+
+        @value.setter
+        def value(self, value):
+            values[self.reference] = value
+
+    class Book:
+        sheets = [SimpleNamespace(range=lambda reference: Range(reference))]
+
+        def save(self):
+            return None
+
+        def close(self):
+            return None
+
+    class Books:
+        def __init__(self):
+            self.paths = []
+
+        def open(self, path, **_kwargs):
+            self.paths.append(Path(path))
+            assert self.paths[-1].is_file()
+            return Book()
+
+    class App:
+        def __init__(self):
+            self.books = Books()
+            self.api = SimpleNamespace(calculate_full_rebuild=lambda: None)
+            self.quit_called = False
+
+        def quit(self):
+            self.quit_called = True
+
+    app = App()
+
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    monkeypatch.setitem(sys.modules, "xlwings", SimpleNamespace(App=lambda **_kwargs: app))
+
+    result = verifiers._verify_excel_macos(run_root)
+
+    assert result == {"outcome": "available", "code": None}
+    assert app.quit_called is True
+    assert len(app.books.paths) == 2
+    artifact = app.books.paths[0]
+    assert artifact.parent == documents
+    assert artifact.name == f"research-workbench-{'a' * 32}.xlsx"
+    assert not artifact.exists()
+
+
+def test_macos_excel_cleanup_failure_is_not_available(tmp_path, monkeypatch):
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    run_root = tmp_path / ("d" * 32)
+    run_root.mkdir()
+    artifact = documents / f"research-workbench-{'d' * 32}.xlsx"
+
+    class Range:
+        value = 42
+        formula = None
+
+    class Book:
+        sheets = [SimpleNamespace(range=lambda _reference: Range())]
+
+        def save(self):
+            return None
+
+        def close(self):
+            return None
+
+    class App:
+        books = SimpleNamespace(open=lambda *_args, **_kwargs: Book())
+        api = SimpleNamespace(calculate_full_rebuild=lambda: None)
+
+        def quit(self):
+            return None
+
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    monkeypatch.setitem(sys.modules, "xlwings", SimpleNamespace(App=lambda **_kwargs: App()))
+    monkeypatch.setattr(verifiers, "_remove_office_artifact", lambda *_args: False)
+
+    result = verifiers._verify_excel_macos(run_root)
+
+    assert result == {"outcome": "failed", "code": "cleanup_failed"}
+    artifact.unlink()
+
+
+@pytest.mark.parametrize(
+    ("target", "verifier", "suffix"),
+    [
+        ("word", verifiers._verify_word, ".docx"),
+        ("powerpoint", verifiers._verify_powerpoint, ".pptx"),
+    ],
+)
+def test_macos_document_verifiers_use_office_sandbox(
+    tmp_path, monkeypatch, target, verifier, suffix
+):
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    run_root = tmp_path / ("e" * 32)
+    run_root.mkdir()
     observed = {}
 
-    def run_script(script, *arguments):
-        observed["script"] = script
-        observed["arguments"] = arguments
-        assert Path(arguments[0]).is_file()
+    def run_script(_script, *arguments):
+        observed["artifact"] = Path(arguments[0])
+        observed["target_name"] = arguments[1]
+        observed["script"] = _script
+        observed["artifact"].write_bytes(b"office")
         return {"outcome": "available", "code": None}
 
     monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
     monkeypatch.setattr(verifiers, "_run_osascript", run_script)
 
-    result = verifiers._verify_excel_macos(tmp_path)
-
-    assert result == {"outcome": "available", "code": None}
-    assert "calculate full rebuild" in observed["script"]
-    assert str(documents) not in observed["script"]
-    artifact = Path(observed["arguments"][0])
+    assert verifier(run_root) == {"outcome": "available", "code": None}
+    artifact = observed["artifact"]
     assert artifact.parent == documents
+    assert artifact.name == f"research-workbench-{'e' * 32}{suffix}"
+    assert observed["target_name"] == artifact.name
+    assert "active document" not in observed["script"]
+    assert "active presentation" not in observed["script"]
     assert not artifact.exists()
 
 
@@ -1025,7 +1138,12 @@ def test_wind_verifier_runs_bounded_smoke_then_full_and_guards_published_source(
             (source, "full", "workbooks/wind.xlsx"),
         ]
         assert source.read_bytes() == original
-    assert all(0 < call[3] <= verifiers.VERIFICATION_TIMEOUT_SECONDS for call in calls)
+    assert all(
+        0
+        < call[3]
+        <= verifiers.VERIFICATION_TIMEOUT_SECONDS - verifiers.PROCESS_COORDINATION_GRACE_SECONDS
+        for call in calls
+    )
     if len(calls) == 2:
         assert calls[1][3] <= calls[0][3]
 
@@ -1105,9 +1223,30 @@ def test_posix_timeout_cleanup_terminates_the_worker_process_group(monkeypatch):
 
 
 def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_path, monkeypatch):
+    from app.research_web.report_workflows import workbook as workbook_module
+
     events = []
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    run_root = tmp_path / "state" / "verification-runs" / ("b" * 32)
+    run_root.mkdir(parents=True)
+    artifact = documents / f"research-workbench-{'b' * 32}.xlsx"
+    unrelated = documents / "existing-user-workbook.xlsx"
+    artifact.write_bytes(b"verification")
+    unrelated.write_bytes(b"user")
 
     class ResultQueue:
+        sent = False
+
+        def get(self, timeout):
+            if not self.sent:
+                self.sent = True
+                return {
+                    "status": "started",
+                    "child_processes": [{"pid": 54321, "token": "a" * 64}],
+                }
+            raise queue.Empty
+
         def close(self):
             events.append("queue-close")
 
@@ -1128,7 +1267,7 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
 
     class Context:
         def Queue(self, maxsize):
-            assert maxsize == 1
+            assert maxsize == 4
             return ResultQueue()
 
         def Process(self, **kwargs):
@@ -1136,6 +1275,8 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
             return Process()
 
     monkeypatch.setattr(verifiers.sys, "platform", "darwin")
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    monkeypatch.setattr(verifiers, "_prepare_run_directory", lambda _state_root: (run_root, None))
     monkeypatch.setattr(verifiers, "VERIFICATION_TIMEOUT_SECONDS", 0.0)
     monkeypatch.setattr(verifiers, "PROCESS_COORDINATION_GRACE_SECONDS", 0.0)
     monkeypatch.setattr(verifiers.multiprocessing, "get_context", lambda _name: Context())
@@ -1144,12 +1285,39 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
         "_terminate_process_tree",
         lambda process: events.append(("tree-cleanup", process.pid)) or True,
     )
+    monkeypatch.setattr(
+        workbook_module,
+        "_terminate_managed_excel_processes",
+        lambda identities: events.append(("excel-cleanup", identities)) or True,
+    )
 
     result = verifiers.verify_target("excel", tmp_path / "state")
 
     assert result == {"outcome": "timeout", "code": "verification_timed_out"}
     assert ("tree-cleanup", 13579) in events
+    assert (
+        "excel-cleanup",
+        [{"pid": 54321, "token": "a" * 64}],
+    ) in events
     assert events[-2:] == ["queue-close", "queue-join"]
+    assert not artifact.exists()
+    assert unrelated.read_bytes() == b"user"
+
+
+def test_excel_artifact_cleanup_rejects_symlink(tmp_path, monkeypatch):
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    run_root = tmp_path / ("c" * 32)
+    run_root.mkdir()
+    outside = tmp_path / "outside.xlsx"
+    outside.write_bytes(b"keep")
+    artifact = documents / f"research-workbench-{'c' * 32}.xlsx"
+    artifact.symlink_to(outside)
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+
+    assert verifiers._remove_office_artifact("excel", run_root) is False
+    assert artifact.is_symlink()
+    assert outside.read_bytes() == b"keep"
 
 
 def test_verification_run_storage_rejects_symlink(tmp_path):

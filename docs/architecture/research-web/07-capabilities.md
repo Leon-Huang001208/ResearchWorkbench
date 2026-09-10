@@ -102,6 +102,8 @@ Claw 首页直接展示同一目录中的已启用 Workflow（含自建），Fin
 
 通用能力目录的 Workflow 规定可复用研究步骤；`app/research_web/report_workflows/` 则管理“每篇报告一个 Workflow”的真实资源包。两者都由 Claw/DSH 执行，但具体报告额外锁定 Word/PPT 模板、Excel 底稿、品牌素材、映射、交付契约和日程，不能由一张通用模板卡替代。
 
+本机 Wind 验证会读取当前已发布报告 Workflow 的工作簿策略，在受管运行副本中执行最小刷新与完整刷新；这个诊断入口不发布新版本、不运行 Claw，也不改变 Workflow 自身的可运行判断。验证成功只证明当前设备上的插件调用链，不能代替报告内容与交付验证。
+
 Claw 首页和能力中心 Workflow 页从 `GET /api/research/report-workflows` 读取该目录，分别显示状态、当前版本、交付格式、Excel Provider 和最近运行。详情读取模板/底稿、刷新策略、报告区块、版本、日程和历史产物；只有 `enabled` 且存在当前发布版本的项目可以创建运行。AI 周报保持 `needs_attention` 时只能查看。
 
 当前真实迁移结果为：创业板50周报 v1、华安ETF周报 v1、华安ETF投资风向标 v1，以及待补全的 AI 周报。迁移后的文件存放在产品数据根 `report-workflows/`；旧 `report-projects/` 在验证和最终清理门禁前保留，不作为运行时的平行执行器。

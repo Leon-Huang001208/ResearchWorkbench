@@ -7,6 +7,7 @@ import platform
 from importlib import import_module
 from importlib.util import find_spec
 from types import SimpleNamespace
+from typing import Any, cast
 
 from core.observability import get_logger
 from data_layer.adapters.ifind.exceptions import (
@@ -95,7 +96,7 @@ def _default_ifind_http_client(base_url: str, username: str, password: str):
         IFIND_USERNAME=username,
         IFIND_PASSWORD=password,
     )
-    return IFinDHTTPClient(settings)
+    return IFinDHTTPClient(cast(Any, settings))
 
 
 async def _probe_ifind_http(base_url, accounts, client_factory) -> dict:

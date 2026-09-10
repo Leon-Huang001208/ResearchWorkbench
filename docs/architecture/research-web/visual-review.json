@@ -51,17 +51,17 @@
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "7691b26a7e3b3317ddeab9975afc5ca3a89e19c65527016a9147fa0c2080b18f",
-      "specificationSha256": "ba392eba0d1946c8a5d5db3e369843eb21542332f2c9741c9673923e9a3d0ffc",
+      "artifactSha256": "adfc5ca2f86c63eef31c31b9a437cbb95f7b04bd35474b6f2acdc41440813772",
+      "specificationSha256": "00fd972fe469ada57a5f0bf9a50e27e9a9d3867c6d05feb20cb17d1f039e7404",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-08",
+      "date": "2026-09-10",
       "captures": [
         "03-research-sequence.visual-check.1440x900.light.png",
-        "03-research-sequence.visual-check.1440x900.dark.png"
+        "03-research-sequence.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色与深色最终截图；启动恢复、研究提交、enabledTools/Schema 本地边界、用户配置 MySQL Provider、快照和 SSE 恢复均可读，未见遮挡或裁剪。视觉查看不证明服务永远在线或上游数据完整。"
+      "notes": "已人工查看 1440 浅色与 2048 深色最终截图；启动恢复、研究提交、DataHub、快照、SSE 以及显式本机验证的白名单、隔离进程和 Office/Wind 返回路径均可读，未见遮挡、横向溢出或裁剪。视觉查看不替代真实 Office、Wind 或账号验收。"
     },
     {
       "id": "04-data-file-flow",
