@@ -6,8 +6,10 @@ import hashlib
 import multiprocessing
 import os
 import queue
+import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -21,6 +23,10 @@ from core.observability import get_logger
 log = get_logger(__name__)
 VERIFICATION_TIMEOUT_SECONDS = 180.0
 PROCESS_COORDINATION_GRACE_SECONDS = 1.0
+MAX_VERIFICATION_RUNS = 16
+MAX_VERIFICATION_STORAGE_BYTES = 512 * 1024 * 1024
+VERIFICATION_RUN_RETENTION_SECONDS = 24 * 60 * 60
+SAFE_RUN_NAME = re.compile(r"^[0-9a-f]{32}$")
 
 
 def _sha256(path: Path) -> str:
@@ -36,6 +42,81 @@ def _permission_outcome(stderr: str) -> dict[str, Any]:
     if any(value in lowered for value in ("not authorized", "-1743", "permission")):
         return {"outcome": "authorization_required", "code": "automation_permission_required"}
     return {"outcome": "failed", "code": "office_verification_failed"}
+
+
+def _remove_run_directory(path: Path) -> bool:
+    try:
+        path.lstat()
+        if path.is_symlink() or not path.is_dir() or not SAFE_RUN_NAME.fullmatch(path.name):
+            log.warning("local_verification_run_cleanup_refused")
+            return False
+        shutil.rmtree(path)
+        return True
+    except FileNotFoundError:
+        return True
+    except OSError as exc:
+        log.warning(
+            "local_verification_run_cleanup_failed",
+            error_type=type(exc).__name__,
+        )
+        return False
+
+
+def _run_directory_size(path: Path) -> int:
+    total = 0
+    for root, directories, files in os.walk(path, followlinks=False):
+        root_path = Path(root)
+        for name in (*directories, *files):
+            metadata = (root_path / name).lstat()
+            if stat.S_ISLNK(metadata.st_mode):
+                raise OSError("unsafe verification run entry")
+            if stat.S_ISREG(metadata.st_mode):
+                total += metadata.st_size
+            elif not stat.S_ISDIR(metadata.st_mode):
+                raise OSError("unsafe verification run entry")
+    return total
+
+
+def _prepare_run_directory(state_root: Path) -> tuple[Path | None, str | None]:
+    runs = state_root / "verification-runs"
+    try:
+        if runs.exists() or runs.is_symlink():
+            runs.lstat()
+            if runs.is_symlink() or not runs.is_dir():
+                return None, "verification_storage_unsafe"
+        else:
+            runs.mkdir(parents=True, exist_ok=False, mode=0o700)
+        candidates: list[tuple[int, int, Path]] = []
+        for entry in runs.iterdir():
+            metadata = entry.lstat()
+            if entry.is_symlink() or not entry.is_dir() or not SAFE_RUN_NAME.fullmatch(entry.name):
+                return None, "verification_storage_unsafe"
+            candidates.append((metadata.st_mtime_ns, _run_directory_size(entry), entry))
+        candidates.sort(key=lambda pair: pair[0])
+        cutoff_ns = time.time_ns() - VERIFICATION_RUN_RETENTION_SECONDS * 1_000_000_000
+        retained: list[tuple[int, int, Path]] = []
+        retained_bytes = 0
+        for modified_ns, size, entry in candidates:
+            if modified_ns < cutoff_ns:
+                if not _remove_run_directory(entry):
+                    return None, "verification_cleanup_failed"
+            else:
+                retained.append((modified_ns, size, entry))
+                retained_bytes += size
+        while len(retained) >= MAX_VERIFICATION_RUNS or (
+            retained and retained_bytes > MAX_VERIFICATION_STORAGE_BYTES
+        ):
+            _, size, oldest = retained.pop(0)
+            if not _remove_run_directory(oldest):
+                return None, "verification_cleanup_failed"
+            retained_bytes -= size
+        return runs / uuid4().hex, None
+    except OSError as exc:
+        log.warning(
+            "local_verification_storage_prepare_failed",
+            error_type=type(exc).__name__,
+        )
+        return None, "verification_storage_unsafe"
 
 
 def _run_osascript(script: str, *arguments: str) -> dict[str, Any]:
@@ -303,11 +384,9 @@ def verify_target(
     if sys.platform != "darwin":
         return {"outcome": "failed", "code": "unsupported_platform"}
     state_root = Path(state_root)
-    runs = state_root / "verification-runs"
-    if runs.is_symlink():
-        return {"outcome": "failed", "code": "verification_storage_unsafe"}
-    runs.mkdir(parents=True, exist_ok=True, mode=0o700)
-    run_root = runs / uuid4().hex
+    run_root, storage_error = _prepare_run_directory(state_root)
+    if run_root is None:
+        return {"outcome": "failed", "code": storage_error or "verification_storage_unsafe"}
     context = multiprocessing.get_context("spawn")
     results = context.Queue(maxsize=1)
     process = context.Process(
@@ -315,36 +394,32 @@ def verify_target(
         args=(target, str(state_root.parent), str(run_root), results),
         name=f"local-verification-{target}",
     )
-    process.start()
-    deadline = time.monotonic() + (
-        VERIFICATION_TIMEOUT_SECONDS + PROCESS_COORDINATION_GRACE_SECONDS
-    )
-    while process.is_alive():
-        if cancellation_event is not None and cancellation_event.is_set():
-            cleaned = _terminate_process_tree(process)
-            results.close()
-            results.join_thread()
-            shutil.rmtree(run_root, ignore_errors=True)
-            return {
-                "outcome": "failed",
-                "code": "verification_cancelled" if cleaned else "cleanup_failed",
-            }
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            cleaned = _terminate_process_tree(process)
-            results.close()
-            results.join_thread()
-            shutil.rmtree(run_root, ignore_errors=True)
-            return {
-                "outcome": "timeout" if cleaned else "failed",
-                "code": "verification_timed_out" if cleaned else "cleanup_failed",
-            }
-        process.join(min(0.25, remaining))
     try:
-        return results.get_nowait()
-    except queue.Empty:
-        return {"outcome": "failed", "code": "verification_failed"}
+        process.start()
+        deadline = time.monotonic() + (
+            VERIFICATION_TIMEOUT_SECONDS + PROCESS_COORDINATION_GRACE_SECONDS
+        )
+        while process.is_alive():
+            if cancellation_event is not None and cancellation_event.is_set():
+                cleaned = _terminate_process_tree(process)
+                return {
+                    "outcome": "failed",
+                    "code": "verification_cancelled" if cleaned else "cleanup_failed",
+                }
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                cleaned = _terminate_process_tree(process)
+                return {
+                    "outcome": "timeout" if cleaned else "failed",
+                    "code": "verification_timed_out" if cleaned else "cleanup_failed",
+                }
+            process.join(min(0.25, remaining))
+        try:
+            return results.get_nowait()
+        except queue.Empty:
+            return {"outcome": "failed", "code": "verification_failed"}
     finally:
         results.close()
         results.join_thread()
-        shutil.rmtree(run_root, ignore_errors=True)
+        if not _remove_run_directory(run_root):
+            log.warning("local_verification_run_retained")

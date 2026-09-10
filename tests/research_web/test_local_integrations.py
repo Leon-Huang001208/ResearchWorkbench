@@ -3,9 +3,11 @@
 import asyncio
 import copy
 import json
+import os
 import platform
 import signal
 import sys
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -470,6 +472,34 @@ def test_verification_evidence_expires_or_changes_context(tmp_path):
     assert item(expired.snapshot(persist=False), "excel_app")["callable"] is False
 
 
+def test_verification_rejects_future_timestamp_and_stale_wind_session(tmp_path):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    (env.application_roots[0] / "Wind.app").mkdir()
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        context_fingerprint=lambda target: target,
+        wind_session_ready=lambda: False,
+    )
+    checked_at = manager.snapshot(persist=False)["last_checked_at"]
+    manager.verification_results = {
+        "excel": {
+            "outcome": "available",
+            "completed_at": "2999-01-01T00:00:00Z",
+            "context_fingerprint": manager._verification_context_fingerprint("excel"),
+        },
+        "wind_excel": {
+            "outcome": "available",
+            "completed_at": checked_at,
+            "context_fingerprint": manager._verification_context_fingerprint("wind_excel"),
+        },
+    }
+    snapshot = manager.snapshot(persist=False)
+    assert item(snapshot, "excel_app")["callable"] is False
+    assert item(snapshot, "wind_terminal")["callable"] is False
+
+
 def test_verification_persistence_failure_does_not_publish_callable(tmp_path, monkeypatch):
     env = environment(tmp_path, modules={"xlwings"})
     (env.application_roots[0] / "Microsoft Excel.app").mkdir()
@@ -494,6 +524,57 @@ def test_verification_persistence_failure_does_not_publish_callable(tmp_path, mo
     assert result["status"] == "failed"
     assert manager.verification_results == {}
     assert item(manager.snapshot(persist=False), "excel_app")["callable"] is False
+
+
+def test_probe_publish_cannot_overwrite_newer_verification_evidence(tmp_path, monkeypatch):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        verifier=lambda _target: {"outcome": "available"},
+        context_fingerprint=lambda _target: "office-v1",
+    )
+    stale_persist_entered = threading.Event()
+    release_stale_persist = threading.Event()
+    persisted = []
+
+    def controlled_persist(snapshot, **_kwargs):
+        if not item(snapshot, "excel_app")["callable"] and not stale_persist_entered.is_set():
+            stale_persist_entered.set()
+            assert release_stale_persist.wait(2)
+        persisted.append(copy.deepcopy(snapshot))
+
+    monkeypatch.setattr(manager, "_persist", controlled_persist)
+
+    async def run():
+        stale_reader = asyncio.create_task(asyncio.to_thread(manager.snapshot))
+        assert await asyncio.to_thread(stale_persist_entered.wait, 1)
+        started = manager.start_verification("excel", "verification-order")
+        verification_task = manager.verification_tasks[started["id"]]
+        await asyncio.sleep(0.02)
+        release_stale_persist.set()
+        await stale_reader
+        await verification_task
+
+    asyncio.run(run())
+    assert item(manager._latest, "excel_app")["callable"] is True
+    assert item(persisted[-1], "excel_app")["callable"] is True
+
+
+def test_wind_context_fingerprint_tracks_actual_matching_addin(tmp_path):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    (env.application_roots[0] / "Wind.app").mkdir()
+    addin = env.office_addin_roots[0] / "WindAddin-custom.xlam"
+    addin.write_bytes(b"version-one")
+    manager = LocalIntegrationManager(tmp_path / "state", environment=env)
+
+    before = manager._verification_context_fingerprint("wind_excel")
+    addin.write_bytes(b"version-two")
+    after = manager._verification_context_fingerprint("wind_excel")
+
+    assert before != after
 
 
 @pytest.mark.parametrize(
@@ -892,3 +973,63 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
     assert result == {"outcome": "timeout", "code": "verification_timed_out"}
     assert ("tree-cleanup", 13579) in events
     assert events[-2:] == ["queue-close", "queue-join"]
+
+
+def test_verification_run_storage_rejects_symlink(tmp_path):
+    state_root = tmp_path / "state"
+    state_root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (state_root / "verification-runs").symlink_to(outside, target_is_directory=True)
+
+    run_root, error = verifiers._prepare_run_directory(state_root)
+
+    assert run_root is None
+    assert error == "verification_storage_unsafe"
+    assert outside.exists()
+
+
+def test_verification_run_storage_prunes_by_age_count_and_size(tmp_path, monkeypatch):
+    state_root = tmp_path / "state"
+    runs = state_root / "verification-runs"
+    runs.mkdir(parents=True)
+    old = runs / ("a" * 32)
+    first = runs / ("b" * 32)
+    second = runs / ("c" * 32)
+    for path, payload in ((old, b"old"), (first, b"1234"), (second, b"5678")):
+        path.mkdir()
+        (path / "artifact").write_bytes(payload)
+    old_time = time.time() - 120
+    first_time = time.time() - 20
+    second_time = time.time() - 10
+    for path, timestamp in ((old, old_time), (first, first_time), (second, second_time)):
+        # Directory mtime changes when its artifact is written, so set it last.
+        os.utime(path, (timestamp, timestamp))
+    monkeypatch.setattr(verifiers, "VERIFICATION_RUN_RETENTION_SECONDS", 60)
+    monkeypatch.setattr(verifiers, "MAX_VERIFICATION_RUNS", 2)
+    monkeypatch.setattr(verifiers, "MAX_VERIFICATION_STORAGE_BYTES", 4)
+
+    run_root, error = verifiers._prepare_run_directory(state_root)
+
+    assert error is None
+    assert run_root is not None
+    assert run_root.parent == runs
+    assert not run_root.exists()
+    assert not old.exists()
+    assert not first.exists()
+    assert second.exists()
+
+
+def test_verification_run_storage_rejects_nested_symlink(tmp_path):
+    state_root = tmp_path / "state"
+    run = state_root / "verification-runs" / ("d" * 32)
+    run.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.write_text("keep", encoding="utf-8")
+    (run / "escape").symlink_to(outside)
+
+    run_root, error = verifiers._prepare_run_directory(state_root)
+
+    assert run_root is None
+    assert error == "verification_storage_unsafe"
+    assert outside.read_text(encoding="utf-8") == "keep"
