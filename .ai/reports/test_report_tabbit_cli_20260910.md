@@ -35,11 +35,13 @@
 
 - PR #73 首次修复后运行 `34449520604`：`macOS Web Runtime contract` 通过；`Windows Web Runtime contract` 失败。Windows 的 19 项失败由四类直接根因组成：POSIX mode 断言/`fchmod` 测试不兼容、DataHub 快照仍调用 POSIX `dir_fd` I/O、文件下载仍调用 POSIX flags，以及中文测试夹具沿用 CP1252 默认编码。
 - 同一提交的 Windows 本机集成运行 `34449520615`：Python/Node 契约通过，真实回环服务启动失败。安全化 stderr 定位为 `runtime/auth.json` 在 Windows 被 POSIX mode 校验误拒绝。
-- 上述直接根因均已形成本轮代码和回归修复；修复后原生 Windows 重跑结果将在 PR #73 下一次 CI 完成后补记。
+- 修复后运行 `34454453713`：`macOS Web Runtime contract` 与 `Windows Web Runtime contract` 均通过，分别完成原生 macOS/Windows 的 Python、Node、Runtime staging、路径语义和配置契约验证。
+- 同一修复提交的 Windows 本机集成运行 `34454453756` 通过；除 Python/Node 契约外，已在 `windows-2022` runner 实际启动回环服务并完成健康探测和诊断产物上传。
+- 上述原生 runner 结果验证的是模拟 Runtime 和本机服务边界，不包含真实 Tabbit Browser/CLI 交互，因此不替代下述双平台产品冒烟。
 
 ## 待执行与阻塞
 
-- PR #73 的第一轮 Windows CI 直接根因修复尚待推送和原生重跑；macOS 同构合约已在运行 `34449520604` 通过。
+- PR #73 的代码与模拟 Runtime CI 已在原生 macOS、Windows runner 全绿；PR 继续保持开放，等待真实双平台 Tabbit 浏览器验收。
 - 本机检测到 Tabbit `0.30.32` 且没有可用 `tabbit-cli`。因此真实 macOS 状态、授权、动态 DOM、1/8 页 claim、写审批与标签保持打开的冒烟尚未通过。
 - 没有真实 Windows Tabbit 环境；新增原生 `macos-14`/`windows-2022` 模拟 Runtime CI 只验证 API、路径语义、staging 和 Node 契约，不替代真实浏览器冒烟。
 - 在真实 macOS 与 Windows 冒烟均通过前，本报告不把完整产品验收标记为完成。
