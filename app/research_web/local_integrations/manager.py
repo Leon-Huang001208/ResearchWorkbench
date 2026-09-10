@@ -441,8 +441,14 @@ class LocalIntegrationManager:
             session = getattr(WindPy, "w", None)
             is_connected = getattr(session, "isconnected", None)
             return bool(is_connected()) if callable(is_connected) else None
-        except ImportError:
-            return None
+        except ModuleNotFoundError as exc:
+            if exc.name == "WindPy":
+                return None
+            log.warning(
+                "local_integration_wind_session_check_failed",
+                error_type=type(exc).__name__,
+            )
+            return False
         except Exception as exc:  # noqa: BLE001 - vendor failures must not break the snapshot.
             log.warning(
                 "local_integration_wind_session_check_failed",
