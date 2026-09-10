@@ -12,6 +12,19 @@ current source modules, Markdown, diagrams and tests. Local acceptance is record
 The legacy subsystems below remain historical implementations, not dependencies to add to this new chain.
 Tests: `tests/research_web/` (use `--confcutdir=tests/research_web`) and `tests/javascript/research_web*.test.mjs`.
 DSH owns the execution loop, skills, subagents and transcript; no second orchestration/fact database.
+Tabbit integration lives in `app/research_web/tabbit.py`, `app/research_web/runtime/tabbit-adapter.mjs`,
+`app/research_web/launch_runtime.py`, `ui/composer.mjs`, `ui/settings.mjs` and the pinned
+`vendor/dsh-tabbit/0.3.4/` archive. Read [the Tabbit contract](research-web-tabbit.md) before changing
+its staging, loopback API, claim/token lifecycle or UI. Regression coverage is in
+`tests/research_web/test_tabbit.py`, `test_runtime_launch.py`, `test_api.py`, `test_protocol.py`,
+`tests/javascript/research_web_tabbit_adapter.test.mjs`, `research_web_tabbit_ui.test.mjs`,
+`research_web_guard.test.mjs` and `research_web_settings_ui.test.mjs`.
+Windows staging regressions must cover UTF-8 text, POSIX tar member names, closed-handle atomic
+replacement, forward-slash adapter serialization, DSH auth-file identity, DataHub snapshot publication,
+safe downloads and read-only purge; CI remains simulator-only until real browser smoke.
+The Web-only merge gate requires real macOS Tabbit smoke plus native macOS/Windows CI. Real Windows
+Tabbit remains an explicitly unverified delivery boundary and does not replace the repository's separate
+desktop Windows release gate.
 The product topbar keeps healthy runtime state silent and exposes only actionable configuration or
 availability states; page-scoped refresh controls remain owned by their existing modules.
 Settings uses five mutually exclusive hash subpages rendered by `ui/settings.mjs`; `ui/app.mjs` retains
@@ -29,7 +42,7 @@ summary contains only local-service health, available items and actionable items
 The DataHub connection endpoints and remote data-source workbench contract remain unchanged.
 DataHub catalog, brand-neutral business tools, broker, Provider, probe and snapshot contracts live in `app/research_web/datahub/`, `app/research_web/launch_runtime.py`, `app/research_web/runtime/public-data.mjs` and [DataHub](research-web-datahub.md). `catalog.py` is the no-network source of truth for the 15-capability / 22-source UI. `datahub/connections.py` owns per-source local non-secret configuration, OS keyring boundaries and the explicitly confirmed legacy-environment migration; `providers_mysql.py` owns MySQL privilege checks, exact schema identifiers and bounded single-table reads. The Settings UI reads the safe `/data/connections` projection and generic source-configuration endpoints. Runtime start/restart materializes only tools whose capability has `callable_source_count > 0`. The legacy connector map below does not make a Research Web provider callable.
 
-`app/research_web/datahub/security.py` keeps descriptor-relative, no-follow IO on POSIX and a Windows-only startup control-file fallback that validates canonical containment, reparse points, regular-file identity, hard-link count and size. Native `windows-2022` CI must start the full loopback service before local-integration support is considered verified.
+`app/research_web/datahub/security.py` keeps descriptor-relative, no-follow IO on POSIX and a Windows-only path fallback for private control files, receipts and immutable snapshots. The fallback validates canonical containment, reparse points, regular-file identity, hard-link count and size, and closes file handles before atomic replacement. `client.py` applies the same Windows identity boundary to the DSH auth record; `store.py` applies it to downloads and restores owner-write permission only inside product-owned trees during purge. Native `windows-2022` CI must start the full loopback service before local-integration support is considered verified.
 `app/research_web/runtime_auth.py` is the shared DSH authentication-record reader for `client.py` and `service_manager.py`. It bounds content, rejects aliases and identity replacement on every platform, applies POSIX mode checks only on POSIX, and is exercised by the same native Windows service smoke test.
 `app/research_web/service_manager.py` applies the same platform distinction to its private data, state and log directories: type, symlink and Windows reparse checks remain universal, while group/other mode checks remain POSIX-only.
 

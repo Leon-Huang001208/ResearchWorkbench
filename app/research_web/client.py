@@ -42,6 +42,14 @@ METHODS = frozenset(
         "settings.mutate",
     }
 )
+PLUGIN_ROUTES = frozenset(
+    {
+        ("GET", "/research/tabbit/status"),
+        ("POST", "/research/tabbit/access"),
+        ("GET", "/research/tabbit/tabs"),
+        ("POST", "/research/tabbit/live-extract"),
+    }
+)
 MAX_STREAM_BYTES = 16 * 1024 * 1024
 
 
@@ -232,6 +240,42 @@ class DSHClient:
             return {"credentials": value}
         return value
 
+    async def plugin_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, str] | None = None,
+        payload: dict | None = None,
+    ) -> dict:
+        """Call one reviewed loopback plugin route through the owned DSH cookie."""
+        normalized = method.upper()
+        if (normalized, path) not in PLUGIN_ROUTES:
+            raise RuntimeFailure("未授权的 DSH 插件路由", "forbidden")
+        try:
+            response = await self.http.request(
+                normalized,
+                path,
+                params=params,
+                json=payload if normalized != "GET" else None,
+            )
+            body = response.json()
+            if not isinstance(body, dict):
+                raise RuntimeFailure("DSH 插件响应格式不匹配", "protocol_error")
+            if response.is_error:
+                raw_code = body.get("code") or body.get("error")
+                code = raw_code if isinstance(raw_code, str) else "tabbit_error"
+                log.warning(
+                    "dsh_plugin_rejected", route=path, status=response.status_code, code=code
+                )
+                raise RuntimeFailure("Tabbit 运行时拒绝请求", code)
+            return body
+        except RuntimeFailure:
+            raise
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            log.warning("dsh_plugin_transport_failed", route=path, error_type=type(exc).__name__)
+            raise RuntimeFailure("Tabbit 运行时连接失败；请求未自动重试") from exc
+
     async def respond(self, rpc_id: str, value: dict) -> dict:
         client_id = self._event_client_id
         pending = self._pending_events.get(rpc_id)
@@ -282,9 +326,8 @@ class DSHClient:
                                 raise RuntimeFailure("DSH 流式响应格式无效", "protocol_error")
                             yield value
                         elif frame.get("type") == "error":
-                            error = (
-                                frame.get("error") if isinstance(frame.get("error"), dict) else {}
-                            )
+                            raw_error = frame.get("error")
+                            error = raw_error if isinstance(raw_error, dict) else {}
                             raise RuntimeFailure(
                                 "DSH 流式请求失败",
                                 str(error.get("code", "runtime_error")),
@@ -350,7 +393,11 @@ class DSHClient:
                 value.get("agentId"),
             )
             request = value.get("request")
-            if not all(isinstance(item, str) and item for item in (event_id, event, session_id)):
+            if not isinstance(event_id, str) or not event_id:
+                raise RuntimeFailure("DSH 交互事件标识无效", "protocol_error")
+            if not isinstance(event, str) or not event:
+                raise RuntimeFailure("DSH 交互事件标识无效", "protocol_error")
+            if not isinstance(session_id, str) or not session_id:
                 raise RuntimeFailure("DSH 交互事件标识无效", "protocol_error")
             if not isinstance(request, dict):
                 raise RuntimeFailure("DSH 交互事件内容无效", "protocol_error")
@@ -373,6 +420,8 @@ class DSHClient:
             return {"type": "server-request", "rpcId": event_id, "payload": payload}
         if kind == "cancel":
             event_id = value.get("eventId")
+            if not isinstance(event_id, str) or not event_id:
+                raise RuntimeFailure("DSH 交互事件标识无效", "protocol_error")
             pending = self._pending_events.pop(event_id, None)
             event = pending if isinstance(pending, str) else (pending or {}).get("event")
             session_id = "" if isinstance(pending, str) else (pending or {}).get("sessionId", "")

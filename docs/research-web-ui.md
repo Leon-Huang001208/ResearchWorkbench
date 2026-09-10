@@ -24,7 +24,7 @@
 | `app.mjs` | 页面组合和真实用户交互；配置秘密不进入持久浏览器存储 |
 | `settings.mjs` | 设置分类路由解析和纯渲染；每次只组合当前子页，数据加载、提交与错误仍由 `app.mjs` 控制 |
 | `shell.mjs` | 页面标题、导航搜索弹层、可收起的产品导航、真实运行/最近会话与会话右侧标签面板 |
-| `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索及附件拖放/粘贴入口；不直接发起研究 |
+| `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索、Tabbit `@` 标签搜索/chips 及附件拖放/粘贴入口；不直接发起研究 |
 | `capabilities.mjs` | 同一能力目录的筛选、卡片、详情、检查结果、只读 Tool、不可变版本与 Workflow 模板渲染 |
 | `capability-workspace.mjs` | Skill、Tool、Workflow、数据四个互斥主标签、类型内二级视图、严格类型过滤、运行计划/连接摘要与共用快览 dialog |
 | `data-catalog.mjs` | DataHub 的 15 项能力 / 22 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
@@ -41,6 +41,7 @@
 所有请求仅访问同源 `/api/research`；读取运行时、模型目录、工作空间、历史、`/capabilities` 与只读 `/tools` 后展示真实响应。错误可见，不生成本地演示结果。目录部分加载失败会独立报告并保留上次成功结果；DSH 离线时产品后端仍可读取已保存目录。Web 服务也离线时只能保留本页已加载状态，不宣称提供离线 PWA 或跨刷新缓存。
 
 - 新研究先 `POST /sessions`，再对新会话 `POST /messages`；消息带 `Idempotency-Key`。同一个失败草稿重试复用相同键；收到 `accepted: true` 才清空原稿。界面不伪造用户/助手消息或进度。
+- `@` 标签候选仅在用户展开菜单后读取；首次展开先获得当前会话页面访问授权。候选按标题或 URL 过滤，支持键盘操作和最多 8 个可移除 chip。发送前必须二次确认实时 claim 及可能改变分组；授权、claim 或提取失败均保留正文和 chips。`/` 菜单优先且不与 `@` 菜单同时展开。设置 → 本地集成分别控制浏览器自动化和 Tabbit `web_fetch` 接管，配置只在 Runtime 重启后生效。完整契约和 `read_only` 限制见 [Tabbit 集成](research-web-tabbit.md)。
 - 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。DataHub 标准字段 `turnover` 表示成交额，`turnover_rate_pct` 表示换手率；两者不得混用，缺少换手率时显示未知。没有真实值时不补价格、估值、主题或同类比较。
 - Claw 首页先读取 `/report-workflows`，单独展示已迁移的报告 Workflow；通用 Workflow 卡不会冒充具体报告。点击详情只查看资源与版本，点击运行才创建独立 Claw 会话。AI 周报处于 `needs_attention` 时禁止运行。
 - 运行与用量页使用单个 `/operations/summary` 汇总请求，避免并发遍历同一 DSH 历史造成瞬时健康误判；页面无停止、重启或删除按钮。缺失 usage 与模型价格分别显示“未知”和“费用未配置”。

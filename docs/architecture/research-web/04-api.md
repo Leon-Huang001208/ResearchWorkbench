@@ -6,11 +6,15 @@
 旧 kind 深链保持兼容，无 kind 的 plans/connections 分别归一到 Workflow/Tool。通用 Automation 与 MCP
 Registry API 属于后续阶段，在对应持久模型和安全边界落地前不出现在本清单中。
 
-路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 125 个唯一 HTTP 操作、127 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
+本轮跨平台修复不新增或修改 HTTP 路由。Windows 上的 Runtime 认证读取、DataHub 快照接口和会话文件下载在进入既有响应契约前执行规范路径、重解析点、普通文件及打开前后身份校验；失败继续返回既有安全错误，不暴露本机路径或文件内容。waterfall/cancel 的空或非字符串标识在协议边界统一返回 `protocol_error`。
+
+路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 129 个唯一 HTTP 操作、131 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 
 | Method | 路径 | 源码 |
 |---|---|---|
 | GET | `/api/research/runtime` | `app/research_web/main.py` |
+| GET | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
+| PUT | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
 | GET | `/api/research/models` | `app/research_web/main.py` |
 | PUT | `/api/research/runtime/model` | `app/research_web/main.py` |
 | GET | `/api/research/workspaces` | `app/research_web/main.py` |
@@ -22,6 +26,8 @@ Registry API 属于后续阶段，在对应持久模型和安全边界落地前�
 | POST | `/api/research/sessions/{sid}/restore` | `app/research_web/main.py` |
 | DELETE | `/api/research/sessions/{sid}/permanent` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/messages` | `app/research_web/main.py` |
+| POST | `/api/research/sessions/{sid}/tabbit-access` | `app/research_web/main.py` |
+| GET | `/api/research/sessions/{sid}/tabbit-tabs` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/cancel` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/approvals/{aid}` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/questions/{qid}` | `app/research_web/main.py` |
@@ -137,6 +143,8 @@ Registry API 属于后续阶段，在对应持久模型和安全边界落地前�
 ## 约束与错误
 
 - 消息提交使用 `Idempotency-Key`；受理返回 202，不是执行或交付成功。受理未知时不自动重试。
+- Tabbit `web_fetch` 接管依赖浏览器自动化；多实例必须选择 16 位实例 ID。会话授权后才可读取候选，消息最多引用 8 个不重复且同实例的标签页，并要求 `tabbit_live_confirmed=true`。发送前重新验证可用性；claim、提取、释放或 token 生成任一步失败均不提交消息。
+- Tabbit 配置 JSON 固定使用 UTF-8；Windows 原子替换只在临时文件句柄关闭后执行。清理异常不得覆盖原始保存错误，接口继续返回既有稳定错误契约。
 - 会话、附件、文件、数据集必须属于产品索引中的当前会话；模型参数不能选择任意宿主路径。
 - `GET /sessions` 默认只返回正常会话，`view=deleted|all` 显式读取墓碑；软删除写入 30 天可恢复窗口，恢复不触碰 DSH。永久删除和到期清理先调用 DSH `session.delete(cascade=true)`，确认根 ID 位于 `deletedSessionIds` 后才清理本产品目录与索引；运行中或删除已开始的会话拒绝恢复。服务启动与每 6 小时的在线保留期任务都会重试过期墓碑。
 - `GET /data/catalog` 与详情接口只读取静态目录；`POST /data/sources/{id}/probes` 才检测一个指定来源，使用 `Idempotency-Key` 去重。探测结果只返回安全化错误码和耗时，不返回凭据或上游正文。

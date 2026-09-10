@@ -63,6 +63,18 @@ def _serialized(method):
     return locked
 
 
+def _fsync_directory(path: Path) -> None:
+    """Persist a directory entry where the host exposes POSIX directory handles."""
+    if os.name == "nt":
+        log.debug("datahub_directory_fsync_skipped", platform="windows")
+        return
+    directory_fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
 class MySQLConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -456,11 +468,7 @@ class MySQLConnectionStore:
             os.fsync(stream.fileno())
         try:
             os.replace(temporary, path)
-            directory_fd = os.open(self.directory, os.O_RDONLY | os.O_DIRECTORY)
-            try:
-                os.fsync(directory_fd)
-            finally:
-                os.close(directory_fd)
+            _fsync_directory(self.directory)
         finally:
             temporary.unlink(missing_ok=True)
 

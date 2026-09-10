@@ -27,6 +27,7 @@ from .projection import project
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
 from .store import Store, StoreError
+from .tabbit import TabbitIntegration
 
 log = get_logger(__name__)
 SESSION_DELETE_BLOCKED_STATUSES = {
@@ -59,6 +60,7 @@ class ResearchService:
         self.delivery = Delivery(store, delivery_python)
         self.capabilities = CapabilityCatalog(store.root)
         self.datahub = DataHub(store)
+        self.tabbit = TabbitIntegration(client, store)
         self.local_integrations = LocalIntegrationManager(store.root / "local-integrations")
         self.asset_workspace = AssetWorkspace(self)
         self.report_studio = ReportStudio(self)
@@ -709,6 +711,8 @@ class ResearchService:
         capability_id=None,
         capability_version=None,
         tool_ids=(),
+        tabbit_tabs=(),
+        tabbit_live_confirmed=False,
     ):
         await self.ensure_owned()
         async with self.lock:
@@ -723,6 +727,8 @@ class ResearchService:
                 and not capability_id
                 and not tool_ids
                 and capability_version is None
+                and not tabbit_tabs
+                and not tabbit_live_confirmed
             ):
                 legacy = {
                     "text": text,
@@ -774,6 +780,8 @@ class ResearchService:
                 "expected_formats": required,
                 "capability": selection,
                 "tool_ids": list(tool_ids),
+                "tabbit_tabs": list(tabbit_tabs),
+                "tabbit_live_confirmed": tabbit_live_confirmed,
             }
             digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
             if f"{sid}:{key}" in self.store.data["receipts"]:
@@ -837,6 +845,12 @@ class ResearchService:
             if selection:
                 self.capabilities.snapshot(selection, self.store.directory(sid))
             capability_snapshots = self.capabilities.snapshot_catalog(self.store.directory(sid))
+            tabbit_markers = await self.tabbit.live_markers(
+                sid,
+                key,
+                list(tabbit_tabs),
+                confirmed=tabbit_live_confirmed,
+            )
             delivery = self.delivery.begin(sid, key, required)
             if not self.store.reserve(sid, key, digest, delivery):
                 status = self.store.receipt(sid, key)["status"]
@@ -850,6 +864,8 @@ class ResearchService:
                 self.store.receipt(sid, key)["capability"] = selection
             self.store.save()
             prompt = text
+            if tabbit_markers:
+                prompt += "\n\nTabbit 标签页引用：" + " ".join(tabbit_markers)
             prompt += "\n\n" + delivery["marker"]
             if formats is not None:
                 prompt += "\n用户显式选择的输出格式优先于 Skill 默认格式。"
@@ -1093,6 +1109,13 @@ class ResearchService:
                 "outcome": "allowed-once" if decision == "approve" else "rejected",
             },
         )
+        if result.get("accepted") is True:
+            # The native runtime may not emit its separate cancellation frame
+            # until after the turn resumes.  Once it has accepted the answer,
+            # the interaction is no longer pending in this BFF either.
+            self.approvals.pop(aid, None)
+            self.event_revision += 1
+            self.notify()
         self.store.audit(
             "approval",
             "approved" if decision == "approve" else "denied",

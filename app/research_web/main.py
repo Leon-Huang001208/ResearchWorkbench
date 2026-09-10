@@ -12,7 +12,7 @@ from typing import Literal
 from urllib.parse import quote
 from uuid import uuid4
 
-from fastapi import FastAPI, Header, Request, UploadFile
+from fastapi import FastAPI, Header, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -38,6 +38,7 @@ from .report_workflow_routes import router as report_workflow_router
 from .report_workflows.models import WorkflowError
 from .service import ResearchService
 from .store import Store, StoreError
+from .tabbit import TabbitError
 from .workbench import router as workbench_router
 
 log = get_logger(__name__)
@@ -54,6 +55,11 @@ class NewSession(BaseModel):
     workspace_id: Literal["research"] = "research"
 
 
+class TabbitTabRef(BaseModel):
+    tab_id: int = Field(ge=0, strict=True)
+    instance_id: str = Field(pattern=r"^[A-F0-9]{16}$")
+
+
 class Prompt(BaseModel):
     text: str = Field(min_length=1, max_length=100000)
     attachment_ids: list[str] = Field(default_factory=list, max_length=20)
@@ -64,6 +70,18 @@ class Prompt(BaseModel):
     expected_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png"]] | None = Field(
         default=None, max_length=5
     )
+    tabbit_tabs: list[TabbitTabRef] = Field(default_factory=list, max_length=8)
+    tabbit_live_confirmed: bool = False
+
+
+class TabbitConfig(BaseModel):
+    browser_enabled: bool
+    web_fetch_enabled: bool
+    instance_id: str | None = Field(default=None, pattern=r"^[A-F0-9]{16}$")
+
+
+class TabbitAccess(BaseModel):
+    decision: Literal["approve", "deny"]
 
 
 class Rename(BaseModel):
@@ -203,6 +221,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )
 
+    @app.exception_handler(TabbitError)
+    async def tabbit_error(request, exc):
+        log.warning("tabbit_request_rejected", code=exc.code)
+        return JSONResponse(
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
+        )
+
     @app.exception_handler(LocalIntegrationError)
     async def local_integration_error(request, exc):
         log.warning("local_integration_request_rejected", code=exc.code)
@@ -244,6 +269,23 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     async def configure_model(body: ModelConfig, request: Request):
         return await svc(request).configure_model(body.provider, body.model, body.api_key)
 
+    @app.get("/api/research/runtime/tabbit")
+    async def tabbit_status(request: Request):
+        return await svc(request).tabbit.status()
+
+    @app.put("/api/research/runtime/tabbit")
+    async def configure_tabbit(body: TabbitConfig, request: Request):
+        service = svc(request)
+        await service.ensure_owned()
+        status = await service.tabbit.status()
+        if body.browser_enabled and status["online_instances"] > 1 and body.instance_id is None:
+            raise TabbitError(
+                "多个 Tabbit 实例在线时必须选择实例",
+                "tabbit_instance_selection_required",
+                409,
+            )
+        return service.tabbit.configure(**body.model_dump())
+
     @app.get("/api/research/workspaces")
     async def workspaces():
         return {"items": [{"id": "research", "name": "我的研究"}]}
@@ -260,6 +302,20 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/sessions/{sid}")
     async def session(sid: str, request: Request):
         return await svc(request).detail(sid)
+
+    @app.post("/api/research/sessions/{sid}/tabbit-access")
+    async def tabbit_access(sid: str, body: TabbitAccess, request: Request):
+        await svc(request).ensure_owned()
+        return await svc(request).tabbit.access(sid, body.decision)
+
+    @app.get("/api/research/sessions/{sid}/tabbit-tabs")
+    async def tabbit_tabs(
+        sid: str,
+        request: Request,
+        q: str = Query(default="", max_length=200),
+        limit: int = Query(default=50, ge=1, le=50),
+    ):
+        return await svc(request).tabbit.tabs(sid, query=q, limit=limit)
 
     @app.patch("/api/research/sessions/{sid}")
     async def rename(sid: str, body: Rename, request: Request):
@@ -302,6 +358,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             capability_id=body.capability_id,
             capability_version=body.capability_version,
             tool_ids=body.tool_ids,
+            tabbit_tabs=[item.model_dump() for item in body.tabbit_tabs],
+            tabbit_live_confirmed=body.tabbit_live_confirmed,
         )
 
     @app.post("/api/research/sessions/{sid}/cancel")

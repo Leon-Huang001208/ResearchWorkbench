@@ -14,7 +14,11 @@ export const RESEARCH_TOOLS = new Set([
 export function apply(ctx, config = {}) {
   const calls = new WeakMap();
   ctx.tools.guard((execution) => {
-    if (config.enabled === true && RESEARCH_TOOLS.has(execution.name) && execution.agent) {
+    const tabbitAllowed =
+      (execution.name === 'tabbit_browser' && config.tabbitBrowserEnabled === true) ||
+      (execution.name === 'web_fetch' && config.tabbitWebFetchEnabled === true);
+    const researchAllowed = config.enabled === true && RESEARCH_TOOLS.has(execution.name);
+    if ((researchAllowed || tabbitAllowed) && execution.agent) {
       const turn = execution.agent.session.snapshotEvents().findLast((event) => event.type === 'turn/start')?.data.turn;
       let budget = calls.get(execution.agent);
       if (!budget || budget.turn !== turn) { budget = { turn, calls: 0, children: 0 }; calls.set(execution.agent, budget); }

@@ -196,6 +196,10 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     approve: (id, approval, decision) => request(`${sessionPath(id)}/approvals/${segment(approval)}`, { method: 'POST', body: { decision } }),
     answer: (id, question, answers) => request(`${sessionPath(id)}/questions/${segment(question)}`, { method: 'POST', body: { answers } }),
     configure: (body) => request('/runtime/model', { method: 'PUT', body }),
+    tabbitStatus: () => request('/runtime/tabbit'),
+    configureTabbit: (body) => request('/runtime/tabbit', { method: 'PUT', body }),
+    tabbitAccess: (id, decision) => request(`${sessionPath(id)}/tabbit-access`, { method: 'POST', body: { decision } }),
+    tabbitTabs: (id, query = '', limit = 50) => request(`${sessionPath(id)}/tabbit-tabs?q=${segment(query)}&limit=${segment(limit)}`),
     events: (id, handlers) => {
       if (!EventSourceClass) { handlers.error('当前浏览器不支持实时连接，可手动刷新会话。'); return () => {}; }
       const source = new EventSourceClass(`${API_ROOT}${sessionPath(id)}/events`);
@@ -212,13 +216,13 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   };
 }
 
-export function createController({ api, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {} }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], skillId: '', capability: null, toolIds: [], expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
+export function createController({ api, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {};
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
-  const draftState = () => ({ draft: state.draft, attachments: state.attachments, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, expectedFormats: state.expectedFormats });
+  const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, expectedFormats: state.expectedFormats });
   const saveDraft = () => drafts.set(draftKey(), draftState());
   const fail = (error) => { state.error = error?.message || '操作失败，请重试。'; };
   function snapshot(data) {
@@ -234,7 +238,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   async function open(route) {
     saveDraft(); const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false;
-    Object.assign(state, { expectedFormats: null, capability: null, toolIds: [] }, drafts.get(draftKey()) || { draft: '', attachments: [], skillId: '' }); emit();
+    Object.assign(state, { expectedFormats: null, capability: null, toolIds: [], tabbitTabs: [] }, drafts.get(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '' }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
@@ -250,8 +254,12 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   }
   async function send() {
     if (state.busy || !state.detail || !state.draft.trim()) return;
+    if (state.tabbitTabs.length) {
+      try { if (!await confirmTabbit()) return; }
+      catch (error) { fail(error); emit(); return; }
+    }
     const id = state.detail.id; const ticket = generation; const text = state.draft;
-    const body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: state.toolIds } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}) };
+    const body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: state.toolIds } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
     const signature = JSON.stringify(body); const previous = pending.get(id);
     const attempt = previous?.signature === signature ? previous : { signature, key: makeID() };
     pending.set(id, attempt); state.busy = true; state.error = ''; emit();
@@ -261,9 +269,9 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
       pending.delete(id);
       if (ticket === generation) {
         if (state.draft === text) state.draft = '';
-        state.attachments = []; saveDraft(); await refresh();
+        state.attachments = []; state.tabbitTabs = []; saveDraft(); await refresh();
       } else {
-        const saved = drafts.get(id); if (saved?.draft === text) drafts.set(id, { ...saved, draft: '', attachments: [] });
+        const saved = drafts.get(id); if (saved?.draft === text) drafts.set(id, { ...saved, draft: '', attachments: [], tabbitTabs: [] });
       }
     } catch (error) { if (ticket === generation) fail(error); }
     finally { if (ticket === generation) { state.busy = false; emit(); } }
@@ -287,6 +295,13 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
     setFormats: (value) => { state.expectedFormats = value === null ? null : [...new Set(value)]; saveDraft(); },
     addAttachments: (items) => { state.attachments = [...new Map([...state.attachments, ...items].map((file) => [file.id, file])).values()]; saveDraft(); emit(); },
     removeAttachment: (id) => { state.attachments = state.attachments.filter((file) => file.id !== id); saveDraft(); emit(); },
+    addTabbit: (item) => {
+      if (state.tabbitTabs.some((tab) => tab.tab_id === item.tab_id && tab.instance_id === item.instance_id)) return;
+      if (state.tabbitTabs.length >= 8) throw new Error('每条消息最多选择 8 个实时标签页。');
+      if (state.tabbitTabs.length && state.tabbitTabs[0].instance_id !== item.instance_id) throw new Error('一次只能选择同一个 Tabbit 实例的标签页。');
+      state.tabbitTabs = [...state.tabbitTabs, structuredClone(item)]; saveDraft(); emit();
+    },
+    removeTabbit: (tabId) => { state.tabbitTabs = state.tabbitTabs.filter((item) => item.tab_id !== Number(tabId)); saveDraft(); emit(); },
     create: async (mode, workspaceId) => {
       const ticket = generation;
       const previousDraft = { ...draftState(), attachments: [] };
@@ -300,7 +315,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
       const result = await action(() => api.createCapabilitySession(kind, goal), { refreshAfter: false });
       if (ticket !== generation) return null;
       if (result?.id && typeof result.draft === 'string') {
-        drafts.set(result.id, { draft: result.draft, attachments: [], skillId: '', capability: null, toolIds: [], expectedFormats: null });
+        drafts.set(result.id, { draft: result.draft, attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], expectedFormats: null });
         onNavigate(sessionHash(result));
       }
       return result;

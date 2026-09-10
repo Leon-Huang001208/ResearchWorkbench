@@ -78,6 +78,7 @@ async def test_child_approval_replayed_before_child_list_is_routed_to_owned_pare
     assert native.replies == [
         ("request-rpc", {"sessionId": "child", "approvalId": "approval-1", "outcome": "rejected"})
     ]
+    assert not service.approvals
     native.items = [
         {"payload": {"sessionId": "child", "type": "approval/resolved", "approvalId": "approval-1"}}
     ]

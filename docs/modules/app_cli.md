@@ -31,6 +31,11 @@ Update this section when:
 - Global configuration changes
 - Logging setup changes
 
+Research Web commands:
+
+- `rwb web start|stop|restart|status` — manage the owned loopback Web/DSH processes.
+- `rwb web tabbit-status` — read-only Tabbit health and pending-restart summary. It deliberately omits paths, cookies, tab titles, URLs and page content; installation and upgrades remain manual.
+
 ### `app/cli/commands/*.py`
 
 Purpose:

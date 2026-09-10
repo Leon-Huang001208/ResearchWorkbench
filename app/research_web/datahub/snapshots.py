@@ -13,7 +13,18 @@ from core.observability import get_logger
 
 from ..store import Store, StoreError
 from .contracts import SCHEMA_VERSION, SOURCES
-from .security import atomic_json, directory, json_bytes, read_file, write_new
+from .security import (
+    atomic_json,
+    directory,
+    json_bytes,
+    make_directory,
+    read_file,
+    remove_directory,
+    rename_directory,
+    sync_directory,
+    unlink_file,
+    write_new,
+)
 
 log = get_logger(__name__)
 UUID = re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
@@ -207,19 +218,19 @@ class Snapshots:
                 (self._public(sid), public_files, False),
             ]:
                 with directory(self.store.root, parts, create=True, private=private) as parent:
-                    os.mkdir(temporary, mode=0o700, dir_fd=parent)
+                    make_directory(parent, temporary)
                 created.append((parts, files, private))
                 with directory(self.store.root, (*parts, temporary), private=private) as fd:
                     for name, content in files.items():
                         write_new(fd, name, content)
-                    os.fsync(fd)
+                    sync_directory(fd)
             # No await within publication; cancellation is checked immediately before it.
             # Publish public inputs first; the private UUID is the catalog commit marker.
             # A process exit between renames leaves only ignored, uncommitted inputs.
             for parts, _, private in reversed(created):
                 with directory(self.store.root, parts, private=private) as fd:
-                    os.rename(temporary, did, src_dir_fd=fd, dst_dir_fd=fd)
-                    os.fsync(fd)
+                    rename_directory(fd, temporary, did)
+                    sync_directory(fd)
             log.info(
                 "datahub_snapshot_published",
                 session_id=sid,
@@ -239,8 +250,8 @@ class Snapshots:
                         with directory(self.store.root, (*parts, name), private=private) as fd:
                             for filename in files:
                                 if filename in os.listdir(fd):
-                                    os.unlink(filename, dir_fd=fd)
-                        os.rmdir(name, dir_fd=parent)
+                                    unlink_file(fd, filename)
+                        remove_directory(parent, name)
             raise
 
     def copy_for_upgrade(self, old_sid, new_sid):

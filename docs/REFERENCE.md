@@ -113,6 +113,18 @@ FinGPT 在 DSH 不可用时可确定性回退 LangGraph。Claw 缺少健康 team
 
 ## CLI 命令
 
+### `rwb web tabbit-status`
+
+读取 Research Web 当前 Tabbit 健康、版本、两个开关、在线实例数和待重启状态。
+输出不包含路径、Cookie、标签页标题、URL 或正文，也不会下载、安装或升级 Tabbit。
+
+```bash
+rwb web tabbit-status
+```
+
+该命令要求已启动且健康的 Research Web；配置与安全边界见
+[`docs/research-web-tabbit.md`](research-web-tabbit.md)。
+
 ### 0. data - 统一数据命令组（推荐）
 
 **新增于 2026-06-02**。统一替代分散的 `rwb crawl` / `rwb ingest` / `rwb knowledge` 命令。

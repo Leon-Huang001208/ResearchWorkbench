@@ -4917,12 +4917,13 @@
         <path data-edge-from="migration" data-edge-to="session" data-edge-label="核验后复制研究数据" data-edge-key="2" data-edge-id="migrate-session" data-composition-points="240,435;355,435" d="M 240 435 L 355 435" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="web" data-edge-to="bff" data-edge-label="HTTP / SSE" data-edge-key="3" data-edge-id="web-http" data-composition-points="240,269;355,269" d="M 240 269 L 355 269" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="bff" data-edge-to="dsh" data-edge-label="RPC / 双 WS" data-edge-key="4" data-edge-id="runtime-wire" data-composition-points="555,269;670,269" d="M 555 269 L 670 269" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="dsh" data-edge-to="model" data-edge-label="模型调用" data-edge-key="5" data-edge-id="inference" data-composition-points="870,269;985,269" d="M 870 269 L 985 269" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="dsh" data-edge-to="model" data-edge-label="模型调用" data-edge-key="5" data-edge-id="inference" data-composition-points="870,262;985,262" d="M 870 262 L 985 262" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="session" data-edge-to="index" data-edge-label="归属与幂等收据" data-edge-key="6" data-edge-id="ownership" data-composition-points="455,478;455,558" d="M 455 478 L 455 558" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="dsh" data-edge-to="history" data-edge-label="原生日志" data-edge-key="7" data-edge-id="native-log" data-composition-points="770,226;770,146" d="M 770 226 L 770 146" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="bff" data-edge-to="session" data-edge-label="上传与下载" data-edge-key="8" data-edge-id="files" data-composition-points="455,312;455,392" d="M 455 312 L 455 392" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="dsh" data-edge-to="sandbox" data-edge-label="白名单工具" data-edge-key="9" data-edge-id="execute" data-composition-points="770,312;770,392" d="M 770 312 L 770 392" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="sandbox" data-edge-to="session" data-edge-label="会话内读写" data-edge-key="10" data-edge-id="isolated-files" data-composition-points="670,435;555,435" d="M 670 435 L 555 435" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="dsh" data-edge-to="tabbit" data-edge-label="原子 claim · 只读 DOM · keep" data-edge-key="11" data-edge-id="live-tabs" data-composition-points="870,276;927.5,276;927.5,435;985,435" d="M 870 276 L 919.5 276 Q 927.5 276 927.5 284 L 927.5 427 Q 927.5 435 935.5 435 L 985 435" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
 
         <!-- Components -->
         <g id="node-manager" data-node-id="manager" data-node-label="rwb 服务管理" tabindex="0" role="button" aria-label="Focus rwb 服务管理, PID 指纹 · 健康等待 · 回滚, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="PID 指纹 · 健康等待 · 回滚" data-node-context="Architecture component">
@@ -4961,15 +4962,15 @@
         <text data-detail="context" x="455" y="283" class="t-muted" font-size="9" text-anchor="middle">回环单 worker · :8088</text>
         </g>
 
-        <g id="node-dsh" data-node-id="dsh" data-node-label="专属 DSH" tabindex="0" role="button" aria-label="Focus 专属 DSH, 唯一研究引擎 · :3081, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="唯一研究引擎 · :3081" data-node-context="Architecture component">
-          <title>专属 DSH · 唯一研究引擎 · :3081 · Architecture component</title>
+        <g id="node-dsh" data-node-id="dsh" data-node-label="专属 DSH" tabindex="0" role="button" aria-label="Focus 专属 DSH, 唯一研究引擎 · Tabbit adapter · :3081, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="唯一研究引擎 · Tabbit adapter · :3081" data-node-context="Architecture component">
+          <title>专属 DSH · 唯一研究引擎 · Tabbit adapter · :3081 · Architecture component</title>
           <rect x="670" y="226" width="200" height="86" rx="6" class="c-mask"/>
           <rect x="670" y="226" width="200" height="86" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(676 232) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-detail-anchor x="770" y="267" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">专属 DSH</text>
-        <text data-detail="context" x="770" y="283" class="t-muted" font-size="9" text-anchor="middle">唯一研究引擎 · :3081</text>
+        <text data-detail="context" x="770" y="283" class="t-muted" font-size="8.6" text-anchor="middle">唯一研究引擎 · Tabbit adapter · :3081</text>
         </g>
 
         <g id="node-model" data-node-id="model" data-node-label="DeepSeek" tabindex="0" role="button" aria-label="Focus DeepSeek, 用户授权的模型接口, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="用户授权的模型接口" data-node-context="Architecture component">
@@ -5056,6 +5057,18 @@
         <text data-detail="context" x="770" y="449" class="t-muted" font-size="9" text-anchor="middle">内核文件约束 · 环境白名单</text>
         </g>
 
+        <g id="node-tabbit" data-node-id="tabbit" data-node-label="Tabbit Browser" tabindex="0" role="button" aria-label="Focus Tabbit Browser, 用户标签页 · 本机 CLI · 实时 DOM, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="用户标签页 · 本机 CLI · 实时 DOM" data-node-context="Architecture component">
+          <title>Tabbit Browser · 用户标签页 · 本机 CLI · 实时 DOM · Architecture component</title>
+          <rect x="985" y="392" width="200" height="86" rx="6" class="c-mask"/>
+          <rect x="985" y="392" width="200" height="86" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(991 398) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-detail-anchor x="1085" y="433" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Tabbit Browser</text>
+        <text data-detail="context" x="1085" y="449" class="t-muted" font-size="9" text-anchor="middle">用户标签页 · 本机 CLI · 实时 DOM</text>
+        </g>
+
         <!-- Connection labels -->
         <g data-detail="context" data-edge-from="manager" data-edge-to="bff" data-edge-label="启动 8088 / 3081 并健康检查" data-edge-key="0" data-edge-id="manage-web">
           <rect x="385.2" y="150" width="139.6" height="14" rx="3" class="c-mask"/>
@@ -5078,8 +5091,8 @@
           <text x="612.5" y="259" class="t-backend" font-size="8" text-anchor="middle">RPC / 双 WS</text>
         </g>
         <g data-detail="context" data-edge-from="dsh" data-edge-to="model" data-edge-label="模型调用" data-edge-key="5" data-edge-id="inference">
-          <rect x="903.3" y="249" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="927.5" y="259" class="t-muted" font-size="8" text-anchor="middle">模型调用</text>
+          <rect x="903.3" y="242" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="927.5" y="252" class="t-muted" font-size="8" text-anchor="middle">模型调用</text>
         </g>
         <g data-detail="context" data-edge-from="session" data-edge-to="index" data-edge-label="归属与幂等收据" data-edge-key="6" data-edge-id="ownership">
           <rect x="416.4" y="482" width="77.2" height="14" rx="3" class="c-mask"/>
@@ -5100,6 +5113,10 @@
         <g data-detail="context" data-edge-from="sandbox" data-edge-to="session" data-edge-label="会话内读写" data-edge-key="10" data-edge-id="isolated-files">
           <rect x="583.5" y="415" width="58" height="14" rx="3" class="c-mask"/>
           <text x="612.5" y="425" class="t-security" font-size="8" text-anchor="middle">会话内读写</text>
+        </g>
+        <g data-detail="context" data-edge-from="dsh" data-edge-to="tabbit" data-edge-label="原子 claim · 只读 DOM · keep" data-edge-key="11" data-edge-id="live-tabs">
+          <rect x="855.3" y="335.5" width="144.4" height="14" rx="3" class="c-mask"/>
+          <text x="927.5" y="345.5" class="t-security" font-size="8" text-anchor="middle">原子 claim · 只读 DOM · keep</text>
         </g>
 
         <!-- Legend -->
@@ -5327,7 +5344,7 @@
         </div>
         <ul>
           <li>&bull; 研究状态逐文件核对 SHA-256，凭据不迁移</li>
-          <li>&bull; 脚本不可读取模型凭据；DSH 内部负责模型授权</li>
+          <li>&bull; Tabbit 正文只在 Runtime 内存；日志不记录标题、URL 或 DOM</li>
         </ul>
       </div>
 
@@ -5337,8 +5354,8 @@
           <h3>部署限制</h3>
         </div>
         <ul>
-          <li>&bull; 当前验证为本机 macOS 单人 Web</li>
-          <li>&bull; 不是公网、多租户或跨平台部署保证</li>
+          <li>&bull; dsh-tabbit 0.3.4 私有 Profile 加载，禁止自动安装或升级</li>
+          <li>&bull; 模拟 CI 不是真实 macOS / Windows 浏览器验收</li>
         </ul>
       </div>
     </div>

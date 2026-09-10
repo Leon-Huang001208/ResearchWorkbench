@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/outputs/research-web-architecture/02-module-dependencies.html",
-    "sha256": "d6a85a422500ffdafa0e8e261ad7a433f7fffb03eb4b649c7e971d020977a4a4",
-    "bytes": 648230
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/01k50tabbit9f7h2r6c4y8n3pqa/outputs/research-web-architecture/02-module-dependencies.html",
+    "sha256": "7bc7adb5deed802154af88427bd2cc23482f6a2f44288fd8dd88abe3ca1754cc",
+    "bytes": 649718
   },
   "state": {
     "detail": "read",

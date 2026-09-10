@@ -12,6 +12,7 @@
 | 服务管理 → 私有目录 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL | `service_manager.py` / `test_service_manager.py` |
 | 用户 → 会话文件 | 会话归属、规范路径、安全文件描述符、有限上传体积和类型 | `store.py`、`main.py` / `test_store.py`、`test_artifacts.py` |
 | DSH → 工具 | 精确注册工具集合，子 Agent 深度、并发和步骤限制 | `runtime/guard.mjs` / `research_web_guard.test.mjs` |
+| 会话 → Tabbit 标签页 | 当前 Runtime 生命周期内的会话授权；发送前按所选实例实时重验可 claim 的 HTTP(S) 标签；正文仅进入绑定会话、单次消费、10 分钟过期的 DSH 内存 token | `tabbit.py`、`runtime/tabbit-adapter.mjs` / `test_tabbit.py`、`research_web_tabbit_adapter.test.mjs` |
 | DSH → 公开数据 | 原生审批；私有认证 BFF 入口，固定来源/参数，无任意 URL、重定向或自动安装 | `runtime/public-data.mjs`、`datahub/` / `research_web_public_data.test.mjs`、`test_datahub.py` |
 | 脚本 → 宿主 | macOS Seatbelt 内核约束，环境变量白名单；只读 inputs/resources，仅 outputs/tmp 可写，无网络和子进程 | `sandbox.py` / `test_sandbox.py` |
 | HTML → 浏览器凭据 | 隔离 iframe，后端 sandbox CSP，无同源权限；模型 Markdown 先转义 | `main.py`、`ui/markdown.mjs`、`ui/views.mjs` / UI 安全测试 |
@@ -21,6 +22,12 @@
 | 原生能力 → 当前研究 | 仅专属 Skill root；所有启用包检查依赖与关联版本，再复制只读资源；失效包不能在自主发现时绕过 | `capabilities/catalog.py`、`runtime/research.cordis.yml` / `test_capabilities_native.py`、`test_capabilities_review.py` |
 
 包管理后端最近完成 233 项完整 research_web 回归与两轮限定修复复审。真实 UI 已完成对话产物创建/审查/发布/新研究调用/HTML 下载，以及手动导入/编辑两版/停用/回滚/导出；Workflow 与全轮交付检查另行记录，不由这些结果推定。媒体容器检查不是恶意内容证明，静态 Python 检查不授予额外宿主访问或网络权限。发布暂存失败保留草稿与旧版；无法确认恢复时维持 pending 并拒绝继续，不悄悄抹去失败。
+
+Tabbit 页面访问授权不持久化到 Research Web 会话文件；拒绝授权会撤销适配器内的本会话 grant。`read_only: true` 只是调用方声明，不能静态证明任意 Playwright 代码无副作用；缺失或为 `false` 的调用必须逐次经过原生审批，系统提示禁止把写操作伪装成只读。claim、DOM 提取或 `finishTask(..., {keep:true})` 任一失败都会阻止消息提交，且标题、URL、正文和执行代码不进入日志。
+
+供应包校验使用 tar 原生 POSIX 路径语义，拒绝反斜杠、链接、绝对路径和 `..`；解包阶段才建立宿主路径。Tabbit 配置异常路径始终关闭仍由调用方持有的描述符，二次清理失败只记安全日志并保留原始异常。
+
+Windows 不使用 POSIX mode bit 证明 DSH 认证文件或 DataHub 私有文件安全；路径回退要求规范化后仍位于产品根内，拒绝链接与重解析点，并验证普通文件、硬链接数、大小和打开前后身份。快照的创建、原子发布与失败清理通过同一受限路径层完成。POSIX 的目录描述符、`NOFOLLOW`、私有 mode 与目录 `fsync` 保持不变。
 
 创建会话从产物导入时只读取当前安全文件清单。已改名旧 ledger 不作附件来源；仍实际存在但不安全的固定伴随路径、读取时消失或创建类型冲突均拒绝。显式 ZIP 不吸收会话中无关 JSON。真实修复后同名包按名称冲突拒绝，未覆盖现有已发布能力。
 

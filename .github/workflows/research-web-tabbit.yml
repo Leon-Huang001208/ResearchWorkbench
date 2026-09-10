@@ -1,0 +1,64 @@
+name: Research Web Tabbit Verify
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "app/research_web/**"
+      - "app/cli/**"
+      - "vendor/dsh-tabbit/**"
+      - "tests/research_web/**"
+      - "tests/javascript/research_web_*"
+      - ".github/workflows/research-web-tabbit.yml"
+  push:
+    branches: [master]
+    paths:
+      - "app/research_web/**"
+      - "app/cli/**"
+      - "vendor/dsh-tabbit/**"
+      - "tests/research_web/**"
+      - "tests/javascript/research_web_*"
+      - ".github/workflows/research-web-tabbit.yml"
+
+jobs:
+  verify:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS Web Runtime contract
+            os: macos-14
+          - label: Windows Web Runtime contract
+            os: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.19.0"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install declared Python test dependencies
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify Python API and Runtime staging contracts
+        run: python -m pytest tests/research_web/test_tabbit.py tests/research_web/test_protocol.py tests/research_web/test_runtime_auth.py tests/research_web/test_runtime_launch.py tests/research_web/test_api.py -q
+
+      - name: Verify JavaScript UI and Runtime adapter contracts
+        run: node --test tests/javascript/research_web_tabbit_adapter.test.mjs tests/javascript/research_web_tabbit_ui.test.mjs tests/javascript/research_web_guard.test.mjs tests/javascript/research_web_settings_ui.test.mjs tests/javascript/research_web_ui.test.mjs
+
+      - name: Verify Python formatting and static checks
+        run: |
+          ruff check app/research_web/tabbit.py app/research_web/launch_runtime.py app/research_web/client.py app/research_web/runtime_auth.py app/research_web/service.py app/research_web/main.py app/research_web/service_manager.py app/cli/main.py tests/research_web/test_tabbit.py tests/research_web/test_protocol.py tests/research_web/test_runtime_auth.py tests/research_web/test_runtime_launch.py tests/research_web/test_api.py
+          black app/research_web/tabbit.py app/research_web/launch_runtime.py app/research_web/client.py app/research_web/runtime_auth.py app/research_web/service.py app/research_web/main.py app/research_web/service_manager.py app/cli/main.py tests/research_web/test_tabbit.py tests/research_web/test_protocol.py tests/research_web/test_runtime_auth.py tests/research_web/test_runtime_launch.py tests/research_web/test_api.py --check
+          isort app/research_web/tabbit.py app/research_web/launch_runtime.py app/research_web/client.py app/research_web/runtime_auth.py app/research_web/service.py app/research_web/main.py app/research_web/service_manager.py app/cli/main.py tests/research_web/test_tabbit.py tests/research_web/test_protocol.py tests/research_web/test_runtime_auth.py tests/research_web/test_runtime_launch.py tests/research_web/test_api.py --check-only
+          mypy --follow-imports=skip app/research_web/tabbit.py app/research_web/launch_runtime.py app/research_web/client.py app/research_web/runtime_auth.py app/research_web/service.py app/research_web/main.py
+
+      - name: Record simulator-only boundary
+        run: echo "CI validates simulated Runtime contracts only; it does not claim a real Tabbit Browser smoke test."

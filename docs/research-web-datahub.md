@@ -97,10 +97,12 @@ BFF关闭及现有会话cancel均取消相关请求。原生abort通过独立短
 
 ## 私有控制与会话存储
 
-启动器/服务创建独立随机控制凭据`.control/datahub.json`，0600；父目录0700。
+启动器/服务创建独立随机控制凭据`.control/datahub.json`，POSIX 为0600且父目录0700。
 原生可信插件在trustedDirectory沿实际DSH父系验证后读取固定文件；DataHub 调用按当前可用工具自动执行。
 拒绝symlink、hardlink、错误属主或过宽权限；token不进入脚本环境、prompt、普通API或日志，不读取/复用模型密钥。
 地址默认`http://127.0.0.1:8088`，首次可信启动可用`--datahub-url http://127.0.0.1:<port>`指定隔离BFF端口；只接受无userinfo/query/fragment/path的回环HTTP origin。已有地址不符报错，不静默覆盖。
+
+Windows 不使用 POSIX mode bit 作为 ACL 证明。控制文件、调用收据和快照通过产品根内的规范路径访问，拒绝链接、重解析点、非普通文件、硬链接、超限内容和打开前后身份变化；快照临时目录写完后才同目录原子改名。POSIX 继续使用 `dir_fd`、`O_DIRECTORY`、`O_NOFOLLOW` 和目录 `fsync`。
 
 ```text
 .control/datahub.json                         # 新产品控制凭据，只给可信服务/原生插件
@@ -164,6 +166,7 @@ XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/H
 
 MySQL 的单元与界面验收使用模拟 Keyring、PyMySQL 连接和安全化 API 响应，不使用对话中出现过的旧口令。真实连接只有在用户轮换口令、重新保存并显式发起探测后才可验收；Research Web 在 Windows 与 Linux 上的系统凭据库后端仍需对应操作系统 CI 验证。桌面 sidecar、Tauri 安装包和安装级烟测不在本次范围内。
 Windows 原生本机集成专项已覆盖 DataHub 私有回环控制文件的服务启动读取：路径回退拒绝符号链接/重解析点、目录越界、非普通文件、硬链接和超限内容，并核对打开前后文件身份。POSIX 的 descriptor-relative 路径保持不变；该专项不证明 Windows 上的会话快照发布、连接配置写入或系统凭据库已经完成全量验收。
+连接配置原子替换在 POSIX 刷新父目录；Windows 明确跳过不支持的目录 `fsync`。这不降低临时文件刷新和关闭句柄后替换的要求，也不把跳过视为安装级持久化验收。
 真实来源只读核对由父任务记录在`.ai/reports/2026-09-02-datahub-source-probes.md`，不把离线测试当真实模型闭环。
 2026-09-02集成验收曾按当时机制从Web完成四次原生审批，并取得2025净值13页243条及三类补充资料、完成FinGPT升级复制、两个真实子Agent共享资料，以及DOCX/HTML/XLSX/PNG输出。该记录是旧逐次审批机制的历史证据，不代表当前 Runtime 仍逐次审批；当前行为以上文自动执行和启动时工具物化契约为准。
 最终XLSX四张原始表逐值与CSV一致（243/16/25/220行），来源文件hash一致；首末观测区间变动和回撤已独立重算，数值与百分比格式均核对。

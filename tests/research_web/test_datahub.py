@@ -304,6 +304,39 @@ def test_windows_control_fallback_preserves_token_and_rejects_reparse_points(tmp
         security._windows_control(root, None)
 
 
+def test_windows_path_fallback_reads_and_atomically_replaces_owned_files(tmp_path):
+    security = importlib.import_module("app.research_web.datahub.security")
+    root = tmp_path / "windows-data"
+    root.mkdir()
+
+    with security._windows_directory(
+        root, (".control", "snapshots"), create=True, private=True
+    ) as folder:
+        security.write_new(folder, "record.json", security.json_bytes({"value": "旧"}))
+        security.atomic_json(folder, "record.json", {"value": "新"})
+        assert json.loads(security.read_file(folder, "record.json", private=True)) == {
+            "value": "新"
+        }
+
+
+@pytest.mark.asyncio
+async def test_windows_path_fallback_publishes_complete_snapshot(hub_module, tmp_path, monkeypatch):
+    security = importlib.import_module("app.research_web.datahub.security")
+    snapshots = importlib.import_module("app.research_web.datahub.snapshots")
+    monkeypatch.setattr(snapshots, "directory", security._windows_directory)
+    hub, _, sid = make_hub(
+        hub_module,
+        tmp_path,
+        lambda request: httpx.Response(200, json=nav_page([nav_row("2025-12-31")], 1)),
+    )
+
+    result = await hub.query(sid, "windows-path", query(hub_module))
+
+    assert result["status"] == "complete"
+    assert hub.detail(sid, result["dataset_id"])["row_count"] == 1
+    await hub.close()
+
+
 @pytest.mark.asyncio
 async def test_provider_size_deadline_and_page_cap(hub_module, tmp_path, monkeypatch):
     providers = importlib.import_module("app.research_web.datahub.providers")

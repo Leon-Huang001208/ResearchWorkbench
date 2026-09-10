@@ -34,6 +34,15 @@ PUBLIC_EXTENSIONS = {
 }
 
 
+def _is_reparse_point(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return path.is_symlink() or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
 class StoreError(Exception):
     def __init__(self, message: str, code: str = "invalid_resource", status: int = 400):
         super().__init__(message)
@@ -183,20 +192,28 @@ class Store:
             raise StoreError("非法会话目录") from exc
         if not relative.parts:
             raise StoreError("非法会话目录")
-        if path.is_symlink():
-            path.unlink()
-            return
+        if _is_reparse_point(path):
+            if path.is_symlink():
+                path.unlink()
+                return
+            raise StoreError("会话目录状态非法", "session_purge_failed", 503)
         if not path.exists():
             return
         if not path.is_dir():
             raise StoreError("会话目录状态非法", "session_purge_failed", 503)
 
-        for current, directories, _ in os.walk(path, topdown=True, followlinks=False):
+        for current, directories, files in os.walk(path, topdown=True, followlinks=False):
             directory = Path(current)
             directory.chmod(
                 directory.stat(follow_symlinks=False).st_mode | stat.S_IWUSR | stat.S_IXUSR
             )
-            directories[:] = [name for name in directories if not (directory / name).is_symlink()]
+            directories[:] = [
+                name for name in directories if not _is_reparse_point(directory / name)
+            ]
+            for name in files:
+                child = directory / name
+                if not _is_reparse_point(child):
+                    child.chmod(child.stat(follow_symlinks=False).st_mode | stat.S_IWUSR)
         shutil.rmtree(path)
 
     def purge(self, sid: str) -> None:
@@ -358,10 +375,16 @@ class Store:
         if fid not in row["files"] or not re.fullmatch(r"[a-f0-9]{24}", fid):
             raise StoreError("文件不存在")
         root = self.directory(sid)
-        path = root / row["files"][fid]
+        relative = Path(row["files"][fid])
+        if relative.is_absolute() or ".." in relative.parts:
+            raise StoreError("文件访问被拒绝")
+        path = root / relative
+        owned_chain = [
+            root.joinpath(*relative.parts[:index]) for index in range(1, len(relative.parts) + 1)
+        ]
         if (
-            not path.is_file()
-            or any(p.is_symlink() for p in (path, *path.parents) if p != self.root)
+            any(_is_reparse_point(candidate) for candidate in owned_chain)
+            or not path.is_file()
             or not path.resolve().is_relative_to(root.resolve())
         ):
             raise StoreError("文件访问被拒绝")
@@ -379,6 +402,31 @@ class Store:
             or relative.parts[0] not in {"inputs", "outputs"}
         ):
             raise StoreError("文件访问被拒绝")
+        if os.name == "nt":
+            path = self.file_path(sid, fid)
+            try:
+                before = path.lstat()
+                if (
+                    _is_reparse_point(path)
+                    or not stat.S_ISREG(before.st_mode)
+                    or before.st_nlink != 1
+                ):
+                    raise StoreError("仅允许下载独立普通文件")
+                stream = path.open("rb")
+                opened = os.fstat(stream.fileno())
+                if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+                    stream.close()
+                    raise StoreError("仅允许下载独立普通文件")
+                return stream, relative.name
+            except StoreError:
+                raise
+            except OSError as exc:
+                log.warning(
+                    "research_windows_download_denied",
+                    session_id=sid,
+                    error_type=type(exc).__name__,
+                )
+                raise StoreError("文件访问被拒绝") from exc
         descriptor = None
         try:
             descriptor = os.open(self.directory(sid), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)

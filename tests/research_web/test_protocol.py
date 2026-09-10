@@ -309,6 +309,29 @@ async def test_current_gateway_cookie_is_sent_without_exposing_it_in_payloads():
         assert await client.rpc("session.list", {}) == {"items": []}
 
 
+@pytest.mark.asyncio
+async def test_tabbit_plugin_bridge_is_cookie_authenticated_and_allowlisted():
+    def reply(request):
+        assert request.headers["cookie"] == "dsh-auth-test=value"
+        assert request.url.path == "/research/tabbit/tabs"
+        assert dict(request.url.params) == {"instance": "ABCDEF0123456789"}
+        return httpx.Response(200, json={"tabs": []})
+
+    async with DSHClient(
+        "http://127.0.0.1:3081",
+        transport=httpx.MockTransport(reply),
+        auth_cookie="dsh-auth-test=value",
+    ) as client:
+        assert await client.plugin_json(
+            "GET",
+            "/research/tabbit/tabs",
+            params={"instance": "ABCDEF0123456789"},
+        ) == {"tabs": []}
+
+        with pytest.raises(RuntimeFailure, match="未授权"):
+            await client.plugin_json("GET", "/arbitrary", params={})
+
+
 def test_current_remote_events_are_projected_to_the_stable_workbench_surface():
     client = DSHClient(
         "http://127.0.0.1:3081",
@@ -342,3 +365,28 @@ def test_current_remote_events_are_projected_to_the_stable_workbench_surface():
         "sessionId": "s",
         "approvalId": "event-1",
     }
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    [
+        {
+            "type": "waterfall",
+            "event": "approval/request",
+            "eventId": "",
+            "agentId": "s",
+            "request": {},
+        },
+        {"type": "cancel", "eventId": None},
+    ],
+)
+def test_remote_interaction_events_reject_invalid_identifiers(envelope):
+    client = DSHClient(
+        "http://127.0.0.1:3081",
+        transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+    )
+
+    with pytest.raises(RuntimeFailure) as failure:
+        client._event_envelope(envelope)
+
+    assert failure.value.code == "protocol_error"

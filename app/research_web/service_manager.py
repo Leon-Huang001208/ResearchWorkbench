@@ -576,6 +576,25 @@ class WebServiceManager:
             }
         return result
 
+    def tabbit_status(self) -> dict[str, Any]:
+        """Return the safe, read-only Tabbit diagnostic exposed by the BFF."""
+        if not self._web_healthy():
+            raise ServiceManagerError("Research Web 尚未就绪；请先运行 rwb web start")
+        value = self._json_request(self.web_port, "GET", "/api/research/runtime/tabbit")
+        allowed = {
+            "status",
+            "browser_enabled",
+            "web_fetch_enabled",
+            "plugin_version",
+            "browser_version",
+            "launcher_present",
+            "cli_available",
+            "online_instances",
+            "selected_instance",
+            "restart_required",
+        }
+        return {key: value.get(key) for key in allowed}
+
 
 def format_status(status: dict[str, Any]) -> str:
     lines = []
@@ -585,3 +604,20 @@ def format_status(status: dict[str, Any]) -> str:
         lines.append(f"{role}: {state} (port {item['port']}, pid {item['pid'] or '-'})")
     lines.append(f"url: {status['url']}")
     return "\n".join(lines)
+
+
+def format_tabbit_status(status: dict[str, Any]) -> str:
+    """Render diagnostics without paths, page metadata, cookies, or content."""
+    return "\n".join(
+        [
+            f"status: {status.get('status') or 'error'}",
+            f"browser automation: {'enabled' if status.get('browser_enabled') else 'disabled'}",
+            f"web_fetch takeover: {'enabled' if status.get('web_fetch_enabled') else 'disabled'}",
+            f"plugin: {status.get('plugin_version') or 'unknown'}",
+            f"browser: {status.get('browser_version') or 'unknown'}",
+            f"launcher: {'available' if status.get('launcher_present') else 'missing'}",
+            f"online instances: {status.get('online_instances') or 0}",
+            f"selected instance: {status.get('selected_instance') or '-'}",
+            f"restart required: {'yes' if status.get('restart_required') else 'no'}",
+        ]
+    )

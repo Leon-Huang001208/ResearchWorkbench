@@ -1,5 +1,25 @@
 # 架构迭代核对记录
 
+## 2026-09-10 — Tabbit CLI 实时页面上下文
+
+- Research Runtime 增加固定 `dsh-tabbit@0.3.4` 供应包、私有 Profile 加载和单一 `ctx.tabbit` 适配层；安装器禁用，不运行时下载或升级。
+- Research API 增加安全状态/配置、会话授权和标签候选端点；消息提交增加最多 8 个标签引用、实时确认、发送前再次校验和一次性折叠上下文。
+- 输入框增加按需 `@` 标签检索、可移除 chip 和二次确认；设置本机集成页增加两个独立开关、实例选择与诊断。真实 macOS/Windows 浏览器冒烟仍是独立完成门禁，模拟 Runtime CI 不替代该证据。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"输入框新增按需Tabbit标签选择、chip、授权和实时接管确认，设置页新增本机集成状态与配置。","diagrams":["01-deployment","02-module-dependencies","03-research-sequence"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增Tabbit状态配置、会话授权、候选标签端点，并在消息提交前完成实时引用校验和提取。","diagrams":["01-deployment","03-research-sequence"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"Runtime私有Profile加入固定供应的dsh-tabbit和单一ctx.tabbit适配层，新增实时claim、内存token和审批边界。","diagrams":["01-deployment","02-module-dependencies","03-research-sequence"]} -->
+
+## 2026-09-10 — Tabbit macOS 真实验收收口
+
+- 真实 macOS 使用官方签名、公证的 Tabbit 1.13.24.0 与 CLI，完成首次授权、按需检索、1/8 页实时 DOM、动态表单、二次确认、标签保留、占用失败保留草稿、只读自动执行、写操作拒绝/批准和 `web_fetch` 开关旅程。
+- Runtime 的 `DSH_HOME` 保持私有，宿主用户路径只用于定位 Tabbit launcher/实例；实时 claim 结果按可信清单恢复用户选择顺序，相同标题与 URL 无法唯一映射时失败关闭。
+- 原生审批响应被接受后立即移除 BFF 的待审批投影，迟到的 resolved 事件保持幂等。Windows 继续以原生 CI 交付，真实 Tabbit 浏览器明确未验证；既有部署节点、端口、API 和桌面发布门禁不变，十张图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"审批受理后只收敛既有待审批投影，Tabbit状态、授权、消息和审批API契约不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"宿主用户路径仅供既有Tabbit插件定位launcher和实例，DSH_HOME、Profile、执行器与部署节点保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"真实macOS验证覆盖现有授权、标签选择、确认和失败保留交互，没有新增页面或组件边界。","diagrams":[]} -->
+
 ## 2026-09-08 — DSH 最新版 Gateway 兼容迁移
 
 - Research Runtime 固定到基于官方最新 `master` 重建的 Fork 运行分支；Workbench 兼容桥把原有白名单调用映射到 Typert Gateway 的斜杠端点、`payload.args`、Cookie 鉴权和 Remote 复用流，对外 HTTP、会话、消息、DataHub、文件与删除接口不变。
@@ -359,6 +379,26 @@
 - 服务、API、DataHub 节点和快照数据流均未变化，十张架构图无需重生成。
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows仅增加固定私有控制文件的安全路径回退，DataHub服务、Provider、API和快照数据流保持不变。","diagrams":[]} -->
+
+## 2026-09-10 — Tabbit Windows 模拟 Runtime 阻塞修复
+
+- 吸收已发布的 Windows DataHub reparse-point 防护，并修复 Tabbit 配置临时句柄、UTF-8 Runtime 配置、npm tar POSIX 路径比较和 adapter 正斜杠序列化。
+- 连接配置在 Windows 明确跳过目录 `fsync`；POSIX 权限、描述符和父目录刷新保持不变。API、消息 schema、默认开关、供应版本与授权语义均未改变。
+- macOS/Windows CI 仍只验证模拟 Runtime。真实双平台 Tabbit 状态、授权、动态 DOM、1/8 页 claim、写审批与标签保持打开仍是独立验收门禁。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Tabbit配置仅补齐跨平台原子写入和UTF-8异常路径，API与消息契约不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"供应清单改用POSIX路径比较且adapter路径统一正斜杠，Profile节点和加载顺序不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows连接配置仅明确跳过不支持的目录fsync，Provider和数据流不变。","diagrams":[]} -->
+
+## 2026-09-10 — Tabbit Windows CI 第一轮直接根因修复
+
+- 第一轮 PR 原生 CI 中 macOS Web Runtime 合约通过；Windows 进一步暴露 DSH 认证文件误用 POSIX mode、DataHub 快照仍调用 `dir_fd`、下载仍调用 POSIX flags，以及只读快照无法永久清理。
+- Windows 认证、DataHub 控制/收据/快照和下载现统一使用规范路径、重解析点拒绝、普通文件/硬链接/大小及打开前后身份核验；快照仍以临时目录和同目录原子改名发布。POSIX 安全 I/O 保持不变。
+- 永久删除只为产品所有树中的真实目录和普通文件恢复所有者写权限，不跟随链接或重解析点。服务、API、快照 schema、Tabbit 消息与授权语义均未变化，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Windows DSH认证文件改用文件身份与重解析点校验，Runtime地址、认证格式和API不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows私有收据与快照补齐安全路径IO，Provider、快照schema和数据流不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"Windows下载和只读文件清理补齐平台兼容，文件归属与删除边界不变。","diagrams":[]} -->
 
 ## 2026-09-10 — Windows DSH 认证控制文件读取兼容
 

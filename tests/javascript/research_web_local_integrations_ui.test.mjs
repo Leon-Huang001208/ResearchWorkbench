@@ -88,7 +88,7 @@ test('local console exposes busy, live-region and safe actions', () => {
 
 test('settings local section loads the dedicated model while data keeps DataHub connections', () => {
   assert.deepEqual(settingsRefreshCatalogs('data'), ['connections']);
-  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations']);
+  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit']);
   const html = renderSettingsPage({
     route: parseRoute('#/settings/local'),
     hash: '#/settings/local',
