@@ -135,7 +135,87 @@ def _run_osascript(script: str, *arguments: str) -> dict[str, Any]:
     return {"outcome": "available", "code": None}
 
 
+def _office_documents_root(target: str) -> Path:
+    bundle = {
+        "excel": "com.microsoft.Excel",
+        "word": "com.microsoft.Word",
+        "powerpoint": "com.microsoft.PowerPoint",
+    }[target]
+    return Path.home() / "Library/Containers" / bundle / "Data/Documents"
+
+
+def _office_artifact_path(target: str, run_root: Path) -> Path:
+    documents_root = _office_documents_root(target)
+    metadata = documents_root.lstat()
+    if documents_root.is_symlink() or not stat.S_ISDIR(metadata.st_mode):
+        raise OSError("unsafe Office documents root")
+    token = run_root.name if SAFE_RUN_NAME.fullmatch(run_root.name) else uuid4().hex
+    suffix = {"excel": ".xlsx", "word": ".docx", "powerpoint": ".pptx"}[target]
+    return documents_root / f"research-workbench-{token}{suffix}"
+
+
+def _verify_excel_macos(run_root: Path) -> dict[str, Any]:
+    path: Path | None = None
+    cleanup_failed = False
+    try:
+        path = _office_artifact_path("excel", run_root)
+        from openpyxl import Workbook
+
+        seed = Workbook()
+        try:
+            seed.save(path)
+        finally:
+            seed.close()
+        script = """on run argv
+set smokeWorkbook to missing value
+set reopenedWorkbook to missing value
+set targetFile to POSIX file (item 1 of argv)
+tell application "Microsoft Excel"
+try
+open targetFile
+set smokeWorkbook to active workbook
+set smokeSheet to worksheet 1 of smokeWorkbook
+set value of range "A1" of smokeSheet to 19
+set value of range "A2" of smokeSheet to 23
+set formula of range "A3" of smokeSheet to "=A1+A2"
+calculate full rebuild
+save smokeWorkbook
+close smokeWorkbook saving no
+set smokeWorkbook to missing value
+open targetFile
+set reopenedWorkbook to active workbook
+set verifiedValue to value of range "A3" of worksheet 1 of reopenedWorkbook
+close reopenedWorkbook saving no
+set reopenedWorkbook to missing value
+if verifiedValue is not 42 then error "verification failed"
+on error errorMessage number errorNumber
+if reopenedWorkbook is not missing value then close reopenedWorkbook saving no
+if smokeWorkbook is not missing value then close smokeWorkbook saving no
+error errorMessage number errorNumber
+end try
+end tell
+end run"""
+        return _run_osascript(script, str(path))
+    except (ImportError, OSError) as exc:
+        log.warning("local_excel_verification_prepare_failed", error_type=type(exc).__name__)
+        return {"outcome": "failed", "code": "office_verification_failed"}
+    finally:
+        if path is not None:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                cleanup_failed = True
+                log.warning(
+                    "local_excel_verification_cleanup_failed",
+                    error_type=type(exc).__name__,
+                )
+        if cleanup_failed:
+            log.warning("local_excel_verification_artifact_retained")
+
+
 def _verify_excel(run_root: Path) -> dict[str, Any]:
+    if sys.platform == "darwin":
+        return _verify_excel_macos(run_root)
     path = run_root / "excel-smoke.xlsx"
     app = book = None
     try:

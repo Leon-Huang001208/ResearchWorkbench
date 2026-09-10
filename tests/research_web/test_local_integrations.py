@@ -815,12 +815,32 @@ def test_verification_api_rejects_unknown_targets_and_requires_idempotency(tmp_p
         )
 
 
-@pytest.mark.parametrize(
-    ("platform_name", "expected_event"),
-    [("darwin", "mac-full-rebuild"), ("win32", "windows-full-rebuild")],
-)
-def test_excel_verifier_uses_app_api_full_rebuild_and_reopens_saved_value(
-    tmp_path, monkeypatch, platform_name, expected_event
+def test_macos_excel_verifier_uses_sandbox_file_and_argv(tmp_path, monkeypatch):
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    observed = {}
+
+    def run_script(script, *arguments):
+        observed["script"] = script
+        observed["arguments"] = arguments
+        assert Path(arguments[0]).is_file()
+        return {"outcome": "available", "code": None}
+
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    monkeypatch.setattr(verifiers, "_run_osascript", run_script)
+
+    result = verifiers._verify_excel_macos(tmp_path)
+
+    assert result == {"outcome": "available", "code": None}
+    assert "calculate full rebuild" in observed["script"]
+    assert str(documents) not in observed["script"]
+    artifact = Path(observed["arguments"][0])
+    assert artifact.parent == documents
+    assert not artifact.exists()
+
+
+def test_windows_excel_verifier_uses_app_api_full_rebuild_and_reopens_saved_value(
+    tmp_path, monkeypatch
 ):
     events = []
 
@@ -877,11 +897,10 @@ def test_excel_verifier_uses_app_api_full_rebuild_and_reopens_saved_value(
             events.append("quit")
 
     monkeypatch.setitem(sys.modules, "xlwings", SimpleNamespace(App=lambda **_kwargs: App()))
-    monkeypatch.setattr(verifiers.sys, "platform", platform_name)
+    monkeypatch.setattr(verifiers.sys, "platform", "win32")
 
     assert verifiers._verify_excel(tmp_path)["outcome"] == "available"
-    assert expected_event in events
-    assert set(events) & {"mac-full-rebuild", "windows-full-rebuild"} == {expected_event}
+    assert "windows-full-rebuild" in events
     assert "reopen" in events
     assert "quit" in events
 
@@ -912,7 +931,7 @@ def test_excel_verifier_does_not_accept_wrapper_only_full_rebuild(tmp_path, monk
             return None
 
     monkeypatch.setitem(sys.modules, "xlwings", SimpleNamespace(App=lambda **_kwargs: App()))
-    monkeypatch.setattr(verifiers.sys, "platform", "darwin")
+    monkeypatch.setattr(verifiers.sys, "platform", "win32")
 
     assert verifiers._verify_excel(tmp_path) == {
         "outcome": "formula_error",
