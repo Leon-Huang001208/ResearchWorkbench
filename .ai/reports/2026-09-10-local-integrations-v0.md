@@ -21,3 +21,17 @@
 - `node --test tests/javascript/research_web_local_integrations_ui.test.mjs tests/javascript/research_web_settings_ui.test.mjs tests/javascript/research_web_connections_ui.test.mjs tests/javascript/research_web_ui.test.mjs`
 
 以上命令在实现期间分别通过 7 项、54 项和 57 项测试。额外运行完整 JavaScript 套件得到 214 项通过、1 项跳过；另有 1 项既有环境检查因主项目 `.venv/bin/python` 不存在而失败，与本次改动无关。最终交付检查结果以本任务提交前的实际命令为准。
+
+## 变更—证据清单
+
+| 源变更 | 测试 | 文档 | 证据 / 结果 |
+| --- | --- | --- | --- |
+| `app/research_web/local_integrations/`、`main.py`、`service.py`：专用检测、状态校验、探测生命周期与 API 装配 | `tests/research_web/test_local_integrations.py` 及 API/DataHub 回归 | `docs/architecture/research-web/01-system.md`、`02-research-runtime.md`、`04-api.md`、`05-security-validation.md` | 54 项 Python 测试通过；Ruff、Black、isort 通过 |
+| `app/research_web/ui/`：五类控制台、状态表、分类导航、探测交互与响应式样式 | `tests/javascript/research_web_local_integrations_ui.test.mjs`、`research_web_settings_ui.test.mjs` 及 UI 回归 | `docs/research-web-ui.md`、`docs/research-web-appearance.md`、`docs/research-web-datahub.md`、`docs/research-web.md` | 57 项定向 JavaScript 测试通过；浏览器验收另行留图 |
+| Research Web 架构映射与入口说明 | 架构检查器与文档同步检查 | `docs/ARCHITECTURE.md`、`docs/DEVELOPMENT_MAP.md`、`docs/architecture/research-web/architecture-map.json`、`review-record.md` | 两项架构/文档门禁均通过、0 violation |
+
+## 跳过与平台限制
+
+- 未运行 Windows 原生验证：v0 未改桌面端，Windows 探测仅覆盖可注入路径；不能据此宣称 Windows Office、Wind 或 iFinD 已验证。
+- 未做厂商登录或真实工作簿刷新：v0 明确保持“待验证”，不会把软件发现等同于可调用。
+- 未安装缺失的主项目 `.venv` 测试环境；完整 JavaScript 套件中的单个环境前置检查继续如实失败。
