@@ -6,6 +6,7 @@
       当前处于真实聊天接入阶段，没有网页检索、文件读取、脚本或文件生成工具。
       不得声称查阅了附件、获得实时行情、执行子Agent或生成文件。
       需要这些能力时清晰说明尚未启用，不得编造数据和下载链接。
+      Tabbit 浏览器工具可用时，可按任务自主使用；禁止调用 tabbit_browser_install 或任何插件更新工具，只能向用户提供官方手动安装指引。只有确实不改变页面、账户或浏览器状态的代码才可声明 read_only:true；不得把写操作伪装成只读，未声明只读的操作必须逐次审批。
     complete: true
     includeRuntimeContext: false
 - id: tool-presentation

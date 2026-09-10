@@ -1,0 +1,81 @@
+# Research Web Tabbit 集成
+
+## 范围
+
+Research Web 在私有 DSH Web Profile 中固定加载 `dsh-tabbit` 0.3.4 和
+`research-tabbit-adapter`。供应归档、MIT License、官方源码提交、SHA-256、npm integrity 与文件清单
+位于 `vendor/dsh-tabbit/0.3.4/`。Runtime 启动时先校验归档，再复制到私有
+`runtime/home/profiles/node_modules/`；不从网络下载、安装或升级 Tabbit。
+
+Profile bundle 顺序固定为 `base`、`web-app`、`dsh-tabbit`、
+`research-tabbit-adapter`。`tabbit-installer` 始终禁用，guard 同时拒绝安装/更新工具。
+缺少 launcher、浏览器离线、版本低于 1.9.0 或多实例未选择时只返回诊断。包要求运行
+Node `^22.19.0 || >=24`；Node 23 不受支持。
+
+## 配置与状态
+
+设置 → 本地集成提供两个独立开关：
+
+- 浏览器自动化默认开启；
+- Tabbit 接管 `web_fetch` 默认关闭，开启时浏览器自动化必须同时开启。
+
+配置原子写入 `<RESEARCH_DATA_HOME>/.control/tabbit.json`，权限为当前用户可读写。
+更改只影响下一次 Runtime 启动并返回 `restart_required=true`。活动研究期间既有 Runtime
+重启门禁仍会拒绝重启，因此配置保持待应用，不会中断任务。多个在线实例时必须选择一个
+16 位大写十六进制实例 ID。
+
+只读命令 `rwb web tabbit-status` 输出状态、版本、开关、在线实例数量和是否需要重启；它不输出
+路径、Cookie、标签标题、URL 或正文。状态枚举为 `ready`、`disabled`、`launcher_missing`、
+`browser_offline`、`unsupported_version`、`instance_selection_required`、`error`。
+
+## API
+
+| 方法 | 路径 | 行为 |
+| --- | --- | --- |
+| `GET` | `/api/research/runtime/tabbit` | 返回安全状态、版本、CLI/launcher 可用性、实例数量、选中实例和重启标记 |
+| `PUT` | `/api/research/runtime/tabbit` | 保存 `browser_enabled`、`web_fetch_enabled` 和可选 `instance_id` |
+| `POST` | `/api/research/sessions/{sid}/tabbit-access` | 对当前会话和当前 BFF/Runtime 生命周期批准或拒绝页面访问 |
+| `GET` | `/api/research/sessions/{sid}/tabbit-tabs?q=&limit=50` | 授权后列出所选实例内可 claim 的 HTTP(S) 标签页 |
+
+消息请求可包含按用户选择顺序排列的
+`tabbit_tabs: [{tab_id, instance_id}]`，最多 8 个且不可重复，并必须包含
+`tabbit_live_confirmed: true`。缺少二次确认返回
+`409 tabbit_claim_confirmation_required`。发送前后端重新读取 Runtime 标签清单并核对
+tab ID、实例、协议和 `available` 状态；标题和 URL 不作为浏览器提交字段。
+
+## 实时 claim 与上下文
+
+输入框只有在用户键入 `@` 展开菜单时才请求候选，不在后台预取。首次展开先请求当前会话授权；
+可按标题或 URL 过滤 50 项，支持上下键、Enter、Escape、加载/不可用状态和最多 8 个可移除 chip，
+并与 `/` 能力菜单和附件共存。发送前二次确认会说明标签临时移入代理任务且分组可能改变；授权、
+claim 或提取失败都会阻止发送并保留正文与 chips。
+
+适配器只复用官方插件注入的唯一 `ctx.tabbit` 执行器，不创建第二套 Playwright 或 CLI 链路。
+任务名为 `rwb-mention-<session4>-<request8>`；选中标签原子 claim 后在一次只读 evaluate 中依序
+读取实时标题、URL 和 DOM 正文。每页最多 60,000 字符、全部标签合计最多 120,000 字符；公平
+上限为 `min(60000, floor(120000 / 标签数))`，截断内容显式标记。
+
+无论提取成功或失败，适配器都会在 `finally` 调用 `finishTask(task, {keep:true})`。标签页保持打开，
+但不保证恢复原分组。claim、提取或 finish 任一步失败都不会提交消息；若 DSH 是否受理未知，沿用
+现有幂等策略且不自动重试。
+
+正文只存在适配器进程内存。消息仅携带绑定会话、单次消费、10 分钟过期的短 token；
+`agent/pre-step` 消费 token 后将正文注入为默认折叠的插件上下文。跨会话、过期、重复或已消费 token
+均拒绝。日志只记录会话 ID、数量、阶段、耗时和稳定错误码，不记录标题、URL、正文或执行代码。
+
+## 只读与审批边界
+
+会话页面访问获批后，Research Workbench 发起的实时 DOM 提取自动带 `read_only:true`。其他
+`tabbit_browser` 调用缺少该字段或字段为 false 时触发原生逐次审批。系统提示禁止把写操作伪装为
+只读；但官方工具可以执行任意 Playwright 代码，因此 `read_only` 是调用方声明，不是静态强制证明。
+用户批准只读调用前仍应核对任务意图；写入页面、账号或外部系统的操作必须走逐次审批。
+
+## 验证边界
+
+Python/API、Node adapter、前端交互和 Runtime staging 可用模拟 Runtime 在原生 macOS/Windows CI
+验证，但这不证明真实浏览器可用。发布验收还必须分别在真实 macOS 和 Windows 环境覆盖状态诊断、
+首次授权、1/8 页实时 DOM、动态表单内容、二次确认、标签保持打开、只读自动执行、写操作审批、
+`web_fetch` 开关以及缺失/旧版指引。
+
+当前开发机检测到 Tabbit 0.30.32，且没有可用 `tabbit-cli`；它低于官方 1.9.0 要求，所以真实
+macOS 冒烟预期阻塞。用户需手动安装或升级官方 Tabbit 并重启，Research Workbench 不代为下载。

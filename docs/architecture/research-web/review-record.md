@@ -1,5 +1,15 @@
 # 架构迭代核对记录
 
+## 2026-09-10 — Tabbit CLI 实时页面上下文
+
+- Research Runtime 增加固定 `dsh-tabbit@0.3.4` 供应包、私有 Profile 加载和单一 `ctx.tabbit` 适配层；安装器禁用，不运行时下载或升级。
+- Research API 增加安全状态/配置、会话授权和标签候选端点；消息提交增加最多 8 个标签引用、实时确认、发送前再次校验和一次性折叠上下文。
+- 输入框增加按需 `@` 标签检索、可移除 chip 和二次确认；设置本机集成页增加两个独立开关、实例选择与诊断。真实 macOS/Windows 浏览器冒烟仍是独立完成门禁，模拟 Runtime CI 不替代该证据。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"输入框新增按需Tabbit标签选择、chip、授权和实时接管确认，设置页新增本机集成状态与配置。","diagrams":["01-deployment","02-module-dependencies","03-research-sequence"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增Tabbit状态配置、会话授权、候选标签端点，并在消息提交前完成实时引用校验和提取。","diagrams":["01-deployment","03-research-sequence"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"Runtime私有Profile加入固定供应的dsh-tabbit和单一ctx.tabbit适配层，新增实时claim、内存token和审批边界。","diagrams":["01-deployment","02-module-dependencies","03-research-sequence"]} -->
+
 ## 2026-09-08 — DSH 最新版 Gateway 兼容迁移
 
 - Research Runtime 固定到基于官方最新 `master` 重建的 Fork 运行分支；Workbench 兼容桥把原有白名单调用映射到 Typert Gateway 的斜杠端点、`payload.args`、Cookie 鉴权和 Remote 复用流，对外 HTTP、会话、消息、DataHub、文件与删除接口不变。

@@ -8,12 +8,24 @@
 
 研究协议本身仍是下述 DSH RPC、Remote 复用流和 Web SSE 投影。Workbench 兼容桥把既有白名单方法映射到新版斜杠端点与 `{payload:{args}}` 信封；Cookie 只进入 HTTP/WS Header，不进入请求正文、会话记录或浏览器接口。服务管理器只负责本机进程生命周期，不创建第二套研究运行时，也不改变会话、审批或恢复语义。
 
+## Tabbit 实时页面上下文
+
+设置页分别控制浏览器自动化和 Tabbit `web_fetch` 接管。前者默认开启、后者默认关闭；打开 `web_fetch` 必须同时打开浏览器。多实例环境要求选择 16 位实例 ID。配置变更标记 `restart_required=true`，活动研究期间沿用既有重启门禁并保留待应用配置。
+
+用户首次展开 `@` 标签菜单时，BFF 才为当前会话申请页面访问授权并读取所选实例的可 claim HTTP(S) 标签页；不会后台预取。消息最多携带 8 个有序 `{tab_id, instance_id}` 引用，且必须带实时接管二次确认。发送前 BFF 重新向 Runtime 读取清单并校验标签、实例、协议及可用状态，不信任浏览器提交的标题或 URL。
+
+`runtime/tabbit-adapter.mjs` 只使用官方插件提供的唯一 `ctx.tabbit` 执行器，以 `rwb-mention-<session4>-<request8>` 原子 claim 所选标签，并在一次只读求值中按选择顺序读取当前 DOM。每页最多 60,000 字符、总计 120,000 字符；总量超限时按标签数公平截断并在折叠上下文中标记。无论成功或失败都在 `finally` 调用 `finishTask(..., {keep:true})`，标签保持打开，但分组可能改变。claim、求值或释放任一失败都会阻止消息提交并保留前端草稿。
+
+正文仅写入 DSH 内存 token：绑定当前会话、只能消费一次、10 分钟过期。消息正文只携带短标记，`agent/pre-step` 再将内容注入默认折叠的插件上下文。会话授权后，声明为 `read_only:true` 的浏览器调用可自动执行；缺失或为 `false` 的调用逐次进入原生审批。该声明来自调用方，不能静态证明 Playwright 代码无写操作，系统提示明确禁止把写操作伪装为只读。日志只记录会话 ID、数量、阶段、耗时和稳定错误码，不记录标题、URL、正文或执行代码。
+
+`GET/PUT /api/research/runtime/tabbit` 提供安全状态与配置；`POST .../tabbit-access` 管理本会话授权；`GET .../tabbit-tabs` 提供候选清单。Runtime 状态只允许 `ready | disabled | launcher_missing | browser_offline | unsupported_version | instance_selection_required | error`。安装器显式禁用；缺失、离线或版本过低时只返回诊断和官方手动安装指引。
+
 `app/research_web/operations.py` 只读取上述原生历史、当前投影和服务管理器状态，生成不含问题正文、审批参数或凭据的监控结果。它不参与提交、恢复或取消；历史事件未提供 usage 时返回未知，不以零替代。研究台通过 `workbench.py` 创建目标 DSH 会话后，后续提交仍完全遵守本页协议。
 
 ## 提交与流式
 
 1. `POST /api/research/sessions` 创建真实 DSH 会话和产品归属目录。
-2. `POST /api/research/sessions/{sid}/messages` 必须带 `Idempotency-Key`。BFF 先检查连接、运行中任务、附件归属、能力和交付要求，再由兼容桥调用原生 `session/prompt`；每次请求生成独立 `requestId`。
+2. `POST /api/research/sessions/{sid}/messages` 必须带 `Idempotency-Key`。BFF 先检查连接、运行中任务、附件归属、能力、交付要求和 Tabbit 实时引用；存在标签页时完成再次校验与单次提取后，才由兼容桥调用原生 `session/prompt`，每次请求生成独立 `requestId`。
 3. HTTP 202 只表示受理。传输超时不是模型执行超时，且不能自动重发可能已受理的问题。
 4. DSH Remote 的 `$events` 与 `session/control` 复用流分别提供 API 事件和控制基线；兼容桥把 `api-session/*`、waterfall 审批／提问及取消事件投影为稳定 BFF 信封。Web 通过 `GET .../{sid}/events` 接收 `snapshot` 或 `runtime_error`，心跳不代表执行进度。
 5. 刷新读取同一会话。历史通过 `session/follow` 的 opening snapshot 与 `session/page` 分页恢复，并结合 `session/list` 和 `subagents/list` 恢复真实状态。恢复不另建会话、不重提消息。

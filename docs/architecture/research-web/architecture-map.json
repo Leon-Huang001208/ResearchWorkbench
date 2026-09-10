@@ -24,6 +24,8 @@
         "tests/javascript/research_web_ui_layout.test.mjs",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/javascript/research_web_workbench.test.mjs",
+        "tests/javascript/research_web_tabbit_ui.test.mjs",
+        "tests/javascript/research_web_settings_ui.test.mjs",
         "tests/e2e/research_web_layout.mjs",
         "tests/e2e/research_web_live_readback.mjs",
         "tests/e2e/research_web_custom_skill_readback.mjs",
@@ -44,10 +46,12 @@
         "app/research_web/service.py",
         "app/research_web/service_manager.py",
         "app/research_web/client.py",
+        "app/research_web/tabbit.py",
         "app/research_web/projection.py"
       ],
       "documents": [
-        "docs/architecture/research-web/02-research-runtime.md"
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/research-web-tabbit.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -59,7 +63,8 @@
         "tests/research_web/test_protocol.py",
         "tests/research_web/test_event_recovery.py",
         "tests/research_web/test_cancel_reconciliation.py",
-        "tests/research_web/test_service_manager.py"
+        "tests/research_web/test_service_manager.py",
+        "tests/research_web/test_tabbit.py"
       ]
     },
     {
@@ -118,11 +123,13 @@
       "sources": [
         "app/research_web/launch_runtime.py",
         "app/research_web/runtime/",
+        "vendor/dsh-tabbit/0.3.4/",
         "app/research_web/sandbox.py",
         "app/research_web/skills/"
       ],
       "documents": [
-        "docs/architecture/research-web/01-system.md"
+        "docs/architecture/research-web/01-system.md",
+        "docs/research-web-tabbit.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -135,7 +142,9 @@
       "tests": [
         "tests/research_web/test_runtime_launch.py",
         "tests/research_web/test_sandbox.py",
-        "tests/javascript/research_web_guard.test.mjs"
+        "tests/javascript/research_web_guard.test.mjs",
+        "tests/javascript/research_web_tabbit_adapter.test.mjs",
+        "tests/javascript/research_web_tabbit_ui.test.mjs"
       ]
     },
     {
@@ -268,6 +277,12 @@
             "browser"
           ],
           "source": "app/research_web/ui/app.mjs"
+        },
+        {
+          "subjects": [
+            "liveClaim"
+          ],
+          "source": "app/research_web/runtime/tabbit-adapter.mjs"
         },
         {
           "subjects": [
@@ -441,6 +456,13 @@
             "execute"
           ],
           "source": "app/research_web/runtime/guard.mjs"
+        },
+        {
+          "subjects": [
+            "tabbit",
+            "live-tabs"
+          ],
+          "source": "app/research_web/runtime/tabbit-adapter.mjs"
         }
       ]
     },
@@ -475,9 +497,30 @@
             "sseProjection",
             "deskQuery",
             "handoff",
-            "queryStatus"
+            "queryStatus",
+            "openTabMenu",
+            "showCandidates"
           ],
           "source": "app/research_web/ui/core.mjs"
+        },
+        {
+          "subjects": [
+            "grantAndList",
+            "availableTabs",
+            "safeCandidates",
+            "revalidate"
+          ],
+          "source": "app/research_web/tabbit.py"
+        },
+        {
+          "subjects": [
+            "tabbit",
+            "inventory",
+            "claimAndRead",
+            "liveDom",
+            "contextTokens"
+          ],
+          "source": "app/research_web/runtime/tabbit-adapter.mjs"
         },
         {
           "subjects": [
@@ -878,6 +921,20 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/runtime/tabbit",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/runtime/tabbit",
+      "prefix": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/runtime/tabbit",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/runtime/tabbit",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
       "path": "/api/research/models",
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/models",
@@ -951,6 +1008,20 @@
       "path": "/api/research/sessions/{sid}/messages",
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/sessions/{sid}/messages",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/sessions/{sid}/tabbit-access",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/sessions/{sid}/tabbit-access",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/sessions/{sid}/tabbit-tabs",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/sessions/{sid}/tabbit-tabs",
       "prefix": ""
     },
     {

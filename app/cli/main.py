@@ -18,6 +18,7 @@ from app.research_web.report_studio import ReportStudio, ReportStudioError
 from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
+    format_tabbit_status,
     format_status,
 )
 from app.research_web.store import Store
@@ -155,6 +156,16 @@ def web_start(no_open: bool) -> None:
 def web_status() -> None:
     """查看两个项目服务的归属与健康状态。"""
     _run_web_action("status", open_browser=False)
+
+
+@web.command("tabbit-status")
+def web_tabbit_status() -> None:
+    """查看不含路径、Cookie 或页面元数据的 Tabbit 诊断。"""
+    manager = WebServiceManager()
+    try:
+        click.echo(format_tabbit_status(manager.tabbit_status()))
+    except ServiceManagerError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 @web.command("stop")

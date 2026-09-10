@@ -11,14 +11,15 @@
     {"id": "manager", "type": "backend", "label": "rwb 服务管理", "sublabel": "PID 指纹 · 健康等待 · 回滚", "row": 0, "col": 1, "size": [200, 86]},
     {"id": "web", "type": "frontend", "label": "研究 Web", "sublabel": "FinGPT · Claw · 能力入口", "row": 1, "col": 0, "size": [200, 86]},
     {"id": "bff", "type": "backend", "label": "FastAPI", "sublabel": "回环单 worker · :8088", "row": 1, "col": 1, "size": [200, 86]},
-    {"id": "dsh", "type": "backend", "label": "专属 DSH", "sublabel": "唯一研究引擎 · :3081", "row": 1, "col": 2, "size": [200, 86]},
+    {"id": "dsh", "type": "backend", "label": "专属 DSH", "sublabel": "唯一研究引擎 · Tabbit adapter · :3081", "row": 1, "col": 2, "size": [200, 86]},
     {"id": "model", "type": "external", "label": "DeepSeek", "sublabel": "用户授权的模型接口", "row": 1, "col": 3, "size": [200, 86]},
     {"id": "index", "type": "database", "label": "产品索引", "sublabel": "归属 · 文件 · 幂等收据", "row": 3, "col": 1, "size": [200, 86]},
     {"id": "history", "type": "database", "label": "DSH 私有目录", "sublabel": "原生会话历史与凭据", "row": 0, "col": 2, "size": [200, 86]},
     {"id": "migration", "type": "security", "label": "研究数据迁移", "sublabel": "白名单复制 · 数量/大小/SHA", "row": 2, "col": 0, "size": [200, 86]},
     {"id": "processState", "type": "database", "label": "运行状态与日志", "sublabel": "~/.research-workbench/run · logs", "row": 0, "col": 0, "size": [200, 86]},
     {"id": "session", "type": "database", "label": "会话研究目录", "sublabel": "inputs · resources · outputs", "row": 2, "col": 1, "size": [200, 86]},
-    {"id": "sandbox", "type": "security", "label": "受限研究脚本", "sublabel": "内核文件约束 · 环境白名单", "row": 2, "col": 2, "size": [200, 86]}
+    {"id": "sandbox", "type": "security", "label": "受限研究脚本", "sublabel": "内核文件约束 · 环境白名单", "row": 2, "col": 2, "size": [200, 86]},
+    {"id": "tabbit", "type": "external", "label": "Tabbit Browser", "sublabel": "用户标签页 · 本机 CLI · 实时 DOM", "row": 2, "col": 3, "size": [200, 86]}
   ],
   "connections": [
     {"id": "manage-web", "from": "manager", "to": "bff", "label": "启动 8088 / 3081 并健康检查", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [455, 160]},
@@ -31,11 +32,12 @@
     {"id": "native-log", "from": "dsh", "to": "history", "label": "原生日志", "fromSide": "top", "toSide": "bottom"},
     {"id": "files", "from": "bff", "to": "session", "label": "上传与下载", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
     {"id": "execute", "from": "dsh", "to": "sandbox", "label": "白名单工具", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDy": 24},
-    {"id": "isolated-files", "from": "sandbox", "to": "session", "label": "会话内读写", "variant": "security", "fromSide": "left", "toSide": "right"}
+    {"id": "isolated-files", "from": "sandbox", "to": "session", "label": "会话内读写", "variant": "security", "fromSide": "left", "toSide": "right"},
+    {"id": "live-tabs", "from": "dsh", "to": "tabbit", "label": "原子 claim · 只读 DOM · keep", "variant": "security"}
   ],
   "cards": [
     {"dot": "cyan", "title": "启动边界", "items": ["rwb 仅管理指纹匹配的 8088 / 3081", "终端退出后继续运行；不操作用户原 3080"]},
-    {"dot": "rose", "title": "迁移与安全", "items": ["研究状态逐文件核对 SHA-256，凭据不迁移", "脚本不可读取模型凭据；DSH 内部负责模型授权"]},
-    {"dot": "amber", "title": "部署限制", "items": ["当前验证为本机 macOS 单人 Web", "不是公网、多租户或跨平台部署保证"]}
+    {"dot": "rose", "title": "迁移与安全", "items": ["研究状态逐文件核对 SHA-256，凭据不迁移", "Tabbit 正文只在 Runtime 内存；日志不记录标题、URL 或 DOM"]},
+    {"dot": "amber", "title": "部署限制", "items": ["dsh-tabbit 0.3.4 私有 Profile 加载，禁止自动安装或升级", "模拟 CI 不是真实 macOS / Windows 浏览器验收"]}
   ]
 }

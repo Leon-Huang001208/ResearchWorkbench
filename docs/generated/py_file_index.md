@@ -689,6 +689,42 @@ Functions:
   - 获取所有已注册的因子类别
 
 
+## `app/api/routes/fingpt.py`
+
+Module docstring:
+> FinGPT shell APIs; DSH owns transcript storage, AlphaFoundry owns governance.
+
+Imports:
+- `__future__`
+- `app.api.routes.runtime_workflows`
+- `data_layer.repositories.base`
+- `data_layer.repositories.fingpt_repository`
+- `data_layer.repositories.runtime_workflow_repository`
+- `datetime`
+- `fastapi`
+- `pydantic`
+- `services.fingpt_service`
+- `services.runtime_workflow_service`
+- `sqlalchemy.orm`
+
+Classes:
+- `CreateTaskRequest`
+- `ExecuteDailyTaskRequest`
+- `DshSyncEvent`
+
+Functions:
+- `get_fingpt_service`
+- `fingpt_health`
+- `list_sessions`
+- `list_tasks`
+- `create_task`
+- `execute_daily_task`
+- `consume_launch`
+- `accept_dsh_event`
+- `task_artifacts`
+- `_http_error`
+
+
 ## `app/api/routes/funds.py`
 
 Module docstring:
@@ -1921,6 +1957,51 @@ Functions:
   - Accept one typed, idempotent DSH terminal callback.
 
 
+## `app/api/routes/runtime_workflows.py`
+
+Module docstring:
+> Version 2 runtime-neutral workflow API with replayable SSE events.
+
+Imports:
+- `__future__`
+- `data_layer.repositories.base`
+- `data_layer.repositories.runtime_workflow_repository`
+- `fastapi`
+- `fastapi.responses`
+- `ipaddress`
+- `json`
+- `os`
+- `pydantic`
+- `secrets`
+- `services.daily_market_commentary_spec`
+- `services.runtime_workflow_service`
+- `sqlalchemy.orm`
+- `uuid`
+
+Classes:
+- `RuntimeToolInvocation`
+  - Payload accepted only from the local AlphaFoundry DSH bundle.
+
+Functions:
+- `require_dsh_tool_access`
+  - Fail closed: DSH tools are local-only and require a dedicated token.
+- `get_runtime_workflow_service`
+- `list_runtimes`
+- `list_capabilities`
+- `get_daily_market_commentary_workflow`
+  - Return the editable source-of-truth specification for the production studio.
+- `update_daily_market_commentary_workflow`
+  - Persist a validated visual-editor configuration, never an arbitrary prompt.
+- `run_runtime_tool`
+- `create_market_commentary_run`
+- `get_workflow_run`
+- `execute_workflow_run`
+- `cancel_workflow_run`
+- `resume_workflow_run`
+- `stream_workflow_events`
+- `_http_error`
+
+
 ## `app/api/routes/scenarios.py`
 
 Module docstring:
@@ -2745,13 +2826,16 @@ Module docstring:
 
 Imports:
 - `app.research_web.data_migration`
+- `app.research_web.report_studio`
 - `app.research_web.service_manager`
+- `app.research_web.store`
 - `click`
 - `importlib`
 - `json`
 - `logging`
 - `pathlib`
 - `sys`
+- `types`
 
 Classes:
 - `LazyCommandGroup`
@@ -2768,18 +2852,87 @@ Functions:
   - 幂等启动 3081 DSH 和 8088 Web。
 - `web_status`
   - 查看两个项目服务的归属与健康状态。
+- `web_tabbit_status`
+  - 查看不含路径、Cookie 或页面元数据的 Tabbit 诊断。
 - `web_stop`
   - 停止仅属于当前项目的 8088/3081 进程。
 - `web_restart`
   - 在无活动研究时重启项目服务。
 - `migrate_research_data`
   - 迁移研究会话、附件、能力版本、数据集和产物，不复制凭据。
+- `migrate_report_projects`
+  - 预检或迁移旧报告项目；不删除源目录，也不执行其中脚本。
 
 
 ## `app/research_web/__init__.py`
 
 Module docstring:
 > Standalone native-DSH research product; no legacy app lifecycle.
+
+
+## `app/research_web/asset_routes.py`
+
+Module docstring:
+> Asset workspace HTTP contracts.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `pydantic`
+- `typing`
+
+Classes:
+- `ObservationRequest`
+- `WatchlistCreate`
+- `WatchlistItem`
+- `NoteCreate`
+- `NotePatch`
+- `AlertCreate`
+- `AlertPatch`
+
+Functions:
+- `create_observation`
+- `list_observations`
+- `observation`
+- `watchlists`
+- `create_watchlist`
+- `add_watchlist_item`
+- `notes`
+- `create_note`
+- `patch_note`
+- `alerts`
+- `create_alert`
+- `patch_alert`
+- `notifications`
+
+
+## `app/research_web/asset_workspace.py`
+
+Module docstring:
+> Local asset workspace state over session-isolated DataHub snapshots.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `datahub.contracts`
+- `hashlib`
+- `operator`
+- `re`
+- `store`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `AssetWorkspaceError`
+  - methods: __init__
+- `AssetWorkspace`
+  - methods: __init__, public_observation, create_observation, _parameters, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
+
+Functions:
+- `_uuid_record`
+- `_public_dataset`
 
 
 ## `app/research_web/capabilities/__init__.py`
@@ -2820,7 +2973,10 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, save, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, save, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+
+Functions:
+- `_is_host_process_entry`
 
 
 ## `app/research_web/capabilities/models.py`
@@ -2917,13 +3073,15 @@ Functions:
 ## `app/research_web/capabilities/seeds.py`
 
 Module docstring:
-> Four existing reviewed Skills and two explicitly non-executed workflow templates.
+> Reviewed built-in Skills and explicitly non-executed workflow templates.
 
 Imports:
 - `packages`
 - `pathlib`
 
 Functions:
+- `_skill_package`
+- `_workflow_package`
 - `seed_packages`
 
 
@@ -2934,10 +3092,12 @@ Module docstring:
 
 Imports:
 - `datahub.catalog`
+- `datahub.connections`
 - `datahub.contracts`
 - `models`
 - `pathlib`
 - `re`
+- `typing`
 
 Functions:
 - `tool_catalog`
@@ -2946,14 +3106,18 @@ Functions:
 ## `app/research_web/client.py`
 
 Module docstring:
-> Allowlisted, loopback-only native DSH transport, never a generic RPC proxy.
+> Allowlisted, loopback-only compatibility bridge for the current DSH Remote API.
 
 Imports:
+- `__future__`
 - `asyncio`
 - `collections.abc`
 - `core.observability`
 - `httpx`
 - `json`
+- `os`
+- `pathlib`
+- `stat`
 - `typing`
 - `urllib.parse`
 - `uuid`
@@ -2964,7 +3128,13 @@ Classes:
   - Safe product-facing error; never includes raw credentials or HTTP body.
   - methods: __init__
 - `DSHClient`
-  - methods: __init__, __aenter__, __aexit__, close, rpc, respond, frames, history
+  - Translate the stable Workbench call surface to slash-namespaced Typert RPC.
+  - methods: __init__, __aenter__, __aexit__, close, _wire_call, _rpc_wire, rpc, plugin_json, respond, _stream, _event_envelope, frames, _history_opening, history
+
+Functions:
+- `_default_auth_path`
+- `_runtime_metadata`
+  - Read one manager-owned authentication record through a fail-closed boundary.
 
 
 ## `app/research_web/data_migration.py`
@@ -3013,11 +3183,14 @@ Imports:
 - `asyncio`
 - `broker`
 - `catalog`
+- `connection_center`
+- `connections`
 - `contracts`
 - `core.observability`
 - `datetime`
 - `hmac`
 - `json`
+- `probes`
 - `re`
 - `security`
 - `snapshots`
@@ -3027,7 +3200,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, _latest_probes, catalog, catalog_capability, catalog_source, start_probe, _probe, probe, detail, summaries, copy_for_upgrade, list, rows, short, query, _query, cancel, close
+  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, catalog_capability, catalog_source, start_probe, _probe, probe, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, query, _query, cancel, close
 
 
 ## `app/research_web/datahub/broker.py`
@@ -3059,6 +3232,7 @@ Imports:
 - `__future__`
 - `contracts`
 - `datetime`
+- `importlib.util`
 - `os`
 - `pydantic`
 - `typing`
@@ -3071,9 +3245,77 @@ Classes:
 
 Functions:
 - `_configured`
+- `_dependency_ready`
 - `build_catalog`
   - Return a fresh JSON-ready catalog without importing or constructing any connector.
 - `catalog_detail`
+
+
+## `app/research_web/datahub/connection_center.py`
+
+Module docstring:
+> Safe projection for the unified DataHub connection center.
+
+Imports:
+- `__future__`
+- `connections`
+- `importlib.util`
+- `platform`
+
+Functions:
+- `_module_detected`
+- `platform_summary`
+- `build_connection_center`
+
+
+## `app/research_web/datahub/connections.py`
+
+Module docstring:
+> Local DataHub connection profiles with OS-owned secret storage.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `functools`
+- `json`
+- `os`
+- `pathlib`
+- `pydantic`
+- `re`
+- `tempfile`
+- `threading`
+- `typing`
+
+Classes:
+- `CredentialStoreError`
+  - Stable, non-secret connection configuration failure.
+- `MySQLConfiguration`
+  - methods: validate_text, validate_host
+- `AccountConfiguration`
+  - methods: valid_username
+- `AccountUpdate`
+  - methods: exclusive_secret_action
+- `IFindConfiguration`
+  - methods: valid_http_base_url, unique_accounts
+- `IFindConfigurationUpdate`
+  - methods: validate_stored_shape
+- `ZhiqiuConfiguration`
+  - methods: unique_accounts
+- `ZhiqiuConfigurationUpdate`
+  - methods: validate_stored_shape
+- `SingleSecretConfiguration`
+- `SingleSecretConfigurationUpdate`
+  - methods: exclusive_secret_action
+- `WindConfiguration`
+- `_SystemKeyring`
+  - methods: _module, get_password, set_password, delete_password
+- `MySQLConnectionStore`
+  - Local profiles; compatibility methods continue to target MySQL.
+  - methods: __init__, _path, _read_profile, configuration, source_configuration, _secret, _set_secret_account, _delete_secret_account, _account_name, credentials, read_source_secret, status, _status, source_status, statuses, _write_profile, _write_configuration, _delete_profile, _delete_configuration, _set_secret, _delete_secret, _restore_secret_values, save, _models_for_update, _profile_secret_accounts, save_source, delete, delete_source, _env_values, migration_preview, _parse_accounts, _migration_payload, _write_env, _restore_env, apply_migration
+
+Functions:
+- `_serialized`
+- `canonical_source_id`
 
 
 ## `app/research_web/datahub/contracts.py`
@@ -3090,6 +3332,12 @@ Imports:
 - `zoneinfo`
 
 Classes:
+- `DatabaseSchemaParameters`
+  - methods: ordered_scope
+- `TableFilter`
+  - methods: valid_value
+- `TableOrder`
+- `TableQueryParameters`
 - `Query`
   - methods: valid_business_query, fingerprint
 - `InternalCancel`
@@ -3097,6 +3345,30 @@ Classes:
   - Stable DSH-facing request; provider selection stays inside DataHub.
   - methods: safe_parameters, fingerprint
 - `InternalBusinessQuery`
+
+
+## `app/research_web/datahub/probes.py`
+
+Module docstring:
+> Controlled probes for user-owned vendor integrations.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `connections`
+- `core.observability`
+- `importlib`
+- `importlib.util`
+- `platform`
+
+Functions:
+- `_available`
+- `_load_module`
+- `_read_accounts`
+- `_probe_ifind_sdk`
+- `_probe_wind_client`
+- `probe_source`
+  - Probe installed integrations without retaining vendor sessions or secrets.
 
 
 ## `app/research_web/datahub/providers.py`
@@ -3140,6 +3412,111 @@ Functions:
   - Minimal public read used only after an explicit per-source probe request.
 
 
+## `app/research_web/datahub/providers_akshare.py`
+
+Module docstring:
+> Bounded AKShare provider used by DataHub business contracts only.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `concurrent.futures`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `math`
+- `providers`
+- `re`
+- `threading`
+- `typing`
+
+Functions:
+- `_release_capacity`
+- `_submit`
+- `_symbol`
+- `_market_symbol`
+- `_clean`
+- `_records`
+- `_pick`
+- `_date`
+- `_number`
+- `_normalize_assets`
+- `_normalize_bars`
+- `_normalize_snapshot`
+- `_normalize_generic`
+- `_invoke`
+- `fetch`
+- `probe`
+
+
+## `app/research_web/datahub/providers_cjpy.py`
+
+Module docstring:
+> Optional CJPY provider extracted from the legacy connector without its ingest lifecycle.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `concurrent.futures`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `math`
+- `os`
+- `providers`
+- `re`
+- `threading`
+- `typing`
+
+Functions:
+- `_release_capacity`
+- `_submit`
+- `_json_value`
+- `canonical_vendor_code`
+- `_rows`
+- `_client`
+- `_sync_query`
+- `fetch`
+- `probe`
+
+
+## `app/research_web/datahub/providers_mysql.py`
+
+Module docstring:
+> Bounded read-only MySQL provider for user-owned local connection profiles.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `concurrent.futures`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `decimal`
+- `json`
+- `providers`
+- `ssl`
+- `threading`
+- `typing`
+
+Functions:
+- `_release_capacity`
+- `_quote`
+- `_json_value`
+- `_validate_grants`
+- `_build_select`
+- `_fetch_databases`
+- `_fetch_tables`
+- `_fetch_columns`
+- `_connect`
+- `_invoke`
+- `_submit`
+- `fetch`
+- `probe`
+
+
 ## `app/research_web/datahub/routes.py`
 
 Module docstring:
@@ -3147,14 +3524,27 @@ Module docstring:
 
 Imports:
 - `asyncio`
+- `connections`
 - `contracts`
 - `fastapi`
 - `fastapi.responses`
+- `pydantic`
 - `store`
 - `typing`
 
+Classes:
+- `MySQLConfigurationUpdate`
+- `MigrationRequest`
+
 Functions:
+- `_credential_error`
 - `catalog`
+- `connections`
+- `migration_preview`
+- `apply_migration`
+- `source_configuration`
+- `save_source_configuration`
+- `delete_source_configuration`
 - `capability_detail`
 - `source_detail`
 - `start_probe`
@@ -3218,7 +3608,7 @@ Imports:
 
 Classes:
 - `Snapshots`
-  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, copy_for_upgrade
+  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, copy_for_upgrade, copy_selected
 
 Functions:
 - `sha`
@@ -3257,12 +3647,15 @@ Module docstring:
 
 Imports:
 - `hashlib`
+- `html`
 - `html.parser`
 - `io`
 - `json`
 - `os`
 - `pathlib`
+- `re`
 - `stat`
+- `zipfile`
 
 Classes:
 - `VisibleHTML`
@@ -3302,17 +3695,38 @@ Imports:
 - `argparse`
 - `capabilities.catalog`
 - `core.observability`
+- `datahub.catalog`
+- `datahub.connections`
+- `datahub.contracts`
 - `datahub.security`
 - `hashlib`
 - `json`
 - `os`
 - `pathlib`
+- `re`
 - `shutil`
 - `store`
 - `subprocess`
 - `sys`
+- `tarfile`
+- `tempfile`
 
 Functions:
+- `load_tabbit_config`
+  - Read the non-secret Tabbit switches used for the next Runtime start.
+- `_atomic_json`
+- `_profile_manifest`
+- `_append_profile_bundle`
+- `stage_tabbit_package`
+  - Verify and extract the reviewed Tabbit archive into the private profile.
+- `stage_tabbit_adapter`
+  - Stage the project adapter as the final private profile bundle.
+- `tabbit_overlay`
+  - Build the startup-only overrides that prevent installation and updates.
+- `validate_tabbit_node`
+  - Enforce the reviewed package's exact Node engine floor.
+- `enabled_datahub_tools`
+  - Resolve the fixed business tool IDs backed by callable offline catalog sources.
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
 - `prepare`
@@ -3325,6 +3739,8 @@ Module docstring:
 > Web-only startup: python -m uvicorn app.research_web.main:app --port 8088.
 
 Imports:
+- `asset_routes`
+- `asset_workspace`
 - `asyncio`
 - `capabilities.models`
 - `capabilities.routes`
@@ -3339,21 +3755,28 @@ Imports:
 - `fastapi.staticfiles`
 - `json`
 - `mimetypes`
+- `operations`
 - `os`
 - `pathlib`
 - `pydantic`
 - `re`
+- `report_routes`
+- `report_studio`
+- `report_workflow_routes`
+- `report_workflows.models`
 - `service`
 - `shutil`
 - `starlette.middleware.trustedhost`
 - `store`
-- `typing`
-- `urllib.parse`
-- `uuid`
+- `tabbit`
+- ... 4 more
 
 Classes:
 - `NewSession`
+- `TabbitTabRef`
 - `Prompt`
+- `TabbitConfig`
+- `TabbitAccess`
 - `Rename`
 - `Approval`
 - `AnswerItem`
@@ -3362,6 +3785,51 @@ Classes:
 
 Functions:
 - `create_app`
+
+
+## `app/research_web/operations.py`
+
+Module docstring:
+> Read-only, content-free operations projections over existing Research Web evidence.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `client`
+- `collections`
+- `core.observability`
+- `datetime`
+- `fastapi`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `projection`
+- `store`
+- `subprocess`
+- `time`
+- `typing`
+
+Functions:
+- `_window`
+- `_timestamp`
+- `_projections`
+- `_audit`
+- `usage_projection`
+- `tools_projection`
+- `datahub_projection`
+- `reports_projection`
+- `_managed_state`
+- `services_projection`
+- `_measure`
+- `storage_projection`
+- `_params`
+- `usage`
+- `tools`
+- `datahub`
+- `services`
+- `storage`
+- `summary`
 
 
 ## `app/research_web/projection.py`
@@ -3375,6 +3843,478 @@ Imports:
 Functions:
 - `content_text`
 - `project`
+
+
+## `app/research_web/report_render_script.py`
+
+Module docstring:
+> Trusted sandbox program for report-project file projection.
+
+Imports:
+- `html`
+- `json`
+- `pathlib`
+- `re`
+- `shutil`
+- `zipfile`
+
+Functions:
+- `clean_text`
+- `load_context`
+- `payload_sections`
+- `load_payload`
+- `replacements`
+- `replace_paragraph`
+- `render_docx`
+- `render_xlsx`
+- `render_html`
+- `replace_pptx_paragraph`
+- `replace_pptx_placeholders`
+- `render_pptx`
+
+
+## `app/research_web/report_rendering.py`
+
+Module docstring:
+> Run the reviewed report renderer inside the existing research sandbox.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `json`
+- `pathlib`
+- `store`
+
+Functions:
+- `render_report_payload`
+  - Project a model-authored payload into reviewed, deterministic file formats.
+
+
+## `app/research_web/report_routes.py`
+
+Module docstring:
+> Report Studio API contracts.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `fastapi.responses`
+- `pydantic`
+- `typing`
+
+Classes:
+- `ProjectCreate`
+- `ProjectPatch`
+- `VersionCreate`
+- `ProjectAction`
+- `ScheduleInput`
+
+Functions:
+- `projects`
+- `create_project`
+- `project`
+- `patch_project`
+- `create_version`
+- `add_project_file`
+- `versions`
+- `rollback`
+- `run_project`
+- `runs`
+- `run`
+- `cancel`
+- `schedule`
+- `put_schedule`
+- `artifacts`
+- `artifact`
+
+
+## `app/research_web/report_studio.py`
+
+Module docstring:
+> Versioned report projects orchestrated by the one native DSH/Claw runtime.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `contextlib`
+- `core.observability`
+- `datahub`
+- `datetime`
+- `delivery`
+- `hashlib`
+- `json`
+- `pathlib`
+- `re`
+- `shutil`
+- `store`
+- `time`
+- `typing`
+- `uuid`
+- `yaml`
+- `zoneinfo`
+
+Classes:
+- `ReportStudioError`
+  - methods: __init__
+- `ReportStudio`
+  - Own project metadata and schedules; delegate every report turn to Claw.
+  - methods: __init__, start, close, _project, _run, _summary, list_projects, project, _public_version, _default_schedule, create_project, patch_project, create_version, _validated_data_recipe, _preauthorization, _prepare_data, add_project_file, versions, rollback, migration, _scan_migration_project, _merge_duplicate, _apply_migration, schedule, put_schedule, _next_run, _scheduler, tick, start_run, _new_run, _execute, public_run, runs, cancel, artifacts, _visible_historical_artifact, artifact_path
+
+Functions:
+- `_now`
+- `_sha256`
+- `_public_file`
+
+
+## `app/research_web/report_workflow_routes.py`
+
+Module docstring:
+> Versioned Report Workflow management and native Claw run APIs.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `fastapi`
+- `fastapi.responses`
+- `pydantic`
+- `report_workflows.models`
+- `typing`
+
+Classes:
+- `DraftUpdate`
+- `WorkflowCopy`
+
+Functions:
+- `report_workflows`
+- `create_report_workflow`
+- `excel_providers`
+- `probe_excel_provider`
+- `migrate_report_workflows`
+- `report_workflow`
+- `update_report_workflow_draft`
+- `copy_report_workflow`
+- `upload_report_resource`
+- `create_report_version`
+- `report_versions`
+- `publish_report_version`
+- `rollback_report_version`
+- `disable_report_workflow`
+- `preflight_report_version`
+- `report_resources`
+- `download_report_resource`
+- `run_report_workflow`
+- `report_workflow_runs`
+- `report_workflow_schedule`
+- `save_report_workflow_schedule`
+- `report_run`
+- `cancel_report_run`
+- `retry_report_run`
+- `report_refresh_manifests`
+- `report_delivery`
+
+
+## `app/research_web/report_workflows/__init__.py`
+
+Module docstring:
+> Public Report Workflow domain and service API.
+
+Imports:
+- `catalog`
+- `models`
+- `workbook`
+
+
+## `app/research_web/report_workflows/catalog.py`
+
+Module docstring:
+> Immutable on-disk Report Workflow version packages.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `copy`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `pydantic`
+- `re`
+- `shutil`
+- `tempfile`
+- `threading`
+- `typing`
+- `uuid`
+- `workbook`
+- `yaml`
+
+Classes:
+- `ReportWorkflowService`
+  - Manage drafts, immutable versions and isolated runtime copies.
+  - methods: __init__, _reload, _exclusive, _reconcile, _save, _row, _draft, create_draft, _create_draft, upload_resource, _upload_resource, _resources, create_version, _create_version, _version_path, manifest, list_resources, resource_path, preflight, publish_version, _publish_version, rollback_version, _rollback_version, create_run_workspace, _create_run_workspace, run_path, _run_path, read_refresh_manifest, _read_refresh_file, refresh_workbook
+
+Functions:
+- `_sha256`
+- `_yaml_data`
+- `_atomic_json`
+- `_index_digest`
+- `_lock_file`
+- `_unlock_file`
+- `_validate_id`
+- `_resource_path`
+- `_ensure_tree_safe`
+- `_safe_destination`
+- `_role`
+
+
+## `app/research_web/report_workflows/manager.py`
+
+Module docstring:
+> Product facade for report Workflow packages, runs, schedules, and migration.
+
+Imports:
+- `__future__`
+- `builtins`
+- `catalog`
+- `contextlib`
+- `copy`
+- `core.observability`
+- `json`
+- `migration`
+- `models`
+- `os`
+- `pathlib`
+- `pydantic`
+- `runtime`
+- `tempfile`
+- `time`
+- `workbook`
+- `yaml`
+
+Classes:
+- `ReportWorkflowManager`
+  - Expose stable product operations without weakening the package boundary.
+  - methods: __init__, start, close, _row, _public_artifact, summary, list, detail, create_draft, _atomic_yaml, update_draft, copy, versions, create_version, publish, rollback, disable, resource, upload_resource, provider_status, _dependency_readiness, probe, migrate_legacy, _managed_report_projects_available, _hardlink_tree, _migrate_managed_report_projects
+
+
+## `app/research_web/report_workflows/migration.py`
+
+Module docstring:
+> Idempotent import of legacy report assets into versioned Workflow packages.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `copy`
+- `core.observability`
+- `hashlib`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `shutil`
+- `tempfile`
+- `time`
+- `uuid`
+- `workbook`
+- `yaml`
+
+Classes:
+- `ReportWorkflowMigration`
+  - methods: __init__, _logical_path, _scan, _blocks, migrate, _classify, _migration_state, _verified_bytes, _verify_project, _atomic_history_file, _append_history_locked, _apply, _apply_locked, _v2_primary_workbook, _v2_validation, _write_yaml, upgrade_all_v2
+
+Functions:
+- `_sha256`
+- `_items_sha256`
+- `_set_project_identity`
+
+
+## `app/research_web/report_workflows/models.py`
+
+Module docstring:
+> Strict domain contracts for versioned Report Workflow packages.
+
+Imports:
+- `__future__`
+- `datetime`
+- `enum`
+- `pathlib`
+- `pydantic`
+- `store`
+
+Classes:
+- `WorkflowError`
+  - Safe product error raised by the Report Workflow boundary.
+  - methods: __init__
+- `StrictModel`
+- `WorkflowResourceRole`
+- `WorkbookFormulaProvider`
+- `WorkbookProvider`
+- `ReportBlockKind`
+- `DeliveryFormat`
+- `ScheduleKind`
+- `RefreshStatus`
+- `WorkflowResource`
+- `WorkbookProviderRequirement`
+  - methods: mapping_must_be_a_package_resource
+- `WorkbookRefreshPolicy`
+  - methods: workbook_is_scoped, cells_are_unique, date_fields_are_paired
+- `ReportBlock`
+- `DeliveryContract`
+  - methods: formats_are_unique, primary_workbook_is_scoped
+- `WorkflowSchedule`
+  - methods: validate_shape
+- `ReportWorkflowManifest`
+  - methods: excluded_workbooks_are_scoped, validate_unique_contracts
+- `WorkbookRefreshResult`
+  - methods: manifest_path_is_a_logical_reference
+
+
+## `app/research_web/report_workflows/runtime.py`
+
+Module docstring:
+> Persistent report Workflow scheduler delegating execution to native Claw.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `contextlib`
+- `copy`
+- `core.observability`
+- `datetime`
+- `delivery`
+- `inspect`
+- `json`
+- `models`
+- `pathlib`
+- `re`
+- `report_rendering`
+- `shutil`
+- `store`
+- `threading`
+- `time`
+- `tooling`
+- `uuid`
+- `zoneinfo`
+
+Classes:
+- `ReportWorkflowRuntime`
+  - methods: __init__, start, close, _run, _update_run, _append_refresh_manifest, run_path, _session_payload, _rearm_delivery_validation, assert_not_active, _new_run, public_run, runs, start_run, _execute, _refresh_workbook, _wait_for_delivery, cancel, retry, _resume_delivery, schedule, put_schedule, _next_run, _set_schedule_due_for_test, _record_schedule_failure, tick, _scheduler
+
+Functions:
+- `_public_metadata`
+  - Recursively redact host paths if an internal adapter returns one unexpectedly.
+
+
+## `app/research_web/report_workflows/tooling.py`
+
+Module docstring:
+> Deterministic report Workflow tools that prepare one shared data snapshot.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `tempfile`
+- `workbook`
+
+Functions:
+- `_sha256`
+- `_json_value`
+- `materialize_report_snapshot`
+  - Extract refreshed workbooks into one immutable, hash-addressed snapshot.
+
+
+## `app/research_web/report_workflows/workbook.py`
+
+Module docstring:
+> Standard-library XLSX inspection and serialized Excel refresh services.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `hashlib`
+- `importlib`
+- `json`
+- `math`
+- `models`
+- `multiprocessing`
+- `os`
+- `pathlib`
+- `queue`
+- `re`
+- `shutil`
+- `signal`
+- `sys`
+- `tempfile`
+- `threading`
+- `time`
+- `typing`
+- `uuid`
+- `weakref`
+- `xml.etree`
+- `zipfile`
+
+Classes:
+- `WorkbookFormulaScan`
+- `WorkbookProviderProtocol`
+  - methods: readiness, open_workbook, refresh_all, calculate_full, read_cells, save, close
+- `XlwingsExcelProvider`
+  - Lazy xlwings bridge; public failures are deliberately content-free.
+  - methods: __init__, _activate_macos_appscript_compat, readiness, open_workbook, refresh_all, calculate_full, read_cells, save, close, refresh_with_timeout
+- `WindExcelProvider`
+- `IFindExcelProvider`
+- `WorkbookRefreshService`
+  - Copy, refresh, verify and hash workbooks without mutating package masters.
+  - methods: __init__, _blocked, _select_provider, refresh, _refresh_locked
+
+Functions:
+- `_sha256`
+- `_safe_unlink`
+- `_safe_xlsx`
+- `_target_lock`
+- `_try_lock_stream`
+- `_unlock_stream`
+- `_check_lock_wait`
+- `_file_lock`
+- `_open_archive`
+- `_xml_member`
+- `scan_workbook_formulas`
+  - Classify external Excel formulas without importing Excel libraries.
+- `_sheet_paths`
+- `_shared_strings`
+- `_cell_value`
+- `read_cached_workbook`
+  - Return cached cells, formula errors, and the workbook date epoch.
+- `_provider_payload`
+- `_resolve_provider`
+- `_isolate_worker_process`
+- `_safe_provider_code`
+- `_provider_readiness_worker`
+- `_provider_refresh_worker`
+- `_terminate_worker_tree`
+- `_process_exists`
+- `_terminate_child_processes`
+- `_drain_worker_messages`
+- `_worker_child_pids`
+- `_run_provider_worker`
+- `_run_provider_readiness`
+- `_run_provider_refresh`
+- `_remaining_refresh_timeout`
+- `_required_provider_ids`
+- `_coerce_date`
+- `_validate_values`
 
 
 ## `app/research_web/resources/__init__.py`
@@ -3453,6 +4393,7 @@ Module docstring:
 > Research BFF: native events, safe ownership, idempotent admission, no agent loop.
 
 Imports:
+- `asset_workspace`
 - `asyncio`
 - `base64`
 - `capabilities.catalog`
@@ -3469,14 +4410,17 @@ Imports:
 - `json`
 - `pathlib`
 - `projection`
+- `report_studio`
+- `report_workflows.manager`
 - `shutil`
 - `store`
+- `tabbit`
 - `time`
 - `websockets.exceptions`
 
 Classes:
 - `ResearchService`
-  - methods: __init__, ensure_owned, start, close, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 
 ## `app/research_web/service_manager.py`
@@ -3491,8 +4435,10 @@ Imports:
 - `hashlib`
 - `http.client`
 - `json`
+- `launch_runtime`
 - `os`
 - `pathlib`
+- `re`
 - `shutil`
 - `signal`
 - `socket`
@@ -3510,10 +4456,12 @@ Classes:
 - `ManagedProcess`
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _processes, _prepare_private_directories, _state_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, status
+  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, status, tabbit_status
 
 Functions:
 - `format_status`
+- `format_tabbit_status`
+  - Render diagnostics without paths, page metadata, cookies, or content.
 
 
 ## `app/research_web/skills/company-research/scripts/workflow.py`
@@ -3580,6 +4528,76 @@ Functions:
 - `main`
 
 
+## `app/research_web/skills/market-commentary/scripts/workflow.py`
+
+Module docstring:
+> Rank source-backed market items and generate deliverables without network access.
+
+Imports:
+- `datetime`
+- `json`
+- `logging`
+- `pathlib`
+- `research_helpers`
+- `sys`
+
+Functions:
+- `_timestamp`
+- `rank`
+  - Return a deterministic ordering with visible scores and no inferred facts.
+- `main`
+
+
+## `app/research_web/skills/sell-side-report-reader/scripts/render_knowledge_graph.py`
+
+Module docstring:
+> Render a small, sourced knowledge graph as deterministic portable SVG.
+
+Imports:
+- `__future__`
+- `argparse`
+- `html`
+- `json`
+- `logging`
+- `pathlib`
+- `typing`
+
+Functions:
+- `_xml_text`
+- `_validate_xml_values`
+- `_source_locators`
+- `_build_svg`
+- `build_svg`
+  - Build SVG or fail when the source does not support a reliable relation.
+- `main`
+
+
+## `app/research_web/skills/sell-side-report-reader/scripts/validate_digest.py`
+
+Module docstring:
+> Validate a structured report digest without network or host-process access.
+
+Imports:
+- `__future__`
+- `argparse`
+- `json`
+- `logging`
+- `pathlib`
+- `typing`
+
+Functions:
+- `_text`
+- `_text_list`
+- `_xml_compatible`
+- `_check_xml_text`
+- `_check_citations`
+- `_check_claims`
+- `_check_named_items`
+- `validate_digest`
+  - Return deterministic validation evidence; never repair missing research.
+- `main`
+
+
 ## `app/research_web/store.py`
 
 Module docstring:
@@ -3593,6 +4611,7 @@ Imports:
 - `os`
 - `pathlib`
 - `re`
+- `shutil`
 - `stat`
 - `tempfile`
 - `time`
@@ -3600,8 +4619,74 @@ Imports:
 
 Classes:
 - `StoreError`
+  - methods: __init__
 - `Store`
-  - methods: __init__, save, create, session, directory, reserve, receipt, files, file_path, open_file
+  - methods: __init__, save, create, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
+
+
+## `app/research_web/tabbit.py`
+
+Module docstring:
+> Safe Research Web boundary for the project-owned Tabbit DSH adapter.
+
+Imports:
+- `__future__`
+- `client`
+- `core.observability`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `store`
+- `tempfile`
+- `typing`
+
+Classes:
+- `TabbitError`
+  - Stable, non-sensitive Tabbit product error.
+  - methods: __init__
+- `TabbitIntegration`
+  - Persist non-secret settings and mediate reviewed DSH plugin routes.
+  - methods: __init__, config, _validate_config, configure, status, access, _require_grant, tabs, live_markers
+
+
+## `app/research_web/workbench.py`
+
+Module docstring:
+> Research desk queries, immutable page handoffs and actual artifact indexes.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `datahub.contracts`
+- `fastapi`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `pydantic`
+- `re`
+- `store`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `DeskQuery`
+- `Handoff`
+
+Functions:
+- `_key`
+- `_public_query`
+- `_validate_context`
+- `_run_query`
+- `start_query`
+- `list_queries`
+- `query_status`
+- `_write_context`
+- `create_handoff`
+- `artifacts`
 
 
 ## `core/__init__.py`
@@ -3737,10 +4822,10 @@ Imports:
 - `research`
 - `retrieval`
 - `review_framework`
+- `runtime`
 - `scenarios`
 - `signals`
-- `timing_engine`
-- ... 2 more
+- ... 3 more
 
 
 ## `core/contracts/agent_types.py`
@@ -4995,6 +6080,48 @@ Classes:
   - Evidence-linked cognitive blackboard for the review process.
 - `ConflictDetectionSummary`
   - Summary of detected conflicts between reviews.
+
+
+## `core/contracts/runtime.py`
+
+Module docstring:
+> Runtime-neutral contracts for AlphaFoundry capability execution.
+
+Imports:
+- `__future__`
+- `datetime`
+- `enum`
+- `pydantic`
+- `typing`
+
+Classes:
+- `CapabilityKind`
+- `CapabilitySpec`
+  - Versioned description of a capability owned by the core domain.
+- `ToolSpec`
+- `SkillSpec`
+- `EvaluatorSpec`
+- `TemplateSpec`
+- `WorkflowStep`
+- `WorkflowSpec`
+  - methods: validate_dependencies
+- `RuntimeCapabilities`
+  - methods: supports
+- `RuntimeDescriptor`
+- `ExecutionHandle`
+- `AlphaEvent`
+- `EvidenceRecord`
+- `QualityGate`
+- `ReportSection`
+- `ReportChart`
+  - Renderer-neutral chart payload owned by AlphaFoundry.
+- `ReportDocument`
+- `WorkflowRunResult`
+- `RuntimeUnavailableError`
+  - Raised when a requested capability is not advertised by a runtime.
+- `RuntimeInterface`
+  - The only port through which the core may invoke a runtime.
+  - methods: create_session, run_task, register_tools, register_skills, run_workflow, stream_events, cancel, resume, health, dispose
 
 
 ## `core/contracts/scenarios.py`
@@ -6931,7 +8058,7 @@ Imports:
 Classes:
 - `AkShareNewsFetcher`
   - AkShare 新闻数据获取器
-  - methods: __init__, fetch_sina_news, fetch_eastmoney_news, fetch_all_news, fetch_stock_news, _parse_time, _try_parse_time, _clean_symbol, _get_stock_name
+  - methods: __init__, fetch_sina_news, fetch_eastmoney_news, fetch_caixin_news, fetch_all_news, fetch_stock_news, _parse_time, _try_parse_time, _clean_symbol, _get_stock_name
 
 
 ## `data_layer/crawlers/akshare/utils.py`
@@ -8417,6 +9544,23 @@ Classes:
   - methods: __init__, db, _upsert, save_definitions, get_definitions, get_all_categories, save_values, get_values, get_values_for_date, get_available_dates, save_evaluations, get_evaluations, get_latest_evaluations, save_weights, get_latest_weights, get_weights_history, close
 
 
+## `data_layer/repositories/fingpt_repository.py`
+
+Module docstring:
+> Persistence for FinGPT governance records, deliberately excluding chat bodies.
+
+Imports:
+- `__future__`
+- `data_layer.repositories.models`
+- `datetime`
+- `sqlalchemy.orm`
+- `uuid`
+
+Classes:
+- `FinGPTRepository`
+  - methods: __init__, create_task, get_task_or_raise, list_tasks, consume_launch, upsert_session, append_sync_event, list_sessions, attach_workflow, link_artifacts_for_workflow, list_artifacts, add_evidence_reference
+
+
 ## `data_layer/repositories/fund_repository.py`
 
 Module docstring:
@@ -8714,6 +9858,26 @@ Classes:
   - Claim-to-evidence association created by a ResearchRun.
 - `ResearchQualityGateDB`
   - Latest quality-gate evaluation for a ResearchRun.
+- `RuntimeWorkflowRunDB`
+  - Durable v2 workflow plan and execution state, independent of a runtime SDK.
+- `RuntimeWorkflowStepDB`
+  - Latest durable state for an individual workflow step.
+- `RuntimeEventDB`
+  - Append-only event ledger used to resume SSE clients.
+- `RuntimeEvidenceDB`
+  - Evidence ledger for runtime-neutral workflow executions.
+- `RuntimeArtifactDB`
+  - Immutable v2 artifacts.  New revisions receive a distinct content hash.
+- `FinGPTSessionIndexDB`
+  - Governance index for a DSH session; conversation bodies remain in DSH.
+- `FinGPTTaskDB`
+  - AlphaFoundry-owned FinGPT task state; never stores complete chat messages.
+- `FinGPTSyncEventDB`
+  - Idempotent, sanitised DSH event index -- never a chat transcript.
+- `FinGPTEvidenceReferenceDB`
+  - External and captured evidence references attached to a FinGPT task.
+- `FinGPTArtifactLinkDB`
+  - Pointers to immutable AlphaFoundry artifacts, not copied render payloads.
 - `PDFArtifactV1DB`
   - PDF 制品表 - 存储下载的 PDF 文件元数据.
 - `PDFConversionV1DB`
@@ -9051,6 +10215,25 @@ Classes:
 
 Functions:
 - `_aware`
+
+
+## `data_layer/repositories/runtime_workflow_repository.py`
+
+Module docstring:
+> PostgreSQL repository for the runtime-neutral v2 workflow ledger.
+
+Imports:
+- `__future__`
+- `core.contracts.runtime`
+- `data_layer.repositories.models`
+- `hashlib`
+- `json`
+- `sqlalchemy.orm`
+- `uuid`
+
+Classes:
+- `RuntimeWorkflowRepository`
+  - methods: __init__, create_run, get_run_or_raise, update_status, append_events, list_events, replace_evidence, append_result_artifact
 
 
 ## `data_layer/repositories/search_repository.py`
@@ -13454,6 +14637,36 @@ Functions:
   - Create the five personal-observation tables.
 - `downgrade`
   - Drop personal-observation tables in reverse dependency order.
+
+
+## `storage/migrations/versions/019_add_runtime_workflow_kernel.py`
+
+Module docstring:
+> Add runtime-neutral workflow ledger and immutable artifacts.
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+- `typing`
+
+Functions:
+- `upgrade`
+- `downgrade`
+
+
+## `storage/migrations/versions/020_add_fingpt_shell.py`
+
+Module docstring:
+> Add FinGPT governance index without duplicating DSH conversation bodies.
+
+Imports:
+- `alembic`
+- `sqlalchemy`
+- `typing`
+
+Functions:
+- `upgrade`
+- `downgrade`
 
 
 ## `ingestion/__init__.py`

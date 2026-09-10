@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "diagram_type": "sequence",
-  "meta": {"title": "服务恢复、研究提交与 DataHub 自动查询序列", "output": "03-research-sequence.html", "quality_profile": "showcase", "viewBox": [2600, 1320], "column_fit": "spread", "views": [
+    "meta": {"title": "服务恢复、Tabbit 实时 claim 与 DataHub 查询序列", "output": "03-research-sequence.html", "quality_profile": "showcase", "viewBox": [2700, 1700], "column_fit": "spread", "views": [
     {"id": "startup", "label": "断电后的安全恢复", "focus": ["cli", "manager", "dsh", "api"], "note": "启动器只删除能够确认进程已经死亡的旧状态；活进程、未知进程或指纹不一致仍然拒绝接管。"},
+    {"id": "tabbitFlow", "label": "Tabbit 实时标签", "focus": ["web", "api", "dsh", "tabbit"], "note": "菜单展开才授权并取候选；发送前重验、原子 claim、一次读 DOM，最后只传递短 token。"},
     {"id": "submit", "label": "页面交接与研究提交", "focus": ["web", "api", "snapshot", "dsh"], "note": "页面先固化查询与筛选上下文，再创建目标会话；HTTP 受理不等于研究或文件完成。"},
     {"id": "automatic", "label": "自动查询边界", "focus": ["dsh", "policy", "datahub", "provider"], "note": "只有启动时确认有可调用来源的工具会注册；非法参数仍在任何外部请求之前拒绝。"},
     {"id": "dataset", "label": "发布共享快照", "focus": ["provider", "datahub", "snapshot", "dsh", "web"], "note": "主任务和子 Agent 通过同一会话快照读取数据。"}
@@ -13,6 +14,7 @@
     {"id": "web", "type": "frontend", "label": "Research Web", "sublabel": "用户界面"},
     {"id": "api", "type": "backend", "label": "FastAPI", "sublabel": "产品 API / SSE"},
     {"id": "dsh", "type": "external", "label": "DSH", "sublabel": "研究执行"},
+    {"id": "tabbit", "type": "external", "label": "Tabbit Browser", "sublabel": "标签清单 / CLI / DOM"},
     {"id": "policy", "type": "security", "label": "本地查询边界", "sublabel": "enabledTools / Schema / 会话"},
     {"id": "datahub", "type": "backend", "label": "DataHub", "sublabel": "目录 / 路由 / 校验"},
     {"id": "provider", "type": "cloud", "label": "数据 Provider", "sublabel": "固定上游 / 用户配置 MySQL"},
@@ -21,9 +23,10 @@
   "segments": [
     {"from": 150, "to": 330, "label": "断电后的安全恢复"},
     {"from": 348, "to": 560, "label": "研究台查询与快照"},
-    {"from": 578, "to": 788, "label": "页面交接与研究受理"},
-    {"from": 808, "to": 1060, "label": "业务数据调用"},
-    {"from": 1078, "to": 1230, "label": "活动恢复与文件分离"}
+    {"from": 578, "to": 1060, "label": "Tabbit 授权、重验与实时 claim"},
+    {"from": 1078, "to": 1240, "label": "页面交接与研究受理"},
+    {"from": 1258, "to": 1490, "label": "业务数据调用"},
+    {"from": 1508, "to": 1620, "label": "活动恢复与文件分离"}
   ],
   "messages": [
     {"id": "start", "from": "cli", "to": "manager", "y": 176, "label": "rwb web start", "variant": "emphasis"},
@@ -35,36 +38,48 @@
     {"id": "providerQuery", "from": "datahub", "to": "provider", "y": 462, "label": "已注册来源 + 有界参数", "variant": "emphasis"},
     {"id": "saveSnapshot", "from": "datahub", "to": "snapshot", "y": 506, "label": "标准化、Hash、原子发布", "variant": "emphasis"},
     {"id": "queryStatus", "from": "api", "to": "web", "y": 550, "label": "查询状态 + dataset_id", "variant": "return"},
-    {"id": "handoff", "from": "web", "to": "api", "y": 606, "label": "POST /handoffs + 页面上下文", "variant": "emphasis"},
-    {"id": "copySnapshot", "from": "api", "to": "snapshot", "y": 650, "label": "复制所选快照并校验归属 / Hash", "variant": "security"},
-    {"id": "createTarget", "from": "api", "to": "dsh", "y": 694, "label": "创建 FinGPT / Claw 会话", "variant": "emphasis"},
-    {"id": "submitMessage", "from": "web", "to": "api", "y": 738, "label": "POST messages + Idempotency-Key"},
-    {"id": "dshSubmit", "from": "api", "to": "dsh", "y": 782, "label": "RPC 提交研究 / 202 受理", "variant": "emphasis"},
-    {"id": "toolCall", "from": "dsh", "to": "policy", "y": 834, "label": "datahub_* 自动查询校验", "variant": "security"},
-    {"id": "policyResult", "from": "policy", "to": "dsh", "y": 876, "label": "已启用工具 + 合法参数", "variant": "return"},
-    {"id": "businessQuery", "from": "dsh", "to": "datahub", "y": 918, "label": "POST /internal/data/business-query", "variant": "security"},
-    {"id": "providerResult", "from": "provider", "to": "datahub", "y": 960, "label": "原始响应 / 明确失败", "variant": "return"},
-    {"id": "manifestResult", "from": "datahub", "to": "dsh", "y": 1002, "label": "短 Manifest + 文件引用", "variant": "return"},
-    {"id": "streamActivity", "from": "dsh", "to": "api", "y": 1098, "label": "回答、工具与子 Agent 活动", "variant": "dashed"},
-    {"id": "resumeStream", "from": "web", "to": "api", "y": 1140, "label": "SSE 重连 / 历史补齐"},
-    {"id": "sseProjection", "from": "api", "to": "web", "y": 1182, "label": "状态投影 + 独立 delivery", "variant": "dashed"},
-    {"id": "datasetRead", "from": "web", "to": "api", "y": 1224, "label": "GET 当前会话数据集 / 产物"}
+    {"id": "openTabMenu", "from": "web", "to": "api", "y": 606, "label": "POST tabbit-access / GET tabbit-tabs", "variant": "security"},
+    {"id": "grantAndList", "from": "api", "to": "dsh", "y": 650, "label": "会话授权 + 所选实例清单", "variant": "security"},
+    {"id": "inventory", "from": "dsh", "to": "tabbit", "y": 694, "label": "只读标签清单，不后台预取"},
+    {"id": "availableTabs", "from": "tabbit", "to": "dsh", "y": 738, "label": "available HTTP(S) 标题 / URL", "variant": "return"},
+    {"id": "safeCandidates", "from": "dsh", "to": "api", "y": 782, "label": "实例绑定候选", "variant": "return"},
+    {"id": "showCandidates", "from": "api", "to": "web", "y": 826, "label": "最多 50 项 / 8 个 chip", "variant": "return"},
+    {"id": "submitMessage", "from": "web", "to": "api", "y": 870, "label": "POST messages + IDs + live_confirmed", "variant": "emphasis"},
+    {"id": "revalidate", "from": "api", "to": "dsh", "y": 914, "label": "重读清单 + live-extract", "variant": "security"},
+    {"id": "claimAndRead", "from": "dsh", "to": "tabbit", "y": 958, "label": "原子 claim + read_only DOM 读取", "variant": "security"},
+    {"id": "liveDom", "from": "tabbit", "to": "dsh", "y": 1002, "label": "当前 DOM；finally finish keep=true", "variant": "return"},
+    {"id": "contextTokens", "from": "dsh", "to": "api", "y": 1046, "label": "10 分钟 / 会话绑定 / 单次 token", "variant": "return"},
+    {"id": "handoff", "from": "web", "to": "api", "y": 1100, "label": "POST /handoffs + 页面上下文", "variant": "emphasis"},
+    {"id": "copySnapshot", "from": "api", "to": "snapshot", "y": 1144, "label": "复制所选快照并校验归属 / Hash", "variant": "security"},
+    {"id": "createTarget", "from": "api", "to": "dsh", "y": 1188, "label": "创建 FinGPT / Claw 会话", "variant": "emphasis"},
+    {"id": "dshSubmit", "from": "api", "to": "dsh", "y": 1232, "label": "RPC 提交研究 / 202 受理", "variant": "emphasis"},
+    {"id": "toolCall", "from": "dsh", "to": "policy", "y": 1280, "label": "datahub_* 自动查询校验", "variant": "security"},
+    {"id": "policyResult", "from": "policy", "to": "dsh", "y": 1322, "label": "已启用工具 + 合法参数", "variant": "return"},
+    {"id": "businessQuery", "from": "dsh", "to": "datahub", "y": 1364, "label": "POST /internal/data/business-query", "variant": "security"},
+    {"id": "providerResult", "from": "provider", "to": "datahub", "y": 1406, "label": "原始响应 / 明确失败", "variant": "return"},
+    {"id": "manifestResult", "from": "datahub", "to": "dsh", "y": 1448, "label": "短 Manifest + 文件引用", "variant": "return"},
+    {"id": "streamActivity", "from": "dsh", "to": "api", "y": 1520, "label": "回答、工具与子 Agent 活动", "variant": "dashed"},
+    {"id": "resumeStream", "from": "web", "to": "api", "y": 1552, "label": "SSE 重连 / 历史补齐"},
+    {"id": "sseProjection", "from": "api", "to": "web", "y": 1584, "label": "状态投影 + 独立 delivery", "variant": "dashed"},
+    {"id": "datasetRead", "from": "web", "to": "api", "y": 1616, "label": "GET 当前会话数据集 / 产物"}
   ],
   "activations": [
     {"participant": "manager", "from": 168, "to": 306, "type": "backend"},
     {"participant": "dsh", "from": 248, "to": 306, "type": "external"},
-    {"participant": "api", "from": 288, "to": 792, "type": "backend"},
+    {"participant": "api", "from": 288, "to": 1240, "type": "backend"},
     {"participant": "datahub", "from": 410, "to": 558, "type": "backend"},
     {"participant": "provider", "from": 454, "to": 516, "type": "cloud"},
-    {"participant": "snapshot", "from": 498, "to": 660, "type": "database"},
-    {"participant": "dsh", "from": 686, "to": 1108, "type": "external"},
-    {"participant": "policy", "from": 826, "to": 884, "type": "security"},
-    {"participant": "datahub", "from": 910, "to": 1010, "type": "backend"},
-    {"participant": "api", "from": 1090, "to": 1232, "type": "backend"}
+    {"participant": "dsh", "from": 642, "to": 1054, "type": "external"},
+    {"participant": "tabbit", "from": 686, "to": 1010, "type": "external"},
+    {"participant": "snapshot", "from": 1136, "to": 1152, "type": "database"},
+    {"participant": "dsh", "from": 1180, "to": 1532, "type": "external"},
+    {"participant": "policy", "from": 1272, "to": 1330, "type": "security"},
+    {"participant": "datahub", "from": 1356, "to": 1456, "type": "backend"},
+    {"participant": "api", "from": 1512, "to": 1624, "type": "backend"}
   ],
   "cards": [
     {"dot": "cyan", "title": "可恢复但不越权", "items": ["断电留下的 PID 仅在确认进程死亡后删除；活进程或未知状态继续 fail closed", "3081 与 8088 都通过健康检查后才报告启动成功"]},
-    {"dot": "rose", "title": "自动查询仍有边界", "items": ["无可调用来源的工具不注册；非法参数、伪造会话或 Guard 拒绝时不向上游发送请求", "只取消 DataHub 查询的逐次审批，其他高风险操作策略不变"]},
+    {"dot": "rose", "title": "自动执行仍有边界", "items": ["无可调用来源的 DataHub 工具不注册；非法参数、伪造会话或 Guard 拒绝时不向上游发送请求", "Tabbit 只读依赖调用方声明；写操作继续逐次原生审批"]},
     {"dot": "emerald", "title": "两种终态", "items": ["DSH 回合结束与文件交付完成分别判断", "数据快照可用不代表研究数据完整或报告正确"]}
   ]
 }

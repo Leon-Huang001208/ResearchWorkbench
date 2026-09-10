@@ -5,7 +5,7 @@
     "title": "Research Web 当前模块依赖",
     "output": "02-module-dependencies.html",
     "quality_profile": "showcase",
-    "viewBox": [1600, 820],
+    "viewBox": [1600, 860],
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
       "revision": "4049f385ed84df41dc6c70e8dbec4c6073f27d30"
@@ -13,14 +13,15 @@
     "views": [
       {"id": "reportPath", "label": "报告 Workflow", "focus": ["browser", "api", "reportManager", "reportStore", "workbookTool", "excel", "snapshots", "dsh", "assemblyTool"], "note": "后端先刷新并固化快照，Claw 研究后只交付结构化 payload，再由确定性 Tool 组装和验证文件。"},
       {"id": "assetPath", "label": "资产观察", "focus": ["browser", "api", "assetWorkspace", "datahub", "providers", "snapshots"], "note": "资产页按区块查询真实来源；已加载资料固化为会话快照后再交给 FinGPT 或 Claw。"},
-      {"id": "sharedExecution", "label": "共享执行边界", "focus": ["reportManager", "dsh", "datahub", "providers", "snapshots"], "note": "DSH 启动时只注册有可调用来源的 DataHub 工具；用户 MySQL 密码留在系统凭据库，父子 Agent 复用同一快照。"}
+      {"id": "sharedExecution", "label": "共享执行边界", "focus": ["reportManager", "dsh", "datahub", "providers", "snapshots"], "note": "DSH 启动时只注册有可调用来源的 DataHub 工具；用户 MySQL 密码留在系统凭据库，父子 Agent 复用同一快照。"},
+      {"id": "liveBrowser", "label": "Tabbit 实时标签", "focus": ["browser", "api", "dsh", "providers"], "note": "BFF 只传递会话授权、标签 ID 和一次性 token；DSH 内唯一 ctx.tabbit 执行原子 claim 与实时 DOM 提取。"}
     ]
   },
   "components": [
     {"id": "browser", "type": "frontend", "label": "Research Web", "sublabel": "FinGPT · Claw · 资产观察 · 能力中心", "pos": [40, 330], "size": [185, 78], "sources": [{"path": "app/research_web/ui/app.mjs"}, {"path": "app/research_web/ui/shell.mjs"}]},
     {"id": "api", "type": "backend", "label": "FastAPI BFF", "sublabel": "/api/research/*", "pos": [275, 330], "size": [165, 78], "sources": [{"path": "app/research_web/main.py"}]},
     {"id": "reportManager", "type": "backend", "label": "Report Workflow", "sublabel": "版本 · 资源 · 运行 · 日程", "pos": [500, 330], "size": [190, 78], "sources": [{"path": "app/research_web/report_workflows/manager.py"}, {"path": "app/research_web/report_workflow_routes.py"}]},
-    {"id": "dsh", "type": "external", "label": "专属 DSH 3081", "sublabel": "Claw · Skill · 可调用工具", "pos": [750, 330], "size": [205, 78], "sources": [{"path": "app/research_web/client.py"}, {"path": "app/research_web/launch_runtime.py"}]},
+    {"id": "dsh", "type": "external", "label": "专属 DSH 3081", "sublabel": "Claw · Skill · Tabbit adapter", "pos": [750, 330], "size": [205, 78], "sources": [{"path": "app/research_web/client.py"}, {"path": "app/research_web/launch_runtime.py"}, {"path": "app/research_web/runtime/tabbit-adapter.mjs"}]},
     {"id": "assemblyTool", "type": "backend", "label": "报告组装与检查 Tool", "sublabel": "payload → Office / HTML", "pos": [1015, 330], "size": [210, 78], "sources": [{"path": "app/research_web/report_rendering.py"}, {"path": "app/research_web/report_render_script.py"}]},
     {"id": "snapshots", "type": "database", "label": "会话隔离快照", "sublabel": "数据集 · 产物 · manifest", "pos": [1285, 330], "size": [205, 78], "sources": [{"path": "app/research_web/datahub/snapshots.py"}, {"path": "app/research_web/store.py"}]},
     {"id": "reportStore", "type": "database", "label": "Workflow 版本包", "sublabel": "模板 · Excel 底稿 · 映射 · Hash", "pos": [500, 95], "size": [205, 78], "sources": [{"path": "app/research_web/report_workflows/catalog.py"}]},
@@ -28,7 +29,7 @@
     {"id": "excel", "type": "external", "label": "Excel + 插件", "sublabel": "Wind / iFinD · 本机登录态", "pos": [1015, 95], "size": [210, 78]},
     {"id": "assetWorkspace", "type": "backend", "label": "资产观察服务", "sublabel": "区块状态 · 自选 · 笔记 · 提醒", "pos": [500, 555], "size": [190, 78], "sources": [{"path": "app/research_web/workbench.py"}, {"path": "app/research_web/ui/asset-workspace.mjs"}]},
     {"id": "datahub", "type": "backend", "label": "DataHub", "sublabel": "enabledTools · 自动查询 · 快照", "pos": [750, 555], "size": [190, 78], "sources": [{"path": "app/research_web/datahub/broker.py"}, {"path": "app/research_web/runtime/public-data.mjs"}]},
-    {"id": "providers", "type": "external", "label": "登记数据源", "sublabel": "公开源 · 专业源 · 用户 MySQL", "pos": [1015, 555], "size": [210, 78], "sources": [{"path": "app/research_web/datahub/catalog.py"}, {"path": "app/research_web/datahub/providers.py"}]}
+    {"id": "providers", "type": "external", "label": "外部与本机来源", "sublabel": "Data Provider · Tabbit Browser", "pos": [1015, 555], "size": [210, 78], "sources": [{"path": "app/research_web/datahub/catalog.py"}, {"path": "app/research_web/datahub/providers.py"}, {"path": "app/research_web/runtime/tabbit-adapter.mjs"}]}
   ],
   "boundaries": [
     {"kind": "region", "label": "Research Workbench Web 单进程边界", "wraps": ["api", "assetWorkspace", "reportManager", "datahub", "reportStore", "snapshots", "workbookTool", "assemblyTool"], "pad": 24}
@@ -44,11 +45,12 @@
     {"id": "controlExcel", "from": "workbookTool", "to": "excel", "label": "串行本机自动化", "labelAt": [988, 91]},
     {"id": "assetRoute", "from": "api", "to": "assetWorkspace", "label": "资产观察 API", "fromSide": "bottom", "toSide": "left", "labelAt": [475, 485]},
     {"id": "dataRoute", "from": "assetWorkspace", "to": "datahub", "label": "分块业务查询", "labelAt": [720, 647]},
-    {"id": "routeProvider", "from": "datahub", "to": "providers", "label": "白名单 Provider", "labelAt": [978, 551]}
+    {"id": "routeProvider", "from": "datahub", "to": "providers", "label": "白名单 Provider", "labelAt": [978, 551]},
+    {"id": "liveClaim", "from": "dsh", "to": "providers", "label": "ctx.tabbit · claim / DOM / keep", "variant": "security"}
   ],
   "cards": [
     {"dot": "cyan", "title": "资产观察不是演示页", "items": ["每个区块独立呈现 complete / partial / empty / unavailable / error", "无真实数据时不补价格、估值、主题或同类比较"]},
     {"dot": "violet", "title": "研究与组装职责分离", "items": ["华安 ETF、创业板 50 等每篇报告拥有自己的模板与底稿", "Claw 生成结构化内容；后端 Tool 确定性组装并重开文件"]},
-    {"dot": "amber", "title": "Excel 失败即阻塞", "items": ["Wind / iFinD 登录、公式、日期或必填项失败进入 blocked_data", "运行副本与母版隔离，不静默回退其他口径"]}
+    {"dot": "amber", "title": "本机能力失败即阻塞", "items": ["Wind / iFinD 登录、公式、日期或必填项失败进入 blocked_data", "Tabbit claim / DOM / finish 任一失败均不提交消息"]}
   ]
 }

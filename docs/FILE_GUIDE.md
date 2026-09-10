@@ -76,6 +76,7 @@
 |---|---|
 | `app/research_web/main.py` | FastAPI、产品边界与现有会话路由 |
 | `app/research_web/service.py` / `client.py` | DSH协议适配、原生历史与SSE状态 |
+| `app/research_web/tabbit.py` / `runtime/tabbit-adapter.mjs` | Tabbit 配置、会话授权、实时 claim 和一次性内存上下文 |
 | `app/research_web/ui/` | 原生JS产品壳、FinGPT/Claw、输入框、能力目录/编辑器 |
 | `app/research_web/capabilities/` | Skill/Workflow包、检查、不可变版本、只读Tool目录 |
 | `app/research_web/datahub/` | 按需数据能力与会话数据集快照 |
@@ -83,6 +84,7 @@
 | `app/research_web/documentation.py` | 固定图册HTML白名单与隔离CSP |
 | `scripts/check_research_architecture.mjs` | 无全局Archify依赖的源码/文档/图/回执一致性检查 |
 | `docs/architecture/research-web/` | 当前Markdown、映射清单与八张JSON图源 |
+| `vendor/dsh-tabbit/0.3.4/` | 固定官方源码提交的归档、MIT License、完整性哈希和文件清单 |
 | `outputs/research-web-architecture/` | 八图HTML、交付/视觉回执与人工核对所用截图 |
 
 ### app/api/ - FastAPI 后端接口

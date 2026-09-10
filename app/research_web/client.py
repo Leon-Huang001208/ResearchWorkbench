@@ -41,6 +41,14 @@ METHODS = frozenset(
         "settings.mutate",
     }
 )
+PLUGIN_ROUTES = frozenset(
+    {
+        ("GET", "/research/tabbit/status"),
+        ("POST", "/research/tabbit/access"),
+        ("GET", "/research/tabbit/tabs"),
+        ("POST", "/research/tabbit/live-extract"),
+    }
+)
 MAX_STREAM_BYTES = 16 * 1024 * 1024
 
 
@@ -233,6 +241,40 @@ class DSHClient:
         if method == "credentials.describe":
             return {"credentials": value}
         return value
+
+    async def plugin_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, str] | None = None,
+        payload: dict | None = None,
+    ) -> dict:
+        """Call one reviewed loopback plugin route through the owned DSH cookie."""
+        normalized = method.upper()
+        if (normalized, path) not in PLUGIN_ROUTES:
+            raise RuntimeFailure("未授权的 DSH 插件路由", "forbidden")
+        try:
+            response = await self.http.request(
+                normalized,
+                path,
+                params=params,
+                json=payload if normalized != "GET" else None,
+            )
+            body = response.json()
+            if not isinstance(body, dict):
+                raise RuntimeFailure("DSH 插件响应格式不匹配", "protocol_error")
+            if response.is_error:
+                raw_code = body.get("code") or body.get("error")
+                code = raw_code if isinstance(raw_code, str) else "tabbit_error"
+                log.warning("dsh_plugin_rejected", route=path, status=response.status_code, code=code)
+                raise RuntimeFailure("Tabbit 运行时拒绝请求", code)
+            return body
+        except RuntimeFailure:
+            raise
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            log.warning("dsh_plugin_transport_failed", route=path, error_type=type(exc).__name__)
+            raise RuntimeFailure("Tabbit 运行时连接失败；请求未自动重试") from exc
 
     async def respond(self, rpc_id: str, value: dict) -> dict:
         client_id = self._event_client_id

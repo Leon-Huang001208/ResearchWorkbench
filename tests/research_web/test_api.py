@@ -39,6 +39,45 @@ class NativeFixture:
             return {"skills": []}
         return {"accepted": True}
 
+    async def plugin_json(self, method, path, *, params=None, payload=None):
+        self.calls.append((f"plugin:{method}", {"path": path, "params": params, "payload": payload}))
+        if path == "/research/tabbit/status":
+            return {
+                "status": "ready",
+                "pluginVersion": "0.3.4",
+                "browserVersion": "1.13.23",
+                "launcherPresent": True,
+                "onlineInstances": 1,
+                "selectedInstance": "ABCDEF0123456789",
+            }
+        if path == "/research/tabbit/access":
+            return {"accepted": True}
+        if path == "/research/tabbit/tabs":
+            return {
+                "instanceId": "ABCDEF0123456789",
+                "tabs": [
+                    {
+                        "tabId": 7,
+                        "title": "Live research page",
+                        "url": "https://example.com/live",
+                        "active": True,
+                        "state": "available",
+                    }
+                ],
+            }
+        if path == "/research/tabbit/live-extract":
+            return {
+                "markers": [
+                    {
+                        "tabId": tab_id,
+                        "title": "Live research page",
+                        "marker": f"@[Live research page](rwb-tabbit:{tab_id}-token)",
+                    }
+                    for tab_id in payload["tabIds"]
+                ]
+            }
+        raise AssertionError(path)
+
     async def history(self, sid):
         return []
 
@@ -77,6 +116,94 @@ def test_create_submit_duplicate_never_replays(api):
         ).status_code
         == 400
     )
+
+
+def test_tabbit_status_access_inventory_and_live_message(api):
+    client, native, _ = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+
+    status = client.get("/api/research/runtime/tabbit")
+    assert status.status_code == 200
+    assert status.json()["status"] == "ready"
+    assert status.json()["web_fetch_enabled"] is False
+
+    denied = client.get(f"/api/research/sessions/{sid}/tabbit-tabs")
+    assert denied.status_code == 403
+    assert denied.json()["error"]["code"] == "tabbit_page_access_required"
+
+    grant = client.post(
+        f"/api/research/sessions/{sid}/tabbit-access", json={"decision": "approve"}
+    )
+    assert grant.status_code == 200
+    tabs = client.get(f"/api/research/sessions/{sid}/tabbit-tabs?q=research")
+    assert tabs.status_code == 200
+    assert tabs.json()["items"][0]["tab_id"] == 7
+
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        headers={"Idempotency-Key": "tabbit-message-1"},
+        json={
+            "text": "总结这个页面",
+            "tabbit_tabs": [{"tab_id": 7, "instance_id": "ABCDEF0123456789"}],
+            "tabbit_live_confirmed": True,
+        },
+    )
+    assert response.status_code == 202, response.text
+    prompt = [call for call in native.calls if call[0] == "session.prompt"][-1][1]
+    sent_text = prompt["content"][0]["text"]
+    assert "@[Live research page](rwb-tabbit:7-token)" in sent_text
+
+
+def test_tabbit_live_message_requires_confirmation_and_limits_selection(api):
+    client, _, _ = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    client.post(f"/api/research/sessions/{sid}/tabbit-access", json={"decision": "approve"})
+
+    unconfirmed = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        headers={"Idempotency-Key": "tabbit-message-2"},
+        json={
+            "text": "总结",
+            "tabbit_tabs": [{"tab_id": 7, "instance_id": "ABCDEF0123456789"}],
+        },
+    )
+    assert unconfirmed.status_code == 409
+    assert unconfirmed.json()["error"]["code"] == "tabbit_claim_confirmation_required"
+
+    too_many = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        headers={"Idempotency-Key": "tabbit-message-3"},
+        json={
+            "text": "总结",
+            "tabbit_tabs": [
+                {"tab_id": index, "instance_id": "ABCDEF0123456789"}
+                for index in range(9)
+            ],
+            "tabbit_live_confirmed": True,
+        },
+    )
+    assert too_many.status_code == 422
+
+
+def test_tabbit_settings_validate_dependency_and_report_restart(api):
+    client, _, _ = api
+    invalid = client.put(
+        "/api/research/runtime/tabbit",
+        json={"browser_enabled": False, "web_fetch_enabled": True},
+    )
+    assert invalid.status_code == 409
+    assert invalid.json()["error"]["code"] == "tabbit_web_fetch_requires_browser"
+
+    saved = client.put(
+        "/api/research/runtime/tabbit",
+        json={
+            "browser_enabled": True,
+            "web_fetch_enabled": True,
+            "instance_id": "ABCDEF0123456789",
+        },
+    )
+    assert saved.status_code == 200
+    assert saved.json()["restart_required"] is True
 
 
 def test_session_soft_delete_restore_is_recoverable_and_never_archives_native_history(api):

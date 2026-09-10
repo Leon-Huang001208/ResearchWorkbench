@@ -1,10 +1,12 @@
 # Research Web 接口清单
 
-路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 122 个唯一 HTTP 操作、124 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
+路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 126 个唯一 HTTP 操作、128 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 
 | Method | 路径 | 源码 |
 |---|---|---|
 | GET | `/api/research/runtime` | `app/research_web/main.py` |
+| GET | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
+| PUT | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
 | GET | `/api/research/models` | `app/research_web/main.py` |
 | PUT | `/api/research/runtime/model` | `app/research_web/main.py` |
 | GET | `/api/research/workspaces` | `app/research_web/main.py` |
@@ -16,6 +18,8 @@
 | POST | `/api/research/sessions/{sid}/restore` | `app/research_web/main.py` |
 | DELETE | `/api/research/sessions/{sid}/permanent` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/messages` | `app/research_web/main.py` |
+| POST | `/api/research/sessions/{sid}/tabbit-access` | `app/research_web/main.py` |
+| GET | `/api/research/sessions/{sid}/tabbit-tabs` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/cancel` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/approvals/{aid}` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/questions/{qid}` | `app/research_web/main.py` |
@@ -128,6 +132,7 @@
 ## 约束与错误
 
 - 消息提交使用 `Idempotency-Key`；受理返回 202，不是执行或交付成功。受理未知时不自动重试。
+- Tabbit `web_fetch` 接管依赖浏览器自动化；多实例必须选择 16 位实例 ID。会话授权后才可读取候选，消息最多引用 8 个不重复且同实例的标签页，并要求 `tabbit_live_confirmed=true`。发送前重新验证可用性；claim、提取、释放或 token 生成任一步失败均不提交消息。
 - 会话、附件、文件、数据集必须属于产品索引中的当前会话；模型参数不能选择任意宿主路径。
 - `GET /sessions` 默认只返回正常会话，`view=deleted|all` 显式读取墓碑；软删除写入 30 天可恢复窗口，恢复不触碰 DSH。永久删除和到期清理先调用 DSH `session.delete(cascade=true)`，确认根 ID 位于 `deletedSessionIds` 后才清理本产品目录与索引；运行中或删除已开始的会话拒绝恢复。服务启动与每 6 小时的在线保留期任务都会重试过期墓碑。
 - `GET /data/catalog` 与详情接口只读取静态目录；`POST /data/sources/{id}/probes` 才检测一个指定来源，使用 `Idempotency-Key` 去重。探测结果只返回安全化错误码和耗时，不返回凭据或上游正文。

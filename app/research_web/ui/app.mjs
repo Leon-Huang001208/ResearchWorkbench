@@ -2,7 +2,7 @@ import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, 
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
 import { icon } from './icons.mjs';
-import { renderComposer, renderQuickSkills, slashKey, skillMatches } from './composer.mjs';
+import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
 import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
@@ -18,9 +18,11 @@ import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, setti
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, tabbit: null, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
+let tabbitOpen = false; let tabbitLoading = false; let tabbitIndex = 0; let tabbitCandidates = []; let tabbitRequest = 0;
+const tabbitGrants = new Set();
 let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
 let workbenchQueries = []; let workbenchContext = {}; let workbenchBusy = false;
@@ -97,7 +99,7 @@ function closeConnectionDrawer(workbench, { restoreFocus = true } = {}) {
 function composer() {
   const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, page: state.route.page, draft: state.draft, attachments: state.attachments, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, runtimeReady: catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false });
+  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, runtimeReady: catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false });
 }
 
 function landing() {
@@ -119,6 +121,7 @@ function settingsPage() {
   return renderSettingsPage({
     route: state.route,
     runtime: catalog.runtime,
+    tabbit: catalog.tabbit,
     models: catalog.models,
     runtimeLabel: runtimeLabel(),
     busy: state.busy || connectionProbeBusy,
@@ -231,8 +234,9 @@ function render() {
 async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows']) {
   await Promise.all(names.map(async (name) => {
     try {
-      const data = name === 'deletedSessions' ? await api.sessions('deleted') : await api[name]();
+      const data = name === 'deletedSessions' ? await api.sessions('deleted') : name === 'tabbit' ? await api.tabbitStatus() : await api[name]();
       if (name === 'runtime') catalog.runtime = data;
+      else if (name === 'tabbit') catalog.tabbit = data;
       else if (name === 'models') { catalog.models = data.groups || []; catalog.modelFailures = data.failures || []; }
       else if (name === 'dataCatalog') catalog.dataCatalog = {
         summary: data?.summary || {},
@@ -349,7 +353,7 @@ async function showRoute() {
     location.hash = legacyTarget;
   }
   quickCategory = '';
-  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear();
+  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear();
   await controller.open(parseRoute(location.hash));
   if (ticket !== pageGeneration) return;
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
@@ -400,11 +404,53 @@ async function ensureSession() {
   return Boolean(state.detail);
 }
 
+async function loadTabbitCandidates(query) {
+  let request;
+  try {
+    if (!await ensureSession()) throw new Error('请先创建或打开一个研究会话。');
+    request = ++tabbitRequest;
+    tabbitOpen = true; tabbitLoading = true; tabbitIndex = 0; tabbitCandidates = []; slashOpen = false; render();
+    const id = state.detail?.id;
+    if (!id) throw new Error('当前会话不可用。');
+    if (!tabbitGrants.has(id)) {
+      const approved = globalThis.confirm?.('允许当前研究会话读取所选 Tabbit 实例的标签页标题和 URL 吗？授权仅在本次 Runtime 生命周期内有效。') !== false;
+      if (!approved) { await api.tabbitAccess(id, 'deny'); tabbitOpen = false; return; }
+      const access = await api.tabbitAccess(id, 'approve');
+      if (access.accepted !== true) throw new Error('Tabbit 页面访问授权未生效。');
+      tabbitGrants.add(id);
+    }
+    const result = await api.tabbitTabs(id, query, 50);
+    if (request !== tabbitRequest) return;
+    tabbitCandidates = Array.isArray(result.items) ? result.items.filter((item) => !state.tabbitTabs.some((selected) => selected.tab_id === item.tab_id && selected.instance_id === item.instance_id)) : [];
+  } catch (error) {
+    if (request === undefined || request === tabbitRequest) state.error = error?.message || 'Tabbit 标签页列表不可用。';
+  } finally {
+    if (request === undefined || request === tabbitRequest) { tabbitLoading = false; render(); }
+  }
+}
+
+function selectTabbit(tabId) {
+  const item = tabbitCandidates.find((candidate) => candidate.tab_id === Number(tabId));
+  if (!item) return;
+  try {
+    controller.addTabbit(item);
+    controller.setDraft(removeTabbitMentionQuery(state.draft));
+    tabbitOpen = false; tabbitCandidates = []; tabbitIndex = 0; render();
+    document.querySelector('#prompt')?.focus();
+  } catch (error) { state.error = error.message; render(); }
+}
+
 root.addEventListener('input', (event) => {
   if (event.target.id === 'prompt') {
     controller.setDraft(event.target.value);
     const wasOpen = slashOpen; slashOpen = event.target.value.trimStart().startsWith('/'); slashIndex = 0;
-    if (slashOpen || wasOpen) render();
+    const query = tabbitMentionQuery(event.target.value);
+    if (query !== null && !slashOpen) void loadTabbitCandidates(query);
+    else {
+      const wasTabbitOpen = tabbitOpen;
+      tabbitOpen = false; tabbitLoading = false; tabbitCandidates = []; tabbitRequest += 1;
+      if (slashOpen || wasOpen || wasTabbitOpen) render();
+    }
   }
   if (event.target.closest('#cap-editor-form')) captureEditor();
   if (event.target.closest('#cap-creation-form')) capabilityState.goal = event.target.value;
@@ -447,6 +493,15 @@ root.addEventListener('keydown', (event) => {
       render(); document.getElementById(`capability-tab-${result.kind}`)?.focus({ preventScroll: true }); return;
     }
   }
+  if (event.target.id === 'prompt' && tabbitOpen && !event.isComposing) {
+    const result = tabbitKey(event.key, tabbitIndex, tabbitCandidates);
+    if (result.handled) {
+      event.preventDefault();
+      if (result.select !== undefined) selectTabbit(result.select);
+      else { if (result.close) tabbitOpen = false; if (result.index !== undefined) tabbitIndex = result.index; render(); }
+      return;
+    }
+  }
   if (event.target.id === 'prompt' && (slashOpen || state.draft.trimStart().startsWith('/')) && !event.isComposing) {
     const result = slashKey(event.key, slashIndex, currentSlashMatches());
     if (result.handled) {
@@ -462,7 +517,7 @@ root.addEventListener('keydown', (event) => {
     if (closeConnectionDrawer(workbench)) { event.preventDefault(); return; }
     event.preventDefault();
     const focusSession = sessionMenu?.id || renameSession?.id || deleteSession?.id || purgeSession?.id;
-    sidebarOpen = false; contextOpen = false; slashOpen = false; globalSearch = ''; searchOpen = false;
+    sidebarOpen = false; contextOpen = false; slashOpen = false; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false;
     renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionError = '';
     render();
     if (focusSession) document.querySelector(`[data-session-menu="${focusSession}"]`)?.focus({ preventScroll: true });
@@ -694,6 +749,17 @@ root.addEventListener('submit', async (event) => {
     if (!catalog.runtime?.connected || catalog.runtime.credential_configured === false) { state.error = '运行时未就绪，请检查连接与授权；草稿已保留。'; render(); return; }
     if (await ensureSession()) { await controller.send(); await loadCatalog(['sessions']); }
   }
+  if (event.target.id === 'tabbit-settings-form') {
+    const values = new FormData(event.target);
+    const instance = String(values.get('instance_id') || '').trim();
+    const result = await controller.action(() => api.configureTabbit({
+      browser_enabled: values.get('browser_enabled') === 'on',
+      web_fetch_enabled: values.get('web_fetch_enabled') === 'on',
+      instance_id: instance || null,
+    }), { refreshAfter: false });
+    if (result) { success = 'Tabbit 配置已保存；Runtime 空闲并重启后应用。'; await loadCatalog(['tabbit']); }
+    return;
+  }
   if (event.target.id === 'settings-form') {
     const values = new FormData(event.target); const key = String(values.get('api_key') || '').trim();
     const payload = { provider: String(values.get('provider')).trim(), model: String(values.get('model')).trim(), ...(key ? { api_key: key } : {}) };
@@ -855,6 +921,9 @@ root.addEventListener('click', async (event) => {
     return;
   }
   if (await handleCapabilityClick(data)) return;
+  if ('tabbitRefresh' in data) { await loadCatalog(['tabbit']); return; }
+  if ('tabbitSelect' in data) { selectTabbit(data.tabbitSelect); return; }
+  if ('removeTabbit' in data) { controller.removeTabbit(data.removeTabbit); render(); return; }
   if ('toggleSearch' in data) { searchOpen = !searchOpen; sidebarOpen = false; contextOpen = false; if (!searchOpen) globalSearch = ''; render(); if (searchOpen) document.querySelector('#global-search')?.focus(); }
   if ('clearCapability' in data) { controller.setCapability(null); render(); }
   if ('removeTool' in data) { controller.setTools(state.toolIds.filter(id => id !== data.removeTool)); render(); }
@@ -914,7 +983,7 @@ root.addEventListener('click', async (event) => {
   if ('contextTab' in data) { contextTab = data.contextTab; render(); }
   if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
-  if ('slashSearch' in data) { slashOpen = !slashOpen; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
+  if ('slashSearch' in data) { slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
   if ('noFormats' in data) { controller.setFormats([]); render(); }
   if ('preview' in data) { selectedPreview = data.preview; render(); }

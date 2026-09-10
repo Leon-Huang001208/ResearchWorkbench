@@ -12,6 +12,13 @@ current source modules, Markdown, diagrams and tests. Local acceptance is record
 The legacy subsystems below remain historical implementations, not dependencies to add to this new chain.
 Tests: `tests/research_web/` (use `--confcutdir=tests/research_web`) and `tests/javascript/research_web*.test.mjs`.
 DSH owns the execution loop, skills, subagents and transcript; no second orchestration/fact database.
+Tabbit integration lives in `app/research_web/tabbit.py`, `app/research_web/runtime/tabbit-adapter.mjs`,
+`app/research_web/launch_runtime.py`, `ui/composer.mjs`, `ui/settings.mjs` and the pinned
+`vendor/dsh-tabbit/0.3.4/` archive. Read [the Tabbit contract](research-web-tabbit.md) before changing
+its staging, loopback API, claim/token lifecycle or UI. Regression coverage is in
+`tests/research_web/test_tabbit.py`, `test_runtime_launch.py`, `test_api.py`, `test_protocol.py`,
+`tests/javascript/research_web_tabbit_adapter.test.mjs`, `research_web_tabbit_ui.test.mjs`,
+`research_web_guard.test.mjs` and `research_web_settings_ui.test.mjs`.
 The product topbar keeps healthy runtime state silent and exposes only actionable configuration or
 availability states; page-scoped refresh controls remain owned by their existing modules.
 Settings uses five mutually exclusive hash subpages rendered by `ui/settings.mjs`; `ui/app.mjs` retains

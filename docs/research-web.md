@@ -53,6 +53,8 @@ Fork 维护约定：`Leon-Huang001208/deepseek-harness` 的 `master` 只用
 - `resources/`：实际 PDF 页码抽取、Office/HTML/Markdown 文件生成与重开检查。
 - `datahub/`：固定来源、分页、私有原始响应、会话不可变资料、校验读取与缓存；见 [DataHub](research-web-datahub.md)。
 - `runtime/public-data.mjs`：启动时只注册已有可调用来源的 `datahub_*` 工具，并通过可信会话身份与认证回环 DataHub 自动桥接、联动取消，不再重复上游解析或逐次确认；见 [公开数据工具](research-web-public-data.md)。
+- `tabbit.py` 与 `runtime/tabbit-adapter.mjs`：保存 Tabbit 非秘密开关、会话授权、候选复核、实时 claim 和一次性内存 token；见 [Tabbit 集成](research-web-tabbit.md)。
+- `vendor/dsh-tabbit/0.3.4/`：固定官方源码提交构建的供应归档、MIT License、来源、哈希和完整文件清单；启动时校验后仅复制到专属 Profile，不运行网络安装或自动升级。
 
 数据根默认 `~/.research-workbench/research-web`（可通过 `RESEARCH_DATA_HOME` 指定）。其下：
 
@@ -62,6 +64,7 @@ connections/mysql.json       # 当前用户 MySQL 非秘密配置；密码不在
 runtime/home/                # 专属DSH历史与凭据
 runtime/work/                # 干净启动目录，无.env
 runtime/*-lock.json           # 本地源码/构建锁
+.control/tabbit.json          # Tabbit 非秘密开关与实例选择，0600
 sessions/<uuid>/inputs/      # 上传资料，只读给研究脚本
 sessions/<uuid>/resources/   # 审核过的辅助脚本和模板，只读
 sessions/<uuid>/outputs/     # 真正生成的文件
@@ -85,6 +88,10 @@ python -m mypy app/research_web --exclude '/skills/' --follow-imports=skip
 python scripts/check_task_completion.py
 python scripts/check_doc_sync.py
 ```
+
+Tabbit 的模拟 Runtime 验证不替代真实浏览器验收。当前开发机 Tabbit 0.30.32 且缺少
+`tabbit-cli`，低于官方最低 1.9.0；在用户手动升级并重启 Tabbit 前，macOS 真实冒烟保持阻塞，
+Windows 仍须在真实环境单独执行。Research Workbench 不自动下载或升级。
 
 Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真实模型验收单独记录，不以 MockTransport/TestClient 代替。
 `DSH_SOURCE_ROOT` 只用于测试已存在的原生 JSON Schema 转换器；未设置时该项会跳过，不能据此宣称协议验证完整。

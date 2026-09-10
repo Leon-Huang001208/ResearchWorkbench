@@ -28,3 +28,18 @@ test('research guard limits native children and resets budget only on a new turn
   agent.events.push({ type: 'turn/start', data: { turn: 2 } });
   assert.equal(guard({ name: 'subagent', agent }), undefined);
 });
+
+test('research guard allows only configured Tabbit surfaces', () => {
+  let guard;
+  const ctx = { tools: { guard: (fn) => { guard = fn; } }, logger: { warn() {} } };
+  apply(ctx, { enabled: true, tabbitBrowserEnabled: true, tabbitWebFetchEnabled: false });
+  assert.equal(guard({ name: 'tabbit_browser', agent: makeAgent() }), undefined);
+  assert.ok(guard({ name: 'web_fetch', agent: makeAgent() }));
+  apply(ctx, { enabled: true, tabbitBrowserEnabled: true, tabbitWebFetchEnabled: true });
+  assert.equal(guard({ name: 'web_fetch', agent: makeAgent() }), undefined);
+  assert.ok(guard({ name: 'tabbit_browser_install', agent: makeAgent() }));
+
+  apply(ctx, { enabled: false, tabbitBrowserEnabled: true, tabbitWebFetchEnabled: false });
+  assert.equal(guard({ name: 'tabbit_browser', agent: makeAgent() }), undefined);
+  assert.ok(guard({ name: 'research_run_script', agent: makeAgent() }));
+});
