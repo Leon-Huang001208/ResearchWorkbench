@@ -3,9 +3,12 @@ from pathlib import Path
 
 import pytest
 
+from app.research_web import runtime_auth as runtime_auth_module
+from app.research_web import service_manager as service_manager_module
 from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
+    _is_unsafe_private_directory,
     format_status,
 )
 
@@ -67,6 +70,28 @@ def test_default_runtime_source_is_project_private(tmp_path, monkeypatch):
     data_root = tmp_path / ".research-workbench" / "research-web"
     resolved = WebServiceManager(project_root=tmp_path, data_root=data_root)
     assert resolved.runtime_source == (tmp_path / ".research-workbench" / "dsh-source").resolve()
+
+
+def test_windows_private_directory_does_not_apply_posix_group_mode_bits(tmp_path):
+    private_directory = tmp_path / "private"
+    private_directory.mkdir(mode=0o755)
+
+    assert not _is_unsafe_private_directory(
+        private_directory,
+        private_directory.lstat(),
+        platform_name="nt",
+    )
+
+
+def test_posix_private_directory_rejects_group_mode_bits(tmp_path):
+    private_directory = tmp_path / "private"
+    private_directory.mkdir(mode=0o755)
+
+    assert _is_unsafe_private_directory(
+        private_directory,
+        private_directory.lstat(),
+        platform_name="posix",
+    )
 
 
 def test_private_state_is_atomic_and_fingerprint_checked(manager, monkeypatch):
@@ -241,3 +266,31 @@ def test_runtime_auth_fails_closed_for_foreign_authority(manager):
     auth_path.chmod(0o600)
 
     assert manager._read_runtime_auth() is None
+
+
+def test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits(manager, monkeypatch):
+    manager._prepare_private_directories()
+    auth_path = manager._runtime_auth_path()
+    auth_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_path.write_text(
+        json.dumps(
+            {
+                "authority": "127.0.0.1:3081",
+                "cookie": "dsh-auth-test=value",
+                "cwd": str((manager.data_root / "runtime/work").resolve()),
+                "source_commit": "c919b2a460753859665db3f60143d525fb9140cf",
+                "version": "0.1.3-alpha.2",
+            }
+        ),
+        encoding="utf-8",
+    )
+    auth_path.chmod(0o644)
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            service_manager_module,
+            "read_runtime_auth_record",
+            lambda path: runtime_auth_module.read_runtime_auth_record(path, platform_name="nt"),
+        )
+        auth = manager._read_runtime_auth()
+
+    assert auth["cookie"] == "dsh-auth-test=value"

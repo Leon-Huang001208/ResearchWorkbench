@@ -24,15 +24,17 @@
 
 | 变更 | 测试 | 文档 | 证据 / 结果 |
 | --- | --- | --- | --- |
-| `.github/workflows/research-web-windows-verify.yml`：原生 Windows 测试、回环服务与探测冒烟 | `tests/research_web/test_local_integrations.py` 静态契约及 Windows-only 真实主机检测 | `docs/research-web.md` | 本地相关 Python 107 项通过、1 项因非 Windows 跳过，JavaScript 14 项通过；原生结论等待本次 GitHub Actions |
+| `.github/workflows/research-web-windows-verify.yml`：原生 Windows 测试、回环服务与探测冒烟 | 本机集成、运行时认证、协议和服务管理器的 Windows 契约 | `docs/research-web.md` | 本地相关 Python 117 项通过、1 项因非 Windows 跳过，JavaScript 14 项通过；原生结论等待本次 GitHub Actions |
 | Windows-only 主机检测测试：实际调用 `DetectionEnvironment.current()` 与注册信息读取 | 同文件 Windows-only 测试 | 本报告 | macOS 仅确认跳过契约；必须由 `windows-2022` 实际通过后才能验收 |
 | Research Web 启动索引、能力种子与 Workflow 目录显式 UTF-8 | 本机集成 API 初始化与 Windows 回环服务启动 | `docs/research-web.md`、`docs/architecture/research-web/07-capabilities.md` | 首轮 Windows CI 发现 CP1252 解码失败；修复后等待原生复验 |
 | Windows DataHub 启动控制文件安全回退 | `test_windows_control_fallback_preserves_token_and_rejects_reparse_points` 与 Windows 服务启动 | `docs/ARCHITECTURE.md`、`docs/DEVELOPMENT_MAP.md`、DataHub 文档 | 第二轮 CI 已证明中文能力装载完成，随后发现 POSIX 专属目录标志；修复后等待第三轮原生复验 |
-| Windows CI 回环认证元数据 | 静态契约检查文件位置、占位令牌与私有权限；真实启动仍由 `windows-2022` 冒烟验证 | `docs/research-web.md` | 第三轮 CI `34444138805` 的 Python 本机集成测试和 JavaScript UI 契约均通过，服务冒烟仅因独立 runner 缺少 DSH 认证控制文件失败；补齐安全测试夹具后等待复验 |
+| Windows CI 回环认证元数据 | 静态契约检查文件位置、占位令牌与私有权限；真实启动仍由 `windows-2022` 冒烟验证 | `docs/research-web.md` | 第三轮 CI `34444138805` 缺少 DSH 认证控制文件；第四轮 `34445221544` 进一步定位为 POSIX mode 在 Windows 上被误用 |
+| DSH 认证控制文件跨平台安全读取 | Windows/POSIX mode、别名、文件类型、大小、打开前后身份、客户端与服务管理器回归 | 架构、开发地图、安全边界与本报告 | 第四轮 CI `34445221544` 的 Python 和 JavaScript 契约通过，服务启动暴露 Windows `st_mode` 误判；共享读取器修正后等待原生复验 |
+| Research Web 私有运行目录跨平台校验 | Windows 不把 POSIX mode 投影当作 ACL；POSIX 仍拒绝 group/other 权限 | 本报告 | 第五轮 CI `34450837466` 证明认证控制文件回归已通过，随后暴露目录准备仍沿用 POSIX mode；本轮统一修正后待原生复验 |
 
 ## 本地预检
 
-- `conda run -n base python -m pytest tests/research_web/test_local_integrations.py tests/research_web/test_capabilities.py tests/research_web/test_report_workflows.py tests/research_web/test_api.py --confcutdir=tests/research_web -q`：107 passed、1 skipped。
+- 本机集成、运行时认证、协议、服务管理器、DataHub 与 API 相关回归：117 passed、1 skipped。
 - 本机集成与设置 JavaScript 契约：14 passed；本次变更文件 Ruff：通过。
-- Black 全量检查仍命中仓库既有格式差异，不将其误记为通过；本次没有批量重排无关代码。
+- 本次变更 Python 文件的 Black 与 isort 检查：通过。
 - Research Web 架构检查与文档同步检查：通过，0 violation。

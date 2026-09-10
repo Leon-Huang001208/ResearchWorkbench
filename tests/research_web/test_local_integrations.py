@@ -208,6 +208,9 @@ def test_windows_ci_runs_native_contracts_and_loopback_probe():
     assert 'node-version: "20"' in workflow
     assert '- "app/research_web/**"' in workflow
     assert "tests/research_web/test_local_integrations.py" in workflow
+    assert "tests/research_web/test_runtime_auth.py" in workflow
+    assert "test_windows_runtime_auth_does_not_apply_posix_group_mode_bits" in workflow
+    assert "test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits" in workflow
     assert "tests/research_web/test_api.py" not in workflow
     assert "tests/research_web/test_connection_center.py" not in workflow
     assert "tests/javascript/research_web_local_integrations_ui.test.mjs" in workflow

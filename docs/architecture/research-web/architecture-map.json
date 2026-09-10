@@ -68,10 +68,10 @@
         "tests/research_web/test_api.py",
         "tests/research_web/test_local_integrations.py",
         "tests/research_web/test_protocol.py",
+        "tests/research_web/test_runtime_auth.py",
         "tests/research_web/test_event_recovery.py",
         "tests/research_web/test_cancel_reconciliation.py",
         "tests/research_web/test_service_manager.py",
-        "tests/research_web/test_runtime_auth.py",
         "tests/research_web/test_tabbit.py"
       ]
     },

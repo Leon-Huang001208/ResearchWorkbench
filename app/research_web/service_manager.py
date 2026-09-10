@@ -10,6 +10,7 @@ import re
 import shutil
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -23,6 +24,7 @@ from uuid import uuid4
 from core.observability import get_logger
 
 from .launch_runtime import PINNED_COMMIT
+from .runtime_auth import read_runtime_auth_record
 
 log = get_logger(__name__)
 
@@ -37,6 +39,23 @@ RUNTIME_TOKEN_PATTERN = re.compile(
 
 class ServiceManagerError(RuntimeError):
     """Safe CLI-facing service lifecycle failure."""
+
+
+def _is_unsafe_private_directory(
+    path: Path,
+    identity: os.stat_result,
+    *,
+    platform_name: str,
+) -> bool:
+    """Validate directory structure without treating Windows mode bits as ACLs."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    is_reparse_point = bool(getattr(identity, "st_file_attributes", 0) & reparse_flag)
+    return (
+        not stat.S_ISDIR(identity.st_mode)
+        or path.is_symlink()
+        or is_reparse_point
+        or (platform_name != "nt" and bool(identity.st_mode & 0o077))
+    )
 
 
 @dataclass(frozen=True)
@@ -133,7 +152,8 @@ class WebServiceManager:
     def _prepare_private_directories(self) -> None:
         for path in (self.data_root, self.run_root, self.log_root):
             path.mkdir(parents=True, exist_ok=True, mode=0o700)
-            if path.is_symlink() or path.stat().st_mode & 0o077:
+            identity = path.lstat()
+            if _is_unsafe_private_directory(path, identity, platform_name=os.name):
                 raise ServiceManagerError(f"私有运行目录不安全：{path}")
 
     def _state_path(self, role: str) -> Path:
@@ -275,21 +295,15 @@ class WebServiceManager:
 
     def _read_runtime_auth(self) -> dict[str, str] | None:
         path = self._runtime_auth_path()
-        if not path.exists():
-            return None
         try:
-            identity = path.lstat()
-            value = json.loads(path.read_text(encoding="utf-8"))
+            value = read_runtime_auth_record(path)
             expected = {
                 "authority": f"127.0.0.1:{self.runtime_port}",
                 "cwd": str((self.data_root / "runtime/work").resolve()),
                 "source_commit": PINNED_COMMIT,
             }
             if (
-                path.is_symlink()
-                or not path.is_file()
-                or identity.st_mode & 0o077
-                or not isinstance(value, dict)
+                not isinstance(value, dict)
                 or any(value.get(key) != item for key, item in expected.items())
                 or not isinstance(value.get("cookie"), str)
                 or not value["cookie"].startswith("dsh-auth-")
@@ -300,7 +314,9 @@ class WebServiceManager:
             ):
                 raise ValueError("invalid runtime auth record")
             return {key: str(item) for key, item in value.items()}
-        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        except FileNotFoundError:
+            return None
+        except (OSError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
             log.warning("research_runtime_auth_invalid")
             return None
 

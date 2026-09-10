@@ -390,6 +390,14 @@
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows私有收据与快照补齐安全路径IO，Provider、快照schema和数据流不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"files","structure":"unchanged","reason":"Windows下载和只读文件清理补齐平台兼容，文件归属与删除边界不变。","diagrams":[]} -->
 
+## 2026-09-10 — Windows DSH 认证控制文件读取兼容
+
+- Windows 原生回环冒烟证明 `st_mode` 的 POSIX group/other 位不能代表 Windows ACL；旧判断会把正常控制文件误判为权限不安全。
+- Web 客户端与服务管理器改为复用同一有界读取器，所有平台继续拒绝非普通文件、硬链接、符号链接、重解析点、超限内容和读取期间的身份替换；仅 POSIX 执行 mode 位检查。
+- 认证格式、回环 RPC、服务节点和数据流均未变化，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"共享认证控制文件读取器统一既有客户端与服务管理器的文件校验，不改变回环RPC、认证格式、服务节点或数据流。","diagrams":[]} -->
+
 ## 2026-09-10 — 能力工作区 v0 四类分区
 
 - `#/skills` 固定为 Skill、Tool、Workflow、数据四个互斥主标签，并在类型内提供能力库、我的、运行计划或连接入口；旧 kind/view 深链继续归一到对应分区。
@@ -399,3 +407,11 @@
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"能力中心在既有Research Web UI内重组为四类互斥主标签、类型内二级视图和共用快览弹窗；同源API、能力执行、DataHub与报告Workflow边界保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Skill、Workflow与Tool继续读取既有目录、版本、状态和选择契约，仅在前端严格分区呈现。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"数据能力与数据源仍由既有DataHub目录、连接状态和单源探测提供，只在能力中心与Tool卡片隔离展示。","diagrams":[]} -->
+
+## 2026-09-10 — Windows 私有运行目录校验兼容
+
+- 原生 CI 证明 DSH 认证文件读取已通过后，服务管理器仍在数据、运行状态和日志目录上误用 Windows `st_mode` 的 POSIX 权限投影。
+- 目录校验现继续拒绝非目录、符号链接与 Windows 重解析点，仅在 POSIX 检查 group/other mode 位；服务、接口、存储位置和数据流均未变化。
+- 新增 Windows/POSIX 目录 mode 回归，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"服务管理器仅修正私有运行目录的跨平台安全判断，不改变服务节点、接口、存储位置或数据流。","diagrams":[]} -->

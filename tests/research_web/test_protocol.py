@@ -5,6 +5,8 @@ import json
 import httpx
 import pytest
 
+from app.research_web import client as client_module
+from app.research_web import runtime_auth as runtime_auth_module
 from app.research_web.client import DSHClient, RuntimeFailure
 from app.research_web.projection import project
 
@@ -76,6 +78,57 @@ async def test_rpc_rejects_wrong_correlation_and_never_falls_back():
 
 def event(seq, kind, data):
     return {"event": {"seq": seq, "type": kind, "time": 123, "data": data}}
+
+
+def test_windows_runtime_auth_does_not_apply_posix_group_mode_bits(tmp_path, monkeypatch):
+    auth_path = tmp_path / "auth.json"
+    auth_path.write_text(
+        json.dumps(
+            {
+                "authority": "127.0.0.1:3081",
+                "cookie": "dsh-auth-test=value",
+                "cwd": str(tmp_path.resolve()),
+                "source_commit": "0" * 40,
+                "version": "test",
+            }
+        ),
+        encoding="utf-8",
+    )
+    auth_path.chmod(0o644)
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            client_module,
+            "read_runtime_auth_record",
+            lambda path: runtime_auth_module.read_runtime_auth_record(path, platform_name="nt"),
+        )
+        metadata = client_module._runtime_metadata(auth_path, "127.0.0.1:3081")
+
+    assert metadata["cookie"] == "dsh-auth-test=value"
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("authority", "127.0.0.1:9999", "目标地址"),
+        ("cookie", "not-a-runtime-cookie", "Cookie"),
+        ("source_commit", "not-a8530a40f", "源码版本"),
+    ],
+)
+def test_runtime_metadata_rejects_invalid_control_values(tmp_path, field, value, message):
+    record = {
+        "authority": "127.0.0.1:3081",
+        "cookie": "dsh-auth-test=value",
+        "cwd": str(tmp_path.resolve()),
+        "source_commit": "0" * 40,
+        "version": "test",
+    }
+    record[field] = value
+    auth_path = tmp_path / "auth.json"
+    auth_path.write_text(json.dumps(record), encoding="utf-8")
+    auth_path.chmod(0o600)
+
+    with pytest.raises(RuntimeFailure, match=message):
+        client_module._runtime_metadata(auth_path, "127.0.0.1:3081")
 
 
 def test_native_chunks_replaced_by_final_message_without_duplicate():
