@@ -1,7 +1,10 @@
 import json
+import os
+from pathlib import Path
 
 import pytest
 
+from app.research_web import tabbit as tabbit_module
 from app.research_web.store import Store
 from app.research_web.tabbit import TabbitError, TabbitIntegration
 
@@ -110,11 +113,69 @@ def test_tabbit_configuration_is_persisted_without_secrets(integration):
 
     assert result["restart_required"] is True
     assert tabbit.config_path.stat().st_mode & 0o077 == 0
-    assert json.loads(tabbit.config_path.read_text()) == {
+    assert json.loads(tabbit.config_path.read_text(encoding="utf-8")) == {
         "browser_enabled": True,
         "web_fetch_enabled": True,
         "instance_id": "ABCDEF0123456789",
     }
+
+
+def test_tabbit_configuration_uses_windows_compatible_atomic_write(integration, monkeypatch):
+    tabbit, _, _ = integration
+    monkeypatch.delattr(tabbit_module.os, "fchmod")
+    monkeypatch.setattr(tabbit_module.os, "name", "nt")
+
+    tabbit.configure(
+        browser_enabled=True,
+        web_fetch_enabled=False,
+        instance_id="ABCDEF0123456789",
+    )
+
+    assert json.loads(tabbit.config_path.read_text(encoding="utf-8"))["instance_id"] == (
+        "ABCDEF0123456789"
+    )
+
+
+def test_tabbit_configuration_closes_descriptor_and_preserves_primary_error(
+    integration, monkeypatch
+):
+    tabbit, _, _ = integration
+    captured = {}
+    real_mkstemp = tabbit_module.tempfile.mkstemp
+    real_unlink = Path.unlink
+
+    def tracked_mkstemp(*args, **kwargs):
+        fd, name = real_mkstemp(*args, **kwargs)
+        captured.update(fd=fd, name=name)
+        return fd, name
+
+    def fail_permission(_fd, _mode):
+        raise PermissionError("primary write failure")
+
+    def fail_cleanup(path, *args, **kwargs):
+        if str(path) == captured.get("name"):
+            raise OSError("secondary cleanup failure")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(tabbit_module.tempfile, "mkstemp", tracked_mkstemp)
+    monkeypatch.setattr(tabbit_module.os, "fchmod", fail_permission)
+    monkeypatch.setattr(Path, "unlink", fail_cleanup)
+
+    try:
+        with pytest.raises(PermissionError, match="primary write failure"):
+            tabbit.configure(
+                browser_enabled=True,
+                web_fetch_enabled=False,
+                instance_id=None,
+            )
+        with pytest.raises(OSError):
+            os.fstat(captured["fd"])
+    finally:
+        try:
+            os.close(captured["fd"])
+        except OSError:
+            pass
+        real_unlink(Path(captured["name"]), missing_ok=True)
 
 
 def test_tabbit_configuration_rejects_fetch_without_browser_and_bad_instance(integration):
@@ -199,7 +260,9 @@ async def test_live_mentions_revalidate_tabs_and_preserve_order(integration):
 
 
 @pytest.mark.asyncio
-async def test_live_mentions_fail_closed_for_missing_confirmation_duplicate_or_stale_tab(integration):
+async def test_live_mentions_fail_closed_for_missing_confirmation_duplicate_or_stale_tab(
+    integration,
+):
     tabbit, _, sid = integration
     await tabbit.access(sid, "approve")
     refs = [{"tab_id": 7, "instance_id": "ABCDEF0123456789"}]

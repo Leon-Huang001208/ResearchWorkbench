@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from test_api import NativeFixture
 
-from app.research_web.datahub import DataHub, providers
+from app.research_web.datahub import DataHub, connections, providers
 from app.research_web.datahub.catalog import build_catalog
 from app.research_web.datahub.connection_center import platform_summary
 from app.research_web.datahub.connections import (
@@ -87,6 +87,22 @@ def configured_service(tmp_path, *, env_text=""):
     keyring = MappingKeyring()
     service.datahub.connections = MySQLConnectionStore(tmp_path, keyring_backend=keyring)
     return service, keyring
+
+
+def test_windows_profile_replace_skips_unsupported_directory_fsync(tmp_path, monkeypatch):
+    opened = []
+    real_open = connections.os.open
+
+    def tracked_open(path, *args, **kwargs):
+        opened.append(path)
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(connections.os, "open", tracked_open)
+    monkeypatch.setattr(connections.os, "name", "nt")
+
+    connections._fsync_directory(tmp_path)
+
+    assert opened == []
 
 
 def mysql_payload(**overrides):

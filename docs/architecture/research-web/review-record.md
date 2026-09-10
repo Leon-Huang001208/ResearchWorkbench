@@ -369,3 +369,13 @@
 - 服务、API、DataHub 节点和快照数据流均未变化，十张架构图无需重生成。
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows仅增加固定私有控制文件的安全路径回退，DataHub服务、Provider、API和快照数据流保持不变。","diagrams":[]} -->
+
+## 2026-09-10 — Tabbit Windows 模拟 Runtime 阻塞修复
+
+- 吸收已发布的 Windows DataHub reparse-point 防护，并修复 Tabbit 配置临时句柄、UTF-8 Runtime 配置、npm tar POSIX 路径比较和 adapter 正斜杠序列化。
+- 连接配置在 Windows 明确跳过目录 `fsync`；POSIX 权限、描述符和父目录刷新保持不变。API、消息 schema、默认开关、供应版本与授权语义均未改变。
+- macOS/Windows CI 仍只验证模拟 Runtime。真实双平台 Tabbit 状态、授权、动态 DOM、1/8 页 claim、写审批与标签保持打开仍是独立验收门禁。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Tabbit配置仅补齐跨平台原子写入和UTF-8异常路径，API与消息契约不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"供应清单改用POSIX路径比较且adapter路径统一正斜杠，Profile节点和加载顺序不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows连接配置仅明确跳过不支持的目录fsync，Provider和数据流不变。","diagrams":[]} -->

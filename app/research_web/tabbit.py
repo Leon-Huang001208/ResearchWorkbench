@@ -102,15 +102,34 @@ class TabbitIntegration:
         self._validate_config(value)
         self.config_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         fd, name = tempfile.mkstemp(prefix="tabbit-", dir=self.config_path.parent)
+        descriptor_open = True
         try:
-            os.fchmod(fd, 0o600)
+            if os.name != "nt":
+                os.fchmod(fd, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                descriptor_open = False
                 json.dump(value, stream, ensure_ascii=False, indent=2)
                 stream.flush()
                 os.fsync(stream.fileno())
+            if os.name == "nt":
+                os.chmod(name, 0o600)
             os.replace(name, self.config_path)
         except Exception:
-            Path(name).unlink(missing_ok=True)
+            if descriptor_open:
+                try:
+                    os.close(fd)
+                except OSError as close_error:
+                    log.warning(
+                        "tabbit_config_descriptor_close_failed",
+                        error_type=type(close_error).__name__,
+                    )
+            try:
+                Path(name).unlink(missing_ok=True)
+            except OSError as cleanup_error:
+                log.warning(
+                    "tabbit_config_cleanup_failed",
+                    error_type=type(cleanup_error).__name__,
+                )
             raise
         self._restart_required = True
         log.info(
@@ -241,9 +260,7 @@ class TabbitIntegration:
         if selected_instance:
             params["instance"] = selected_instance
         try:
-            payload = await self.client.plugin_json(
-                "GET", "/research/tabbit/tabs", params=params
-            )
+            payload = await self.client.plugin_json("GET", "/research/tabbit/tabs", params=params)
         except RuntimeFailure as exc:
             raise TabbitError("Tabbit 标签页列表不可用", exc.code, 503) from exc
         selected_instance = payload.get("instanceId") or selected_instance

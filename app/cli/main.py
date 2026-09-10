@@ -49,9 +49,7 @@ class LazyCommandGroup(click.Group):
     def list_commands(self, ctx: click.Context) -> list[str]:
         return sorted(set(super().list_commands(ctx)) | set(LAZY_COMMANDS))
 
-    def get_command(
-        self, ctx: click.Context, command_name: str
-    ) -> click.Command | None:
+    def get_command(self, ctx: click.Context, command_name: str) -> click.Command | None:
         command = super().get_command(ctx, command_name)
         if command is not None or command_name not in LAZY_COMMANDS:
             return command
@@ -67,9 +65,7 @@ class LazyCommandGroup(click.Group):
             raise click.ClickException(f"子命令 {command_name} 注册无效")
         return loaded
 
-    def format_commands(
-        self, ctx: click.Context, formatter: click.HelpFormatter
-    ) -> None:
+    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         rows: list[tuple[str, str]] = []
         for command_name in self.list_commands(ctx):
             if command_name in LAZY_COMMANDS:
@@ -98,9 +94,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 @click.group(cls=LazyCommandGroup)
-@click.option(
-    "--log-level", default="INFO", help="日志级别：DEBUG, INFO, WARNING, ERROR"
-)
+@click.option("--log-level", default="INFO", help="日志级别：DEBUG, INFO, WARNING, ERROR")
 @click.option("--log-file", help="日志文件路径")
 @click.version_option(version="0.1.0")
 @click.pass_context
@@ -127,9 +121,7 @@ def web() -> None:
     """管理 Web 与专属 DSH 后台服务。"""
 
 
-def _run_web_action(
-    action: str, *, force: bool = False, open_browser: bool = True
-) -> None:
+def _run_web_action(action: str, *, force: bool = False, open_browser: bool = True) -> None:
     manager = WebServiceManager()
     try:
         if action == "start":
@@ -197,9 +189,7 @@ def web_restart(force: bool, no_open: bool) -> None:
 )
 @click.option("--dry-run", is_flag=True, help="只计算迁移范围和哈希，不写文件")
 @click.option("--archive-source", is_flag=True, help="校验完成后将旧目录移为只读备份")
-def migrate_research_data(
-    source: Path, target: Path, dry_run: bool, archive_source: bool
-) -> None:
+def migrate_research_data(source: Path, target: Path, dry_run: bool, archive_source: bool) -> None:
     """迁移研究会话、附件、能力版本、数据集和产物，不复制凭据。"""
     try:
         result = migrate_data(source, target, dry_run=dry_run)
@@ -223,9 +213,7 @@ def migrate_research_data(
     default=lambda: Path.home() / ".research-workbench" / "research-web",
     show_default="~/.research-workbench/research-web",
 )
-@click.option(
-    "--apply", "apply_changes", is_flag=True, help="复制并登记项目；默认仅预检"
-)
+@click.option("--apply", "apply_changes", is_flag=True, help="复制并登记项目；默认仅预检")
 def migrate_report_projects(source: Path, target: Path, apply_changes: bool) -> None:
     """预检或迁移旧报告项目；不删除源目录，也不执行其中脚本。"""
     try:

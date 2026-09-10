@@ -15,6 +15,8 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 
 Research Web 可在同一专属 DSH 执行链中加载固定、经完整性校验的 `dsh-tabbit` 0.3.4；
 `research-tabbit-adapter` 只复用插件提供的 `ctx.tabbit`，没有第二套 Playwright/CLI 执行器。
+供应归档清单按 POSIX tar 路径校验后才转换成本机路径；Windows 配置替换在关闭临时文件句柄后执行，
+Runtime overlay 中的 adapter 路径统一序列化为正斜杠。
 设置、本地 BFF 和 loopback adapter 共同承担配置、会话授权、候选过滤及实时 claim。标签正文只在
 Runtime 内存中以会话绑定、单次消费、10 分钟过期 token 暂存，产品索引和日志不保存正文。
 供应、Profile 顺序、API、只读声明限制和真实双平台验收边界见

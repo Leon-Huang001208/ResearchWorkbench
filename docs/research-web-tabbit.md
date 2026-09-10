@@ -12,6 +12,9 @@ Profile bundle 顺序固定为 `base`、`web-app`、`dsh-tabbit`、
 缺少 launcher、浏览器离线、版本低于 1.9.0 或多实例未选择时只返回诊断。包要求运行
 Node `^22.19.0 || >=24`；Node 23 不受支持。
 
+npm 归档成员与供应清单始终按 `PurePosixPath` 比较；通过链接和路径穿越检查后才转换为本机路径。
+overlay 中的 adapter 入口始终使用 `/`，避免 Windows 路径分隔符改变 DSH 配置语义。
+
 ## 配置与状态
 
 设置 → 本地集成提供两个独立开关：
@@ -20,6 +23,8 @@ Node `^22.19.0 || >=24`；Node 23 不受支持。
 - Tabbit 接管 `web_fetch` 默认关闭，开启时浏览器自动化必须同时开启。
 
 配置原子写入 `<RESEARCH_DATA_HOME>/.control/tabbit.json`，权限为当前用户可读写。
+文本固定使用 UTF-8；POSIX 以 `fchmod` 收紧临时文件权限，Windows 使用兼容权限处理并在关闭
+文件句柄后才原子替换。关闭、清理失败只写入稳定错误类型，不覆盖最初的保存异常。
 更改只影响下一次 Runtime 启动并返回 `restart_required=true`。活动研究期间既有 Runtime
 重启门禁仍会拒绝重启，因此配置保持待应用，不会中断任务。多个在线实例时必须选择一个
 16 位大写十六进制实例 ID。

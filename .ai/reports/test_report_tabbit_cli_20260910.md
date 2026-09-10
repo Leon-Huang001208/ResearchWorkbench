@@ -15,20 +15,24 @@
 - 页面正文仅进入会话绑定、单次消费、10 分钟过期的 DSH 内存 token；日志不记录标题、URL、正文或执行代码。
 - 输入框增加按需 `@` 搜索、键盘交互和可移除 chip；设置页增加独立开关、实例选择、健康状态和官方手动安装说明。
 - 新增只读 `rwb web tabbit-status`，输出不含路径、Cookie、标签标题、URL 或正文。
+- Windows 路径使用显式 UTF-8、关闭句柄后的原子替换、POSIX 归档成员语义和正斜杠 adapter 配置；POSIX 保留目录 `fsync`，Windows 明确跳过不支持的目录同步。
+- DSH waterfall/cancel 交互事件标识在进入 pending map 前逐项验证，非法值稳定返回 `protocol_error`。
 
 ## 已执行自动化证据
 
-- `node --test tests/javascript/research_web_tabbit_adapter.test.mjs tests/javascript/research_web_tabbit_ui.test.mjs tests/javascript/research_web_guard.test.mjs tests/javascript/research_web_settings_ui.test.mjs`：23 passed。
-- `node --test tests/javascript/research_web*.test.mjs`：Tabbit 与其余不依赖 Python 的测试通过；总计 206 passed、1 skipped，3 项因 worktree 尚无获授权安装的 Python 开发环境而失败，失败均为找不到 `.venv/bin/python`，不是断言失败。
-- `node --check`：`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 通过。
-- `/opt/homebrew/bin/python3.12 -m py_compile`：所有本轮变更 Python 源码与 Python 测试通过。
-- `node scripts/check_research_architecture.mjs`：无违规；模块文档、架构评审、126 个唯一 HTTP 操作/128 项源码声明、源码证据映射、三张更新图的同哈希回执与人工截图审阅全部通过。
-- Archify：部署、模块依赖、研究序列三张图均为 showcase 9/9、0 error、0 warning；四个桌面视口无溢出。已人工查看每张图的 1440 浅色和 2048 深色截图；研究序列图经两轮宽高平衡修正后通过。
-- `git diff --check` 与 `architecture-map.json` JSON 解析通过。
+- 隔离 `.venv` 使用用户已授权的仓库既有 `.[dev]` 依赖；未新增或调整项目依赖。
+- Tabbit、Runtime、协议、API、连接中心和本机集成定向测试：99 passed、1 skipped、1 warning。
+- `env -u DSH_SOURCE_ROOT ... pytest tests/research_web --confcutdir=tests/research_web`：607 passed、4 skipped、1 warning；跳过项为需要原生 DSH 源码的验证。
+- 使用本机 `DSH_SOURCE_ROOT` 运行同一套件：606 passed、1 skipped、2 setup errors；两项均因源码提交 `c389f96bf3a9b6807cb71ed6bdad5849be0df6d8` 与锁定提交 `c919b2a460753859665db3f60143d525fb9140cf` 不一致，未放宽 pin。
+- 完整 Research Web Node 测试：216 passed、1 skipped；其中 Tabbit、设置、Runtime guard、Research Web UI 与本机集成定向测试为 58 passed。`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 语法检查通过。
+- Ruff 0.16.6、Black 26.5.1 check、isort 9.0.1 check：11 个相关 Python 文件通过；Black 实际限定格式化 8 个 CI 报告文件。
+- mypy 2.3.1：6 个相关 Research Web 源文件通过；项目仍以 Python 3.11 为目标，NumPy/Transformers 外部 stub 使用定向 `follow_imports=skip`。
+- `node scripts/check_research_architecture.mjs` 与 `scripts/check_doc_sync.py --base origin/master`：无违规。
+- `git diff --check` 通过。
 
 ## 待执行与阻塞
 
-- 未执行 Python `pytest`、Ruff、Black、isort、mypy、`check_doc_sync.py` 与 `check_task_completion.py`：当前 worktree 没有 Python 开发依赖；按项目规则，只有用户明确同意后才能由 `uv` 安装已声明依赖。
+- PR #73 的修复后原生 macOS/Windows CI 尚待推送执行；此前失败分别暴露 Black 格式、Windows UTF-8、原子替换和路径语义问题，本轮已在本地增加回归并修复。
 - 本机检测到 Tabbit `0.30.32` 且没有可用 `tabbit-cli`。因此真实 macOS 状态、授权、动态 DOM、1/8 页 claim、写审批与标签保持打开的冒烟尚未通过。
 - 没有真实 Windows Tabbit 环境；新增原生 `macos-14`/`windows-2022` 模拟 Runtime CI 只验证 API、路径语义、staging 和 Node 契约，不替代真实浏览器冒烟。
 - 在真实 macOS 与 Windows 冒烟均通过前，本报告不把完整产品验收标记为完成。

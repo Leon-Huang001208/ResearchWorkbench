@@ -312,3 +312,28 @@ def test_current_remote_events_are_projected_to_the_stable_workbench_surface():
         "sessionId": "s",
         "approvalId": "event-1",
     }
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    [
+        {
+            "type": "waterfall",
+            "event": "approval/request",
+            "eventId": "",
+            "agentId": "s",
+            "request": {},
+        },
+        {"type": "cancel", "eventId": None},
+    ],
+)
+def test_remote_interaction_events_reject_invalid_identifiers(envelope):
+    client = DSHClient(
+        "http://127.0.0.1:3081",
+        transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+    )
+
+    with pytest.raises(RuntimeFailure) as failure:
+        client._event_envelope(envelope)
+
+    assert failure.value.code == "protocol_error"

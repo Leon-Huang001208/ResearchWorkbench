@@ -19,6 +19,8 @@ its staging, loopback API, claim/token lifecycle or UI. Regression coverage is i
 `tests/research_web/test_tabbit.py`, `test_runtime_launch.py`, `test_api.py`, `test_protocol.py`,
 `tests/javascript/research_web_tabbit_adapter.test.mjs`, `research_web_tabbit_ui.test.mjs`,
 `research_web_guard.test.mjs` and `research_web_settings_ui.test.mjs`.
+Windows staging regressions must cover UTF-8 text, POSIX tar member names, closed-handle atomic
+replacement and forward-slash adapter serialization; CI remains simulator-only until real browser smoke.
 The product topbar keeps healthy runtime state silent and exposes only actionable configuration or
 availability states; page-scoped refresh controls remain owned by their existing modules.
 Settings uses five mutually exclusive hash subpages rendered by `ui/settings.mjs`; `ui/app.mjs` retains

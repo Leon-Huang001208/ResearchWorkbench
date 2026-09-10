@@ -267,7 +267,9 @@ class DSHClient:
             if response.is_error:
                 raw_code = body.get("code") or body.get("error")
                 code = raw_code if isinstance(raw_code, str) else "tabbit_error"
-                log.warning("dsh_plugin_rejected", route=path, status=response.status_code, code=code)
+                log.warning(
+                    "dsh_plugin_rejected", route=path, status=response.status_code, code=code
+                )
                 raise RuntimeFailure("Tabbit 运行时拒绝请求", code)
             return body
         except RuntimeFailure:
@@ -326,9 +328,8 @@ class DSHClient:
                                 raise RuntimeFailure("DSH 流式响应格式无效", "protocol_error")
                             yield value
                         elif frame.get("type") == "error":
-                            error = (
-                                frame.get("error") if isinstance(frame.get("error"), dict) else {}
-                            )
+                            raw_error = frame.get("error")
+                            error = raw_error if isinstance(raw_error, dict) else {}
                             raise RuntimeFailure(
                                 "DSH 流式请求失败",
                                 str(error.get("code", "runtime_error")),
@@ -394,7 +395,11 @@ class DSHClient:
                 value.get("agentId"),
             )
             request = value.get("request")
-            if not all(isinstance(item, str) and item for item in (event_id, event, session_id)):
+            if not isinstance(event_id, str) or not event_id:
+                raise RuntimeFailure("DSH 交互事件标识无效", "protocol_error")
+            if not isinstance(event, str) or not event:
+                raise RuntimeFailure("DSH 交互事件标识无效", "protocol_error")
+            if not isinstance(session_id, str) or not session_id:
                 raise RuntimeFailure("DSH 交互事件标识无效", "protocol_error")
             if not isinstance(request, dict):
                 raise RuntimeFailure("DSH 交互事件内容无效", "protocol_error")
@@ -417,6 +422,8 @@ class DSHClient:
             return {"type": "server-request", "rpcId": event_id, "payload": payload}
         if kind == "cancel":
             event_id = value.get("eventId")
+            if not isinstance(event_id, str) or not event_id:
+                raise RuntimeFailure("DSH 交互事件标识无效", "protocol_error")
             pending = self._pending_events.pop(event_id, None)
             event = pending if isinstance(pending, str) else (pending or {}).get("event")
             session_id = "" if isinstance(pending, str) else (pending or {}).get("sessionId", "")

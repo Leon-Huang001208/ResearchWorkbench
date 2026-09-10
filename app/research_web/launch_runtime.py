@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from core.observability import get_logger, setup_logging
 
@@ -54,8 +54,7 @@ def load_tabbit_config(data: Path) -> dict[str, object]:
     if web_fetch_enabled and not browser_enabled:
         raise RuntimeError("Tabbit web_fetch 要求浏览器自动化同时开启")
     if instance_id is not None and (
-        not isinstance(instance_id, str)
-        or TABBIT_INSTANCE_PATTERN.fullmatch(instance_id) is None
+        not isinstance(instance_id, str) or TABBIT_INSTANCE_PATTERN.fullmatch(instance_id) is None
     ):
         raise RuntimeError("Tabbit 实例 ID 无效")
     return value
@@ -64,17 +63,52 @@ def load_tabbit_config(data: Path) -> dict[str, object]:
 def _atomic_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}-", dir=path.parent)
+    descriptor_open = True
     try:
-        os.fchmod(fd, 0o600)
+        if os.name != "nt":
+            os.fchmod(fd, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            descriptor_open = False
             json.dump(value, stream, ensure_ascii=False, indent=2)
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
+        if os.name == "nt":
+            os.chmod(temporary, 0o600)
         os.replace(temporary, path)
     except Exception:
-        Path(temporary).unlink(missing_ok=True)
+        if descriptor_open:
+            try:
+                os.close(fd)
+            except OSError as close_error:
+                log.warning(
+                    "runtime_atomic_descriptor_close_failed",
+                    error_type=type(close_error).__name__,
+                )
+        try:
+            Path(temporary).unlink(missing_ok=True)
+        except OSError as cleanup_error:
+            log.warning(
+                "runtime_atomic_cleanup_failed",
+                error_type=type(cleanup_error).__name__,
+            )
         raise
+
+
+def _tabbit_archive_parts(name: str) -> tuple[str, ...]:
+    """Interpret npm tar member names with archive-native POSIX semantics."""
+    if "\\" in name:
+        raise RuntimeError("Tabbit 供应归档包含不安全路径")
+    archive_path = PurePosixPath(name)
+    parts = archive_path.parts
+    if (
+        archive_path.is_absolute()
+        or len(parts) < 2
+        or parts[0] != "package"
+        or any(part in {"", ".", ".."} for part in parts)
+    ):
+        raise RuntimeError("Tabbit 供应归档包含不安全路径")
+    return parts
 
 
 def _profile_manifest(home: Path) -> tuple[Path, dict]:
@@ -127,13 +161,9 @@ def stage_tabbit_package(vendor: Path, home: Path) -> dict:
         raise RuntimeError("Tabbit 供应归档完整性校验失败")
     license_path = vendor / "LICENSE"
     license_digest = (
-        hashlib.sha256(license_path.read_bytes()).hexdigest()
-        if license_path.is_file()
-        else None
+        hashlib.sha256(license_path.read_bytes()).hexdigest() if license_path.is_file() else None
     )
-    if manifest.get("license") != "MIT" or license_digest != manifest.get(
-        "license_sha256"
-    ):
+    if manifest.get("license") != "MIT" or license_digest != manifest.get("license_sha256"):
         raise RuntimeError("Tabbit 许可证完整性校验失败")
     expected_files = manifest.get("files")
     if (
@@ -152,16 +182,16 @@ def stage_tabbit_package(vendor: Path, home: Path) -> dict:
             members = bundle.getmembers()
             if len(members) > 4096 or sum(item.size for item in members) > 16 * 1024 * 1024:
                 raise RuntimeError("Tabbit 供应归档超过安全上限")
+            checked_members = [(member, _tabbit_archive_parts(member.name)) for member in members]
             actual_files = sorted(
-                str(Path(*Path(member.name).parts[1:]))
-                for member in members
-                if member.isfile() and len(Path(member.name).parts) >= 2
+                PurePosixPath(*parts[1:]).as_posix()
+                for member, parts in checked_members
+                if member.isfile()
             )
             if actual_files != sorted(expected_files):
                 raise RuntimeError("Tabbit 供应文件清单不匹配")
-            for member in members:
-                parts = Path(member.name).parts
-                if len(parts) < 2 or parts[0] != "package" or member.issym() or member.islnk():
+            for member, parts in checked_members:
+                if member.issym() or member.islnk():
                     raise RuntimeError("Tabbit 供应归档包含不安全路径")
                 relative = Path(*parts[1:])
                 target = (temporary / relative).resolve()
@@ -206,9 +236,7 @@ def stage_tabbit_adapter(source: Path, home: Path) -> Path:
     destination.mkdir(parents=True, exist_ok=True, mode=0o700)
     shutil.copyfile(source, destination / "index.mjs")
     (destination / "cordis.patch.yml").write_text(
-        "- insert:\n"
-        "    - id: research-tabbit-adapter\n"
-        "      name: research-tabbit-adapter\n",
+        "- insert:\n" "    - id: research-tabbit-adapter\n" "      name: research-tabbit-adapter\n",
         encoding="utf-8",
     )
     _atomic_json(
@@ -248,7 +276,7 @@ def tabbit_overlay(config: dict[str, object], adapter_path: Path) -> str:
             "    searchProvider: deepseek-official",
             f"    fetchProvider: {'tabbit-browser' if web_fetch else 'http'}",
             "- id: research-tabbit-adapter",
-            f"  name: {json.dumps(str(adapter_path))}",
+            f"  name: {json.dumps(adapter_path.as_posix())}",
             "  config:",
             f"    browserEnabled: {'true' if browser else 'false'}",
             f"    webFetchEnabled: {'true' if web_fetch else 'false'}",
@@ -259,9 +287,7 @@ def tabbit_overlay(config: dict[str, object], adapter_path: Path) -> str:
 def validate_tabbit_node(node: str) -> str:
     """Enforce the reviewed package's exact Node engine floor."""
     try:
-        version = subprocess.check_output(
-            [node, "--version"], text=True, timeout=5
-        ).strip()
+        version = subprocess.check_output([node, "--version"], text=True, timeout=5).strip()
         match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", version)
     except (OSError, subprocess.SubprocessError) as exc:
         raise RuntimeError("无法确认 Tabbit Runtime 的 Node.js 版本") from exc
@@ -384,7 +410,7 @@ def prepare(
         runner = package.parent / "sandbox.py"
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
-        content = (package / "research.cordis.yml").read_text()
+        content = (package / "research.cordis.yml").read_text(encoding="utf-8")
         for key, value in {
             "__SKILL_ROOT__": CapabilityCatalog(data).prepare_native_root(),
             "__TOOLS_MODULE__": package / "research-tools.mjs",
@@ -399,7 +425,7 @@ def prepare(
             "fetch: false",
             f"fetch: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
         )
-        (preset / "agent.cordis.yml").write_text(content)
+        (preset / "agent.cordis.yml").write_text(content, encoding="utf-8")
         log.info(
             "datahub_runtime_tools_prepared",
             enabled_tool_count=len(public_data_tools),
@@ -473,9 +499,9 @@ def prepare(
         "mode": "source" if source_mode else "build",
     }
     manifest_path = runtime / ("source-lock.json" if source_mode else "build-lock.json")
-    if manifest_path.exists() and json.loads(manifest_path.read_text()) != manifest:
+    if manifest_path.exists() and json.loads(manifest_path.read_text(encoding="utf-8")) != manifest:
         raise RuntimeError("DSH 构建发生变化，请重新审核后更新专属构建锁")
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     env = {
         "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "LANG": "en_US.UTF-8",
@@ -542,9 +568,7 @@ def main():
         module_count = prepare_runtime_module_fallback(
             args.source.resolve(), args.data.resolve() / "runtime/home", args.node
         )
-        tabbit_manifest = stage_tabbit_package(
-            TABBIT_VENDOR, args.data.resolve() / "runtime/home"
-        )
+        tabbit_manifest = stage_tabbit_package(TABBIT_VENDOR, args.data.resolve() / "runtime/home")
         stage_tabbit_adapter(
             Path(__file__).parent / "runtime" / "tabbit-adapter.mjs",
             args.data.resolve() / "runtime/home",

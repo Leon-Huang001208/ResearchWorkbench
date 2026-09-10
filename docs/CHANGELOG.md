@@ -11,6 +11,7 @@
 - 在专属 DSH Web Profile 中引入固定、哈希校验的 `dsh-tabbit` 0.3.4 和单一 `ctx.tabbit` 适配器；默认开启浏览器自动化、关闭 `web_fetch` 接管，禁用运行时安装和自动升级。
 - 输入框新增按需 `@` 标签搜索、最多 8 个 chip、会话级授权和实时 claim 二次确认；DOM 正文仅以会话绑定、10 分钟过期、单次消费 token 保留在 Runtime 内存。
 - 设置→本地集成和 `rwb web tabbit-status` 暴露安全诊断。模拟 Runtime 的 macOS/Windows CI 不替代真实浏览器验收；当前开发机 Tabbit 0.30.32 且缺少 CLI，真实双平台冒烟仍阻塞。
+- 补齐 Windows UTF-8 能力读取、关闭句柄后的原子替换、POSIX npm 归档成员比较、正斜杠 adapter 配置和 Windows 目录同步兼容；无效的 DSH 交互事件标识现在稳定返回 `protocol_error`。
 
 ### 遗留分支归并 · 2026-09-09
 

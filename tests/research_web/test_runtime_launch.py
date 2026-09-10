@@ -2,7 +2,7 @@ import hashlib
 import io
 import json
 import tarfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
 
 import pytest
@@ -141,9 +141,30 @@ def test_tabbit_license_or_file_manifest_mismatch_fails_closed(tmp_path):
         launch_runtime.stage_tabbit_package(vendor, tmp_path / "home")
 
 
+def test_tabbit_archive_member_paths_use_posix_manifest_semantics():
+    assert launch_runtime._tabbit_archive_parts("package/lib/core/index.js") == (
+        "package",
+        "lib",
+        "core",
+        "index.js",
+    )
+    with pytest.raises(RuntimeError, match="不安全路径"):
+        launch_runtime._tabbit_archive_parts(r"package\..\outside.js")
+
+
+def test_runtime_atomic_json_uses_windows_compatible_permissions(tmp_path, monkeypatch):
+    target = tmp_path / "profile" / "package.json"
+    monkeypatch.delattr(launch_runtime.os, "fchmod")
+    monkeypatch.setattr(launch_runtime.os, "name", "nt")
+
+    launch_runtime._atomic_json(target, {"name": "研究运行时"})
+
+    assert json.loads(target.read_text(encoding="utf-8")) == {"name": "研究运行时"}
+
+
 def test_runtime_overlay_disables_installer_and_keeps_fetch_takeover_off_by_default(tmp_path):
     config = launch_runtime.load_tabbit_config(tmp_path)
-    overlay = launch_runtime.tabbit_overlay(config, Path("/adapter.mjs"))
+    overlay = launch_runtime.tabbit_overlay(config, PureWindowsPath("/adapter.mjs"))
 
     assert config == {
         "browser_enabled": True,
@@ -153,7 +174,7 @@ def test_runtime_overlay_disables_installer_and_keeps_fetch_takeover_off_by_defa
     assert "id: tabbit-installer\n  disabled: true" in overlay
     assert "id: tabbit-tool-browser\n  disabled: false" in overlay
     assert "fetchProvider: http" in overlay
-    assert "name: \"/adapter.mjs\"" in overlay
+    assert 'name: "/adapter.mjs"' in overlay
 
 
 @pytest.mark.parametrize("version", ["v22.19.0", "v22.20.1", "v24.0.0", "v25.9.0"])

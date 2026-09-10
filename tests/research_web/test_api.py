@@ -40,7 +40,9 @@ class NativeFixture:
         return {"accepted": True}
 
     async def plugin_json(self, method, path, *, params=None, payload=None):
-        self.calls.append((f"plugin:{method}", {"path": path, "params": params, "payload": payload}))
+        self.calls.append(
+            (f"plugin:{method}", {"path": path, "params": params, "payload": payload})
+        )
         if path == "/research/tabbit/status":
             return {
                 "status": "ready",
@@ -131,9 +133,7 @@ def test_tabbit_status_access_inventory_and_live_message(api):
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "tabbit_page_access_required"
 
-    grant = client.post(
-        f"/api/research/sessions/{sid}/tabbit-access", json={"decision": "approve"}
-    )
+    grant = client.post(f"/api/research/sessions/{sid}/tabbit-access", json={"decision": "approve"})
     assert grant.status_code == 200
     tabs = client.get(f"/api/research/sessions/{sid}/tabbit-tabs?q=research")
     assert tabs.status_code == 200
@@ -176,8 +176,7 @@ def test_tabbit_live_message_requires_confirmation_and_limits_selection(api):
         json={
             "text": "总结",
             "tabbit_tabs": [
-                {"tab_id": index, "instance_id": "ABCDEF0123456789"}
-                for index in range(9)
+                {"tab_id": index, "instance_id": "ABCDEF0123456789"} for index in range(9)
             ],
             "tabbit_live_confirmed": True,
         },

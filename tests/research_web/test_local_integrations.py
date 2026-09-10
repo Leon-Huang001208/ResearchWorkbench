@@ -222,6 +222,15 @@ def test_windows_ci_runs_native_contracts_and_loopback_probe():
     assert "ifind_callable" in workflow
 
 
+def test_builtin_capability_bootstrap_preserves_utf8_chinese(tmp_path):
+    from app.research_web.capabilities.catalog import CapabilityCatalog
+
+    catalog = CapabilityCatalog(tmp_path)
+
+    instructions = catalog.data["items"]["company-research"]["draft"]["instructions"]
+    assert "公司" in instructions
+
+
 def test_unknown_platform_is_honest_and_never_returns_machine_paths(tmp_path):
     env = environment(tmp_path, system="Haiku")
     snapshot = LocalIntegrationManager(tmp_path / "state", environment=env).snapshot()
@@ -258,7 +267,10 @@ def test_probe_is_idempotent_and_failure_is_sanitized(tmp_path):
     result = asyncio.run(run())
     assert calls == 1
     assert result["status"] == "failed"
-    assert result["error"] == {"code": "probe_failed", "message": "本机能力检测失败，请查看本地日志"}
+    assert result["error"] == {
+        "code": "probe_failed",
+        "message": "本机能力检测失败，请查看本地日志",
+    }
     assert "secret" not in str(result)
 
 
