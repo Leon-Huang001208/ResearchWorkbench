@@ -829,11 +829,14 @@ def test_verification_api_rejects_unknown_targets_and_requires_idempotency(tmp_p
 
 
 def test_macos_excel_verifier_uses_sandbox_file_and_owned_app(tmp_path, monkeypatch):
+    from app.research_web.report_workflows.workbook import XlwingsExcelProvider
+
     documents = tmp_path / "Documents"
     documents.mkdir()
     run_root = tmp_path / ("a" * 32)
     run_root.mkdir()
     values = {"A3": 42}
+    events = []
 
     class Range:
         def __init__(self, reference):
@@ -878,11 +881,17 @@ def test_macos_excel_verifier_uses_sandbox_file_and_owned_app(tmp_path, monkeypa
     app = App()
 
     monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    monkeypatch.setattr(
+        XlwingsExcelProvider,
+        "_activate_macos_appscript_compat",
+        staticmethod(lambda: events.append("appscript-compat")),
+    )
     monkeypatch.setitem(sys.modules, "xlwings", SimpleNamespace(App=lambda **_kwargs: app))
 
     result = verifiers._verify_excel_macos(run_root)
 
     assert result == {"outcome": "available", "code": None}
+    assert events == ["appscript-compat"]
     assert app.quit_called is True
     assert len(app.books.paths) == 2
     artifact = app.books.paths[0]
@@ -953,6 +962,15 @@ def test_macos_document_verifiers_use_office_sandbox(
 
     monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
     monkeypatch.setattr(verifiers, "_run_osascript", run_script)
+    if target == "powerpoint":
+        original_import = builtins.__import__
+
+        def reject_undeclared_pptx(name, *args, **kwargs):
+            if name == "pptx" or name.startswith("pptx."):
+                raise AssertionError("PowerPoint verification must not require python-pptx")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", reject_undeclared_pptx)
 
     assert verifier(run_root) == {"outcome": "available", "code": None}
     artifact = observed["artifact"]
@@ -961,6 +979,13 @@ def test_macos_document_verifiers_use_office_sandbox(
     assert observed["target_name"] == artifact.name
     assert "active document" not in observed["script"]
     assert "active presentation" not in observed["script"]
+    if target == "powerpoint":
+        script = observed["script"]
+        assert (
+            script.index("save smokePresentation in targetFile")
+            < script.index("set smokePresentation to presentation targetName")
+            < script.index("close smokePresentation")
+        )
     assert not artifact.exists()
 
 
@@ -1330,6 +1355,31 @@ def test_excel_artifact_cleanup_rejects_symlink(tmp_path, monkeypatch):
     assert verifiers._remove_office_artifact("excel", run_root) is False
     assert artifact.is_symlink()
     assert outside.read_bytes() == b"keep"
+
+
+def test_wind_verification_prepares_run_inside_excel_sandbox(tmp_path, monkeypatch):
+    state_root = tmp_path / "state"
+    excel_documents = tmp_path / "Excel Documents"
+    excel_documents.mkdir()
+    observed = []
+
+    monkeypatch.setattr(verifiers.sys, "platform", "darwin")
+    monkeypatch.setattr(
+        verifiers,
+        "_office_documents_root",
+        lambda target: excel_documents if target == "excel" else tmp_path,
+    )
+    monkeypatch.setattr(
+        verifiers,
+        "_prepare_run_directory",
+        lambda root: observed.append(root) or (None, "verification_storage_unsafe"),
+    )
+
+    assert verifiers.verify_target("wind_excel", state_root) == {
+        "outcome": "failed",
+        "code": "verification_storage_unsafe",
+    }
+    assert observed == [excel_documents]
 
 
 def test_verification_run_storage_rejects_symlink(tmp_path):

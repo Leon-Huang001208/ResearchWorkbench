@@ -81,7 +81,7 @@ DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取�
 - `main.py`：回环 Web API、安全来源边界、上传与隔离预览；无旧业务启动钩子。
 - `local_integrations/`：无副作用的主机软件发现、安全状态投影和幂等探测任务；不启动厂商软件，不返回本机路径或秘密。
 - `mcp_registry/`：官方/私有 Registry 配置、固定 v0.1 同步、原子目录与缓存、Keyring 秘密引用，以及只生成外部命令的 publisher handoff；不执行 publisher、安装或 MCP 调用。
-- `local_integrations/verifiers.py`：用户显式触发的 macOS Office/Wind 真实验证；所有目标使用 180 秒业务上限，在独立进程组和受管验证目录中执行，超时会终止进程树。Excel 要求全量重算并重开读值；Wind 对当前发布的 `huaan-etf-weekly` 受管副本依次执行烟测与全部策略刷新，每次刷新只取得全局剩余预算，并核对发布源哈希。成功结果才写入可调用状态，授权、登录、超时和公式失败均保持独立状态。
+- `local_integrations/verifiers.py`：用户显式触发的 macOS Office/Wind 真实验证；所有目标使用 180 秒业务上限，在独立进程组和受管验证目录中执行，超时会终止进程树。Excel 要求全量重算并重开读值；PowerPoint 由 AppleScript 直接创建、保存并按随机文件名重新绑定对象，不依赖未声明的 `python-pptx`。Wind 对当前发布的 `huaan-etf-weekly` 受管副本依次执行烟测与全部策略刷新，刷新副本位于 Excel 应用沙箱的验证目录，避免每次运行请求任意文件访问授权；每次刷新只取得全局剩余预算，并核对发布源哈希。成功结果才写入可调用状态，授权、登录、超时和公式失败均保持独立状态。
 - `ui/`：正式五页与原生模块，详见 [UI 文档](research-web-ui.md)。
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
 - `skills/`：市场解读、资料解读、公司研究、行业研究、基金评价和因子库研究六类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。

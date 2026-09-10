@@ -53,7 +53,7 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 - DataHub 私有原始响应与会话可读数据集分开。所有共享资料仍绑定目标会话及原始哈希，不提供任意路径读取接口。
 - DataHub 非秘密连接配置位于 `connections/`；密码、Token 和账号池秘密只存运行 8088 的操作系统用户凭据库。API 仅返回 `secret_configured`，浏览器提交后立即清空秘密字段。
 - MCP Registry 非秘密配置、ETag、游标与最后成功缓存位于数据根的 `mcp-registry/`；目录元数据是有界 Unicode plain text，API 原样投影，UI 仅在最终 HTML sink 转义。Bearer/OAuth 秘密只进入 Keyring 服务 `ResearchWorkbench.MCPRegistry`。认证 Registry 仅使用 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth 端点始终使用 HTTPS。官方与私有 Registry 的同名服务器按身份三元组隔离。
-- 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；真实验证副本位于有界、定期清理的 `local-integrations/verification-runs/`，不持久化探测到的绝对路径、命令参数、环境变量或秘密。
+- 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；Excel、Word、PowerPoint 的真实验证副本位于各自 Office 容器内，Wind 刷新副本也在 Excel 容器的有界 `verification-runs/` 中执行并精确清理，避免普通 Workbench 路径触发逐文件授权。不持久化探测到的绝对路径、命令参数、环境变量或秘密。
 - 原生凭据只存在专属 DSH 私有目录，不提供给研究脚本环境。
 - Tabbit 页面访问授权只存在于当前 Research Runtime 生命周期；实时正文 token 绑定当前会话、单次消费并在 10 分钟后过期。
 - 迁移只复制研究状态和 DSH 会话索引；凭据、运行时 overlay、临时文件、旧控制令牌与日志不复制。新实例需要在设置页重新授权模型。

@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live-integration/docs/architecture/research-web/diagrams/03-research-sequence.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live-integration/outputs/research-web-architecture/03-research-sequence.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live-integration-r1/docs/architecture/research-web/diagrams/03-research-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live-integration-r1/outputs/research-web-architecture/03-research-sequence.html",
   "specification": {
-    "sha256": "efb6f5cdfd84d70605a55b4cf327e832464ccd67d7bc97aecca1f2070dbe3399",
-    "bytes": 10427
+    "sha256": "3435e854ab1c8a3619c96493968b6d427b7271a747c74bddb8921df1efbf3a72",
+    "bytes": 10464
   },
   "artifact": {
-    "sha256": "10d173026183f587e1d0d9827dee13b66b8ccb71a902fd2cc24fc6c3ff0a6407",
-    "bytes": 670401
+    "sha256": "fba864aad78ed725ea0f5dee90b37ac3626a73cf22bc1c3e1d347f023fa40a91",
+    "bytes": 670449
   },
   "validation": {
     "checksPassed": 9,

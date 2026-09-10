@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live-integration/outputs/research-web-architecture/03-research-sequence.html",
-    "sha256": "10d173026183f587e1d0d9827dee13b66b8ccb71a902fd2cc24fc6c3ff0a6407",
-    "bytes": 670401
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live-integration-r1/outputs/research-web-architecture/03-research-sequence.html",
+    "sha256": "fba864aad78ed725ea0f5dee90b37ac3626a73cf22bc1c3e1d347f023fa40a91",
+    "bytes": 670449
   },
   "state": {
     "detail": "read",

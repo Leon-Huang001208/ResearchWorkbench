@@ -461,3 +461,14 @@
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"iFinD HTTP探测补齐登录、健康、只读查询和登出，继续复用既有连接配置与系统凭据库，不新增DataHub服务或存储。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"本机页只链接并消费既有报告Workflow元数据进行受管副本验证，不改变Skill、Tool或Workflow的发布与调用拓扑。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机设置页在既有诊断列表增加逐项验证按钮、进度和最近验证时间，不新增产品壳或页面模块。","diagrams":[]} -->
+
+## 2026-09-11 — Mac Office/Wind 沙箱验证修正
+
+- Excel 验证复用报告刷新器已有的 macOS `aeosa` 兼容入口，避免隐藏虚拟环境跳过 `appscript` 路径后把已安装自动化桥误判为失败。
+- PowerPoint 改由 AppleScript 直接创建演示文稿，并在另存为后按随机文件名重新绑定本轮对象；不新增或隐式依赖 `python-pptx`。
+- Wind 的烟测和完整刷新继续使用已发布工作簿的只读源，但所有运行副本迁入 Excel 应用容器内的有界验证目录，避免逐文件授权窗口占用验证预算。HTTP 路由、状态 schema、DSH 和报告 Workflow 边界不变。
+- 图 03 更新本机验证消息，明确受管子进程在对应 Office 容器内操作副本；参与者与其他业务序列不变。
+
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"本机验证运行副本从通用状态目录收敛到对应Office容器，并修正PowerPoint对象生命周期；API与状态schema不变。","diagrams":["03-research-sequence"]} -->
+
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"Office与Wind验证子进程改用对应Office容器的受管运行目录，进程身份、超时和清理协议保持不变。","diagrams":["03-research-sequence"]} -->

@@ -51,8 +51,8 @@
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "10d173026183f587e1d0d9827dee13b66b8ccb71a902fd2cc24fc6c3ff0a6407",
-      "specificationSha256": "efb6f5cdfd84d70605a55b4cf327e832464ccd67d7bc97aecca1f2070dbe3399",
+      "artifactSha256": "fba864aad78ed725ea0f5dee90b37ac3626a73cf22bc1c3e1d347f023fa40a91",
+      "specificationSha256": "3435e854ab1c8a3619c96493968b6d427b7271a747c74bddb8921df1efbf3a72",
       "status": "reviewed",
       "reviewer": "controller",
       "date": "2026-09-10",
@@ -61,7 +61,7 @@
         "03-research-sequence.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色与 2048 深色最终截图；Tabbit 授权、候选与实时 claim，研究提交、DataHub 路径，以及本机验证的白名单、隔离进程和安全结果投影均可读，未见遮挡或裁剪。经过两轮视口宽高平衡修正；视觉查看不证明真实 Tabbit、Provider 或厂商软件在线。"
+      "notes": "已人工查看同一最终哈希的 1440 浅色与 2048 深色截图；Tabbit 授权、候选与实时 claim，研究提交、DataHub 路径，以及本机验证在对应 Office 容器操作受管副本的边界均可读，未见遮挡、裁剪、节点穿线或失衡底部留白。四视口自动包含性检查独立通过；视觉查看不证明真实 Tabbit、Provider 或厂商软件在线。"
     },
     {
       "id": "04-data-file-flow",

@@ -204,6 +204,9 @@ def _verify_excel_macos(
             seed.save(path)
         finally:
             seed.close()
+        from app.research_web.report_workflows.workbook import XlwingsExcelProvider
+
+        XlwingsExcelProvider._activate_macos_appscript_compat()
         import xlwings as xw
 
         app = xw.App(visible=False, add_book=False)
@@ -369,13 +372,7 @@ def _verify_powerpoint(run_root: Path) -> dict[str, Any]:
             pass
         else:
             return {"outcome": "failed", "code": "verification_storage_unsafe"}
-        from pptx import Presentation
-
-        seed = Presentation()
-        slide = seed.slides.add_slide(seed.slide_layouts[0])
-        slide.shapes.title.text = "Research Workbench seed"
-        seed.save(str(path))
-    except (ImportError, OSError) as exc:
+    except OSError as exc:
         log.warning(
             "local_powerpoint_verification_prepare_failed",
             error_type=type(exc).__name__,
@@ -388,10 +385,11 @@ set targetFile to POSIX file (item 1 of argv)
 set targetName to item 2 of argv
 tell application "Microsoft PowerPoint"
 try
-open targetFile
-set smokePresentation to presentation targetName
+set smokePresentation to make new presentation
+set smokeSlide to make new slide at end of smokePresentation with properties {layout:slide layout title slide}
 set content of text range of text frame of shape 1 of slide 1 of smokePresentation to "Research Workbench verification"
-save smokePresentation
+save smokePresentation in targetFile
+set smokePresentation to presentation targetName
 close smokePresentation
 set smokePresentation to missing value
 open targetFile
@@ -563,7 +561,8 @@ def verify_target(
     if sys.platform != "darwin":
         return {"outcome": "failed", "code": "unsupported_platform"}
     state_root = Path(state_root)
-    run_root, storage_error = _prepare_run_directory(state_root)
+    storage_root = _office_documents_root("excel") if target == "wind_excel" else state_root
+    run_root, storage_error = _prepare_run_directory(storage_root)
     if run_root is None:
         return {"outcome": "failed", "code": storage_error or "verification_storage_unsafe"}
     from app.research_web.report_workflows.workbook import (

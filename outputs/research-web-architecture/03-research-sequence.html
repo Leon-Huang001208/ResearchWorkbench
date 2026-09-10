@@ -4840,7 +4840,7 @@
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"startup","label":"断电后的安全恢复","focus":["cli","manager","dsh","api"],"note":"启动器只删除能够确认进程已经死亡的旧状态；活进程、未知进程或指纹不一致仍然拒绝接管。"},{"id":"tabbitFlow","label":"Tabbit 实时标签","focus":["web","api","dsh","tabbit"],"note":"菜单展开才授权并取候选；发送前重验、原子 claim、一次读 DOM，最后只传递短 token。"},{"id":"submit","label":"页面交接与研究提交","focus":["web","api","snapshot","dsh"],"note":"页面先固化查询与筛选上下文，再创建目标会话；HTTP 受理不等于研究或文件完成。"},{"id":"automatic","label":"自动查询与共享快照","focus":["dsh","policy","datahub","provider","snapshot"],"note":"只有启动时确认有可调用来源的工具会注册；合法结果再按会话发布共享快照。"},{"id":"localVerification","label":"显式本机验证","focus":["web","api","localVerifier","office"],"note":"发现不启动软件；用户显式选择目标后，受管子进程才操作 Office 或 Wind 副本并返回安全结果。"}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"startup","label":"断电后的安全恢复","focus":["cli","manager","dsh","api"],"note":"启动器只删除能够确认进程已经死亡的旧状态；活进程、未知进程或指纹不一致仍然拒绝接管。"},{"id":"tabbitFlow","label":"Tabbit 实时标签","focus":["web","api","dsh","tabbit"],"note":"菜单展开才授权并取候选；发送前重验、原子 claim、一次读 DOM，最后只传递短 token。"},{"id":"submit","label":"页面交接与研究提交","focus":["web","api","snapshot","dsh"],"note":"页面先固化查询与筛选上下文，再创建目标会话；HTTP 受理不等于研究或文件完成。"},{"id":"automatic","label":"自动查询与共享快照","focus":["dsh","policy","datahub","provider","snapshot"],"note":"只有启动时确认有可调用来源的工具会注册；合法结果再按会话发布共享快照。"},{"id":"localVerification","label":"显式本机验证","focus":["web","api","localVerifier","office"],"note":"发现不启动软件；用户显式选择目标后，受管子进程才在对应 Office 容器内操作 Office 或 Wind 副本并返回安全结果。"}]</script>
 
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -5250,11 +5250,11 @@
         </g>
         </g>
 
-        <g data-edge-from="localVerifier" data-edge-to="office" data-edge-label="隔离进程操作受管临时副本" data-edge-key="35" data-edge-id="runVerification">
+        <g data-edge-from="localVerifier" data-edge-to="office" data-edge-label="隔离进程在对应 Office 容器操作副本" data-edge-key="35" data-edge-id="runVerification">
           <path data-composition-edge-from="localVerifier" data-composition-edge-to="office" data-composition-edge-id="runVerification" data-composition-points="1396,1728;1690,1728" d="M 1396 1728 L 1690 1728" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
         <g data-detail="context">
-          <rect x="1474.6" y="1708" width="136.8" height="16" rx="3" class="c-mask"/>
-          <text x="1543" y="1718" class="t-security" font-size="9" text-anchor="middle">隔离进程操作受管临时副本</text>
+          <rect x="1448.6" y="1708" width="188.8" height="16" rx="3" class="c-mask"/>
+          <text x="1543" y="1718" class="t-security" font-size="9" text-anchor="middle">隔离进程在对应 Office 容器操作副本</text>
         </g>
         </g>
 
