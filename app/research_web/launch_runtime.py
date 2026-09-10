@@ -44,13 +44,13 @@ def load_tabbit_config(data: Path) -> dict[str, object]:
     except (OSError, json.JSONDecodeError, TypeError) as exc:
         raise RuntimeError("Tabbit 配置文件无效") from exc
     if not isinstance(raw, dict):
-        raise RuntimeError("Tabbit 配置文件无效")
+        raise TypeError("Tabbit 配置文件无效")
     value = {**defaults, **raw}
     browser_enabled = value.get("browser_enabled")
     web_fetch_enabled = value.get("web_fetch_enabled")
     instance_id = value.get("instance_id")
     if not isinstance(browser_enabled, bool) or not isinstance(web_fetch_enabled, bool):
-        raise RuntimeError("Tabbit 开关配置无效")
+        raise TypeError("Tabbit 开关配置无效")
     if web_fetch_enabled and not browser_enabled:
         raise RuntimeError("Tabbit web_fetch 要求浏览器自动化同时开启")
     if instance_id is not None and (
@@ -84,7 +84,7 @@ def _profile_manifest(home: Path) -> tuple[Path, dict]:
     except (OSError, json.JSONDecodeError, TypeError) as exc:
         raise RuntimeError("DSH Web Profile 清单无效") from exc
     if not isinstance(manifest, dict):
-        raise RuntimeError("DSH Web Profile 清单无效")
+        raise TypeError("DSH Web Profile 清单无效")
     return path, manifest
 
 
@@ -94,7 +94,7 @@ def _append_profile_bundle(home: Path, name: str, version: str) -> None:
     profile = manifest.setdefault("dsh", {}).setdefault("profile", {})
     bundles = profile.setdefault("bundles", [])
     if not isinstance(dependencies, dict) or not isinstance(bundles, list):
-        raise RuntimeError("DSH Web Profile bundle 配置无效")
+        raise TypeError("DSH Web Profile bundle 配置无效")
     dependencies[name] = version
     bundles[:] = [bundle for bundle in bundles if bundle != name]
     bundles.append(name)

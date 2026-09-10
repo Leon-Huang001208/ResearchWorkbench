@@ -18,8 +18,8 @@ from app.research_web.report_studio import ReportStudio, ReportStudioError
 from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
-    format_tabbit_status,
     format_status,
+    format_tabbit_status,
 )
 from app.research_web.store import Store
 

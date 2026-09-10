@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from app.research_web.tabbit import TabbitError, TabbitIntegration
 from app.research_web.store import Store
+from app.research_web.tabbit import TabbitError, TabbitIntegration
 
 
 class TabbitRuntimeFixture:
