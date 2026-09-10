@@ -64,6 +64,7 @@ class MCPRegistryService:
         self._credentials: RegistryCredentialStore | None = None
         self._http: RegistryHTTPClient | None = None
         self._publisher: PublisherMetadata | None = None
+        self._volatile_status: dict[tuple[str, str, str, str], dict[str, Any]] = {}
         if self.enabled:
             self._initialize()
 
@@ -215,7 +216,13 @@ class MCPRegistryService:
             if isinstance(request.auth, AuthBearer) and not secret and old_type != "bearer":
                 raise RegistryError("Bearer Registry 必须提供 token", "registry_secret_required", 422)
             try:
-                old_secret = self.credentials.read(registry_id, old_type)
+                old_snapshot = self.credentials.snapshot(registry_id, old_type)
+                new_snapshot = (
+                    old_snapshot
+                    if old_type == new_type
+                    else self.credentials.snapshot(registry_id, new_type)
+                )
+                old_secret = old_snapshot or {}
                 if not secret and old_type == new_type:
                     secret = old_secret
                 self.credentials.replace(registry_id, old_type, new_type, secret)
@@ -226,7 +233,11 @@ class MCPRegistryService:
                 row = self.catalog.update(registry_id, changes)
             except CatalogError as exc:
                 try:
-                    self.credentials.replace(registry_id, new_type, old_type, old_secret)
+                    if old_type == new_type:
+                        self.credentials.restore(registry_id, old_type, old_snapshot)
+                    else:
+                        self.credentials.restore(registry_id, old_type, old_snapshot)
+                        self.credentials.restore(registry_id, new_type, new_snapshot)
                 except CredentialError as rollback_exc:
                     log.error("mcp_registry_auth_rollback_failed", registry_id=registry_id)
                     raise RegistryError(
@@ -285,13 +296,51 @@ class MCPRegistryService:
     def _sync_status(
         self, registry_id: str, kind: str, source_url: str, **values: Any
     ) -> dict[str, Any]:
-        status = self.catalog.sync_status(registry_id, kind, **values)
+        key = (registry_id, kind, source_url, self.catalog.query_key(kind, **values))
+        if key in self._volatile_status:
+            status = self._volatile_status[key]
+        else:
+            try:
+                status = self.catalog.sync_status(registry_id, kind, **values)
+            except CatalogError as exc:
+                log.warning(
+                    "mcp_registry_status_projection_failed",
+                    registry_id=registry_id,
+                    failure_code=str(exc),
+                )
+                return {"stale": True, "failure_code": str(exc)}
         if status is None or status.get("source_url") != source_url:
             return {"stale": False, "failure_code": None}
         return {
             "stale": status.get("stale") is True,
             "failure_code": status.get("failure_code"),
         }
+
+    def _set_sync_status(
+        self,
+        registry_id: str,
+        kind: str,
+        source_url: str,
+        value: dict[str, Any] | None,
+        **values: Any,
+    ) -> None:
+        key = (registry_id, kind, source_url, self.catalog.query_key(kind, **values))
+        fallback = value or {
+            "source_url": source_url,
+            "stale": False,
+            "failure_code": None,
+        }
+        try:
+            self.catalog.set_sync_status(registry_id, kind, value, **values)
+        except CatalogError as exc:
+            self._volatile_status[key] = copy.deepcopy(fallback)
+            log.warning(
+                "mcp_registry_status_persist_failed",
+                registry_id=registry_id,
+                failure_code=str(exc),
+            )
+        else:
+            self._volatile_status.pop(key, None)
 
     def list_servers(
         self,
@@ -302,6 +351,7 @@ class MCPRegistryService:
         limit: int = 100,
     ) -> dict[str, Any]:
         row = self.registry(registry_id)
+        cached: dict[str, Any] | None = None
         try:
             cached = self.catalog.cached_page(
                 registry_id, cursor=cursor, search=search, limit=limit
@@ -340,6 +390,7 @@ class MCPRegistryService:
         limit: int = 100,
     ) -> dict[str, Any]:
         row = self.registry(registry_id)
+        cached: dict[str, Any] | None = None
         try:
             cached = self.catalog.cached_page(
                 registry_id, cursor=cursor, search=search, limit=limit
@@ -360,9 +411,10 @@ class MCPRegistryService:
                     raise SyncError("registry_invalid_not_modified", 502)
                 if self.catalog.row(registry_id)["base_url"] != row["base_url"]:
                     raise SyncError("registry_source_changed", 409)
-                self.catalog.set_sync_status(
+                self._set_sync_status(
                     registry_id,
                     "page",
+                    row["base_url"],
                     None,
                     cursor=cursor,
                     search=search,
@@ -396,9 +448,10 @@ class MCPRegistryService:
                 value=record,
                 expected_source_url=row["base_url"],
             )
-            self.catalog.set_sync_status(
+            self._set_sync_status(
                 registry_id,
                 "page",
+                row["base_url"],
                 None,
                 cursor=cursor,
                 search=search,
@@ -420,22 +473,20 @@ class MCPRegistryService:
         except CatalogError as exc:
             raise self._catalog_error(exc) from exc
         if cached is not None:
-            try:
-                self.catalog.set_sync_status(
-                    registry_id,
-                    "page",
-                    {
-                        "source_url": row["base_url"],
-                        "stale": True,
-                        "failure_code": error.code,
-                        "updated_at": timestamp(),
-                    },
-                    cursor=cursor,
-                    search=search,
-                    limit=limit,
-                )
-            except CatalogError as exc:
-                raise self._catalog_error(exc) from exc
+            self._set_sync_status(
+                registry_id,
+                "page",
+                row["base_url"],
+                {
+                    "source_url": row["base_url"],
+                    "stale": True,
+                    "failure_code": error.code,
+                    "updated_at": timestamp(),
+                },
+                cursor=cursor,
+                search=search,
+                limit=limit,
+            )
             return self._page_result(
                 cached, stale=True, failure_code=error.code, not_modified=False
             )
@@ -472,6 +523,7 @@ class MCPRegistryService:
     ) -> dict[str, Any]:
         self._validate_identity(server_name, version)
         row = self.registry(registry_id)
+        cached: dict[str, Any] | None = None
         try:
             cached = self.catalog.cached_detail(registry_id, server_name, version)
             if not self._matches_source(cached, row["base_url"]):
@@ -498,9 +550,10 @@ class MCPRegistryService:
                     raise SyncError("registry_invalid_not_modified", 502)
                 if self.catalog.row(registry_id)["base_url"] != row["base_url"]:
                     raise SyncError("registry_source_changed", 409)
-                self.catalog.set_sync_status(
+                self._set_sync_status(
                     registry_id,
                     "detail",
+                    row["base_url"],
                     None,
                     server_name=server_name,
                     version=version,
@@ -525,9 +578,10 @@ class MCPRegistryService:
                 record,
                 expected_source_url=row["base_url"],
             )
-            self.catalog.set_sync_status(
+            self._set_sync_status(
                 registry_id,
                 "detail",
+                row["base_url"],
                 None,
                 server_name=server_name,
                 version=version,
@@ -547,21 +601,19 @@ class MCPRegistryService:
         except CatalogError as exc:
             raise self._catalog_error(exc) from exc
         if cached is not None:
-            try:
-                self.catalog.set_sync_status(
-                    registry_id,
-                    "detail",
-                    {
-                        "source_url": row["base_url"],
-                        "stale": True,
-                        "failure_code": error.code,
-                        "updated_at": timestamp(),
-                    },
-                    server_name=server_name,
-                    version=version,
-                )
-            except CatalogError as exc:
-                raise self._catalog_error(exc) from exc
+            self._set_sync_status(
+                registry_id,
+                "detail",
+                row["base_url"],
+                {
+                    "source_url": row["base_url"],
+                    "stale": True,
+                    "failure_code": error.code,
+                    "updated_at": timestamp(),
+                },
+                server_name=server_name,
+                version=version,
+            )
             return self._page_result(cached, stale=True, failure_code=error.code)
         raise RegistryError("Registry 版本详情读取失败", error.code, error.status) from error
 

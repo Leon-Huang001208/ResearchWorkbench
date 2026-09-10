@@ -16,6 +16,18 @@ PUBLISHER_ARGV = {
     "validate": ["mcp-publisher", "validate", "server.json"],
     "publish": ["mcp-publisher", "publish", "server.json"],
 }
+SEMVER_PATTERN = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
+PYPI_FIXED_VERSION_PATTERN = re.compile(
+    r"^(?:[0-9]+!)?[0-9]+(?:\.[0-9]+)*(?:(?:a|b|rc)[0-9]+)?"
+    r"(?:\.post[0-9]+)?(?:\.dev[0-9]+)?"
+    r"(?:\+[a-z0-9]+(?:[.-][a-z0-9]+)*)?$",
+    re.IGNORECASE,
+)
+OCI_DIGEST_PATTERN = re.compile(r"@sha256:[a-f0-9]{64}$")
 
 
 class StdioTransport(BaseModel):
@@ -52,7 +64,7 @@ class PublisherRepository(BaseModel):
 
 class PublisherPackage(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
-    registry_type: str = Field(alias="registryType", min_length=1, max_length=64)
+    registry_type: Literal["npm", "pypi", "oci", "nuget", "mcpb"] = Field(alias="registryType")
     registry_base_url: str | None = Field(default=None, alias="registryBaseUrl")
     identifier: str = Field(min_length=1, max_length=2048)
     version: str | None = Field(default=None, min_length=1, max_length=255)
@@ -75,9 +87,35 @@ class PublisherPackage(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def require_immutable_npm_version(self):
-        if self.registry_type == "npm" and self.version is None:
-            raise ValueError("npm package 必须提供固定版本")
+    def require_immutable_reference(self):
+        digest_pinned = self.file_sha256 is not None
+        if self.registry_type == "npm":
+            if self.version is None or SEMVER_PATTERN.fullmatch(self.version) is None:
+                raise ValueError("npm package 必须提供完整固定版本")
+        elif self.registry_type == "pypi":
+            version_pinned = (
+                self.version is not None
+                and PYPI_FIXED_VERSION_PATTERN.fullmatch(self.version) is not None
+            )
+            if not digest_pinned and not version_pinned:
+                raise ValueError("PyPI package 必须提供固定版本")
+        elif self.registry_type == "nuget":
+            version_pinned = (
+                self.version is not None and SEMVER_PATTERN.fullmatch(self.version) is not None
+            )
+            if not digest_pinned and not version_pinned:
+                raise ValueError("NuGet package 必须提供完整固定版本")
+        elif self.registry_type == "oci":
+            digest_pinned = digest_pinned or OCI_DIGEST_PATTERN.search(self.identifier) is not None
+            version_pinned = (
+                self.version is not None and SEMVER_PATTERN.fullmatch(self.version) is not None
+            )
+            if not digest_pinned and not version_pinned:
+                raise ValueError("OCI package 必须提供固定版本或 sha256 digest")
+        elif self.version is None and self.file_sha256 is None:
+            raise ValueError("MCPB package 必须提供固定版本或 fileSha256")
+        elif self.version is not None and SEMVER_PATTERN.fullmatch(self.version) is None:
+            raise ValueError("MCPB package version 必须为完整固定版本")
         return self
 
 

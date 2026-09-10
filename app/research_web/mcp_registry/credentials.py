@@ -41,16 +41,16 @@ class RegistryCredentialStore:
     def account(registry_id: str, auth_type: str) -> str:
         return f"{registry_id}:{auth_type}"
 
-    def read(self, registry_id: str, auth_type: str) -> dict[str, str]:
+    def snapshot(self, registry_id: str, auth_type: str) -> dict[str, str] | None:
         if auth_type == "none":
-            return {}
+            return None
         try:
             value = self.keyring.get_password(KEYRING_SERVICE, self.account(registry_id, auth_type))
         except Exception as exc:
             log.warning("mcp_registry_credential_read_failed", registry_id=registry_id)
             raise CredentialError("credential_store_unavailable") from exc
         if not value:
-            return {}
+            return None
         if auth_type == "bearer" and not value.startswith("{"):
             return {"token": value}
         try:
@@ -62,6 +62,9 @@ class RegistryCredentialStore:
         ):
             raise CredentialError("credential_record_invalid")
         return payload
+
+    def read(self, registry_id: str, auth_type: str) -> dict[str, str]:
+        return self.snapshot(registry_id, auth_type) or {}
 
     def write(self, registry_id: str, auth_type: str, payload: dict[str, str]) -> None:
         try:
@@ -98,6 +101,17 @@ class RegistryCredentialStore:
         except CredentialError:
             return False
 
+    def restore(
+        self,
+        registry_id: str,
+        auth_type: str,
+        snapshot: dict[str, str] | None,
+    ) -> None:
+        if snapshot is None:
+            self.delete(registry_id, auth_type)
+        else:
+            self.write(registry_id, auth_type, snapshot)
+
     def authorization(self, registry_id: str, auth_type: str) -> str | None:
         payload = self.read(registry_id, auth_type)
         token = payload.get("token") or payload.get("access_token")
@@ -115,17 +129,14 @@ class RegistryCredentialStore:
                 self.write(registry_id, new_type, payload)
             return
 
-        previous_new = self.read(registry_id, new_type)
+        previous_new = self.snapshot(registry_id, new_type)
         if payload:
             self.write(registry_id, new_type, payload)
         try:
             self.delete(registry_id, old_type)
         except CredentialError:
             try:
-                if previous_new:
-                    self.write(registry_id, new_type, previous_new)
-                else:
-                    self.delete(registry_id, new_type)
+                self.restore(registry_id, new_type, previous_new)
             except CredentialError:
                 log.error("mcp_registry_credential_compensation_failed", registry_id=registry_id)
             raise

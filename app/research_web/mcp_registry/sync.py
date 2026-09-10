@@ -65,7 +65,7 @@ class RegistryHTTPClient:
                         chunks.append(chunk)
                     try:
                         payload = json.loads(b"".join(chunks))
-                    except (UnicodeDecodeError, ValueError) as exc:
+                    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
                         raise SyncError("registry_invalid_response", 502) from exc
                     if not isinstance(payload, dict):
                         raise SyncError("registry_invalid_response", 502)

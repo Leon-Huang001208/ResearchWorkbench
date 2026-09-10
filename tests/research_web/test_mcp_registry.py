@@ -644,6 +644,341 @@ def test_publisher_requires_fixed_npm_version_but_accepts_digest_pinned_file():
     assert metadata.validate(digest_pinned)["valid"] is True
 
 
+@pytest.mark.parametrize(
+    "dynamic_version", ["beta", "next", "stable", "1", "1.2", "1.0.0 || 2.0.0"]
+)
+def test_publisher_rejects_every_noncanonical_npm_version(dynamic_version):
+    value = valid_server_json()
+    value["packages"][0]["version"] = dynamic_version
+    assert PublisherMetadata().validate(value)["valid"] is False
+
+
+@pytest.mark.parametrize(
+    "package",
+    [
+        {"registryType": "pypi", "identifier": "weather", "transport": {"type": "stdio"}},
+        {
+            "registryType": "oci",
+            "identifier": "ghcr.io/example/weather:latest",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "mcpb",
+            "identifier": "https://downloads.example.test/weather.mcpb",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "nuget",
+            "identifier": "Example.Weather",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "unknown",
+            "identifier": "example/weather",
+            "version": "1.2.3",
+            "transport": {"type": "stdio"},
+        },
+    ],
+)
+def test_publisher_rejects_package_references_that_are_not_provably_fixed(package):
+    value = valid_server_json()
+    value["packages"] = [package]
+    assert PublisherMetadata().validate(value)["valid"] is False
+
+
+@pytest.mark.parametrize("registry_type", ["pypi", "oci", "nuget", "mcpb"])
+def test_publisher_accepts_supported_non_npm_package_pinned_by_digest(registry_type):
+    value = valid_server_json()
+    value["packages"] = [
+        {
+            "registryType": registry_type,
+            "identifier": "example/weather",
+            "fileSha256": "b" * 64,
+            "transport": {"type": "stdio"},
+        }
+    ]
+    assert PublisherMetadata().validate(value)["valid"] is True
+
+
+@pytest.mark.parametrize(
+    "package",
+    [
+        {
+            "registryType": "npm",
+            "identifier": "@example/weather",
+            "version": "1.2.3-beta.1+build.5",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "pypi",
+            "identifier": "weather",
+            "version": "1.2.3rc1",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "oci",
+            "identifier": f"ghcr.io/example/weather@sha256:{'a' * 64}",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "nuget",
+            "identifier": "Example.Weather",
+            "version": "1.2.3",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "mcpb",
+            "identifier": "https://downloads.example.test/weather.mcpb",
+            "fileSha256": "a" * 64,
+            "transport": {"type": "stdio"},
+        },
+    ],
+)
+def test_publisher_accepts_supported_provably_fixed_package_references(package):
+    value = valid_server_json()
+    value["packages"] = [package]
+    assert PublisherMetadata().validate(value)["valid"] is True
+
+
+@pytest.mark.parametrize("initial_token", [None, "old-access-token"])
+def test_same_oauth_catalog_failure_restores_exact_secret_snapshot(
+    tmp_path, monkeypatch, initial_token
+):
+    keyring = FakeKeyring()
+    auth = {
+        "type": "oauth2",
+        "authorization_url": "https://id.example.test/authorize",
+        "token_url": "https://id.example.test/token",
+        "client_id": "old-client",
+    }
+    if initial_token is not None:
+        auth["access_token"] = initial_token
+    service = MCPRegistryService(tmp_path, enabled=True, keyring_backend=keyring)
+    created = service.create_registry(RegistryCreate.model_validate(registry_payload(auth=auth)))
+    account = (KEYRING_SERVICE, f"{created['id']}:oauth2")
+    before = keyring.values.get(account)
+    monkeypatch.setattr(
+        service.catalog,
+        "update",
+        lambda *args, **kwargs: (_ for _ in ()).throw(CatalogError("registry_storage_unavailable")),
+    )
+
+    with pytest.raises(RegistryError) as error:
+        service.update_registry(
+            created["id"],
+            RegistryUpdate.model_validate(
+                {
+                    "auth": {
+                        **auth,
+                        "client_id": "new-client",
+                        "access_token": "new-access-token",
+                    }
+                }
+            ),
+        )
+    assert error.value.code == "registry_storage_unavailable"
+    assert keyring.values.get(account) == before
+    assert service.registry(created["id"])["auth"]["client_id"] == "old-client"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["page", "detail"])
+async def test_cache_read_failure_returns_stable_registry_error(tmp_path, monkeypatch, kind):
+    service = MCPRegistryService(tmp_path, enabled=True, keyring_backend=FakeKeyring())
+    target = "cached_page" if kind == "page" else "cached_detail"
+    monkeypatch.setattr(
+        service.catalog,
+        target,
+        lambda *args, **kwargs: (_ for _ in ()).throw(CatalogError("registry_cache_unavailable")),
+    )
+    with pytest.raises(RegistryError) as error:
+        if kind == "page":
+            await service.sync_registry(OFFICIAL_REGISTRY_ID)
+        else:
+            await service.version_detail(OFFICIAL_REGISTRY_ID, "io.example/weather", "1.2.3")
+    assert error.value.code == "registry_cache_unavailable"
+    assert error.value.status == 503
+    await service.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["page", "detail"])
+async def test_deep_json_returns_stale_invalid_response_without_replacing_cache(tmp_path, kind):
+    calls = 0
+    deep_json = b'{"x":' + b"[" * 2000 + b"0" + b"]" * 2000 + b"}"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            payload = remote_page() if kind == "page" else remote_page()["servers"][0]
+            return httpx.Response(200, json=payload)
+        return httpx.Response(200, content=deep_json)
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    if kind == "page":
+        fresh = await service.sync_registry(OFFICIAL_REGISTRY_ID)
+        cache_path = tmp_path / "mcp-registry" / "cache" / "official.json"
+        before = cache_path.read_bytes()
+        stale = await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    else:
+        fresh = await service.version_detail(OFFICIAL_REGISTRY_ID, "io.example/weather", "1.2.3")
+        cache_path = tmp_path / "mcp-registry" / "cache" / "official.json"
+        before = cache_path.read_bytes()
+        stale = await service.version_detail(OFFICIAL_REGISTRY_ID, "io.example/weather", "1.2.3")
+    assert (
+        stale["identity"] == fresh["identity"]
+        if kind == "detail"
+        else stale["items"] == fresh["items"]
+    )
+    assert stale["stale"] is True
+    assert stale["failure_code"] == "registry_invalid_response"
+    assert cache_path.read_bytes() == before
+    await service.close()
+
+
+@pytest.mark.asyncio
+async def test_deep_json_without_cache_is_stable_invalid_response(tmp_path):
+    deep_json = b'{"x":' + b"[" * 2000 + b"0" + b"]" * 2000 + b"}"
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, content=deep_json))
+        ),
+    )
+    with pytest.raises(RegistryError) as error:
+        await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    assert error.value.code == "registry_invalid_response"
+    await service.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["page", "detail"])
+async def test_status_write_failure_returns_stale_cache_and_keeps_memory_status(
+    tmp_path, monkeypatch, kind
+):
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            payload = remote_page() if kind == "page" else remote_page()["servers"][0]
+            return httpx.Response(200, json=payload)
+        raise httpx.ConnectError("offline", request=request)
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    if kind == "page":
+        await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    else:
+        await service.version_detail(OFFICIAL_REGISTRY_ID, "io.example/weather", "1.2.3")
+    monkeypatch.setattr(
+        service.catalog,
+        "set_sync_status",
+        lambda *args, **kwargs: (_ for _ in ()).throw(CatalogError("registry_storage_unavailable")),
+    )
+    if kind == "page":
+        stale = await service.sync_registry(OFFICIAL_REGISTRY_ID)
+        later = service.list_servers(OFFICIAL_REGISTRY_ID)
+    else:
+        stale = await service.version_detail(OFFICIAL_REGISTRY_ID, "io.example/weather", "1.2.3")
+        later = await service.version_detail(
+            OFFICIAL_REGISTRY_ID,
+            "io.example/weather",
+            "1.2.3",
+            refresh=False,
+        )
+    assert stale["stale"] is True
+    assert stale["failure_code"] == "registry_network_error"
+    assert later["stale"] is True
+    assert later["failure_code"] == "registry_network_error"
+    await service.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["page", "detail"])
+async def test_status_write_failure_does_not_block_fresh_cache(tmp_path, monkeypatch, kind):
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = remote_page() if kind == "page" else remote_page()["servers"][0]
+        return httpx.Response(200, json=payload)
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    monkeypatch.setattr(
+        service.catalog,
+        "set_sync_status",
+        lambda *args, **kwargs: (_ for _ in ()).throw(CatalogError("registry_storage_unavailable")),
+    )
+    if kind == "page":
+        fresh = await service.sync_registry(OFFICIAL_REGISTRY_ID)
+        later = service.list_servers(OFFICIAL_REGISTRY_ID)
+    else:
+        fresh = await service.version_detail(OFFICIAL_REGISTRY_ID, "io.example/weather", "1.2.3")
+        later = await service.version_detail(
+            OFFICIAL_REGISTRY_ID,
+            "io.example/weather",
+            "1.2.3",
+            refresh=False,
+        )
+    assert fresh["stale"] is False
+    assert fresh["failure_code"] is None
+    assert later["stale"] is False
+    assert later["failure_code"] is None
+    await service.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["page", "detail"])
+async def test_status_read_failure_projects_conservative_stale_state(tmp_path, monkeypatch, kind):
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = remote_page() if kind == "page" else remote_page()["servers"][0]
+        return httpx.Response(200, json=payload)
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    if kind == "page":
+        await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    else:
+        await service.version_detail(OFFICIAL_REGISTRY_ID, "io.example/weather", "1.2.3")
+    monkeypatch.setattr(
+        service.catalog,
+        "sync_status",
+        lambda *args, **kwargs: (_ for _ in ()).throw(CatalogError("registry_status_unavailable")),
+    )
+    if kind == "page":
+        result = service.list_servers(OFFICIAL_REGISTRY_ID)
+    else:
+        result = await service.version_detail(
+            OFFICIAL_REGISTRY_ID,
+            "io.example/weather",
+            "1.2.3",
+            refresh=False,
+        )
+    assert result["stale"] is True
+    assert result["failure_code"] == "registry_status_unavailable"
+    await service.close()
+
+
 @pytest.mark.asyncio
 async def test_total_sync_deadline_returns_stale_registry_timeout(tmp_path):
     class SlowStream(httpx.AsyncByteStream):
