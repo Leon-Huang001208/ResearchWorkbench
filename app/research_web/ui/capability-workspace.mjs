@@ -99,7 +99,7 @@ function workspaceKindNav(kind) {
 
 function workspaceSubviewNav(kind, view) {
   const roving = kind === 'tool';
-  return `<nav class="capability-workspace-subnav" ${roving ? 'role="tablist"' : ''} aria-label="${kindLabels[kind]} 视图">${subviews[kind].map(([value, label]) => `<a href="${capabilityWorkspaceHash(kind, value)}" aria-current="${view === value ? 'page' : 'false'}" ${roving ? `role="tab" tabindex="${view === value ? '0' : '-1'}" aria-selected="${view === value}" data-mcp-market-tab="${value}"` : ''}>${label}</a>`).join('')}</nav>`;
+  return `<nav class="capability-workspace-subnav" ${roving ? 'role="tablist"' : ''} aria-label="${kindLabels[kind]} 视图">${subviews[kind].map(([value, label]) => `<a ${roving ? `id="capability-tool-tab-${value}"` : ''} href="${capabilityWorkspaceHash(kind, value)}" aria-current="${view === value ? 'page' : 'false'}" ${roving ? `role="tab" tabindex="${view === value ? '0' : '-1'}" aria-selected="${view === value}" data-mcp-market-tab="${value}"` : ''}>${label}</a>`).join('')}</nav>`;
 }
 
 function filters(entries, state) {

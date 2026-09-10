@@ -37,7 +37,8 @@ let renameDraft = null;
 let renameSession = null; let deleteSession = null; let purgeSession = null;
 let sessionMenu = null; let sessionActionBusy = false; let sessionActionError = '';
 let capabilityDialogReturnSelector = '';
-let mcpMarketplaceState = { registries: [], selectedRegistryId: '', query: '', page: null, detail: null, returnIdentity: null, loading: false, syncing: false, error: '', publisher: { source: '', result: null, error: '', busy: false } };
+let mcpCatalogGeneration = 0; let mcpDetailGeneration = 0; let mcpPublisherGeneration = 0; let mcpDetailRequestIdentity = ''; let pendingMCPMarketTabFocus = '';
+let mcpMarketplaceState = { registries: [], selectedRegistryId: '', query: '', page: null, detail: null, returnIdentity: null, loading: false, syncing: false, error: '', publisher: { source: '', result: null, resultSource: '', error: '', busy: false } };
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
@@ -119,13 +120,29 @@ function focusMCPServerDialog() {
   document.querySelector('.mcp-server-dialog [data-mcp-detail-close]')?.focus?.({ preventScroll: true });
 }
 
+function currentMCPMarketRoute() {
+  return state.route.page === 'skills' && capabilityState.kindFilter === 'tool' && capabilityState.view === 'market';
+}
+
+function findMCPServerTrigger(identity) {
+  if (!identity) return null;
+  return [...(document.querySelectorAll?.('[data-mcp-server-detail]') || [])].find(item => item.dataset.registryId === identity.registryId && item.dataset.serverName === identity.serverName && item.dataset.serverVersion === identity.version) || null;
+}
+
+function invalidateMCPRequests() {
+  mcpCatalogGeneration += 1; mcpDetailGeneration += 1; mcpPublisherGeneration += 1;
+  mcpDetailRequestIdentity = '';
+  mcpMarketplaceState.loading = false; mcpMarketplaceState.syncing = false;
+  mcpMarketplaceState.detail = null; mcpMarketplaceState.returnIdentity = null;
+  mcpMarketplaceState.publisher.busy = false;
+}
+
 function closeMCPServerDialog({ restoreFocus = true } = {}) {
   if (!mcpMarketplaceState.detail) return false;
   const identity = mcpMarketplaceState.returnIdentity;
   mcpMarketplaceState.detail = null; mcpMarketplaceState.returnIdentity = null; render();
   if (restoreFocus && identity) {
-    const trigger = [...(document.querySelectorAll?.('[data-mcp-server-detail]') || [])].find(item => item.dataset.registryId === identity.registryId && item.dataset.serverName === identity.serverName && item.dataset.serverVersion === identity.version);
-    trigger?.focus?.({ preventScroll: true });
+    findMCPServerTrigger(identity)?.focus?.({ preventScroll: true });
   }
   return true;
 }
@@ -308,49 +325,63 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
 
 async function loadMCPMarketplace({ sync = false, reloadRegistries = false } = {}) {
   if (mcpMarketplaceState.loading || mcpMarketplaceState.syncing) return;
-  const ticket = pageGeneration;
+  const ticket = pageGeneration; const operation = ++mcpCatalogGeneration;
+  const request = { registryId: mcpMarketplaceState.selectedRegistryId, query: mcpMarketplaceState.query, sync };
+  const current = () => operation === mcpCatalogGeneration && ticket === pageGeneration && currentMCPMarketRoute()
+    && request.query === mcpMarketplaceState.query && (!request.registryId || request.registryId === mcpMarketplaceState.selectedRegistryId);
   mcpMarketplaceState.error = '';
   mcpMarketplaceState[sync ? 'syncing' : 'loading'] = true;
   render();
   try {
     if (reloadRegistries || !mcpMarketplaceState.registries.length) {
       const response = await api.mcpRegistries();
+      if (!current()) return;
       const registries = Array.isArray(response.items) ? response.items : [];
       mcpMarketplaceState.registries = registries;
       if (!registries.some(item => item.id === mcpMarketplaceState.selectedRegistryId)) mcpMarketplaceState.selectedRegistryId = registries[0]?.id || '';
     }
-    if (ticket !== pageGeneration) return;
-    const registryId = mcpMarketplaceState.selectedRegistryId;
+    if (operation !== mcpCatalogGeneration || ticket !== pageGeneration || !currentMCPMarketRoute() || request.query !== mcpMarketplaceState.query) return;
+    const registryId = mcpMarketplaceState.selectedRegistryId; request.registryId = registryId;
     if (!registryId) { mcpMarketplaceState.page = null; return; }
-    mcpMarketplaceState.page = sync
-      ? await api.mcpSyncRegistry(registryId, { search: mcpMarketplaceState.query || null, cursor: null, limit: 100 })
-      : await api.mcpServers({ registryId, search: mcpMarketplaceState.query, limit: 100 });
+    const page = sync
+      ? await api.mcpSyncRegistry(registryId, { search: request.query || null, cursor: null, limit: 100 })
+      : await api.mcpServers({ registryId, search: request.query, limit: 100 });
+    if (!current()) return;
+    mcpMarketplaceState.page = page;
     safeLog(sync ? 'mcp_registry_sync_finished' : 'mcp_registry_catalog_loaded', { status: mcpMarketplaceState.page?.stale ? 'stale' : 'ready' });
   } catch (error) {
-    if (ticket !== pageGeneration) return;
+    if (!current()) return;
     mcpMarketplaceState.error = error?.message || 'MCP Registry 暂时不可用，请稍后重试。';
     safeLog(sync ? 'mcp_registry_sync_failed' : 'mcp_registry_catalog_failed', { status: error?.code || 'request_failed' });
   } finally {
-    if (ticket === pageGeneration) {
+    if (operation === mcpCatalogGeneration) {
       mcpMarketplaceState.loading = false; mcpMarketplaceState.syncing = false; render();
     }
   }
 }
 
-async function openMCPServerDetail(identity, trigger) {
+async function openMCPServerDetail(identity) {
   if (mcpMarketplaceState.loading || mcpMarketplaceState.syncing || !identity.registryId || !identity.serverName || !identity.version) return;
+  const ticket = pageGeneration; const operation = ++mcpDetailGeneration;
+  const requested = { registryId: identity.registryId, serverName: identity.serverName, version: identity.version };
+  const identityKey = JSON.stringify([requested.registryId, requested.serverName, requested.version]);
+  mcpDetailRequestIdentity = identityKey;
+  const current = () => operation === mcpDetailGeneration && identityKey === mcpDetailRequestIdentity && ticket === pageGeneration && currentMCPMarketRoute();
   mcpMarketplaceState.loading = true; mcpMarketplaceState.error = ''; render();
   try {
-    mcpMarketplaceState.detail = await api.mcpServerVersion(identity.registryId, identity.serverName, identity.version);
-    mcpMarketplaceState.returnIdentity = { ...identity };
-    render(); focusMCPServerDialog();
+    const detail = await api.mcpServerVersion(requested.registryId, requested.serverName, requested.version);
+    if (!current()) return;
+    mcpMarketplaceState.detail = detail;
+    mcpMarketplaceState.returnIdentity = requested;
   } catch (error) {
+    if (!current()) return;
     mcpMarketplaceState.error = error?.message || 'MCP Server 详情读取失败。';
     safeLog('mcp_registry_detail_failed', { status: error?.code || 'request_failed' });
   } finally {
+    if (operation !== mcpDetailGeneration) return;
     mcpMarketplaceState.loading = false; render();
     if (mcpMarketplaceState.detail) focusMCPServerDialog();
-    else trigger?.focus?.({ preventScroll: true });
+    else findMCPServerTrigger(requested)?.focus?.({ preventScroll: true });
   }
 }
 
@@ -362,14 +393,19 @@ async function runMCPPublisherAction(action) {
   try { value = JSON.parse(publisher.source); }
   catch { publisher.error = 'server.json 不是有效 JSON；请修正后重试。'; render(); return; }
   if (!value || typeof value !== 'object' || Array.isArray(value)) { publisher.error = 'server.json 顶层必须是对象。'; render(); return; }
+  const ticket = pageGeneration; const operation = ++mcpPublisherGeneration; const source = publisher.source;
+  const current = () => operation === mcpPublisherGeneration && ticket === pageGeneration && source === publisher.source;
   publisher.busy = true; render();
   try {
-    publisher.result = action === 'preview' ? await api.mcpPublisherPreview(value) : await api.mcpPublisherValidate(value);
+    const result = action === 'preview' ? await api.mcpPublisherPreview(value) : await api.mcpPublisherValidate(value);
+    if (!current()) return;
+    publisher.result = result; publisher.resultSource = source;
     safeLog('mcp_publisher_handoff_finished', { status: publisher.result?.valid === false ? 'invalid' : 'valid' });
   } catch (error) {
+    if (!current()) return;
     publisher.error = error?.message || 'server.json 处理失败，请检查后重试。';
     safeLog('mcp_publisher_handoff_failed', { status: error?.code || 'request_failed' });
-  } finally { publisher.busy = false; render(); }
+  } finally { if (operation === mcpPublisherGeneration) { publisher.busy = false; render(); } }
 }
 
 async function loadOperations() {
@@ -467,8 +503,11 @@ async function showRoute() {
     location.hash = legacyTarget;
   }
   quickCategory = '';
+  const requestedRoute = parseRoute(location.hash);
+  const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
+  if (!requestedMarket) invalidateMCPRequests();
   const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear();
-  await controller.open(parseRoute(location.hash));
+  await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
   if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
@@ -515,6 +554,13 @@ async function showRoute() {
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
+  if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
+    const expected = pendingMCPMarketTabFocus;
+    pendingMCPMarketTabFocus = '';
+    if (state.route.page === 'skills' && state.route.capabilityKind === 'tool' && state.route.capabilityView === expected) {
+      document.getElementById(`capability-tool-tab-${expected}`)?.focus?.({ preventScroll: true });
+    }
+  }
 }
 
 async function loadConnectionConfiguration(sourceId) {
@@ -549,8 +595,15 @@ root.addEventListener('input', (event) => {
   if (event.target.closest('#cap-creation-form')) capabilityState.goal = event.target.value;
   if (event.target.closest('#cap-copy-form')) capabilityState.copy = { name: document.querySelector('#cap-copy-name')?.value || '', slug: document.querySelector('#cap-copy-slug')?.value || '' };
   if ('capQuery' in event.target.dataset) { capabilityState.query = event.target.value; render(); }
-  if ('mcpQuery' in event.target.dataset) { mcpMarketplaceState.query = event.target.value; render(); }
-  if ('mcpPublisherSource' in event.target.dataset) { mcpMarketplaceState.publisher.source = event.target.value; mcpMarketplaceState.publisher.result = null; mcpMarketplaceState.publisher.error = ''; }
+  if ('mcpQuery' in event.target.dataset) {
+    mcpCatalogGeneration += 1; mcpMarketplaceState.loading = false; mcpMarketplaceState.syncing = false;
+    mcpMarketplaceState.query = event.target.value; mcpMarketplaceState.page = null; render();
+  }
+  if ('mcpPublisherSource' in event.target.dataset) {
+    mcpPublisherGeneration += 1; mcpMarketplaceState.publisher.busy = false;
+    mcpMarketplaceState.publisher.source = event.target.value; mcpMarketplaceState.publisher.result = null; mcpMarketplaceState.publisher.resultSource = ''; mcpMarketplaceState.publisher.error = '';
+    render();
+  }
   if ('globalSearch' in event.target.dataset) { globalSearch = event.target.value; render(); }
   if (event.target.id === 'rename-title') renameDraft = event.target.value;
   if ('connectionSearch' in (event.target.dataset || {})) applyConnectionWorkspaceFilters(event.target.closest('[data-connection-workbench]'));
@@ -607,8 +660,8 @@ root.addEventListener('keydown', (event) => {
     const result = mcpMarketplaceTabKey(event.key, event.target.dataset.mcpMarketTab);
     if (result.handled) {
       event.preventDefault();
-      const target = document.querySelector(`[data-mcp-market-tab="${result.view}"]`);
-      if (target) { target.click(); target.focus({ preventScroll: true }); }
+      const target = document.getElementById(`capability-tool-tab-${result.view}`);
+      if (target) { pendingMCPMarketTabFocus = result.view; target.click(); }
       return;
     }
   }
@@ -944,7 +997,7 @@ root.addEventListener('click', async (event) => {
   if ('mcpMarketRetry' in data) { await loadMCPMarketplace({ reloadRegistries: !mcpMarketplaceState.registries.length }); return; }
   if ('mcpSync' in data) { await loadMCPMarketplace({ sync: true }); return; }
   if ('mcpServerDetail' in data) {
-    await openMCPServerDetail({ registryId: data.registryId, serverName: data.serverName, version: data.serverVersion }, button);
+    await openMCPServerDetail({ registryId: data.registryId, serverName: data.serverName, version: data.serverVersion });
     return;
   }
   if ('mcpPublisherAction' in data) { await runMCPPublisherAction(data.mcpPublisherAction); return; }
