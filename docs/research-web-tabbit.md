@@ -22,6 +22,9 @@ overlay 中的 adapter 入口始终使用 `/`，避免 Windows 路径分隔符�
 能力工作区的 `#/skills?kind=tool&view=market` MCP Registry 目录与 Tabbit 只共用 Research Web
 路由外壳，不复用 Tabbit 授权、候选或 claim 状态。进入能力工作区时会先清空尚未提交的 Tabbit
 菜单请求；Registry 浏览保持只读，也不会改变本节约定的页面访问授权与实时 claim 生命周期。
+Phase 2B 启用 MCP Runtime 后，专属 DSH composition 会额外加载经 Host 校验的命名空间 MCP 工具，
+但这些工具不进入 `research-tabbit-adapter`，也不复用 Tabbit 的页面访问授权、实例选择、claim 或
+一次性正文 token。MCP Runtime 的启停只重建其独立激活清单；Tabbit 仍按本页既有配置和授权状态运行。
 
 ## 配置与状态
 
