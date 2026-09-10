@@ -12,6 +12,10 @@ Profile bundle 顺序固定为 `base`、`web-app`、`dsh-tabbit`、
 缺少 launcher、浏览器离线、版本低于 1.9.0 或多实例未选择时只返回诊断。包要求运行
 Node `^22.19.0 || >=24`；Node 23 不受支持。
 
+DSH 的状态、Profile 和凭据仍由私有 `DSH_HOME` 隔离；启动环境只保留宿主的 `HOME`，并在
+Windows 上按存在性保留 `USERPROFILE`、`LOCALAPPDATA`，供官方插件定位浏览器拥有的 launcher
+与实例登记。该路径白名单不改变 DSH 数据目录，也不把 Cookie 或页面数据复制进产品目录。
+
 npm 归档成员与供应清单始终按 `PurePosixPath` 比较；通过链接和路径穿越检查后才转换为本机路径。
 overlay 中的 adapter 入口始终使用 `/`，避免 Windows 路径分隔符改变 DSH 配置语义。
 
@@ -59,7 +63,9 @@ claim 或提取失败都会阻止发送并保留正文与 chips。
 
 适配器只复用官方插件注入的唯一 `ctx.tabbit` 执行器，不创建第二套 Playwright 或 CLI 链路。
 任务名为 `rwb-mention-<session4>-<request8>`；选中标签原子 claim 后在一次只读 evaluate 中依序
-读取实时标题、URL 和 DOM 正文。每页最多 60,000 字符、全部标签合计最多 120,000 字符；公平
+读取实时标题、URL 和 DOM 正文。官方 `pages()` 不保证返回 claim 顺序，因此适配器用发送前的
+可信清单把结果恢复为用户选择顺序；标题与 URL 均相同而无法唯一映射时在 claim 前失败关闭。
+每页最多 60,000 字符、全部标签合计最多 120,000 字符；公平
 上限为 `min(60000, floor(120000 / 标签数))`，截断内容显式标记。
 
 无论提取成功或失败，适配器都会在 `finally` 调用 `finishTask(task, {keep:true})`。标签页保持打开，
@@ -80,9 +86,12 @@ claim 或提取失败都会阻止发送并保留正文与 chips。
 ## 验证边界
 
 Python/API、Node adapter、前端交互和 Runtime staging 可用模拟 Runtime 在原生 macOS/Windows CI
-验证，但这不证明真实浏览器可用。发布验收还必须分别在真实 macOS 和 Windows 环境覆盖状态诊断、
-首次授权、1/8 页实时 DOM、动态表单内容、二次确认、标签保持打开、只读自动执行、写操作审批、
-`web_fetch` 开关以及缺失/旧版指引。
+验证，但这不证明真实浏览器可用。当前 Web-only 功能的合并门禁为：真实 macOS 覆盖状态诊断、
+首次授权、1/8 页实时 DOM、动态表单内容、二次确认、标签保持打开、失败保留草稿、只读自动执行、
+写操作审批、`web_fetch` 开关和缺失/旧版指引，同时原生 macOS/Windows CI 均通过。
 
-当前开发机检测到 Tabbit 0.30.32，且没有可用 `tabbit-cli`；它低于官方 1.9.0 要求，所以真实
-macOS 冒烟预期阻塞。用户需手动安装或升级官方 Tabbit 并重启，Research Workbench 不代为下载。
+2026-09-10 的真实 macOS 验收使用 Apple Silicon、官方签名并公证的 Tabbit 1.13.24.0、可用
+`tabbit-cli` 和一个在线实例，以上旅程均已通过。Windows 交付以原生 CI 的 Runtime staging、路径
+语义、服务启动和健康探测为准；真实 Windows Tabbit 浏览器尚未验证，但不再阻止本 Web-only 功能
+合并。该调整不改变通用桌面 Windows 发布前仍需真实安装级冒烟的门禁。Research Workbench 本身
+仍不下载或升级 Tabbit。

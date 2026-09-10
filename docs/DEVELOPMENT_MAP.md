@@ -22,6 +22,9 @@ its staging, loopback API, claim/token lifecycle or UI. Regression coverage is i
 Windows staging regressions must cover UTF-8 text, POSIX tar member names, closed-handle atomic
 replacement, forward-slash adapter serialization, DSH auth-file identity, DataHub snapshot publication,
 safe downloads and read-only purge; CI remains simulator-only until real browser smoke.
+The Web-only merge gate requires real macOS Tabbit smoke plus native macOS/Windows CI. Real Windows
+Tabbit remains an explicitly unverified delivery boundary and does not replace the repository's separate
+desktop Windows release gate.
 The product topbar keeps healthy runtime state silent and exposes only actionable configuration or
 availability states; page-scoped refresh controls remain owned by their existing modules.
 Settings uses five mutually exclusive hash subpages rendered by `ui/settings.mjs`; `ui/app.mjs` retains

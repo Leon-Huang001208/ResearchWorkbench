@@ -18,14 +18,15 @@
 - Windows 路径使用显式 UTF-8、关闭句柄后的原子替换、POSIX 归档成员语义和正斜杠 adapter 配置；POSIX 保留目录 `fsync`，Windows 明确跳过不支持的目录同步。
 - Windows DSH 认证、DataHub 控制/收据/快照和下载使用规范路径、重解析点拒绝、普通文件/硬链接/大小与打开前后身份核验；快照保留原子发布，永久删除可清理产品所有的只读普通文件。
 - DSH waterfall/cancel 交互事件标识在进入 pending map 前逐项验证，非法值稳定返回 `protocol_error`。
+- Runtime 保持私有 `DSH_HOME`，同时把宿主 `HOME` 及 Windows 对应用户目录变量显式传给固定 Tabbit 插件，仅用于发现用户手动安装的 launcher 与实例注册；不暴露到诊断输出。
+- 实时标签提取在 claim 前验证所选标签，并在一次只读求值后按用户选择顺序重建结果；标题与 URL 均相同、无法无歧义映射的标签会在 claim 前失败关闭。
+- 原生审批响应被 DSH 接受后，BFF 立即清理对应待审批投影；迟到的 Runtime 解决事件仍按幂等路径处理，避免拒绝后 UI 长时间显示旧审批。
 
 ## 已执行自动化证据
 
 - 隔离 `.venv` 使用用户已授权的仓库既有 `.[dev]` 依赖；未新增或调整项目依赖。
-- Tabbit、Runtime、协议、API、连接中心和本机集成定向测试：99 passed、1 skipped、1 warning。
-- `env -u DSH_SOURCE_ROOT ... pytest tests/research_web --confcutdir=tests/research_web`：621 passed、4 skipped、1 warning；跳过项为需要原生 DSH 源码的验证。
-- 使用本机 `DSH_SOURCE_ROOT` 运行同一套件：606 passed、1 skipped、2 setup errors；两项均因源码提交 `c389f96bf3a9b6807cb71ed6bdad5849be0df6d8` 与锁定提交 `c919b2a460753859665db3f60143d525fb9140cf` 不一致，未放宽 pin。
-- 完整 Research Web Node 测试：220 passed、1 skipped；其中 Tabbit、设置、Runtime guard、Research Web UI 与本机集成定向测试为 58 passed。CI 同构 Tabbit Python/Node 合约分别为 76 passed 和 51 passed；Windows 直接根因相关 Python 集为 109 passed、1 skipped，服务管理/本机集成定向集为 26 passed、1 skipped。`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 语法检查通过。
+- 固定 `DSH_SOURCE_ROOT` 提交 `c919b2a460753859665db3f60143d525fb9140cf` 下执行完整 `tests/research_web` 模拟套件：625 passed、1 skipped、1 warning；未降低或绕过 DSH 源码 pin。
+- 完整 Research Web Node 测试：221 passed、1 skipped；新增用例覆盖标签顺序重建与不可区分标签的 claim 前失败关闭。`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 语法检查通过。
 - Ruff 0.16.6、Black 26.5.1 check、isort 9.0.1 check：17 个相关 Python 文件通过；首轮按计划限定格式化 8 个 CI 报告文件，本轮只额外格式化新增直接根因涉及的 `datahub/security.py`、`store.py` 与 `test_datahub.py`。
 - mypy 2.3.1：工作流列出的 6 个 Tabbit/Runtime 源文件以 `--follow-imports=skip` 通过，新增 DataHub/Store 3 个直接根因文件以相同隔离模式通过。该模式只检查显式目标，避免把本轮扩大到导入图内 7 个既有模块的 18 项无关类型债务；项目仍以 Python 3.11 为目标，NumPy/Transformers 外部 stub 保留定向 `follow_imports=skip`。
 - `node scripts/check_research_architecture.mjs` 与 `scripts/check_doc_sync.py --base origin/master`：无违规。
@@ -37,14 +38,25 @@
 - 同一提交的 Windows 本机集成运行 `34449520615`：Python/Node 契约通过，真实回环服务启动失败。安全化 stderr 定位为 `runtime/auth.json` 在 Windows 被 POSIX mode 校验误拒绝。
 - 修复后运行 `34454453713`：`macOS Web Runtime contract` 与 `Windows Web Runtime contract` 均通过，分别完成原生 macOS/Windows 的 Python、Node、Runtime staging、路径语义和配置契约验证。
 - 同一修复提交的 Windows 本机集成运行 `34454453756` 通过；除 Python/Node 契约外，已在 `windows-2022` runner 实际启动回环服务并完成健康探测和诊断产物上传。
-- 上述原生 runner 结果验证的是模拟 Runtime 和本机服务边界，不包含真实 Tabbit Browser/CLI 交互，因此不替代下述双平台产品冒烟。
+- 上述原生 runner 结果验证的是模拟 Runtime 和本机服务边界，不包含真实 Tabbit Browser/CLI 交互。最终 macOS 真实冒烟修复提交推送后仍需再次取得这两项原生 CI 通过结果。
 
-## 待执行与阻塞
+## macOS 真实浏览器验收
 
-- PR #73 的代码与模拟 Runtime CI 已在原生 macOS、Windows runner 全绿；PR 继续保持开放，等待真实双平台 Tabbit 浏览器验收。
-- 本机检测到 Tabbit `0.30.32` 且没有可用 `tabbit-cli`。因此真实 macOS 状态、授权、动态 DOM、1/8 页 claim、写审批与标签保持打开的冒烟尚未通过。
-- 没有真实 Windows Tabbit 环境；新增原生 `macos-14`/`windows-2022` 模拟 Runtime CI 只验证 API、路径语义、staging 和 Node 契约，不替代真实浏览器冒烟。
-- 在真实 macOS 与 Windows 冒烟均通过前，本报告不把完整产品验收标记为完成。
+- 升级前已验证旧版浏览器与 launcher 缺失诊断及官方手动安装指引。经用户明确授权进行本机运维升级后，Research Workbench 自身仍保持禁止运行时下载、自动升级和 `tabbit_browser_install`。
+- ARM64 macOS 上的 Tabbit `1.13.24.0` 已验证 bundle ID `com.tabbit-ai.Tabbit`、Team ID `2DE8QTFYGR`，并通过 Apple 签名与公证检查；CLI 可用且存在一个在线实例。
+- PR Runtime 最终诊断为 `ready`：插件 `0.3.4`、浏览器版本满足最低要求、launcher 可用、一个在线实例、浏览器自动化开启、`web_fetch` 接管关闭且无待应用重启。
+- 首次展开 `@` 菜单触发当前会话页面访问授权；标题/URL 过滤、键盘选择、chip 删除、8 页上限和二次 claim 确认均在真实 UI 通过。
+- 真实 1 页与 8 页发送按选择顺序注入；单页读取到发送瞬间的动态 DOM 值而非初始内容，发送后全部测试标签仍保持打开。
+- 已选标签被另一个任务占用时发送被阻止，正文和 chip 保持不变；释放后标签仍保持打开。
+- 已授权会话的 `read_only:true` 浏览器调用无需逐次审批。写操作先拒绝并独立确认 DOM 未改变，随后批准并独立确认 DOM 已按预期改变。
+- 开启 `web_fetch` 后按重启门禁重启，在内网访问审批通过后实际读取本地夹具；关闭接管并再次重启后，最终诊断恢复为默认关闭状态。
+- 验收记录不包含测试标签标题、URL、正文、Cookie、执行代码或实例标识。macOS 真实 Tabbit 冒烟完成。
+
+## Windows 交付边界
+
+- Windows 交付要求为原生 `Windows Web Runtime contract`、`Windows local integrations`、回环服务健康探测与诊断产物通过；最终修复提交推送后需由 PR CI 再次确认。
+- 没有真实 Windows Tabbit Browser/CLI 环境，因此真实页面授权、claim 与写审批未验证。该项明确记录为“代码与原生 CI 已交付、真实 Tabbit 未验证”，不再阻止本次 Web-only PR 合并。
+- 此边界不修改通用桌面 Windows 发布门禁；未来发布桌面安装包时仍须在真实 Windows 环境完成安装级冒烟测试。
 
 ## 安全边界与已知限制
 

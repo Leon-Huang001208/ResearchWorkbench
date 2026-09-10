@@ -113,9 +113,11 @@ python scripts/check_task_completion.py
 python scripts/check_doc_sync.py
 ```
 
-Tabbit 的模拟 Runtime 验证不替代真实浏览器验收。当前开发机 Tabbit 0.30.32 且缺少
-`tabbit-cli`，低于官方最低 1.9.0；在用户手动升级并重启 Tabbit 前，macOS 真实冒烟保持阻塞，
-Windows 仍须在真实环境单独执行。Research Workbench 不自动下载或升级。
+Tabbit 的模拟 Runtime 验证不替代真实浏览器验收。2026-09-10 已在真实 macOS 上使用官方签名、
+Apple 公证的 Tabbit 1.13.24.0 和可用 CLI 完成状态、授权、1/8 页实时 DOM、动态内容、失败保留、
+只读/写审批及 `web_fetch` 开关旅程。Windows 已交付原生 CI 的 Runtime staging、路径语义、服务
+启动和健康探测，真实 Windows Tabbit 浏览器未验证且不作为本 Web-only 功能的合并阻塞；通用桌面
+Windows 发布门禁不变。Research Workbench 不自动下载或升级 Tabbit。
 
 Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真实模型验收单独记录，不以 MockTransport/TestClient 代替。
 `DSH_SOURCE_ROOT` 只用于测试已存在的原生 JSON Schema 转换器；未设置时该项会跳过，不能据此宣称协议验证完整。

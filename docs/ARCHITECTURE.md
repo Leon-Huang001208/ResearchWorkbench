@@ -19,7 +19,7 @@ Research Web 可在同一专属 DSH 执行链中加载固定、经完整性校�
 Runtime overlay 中的 adapter 路径统一序列化为正斜杠。
 设置、本地 BFF 和 loopback adapter 共同承担配置、会话授权、候选过滤及实时 claim。标签正文只在
 Runtime 内存中以会话绑定、单次消费、10 分钟过期 token 暂存，产品索引和日志不保存正文。
-供应、Profile 顺序、API、只读声明限制和真实双平台验收边界见
+供应、Profile 顺序、API、只读声明限制、macOS 真实验收和 Windows 原生 CI 交付边界见
 [Tabbit 集成](research-web-tabbit.md)。
 
 数据源子页在前端将 21 个远程来源投影为专业、API、公开三类工作台，并从现有连接状态派生汇总、搜索和筛选结果。卡片选择仅控制同页配置抽屉，保存、检测、移除和凭据处理仍走原有连接中心接口；本机集成仍位于独立设置子页。因此本次信息架构调整不增加 DataHub 来源、不改变 Runtime Tool 物化条件，也不引入新的后端拓扑。

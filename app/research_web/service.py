@@ -1109,6 +1109,13 @@ class ResearchService:
                 "outcome": "allowed-once" if decision == "approve" else "rejected",
             },
         )
+        if result.get("accepted") is True:
+            # The native runtime may not emit its separate cancellation frame
+            # until after the turn resumes.  Once it has accepted the answer,
+            # the interaction is no longer pending in this BFF either.
+            self.approvals.pop(aid, None)
+            self.event_revision += 1
+            self.notify()
         self.store.audit(
             "approval",
             "approved" if decision == "approve" else "denied",

@@ -14,8 +14,9 @@ def make_source(tmp_path: Path) -> Path:
     source = tmp_path / "source"
     (source / "packages/boot/app-boot/lib").mkdir(parents=True)
     (source / "packages/boot/app-boot/lib/index.js").write_text("// built")
-    (source / "apps/cli").mkdir(parents=True)
+    (source / "apps/cli/lib").mkdir(parents=True)
     (source / "apps/cli/package.json").write_text("{}")
+    (source / "apps/cli/lib/bin.js").write_text("// cli")
     return source
 
 
@@ -51,6 +52,28 @@ def test_runtime_module_fallback_rejects_external_target(tmp_path, monkeypatch):
     monkeypatch.setattr(launch_runtime.subprocess, "run", run)
     with pytest.raises(RuntimeError, match="越出项目私有源码目录"):
         launch_runtime.prepare_runtime_module_fallback(source, home, "/node")
+
+
+def test_runtime_keeps_dsh_home_private_but_uses_host_home_for_tabbit(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    host_home = tmp_path / "host-user"
+    local_app_data = host_home / "AppData/Local"
+    monkeypatch.setenv("HOME", str(host_home))
+    monkeypatch.setenv("USERPROFILE", str(host_home))
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app_data))
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "check_output",
+        lambda *args, **kwargs: launch_runtime.PINNED_COMMIT,
+    )
+
+    _, env, _ = launch_runtime.prepare(source, data, "/node", 3081)
+
+    assert env["DSH_HOME"] == str(data.resolve() / "runtime/home")
+    assert env["HOME"] == str(host_home)
+    assert env["USERPROFILE"] == str(host_home)
+    assert env["LOCALAPPDATA"] == str(local_app_data)
 
 
 def make_tabbit_vendor(tmp_path: Path) -> Path:

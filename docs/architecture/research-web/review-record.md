@@ -10,6 +10,16 @@
 <!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增Tabbit状态配置、会话授权、候选标签端点，并在消息提交前完成实时引用校验和提取。","diagrams":["01-deployment","03-research-sequence"]} -->
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"Runtime私有Profile加入固定供应的dsh-tabbit和单一ctx.tabbit适配层，新增实时claim、内存token和审批边界。","diagrams":["01-deployment","02-module-dependencies","03-research-sequence"]} -->
 
+## 2026-09-10 — Tabbit macOS 真实验收收口
+
+- 真实 macOS 使用官方签名、公证的 Tabbit 1.13.24.0 与 CLI，完成首次授权、按需检索、1/8 页实时 DOM、动态表单、二次确认、标签保留、占用失败保留草稿、只读自动执行、写操作拒绝/批准和 `web_fetch` 开关旅程。
+- Runtime 的 `DSH_HOME` 保持私有，宿主用户路径只用于定位 Tabbit launcher/实例；实时 claim 结果按可信清单恢复用户选择顺序，相同标题与 URL 无法唯一映射时失败关闭。
+- 原生审批响应被接受后立即移除 BFF 的待审批投影，迟到的 resolved 事件保持幂等。Windows 继续以原生 CI 交付，真实 Tabbit 浏览器明确未验证；既有部署节点、端口、API 和桌面发布门禁不变，十张图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"审批受理后只收敛既有待审批投影，Tabbit状态、授权、消息和审批API契约不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"宿主用户路径仅供既有Tabbit插件定位launcher和实例，DSH_HOME、Profile、执行器与部署节点保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"真实macOS验证覆盖现有授权、标签选择、确认和失败保留交互，没有新增页面或组件边界。","diagrams":[]} -->
+
 ## 2026-09-08 — DSH 最新版 Gateway 兼容迁移
 
 - Research Runtime 固定到基于官方最新 `master` 重建的 Fork 运行分支；Workbench 兼容桥把原有白名单调用映射到 Typert Gateway 的斜杠端点、`payload.args`、Cookie 鉴权和 Remote 复用流，对外 HTTP、会话、消息、DataHub、文件与删除接口不变。

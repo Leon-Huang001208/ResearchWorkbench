@@ -10,7 +10,8 @@
 
 - 在专属 DSH Web Profile 中引入固定、哈希校验的 `dsh-tabbit` 0.3.4 和单一 `ctx.tabbit` 适配器；默认开启浏览器自动化、关闭 `web_fetch` 接管，禁用运行时安装和自动升级。
 - 输入框新增按需 `@` 标签搜索、最多 8 个 chip、会话级授权和实时 claim 二次确认；DOM 正文仅以会话绑定、10 分钟过期、单次消费 token 保留在 Runtime 内存。
-- 设置→本地集成和 `rwb web tabbit-status` 暴露安全诊断。模拟 Runtime 的 macOS/Windows CI 不替代真实浏览器验收；当前开发机 Tabbit 0.30.32 且缺少 CLI，真实双平台冒烟仍阻塞。
+- 设置→本地集成和 `rwb web tabbit-status` 暴露安全诊断。真实 macOS 已在官方签名、公证的 Tabbit 1.13.24.0 上通过授权、1/8 页动态 DOM、失败保留、只读/写审批、标签保留和 `web_fetch` 开关冒烟；Windows 以原生 Runtime/服务 CI 交付，真实浏览器明确未验证且不阻止本 Web-only 合并。
+- Runtime 保持私有 `DSH_HOME`，仅保留宿主用户路径以解析官方 launcher/实例；实时提取按发送前可信清单恢复用户选择顺序，无法唯一映射的重复页面失败关闭。原生审批被 DSH 接受后立即清理 Web 待审批投影，迟到的 resolved 事件仍安全幂等。
 - 补齐 Windows UTF-8 能力读取、关闭句柄后的原子替换、POSIX npm 归档成员比较、正斜杠 adapter 配置和 Windows 目录同步兼容；无效的 DSH 交互事件标识现在稳定返回 `protocol_error`。
 - Windows DSH 认证、DataHub 控制/收据/快照和下载改用规范路径、重解析点拒绝与打开前后身份核验；快照保留原子发布，永久删除可安全清理产品所有的只读普通文件。POSIX 的 `dir_fd`、`NOFOLLOW`、私有权限与目录 `fsync` 保持不变。
 

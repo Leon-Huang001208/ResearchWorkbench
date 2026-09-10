@@ -505,11 +505,14 @@ def prepare(
     env = {
         "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "LANG": "en_US.UTF-8",
-        "HOME": str(home),
+        "HOME": str(Path.home()),
         "DSH_HOME": str(home),
         "DSH_TELEMETRY_DISABLED": "1",
         "TMPDIR": str(temp),
     }
+    for name in ("USERPROFILE", "LOCALAPPDATA"):
+        if value := os.environ.get(name):
+            env[name] = value
     if isinstance(tabbit_config.get("instance_id"), str):
         env["TABBIT_PLAYWRIGHT_INSTANCE"] = str(tabbit_config["instance_id"])
     command = [

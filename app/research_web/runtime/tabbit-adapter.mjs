@@ -234,6 +234,13 @@ export function createTabbitRuntime(ctx, config = {}, dependencies = {}) {
     const client = ctx.tabbit.client();
     const resolved = client.resolvedInstanceId();
     if (resolved !== undefined && resolved !== instanceId) throw new AdapterError('tabbit_instance_mismatch', 409);
+    const inventory = await ctx.tabbit.listAllTabs({ instanceId, timeoutMs: 15_000 });
+    const expectedTabs = tabIds.map((tabId) => inventory.tabs.find((tab) =>
+      tab?.tabId === tabId && tab.state === 'available' && typeof tab.title === 'string' &&
+      typeof tab.url === 'string' && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))));
+    if (expectedTabs.some((tab) => tab === undefined)) throw new AdapterError('tabbit_tab_unavailable', 409);
+    const identities = expectedTabs.map((tab) => `${tab.url}\u0000${tab.title}`);
+    if (new Set(identities).size !== identities.length) throw new AdapterError('tabbit_extract_ambiguous', 409);
     const task = taskName(sessionId, requestId);
     let outcome;
     let finishFailure;
@@ -256,9 +263,14 @@ export function createTabbitRuntime(ctx, config = {}, dependencies = {}) {
     }
     if (finishFailure) throw finishFailure;
     if (outcome?.status !== 'succeeded' || !Array.isArray(outcome.result?.value) || outcome.result.value.length !== tabIds.length) throw new AdapterError('tabbit_extract_failed', 503);
-    const entries = outcome.result.value.map((raw) => {
+    const unordered = outcome.result.value.map((raw) => {
       if (!raw || typeof raw !== 'object' || typeof raw.title !== 'string' || typeof raw.url !== 'string' || typeof raw.text !== 'string' || !raw.url.startsWith('http://') && !raw.url.startsWith('https://')) throw new AdapterError('tabbit_extract_invalid', 503);
       return { title: cleanTitle(raw.title), url: raw.url, text: raw.text, truncated: raw.truncated === true };
+    });
+    const entries = expectedTabs.map((expected) => {
+      const index = unordered.findIndex((entry) => entry.url === expected.url && entry.title === cleanTitle(expected.title));
+      if (index < 0) throw new AdapterError('tabbit_extract_invalid', 503);
+      return unordered.splice(index, 1)[0];
     });
     sweep();
     const markers = entries.map((entry, index) => {

@@ -8,7 +8,7 @@ import {
   taskName,
 } from '../../app/research_web/runtime/tabbit-adapter.mjs';
 
-const makeContext = ({ finishError } = {}) => {
+const makeContext = ({ finishError, evaluationValue, inventoryTabs } = {}) => {
   const calls = [];
   const listeners = new Map();
   const client = {
@@ -18,7 +18,7 @@ const makeContext = ({ finishError } = {}) => {
       return {
         status: 'succeeded',
         result: {
-          value: [
+          value: evaluationValue ?? [
             { title: 'First page', url: 'https://first.test/', text: 'one', truncated: false },
             { title: 'Second / page', url: 'https://second.test/', text: 'two', truncated: true },
           ],
@@ -37,7 +37,15 @@ const makeContext = ({ finishError } = {}) => {
       launcherPath: () => '/tabbit-cli',
       instances: () => [{ id: '0123456789ABCDEF', appName: 'Tabbit', online: true }],
       resolveExecutionInstance: () => ({ id: '0123456789ABCDEF' }),
-      listAllTabs: async () => ({ tabs: [], truncated: false }),
+      listAllTabs: async () => ({
+        tabs: inventoryTabs ?? [
+          { tabId: 41, title: 'First page', url: 'https://first.test/', state: 'available' },
+          { tabId: 9, title: 'Second / page', url: 'https://second.test/', state: 'available' },
+          { tabId: 1, title: 'First page', url: 'https://first.test/', state: 'available' },
+          { tabId: 2, title: 'Second / page', url: 'https://second.test/', state: 'available' },
+        ],
+        truncated: false,
+      }),
     },
     on: (name, handler) => listeners.set(name, handler),
     inject() {},
@@ -47,7 +55,12 @@ const makeContext = ({ finishError } = {}) => {
 };
 
 test('live extraction claims in selection order, reads once, and always keeps tabs', async () => {
-  const { ctx, calls } = makeContext();
+  const { ctx, calls } = makeContext({
+    evaluationValue: [
+      { title: 'Second / page', url: 'https://second.test/', text: 'two', truncated: true },
+      { title: 'First page', url: 'https://first.test/', text: 'one', truncated: false },
+    ],
+  });
   const runtime = createTabbitRuntime(ctx, {}, { uuid: () => 'token-1', now: () => 1000 });
   runtime.grantAccess('abcd-session');
   const result = await runtime.extract({
@@ -60,6 +73,8 @@ test('live extraction claims in selection order, reads once, and always keeps ta
   assert.match(calls[0][1].code, /document\.body/);
   assert.deepEqual(calls[1], ['finish', 'rwb-mention-abcd-12345678', { keep: true }]);
   assert.deepEqual(result.markers.map((item) => item.tabId), [41, 9]);
+  assert.match(result.markers[0].marker, /^@\[First page\]/u);
+  assert.match(result.markers[1].marker, /^@\[Second \/ page\]/u);
   assert.match(result.markers[0].marker, /rwb-tabbit:token-1/);
 });
 
@@ -103,6 +118,27 @@ test('finish failure prevents tokens from being published', async () => {
     (error) => error.code === 'tabbit_finish_failed',
   );
   assert.equal(runtime.stash.size, 0);
+});
+
+test('indistinguishable selected tabs fail closed before a task is claimed', async () => {
+  const { ctx, calls } = makeContext({
+    inventoryTabs: [
+      { tabId: 1, title: 'Duplicate page', url: 'https://duplicate.test/', state: 'available' },
+      { tabId: 2, title: 'Duplicate page', url: 'https://duplicate.test/', state: 'available' },
+    ],
+  });
+  const runtime = createTabbitRuntime(ctx);
+  runtime.grantAccess('abcd');
+  await assert.rejects(
+    runtime.extract({
+      sessionId: 'abcd',
+      requestId: '12345678',
+      instanceId: '0123456789ABCDEF',
+      tabIds: [1, 2],
+    }),
+    (error) => error.code === 'tabbit_extract_ambiguous',
+  );
+  assert.deepEqual(calls, []);
 });
 
 test('tokens are session-bound, single-use, and expire after ten minutes', async () => {
