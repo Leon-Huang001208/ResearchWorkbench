@@ -141,13 +141,14 @@ try {
     await shot(`${theme}-capability-workspace-dialog-390`);
     await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto(base + '/#/skills?kind=skill');
+    await page.goto(base + `/?capability-keyboard=${theme}#/skills?kind=skill`);
+    await page.locator('.capability-workspace-card').first().waitFor();
     await page.locator('[data-cap-kind-nav="skill"]').focus();
     await page.keyboard.press('ArrowRight');
     await page.waitForURL(/kind=tool/);
     await page.locator('[data-cap-kind-nav="tool"][aria-selected="true"]').waitFor();
     for (const kind of ['skill', 'tool', 'workflow', 'data']) {
-      await page.goto(base + `/#/skills?kind=${kind}`);
+      await page.goto(base + `/?capability-preview=${theme}-${kind}#/skills?kind=${kind}`);
       await page.locator(`[data-cap-kind-nav="${kind}"][aria-selected="true"]`).waitFor();
       await page.evaluate(() => document.activeElement?.blur());
       await shot(`${theme}-capability-${kind}-1440`);
