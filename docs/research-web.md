@@ -61,6 +61,8 @@ DataHub 会话快照与连接配置写入的完整 Windows 兼容性不在本机
 DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取器处理。所有平台均限制文件大小、
 拒绝非普通文件、硬链接、符号链接、Windows 重解析点和打开前后的身份变化；macOS/Linux 继续
 要求 group/other 无权限，Windows 不使用无 ACL 语义的 POSIX mode 投影做误判。
+服务管理器的数据、状态与日志目录同样只在 POSIX 检查 group/other mode 位；目录类型、符号链接
+和 Windows 重解析点检查仍在所有平台生效。
 
 ## 数据与模块
 

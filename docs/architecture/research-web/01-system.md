@@ -22,7 +22,7 @@
 | 本机集成诊断 | `app/research_web/local_integrations/` | 标准应用位置、已知注册信息和 Python 模块的无副作用发现；安全投影与幂等探测，不启动厂商软件 |
 | 受限脚本 | `app/research_web/sandbox.py` | 文件访问、环境和进程终止边界 |
 | 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、私有模块链接校验；启动时按 DataHub 可调用来源注入 `enabledTools`，查询不逐次审批 |
-| 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的进程归属、健康检查、项目私有 DSH 源码选择、持久后台启动、停止和失败回滚 |
+| 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的进程归属、健康检查、跨平台私有目录校验、项目私有 DSH 源码选择、持久后台启动、停止和失败回滚 |
 | 数据迁移 | `app/research_web/data_migration.py` | 会话/附件/能力/数据集/产物的哈希复制；排除凭据并支持只读归档 |
 | 能力管理 | `app/research_web/capabilities/`、`app/research_web/skills/` | 草稿、声明式内置种子、受检资源、版本、原生目录投影、版本化证据协议与只读 Tool 声明 |
 | 报告 Workflow | `app/research_web/report_workflows/`、`report_workflow_routes.py` | 具体报告的模板/底稿资源、不可变版本、迁移、Claw 运行、Excel 刷新、日程与独立交付 |

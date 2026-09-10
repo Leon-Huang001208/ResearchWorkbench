@@ -10,6 +10,7 @@ import re
 import shutil
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -38,6 +39,23 @@ RUNTIME_TOKEN_PATTERN = re.compile(
 
 class ServiceManagerError(RuntimeError):
     """Safe CLI-facing service lifecycle failure."""
+
+
+def _is_unsafe_private_directory(
+    path: Path,
+    identity: os.stat_result,
+    *,
+    platform_name: str,
+) -> bool:
+    """Validate directory structure without treating Windows mode bits as ACLs."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    is_reparse_point = bool(getattr(identity, "st_file_attributes", 0) & reparse_flag)
+    return (
+        not stat.S_ISDIR(identity.st_mode)
+        or path.is_symlink()
+        or is_reparse_point
+        or (platform_name != "nt" and bool(identity.st_mode & 0o077))
+    )
 
 
 @dataclass(frozen=True)
@@ -134,7 +152,8 @@ class WebServiceManager:
     def _prepare_private_directories(self) -> None:
         for path in (self.data_root, self.run_root, self.log_root):
             path.mkdir(parents=True, exist_ok=True, mode=0o700)
-            if path.is_symlink() or path.stat().st_mode & 0o077:
+            identity = path.lstat()
+            if _is_unsafe_private_directory(path, identity, platform_name=os.name):
                 raise ServiceManagerError(f"私有运行目录不安全：{path}")
 
     def _state_path(self, role: str) -> Path:
@@ -536,7 +555,9 @@ class WebServiceManager:
         if running and not force:
             active = self._active_research()
             if active:
-                raise ServiceManagerError(f"存在 {len(active)} 个活动研究，拒绝重启；确需中断时使用 --force")
+                raise ServiceManagerError(
+                    f"存在 {len(active)} 个活动研究，拒绝重启；确需中断时使用 --force"
+                )
         self.stop()
         return self.start(open_browser=open_browser)
 

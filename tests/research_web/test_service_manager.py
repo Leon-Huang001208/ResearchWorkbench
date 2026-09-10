@@ -8,6 +8,7 @@ from app.research_web import service_manager as service_manager_module
 from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
+    _is_unsafe_private_directory,
     format_status,
 )
 
@@ -69,6 +70,28 @@ def test_default_runtime_source_is_project_private(tmp_path, monkeypatch):
     data_root = tmp_path / ".research-workbench" / "research-web"
     resolved = WebServiceManager(project_root=tmp_path, data_root=data_root)
     assert resolved.runtime_source == (tmp_path / ".research-workbench" / "dsh-source").resolve()
+
+
+def test_windows_private_directory_does_not_apply_posix_group_mode_bits(tmp_path):
+    private_directory = tmp_path / "private"
+    private_directory.mkdir(mode=0o755)
+
+    assert not _is_unsafe_private_directory(
+        private_directory,
+        private_directory.lstat(),
+        platform_name="nt",
+    )
+
+
+def test_posix_private_directory_rejects_group_mode_bits(tmp_path):
+    private_directory = tmp_path / "private"
+    private_directory.mkdir(mode=0o755)
+
+    assert _is_unsafe_private_directory(
+        private_directory,
+        private_directory.lstat(),
+        platform_name="posix",
+    )
 
 
 def test_private_state_is_atomic_and_fingerprint_checked(manager, monkeypatch):

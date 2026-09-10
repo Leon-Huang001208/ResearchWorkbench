@@ -377,3 +377,11 @@
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"能力中心在既有Research Web UI内重组为四类互斥主标签、类型内二级视图和共用快览弹窗；同源API、能力执行、DataHub与报告Workflow边界保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Skill、Workflow与Tool继续读取既有目录、版本、状态和选择契约，仅在前端严格分区呈现。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"数据能力与数据源仍由既有DataHub目录、连接状态和单源探测提供，只在能力中心与Tool卡片隔离展示。","diagrams":[]} -->
+
+## 2026-09-10 — Windows 私有运行目录校验兼容
+
+- 原生 CI 证明 DSH 认证文件读取已通过后，服务管理器仍在数据、运行状态和日志目录上误用 Windows `st_mode` 的 POSIX 权限投影。
+- 目录校验现继续拒绝非目录、符号链接与 Windows 重解析点，仅在 POSIX 检查 group/other mode 位；服务、接口、存储位置和数据流均未变化。
+- 新增 Windows/POSIX 目录 mode 回归，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"服务管理器仅修正私有运行目录的跨平台安全判断，不改变服务节点、接口、存储位置或数据流。","diagrams":[]} -->
