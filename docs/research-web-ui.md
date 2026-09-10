@@ -4,7 +4,7 @@
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 真实模型与浏览器旅程见 [验收记录](research-web-acceptance.md)。
 
-页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations` 与设置子路由。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
+页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations` 与设置子路由。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections` 表示类型内二级视图；无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
 当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、DataHub 以外的原生审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
@@ -26,6 +26,7 @@
 | `shell.mjs` | 页面标题、导航搜索弹层、可收起的产品导航、真实运行/最近会话与会话右侧标签面板 |
 | `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索及附件拖放/粘贴入口；不直接发起研究 |
 | `capabilities.mjs` | 同一能力目录的筛选、卡片、详情、检查结果、只读 Tool、不可变版本与 Workflow 模板渲染 |
+| `capability-workspace.mjs` | Skill、Tool、Workflow、数据四个互斥主标签、类型内二级视图、严格类型过滤、运行计划/连接摘要与共用快览 dialog |
 | `data-catalog.mjs` | DataHub 的 15 项能力 / 22 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
 | `connections.mjs` | 设置页统一连接中心、来源分组/同页详情、配置状态矩阵、秘密型表单和旧环境变量迁移确认；不自行读取或持久化凭据 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
@@ -86,7 +87,7 @@ git diff --check
 
 FinGPT 与 Claw 分别呈现首页。FinGPT 面向问题研究，其四个快捷入口严格筛选同一 `/capabilities` 目录中的 `document-reading`、`company-research`、`industry-research`、`fund-evaluation`。Claw 明确目标、约束与预期交付；快捷区标题为“研究步骤模板”，只展示同目录 `kind=workflow` 且 `enabled=true` 的真实模板（包括已发布自建模板），不硬编码模板 ID，也不把缺项替换为 Skill 卡片。Claw 仍可通过上方能力选择框/slash 使用真实 Skill，并明确模板不代表已执行。目录缺项显示空态，不补造卡片。
 
-两种首页分类选项仅来自各自快捷区条目的实际 `category`，`#quick-category[data-quick-category]` 只在本页内存筛选；切换路由时复位，目录更新后未知分类按全部显示。筛选不请求后端、不改变草稿或执行能力。首页卡片使用 v2 四列紧凑布局（手机两列），默认显示名称和简短输入要求；完整说明在能力详情查看，分类放入“浏览研究入口与分类”折叠区。能力中心保持三列卡片，显示简介、来源、输出和实际状态；场景/输入可原位展开，不删除元数据。既有 `data-skill-detail` / `data-skill-shortcut` 按钮保持：详情进入能力中心，选择将不可变的 `capability_id` / `capability_version` 放入此前 FinGPT 或 Claw 的当前草稿，不创建会话或启动模型；旧 `skill_id` 仅保留 API 兼容。
+两种首页分类选项仅来自各自快捷区条目的实际 `category`，`#quick-category[data-quick-category]` 只在本页内存筛选；切换路由时复位，目录更新后未知分类按全部显示。筛选不请求后端、不改变草稿或执行能力。首页卡片使用 v2 四列紧凑布局（手机两列），默认显示名称和简短输入要求；完整说明在能力详情查看，分类放入“浏览研究入口与分类”折叠区。能力中心按视口使用四／三／二／一列卡片，显示简介、来源、输出和实际状态；场景/输入可原位展开，不删除元数据。既有 `data-skill-detail` / `data-skill-shortcut` 按钮保持：详情进入能力中心，选择将不可变的 `capability_id` / `capability_version` 放入此前 FinGPT 或 Claw 的当前草稿，不创建会话或启动模型；旧 `skill_id` 仅保留 API 兼容。
 
 首页采用样品的左对齐标题、800px 编辑区、单行桌面工具栏。模型从顶栏移入编辑器，格式和完整能力下拉按需展开；输入框继续使用既有附件、模型和格式契约。`/` 搜索已启用 Skill/Workflow，ArrowUp/ArrowDown 选择、Enter 放入草稿、Escape 关闭；slash 草稿不会意外提交模型。显式 `expected_formats`（含空数组）优先，否则根据所选目录元数据显示默认格式并由后端绑定；删除了前端平行的硬编码默认格式表。工具意图使用 `tool_ids`；当前 Runtime 已暴露的 DataHub 工具在调用时自动执行、不逐次确认，其他原生审批契约不变。运行时未就绪只禁止真实发送，仍允许浏览和准备草稿。
 
@@ -94,9 +95,11 @@ FinGPT 与 Claw 分别呈现首页。FinGPT 面向问题研究，其四个快捷
 
 ## 能力中心闭环
 
-接口契约和包边界以 [能力包与版本](research-web-capabilities.md) 为准。Skill/Workflow 使用同一目录，支持内置/我的、分类和中文搜索。Tool 仅为只读声明，可选工具才有“放入草稿”；参数、来源、审批与条件均来自后端。
+接口契约和包边界以 [能力包与版本](research-web-capabilities.md) 为准。能力中心固定为 Skill、Tool、Workflow、数据四个主标签，任一页面只渲染当前类型；主标签使用 roving-tab 键盘行为，切换时清除不适用筛选。Skill/Workflow 使用同一目录但分别呈现，并提供能力库与“我的”二级视图；Workflow 另有聚合既有报告日程与运行证据的运行计划。Tool 仅展示真实只读声明、调用状态和授权原因，连接配置深链设置页，可选工具才有“放入草稿”；参数、来源、审批与条件均来自后端。
 
-能力中心新增“数据”页签，但数据不是第四种运行器。页面从 `/data/catalog` 读取静态能力、来源和绑定，支持按能力/按来源双视图，以及分类、市场、状态和鉴权筛选。来源卡同时展示代码、适配、配置、依赖、允许、可调用和最近探测，不能用一个绿色状态掩盖缺口。只有用户点击“检测连接”才 POST 单一来源 probe；打开、切换和刷新目录不联网。把能力放入研究草稿只选择相应的品牌无关 `datahub_*` Tool，不立即取数。
+“数据”主标签不是第四种运行器。页面从 `/data/catalog` 读取静态能力、来源和绑定，以“数据能力 / 数据源与连接”二级视图隔离展示，不与 Tool 卡片混排；保留分类、市场、状态和鉴权筛选。来源卡同时展示代码、适配、配置、依赖、允许、可调用和最近探测，不能用一个绿色状态掩盖缺口。只有用户点击“检测连接”才 POST 单一来源 probe；打开、切换和刷新目录不联网。把能力放入研究草稿只选择相应的品牌无关 `datahub_*` Tool，不立即取数。
+
+四类共用居中快览 `dialog`，展示简介、适用场景、输入、输出、依赖、所需工具和真实状态原因；支持 Escape、遮罩关闭、焦点锁定和关闭后的焦点恢复，手机降级为全屏弹层。“立即使用”只把锁定能力和默认格式带入此前研究草稿，不创建会话、不发送消息；不可用条目禁用操作并显示具体原因。编辑、包文件、版本和报告 Workflow 的复杂管理继续进入专用视图。
 
 手动新建与编辑提交完整 `DraftInput`，剔除服务器生成的 import/file issues，但保留候选文件内容或 base64 字节。脚本阅读后显式确认当前 SHA256，改写候选文件会清除审查确认；保存后还需检查和发布。内置只有复制入口，不覆盖编辑。导入精确 `SKILL.md` 或 ZIP 使用单个 multipart `file`，检查失败仍展示原问题，不伪造成功。发布、停用、启用、回滚与版本查询均调用真实 API，活动冲突保留草稿和后端错误。SSE 状态会回填会话摘要，进入能力中心也刷新列表；可能过期的其他会话 running 缓存仅作提示，不永久锁住发布按钮，后端全局活动锁最终裁决。发布直接采用已确认的完整变更响应，避免额外回读失败把已成功发布误报为失败。历史版本只读，导出地址按 ID/整数版本构造固定同源路径，不信任任意下载 URL。
 
