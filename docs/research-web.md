@@ -100,8 +100,10 @@ sessions/<uuid>/outputs/     # 真正生成的文件
 ```
 
 MySQL 密码由服务名 `ResearchWorkbench.DataHub`、账户键 `mysql:default:password` 保存到操作系统凭据库；凭据库不可用时闭合失败，不降级到环境变量或明文文件。模型 API Key 仍由专属 DSH 管理，两类秘密不共享命名空间。
-私有 Registry 的 Bearer/OAuth 秘密使用独立服务名 `ResearchWorkbench.MCPRegistry`；目录 JSON、API、
-缓存、日志和浏览器投影都只保存非秘密配置与 `secret_configured`，不保存 token、第三方正文或响应体。
+私有 Registry 的 Bearer/OAuth 秘密使用独立服务名 `ResearchWorkbench.MCPRegistry`，仅进入系统凭据库。
+目录缓存与 API 保存并返回经过 schema 校验、长度限制和纯文本处理的规范化目录元数据，包括名称、
+描述、包及远程元数据，以支持浏览与离线降级；它们不保存 token 或原始上游响应体。日志不记录凭据、
+第三方描述或原始上游响应体。
 
 不得使用多个 Uvicorn worker 并发写同一索引。研究正文只读 DSH 日志；浏览器断线不取消任务也不自动重提。
 

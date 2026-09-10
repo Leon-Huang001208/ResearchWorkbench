@@ -13,6 +13,7 @@ const playwrightPath = process.env.PLAYWRIGHT_CORE_PATH || '/Users/leon/.cache/c
 const viewports = [[1440, 1000], [1280, 960], [768, 1024], [390, 844]];
 const themes = ['light', 'dark'];
 const writes = [];
+const maliciousDescription = '<img src=x onerror=alert(1)> 保持为纯文本。';
 
 const registries = [
   { id: 'official', name: 'Official Registry', base_url: 'https://registry.modelcontextprotocol.io', official: true, immutable: true, auth: { type: 'none', secret_configured: false } },
@@ -29,7 +30,7 @@ const servers = [
   {
     registry_id: 'official', name: 'io.example/future-transport', version: '2026.9.1',
     identity: ['official', 'io.example/future-transport', '2026.9.1'], title: 'Future Transport Catalog',
-    description: '<img src=x onerror=alert(1)> 保持为纯文本。', repository: { url: 'https://example.invalid/future' },
+    description: maliciousDescription, repository: { url: 'https://example.invalid/future' },
     packages: [{ registryType: 'future-package', identifier: '<future-package>', version: '2026.9.1' }],
     remotes: [{ type: 'streamable-http', url: 'https://example.invalid/mcp' }], status: 'active', is_latest: true,
   },
@@ -108,6 +109,7 @@ async function runAcceptance() {
   const { chromium } = await import(pathToFileURL(playwrightPath));
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
   const results = [];
+  let thirdPartyTextOnlyChecks = 0;
   try {
     for (const theme of themes) {
       for (const [width, height] of viewports) {
@@ -126,7 +128,9 @@ async function runAcceptance() {
         assert.equal(await page.locator('.mcp-server-card').count(), 2);
         assert.equal(await page.getByText('正在显示离线缓存', { exact: false }).count(), 1);
         assert.equal(await page.getByText('当前不可安装', { exact: true }).count(), 1);
+        assert.equal(await page.getByText(maliciousDescription, { exact: true }).count(), 1, 'malicious description must remain visible literal text');
         assert.equal(await page.locator('.mcp-server-card img, .mcp-server-card script').count(), 0);
+        thirdPartyTextOnlyChecks += 1;
         const expectedColumns = width >= 1400 ? 4 : width <= 600 ? 1 : width <= 1100 ? 2 : 3;
         const metrics = await assertContained(page, expectedColumns);
         if (theme === 'light' && width === 1440) {
@@ -176,7 +180,8 @@ async function runAcceptance() {
     forbiddenActionsObserved: { install: 0, publisherExecution: 0, registryMutation: 0 },
     interactions: {
       canonicalRoute: true, typeIsolation: true, registrySelector: true, search: true,
-      staleOfflineCache: true, supportedAndUnknownPackages: true, thirdPartyTextOnly: true,
+      staleOfflineCache: true, supportedAndUnknownPackages: true,
+      thirdPartyTextOnly: thirdPartyTextOnlyChecks === results.length,
       detailDialog: true, escapeClose: true, backdropClose: true, focusRestore: true,
       reducedMotion: true, consoleErrors: 0, pageErrors: 0, failedResponses: 0,
     },

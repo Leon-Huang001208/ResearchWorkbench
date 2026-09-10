@@ -32,7 +32,8 @@
 - Archify：showcase 9/9，0 errors/warnings；visual-check 四视口通过；人工查看 1440/2048
   Light/Dark 四张同哈希截图，无视觉缺陷。
 - MCP 市场 E2E：8 个 viewport/theme 组合通过，4/3/2/1 列，reduced-motion 与 dialog 交互通过，
-  0 写请求、0 安装、0 Publisher 执行。
+  恶意 fixture 描述的完整字面值在每个组合中仍为可见文本且未生成 `img`/`script` 节点；receipt 的
+  `thirdPartyTextOnly` 由这 8 次实际检查计算。0 写请求、0 安装、0 Publisher 执行。
 
 ## Not Verified
 
