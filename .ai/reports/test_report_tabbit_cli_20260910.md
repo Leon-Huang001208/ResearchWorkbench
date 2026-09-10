@@ -23,9 +23,9 @@
 
 - 隔离 `.venv` 使用用户已授权的仓库既有 `.[dev]` 依赖；未新增或调整项目依赖。
 - Tabbit、Runtime、协议、API、连接中心和本机集成定向测试：99 passed、1 skipped、1 warning。
-- `env -u DSH_SOURCE_ROOT ... pytest tests/research_web --confcutdir=tests/research_web`：614 passed、4 skipped、1 warning；跳过项为需要原生 DSH 源码的验证。
+- `env -u DSH_SOURCE_ROOT ... pytest tests/research_web --confcutdir=tests/research_web`：621 passed、4 skipped、1 warning；跳过项为需要原生 DSH 源码的验证。
 - 使用本机 `DSH_SOURCE_ROOT` 运行同一套件：606 passed、1 skipped、2 setup errors；两项均因源码提交 `c389f96bf3a9b6807cb71ed6bdad5849be0df6d8` 与锁定提交 `c919b2a460753859665db3f60143d525fb9140cf` 不一致，未放宽 pin。
-- 完整 Research Web Node 测试：220 passed、1 skipped；其中 Tabbit、设置、Runtime guard、Research Web UI 与本机集成定向测试为 58 passed。CI 同构 Tabbit Python/Node 合约分别为 72 passed 和 51 passed；Windows 直接根因相关 Python 集为 105 passed、1 skipped。`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 语法检查通过。
+- 完整 Research Web Node 测试：220 passed、1 skipped；其中 Tabbit、设置、Runtime guard、Research Web UI 与本机集成定向测试为 58 passed。CI 同构 Tabbit Python/Node 合约分别为 76 passed 和 51 passed；Windows 直接根因相关 Python 集为 109 passed、1 skipped，服务管理/本机集成定向集为 26 passed、1 skipped。`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 语法检查通过。
 - Ruff 0.16.6、Black 26.5.1 check、isort 9.0.1 check：17 个相关 Python 文件通过；首轮按计划限定格式化 8 个 CI 报告文件，本轮只额外格式化新增直接根因涉及的 `datahub/security.py`、`store.py` 与 `test_datahub.py`。
 - mypy 2.3.1：工作流列出的 6 个 Tabbit/Runtime 源文件以 `--follow-imports=skip` 通过，新增 DataHub/Store 3 个直接根因文件以相同隔离模式通过。该模式只检查显式目标，避免把本轮扩大到导入图内 7 个既有模块的 18 项无关类型债务；项目仍以 Python 3.11 为目标，NumPy/Transformers 外部 stub 保留定向 `follow_imports=skip`。
 - `node scripts/check_research_architecture.mjs` 与 `scripts/check_doc_sync.py --base origin/master`：无违规。
