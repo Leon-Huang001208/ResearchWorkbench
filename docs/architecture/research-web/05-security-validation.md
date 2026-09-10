@@ -7,6 +7,9 @@
 | 边界 | 实际约束 | 核对位置 / 测试 |
 |---|---|---|
 | Web → FastAPI | 本地 Host、同源、输入 schema；不开放任意代理 URL | `main.py` / `test_api.py` |
+| FastAPI → MCP Registry | 官方端点固定 `/v0.1`，私有 Registry 仅显式配置；认证 Registry 只允许 HTTPS，无认证 HTTP 仅限 `127.0.0.1` / `localhost` / `::1`，OAuth 端点始终为 HTTPS，客户端不跟随重定向；同名身份隔离、游标不解释、ETag 与最后成功缓存原子提交 | `mcp_registry/` / `test_mcp_registry.py`、MCP 市场 JS/E2E |
+| Registry 凭据 → 系统凭据库 | Bearer/OAuth 秘密只存 Keyring `ResearchWorkbench.MCPRegistry`；索引、缓存、日志和响应不含秘密 | `mcp_registry/credentials.py` / `test_mcp_registry.py` |
+| Registry 文本 → 浏览器 | schema 校验与长度限制后保存 Unicode plain text，拒绝 control/surrogate；数据层不做 entity escape，最终 HTML sink 单次转义且不热链图标 | `mcp_registry/models.py`、`ui/mcp-marketplace.mjs` / Python、JS、E2E |
 | 本机诊断 → 宿主 | 只读取标准应用位置、已知注册项和模块可用性；不启动软件，投影排除绝对路径、秘密、命令和环境变量 | `local_integrations/` / `test_local_integrations.py` |
 | FastAPI → DSH | 固定回环 RPC、共享有界认证控制读取、文件身份/别名检查、方法白名单、双事件通道 | `runtime_auth.py`、`client.py` / `test_runtime_auth.py`、`test_protocol.py`、`test_event_recovery.py` |
 | 服务管理 → 私有目录 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL | `service_manager.py` / `test_service_manager.py` |
@@ -44,6 +47,8 @@ Windows 不使用 POSIX mode bit 证明 DSH 认证文件或 DataHub 私有文件
 ```bash
 DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness python -m pytest tests/research_web --confcutdir=tests/research_web -q
 DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness node --test tests/javascript/research_web*.test.mjs
+python -m pytest -q tests/research_web/test_mcp_registry.py
+node tests/e2e/research_web_mcp_marketplace.mjs
 node --check app/research_web/ui/app.mjs
 git diff --check
 ```

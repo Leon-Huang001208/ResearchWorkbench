@@ -6,51 +6,54 @@
     "output": "02-module-dependencies.html",
     "quality_profile": "showcase",
     "viewBox": [1600, 860],
-    "repository": {
-      "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "99f403574cc81c5563b6ddf4d4223417d96838ee"
-    },
     "views": [
-      {"id": "reportPath", "label": "报告 Workflow", "focus": ["browser", "api", "reportManager", "reportStore", "workbookTool", "excel", "snapshots", "dsh", "assemblyTool"], "note": "后端先刷新并固化快照，Claw 研究后只交付结构化 payload，再由确定性 Tool 组装和验证文件。"},
-      {"id": "assetPath", "label": "资产观察", "focus": ["browser", "api", "assetWorkspace", "datahub", "providers", "snapshots"], "note": "资产页按区块查询真实来源；已加载资料固化为会话快照后再交给 FinGPT 或 Claw。"},
-      {"id": "sharedExecution", "label": "共享执行边界", "focus": ["reportManager", "dsh", "datahub", "providers", "snapshots"], "note": "DSH 启动时只注册有可调用来源的 DataHub 工具；用户 MySQL 密码留在系统凭据库，父子 Agent 复用同一快照。"},
-      {"id": "liveBrowser", "label": "Tabbit 实时标签", "focus": ["browser", "api", "dsh", "providers"], "note": "BFF 只传递会话授权、标签 ID 和一次性 token；DSH 内唯一 ctx.tabbit 执行原子 claim 与实时 DOM 提取。"}
+      {"id": "mcpRegistry", "label": "只读 MCP Registry", "focus": ["browser", "api", "mcpService", "mcpState", "registries"], "note": "MCP 市场只读聚合官方与私有 Registry；失败保留最后成功缓存，认证秘密只进入系统凭据库。"},
+      {"id": "reportPath", "label": "报告 Workflow", "focus": ["browser", "api", "reportManager", "reportStore", "workbookTool", "excel", "dsh", "assemblyTool", "snapshots"], "note": "后端锁定版本并由独立 Excel Tool 刷新、校验运行副本，Claw 交付结构化 payload，再由确定性 Tool 组装和重开文件。"},
+      {"id": "assetPath", "label": "资产观察与 DataHub", "focus": ["browser", "api", "assetWorkspace", "datahub", "providers", "snapshots"], "note": "资产页按区块查询真实来源；资料固化为会话快照后再交给 FinGPT 或 Claw。"},
+      {"id": "liveBrowser", "label": "Tabbit 实时标签", "focus": ["browser", "api", "dsh", "providers"], "note": "BFF 传递会话授权、标签 ID 和一次性 token；DSH 内 ctx.tabbit 执行原子 claim 与实时 DOM 提取。"}
     ]
   },
   "components": [
-    {"id": "browser", "type": "frontend", "label": "Research Web", "sublabel": "FinGPT · Claw · 资产观察 · 能力中心", "pos": [40, 330], "size": [185, 78], "sources": [{"path": "app/research_web/ui/app.mjs"}, {"path": "app/research_web/ui/shell.mjs"}]},
-    {"id": "api", "type": "backend", "label": "FastAPI BFF", "sublabel": "/api/research/*", "pos": [275, 330], "size": [165, 78], "sources": [{"path": "app/research_web/main.py"}]},
-    {"id": "reportManager", "type": "backend", "label": "Report Workflow", "sublabel": "版本 · 资源 · 运行 · 日程", "pos": [500, 330], "size": [190, 78], "sources": [{"path": "app/research_web/report_workflows/manager.py"}, {"path": "app/research_web/report_workflow_routes.py"}]},
-    {"id": "dsh", "type": "external", "label": "专属 DSH 3081", "sublabel": "Claw · Skill · Tabbit adapter", "pos": [750, 330], "size": [205, 78], "sources": [{"path": "app/research_web/client.py"}, {"path": "app/research_web/launch_runtime.py"}, {"path": "app/research_web/runtime/tabbit-adapter.mjs"}]},
-    {"id": "assemblyTool", "type": "backend", "label": "报告组装与检查 Tool", "sublabel": "payload → Office / HTML", "pos": [1015, 330], "size": [210, 78], "sources": [{"path": "app/research_web/report_rendering.py"}, {"path": "app/research_web/report_render_script.py"}]},
-    {"id": "snapshots", "type": "database", "label": "会话隔离快照", "sublabel": "数据集 · 产物 · manifest", "pos": [1285, 330], "size": [205, 78], "sources": [{"path": "app/research_web/datahub/snapshots.py"}, {"path": "app/research_web/store.py"}]},
-    {"id": "reportStore", "type": "database", "label": "Workflow 版本包", "sublabel": "模板 · Excel 底稿 · 映射 · Hash", "pos": [500, 95], "size": [205, 78], "sources": [{"path": "app/research_web/report_workflows/catalog.py"}]},
-    {"id": "workbookTool", "type": "backend", "label": "Excel 刷新 Tool", "sublabel": "复制 · 重算 · 校验 · 保存", "pos": [750, 95], "size": [210, 78], "sources": [{"path": "app/research_web/report_workflows/workbook.py"}]},
-    {"id": "excel", "type": "external", "label": "Excel + 插件", "sublabel": "Wind / iFinD · 本机登录态", "pos": [1015, 95], "size": [210, 78]},
-    {"id": "assetWorkspace", "type": "backend", "label": "资产观察服务", "sublabel": "区块状态 · 自选 · 笔记 · 提醒", "pos": [500, 555], "size": [190, 78], "sources": [{"path": "app/research_web/workbench.py"}, {"path": "app/research_web/ui/asset-workspace.mjs"}]},
-    {"id": "datahub", "type": "backend", "label": "DataHub", "sublabel": "enabledTools · 自动查询 · 快照", "pos": [750, 555], "size": [190, 78], "sources": [{"path": "app/research_web/datahub/broker.py"}, {"path": "app/research_web/runtime/public-data.mjs"}]},
-    {"id": "providers", "type": "external", "label": "外部与本机来源", "sublabel": "Data Provider · Tabbit Browser", "pos": [1015, 555], "size": [210, 78], "sources": [{"path": "app/research_web/datahub/catalog.py"}, {"path": "app/research_web/datahub/providers.py"}, {"path": "app/research_web/runtime/tabbit-adapter.mjs"}]}
+    {"id": "browser", "type": "frontend", "label": "Research Web", "sublabel": "FinGPT · Claw · 资产观察 · MCP 市场", "pos": [40, 380], "size": [185, 78]},
+    {"id": "api", "type": "backend", "label": "FastAPI BFF", "sublabel": "/api/research/*", "pos": [275, 380], "size": [165, 78]},
+    {"id": "reportManager", "type": "backend", "label": "Report Workflow", "sublabel": "版本 · 资源 · 运行 · 日程", "pos": [500, 380], "size": [190, 78]},
+    {"id": "dsh", "type": "external", "label": "专属 DSH 3081", "sublabel": "Claw · Skill · Tabbit adapter", "pos": [750, 380], "size": [205, 78]},
+    {"id": "assemblyTool", "type": "backend", "label": "报告组装与检查 Tool", "sublabel": "payload → Office / HTML", "pos": [1015, 380], "size": [210, 78]},
+    {"id": "snapshots", "type": "database", "label": "会话隔离快照", "sublabel": "数据集 · 产物 · manifest", "pos": [1285, 380], "size": [205, 78]},
+    {"id": "mcpService", "type": "backend", "label": "MCP Registry Service", "sublabel": "v0.1 · ETag · opaque cursor", "pos": [500, 35], "size": [210, 78]},
+    {"id": "mcpState", "type": "security", "label": "原子缓存 + OS Keyring", "sublabel": "stale-good · MCPRegistry", "pos": [750, 35], "size": [220, 78]},
+    {"id": "registries", "type": "external", "label": "官方与私有 Registry", "sublabel": "HTTPS · v0.1 · 显式认证", "pos": [1015, 35], "size": [220, 78]},
+    {"id": "reportStore", "type": "database", "label": "Workflow 版本包", "sublabel": "模板 · Excel 底稿 · 映射 · Hash", "pos": [500, 210], "size": [205, 78]},
+    {"id": "workbookTool", "type": "backend", "label": "Excel 刷新 Tool", "sublabel": "复制 · 重算 · 校验 · 保存", "pos": [750, 210], "size": [210, 78]},
+    {"id": "excel", "type": "external", "label": "Excel + 插件", "sublabel": "Wind / iFinD · 本机登录态", "pos": [1015, 210], "size": [210, 78]},
+    {"id": "assetWorkspace", "type": "backend", "label": "资产观察服务", "sublabel": "区块状态 · 自选 · 笔记 · 提醒", "pos": [500, 565], "size": [190, 78]},
+    {"id": "datahub", "type": "backend", "label": "DataHub", "sublabel": "enabledTools · 自动查询 · 快照", "pos": [750, 565], "size": [190, 78]},
+    {"id": "providers", "type": "external", "label": "登记数据源", "sublabel": "Data Provider · Tabbit Browser", "pos": [1015, 565], "size": [220, 78]}
   ],
   "boundaries": [
-    {"kind": "region", "label": "Research Workbench Web 单进程边界", "wraps": ["api", "assetWorkspace", "reportManager", "datahub", "reportStore", "snapshots", "workbookTool", "assemblyTool"], "pad": 24}
+    {"kind": "region", "label": "Research Workbench 本地主机", "wraps": ["api", "reportManager", "reportStore", "workbookTool", "assemblyTool", "snapshots", "mcpService", "mcpState", "assetWorkspace", "datahub"], "pad": 24}
   ],
   "connections": [
-    {"id": "webApi", "from": "browser", "to": "api", "label": "同源 HTTP / SSE", "variant": "emphasis", "labelAt": [250, 326]},
-    {"id": "reportRoute", "from": "api", "to": "reportManager", "label": "报告运行 API", "variant": "emphasis", "labelAt": [470, 422]},
-    {"id": "startClaw", "from": "reportManager", "to": "dsh", "label": "创建 Claw 会话", "variant": "emphasis", "labelAt": [720, 326]},
-    {"id": "payload", "from": "dsh", "to": "assemblyTool", "label": "结构化 payload", "variant": "emphasis", "labelAt": [985, 422]},
-    {"id": "assemble", "from": "assemblyTool", "to": "snapshots", "label": "组装、重开与哈希", "variant": "security", "labelAt": [1255, 326]},
+    {"id": "webApi", "from": "browser", "to": "api", "label": "同源 HTTP / SSE", "variant": "emphasis", "labelAt": [250, 376]},
+    {"id": "mcpRoute", "from": "api", "to": "mcpService", "label": "只读 Registry API", "variant": "emphasis", "fromSide": "top", "toSide": "left", "via": [[357.5, 320], [470, 320], [470, 74]], "labelAt": [420, 310]},
+    {"id": "registryState", "from": "mcpService", "to": "mcpState", "label": "原子缓存与秘密引用", "variant": "security", "labelAt": [730, 31]},
+    {"id": "registrySync", "from": "mcpState", "to": "registries", "label": "HTTPS 同步", "variant": "security", "labelAt": [992, 127]},
+    {"id": "reportRoute", "from": "api", "to": "reportManager", "label": "报告运行 API", "variant": "emphasis", "labelAt": [470, 472]},
+    {"id": "startClaw", "from": "reportManager", "to": "dsh", "label": "创建 Claw 会话", "variant": "emphasis", "labelAt": [720, 376]},
+    {"id": "payload", "from": "dsh", "to": "assemblyTool", "label": "结构化 payload", "variant": "emphasis", "labelAt": [985, 472]},
+    {"id": "assemble", "from": "assemblyTool", "to": "snapshots", "label": "组装、重开与哈希", "variant": "security", "labelAt": [1255, 376]},
     {"id": "reportVersions", "from": "reportManager", "to": "reportStore", "label": "锁定不可变版本", "fromSide": "top", "toSide": "bottom", "labelDx": -65},
-    {"id": "refreshWorkbook", "from": "reportManager", "to": "workbookTool", "label": "刷新运行副本", "fromSide": "top", "toSide": "bottom", "labelAt": [730, 238]},
-    {"id": "controlExcel", "from": "workbookTool", "to": "excel", "label": "串行本机自动化", "labelAt": [988, 91]},
-    {"id": "assetRoute", "from": "api", "to": "assetWorkspace", "label": "资产观察 API", "fromSide": "bottom", "toSide": "left", "labelAt": [475, 485]},
-    {"id": "dataRoute", "from": "assetWorkspace", "to": "datahub", "label": "分块业务查询", "labelAt": [720, 647]},
-    {"id": "routeProvider", "from": "datahub", "to": "providers", "label": "白名单 Provider", "labelAt": [978, 551]},
-    {"id": "liveClaim", "from": "dsh", "to": "providers", "label": "ctx.tabbit · claim / DOM / keep", "variant": "security", "fromSide": "bottom", "toSide": "right", "via": [[852.5, 480], [1260, 480], [1260, 594]], "labelAt": [1100, 470]}
+    {"id": "refreshWorkbook", "from": "reportManager", "to": "workbookTool", "label": "刷新运行副本", "fromSide": "top", "toSide": "bottom", "via": [[595, 330], [855, 330]], "labelAt": [730, 320]},
+    {"id": "controlExcel", "from": "workbookTool", "to": "excel", "label": "串行本机自动化", "labelAt": [988, 206]},
+    {"id": "assetRoute", "from": "api", "to": "assetWorkspace", "label": "资产观察 API", "fromSide": "bottom", "toSide": "left", "labelAt": [475, 530]},
+    {"id": "dataRoute", "from": "assetWorkspace", "to": "datahub", "label": "分块业务查询", "labelAt": [720, 657]},
+    {"id": "routeProvider", "from": "datahub", "to": "providers", "label": "白名单 Provider", "labelAt": [978, 657]},
+    {"id": "dataSnapshot", "from": "datahub", "to": "snapshots", "label": "固化会话数据集", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "via": [[845, 700], [1387.5, 700]], "labelAt": [1115, 690]},
+    {"id": "liveClaim", "from": "dsh", "to": "providers", "label": "ctx.tabbit · claim / DOM / keep", "variant": "security", "fromSide": "bottom", "toSide": "right", "via": [[852.5, 515], [1260, 515], [1260, 604]], "labelAt": [1100, 505]}
   ],
   "cards": [
-    {"dot": "cyan", "title": "资产观察不是演示页", "items": ["每个区块独立呈现 complete / partial / empty / unavailable / error", "无真实数据时不补价格、估值、主题或同类比较"]},
-    {"dot": "violet", "title": "研究与组装职责分离", "items": ["华安 ETF、创业板 50 等每篇报告拥有自己的模板与底稿", "Claw 生成结构化内容；后端 Tool 确定性组装并重开文件"]},
-    {"dot": "amber", "title": "本机能力失败即阻塞", "items": ["Wind / iFinD 登录、公式、日期或必填项失败进入 blocked_data", "Tabbit claim / DOM / finish 任一失败均不提交消息"]}
+    {"dot": "cyan", "title": "只读 Registry 边界", "items": ["身份固定为 Registry ID、Server 名称、版本三元组；失败返回 stale 最后成功缓存", "秘密只在系统凭据库；目录按有界纯文本处理；Publisher 只外部交接，不安装或调用"]},
+    {"dot": "violet", "title": "研究、数据与组装分离", "items": ["资产查询与报告 Workflow 复用 DataHub 快照，不补演示事实", "锁定版本、Excel 刷新、Claw payload 与确定性组装职责分开"]},
+    {"dot": "amber", "title": "外部能力失败即阻塞", "items": ["Excel / Wind / iFinD 验证失败进入 blocked_data", "Tabbit claim / DOM / finish 任一步失败均不提交消息"]}
   ]
 }

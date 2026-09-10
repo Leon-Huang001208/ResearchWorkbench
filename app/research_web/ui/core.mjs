@@ -3,7 +3,7 @@ const segment = (value) => encodeURIComponent(value);
 const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'operations', 'settings']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
-const capabilityViews = new Set(['library', 'mine', 'plans', 'connections']);
+const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
 const capabilityKinds = new Set(['skill', 'tool', 'workflow', 'data']);
 
 export function parseRoute(hash = '') {
@@ -22,11 +22,12 @@ export function parseRoute(hash = '') {
   if (page === 'skills') {
     const requestedView = capabilityViews.has(params.get('view')) ? params.get('view') : 'library';
     const requestedKind = capabilityKinds.has(params.get('kind')) ? params.get('kind') : null;
-    route.capabilityKind = requestedKind || (requestedView === 'plans' ? 'workflow' : requestedView === 'connections' ? 'tool' : 'skill');
+    route.capabilityKind = requestedKind || (requestedView === 'plans' ? 'workflow' : ['connections', 'market'].includes(requestedView) ? 'tool' : 'skill');
     route.capabilityView = requestedView;
     if (requestedView === 'mine' && !['skill', 'workflow'].includes(route.capabilityKind)) route.capabilityView = 'library';
     if (requestedView === 'plans' && route.capabilityKind !== 'workflow') route.capabilityView = 'library';
     if (requestedView === 'connections' && !['tool', 'data'].includes(route.capabilityKind)) route.capabilityView = 'library';
+    if (requestedView === 'market' && route.capabilityKind !== 'tool') route.capabilityView = 'library';
   }
   if (page === 'settings') {
     const connection = params.get('connection');
@@ -113,10 +114,27 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   }
   const sessionPath = (id) => `/sessions/${segment(id)}`;
   const capabilityPath = (id) => `/capabilities/${segment(id)}`;
+  const mcpRegistryPath = (id) => `/mcp/registries/${segment(id)}`;
   return {
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
     capabilities: () => request('/capabilities'), tools: () => request('/tools'),
+    mcpRegistries: () => request('/mcp/registries'),
+    mcpRegistry: (id) => request(mcpRegistryPath(id)),
+    createMcpRegistry: (body) => request('/mcp/registries', { method: 'POST', body }),
+    updateMcpRegistry: (id, body) => request(mcpRegistryPath(id), { method: 'PATCH', body }),
+    deleteMcpRegistry: (id) => request(mcpRegistryPath(id), { method: 'DELETE' }),
+    mcpSyncRegistry: (id, body = {}) => request(`${mcpRegistryPath(id)}/sync`, { method: 'POST', body }),
+    mcpServers: ({ registryId, search = '', cursor = '', limit = 100 } = {}) => {
+      const params = new URLSearchParams({ registry_id: String(registryId || '') });
+      if (search) params.set('search', String(search));
+      if (cursor) params.set('cursor', String(cursor));
+      params.set('limit', String(limit));
+      return request(`/mcp/servers?${params.toString()}`);
+    },
+    mcpServerVersion: (registryId, serverName, version) => request(`/mcp/servers/${segment(registryId)}/${segment(serverName)}/versions/${segment(version)}`),
+    mcpPublisherPreview: (body) => request('/mcp/publisher/preview', { method: 'POST', body }),
+    mcpPublisherValidate: (body) => request('/mcp/publisher/validate', { method: 'POST', body }),
     reportWorkflows: () => request('/report-workflows'),
     reportWorkflow: (id) => request(`/report-workflows/${segment(id)}`),
     runReportWorkflow: (id) => request(`/report-workflows/${segment(id)}/runs`, { method: 'POST', body: {} }),

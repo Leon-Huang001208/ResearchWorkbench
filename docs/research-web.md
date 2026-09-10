@@ -3,6 +3,15 @@
 本轮以 Web → FastAPI → DSH 原生 RPC / 双 WebSocket 为唯一研究链路。
 不加载旧数据库、研究运行器、知识处理和桌面生命周期。
 
+2026-09-10 的阶段 2A 在同一 FastAPI 进程内增加**只读 MCP Registry**：Tool 工作区的
+`#/skills?kind=tool&view=market` 聚合固定的官方 Registry 与用户显式配置的私有 Registry，
+身份始终是 `(registry_id, server_name, version)`，同名 Server 不合并。官方适配器只访问
+`/v0.1`，保留 opaque cursor、ETag、同步时间和最后成功缓存；网络、超时或响应校验失败时返回
+`stale=true` 的旧缓存，不以空结果覆盖。该功能由 `RESEARCH_MCP_REGISTRY_ENABLED` 控制，默认关闭。
+阶段 2A 不安装、启用或调用 MCP Server，也不包含 Automation；这些仍属于阶段 2B/2C。
+Registry 默认只接受 HTTPS；唯一 HTTP 例外是 `auth=none` 且主机精确为
+`127.0.0.1`、`localhost` 或 `::1` 的显式 loopback，OAuth 授权和 token 端点始终必须使用 HTTPS。
+
 ## 实施顺序
 
 1. 原生协议、归属索引、历史与 SSE；FinGPT 页面集成。
@@ -71,6 +80,7 @@ DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取�
 - `store.py`：原子本地 JSON 索引（单 Web worker），不保存模型正文；文件使用不跟随符号链接的目录描述符打开。
 - `main.py`：回环 Web API、安全来源边界、上传与隔离预览；无旧业务启动钩子。
 - `local_integrations/`：无副作用的主机软件发现、安全状态投影和幂等探测任务；不启动厂商软件，不返回本机路径或秘密。
+- `mcp_registry/`：官方/私有 Registry 配置、固定 v0.1 同步、原子目录与缓存、Keyring 秘密引用，以及只生成外部命令的 publisher handoff；不执行 publisher、安装或 MCP 调用。
 - `ui/`：正式五页与原生模块，详见 [UI 文档](research-web-ui.md)。
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
 - `skills/`：市场解读、资料解读、公司研究、行业研究、基金评价和因子库研究六类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
@@ -85,6 +95,8 @@ DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取�
 ```text
 index.json                   # 归属、默认模型和幂等受理收据
 connections/mysql.json       # 当前用户 MySQL 非秘密配置；密码不在此文件
+mcp-registry/catalog.json    # 官方与私有 Registry 的非秘密配置
+mcp-registry/cache/          # 按来源、查询与版本分区的最后成功缓存、ETag 和 stale 状态
 runtime/home/                # 专属DSH历史与凭据
 runtime/work/                # 干净启动目录，无.env
 runtime/*-lock.json           # 本地源码/构建锁
@@ -95,6 +107,12 @@ sessions/<uuid>/outputs/     # 真正生成的文件
 ```
 
 MySQL 密码由服务名 `ResearchWorkbench.DataHub`、账户键 `mysql:default:password` 保存到操作系统凭据库；凭据库不可用时闭合失败，不降级到环境变量或明文文件。模型 API Key 仍由专属 DSH 管理，两类秘密不共享命名空间。
+私有 Registry 的 Bearer/OAuth 秘密使用独立服务名 `ResearchWorkbench.MCPRegistry`，仅进入系统凭据库。
+目录缓存与 API 保存并返回经过 schema 校验、长度限制和纯文本处理的规范化目录元数据，包括名称、
+描述、包及远程元数据，以支持浏览与离线降级。字符串保持有界 Unicode plain text，拒绝控制字符和
+surrogate，不在数据层做 HTML entity escape；UI 只在最终 HTML sink 转义一次。包元数据分别暴露
+`package_type_supported` 与 `immutable_reference` 两项事实，阶段 2A 不承诺制品可安装。缓存和 API
+不保存 token 或原始上游响应体；日志不记录凭据、第三方描述或原始上游响应体。
 
 不得使用多个 Uvicorn worker 并发写同一索引。研究正文只读 DSH 日志；浏览器断线不取消任务也不自动重提。
 

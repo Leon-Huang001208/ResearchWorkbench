@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/01k50tabbit9f7h2r6c4y8n3pqa/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/01k50tabbit9f7h2r6c4y8n3pqa/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20260910-13b392ed9d19-integration/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20260910-13b392ed9d19-integration/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "087ceee4849f7887c7c2c46b9144a72360a4a2f66c4fdede4c9b8dab219a4e1a",
-    "bytes": 7373
+    "sha256": "8fe5f5b5e4b5995f747a8e44112b28ab869df22e5bd811a13b9b0256bac14f55",
+    "bytes": 6452
   },
   "artifact": {
-    "sha256": "7bc7adb5deed802154af88427bd2cc23482f6a2f44288fd8dd88abe3ca1754cc",
-    "bytes": 649718
+    "sha256": "350ad97e2b780ead1c3c86e43cea174d362264a8560c0808a1f59d479954280b",
+    "bytes": 646743
   },
   "validation": {
     "checksPassed": 9,
@@ -20,11 +20,5 @@
     "compositionStatus": "pass",
     "errors": 0,
     "warnings": 0
-  },
-  "evidence": {
-    "verified": true,
-    "repository": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-    "revision": "99f403574cc81c5563b6ddf4d4223417d96838ee",
-    "references": 21
   }
 }

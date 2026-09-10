@@ -27,6 +27,7 @@
         "tests/javascript/research_web_workbench.test.mjs",
         "tests/javascript/research_web_tabbit_ui.test.mjs",
         "tests/javascript/research_web_settings_ui.test.mjs",
+        "tests/javascript/research_web_mcp_marketplace.test.mjs",
         "tests/e2e/research_web_layout.mjs",
         "tests/e2e/research_web_live_readback.mjs",
         "tests/e2e/research_web_custom_skill_readback.mjs",
@@ -36,7 +37,8 @@
         "tests/e2e/research_web_pdf_live.mjs",
         "tests/e2e/research_web_stop_live.mjs",
         "tests/javascript/research_web_appearance.test.mjs",
-        "tests/e2e/research_web_appearance.mjs"
+        "tests/e2e/research_web_appearance.mjs",
+        "tests/e2e/research_web_mcp_marketplace.mjs"
       ]
     },
     {
@@ -61,6 +63,7 @@
       ],
       "diagrams": [
         "01-deployment",
+        "02-module-dependencies",
         "03-research-sequence",
         "06-run-state"
       ],
@@ -73,6 +76,30 @@
         "tests/research_web/test_cancel_reconciliation.py",
         "tests/research_web/test_service_manager.py",
         "tests/research_web/test_tabbit.py"
+      ]
+    },
+    {
+      "id": "mcp-registry",
+      "sources": [
+        "app/research_web/mcp_registry/"
+      ],
+      "documents": [
+        "docs/research-web.md",
+        "docs/research-web-capabilities.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/architecture/research-web/07-capabilities.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies"
+      ],
+      "tests": [
+        "tests/research_web/test_mcp_registry.py",
+        "tests/research_web/test_api.py",
+        "tests/javascript/research_web_mcp_marketplace.test.mjs",
+        "tests/e2e/research_web_mcp_marketplace.mjs"
       ]
     },
     {
@@ -253,6 +280,7 @@
         "app/research_web/documentation.py",
         "scripts/check_research_architecture.mjs",
         "scripts/check_doc_sync.py",
+        "scripts/build_research_web_api_atlas.mjs",
         ".agents/project-constraints.mjs",
         ".agents/project-constraints.json",
         ".github/workflows/project-constraints.yml"
@@ -282,7 +310,8 @@
       "evidence": [
         {
           "subjects": [
-            "browser"
+            "browser",
+            "webApi"
           ],
           "source": "app/research_web/ui/app.mjs"
         },
@@ -294,14 +323,10 @@
         },
         {
           "subjects": [
-            "api"
-          ],
-          "source": "app/research_web/main.py"
-        },
-        {
-          "subjects": [
+            "api",
             "webApi",
             "assetRoute",
+            "mcpRoute",
             "reportRoute",
             "dataRoute"
           ],
@@ -309,54 +334,37 @@
         },
         {
           "subjects": [
-            "assetWorkspace"
+            "mcpService",
+            "registrySync"
           ],
-          "source": "app/research_web/ui/asset-workspace.mjs"
+          "source": "app/research_web/mcp_registry/service.py"
         },
         {
           "subjects": [
-            "reportManager"
+            "mcpState",
+            "registryState"
+          ],
+          "source": "app/research_web/mcp_registry/catalog.py"
+        },
+        {
+          "subjects": [
+            "registries"
+          ],
+          "source": "app/research_web/mcp_registry/service.py"
+        },
+        {
+          "subjects": [
+            "reportManager",
+            "startClaw"
           ],
           "source": "app/research_web/report_workflows/manager.py"
         },
         {
           "subjects": [
-            "reportStore"
-          ],
-          "source": "app/research_web/report_workflows/catalog.py"
-        },
-        {
-          "subjects": [
-            "reportVersions"
-          ],
-          "source": "app/research_web/report_workflows/catalog.py"
-        },
-        {
-          "subjects": [
-            "dsh"
-          ],
-          "source": "app/research_web/report_workflows/runtime.py"
-        },
-        {
-          "subjects": [
-            "startClaw",
+            "dsh",
             "payload"
           ],
           "source": "app/research_web/report_workflows/runtime.py"
-        },
-        {
-          "subjects": [
-            "workbookTool"
-          ],
-          "source": "app/research_web/report_workflows/workbook.py"
-        },
-        {
-          "subjects": [
-            "refreshWorkbook",
-            "controlExcel",
-            "excel"
-          ],
-          "source": "app/research_web/report_workflows/workbook.py"
         },
         {
           "subjects": [
@@ -373,21 +381,40 @@
         },
         {
           "subjects": [
-            "snapshots"
+            "snapshots",
+            "dataSnapshot"
           ],
           "source": "app/research_web/datahub/snapshots.py"
         },
         {
           "subjects": [
-            "providers"
+            "providers",
+            "routeProvider"
           ],
           "source": "app/research_web/datahub/providers.py"
         },
         {
           "subjects": [
-            "routeProvider"
+            "assetWorkspace",
+            "dataRoute"
           ],
-          "source": "app/research_web/datahub/broker.py"
+          "source": "app/research_web/workbench.py"
+        },
+        {
+          "subjects": [
+            "workbookTool",
+            "refreshWorkbook",
+            "excel",
+            "controlExcel"
+          ],
+          "source": "app/research_web/report_workflows/workbook.py"
+        },
+        {
+          "subjects": [
+            "reportStore",
+            "reportVersions"
+          ],
+          "source": "app/research_web/report_workflows/catalog.py"
         }
       ]
     },
@@ -920,6 +947,76 @@
     }
   ],
   "apis": [
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/registries",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/registries",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/registries",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/registries",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/registries/{registry_id}",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/registries/{registry_id}",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/mcp/registries/{registry_id}",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/registries/{registry_id}",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/research/mcp/registries/{registry_id}",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/registries/{registry_id}",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/registries/{registry_id}/sync",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/registries/{registry_id}/sync",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/servers",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/servers",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/servers/{registry_id}/{server_name:path}/versions/{version}",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/servers/{registry_id}/{server_name:path}/versions/{version}",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/publisher/preview",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/publisher/preview",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/publisher/validate",
+      "source": "app/research_web/mcp_registry/routes.py",
+      "declaredPath": "/publisher/validate",
+      "prefix": "/api/research/mcp"
+    },
     {
       "method": "GET",
       "path": "/api/research/runtime",

@@ -77,7 +77,7 @@ no-store、no-referrer、nosniff 仍由现有中间件执行。
 
 ## 测试与日志
 
-API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单离线生成；只包含 Method、路径、领域和仓库相对源码，不访问运行服务或外网。
+API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单离线生成；只包含 Method、路径、领域和仓库相对源码，不访问运行服务或外网。`/mcp/` 路由单独归类为 `MCP Registry`，避免把只读 Registry 同步、目录浏览和 Publisher 外部交接混入普通能力目录。
 
 `tests/javascript/research_web_architecture.test.mjs` 构造独立临时十图 fixture，验证有效输入，
 源码无说明、未映射模块、失效接口/前缀、图源或 HTML 与旧回执、缺图、断链、丢失截图和

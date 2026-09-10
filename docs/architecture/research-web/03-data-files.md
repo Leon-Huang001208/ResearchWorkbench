@@ -1,5 +1,12 @@
 # DataHub、研究资料与实际文件
 
+Phase 2A 另在 `<RESEARCH_DATA_HOME>/mcp-registry/` 保存非敏感 Registry 索引以及按 Registry
+隔离的原子缓存。官方 `/v0.1` 的不透明游标、ETag 与同步时间只随成功结果提交；网络或上游失败
+只把最后成功缓存标记为 `stale`，不会用空结果覆盖。缓存目录元数据经过 schema 校验和长度限制，
+以 Unicode plain text 保存名称、描述、包/远程元数据，拒绝控制字符和 surrogate，不保存 HTML entity
+编码。Bearer/OAuth 秘密不进入这些 JSON、会话、资料快照或日志，而由系统凭据库服务
+`ResearchWorkbench.MCPRegistry` 持有。
+
 ## 一个数据服务，两种消费者
 
 DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运行的第四种能力，也不是新服务。Web 通过“能力中心 → 数据”浏览 15 项业务数据能力、22 个登记来源及其绑定矩阵；DSH 通过品牌无关的 `datahub_*` 业务 Tool 取数。通用 MySQL 配置与会话文件位于当前设备数据根，密码由系统凭据库隔离；Research Runtime 启动时只注册至少有一个可调用来源的工具。

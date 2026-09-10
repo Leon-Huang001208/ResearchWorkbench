@@ -15,14 +15,14 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "7bc7adb5deed802154af88427bd2cc23482f6a2f44288fd8dd88abe3ca1754cc",
-      "specificationSha256": "087ceee4849f7887c7c2c46b9144a72360a4a2f66c4fdede4c9b8dab219a4e1a",
+      "artifactSha256": "350ad97e2b780ead1c3c86e43cea174d362264a8560c0808a1f59d479954280b",
+      "specificationSha256": "8fe5f5b5e4b5995f747a8e44112b28ab869df22e5bd811a13b9b0256bac14f55",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-10",
-      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.2048x1320.dark.png"],
+      "date": "2026-09-11",
+      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png", "02-module-dependencies.visual-check.2048x1320.dark.png"],
       "findings": [],
-      "notes": "已人工查看 1440 浅色与 2048 深色最终截图；Tabbit Browser 经唯一 ctx.tabbit 与专属 DSH 相连，实时 claim 连线避开报告与 DataHub 路径，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明真实浏览器当前可用。"
+      "notes": "已人工查看同一最终哈希的 1440 与 2048 浅色/深色四张截图；只读 MCP 市场到 FastAPI、Registry service、原子缓存/OS Keyring、官方及私有 Registry 的路径清晰，报告 Workflow、专属 DSH、组装、资产观察、DataHub、会话快照与 Tabbit 实时 claim 主链仍可读。未见遮挡、裁剪、节点穿线或失衡的底部留白。图只证明结构表达，不证明 Registry、Tabbit 或 Provider 在线，也不表示已安装、启用或调用 MCP。"
     },
     {
       "id": "05-capability-flow",

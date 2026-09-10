@@ -11,6 +11,7 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({'&'
 
 function category(api) {
   const route = api.path;
+  if (route.includes('/mcp/')) return 'MCP Registry';
   if (route.includes('/report-workflows') || route.includes('/report-runs')) return '报告 Workflow';
   if (route.includes('/assets/') || route.includes('/watchlists') || route.includes('/asset-')) return '资产观察';
   if (route.includes('/data/') || route.includes('/datasets') || route.includes('/handoffs') || route.includes('/artifacts')) return 'DataHub 与交接';
