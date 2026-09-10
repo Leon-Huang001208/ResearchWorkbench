@@ -19,6 +19,10 @@ Windows 上按存在性保留 `USERPROFILE`、`LOCALAPPDATA`，供官方插件�
 npm 归档成员与供应清单始终按 `PurePosixPath` 比较；通过链接和路径穿越检查后才转换为本机路径。
 overlay 中的 adapter 入口始终使用 `/`，避免 Windows 路径分隔符改变 DSH 配置语义。
 
+能力工作区的 `#/skills?kind=tool&view=market` MCP Registry 目录与 Tabbit 只共用 Research Web
+路由外壳，不复用 Tabbit 授权、候选或 claim 状态。进入能力工作区时会先清空尚未提交的 Tabbit
+菜单请求；Registry 浏览保持只读，也不会改变本节约定的页面访问授权与实时 claim 生命周期。
+
 ## 配置与状态
 
 设置 → 本地集成提供两个独立开关：

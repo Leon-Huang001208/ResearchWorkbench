@@ -15,8 +15,8 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "350ad97e2b780ead1c3c86e43cea174d362264a8560c0808a1f59d479954280b",
-      "specificationSha256": "8fe5f5b5e4b5995f747a8e44112b28ab869df22e5bd811a13b9b0256bac14f55",
+      "artifactSha256": "f17201cb21aea87945ad8d098d30d02a3c99c4b9c8fd8ad265c65eda7bc559a2",
+      "specificationSha256": "99e8abdfdfb75f4a93f0d583810ffd7a340e4c0be94bb01caa260813d24b0422",
       "status": "reviewed",
       "reviewer": "controller",
       "date": "2026-09-11",

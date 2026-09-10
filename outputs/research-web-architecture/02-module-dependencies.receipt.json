@@ -6,12 +6,12 @@
   "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20260910-13b392ed9d19-integration/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
   "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20260910-13b392ed9d19-integration/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "8fe5f5b5e4b5995f747a8e44112b28ab869df22e5bd811a13b9b0256bac14f55",
-    "bytes": 6452
+    "sha256": "99e8abdfdfb75f4a93f0d583810ffd7a340e4c0be94bb01caa260813d24b0422",
+    "bytes": 7349
   },
   "artifact": {
-    "sha256": "350ad97e2b780ead1c3c86e43cea174d362264a8560c0808a1f59d479954280b",
-    "bytes": 646743
+    "sha256": "f17201cb21aea87945ad8d098d30d02a3c99c4b9c8fd8ad265c65eda7bc559a2",
+    "bytes": 652010
   },
   "validation": {
     "checksPassed": 9,
