@@ -1,4 +1,4 @@
-import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe } from './core.mjs';
+import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForLocalIntegrationProbe } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
 import { icon } from './icons.mjs';
@@ -18,7 +18,7 @@ import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, setti
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let quickCategory = '';
@@ -28,7 +28,7 @@ let assetState = { observations: [], observation: null, rows: {}, watchlists: []
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
-let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false;
+let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false;
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -121,9 +121,10 @@ function settingsPage() {
     runtime: catalog.runtime,
     models: catalog.models,
     runtimeLabel: runtimeLabel(),
-    busy: state.busy || connectionProbeBusy,
+    busy: state.busy || connectionProbeBusy || localIntegrationProbeBusy,
     modelFailures: catalog.modelFailures,
     connections: catalog.connections,
+    localIntegrations: catalog.localIntegrations,
     selectedConfiguration: selectedConnectionConfiguration,
     migrationOpen,
     connectionDetailOpen,
@@ -217,7 +218,7 @@ function render() {
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = [...catalog.capabilities, ...catalog.tools, ...catalog.reportWorkflows.map(item => ({ ...item, kind: 'report-workflow' })), ...(catalog.dataCatalog.capabilities || [])];
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录', connections: '连接中心', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
   window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -245,6 +246,14 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
         sources: Array.isArray(data?.sources) ? data.sources : Array.isArray(data?.items) ? data.items : [],
         platform: data?.platform || {},
         migration: data?.migration || {},
+      };
+      else if (name === 'localIntegrations') catalog.localIntegrations = {
+        platform: data?.platform || 'unknown',
+        service: data?.service || {},
+        summary: data?.summary || {},
+        categories: Array.isArray(data?.categories) ? data.categories : [],
+        items: Array.isArray(data?.items) ? data.items : [],
+        last_checked_at: data?.last_checked_at || null,
       };
       else if (name === 'artifacts') catalog.artifacts = data.items || [];
       else catalog[name] = data.items || [];
@@ -361,10 +370,16 @@ async function showRoute() {
     migrationOpen = false;
     connectionDetailOpen = true;
     selectedConnectionConfiguration = null;
-    const section = currentSettingsSection();
+    let section = currentSettingsSection();
     const catalogs = settingsRefreshCatalogs(section);
     if (catalogs.length) await loadCatalog(catalogs);
-    if (['data', 'local'].includes(section)) {
+    const resolvedSection = currentSettingsSection();
+    if (resolvedSection !== section) {
+      section = resolvedSection;
+      const resolvedCatalogs = settingsRefreshCatalogs(section);
+      if (resolvedCatalogs.length) await loadCatalog(resolvedCatalogs);
+    }
+    if (section === 'data') {
       const selectedId = currentSettingsConnectionId();
       if (selectedId) await loadConnectionConfiguration(selectedId);
     }
@@ -742,6 +757,20 @@ root.addEventListener('click', async (event) => {
   }
   const button = clickTarget?.closest?.('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
+  if ('localCategoryTarget' in data) {
+    const target = document.getElementById(data.localCategoryTarget);
+    const main = document.querySelector('#main');
+    const scroller = main?.scrollHeight > main?.clientHeight ? main : document.scrollingElement;
+    if (target && scroller) {
+      target.focus({ preventScroll: true });
+      const scrollerTop = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
+      const currentTop = scroller === document.scrollingElement ? window.scrollY : scroller.scrollTop;
+      const top = currentTop + target.getBoundingClientRect().top - scrollerTop - 60;
+      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+      scroller.scrollTo({ top: Math.max(0, top), behavior });
+    }
+    return;
+  }
   if ('connectionGroup' in data) {
     const workbench = button.closest('[data-connection-workbench]');
     if (!workbench) return;
@@ -784,7 +813,7 @@ root.addEventListener('click', async (event) => {
   }
   if ('connectionProbe' in data) {
     const sourceId = data.connectionProbe; state.error = ''; success = '';
-    const sourceLabel = sourceId === 'local_cache' ? '本机环境' : (catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId);
+    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
     connectionProbeBusy = true; render();
     try {
       const accepted = await controller.action(() => api.probeDataSource(sourceId, `probe-${sourceId}-${crypto.randomUUID()}`), { refreshAfter: false });
@@ -799,6 +828,23 @@ root.addEventListener('click', async (event) => {
       safeLog('connection_probe_failed', { status: error?.code || error?.name || 'unknown' });
     } finally {
       connectionProbeBusy = false; render();
+    }
+    return;
+  }
+  if ('localIntegrationsProbe' in data) {
+    state.error = ''; success = ''; localIntegrationProbeBusy = true; render();
+    try {
+      const accepted = await api.probeLocalIntegrations(`local-integrations-${crypto.randomUUID()}`);
+      if (typeof accepted?.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的探测任务，请刷新后重试。');
+      const current = await waitForLocalIntegrationProbe((probeId) => api.localIntegrationProbe(probeId), accepted.id);
+      if (current.status !== 'completed' || !current.snapshot) throw new Error(current?.error?.message || '本机能力检测未完成。');
+      catalog.localIntegrations = current.snapshot;
+      success = '本机能力状态已更新。';
+    } catch (error) {
+      state.error = error?.message || '本机能力检测失败，请重试。';
+      safeLog('local_integration_probe_failed', { status: error?.code || error?.name || 'unknown' });
+    } finally {
+      localIntegrationProbeBusy = false; render();
     }
     return;
   }
@@ -866,10 +912,10 @@ root.addEventListener('click', async (event) => {
     else if (state.route.page === 'history' && state.route.historyView === 'deleted') await loadCatalog(['deletedSessions']);
     else if (state.route.page === 'settings') {
       const section = currentSettingsSection();
-      if (['data', 'local'].includes(section)) selectedConnectionConfiguration = null;
+      if (section === 'data') selectedConnectionConfiguration = null;
       const catalogs = settingsRefreshCatalogs(section);
       if (catalogs.length) await loadCatalog(catalogs);
-      if (['data', 'local'].includes(section)) {
+      if (section === 'data') {
         const selectedId = currentSettingsConnectionId();
         if (selectedId) await loadConnectionConfiguration(selectedId);
       }

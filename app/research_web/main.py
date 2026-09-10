@@ -29,6 +29,8 @@ from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
+from .local_integrations import LocalIntegrationError
+from .local_integrations.routes import router as local_integrations_router
 from .operations import router as operations_router
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
@@ -111,6 +113,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(asset_router)
     app.include_router(capabilities_router)
     app.include_router(documentation_router)
+    app.include_router(local_integrations_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
     app.include_router(report_workflow_router)
@@ -196,6 +199,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.exception_handler(CapabilityError)
     async def capability_error(request, exc):
         log.warning("capability_request_rejected", code=exc.code)
+        return JSONResponse(
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
+        )
+
+    @app.exception_handler(LocalIntegrationError)
+    async def local_integration_error(request, exc):
+        log.warning("local_integration_request_rejected", code=exc.code)
         return JSONResponse(
             {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )
