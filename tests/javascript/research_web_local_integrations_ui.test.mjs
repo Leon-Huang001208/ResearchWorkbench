@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 
 import { createAPI, waitForLocalIntegrationProbe } from '../../app/research_web/ui/core.mjs';
-import { renderLocalIntegrationConsole } from '../../app/research_web/ui/connections.mjs';
+import { createLocalIntegrationPollingGuard, renderLocalIntegrationConsole } from '../../app/research_web/ui/connections.mjs';
 import { parseRoute } from '../../app/research_web/ui/core.mjs';
 import { renderSettingsPage, settingsRefreshCatalogs } from '../../app/research_web/ui/settings.mjs';
 
@@ -103,12 +103,30 @@ test('eligible Office rows expose explicit verification actions and per-target p
       : category),
   };
   const html = renderLocalIntegrationConsole(expanded, { verificationTarget: 'word' });
+  assert.match(html, /role="status" aria-live="polite" aria-atomic="true">正在验证 Word，完成后将自动更新状态。/);
   assert.match(html, /data-local-integration-verify="excel"/);
   assert.match(html, /data-local-integration-verify="word"[^>]*disabled[^>]*aria-busy="true"[^>]*>验证中…/);
   assert.match(html, /最近验证：2026-09-10T01:00:00Z/);
   assert.doesNotMatch(html, /最近验证：2026-09-10T00:00:00Z/);
   assert.doesNotMatch(html, /data-local-integration-verify="ifind/);
   assert.match(html, /配置 iFinD HTTP API/);
+});
+
+test('local verification polling guard invalidates stale page and refresh work', () => {
+  let localPageActive = true;
+  const guard = createLocalIntegrationPollingGuard(() => localPageActive);
+  const first = guard.begin();
+  assert.equal(guard.isCurrent(first), true);
+
+  const second = guard.begin();
+  assert.equal(guard.isCurrent(first), false);
+  assert.equal(guard.isCurrent(second), true);
+
+  localPageActive = false;
+  assert.equal(guard.isCurrent(second), false);
+  localPageActive = true;
+  guard.invalidate();
+  assert.equal(guard.isCurrent(second), false);
 });
 
 test('settings local section loads the dedicated model while data keeps DataHub connections', () => {
@@ -179,6 +197,9 @@ test('application controller no longer loads DataHub connections for the local p
   const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
   assert.match(app, /localIntegrations:\s*\{\s*categories:/);
   assert.match(app, /api\.probeLocalIntegrations/);
+  assert.match(app, /localIntegrationPollingGuard\.invalidate\(\)/);
+  assert.match(app, /localIntegrationPollingGuard\.isCurrent\(verificationTicket\)/);
+  assert.match(app, /return \{ status: 'cancelled' \}/);
   assert.match(app, /localCategoryTarget/);
   assert.match(app, /focus\(\{ preventScroll: true \}\)/);
   assert.match(app, /document\.scrollingElement/);

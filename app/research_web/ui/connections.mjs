@@ -52,6 +52,22 @@ const localVerificationTargets = {
   wind_excel_addin: 'wind_excel',
 };
 
+const localVerificationLabels = {
+  excel: 'Excel',
+  word: 'Word',
+  powerpoint: 'PowerPoint',
+  wind_excel: 'Wind Excel',
+};
+
+export function createLocalIntegrationPollingGuard(isActive = () => true) {
+  let generation = 0;
+  return {
+    begin() { generation += 1; return generation; },
+    invalidate() { generation += 1; },
+    isCurrent(ticket) { return ticket === generation && isActive(); },
+  };
+}
+
 function renderLocalIntegrationRow(item, verificationTarget = '') {
   const actions = Array.isArray(item?.actions) ? item.actions.map(safeLocalAction).join('') : '';
   const target = localVerificationTargets[item?.id];
@@ -81,7 +97,12 @@ export function renderLocalIntegrationConsole(model = {}, { busy = false, verifi
     const rows = categoryItems.length ? categoryItems.map((item) => renderLocalIntegrationRow(item, verificationTarget)).join('') : '<p class="local-category-empty">当前没有已登记项目。</p>';
     return `<section class="local-integration-category" id="local-category-${e(category.id)}" tabindex="-1" aria-labelledby="local-category-title-${e(category.id)}"><header><h2 id="local-category-title-${e(category.id)}">${e(category.label || category.id)}</h2><span>${categoryItems.length} 项</span></header><div class="local-integration-column-head" aria-hidden="true"><span>集成</span><span>发现</span><span>授权</span><span>验证</span><span>可调用</span></div>${rows}</section>`;
   }).join('');
-  const announcement = `${serviceLabel}，${summary.available ?? 0} 项可用，${summary.needs_attention ?? 0} 项需处理。`;
+  const verificationLabel = localVerificationLabels[verificationTarget];
+  const announcement = verificationLabel
+    ? `正在验证 ${verificationLabel}，完成后将自动更新状态。`
+    : busy
+      ? '正在检测本机集成状态，请稍候。'
+      : `${serviceLabel}，${summary.available ?? 0} 项可用，${summary.needs_attention ?? 0} 项需处理。`;
   return `<section class="local-integration-console" data-local-integrations-console><p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${e(announcement)}</p><section class="local-integration-summary" aria-label="本机集成概览"><div><span class="local-service-indicator ${model?.service?.online ? 'ready' : 'danger'}"><span aria-hidden="true"></span>${e(serviceLabel)}</span><p>诊断分别保留发现、授权、验证和可调用事实。</p></div><dl><div><dt><strong>${e(summary.available ?? 0)}</strong> 项可用</dt></div><div><dt><strong>${e(summary.needs_attention ?? 0)}</strong> 项需处理</dt></div></dl><button class="button primary local-integrations-probe" type="button" data-local-integrations-probe ${busy ? 'disabled aria-busy="true"' : ''}>${busy ? '检测中…' : '重新检测'}</button></section>${nav}${groups}<section class="local-report-automation"><div><p class="eyebrow">WORKFLOW</p><h2>报告自动化</h2><p>报告工作流消费 Excel、Word、PowerPoint、Wind/iFinD 数据能力生成报告，并根据自身资源与依赖单独判断能否运行。</p></div><a class="button" href="#/skills?kind=workflow">查看报告 Workflow</a></section></section>`;
 }
 
