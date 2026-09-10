@@ -106,6 +106,7 @@ python scripts/check_doc_sync.py
 
 Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真实模型验收单独记录，不以 MockTransport/TestClient 代替。
 `DSH_SOURCE_ROOT` 只用于测试已存在的原生 JSON Schema 转换器；未设置时该项会跳过，不能据此宣称协议验证完整。
+Windows 本机集成专项冒烟使用一次性、无真实权限的回环认证元数据构造 DSH 客户端，仅验证 Web 服务生命周期、平台投影和探测端点；不据此宣称 DSH、Office、Wind 或 iFinD 已连接。
 
 ## 原生协议与产品细节
 
