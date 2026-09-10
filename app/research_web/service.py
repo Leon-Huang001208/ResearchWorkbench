@@ -23,6 +23,7 @@ from .client import DSHClient, RuntimeFailure
 from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
 from .local_integrations import LocalIntegrationManager
+from .mcp_registry import MCPRegistryService
 from .projection import project
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
@@ -53,6 +54,7 @@ class ResearchService:
         owned: bool = True,
         expected_cwd: Path | None = None,
         delivery_python: Path | None = None,
+        mcp_registry: MCPRegistryService | None = None,
     ):
         self.client, self.store, self.owned = client, store, owned
         self.expected_cwd = expected_cwd
@@ -60,6 +62,7 @@ class ResearchService:
         self.capabilities = CapabilityCatalog(store.root)
         self.datahub = DataHub(store)
         self.local_integrations = LocalIntegrationManager(store.root / "local-integrations")
+        self.mcp_registry = mcp_registry or MCPRegistryService(store.root)
         self.asset_workspace = AssetWorkspace(self)
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)
@@ -95,6 +98,7 @@ class ResearchService:
             )
 
     async def start(self):
+        await self.mcp_registry.start()
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
         await self.report_workflows.start()
         await self.purge_expired_sessions()
@@ -111,6 +115,7 @@ class ResearchService:
         await self.report_workflows.close()
         await self.asset_workspace.close()
         await self.local_integrations.close()
+        await self.mcp_registry.close()
         await self.datahub.close()
         if self.pump:
             self.pump.cancel()
