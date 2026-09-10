@@ -36,6 +36,8 @@ summary contains only local-service health, available items and actionable items
 The DataHub connection endpoints and remote data-source workbench contract remain unchanged.
 DataHub catalog, brand-neutral business tools, broker, Provider, probe and snapshot contracts live in `app/research_web/datahub/`, `app/research_web/launch_runtime.py`, `app/research_web/runtime/public-data.mjs` and [DataHub](research-web-datahub.md). `catalog.py` is the no-network source of truth for the 15-capability / 22-source UI. `datahub/connections.py` owns per-source local non-secret configuration, OS keyring boundaries and the explicitly confirmed legacy-environment migration; `providers_mysql.py` owns MySQL privilege checks, exact schema identifiers and bounded single-table reads. The Settings UI reads the safe `/data/connections` projection and generic source-configuration endpoints. Runtime start/restart materializes only tools whose capability has `callable_source_count > 0`. The legacy connector map below does not make a Research Web provider callable.
 
+`app/research_web/datahub/security.py` keeps descriptor-relative, no-follow IO on POSIX and a Windows-only startup control-file fallback that validates canonical containment, reparse points, regular-file identity, hard-link count and size. Native `windows-2022` CI must start the full loopback service before local-integration support is considered verified.
+
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
 `app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill 加五个专用 Skill 共 11 项，四个
 Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-protocol.md` 是专用 Skill 的共享证据

@@ -70,7 +70,7 @@ def _yaml_data(model) -> dict:
 def _atomic_json(path: Path, value: dict) -> None:
     fd, temporary = tempfile.mkstemp(prefix="catalog-", dir=path.parent)
     try:
-        with os.fdopen(fd, "w") as stream:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(value, stream, ensure_ascii=False, indent=2)
             stream.flush()
             os.fsync(stream.fileno())
@@ -215,7 +215,7 @@ class ReportWorkflowService:
     def _reload(self) -> None:
         try:
             value: dict[str, Any] = (
-                json.loads(self.index.read_text())
+                json.loads(self.index.read_text(encoding="utf-8"))
                 if self.index.exists()
                 else {"schema_version": 1, "workflows": {}, "runs": {}}
             )
@@ -295,7 +295,7 @@ class ReportWorkflowService:
                 self._save()
             return
         disk: dict[str, Any] = (
-            json.loads(self.index.read_text())
+            json.loads(self.index.read_text(encoding="utf-8"))
             if self.index.exists()
             else {"schema_version": 1, "workflows": {}, "runs": {}}
         )
@@ -391,7 +391,8 @@ class ReportWorkflowService:
             (draft / "workflow.yaml").write_text(
                 yaml.safe_dump(
                     workflow or {"steps": []}, allow_unicode=True, sort_keys=False
-                )
+                ),
+                encoding="utf-8",
             )
             (draft / "validation.yaml").write_text(
                 yaml.safe_dump(
@@ -404,7 +405,8 @@ class ReportWorkflowService:
                     },
                     allow_unicode=True,
                     sort_keys=False,
-                )
+                ),
+                encoding="utf-8",
             )
         except OSError as exc:
             log.error(
@@ -530,7 +532,8 @@ class ReportWorkflowService:
             (temporary / "manifest.yaml").write_text(
                 yaml.safe_dump(
                     _yaml_data(manifest), allow_unicode=True, sort_keys=False
-                )
+                ),
+                encoding="utf-8",
             )
             os.replace(temporary, target)
             for path in target.rglob("*"):
@@ -567,7 +570,9 @@ class ReportWorkflowService:
     def manifest(self, workflow_id: str, version: int) -> ReportWorkflowManifest:
         package = self._version_path(workflow_id, version)
         try:
-            raw = yaml.safe_load((package / "manifest.yaml").read_text())
+            raw = yaml.safe_load(
+                (package / "manifest.yaml").read_text(encoding="utf-8")
+            )
             manifest = ReportWorkflowManifest.model_validate(raw)
         except (OSError, ValueError, TypeError, ValidationError, yaml.YAMLError) as exc:
             log.warning(
@@ -842,7 +847,7 @@ class ReportWorkflowService:
         ):
             raise WorkflowError("刷新清单不存在", "refresh_manifest_not_found", 404)
         try:
-            value = json.loads(path.read_text())
+            value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError, TypeError) as exc:
             raise WorkflowError(
                 "刷新清单不可读取", "refresh_manifest_invalid", 409
@@ -891,9 +896,9 @@ class ReportWorkflowService:
                 )
                 try:
                     value = (
-                        json.loads(mapping_path.read_text())
+                        json.loads(mapping_path.read_text(encoding="utf-8"))
                         if mapping_path.suffix.lower() == ".json"
-                        else yaml.safe_load(mapping_path.read_text())
+                        else yaml.safe_load(mapping_path.read_text(encoding="utf-8"))
                     )
                 except (OSError, ValueError, TypeError, yaml.YAMLError) as exc:
                     log.warning(

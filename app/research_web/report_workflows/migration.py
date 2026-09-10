@@ -96,7 +96,7 @@ class ReportWorkflowMigration:
             candidate = folder / filename
             if candidate.is_file() and not candidate.is_symlink():
                 try:
-                    loaded = yaml.safe_load(candidate.read_text())
+                    loaded = yaml.safe_load(candidate.read_text(encoding="utf-8"))
                     if isinstance(loaded, dict):
                         config.update(loaded)
                 except (OSError, yaml.YAMLError):
@@ -114,7 +114,7 @@ class ReportWorkflowMigration:
                 and candidate.resolve().is_relative_to(root)
             ):
                 try:
-                    loaded = yaml.safe_load(candidate.read_text())
+                    loaded = yaml.safe_load(candidate.read_text(encoding="utf-8"))
                     if isinstance(loaded, dict):
                         report_config = loaded
                 except (OSError, yaml.YAMLError):

@@ -74,3 +74,7 @@ HTML 产物使用无同源权限的 sandbox 预览与限制 CSP。下载不执�
 停止异常复核直接记录失败原因，不解析文件；只有完整原生结束证据才进入实际文件校验。收据内部的停止意图不暴露给模型或浏览器，错误码与解释可见。详见 [交付实现](../../research-web-delivery.md)。
 
 来源：`delivery.py`、`delivery_validation.py`、`store.py`、`sandbox.py` 和 `datahub/`。既有协议、文件安全、取消、自动工具过滤、数据快照与真实文件验收在本次 UI/能力改动后需要重跑。
+
+产品索引和 Report Workflow 目录的文本元数据固定使用 UTF-8 读取与原子写入；Windows 默认代码页不得改变中文内容。文件归属、目录结构、原子替换和单 worker 边界均保持不变。
+
+DataHub 启动控制文件在 POSIX 继续使用目录描述符和 `NOFOLLOW`；Windows 仅对固定 `.control/datahub.json` 使用规范化路径回退，并拒绝重解析点、非普通文件、硬链接、越界路径、超限内容及打开前后身份变化。此修正不改变会话快照发布格式。

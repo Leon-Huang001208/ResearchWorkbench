@@ -115,7 +115,7 @@ class ReportWorkflowManager:
         fd, temporary = tempfile.mkstemp(prefix="draft-", dir=path.parent)
         try:
             try:
-                with os.fdopen(fd, "w") as stream:
+                with os.fdopen(fd, "w", encoding="utf-8") as stream:
                     yaml.safe_dump(value, stream, allow_unicode=True, sort_keys=False)
                     stream.flush()
                     os.fsync(stream.fileno())
@@ -184,7 +184,9 @@ class ReportWorkflowManager:
             for filename in ("workflow.yaml", "validation.yaml"):
                 self._atomic_yaml(
                     draft / filename,
-                    yaml.safe_load((source_root / filename).read_text()),
+                    yaml.safe_load(
+                        (source_root / filename).read_text(encoding="utf-8")
+                    ),
                 )
             for resource in manifest.resources:
                 if resource.path in {"workflow.yaml", "validation.yaml"}:

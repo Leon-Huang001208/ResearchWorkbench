@@ -48,7 +48,7 @@ class Store:
         self.index = self.root / "index.json"
         try:
             self.data = (
-                json.loads(self.index.read_text())
+                json.loads(self.index.read_text(encoding="utf-8"))
                 if self.index.exists()
                 else {"sessions": {}, "receipts": {}}
             )
@@ -77,7 +77,7 @@ class Store:
     def save(self):
         fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
         try:
-            with os.fdopen(fd, "w") as stream:
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(self.data, stream, ensure_ascii=False)
                 stream.flush()
                 os.fsync(stream.fileno())

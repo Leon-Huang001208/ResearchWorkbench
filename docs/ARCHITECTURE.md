@@ -24,6 +24,8 @@ Runtime 内存中以会话绑定、单次消费、10 分钟过期 token 暂存�
 
 当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 15 项能力与 22 个登记来源；统一连接中心从当前设备 `<RESEARCH_DATA_HOME>/connections/` 读取各来源非秘密配置，MySQL、iFinD、知丘及 Key 型来源的秘密固定存入操作系统凭据库。Wind 只依赖用户本机已登录会话，Excel 作为分层本机能力诊断。真实 Runtime 仅在启动或重启时物化 `callable_source_count > 0` 的品牌无关 `datahub_*` 业务 Tool。MySQL 只开放逐级 schema 和参数化单表查询，不接受原始 SQL；登记、配置、探测、适配和可调用状态分别显示，组件检测成功不等于可调用。
 
+Research Web 在 Windows 上启动 DataHub 私有回环控制文件时使用受限路径回退：拒绝符号链接和重解析点、固定文件名、限制文件类型/大小/硬链接并核对打开前后的文件身份。POSIX 继续使用 `dir_fd`、`O_DIRECTORY` 与 `O_NOFOLLOW`；两条路径不改变 DataHub 服务节点或 API 拓扑。
+
 能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 11 个内置 Skill 和 4 个
 Workflow；其中五个专用研究 Skill 仍通过同一 DSH 原生发现、不可变版本和会话快照链执行，
 没有新增路由 Skill、API 类型或执行器。品牌中立证据协议以

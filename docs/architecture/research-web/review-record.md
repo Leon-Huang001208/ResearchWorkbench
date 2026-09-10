@@ -351,3 +351,21 @@
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机诊断控制台继续位于既有设置Hash子页，只改用专用同源投影并重排浏览器内信息层级。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新增进程内本机诊断管理器与同源接口，不增加外部服务、研究执行通道或跨进程数据流。","diagrams":[]} -->
+
+## 2026-09-10 — Windows 本机集成原生验证
+
+- 新增 `windows-2022` 专项作业，真实启动既有回环服务并验证本机集成快照、幂等探测和设置页契约。
+- 首轮原生执行发现 Windows 默认 CP1252 无法读取中文能力种子；启动所需产品索引、能力包及 Report Workflow 文本现统一显式 UTF-8。
+- 这只修正既有磁盘格式的跨平台读取方式并增加验证通道，不新增服务、接口、存储位置或数据流，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"产品索引文本改为显式UTF-8，目录归属、原子替换和文件数据流保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力种子、工具白名单和目录索引显式使用UTF-8，能力包版本与原生发现拓扑保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"报告目录与迁移元数据显式使用UTF-8，Workflow版本、运行与交付数据流保持不变。","diagrams":[]} -->
+
+## 2026-09-10 — Windows 回环控制文件启动兼容
+
+- Windows 原生 CI 在中文能力完成装载后暴露 POSIX 专属 `O_DIRECTORY/O_NOFOLLOW/dir_fd` 阻塞 DataHub 初始化。
+- 仅为启动所需固定控制文件增加 Windows 路径回退，保留链接、重解析点、越界、文件类型、硬链接、大小和身份核对；POSIX 路径不变。
+- 服务、API、DataHub 节点和快照数据流均未变化，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows仅增加固定私有控制文件的安全路径回退，DataHub服务、Provider、API和快照数据流保持不变。","diagrams":[]} -->

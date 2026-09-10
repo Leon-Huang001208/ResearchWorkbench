@@ -41,6 +41,23 @@ Fork 维护约定：`Leon-Huang001208/deepseek-harness` 的 `master` 只用
 `workbench-runtime` 提交变化，都必须同步本文件、启动器与能力目录的固定 SHA、私有运行副本和
 `build-lock.json`。若官方提供等价永久删除能力，应移除重复补丁，只保留必要的 Workbench 兼容桥。
 
+## Windows 本机集成验证
+
+本机集成诊断由 `.github/workflows/research-web-windows-verify.yml` 在原生
+`windows-2022` runner 上验证。作业运行本机集成 API、探测生命周期与页面契约，实际启动回环服务、
+调用专用状态接口并完成一次探测，再上传仅含平台、汇总及 Wind/iFinD 非秘密状态的证据。
+
+Research Web 启动时读取的产品索引、能力种子与 Report Workflow 目录显式使用 UTF-8，避免 Windows
+默认代码页把中文能力文档误判为不可读。该作业覆盖整个 `app/research_web/` 变更范围，确保
+启动依赖变化也会触发原生 Windows 验证；DataHub 的全量平台回归由独立测试负责。
+
+GitHub runner 未预装厂商软件时，结果只证明 Windows 检测链路和服务可运行，不证明
+Office、Wind 或 iFinD 已登录或可调用。
+
+Windows 不支持 POSIX 的目录描述符标志；服务启动所需的 DataHub 私有控制文件因此使用专用
+路径回退，并在读写前拒绝符号链接/重解析点、越界目录、非普通文件、硬链接和超限内容。
+DataHub 会话快照与连接配置写入的完整 Windows 兼容性不在本机集成专项结论内。
+
 ## 数据与模块
 
 - `client.py`：允许列表 RPC、关联 ID 检查、双下行通道和历史分页。HTTP 超时只限制受理，不限制任务时长。

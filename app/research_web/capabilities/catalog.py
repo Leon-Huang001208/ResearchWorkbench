@@ -66,7 +66,7 @@ class CapabilityCatalog:
         self.index = self.root / "catalog.json"
         try:
             if self.index.exists():
-                self.data = json.loads(self.index.read_text())
+                self.data = json.loads(self.index.read_text(encoding="utf-8"))
             else:
                 self.data = {"schema_version": 1, "items": {}, "pending": None}
             # Built-ins are additive so existing local catalogs receive newly
@@ -185,7 +185,7 @@ class CapabilityCatalog:
     def save(self):
         fd, name = tempfile.mkstemp(prefix="catalog-", dir=self.root)
         try:
-            with os.fdopen(fd, "w") as stream:
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(self.data, stream, ensure_ascii=False)
                 stream.flush()
                 os.fsync(stream.fileno())

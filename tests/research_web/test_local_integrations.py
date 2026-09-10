@@ -2,9 +2,12 @@
 
 import asyncio
 import copy
+import json
+import platform
 import time
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.research_web.client import RuntimeFailure
@@ -173,6 +176,50 @@ def test_windows_known_paths_and_registry_are_injectable_but_never_claim_verifie
         tmp_path / "module-only-state", environment=module_only
     ).snapshot()
     assert item(module_snapshot, "ifind_terminal")["discovery"] == "未发现"
+
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="requires a native Windows runner")
+def test_native_windows_runner_uses_real_host_detection_without_claiming_vendor_access(tmp_path):
+    manager = LocalIntegrationManager(
+        tmp_path / "native-windows-state", environment=DetectionEnvironment.current()
+    )
+    try:
+        snapshot = manager.snapshot(persist=False)
+    finally:
+        asyncio.run(manager.close())
+
+    assert snapshot["platform"] == "windows"
+    assert snapshot["service"] == {"online": True, "label": "本机服务在线"}
+    assert item(snapshot, "research_web_service")["callable"] is True
+    assert item(snapshot, "wind_terminal")["callable"] is False
+    assert item(snapshot, "ifind_terminal")["callable"] is False
+    assert all(assert_safe_shape(value) is None for value in snapshot["items"])
+    assert str(Path.home()) not in json.dumps(snapshot, ensure_ascii=False)
+    assert manager.environment.registry_app_exists("rwb-ci-definitely-missing.exe") is False
+
+
+def test_windows_ci_runs_native_contracts_and_loopback_probe():
+    workflow = (
+        Path(__file__).resolve().parents[2] / ".github/workflows/research-web-windows-verify.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "runs-on: windows-2022" in workflow
+    assert 'python-version: "3.11"' in workflow
+    assert 'node-version: "20"' in workflow
+    assert '- "app/research_web/**"' in workflow
+    assert "tests/research_web/test_local_integrations.py" in workflow
+    assert "tests/research_web/test_api.py" not in workflow
+    assert "tests/research_web/test_connection_center.py" not in workflow
+    assert "tests/javascript/research_web_local_integrations_ui.test.mjs" in workflow
+    assert "app.research_web.main:app" in workflow
+    assert "http://127.0.0.1:8088/api/research/local-integrations" in workflow
+    assert "local-integrations/probes" in workflow
+    assert "snapshot.platform -ne 'windows'" in workflow
+    assert "snapshot.service.online -ne $true" in workflow
+    assert "probeResult.status -ne 'completed'" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "wind_callable" in workflow
+    assert "ifind_callable" in workflow
 
 
 def test_unknown_platform_is_honest_and_never_returns_machine_paths(tmp_path):
