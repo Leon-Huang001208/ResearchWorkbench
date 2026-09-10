@@ -500,6 +500,43 @@ def test_verification_rejects_future_timestamp_and_stale_wind_session(tmp_path):
     assert item(snapshot, "wind_terminal")["callable"] is False
 
 
+def test_wind_vendor_session_error_does_not_fail_snapshot(tmp_path, monkeypatch):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    (env.application_roots[0] / "Wind.app").mkdir()
+    (env.office_addin_roots[0] / "WindAddin.xlam").write_bytes(b"addin")
+
+    class BrokenWindSession:
+        @staticmethod
+        def isconnected():
+            raise RuntimeError("vendor session failed with private details")
+
+    monkeypatch.setitem(sys.modules, "WindPy", SimpleNamespace(w=BrokenWindSession()))
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        context_fingerprint=lambda target: target,
+    )
+    checked_at = manager.snapshot(persist=False)["last_checked_at"]
+    manager.verification_results = {
+        "excel": {
+            "outcome": "available",
+            "completed_at": checked_at,
+            "context_fingerprint": manager._verification_context_fingerprint("excel"),
+        },
+        "wind_excel": {
+            "outcome": "available",
+            "completed_at": checked_at,
+            "context_fingerprint": manager._verification_context_fingerprint("wind_excel"),
+        },
+    }
+
+    snapshot = manager.snapshot(persist=False)
+
+    assert item(snapshot, "excel_app")["callable"] is True
+    assert item(snapshot, "wind_terminal")["discovery"] == "已发现"
+
+
 def test_verification_persistence_failure_does_not_publish_callable(tmp_path, monkeypatch):
     env = environment(tmp_path, modules={"xlwings"})
     (env.application_roots[0] / "Microsoft Excel.app").mkdir()
@@ -572,6 +609,24 @@ def test_wind_context_fingerprint_tracks_actual_matching_addin(tmp_path):
 
     before = manager._verification_context_fingerprint("wind_excel")
     addin.write_bytes(b"version-two")
+    after = manager._verification_context_fingerprint("wind_excel")
+
+    assert before != after
+
+
+def test_wind_context_fingerprint_tracks_matching_addin_directory_contents(tmp_path):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    (env.application_roots[0] / "Wind.app").mkdir()
+    addin = env.office_addin_roots[0] / "WindAddin.bundle"
+    addin.mkdir()
+    payload = addin / "Contents" / "plugin.bin"
+    payload.parent.mkdir()
+    payload.write_bytes(b"version-one")
+    manager = LocalIntegrationManager(tmp_path / "state", environment=env)
+
+    before = manager._verification_context_fingerprint("wind_excel")
+    payload.write_bytes(b"version-two")
     after = manager._verification_context_fingerprint("wind_excel")
 
     assert before != after

@@ -70,6 +70,7 @@ SAFE_DATA_ACTION = re.compile(r"^#/settings/data\?connection=[a-z0-9_]+$")
 SENSITIVE_ENVIRONMENT_KEY = re.compile(r"(?:token|secret|password|credential|api.?key)", re.I)
 MAX_PROBE_RECORDS = 128
 MAX_VERIFICATION_RECORDS = 128
+MAX_WIND_ADDIN_FINGERPRINT_ENTRIES = 512
 VERIFICATION_TTL_SECONDS = 24 * 60 * 60
 WIND_VERIFICATION_TTL_SECONDS = 5 * 60
 VERIFICATION_TARGETS = {"excel", "word", "powerpoint", "wind_excel"}
@@ -436,11 +437,18 @@ class LocalIntegrationManager:
     def _wind_session_is_ready() -> bool | None:
         try:
             import WindPy  # type: ignore[import-not-found]
+        except ImportError:
+            return None
 
+        try:
             session = getattr(WindPy, "w", None)
             is_connected = getattr(session, "isconnected", None)
             return bool(is_connected()) if callable(is_connected) else None
-        except (ImportError, AttributeError, OSError):
+        except Exception as exc:  # noqa: BLE001 - vendor failures must not break the snapshot.
+            log.warning(
+                "local_integration_wind_session_check_failed",
+                error_type=type(exc).__name__,
+            )
             return None
 
     @staticmethod
@@ -462,6 +470,36 @@ class LocalIntegrationManager:
             return identity
         except OSError:
             return {"name": path.name, "state": "unavailable"}
+
+    @classmethod
+    def _wind_addin_fingerprint(cls, path: Path) -> dict:
+        identity = cls._path_fingerprint(path)
+        if identity.get("type") != "directory":
+            return identity
+
+        entries: list[dict] = []
+        try:
+            for root, directories, filenames in os.walk(path, followlinks=False):
+                directories.sort()
+                filenames.sort()
+                current = Path(root)
+                directories[:] = [name for name in directories if not (current / name).is_symlink()]
+                for name in filenames:
+                    if len(entries) >= MAX_WIND_ADDIN_FINGERPRINT_ENTRIES:
+                        identity["entries_truncated"] = True
+                        return identity | {"entries": entries}
+                    candidate = current / name
+                    relative = candidate.relative_to(path).as_posix()
+                    if candidate.is_symlink():
+                        entries.append({"path": relative, "state": "symlink"})
+                    else:
+                        entries.append(
+                            {"path": relative, "fingerprint": cls._path_fingerprint(candidate)}
+                        )
+            identity["entries"] = entries
+        except (OSError, ValueError):
+            identity["entries_state"] = "unavailable"
+        return identity
 
     def _verification_context_fingerprint(self, target: str) -> str:
         if self.context_fingerprint is not None:
@@ -500,7 +538,7 @@ class LocalIntegrationManager:
             }
         if target == "wind_excel":
             facts["addins"] = [
-                self._path_fingerprint(candidate)
+                self._wind_addin_fingerprint(candidate)
                 for candidate in _wind_addin_paths(self.environment.office_addin_roots)
             ]
             try:
