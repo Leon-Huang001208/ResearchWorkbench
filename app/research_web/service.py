@@ -22,6 +22,7 @@ from .capabilities.tools import SELECTABLE
 from .client import DSHClient, RuntimeFailure
 from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
+from .local_integrations import LocalIntegrationManager
 from .projection import project
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
@@ -58,6 +59,7 @@ class ResearchService:
         self.delivery = Delivery(store, delivery_python)
         self.capabilities = CapabilityCatalog(store.root)
         self.datahub = DataHub(store)
+        self.local_integrations = LocalIntegrationManager(store.root / "local-integrations")
         self.asset_workspace = AssetWorkspace(self)
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)
@@ -108,6 +110,7 @@ class ResearchService:
             self.retention_task = None
         await self.report_workflows.close()
         await self.asset_workspace.close()
+        await self.local_integrations.close()
         await self.datahub.close()
         if self.pump:
             self.pump.cancel()

@@ -22,10 +22,11 @@ group tabs, global search and status filtering, while the selected source reuses
 form inside a closable detail drawer. Its DOM contracts are covered by
 `tests/javascript/research_web_connections_ui.test.mjs`; responsive interaction and overflow are covered by
 `tests/e2e/research_web_connections_workbench.mjs` at 1440×1000, 768×1024 and 390×844.
-The local subpage is a separate diagnosis-first branch in `ui/connections.mjs`: one overall callable
-conclusion leads a normalized component-check list, while the four connection stages remain available in
-an expandable technical detail. It reuses the existing connection and probe endpoints and does not alter
-the remote data-source workbench contract.
+The local subpage is a separate diagnosis console in `ui/connections.mjs`. It reads
+`app/research_web/local_integrations/` through dedicated catalog and idempotent probe endpoints, and shows
+discovery, authorization, verification and callable as four independent facts for every item. Its top
+summary contains only local-service health, available items and actionable items; `不适用` is not actionable.
+The DataHub connection endpoints and remote data-source workbench contract remain unchanged.
 DataHub catalog, brand-neutral business tools, broker, Provider, probe and snapshot contracts live in `app/research_web/datahub/`, `app/research_web/launch_runtime.py`, `app/research_web/runtime/public-data.mjs` and [DataHub](research-web-datahub.md). `catalog.py` is the no-network source of truth for the 15-capability / 22-source UI. `datahub/connections.py` owns per-source local non-secret configuration, OS keyring boundaries and the explicitly confirmed legacy-environment migration; `providers_mysql.py` owns MySQL privilege checks, exact schema identifiers and bounded single-table reads. The Settings UI reads the safe `/data/connections` projection and generic source-configuration endpoints. Runtime start/restart materializes only tools whose capability has `callable_source_count > 0`. The legacy connector map below does not make a Research Web provider callable.
 
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于

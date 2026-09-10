@@ -37,6 +37,19 @@ const connections = {
   migration: { available: true, targets: ['tavily'], conflicts: [] },
 };
 
+const localIntegrations = {
+  service: { online: true, label: '本机服务在线' },
+  summary: { available: 1, needs_attention: 1, total: 2 },
+  categories: [
+    { id: 'local_service', label: '本机服务', item_ids: ['research_web_service'] },
+    { id: 'office', label: 'Office 与金融插件', item_ids: ['excel_app'] },
+  ],
+  items: [
+    { id: 'research_web_service', category: 'local_service', label: 'Research Web 本机服务', discovery: '已发现', authorization: '无需授权', verification: '已验证', callable: true, status: '可用', message: '服务在线', detail: '', capabilities: [], actions: [], last_checked_at: '2026-09-10T00:00:00Z' },
+    { id: 'excel_app', category: 'office', label: 'Microsoft Excel 应用', discovery: '已发现', authorization: '无需授权', verification: '待验证', callable: false, status: '待验证', message: '已发现应用', detail: '尚未真实调用', capabilities: [], actions: [], last_checked_at: '2026-09-10T00:00:00Z' },
+  ],
+};
+
 const baseOptions = {
   runtime: { connected: true, provider: 'openai', model: 'gpt', version: '1', owned_runtime: true },
   models: [{ id: 'gpt', provider: 'openai' }],
@@ -44,6 +57,7 @@ const baseOptions = {
   busy: false,
   modelFailures: [],
   connections,
+  localIntegrations,
   selectedConfiguration: {},
   migrationOpen: false,
 };
@@ -72,7 +86,7 @@ test('settings renders exactly one active body and marks one category current', 
     general: 'appearance-picker',
     model: 'id="settings-form"',
     data: 'data-connection-scope="data"',
-    local: 'data-connection-scope="local"',
+    local: 'data-local-integrations-console',
     docs: '/api/research/documentation/index.html',
   };
   for (const section of Object.keys(signatures)) {
@@ -89,7 +103,7 @@ test('settings renders exactly one active body and marks one category current', 
 test('only live settings sections render scoped refresh controls', () => {
   assert.deepEqual(settingsRefreshCatalogs('model'), ['runtime', 'models']);
   assert.deepEqual(settingsRefreshCatalogs('data'), ['connections']);
-  assert.deepEqual(settingsRefreshCatalogs('local'), ['connections']);
+  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations']);
   assert.deepEqual(settingsRefreshCatalogs('general'), []);
   assert.deepEqual(settingsRefreshCatalogs('docs'), []);
   for (const section of ['model', 'data', 'local']) {
@@ -108,16 +122,16 @@ test('data and local pages never mix source groups', () => {
   assert.doesNotMatch(data, /data-connection-select="local_cache"/);
 
   const local = renderSettingsPage({ ...baseOptions, route: parseRoute('#/settings/local'), hash: '#/settings/local?connection=local_cache' });
-  assert.match(local, /data-selected-connection="local_cache"/);
-  assert.doesNotMatch(local, /data-connection-select=/);
+  assert.match(local, /data-local-integrations-console/);
+  assert.doesNotMatch(local, /data-selected-connection="local_cache"|data-connection-select=/);
   assert.doesNotMatch(local, /data-connection-select="wind"/);
   assert.equal((local.match(/<h1>本机集成<\/h1>/g) || []).length, 1);
-  assert.match(local, /检查当前服务设备上的 Excel、Wind、iFinD 与报告工作流/);
+  assert.match(local, /诊断当前服务设备上的本机服务、文件夹、Office、浏览器与 MCP 能力/);
 });
 
 test('local settings forwards busy state to the environment probe action', () => {
   const html = renderSettingsPage({ ...baseOptions, busy: true, route: parseRoute('#/settings/local'), hash: '#/settings/local' });
-  assert.match(html, /data-connection-probe="local_cache"[^>]*disabled[^>]*>检测中…/);
+  assert.match(html, /data-local-integrations-probe[^>]*disabled[^>]*aria-busy="true"[^>]*>检测中…/);
 });
 
 test('settings navigation and responsive CSS keep desktop rail and 44px mobile tabs', async () => {

@@ -331,3 +331,13 @@
 - 使用当前服务返回的本机状态组合完成只读可视核对：未适配状态显示“尚未接入可调用链路”，四项组件证据后置为比较列表，接入阶段默认折叠；未把该核对表述为桌面或 Windows 验收。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机集成诊断仅重排既有设置页的信息层级、状态文案和探测忙碌态，仍复用相同Hash路由、连接API、DataHub与Runtime边界。","diagrams":[]} -->
+
+## 2026-09-10 — 本机能力诊断 v0
+
+- `#/settings/local` 改用专用本机诊断投影，五类检查逐项保留发现、授权、验证和可调用事实；顶部不再形成跨组件 callable 结论，报告 Workflow 移出检查表。
+- FastAPI 进程内新增无副作用探测管理器和三条同源接口。最新安全投影原子写入产品私有目录；探测不启动软件，不返回本机路径、注册表值、命令、环境变量或秘密。
+- DataHub 的连接、探测、`local_cache` 与研究查询接口保持不变；WindPy 和 iFinD 数据接口仍由数据源页判断。本轮没有新增外部服务或改变研究执行、SSE 和数据查询拓扑，因此架构图无需重绘。
+- v0 尚未实现文件夹同步、扩展配对、MCP 授权和 Office/Wind 真实操作验证；这些项目保持待配置或待验证，Windows 仅有可测试的无副作用投影。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机诊断控制台继续位于既有设置Hash子页，只改用专用同源投影并重排浏览器内信息层级。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新增进程内本机诊断管理器与同源接口，不增加外部服务、研究执行通道或跨进程数据流。","diagrams":[]} -->

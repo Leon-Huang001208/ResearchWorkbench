@@ -29,6 +29,46 @@ const localStatusDefinitions = {
   not_applicable: ['不适用', 'neutral', '当前操作系统不适用这项能力。'],
 };
 
+const localStatusTone = {
+  '可用': 'ready', '待配置': 'attention', '待授权': 'attention', '待验证': 'pending',
+  '未发现': 'neutral', '未登录': 'attention', '受限': 'attention', '异常': 'danger', '不适用': 'neutral',
+};
+
+function safeLocalAction(action) {
+  const href = String(action?.href || '');
+  return /^#\/settings\/data\?connection=[a-z0-9_]+$/.test(href)
+    ? `<a class="button small" href="${e(href)}">${e(action.label || '配置')}</a>`
+    : '';
+}
+
+function localTruth(label, value) {
+  return `<span><small>${e(label)}</small><strong>${e(value)}</strong></span>`;
+}
+
+function renderLocalIntegrationRow(item) {
+  const actions = Array.isArray(item?.actions) ? item.actions.map(safeLocalAction).join('') : '';
+  const callable = item?.status === '不适用' ? '不适用' : item?.callable === true ? '是' : '否';
+  const tone = localStatusTone[item?.status] || 'danger';
+  return `<article class="local-integration-row" data-local-integration="${e(item?.id || '')}"><div class="local-integration-identity"><div><strong>${e(item?.label || '未命名集成')}</strong><span class="local-status ${e(tone)}"><span aria-hidden="true"></span>${e(item?.status || '异常')}</span></div><p>${e(item?.message || '服务未提供状态说明。')}</p>${item?.detail ? `<small>${e(item.detail)}</small>` : ''}${actions ? `<div class="button-row">${actions}</div>` : ''}</div><div class="local-integration-truths" aria-label="${e(item?.label || '')} 状态">${localTruth('发现', item?.discovery || '异常')}${localTruth('授权', item?.authorization || '异常')}${localTruth('验证', item?.verification || '异常')}${localTruth('可调用', callable)}</div></article>`;
+}
+
+export function renderLocalIntegrationConsole(model = {}, { busy = false } = {}) {
+  const categories = Array.isArray(model?.categories) ? model.categories : [];
+  const items = Array.isArray(model?.items) ? model.items : [];
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const summary = model?.summary || {};
+  const serviceLabel = model?.service?.online ? (model.service.label || '本机服务在线') : '本机服务异常';
+  const nav = `<nav class="local-category-nav" aria-label="本机集成分类">${categories.map((category) => `<button type="button" data-local-category-target="local-category-${e(category.id)}" aria-controls="local-category-${e(category.id)}">${e(category.label || category.id)}</button>`).join('')}</nav>`;
+  const groups = categories.map((category) => {
+    const categoryItems = Array.isArray(category.item_ids)
+      ? category.item_ids.map((id) => byId.get(id)).filter(Boolean)
+      : items.filter((item) => item.category === category.id);
+    const rows = categoryItems.length ? categoryItems.map(renderLocalIntegrationRow).join('') : '<p class="local-category-empty">当前没有已登记项目。</p>';
+    return `<section class="local-integration-category" id="local-category-${e(category.id)}" tabindex="-1" aria-labelledby="local-category-title-${e(category.id)}"><header><h2 id="local-category-title-${e(category.id)}">${e(category.label || category.id)}</h2><span>${categoryItems.length} 项</span></header><div class="local-integration-column-head" aria-hidden="true"><span>集成</span><span>发现</span><span>授权</span><span>验证</span><span>可调用</span></div>${rows}</section>`;
+  }).join('');
+  return `<section class="local-integration-console" data-local-integrations-console aria-live="polite"><section class="local-integration-summary" aria-label="本机集成概览"><div><span class="local-service-indicator ${model?.service?.online ? 'ready' : 'danger'}"><span aria-hidden="true"></span>${e(serviceLabel)}</span><p>诊断分别保留发现、授权、验证和可调用事实。</p></div><dl><div><dt><strong>${e(summary.available ?? 0)}</strong> 项可用</dt></div><div><dt><strong>${e(summary.needs_attention ?? 0)}</strong> 项需处理</dt></div></dl><button class="button primary local-integrations-probe" type="button" data-local-integrations-probe ${busy ? 'disabled aria-busy="true"' : ''}>${busy ? '检测中…' : '重新检测'}</button></section>${nav}${groups}<section class="local-report-automation"><div><p class="eyebrow">WORKFLOW</p><h2>报告自动化</h2><p>报告工作流消费 Excel、Word、PowerPoint、Wind/iFinD 数据能力生成报告，并根据自身资源与依赖单独判断能否运行。</p></div><a class="button" href="#/skills?kind=workflow">查看报告 Workflow</a></section></section>`;
+}
+
 function get(values, key) {
   return typeof values?.get === 'function' ? values.get(key) : values?.[key];
 }
