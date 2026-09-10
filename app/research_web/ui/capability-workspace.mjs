@@ -3,14 +3,15 @@ import { icon } from './icons.mjs';
 import { empty } from './views.mjs';
 import { capabilityStatus, reportWorkflowEligibility } from './capabilities.mjs';
 import { renderDataCatalog } from './data-catalog.mjs';
+import { renderMCPMarketplace } from './mcp-marketplace.mjs';
 
 const list = (value) => Array.isArray(value) ? value : [];
-const views = ['library', 'mine', 'plans', 'connections'];
+const views = ['library', 'mine', 'plans', 'connections', 'market'];
 const kinds = ['skill', 'tool', 'workflow', 'data'];
 const kindLabels = { skill: 'Skill', tool: 'Tool', workflow: 'Workflow', data: '数据' };
 const subviews = {
   skill: [['library', '能力库'], ['mine', '我的 Skill']],
-  tool: [['library', '工具目录'], ['connections', '连接状态']],
+  tool: [['library', '工具目录'], ['market', 'MCP 市场'], ['connections', '连接状态']],
   workflow: [['library', '能力库'], ['mine', '我的 Workflow'], ['plans', '运行计划']],
   data: [['library', '数据能力'], ['connections', '数据源与连接']],
 };
@@ -97,7 +98,8 @@ function workspaceKindNav(kind) {
 }
 
 function workspaceSubviewNav(kind, view) {
-  return `<nav class="capability-workspace-subnav" aria-label="${kindLabels[kind]} 视图">${subviews[kind].map(([value, label]) => `<a href="${capabilityWorkspaceHash(kind, value)}" aria-current="${view === value ? 'page' : 'false'}">${label}</a>`).join('')}</nav>`;
+  const roving = kind === 'tool';
+  return `<nav class="capability-workspace-subnav" ${roving ? 'role="tablist"' : ''} aria-label="${kindLabels[kind]} 视图">${subviews[kind].map(([value, label]) => `<a href="${capabilityWorkspaceHash(kind, value)}" aria-current="${view === value ? 'page' : 'false'}" ${roving ? `role="tab" tabindex="${view === value ? '0' : '-1'}" aria-selected="${view === value}" data-mcp-market-tab="${value}"` : ''}>${label}</a>`).join('')}</nav>`;
 }
 
 function filters(entries, state) {
@@ -171,13 +173,14 @@ function toolConnectionsView(connections, tools) {
   return `<div class="capability-view-heading"><div><span class="eyebrow">LOCAL CONNECTIONS</span><h2>Tool 连接状态</h2><p class="muted">查看本机集成与 Tool 的真实调用状态；凭据配置继续在设置中完成。</p></div><div class="button-row"><a class="button" href="#/skills?kind=data&view=connections">查看数据源</a><a class="button" href="#/settings/local">打开本机连接设置</a></div></div><section class="connection-tool-summary" aria-label="Tool 连接状态汇总"><div><strong>${sources.length}</strong><span>本机集成</span></div><div><strong>${sources.filter(item => item.callable === true).length}</strong><span>当前可调用</span></div><div><strong>${list(tools).length}</strong><span>Tool 声明</span></div><div><strong>${list(tools).filter(item => item.selectable === true).length}</strong><span>可加入草稿</span></div></section><div class="connection-tool-sections"><section><div class="section-heading"><div><h3>本机集成</h3><p class="muted small">这里只展示本机连接；数据源在“数据”分区单独管理。</p></div></div>${sources.length ? `<div class="connection-tool-list">${sources.map(source => { const [label, tone] = connectionState(source); return `<article><div><strong>${e(source.name || source.label || source.id)}</strong><small>${e(source.description || source.id)}</small></div><span class="badge ${tone}">${e(label)}</span><a class="button small" href="#/settings/local?connection=${encodeURIComponent(source.id)}">配置</a></article>`; }).join('')}</div>` : empty('没有本机连接记录', '刷新目录后仍为空时，请检查连接服务。')}</section><section><div class="section-heading"><div><h3>研究 Tool</h3><p class="muted small">安装、启用与会话授权仍是独立状态。</p></div></div>${list(tools).length ? `<div class="connection-tool-list">${list(tools).map(tool => `<article><div><strong>${e(tool.name)}</strong><small>${e(tool.description || tool.id)}</small></div><span class="badge ${tool.selectable ? 'live' : ''}">${tool.selectable ? '可加入草稿' : '内部控制'}</span><button type="button" class="button small" data-tool-detail="${e(tool.id)}" data-cap-preview-trigger="${e(attrKey('tool', tool.id))}">快览</button></article>`).join('')}</div>` : empty('没有 Tool 声明', '刷新目录后仍为空时，请检查工具目录。')}</section></div>`;
 }
 
-export function renderCapabilityWorkspace({ capabilities = [], tools = [], reportWorkflows = [], dataCatalog = {}, connections = {}, view = 'library', kind = 'skill', source = 'all', category = '', status = 'all', query = '', dataMarket = '', dataStatus = '', dataAuth = '', probe = null, busy = false, error = '' } = {}) {
+export function renderCapabilityWorkspace({ capabilities = [], tools = [], reportWorkflows = [], dataCatalog = {}, connections = {}, mcpMarketplace = {}, view = 'library', kind = 'skill', source = 'all', category = '', status = 'all', query = '', dataMarket = '', dataStatus = '', dataAuth = '', probe = null, busy = false, error = '' } = {}) {
   const safeKind = kinds.includes(kind) ? kind : 'skill';
   const allowedViews = subviews[safeKind].map(([value]) => value);
   const safeView = views.includes(view) && allowedViews.includes(view) ? view : 'library';
   const entries = collectCapabilityWorkspaceEntries({ capabilities, tools, dataCatalog });
   let body;
   if (safeKind === 'workflow' && safeView === 'plans') body = plansView(reportWorkflows, busy);
+  else if (safeKind === 'tool' && safeView === 'market') body = renderMCPMarketplace(mcpMarketplace);
   else if (safeKind === 'tool' && safeView === 'connections') body = toolConnectionsView(connections, tools);
   else if (safeKind === 'data') {
     const dataView = safeView === 'connections' ? 'sources' : 'capabilities';

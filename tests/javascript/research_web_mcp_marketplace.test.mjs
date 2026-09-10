@@ -1,0 +1,173 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+import { createAPI, parseRoute } from '../../app/research_web/ui/core.mjs';
+import {
+  mcpMarketplaceTabKey,
+  packageSupport,
+  renderMCPMarketplace,
+  renderMCPServerDialog,
+} from '../../app/research_web/ui/mcp-marketplace.mjs';
+
+const registries = [
+  { id: 'official', name: 'Official Registry', official: true, immutable: true, auth: { type: 'none', secret_configured: false } },
+  { id: 'local-private', name: '私有目录', official: false, immutable: false, auth: { type: 'bearer', secret_configured: true } },
+];
+
+const server = (extra = {}) => ({
+  registry_id: 'official',
+  name: 'io.example/weather',
+  version: '1.2.3',
+  identity: ['official', 'io.example/weather', '1.2.3'],
+  title: 'Weather',
+  description: 'Safe forecast tool',
+  repository: { url: 'https://example.test/repo' },
+  packages: [{ registryType: 'npm', identifier: '@example/weather', version: '1.2.3' }],
+  remotes: [], status: 'active', is_latest: true,
+  ...extra,
+});
+
+test('MCP market route is valid only for Tool and keeps legacy route fallbacks', () => {
+  assert.deepEqual(parseRoute('#/skills?kind=tool&view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'tool' });
+  for (const kind of ['skill', 'workflow', 'data']) {
+    assert.deepEqual(parseRoute(`#/skills?kind=${kind}&view=market`), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: kind });
+  }
+  assert.deepEqual(parseRoute('#/skills?view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'workflow' });
+  assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'tool' });
+});
+
+test('MCP API methods encode every path segment and query independently', async () => {
+  const calls = [];
+  const api = createAPI({ fetcher: async (url, options) => {
+    calls.push([url, options]);
+    return new Response(JSON.stringify({ items: [] }));
+  }, logger() {} });
+  await api.mcpRegistries();
+  await api.mcpRegistry('private/id');
+  await api.mcpServers({ registryId: 'private/id', search: 'a&b = c', cursor: 'next?/=', limit: 25 });
+  await api.mcpSyncRegistry('private/id');
+  await api.mcpServerVersion('private/id', 'org/name?x=1', '1.2.3+build');
+  await api.mcpPublisherPreview({ name: 'server' });
+  await api.mcpPublisherValidate({ server_json: { name: 'server' } });
+  assert.deepEqual(calls.map(([url, options]) => [url, options.method]), [
+    ['/api/research/mcp/registries', 'GET'],
+    ['/api/research/mcp/registries/private%2Fid', 'GET'],
+    ['/api/research/mcp/servers?registry_id=private%2Fid&search=a%26b+%3D+c&cursor=next%3F%2F%3D&limit=25', 'GET'],
+    ['/api/research/mcp/registries/private%2Fid/sync', 'POST'],
+    ['/api/research/mcp/servers/private%2Fid/org%2Fname%3Fx%3D1/versions/1.2.3%2Bbuild', 'GET'],
+    ['/api/research/mcp/publisher/preview', 'POST'],
+    ['/api/research/mcp/publisher/validate', 'POST'],
+  ]);
+});
+
+test('market CSS preserves the 4/3/2/1 grid, mobile dialog, theme tokens and reduced motion', async () => {
+  const css = await readFile(new URL('../../app/research_web/ui/appearance.css', import.meta.url), 'utf8');
+  assert.match(css, /\.mcp-market-grid\s*\{[^}]*repeat\(3,/s);
+  assert.match(css, /@media \(min-width: 1400px\)[\s\S]*?\.mcp-market-grid\s*\{[^}]*repeat\(4,/);
+  assert.match(css, /@media \(max-width: 1100px\)[\s\S]*?\.mcp-market-grid\s*\{[^}]*repeat\(2,/);
+  assert.match(css, /@media \(max-width: 600px\)[\s\S]*?\.mcp-market-grid\s*\{[^}]*grid-template-columns:\s*1fr/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.capability-preview-dialog\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/);
+  assert.match(css, /\.mcp-server-card\s*\{[^}]*var\(--line\)[^}]*var\(--surface\)/s);
+  assert.match(css, /:root\[data-theme='dark'\][\s\S]*?--surface:/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?transition:\s*none !important/);
+});
+
+test('market renderer keeps third-party content text-only and never hotlinks icons', () => {
+  const malicious = server({
+    name: '<img src=x onerror=alert(1)>', title: '<script>alert(1)</script>',
+    description: '" autofocus onfocus=alert(1)', repository: { url: 'https://evil.test/icon.svg' },
+    packages: [{ registryType: 'future-package', identifier: '<b>bad</b>', version: 'latest' }],
+  });
+  const html = renderMCPMarketplace({ registries, selectedRegistryId: 'official', page: { registry_id: 'official', items: [malicious], count: 1, stale: false } });
+  assert.doesNotMatch(html, /<script\b|<img\b/i);
+  assert.doesNotMatch(html, /src=["']https?:/i);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.match(html, /当前不可安装/);
+  assert.match(html, /official · &lt;img/);
+  assert.equal(packageSupport(malicious.packages).installable, false);
+});
+
+test('market renders loading, empty, error, stale and offline states without demo records', () => {
+  const loading = renderMCPMarketplace({ loading: true, registries: [], page: null });
+  assert.match(loading, /正在读取 MCP 目录/); assert.match(loading, /disabled/);
+  const empty = renderMCPMarketplace({ registries, selectedRegistryId: 'official', page: { items: [], count: 0, stale: false } });
+  assert.match(empty, /没有匹配的 MCP Server/); assert.doesNotMatch(empty, /Weather/);
+  const failed = renderMCPMarketplace({ registries, selectedRegistryId: 'official', error: '功能尚未开启', page: null });
+  assert.match(failed, /role="alert"/); assert.match(failed, /重新读取/);
+  const stale = renderMCPMarketplace({ registries, selectedRegistryId: 'official', page: { items: [server()], count: 1, stale: true, failure_code: 'registry_timeout' } });
+  assert.match(stale, /离线缓存/); assert.match(stale, /registry_timeout/); assert.match(stale, /Weather/);
+});
+
+test('real marketplace dialog traps focus and restores its card after backdrop and Escape close', async () => {
+  const handlers = new Map();
+  const documentState = { activeElement: null, title: '' };
+  const trigger = { dataset: { registryId: 'official', serverName: 'io.example/weather', serverVersion: '1.2.3', mcpServerDetail: '' }, disabled: false, getAttribute: () => null, focus() { documentState.activeElement = this; } };
+  const first = { focus() { documentState.activeElement = this; } };
+  const last = { focus() { documentState.activeElement = this; } };
+  const dialog = { contains: value => value === first || value === last, querySelectorAll: () => [first, last] };
+  const main = { scrollTop: 0, scrollTo() {} };
+  const root = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  Object.assign(documentState, {
+    querySelector: selector => selector === '#app' ? root : selector === '#main' ? main : selector === '.skip-link' ? { addEventListener() {} } : selector === '.mcp-server-dialog' ? dialog : selector === '.mcp-server-dialog [data-mcp-detail-close]' ? first : null,
+    querySelectorAll: selector => selector === '[data-mcp-server-detail]' ? [trigger] : [],
+    getElementById: () => null,
+  });
+  const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const originalLog = console.info;
+  try {
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: documentState });
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: true }), addEventListener() {} } });
+    Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/skills?kind=tool&view=market' } });
+    Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState(_a, _b, hash) { location.hash = hash; }, replaceState(_a, _b, hash) { location.hash = hash; } } });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url) => {
+      const payload = url.endsWith('/mcp/registries') ? { items: registries }
+        : url.includes('/mcp/servers/official/io%2Fexample%2Fweather/versions/1.2.3') ? server()
+          : url.includes('/mcp/servers?') ? { items: [server()], count: 1, stale: false }
+            : url.endsWith('/runtime') ? { connected: true }
+              : url.endsWith('/models') ? { groups: [] } : { items: [] };
+      return new Response(JSON.stringify(payload));
+    } });
+    console.info = () => {};
+    await import(`../../app/research_web/ui/app.mjs?mcp-dialog=${Date.now()}`);
+    assert.match(root.innerHTML, /data-mcp-server-detail/);
+    await handlers.get('click')({ target: { closest: selector => selector === 'button' ? trigger : null, matches: () => false } });
+    assert.match(root.innerHTML, /class="capability-preview-dialog mcp-server-dialog"/);
+    assert.equal(documentState.activeElement, first);
+    documentState.activeElement = last;
+    let trapped = false;
+    handlers.get('keydown')({ key: 'Tab', shiftKey: false, target: { dataset: {} }, preventDefault() { trapped = true; } });
+    assert.equal(trapped, true);
+    assert.equal(documentState.activeElement, first);
+    await handlers.get('click')({ target: { matches: selector => selector === '[data-mcp-dialog-backdrop]', closest: () => null } });
+    assert.doesNotMatch(root.innerHTML, /mcp-server-dialog/);
+    assert.equal(documentState.activeElement, trigger);
+    await handlers.get('click')({ target: { closest: selector => selector === 'button' ? trigger : null, matches: () => false } });
+    let escaped = false;
+    handlers.get('keydown')({ key: 'Escape', target: { dataset: {} }, preventDefault() { escaped = true; } });
+    assert.equal(escaped, true);
+    assert.doesNotMatch(root.innerHTML, /mcp-server-dialog/);
+    assert.equal(documentState.activeElement, trigger);
+  } finally {
+    console.info = originalLog;
+    for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
+  }
+});
+
+test('market dialog is accessible, escapes details and disables unsupported install handoff', () => {
+  const detail = server({ title: '<svg onload=alert(1)>', packages: [{ registryType: 'unknown', identifier: 'bad' }] });
+  const html = renderMCPServerDialog(detail);
+  assert.match(html, /role="dialog"/); assert.match(html, /aria-modal="true"/);
+  assert.match(html, /data-mcp-detail-close/); assert.match(html, /data-mcp-dialog-backdrop/);
+  assert.match(html, /当前不可安装/); assert.match(html, /disabled/);
+  assert.doesNotMatch(html, /<svg\b/i);
+});
+
+test('market tabs retain roving keyboard behavior', () => {
+  assert.deepEqual(mcpMarketplaceTabKey('ArrowRight', 'library'), { handled: true, view: 'market' });
+  assert.deepEqual(mcpMarketplaceTabKey('ArrowLeft', 'library'), { handled: true, view: 'connections' });
+  assert.deepEqual(mcpMarketplaceTabKey('Home', 'connections'), { handled: true, view: 'library' });
+  assert.deepEqual(mcpMarketplaceTabKey('End', 'market'), { handled: true, view: 'connections' });
+  assert.deepEqual(mcpMarketplaceTabKey('Enter', 'market'), { handled: false });
+});

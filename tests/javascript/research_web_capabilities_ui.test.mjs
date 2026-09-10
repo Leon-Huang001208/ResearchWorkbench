@@ -98,9 +98,12 @@ test('capability workspace preserves legacy links and exposes four stable primar
   assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'workflow' });
   assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'tool' });
   assert.deepEqual(parseRoute('#/skills?kind=data&view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'data' });
+  assert.deepEqual(parseRoute('#/skills?kind=tool&view=market'), { page: 'skills', sessionId: null, capabilityView: 'market', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?kind=skill&view=market'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'skill' });
   assert.deepEqual(parseRoute('#/skills?kind=tool&view=mine'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'tool' });
   assert.deepEqual(parseRoute('#/skills?view=unknown'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'skill' });
   assert.equal(capabilityWorkspaceHash('tool', 'connections'), '#/skills?kind=tool&view=connections');
+  assert.equal(capabilityWorkspaceHash('tool', 'market'), '#/skills?kind=tool&view=market');
   assert.equal(capabilityWorkspaceHash('data'), '#/skills?kind=data');
   assert.deepEqual(capabilityWorkspaceKindKey('ArrowRight', 'skill'), { handled: true, kind: 'tool' });
   assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'data' });
@@ -130,7 +133,7 @@ test('capability workspace isolates Skill, Tool, Workflow and data into separate
   assert.match(toolHTML, /读数据/); assert.doesNotMatch(toolHTML, /我的研究|我的流程|真实行情/);
   assert.match(workflowHTML, /我的流程/); assert.doesNotMatch(workflowHTML, /我的研究|读数据|真实行情/);
   assert.match(dataHTML, /真实行情/); assert.doesNotMatch(dataHTML, /我的研究|我的流程|读数据/);
-  assert.match(skillHTML, /能力库.*我的 Skill/s); assert.match(toolHTML, /工具目录.*连接状态/s);
+  assert.match(skillHTML, /能力库.*我的 Skill/s); assert.match(toolHTML, /工具目录.*MCP 市场.*连接状态/s);
   assert.match(workflowHTML, /能力库.*我的 Workflow.*运行计划/s); assert.match(dataHTML, /数据能力.*数据源与连接/s);
 });
 
