@@ -8,7 +8,7 @@
     "viewBox": [1600, 860],
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "4049f385ed84df41dc6c70e8dbec4c6073f27d30"
+      "revision": "99f403574cc81c5563b6ddf4d4223417d96838ee"
     },
     "views": [
       {"id": "reportPath", "label": "报告 Workflow", "focus": ["browser", "api", "reportManager", "reportStore", "workbookTool", "excel", "snapshots", "dsh", "assemblyTool"], "note": "后端先刷新并固化快照，Claw 研究后只交付结构化 payload，再由确定性 Tool 组装和验证文件。"},
@@ -46,7 +46,7 @@
     {"id": "assetRoute", "from": "api", "to": "assetWorkspace", "label": "资产观察 API", "fromSide": "bottom", "toSide": "left", "labelAt": [475, 485]},
     {"id": "dataRoute", "from": "assetWorkspace", "to": "datahub", "label": "分块业务查询", "labelAt": [720, 647]},
     {"id": "routeProvider", "from": "datahub", "to": "providers", "label": "白名单 Provider", "labelAt": [978, 551]},
-    {"id": "liveClaim", "from": "dsh", "to": "providers", "label": "ctx.tabbit · claim / DOM / keep", "variant": "security"}
+    {"id": "liveClaim", "from": "dsh", "to": "providers", "label": "ctx.tabbit · claim / DOM / keep", "variant": "security", "fromSide": "bottom", "toSide": "right", "via": [[852.5, 480], [1260, 480], [1260, 594]], "labelAt": [1100, 470]}
   ],
   "cards": [
     {"dot": "cyan", "title": "资产观察不是演示页", "items": ["每个区块独立呈现 complete / partial / empty / unavailable / error", "无真实数据时不补价格、估值、主题或同类比较"]},

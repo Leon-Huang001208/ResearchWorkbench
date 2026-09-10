@@ -15,14 +15,14 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "d6a85a422500ffdafa0e8e261ad7a433f7fffb03eb4b649c7e971d020977a4a4",
-      "specificationSha256": "278080ca4c50508c32e9bf5bf57ef0444ed61a1de284c170e6220b718f980eca",
+      "artifactSha256": "7bc7adb5deed802154af88427bd2cc23482f6a2f44288fd8dd88abe3ca1754cc",
+      "specificationSha256": "087ceee4849f7887c7c2c46b9144a72360a4a2f66c4fdede4c9b8dab219a4e1a",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-08",
-      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.1440x900.dark.png"],
+      "date": "2026-09-10",
+      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.2048x1320.dark.png"],
       "findings": [],
-      "notes": "已人工查看 1440 浅色与深色最终截图；登记来源明确包含用户 MySQL，DataHub 节点保留 enabledTools、自动查询与快照边界，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明来源当前在线或报告已实际运行。"
+      "notes": "已人工查看 1440 浅色与 2048 深色最终截图；Tabbit Browser 经唯一 ctx.tabbit 与专属 DSH 相连，实时 claim 连线避开报告与 DataHub 路径，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明真实浏览器当前可用。"
     },
     {
       "id": "05-capability-flow",
@@ -37,31 +37,31 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "a19b8c1258b946b79c332987b848761c4a45e0d8836df792314289d01bf2ea46",
-      "specificationSha256": "010a5f12c41cf72491b77c9ba7904b7bbab2c1617efcafa349d9f6a6481e9d16",
+      "artifactSha256": "15c6f7a9e2ce432a527aaed47dcb63e908e0ba268e1b69492e812f8105c6f3ce",
+      "specificationSha256": "91eef51a8867860319669905a4d289e5e725c68c962c5cfe1c5c9e6bfa6c141d",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-04",
+      "date": "2026-09-10",
       "captures": [
-        "01-deployment.visual-check.1440x900.dark.png",
-        "01-deployment.visual-check.2048x1320.light.png"
+        "01-deployment.visual-check.1440x900.light.png",
+        "01-deployment.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看上述最终哈希对应截图；持久化服务管理、8088/3081 所有权、3080 安全边界、运行状态文件及会话迁移路径清晰，未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明实现验收。"
+      "notes": "已人工查看上述最终哈希对应截图；持久化服务管理、8088/3081 所有权、Tabbit Browser、私有供应包与实时 claim 路径清晰，未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明真实浏览器验收。"
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "7691b26a7e3b3317ddeab9975afc5ca3a89e19c65527016a9147fa0c2080b18f",
-      "specificationSha256": "ba392eba0d1946c8a5d5db3e369843eb21542332f2c9741c9673923e9a3d0ffc",
+      "artifactSha256": "bee254a354aaa04e44eca0f057926092c0ea54a9f922ac309111a99b5e28a83e",
+      "specificationSha256": "2525a9e53957113497caf2c75c08986702b697150aa3c72b3e936ca448b17ed9",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-08",
+      "date": "2026-09-10",
       "captures": [
         "03-research-sequence.visual-check.1440x900.light.png",
-        "03-research-sequence.visual-check.1440x900.dark.png"
+        "03-research-sequence.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色与深色最终截图；启动恢复、研究提交、enabledTools/Schema 本地边界、用户配置 MySQL Provider、快照和 SSE 恢复均可读，未见遮挡或裁剪。视觉查看不证明服务永远在线或上游数据完整。"
+      "notes": "已人工查看 1440 浅色与 2048 深色最终截图；授权、候选、发送前重验、原子 claim、实时 DOM、一次性 token、研究提交与 DataHub 路径均可读，未见遮挡或裁剪。经过两轮视口宽高平衡修正；视觉查看不证明真实 Tabbit 或 Provider 在线。"
     },
     {
       "id": "04-data-file-flow",

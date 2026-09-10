@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "diagram_type": "sequence",
-    "meta": {"title": "服务恢复、Tabbit 实时 claim 与 DataHub 查询序列", "output": "03-research-sequence.html", "quality_profile": "showcase", "viewBox": [2700, 1700], "column_fit": "spread", "views": [
+    "meta": {"title": "服务恢复、Tabbit 实时 claim 与 DataHub 查询序列", "output": "03-research-sequence.html", "quality_profile": "showcase", "viewBox": [3200, 1700], "column_fit": "spread", "views": [
     {"id": "startup", "label": "断电后的安全恢复", "focus": ["cli", "manager", "dsh", "api"], "note": "启动器只删除能够确认进程已经死亡的旧状态；活进程、未知进程或指纹不一致仍然拒绝接管。"},
     {"id": "tabbitFlow", "label": "Tabbit 实时标签", "focus": ["web", "api", "dsh", "tabbit"], "note": "菜单展开才授权并取候选；发送前重验、原子 claim、一次读 DOM，最后只传递短 token。"},
     {"id": "submit", "label": "页面交接与研究提交", "focus": ["web", "api", "snapshot", "dsh"], "note": "页面先固化查询与筛选上下文，再创建目标会话；HTTP 受理不等于研究或文件完成。"},

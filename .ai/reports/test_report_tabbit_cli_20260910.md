@@ -22,7 +22,8 @@
 - `node --test tests/javascript/research_web*.test.mjs`：Tabbit 与其余不依赖 Python 的测试通过；总计 206 passed、1 skipped，3 项因 worktree 尚无获授权安装的 Python 开发环境而失败，失败均为找不到 `.venv/bin/python`，不是断言失败。
 - `node --check`：`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 通过。
 - `/opt/homebrew/bin/python3.12 -m py_compile`：所有本轮变更 Python 源码与 Python 测试通过。
-- `node scripts/check_research_architecture.mjs`：模块文档、架构评审、API 清单和源码证据映射已通过；三张更新图的生成回执与同哈希人工截图审阅仍在本任务后续步骤生成。
+- `node scripts/check_research_architecture.mjs`：无违规；模块文档、架构评审、126 个唯一 HTTP 操作/128 项源码声明、源码证据映射、三张更新图的同哈希回执与人工截图审阅全部通过。
+- Archify：部署、模块依赖、研究序列三张图均为 showcase 9/9、0 error、0 warning；四个桌面视口无溢出。已人工查看每张图的 1440 浅色和 2048 深色截图；研究序列图经两轮宽高平衡修正后通过。
 - `git diff --check` 与 `architecture-map.json` JSON 解析通过。
 
 ## 待执行与阻塞
