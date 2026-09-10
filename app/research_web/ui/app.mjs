@@ -759,7 +759,16 @@ root.addEventListener('click', async (event) => {
   const data = button.dataset;
   if ('localCategoryTarget' in data) {
     const target = document.getElementById(data.localCategoryTarget);
-    if (target) target.focus({ preventScroll: false });
+    const main = document.querySelector('#main');
+    const scroller = main?.scrollHeight > main?.clientHeight ? main : document.scrollingElement;
+    if (target && scroller) {
+      target.focus({ preventScroll: true });
+      const scrollerTop = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
+      const currentTop = scroller === document.scrollingElement ? window.scrollY : scroller.scrollTop;
+      const top = currentTop + target.getBoundingClientRect().top - scrollerTop - 60;
+      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+      scroller.scrollTo({ top: Math.max(0, top), behavior });
+    }
     return;
   }
   if ('connectionGroup' in data) {

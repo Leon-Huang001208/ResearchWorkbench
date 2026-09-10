@@ -75,7 +75,8 @@ test('local console exposes busy, live-region and safe actions', () => {
   };
   const html = renderLocalIntegrationConsole(actionModel, { busy: true });
   assert.match(html, /data-local-integrations-probe[^>]*disabled[^>]*aria-busy="true"[^>]*>检测中…/);
-  assert.match(html, /aria-live="polite"/);
+  assert.match(html, /class="sr-only" role="status" aria-live="polite" aria-atomic="true"/);
+  assert.doesNotMatch(html, /data-local-integrations-console aria-live/);
   assert.match(html, /href="#\/settings\/data\?connection=ifind"/);
 
   const unsafe = renderLocalIntegrationConsole({
@@ -138,7 +139,10 @@ test('application controller no longer loads DataHub connections for the local p
   assert.match(app, /localIntegrations:\s*\{\s*categories:/);
   assert.match(app, /api\.probeLocalIntegrations/);
   assert.match(app, /localCategoryTarget/);
-  assert.match(app, /focus\(\{ preventScroll: false \}\)/);
+  assert.match(app, /focus\(\{ preventScroll: true \}\)/);
+  assert.match(app, /document\.scrollingElement/);
+  assert.match(app, /scroller\.scrollTo\(\{ top: Math\.max\(0, top\), behavior \}\)/);
+  assert.match(app, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(app, /scrollIntoView/);
   assert.doesNotMatch(app, /sourceId === 'local_cache'/);
 });

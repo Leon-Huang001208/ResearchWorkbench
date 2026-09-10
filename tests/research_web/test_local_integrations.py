@@ -1,6 +1,8 @@
 """Truthful local-integration discovery and API contracts."""
 
 import asyncio
+import copy
+import time
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -8,6 +10,7 @@ from fastapi.testclient import TestClient
 from app.research_web.client import RuntimeFailure
 from app.research_web.local_integrations import (
     DetectionEnvironment,
+    LocalIntegrationError,
     LocalIntegrationManager,
 )
 from app.research_web.main import create_app
@@ -116,10 +119,11 @@ def test_macos_discovers_apps_and_addin_without_conflating_python_bridges(tmp_pa
     assert item(snapshot, "wind_terminal")["discovery"] == "已发现"
     assert item(snapshot, "wind_excel_addin")["discovery"] == "已发现"
     assert item(snapshot, "wind_excel_addin")["callable"] is False
-    assert item(snapshot, "ifind_local_sdk")["status"] == "不适用"
-    assert item(snapshot, "ifind_local_sdk")["discovery"] == "不适用"
-    assert "同花顺" not in item(snapshot, "ifind_local_sdk")["message"]
-    assert item(snapshot, "ifind_local_sdk")["actions"] == [
+    assert item(snapshot, "wind_terminal")["authorization"] == "待验证"
+    assert item(snapshot, "ifind_terminal")["status"] == "不适用"
+    assert item(snapshot, "ifind_terminal")["discovery"] == "不适用"
+    assert "普通同花顺客户端不是 iFinD 数据接口证据" in item(snapshot, "ifind_terminal")["detail"]
+    assert item(snapshot, "ifind_terminal")["actions"] == [
         {
             "id": "configure",
             "label": "配置 iFinD HTTP API",
@@ -149,7 +153,7 @@ def test_windows_known_paths_and_registry_are_injectable_but_never_claim_verifie
         tmp_path,
         system="Windows",
         modules={"xlwings", "iFinDPy"},
-        registry_apps={"EXCEL.EXE", "WFT.exe"},
+        registry_apps={"EXCEL.EXE", "WFT.exe", "iFinD.exe"},
     )
     snapshot = LocalIntegrationManager(tmp_path / "state", environment=env).snapshot()
 
@@ -159,9 +163,16 @@ def test_windows_known_paths_and_registry_are_injectable_but_never_claim_verifie
     assert item(snapshot, "excel_app")["callable"] is False
     assert item(snapshot, "excel_automation_bridge")["discovery"] == "已发现"
     assert item(snapshot, "excel_automation_bridge")["status"] == "待验证"
-    assert item(snapshot, "ifind_local_sdk")["discovery"] == "已发现"
-    assert item(snapshot, "ifind_local_sdk")["verification"] == "待验证"
-    assert item(snapshot, "ifind_local_sdk")["callable"] is False
+    assert item(snapshot, "wind_terminal")["authorization"] == "待验证"
+    assert item(snapshot, "ifind_terminal")["discovery"] == "已发现"
+    assert item(snapshot, "ifind_terminal")["verification"] == "待验证"
+    assert item(snapshot, "ifind_terminal")["callable"] is False
+
+    module_only = environment(tmp_path, system="Windows", modules={"iFinDPy"})
+    module_snapshot = LocalIntegrationManager(
+        tmp_path / "module-only-state", environment=module_only
+    ).snapshot()
+    assert item(module_snapshot, "ifind_terminal")["discovery"] == "未发现"
 
 
 def test_unknown_platform_is_honest_and_never_returns_machine_paths(tmp_path):
@@ -202,6 +213,110 @@ def test_probe_is_idempotent_and_failure_is_sanitized(tmp_path):
     assert result["status"] == "failed"
     assert result["error"] == {"code": "probe_failed", "message": "本机能力检测失败，请查看本地日志"}
     assert "secret" not in str(result)
+
+
+def test_snapshot_rejects_extra_fields_and_probe_has_a_server_deadline(tmp_path):
+    base_environment = environment(tmp_path)
+    valid = LocalIntegrationManager(
+        tmp_path / "valid-state", environment=base_environment
+    ).snapshot()
+    extra = copy.deepcopy(valid)
+    extra["unexpected_secret"] = str(tmp_path / "private-token")
+    unsafe = LocalIntegrationManager(
+        tmp_path / "unsafe-state", environment=base_environment, detector=lambda: extra
+    )
+    try:
+        unsafe.snapshot()
+    except LocalIntegrationError as exc:  # The public exception must not echo injected content.
+        assert "private-token" not in str(exc)
+    else:
+        raise AssertionError("unsafe projection was accepted")
+    assert not unsafe.state_path.exists()
+
+    secret_environment = environment(tmp_path)
+    secret_environment = DetectionEnvironment(
+        **{
+            **secret_environment.__dict__,
+            "environment_variables": {
+                **secret_environment.environment_variables,
+                "VENDOR_API_TOKEN": "super-secret-token-value",
+            },
+        }
+    )
+    leaked = copy.deepcopy(valid)
+    leaked["items"][0]["detail"] = "super-secret-token-value"
+    secret_projection = LocalIntegrationManager(
+        tmp_path / "secret-state", environment=secret_environment, detector=lambda: leaked
+    )
+    try:
+        secret_projection.snapshot()
+    except LocalIntegrationError as exc:
+        assert "super-secret-token-value" not in str(exc)
+    else:
+        raise AssertionError("secret in an allowed text field was accepted")
+
+    def slow_detector():
+        time.sleep(0.03)
+        return valid
+
+    manager = LocalIntegrationManager(
+        tmp_path / "timeout-state",
+        environment=environment(tmp_path),
+        detector=slow_detector,
+        probe_timeout_seconds=0.01,
+    )
+
+    async def run():
+        started = manager.start_probe("timeout-key")
+        await manager.probe_tasks[started["id"]]
+        result = manager.probe(started["id"])
+        for _ in range(20):
+            if manager._active_detection is None:
+                break
+            await asyncio.sleep(0.005)
+        await manager.close()
+        return result
+
+    result = asyncio.run(run())
+    assert result["status"] == "failed"
+    assert result["error"] == {
+        "code": "probe_timed_out",
+        "message": "本机能力检测超时，请稍后重试",
+    }
+    assert manager._latest is None
+    assert not manager.state_path.exists()
+    assert manager._active_detection is None
+
+
+def test_probe_rejects_parallel_work_and_reuses_the_same_idempotency_key(tmp_path):
+    manager = None
+
+    def slow_detector():
+        time.sleep(0.03)
+        return manager._detect()
+
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=environment(tmp_path),
+        detector=slow_detector,
+        probe_timeout_seconds=1,
+    )
+
+    async def run():
+        first = manager.start_probe("same-key")
+        assert manager.start_probe("same-key")["id"] == first["id"]
+        try:
+            manager.start_probe("different-key")
+        except LocalIntegrationError as exc:
+            assert exc.code == "local_probe_busy"
+            assert exc.status == 409
+        else:
+            raise AssertionError("parallel probe was accepted")
+        await manager.probe_tasks[first["id"]]
+        await manager.close()
+
+    asyncio.run(run())
+    assert len(manager.probes) == 1
 
 
 def test_local_integration_api_requires_idempotency_and_service_close_cleans_tasks(tmp_path):

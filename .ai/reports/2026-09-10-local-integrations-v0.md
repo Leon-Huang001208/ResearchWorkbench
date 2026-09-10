@@ -10,7 +10,8 @@
 ## 安全与限制
 
 - 探测只读取标准应用位置、已知注册信息和模块可用性，不启动厂商软件。
-- 前端投影不包含命中路径、环境变量、注册表值、命令参数或秘密；异常只记录安全错误类型。
+- 后端用固定字段和安全路由白名单校验投影，不包含命中路径、环境变量、注册表值、命令参数或秘密；异常只记录安全错误类型。
+- 探测任务有服务端时限、单通道并发门和有界历史记录；超时不会提交迟到的状态快照。
 - v0 尚未实现文件夹同步、浏览器扩展配对、本地 MCP 授权和 Office/Wind 真实操作验证；Windows 仅通过依赖注入覆盖/注册路径测试，没有原生验收。
 
 ## 验证证据
@@ -19,4 +20,4 @@
 - `conda run -n base python -m pytest tests/research_web/test_local_integrations.py tests/research_web/test_api.py tests/research_web/test_connection_center.py --confcutdir=tests/research_web -q`
 - `node --test tests/javascript/research_web_local_integrations_ui.test.mjs tests/javascript/research_web_settings_ui.test.mjs tests/javascript/research_web_connections_ui.test.mjs tests/javascript/research_web_ui.test.mjs`
 
-以上命令在实现期间分别通过 5 项、52 项和 57 项测试；最终交付检查结果以本任务提交前的实际命令为准。
+以上命令在实现期间分别通过 7 项、54 项和 57 项测试。额外运行完整 JavaScript 套件得到 214 项通过、1 项跳过；另有 1 项既有环境检查因主项目 `.venv/bin/python` 不存在而失败，与本次改动无关。最终交付检查结果以本任务提交前的实际命令为准。

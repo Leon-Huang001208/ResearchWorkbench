@@ -6,7 +6,7 @@ router = APIRouter(prefix="/api/research")
 
 
 @router.get("/local-integrations")
-async def local_integrations(request: Request):
+def local_integrations(request: Request):
     return request.app.state.research.local_integrations.snapshot()
 
 
