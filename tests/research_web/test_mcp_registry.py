@@ -686,6 +686,31 @@ def test_publisher_rejects_package_references_that_are_not_provably_fixed(packag
     assert PublisherMetadata().validate(value)["valid"] is False
 
 
+@pytest.mark.parametrize(
+    ("registry_type", "identifier"),
+    [
+        ("oci", "ghcr.io/example/weather:latest"),
+        ("oci", "ghcr.io/example/weather"),
+        ("mcpb", "https://downloads.example.test/latest/weather.mcpb"),
+    ],
+    ids=["oci-latest", "oci-untagged", "mcpb-without-file-digest"],
+)
+def test_publisher_fixed_version_cannot_pin_mutable_download_reference(registry_type, identifier):
+    value = valid_server_json()
+    value["packages"] = [
+        {
+            "registryType": registry_type,
+            "identifier": identifier,
+            "version": "1.2.3",
+            "transport": {"type": "stdio"},
+        }
+    ]
+    result = PublisherMetadata().validate(value)
+    assert result["valid"] is False
+    assert result["executed"] is False
+    assert result["issues"][0]["path"] == "packages.0"
+
+
 @pytest.mark.parametrize("registry_type", ["pypi", "oci", "nuget", "mcpb"])
 def test_publisher_accepts_supported_non_npm_package_pinned_by_digest(registry_type):
     value = valid_server_json()

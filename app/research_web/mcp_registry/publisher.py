@@ -107,13 +107,10 @@ class PublisherPackage(BaseModel):
                 raise ValueError("NuGet package 必须提供完整固定版本")
         elif self.registry_type == "oci":
             digest_pinned = digest_pinned or OCI_DIGEST_PATTERN.search(self.identifier) is not None
-            version_pinned = (
-                self.version is not None and SEMVER_PATTERN.fullmatch(self.version) is not None
-            )
-            if not digest_pinned and not version_pinned:
-                raise ValueError("OCI package 必须提供固定版本或 sha256 digest")
-        elif self.version is None and self.file_sha256 is None:
-            raise ValueError("MCPB package 必须提供固定版本或 fileSha256")
+            if not digest_pinned:
+                raise ValueError("OCI package 必须提供 identifier sha256 digest 或 fileSha256")
+        elif not digest_pinned:
+            raise ValueError("MCPB package 必须提供 fileSha256")
         elif self.version is not None and SEMVER_PATTERN.fullmatch(self.version) is None:
             raise ValueError("MCPB package version 必须为完整固定版本")
         return self
