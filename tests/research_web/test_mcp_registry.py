@@ -21,9 +21,13 @@ from app.research_web.mcp_registry import (
 )
 from app.research_web.mcp_registry.catalog import OFFICIAL_REGISTRY_ID, CatalogError
 from app.research_web.mcp_registry.credentials import KEYRING_SERVICE
-from app.research_web.mcp_registry.models import safe_http_url
+from app.research_web.mcp_registry.models import safe_http_url, safe_text
 from app.research_web.mcp_registry.publisher import PublisherMetadata
-from app.research_web.mcp_registry.sync import MAX_REGISTRY_RESPONSE_BYTES
+from app.research_web.mcp_registry.sync import (
+    MAX_REGISTRY_RESPONSE_BYTES,
+    RegistryHTTPClient,
+    SyncError,
+)
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
 
@@ -125,6 +129,154 @@ def test_registry_requests_are_strict_and_reject_credential_urls():
         RegistryUpdate.model_validate({"base_url": "file:///tmp/registry"})
 
 
+@pytest.mark.parametrize("control", ["\x7f", "\x85", "\ud800"])
+def test_plain_text_rejects_unicode_controls_and_surrogates(control):
+    with pytest.raises(ValueError):
+        safe_text(f"safe{control}text")
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        registry_payload(base_url="http://registry.example.test"),
+        registry_payload(
+            base_url="http://127.0.0.1:8080",
+            auth={"type": "bearer", "token": "secret"},
+        ),
+        registry_payload(
+            base_url="http://localhost:8080",
+            auth={
+                "type": "oauth2",
+                "authorization_url": "https://id.example.test/authorize",
+                "token_url": "https://id.example.test/token",
+                "client_id": "workbench",
+                "access_token": "secret",
+            },
+        ),
+    ],
+    ids=["remote-http-none", "loopback-http-bearer", "loopback-http-oauth"],
+)
+def test_registry_transport_requires_https_except_unauthenticated_loopback(payload):
+    with pytest.raises(ValidationError):
+        RegistryCreate.model_validate(payload)
+
+    local = RegistryCreate.model_validate(
+        registry_payload(base_url="http://127.0.0.1:8080", auth={"type": "none"})
+    )
+    assert local.base_url == "http://127.0.0.1:8080"
+
+
+@pytest.mark.parametrize("field", ["authorization_url", "token_url"])
+def test_oauth_endpoints_require_https(field):
+    auth = {
+        "type": "oauth2",
+        "authorization_url": "https://id.example.test/authorize",
+        "token_url": "https://id.example.test/token",
+        "client_id": "workbench",
+    }
+    auth[field] = f"http://127.0.0.1/{field}"
+    with pytest.raises(ValidationError):
+        RegistryCreate.model_validate(registry_payload(auth=auth))
+
+
+def test_registry_update_validates_effective_url_and_auth_before_mutation(tmp_path):
+    keyring = FakeKeyring()
+    service = MCPRegistryService(tmp_path, enabled=True, keyring_backend=keyring)
+    local = service.create_registry(
+        RegistryCreate.model_validate(
+            registry_payload(base_url="http://localhost:8080", auth={"type": "none"})
+        )
+    )
+    with pytest.raises(RegistryError) as local_error:
+        service.update_registry(
+            local["id"],
+            RegistryUpdate.model_validate({"auth": {"type": "bearer", "token": "must-not-store"}}),
+        )
+    assert local_error.value.code == "registry_transport_insecure"
+    assert all("must-not-store" not in value for value in keyring.values.values())
+    assert service.registry(local["id"])["auth"]["type"] == "none"
+
+    remote = service.create_registry(
+        RegistryCreate.model_validate(registry_payload(auth={"type": "bearer", "token": "stored"}))
+    )
+    with pytest.raises(RegistryError) as remote_error:
+        service.update_registry(
+            remote["id"], RegistryUpdate.model_validate({"base_url": "http://127.0.0.1:8080"})
+        )
+    assert remote_error.value.code == "registry_transport_insecure"
+    assert service.registry(remote["id"])["base_url"] == "https://registry.example.test"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("auth_type", ["bearer", "oauth2"])
+async def test_insecure_stored_registry_with_secret_makes_zero_network_requests(
+    tmp_path, auth_type
+):
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=remote_page())
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    auth = {"type": auth_type}
+    if auth_type == "oauth2":
+        auth.update(
+            {
+                "authorization_url": "https://id.example.test/authorize",
+                "token_url": "https://id.example.test/token",
+                "client_id": "workbench",
+                "scopes": [],
+            }
+        )
+    row = service.catalog.create("Legacy insecure", "http://registry.example.test", auth)
+    secret_key = "token" if auth_type == "bearer" else "access_token"
+    service.credentials.write(row["id"], auth_type, {secret_key: "must-not-leak"})
+
+    with pytest.raises(RegistryError) as error:
+        await service.sync_registry(row["id"])
+    assert error.value.code == "registry_transport_insecure"
+    assert requests == []
+    await service.close()
+
+
+@pytest.mark.asyncio
+async def test_registry_http_client_never_follows_redirect_to_insecure_target():
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(
+                302,
+                headers={"Location": "http://registry.example.test/v0.1/servers"},
+            )
+        return httpx.Response(200, json=remote_page())
+
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        follow_redirects=True,
+    )
+    registry_http = RegistryHTTPClient(client)
+    with pytest.raises(SyncError) as error:
+        await registry_http.page(
+            "https://registry.example.test",
+            cursor=None,
+            search=None,
+            limit=100,
+            etag=None,
+            authorization=None,
+        )
+    assert error.value.code == "registry_http_error"
+    assert len(requests) == 1
+    await client.aclose()
+
+
 def test_catalog_seeds_immutable_official_and_keeps_stable_user_identity(tmp_path):
     service = MCPRegistryService(tmp_path, enabled=True, keyring_backend=FakeKeyring())
     official = service.registry(OFFICIAL_REGISTRY_ID)
@@ -214,7 +366,8 @@ async def test_sync_preserves_registry_identity_opaque_cursor_and_etag(tmp_path)
     first = await service.sync_registry(OFFICIAL_REGISTRY_ID, limit=25)
     assert first["next_cursor"] == "opaque:/next?x=1"
     assert first["items"][0]["registry_id"] == OFFICIAL_REGISTRY_ID
-    assert first["items"][0]["title"] == "&lt;Weather &amp; Research&gt;"
+    assert first["items"][0]["title"] == "<Weather & Research>"
+    assert first["items"][0]["description"] == "Safe <b>facts</b> & signals"
     assert "icons" not in first["items"][0]
     assert seen[0].url.path == "/v0.1/servers"
     assert seen[0].url.params["limit"] == "25"
@@ -224,6 +377,100 @@ async def test_sync_preserves_registry_identity_opaque_cursor_and_etag(tmp_path)
     assert second["items"] == first["items"]
     assert second["not_modified"] is True
     assert second["stale"] is False
+    await service.close()
+
+
+@pytest.mark.asyncio
+async def test_registry_normalization_round_trips_bounded_unicode_plain_text(tmp_path):
+    payload = remote_page()
+    server = payload["servers"][0]["server"]
+    server["title"] = "研报 & 风险 <script>不是节点</script>"
+    server["description"] = "保留 Unicode、& 与 <tag>，只在最终 HTML sink 转义。"
+    server["repository"].update({"source": "代码 & 审查", "id": "组/<仓库>", "subfolder": "资料 & 图表"})
+    payload["servers"][0]["_meta"]["io.modelcontextprotocol.registry/official"].update(
+        {"status": "active & reviewed", "updatedAt": "2026-09-01T00:00:00Z & source"}
+    )
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
+        ),
+    )
+    result = await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    item = result["items"][0]
+    assert item["title"] == server["title"]
+    assert item["description"] == server["description"]
+    assert item["repository"] == {
+        "url": "https://github.com/example/weather",
+        "source": "代码 & 审查",
+        "id": "组/<仓库>",
+        "subfolder": "资料 & 图表",
+    }
+    assert item["status"] == "active & reviewed"
+    assert item["updated_at"] == "2026-09-01T00:00:00Z & source"
+    assert "&amp;" not in json.dumps(item, ensure_ascii=False)
+    cached = service.list_servers(OFFICIAL_REGISTRY_ID)["items"][0]
+    assert cached["title"] == server["title"]
+    assert cached["description"] == server["description"]
+    await service.close()
+
+    reloaded = MCPRegistryService(tmp_path, enabled=True, keyring_backend=FakeKeyring())
+    persisted = reloaded.list_servers(OFFICIAL_REGISTRY_ID)["items"][0]
+    assert persisted["title"] == server["title"]
+    assert persisted["description"] == server["description"]
+    await reloaded.close()
+
+
+@pytest.mark.asyncio
+async def test_registry_package_projection_separates_type_support_from_fixed_reference(tmp_path):
+    payload = remote_page()
+    payload["servers"][0]["server"]["packages"] = [
+        {
+            "registryType": "npm",
+            "identifier": "@example/fixed",
+            "version": "1.2.3",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "npm",
+            "identifier": "@example/dynamic",
+            "version": "latest",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "mcpb",
+            "identifier": "https://downloads.example.test/server.mcpb",
+            "transport": {"type": "stdio"},
+        },
+        {
+            "registryType": "unknown",
+            "identifier": "example/server",
+            "version": "1.2.3",
+            "transport": {"type": "stdio"},
+        },
+    ]
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
+        ),
+    )
+
+    packages = (await service.sync_registry(OFFICIAL_REGISTRY_ID))["items"][0]["packages"]
+    assert packages[0]["package_type_supported"] is True
+    assert packages[0]["immutable_reference"] is True
+    assert packages[1]["package_type_supported"] is True
+    assert packages[1]["immutable_reference"] is False
+    assert packages[2]["package_type_supported"] is True
+    assert packages[2]["immutable_reference"] is False
+    assert packages[3]["package_type_supported"] is False
+    assert packages[3]["immutable_reference"] is False
+    assert all("supported" not in package for package in packages)
     await service.close()
 
 

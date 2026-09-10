@@ -9,6 +9,8 @@ from urllib.parse import quote
 
 import httpx
 
+from .models import validate_registry_transport
+
 MAX_REGISTRY_RESPONSE_BYTES = 2 * 1024 * 1024
 TOTAL_REGISTRY_TIMEOUT_SECONDS = 30.0
 
@@ -42,6 +44,10 @@ class RegistryHTTPClient:
         etag: str | None = None,
         authorization: str | None = None,
     ) -> tuple[int, dict[str, Any] | None, str | None]:
+        try:
+            validate_registry_transport(url, "bearer" if authorization else "none")
+        except (TypeError, ValueError) as exc:
+            raise SyncError("registry_transport_insecure", 422) from exc
         headers = {}
         if etag:
             headers["If-None-Match"] = etag
@@ -50,7 +56,7 @@ class RegistryHTTPClient:
         try:
             async with asyncio.timeout(self.total_timeout):
                 async with self.client.stream(
-                    "GET", url, params=params, headers=headers
+                    "GET", url, params=params, headers=headers, follow_redirects=False
                 ) as response:
                     if response.status_code == 304:
                         return 304, None, etag

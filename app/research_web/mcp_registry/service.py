@@ -24,6 +24,7 @@ from .models import (
     RegistryUpdate,
     UpstreamList,
     normalize_upstream_server,
+    validate_registry_transport,
 )
 from .publisher import PublisherMetadata
 from .sync import RegistryHTTPClient, SyncError
@@ -162,6 +163,17 @@ class MCPRegistryService:
         auth["secret_configured"] = self.credentials.configured(row["id"], auth["type"])
         return {**copy.deepcopy(row), "auth": auth}
 
+    @staticmethod
+    def _validate_transport(base_url: str, auth_type: str) -> None:
+        try:
+            validate_registry_transport(base_url, auth_type)
+        except (TypeError, ValueError) as exc:
+            raise RegistryError(
+                "Registry 传输配置不安全",
+                "registry_transport_insecure",
+                422,
+            ) from exc
+
     def list_registries(self) -> dict[str, Any]:
         self._ensure_enabled()
         rows = sorted(
@@ -179,6 +191,7 @@ class MCPRegistryService:
 
     def create_registry(self, request: RegistryCreate) -> dict[str, Any]:
         self._ensure_enabled()
+        self._validate_transport(request.base_url, request.auth.type)
         secret = self._secret_payload(request.auth)
         if isinstance(request.auth, AuthBearer) and not secret:
             raise RegistryError("Bearer Registry 必须提供 token", "registry_secret_required", 422)
@@ -208,6 +221,11 @@ class MCPRegistryService:
             raise RegistryError(
                 "official registry is immutable", "official_registry_immutable", 409
             )
+        effective_base_url = request.base_url or current["base_url"]
+        effective_auth_type = (
+            request.auth.type if request.auth is not None else current["auth"]["type"]
+        )
+        self._validate_transport(effective_base_url, effective_auth_type)
         changes = request.model_dump(exclude_none=True, exclude={"auth"})
         old_type = current["auth"]["type"]
         if request.auth is not None:
@@ -351,6 +369,7 @@ class MCPRegistryService:
         limit: int = 100,
     ) -> dict[str, Any]:
         row = self.registry(registry_id)
+        self._validate_transport(row["base_url"], row["auth"]["type"])
         cached: dict[str, Any] | None = None
         try:
             cached = self.catalog.cached_page(
@@ -523,6 +542,7 @@ class MCPRegistryService:
     ) -> dict[str, Any]:
         self._validate_identity(server_name, version)
         row = self.registry(registry_id)
+        self._validate_transport(row["base_url"], row["auth"]["type"])
         cached: dict[str, Any] | None = None
         try:
             cached = self.catalog.cached_detail(registry_id, server_name, version)
