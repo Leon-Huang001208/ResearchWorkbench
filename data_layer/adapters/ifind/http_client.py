@@ -1,8 +1,10 @@
 """iFinD HTTP API 客户端实现"""
 
+import ipaddress
 import logging
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -17,12 +19,40 @@ from data_layer.adapters.ifind.exceptions import (
 logger = logging.getLogger(__name__)
 
 
+def validate_ifind_http_base_url(value: str) -> str:
+    """Allow credentials only over HTTPS, except for an explicit loopback service."""
+
+    normalized = value.strip().rstrip("/")
+    try:
+        parsed = urlsplit(normalized)
+        host = parsed.hostname
+        loopback = host == "localhost"
+        if host and not loopback:
+            try:
+                loopback = ipaddress.ip_address(host).is_loopback
+            except ValueError:
+                loopback = False
+    except ValueError as exc:
+        raise ValueError("iFinD HTTP 地址格式非法") from exc
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not host
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or (parsed.scheme == "http" and not loopback)
+    ):
+        raise ValueError("iFinD HTTP 地址必须使用 HTTPS；HTTP 仅允许本机回环地址")
+    return normalized
+
+
 class IFinDHTTPClient:
     """iFinD HTTP API 客户端"""
 
     def __init__(self, settings: Settings, *, transport: httpx.AsyncBaseTransport | None = None):
         self.settings = settings
-        self.base_url = settings.IFIND_HTTP_BASE_URL.rstrip("/")
+        self.base_url = validate_ifind_http_base_url(settings.IFIND_HTTP_BASE_URL)
         self.username = settings.IFIND_USERNAME
         self.password = settings.IFIND_PASSWORD
         self.token: str | None = None
@@ -65,6 +95,13 @@ class IFinDHTTPClient:
             if e.response.status_code == 401:
                 raise IFinDAuthError("Invalid iFinD credentials") from e
             raise IFinDDatasourceError(f"Login failed: {e}") from e
+        except (
+            IFinDAuthError,
+            IFinDDatasourceError,
+            IFinDPermissionError,
+            IFinDRateLimitError,
+        ):
+            raise
         except Exception as e:
             raise IFinDDatasourceError(f"Login failed: {e}") from e
 
@@ -101,7 +138,14 @@ class IFinDHTTPClient:
         if not self.token or (self.token_expires_at and datetime.now() >= self.token_expires_at):
             await self.login()
 
-    async def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, Any]:
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        _retried_after_unauthorized: bool = False,
+        **kwargs,
+    ) -> dict[str, Any]:
         """发送请求"""
         await self._ensure_token()
         client = await self._get_client()
@@ -119,10 +163,24 @@ class IFinDHTTPClient:
             if response.status_code == 403:
                 raise IFinDPermissionError("Permission denied")
             if response.status_code == 401:
+                if _retried_after_unauthorized:
+                    raise IFinDAuthError("iFinD session remained unauthorized after login")
                 await self.login()
-                return await self._request(method, endpoint, **kwargs)
+                return await self._request(
+                    method,
+                    endpoint,
+                    _retried_after_unauthorized=True,
+                    **kwargs,
+                )
             response.raise_for_status()
             return response.json()
+        except (
+            IFinDAuthError,
+            IFinDDatasourceError,
+            IFinDPermissionError,
+            IFinDRateLimitError,
+        ):
+            raise
         except httpx.HTTPStatusError as e:
             raise IFinDDatasourceError(f"Request failed: {e}") from e
 

@@ -689,6 +689,39 @@ async def test_ifind_http_probe_uses_existing_client_contract_with_mock_transpor
     assert client._client is None
 
 
+@pytest.mark.parametrize(
+    "base_url",
+    (
+        "http://ifind.example.test/api",
+        "http://192.168.1.10/api",
+        "https://user:secret@ifind.example.test/api",
+    ),
+)
+def test_ifind_http_configuration_rejects_insecure_credential_destinations(base_url):
+    from app.research_web.datahub.connections import IFindConfiguration
+
+    with pytest.raises(ValueError):
+        IFindConfiguration.model_validate(
+            {
+                "backend": "http_api",
+                "http_base_url": base_url,
+                "accounts": [{"id": "primary", "username": "researcher"}],
+            }
+        )
+
+
+@pytest.mark.parametrize("host", ("localhost", "127.0.0.1", "[::1]"))
+def test_ifind_http_client_allows_loopback_cleartext_only(host):
+    client = IFinDHTTPClient(
+        SimpleNamespace(
+            IFIND_HTTP_BASE_URL=f"http://{host}:8080/api",
+            IFIND_USERNAME="researcher",
+            IFIND_PASSWORD="secret",
+        )
+    )
+    assert client.base_url == f"http://{host}:8080/api"
+
+
 @pytest.mark.asyncio
 async def test_wind_client_probe_reports_current_session_without_starting_it(monkeypatch):
     module = ModuleType("WindPy")

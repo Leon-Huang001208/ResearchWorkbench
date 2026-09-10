@@ -126,12 +126,9 @@ class IFindConfiguration(BaseModel):
     def valid_http_base_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        value = value.strip().rstrip("/")
-        if not re.fullmatch(
-            r"https?://[A-Za-z0-9._:-]+(?:/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*)?", value
-        ):
-            raise ValueError("iFinD HTTP 地址格式非法")
-        return value
+        from data_layer.adapters.ifind.http_client import validate_ifind_http_base_url
+
+        return validate_ifind_http_base_url(value)
 
     @model_validator(mode="after")
     def unique_accounts(self):

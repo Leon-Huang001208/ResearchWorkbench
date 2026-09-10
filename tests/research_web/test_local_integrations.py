@@ -441,6 +441,61 @@ def test_verification_is_idempotent_and_success_updates_only_target_items(tmp_pa
     assert item(restored_snapshot, "word_app")["last_verified_at"] is None
 
 
+def test_verification_evidence_expires_or_changes_context(tmp_path):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    context = {"value": "office-v1"}
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        verifier=lambda _target: {"outcome": "available"},
+        context_fingerprint=lambda _target: context["value"],
+    )
+
+    async def run():
+        started = manager.start_verification("excel", "verification-context")
+        await manager.verification_tasks[started["id"]]
+
+    asyncio.run(run())
+    assert item(manager.snapshot(persist=False), "excel_app")["callable"] is True
+    context["value"] = "office-v2"
+    assert item(manager.snapshot(persist=False), "excel_app")["callable"] is False
+
+    expired = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        context_fingerprint=lambda _target: "office-v1",
+        verification_ttl_seconds=0,
+    )
+    assert item(expired.snapshot(persist=False), "excel_app")["callable"] is False
+
+
+def test_verification_persistence_failure_does_not_publish_callable(tmp_path, monkeypatch):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        verifier=lambda _target: {"outcome": "available"},
+        context_fingerprint=lambda _target: "office-v1",
+    )
+    monkeypatch.setattr(
+        manager,
+        "_persist",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("disk failed")),
+    )
+
+    async def run():
+        started = manager.start_verification("excel", "verification-persist-failure")
+        await manager.verification_tasks[started["id"]]
+        return manager.verification(started["id"])
+
+    result = asyncio.run(run())
+    assert result["status"] == "failed"
+    assert manager.verification_results == {}
+    assert item(manager.snapshot(persist=False), "excel_app")["callable"] is False
+
+
 @pytest.mark.parametrize(
     ("outcome", "status", "authorization", "verification"),
     [
@@ -772,7 +827,7 @@ def test_posix_timeout_cleanup_terminates_the_worker_process_group(monkeypatch):
         pid = 24680
 
         def is_alive(self):
-            return not any(event[0] == "killpg" and event[2] == signal.SIGKILL for event in events)
+            return False
 
         def join(self, timeout):
             events.append(("join", timeout))
@@ -829,7 +884,7 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
     monkeypatch.setattr(
         verifiers,
         "_terminate_process_tree",
-        lambda process: events.append(("tree-cleanup", process.pid)),
+        lambda process: events.append(("tree-cleanup", process.pid)) or True,
     )
 
     result = verifiers.verify_target("excel", tmp_path / "state")

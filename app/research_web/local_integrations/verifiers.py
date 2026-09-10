@@ -6,6 +6,7 @@ import hashlib
 import multiprocessing
 import os
 import queue
+import shutil
 import signal
 import subprocess
 import sys
@@ -37,17 +38,14 @@ def _permission_outcome(stderr: str) -> dict[str, Any]:
     return {"outcome": "failed", "code": "office_verification_failed"}
 
 
-def _run_osascript(script: str) -> dict[str, Any]:
+def _run_osascript(script: str, *arguments: str) -> dict[str, Any]:
     try:
         completed = subprocess.run(
-            ["/usr/bin/osascript", "-e", script],
+            ["/usr/bin/osascript", "-e", script, *arguments],
             check=False,
             capture_output=True,
             text=True,
-            timeout=VERIFICATION_TIMEOUT_SECONDS,
         )
-    except subprocess.TimeoutExpired:
-        return {"outcome": "timeout", "code": "verification_timed_out"}
     except OSError as exc:
         log.warning("local_office_verification_start_failed", error_type=type(exc).__name__)
         return {"outcome": "failed", "code": "office_verification_failed"}
@@ -102,36 +100,60 @@ def _verify_excel(run_root: Path) -> dict[str, Any]:
 
 
 def _verify_word(run_root: Path) -> dict[str, Any]:
-    path = str(run_root / "word-smoke.docx").replace('"', '\\"')
-    script = f"""tell application "Microsoft Word"
-set targetFile to POSIX file "{path}"
+    path = str(run_root / "word-smoke.docx")
+    script = """on run argv
+set smokeDocument to missing value
+set reopenedDocument to missing value
+tell application "Microsoft Word"
+try
+set targetFile to POSIX file (item 1 of argv)
 set smokeDocument to make new document
 set content of text object of smokeDocument to "Research Workbench verification"
 save as smokeDocument file name targetFile file format format document
 close smokeDocument saving no
+set smokeDocument to missing value
 set reopenedDocument to open targetFile
 set verifiedText to content of text object of reopenedDocument
 close reopenedDocument saving no
+set reopenedDocument to missing value
 if verifiedText does not contain "Research Workbench verification" then error "verification failed"
-end tell"""
-    return _run_osascript(script)
+on error errorMessage number errorNumber
+if reopenedDocument is not missing value then close reopenedDocument saving no
+if smokeDocument is not missing value then close smokeDocument saving no
+error errorMessage number errorNumber
+end try
+end tell
+end run"""
+    return _run_osascript(script, path)
 
 
 def _verify_powerpoint(run_root: Path) -> dict[str, Any]:
-    path = str(run_root / "powerpoint-smoke.pptx").replace('"', '\\"')
-    script = f"""tell application "Microsoft PowerPoint"
-set targetFile to POSIX file "{path}"
+    path = str(run_root / "powerpoint-smoke.pptx")
+    script = """on run argv
+set smokePresentation to missing value
+set reopenedPresentation to missing value
+tell application "Microsoft PowerPoint"
+try
+set targetFile to POSIX file (item 1 of argv)
 set smokePresentation to make new presentation
-make new slide at end of slides of smokePresentation with properties {{layout:slide layout title}}
+make new slide at end of slides of smokePresentation with properties {layout:slide layout title}
 set content of text range of text frame of shape 1 of slide 1 of smokePresentation to "Research Workbench verification"
 save smokePresentation in targetFile as save as Open XML presentation
 close smokePresentation
+set smokePresentation to missing value
 set reopenedPresentation to open targetFile
 set verifiedText to content of text range of text frame of shape 1 of slide 1 of reopenedPresentation
 close reopenedPresentation
+set reopenedPresentation to missing value
 if verifiedText does not contain "Research Workbench verification" then error "verification failed"
-end tell"""
-    return _run_osascript(script)
+on error errorMessage number errorNumber
+if reopenedPresentation is not missing value then close reopenedPresentation
+if smokePresentation is not missing value then close smokePresentation
+error errorMessage number errorNumber
+end try
+end tell
+end run"""
+    return _run_osascript(script, path)
 
 
 def _verify_wind(data_root: Path, run_root: Path) -> dict[str, Any]:
@@ -215,7 +237,7 @@ def _child(target: str, data_root: str, run_root: str, results) -> None:
         results.put({"outcome": "failed", "code": "verification_failed"})
 
 
-def _terminate_process_tree(process, *, platform_name: str = os.name) -> None:
+def _terminate_process_tree(process, *, platform_name: str = os.name) -> bool:
     """Terminate the worker and descendants without leaking vendor processes."""
 
     process_group: int | None = None
@@ -233,12 +255,14 @@ def _terminate_process_tree(process, *, platform_name: str = os.name) -> None:
             process.terminate()
     elif platform_name == "nt":
         try:
-            subprocess.run(
+            completed = subprocess.run(
                 ["taskkill", "/PID", str(process.pid), "/T", "/F"],
                 check=False,
                 capture_output=True,
                 timeout=10,
             )
+            if completed.returncode != 0:
+                process.terminate()
         except (OSError, subprocess.TimeoutExpired) as exc:
             log.warning(
                 "local_verification_process_tree_terminate_failed",
@@ -248,20 +272,22 @@ def _terminate_process_tree(process, *, platform_name: str = os.name) -> None:
     else:
         process.terminate()
     process.join(5)
-    if process.is_alive():
-        try:
-            if process_group is not None:
-                os.killpg(process_group, signal.SIGKILL)
-            elif hasattr(process, "kill"):
-                process.kill()
-            else:
-                process.terminate()
-        except (OSError, ProcessLookupError) as exc:
-            log.warning(
-                "local_verification_process_tree_kill_failed",
-                error_type=type(exc).__name__,
-            )
-        process.join(2)
+    try:
+        if process_group is not None:
+            # The worker may have exited while a vendor grandchild remains in
+            # its private group, so group KILL must not depend on root liveness.
+            os.killpg(process_group, signal.SIGKILL)
+        elif process.is_alive() and hasattr(process, "kill"):
+            process.kill()
+        elif process.is_alive():
+            process.terminate()
+    except (OSError, ProcessLookupError) as exc:
+        log.warning(
+            "local_verification_process_tree_kill_failed",
+            error_type=type(exc).__name__,
+        )
+    process.join(2)
+    return not process.is_alive()
 
 
 def verify_target(
@@ -295,16 +321,24 @@ def verify_target(
     )
     while process.is_alive():
         if cancellation_event is not None and cancellation_event.is_set():
-            _terminate_process_tree(process)
+            cleaned = _terminate_process_tree(process)
             results.close()
             results.join_thread()
-            return {"outcome": "failed", "code": "verification_cancelled"}
+            shutil.rmtree(run_root, ignore_errors=True)
+            return {
+                "outcome": "failed",
+                "code": "verification_cancelled" if cleaned else "cleanup_failed",
+            }
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            _terminate_process_tree(process)
+            cleaned = _terminate_process_tree(process)
             results.close()
             results.join_thread()
-            return {"outcome": "timeout", "code": "verification_timed_out"}
+            shutil.rmtree(run_root, ignore_errors=True)
+            return {
+                "outcome": "timeout" if cleaned else "failed",
+                "code": "verification_timed_out" if cleaned else "cleanup_failed",
+            }
         process.join(min(0.25, remaining))
     try:
         return results.get_nowait()
@@ -313,3 +347,4 @@ def verify_target(
     finally:
         results.close()
         results.join_thread()
+        shutil.rmtree(run_root, ignore_errors=True)

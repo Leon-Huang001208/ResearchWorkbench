@@ -1,6 +1,8 @@
 """Truthful host capability projections without launching vendor software."""
 
 import asyncio
+import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
@@ -11,7 +13,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Callable, Mapping
 from uuid import uuid4
@@ -66,6 +68,8 @@ SAFE_ID = re.compile(r"^[a-z0-9_]+$")
 SAFE_DATA_ACTION = re.compile(r"^#/settings/data\?connection=[a-z0-9_]+$")
 SENSITIVE_ENVIRONMENT_KEY = re.compile(r"(?:token|secret|password|credential|api.?key)", re.I)
 MAX_PROBE_RECORDS = 128
+MAX_VERIFICATION_RECORDS = 128
+VERIFICATION_TTL_SECONDS = 24 * 60 * 60
 VERIFICATION_TARGETS = {"excel", "word", "powerpoint", "wind_excel"}
 VERIFICATION_ITEMS = {
     "excel": ("excel_app", "excel_automation_bridge"),
@@ -245,13 +249,17 @@ class LocalIntegrationManager:
         environment: DetectionEnvironment | None = None,
         detector: Callable[[], dict] | None = None,
         verifier: Callable[[str], dict] | None = None,
+        context_fingerprint: Callable[[str], str] | None = None,
         probe_timeout_seconds: float = 10.0,
+        verification_ttl_seconds: float = VERIFICATION_TTL_SECONDS,
     ):
         self.state_root = Path(state_root)
         self.environment = environment or DetectionEnvironment.current()
         self.detector = detector
         self.verifier = verifier
+        self.context_fingerprint = context_fingerprint
         self.probe_timeout_seconds = max(0.01, float(probe_timeout_seconds))
+        self.verification_ttl_seconds = max(0.0, float(verification_ttl_seconds))
         self._detector_executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="local-integration-probe"
         )
@@ -289,6 +297,7 @@ class LocalIntegrationManager:
                 target: {
                     "outcome": value["outcome"],
                     "completed_at": value["completed_at"],
+                    "context_fingerprint": value["context_fingerprint"],
                 }
                 for target, value in values.items()
                 if target in VERIFICATION_TARGETS
@@ -296,6 +305,8 @@ class LocalIntegrationManager:
                 and value.get("outcome") in VERIFICATION_MESSAGES
                 and isinstance(value.get("completed_at"), str)
                 and len(value["completed_at"]) <= 64
+                and isinstance(value.get("context_fingerprint"), str)
+                and re.fullmatch(r"[0-9a-f]{64}", value["context_fingerprint"])
             }
         except (OSError, ValueError, TypeError, KeyError) as exc:
             log.warning("local_integration_state_read_failed", error_type=type(exc).__name__)
@@ -307,8 +318,8 @@ class LocalIntegrationManager:
             value = self._apply_verification_results(value)
             self._validate_snapshot(value)
             if persist:
-                self._latest = value
                 self._persist(value)
+                self._latest = value
             return value
         except LocalIntegrationError:
             raise
@@ -316,11 +327,16 @@ class LocalIntegrationManager:
             log.warning("local_integration_snapshot_failed", error_type=type(exc).__name__)
             raise LocalIntegrationError("本机能力检测失败，请查看本地日志") from exc
 
-    def _apply_verification_results(self, snapshot: dict) -> dict:
-        if not self.verification_results:
+    def _apply_verification_results(
+        self, snapshot: dict, results: dict[str, dict] | None = None
+    ) -> dict:
+        results = self.verification_results if results is None else results
+        if not results:
             return snapshot
         items = {item["id"]: item for item in snapshot.get("items", [])}
-        for target, result in self.verification_results.items():
+        for target, result in results.items():
+            if not self._verification_result_is_current(target, result):
+                continue
             outcome = result.get("outcome", "failed")
             status, authorization, verification, message = VERIFICATION_MESSAGES.get(
                 outcome, VERIFICATION_MESSAGES["failed"]
@@ -347,6 +363,108 @@ class LocalIntegrationManager:
             "total": len(snapshot["items"]),
         }
         return snapshot
+
+    def _verification_result_is_current(self, target: str, result: dict) -> bool:
+        try:
+            completed_at = datetime.fromisoformat(result["completed_at"].replace("Z", "+00:00"))
+            if completed_at.tzinfo is None:
+                return False
+            if datetime.now(UTC) - completed_at.astimezone(UTC) > timedelta(
+                seconds=self.verification_ttl_seconds
+            ):
+                return False
+            return result.get("context_fingerprint") == self._verification_context_fingerprint(
+                target
+            )
+        except (KeyError, TypeError, ValueError, OSError):
+            return False
+
+    @staticmethod
+    def _path_fingerprint(path: Path) -> dict:
+        try:
+            metadata = path.stat()
+            identity = {
+                "name": path.name,
+                "type": "directory" if path.is_dir() else "file",
+                "size": metadata.st_size,
+                "modified": metadata.st_mtime_ns,
+            }
+            if path.is_file() and metadata.st_size <= 32 * 1024 * 1024:
+                digest = hashlib.sha256()
+                with path.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                identity["sha256"] = digest.hexdigest()
+            return identity
+        except OSError:
+            return {"name": path.name, "state": "unavailable"}
+
+    def _verification_context_fingerprint(self, target: str) -> str:
+        if self.context_fingerprint is not None:
+            raw = self.context_fingerprint(target)
+            if not isinstance(raw, str):
+                raise ValueError("invalid verification context fingerprint")
+            return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+        app_names = {
+            "excel": ("Microsoft Excel.app",),
+            "word": ("Microsoft Word.app",),
+            "powerpoint": ("Microsoft PowerPoint.app",),
+            "wind_excel": ("Microsoft Excel.app", "Wind.app", "Wind金融终端.app"),
+        }[target]
+        facts: dict[str, object] = {
+            "target": target,
+            "system": self.environment.system.lower(),
+            "apps": [
+                self._path_fingerprint(root / name / "Contents/Info.plist")
+                for root in self.environment.application_roots
+                for name in app_names
+                if _exists(root / name)
+            ],
+        }
+        if target in {"excel", "wind_excel"}:
+            try:
+                version = importlib.metadata.version("xlwings")
+            except importlib.metadata.PackageNotFoundError:
+                version = "missing"
+            spec = importlib.util.find_spec("xlwings")
+            facts["xlwings"] = {
+                "version": version,
+                "origin": self._path_fingerprint(Path(spec.origin))
+                if spec is not None and spec.origin
+                else {"state": "missing"},
+            }
+        if target == "wind_excel":
+            facts["addins"] = [
+                self._path_fingerprint(candidate)
+                for root in self.environment.office_addin_roots
+                for candidate in (root / "WindAddin", root / "WindAddin.xlam")
+                if _exists(candidate)
+            ]
+            try:
+                from app.research_web.report_workflows.catalog import ReportWorkflowService
+
+                catalog = ReportWorkflowService(self.state_root.parent)
+                row = catalog._row("huaan-etf-weekly")
+                version = row.get("current_version")
+                manifest = catalog.manifest("huaan-etf-weekly", version)
+                facts["workflow"] = {
+                    "version": version,
+                    "resources": [
+                        self._path_fingerprint(
+                            catalog.resource_path("huaan-etf-weekly", version, policy.workbook)
+                        )
+                        for policy in manifest.workbook_policies
+                    ],
+                }
+            except Exception as exc:  # noqa: BLE001 - unavailable context invalidates evidence.
+                facts["workflow"] = {
+                    "state": "unavailable",
+                    "error_type": type(exc).__name__,
+                }
+
+        serialized = json.dumps(facts, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     def _detect(self) -> dict:
         checked_at = _utc_now()
@@ -881,7 +999,12 @@ class LocalIntegrationManager:
         if any(len(secret) > 3 and secret in serialized for secret in sensitive_values):
             raise LocalIntegrationError("本机能力检测包含不可公开的信息")
 
-    def _persist(self, snapshot: dict) -> None:
+    def _persist(
+        self,
+        snapshot: dict,
+        *,
+        verification_results: dict[str, dict] | None = None,
+    ) -> None:
         temporary: Path | None = None
         try:
             self.state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -889,7 +1012,14 @@ class LocalIntegrationManager:
                 self.state_root.chmod(0o700)
             temporary = self.state_path.with_suffix(f".{uuid4().hex}.tmp")
             payload = json.dumps(
-                {"snapshot": snapshot, "verifications": self.verification_results},
+                {
+                    "snapshot": snapshot,
+                    "verifications": (
+                        self.verification_results
+                        if verification_results is None
+                        else verification_results
+                    ),
+                },
                 ensure_ascii=False,
                 sort_keys=True,
             )
@@ -977,8 +1107,15 @@ class LocalIntegrationManager:
         existing = self.verification_keys.get(key)
         if existing:
             return self._public_verification(self.verifications[existing[1]])
+        self._prune_verifications()
         if any(not task.done() for task in self.verification_tasks.values()):
             raise LocalIntegrationError("已有真实验证正在运行，请稍后重试", "verification_busy", 409)
+        if len(self.verifications) >= MAX_VERIFICATION_RECORDS:
+            raise LocalIntegrationError(
+                "本机验证记录已达到上限，请稍后重试",
+                "verification_capacity",
+                429,
+            )
         verification_id = str(uuid4())
         record = {
             "id": verification_id,
@@ -1020,15 +1157,18 @@ class LocalIntegrationManager:
             if normalized not in VERIFICATION_MESSAGES:
                 normalized = "failed"
             completed_at = _utc_now()
-            record.update(status="completed", outcome=normalized, completed_at=completed_at)
-            self.verification_results[record["target"]] = {
+            staged_results = dict(self.verification_results)
+            staged_results[record["target"]] = {
                 "outcome": normalized,
                 "completed_at": completed_at,
+                "context_fingerprint": self._verification_context_fingerprint(record["target"]),
             }
-            snapshot = self._apply_verification_results(self._detect())
+            snapshot = self._apply_verification_results(self._detect(), staged_results)
             self._validate_snapshot(snapshot)
+            self._persist(snapshot, verification_results=staged_results)
+            self.verification_results = staged_results
             self._latest = snapshot
-            self._persist(snapshot)
+            record.update(status="completed", outcome=normalized, completed_at=completed_at)
             log.info(
                 "local_integration_verification_completed",
                 target=record["target"],
@@ -1080,6 +1220,21 @@ class LocalIntegrationManager:
             for key, value in list(self.probe_keys.items()):
                 if value == probe_id:
                     self.probe_keys.pop(key, None)
+
+    def _prune_verifications(self) -> None:
+        removable = sorted(
+            (
+                (record.get("created_at", ""), verification_id)
+                for verification_id, record in self.verifications.items()
+                if verification_id not in self.verification_tasks
+            )
+        )
+        while len(self.verifications) >= MAX_VERIFICATION_RECORDS and removable:
+            _, verification_id = removable.pop(0)
+            self.verifications.pop(verification_id, None)
+            for key, value in list(self.verification_keys.items()):
+                if value[1] == verification_id:
+                    self.verification_keys.pop(key, None)
 
     def probe(self, probe_id: str) -> dict:
         record = self.probes.get(probe_id)
