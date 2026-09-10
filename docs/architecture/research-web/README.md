@@ -21,7 +21,7 @@
 
 ## 不在本轮范围
 
-不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、线上 Skill 商店或桌面适配。Phase 2A 的 MCP 市场仅浏览 Registry 元数据：身份保持 `(registry_id, server_name, version)`，第三方字段只作纯文本且不加载远程图标；Publisher 只生成外部 CLI 交接材料并明确 `executed:false`。MCP 安装/运行时和通用 Automation/外发分别留待 Phase 2B/2C。研究台市场页是按需查询和快照入口，不是旧市场首页或后台行情管线。
+不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、线上 Skill 商店或桌面适配。Phase 2A 的 MCP 市场仅浏览 Registry 元数据：身份保持 `(registry_id, server_name, version)`，第三方字段在数据层保持有界 Unicode plain text、只在最终 HTML sink 转义一次且不加载远程图标；认证 Registry 与 OAuth 端点要求 HTTPS，无认证 HTTP 仅限精确 loopback。包类型支持与不可变引用是独立目录事实，不承诺可安装。Publisher 只生成外部 CLI 交接材料并明确 `executed:false`。MCP 安装/运行时和通用 Automation/外发分别留待 Phase 2B/2C。研究台市场页是按需查询和快照入口，不是旧市场首页或后台行情管线。
 
 ## 启动与验收基线
 

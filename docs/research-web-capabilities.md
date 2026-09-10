@@ -28,8 +28,14 @@ Quality Gate 与旧报告编译链没有恢复。
 `(registry_id, server_name, version)` 保持身份独立；同名服务器不会合并或覆盖。官方适配器固定
 调用 `/v0.1` 搜索、版本与不透明游标接口，ETag、同步时间和游标随最后成功结果原子保存；同步
 失败返回带 `stale` 标记的最后成功缓存，不用错误或空结果覆盖缓存。Bearer/OAuth 凭据仅保存到
-Keyring 服务 `ResearchWorkbench.MCPRegistry`，产品索引只保留引用。第三方名称、描述和元数据
-只按纯文本展示且不加载远程图标；未知包类型可浏览，但明确标为当前不可安装。
+Keyring 服务 `ResearchWorkbench.MCPRegistry`，产品索引只保留引用。Registry 默认必须使用 HTTPS；
+只有 `auth=none` 且主机精确为 `127.0.0.1`、`localhost` 或 `::1` 时允许 HTTP，OAuth 授权与 token
+端点始终要求 HTTPS。规范化、缓存和 API 保存有长度限制的 Unicode plain text，拒绝控制字符与
+surrogate，不做 HTML entity escape；UI 只在最终 HTML sink 转义一次且不加载远程图标。
+
+包记录将客户端识别能力与不可变制品引用拆为 `package_type_supported` 和 `immutable_reference`。
+这两项只说明包类型是否被当前客户端识别、Registry 是否登记了固定版本或所需摘要；阶段 2A 不校验
+完整制品、不提供安装，也不使用“可安装”状态。未知包类型仍可浏览并显示客户端暂不支持。
 
 本阶段不安装、启用或调用 MCP，不包含 Runtime、授权、Automation 或外发。Publisher 端点只生成
 随仓库审查的规范 `server.json`、摘要和完整外部 CLI argv，`executed:false`；应用不执行
@@ -59,7 +65,7 @@ Keyring 服务 `ResearchWorkbench.MCPRegistry`，产品索引只保留引用。�
 | GET / PATCH / DELETE `/mcp/registries/{registry_id}` | 读取、修改或删除单个 Registry；秘密只通过凭据引用管理 |
 | POST `/mcp/registries/{registry_id}/sync` | 执行一次目录同步；失败时返回最后成功缓存并标记 `stale` |
 | GET `/mcp/servers` | 按 Registry、搜索词、包类型与不透明游标浏览服务器；身份不跨 Registry 合并 |
-| GET `/mcp/servers/{registry_id}/{server_name:path}/versions/{version}` | 返回指定身份三元组的纯文本详情与真实可安装状态 |
+| GET `/mcp/servers/{registry_id}/{server_name:path}/versions/{version}` | 返回指定身份三元组的 Unicode 纯文本详情，以及 `package_type_supported` / `immutable_reference` 两项包事实；不承诺可安装 |
 | POST `/mcp/publisher/preview` | 生成规范 `server.json`、SHA-256 与完整外部 Publisher CLI argv；不执行 |
 | POST `/mcp/publisher/validate` | 校验不可变发布描述并返回 `executed:false` 的外部交接结果 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |

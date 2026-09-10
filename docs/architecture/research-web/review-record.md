@@ -389,3 +389,15 @@
 <!-- architecture-review {"group":"research-api","structure":"changed","reason":"FastAPI装配功能开关保护的MCP Registry路由与服务生命周期，同时保持研究执行链不变。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"mcp-registry","structure":"changed","reason":"新增官方与私有Registry聚合、身份三元组、ETag/游标、原子最后成功缓存及系统凭据库边界。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API Atlas新增MCP Registry分类，仍从同一架构清单离线生成并经既有只读文档端点交付。","diagrams":[]} -->
+
+## 2026-09-11 — Phase 2A 最终安全与请求归属修复
+
+- 后端修复提交 `c6c3697b`、`f87d8f2c` 将认证 Registry 和 OAuth 端点收紧为 HTTPS，仅保留无认证
+  精确 loopback HTTP；规范化、缓存和 API 统一保存有界 Unicode plain text，并把包类型支持与不可变
+  引用拆为两项事实，不承诺 Stage 2A 可安装。
+- UI 修复提交 `50d7b067` 只在最终 HTML sink 转义一次；搜索和 Registry 替换结果集会作废 pending
+  detail，迟到响应不再打开旧弹窗，并保留当前搜索框或选择器焦点。
+- 上述修复没有新增路由、服务、持久目录或跨模块依赖，图 02 与 API Atlas 的拓扑/操作清单不变。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"MCP市场修正最终HTML sink转义、包事实文案及搜索/Registry结果集替换时的详情请求归属；仍在既有UI模块和API边界内。","diagrams":[]} -->
+<!-- architecture-review {"group":"mcp-registry","structure":"unchanged","reason":"收紧Registry传输、纯文本规范化与包事实字段，不新增服务、存储目录、API路由或Runtime依赖。","diagrams":[]} -->

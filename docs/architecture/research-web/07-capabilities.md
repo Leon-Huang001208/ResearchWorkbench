@@ -13,8 +13,8 @@
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
 | `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、数据组织为四个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
-| `ui/mcp-marketplace.mjs` | 在 Tool 的 `view=market` 浏览官方与私有 Registry 的纯文本元数据、真实缓存状态和版本详情 | 安装/启用/调用服务器、执行 Publisher、渲染 Registry HTML 或热链图标 |
-| `mcp_registry/` | 按 `(registry_id, server_name, version)` 聚合目录，管理不透明游标、ETag、原子最后成功缓存和 Keyring 引用 | 合并同名服务器、把秘密写入 JSON、向 DSH 注册工具 |
+| `ui/mcp-marketplace.mjs` | 在 Tool 的 `view=market` 浏览官方与私有 Registry 的 Unicode 纯文本元数据、包类型/不可变引用事实、真实缓存状态和版本详情；最终 HTML sink 单次转义 | 安装/启用/调用服务器、执行 Publisher、渲染 Registry HTML 或热链图标 |
+| `mcp_registry/` | 按 `(registry_id, server_name, version)` 聚合目录，管理安全传输、不透明游标、ETag、原子最后成功缓存和 Keyring 引用 | 合并同名服务器、把秘密写入 JSON、向 DSH 注册工具 |
 
 Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH 读取的原生 Skill 指令，步骤列表是研究模板，不是已执行节点。
 
@@ -77,9 +77,12 @@ Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 
 Tool 目录只读展示 8 个研究/控制工具与 15 个 `datahub_*` 业务数据工具，共 23 项。新增数据库目录与单表查询仅在本机 MySQL 配置、凭据和依赖就绪后由 Research Runtime 写入 `enabledTools`；配置变化在重启后生效。已注册的只读 DataHub 查询自动执行，未注册能力不会出现在模型工具列表中。
 
 Tool 的 MCP 市场是 Phase 2A 的独立只读二级视图。官方 Registry 固定使用 `/v0.1`，私有
-Registry 必须由用户显式配置；列表和详情始终保留 Registry 身份，不按名称去重。离线或上游失败
-展示带同步时间的 `stale` 最后成功缓存，不以空目录伪装成功。未知包类型仍可发现，但标记为当前
-不可安装。Publisher 预览/校验只生成规范 `server.json`、SHA-256 与完整外部 CLI argv，且返回
+Registry 必须由用户显式配置；认证 Registry 只允许 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth
+授权/token 端点始终为 HTTPS。列表和详情始终保留 Registry 身份，不按名称去重。离线或上游失败
+展示带同步时间的 `stale` 最后成功缓存，不以空目录伪装成功。规范化目录保存有界 Unicode plain
+text，UI 只在最终 HTML sink 转义；搜索或 Registry 替换结果集会使旧详情请求失效并保留当前上下文
+焦点。包记录分别显示 `package_type_supported` 与 `immutable_reference`，只说明客户端识别与固定引用
+事实，不承诺可安装。Publisher 预览/校验只生成规范 `server.json`、SHA-256 与完整外部 CLI argv，且返回
 `executed:false`。Phase 2A 没有 MCP 安装、授权、工具调用、Runtime 重启或 Automation；这些分别
 保留给 Phase 2B/2C。
 

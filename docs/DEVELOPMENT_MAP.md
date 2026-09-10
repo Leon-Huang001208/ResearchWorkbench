@@ -11,8 +11,13 @@ configured private registries without merging the identity tuple `(registry_id, 
 publisher handoff previews; `credentials.py` stores Bearer/OAuth secrets only in the OS keyring service
 `ResearchWorkbench.MCPRegistry`; and `routes.py` exposes the `/api/research/mcp/*` surface only when
 `RESEARCH_MCP_REGISTRY_ENABLED` is enabled. The Tool `view=market` UI renders third-party text without
-HTML or remote icons. Phase 2A does not install, execute or authorize MCP servers and does not run the
-publisher CLI; runtime/install work remains Phase 2B and Automation/delivery remains Phase 2C.
+HTML or remote icons: normalization/cache/API retain bounded Unicode plain text and the final HTML sink
+escapes it once. Authenticated registries require HTTPS; unauthenticated HTTP is limited to exact loopback
+hosts, and OAuth endpoints always require HTTPS. Package records expose `package_type_supported` and
+`immutable_reference` as separate facts without promising installation. Search, Registry and route result
+replacement invalidate pending detail ownership before late responses can render. Phase 2A does not install,
+execute or authorize MCP servers and does not run the publisher CLI; runtime/install work remains Phase 2B
+and Automation/delivery remains Phase 2C.
 
 Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
 Read the canonical [Research Web architecture](architecture/research-web/README.md),

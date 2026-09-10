@@ -9,6 +9,8 @@
 `/v0.1`，保留 opaque cursor、ETag、同步时间和最后成功缓存；网络、超时或响应校验失败时返回
 `stale=true` 的旧缓存，不以空结果覆盖。该功能由 `RESEARCH_MCP_REGISTRY_ENABLED` 控制，默认关闭。
 阶段 2A 不安装、启用或调用 MCP Server，也不包含 Automation；这些仍属于阶段 2B/2C。
+Registry 默认只接受 HTTPS；唯一 HTTP 例外是 `auth=none` 且主机精确为
+`127.0.0.1`、`localhost` 或 `::1` 的显式 loopback，OAuth 授权和 token 端点始终必须使用 HTTPS。
 
 ## 实施顺序
 
@@ -102,8 +104,10 @@ sessions/<uuid>/outputs/     # 真正生成的文件
 MySQL 密码由服务名 `ResearchWorkbench.DataHub`、账户键 `mysql:default:password` 保存到操作系统凭据库；凭据库不可用时闭合失败，不降级到环境变量或明文文件。模型 API Key 仍由专属 DSH 管理，两类秘密不共享命名空间。
 私有 Registry 的 Bearer/OAuth 秘密使用独立服务名 `ResearchWorkbench.MCPRegistry`，仅进入系统凭据库。
 目录缓存与 API 保存并返回经过 schema 校验、长度限制和纯文本处理的规范化目录元数据，包括名称、
-描述、包及远程元数据，以支持浏览与离线降级；它们不保存 token 或原始上游响应体。日志不记录凭据、
-第三方描述或原始上游响应体。
+描述、包及远程元数据，以支持浏览与离线降级。字符串保持有界 Unicode plain text，拒绝控制字符和
+surrogate，不在数据层做 HTML entity escape；UI 只在最终 HTML sink 转义一次。包元数据分别暴露
+`package_type_supported` 与 `immutable_reference` 两项事实，阶段 2A 不承诺制品可安装。缓存和 API
+不保存 token 或原始上游响应体；日志不记录凭据、第三方描述或原始上游响应体。
 
 不得使用多个 Uvicorn worker 并发写同一索引。研究正文只读 DSH 日志；浏览器断线不取消任务也不自动重提。
 
