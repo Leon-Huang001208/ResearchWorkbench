@@ -6,8 +6,8 @@ DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，
 不表示运行实例在线、凭据已配置或某个 DataHub Tool 已进入当前 Runtime 的 `enabledTools`。
 
 `#/skills` 的 v0 能力工作区以 `kind=skill|tool|workflow|data` 作为四个互斥主标签，默认进入
-`kind=skill`，不再提供“全部类型”混合流。类型内继续使用 `view=library|mine|plans|connections`：
-Skill 提供能力库/我的 Skill，Tool 提供工具目录/连接状态，Workflow 提供能力库/我的 Workflow/
+`kind=skill`，不再提供“全部类型”混合流。类型内继续使用 `view=library|mine|plans|connections|market`：
+Skill 提供能力库/我的 Skill，Tool 提供工具目录/MCP 市场/连接状态，Workflow 提供能力库/我的 Workflow/
 运行计划，数据提供数据能力/数据源与连接。无 kind 的旧 `view=plans` 映射到 Workflow，
 `view=connections` 映射到 Tool；既有 kind 深链继续有效，不适用的 view 会回落到该类型目录。
 `ui/capability-workspace.mjs` 只聚合本节已有的能力、Tool、数据目录、报告 Workflow 和连接安全摘要，
@@ -22,6 +22,19 @@ DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是�
 机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
 Quality Gate 与旧报告编译链没有恢复。
+
+阶段 2A 只在 `RESEARCH_MCP_REGISTRY_ENABLED` 开启时提供只读 MCP 市场。目录聚合随仓库
+配置的官方 Registry 与用户显式配置的私有 Registry，并以
+`(registry_id, server_name, version)` 保持身份独立；同名服务器不会合并或覆盖。官方适配器固定
+调用 `/v0.1` 搜索、版本与不透明游标接口，ETag、同步时间和游标随最后成功结果原子保存；同步
+失败返回带 `stale` 标记的最后成功缓存，不用错误或空结果覆盖缓存。Bearer/OAuth 凭据仅保存到
+Keyring 服务 `ResearchWorkbench.MCPRegistry`，产品索引只保留引用。第三方名称、描述和元数据
+只按纯文本展示且不加载远程图标；未知包类型可浏览，但明确标为当前不可安装。
+
+本阶段不安装、启用或调用 MCP，不包含 Runtime、授权、Automation 或外发。Publisher 端点只生成
+随仓库审查的规范 `server.json`、摘要和完整外部 CLI argv，`executed:false`；应用不执行
+`mcp-publisher`、不登录官方 Registry、不构建或上传包。安装与运行时留待阶段 2B，Automation 与
+外发留待阶段 2C。
 
 ## API（全部位于 `/api/research`）
 
@@ -42,6 +55,13 @@ Quality Gate 与旧报告编译链没有恢复。
 | GET `/capabilities/{id}/versions/{version}/export` | ZIP：原始 SKILL.md、capability.json、可选 workflow.json、资源 |
 | GET `/tools` | 23 项真实 guard/注册声明：8 项研究/控制工具和 15 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
 | GET `/workflows` | 同一能力目录中四项种子及用户 Workflow；没有平行目录 |
+| GET / POST `/mcp/registries` | 列出或保存官方/私有 Registry 的非敏感配置；关闭功能开关时为 404 |
+| GET / PATCH / DELETE `/mcp/registries/{registry_id}` | 读取、修改或删除单个 Registry；秘密只通过凭据引用管理 |
+| POST `/mcp/registries/{registry_id}/sync` | 执行一次目录同步；失败时返回最后成功缓存并标记 `stale` |
+| GET `/mcp/servers` | 按 Registry、搜索词、包类型与不透明游标浏览服务器；身份不跨 Registry 合并 |
+| GET `/mcp/servers/{registry_id}/{server_name:path}/versions/{version}` | 返回指定身份三元组的纯文本详情与真实可安装状态 |
+| POST `/mcp/publisher/preview` | 生成规范 `server.json`、SHA-256 与完整外部 Publisher CLI argv；不执行 |
+| POST `/mcp/publisher/validate` | 校验不可变发布描述并返回 `executed:false` 的外部交接结果 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |
 

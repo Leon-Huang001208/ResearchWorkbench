@@ -1,15 +1,26 @@
 # Research Web 接口清单
 
 能力工作区 v0 没有新增后端 API。`#/skills` 以 `kind=skill|tool|workflow|data` 作为四个主分区，
-`view=library|mine|plans|connections` 只表示类型内二级视图；这些都是纯前端路由参数，继续读取
+`view=library|mine|plans|connections|market` 只表示类型内二级视图；这些都是纯前端路由参数，继续读取
 本页已有的 capabilities、tools、data catalog、data connections 与 report-workflows 接口。
-旧 kind 深链保持兼容，无 kind 的 plans/connections 分别归一到 Workflow/Tool。通用 Automation 与 MCP
-Registry API 属于后续阶段，在对应持久模型和安全边界落地前不出现在本清单中。
+旧 kind 深链保持兼容，无 kind 的 plans/connections 分别归一到 Workflow/Tool；`market` 只在 Tool
+分区有效。Phase 2A 已增加功能开关保护的只读 MCP Registry API。MCP 安装/运行时及通用
+Automation 仍属 Phase 2B/2C，在对应持久模型和安全边界落地前不出现在本清单中。
 
-路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 125 个唯一 HTTP 操作、127 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
+路由由源码声明、架构清单与 OpenAPI 双向核对：当前有 135 个唯一 HTTP 操作、137 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`mcp_registry/routes.py` 提供只读目录、同步与外部 Publisher 交接；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 
 | Method | 路径 | 源码 |
 |---|---|---|
+| GET | `/api/research/mcp/registries` | `app/research_web/mcp_registry/routes.py` |
+| POST | `/api/research/mcp/registries` | `app/research_web/mcp_registry/routes.py` |
+| GET | `/api/research/mcp/registries/{registry_id}` | `app/research_web/mcp_registry/routes.py` |
+| PATCH | `/api/research/mcp/registries/{registry_id}` | `app/research_web/mcp_registry/routes.py` |
+| DELETE | `/api/research/mcp/registries/{registry_id}` | `app/research_web/mcp_registry/routes.py` |
+| POST | `/api/research/mcp/registries/{registry_id}/sync` | `app/research_web/mcp_registry/routes.py` |
+| GET | `/api/research/mcp/servers` | `app/research_web/mcp_registry/routes.py` |
+| GET | `/api/research/mcp/servers/{registry_id}/{server_name:path}/versions/{version}` | `app/research_web/mcp_registry/routes.py` |
+| POST | `/api/research/mcp/publisher/preview` | `app/research_web/mcp_registry/routes.py` |
+| POST | `/api/research/mcp/publisher/validate` | `app/research_web/mcp_registry/routes.py` |
 | GET | `/api/research/runtime` | `app/research_web/main.py` |
 | GET | `/api/research/models` | `app/research_web/main.py` |
 | PUT | `/api/research/runtime/model` | `app/research_web/main.py` |
@@ -147,6 +158,7 @@ Registry API 属于后续阶段，在对应持久模型和安全边界落地前�
 - 报告 Workflow API 管理具体报告版本包；运行只允许已启用且有当前版本的项目。`report-projects` 是迁移期后端兼容接口，没有独立产品导航或第二执行引擎，新页面只使用 `report-workflows`。
 - operations 接口只返回安全化聚合。`summary` 是页面首选的一次性聚合，同一请求对每个会话的 DSH 历史只读取一次；服务进程状态还会核对状态指纹、项目/数据根与实际 PID 命令签名。分项接口保留给精确读取和测试。没有 usage 或价格时返回未知/未配置，不伪造零和费用。
 - 结构错误返回明确 4xx；DSH 协议/连接故障不回退演示。服务端日志不输出密钥。
+- MCP Registry 路由在 `RESEARCH_MCP_REGISTRY_ENABLED` 关闭时返回 404。同步固定官方 `/v0.1` 与不透明游标，失败只返回带 `stale` 的最后成功缓存；身份三元组不跨 Registry 合并。Publisher 两个接口只返回规范 JSON、摘要、完整 argv 和 `executed:false`，从不启动 CLI。
 - SSE 为 `snapshot`、`runtime_error` 和心跳；重连通过原生日志恢复。取消和审批复用真实原生 RPC。
 - 输出格式和独立交付状态见 [数据与文件](03-data-files.md)。文件下载与 HTML 预览不是任意静态仓库服务。
 

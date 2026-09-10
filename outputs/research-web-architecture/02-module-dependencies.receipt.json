@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20260910-13b392ed9d19/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20260910-13b392ed9d19/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "278080ca4c50508c32e9bf5bf57ef0444ed61a1de284c170e6220b718f980eca",
-    "bytes": 6765
+    "sha256": "f540e29432f1cc8c6386af843fb70c7f6378cd7d667309ee018b330f5b3c1a74",
+    "bytes": 6812
   },
   "artifact": {
-    "sha256": "d6a85a422500ffdafa0e8e261ad7a433f7fffb03eb4b649c7e971d020977a4a4",
-    "bytes": 648230
+    "sha256": "207d9c1b797bf49ead3857426179c1b6eae05b1ce8c20310b07eeb6dca666a40",
+    "bytes": 647502
   },
   "validation": {
     "checksPassed": 9,
@@ -24,7 +24,7 @@
   "evidence": {
     "verified": true,
     "repository": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-    "revision": "4049f385ed84df41dc6c70e8dbec4c6073f27d30",
-    "references": 19
+    "revision": "2cb72ccd693d9fe7f63edb810437f501871f1cf7",
+    "references": 21
   }
 }

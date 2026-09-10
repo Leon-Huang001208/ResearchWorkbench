@@ -2,7 +2,17 @@
 
 This file maps Research Workbench subsystems to source files, tests, and required documentation updates.
 
-## Current Web research implementation (2026-09-04)
+## Current Web research implementation (2026-09-10)
+
+Research Web Phase 2A adds the feature-gated, read-only MCP Registry catalog in
+`app/research_web/mcp_registry/`. `catalog.py` aggregates the fixed official `/v0.1` API and explicitly
+configured private registries without merging the identity tuple `(registry_id, server_name, version)`;
+`service.py` owns opaque-cursor synchronization, ETag revalidation, atomic last-good cache fallback and
+publisher handoff previews; `credentials.py` stores Bearer/OAuth secrets only in the OS keyring service
+`ResearchWorkbench.MCPRegistry`; and `routes.py` exposes the `/api/research/mcp/*` surface only when
+`RESEARCH_MCP_REGISTRY_ENABLED` is enabled. The Tool `view=market` UI renders third-party text without
+HTML or remote icons. Phase 2A does not install, execute or authorize MCP servers and does not run the
+publisher CLI; runtime/install work remains Phase 2B and Automation/delivery remains Phase 2C.
 
 Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
 Read the canonical [Research Web architecture](architecture/research-web/README.md),

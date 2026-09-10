@@ -16,7 +16,7 @@
 | `diagrams[]` | `id`、JSON `source`、HTML `artifact`、`receipt`、`visualReceipt`、`evidence` |
 | `evidence[]` | 图中 `subjects`（节点或关系 ID）对应实际源码 `source`；可增加字符串 `contains` 定位具体声明 |
 
-清单包含十图、各节点与关系的关联来源及实际 `/api/research/` 路由，不允许以空清单绕过检查。新增报告 Workflow 运行序列与 Excel 数据流也必须经过同一哈希、视觉和人工审阅门禁。
+清单包含十图、各节点与关系的关联来源及实际 `/api/research/` 路由，不允许以空清单绕过检查。新增报告 Workflow 运行序列与 Excel 数据流也必须经过同一哈希、视觉和人工审阅门禁。API Atlas 对 `/mcp/` 使用独立 `MCP Registry` 分类，分类脚本改动同样需要文档组标记与重新生成的 Atlas。
 
 ## 更新检查规则
 

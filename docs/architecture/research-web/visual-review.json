@@ -15,14 +15,14 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "d6a85a422500ffdafa0e8e261ad7a433f7fffb03eb4b649c7e971d020977a4a4",
-      "specificationSha256": "278080ca4c50508c32e9bf5bf57ef0444ed61a1de284c170e6220b718f980eca",
+      "artifactSha256": "207d9c1b797bf49ead3857426179c1b6eae05b1ce8c20310b07eeb6dca666a40",
+      "specificationSha256": "f540e29432f1cc8c6386af843fb70c7f6378cd7d667309ee018b330f5b3c1a74",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-09-08",
-      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.1440x900.dark.png"],
+      "date": "2026-09-10",
+      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png", "02-module-dependencies.visual-check.2048x1320.dark.png"],
       "findings": [],
-      "notes": "已人工查看 1440 浅色与深色最终截图；登记来源明确包含用户 MySQL，DataHub 节点保留 enabledTools、自动查询与快照边界，无遮挡、裁剪或节点穿线。图只证明结构表达，不证明来源当前在线或报告已实际运行。"
+      "notes": "已人工查看同一最终哈希的 1440 与 2048 浅色/深色四张截图；只读 MCP 市场到 FastAPI、Registry service、原子缓存/OS Keyring、官方及私有 Registry 的路径清晰，报告 Workflow、专属 DSH、组装、DataHub 与会话快照主链仍可读。未见遮挡、裁剪或节点穿线。图只证明结构表达，不证明 Registry 在线，也不表示已安装、启用或调用 MCP。"
     },
     {
       "id": "05-capability-flow",

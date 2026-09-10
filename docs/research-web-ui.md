@@ -4,7 +4,7 @@
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 真实模型与浏览器旅程见 [验收记录](research-web-acceptance.md)。
 
-页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations` 与设置子路由。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections` 表示类型内二级视图；无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
+页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations` 与设置子路由。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections|market` 表示类型内二级视图；`market` 仅对 Tool 有效，规范地址为 `#/skills?kind=tool&view=market`，无 kind 的 market 也归一到 Tool。无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
 当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、DataHub 以外的原生审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
@@ -27,6 +27,7 @@
 | `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索及附件拖放/粘贴入口；不直接发起研究 |
 | `capabilities.mjs` | 同一能力目录的筛选、卡片、详情、检查结果、只读 Tool、不可变版本与 Workflow 模板渲染 |
 | `capability-workspace.mjs` | Skill、Tool、Workflow、数据四个互斥主标签、类型内二级视图、严格类型过滤、运行计划/连接摘要与共用快览 dialog |
+| `mcp-marketplace.mjs` | Tool 的只读 MCP 市场、Registry 选择/搜索、stale/offline 状态、Server 卡片与详情 dialog、外部 publisher 命令交接；不安装或执行 |
 | `data-catalog.mjs` | DataHub 的 15 项能力 / 22 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
 | `connections.mjs` | 设置页统一连接中心、来源分组/同页详情、配置状态矩阵、秘密型表单和旧环境变量迁移确认；不自行读取或持久化凭据 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
@@ -39,6 +40,10 @@
 ## 接口与行为
 
 所有请求仅访问同源 `/api/research`；读取运行时、模型目录、工作空间、历史、`/capabilities` 与只读 `/tools` 后展示真实响应。错误可见，不生成本地演示结果。目录部分加载失败会独立报告并保留上次成功结果；DSH 离线时产品后端仍可读取已保存目录。Web 服务也离线时只能保留本页已加载状态，不宣称提供离线 PWA 或跨刷新缓存。
+
+- Tool 的“MCP 市场”读取 `/mcp/registries`、`/mcp/servers` 与版本详情。第三方名称、说明、包和远程地址都按纯文本转义，不渲染 Registry HTML，不加载远程图标。未知包类型明确显示“当前不可安装”；页面与详情分别依据各自的 `stale/failure_code` 显示离线缓存状态。
+- 主目录请求绑定当前 Registry、搜索、页面代次与路由；详情绑定完整三元组，publisher 结果绑定输入原文。过期响应不能覆盖新查询、跨路由打开旧弹窗或认证另一份 JSON。详情继续支持焦点锁定、Escape、遮罩关闭和关闭后焦点恢复。
+- publisher 区只显示后端返回的规范 JSON、SHA-256 及完整 `mcp-publisher validate/publish` argv，`executed` 固定为 `false`。它不登录、安装、启用或发布；用户须在应用外的官方 CLI 显式完成。
 
 - 新研究先 `POST /sessions`，再对新会话 `POST /messages`；消息带 `Idempotency-Key`。同一个失败草稿重试复用相同键；收到 `accepted: true` 才清空原稿。界面不伪造用户/助手消息或进度。
 - 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。DataHub 标准字段 `turnover` 表示成交额，`turnover_rate_pct` 表示换手率；两者不得混用，缺少换手率时显示未知。没有真实值时不补价格、估值、主题或同类比较。
