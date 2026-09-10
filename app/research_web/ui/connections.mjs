@@ -59,8 +59,8 @@ function renderLocalIntegrationRow(item, verificationTarget = '') {
   const verifyAction = target && item?.discovery === '已发现'
     ? `<button class="button small local-integration-verify" type="button" data-local-integration-verify="${e(target)}" ${verificationTarget ? 'disabled' : ''} ${verifying ? 'aria-busy="true"' : ''}>${verifying ? '验证中…' : '真实验证'}</button>`
     : '';
-  const checked = target && item?.last_checked_at
-    ? `<time datetime="${e(item.last_checked_at)}">最近验证：${e(item.last_checked_at)}</time>`
+  const checked = target && item?.last_verified_at
+    ? `<time datetime="${e(item.last_verified_at)}">最近验证：${e(item.last_verified_at)}</time>`
     : '';
   const callable = item?.status === '不适用' ? '不适用' : item?.callable === true ? '是' : '否';
   const tone = localStatusTone[item?.status] || 'danger';

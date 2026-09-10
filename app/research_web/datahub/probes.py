@@ -9,6 +9,13 @@ from importlib.util import find_spec
 from types import SimpleNamespace
 
 from core.observability import get_logger
+from data_layer.adapters.ifind.exceptions import (
+    IFinDAuthError,
+    IFinDDatasourceError,
+    IFinDPermissionError,
+    IFinDQuotaExceededError,
+    IFinDRateLimitError,
+)
 
 from .connections import CredentialStoreError
 
@@ -92,19 +99,39 @@ def _default_ifind_http_client(base_url: str, username: str, password: str):
 
 
 async def _probe_ifind_http(base_url, accounts, client_factory) -> dict:
+    failure_code = "vendor_login_failed"
     for username, password in accounts:
         client = client_factory(base_url, username, password)
         try:
-            if await client.login() and await client.is_alive():
-                return {"health": "healthy", "failure_code": None}
+            if not await client.login() or not await client.is_alive():
+                failure_code = "vendor_login_failed"
+                continue
+            rows = await client.probe_query()
+            if not isinstance(rows, list) or not rows:
+                failure_code = "vendor_query_empty"
+                continue
+            return {"health": "healthy", "failure_code": None}
+        except IFinDAuthError as exc:
+            failure_code = "vendor_login_failed"
+            log.warning("ifind_http_probe_auth_failed", error_type=type(exc).__name__)
+        except (IFinDPermissionError, PermissionError) as exc:
+            failure_code = "vendor_permission_denied"
+            log.warning("ifind_http_probe_permission_failed", error_type=type(exc).__name__)
+        except (IFinDRateLimitError, IFinDQuotaExceededError) as exc:
+            failure_code = "vendor_quota_limited"
+            log.warning("ifind_http_probe_quota_failed", error_type=type(exc).__name__)
+        except IFinDDatasourceError as exc:
+            failure_code = "vendor_probe_failed"
+            log.warning("ifind_http_probe_failed", error_type=type(exc).__name__)
         except Exception as exc:  # noqa: BLE001 - vendor errors are normalized below.
+            failure_code = "vendor_probe_failed"
             log.warning("ifind_http_probe_failed", error_type=type(exc).__name__)
         finally:
             try:
                 await client.logout()
             except Exception as exc:  # noqa: BLE001 - close failures must not expose secrets.
                 log.warning("ifind_http_close_failed", error_type=type(exc).__name__)
-    return {"health": "unavailable", "failure_code": "vendor_login_failed"}
+    return {"health": "unavailable", "failure_code": failure_code}
 
 
 async def probe_source(

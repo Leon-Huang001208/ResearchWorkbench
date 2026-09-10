@@ -21,6 +21,7 @@ const makeItem = (id, category, label, status, extra = {}) => ({
   capabilities: [],
   actions: [],
   last_checked_at: '2026-09-10T00:00:00Z',
+  last_verified_at: null,
   ...extra,
 });
 
@@ -91,7 +92,7 @@ test('eligible Office rows expose explicit verification actions and per-target p
     ...localIntegrations,
     items: [
       ...localIntegrations.items,
-      makeItem('word_app', 'office', 'Microsoft Word 应用', '待验证', { discovery: '已发现' }),
+      makeItem('word_app', 'office', 'Microsoft Word 应用', '待验证', { discovery: '已发现', last_verified_at: '2026-09-10T01:00:00Z' }),
       makeItem('ifind_terminal', 'office', 'iFinD 专业终端', '不适用', {
         discovery: '不适用', authorization: '不适用', verification: '不适用',
         actions: [{ id: 'configure', label: '配置 iFinD HTTP API', href: '#/settings/data?connection=ifind' }],
@@ -104,7 +105,8 @@ test('eligible Office rows expose explicit verification actions and per-target p
   const html = renderLocalIntegrationConsole(expanded, { verificationTarget: 'word' });
   assert.match(html, /data-local-integration-verify="excel"/);
   assert.match(html, /data-local-integration-verify="word"[^>]*disabled[^>]*aria-busy="true"[^>]*>验证中…/);
-  assert.match(html, /2026-09-10T00:00:00Z/);
+  assert.match(html, /最近验证：2026-09-10T01:00:00Z/);
+  assert.doesNotMatch(html, /最近验证：2026-09-10T00:00:00Z/);
   assert.doesNotMatch(html, /data-local-integration-verify="ifind/);
   assert.match(html, /配置 iFinD HTTP API/);
 });

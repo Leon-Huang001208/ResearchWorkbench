@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import multiprocessing
+import os
 import queue
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
+from threading import Event
 from typing import Any
 from uuid import uuid4
 
@@ -15,6 +19,7 @@ from core.observability import get_logger
 
 log = get_logger(__name__)
 VERIFICATION_TIMEOUT_SECONDS = 180.0
+WIND_VERIFICATION_TIMEOUT_SECONDS = 900.0
 
 
 def _sha256(path: Path) -> str:
@@ -63,7 +68,10 @@ def _verify_excel(run_root: Path) -> dict[str, Any]:
         sheet.range("A1").value = 19
         sheet.range("A2").value = 23
         sheet.range("A3").formula = "=A1+A2"
-        app.calculate()
+        full_rebuild = getattr(app, "calculate_full_rebuild", None)
+        if not callable(full_rebuild):
+            return {"outcome": "formula_error", "code": "excel_full_rebuild_unavailable"}
+        full_rebuild()
         book.save(str(path))
         book.close()
         book = app.books.open(str(path), update_links=False, read_only=True)
@@ -149,21 +157,27 @@ def _verify_wind(data_root: Path, run_root: Path) -> dict[str, Any]:
             return {"outcome": "failed", "code": "wind_workbook_unavailable"}
         policies.sort(key=lambda pair: (len(pair[0].required_cells), pair[0].workbook))
         service = WorkbookRefreshService()
-        for index, (policy, source) in enumerate(policies):
-            before = _sha256(source)
-            stage = run_root / ("smoke" if index == 0 else "full")
-            result = service.refresh(source, stage, policy)
-            if _sha256(source) != before:
-                return {"outcome": "failed", "code": "source_hash_changed"}
-            if result.status is not RefreshStatus.READY:
-                code = result.code or "wind_refresh_failed"
-                if code in {"provider_timeout", "refresh_lock_timeout"}:
-                    return {"outcome": "timeout", "code": "verification_timed_out"}
-                if code in {"provider_not_ready", "xlwings_missing"}:
-                    return {"outcome": "login_required", "code": "vendor_login_required"}
-                if code in {"formula_error", "required_cell_missing", "required_cell_zero"}:
-                    return {"outcome": "formula_error", "code": "wind_formula_failed"}
-                return {"outcome": "failed", "code": "wind_refresh_failed"}
+        phases = (("smoke", policies[:1]), ("full", policies))
+        for phase, selected_policies in phases:
+            for policy, source in selected_policies:
+                before = _sha256(source)
+                try:
+                    result = service.refresh(source, run_root / phase, policy)
+                except Exception:
+                    if _sha256(source) != before:
+                        return {"outcome": "failed", "code": "source_hash_changed"}
+                    raise
+                if _sha256(source) != before:
+                    return {"outcome": "failed", "code": "source_hash_changed"}
+                if result.status is not RefreshStatus.READY:
+                    code = result.code or "wind_refresh_failed"
+                    if code in {"provider_timeout", "refresh_lock_timeout"}:
+                        return {"outcome": "timeout", "code": "verification_timed_out"}
+                    if code in {"provider_not_ready", "xlwings_missing"}:
+                        return {"outcome": "login_required", "code": "vendor_login_required"}
+                    if code in {"formula_error", "required_cell_missing", "required_cell_zero"}:
+                        return {"outcome": "formula_error", "code": "wind_formula_failed"}
+                    return {"outcome": "failed", "code": "wind_refresh_failed"}
         return {"outcome": "available", "code": None}
     except Exception as exc:  # noqa: BLE001 - normalize catalog and vendor failures.
         log.warning("local_wind_verification_failed", error_type=type(exc).__name__)
@@ -172,6 +186,8 @@ def _verify_wind(data_root: Path, run_root: Path) -> dict[str, Any]:
 
 def _child(target: str, data_root: str, run_root: str, results) -> None:
     try:
+        if os.name == "posix":
+            os.setsid()
         root = Path(run_root)
         root.mkdir(parents=True, exist_ok=False, mode=0o700)
         outcome = {
@@ -186,7 +202,61 @@ def _child(target: str, data_root: str, run_root: str, results) -> None:
         results.put({"outcome": "failed", "code": "verification_failed"})
 
 
-def verify_target(target: str, state_root: Path) -> dict[str, Any]:
+def _terminate_process_tree(process, *, platform_name: str = os.name) -> None:
+    """Terminate the worker and descendants without leaking vendor processes."""
+
+    process_group: int | None = None
+    if platform_name == "posix":
+        try:
+            process_group = os.getpgid(process.pid)
+            if process_group != process.pid:
+                raise OSError("verification worker has no private process group")
+            os.killpg(process_group, signal.SIGTERM)
+        except (OSError, ProcessLookupError) as exc:
+            log.warning(
+                "local_verification_process_group_terminate_failed",
+                error_type=type(exc).__name__,
+            )
+            process.terminate()
+    elif platform_name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=False,
+                capture_output=True,
+                timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            log.warning(
+                "local_verification_process_tree_terminate_failed",
+                error_type=type(exc).__name__,
+            )
+            process.terminate()
+    else:
+        process.terminate()
+    process.join(5)
+    if process.is_alive():
+        try:
+            if process_group is not None:
+                os.killpg(process_group, signal.SIGKILL)
+            elif hasattr(process, "kill"):
+                process.kill()
+            else:
+                process.terminate()
+        except (OSError, ProcessLookupError) as exc:
+            log.warning(
+                "local_verification_process_tree_kill_failed",
+                error_type=type(exc).__name__,
+            )
+        process.join(2)
+
+
+def verify_target(
+    target: str,
+    state_root: Path,
+    *,
+    cancellation_event: Event | None = None,
+) -> dict[str, Any]:
     """Run an allowlisted verification in a terminable spawned process."""
 
     if target not in {"excel", "word", "powerpoint", "wind_excel"}:
@@ -207,17 +277,29 @@ def verify_target(target: str, state_root: Path) -> dict[str, Any]:
         name=f"local-verification-{target}",
     )
     process.start()
-    process.join(VERIFICATION_TIMEOUT_SECONDS)
-    if process.is_alive():
-        process.terminate()
-        process.join(5)
-        if process.is_alive() and hasattr(process, "kill"):
-            process.kill()
-            process.join(2)
-        return {"outcome": "timeout", "code": "verification_timed_out"}
+    timeout = (
+        WIND_VERIFICATION_TIMEOUT_SECONDS
+        if target == "wind_excel"
+        else VERIFICATION_TIMEOUT_SECONDS
+    )
+    deadline = time.monotonic() + timeout
+    while process.is_alive():
+        if cancellation_event is not None and cancellation_event.is_set():
+            _terminate_process_tree(process)
+            results.close()
+            results.join_thread()
+            return {"outcome": "failed", "code": "verification_cancelled"}
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            _terminate_process_tree(process)
+            results.close()
+            results.join_thread()
+            return {"outcome": "timeout", "code": "verification_timed_out"}
+        process.join(min(0.25, remaining))
     try:
         return results.get_nowait()
     except queue.Empty:
         return {"outcome": "failed", "code": "verification_failed"}
     finally:
         results.close()
+        results.join_thread()

@@ -10,6 +10,7 @@ from core.settings.config import Settings
 from data_layer.adapters.ifind.exceptions import (
     IFinDAuthError,
     IFinDDatasourceError,
+    IFinDPermissionError,
     IFinDRateLimitError,
 )
 
@@ -115,6 +116,8 @@ class IFinDHTTPClient:
             )
             if response.status_code == 429:
                 raise IFinDRateLimitError("Rate limit exceeded")
+            if response.status_code == 403:
+                raise IFinDPermissionError("Permission denied")
             if response.status_code == 401:
                 await self.login()
                 return await self._request(method, endpoint, **kwargs)
@@ -174,6 +177,14 @@ class IFinDHTTPClient:
             },
         )
         return data.get("data", [])
+
+    async def probe_query(self) -> list[dict]:
+        """Execute the smallest supported read-only query used by connection probes."""
+
+        return await self.basic(
+            ["000001.SZ"],
+            ["ths_stock_short_name_stock"],
+        )
 
     async def financial(
         self,

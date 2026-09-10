@@ -4,8 +4,11 @@ import asyncio
 import copy
 import json
 import platform
+import signal
+import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,6 +18,7 @@ from app.research_web.local_integrations import (
     DetectionEnvironment,
     LocalIntegrationError,
     LocalIntegrationManager,
+    verifiers,
 )
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
@@ -84,6 +88,7 @@ def assert_safe_shape(value: dict) -> None:
         "capabilities",
         "actions",
         "last_checked_at",
+        "last_verified_at",
     }
     assert value["status"] in {
         "可用",
@@ -432,7 +437,8 @@ def test_verification_is_idempotent_and_success_updates_only_target_items(tmp_pa
     restored = LocalIntegrationManager(tmp_path / "state", environment=env)
     restored_snapshot = restored.snapshot(persist=False)
     assert item(restored_snapshot, "excel_app")["status"] == "可用"
-    assert item(restored_snapshot, "excel_app")["last_checked_at"] == result["completed_at"]
+    assert item(restored_snapshot, "excel_app")["last_verified_at"] == result["completed_at"]
+    assert item(restored_snapshot, "word_app")["last_verified_at"] is None
 
 
 @pytest.mark.parametrize(
@@ -513,3 +519,186 @@ def test_verification_api_rejects_unknown_targets_and_requires_idempotency(tmp_p
             client.get("/api/research/local-integrations/verifications/not-found").status_code
             == 404
         )
+
+
+def test_excel_verifier_uses_full_rebuild_and_reopens_saved_value(tmp_path, monkeypatch):
+    events = []
+
+    class Range:
+        value = None
+        formula = None
+
+    class Sheet:
+        def __init__(self):
+            self.values = {"A3": 42}
+
+        def range(self, reference):
+            value = Range()
+            value.value = self.values.get(reference)
+            return value
+
+    class Book:
+        sheets = [Sheet()]
+
+        def save(self, path):
+            Path(path).write_bytes(b"xlsx")
+
+        def close(self):
+            events.append("book-close")
+
+    class Books:
+        active = Book()
+
+        def open(self, *_args, **_kwargs):
+            events.append("reopen")
+            return Book()
+
+    class App:
+        books = Books()
+
+        def calculate_full_rebuild(self):
+            events.append("full-rebuild")
+
+        def calculate(self):
+            raise AssertionError("full rebuild must be preferred")
+
+        def quit(self):
+            events.append("quit")
+
+    monkeypatch.setitem(sys.modules, "xlwings", SimpleNamespace(App=lambda **_kwargs: App()))
+
+    assert verifiers._verify_excel(tmp_path)["outcome"] == "available"
+    assert "full-rebuild" in events
+    assert "reopen" in events
+    assert "quit" in events
+
+
+def test_wind_verifier_runs_smoke_then_full_and_preserves_published_source(tmp_path, monkeypatch):
+    from app.research_web.report_workflows import catalog as catalog_module
+    from app.research_web.report_workflows import workbook as workbook_module
+    from app.research_web.report_workflows.models import (
+        RefreshStatus,
+        WorkbookFormulaProvider,
+    )
+
+    source = tmp_path / "published" / "workbooks" / "wind.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"immutable-published-workbook")
+    original = source.read_bytes()
+    calls = []
+    policy = SimpleNamespace(workbook="workbooks/wind.xlsx", required_cells=[])
+
+    class Catalog:
+        def __init__(self, root):
+            assert root == tmp_path
+
+        def _row(self, workflow_id):
+            assert workflow_id == "huaan-etf-weekly"
+            return {"current_version": 7}
+
+        def manifest(self, workflow_id, version):
+            assert (workflow_id, version) == ("huaan-etf-weekly", 7)
+            return SimpleNamespace(workbook_policies=[policy])
+
+        def resource_path(self, workflow_id, version, workbook):
+            assert (workflow_id, version, workbook) == (
+                "huaan-etf-weekly",
+                7,
+                "workbooks/wind.xlsx",
+            )
+            return source
+
+    class Refresh:
+        def refresh(self, selected_source, stage, selected_policy):
+            calls.append((selected_source, stage.name, selected_policy.workbook))
+            return SimpleNamespace(status=RefreshStatus.READY, code=None)
+
+    monkeypatch.setattr(catalog_module, "ReportWorkflowService", Catalog)
+    monkeypatch.setattr(workbook_module, "WorkbookRefreshService", Refresh)
+    monkeypatch.setattr(
+        workbook_module,
+        "scan_workbook_formulas",
+        lambda _path: SimpleNamespace(provider=WorkbookFormulaProvider.WIND),
+    )
+
+    result = verifiers._verify_wind(tmp_path, tmp_path / "verification")
+
+    assert result == {"outcome": "available", "code": None}
+    assert calls == [
+        (source, "smoke", "workbooks/wind.xlsx"),
+        (source, "full", "workbooks/wind.xlsx"),
+    ]
+    assert source.read_bytes() == original
+
+
+def test_posix_timeout_cleanup_terminates_the_worker_process_group(monkeypatch):
+    events = []
+
+    class Process:
+        pid = 24680
+
+        def is_alive(self):
+            return not any(event[0] == "killpg" and event[2] == signal.SIGKILL for event in events)
+
+        def join(self, timeout):
+            events.append(("join", timeout))
+
+        def terminate(self):
+            raise AssertionError("POSIX cleanup must target the process group")
+
+    monkeypatch.setattr(verifiers.os, "getpgid", lambda pid: pid)
+    monkeypatch.setattr(
+        verifiers.os, "killpg", lambda pgid, sig: events.append(("killpg", pgid, sig))
+    )
+
+    verifiers._terminate_process_tree(Process(), platform_name="posix")
+
+    assert ("killpg", 24680, signal.SIGTERM) in events
+    assert ("killpg", 24680, signal.SIGKILL) in events
+
+
+def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_path, monkeypatch):
+    events = []
+
+    class ResultQueue:
+        def close(self):
+            events.append("queue-close")
+
+        def join_thread(self):
+            events.append("queue-join")
+
+    class Process:
+        pid = 13579
+
+        def start(self):
+            events.append("start")
+
+        def join(self, timeout):
+            events.append(("join", timeout))
+
+        def is_alive(self):
+            return True
+
+    class Context:
+        def Queue(self, maxsize):
+            assert maxsize == 1
+            return ResultQueue()
+
+        def Process(self, **kwargs):
+            assert kwargs["name"] == "local-verification-excel"
+            return Process()
+
+    monkeypatch.setattr(verifiers.sys, "platform", "darwin")
+    monkeypatch.setattr(verifiers, "VERIFICATION_TIMEOUT_SECONDS", 0.0)
+    monkeypatch.setattr(verifiers.multiprocessing, "get_context", lambda _name: Context())
+    monkeypatch.setattr(
+        verifiers,
+        "_terminate_process_tree",
+        lambda process: events.append(("tree-cleanup", process.pid)),
+    )
+
+    result = verifiers.verify_target("excel", tmp_path / "state")
+
+    assert result == {"outcome": "timeout", "code": "verification_timed_out"}
+    assert ("tree-cleanup", 13579) in events
+    assert events[-2:] == ["queue-close", "queue-join"]

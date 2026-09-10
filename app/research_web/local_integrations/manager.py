@@ -7,6 +7,7 @@ import os
 import platform
 import re
 import stat
+import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import dataclass
@@ -58,6 +59,7 @@ ITEM_FIELDS = {
     "capabilities",
     "actions",
     "last_checked_at",
+    "last_verified_at",
 }
 ACTION_FIELDS = {"id", "label", "href"}
 SAFE_ID = re.compile(r"^[a-z0-9_]+$")
@@ -211,6 +213,7 @@ def _item(
     checked_at: str,
     capabilities: tuple[str, ...] = (),
     actions: tuple[dict[str, str], ...] = (),
+    last_verified_at: str | None = None,
 ) -> dict:
     if status not in ALLOWED_STATUSES:
         raise ValueError("unsupported local integration status")
@@ -228,6 +231,7 @@ def _item(
         "capabilities": list(capabilities),
         "actions": [dict(action) for action in actions],
         "last_checked_at": checked_at,
+        "last_verified_at": last_verified_at,
     }
 
 
@@ -333,7 +337,7 @@ class LocalIntegrationManager:
                     callable=outcome == "available",
                     message=message,
                     detail="该状态来自显式真实验证，不由软件发现结果推断。",
-                    last_checked_at=checked_at,
+                    last_verified_at=checked_at,
                 )
         snapshot["summary"] = {
             "available": sum(item["status"] == "可用" for item in snapshot["items"]),
@@ -788,6 +792,13 @@ class LocalIntegrationManager:
                     for field in text_fields
                 )
                 or not isinstance(item.get("last_checked_at"), str)
+                or (
+                    item.get("last_verified_at") is not None
+                    and (
+                        not isinstance(item.get("last_verified_at"), str)
+                        or len(item["last_verified_at"]) > 64
+                    )
+                )
                 or not isinstance(item.get("capabilities"), list)
                 or not all(
                     isinstance(capability, str) and SAFE_ID.fullmatch(capability)
@@ -987,13 +998,24 @@ class LocalIntegrationManager:
     async def _run_verification(self, verification_id: str) -> None:
         record = self.verifications[verification_id]
         record["status"] = "checking"
+        cancellation_event: threading.Event | None = None
+        worker: asyncio.Task | None = None
         try:
             if self.verifier is not None:
                 outcome = await asyncio.to_thread(self.verifier, record["target"])
             else:
                 from .verifiers import verify_target
 
-                outcome = await asyncio.to_thread(verify_target, record["target"], self.state_root)
+                cancellation_event = threading.Event()
+                worker = asyncio.create_task(
+                    asyncio.to_thread(
+                        verify_target,
+                        record["target"],
+                        self.state_root,
+                        cancellation_event=cancellation_event,
+                    )
+                )
+                outcome = await asyncio.shield(worker)
             normalized = outcome.get("outcome") if isinstance(outcome, dict) else None
             if normalized not in VERIFICATION_MESSAGES:
                 normalized = "failed"
@@ -1013,6 +1035,11 @@ class LocalIntegrationManager:
                 outcome=normalized,
             )
         except asyncio.CancelledError:
+            if cancellation_event is not None:
+                cancellation_event.set()
+            if worker is not None:
+                with suppress(asyncio.CancelledError, Exception):
+                    await asyncio.shield(worker)
             record.update(status="cancelled", completed_at=_utc_now())
             raise
         except Exception as exc:  # noqa: BLE001 - normalize process and IO failures.

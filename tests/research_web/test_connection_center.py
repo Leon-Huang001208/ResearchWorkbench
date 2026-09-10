@@ -25,6 +25,7 @@ from app.research_web.datahub.probes import probe_source
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+from data_layer.adapters.ifind.exceptions import IFinDAuthError, IFinDRateLimitError
 from data_layer.adapters.ifind.http_client import IFinDHTTPClient
 
 
@@ -519,6 +520,10 @@ async def test_ifind_http_probe_logs_in_checks_health_and_always_closes():
             events.append("health")
             return True
 
+        async def probe_query(self):
+            events.append("query")
+            return [{"code": "000001.SZ"}]
+
         async def logout(self):
             events.append("logout")
 
@@ -534,7 +539,7 @@ async def test_ifind_http_probe_logs_in_checks_health_and_always_closes():
     )
 
     assert result == {"health": "healthy", "failure_code": None}
-    assert events == ["login", "health", "logout"]
+    assert events == ["login", "health", "query", "logout"]
 
 
 @pytest.mark.asyncio
@@ -560,8 +565,85 @@ async def test_ifind_http_probe_maps_auth_failure_and_still_closes():
         ifind_http_client_factory=lambda *_args: Client(),
     )
 
-    assert result == {"health": "unavailable", "failure_code": "vendor_login_failed"}
+    assert result == {"health": "unavailable", "failure_code": "vendor_permission_denied"}
     assert events == ["login", "logout"]
+
+
+@pytest.mark.asyncio
+async def test_ifind_http_probe_rejects_empty_data_query_and_always_closes():
+    events = []
+
+    class Client:
+        async def login(self):
+            events.append("login")
+            return True
+
+        async def is_alive(self):
+            events.append("health")
+            return True
+
+        async def probe_query(self):
+            events.append("query")
+            return []
+
+        async def logout(self):
+            events.append("logout")
+
+    result = await probe_source(
+        "ifind",
+        {
+            "backend": "http_api",
+            "http_base_url": "https://ifind.example.test/api",
+            "accounts": [{"id": "ready", "username": "researcher"}],
+        },
+        lambda *_args: "http-secret",
+        ifind_http_client_factory=lambda *_args: Client(),
+    )
+
+    assert result == {"health": "unavailable", "failure_code": "vendor_query_empty"}
+    assert events == ["login", "health", "query", "logout"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("failure", "expected_code"),
+    [
+        (IFinDAuthError("auth detail must not escape"), "vendor_login_failed"),
+        (IFinDRateLimitError("quota detail must not escape"), "vendor_quota_limited"),
+    ],
+)
+async def test_ifind_http_probe_safely_maps_query_failures_and_closes(failure, expected_code):
+    events = []
+
+    class Client:
+        async def login(self):
+            events.append("login")
+            return True
+
+        async def is_alive(self):
+            events.append("health")
+            return True
+
+        async def probe_query(self):
+            events.append("query")
+            raise failure
+
+        async def logout(self):
+            events.append("logout")
+
+    result = await probe_source(
+        "ifind",
+        {
+            "backend": "http_api",
+            "http_base_url": "https://ifind.example.test/api",
+            "accounts": [{"id": "ready", "username": "researcher"}],
+        },
+        lambda *_args: "http-secret",
+        ifind_http_client_factory=lambda *_args: Client(),
+    )
+
+    assert result == {"health": "unavailable", "failure_code": expected_code}
+    assert events == ["login", "health", "query", "logout"]
 
 
 @pytest.mark.asyncio
@@ -574,6 +656,8 @@ async def test_ifind_http_probe_uses_existing_client_contract_with_mock_transpor
             return httpx.Response(200, json={"token": "ephemeral", "expires_in": 7200})
         if request.url.path == "/api/health":
             return httpx.Response(200, json={"status": "ok"})
+        if request.url.path == "/api/basic":
+            return httpx.Response(200, json={"data": [{"code": "000001.SZ"}]})
         return httpx.Response(404)
 
     client = IFinDHTTPClient(
@@ -599,6 +683,7 @@ async def test_ifind_http_probe_uses_existing_client_contract_with_mock_transpor
     assert calls == [
         ("POST", "/api/login", None),
         ("GET", "/api/health", "Bearer ephemeral"),
+        ("POST", "/api/basic", "Bearer ephemeral"),
     ]
     assert client.token is None
     assert client._client is None
