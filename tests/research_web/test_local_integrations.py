@@ -1,6 +1,7 @@
 """Truthful local-integration discovery and API contracts."""
 
 import asyncio
+import builtins
 import copy
 import json
 import os
@@ -535,6 +536,40 @@ def test_wind_vendor_session_error_does_not_fail_snapshot(tmp_path, monkeypatch)
 
     assert item(snapshot, "excel_app")["callable"] is True
     assert item(snapshot, "wind_terminal")["discovery"] == "已发现"
+    assert item(snapshot, "wind_terminal")["callable"] is False
+
+
+def test_wind_vendor_import_error_does_not_fail_snapshot(tmp_path, monkeypatch):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    (env.application_roots[0] / "Wind.app").mkdir()
+    (env.office_addin_roots[0] / "WindAddin.xlam").write_bytes(b"addin")
+    original_import = builtins.__import__
+
+    def fail_wind_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "WindPy":
+            raise RuntimeError("vendor import failed with private details")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fail_wind_import)
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        context_fingerprint=lambda target: target,
+    )
+    checked_at = manager.snapshot(persist=False)["last_checked_at"]
+    manager.verification_results = {
+        "wind_excel": {
+            "outcome": "available",
+            "completed_at": checked_at,
+            "context_fingerprint": manager._verification_context_fingerprint("wind_excel"),
+        }
+    }
+
+    snapshot = manager.snapshot(persist=False)
+
+    assert item(snapshot, "wind_terminal")["discovery"] == "已发现"
+    assert item(snapshot, "wind_terminal")["callable"] is False
 
 
 def test_verification_persistence_failure_does_not_publish_callable(tmp_path, monkeypatch):

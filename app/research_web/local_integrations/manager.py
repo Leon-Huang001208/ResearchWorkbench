@@ -423,7 +423,7 @@ class LocalIntegrationManager:
                     if self.wind_session_ready is not None
                     else self._wind_session_is_ready()
                 )
-                if ready is False:
+                if ready is not True:
                     return False
             if age > timedelta(seconds=ttl_seconds):
                 return False
@@ -437,13 +437,12 @@ class LocalIntegrationManager:
     def _wind_session_is_ready() -> bool | None:
         try:
             import WindPy  # type: ignore[import-not-found]
-        except ImportError:
-            return None
 
-        try:
             session = getattr(WindPy, "w", None)
             is_connected = getattr(session, "isconnected", None)
             return bool(is_connected()) if callable(is_connected) else None
+        except ImportError:
+            return None
         except Exception as exc:  # noqa: BLE001 - vendor failures must not break the snapshot.
             log.warning(
                 "local_integration_wind_session_check_failed",
