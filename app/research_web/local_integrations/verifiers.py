@@ -68,7 +68,11 @@ def _verify_excel(run_root: Path) -> dict[str, Any]:
         sheet.range("A1").value = 19
         sheet.range("A2").value = 23
         sheet.range("A3").formula = "=A1+A2"
-        full_rebuild = getattr(app, "calculate_full_rebuild", None)
+        app_api = getattr(app, "api", None)
+        method_name = (
+            "calculate_full_rebuild" if sys.platform == "darwin" else "CalculateFullRebuild"
+        )
+        full_rebuild = getattr(app_api, method_name, None)
         if not callable(full_rebuild):
             return {"outcome": "formula_error", "code": "excel_full_rebuild_unavailable"}
         full_rebuild()

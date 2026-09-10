@@ -521,7 +521,13 @@ def test_verification_api_rejects_unknown_targets_and_requires_idempotency(tmp_p
         )
 
 
-def test_excel_verifier_uses_full_rebuild_and_reopens_saved_value(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("platform_name", "expected_event"),
+    [("darwin", "mac-full-rebuild"), ("win32", "windows-full-rebuild")],
+)
+def test_excel_verifier_uses_app_api_full_rebuild_and_reopens_saved_value(
+    tmp_path, monkeypatch, platform_name, expected_event
+):
     events = []
 
     class Range:
@@ -553,11 +559,22 @@ def test_excel_verifier_uses_full_rebuild_and_reopens_saved_value(tmp_path, monk
             events.append("reopen")
             return Book()
 
+    class API:
+        def calculate_full_rebuild(self):
+            events.append("mac-full-rebuild")
+
+        def CalculateFullRebuild(self):
+            events.append("windows-full-rebuild")
+
     class App:
         books = Books()
+        api = API()
 
         def calculate_full_rebuild(self):
-            events.append("full-rebuild")
+            raise AssertionError("xlwings wrapper method must not be used")
+
+        def CalculateFullRebuild(self):
+            raise AssertionError("xlwings wrapper method must not be used")
 
         def calculate(self):
             raise AssertionError("full rebuild must be preferred")
@@ -566,11 +583,47 @@ def test_excel_verifier_uses_full_rebuild_and_reopens_saved_value(tmp_path, monk
             events.append("quit")
 
     monkeypatch.setitem(sys.modules, "xlwings", SimpleNamespace(App=lambda **_kwargs: App()))
+    monkeypatch.setattr(verifiers.sys, "platform", platform_name)
 
     assert verifiers._verify_excel(tmp_path)["outcome"] == "available"
-    assert "full-rebuild" in events
+    assert expected_event in events
+    assert set(events) & {"mac-full-rebuild", "windows-full-rebuild"} == {expected_event}
     assert "reopen" in events
     assert "quit" in events
+
+
+def test_excel_verifier_does_not_accept_wrapper_only_full_rebuild(tmp_path, monkeypatch):
+    class Range:
+        value = None
+        formula = None
+
+    class Sheet:
+        def range(self, _reference):
+            return Range()
+
+    class Book:
+        sheets = [Sheet()]
+
+        def close(self):
+            return None
+
+    class App:
+        books = SimpleNamespace(active=Book())
+        api = object()
+
+        def calculate_full_rebuild(self):
+            raise AssertionError("wrapper method must never satisfy the native API contract")
+
+        def quit(self):
+            return None
+
+    monkeypatch.setitem(sys.modules, "xlwings", SimpleNamespace(App=lambda **_kwargs: App()))
+    monkeypatch.setattr(verifiers.sys, "platform", "darwin")
+
+    assert verifiers._verify_excel(tmp_path) == {
+        "outcome": "formula_error",
+        "code": "excel_full_rebuild_unavailable",
+    }
 
 
 def test_wind_verifier_runs_smoke_then_full_and_preserves_published_source(tmp_path, monkeypatch):
