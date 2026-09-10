@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 from urllib.parse import quote
@@ -9,6 +10,7 @@ from urllib.parse import quote
 import httpx
 
 MAX_REGISTRY_RESPONSE_BYTES = 2 * 1024 * 1024
+TOTAL_REGISTRY_TIMEOUT_SECONDS = 30.0
 
 
 class SyncError(RuntimeError):
@@ -26,6 +28,7 @@ class RegistryHTTPClient:
             follow_redirects=False,
             headers={"Accept": "application/json", "User-Agent": "ResearchWorkbench/Registry"},
         )
+        self.total_timeout = TOTAL_REGISTRY_TIMEOUT_SECONDS
 
     async def close(self) -> None:
         if self._owned:
@@ -45,25 +48,30 @@ class RegistryHTTPClient:
         if authorization:
             headers["Authorization"] = authorization
         try:
-            async with self.client.stream("GET", url, params=params, headers=headers) as response:
-                if response.status_code == 304:
-                    return 304, None, etag
-                if response.status_code != 200:
-                    raise SyncError("registry_http_error", 502)
-                chunks = []
-                size = 0
-                async for chunk in response.aiter_bytes():
-                    size += len(chunk)
-                    if size > MAX_REGISTRY_RESPONSE_BYTES:
-                        raise SyncError("registry_response_too_large", 502)
-                    chunks.append(chunk)
-                try:
-                    payload = json.loads(b"".join(chunks))
-                except (UnicodeDecodeError, ValueError) as exc:
-                    raise SyncError("registry_invalid_response", 502) from exc
-                if not isinstance(payload, dict):
-                    raise SyncError("registry_invalid_response", 502)
-                return 200, payload, response.headers.get("ETag")
+            async with asyncio.timeout(self.total_timeout):
+                async with self.client.stream(
+                    "GET", url, params=params, headers=headers
+                ) as response:
+                    if response.status_code == 304:
+                        return 304, None, etag
+                    if response.status_code != 200:
+                        raise SyncError("registry_http_error", 502)
+                    chunks = []
+                    size = 0
+                    async for chunk in response.aiter_bytes():
+                        size += len(chunk)
+                        if size > MAX_REGISTRY_RESPONSE_BYTES:
+                            raise SyncError("registry_response_too_large", 502)
+                        chunks.append(chunk)
+                    try:
+                        payload = json.loads(b"".join(chunks))
+                    except (UnicodeDecodeError, ValueError) as exc:
+                        raise SyncError("registry_invalid_response", 502) from exc
+                    if not isinstance(payload, dict):
+                        raise SyncError("registry_invalid_response", 502)
+                    return 200, payload, response.headers.get("ETag")
+        except TimeoutError as exc:
+            raise SyncError("registry_timeout", 504) from exc
         except httpx.TimeoutException as exc:
             raise SyncError("registry_timeout", 504) from exc
         except httpx.HTTPError as exc:

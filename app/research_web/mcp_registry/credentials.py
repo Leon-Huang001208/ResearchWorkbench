@@ -110,7 +110,22 @@ class RegistryCredentialStore:
         new_type: str,
         payload: dict[str, str] | None,
     ) -> None:
-        if old_type != new_type:
-            self.delete(registry_id, old_type)
+        if old_type == new_type:
+            if payload:
+                self.write(registry_id, new_type, payload)
+            return
+
+        previous_new = self.read(registry_id, new_type)
         if payload:
             self.write(registry_id, new_type, payload)
+        try:
+            self.delete(registry_id, old_type)
+        except CredentialError:
+            try:
+                if previous_new:
+                    self.write(registry_id, new_type, previous_new)
+                else:
+                    self.delete(registry_id, new_type)
+            except CredentialError:
+                log.error("mcp_registry_credential_compensation_failed", registry_id=registry_id)
+            raise

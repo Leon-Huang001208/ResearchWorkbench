@@ -74,6 +74,25 @@ class PublisherPackage(BaseModel):
             raise ValueError("package version 必须为固定版本")
         return value
 
+    @model_validator(mode="after")
+    def require_immutable_npm_version(self):
+        if self.registry_type == "npm" and self.version is None:
+            raise ValueError("npm package 必须提供固定版本")
+        return self
+
+
+class PublisherProvidedMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    tool: Literal["research-workbench"]
+    version: Literal["phase2a"]
+
+
+class PublisherMeta(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
+    publisher_provided: PublisherProvidedMetadata = Field(
+        alias="io.modelcontextprotocol.registry/publisher-provided"
+    )
+
 
 class PublisherServer(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
@@ -86,6 +105,7 @@ class PublisherServer(BaseModel):
     repository: PublisherRepository | None = None
     packages: list[PublisherPackage] = Field(default_factory=list, max_length=64)
     remotes: list[NetworkTransport] = Field(default_factory=list, max_length=64)
+    metadata: PublisherMeta | None = Field(default=None, alias="_meta")
 
     @field_validator("schema_url", "website_url")
     @classmethod

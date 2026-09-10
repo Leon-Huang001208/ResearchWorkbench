@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import tempfile
 
 import httpx
 import pytest
@@ -17,8 +19,9 @@ from app.research_web.mcp_registry import (
     RegistryError,
     RegistryUpdate,
 )
-from app.research_web.mcp_registry.catalog import OFFICIAL_REGISTRY_ID
+from app.research_web.mcp_registry.catalog import OFFICIAL_REGISTRY_ID, CatalogError
 from app.research_web.mcp_registry.credentials import KEYRING_SERVICE
+from app.research_web.mcp_registry.models import safe_http_url
 from app.research_web.mcp_registry.publisher import PublisherMetadata
 from app.research_web.mcp_registry.sync import MAX_REGISTRY_RESPONSE_BYTES
 from app.research_web.service import ResearchService
@@ -394,6 +397,326 @@ def test_publisher_preview_is_canonical_strict_and_never_executes_subprocess(mon
     }
     assert metadata.validate({**valid_server_json(), "name": "../escape"})["valid"] is False
     assert metadata.validate({**valid_server_json(), "extra": "forbidden"})["valid"] is False
+
+
+def test_publisher_preview_round_trips_through_validation_with_same_digest():
+    metadata = PublisherMetadata()
+    preview = metadata.preview(valid_server_json())
+    validated = metadata.validate(preview["server_json"])
+    assert validated["valid"] is True
+    assert validated["server_json"] == preview["server_json"]
+    assert validated["sha256"] == preview["sha256"]
+
+
+def test_disabled_registry_does_not_initialize_damaged_catalog(tmp_path, monkeypatch):
+    root = tmp_path / "disabled-damaged"
+    damaged = root / "mcp-registry"
+    damaged.mkdir(parents=True)
+    (damaged / "catalog.json").write_text("{not-json", encoding="utf-8")
+    monkeypatch.setenv("RESEARCH_MCP_REGISTRY_ENABLED", "0")
+
+    service = ResearchService(NativeFixture(), Store(root))
+    with TestClient(create_app(service)) as client:
+        assert client.get("/").status_code == 200
+        disabled = client.get("/api/research/mcp/registries")
+        assert disabled.status_code == 404
+        assert disabled.json()["error"]["code"] == "mcp_registry_disabled"
+
+
+@pytest.mark.asyncio
+async def test_failed_auth_switch_keeps_old_catalog_secret_and_authorization(tmp_path):
+    class FailingOAuthKeyring(FakeKeyring):
+        def set_password(self, service: str, account: str, password: str) -> None:
+            if account.endswith(":oauth2"):
+                raise RuntimeError("oauth write failed")
+            super().set_password(service, account, password)
+
+    seen_authorization = None
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal seen_authorization
+        seen_authorization = request.headers.get("Authorization")
+        return httpx.Response(200, json=remote_page())
+
+    keyring = FailingOAuthKeyring()
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=keyring,
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    created = service.create_registry(
+        RegistryCreate.model_validate(
+            registry_payload(auth={"type": "bearer", "token": "still-valid"})
+        )
+    )
+    with pytest.raises(RegistryError) as error:
+        service.update_registry(
+            created["id"],
+            RegistryUpdate.model_validate(
+                {
+                    "auth": {
+                        "type": "oauth2",
+                        "authorization_url": "https://id.example.test/authorize",
+                        "token_url": "https://id.example.test/token",
+                        "client_id": "workbench",
+                        "access_token": "new-token",
+                    }
+                }
+            ),
+        )
+    assert error.value.code == "credential_store_unavailable"
+    assert service.registry(created["id"])["auth"] == {
+        "type": "bearer",
+        "secret_configured": True,
+    }
+    await service.sync_registry(created["id"])
+    assert seen_authorization == "Bearer still-valid"
+    await service.close()
+
+
+@pytest.mark.parametrize("operation", ["create", "update", "delete"])
+def test_catalog_io_errors_are_stable_and_keep_memory_disk_consistent(
+    tmp_path, monkeypatch, operation
+):
+    service = MCPRegistryService(tmp_path, enabled=True, keyring_backend=FakeKeyring())
+    existing = service.create_registry(RegistryCreate.model_validate(registry_payload()))
+    before = service.list_registries()
+
+    with monkeypatch.context() as patch:
+        patch.setattr(tempfile, "mkstemp", lambda *args, **kwargs: (_ for _ in ()).throw(OSError()))
+        with pytest.raises(RegistryError) as error:
+            if operation == "create":
+                service.create_registry(
+                    RegistryCreate.model_validate(
+                        registry_payload(
+                            name="Never persisted", base_url="https://new.example.test"
+                        )
+                    )
+                )
+            elif operation == "update":
+                service.update_registry(existing["id"], RegistryUpdate(name="Never persisted"))
+            else:
+                service.delete_registry(existing["id"])
+    assert error.value.code == "registry_storage_unavailable"
+    assert service.list_registries() == before
+    reloaded = MCPRegistryService(tmp_path, enabled=True, keyring_backend=FakeKeyring())
+    assert reloaded.list_registries() == before
+
+
+def test_catalog_failure_during_auth_switch_restores_old_keyring_record(tmp_path, monkeypatch):
+    keyring = FakeKeyring()
+    service = MCPRegistryService(tmp_path, enabled=True, keyring_backend=keyring)
+    created = service.create_registry(
+        RegistryCreate.model_validate(
+            registry_payload(auth={"type": "bearer", "token": "old-token"})
+        )
+    )
+
+    monkeypatch.setattr(
+        service.catalog,
+        "update",
+        lambda *args, **kwargs: (_ for _ in ()).throw(CatalogError("registry_storage_unavailable")),
+    )
+    with pytest.raises(RegistryError) as error:
+        service.update_registry(
+            created["id"],
+            RegistryUpdate.model_validate(
+                {
+                    "auth": {
+                        "type": "oauth2",
+                        "authorization_url": "https://id.example.test/authorize",
+                        "token_url": "https://id.example.test/token",
+                        "client_id": "workbench",
+                        "access_token": "new-token",
+                    }
+                }
+            ),
+        )
+    assert error.value.code == "registry_storage_unavailable"
+    assert keyring.values[(KEYRING_SERVICE, f"{created['id']}:bearer")] == "old-token"
+    assert (KEYRING_SERVICE, f"{created['id']}:oauth2") not in keyring.values
+
+
+def test_post_replace_directory_fsync_failure_keeps_committed_catalog_consistent(
+    tmp_path, monkeypatch
+):
+    service = MCPRegistryService(tmp_path, enabled=True, keyring_backend=FakeKeyring())
+    real_fsync = os.fsync
+    calls = 0
+
+    def fail_directory_fsync(fd):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("directory fsync unavailable")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", fail_directory_fsync)
+    created = service.create_registry(RegistryCreate.model_validate(registry_payload()))
+    assert service.registry(created["id"])["id"] == created["id"]
+    reloaded = MCPRegistryService(tmp_path, enabled=True, keyring_backend=FakeKeyring())
+    assert reloaded.registry(created["id"])["id"] == created["id"]
+
+
+@pytest.mark.asyncio
+async def test_base_url_change_does_not_reuse_old_cache_etag_or_stale_data(tmp_path):
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.host == "old.example.test":
+            return httpx.Response(
+                200,
+                json=remote_page(name="io.example/old"),
+                headers={"ETag": '"old-etag"'},
+            )
+        raise httpx.ConnectError("new source offline", request=request)
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    created = service.create_registry(
+        RegistryCreate.model_validate(registry_payload(base_url="https://old.example.test"))
+    )
+    await service.sync_registry(created["id"])
+    service.update_registry(created["id"], RegistryUpdate(base_url="https://new.example.test"))
+    assert service.list_servers(created["id"])["items"] == []
+    with pytest.raises(RegistryError) as error:
+        await service.sync_registry(created["id"])
+    assert error.value.code == "registry_network_error"
+    assert "If-None-Match" not in requests[-1].headers
+    await service.close()
+
+
+@pytest.mark.asyncio
+async def test_inflight_sync_cannot_commit_after_registry_source_changes(tmp_path):
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        entered.set()
+        await release.wait()
+        return httpx.Response(200, json=remote_page(name="io.example/old"))
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    created = service.create_registry(
+        RegistryCreate.model_validate(registry_payload(base_url="https://old.example.test"))
+    )
+    task = asyncio.create_task(service.sync_registry(created["id"]))
+    await entered.wait()
+    service.update_registry(created["id"], RegistryUpdate(base_url="https://new.example.test"))
+    release.set()
+    with pytest.raises(RegistryError) as error:
+        await task
+    assert error.value.code == "registry_source_changed"
+    assert service.list_servers(created["id"])["items"] == []
+    await service.close()
+
+
+def test_publisher_requires_fixed_npm_version_but_accepts_digest_pinned_file():
+    metadata = PublisherMetadata()
+    missing = valid_server_json()
+    del missing["packages"][0]["version"]
+    assert metadata.validate(missing)["valid"] is False
+
+    dynamic = valid_server_json()
+    dynamic["packages"][0]["version"] = "latest"
+    assert metadata.validate(dynamic)["valid"] is False
+
+    digest_pinned = valid_server_json()
+    digest_pinned["packages"] = [
+        {
+            "registryType": "mcpb",
+            "identifier": "https://downloads.example.test/weather.mcpb",
+            "fileSha256": "a" * 64,
+            "transport": {"type": "stdio"},
+        }
+    ]
+    assert metadata.validate(digest_pinned)["valid"] is True
+
+
+@pytest.mark.asyncio
+async def test_total_sync_deadline_returns_stale_registry_timeout(tmp_path):
+    class SlowStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            for _ in range(10):
+                await asyncio.sleep(0.02)
+                yield b" "
+
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(200, json=remote_page())
+        return httpx.Response(200, stream=SlowStream())
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    service.http.total_timeout = 0.05
+    stale = await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    assert stale["stale"] is True
+    assert stale["failure_code"] == "registry_timeout"
+    await service.close()
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("https://[::1]", "https://[::1]"),
+        ("https://[2001:db8::1]:8443/registry/", "https://[2001:db8::1]:8443/registry"),
+    ],
+)
+def test_safe_http_url_preserves_ipv6_brackets(value, expected):
+    assert safe_http_url(value) == expected
+
+
+@pytest.mark.asyncio
+async def test_stale_failure_status_persists_for_later_server_list(tmp_path):
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(200, json=remote_page())
+        raise httpx.ConnectError("offline", request=request)
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    stale = await service.sync_registry(OFFICIAL_REGISTRY_ID)
+    listed = service.list_servers(OFFICIAL_REGISTRY_ID)
+    assert listed["items"] == stale["items"]
+    assert listed["stale"] is True
+    assert listed["failure_code"] == "registry_network_error"
+    await service.close()
+
+    reloaded = MCPRegistryService(tmp_path, enabled=True, keyring_backend=FakeKeyring())
+    persisted = reloaded.list_servers(OFFICIAL_REGISTRY_ID)
+    assert persisted["items"] == stale["items"]
+    assert persisted["stale"] is True
+    assert persisted["failure_code"] == "registry_network_error"
+    await reloaded.close()
 
 
 def test_registry_api_flag_crud_server_list_detail_and_publisher(tmp_path, monkeypatch):

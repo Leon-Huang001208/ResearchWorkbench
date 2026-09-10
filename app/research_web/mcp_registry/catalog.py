@@ -22,6 +22,7 @@ OFFICIAL_REGISTRY_ID = "official"
 OFFICIAL_REGISTRY_URL = "https://registry.modelcontextprotocol.io"
 MAX_CATALOG_BYTES = 1024 * 1024
 MAX_CACHE_BYTES = 16 * 1024 * 1024
+MAX_STATUS_BYTES = 1024 * 1024
 
 
 def timestamp() -> str:
@@ -36,8 +37,9 @@ class RegistryCatalog:
     def __init__(self, data_root: Path) -> None:
         self.root = Path(data_root) / "mcp-registry"
         self.cache_root = self.root / "cache"
+        self.status_root = self.root / "status"
         self._lock = RLock()
-        for directory in (self.root, self.cache_root):
+        for directory in (self.root, self.cache_root, self.status_root):
             if directory.is_symlink():
                 raise CatalogError("unsafe_registry_directory")
             directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -80,22 +82,53 @@ class RegistryCatalog:
         raw = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         if len(raw) > maximum:
             raise CatalogError("registry_cache_too_large")
-        fd, name = tempfile.mkstemp(prefix=f".{path.stem}-", dir=path.parent)
-        temporary = Path(name)
+        fd: int | None = None
+        temporary: Path | None = None
         try:
+            fd, name = tempfile.mkstemp(prefix=f".{path.stem}-", dir=path.parent)
+            temporary = Path(name)
             os.chmod(temporary, 0o600)
-            with os.fdopen(fd, "wb") as stream:
+            stream = os.fdopen(fd, "wb")
+            fd = None
+            with stream:
                 stream.write(raw)
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temporary, path)
-            directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
             try:
-                os.fsync(directory_fd)
-            finally:
-                os.close(directory_fd)
+                directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+            except OSError as exc:
+                log.warning(
+                    "mcp_registry_directory_fsync_failed",
+                    path_name=path.name,
+                    error_type=type(exc).__name__,
+                )
+        except OSError as exc:
+            log.error(
+                "mcp_registry_atomic_write_failed",
+                path_name=path.name,
+                error_type=type(exc).__name__,
+            )
+            raise CatalogError("registry_storage_unavailable") from exc
         finally:
-            temporary.unlink(missing_ok=True)
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            if temporary is not None:
+                try:
+                    temporary.unlink(missing_ok=True)
+                except OSError as exc:
+                    log.warning(
+                        "mcp_registry_temporary_cleanup_failed",
+                        path_name=path.name,
+                        error_type=type(exc).__name__,
+                    )
 
     def save(self) -> None:
         with self._lock:
@@ -161,7 +194,19 @@ class RegistryCatalog:
             except CatalogError:
                 self.data["registries"][registry_id] = current
                 raise
-            (self.cache_root / f"{registry_id}.json").unlink(missing_ok=True)
+            for path in (
+                self.cache_root / f"{registry_id}.json",
+                self.status_root / f"{registry_id}.json",
+            ):
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError as exc:
+                    log.warning(
+                        "mcp_registry_cleanup_failed",
+                        registry_id=registry_id,
+                        path_name=path.name,
+                        error_type=type(exc).__name__,
+                    )
 
     def cache_path(self, registry_id: str) -> Path:
         self.row(registry_id)
@@ -209,8 +254,14 @@ class RegistryCatalog:
         search: str | None,
         limit: int,
         value: dict[str, Any],
+        expected_source_url: str | None = None,
     ) -> None:
         with self._lock:
+            if (
+                expected_source_url is not None
+                and self.row(registry_id)["base_url"] != expected_source_url
+            ):
+                raise CatalogError("registry_source_changed")
             cache = self._load_cache(registry_id)
             key = self.query_key("page", cursor=cursor, search=search, limit=limit)
             cache["pages"][key] = copy.deepcopy(value)
@@ -221,10 +272,74 @@ class RegistryCatalog:
         return copy.deepcopy(self._load_cache(registry_id)["details"].get(key))
 
     def save_detail(
-        self, registry_id: str, server_name: str, version: str, value: dict[str, Any]
+        self,
+        registry_id: str,
+        server_name: str,
+        version: str,
+        value: dict[str, Any],
+        *,
+        expected_source_url: str | None = None,
     ) -> None:
         with self._lock:
+            if (
+                expected_source_url is not None
+                and self.row(registry_id)["base_url"] != expected_source_url
+            ):
+                raise CatalogError("registry_source_changed")
             cache = self._load_cache(registry_id)
             key = self.query_key("detail", server_name=server_name, version=version)
             cache["details"][key] = copy.deepcopy(value)
             self._atomic_write(self.cache_path(registry_id), cache, MAX_CACHE_BYTES)
+
+    def status_path(self, registry_id: str) -> Path:
+        self.row(registry_id)
+        return self.status_root / f"{registry_id}.json"
+
+    def _load_status(self, registry_id: str) -> dict[str, Any]:
+        path = self.status_path(registry_id)
+        if not path.exists():
+            return {"schema_version": 1, "registry_id": registry_id, "pages": {}, "details": {}}
+        try:
+            if path.is_symlink() or path.stat().st_size > MAX_STATUS_BYTES:
+                raise ValueError("unsafe status")
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if (
+                not isinstance(value, dict)
+                or value.get("schema_version") != 1
+                or value.get("registry_id") != registry_id
+                or not isinstance(value.get("pages"), dict)
+                or not isinstance(value.get("details"), dict)
+            ):
+                raise ValueError("invalid status")
+            return value
+        except (OSError, ValueError) as exc:
+            log.warning(
+                "mcp_registry_status_read_failed",
+                registry_id=registry_id,
+                error_type=type(exc).__name__,
+            )
+            raise CatalogError("registry_status_unavailable") from exc
+
+    def sync_status(self, registry_id: str, kind: str, **values: Any) -> dict[str, Any] | None:
+        bucket = "pages" if kind == "page" else "details"
+        key = self.query_key(kind, **values)
+        return copy.deepcopy(self._load_status(registry_id)[bucket].get(key))
+
+    def set_sync_status(
+        self,
+        registry_id: str,
+        kind: str,
+        value: dict[str, Any] | None,
+        **values: Any,
+    ) -> None:
+        with self._lock:
+            status = self._load_status(registry_id)
+            bucket = "pages" if kind == "page" else "details"
+            key = self.query_key(kind, **values)
+            if value is None:
+                if key not in status[bucket]:
+                    return
+                del status[bucket][key]
+            else:
+                status[bucket][key] = copy.deepcopy(value)
+            self._atomic_write(self.status_path(registry_id), status, MAX_STATUS_BYTES)

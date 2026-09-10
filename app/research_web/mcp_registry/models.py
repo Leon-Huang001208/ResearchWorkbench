@@ -36,7 +36,7 @@ def safe_http_url(value: Any) -> str:
         or any(ord(char) < 32 for char in value)
     ):
         raise ValueError("URL 必须为不含凭据、查询或片段的 HTTP(S) 地址")
-    netloc = parsed.hostname
+    netloc = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
     if parsed.port is not None:
         netloc = f"{netloc}:{parsed.port}"
     path = parsed.path.rstrip("/")
