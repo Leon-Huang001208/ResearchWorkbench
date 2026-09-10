@@ -34,7 +34,7 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 - `allowed` / `callable`：是否允许进入业务路由、当前是否实际可调用。
 - `health` / `last_checked_at`：最近一次显式探测结果，而不是页面加载时偷偷检测。
 
-设置页另由 `GET /data/connections` 提供不含秘密的统一连接投影，按专业数据源、API 数据源、公开来源和本机集成分组。MySQL、iFinD、知丘、天软、Tushare、Tavily 与 Bing 的非秘密配置写入 `<RESEARCH_DATA_HOME>/connections/`，秘密使用 `ResearchWorkbench.DataHub` 系统凭据库命名空间；Wind 只记录接入偏好，不接收账号密码。Wind Client API 探测只读取当前会话连接状态且不会代为登录；Excel 路径在没有真实工作簿心跳时明确保持未验证。配置保存、来源探测、Provider 适配和 Runtime 可调用是四个独立事实。
+数据源设置页由 `GET /data/connections` 提供不含秘密的统一来源投影。MySQL、iFinD、知丘、天软、Tushare、Tavily 与 Bing 的非秘密配置写入 `<RESEARCH_DATA_HOME>/connections/`，秘密使用 `ResearchWorkbench.DataHub` 系统凭据库命名空间；Wind 只记录接入偏好，不接收账号密码。Wind Client API 探测只读取当前会话连接状态且不会代为登录；配置保存、来源探测、Provider 适配和 Runtime 可调用是四个独立事实。`#/settings/local` 不再消费此响应或 `local_cache` 投影；它使用专用本机诊断接口，DataHub 的既有接口和研究查询保持兼容。
 
 东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
 

@@ -69,6 +69,8 @@ export async function waitForDataProbe(getProbe, probeId, { maxAttempts = 40, de
   throw new Error('检测仍在进行，请稍后刷新状态。');
 }
 
+export const waitForLocalIntegrationProbe = waitForDataProbe;
+
 // Never log prompts, response bodies, filenames, credentials or session identifiers.
 export function safeLog(event, metadata = {}) {
   console.info('[ResearchWeb]', event, { status: metadata.status, method: metadata.method });
@@ -122,6 +124,9 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     dataCapability: (id) => request(`/data/capabilities/${segment(id)}`),
     dataSource: (id) => request(`/data/sources/${segment(id)}`),
     connections: () => request('/data/connections'),
+    localIntegrations: () => request('/local-integrations'),
+    probeLocalIntegrations: (key) => request('/local-integrations/probes', { method: 'POST', body: {}, key }),
+    localIntegrationProbe: (id) => request(`/local-integrations/probes/${segment(id)}`),
     sourceConfiguration: (id) => request(`/data/sources/${segment(id)}/configuration`),
     saveSourceConfiguration: (id, body) => request(`/data/sources/${segment(id)}/configuration`, { method: 'PUT', body }),
     deleteSourceConfiguration: (id) => request(`/data/sources/${segment(id)}/configuration`, { method: 'DELETE' }),

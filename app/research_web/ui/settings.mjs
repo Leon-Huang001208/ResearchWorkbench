@@ -1,13 +1,13 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { modelOptions } from './views.mjs';
 import { renderAppearancePicker } from './shell.mjs';
-import { renderConnectionCenter, selectedConnectionId } from './connections.mjs';
+import { renderConnectionCenter, renderLocalIntegrationConsole, selectedConnectionId } from './connections.mjs';
 
 export const settingsSections = Object.freeze([
   { id: 'general', label: '通用', eyebrow: 'GENERAL', description: '管理仅影响当前浏览器的显示偏好。' },
   { id: 'model', label: '模型服务', eyebrow: 'MODEL SERVICE', description: '配置 Research Runtime 使用的模型服务。', refreshable: true },
   { id: 'data', label: '数据源', eyebrow: 'DATA CONNECTIONS', description: '管理专业数据源、API 数据源与公开来源。', refreshable: true },
-  { id: 'local', label: '本机集成', eyebrow: 'LOCAL INTEGRATIONS', description: '检查当前服务设备上的 Excel、Wind、iFinD 与报告工作流。', refreshable: true },
+  { id: 'local', label: '本机集成', eyebrow: 'LOCAL INTEGRATIONS', description: '诊断当前服务设备上的本机服务、文件夹、Office、浏览器与 MCP 能力。', refreshable: true },
   { id: 'docs', label: '架构文档', eyebrow: 'DOCUMENTATION', description: '只读查看当前架构与实现说明。' },
 ]);
 
@@ -28,7 +28,7 @@ export function settingsConnectionId(hash, sources, section) {
 export function settingsRefreshCatalogs(section) {
   if (section === 'model') return ['runtime', 'models'];
   if (section === 'data') return ['connections'];
-  if (section === 'local') return ['connections', 'tabbit'];
+  if (section === 'local') return ['localIntegrations', 'tabbit'];
   return [];
 }
 
@@ -65,19 +65,19 @@ function renderTabbitSettings(tabbit, busy) {
 }
 
 function renderSettingsBody(options) {
-  const { section, runtime, tabbit, models, runtimeLabel, busy, modelFailures, connections, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
+  const { section, runtime, tabbit, models, runtimeLabel, busy, modelFailures, connections, localIntegrations, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
   if (section === 'model') return renderModelSettings({ runtime, models, runtimeLabel, busy, modelFailures });
-  if (section === 'data' || section === 'local') {
-    const connectionsView = renderConnectionCenter({
+  if (section === 'local') return `${renderTabbitSettings(tabbit, busy)}${renderLocalIntegrationConsole(localIntegrations, { busy })}`;
+  if (section === 'data') {
+    return renderConnectionCenter({
       connections,
       selectedId: settingsConnectionId(hash, connections?.sources || [], section),
       configuration: selectedConfiguration,
       migrationOpen,
       detailOpen: connectionDetailOpen,
-      scope: section,
+      scope: 'data',
       busy,
     });
-    return section === 'local' ? `${renderTabbitSettings(tabbit, busy)}${connectionsView}` : connectionsView;
   }
   if (section === 'docs') return renderDocumentationSettings();
   return renderGeneralSettings();

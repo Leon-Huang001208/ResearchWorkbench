@@ -21,6 +21,7 @@
       ],
       "tests": [
         "tests/javascript/research_web_ui.test.mjs",
+        "tests/javascript/research_web_local_integrations_ui.test.mjs",
         "tests/javascript/research_web_ui_layout.test.mjs",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/javascript/research_web_workbench.test.mjs",
@@ -47,10 +48,14 @@
         "app/research_web/service_manager.py",
         "app/research_web/client.py",
         "app/research_web/tabbit.py",
-        "app/research_web/projection.py"
+        "app/research_web/projection.py",
+        "app/research_web/local_integrations/"
       ],
       "documents": [
+        "docs/architecture/research-web/01-system.md",
         "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md",
         "docs/research-web-tabbit.md"
       ],
       "diagrams": [
@@ -60,6 +65,7 @@
       ],
       "tests": [
         "tests/research_web/test_api.py",
+        "tests/research_web/test_local_integrations.py",
         "tests/research_web/test_protocol.py",
         "tests/research_web/test_event_recovery.py",
         "tests/research_web/test_cancel_reconciliation.py",
@@ -932,6 +938,27 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/runtime/tabbit",
       "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/local-integrations",
+      "source": "app/research_web/local_integrations/routes.py",
+      "declaredPath": "/local-integrations",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/local-integrations/probes",
+      "source": "app/research_web/local_integrations/routes.py",
+      "declaredPath": "/local-integrations/probes",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/local-integrations/probes/{probe_id}",
+      "source": "app/research_web/local_integrations/routes.py",
+      "declaredPath": "/local-integrations/probes/{probe_id}",
+      "prefix": "/api/research"
     },
     {
       "method": "GET",

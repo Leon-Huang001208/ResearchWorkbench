@@ -11,7 +11,7 @@
 该入口不启动旧 API 生命周期，不要求 PostgreSQL/pgvector，不使用 Evidence、Claim、Quality Gate、
 LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
 产品壳只在运行时需要配置、事件通道连接中或健康失败时显示顶栏提示；健康状态静默，完整 DSH
-诊断与手动刷新继续由设置、运行与用量及对应业务页面承担，不改变运行时 API 或事件拓扑。设置在同一产品壳内使用五个互斥的 Hash 子页，仅按当前子页加载运行时或连接状态；不新增服务、端点或数据流。
+诊断与手动刷新继续由设置、运行与用量及对应业务页面承担，不改变运行时 API 或事件拓扑。设置在同一产品壳内使用五个互斥的 Hash 子页，仅按当前子页加载所需状态。本机集成子页使用独立的进程内诊断管理器和 `/api/research/local-integrations` 接口，不再把 DataHub 的 `local_cache` 投影当作整机能力结论。
 
 Research Web 可在同一专属 DSH 执行链中加载固定、经完整性校验的 `dsh-tabbit` 0.3.4；
 `research-tabbit-adapter` 只复用插件提供的 `ctx.tabbit`，没有第二套 Playwright/CLI 执行器。

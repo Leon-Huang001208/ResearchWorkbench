@@ -47,6 +47,7 @@ Fork 维护约定：`Leon-Huang001208/deepseek-harness` 的 `master` 只用
 - `service.py`：会话归属、事件归一、状态恢复、幂等提交、原生子Agent取消、审批与问题响应。
 - `store.py`：原子本地 JSON 索引（单 Web worker），不保存模型正文；文件使用不跟随符号链接的目录描述符打开。
 - `main.py`：回环 Web API、安全来源边界、上传与隔离预览；无旧业务启动钩子。
+- `local_integrations/`：无副作用的主机软件发现、安全状态投影和幂等探测任务；不启动厂商软件，不返回本机路径或秘密。
 - `ui/`：正式五页与原生模块，详见 [UI 文档](research-web-ui.md)。
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
 - `skills/`：市场解读、资料解读、公司研究、行业研究、基金评价和因子库研究六类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
@@ -110,6 +111,8 @@ Skills 的同名独立脚本要逐文件执行 mypy，避免模块重名。真�
 - 本地索引不保存聊天正文；消息可选 `expected_formats`，通过幂等收据和提交前 outputs 哈希绑定独立文件交付检查。DOCX/XLSX/HTML/Markdown/PNG 实际解析仅在严格沙箱内执行；详情 `delivery` 与原生执行状态分开，不能仅凭回合 completed 判定报告交付。接口、默认格式、串行归属和限制见 [文件交付检查](research-web-delivery.md)。
 
 ## 验收与保留限制
+
+- 本机集成 v0 只完成本机服务、Office/Wind/iFinD 本机事实、浏览器应用和未完成闭环的安全诊断。文件夹同步、浏览器扩展配对、本地 MCP 授权及 Office 真实调用仍明确显示待配置或待验证；WindPy 与 iFinD HTTP/SDK 的数据调用继续由 DataHub 判断，不在本机页伪装为可用。
 
 - 原生 `web_search` 已有真实模型证据；财联社电报、基金净值及其批准/拒绝/等待中取消则是旧 DataHub 逐次审批机制下的历史证据。当前 DataHub 已替换为启动时仅暴露 callable 工具并自动取数；仍不开放任意网页 fetch、MCP 或自动依赖安装。
 - 早期基金示例只有20条单页数据；后续DataHub批次已完成2025净值13页243条、基本资料16项、分红25条、披露持仓220条，并由两个真实子Agent共用快照产出文件。见[DataHub验收](../.ai/reports/2026-09-02-datahub-acceptance.md)。仍缺基准序列、复权总回报、合同/定期报告原文及完整持仓，不能据此宣称完整基金尽调。文件格式验证不替代数据与结论复核。
