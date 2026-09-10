@@ -24,7 +24,7 @@
 - Tabbit、Runtime、协议、API、连接中心和本机集成定向测试：99 passed、1 skipped、1 warning。
 - `env -u DSH_SOURCE_ROOT ... pytest tests/research_web --confcutdir=tests/research_web`：607 passed、4 skipped、1 warning；跳过项为需要原生 DSH 源码的验证。
 - 使用本机 `DSH_SOURCE_ROOT` 运行同一套件：606 passed、1 skipped、2 setup errors；两项均因源码提交 `c389f96bf3a9b6807cb71ed6bdad5849be0df6d8` 与锁定提交 `c919b2a460753859665db3f60143d525fb9140cf` 不一致，未放宽 pin。
-- 完整 Research Web Node 测试：216 passed、1 skipped；其中 Tabbit、设置、Runtime guard、Research Web UI 与本机集成定向测试为 58 passed。`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 语法检查通过。
+- 完整 Research Web Node 测试：220 passed、1 skipped；其中 Tabbit、设置、Runtime guard、Research Web UI 与本机集成定向测试为 58 passed。CI 同构 Tabbit Python/Node 合约分别为 67 passed 和 51 passed；`tabbit-adapter.mjs`、`app.mjs`、`composer.mjs`、`core.mjs` 语法检查通过。
 - Ruff 0.16.6、Black 26.5.1 check、isort 9.0.1 check：11 个相关 Python 文件通过；Black 实际限定格式化 8 个 CI 报告文件。
 - mypy 2.3.1：6 个相关 Research Web 源文件通过；项目仍以 Python 3.11 为目标，NumPy/Transformers 外部 stub 使用定向 `follow_imports=skip`。
 - `node scripts/check_research_architecture.mjs` 与 `scripts/check_doc_sync.py --base origin/master`：无违规。
