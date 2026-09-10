@@ -4,6 +4,8 @@ import asyncio
 import base64
 import hashlib
 import json
+import os
+import secrets
 import shutil
 import time
 from contextlib import suppress
@@ -24,9 +26,24 @@ from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
 from .local_integrations import LocalIntegrationManager
 from .mcp_registry import MCPRegistryService
+from .mcp_runtime.authorization import AuthorizationManager
+from .mcp_runtime.control import load_control as load_mcp_control
+from .mcp_runtime.credentials import RuntimeCredentialStore
+from .mcp_runtime.installation_store import (
+    INTEGRITY_KEY_SERVICE,
+    ConfirmationTokenManager,
+    InstallationStore,
+)
+from .mcp_runtime.oauth import OAuthCoordinator, OAuthDiscovery
+from .mcp_runtime.package_installer import PackageInstaller
+from .mcp_runtime.package_planner import PackagePlanner
+from .mcp_runtime.package_resolver import PackageResolver
+from .mcp_runtime.sdk_host import SDKHost
+from .mcp_runtime.service import MCPRuntimeService, runtime_feature_enabled
 from .projection import project
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
+from .service_manager import WebServiceManager
 from .store import Store, StoreError
 from .tabbit import TabbitIntegration
 
@@ -44,6 +61,95 @@ SESSION_DELETE_BLOCKED_STATUSES = {
 }
 SESSION_RETENTION_SECONDS = 30 * 24 * 60 * 60
 SESSION_PURGE_INTERVAL_SECONDS = 6 * 60 * 60
+MCP_CONFIRMATION_KEY_ACCOUNT = "confirmation-signing-v1"
+MCP_INTERNAL_URL = "http://127.0.0.1:8088"
+
+
+def _mcp_internal_url() -> str:
+    """Resolve the manager-provided loopback origin for this Web process."""
+
+    return os.environ.get("RESEARCH_WEB_INTERNAL_URL", MCP_INTERNAL_URL).rstrip("/")
+
+
+def _persistent_mcp_key(account: str, keyring_backend=None) -> bytes:
+    """Load one fixed-size Host key without ever persisting it in the data root."""
+
+    try:
+        if keyring_backend is None:
+            import keyring as keyring_backend  # type: ignore[no-redef]
+        encoded = keyring_backend.get_password(INTEGRITY_KEY_SERVICE, account)
+        if encoded is None:
+            generated = secrets.token_bytes(32)
+            encoded = base64.urlsafe_b64encode(generated).rstrip(b"=").decode("ascii")
+            keyring_backend.set_password(INTEGRITY_KEY_SERVICE, account, encoded)
+            if keyring_backend.get_password(INTEGRITY_KEY_SERVICE, account) != encoded:
+                raise RuntimeError("mcp_runtime_key_race")
+        raw = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        log.error("mcp_runtime_key_load_failed", error_type=type(exc).__name__)
+        raise RuntimeError("mcp_runtime_key_unavailable") from exc
+    if len(raw) != 32:
+        raise RuntimeError("mcp_runtime_key_invalid")
+    return raw
+
+
+class _SessionOwnedMCPRuntime:
+    """Enforce Research Store ownership before any session-scoped MCP operation."""
+
+    def __init__(self, runtime, store: Store) -> None:
+        self.runtime = runtime
+        self.store = store
+
+    def __getattr__(self, name):
+        return getattr(self.runtime, name)
+
+    async def start(self):
+        return await self.runtime.start()
+
+    async def close(self):
+        return await self.runtime.close()
+
+    def _owned(self, session_id: str) -> None:
+        if not isinstance(session_id, str):
+            raise StoreError("研究会话不存在或不属于当前产品")
+        self.store.session(session_id)
+
+    def authorize_session(self, session_id: str, **binding):
+        self._owned(session_id)
+        return self.runtime.authorize_session(session_id, **binding)
+
+    async def read_resource(self, session_id: str, installation_id: str, uri: str):
+        self._owned(session_id)
+        return await self.runtime.read_resource(session_id, installation_id, uri)
+
+    async def get_prompt(
+        self,
+        session_id: str,
+        installation_id: str,
+        name: str,
+        arguments: dict[str, str] | None,
+    ):
+        self._owned(session_id)
+        return await self.runtime.get_prompt(session_id, installation_id, name, arguments)
+
+    async def call_tool(self, **request):
+        self._owned(request.get("session_id"))
+        return await self.runtime.call_tool(**request)
+
+    def approvals(self, *, session_id: str | None = None):
+        if session_id is not None:
+            self._owned(session_id)
+        return self.runtime.approvals(session_id=session_id)
+
+    async def decide_approval(self, approval_id: str, *, session_id: str, approve: bool):
+        self._owned(session_id)
+        return await self.runtime.decide_approval(
+            approval_id,
+            session_id=session_id,
+            approve=approve,
+        )
 
 
 class ResearchService:
@@ -56,6 +162,9 @@ class ResearchService:
         expected_cwd: Path | None = None,
         delivery_python: Path | None = None,
         mcp_registry: MCPRegistryService | None = None,
+        mcp_runtime=None,
+        mcp_keyring_backend=None,
+        runtime_manager=None,
     ):
         self.client, self.store, self.owned = client, store, owned
         self.expected_cwd = expected_cwd
@@ -65,6 +174,10 @@ class ResearchService:
         self.tabbit = TabbitIntegration(client, store)
         self.local_integrations = LocalIntegrationManager(store.root / "local-integrations")
         self.mcp_registry = mcp_registry or MCPRegistryService(store.root)
+        self._runtime_manager = runtime_manager
+        if mcp_runtime is None:
+            mcp_runtime = self._build_mcp_runtime(mcp_keyring_backend)
+        self.mcp_runtime = _SessionOwnedMCPRuntime(mcp_runtime, store)
         self.asset_workspace = AssetWorkspace(self)
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)
@@ -90,6 +203,55 @@ class ResearchService:
             "model", {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
         )
 
+    def _build_mcp_runtime(self, keyring_backend=None):
+        """Build the private Host graph only when the runtime feature is enabled."""
+
+        if not runtime_feature_enabled():
+            return MCPRuntimeService(enabled=False)
+
+        runtime_root = self.store.root / "mcp-runtime"
+        staging_root = runtime_root / "staging"
+        installation_root = runtime_root / "packages"
+        credentials = RuntimeCredentialStore(keyring_backend)
+        signing_key = _persistent_mcp_key(MCP_CONFIRMATION_KEY_ACCOUNT, keyring_backend)
+        tokens = ConfirmationTokenManager(signing_key, replay_root=self.store.root)
+        manifests = InstallationStore(self.store.root, keyring_backend=keyring_backend)
+        staging_root.mkdir(mode=0o700, exist_ok=True)
+        resolver = PackageResolver(staging_root)
+        planner = PackagePlanner()
+        installer = PackageInstaller(
+            staging_root,
+            installation_root,
+            credentials=credentials,
+        )
+        host = SDKHost(credentials=credentials)
+        internal_url = _mcp_internal_url()
+        oauth = OAuthCoordinator(
+            OAuthDiscovery(),
+            credentials,
+            redirect_uri=f"{internal_url}/api/research/mcp/oauth/callback",
+            client_id="research-workbench",
+        )
+        control = load_mcp_control(self.store.root, internal_url)
+        if self._runtime_manager is None:
+            self._runtime_manager = WebServiceManager(data_root=self.store.root)
+        return MCPRuntimeService(
+            self.store.root,
+            enabled=True,
+            registry=self.mcp_registry,
+            resolver=resolver,
+            planner=planner,
+            tokens=tokens,
+            store=manifests,
+            installer=installer,
+            host=host,
+            authorization=AuthorizationManager(self.store.root),
+            idle_gate=self._mcp_idle_gate,
+            restart_callback=self._restart_mcp_runtime,
+            control=control,
+            oauth=oauth,
+        )
+
     async def ensure_owned(self):
         if self.expected_cwd is not None:
             info = await self.client.rpc("host.describe", {})
@@ -101,6 +263,7 @@ class ResearchService:
 
     async def start(self):
         await self.mcp_registry.start()
+        await self.mcp_runtime.start()
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
         await self.report_workflows.start()
         await self.purge_expired_sessions()
@@ -117,6 +280,7 @@ class ResearchService:
         await self.report_workflows.close()
         await self.asset_workspace.close()
         await self.local_integrations.close()
+        await self.mcp_runtime.close()
         await self.mcp_registry.close()
         await self.datahub.close()
         if self.pump:
@@ -973,6 +1137,22 @@ class ResearchService:
             for receipt in self.store.data["receipts"].values()
         ):
             raise CapabilityError("存在尚未确认的受理请求，草稿已保留", "capability_busy", 409)
+        return True
+
+    async def _mcp_idle_gate(self):
+        """Use the capability admission lock and return the runtime's exact boolean contract."""
+
+        async with self.lock:
+            await self._capability_idle()
+        return True
+
+    async def _restart_mcp_runtime(self, _bindings):
+        """Restart only the owned DSH process; Research Web remains online."""
+
+        if self._runtime_manager is None:
+            raise RuntimeError("mcp_runtime_manager_unavailable")
+        await asyncio.to_thread(self._runtime_manager.restart_runtime)
+        return True
 
     async def change_capability(self, cid, action, version=None):
         async with self.lock:

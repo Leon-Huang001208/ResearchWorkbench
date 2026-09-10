@@ -34,13 +34,22 @@ Keyring 服务 `ResearchWorkbench.MCPRegistry`，产品索引只保留引用。R
 surrogate，不做 HTML entity escape；UI 只在最终 HTML sink 转义一次且不加载远程图标。
 
 包记录将客户端识别能力与不可变制品引用拆为 `package_type_supported` 和 `immutable_reference`。
-这两项只说明包类型是否被当前客户端识别、Registry 是否登记了固定版本或所需摘要；阶段 2A 不校验
-完整制品、不提供安装，也不使用“可安装”状态。未知包类型仍可浏览并显示客户端暂不支持。
+这两项只说明包类型是否被当前客户端识别、Registry 是否登记了固定版本或所需摘要；未知包类型仍
+可浏览。Phase 2B 只对 npm、PyPI、MCPB 固定目标或 Streamable HTTP 生成安装预览，且预览、确认、
+安装、健康探测、启用和研究授权始终是独立步骤。
 
-本阶段不安装、启用或调用 MCP，不包含 Runtime、授权、Automation 或外发。Publisher 端点只生成
-随仓库审查的规范 `server.json`、摘要和完整外部 CLI argv，`executed:false`；应用不执行
-`mcp-publisher`、不登录官方 Registry、不构建或上传包。安装与运行时留待阶段 2B，Automation 与
-外发留待阶段 2C。
+`app/research_web/mcp_runtime/` 使用官方 `mcp>=2,<3` SDK 提供 Streamable HTTP / stdio、工具、
+资源、提示及 OAuth 客户端。npm 拒绝生命周期钩子并使用固定 lock/integrity 和 `--ignore-scripts`；
+PyPI 只从本地 wheelhouse 按完整哈希安装；MCPB 校验 Registry 摘要并拒绝越界链接。远程端点只允许
+HTTPS 或字面 loopback，关闭自动重定向；OAuth 使用 PKCE、state、元数据发现、受众校验和系统
+凭据库。安装清单不可变，更新必须从 Registry 新版本重新预览，不能原地替换。
+
+健康探测为每个工具保存版本、schema SHA-256 与风险等级；默认风险为
+`external_write_high_risk`，第三方声明不能降低。会话只获得用户明确选择的快照；私有数据需要会话
+授权，外部写入和高风险调用每次产生人工审批。无人值守必须同时满足 `read_only`、
+`allow_unattended=true` 和任务锁定快照。DSH 只加载 `mcp__{installation}__{tool}`，Host 每次调用
+复核安装版本、schema、会话授权和审批。Publisher 仍只生成 `executed:false` 的外部 CLI 交接；
+Automation 与外发留待 Phase 2C。
 
 ## API（全部位于 `/api/research`）
 
@@ -68,6 +77,15 @@ surrogate，不做 HTML entity escape；UI 只在最终 HTML sink 转义一次�
 | GET `/mcp/servers/{registry_id}/{server_name:path}/versions/{version}` | 返回指定身份三元组的 Unicode 纯文本详情，以及 `package_type_supported` / `immutable_reference` 两项包事实；不承诺可安装 |
 | POST `/mcp/publisher/preview` | 生成规范 `server.json`、SHA-256 与完整外部 Publisher CLI argv；不执行 |
 | POST `/mcp/publisher/validate` | 校验不可变发布描述并返回 `executed:false` 的外部交接结果 |
+| POST `/mcp/installations/preview` | 解析固定版本，返回未截断 argv、来源、全部制品哈希、环境变量名称与短期确认令牌 |
+| GET / POST `/mcp/installations` | 列出不可变安装及真实 Runtime 状态；确认摘要完全一致后执行隔离安装 |
+| GET / PATCH / DELETE `/mcp/installations/{id}` | 读取安装、逐工具保存风险等级；仅停用后可移除 |
+| GET `/mcp/installations/{id}/status`、`/capabilities` | 返回激活/健康状态与 Host 拥有的 schema、风险策略投影 |
+| POST `/mcp/installations/{id}/probe`、`/enable`、`/disable`、`/update` | 探测与 DSH 原子激活/回滚；update 返回必须重新预览的新版本约束 |
+| POST `/mcp/installations/{id}/oauth/start`、GET `/mcp/oauth/callback` | 启动并完成 PKCE OAuth；token 只进系统凭据库 |
+| POST `/sessions/{id}/mcp-authorizations` | 锁定安装版本、工具名和 schema 哈希的会话授权 |
+| POST `/sessions/{id}/mcp/resources/read`、`/mcp/prompts/get` | 对已激活且已授权安装代理资源和提示请求 |
+| GET `/mcp/approvals`、POST `/mcp/approvals/{id}/approve`、`/deny` | 不暴露参数正文的一次性人工审批 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |
 

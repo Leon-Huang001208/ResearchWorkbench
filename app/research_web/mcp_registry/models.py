@@ -253,6 +253,71 @@ def _immutable_package_reference(
     return False
 
 
+def _safe_argument(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict) or value.get("type") not in {"named", "positional"}:
+        raise ValueError("package argument 格式非法")
+    kind = value["type"]
+    result: dict[str, Any] = {"type": kind}
+    if kind == "named":
+        name = safe_text(value.get("name"), maximum=256)
+        if any(char.isspace() for char in name):
+            raise ValueError("package named argument 格式非法")
+        result["name"] = name
+    for source, target in (("value", "value"), ("valueHint", "value_hint")):
+        if value.get(source) is not None:
+            result[target] = safe_text(value[source], maximum=4096)
+    if kind == "positional" and not any(key in result for key in ("value", "value_hint")):
+        raise ValueError("package positional argument 缺少值")
+    repeated = value.get("isRepeated", False)
+    if type(repeated) is not bool:
+        raise ValueError("package argument isRepeated 格式非法")
+    result["is_repeated"] = repeated
+    return result
+
+
+def _safe_arguments(value: Any) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or len(value) > 64:
+        raise ValueError("package arguments 格式非法")
+    return [_safe_argument(item) for item in value]
+
+
+def _safe_environment_variables(value: Any) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or len(value) > 64:
+        raise ValueError("package environmentVariables 格式非法")
+    result = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError("package environment variable 格式非法")
+        name = safe_text(item.get("name"), maximum=128)
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None or name in seen:
+            raise ValueError("package environment variable name 格式非法")
+        seen.add(name)
+        required = item.get("isRequired", False)
+        secret = item.get("isSecret", False)
+        if type(required) is not bool or type(secret) is not bool:
+            raise ValueError("package environment variable flags 格式非法")
+        format_name = item.get("format", "string")
+        if format_name not in {"string", "number", "boolean", "filepath"}:
+            raise ValueError("package environment variable format 格式非法")
+        normalized: dict[str, Any] = {
+            "name": name,
+            "is_required": required,
+            "is_secret": secret,
+            "format": format_name,
+        }
+        if item.get("description") is not None:
+            normalized["description"] = safe_text(item["description"], maximum=1000)
+        # Registry-provided values are never persisted. Runtime values belong in
+        # the dedicated credential/configuration boundary introduced in Phase 2B.
+        result.append(normalized)
+    return result
+
+
 def _safe_packages(value: Any) -> list[dict[str, Any]]:
     if value is None:
         return []
@@ -287,6 +352,9 @@ def _safe_packages(value: Any) -> list[dict[str, Any]]:
             "version": version,
             "file_sha256": file_sha256,
             "transport_type": transport["type"],
+            "runtime_arguments": _safe_arguments(item.get("runtimeArguments")),
+            "package_arguments": _safe_arguments(item.get("packageArguments")),
+            "environment_variables": _safe_environment_variables(item.get("environmentVariables")),
             "package_type_supported": registry_type in {"npm", "pypi", "mcpb"},
             "immutable_reference": _immutable_package_reference(
                 registry_type, version, file_sha256
@@ -294,6 +362,11 @@ def _safe_packages(value: Any) -> list[dict[str, Any]]:
         }
         if item.get("registryBaseUrl") is not None:
             normalized["registry_base_url"] = safe_http_url(item["registryBaseUrl"])
+        if item.get("runtimeHint") is not None:
+            runtime_hint = safe_text(item["runtimeHint"], maximum=128)
+            if re.fullmatch(r"[A-Za-z0-9._/-]+", runtime_hint) is None:
+                raise ValueError("package runtimeHint 格式非法")
+            normalized["runtime_hint"] = runtime_hint
         result.append({key: item for key, item in normalized.items() if item is not None})
     return result
 

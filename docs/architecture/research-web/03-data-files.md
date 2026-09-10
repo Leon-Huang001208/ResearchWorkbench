@@ -7,6 +7,13 @@ Phase 2A 另在 `<RESEARCH_DATA_HOME>/mcp-registry/` 保存非敏感 Registry �
 编码。Bearer/OAuth 秘密不进入这些 JSON、会话、资料快照或日志，而由系统凭据库服务
 `ResearchWorkbench.MCPRegistry` 持有。
 
+Phase 2B 在 `<RESEARCH_DATA_HOME>/mcp-runtime/` 保存不可变安装清单、安装状态、启用清单、
+工具 schema/风险策略、会话授权快照和人工审批元数据。短期确认令牌绑定完整规范摘要并防重放；
+本地包只从已验证 staging 原子发布到独立安装目录，远程目标只保存规范化端点。环境变量值、
+OAuth token、清单完整性密钥和 loopback 控制密钥分别由 `ResearchWorkbench.MCPRuntime` 系统凭据
+或私有控制文件持有，不进入清单、会话快照、浏览器响应或日志。删除安装前必须停用 Runtime；
+健康失败保留安装记录并原子恢复上一份启用清单。
+
 ## 一个数据服务，两种消费者
 
 DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运行的第四种能力，也不是新服务。Web 通过“能力中心 → 数据”浏览 15 项业务数据能力、22 个登记来源及其绑定矩阵；DSH 通过品牌无关的 `datahub_*` 业务 Tool 取数。通用 MySQL 配置与会话文件位于当前设备数据根，密码由系统凭据库隔离；Research Runtime 启动时只注册至少有一个可调用来源的工具。

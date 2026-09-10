@@ -1,8 +1,10 @@
 # 研究协议、执行状态与恢复
 
-Phase 2A 的 MCP Registry 不进入本章研究执行链。Research Web Host 只读取目录元数据和最后成功
-缓存，不连接或调用 MCP server，也不向 DSH 注入动态工具。安装、授权、schema 快照和 Runtime
-重启/回滚属于 Phase 2B；因此当前提交、流式、恢复和报告运行状态保持原契约。
+Phase 2A 的 Registry 读取仍不进入研究执行链。Phase 2B 只把用户已安装、探测、启用且授权的
+MCP 工具加入专属 DSH：Host 生成 `mcp__{installation}__{tool}` 声明和 schema 哈希，DSH adapter
+经私有 loopback 回调 Host；Host 每次复核安装版本、schema、会话授权、风险等级与人工审批后才由
+官方 SDK 调用 MCP Server。安装/启停会等待当前研究归零并仅重启 DSH，失败恢复旧激活清单；Web
+进程与既有提交、SSE、恢复和报告状态契约不变。
 
 ## 持久化本地启动边界
 

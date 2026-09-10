@@ -3,12 +3,19 @@
 本轮以 Web → FastAPI → DSH 原生 RPC / 双 WebSocket 为唯一研究链路。
 不加载旧数据库、研究运行器、知识处理和桌面生命周期。
 
+2026-09-11 的阶段 2B 在同一 FastAPI 进程内增加**受控 MCP Host**：固定版本安装先展示完整
+argv、来源、全部制品哈希和环境变量名称，并要求短期令牌绑定的再次确认；安装后仍须分别探测、
+启用和按工具授权。Research Web Host 通过官方 `mcp>=2,<3` SDK 持有 stdio/Streamable HTTP 连接，
+DSH 只接收命名空间化 schema 快照并经私有 loopback 回调 Host。远程只允许 HTTPS 或字面 loopback，
+OAuth 使用 PKCE/state/元数据发现和系统凭据库；本地进程使用直接 argv、独立目录及最小环境。
+功能由 `RESEARCH_MCP_RUNTIME_ENABLED` 控制。Automation 与外发仍属于阶段 2C。
+
 2026-09-10 的阶段 2A 在同一 FastAPI 进程内增加**只读 MCP Registry**：Tool 工作区的
 `#/skills?kind=tool&view=market` 聚合固定的官方 Registry 与用户显式配置的私有 Registry，
 身份始终是 `(registry_id, server_name, version)`，同名 Server 不合并。官方适配器只访问
 `/v0.1`，保留 opaque cursor、ETag、同步时间和最后成功缓存；网络、超时或响应校验失败时返回
-`stale=true` 的旧缓存，不以空结果覆盖。该功能由 `RESEARCH_MCP_REGISTRY_ENABLED` 控制，默认关闭。
-阶段 2A 不安装、启用或调用 MCP Server，也不包含 Automation；这些仍属于阶段 2B/2C。
+`stale=true` 的旧缓存，不以空结果覆盖。该功能由 `RESEARCH_MCP_REGISTRY_ENABLED` 控制。
+Registry 同步和 publisher handoff 始终只读，不因 Phase 2B 启用而在应用内发布包。
 Registry 默认只接受 HTTPS；唯一 HTTP 例外是 `auth=none` 且主机精确为
 `127.0.0.1`、`localhost` 或 `::1` 的显式 loopback，OAuth 授权和 token 端点始终必须使用 HTTPS。
 
@@ -80,7 +87,9 @@ DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取�
 - `store.py`：原子本地 JSON 索引（单 Web worker），不保存模型正文；文件使用不跟随符号链接的目录描述符打开。
 - `main.py`：回环 Web API、安全来源边界、上传与隔离预览；无旧业务启动钩子。
 - `local_integrations/`：无副作用的主机软件发现、安全状态投影和幂等探测任务；不启动厂商软件，不返回本机路径或秘密。
-- `mcp_registry/`：官方/私有 Registry 配置、固定 v0.1 同步、原子目录与缓存、Keyring 秘密引用，以及只生成外部命令的 publisher handoff；不执行 publisher、安装或 MCP 调用。
+- `mcp_registry/`：官方/私有 Registry 配置、固定 v0.1 同步、原子目录与缓存、Keyring 秘密引用，以及只生成外部命令的 publisher handoff；不执行 publisher。
+- `mcp_runtime/`：不可变安装预览/确认、制品解析与隔离安装、官方 SDK Host、OAuth、schema 快照、风险分级、会话授权、人工审批及 DSH 激活回滚。
+- `runtime/mcp-adapter.mjs`：只注册当前激活清单中的 `mcp__*` 声明，经私有控制通道代理调用，不持有 MCP 凭据或绕过 Host guard。
 - `local_integrations/verifiers.py`：用户显式触发的 macOS Office/Wind 真实验证；所有目标使用 180 秒业务上限，在独立进程组和受管验证目录中执行，超时会终止进程树。Excel 要求全量重算并重开读值；PowerPoint 由 AppleScript 直接创建、保存并按随机文件名重新绑定对象，不依赖未声明的 `python-pptx`。Wind 对当前发布的 `huaan-etf-weekly` 受管副本依次执行烟测与全部策略刷新，刷新副本位于 Excel 应用沙箱的验证目录，避免每次运行请求任意文件访问授权；每次刷新只取得全局剩余预算，并核对发布源哈希。成功结果才写入可调用状态，授权、登录、超时和公式失败均保持独立状态。
 - `ui/`：正式五页与原生模块，详见 [UI 文档](research-web-ui.md)。
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
@@ -112,7 +121,8 @@ MySQL 密码由服务名 `ResearchWorkbench.DataHub`、账户键 `mysql:default:
 目录缓存与 API 保存并返回经过 schema 校验、长度限制和纯文本处理的规范化目录元数据，包括名称、
 描述、包及远程元数据，以支持浏览与离线降级。字符串保持有界 Unicode plain text，拒绝控制字符和
 surrogate，不在数据层做 HTML entity escape；UI 只在最终 HTML sink 转义一次。包元数据分别暴露
-`package_type_supported` 与 `immutable_reference` 两项事实，阶段 2A 不承诺制品可安装。缓存和 API
+`package_type_supported` 与 `immutable_reference` 两项目录事实本身不承诺安装成功；Phase 2B 仍须
+完成固定依赖解析、哈希核对、显式确认和健康探测。缓存和 API
 不保存 token 或原始上游响应体；日志不记录凭据、第三方描述或原始上游响应体。
 
 iFinD `http_api` 探测沿用数据源页保存的非秘密 Base URL 和系统凭据库账号，执行登录、`/health` 检查和最小只读基础数据查询后关闭会话；仅返回非空合法数据才健康。Token 仅存在于内存，不写入连接状态或日志；鉴权、权限、配额和空结果均映射为安全错误码。未配置账号继续显示待配置。

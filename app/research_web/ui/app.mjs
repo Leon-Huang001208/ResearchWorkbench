@@ -8,7 +8,7 @@ import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel,
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
 import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
-import { mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
+import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
@@ -39,8 +39,9 @@ let renameDraft = null;
 let renameSession = null; let deleteSession = null; let purgeSession = null;
 let sessionMenu = null; let sessionActionBusy = false; let sessionActionError = '';
 let capabilityDialogReturnSelector = '';
-let mcpCatalogGeneration = 0; let mcpDetailGeneration = 0; let mcpPublisherGeneration = 0; let mcpDetailRequestIdentity = ''; let pendingMCPMarketTabFocus = '';
-let mcpMarketplaceState = { registries: [], selectedRegistryId: '', query: '', page: null, detail: null, returnIdentity: null, loading: false, syncing: false, error: '', publisher: { source: '', result: null, resultSource: '', error: '', busy: false } };
+let mcpCatalogGeneration = 0; let mcpDetailGeneration = 0; let mcpPublisherGeneration = 0; let mcpInstallGeneration = 0; let mcpDetailRequestIdentity = ''; let pendingMCPMarketTabFocus = '';
+const emptyMCPInstallation = () => ({ target: '', preview: null, confirmationToken: '', installationId: '', installStatus: 'not_installed', probeStatus: 'not_run', enableStatus: 'disabled', authorizationStatus: 'not_authorized', capabilities: null, record: null, busy: '', error: '' });
+let mcpMarketplaceState = { registries: [], installations: [], approvals: [], approvalBusy: '', runtimeAvailable: null, runtimeError: '', selectedRegistryId: '', query: '', page: null, detail: null, returnIdentity: null, loading: false, syncing: false, error: '', installation: emptyMCPInstallation(), publisher: { source: '', result: null, resultSource: '', error: '', busy: false } };
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
@@ -136,10 +137,12 @@ function findMCPServerTrigger(identity) {
 
 function invalidateMCPDetailRequest() {
   mcpDetailGeneration += 1;
+  mcpInstallGeneration += 1;
   mcpDetailRequestIdentity = '';
   mcpMarketplaceState.loading = false;
   mcpMarketplaceState.detail = null;
   mcpMarketplaceState.returnIdentity = null;
+  mcpMarketplaceState.installation = emptyMCPInstallation();
 }
 
 function invalidateMCPRequests() {
@@ -152,7 +155,8 @@ function invalidateMCPRequests() {
 function closeMCPServerDialog({ restoreFocus = true } = {}) {
   if (!mcpMarketplaceState.detail) return false;
   const identity = mcpMarketplaceState.returnIdentity;
-  mcpMarketplaceState.detail = null; mcpMarketplaceState.returnIdentity = null; render();
+  mcpInstallGeneration += 1;
+  mcpMarketplaceState.detail = null; mcpMarketplaceState.returnIdentity = null; mcpMarketplaceState.installation = emptyMCPInstallation(); render();
   if (restoreFocus && identity) {
     findMCPServerTrigger(identity)?.focus?.({ preventScroll: true });
   }
@@ -251,7 +255,7 @@ function capabilityPage() {
     busy: cap.busy || reportWorkflowBusy,
     error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.dataCatalog || catalog.errors.connections || '',
   });
-  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail);
+  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
 }
 
 function sidebar() {
@@ -338,6 +342,73 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
   render();
 }
 
+function mcpInstallationFor(identity) {
+  return mcpMarketplaceState.installations.find((item) => {
+    const plan = item?.plan || {};
+    return plan.registry_id === identity.registryId
+      && plan.server_name === identity.serverName
+      && plan.server_version === identity.version;
+  }) || null;
+}
+
+function mcpInstallationState(record) {
+  if (!record?.id) return emptyMCPInstallation();
+  const runtimeStatus = String(record.runtime_status || 'installed');
+  const probeStatus = ['ready', 'enabled', 'disabled'].includes(runtimeStatus) ? 'ready'
+    : runtimeStatus === 'health_failed' ? 'failed' : 'not_run';
+  return {
+    ...emptyMCPInstallation(),
+    installationId: record.id,
+    installStatus: 'installed',
+    probeStatus,
+    enableStatus: record.active === true || runtimeStatus === 'enabled' ? 'enabled' : 'disabled',
+    record: structuredClone(record),
+  };
+}
+
+function replaceMCPInstallation(record) {
+  if (!record?.id) return;
+  mcpMarketplaceState.installations = [
+    record,
+    ...mcpMarketplaceState.installations.filter(item => item?.id !== record.id),
+  ];
+}
+
+async function loadMCPRuntimeInventory() {
+  try {
+    const [response, approvals] = await Promise.all([api.mcpInstallations(), api.mcpApprovals()]);
+    mcpMarketplaceState.installations = Array.isArray(response?.items) ? response.items : [];
+    mcpMarketplaceState.approvals = Array.isArray(approvals?.items) ? approvals.items.filter(item => item?.status === 'pending') : [];
+    mcpMarketplaceState.runtimeAvailable = true;
+    mcpMarketplaceState.runtimeError = '';
+  } catch (error) {
+    mcpMarketplaceState.installations = [];
+    mcpMarketplaceState.approvals = [];
+    mcpMarketplaceState.runtimeAvailable = false;
+    mcpMarketplaceState.runtimeError = error?.code === 'mcp_runtime_disabled'
+      ? 'MCP Runtime 功能开关尚未启用；当前仍可浏览 Registry。'
+      : (error?.message || 'MCP Runtime 状态读取失败；Registry 浏览仍可使用。');
+    safeLog('mcp_runtime_inventory_failed', { status: error?.code || 'request_failed' });
+  }
+}
+
+async function decideMCPApproval(approvalId, approve) {
+  const approval = mcpMarketplaceState.approvals.find(item => item?.id === approvalId);
+  if (!approval?.session_id || mcpMarketplaceState.approvalBusy) return;
+  mcpMarketplaceState.approvalBusy = approvalId; mcpMarketplaceState.runtimeError = ''; render();
+  try {
+    if (approve) await api.mcpApprove(approvalId, { session_id: approval.session_id });
+    else await api.mcpDeny(approvalId, { session_id: approval.session_id });
+    mcpMarketplaceState.approvals = mcpMarketplaceState.approvals.filter(item => item?.id !== approvalId);
+    safeLog('mcp_approval_decided', { status: approve ? 'approved' : 'denied' });
+  } catch (error) {
+    mcpMarketplaceState.runtimeError = error?.message || 'MCP 人工审批提交失败。';
+    safeLog('mcp_approval_decision_failed', { status: error?.code || 'request_failed' });
+  } finally {
+    mcpMarketplaceState.approvalBusy = ''; render();
+  }
+}
+
 async function loadMCPMarketplace({ sync = false, reloadRegistries = false } = {}) {
   if (mcpMarketplaceState.loading || mcpMarketplaceState.syncing) return;
   const ticket = pageGeneration; const operation = ++mcpCatalogGeneration;
@@ -348,6 +419,10 @@ async function loadMCPMarketplace({ sync = false, reloadRegistries = false } = {
   mcpMarketplaceState[sync ? 'syncing' : 'loading'] = true;
   render();
   try {
+    if (reloadRegistries || mcpMarketplaceState.runtimeAvailable === null) {
+      await loadMCPRuntimeInventory();
+      if (!current()) return;
+    }
     if (reloadRegistries || !mcpMarketplaceState.registries.length) {
       const response = await api.mcpRegistries();
       if (!current()) return;
@@ -381,6 +456,7 @@ async function openMCPServerDetail(identity) {
   const requested = { registryId: identity.registryId, serverName: identity.serverName, version: identity.version };
   const identityKey = JSON.stringify([requested.registryId, requested.serverName, requested.version]);
   mcpDetailRequestIdentity = identityKey;
+  mcpInstallGeneration += 1; mcpMarketplaceState.installation = emptyMCPInstallation();
   const current = () => operation === mcpDetailGeneration && identityKey === mcpDetailRequestIdentity && ticket === pageGeneration && currentMCPMarketRoute();
   mcpMarketplaceState.loading = true; mcpMarketplaceState.error = ''; render();
   try {
@@ -388,6 +464,20 @@ async function openMCPServerDetail(identity) {
     if (!current()) return;
     mcpMarketplaceState.detail = detail;
     mcpMarketplaceState.returnIdentity = requested;
+    const existing = mcpInstallationFor(requested);
+    if (existing) {
+      mcpMarketplaceState.installation = mcpInstallationState(existing);
+      if (mcpMarketplaceState.installation.probeStatus === 'ready') {
+        try {
+          const capabilities = await api.mcpInstallationCapabilities(existing.id);
+          if (current()) mcpMarketplaceState.installation.capabilities = capabilities;
+        } catch (error) {
+          if (current() && error?.code !== 'mcp_capabilities_unavailable') {
+            mcpMarketplaceState.installation.error = error?.message || 'MCP 能力快照读取失败。';
+          }
+        }
+      }
+    }
   } catch (error) {
     if (!current()) return;
     mcpMarketplaceState.error = error?.message || 'MCP Server 详情读取失败。';
@@ -397,6 +487,212 @@ async function openMCPServerDetail(identity) {
     mcpMarketplaceState.loading = false; render();
     if (mcpMarketplaceState.detail) focusMCPServerDialog();
     else findMCPServerTrigger(requested)?.focus?.({ preventScroll: true });
+  }
+}
+
+async function runMCPInstallPreview() {
+  const detail = mcpMarketplaceState.detail;
+  const installation = mcpMarketplaceState.installation;
+  if (!detail || !installation.target || installation.busy) return;
+  let selection;
+  try { selection = mcpInstallSelection(detail, installation.target); }
+  catch { installation.error = '请选择客户端已验证的固定本地包或 Streamable HTTP 目标。'; render(); return; }
+  const ticket = pageGeneration; const operation = ++mcpInstallGeneration;
+  installation.busy = 'preview'; installation.error = ''; installation.preview = null; installation.confirmationToken = ''; render();
+  try {
+    const result = await api.mcpInstallationPreview(selection);
+    if (operation !== mcpInstallGeneration || ticket !== pageGeneration || mcpMarketplaceState.detail !== detail) return;
+    if (!result?.plan || typeof result.confirmation_token !== 'string' || !result.confirmation_token) throw new Error('安装预览响应格式异常。');
+    installation.preview = result.plan; installation.confirmationToken = result.confirmation_token; installation.installStatus = 'preview_ready';
+    safeLog('mcp_installation_preview_ready', { status: result.plan.target_kind === 'remote' ? 'remote' : 'local' });
+  } catch (error) {
+    if (operation !== mcpInstallGeneration || ticket !== pageGeneration || mcpMarketplaceState.detail !== detail) return;
+    installation.error = error?.message || '安装预览失败，请检查固定版本与制品完整性。';
+    safeLog('mcp_installation_preview_failed', { status: error?.code || 'request_failed' });
+  } finally {
+    if (operation === mcpInstallGeneration) { installation.busy = ''; render(); }
+  }
+}
+
+async function runMCPInstallConfirmation() {
+  const detail = mcpMarketplaceState.detail;
+  const installation = mcpMarketplaceState.installation;
+  const form = document.querySelector('[data-mcp-install-form]');
+  if (!detail || !installation.preview || !installation.confirmationToken || installation.busy || !form) return;
+  const inputs = [...(form.querySelectorAll?.('[data-mcp-env-value]') || [])];
+  let environmentValues;
+  try {
+    environmentValues = mcpEnvironmentPayload(
+      inputs.map(input => ({ name: input.dataset.mcpEnvName, value: input.value })),
+      installation.preview.environment_names,
+      form.querySelector?.('[data-mcp-install-confirm]')?.checked === true,
+    );
+  } catch (error) {
+    installation.error = error.message === 'installation_confirmation_required'
+      ? '请先勾选二次确认，确认你已核对完整安装摘要。'
+      : '请为预览列出的每个环境变量填写本次值。';
+    render(); return;
+  }
+  const ticket = pageGeneration; const operation = ++mcpInstallGeneration;
+  installation.busy = 'install'; installation.error = ''; render();
+  const request = { confirmation_token: installation.confirmationToken, environment_values: environmentValues };
+  const pending = api.mcpInstall(request);
+  inputs.forEach(input => { input.value = ''; });
+  Object.keys(environmentValues).forEach(name => { delete environmentValues[name]; });
+  request.confirmation_token = ''; request.environment_values = {};
+  try {
+    const result = await pending;
+    if (operation !== mcpInstallGeneration || ticket !== pageGeneration || mcpMarketplaceState.detail !== detail) return;
+    const installationId = result?.installation?.id;
+    if (typeof installationId !== 'string' || !installationId) throw new Error('安装结果缺少记录 ID。');
+    installation.preview = null; installation.confirmationToken = ''; installation.installationId = installationId;
+    installation.installStatus = 'installed'; installation.probeStatus = 'not_run'; installation.enableStatus = 'disabled'; installation.authorizationStatus = 'not_authorized';
+    installation.record = { ...result.installation, runtime_status: 'installed', active: false };
+    replaceMCPInstallation(installation.record);
+    safeLog('mcp_installation_finished', { status: 'installed' });
+  } catch (error) {
+    if (operation !== mcpInstallGeneration || ticket !== pageGeneration || mcpMarketplaceState.detail !== detail) return;
+    installation.error = error?.message || '安装失败；未自动探测、启用或授权。';
+    safeLog('mcp_installation_failed', { status: error?.code || 'request_failed' });
+  } finally {
+    Object.keys(environmentValues).forEach(name => { delete environmentValues[name]; });
+    if (operation === mcpInstallGeneration) { installation.busy = ''; render(); }
+  }
+}
+
+async function runMCPInstalledAction(action) {
+  const detail = mcpMarketplaceState.detail;
+  const installation = mcpMarketplaceState.installation;
+  if (!detail || installation.installStatus !== 'installed' || !installation.installationId || installation.busy) return;
+  if (action === 'enable' && installation.probeStatus !== 'ready') return;
+  if (action === 'disable' && installation.enableStatus !== 'enabled') return;
+  const ticket = pageGeneration; const operation = ++mcpInstallGeneration;
+  installation.busy = action; installation.error = ''; render();
+  try {
+    const result = action === 'probe'
+      ? await api.mcpProbeInstallation(installation.installationId)
+      : action === 'enable'
+        ? await api.mcpEnableInstallation(installation.installationId)
+        : await api.mcpDisableInstallation(installation.installationId);
+    if (operation !== mcpInstallGeneration || ticket !== pageGeneration || mcpMarketplaceState.detail !== detail) return;
+    if (action === 'probe') {
+      installation.probeStatus = 'ready';
+      installation.capabilities = result;
+    } else if (action === 'enable') {
+      installation.probeStatus = 'ready';
+      installation.enableStatus = result?.active === true || result?.status === 'enabled' ? 'enabled' : 'disabled';
+      if (installation.enableStatus !== 'enabled') throw new Error('Runtime 未确认启用状态。');
+    } else {
+      installation.enableStatus = result?.active === false ? 'disabled' : 'enabled';
+      if (installation.enableStatus !== 'disabled') throw new Error('Runtime 未确认停用状态。');
+    }
+    if (installation.record) {
+      installation.record = {
+        ...installation.record,
+        runtime_status: action === 'probe' ? 'ready' : installation.enableStatus,
+        active: installation.enableStatus === 'enabled',
+      };
+      replaceMCPInstallation(installation.record);
+    }
+    safeLog(`mcp_installation_${action}_finished`, { status: action === 'probe' ? 'ready' : installation.enableStatus });
+  } catch (error) {
+    if (operation !== mcpInstallGeneration || ticket !== pageGeneration || mcpMarketplaceState.detail !== detail) return;
+    if (action === 'probe') installation.probeStatus = 'failed';
+    installation.error = error?.message || `${action === 'probe' ? '健康探测' : action === 'enable' ? 'Runtime 启用' : 'Runtime 停用'}失败。`;
+    safeLog(`mcp_installation_${action}_failed`, { status: error?.code || 'request_failed' });
+  } finally {
+    if (operation === mcpInstallGeneration) { installation.busy = ''; render(); }
+  }
+}
+
+async function removeMCPInstallation() {
+  const detail = mcpMarketplaceState.detail;
+  const installation = mcpMarketplaceState.installation;
+  if (!detail || !installation.installationId || installation.busy || installation.enableStatus === 'enabled') return;
+  if (!globalThis.confirm?.('移除此 MCP 安装记录及其隔离文件？已启用的安装必须先停用。')) return;
+  const ticket = pageGeneration; const operation = ++mcpInstallGeneration;
+  installation.busy = 'remove'; installation.error = ''; render();
+  try {
+    await api.mcpDeleteInstallation(installation.installationId);
+    if (operation !== mcpInstallGeneration || ticket !== pageGeneration || mcpMarketplaceState.detail !== detail) return;
+    mcpMarketplaceState.installations = mcpMarketplaceState.installations.filter(item => item?.id !== installation.installationId);
+    mcpMarketplaceState.installation = emptyMCPInstallation();
+    safeLog('mcp_installation_removed', { status: 'deleted' });
+  } catch (error) {
+    if (operation !== mcpInstallGeneration || ticket !== pageGeneration || mcpMarketplaceState.detail !== detail) return;
+    installation.error = error?.message || 'MCP 安装移除失败。';
+    safeLog('mcp_installation_remove_failed', { status: error?.code || 'request_failed' });
+  } finally {
+    if (operation === mcpInstallGeneration) { mcpMarketplaceState.installation.busy = ''; render(); }
+  }
+}
+
+async function classifyMCPTool(toolName, riskTier, allowUnattended) {
+  const installation = mcpMarketplaceState.installation;
+  if (!installation.installationId || installation.busy) return;
+  installation.busy = `classify:${toolName}`; installation.error = ''; render();
+  try {
+    const result = await api.mcpClassifyTool(installation.installationId, {
+      tool_name: toolName,
+      risk_tier: riskTier,
+      allow_unattended: allowUnattended === true && riskTier === 'read_only',
+    });
+    const tools = installation.capabilities?.tools;
+    const tool = Array.isArray(tools) ? tools.find(item => item?.name === toolName) : null;
+    if (tool) {
+      tool.risk_tier = result.risk_tier;
+      tool.allow_unattended = result.allow_unattended === true;
+      tool.schema_sha256 = result.schema_sha256;
+    }
+    installation.authorizationStatus = 'not_authorized';
+    safeLog('mcp_tool_policy_updated', { status: result.risk_tier || 'updated' });
+  } catch (error) {
+    installation.error = error?.message || 'MCP 工具风险分级保存失败。';
+    safeLog('mcp_tool_policy_failed', { status: error?.code || 'request_failed' });
+  } finally {
+    installation.busy = ''; render();
+  }
+}
+
+async function authorizeMCPTool(toolName) {
+  const installation = mcpMarketplaceState.installation;
+  const sessionId = researchDraftRoute.sessionId;
+  const tool = installation.capabilities?.tools?.find?.(item => item?.name === toolName);
+  const version = installation.record?.plan?.server_version;
+  if (!sessionId || !installation.installationId || installation.enableStatus !== 'enabled' || !tool?.schema_sha256 || !version || installation.busy) return;
+  installation.busy = `authorize:${toolName}`; installation.error = ''; render();
+  try {
+    await api.mcpAuthorizeSession(sessionId, {
+      installation_id: installation.installationId,
+      version,
+      tool_name: toolName,
+      schema_sha256: tool.schema_sha256,
+    });
+    tool.authorized = true;
+    installation.authorizationStatus = 'authorized';
+    safeLog('mcp_session_tool_authorized', { status: 'active' });
+  } catch (error) {
+    installation.error = error?.message || '当前研究会话的 MCP 工具授权失败。';
+    safeLog('mcp_session_tool_authorization_failed', { status: error?.code || 'request_failed' });
+  } finally {
+    installation.busy = ''; render();
+  }
+}
+
+async function startMCPOAuth() {
+  const installation = mcpMarketplaceState.installation;
+  const resource = installation.record?.plan?.endpoint;
+  if (!installation.installationId || !resource || installation.busy) return;
+  installation.busy = 'oauth'; installation.error = ''; render();
+  try {
+    const result = await api.mcpStartOAuth(installation.installationId, { resource });
+    if (typeof result?.authorization_url !== 'string' || !result.authorization_url.startsWith('https://')) throw new Error('OAuth 授权地址无效。');
+    globalThis.location.assign?.(result.authorization_url);
+  } catch (error) {
+    installation.error = error?.message || 'MCP OAuth 授权启动失败。';
+    safeLog('mcp_oauth_start_failed', { status: error?.code || 'request_failed' });
+  } finally {
+    installation.busy = ''; render();
   }
 }
 
@@ -799,6 +1095,18 @@ root.addEventListener('change', async (event) => {
       document.getElementById(target.id)?.focus?.({ preventScroll: true });
     }
   }
+  if ('mcpInstallTarget' in target.dataset) {
+    mcpInstallGeneration += 1;
+    mcpMarketplaceState.installation = { ...emptyMCPInstallation(), target: target.value };
+    render();
+  }
+  if ('mcpRiskSelect' in target.dataset) {
+    const checkbox = target.closest('[data-mcp-tool-policy]')?.querySelector('[name="allow_unattended"]');
+    if (checkbox) {
+      checkbox.disabled = target.value !== 'read_only';
+      if (checkbox.disabled) checkbox.checked = false;
+    }
+  }
   if (target.closest('#cap-editor-form')) captureEditor();
   if (target.id === 'cap-import-file' && target.files?.length) await capabilityController.import(target.files[0]);
   if ('autoFormats' in target.dataset) { controller.setFormats(target.checked ? null : []); render(); }
@@ -849,6 +1157,15 @@ root.addEventListener('paste', (event) => {
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (event.target.matches('[data-mcp-search]')) { await loadMCPMarketplace(); return; }
+  if (event.target.matches('[data-mcp-tool-policy]')) {
+    const values = new FormData(event.target);
+    await classifyMCPTool(
+      event.target.dataset.mcpToolPolicy,
+      String(values.get('risk_tier') || 'external_write_high_risk'),
+      values.get('allow_unattended') === 'on',
+    );
+    return;
+  }
   if (event.target.matches('[data-report-schedule-form]')) {
     if (reportWorkflowBusy) return;
     const workflowId = event.target.dataset.reportScheduleForm;
@@ -1085,6 +1402,21 @@ root.addEventListener('click', async (event) => {
     await openMCPServerDetail({ registryId: data.registryId, serverName: data.serverName, version: data.serverVersion });
     return;
   }
+  if ('mcpInstallPreview' in data) { await runMCPInstallPreview(); return; }
+  if ('mcpInstallReset' in data) {
+    mcpInstallGeneration += 1;
+    mcpMarketplaceState.installation = { ...emptyMCPInstallation(), target: mcpMarketplaceState.installation.target };
+    render(); return;
+  }
+  if ('mcpInstallConfirmAction' in data) { await runMCPInstallConfirmation(); return; }
+  if ('mcpInstallProbe' in data) { await runMCPInstalledAction('probe'); return; }
+  if ('mcpInstallEnable' in data) { await runMCPInstalledAction('enable'); return; }
+  if ('mcpInstallDisable' in data) { await runMCPInstalledAction('disable'); return; }
+  if ('mcpInstallRemove' in data) { await removeMCPInstallation(); return; }
+  if ('mcpAuthorizeTool' in data) { await authorizeMCPTool(data.mcpAuthorizeTool); return; }
+  if ('mcpOauthStart' in data) { await startMCPOAuth(); return; }
+  if ('mcpApprovalApprove' in data) { await decideMCPApproval(data.mcpApprovalApprove, true); return; }
+  if ('mcpApprovalDeny' in data) { await decideMCPApproval(data.mcpApprovalDeny, false); return; }
   if ('mcpPublisherAction' in data) { await runMCPPublisherAction(data.mcpPublisherAction); return; }
   if ('localCategoryTarget' in data) {
     const target = document.getElementById(data.localCategoryTarget);

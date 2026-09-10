@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.research_web import launch_runtime
+from app.research_web.mcp_runtime.authorization import AuthorizationManager
 
 
 def make_source(tmp_path: Path) -> Path:
@@ -74,6 +75,59 @@ def test_runtime_keeps_dsh_home_private_but_uses_host_home_for_tabbit(tmp_path, 
     assert env["HOME"] == str(host_home)
     assert env["USERPROFILE"] == str(host_home)
     assert env["LOCALAPPDATA"] == str(local_app_data)
+
+
+def test_runtime_projects_only_active_host_verified_mcp_bindings(tmp_path, monkeypatch):
+    installation_id = "mcp-installation-0123456789abcdef0123456789abcdef"
+    authorization = AuthorizationManager(tmp_path)
+    snapshot = authorization.register_tool(
+        installation_id=installation_id,
+        version="1.2.3",
+        tool_name="read_filing",
+        description="Read one filing",
+        input_schema={
+            "type": "object",
+            "properties": {"code": {"type": "string"}},
+            "required": ["code"],
+            "additionalProperties": False,
+        },
+        output_schema=None,
+        risk_tier="read_only",
+    )
+    runtime = tmp_path / "mcp-runtime"
+    runtime.mkdir(exist_ok=True)
+    active = runtime / "active.json"
+    active.write_text(json.dumps({"schema_version": 1, "installation_ids": [installation_id]}))
+    active.chmod(0o600)
+    monkeypatch.setenv("RESEARCH_MCP_RUNTIME_ENABLED", "1")
+
+    bindings = launch_runtime.load_mcp_runtime_bindings(tmp_path)
+
+    assert bindings[0]["schema_sha256"] == snapshot["schema_sha256"]
+    assert bindings[0]["name"] == f"mcp__{installation_id}__read_filing"
+
+
+def test_runtime_ignores_mcp_activation_when_feature_is_disabled(tmp_path, monkeypatch):
+    runtime = tmp_path / "mcp-runtime"
+    runtime.mkdir(parents=True)
+    (runtime / "active.json").write_text("not-json")
+    monkeypatch.delenv("RESEARCH_MCP_RUNTIME_ENABLED", raising=False)
+
+    assert launch_runtime.load_mcp_runtime_bindings(tmp_path) == []
+
+
+def test_runtime_rejects_non_object_mcp_activation_without_leaking_parser_errors(
+    tmp_path, monkeypatch
+):
+    runtime = tmp_path / "mcp-runtime"
+    runtime.mkdir(parents=True)
+    active = runtime / "active.json"
+    active.write_text("[]")
+    active.chmod(0o600)
+    monkeypatch.setenv("RESEARCH_MCP_RUNTIME_ENABLED", "1")
+
+    with pytest.raises(RuntimeError, match="激活清单无效"):
+        launch_runtime.load_mcp_runtime_bindings(tmp_path)
 
 
 def make_tabbit_vendor(tmp_path: Path) -> Path:

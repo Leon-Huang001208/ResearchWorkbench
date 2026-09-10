@@ -27,7 +27,7 @@
 | `composer.mjs` | 输入框、真实研究 Skill 快捷入口、slash 搜索、Tabbit `@` 标签搜索/chips 及附件拖放/粘贴入口；不直接发起研究 |
 | `capabilities.mjs` | 同一能力目录的筛选、卡片、详情、检查结果、只读 Tool、不可变版本与 Workflow 模板渲染 |
 | `capability-workspace.mjs` | Skill、Tool、Workflow、数据四个互斥主标签、类型内二级视图、严格类型过滤、运行计划/连接摘要与共用快览 dialog |
-| `mcp-marketplace.mjs` | Tool 的只读 MCP 市场、Registry 选择/搜索、stale/offline 状态、包类型/不可变引用事实、Server 卡片与详情 dialog、外部 publisher 命令交接；不安装或执行 |
+| `mcp-marketplace.mjs` | Tool 的只读 Registry 市场与受控 Runtime 管理：stale/offline、完整安装确认、持久安装恢复、探测/启停/移除、OAuth、风险分级、会话授权和一次性人工审批；外部 publisher 仍只生成命令 |
 | `data-catalog.mjs` | DataHub 的 15 项能力 / 22 个来源双视图、诚实就绪状态、来源矩阵和单源探测渲染 |
 | `connections.mjs` | 设置页统一连接中心、来源分组/同页详情、配置状态矩阵、秘密型表单和旧环境变量迁移确认；不自行读取或持久化凭据 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
@@ -41,7 +41,8 @@
 
 所有请求仅访问同源 `/api/research`；读取运行时、模型目录、工作空间、历史、`/capabilities` 与只读 `/tools` 后展示真实响应。错误可见，不生成本地演示结果。目录部分加载失败会独立报告并保留上次成功结果；DSH 离线时产品后端仍可读取已保存目录。Web 服务也离线时只能保留本页已加载状态，不宣称提供离线 PWA 或跨刷新缓存。
 
-- Tool 的“MCP 市场”读取 `/mcp/registries`、`/mcp/servers` 与版本详情。API 返回有界 Unicode plain text，UI 只在最终 HTML sink 做一次转义，不渲染 Registry HTML、不加载远程图标。包状态分别读取 `package_type_supported` 和 `immutable_reference`，显示“客户端支持包类型/客户端暂不支持此包类型”与“固定制品引用已登记/制品尚未验证”；阶段 2A 不显示“可安装”承诺。页面与详情分别依据各自的 `stale/failure_code` 显示离线缓存状态。
+- Tool 的“MCP 市场”读取 `/mcp/registries`、`/mcp/servers` 与版本详情。API 返回有界 Unicode plain text，UI 只在最终 HTML sink 做一次转义，不渲染 Registry HTML、不加载远程图标。包状态分别读取 `package_type_supported` 和 `immutable_reference`；只有完整预览确认、安装和探测链路才产生真实 Runtime 状态。安装详情原样逐项展示 argv、来源、固定版本、全部哈希和环境变量名称，秘密值提交后立即清空且不进入页面状态或日志。
+- 已安装记录从 `/mcp/installations` 恢复，不因刷新退回“未安装”。探测、启用、停用、移除、OAuth、工具分级与会话授权分别调用独立接口；启用不自动授权，策略或 schema 变化会暂停旧授权。高风险调用在 MCP 市场显示不含参数正文的一次性批准/拒绝队列。Runtime 开关关闭或读取失败时，Registry 浏览与离线缓存仍保持可用，所有安装入口禁用并说明原因。
 - 主目录请求绑定当前 Registry、搜索、页面代次与路由；详情绑定完整三元组，publisher 结果绑定输入原文。搜索输入、Registry 切换或其他结果集替换会立即使 pending detail generation/identity 失效、收敛 loading，并保留搜索框或选择器焦点；迟到详情不能在新结果上下文弹出。其他过期响应也不能覆盖新查询、跨路由打开旧弹窗或认证另一份 JSON。详情继续支持焦点锁定、Escape、遮罩关闭和关闭后焦点恢复。
 - publisher 区只显示后端返回的规范 JSON、SHA-256 及完整 `mcp-publisher validate/publish` argv，`executed` 固定为 `false`。它不登录、安装、启用或发布；用户须在应用外的官方 CLI 显式完成。
 

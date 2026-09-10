@@ -18,7 +18,12 @@ from .capabilities.catalog import CapabilityCatalog
 from .datahub.catalog import build_catalog
 from .datahub.connections import MySQLConnectionStore
 from .datahub.contracts import BUSINESS_TOOLS
-from .datahub.security import load_control
+from .datahub.security import directory, load_control, read_file
+from .mcp_runtime.authorization import (
+    AuthorizationError,
+    AuthorizationManager,
+    ExactToolAllowlist,
+)
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -27,6 +32,69 @@ TABBIT_VERSION = "0.3.4"
 TABBIT_SOURCE_COMMIT = "361ef61f4d42ae51d657ca1351acacd6b5db5d44"
 TABBIT_VENDOR = Path(__file__).parents[2] / "vendor" / "dsh-tabbit" / TABBIT_VERSION
 TABBIT_INSTANCE_PATTERN = re.compile(r"^[A-F0-9]{16}$")
+MCP_INSTALLATION_PATTERN = re.compile(r"^mcp-installation-[a-f0-9]{32}$")
+
+
+def mcp_runtime_enabled() -> bool:
+    return os.environ.get("RESEARCH_MCP_RUNTIME_ENABLED", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def load_mcp_runtime_bindings(data: Path) -> list[dict[str, object]]:
+    """Load exact Host-verified bindings for the next dedicated DSH start."""
+
+    if not mcp_runtime_enabled():
+        return []
+    runtime_path = data / "mcp-runtime"
+    if not runtime_path.exists():
+        return []
+    try:
+        with directory(data, ("mcp-runtime",), private=True) as folder:
+            try:
+                raw = read_file(folder, "active.json", private=True, limit=256 * 1024)
+            except StoreError:
+                # A missing activation file is the normal installed-but-disabled state.
+                if not (runtime_path / "active.json").exists():
+                    return []
+                raise
+        value = json.loads(raw)
+        if (
+            not isinstance(value, dict)
+            or value.get("schema_version") != 1
+            or not isinstance(value.get("installation_ids"), list)
+        ):
+            raise ValueError("invalid active manifest")
+        installation_ids = value["installation_ids"]
+        if (
+            len(installation_ids) > 64
+            or len(set(installation_ids)) != len(installation_ids)
+            or any(
+                not isinstance(item, str) or MCP_INSTALLATION_PATTERN.fullmatch(item) is None
+                for item in installation_ids
+            )
+        ):
+            raise ValueError("invalid active manifest")
+        bindings = AuthorizationManager(data).active_bindings(set(installation_ids))
+        if len(bindings) > 256:
+            raise ValueError("too many MCP tool bindings")
+        # Reuse the Host authorization contract so the DSH projection cannot
+        # accidentally become more permissive than per-call admission.
+        ExactToolAllowlist(bindings)
+        return bindings
+    except (
+        AuthorizationError,
+        OSError,
+        StoreError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+    ) as exc:
+        log.error("mcp_runtime_bindings_load_failed", error_type=type(exc).__name__)
+        raise RuntimeError("MCP Runtime 激活清单无效") from exc
 
 
 def load_tabbit_config(data: Path) -> dict[str, object]:
@@ -404,9 +472,11 @@ def prepare(
     preset = home / ".agent-presets" / "research-web"
     preset.mkdir(parents=True, exist_ok=True, mode=0o700)
     package = Path(__file__).parent / "runtime"
+    mcp_bindings: list[dict[str, object]] = []
     if research_tools:
         load_control(data, datahub_url)
         public_data_tools = enabled_datahub_tools(data)
+        mcp_bindings = load_mcp_runtime_bindings(data)
         runner = package.parent / "sandbox.py"
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
@@ -415,12 +485,14 @@ def prepare(
             "__SKILL_ROOT__": CapabilityCatalog(data).prepare_native_root(),
             "__TOOLS_MODULE__": package / "research-tools.mjs",
             "__PUBLIC_DATA_MODULE__": package / "public-data.mjs",
+            "__MCP_TOOLS_MODULE__": package / "mcp-adapter.mjs",
             "__PYTHON__": Path(sys.executable),
             "__RUNNER__": runner,
             "__RESEARCH_ROOT__": data,
         }.items():
             content = content.replace(key, json.dumps(str(value)))
         content = content.replace("__PUBLIC_DATA_ENABLED_TOOLS__", json.dumps(public_data_tools))
+        content = content.replace("__MCP_TOOL_BINDINGS__", json.dumps(mcp_bindings))
         content = content.replace(
             "fetch: false",
             f"fetch: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
@@ -431,6 +503,7 @@ def prepare(
             enabled_tool_count=len(public_data_tools),
             enabled_tool_ids=public_data_tools,
         )
+        log.info("mcp_runtime_tools_prepared", enabled_tool_count=len(mcp_bindings))
     else:
         content = (package / "agent.cordis.yml").read_text(encoding="utf-8")
         if tabbit_config["browser_enabled"] is True:
@@ -472,6 +545,7 @@ def prepare(
                 f"        enabled: {'true' if research_tools else 'false'}",
                 f"        tabbitBrowserEnabled: {'true' if tabbit_config['browser_enabled'] is True else 'false'}",
                 f"        tabbitWebFetchEnabled: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
+                f"        mcpTools: {json.dumps([item['name'] for item in mcp_bindings])}",
                 "",
             ]
         )

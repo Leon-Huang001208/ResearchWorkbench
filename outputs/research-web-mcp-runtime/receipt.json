@@ -1,0 +1,114 @@
+{
+  "status": "passed",
+  "checks": 8,
+  "results": [
+    {
+      "theme": "light",
+      "width": 1440,
+      "height": 1000,
+      "status": "passed",
+      "screenshot": "outputs/research-web-mcp-runtime/light-1440x1000.png",
+      "metrics": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "mainOverflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1280,
+      "height": 960,
+      "status": "passed",
+      "screenshot": "outputs/research-web-mcp-runtime/light-1280x960.png",
+      "metrics": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "mainOverflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "height": 1024,
+      "status": "passed",
+      "screenshot": "outputs/research-web-mcp-runtime/light-768x1024.png",
+      "metrics": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "mainOverflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "status": "passed",
+      "screenshot": "outputs/research-web-mcp-runtime/light-390x844.png",
+      "metrics": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "mainOverflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "height": 1000,
+      "status": "passed",
+      "screenshot": "outputs/research-web-mcp-runtime/dark-1440x1000.png",
+      "metrics": {
+        "innerWidth": 1440,
+        "scrollWidth": 1440,
+        "mainOverflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1280,
+      "height": 960,
+      "status": "passed",
+      "screenshot": "outputs/research-web-mcp-runtime/dark-1280x960.png",
+      "metrics": {
+        "innerWidth": 1280,
+        "scrollWidth": 1280,
+        "mainOverflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "height": 1024,
+      "status": "passed",
+      "screenshot": "outputs/research-web-mcp-runtime/dark-768x1024.png",
+      "metrics": {
+        "innerWidth": 768,
+        "scrollWidth": 768,
+        "mainOverflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "status": "passed",
+      "screenshot": "outputs/research-web-mcp-runtime/dark-390x844.png",
+      "metrics": {
+        "innerWidth": 390,
+        "scrollWidth": 390,
+        "mainOverflow": false
+      }
+    }
+  ],
+  "lifecycle": [
+    "preview",
+    "confirm",
+    "install",
+    "probe",
+    "enable",
+    "classify",
+    "disable",
+    "remove"
+  ],
+  "approvalDecision": "denied",
+  "secretValuesRecorded": false
+}

@@ -1,6 +1,6 @@
 # Research Workbench 架构文档
 
-## 当前研究产品：DSH Web（2026-09-04）
+## 当前研究产品：DSH Web（2026-09-11）
 
 当前实现的唯一架构主入口是 [Research Web 架构](architecture/research-web/README.md)。
 部署、协议、数据文件、图源与源码对应清单在该目录维护；本轮能力管理与界面迭代的完成情况见
@@ -12,6 +12,13 @@
 LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
 产品壳只在运行时需要配置、事件通道连接中或健康失败时显示顶栏提示；健康状态静默，完整 DSH
 诊断与手动刷新继续由设置、运行与用量及对应业务页面承担，不改变运行时 API 或事件拓扑。设置在同一产品壳内使用五个互斥的 Hash 子页，仅按当前子页加载所需状态。本机集成子页使用独立的进程内诊断管理器和 `/api/research/local-integrations` 接口，不再把 DataHub 的 `local_cache` 投影当作整机能力结论。
+
+Phase 2B 在同一 Research Web Host 内增加 `app/research_web/mcp_runtime/`。官方 Python SDK
+负责 Streamable HTTP / stdio、工具、资源、提示和 OAuth 客户端协议；Research Web 仍独占安装清单、
+最小环境、目录授权、schema 哈希、风险分级、会话授权和逐次人工审批。安装、探测、启用互相分离，
+候选 Runtime 健康失败时恢复上一份激活清单并仅重启专属 DSH。DSH 只获得
+`mcp__{installation}__{tool}` 命名空间的已验证声明，每次调用经私有 loopback 控制通道回到 Host
+复核版本、schema 和授权。Registry 目录继续只读；Automation 与外发仍不在 Phase 2B。
 
 Research Web 可在同一专属 DSH 执行链中加载固定、经完整性校验的 `dsh-tabbit` 0.3.4；
 `research-tabbit-adapter` 只复用插件提供的 `ctx.tabbit`，没有第二套 Playwright/CLI 执行器。

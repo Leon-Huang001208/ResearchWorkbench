@@ -4840,7 +4840,7 @@
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"mcpRegistry","label":"只读 MCP Registry","focus":["browser","api","mcpService","mcpState","registries"],"note":"MCP 市场只读聚合官方与私有 Registry；失败保留最后成功缓存，认证秘密只进入系统凭据库。"},{"id":"reportPath","label":"报告 Workflow","focus":["browser","api","reportManager","reportStore","workbookTool","excel","dsh","assemblyTool","snapshots"],"note":"后端锁定版本并由独立 Excel Tool 刷新、校验运行副本，Claw 交付结构化 payload，再由确定性 Tool 组装和重开文件。"},{"id":"assetPath","label":"资产观察与 DataHub","focus":["browser","api","assetWorkspace","datahub","providers","snapshots"],"note":"资产页按区块查询真实来源；资料固化为会话快照后再交给 FinGPT 或 Claw。"},{"id":"liveBrowser","label":"Tabbit 实时标签","focus":["browser","api","dsh","providers"],"note":"BFF 传递会话授权、标签 ID 和一次性 token；DSH 内 ctx.tabbit 执行原子 claim 与实时 DOM 提取。"}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"mcpRegistry","label":"MCP Registry 与 Runtime","focus":["browser","api","mcpService","mcpState","registries","dsh"],"note":"Registry 保持只读；Host 管理不可变安装、OAuth、schema 与授权，DSH 只调用命名空间化快照。"},{"id":"reportPath","label":"报告 Workflow","focus":["browser","api","reportManager","reportStore","workbookTool","excel","dsh","assemblyTool","snapshots"],"note":"后端锁定版本并由独立 Excel Tool 刷新、校验运行副本，Claw 交付结构化 payload，再由确定性 Tool 组装和重开文件。"},{"id":"assetPath","label":"资产观察与 DataHub","focus":["browser","api","assetWorkspace","datahub","providers","snapshots"],"note":"资产页按区块查询真实来源；资料固化为会话快照后再交给 FinGPT 或 Claw。"},{"id":"liveBrowser","label":"Tabbit 实时标签","focus":["browser","api","dsh","providers"],"note":"BFF 传递会话授权、标签 ID 和一次性 token；DSH 内 ctx.tabbit 执行原子 claim 与实时 DOM 提取。"}]</script>
 
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -4914,9 +4914,9 @@
 
         <!-- Connection paths (before components for correct z-order) -->
         <path data-edge-from="browser" data-edge-to="api" data-edge-label="同源 HTTP / SSE" data-edge-key="0" data-edge-id="webApi" data-composition-points="225,419;275,419" d="M 225 419 L 275 419" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="api" data-edge-to="mcpService" data-edge-label="只读 Registry API" data-edge-key="1" data-edge-id="mcpRoute" data-composition-points="357.5,380;357.5,320;470,320;470,74;500,74" d="M 357.5 380 L 357.5 328 Q 357.5 320 365.5 320 L 462 320 Q 470 320 470 312 L 470 82 Q 470 74 478 74 L 500 74" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="mcpService" data-edge-to="mcpState" data-edge-label="原子缓存与秘密引用" data-edge-key="2" data-edge-id="registryState" data-composition-points="710,74;750,74" d="M 710 74 L 750 74" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="mcpState" data-edge-to="registries" data-edge-label="HTTPS 同步" data-edge-key="3" data-edge-id="registrySync" data-composition-points="970,74;1015,74" d="M 970 74 L 1015 74" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="api" data-edge-to="mcpService" data-edge-label="目录 / 安装 / 授权 API" data-edge-key="1" data-edge-id="mcpRoute" data-composition-points="357.5,380;357.5,320;470,320;470,74;500,74" d="M 357.5 380 L 357.5 328 Q 357.5 320 365.5 320 L 462 320 Q 470 320 470 312 L 470 82 Q 470 74 478 74 L 500 74" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="mcpService" data-edge-to="mcpState" data-edge-label="缓存、清单与安全策略" data-edge-key="2" data-edge-id="registryState" data-composition-points="710,74;750,74" d="M 710 74 L 750 74" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="mcpState" data-edge-to="registries" data-edge-label="只读同步 / 受控连接" data-edge-key="3" data-edge-id="registrySync" data-composition-points="970,74;1015,74" d="M 970 74 L 1015 74" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="api" data-edge-to="reportManager" data-edge-label="报告运行 API" data-edge-key="4" data-edge-id="reportRoute" data-composition-points="440,419;500,419" d="M 440 419 L 500 419" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="reportManager" data-edge-to="dsh" data-edge-label="创建 Claw 会话" data-edge-key="5" data-edge-id="startClaw" data-composition-points="690,419;750,419" d="M 690 419 L 750 419" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="dsh" data-edge-to="assemblyTool" data-edge-label="结构化 payload" data-edge-key="6" data-edge-id="payload" data-composition-points="955,419;1015,419" d="M 955 419 L 1015 419" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
@@ -5002,39 +5002,39 @@
         <text data-detail="context" x="1387.5" y="433" class="t-muted" font-size="9" text-anchor="middle">数据集 · 产物 · manifest</text>
         </g>
 
-        <g id="node-mcpService" data-node-id="mcpService" data-node-label="MCP Registry Service" tabindex="0" role="button" aria-label="Focus MCP Registry Service, v0.1 · ETag · opaque cursor, Research Workbench 本地主机" aria-pressed="false" data-node-kind="backend" data-node-sublabel="v0.1 · ETag · opaque cursor" data-node-context="Research Workbench 本地主机">
-          <title>MCP Registry Service · v0.1 · ETag · opaque cursor · Research Workbench 本地主机</title>
+        <g id="node-mcpService" data-node-id="mcpService" data-node-label="MCP Registry + Host" tabindex="0" role="button" aria-label="Focus MCP Registry + Host, SDK · install · OAuth · guard, Research Workbench 本地主机" aria-pressed="false" data-node-kind="backend" data-node-sublabel="SDK · install · OAuth · guard" data-node-context="Research Workbench 本地主机">
+          <title>MCP Registry + Host · SDK · install · OAuth · guard · Research Workbench 本地主机</title>
           <rect x="500" y="35" width="210" height="78" rx="6" class="c-mask"/>
           <rect x="500" y="35" width="210" height="78" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(506 41) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-detail-anchor x="605" y="72" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">MCP Registry Service</text>
-        <text data-detail="context" x="605" y="88" class="t-muted" font-size="9" text-anchor="middle">v0.1 · ETag · opaque cursor</text>
+          <text data-detail-anchor x="605" y="72" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">MCP Registry + Host</text>
+        <text data-detail="context" x="605" y="88" class="t-muted" font-size="9" text-anchor="middle">SDK · install · OAuth · guard</text>
         </g>
 
-        <g id="node-mcpState" data-node-id="mcpState" data-node-label="原子缓存 + OS Keyring" tabindex="0" role="button" aria-label="Focus 原子缓存 + OS Keyring, stale-good · MCPRegistry, Research Workbench 本地主机" aria-pressed="false" data-node-kind="security" data-node-sublabel="stale-good · MCPRegistry" data-node-context="Research Workbench 本地主机">
-          <title>原子缓存 + OS Keyring · stale-good · MCPRegistry · Research Workbench 本地主机</title>
+        <g id="node-mcpState" data-node-id="mcpState" data-node-label="缓存 / 清单 + Keyring" tabindex="0" role="button" aria-label="Focus 缓存 / 清单 + Keyring, 哈希 · schema · grant · approval, Research Workbench 本地主机" aria-pressed="false" data-node-kind="security" data-node-sublabel="哈希 · schema · grant · approval" data-node-context="Research Workbench 本地主机">
+          <title>缓存 / 清单 + Keyring · 哈希 · schema · grant · approval · Research Workbench 本地主机</title>
           <rect x="750" y="35" width="220" height="78" rx="6" class="c-mask"/>
           <rect x="750" y="35" width="220" height="78" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(756 41) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-detail-anchor x="860" y="72" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">原子缓存 + OS Keyring</text>
-        <text data-detail="context" x="860" y="88" class="t-muted" font-size="9" text-anchor="middle">stale-good · MCPRegistry</text>
+          <text data-detail-anchor x="860" y="72" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">缓存 / 清单 + Keyring</text>
+        <text data-detail="context" x="860" y="88" class="t-muted" font-size="9" text-anchor="middle">哈希 · schema · grant · approval</text>
         </g>
 
-        <g id="node-registries" data-node-id="registries" data-node-label="官方与私有 Registry" tabindex="0" role="button" aria-label="Focus 官方与私有 Registry, HTTPS · v0.1 · 显式认证, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="HTTPS · v0.1 · 显式认证" data-node-context="Architecture component">
-          <title>官方与私有 Registry · HTTPS · v0.1 · 显式认证 · Architecture component</title>
+        <g id="node-registries" data-node-id="registries" data-node-label="Registry 与 MCP Server" tabindex="0" role="button" aria-label="Focus Registry 与 MCP Server, HTTPS · stdio · Streamable HTTP, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="HTTPS · stdio · Streamable HTTP" data-node-context="Architecture component">
+          <title>Registry 与 MCP Server · HTTPS · stdio · Streamable HTTP · Architecture component</title>
           <rect x="1015" y="35" width="220" height="78" rx="6" class="c-mask"/>
           <rect x="1015" y="35" width="220" height="78" rx="6" class="c-external" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(1021 41) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-detail-anchor x="1125" y="72" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">官方与私有 Registry</text>
-        <text data-detail="context" x="1125" y="88" class="t-muted" font-size="9" text-anchor="middle">HTTPS · v0.1 · 显式认证</text>
+          <text data-detail-anchor x="1125" y="72" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Registry 与 MCP Server</text>
+        <text data-detail="context" x="1125" y="88" class="t-muted" font-size="9" text-anchor="middle">HTTPS · stdio · Streamable HTTP</text>
         </g>
 
         <g id="node-reportStore" data-node-id="reportStore" data-node-label="Workflow 版本包" tabindex="0" role="button" aria-label="Focus Workflow 版本包, 模板 · Excel 底稿 · 映射 · Hash, Research Workbench 本地主机" aria-pressed="false" data-node-kind="database" data-node-sublabel="模板 · Excel 底稿 · 映射 · Hash" data-node-context="Research Workbench 本地主机">
@@ -5111,17 +5111,17 @@
           <rect x="209" y="366" width="82" height="14" rx="3" class="c-mask"/>
           <text x="250" y="376" class="t-backend" font-size="8" text-anchor="middle">同源 HTTP / SSE</text>
         </g>
-        <g data-detail="context" data-edge-from="api" data-edge-to="mcpService" data-edge-label="只读 Registry API" data-edge-key="1" data-edge-id="mcpRoute">
-          <rect x="374.2" y="300" width="91.6" height="14" rx="3" class="c-mask"/>
-          <text x="420" y="310" class="t-backend" font-size="8" text-anchor="middle">只读 Registry API</text>
+        <g data-detail="context" data-edge-from="api" data-edge-to="mcpService" data-edge-label="目录 / 安装 / 授权 API" data-edge-key="1" data-edge-id="mcpRoute">
+          <rect x="362.2" y="300" width="115.6" height="14" rx="3" class="c-mask"/>
+          <text x="420" y="310" class="t-backend" font-size="8" text-anchor="middle">目录 / 安装 / 授权 API</text>
         </g>
-        <g data-detail="context" data-edge-from="mcpService" data-edge-to="mcpState" data-edge-label="原子缓存与秘密引用" data-edge-key="2" data-edge-id="registryState">
-          <rect x="681.8" y="21" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
-          <text x="730" y="31" class="t-security" font-size="8" text-anchor="middle">原子缓存与秘密引用</text>
+        <g data-detail="context" data-edge-from="mcpService" data-edge-to="mcpState" data-edge-label="缓存、清单与安全策略" data-edge-key="2" data-edge-id="registryState">
+          <rect x="677" y="21" width="106" height="14" rx="3" class="c-mask"/>
+          <text x="730" y="31" class="t-security" font-size="8" text-anchor="middle">缓存、清单与安全策略</text>
         </g>
-        <g data-detail="context" data-edge-from="mcpState" data-edge-to="registries" data-edge-label="HTTPS 同步" data-edge-key="3" data-edge-id="registrySync">
-          <rect x="963" y="117" width="58" height="14" rx="3" class="c-mask"/>
-          <text x="992" y="127" class="t-security" font-size="8" text-anchor="middle">HTTPS 同步</text>
+        <g data-detail="context" data-edge-from="mcpState" data-edge-to="registries" data-edge-label="只读同步 / 受控连接" data-edge-key="3" data-edge-id="registrySync">
+          <rect x="941.4" y="117" width="101.2" height="14" rx="3" class="c-mask"/>
+          <text x="992" y="127" class="t-security" font-size="8" text-anchor="middle">只读同步 / 受控连接</text>
         </g>
         <g data-detail="context" data-edge-from="api" data-edge-to="reportManager" data-edge-label="报告运行 API" data-edge-key="4" data-edge-id="reportRoute">
           <rect x="436.2" y="462" width="67.6" height="14" rx="3" class="c-mask"/>
@@ -5382,11 +5382,11 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>只读 Registry 边界</h3>
+          <h3>Registry 与 Runtime 分离</h3>
         </div>
         <ul>
           <li>&bull; 身份固定为 Registry ID、Server 名称、版本三元组；失败返回 stale 最后成功缓存</li>
-          <li>&bull; 秘密只在系统凭据库；目录按有界纯文本处理；Publisher 只外部交接，不安装或调用</li>
+          <li>&bull; 安装、探测、启用与授权分离；DSH 每次调用由 Host 重核版本、schema、风险和审批</li>
         </ul>
       </div>
 

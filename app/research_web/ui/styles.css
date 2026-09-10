@@ -680,3 +680,81 @@ textarea { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* MCP installation confirmation extends the existing capability dialog vocabulary. */
+.capability-preview-dialog.mcp-server-dialog { width: min(980px, calc(100vw - 48px)); }
+.mcp-install-targets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 0; padding: 14px; border: 1px solid var(--line); border-radius: 10px; }
+.mcp-install-targets legend { padding: 0 6px; color: var(--muted); font-size: 10px; font-weight: 650; }
+.mcp-install-target { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease; }
+.mcp-install-target:hover, .mcp-install-target:focus-within, .mcp-install-target.selected { border-color: var(--control-line); background: var(--selected); }
+.mcp-install-target input { margin-top: 2px; }
+.mcp-install-target span { display: grid; min-width: 0; gap: 4px; }
+.mcp-install-target strong { font-size: 11px; }
+.mcp-install-target small { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; overflow-wrap: anywhere; }
+.mcp-install-status { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 1px; overflow: hidden; border-radius: 10px; background: var(--line); list-style: none; }
+.mcp-install-status li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: center; min-width: 0; padding: 10px; background: var(--surface); }
+.mcp-install-status li > span { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: var(--canvas); color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+.mcp-install-status li.complete > span { background: var(--success-bg); color: var(--green); }
+.mcp-install-status li div { display: grid; min-width: 0; gap: 2px; }
+.mcp-install-status strong { font-size: 10px; }
+.mcp-install-status small { color: var(--muted); font-size: 9px; }
+.mcp-install-confirmation { display: grid; gap: 15px; padding: 16px; border: 1px solid var(--control-line); border-radius: 12px; background: var(--surface); }
+.mcp-install-preview-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mcp-install-preview-heading h3 { margin: 4px 0 0; font-size: 15px; }
+.mcp-install-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--line); }
+.mcp-install-facts > div { min-width: 0; padding: 10px; background: var(--canvas); }
+.mcp-install-facts dt { color: var(--muted); font-size: 9px; }
+.mcp-install-facts dd { margin: 5px 0 0; font-size: 10px; overflow-wrap: anywhere; }
+.mcp-install-confirmation section { min-width: 0; }
+.mcp-install-confirmation h4 { margin: 0 0 7px; font-size: 11px; }
+.mcp-exact-list { display: grid; gap: 1px; margin: 0; padding: 1px; overflow: hidden; border-radius: 7px; background: var(--line); list-style-position: inside; counter-reset: argv; }
+.mcp-exact-list li { min-width: 0; padding: 8px 10px; background: var(--canvas); color: var(--muted); font-size: 9px; counter-increment: argv; }
+.mcp-exact-list li::marker { content: counter(argv) ". "; font-variant-numeric: tabular-nums; }
+.mcp-exact-list code, .mcp-artifact-table code { color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; }
+.mcp-artifact-table-wrap { max-width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.mcp-artifact-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 9px; }
+.mcp-artifact-table th, .mcp-artifact-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.mcp-artifact-table th { color: var(--muted); font-weight: 600; }
+.mcp-artifact-table tr:last-child td { border-bottom: 0; }
+.mcp-artifact-table td:first-child { display: grid; gap: 3px; min-width: 150px; }
+.mcp-artifact-table td:nth-child(3) { min-width: 340px; }
+.mcp-artifact-table small { display: block; margin-top: 3px; color: var(--muted); overflow-wrap: anywhere; }
+.mcp-environment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.mcp-environment-grid label { display: grid; min-width: 0; gap: 5px; }
+.mcp-environment-grid label > span { display: flex; align-items: center; gap: 7px; }
+.mcp-environment-grid em { padding: 2px 5px; border-radius: 4px; background: var(--warning-bg); color: var(--warning); font-size: 8px; font-style: normal; }
+.mcp-environment-grid small { min-height: 14px; color: var(--muted); font-size: 9px; }
+.mcp-environment-grid input { min-width: 0; }
+.mcp-install-confirm-check { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: start; padding: 12px; border: 1px solid var(--warning-line); border-radius: 8px; background: var(--warning-bg); color: var(--warning); font-size: 10px; line-height: 1.55; }
+.mcp-install-confirm-check input { margin-top: 2px; }
+.mcp-installed-actions { display: grid; gap: 10px; }
+.mcp-installed-actions > p { margin: 0; }
+.mcp-tool-policies { display: grid; gap: 9px; margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
+.mcp-tool-policies h3 { margin: 0 0 4px; font-size: 12px; }
+.mcp-tool-policy { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); }
+.mcp-tool-policy header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .7fr); gap: 12px; align-items: start; }
+.mcp-tool-policy header > div { display: grid; gap: 3px; min-width: 0; }
+.mcp-tool-policy header small { color: var(--muted); font-size: 9px; }
+.mcp-tool-policy header code { color: var(--muted); font-size: 8px; overflow-wrap: anywhere; word-break: break-all; }
+.mcp-tool-policy form { display: grid; grid-template-columns: minmax(160px, .8fr) minmax(190px, 1fr) auto; gap: 9px; align-items: end; }
+.mcp-tool-policy form > label:not(.mcp-unattended) { display: grid; gap: 4px; color: var(--muted); font-size: 9px; }
+.mcp-tool-policy select { min-width: 0; }
+.mcp-unattended { display: flex; gap: 7px; align-items: center; min-height: 32px; font-size: 9px; }
+.mcp-tool-policy .button-row, .mcp-tool-policy > p { margin: 0; }
+.mcp-approval-queue { display: grid; gap: 9px; padding: 14px; border: 1px solid var(--warning-line); border-radius: 10px; background: var(--warning-bg); }
+.mcp-approval-queue h3 { margin: 4px 0; font-size: 13px; }
+.mcp-approval-queue article { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--warning-line); border-radius: 8px; background: var(--surface); }
+.mcp-approval-queue article > div:first-child { display: grid; gap: 3px; min-width: 0; }
+.mcp-approval-queue article small { color: var(--muted); font-size: 9px; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .capability-preview-dialog.mcp-server-dialog { width: 100vw; height: 100dvh; max-height: 100dvh; }
+  .mcp-install-status, .mcp-install-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mcp-install-targets, .mcp-environment-grid { grid-template-columns: 1fr; }
+  .mcp-tool-policy header, .mcp-tool-policy form { grid-template-columns: 1fr; }
+  .mcp-approval-queue article { align-items: stretch; flex-direction: column; }
+}
+@media (max-width: 430px) {
+  .mcp-install-status, .mcp-install-facts { grid-template-columns: 1fr; }
+  .mcp-install-confirmation { padding: 13px; }
+  .mcp-install-preview-heading { flex-direction: column; }
+}

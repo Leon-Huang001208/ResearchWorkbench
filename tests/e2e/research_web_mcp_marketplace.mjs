@@ -130,7 +130,8 @@ async function runAcceptance() {
         assert.equal(await page.getByRole('combobox', { name: 'Registry', exact: true }).inputValue(), 'official');
         assert.equal(await page.locator('.mcp-server-card').count(), 2);
         assert.equal(await page.getByText('正在显示离线缓存', { exact: false }).count(), 1);
-        assert.equal(await page.getByText('客户端暂不支持此包类型', { exact: true }).count(), 1);
+        assert.equal(await page.getByText('支持远程连接', { exact: true }).count(), 1);
+        assert.equal(await page.getByText('future-package · <future-package> · 2026.9.1', { exact: true }).count(), 1);
         const maliciousText = page.locator('.mcp-server-card').filter({ hasText: 'Future Transport Catalog' }).locator('p').first();
         assert.equal(await maliciousText.textContent(), maliciousDescription, 'DOM textContent must equal the original plain text exactly');
         assert.equal(await page.locator('.mcp-server-card img, .mcp-server-card script').count(), 0);
