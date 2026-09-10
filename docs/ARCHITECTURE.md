@@ -19,6 +19,8 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 
 Research Web 在 Windows 上启动 DataHub 私有回环控制文件时使用受限路径回退：拒绝符号链接和重解析点、固定文件名、限制文件类型/大小/硬链接并核对打开前后的文件身份。POSIX 继续使用 `dir_fd`、`O_DIRECTORY` 与 `O_NOFOLLOW`；两条路径不改变 DataHub 服务节点或 API 拓扑。
 
+DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒绝非普通文件、硬链接、符号链接、Windows 重解析点及打开期间的身份替换；POSIX 额外要求 group/other 无权限，Windows 不把无语义的 POSIX mode 投影当作 ACL。Web 客户端与服务管理器复用该边界，不改变回环 RPC 或认证格式。
+
 能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 11 个内置 Skill 和 4 个
 Workflow；其中五个专用研究 Skill 仍通过同一 DSH 原生发现、不可变版本和会话快照链执行，
 没有新增路由 Skill、API 类型或执行器。品牌中立证据协议以

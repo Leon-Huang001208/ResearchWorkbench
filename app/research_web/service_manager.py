@@ -23,6 +23,7 @@ from uuid import uuid4
 from core.observability import get_logger
 
 from .launch_runtime import PINNED_COMMIT
+from .runtime_auth import read_runtime_auth_record
 
 log = get_logger(__name__)
 
@@ -275,21 +276,15 @@ class WebServiceManager:
 
     def _read_runtime_auth(self) -> dict[str, str] | None:
         path = self._runtime_auth_path()
-        if not path.exists():
-            return None
         try:
-            identity = path.lstat()
-            value = json.loads(path.read_text(encoding="utf-8"))
+            value = read_runtime_auth_record(path)
             expected = {
                 "authority": f"127.0.0.1:{self.runtime_port}",
                 "cwd": str((self.data_root / "runtime/work").resolve()),
                 "source_commit": PINNED_COMMIT,
             }
             if (
-                path.is_symlink()
-                or not path.is_file()
-                or identity.st_mode & 0o077
-                or not isinstance(value, dict)
+                not isinstance(value, dict)
                 or any(value.get(key) != item for key, item in expected.items())
                 or not isinstance(value.get("cookie"), str)
                 or not value["cookie"].startswith("dsh-auth-")
@@ -300,7 +295,9 @@ class WebServiceManager:
             ):
                 raise ValueError("invalid runtime auth record")
             return {key: str(item) for key, item in value.items()}
-        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        except FileNotFoundError:
+            return None
+        except (OSError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
             log.warning("research_runtime_auth_invalid")
             return None
 
@@ -539,9 +536,7 @@ class WebServiceManager:
         if running and not force:
             active = self._active_research()
             if active:
-                raise ServiceManagerError(
-                    f"存在 {len(active)} 个活动研究，拒绝重启；确需中断时使用 --force"
-                )
+                raise ServiceManagerError(f"存在 {len(active)} 个活动研究，拒绝重启；确需中断时使用 --force")
         self.stop()
         return self.start(open_browser=open_browser)
 
