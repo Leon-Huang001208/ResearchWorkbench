@@ -3907,6 +3907,8 @@ Imports:
 - `json`
 - `local_integrations`
 - `local_integrations.routes`
+- `mcp_registry`
+- `mcp_registry.routes`
 - `mimetypes`
 - `operations`
 - `os`
@@ -3918,9 +3920,7 @@ Imports:
 - `report_workflow_routes`
 - `report_workflows.models`
 - `service`
-- `shutil`
-- `starlette.middleware.trustedhost`
-- ... 6 more
+- ... 8 more
 
 Classes:
 - `NewSession`
@@ -3936,6 +3936,218 @@ Classes:
 
 Functions:
 - `create_app`
+
+
+## `app/research_web/mcp_registry/__init__.py`
+
+Module docstring:
+> Read-only MCP Registry public API.
+
+Imports:
+- `models`
+- `service`
+
+
+## `app/research_web/mcp_registry/catalog.py`
+
+Module docstring:
+> Atomic local registry catalog and query-keyed cache.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `tempfile`
+- `threading`
+- `typing`
+- `uuid`
+
+Classes:
+- `CatalogError`
+  - Stable local catalog failure.
+- `RegistryCatalog`
+  - methods: __init__, _load_catalog, _atomic_write, save, rows, row, create, update, delete, cache_path, query_key, _load_cache, cached_page, save_page, cached_detail, save_detail, status_path, _load_status, sync_status, set_sync_status
+
+Functions:
+- `timestamp`
+
+
+## `app/research_web/mcp_registry/credentials.py`
+
+Module docstring:
+> OS-keyring-only secret storage for MCP Registry authentication.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `json`
+
+Classes:
+- `CredentialError`
+  - Stable credential-store failure without secret content.
+- `_SystemKeyring`
+  - methods: _module, get_password, set_password, delete_password
+- `RegistryCredentialStore`
+  - methods: __init__, account, snapshot, read, write, delete, configured, restore, authorization, replace
+
+
+## `app/research_web/mcp_registry/models.py`
+
+Module docstring:
+> Strict public and upstream contracts for read-only MCP registries.
+
+Imports:
+- `__future__`
+- `pydantic`
+- `re`
+- `typing`
+- `unicodedata`
+- `urllib.parse`
+
+Classes:
+- `AuthNone`
+- `AuthBearer`
+- `AuthOAuth2`
+  - methods: validate_url, validate_client_id, validate_scopes
+- `RegistryCreate`
+  - methods: validate_name, validate_base_url, validate_transport
+- `RegistryUpdate`
+  - methods: validate_name, validate_base_url, require_change
+- `SyncRequest`
+  - methods: reject_controls
+- `UpstreamMetadata`
+  - methods: validate_cursor
+- `UpstreamList`
+
+Functions:
+- `_has_disallowed_control`
+- `safe_http_url`
+  - Return a canonical HTTP(S) URL without credentials, query, or fragment.
+- `safe_https_url`
+  - Return a canonical HTTPS URL.
+- `validate_registry_transport`
+  - Allow HTTPS, or unauthenticated HTTP on an explicit loopback host.
+- `safe_text`
+- `_safe_optional_text`
+- `_safe_repository`
+- `_immutable_package_reference`
+- `_safe_packages`
+- `_safe_remotes`
+- `normalize_upstream_server`
+  - Project one untrusted Registry response into a bounded plain-text record.
+
+
+## `app/research_web/mcp_registry/publisher.py`
+
+Module docstring:
+> Pure server.json generation and validation; never invokes publisher binaries.
+
+Imports:
+- `__future__`
+- `hashlib`
+- `json`
+- `models`
+- `pydantic`
+- `re`
+- `typing`
+
+Classes:
+- `StdioTransport`
+- `NetworkTransport`
+  - methods: validate_url
+- `PublisherRepository`
+  - methods: validate_url
+- `PublisherPackage`
+  - methods: validate_url, validate_version, require_immutable_reference
+- `PublisherProvidedMetadata`
+- `PublisherMeta`
+- `PublisherServer`
+  - methods: validate_url, validate_text, validate_name, validate_fixed_version
+- `PublisherMetadata`
+  - methods: _input, canonical_json, digest, preview, validate
+
+
+## `app/research_web/mcp_registry/routes.py`
+
+Module docstring:
+> FastAPI routes for the read-only MCP Registry and publisher handoff.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `models`
+- `typing`
+
+Functions:
+- `service`
+- `registries`
+- `create_registry`
+- `registry_detail`
+- `update_registry`
+- `delete_registry`
+- `sync_registry`
+- `servers`
+- `server_version`
+- `publisher_preview`
+- `publisher_validate`
+
+
+## `app/research_web/mcp_registry/service.py`
+
+Module docstring:
+> Read-only MCP Registry orchestration and safe response projection.
+
+Imports:
+- `__future__`
+- `catalog`
+- `copy`
+- `core.observability`
+- `credentials`
+- `httpx`
+- `models`
+- `os`
+- `pathlib`
+- `publisher`
+- `pydantic`
+- `re`
+- `sync`
+- `typing`
+
+Classes:
+- `RegistryError`
+  - methods: __init__
+- `MCPRegistryService`
+  - methods: __init__, _initialize, catalog, credentials, credentials, http, publisher, start, close, _ensure_enabled, _catalog_error, _secret_payload, _stored_auth, _project, _validate_transport, list_registries, registry, create_registry, update_registry, delete_registry, _page_result, _matches_source, _sync_status, _set_sync_status, list_servers, sync_registry, _validate_identity, version_detail, publisher_preview, publisher_validate
+
+Functions:
+- `registry_feature_enabled`
+
+
+## `app/research_web/mcp_registry/sync.py`
+
+Module docstring:
+> Bounded, conditional HTTP reads for MCP Registry v0.1.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `httpx`
+- `json`
+- `models`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `SyncError`
+  - methods: __init__
+- `RegistryHTTPClient`
+  - methods: __init__, close, _get, page, detail
 
 
 ## `app/research_web/operations.py`
@@ -4587,6 +4799,7 @@ Imports:
 - `hashlib`
 - `json`
 - `local_integrations`
+- `mcp_registry`
 - `pathlib`
 - `projection`
 - `report_studio`
@@ -7126,21 +7339,18 @@ Module docstring:
 ## `data_layer/adapters/__init__.py`
 
 Module docstring:
-> 数据适配器
+> 数据适配器的惰性公开入口。
 
 Imports:
-- `data_layer.adapters.akshare_adapter`
-- `data_layer.adapters.baostock_adapter`
-- `data_layer.adapters.base`
-- `data_layer.adapters.china_stock_adapter`
-- `data_layer.adapters.cls_adapter`
-- `data_layer.adapters.cninfo_adapter`
-- `data_layer.adapters.cnstock_adapter`
-- `data_layer.adapters.ifind_adapter`
-- `data_layer.adapters.local_data_adapter`
-- `data_layer.adapters.wind.wind_adapter`
-- `data_layer.adapters.yahoo_adapter`
-- `data_layer.adapters.zq_adapter`
+- `__future__`
+- `importlib`
+- `logging`
+- `typing`
+
+Functions:
+- `__getattr__`
+  - 只在调用方请求具体适配器时装载其依赖。
+- `__dir__`
 
 
 ## `data_layer/adapters/akshare/__init__.py`
@@ -7476,15 +7686,18 @@ Classes:
 ## `data_layer/adapters/ifind/__init__.py`
 
 Module docstring:
-> iFinD 数据源集成
+> iFinD 数据源集成的惰性公开入口。
 
 Imports:
-- `data_layer.adapters.ifind.client`
-- `data_layer.adapters.ifind.exceptions`
-- `data_layer.adapters.ifind.http_client`
-- `data_layer.adapters.ifind.mappers`
-- `data_layer.adapters.ifind.router`
-- `data_layer.adapters.ifind.sdk_client`
+- `__future__`
+- `importlib`
+- `logging`
+- `typing`
+
+Functions:
+- `__getattr__`
+  - 按需装载 HTTP、SDK 或映射层，避免互相引入可选依赖。
+- `__dir__`
 
 
 ## `data_layer/adapters/ifind/client.py`

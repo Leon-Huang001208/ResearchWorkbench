@@ -373,10 +373,12 @@
 
 | 文件 | 说明 |
 |---|---|
+| `data_layer/adapters/__init__.py` | 适配器公开入口：按符号惰性装载，避免未使用适配器的数据库或厂商依赖污染调用方 |
 | `data_layer/adapters/akshare_adapter.py` | AKShare 开源数据适配器：集成 crawler 模块，提供行情、财务、新闻、股东数据获取 |
 | `data_layer/adapters/cjpy_adapter.py` | 天软 Cjpy 适配器：获取股票/基金列表、交易日、日线/分钟行情、因子、表格和实时订阅；调用天软 HTTP 接口时临时绕开本机代理变量 |
 | `data_layer/adapters/cninfo_adapter.py` | 巨潮资讯网公告适配器：包装 CninfoCrawler，输出 DocumentEnvelope（source_type=filing） |
 | `data_layer/adapters/data_source_router.py` | 数据源路由器：iFinD → AKShare → ChinaStock 三级降级策略，统一管理所有数据适配器 |
+| `data_layer/adapters/ifind/__init__.py` | iFinD 公开入口：HTTP、SDK、路由与映射层按需装载，HTTP 探测不启动本地 SDK |
 | `data_layer/adapters/ifind/http_client.py` | iFinD HTTP 客户端：登录、健康检查、只读查询、会话关闭与脱敏错误映射；凭据由调用方从系统凭据库注入 |
 | `data_layer/adapters/ifind/exceptions.py` | iFinD 稳定异常类型：区分认证、权限、限流、超时、响应格式和传输失败，不携带秘密响应正文 |
 | `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人）和 WSS 实时行情读取 + parse() + fetch() dispatch |

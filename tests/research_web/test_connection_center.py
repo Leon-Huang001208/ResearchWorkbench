@@ -2,7 +2,9 @@
 
 import asyncio
 import json
+import subprocess
 import sys
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import httpx
@@ -27,6 +29,34 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store
 from data_layer.adapters.ifind.exceptions import IFinDAuthError, IFinDRateLimitError
 from data_layer.adapters.ifind.http_client import IFinDHTTPClient
+
+
+def test_ifind_http_import_does_not_initialize_unrelated_adapters():
+    project_root = Path(__file__).resolve().parents[2]
+    script = """
+import sys
+
+class BlockPsycopg2:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "psycopg2" or fullname.startswith("psycopg2."):
+            raise ModuleNotFoundError("psycopg2 intentionally unavailable")
+        return None
+
+sys.meta_path.insert(0, BlockPsycopg2())
+import data_layer.adapters.ifind.http_client
+assert "data_layer.adapters.cninfo_adapter" not in sys.modules
+assert "data_layer.adapters.ifind.sdk_client" not in sys.modules
+"""
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=project_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
 
 
 class MappingKeyring:

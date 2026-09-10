@@ -22,6 +22,8 @@ Wind 适配器通过 xlwings 操控 macOS Excel 中的 Wind 插件获取数据�
 
 iFinD 在当前 Research Web 中区分 HTTP 与本地 SDK：macOS 使用用户在数据源设置页保存的 HTTP Base/mailbox 配置与系统凭据库密码；探测必须依次通过登录、健康、最小只读数据查询和会话关闭，空数据或授权失败不会标记健康。Windows/Linux 的 SDK 属于独立厂商依赖，不随项目分发，也不能由普通同花顺客户端推断为可用。
 
+适配器包公开符号按需装载：单独使用 iFinD HTTP 不会初始化 CNINFO、数据库仓储或 iFinD SDK，因此 Research Web 本机服务不需要为未使用的数据源安装 PostgreSQL 驱动。
+
 ### 新闻/研报数据源（源注册表 + 自动发现）
 
 所有爬取数据源通过 `core/source_registry.py` 的 `SourceSpec` 自描述注册，`data_sources/__init__.py` 使用 `pkgutil.iter_modules` 自动发现模块。添加新来源 = 在 `data_sources/` 下新建一个 `.py` 文件，无需修改任何其他代码。

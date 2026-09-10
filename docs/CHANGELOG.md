@@ -11,6 +11,7 @@
 - 本机诊断新增显式、幂等的 Excel、Word、PowerPoint 与 Wind Excel 验证任务；发现探测仍不启动厂商软件。Office 验证只操作应用容器内的本轮临时文件，Wind 只刷新受管报告副本并保护发布源哈希。
 - macOS Excel、Word 与 PowerPoint 已通过真实打开、操作、保存、关闭和重新读取；Wind 终端与插件已发现且用户已登录，但真实公式刷新超时，因此继续显示异常且不可调用。超时清理使用 PID、启动时间和固定可执行命令指纹，避免 PID 复用误杀。
 - iFinD HTTP 探测复用既有数据源配置和凭据库，执行登录、健康、最小只读数据查询与关闭；macOS 未配置账号时保持待配置，不伪造通过。
+- 数据适配器与 iFinD 包入口改为按需装载；Research Web 使用 HTTP iFinD 时不再初始化 CNINFO、数据库或本地 SDK 依赖，项目 `.venv` 无 `psycopg2` 也可启动服务管理器。
 
 ### Research Web Tabbit CLI · 2026-09-10
 

@@ -237,6 +237,7 @@ Purpose:
 
 - `http_client.py` 使用调用方提供的 Base URL、用户名和凭据库密码执行登录、健康检查、最小只读数据查询与会话关闭。
 - `exceptions.py` 将认证、权限、限流、超时、协议和传输失败映射为稳定异常；日志和前端投影不返回 Token、密码或厂商原始响应正文。
+- `data_layer.adapters` 与 `data_layer.adapters.ifind` 的公开入口按符号惰性装载，HTTP 探测不会初始化 CNINFO、数据库仓储或本地 SDK 的可选依赖。
 - macOS 只走 HTTP 路径；本地 SDK 的平台发现与安装状态独立处理，普通同花顺客户端不等于 iFinD 数据接口。
 
 Update this section when:
