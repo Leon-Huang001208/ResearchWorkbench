@@ -423,7 +423,7 @@ class LocalIntegrationManager:
                     if self.wind_session_ready is not None
                     else self._wind_session_is_ready()
                 )
-                if ready is not True:
+                if ready is False:
                     return False
             if age > timedelta(seconds=ttl_seconds):
                 return False
@@ -448,7 +448,7 @@ class LocalIntegrationManager:
                 "local_integration_wind_session_check_failed",
                 error_type=type(exc).__name__,
             )
-            return None
+            return False
 
     @staticmethod
     def _path_fingerprint(path: Path) -> dict:
