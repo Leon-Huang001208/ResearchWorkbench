@@ -12,6 +12,7 @@
 - 输入框新增按需 `@` 标签搜索、最多 8 个 chip、会话级授权和实时 claim 二次确认；DOM 正文仅以会话绑定、10 分钟过期、单次消费 token 保留在 Runtime 内存。
 - 设置→本地集成和 `rwb web tabbit-status` 暴露安全诊断。模拟 Runtime 的 macOS/Windows CI 不替代真实浏览器验收；当前开发机 Tabbit 0.30.32 且缺少 CLI，真实双平台冒烟仍阻塞。
 - 补齐 Windows UTF-8 能力读取、关闭句柄后的原子替换、POSIX npm 归档成员比较、正斜杠 adapter 配置和 Windows 目录同步兼容；无效的 DSH 交互事件标识现在稳定返回 `protocol_error`。
+- Windows DSH 认证、DataHub 控制/收据/快照和下载改用规范路径、重解析点拒绝与打开前后身份核验；快照保留原子发布，永久删除可安全清理产品所有的只读普通文件。POSIX 的 `dir_fd`、`NOFOLLOW`、私有权限与目录 `fsync` 保持不变。
 
 ### 遗留分支归并 · 2026-09-09
 

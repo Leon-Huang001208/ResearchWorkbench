@@ -380,6 +380,16 @@
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"供应清单改用POSIX路径比较且adapter路径统一正斜杠，Profile节点和加载顺序不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows连接配置仅明确跳过不支持的目录fsync，Provider和数据流不变。","diagrams":[]} -->
 
+## 2026-09-10 — Tabbit Windows CI 第一轮直接根因修复
+
+- 第一轮 PR 原生 CI 中 macOS Web Runtime 合约通过；Windows 进一步暴露 DSH 认证文件误用 POSIX mode、DataHub 快照仍调用 `dir_fd`、下载仍调用 POSIX flags，以及只读快照无法永久清理。
+- Windows 认证、DataHub 控制/收据/快照和下载现统一使用规范路径、重解析点拒绝、普通文件/硬链接/大小及打开前后身份核验；快照仍以临时目录和同目录原子改名发布。POSIX 安全 I/O 保持不变。
+- 永久删除只为产品所有树中的真实目录和普通文件恢复所有者写权限，不跟随链接或重解析点。服务、API、快照 schema、Tabbit 消息与授权语义均未变化，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Windows DSH认证文件改用文件身份与重解析点校验，Runtime地址、认证格式和API不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows私有收据与快照补齐安全路径IO，Provider、快照schema和数据流不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"Windows下载和只读文件清理补齐平台兼容，文件归属与删除边界不变。","diagrams":[]} -->
+
 ## 2026-09-10 — 能力工作区 v0 四类分区
 
 - `#/skills` 固定为 Skill、Tool、Workflow、数据四个互斥主标签，并在类型内提供能力库、我的、运行计划或连接入口；旧 kind/view 深链继续归一到对应分区。

@@ -97,10 +97,12 @@ BFF关闭及现有会话cancel均取消相关请求。原生abort通过独立短
 
 ## 私有控制与会话存储
 
-启动器/服务创建独立随机控制凭据`.control/datahub.json`，0600；父目录0700。
+启动器/服务创建独立随机控制凭据`.control/datahub.json`，POSIX 为0600且父目录0700。
 原生可信插件在trustedDirectory沿实际DSH父系验证后读取固定文件；DataHub 调用按当前可用工具自动执行。
 拒绝symlink、hardlink、错误属主或过宽权限；token不进入脚本环境、prompt、普通API或日志，不读取/复用模型密钥。
 地址默认`http://127.0.0.1:8088`，首次可信启动可用`--datahub-url http://127.0.0.1:<port>`指定隔离BFF端口；只接受无userinfo/query/fragment/path的回环HTTP origin。已有地址不符报错，不静默覆盖。
+
+Windows 不使用 POSIX mode bit 作为 ACL 证明。控制文件、调用收据和快照通过产品根内的规范路径访问，拒绝链接、重解析点、非普通文件、硬链接、超限内容和打开前后身份变化；快照临时目录写完后才同目录原子改名。POSIX 继续使用 `dir_fd`、`O_DIRECTORY`、`O_NOFOLLOW` 和目录 `fsync`。
 
 ```text
 .control/datahub.json                         # 新产品控制凭据，只给可信服务/原生插件

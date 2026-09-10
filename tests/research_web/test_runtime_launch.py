@@ -154,7 +154,7 @@ def test_tabbit_archive_member_paths_use_posix_manifest_semantics():
 
 def test_runtime_atomic_json_uses_windows_compatible_permissions(tmp_path, monkeypatch):
     target = tmp_path / "profile" / "package.json"
-    monkeypatch.delattr(launch_runtime.os, "fchmod")
+    monkeypatch.delattr(launch_runtime.os, "fchmod", raising=False)
     monkeypatch.setattr(launch_runtime.os, "name", "nt")
 
     launch_runtime._atomic_json(target, {"name": "研究运行时"})

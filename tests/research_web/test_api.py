@@ -210,7 +210,7 @@ def test_session_soft_delete_restore_is_recoverable_and_never_archives_native_hi
     created = client.post("/api/research/sessions", json={}).json()
     sid = created["id"]
     artifact = service.store.directory(sid) / "outputs" / "retained.md"
-    artifact.write_text("保留的研究产物")
+    artifact.write_text("保留的研究产物", encoding="utf-8")
 
     deleted = client.delete(f"/api/research/sessions/{sid}")
     assert deleted.status_code == 200
@@ -221,7 +221,7 @@ def test_session_soft_delete_restore_is_recoverable_and_never_archives_native_hi
     assert deleted_items[0]["mode"] == "fingpt"
     assert client.get(f"/api/research/sessions/{sid}").status_code == 410
     assert client.get(f"/api/research/sessions/{sid}").json()["error"]["code"] == "session_deleted"
-    assert artifact.read_text() == "保留的研究产物"
+    assert artifact.read_text(encoding="utf-8") == "保留的研究产物"
     assert not any(call[0] == "workspace.archiveSession" for call in native.calls)
 
     repeated = client.delete(f"/api/research/sessions/{sid}")
@@ -233,7 +233,7 @@ def test_session_soft_delete_restore_is_recoverable_and_never_archives_native_hi
     assert "deleted_at" not in restored.json()
     assert sid in {item["id"] for item in client.get("/api/research/sessions").json()["items"]}
     assert client.get(f"/api/research/sessions/{sid}").status_code == 200
-    assert artifact.read_text() == "保留的研究产物"
+    assert artifact.read_text(encoding="utf-8") == "保留的研究产物"
     assert client.post(f"/api/research/sessions/{sid}/restore").status_code == 200
 
 
@@ -272,7 +272,7 @@ def test_deleted_session_can_be_permanently_deleted_with_native_confirmation(api
     client, native, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     artifact = service.store.directory(sid) / "outputs" / "removed.md"
-    artifact.write_text("永久删除")
+    artifact.write_text("永久删除", encoding="utf-8")
     client.delete(f"/api/research/sessions/{sid}")
 
     response = client.delete(f"/api/research/sessions/{sid}/permanent")
@@ -292,7 +292,7 @@ def test_permanent_delete_removes_sealed_capabilities_and_private_datahub_state(
     sealed = session_root / "resources" / "capabilities" / "fund-research-workflow" / "2"
     sealed.mkdir(parents=True)
     capability = sealed / "SKILL.md"
-    capability.write_text("# sealed capability")
+    capability.write_text("# sealed capability", encoding="utf-8")
     capability.chmod(0o400)
     sealed.chmod(0o500)
 
@@ -302,7 +302,7 @@ def test_permanent_delete_removes_sealed_capabilities_and_private_datahub_state(
     ]
     for private in private_paths:
         private.mkdir(parents=True)
-        (private / "record.json").write_text("{}")
+        (private / "record.json").write_text("{}", encoding="utf-8")
 
     deleted = client.delete(f"/api/research/sessions/{sid}")
     assert deleted.status_code == 200, deleted.text
@@ -356,7 +356,7 @@ def test_permanent_delete_keeps_tombstone_when_dsh_does_not_confirm(api):
     client, native, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     artifact = service.store.directory(sid) / "outputs" / "retained.md"
-    artifact.write_text("仍可重试")
+    artifact.write_text("仍可重试", encoding="utf-8")
     client.delete(f"/api/research/sessions/{sid}")
     native.confirm_delete = False
 
@@ -365,7 +365,7 @@ def test_permanent_delete_keeps_tombstone_when_dsh_does_not_confirm(api):
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "native_session_delete_unconfirmed"
     assert service.store.session(sid, include_deleted=True)["deleted_at"]
-    assert artifact.read_text() == "仍可重试"
+    assert artifact.read_text(encoding="utf-8") == "仍可重试"
 
 
 @pytest.mark.asyncio

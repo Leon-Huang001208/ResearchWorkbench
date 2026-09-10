@@ -6,6 +6,8 @@
 旧 kind 深链保持兼容，无 kind 的 plans/connections 分别归一到 Workflow/Tool。通用 Automation 与 MCP
 Registry API 属于后续阶段，在对应持久模型和安全边界落地前不出现在本清单中。
 
+本轮跨平台修复不新增或修改 HTTP 路由。Windows 上的 Runtime 认证读取、DataHub 快照接口和会话文件下载在进入既有响应契约前执行规范路径、重解析点、普通文件及打开前后身份校验；失败继续返回既有安全错误，不暴露本机路径或文件内容。waterfall/cancel 的空或非字符串标识在协议边界统一返回 `protocol_error`。
+
 路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 129 个唯一 HTTP 操作、131 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 
 | Method | 路径 | 源码 |

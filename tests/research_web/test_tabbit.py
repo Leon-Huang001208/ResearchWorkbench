@@ -112,7 +112,8 @@ def test_tabbit_configuration_is_persisted_without_secrets(integration):
     )
 
     assert result["restart_required"] is True
-    assert tabbit.config_path.stat().st_mode & 0o077 == 0
+    if os.name != "nt":
+        assert tabbit.config_path.stat().st_mode & 0o077 == 0
     assert json.loads(tabbit.config_path.read_text(encoding="utf-8")) == {
         "browser_enabled": True,
         "web_fetch_enabled": True,
@@ -122,7 +123,7 @@ def test_tabbit_configuration_is_persisted_without_secrets(integration):
 
 def test_tabbit_configuration_uses_windows_compatible_atomic_write(integration, monkeypatch):
     tabbit, _, _ = integration
-    monkeypatch.delattr(tabbit_module.os, "fchmod")
+    monkeypatch.delattr(tabbit_module.os, "fchmod", raising=False)
     monkeypatch.setattr(tabbit_module.os, "name", "nt")
 
     tabbit.configure(
@@ -149,7 +150,7 @@ def test_tabbit_configuration_closes_descriptor_and_preserves_primary_error(
         captured.update(fd=fd, name=name)
         return fd, name
 
-    def fail_permission(_fd, _mode):
+    def fail_open(_fd, *_args, **_kwargs):
         raise PermissionError("primary write failure")
 
     def fail_cleanup(path, *args, **kwargs):
@@ -158,7 +159,7 @@ def test_tabbit_configuration_closes_descriptor_and_preserves_primary_error(
         return real_unlink(path, *args, **kwargs)
 
     monkeypatch.setattr(tabbit_module.tempfile, "mkstemp", tracked_mkstemp)
-    monkeypatch.setattr(tabbit_module.os, "fchmod", fail_permission)
+    monkeypatch.setattr(tabbit_module.os, "fdopen", fail_open)
     monkeypatch.setattr(Path, "unlink", fail_cleanup)
 
     try:

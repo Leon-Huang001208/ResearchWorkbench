@@ -25,6 +25,8 @@ overlay 中的 adapter 入口始终使用 `/`，避免 Windows 路径分隔符�
 配置原子写入 `<RESEARCH_DATA_HOME>/.control/tabbit.json`，权限为当前用户可读写。
 文本固定使用 UTF-8；POSIX 以 `fchmod` 收紧临时文件权限，Windows 使用兼容权限处理并在关闭
 文件句柄后才原子替换。关闭、清理失败只写入稳定错误类型，不覆盖最初的保存异常。
+Windows 启动 Web 时读取的 DSH 认证文件不使用 POSIX mode bit 作为 ACL 证明，而是拒绝重解析点、
+非普通文件、硬链接和打开前后身份变化；这不改变 Cookie 格式或 Tabbit 授权生命周期。
 更改只影响下一次 Runtime 启动并返回 `restart_required=true`。活动研究期间既有 Runtime
 重启门禁仍会拒绝重启，因此配置保持待应用，不会中断任务。多个在线实例时必须选择一个
 16 位大写十六进制实例 ID。
