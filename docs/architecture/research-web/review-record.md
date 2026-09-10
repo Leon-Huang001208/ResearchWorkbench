@@ -351,3 +351,11 @@
 <!-- architecture-review {"group":"files","structure":"unchanged","reason":"产品索引文本改为显式UTF-8，目录归属、原子替换和文件数据流保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力种子、工具白名单和目录索引显式使用UTF-8，能力包版本与原生发现拓扑保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"报告目录与迁移元数据显式使用UTF-8，Workflow版本、运行与交付数据流保持不变。","diagrams":[]} -->
+
+## 2026-09-10 — Windows 回环控制文件启动兼容
+
+- Windows 原生 CI 在中文能力完成装载后暴露 POSIX 专属 `O_DIRECTORY/O_NOFOLLOW/dir_fd` 阻塞 DataHub 初始化。
+- 仅为启动所需固定控制文件增加 Windows 路径回退，保留链接、重解析点、越界、文件类型、硬链接、大小和身份核对；POSIX 路径不变。
+- 服务、API、DataHub 节点和快照数据流均未变化，十张架构图无需重生成。
+
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows仅增加固定私有控制文件的安全路径回退，DataHub服务、Provider、API和快照数据流保持不变。","diagrams":[]} -->

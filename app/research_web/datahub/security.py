@@ -17,6 +17,89 @@ from ..store import StoreError
 log = get_logger(__name__)
 
 
+def _is_reparse_point(path: Path) -> bool:
+    """Reject links and Windows reparse points before path-based fallback IO."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return path.is_symlink() or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
+def _parse_control(raw: bytes, url: str | None) -> dict:
+    try:
+        config = json.loads(raw)
+        if (
+            not isinstance(config, dict)
+            or not isinstance(config.get("token"), str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{43,128}", config["token"])
+        ):
+            raise ValueError("invalid token")
+        checked_url(config["url"])
+        if url is not None and config["url"] != url:
+            raise StoreError("DataHub 回环地址与已有可信配置不符；未覆盖")
+        return config
+    except (ValueError, KeyError, TypeError) as exc:
+        raise StoreError("DataHub 私有配置无效") from exc
+
+
+def _windows_control(root: Path, url: str | None) -> dict:
+    """Windows fallback for startup control IO without unsupported dir_fd flags."""
+    try:
+        root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if _is_reparse_point(root) or not root.is_dir():
+            raise StoreError("资料目录访问被拒绝")
+        trusted_root = root.resolve(strict=True)
+        folder = root / ".control"
+        folder.mkdir(mode=0o700, exist_ok=True)
+        if (
+            _is_reparse_point(folder)
+            or not folder.is_dir()
+            or not folder.resolve(strict=True).is_relative_to(trusted_root)
+        ):
+            raise StoreError("私有资料目录权限异常")
+
+        path = folder / "datahub.json"
+        if _is_reparse_point(path):
+            raise StoreError("私有控制文件权限异常")
+        if not path.exists():
+            config = {
+                "token": secrets.token_urlsafe(32),
+                "url": url or "http://127.0.0.1:8088",
+            }
+            try:
+                handle = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(handle, "wb") as stream:
+                    stream.write(json_bytes(config))
+                    stream.flush()
+                    os.fsync(stream.fileno())
+            except FileExistsError:
+                pass
+
+        before = path.lstat()
+        if (
+            _is_reparse_point(path)
+            or not stat.S_ISREG(before.st_mode)
+            or before.st_nlink != 1
+            or before.st_size > 4096
+        ):
+            raise StoreError("私有控制文件权限异常")
+        with path.open("rb") as stream:
+            opened = os.fstat(stream.fileno())
+            if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+                raise StoreError("私有控制文件权限异常")
+            raw = stream.read(4097)
+        if len(raw) > 4096:
+            raise StoreError("资料文件超过读取上限")
+        return _parse_control(raw, url)
+    except StoreError:
+        raise
+    except OSError as exc:
+        log.warning("datahub_windows_control_denied", error_type=type(exc).__name__)
+        raise StoreError("资料目录访问被拒绝") from exc
+
+
 @contextmanager
 def directory(root: Path, parts=(), *, create=False, private=False):
     """All descendants opened with NOFOLLOW; trusted root is canonical."""
@@ -127,6 +210,8 @@ def load_control(root: Path, url: str | None = None):
     """Startup/service-owned fixed file. Existing abnormal permissions fail closed."""
     if url is not None:
         url = checked_url(url)
+    if os.name == "nt":
+        return _windows_control(root, url)
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     with directory(root, (".control",), create=True, private=True) as fd:
         if "datahub.json" not in os.listdir(fd):
@@ -137,17 +222,4 @@ def load_control(root: Path, url: str | None = None):
                 # Another trusted startup may have won O_EXCL; read and validate it.
                 if "datahub.json" not in os.listdir(fd):
                     raise
-        try:
-            config = json.loads(read_file(fd, "datahub.json", private=True, limit=4096))
-            if (
-                not isinstance(config, dict)
-                or not isinstance(config.get("token"), str)
-                or not re.fullmatch(r"[A-Za-z0-9_-]{43,128}", config["token"])
-            ):
-                raise ValueError("invalid token")
-            checked_url(config["url"])
-            if url is not None and config["url"] != url:
-                raise StoreError("DataHub 回环地址与已有可信配置不符；未覆盖")
-            return config
-        except (ValueError, KeyError, TypeError) as exc:
-            raise StoreError("DataHub 私有配置无效") from exc
+        return _parse_control(read_file(fd, "datahub.json", private=True, limit=4096), url)
