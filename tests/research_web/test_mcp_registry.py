@@ -246,6 +246,40 @@ async def test_insecure_stored_registry_with_secret_makes_zero_network_requests(
 
 
 @pytest.mark.asyncio
+async def test_insecure_stored_oauth_endpoint_makes_zero_network_requests(tmp_path):
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=remote_page())
+
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    row = service.catalog.create(
+        "Legacy insecure OAuth",
+        "https://registry.example.test",
+        {
+            "type": "oauth2",
+            "authorization_url": "http://127.0.0.1/authorize",
+            "token_url": "https://id.example.test/token",
+            "client_id": "workbench",
+            "scopes": [],
+        },
+    )
+    service.credentials.write(row["id"], "oauth2", {"access_token": "must-not-leak"})
+
+    with pytest.raises(RegistryError) as error:
+        await service.sync_registry(row["id"])
+    assert error.value.code == "registry_transport_insecure"
+    assert requests == []
+    await service.close()
+
+
+@pytest.mark.asyncio
 async def test_registry_http_client_never_follows_redirect_to_insecure_target():
     requests: list[httpx.Request] = []
 

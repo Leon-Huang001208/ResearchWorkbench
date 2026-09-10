@@ -164,10 +164,15 @@ class MCPRegistryService:
         return {**copy.deepcopy(row), "auth": auth}
 
     @staticmethod
-    def _validate_transport(base_url: str, auth_type: str) -> None:
+    def _validate_transport(base_url: str, auth_type: str, auth: Any | None = None) -> None:
         try:
             validate_registry_transport(base_url, auth_type)
-        except (TypeError, ValueError) as exc:
+            if auth_type == "oauth2" and not isinstance(auth, AuthOAuth2):
+                stored_auth = {
+                    key: value for key, value in (auth or {}).items() if key != "secret_configured"
+                }
+                AuthOAuth2.model_validate(stored_auth)
+        except (TypeError, ValidationError, ValueError) as exc:
             raise RegistryError(
                 "Registry 传输配置不安全",
                 "registry_transport_insecure",
@@ -191,7 +196,7 @@ class MCPRegistryService:
 
     def create_registry(self, request: RegistryCreate) -> dict[str, Any]:
         self._ensure_enabled()
-        self._validate_transport(request.base_url, request.auth.type)
+        self._validate_transport(request.base_url, request.auth.type, request.auth)
         secret = self._secret_payload(request.auth)
         if isinstance(request.auth, AuthBearer) and not secret:
             raise RegistryError("Bearer Registry 必须提供 token", "registry_secret_required", 422)
@@ -222,10 +227,11 @@ class MCPRegistryService:
                 "official registry is immutable", "official_registry_immutable", 409
             )
         effective_base_url = request.base_url or current["base_url"]
+        effective_auth = request.auth if request.auth is not None else current["auth"]
         effective_auth_type = (
-            request.auth.type if request.auth is not None else current["auth"]["type"]
+            effective_auth.type if request.auth is not None else effective_auth["type"]
         )
-        self._validate_transport(effective_base_url, effective_auth_type)
+        self._validate_transport(effective_base_url, effective_auth_type, effective_auth)
         changes = request.model_dump(exclude_none=True, exclude={"auth"})
         old_type = current["auth"]["type"]
         if request.auth is not None:
@@ -369,7 +375,7 @@ class MCPRegistryService:
         limit: int = 100,
     ) -> dict[str, Any]:
         row = self.registry(registry_id)
-        self._validate_transport(row["base_url"], row["auth"]["type"])
+        self._validate_transport(row["base_url"], row["auth"]["type"], row["auth"])
         cached: dict[str, Any] | None = None
         try:
             cached = self.catalog.cached_page(
@@ -409,6 +415,7 @@ class MCPRegistryService:
         limit: int = 100,
     ) -> dict[str, Any]:
         row = self.registry(registry_id)
+        self._validate_transport(row["base_url"], row["auth"]["type"], row["auth"])
         cached: dict[str, Any] | None = None
         try:
             cached = self.catalog.cached_page(
@@ -542,7 +549,7 @@ class MCPRegistryService:
     ) -> dict[str, Any]:
         self._validate_identity(server_name, version)
         row = self.registry(registry_id)
-        self._validate_transport(row["base_url"], row["auth"]["type"])
+        self._validate_transport(row["base_url"], row["auth"]["type"], row["auth"])
         cached: dict[str, Any] | None = None
         try:
             cached = self.catalog.cached_detail(registry_id, server_name, version)
