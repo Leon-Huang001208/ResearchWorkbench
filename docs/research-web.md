@@ -71,6 +71,7 @@ DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取�
 - `store.py`：原子本地 JSON 索引（单 Web worker），不保存模型正文；文件使用不跟随符号链接的目录描述符打开。
 - `main.py`：回环 Web API、安全来源边界、上传与隔离预览；无旧业务启动钩子。
 - `local_integrations/`：无副作用的主机软件发现、安全状态投影和幂等探测任务；不启动厂商软件，不返回本机路径或秘密。
+- `local_integrations/verifiers.py`：用户显式触发的 macOS Office/Wind 真实验证；在可终止子进程和受管验证目录中执行，发现探测仍保持无副作用。成功结果才写入可调用状态，授权、登录、超时和公式失败均保持独立状态。
 - `ui/`：正式五页与原生模块，详见 [UI 文档](research-web-ui.md)。
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
 - `skills/`：市场解读、资料解读、公司研究、行业研究、基金评价和因子库研究六类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
@@ -92,6 +93,8 @@ sessions/<uuid>/outputs/     # 真正生成的文件
 ```
 
 MySQL 密码由服务名 `ResearchWorkbench.DataHub`、账户键 `mysql:default:password` 保存到操作系统凭据库；凭据库不可用时闭合失败，不降级到环境变量或明文文件。模型 API Key 仍由专属 DSH 管理，两类秘密不共享命名空间。
+
+iFinD `http_api` 探测沿用数据源页保存的非秘密 Base URL 和系统凭据库账号，执行登录、`/health` 检查并关闭会话；Token 仅存在于内存，不写入连接状态或日志。未配置账号继续显示待配置。
 
 不得使用多个 Uvicorn worker 并发写同一索引。研究正文只读 DSH 日志；浏览器断线不取消任务也不自动重提。
 

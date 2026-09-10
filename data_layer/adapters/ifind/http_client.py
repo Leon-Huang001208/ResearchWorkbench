@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class IFinDHTTPClient:
     """iFinD HTTP API 客户端"""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, *, transport: httpx.AsyncBaseTransport | None = None):
         self.settings = settings
         self.base_url = settings.IFIND_HTTP_BASE_URL.rstrip("/")
         self.username = settings.IFIND_USERNAME
@@ -27,6 +27,7 @@ class IFinDHTTPClient:
         self.token: str | None = None
         self.token_expires_at: datetime | None = None
         self._client: httpx.AsyncClient | None = None
+        self._transport = transport
 
     async def _get_client(self) -> httpx.AsyncClient:
         """获取异步 HTTP 客户端"""
@@ -34,6 +35,7 @@ class IFinDHTTPClient:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=30.0,
+                transport=self._transport,
             )
         return self._client
 
@@ -52,6 +54,8 @@ class IFinDHTTPClient:
             response.raise_for_status()
             data = response.json()
             self.token = data.get("token")
+            if not isinstance(self.token, str) or not self.token:
+                raise IFinDAuthError("iFinD login response did not contain a token")
             expires_in = data.get("expires_in", 7200)
             self.token_expires_at = datetime.now() + timedelta(seconds=expires_in - 300)
             logger.info("Successfully logged in to iFinD HTTP API")

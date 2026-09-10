@@ -53,9 +53,9 @@ function renderDocumentationSettings() {
 }
 
 function renderSettingsBody(options) {
-  const { section, runtime, models, runtimeLabel, busy, modelFailures, connections, localIntegrations, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
+  const { section, runtime, models, runtimeLabel, busy, modelFailures, connections, localIntegrations, localVerificationTarget, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
   if (section === 'model') return renderModelSettings({ runtime, models, runtimeLabel, busy, modelFailures });
-  if (section === 'local') return renderLocalIntegrationConsole(localIntegrations, { busy });
+  if (section === 'local') return renderLocalIntegrationConsole(localIntegrations, { busy, verificationTarget: localVerificationTarget });
   if (section === 'data') {
     return renderConnectionCenter({
       connections,

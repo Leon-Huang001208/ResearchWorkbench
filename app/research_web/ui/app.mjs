@@ -1,4 +1,4 @@
-import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForLocalIntegrationProbe } from './core.mjs';
+import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
 import { icon } from './icons.mjs';
@@ -29,7 +29,7 @@ let assetState = { observations: [], observation: null, rows: {}, watchlists: []
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
-let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false;
+let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = '';
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -140,10 +140,11 @@ function settingsPage() {
     runtime: catalog.runtime,
     models: catalog.models,
     runtimeLabel: runtimeLabel(),
-    busy: state.busy || connectionProbeBusy || localIntegrationProbeBusy,
+    busy: state.busy || connectionProbeBusy || localIntegrationProbeBusy || Boolean(localVerificationTarget),
     modelFailures: catalog.modelFailures,
     connections: catalog.connections,
     localIntegrations: catalog.localIntegrations,
+    localVerificationTarget,
     selectedConfiguration: selectedConnectionConfiguration,
     migrationOpen,
     connectionDetailOpen,
@@ -909,6 +910,32 @@ root.addEventListener('click', async (event) => {
       safeLog('local_integration_probe_failed', { status: error?.code || error?.name || 'unknown' });
     } finally {
       localIntegrationProbeBusy = false; render();
+    }
+    return;
+  }
+  if ('localIntegrationVerify' in data) {
+    const target = data.localIntegrationVerify;
+    const labels = { excel: 'Excel', word: 'Word', powerpoint: 'PowerPoint', wind_excel: 'Wind Excel' };
+    if (!(target in labels)) return;
+    state.error = ''; success = ''; localVerificationTarget = target; render();
+    try {
+      const accepted = await api.verifyLocalIntegration(target, `local-verification-${target}-${crypto.randomUUID()}`);
+      if (typeof accepted?.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的验证任务，请刷新后重试。');
+      const current = await waitForLocalIntegrationVerification(
+        (verificationId) => api.localIntegrationVerification(verificationId),
+        accepted.id,
+        { maxAttempts: 740, delay: 250 },
+      );
+      if (current.status !== 'completed') throw new Error(current?.error?.message || '本机真实验证未完成。');
+      await loadCatalog(['localIntegrations']);
+      success = current.outcome === 'available'
+        ? `${labels[target]} 真实验证通过。`
+        : `${labels[target]} 验证完成，请根据状态说明处理。`;
+    } catch (error) {
+      state.error = error?.message || '本机真实验证失败，请重试。';
+      safeLog('local_integration_verification_failed', { status: error?.code || error?.name || 'unknown' });
+    } finally {
+      localVerificationTarget = ''; render();
     }
     return;
   }

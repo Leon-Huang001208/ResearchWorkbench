@@ -45,14 +45,29 @@ function localTruth(label, value) {
   return `<span><small>${e(label)}</small><strong>${e(value)}</strong></span>`;
 }
 
-function renderLocalIntegrationRow(item) {
+const localVerificationTargets = {
+  excel_app: 'excel',
+  word_app: 'word',
+  powerpoint_app: 'powerpoint',
+  wind_excel_addin: 'wind_excel',
+};
+
+function renderLocalIntegrationRow(item, verificationTarget = '') {
   const actions = Array.isArray(item?.actions) ? item.actions.map(safeLocalAction).join('') : '';
+  const target = localVerificationTargets[item?.id];
+  const verifying = target && verificationTarget === target;
+  const verifyAction = target && item?.discovery === '已发现'
+    ? `<button class="button small local-integration-verify" type="button" data-local-integration-verify="${e(target)}" ${verificationTarget ? 'disabled' : ''} ${verifying ? 'aria-busy="true"' : ''}>${verifying ? '验证中…' : '真实验证'}</button>`
+    : '';
+  const checked = target && item?.last_checked_at
+    ? `<time datetime="${e(item.last_checked_at)}">最近验证：${e(item.last_checked_at)}</time>`
+    : '';
   const callable = item?.status === '不适用' ? '不适用' : item?.callable === true ? '是' : '否';
   const tone = localStatusTone[item?.status] || 'danger';
-  return `<article class="local-integration-row" data-local-integration="${e(item?.id || '')}"><div class="local-integration-identity"><div><strong>${e(item?.label || '未命名集成')}</strong><span class="local-status ${e(tone)}"><span aria-hidden="true"></span>${e(item?.status || '异常')}</span></div><p>${e(item?.message || '服务未提供状态说明。')}</p>${item?.detail ? `<small>${e(item.detail)}</small>` : ''}${actions ? `<div class="button-row">${actions}</div>` : ''}</div><div class="local-integration-truths" aria-label="${e(item?.label || '')} 状态">${localTruth('发现', item?.discovery || '异常')}${localTruth('授权', item?.authorization || '异常')}${localTruth('验证', item?.verification || '异常')}${localTruth('可调用', callable)}</div></article>`;
+  return `<article class="local-integration-row" data-local-integration="${e(item?.id || '')}"><div class="local-integration-identity"><div><strong>${e(item?.label || '未命名集成')}</strong><span class="local-status ${e(tone)}"><span aria-hidden="true"></span>${e(item?.status || '异常')}</span></div><p>${e(item?.message || '服务未提供状态说明。')}</p>${item?.detail ? `<small>${e(item.detail)}</small>` : ''}${checked}${actions || verifyAction ? `<div class="button-row">${actions}${verifyAction}</div>` : ''}</div><div class="local-integration-truths" aria-label="${e(item?.label || '')} 状态">${localTruth('发现', item?.discovery || '异常')}${localTruth('授权', item?.authorization || '异常')}${localTruth('验证', item?.verification || '异常')}${localTruth('可调用', callable)}</div></article>`;
 }
 
-export function renderLocalIntegrationConsole(model = {}, { busy = false } = {}) {
+export function renderLocalIntegrationConsole(model = {}, { busy = false, verificationTarget = '' } = {}) {
   const categories = Array.isArray(model?.categories) ? model.categories : [];
   const items = Array.isArray(model?.items) ? model.items : [];
   const byId = new Map(items.map((item) => [item.id, item]));
@@ -63,7 +78,7 @@ export function renderLocalIntegrationConsole(model = {}, { busy = false } = {})
     const categoryItems = Array.isArray(category.item_ids)
       ? category.item_ids.map((id) => byId.get(id)).filter(Boolean)
       : items.filter((item) => item.category === category.id);
-    const rows = categoryItems.length ? categoryItems.map(renderLocalIntegrationRow).join('') : '<p class="local-category-empty">当前没有已登记项目。</p>';
+    const rows = categoryItems.length ? categoryItems.map((item) => renderLocalIntegrationRow(item, verificationTarget)).join('') : '<p class="local-category-empty">当前没有已登记项目。</p>';
     return `<section class="local-integration-category" id="local-category-${e(category.id)}" tabindex="-1" aria-labelledby="local-category-title-${e(category.id)}"><header><h2 id="local-category-title-${e(category.id)}">${e(category.label || category.id)}</h2><span>${categoryItems.length} 项</span></header><div class="local-integration-column-head" aria-hidden="true"><span>集成</span><span>发现</span><span>授权</span><span>验证</span><span>可调用</span></div>${rows}</section>`;
   }).join('');
   const announcement = `${serviceLabel}，${summary.available ?? 0} 项可用，${summary.needs_attention ?? 0} 项需处理。`;

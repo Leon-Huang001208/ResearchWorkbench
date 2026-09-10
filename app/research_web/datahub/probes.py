@@ -6,6 +6,7 @@ import asyncio
 import platform
 from importlib import import_module
 from importlib.util import find_spec
+from types import SimpleNamespace
 
 from core.observability import get_logger
 
@@ -79,7 +80,40 @@ def _probe_wind_client(module) -> dict:
     )
 
 
-async def probe_source(source_id: str, configuration: dict, secret_reader) -> dict:
+def _default_ifind_http_client(base_url: str, username: str, password: str):
+    from data_layer.adapters.ifind.http_client import IFinDHTTPClient
+
+    settings = SimpleNamespace(
+        IFIND_HTTP_BASE_URL=base_url,
+        IFIND_USERNAME=username,
+        IFIND_PASSWORD=password,
+    )
+    return IFinDHTTPClient(settings)
+
+
+async def _probe_ifind_http(base_url, accounts, client_factory) -> dict:
+    for username, password in accounts:
+        client = client_factory(base_url, username, password)
+        try:
+            if await client.login() and await client.is_alive():
+                return {"health": "healthy", "failure_code": None}
+        except Exception as exc:  # noqa: BLE001 - vendor errors are normalized below.
+            log.warning("ifind_http_probe_failed", error_type=type(exc).__name__)
+        finally:
+            try:
+                await client.logout()
+            except Exception as exc:  # noqa: BLE001 - close failures must not expose secrets.
+                log.warning("ifind_http_close_failed", error_type=type(exc).__name__)
+    return {"health": "unavailable", "failure_code": "vendor_login_failed"}
+
+
+async def probe_source(
+    source_id: str,
+    configuration: dict,
+    secret_reader,
+    *,
+    ifind_http_client_factory=None,
+) -> dict:
     """Probe installed integrations without retaining vendor sessions or secrets."""
     if source_id == "wind":
         preferred = configuration.get("preferred_adapter", "auto")
@@ -113,6 +147,10 @@ async def probe_source(source_id: str, configuration: dict, secret_reader) -> di
             if backend == "python_sdk":
                 return {"health": "unavailable", "failure_code": "dependency_missing"}
         if configuration.get("http_base_url"):
-            return {"health": "degraded", "failure_code": "http_probe_not_implemented"}
+            return await _probe_ifind_http(
+                configuration["http_base_url"],
+                accounts,
+                ifind_http_client_factory or _default_ifind_http_client,
+            )
         return {"health": "unavailable", "failure_code": "dependency_missing"}
     return {"health": "unavailable", "failure_code": "probe_not_implemented"}

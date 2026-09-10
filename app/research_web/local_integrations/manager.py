@@ -6,6 +6,7 @@ import json
 import os
 import platform
 import re
+import stat
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import dataclass
@@ -63,6 +64,21 @@ SAFE_ID = re.compile(r"^[a-z0-9_]+$")
 SAFE_DATA_ACTION = re.compile(r"^#/settings/data\?connection=[a-z0-9_]+$")
 SENSITIVE_ENVIRONMENT_KEY = re.compile(r"(?:token|secret|password|credential|api.?key)", re.I)
 MAX_PROBE_RECORDS = 128
+VERIFICATION_TARGETS = {"excel", "word", "powerpoint", "wind_excel"}
+VERIFICATION_ITEMS = {
+    "excel": ("excel_app", "excel_automation_bridge"),
+    "word": ("word_app",),
+    "powerpoint": ("powerpoint_app",),
+    "wind_excel": ("wind_terminal", "wind_excel_addin"),
+}
+VERIFICATION_MESSAGES = {
+    "available": ("可用", "已授权", "已验证", "真实打开、操作、保存与重新读取验证已通过。"),
+    "authorization_required": ("待授权", "待授权", "待验证", "需要允许 Research Workbench 控制对应的 Office 应用。"),
+    "login_required": ("未登录", "未登录", "待验证", "已发现组件，但厂商会话尚未登录或不可用。"),
+    "timeout": ("异常", "待验证", "异常", "真实验证超时；相关进程已停止，请确认应用状态后重试。"),
+    "formula_error": ("待验证", "待验证", "未通过", "工作簿已运行，但公式或必需单元格验证未通过。"),
+    "failed": ("异常", "待验证", "异常", "真实验证失败，请查看本地安全日志后重试。"),
+}
 
 
 class LocalIntegrationError(Exception):
@@ -224,11 +240,13 @@ class LocalIntegrationManager:
         *,
         environment: DetectionEnvironment | None = None,
         detector: Callable[[], dict] | None = None,
+        verifier: Callable[[str], dict] | None = None,
         probe_timeout_seconds: float = 10.0,
     ):
         self.state_root = Path(state_root)
         self.environment = environment or DetectionEnvironment.current()
         self.detector = detector
+        self.verifier = verifier
         self.probe_timeout_seconds = max(0.01, float(probe_timeout_seconds))
         self._detector_executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="local-integration-probe"
@@ -237,15 +255,52 @@ class LocalIntegrationManager:
         self.probes: dict[str, dict] = {}
         self.probe_keys: dict[str, str] = {}
         self.probe_tasks: dict[str, asyncio.Task] = {}
+        self.verifications: dict[str, dict] = {}
+        self.verification_keys: dict[str, tuple[str, str]] = {}
+        self.verification_tasks: dict[str, asyncio.Task] = {}
+        self.verification_results: dict[str, dict] = self._load_verification_results()
         self._latest: dict | None = None
 
     @property
     def state_path(self) -> Path:
         return self.state_root / "local-integrations.json"
 
+    def _load_verification_results(self) -> dict[str, dict]:
+        path = self.state_root / "local-integrations.json"
+        try:
+            if not path.exists():
+                return {}
+            metadata = path.lstat()
+            if (
+                path.is_symlink()
+                or not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_size > 1024 * 1024
+            ):
+                raise OSError("unsafe local integration state")
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            values = payload.get("verifications", {})
+            if not isinstance(values, dict):
+                return {}
+            return {
+                target: {
+                    "outcome": value["outcome"],
+                    "completed_at": value["completed_at"],
+                }
+                for target, value in values.items()
+                if target in VERIFICATION_TARGETS
+                and isinstance(value, dict)
+                and value.get("outcome") in VERIFICATION_MESSAGES
+                and isinstance(value.get("completed_at"), str)
+                and len(value["completed_at"]) <= 64
+            }
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            log.warning("local_integration_state_read_failed", error_type=type(exc).__name__)
+            return {}
+
     def snapshot(self, *, persist: bool = True) -> dict:
         try:
             value = self.detector() if self.detector is not None else self._detect()
+            value = self._apply_verification_results(value)
             self._validate_snapshot(value)
             if persist:
                 self._latest = value
@@ -256,6 +311,38 @@ class LocalIntegrationManager:
         except Exception as exc:  # noqa: BLE001 - host inspection is a hard safety boundary.
             log.warning("local_integration_snapshot_failed", error_type=type(exc).__name__)
             raise LocalIntegrationError("本机能力检测失败，请查看本地日志") from exc
+
+    def _apply_verification_results(self, snapshot: dict) -> dict:
+        if not self.verification_results:
+            return snapshot
+        items = {item["id"]: item for item in snapshot.get("items", [])}
+        for target, result in self.verification_results.items():
+            outcome = result.get("outcome", "failed")
+            status, authorization, verification, message = VERIFICATION_MESSAGES.get(
+                outcome, VERIFICATION_MESSAGES["failed"]
+            )
+            checked_at = result.get("completed_at") or snapshot["last_checked_at"]
+            for item_id in VERIFICATION_ITEMS[target]:
+                item = items.get(item_id)
+                if item is None or item.get("discovery") != "已发现":
+                    continue
+                item.update(
+                    status=status,
+                    authorization=authorization,
+                    verification=verification,
+                    callable=outcome == "available",
+                    message=message,
+                    detail="该状态来自显式真实验证，不由软件发现结果推断。",
+                    last_checked_at=checked_at,
+                )
+        snapshot["summary"] = {
+            "available": sum(item["status"] == "可用" for item in snapshot["items"]),
+            "needs_attention": sum(
+                item["status"] not in {"可用", "不适用"} for item in snapshot["items"]
+            ),
+            "total": len(snapshot["items"]),
+        }
+        return snapshot
 
     def _detect(self) -> dict:
         checked_at = _utc_now()
@@ -790,7 +877,11 @@ class LocalIntegrationManager:
             with suppress(OSError):
                 self.state_root.chmod(0o700)
             temporary = self.state_path.with_suffix(f".{uuid4().hex}.tmp")
-            payload = json.dumps({"snapshot": snapshot}, ensure_ascii=False, sort_keys=True)
+            payload = json.dumps(
+                {"snapshot": snapshot, "verifications": self.verification_results},
+                ensure_ascii=False,
+                sort_keys=True,
+            )
             temporary.write_text(payload, encoding="utf-8")
             temporary.chmod(0o600)
             os.replace(temporary, self.state_path)
@@ -868,6 +959,86 @@ class LocalIntegrationManager:
         finally:
             self.probe_tasks.pop(probe_id, None)
 
+    def start_verification(self, target: str, idempotency_key: str) -> dict:
+        if target not in VERIFICATION_TARGETS:
+            raise LocalIntegrationError("本机验证目标无效", "verification_target_invalid", 422)
+        key = f"{target}:{idempotency_key}"
+        existing = self.verification_keys.get(key)
+        if existing:
+            return self._public_verification(self.verifications[existing[1]])
+        if any(not task.done() for task in self.verification_tasks.values()):
+            raise LocalIntegrationError("已有真实验证正在运行，请稍后重试", "verification_busy", 409)
+        verification_id = str(uuid4())
+        record = {
+            "id": verification_id,
+            "target": target,
+            "status": "queued",
+            "created_at": _utc_now(),
+            "completed_at": None,
+        }
+        self.verifications[verification_id] = record
+        self.verification_keys[key] = (target, verification_id)
+        self.verification_tasks[verification_id] = asyncio.create_task(
+            self._run_verification(verification_id), name=f"local-verification-{target}"
+        )
+        log.info("local_integration_verification_started", target=target)
+        return self._public_verification(record)
+
+    async def _run_verification(self, verification_id: str) -> None:
+        record = self.verifications[verification_id]
+        record["status"] = "checking"
+        try:
+            if self.verifier is not None:
+                outcome = await asyncio.to_thread(self.verifier, record["target"])
+            else:
+                from .verifiers import verify_target
+
+                outcome = await asyncio.to_thread(verify_target, record["target"], self.state_root)
+            normalized = outcome.get("outcome") if isinstance(outcome, dict) else None
+            if normalized not in VERIFICATION_MESSAGES:
+                normalized = "failed"
+            completed_at = _utc_now()
+            record.update(status="completed", outcome=normalized, completed_at=completed_at)
+            self.verification_results[record["target"]] = {
+                "outcome": normalized,
+                "completed_at": completed_at,
+            }
+            snapshot = self._apply_verification_results(self._detect())
+            self._validate_snapshot(snapshot)
+            self._latest = snapshot
+            self._persist(snapshot)
+            log.info(
+                "local_integration_verification_completed",
+                target=record["target"],
+                outcome=normalized,
+            )
+        except asyncio.CancelledError:
+            record.update(status="cancelled", completed_at=_utc_now())
+            raise
+        except Exception as exc:  # noqa: BLE001 - normalize process and IO failures.
+            record.update(
+                status="failed",
+                completed_at=_utc_now(),
+                error={"code": "verification_failed", "message": "本机真实验证失败，请查看本地日志"},
+            )
+            log.warning("local_integration_verification_failed", error_type=type(exc).__name__)
+        finally:
+            self.verification_tasks.pop(verification_id, None)
+
+    def verification(self, verification_id: str) -> dict:
+        record = self.verifications.get(verification_id)
+        if record is None:
+            raise LocalIntegrationError("未找到本机验证任务", "verification_not_found", 404)
+        return self._public_verification(record)
+
+    @staticmethod
+    def _public_verification(record: dict) -> dict:
+        return {
+            key: record[key]
+            for key in ("id", "target", "status", "outcome", "created_at", "completed_at", "error")
+            if key in record
+        }
+
     def _prune_probes(self) -> None:
         removable = sorted(
             (
@@ -898,10 +1069,11 @@ class LocalIntegrationManager:
         }
 
     async def close(self) -> None:
-        tasks = list(self.probe_tasks.values())
+        tasks = [*self.probe_tasks.values(), *self.verification_tasks.values()]
         for task in tasks:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         self.probe_tasks.clear()
+        self.verification_tasks.clear()
         self._detector_executor.shutdown(wait=False, cancel_futures=True)

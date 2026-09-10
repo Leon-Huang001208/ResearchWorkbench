@@ -86,6 +86,29 @@ test('local console exposes busy, live-region and safe actions', () => {
   assert.doesNotMatch(unsafe, /evil\.test|坏链接/);
 });
 
+test('eligible Office rows expose explicit verification actions and per-target progress', () => {
+  const expanded = {
+    ...localIntegrations,
+    items: [
+      ...localIntegrations.items,
+      makeItem('word_app', 'office', 'Microsoft Word 应用', '待验证', { discovery: '已发现' }),
+      makeItem('ifind_terminal', 'office', 'iFinD 专业终端', '不适用', {
+        discovery: '不适用', authorization: '不适用', verification: '不适用',
+        actions: [{ id: 'configure', label: '配置 iFinD HTTP API', href: '#/settings/data?connection=ifind' }],
+      }),
+    ],
+    categories: localIntegrations.categories.map((category) => category.id === 'office'
+      ? { ...category, item_ids: [...category.item_ids, 'word_app', 'ifind_terminal'] }
+      : category),
+  };
+  const html = renderLocalIntegrationConsole(expanded, { verificationTarget: 'word' });
+  assert.match(html, /data-local-integration-verify="excel"/);
+  assert.match(html, /data-local-integration-verify="word"[^>]*disabled[^>]*aria-busy="true"[^>]*>验证中…/);
+  assert.match(html, /2026-09-10T00:00:00Z/);
+  assert.doesNotMatch(html, /data-local-integration-verify="ifind/);
+  assert.match(html, /配置 iFinD HTTP API/);
+});
+
 test('settings local section loads the dedicated model while data keeps DataHub connections', () => {
   assert.deepEqual(settingsRefreshCatalogs('data'), ['connections']);
   assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations']);
@@ -124,6 +147,22 @@ test('dedicated API uses idempotency and local probe polling validates responses
   const result = await waitForLocalIntegrationProbe(async () => states.shift(), 'probe-1', { delay: 0 });
   assert.equal(result.status, 'completed');
   await assert.rejects(waitForLocalIntegrationProbe(async () => ({}), 'probe-2', { delay: 0 }), /响应格式异常/);
+});
+
+test('dedicated API starts and polls allowlisted real verifications', async () => {
+  const calls = [];
+  const api = createAPI({ fetcher: async (url, options = {}) => {
+    calls.push([url, options]);
+    return new Response(JSON.stringify({ id: 'verify-1', target: 'excel', status: 'queued' }), { status: 202 });
+  }, logger() {} });
+  await api.verifyLocalIntegration('excel', 'stable-verification-key');
+  await api.localIntegrationVerification('verify/one');
+  assert.deepEqual(calls.map(([url]) => url), [
+    '/api/research/local-integrations/verifications',
+    '/api/research/local-integrations/verifications/verify%2Fone',
+  ]);
+  assert.equal(calls[0][1].headers['Idempotency-Key'], 'stable-verification-key');
+  assert.equal(calls[0][1].body, JSON.stringify({ target: 'excel' }));
 });
 
 test('local-only CSS is compact, responsive and respects 44px targets', async () => {

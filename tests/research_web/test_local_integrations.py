@@ -399,3 +399,117 @@ def test_local_integration_api_requires_idempotency_and_service_close_cleans_tas
         assert client.get("/api/research/local-integrations/probes/not-a-probe").status_code == 404
 
     assert service.local_integrations.probe_tasks == {}
+
+
+def test_verification_is_idempotent_and_success_updates_only_target_items(tmp_path):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    calls = []
+
+    def verifier(target):
+        calls.append(target)
+        return {"outcome": "available", "code": None}
+
+    manager = LocalIntegrationManager(tmp_path / "state", environment=env, verifier=verifier)
+
+    async def run():
+        first = manager.start_verification("excel", "verification-key")
+        second = manager.start_verification("excel", "verification-key")
+        assert second["id"] == first["id"]
+        await manager.verification_tasks[first["id"]]
+        return manager.verification(first["id"]), manager.snapshot(persist=False)
+
+    result, snapshot = asyncio.run(run())
+    assert calls == ["excel"]
+    assert result["status"] == "completed"
+    assert result["target"] == "excel"
+    assert result["outcome"] == "available"
+    assert item(snapshot, "excel_app")["status"] == "可用"
+    assert item(snapshot, "excel_automation_bridge")["status"] == "可用"
+    assert item(snapshot, "word_app")["callable"] is False
+    assert str(tmp_path) not in json.dumps(result, ensure_ascii=False)
+
+    restored = LocalIntegrationManager(tmp_path / "state", environment=env)
+    restored_snapshot = restored.snapshot(persist=False)
+    assert item(restored_snapshot, "excel_app")["status"] == "可用"
+    assert item(restored_snapshot, "excel_app")["last_checked_at"] == result["completed_at"]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "status", "authorization", "verification"),
+    [
+        ("authorization_required", "待授权", "待授权", "待验证"),
+        ("login_required", "未登录", "未登录", "待验证"),
+        ("timeout", "异常", "待验证", "异常"),
+        ("formula_error", "待验证", "待验证", "未通过"),
+        ("failed", "异常", "待验证", "异常"),
+    ],
+)
+def test_verification_failure_outcomes_are_safely_mapped(
+    tmp_path, outcome, status, authorization, verification
+):
+    env = environment(tmp_path)
+    (env.application_roots[0] / "Microsoft Word.app").mkdir()
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        verifier=lambda target: {
+            "outcome": outcome,
+            "code": "vendor-private-detail",
+            "unsafe": str(tmp_path / "secret"),
+        },
+    )
+
+    async def run():
+        started = manager.start_verification("word", f"key-{outcome}")
+        await manager.verification_tasks[started["id"]]
+        return manager.verification(started["id"]), manager.snapshot(persist=False)
+
+    result, snapshot = asyncio.run(run())
+    word = item(snapshot, "word_app")
+    assert word["status"] == status
+    assert word["authorization"] == authorization
+    assert word["verification"] == verification
+    assert word["callable"] is False
+    assert "vendor-private-detail" not in json.dumps(result, ensure_ascii=False)
+    assert str(tmp_path) not in json.dumps(result, ensure_ascii=False)
+
+
+def test_verification_api_rejects_unknown_targets_and_requires_idempotency(tmp_path):
+    service = ResearchService(NativeFixture(), Store(tmp_path / "store"))
+    service.local_integrations = LocalIntegrationManager(
+        tmp_path / "local-state",
+        environment=environment(tmp_path),
+        verifier=lambda target: {"outcome": "available", "code": None},
+    )
+
+    with TestClient(create_app(service)) as client:
+        endpoint = "/api/research/local-integrations/verifications"
+        assert client.post(endpoint, json={"target": "excel"}).status_code == 422
+        assert (
+            client.post(
+                endpoint,
+                json={"target": "arbitrary/path"},
+                headers={"Idempotency-Key": "verification-bad"},
+            ).status_code
+            == 422
+        )
+        accepted = client.post(
+            endpoint,
+            json={"target": "excel"},
+            headers={"Idempotency-Key": "verification-excel"},
+        )
+        assert accepted.status_code == 202
+        verification_id = accepted.json()["id"]
+        for _ in range(20):
+            current = client.get(
+                f"/api/research/local-integrations/verifications/{verification_id}"
+            )
+            if current.json()["status"] not in {"queued", "checking"}:
+                break
+        assert current.json()["status"] == "completed"
+        assert current.json()["outcome"] == "available"
+        assert (
+            client.get("/api/research/local-integrations/verifications/not-found").status_code
+            == 404
+        )
