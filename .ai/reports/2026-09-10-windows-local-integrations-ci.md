@@ -12,7 +12,7 @@
 - 原生 runner 能证明 Windows 代码路径、注册信息读取、回环服务和探测生命周期可运行。
 - GitHub runner 不代表真实用户已安装或登录 Office、Wind、iFinD；这些项目不得因 CI 通过而标记可调用。
 - 真实厂商登录、COM 自动化和工作簿刷新属于后续实现与专用 Windows 验收范围。
-- DataHub 全量 Windows 兼容性不由该专项作业代替；首轮执行暴露的 `os.O_DIRECTORY` 历史兼容问题另行处理，不将其误报为本机集成失败或已验证。
+- DataHub 全量 Windows 兼容性不由该专项作业代替；第二轮执行暴露的启动控制文件 `os.O_DIRECTORY` 兼容问题已按固定路径安全回退修复，会话快照与连接写入仍不在本专项结论内。
 
 ## 预期验证
 
@@ -26,6 +26,7 @@
 | `.github/workflows/research-web-windows-verify.yml`：原生 Windows 测试、回环服务与探测冒烟 | `tests/research_web/test_local_integrations.py` 静态契约及 Windows-only 真实主机检测 | `docs/research-web.md` | 本地相关 Python 107 项通过、1 项因非 Windows 跳过，JavaScript 14 项通过；原生结论等待本次 GitHub Actions |
 | Windows-only 主机检测测试：实际调用 `DetectionEnvironment.current()` 与注册信息读取 | 同文件 Windows-only 测试 | 本报告 | macOS 仅确认跳过契约；必须由 `windows-2022` 实际通过后才能验收 |
 | Research Web 启动索引、能力种子与 Workflow 目录显式 UTF-8 | 本机集成 API 初始化与 Windows 回环服务启动 | `docs/research-web.md`、`docs/architecture/research-web/07-capabilities.md` | 首轮 Windows CI 发现 CP1252 解码失败；修复后等待原生复验 |
+| Windows DataHub 启动控制文件安全回退 | `test_windows_control_fallback_preserves_token_and_rejects_reparse_points` 与 Windows 服务启动 | `docs/ARCHITECTURE.md`、`docs/DEVELOPMENT_MAP.md`、DataHub 文档 | 第二轮 CI 已证明中文能力装载完成，随后发现 POSIX 专属目录标志；修复后等待第三轮原生复验 |
 
 ## 本地预检
 

@@ -54,6 +54,10 @@ Research Web 启动时读取的产品索引、能力种子与 Report Workflow �
 GitHub runner 未预装厂商软件时，结果只证明 Windows 检测链路和服务可运行，不证明
 Office、Wind 或 iFinD 已登录或可调用。
 
+Windows 不支持 POSIX 的目录描述符标志；服务启动所需的 DataHub 私有控制文件因此使用专用
+路径回退，并在读写前拒绝符号链接/重解析点、越界目录、非普通文件、硬链接和超限内容。
+DataHub 会话快照与连接配置写入的完整 Windows 兼容性不在本机集成专项结论内。
+
 ## 数据与模块
 
 - `client.py`：允许列表 RPC、关联 ID 检查、双下行通道和历史分页。HTTP 超时只限制受理，不限制任务时长。

@@ -284,6 +284,26 @@ def test_private_configuration_rejects_links_permissions_and_remote_addresses(hu
             hub_module.load_control(tmp_path / "new", url)
 
 
+def test_windows_control_fallback_preserves_token_and_rejects_reparse_points(tmp_path):
+    security = importlib.import_module("app.research_web.datahub.security")
+    root = tmp_path / "windows-control"
+    first = security._windows_control(root, "http://127.0.0.1:18088")
+    second = security._windows_control(root, None)
+
+    assert second == first
+    assert len(first["token"]) >= 43
+
+    path = root / ".control" / "datahub.json"
+    original = root / "control-original.json"
+    path.replace(original)
+    try:
+        path.symlink_to(original)
+    except OSError:
+        pytest.skip("host does not allow symlink creation")
+    with pytest.raises(StoreError):
+        security._windows_control(root, None)
+
+
 @pytest.mark.asyncio
 async def test_provider_size_deadline_and_page_cap(hub_module, tmp_path, monkeypatch):
     providers = importlib.import_module("app.research_web.datahub.providers")
