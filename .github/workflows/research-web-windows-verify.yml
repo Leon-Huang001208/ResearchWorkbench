@@ -1,0 +1,171 @@
+name: Research Web Windows Verify
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "app/research_web/local_integrations/**"
+      - "app/research_web/main.py"
+      - "app/research_web/service.py"
+      - "app/research_web/ui/app.mjs"
+      - "app/research_web/ui/appearance.css"
+      - "app/research_web/ui/connections.mjs"
+      - "app/research_web/ui/core.mjs"
+      - "app/research_web/ui/settings.mjs"
+      - "tests/research_web/test_local_integrations.py"
+      - "tests/javascript/research_web_local_integrations_ui.test.mjs"
+      - "tests/javascript/research_web_settings_ui.test.mjs"
+      - "pyproject.toml"
+      - ".github/workflows/research-web-windows-verify.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "app/research_web/local_integrations/**"
+      - "app/research_web/main.py"
+      - "app/research_web/service.py"
+      - "app/research_web/ui/app.mjs"
+      - "app/research_web/ui/appearance.css"
+      - "app/research_web/ui/connections.mjs"
+      - "app/research_web/ui/core.mjs"
+      - "app/research_web/ui/settings.mjs"
+      - "tests/research_web/test_local_integrations.py"
+      - "tests/javascript/research_web_local_integrations_ui.test.mjs"
+      - "tests/javascript/research_web_settings_ui.test.mjs"
+      - "pyproject.toml"
+      - ".github/workflows/research-web-windows-verify.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-web-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-local-integrations:
+    name: Windows local integrations
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install project test environment
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run local integration contracts on Windows
+        run: >-
+          python -m pytest
+          tests/research_web/test_local_integrations.py
+          tests/research_web/test_api.py
+          tests/research_web/test_connection_center.py
+          --confcutdir=tests/research_web
+          -q
+
+      - name: Run local integration UI contracts on Windows
+        run: >-
+          node --test
+          tests/javascript/research_web_local_integrations_ui.test.mjs
+          tests/javascript/research_web_settings_ui.test.mjs
+
+      - name: Smoke test Windows loopback service and probe
+        shell: pwsh
+        env:
+          RESEARCH_DATA_HOME: ${{ runner.temp }}/research-web-windows-state
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $artifactRoot = Join-Path $env:RUNNER_TEMP 'research-web-windows-evidence'
+          New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+          $stdoutPath = Join-Path $artifactRoot 'server.stdout.log'
+          $stderrPath = Join-Path $artifactRoot 'server.stderr.log'
+          $resultPath = Join-Path $artifactRoot 'local-integrations.json'
+          $server = $null
+
+          try {
+            $server = Start-Process -FilePath 'python' -ArgumentList @(
+              '-m', 'uvicorn', 'app.research_web.main:app',
+              '--host', '127.0.0.1', '--port', '8088'
+            ) -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+
+            $snapshot = $null
+            for ($attempt = 1; $attempt -le 60; $attempt++) {
+              if ($server.HasExited) {
+                break
+              }
+              try {
+                $snapshot = Invoke-RestMethod -Uri 'http://127.0.0.1:8088/api/research/local-integrations' -TimeoutSec 2
+                if ($snapshot.platform -eq 'windows' -and $snapshot.service.online -eq $true) {
+                  break
+                }
+              } catch {
+                $snapshot = $null
+              }
+              Start-Sleep -Seconds 1
+            }
+
+            if ($null -eq $snapshot) {
+              throw 'Research Web local integration endpoint did not become ready'
+            }
+            if ($snapshot.platform -ne 'windows') {
+              throw "Expected Windows projection, received $($snapshot.platform)"
+            }
+            if ($snapshot.service.online -ne $true) {
+              throw 'Windows loopback service did not report online'
+            }
+
+            $headers = @{ 'Idempotency-Key' = "windows-ci-$([guid]::NewGuid())" }
+            $probe = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8088/api/research/local-integrations/probes' -Headers $headers -TimeoutSec 5
+            $probeResult = $null
+            for ($attempt = 1; $attempt -le 30; $attempt++) {
+              $probeResult = Invoke-RestMethod -Uri "http://127.0.0.1:8088/api/research/local-integrations/probes/$($probe.id)" -TimeoutSec 5
+              if ($probeResult.status -notin @('queued', 'checking')) {
+                break
+              }
+              Start-Sleep -Milliseconds 500
+            }
+            if ($null -eq $probeResult -or $probeResult.status -ne 'completed') {
+              throw 'Windows local integration probe did not complete successfully'
+            }
+
+            $wind = $snapshot.items | Where-Object { $_.id -eq 'wind_terminal' } | Select-Object -First 1
+            $ifind = $snapshot.items | Where-Object { $_.id -eq 'ifind_terminal' } | Select-Object -First 1
+            [ordered]@{
+              platform = $snapshot.platform
+              service_online = $snapshot.service.online
+              available = $snapshot.summary.available
+              needs_attention = $snapshot.summary.needs_attention
+              wind_discovery = $wind.discovery
+              wind_callable = $wind.callable
+              ifind_discovery = $ifind.discovery
+              ifind_callable = $ifind.callable
+              probe_status = $probeResult.status
+            } | ConvertTo-Json | Set-Content -LiteralPath $resultPath -Encoding utf8
+          } finally {
+            if ($null -ne $server -and -not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+              $server.WaitForExit(10000) | Out-Null
+            }
+          }
+
+      - name: Upload Windows verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-web-windows-local-integrations-${{ github.run_id }}
+          path: ${{ runner.temp }}/research-web-windows-evidence
+          if-no-files-found: error
+          retention-days: 14

@@ -41,6 +41,15 @@ Fork 维护约定：`Leon-Huang001208/deepseek-harness` 的 `master` 只用
 `workbench-runtime` 提交变化，都必须同步本文件、启动器与能力目录的固定 SHA、私有运行副本和
 `build-lock.json`。若官方提供等价永久删除能力，应移除重复补丁，只保留必要的 Workbench 兼容桥。
 
+## Windows 本机集成验证
+
+本机集成诊断由 `.github/workflows/research-web-windows-verify.yml` 在原生
+`windows-2022` runner 上验证。作业运行本机集成/API 与页面契约回归，实际启动回环服务、
+调用专用状态接口并完成一次探测，再上传仅含平台、汇总及 Wind/iFinD 非秘密状态的证据。
+
+GitHub runner 未预装厂商软件时，结果只证明 Windows 检测链路和服务可运行，不证明
+Office、Wind 或 iFinD 已登录或可调用。
+
 ## 数据与模块
 
 - `client.py`：允许列表 RPC、关联 ID 检查、双下行通道和历史分页。HTTP 超时只限制受理，不限制任务时长。
