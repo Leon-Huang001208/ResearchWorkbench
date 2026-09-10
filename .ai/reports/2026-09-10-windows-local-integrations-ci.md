@@ -13,6 +13,7 @@
 - GitHub runner 不代表真实用户已安装或登录 Office、Wind、iFinD；这些项目不得因 CI 通过而标记可调用。
 - 真实厂商登录、COM 自动化和工作簿刷新属于后续实现与专用 Windows 验收范围。
 - DataHub 全量 Windows 兼容性不由该专项作业代替；第二轮执行暴露的启动控制文件 `os.O_DIRECTORY` 兼容问题已按固定路径安全回退修复，会话快照与连接写入仍不在本专项结论内。
+- 专项冒烟使用一次性、无厂商权限的回环 DSH 认证元数据启动应用生命周期；它不证明 `127.0.0.1:3081` 上存在 DSH 服务，也不会把 DSH 或厂商集成标记为可用。
 
 ## 预期验证
 
@@ -27,6 +28,7 @@
 | Windows-only 主机检测测试：实际调用 `DetectionEnvironment.current()` 与注册信息读取 | 同文件 Windows-only 测试 | 本报告 | macOS 仅确认跳过契约；必须由 `windows-2022` 实际通过后才能验收 |
 | Research Web 启动索引、能力种子与 Workflow 目录显式 UTF-8 | 本机集成 API 初始化与 Windows 回环服务启动 | `docs/research-web.md`、`docs/architecture/research-web/07-capabilities.md` | 首轮 Windows CI 发现 CP1252 解码失败；修复后等待原生复验 |
 | Windows DataHub 启动控制文件安全回退 | `test_windows_control_fallback_preserves_token_and_rejects_reparse_points` 与 Windows 服务启动 | `docs/ARCHITECTURE.md`、`docs/DEVELOPMENT_MAP.md`、DataHub 文档 | 第二轮 CI 已证明中文能力装载完成，随后发现 POSIX 专属目录标志；修复后等待第三轮原生复验 |
+| Windows CI 回环认证元数据 | 静态契约检查文件位置、占位令牌与私有权限；真实启动仍由 `windows-2022` 冒烟验证 | `docs/research-web.md` | 第三轮 CI `34444138805` 的 Python 本机集成测试和 JavaScript UI 契约均通过，服务冒烟仅因独立 runner 缺少 DSH 认证控制文件失败；补齐安全测试夹具后等待复验 |
 
 ## 本地预检
 

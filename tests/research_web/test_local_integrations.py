@@ -212,6 +212,9 @@ def test_windows_ci_runs_native_contracts_and_loopback_probe():
     assert "tests/research_web/test_connection_center.py" not in workflow
     assert "tests/javascript/research_web_local_integrations_ui.test.mjs" in workflow
     assert "app.research_web.main:app" in workflow
+    assert "RESEARCH_RUNTIME_AUTH" in workflow
+    assert "dsh-auth-ci-placeholder" in workflow
+    assert "os.chmod(os.environ['RESEARCH_RUNTIME_AUTH'], 0o600)" in workflow
     assert "http://127.0.0.1:8088/api/research/local-integrations" in workflow
     assert "local-integrations/probes" in workflow
     assert "snapshot.platform -ne 'windows'" in workflow
