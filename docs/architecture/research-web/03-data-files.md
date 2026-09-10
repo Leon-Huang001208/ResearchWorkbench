@@ -31,6 +31,8 @@ DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运
 
 `report_workflows/tooling.py` 只从刷新后的运行副本提取有界内容，并一次性生成 `report-data.json` 共享快照及 SHA-256。Claw 父任务和至少两个真实子 Agent 读取同一快照，不重复刷新。模型只负责生成会话自有的 `report_payload.json`；即使 Claw 提前创建了同名 Office 文件，Report Workflow 也必须经 `report_rendering.py` 与 `report_render_script.py` 做确定性模板组装，再由独立交付检查重开文件、检查 HTML 非空、占位符、数据日期和文件哈希。PPTX 占位符按段落合并 `<a:t>` 文本片段后替换和检查，跨文本片段的残留同样会被拒绝。Payload 可按 `*_blocks` 家族组织，但显式 `missing` 始终优先于解释文字：缺失区块可显示原因，不能因此通过完整交付门禁。Claw 回合结束只进入交付检查，缺 Payload、投影失败、必需区块或约定格式时保持 `delivery_incomplete`。
 
+本机集成真实验证只读取已发布 Workflow 的版本清单与工作簿策略，把母版复制到一次性运行目录后刷新；它不把验证副本写回版本资源。iFinD HTTP 探测继续读取 DataHub 的非秘密配置与系统凭据库秘密，按登录、健康、最小只读查询、登出的顺序执行，响应和日志均不包含令牌。
+
 如果 Payload 晚于父回合结束才写入，重试仅在当前会话和当前 Run 的文件边界内查找新建或更新文件，直接恢复确定性组装，不再刷新 Excel 或重启 Claw。旧历史产物、附件和运行前已有文件均不计入本次交付。
 
 ## 研究台查询与交接

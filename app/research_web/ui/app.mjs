@@ -1,4 +1,4 @@
-import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForLocalIntegrationProbe } from './core.mjs';
+import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
 import { icon } from './icons.mjs';
@@ -15,7 +15,7 @@ import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
-import { buildConfigurationPayload } from './connections.mjs';
+import { buildConfigurationPayload, createLocalIntegrationPollingGuard } from './connections.mjs';
 import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 
 const api = createAPI();
@@ -32,7 +32,7 @@ let assetState = { observations: [], observation: null, rows: {}, watchlists: []
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
-let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false;
+let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = '';
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -46,6 +46,9 @@ const controller = createController({ api, onNavigate: (hash) => { history.pushS
 const state = controller.state;
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
 const capabilityState = capabilityController.state;
+const localIntegrationPollingGuard = createLocalIntegrationPollingGuard(
+  () => state.route.page === 'settings' && currentSettingsSection() === 'local',
+);
 
 function runtimeLabel() {
   if (!catalog.runtime) return 'DSH 未连接';
@@ -184,10 +187,11 @@ function settingsPage() {
     tabbit: catalog.tabbit,
     models: catalog.models,
     runtimeLabel: runtimeLabel(),
-    busy: state.busy || connectionProbeBusy || localIntegrationProbeBusy,
+    busy: state.busy || connectionProbeBusy || localIntegrationProbeBusy || Boolean(localVerificationTarget),
     modelFailures: catalog.modelFailures,
     connections: catalog.connections,
     localIntegrations: catalog.localIntegrations,
+    localVerificationTarget,
     selectedConfiguration: selectedConnectionConfiguration,
     migrationOpen,
     connectionDetailOpen,
@@ -508,6 +512,8 @@ async function loadAssetWorkspace() {
 }
 
 async function showRoute() {
+  localIntegrationPollingGuard.invalidate();
+  localVerificationTarget = '';
   const legacyTarget = legacyRouteTarget(location.hash);
   if (legacyTarget) {
     history.replaceState(null, '', legacyTarget);
@@ -1171,6 +1177,43 @@ root.addEventListener('click', async (event) => {
     }
     return;
   }
+  if ('localIntegrationVerify' in data) {
+    const target = data.localIntegrationVerify;
+    const labels = { excel: 'Excel', word: 'Word', powerpoint: 'PowerPoint', wind_excel: 'Wind Excel' };
+    if (!(target in labels)) return;
+    const verificationTicket = localIntegrationPollingGuard.begin();
+    state.error = ''; success = ''; localVerificationTarget = target; render();
+    try {
+      const accepted = await api.verifyLocalIntegration(target, `local-verification-${target}-${crypto.randomUUID()}`);
+      if (!localIntegrationPollingGuard.isCurrent(verificationTicket)) return;
+      if (typeof accepted?.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的验证任务，请刷新后重试。');
+      const current = await waitForLocalIntegrationVerification(
+        async (verificationId) => {
+          if (!localIntegrationPollingGuard.isCurrent(verificationTicket)) return { status: 'cancelled' };
+          const result = await api.localIntegrationVerification(verificationId);
+          return localIntegrationPollingGuard.isCurrent(verificationTicket) ? result : { status: 'cancelled' };
+        },
+        accepted.id,
+        { maxAttempts: 740, delay: 250 },
+      );
+      if (!localIntegrationPollingGuard.isCurrent(verificationTicket)) return;
+      if (current.status !== 'completed') throw new Error(current?.error?.message || '本机真实验证未完成。');
+      await loadCatalog(['localIntegrations']);
+      if (!localIntegrationPollingGuard.isCurrent(verificationTicket)) return;
+      success = current.outcome === 'available'
+        ? `${labels[target]} 真实验证通过。`
+        : `${labels[target]} 验证完成，请根据状态说明处理。`;
+    } catch (error) {
+      if (!localIntegrationPollingGuard.isCurrent(verificationTicket)) return;
+      state.error = error?.message || '本机真实验证失败，请重试。';
+      safeLog('local_integration_verification_failed', { status: error?.code || error?.name || 'unknown' });
+    } finally {
+      if (localIntegrationPollingGuard.isCurrent(verificationTicket)) {
+        localVerificationTarget = ''; render();
+      }
+    }
+    return;
+  }
   if ('accountAdd' in data) {
     const accounts = Array.isArray(selectedConnectionConfiguration?.accounts) ? selectedConnectionConfiguration.accounts : [];
     selectedConnectionConfiguration = { ...(selectedConnectionConfiguration || {}), accounts: [...accounts, { id: `account-${accounts.length + 1}`, username: '' }] };
@@ -1238,6 +1281,10 @@ root.addEventListener('click', async (event) => {
     else if (state.route.page === 'history' && state.route.historyView === 'deleted') await loadCatalog(['deletedSessions']);
     else if (state.route.page === 'settings') {
       const section = currentSettingsSection();
+      if (section === 'local') {
+        localIntegrationPollingGuard.invalidate();
+        localVerificationTarget = '';
+      }
       if (section === 'data') selectedConnectionConfiguration = null;
       const catalogs = settingsRefreshCatalogs(section);
       if (catalogs.length) await loadCatalog(catalogs);

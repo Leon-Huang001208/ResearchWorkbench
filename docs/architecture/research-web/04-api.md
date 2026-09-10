@@ -76,6 +76,8 @@ Automation 仍属 Phase 2B/2C，在对应持久模型和安全边界落地前不
 | GET | `/api/research/local-integrations` | `app/research_web/local_integrations/routes.py` |
 | POST | `/api/research/local-integrations/probes` | `app/research_web/local_integrations/routes.py` |
 | GET | `/api/research/local-integrations/probes/{probe_id}` | `app/research_web/local_integrations/routes.py` |
+| POST | `/api/research/local-integrations/verifications` | `app/research_web/local_integrations/routes.py` |
+| GET | `/api/research/local-integrations/verifications/{verification_id}` | `app/research_web/local_integrations/routes.py` |
 | GET | `/api/research/data/catalog` | `app/research_web/datahub/routes.py` |
 | GET | `/api/research/data/capabilities/{capability_id}` | `app/research_web/datahub/routes.py` |
 | GET | `/api/research/data/sources/{source_id}` | `app/research_web/datahub/routes.py` |
@@ -161,6 +163,7 @@ Automation 仍属 Phase 2B/2C，在对应持久模型和安全边界落地前不
 - `GET /data/catalog` 与详情接口只读取静态目录；`POST /data/sources/{id}/probes` 才检测一个指定来源，使用 `Idempotency-Key` 去重。探测结果只返回安全化错误码和耗时，不返回凭据或上游正文。
 - `GET /data/connections` 汇总 22 个来源的配置、检测、适配和可调用状态；通用 configuration 接口只回传非秘密字段与 `secret_configured`。旧环境迁移必须先预览、再携带明确来源与二次确认执行，任一步失败均补偿恢复配置、凭据和 `.env`。
 - `GET /local-integrations` 返回本机集成的安全四维状态；`POST /local-integrations/probes` 要求 `Idempotency-Key` 并返回 202 与独立任务 ID，查询接口只返回安全化状态或错误。服务端只允许一个真实探测执行，使用固定字段与安全操作路由白名单，并对无副作用检测设置时限；超时结果不会落盘。v0 探测不启动软件，不返回命中路径、注册表值、命令参数或环境变量。
+- `POST /local-integrations/verifications` 仅接受 Excel、Word、PowerPoint 与 Wind Excel 白名单目标并要求 `Idempotency-Key`；查询接口返回安全化进度与结果。验证只操作服务生成的临时文件或已管理报告版本的副本，Office/Wind 进程及超时清理由服务端绑定本轮身份管理。
 - 研究取数只使用 `internal/data/business-query`，接受稳定业务能力、白名单来源 ID 和能力限定参数；旧产品前缀工具及其平行查询接口已经移除。浏览器不能直接调用 internal 入口。
 - 研究台查询和交接均使用 `Idempotency-Key` 并经过串行准入。交接在创建目标会话前验证请求中的数据集归属，并限制页面上下文为 64 KiB；查询受理或 DSH 回合结束均不等于报告交付完成。
 - 报告 Workflow API 管理具体报告版本包；运行只允许已启用且有当前版本的项目。`report-projects` 是迁移期后端兼容接口，没有独立产品导航或第二执行引擎，新页面只使用 `report-workflows`。

@@ -39,3 +39,9 @@ class IFinDRateLimitError(IFinDError):
     """iFinD 限流异常"""
 
     pass
+
+
+class IFinDPermissionError(IFinDError):
+    """iFinD 账号无权访问所请求的数据能力。"""
+
+    pass

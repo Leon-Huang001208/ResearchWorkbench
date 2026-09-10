@@ -1066,7 +1066,9 @@ body { line-height: 1.5; }
 .local-integration-identity > div > strong { font-size: 13px; font-weight: 650; }
 .local-integration-identity p { margin: 6px 0 0; color: var(--text); font-size: 12px; line-height: 1.5; }
 .local-integration-identity > small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.local-integration-identity > time { display: block; margin-top: 5px; color: var(--muted); font-family: var(--font-mono); font-size: 10px; }
 .local-integration-identity .button-row { margin-top: 10px; }
+.local-integration-verify { min-height: 44px; }
 .local-integration-truths { display: grid; grid-template-columns: repeat(4, minmax(80px, 1fr)); gap: 12px; }
 .local-integration-truths > span { display: grid; gap: 4px; justify-items: center; text-align: center; }
 .local-integration-truths small { display: none; color: var(--muted); font-size: 10px; }

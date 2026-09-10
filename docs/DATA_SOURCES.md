@@ -20,6 +20,8 @@ Research Workbench支持多数据源，按优先级自动切换。
 Wind 适配器通过 xlwings 操控 macOS Excel 中的 Wind 插件获取数据，是项目唯一能获取**一致预期（分析师预测）**、**融资融券**、**龙虎榜**、**日行情（含 adj_close/adj_factor/vwap）**、**财务报表**、**行业分类（申万）**、**资金流向**、**持有人结构**八类高价值投研数据的来源。使用前需确保 Excel 已启动且 Wind 插件已登录。
 降级策略由 `core/connectors/registry.py` 的 `ConnectorRegistry.run_with_fallback()` 实现，按注册优先级依次尝试，所有数据源都失败时返回 `insufficient_evidence` 标记。
 
+iFinD 在当前 Research Web 中区分 HTTP 与本地 SDK：macOS 使用用户在数据源设置页保存的 HTTP Base/mailbox 配置与系统凭据库密码；探测必须依次通过登录、健康、最小只读数据查询和会话关闭，空数据或授权失败不会标记健康。Windows/Linux 的 SDK 属于独立厂商依赖，不随项目分发，也不能由普通同花顺客户端推断为可用。
+
 ### 新闻/研报数据源（源注册表 + 自动发现）
 
 所有爬取数据源通过 `core/source_registry.py` 的 `SourceSpec` 自描述注册，`data_sources/__init__.py` 使用 `pkgutil.iter_modules` 自动发现模块。添加新来源 = 在 `data_sources/` 下新建一个 `.py` 文件，无需修改任何其他代码。

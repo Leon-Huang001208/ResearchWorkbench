@@ -81,6 +81,7 @@ export async function waitForDataProbe(getProbe, probeId, { maxAttempts = 40, de
 }
 
 export const waitForLocalIntegrationProbe = waitForDataProbe;
+export const waitForLocalIntegrationVerification = waitForDataProbe;
 
 // Never log prompts, response bodies, filenames, credentials or session identifiers.
 export function safeLog(event, metadata = {}) {
@@ -155,6 +156,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     localIntegrations: () => request('/local-integrations'),
     probeLocalIntegrations: (key) => request('/local-integrations/probes', { method: 'POST', body: {}, key }),
     localIntegrationProbe: (id) => request(`/local-integrations/probes/${segment(id)}`),
+    verifyLocalIntegration: (target, key) => request('/local-integrations/verifications', { method: 'POST', body: { target }, key }),
+    localIntegrationVerification: (id) => request(`/local-integrations/verifications/${segment(id)}`),
     sourceConfiguration: (id) => request(`/data/sources/${segment(id)}/configuration`),
     saveSourceConfiguration: (id, body) => request(`/data/sources/${segment(id)}/configuration`, { method: 'PUT', body }),
     deleteSourceConfiguration: (id) => request(`/data/sources/${segment(id)}/configuration`, { method: 'DELETE' }),

@@ -231,6 +231,19 @@ Update this section when:
 - New data category method is added.
 - Insufficient evidence fallback behavior changes.
 
+### `data_layer/adapters/ifind/` — iFinD HTTP 数据接口
+
+Purpose:
+
+- `http_client.py` 使用调用方提供的 Base URL、用户名和凭据库密码执行登录、健康检查、最小只读数据查询与会话关闭。
+- `exceptions.py` 将认证、权限、限流、超时、协议和传输失败映射为稳定异常；日志和前端投影不返回 Token、密码或厂商原始响应正文。
+- macOS 只走 HTTP 路径；本地 SDK 的平台发现与安装状态独立处理，普通同花顺客户端不等于 iFinD 数据接口。
+
+Update this section when:
+
+- iFinD HTTP 登录、查询或关闭契约变化。
+- 新增 SDK 平台支持或改变秘密存储边界。
+
 ---
 
 ### `data_layer/adapters/wind/` — Wind Excel 适配器

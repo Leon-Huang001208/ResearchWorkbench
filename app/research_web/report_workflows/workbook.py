@@ -12,6 +12,7 @@ import queue
 import re
 import shutil
 import signal
+import subprocess
 import sys
 import tempfile
 import threading
@@ -22,7 +23,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path, PurePosixPath
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 from uuid import uuid4
 from xml.etree import ElementTree
 
@@ -42,9 +43,7 @@ from .models import (
 log = get_logger(__name__)
 _EXCEL_REFRESH_LOCK = threading.Lock()
 _TARGET_LOCKS_GUARD = threading.Lock()
-_TARGET_LOCKS: weakref.WeakValueDictionary[str, threading.Lock] = (
-    weakref.WeakValueDictionary()
-)
+_TARGET_LOCKS: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
 _MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 _DOC_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 _PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
@@ -53,9 +52,7 @@ _WIND_PATTERN = re.compile(
     r"\b(?:WSD|WSS|WSI|WSET|WST|WQID|WPF|EDB|S_(?:INFO|WQ)_[A-Z0-9_]+)\s*\(",
     re.IGNORECASE,
 )
-_IFIND_PATTERN = re.compile(
-    r"\b(?:THS(?:_[A-Z0-9]+)?|THSIFIND|IFIND)\s*\(", re.IGNORECASE
-)
+_IFIND_PATTERN = re.compile(r"\b(?:THS(?:_[A-Z0-9]+)?|THSIFIND|IFIND)\s*\(", re.IGNORECASE)
 _MAX_ZIP_MEMBERS = 512
 _MAX_ZIP_MEMBER = 32 * 1024 * 1024
 _MAX_ZIP_EXPANDED = 96 * 1024 * 1024
@@ -92,11 +89,7 @@ def _safe_xlsx(path: Path) -> Path:
         resolved = path.resolve(strict=True)
     except (OSError, RuntimeError) as exc:
         raise WorkflowError("工作簿不可读取", "workbook_unreadable", 400) from exc
-    if (
-        path.is_symlink()
-        or not resolved.is_file()
-        or resolved.suffix.lower() != ".xlsx"
-    ):
+    if path.is_symlink() or not resolved.is_file() or resolved.suffix.lower() != ".xlsx":
         raise WorkflowError("工作簿不可读取", "workbook_unreadable", 400)
     return resolved
 
@@ -182,23 +175,17 @@ def _file_lock(
             try:
                 _unlock_stream(stream)
             except OSError as exc:
-                log.warning(
-                    "report_refresh_lock_release_failed", error_type=type(exc).__name__
-                )
+                log.warning("report_refresh_lock_release_failed", error_type=type(exc).__name__)
         if stream is not None:
             try:
                 stream.close()
             except OSError as exc:
-                log.warning(
-                    "report_refresh_lock_close_failed", error_type=type(exc).__name__
-                )
+                log.warning("report_refresh_lock_close_failed", error_type=type(exc).__name__)
         elif descriptor is not None:
             try:
                 os.close(descriptor)
             except OSError as exc:
-                log.warning(
-                    "report_refresh_lock_close_failed", error_type=type(exc).__name__
-                )
+                log.warning("report_refresh_lock_close_failed", error_type=type(exc).__name__)
         if thread_locked:
             thread_lock.release()
 
@@ -213,9 +200,7 @@ def _open_archive(path: Path):
         members = archive.infolist()
         names = [member.filename for member in members]
         if len(members) > _MAX_ZIP_MEMBERS or len(names) != len(set(names)):
-            raise WorkflowError(
-                "工作簿压缩包超出安全限制", "unsafe_workbook_archive", 422
-            )
+            raise WorkflowError("工作簿压缩包超出安全限制", "unsafe_workbook_archive", 422)
         expanded = 0
         for member in members:
             name = PurePosixPath(member.filename)
@@ -229,9 +214,7 @@ def _open_archive(path: Path):
                 or expanded > _MAX_ZIP_EXPANDED
                 or ratio > _MAX_ZIP_RATIO
             ):
-                raise WorkflowError(
-                    "工作簿压缩包超出安全限制", "unsafe_workbook_archive", 422
-                )
+                raise WorkflowError("工作簿压缩包超出安全限制", "unsafe_workbook_archive", 422)
         yield archive
     finally:
         archive.close()
@@ -256,9 +239,7 @@ def scan_workbook_formulas(path: Path) -> WorkbookFormulaScan:
                     continue
                 root = _xml_member(archive, name)
                 formulas.extend(
-                    node.text or ""
-                    for node in root.iter(f"{{{_MAIN_NS}}}f")
-                    if node.text
+                    node.text or "" for node in root.iter(f"{{{_MAIN_NS}}}f") if node.text
                 )
     except (OSError, zipfile.BadZipFile, KeyError, ElementTree.ParseError) as exc:
         log.warning("report_workbook_scan_failed", error_type=type(exc).__name__)
@@ -371,19 +352,26 @@ def read_cached_workbook(path: Path) -> tuple[dict[str, Any], list[str], bool]:
 class WorkbookProviderProtocol(Protocol):
     provider_id: str
 
-    def readiness(self) -> dict[str, Any]: ...
+    def readiness(self) -> dict[str, Any]:
+        ...
 
-    def open_workbook(self, path: Path) -> Any: ...
+    def open_workbook(self, path: Path) -> Any:
+        ...
 
-    def refresh_all(self, handle: Any) -> None: ...
+    def refresh_all(self, handle: Any) -> None:
+        ...
 
-    def calculate_full(self, handle: Any) -> None: ...
+    def calculate_full(self, handle: Any) -> None:
+        ...
 
-    def read_cells(self, handle: Any, references: list[str]) -> dict[str, Any]: ...
+    def read_cells(self, handle: Any, references: list[str]) -> dict[str, Any]:
+        ...
 
-    def save(self, handle: Any) -> None: ...
+    def save(self, handle: Any) -> None:
+        ...
 
-    def close(self, handle: Any) -> None: ...
+    def close(self, handle: Any) -> None:
+        ...
 
 
 class XlwingsExcelProvider:
@@ -394,6 +382,10 @@ class XlwingsExcelProvider:
     def __init__(self) -> None:
         self._xlwings = None
         self._app = None
+        self._process_reporter: Callable[[dict[str, Any]], None] | None = None
+
+    def set_process_reporter(self, reporter: Callable[[dict[str, Any]], None] | None) -> None:
+        self._process_reporter = reporter
 
     @staticmethod
     def _activate_macos_appscript_compat() -> None:
@@ -405,10 +397,7 @@ class XlwingsExcelProvider:
         no macOS engine.
         """
 
-        if (
-            sys.platform != "darwin"
-            or importlib.util.find_spec("appscript") is not None
-        ):
+        if sys.platform != "darwin" or importlib.util.find_spec("appscript") is not None:
             return
         prefix = Path(sys.prefix).resolve()
         for entry in tuple(sys.path):
@@ -439,6 +428,12 @@ class XlwingsExcelProvider:
                 raise RuntimeError(readiness["code"])
         self._app = self._xlwings.App(visible=False, add_book=False)
         try:
+            excel_pid = getattr(self._app, "pid", None)
+            if isinstance(excel_pid, int) and excel_pid > 1 and self._process_reporter is not None:
+                identity = _capture_excel_process_identity(excel_pid)
+                if identity is None:
+                    raise RuntimeError("excel_process_identity_unavailable")
+                self._process_reporter(identity)
             # Opening external links can display a modal prompt before the
             # controlled refresh begins.  The provider add-in performs the
             # refresh explicitly in the next phase instead.
@@ -460,11 +455,7 @@ class XlwingsExcelProvider:
 
     def calculate_full(self, handle: Any) -> None:
         app_api = getattr(getattr(handle, "app", None), "api", None)
-        method = (
-            "calculate_full_rebuild"
-            if sys.platform == "darwin"
-            else "CalculateFullRebuild"
-        )
+        method = "calculate_full_rebuild" if sys.platform == "darwin" else "CalculateFullRebuild"
         calculate = getattr(app_api, method, None)
         if callable(calculate):
             calculate()
@@ -489,9 +480,7 @@ class XlwingsExcelProvider:
                 self._app.quit()
                 self._app = None
 
-    def refresh_with_timeout(
-        self, path: Path, policy: WorkbookRefreshPolicy
-    ) -> str | None:
+    def refresh_with_timeout(self, path: Path, policy: WorkbookRefreshPolicy) -> str | None:
         """Run all provider work in an isolated, killable process tree."""
 
         result = _run_provider_refresh(self, path, policy, {})
@@ -556,9 +545,7 @@ def _isolate_worker_process() -> None:
 
 
 def _safe_provider_code(value: Any, default: str) -> str:
-    return (
-        value if isinstance(value, str) and value in _SAFE_PROVIDER_CODES else default
-    )
+    return value if isinstance(value, str) and value in _SAFE_PROVIDER_CODES else default
 
 
 def _provider_readiness_worker(payload: dict[str, Any], result_queue: Any) -> None:
@@ -571,9 +558,7 @@ def _provider_readiness_worker(payload: dict[str, Any], result_queue: Any) -> No
             result_queue.put(
                 {
                     "status": "blocked",
-                    "code": _safe_provider_code(
-                        result.get("code"), "provider_not_ready"
-                    ),
+                    "code": _safe_provider_code(result.get("code"), "provider_not_ready"),
                 }
             )
     except Exception as exc:  # noqa: BLE001 - worker boundary returns safe codes only.
@@ -598,6 +583,12 @@ def _provider_refresh_worker(
     try:
         _isolate_worker_process()
         provider = _resolve_provider(payload)
+        if isinstance(provider, XlwingsExcelProvider):
+            provider.set_process_reporter(
+                lambda identity: result_queue.put(
+                    {"status": "started", "child_processes": [identity]}
+                )
+            )
         policy = WorkbookRefreshPolicy.model_validate(policy_data)
         if fallback_mappings:
             configure = getattr(provider, "configure_fallback", None)
@@ -609,10 +600,6 @@ def _provider_refresh_worker(
         except Exception as exc:
             log.warning("report_workbook_open_failed", error_type=type(exc).__name__)
             raise RuntimeError("excel_open_failed") from exc
-        if isinstance(provider, XlwingsExcelProvider):
-            excel_pid = getattr(provider._app, "pid", None)
-            if isinstance(excel_pid, int) and excel_pid > 1:
-                result_queue.put({"status": "started", "child_pids": [excel_pid]})
         try:
             provider.refresh_all(handle)
         except Exception as exc:
@@ -621,9 +608,7 @@ def _provider_refresh_worker(
         try:
             provider.calculate_full(handle)
         except Exception as exc:
-            log.warning(
-                "report_workbook_calculate_failed", error_type=type(exc).__name__
-            )
+            log.warning("report_workbook_calculate_failed", error_type=type(exc).__name__)
             raise RuntimeError("excel_calculate_failed") from exc
         references = list(
             dict.fromkeys(
@@ -641,9 +626,7 @@ def _provider_refresh_worker(
             try:
                 values = provider.read_cells(handle, references)
             except Exception as exc:
-                log.warning(
-                    "report_workbook_read_failed", error_type=type(exc).__name__
-                )
+                log.warning("report_workbook_read_failed", error_type=type(exc).__name__)
                 raise RuntimeError("excel_read_failed") from exc
             stable = stable + 1 if values == previous else 1
             previous = values
@@ -715,13 +698,51 @@ def _process_exists(pid: int) -> bool:
     return True
 
 
-def _terminate_child_processes(pids: set[int]) -> bool:
-    safe_pids = {pid for pid in pids if pid > 1 and pid != os.getpid()}
-    if not safe_pids:
+_MACOS_EXCEL_EXECUTABLE = "/Applications/Microsoft Excel.app/Contents/MacOS/Microsoft Excel"
+
+
+def _capture_excel_process_identity(pid: int) -> dict[str, Any] | None:
+    if sys.platform != "darwin" or pid <= 1 or pid == os.getpid():
+        return None
+    try:
+        completed = subprocess.run(
+            ["/bin/ps", "-p", str(pid), "-o", "lstart=,command="],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    line = completed.stdout.strip()
+    parts = line.split(None, 5)
+    if completed.returncode != 0 or len(parts) != 6 or parts[5] != _MACOS_EXCEL_EXECUTABLE:
+        return None
+    return {"pid": pid, "token": hashlib.sha256(line.encode("utf-8")).hexdigest()}
+
+
+def _managed_excel_process_exists(identity: dict[str, Any]) -> bool:
+    pid = identity.get("pid")
+    token = identity.get("token")
+    if not isinstance(pid, int) or not isinstance(token, str) or len(token) != 64:
+        return False
+    current = _capture_excel_process_identity(pid)
+    return current is not None and current.get("token") == token
+
+
+def _terminate_managed_excel_processes(identities: list[dict[str, Any]]) -> bool:
+    if not identities:
         return True
     if os.name != "posix":
         return False
-    for pid in safe_pids:
+    if any(
+        not isinstance(identity.get("pid"), int) or not isinstance(identity.get("token"), str)
+        for identity in identities
+    ):
+        return False
+    active = [identity for identity in identities if _managed_excel_process_exists(identity)]
+    for identity in active:
+        pid = identity["pid"]
         try:
             os.kill(pid, signal.SIGTERM)
         except ProcessLookupError:
@@ -730,12 +751,13 @@ def _terminate_child_processes(pids: set[int]) -> bool:
             return False
     deadline = time.monotonic() + 0.2
     while time.monotonic() < deadline and any(
-        _process_exists(pid) for pid in safe_pids
+        _managed_excel_process_exists(identity) for identity in active
     ):
         time.sleep(0.02)
-    for pid in safe_pids:
-        if not _process_exists(pid):
+    for identity in active:
+        if not _managed_excel_process_exists(identity):
             continue
+        pid = identity["pid"]
         try:
             os.kill(pid, signal.SIGKILL)
         except ProcessLookupError:
@@ -744,10 +766,10 @@ def _terminate_child_processes(pids: set[int]) -> bool:
             return False
     deadline = time.monotonic() + _WORKER_STOP_SECONDS
     while time.monotonic() < deadline and any(
-        _process_exists(pid) for pid in safe_pids
+        _managed_excel_process_exists(identity) for identity in active
     ):
         time.sleep(0.02)
-    return not any(_process_exists(pid) for pid in safe_pids)
+    return not any(_managed_excel_process_exists(identity) for identity in active)
 
 
 def _drain_worker_messages(result_queue: Any, *, wait: bool) -> list[dict[str, Any]]:
@@ -762,13 +784,13 @@ def _drain_worker_messages(result_queue: Any, *, wait: bool) -> list[dict[str, A
     return messages
 
 
-def _worker_child_pids(messages: list[dict[str, Any]]) -> set[int]:
-    return {
-        pid
+def _worker_child_processes(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        identity
         for message in messages
-        for pid in message.get("child_pids", [])
-        if isinstance(pid, int)
-    }
+        for identity in message.get("child_processes", [])
+        if isinstance(identity, dict)
+    ]
 
 
 def _run_provider_worker(
@@ -793,9 +815,9 @@ def _run_provider_worker(
                 process.join(min(0.1, remaining))
         if process.is_alive():
             messages = _drain_worker_messages(result_queue, wait=True)
-            child_pids = _worker_child_pids(messages)
+            child_processes = _worker_child_processes(messages)
             worker_cleaned = _terminate_worker_tree(process)
-            children_cleaned = _terminate_child_processes(child_pids)
+            children_cleaned = _terminate_managed_excel_processes(child_processes)
             cleaned = worker_cleaned and children_cleaned
             cancelled = cancellation_event is not None and cancellation_event.is_set()
             return {
@@ -809,14 +831,12 @@ def _run_provider_worker(
                 ),
             }
         messages = _drain_worker_messages(result_queue, wait=True)
-        child_pids = _worker_child_pids(messages)
-        results = [
-            message for message in messages if message.get("status") != "started"
-        ]
+        child_processes = _worker_child_processes(messages)
+        results = [message for message in messages if message.get("status") != "started"]
         result = results[-1] if results else None
         if result is not None and result.get("status") == "ready":
             return {"status": "ready"}
-        if not _terminate_child_processes(child_pids):
+        if not _terminate_managed_excel_processes(child_processes):
             return {"status": "blocked", "code": "provider_worker_cleanup_failed"}
         if result is None:
             return {"status": "blocked", "code": "provider_worker_failed"}
@@ -944,9 +964,7 @@ def _validate_values(
 class WorkbookRefreshService:
     """Copy, refresh, verify and hash workbooks without mutating package masters."""
 
-    def __init__(
-        self, providers: dict[str, WorkbookProviderProtocol] | None = None
-    ) -> None:
+    def __init__(self, providers: dict[str, WorkbookProviderProtocol] | None = None) -> None:
         self.providers: dict[str, WorkbookProviderProtocol] = (
             providers
             if providers is not None
@@ -1006,9 +1024,7 @@ class WorkbookRefreshService:
             # A mixed workbook is refreshed once in the same Excel process. Both
             # add-ins were checked before selecting the bridge used to open Excel.
             return selected, None, {}
-        required_mappings = [
-            declared[item].equivalent_datahub_mapping for item in sorted(needed)
-        ]
+        required_mappings = [declared[item].equivalent_datahub_mapping for item in sorted(needed)]
         if all(required_mappings):
             selected_mappings = {
                 path: fallback_mappings[path]
@@ -1068,13 +1084,11 @@ class WorkbookRefreshService:
             run_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
             run_root = run_directory.resolve()
             destination = run_directory.joinpath(*PurePosixPath(policy.workbook).parts)
-            if (
-                destination.exists() and destination.is_symlink()
-            ) or not destination.resolve(strict=False).is_relative_to(run_root):
+            if (destination.exists() and destination.is_symlink()) or not destination.resolve(
+                strict=False
+            ).is_relative_to(run_root):
                 return self._blocked("unsafe_run_directory", provider_id)
-            manifest_name = (
-                hashlib.sha256(policy.workbook.encode()).hexdigest() + ".json"
-            )
+            manifest_name = hashlib.sha256(policy.workbook.encode()).hexdigest() + ".json"
             manifest_path = run_directory / "refresh-manifests" / manifest_name
             lock_directory = run_directory / ".refresh-locks"
             if lock_directory.is_symlink() or not lock_directory.resolve(
@@ -1125,12 +1139,8 @@ class WorkbookRefreshService:
         cancellation_event: threading.Event | None,
         deadline: float,
     ) -> WorkbookRefreshResult:
-        staging = (
-            destination.parent / f".{destination.stem}.{uuid4().hex}.refreshing.xlsx"
-        )
-        manifest_staging = (
-            manifest_path.parent / f".{manifest_path.name}.{uuid4().hex}.tmp"
-        )
+        staging = destination.parent / f".{destination.stem}.{uuid4().hex}.refreshing.xlsx"
+        manifest_staging = manifest_path.parent / f".{manifest_path.name}.{uuid4().hex}.tmp"
         backup = destination.parent / f".{destination.name}.{uuid4().hex}.backup"
         promoted = False
         if cancellation_event is not None and cancellation_event.is_set():
@@ -1168,9 +1178,7 @@ class WorkbookRefreshService:
                     )
                 if worker_result.get("status") != "ready":
                     return self._blocked(
-                        _safe_provider_code(
-                            worker_result.get("code"), "provider_refresh_failed"
-                        ),
+                        _safe_provider_code(worker_result.get("code"), "provider_refresh_failed"),
                         provider_id,
                     )
             if cancellation_event is not None and cancellation_event.is_set():

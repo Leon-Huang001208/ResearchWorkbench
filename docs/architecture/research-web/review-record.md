@@ -449,3 +449,15 @@
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"MCP市场修正最终HTML sink转义、包事实文案及搜索/Registry结果集替换时的详情请求归属；仍在既有UI模块和API边界内。","diagrams":[]} -->
 <!-- architecture-review {"group":"mcp-registry","structure":"unchanged","reason":"收紧Registry传输、纯文本规范化与包事实字段，不新增服务、存储目录、API路由或Runtime依赖。","diagrams":[]} -->
+
+## 2026-09-11 — Mac 本机集成真实验证
+
+- 设置页新增独立的本机集成验证任务 API；发现仍无副作用，只有用户显式操作才启动 Office 或 Wind。
+- Excel、Word 与 PowerPoint 使用各自 Office 容器内的确定性验证文件；Wind 仅刷新已发布报告工作簿的运行副本，源版本保持只读。
+- 图 03 同时保留 Tabbit 实时标签序列，并增加 Web → 验证管理器 → Office/Wind 的显式任务序列；DataHub、能力包、MCP Registry 与报告 Workflow 仍使用各自既有模块和存储边界。
+
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增本机验证创建与轮询接口，并将显式用户动作、异步任务和安全结果投影纳入现有Research Web API。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"新增可终止的Office/Wind验证子进程、受管Office容器临时文件和本轮Excel实例清理，不进入DSH研究执行链。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"iFinD HTTP探测补齐登录、健康、只读查询和登出，继续复用既有连接配置与系统凭据库，不新增DataHub服务或存储。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"本机页只链接并消费既有报告Workflow元数据进行受管副本验证，不改变Skill、Tool或Workflow的发布与调用拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机设置页在既有诊断列表增加逐项验证按钮、进度和最近验证时间，不新增产品壳或页面模块。","diagrams":[]} -->

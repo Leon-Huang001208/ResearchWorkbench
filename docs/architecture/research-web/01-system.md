@@ -20,7 +20,7 @@
 | DataHub | `app/research_web/datahub/` | 15 项能力/22 个来源静态目录、统一连接状态、白名单选源、Provider、单源探测、不可变资料和共享分析；MySQL 仅开放逐级 schema 与受控单表查询 |
 | MCP Registry | `app/research_web/mcp_registry/` | 在功能开关内聚合官方与私有 Registry，保存原子最后成功缓存并输出只读市场/API；不安装、启用或调用 MCP |
 | 连接中心 | `app/research_web/datahub/connection_center.py`、`connections.py`、`probes.py` | 本地非秘密配置、系统凭据引用、平台诊断、旧环境迁移和四维状态；不向浏览器或模型返回秘密 |
-| 本机集成诊断 | `app/research_web/local_integrations/` | 标准应用位置、已知注册信息和 Python 模块的无副作用发现；安全投影与幂等探测，不启动厂商软件 |
+| 本机集成诊断 | `app/research_web/local_integrations/` | 标准应用位置、已知注册信息和 Python 模块的无副作用发现；用户显式触发后，在受管临时目录与可终止子进程中验证 Office/Wind，安全投影不返回路径或秘密 |
 | 受限脚本 | `app/research_web/sandbox.py` | 文件访问、环境和进程终止边界 |
 | 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、私有模块链接校验；启动时按 DataHub 可调用来源注入 `enabledTools`，查询不逐次审批 |
 | Tabbit 适配 | `app/research_web/tabbit.py`、`runtime/tabbit-adapter.mjs`、`vendor/dsh-tabbit/0.3.4/` | 固定供应包校验、会话级页面授权、实时标签 claim、一次性内存上下文与写操作审批；只复用唯一 `ctx.tabbit` 执行器 |
@@ -53,7 +53,7 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 - DataHub 私有原始响应与会话可读数据集分开。所有共享资料仍绑定目标会话及原始哈希，不提供任意路径读取接口。
 - DataHub 非秘密连接配置位于 `connections/`；密码、Token 和账号池秘密只存运行 8088 的操作系统用户凭据库。API 仅返回 `secret_configured`，浏览器提交后立即清空秘密字段。
 - MCP Registry 非秘密配置、ETag、游标与最后成功缓存位于数据根的 `mcp-registry/`；目录元数据是有界 Unicode plain text，API 原样投影，UI 仅在最终 HTML sink 转义。Bearer/OAuth 秘密只进入 Keyring 服务 `ResearchWorkbench.MCPRegistry`。认证 Registry 仅使用 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth 端点始终使用 HTTPS。官方与私有 Registry 的同名服务器按身份三元组隔离。
-- 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；不持久化探测到的绝对路径、命令参数、环境变量或秘密。
+- 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；真实验证副本位于有界、定期清理的 `local-integrations/verification-runs/`，不持久化探测到的绝对路径、命令参数、环境变量或秘密。
 - 原生凭据只存在专属 DSH 私有目录，不提供给研究脚本环境。
 - Tabbit 页面访问授权只存在于当前 Research Runtime 生命周期；实时正文 token 绑定当前会话、单次消费并在 10 分钟后过期。
 - 迁移只复制研究状态和 DSH 会话索引；凭据、运行时 overlay、临时文件、旧控制令牌与日志不复制。新实例需要在设置页重新授权模型。

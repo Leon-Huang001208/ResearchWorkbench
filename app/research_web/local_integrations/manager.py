@@ -1,15 +1,20 @@
 """Truthful host capability projections without launching vendor software."""
 
 import asyncio
+import copy
+import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
 import platform
 import re
+import stat
+import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Callable, Mapping
 from uuid import uuid4
@@ -57,12 +62,32 @@ ITEM_FIELDS = {
     "capabilities",
     "actions",
     "last_checked_at",
+    "last_verified_at",
 }
 ACTION_FIELDS = {"id", "label", "href"}
 SAFE_ID = re.compile(r"^[a-z0-9_]+$")
 SAFE_DATA_ACTION = re.compile(r"^#/settings/data\?connection=[a-z0-9_]+$")
 SENSITIVE_ENVIRONMENT_KEY = re.compile(r"(?:token|secret|password|credential|api.?key)", re.I)
 MAX_PROBE_RECORDS = 128
+MAX_VERIFICATION_RECORDS = 128
+MAX_WIND_ADDIN_FINGERPRINT_ENTRIES = 512
+VERIFICATION_TTL_SECONDS = 24 * 60 * 60
+WIND_VERIFICATION_TTL_SECONDS = 5 * 60
+VERIFICATION_TARGETS = {"excel", "word", "powerpoint", "wind_excel"}
+VERIFICATION_ITEMS = {
+    "excel": ("excel_app", "excel_automation_bridge"),
+    "word": ("word_app",),
+    "powerpoint": ("powerpoint_app",),
+    "wind_excel": ("wind_terminal", "wind_excel_addin"),
+}
+VERIFICATION_MESSAGES = {
+    "available": ("可用", "已授权", "已验证", "真实打开、操作、保存与重新读取验证已通过。"),
+    "authorization_required": ("待授权", "待授权", "待验证", "需要允许 Research Workbench 控制对应的 Office 应用。"),
+    "login_required": ("未登录", "未登录", "待验证", "已发现组件，但厂商会话尚未登录或不可用。"),
+    "timeout": ("异常", "待验证", "异常", "真实验证超时；验证任务已停止，请确认应用状态后重试。"),
+    "formula_error": ("待验证", "待验证", "未通过", "工作簿已运行，但公式或必需单元格验证未通过。"),
+    "failed": ("异常", "待验证", "异常", "真实验证失败，请查看本地安全日志后重试。"),
+}
 
 
 class LocalIntegrationError(Exception):
@@ -146,18 +171,21 @@ def _named_entry_exists(roots: tuple[Path, ...], names: tuple[str, ...]) -> bool
     return any(_exists(root / name) for root in roots for name in names)
 
 
-def _wind_addin_exists(roots: tuple[Path, ...]) -> bool:
+def _wind_addin_paths(roots: tuple[Path, ...]) -> tuple[Path, ...]:
+    matches: list[Path] = []
     for root in roots:
-        if _exists(root / "WindAddin") or _exists(root / "WindAddin.xlam"):
-            return True
         try:
-            if root.is_dir() and any(
-                entry.name.lower().startswith("windaddin") for entry in root.iterdir()
-            ):
-                return True
+            if root.is_dir():
+                matches.extend(
+                    entry for entry in root.iterdir() if entry.name.lower().startswith("windaddin")
+                )
         except OSError:
             continue
-    return False
+    return tuple(sorted(matches, key=lambda path: str(path).casefold()))
+
+
+def _wind_addin_exists(roots: tuple[Path, ...]) -> bool:
+    return bool(_wind_addin_paths(roots))
 
 
 def _windows_roots(environment: DetectionEnvironment) -> tuple[Path, ...]:
@@ -195,6 +223,7 @@ def _item(
     checked_at: str,
     capabilities: tuple[str, ...] = (),
     actions: tuple[dict[str, str], ...] = (),
+    last_verified_at: str | None = None,
 ) -> dict:
     if status not in ALLOWED_STATUSES:
         raise ValueError("unsupported local integration status")
@@ -212,6 +241,7 @@ def _item(
         "capabilities": list(capabilities),
         "actions": [dict(action) for action in actions],
         "last_checked_at": checked_at,
+        "last_verified_at": last_verified_at,
     }
 
 
@@ -224,12 +254,20 @@ class LocalIntegrationManager:
         *,
         environment: DetectionEnvironment | None = None,
         detector: Callable[[], dict] | None = None,
+        verifier: Callable[[str], dict] | None = None,
+        context_fingerprint: Callable[[str], str] | None = None,
+        wind_session_ready: Callable[[], bool | None] | None = None,
         probe_timeout_seconds: float = 10.0,
+        verification_ttl_seconds: float = VERIFICATION_TTL_SECONDS,
     ):
         self.state_root = Path(state_root)
         self.environment = environment or DetectionEnvironment.current()
         self.detector = detector
+        self.verifier = verifier
+        self.context_fingerprint = context_fingerprint
+        self.wind_session_ready = wind_session_ready
         self.probe_timeout_seconds = max(0.01, float(probe_timeout_seconds))
+        self.verification_ttl_seconds = max(0.0, float(verification_ttl_seconds))
         self._detector_executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="local-integration-probe"
         )
@@ -237,25 +275,303 @@ class LocalIntegrationManager:
         self.probes: dict[str, dict] = {}
         self.probe_keys: dict[str, str] = {}
         self.probe_tasks: dict[str, asyncio.Task] = {}
+        self.verifications: dict[str, dict] = {}
+        self.verification_keys: dict[str, tuple[str, str]] = {}
+        self.verification_tasks: dict[str, asyncio.Task] = {}
+        self._state_lock = threading.RLock()
+        self.verification_results: dict[str, dict] = self._load_verification_results()
         self._latest: dict | None = None
 
     @property
     def state_path(self) -> Path:
         return self.state_root / "local-integrations.json"
 
+    def _load_verification_results(self) -> dict[str, dict]:
+        path = self.state_root / "local-integrations.json"
+        try:
+            if not path.exists():
+                return {}
+            metadata = path.lstat()
+            if (
+                path.is_symlink()
+                or not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_size > 1024 * 1024
+            ):
+                raise OSError("unsafe local integration state")
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            values = payload.get("verifications", {})
+            if not isinstance(values, dict):
+                return {}
+            return {
+                target: {
+                    "outcome": value["outcome"],
+                    "completed_at": value["completed_at"],
+                    "context_fingerprint": value["context_fingerprint"],
+                }
+                for target, value in values.items()
+                if target in VERIFICATION_TARGETS
+                and isinstance(value, dict)
+                and value.get("outcome") in VERIFICATION_MESSAGES
+                and isinstance(value.get("completed_at"), str)
+                and len(value["completed_at"]) <= 64
+                and isinstance(value.get("context_fingerprint"), str)
+                and re.fullmatch(r"[0-9a-f]{64}", value["context_fingerprint"])
+            }
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            log.warning("local_integration_state_read_failed", error_type=type(exc).__name__)
+            return {}
+
     def snapshot(self, *, persist: bool = True) -> dict:
         try:
-            value = self.detector() if self.detector is not None else self._detect()
-            self._validate_snapshot(value)
-            if persist:
-                self._latest = value
-                self._persist(value)
-            return value
+            detected = self._detect_snapshot()
+            return self._publish_snapshot(detected, persist=persist)
         except LocalIntegrationError:
             raise
         except Exception as exc:  # noqa: BLE001 - host inspection is a hard safety boundary.
             log.warning("local_integration_snapshot_failed", error_type=type(exc).__name__)
             raise LocalIntegrationError("本机能力检测失败，请查看本地日志") from exc
+
+    def _detect_snapshot(self) -> dict:
+        value = self.detector() if self.detector is not None else self._detect()
+        return copy.deepcopy(value)
+
+    def _publish_snapshot(self, detected: dict, *, persist: bool) -> dict:
+        with self._state_lock:
+            results = copy.deepcopy(self.verification_results)
+            value = self._apply_verification_results(copy.deepcopy(detected), results)
+            self._validate_snapshot(value)
+            if persist:
+                self._persist(value, verification_results=results)
+                self._latest = copy.deepcopy(value)
+            return value
+
+    def _commit_verification(
+        self,
+        target: str,
+        outcome: str,
+        completed_at: str,
+        detected: dict,
+    ) -> dict:
+        with self._state_lock:
+            staged_results = copy.deepcopy(self.verification_results)
+            staged_results[target] = {
+                "outcome": outcome,
+                "completed_at": completed_at,
+                "context_fingerprint": self._verification_context_fingerprint(target),
+            }
+            snapshot = self._apply_verification_results(copy.deepcopy(detected), staged_results)
+            self._validate_snapshot(snapshot)
+            self._persist(snapshot, verification_results=staged_results)
+            self.verification_results = staged_results
+            self._latest = copy.deepcopy(snapshot)
+            return snapshot
+
+    def _apply_verification_results(
+        self, snapshot: dict, results: dict[str, dict] | None = None
+    ) -> dict:
+        results = self.verification_results if results is None else results
+        if not results:
+            return snapshot
+        items = {item["id"]: item for item in snapshot.get("items", [])}
+        for target, result in results.items():
+            if not self._verification_result_is_current(target, result):
+                continue
+            outcome = result.get("outcome", "failed")
+            status, authorization, verification, message = VERIFICATION_MESSAGES.get(
+                outcome, VERIFICATION_MESSAGES["failed"]
+            )
+            checked_at = result.get("completed_at") or snapshot["last_checked_at"]
+            for item_id in VERIFICATION_ITEMS[target]:
+                item = items.get(item_id)
+                if item is None or item.get("discovery") != "已发现":
+                    continue
+                item.update(
+                    status=status,
+                    authorization=authorization,
+                    verification=verification,
+                    callable=outcome == "available",
+                    message=message,
+                    detail=(
+                        "该状态来自最近五分钟内的真实验证；厂商会话变化后需重新验证。"
+                        if target == "wind_excel"
+                        else "该状态来自显式真实验证，不由软件发现结果推断。"
+                    ),
+                    last_verified_at=checked_at,
+                )
+        snapshot["summary"] = {
+            "available": sum(item["status"] == "可用" for item in snapshot["items"]),
+            "needs_attention": sum(
+                item["status"] not in {"可用", "不适用"} for item in snapshot["items"]
+            ),
+            "total": len(snapshot["items"]),
+        }
+        return snapshot
+
+    def _verification_result_is_current(self, target: str, result: dict) -> bool:
+        try:
+            completed_at = datetime.fromisoformat(result["completed_at"].replace("Z", "+00:00"))
+            if completed_at.tzinfo is None:
+                return False
+            age = datetime.now(UTC) - completed_at.astimezone(UTC)
+            if age < timedelta(0):
+                return False
+            ttl_seconds = self.verification_ttl_seconds
+            if target == "wind_excel":
+                ttl_seconds = min(ttl_seconds, WIND_VERIFICATION_TTL_SECONDS)
+                ready = (
+                    self.wind_session_ready()
+                    if self.wind_session_ready is not None
+                    else self._wind_session_is_ready()
+                )
+                if ready is False:
+                    return False
+            if age > timedelta(seconds=ttl_seconds):
+                return False
+            return result.get("context_fingerprint") == self._verification_context_fingerprint(
+                target
+            )
+        except (KeyError, TypeError, ValueError, OSError):
+            return False
+
+    @staticmethod
+    def _wind_session_is_ready() -> bool | None:
+        try:
+            import WindPy  # type: ignore[import-not-found]
+
+            session = getattr(WindPy, "w", None)
+            is_connected = getattr(session, "isconnected", None)
+            return bool(is_connected()) if callable(is_connected) else None
+        except ModuleNotFoundError as exc:
+            if exc.name == "WindPy":
+                return None
+            log.warning(
+                "local_integration_wind_session_check_failed",
+                error_type=type(exc).__name__,
+            )
+            return False
+        except Exception as exc:  # noqa: BLE001 - vendor failures must not break the snapshot.
+            log.warning(
+                "local_integration_wind_session_check_failed",
+                error_type=type(exc).__name__,
+            )
+            return False
+
+    @staticmethod
+    def _path_fingerprint(path: Path) -> dict:
+        try:
+            metadata = path.stat()
+            identity = {
+                "name": path.name,
+                "type": "directory" if path.is_dir() else "file",
+                "size": metadata.st_size,
+                "modified": metadata.st_mtime_ns,
+            }
+            if path.is_file() and metadata.st_size <= 32 * 1024 * 1024:
+                digest = hashlib.sha256()
+                with path.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                identity["sha256"] = digest.hexdigest()
+            return identity
+        except OSError:
+            return {"name": path.name, "state": "unavailable"}
+
+    @classmethod
+    def _wind_addin_fingerprint(cls, path: Path) -> dict:
+        identity = cls._path_fingerprint(path)
+        if identity.get("type") != "directory":
+            return identity
+
+        entries: list[dict] = []
+        try:
+            for root, directories, filenames in os.walk(path, followlinks=False):
+                directories.sort()
+                filenames.sort()
+                current = Path(root)
+                directories[:] = [name for name in directories if not (current / name).is_symlink()]
+                for name in filenames:
+                    if len(entries) >= MAX_WIND_ADDIN_FINGERPRINT_ENTRIES:
+                        identity["entries_truncated"] = True
+                        return identity | {"entries": entries}
+                    candidate = current / name
+                    relative = candidate.relative_to(path).as_posix()
+                    if candidate.is_symlink():
+                        entries.append({"path": relative, "state": "symlink"})
+                    else:
+                        entries.append(
+                            {"path": relative, "fingerprint": cls._path_fingerprint(candidate)}
+                        )
+            identity["entries"] = entries
+        except (OSError, ValueError):
+            identity["entries_state"] = "unavailable"
+        return identity
+
+    def _verification_context_fingerprint(self, target: str) -> str:
+        if self.context_fingerprint is not None:
+            raw = self.context_fingerprint(target)
+            if not isinstance(raw, str):
+                raise ValueError("invalid verification context fingerprint")
+            return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+        app_names = {
+            "excel": ("Microsoft Excel.app",),
+            "word": ("Microsoft Word.app",),
+            "powerpoint": ("Microsoft PowerPoint.app",),
+            "wind_excel": ("Microsoft Excel.app", "Wind.app", "Wind金融终端.app"),
+        }[target]
+        facts: dict[str, object] = {
+            "target": target,
+            "system": self.environment.system.lower(),
+            "apps": [
+                self._path_fingerprint(root / name / "Contents/Info.plist")
+                for root in self.environment.application_roots
+                for name in app_names
+                if _exists(root / name)
+            ],
+        }
+        if target in {"excel", "wind_excel"}:
+            try:
+                version = importlib.metadata.version("xlwings")
+            except importlib.metadata.PackageNotFoundError:
+                version = "missing"
+            spec = importlib.util.find_spec("xlwings")
+            facts["xlwings"] = {
+                "version": version,
+                "origin": self._path_fingerprint(Path(spec.origin))
+                if spec is not None and spec.origin
+                else {"state": "missing"},
+            }
+        if target == "wind_excel":
+            facts["addins"] = [
+                self._wind_addin_fingerprint(candidate)
+                for candidate in _wind_addin_paths(self.environment.office_addin_roots)
+            ]
+            try:
+                from app.research_web.report_workflows.catalog import ReportWorkflowService
+
+                catalog = ReportWorkflowService(self.state_root.parent)
+                row = catalog._row("huaan-etf-weekly")
+                version = row.get("current_version")
+                if not isinstance(version, int):
+                    raise ValueError("workflow_version_unavailable")
+                manifest = catalog.manifest("huaan-etf-weekly", version)
+                facts["workflow"] = {
+                    "version": version,
+                    "resources": [
+                        self._path_fingerprint(
+                            catalog.resource_path("huaan-etf-weekly", version, policy.workbook)
+                        )
+                        for policy in manifest.workbook_policies
+                    ],
+                }
+            except Exception as exc:  # noqa: BLE001 - unavailable context invalidates evidence.
+                facts["workflow"] = {
+                    "state": "unavailable",
+                    "error_type": type(exc).__name__,
+                }
+
+        serialized = json.dumps(facts, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     def _detect(self) -> dict:
         checked_at = _utc_now()
@@ -375,8 +691,13 @@ class LocalIntegrationManager:
                 ("Wind/WFT/WFT.exe", "Wind/Wind.NET.Client/WindNET.exe"),
             )
             appdata = self.environment.environment_variables.get("APPDATA")
-            addin = bool(appdata) and _named_entry_exists(
-                (Path(appdata),), ("Microsoft/AddIns/WindAddin.xlam", "Wind/WindAddin.xlam")
+            addin = (
+                _named_entry_exists(
+                    (Path(appdata),),
+                    ("Microsoft/AddIns/WindAddin.xlam", "Wind/WindAddin.xlam"),
+                )
+                if appdata
+                else False
             )
         else:
             return self._unsupported_office_items(checked_at)
@@ -701,6 +1022,13 @@ class LocalIntegrationManager:
                     for field in text_fields
                 )
                 or not isinstance(item.get("last_checked_at"), str)
+                or (
+                    item.get("last_verified_at") is not None
+                    and (
+                        not isinstance(item.get("last_verified_at"), str)
+                        or len(item["last_verified_at"]) > 64
+                    )
+                )
                 or not isinstance(item.get("capabilities"), list)
                 or not all(
                     isinstance(capability, str) and SAFE_ID.fullmatch(capability)
@@ -783,14 +1111,30 @@ class LocalIntegrationManager:
         if any(len(secret) > 3 and secret in serialized for secret in sensitive_values):
             raise LocalIntegrationError("本机能力检测包含不可公开的信息")
 
-    def _persist(self, snapshot: dict) -> None:
+    def _persist(
+        self,
+        snapshot: dict,
+        *,
+        verification_results: dict[str, dict] | None = None,
+    ) -> None:
         temporary: Path | None = None
         try:
             self.state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
             with suppress(OSError):
                 self.state_root.chmod(0o700)
             temporary = self.state_path.with_suffix(f".{uuid4().hex}.tmp")
-            payload = json.dumps({"snapshot": snapshot}, ensure_ascii=False, sort_keys=True)
+            payload = json.dumps(
+                {
+                    "snapshot": snapshot,
+                    "verifications": (
+                        self.verification_results
+                        if verification_results is None
+                        else verification_results
+                    ),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
             temporary.write_text(payload, encoding="utf-8")
             temporary.chmod(0o600)
             os.replace(temporary, self.state_path)
@@ -830,7 +1174,9 @@ class LocalIntegrationManager:
     async def _run_probe(self, probe_id: str) -> None:
         record = self.probes[probe_id]
         record["status"] = "checking"
-        detection = self._detector_executor.submit(self.snapshot, persist=False)
+        detection = self._detector_executor.submit(
+            self.detector if self.detector is not None else self._detect
+        )
         self._active_detection = detection
 
         def clear_detection(completed: Future) -> None:
@@ -839,12 +1185,11 @@ class LocalIntegrationManager:
 
         detection.add_done_callback(clear_detection)
         try:
-            snapshot = await asyncio.wait_for(
+            detected = await asyncio.wait_for(
                 asyncio.shield(asyncio.wrap_future(detection)),
                 timeout=self.probe_timeout_seconds,
             )
-            self._persist(snapshot)
-            self._latest = snapshot
+            snapshot = self._publish_snapshot(copy.deepcopy(detected), persist=True)
             record.update(status="completed", snapshot=snapshot, completed_at=_utc_now())
             log.info("local_integration_probe_completed")
         except asyncio.CancelledError:
@@ -868,6 +1213,109 @@ class LocalIntegrationManager:
         finally:
             self.probe_tasks.pop(probe_id, None)
 
+    def start_verification(self, target: str, idempotency_key: str) -> dict:
+        if target not in VERIFICATION_TARGETS:
+            raise LocalIntegrationError("本机验证目标无效", "verification_target_invalid", 422)
+        key = f"{target}:{idempotency_key}"
+        existing = self.verification_keys.get(key)
+        if existing:
+            return self._public_verification(self.verifications[existing[1]])
+        self._prune_verifications()
+        if any(not task.done() for task in self.verification_tasks.values()):
+            raise LocalIntegrationError("已有真实验证正在运行，请稍后重试", "verification_busy", 409)
+        if len(self.verifications) >= MAX_VERIFICATION_RECORDS:
+            raise LocalIntegrationError(
+                "本机验证记录已达到上限，请稍后重试",
+                "verification_capacity",
+                429,
+            )
+        verification_id = str(uuid4())
+        record = {
+            "id": verification_id,
+            "target": target,
+            "status": "queued",
+            "created_at": _utc_now(),
+            "completed_at": None,
+        }
+        self.verifications[verification_id] = record
+        self.verification_keys[key] = (target, verification_id)
+        self.verification_tasks[verification_id] = asyncio.create_task(
+            self._run_verification(verification_id), name=f"local-verification-{target}"
+        )
+        log.info("local_integration_verification_started", target=target)
+        return self._public_verification(record)
+
+    async def _run_verification(self, verification_id: str) -> None:
+        record = self.verifications[verification_id]
+        record["status"] = "checking"
+        cancellation_event: threading.Event | None = None
+        worker: asyncio.Task | None = None
+        try:
+            if self.verifier is not None:
+                outcome = await asyncio.to_thread(self.verifier, record["target"])
+            else:
+                from .verifiers import verify_target
+
+                cancellation_event = threading.Event()
+                worker = asyncio.create_task(
+                    asyncio.to_thread(
+                        verify_target,
+                        record["target"],
+                        self.state_root,
+                        cancellation_event=cancellation_event,
+                    )
+                )
+                outcome = await asyncio.shield(worker)
+            normalized = outcome.get("outcome") if isinstance(outcome, dict) else None
+            if normalized not in VERIFICATION_MESSAGES:
+                normalized = "failed"
+            completed_at = _utc_now()
+            detected = self._detect()
+            await asyncio.to_thread(
+                self._commit_verification,
+                record["target"],
+                normalized,
+                completed_at,
+                detected,
+            )
+            record.update(status="completed", outcome=normalized, completed_at=completed_at)
+            log.info(
+                "local_integration_verification_completed",
+                target=record["target"],
+                outcome=normalized,
+            )
+        except asyncio.CancelledError:
+            if cancellation_event is not None:
+                cancellation_event.set()
+            if worker is not None:
+                with suppress(asyncio.CancelledError, Exception):
+                    await asyncio.shield(worker)
+            record.update(status="cancelled", completed_at=_utc_now())
+            raise
+        except Exception as exc:  # noqa: BLE001 - normalize process and IO failures.
+            record.update(
+                status="failed",
+                completed_at=_utc_now(),
+                error={"code": "verification_failed", "message": "本机真实验证失败，请查看本地日志"},
+            )
+            log.warning("local_integration_verification_failed", error_type=type(exc).__name__)
+        finally:
+            self.verification_tasks.pop(verification_id, None)
+
+    def verification(self, verification_id: str) -> dict:
+        record = self.verifications.get(verification_id)
+        if record is None:
+            raise LocalIntegrationError("未找到本机验证任务", "verification_not_found", 404)
+        return self._public_verification(record)
+
+    @staticmethod
+    def _public_verification(record: dict) -> dict:
+        return {
+            key: record[key]
+            for key in ("id", "target", "status", "outcome", "created_at", "completed_at", "error")
+            if key in record
+        }
+
     def _prune_probes(self) -> None:
         removable = sorted(
             (
@@ -882,6 +1330,21 @@ class LocalIntegrationManager:
             for key, value in list(self.probe_keys.items()):
                 if value == probe_id:
                     self.probe_keys.pop(key, None)
+
+    def _prune_verifications(self) -> None:
+        removable = sorted(
+            (
+                (record.get("created_at", ""), verification_id)
+                for verification_id, record in self.verifications.items()
+                if verification_id not in self.verification_tasks
+            )
+        )
+        while len(self.verifications) >= MAX_VERIFICATION_RECORDS and removable:
+            _, verification_id = removable.pop(0)
+            self.verifications.pop(verification_id, None)
+            for key, value in list(self.verification_keys.items()):
+                if value[1] == verification_id:
+                    self.verification_keys.pop(key, None)
 
     def probe(self, probe_id: str) -> dict:
         record = self.probes.get(probe_id)
@@ -898,10 +1361,11 @@ class LocalIntegrationManager:
         }
 
     async def close(self) -> None:
-        tasks = list(self.probe_tasks.values())
+        tasks = [*self.probe_tasks.values(), *self.verification_tasks.values()]
         for task in tasks:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         self.probe_tasks.clear()
+        self.verification_tasks.clear()
         self._detector_executor.shutdown(wait=False, cancel_futures=True)

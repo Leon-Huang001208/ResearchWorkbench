@@ -1,18 +1,20 @@
 {
   "schema_version": 1,
   "diagram_type": "sequence",
-    "meta": {"title": "服务恢复、Tabbit 实时 claim 与 DataHub 查询序列", "output": "03-research-sequence.html", "quality_profile": "showcase", "viewBox": [3200, 1700], "column_fit": "spread", "views": [
+    "meta": {"title": "服务恢复、Tabbit、DataHub 与本机验证序列", "output": "03-research-sequence.html", "quality_profile": "showcase", "viewBox": [3680, 1940], "column_fit": "spread", "views": [
     {"id": "startup", "label": "断电后的安全恢复", "focus": ["cli", "manager", "dsh", "api"], "note": "启动器只删除能够确认进程已经死亡的旧状态；活进程、未知进程或指纹不一致仍然拒绝接管。"},
     {"id": "tabbitFlow", "label": "Tabbit 实时标签", "focus": ["web", "api", "dsh", "tabbit"], "note": "菜单展开才授权并取候选；发送前重验、原子 claim、一次读 DOM，最后只传递短 token。"},
     {"id": "submit", "label": "页面交接与研究提交", "focus": ["web", "api", "snapshot", "dsh"], "note": "页面先固化查询与筛选上下文，再创建目标会话；HTTP 受理不等于研究或文件完成。"},
-    {"id": "automatic", "label": "自动查询边界", "focus": ["dsh", "policy", "datahub", "provider"], "note": "只有启动时确认有可调用来源的工具会注册；非法参数仍在任何外部请求之前拒绝。"},
-    {"id": "dataset", "label": "发布共享快照", "focus": ["provider", "datahub", "snapshot", "dsh", "web"], "note": "主任务和子 Agent 通过同一会话快照读取数据。"}
+    {"id": "automatic", "label": "自动查询与共享快照", "focus": ["dsh", "policy", "datahub", "provider", "snapshot"], "note": "只有启动时确认有可调用来源的工具会注册；合法结果再按会话发布共享快照。"},
+    {"id": "localVerification", "label": "显式本机验证", "focus": ["web", "api", "localVerifier", "office"], "note": "发现不启动软件；用户显式选择目标后，受管子进程才操作 Office 或 Wind 副本并返回安全结果。"}
   ]},
   "participants": [
     {"id": "cli", "type": "external", "label": "rwb CLI", "sublabel": "start / status"},
     {"id": "manager", "type": "backend", "label": "Service Manager", "sublabel": "PID / 指纹 / 健康检查"},
     {"id": "web", "type": "frontend", "label": "Research Web", "sublabel": "用户界面"},
     {"id": "api", "type": "backend", "label": "FastAPI", "sublabel": "产品 API / SSE"},
+    {"id": "localVerifier", "type": "security", "label": "本机验证器", "sublabel": "白名单 / 幂等 / 进程身份"},
+    {"id": "office", "type": "external", "label": "Office / Wind", "sublabel": "临时副本真实操作"},
     {"id": "dsh", "type": "external", "label": "DSH", "sublabel": "研究执行"},
     {"id": "tabbit", "type": "external", "label": "Tabbit Browser", "sublabel": "标签清单 / CLI / DOM"},
     {"id": "policy", "type": "security", "label": "本地查询边界", "sublabel": "enabledTools / Schema / 会话"},
@@ -26,7 +28,8 @@
     {"from": 578, "to": 1060, "label": "Tabbit 授权、重验与实时 claim"},
     {"from": 1078, "to": 1240, "label": "页面交接与研究受理"},
     {"from": 1258, "to": 1490, "label": "业务数据调用"},
-    {"from": 1508, "to": 1620, "label": "活动恢复与文件分离"}
+    {"from": 1508, "to": 1620, "label": "活动恢复与文件分离"},
+    {"from": 1640, "to": 1840, "label": "本机集成显式真实验证"}
   ],
   "messages": [
     {"id": "start", "from": "cli", "to": "manager", "y": 176, "label": "rwb web start", "variant": "emphasis"},
@@ -61,7 +64,13 @@
     {"id": "streamActivity", "from": "dsh", "to": "api", "y": 1520, "label": "回答、工具与子 Agent 活动", "variant": "dashed"},
     {"id": "resumeStream", "from": "web", "to": "api", "y": 1552, "label": "SSE 重连 / 历史补齐"},
     {"id": "sseProjection", "from": "api", "to": "web", "y": 1584, "label": "状态投影 + 独立 delivery", "variant": "dashed"},
-    {"id": "datasetRead", "from": "web", "to": "api", "y": 1616, "label": "GET 当前会话数据集 / 产物"}
+    {"id": "datasetRead", "from": "web", "to": "api", "y": 1616, "label": "GET 当前会话数据集 / 产物"},
+    {"id": "startVerification", "from": "web", "to": "api", "y": 1664, "label": "POST /local-integrations/verifications + Idempotency-Key", "variant": "emphasis"},
+    {"id": "acceptVerification", "from": "api", "to": "localVerifier", "y": 1696, "label": "校验目标白名单并返回 202", "variant": "security"},
+    {"id": "runVerification", "from": "localVerifier", "to": "office", "y": 1728, "label": "隔离进程操作受管临时副本", "variant": "security"},
+    {"id": "verificationResult", "from": "office", "to": "localVerifier", "y": 1760, "label": "校验结果并原子持久化", "variant": "return"},
+    {"id": "pollVerification", "from": "web", "to": "api", "y": 1792, "label": "GET /local-integrations/verifications/{id}"},
+    {"id": "renderVerification", "from": "api", "to": "web", "y": 1824, "label": "可用 / 待授权 / 未登录 / 异常", "variant": "return"}
   ],
   "activations": [
     {"participant": "manager", "from": 168, "to": 306, "type": "backend"},
@@ -75,11 +84,14 @@
     {"participant": "dsh", "from": 1180, "to": 1532, "type": "external"},
     {"participant": "policy", "from": 1272, "to": 1330, "type": "security"},
     {"participant": "datahub", "from": 1356, "to": 1456, "type": "backend"},
-    {"participant": "api", "from": 1512, "to": 1624, "type": "backend"}
+    {"participant": "api", "from": 1512, "to": 1624, "type": "backend"},
+    {"participant": "api", "from": 1656, "to": 1832, "type": "backend"},
+    {"participant": "localVerifier", "from": 1688, "to": 1768, "type": "security"},
+    {"participant": "office", "from": 1720, "to": 1768, "type": "external"}
   ],
   "cards": [
     {"dot": "cyan", "title": "可恢复但不越权", "items": ["断电留下的 PID 仅在确认进程死亡后删除；活进程或未知状态继续 fail closed", "3081 与 8088 都通过健康检查后才报告启动成功"]},
     {"dot": "rose", "title": "自动执行仍有边界", "items": ["无可调用来源的 DataHub 工具不注册；非法参数、伪造会话或 Guard 拒绝时不向上游发送请求", "Tabbit 只读依赖调用方声明；写操作继续逐次原生审批"]},
-    {"dot": "emerald", "title": "两种终态", "items": ["DSH 回合结束与文件交付完成分别判断", "数据快照可用不代表研究数据完整或报告正确"]}
+    {"dot": "emerald", "title": "三种独立结论", "items": ["DSH 回合结束与文件交付完成分别判断", "数据快照可用不代表研究数据完整或报告正确", "软件已发现不代表 Office 或 Wind 已通过真实调用验证"]}
   ]
 }
