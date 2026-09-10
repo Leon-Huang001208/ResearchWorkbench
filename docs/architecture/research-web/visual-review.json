@@ -15,14 +15,14 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "f17201cb21aea87945ad8d098d30d02a3c99c4b9c8fd8ad265c65eda7bc559a2",
-      "specificationSha256": "99e8abdfdfb75f4a93f0d583810ffd7a340e4c0be94bb01caa260813d24b0422",
+      "artifactSha256": "35d40e47192dc574db28125e18e64f6a7a6d78aca39eded28dae8ef23dde95a1",
+      "specificationSha256": "8615ae2330a1f37d5971a7f307f0d338f130a104f0e57201fa1e1776c2f8280f",
       "status": "reviewed",
       "reviewer": "controller",
       "date": "2026-09-11",
       "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png", "02-module-dependencies.visual-check.2048x1320.dark.png"],
       "findings": [],
-      "notes": "已人工查看同一最终哈希的 1440 与 2048 浅色/深色四张截图；只读 MCP 市场到 FastAPI、Registry service、原子缓存/OS Keyring、官方及私有 Registry 的路径清晰，报告 Workflow、专属 DSH、组装、资产观察、DataHub、会话快照与 Tabbit 实时 claim 主链仍可读。未见遮挡、裁剪、节点穿线或失衡的底部留白。图只证明结构表达，不证明 Registry、Tabbit 或 Provider 在线，也不表示已安装、启用或调用 MCP。"
+      "notes": "已人工查看同一最终哈希的 1440 浅色截图，并以自动回执确认 1440/1600/1920/2048 包含性及最小/最大明暗截图生成；MCP Registry + Host、不可变清单/系统凭据库、专属 DSH、DataHub、报告 Workflow 与会话快照关系可读，未见遮挡、裁剪或节点穿线。图只证明结构表达，不证明 Registry、MCP Server、Tabbit 或 Provider 在线。"
     },
     {
       "id": "05-capability-flow",

@@ -19,7 +19,7 @@ Usage:
         "rwb-data": {
           "type": "stdio",
           "command": "python3",
-          "args": ["-m", "mcp.server"]
+          "args": ["-m", "research_workbench_mcp_server.server"]
         }
       }
     }
@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from core.connectors.base import BaseConnector
 from core.contracts.ingestion_record import HealthStatus
@@ -116,7 +116,7 @@ def list_data_sources() -> str:
         JSON 字符串，包含数据源列表。
     """
     reg = _ensure_registry()
-    sources: List[Dict[str, Any]] = []
+    sources: list[dict[str, Any]] = []
 
     for source_name, connector in sorted(reg.get_all_connectors().items()):
         try:
@@ -127,7 +127,7 @@ def list_data_sources() -> str:
                     "datasets": connector.datasets,
                 }
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - connector implementations are plugin boundaries.
             sources.append(
                 {
                     "source": source_name,
@@ -158,7 +158,7 @@ def data_health_check(source: str | None = None) -> str:
     """
     reg = _ensure_registry()
 
-    sources_to_check: List[str]
+    sources_to_check: list[str]
     if source:
         if source not in reg.list_sources():
             return _serialize_result(
@@ -171,7 +171,7 @@ def data_health_check(source: str | None = None) -> str:
     else:
         sources_to_check = sorted(reg.list_sources())
 
-    results: Dict[str, Any] = {}
+    results: dict[str, Any] = {}
     healthy = 0
     degraded = 0
     unavailable = 0
@@ -195,12 +195,12 @@ def data_health_check(source: str | None = None) -> str:
                 degraded += 1
             else:
                 unavailable += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - connector implementations are plugin boundaries.
             results[src] = {"status": "unavailable", "error": str(e)}
             unavailable += 1
 
     summary = {
-        "checked_at": datetime.utcnow().isoformat(),
+        "checked_at": datetime.utcnow().isoformat(),  # noqa: DTZ003 - preserve legacy output.
         "total": len(sources_to_check),
         "healthy": healthy,
         "degraded": degraded,
@@ -239,7 +239,7 @@ def data_ingest(
     reg = _ensure_registry()
 
     # 构建 run 参数
-    run_params: Dict[str, Any] = {}
+    run_params: dict[str, Any] = {}
     if start_date:
         run_params["start_date"] = start_date
     if end_date:
@@ -254,7 +254,7 @@ def data_ingest(
     if source == "auto":
         logger.info(
             "mcp_data_ingest_auto",
-            extra={"dataset": dataset, "params": run_params},
+            extra={"dataset": dataset, "status": "started"},
         )
         try:
             result = reg.run_with_fallback(dataset, **run_params)
@@ -290,11 +290,10 @@ def data_ingest(
                     "error_message": result.error_message,
                 }
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - connector implementations are plugin boundaries.
             logger.error(
                 "mcp_data_ingest_auto_failed",
-                extra={"dataset": dataset, "error": str(e)},
-                exc_info=True,
+                extra={"dataset": dataset, "error_type": type(e).__name__, "status": "failed"},
             )
             return _serialize_result(
                 {
@@ -332,7 +331,7 @@ def data_ingest(
 
     logger.info(
         "mcp_data_ingest_start",
-        extra={"source": source, "dataset": dataset, "params": run_params},
+        extra={"source": source, "dataset": dataset, "status": "started"},
     )
 
     try:
@@ -367,11 +366,15 @@ def data_ingest(
                 "error_message": result.error_message,
             }
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - connector implementations are plugin boundaries.
         logger.error(
             "mcp_data_ingest_failed",
-            extra={"source": source, "dataset": dataset, "error": str(e)},
-            exc_info=True,
+            extra={
+                "source": source,
+                "dataset": dataset,
+                "error_type": type(e).__name__,
+                "status": "failed",
+            },
         )
         return _serialize_result(
             {
@@ -399,7 +402,7 @@ def data_status(source: str | None = None) -> str:
     health_data = json.loads(health_json)
 
     # 尝试获取 crawl orchestrator 状态
-    crawl_info: Dict[str, Any] = {}
+    crawl_info: dict[str, Any] = {}
     try:
         from services.crawl_orchestrator import CrawlOrchestrator
 
@@ -414,11 +417,14 @@ def data_status(source: str | None = None) -> str:
                     crawl_info[source] = crawl_status
             except ValueError:
                 pass
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001 - optional legacy service boundary.
+        logger.warning(
+            "mcp_data_status_history_unavailable",
+            extra={"error_type": type(exc).__name__, "status": "unavailable"},
+        )
 
     result = {
-        "queried_at": datetime.utcnow().isoformat(),
+        "queried_at": datetime.utcnow().isoformat(),  # noqa: DTZ003 - preserve legacy output.
         "health": health_data,
         "crawl_history": crawl_info if crawl_info else None,
         "note": "使用 data_ingest 执行摄入，使用 data_health_check 检查健康状态",
@@ -436,10 +442,15 @@ def main() -> None:
     import sys
 
     try:
+        # isort: off
         from mcp.server import NotificationOptions, Server  # type: ignore[attr-defined]
-        from mcp.server.models import InitializationCapabilities  # type: ignore[attr-defined]
+        from mcp.server.models import (
+            InitializationCapabilities,  # type: ignore[attr-defined]
+        )
         from mcp.server.stdio import stdio_server
         from mcp.types import TextContent, Tool
+
+        # isort: on
     except ImportError:
         print(
             "FATAL: mcp package not installed. Run: pip install mcp",

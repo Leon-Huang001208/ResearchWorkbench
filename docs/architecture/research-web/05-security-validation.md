@@ -10,6 +10,9 @@
 | FastAPI → MCP Registry | 官方端点固定 `/v0.1`，私有 Registry 仅显式配置；认证 Registry 只允许 HTTPS，无认证 HTTP 仅限 `127.0.0.1` / `localhost` / `::1`，OAuth 端点始终为 HTTPS，客户端不跟随重定向；同名身份隔离、游标不解释、ETag 与最后成功缓存原子提交 | `mcp_registry/` / `test_mcp_registry.py`、MCP 市场 JS/E2E |
 | Registry 凭据 → 系统凭据库 | Bearer/OAuth 秘密只存 Keyring `ResearchWorkbench.MCPRegistry`；索引、缓存、日志和响应不含秘密 | `mcp_registry/credentials.py` / `test_mcp_registry.py` |
 | Registry 文本 → 浏览器 | schema 校验与长度限制后保存 Unicode plain text，拒绝 control/surrogate；数据层不做 entity escape，最终 HTML sink 单次转义且不热链图标 | `mcp_registry/models.py`、`ui/mcp-marketplace.mjs` / Python、JS、E2E |
+| Registry 版本 → 本地安装 | 只接受固定 npm/PyPI/MCPB 目标；完整依赖与哈希、直接 argv、`--ignore-scripts`、隔离目录、最小环境、安全解包和短期摘要确认；禁止 shell、范围/latest、钩子、隐式环境和链接越界 | `mcp_runtime/package_resolver.py`、`package_planner.py`、`package_installer.py` / `test_mcp_installation.py` |
+| Research Web Host → 远程 MCP | 仅 HTTPS 或字面 loopback HTTP；无自动跨源重定向；OAuth 使用 PKCE/state/元数据发现/受众校验，token 只进 `ResearchWorkbench.MCPRuntime` 凭据库且不 passthrough | `mcp_runtime/transport.py`、`oauth.py`、`sdk_host.py` / `test_mcp_transport.py` |
+| DSH → MCP Host → Server | DSH 只加载命名空间化声明并经私有 loopback 控制令牌代理；每次调用重核安装版本、schema 哈希、会话快照、风险和一次性审批；参数正文不进日志或审批列表 | `runtime/mcp-adapter.mjs`、`mcp_runtime/authorization.py`、`service.py` / Python 与 JavaScript MCP 回归 |
 | 本机诊断 → 宿主 | 发现只读取标准位置/注册项/模块；真实验证须显式触发并限制目标、Office 容器内确定名称的临时文件、独立进程组和超时；Excel 使用本轮独立实例，Wind 在打开工作簿前上报本轮 Excel PID供精确清理；投影排除绝对路径、秘密、命令与环境变量 | `local_integrations/`、`report_workflows/workbook.py` / `test_local_integrations.py`、`test_report_workflows.py` |
 | FastAPI → DSH | 固定回环 RPC、共享有界认证控制读取、文件身份/别名检查、方法白名单、双事件通道 | `runtime_auth.py`、`client.py` / `test_runtime_auth.py`、`test_protocol.py`、`test_event_recovery.py` |
 | 服务管理 → 私有目录 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL | `service_manager.py` / `test_service_manager.py` |

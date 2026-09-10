@@ -4,6 +4,8 @@ import test from 'node:test';
 
 import { createAPI, parseRoute } from '../../app/research_web/ui/core.mjs';
 import {
+  mcpEnvironmentPayload,
+  mcpInstallSelection,
   mcpMarketplaceTabKey,
   packageSupport,
   renderMCPMarketplace,
@@ -28,6 +30,36 @@ const server = (extra = {}) => ({
   ...extra,
 });
 
+const installableServer = (extra = {}) => server({
+  packages: [{
+    registry_type: 'npm', identifier: '@example/weather', version: '1.2.3',
+    package_type_supported: true, immutable_reference: true, transport_type: 'stdio',
+    environment_variables: [
+      { name: 'WEATHER_TOKEN', is_required: true, is_secret: true, description: '访问令牌' },
+      { name: 'REGION', is_required: false, is_secret: false },
+    ],
+  }],
+  remotes: [
+    { type: 'streamable-http', url: 'https://mcp.example.test/mcp' },
+    { type: 'sse', url: 'https://mcp.example.test/sse' },
+  ],
+  ...extra,
+});
+
+const installationPlan = {
+  target_kind: 'local', registry_id: 'official', server_name: 'io.example/weather',
+  server_version: '1.2.3', package_type: 'npm', package_identifier: '@example/weather',
+  package_version: '1.2.3', package_source: 'https://registry.npmjs.org',
+  argv: ['/private/install/bin/weather', '--stdio', '--exact-argument-that-must-not-be-truncated'],
+  install_argv: ['npm', 'ci', '--ignore-scripts', '--offline'],
+  environment_names: ['WEATHER_TOKEN', 'REGION'],
+  artifacts: [
+    { name: '@example/weather', version: '1.2.3', filename: 'weather-1.2.3.tgz', sha256: 'a'.repeat(64), integrity: 'sha512-AAAA', size_bytes: 123456 },
+    { name: 'dependency', version: '4.5.6', filename: 'dependency-4.5.6.tgz', sha256: 'b'.repeat(64), integrity: 'sha512-BBBB', size_bytes: 654321 },
+  ],
+  summary_sha256: 'c'.repeat(64),
+};
+
 const deferred = () => {
   let resolve;
   const promise = new Promise(done => { resolve = done; });
@@ -43,7 +75,9 @@ async function createMarketplaceApp(fetchOverride = () => null) {
   const handlers = new Map(); const windowHandlers = new Map();
   const documentState = { activeElement: null, title: '' };
   const main = { scrollTop: 0, scrollTo() {} };
+  const logs = [];
   let currentTrigger = null; let searchInput = null; let registrySelect = null; let tabs = {};
+  let installInputs = []; let installConfirmation = { checked: false };
   const makeControl = (id, dataset, value = '') => ({
     id, dataset, value,
     focus() { documentState.activeElement = this; },
@@ -65,6 +99,10 @@ async function createMarketplaceApp(fetchOverride = () => null) {
       tabs = Object.fromEntries(['library', 'market', 'connections'].map(view => [view, makeTab(view)]));
       searchInput = makeControl('mcp-market-search', { mcpQuery: '' });
       registrySelect = makeControl('mcp-market-registry', { mcpRegistry: '' }, 'official');
+      installInputs = [...value.matchAll(/data-mcp-env-name="([^"]+)"/g)].map(match => ({
+        dataset: { mcpEnvName: match[1] }, value: '',
+      }));
+      installConfirmation = { checked: false };
       currentTrigger = value.includes('data-mcp-server-detail')
         ? { dataset: { registryId: 'official', serverName: 'io.example/weather', serverVersion: '1.2.3', mcpServerDetail: '' }, disabled: false, getAttribute: () => null, focus() { documentState.activeElement = this; } }
         : null;
@@ -72,8 +110,12 @@ async function createMarketplaceApp(fetchOverride = () => null) {
   });
   const first = { focus() { documentState.activeElement = this; } }; const last = { focus() { documentState.activeElement = this; } };
   const dialog = { contains: value => value === first || value === last, querySelectorAll: () => [first, last] };
+  const installForm = () => ({
+    querySelectorAll: selector => selector === '[data-mcp-env-value]' ? installInputs : [],
+    querySelector: selector => selector === '[data-mcp-install-confirm]' ? installConfirmation : null,
+  });
   Object.assign(documentState, {
-    querySelector: selector => selector === '#app' ? root : selector === '#main' ? main : selector === '.skip-link' ? { addEventListener() {} } : selector === '.mcp-server-dialog' ? dialog : selector === '.mcp-server-dialog [data-mcp-detail-close]' ? first : selector.match(/^\[data-mcp-market-tab="(.+)"\]$/)?.[1] ? tabs[selector.match(/^\[data-mcp-market-tab="(.+)"\]$/)[1]] : null,
+    querySelector: selector => selector === '#app' ? root : selector === '#main' ? main : selector === '.skip-link' ? { addEventListener() {} } : selector === '.mcp-server-dialog' ? dialog : selector === '.mcp-server-dialog [data-mcp-detail-close]' ? first : selector === '[data-mcp-install-form]' && root.innerHTML.includes('data-mcp-install-form') ? installForm() : selector.match(/^\[data-mcp-market-tab="(.+)"\]$/)?.[1] ? tabs[selector.match(/^\[data-mcp-market-tab="(.+)"\]$/)[1]] : null,
     querySelectorAll: selector => selector === '[data-mcp-server-detail]' && currentTrigger ? [currentTrigger] : [],
     getElementById: id => id.startsWith('capability-tool-tab-') ? tabs[id.replace('capability-tool-tab-', '')]
       : id === 'mcp-market-search' ? searchInput
@@ -94,10 +136,10 @@ async function createMarketplaceApp(fetchOverride = () => null) {
           : url.endsWith('/models') ? { groups: [] } : { items: [] };
     return new Response(JSON.stringify(payload));
   } });
-  console.info = () => {};
+  console.info = (...args) => logs.push(args);
   await import(`../../app/research_web/ui/app.mjs?mcp-races=${Date.now()}-${Math.random()}`);
   return {
-    handlers, windowHandlers, documentState, root,
+    handlers, windowHandlers, documentState, root, logs,
     trigger: () => currentTrigger, tab: view => tabs[view], searchInput: () => searchInput, registrySelect: () => registrySelect,
     input(dataset, value) {
       const target = 'mcpQuery' in dataset ? searchInput : { id: '', dataset, value, closest: () => null };
@@ -107,6 +149,14 @@ async function createMarketplaceApp(fetchOverride = () => null) {
     changeRegistry(value) {
       registrySelect.value = value; documentState.activeElement = registrySelect;
       return handlers.get('change')({ target: registrySelect });
+    },
+    changeInstallTarget(value) {
+      return handlers.get('change')({ target: { dataset: { mcpInstallTarget: '' }, value, closest: () => null } });
+    },
+    setInstallValues(values, confirmed = true) {
+      installInputs.forEach(input => { input.value = values[input.dataset.mcpEnvName] || ''; });
+      installConfirmation.checked = confirmed;
+      return installInputs;
     },
     submit() { return handlers.get('submit')({ preventDefault() {}, target: { matches: selector => selector === '[data-mcp-search]' } }); },
     click(button) { return handlers.get('click')({ target: { matches: () => false, closest: selector => selector === 'button' ? button : null } }); },
@@ -141,6 +191,10 @@ test('MCP API methods encode every path segment and query independently', async 
   await api.mcpServerVersion('private/id', 'org/name?x=1', '1.2.3+build');
   await api.mcpPublisherPreview({ name: 'server' });
   await api.mcpPublisherValidate({ server_json: { name: 'server' } });
+  await api.mcpInstallationPreview({ registry_id: 'official', server_name: 'org/server', server_version: '1.2.3', package_index: 0, remote_index: null, environment_names: [] });
+  await api.mcpInstall({ confirmation_token: 'confirmation-token', environment_values: {} });
+  await api.mcpProbeInstallation('mcp-installation-0123456789abcdef0123456789abcdef');
+  await api.mcpEnableInstallation('mcp-installation-0123456789abcdef0123456789abcdef');
   assert.deepEqual(calls.map(([url, options]) => [url, options.method]), [
     ['/api/research/mcp/registries', 'GET'],
     ['/api/research/mcp/registries/private%2Fid', 'GET'],
@@ -149,11 +203,242 @@ test('MCP API methods encode every path segment and query independently', async 
     ['/api/research/mcp/servers/private%2Fid/org%2Fname%3Fx%3D1/versions/1.2.3%2Bbuild', 'GET'],
     ['/api/research/mcp/publisher/preview', 'POST'],
     ['/api/research/mcp/publisher/validate', 'POST'],
+    ['/api/research/mcp/installations/preview', 'POST'],
+    ['/api/research/mcp/installations', 'POST'],
+    ['/api/research/mcp/installations/mcp-installation-0123456789abcdef0123456789abcdef/probe', 'POST'],
+    ['/api/research/mcp/installations/mcp-installation-0123456789abcdef0123456789abcdef/enable', 'POST'],
   ]);
+});
+
+test('MCP API exposes installation, approval, OAuth and session management contracts', async () => {
+  const calls = [];
+  const api = createAPI({ fetcher: async (url, options) => {
+    calls.push([url, options.method, options.body ? JSON.parse(options.body) : null]);
+    return new Response(JSON.stringify({ items: [] }));
+  }, logger() {} });
+  const installation = 'mcp-installation/one';
+  const session = 'session/one';
+  const approval = 'approval/one';
+  await api.mcpInstallations();
+  await api.mcpInstallation(installation);
+  await api.mcpClassifyTool(installation, { tool_name: 'read', risk_tier: 'read_only', allow_unattended: true });
+  await api.mcpInstallationStatus(installation);
+  await api.mcpInstallationCapabilities(installation);
+  await api.mcpDisableInstallation(installation);
+  await api.mcpUpdateInstallation(installation);
+  await api.mcpStartOAuth(installation, { resource: 'https://mcp.example.test' });
+  await api.mcpApprovals(session);
+  await api.mcpApprove(approval, { session_id: session });
+  await api.mcpDeny(approval, { session_id: session });
+  await api.mcpAuthorizeSession(session, { installation_id: installation });
+  await api.mcpReadResource(session, { installation_id: installation, uri: 'weather://today' });
+  await api.mcpGetPrompt(session, { installation_id: installation, name: 'brief' });
+  await api.mcpDeleteInstallation(installation);
+
+  assert.deepEqual(calls, [
+    ['/api/research/mcp/installations', 'GET', null],
+    ['/api/research/mcp/installations/mcp-installation%2Fone', 'GET', null],
+    ['/api/research/mcp/installations/mcp-installation%2Fone', 'PATCH', { tool_name: 'read', risk_tier: 'read_only', allow_unattended: true }],
+    ['/api/research/mcp/installations/mcp-installation%2Fone/status', 'GET', null],
+    ['/api/research/mcp/installations/mcp-installation%2Fone/capabilities', 'GET', null],
+    ['/api/research/mcp/installations/mcp-installation%2Fone/disable', 'POST', {}],
+    ['/api/research/mcp/installations/mcp-installation%2Fone/update', 'POST', {}],
+    ['/api/research/mcp/installations/mcp-installation%2Fone/oauth/start', 'POST', { resource: 'https://mcp.example.test' }],
+    ['/api/research/mcp/approvals?session_id=session%2Fone', 'GET', null],
+    ['/api/research/mcp/approvals/approval%2Fone/approve', 'POST', { session_id: session }],
+    ['/api/research/mcp/approvals/approval%2Fone/deny', 'POST', { session_id: session }],
+    ['/api/research/sessions/session%2Fone/mcp-authorizations', 'POST', { installation_id: installation }],
+    ['/api/research/sessions/session%2Fone/mcp/resources/read', 'POST', { installation_id: installation, uri: 'weather://today' }],
+    ['/api/research/sessions/session%2Fone/mcp/prompts/get', 'POST', { installation_id: installation, name: 'brief' }],
+    ['/api/research/mcp/installations/mcp-installation%2Fone', 'DELETE', null],
+  ]);
+});
+
+test('install selection uses only trusted package or Streamable HTTP indexes', () => {
+  const detail = installableServer();
+  assert.deepEqual(mcpInstallSelection(detail, 'package:0'), {
+    registry_id: 'official', server_name: 'io.example/weather', server_version: '1.2.3',
+    package_index: 0, remote_index: null, environment_names: ['WEATHER_TOKEN', 'REGION'],
+  });
+  assert.deepEqual(mcpInstallSelection(detail, 'remote:0'), {
+    registry_id: 'official', server_name: 'io.example/weather', server_version: '1.2.3',
+    package_index: null, remote_index: 0, environment_names: [],
+  });
+  assert.throws(() => mcpInstallSelection(detail, 'remote:1'), /not_installable/);
+  assert.throws(() => mcpInstallSelection(server(), 'package:0'), /not_installable/);
+});
+
+test('install confirmation requires an explicit second confirmation and exact values', () => {
+  const fields = [{ name: 'WEATHER_TOKEN', value: 'secret' }, { name: 'REGION', value: 'CN' }];
+  assert.deepEqual(mcpEnvironmentPayload(fields, ['WEATHER_TOKEN', 'REGION'], true), {
+    WEATHER_TOKEN: 'secret', REGION: 'CN',
+  });
+  assert.throws(() => mcpEnvironmentPayload(fields, ['WEATHER_TOKEN', 'REGION'], false), /confirmation_required/);
+  assert.throws(() => mcpEnvironmentPayload(fields.slice(0, 1), ['WEATHER_TOKEN', 'REGION'], true), /environment_values_invalid/);
+});
+
+test('install preview shows complete argv, sources, every artifact and separate lifecycle states', () => {
+  const detail = installableServer();
+  const market = renderMCPMarketplace({ registries, selectedRegistryId: 'official', page: { items: [detail], count: 1, stale: false } });
+  assert.match(market, /可生成安装预览/);
+  assert.match(market, /安装、健康探测、Runtime 启用和研究授权相互独立/);
+  assert.doesNotMatch(market, /后续阶段|阶段 2A/);
+  const selection = renderMCPServerDialog(detail, { target: 'package:0' });
+  assert.match(selection, /value="package:0"/);
+  assert.match(selection, /value="remote:0"/);
+  assert.doesNotMatch(selection, /value="remote:1"/);
+
+  const html = renderMCPServerDialog(detail, {
+    target: 'package:0', preview: installationPlan,
+    confirmationToken: 'short-lived-token', installStatus: 'preview_ready',
+    probeStatus: 'not_run', enableStatus: 'disabled', authorizationStatus: 'not_authorized',
+  });
+  assert.match(html, /--exact-argument-that-must-not-be-truncated/);
+  assert.match(html, /https:\/\/registry\.npmjs\.org/);
+  assert.match(html, /weather-1\.2\.3\.tgz/);
+  assert.match(html, /dependency-4\.5\.6\.tgz/);
+  assert.match(html, new RegExp('a{64}'));
+  assert.match(html, new RegExp('b{64}'));
+  assert.match(html, /123,456 B/);
+  assert.match(html, /654,321 B/);
+  assert.match(html, new RegExp('c{64}'));
+  assert.match(html, /WEATHER_TOKEN/);
+  assert.match(html, /REGION/);
+  assert.match(html, /data-mcp-install-confirm/);
+  assert.match(html, /安装记录/);
+  assert.match(html, /健康探测/);
+  assert.match(html, /运行时启用/);
+  assert.match(html, /研究授权/);
+  assert.doesNotMatch(html, /short-lived-token/);
+});
+
+test('install flow clears secret inputs and keeps install, probe, enable and authorization distinct', async () => {
+  const calls = [];
+  const app = await createMarketplaceApp((url, options) => {
+    if (url.includes('/mcp/servers/official/io.example%2Fweather/versions/1.2.3')) {
+      return new Response(JSON.stringify(installableServer()));
+    }
+    if (url.endsWith('/mcp/installations/preview')) {
+      calls.push(['preview', JSON.parse(options.body)]);
+      return new Response(JSON.stringify({ plan: installationPlan, confirmation_token: 'short-lived-confirmation-token' }));
+    }
+    if (url.endsWith('/mcp/installations') && options.method === 'POST') {
+      calls.push(['install', JSON.parse(options.body)]);
+      return new Response(JSON.stringify({ installation: { id: 'mcp-installation-0123456789abcdef0123456789abcdef' }, status: 'installed' }));
+    }
+    if (url.endsWith('/probe')) {
+      calls.push(['probe', JSON.parse(options.body)]);
+      return new Response(JSON.stringify({ status: 'ready' }));
+    }
+    if (url.endsWith('/enable')) {
+      calls.push(['enable', JSON.parse(options.body)]);
+      return new Response(JSON.stringify({ status: 'enabled', active: true }));
+    }
+    return null;
+  });
+  try {
+    await app.click(app.trigger());
+    await app.changeInstallTarget('package:0');
+    await app.click({ dataset: { mcpInstallPreview: '' }, disabled: false, getAttribute: () => null });
+    assert.match(app.root.innerHTML, /--exact-argument-that-must-not-be-truncated/);
+    assert.deepEqual(calls[0], ['preview', {
+      registry_id: 'official', server_name: 'io.example/weather', server_version: '1.2.3',
+      package_index: 0, remote_index: null, environment_names: ['WEATHER_TOKEN', 'REGION'],
+    }]);
+
+    const detachedInputs = app.setInstallValues({ WEATHER_TOKEN: 'do-not-retain', REGION: 'CN' });
+    await app.click({ dataset: { mcpInstallConfirmAction: '' }, disabled: false, getAttribute: () => null });
+    assert.deepEqual(calls[1], ['install', {
+      confirmation_token: 'short-lived-confirmation-token',
+      environment_values: { WEATHER_TOKEN: 'do-not-retain', REGION: 'CN' },
+    }]);
+    assert.ok(detachedInputs.every(input => input.value === ''));
+    assert.doesNotMatch(app.root.innerHTML, /do-not-retain|short-lived-confirmation-token/);
+    assert.doesNotMatch(JSON.stringify(app.logs), /do-not-retain|short-lived-confirmation-token/);
+    assert.match(app.root.innerHTML, /安装记录[\s\S]*已安装/);
+    assert.match(app.root.innerHTML, /健康探测[\s\S]*未执行/);
+    assert.match(app.root.innerHTML, /运行时启用[\s\S]*未启用/);
+    assert.match(app.root.innerHTML, /研究授权[\s\S]*未授权/);
+
+    await app.click({ dataset: { mcpInstallProbe: 'mcp-installation-0123456789abcdef0123456789abcdef' }, disabled: false, getAttribute: () => null });
+    assert.match(app.root.innerHTML, /健康探测[\s\S]*已通过/);
+    assert.match(app.root.innerHTML, /运行时启用[\s\S]*未启用/);
+    await app.click({ dataset: { mcpInstallEnable: 'mcp-installation-0123456789abcdef0123456789abcdef' }, disabled: false, getAttribute: () => null });
+    assert.match(app.root.innerHTML, /运行时启用[\s\S]*已启用/);
+    assert.match(app.root.innerHTML, /研究授权[\s\S]*未授权/);
+    assert.deepEqual(calls.slice(2).map(([kind]) => kind), ['probe', 'enable']);
+  } finally { app.cleanup(); }
+});
+
+test('installed server detail exposes persisted lifecycle, policy and session authorization controls', () => {
+  const installation = {
+    runtimeAvailable: true,
+    installationId: 'mcp-installation-0123456789abcdef0123456789abcdef',
+    installStatus: 'installed', probeStatus: 'ready', enableStatus: 'enabled', authorizationStatus: 'not_authorized',
+    currentSessionId: 'session-1', busy: '', error: '',
+    record: { plan: { target_kind: 'remote', endpoint: 'https://mcp.example.test/mcp', server_version: '1.2.3' }, active: true },
+    capabilities: { tools: [{ name: 'read_weather', description: '<b>forecast</b>', schema_sha256: 'd'.repeat(64), risk_tier: 'read_only', allow_unattended: true }] },
+  };
+  const html = renderMCPServerDialog(installableServer(), installation);
+  assert.match(html, /停用 Runtime/);
+  assert.match(html, /连接 OAuth/);
+  assert.match(html, /移除安装/);
+  assert.match(html, /data-mcp-tool-policy="read_weather"/);
+  assert.match(html, /允许无人值守只读调用/);
+  assert.match(html, /授权当前研究会话/);
+  assert.match(html, new RegExp('d{64}'));
+  assert.doesNotMatch(html, /<b>forecast<\/b>/);
+});
+
+test('runtime-disabled marketplace remains browsable and blocks installation handoff', () => {
+  const market = renderMCPMarketplace({
+    registries, selectedRegistryId: 'official', runtimeAvailable: false,
+    runtimeError: '<runtime disabled>', page: { items: [installableServer()], count: 1, stale: false },
+  });
+  const dialog = renderMCPServerDialog(installableServer(), { runtimeAvailable: false, installStatus: 'not_installed', target: 'package:0' });
+  assert.match(market, /Weather/);
+  assert.match(market, /&lt;runtime disabled&gt;/);
+  assert.match(dialog, /当前只能浏览 Registry 详情/);
+  assert.match(dialog, /data-mcp-install-preview disabled/);
+});
+
+test('market shows a text-only one-call approval queue without arguments', () => {
+  const html = renderMCPMarketplace({
+    registries, selectedRegistryId: 'official', runtimeAvailable: true,
+    approvals: [{ id: 'mcp-approval-1', installation_id: 'mcp-installation-1', session_id: 'session-1', version: '1.2.3', tool_name: '<write>', status: 'pending' }],
+    page: { items: [server()], count: 1, stale: false },
+  });
+  assert.match(html, /待处理高风险调用/);
+  assert.match(html, /&lt;write&gt;/);
+  assert.match(html, /data-mcp-approval-approve="mcp-approval-1"/);
+  assert.match(html, /data-mcp-approval-deny="mcp-approval-1"/);
+  assert.doesNotMatch(html, /arguments|<write>/);
+});
+
+test('reopening a Registry version restores its persisted installation state', async () => {
+  const installationId = 'mcp-installation-0123456789abcdef0123456789abcdef';
+  const record = {
+    id: installationId, runtime_status: 'enabled', active: true,
+    plan: { registry_id: 'official', server_name: 'io.example/weather', server_version: '1.2.3', target_kind: 'remote', endpoint: 'https://mcp.example.test/mcp' },
+  };
+  const app = await createMarketplaceApp((url, options) => {
+    if (url.endsWith('/mcp/installations') && options.method === 'GET') return new Response(JSON.stringify({ items: [record] }));
+    if (url.includes('/mcp/servers/official/io.example%2Fweather/versions/1.2.3')) return new Response(JSON.stringify(installableServer()));
+    if (url.endsWith(`/${installationId}/capabilities`)) return new Response(JSON.stringify({ tools: [{ name: 'read_weather', description: 'Forecast', inputSchema: { type: 'object' }, schema_sha256: 'd'.repeat(64), risk_tier: 'read_only', allow_unattended: false }] }));
+    return null;
+  });
+  try {
+    await app.click(app.trigger());
+    assert.match(app.root.innerHTML, /安装记录[\s\S]*已安装/);
+    assert.match(app.root.innerHTML, /运行时启用[\s\S]*已启用/);
+    assert.match(app.root.innerHTML, /read_weather/);
+    assert.doesNotMatch(app.root.innerHTML, /选择一个已审查目标/);
+  } finally { app.cleanup(); }
 });
 
 test('market CSS preserves the 4/3/2/1 grid, mobile dialog, theme tokens and reduced motion', async () => {
   const css = await readFile(new URL('../../app/research_web/ui/appearance.css', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../../app/research_web/ui/styles.css', import.meta.url), 'utf8');
   assert.match(css, /\.mcp-market-grid\s*\{[^}]*repeat\(3,/s);
   assert.match(css, /@media \(min-width: 1400px\)[\s\S]*?\.mcp-market-grid\s*\{[^}]*repeat\(4,/);
   assert.match(css, /@media \(max-width: 1100px\)[\s\S]*?\.mcp-market-grid\s*\{[^}]*repeat\(2,/);
@@ -162,6 +447,11 @@ test('market CSS preserves the 4/3/2/1 grid, mobile dialog, theme tokens and red
   assert.match(css, /\.mcp-server-card\s*\{[^}]*var\(--line\)[^}]*var\(--surface\)/s);
   assert.match(css, /:root\[data-theme='dark'\][\s\S]*?--surface:/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?transition:\s*none !important/);
+  assert.match(styles, /\.mcp-install-status\s*\{[^}]*repeat\(4,/s);
+  assert.match(styles, /\.mcp-artifact-table-wrap\s*\{[^}]*overflow:\s*auto/s);
+  assert.match(styles, /\.mcp-exact-list code[^\{]*\{[^}]*overflow-wrap:\s*anywhere/s);
+  assert.doesNotMatch(styles.match(/\.mcp-exact-list code[^\{]*\{[^}]*\}/s)?.[0] || '', /text-overflow|-webkit-line-clamp/);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*?\.capability-preview-dialog\.mcp-server-dialog\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/);
 });
 
 test('market renderer keeps third-party content text-only and never hotlinks icons', () => {

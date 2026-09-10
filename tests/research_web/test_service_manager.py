@@ -65,6 +65,25 @@ def test_process_contract_supports_isolated_staging_ports(manager):
     assert staged.web_url == "http://127.0.0.1:18088/#/fingpt"
 
 
+def test_spawn_exports_the_exact_private_web_origin_for_mcp_callbacks(manager, monkeypatch):
+    captured = {}
+
+    class Process:
+        pid = 4321
+
+    def popen(_command, **options):
+        captured.update(options)
+        return Process()
+
+    monkeypatch.setattr(service_manager_module.subprocess, "Popen", popen)
+    monkeypatch.setattr(manager, "_write_state", lambda *_args: None)
+
+    manager._prepare_private_directories()
+    manager._spawn(manager._processes()[1])
+
+    assert captured["env"]["RESEARCH_WEB_INTERNAL_URL"] == "http://127.0.0.1:8088"
+
+
 def test_default_runtime_source_is_project_private(tmp_path, monkeypatch):
     monkeypatch.delenv("RESEARCH_DSH_SOURCE", raising=False)
     data_root = tmp_path / ".research-workbench" / "research-web"
@@ -191,6 +210,49 @@ def test_restart_refuses_active_research_without_force(manager, monkeypatch):
     monkeypatch.setattr(manager, "_active_research", lambda: ["session-1"])
     with pytest.raises(ServiceManagerError, match="活动研究"):
         manager.restart(force=False, open_browser=False)
+
+
+def test_restart_runtime_keeps_web_online_and_waits_for_owned_runtime(manager, monkeypatch):
+    manager._prepare_private_directories()
+    runtime, web = manager._processes()
+    ownership = {"runtime": {"pid": 101}, "web": {"pid": 202}}
+    stopped: list[str] = []
+    spawned: list[str] = []
+
+    monkeypatch.setattr(manager, "_owned_state", lambda process: ownership[process.role])
+    monkeypatch.setattr(manager, "_active_research", list)
+
+    def stop_one(process):
+        stopped.append(process.role)
+        ownership[process.role] = None
+        return True
+
+    def spawn(process):
+        spawned.append(process.role)
+        ownership[process.role] = {"pid": 303}
+        return 303
+
+    monkeypatch.setattr(manager, "_stop_one", stop_one)
+    monkeypatch.setattr(manager, "_spawn", spawn)
+    monkeypatch.setattr(manager, "_port_open", lambda port: False)
+    monkeypatch.setattr(manager, "_wait", lambda check, timeout: check())
+    monkeypatch.setattr(manager, "_runtime_healthy", lambda: ownership["runtime"] is not None)
+
+    result = manager.restart_runtime(force=False)
+
+    assert stopped == [runtime.role]
+    assert spawned == [runtime.role]
+    assert ownership[web.role] == {"pid": 202}
+    assert result == {"running": True, "healthy": True, "pid": 303, "port": 3081}
+
+
+def test_restart_runtime_refuses_active_research_without_force(manager, monkeypatch):
+    manager._prepare_private_directories()
+    monkeypatch.setattr(manager, "_owned_state", lambda process: {"pid": 123})
+    monkeypatch.setattr(manager, "_active_research", lambda: ["session-1"])
+
+    with pytest.raises(ServiceManagerError, match="活动研究"):
+        manager.restart_runtime(force=False)
 
 
 def test_stop_never_targets_unowned_process(manager, monkeypatch):

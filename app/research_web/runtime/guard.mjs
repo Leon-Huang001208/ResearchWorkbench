@@ -1,4 +1,4 @@
-/** Host-global final veto; no arbitrary shell, filesystem, URL or MCP tools. */
+/** Host-global final veto; MCP tools require an exact activation allowlist. */
 export const inject = ['tools'];
 
 export const RESEARCH_TOOLS = new Set([
@@ -13,12 +13,23 @@ export const RESEARCH_TOOLS = new Set([
 
 export function apply(ctx, config = {}) {
   const calls = new WeakMap();
+  const mcpTools = new Set();
+  if (config.mcpTools !== undefined && !Array.isArray(config.mcpTools)) throw Error('MCP tool allowlist is invalid');
+  for (const name of config.mcpTools || []) {
+    if (typeof name !== 'string' || !/^mcp__mcp-installation-[a-f0-9]{32}__[A-Za-z0-9][A-Za-z0-9_.:-]{0,254}$/.test(name)) {
+      throw Error('MCP tool allowlist contains an invalid name');
+    }
+    if (mcpTools.has(name)) throw Error('MCP tool allowlist contains a duplicate name');
+    if (mcpTools.size >= 256) throw Error('MCP tool allowlist exceeds its limit');
+    mcpTools.add(name);
+  }
   ctx.tools.guard((execution) => {
     const tabbitAllowed =
       (execution.name === 'tabbit_browser' && config.tabbitBrowserEnabled === true) ||
       (execution.name === 'web_fetch' && config.tabbitWebFetchEnabled === true);
     const researchAllowed = config.enabled === true && RESEARCH_TOOLS.has(execution.name);
-    if ((researchAllowed || tabbitAllowed) && execution.agent) {
+    const mcpAllowed = config.enabled === true && mcpTools.has(execution.name);
+    if ((researchAllowed || tabbitAllowed || mcpAllowed) && execution.agent) {
       const turn = execution.agent.session.snapshotEvents().findLast((event) => event.type === 'turn/start')?.data.turn;
       let budget = calls.get(execution.agent);
       if (!budget || budget.turn !== turn) { budget = { turn, calls: 0, children: 0 }; calls.set(execution.agent, budget); }

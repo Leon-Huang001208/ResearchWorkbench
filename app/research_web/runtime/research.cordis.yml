@@ -52,6 +52,11 @@
   config:
     researchRoot: __RESEARCH_ROOT__
     enabledTools: __PUBLIC_DATA_ENABLED_TOOLS__
+- id: mcp-tools
+  name: __MCP_TOOLS_MODULE__
+  config:
+    researchRoot: __RESEARCH_ROOT__
+    bindings: __MCP_TOOL_BINDINGS__
 - id: tool-subagent
   name: '@deepseek-ai/dsh-tool-subagent'
   config:

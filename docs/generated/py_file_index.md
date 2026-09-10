@@ -3725,6 +3725,7 @@ Imports:
 - `datahub.security`
 - `hashlib`
 - `json`
+- `mcp_runtime.authorization`
 - `os`
 - `pathlib`
 - `re`
@@ -3736,6 +3737,9 @@ Imports:
 - `tempfile`
 
 Functions:
+- `mcp_runtime_enabled`
+- `load_mcp_runtime_bindings`
+  - Load exact Host-verified bindings for the next dedicated DSH start.
 - `load_tabbit_config`
   - Read the non-secret Tabbit switches used for the next Runtime start.
 - `_atomic_json`
@@ -3907,6 +3911,9 @@ Imports:
 - `json`
 - `local_integrations`
 - `local_integrations.routes`
+- `mcp_registry`
+- `mcp_registry.routes`
+- `mcp_runtime.routes`
 - `mimetypes`
 - `operations`
 - `os`
@@ -3917,10 +3924,7 @@ Imports:
 - `report_studio`
 - `report_workflow_routes`
 - `report_workflows.models`
-- `service`
-- `shutil`
-- `starlette.middleware.trustedhost`
-- ... 6 more
+- ... 9 more
 
 Classes:
 - `NewSession`
@@ -3936,6 +3940,718 @@ Classes:
 
 Functions:
 - `create_app`
+
+
+## `app/research_web/mcp_registry/__init__.py`
+
+Module docstring:
+> Read-only MCP Registry public API.
+
+Imports:
+- `models`
+- `service`
+
+
+## `app/research_web/mcp_registry/catalog.py`
+
+Module docstring:
+> Atomic local registry catalog and query-keyed cache.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `tempfile`
+- `threading`
+- `typing`
+- `uuid`
+
+Classes:
+- `CatalogError`
+  - Stable local catalog failure.
+- `RegistryCatalog`
+  - methods: __init__, _load_catalog, _atomic_write, save, rows, row, create, update, delete, cache_path, query_key, _load_cache, cached_page, save_page, cached_detail, save_detail, status_path, _load_status, sync_status, set_sync_status
+
+Functions:
+- `timestamp`
+
+
+## `app/research_web/mcp_registry/credentials.py`
+
+Module docstring:
+> OS-keyring-only secret storage for MCP Registry authentication.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `json`
+
+Classes:
+- `CredentialError`
+  - Stable credential-store failure without secret content.
+- `_SystemKeyring`
+  - methods: _module, get_password, set_password, delete_password
+- `RegistryCredentialStore`
+  - methods: __init__, account, snapshot, read, write, delete, configured, restore, authorization, replace
+
+
+## `app/research_web/mcp_registry/models.py`
+
+Module docstring:
+> Strict public and upstream contracts for read-only MCP registries.
+
+Imports:
+- `__future__`
+- `pydantic`
+- `re`
+- `typing`
+- `unicodedata`
+- `urllib.parse`
+
+Classes:
+- `AuthNone`
+- `AuthBearer`
+- `AuthOAuth2`
+  - methods: validate_url, validate_client_id, validate_scopes
+- `RegistryCreate`
+  - methods: validate_name, validate_base_url, validate_transport
+- `RegistryUpdate`
+  - methods: validate_name, validate_base_url, require_change
+- `SyncRequest`
+  - methods: reject_controls
+- `UpstreamMetadata`
+  - methods: validate_cursor
+- `UpstreamList`
+
+Functions:
+- `_has_disallowed_control`
+- `safe_http_url`
+  - Return a canonical HTTP(S) URL without credentials, query, or fragment.
+- `safe_https_url`
+  - Return a canonical HTTPS URL.
+- `validate_registry_transport`
+  - Allow HTTPS, or unauthenticated HTTP on an explicit loopback host.
+- `safe_text`
+- `_safe_optional_text`
+- `_safe_repository`
+- `_immutable_package_reference`
+- `_safe_argument`
+- `_safe_arguments`
+- `_safe_environment_variables`
+- `_safe_packages`
+- `_safe_remotes`
+- `normalize_upstream_server`
+  - Project one untrusted Registry response into a bounded plain-text record.
+
+
+## `app/research_web/mcp_registry/publisher.py`
+
+Module docstring:
+> Pure server.json generation and validation; never invokes publisher binaries.
+
+Imports:
+- `__future__`
+- `hashlib`
+- `json`
+- `models`
+- `pydantic`
+- `re`
+- `typing`
+
+Classes:
+- `StdioTransport`
+- `NetworkTransport`
+  - methods: validate_url
+- `PublisherRepository`
+  - methods: validate_url
+- `PublisherPackage`
+  - methods: validate_url, validate_version, require_immutable_reference
+- `PublisherProvidedMetadata`
+- `PublisherMeta`
+- `PublisherServer`
+  - methods: validate_url, validate_text, validate_name, validate_fixed_version
+- `PublisherMetadata`
+  - methods: _input, canonical_json, digest, preview, validate
+
+
+## `app/research_web/mcp_registry/routes.py`
+
+Module docstring:
+> FastAPI routes for the read-only MCP Registry and publisher handoff.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `models`
+- `typing`
+
+Functions:
+- `service`
+- `registries`
+- `create_registry`
+- `registry_detail`
+- `update_registry`
+- `delete_registry`
+- `sync_registry`
+- `servers`
+- `server_version`
+- `publisher_preview`
+- `publisher_validate`
+
+
+## `app/research_web/mcp_registry/service.py`
+
+Module docstring:
+> Read-only MCP Registry orchestration and safe response projection.
+
+Imports:
+- `__future__`
+- `catalog`
+- `copy`
+- `core.observability`
+- `credentials`
+- `httpx`
+- `models`
+- `os`
+- `pathlib`
+- `publisher`
+- `pydantic`
+- `re`
+- `sync`
+- `typing`
+
+Classes:
+- `RegistryError`
+  - methods: __init__
+- `MCPRegistryService`
+  - methods: __init__, _initialize, catalog, credentials, credentials, http, publisher, start, close, _ensure_enabled, _catalog_error, _secret_payload, _stored_auth, _project, _validate_transport, list_registries, registry, create_registry, update_registry, delete_registry, _page_result, _matches_source, _sync_status, _set_sync_status, list_servers, sync_registry, _validate_identity, version_detail, publisher_preview, publisher_validate
+
+Functions:
+- `registry_feature_enabled`
+
+
+## `app/research_web/mcp_registry/sync.py`
+
+Module docstring:
+> Bounded, conditional HTTP reads for MCP Registry v0.1.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `httpx`
+- `json`
+- `models`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `SyncError`
+  - methods: __init__
+- `RegistryHTTPClient`
+  - methods: __init__, close, _get, page, detail
+
+
+## `app/research_web/mcp_runtime/__init__.py`
+
+Module docstring:
+> Research Web-owned MCP installation and runtime host.
+
+Imports:
+- `routes`
+- `service`
+
+
+## `app/research_web/mcp_runtime/authorization.py`
+
+Module docstring:
+> Fail-closed MCP tool authorization and approval contracts.
+
+Imports:
+- `__future__`
+- `app.research_web.datahub.security`
+- `app.research_web.store`
+- `core.observability`
+- `hashlib`
+- `hmac`
+- `json`
+- `math`
+- `os`
+- `pathlib`
+- `re`
+- `threading`
+- `typing`
+- `uuid`
+
+Classes:
+- `AuthorizationError`
+  - A stable, non-secret authorization failure.
+  - methods: __init__
+- `ExactToolAllowlist`
+  - Immutable allowlist keyed by the complete DSH tool namespace.
+  - methods: __init__, allows
+- `AuthorizationManager`
+  - Persist exact tool snapshots, session grants, and one-use approvals.
+  - methods: __init__, register_tool, classify_tool, authorize_session, grant, list_tools, active_bindings, list_approvals, has_session_authorization, approve, deny, admit_call, _load, _save, _current, _checked_risk, _checked_unattended, _pause_for_drift, _pause_for_policy_change, _require_grant, _require_unattended, _new_approval, _consume_approval
+
+Functions:
+- `_canonical_bytes`
+- `_validate_json`
+- `canonical_schema_hash`
+  - Hash bounded canonical input and output schemas as one immutable snapshot.
+- `_arguments_hash`
+- `_checked_identifier`
+- `_id_digest`
+- `_tool_key`
+
+
+## `app/research_web/mcp_runtime/control.py`
+
+Module docstring:
+> Independent private loopback control token for the MCP runtime.
+
+Imports:
+- `__future__`
+- `app.research_web.datahub.security`
+- `app.research_web.store`
+- `core.observability`
+- `hashlib`
+- `hmac`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `secrets`
+
+Classes:
+- `ControlError`
+  - A stable MCP private-control configuration failure.
+
+Functions:
+- `_parse`
+- `load_control`
+  - Create once or securely read the MCP runtime's dedicated control record.
+- `authenticate`
+  - Compare fixed-size token digests so malformed values also take a constant-time path.
+
+
+## `app/research_web/mcp_runtime/credentials.py`
+
+Module docstring:
+> OS-keyring-only storage for MCP server credentials.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `json`
+- `re`
+- `typing`
+
+Classes:
+- `RuntimeCredentialError`
+  - Stable failure that never contains credential content.
+- `_SystemKeyring`
+  - methods: _module, get_password, set_password, delete_password
+- `RuntimeCredentialStore`
+  - Persist bounded JSON credential records under installation-scoped keys.
+  - methods: __init__, account, reference, write, read, delete
+
+Functions:
+- `_id_digest`
+
+
+## `app/research_web/mcp_runtime/installation_store.py`
+
+Module docstring:
+> Short-lived confirmation and atomic immutable MCP installation manifests.
+
+Imports:
+- `__future__`
+- `base64`
+- `collections.abc`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `hmac`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `pydantic`
+- `re`
+- `secrets`
+- `stat`
+- `tempfile`
+- `threading`
+- `typing`
+- `uuid`
+
+Classes:
+- `ConfirmationError`
+  - A stable confirmation-token validation failure.
+- `InstallationStoreError`
+  - A stable local installation-store failure.
+- `_KeyringBackend`
+  - methods: get_password, set_password
+- `ConfirmationTokenManager`
+  - Issue HMAC tokens bound to one exact canonical plan summary.
+  - methods: __init__, issue, verify, _utc_now, _consume_once, _private_directory
+- `InstallationStore`
+  - Persist one immutable manifest per installation using atomic replacement.
+  - methods: __init__, _persistent_integrity_key, create, get, list, delete, _ensure_directory, _assert_contained, _atomic_manifest
+
+Functions:
+- `_canonical_bytes`
+- `_encode`
+- `_decode`
+
+
+## `app/research_web/mcp_runtime/models.py`
+
+Module docstring:
+> Strict non-secret contracts for immutable MCP installation plans.
+
+Imports:
+- `__future__`
+- `app.research_web.mcp_registry.models`
+- `datetime`
+- `hashlib`
+- `hmac`
+- `json`
+- `pydantic`
+- `re`
+- `typing`
+- `unicodedata`
+- `urllib.parse`
+
+Classes:
+- `InstallationSelection`
+  - The complete browser-facing installation request.
+  - methods: validate_server_version, validate_environment_names, select_exactly_one_target
+- `PackageArtifact`
+  - One fully resolved package artifact, including transitive dependencies.
+  - methods: validate_name, validate_version, validate_filename, validate_integrity
+- `InstallationRequest`
+  - Internal resolver output; browser routes must use InstallationSelection.
+  - methods: validate_server_version, validate_identifier, validate_source, validate_argv, validate_environment_names, validate_lifecycle_hooks, validate_package_fields
+- `InstallationPlan`
+  - Canonical package plan shown in full before confirmation.
+  - methods: assert_integrity
+- `RemoteInstallationPlan`
+  - Immutable non-secret Streamable HTTP target selected from Registry detail.
+  - methods: validate_endpoint, validate_environment_names, assert_integrity
+- `InstallationManifest`
+  - Immutable non-secret installation record.
+
+Functions:
+- `_has_control`
+- `_safe_text`
+- `_fixed_version`
+- `_canonical_remote_endpoint`
+
+
+## `app/research_web/mcp_runtime/oauth.py`
+
+Module docstring:
+> OAuth 2.1 discovery and authorization-code state for remote MCP servers.
+
+Imports:
+- `__future__`
+- `base64`
+- `credentials`
+- `dataclasses`
+- `hashlib`
+- `httpx`
+- `json`
+- `secrets`
+- `time`
+- `transport`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `OAuthError`
+  - Stable OAuth failure without token or third-party response content.
+- `OAuthMetadata`
+- `OAuthStartResult`
+- `OAuthCompletion`
+- `_OAuthAttempt`
+- `OAuthDiscovery`
+  - methods: __init__, _safe_fetch_json, discover
+- `OAuthCoordinator`
+  - methods: __init__, _prune_attempts, start, complete, _safe_token_exchange
+
+Functions:
+- `_well_known`
+- `_https_metadata_url`
+
+
+## `app/research_web/mcp_runtime/package_installer.py`
+
+Module docstring:
+> Verified MCP package installation into an atomically published directory.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.observability`
+- `credentials`
+- `hashlib`
+- `hmac`
+- `json`
+- `models`
+- `os`
+- `package_planner`
+- `pathlib`
+- `shutil`
+- `stat`
+- `subprocess`
+- `sys`
+- `transport`
+- `zipfile`
+
+Classes:
+- `PackageInstallError`
+  - A stable local package installation failure.
+- `PackageInstaller`
+  - Reverify staged bytes, install without shell, then atomically publish.
+  - methods: __init__, install, target, update, remove, _published_argv, _write_launcher, _default_runner, _private_root, _staging_directory, _reverify, _minimal_environment, _extract_mcpb
+
+
+## `app/research_web/mcp_runtime/package_planner.py`
+
+Module docstring:
+> Deterministic, no-execution package planning for MCP server installation.
+
+Imports:
+- `__future__`
+- `hashlib`
+- `json`
+- `models`
+- `package_resolver`
+- `pathlib`
+- `stat`
+- `zipfile`
+
+Classes:
+- `PackagePlanError`
+  - A stable install planning failure code.
+- `PackagePlanner`
+  - Validate resolver output and create the exact user confirmation summary.
+  - methods: plan, _plan_remote, _assert_unique_artifacts, _plan_npm, _plan_pypi, _plan_mcpb, _validate_mcpb_member
+
+Functions:
+- `_canonical_bytes`
+- `_artifact_rows`
+
+
+## `app/research_web/mcp_runtime/package_resolver.py`
+
+Module docstring:
+> Trusted, staged package resolution for MCP installations.
+
+Imports:
+- `__future__`
+- `base64`
+- `collections.abc`
+- `core.observability`
+- `dataclasses`
+- `email.parser`
+- `hashlib`
+- `hmac`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `re`
+- `shutil`
+- `stat`
+- `subprocess`
+- `sys`
+- `tarfile`
+- `typing`
+- `urllib.parse`
+- `uuid`
+- `zipfile`
+
+Classes:
+- `PackageResolutionError`
+  - A stable trusted-resolution failure.
+- `ResolutionBackend`
+  - Host-owned adapter that downloads one Registry package closure.
+  - methods: resolve
+- `ResolvedInstallation`
+  - Opaque output accepted by PackagePlanner; it is not JSON deserializable.
+  - methods: trusted
+- `ResolvedRemoteInstallation`
+  - Opaque Registry-selected remote endpoint without credentials.
+  - methods: trusted
+- `DefaultPackageBackend`
+  - Resolve fixed Registry packages with local npm/pip and bounded HTTPS downloads.
+  - methods: __init__, resolve, _run, _environment, _resolve_npm, _resolve_pypi, _resolve_mcpb, _download_https, _fixed_identity, _request, _exclusive_bytes, _exclusive_json, _bounded_read, _wheel_identity
+- `PackageResolver`
+  - Convert minimal Registry identity into verified private staged artifacts.
+  - methods: __init__, resolve, _resolve_remote, _validate_registry_identity, _validate_request_identity, _new_staging_directory, _verify_staged_request, _verify_npm, _reject_npm_hooks, _verify_pypi, _wheel_metadata, _parse_requirements
+
+Functions:
+- `_argument_values`
+- `_registry_argv`
+- `_normalize_name`
+- `_safe_file`
+- `_digest_file`
+- `_verify_sri`
+
+
+## `app/research_web/mcp_runtime/routes.py`
+
+Module docstring:
+> Strict FastAPI contracts for the Research Web MCP runtime.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `models`
+- `pydantic`
+- `re`
+- `typing`
+
+Classes:
+- `StrictModel`
+- `InstallConfirmRequest`
+  - methods: validate_environment_values
+- `ToolPolicyRequest`
+- `SessionAuthorizationRequest`
+- `ResourceReadRequest`
+- `PromptGetRequest`
+- `ApprovalDecisionRequest`
+- `OAuthStartRequest`
+- `InternalToolCallRequest`
+
+Functions:
+- `service`
+- `preview`
+- `install`
+- `installations`
+- `installation`
+- `classify`
+- `delete_installation`
+- `installation_status`
+- `installation_capabilities`
+- `probe`
+- `enable`
+- `disable`
+- `update`
+- `authorize_session`
+- `read_resource`
+- `get_prompt`
+- `approvals`
+- `approve`
+- `deny`
+- `oauth_start`
+- `oauth_callback`
+- `internal_tool_call`
+
+
+## `app/research_web/mcp_runtime/sdk_host.py`
+
+Module docstring:
+> Bounded facade over the official MCP Python SDK client.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `core.observability`
+- `credentials`
+- `hashlib`
+- `json`
+- `oauth`
+- `re`
+- `transport`
+- `typing`
+
+Classes:
+- `MCPHostError`
+  - Stable Host error that omits target, arguments and third-party bodies.
+- `SDKHost`
+  - Expose tools/resources/prompts without sampling, elicitation or MCP Tasks.
+  - methods: __init__, _official_client, _official_target, _remote_transport, _client, _target_digest, _bounded, _validate_request, capabilities, _server_projection, _invoke, call_tool, read_resource, get_prompt
+
+
+## `app/research_web/mcp_runtime/service.py`
+
+Module docstring:
+> Feature-gated orchestration for MCP installation, authorization and execution.
+
+Imports:
+- `__future__`
+- `app.research_web.datahub.security`
+- `app.research_web.mcp_registry.service`
+- `app.research_web.store`
+- `asyncio`
+- `authorization`
+- `control`
+- `copy`
+- `core.observability`
+- `inspect`
+- `installation_store`
+- `json`
+- `os`
+- `package_planner`
+- `pathlib`
+- `sdk_host`
+- `typing`
+
+Classes:
+- `MCPRuntimeError`
+  - Stable, non-secret API failure handled by the existing MCP error boundary.
+  - methods: __init__
+- `MCPRuntimeService`
+  - Coordinate trusted MCP components while keeping public requests declarative.
+  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, disable, update, delete, classify_tool, authorize_session, read_resource, get_prompt, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _resolve_target, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
+
+Functions:
+- `runtime_feature_enabled`
+- `_await`
+- `_field`
+- `_dump`
+
+
+## `app/research_web/mcp_runtime/transport.py`
+
+Module docstring:
+> Fail-closed MCP transport configuration without ambient process state.
+
+Imports:
+- `__future__`
+- `dataclasses`
+- `os`
+- `pathlib`
+- `re`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `RemoteTarget`
+- `StdioTarget`
+
+Functions:
+- `_canonical_endpoint`
+- `validate_remote_endpoint`
+  - Allow HTTPS everywhere and HTTP only on literal loopback IPs.
+- `validate_redirect`
+  - Accept only same-origin redirects or same-host HTTP-to-HTTPS upgrades.
+- `minimal_stdio_environment`
+  - Build an environment from constants and explicit server values only.
+- `build_stdio_target`
+  - Validate a direct argv target; shell command strings are never accepted.
+- `validate_stdio_target`
+  - Rebuild a stdio target from its explicit names and reject forged ambient state.
 
 
 ## `app/research_web/operations.py`
@@ -4587,19 +5303,34 @@ Imports:
 - `hashlib`
 - `json`
 - `local_integrations`
+- `mcp_registry`
+- `mcp_runtime.authorization`
+- `mcp_runtime.control`
+- `mcp_runtime.credentials`
+- `mcp_runtime.installation_store`
+- `mcp_runtime.oauth`
+- `mcp_runtime.package_installer`
+- `mcp_runtime.package_planner`
+- `mcp_runtime.package_resolver`
+- `mcp_runtime.sdk_host`
+- `mcp_runtime.service`
+- `os`
 - `pathlib`
 - `projection`
-- `report_studio`
-- `report_workflows.manager`
-- `shutil`
-- `store`
-- `tabbit`
-- `time`
-- `websockets.exceptions`
+- ... 9 more
 
 Classes:
+- `_SessionOwnedMCPRuntime`
+  - Enforce Research Store ownership before any session-scoped MCP operation.
+  - methods: __init__, __getattr__, start, close, _owned, authorize_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+
+Functions:
+- `_mcp_internal_url`
+  - Resolve the manager-provided loopback origin for this Web process.
+- `_persistent_mcp_key`
+  - Load one fixed-size Host key without ever persisting it in the data root.
 
 
 ## `app/research_web/service_manager.py`
@@ -4637,7 +5368,7 @@ Classes:
 - `ManagedProcess`
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, status, tabbit_status
+  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, restart_runtime, status, tabbit_status
 
 Functions:
 - `_is_unsafe_private_directory`

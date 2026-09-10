@@ -1,5 +1,16 @@
 # 架构迭代核对记录
 
+## 2026-09-11 — MCP 安装、授权与 Research Web Host
+
+- Registry 仍是只读发现边界；新增 `mcp_runtime` 负责固定制品解析、完整二次确认、不可变安装清单、官方 SDK 连接与 OAuth，秘密只进入独立系统凭据库。
+- 工具 schema、风险等级、无人值守许可、会话 grant 和一次性审批由 Host 保存；DSH 只加载命名空间化快照并通过私有 loopback 请求 Host，每次调用重新核对版本、schema 和授权。
+- 启停等待活动研究归零并仅重启专属 DSH，候选健康失败时恢复旧激活清单。Tool 市场恢复持久安装并分别呈现探测、启停、移除、OAuth、风险策略、会话授权和高风险审批。Automation/外发仍未进入本阶段。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"MCP市场新增完整安装确认、持久安装管理、工具策略、会话授权和一次性审批队列。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增MCP安装、探测、启停、OAuth、能力、授权、资源、提示和审批接口。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"Research Web Host持有官方MCP SDK连接，DSH只经私有控制通道调用命名空间化工具并支持激活回滚。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"capabilities","structure":"changed","reason":"工具发现加入不可变安装版本、schema哈希、风险分级、会话快照和无人值守拦截。","diagrams":["02-module-dependencies"]} -->
+
 ## 2026-09-10 — Tabbit CLI 实时页面上下文
 
 - Research Runtime 增加固定 `dsh-tabbit@0.3.4` 供应包、私有 Profile 加载和单一 `ctx.tabbit` 适配层；安装器禁用，不运行时下载或升级。
@@ -461,3 +472,17 @@
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"iFinD HTTP探测补齐登录、健康、只读查询和登出，继续复用既有连接配置与系统凭据库，不新增DataHub服务或存储。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"本机页只链接并消费既有报告Workflow元数据进行受管副本验证，不改变Skill、Tool或Workflow的发布与调用拓扑。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机设置页在既有诊断列表增加逐项验证按钮、进度和最近验证时间，不新增产品壳或页面模块。","diagrams":[]} -->
+
+## 2026-09-11 — Phase 2B MCP 安装、授权与运行时
+
+- MCP 市场从只读目录扩展为显式的预览、二次确认、不可变安装、健康探测、Runtime 启停、OAuth、风险分级、会话授权和一次性高风险审批；安装、启用和授权保持分离。
+- Research Web Host 使用官方 Python SDK 管理 Streamable HTTP/stdio 连接并代理 tools/resources/prompts；DSH 只加载经过版本、schema 哈希和策略校验的 `mcp__{installation}__{tool}` 声明，通过私有 loopback 控制通道调用 Host。
+- 本地制品解析、逐项哈希、最小环境、系统凭据库、目录授权、Runtime 候选探测和失败回滚都位于当前本地数据根；不新增桌面进程、PostgreSQL 或第二研究引擎。
+- 图 02 的既有 MCP 节点升级为 Registry + Host 和不可变清单/授权职责；API Atlas 与文件边界同步加入 Phase 2B 契约。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"MCP市场增加完整预览、二次确认、安装生命周期、风险分级、会话授权和高风险审批交互。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"FastAPI装配Research Web MCP Host、Runtime生命周期、OAuth回调和私有DSH控制通道。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"mcp-runtime","structure":"changed","reason":"新增固定版本制品解析与哈希校验、不可变安装清单、SDK连接、schema快照、分级授权、人工审批和Runtime原子回滚。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"专属DSH只加载Host验证后的命名空间工具声明，并通过私有loopback控制通道调用Research Web Host。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"mcp-registry","structure":"unchanged","reason":"Registry继续提供隔离身份和受审固定目标；安装状态、授权和调用由独立mcp-runtime模块持有。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API Atlas扩展MCP Runtime分类，仍由同一架构清单离线生成并通过只读文档端点交付。","diagrams":[]} -->

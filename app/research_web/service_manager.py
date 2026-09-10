@@ -131,7 +131,7 @@ class WebServiceManager:
             str(self.web_port),
         )
         return (
-            ManagedProcess(
+            ManagedProcess(  # type: ignore[call-arg]
                 "runtime",
                 self.runtime_port,
                 runtime_command,
@@ -141,7 +141,7 @@ class WebServiceManager:
                     str(self.runtime_port),
                 ),
             ),
-            ManagedProcess(
+            ManagedProcess(  # type: ignore[call-arg]
                 "web",
                 self.web_port,
                 web_command,
@@ -442,6 +442,7 @@ class WebServiceManager:
                 "RESEARCH_RUNTIME_URL": f"http://127.0.0.1:{self.runtime_port}",
                 "RESEARCH_RUNTIME_AUTH": str(self._runtime_auth_path()),
                 "RESEARCH_DSH_SOURCE": str(self.runtime_source),
+                "RESEARCH_WEB_INTERNAL_URL": f"http://127.0.0.1:{self.web_port}",
                 "PYTHONUNBUFFERED": "1",
             }
         )
@@ -560,6 +561,42 @@ class WebServiceManager:
                 )
         self.stop()
         return self.start(open_browser=open_browser)
+
+    def restart_runtime(self, *, force: bool = False) -> dict[str, Any]:
+        """Restart only the owned DSH process while keeping Research Web online."""
+
+        self._prepare_private_directories()
+        runtime, _web = self._processes()
+        running = self._owned_state(runtime) is not None
+        if running and not force:
+            active = self._active_research()
+            if active:
+                raise ServiceManagerError(
+                    f"存在 {len(active)} 个活动研究，拒绝重启 Runtime；确需中断时使用 --force"
+                )
+        if running:
+            self._stop_one(runtime)
+        try:
+            if self._ensure_startable(runtime):
+                pid = self._spawn(runtime)
+            else:
+                state = self._owned_state(runtime)
+                pid = int(state["pid"]) if state else None
+            if not self._wait(self._runtime_healthy, 35):
+                raise ServiceManagerError(f"DSH {self.runtime_port} 启动超时，请查看 runtime.log")
+        except Exception:
+            try:
+                self._stop_one(runtime)
+            except ServiceManagerError:
+                log.error("research_runtime_restart_cleanup_failed")
+            raise
+        log.info("research_runtime_restarted", pid=pid)
+        return {
+            "running": True,
+            "healthy": True,
+            "pid": pid,
+            "port": runtime.port,
+        }
 
     def status(self) -> dict[str, Any]:
         self._prepare_private_directories()

@@ -38,7 +38,8 @@
         "tests/e2e/research_web_stop_live.mjs",
         "tests/javascript/research_web_appearance.test.mjs",
         "tests/e2e/research_web_appearance.mjs",
-        "tests/e2e/research_web_mcp_marketplace.mjs"
+        "tests/e2e/research_web_mcp_marketplace.mjs",
+        "tests/e2e/research_web_mcp_runtime.mjs"
       ]
     },
     {
@@ -124,6 +125,35 @@
         "tests/research_web/test_mysql_provider.py",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/javascript/research_web_public_data.test.mjs"
+      ]
+    },
+    {
+      "id": "mcp-runtime",
+      "sources": [
+        "app/research_web/mcp_runtime/"
+      ],
+      "documents": [
+        "docs/research-web.md",
+        "docs/research-web-capabilities.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/architecture/research-web/07-capabilities.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies"
+      ],
+      "tests": [
+        "tests/research_web/test_mcp_authorization.py",
+        "tests/research_web/test_mcp_installation.py",
+        "tests/research_web/test_mcp_runtime_integration.py",
+        "tests/research_web/test_mcp_runtime_routes.py",
+        "tests/research_web/test_mcp_transport.py",
+        "tests/javascript/research_web_guard.test.mjs",
+        "tests/javascript/research_web_mcp_adapter.test.mjs",
+        "tests/javascript/research_web_mcp_marketplace.test.mjs",
+        "tests/e2e/research_web_mcp_runtime.mjs"
       ]
     },
     {
@@ -1039,6 +1069,153 @@
       "source": "app/research_web/mcp_registry/routes.py",
       "declaredPath": "/publisher/validate",
       "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/installations/preview",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/preview",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/installations",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/installations",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/installations/{installation_id}",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/mcp/installations/{installation_id}",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/research/mcp/installations/{installation_id}",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/installations/{installation_id}/status",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}/status",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/installations/{installation_id}/capabilities",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}/capabilities",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/installations/{installation_id}/probe",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}/probe",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/installations/{installation_id}/enable",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}/enable",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/installations/{installation_id}/disable",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}/disable",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/installations/{installation_id}/update",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}/update",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/sessions/{session_id}/mcp-authorizations",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/{session_id}/mcp-authorizations",
+      "prefix": "/api/research/sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/sessions/{session_id}/mcp/resources/read",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/{session_id}/mcp/resources/read",
+      "prefix": "/api/research/sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/sessions/{session_id}/mcp/prompts/get",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/{session_id}/mcp/prompts/get",
+      "prefix": "/api/research/sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/approvals",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/approvals",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/approvals/{approval_id}/approve",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/approvals/{approval_id}/approve",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/approvals/{approval_id}/deny",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/approvals/{approval_id}/deny",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/mcp/installations/{installation_id}/oauth/start",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/installations/{installation_id}/oauth/start",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/mcp/oauth/callback",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/oauth/callback",
+      "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/mcp/tools/call",
+      "source": "app/research_web/mcp_runtime/routes.py",
+      "declaredPath": "/mcp/tools/call",
+      "prefix": "/api/research/internal"
     },
     {
       "method": "GET",

@@ -4,12 +4,13 @@
 `view=library|mine|plans|connections|market` 只表示类型内二级视图；这些都是纯前端路由参数，继续读取
 本页已有的 capabilities、tools、data catalog、data connections 与 report-workflows 接口。
 旧 kind 深链保持兼容，无 kind 的 plans/connections 分别归一到 Workflow/Tool；`market` 只在 Tool
-分区有效。Phase 2A 已增加功能开关保护的只读 MCP Registry API。MCP 安装/运行时及通用
-Automation 仍属 Phase 2B/2C，在对应持久模型和安全边界落地前不出现在本清单中。
+分区有效。Phase 2A 已增加功能开关保护的只读 MCP Registry API；Phase 2B 增加安装预览、
+不可变安装记录、健康探测、Runtime 启停、OAuth、会话授权、资源/提示读取、高风险审批及 DSH
+私有工具代理。通用 Automation 仍属 Phase 2C，在持久模型和安全边界落地前不出现在本清单中。
 
 本轮跨平台修复不新增或修改 HTTP 路由。Windows 上的 Runtime 认证读取、DataHub 快照接口和会话文件下载在进入既有响应契约前执行规范路径、重解析点、普通文件及打开前后身份校验；失败继续返回既有安全错误，不暴露本机路径或文件内容。waterfall/cancel 的空或非字符串标识在协议边界统一返回 `protocol_error`。
 
-路由由源码声明、架构清单与重启后的 8088 OpenAPI 双向核对：当前有 139 个唯一 HTTP 操作、141 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`mcp_registry/routes.py` 提供只读目录、同步与外部 Publisher 交接；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
+路由由源码声明、架构清单与 OpenAPI 双向核对：当前有 162 个唯一 HTTP 操作、164 项源码声明（包括根页）。其中报告运行详情与取消各保留一条兼容声明，因此声明数不能当作唯一接口数。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`mcp_registry/routes.py` 提供只读目录、同步与外部 Publisher 交接；`mcp_runtime/routes.py` 提供功能开关保护的安装、运行、授权和 Host 代理契约；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 
 | Method | 路径 | 源码 |
 |---|---|---|
@@ -23,6 +24,24 @@ Automation 仍属 Phase 2B/2C，在对应持久模型和安全边界落地前不
 | GET | `/api/research/mcp/servers/{registry_id}/{server_name:path}/versions/{version}` | `app/research_web/mcp_registry/routes.py` |
 | POST | `/api/research/mcp/publisher/preview` | `app/research_web/mcp_registry/routes.py` |
 | POST | `/api/research/mcp/publisher/validate` | `app/research_web/mcp_registry/routes.py` |
+| GET / POST | `/api/research/mcp/installations` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/mcp/installations/preview` | `app/research_web/mcp_runtime/routes.py` |
+| GET / PATCH / DELETE | `/api/research/mcp/installations/{installation_id}` | `app/research_web/mcp_runtime/routes.py` |
+| GET | `/api/research/mcp/installations/{installation_id}/status` | `app/research_web/mcp_runtime/routes.py` |
+| GET | `/api/research/mcp/installations/{installation_id}/capabilities` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/mcp/installations/{installation_id}/probe` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/mcp/installations/{installation_id}/enable` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/mcp/installations/{installation_id}/disable` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/mcp/installations/{installation_id}/update` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/mcp/installations/{installation_id}/oauth/start` | `app/research_web/mcp_runtime/routes.py` |
+| GET | `/api/research/mcp/oauth/callback` | `app/research_web/mcp_runtime/routes.py` |
+| GET | `/api/research/mcp/approvals` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/mcp/approvals/{approval_id}/approve` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/mcp/approvals/{approval_id}/deny` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/sessions/{session_id}/mcp-authorizations` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/sessions/{session_id}/mcp/resources/read` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/sessions/{session_id}/mcp/prompts/get` | `app/research_web/mcp_runtime/routes.py` |
+| POST | `/api/research/internal/mcp/tools/call` | `app/research_web/mcp_runtime/routes.py` |
 | GET | `/api/research/runtime` | `app/research_web/main.py` |
 | GET | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
 | PUT | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
@@ -170,6 +189,7 @@ Automation 仍属 Phase 2B/2C，在对应持久模型和安全边界落地前不
 - operations 接口只返回安全化聚合。`summary` 是页面首选的一次性聚合，同一请求对每个会话的 DSH 历史只读取一次；服务进程状态还会核对状态指纹、项目/数据根与实际 PID 命令签名。分项接口保留给精确读取和测试。没有 usage 或价格时返回未知/未配置，不伪造零和费用。
 - 结构错误返回明确 4xx；DSH 协议/连接故障不回退演示。服务端日志不输出密钥。
 - MCP Registry 路由在 `RESEARCH_MCP_REGISTRY_ENABLED` 关闭时返回 404。同步固定官方 `/v0.1` 与不透明游标，失败只返回带 `stale` 的最后成功缓存；身份三元组不跨 Registry 合并。认证 Registry 必须使用 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth 端点始终使用 HTTPS。服务器 API 返回有界 Unicode plain text；包记录分别返回 `package_type_supported` 与 `immutable_reference`，不返回 `supported/installable` 或 Stage 2A 可安装承诺。Publisher 两个接口只返回规范 JSON、摘要、完整 argv 和 `executed:false`，从不启动 CLI。
+- MCP Runtime 路由在 `RESEARCH_MCP_RUNTIME_ENABLED` 关闭时返回 404。安装必须先生成绑定完整摘要的短期确认令牌；本地目标只接受固定版本、逐制品哈希、直接 argv、最小环境和安全解包，远程目标只接受 HTTPS 或显式 loopback。安装、探测、启用与授权分离；每次调用重核安装版本、工具名、schema 哈希、风险分级和会话快照。无人值守只允许任务显式锁定且标记为可无人值守的只读工具；高风险调用必须完成一次性人工审批。内部工具代理只接受私有 loopback 控制密钥，不向浏览器公开。
 - SSE 为 `snapshot`、`runtime_error` 和心跳；重连通过原生日志恢复。取消和审批复用真实原生 RPC。
 - 输出格式和独立交付状态见 [数据与文件](03-data-files.md)。文件下载与 HTML 预览不是任意静态仓库服务。
 

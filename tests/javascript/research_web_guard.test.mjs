@@ -43,3 +43,24 @@ test('research guard allows only configured Tabbit surfaces', () => {
   assert.equal(guard({ name: 'tabbit_browser', agent: makeAgent() }), undefined);
   assert.ok(guard({ name: 'research_run_script', agent: makeAgent() }));
 });
+
+test('research guard allows only the exact activated MCP tool namespace', () => {
+  let guard;
+  const ctx = { tools: { guard: (fn) => { guard = fn; } }, logger: { warn() {} } };
+  const allowed = 'mcp__mcp-installation-0123456789abcdef0123456789abcdef__read_filing';
+  apply(ctx, { enabled: true, mcpTools: [allowed] });
+
+  assert.equal(guard({ name: allowed, agent: makeAgent() }), undefined);
+  assert.ok(guard({ name: `${allowed}_shadow`, agent: makeAgent() }));
+  assert.ok(guard({ name: 'mcp__mcp-installation-0123456789abcdef0123456789abcdef__write_filing', agent: makeAgent() }));
+  assert.ok(guard({ name: 'mcp_anything', agent: makeAgent() }));
+
+  assert.throws(
+    () => apply(ctx, { enabled: true, mcpTools: [allowed, allowed] }),
+    /duplicate/i,
+  );
+  assert.throws(
+    () => apply(ctx, { enabled: true, mcpTools: ['mcp__prefix-only'] }),
+    /invalid/i,
+  );
+});

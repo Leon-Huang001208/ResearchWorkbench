@@ -33,6 +33,7 @@ from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
 from .mcp_registry import RegistryError
 from .mcp_registry.routes import router as mcp_registry_router
+from .mcp_runtime.routes import router as mcp_runtime_router
 from .operations import router as operations_router
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
@@ -135,6 +136,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(documentation_router)
     app.include_router(local_integrations_router)
     app.include_router(mcp_registry_router)
+    app.include_router(mcp_runtime_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
     app.include_router(report_workflow_router)
@@ -170,7 +172,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             and request.headers.get("sec-fetch-dest") == "document"
             and request.headers.get("sec-fetch-user") == "?1"
         )
-        if not public_document_navigation and (
+        oauth_callback_navigation = (
+            request.url.path == "/api/research/mcp/oauth/callback"
+            and request.method == "GET"
+            and request.headers.get("sec-fetch-mode") == "navigate"
+            and request.headers.get("sec-fetch-dest") == "document"
+        )
+        if not (public_document_navigation or oauth_callback_navigation) and (
             (origin and origin != own) or request.headers.get("sec-fetch-site") == "cross-site"
         ):
             return JSONResponse(

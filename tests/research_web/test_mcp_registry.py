@@ -420,7 +420,9 @@ async def test_registry_normalization_round_trips_bounded_unicode_plain_text(tmp
     server = payload["servers"][0]["server"]
     server["title"] = "研报 & 风险 <script>不是节点</script>"
     server["description"] = "保留 Unicode、& 与 <tag>，只在最终 HTML sink 转义。"
-    server["repository"].update({"source": "代码 & 审查", "id": "组/<仓库>", "subfolder": "资料 & 图表"})
+    server["repository"].update(
+        {"source": "代码 & 审查", "id": "组/<仓库>", "subfolder": "资料 & 图表"}
+    )
     payload["servers"][0]["_meta"]["io.modelcontextprotocol.registry/official"].update(
         {"status": "active & reviewed", "updatedAt": "2026-09-01T00:00:00Z & source"}
     )
@@ -505,6 +507,67 @@ async def test_registry_package_projection_separates_type_support_from_fixed_ref
     assert packages[3]["package_type_supported"] is False
     assert packages[3]["immutable_reference"] is False
     assert all("supported" not in package for package in packages)
+    await service.close()
+
+
+@pytest.mark.asyncio
+async def test_registry_package_projection_keeps_bounded_execution_descriptors_without_values(
+    tmp_path,
+):
+    payload = remote_page()
+    payload["servers"][0]["server"]["packages"] = [
+        {
+            "registryType": "npm",
+            "identifier": "@example/fixed",
+            "version": "1.2.3",
+            "runtimeHint": "npx",
+            "runtimeArguments": [
+                {"type": "named", "name": "--yes", "value": "true"},
+            ],
+            "packageArguments": [
+                {"type": "positional", "value": "--stdio"},
+            ],
+            "environmentVariables": [
+                {
+                    "name": "EXAMPLE_API_KEY",
+                    "description": "API credential",
+                    "isRequired": True,
+                    "isSecret": True,
+                    "format": "string",
+                    "value": "must-not-persist",
+                }
+            ],
+            "transport": {"type": "stdio"},
+        }
+    ]
+    service = MCPRegistryService(
+        tmp_path,
+        enabled=True,
+        keyring_backend=FakeKeyring(),
+        http_client=httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
+        ),
+    )
+
+    package = (await service.sync_registry(OFFICIAL_REGISTRY_ID))["items"][0]["packages"][0]
+
+    assert package["runtime_hint"] == "npx"
+    assert package["runtime_arguments"] == [
+        {"type": "named", "name": "--yes", "value": "true", "is_repeated": False}
+    ]
+    assert package["package_arguments"] == [
+        {"type": "positional", "value": "--stdio", "is_repeated": False}
+    ]
+    assert package["environment_variables"] == [
+        {
+            "name": "EXAMPLE_API_KEY",
+            "description": "API credential",
+            "is_required": True,
+            "is_secret": True,
+            "format": "string",
+        }
+    ]
+    assert "must-not-persist" not in json.dumps(package)
     await service.close()
 
 
