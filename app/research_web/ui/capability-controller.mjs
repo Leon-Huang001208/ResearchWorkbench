@@ -8,7 +8,7 @@ export async function refreshProbedSourceDetail(api, currentDetail, sourceId) {
 
 // Catalog mutations are explicit user actions. This controller never calls models or tools.
 export function createCapabilityController({ api, onChange = () => {}, onCatalogChange = async () => {}, logger = safeLog } = {}) {
-  const state = { kind: 'skill', source: 'all', category: '', query: '', detail: null, tool: null, dataDetail: null, dataDetailKind: '', dataView: 'capabilities', dataMarket: '', dataStatus: '', dataAuth: '', probe: null, versions: [], versionDetail: null, editor: null, editorId: '', form: '', goal: '', copy: {}, busy: false, error: '', success: '' };
+  const state = { view: 'library', kind: 'skill', kindFilter: 'skill', source: 'all', category: '', status: 'all', query: '', detail: null, tool: null, dataDetail: null, dataDetailKind: '', dataView: 'capabilities', dataMarket: '', dataStatus: '', dataAuth: '', probe: null, versions: [], versionDetail: null, editor: null, editorId: '', form: '', goal: '', copy: {}, busy: false, error: '', success: '' };
   let generation = 0;
   const emit = () => onChange(state);
   async function run(operation) {

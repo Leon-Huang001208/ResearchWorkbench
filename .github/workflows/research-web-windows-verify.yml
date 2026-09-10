@@ -80,6 +80,8 @@ jobs:
         shell: pwsh
         env:
           RESEARCH_DATA_HOME: ${{ runner.temp }}/research-web-windows-state
+          RESEARCH_RUNTIME_AUTH: ${{ runner.temp }}/research-web-windows-runtime/auth.json
+          RESEARCH_RUNTIME_URL: http://127.0.0.1:3081
         run: |
           $ErrorActionPreference = 'Stop'
           $artifactRoot = Join-Path $env:RUNNER_TEMP 'research-web-windows-evidence'
@@ -88,6 +90,17 @@ jobs:
           $stderrPath = Join-Path $artifactRoot 'server.stderr.log'
           $resultPath = Join-Path $artifactRoot 'local-integrations.json'
           $server = $null
+
+          $runtimeRoot = Split-Path -Parent $env:RESEARCH_RUNTIME_AUTH
+          New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
+          [ordered]@{
+            authority = '127.0.0.1:3081'
+            cookie = 'dsh-auth-ci-placeholder'
+            cwd = $env:GITHUB_WORKSPACE
+            source_commit = '0000000000000000000000000000000000000000'
+            version = 'ci-fixture'
+          } | ConvertTo-Json | Set-Content -LiteralPath $env:RESEARCH_RUNTIME_AUTH -Encoding utf8
+          python -c "import os; os.chmod(os.environ['RESEARCH_RUNTIME_AUTH'], 0o600)"
 
           try {
             $server = Start-Process -FilePath 'python' -ArgumentList @(

@@ -53,6 +53,14 @@ Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-pr
 [能力包与版本](research-web-capabilities.md)及
 [架构能力管理](architecture/research-web/07-capabilities.md)。
 
+能力工作区 v0 的聚合与可访问快览位于 `app/research_web/ui/capability-workspace.mjs`，由
+`app.mjs` 组合 capabilities、tools、report-workflows、data catalog 与 connections 的现有安全投影。
+`core.mjs` 将 `kind=skill|tool|workflow|data` 解析为四个主分区，再按类型归一
+`view=library|mine|plans|connections`；无 kind 的旧计划/连接链接分别映射到 Workflow/Tool，
+既有 kind 深链继续有效。该层不持久化
+第二份能力数据，也不执行研究。筛选、路由、真实状态和 dialog DOM 契约继续由
+`tests/javascript/research_web_capabilities_ui.test.mjs` 与 `research_web_appearance.test.mjs` 覆盖。
+
 Legacy market-home fact writers share `data_layer/repositories/market_home_invalidation.py` for UTC normalization and transaction-coupled invalidation outbox writes. `services/market_home_invalidation.py` owns scheduler/materializer coordination only. Boundary logging for legacy research execution lives in `services/agent_team_service.py`, `services/research_graph.py`, `services/research_orchestration_service.py` and `services/research_templates.py`; exceptions remain visible to callers after structured logging.
 
 Claude must read this file before changing code.

@@ -89,6 +89,63 @@ test('one catalog filters kind, source, category and Chinese search, including d
   assert.match(renderCapabilityCatalog({ items: [], error: '读取失败' }), /读取失败/);
 });
 
+test('capability workspace preserves legacy links and exposes four stable primary kinds', async () => {
+  const { parseRoute } = await load('core.mjs');
+  const { capabilityWorkspaceHash, capabilityWorkspaceKindKey } = await load('capability-workspace.mjs');
+  assert.deepEqual(parseRoute('#/skills'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'skill' });
+  assert.deepEqual(parseRoute('#/skills?kind=tool'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?view=mine&kind=workflow'), { page: 'skills', sessionId: null, capabilityView: 'mine', capabilityKind: 'workflow' });
+  assert.deepEqual(parseRoute('#/skills?view=plans'), { page: 'skills', sessionId: null, capabilityView: 'plans', capabilityKind: 'workflow' });
+  assert.deepEqual(parseRoute('#/skills?view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?kind=data&view=connections'), { page: 'skills', sessionId: null, capabilityView: 'connections', capabilityKind: 'data' });
+  assert.deepEqual(parseRoute('#/skills?kind=tool&view=mine'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'tool' });
+  assert.deepEqual(parseRoute('#/skills?view=unknown'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'skill' });
+  assert.equal(capabilityWorkspaceHash('tool', 'connections'), '#/skills?kind=tool&view=connections');
+  assert.equal(capabilityWorkspaceHash('data'), '#/skills?kind=data');
+  assert.deepEqual(capabilityWorkspaceKindKey('ArrowRight', 'skill'), { handled: true, kind: 'tool' });
+  assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityWorkspaceKindKey('Enter', 'tool'), { handled: false });
+});
+
+test('capability workspace isolates Skill, Tool, Workflow and data into separate primary panels', async () => {
+  const { collectCapabilityWorkspaceEntries, filterCapabilityWorkspaceEntries, renderCapabilityWorkspace } = await load('capability-workspace.mjs');
+  const capabilities = [cap(), cap({ id: 'built', builtin: true, name: '内置能力' }), cap({ id: 'flow', kind: 'workflow', name: '我的流程', status: 'disabled', enabled: false })];
+  const tools = [{ id: 'read_data', name: '读数据', description: '只读', selectable: true }];
+  const dataCatalog = { summary: {}, sources: [], capabilities: [{ id: 'bars', name: '行情', description: '真实行情', category: '行情', tool_id: 'read_data', source_count: 2, callable_source_count: 1 }] };
+  const entries = collectCapabilityWorkspaceEntries({ capabilities, tools, dataCatalog });
+  assert.deepEqual(entries.map(item => item.kind), ['skill', 'skill', 'workflow', 'tool', 'data']);
+  assert.deepEqual(filterCapabilityWorkspaceEntries(entries, { view: 'mine', kind: 'skill' }).map(item => item.id), ['my-skill']);
+  assert.deepEqual(filterCapabilityWorkspaceEntries(entries, { view: 'mine', kind: 'workflow' }).map(item => item.id), ['flow']);
+  assert.deepEqual(filterCapabilityWorkspaceEntries(entries, { kind: 'data', status: 'available' }).map(item => item.id), ['bars']);
+  const skillHTML = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'skill' });
+  const toolHTML = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'tool' });
+  const workflowHTML = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'workflow' });
+  const dataHTML = renderCapabilityWorkspace({ capabilities, tools, dataCatalog, kind: 'data' });
+  for (const html of [skillHTML, toolHTML, workflowHTML, dataHTML]) {
+    for (const label of ['Skill', 'Tool', 'Workflow', '数据']) assert.match(html, new RegExp(`>${label}<`));
+    assert.doesNotMatch(html, /data-cap-kind-filter|\bNEW\b|热门|排名/);
+  }
+  assert.match(skillHTML, /我的研究/); assert.doesNotMatch(skillHTML, /我的流程|读数据|真实行情/);
+  assert.match(toolHTML, /读数据/); assert.doesNotMatch(toolHTML, /我的研究|我的流程|真实行情/);
+  assert.match(workflowHTML, /我的流程/); assert.doesNotMatch(workflowHTML, /我的研究|读数据|真实行情/);
+  assert.match(dataHTML, /真实行情/); assert.doesNotMatch(dataHTML, /我的研究|我的流程|读数据/);
+  assert.match(skillHTML, /能力库.*我的 Skill/s); assert.match(toolHTML, /工具目录.*连接状态/s);
+  assert.match(workflowHTML, /能力库.*我的 Workflow.*运行计划/s); assert.match(dataHTML, /数据能力.*数据源与连接/s);
+});
+
+test('capability quicklook is an accessible dialog with truthful disabled reasons and draft-only use', async () => {
+  const { renderCapabilityPreviewDialog } = await load('capability-workspace.mjs');
+  const available = renderCapabilityPreviewDialog({ detail: { ...cap(), draft: {} } });
+  assert.match(available, /role="dialog"/); assert.match(available, /aria-modal="true"/);
+  assert.match(available, /data-use-skill="my-skill"/); assert.match(available, /立即使用/);
+  assert.match(available, /data-cap-manage="my-skill"/); assert.match(available, /data-cap-close/);
+  const blocked = renderCapabilityPreviewDialog({ detail: { ...cap({ enabled: false, status: 'blocked_dependencies', metadata: { ...cap().metadata, dependencies: ['missing-lib'] } }), draft: {} } });
+  assert.match(blocked, /依赖不足/); assert.match(blocked, /missing-lib/); assert.match(blocked, /立即使用<\/button>/);
+  assert.match(blocked, /data-use-skill="my-skill" disabled/);
+  assert.doesNotMatch(renderCapabilityPreviewDialog({ tool: { id: 'x', name: '<img>', description: '<script>', selectable: false } }), /<img>|<script>/);
+});
+
 test('capability center renders, filters, opens and selects every built-in Skill without a router card', async () => {
   const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
   const builtinResearchSkills = productBuiltinResearchSkills();
@@ -174,6 +231,8 @@ test('data catalog separates capabilities from sources and never turns registere
   assert.deepEqual(filterDataCatalog(catalog, { view: 'sources', auth: 'terminal' }).map(item => item.id), ['wind']);
   const html = renderDataCatalog({ catalog });
   assert.match(html, /按数据能力/); assert.match(html, /按数据来源/); assert.match(html, /有代码.*不等于.*已适配/s);
+  assert.doesNotMatch(renderDataCatalog({ catalog, showViewSwitch: false }), /data-view-switch/);
+  assert.match(html, /data-cap-preview-trigger="data:market_bars"/);
   assert.match(html, /data-use-data-tool="datahub_get_market_bars" disabled/);
   const detail = renderDataCapabilityDetail({ ...catalog.capabilities[0], bindings: [{ source: catalog.sources[0], priority: 1, datasets: ['daily'] }] });
   assert.match(detail, /目前没有.*不能运行/s);
@@ -377,9 +436,10 @@ test('real app event handlers close/select slash, search and drawers without any
     await click({ toggleSearch: '' }); assert.match(rootElement.innerHTML, /topbar search-open/);
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /topbar search-open/);
     await click({ skillDetail: selectedSkill.id }); assert.equal(globalThis.location.hash, '#/skills');
-    assert.match(rootElement.innerHTML, /能力详情/);
+    assert.match(rootElement.innerHTML, /role="dialog"[^>]*aria-modal="true"/);
     await click({ capClose: '' }); assert.match(rootElement.innerHTML, /role="tablist" aria-label="能力类型"/);
-    await click({ capKind: 'workflow' }); assert.match(rootElement.innerHTML, /没有匹配的能力/);
+    assert.match(rootElement.innerHTML, /data-cap-kind-nav="skill"/);
+    assert.doesNotMatch(rootElement.innerHTML, /data-cap-kind-filter/);
     assert.equal(calls.some(([, method]) => method !== 'GET'), false);
     assert.doesNotMatch(JSON.stringify(logs), /真实候选|sell-side-report-reader|\/api\/research/);
   } finally {

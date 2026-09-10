@@ -379,3 +379,13 @@
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Tabbit配置仅补齐跨平台原子写入和UTF-8异常路径，API与消息契约不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"供应清单改用POSIX路径比较且adapter路径统一正斜杠，Profile节点和加载顺序不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Windows连接配置仅明确跳过不支持的目录fsync，Provider和数据流不变。","diagrams":[]} -->
+
+## 2026-09-10 — 能力工作区 v0 四类分区
+
+- `#/skills` 固定为 Skill、Tool、Workflow、数据四个互斥主标签，并在类型内提供能力库、我的、运行计划或连接入口；旧 kind/view 深链继续归一到对应分区。
+- 卡片与居中快览复用现有 capabilities、tools、DataHub 和 report-workflows 接口，只展示真实来源、版本、启用、输出、调用及不可用原因；“立即使用”只带入草稿。
+- 本轮新增浏览器内的工作区组合与响应式布局，没有新增后端 API、持久模型、执行服务或跨模块数据流，因此现有架构图无需重生成。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"能力中心在既有Research Web UI内重组为四类互斥主标签、类型内二级视图和共用快览弹窗；同源API、能力执行、DataHub与报告Workflow边界保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Skill、Workflow与Tool继续读取既有目录、版本、状态和选择契约，仅在前端严格分区呈现。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"数据能力与数据源仍由既有DataHub目录、连接状态和单源探测提供，只在能力中心与Tool卡片隔离展示。","diagrams":[]} -->

@@ -113,21 +113,65 @@ try {
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
     for (const route of ['claw', 'skills', 'settings', 'history']) {
-      await page.goto(base + '/#/' + route); await page.locator('#main h1').waitFor();
+      await page.goto(base + '/#/' + route); await page.locator('#main h1').first().waitFor();
       assert.equal(await page.locator('html').getAttribute('data-theme'), theme);
       await shot(`${theme}-${route}`); check(`${theme} ${route}: rendered`);
     }
-    await page.goto(base + '/#/skills');
-    for (const kind of ['skill', 'tool', 'workflow']) {
-      await page.locator(`[data-cap-kind="${kind}"]`).click();
-      await page.getByRole('button', { name: '查看详情', exact: true }).first().click();
-      await page.locator('.capability-detail').waitFor();
-      const colors = await page.locator('.capability-detail').evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, expected: getComputedStyle(document.body).backgroundColor }));
+    for (const [width, columns] of [[1440, 4], [1280, 3], [768, 2], [390, 1]]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+      await page.goto(base + '/#/skills?kind=skill');
+      await page.locator('.capability-workspace-card').first().waitFor();
+      const geometry = await page.evaluate(() => ({
+        columns: getComputedStyle(document.querySelector('.capability-workspace-grid')).gridTemplateColumns.split(' ').length,
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        mainOverflow: document.querySelector('#main').scrollWidth > document.querySelector('#main').clientWidth,
+      }));
+      assert.equal(geometry.columns, columns); assert.equal(geometry.overflow, false); assert.equal(geometry.mainOverflow, false);
+      await shot(`${theme}-capability-workspace-${width}`); check(`${theme} capability workspace ${width}: ${columns} columns without overflow`);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('[data-cap-preview-trigger]').first().click();
+    await page.waitForFunction(() => {
+      const dialog = document.querySelector('.capability-preview-dialog');
+      return Boolean(dialog) && getComputedStyle(dialog).transform === 'none';
+    });
+    const mobileDialog = await page.locator('.capability-preview-dialog').boundingBox();
+    const mobileBackdrop = await page.locator('.capability-dialog-backdrop').boundingBox();
+    assert.ok(mobileDialog); assert.ok(mobileBackdrop); assert.ok(Math.abs(mobileDialog.width - mobileBackdrop.width) <= 5); assert.ok(mobileDialog.x <= 5); assert.equal(Math.round(mobileDialog.y), 0); assert.ok(mobileDialog.height >= 844);
+    await shot(`${theme}-capability-workspace-dialog-390`);
+    await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(base + `/?capability-keyboard=${theme}#/skills?kind=skill`);
+    await page.locator('.capability-workspace-card').first().waitFor();
+    await page.locator('[data-cap-kind-nav="skill"]').focus();
+    await page.keyboard.press('ArrowRight');
+    await page.waitForURL(/kind=tool/);
+    await page.locator('[data-cap-kind-nav="tool"][aria-selected="true"]').waitFor();
+    for (const kind of ['skill', 'tool', 'workflow', 'data']) {
+      await page.goto(base + `/?capability-preview=${theme}-${kind}#/skills?kind=${kind}`);
+      await page.locator(`[data-cap-kind-nav="${kind}"][aria-selected="true"]`).waitFor();
+      await page.evaluate(() => document.activeElement?.blur());
+      await shot(`${theme}-capability-${kind}-1440`);
+      const trigger = page.locator('[data-cap-preview-trigger]').first();
+      await trigger.focus(); await trigger.click();
+      await page.locator('.capability-preview-dialog').waitFor();
+      const closeButton = page.locator('.capability-preview-dialog [data-cap-close]').first();
+      const lastButton = page.locator('.capability-preview-dialog button:not(:disabled)').last();
+      await page.waitForFunction(() => document.activeElement?.matches('.capability-preview-dialog [data-cap-close]'));
+      assert.equal(await closeButton.evaluate(element => element === document.activeElement), true);
+      await lastButton.focus(); await page.keyboard.press('Tab');
+      assert.equal(await closeButton.evaluate(element => element === document.activeElement), true);
+      await page.keyboard.press('Shift+Tab');
+      assert.equal(await lastButton.evaluate(element => element === document.activeElement), true);
+      const colors = await page.locator('.capability-preview-dialog').evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, expected: getComputedStyle(document.body).backgroundColor }));
       assert.equal(colors.bg, colors.expected);
       await shot(`${theme}-${kind}-detail`);
-      await page.locator('[data-cap-close]').click();
+      await page.keyboard.press('Escape');
+      await page.locator('.capability-preview-dialog').waitFor({ state: 'detached' });
+      assert.equal(await page.locator('.capability-preview-dialog').count(), 0);
+      assert.equal(await trigger.evaluate(element => element === document.activeElement), true);
     }
-    await page.locator('[data-cap-kind="workflow"]').click();
+    await page.goto(base + '/#/skills?view=mine&kind=workflow');
     await page.locator('[data-cap-create="manual"]').click();
     await page.locator('#cap-editor-form').waitFor();
     await page.setViewportSize({ width: 390, height: 844 });
@@ -135,7 +179,7 @@ try {
     await shot(`${theme}-workflow-editor-mobile`);
     await page.locator('[data-cap-cancel-edit]').click();
     await page.setViewportSize({ width: 1440, height: 1000 });
-    check(`${theme}: Skill/Tool/Workflow details and unsaved mobile editor preserve original behaviors`);
+    check(`${theme}: Skill/Tool/Workflow/data details and unsaved mobile editor preserve original behaviors`);
   }
   await page.goto(base + '/#/fingpt'); await page.locator('#prompt').waitFor();
   await page.locator('[data-collapse-sidebar]').click();
@@ -179,7 +223,7 @@ try {
   assert.equal(report.blockedWrites, 0); check('zero model/mutation requests; zero browser runtime errors');
   report.status = 'passed';
 } catch (error) {
-  report.status = 'failed'; report.failure = error.message;
+  report.status = 'failed'; report.failure = error.stack || error.message;
   await shot('failure').catch(() => {});
   process.exitCode = 1;
 } finally {
