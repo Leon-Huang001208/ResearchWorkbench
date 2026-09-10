@@ -261,7 +261,7 @@ async def test_tabbit_plugin_bridge_is_cookie_authenticated_and_allowlisted():
     def reply(request):
         assert request.headers["cookie"] == "dsh-auth-test=value"
         assert request.url.path == "/research/tabbit/tabs"
-        assert request.url.params == {"instance": "ABCDEF0123456789"}
+        assert dict(request.url.params) == {"instance": "ABCDEF0123456789"}
         return httpx.Response(200, json={"tabs": []})
 
     async with DSHClient(
