@@ -7,7 +7,7 @@ import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel,
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
-import { capabilityWorkspaceViewKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
+import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
@@ -198,6 +198,7 @@ function capabilityPage() {
     capabilities: catalog.capabilities, tools: catalog.tools, reportWorkflows: catalog.reportWorkflows,
     dataCatalog: catalog.dataCatalog, connections: catalog.connections, view: cap.view, kind: cap.kindFilter,
     source: cap.source, category: cap.category, status: cap.status, query: cap.query,
+    dataMarket: cap.dataMarket, dataStatus: cap.dataStatus, dataAuth: cap.dataAuth, probe: cap.probe,
     busy: cap.busy || reportWorkflowBusy,
     error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.dataCatalog || catalog.errors.connections || '',
   });
@@ -395,9 +396,18 @@ async function showRoute() {
     }
   }
   if (state.route.page === 'skills') {
+    const previousKind = capabilityState.kindFilter;
+    const nextKind = state.route.capabilityKind || 'skill';
+    if (previousKind !== nextKind) {
+      capabilityState.source = 'all'; capabilityState.category = ''; capabilityState.status = 'all'; capabilityState.query = '';
+      capabilityState.dataMarket = ''; capabilityState.dataStatus = ''; capabilityState.dataAuth = ''; capabilityState.probe = null;
+      capabilityState.detail = null; capabilityState.tool = null; capabilityState.dataDetail = null; capabilityState.dataDetailKind = '';
+      capabilityState.form = ''; reportWorkflowDetail = null;
+    }
     capabilityState.view = state.route.capabilityView || 'library';
-    capabilityState.kindFilter = state.route.capabilityKind || 'all';
-    if (['skill', 'workflow'].includes(state.route.capabilityKind)) capabilityState.kind = state.route.capabilityKind;
+    capabilityState.kindFilter = nextKind;
+    capabilityState.dataView = nextKind === 'data' && capabilityState.view === 'connections' ? 'sources' : 'capabilities';
+    if (['skill', 'workflow'].includes(nextKind)) capabilityState.kind = nextKind;
     await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', 'sessions']);
   }
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
@@ -468,11 +478,11 @@ root.addEventListener('keydown', (event) => {
   if (capabilityPreviewIsOpen() && event.key === 'Escape') {
     event.preventDefault(); closeCapabilityPreview(); return;
   }
-  if ('capView' in (event.target.dataset || {})) {
-    const result = capabilityWorkspaceViewKey(event.key, event.target.dataset.capView);
+  if ('capKindNav' in (event.target.dataset || {})) {
+    const result = capabilityWorkspaceKindKey(event.key, event.target.dataset.capKindNav);
     if (result.handled) {
       event.preventDefault();
-      const target = document.getElementById(`capability-view-${result.view}`);
+      const target = document.getElementById(`capability-kind-${result.kind}`);
       if (target) { target.click(); target.focus({ preventScroll: true }); }
       return;
     }
@@ -528,11 +538,6 @@ root.addEventListener('change', async (event) => {
   if ('capSource' in target.dataset) { capabilityState.source = target.value; render(); }
   if ('capCategory' in target.dataset) { capabilityState.category = target.value; render(); }
   if ('capStatus' in target.dataset) { capabilityState.status = target.value; render(); }
-  if ('capKindFilter' in target.dataset) {
-    capabilityState.kindFilter = target.value;
-    if (['skill', 'workflow'].includes(target.value)) capabilityState.kind = target.value;
-    capabilityState.category = ''; render();
-  }
   if ('dataCategory' in target.dataset) { capabilityState.category = target.value; render(); }
   if ('dataMarket' in target.dataset) { capabilityState.dataMarket = target.value; render(); }
   if ('dataStatus' in target.dataset) { capabilityState.dataStatus = target.value; render(); }
@@ -1138,7 +1143,7 @@ async function handleCapabilityClick(data) {
   }
   if ('dataSourceDetail' in data) {
     const result = await capabilityController.run(() => api.dataSource(data.dataSourceDetail));
-    if (result) { cap.dataDetail = result; cap.dataDetailKind = 'source'; render(); }
+    if (result) { cap.dataDetail = result; cap.dataDetailKind = 'source'; cap.form = 'manage'; render(); }
     return true;
   }
   if ('probeSource' in data) {

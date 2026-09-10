@@ -2,12 +2,18 @@ import { escapeHTML as e } from './markdown.mjs';
 import { icon } from './icons.mjs';
 import { empty } from './views.mjs';
 import { capabilityStatus, reportWorkflowEligibility } from './capabilities.mjs';
+import { renderDataCatalog } from './data-catalog.mjs';
 
 const list = (value) => Array.isArray(value) ? value : [];
 const views = ['library', 'mine', 'plans', 'connections'];
-const kinds = ['all', 'skill', 'workflow', 'tool', 'data'];
-const kindLabels = { all: '全部类型', skill: 'Skill', workflow: 'Workflow', tool: 'Tool', data: '数据能力' };
-const viewLabels = { library: '能力库', mine: '我的能力', plans: '运行计划', connections: '连接与工具' };
+const kinds = ['skill', 'tool', 'workflow', 'data'];
+const kindLabels = { skill: 'Skill', tool: 'Tool', workflow: 'Workflow', data: '数据' };
+const subviews = {
+  skill: [['library', '能力库'], ['mine', '我的 Skill']],
+  tool: [['library', '工具目录'], ['connections', '连接状态']],
+  workflow: [['library', '能力库'], ['mine', '我的 Workflow'], ['plans', '运行计划']],
+  data: [['library', '数据能力'], ['connections', '数据源与连接']],
+};
 const statusLabels = {
   enabled: '已启用', disabled: '已停用', draft: '草稿', invalid: '检查未通过', blocked_dependencies: '依赖不足',
   callable: '可调用', unavailable: '不可调用', internal: '内部控制', scheduled: '已排期', manual: '仅手动',
@@ -17,17 +23,19 @@ const normalizeText = (value) => String(value || '').trim().toLocaleLowerCase();
 const join = (values, fallback = '未声明') => e(list(values).join('、') || fallback);
 const attrKey = (kind, id) => `${kind}:${id}`;
 
-export function capabilityWorkspaceViewKey(key, current = 'library') {
+export function capabilityWorkspaceKindKey(key, current = 'skill') {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return { handled: false };
-  const index = Math.max(0, views.indexOf(current));
-  const next = key === 'Home' ? 0 : key === 'End' ? views.length - 1 : (index + (key === 'ArrowRight' ? 1 : -1) + views.length) % views.length;
-  return { handled: true, view: views[next] };
+  const index = Math.max(0, kinds.indexOf(current));
+  const next = key === 'Home' ? 0 : key === 'End' ? kinds.length - 1 : (index + (key === 'ArrowRight' ? 1 : -1) + kinds.length) % kinds.length;
+  return { handled: true, kind: kinds[next] };
 }
 
-export function capabilityWorkspaceHash(view = 'library', kind = 'all') {
-  const safeView = views.includes(view) ? view : 'library';
-  const params = new URLSearchParams({ view: safeView });
-  if (kinds.includes(kind) && kind !== 'all') params.set('kind', kind);
+export function capabilityWorkspaceHash(kind = 'skill', view = 'library') {
+  const safeKind = kinds.includes(kind) ? kind : 'skill';
+  const allowedViews = subviews[safeKind].map(([value]) => value);
+  const safeView = views.includes(view) && allowedViews.includes(view) ? view : 'library';
+  const params = new URLSearchParams({ kind: safeKind });
+  if (safeView !== 'library') params.set('view', safeView);
   return `#/skills?${params.toString()}`;
 }
 
@@ -45,11 +53,12 @@ function capabilityEntry(item) {
 
 function toolEntry(item) {
   const available = item.selectable === true;
+  const authorization = list(item.conditions).join('；') || item.approval || '未声明授权条件';
   return {
     raw: item, id: item.id, kind: 'tool', name: item.name, description: item.description || '', category: item.category || '研究工具',
     source: item.source || '本机工具目录', sourceKey: 'builtin', status: available ? 'callable' : 'internal',
     statusLabel: available ? '可加入草稿' : 'Agent 内部控制', available, version: item.version || null, formats: [], scenarios: list(item.conditions),
-    inputs: [], tools: [], dependencies: [], reason: available ? '' : '该工具由 Agent 内部控制，不能单独加入研究草稿',
+    inputs: [], tools: [], dependencies: [], reason: available ? `授权条件：${authorization}` : `授权条件：${authorization}；该工具由 Agent 内部控制，不能单独加入研究草稿`,
   };
 }
 
@@ -71,11 +80,11 @@ export function collectCapabilityWorkspaceEntries({ capabilities = [], tools = [
   ];
 }
 
-export function filterCapabilityWorkspaceEntries(entries = [], { view = 'library', kind = 'all', source = 'all', category = '', status = 'all', query = '' } = {}) {
+export function filterCapabilityWorkspaceEntries(entries = [], { view = 'library', kind = 'skill', source = 'all', category = '', status = 'all', query = '' } = {}) {
   const q = normalizeText(query);
   return list(entries).filter((item) => {
     if (view === 'mine' && (item.sourceKey !== 'mine' || !['skill', 'workflow'].includes(item.kind))) return false;
-    return (kind === 'all' || item.kind === kind)
+    return item.kind === kind
       && (source === 'all' || item.sourceKey === source)
       && (!category || item.category === category)
       && (status === 'all' || (status === 'available' ? item.available : !item.available))
@@ -83,13 +92,21 @@ export function filterCapabilityWorkspaceEntries(entries = [], { view = 'library
   });
 }
 
-function workspaceNav(view) {
-  return `<nav class="capability-workspace-nav" role="tablist" aria-label="能力工作区视图">${views.map(value => `<a id="capability-view-${value}" role="tab" tabindex="${view === value ? '0' : '-1'}" aria-selected="${view === value}" aria-controls="capability-workspace-panel" href="${capabilityWorkspaceHash(value)}" data-cap-view="${value}">${viewLabels[value]}</a>`).join('')}</nav>`;
+function workspaceKindNav(kind) {
+  return `<nav class="capability-workspace-nav" role="tablist" aria-label="能力类型">${kinds.map(value => `<a id="capability-kind-${value}" role="tab" tabindex="${kind === value ? '0' : '-1'}" aria-selected="${kind === value}" aria-controls="capability-workspace-panel" href="${capabilityWorkspaceHash(value)}" data-cap-kind-nav="${value}">${kindLabels[value]}</a>`).join('')}</nav>`;
+}
+
+function workspaceSubviewNav(kind, view) {
+  return `<nav class="capability-workspace-subnav" aria-label="${kindLabels[kind]} 视图">${subviews[kind].map(([value, label]) => `<a href="${capabilityWorkspaceHash(kind, value)}" aria-current="${view === value ? 'page' : 'false'}">${label}</a>`).join('')}</nav>`;
 }
 
 function filters(entries, state) {
   const categories = [...new Set(entries.map(item => item.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
-  return `<div class="capability-workspace-filters"><label class="search-box"><span aria-hidden="true">⌕</span><input id="cap-search" data-cap-query type="search" aria-label="搜索能力" value="${e(state.query)}" placeholder="搜索名称、简介或技术 ID"></label><label><span>类型</span><select data-cap-kind-filter>${kinds.map(value => `<option value="${value}" ${state.kind === value ? 'selected' : ''}>${kindLabels[value]}</option>`).join('')}</select></label>${state.view === 'library' ? `<label><span>来源</span><select data-cap-source><option value="all" ${state.source === 'all' ? 'selected' : ''}>全部来源</option><option value="builtin" ${state.source === 'builtin' ? 'selected' : ''}>内置</option><option value="mine" ${state.source === 'mine' ? 'selected' : ''}>我的</option></select></label>` : ''}<label><span>分类</span><select data-cap-category><option value="">全部分类</option>${categories.map(value => `<option value="${e(value)}" ${state.category === value ? 'selected' : ''}>${e(value)}</option>`).join('')}</select></label><label><span>状态</span><select data-cap-status><option value="all" ${state.status === 'all' ? 'selected' : ''}>全部状态</option><option value="available" ${state.status === 'available' ? 'selected' : ''}>可调用</option><option value="unavailable" ${state.status === 'unavailable' ? 'selected' : ''}>不可调用</option></select></label></div>`;
+  if (state.kind === 'tool') {
+    return `<div class="capability-workspace-filters tool-filters"><label class="search-box"><span aria-hidden="true">⌕</span><input id="cap-search" data-cap-query type="search" aria-label="搜索 Tool" value="${e(state.query)}" placeholder="搜索名称、简介或技术 ID"></label></div>`;
+  }
+  const source = ['skill', 'workflow'].includes(state.kind) && state.view === 'library' ? `<label><span>来源</span><select data-cap-source><option value="all" ${state.source === 'all' ? 'selected' : ''}>全部来源</option><option value="builtin" ${state.source === 'builtin' ? 'selected' : ''}>内置</option><option value="mine" ${state.source === 'mine' ? 'selected' : ''}>我的</option></select></label>` : '';
+  return `<div class="capability-workspace-filters"><label class="search-box"><span aria-hidden="true">⌕</span><input id="cap-search" data-cap-query type="search" aria-label="搜索 ${kindLabels[state.kind]}" value="${e(state.query)}" placeholder="搜索名称、简介或技术 ID"></label>${source}<label><span>分类</span><select data-cap-category><option value="">全部分类</option>${categories.map(value => `<option value="${e(value)}" ${state.category === value ? 'selected' : ''}>${e(value)}</option>`).join('')}</select></label><label><span>状态</span><select data-cap-status><option value="all" ${state.status === 'all' ? 'selected' : ''}>全部状态</option><option value="available" ${state.status === 'available' ? 'selected' : ''}>可调用</option><option value="unavailable" ${state.status === 'unavailable' ? 'selected' : ''}>不可调用</option></select></label></div>`;
 }
 
 function detailAttribute(item) {
@@ -117,11 +134,14 @@ function capabilityCard(item, busy) {
 
 function catalogView(entries, state, busy, error) {
   const results = filterCapabilityWorkspaceEntries(entries, state);
-  const heading = state.view === 'mine'
-    ? ['我的能力', '集中管理你创建、复制和导入的 Skill 与 Workflow。']
-    : ['能力库', '统一浏览本机已审查的 Skill、Workflow、Tool 与数据能力。'];
-  const actions = state.view === 'mine' ? `<div class="button-row capability-create-actions"><button type="button" class="button primary" data-cap-create="conversation" ${busy ? 'disabled' : ''}>对话创建</button><button type="button" class="button" data-cap-create="manual" ${busy ? 'disabled' : ''}>手动新建</button><button type="button" class="button" data-cap-import ${busy ? 'disabled' : ''}>导入</button><input id="cap-import-file" type="file" accept=".md,.zip" hidden></div>` : '';
-  return `<div class="capability-view-heading"><div><span class="eyebrow">${state.view === 'mine' ? 'OWNED CAPABILITIES' : 'LOCAL CATALOG'}</span><h2>${heading[0]}</h2><p class="muted">${heading[1]}</p></div>${actions}</div>${filters(entries, state)}${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<p class="capability-result-count" role="status">${results.length} 项真实目录记录</p>${results.length ? `<div class="capability-workspace-grid">${results.map(item => capabilityCard(item, busy)).join('')}</div>` : empty('没有匹配的能力', '调整搜索或筛选；目录不会补充演示内容。')}`;
+  const owned = state.view === 'mine';
+  const typeName = kindLabels[state.kind];
+  const heading = owned
+    ? [`我的 ${typeName}`, `集中管理你创建、复制和导入的 ${typeName}。`]
+    : [state.kind === 'tool' ? '工具目录' : `${typeName} 能力库`, state.kind === 'tool' ? '只展示本机真实 Tool 声明、调用状态和授权原因，不与其他能力类型混排。' : `只展示本机已审查的 ${typeName}，不会与其他能力类型混排。`];
+  const actions = ['skill', 'workflow'].includes(state.kind) ? `<div class="button-row capability-create-actions"><button type="button" class="button primary" data-cap-create="conversation" ${busy ? 'disabled' : ''}>对话创建</button><button type="button" class="button" data-cap-create="manual" ${busy ? 'disabled' : ''}>手动新建</button><button type="button" class="button" data-cap-import ${busy ? 'disabled' : ''}>导入 ${typeName}</button><input id="cap-import-file" type="file" accept=".md,.zip" hidden></div>` : '';
+  const scopedEntries = entries.filter(item => item.kind === state.kind);
+  return `<div class="capability-view-heading"><div><span class="eyebrow">${owned ? 'OWNED CAPABILITIES' : 'LOCAL CATALOG'}</span><h2>${heading[0]}</h2><p class="muted">${heading[1]}</p></div>${actions}</div>${filters(scopedEntries, state)}${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<p class="capability-result-count" role="status">${results.length} 项真实目录记录</p>${results.length ? `<div class="capability-workspace-grid">${results.map(item => capabilityCard(item, busy)).join('')}</div>` : empty(`没有匹配的 ${typeName}`, '调整搜索或筛选；目录不会补充演示内容。')}`;
 }
 
 function runLabel(status) {
@@ -146,16 +166,27 @@ function connectionState(source) {
   return ['待检测', ''];
 }
 
-function connectionsView(connections, tools) {
-  const sources = list(connections?.sources);
-  return `<div class="capability-view-heading"><div><span class="eyebrow">LOCAL CONNECTIONS</span><h2>连接与工具</h2><p class="muted">查看当前数据源、本机集成与 Tool 状态；凭据配置继续在设置中完成。</p></div><a class="button" href="#/settings/data">打开连接设置</a></div><section class="connection-tool-summary" aria-label="连接与工具汇总"><div><strong>${sources.length}</strong><span>数据源</span></div><div><strong>${sources.filter(item => item.callable === true).length}</strong><span>可调用来源</span></div><div><strong>${list(tools).length}</strong><span>Tool 声明</span></div><div><strong>${list(tools).filter(item => item.selectable === true).length}</strong><span>可加入草稿</span></div></section><div class="connection-tool-sections"><section><div class="section-heading"><div><h3>数据源与本机集成</h3><p class="muted small">状态来自当前服务设备。</p></div></div>${sources.length ? `<div class="connection-tool-list">${sources.map(source => { const [label, tone] = connectionState(source); const section = source.group === 'local' ? 'local' : 'data'; return `<article><div><strong>${e(source.name || source.label || source.id)}</strong><small>${e(source.description || source.id)}</small></div><span class="badge ${tone}">${e(label)}</span><a class="button small" href="#/settings/${section}?connection=${encodeURIComponent(source.id)}">配置</a></article>`; }).join('')}</div>` : empty('没有连接记录', '刷新目录后仍为空时，请检查连接服务。')}</section><section><div class="section-heading"><div><h3>研究 Tool</h3><p class="muted small">安装、启用与会话授权仍是独立状态。</p></div></div>${list(tools).length ? `<div class="connection-tool-list">${list(tools).map(tool => `<article><div><strong>${e(tool.name)}</strong><small>${e(tool.description || tool.id)}</small></div><span class="badge ${tool.selectable ? 'live' : ''}">${tool.selectable ? '可加入草稿' : '内部控制'}</span><button type="button" class="button small" data-tool-detail="${e(tool.id)}" data-cap-preview-trigger="${e(attrKey('tool', tool.id))}">快览</button></article>`).join('')}</div>` : empty('没有 Tool 声明', '刷新目录后仍为空时，请检查工具目录。')}</section></div>`;
+function toolConnectionsView(connections, tools) {
+  const sources = list(connections?.sources).filter(source => source.group === 'local');
+  return `<div class="capability-view-heading"><div><span class="eyebrow">LOCAL CONNECTIONS</span><h2>Tool 连接状态</h2><p class="muted">查看本机集成与 Tool 的真实调用状态；凭据配置继续在设置中完成。</p></div><div class="button-row"><a class="button" href="#/skills?kind=data&view=connections">查看数据源</a><a class="button" href="#/settings/local">打开本机连接设置</a></div></div><section class="connection-tool-summary" aria-label="Tool 连接状态汇总"><div><strong>${sources.length}</strong><span>本机集成</span></div><div><strong>${sources.filter(item => item.callable === true).length}</strong><span>当前可调用</span></div><div><strong>${list(tools).length}</strong><span>Tool 声明</span></div><div><strong>${list(tools).filter(item => item.selectable === true).length}</strong><span>可加入草稿</span></div></section><div class="connection-tool-sections"><section><div class="section-heading"><div><h3>本机集成</h3><p class="muted small">这里只展示本机连接；数据源在“数据”分区单独管理。</p></div></div>${sources.length ? `<div class="connection-tool-list">${sources.map(source => { const [label, tone] = connectionState(source); return `<article><div><strong>${e(source.name || source.label || source.id)}</strong><small>${e(source.description || source.id)}</small></div><span class="badge ${tone}">${e(label)}</span><a class="button small" href="#/settings/local?connection=${encodeURIComponent(source.id)}">配置</a></article>`; }).join('')}</div>` : empty('没有本机连接记录', '刷新目录后仍为空时，请检查连接服务。')}</section><section><div class="section-heading"><div><h3>研究 Tool</h3><p class="muted small">安装、启用与会话授权仍是独立状态。</p></div></div>${list(tools).length ? `<div class="connection-tool-list">${list(tools).map(tool => `<article><div><strong>${e(tool.name)}</strong><small>${e(tool.description || tool.id)}</small></div><span class="badge ${tool.selectable ? 'live' : ''}">${tool.selectable ? '可加入草稿' : '内部控制'}</span><button type="button" class="button small" data-tool-detail="${e(tool.id)}" data-cap-preview-trigger="${e(attrKey('tool', tool.id))}">快览</button></article>`).join('')}</div>` : empty('没有 Tool 声明', '刷新目录后仍为空时，请检查工具目录。')}</section></div>`;
 }
 
-export function renderCapabilityWorkspace({ capabilities = [], tools = [], reportWorkflows = [], dataCatalog = {}, connections = {}, view = 'library', kind = 'all', source = 'all', category = '', status = 'all', query = '', busy = false, error = '' } = {}) {
-  const safeView = views.includes(view) ? view : 'library';
+export function renderCapabilityWorkspace({ capabilities = [], tools = [], reportWorkflows = [], dataCatalog = {}, connections = {}, view = 'library', kind = 'skill', source = 'all', category = '', status = 'all', query = '', dataMarket = '', dataStatus = '', dataAuth = '', probe = null, busy = false, error = '' } = {}) {
+  const safeKind = kinds.includes(kind) ? kind : 'skill';
+  const allowedViews = subviews[safeKind].map(([value]) => value);
+  const safeView = views.includes(view) && allowedViews.includes(view) ? view : 'library';
   const entries = collectCapabilityWorkspaceEntries({ capabilities, tools, dataCatalog });
-  const body = safeView === 'plans' ? plansView(reportWorkflows, busy) : safeView === 'connections' ? connectionsView(connections, tools) : catalogView(entries, { view: safeView, kind: kinds.includes(kind) ? kind : 'all', source, category, status, query }, busy, error);
-  return `<section class="capability-workspace"><header class="capability-workspace-header"><div><span class="eyebrow">CAPABILITY WORKSPACE · V0</span><h1>能力工作区</h1><p class="muted">发现、管理并准备研究能力；任何执行都需要你的明确确认。</p></div><button type="button" class="button" data-cap-refresh ${busy ? 'disabled' : ''}>刷新状态</button></header>${workspaceNav(safeView)}<div id="capability-workspace-panel" role="tabpanel" aria-labelledby="capability-view-${safeView}" tabindex="0">${body}</div></section>`;
+  let body;
+  if (safeKind === 'workflow' && safeView === 'plans') body = plansView(reportWorkflows, busy);
+  else if (safeKind === 'tool' && safeView === 'connections') body = toolConnectionsView(connections, tools);
+  else if (safeKind === 'data') {
+    const dataView = safeView === 'connections' ? 'sources' : 'capabilities';
+    const heading = dataView === 'sources'
+      ? ['数据源与连接', '查看真实接入、配置和健康状态；连接设置继续在设置页完成。']
+      : ['数据能力', '按可解决的研究问题浏览数据能力，不与 Tool 声明混排。'];
+    body = `<div class="capability-view-heading"><div><span class="eyebrow">DATA CATALOG</span><h2>${heading[0]}</h2><p class="muted">${heading[1]}</p></div>${dataView === 'sources' ? '<a class="button" href="#/settings/data">打开数据连接设置</a>' : ''}</div>${renderDataCatalog({ catalog: dataCatalog, view: dataView, query, category, market: dataMarket, status: dataStatus, auth: dataAuth, busy, error, probe, showViewSwitch: false })}`;
+  } else body = catalogView(entries, { view: safeView, kind: safeKind, source, category, status, query }, busy, error);
+  return `<section class="capability-workspace"><header class="capability-workspace-header"><div><span class="eyebrow">CAPABILITY WORKSPACE · V0</span><h1>能力工作区</h1><p class="muted">Skill、Tool、Workflow 与数据分区浏览；任何执行都需要你的明确确认。</p></div><button type="button" class="button" data-cap-refresh ${busy ? 'disabled' : ''}>刷新状态</button></header>${workspaceKindNav(safeKind)}${workspaceSubviewNav(safeKind, safeView)}<div id="capability-workspace-panel" role="tabpanel" aria-labelledby="capability-kind-${safeKind}" tabindex="0">${body}</div></section>`;
 }
 
 function previewFromState({ detail, tool, dataDetail, dataDetailKind }) {

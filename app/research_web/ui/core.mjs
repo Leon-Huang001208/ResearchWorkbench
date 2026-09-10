@@ -4,6 +4,7 @@ const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'oper
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections']);
+const capabilityKinds = new Set(['skill', 'tool', 'workflow', 'data']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -19,8 +20,13 @@ export function parseRoute(hash = '') {
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
   }
   if (page === 'skills') {
-    route.capabilityView = capabilityViews.has(params.get('view')) ? params.get('view') : 'library';
-    if (['skill', 'tool', 'workflow', 'data'].includes(params.get('kind'))) route.capabilityKind = params.get('kind');
+    const requestedView = capabilityViews.has(params.get('view')) ? params.get('view') : 'library';
+    const requestedKind = capabilityKinds.has(params.get('kind')) ? params.get('kind') : null;
+    route.capabilityKind = requestedKind || (requestedView === 'plans' ? 'workflow' : requestedView === 'connections' ? 'tool' : 'skill');
+    route.capabilityView = requestedView;
+    if (requestedView === 'mine' && !['skill', 'workflow'].includes(route.capabilityKind)) route.capabilityView = 'library';
+    if (requestedView === 'plans' && route.capabilityKind !== 'workflow') route.capabilityView = 'library';
+    if (requestedView === 'connections' && !['tool', 'data'].includes(route.capabilityKind)) route.capabilityView = 'library';
   }
   if (page === 'settings') {
     const connection = params.get('connection');

@@ -12,13 +12,15 @@
 | `seeds.py` | 十一个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
-| `ui/capability-workspace.mjs` | 组合能力库、我的能力、现有报告日程、连接与 Tool 安全摘要；渲染快览 dialog | 创建第二份目录、推断热门排序或执行能力 |
+| `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、数据组织为四个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
 
 Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH 读取的原生 Skill 指令，步骤列表是研究模板，不是已执行节点。
 
-能力工作区路由以 `view=library|mine|plans|connections` 切换信息架构；既有 `kind` 深链继续生效，
-无 `view` 时映射到 `library`。library 聚合现有 Skill、Workflow、Tool 与数据能力，mine 只显示
-非内置 Skill/Workflow，plans 读取现有报告 Workflow 摘要，connections 读取连接安全投影并深链设置。
+能力工作区路由以 `kind=skill|tool|workflow|data` 切换四个主分区，以
+`view=library|mine|plans|connections` 切换类型内二级视图；无参数默认 `kind=skill`。
+Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 提供运行计划；Tool 的连接状态
+只展示本机集成，数据源由数据分区单独展示。无 kind 的旧 `view=plans` 映射到 Workflow，
+`view=connections` 映射到 Tool；不适用于当前 kind 的 view 回落到该类型目录。任一目录只渲染一种类型。
 快览使用有焦点锁定、Escape／遮罩关闭和焦点恢复的居中 dialog，手机改为全屏；复杂管理仍沿用原详情页。
 
 ## 数据模型与文件归属

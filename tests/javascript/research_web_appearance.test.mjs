@@ -167,8 +167,10 @@ test('conversation layout right-aligns fluid user bubbles and keeps assistant re
 test('capability workspace has four-to-one responsive density and a full-screen mobile dialog', async () => {
   const css = await readFile(new URL('appearance.css', ui), 'utf8');
   assert.match(css, /@media \(min-width: 1400px\)[\s\S]*?\.capability-workspace-grid \{ grid-template-columns: repeat\(4/);
+  assert.match(css, /@media \(min-width: 1400px\)[\s\S]*?\.capability-workspace \.data-grid \{ grid-template-columns: repeat\(4/);
   assert.match(css, /@media \(max-width: 1100px\)[\s\S]*?\.capability-workspace-grid \{ grid-template-columns: repeat\(2/);
   assert.match(css, /@media \(max-width: 600px\)[\s\S]*?\.capability-workspace-grid \{ grid-template-columns: 1fr/);
+  assert.match(css, /\.capability-workspace-subnav a\[aria-current='page'\]/);
   assert.match(css, /\.capability-preview-dialog \{[^}]*width: min\(760px/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.capability-preview-dialog \{[^}]*width: 100vw[^}]*min-height: 100dvh/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
