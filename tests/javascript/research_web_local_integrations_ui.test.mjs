@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 
 import { createAPI, waitForLocalIntegrationProbe } from '../../app/research_web/ui/core.mjs';
-import { renderLocalIntegrationConsole } from '../../app/research_web/ui/connections.mjs';
+import { createLocalIntegrationPollingGuard, renderLocalIntegrationConsole } from '../../app/research_web/ui/connections.mjs';
 import { parseRoute } from '../../app/research_web/ui/core.mjs';
 import { renderSettingsPage, settingsRefreshCatalogs } from '../../app/research_web/ui/settings.mjs';
 
@@ -21,6 +21,7 @@ const makeItem = (id, category, label, status, extra = {}) => ({
   capabilities: [],
   actions: [],
   last_checked_at: '2026-09-10T00:00:00Z',
+  last_verified_at: null,
   ...extra,
 });
 
@@ -86,6 +87,48 @@ test('local console exposes busy, live-region and safe actions', () => {
   assert.doesNotMatch(unsafe, /evil\.test|坏链接/);
 });
 
+test('eligible Office rows expose explicit verification actions and per-target progress', () => {
+  const expanded = {
+    ...localIntegrations,
+    items: [
+      ...localIntegrations.items,
+      makeItem('word_app', 'office', 'Microsoft Word 应用', '待验证', { discovery: '已发现', last_verified_at: '2026-09-10T01:00:00Z' }),
+      makeItem('ifind_terminal', 'office', 'iFinD 专业终端', '不适用', {
+        discovery: '不适用', authorization: '不适用', verification: '不适用',
+        actions: [{ id: 'configure', label: '配置 iFinD HTTP API', href: '#/settings/data?connection=ifind' }],
+      }),
+    ],
+    categories: localIntegrations.categories.map((category) => category.id === 'office'
+      ? { ...category, item_ids: [...category.item_ids, 'word_app', 'ifind_terminal'] }
+      : category),
+  };
+  const html = renderLocalIntegrationConsole(expanded, { verificationTarget: 'word' });
+  assert.match(html, /role="status" aria-live="polite" aria-atomic="true">正在验证 Word，完成后将自动更新状态。/);
+  assert.match(html, /data-local-integration-verify="excel"/);
+  assert.match(html, /data-local-integration-verify="word"[^>]*disabled[^>]*aria-busy="true"[^>]*>验证中…/);
+  assert.match(html, /最近验证：2026-09-10T01:00:00Z/);
+  assert.doesNotMatch(html, /最近验证：2026-09-10T00:00:00Z/);
+  assert.doesNotMatch(html, /data-local-integration-verify="ifind/);
+  assert.match(html, /配置 iFinD HTTP API/);
+});
+
+test('local verification polling guard invalidates stale page and refresh work', () => {
+  let localPageActive = true;
+  const guard = createLocalIntegrationPollingGuard(() => localPageActive);
+  const first = guard.begin();
+  assert.equal(guard.isCurrent(first), true);
+
+  const second = guard.begin();
+  assert.equal(guard.isCurrent(first), false);
+  assert.equal(guard.isCurrent(second), true);
+
+  localPageActive = false;
+  assert.equal(guard.isCurrent(second), false);
+  localPageActive = true;
+  guard.invalidate();
+  assert.equal(guard.isCurrent(second), false);
+});
+
 test('settings local section loads the dedicated model while data keeps DataHub connections', () => {
   assert.deepEqual(settingsRefreshCatalogs('data'), ['connections']);
   assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit']);
@@ -126,6 +169,22 @@ test('dedicated API uses idempotency and local probe polling validates responses
   await assert.rejects(waitForLocalIntegrationProbe(async () => ({}), 'probe-2', { delay: 0 }), /响应格式异常/);
 });
 
+test('dedicated API starts and polls allowlisted real verifications', async () => {
+  const calls = [];
+  const api = createAPI({ fetcher: async (url, options = {}) => {
+    calls.push([url, options]);
+    return new Response(JSON.stringify({ id: 'verify-1', target: 'excel', status: 'queued' }), { status: 202 });
+  }, logger() {} });
+  await api.verifyLocalIntegration('excel', 'stable-verification-key');
+  await api.localIntegrationVerification('verify/one');
+  assert.deepEqual(calls.map(([url]) => url), [
+    '/api/research/local-integrations/verifications',
+    '/api/research/local-integrations/verifications/verify%2Fone',
+  ]);
+  assert.equal(calls[0][1].headers['Idempotency-Key'], 'stable-verification-key');
+  assert.equal(calls[0][1].body, JSON.stringify({ target: 'excel' }));
+});
+
 test('local-only CSS is compact, responsive and respects 44px targets', async () => {
   const css = await readFile(new URL('../../app/research_web/ui/appearance.css', import.meta.url), 'utf8');
   assert.match(css, /\.local-integrations-probe\s*\{[^}]*min-height:\s*44px/);
@@ -138,6 +197,9 @@ test('application controller no longer loads DataHub connections for the local p
   const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
   assert.match(app, /localIntegrations:\s*\{\s*categories:/);
   assert.match(app, /api\.probeLocalIntegrations/);
+  assert.match(app, /localIntegrationPollingGuard\.invalidate\(\)/);
+  assert.match(app, /localIntegrationPollingGuard\.isCurrent\(verificationTicket\)/);
+  assert.match(app, /return \{ status: 'cancelled' \}/);
   assert.match(app, /localCategoryTarget/);
   assert.match(app, /focus\(\{ preventScroll: true \}\)/);
   assert.match(app, /document\.scrollingElement/);

@@ -20,6 +20,18 @@
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"宿主用户路径仅供既有Tabbit插件定位launcher和实例，DSH_HOME、Profile、执行器与部署节点保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"真实macOS验证覆盖现有授权、标签选择、确认和失败保留交互，没有新增页面或组件边界。","diagrams":[]} -->
 
+## 2026-09-10 — Mac 本机集成真实验证
+
+- 设置页新增独立的本机集成验证任务 API；发现仍无副作用，只有用户显式操作才启动 Office 或 Wind。
+- Excel、Word 与 PowerPoint 使用各自 Office 容器内的确定性验证文件；Wind 仅刷新已发布报告工作簿的运行副本，源版本保持只读。
+- 图 03 同时保留 Tabbit 实时标签序列，并增加 Web → 验证管理器 → Office/Wind 的显式任务序列；DataHub、能力包与报告 Workflow 仍使用既有模块和存储边界。
+
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"新增本机验证创建与轮询接口，并将显式用户动作、异步任务和安全结果投影纳入现有Research Web API。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"runtime","structure":"changed","reason":"新增可终止的Office/Wind验证子进程、受管Office容器临时文件和本轮Excel实例清理，不进入DSH研究执行链。","diagrams":["03-research-sequence"]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"iFinD HTTP探测补齐登录、健康、只读查询和登出，继续复用既有连接配置与系统凭据库，不新增DataHub服务或存储。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"本机页只链接并消费既有报告Workflow元数据进行受管副本验证，不改变Skill、Tool或Workflow的发布与调用拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"本机设置页在既有诊断列表增加逐项验证按钮、进度和最近验证时间，不新增产品壳或页面模块。","diagrams":[]} -->
+
 ## 2026-09-08 — DSH 最新版 Gateway 兼容迁移
 
 - Research Runtime 固定到基于官方最新 `master` 重建的 Fork 运行分支；Workbench 兼容桥把原有白名单调用映射到 Typert Gateway 的斜杠端点、`payload.args`、Cookie 鉴权和 Remote 复用流，对外 HTTP、会话、消息、DataHub、文件与删除接口不变。

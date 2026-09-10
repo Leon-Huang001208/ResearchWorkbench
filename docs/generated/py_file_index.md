@@ -3117,7 +3117,7 @@ Imports:
 - `json`
 - `os`
 - `pathlib`
-- `stat`
+- `runtime_auth`
 - `typing`
 - `urllib.parse`
 - `uuid`
@@ -3315,6 +3315,8 @@ Classes:
 
 Functions:
 - `_serialized`
+- `_fsync_directory`
+  - Persist a directory entry where the host exposes POSIX directory handles.
 - `canonical_source_id`
 
 
@@ -3357,9 +3359,12 @@ Imports:
 - `asyncio`
 - `connections`
 - `core.observability`
+- `data_layer.adapters.ifind.exceptions`
 - `importlib`
 - `importlib.util`
 - `platform`
+- `types`
+- `typing`
 
 Functions:
 - `_available`
@@ -3367,6 +3372,8 @@ Functions:
 - `_read_accounts`
 - `_probe_ifind_sdk`
 - `_probe_wind_client`
+- `_default_ifind_http_client`
+- `_probe_ifind_http`
 - `probe_source`
   - Probe installed integrations without retaining vendor sessions or secrets.
 
@@ -3576,11 +3583,28 @@ Imports:
 - `uuid`
 
 Functions:
+- `_is_reparse_point`
+  - Reject links and Windows reparse points before path-based fallback IO.
+- `_safe_component`
+- `_windows_directory`
+  - Path-based Windows fallback guarded by canonical and reparse-point checks.
+- `_windows_read_file`
+- `_windows_write_new`
+- `_windows_atomic_json`
+- `_parse_control`
+- `_windows_control`
+  - Windows fallback for startup control IO without unsupported dir_fd flags.
 - `directory`
   - All descendants opened with NOFOLLOW; trusted root is canonical.
 - `read_file`
 - `write_new`
 - `atomic_json`
+- `make_directory`
+- `rename_directory`
+- `unlink_file`
+- `remove_directory`
+- `sync_directory`
+  - Flush a POSIX directory; Windows has no portable directory fsync.
 - `json_bytes`
 - `checked_url`
 - `load_control`
@@ -3715,6 +3739,8 @@ Functions:
 - `load_tabbit_config`
   - Read the non-secret Tabbit switches used for the next Runtime start.
 - `_atomic_json`
+- `_tabbit_archive_parts`
+  - Interpret npm tar member names with archive-native POSIX semantics.
 - `_profile_manifest`
 - `_append_profile_bundle`
 - `stage_tabbit_package`
@@ -3731,6 +3757,131 @@ Functions:
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
 - `prepare`
 - `main`
+
+
+## `app/research_web/local_integrations/__init__.py`
+
+Module docstring:
+> Safe, read-only local integration discovery for the Research Web process.
+
+Imports:
+- `manager`
+
+
+## `app/research_web/local_integrations/manager.py`
+
+Module docstring:
+> Truthful host capability projections without launching vendor software.
+
+Imports:
+- `asyncio`
+- `concurrent.futures`
+- `contextlib`
+- `copy`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `hashlib`
+- `importlib.metadata`
+- `importlib.util`
+- `json`
+- `os`
+- `pathlib`
+- `platform`
+- `re`
+- `stat`
+- `threading`
+- `typing`
+- `uuid`
+
+Classes:
+- `LocalIntegrationError`
+  - Stable, non-secret error returned by the local integration boundary.
+  - methods: __init__
+- `DetectionEnvironment`
+  - Injectable host facts keep macOS and Windows detection testable and side-effect free.
+  - methods: current
+- `LocalIntegrationManager`
+  - Build and persist safe local facts; probes never launch detected software.
+  - methods: __init__, state_path, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, _public_probe, close
+
+Functions:
+- `_default_module_available`
+- `_default_registry_app_exists`
+- `_utc_now`
+- `_exists`
+- `_named_entry_exists`
+- `_wind_addin_paths`
+- `_wind_addin_exists`
+- `_windows_roots`
+- `_windows_app_exists`
+- `_item`
+
+
+## `app/research_web/local_integrations/routes.py`
+
+Module docstring:
+> Dedicated Research Web endpoints for local integration diagnosis.
+
+Imports:
+- `fastapi`
+- `pydantic`
+- `typing`
+
+Classes:
+- `LocalVerificationRequest`
+
+Functions:
+- `local_integrations`
+- `start_local_integrations_probe`
+- `local_integrations_probe`
+- `start_local_integration_verification`
+- `local_integration_verification`
+
+
+## `app/research_web/local_integrations/verifiers.py`
+
+Module docstring:
+> Explicit, process-isolated macOS Office and Wind verification.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `multiprocessing`
+- `os`
+- `pathlib`
+- `re`
+- `shutil`
+- `signal`
+- `stat`
+- `subprocess`
+- `sys`
+- `threading`
+- `time`
+- `typing`
+- `uuid`
+
+Functions:
+- `_sha256`
+- `_permission_outcome`
+- `_remove_run_directory`
+- `_run_directory_size`
+- `_prepare_run_directory`
+- `_run_osascript`
+- `_office_documents_root`
+- `_office_artifact_path`
+- `_remove_office_artifact`
+- `_verify_excel_macos`
+- `_verify_excel`
+- `_verify_word`
+- `_verify_powerpoint`
+- `_verify_wind`
+- `_child`
+- `_terminate_process_tree`
+  - Terminate the worker and descendants without leaking vendor processes.
+- `verify_target`
+  - Run an allowlisted verification in a terminable spawned process.
 
 
 ## `app/research_web/main.py`
@@ -3754,6 +3905,8 @@ Imports:
 - `fastapi.responses`
 - `fastapi.staticfiles`
 - `json`
+- `local_integrations`
+- `local_integrations.routes`
 - `mimetypes`
 - `operations`
 - `os`
@@ -3767,9 +3920,7 @@ Imports:
 - `service`
 - `shutil`
 - `starlette.middleware.trustedhost`
-- `store`
-- `tabbit`
-- ... 4 more
+- ... 6 more
 
 Classes:
 - `NewSession`
@@ -4256,6 +4407,7 @@ Imports:
 - `re`
 - `shutil`
 - `signal`
+- `subprocess`
 - `sys`
 - `tempfile`
 - `threading`
@@ -4272,7 +4424,7 @@ Classes:
   - methods: readiness, open_workbook, refresh_all, calculate_full, read_cells, save, close
 - `XlwingsExcelProvider`
   - Lazy xlwings bridge; public failures are deliberately content-free.
-  - methods: __init__, _activate_macos_appscript_compat, readiness, open_workbook, refresh_all, calculate_full, read_cells, save, close, refresh_with_timeout
+  - methods: __init__, set_process_reporter, _activate_macos_appscript_compat, readiness, open_workbook, refresh_all, calculate_full, read_cells, save, close, refresh_with_timeout
 - `WindExcelProvider`
 - `IFindExcelProvider`
 - `WorkbookRefreshService`
@@ -4305,9 +4457,11 @@ Functions:
 - `_provider_refresh_worker`
 - `_terminate_worker_tree`
 - `_process_exists`
-- `_terminate_child_processes`
+- `_capture_excel_process_identity`
+- `_managed_excel_process_exists`
+- `_terminate_managed_excel_processes`
 - `_drain_worker_messages`
-- `_worker_child_pids`
+- `_worker_child_processes`
 - `_run_provider_worker`
 - `_run_provider_readiness`
 - `_run_provider_refresh`
@@ -4338,6 +4492,30 @@ Functions:
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`
+
+
+## `app/research_web/runtime_auth.py`
+
+Module docstring:
+> Cross-platform, fail-closed reads for the private DSH runtime control file.
+
+Imports:
+- `__future__`
+- `json`
+- `os`
+- `pathlib`
+- `stat`
+- `typing`
+
+Classes:
+- `RuntimeAuthFileError`
+  - The runtime control path failed structural or identity validation.
+
+Functions:
+- `_is_unsafe_identity`
+- `_identity`
+- `read_runtime_auth_record`
+  - Read one bounded control record without trusting path aliases or replacements.
 
 
 ## `app/research_web/sandbox.py`
@@ -4408,6 +4586,7 @@ Imports:
 - `delivery`
 - `hashlib`
 - `json`
+- `local_integrations`
 - `pathlib`
 - `projection`
 - `report_studio`
@@ -4439,9 +4618,11 @@ Imports:
 - `os`
 - `pathlib`
 - `re`
+- `runtime_auth`
 - `shutil`
 - `signal`
 - `socket`
+- `stat`
 - `subprocess`
 - `sys`
 - `tempfile`
@@ -4459,6 +4640,8 @@ Classes:
   - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, status, tabbit_status
 
 Functions:
+- `_is_unsafe_private_directory`
+  - Validate directory structure without treating Windows mode bits as ACLs.
 - `format_status`
 - `format_tabbit_status`
   - Render diagnostics without paths, page metadata, cookies, or content.
@@ -4622,6 +4805,9 @@ Classes:
   - methods: __init__
 - `Store`
   - methods: __init__, save, create, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
+
+Functions:
+- `_is_reparse_point`
 
 
 ## `app/research_web/tabbit.py`
@@ -7336,6 +7522,8 @@ Classes:
   - iFinD Python SDK 不可用异常
 - `IFinDRateLimitError`
   - iFinD 限流异常
+- `IFinDPermissionError`
+  - iFinD 账号无权访问所请求的数据能力。
 
 
 ## `data_layer/adapters/ifind/http_client.py`
@@ -7348,13 +7536,19 @@ Imports:
 - `data_layer.adapters.ifind.exceptions`
 - `datetime`
 - `httpx`
+- `ipaddress`
 - `logging`
 - `typing`
+- `urllib.parse`
 
 Classes:
 - `IFinDHTTPClient`
   - iFinD HTTP API 客户端
-  - methods: __init__, _get_client, login, logout, is_alive, _ensure_token, _request, history, realtime, basic, financial, date_serial, data_pool, edb_query
+  - methods: __init__, _get_client, login, logout, is_alive, _ensure_token, _request, history, realtime, basic, probe_query, financial, date_serial, data_pool, edb_query
+
+Functions:
+- `validate_ifind_http_base_url`
+  - Allow credentials only over HTTPS, except for an explicit loopback service.
 
 
 ## `data_layer/adapters/ifind/mappers.py`

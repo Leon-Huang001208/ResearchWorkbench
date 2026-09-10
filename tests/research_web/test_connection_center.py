@@ -3,8 +3,9 @@
 import asyncio
 import json
 import sys
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from test_api import NativeFixture
@@ -24,6 +25,8 @@ from app.research_web.datahub.probes import probe_source
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+from data_layer.adapters.ifind.exceptions import IFinDAuthError, IFinDRateLimitError
+from data_layer.adapters.ifind.http_client import IFinDHTTPClient
 
 
 class MappingKeyring:
@@ -518,6 +521,221 @@ async def test_ifind_sdk_probe_skips_missing_account_and_always_logs_out(monkeyp
     )
     assert result == {"health": "healthy", "failure_code": None}
     assert events == [("login", "second", "sdk-secret"), ("logout",)]
+
+
+@pytest.mark.asyncio
+async def test_ifind_http_probe_logs_in_checks_health_and_always_closes():
+    events = []
+
+    class Client:
+        async def login(self):
+            events.append("login")
+            return True
+
+        async def is_alive(self):
+            events.append("health")
+            return True
+
+        async def probe_query(self):
+            events.append("query")
+            return [{"code": "000001.SZ"}]
+
+        async def logout(self):
+            events.append("logout")
+
+    result = await probe_source(
+        "ifind",
+        {
+            "backend": "http_api",
+            "http_base_url": "https://ifind.example.test/api",
+            "accounts": [{"id": "ready", "username": "researcher"}],
+        },
+        lambda *_args: "http-secret",
+        ifind_http_client_factory=lambda *_args: Client(),
+    )
+
+    assert result == {"health": "healthy", "failure_code": None}
+    assert events == ["login", "health", "query", "logout"]
+
+
+@pytest.mark.asyncio
+async def test_ifind_http_probe_maps_auth_failure_and_still_closes():
+    events = []
+
+    class Client:
+        async def login(self):
+            events.append("login")
+            raise PermissionError("secret must not escape")
+
+        async def logout(self):
+            events.append("logout")
+
+    result = await probe_source(
+        "ifind",
+        {
+            "backend": "http_api",
+            "http_base_url": "https://ifind.example.test/api",
+            "accounts": [{"id": "ready", "username": "researcher"}],
+        },
+        lambda *_args: "http-secret",
+        ifind_http_client_factory=lambda *_args: Client(),
+    )
+
+    assert result == {"health": "unavailable", "failure_code": "vendor_permission_denied"}
+    assert events == ["login", "logout"]
+
+
+@pytest.mark.asyncio
+async def test_ifind_http_probe_rejects_empty_data_query_and_always_closes():
+    events = []
+
+    class Client:
+        async def login(self):
+            events.append("login")
+            return True
+
+        async def is_alive(self):
+            events.append("health")
+            return True
+
+        async def probe_query(self):
+            events.append("query")
+            return []
+
+        async def logout(self):
+            events.append("logout")
+
+    result = await probe_source(
+        "ifind",
+        {
+            "backend": "http_api",
+            "http_base_url": "https://ifind.example.test/api",
+            "accounts": [{"id": "ready", "username": "researcher"}],
+        },
+        lambda *_args: "http-secret",
+        ifind_http_client_factory=lambda *_args: Client(),
+    )
+
+    assert result == {"health": "unavailable", "failure_code": "vendor_query_empty"}
+    assert events == ["login", "health", "query", "logout"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("failure", "expected_code"),
+    [
+        (IFinDAuthError("auth detail must not escape"), "vendor_login_failed"),
+        (IFinDRateLimitError("quota detail must not escape"), "vendor_quota_limited"),
+    ],
+)
+async def test_ifind_http_probe_safely_maps_query_failures_and_closes(failure, expected_code):
+    events = []
+
+    class Client:
+        async def login(self):
+            events.append("login")
+            return True
+
+        async def is_alive(self):
+            events.append("health")
+            return True
+
+        async def probe_query(self):
+            events.append("query")
+            raise failure
+
+        async def logout(self):
+            events.append("logout")
+
+    result = await probe_source(
+        "ifind",
+        {
+            "backend": "http_api",
+            "http_base_url": "https://ifind.example.test/api",
+            "accounts": [{"id": "ready", "username": "researcher"}],
+        },
+        lambda *_args: "http-secret",
+        ifind_http_client_factory=lambda *_args: Client(),
+    )
+
+    assert result == {"health": "unavailable", "failure_code": expected_code}
+    assert events == ["login", "health", "query", "logout"]
+
+
+@pytest.mark.asyncio
+async def test_ifind_http_probe_uses_existing_client_contract_with_mock_transport():
+    calls = []
+
+    def handler(request):
+        calls.append((request.method, request.url.path, request.headers.get("authorization")))
+        if request.url.path == "/api/login":
+            return httpx.Response(200, json={"token": "ephemeral", "expires_in": 7200})
+        if request.url.path == "/api/health":
+            return httpx.Response(200, json={"status": "ok"})
+        if request.url.path == "/api/basic":
+            return httpx.Response(200, json={"data": [{"code": "000001.SZ"}]})
+        return httpx.Response(404)
+
+    client = IFinDHTTPClient(
+        SimpleNamespace(
+            IFIND_HTTP_BASE_URL="https://ifind.example.test/api",
+            IFIND_USERNAME="researcher",
+            IFIND_PASSWORD="http-secret",
+        ),
+        transport=httpx.MockTransport(handler),
+    )
+    result = await probe_source(
+        "ifind",
+        {
+            "backend": "http_api",
+            "http_base_url": "https://ifind.example.test/api",
+            "accounts": [{"id": "ready", "username": "researcher"}],
+        },
+        lambda *_args: "http-secret",
+        ifind_http_client_factory=lambda *_args: client,
+    )
+
+    assert result == {"health": "healthy", "failure_code": None}
+    assert calls == [
+        ("POST", "/api/login", None),
+        ("GET", "/api/health", "Bearer ephemeral"),
+        ("POST", "/api/basic", "Bearer ephemeral"),
+    ]
+    assert client.token is None
+    assert client._client is None
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    (
+        "http://ifind.example.test/api",
+        "http://192.168.1.10/api",
+        "https://user:secret@ifind.example.test/api",
+    ),
+)
+def test_ifind_http_configuration_rejects_insecure_credential_destinations(base_url):
+    from app.research_web.datahub.connections import IFindConfiguration
+
+    with pytest.raises(ValueError):
+        IFindConfiguration.model_validate(
+            {
+                "backend": "http_api",
+                "http_base_url": base_url,
+                "accounts": [{"id": "primary", "username": "researcher"}],
+            }
+        )
+
+
+@pytest.mark.parametrize("host", ("localhost", "127.0.0.1", "[::1]"))
+def test_ifind_http_client_allows_loopback_cleartext_only(host):
+    client = IFinDHTTPClient(
+        SimpleNamespace(
+            IFIND_HTTP_BASE_URL=f"http://{host}:8080/api",
+            IFIND_USERNAME="researcher",
+            IFIND_PASSWORD="secret",
+        )
+    )
+    assert client.base_url == f"http://{host}:8080/api"
 
 
 @pytest.mark.asyncio

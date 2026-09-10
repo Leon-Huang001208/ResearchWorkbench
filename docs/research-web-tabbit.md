@@ -95,3 +95,5 @@ Python/API、Node adapter、前端交互和 Runtime staging 可用模拟 Runtime
 语义、服务启动和健康探测为准；真实 Windows Tabbit 浏览器尚未验证，但不再阻止本 Web-only 功能
 合并。该调整不改变通用桌面 Windows 发布前仍需真实安装级冒烟的门禁。Research Workbench 本身
 仍不下载或升级 Tabbit。
+
+设置页与 Office/Wind 本机诊断共存时，Tabbit 仍只读取自身 Runtime 状态与配置；本机软件发现或真实验证的忙碌态不会改变 Tabbit 开关、实例选择或重启标记，Tabbit 的健康结果也不会参与 Office/Wind 的可调用结论。

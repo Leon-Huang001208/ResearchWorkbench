@@ -26,7 +26,7 @@ Tabbit 配置和 Runtime 锁文件固定按 UTF-8 读写。POSIX 继续使用文
 
 `GET/PUT /api/research/runtime/tabbit` 提供安全状态与配置；`POST .../tabbit-access` 管理本会话授权；`GET .../tabbit-tabs` 提供候选清单。Runtime 状态只允许 `ready | disabled | launcher_missing | browser_offline | unsupported_version | instance_selection_required | error`。安装器显式禁用；缺失、离线或版本过低时只返回诊断和官方手动安装指引。
 
-`ResearchService` 同时持有进程内本机集成诊断管理器，并在服务关闭时取消未完成的诊断任务。该管理器只服务设置页的安全主机事实投影，不进入 DSH 会话、工具注册、研究执行或事件恢复链。
+`ResearchService` 同时持有进程内本机集成诊断管理器，并在服务关闭时取消未完成的发现或验证任务。发现只读取宿主事实；真实验证必须由设置页显式触发，目标限于 Excel、Word、PowerPoint 与 Wind Excel，并在独立进程组及受管临时目录内执行。该管理器只服务设置页的安全主机事实投影，不进入 DSH 会话、工具注册、研究执行或事件恢复链。
 
 `app/research_web/operations.py` 只读取上述原生历史、当前投影和服务管理器状态，生成不含问题正文、审批参数或凭据的监控结果。它不参与提交、恢复或取消；历史事件未提供 usage 时返回未知，不以零替代。研究台通过 `workbench.py` 创建目标 DSH 会话后，后续提交仍完全遵守本页协议。
 

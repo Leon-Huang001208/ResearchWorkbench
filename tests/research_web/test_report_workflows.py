@@ -31,9 +31,11 @@ from app.research_web.report_workflows import (
     WorkbookRefreshService,
     WorkflowError,
     WorkflowSchedule,
-    scan_workbook_formulas,
 )
 from app.research_web.report_workflows import catalog as catalog_module
+from app.research_web.report_workflows import (
+    scan_workbook_formulas,
+)
 from app.research_web.report_workflows import workbook as workbook_module
 from app.research_web.report_workflows.workbook import WindExcelProvider
 
@@ -134,9 +136,7 @@ def test_version_package_is_immutable_hashed_and_copied_to_isolated_run(tmp_path
     assert service.preflight("weekly-fund", 1)["status"] == "ready"
     service.publish_version("weekly-fund", 1)
 
-    service.upload_resource(
-        "weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "changed")})
-    )
+    service.upload_resource("weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "changed")}))
     assert (package / "workbooks/model.xlsx").read_bytes() == raw
     with pytest.raises(WorkflowError, match="不可变"):
         service.upload_resource("weekly-fund", "versions/1/workbooks/model.xlsx", raw)
@@ -191,17 +191,13 @@ def test_catalog_run_reads_reload_cross_instance_state(tmp_path: Path):
     stale = ReportWorkflowService(tmp_path)
     writer = ReportWorkflowService(tmp_path)
     writer.create_draft(_manifest())
-    writer.upload_resource(
-        "weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "ready")})
-    )
+    writer.upload_resource("weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "ready")}))
     writer.create_version("weekly-fund")
     writer.publish_version("weekly-fund", 1)
     run = writer.create_run_workspace("weekly-fund", 1)
 
     assert stale.run_path(run["run_id"]) == Path(run["path"])
-    assert (
-        stale.refresh_workbook(run["run_id"], "workbooks/model.xlsx").status == "ready"
-    )
+    assert stale.refresh_workbook(run["run_id"], "workbooks/model.xlsx").status == "ready"
 
 
 @pytest.mark.parametrize(
@@ -258,9 +254,7 @@ def test_preflight_blocks_external_formula_workbook_without_refresh_policy(
     wind = WorkbookProviderRequirement(provider="wind_excel")
     service = ReportWorkflowService(tmp_path)
     service.create_draft(_manifest(wind))
-    service.upload_resource(
-        "weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": ('WSD("x")', 1)})
-    )
+    service.upload_resource("weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": ('WSD("x")', 1)}))
     service.upload_resource(
         "weekly-fund", "workbooks/undeclared.xlsx", _xlsx({"A1": ('WSD("y")', 2)})
     )
@@ -281,9 +275,7 @@ def test_preflight_blocks_external_formula_workbook_without_refresh_policy(
 def test_create_run_rejects_unpublished_explicit_version(tmp_path: Path):
     service = ReportWorkflowService(tmp_path)
     service.create_draft(_manifest())
-    service.upload_resource(
-        "weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "ready")})
-    )
+    service.upload_resource("weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "ready")}))
     service.create_version("weekly-fund")
     with pytest.raises(WorkflowError) as error:
         service.create_run_workspace("weekly-fund", 1)
@@ -293,14 +285,10 @@ def test_create_run_rejects_unpublished_explicit_version(tmp_path: Path):
 def test_rollback_preserves_current_version_when_preflight_is_blocked(tmp_path: Path):
     service = ReportWorkflowService(tmp_path)
     service.create_draft(_manifest())
-    service.upload_resource(
-        "weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "one")})
-    )
+    service.upload_resource("weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "one")}))
     service.create_version("weekly-fund")
     service.publish_version("weekly-fund", 1)
-    service.upload_resource(
-        "weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "two")})
-    )
+    service.upload_resource("weekly-fund", "workbooks/model.xlsx", _xlsx({"A1": (None, "two")}))
     service.create_version("weekly-fund")
     service.publish_version("weekly-fund", 2)
     old = service.root / "weekly-fund/versions/1/workbooks/model.xlsx"
@@ -311,12 +299,7 @@ def test_rollback_preserves_current_version_when_preflight_is_blocked(tmp_path: 
         service.rollback_version("weekly-fund", 1)
 
     assert error.value.code == "resource_hash_mismatch"
-    assert (
-        ReportWorkflowService(tmp_path).data["workflows"]["weekly-fund"][
-            "current_version"
-        ]
-        == 2
-    )
+    assert ReportWorkflowService(tmp_path).data["workflows"]["weekly-fund"]["current_version"] == 2
 
 
 class FakeProvider:
@@ -513,12 +496,14 @@ def test_official_excel_provider_blocks_windows_without_starting_worker(
     assert not (tmp_path / "run/workbooks/model.xlsx").exists()
 
 
-def test_xlwings_open_failure_quits_hidden_excel_instance():
+def test_xlwings_open_failure_quits_hidden_excel_instance(monkeypatch):
     class Books:
         def open(self, *args, **kwargs):
             raise OSError("secret workbook path")
 
     class App:
+        pid = 54321
+
         def __init__(self):
             self.books = Books()
             self.quit_called = False
@@ -529,8 +514,13 @@ def test_xlwings_open_failure_quits_hidden_excel_instance():
     app = App()
     provider = WindExcelProvider()
     provider._xlwings = SimpleNamespace(App=lambda **kwargs: app)
+    identity = {"pid": 54321, "token": "a" * 64}
+    monkeypatch.setattr(workbook_module, "_capture_excel_process_identity", lambda _pid: identity)
+    reported = []
+    provider.set_process_reporter(reported.append)
     with pytest.raises(OSError):
         provider.open_workbook(Path("ignored.xlsx"))
+    assert reported == [identity]
     assert app.quit_called is True
 
 
@@ -771,9 +761,7 @@ def test_missing_refresh_source_returns_safe_blocked_result(tmp_path: Path):
     assert result.code == "workbook_unreadable"
 
 
-def test_run_directory_setup_error_returns_safe_blocked_result(
-    tmp_path: Path, monkeypatch
-):
+def test_run_directory_setup_error_returns_safe_blocked_result(tmp_path: Path, monkeypatch):
     source = tmp_path / "source.xlsx"
     source.write_bytes(_xlsx({"A1": (None, "ready")}))
     run_directory = tmp_path / "run"
@@ -872,13 +860,9 @@ def test_provider_bounded_flag_is_ignored_in_favor_of_worker_isolation(tmp_path:
     assert provider.calls == []
 
 
-def test_refresh_timeout_budget_is_shared_across_provider_phases(
-    tmp_path: Path, monkeypatch
-):
+def test_refresh_timeout_budget_is_shared_across_provider_phases(tmp_path: Path, monkeypatch):
     source = tmp_path / "source.xlsx"
-    source.write_bytes(
-        _xlsx({"A1": ('WSD("x")', "ready"), "B1": ('THS_HQ("x")', "ready")})
-    )
+    source.write_bytes(_xlsx({"A1": ('WSD("x")', "ready"), "B1": ('THS_HQ("x")', "ready")}))
     policy = WorkbookRefreshPolicy(
         workbook="workbooks/model.xlsx",
         providers=[
@@ -913,13 +897,9 @@ def test_refresh_timeout_budget_is_shared_across_provider_phases(
     assert observed[0] > observed[1] > observed[2] > 0
 
 
-def test_refresh_timeout_fails_closed_before_next_provider_phase(
-    tmp_path: Path, monkeypatch
-):
+def test_refresh_timeout_fails_closed_before_next_provider_phase(tmp_path: Path, monkeypatch):
     source = tmp_path / "source.xlsx"
-    source.write_bytes(
-        _xlsx({"A1": ('WSD("x")', "ready"), "B1": ('THS_HQ("x")', "ready")})
-    )
+    source.write_bytes(_xlsx({"A1": ('WSD("x")', "ready"), "B1": ('THS_HQ("x")', "ready")}))
     policy = WorkbookRefreshPolicy(
         workbook="workbooks/model.xlsx",
         providers=[
@@ -965,7 +945,10 @@ def test_official_provider_timeout_terminates_process_group_and_rechecks(
         def get(self, timeout):
             if not self.sent:
                 self.sent = True
-                return {"status": "started", "child_pids": [54321]}
+                return {
+                    "status": "started",
+                    "child_processes": [{"pid": 54321, "token": "a" * 64}],
+                }
             raise workbook_module.queue.Empty
 
         def close(self):
@@ -989,12 +972,8 @@ def test_official_provider_timeout_terminates_process_group_and_rechecks(
         def kill(self):
             state["killed"] = True
 
-    context = SimpleNamespace(
-        Queue=lambda **kwargs: Queue(), Process=lambda **kwargs: Process()
-    )
-    monkeypatch.setattr(
-        workbook_module.multiprocessing, "get_context", lambda mode: context
-    )
+    context = SimpleNamespace(Queue=lambda **kwargs: Queue(), Process=lambda **kwargs: Process())
+    monkeypatch.setattr(workbook_module.multiprocessing, "get_context", lambda mode: context)
     monkeypatch.setattr(workbook_module.os, "getpgid", lambda pid: pid)
     monkeypatch.setattr(
         workbook_module.os,
@@ -1004,23 +983,19 @@ def test_official_provider_timeout_terminates_process_group_and_rechecks(
 
     def kill_child(pid, requested_signal):
         assert pid == 54321
-        if requested_signal == 0:
-            if state["child_alive"]:
-                return
-            raise ProcessLookupError
         state["child_signals"].append(requested_signal)
         if requested_signal == signal.SIGKILL:
             state["child_alive"] = False
 
     monkeypatch.setattr(workbook_module.os, "kill", kill_child)
+    monkeypatch.setattr(
+        workbook_module,
+        "_capture_excel_process_identity",
+        lambda _pid: {"pid": 54321, "token": "a" * 64} if state["child_alive"] else None,
+    )
     provider = WindExcelProvider()
-    policy = WorkbookRefreshPolicy(
-        workbook="workbooks/model.xlsx", timeout_seconds=0.01
-    )
-    assert (
-        provider.refresh_with_timeout(tmp_path / "model.xlsx", policy)
-        == "provider_timeout"
-    )
+    policy = WorkbookRefreshPolicy(workbook="workbooks/model.xlsx", timeout_seconds=0.01)
+    assert provider.refresh_with_timeout(tmp_path / "model.xlsx", policy) == "provider_timeout"
     assert state["killed"] is True
     assert state["signals"] == [signal.SIGTERM, signal.SIGKILL]
     assert state["child_signals"] == [signal.SIGTERM, signal.SIGKILL]
@@ -1030,7 +1005,10 @@ def test_official_provider_timeout_terminates_process_group_and_rechecks(
 def test_non_ready_worker_exit_cleans_registered_excel_process(monkeypatch):
     messages = iter(
         [
-            {"status": "started", "child_pids": [54321]},
+            {
+                "status": "started",
+                "child_processes": [{"pid": 54321, "token": "a" * 64}],
+            },
             {"status": "blocked", "code": "plugin_not_ready"},
         ]
     )
@@ -1058,22 +1036,35 @@ def test_non_ready_worker_exit_cleans_registered_excel_process(monkeypatch):
             return False
 
     cleaned = []
-    context = SimpleNamespace(
-        Queue=lambda **kwargs: Queue(), Process=lambda **kwargs: Process()
-    )
-    monkeypatch.setattr(
-        workbook_module.multiprocessing, "get_context", lambda mode: context
-    )
+    context = SimpleNamespace(Queue=lambda **kwargs: Queue(), Process=lambda **kwargs: Process())
+    monkeypatch.setattr(workbook_module.multiprocessing, "get_context", lambda mode: context)
     monkeypatch.setattr(
         workbook_module,
-        "_terminate_child_processes",
-        lambda pids: cleaned.append(pids) or True,
+        "_terminate_managed_excel_processes",
+        lambda identities: cleaned.append(identities) or True,
     )
 
     result = workbook_module._run_provider_worker(lambda: None, (), 1)
 
     assert result == {"status": "blocked", "code": "plugin_not_ready"}
-    assert cleaned == [{54321}]
+    assert cleaned == [[{"pid": 54321, "token": "a" * 64}]]
+
+
+def test_managed_excel_cleanup_refuses_reused_pid(monkeypatch):
+    signals = []
+    monkeypatch.setattr(
+        workbook_module,
+        "_capture_excel_process_identity",
+        lambda _pid: {"pid": 54321, "token": "b" * 64},
+    )
+    monkeypatch.setattr(
+        workbook_module.os,
+        "kill",
+        lambda pid, requested_signal: signals.append((pid, requested_signal)),
+    )
+
+    assert workbook_module._terminate_managed_excel_processes([{"pid": 54321, "token": "a" * 64}])
+    assert signals == []
 
 
 @pytest.mark.parametrize(
@@ -1081,9 +1072,7 @@ def test_non_ready_worker_exit_cleans_registered_excel_process(monkeypatch):
     [
         (
             {"A1": (None, None)},
-            WorkbookRefreshPolicy(
-                workbook="workbooks/model.xlsx", required_cells=["Sheet1!A1"]
-            ),
+            WorkbookRefreshPolicy(workbook="workbooks/model.xlsx", required_cells=["Sheet1!A1"]),
             "required_cell_empty",
         ),
         (
@@ -1102,9 +1091,7 @@ def test_non_ready_worker_exit_cleans_registered_excel_process(monkeypatch):
         ),
         (
             {"A1": (None, 0)},
-            WorkbookRefreshPolicy(
-                workbook="workbooks/model.xlsx", reject_zero_cells=["Sheet1!A1"]
-            ),
+            WorkbookRefreshPolicy(workbook="workbooks/model.xlsx", reject_zero_cells=["Sheet1!A1"]),
             "unexpected_zero",
         ),
     ],
@@ -1165,15 +1152,11 @@ def test_refresh_worker_writes_hashed_manifest(tmp_path: Path):
     assert all(result.status == "ready" for result in results)
     assert provider.calls == []
     for index, result in enumerate(results):
-        manifest = json.loads(
-            (tmp_path / f"run-{index}" / result.manifest_path).read_text()
-        )
+        manifest = json.loads((tmp_path / f"run-{index}" / result.manifest_path).read_text())
         assert manifest["output_sha256"] == result.resource.sha256
 
 
-def test_same_run_workbook_lock_covers_copy_through_manifest(
-    tmp_path: Path, monkeypatch
-):
+def test_same_run_workbook_lock_covers_copy_through_manifest(tmp_path: Path, monkeypatch):
     source = tmp_path / "source.xlsx"
     source.write_bytes(_xlsx({"A1": ('WSD("x")', "ready")}))
     policy = WorkbookRefreshPolicy(
@@ -1205,9 +1188,7 @@ def test_same_run_workbook_lock_covers_copy_through_manifest(
     results = []
     threads = [
         threading.Thread(
-            target=lambda: results.append(
-                service.refresh(source, tmp_path / "same-run", policy)
-            )
+            target=lambda: results.append(service.refresh(source, tmp_path / "same-run", policy))
         )
         for _ in range(2)
     ]
@@ -1262,9 +1243,7 @@ def test_datahub_fallback_must_be_explicitly_equivalent(tmp_path: Path):
         replacement=source.read_bytes(),
         mapping_path=mapping_path,
     )
-    refresh = WorkbookRefreshService(
-        providers={"wind_excel": unavailable, "datahub": datahub}
-    )
+    refresh = WorkbookRefreshService(providers={"wind_excel": unavailable, "datahub": datahub})
     implicit = WorkbookRefreshPolicy(
         workbook="workbooks/model.xlsx",
         providers=[WorkbookProviderRequirement(provider="wind_excel")],
@@ -1287,9 +1266,7 @@ def test_datahub_fallback_must_be_explicitly_equivalent(tmp_path: Path):
         }
     )
     mapping = {"mappings/wind-equivalent.yaml": {"fields": {"close": "close"}}}
-    ready = refresh.refresh(
-        source, tmp_path / "explicit", explicit, fallback_mappings=mapping
-    )
+    ready = refresh.refresh(source, tmp_path / "explicit", explicit, fallback_mappings=mapping)
     assert ready.status == "ready"
     assert ready.provider == "datahub"
     assert datahub.fallback_mappings is None
@@ -1328,9 +1305,7 @@ def test_catalog_reads_versioned_mapping_before_datahub_fallback(tmp_path: Path)
     service.create_draft(_manifest(requirement))
     source = _xlsx({"A1": ('WSD("x")', "ready")})
     service.upload_resource("weekly-fund", "workbooks/model.xlsx", source)
-    service.upload_resource(
-        "weekly-fund", "mappings/wind.yaml", b"fields:\n  close: close\n"
-    )
+    service.upload_resource("weekly-fund", "mappings/wind.yaml", b"fields:\n  close: close\n")
     service.create_version("weekly-fund")
     service.publish_version("weekly-fund", 1)
     run = service.create_run_workspace("weekly-fund", 1)
@@ -1391,18 +1366,12 @@ def test_refresh_result_exposes_relative_manifest_reference(tmp_path: Path):
         WorkbookRefreshPolicy(workbook="workbooks/model.xlsx"),
     )
 
-    expected = (
-        "refresh-manifests/"
-        + hashlib.sha256(b"workbooks/model.xlsx").hexdigest()
-        + ".json"
-    )
+    expected = "refresh-manifests/" + hashlib.sha256(b"workbooks/model.xlsx").hexdigest() + ".json"
     assert result.manifest_path == expected
     assert (run_directory / expected).is_file()
 
 
-def test_failed_manifest_promotion_does_not_leave_untracked_workbook(
-    tmp_path: Path, monkeypatch
-):
+def test_failed_manifest_promotion_does_not_leave_untracked_workbook(tmp_path: Path, monkeypatch):
     source = tmp_path / "source.xlsx"
     source.write_bytes(_xlsx({"A1": (None, "ready")}))
     real_replace = workbook_module.os.replace
@@ -1422,9 +1391,7 @@ def test_failed_manifest_promotion_does_not_leave_untracked_workbook(
     assert not (tmp_path / "run/workbooks/model.xlsx").exists()
 
 
-def test_failed_refresh_keeps_previous_workbook_and_manifest_pair(
-    tmp_path: Path, monkeypatch
-):
+def test_failed_refresh_keeps_previous_workbook_and_manifest_pair(tmp_path: Path, monkeypatch):
     first = tmp_path / "first.xlsx"
     second = tmp_path / "second.xlsx"
     first.write_bytes(_xlsx({"A1": (None, "first")}))

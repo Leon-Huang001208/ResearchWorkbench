@@ -51,8 +51,8 @@
     },
     {
       "id": "03-research-sequence",
-      "artifactSha256": "bee254a354aaa04e44eca0f057926092c0ea54a9f922ac309111a99b5e28a83e",
-      "specificationSha256": "2525a9e53957113497caf2c75c08986702b697150aa3c72b3e936ca448b17ed9",
+      "artifactSha256": "10d173026183f587e1d0d9827dee13b66b8ccb71a902fd2cc24fc6c3ff0a6407",
+      "specificationSha256": "efb6f5cdfd84d70605a55b4cf327e832464ccd67d7bc97aecca1f2070dbe3399",
       "status": "reviewed",
       "reviewer": "controller",
       "date": "2026-09-10",
@@ -61,7 +61,7 @@
         "03-research-sequence.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色与 2048 深色最终截图；授权、候选、发送前重验、原子 claim、实时 DOM、一次性 token、研究提交与 DataHub 路径均可读，未见遮挡或裁剪。经过两轮视口宽高平衡修正；视觉查看不证明真实 Tabbit 或 Provider 在线。"
+      "notes": "已人工查看 1440 浅色与 2048 深色最终截图；Tabbit 授权、候选与实时 claim，研究提交、DataHub 路径，以及本机验证的白名单、隔离进程和安全结果投影均可读，未见遮挡或裁剪。经过两轮视口宽高平衡修正；视觉查看不证明真实 Tabbit、Provider 或厂商软件在线。"
     },
     {
       "id": "04-data-file-flow",
