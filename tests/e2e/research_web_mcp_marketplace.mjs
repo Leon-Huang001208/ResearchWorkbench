@@ -13,7 +13,7 @@ const playwrightPath = process.env.PLAYWRIGHT_CORE_PATH || '/Users/leon/.cache/c
 const viewports = [[1440, 1000], [1280, 960], [768, 1024], [390, 844]];
 const themes = ['light', 'dark'];
 const writes = [];
-const maliciousDescription = '<img src=x onerror=alert(1)> 保持为纯文本。';
+const maliciousDescription = 'A & B <tag> <img src=x onerror=alert(1)> 保持为纯文本。';
 
 const registries = [
   { id: 'official', name: 'Official Registry', base_url: 'https://registry.modelcontextprotocol.io', official: true, immutable: true, auth: { type: 'none', secret_configured: false } },
@@ -24,14 +24,14 @@ const servers = [
     registry_id: 'official', name: 'io.modelcontextprotocol/equity-reader', version: '1.2.3',
     identity: ['official', 'io.modelcontextprotocol/equity-reader', '1.2.3'], title: 'Equity Filing Reader',
     description: '只读解析已审查的公司披露。', repository: { url: 'https://example.invalid/equity-reader' },
-    packages: [{ registryType: 'npm', identifier: '@example/equity-reader', version: '1.2.3' }],
+    packages: [{ registry_type: 'npm', identifier: '@example/equity-reader', version: '1.2.3', package_type_supported: true, immutable_reference: false }],
     remotes: [], status: 'active', is_latest: true,
   },
   {
     registry_id: 'official', name: 'io.example/future-transport', version: '2026.9.1',
     identity: ['official', 'io.example/future-transport', '2026.9.1'], title: 'Future Transport Catalog',
     description: maliciousDescription, repository: { url: 'https://example.invalid/future' },
-    packages: [{ registryType: 'future-package', identifier: '<future-package>', version: '2026.9.1' }],
+    packages: [{ registry_type: 'future-package', identifier: '<future-package>', version: '2026.9.1', package_type_supported: false, immutable_reference: false }],
     remotes: [{ type: 'streamable-http', url: 'https://example.invalid/mcp' }], status: 'active', is_latest: true,
   },
 ];
@@ -69,6 +69,9 @@ async function requestHandler(request, response) {
       return;
     }
     if (url.pathname.startsWith('/api/research/')) {
+      if (url.pathname.startsWith('/api/research/mcp/servers/') && url.pathname.includes('/versions/')) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       response.end(JSON.stringify(apiPayload(url)));
       return;
@@ -127,8 +130,9 @@ async function runAcceptance() {
         assert.equal(await page.getByRole('combobox', { name: 'Registry', exact: true }).inputValue(), 'official');
         assert.equal(await page.locator('.mcp-server-card').count(), 2);
         assert.equal(await page.getByText('正在显示离线缓存', { exact: false }).count(), 1);
-        assert.equal(await page.getByText('当前不可安装', { exact: true }).count(), 1);
-        assert.equal(await page.getByText(maliciousDescription, { exact: true }).count(), 1, 'malicious description must remain visible literal text');
+        assert.equal(await page.getByText('客户端暂不支持此包类型', { exact: true }).count(), 1);
+        const maliciousText = page.locator('.mcp-server-card').filter({ hasText: 'Future Transport Catalog' }).locator('p').first();
+        assert.equal(await maliciousText.textContent(), maliciousDescription, 'DOM textContent must equal the original plain text exactly');
         assert.equal(await page.locator('.mcp-server-card img, .mcp-server-card script').count(), 0);
         thirdPartyTextOnlyChecks += 1;
         const expectedColumns = width >= 1400 ? 4 : width <= 600 ? 1 : width <= 1100 ? 2 : 3;
@@ -140,6 +144,26 @@ async function runAcceptance() {
           assert.equal(await page.getByRole('heading', { name: 'Equity Filing Reader', exact: true }).count(), 1);
           await page.getByRole('searchbox', { name: '搜索 MCP Server', exact: true }).fill('');
           await page.getByRole('button', { name: '搜索', exact: true }).click();
+          await page.waitForFunction(() => document.querySelectorAll('.mcp-server-card').length === 2);
+          const supersededTrigger = page.getByRole('button', { name: '查看详情', exact: true }).first();
+          await supersededTrigger.click();
+          const searchbox = page.getByRole('searchbox', { name: '搜索 MCP Server', exact: true });
+          await searchbox.fill('future');
+          await page.waitForTimeout(150);
+          assert.equal(await page.getByRole('dialog').count(), 0, 'a query change must suppress a late detail response');
+          assert.equal(await searchbox.evaluate(element => element === document.activeElement), true, 'query invalidation must preserve search focus');
+          assert.equal(await page.getByText('正在读取 MCP 目录…', { exact: true }).count(), 0, 'superseded detail loading must settle');
+          await page.getByRole('button', { name: '搜索', exact: true }).click();
+          await page.waitForFunction(() => document.querySelectorAll('.mcp-server-card').length === 1);
+          await searchbox.fill('');
+          await page.getByRole('button', { name: '搜索', exact: true }).click();
+          await page.waitForFunction(() => document.querySelectorAll('.mcp-server-card').length === 2);
+          const registry = page.getByRole('combobox', { name: 'Registry', exact: true });
+          await registry.focus();
+          await registry.selectOption('local-private');
+          await page.waitForFunction(() => document.querySelectorAll('.mcp-server-card').length === 2);
+          assert.equal(await registry.evaluate(element => element === document.activeElement), true, 'registry replacement must preserve selector focus');
+          await registry.selectOption('official');
           await page.waitForFunction(() => document.querySelectorAll('.mcp-server-card').length === 2);
           const trigger = page.getByRole('button', { name: '查看详情', exact: true }).first();
           await trigger.focus(); await trigger.click();
@@ -182,6 +206,9 @@ async function runAcceptance() {
       canonicalRoute: true, typeIsolation: true, registrySelector: true, search: true,
       staleOfflineCache: true, supportedAndUnknownPackages: true,
       thirdPartyTextOnly: thirdPartyTextOnlyChecks === results.length,
+      thirdPartyTextExact: thirdPartyTextOnlyChecks === results.length,
+      supersededDetailSuppressed: true,
+      resultContextFocusPreserved: true,
       detailDialog: true, escapeClose: true, backdropClose: true, focusRestore: true,
       reducedMotion: true, consoleErrors: 0, pageErrors: 0, failedResponses: 0,
     },

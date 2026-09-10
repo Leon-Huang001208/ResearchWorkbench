@@ -23,7 +23,7 @@ const server = (extra = {}) => ({
   title: 'Weather',
   description: 'Safe forecast tool',
   repository: { url: 'https://example.test/repo' },
-  packages: [{ registryType: 'npm', identifier: '@example/weather', version: '1.2.3' }],
+  packages: [{ registry_type: 'npm', identifier: '@example/weather', version: '1.2.3', package_type_supported: true, immutable_reference: false }],
   remotes: [], status: 'active', is_latest: true,
   ...extra,
 });
@@ -43,7 +43,12 @@ async function createMarketplaceApp(fetchOverride = () => null) {
   const handlers = new Map(); const windowHandlers = new Map();
   const documentState = { activeElement: null, title: '' };
   const main = { scrollTop: 0, scrollTo() {} };
-  let currentTrigger = null; let tabs = {};
+  let currentTrigger = null; let searchInput = null; let registrySelect = null; let tabs = {};
+  const makeControl = (id, dataset, value = '') => ({
+    id, dataset, value,
+    focus() { documentState.activeElement = this; },
+    closest: () => null,
+  });
   const makeTab = view => ({
     id: `capability-tool-tab-${view}`, dataset: { mcpMarketTab: view },
     focus() { documentState.activeElement = this; },
@@ -58,6 +63,8 @@ async function createMarketplaceApp(fetchOverride = () => null) {
     set(value) {
       this._html = value;
       tabs = Object.fromEntries(['library', 'market', 'connections'].map(view => [view, makeTab(view)]));
+      searchInput = makeControl('mcp-market-search', { mcpQuery: '' });
+      registrySelect = makeControl('mcp-market-registry', { mcpRegistry: '' }, 'official');
       currentTrigger = value.includes('data-mcp-server-detail')
         ? { dataset: { registryId: 'official', serverName: 'io.example/weather', serverVersion: '1.2.3', mcpServerDetail: '' }, disabled: false, getAttribute: () => null, focus() { documentState.activeElement = this; } }
         : null;
@@ -68,7 +75,9 @@ async function createMarketplaceApp(fetchOverride = () => null) {
   Object.assign(documentState, {
     querySelector: selector => selector === '#app' ? root : selector === '#main' ? main : selector === '.skip-link' ? { addEventListener() {} } : selector === '.mcp-server-dialog' ? dialog : selector === '.mcp-server-dialog [data-mcp-detail-close]' ? first : selector.match(/^\[data-mcp-market-tab="(.+)"\]$/)?.[1] ? tabs[selector.match(/^\[data-mcp-market-tab="(.+)"\]$/)[1]] : null,
     querySelectorAll: selector => selector === '[data-mcp-server-detail]' && currentTrigger ? [currentTrigger] : [],
-    getElementById: id => id.startsWith('capability-tool-tab-') ? tabs[id.replace('capability-tool-tab-', '')] : null,
+    getElementById: id => id.startsWith('capability-tool-tab-') ? tabs[id.replace('capability-tool-tab-', '')]
+      : id === 'mcp-market-search' ? searchInput
+        : id === 'mcp-market-registry' ? registrySelect : null,
   });
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
@@ -89,8 +98,16 @@ async function createMarketplaceApp(fetchOverride = () => null) {
   await import(`../../app/research_web/ui/app.mjs?mcp-races=${Date.now()}-${Math.random()}`);
   return {
     handlers, windowHandlers, documentState, root,
-    trigger: () => currentTrigger, tab: view => tabs[view],
-    input(dataset, value) { handlers.get('input')({ target: { id: '', dataset, value, closest: () => null } }); },
+    trigger: () => currentTrigger, tab: view => tabs[view], searchInput: () => searchInput, registrySelect: () => registrySelect,
+    input(dataset, value) {
+      const target = 'mcpQuery' in dataset ? searchInput : { id: '', dataset, value, closest: () => null };
+      target.value = value; documentState.activeElement = target;
+      handlers.get('input')({ target });
+    },
+    changeRegistry(value) {
+      registrySelect.value = value; documentState.activeElement = registrySelect;
+      return handlers.get('change')({ target: registrySelect });
+    },
     submit() { return handlers.get('submit')({ preventDefault() {}, target: { matches: selector => selector === '[data-mcp-search]' } }); },
     click(button) { return handlers.get('click')({ target: { matches: () => false, closest: selector => selector === 'button' ? button : null } }); },
     async navigate(hash) { location.hash = hash; windowHandlers.get('hashchange')(); await flush(); },
@@ -151,15 +168,35 @@ test('market renderer keeps third-party content text-only and never hotlinks ico
   const malicious = server({
     name: '<img src=x onerror=alert(1)>', title: '<script>alert(1)</script>',
     description: '" autofocus onfocus=alert(1)', repository: { url: 'https://evil.test/icon.svg' },
-    packages: [{ registryType: 'future-package', identifier: '<b>bad</b>', version: 'latest' }],
+    packages: [{ registry_type: 'future-package', identifier: '<b>bad</b>', version: 'latest', package_type_supported: false, immutable_reference: false }],
   });
   const html = renderMCPMarketplace({ registries, selectedRegistryId: 'official', page: { registry_id: 'official', items: [malicious], count: 1, stale: false } });
   assert.doesNotMatch(html, /<script\b|<img\b/i);
   assert.doesNotMatch(html, /src=["']https?:/i);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
-  assert.match(html, /当前不可安装/);
+  assert.match(html, /客户端暂不支持此包类型/);
   assert.match(html, /official · &lt;img/);
-  assert.equal(packageSupport(malicious.packages).installable, false);
+  assert.equal(packageSupport(malicious.packages).clientSupported, false);
+  assert.equal(packageSupport(malicious.packages).artifactVerified, false);
+});
+
+test('package support trusts the normalized capability fields and stays conservative when absent', () => {
+  assert.deepEqual(packageSupport([{ registry_type: 'npm', supported: true, identifier: 'legacy', version: '1.0.0' }]), {
+    clientSupported: false,
+    artifactVerified: false,
+    types: ['npm'],
+    unsupported: ['npm'],
+  });
+  assert.deepEqual(packageSupport([{ registry_type: 'mcpb', package_type_supported: true, immutable_reference: true }]), {
+    clientSupported: true,
+    artifactVerified: true,
+    types: ['mcpb'],
+    unsupported: [],
+  });
+  const html = renderMCPMarketplace({ registries, selectedRegistryId: 'official', page: { items: [server()], count: 1, stale: false } });
+  assert.match(html, /客户端支持包类型/);
+  assert.match(html, /制品尚未验证/);
+  assert.doesNotMatch(html, /支持安装|可安装/);
 });
 
 test('market renders loading, empty, error, stale and offline states without demo records', () => {
@@ -229,11 +266,11 @@ test('real marketplace dialog traps focus and restores its card after backdrop a
 });
 
 test('market dialog is accessible, escapes details and disables unsupported install handoff', () => {
-  const detail = server({ title: '<svg onload=alert(1)>', packages: [{ registryType: 'unknown', identifier: 'bad' }] });
+  const detail = server({ title: '<svg onload=alert(1)>', packages: [{ registry_type: 'unknown', identifier: 'bad', package_type_supported: false, immutable_reference: false }] });
   const html = renderMCPServerDialog(detail);
   assert.match(html, /role="dialog"/); assert.match(html, /aria-modal="true"/);
   assert.match(html, /data-mcp-detail-close/); assert.match(html, /data-mcp-dialog-backdrop/);
-  assert.match(html, /当前不可安装/); assert.match(html, /disabled/);
+  assert.match(html, /客户端暂不支持此包类型/); assert.match(html, /disabled/);
   assert.doesNotMatch(html, /<svg\b/i);
 });
 
@@ -309,6 +346,33 @@ test('late detail response cannot survive navigation away from the market', asyn
     await pending;
     await app.navigate('#/skills?kind=tool&view=market');
     assert.doesNotMatch(app.root.innerHTML, /mcp-server-dialog|Late detail/);
+  } finally { app.cleanup(); }
+});
+
+test('query changes invalidate a pending detail and preserve search focus', async () => {
+  const detail = deferred();
+  const app = await createMarketplaceApp(url => url.includes('/versions/1.2.3') ? detail.promise : null);
+  try {
+    const pending = app.click(app.trigger()); await flush();
+    app.input({ mcpQuery: '' }, 'new context');
+    assert.equal(app.documentState.activeElement, app.searchInput());
+    detail.resolve(new Response(JSON.stringify(server({ title: 'Late detail' }))));
+    await pending;
+    assert.doesNotMatch(app.root.innerHTML, /mcp-server-dialog|Late detail|正在读取 MCP 目录/);
+    assert.equal(app.documentState.activeElement, app.searchInput());
+  } finally { app.cleanup(); }
+});
+
+test('registry changes invalidate a pending detail and preserve selector focus', async () => {
+  const detail = deferred();
+  const app = await createMarketplaceApp(url => url.includes('/versions/1.2.3') ? detail.promise : null);
+  try {
+    const pending = app.click(app.trigger()); await flush();
+    const changing = app.changeRegistry('local-private'); await flush();
+    detail.resolve(new Response(JSON.stringify(server({ title: 'Late detail' }))));
+    await pending; await changing;
+    assert.doesNotMatch(app.root.innerHTML, /mcp-server-dialog|Late detail|正在读取 MCP 目录/);
+    assert.equal(app.documentState.activeElement, app.registrySelect());
   } finally { app.cleanup(); }
 });
 

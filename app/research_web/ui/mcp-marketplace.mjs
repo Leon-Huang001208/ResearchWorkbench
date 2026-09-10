@@ -1,7 +1,6 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { empty } from './views.mjs';
 
-const knownPackageTypes = new Set(['npm', 'pypi', 'mcpb']);
 const list = (value) => Array.isArray(value) ? value : [];
 const text = (value, fallback = '未声明') => e(String(value ?? '').trim() || fallback);
 const subviews = ['library', 'market', 'connections'];
@@ -16,9 +15,11 @@ export function mcpMarketplaceTabKey(key, current = 'library') {
 export function packageSupport(packages = []) {
   const rows = list(packages);
   const types = [...new Set(rows.map(item => String(item?.registryType || item?.registry_type || '').toLowerCase()).filter(Boolean))];
-  const unsupported = types.filter(type => !knownPackageTypes.has(type));
+  const unsupported = [...new Set(rows.filter(item => item?.package_type_supported !== true).map(item => String(item?.registryType || item?.registry_type || '未声明').toLowerCase()))];
+  const clientSupported = rows.length > 0 && unsupported.length === 0;
   return {
-    installable: rows.length > 0 && unsupported.length === 0,
+    clientSupported,
+    artifactVerified: clientSupported && rows.every(item => item?.immutable_reference === true),
     types,
     unsupported,
   };
@@ -42,7 +43,8 @@ function packageFacts(packages) {
 function serverCard(item, stale, busy) {
   const support = packageSupport(item?.packages);
   const source = `${item?.registry_id || 'unknown'} · ${item?.name || 'unknown'} · ${item?.version || 'unknown'}`;
-  return `<article class="mcp-server-card ${stale ? 'stale' : ''}"><header><div><span class="eyebrow">${text(source)}</span><h3>${text(item?.title, item?.name)}</h3></div><span class="badge ${support.installable ? 'live' : ''}">${support.installable ? '支持安装' : '当前不可安装'}</span></header><p>${text(item?.description, '未提供说明')}</p><div class="mcp-package-facts">${packageFacts(item?.packages)}</div><footer><span class="small muted">${item?.is_latest === true ? '当前版本' : `版本 ${text(item?.version)}`}${stale ? ' · 离线缓存' : ''}</span><button type="button" class="button small" data-mcp-server-detail data-registry-id="${e(item?.registry_id)}" data-server-name="${e(item?.name)}" data-server-version="${e(item?.version)}" ${busy ? 'disabled' : ''}>查看详情</button></footer></article>`;
+  const artifactStatus = support.artifactVerified ? '固定制品引用已登记 · 阶段 2A 仅浏览' : '制品尚未验证 · 阶段 2A 不提供安装';
+  return `<article class="mcp-server-card ${stale ? 'stale' : ''}"><header><div><span class="eyebrow">${text(source)}</span><h3>${text(item?.title, item?.name)}</h3></div><span class="badge ${support.clientSupported ? 'live' : 'danger'}">${support.clientSupported ? '客户端支持包类型' : '客户端暂不支持此包类型'}</span></header><p>${text(item?.description, '未提供说明')}</p><div class="mcp-package-facts">${packageFacts(item?.packages)}</div><p class="small muted">${artifactStatus}</p><footer><span class="small muted">${item?.is_latest === true ? '当前版本' : `版本 ${text(item?.version)}`}${stale ? ' · 离线缓存' : ''}</span><button type="button" class="button small" data-mcp-server-detail data-registry-id="${e(item?.registry_id)}" data-server-name="${e(item?.name)}" data-server-version="${e(item?.version)}" ${busy ? 'disabled' : ''}>查看详情</button></footer></article>`;
 }
 
 function publisherResult(result, error) {
@@ -75,7 +77,7 @@ export function renderMCPMarketplace({ registries = [], selectedRegistryId = '',
     : items.length
       ? `<p class="capability-result-count" role="status">${Number.isFinite(Number(page?.count)) ? Number(page.count) : items.length} 项 Registry 记录</p><div class="mcp-market-grid">${items.map(item => serverCard(item, stale, loading || syncing)).join('')}</div>`
       : empty('没有匹配的 MCP Server', registryRows.length ? '调整 Registry 或搜索条件；目录不会补充演示内容。' : '当前没有可用 Registry；请检查功能开关或连接状态。');
-  return `<section class="mcp-marketplace" aria-labelledby="mcp-market-title"><div class="capability-view-heading"><div><span class="eyebrow">READ-ONLY MCP REGISTRY</span><h2 id="mcp-market-title">MCP 市场</h2><p class="muted">浏览官方与私有 Registry 的真实版本记录。安装、启用和研究授权将在后续阶段独立完成。</p></div><button type="button" class="button" data-mcp-sync ${loading || syncing || !selected ? 'disabled' : ''}>${syncing ? '同步中…' : '同步当前目录'}</button></div><form class="mcp-market-toolbar" data-mcp-search><label><span>Registry</span><select data-mcp-registry ${loading || syncing || !registryRows.length ? 'disabled' : ''}>${registryOptions(registryRows, selected)}</select></label><label class="search-box"><span aria-hidden="true">⌕</span><input id="mcp-market-search" data-mcp-query type="search" value="${e(query)}" aria-label="搜索 MCP Server" placeholder="搜索 Server 名称或简介"></label><button type="submit" class="button" ${loading || syncing || !selected ? 'disabled' : ''}>搜索</button></form>${operationalError}${status}${results}${renderMCPPublisherHandoff({ ...publisher, busy: publisher.busy || loading })}</section>`;
+  return `<section class="mcp-marketplace" aria-labelledby="mcp-market-title"><div class="capability-view-heading"><div><span class="eyebrow">READ-ONLY MCP REGISTRY</span><h2 id="mcp-market-title">MCP 市场</h2><p class="muted">浏览官方与私有 Registry 的真实版本记录。安装、启用和研究授权将在后续阶段独立完成。</p></div><button type="button" class="button" data-mcp-sync ${loading || syncing || !selected ? 'disabled' : ''}>${syncing ? '同步中…' : '同步当前目录'}</button></div><form class="mcp-market-toolbar" data-mcp-search><label for="mcp-market-registry"><span>Registry</span><select id="mcp-market-registry" data-mcp-registry ${loading || syncing || !registryRows.length ? 'disabled' : ''}>${registryOptions(registryRows, selected)}</select></label><label class="search-box"><span aria-hidden="true">⌕</span><input id="mcp-market-search" data-mcp-query type="search" value="${e(query)}" aria-label="搜索 MCP Server" placeholder="搜索 Server 名称或简介"></label><button type="submit" class="button" ${loading || syncing || !selected ? 'disabled' : ''}>搜索</button></form>${operationalError}${status}${results}${renderMCPPublisherHandoff({ ...publisher, busy: publisher.busy || loading })}</section>`;
 }
 
 export function renderMCPServerDialog(item) {
@@ -87,5 +89,10 @@ export function renderMCPServerDialog(item) {
   const freshness = item.stale === true
     ? `<div class="notice warning mcp-market-status" role="status">正在显示详情离线缓存${item.failure_code ? ` · ${text(item.failure_code)}` : ''}。版本详情刷新失败，页面目录的新鲜状态不适用于此记录。</div>`
     : '';
-  return `<div class="capability-dialog-backdrop" data-mcp-dialog-backdrop><section class="capability-preview-dialog mcp-server-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-server-dialog-title" aria-describedby="mcp-server-dialog-description"><header><span class="skill-icon" aria-hidden="true">M</span><div><span class="eyebrow">${text(identity.join(' · '))}</span><h2 id="mcp-server-dialog-title">${text(item.title, item.name)}</h2><span class="badge ${support.installable ? 'live' : 'danger'}">${support.installable ? '支持安装' : '当前不可安装'}</span></div><button type="button" class="icon-button" data-mcp-detail-close aria-label="关闭 MCP Server 详情">×</button></header>${freshness}<p id="mcp-server-dialog-description" class="capability-preview-description">${text(item.description, '未提供说明')}</p><dl class="capability-preview-grid"><div><dt>来源身份</dt><dd>${text(identity.join(' · '))}</dd></div><div><dt>版本状态</dt><dd>${text(item.status)}${item.is_latest === true ? ' · 当前版本' : ''}</dd></div><div><dt>包与制品</dt><dd>${packageFacts(item.packages)}</dd></div><div><dt>远程传输</dt><dd>${remoteFacts.length ? remoteFacts.map(value => text(value)).join('<br>') : '未声明'}</dd></div><div><dt>源码仓库</dt><dd>${text(repository)}</dd></div><div><dt>可安装性</dt><dd>${support.installable ? 'Registry 声明的包类型受支持；此阶段仅浏览，不执行安装。' : `当前不可安装${support.unsupported.length ? `：不支持 ${support.unsupported.map(value => text(value)).join('、')}` : '：没有可验证的包声明'}`}</dd></div></dl><footer><button type="button" class="button" data-mcp-detail-close>关闭</button><button type="button" class="button primary" disabled aria-describedby="mcp-install-unavailable">安装</button><span id="mcp-install-unavailable" class="visually-hidden">只读 Registry 阶段不执行安装</span></footer></section></div>`;
+  const supportReason = !support.clientSupported
+    ? `客户端暂不支持此包类型${support.unsupported.length ? `：${support.unsupported.map(value => text(value)).join('、')}` : '：没有受支持的包声明'}`
+    : support.artifactVerified
+      ? '客户端支持此包类型；固定制品引用已登记，阶段 2A 仅浏览。'
+      : '客户端支持此包类型；制品尚未验证，阶段 2A 不提供安装。';
+  return `<div class="capability-dialog-backdrop" data-mcp-dialog-backdrop><section class="capability-preview-dialog mcp-server-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-server-dialog-title" aria-describedby="mcp-server-dialog-description"><header><span class="skill-icon" aria-hidden="true">M</span><div><span class="eyebrow">${text(identity.join(' · '))}</span><h2 id="mcp-server-dialog-title">${text(item.title, item.name)}</h2><span class="badge ${support.clientSupported ? 'live' : 'danger'}">${support.clientSupported ? '客户端支持包类型' : '客户端暂不支持此包类型'}</span></div><button type="button" class="icon-button" data-mcp-detail-close aria-label="关闭 MCP Server 详情">×</button></header>${freshness}<p id="mcp-server-dialog-description" class="capability-preview-description">${text(item.description, '未提供说明')}</p><dl class="capability-preview-grid"><div><dt>来源身份</dt><dd>${text(identity.join(' · '))}</dd></div><div><dt>版本状态</dt><dd>${text(item.status)}${item.is_latest === true ? ' · 当前版本' : ''}</dd></div><div><dt>包与制品</dt><dd>${packageFacts(item.packages)}</dd></div><div><dt>远程传输</dt><dd>${remoteFacts.length ? remoteFacts.map(value => text(value)).join('<br>') : '未声明'}</dd></div><div><dt>源码仓库</dt><dd>${text(repository)}</dd></div><div><dt>支持与验证</dt><dd>${supportReason}</dd></div></dl><footer><button type="button" class="button" data-mcp-detail-close>关闭</button><button type="button" class="button primary" disabled aria-describedby="mcp-install-unavailable">安装</button><span id="mcp-install-unavailable" class="visually-hidden">只读 Registry 阶段不提供安装</span></footer></section></div>`;
 }

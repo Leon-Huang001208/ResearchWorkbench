@@ -129,11 +129,18 @@ function findMCPServerTrigger(identity) {
   return [...(document.querySelectorAll?.('[data-mcp-server-detail]') || [])].find(item => item.dataset.registryId === identity.registryId && item.dataset.serverName === identity.serverName && item.dataset.serverVersion === identity.version) || null;
 }
 
-function invalidateMCPRequests() {
-  mcpCatalogGeneration += 1; mcpDetailGeneration += 1; mcpPublisherGeneration += 1;
+function invalidateMCPDetailRequest() {
+  mcpDetailGeneration += 1;
   mcpDetailRequestIdentity = '';
+  mcpMarketplaceState.loading = false;
+  mcpMarketplaceState.detail = null;
+  mcpMarketplaceState.returnIdentity = null;
+}
+
+function invalidateMCPRequests() {
+  mcpCatalogGeneration += 1; mcpPublisherGeneration += 1;
+  invalidateMCPDetailRequest();
   mcpMarketplaceState.loading = false; mcpMarketplaceState.syncing = false;
-  mcpMarketplaceState.detail = null; mcpMarketplaceState.returnIdentity = null;
   mcpMarketplaceState.publisher.busy = false;
 }
 
@@ -596,6 +603,7 @@ root.addEventListener('input', (event) => {
   if (event.target.closest('#cap-copy-form')) capabilityState.copy = { name: document.querySelector('#cap-copy-name')?.value || '', slug: document.querySelector('#cap-copy-slug')?.value || '' };
   if ('capQuery' in event.target.dataset) { capabilityState.query = event.target.value; render(); }
   if ('mcpQuery' in event.target.dataset) {
+    invalidateMCPDetailRequest();
     mcpCatalogGeneration += 1; mcpMarketplaceState.loading = false; mcpMarketplaceState.syncing = false;
     mcpMarketplaceState.query = event.target.value; mcpMarketplaceState.page = null; render();
   }
@@ -721,9 +729,14 @@ root.addEventListener('change', async (event) => {
   if ('dataStatus' in target.dataset) { capabilityState.dataStatus = target.value; render(); }
   if ('dataAuth' in target.dataset) { capabilityState.dataAuth = target.value; render(); }
   if ('mcpRegistry' in target.dataset) {
+    const preserveContextFocus = document.activeElement === target;
+    invalidateMCPDetailRequest();
     mcpMarketplaceState.selectedRegistryId = target.value;
     mcpMarketplaceState.page = null; mcpMarketplaceState.detail = null; mcpMarketplaceState.error = '';
     await loadMCPMarketplace();
+    if (preserveContextFocus && currentMCPMarketRoute() && (!document.activeElement?.id || document.activeElement.id === target.id)) {
+      document.getElementById(target.id)?.focus?.({ preventScroll: true });
+    }
   }
   if (target.closest('#cap-editor-form')) captureEditor();
   if (target.id === 'cap-import-file' && target.files?.length) await capabilityController.import(target.files[0]);
