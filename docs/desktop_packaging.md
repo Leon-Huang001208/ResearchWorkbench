@@ -4,6 +4,8 @@ Research Workbench is moving toward a Tauri desktop shell while keeping the curr
 
 > **Current phase (2026-09-09): Web-only.** Desktop packaging is preserved but not part of normal product iteration acceptance. Web-only changes do not build sidecars, Tauri bundles, or installers and do not run native desktop CI. Desktop validation resumes only for an explicitly requested desktop task or a change to a desktop-owned path.
 
+2026-09-11 的 Wind 客户端格式基线维护仅展开既有布尔条件的 Black 排版，生成的 Python 语义与桌面打包输入不变；它不构成新的桌面功能或平台支持声明。
+
 ## Current Shape
 
 - Existing UI remains served by `app.api.main:app`.

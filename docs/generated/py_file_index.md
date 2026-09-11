@@ -3974,6 +3974,7 @@ Module docstring:
 
 Imports:
 - `asyncio`
+- `collections.abc`
 - `concurrent.futures`
 - `contextlib`
 - `copy`
@@ -3990,7 +3991,6 @@ Imports:
 - `re`
 - `stat`
 - `threading`
-- `typing`
 - `uuid`
 
 Classes:
@@ -4045,6 +4045,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `collections.abc`
 - `core.observability`
 - `hashlib`
 - `multiprocessing`
@@ -4075,6 +4076,12 @@ Functions:
 - `_verify_excel`
 - `_verify_word`
 - `_verify_powerpoint`
+- `_verify_wind_formula`
+  - Verify the Wind add-in through the production formula client.
+- `_launch_macos_excel`
+  - Launch Excel through LaunchServices and wait for its scriptable instance.
+- `_wind_security_verification_required`
+  - Detect Wind's visible Excel authorization prompt without reading its content.
 - `_verify_wind`
 - `_child`
 - `_terminate_process_tree`
@@ -4505,6 +4512,9 @@ Functions:
 - `_canonical_bytes`
 - `_encode`
 - `_decode`
+- `_private_directory_violation`
+  - Return the stable class of a platform-appropriate directory violation.
+- `_is_unsafe_private_directory`
 
 
 ## `app/research_web/mcp_runtime/models.py`
@@ -4600,6 +4610,7 @@ Imports:
 - `credentials`
 - `hashlib`
 - `hmac`
+- `installation_store`
 - `json`
 - `models`
 - `os`
@@ -4661,6 +4672,7 @@ Imports:
 - `email.parser`
 - `hashlib`
 - `hmac`
+- `installation_store`
 - `json`
 - `models`
 - `os`
@@ -5305,6 +5317,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `collections.abc`
 - `contextlib`
 - `core.observability`
 - `dataclasses`
@@ -5340,6 +5353,7 @@ Classes:
   - Lazy xlwings bridge; public failures are deliberately content-free.
   - methods: __init__, set_process_reporter, _activate_macos_appscript_compat, readiness, open_workbook, refresh_all, calculate_full, read_cells, save, close, refresh_with_timeout
 - `WindExcelProvider`
+  - methods: refresh_all, calculate_full
 - `IFindExcelProvider`
 - `WorkbookRefreshService`
   - Copy, refresh, verify and hash workbooks without mutating package masters.
@@ -8619,6 +8633,7 @@ Module docstring:
 > Wind Excel 客户端 —— 通过 xlwings 操控 Excel Wind 插件
 
 Imports:
+- `collections.abc`
 - `core.observability`
 - `data_layer.adapters.wind.exceptions`
 - `datetime`

@@ -113,3 +113,5 @@ Office/Wind 显式验证证据在 TTL 截止时刻即失效，零 TTL 不会留�
 2026-09-11 本机集成 Wind 改为复用已登录 Excel 并只操作独占空白工作簿执行最小公式心跳，不再以某份报告工作簿代表插件状态。该变化只收紧 Wind 验证与进程所有权边界，不改变 Tabbit 的页面授权、claim、一次性 token、标签保持、实时正文或浏览器数据生命周期。
 
 MCP Runtime 与 Automation 默认启用不自动授权 Tabbit，也不把浏览器工具加入无人值守 allowlist；Tabbit 的实时页面授权、一次性 token 与写操作审批继续独立生效。
+
+2026-09-11 的本机集成格式基线维护不改变 Tabbit 的授权、claim、token 或浏览器运行时边界。

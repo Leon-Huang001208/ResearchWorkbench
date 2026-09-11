@@ -277,6 +277,8 @@ Update this section when:
 - 心跳检测：每次批量执行前自动检测 Wind 会话有效性，过期时抛出 `WindSessionExpiredError`
 - 保活机制：后台 daemon 线程每 30 分钟执行心跳，防止 Wind 自动登出；过期时触发回调
 
+2026-09-11 的格式基线维护只将批量等待条件展开为 Black 兼容布局，Wind 客户端行为和公开接口保持不变。
+
 **测试：** `tests/unit/test_wind_adapter.py` — 90+ 个单元测试（5 异常 + 50+ 公式 + 7 结构 + 4 客户端 + 9 新方法）
 
 ---

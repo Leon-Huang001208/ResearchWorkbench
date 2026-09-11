@@ -553,3 +553,10 @@
 - 修复只影响平台校验分支，不改变安装清单、确认令牌、API、存储位置、Runtime 拓扑或页面。
 
 <!-- architecture-review {"group":"mcp-runtime","structure":"unchanged","reason":"MCP私有目录校验改用既有跨平台证据边界，安装清单、令牌、API和Runtime拓扑不变。","diagrams":[]} -->
+
+## 2026-09-11 — 本机集成格式基线维护
+
+- 仅整理本机集成包导入、敏感键正则和 ISO 时间解析表达式，使相关文件同时符合 Ruff、Black 与 isort。
+- API、状态 schema、验证流程、持久化和页面拓扑均未改变，现有架构图继续准确。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"本机集成格式基线维护不改变API、状态模型、验证流程、持久化或UI拓扑。","diagrams":[]} -->
