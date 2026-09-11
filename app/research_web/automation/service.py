@@ -125,7 +125,7 @@ class AutomationService:
         self._validate_delivery(body.delivery.model_dump(mode="json"))
         automation_id = f"automation-{uuid4().hex}"
         payload = body.model_dump(mode="json")
-        row = {
+        row: dict[str, Any] = {
             "id": automation_id,
             "name": payload["name"],
             "target": {

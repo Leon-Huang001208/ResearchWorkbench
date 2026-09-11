@@ -105,9 +105,8 @@ class DeliveryChannelStore:
         endpoint = payload.get("endpoint")
         if endpoint:
             payload["endpoint"] = _safe_endpoint(endpoint)
-        if body.secret is None and previous_configuration:
-            if previous_configuration.get("secret"):
-                payload["secret"] = previous_configuration["secret"]
+        if body.secret is None and previous_configuration and previous_configuration.get("secret"):
+            payload["secret"] = previous_configuration["secret"]
         if body.kind == "webhook" and not payload.get("secret"):
             raise AutomationError("Webhook 签名秘密未配置", "delivery_channel_unconfigured", 422)
         account = self._account(channel_id)
