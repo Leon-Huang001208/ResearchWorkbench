@@ -39,3 +39,11 @@
 ## 验收边界
 
 本记录声明 Excel、Word 与 PowerPoint 在当前 Mac 上通过真实调用；Wind 终端与 Excel 插件已完成最小公式心跳真实验证并返回 `available`。`huaan-etf-weekly` 完整工作簿刷新仍超时，是独立的报告 Workflow 结论。iFinD HTTP 因未配置而未验证。Windows/Linux 不运行 macOS 验证器，保持未验证或不适用状态。
+
+## 2026-09-11 最终复验
+
+- 正式 `8088` 依次完成 Excel `4a611f32-ec38-4d19-aecf-75978b0396ff`、Word、PowerPoint `cdbff5e8-442d-4107-8a8d-f45232547663` 与 Wind `446f708c-9183-456a-a229-c9a9510d0373` 真实验证，四个目标均返回 `available`；最终 Wind 再验证 `b629a6a5-9e54-47ca-a0ad-d7d2ef8fcde3` 也返回 `available`。
+- 设置页汇总为 7 项可用、5 项需处理；Excel、Excel 自动化桥、Word、PowerPoint、Wind 终端与 Wind Excel 插件均显示已发现、已授权、已验证和可调用。浏览器控制台为 0 error、0 warning，截图保存在本机脱敏证据目录 `~/.research-workbench/evidence/`。
+- `huaan-etf-weekly` 当前版本 3 包含 2 个 Wind 工作簿；隔离副本刷新再次在 180 秒内返回 `verification_timed_out`，两个发布源文件前后哈希一致。该结论没有覆盖 Wind 插件的最小公式验证。
+- Wind 页面状态一度回落是五分钟真实验证 TTL 自然到期；持久化指纹与当前上下文指纹一致。重新验证后页面恢复 7 项可用，无需代码层状态补丁。
+- Excel 验证前后保持同一用户进程，Office/Wind 临时文件与验证子进程均已清理。Windows 原生 Research Web 验证运行 `34570016688` 通过，最新项目约束运行 `34571399909` 通过；不据此宣称 Windows 厂商软件已完成真实安装与登录验证。
