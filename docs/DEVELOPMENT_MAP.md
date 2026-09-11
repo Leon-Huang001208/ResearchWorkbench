@@ -50,6 +50,10 @@ and publisher handoff remain read-only even when Phase 2B runtime management is 
 Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
 Read the canonical [Research Web architecture](architecture/research-web/README.md),
 [implementation notes](research-web.md) and [UI contract](research-web-ui.md) first for this product.
+The Web-only Goldar V0 checkpoint lives in `app/research_web/ui/frameworks.mjs` and
+`app/research_web/ui/frameworks/`: the Hub route is `#/frameworks`, the dedicated detail route is
+`#/frameworks/gold`, and all displayed data is an explicit deterministic fixture until visual approval.
+Its current architecture boundary is documented in [research frameworks](architecture/research-web/08-research-frameworks.md).
 The machine-readable [architecture map](architecture/research-web/architecture-map.json) connects
 current source modules, Markdown, diagrams and tests. Local acceptance is recorded separately from structural consistency.
 The legacy subsystems below remain historical implementations, not dependencies to add to this new chain.

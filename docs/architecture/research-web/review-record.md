@@ -553,3 +553,11 @@
 - 修复只影响平台校验分支，不改变安装清单、确认令牌、API、存储位置、Runtime 拓扑或页面。
 
 <!-- architecture-review {"group":"mcp-runtime","structure":"unchanged","reason":"MCP私有目录校验改用既有跨平台证据边界，安装清单、令牌、API和Runtime拓扑不变。","diagrams":[]} -->
+
+## 2026-09-11 — Goldar 研究框架 V0 视觉检查点
+
+- 产品壳新增 Framework Hub 与 Goldar 专属 hash 路由，七个章节由固定 fixture 和专属 Lieflat SVG renderer 呈现。
+- 本阶段没有 API、服务、存储、采集器或 Runtime 变更；固定样例显著标注，不形成实时市场结论。
+- 新文件仍位于架构图既有的 Research Web UI 边界内，`app.mjs` 仅组合无副作用的展示叶模块，因此现有部署、模块依赖和研究序列图不变。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Goldar V0是既有Research Web UI边界内的无副作用展示叶模块，只增加hash路由和固定fixture，不增加服务、API、存储、Runtime或跨边界数据流。","diagrams":[]} -->

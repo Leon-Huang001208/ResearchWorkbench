@@ -12,7 +12,8 @@
       ],
       "documents": [
         "docs/research-web-ui.md",
-        "docs/research-web-appearance.md"
+        "docs/research-web-appearance.md",
+        "docs/architecture/research-web/08-research-frameworks.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -38,6 +39,8 @@
         "tests/e2e/research_web_stop_live.mjs",
         "tests/javascript/research_web_appearance.test.mjs",
         "tests/e2e/research_web_appearance.mjs",
+        "tests/javascript/research_web_frameworks_ui.test.mjs",
+        "tests/e2e/research_web_goldar_v0.mjs",
         "tests/e2e/research_web_mcp_marketplace.mjs",
         "tests/e2e/research_web_mcp_runtime.mjs"
       ]

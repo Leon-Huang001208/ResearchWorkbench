@@ -1,10 +1,11 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'skills', 'history', 'operations', 'settings']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
 const capabilityKinds = new Set(['skill', 'tool', 'workflow', 'data']);
+const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'evidence']);
 
 export function parseRoute(hash = '') {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -43,6 +44,10 @@ export function parseRoute(hash = '') {
   if (page === 'workbench') {
     const requestedSection = sectionSegment || params.get('section');
     route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
+  }
+  if (page === 'frameworks') {
+    route.frameworkSlug = !extraSegments.length && /^[a-z0-9-]+$/.test(sectionSegment || '') ? sectionSegment : null;
+    route.frameworkTab = frameworkTabs.has(params.get('tab')) ? params.get('tab') : 'overview';
   }
   return route;
 }
