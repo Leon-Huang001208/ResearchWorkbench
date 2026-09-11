@@ -57,7 +57,7 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 - MCP Registry 非秘密配置、ETag、游标与最后成功缓存位于数据根的 `mcp-registry/`；目录元数据是有界 Unicode plain text，API 原样投影，UI 仅在最终 HTML sink 转义。Bearer/OAuth 秘密只进入 Keyring 服务 `ResearchWorkbench.MCPRegistry`。认证 Registry 仅使用 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth 端点始终使用 HTTPS。官方与私有 Registry 的同名服务器按身份三元组隔离。
 - MCP 安装清单、隔离 payload、Runtime 状态和激活列表位于数据根的 `mcp-installations/` 与 `mcp-runtime/`；本地环境值和远程 OAuth token 只进入系统凭据库。DSH 只读取 Host 生成的安全工具绑定和私有控制文件，不读取安装秘密。
 - Automation 与 Run 事实位于数据根的原子索引；任务锁定目标版本、内容 SHA 与 MCP 工具 schema 快照。投递渠道 JSON 只保存非敏感投影，URL、密码和签名秘密只进入 `ResearchWorkbench.Delivery`。
-- 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；Excel、Word、PowerPoint 的真实验证副本位于各自 Office 容器内，Wind 刷新副本也在 Excel 容器的有界 `verification-runs/` 中执行并精确清理，避免普通 Workbench 路径触发逐文件授权。不持久化探测到的绝对路径、命令参数、环境变量或秘密。
+- 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；Excel、Word、PowerPoint 的真实验证副本位于各自 Office 容器内。Wind 复用当前 Excel 厂商会话但只持有独占空白工作簿；监督器仅清理本轮真正拥有的进程，用户已有 Excel 不进入清理集合。不持久化探测到的绝对路径、命令参数、环境变量或秘密。
 - 本机显式验证结果按 TTL 和上下文指纹读取；TTL 截止时刻即失效，`0` 表示不产生可复用的可调用证据。
 - 原生凭据只存在专属 DSH 私有目录，不提供给研究脚本环境。
 - Tabbit 页面访问授权只存在于当前 Research Runtime 生命周期；实时正文 token 绑定当前会话、单次消费并在 10 分钟后过期。

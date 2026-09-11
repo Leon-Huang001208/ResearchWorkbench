@@ -616,6 +616,10 @@ def test_wind_excel_verification_does_not_require_windpy(tmp_path, monkeypatch):
 
     assert item(snapshot, "wind_terminal")["callable"] is True
     assert item(snapshot, "wind_excel_addin")["callable"] is True
+    assert item(snapshot, "wind_excel_addin")["message"] == (
+        "Wind 登录会话与 Excel 插件公式调用已通过。"
+    )
+    assert "具体报告工作流" in item(snapshot, "wind_excel_addin")["detail"]
 
 
 def test_windpy_internal_dependency_error_invalidates_wind_evidence(tmp_path, monkeypatch):
@@ -852,7 +856,7 @@ def test_macos_excel_verifier_uses_sandbox_file_and_owned_app(tmp_path, monkeypa
             values[self.reference] = value
 
     class Book:
-        sheets = [SimpleNamespace(range=lambda reference: Range(reference))]
+        sheets = [SimpleNamespace(range=lambda reference: Range(reference))]  # noqa: RUF012
 
         def save(self):
             return None
@@ -900,6 +904,125 @@ def test_macos_excel_verifier_uses_sandbox_file_and_owned_app(tmp_path, monkeypa
     assert not artifact.exists()
 
 
+def test_macos_wind_verifier_uses_isolated_wind_client(tmp_path, monkeypatch):
+    from app.research_web.report_workflows import workbook as workbook_module
+
+    run_root = tmp_path / ("f" * 32)
+    run_root.mkdir()
+    reported = []
+    events = []
+
+    class FakeWindClient:
+        def __init__(self, *, visible, timeout, isolated_workbook):
+            events.append(("init", visible, timeout, isolated_workbook))
+            self._app = SimpleNamespace(pid=54321)
+            self._owns_app = False
+
+        def __enter__(self):
+            events.append("connect")
+            return self
+
+        def heartbeat(self):
+            events.append("heartbeat")
+            return True
+
+        def __exit__(self, *_args):
+            events.append("close")
+
+    monkeypatch.setattr(
+        workbook_module.XlwingsExcelProvider,
+        "_activate_macos_appscript_compat",
+        staticmethod(lambda: events.append("appscript-compat")),
+    )
+    monkeypatch.setattr(
+        workbook_module,
+        "_capture_excel_process_identity",
+        lambda _pid: {"pid": 54321, "token": "a" * 64},
+    )
+    monkeypatch.setattr(
+        verifiers,
+        "_launch_macos_excel",
+        lambda: events.append("launch-excel"),
+        raising=False,
+    )
+    monkeypatch.setattr("data_layer.adapters.wind.client.WindExcelClient", FakeWindClient)
+
+    result = verifiers._verify_wind_formula(run_root, reported.append)
+
+    assert result == {"outcome": "available", "code": None}
+    assert reported == []
+    assert events == [
+        "appscript-compat",
+        "launch-excel",
+        ("init", False, 10.0, True),
+        "connect",
+        "heartbeat",
+        "close",
+    ]
+
+
+def test_macos_wind_verifier_maps_security_dialog_to_authorization_required(tmp_path, monkeypatch):
+    from app.research_web.report_workflows import workbook as workbook_module
+
+    class FakeWindClient:
+        _owns_app = False
+        _app = SimpleNamespace(pid=54321)
+
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def heartbeat(self):
+            raise RuntimeError("vendor-private-error")
+
+        def __exit__(self, *_args):
+            pass
+
+    monkeypatch.setattr(
+        workbook_module.XlwingsExcelProvider,
+        "_activate_macos_appscript_compat",
+        staticmethod(lambda: None),
+    )
+    monkeypatch.setattr(verifiers, "_launch_macos_excel", lambda: None)
+    monkeypatch.setattr(verifiers, "_wind_security_verification_required", lambda: True)
+    monkeypatch.setattr("data_layer.adapters.wind.client.WindExcelClient", FakeWindClient)
+
+    result = verifiers._verify_wind_formula(tmp_path)
+
+    assert result == {
+        "outcome": "authorization_required",
+        "code": "wind_security_verification_required",
+    }
+
+
+def test_wind_security_dialog_has_specific_user_message(tmp_path):
+    env = environment(tmp_path, modules={"xlwings"})
+    (env.application_roots[0] / "Microsoft Excel.app").mkdir()
+    (env.application_roots[0] / "Wind.app").mkdir()
+    (env.office_addin_roots[0] / "WindAddin.xlam").write_bytes(b"addin")
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        context_fingerprint=lambda target: target,
+    )
+    checked_at = manager.snapshot(persist=False)["last_checked_at"]
+    manager.verification_results = {
+        "wind_excel": {
+            "outcome": "authorization_required",
+            "completed_at": checked_at,
+            "context_fingerprint": manager._verification_context_fingerprint("wind_excel"),
+        }
+    }
+
+    snapshot = manager.snapshot(persist=False)
+    wind = item(snapshot, "wind_excel_addin")
+
+    assert wind["status"] == "待授权"
+    assert wind["message"] == "请在 Excel 的 Wind 安全验证窗口完成手机扫码授权。"
+
+
 def test_macos_excel_cleanup_failure_is_not_available(tmp_path, monkeypatch):
     documents = tmp_path / "Documents"
     documents.mkdir()
@@ -912,7 +1035,7 @@ def test_macos_excel_cleanup_failure_is_not_available(tmp_path, monkeypatch):
         formula = None
 
     class Book:
-        sheets = [SimpleNamespace(range=lambda _reference: Range())]
+        sheets = [SimpleNamespace(range=lambda _reference: Range())]  # noqa: RUF012
 
         def save(self):
             return None
@@ -1008,7 +1131,7 @@ def test_windows_excel_verifier_uses_app_api_full_rebuild_and_reopens_saved_valu
             return value
 
     class Book:
-        sheets = [Sheet()]
+        sheets = [Sheet()]  # noqa: RUF012
 
         def save(self, path):
             Path(path).write_bytes(b"xlsx")
@@ -1065,7 +1188,7 @@ def test_excel_verifier_does_not_accept_wrapper_only_full_rebuild(tmp_path, monk
             return Range()
 
     class Book:
-        sheets = [Sheet()]
+        sheets = [Sheet()]  # noqa: RUF012
 
         def close(self):
             return None
@@ -1108,7 +1231,7 @@ def test_wind_verifier_runs_bounded_smoke_then_full_and_guards_published_source(
 
     class Policy:
         workbook = "workbooks/wind.xlsx"
-        required_cells = []
+        required_cells = []  # noqa: RUF012
         timeout_seconds = 900.0
 
         def model_copy(self, *, update):

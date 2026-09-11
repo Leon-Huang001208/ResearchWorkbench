@@ -285,6 +285,51 @@ class TestWindClientLogic:
         assert client._owns_app is True
         assert client._app is app
 
+    def test_connect_isolated_workbook_does_not_use_running_workbook(self):
+        from data_layer.adapters.wind.client import WindExcelClient
+
+        running_workbook = MagicMock()
+        isolated_workbook = MagicMock()
+        isolated_workbook.sheets = [MagicMock()]
+        books = MagicMock()
+        books.__len__.return_value = 1
+        books.__getitem__.return_value = running_workbook
+        books.add.return_value = isolated_workbook
+        running_app = MagicMock()
+        running_app.books = books
+
+        xw = MagicMock()
+        xw.apps = [running_app]
+
+        with patch.dict("sys.modules", {"xlwings": xw}):
+            client = WindExcelClient(visible=False, isolated_workbook=True)
+            client._connect()
+
+        xw.App.assert_not_called()
+        books.add.assert_called_once_with()
+        assert client._owns_app is False
+        assert client._owns_workbook is True
+        assert client._app is running_app
+        assert client._wb is isolated_workbook
+
+    def test_close_isolated_workbook_does_not_quit_running_excel(self):
+        from data_layer.adapters.wind.client import WindExcelClient
+
+        app = MagicMock()
+        workbook = MagicMock()
+        client = WindExcelClient(isolated_workbook=True)
+        client._app = app
+        client._wb = workbook
+        client._owns_app = False
+        client._owns_workbook = True
+
+        client.close()
+
+        workbook.close.assert_called_once_with()
+        app.quit.assert_not_called()
+        assert client._app is None
+        assert client._wb is None
+
     def test_heartbeat_returns_true_when_wind_ok(self):
         sheet = MagicMock()
         cell = MagicMock()

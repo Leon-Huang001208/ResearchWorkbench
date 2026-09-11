@@ -3,8 +3,9 @@
 import math
 import threading
 import time
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 from core.observability import get_logger
 from data_layer.adapters.wind.exceptions import (
@@ -75,10 +76,7 @@ def _trim_wsd_matrix(raw_data: Any) -> list[list[Any]]:
     if not populated:
         return []
     width = max(
-        index + 1
-        for row in populated
-        for index, value in enumerate(row)
-        if value is not None
+        index + 1 for row in populated for index, value in enumerate(row) if value is not None
     )
     return [row[:width] for row in populated]
 
@@ -86,13 +84,21 @@ def _trim_wsd_matrix(raw_data: Any) -> list[list[Any]]:
 class WindExcelClient:
     """通过 xlwings 操控 Excel 中的 Wind 插件执行公式"""
 
-    def __init__(self, visible: bool = False, timeout: float = 15.0):
+    def __init__(
+        self,
+        visible: bool = False,
+        timeout: float = 15.0,
+        *,
+        isolated_workbook: bool = False,
+    ):
         self._visible = visible
         self._timeout = timeout
+        self._isolated_workbook = isolated_workbook
         self._app = None
         self._wb = None
         self._sheet = None
         self._owns_app = False
+        self._owns_workbook = False
         self._keepalive_thread: threading.Thread | None = None
         self._keepalive_running = False
         self._keepalive_interval = 1800  # 默认 30 分钟
@@ -102,33 +108,43 @@ class WindExcelClient:
         self._helper_lock = threading.Lock()
 
     def _connect(self):
-        """连接 Excel：优先连接已运行的实例，否则启动新实例"""
+        """连接 Excel；验证任务可强制使用独立且由客户端持有的实例。"""
         try:
             import xlwings as xw
-        except Exception:
+        except Exception:  # noqa: BLE001
             raise WindNotConnectedError(
                 "xlwings not available (NumPy/matplotlib compatibility issue?)"
             )
 
-        # 先尝试连接已运行的 Excel（遍历所有实例，不仅限 active）
+        # 枚举实例也会初始化 macOS xlwings 引擎。Wind 的登录会话属于
+        # 已运行的 Excel 实例，所以优先复用应用；验证任务通过独占空白
+        # 工作簿隔离，绝不写入用户当前打开的工作簿。
         try:
             all_apps = list(xw.apps)
-            if all_apps:
-                self._app = all_apps[0]
-                logger.info(f"已连接到运行中的 Excel 实例 (PID={self._app.pid})")
-                self._owns_app = False
-            else:
-                raise RuntimeError("no running Excel")
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("无法枚举运行中的 Excel 实例: %s", exc)
+            all_apps = []
+
+        if all_apps:
+            self._app = all_apps[0]
+            logger.info(f"已连接到运行中的 Excel 实例 (PID={self._app.pid})")
+            self._owns_app = False
+        else:
             logger.info("未检测到运行中的 Excel，启动新实例")
             self._app = xw.App(visible=self._visible, add_book=True)
             self._owns_app = True
 
-        # 确保有一个 workbook
-        if len(self._app.books) == 0:
+        # 验证任务必须持有自己的 workbook；普通数据调用保持原有复用行为。
+        if self._isolated_workbook and not self._owns_app:
             self._wb = self._app.books.add()
+            self._owns_workbook = True
+            logger.info("已创建隔离的 Wind 验证工作簿")
+        elif len(self._app.books) == 0:
+            self._wb = self._app.books.add()
+            self._owns_workbook = True
         else:
             self._wb = self._app.books[0]
+            self._owns_workbook = self._isolated_workbook
 
         # Wind Mac 插件在新建 helper sheet 上偶尔只返回 Fetching。
         # 仍使用第一个 sheet，但落在很远的 ZZ 列和高行，避免覆盖用户可见区域和旧缓存。
@@ -136,7 +152,7 @@ class WindExcelClient:
         self._helper_row = int(time.time() * 1000) % 5000 + 1000
         try:
             sheet_name = self._sheet.name
-        except Exception:
+        except Exception:  # noqa: BLE001
             sheet_name = HELPER_SHEET_NAME
         logger.info(f"使用工作表: {sheet_name}")
         self._col = "ZZ"
@@ -147,11 +163,11 @@ class WindExcelClient:
             for sheet in sheets:
                 if getattr(sheet, "name", None) == HELPER_SHEET_NAME:
                     return sheet
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         try:
             return sheets.add(name=HELPER_SHEET_NAME)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.debug("Unable to create Wind helper sheet: %s", exc)
             return sheets[0]
 
@@ -161,7 +177,7 @@ class WindExcelClient:
             for sheet in sheets:
                 if getattr(sheet, "name", None) != HELPER_SHEET_NAME:
                     return sheet
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         return sheets[0]
 
@@ -247,7 +263,7 @@ class WindExcelClient:
         finally:
             try:
                 cell.value = None
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.debug("Unable to clear Wind formula cell: %s", exc)
 
         raise WindTimeoutError(formula, timeout)
@@ -274,11 +290,17 @@ class WindExcelClient:
         try:
             days = max(
                 1,
-                (datetime.strptime(end_date, "%Y-%m-%d") - datetime.strptime(start_date, "%Y-%m-%d")).days,
+                (
+                    datetime.strptime(end_date, "%Y-%m-%d")  # noqa: DTZ007
+                    - datetime.strptime(start_date, "%Y-%m-%d")  # noqa: DTZ007
+                ).days,
             )
         except (TypeError, ValueError):
             days = 365
-        return WSD_BASE_TIMEOUT + math.ceil(days / WSD_EXTRA_TIMEOUT_PER_DAYS) * WSD_EXTRA_TIMEOUT_SECONDS
+        return (
+            WSD_BASE_TIMEOUT
+            + math.ceil(days / WSD_EXTRA_TIMEOUT_PER_DAYS) * WSD_EXTRA_TIMEOUT_SECONDS
+        )
 
     def execute_wsd(
         self,
@@ -310,7 +332,9 @@ class WindExcelClient:
                     raise
                 if attempt < WSD_MAX_RETRIES:
                     delay = min(WSD_RETRY_BASE_DELAY * (2 ** (attempt - 1)), WSD_RETRY_MAX_DELAY)
-                    logger.warning("Wind WSD retry", extra={"code": code, "attempt": attempt, "delay": delay})
+                    logger.warning(
+                        "Wind WSD retry", extra={"code": code, "attempt": attempt, "delay": delay}
+                    )
                     time.sleep(delay)
         if last_error is not None:
             raise last_error
@@ -346,7 +370,7 @@ class WindExcelClient:
         finally:
             try:
                 self._sheet.range(address).value = None
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.debug("Unable to clear Wind WSD helper range: %s", exc)
 
     def execute_batch(self, formulas: list[str], timeout: float | None = None) -> list[Any]:
@@ -378,7 +402,7 @@ class WindExcelClient:
             original_calculation = app.api.Calculation
             app.api.Calculation = -4135  # xlCalculationManual
             can_control_calculation = True
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("Excel calculation mode control unavailable: %s", e)
 
         try:
@@ -401,9 +425,7 @@ class WindExcelClient:
                 values = self._read_formula_column(sheet, col, len(formulas), start_row)
                 for i, val in enumerate(values):
                     if results[i] is None:
-                        if val is None:
-                            all_ready = False
-                        elif isinstance(val, str) and val.strip().lower() in WIND_LOADING:
+                        if val is None or isinstance(val, str) and val.strip().lower() in WIND_LOADING:
                             all_ready = False
                         else:
                             # Accept both valid results AND Excel errors as "done"
@@ -453,7 +475,7 @@ class WindExcelClient:
             sheet.range(address).value = [[None] for _ in formulas]
             time.sleep(0.05)
             sheet.range(address).value = [[formula] for formula in formulas]
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.debug("Excel range batch write unavailable: %s", exc)
             for i, formula in enumerate(formulas):
                 cell = sheet.range(f"{col}{start_row + i}")
@@ -481,7 +503,7 @@ class WindExcelClient:
             if len(normalized) < count:
                 normalized.extend([None] * (count - len(normalized)))
             return normalized[:count]
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.debug("Excel range batch read unavailable: %s", exc)
             return [sheet.range(f"{col}{start_row + i}").value for i in range(count)]
 
@@ -500,7 +522,7 @@ class WindExcelClient:
                 return
             end_row = start_row + count - 1
             sheet.range(f"{col}{start_row}:{col}{end_row}").value = [[None] for _ in range(count)]
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.debug("Unable to clear Wind formula range: %s", exc)
 
     @staticmethod
@@ -564,23 +586,31 @@ class WindExcelClient:
                 if on_expired:
                     try:
                         on_expired()
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         logger.error(f"过期回调执行失败: {e}")
                 break
 
     def close(self):
         """断开连接。如果是连接的用户 Excel，不关闭；如果是自己启动的，关闭"""
         self.stop_keepalive()
-        if self._owns_app and self._app is not None:
+        if self._owns_workbook and self._wb is not None:
             try:
                 self._wb.close()
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"关闭 Wind 工作簿时出错: {e}")
+        if self._owns_app and self._app is not None:
+            try:
+                if not self._owns_workbook and self._wb is not None:
+                    self._wb.close()
                 self._app.quit()
                 logger.info("Wind Excel 客户端已关闭")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning(f"关闭 Excel 时出错: {e}")
         self._app = None
         self._wb = None
         self._sheet = None
+        self._owns_app = False
+        self._owns_workbook = False
 
     def __enter__(self):
         self._connect()

@@ -31,11 +31,9 @@ from app.research_web.report_workflows import (
     WorkbookRefreshService,
     WorkflowError,
     WorkflowSchedule,
-)
-from app.research_web.report_workflows import catalog as catalog_module
-from app.research_web.report_workflows import (
     scan_workbook_formulas,
 )
+from app.research_web.report_workflows import catalog as catalog_module
 from app.research_web.report_workflows import workbook as workbook_module
 from app.research_web.report_workflows.workbook import WindExcelProvider
 
@@ -524,7 +522,7 @@ def test_xlwings_open_failure_quits_hidden_excel_instance(monkeypatch):
     assert app.quit_called is True
 
 
-def test_xlwings_mac_uses_appscript_refresh_and_full_rebuild(monkeypatch):
+def test_wind_xlwings_mac_skips_refresh_all_and_uses_scoped_calculation(monkeypatch):
     calls = []
 
     class API:
@@ -533,19 +531,19 @@ def test_xlwings_mac_uses_appscript_refresh_and_full_rebuild(monkeypatch):
 
     class AppAPI:
         def calculate_full_rebuild(self):
-            calls.append("calculate")
+            calls.append("full-rebuild")
 
     provider = WindExcelProvider()
     handle = SimpleNamespace(
         api=API(),
-        app=SimpleNamespace(api=AppAPI(), calculate=lambda: calls.append("fallback")),
+        app=SimpleNamespace(api=AppAPI(), calculate=lambda: calls.append("calculate")),
     )
     monkeypatch.setattr(workbook_module.sys, "platform", "darwin")
 
     provider.refresh_all(handle)
     provider.calculate_full(handle)
 
-    assert calls == ["refresh", "calculate"]
+    assert calls == ["calculate"]
 
 
 def test_provider_worker_reports_safe_refresh_phase_code(tmp_path: Path, monkeypatch):

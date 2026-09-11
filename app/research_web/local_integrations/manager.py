@@ -11,12 +11,12 @@ import platform
 import re
 import stat
 import threading
+from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Callable, Mapping
 from uuid import uuid4
 
 from core.observability import get_logger
@@ -42,7 +42,16 @@ ALLOWED_STATUSES = {
     "不适用",
 }
 DISCOVERY_VALUES = {"已发现", "未发现", "未配置", "未扫描", "异常", "不适用"}
-AUTHORIZATION_VALUES = {"无需授权", "已授权", "待授权", "待验证", "未登录", "受限", "异常", "不适用"}
+AUTHORIZATION_VALUES = {
+    "无需授权",
+    "已授权",
+    "待授权",
+    "待验证",
+    "未登录",
+    "受限",
+    "异常",
+    "不适用",
+}
 VERIFICATION_VALUES = {"已验证", "待验证", "未通过", "受限", "异常", "不适用"}
 SNAPSHOT_FIELDS = {"platform", "service", "summary", "categories", "items", "last_checked_at"}
 SERVICE_FIELDS = {"online", "label"}
@@ -67,7 +76,7 @@ ITEM_FIELDS = {
 ACTION_FIELDS = {"id", "label", "href"}
 SAFE_ID = re.compile(r"^[a-z0-9_]+$")
 SAFE_DATA_ACTION = re.compile(r"^#/settings/data\?connection=[a-z0-9_]+$")
-SENSITIVE_ENVIRONMENT_KEY = re.compile(r"(?:token|secret|password|credential|api.?key)", re.I)
+SENSITIVE_ENVIRONMENT_KEY = re.compile(r"(?:token|secret|password|credential|api.?key)", re.IGNORECASE)
 MAX_PROBE_RECORDS = 128
 MAX_VERIFICATION_RECORDS = 128
 MAX_WIND_ADDIN_FINGERPRINT_ENTRIES = 512
@@ -82,7 +91,12 @@ VERIFICATION_ITEMS = {
 }
 VERIFICATION_MESSAGES = {
     "available": ("可用", "已授权", "已验证", "真实打开、操作、保存与重新读取验证已通过。"),
-    "authorization_required": ("待授权", "待授权", "待验证", "需要允许 Research Workbench 控制对应的 Office 应用。"),
+    "authorization_required": (
+        "待授权",
+        "待授权",
+        "待验证",
+        "需要允许 Research Workbench 控制对应的 Office 应用。",
+    ),
     "login_required": ("未登录", "未登录", "待验证", "已发现组件，但厂商会话尚未登录或不可用。"),
     "timeout": ("异常", "待验证", "异常", "真实验证超时；验证任务已停止，请确认应用状态后重试。"),
     "formula_error": ("待验证", "待验证", "未通过", "工作簿已运行，但公式或必需单元格验证未通过。"),
@@ -327,7 +341,7 @@ class LocalIntegrationManager:
             return self._publish_snapshot(detected, persist=persist)
         except LocalIntegrationError:
             raise
-        except Exception as exc:  # noqa: BLE001 - host inspection is a hard safety boundary.
+        except Exception as exc:
             log.warning("local_integration_snapshot_failed", error_type=type(exc).__name__)
             raise LocalIntegrationError("本机能力检测失败，请查看本地日志") from exc
 
@@ -380,6 +394,10 @@ class LocalIntegrationManager:
             status, authorization, verification, message = VERIFICATION_MESSAGES.get(
                 outcome, VERIFICATION_MESSAGES["failed"]
             )
+            if target == "wind_excel" and outcome == "available":
+                message = "Wind 登录会话与 Excel 插件公式调用已通过。"
+            elif target == "wind_excel" and outcome == "authorization_required":
+                message = "请在 Excel 的 Wind 安全验证窗口完成手机扫码授权。"
             checked_at = result.get("completed_at") or snapshot["last_checked_at"]
             for item_id in VERIFICATION_ITEMS[target]:
                 item = items.get(item_id)
@@ -392,7 +410,7 @@ class LocalIntegrationManager:
                     callable=outcome == "available",
                     message=message,
                     detail=(
-                        "该状态来自最近五分钟内的真实验证；厂商会话变化后需重新验证。"
+                        "该状态来自最近五分钟内的真实公式验证；具体报告工作流按自身工作簿和时限单独判断。"
                         if target == "wind_excel"
                         else "该状态来自显式真实验证，不由软件发现结果推断。"
                     ),
@@ -409,7 +427,7 @@ class LocalIntegrationManager:
 
     def _verification_result_is_current(self, target: str, result: dict) -> bool:
         try:
-            completed_at = datetime.fromisoformat(result["completed_at"].replace("Z", "+00:00"))
+            completed_at = datetime.fromisoformat(result["completed_at"].replace("Z", "+00:00"))  # noqa: FURB162
             if completed_at.tzinfo is None:
                 return False
             age = datetime.now(UTC) - completed_at.astimezone(UTC)
@@ -537,9 +555,11 @@ class LocalIntegrationManager:
             spec = importlib.util.find_spec("xlwings")
             facts["xlwings"] = {
                 "version": version,
-                "origin": self._path_fingerprint(Path(spec.origin))
-                if spec is not None and spec.origin
-                else {"state": "missing"},
+                "origin": (
+                    self._path_fingerprint(Path(spec.origin))
+                    if spec is not None and spec.origin
+                    else {"state": "missing"}
+                ),
             }
         if target == "wind_excel":
             facts["addins"] = [
@@ -547,13 +567,15 @@ class LocalIntegrationManager:
                 for candidate in _wind_addin_paths(self.environment.office_addin_roots)
             ]
             try:
-                from app.research_web.report_workflows.catalog import ReportWorkflowService
+                from app.research_web.report_workflows.catalog import (
+                    ReportWorkflowService,
+                )
 
                 catalog = ReportWorkflowService(self.state_root.parent)
                 row = catalog._row("huaan-etf-weekly")
                 version = row.get("current_version")
                 if not isinstance(version, int):
-                    raise ValueError("workflow_version_unavailable")
+                    raise ValueError("workflow_version_unavailable")  # noqa: TRY004
                 manifest = catalog.manifest("huaan-etf-weekly", version)
                 facts["workflow"] = {
                     "version": version,
@@ -579,9 +601,7 @@ class LocalIntegrationManager:
         platform_id = (
             "macos"
             if system in {"darwin", "macos", "mac"}
-            else "windows"
-            if system in {"windows", "win32", "win"}
-            else "other"
+            else "windows" if system in {"windows", "win32", "win"} else "other"
         )
         items = [
             _item(
@@ -705,7 +725,11 @@ class LocalIntegrationManager:
         xlwings = self.environment.module_available("xlwings")
         return [
             self._application_item(
-                "excel_app", "Microsoft Excel 应用", excel, checked_at, ("open", "calculate", "save")
+                "excel_app",
+                "Microsoft Excel 应用",
+                excel,
+                checked_at,
+                ("open", "calculate", "save"),
             ),
             self._bridge_item(
                 "excel_automation_bridge",
@@ -795,7 +819,11 @@ class LocalIntegrationManager:
             callable_value=False,
             status="待验证" if found else "未发现",
             message=f"已检测到 {label}。" if found else f"未在系统应用位置发现 {label}。",
-            detail="应用存在仅是发现事实；v0 尚未执行打开、更新或保存验证。" if found else "仅在当前操作系统的标准应用位置与已知注册信息中检测。",
+            detail=(
+                "应用存在仅是发现事实；v0 尚未执行打开、更新或保存验证。"
+                if found
+                else "仅在当前操作系统的标准应用位置与已知注册信息中检测。"
+            ),
             capabilities=capabilities if found else (),
             actions=actions,
             checked_at=checked_at,
@@ -1155,7 +1183,9 @@ class LocalIntegrationManager:
         ):
             raise LocalIntegrationError("已有本机探测正在进行，请稍后重试", "local_probe_busy", 409)
         if len(self.probes) >= MAX_PROBE_RECORDS:
-            raise LocalIntegrationError("本机探测记录已达到上限，请稍后重试", "local_probe_capacity", 429)
+            raise LocalIntegrationError(
+                "本机探测记录已达到上限，请稍后重试", "local_probe_capacity", 429
+            )
         probe_id = str(uuid4())
         record = {
             "id": probe_id,
@@ -1222,7 +1252,9 @@ class LocalIntegrationManager:
             return self._public_verification(self.verifications[existing[1]])
         self._prune_verifications()
         if any(not task.done() for task in self.verification_tasks.values()):
-            raise LocalIntegrationError("已有真实验证正在运行，请稍后重试", "verification_busy", 409)
+            raise LocalIntegrationError(
+                "已有真实验证正在运行，请稍后重试", "verification_busy", 409
+            )
         if len(self.verifications) >= MAX_VERIFICATION_RECORDS:
             raise LocalIntegrationError(
                 "本机验证记录已达到上限，请稍后重试",
@@ -1296,7 +1328,10 @@ class LocalIntegrationManager:
             record.update(
                 status="failed",
                 completed_at=_utc_now(),
-                error={"code": "verification_failed", "message": "本机真实验证失败，请查看本地日志"},
+                error={
+                    "code": "verification_failed",
+                    "message": "本机真实验证失败，请查看本地日志",
+                },
             )
             log.warning("local_integration_verification_failed", error_type=type(exc).__name__)
         finally:

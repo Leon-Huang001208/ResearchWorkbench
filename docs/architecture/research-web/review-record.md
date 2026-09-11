@@ -521,3 +521,13 @@
   `taskkill /T /F` 契约覆盖。实现拓扑、API、状态 schema 与产品页面均不变。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"修正本机验证TTL截止比较并限定POSIX进程组测试平台，不改变验证进程、API、持久化或UI拓扑。","diagrams":[]} -->
+
+## 2026-09-11 — Wind 插件验证与用户 Excel 所有权修正
+
+- 本机 Wind 诊断改为复用生产公式客户端，在已登录 Excel 应用中创建独占空白工作簿执行最小心跳；具体报告工作簿重新归属各自 Workflow 的刷新与校验。
+- macOS 冷启动时通过 LaunchServices 正常打开 Excel；检测到 Wind 的二维码“安全验证”窗口后返回待授权，不再误报终端未登录或通用异常。
+- 监督器只清理验证器真正拥有的 Excel 进程；复用现有 Excel 时仅关闭独占验证工作簿，用户应用与工作簿不进入清理集合。
+- API、状态 schema、持久目录和研究执行拓扑不变，图 03 的现有“显式验证 → Office/Wind”序列仍准确，无需重绘。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Wind验证在既有可终止任务内改用独占空白工作簿并收紧Excel进程所有权，参与者、进程边界和API拓扑不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Wind插件心跳与报告Workflow刷新分离，既有能力和报告服务边界不变。","diagrams":[]} -->

@@ -15,7 +15,7 @@
 | DSH → MCP Host → Server | DSH 只加载命名空间化声明并经私有 loopback 控制令牌代理；每次调用重核安装版本、schema 哈希、会话快照、风险和一次性审批；参数正文不进日志或审批列表 | `runtime/mcp-adapter.mjs`、`mcp_runtime/authorization.py`、`service.py` / Python 与 JavaScript MCP 回归 |
 | Automation → Claw / MCP | 每个 Run 使用独立会话并锁定目标版本、内容 SHA 与工具 schema；无人值守只允许任务明确授权的只读工具，私有数据须任务级授权，高风险工具拒绝 | `automation/service.py`、`mcp_runtime/service.py` / Automation 与 MCP route tests |
 | Automation → 投递渠道 | 研究/投递状态分离；HTTPS 或字面 loopback、SMTP STARTTLS、通用 Webhook 固定事件 ID/时间戳/HMAC；渠道秘密只进 `ResearchWorkbench.Delivery` | `automation/delivery.py`、`channels.py`、`transport.py` / delivery、channel、transport tests |
-| 本机诊断 → 宿主 | 发现只读取标准位置/注册项/模块；真实验证须显式触发并限制目标、Office 容器内确定名称的临时文件、独立进程组和超时；Excel 使用本轮独立实例，PowerPoint 保存后按随机文件名重新绑定本轮对象，Wind 副本固定在 Excel 容器且在打开前上报本轮 Excel PID 供精确清理；投影排除绝对路径、秘密、命令与环境变量 | `local_integrations/`、`report_workflows/workbook.py` / `test_local_integrations.py`、`test_report_workflows.py` |
+| 本机诊断 → 宿主 | 发现只读取标准位置/注册项/模块；真实验证须显式触发并限制目标、Office 容器内确定名称的临时文件、独立进程组和超时；Excel 使用本轮独立实例，PowerPoint 保存后按随机文件名重新绑定本轮对象，Wind 复用已登录 Excel 但只操作独占空白工作簿，且只上报验证器真正拥有的进程供精确清理；投影排除绝对路径、秘密、命令与环境变量 | `local_integrations/`、`report_workflows/workbook.py` / `test_local_integrations.py`、`test_report_workflows.py` |
 | FastAPI → DSH | 固定回环 RPC、共享有界认证控制读取、文件身份/别名检查、方法白名单、双事件通道 | `runtime_auth.py`、`client.py` / `test_runtime_auth.py`、`test_protocol.py`、`test_event_recovery.py` |
 | 服务管理 → 私有目录 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL | `service_manager.py` / `test_service_manager.py` |
 | 用户 → 会话文件 | 会话归属、规范路径、安全文件描述符、有限上传体积和类型 | `store.py`、`main.py` / `test_store.py`、`test_artifacts.py` |
@@ -46,7 +46,7 @@ Windows 不使用 POSIX mode bit 证明 DSH 认证文件或 DataHub 私有文件
 3. 独立浏览器回归验证实际页面与响应式布局，不写会话或调用模型；截图必须另行人工检查。
 4. 真正研究旅程由本机 Web、专属 DSH 和真实模型完成，保留会话、版本、工具事件及文件；单元测试和旧验收不能替代新功能验收。
 5. 图文一致性检查只核对路径、接口、字节哈希及更新记录。人工仍需审查语义、权限和实现是否相符。
-6. 本机集成“已发现”不能替代真实调用验证；只有创建/刷新、保存、关闭、重开与必需结果校验全部成功才可投影为可调用。超时、权限、登录或厂商异常均关闭失败。
+6. 本机集成“已发现”不能替代真实调用验证；Office 只有创建/刷新、保存、关闭、重开与必需结果校验全部成功才可投影为可调用，Wind 则必须返回预期的最小厂商公式结果。二维码安全验证投影为待授权；超时、权限、登录或厂商异常均关闭失败。
 7. 本机验证证据的 TTL 使用包含截止边界；零 TTL 必须立即关闭可调用投影。POSIX 进程组清理测试不在缺少对应系统调用的 Windows 上伪执行。
 
 ## 当前可复跑命令

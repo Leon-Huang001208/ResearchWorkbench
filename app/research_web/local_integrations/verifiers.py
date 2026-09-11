@@ -12,9 +12,10 @@ import stat
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from threading import Event
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
 from core.observability import get_logger
@@ -411,9 +412,126 @@ end run"""
     return result
 
 
+def _verify_wind_formula(
+    run_root: Path,
+    process_reporter: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
+    """Verify the Wind add-in through the production formula client."""
+
+    del run_root  # Signature matches the other isolated verification workers.
+    phase = "prepare"
+    try:
+        from app.research_web.report_workflows.workbook import (
+            XlwingsExcelProvider,
+            _capture_excel_process_identity,
+        )
+        from data_layer.adapters.wind.client import WindExcelClient
+
+        XlwingsExcelProvider._activate_macos_appscript_compat()
+        _launch_macos_excel()
+        phase = "start_excel"
+        with WindExcelClient(visible=False, timeout=10.0, isolated_workbook=True) as client:
+            if process_reporter is not None and client._owns_app:
+                excel_pid = getattr(client._app, "pid", None)
+                identity = (
+                    _capture_excel_process_identity(excel_pid)
+                    if isinstance(excel_pid, int)
+                    else None
+                )
+                if identity is None:
+                    raise RuntimeError("excel_process_identity_unavailable")
+                process_reporter(identity)
+            phase = "evaluate_formula"
+            try:
+                heartbeat_ok = client.heartbeat()
+            except Exception:
+                if _wind_security_verification_required():
+                    return {
+                        "outcome": "authorization_required",
+                        "code": "wind_security_verification_required",
+                    }
+                raise
+            if heartbeat_ok:
+                return {"outcome": "available", "code": None}
+            if _wind_security_verification_required():
+                return {
+                    "outcome": "authorization_required",
+                    "code": "wind_security_verification_required",
+                }
+            return {"outcome": "formula_error", "code": "wind_formula_failed"}
+    except Exception as exc:  # noqa: BLE001 - proprietary automation errors are unstable.
+        log.warning(
+            "local_wind_formula_verification_failed",
+            phase=phase,
+            error_type=type(exc).__name__,
+        )
+        return _permission_outcome(str(exc))
+
+
+def _launch_macos_excel() -> None:
+    """Launch Excel through LaunchServices and wait for its scriptable instance."""
+
+    if sys.platform != "darwin":
+        return
+    try:
+        completed = subprocess.run(
+            ["open", "-g", "-a", "Microsoft Excel"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError("excel_launch_failed") from exc
+    if completed.returncode != 0:
+        raise RuntimeError("excel_launch_failed")
+
+    import xlwings as xw
+
+    deadline = time.monotonic() + 15.0
+    while time.monotonic() < deadline:
+        try:
+            if list(xw.apps):
+                return
+        except Exception as exc:  # noqa: BLE001 - appscript is not stable while launching.
+            log.debug("local_wind_excel_launch_pending", error_type=type(exc).__name__)
+        time.sleep(0.5)
+    raise RuntimeError("excel_launch_timed_out")
+
+
+def _wind_security_verification_required() -> bool:
+    """Detect Wind's visible Excel authorization prompt without reading its content."""
+
+    if sys.platform != "darwin":
+        return False
+    script = (
+        'tell application "System Events" to tell process "Microsoft Excel" '
+        "to get name of every window"
+    )
+    try:
+        completed = subprocess.run(
+            ["osascript", "-e", script],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    if completed.returncode != 0 or len(completed.stdout) > 4096:
+        return False
+    window_names = {name.strip() for name in completed.stdout.split(",")}
+    return bool(window_names & {"安全验证", "Security Verification"})
+
+
 def _verify_wind(data_root: Path, run_root: Path) -> dict[str, Any]:
     from app.research_web.report_workflows.catalog import ReportWorkflowService
-    from app.research_web.report_workflows.models import RefreshStatus, WorkbookFormulaProvider
+    from app.research_web.report_workflows.models import (
+        RefreshStatus,
+        WorkbookFormulaProvider,
+    )
     from app.research_web.report_workflows.workbook import (
         WorkbookRefreshService,
         scan_workbook_formulas,
@@ -487,7 +605,10 @@ def _child(target: str, data_root: str, run_root: str, results) -> None:
             ),
             "word": lambda: _verify_word(root),
             "powerpoint": lambda: _verify_powerpoint(root),
-            "wind_excel": lambda: _verify_wind(Path(data_root), root),
+            "wind_excel": lambda: _verify_wind_formula(
+                root,
+                lambda identity: results.put({"status": "started", "child_processes": [identity]}),
+            ),
         }[target]()
         results.put(outcome)
     except Exception as exc:  # noqa: BLE001 - child process is a hard boundary.
@@ -619,9 +740,10 @@ def verify_target(
     finally:
         results.close()
         results.join_thread()
-        if target in {"excel", "word", "powerpoint"} and not _remove_office_artifact(
-            target, run_root
+        artifact_target = "excel" if target == "wind_excel" else target
+        if artifact_target in {"excel", "word", "powerpoint"} and not _remove_office_artifact(
+            artifact_target, run_root
         ):
-            log.warning("local_office_verification_artifact_retained", target=target)
+            log.warning("local_office_verification_artifact_retained", target=artifact_target)
         if not _remove_run_directory(run_root):
             log.warning("local_verification_run_retained")

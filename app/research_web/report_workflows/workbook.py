@@ -19,11 +19,12 @@ import threading
 import time
 import weakref
 import zipfile
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 from uuid import uuid4
 from xml.etree import ElementTree
 
@@ -252,9 +253,7 @@ def scan_workbook_formulas(path: Path) -> WorkbookFormulaScan:
         else (
             WorkbookFormulaProvider.WIND
             if wind
-            else WorkbookFormulaProvider.IFIND
-            if ifind
-            else WorkbookFormulaProvider.NONE
+            else WorkbookFormulaProvider.IFIND if ifind else WorkbookFormulaProvider.NONE
         )
     )
     return WorkbookFormulaScan(provider=provider, formulas=tuple(formulas))
@@ -352,26 +351,19 @@ def read_cached_workbook(path: Path) -> tuple[dict[str, Any], list[str], bool]:
 class WorkbookProviderProtocol(Protocol):
     provider_id: str
 
-    def readiness(self) -> dict[str, Any]:
-        ...
+    def readiness(self) -> dict[str, Any]: ...
 
-    def open_workbook(self, path: Path) -> Any:
-        ...
+    def open_workbook(self, path: Path) -> Any: ...
 
-    def refresh_all(self, handle: Any) -> None:
-        ...
+    def refresh_all(self, handle: Any) -> None: ...
 
-    def calculate_full(self, handle: Any) -> None:
-        ...
+    def calculate_full(self, handle: Any) -> None: ...
 
-    def read_cells(self, handle: Any, references: list[str]) -> dict[str, Any]:
-        ...
+    def read_cells(self, handle: Any, references: list[str]) -> dict[str, Any]: ...
 
-    def save(self, handle: Any) -> None:
-        ...
+    def save(self, handle: Any) -> None: ...
 
-    def close(self, handle: Any) -> None:
-        ...
+    def close(self, handle: Any) -> None: ...
 
 
 class XlwingsExcelProvider:
@@ -489,6 +481,22 @@ class XlwingsExcelProvider:
 
 class WindExcelProvider(XlwingsExcelProvider):
     provider_id = "wind_excel"
+
+    def refresh_all(self, handle: Any) -> None:
+        if sys.platform == "darwin":
+            # Wind for Mac exposes worksheet functions rather than ordinary
+            # workbook connections. Excel RefreshAll can wait indefinitely;
+            # calculate_full() below is the supported formula refresh trigger.
+            return
+        super().refresh_all(handle)
+
+    def calculate_full(self, handle: Any) -> None:
+        if sys.platform == "darwin":
+            # Recalculate the verification workbook without rebuilding every
+            # open Excel dependency graph on the host.
+            handle.app.calculate()
+            return
+        super().calculate_full(handle)
 
 
 class IFindExcelProvider(XlwingsExcelProvider):
@@ -825,9 +833,7 @@ def _run_provider_worker(
                 "code": (
                     "refresh_cancelled"
                     if cleaned and cancelled
-                    else "provider_timeout"
-                    if cleaned
-                    else "provider_worker_cleanup_failed"
+                    else "provider_timeout" if cleaned else "provider_worker_cleanup_failed"
                 ),
             }
         messages = _drain_worker_messages(result_queue, wait=True)
