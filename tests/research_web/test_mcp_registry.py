@@ -23,6 +23,7 @@ from app.research_web.mcp_registry.catalog import OFFICIAL_REGISTRY_ID, CatalogE
 from app.research_web.mcp_registry.credentials import KEYRING_SERVICE
 from app.research_web.mcp_registry.models import safe_http_url, safe_text
 from app.research_web.mcp_registry.publisher import PublisherMetadata
+from app.research_web.mcp_registry.service import registry_feature_enabled
 from app.research_web.mcp_registry.sync import (
     MAX_REGISTRY_RESPONSE_BYTES,
     RegistryHTTPClient,
@@ -30,6 +31,13 @@ from app.research_web.mcp_registry.sync import (
 )
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+
+
+def test_registry_feature_is_enabled_by_default_and_can_be_disabled(monkeypatch):
+    monkeypatch.delenv("RESEARCH_MCP_REGISTRY_ENABLED", raising=False)
+    assert registry_feature_enabled() is True
+    monkeypatch.setenv("RESEARCH_MCP_REGISTRY_ENABLED", "0")
+    assert registry_feature_enabled() is False
 
 
 class FakeKeyring:

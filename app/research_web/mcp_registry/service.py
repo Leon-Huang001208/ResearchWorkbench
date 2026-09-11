@@ -40,7 +40,7 @@ class RegistryError(RuntimeError):
 
 
 def registry_feature_enabled() -> bool:
-    return os.environ.get("RESEARCH_MCP_REGISTRY_ENABLED", "0").strip().lower() in {
+    return os.environ.get("RESEARCH_MCP_REGISTRY_ENABLED", "1").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -238,7 +238,9 @@ class MCPRegistryService:
             new_type = request.auth.type
             secret = self._secret_payload(request.auth)
             if isinstance(request.auth, AuthBearer) and not secret and old_type != "bearer":
-                raise RegistryError("Bearer Registry 必须提供 token", "registry_secret_required", 422)
+                raise RegistryError(
+                    "Bearer Registry 必须提供 token", "registry_secret_required", 422
+                )
             try:
                 old_snapshot = self.credentials.snapshot(registry_id, old_type)
                 new_snapshot = (

@@ -125,3 +125,5 @@ Claw 首页直接展示同一目录中的已启用 Workflow（含自建），Fin
 Claw 首页和能力中心 Workflow 页从 `GET /api/research/report-workflows` 读取该目录，分别显示状态、当前版本、交付格式、Excel Provider 和最近运行。详情读取模板/底稿、刷新策略、报告区块、版本、日程和历史产物；只有 `enabled` 且存在当前发布版本的项目可以创建运行。AI 周报保持 `needs_attention` 时只能查看。
 
 当前真实迁移结果为：创业板50周报 v1、华安ETF周报 v1、华安ETF投资风向标 v1，以及待补全的 AI 周报。迁移后的文件存放在产品数据根 `report-workflows/`；旧 `report-projects/` 在验证和最终清理门禁前保留，不作为运行时的平行执行器。
+
+MCP 市场、MCP Runtime 与 Automation 默认启用后仍是 Tool/Workflow 内的独立二级入口，不与 Skill、Tool、Workflow、数据四类卡片混排。默认启用不会自动安装、授权、迁移旧日程或发送研究。

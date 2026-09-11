@@ -521,3 +521,14 @@
   `taskkill /T /F` 契约覆盖。实现拓扑、API、状态 schema 与产品页面均不变。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"修正本机验证TTL截止比较并限定POSIX进程组测试平台，不改变验证进程、API、持久化或UI拓扑。","diagrams":[]} -->
+
+## 2026-09-11 — Phase 2 功能默认启用
+
+- MCP Registry、MCP Runtime 与 Automation 在各阶段远端门禁通过后默认装配，Host 与 DSH 启动层使用一致的 Runtime 默认值。
+- 三个环境变量显式设为 `0` 时仍独立关闭；安装、启用、授权、版本锁、审批、调度与投递安全契约不变。
+- 本次只修改功能门控回退值和对应测试/文档，不新增服务、路由、存储、页面或跨模块依赖，图 02 拓扑不变。
+
+<!-- architecture-review {"group":"mcp-registry","structure":"unchanged","reason":"Registry通过门禁后默认装配，显式关闭和只读缓存安全契约不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"mcp-runtime","structure":"unchanged","reason":"Host与DSH启动层默认启用Runtime，但安装授权审批和回滚拓扑不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"automations","structure":"unchanged","reason":"Automation默认装配但不自动创建任务迁移日程或外发，既有服务和存储拓扑不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"DSH启动层与Host共享Runtime默认值，不改变专属Runtime进程或控制通道。","diagrams":[]} -->

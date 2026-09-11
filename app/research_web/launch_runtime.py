@@ -36,7 +36,7 @@ MCP_INSTALLATION_PATTERN = re.compile(r"^mcp-installation-[a-f0-9]{32}$")
 
 
 def mcp_runtime_enabled() -> bool:
-    return os.environ.get("RESEARCH_MCP_RUNTIME_ENABLED", "0").strip().lower() in {
+    return os.environ.get("RESEARCH_MCP_RUNTIME_ENABLED", "1").strip().lower() in {
         "1",
         "true",
         "yes",

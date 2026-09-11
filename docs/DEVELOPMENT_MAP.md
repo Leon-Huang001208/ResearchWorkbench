@@ -25,6 +25,10 @@ The Phase 2C Windows CI repair remains inside `app/research_web/local_integratio
 existing test module: verification evidence expires at the inclusive TTL boundary, while POSIX process-group
 cleanup tests run only where those system calls exist. It adds no route, service, storage owner or desktop path.
 
+After all three phase gates passed, the Registry, Runtime and Automation feature readers now default to enabled;
+`launch_runtime.py` uses the same Runtime default as the Host. Explicit `0` values remain the deployment rollback
+path, and contract tests cover both the absent-variable and explicit-disable cases.
+
 Research Web Phase 2A adds the feature-gated, read-only MCP Registry catalog in
 `app/research_web/mcp_registry/`. `catalog.py` aggregates the fixed official `/v0.1` API and explicitly
 configured private registries without merging the identity tuple `(registry_id, server_name, version)`;

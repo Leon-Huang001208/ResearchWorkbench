@@ -24,7 +24,7 @@ ACTIVE_RESEARCH = {"queued", "running"}
 
 
 def automation_feature_enabled() -> bool:
-    return os.environ.get("RESEARCH_AUTOMATIONS_ENABLED", "0").strip().lower() in {
+    return os.environ.get("RESEARCH_AUTOMATIONS_ENABLED", "1").strip().lower() in {
         "1",
         "true",
         "yes",

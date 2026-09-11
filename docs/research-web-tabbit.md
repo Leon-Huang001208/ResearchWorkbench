@@ -109,3 +109,5 @@ Phase 2C Automation 通过独立 Claw 会话复用同一 Research Service，但�
 不保存标签正文或页面授权，也不改变实时 claim、一次性 token 与写操作审批契约。
 
 Office/Wind 显式验证证据在 TTL 截止时刻即失效，零 TTL 不会留下可调用状态；该修复不改变 Tabbit 的独立授权、会话或浏览器运行时边界。
+
+MCP Runtime 与 Automation 默认启用不自动授权 Tabbit，也不把浏览器工具加入无人值守 allowlist；Tabbit 的实时页面授权、一次性 token 与写操作审批继续独立生效。

@@ -65,3 +65,5 @@ UI 布局验收：`node tests/e2e/research_web_layout.mjs`，可用 `RESEARCH_PL
 ## 未覆盖的部署保证
 
 不声称 Windows/Linux 原生研究沙箱、桌面安装、公网访问、多个 FastAPI worker 或多人协作已经验证。停止后如有内核退出异常，仅报告并保留证据，不自动重启系统。真实文件解析检查也不能自动证明财务结论正确或资料覆盖充分。
+
+功能默认开启不放宽安全授权：Registry 仍只读，安装仍需摘要绑定的二次确认，工具仍需风险分级与会话快照，高风险仍逐次审批，Automation 仍锁定版本与无人值守只读 allowlist。三个显式关闭值均有回归测试。
