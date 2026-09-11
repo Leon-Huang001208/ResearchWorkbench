@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20260911-phase2b-mcp-runtime/outputs/research-web-architecture/02-module-dependencies.html",
-    "sha256": "35d40e47192dc574db28125e18e64f6a7a6d78aca39eded28dae8ef23dde95a1",
-    "bytes": 652158
+    "path": "/Users/leon/ResearchWorkbench-worktrees/task-20260911-phase2c-automations/outputs/research-web-architecture/02-module-dependencies.html",
+    "sha256": "01aed4e526e3876396e5b3575f4836623f5c57a74e005c3974e52b734ccff803",
+    "bytes": 657296
   },
   "state": {
     "detail": "read",

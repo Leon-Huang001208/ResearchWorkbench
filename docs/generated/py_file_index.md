@@ -2935,6 +2935,201 @@ Functions:
 - `_public_dataset`
 
 
+## `app/research_web/automation/__init__.py`
+
+Module docstring:
+> Persistent Research Web automations and independent delivery channels.
+
+
+## `app/research_web/automation/channels.py`
+
+Module docstring:
+> Delivery-channel metadata with operational configuration in the OS keyring.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `ipaddress`
+- `json`
+- `models`
+- `urllib.parse`
+- `uuid`
+
+Classes:
+- `_SystemKeyring`
+  - methods: _module, get_password, set_password, delete_password
+- `DeliveryChannelStore`
+  - methods: __init__, _account, list, get, configuration, put, delete
+
+Functions:
+- `_safe_endpoint`
+
+
+## `app/research_web/automation/delivery.py`
+
+Module docstring:
+> Independent Automation delivery attempts with stable signed webhook events.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `core.observability`
+- `hashlib`
+- `hmac`
+- `json`
+- `typing`
+
+Classes:
+- `DeliveryDispatcher`
+  - Retry delivery separately from the immutable research outcome.
+  - methods: __init__, deliver
+
+Functions:
+- `signed_webhook`
+
+
+## `app/research_web/automation/models.py`
+
+Module docstring:
+> Strict public contracts for version-locked Research Web automations.
+
+Imports:
+- `__future__`
+- `datetime`
+- `email.utils`
+- `pydantic`
+- `store`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `AutomationError`
+  - Safe automation-domain failure exposed through the existing API handler.
+- `StrictModel`
+- `AutomationSchedule`
+  - methods: timezone_exists, validate_shape
+- `MCPToolLock`
+  - methods: unattended_is_read_only
+- `DeliveryConfiguration`
+  - methods: channel_ids_are_unique
+- `AutomationCreate`
+  - methods: values_are_unique
+- `AutomationUpdate`
+- `DeliveryChannelPut`
+  - methods: smtp_host_is_plain, mailbox_is_safe, recipients_are_safe, _validate_mailbox, validate_channel
+- `MigrationApply`
+  - methods: workflow_ids_are_unique
+
+
+## `app/research_web/automation/routes.py`
+
+Module docstring:
+> FastAPI surface for Automation runs, migrations, and delivery channels.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `models`
+- `service`
+
+Functions:
+- `service`
+- `automations`
+- `create_automation`
+- `preview_report_schedule_migrations`
+- `apply_report_schedule_migrations`
+- `automation`
+- `update_automation`
+- `delete_automation`
+- `enable_automation`
+- `disable_automation`
+- `run_automation`
+- `automation_runs`
+- `retry_automation_run`
+- `delivery_channels`
+- `put_delivery_channel`
+
+
+## `app/research_web/automation/schedule.py`
+
+Module docstring:
+> Deterministic IANA-timezone schedule calculation for Automation records.
+
+Imports:
+- `__future__`
+- `calendar`
+- `datetime`
+- `models`
+- `zoneinfo`
+
+Functions:
+- `_valid_local`
+  - Return the first-fold aware value only when the local wall time exists.
+- `_first_valid_local`
+- `_candidate`
+- `next_occurrence`
+  - Return the first trigger strictly after ``after`` in UTC.
+
+
+## `app/research_web/automation/service.py`
+
+Module docstring:
+> Persistent Automation orchestration over the existing native Claw runtime.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `copy`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `inspect`
+- `json`
+- `models`
+- `os`
+- `schedule`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `AutomationService`
+  - Keep Automation/Run JSON as the fact source and schedule only next fires.
+  - methods: __init__, _row, _run_row, _public, list, get, list_runs, create, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, retry, _execute, _deliver, wait_for_idle, tick, start, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
+
+Functions:
+- `automation_feature_enabled`
+- `_canonical_sha`
+- `_id_digest`
+
+
+## `app/research_web/automation/transport.py`
+
+Module docstring:
+> Bounded Automation delivery transports without response-body disclosure.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `delivery`
+- `email.message`
+- `httpx`
+- `json`
+- `models`
+- `smtplib`
+- `ssl`
+- `time`
+- `typing`
+
+Classes:
+- `DeliveryTransport`
+  - Resolve secret channel configuration only at the outbound boundary.
+  - methods: __init__, __call__, _message, _webhook, _smtp
+
+
 ## `app/research_web/capabilities/__init__.py`
 
 Module docstring:
@@ -3897,6 +4092,7 @@ Imports:
 - `asset_routes`
 - `asset_workspace`
 - `asyncio`
+- `automation.routes`
 - `capabilities.models`
 - `capabilities.routes`
 - `client`
@@ -3923,8 +4119,7 @@ Imports:
 - `report_routes`
 - `report_studio`
 - `report_workflow_routes`
-- `report_workflows.models`
-- ... 9 more
+- ... 10 more
 
 Classes:
 - `NewSession`
@@ -4616,7 +4811,7 @@ Classes:
   - methods: __init__
 - `MCPRuntimeService`
   - Coordinate trusted MCP components while keeping public requests declarative.
-  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, disable, update, delete, classify_tool, authorize_session, read_resource, get_prompt, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _resolve_target, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
+  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, disable, update, delete, classify_tool, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _resolve_target, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
 
 Functions:
 - `runtime_feature_enabled`
@@ -5292,6 +5487,10 @@ Module docstring:
 Imports:
 - `asset_workspace`
 - `asyncio`
+- `automation.channels`
+- `automation.delivery`
+- `automation.service`
+- `automation.transport`
 - `base64`
 - `capabilities.catalog`
 - `capabilities.models`
@@ -5316,16 +5515,12 @@ Imports:
 - `mcp_runtime.package_planner`
 - `mcp_runtime.package_resolver`
 - `mcp_runtime.sdk_host`
-- `mcp_runtime.service`
-- `os`
-- `pathlib`
-- `projection`
-- ... 9 more
+- ... 13 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
-  - methods: __init__, __getattr__, start, close, _owned, authorize_session, read_resource, get_prompt, call_tool, approvals, decide_approval
+  - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
   - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 

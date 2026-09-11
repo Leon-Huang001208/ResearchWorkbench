@@ -104,3 +104,6 @@ Python/API、Node adapter、前端交互和 Runtime staging 可用模拟 Runtime
 仍不下载或升级 Tabbit。
 
 设置页与 Office/Wind 本机诊断共存时，Tabbit 仍只读取自身 Runtime 状态与配置；本机软件发现或真实验证的忙碌态不会改变 Tabbit 开关、实例选择或重启标记，Tabbit 的健康结果也不会参与 Office/Wind 的可调用结论。Office/Wind 验证副本迁入对应 Office 容器只改变本机文件访问边界，不改变 Tabbit 的页面授权、claim、一次性 token 或浏览器数据生命周期。
+
+Phase 2C Automation 通过独立 Claw 会话复用同一 Research Service，但不自动申请 Tabbit 页面访问、
+不保存标签正文或页面授权，也不改变实时 claim、一次性 token 与写操作审批契约。

@@ -20,7 +20,7 @@ import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, setti
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, tabbit: null, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, tabbit: null, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let tabbitOpen = false; let tabbitLoading = false; let tabbitIndex = 0; let tabbitCandidates = []; let tabbitRequest = 0;
@@ -32,6 +32,7 @@ let assetState = { observations: [], observation: null, rows: {}, watchlists: []
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
+let automationFormOpen = false; let automationBusy = false;
 let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = '';
 const workflowVersions = new Map();
 let pageGeneration = 0;
@@ -249,11 +250,12 @@ function capabilityPage() {
   if (reportWorkflowDetail) return messages + renderReportWorkflowDetail(reportWorkflowDetail, { busy: reportWorkflowBusy });
   const workspace = renderCapabilityWorkspace({
     capabilities: catalog.capabilities, tools: catalog.tools, reportWorkflows: catalog.reportWorkflows,
+    automations: catalog.automations, automationRuns: catalog.automationRuns, deliveryChannels: catalog.deliveryChannels, automationFormOpen,
     dataCatalog: catalog.dataCatalog, connections: catalog.connections, mcpMarketplace: mcpMarketplaceState, view: cap.view, kind: cap.kindFilter,
     source: cap.source, category: cap.category, status: cap.status, query: cap.query,
     dataMarket: cap.dataMarket, dataStatus: cap.dataStatus, dataAuth: cap.dataAuth, probe: cap.probe,
-    busy: cap.busy || reportWorkflowBusy,
-    error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.dataCatalog || catalog.errors.connections || '',
+    busy: cap.busy || reportWorkflowBusy || automationBusy,
+    error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.automations || catalog.errors.automationRuns || catalog.errors.dataCatalog || catalog.errors.connections || '',
   });
   return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
 }
@@ -296,7 +298,7 @@ function render() {
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = [...catalog.capabilities, ...catalog.tools, ...catalog.reportWorkflows.map(item => ({ ...item, kind: 'report-workflow' })), ...(catalog.dataCatalog.capabilities || [])];
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
   window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -855,12 +857,14 @@ async function showRoute() {
       capabilityState.detail = null; capabilityState.tool = null; capabilityState.dataDetail = null; capabilityState.dataDetailKind = '';
       capabilityState.form = ''; reportWorkflowDetail = null;
       mcpMarketplaceState = { ...mcpMarketplaceState, query: '', page: null, detail: null, returnIdentity: null, error: '', loading: false, syncing: false };
+      automationFormOpen = false;
     }
     capabilityState.view = state.route.capabilityView || 'library';
     capabilityState.kindFilter = nextKind;
     capabilityState.dataView = nextKind === 'data' && capabilityState.view === 'connections' ? 'sources' : 'capabilities';
     if (['skill', 'workflow'].includes(nextKind)) capabilityState.kind = nextKind;
     await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', 'sessions']);
+    if (nextKind === 'workflow' && capabilityState.view === 'plans') await loadCatalog(['automations', 'automationRuns', 'deliveryChannels']);
     if (nextKind === 'tool' && capabilityState.view === 'market') await loadMCPMarketplace({ reloadRegistries: !mcpMarketplaceState.registries.length });
     else if (previousView === 'market') mcpMarketplaceState = { ...mcpMarketplaceState, detail: null, returnIdentity: null, error: '', loading: false, syncing: false };
   }
@@ -1157,6 +1161,64 @@ root.addEventListener('paste', (event) => {
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (event.target.matches('[data-mcp-search]')) { await loadMCPMarketplace(); return; }
+  if (event.target.matches('[data-delivery-channel-form]')) {
+    if (automationBusy) return;
+    const values = new FormData(event.target);
+    const kind = String(values.get('kind') || 'webhook');
+    const body = { name: String(values.get('name') || ''), kind, enabled: true };
+    const secret = String(values.get('secret') || '');
+    if (secret) body.secret = secret;
+    if (kind === 'smtp') {
+      body.smtp_host = String(values.get('smtp_host') || '');
+      body.smtp_port = Number(values.get('smtp_port'));
+      body.smtp_username = String(values.get('smtp_username') || '') || null;
+      body.sender = String(values.get('sender') || '');
+      body.recipients = String(values.get('recipients') || '').split(',').map(value => value.trim()).filter(Boolean);
+    } else body.endpoint = String(values.get('endpoint') || '');
+    automationBusy = true; state.error = ''; success = ''; render();
+    try {
+      await api.saveDeliveryChannel(body);
+      success = '外发渠道已保存到系统凭据库。';
+      await loadCatalog(['deliveryChannels']);
+    } catch (error) { state.error = error.message; }
+    finally { automationBusy = false; render(); }
+    return;
+  }
+  if (event.target.matches('[data-automation-form]')) {
+    if (automationBusy) return;
+    const values = new FormData(event.target);
+    const [targetKind, targetId, versionText] = String(values.get('target') || '').split('|');
+    const scheduleKind = String(values.get('schedule_kind') || 'daily');
+    const [hourText, minuteText] = String(values.get('time') || '09:00').split(':');
+    const target = targetKind === 'report_workflow'
+      ? catalog.reportWorkflows.find(item => item.id === targetId)
+      : catalog.capabilities.find(item => item.id === targetId && item.kind === targetKind);
+    const schedule = { kind: scheduleKind, timezone: String(values.get('timezone') || 'Asia/Shanghai') };
+    if (scheduleKind === 'once') schedule.once_at = String(values.get('once_at') || '');
+    else {
+      schedule.hour = Number(hourText); schedule.minute = Number(minuteText);
+      if (scheduleKind === 'weekly') schedule.weekday = Number(values.get('weekday'));
+      if (scheduleKind === 'monthly') schedule.day = Number(values.get('day'));
+    }
+    const outputFormats = targetKind === 'report_workflow' ? (target?.delivery_formats || []) : (target?.metadata?.default_formats || []);
+    automationBusy = true; state.error = ''; success = ''; render();
+    try {
+      await api.createAutomation({
+        name: String(values.get('name') || ''), target_kind: targetKind, target_id: targetId,
+        target_version: Number(versionText), input_template: String(values.get('input_template') || ''),
+        workspace_id: 'research', output_formats: outputFormats, mcp_tools: [], schedule,
+        delivery: {
+          channel_ids: values.getAll('channel_id').map(String),
+          include_attachments: values.get('include_attachments') === 'on',
+        },
+      });
+      automationFormOpen = false;
+      success = 'Automation 已保存并保持停用；确认锁定内容后再启用。';
+      await loadCatalog(['automations', 'automationRuns']);
+    } catch (error) { state.error = error.message; }
+    finally { automationBusy = false; render(); }
+    return;
+  }
   if (event.target.matches('[data-mcp-tool-policy]')) {
     const values = new FormData(event.target);
     await classifyMCPTool(
@@ -1748,8 +1810,47 @@ async function loadWorkflowVersion() {
 async function handleCapabilityClick(data) {
   const cap = capabilityState;
   if ('capRefresh' in data) {
-    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections']);
+    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', ...(cap.kindFilter === 'workflow' && cap.view === 'plans' ? ['automations', 'automationRuns', 'deliveryChannels'] : [])]);
     if (cap.kindFilter === 'tool' && cap.view === 'market') await loadMCPMarketplace({ reloadRegistries: true });
+    return true;
+  }
+  if ('createAutomation' in data) { automationFormOpen = true; render(); document.querySelector('[data-automation-form] input')?.focus(); return true; }
+  if ('closeAutomationForm' in data) { automationFormOpen = false; render(); return true; }
+  if ('runAutomation' in data || 'enableAutomation' in data || 'disableAutomation' in data || 'deleteAutomation' in data) {
+    const action = 'runAutomation' in data ? 'run' : 'enableAutomation' in data ? 'enable' : 'disableAutomation' in data ? 'disable' : 'delete';
+    const id = data[`${action}Automation`];
+    if (action === 'delete' && !window.confirm('移除此 Automation？已有运行记录会保留。')) return true;
+    automationBusy = true; state.error = ''; success = ''; render();
+    try {
+      if (action === 'run') await api.runAutomation(id);
+      else if (action === 'enable') await api.enableAutomation(id);
+      else if (action === 'disable') await api.disableAutomation(id);
+      else await api.deleteAutomation(id);
+      success = ({ run: 'Automation 已受理；研究失败时不会自动重试。', enable: 'Automation 已启用。', disable: 'Automation 已停用。', delete: 'Automation 已移除。' })[action];
+      await loadCatalog(['automations', 'automationRuns']);
+    } catch (error) { state.error = error.message; }
+    finally { automationBusy = false; render(); }
+    return true;
+  }
+  if ('retryAutomationRun' in data) {
+    automationBusy = true; state.error = ''; success = ''; render();
+    try {
+      await api.retryAutomationRun(data.retryAutomationRun);
+      success = '已创建关联原运行记录的手动重试。';
+      await loadCatalog(['automations', 'automationRuns']);
+    } catch (error) { state.error = error.message; }
+    finally { automationBusy = false; render(); }
+    return true;
+  }
+  if ('migrateReportSchedule' in data) {
+    if (!window.confirm('迁移此旧报告日程？只有新 Automation 保存成功后，旧日程才会停用。')) return true;
+    automationBusy = true; state.error = ''; success = ''; render();
+    try {
+      await api.applyReportScheduleMigrations([data.migrateReportSchedule]);
+      success = '旧报告日程已迁移为锁定版本的 Automation。';
+      await loadCatalog(['automations', 'automationRuns', 'reportWorkflows']);
+    } catch (error) { state.error = error.message; }
+    finally { automationBusy = false; render(); }
     return true;
   }
   if ('capKind' in data) { cap.kind = data.capKind; cap.kindFilter = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; reportWorkflowDetail = null; render(); return true; }

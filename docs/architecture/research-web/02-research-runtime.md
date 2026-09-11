@@ -6,6 +6,12 @@ MCP 工具加入专属 DSH：Host 生成 `mcp__{installation}__{tool}` 声明和
 官方 SDK 调用 MCP Server。安装/启停会等待当前研究归零并仅重启 DSH，失败恢复旧激活清单；Web
 进程与既有提交、SSE、恢复和报告状态契约不变。
 
+Phase 2C 的 Automation 只从锁定的 Skill、普通 Workflow 或报告 Workflow 版本创建独立 Claw
+会话。APScheduler 仅持有下一次内存触发，原子索引保存任务与 Run 事实；启动时只合并最近一次遗漏，
+重叠触发记录 `skipped_overlap`，无法确认的旧会话记录 `interrupted`。研究失败不自动重试，手动
+重试生成带 `retry_of` 的新 Run。无人值守 MCP 调用还须通过任务锁定、只读、明确允许和 schema
+哈希复核，不能绕过会话授权或高风险人工审批。
+
 ## 持久化本地启动边界
 
 `rwb web start|status|stop|restart` 由 `app/research_web/service_manager.py` 管理专属 DSH 3081 与 Web 8088。默认 DSH 源码是 `~/.research-workbench/dsh-source/` 中经过固定提交构建的项目私有副本，避免修改或依赖用户其他 DSH 实例使用的工作树；必要时可用 `RESEARCH_DSH_SOURCE` 显式覆盖。管理器把 PID、进程组、启动命令指纹、最终 Node CLI/overlay 归属签名、项目路径和日志位置写入 `~/.research-workbench/`。新版 Typert Gateway 启动后，管理器从受限日志尾部提取一次性启动令牌，换取 `dsh-auth-*` Cookie，并把 authority、工作目录、固定提交与版本原子写入 `runtime/auth.json`；POSIX 要求文件权限 `0600`，Windows 则拒绝重解析点并核对普通文件、单硬链接、大小及打开前后身份，不把 POSIX mode bit 当作 ACL 证明。健康检查以该 Cookie 调用真实 `session/list`，随后才启动 FastAPI 并检查 `/api/research/runtime`。重复启动是幂等操作；失败回滚只处理本次创建且归属签名匹配的进程，既有 3080 不在其所有权范围内。普通重启发现活动研究时拒绝执行，只有显式 `--force` 才允许中断。备用验收可为管理器指定独立端口，不复用生产状态目录。

@@ -5,9 +5,10 @@
     "title": "Research Web 当前模块依赖",
     "output": "02-module-dependencies.html",
     "quality_profile": "showcase",
-    "viewBox": [1600, 860],
+    "viewBox": [1600, 915],
     "views": [
       {"id": "mcpRegistry", "label": "MCP Registry 与 Runtime", "focus": ["browser", "api", "mcpService", "mcpState", "registries", "dsh"], "note": "Registry 保持只读；Host 管理不可变安装、OAuth、schema 与授权，DSH 只调用命名空间化快照。"},
+      {"id": "automationPath", "label": "Automation 与外发", "focus": ["browser", "api", "automationService", "automationState", "dsh", "deliveryTargets"], "note": "任务锁定能力与 MCP 快照；每次触发独立 Claw 会话，研究结果和三次外发重试分别记账。"},
       {"id": "reportPath", "label": "报告 Workflow", "focus": ["browser", "api", "reportManager", "reportStore", "workbookTool", "excel", "dsh", "assemblyTool", "snapshots"], "note": "后端锁定版本并由独立 Excel Tool 刷新、校验运行副本，Claw 交付结构化 payload，再由确定性 Tool 组装和重开文件。"},
       {"id": "assetPath", "label": "资产观察与 DataHub", "focus": ["browser", "api", "assetWorkspace", "datahub", "providers", "snapshots"], "note": "资产页按区块查询真实来源；资料固化为会话快照后再交给 FinGPT 或 Claw。"},
       {"id": "liveBrowser", "label": "Tabbit 实时标签", "focus": ["browser", "api", "dsh", "providers"], "note": "BFF 传递会话授权、标签 ID 和一次性 token；DSH 内 ctx.tabbit 执行原子 claim 与实时 DOM 提取。"}
@@ -28,10 +29,13 @@
     {"id": "excel", "type": "external", "label": "Excel + 插件", "sublabel": "Wind / iFinD · 本机登录态", "pos": [1015, 210], "size": [210, 78]},
     {"id": "assetWorkspace", "type": "backend", "label": "资产观察服务", "sublabel": "区块状态 · 自选 · 笔记 · 提醒", "pos": [500, 565], "size": [190, 78]},
     {"id": "datahub", "type": "backend", "label": "DataHub", "sublabel": "enabledTools · 自动查询 · 快照", "pos": [750, 565], "size": [190, 78]},
-    {"id": "providers", "type": "external", "label": "登记数据源", "sublabel": "Data Provider · Tabbit Browser", "pos": [1015, 565], "size": [220, 78]}
+    {"id": "providers", "type": "external", "label": "登记数据源", "sublabel": "Data Provider · Tabbit Browser", "pos": [1015, 565], "size": [220, 78]},
+    {"id": "automationState", "type": "security", "label": "Automation 事实与凭据", "sublabel": "原子 index · Keyring 引用", "pos": [500, 755], "size": [205, 78]},
+    {"id": "automationService", "type": "backend", "label": "Automation 服务", "sublabel": "版本锁 · IANA 日程 · 单实例", "pos": [750, 755], "size": [205, 78]},
+    {"id": "deliveryTargets", "type": "external", "label": "外发渠道", "sublabel": "SMTP · HMAC · 飞书 / 企微 / 钉钉", "pos": [1015, 755], "size": [235, 78]}
   ],
   "boundaries": [
-    {"kind": "region", "label": "Research Workbench 本地主机", "wraps": ["api", "reportManager", "reportStore", "workbookTool", "assemblyTool", "snapshots", "mcpService", "mcpState", "assetWorkspace", "datahub"], "pad": 24}
+    {"kind": "region", "label": "Research Workbench 本地主机", "wraps": ["api", "reportManager", "reportStore", "workbookTool", "assemblyTool", "snapshots", "mcpService", "mcpState", "assetWorkspace", "datahub", "automationState", "automationService"], "pad": 24}
   ],
   "connections": [
     {"id": "webApi", "from": "browser", "to": "api", "label": "同源 HTTP / SSE", "variant": "emphasis", "labelAt": [250, 376]},
@@ -49,11 +53,15 @@
     {"id": "dataRoute", "from": "assetWorkspace", "to": "datahub", "label": "分块业务查询", "labelAt": [720, 657]},
     {"id": "routeProvider", "from": "datahub", "to": "providers", "label": "白名单 Provider", "labelAt": [978, 657]},
     {"id": "dataSnapshot", "from": "datahub", "to": "snapshots", "label": "固化会话数据集", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "via": [[845, 700], [1387.5, 700]], "labelAt": [1115, 690]},
-    {"id": "liveClaim", "from": "dsh", "to": "providers", "label": "ctx.tabbit · claim / DOM / keep", "variant": "security", "fromSide": "bottom", "toSide": "right", "via": [[852.5, 515], [1260, 515], [1260, 604]], "labelAt": [1100, 505]}
+    {"id": "liveClaim", "from": "dsh", "to": "providers", "label": "ctx.tabbit · claim / DOM / keep", "variant": "security", "fromSide": "bottom", "toSide": "right", "via": [[852.5, 515], [1260, 515], [1260, 604]], "labelAt": [1100, 505]},
+    {"id": "automationApi", "from": "api", "to": "automationService", "label": "任务 / 运行 / 迁移 API", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom", "via": [[357.5, 900], [852.5, 900]], "labelAt": [600, 890]},
+    {"id": "automationFacts", "from": "automationService", "to": "automationState", "label": "锁定版本与运行状态", "variant": "security", "labelAt": [728, 847]},
+    {"id": "automationClaw", "from": "automationService", "to": "dsh", "label": "独立 Claw 会话", "variant": "emphasis", "fromSide": "top", "toSide": "top", "via": [[852.5, 735], [1510, 735], [1510, 340], [852.5, 340]], "labelAt": [1450, 600]},
+    {"id": "automationDelivery", "from": "automationService", "to": "deliveryTargets", "label": "完成后独立重试 ×3", "variant": "dashed", "labelAt": [985, 847]}
   ],
   "cards": [
     {"dot": "cyan", "title": "Registry 与 Runtime 分离", "items": ["身份固定为 Registry ID、Server 名称、版本三元组；失败返回 stale 最后成功缓存", "安装、探测、启用与授权分离；DSH 每次调用由 Host 重核版本、schema、风险和审批"]},
     {"dot": "violet", "title": "研究、数据与组装分离", "items": ["资产查询与报告 Workflow 复用 DataHub 快照，不补演示事实", "锁定版本、Excel 刷新、Claw payload 与确定性组装职责分开"]},
-    {"dot": "amber", "title": "外部能力失败即阻塞", "items": ["Excel / Wind / iFinD 验证失败进入 blocked_data", "Tabbit claim / DOM / finish 任一步失败均不提交消息"]}
+    {"dot": "amber", "title": "研究与外发状态分离", "items": ["Automation 锁定目标版本和只读 MCP 快照，重叠触发记录 skipped_overlap", "研究失败不自动重试；外发按 5 / 30 / 120 秒重试且不改写研究结果"]}
   ]
 }

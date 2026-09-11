@@ -11,7 +11,15 @@ and atomic DSH activation rollback. `runtime/mcp-adapter.mjs` registers only Hos
 the private loopback call rechecks installation version, schema hash and grant before the official MCP SDK
 invokes the server. The Tool marketplace restores persisted installations and keeps install, probe, enable,
 policy and authorization actions separate. `RESEARCH_MCP_RUNTIME_ENABLED` gates all runtime mutations;
-Registry browsing remains available independently. Phase 2B does not add Automation or delivery channels.
+Registry browsing remains available independently.
+
+Research Web Phase 2C adds `app/research_web/automation/`: `models.py` owns strict Automation/Run/channel
+facts, `schedule.py` resolves one-time/daily/weekly/monthly IANA schedules and DST/month-end behavior,
+`service.py` owns coalescing, overlap/version guards, independent Claw sessions and restart recovery,
+`delivery.py` separates delivery retries from research state, and `channels.py` stores operational secrets
+only in `ResearchWorkbench.Delivery`. Routes expose `/api/research/automations`, runs, migration previews and
+delivery channels behind `RESEARCH_AUTOMATIONS_ENABLED`. The Workflow `view=plans` UI restores persisted
+tasks and runs, keeps legacy report schedules visible, and never silently migrates or upgrades a target.
 
 Research Web Phase 2A adds the feature-gated, read-only MCP Registry catalog in
 `app/research_web/mcp_registry/`. `catalog.py` aggregates the fixed official `/v0.1` API and explicitly
@@ -25,8 +33,7 @@ escapes it once. Authenticated registries require HTTPS; unauthenticated HTTP is
 hosts, and OAuth endpoints always require HTTPS. Package records expose `package_type_supported` and
 `immutable_reference` as separate facts without promising installation. Search, Registry and route result
 replacement invalidate pending detail ownership before late responses can render. Registry synchronization
-and publisher handoff remain read-only even when Phase 2B runtime management is enabled; Automation/delivery
-remains Phase 2C.
+and publisher handoff remain read-only even when Phase 2B runtime management is enabled.
 
 Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
 Read the canonical [Research Web architecture](architecture/research-web/README.md),

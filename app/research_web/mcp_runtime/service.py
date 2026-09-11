@@ -120,6 +120,7 @@ class MCPRuntimeService:
         self._active: set[str] = set()
         self._approval_waiters: dict[str, asyncio.Event] = {}
         self._approval_decisions: dict[str, str] = {}
+        self._automation_locks: dict[str, dict[tuple[str, str], dict[str, str]]] = {}
         if self.enabled:
             self._load_runtime_state()
 
@@ -139,6 +140,7 @@ class MCPRuntimeService:
 
         if not self.enabled:
             return
+        self._automation_locks.clear()
         closer = getattr(self.host, "close", None)
         if closer is not None:
             try:
@@ -365,6 +367,34 @@ class MCPRuntimeService:
         except AuthorizationError as exc:
             raise self._authorization_error(exc) from exc
 
+    def register_automation_session(self, session_id: str, locks: list[dict[str, Any]]) -> None:
+        """Bind exact unattended locks from the trusted Automation service."""
+
+        self._ensure_enabled()
+        self._require_components("authorization")
+        exact: dict[tuple[str, str], dict[str, str]] = {}
+        for lock in locks:
+            key = (str(lock.get("installation_id") or ""), str(lock.get("tool_name") or ""))
+            snapshots = [
+                item
+                for item in self.authorization.list_tools()
+                if (item.get("installation_id"), item.get("tool_name")) == key
+                and item.get("status") == "active"
+            ]
+            if (
+                len(snapshots) != 1
+                or snapshots[0].get("risk_tier") != "read_only"
+                or snapshots[0].get("allow_unattended") is not True
+                or snapshots[0].get("version") != lock.get("version")
+                or snapshots[0].get("schema_sha256") != lock.get("schema_sha256")
+            ):
+                raise MCPRuntimeError("mcp_unattended_denied", 403)
+            exact[key] = {
+                field: str(lock[field])
+                for field in ("installation_id", "version", "tool_name", "schema_sha256")
+            }
+        self._automation_locks[session_id] = exact
+
     async def read_resource(
         self, session_id: str, installation_id: str, uri: str
     ) -> dict[str, Any]:
@@ -393,7 +423,16 @@ class MCPRuntimeService:
 
     async def call_tool(self, **request: Any) -> dict[str, Any]:
         self._ensure_enabled()
-        installation_id = request["installation_id"]
+        installation_id = str(request["installation_id"])
+        tool_name = str(request.get("tool_name") or "")
+        session_id = request.get("session_id")
+        automation = self._automation_locks.get(session_id) if isinstance(session_id, str) else None
+        if automation is not None:
+            request = {
+                **request,
+                "unattended": True,
+                "automation_lock": automation.get((installation_id, tool_name)),
+            }
         manifest, target = await self._active_target(installation_id)
         version = str(_field(_field(manifest, "plan"), "server_version"))
         if request["version"] != version:
@@ -403,7 +442,7 @@ class MCPRuntimeService:
             tool
             for tool in self.authorization.list_tools()
             if tool.get("installation_id") == installation_id
-            and tool.get("tool_name") == request["tool_name"]
+            and tool.get("tool_name") == tool_name
             and tool.get("status") == "active"
         ]
         if len(snapshots) != 1 or snapshots[0].get("schema_sha256") != request["schema_sha256"]:

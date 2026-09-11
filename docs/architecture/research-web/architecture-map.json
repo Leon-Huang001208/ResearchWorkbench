@@ -157,6 +157,37 @@
       ]
     },
     {
+      "id": "automations",
+      "sources": [
+        "app/research_web/automation/",
+        "app/research_web/service.py",
+        "app/research_web/ui/capability-workspace.mjs"
+      ],
+      "documents": [
+        "docs/research-web.md",
+        "docs/research-web-capabilities.md",
+        "docs/research-web-ui.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "02-module-dependencies"
+      ],
+      "tests": [
+        "tests/research_web/test_automation_schedule.py",
+        "tests/research_web/test_automation_delivery.py",
+        "tests/research_web/test_automation_channels.py",
+        "tests/research_web/test_automation_transport.py",
+        "tests/research_web/test_automation_service.py",
+        "tests/research_web/test_automation_routes.py",
+        "tests/javascript/research_web_capabilities_ui.test.mjs",
+        "tests/e2e/research_web_automations.mjs"
+      ]
+    },
+    {
       "id": "files",
       "sources": [
         "app/research_web/store.py",
@@ -445,6 +476,33 @@
             "reportVersions"
           ],
           "source": "app/research_web/report_workflows/catalog.py"
+        },
+        {
+          "subjects": [
+            "automationService",
+            "automationFacts",
+            "automationClaw"
+          ],
+          "source": "app/research_web/automation/service.py"
+        },
+        {
+          "subjects": [
+            "automationState"
+          ],
+          "source": "app/research_web/automation/channels.py"
+        },
+        {
+          "subjects": [
+            "deliveryTargets",
+            "automationDelivery"
+          ],
+          "source": "app/research_web/automation/delivery.py"
+        },
+        {
+          "subjects": [
+            "automationApi"
+          ],
+          "source": "app/research_web/automation/routes.py"
         }
       ]
     },
@@ -1000,6 +1058,104 @@
     }
   ],
   "apis": [
+    {
+      "method": "GET",
+      "path": "/api/research/automations",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automations",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automations/migrations/report-schedules/preview",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/migrations/report-schedules/preview",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automations/migrations/report-schedules/apply",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/migrations/report-schedules/apply",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/automations/{automation_id}",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/{automation_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/research/automations/{automation_id}",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/{automation_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/research/automations/{automation_id}",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/{automation_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automations/{automation_id}/enable",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/{automation_id}/enable",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automations/{automation_id}/disable",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/{automation_id}/disable",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automations/{automation_id}/run",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/{automation_id}/run",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/automation-runs",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automation-runs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automation-runs/{run_id}/retry",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automation-runs/{run_id}/retry",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/delivery-channels",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/delivery-channels",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/delivery-channels",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/delivery-channels",
+      "prefix": "/api/research"
+    },
     {
       "method": "GET",
       "path": "/api/research/mcp/registries",

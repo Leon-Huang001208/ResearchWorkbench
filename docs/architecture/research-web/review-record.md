@@ -497,3 +497,18 @@
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"专属DSH只加载Host验证后的命名空间工具声明，并通过私有loopback控制通道调用Research Web Host。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"mcp-registry","structure":"unchanged","reason":"Registry继续提供隔离身份和受审固定目标；安装状态、授权和调用由独立mcp-runtime模块持有。","diagrams":[]} -->
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API Atlas扩展MCP Runtime分类，仍由同一架构清单离线生成并通过只读文档端点交付。","diagrams":[]} -->
+
+## 2026-09-11 — Phase 2C 通用 Automation 与外发
+
+- Workflow“运行计划”升级为通用 Automation：锁定 Skill、普通 Workflow 或报告 Workflow 的版本与内容 SHA，按一次、每日、每周或每月 IANA 时区日程创建独立 Claw 会话。
+- 本地原子索引保存 Automation 与 Run 事实；服务恢复只合并最近一次遗漏，拒绝重叠，版本漂移、运行中断和手动重试均保留独立状态与关联。
+- SMTP、通用 HMAC Webhook、飞书、企业微信和钉钉投递与研究状态分离，渠道秘密只进入 `ResearchWorkbench.Delivery`；无人值守 MCP 工具必须是任务锁定、只读且明确允许。
+- 旧报告日程仍可读取，只有用户逐项确认且新 Automation 原子保存成功后才停用。图 02 增加 Automation service、原子事实/Keyring 与外部投递边界。
+- 图 02 最终 HTML SHA-256 为 `01aed4e526e3876396e5b3575f4836623f5c57a74e005c3974e52b734ccff803`，规范 SHA-256 为 `fd63c80fc915d319f60b6804ec81048eb01e87af9005ac40862c6a51df4a9534`。showcase 9/9、零错误零警告，四视口自动包含性通过；控制器已人工查看 1440 浅色与 2048 深色最终截图，未见遮挡、裁剪或节点穿线。
+
+<!-- architecture-review {"group":"ui","structure":"changed","reason":"Workflow运行计划增加通用任务、最近Run、投递渠道、显式旧日程迁移和响应式表单。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"FastAPI装配功能开关保护的Automation、Run、迁移和投递渠道接口及服务生命周期。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"automations","structure":"changed","reason":"新增锁定版本任务、IANA日程、独立Claw会话、遗漏合并、重叠拒绝、恢复与研究投递双状态。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"mcp-runtime","structure":"changed","reason":"MCP Host增加Automation锁定工具快照的无人值守复核，不放宽风险分级或人工审批边界。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"report-workflows","structure":"changed","reason":"旧报告日程增加逐项预览和原子迁移入口，既有日程API继续兼容。","diagrams":["02-module-dependencies"]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API Atlas扩展Automation分类，仍由同一架构清单离线生成并通过只读文档端点交付。","diagrams":[]} -->
