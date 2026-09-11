@@ -531,3 +531,5 @@
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Wind验证在既有可终止任务内改用独占空白工作簿并收紧Excel进程所有权，参与者、进程边界和API拓扑不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Wind插件心跳与报告Workflow刷新分离，既有能力和报告服务边界不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Wind验证在既有API白名单与状态投影内改用独占空白工作簿，路由、schema与可调用判定不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"Wind最小公式心跳与报告工作簿刷新分离，Workflow既有发布、运行与刷新契约不变。","diagrams":[]} -->
