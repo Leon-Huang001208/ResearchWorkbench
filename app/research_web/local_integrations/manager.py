@@ -425,7 +425,7 @@ class LocalIntegrationManager:
                 )
                 if ready is False:
                     return False
-            if age > timedelta(seconds=ttl_seconds):
+            if age >= timedelta(seconds=ttl_seconds):
                 return False
             return result.get("context_fingerprint") == self._verification_context_fingerprint(
                 target

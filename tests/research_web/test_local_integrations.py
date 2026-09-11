@@ -1233,6 +1233,7 @@ def test_wind_verifier_stops_before_refresh_when_global_budget_is_exhausted(tmp_
     }
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process groups are unavailable")
 def test_posix_timeout_cleanup_terminates_the_worker_process_group(monkeypatch):
     events = []
 

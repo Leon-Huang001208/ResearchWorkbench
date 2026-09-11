@@ -512,3 +512,12 @@
 <!-- architecture-review {"group":"mcp-runtime","structure":"changed","reason":"MCP Host增加Automation锁定工具快照的无人值守复核，不放宽风险分级或人工审批边界。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"report-workflows","structure":"changed","reason":"旧报告日程增加逐项预览和原子迁移入口，既有日程API继续兼容。","diagrams":["02-module-dependencies"]} -->
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"API Atlas扩展Automation分类，仍由同一架构清单离线生成并通过只读文档端点交付。","diagrams":[]} -->
+
+## 2026-09-11 — Phase 2C Windows CI 边界修复
+
+- 显式验证记录在 `verification_ttl_seconds=0` 时立即失效，截止时刻采用包含边界，避免 Windows
+  时钟分辨率下同一时间刻度仍被判为可调用。
+- POSIX 进程组清理测试只在提供 `getpgid`/`killpg` 的 POSIX 平台执行；Windows 继续由独立
+  `taskkill /T /F` 契约覆盖。实现拓扑、API、状态 schema 与产品页面均不变。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"修正本机验证TTL截止比较并限定POSIX进程组测试平台，不改变验证进程、API、持久化或UI拓扑。","diagrams":[]} -->

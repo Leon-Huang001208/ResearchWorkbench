@@ -51,7 +51,9 @@
   176 个唯一操作、9 个分类。
 - `tests/e2e/research_web_automations.mjs`：1440/1280/768/390 的 Light/Dark、reduced-motion 共 8 项通过，
   覆盖锁定版本、新建面板、手动重试、投递配置与秘密遮蔽。
-- 远端 CI 状态在发布后补充。
+- 首次远端 Windows Web CI 暴露两个既有跨平台边界：TTL 为 0 时同一时钟刻度仍被视为有效，以及
+  POSIX 进程组测试在 Windows 上访问不存在的 `os.getpgid`。修复将 TTL 截止改为包含边界，并让
+  POSIX 专项只在 POSIX 执行；对应本机回归与远端重跑结果作为本次 repair 证据。
 
 ## 未验证边界
 

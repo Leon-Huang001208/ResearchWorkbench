@@ -81,6 +81,8 @@ Tabbit 配置和 Runtime 锁文件固定按 UTF-8 读写。POSIX 继续使用文
 
 DSH 不可用时明确报错，无 LangGraph、固定答案或第二 Supervisor 回退。已有资料和能力目录的只读可用性与运行能力分开。
 
+本机 Office/Wind 显式验证证据在 TTL 截止时刻即失效；`verification_ttl_seconds=0` 不允许同一时钟刻度继续复用。POSIX 进程组与 Windows `taskkill /T /F` 由各自平台测试独立覆盖。
+
 ## 代码与测试
 
 关键来源：`runtime_auth.py`、`client.py`、`service.py`、`projection.py`、`ui/core.mjs`。协议、认证文件与投影回归位于 `tests/research_web/`，前端幂等、路由竞态、刷新、SSE 清理测试位于 `tests/javascript/research_web_ui.test.mjs`。真实模型验收另记，不以传输模拟代替。

@@ -107,3 +107,5 @@ Python/API、Node adapter、前端交互和 Runtime staging 可用模拟 Runtime
 
 Phase 2C Automation 通过独立 Claw 会话复用同一 Research Service，但不自动申请 Tabbit 页面访问、
 不保存标签正文或页面授权，也不改变实时 claim、一次性 token 与写操作审批契约。
+
+Office/Wind 显式验证证据在 TTL 截止时刻即失效，零 TTL 不会留下可调用状态；该修复不改变 Tabbit 的独立授权、会话或浏览器运行时边界。
