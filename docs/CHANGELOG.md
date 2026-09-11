@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Research Web Phase 2C Windows CI 修复 · 2026-09-11
+
+- 本机显式验证证据在 TTL 截止时刻即失效，零 TTL 不再因 Windows 时钟分辨率而短暂保留可调用状态。
+- POSIX 进程组清理测试仅在 POSIX 运行；Windows 继续由独立的 `taskkill /T /F` 契约覆盖。该修复不改变 API、持久化、UI 或桌面交付边界。
+
 ### Mac 本机集成真实验证 · 2026-09-10
 
 - 本机诊断新增显式、幂等的 Excel、Word、PowerPoint 与 Wind Excel 验证任务；发现探测仍不启动厂商软件。Office 验证只操作应用容器内的本轮临时文件，Wind 只刷新受管报告副本并保护发布源哈希。

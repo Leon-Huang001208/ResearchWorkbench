@@ -21,6 +21,10 @@ only in `ResearchWorkbench.Delivery`. Routes expose `/api/research/automations`,
 delivery channels behind `RESEARCH_AUTOMATIONS_ENABLED`. The Workflow `view=plans` UI restores persisted
 tasks and runs, keeps legacy report schedules visible, and never silently migrates or upgrades a target.
 
+The Phase 2C Windows CI repair remains inside `app/research_web/local_integrations/manager.py` and its
+existing test module: verification evidence expires at the inclusive TTL boundary, while POSIX process-group
+cleanup tests run only where those system calls exist. It adds no route, service, storage owner or desktop path.
+
 Research Web Phase 2A adds the feature-gated, read-only MCP Registry catalog in
 `app/research_web/mcp_registry/`. `catalog.py` aggregates the fixed official `/v0.1` API and explicitly
 configured private registries without merging the identity tuple `(registry_id, server_name, version)`;
