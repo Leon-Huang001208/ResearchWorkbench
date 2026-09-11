@@ -23,7 +23,8 @@ DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是�
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
 Quality Gate 与旧报告编译链没有恢复。
 
-阶段 2A 只在 `RESEARCH_MCP_REGISTRY_ENABLED` 开启时提供只读 MCP 市场。目录聚合随仓库
+阶段 2A 的只读 MCP 市场在三阶段 CI 通过后默认开启；显式设置 `RESEARCH_MCP_REGISTRY_ENABLED=0`
+仍会关闭该入口。目录聚合随仓库
 配置的官方 Registry 与用户显式配置的私有 Registry，并以
 `(registry_id, server_name, version)` 保持身份独立；同名服务器不会合并或覆盖。官方适配器固定
 调用 `/v0.1` 搜索、版本与不透明游标接口，ETag、同步时间和游标随最后成功结果原子保存；同步

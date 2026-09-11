@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### Research Web Phase 2 默认启用 · 2026-09-11
+
+- MCP Registry、MCP Runtime 和 Automation 在三阶段远端门禁通过后默认开启；部署仍可分别用 `RESEARCH_MCP_REGISTRY_ENABLED=0`、`RESEARCH_MCP_RUNTIME_ENABLED=0` 和 `RESEARCH_AUTOMATIONS_ENABLED=0` 关闭。
+- Research Web Host 与 DSH 启动层共享同一个 MCP Runtime 默认值；默认开启不自动安装、授权、迁移日程或外发。
+
 ### Research Web Phase 2C Windows CI 修复 · 2026-09-11
 
 - 本机显式验证证据在 TTL 截止时刻即失效，零 TTL 不再因 Windows 时钟分辨率而短暂保留可调用状态。

@@ -6,6 +6,14 @@ from fastapi.testclient import TestClient
 
 from app.research_web.automation.models import AutomationError
 from app.research_web.automation.routes import router
+from app.research_web.automation.service import automation_feature_enabled
+
+
+def test_automation_feature_is_enabled_by_default_and_can_be_disabled(monkeypatch):
+    monkeypatch.delenv("RESEARCH_AUTOMATIONS_ENABLED", raising=False)
+    assert automation_feature_enabled() is True
+    monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", "0")
+    assert automation_feature_enabled() is False
 
 
 class FakeAutomations:

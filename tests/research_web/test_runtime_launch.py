@@ -111,9 +111,15 @@ def test_runtime_ignores_mcp_activation_when_feature_is_disabled(tmp_path, monke
     runtime = tmp_path / "mcp-runtime"
     runtime.mkdir(parents=True)
     (runtime / "active.json").write_text("not-json")
-    monkeypatch.delenv("RESEARCH_MCP_RUNTIME_ENABLED", raising=False)
+    monkeypatch.setenv("RESEARCH_MCP_RUNTIME_ENABLED", "0")
 
     assert launch_runtime.load_mcp_runtime_bindings(tmp_path) == []
+
+
+def test_runtime_launch_enables_mcp_bindings_by_default(monkeypatch):
+    monkeypatch.delenv("RESEARCH_MCP_RUNTIME_ENABLED", raising=False)
+
+    assert launch_runtime.mcp_runtime_enabled() is True
 
 
 def test_runtime_rejects_non_object_mcp_activation_without_leaking_parser_errors(

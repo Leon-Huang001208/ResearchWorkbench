@@ -29,6 +29,9 @@ HMAC Webhook、飞书、企业微信和钉钉的秘密只进入 `ResearchWorkben
 Phase 2C 的 Windows CI 修复只收紧本机显式验证证据的 TTL 截止语义，并将 POSIX 进程组测试限制在
 提供对应系统调用的平台；Research Web Host、接口、状态文件、平台终止实现与页面拓扑均不变。
 
+三个 Phase 2 服务在各自远端门禁通过后默认装配；Registry、Runtime、Automation 仍可用对应环境变量
+显式设为 `0` 独立关闭。默认值变化不改变安装、授权、版本锁、人工审批、持久化或 DSH 边界。
+
 Research Web 可在同一专属 DSH 执行链中加载固定、经完整性校验的 `dsh-tabbit` 0.3.4；
 `research-tabbit-adapter` 只复用插件提供的 `ctx.tabbit`，没有第二套 Playwright/CLI 执行器。
 供应归档清单按 POSIX tar 路径校验后才转换成本机路径；Windows 配置替换在关闭临时文件句柄后执行，

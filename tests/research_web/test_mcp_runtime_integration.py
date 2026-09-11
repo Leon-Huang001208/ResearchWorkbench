@@ -19,9 +19,19 @@ from app.research_web.mcp_runtime.oauth import OAuthCoordinator
 from app.research_web.mcp_runtime.package_installer import PackageInstaller
 from app.research_web.mcp_runtime.package_resolver import PackageResolver
 from app.research_web.mcp_runtime.sdk_host import SDKHost
-from app.research_web.mcp_runtime.service import MCPRuntimeService
+from app.research_web.mcp_runtime.service import (
+    MCPRuntimeService,
+    runtime_feature_enabled,
+)
 from app.research_web.service import MCP_CONFIRMATION_KEY_ACCOUNT, ResearchService
 from app.research_web.store import Store, StoreError
+
+
+def test_runtime_feature_is_enabled_by_default_and_can_be_disabled(monkeypatch):
+    monkeypatch.delenv("RESEARCH_MCP_RUNTIME_ENABLED", raising=False)
+    assert runtime_feature_enabled() is True
+    monkeypatch.setenv("RESEARCH_MCP_RUNTIME_ENABLED", "0")
+    assert runtime_feature_enabled() is False
 
 
 class NativeFixture:
