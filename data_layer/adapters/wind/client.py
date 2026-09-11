@@ -425,7 +425,11 @@ class WindExcelClient:
                 values = self._read_formula_column(sheet, col, len(formulas), start_row)
                 for i, val in enumerate(values):
                     if results[i] is None:
-                        if val is None or isinstance(val, str) and val.strip().lower() in WIND_LOADING:
+                        if (
+                            val is None
+                            or isinstance(val, str)
+                            and val.strip().lower() in WIND_LOADING
+                        ):
                             all_ready = False
                         else:
                             # Accept both valid results AND Excel errors as "done"
