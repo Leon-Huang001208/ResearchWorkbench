@@ -18,7 +18,13 @@ Phase 2B 在同一 Research Web Host 内增加 `app/research_web/mcp_runtime/`�
 最小环境、目录授权、schema 哈希、风险分级、会话授权和逐次人工审批。安装、探测、启用互相分离，
 候选 Runtime 健康失败时恢复上一份激活清单并仅重启专属 DSH。DSH 只获得
 `mcp__{installation}__{tool}` 命名空间的已验证声明，每次调用经私有 loopback 控制通道回到 Host
-复核版本、schema 和授权。Registry 目录继续只读；Automation 与外发仍不在 Phase 2B。
+复核版本、schema 和授权。Registry 目录继续只读，安装与授权不改变目录身份。
+
+Phase 2C 在同一 Host 内增加 `app/research_web/automation/`。Automation 以本地原子 JSON 索引为
+事实源，锁定 Skill、普通 Workflow 或报告 Workflow 的版本与内容 SHA；APScheduler 只承载下一次
+内存触发。每次运行创建独立 Claw 会话，合并遗漏、拒绝重叠并独立记录研究与投递结果。SMTP、
+HMAC Webhook、飞书、企业微信和钉钉的秘密只进入 `ResearchWorkbench.Delivery` 系统凭据库；
+无人值守 MCP 调用仍须命中任务锁定、只读且显式允许的工具快照。
 
 Research Web 可在同一专属 DSH 执行链中加载固定、经完整性校验的 `dsh-tabbit` 0.3.4；
 `research-tabbit-adapter` 只复用插件提供的 `ctx.tabbit`，没有第二套 Playwright/CLI 执行器。

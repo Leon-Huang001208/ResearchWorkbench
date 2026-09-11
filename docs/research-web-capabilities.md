@@ -48,8 +48,17 @@ HTTPS 或字面 loopback，关闭自动重定向；OAuth 使用 PKCE、state、�
 `external_write_high_risk`，第三方声明不能降低。会话只获得用户明确选择的快照；私有数据需要会话
 授权，外部写入和高风险调用每次产生人工审批。无人值守必须同时满足 `read_only`、
 `allow_unattended=true` 和任务锁定快照。DSH 只加载 `mcp__{installation}__{tool}`，Host 每次调用
-复核安装版本、schema、会话授权和审批。Publisher 仍只生成 `executed:false` 的外部 CLI 交接；
-Automation 与外发留待 Phase 2C。
+复核安装版本、schema、会话授权和审批。Publisher 仍只生成 `executed:false` 的外部 CLI 交接。
+
+Workflow 的“运行计划”由 `app/research_web/automation/` 提供通用 Automation。每个任务锁定目标
+种类、ID、版本和内容 SHA，并保存输入模板、工作空间、输出格式、允许的 MCP 工具快照、日程与
+投递引用。服务重启只补最近一次遗漏；重叠触发记录 `skipped_overlap`，版本漂移记录
+`blocked_version`，研究失败只能手动创建带 `retry_of` 的新 Run。投递有独立状态和三次重试，
+不会修改已经完成或失败的研究结果。
+
+无人值守 MCP 只能调用任务明确锁定且同时为 `read_only`、`allow_unattended=true` 的工具；
+私有数据须有任务级授权，外部写入与高风险工具不会被 Automation 调用。SMTP、通用 HMAC Webhook、
+飞书、企业微信和钉钉的 URL、密码及签名秘密只进入 `ResearchWorkbench.Delivery` 系统凭据库。
 
 ## API（全部位于 `/api/research`）
 
@@ -86,6 +95,12 @@ Automation 与外发留待 Phase 2C。
 | POST `/sessions/{id}/mcp-authorizations` | 锁定安装版本、工具名和 schema 哈希的会话授权 |
 | POST `/sessions/{id}/mcp/resources/read`、`/mcp/prompts/get` | 对已激活且已授权安装代理资源和提示请求 |
 | GET `/mcp/approvals`、POST `/mcp/approvals/{id}/approve`、`/deny` | 不暴露参数正文的一次性人工审批 |
+| GET / POST `/automations` | 列出或创建锁定版本和内容 SHA 的通用任务；功能关闭时返回 404 |
+| GET / PATCH / DELETE `/automations/{id}` | 读取、完整校验更新或删除单个任务；运行中不可删除 |
+| POST `/automations/{id}/enable`、`/disable`、`/run` | 启停或手动触发；版本漂移与重叠均保留可审计 Run |
+| GET `/automation-runs`、POST `/automation-runs/{id}/retry` | 查询研究/投递双状态；手动重试创建关联的新 Run |
+| GET / PUT `/delivery-channels` | 管理非敏感渠道投影；秘密写入系统凭据库且不回显 |
+| POST `/automations/migrations/report-schedules/preview`、`/apply` | 逐项预览和原子迁移旧报告日程；失败不修改两边 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |
 

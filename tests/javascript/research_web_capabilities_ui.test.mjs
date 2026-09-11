@@ -137,6 +137,27 @@ test('capability workspace isolates Skill, Tool, Workflow and data into separate
   assert.match(workflowHTML, /能力库.*我的 Workflow.*运行计划/s); assert.match(dataHTML, /数据能力.*数据源与连接/s);
 });
 
+test('Workflow plans show version-locked automations, runs, and isolated legacy schedules', async () => {
+  const { renderCapabilityWorkspace } = await load('capability-workspace.mjs');
+  const html = renderCapabilityWorkspace({
+    kind: 'workflow', view: 'plans',
+    capabilities: [cap({ id: 'flow', kind: 'workflow', name: '公司流程' })],
+    automations: [{ id: 'auto-1', name: '晨报', enabled: true, next_run_at: '2026-09-12T01:00:00Z', target: { kind: 'workflow', id: 'flow', version: 2 }, schedule: { kind: 'daily', timezone: 'Asia/Shanghai' }, output_formats: ['md'], last_run_id: 'run-1' }],
+    automationRuns: [{ id: 'run-1', automation_id: 'auto-1', research_status: 'failed', delivery_status: 'not_requested' }],
+    reportWorkflows: [{ id: 'legacy', name: '旧周报', current_version: 3, next_run_at: '2026-09-13T01:00:00Z', latest_run: { status: 'completed' }, delivery_formats: ['docx'] }],
+  });
+  assert.match(html, /通用 Automation/);
+  assert.match(html, /晨报/);
+  assert.match(html, /data-run-automation="auto-1"/);
+  assert.match(html, /data-disable-automation="auto-1"/);
+  assert.match(html, /旧报告日程/);
+  assert.match(html, /最近运行记录/);
+  assert.match(html, /run-1/);
+  assert.match(html, /data-retry-automation-run="run-1"/);
+  assert.match(html, /data-migrate-report-schedule="legacy"/);
+  assert.doesNotMatch(html, /读数据|真实行情/);
+});
+
 test('capability quicklook is an accessible dialog with truthful disabled reasons and draft-only use', async () => {
   const { renderCapabilityPreviewDialog } = await load('capability-workspace.mjs');
   const available = renderCapabilityPreviewDialog({ detail: { ...cap(), draft: {} } });

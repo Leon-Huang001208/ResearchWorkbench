@@ -190,13 +190,24 @@ class FakeAuthorization:
         self.grants = []
         self.approvals = []
         self.require_approval = False
+        self.admissions = []
 
     def register_tool(self, **tool):
+        previous = next(
+            (
+                item
+                for item in self.tools
+                if item["installation_id"] == tool["installation_id"]
+                and item["tool_name"] == tool["tool_name"]
+                and item["version"] == tool["version"]
+            ),
+            None,
+        )
         snapshot = {
             **tool,
             "schema_sha256": "d" * 64,
-            "risk_tier": "read_only",
-            "allow_unattended": False,
+            "risk_tier": previous["risk_tier"] if previous else "read_only",
+            "allow_unattended": previous["allow_unattended"] if previous else False,
             "status": "active",
         }
         self.tools = [snapshot]
@@ -220,12 +231,22 @@ class FakeAuthorization:
     def list_tools(self):
         return list(self.tools)
 
+    def classify_tool(self, installation_id, tool_name, *, risk_tier, allow_unattended):
+        snapshot = next(
+            tool
+            for tool in self.tools
+            if tool["installation_id"] == installation_id and tool["tool_name"] == tool_name
+        )
+        snapshot.update(risk_tier=risk_tier, allow_unattended=allow_unattended)
+        return snapshot
+
     def authorize_session(self, **grant):
         result = {"id": "mcp-grant-" + "2" * 32, **grant, "status": "active"}
         self.grants.append(result)
         return result
 
     def admit_call(self, **request):
+        self.admissions.append(request)
         assert request["allowlist"].allows(
             f"mcp__{request['installation_id']}__{request['tool_name']}",
             request["installation_id"],
@@ -460,6 +481,43 @@ async def test_install_probe_enable_and_internal_call_recheck_exact_snapshot():
         )
     assert drift.value.code == "mcp_schema_drift"
     assert store.get(installation_id).manifest_sha256 == "c" * 64
+
+
+@pytest.mark.asyncio
+async def test_trusted_automation_session_injects_exact_unattended_lock():
+    service, *_rest, authorization, _restarts = make_service()
+    preview = await service.preview(preview_request())
+    installed = await service.install(
+        preview["confirmation_token"], {"WEATHER_TOKEN": "runtime-secret"}
+    )
+    installation_id = installed["installation"]["id"]
+    await service.probe(installation_id)
+    service.classify_tool(
+        installation_id,
+        "read_weather",
+        risk_tier="read_only",
+        allow_unattended=True,
+    )
+    await service.enable(installation_id)
+    lock = {
+        "installation_id": installation_id,
+        "version": "1.2.3",
+        "tool_name": "read_weather",
+        "schema_sha256": "d" * 64,
+    }
+    service.authorize_session("native-session-automation", **lock)
+    service.register_automation_session("native-session-automation", [lock])
+
+    await service.call_tool(
+        call_id="call-automation",
+        session_id="native-session-automation",
+        **lock,
+        arguments={"city": "Shanghai"},
+    )
+
+    admission = authorization.admissions[-1]
+    assert admission["unattended"] is True
+    assert admission["automation_lock"] == lock
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,8 @@
 | Registry 版本 → 本地安装 | 只接受固定 npm/PyPI/MCPB 目标；完整依赖与哈希、直接 argv、`--ignore-scripts`、隔离目录、最小环境、安全解包和短期摘要确认；禁止 shell、范围/latest、钩子、隐式环境和链接越界 | `mcp_runtime/package_resolver.py`、`package_planner.py`、`package_installer.py` / `test_mcp_installation.py` |
 | Research Web Host → 远程 MCP | 仅 HTTPS 或字面 loopback HTTP；无自动跨源重定向；OAuth 使用 PKCE/state/元数据发现/受众校验，token 只进 `ResearchWorkbench.MCPRuntime` 凭据库且不 passthrough | `mcp_runtime/transport.py`、`oauth.py`、`sdk_host.py` / `test_mcp_transport.py` |
 | DSH → MCP Host → Server | DSH 只加载命名空间化声明并经私有 loopback 控制令牌代理；每次调用重核安装版本、schema 哈希、会话快照、风险和一次性审批；参数正文不进日志或审批列表 | `runtime/mcp-adapter.mjs`、`mcp_runtime/authorization.py`、`service.py` / Python 与 JavaScript MCP 回归 |
+| Automation → Claw / MCP | 每个 Run 使用独立会话并锁定目标版本、内容 SHA 与工具 schema；无人值守只允许任务明确授权的只读工具，私有数据须任务级授权，高风险工具拒绝 | `automation/service.py`、`mcp_runtime/service.py` / Automation 与 MCP route tests |
+| Automation → 投递渠道 | 研究/投递状态分离；HTTPS 或字面 loopback、SMTP STARTTLS、通用 Webhook 固定事件 ID/时间戳/HMAC；渠道秘密只进 `ResearchWorkbench.Delivery` | `automation/delivery.py`、`channels.py`、`transport.py` / delivery、channel、transport tests |
 | 本机诊断 → 宿主 | 发现只读取标准位置/注册项/模块；真实验证须显式触发并限制目标、Office 容器内确定名称的临时文件、独立进程组和超时；Excel 使用本轮独立实例，PowerPoint 保存后按随机文件名重新绑定本轮对象，Wind 副本固定在 Excel 容器且在打开前上报本轮 Excel PID 供精确清理；投影排除绝对路径、秘密、命令与环境变量 | `local_integrations/`、`report_workflows/workbook.py` / `test_local_integrations.py`、`test_report_workflows.py` |
 | FastAPI → DSH | 固定回环 RPC、共享有界认证控制读取、文件身份/别名检查、方法白名单、双事件通道 | `runtime_auth.py`、`client.py` / `test_runtime_auth.py`、`test_protocol.py`、`test_event_recovery.py` |
 | 服务管理 → 私有目录 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL | `service_manager.py` / `test_service_manager.py` |

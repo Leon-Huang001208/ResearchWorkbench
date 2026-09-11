@@ -23,6 +23,7 @@ from core.observability import get_logger, setup_logging
 
 from .asset_routes import router as asset_router
 from .asset_workspace import AssetWorkspaceError
+from .automation.routes import router as automation_router
 from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
 from .client import DSHClient, RuntimeFailure
@@ -137,6 +138,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(local_integrations_router)
     app.include_router(mcp_registry_router)
     app.include_router(mcp_runtime_router)
+    app.include_router(automation_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
     app.include_router(report_workflow_router)

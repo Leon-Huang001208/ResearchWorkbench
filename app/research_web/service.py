@@ -17,6 +17,10 @@ from websockets.exceptions import WebSocketException
 from core.observability import get_logger
 
 from .asset_workspace import AssetWorkspace
+from .automation.channels import DeliveryChannelStore
+from .automation.delivery import DeliveryDispatcher
+from .automation.service import AutomationService, automation_feature_enabled
+from .automation.transport import DeliveryTransport
 from .capabilities.catalog import CapabilityCatalog
 from .capabilities.models import CapabilityError, Metadata, Step
 from .capabilities.packages import MAX_COMPRESSED, import_package
@@ -120,6 +124,10 @@ class _SessionOwnedMCPRuntime:
         self._owned(session_id)
         return self.runtime.authorize_session(session_id, **binding)
 
+    def register_automation_session(self, session_id: str, locks: list[dict]):
+        self._owned(session_id)
+        return self.runtime.register_automation_session(session_id, locks)
+
     async def read_resource(self, session_id: str, installation_id: str, uri: str):
         self._owned(session_id)
         return await self.runtime.read_resource(session_id, installation_id, uri)
@@ -165,6 +173,7 @@ class ResearchService:
         mcp_runtime=None,
         mcp_keyring_backend=None,
         runtime_manager=None,
+        delivery_keyring_backend=None,
     ):
         self.client, self.store, self.owned = client, store, owned
         self.expected_cwd = expected_cwd
@@ -181,6 +190,15 @@ class ResearchService:
         self.asset_workspace = AssetWorkspace(self)
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)
+        self.delivery_channels = DeliveryChannelStore(
+            store, keyring_backend=delivery_keyring_backend
+        )
+        self.automations = AutomationService(
+            store,
+            research=self,
+            channel_store=self.delivery_channels,
+            dispatcher=DeliveryDispatcher(transport=DeliveryTransport(self.delivery_channels)),
+        )
         self.connected: set[str] = set()
         self.event_revision = 0
         self.events: dict[str, dict[int, dict]] = {}
@@ -266,6 +284,8 @@ class ResearchService:
         await self.mcp_runtime.start()
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
         await self.report_workflows.start()
+        if automation_feature_enabled():
+            await self.automations.start()
         await self.purge_expired_sessions()
         self.retention_task = asyncio.create_task(
             self._retention_loop(), name="research-session-retention"
@@ -277,6 +297,7 @@ class ResearchService:
             with suppress(asyncio.CancelledError):
                 await self.retention_task
             self.retention_task = None
+        await self.automations.close()
         await self.report_workflows.close()
         await self.asset_workspace.close()
         await self.local_integrations.close()

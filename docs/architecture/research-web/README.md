@@ -2,7 +2,7 @@
 
 这是当前研究产品的唯一架构主入口。源码范围为 `app/research_web/`；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。
 
-研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，但缺少本机依赖或授权时仍不可调用。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。Phase 2A 提供只读 MCP Registry；Phase 2B 在独立功能开关内增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚。逐项变更见 [迭代核对](review-record.md)。图形通过不替代产品、数据覆盖或真实连接审查。
+研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，但缺少本机依赖或授权时仍不可调用。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。逐项变更见 [迭代核对](review-record.md)。图形通过不替代产品、数据覆盖或真实连接审查。
 
 ## 阅读顺序
 
@@ -21,7 +21,7 @@
 
 ## 不在本轮范围
 
-不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、线上 Skill 商店或桌面适配。MCP Registry 身份保持 `(registry_id, server_name, version)`；第三方字段按有界纯文本处理且不热链图标。Publisher 只生成外部 CLI 交接材料并明确 `executed:false`。Phase 2B 不实现 sampling、elicitation、实验性 Tasks、任意 shell、版本范围、隐式环境继承或无人值守高风险调用；通用 Automation/外发留待 Phase 2C。研究台市场页是按需查询和快照入口，不是旧市场首页或后台行情管线。
+不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、线上 Skill 商店或桌面适配。MCP Registry 身份保持 `(registry_id, server_name, version)`；第三方字段按有界纯文本处理且不热链图标。Publisher 只生成外部 CLI 交接材料并明确 `executed:false`。MCP 不实现 sampling、elicitation、实验性 Tasks、任意 shell、版本范围、隐式环境继承或无人值守高风险调用；Automation 不静默升级目标、不自动重试研究，也不批量追赶遗漏。研究台市场页是按需查询和快照入口，不是旧市场首页或后台行情管线。
 
 ## 启动与验收基线
 

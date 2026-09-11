@@ -8,7 +8,13 @@ argv、来源、全部制品哈希和环境变量名称，并要求短期令牌�
 启用和按工具授权。Research Web Host 通过官方 `mcp>=2,<3` SDK 持有 stdio/Streamable HTTP 连接，
 DSH 只接收命名空间化 schema 快照并经私有 loopback 回调 Host。远程只允许 HTTPS 或字面 loopback，
 OAuth 使用 PKCE/state/元数据发现和系统凭据库；本地进程使用直接 argv、独立目录及最小环境。
-功能由 `RESEARCH_MCP_RUNTIME_ENABLED` 控制。Automation 与外发仍属于阶段 2C。
+功能由 `RESEARCH_MCP_RUNTIME_ENABLED` 控制。
+
+2026-09-11 的阶段 2C 增加**通用 Automation 与外发**：任务锁定目标版本和内容 SHA，按一次、
+每日、每周或每月的 IANA 时区日程创建独立 Claw 会话；服务恢复时只合并最近一次遗漏，重叠触发
+记录为跳过，研究失败不自动重试。投递状态与研究状态分离，SMTP、通用签名 Webhook、飞书、
+企业微信和钉钉的秘密只存入系统凭据库，失败按 5/30/120 秒独立重试。功能由
+`RESEARCH_AUTOMATIONS_ENABLED` 控制；旧报告日程保留，只有逐项确认并成功写入 Automation 后才停用。
 
 2026-09-10 的阶段 2A 在同一 FastAPI 进程内增加**只读 MCP Registry**：Tool 工作区的
 `#/skills?kind=tool&view=market` 聚合固定的官方 Registry 与用户显式配置的私有 Registry，

@@ -82,6 +82,9 @@ class Store:
         self.data.setdefault("report_runs", {})
         self.data.setdefault("report_schedules", {})
         self.data.setdefault("report_migrations", [])
+        self.data.setdefault("automations", {})
+        self.data.setdefault("automation_runs", {})
+        self.data.setdefault("delivery_channels", {})
 
     def save(self):
         fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)

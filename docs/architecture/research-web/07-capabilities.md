@@ -15,7 +15,8 @@
 | `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、数据组织为四个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
 | `ui/mcp-marketplace.mjs` | 在 Tool 的 `view=market` 浏览只读 Registry，并管理完整安装确认、探测、启停、移除、OAuth、风险分级、会话授权和一次性审批；最终 HTML sink 单次转义 | 执行 Publisher、渲染 Registry HTML、热链图标或自动授予权限 |
 | `mcp_registry/` | 按 `(registry_id, server_name, version)` 聚合目录，管理安全传输、不透明游标、ETag、原子最后成功缓存和 Keyring 引用 | 合并同名服务器、把秘密写入 JSON、向 DSH 注册工具 |
-| `mcp_runtime/` | 固定制品解析、不可变清单、隔离安装、官方 SDK Host、OAuth、schema 快照、风险/授权/审批与 DSH 激活回滚 | shell 字符串、latest/版本范围、自动授权、无人值守高风险、Registry 发布或 Automation |
+| `mcp_runtime/` | 固定制品解析、不可变清单、隔离安装、官方 SDK Host、OAuth、schema 快照、风险/授权/审批与 DSH 激活回滚 | shell 字符串、latest/版本范围、自动授权、无人值守高风险或 Registry 发布 |
+| `automation/` | 锁定版本任务、IANA 日程、独立 Claw Run、恢复、显式旧日程迁移和独立投递状态 | 静默升级、研究自动重试、重叠运行或高风险无人值守调用 |
 
 Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH 读取的原生 Skill 指令，步骤列表是研究模板，不是已执行节点。
 
@@ -84,8 +85,12 @@ Registry 必须由用户显式配置；认证 Registry 只允许 HTTPS，无认�
 text，UI 只在最终 HTML sink 转义；搜索或 Registry 替换结果集会使旧详情请求失效并保留当前上下文
 焦点。包记录分别显示 `package_type_supported` 与 `immutable_reference`，只说明客户端识别与固定引用
 事实，不承诺可安装。Publisher 预览/校验只生成规范 `server.json`、SHA-256 与完整外部 CLI argv，且返回
-`executed:false`。Phase 2A 没有 MCP 安装、授权、工具调用、Runtime 重启或 Automation；这些分别
-保留给 Phase 2B/2C。
+`executed:false`。Phase 2B 的安装、授权和 Host 与 Registry 身份分离；Phase 2C 的 Automation
+锁定能力版本、内容 SHA 和可无人值守 MCP 工具快照，不从目录临时选择或静默升级。
+
+Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次执行和旧报告日程。一次、每日、
+每周和每月日程使用 IANA 时区，月度缺失日期回落月末；DST 空缺顺延到首个有效分钟，重复时间只
+触发第一次。旧报告日程只有逐项确认且 Automation 成功保存后才停用，失败保持两边原状。
 
 工具目录与 Runtime 使用统一连接中心的来源状态：保存配置、探测健康、完成适配、允许调用和当前可调用分别计算，不因 Wind/iFinD/Excel 被本机检测到就虚构 Provider。能力 API 接收当前数据根后读取同一安全摘要；秘密、主机账号明文和探测临时响应不会进入能力包、原生 Skill 或 Tool schema。
 
