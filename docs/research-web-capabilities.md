@@ -44,6 +44,8 @@ surrogate，不做 HTML entity escape；UI 只在最终 HTML sink 转义一次�
 PyPI 只从本地 wheelhouse 按完整哈希安装；MCPB 校验 Registry 摘要并拒绝越界链接。远程端点只允许
 HTTPS 或字面 loopback，关闭自动重定向；OAuth 使用 PKCE、state、元数据发现、受众校验和系统
 凭据库。安装清单不可变，更新必须从 Registry 新版本重新预览，不能原地替换。
+安装清单和确认令牌重放目录在所有平台拒绝非目录、符号链接与 Windows 重解析点；POSIX 继续
+校验 group/other mode 及所有者，Windows 不使用没有 ACL 语义的 mode 投影阻断服务启动。
 
 健康探测为每个工具保存版本、schema SHA-256 与风险等级；默认风险为
 `external_write_high_risk`，第三方声明不能降低。会话只获得用户明确选择的快照；私有数据需要会话

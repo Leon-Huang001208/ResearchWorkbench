@@ -30,6 +30,7 @@ INSTALLATION_ID = re.compile(r"^mcp-installation-[a-f0-9]{32}$")
 PLAN_ADAPTER = TypeAdapter(InstallationPlanUnion)
 INTEGRITY_KEY_SERVICE = "ResearchWorkbench.MCPRuntime"
 INTEGRITY_KEY_ACCOUNT = "manifest-integrity-v1"
+_PLATFORM_NAME = os.name
 
 
 class ConfirmationError(ValueError):
@@ -67,6 +68,21 @@ def _decode(value: str) -> bytes:
     if _encode(raw) != value:
         raise ConfirmationError("confirmation_token_invalid")
     return raw
+
+
+def _is_unsafe_private_directory(path: Path, identity: os.stat_result) -> bool:
+    """Validate private directory structure using platform-appropriate evidence."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    is_reparse_point = bool(getattr(identity, "st_file_attributes", 0) & reparse_flag)
+    posix_permissions_unsafe = _PLATFORM_NAME != "nt" and (
+        bool(identity.st_mode & 0o077) or (hasattr(os, "getuid") and identity.st_uid != os.getuid())
+    )
+    return (
+        not stat.S_ISDIR(identity.st_mode)
+        or path.is_symlink()
+        or is_reparse_point
+        or posix_permissions_unsafe
+    )
 
 
 class ConfirmationTokenManager:
@@ -175,12 +191,7 @@ class ConfirmationTokenManager:
         except FileExistsError:
             pass
         info = path.lstat()
-        if (
-            path.is_symlink()
-            or not stat.S_ISDIR(info.st_mode)
-            or info.st_mode & 0o077
-            or (hasattr(os, "getuid") and info.st_uid != os.getuid())
-        ):
+        if _is_unsafe_private_directory(path, info):
             raise ConfirmationError("confirmation_replay_store_unsafe")
         return path
 
@@ -375,12 +386,10 @@ class InstallationStore:
 
     def _ensure_directory(self, path: Path, *, create: bool, private: bool) -> None:
         if path.exists() or path.is_symlink():
+            info = path.lstat()
             if path.is_symlink() or not path.is_dir():
                 raise InstallationStoreError("unsafe_installation_directory")
-            info = path.stat()
-            if private and (
-                info.st_mode & 0o077 or (hasattr(os, "getuid") and info.st_uid != os.getuid())
-            ):
+            if private and _is_unsafe_private_directory(path, info):
                 raise InstallationStoreError("installation_directory_not_private")
             return
         if not create:
@@ -389,12 +398,10 @@ class InstallationStore:
             path.mkdir(parents=True, mode=0o700)
         except OSError as exc:
             raise InstallationStoreError("installation_storage_unavailable") from exc
+        info = path.lstat()
         if path.is_symlink() or not path.is_dir():
             raise InstallationStoreError("unsafe_installation_directory")
-        info = path.stat()
-        if private and (
-            info.st_mode & 0o077 or (hasattr(os, "getuid") and info.st_uid != os.getuid())
-        ):
+        if private and _is_unsafe_private_directory(path, info):
             raise InstallationStoreError("installation_directory_not_private")
 
     def _assert_contained(self, path: Path) -> None:

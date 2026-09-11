@@ -9,6 +9,8 @@
 私有工具代理。Phase 2C 增加通用 Automation、运行查询/重试、报告日程显式迁移与投递渠道接口。
 
 本轮跨平台修复不新增或修改 HTTP 路由。Windows 上的 Runtime 认证读取、DataHub 快照接口和会话文件下载在进入既有响应契约前执行规范路径、重解析点、普通文件及打开前后身份校验；失败继续返回既有安全错误，不暴露本机路径或文件内容。waterfall/cancel 的空或非字符串标识在协议边界统一返回 `protocol_error`。
+MCP 安装清单与确认令牌目录的 Windows mode 修正同样发生在服务装配阶段，不改变请求或响应
+schema；目录类型、符号链接和重解析点仍关闭失败，POSIX 私有权限检查保持不变。
 
 路由由源码声明、架构清单与 OpenAPI 双向核对；唯一操作数由生成检查更新，不以手写计数替代。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`mcp_registry/routes.py` 提供只读目录、同步与外部 Publisher 交接；`mcp_runtime/routes.py` 提供功能开关保护的安装、运行、授权和 Host 代理契约；`automation/routes.py` 提供任务、Run、迁移和渠道契约；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 

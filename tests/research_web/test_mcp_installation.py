@@ -752,6 +752,31 @@ def test_installation_store_requires_keyed_integrity_and_private_runtime_root(
         InstallationStore(tmp_path, integrity_key=b"k" * 32)
 
 
+def test_private_mcp_directories_do_not_treat_windows_mode_bits_as_acl_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.research_web.mcp_runtime import installation_store
+
+    runtime = tmp_path / "mcp-runtime"
+    runtime.mkdir(mode=0o755)
+    installations = runtime / "installations"
+    installations.mkdir(mode=0o755)
+    monkeypatch.setattr(installation_store, "_PLATFORM_NAME", "nt", raising=False)
+
+    store = InstallationStore(tmp_path, integrity_key=b"k" * 32)
+    plan = _plan(_request())
+    tokens = ConfirmationTokenManager(b"s" * 32, replay_root=tmp_path)
+    control = tmp_path / ".control"
+    control.mkdir(mode=0o755)
+    confirmations = control / "mcp-confirmations"
+    confirmations.mkdir(mode=0o755)
+    tokens.verify(tokens.issue(plan), plan, consume=True)
+
+    assert store.root == runtime
+    assert store.installations == installations
+    assert len(list(confirmations.glob("*.used"))) == 1
+
+
 def test_installation_confirmation_is_single_use(tmp_path: Path) -> None:
     plan = _plan(_request())
     tokens = ConfirmationTokenManager(b"s" * 32, replay_root=tmp_path)

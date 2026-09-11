@@ -87,6 +87,8 @@ text，UI 只在最终 HTML sink 转义；搜索或 Registry 替换结果集会�
 事实，不承诺可安装。Publisher 预览/校验只生成规范 `server.json`、SHA-256 与完整外部 CLI argv，且返回
 `executed:false`。Phase 2B 的安装、授权和 Host 与 Registry 身份分离；Phase 2C 的 Automation
 锁定能力版本、内容 SHA 和可无人值守 MCP 工具快照，不从目录临时选择或静默升级。
+Phase 2B 的安装清单与确认令牌重放目录在 Windows 上使用目录类型、符号链接和重解析点证据，
+不以 POSIX mode 投影代替 ACL；POSIX 仍校验 group/other mode 与目录所有者。
 
 Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次执行和旧报告日程。一次、每日、
 每周和每月日程使用 IANA 时区，月度缺失日期回落月末；DST 空缺顺延到首个有效分钟，重复时间只

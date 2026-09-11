@@ -28,6 +28,9 @@ cleanup tests run only where those system calls exist. It adds no route, service
 After all three phase gates passed, the Registry, Runtime and Automation feature readers now default to enabled;
 `launch_runtime.py` uses the same Runtime default as the Host. Explicit `0` values remain the deployment rollback
 path, and contract tests cover both the absent-variable and explicit-disable cases.
+`mcp_runtime/installation_store.py` validates installation and confirmation replay directories with the same
+cross-platform distinction used by service state: Windows retains directory, symlink and reparse-point checks
+without interpreting POSIX mode bits as ACLs; POSIX additionally enforces group/other mode and owner identity.
 
 Research Web Phase 2A adds the feature-gated, read-only MCP Registry catalog in
 `app/research_web/mcp_registry/`. `catalog.py` aggregates the fixed official `/v0.1` API and explicitly
