@@ -29,6 +29,7 @@ from uuid import uuid4
 
 from core.observability import get_logger
 
+from .installation_store import _private_directory_violation
 from .models import InstallationRequest, InstallationSelection, PackageArtifact
 
 log = get_logger(__name__)
@@ -623,10 +624,11 @@ class PackageResolver:
     def _new_staging_directory(self, staging_id: str) -> Path:
         try:
             if self.staging_root.exists() or self.staging_root.is_symlink():
-                if self.staging_root.is_symlink() or not self.staging_root.is_dir():
+                info = self.staging_root.lstat()
+                violation = _private_directory_violation(self.staging_root, info)
+                if violation == "unsafe":
                     raise PackageResolutionError("staging_root_unsafe")
-                info = self.staging_root.stat()
-                if info.st_mode & 0o077:
+                if violation == "not_private":
                     raise PackageResolutionError("staging_root_not_private")
             else:
                 self.staging_root.mkdir(parents=True, mode=0o700)

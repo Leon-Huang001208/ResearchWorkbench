@@ -70,19 +70,21 @@ def _decode(value: str) -> bytes:
     return raw
 
 
-def _is_unsafe_private_directory(path: Path, identity: os.stat_result) -> bool:
-    """Validate private directory structure using platform-appropriate evidence."""
+def _private_directory_violation(path: Path, identity: os.stat_result) -> str | None:
+    """Return the stable class of a platform-appropriate directory violation."""
     reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
     is_reparse_point = bool(getattr(identity, "st_file_attributes", 0) & reparse_flag)
-    posix_permissions_unsafe = _PLATFORM_NAME != "nt" and (
+    if not stat.S_ISDIR(identity.st_mode) or path.is_symlink() or is_reparse_point:
+        return "unsafe"
+    if _PLATFORM_NAME != "nt" and (
         bool(identity.st_mode & 0o077) or (hasattr(os, "getuid") and identity.st_uid != os.getuid())
-    )
-    return (
-        not stat.S_ISDIR(identity.st_mode)
-        or path.is_symlink()
-        or is_reparse_point
-        or posix_permissions_unsafe
-    )
+    ):
+        return "not_private"
+    return None
+
+
+def _is_unsafe_private_directory(path: Path, identity: os.stat_result) -> bool:
+    return _private_directory_violation(path, identity) is not None
 
 
 class ConfirmationTokenManager:

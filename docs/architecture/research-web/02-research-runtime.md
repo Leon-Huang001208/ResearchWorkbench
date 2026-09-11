@@ -5,8 +5,8 @@ MCP 工具加入专属 DSH：Host 生成 `mcp__{installation}__{tool}` 声明和
 经私有 loopback 回调 Host；Host 每次复核安装版本、schema、会话授权、风险等级与人工审批后才由
 官方 SDK 调用 MCP Server。安装/启停会等待当前研究归零并仅重启 DSH，失败恢复旧激活清单；Web
 进程与既有提交、SSE、恢复和报告状态契约不变。
-安装清单与确认令牌重放目录在 Windows 上校验真实目录、符号链接和重解析点，但不把 POSIX
-`st_mode` 投影解释为 ACL；POSIX 继续校验 group/other mode 与当前用户所有权。
+staging、安装 payload、清单与确认令牌重放目录在 Windows 上校验真实目录、符号链接和重解析点，
+但不把 POSIX `st_mode` 投影解释为 ACL；POSIX 继续校验 group/other mode 与当前用户所有权。
 
 Phase 2C 的 Automation 只从锁定的 Skill、普通 Workflow 或报告 Workflow 版本创建独立 Claw
 会话。APScheduler 仅持有下一次内存触发，原子索引保存任务与 Run 事实；启动时只合并最近一次遗漏，

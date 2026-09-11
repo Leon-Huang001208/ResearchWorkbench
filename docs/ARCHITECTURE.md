@@ -31,8 +31,9 @@ Phase 2C 的 Windows CI 修复只收紧本机显式验证证据的 TTL 截止语
 
 三个 Phase 2 服务在各自远端门禁通过后默认装配；Registry、Runtime、Automation 仍可用对应环境变量
 显式设为 `0` 独立关闭。默认值变化不改变安装、授权、版本锁、人工审批、持久化或 DSH 边界。
-MCP 安装清单与确认令牌重放目录使用平台对应的私有目录证据：Windows 校验真实目录、符号链接和
-重解析点，不把 POSIX mode 投影当作 ACL；POSIX 继续校验 group/other mode 和目录所有者。
+MCP staging、安装 payload、清单与确认令牌重放目录使用平台对应的私有目录证据：Windows 校验
+真实目录、符号链接和重解析点，不把 POSIX mode 投影当作 ACL；POSIX 继续校验 group/other mode
+和目录所有者。
 
 Research Web 可在同一专属 DSH 执行链中加载固定、经完整性校验的 `dsh-tabbit` 0.3.4；
 `research-tabbit-adapter` 只复用插件提供的 `ctx.tabbit`，没有第二套 Playwright/CLI 执行器。

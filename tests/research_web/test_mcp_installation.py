@@ -761,9 +761,16 @@ def test_private_mcp_directories_do_not_treat_windows_mode_bits_as_acl_evidence(
     runtime.mkdir(mode=0o755)
     installations = runtime / "installations"
     installations.mkdir(mode=0o755)
+    staging = tmp_path / "staging"
+    staging.mkdir(mode=0o755)
+    installed = tmp_path / "installed"
+    installed.mkdir(mode=0o755)
     monkeypatch.setattr(installation_store, "_PLATFORM_NAME", "nt", raising=False)
 
     store = InstallationStore(tmp_path, integrity_key=b"k" * 32)
+    plan, staging_root = _resolved_plan(_request(), tmp_path)
+    installer_module = importlib.import_module("app.research_web.mcp_runtime.package_installer")
+    installer = installer_module.PackageInstaller(staging_root, installed)
     plan = _plan(_request())
     tokens = ConfirmationTokenManager(b"s" * 32, replay_root=tmp_path)
     control = tmp_path / ".control"
@@ -774,6 +781,8 @@ def test_private_mcp_directories_do_not_treat_windows_mode_bits_as_acl_evidence(
 
     assert store.root == runtime
     assert store.installations == installations
+    assert installer.staging_root == staging.resolve()
+    assert installer.installation_root == installed.resolve()
     assert len(list(confirmations.glob("*.used"))) == 1
 
 

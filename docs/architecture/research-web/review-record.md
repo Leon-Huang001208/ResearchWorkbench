@@ -547,8 +547,9 @@
 
 ## 2026-09-11 — Phase 2 默认启用 Windows 私有目录修复
 
-- MCP 安装清单与确认令牌重放目录采用现有跨平台私有目录边界：Windows 不以 POSIX mode 投影代替
-  ACL，但继续拒绝非目录、符号链接和重解析点；POSIX 继续检查 group/other mode 与所有者。
+- MCP staging、安装 payload、清单与确认令牌重放目录采用统一跨平台私有目录边界：Windows 不以
+  POSIX mode 投影代替 ACL，但继续拒绝非目录、符号链接和重解析点；POSIX 继续检查 group/other
+  mode 与所有者。
 - 修复只影响平台校验分支，不改变安装清单、确认令牌、API、存储位置、Runtime 拓扑或页面。
 
 <!-- architecture-review {"group":"mcp-runtime","structure":"unchanged","reason":"MCP私有目录校验改用既有跨平台证据边界，安装清单、令牌、API和Runtime拓扑不变。","diagrams":[]} -->

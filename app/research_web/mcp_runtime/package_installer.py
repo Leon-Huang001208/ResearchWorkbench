@@ -17,6 +17,7 @@ from pathlib import Path
 from core.observability import get_logger
 
 from .credentials import RuntimeCredentialStore
+from .installation_store import _private_directory_violation
 from .models import (
     InstallationManifest,
     InstallationPlan,
@@ -276,12 +277,7 @@ class PackageInstaller:
             if create:
                 path.mkdir(mode=0o700, parents=True, exist_ok=True)
             info = path.lstat()
-            if (
-                path.is_symlink()
-                or not stat.S_ISDIR(info.st_mode)
-                or info.st_mode & 0o077
-                or (hasattr(os, "getuid") and info.st_uid != os.getuid())
-            ):
+            if _private_directory_violation(path, info) is not None:
                 raise PackageInstallError("package_directory_unsafe")
             return path.resolve(strict=True)
         except PackageInstallError:
