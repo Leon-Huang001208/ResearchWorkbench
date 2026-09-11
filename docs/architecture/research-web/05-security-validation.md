@@ -11,6 +11,7 @@
 | Registry 凭据 → 系统凭据库 | Bearer/OAuth 秘密只存 Keyring `ResearchWorkbench.MCPRegistry`；索引、缓存、日志和响应不含秘密 | `mcp_registry/credentials.py` / `test_mcp_registry.py` |
 | Registry 文本 → 浏览器 | schema 校验与长度限制后保存 Unicode plain text，拒绝 control/surrogate；数据层不做 entity escape，最终 HTML sink 单次转义且不热链图标 | `mcp_registry/models.py`、`ui/mcp-marketplace.mjs` / Python、JS、E2E |
 | Registry 版本 → 本地安装 | 只接受固定 npm/PyPI/MCPB 目标；完整依赖与哈希、直接 argv、`--ignore-scripts`、隔离目录、最小环境、安全解包和短期摘要确认；禁止 shell、范围/latest、钩子、隐式环境和链接越界 | `mcp_runtime/package_resolver.py`、`package_planner.py`、`package_installer.py` / `test_mcp_installation.py` |
+| MCP Host → 私有安装目录 | 安装清单与确认令牌重放目录拒绝非目录、符号链接和 Windows 重解析点；POSIX 额外校验 group/other mode 与所有者，Windows 不将 mode 投影当作 ACL | `mcp_runtime/installation_store.py` / `test_mcp_installation.py` |
 | Research Web Host → 远程 MCP | 仅 HTTPS 或字面 loopback HTTP；无自动跨源重定向；OAuth 使用 PKCE/state/元数据发现/受众校验，token 只进 `ResearchWorkbench.MCPRuntime` 凭据库且不 passthrough | `mcp_runtime/transport.py`、`oauth.py`、`sdk_host.py` / `test_mcp_transport.py` |
 | DSH → MCP Host → Server | DSH 只加载命名空间化声明并经私有 loopback 控制令牌代理；每次调用重核安装版本、schema 哈希、会话快照、风险和一次性审批；参数正文不进日志或审批列表 | `runtime/mcp-adapter.mjs`、`mcp_runtime/authorization.py`、`service.py` / Python 与 JavaScript MCP 回归 |
 | Automation → Claw / MCP | 每个 Run 使用独立会话并锁定目标版本、内容 SHA 与工具 schema；无人值守只允许任务明确授权的只读工具，私有数据须任务级授权，高风险工具拒绝 | `automation/service.py`、`mcp_runtime/service.py` / Automation 与 MCP route tests |

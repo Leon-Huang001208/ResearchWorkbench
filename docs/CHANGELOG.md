@@ -10,6 +10,7 @@
 
 - MCP Registry、MCP Runtime 和 Automation 在三阶段远端门禁通过后默认开启；部署仍可分别用 `RESEARCH_MCP_REGISTRY_ENABLED=0`、`RESEARCH_MCP_RUNTIME_ENABLED=0` 和 `RESEARCH_AUTOMATIONS_ENABLED=0` 关闭。
 - Research Web Host 与 DSH 启动层共享同一个 MCP Runtime 默认值；默认开启不自动安装、授权、迁移日程或外发。
+- 默认启用暴露的 Windows 启动回归已修正：MCP 安装与确认令牌私有目录不再把 Windows `st_mode` 投影误当 ACL；目录类型、符号链接和重解析点检查保持关闭失败，POSIX 仍校验 group/other 权限及所有者。
 
 ### Research Web Phase 2C Windows CI 修复 · 2026-09-11
 

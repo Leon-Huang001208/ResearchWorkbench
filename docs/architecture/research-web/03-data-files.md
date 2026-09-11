@@ -13,6 +13,8 @@ Phase 2B 在 `<RESEARCH_DATA_HOME>/mcp-runtime/` 保存不可变安装清单、�
 OAuth token、清单完整性密钥和 loopback 控制密钥分别由 `ResearchWorkbench.MCPRuntime` 系统凭据
 或私有控制文件持有，不进入清单、会话快照、浏览器响应或日志。删除安装前必须停用 Runtime；
 健康失败保留安装记录并原子恢复上一份启用清单。
+安装清单目录与确认令牌重放目录在 Windows 上以目录类型、符号链接和重解析点作为结构证据，
+不使用 POSIX mode 投影代替 ACL；POSIX 仍要求 group/other 无权限且目录属于当前用户。
 
 Phase 2C 在同一本地数据根中原子保存 Automation、AutomationRun 和非敏感投递渠道投影。任务记录
 锁定目标种类、ID、版本、内容 SHA、输入模板、工作空间、输出格式、允许的 MCP 工具快照、日程与

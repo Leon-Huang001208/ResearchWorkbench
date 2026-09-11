@@ -9,6 +9,8 @@ argv、来源、全部制品哈希和环境变量名称，并要求短期令牌�
 DSH 只接收命名空间化 schema 快照并经私有 loopback 回调 Host。远程只允许 HTTPS 或字面 loopback，
 OAuth 使用 PKCE/state/元数据发现和系统凭据库；本地进程使用直接 argv、独立目录及最小环境。
 功能默认开启；`RESEARCH_MCP_RUNTIME_ENABLED=0` 可独立关闭安装、授权和 Runtime 入口。
+安装清单与短期确认令牌的私有目录在 Windows 上拒绝非目录、符号链接和重解析点，但不把
+`st_mode` 的 POSIX 投影当作 ACL；macOS/Linux 继续要求 group/other 无权限且目录属于当前用户。
 
 2026-09-11 的阶段 2C 增加**通用 Automation 与外发**：任务锁定目标版本和内容 SHA，按一次、
 每日、每周或每月的 IANA 时区日程创建独立 Claw 会话；服务恢复时只合并最近一次遗漏，重叠触发

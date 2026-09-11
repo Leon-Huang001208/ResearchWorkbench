@@ -21,3 +21,12 @@
 - MCP 市场、MCP Runtime 和 Automation 三组浏览器回归各通过 8 个 viewport/theme 组合，共 24 项；覆盖 1440/1280/768/390、Light/Dark 与 reduced-motion。
 - 浏览器回归使用本地固定 fixture，不声明真实第三方 Registry、OAuth、MCP Server、邮件或机器人渠道已联通；本次不涉及桌面端。
 - 远端 CI 与清理结果由受管交付 receipt 记录。
+
+## Windows CI 修复
+
+- 首次发布后，原生 Windows Research Web 两项门禁暴露 `InstallationStore` 将 Windows
+  `st_mode` 投影误判为 POSIX 私有权限，导致 MCP Runtime 默认装配阶段失败；macOS 门禁与项目约束通过。
+- 安装清单和确认令牌重放目录改为平台对应的结构校验：Windows 保留真实目录、符号链接和重解析点
+  拒绝，POSIX 保留 group/other mode 与所有者检查。未放宽固定制品、摘要确认、Keyring、授权或调用边界。
+- 本地回归先稳定复现 `installation_directory_not_private`，修复后覆盖 Windows mode 投影、POSIX
+  宽松权限拒绝及符号链接拒绝；最终完整验证、修复提交、原生 CI 和清理由受管交付 receipt 记录。
