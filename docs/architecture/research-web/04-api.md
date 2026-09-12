@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+Goldar V1 增加 `/api/research/frameworks` 目录、版本化快照和页面会话接口。解释与深度验证均要求客户端提交当前 `snapshot_revision`；版本漂移返回 409，避免跨快照混合结论。详细字段与模式边界见 [研究框架](08-research-frameworks.md)。
+
 能力工作区 v0 没有新增后端 API。`#/skills` 以 `kind=skill|tool|workflow|data` 作为四个主分区，
 `view=library|mine|plans|connections|market` 只表示类型内二级视图；这些都是纯前端路由参数，继续读取
 本页已有的 capabilities、tools、data catalog、data connections 与 report-workflows 接口。

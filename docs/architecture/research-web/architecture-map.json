@@ -12,7 +12,8 @@
       ],
       "documents": [
         "docs/research-web-ui.md",
-        "docs/research-web-appearance.md"
+        "docs/research-web-appearance.md",
+        "docs/architecture/research-web/08-research-frameworks.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -38,6 +39,8 @@
         "tests/e2e/research_web_stop_live.mjs",
         "tests/javascript/research_web_appearance.test.mjs",
         "tests/e2e/research_web_appearance.mjs",
+        "tests/javascript/research_web_frameworks_ui.test.mjs",
+        "tests/e2e/research_web_goldar_v0.mjs",
         "tests/e2e/research_web_mcp_marketplace.mjs",
         "tests/e2e/research_web_mcp_runtime.mjs"
       ]
@@ -53,6 +56,7 @@
         "app/research_web/client.py",
         "app/research_web/tabbit.py",
         "app/research_web/projection.py",
+        "app/research_web/frameworks/",
         "app/research_web/local_integrations/"
       ],
       "documents": [
@@ -60,6 +64,7 @@
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/04-api.md",
         "docs/architecture/research-web/05-security-validation.md",
+        "docs/architecture/research-web/08-research-frameworks.md",
         "docs/research-web-tabbit.md"
       ],
       "diagrams": [
@@ -76,6 +81,7 @@
         "tests/research_web/test_event_recovery.py",
         "tests/research_web/test_cancel_reconciliation.py",
         "tests/research_web/test_service_manager.py",
+        "tests/research_web/test_frameworks.py",
         "tests/research_web/test_tabbit.py"
       ]
     },
@@ -1058,6 +1064,41 @@
     }
   ],
   "apis": [
+    {
+      "method": "GET",
+      "path": "/api/research/frameworks",
+      "source": "app/research_web/frameworks/routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/frameworks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/frameworks/{slug}/data",
+      "source": "app/research_web/frameworks/routes.py",
+      "declaredPath": "/{slug}/data",
+      "prefix": "/api/research/frameworks"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/frameworks/{slug}/sessions",
+      "source": "app/research_web/frameworks/routes.py",
+      "declaredPath": "/{slug}/sessions",
+      "prefix": "/api/research/frameworks"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/frameworks/{slug}/sessions/{sid}/messages",
+      "source": "app/research_web/frameworks/routes.py",
+      "declaredPath": "/{slug}/sessions/{sid}/messages",
+      "prefix": "/api/research/frameworks"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/frameworks/{slug}/sessions/{sid}/verify",
+      "source": "app/research_web/frameworks/routes.py",
+      "declaredPath": "/{slug}/sessions/{sid}/verify",
+      "prefix": "/api/research/frameworks"
+    },
     {
       "method": "GET",
       "path": "/api/research/automations",

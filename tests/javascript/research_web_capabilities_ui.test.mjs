@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
@@ -10,6 +10,14 @@ import * as shell from '../../app/research_web/ui/shell.mjs';
 
 const root = new URL('../../app/research_web/ui/', import.meta.url);
 const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
+const projectOwnerRoot = (() => {
+  try {
+    const commonDirectory = execFileSync('git', ['rev-parse', '--git-common-dir'], { cwd: projectRoot, encoding: 'utf8' }).trim();
+    return path.dirname(path.resolve(projectRoot, commonDirectory));
+  } catch {
+    return projectRoot;
+  }
+})();
 const cap = (extra = {}) => ({ id: 'my-skill', kind: 'skill', name: '我的研究', description: '真实资料', category: '资料研究', status: 'enabled', enabled: true, version: 2, builtin: false, metadata: { default_formats: ['md'], inputs: [{ name: 'file', label: '资料', type: 'file', required: true }], scenarios: ['研究'], required_tools: [], dependencies: [] }, ...extra });
 const load = (name) => import(new URL(name, root));
 const session = () => ({ id: 's1', mode: 'fingpt', status: 'idle', messages: [] });
@@ -24,8 +32,8 @@ function projectPython({ callerCwd = process.cwd(), environment = process.env } 
   }
   const candidates = [
     path.join(projectRoot, '.venv', executable),
-    path.basename(path.dirname(projectRoot)) === '.worktrees'
-      ? path.join(path.dirname(path.dirname(projectRoot)), '.venv', executable)
+    projectOwnerRoot !== projectRoot
+      ? path.join(projectOwnerRoot, '.venv', executable)
       : null,
     environment.VIRTUAL_ENV ? path.join(environment.VIRTUAL_ENV, executable) : null,
   ].filter(Boolean);
@@ -61,9 +69,7 @@ function productBuiltinResearchSkills() {
 
 test('relative Python override resolves once against the caller cwd and runs from the worktree', () => {
   const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
-  const ownerRoot = path.basename(path.dirname(projectRoot)) === '.worktrees'
-    ? path.dirname(path.dirname(projectRoot))
-    : projectRoot;
+  const ownerRoot = projectOwnerRoot;
   const relativeOverride = path.join('.venv', executable);
   const resolved = projectPython({
     callerCwd: ownerRoot,
@@ -173,8 +179,8 @@ test('capability quicklook is an accessible dialog with truthful disabled reason
 test('capability center renders, filters, opens and selects every built-in Skill without a router card', async () => {
   const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
   const builtinResearchSkills = productBuiltinResearchSkills();
-  assert.equal(builtinResearchSkills.length, 11);
-  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 11);
+  assert.equal(builtinResearchSkills.length, 12);
+  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 12);
   assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin && item.enabled), true);
 
   const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });

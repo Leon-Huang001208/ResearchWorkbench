@@ -1,0 +1,146 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "theme": "light",
+      "width": 1440,
+      "height": 900,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1280,
+      "height": 720,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1024,
+      "height": 768,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "height": 1024,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "height": 900,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1280,
+      "height": 720,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1024,
+      "height": 768,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "height": 1024,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "reducedMotion": true,
+      "keyboardAnchors": 6
+    }
+  ],
+  "screenshots": [
+    "light-1440x900-overview.png",
+    "light-1440x900-bot.png",
+    "light-390x844-overview.png",
+    "light-390x844-bot.png",
+    "dark-1440x900-overview.png",
+    "dark-390x844-overview.png",
+    "light-1440x900-drivers.png",
+    "light-1440x900-supply.png",
+    "light-1440x900-cycle.png",
+    "light-1440x900-positioning.png",
+    "light-1440x900-allocation.png",
+    "light-1440x900-evidence.png",
+    "light-1440x900-hub.png"
+  ],
+  "consoleErrors": [],
+  "pageErrors": []
+}

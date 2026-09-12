@@ -50,6 +50,13 @@ and publisher handoff remain read-only even when Phase 2B runtime management is 
 Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
 Read the canonical [Research Web architecture](architecture/research-web/README.md),
 [implementation notes](research-web.md) and [UI contract](research-web-ui.md) first for this product.
+The Web-only Goldar V1 implementation lives in `app/research_web/frameworks/`,
+`app/research_web/ui/frameworks.mjs` and `app/research_web/ui/frameworks/`. The Hub route is
+`#/frameworks`; `#/frameworks/gold` is one continuous seven-anchor research canvas backed by a strict,
+versioned Gold-specific snapshot. Page-scoped DSH conversations bind the exact snapshot revision: explanation
+is tool-free, while explicit verification creates a separate read-only research session. The current seed remains
+deterministic and is not presented as live market data. Its architecture boundary is documented in
+[research frameworks](architecture/research-web/08-research-frameworks.md).
 The machine-readable [architecture map](architecture/research-web/architecture-map.json) connects
 current source modules, Markdown, diagrams and tests. Local acceptance is recorded separately from structural consistency.
 The legacy subsystems below remain historical implementations, not dependencies to add to this new chain.
@@ -90,7 +97,7 @@ DataHub catalog, brand-neutral business tools, broker, Provider, probe and snaps
 `app/research_web/service_manager.py` applies the same platform distinction to its private data, state and log directories: type, symlink and Windows reparse checks remain universal, while group/other mode checks remain POSIX-only.
 
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
-`app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill 加五个专用 Skill 共 11 项，四个
+`app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill、五个专用 Skill 和一个框架核验 Skill 共 12 项，四个
 Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-protocol.md` 是专用 Skill 的共享证据
 协议源码，构建时复制到每个包的 `references/` 并进入不可变版本哈希；它本身不进入发现目录。
 研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱

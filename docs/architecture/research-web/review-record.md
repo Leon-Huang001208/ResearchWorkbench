@@ -554,9 +554,29 @@
 
 <!-- architecture-review {"group":"mcp-runtime","structure":"unchanged","reason":"MCP私有目录校验改用既有跨平台证据边界，安装清单、令牌、API和Runtime拓扑不变。","diagrams":[]} -->
 
+## 2026-09-11 — Goldar 研究框架 V0 视觉检查点
+
+- 产品壳新增 Framework Hub 与 Goldar 专属 hash 路由，七个章节由固定 fixture 和专属 Lieflat SVG renderer 呈现。
+- 本阶段没有 API、服务、存储、采集器或 Runtime 变更；固定样例显著标注，不形成实时市场结论。
+- 新文件仍位于架构图既有的 Research Web UI 边界内，`app.mjs` 仅组合无副作用的展示叶模块，因此现有部署、模块依赖和研究序列图不变。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Goldar V0是既有Research Web UI边界内的无副作用展示叶模块，只增加hash路由和固定fixture，不增加服务、API、存储、Runtime或跨边界数据流。","diagrams":[]} -->
+
 ## 2026-09-11 — 本机集成格式基线维护
 
 - 仅整理本机集成包导入、敏感键正则和 ISO 时间解析表达式，使相关文件同时符合 Ruff、Black 与 isort。
 - API、状态 schema、验证流程、持久化和页面拓扑均未改变，现有架构图继续准确。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"本机集成格式基线维护不改变API、状态模型、验证流程、持久化或UI拓扑。","diagrams":[]} -->
+
+## 2026-09-12 — Goldar V1 连续研究画布与框架 Bot
+
+- 七个独立章节页收敛为一张连续研究画布，页内锚点保留旧 `?tab=` 深链兼容；Lieflat 图表从六张缩减为四张承担明确比较任务的 Basics 图。
+- `frameworks/goldar/` 新增版本化黄金方法、严格快照、内容 revision、原子存储和旧结构保留迁移；当前 seed 明确为确定性离线证据，不宣称实时行情。
+- 页面 Bot 复用唯一 DSH：默认解释会话无工具，用户显式深度验证时另建只读会话；两种模式都绑定精确快照 revision，不能写快照或改评分。
+- 新模块仍封装在既有 Browser → Research Web API → DSH 与本地数据文件边界内，不增加部署进程、执行引擎或事实数据库，因此现有架构图的节点与连线仍准确。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Goldar连续画布、四张Lieflat图和响应式Bot仍位于既有Research Web浏览器节点内，不增加跨边界关系。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"框架目录、严格快照和页面会话接口封装在既有Research Web API与本地文件及DSH关系内。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"新增解释与验证预设仍由同一专属DSH进程加载，不增加Runtime、工具宿主或跨进程通道。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"framework-research通过既有不可变Skill目录和原生发现链交付，没有新增能力类型或执行器。","diagrams":[]} -->

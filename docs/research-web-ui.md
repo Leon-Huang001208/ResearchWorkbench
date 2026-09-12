@@ -4,7 +4,7 @@
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 真实模型与浏览器旅程见 [验收记录](research-web-acceptance.md)。
 
-页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/history`、`#/skills`、`#/operations` 与设置子路由。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections|market` 表示类型内二级视图；`market` 仅对 Tool 有效，规范地址为 `#/skills?kind=tool&view=market`，无 kind 的 market 也归一到 Tool。无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
+页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/frameworks`、`#/frameworks/gold`、`#/history`、`#/skills`、`#/operations` 与设置子路由。黄金详情是带七个语义锚点的连续画布；旧 `?tab=` 地址继续定位相应锚点。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections|market` 表示类型内二级视图；`market` 仅对 Tool 有效，规范地址为 `#/skills?kind=tool&view=market`，无 kind 的 market 也归一到 Tool。无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
 当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、DataHub 以外的原生审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
@@ -36,6 +36,7 @@ Phase 2A/2B/2C 通过 CI 后，MCP 市场、MCP Runtime 与 Automation 默认可
 | `capability-controller.mjs` | 显式创建/复制/导入/编辑/检查/发布/停用/启用/版本/回滚操作及失败保稿 |
 | `workbench.mjs` | 市场、基金、产业链、资料等研究台入口，按需查询并把真实快照交接给研究会话 |
 | `asset-workspace.mjs` | 独立资产观察：概览、OHLC K 线、MA/BOLL、成交量、成交额、换手率、MACD、KDJ、RSI、财务/事件/资料分块、自选、笔记、提醒和来源口径；指标只从 DataHub 行情行计算，缺失数据不填演示值 |
+| `frameworks.mjs` / `frameworks/` | Framework Hub、Goldar 连续研究画布、四张专用 Lieflat 图和绑定快照 revision 的解释/深度验证 Bot |
 | `report-workflows.mjs` | Claw 与能力中心中的真实报告 Workflow 卡片和详情；显示锁定版本、模板、Excel 底稿、数据插件、步骤、日程和历史产物 |
 | `operations.mjs` | 只读展示模型 usage、Agent/Tool、DataHub、服务健康和项目数据根占用 |
 
@@ -49,6 +50,7 @@ Phase 2A/2B/2C 通过 CI 后，MCP 市场、MCP Runtime 与 Automation 默认可
 - publisher 区只显示后端返回的规范 JSON、SHA-256 及完整 `mcp-publisher validate/publish` argv，`executed` 固定为 `false`。它不登录、安装、启用或发布；用户须在应用外的官方 CLI 显式完成。
 
 - 新研究先 `POST /sessions`，再对新会话 `POST /messages`；消息带 `Idempotency-Key`。同一个失败草稿重试复用相同键；收到 `accepted: true` 才清空原稿。界面不伪造用户/助手消息或进度。
+- 框架 Bot 默认只解释当前服务器快照，显式“深度验证”才创建独立只读研究会话；两者都绑定精确 `snapshot_revision`，快照变化后要求重新开始。桌面为右侧吸顶面板，移动端为全页底部面板。
 - `@` 标签候选仅在用户展开菜单后读取；首次展开先获得当前会话页面访问授权。候选按标题或 URL 过滤，支持键盘操作和最多 8 个可移除 chip。发送前必须二次确认实时 claim 及可能改变分组；授权、claim 或提取失败均保留正文和 chips。`/` 菜单优先且不与 `@` 菜单同时展开。设置 → 本地集成分别控制浏览器自动化和 Tabbit `web_fetch` 接管，配置只在 Runtime 重启后生效。完整契约和 `read_only` 限制见 [Tabbit 集成](research-web-tabbit.md)。
 - 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。DataHub 标准字段 `turnover` 表示成交额，`turnover_rate_pct` 表示换手率；两者不得混用，缺少换手率时显示未知。没有真实值时不补价格、估值、主题或同类比较。
 - Claw 首页先读取 `/report-workflows`，单独展示已迁移的报告 Workflow；通用 Workflow 卡不会冒充具体报告。点击详情只查看资源与版本，点击运行才创建独立 Claw 会话。AI 周报处于 `needs_attention` 时禁止运行。
@@ -155,3 +157,9 @@ macOS 本机集成页为 Excel、Word、PowerPoint 和 Wind Excel 分别提供�
 已受理但原生不运行、交付仍等待时显示「重新核对停止」，调用已有取消端点。离线不可操作，复核前发送仍禁用；后端严格核对后只允许以verification_failed说明缺失终止记录，不能用UI按钮将任务伪报成功。普通运行任务仍使用「停止」。
 
 本机集成 Wind Excel 验证改为复用已登录 Excel 并只操作独占空白工作簿；厂商弹出二维码安全验证窗口时投影为「待授权」。设置页只展示该安全化状态、进度与最近验证时间，不读取或展示二维码内容、绝对路径、命令或环境变量；报告工作簿刷新与校验仍由各自 Workflow 单独进行，不并入本机验证结论。
+
+## Goldar 研究框架 V0
+
+产品主导航新增「研究框架」，`#/frameworks` 为 Hub，`#/frameworks/gold` 为黄金专属详情。详情用查询参数保存七个章节的当前页签；路由只接受安全 slug 和预定义页签，未知值回到总览。框架与资产观察职责分离：黄金页只显示支持研究判断所需的紧凑价格背景，不复制完整行情终端或基金列表。
+
+当前 V0 只读取前端固定 fixture，并在页首明确声明演示数据不代表当前市场。Goldar 保留核心问题、研究链路、支持/拖累、下一项验证、数据覆盖与缺口；状态文案限定为偏强、中性、偏弱、待核验，不出现交易操作标签。七个章节及图表均由专属 renderer 输出，不建立跨领域大模板或第二份资产数据层。完整契约见 [研究框架](architecture/research-web/08-research-frameworks.md)。

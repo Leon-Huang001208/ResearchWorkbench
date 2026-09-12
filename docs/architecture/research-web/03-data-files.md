@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+Goldar 快照位于产品数据根的框架子目录，采用严格 V1 schema、内容 revision、2 MiB 上限和同目录原子替换。识别到旧 V0 结构时先保留单份 `snapshot.legacy-v0.json` 再安装确定性 seed；框架快照不进入 Automation 事实索引、会话正文或资产数据集。
+
 Phase 2A 另在 `<RESEARCH_DATA_HOME>/mcp-registry/` 保存非敏感 Registry 索引以及按 Registry
 隔离的原子缓存。官方 `/v0.1` 的不透明游标、ETag 与同步时间只随成功结果提交；网络或上游失败
 只把最后成功缓存标记为 `stale`，不会用空结果覆盖。缓存目录元数据经过 schema 校验和长度限制，

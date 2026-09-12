@@ -120,7 +120,7 @@ def no_delta_digest():
 def test_builtin_metadata_text_boundaries_and_reviewed_resources(api):
     client, _, _ = api
     rows = client.get("/api/research/capabilities").json()["items"]
-    assert len([row for row in rows if row["kind"] == "skill"]) == 11
+    assert len([row for row in rows if row["kind"] == "skill"]) == 12
     assert len([row for row in rows if row["kind"] == "workflow"]) == 4
     assert not any("router" in row["id"] for row in rows)
     row = next(row for row in rows if row["id"] == SLUG)

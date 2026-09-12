@@ -1,5 +1,7 @@
 # Research Web Tabbit 集成
 
+Goldar 框架解释与深度验证沿用同一个专属 DSH，但其 `framework-explain` / `framework-verify` 预设不装配 Tabbit；框架 Bot 不读取用户浏览器标签，也不改变本页 claim、授权和正文生命周期。
+
 ## 范围
 
 Research Web 在私有 DSH Web Profile 中固定加载 `dsh-tabbit` 0.3.4 和

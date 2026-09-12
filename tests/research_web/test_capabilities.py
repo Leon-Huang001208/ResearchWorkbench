@@ -114,7 +114,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 15
+    assert len(rows) == 16
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
@@ -127,6 +127,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api):
         "宏观与跨资产",
         "研报增量分析",
         "因子库研究",
+        "框架深度验证",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]
