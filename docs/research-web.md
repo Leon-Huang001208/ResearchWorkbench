@@ -48,6 +48,20 @@ Registry 默认只接受 HTTPS；唯一 HTTP 例外是 `auth=none` 且主机精�
 
 ## 开发启动
 
+完整开发环境仍使用 `pip install -e ".[dev]"`。如果只需要修复已有的 uv 管理环境并运行
+Research Web 测试，可安装最小依赖集：
+
+```bash
+uv pip install --python .venv/bin/python \
+  'keyring>=25.7.0' 'matplotlib>=3.10.0' 'beautifulsoup4>=4.12.0' \
+  'mcp>=2,<3' 'httpx2>=2,<3' 'apscheduler>=3.10.0' \
+  'pdfplumber>=0.10.0' 'PyMySQL>=1.2.0'
+uv pip check --python .venv/bin/python
+```
+
+该最小环境不包含 `akshare`、`cjpy`、WindPy 等可选数据提供方 SDK；缺少它们时，对应工具会按
+来源目录标记为不可选，测试不会把本机恰好安装的提供方当作固定产品能力。
+
 安装项目命令后，使用项目级后台管理器启动；命令返回或终端关闭后，两个进程仍继续运行：
 
 ```bash

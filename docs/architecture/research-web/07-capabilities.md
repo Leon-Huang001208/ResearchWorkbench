@@ -15,7 +15,7 @@
 | `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、数据组织为四个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
 | `ui/mcp-marketplace.mjs` | 在 Tool 的 `view=market` 浏览只读 Registry，并管理完整安装确认、探测、启停、移除、OAuth、风险分级、会话授权和一次性审批；最终 HTML sink 单次转义 | 执行 Publisher、渲染 Registry HTML、热链图标或自动授予权限 |
 | `mcp_registry/` | 按 `(registry_id, server_name, version)` 聚合目录，管理安全传输、不透明游标、ETag、原子最后成功缓存和 Keyring 引用 | 合并同名服务器、把秘密写入 JSON、向 DSH 注册工具 |
-| `mcp_runtime/` | 固定制品解析、不可变清单、隔离安装、官方 SDK Host、OAuth、schema 快照、风险/授权/审批与 DSH 激活回滚 | shell 字符串、latest/版本范围、自动授权、无人值守高风险或 Registry 发布 |
+| `mcp_runtime/` | 固定制品解析、不可变清单、隔离安装、缺少 pip 时的受限 uv 离线回退、官方 SDK Host、OAuth、schema 快照、风险/授权/审批与 DSH 激活回滚 | shell 字符串、latest/版本范围、自动安装 uv、自动授权、无人值守高风险或 Registry 发布 |
 | `automation/` | 锁定版本任务、IANA 日程、独立 Claw Run、恢复、显式旧日程迁移和独立投递状态 | 静默升级、研究自动重试、重叠运行或高风险无人值守调用 |
 
 Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH 读取的原生 Skill 指令，步骤列表是研究模板，不是已执行节点。
@@ -89,6 +89,8 @@ text，UI 只在最终 HTML sink 转义；搜索或 Registry 替换结果集会�
 锁定能力版本、内容 SHA 和可无人值守 MCP 工具快照，不从目录临时选择或静默升级。
 Phase 2B 的 staging、安装 payload、清单与确认令牌重放目录在 Windows 上使用目录类型、符号链接
 和重解析点证据，不以 POSIX mode 投影代替 ACL；POSIX 仍校验 group/other mode 与目录所有者。
+PyPI 安装器仅在当前解释器找不到 pip 时选择宿主已有的 uv，并强制当前解释器、staging 私有缓存、
+禁用用户配置及原离线参数；两者都不可用时明确拒绝安装。
 
 Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次执行和旧报告日程。一次、每日、
 每周和每月日程使用 IANA 时区，月度缺失日期回落月末；DST 空缺顺延到首个有效分钟，重复时间只

@@ -13,6 +13,20 @@ done
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
 PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
 
+if [ ! -x "$PYTHON_BIN" ] && command -v git >/dev/null 2>&1; then
+  GIT_COMMON_DIR=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null || true)
+  if [ -n "$GIT_COMMON_DIR" ]; then
+    case "$GIT_COMMON_DIR" in
+      /*) ;;
+      *) GIT_COMMON_DIR="$PROJECT_ROOT/$GIT_COMMON_DIR" ;;
+    esac
+    COMMON_ROOT=$(CDPATH= cd -- "$(dirname -- "$GIT_COMMON_DIR")" 2>/dev/null && pwd -P || true)
+    if [ -n "$COMMON_ROOT" ] && [ -x "$COMMON_ROOT/.venv/bin/python" ]; then
+      PYTHON_BIN="$COMMON_ROOT/.venv/bin/python"
+    fi
+  fi
+fi
+
 if [ ! -x "$PYTHON_BIN" ]; then
   echo "Research Workbench Python 环境不存在：$PYTHON_BIN" >&2
   exit 1

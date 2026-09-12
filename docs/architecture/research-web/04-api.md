@@ -14,6 +14,8 @@ Goldar V1 增加 `/api/research/frameworks` 目录、版本化快照和页面会
 MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修正发生在服务装配和安装预览
 边界，不改变请求或响应 schema；目录类型、符号链接和重解析点仍关闭失败，POSIX 私有权限检查
 保持不变。
+本地 PyPI 执行器在精简环境缺少 pip 时可使用已安装的 uv 完成同一份离线计划；这是 Host 内部实现
+选择，不新增 API 字段、错误码或安装能力，也不改变浏览器确认摘要。
 
 路由由源码声明、架构清单与 OpenAPI 双向核对；唯一操作数由生成检查更新，不以手写计数替代。`report_workflow_routes.py` 提供具体报告 Workflow 的资源、版本、Provider 探测、运行、重试、交付和日程接口；`mcp_registry/routes.py` 提供只读目录、同步与外部 Publisher 交接；`mcp_runtime/routes.py` 提供功能开关保护的安装、运行、授权和 Host 代理契约；`automation/routes.py` 提供任务、Run、迁移和渠道契约；`operations.py` 只聚合真实运行证据。目录与消息使用当前原生能力版本契约；API 不是旧 `/api/research-runs`。
 

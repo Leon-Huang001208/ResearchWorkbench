@@ -6,6 +6,8 @@ import importlib
 import inspect
 import io
 import json
+import subprocess
+import sys
 import tarfile
 import tempfile
 import zipfile
@@ -237,6 +239,61 @@ def test_package_installer_fails_closed_when_npm_is_unavailable(
 
     with pytest.raises(module.PackageInstallError, match="unavailable"):
         installer.install(plan)
+
+
+def test_default_package_installer_uses_uv_when_pip_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = importlib.import_module("app.research_web.mcp_runtime.package_installer")
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    monkeypatch.setattr(module.importlib.util, "find_spec", lambda ignored: None)
+    monkeypatch.setattr(module.shutil, "which", lambda executable: "/trusted/uv")
+
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    environment = {"PATH": "/trusted"}
+    module.PackageInstaller._default_runner(
+        ["python", "-m", "pip", "install", "--no-index", "--target", ".install"],
+        tmp_path,
+        environment,
+    )
+
+    command, kwargs = calls[0]
+    assert command == [
+        "/trusted/uv",
+        "pip",
+        "install",
+        "--python",
+        sys.executable,
+        "--no-index",
+        "--target",
+        ".install",
+    ]
+    assert kwargs == {
+        "cwd": tmp_path,
+        "env": environment,
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+        "check": True,
+        "timeout": 600,
+    }
+
+
+def test_default_package_installer_fails_closed_without_pip_or_uv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = importlib.import_module("app.research_web.mcp_runtime.package_installer")
+    monkeypatch.setattr(module.importlib.util, "find_spec", lambda ignored: None)
+    monkeypatch.setattr(module.shutil, "which", lambda executable: None)
+
+    with pytest.raises(module.PackageInstallError, match="unavailable"):
+        module.PackageInstaller._default_runner(
+            ["python", "-m", "pip", "install", "--no-index"], tmp_path, {}
+        )
 
 
 def test_default_package_installer_installs_verified_pypi_wheel_offline(

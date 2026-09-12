@@ -15,6 +15,9 @@ Phase 2B 在 `<RESEARCH_DATA_HOME>/mcp-runtime/` 保存不可变安装清单、�
 OAuth token、清单完整性密钥和 loopback 控制密钥分别由 `ResearchWorkbench.MCPRuntime` 系统凭据
 或私有控制文件持有，不进入清单、会话快照、浏览器响应或日志。删除安装前必须停用 Runtime；
 健康失败保留安装记录并原子恢复上一份启用清单。
+PyPI 安装使用 staging 内的私有 home、临时目录和缓存；当精简解释器没有 pip 而宿主已有 uv 时，
+额外使用 staging 下的 `.uv-cache` 并禁用用户级 uv 配置。该回退不会新增持久数据类别，也不会读取
+用户缓存、改变清单或放宽离线 wheelhouse 边界。
 staging、安装 payload、清单与确认令牌重放目录在 Windows 上以目录类型、符号链接和重解析点
 作为结构证据，不使用 POSIX mode 投影代替 ACL；POSIX 仍要求 group/other 无权限且目录属于当前用户。
 

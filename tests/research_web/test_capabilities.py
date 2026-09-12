@@ -107,8 +107,28 @@ def test_new_builtin_name_or_slug_conflict_skips_only_that_seed(tmp_path, monkey
     ]
 
 
-def test_offline_seed_catalog_tools_and_workflows_without_session(api):
+def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypatch):
     client, native, service = api
+    from app.research_web.capabilities import tools as capability_tools
+
+    ready_capabilities = {
+        "search_assets",
+        "market_bars",
+        "market_snapshot",
+        "financials",
+        "market_activity",
+        "fund_data",
+        "search_news",
+    }
+    build_catalog = capability_tools.build_catalog
+
+    def deterministic_catalog(**kwargs):
+        catalog = build_catalog(**kwargs)
+        for capability in catalog["capabilities"]:
+            capability["callable_source_count"] = int(capability["id"] in ready_capabilities)
+        return catalog
+
+    monkeypatch.setattr(capability_tools, "build_catalog", deterministic_catalog)
     service.connected.clear()
     native.calls.clear()
     result = client.get("/api/research/capabilities")

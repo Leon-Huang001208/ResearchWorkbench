@@ -580,3 +580,19 @@
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"框架目录、严格快照和页面会话接口封装在既有Research Web API与本地文件及DSH关系内。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"新增解释与验证预设仍由同一专属DSH进程加载，不增加Runtime、工具宿主或跨进程通道。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"framework-research通过既有不可变Skill目录和原生发现链交付，没有新增能力类型或执行器。","diagrams":[]} -->
+
+## 2026-09-13 — Research Web 本地依赖与测试基线
+
+- 现有 uv 管理环境补齐 Research Web 最小依赖，并将 `httpx2>=2,<3` 纳入开发依赖，消除
+  TestClient 的旧 httpx 兼容弃用路径；可选行情、机器学习和回测栈仍不进入最小环境。
+- MCP PyPI 安装器在当前解释器缺少 pip 时可使用宿主已有 uv 执行同一份离线安装计划，强制当前
+  解释器、staging 私有缓存和禁用用户配置；无 pip/uv 时仍关闭失败。
+- worktree 启动器只在自身没有 `.venv` 时解析 Git common directory 并复用主 checkout 的项目环境；
+  `PYTHONPATH` 仍指向当前 worktree。测试中的来源可调用性和 Provider readiness 使用显式 fixture，
+  不再依赖本机可选 SDK、Keychain 或进程调度时序。
+- 本次不新增 API、服务、持久目录或跨模块数据流，现有架构图继续准确。
+
+<!-- architecture-review {"group":"mcp-runtime","structure":"unchanged","reason":"PyPI安装器在缺少pip时使用受限uv执行同一离线计划，Host、清单、确认、目录和授权拓扑不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"worktree启动器可复用Git common directory中的项目虚拟环境，不新增进程、服务或部署边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录测试显式固定可调用来源，生产来源目录和工具注册逻辑未改变。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"依赖与确定性测试修复不改变Research Web路由、请求响应schema或错误码。","diagrams":[]} -->
