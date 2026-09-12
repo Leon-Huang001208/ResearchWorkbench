@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import importlib.util
 import json
 import os
 import shutil
@@ -251,8 +252,26 @@ class PackageInstaller:
             if executable is None:
                 raise PackageInstallError("package_installer_unavailable")
             command[0] = executable
-        elif command[:3] == ["python", "-m", "pip"]:
-            command[0] = sys.executable
+        elif command[:4] == ["python", "-m", "pip", "install"]:
+            try:
+                pip_available = importlib.util.find_spec("pip") is not None
+            except (ImportError, ValueError):
+                pip_available = False
+            if pip_available:
+                command[0] = sys.executable
+            else:
+                executable = shutil.which("uv")
+                if executable is None:
+                    raise PackageInstallError("package_installer_unavailable")
+                command = [
+                    executable,
+                    "pip",
+                    "install",
+                    "--python",
+                    sys.executable,
+                    *command[4:],
+                ]
+                log.info("mcp_package_installer_selected", installer="uv")
         else:
             raise PackageInstallError("package_install_command_invalid")
         try:
@@ -339,7 +358,8 @@ class PackageInstaller:
         home = staging / ".home"
         temporary = staging / ".tmp"
         cache = staging / ".npm-cache"
-        for path in (home, temporary, cache):
+        uv_cache = staging / ".uv-cache"
+        for path in (home, temporary, cache, uv_cache):
             path.mkdir(mode=0o700, exist_ok=True)
         executable_path = shutil.which(executable) if executable == "npm" else sys.executable
         binary_directory = str(Path(executable_path).parent) if executable_path else ""
@@ -349,6 +369,9 @@ class PackageInstaller:
             "TMPDIR": str(temporary),
             "PIP_CONFIG_FILE": os.devnull,
             "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+            "UV_CACHE_DIR": str(uv_cache),
+            "UV_NO_CONFIG": "1",
+            "UV_NO_PROGRESS": "1",
             "npm_config_cache": str(cache),
             "npm_config_ignore_scripts": "true",
         }

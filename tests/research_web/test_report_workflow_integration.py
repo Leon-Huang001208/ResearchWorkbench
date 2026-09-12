@@ -208,8 +208,20 @@ def test_report_workflow_api_coexists_with_capability_workflows(api, tmp_path):
     assert invalid.json()["error"]["code"] == "invalid_manifest"
 
 
-def test_provider_probe_is_safe_and_missing_xlwings_blocks_run(api, tmp_path):
+def test_provider_probe_is_safe_and_missing_xlwings_blocks_run(api, tmp_path, monkeypatch):
     client, service, native = api
+
+    def deterministic_readiness(provider, timeout_seconds, cancellation_event=None):
+        del timeout_seconds, cancellation_event
+        readiness = provider.readiness()
+        return {
+            "status": "ready" if readiness["ready"] else "blocked",
+            "code": readiness["code"],
+        }
+
+    from app.research_web.report_workflows import workbook as workbook_module
+
+    monkeypatch.setattr(workbook_module, "_run_provider_readiness", deterministic_readiness)
     _create_version(client, tmp_path)
     client.post("/api/research/report-workflows/weekly-report/versions/1/publish")
     service.report_workflows.refresh.providers["wind_excel"] = MissingExcelProvider()

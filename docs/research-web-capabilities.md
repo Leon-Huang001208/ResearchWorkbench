@@ -44,6 +44,9 @@ surrogate，不做 HTML entity escape；UI 只在最终 HTML sink 转义一次�
 PyPI 只从本地 wheelhouse 按完整哈希安装；MCPB 校验 Registry 摘要并拒绝越界链接。远程端点只允许
 HTTPS 或字面 loopback，关闭自动重定向；OAuth 使用 PKCE、state、元数据发现、受众校验和系统
 凭据库。安装清单不可变，更新必须从 Registry 新版本重新预览，不能原地替换。
+PyPI 安装优先使用当前解释器的 `pip`；uv 管理的精简环境没有内置 pip 时，安装器只回退到已存在的
+`uv pip install --python <当前解释器>`，继续保留 `--no-index`、哈希、无依赖和目标目录参数。
+uv 配置与缓存被限制在 staging 私有目录，不读取用户级配置，也不会自动联网或安装 uv。
 staging、安装 payload、清单和确认令牌重放目录在所有平台拒绝非目录、符号链接与 Windows
 重解析点；POSIX 继续校验 group/other mode 及所有者，Windows 不使用没有 ACL 语义的 mode 投影
 阻断服务启动或安装预览。

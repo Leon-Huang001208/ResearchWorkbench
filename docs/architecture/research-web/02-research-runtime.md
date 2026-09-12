@@ -7,6 +7,9 @@ MCP 工具加入专属 DSH：Host 生成 `mcp__{installation}__{tool}` 声明和
 经私有 loopback 回调 Host；Host 每次复核安装版本、schema、会话授权、风险等级与人工审批后才由
 官方 SDK 调用 MCP Server。安装/启停会等待当前研究归零并仅重启 DSH，失败恢复旧激活清单；Web
 进程与既有提交、SSE、恢复和报告状态契约不变。
+本地 PyPI 安装在当前解释器提供 pip 时保持原路径；uv 管理的精简环境没有 pip 时，仅使用宿主已存在
+的 uv 执行等价离线安装，并把 uv 配置与缓存限制在 staging 内。两条路径都不使用 shell，不改变
+已解析的 `--no-index`、完整哈希、无依赖和目标目录约束；没有 pip 和 uv 时关闭失败。
 staging、安装 payload、清单与确认令牌重放目录在 Windows 上校验真实目录、符号链接和重解析点，
 但不把 POSIX `st_mode` 投影解释为 ACL；POSIX 继续校验 group/other mode 与当前用户所有权。
 
