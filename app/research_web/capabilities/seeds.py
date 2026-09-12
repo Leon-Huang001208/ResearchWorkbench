@@ -128,6 +128,21 @@ SKILL_SPECS = (
         "required_tools": ["web_search"],
         "evidence_protocol": True,
     },
+    {
+        "slug": "framework-research",
+        "name": "框架深度验证",
+        "description": "基于服务器绑定的版本化框架与快照补充证据，保留反证、日期、口径和数据缺口。",
+        "category": "研究框架",
+        "scenarios": ["框架页面显式深度验证"],
+        "default_formats": [],
+        "required_tools": [
+            "web_search",
+            "datahub_get_factor_macro",
+            "datahub_search_news",
+            "datahub_search_research",
+        ],
+        "evidence_protocol": True,
+    },
 )
 
 WORKFLOW_SPECS = (

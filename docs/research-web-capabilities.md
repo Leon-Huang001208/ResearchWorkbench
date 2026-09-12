@@ -17,7 +17,7 @@ Workflow 管理继续进入原专用管理视图。
 
 DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；只有 `integration_completed && callable` 的来源才会让对应工具进入 Runtime 注册集合。配置变更后页面可以立即重新检测，但原生工具集合仍以研究服务重启时的快照为准。
 
-当前目录包含 11 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
+当前目录包含 12 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
 统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
 机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
@@ -153,7 +153,7 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 
 ### 内置研究 Skill 边界
 
-能力中心由 `seeds.py` 的声明式元数据生成 11 个内置 Skill。资料解读、公司研究、行业研究、
+能力中心由 `seeds.py` 的声明式元数据生成 12 个内置 Skill。资料解读、公司研究、行业研究、
 基金评价、市场解读和因子库研究保持各自既有入口；本批新增能力只在下列窄场景触发：
 
 | 专用 Skill | 正向触发 | 反向边界 |
@@ -300,7 +300,7 @@ tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集�
 
 | 源码 | 测试 | 验证边界 |
 | --- | --- | --- |
-| capabilities/models/packages/catalog/seeds、skills | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 11 Skill/4 Workflow 离线种子、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
+| capabilities/models/packages/catalog/seeds、skills | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 12 Skill/4 Workflow 离线种子、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
 | capabilities/routes、main/service/store | test_capabilities_admission.py、既有 research_web 回归 | 原生名称核对、格式优先、幂等、跨会话、并发、创建产物 |
 | tools、launch_runtime、research.cordis.yml | test_capabilities_native.py | 固定源码真实 provider list/get/watch 与实际注册；不调用模型 |
 

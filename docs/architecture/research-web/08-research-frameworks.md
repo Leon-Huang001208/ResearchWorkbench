@@ -1,27 +1,41 @@
 # 研究框架
 
-## 当前边界
+## 产品边界
 
-研究框架是 Research Web 的解释层，不是第二个资产行情终端。`#/frameworks` 提供框架入口，`#/frameworks/gold` 提供黄金专用研究空间；资产观察继续负责个股、基金、债券、外汇和商品的行情与资产详情。
+研究框架是 Research Web 的解释层，不是第二个资产行情终端。`#/frameworks` 提供框架入口，`#/frameworks/gold` 提供黄金专用研究画布；资产观察继续负责个股、基金、债券、外汇和商品的行情与资产详情。黄金框架中的美债、美元、基金和商品只作为定价驱动或组合背景。
 
-当前提交是 V0 视觉检查点，只使用 `app/research_web/ui/frameworks/fixtures/gold-v0.mjs` 中明确标注的固定样例。它不调用真实数据、不持久化快照，也不发布当前市场结论。用户确认信息架构、密度与图表方向后，才进入版本化静态定义、严格快照契约与采集器阶段。
+黄金 V1 使用一张连续研究画布，而不是七个相互割裂的页面。总览、定价驱动、供需与资金、周期与宏观、持仓与期权、情景与配置、事件与证据是同页语义锚点；旧 `?tab=` 深链仍映射到对应锚点。桌面 Bot 是画布右侧的吸顶解释面板，移动端为全页底部面板。
 
-## 前端职责
+## 版本化专用包
 
-- `ui/frameworks.mjs`：Hub、框架注册入口与未知框架回退。
-- `ui/frameworks/goldar.mjs`：黄金专属页面编排和七个章节。
-- `ui/frameworks/charts/lieflat.mjs`：黄金专属 Lieflat SVG 适配层。
-- `ui/frameworks/fixtures/gold-v0.mjs`：确定性 V0 数据，结构预演后续 `{framework, snapshot}` 契约。
-- `ui/core.mjs`：安全解析框架 slug 与 `tab` 查询参数。
+`app/research_web/frameworks/base.py` 只定义薄的跨框架协议：框架元数据、章节、来源、缺口和区块新鲜度。黄金的因果链、反证条件、字段、状态门、样例和存储全部留在 `frameworks/goldar/`：
 
-七个章节为总览、定价驱动、供需与资金、周期与宏观、持仓与期权、情景与配置、事件与证据。章节导航在内容滚动区吸顶，移动端允许页签和宽图表局部横向滚动，不允许页面级横向溢出。
+- `definition.py`：不可变方法版本与来源修订 `758ae3848d`。
+- `contracts.py`：严格、禁止额外字段的黄金专用快照。
+- `seed.py`：可复现的离线初始快照及内容 revision。
+- `store.py`：大小限制、路径链接拒绝、revision 校验、原子写入和旧 V0 快照保留迁移。
+- `service.py` / `routes.py`：框架目录、快照读取以及绑定精确 revision 的页面会话。
 
-## 研究与呈现协议
+后续调整黄金逻辑时新增方法版本并配套迁移和回归，不原地改变历史版本语义。Dollar 或行业框架应新建自己的定义、契约、采集转换和 renderer；只有至少两个真实框架出现相同概念后，才把重复内容提升到 `base.py` 或前端共用组件。
 
-黄金页始终从核心问题出发，依次连接宏观状态、定价驱动、供需与资金、持仓与期权、情景与配置。研究状态只使用“偏强 / 中性 / 偏弱 / 待核验”；关键输入缺失、过期或口径冲突时必须降级为“待核验”。配置章节只呈现历史相关性、回撤、分散化和情景差异，不给出个人比例或订单。
+## API 与研究状态
 
-V0 图表适配自 Lieflat 模板的编码原则：价格背景使用 Hairline Area，因子贡献使用 Rung Waterfall，供需结构使用 Paired Rungs，周期比较使用 Trend Lineage，期权压力使用 Tick Rows，相关性使用带显式数值的 Matrix Heat。所有图形使用现有 Codex tokens 与语义色，不加载外部字体、CDN、iframe 或 Goldar 品牌素材。
+- `GET /api/research/frameworks` 返回框架元数据和可用状态。
+- `GET /api/research/frameworks/{slug}/data` 返回 `{framework, snapshot}`。
+- `POST .../sessions` 创建只解释当前快照的 DSH 会话。
+- `POST .../messages` 在原解释会话继续提问。
+- `POST .../verify` 仅在用户显式触发后，新建只读深度验证会话。
+
+所有 Bot 请求都携带并复核 `snapshot_revision`。数据更新后旧会话返回 `framework_snapshot_changed`，不得把新旧证据混在同一结论中。默认 `framework-explain` 预设没有工具，只能解释服务器提供的框架上下文；`framework-verify` 通过 `framework-research` Skill 使用当前 Runtime 实际暴露的只读检索与公共数据工具。两种模式都不能写快照、改评分或输出交易指令。
+
+研究状态只使用“偏强 / 中性 / 偏弱 / 待核验”。关键区块缺失、过期或存在高严重度缺口时，严格契约强制降级为“待核验”。当前 seed 是离线确定性证据，不宣称是实时行情；未来采集器必须按区块独立保留最后成功值，单一来源失败不得清空整份快照。
+
+## Lieflat 图表协议
+
+页面只保留四张承担明确比较任务的图：F2 Hairline Line（价格背景）、F9 Rung Waterfall（驱动贡献）、F6 Paired Rungs（需求同比）、F5 Tick Rows（期权压力）。周期、配置、事件和证据使用紧凑表格、带标签文本或 disclosure，不为了装饰继续增加图表。
+
+每张图只有一个结论、一个标题、一组来源与一条编码说明；数字使用等宽样式，颜色只表达正负、风险和缺口语义。SVG 提供 title/description，不加载外部字体、CDN、iframe 或品牌素材。移动端允许图表容器局部横向滚动，但页面本身不得横向溢出。
 
 ## 验证
 
-`tests/javascript/research_web_frameworks_ui.test.mjs` 覆盖路由、七章节渲染、代理指标说明、自托管资源和禁止交易操作用语。`tests/e2e/research_web_goldar_v0.mjs` 在浅色和深色的 1440、1280、1024、768、390 像素视口检查页面溢出、44px 页签、图表局部滚动、键盘导航及 reduced-motion。
+`tests/research_web/test_frameworks.py` 覆盖严格契约、精确快照绑定、双 DSH 预设、旧快照迁移、符号链接拒绝和生命周期幂等。`tests/javascript/research_web_frameworks_ui.test.mjs` 覆盖连续画布、七锚点、四张图、状态与安全用语。`tests/e2e/research_web_goldar_v0.mjs` 保留兼容文件名，在浅色和深色的 1440、1280、1024、768、390 像素视口检查页面溢出、44px 锚点、键盘导航、Bot 响应式形态及 reduced-motion；制品写入 `outputs/goldar-v1/`。

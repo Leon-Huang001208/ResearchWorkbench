@@ -30,6 +30,8 @@ from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
+from .frameworks.base import FrameworkError
+from .frameworks.routes import router as frameworks_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
 from .mcp_registry import RegistryError
@@ -135,6 +137,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(asset_router)
     app.include_router(capabilities_router)
     app.include_router(documentation_router)
+    app.include_router(frameworks_router)
     app.include_router(local_integrations_router)
     app.include_router(mcp_registry_router)
     app.include_router(mcp_runtime_router)
@@ -203,6 +206,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.exception_handler(StoreError)
     async def store_error(request, exc):
+        return JSONResponse(
+            {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
+        )
+
+    @app.exception_handler(FrameworkError)
+    async def framework_error(request, exc):
+        log.warning("framework_request_rejected", code=exc.code)
         return JSONResponse(
             {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )

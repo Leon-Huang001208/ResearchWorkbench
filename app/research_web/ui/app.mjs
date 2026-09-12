@@ -35,6 +35,9 @@ let operationsData = { usage: null, tools: null, datahub: null, services: null, 
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
 let automationFormOpen = false; let automationBusy = false;
 let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = '';
+let frameworkState = { status: 'idle', catalog: null, data: null, error: '' };
+let frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
+let closeFrameworkStream = () => {};
 const workflowVersions = new Map();
 let pageGeneration = 0;
 let renameDraft = null;
@@ -217,7 +220,7 @@ function mainPage() {
   if (['fingpt', 'claw'].includes(state.route.page)) return researchPage();
   if (state.route.page === 'settings') return settingsPage();
   if (state.route.page === 'workbench') return workbenchPage();
-  if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, tab: state.route.frameworkTab });
+  if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: frameworkBot });
   if (state.route.page === 'operations') return operationsPage();
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
@@ -344,6 +347,89 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
     } catch (error) { catalog.errors[name] = error.message; if (name === 'runtime') catalog.runtime = null; }
   }));
   render();
+}
+
+function attachFrameworkStream(sessionId) {
+  closeFrameworkStream();
+  closeFrameworkStream = api.events(sessionId, {
+    snapshot: (detail) => {
+      if (frameworkBot.sessionId !== sessionId) return;
+      frameworkBot.detail = detail; frameworkBot.busy = isRunning(detail.status); frameworkBot.error = ''; frameworkBot.errorCode = ''; render();
+    },
+    error: (message) => {
+      if (frameworkBot.sessionId !== sessionId) return;
+      frameworkBot.error = message; render();
+    },
+    open: async () => {
+      if (frameworkBot.sessionId !== sessionId) return;
+      try { frameworkBot.detail = await api.detail(sessionId); frameworkBot.busy = isRunning(frameworkBot.detail.status); render(); }
+      catch (error) { frameworkBot.error = error.message; render(); }
+    },
+  });
+}
+
+function scrollFrameworkTarget(anchor, behavior = 'auto') {
+  const target = document.getElementById(`framework-${anchor}`);
+  const main = document.querySelector('.main');
+  const scroller = main?.scrollHeight > main?.clientHeight ? main : document.scrollingElement;
+  if (!target || !scroller) return;
+  const scrollerTop = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
+  const currentTop = scroller === document.scrollingElement ? window.scrollY : scroller.scrollTop;
+  const top = currentTop + target.getBoundingClientRect().top - scrollerTop - 64;
+  scroller.scrollTo({ top: Math.max(0, top), behavior });
+}
+
+async function loadFrameworkPage(ticket = pageGeneration) {
+  frameworkState = { ...frameworkState, status: 'loading', error: '' }; render();
+  try {
+    const catalogData = await api.frameworks();
+    if (ticket !== pageGeneration || state.route.page !== 'frameworks') return;
+    frameworkState.catalog = catalogData;
+    if (state.route.frameworkSlug) frameworkState.data = await api.frameworkData(state.route.frameworkSlug);
+    if (ticket !== pageGeneration || state.route.page !== 'frameworks') return;
+    frameworkState.status = 'ready'; frameworkState.error = ''; render();
+    const anchor = state.route.frameworkTab || 'overview';
+    if (anchor !== 'overview') requestAnimationFrame(() => scrollFrameworkTarget(anchor));
+  } catch (error) {
+    if (ticket !== pageGeneration || state.route.page !== 'frameworks') return;
+    frameworkState.status = 'error'; frameworkState.error = error.message; render();
+  }
+}
+
+async function ensureFrameworkSession() {
+  if (frameworkBot.sessionId) return frameworkBot.sessionId;
+  const revision = frameworkState.data?.snapshot?.revision;
+  if (!revision) throw new Error('框架快照尚未就绪。');
+  const created = await api.createFrameworkSession('gold', { snapshot_revision: revision, focus_section: state.route.frameworkTab || 'overview', gap_ids: [] });
+  frameworkBot.sessionId = created.session.id; frameworkBot.mode = 'explain'; frameworkBot.detail = await api.detail(created.session.id);
+  attachFrameworkStream(created.session.id);
+  return created.session.id;
+}
+
+async function sendFrameworkQuestion(question) {
+  if (frameworkBot.busy || !question.trim()) return;
+  frameworkBot.busy = true; frameworkBot.error = ''; frameworkBot.errorCode = ''; render();
+  try {
+    const sid = await ensureFrameworkSession();
+    const revision = frameworkState.data.snapshot.revision;
+    await api.frameworkMessage('gold', sid, { text: question.trim(), expected_snapshot_revision: revision, mode: 'explain' }, crypto.randomUUID());
+    frameworkBot.draft = ''; frameworkBot.detail = await api.detail(sid);
+  } catch (error) {
+    frameworkBot.error = error.message; frameworkBot.errorCode = error.code || '';
+  } finally { frameworkBot.busy = false; render(); }
+}
+
+async function verifyFrameworkQuestion(question) {
+  if (frameworkBot.busy || !frameworkBot.sessionId) return;
+  frameworkBot.busy = true; frameworkBot.error = ''; frameworkBot.errorCode = ''; render();
+  try {
+    const revision = frameworkState.data.snapshot.revision;
+    const result = await api.verifyFrameworkSession('gold', frameworkBot.sessionId, { expected_snapshot_revision: revision, question: question.trim() || '核验当前最重要的数据缺口与反证条件。' }, crypto.randomUUID());
+    frameworkBot.sessionId = result.session.id; frameworkBot.mode = 'verify'; frameworkBot.draft = ''; frameworkBot.detail = await api.detail(result.session.id);
+    attachFrameworkStream(result.session.id);
+  } catch (error) {
+    frameworkBot.error = error.message; frameworkBot.errorCode = error.code || '';
+  } finally { frameworkBot.busy = false; render(); }
 }
 
 function mcpInstallationFor(identity) {
@@ -821,6 +907,10 @@ async function showRoute() {
   }
   quickCategory = '';
   const requestedRoute = parseRoute(location.hash);
+  if (requestedRoute.page !== 'frameworks') {
+    closeFrameworkStream(); closeFrameworkStream = () => {};
+    frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
+  }
   const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
   const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear();
@@ -831,6 +921,7 @@ async function showRoute() {
   document.querySelector('#main')?.scrollTo({ top: 0 });
   await loadWorkflowVersion();
   if (state.route.page === 'history') await loadCatalog([state.route.historyView === 'deleted' ? 'deletedSessions' : 'sessions']);
+  if (state.route.page === 'frameworks') await loadFrameworkPage(ticket);
   if (state.route.page === 'settings') {
     migrationOpen = false;
     connectionDetailOpen = true;
@@ -941,6 +1032,7 @@ function selectTabbit(tabId) {
 }
 
 root.addEventListener('input', (event) => {
+  if (event.target.id === 'framework-bot-input') frameworkBot.draft = event.target.value;
   if (event.target.id === 'prompt') {
     controller.setDraft(event.target.value);
     const wasOpen = slashOpen; slashOpen = event.target.value.trimStart().startsWith('/'); slashIndex = 0;
@@ -1162,6 +1254,7 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (event.target.matches('[data-framework-bot-form]')) { await sendFrameworkQuestion(frameworkBot.draft); return; }
   if (event.target.matches('[data-mcp-search]')) { await loadMCPMarketplace(); return; }
   if (event.target.matches('[data-delivery-channel-form]')) {
     if (automationBusy) return;
@@ -1444,6 +1537,16 @@ root.addEventListener('submit', async (event) => {
 
 root.addEventListener('click', async (event) => {
   const clickTarget = event.target;
+  const frameworkAnchor = clickTarget?.closest?.('[data-framework-anchor]');
+  const frameworkAnchorId = frameworkAnchor?.dataset?.frameworkAnchor;
+  if (frameworkAnchorId) {
+    event.preventDefault?.();
+    const anchor = frameworkAnchorId;
+    history.replaceState(null, '', frameworkAnchor.getAttribute('href'));
+    state.route.frameworkTab = anchor; render();
+    requestAnimationFrame(() => scrollFrameworkTarget(anchor, matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'));
+    return;
+  }
   if (clickTarget?.matches?.('[data-mcp-dialog-backdrop]')) {
     closeMCPServerDialog(); return;
   }
@@ -1459,6 +1562,11 @@ root.addEventListener('click', async (event) => {
   }
   const button = clickTarget?.closest?.('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
+  if ('frameworkBotOpen' in data) { frameworkBot.open = true; render(); requestAnimationFrame(() => document.getElementById('framework-bot-input')?.focus()); return; }
+  if ('frameworkBotClose' in data) { frameworkBot.open = false; render(); return; }
+  if ('frameworkRetry' in data) { await loadFrameworkPage(); return; }
+  if ('frameworkGap' in data) { frameworkBot.open = true; frameworkBot.draft = '请解释当前最重要的数据缺口，以及需要什么证据才能解除“待核验”。'; render(); requestAnimationFrame(() => document.getElementById('framework-bot-input')?.focus()); return; }
+  if ('frameworkVerify' in data) { await verifyFrameworkQuestion(frameworkBot.draft); return; }
   if ('mcpDetailClose' in data) { closeMCPServerDialog(); return; }
   if ('mcpMarketRetry' in data) { await loadMCPMarketplace({ reloadRegistries: !mcpMarketplaceState.registries.length }); return; }
   if ('mcpSync' in data) { await loadMCPMarketplace({ sync: true }); return; }

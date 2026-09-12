@@ -469,9 +469,15 @@ def prepare(
             raise RuntimeError("Runtime 目录不可为符号链接")
     if (work / ".env").exists() or (home / ".env").exists():
         raise RuntimeError("专属 Runtime 中存在未授权 .env，拒绝隐式导入")
-    preset = home / ".agent-presets" / "research-web"
-    preset.mkdir(parents=True, exist_ok=True, mode=0o700)
+    preset_root = home / ".agent-presets"
+    preset = preset_root / "research-web"
+    explain_preset = preset_root / "framework-explain"
+    verify_preset = preset_root / "framework-verify"
+    for path in (preset, explain_preset, verify_preset):
+        path.mkdir(parents=True, exist_ok=True, mode=0o700)
     package = Path(__file__).parent / "runtime"
+    explain_content = (package / "framework-explain.cordis.yml").read_text(encoding="utf-8")
+    (explain_preset / "agent.cordis.yml").write_text(explain_content, encoding="utf-8")
     mcp_bindings: list[dict[str, object]] = []
     if research_tools:
         load_control(data, datahub_url)
@@ -498,6 +504,17 @@ def prepare(
             f"fetch: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
         )
         (preset / "agent.cordis.yml").write_text(content, encoding="utf-8")
+        verify_content = (package / "framework-verify.cordis.yml").read_text(encoding="utf-8")
+        for key, value in {
+            "__SKILL_ROOT__": CapabilityCatalog(data).prepare_native_root(),
+            "__PUBLIC_DATA_MODULE__": package / "public-data.mjs",
+            "__RESEARCH_ROOT__": data,
+        }.items():
+            verify_content = verify_content.replace(key, json.dumps(str(value)))
+        verify_content = verify_content.replace(
+            "__PUBLIC_DATA_ENABLED_TOOLS__", json.dumps(public_data_tools)
+        )
+        (verify_preset / "agent.cordis.yml").write_text(verify_content, encoding="utf-8")
         log.info(
             "datahub_runtime_tools_prepared",
             enabled_tool_count=len(public_data_tools),
@@ -512,6 +529,16 @@ def prepare(
                 "当前已启用受控 Tabbit 浏览器自动化；没有文件读取、脚本或文件生成工具。",
             )
         (preset / "agent.cordis.yml").write_text(content, encoding="utf-8")
+        (verify_preset / "agent.cordis.yml").write_text(
+            explain_content.replace(
+                "框架解释助手",
+                "框架深度验证助手",
+            ).replace(
+                "用户需要补证时，说明可显式切换到深度验证模式。",
+                "当前 Runtime 未启用研究工具，必须明确说明本次无法执行外部验证。",
+            ),
+            encoding="utf-8",
+        )
     guard = (package / "guard.mjs").resolve()
     overlay = runtime / "overlay.yml"
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"

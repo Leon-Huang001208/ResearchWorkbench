@@ -28,6 +28,7 @@ from .capabilities.tools import SELECTABLE
 from .client import DSHClient, RuntimeFailure
 from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
+from .frameworks import FrameworkService
 from .local_integrations import LocalIntegrationManager
 from .mcp_registry import MCPRegistryService
 from .mcp_runtime.authorization import AuthorizationManager
@@ -188,6 +189,7 @@ class ResearchService:
             mcp_runtime = self._build_mcp_runtime(mcp_keyring_backend)
         self.mcp_runtime = _SessionOwnedMCPRuntime(mcp_runtime, store)
         self.asset_workspace = AssetWorkspace(self)
+        self.frameworks = FrameworkService(self, store.root / "frameworks")
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)
         self.delivery_channels = DeliveryChannelStore(
@@ -280,6 +282,7 @@ class ResearchService:
             )
 
     async def start(self):
+        await self.frameworks.start()
         await self.mcp_registry.start()
         await self.mcp_runtime.start()
         self.pump = asyncio.create_task(self._connect(), name="dsh-events")
@@ -301,6 +304,7 @@ class ResearchService:
         await self.report_workflows.close()
         await self.asset_workspace.close()
         await self.local_integrations.close()
+        await self.frameworks.close()
         await self.mcp_runtime.close()
         await self.mcp_registry.close()
         await self.datahub.close()
@@ -496,10 +500,22 @@ class ResearchService:
             log.info("research_model_configured", provider=provider, model=model)
             return {"configured": True}
 
-    async def create(self, mode="fingpt", title=None):
+    async def create(
+        self,
+        mode="fingpt",
+        title=None,
+        *,
+        agent_preset="research-web",
+        purpose=None,
+        metadata=None,
+    ):
         await self.ensure_owned()
         async with self.lock:
             row = self.store.create(mode, title or ("Claw 研究" if mode == "claw" else "新研究"))
+            if purpose is not None:
+                row["purpose"] = purpose
+            if metadata:
+                row.update(metadata)
             sid = row["id"]
             shutil.copytree(
                 Path(__file__).parent / "resources",
@@ -519,7 +535,7 @@ class ResearchService:
                     {
                         "sessionId": sid,
                         "cwd": str(self.store.directory(sid)),
-                        "agentPreset": "research-web",
+                        "agentPreset": agent_preset,
                     },
                 )
                 row["created"] = True
