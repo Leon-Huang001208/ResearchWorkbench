@@ -561,3 +561,10 @@
 - 新文件仍位于架构图既有的 Research Web UI 边界内，`app.mjs` 仅组合无副作用的展示叶模块，因此现有部署、模块依赖和研究序列图不变。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Goldar V0是既有Research Web UI边界内的无副作用展示叶模块，只增加hash路由和固定fixture，不增加服务、API、存储、Runtime或跨边界数据流。","diagrams":[]} -->
+
+## 2026-09-11 — 本机集成格式基线维护
+
+- 仅整理本机集成包导入、敏感键正则和 ISO 时间解析表达式，使相关文件同时符合 Ruff、Black 与 isort。
+- API、状态 schema、验证流程、持久化和页面拓扑均未改变，现有架构图继续准确。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"本机集成格式基线维护不改变API、状态模型、验证流程、持久化或UI拓扑。","diagrams":[]} -->

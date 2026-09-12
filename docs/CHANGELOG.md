@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Python 格式基线收口 · 2026-09-11
+
+- 修正本机集成、Wind Excel 客户端与报告 Workflow 回归测试中遗留的 Ruff、Black、isort 格式漂移；不改变 API、状态模型、Wind 公式执行或报告刷新行为。
+
 ### Research Web Phase 2 默认启用 · 2026-09-11
 
 - MCP Registry、MCP Runtime 和 Automation 在三阶段远端门禁通过后默认开启；部署仍可分别用 `RESEARCH_MCP_REGISTRY_ENABLED=0`、`RESEARCH_MCP_RUNTIME_ENABLED=0` 和 `RESEARCH_AUTOMATIONS_ENABLED=0` 关闭。

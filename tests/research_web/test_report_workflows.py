@@ -19,7 +19,7 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from app.research_web.report_workflows import (
+from app.research_web.report_workflows import (  # isort: skip
     DeliveryContract,
     ReportBlock,
     ReportWorkflowManifest,

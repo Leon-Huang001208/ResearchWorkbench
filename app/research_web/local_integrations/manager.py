@@ -76,7 +76,9 @@ ITEM_FIELDS = {
 ACTION_FIELDS = {"id", "label", "href"}
 SAFE_ID = re.compile(r"^[a-z0-9_]+$")
 SAFE_DATA_ACTION = re.compile(r"^#/settings/data\?connection=[a-z0-9_]+$")
-SENSITIVE_ENVIRONMENT_KEY = re.compile(r"(?:token|secret|password|credential|api.?key)", re.IGNORECASE)
+SENSITIVE_ENVIRONMENT_KEY = re.compile(
+    r"(?:token|secret|password|credential|api.?key)", re.IGNORECASE
+)
 MAX_PROBE_RECORDS = 128
 MAX_VERIFICATION_RECORDS = 128
 MAX_WIND_ADDIN_FINGERPRINT_ENTRIES = 512
@@ -427,7 +429,7 @@ class LocalIntegrationManager:
 
     def _verification_result_is_current(self, target: str, result: dict) -> bool:
         try:
-            completed_at = datetime.fromisoformat(result["completed_at"].replace("Z", "+00:00"))  # noqa: FURB162
+            completed_at = datetime.fromisoformat(result["completed_at"])
             if completed_at.tzinfo is None:
                 return False
             age = datetime.now(UTC) - completed_at.astimezone(UTC)

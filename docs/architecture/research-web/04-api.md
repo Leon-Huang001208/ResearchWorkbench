@@ -217,3 +217,5 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 Windows 专项作业实际启动 `127.0.0.1:8088`，读取 `/local-integrations` 并完成一次幂等探测轮询。该验证覆盖服务初始化与接口生命周期，不新增 API，也不将未安装厂商软件的 runner 投影为可调用。服务启动使用与生产相同的私有目录校验和 DSH 认证控制文件读取器；CI 占位元数据不表示 DSH 或厂商服务在线。
 
 Phase 2A/2B/2C 路由现在在未设置环境变量时默认启用；显式 `RESEARCH_MCP_REGISTRY_ENABLED=0`、`RESEARCH_MCP_RUNTIME_ENABLED=0` 或 `RESEARCH_AUTOMATIONS_ENABLED=0` 时，既有 404/禁用契约保持不变。接口路径和 schema 未变化。
+
+2026-09-11 的格式基线维护未新增或修改任何 HTTP 路由、请求字段、响应字段或错误码。
