@@ -19,6 +19,9 @@ Phase 2B 在同一 Research Web Host 内增加 `app/research_web/mcp_runtime/`�
 候选 Runtime 健康失败时恢复上一份激活清单并仅重启专属 DSH。DSH 只获得
 `mcp__{installation}__{tool}` 命名空间的已验证声明，每次调用经私有 loopback 控制通道回到 Host
 复核版本、schema 和授权。Registry 目录继续只读，安装与授权不改变目录身份。
+PyPI 安装优先使用当前解释器的 pip；uv 管理的精简环境未包含 pip 时，只允许宿主已有 uv 在
+staging 私有 home、临时目录和缓存中执行相同离线计划，并固定当前解释器、禁用用户配置。
+该实现不新增包管理服务、网络来源或持久目录，pip 与 uv 均不可用时保持关闭失败。
 
 Phase 2C 在同一 Host 内增加 `app/research_web/automation/`。Automation 以本地原子 JSON 索引为
 事实源，锁定 Skill、普通 Workflow 或报告 Workflow 的版本与内容 SHA；APScheduler 只承载下一次

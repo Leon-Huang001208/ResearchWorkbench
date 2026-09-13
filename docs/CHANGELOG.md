@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+### Research Web 本地依赖与测试基线 · 2026-09-13
+
+- 补齐 uv 管理 `.venv` 的 Research Web 最小依赖，并将 `httpx2>=2,<3` 纳入开发依赖；全量
+  Research Web 回归恢复为 901 passed、4 个明确条件跳过，不安装机器学习、回测或可选行情栈。
+- MCP PyPI 安装在当前解释器缺少 pip 时可使用宿主已有 uv 执行同一离线计划，继续强制哈希、
+  `--no-index`、无依赖、目标目录和 staging 私有缓存；pip 与 uv 均不可用时关闭失败。
+- worktree 启动器可复用 Git common directory 中的项目虚拟环境；来源与 Excel Provider 测试改用
+  显式 fixture，不再依赖本机 SDK、Keychain 或进程调度时序，生产安全门保持不变。
+
 ### Python 格式基线收口 · 2026-09-11
 
 - 修正本机集成、Wind Excel 客户端与报告 Workflow 回归测试中遗留的 Ruff、Black、isort 格式漂移；不改变 API、状态模型、Wind 公式执行或报告刷新行为。

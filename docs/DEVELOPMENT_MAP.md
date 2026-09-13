@@ -32,6 +32,13 @@ path, and contract tests cover both the absent-variable and explicit-disable cas
 payload installation, manifests and confirmation replay state: Windows retains directory, symlink and
 reparse-point checks without interpreting POSIX mode bits as ACLs; POSIX additionally enforces group/other mode
 and owner identity.
+`mcp_runtime/package_installer.py` prefers the current interpreter's pip and falls back only to an existing uv
+binary when an intentionally minimal uv environment omits pip. The fallback keeps the resolved offline wheel,
+hash, no-dependency and target-directory arguments, pins the current interpreter, disables user uv config, and
+uses a staging-private cache. `tests/research_web/test_mcp_installation.py` covers both the fallback and the
+fail-closed no-installer path. The repository `rwb` launcher resolves the Git common directory only when the
+current worktree has no `.venv`, allowing isolated worktrees to reuse the project interpreter without changing
+their source root.
 
 Research Web Phase 2A adds the feature-gated, read-only MCP Registry catalog in
 `app/research_web/mcp_registry/`. `catalog.py` aggregates the fixed official `/v0.1` API and explicitly
