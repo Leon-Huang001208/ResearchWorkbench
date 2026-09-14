@@ -606,3 +606,12 @@
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Gold与Dollar连续画布、Lieflat图和框架Bot仍封装在既有Research Web浏览器边界，资产页只收紧错误归属。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"多框架注册表、采集调度、严格快照和Artifacts过滤仍位于既有Research Web API、本地文件及DSH关系内。","diagrams":[]} -->
+
+## 2026-09-14 — 全局 rwb 部署入口确定性
+
+- 真实部署预检发现从其他 checkout 调用会让 Python 当前目录遮蔽固定部署入口，Homebrew Node 25 也与按 Node 24 构建的 DSH 原生模块 ABI 不兼容。
+- 仓库启动器现在先进入自身部署根，并在 Codex Desktop 可用时固定 bundled Node；其他环境保留 `RESEARCH_NODE_BINARY` 显式选择及 `PATH` 回退。
+- 该修复不新增进程、服务、端口、接口或文件拓扑，现有架构图继续准确。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"启动器固定部署根和已审核Node选择，仍由既有Service Manager管理同一3081与8088进程。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"入口确定性修复不改变Research Web路由、schema、数据根或Artifacts契约。","diagrams":[]} -->

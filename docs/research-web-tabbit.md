@@ -119,3 +119,5 @@ MCP Runtime 与 Automation 默认启用不自动授权 Tabbit，也不把浏览�
 研究框架的“解释”预设固定无工具；“深度验证”虽可使用已授权的只读研究工具，但不会自动申请 Tabbit 页面访问、读取当前标签或复用一次性页面 token。框架 slug、章节、缺口与 snapshot revision 的绑定不改变 Tabbit 的独立授权和实时 claim 边界。
 
 2026-09-11 的本机集成格式基线维护不改变 Tabbit 的授权、claim、token 或浏览器运行时边界。
+
+`rwb` 在 Codex Desktop 中固定 bundled Node 后，Tabbit 仍沿用同一受审归档、overlay、授权和一次性 token 边界；该选择仅防止原生 Node 模块 ABI 漂移。

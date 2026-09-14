@@ -94,7 +94,12 @@ class WebServiceManager:
             or self.data_root.parent / "dsh-source"
         ).resolve()
         self.python = python or sys.executable
-        self.node = node or shutil.which("node") or "/usr/local/bin/node"
+        self.node = (
+            node
+            or os.environ.get("RESEARCH_NODE_BINARY")
+            or shutil.which("node")
+            or "/usr/local/bin/node"
+        )
         self.web_port = web_port
         self.runtime_port = runtime_port
         self.web_url = f"http://127.0.0.1:{self.web_port}/#/fingpt"

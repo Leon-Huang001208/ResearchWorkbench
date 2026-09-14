@@ -74,3 +74,5 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 Phase 2A/2B/2C 的 Registry、Runtime 与 Automation 在远端门禁通过后默认初始化；三个保留环境开关仍可显式设为 `0` 独立关闭。数据根、系统凭据库、单 worker 和专属 DSH 边界不变。
 
 2026-09-11 的格式基线维护仅整理本机集成包导入、常量和时间解析表达式，不改变进程、存储或部署拓扑。
+
+仓库 `rwb` 启动器进入自身解析出的项目根后再导入 Python 入口，并在 Codex Desktop 可用时固定其 bundled Node；其他环境可通过 `RESEARCH_NODE_BINARY` 固定已审核 Node，避免调用目录遮蔽和原生模块 ABI 漂移。

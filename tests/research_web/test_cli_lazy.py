@@ -31,9 +31,7 @@ assert "services.ask_factory" not in sys.modules
 def test_stable_entrypoint_prioritizes_current_repository(monkeypatch):
     import research_workbench_entrypoint
 
-    project_root = str(
-        Path(research_workbench_entrypoint.__file__).resolve().parents[1]
-    )
+    project_root = str(Path(research_workbench_entrypoint.__file__).resolve().parents[1])
     monkeypatch.setattr(sys, "path", ["/sibling-project", *sys.path])
 
     class StopAfterImport(RuntimeError):
@@ -67,3 +65,26 @@ def test_repository_launcher_does_not_depend_on_editable_site_path():
 
     assert completed.returncode == 0, completed.stderr or completed.stdout
     assert "web" in completed.stdout
+
+
+def test_repository_launcher_ignores_shadow_package_in_calling_directory(tmp_path):
+    project_root = Path(__file__).resolve().parents[2]
+    launcher = project_root / "rwb"
+    shadow = tmp_path / "research_workbench_entrypoint"
+    shadow.mkdir()
+    (shadow / "__init__.py").write_text("", encoding="utf-8")
+    (shadow / "__main__.py").write_text("print('shadow-entrypoint')\n", encoding="utf-8")
+
+    completed = subprocess.run(
+        [str(launcher), "--help"],
+        cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert "web" in completed.stdout
+    assert "shadow-entrypoint" not in completed.stdout
