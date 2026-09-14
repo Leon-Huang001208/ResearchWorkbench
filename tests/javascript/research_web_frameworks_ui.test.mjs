@@ -94,6 +94,14 @@ test('route transition never renders a snapshot from another framework', () => {
   assert.doesNotMatch(html, /data-framework="gold"|data-framework="dollar"/);
 });
 
+test('dollar F2 chart bounds the live sixty-point plumbing series', () => {
+  const data = dollarTestData();
+  data.snapshot.plumbing_m.series[0].points = Array.from({ length: 60 }, (_, index) => ({ date: `day-${index + 1}`, value: index - 30 }));
+  const html = renderFrameworks({ slug: 'dollar', data });
+  assert.match(html, /data-lieflat-basics="F2"/);
+  assert.doesNotMatch(html, /价格背景暂时无法显示/);
+});
+
 test('framework API keeps snapshot binding and idempotency headers', async () => {
   const calls = [];
   const fetcher = async (url, options) => {

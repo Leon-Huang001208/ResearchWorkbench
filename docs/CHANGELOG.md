@@ -11,6 +11,7 @@
 - Research Web 新增 Gold v2 与 Dollar v1 连续研究画布、真实来源采集、Lieflat 图表和快照绑定的 DSH 解释/深度验证；全局 Artifacts 不再遍历软删除会话，资产观察不继承其错误。
 - 全局 `rwb` 启动器先进入解析出的部署根，并在 Codex Desktop 可用时固定 bundled Node；其他环境可用 `RESEARCH_NODE_BINARY` 显式选择，避免同名包遮蔽和 DSH 原生模块 ABI 漂移。
 - 框架路由切换时会先核对快照 slug；旧框架快照不能进入新框架 renderer，异步读取期间显示目标框架加载态。
+- Dollar 的 SOFR−IORB F2 图固定取实时序列最近 30 期，保留当前值并避免 60 期采集窗口触发图表上限降级。
 
 ### Research Web 本地依赖与测试基线 · 2026-09-13
 
