@@ -615,3 +615,10 @@
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"启动器固定部署根和已审核Node选择，仍由既有Service Manager管理同一3081与8088进程。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"入口确定性修复不改变Research Web路由、schema、数据根或Artifacts契约。","diagrams":[]} -->
+
+## 2026-09-14 — 框架路由快照隔离
+
+- Gold 与 Dollar 之间切换时，路由状态可能先于异步框架读取更新。前端现在在进入专属 renderer 前核对目标 slug 与快照 slug，不一致时只显示目标加载态。
+- 该修复位于既有 Browser 节点内部，不改变框架 API、快照 schema、DSH 会话、服务或文件流；现有架构图仍准确。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"框架路由切换增加快照slug一致性守卫，只修复既有浏览器节点内部的异步渲染竞态。","diagrams":[]} -->

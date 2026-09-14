@@ -66,7 +66,8 @@ The Web-only framework registry lives in `app/research_web/frameworks/`,
 strict domain snapshots, independent collectors and one shared scheduler/storage protocol. Page-scoped DSH
 conversations bind slug, method version, chapter, gap ids and exact snapshot revision: explanation is tool-free,
 while explicit verification creates a separate read-only research session. Browser code never substitutes a fixture
-after an API failure. The architecture boundary is documented in
+after an API failure, and route transitions reject a cached snapshot whose slug differs from the requested framework.
+The architecture boundary is documented in
 [research frameworks](architecture/research-web/08-research-frameworks.md).
 The machine-readable [architecture map](architecture/research-web/architecture-map.json) connects
 current source modules, Markdown, diagrams and tests. Local acceptance is recorded separately from structural consistency.

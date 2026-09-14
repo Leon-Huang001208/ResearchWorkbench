@@ -44,4 +44,6 @@ Gold 使用 F2（价格背景）、F9（四维贡献）、F6（需求同比）�
 
 `tests/research_web/test_frameworks.py` 覆盖两框架目录、严格契约、精确快照绑定、跨框架拒绝、迁移和生命周期；`test_framework_collectors.py` 覆盖转换、门限、CFTC 幂等与最后成功值。`test_workbench_operations.py` 覆盖全局 Artifacts 忽略软删除会话、显式查询仍返回 410、恢复后重新出现。JavaScript 测试覆盖两个连续画布、图表、无浏览器 fixture、状态与安全用语。浏览器验收覆盖浅/深色、1440/1024/768/390、键盘锚点、Bot、横向溢出和 reduced-motion。
 
+框架间 hash 路由切换还必须覆盖“目标 slug 已更新、旧快照仍在内存”的同步渲染窗口；`frameworks.mjs` 在调用专属 renderer 前拒绝 slug 不一致的快照，并显示目标框架加载态。
+
 框架服务随 8088 由同一固定部署根加载；启动器对调用目录和 Node ABI 的确定性处理不改变框架注册、快照或 Bot 上下文协议。

@@ -55,7 +55,7 @@ Research Web 在 Windows 上读取 DSH 认证文件及 DataHub 私有控制、�
 
 DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒绝非普通文件、硬链接、符号链接、Windows 重解析点及打开期间的身份替换；POSIX 额外要求 group/other 无权限，Windows 不把无语义的 POSIX mode 投影当作 ACL。Web 客户端与服务管理器复用该边界，不改变回环 RPC 或认证格式。
 
-研究框架位于同一 Research Web Host 内：薄注册表与单一调度器管理 Gold v2、Dollar v1 的生命周期和原子快照，领域定义、评分、采集、上下文及 renderer 保持独立。`#/frameworks/gold` 与 `#/frameworks/dollar` 都是七锚点连续画布。页面 Bot 复用唯一 DSH 执行链；默认解释预设无工具，显式深度验证另建只读检索会话并绑定 slug、方法版本与精确快照 revision。该模块不增加第二个研究引擎、资产终端或事实数据库。
+研究框架位于同一 Research Web Host 内：薄注册表与单一调度器管理 Gold v2、Dollar v1 的生命周期和原子快照，领域定义、评分、采集、上下文及 renderer 保持独立。`#/frameworks/gold` 与 `#/frameworks/dollar` 都是七锚点连续画布；路由切换时前端先核对快照 slug，不允许旧框架快照进入目标 renderer。页面 Bot 复用唯一 DSH 执行链；默认解释预设无工具，显式深度验证另建只读检索会话并绑定 slug、方法版本与精确快照 revision。该模块不增加第二个研究引擎、资产终端或事实数据库。
 
 全局 `rwb` 启动器从自身解析出的固定部署根导入 Python 入口，避免调用目录中的同名 checkout 遮蔽；Codex Desktop 优先使用 bundled Node，其他宿主可通过 `RESEARCH_NODE_BINARY` 固定已审核版本。Node 绝对路径继续进入 3081 受管进程指纹，服务、端口、数据根与 API 拓扑不变。
 
