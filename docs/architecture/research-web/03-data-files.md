@@ -1,6 +1,6 @@
 # DataHub、研究资料与实际文件
 
-Goldar 快照位于产品数据根的框架子目录，采用严格 V1 schema、内容 revision、2 MiB 上限和同目录原子替换。识别到旧 V0 结构时先保留单份 `snapshot.legacy-v0.json` 再安装确定性 seed；框架快照不进入 Automation 事实索引、会话正文或资产数据集。
+Gold 与 Dollar 快照分别位于产品数据根的 `frameworks/gold/` 和 `frameworks/dollar/`，采用各自严格 schema（Gold V2、Dollar V1）、内容 revision、2 MiB 上限和同目录原子替换。路径解析前拒绝任何现存符号链接组件；识别到旧 Gold V1 结构时先保留单份 `snapshot.legacy-v1.json` 再安装确定性 seed。框架快照不进入 Automation 事实索引、会话正文或资产数据集。
 
 Phase 2A 另在 `<RESEARCH_DATA_HOME>/mcp-registry/` 保存非敏感 Registry 索引以及按 Registry
 隔离的原子缓存。官方 `/v0.1` 的不透明游标、ETag 与同步时间只随成功结果提交；网络或上游失败
@@ -36,6 +36,8 @@ DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运
 旧环境变量迁移先返回只含“是否存在、冲突、目标来源”的预览；执行时要求来源白名单与二次确认，先写入并回读系统凭据库，再原子清理 `.env` 对应项。配置文件、凭据或 `.env` 任一步失败时恢复原始字节、权限和旧凭据；DSH 模型密钥不进入该流程。
 
 会话软删除不改写任何资料或文件，墓碑保留期为 30 天。永久删除必须先由 DSH 确认原生根会话及其级联子会话已删除，随后 Workbench 才删除该产品会话目录中的附件副本、数据集快照、产物、`.control/calls/<session>`、`.control/snapshots/<session>` 和索引记录；若原生确认失败则保留全部文件与墓碑供后台重试。会话内已发布能力快照保持只读封装；清理时仅为产品根目录内的真实目录恢复所有者写权限，不跟随符号链接。文件系统清理失败会保留带 `native_deleted_at` 的墓碑，后续重试不会重复调用 DSH。DSH 内容寻址的全局附件对象可能被多个会话共享，不在单会话删除中误删。
+
+全局 Artifacts 目录只枚举未软删除会话；显式访问已删除会话仍返回 `410 session_deleted`，恢复后才重新进入目录。Artifacts 错误属于研究会话页面，资产观察既不请求该目录，也不继承此前页面的错误状态。
 
 目录读取只访问 `datahub/catalog.py` 的静态声明，不实例化旧 Connector、不联网、不启动 Excel，也不产生供应商费用。目录分别展示代码存在、完成适配、配置齐备、依赖齐备、允许调用和最近健康状态；只有完成 Provider 适配且满足条件的绑定才进入自动路由。东方财富基金和财联社可直接调用；天软 CJPY 已实现证券目录、交易日历、历史行情和实时快照 Provider，但本机缺依赖或授权时保持 `blocked_dependency` / `blocked_config`，其他登记能力不会借来源级状态冒充已实现。
 

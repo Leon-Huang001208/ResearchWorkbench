@@ -37,6 +37,8 @@ class BlockMeta(BaseModel):
 
     as_of: str = Field(min_length=1, max_length=40)
     fetched_at: str = Field(min_length=1, max_length=40)
+    checked_at: str | None = Field(default=None, min_length=1, max_length=40)
+    failure_code: str | None = Field(default=None, pattern=r"^[a-z0-9_-]+$")
     status: Literal["complete", "partial", "stale", "proxy", "missing", "fixture"]
     sources: list[SourceRecord] = Field(default_factory=list, max_length=20)
     gaps: list[GapRecord] = Field(default_factory=list, max_length=20)

@@ -163,8 +163,7 @@ def test_handoff_copies_only_selected_datasets_and_freezes_page_context(api):
     assert copied[0]["origin_dataset_id"] == one["dataset_id"]
     assert copied[0]["origin_dataset_id"] != two["dataset_id"]
     context_path = (
-        service.store.directory(target["session_id"])
-        / response.json()["context_file"]["path"]
+        service.store.directory(target["session_id"]) / response.json()["context_file"]["path"]
     )
     frozen = json.loads(context_path.read_text())
     assert frozen["section"] == "funds"
@@ -206,6 +205,30 @@ def test_artifacts_and_operations_never_return_contents_or_secrets(api, tmp_path
         "report_projects",
     }
     assert Path(storage["scope"]).resolve() == tmp_path.resolve()
+
+
+def test_global_artifacts_ignore_deleted_sessions_until_restored(api):
+    client, service = api
+    active = client.post("/api/research/sessions", json={}).json()["id"]
+    deleted = client.post("/api/research/sessions", json={}).json()["id"]
+    for sid, filename in ((active, "active.md"), (deleted, "deleted.md")):
+        output = service.store.directory(sid) / "outputs" / filename
+        output.write_text(filename, encoding="utf-8")
+        service.store.files(sid)
+
+    assert client.delete(f"/api/research/sessions/{deleted}").status_code == 200
+    global_items = client.get("/api/research/artifacts").json()["items"]
+    assert [item["name"] for item in global_items] == ["active.md"]
+
+    explicit = client.get(f"/api/research/artifacts?session_id={deleted}")
+    assert explicit.status_code == 410
+    assert explicit.json()["error"]["code"] == "session_deleted"
+
+    assert client.post(f"/api/research/sessions/{deleted}/restore").status_code == 200
+    restored_names = {
+        item["name"] for item in client.get("/api/research/artifacts").json()["items"]
+    }
+    assert restored_names == {"active.md", "deleted.md"}
 
 
 def test_handoff_rejects_unknown_dataset_before_creating_target(api):
@@ -256,9 +279,7 @@ def test_operations_summary_loads_each_session_history_once(api):
     assert "reports" in response.json()
 
 
-def test_managed_process_requires_matching_state_fingerprint_and_command(
-    tmp_path, monkeypatch
-):
+def test_managed_process_requires_matching_state_fingerprint_and_command(tmp_path, monkeypatch):
     root = tmp_path / "research-web"
     run = tmp_path / "run"
     root.mkdir()

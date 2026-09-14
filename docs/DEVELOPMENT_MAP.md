@@ -57,12 +57,13 @@ and publisher handoff remain read-only even when Phase 2B runtime management is 
 Research Web now lives in `app/research_web/`, with entrypoint `app.research_web.main:app` and `/api/research/`.
 Read the canonical [Research Web architecture](architecture/research-web/README.md),
 [implementation notes](research-web.md) and [UI contract](research-web-ui.md) first for this product.
-The Web-only Goldar V1 implementation lives in `app/research_web/frameworks/`,
+The Web-only framework registry lives in `app/research_web/frameworks/`,
 `app/research_web/ui/frameworks.mjs` and `app/research_web/ui/frameworks/`. The Hub route is
-`#/frameworks`; `#/frameworks/gold` is one continuous seven-anchor research canvas backed by a strict,
-versioned Gold-specific snapshot. Page-scoped DSH conversations bind the exact snapshot revision: explanation
-is tool-free, while explicit verification creates a separate read-only research session. The current seed remains
-deterministic and is not presented as live market data. Its architecture boundary is documented in
+`#/frameworks`; `#/frameworks/gold` and `#/frameworks/dollar` are continuous seven-anchor canvases backed by
+strict domain snapshots, independent collectors and one shared scheduler/storage protocol. Page-scoped DSH
+conversations bind slug, method version, chapter, gap ids and exact snapshot revision: explanation is tool-free,
+while explicit verification creates a separate read-only research session. Browser code never substitutes a fixture
+after an API failure. The architecture boundary is documented in
 [research frameworks](architecture/research-web/08-research-frameworks.md).
 The machine-readable [architecture map](architecture/research-web/architecture-map.json) connects
 current source modules, Markdown, diagrams and tests. Local acceptance is recorded separately from structural consistency.

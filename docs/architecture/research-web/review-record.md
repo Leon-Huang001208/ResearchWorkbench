@@ -596,3 +596,13 @@
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"worktree启动器可复用Git common directory中的项目虚拟环境，不新增进程、服务或部署边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录测试显式固定可调用来源，生产来源目录和工具注册逻辑未改变。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"依赖与确定性测试修复不改变Research Web路由、请求响应schema或错误码。","diagrams":[]} -->
+
+## 2026-09-14 — Gold/Dollar 真实框架与 Artifacts 错误隔离
+
+- Gold 升级为 V2 真实数据快照，Dollar 新增 Q-P-g-M-X V1；薄注册表、原子快照协议和单一调度器都位于既有 Research Web API/本地文件边界内。
+- 两个详情路由使用连续七章节画布与 11 张用途明确的 Lieflat SVG 图；框架 Bot 绑定 slug、章节、缺口、方法版本和精确快照 revision，继续复用唯一 DSH。
+- 全局 Artifacts 目录忽略软删除会话，资产观察不请求或继承 Artifacts 错误；显式访问删除会话仍返回 410。
+- Browser、Research Web API、DSH 和本地文件之间的既有节点与连线仍准确，不新增服务或跨进程通道，因此无需重绘架构图。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Gold与Dollar连续画布、Lieflat图和框架Bot仍封装在既有Research Web浏览器边界，资产页只收紧错误归属。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"多框架注册表、采集调度、严格快照和Artifacts过滤仍位于既有Research Web API、本地文件及DSH关系内。","diagrams":[]} -->

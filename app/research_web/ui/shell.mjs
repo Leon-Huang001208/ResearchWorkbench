@@ -127,6 +127,6 @@ export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = ''
         : ['研究服务不可用', 'danger'];
     runtimeAttention = `<div class="topbar-right"><a href="#/settings/model" class="runtime-status ${tone}" title="${e(runtime.message || runtimeLabel || label)}"><span class="tiny-dot" aria-hidden="true"></span>${label}</a></div>`;
   }
-  const pageSubtitle = page === 'frameworks' ? (frameworkSlug === 'gold' ? '黄金' : '框架中心') : ['fingpt', 'claw'].includes(page) ? '新研究' : '工作台';
+  const pageSubtitle = page === 'frameworks' ? ({ gold: '黄金', dollar: '美元流动性' }[frameworkSlug] || '框架中心') : ['fingpt', 'claw'].includes(page) ? '新研究' : '工作台';
   return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><div class="topbar-title"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><span>${e(title)}</span><span class="title-separator">/</span><span class="page-subtitle">${e(detail?.title || settingsSubtitle || pageSubtitle)}</span></div><button type="button" class="icon-button mobile-search-toggle" data-toggle-search aria-label="${searchOpen ? '关闭全局搜索' : '打开全局搜索'}" aria-expanded="${searchOpen}">${icon('search')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div>${runtimeAttention}</header>`;
 }

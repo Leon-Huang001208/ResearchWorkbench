@@ -1,8 +1,6 @@
 """Deterministic offline snapshot used until each live source is configured."""
 
-import hashlib
-import json
-
+from ..storage import compute_revision
 from .contracts import GoldSnapshot
 
 AS_OF = "2026-08-30"
@@ -18,12 +16,6 @@ def _source(name: str, url: str, observed_at: str, unit: str, method: str, proxy
         "method": method,
         "proxy": proxy,
     }
-
-
-def compute_revision(value: dict) -> str:
-    payload = {key: item for key, item in value.items() if key != "revision"}
-    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 def build_seed() -> GoldSnapshot:
@@ -44,7 +36,7 @@ def build_seed() -> GoldSnapshot:
         True,
     )
     value = {
-        "schema_version": 1,
+        "schema_version": 2,
         "revision": "0" * 64,
         "as_of": AS_OF,
         "fetched_at": FETCHED_AT,
@@ -97,11 +89,38 @@ def build_seed() -> GoldSnapshot:
             "sources": [fred],
             "gaps": [],
             "factors": [
-                {"label": "实际利率", "value": 0.31},
-                {"label": "美元", "value": -0.18},
-                {"label": "通胀预期", "value": 0.12},
-                {"label": "风险波动", "value": 0.08},
-                {"label": "资金流", "value": 0.09},
+                {
+                    "dimension": "fundamental",
+                    "label": "基本面",
+                    "value": 0.25,
+                    "score": 0.71,
+                    "weight": 35,
+                    "raw_value": "样例：实际利率 / 美元 / 通胀",
+                },
+                {
+                    "dimension": "flow",
+                    "label": "资金流",
+                    "value": 0.12,
+                    "score": 0.40,
+                    "weight": 30,
+                    "raw_value": "样例：ETF / 央行 / CFTC",
+                },
+                {
+                    "dimension": "trading",
+                    "label": "交易",
+                    "value": 0.08,
+                    "score": 0.40,
+                    "weight": 20,
+                    "raw_value": "样例：1M / 6M / 200D",
+                },
+                {
+                    "dimension": "derivatives",
+                    "label": "衍生品",
+                    "value": -0.03,
+                    "score": -0.20,
+                    "weight": 15,
+                    "raw_value": "样例：基差 / 期权 / 拥挤度",
+                },
             ],
             "relationships": [
                 {
@@ -209,6 +228,12 @@ def build_seed() -> GoldSnapshot:
             "supports": ["实际利率回落", "ETF 流向改善", "央行需求仍具韧性"],
             "drags": ["美元尚未形成趋势性走弱", "期权上方压力集中"],
             "next_check": "核验最新央行购金与 CFTC 周度持仓是否同向确认。",
+            "model_weights": {
+                "fundamental": 35,
+                "flow": 30,
+                "trading": 20,
+                "derivatives": 15,
+            },
         },
         "allocation_context": {
             "as_of": "2016-01 / 2026-08",
@@ -255,6 +280,24 @@ def build_seed() -> GoldSnapshot:
                     "bonds": "-",
                     "note": "分散化价值通常更突出",
                 },
+            ],
+            "correlations": [
+                {"row": "黄金", "column": "黄金", "value": 1.0},
+                {"row": "黄金", "column": "美元", "value": -0.42},
+                {"row": "黄金", "column": "美股", "value": 0.08},
+                {"row": "黄金", "column": "美债", "value": 0.19},
+                {"row": "美元", "column": "黄金", "value": -0.42},
+                {"row": "美元", "column": "美元", "value": 1.0},
+                {"row": "美元", "column": "美股", "value": -0.18},
+                {"row": "美元", "column": "美债", "value": 0.11},
+                {"row": "美股", "column": "黄金", "value": 0.08},
+                {"row": "美股", "column": "美元", "value": -0.18},
+                {"row": "美股", "column": "美股", "value": 1.0},
+                {"row": "美股", "column": "美债", "value": -0.06},
+                {"row": "美债", "column": "黄金", "value": 0.19},
+                {"row": "美债", "column": "美元", "value": 0.11},
+                {"row": "美债", "column": "美股", "value": -0.06},
+                {"row": "美债", "column": "美债", "value": 1.0},
             ],
         },
         "events": [

@@ -1,0 +1,287 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "theme": "light",
+      "width": 1440,
+      "height": 900,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "height": 900,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1280,
+      "height": 720,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1280,
+      "height": 720,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1024,
+      "height": 768,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 1024,
+      "height": 768,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "height": 1024,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "height": 1024,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "height": 900,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "height": 900,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1280,
+      "height": 720,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1280,
+      "height": 720,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1024,
+      "height": 768,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 1024,
+      "height": 768,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "height": 1024,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "height": 1024,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "route": "#/frameworks/gold",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "route": "#/frameworks/dollar",
+      "geometry": {
+        "documentOverflow": false,
+        "mainOverflow": false,
+        "tabHeight": 44,
+        "chartOverflowReady": true
+      }
+    },
+    {
+      "framework": "gold",
+      "reducedMotion": true,
+      "keyboardAnchors": 6
+    },
+    {
+      "framework": "dollar",
+      "reducedMotion": true,
+      "keyboardAnchors": 6
+    },
+    {
+      "hubCards": 2
+    }
+  ],
+  "screenshots": [
+    "gold-light-1440x900-overview.png",
+    "gold-light-1440x900-bot.png",
+    "dollar-light-1440x900-overview.png",
+    "dollar-light-1440x900-bot.png",
+    "gold-light-390x844-overview.png",
+    "gold-light-390x844-bot.png",
+    "dollar-light-390x844-overview.png",
+    "dollar-light-390x844-bot.png",
+    "gold-dark-1440x900-overview.png",
+    "dollar-dark-1440x900-overview.png",
+    "gold-dark-390x844-overview.png",
+    "dollar-dark-390x844-overview.png",
+    "gold-light-1440x900-drivers.png",
+    "gold-light-1440x900-supply.png",
+    "gold-light-1440x900-cycle.png",
+    "gold-light-1440x900-positioning.png",
+    "gold-light-1440x900-allocation.png",
+    "gold-light-1440x900-evidence.png",
+    "dollar-light-1440x900-quantity.png",
+    "dollar-light-1440x900-price.png",
+    "dollar-light-1440x900-fiscal.png",
+    "dollar-light-1440x900-plumbing.png",
+    "dollar-light-1440x900-cross-border.png",
+    "dollar-light-1440x900-evidence.png",
+    "light-1440x900-hub.png"
+  ],
+  "consoleErrors": [],
+  "pageErrors": []
+}

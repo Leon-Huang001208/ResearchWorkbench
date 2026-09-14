@@ -19,8 +19,13 @@ class Metric(GoldModel):
 
 
 class Factor(GoldModel):
+    dimension: Literal["fundamental", "flow", "trading", "derivatives"]
     label: str
     value: float = Field(ge=-1, le=1)
+    score: float = Field(ge=-2.5, le=2.5)
+    weight: int = Field(ge=0, le=100)
+    raw_value: str
+    monitor_only: bool = False
 
 
 class PricePoint(GoldModel):
@@ -37,7 +42,7 @@ class MarketContext(BlockMeta):
 
 
 class PricingDrivers(BlockMeta):
-    factors: list[Factor] = Field(min_length=1, max_length=8)
+    factors: list[Factor] = Field(min_length=4, max_length=5)
     relationships: list[Metric] = Field(min_length=1, max_length=10)
 
 
@@ -93,6 +98,13 @@ class ResearchState(GoldModel):
     supports: list[str] = Field(default_factory=list, max_length=10)
     drags: list[str] = Field(default_factory=list, max_length=10)
     next_check: str
+    model_weights: dict[Literal["fundamental", "flow", "trading", "derivatives"], int]
+
+
+class CorrelationCell(GoldModel):
+    row: str
+    column: str
+    value: float = Field(ge=-1, le=1)
 
 
 class Scenario(GoldModel):
@@ -107,6 +119,7 @@ class AllocationContext(BlockMeta):
     diversification_note: str
     drawdown_note: str
     scenarios: list[Scenario] = Field(min_length=1, max_length=8)
+    correlations: list[CorrelationCell] = Field(min_length=4, max_length=36)
 
 
 class Event(GoldModel):
@@ -127,7 +140,7 @@ class Evidence(GoldModel):
 
 
 class GoldSnapshot(GoldModel):
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     revision: str = Field(pattern=r"^[a-f0-9]{64}$")
     as_of: str
     fetched_at: str
@@ -146,7 +159,13 @@ class GoldSnapshot(GoldModel):
 
     @model_validator(mode="after")
     def enforce_verification_gate(self):
-        critical = (self.market_context, self.pricing_drivers, self.supply_demand)
+        critical = (
+            self.market_context,
+            self.pricing_drivers,
+            self.supply_demand,
+            self.cycle_macro,
+            self.options,
+        )
         has_blocking_gap = any(gap.severity == "high" for gap in self.gaps)
         degraded = any(block.status in {"missing", "stale"} for block in critical)
         if (has_blocking_gap or degraded) and self.status != "待核验":

@@ -130,3 +130,10 @@ test('app uses dedicated workbench and operations modules without a report studi
   assert.ok(source.includes('loadAssetWorkspace'));
   assert.ok(source.includes('api.operationsSummary(operationsRange)'));
 });
+
+test('asset observation neither loads nor displays stale artifacts errors', async () => {
+  const source = await readFile(new URL('app.mjs', root), 'utf8');
+  assert.match(source, /section === 'assets'[\s\S]+delete catalog\.errors\.artifacts;[\s\S]+loadAssetWorkspace\(\)/);
+  assert.match(source, /name !== 'artifacts' \|\| \(state\.route\.page === 'workbench' && state\.route\.section !== 'assets'\)/);
+  assert.doesNotMatch(source, /section === 'assets'[\s\S]{0,300}loadCatalog\(\['artifacts'/);
+});

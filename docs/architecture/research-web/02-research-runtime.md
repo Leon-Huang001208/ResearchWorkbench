@@ -1,6 +1,8 @@
 # 研究协议、执行状态与恢复
 
-Goldar 页面 Bot 仍由本运行时承载：`framework-explain` 是无工具的快照解释预设，用户显式触发的 `framework-verify` 才装配只读检索和公共数据工具。验证会话与解释会话分离，并绑定同一精确快照 revision；没有第二个 Agent Runtime。
+Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
+
+框架页面 Bot 仍由本运行时承载：`framework-explain` 是无工具的快照解释预设，用户显式触发的 `framework-verify` 才装配只读检索和公共数据工具。验证会话与解释会话分离，并绑定框架 slug、章节、缺口、方法版本和同一精确快照 revision；旧 revision 返回 409，Bot 不修改评分或快照，也没有第二个 Agent Runtime。
 
 Phase 2A 的 Registry 读取仍不进入研究执行链。Phase 2B 只把用户已安装、探测、启用且授权的
 MCP 工具加入专属 DSH：Host 生成 `mcp__{installation}__{tool}` 声明和 schema 哈希，DSH adapter

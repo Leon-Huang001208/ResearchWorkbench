@@ -311,7 +311,11 @@ async def artifacts(
     sessions = (
         [service.store.session(session_id)]
         if session_id
-        else list(service.store.data["sessions"].values())
+        else [
+            session
+            for session in service.store.data["sessions"].values()
+            if session.get("deleted_at") is None
+        ]
     )
     for session in sessions:
         for item in service.store.files(session["id"]):

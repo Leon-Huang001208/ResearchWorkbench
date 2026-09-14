@@ -3,7 +3,7 @@ export const goldFrameworkV0 = Object.freeze({
     id: 'gold',
     name: '黄金研究框架',
     version: '0.1.0-fixture',
-    source_revision: '758ae3848d',
+      source_revision: '758ae3848dc32adf2b361fdd070f98cbc75ce496',
     question: '黄金当前由哪组实际利率、美元、避险需求与实物资金力量共同定价？',
     chain: ['宏观状态', '定价驱动', '供需与资金', '持仓与期权', '情景与配置'],
     counter_evidence: ['实际利率与美元同时转强', 'ETF 与央行资金共同转弱', '价格强势但持仓和期权结构不确认'],
@@ -147,3 +147,33 @@ export const goldFrameworkV0 = Object.freeze({
     ],
   },
 });
+
+const source = (name, asOf, proxy = false) => [{ name, url: 'https://example.invalid/test-fixture', observed_at: asOf, unit: 'fixture', method: 'offline test fixture', proxy }];
+const gap = (label, index, severity = 'medium') => ({ id: `fixture-gap-${index}`, label, severity, next_check: '接入真实来源后更新' });
+
+export function goldTestData() {
+  const { framework, snapshot: item } = goldFrameworkV0;
+  const adapt = (block, name, proxy = false) => ({ ...block, as_of: block.as_of || item.meta.as_of, fetched_at: item.meta.fetched_at, sources: source(name, block.as_of || item.meta.as_of, proxy), gaps: (block.gaps || []).map((value, index) => gap(typeof value === 'string' ? value : value.label, index)) });
+  const correlations = item.allocation_context.labels.flatMap((row, rowIndex) => item.allocation_context.labels.map((column, columnIndex) => ({ row, column, value: item.allocation_context.matrix[rowIndex][columnIndex] })));
+  return {
+    framework: {
+      slug: 'gold', name: framework.name, domain: 'commodity', version: '2.0.0', source_revision: framework.source_revision,
+      question: framework.question, chain: framework.chain, counter_evidence: framework.counter_evidence,
+      sections: framework.sections.map(([id, label]) => ({ id, label, question: `${label}的关键研究问题` })),
+      method: '离线测试样例通过确定性因子、支持、反证和数据缺口形成研究状态。',
+    },
+    snapshot: {
+      schema_version: 2, revision: '0'.repeat(64), as_of: item.meta.as_of, fetched_at: item.meta.fetched_at, status: item.meta.status, coverage: item.meta.coverage,
+      market_context: adapt({ ...item.market_context, change_percent: item.market_context.change, range_low: item.market_context.range[0], range_high: item.market_context.range[1], series: item.market_context.series.map((value, index) => ({ label: item.market_context.labels[index], value })) }, 'Illustrative gold series'),
+      pricing_drivers: adapt({ ...item.pricing_drivers, factors: item.pricing_drivers.factors.slice(0, 4).map(({ label, value }, index) => ({ dimension: ['fundamental', 'flow', 'trading', 'derivatives'][index], label, value, score: value, weight: [35, 30, 20, 15][index], raw_value: 'test fixture', monitor_only: false })), relationships: item.pricing_drivers.relationships.map(({ name, ...rest }) => ({ label: name, ...rest })) }, 'FRED fixture'),
+      supply_demand: adapt({ ...item.supply_demand, flows: item.supply_demand.flow_metrics }, 'Goldhub fixture'),
+      cycle_macro: adapt({ ...item.cycle_macro, policy_phase: '通胀后再平衡' }, 'Federal Reserve fixture'),
+      options: adapt({ ...item.options, strikes: item.options.strikes.map(({ tone, ...strike }) => ({ ...strike, side: tone === 'negative' ? 'pressure' : tone === 'positive' ? 'support' : 'neutral' })) }, 'GLD options fixture', true),
+      research_state: { ...item.research_state, model_weights: { fundamental: 35, flow: 30, trading: 20, derivatives: 15 } },
+      allocation_context: adapt({ ...item.allocation_context, diversification_note: '历史样例中黄金与股债相关性较低，关系会随制度切换。', drawdown_note: '黄金可缓和部分风险资产回撤，但流动性冲击初期也可能同步下跌。', correlations }, 'Illustrative allocation study'),
+      events: item.events,
+      evidence: item.evidence.map((row) => ({ ...row, url: 'https://example.invalid/test-fixture' })),
+      gaps: item.meta.gaps.map((value, index) => gap(value, index, index === 0 ? 'high' : 'medium')),
+    },
+  };
+}
