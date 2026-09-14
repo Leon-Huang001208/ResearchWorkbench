@@ -596,3 +596,39 @@
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"worktree启动器可复用Git common directory中的项目虚拟环境，不新增进程、服务或部署边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录测试显式固定可调用来源，生产来源目录和工具注册逻辑未改变。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"依赖与确定性测试修复不改变Research Web路由、请求响应schema或错误码。","diagrams":[]} -->
+
+## 2026-09-14 — CPU 有界研究底座与受限 Wind DataHub Provider
+
+- `research_run_script` Host 增加单槽 FIFO 队列、60 秒排队截止、排队取消移除与无输入内容的
+  wait/run outcome 日志；执行超时和既有沙箱权限保持不变。
+- Runtime 启用研究脚本前验证受管 Python 3.12 与 numpy、pandas、matplotlib、openpyxl，失败使用
+  既有 Runtime 状态投影并返回 `runtime_not_ready`，不新增公开 API 或解释器回退。
+- DataHub 增加 Wind 封闭业务映射；只调用现有适配器方法，并以 capability/dataset 固定输出字段、
+  类型、单位和日期映射拒绝未知列。指数仅登记可执行的 `quotes` 子集；宏观/利率和基金持仓在没有
+  真实等价方法时不登记为 Wind callable。复审进一步移除以龙虎榜方法伪装的大宗交易入口，只将
+  xlwings/Excel 视为 DataHub Wind Provider 就绪依赖，并把所有 binding 市场收紧至 A 股。固定 schema
+  同时逐行核对证券身份和请求日期；指数点位和融券余量分别标记 points、share。未登录、方法缺失、
+  口径不等价和 5,000 行上限均失败关闭。
+- 第三轮复审把 Wind `market_bars` binding 明确收紧到股票，并将 `asset_type` 加入稳定 BusinessQuery、
+  Runtime bridge 与能力工具 schema；缺失类型、指数或 ETF 请求均在 adapter 前失败关闭。日线行情、
+  资金流与融资融券共用前置历史区间验证，拒绝非字符串、反向和超过 60 个日历日的区间，不再
+  只依赖取数后的 5,000 行上限。
+- 第三轮补充复审将同一显式资产类型契约应用于 Wind `market_snapshot`：binding 只声明股票，缺失、
+  指数或 ETF 在 adapter 实例化、可用性检查和方法调用前返回 `data_not_equivalent`；通用能力仍可由
+  其他 Provider 声明其真实支持的指数或 ETF 子集。
+- 代码质量复审将自动 Wind 查询改为每次独立隐藏 Excel 应用/workbook 并在 finally 中无保存关闭，
+  不枚举或选择用户 workbook；容量为 1 的 worker 使用 18 秒 deadline，超时或取消后保持
+  `provider_busy` 直到原调用返回并回收。历史跨度前置收紧为 60 日历日，终点未覆盖时标记 partial；
+  每个固定 schema 验证最低有效字段和请求字段，关键值全空失败、部分缺失只返回 partial。
+- Host FIFO 只在 child close 后释放；强杀仍未 close 时保持 poisoned busy，实际 close 或 Runtime
+  重启后才恢复。上述竞态、隔离生命周期和字段质量均用 fake process/xlwings/adapter 验证，未访问
+  真实 Wind 或用户 workbook。
+- 后续复审明确通用 child `error` 事件不是生命周期终止证据，不能释放 FIFO 或清 poison。Wind
+  workbook/app close/quit 异常同样保留 client 所有权并返回 `wind_cleanup_failed`，Provider 保持
+  poisoned busy 至进程重启，不创建新 Excel。fake kill-error/no-close 与 quit side effect 回归覆盖该边界。
+- 这些变化收紧既有 Host Runtime 和 DataHub Provider 节点内部的调度、readiness 与映射，不新增
+  进程、端口、持久目录、浏览器接口或跨模块连线，现有十张图继续准确。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"既有Host研究脚本节点内部增加FIFO单槽调度、readiness、数值线程上限和仅由close释放的poisoned门闩，不新增进程、服务或权限边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"既有DataHub Provider节点增加Wind独立Excel生命周期、清理失败poison、单worker、固定schema质量和失败关闭口径，不新增数据服务、接口或持久数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"共享CPU预算与结果资源由后续Skill种子复制使用，不注册新的Skill种类或执行器。","diagrams":[]} -->

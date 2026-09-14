@@ -58,8 +58,15 @@ DATA_CAPABILITIES: tuple[DataCapabilityId, ...] = (
 CAPABILITY_PARAMETERS = {
     "search_assets": {"query", "market", "asset_type"},
     "trading_calendar": {"market", "start_date", "end_date"},
-    "market_bars": {"asset", "start_date", "end_date", "frequency", "adjustment"},
-    "market_snapshot": {"assets", "fields"},
+    "market_bars": {
+        "asset",
+        "asset_type",
+        "start_date",
+        "end_date",
+        "frequency",
+        "adjustment",
+    },
+    "market_snapshot": {"assets", "asset_type", "fields"},
     "index_data": {"index", "dataset", "date"},
     "financials": {"asset", "statements", "periods"},
     "market_activity": {"asset", "dataset", "start_date", "end_date"},

@@ -39,6 +39,13 @@ class WindAdapter(BaseDataAdapter):
         except Exception:
             return False
 
+    def close(self) -> None:
+        """关闭当前客户端并清除引用，避免后续误复用 Excel 会话。"""
+        if self._client is None:
+            return
+        self._client.close()
+        self._client = None
+
     # ===== 一期接口 =====
 
     def fetch_consensus_estimates(
@@ -704,7 +711,9 @@ class WindAdapter(BaseDataAdapter):
         rows = []
 
         for code in codes:
-            logger.info(f"获取资金流向: {code}, {start_date}~{end_date} ({len(date_range)} 个交易日)")
+            logger.info(
+                f"获取资金流向: {code}, {start_date}~{end_date} ({len(date_range)} 个交易日)"
+            )
             # 一次性构建所有日期 × 所有字段的公式列表
             dates: list[str] = []
             formulas: list[str] = []

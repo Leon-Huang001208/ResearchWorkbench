@@ -38,7 +38,15 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 
 iFinD HTTP 探测在用户完成现有数据源配置后执行真实登录、健康检查、最小只读基础数据查询和登出；登录成功但空响应、权限或配额失败都不会标记健康。Token 只存在于客户端会话与系统凭据库，不返回本机集成页或写入日志。
 
-东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
+东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable。Wind 新增受限 DataHub binding，只复用现有 xlwings/Excel `WindAdapter` 的封闭方法映射：股票日线行情、快照、指数实时行情 `quotes`、固定财务指标，以及资金流、融资融券和股东数据；现有 `fetch_block_trades` 实际返回龙虎榜，不能等价为大宗交易，因此不登记。Wind `market_bars` binding 的资产范围固定为股票，BusinessQuery 与 Runtime 工具接受显式 `asset_type` 上下文，但 Wind Provider 只允许 `stock`；缺失、指数或 ETF 均在 adapter 初始化前返回 `data_not_equivalent`，不会只凭六位代码推断。指数继续通过 `index_data` 的 points 口径查询。每个 capability/dataset 都投影到固定输出字段、类型、单位和日期语义，并拒绝 adapter 返回的任何未知列、其他证券或越界日期；指数身份也必须与请求一致。指数点位使用 points，融券余量使用 share，不能按 CNY/share 或 CNY 发布。业务请求只接受 `.SH`、`.SZ`、`.BJ` A 股代码及封闭字段、日期和复权枚举；不接受 Wind 公式、表达式、路径、凭据或任意字段。只有 xlwings/Excel 路径构成该 Provider 的依赖就绪条件，只有 WindPy 或配置 `preferred_adapter=client_api` 时不能进入 Runtime callable 计算。未登录返回 `wind_not_logged_in`，当前适配器缺方法返回 `wind_method_unavailable`，身份、单位、日期、复权或数据集不等价返回 `data_not_equivalent`。指数成分、宏观/利率及基金持仓没有已核实的现有适配器等价方法，因此不登记为 Wind 已实现绑定。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
+
+Wind `market_bars` 与 `market_snapshot` 都要求显式 `asset_type=stock`；对应 binding 只显示股票，
+缺失、指数或 ETF 在 adapter 初始化和可用性检查前失败关闭。通用能力仍允许其他 Provider 按真实
+实现声明指数或 ETF 子集。
+
+Wind 的日线、资金流与融资融券入口在 adapter 初始化前验证 ISO 日期、正向区间及含首尾日期最多
+60 个日历日的硬跨度；超界不会触碰本机 Excel/Wind 会话。该上限保证现有 WSD 1,000 行边界和
+回退路径不会把长区间截断后误报完整；返回记录未覆盖请求终点时标记 `partial`。
 
 ## 稳定业务 Tool
 
@@ -48,7 +56,7 @@ iFinD HTTP 探测在用户完成现有数据源配置后执行真实登录、健
 
 天软 Provider 通过 CJPY SDK 的专用客户端访问固定 `http://tsl.tinysoft.com.cn/tslweb/api`，Provider 边界限制 15 秒和 5000 行；授权值只在 Provider 内使用，不进入结果、普通日志或提示词。返回数据保留供应商原字段和 raw JSON，不猜测单位。项目未自动安装 `cjpy`，因此没有依赖的环境必须诚实显示阻塞。
 
-自动执行只移除 DataHub 的逐次确认，不放宽其他边界：回环 token、`trustedDirectory` 父系验证、能力/来源白名单与固定参数 schema、会话隔离快照、取消联动、22 秒原生桥接超时和 15 秒 Provider deadline 均继续生效。
+自动执行只移除 DataHub 的逐次确认，不放宽其他边界：回环 token、`trustedDirectory` 父系验证、能力/来源白名单与固定参数 schema、会话隔离快照、取消联动、22 秒原生桥接超时均继续生效。Wind 使用容量为 1 的专用 worker 和 18 秒 Provider deadline；超时或调用方取消后，底层 Excel 调用完成并关闭前保持 `provider_busy`，不会启动重叠调用。
 
 `broker.py` 根据能力绑定、覆盖范围、完成适配、配置、依赖和允许状态选源。`source=auto` 只选择一个最终 Provider，不拼接不同口径；显式来源默认不换源，只有请求明确 `allow_fallback=true` 才允许继续选择。结果记录实际 Provider 与尝试来源。
 
@@ -84,6 +92,15 @@ HTML资料将换行表头仅用于匹配时去空白，原文字段名仍保留�
 实际NAV响应的TotalCount/PageSize/PageIndex在顶层，记录在Data.LSJZList。请求100实际可能仅20；不能用“少于请求数量”当完成。
 实际页码、页大小、总量和日期逐页验证，重复页/总量或页大小变化停止并保留已经得到的原始响应与解析记录。
 无穷值、坏日期、超出请求范围、必填数值缺失均明确失败/不完整。
+
+Wind Provider 同样保留 DataHub 单查询 5,000 行；超限返回 `row_limit` 且不截断后继续。专业来源
+只在当前本机已登录会话和依赖就绪时调用，不访问网络测试，也不在 Windows 契约测试中启动 Excel。
+每次调用创建隐藏的独立 Excel 应用和专用工作簿，公式不得选择用户现有工作簿；成功、失败均关闭且
+不保存该工作簿并退出专用应用。若 workbook/app 清理无法确认，稳定返回 `wind_cleanup_failed` 并将
+Provider 保持 poisoned busy；进程重启前不创建新 Excel 实例。每个 schema 均验证最低有效字段；关键字段全空失败，请求字段部分
+缺失时返回 `partial` 与稳定限制说明。
+股票日线、资金流与融资融券历史入口另有取数前硬边界：起止日必须是合法字符串且正序，跨度最多
+60 个日历日；超长区间返回 `workload_too_large`，不构造或探测 adapter，更不会先取数再截断。
 
 - `complete`：日期范围请求的来源分页结束且没有已检测到的覆盖异常；不是市场全量的独立验证。
 - `snapshot`：单次公开快照已取得，不能宣称完整历史。

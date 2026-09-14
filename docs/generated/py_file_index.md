@@ -3719,6 +3719,50 @@ Functions:
 - `probe`
 
 
+## `app/research_web/datahub/providers_wind.py`
+
+Module docstring:
+> Restricted Wind DataHub provider using only reviewed adapter methods.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `concurrent.futures`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `providers`
+- `re`
+- `threading`
+- `typing`
+- `zoneinfo`
+
+Functions:
+- `_asset`
+- `_day`
+- `_bounded_history_range`
+- `_preflight`
+- `_schema_key`
+- `_text`
+- `_provider_date`
+- `_field_value`
+- `_schema`
+- `_field_metadata`
+- `_equivalent_asset`
+- `_equivalent_day`
+- `_validate_record_identity`
+- `_records`
+- `_requested_output_fields`
+- `_quality_limitations`
+- `_make_adapter`
+- `_run_adapter`
+- `_clear_outstanding`
+- `_submit`
+- `_invoke`
+- `fetch`
+
+
 ## `app/research_web/datahub/routes.py`
 
 Module docstring:
@@ -3905,6 +3949,165 @@ Functions:
 - `architecture_document`
 
 
+## `app/research_web/frameworks/__init__.py`
+
+Module docstring:
+> Versioned, Web-only research framework runtime.
+
+Imports:
+- `service`
+
+
+## `app/research_web/frameworks/base.py`
+
+Module docstring:
+> Thin shared contracts for framework metadata and evidence freshness.
+
+Imports:
+- `pydantic`
+- `typing`
+
+Classes:
+- `FrameworkError`
+  - methods: __init__
+- `SourceRecord`
+- `GapRecord`
+- `BlockMeta`
+- `FrameworkSection`
+- `FrameworkDefinition`
+
+
+## `app/research_web/frameworks/goldar/__init__.py`
+
+Module docstring:
+> Goldar's domain-specific definition, snapshot and scoring package.
+
+Imports:
+- `definition`
+- `store`
+
+
+## `app/research_web/frameworks/goldar/contracts.py`
+
+Module docstring:
+> Strict Goldar snapshot contract; domain fields intentionally remain specific.
+
+Imports:
+- `base`
+- `pydantic`
+- `typing`
+
+Classes:
+- `GoldModel`
+- `Metric`
+- `Factor`
+- `PricePoint`
+- `MarketContext`
+- `PricingDrivers`
+- `DemandCategory`
+- `FlowMetric`
+- `SupplyDemand`
+- `Regime`
+- `CycleMacro`
+- `PositionMetric`
+- `Strike`
+- `OptionsPositioning`
+- `ResearchState`
+- `Scenario`
+- `AllocationContext`
+- `Event`
+- `Evidence`
+- `GoldSnapshot`
+  - methods: enforce_verification_gate
+
+
+## `app/research_web/frameworks/goldar/definition.py`
+
+Module docstring:
+> Immutable Goldar research method definition.
+
+Imports:
+- `base`
+
+
+## `app/research_web/frameworks/goldar/seed.py`
+
+Module docstring:
+> Deterministic offline snapshot used until each live source is configured.
+
+Imports:
+- `contracts`
+- `hashlib`
+- `json`
+
+Functions:
+- `_source`
+- `compute_revision`
+- `build_seed`
+
+
+## `app/research_web/frameworks/goldar/store.py`
+
+Module docstring:
+> Bounded, strict and atomic local storage for the Goldar snapshot.
+
+Imports:
+- `base`
+- `contracts`
+- `core.observability`
+- `json`
+- `os`
+- `pathlib`
+- `pydantic`
+- `seed`
+- `tempfile`
+
+Classes:
+- `GoldSnapshotStore`
+  - methods: __init__, _migrate_legacy_snapshot, read, write
+
+
+## `app/research_web/frameworks/routes.py`
+
+Module docstring:
+> FastAPI routes for versioned framework data and page-scoped DSH sessions.
+
+Imports:
+- `fastapi`
+- `pydantic`
+- `store`
+- `typing`
+
+Classes:
+- `ExplainSessionInput`
+- `FrameworkMessageInput`
+- `VerifyInput`
+
+Functions:
+- `frameworks`
+- `framework_data`
+- `create_framework_session`
+- `send_framework_message`
+- `verify_framework_session`
+
+
+## `app/research_web/frameworks/service.py`
+
+Module docstring:
+> Framework catalog, snapshot binding and page-scoped DSH conversations.
+
+Imports:
+- `base`
+- `core.observability`
+- `goldar`
+- `json`
+- `pathlib`
+
+Classes:
+- `FrameworkService`
+  - methods: __init__, start, close, catalog, data, _binding, _session_binding, _context, create_session, send_message, verify
+
+
 ## `app/research_web/launch_runtime.py`
 
 Module docstring:
@@ -3932,6 +4135,8 @@ Imports:
 - `tempfile`
 
 Functions:
+- `validate_research_python`
+  - Fail closed unless the configured runtime is Python 3.12 with CPU libraries.
 - `mcp_runtime_enabled`
 - `load_mcp_runtime_bindings`
   - Load exact Host-verified bindings for the next dedicated DSH start.
@@ -4111,6 +4316,8 @@ Imports:
 - `fastapi.exceptions`
 - `fastapi.responses`
 - `fastapi.staticfiles`
+- `frameworks.base`
+- `frameworks.routes`
 - `json`
 - `local_integrations`
 - `local_integrations.routes`
@@ -4124,9 +4331,7 @@ Imports:
 - `pydantic`
 - `re`
 - `report_routes`
-- `report_studio`
-- `report_workflow_routes`
-- ... 10 more
+- ... 12 more
 
 Classes:
 - `NewSession`
@@ -4610,6 +4815,7 @@ Imports:
 - `credentials`
 - `hashlib`
 - `hmac`
+- `importlib.util`
 - `installation_store`
 - `json`
 - `models`
@@ -5516,6 +5722,7 @@ Imports:
 - `datahub`
 - `datetime`
 - `delivery`
+- `frameworks`
 - `hashlib`
 - `json`
 - `local_integrations`
@@ -5528,8 +5735,7 @@ Imports:
 - `mcp_runtime.package_installer`
 - `mcp_runtime.package_planner`
 - `mcp_runtime.package_resolver`
-- `mcp_runtime.sdk_host`
-- ... 13 more
+- ... 14 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
@@ -5588,6 +5794,29 @@ Functions:
 - `format_status`
 - `format_tabbit_status`
   - Render diagnostics without paths, page metadata, cookies, or content.
+
+
+## `app/research_web/skills/_shared/cpu_budget.py`
+
+Module docstring:
+> Deterministic CPU workload budgets copied into reviewed calculator Skills.
+
+Imports:
+- `__future__`
+- `dataclasses`
+- `logging`
+- `typing`
+
+Classes:
+- `WorkloadTooLarge`
+  - Stable, content-free workload rejection for reviewed calculators.
+  - methods: __init__
+- `WorkloadBudget`
+  - Accumulate inputs and artifacts without silently truncating either.
+  - methods: add_input, validate_series, validate_batch, add_artifact
+
+Functions:
+- `_count`
 
 
 ## `app/research_web/skills/company-research/scripts/workflow.py`
@@ -8664,6 +8893,9 @@ Module docstring:
 Classes:
 - `WindError`
   - Wind 插件通用错误基类
+- `WindCleanupError`
+  - 受管 Excel 生命周期未能确认结束。
+  - methods: __init__
 - `WindNotConnectedError`
   - Excel 未运行或 Wind 插件未加载
   - methods: __init__
@@ -8902,7 +9134,7 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
+  - methods: __init__, _get_client, is_available, close, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
 
 Functions:
 - `_safe_float_wind`

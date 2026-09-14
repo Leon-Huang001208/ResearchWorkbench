@@ -17,11 +17,22 @@ Workflow 管理继续进入原专用管理视图。
 
 DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；只有 `integration_completed && callable` 的来源才会让对应工具进入 Runtime 注册集合。配置变更后页面可以立即重新检测，但原生工具集合仍以研究服务重启时的快照为准。
 
+`datahub_market_bars` 与 `datahub_market_snapshot` 的公共 Tool schema 接受显式 `asset_type`；当前 Wind binding 只声明股票资产，
+并要求值为 `stock`。缺失类型、指数或 ETF 均由 Provider 在 adapter 初始化前失败关闭，指数只能通过
+`datahub_index_data` 的 points 口径查询。Capabilities 目录展示这一受支持子集，不因六位代码形式
+推断或扩展 Wind 的可调用资产范围。
+
 当前目录包含 12 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
 统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
 机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
 Quality Gate 与旧报告编译链没有恢复。
+
+`app/research_web/skills/_shared/` 另维护 `cpu_bounded_v1` 公共资源约定：`cpu_budget.py` 提供
+50,000 行/64 MiB 累计输入、5,000 行单序列、50 标的 × 1,000 行和 16 MiB 累计制品的确定性验证，
+超限固定 `workload_too_large` 且不截断；结果与 provenance 协议规定 `as_of`、规范化 parameters、
+dataset refs、status、limitations、method version、source hashes 和 `internal-only` rights。它们是供
+后续 reviewed calculator 种子复制并哈希封存的资源，不注册为独立 Skill，也不增加工具权限。
 
 阶段 2A 的只读 MCP 市场在三阶段 CI 通过后默认开启；显式设置 `RESEARCH_MCP_REGISTRY_ENABLED=0`
 仍会关闭该入口。目录聚合随仓库

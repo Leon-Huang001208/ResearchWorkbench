@@ -6,6 +6,31 @@
 
 ## [Unreleased]
 
+### CPU 有界投研公共底座 · 2026-09-14
+
+- `research_run_script` 新增宿主级 FIFO 单执行队列、60 秒排队上限、稳定 `runtime_busy` 和排队取消移除；
+  数值库线程统一限制为 4，保留 15 秒默认执行和 60 秒 hard cap。
+- 研究工具启动只接受 Python 3.12 且实际具备 numpy、pandas、matplotlib、openpyxl；失败保持
+  `runtime_not_ready`，不回退系统 Python。新增 `cpu_bounded_v1` 公共预算、结果与 provenance 资源，
+  无 GPU 依赖，不注册独立 Skill。
+- DataHub 新增受限 Wind provider/binding，只映射现有 WindAdapter 的封闭行情、快照、指数、财务和
+  市场活动方法；任意公式/表达式/路径/凭据被拒绝，未登录、方法不可用、口径不等价和 5,000 行超限
+  均稳定失败关闭。审查后收紧为 capability/dataset 固定字段、类型、单位和日期 schema，拒绝 adapter
+  未知列以及证券身份/请求日期不一致响应；指数仅声明可执行 `quotes`，指数点位单位为 points，融券
+  余量单位为 share。龙虎榜接口不再伪装为大宗交易，连同无等价方法的宏观/利率与基金持仓均不标记
+  Wind callable。Wind DataHub 市场范围收紧为 `.SH`/`.SZ`/`.BJ` A 股，只有 xlwings/Excel 路径可
+  就绪；只有 WindPy 或配置 `client_api` 不会令 Runtime 暴露 Wind 工具。
+  Wind `market_bars` 与 `market_snapshot` 只声明股票子集，要求显式 `asset_type=stock`，指数仍通过 points 口径的
+  `index_data` 查询；不依据代码外形猜测股票、指数或 ETF。日线行情、资金流和融资融券在任何
+  adapter 调用前验证日期类型与顺序，并以 60 个日历日为硬跨度上限，反向或超长区间失败关闭；
+  请求终点未覆盖时只返回 partial，不把 WSD 的 1,000 行截断误报完整。自动查询使用单 worker、
+  18 秒 deadline 及每次独立的隐藏 Excel 应用/工作簿，最终不保存并关闭；超时或取消不会允许新调用
+  与旧 Excel 重叠。workbook/app 清理未确认时返回 `wind_cleanup_failed`，保留所有权并 poison Provider
+  至进程重启。固定 schema 验证最低有效字段及用户请求字段，关键值全空失败、部分缺失标为 partial。
+  `research_run_script` 仅在 child `close` 后释放 FIFO 槽；强杀仍未关闭时进入 poisoned busy 状态，
+  `error` 事件也不能替代 `close` 或清除 poison，直到实际 close 或 Runtime 重启。
+  未调用真实 Wind 或网络；沙箱仍为 macOS only，Windows 仅保留 provider-free 契约测试。
+
 ### Research Web 本地依赖与测试基线 · 2026-09-13
 
 - 补齐 uv 管理 `.venv` 的 Research Web 最小依赖，并将 `httpx2>=2,<3` 纳入开发依赖；全量

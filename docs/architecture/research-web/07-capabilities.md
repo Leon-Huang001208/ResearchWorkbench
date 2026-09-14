@@ -20,6 +20,10 @@
 
 Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH 读取的原生 Skill 指令，步骤列表是研究模板，不是已执行节点。
 
+`skills/_shared/` 的 `cpu_bounded_v1` 只是一组种子资源契约：公共预算模块、结果字段协议与
+provenance/rights 约定由后续 18 个 reviewed calculator 复制到各自不可变版本。共享目录本身不进入
+Skill 目录，也不获得 DataHub、脚本或宿主权限。
+
 能力工作区路由以 `kind=skill|tool|workflow|data` 切换四个主分区，以
 `view=library|mine|plans|connections` 切换类型内二级视图；无参数默认 `kind=skill`。
 Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 提供运行计划；Tool 的连接状态
@@ -77,6 +81,12 @@ Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 
 显式 `expected_formats` 优先；未提供时使用所选能力默认格式。详情显示能力/版本和 Workflow 预设步骤，执行活动及最终文件从原生历史与真实产物读取，不由模板推断完成状态。
 
 Tool 目录只读展示 8 个研究/控制工具与 15 个 `datahub_*` 业务数据工具，共 23 项。新增数据库目录与单表查询仅在本机 MySQL 配置、凭据和依赖就绪后由 Research Runtime 写入 `enabledTools`；配置变化在重启后生效。已注册的只读 DataHub 查询自动执行，未注册能力不会出现在模型工具列表中。
+
+业务工具的参数声明保留 Provider 所需的等价性上下文：`datahub_market_bars` 与
+`datahub_market_snapshot` 暴露受限
+`asset_type` 枚举，但当前 Wind binding 只登记股票，并在 adapter 初始化前要求显式 `stock`。
+指数和 ETF 不按证券代码猜测或回退到股票行情；Wind 指数数据继续由 `datahub_index_data` 以
+points 单位提供。能力目录的资产标签与实际 binding 支持集一致，不能把失败关闭的子能力标为可调用。
 
 Tool 的 MCP 市场是 Phase 2A 的独立只读二级视图。官方 Registry 固定使用 `/v0.1`，私有
 Registry 必须由用户显式配置；认证 Registry 只允许 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth

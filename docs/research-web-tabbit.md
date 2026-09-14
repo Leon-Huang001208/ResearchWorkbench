@@ -117,3 +117,14 @@ Office/Wind 显式验证证据在 TTL 截止时刻即失效，零 TTL 不会留�
 MCP Runtime 与 Automation 默认启用不自动授权 Tabbit，也不把浏览器工具加入无人值守 allowlist；Tabbit 的实时页面授权、一次性 token 与写操作审批继续独立生效。
 
 2026-09-11 的本机集成格式基线维护不改变 Tabbit 的授权、claim、token 或浏览器运行时边界。
+
+2026-09-14 研究脚本 Host 增加全局 FIFO 单执行队列和 Python 3.12/科学计算包 readiness 门禁。
+这只收紧 `research_run_script` 的本机 CPU 执行；Tabbit 的页面 claim、一次性正文 token、写审批与
+浏览器生命周期不变。脚本槽仅在 child close 后释放；强杀无法确认关闭时 Runtime 保持 busy，避免
+后续脚本与残留进程重叠，child `error` 事件也不能替代 close 或解除该状态。
+浏览器实例选择保持独立，排队或 `runtime_not_ready` 不会扩大页面访问权限。readiness 对非对象
+JSON 等无效探针响应失败关闭，不读取或改变 Tabbit 配置。
+
+同阶段 DataHub Runtime 的 `market_bars` 与 `market_snapshot` 工具增加显式 `asset_type` 上下文；Wind binding 仅接受
+`stock`，指数和 ETF 不会按代码形态猜测或改走股票行情。该工具契约不进入 Tabbit 页面请求、claim
+或正文 token，Tabbit 也不能提供缺失的资产类型来绕过 Provider 的失败关闭。

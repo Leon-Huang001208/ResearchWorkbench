@@ -40,6 +40,25 @@
 
 Research Runtime 每次启动都从离线 DataHub 能力目录重新计算 `enabledTools`；来源配置变化只有在重启后才改变原生工具注册。缺少可调用来源的工具不暴露给模型。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为 `provider_busy`。
 
+Wind 只以五项具备封闭适配路径的 capability binding 参与 callable 计算；市场活动内部只开放
+资金流、融资融券和股东数据，现有龙虎榜方法不作为大宗交易暴露。指数限定实时 `quotes`，没有等价
+方法的宏观/利率与基金持仓不登记为 Wind binding。Provider 返回值必须先经过 capability/dataset
+固定 schema，并逐行匹配证券身份和请求日期，未知列或越界响应不会进入会话数据集。该 DataHub
+Provider 仅实例化 xlwings/Excel `WindAdapter`，故只有 WindPy 或选择 `client_api` 不计为 callable；
+所有 Wind binding 的市场范围固定为 `.SH`、`.SZ`、`.BJ` A 股。`market_bars` 与 `market_snapshot`
+binding 只声明股票，请求必须显式携带 `asset_type=stock`；指数和 ETF 不由六位代码推断，指数仅走 points 口径的
+`index_data`。日线行情、资金流和融资融券在构造或探测 adapter 前完成起止日期类型、正序和最多
+60 个日历日跨度检查，避免先执行潜在大查询再依赖返回行数门禁；返回终点不足只标记 partial。
+
+启用研究脚本时，Host 使用当前受管启动解释器执行 readiness 探测：必须是 Python 3.12 且能导入
+numpy、pandas、matplotlib、openpyxl；失败投影为稳定的 `runtime_not_ready`，不搜索或回退系统
+Python；非对象 JSON 等无效探针响应同样失败关闭。`research_run_script` 在可信 Host Runtime 中共享一条 FIFO 队列，全局只运行一个脚本，
+排队最多 60 秒；取消项在获准执行前移除，超时返回 `runtime_busy`。脚本仍受默认 15 秒和 60 秒
+hard cap。FIFO 槽只在子进程发出 `close` 后释放；SIGKILL 后仍无法确认关闭时 Host 进入 poisoned
+busy 状态，拒绝启动后续脚本。通用 child `error` 只说明执行异常，不证明进程已关闭，因此不能释放
+槽或清 poison；恢复只依赖实际 close 或 Runtime 重启。
+队列不会把权限或宿主状态授予子进程。
+
 Tabbit 由 Profile 私有依赖链按 `base → web-app → dsh-tabbit → research-tabbit-adapter` 顺序加载。供应归档、许可证和文件清单在复制前逐项校验，运行时禁用 `tabbit_browser_install`，不执行下载或自动升级。浏览器自动化默认开启，Tabbit `web_fetch` 接管默认关闭；配置写入 Research Web 数据目录并在下次安全重启生效。页面正文只停留在 DSH 内存的一次性 token 中，不进入产品索引或日志。
 
 跨平台 staging 把 npm tar 成员固定解释为 POSIX 路径，完成越界与链接检查后才映射到宿主文件系统；Windows 原子配置替换先关闭临时文件句柄，adapter overlay 路径固定使用正斜杠。这些兼容修正不增加执行器、下载器或存储节点。
@@ -68,6 +87,10 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。`rwb web start` 默认从 `~/.research-workbench/dsh-source/` 启动经过固定提交构建的项目私有 DSH，只管理 3081/8088；`RESEARCH_DSH_SOURCE` 仅用于显式覆盖。状态文件保存 PID、命令指纹、项目路径和数据根；运行监控和停止命令都要求状态内容与实际 PID 命令签名一致，绝不把任意存活 PID 当成受管进程，也绝不操作用户原有 3080。服务仅回环；无多人权限体系，不应直接暴露公网。
 
 只验证当前 macOS 脚本隔离；不把 Web 本地成功当作 Linux/Windows/桌面支持证据。DSH 固定源码提交为 `c919b2a460753859665db3f60143d525fb9140cf`，基于官方最新版并包含会话原生永久删除协议与持久层实现。
+
+研究脚本是本机 CPU-only 能力，无 GPU 依赖；数值库子进程线程上限固定为 4。当前沙箱仍只在
+macOS 支持，Windows 只执行不加载 Wind 的 Provider 契约测试，不能作为 Windows 沙箱或真实
+Wind 会话的支持证据。
 
 Phase 2A/2B/2C 的 Registry、Runtime 与 Automation 在远端门禁通过后默认初始化；三个保留环境开关仍可显式设为 `0` 独立关闭。数据根、系统凭据库、单 worker 和专属 DSH 边界不变。
 

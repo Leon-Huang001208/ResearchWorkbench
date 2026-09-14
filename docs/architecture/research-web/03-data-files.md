@@ -39,6 +39,23 @@ DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运
 
 目录读取只访问 `datahub/catalog.py` 的静态声明，不实例化旧 Connector、不联网、不启动 Excel，也不产生供应商费用。目录分别展示代码存在、完成适配、配置齐备、依赖齐备、允许调用和最近健康状态；只有完成 Provider 适配且满足条件的绑定才进入自动路由。东方财富基金和财联社可直接调用；天软 CJPY 已实现证券目录、交易日历、历史行情和实时快照 Provider，但本机缺依赖或授权时保持 `blocked_dependency` / `blocked_config`，其他登记能力不会借来源级状态冒充已实现。
 
+Wind DataHub Provider 只把已登记的业务能力、数据集、字段、日期与复权枚举映射到现有
+`WindAdapter` 方法；请求不能携带公式、表达式、文件路径或凭据。行情、快照、指数、财务和市场
+活动仅在口径可证明等价时返回固定字段、类型、单位和日期映射的标准 `BusinessResult`。指数只登记
+可真实执行的实时行情 `quotes` 子集；宏观/利率与基金持仓在现有适配器没有等价方法，因此不登记为
+Wind 已实现绑定；现有 `fetch_block_trades` 是龙虎榜而非大宗交易，也不纳入市场活动数据集。
+DataHub 只把 xlwings/Excel `WindAdapter` 视为依赖就绪，`client_api` 偏好或仅有 WindPy 不会令
+Runtime 暴露必失败能力，Wind binding 市场固定为 `.SH`/`.SZ`/`.BJ` A 股。自动查询每次使用隐藏
+独立 Excel 应用和专用 workbook，finally 不保存关闭，绝不选择用户当前工作簿；同步调用在容量为 1
+的 worker 中执行，18 秒 deadline 后仍保持单飞直到 Excel 返回并完成清理。quit 无法确认时保留
+client 所有权并 poison Provider 至进程重启，不再实例化 Excel。响应逐行核对证券身份
+和请求日期，未知返回列、关键字段全空、越界日期、未登录、SDK 方法缺失和超过
+5,000 行的响应均失败关闭。Wind `market_bars` 与 `market_snapshot` 只支持显式 `asset_type=stock` 的股票，指数继续走
+`index_data` points 映射；日线行情、资金流与融资融券在 adapter 初始化或可用性检查前验证起止
+日期并限制最多 60 个日历日，不从返回代码或代码外形猜测资产类型。请求字段部分缺失或历史响应
+未覆盖请求终点只返回 partial，不把供应商截断误报完整。
+5,000 行分别失败关闭，不回退其他来源、不截断也不制造数据。
+
 上游仅接受注册来源 ID 和能力限定参数，不接受任意 URL、模块、路径、请求头或凭据。`datahub/broker.py` 先按能力绑定、启用状态和覆盖条件筛选，再选择单一 Provider；显式来源默认不静默换源。访问边界限制域名、重定向、体积、时长及取消；请求失败与空数据不同，返回状态、原因、尝试来源和实际覆盖。原始响应留在私有区域，解析数据以 JSON/CSV 和 Manifest 保存至当前研究可读资源目录。
 
 桥接上限为 22 秒；AKShare 与天软同步 Provider 在 15 秒内返回终态。超时写出 `failed/deadline` 快照而不是顶层活动异常；第三方同步调用若仍在运行，每个 Provider 的单线程门闩让新请求快速返回 `failed/provider_busy`，避免排队和线程累积。Python 不能强制终止已经进入 SDK 的线程，因此该线程仍会运行到供应商调用自行结束。

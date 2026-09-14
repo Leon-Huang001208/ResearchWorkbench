@@ -51,6 +51,24 @@ Runtime 内存中以会话绑定、单次消费、10 分钟过期 token 暂存�
 
 当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 15 项能力与 22 个登记来源；统一连接中心从当前设备 `<RESEARCH_DATA_HOME>/connections/` 读取各来源非秘密配置，MySQL、iFinD、知丘及 Key 型来源的秘密固定存入操作系统凭据库。Wind 只依赖用户本机已登录会话，Excel 作为分层本机能力诊断。真实 Runtime 仅在启动或重启时物化 `callable_source_count > 0` 的品牌无关 `datahub_*` 业务 Tool。MySQL 只开放逐级 schema 和参数化单表查询，不接受原始 SQL；登记、配置、探测、适配和可调用状态分别显示，组件检测成功不等于可调用。
 
+阶段 1 CPU 投研底座把 `research_run_script` 放入宿主进程级 FIFO 队列，全局单执行、排队最多
+60 秒，超时稳定 `runtime_busy`，排队取消不启动。启用时只接受可导入 numpy/pandas/matplotlib/
+openpyxl 的配置 Python 3.12；子进程数值线程固定为 4。`skills/_shared` 的 `cpu_bounded_v1` 统一
+累计输入、单序列、批量标的和制品预算及来源协议，不作为独立 Skill。DataHub Wind binding 只调用
+现有适配器的封闭业务方法，并按 capability/dataset 投影固定字段、类型、单位和日期。指数只登记
+可执行的实时行情子集；现有 `fetch_block_trades` 实际为龙虎榜，和宏观利率、指数成分、基金持仓
+一样不登记为 Wind callable，直接调用的不等价请求返回 `data_not_equivalent`。Wind DataHub 当前
+只通过 xlwings/Excel 适配器支持 `.SH`、`.SZ`、`.BJ` A 股代码；Client API 偏好或只有 WindPy
+均不构成可调用证据。响应逐行核对证券身份和请求日期范围，指数点位及融券余量分别使用 points、
+share 单位。Wind 历史行情和实时快照进一步要求显式 `asset_type=stock`，不根据六位代码猜测指数或 ETF；指数
+继续只走 `index_data`。Wind 自动调用使用容量为 1 的专用 worker、18 秒 deadline，以及每次新建并
+最终无保存关闭的隐藏独立 Excel 应用/工作簿；不选择用户已打开的 workbook。日频历史入口在接触
+adapter 前验证日期类型、顺序和最多 60 个日历日的硬跨度，超限固定失败而不先拉取数据，响应未覆盖
+请求终点时只标记 partial。固定 schema 还验证最低有效字段和请求字段完整性。本底座无 GPU 依赖；
+Excel quit 未确认时保留 client 所有权并将 Wind Provider poison 到进程重启，防止新实例重叠。
+沙箱仍是 macOS only，Windows 仅跑
+provider-free 契约测试。
+
 Research Web 在 Windows 上读取 DSH 认证文件及 DataHub 私有控制、调用收据和会话快照时使用受限路径回退：拒绝符号链接和重解析点、限制文件类型/大小/硬链接并核对打开前后的文件身份；快照目录发布仍为同目录原子改名。POSIX 继续使用 `dir_fd`、`O_DIRECTORY` 与 `O_NOFOLLOW`；两条路径不改变 DataHub 服务节点或 API 拓扑。永久删除会先为产品所有的只读文件恢复所有者写权限，且不跟随链接或重解析点。
 
 DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒绝非普通文件、硬链接、符号链接、Windows 重解析点及打开期间的身份替换；POSIX 额外要求 group/other 无权限，Windows 不把无语义的 POSIX mode 投影当作 ACL。Web 客户端与服务管理器复用该边界，不改变回环 RPC 或认证格式。
