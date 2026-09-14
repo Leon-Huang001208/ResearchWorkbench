@@ -38,7 +38,10 @@ hash, no-dependency and target-directory arguments, pins the current interpreter
 uses a staging-private cache. `tests/research_web/test_mcp_installation.py` covers both the fallback and the
 fail-closed no-installer path. The repository `rwb` launcher resolves the Git common directory only when the
 current worktree has no `.venv`, allowing isolated worktrees to reuse the project interpreter without changing
-their source root.
+their source root. It enters that resolved root before importing the entrypoint and, in Codex Desktop, exports
+the bundled Node as `RESEARCH_NODE_BINARY`; `service_manager.py` gives this explicit value precedence over
+`PATH`. Launcher and precedence regressions live in `tests/research_web/test_cli_lazy.py` and
+`test_service_manager.py`.
 
 Research Web Phase 2A adds the feature-gated, read-only MCP Registry catalog in
 `app/research_web/mcp_registry/`. `catalog.py` aggregates the fixed official `/v0.1` API and explicitly
