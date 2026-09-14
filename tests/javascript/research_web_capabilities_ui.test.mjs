@@ -179,8 +179,8 @@ test('capability quicklook is an accessible dialog with truthful disabled reason
 test('capability center renders, filters, opens and selects every built-in Skill without a router card', async () => {
   const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
   const builtinResearchSkills = productBuiltinResearchSkills();
-  assert.equal(builtinResearchSkills.length, 12);
-  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 12);
+  assert.equal(builtinResearchSkills.length, 18);
+  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 18);
   assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin && item.enabled), true);
 
   const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });

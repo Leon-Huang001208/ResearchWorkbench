@@ -128,3 +128,8 @@ JSON 等无效探针响应失败关闭，不读取或改变 Tabbit 配置。
 同阶段 DataHub Runtime 的 `market_bars` 与 `market_snapshot` 工具增加显式 `asset_type` 上下文；Wind binding 仅接受
 `stock`，指数和 ETF 不会按代码形态猜测或改走股票行情。该工具契约不进入 Tabbit 页面请求、claim
 或正文 token，Tabbit 也不能提供缺失的资产类型来绕过 Provider 的失败关闭。
+
+2026-09-14 新增的六个 CPU 资讯/事件 Skill 仍只经既有 `research_run_script` 读取会话内相对路径
+JSON，并受同一 FIFO、readiness、预算与沙箱限制；它们不调用 Tabbit、不获得浏览器标签正文，也不
+改变页面授权、claim、一次性 token、写操作审批或浏览器生命周期。包内计算脚本、schema、映射、
+provenance 和 synthetic golden 进入能力不可变版本，不构成新的 Runtime 或浏览器执行节点。

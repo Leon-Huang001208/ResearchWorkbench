@@ -22,7 +22,7 @@ DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是�
 `datahub_index_data` 的 points 口径查询。Capabilities 目录展示这一受支持子集，不因六位代码形式
 推断或扩展 Wind 的可调用资产范围。
 
-当前目录包含 12 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
+当前目录包含 18 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
 统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
 机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
@@ -167,7 +167,7 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 
 ### 内置研究 Skill 边界
 
-能力中心由 `seeds.py` 的声明式元数据生成 12 个内置 Skill。资料解读、公司研究、行业研究、
+能力中心由 `seeds.py` 的声明式元数据生成 18 个内置 Skill。资料解读、公司研究、行业研究、
 基金评价、市场解读和因子库研究保持各自既有入口；本批新增能力只在下列窄场景触发：
 
 | 专用 Skill | 正向触发 | 反向边界 |
@@ -177,6 +177,13 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 | 产业链与主题研究 (`industry-chain-research`) | 价值流、瓶颈、主题阶段及受益/受损映射 | 完整供需、竞争格局和行业关键指标使用行业研究 |
 | 业绩与一致预期 (`earnings-consensus-research`) | 单家公司业绩、指引、预期差与机构分歧 | 完整业务、财务、竞争力、估值与风险使用公司研究 |
 | 宏观与跨资产 (`macro-asset-research`) | 宏观制度、政策、流动性及利率、汇率、股票、信用和商品传导 | 不用于单一公司、产业链或日常多事件复盘 |
+
+六个 CPU 有界 Skill 是独立计算器：`daily-market-brief`、`policy-sentinel`、`event-review`、
+`etf-flow-monitor`、`earnings-report-monitor`、`earnings-preview-monitor`。它们只读取会话中已取得的
+相对路径 JSON，按照包内 schema 和字段映射验证输入，再返回 `cpu_bounded_v1` 公共字段。市场简报
+不复制事件/政策分析，政策哨兵不生成投资建议，事件复盘不为样本不足的 beta 设默认值，ETF 不猜
+分类，两类业绩计算器不补齐缺失字段或暴露。每个包独立携带 provenance、synthetic fixture/golden，
+种子还复制共享预算、结果和 provenance 协议进入不可变版本并重新计算 reviewed script 哈希。
 
 不登记独立研究路由 Skill；触发与反向条件写入每个包的 frontmatter、产品说明和分类，交给
 现有 DSH Skill discovery。五个专用 Skill 的 `default_formats=[]`，默认在聊天中回答；只有用户
@@ -314,7 +321,7 @@ tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集�
 
 | 源码 | 测试 | 验证边界 |
 | --- | --- | --- |
-| capabilities/models/packages/catalog/seeds、skills | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 12 Skill/4 Workflow 离线种子、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
+| capabilities/models/packages/catalog/seeds、skills | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py、test_cpu_quant_skills_stage2.py | 18 Skill/4 Workflow 离线种子、专用边界、证据/CPU 协议快照、CPU golden 与失败关闭、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
 | capabilities/routes、main/service/store | test_capabilities_admission.py、既有 research_web 回归 | 原生名称核对、格式优先、幂等、跨会话、并发、创建产物 |
 | tools、launch_runtime、research.cordis.yml | test_capabilities_native.py | 固定源码真实 provider list/get/watch 与实际注册；不调用模型 |
 

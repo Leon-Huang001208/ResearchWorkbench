@@ -143,6 +143,118 @@ SKILL_SPECS = (
         ],
         "evidence_protocol": True,
     },
+    {
+        "slug": "daily-market-brief",
+        "name": "每日市场简报",
+        "description": "将市场快照、涨跌成交、行业主题与新闻证据编排为固定结构简报；不替代事件或政策分析。",
+        "category": "市场监控",
+        "scenarios": ["每日市场证据简报"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_index_data",
+            "datahub_get_market_snapshot",
+            "datahub_get_market_activity",
+            "datahub_search_news",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "结构化市场输入", "type": "file", "required": True},
+            {"name": "as_of", "label": "数据截止日", "type": "date", "required": True},
+        ],
+    },
+    {
+        "slug": "policy-sentinel",
+        "name": "政策哨兵",
+        "description": "按关键词和日期输出政策证据时间线、命中规则与来源已给出的潜在影响对象；不生成投资建议。",
+        "category": "事件与政策",
+        "scenarios": ["政策证据监控"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_search_news",
+            "datahub_search_announcements",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "政策记录", "type": "file", "required": True},
+            {"name": "as_of", "label": "数据截止日", "type": "date", "required": True},
+        ],
+    },
+    {
+        "slug": "event-review",
+        "name": "事件复盘",
+        "description": "确定性计算事件窗收益、超额表现、成交变化及可用的 beta/alpha；不使用默认 beta。",
+        "category": "事件与政策",
+        "scenarios": ["标的事件窗口复盘"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_market_bars"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "标的与基准日频序列", "type": "file", "required": True},
+            {"name": "event_date", "label": "事件日期", "type": "date", "required": True},
+        ],
+    },
+    {
+        "slug": "etf-flow-monitor",
+        "name": "ETF 资金流监控",
+        "description": "由 ETF 份额变化和 NAV 估算资金流，严格按用户提供的类型、行业和主题分类汇总。",
+        "category": "基金",
+        "scenarios": ["ETF 份额资金流监控"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_fund_data",
+            "datahub_query_table",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "ETF 份额与分类输入", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "earnings-report-monitor",
+        "name": "财报披露监控",
+        "description": "按证券、报告期、披露日及营收净利同比环比记录，计算披露进度和变化分布。",
+        "category": "公司与业绩",
+        "scenarios": ["财报披露进度监控"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_financials",
+            "datahub_query_table",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "财报披露记录", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "earnings-preview-monitor",
+        "name": "业绩预告监控",
+        "description": "计算业绩预告利润和增速区间中值，仅汇总输入已提供的估值、资金与研究覆盖字段。",
+        "category": "公司与业绩",
+        "scenarios": ["业绩预告区间监控"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_financials",
+            "datahub_get_market_snapshot",
+            "datahub_get_market_activity",
+            "datahub_search_research",
+            "datahub_query_table",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "业绩预告记录", "type": "file", "required": True}
+        ],
+    },
 )
 
 WORKFLOW_SPECS = (
@@ -182,12 +294,21 @@ def _skill_package(root, spec, protocol):
     ]
     if spec["evidence_protocol"]:
         files.append(encode_file("references/evidence-protocol.md", protocol.read_bytes()))
+    if spec.get("cpu_profile"):
+        shared = root / "_shared"
+        for source_name, package_name in (
+            ("cpu-bounded-policy.md", "references/cpu-bounded-policy.md"),
+            ("cpu-bounded-result-v1.md", "references/cpu-bounded-result-v1.md"),
+            ("provenance-v1.md", "references/provenance-v1.md"),
+            ("cpu_budget.py", "scripts/cpu_budget.py"),
+        ):
+            files.append(encode_file(package_name, (shared / source_name).read_bytes()))
     metadata = {
         "slug": spec["slug"],
         "name": spec["name"],
         "description": spec["description"],
         "category": spec["category"],
-        "inputs": [dict(QUESTION_INPUT)],
+        "inputs": [dict(item) for item in spec.get("inputs", [QUESTION_INPUT])],
         "scenarios": list(spec["scenarios"]),
         "default_formats": list(spec["default_formats"]),
         "required_tools": list(spec["required_tools"]),

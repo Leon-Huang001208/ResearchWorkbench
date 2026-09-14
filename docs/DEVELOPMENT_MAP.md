@@ -104,9 +104,14 @@ DataHub catalog, brand-neutral business tools, broker, Provider, probe and snaps
 `app/research_web/service_manager.py` applies the same platform distinction to its private data, state and log directories: type, symlink and Windows reparse checks remain universal, while group/other mode checks remain POSIX-only.
 
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
-`app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill、五个专用 Skill 和一个框架核验 Skill 共 12 项，四个
+`app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill、五个专用 Skill、一个框架核验 Skill
+和六个 CPU 有界资讯/事件 Skill 共 18 项，四个
 Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-protocol.md` 是专用 Skill 的共享证据
 协议源码，构建时复制到每个包的 `references/` 并进入不可变版本哈希；它本身不进入发现目录。
+CPU Skill 还从 `skills/_shared/` 复制 `cpu_budget.py`、结果与 provenance 协议，分别处理市场简报、
+政策时间线、事件窗、ETF 资金流、业绩披露与业绩预告；计算只读取相对路径 JSON 和已提供字段，
+不执行 Excel、网络或分类推断。对应 golden、失败关闭、预算与静态扫描位于
+`tests/research_web/test_cpu_quant_skills_stage2.py`。
 研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱
 内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在
 `tests/research_web/test_capabilities*.py` 和 `tests/research_web/test_sell_side_report_skill.py`；

@@ -9,7 +9,7 @@
 | `models.py` | 元数据、输入字段、步骤与产品错误契约 | 执行研究 |
 | `packages.py` | 有界 MD/ZIP 读取、路径/类型/编码检查、保留问题 | 安装依赖、解压到任意路径或运行脚本 |
 | `catalog.py` | 草稿、检查、不可变版本、原生目录投影、会话资源快照 | Agent 编排 |
-| `seeds.py` | 十二个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
+| `seeds.py` | 十八个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
 | `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、数据组织为四个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
@@ -21,7 +21,7 @@
 Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH 读取的原生 Skill 指令，步骤列表是研究模板，不是已执行节点。
 
 `skills/_shared/` 的 `cpu_bounded_v1` 只是一组种子资源契约：公共预算模块、结果字段协议与
-provenance/rights 约定由后续 18 个 reviewed calculator 复制到各自不可变版本。共享目录本身不进入
+provenance/rights 约定由 CPU reviewed calculator 复制到各自不可变版本。共享目录本身不进入
 Skill 目录，也不获得 DataHub、脚本或宿主权限。
 
 能力工作区路由以 `kind=skill|tool|workflow|data` 切换四个主分区，以
@@ -112,6 +112,13 @@ Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次
 
 2026-09-08 在不改变上述包、版本和执行拓扑的前提下增加五个品牌中立专用 Skill：研报增量分析、金融事件研究、产业链与主题研究、业绩与一致预期、宏观与跨资产。它们分别避开一般资料提取、多事件市场复盘、通用行业报告和完整公司研究；触发与反向条件直接写入 Skill frontmatter 和产品元数据，不登记独立路由 Skill。五项均以 `default_formats=[]` 默认在聊天中回答，文件和 DataHub 仅在 Runtime 实际暴露且用户明确要求时使用。
 
+2026-09-14 增加六个单一职责 CPU Skill：每日市场简报只编排 DataHub 市场/行业/主题/新闻证据；
+政策哨兵只输出证据时间线、关键词命中与输入给定的影响对象；事件复盘确定性计算事件窗收益、
+超额、成交变化，并在回归样本不足时返回 beta/alpha `unavailable`；ETF 资金流只使用用户提供的
+类型/行业/主题分类；业绩报告与业绩预告分别计算披露进度/变化分布和预告中值/增速分布。缺失
+必填字段、证据或分类均失败关闭；可选暴露只透明汇总，不推断。六项不新增 Workflow、页面、API、
+网络、Excel 或 GPU 执行路径。
+
 共享证据协议以 `skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制到每个专用包的 `references/evidence-protocol.md`，随不可变版本保存自己的 SHA-256 快照。协议统一来源层级、证据分层、日期口径、基线、反向证据、情景和非个性化建议。搜索摘要不能替代原文，决定性来源不可读时必须降级为“证据不足”或“无法判断”。研报 PDF 通过现有 `research_helpers.read_pdf` 读取；结构化摘要校验和 SVG 知识图谱是沙箱内受审脚本，不使用宿主路径、Poppler、shell 或子进程。v1 不裁剪 PDF 原页，没有可靠来源定位时不生成关系图并标记视觉证据受限。
 
 具体报告使用 `Report Workflow`，不是独立报告执行引擎。每个不可变版本持有自己的 Word/PPT 模板、Excel 公式底稿、品牌素材、映射、结构化步骤和交付合同；共享 Skill 负责检索、市场解读、图表分析和段落写作，共享 Tool 负责 Excel 刷新、底稿提取、模板检查、图表渲染、Office 组装和文件验证。运行修改的是 Run 副本，永不覆盖 Workflow 母版。
@@ -122,13 +129,13 @@ Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次
 
 ## 验证边界
 
-包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 12 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
+包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`；六个 CPU calculator 的 golden、失败关闭、预算、性能与静态扫描在 `tests/research_web/test_cpu_quant_skills_stage2.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 18 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
 
 2026-09-03 实际对话产物经人工审查发布 `1ba298cc4b754aee9496b7d1c5c78bf7` v1，在新会话 `7ee7b736-673a-4aff-8006-73de6c10b600` 生成并下载 HTML，保存原生名称及编译哈希。手动导入 `528c5a3dd15849b0a7f29fbdf5441b01` 从不完整元数据草稿，经表单编辑、检查、v1、v2、停用、回滚v1、刷新、ZIP导出完成闭环。记录在 `.ai/reports/2026-09-03-research-ui-live.md`；失败首稿与原版本保留。
 
 Workflow 历史页面按研究记录的不可变版本读取预设步骤；请求失败显示缺失说明且允许显式刷新重试，不能永久缓存失败空步骤，也不能用当前目录替代旧版。恢复后只清除该版本读取错误，不隐藏其他运行错误。预设步骤不显示自动完成勾选。
 
-Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 12 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
+Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 18 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
 
 ## 具体报告 Workflow
 

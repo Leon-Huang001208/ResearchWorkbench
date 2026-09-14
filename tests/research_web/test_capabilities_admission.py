@@ -308,7 +308,7 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
     root = service.store.directory(sid)
     assert (root / "resources/capabilities/document-reading/1/templates/report.md").is_file()
     catalog = service.store.receipt(sid, "native-auto-skill")["capability_catalog"]
-    assert len(catalog) == 16
+    assert len(catalog) == 22
     capability_ids = {row["id"] for row in catalog}
     assert {
         "finance-news-event-research",
@@ -316,6 +316,12 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
         "earnings-consensus-research",
         "macro-asset-research",
         "sell-side-report-reader",
+        "daily-market-brief",
+        "policy-sentinel",
+        "event-review",
+        "etf-flow-monitor",
+        "earnings-report-monitor",
+        "earnings-preview-monitor",
     } <= capability_ids
     assert "factor-database-research" in capability_ids
     assert "report-production-workflow" in capability_ids

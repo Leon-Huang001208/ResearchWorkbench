@@ -5835,6 +5835,40 @@ Functions:
 - `main`
 
 
+## `app/research_web/skills/daily-market-brief/scripts/calculate.py`
+
+Module docstring:
+> Deterministically arrange supplied market evidence into a daily brief.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `datetime`
+- `json`
+- `logging`
+- `math`
+- `pathlib`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - Stable content-free calculator rejection.
+  - methods: __init__
+
+Functions:
+- `_day`
+- `_number`
+- `_text`
+- `_list`
+- `_dataset_refs`
+- `_base`
+- `calculate`
+  - Return a fixed brief structure without inferring policy or event impacts.
+- `_input_path`
+- `main`
+
+
 ## `app/research_web/skills/document-reading/scripts/workflow.py`
 
 Module docstring:
@@ -5848,6 +5882,130 @@ Imports:
 - `sys`
 
 Functions:
+- `main`
+
+
+## `app/research_web/skills/earnings-preview-monitor/scripts/calculate.py`
+
+Module docstring:
+> Calculate earnings-preview interval midpoints and transparent exposures.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `datetime`
+- `json`
+- `logging`
+- `math`
+- `pathlib`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_dataset_refs`
+- `_number`
+- `_bucket`
+- `calculate`
+- `_path`
+- `main`
+
+
+## `app/research_web/skills/earnings-report-monitor/scripts/calculate.py`
+
+Module docstring:
+> Calculate disclosure progress and reported growth distributions.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `datetime`
+- `json`
+- `logging`
+- `math`
+- `pathlib`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_dataset_refs`
+- `_number`
+- `_distribution`
+- `calculate`
+- `_path`
+- `main`
+
+
+## `app/research_web/skills/etf-flow-monitor/scripts/calculate.py`
+
+Module docstring:
+> Calculate ETF flows only from supplied shares, NAV and classifications.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `datetime`
+- `json`
+- `logging`
+- `math`
+- `pathlib`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_dataset_refs`
+- `_number`
+- `calculate`
+- `_path`
+- `main`
+
+
+## `app/research_web/skills/event-review/scripts/calculate.py`
+
+Module docstring:
+> Deterministic event-window performance and pre-event beta calculation.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `datetime`
+- `json`
+- `logging`
+- `math`
+- `pathlib`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_dataset_refs`
+- `_number`
+- `_series`
+- `_returns`
+- `calculate`
+- `_path`
 - `main`
 
 
@@ -5900,6 +6058,34 @@ Functions:
 - `_timestamp`
 - `rank`
   - Return a deterministic ordering with visible scores and no inferred facts.
+- `main`
+
+
+## `app/research_web/skills/policy-sentinel/scripts/calculate.py`
+
+Module docstring:
+> Build an evidence-only policy timeline from supplied records.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `datetime`
+- `json`
+- `logging`
+- `pathlib`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_dataset_refs`
+- `calculate`
+- `_path`
 - `main`
 
 

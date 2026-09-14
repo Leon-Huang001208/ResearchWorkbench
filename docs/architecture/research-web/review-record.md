@@ -1,5 +1,18 @@
 # 架构迭代核对记录
 
+## 2026-09-14 — 六个 CPU 有界资讯/事件 Skill
+
+- 能力目录增加每日市场简报、政策哨兵、事件复盘、ETF 资金流、业绩报告监控和业绩预告监控六个
+  独立内置包；均复用既有检查、不可变版本、原生发现、会话资源快照与 `research_run_script` 沙箱。
+- 种子把阶段 1 CPU 预算、结果和 provenance 资源复制进每个版本并生成 reviewed script 哈希；各包
+  仅消费相对路径 JSON，不新增网络、Excel、GPU、子进程、线程池、服务、页面、API 或 Workflow。
+- DataHub/Wind 字段映射只描述现有可调用业务工具和明确 fallback gate；ETF 分类及可选暴露由输入
+  提供，事件回归样本不足返回 unavailable。现有十张架构图已覆盖能力发布、Runtime 脚本调用和
+  DataHub 会话快照关系，因此无需改变拓扑或重生成图源。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"六个CPU计算包复用既有research_run_script沙箱、FIFO、预算和会话相对路径输入，不新增执行节点或权限。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录增加六个声明式内置Skill及版本资源，仍复用现有检查、发布、原生发现、选择和快照链。","diagrams":[]} -->
+
 ## 2026-09-11 — MCP 安装、授权与 Research Web Host
 
 - Registry 仍是只读发现边界；新增 `mcp_runtime` 负责固定制品解析、完整二次确认、不可变安装清单、官方 SDK 连接与 OAuth，秘密只进入独立系统凭据库。

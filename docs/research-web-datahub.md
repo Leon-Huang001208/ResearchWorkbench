@@ -173,7 +173,14 @@ files条目包含name/path/sha256/size/url/kind=dataset；url为上述专用下�
 
 ## Skill与研究口径
 
-五个内置研究 Skill 及 persona 要求：父 Agent 只调用当前 Runtime 已暴露的 `datahub_*` 工具；可用来源自动查询，不逐次确认。工具未暴露时不调用、不重试；读取 manifest 核对缺失后，复杂 Claw 任务再分两个子 Agent 复用父 Agent 已取得的同一数据集，不重复取数。
+五个专用研究 Skill 及 persona 要求：父 Agent 只调用当前 Runtime 已暴露的 `datahub_*` 工具；可用来源自动查询，不逐次确认。工具未暴露时不调用、不重试；读取 manifest 核对缺失后，复杂 Claw 任务再分两个子 Agent 复用父 Agent 已取得的同一数据集，不重复取数。
+六个 CPU 资讯/事件 Skill 不直接连接 Provider，只消费上述工具已经形成的会话 JSON 与
+`dataset_refs`。`daily-market-brief` 映射市场快照/日线、市场活动与新闻；`policy-sentinel` 映射新闻
+证据并要求输入给定政策关键词、日期和影响对象；`event-review` 映射股票日线及输入给定的基准日线；
+`etf-flow-monitor` 需要 ETF 份额、前值、NAV/价格和用户分类；两类业绩监控映射固定财务字段及用户
+提供的披露/预告记录。包内 `field-mapping.json` 固定首选 Wind 字段、单位、日期与复权口径；当前
+Wind Provider 没有等价 ETF 份额、宏观、基金/北向暴露或研究覆盖方法时明确
+`data_not_equivalent`，必须经过其他可调用来源或用户数据 fallback gate，不声称 Wind callable。
 计算限定已获得数据；累计净值不是总回报指数。未取得期初前一估值日及分红复权口径时只称“首末观测区间净值变动”，不冒称完整日历年度收益。
 业绩基准文字不是基准序列；目前未取得可靠基准序列、合同/报告下载服务。20行最近快照不能证明三年表现。
 XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/HTML使用同一ID/日期。输入快照不算报告产物。

@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+### 六个 CPU 有界资讯/事件 Skill · 2026-09-14
+
+- 能力中心新增每日市场简报、政策哨兵、事件复盘、ETF 资金流、业绩报告监控和业绩预告监控六个
+  独立内置 Skill，总数更新为 18；沿用既有原生发现、选择、不可变版本和会话资源快照，不新增
+  Workflow、页面、顶层 API 或执行器。
+- 每个 Skill 独立保存指令、受审 `calculate.py`、输入/输出 schema、DataHub/Wind 字段映射、来源
+  provenance 与 synthetic golden；种子构建把 `cpu_bounded_v1` 预算、结果、provenance 协议和共享
+  预算模块复制到版本资源，并按现有机制生成/核验 reviewed script 哈希。
+- 计算器只接受相对路径 JSON，累计最多 50,000 行/64 MiB，无网络、Excel、CJPY、GPU、子进程或
+  线程池路径。空数据、缺证据/分类/必填字段、类型错误与预算超限稳定失败；事件回归样本不足时
+  beta/alpha 明确不可用，ETF 和业绩暴露均不推断，所有结果标记 `research_only=true`。
+- Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
+
 ### CPU 有界投研公共底座 · 2026-09-14
 
 - `research_run_script` 新增宿主级 FIFO 单执行队列、60 秒排队上限、稳定 `runtime_busy` 和排队取消移除；
