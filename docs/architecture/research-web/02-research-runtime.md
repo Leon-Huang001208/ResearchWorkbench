@@ -101,3 +101,8 @@ MCP Runtime 与 Automation 默认启用后仍按原有探测、授权、版本�
 2026-09-11 的格式基线维护不改变本机验证 TTL、状态转换、进程清理或 Runtime 调用路径。
 
 CLI 启动前固定项目根与 Node 选择：Codex Desktop 优先使用 bundled Node，其他宿主使用 `RESEARCH_NODE_BINARY` 或 `PATH`。所选绝对路径进入既有进程命令指纹，因此后续 `status/stop/restart` 仍按同一归属失败关闭。
+
+Method 请求在提交前按 `required > user-selected > recommended > model-supplemented` 解析，去重后
+最多三个，并锁定产品版本、语义版本、原生名称和来源。DSH 原生加载包装后，实际采用须调用
+`rwb_record_method_use`；本轮收据保存提交前的追踪偏移，旧轮记录不能满足新轮完成检查。必需或
+用户选择缺记录时完成状态转为失败，推荐或模型补选缺记录时保留结果并降级标记。

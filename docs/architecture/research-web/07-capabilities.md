@@ -6,21 +6,24 @@
 
 | 模块 | 职责 | 不负责 |
 |---|---|---|
-| `models.py` | 元数据、输入字段、步骤与产品错误契约 | 执行研究 |
+| `models.py` | 元数据、输入字段、步骤、Method Policy 与产品错误契约 | 执行研究 |
+| `methods.py` | 十个只读 Method 的契约、组合解析、采用证据检查与 Research Eval 矩阵 | 授权工具、保存研究正文或替代工程 Harness |
 | `packages.py` | 有界 MD/ZIP 读取、路径/类型/编码检查、保留问题 | 安装依赖、解压到任意路径或运行脚本 |
 | `catalog.py` | 草稿、检查、不可变版本、原生目录投影、会话资源快照 | Agent 编排 |
-| `seeds.py` | 十二个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
+| `seeds.py` | 十二个研究 Skill、四个步骤式 Workflow、十个 Method 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
-| `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、数据组织为四个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
+| `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、Method、数据组织为五个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
 | `ui/mcp-marketplace.mjs` | 在 Tool 的 `view=market` 浏览只读 Registry，并管理完整安装确认、探测、启停、移除、OAuth、风险分级、会话授权和一次性审批；最终 HTML sink 单次转义 | 执行 Publisher、渲染 Registry HTML、热链图标或自动授予权限 |
 | `mcp_registry/` | 按 `(registry_id, server_name, version)` 聚合目录，管理安全传输、不透明游标、ETag、原子最后成功缓存和 Keyring 引用 | 合并同名服务器、把秘密写入 JSON、向 DSH 注册工具 |
 | `mcp_runtime/` | 固定制品解析、不可变清单、隔离安装、缺少 pip 时的受限 uv 离线回退、官方 SDK Host、OAuth、schema 快照、风险/授权/审批与 DSH 激活回滚 | shell 字符串、latest/版本范围、自动安装 uv、自动授权、无人值守高风险或 Registry 发布 |
 | `automation/` | 锁定版本任务、IANA 日程、独立 Claw Run、恢复、显式旧日程迁移和独立投递状态 | 静默升级、研究自动重试、重叠运行或高风险无人值守调用 |
 
-Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH 读取的原生 Skill 指令，步骤列表是研究模板，不是已执行节点。
+Skill、Workflow 和 Method 使用同一不可变版本与原生发现机制；Workflow 编译成 DSH 读取的原生
+Skill 指令，步骤列表是研究模板，不是已执行节点。Method 仍保留 Research Workbench 的
+`kind=method` 和稳定 ID，DSH 只是 Runtime 适配器，不成为 Method 的权威来源。
 
-能力工作区路由以 `kind=skill|tool|workflow|data` 切换四个主分区，以
+能力工作区路由以 `kind=skill|tool|workflow|method|data` 切换五个主分区，以
 `view=library|mine|plans|connections` 切换类型内二级视图；无参数默认 `kind=skill`。
 Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 提供运行计划；Tool 的连接状态
 只展示本机集成，数据源由数据分区单独展示。无 kind 的旧 `view=plans` 映射到 Workflow，
@@ -29,7 +32,9 @@ Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 
 
 ## 数据模型与文件归属
 
-能力条目区分产品稳定 ID、用户名称/slug、类型、来源、状态、当前启用版本和可编辑草稿。元数据包括说明、分类、适用场景、输入字段、默认输出格式、工具需求和 Python 依赖声明。
+能力条目区分产品稳定 ID、用户名称/slug、类型、来源、状态和当前启用版本。Skill／Workflow
+保留可编辑草稿；首版 Method 只允许读取内置版本，不允许创建、导入或复制。元数据包括说明、分类、
+适用场景、输入字段、默认输出格式、工具需求、Python 依赖声明与可选 `method_policy`。
 
 ```text
 产品数据根 / capabilities/
@@ -43,6 +48,23 @@ Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 
 ```
 
 包版本树与文件分别只读；原生投影顶层目录允许服务切换，不授予研究脚本宿主权限。内置原生名称保留现有 ID，自定义名称包含产品 ID 与版本。历史版本可查看、导出；使用非当前版本必须先明确回滚，不能假设 DSH 有版本锁定 RPC。
+
+## Method 路由、追踪与评测
+
+`ReasoningMethodSpec` 保存稳定 ID、语义版本、触发与反向触发、输入／输出契约、程序、兼容关系和
+可观察评分规则。解析优先级固定为 `required > user-selected > recommended > model-supplemented`，
+去重后最多三个；必需项或用户选择被排除、版本不可用、组合冲突或超限时，在提交研究前明确失败。
+
+研究输入区只提供内置 Method 的手动选择，并显示采用来源；能力卡展示与业务 Skill／Workflow 的
+策略关联。DSH 包装要求在实际采用后调用内部 `rwb_record_method_use`。该工具只向当前会话的有界
+JSONL 写入 `method_id`、`version`、`source`，不接收 Prompt、文档正文、分析文本或任何权限参数。
+每一轮以提交前偏移量隔离证据，旧轮记录不能满足新轮检查。必需或用户指定 Method 缺证据时将完成
+状态改为失败；推荐或模型补选缺证据时保留结果并标记 `method_trace_incomplete`。
+
+Research Evals 与工程 Harness 独立。每个 Method 生成至少三个投研场景，并比较无方法、单方法和
+组合方法，只评分来源区分、反证、决定变量、实验条件等可观察结果。只有质量改善且成本、延迟均未
+明显倒退时才能进入默认推荐；当前 Skill／Workflow 的默认策略为空。用户可编辑 Prompt 模板库属于
+下一阶段，必须等待真实模型评测通过；现有报告项目的 `prompt_templates.md` 保持原状。
 
 能力目录、内置 Skill、Report Workflow 和 Research Web 运行配置统一显式使用 UTF-8 读取与原子写入，不依赖操作系统默认代码页；Windows 原生 CI 会实际启动服务并读取中文内置能力，以验证这条启动链路。
 
@@ -108,7 +130,10 @@ Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次
 
 华安 ETF 周报、创业板 50 周报、华安 ETF 投资风向标和 AI 周报均在 Claw 与能力中心展示。创业板 50 的活动工作簿按公式识别为 iFinD，误标 Wind 文件只保留为 `legacy_mislabeled`；AI 周报继续 `needs_attention`。日程默认关闭，且只有手动运行达到 `completed` 且文件交付为 `complete` 后才能启用。
 
-能力中心现在有 Skill、Tool、Workflow、数据四个页签。“数据”不是新的执行类型，而是 DataHub 的只读目录投影：支持按业务能力和按来源双视图，展示字段、参数、市场覆盖、候选来源和六维就绪状态。把数据能力“放入研究草稿”只加入对应 `datahub_*` Tool，不立即联网或产生费用。DSH 原生网页搜索仍留在 Tool 目录，不冒充 DataHub 数据源。
+能力中心现在有 Skill、Tool、Workflow、方法、数据五个页签。“方法”是 Research Workbench 的
+只读推理程序目录；“数据”不是新的执行类型，而是 DataHub 的只读目录投影：支持按业务能力和按
+来源双视图，展示字段、参数、市场覆盖、候选来源和六维就绪状态。把数据能力“放入研究草稿”只加入
+对应 `datahub_*` Tool，不立即联网或产生费用。DSH 原生网页搜索仍留在 Tool 目录，不冒充 DataHub 数据源。
 
 ## 验证边界
 

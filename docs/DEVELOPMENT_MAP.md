@@ -106,7 +106,10 @@ DataHub catalog, brand-neutral business tools, broker, Provider, probe and snaps
 
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
 `app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill、五个专用 Skill 和一个框架核验 Skill 共 12 项，四个
-Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-protocol.md` 是专用 Skill 的共享证据
+Workflow 保持原有执行边界；十个内置 Method 的结构化契约、路由优先级、追踪检查和评测矩阵位于
+`app/research_web/capabilities/methods.py`。Method 是 Research Workbench 产品能力，不是新的
+Runtime；`runtime/research-tools.mjs` 中的 `rwb_record_method_use` 只写当前会话的方法 ID、版本和
+来源，DSH 仅加载由目录编译的原生 Skill 包装。`app/research_web/skills/_shared/evidence-protocol.md` 是专用 Skill 的共享证据
 协议源码，构建时复制到每个包的 `references/` 并进入不可变版本哈希；它本身不进入发现目录。
 研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱
 内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在
@@ -119,11 +122,13 @@ Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-pr
 
 能力工作区 v0 的聚合与可访问快览位于 `app/research_web/ui/capability-workspace.mjs`，由
 `app.mjs` 组合 capabilities、tools、report-workflows、data catalog 与 connections 的现有安全投影。
-`core.mjs` 将 `kind=skill|tool|workflow|data` 解析为四个主分区，再按类型归一
+`core.mjs` 将 `kind=skill|tool|workflow|method|data` 解析为五个主分区，再按类型归一
 `view=library|mine|plans|connections`；无 kind 的旧计划/连接链接分别映射到 Workflow/Tool，
 既有 kind 深链继续有效。该层不持久化
 第二份能力数据，也不执行研究。筛选、路由、真实状态和 dialog DOM 契约继续由
-`tests/javascript/research_web_capabilities_ui.test.mjs` 与 `research_web_appearance.test.mjs` 覆盖。
+`tests/javascript/research_web_capabilities_ui.test.mjs`、`research_web_methods_ui.test.mjs` 与
+`research_web_appearance.test.mjs` 覆盖。默认方法推荐在真实 Research Evals 通过前保持为空；
+现有报告项目 `prompt_templates.md` 不属于该 Method 层，也不在本轮迁移或覆盖。
 
 Legacy market-home fact writers share `data_layer/repositories/market_home_invalidation.py` for UTC normalization and transaction-coupled invalidation outbox writes. `services/market_home_invalidation.py` owns scheduler/materializer coordination only. Boundary logging for legacy research execution lives in `services/agent_team_service.py`, `services/research_graph.py`, `services/research_orchestration_service.py` and `services/research_templates.py`; exceptions remain visible to callers after structured logging.
 

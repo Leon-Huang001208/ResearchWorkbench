@@ -76,3 +76,7 @@ Phase 2A/2B/2C 的 Registry、Runtime 与 Automation 在远端门禁通过后默
 2026-09-11 的格式基线维护仅整理本机集成包导入、常量和时间解析表达式，不改变进程、存储或部署拓扑。
 
 仓库 `rwb` 启动器进入自身解析出的项目根后再导入 Python 入口，并在 Codex Desktop 可用时固定其 bundled Node；其他环境可通过 `RESEARCH_NODE_BINARY` 固定已审核 Node，避免调用目录遮蔽和原生模块 ABI 漂移。
+
+2026-09-14 增加的 Method 层仍位于现有 FastAPI 能力目录与同一 DSH Runtime：Research Workbench
+拥有结构化 Method 契约和策略，DSH 只读取编译后的原生 Skill 包装。没有新增服务、端口、worker、
+数据库或第二研究引擎；Codex／Claude 工程框架不属于本部署拓扑。

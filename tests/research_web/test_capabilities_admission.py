@@ -73,6 +73,36 @@ def discovery(native, service):
     native.rpc = rpc
 
 
+def test_user_selected_method_is_version_locked_and_recorded_without_new_authority(api):
+    client, native, service = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    discovery(native, service)
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={"text": "核对事实", "method_ids": ["fact-checking"]},
+        headers={"Idempotency-Key": "method-selection"},
+    )
+    assert response.status_code == 202, response.text
+    methods = service.store.receipt(sid, "method-selection")["methods"]
+    assert [(row["method_id"], row["version"], row["source"]) for row in methods] == [
+        ("fact-checking", "1.0.0", "user-selected")
+    ]
+    prompt = next(payload for method, payload in native.calls if method == "session.prompt")
+    text = prompt["content"][0]["text"]
+    assert "rwb_record_method_use" in text
+    assert "fact-checking" in text
+    assert "用户选择的研究工具意图" not in text
+
+    other = client.post("/api/research/sessions", json={}).json()["id"]
+    invalid = client.post(
+        f"/api/research/sessions/{other}/messages",
+        json={"text": "核对事实", "method_ids": ["unknown-method"]},
+        headers={"Idempotency-Key": "method-invalid"},
+    )
+    assert invalid.status_code == 409
+    assert invalid.json()["error"]["code"] == "method_unavailable"
+
+
 @pytest.mark.parametrize("formats,required", [(None, ["md"]), ([], []), (["html"], ["html"])])
 def test_selected_version_snapshot_formats_and_receipt(api, formats, required):
     client, native, service = api
@@ -308,7 +338,7 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
     root = service.store.directory(sid)
     assert (root / "resources/capabilities/document-reading/1/templates/report.md").is_file()
     catalog = service.store.receipt(sid, "native-auto-skill")["capability_catalog"]
-    assert len(catalog) == 16
+    assert len(catalog) == 26
     capability_ids = {row["id"] for row in catalog}
     assert {
         "finance-news-event-research",

@@ -1,11 +1,14 @@
 /** DSH native research tool. No model-provided paths, environment, or executables. */
 import { spawn } from 'node:child_process';
-import { realpath, lstat } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { mkdir, open, realpath, lstat } from 'node:fs/promises';
 import { isAbsolute, join, resolve, dirname, basename } from 'node:path';
 
 export const name = 'research-tools';
 export const inject = ['tools', 'sessions'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const METHOD_IDS = new Set(['socratic-clarification','dual-layer-explanation','reverse-engineering','horizontal-vertical-analysis','fact-checking','expert-perspectives','first-principles','cross-domain-transfer','steelman-comparison','minimal-experiment']);
+const METHOD_SOURCES = new Set(['required','user-selected','recommended','model-supplemented']);
 
 /** Validate immutable DSH lineage; a cold/missing ancestor fails closed. */
 export async function trustedDirectory(ctx, exec, config) {
@@ -100,6 +103,37 @@ export function apply(ctx, config) {
         child.stdin.end(JSON.stringify({ code: args.code }));
         if (exec.signal.aborted) onAbort();
       });
+    },
+  });
+  ctx.tools.register({
+    name: 'rwb_record_method_use',
+    description: 'Record bounded Research Workbench method identity for the current research session. This grants no data, file, network, or execution authority.',
+    parameters: { type: 'object', properties: { method_id: { type: 'string', enum: [...METHOD_IDS] }, version: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+$' }, source: { type: 'string', enum: [...METHOD_SOURCES] } }, required: ['method_id','version','source'], additionalProperties: false },
+    output: {
+      schema: { type: 'object', properties: { recorded: { type: 'boolean' }, method_id: { type: 'string' }, version: { type: 'string' }, source: { type: 'string' } }, required: ['recorded','method_id','version','source'], additionalProperties: false },
+      render(_args, value) { return [{ type: 'text', text: JSON.stringify(value) }]; },
+    },
+    async execute(args, exec) {
+      if (!args || Object.keys(args).sort().join(',') !== 'method_id,source,version' || !METHOD_IDS.has(args.method_id) || !METHOD_SOURCES.has(args.source) || !/^\d+\.\d+\.\d+$/.test(args.version)) throw new Error('method trace accepts only bounded method identity');
+      const cwd = await trustedDirectory(ctx, exec, config);
+      const traceDir = join(cwd, '.rwb');
+      await mkdir(traceDir, { recursive: true, mode: 0o700 });
+      if (await realpath(traceDir) !== traceDir) throw new Error('method trace directory is unsafe');
+      const traceFile = join(traceDir, 'method-trace.jsonl');
+      const value = { method_id: args.method_id, version: args.version, source: args.source };
+      const line = `${JSON.stringify(value)}\n`;
+      let handle;
+      try {
+        handle = await open(traceFile, constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT | (constants.O_NOFOLLOW ?? 0), 0o600);
+        const current = await handle.stat();
+        if (!current.isFile() || current.size + Buffer.byteLength(line) > 65536) throw new Error('method trace file is unsafe');
+        await handle.write(line, null, 'utf8');
+        await handle.sync();
+      } finally {
+        await handle?.close();
+      }
+      ctx.logger.info('research_method_recorded method_id=%s', args.method_id);
+      return { recorded: true, ...value };
     },
   });
 }

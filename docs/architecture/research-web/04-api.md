@@ -2,7 +2,8 @@
 
 框架 API 固定登记 Gold 与 Dollar，并按 slug 返回版本化专用快照。解释与深度验证均要求客户端提交当前 `snapshot_revision`；版本漂移返回 409，跨框架会话返回 404，避免混合结论。详细字段与模式边界见 [研究框架](08-research-frameworks.md)。全局 `/artifacts` 只遍历未删除会话；显式查询软删除会话返回 410，恢复后重新可见。
 
-能力工作区 v0 没有新增后端 API。`#/skills` 以 `kind=skill|tool|workflow|data` 作为四个主分区，
+能力工作区的 Method 复用现有能力接口，没有新增路由。`#/skills` 以
+`kind=skill|tool|workflow|method|data` 作为五个主分区，
 `view=library|mine|plans|connections|market` 只表示类型内二级视图；这些都是纯前端路由参数，继续读取
 本页已有的 capabilities、tools、data catalog、data connections 与 report-workflows 接口。
 旧 kind 深链保持兼容，无 kind 的 plans/connections 分别归一到 Workflow/Tool；`market` 只在 Tool
@@ -21,6 +22,7 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 
 | Method | 路径 | 源码 |
 |---|---|---|
+| GET | `/api/research/capabilities?kind=method` | `app/research_web/capabilities/routes.py` |
 | GET | `/api/research/mcp/registries` | `app/research_web/mcp_registry/routes.py` |
 | POST | `/api/research/mcp/registries` | `app/research_web/mcp_registry/routes.py` |
 | GET | `/api/research/mcp/registries/{registry_id}` | `app/research_web/mcp_registry/routes.py` |
@@ -225,3 +227,8 @@ Phase 2A/2B/2C 路由现在在未设置环境变量时默认启用；显式 `RES
 2026-09-11 的格式基线维护未新增或修改任何 HTTP 路由、请求字段、响应字段或错误码。
 
 启动器项目根与 Node ABI 固定只影响 3081/8088 进程装配；不新增 HTTP 路由，也不改变任何框架、Artifacts 或研究会话契约。
+
+2026-09-14 消息请求增加可选 `method_ids`（最多三个）；能力条目元数据增加 `method_policy`，
+会话详情增加解析后的 `methods`、`method_trace` 及可选 `method_trace_incomplete`。方法冲突、超限、
+排除或版本不可用在原生提交前返回结构化 409；方法本身不能作为 `capability_id` 运行。现有端点路径
+和幂等键语义不变。

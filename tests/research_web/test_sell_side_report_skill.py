@@ -141,6 +141,7 @@ def test_builtin_metadata_text_boundaries_and_reviewed_resources(api):
         "default_formats": [],
         "required_tools": ["research_run_script", "web_search"],
         "dependencies": [],
+        "method_policy": {"required": [], "recommended": [], "excluded": []},
     }
     detail = client.get(f"/api/research/capabilities/{SLUG}").json()
     header = yaml.safe_load(detail["draft"]["instructions"].split("---", 2)[1])

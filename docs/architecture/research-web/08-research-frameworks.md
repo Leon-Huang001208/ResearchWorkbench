@@ -45,3 +45,7 @@ Gold 使用 F2（价格背景）、F9（四维贡献）、F6（需求同比）�
 `tests/research_web/test_frameworks.py` 覆盖两框架目录、严格契约、精确快照绑定、跨框架拒绝、迁移和生命周期；`test_framework_collectors.py` 覆盖转换、门限、CFTC 幂等与最后成功值。`test_workbench_operations.py` 覆盖全局 Artifacts 忽略软删除会话、显式查询仍返回 410、恢复后重新出现。JavaScript 测试覆盖两个连续画布、图表、无浏览器 fixture、状态与安全用语。浏览器验收覆盖浅/深色、1440/1024/768/390、键盘锚点、Bot、横向溢出和 reduced-motion。
 
 框架服务随 8088 由同一固定部署根加载；启动器对调用目录和 Node ABI 的确定性处理不改变框架注册、快照或 Bot 上下文协议。
+
+Research Workbench Method 层不改变 Gold／Dollar 的领域定义、版本、采集、评分、快照或 renderer。
+框架 Bot 仍走唯一 DSH 链；未来如为框架能力配置 `method_policy`，也必须使用当前框架快照 revision，
+且 Method 采用记录不能替代来源、因子或结论证据。首版框架能力未配置默认推荐方法。

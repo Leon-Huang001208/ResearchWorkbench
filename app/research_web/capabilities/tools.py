@@ -15,6 +15,13 @@ from .models import CapabilityError
 
 PIN = "c919b2a460753859665db3f60143d525fb9140cf"
 DECLARATIONS = {
+    "rwb_record_method_use": (
+        "记录推理方法采用",
+        "runtime/research-tools.mjs",
+        {"method_id": "string", "version": "string", "source": "string"},
+        ["method_id", "version", "source"],
+        "仅记录当前会话的稳定方法 ID、版本和采用来源；内部控制，不授予权限",
+    ),
     "research_run_script": (
         "研究 Python",
         "runtime/research-tools.mjs",
@@ -202,9 +209,7 @@ WORKFLOW_TOOL_DECLARATIONS = {
 
 
 def tool_catalog(data_root: Path | None = None):
-    guard = (Path(__file__).parents[1] / "runtime/guard.mjs").read_text(
-        encoding="utf-8"
-    )
+    guard = (Path(__file__).parents[1] / "runtime/guard.mjs").read_text(encoding="utf-8")
     match = re.search(
         r"(?:export\s+)?const\s+RESEARCH_TOOLS\s*=\s*new Set\(\[(.*?)\]\)",
         guard,

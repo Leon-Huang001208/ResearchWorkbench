@@ -7,10 +7,11 @@ import { renderMCPMarketplace } from './mcp-marketplace.mjs';
 
 const list = (value) => Array.isArray(value) ? value : [];
 const views = ['library', 'mine', 'plans', 'connections', 'market'];
-const kinds = ['skill', 'tool', 'workflow', 'data'];
-const kindLabels = { skill: 'Skill', tool: 'Tool', workflow: 'Workflow', data: '数据' };
+const kinds = ['skill', 'method', 'tool', 'workflow', 'data'];
+const kindLabels = { skill: 'Skill', method: '方法', tool: 'Tool', workflow: 'Workflow', data: '数据' };
 const subviews = {
   skill: [['library', '能力库'], ['mine', '我的 Skill']],
+  method: [['library', '方法库']],
   tool: [['library', '工具目录'], ['market', 'MCP 市场'], ['connections', '连接状态']],
   workflow: [['library', '能力库'], ['mine', '我的 Workflow'], ['plans', '运行计划']],
   data: [['library', '数据能力'], ['connections', '数据源与连接']],
@@ -48,7 +49,7 @@ function capabilityEntry(item) {
     source: item.builtin ? '内置' : '我的', sourceKey: item.builtin ? 'builtin' : 'mine', status: item.status || (available ? 'enabled' : 'disabled'),
     statusLabel: capabilityStatus(item.status), available, version: item.version || null, formats: list(item.metadata?.default_formats),
     scenarios: list(item.metadata?.scenarios), inputs: list(item.metadata?.inputs), tools: list(item.metadata?.required_tools),
-    dependencies: list(item.metadata?.dependencies), reason: eligibility.reason || (!item.version ? '尚未发布可调用版本' : item.enabled ? '' : '能力已停用'),
+    dependencies: list(item.metadata?.dependencies), linkedCapabilities: list(item.linked_capabilities), reason: eligibility.reason || (!item.version ? '尚未发布可调用版本' : item.enabled ? '' : '能力已停用'),
   };
 }
 
@@ -74,8 +75,15 @@ function dataEntry(item) {
 }
 
 export function collectCapabilityWorkspaceEntries({ capabilities = [], tools = [], dataCatalog = {} } = {}) {
+  const linked = new Map();
+  for (const capability of list(capabilities).filter(item => ['skill', 'workflow'].includes(item.kind))) {
+    const policy = capability.metadata?.method_policy || {};
+    for (const [source, ids] of [['required', policy.required], ['recommended', policy.recommended]]) {
+      for (const methodId of list(ids)) linked.set(methodId, [...(linked.get(methodId) || []), { id: capability.id, name: capability.name, source }]);
+    }
+  }
   return [
-    ...list(capabilities).filter(item => ['skill', 'workflow'].includes(item.kind)).map(capabilityEntry),
+    ...list(capabilities).filter(item => ['skill', 'method', 'workflow'].includes(item.kind)).map(item => capabilityEntry(item.kind === 'method' ? { ...item, linked_capabilities: linked.get(item.id) || [] } : item)),
     ...list(tools).map(toolEntry),
     ...list(dataCatalog.capabilities).map(dataEntry),
   ];
@@ -120,6 +128,7 @@ function detailAttribute(item) {
 function useAttribute(item) {
   if (item.kind === 'tool') return `data-use-tool="${e(item.id)}"`;
   if (item.kind === 'data') return `data-use-data-tool="${e(item.raw.tool_id || '')}"`;
+  if (item.kind === 'method') return `data-use-method="${e(item.id)}"`;
   return `data-use-skill="${e(item.id)}"`;
 }
 
@@ -140,7 +149,7 @@ function catalogView(entries, state, busy, error) {
   const typeName = kindLabels[state.kind];
   const heading = owned
     ? [`我的 ${typeName}`, `集中管理你创建、复制和导入的 ${typeName}。`]
-    : [state.kind === 'tool' ? '工具目录' : `${typeName} 能力库`, state.kind === 'tool' ? '只展示本机真实 Tool 声明、调用状态和授权原因，不与其他能力类型混排。' : `只展示本机已审查的 ${typeName}，不会与其他能力类型混排。`];
+    : [state.kind === 'tool' ? '工具目录' : state.kind === 'method' ? '方法能力库' : `${typeName} 能力库`, state.kind === 'tool' ? '只展示本机真实 Tool 声明、调用状态和授权原因，不与其他能力类型混排。' : `只展示本机已审查的 ${typeName}，不会与其他能力类型混排。`];
   const actions = ['skill', 'workflow'].includes(state.kind) ? `<div class="button-row capability-create-actions"><button type="button" class="button primary" data-cap-create="conversation" ${busy ? 'disabled' : ''}>对话创建</button><button type="button" class="button" data-cap-create="manual" ${busy ? 'disabled' : ''}>手动新建</button><button type="button" class="button" data-cap-import ${busy ? 'disabled' : ''}>导入 ${typeName}</button><input id="cap-import-file" type="file" accept=".md,.zip" hidden></div>` : '';
   const scopedEntries = entries.filter(item => item.kind === state.kind);
   return `<div class="capability-view-heading"><div><span class="eyebrow">${owned ? 'OWNED CAPABILITIES' : 'LOCAL CATALOG'}</span><h2>${heading[0]}</h2><p class="muted">${heading[1]}</p></div>${actions}</div>${filters(scopedEntries, state)}${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}<p class="capability-result-count" role="status">${results.length} 项真实目录记录</p>${results.length ? `<div class="capability-workspace-grid">${results.map(item => capabilityCard(item, busy)).join('')}</div>` : empty(`没有匹配的 ${typeName}`, '调整搜索或筛选；目录不会补充演示内容。')}`;
@@ -212,11 +221,22 @@ export function renderCapabilityWorkspace({ capabilities = [], tools = [], repor
       : ['数据能力', '按可解决的研究问题浏览数据能力，不与 Tool 声明混排。'];
     body = `<div class="capability-view-heading"><div><span class="eyebrow">DATA CATALOG</span><h2>${heading[0]}</h2><p class="muted">${heading[1]}</p></div>${dataView === 'sources' ? '<a class="button" href="#/settings/data">打开数据连接设置</a>' : ''}</div>${renderDataCatalog({ catalog: dataCatalog, view: dataView, query, category, market: dataMarket, status: dataStatus, auth: dataAuth, busy, error, probe, showViewSwitch: false })}`;
   } else body = catalogView(entries, { view: safeView, kind: safeKind, source, category, status, query }, busy, error);
-  return `<section class="capability-workspace"><header class="capability-workspace-header"><div><span class="eyebrow">CAPABILITY WORKSPACE · V0</span><h1>能力工作区</h1><p class="muted">Skill、Tool、Workflow 与数据分区浏览；任何执行都需要你的明确确认。</p></div><button type="button" class="button" data-cap-refresh ${busy ? 'disabled' : ''}>刷新状态</button></header>${workspaceKindNav(safeKind)}${workspaceSubviewNav(safeKind, safeView)}<div id="capability-workspace-panel" role="tabpanel" aria-labelledby="capability-kind-${safeKind}" tabindex="0">${body}</div></section>`;
+  return `<section class="capability-workspace"><header class="capability-workspace-header"><div><span class="eyebrow">CAPABILITY WORKSPACE · V0</span><h1>能力工作区</h1><p class="muted">Skill、方法、Tool、Workflow 与数据分区浏览；任何执行都需要你的明确确认。</p></div><button type="button" class="button" data-cap-refresh ${busy ? 'disabled' : ''}>刷新状态</button></header>${workspaceKindNav(safeKind)}${workspaceSubviewNav(safeKind, safeView)}<div id="capability-workspace-panel" role="tabpanel" aria-labelledby="capability-kind-${safeKind}" tabindex="0">${body}</div></section>`;
 }
 
-function previewFromState({ detail, tool, dataDetail, dataDetailKind }) {
-  if (detail) return capabilityEntry(detail);
+function previewFromState({ detail, tool, dataDetail, dataDetailKind, capabilities }) {
+  if (detail) {
+    const item = capabilityEntry(detail);
+    if (item.kind === 'method') {
+      item.linkedCapabilities = list(capabilities).filter(capability => ['skill', 'workflow'].includes(capability.kind)).flatMap(capability => {
+        const policy = capability.metadata?.method_policy || {};
+        if (list(policy.required).includes(item.id)) return [{ id: capability.id, name: capability.name, source: 'required' }];
+        if (list(policy.recommended).includes(item.id)) return [{ id: capability.id, name: capability.name, source: 'recommended' }];
+        return [];
+      });
+    }
+    return item;
+  }
   if (tool) return toolEntry(tool);
   if (dataDetail && dataDetailKind === 'capability') return dataEntry(dataDetail);
   return null;
@@ -226,5 +246,6 @@ export function renderCapabilityPreviewDialog(state = {}) {
   const item = previewFromState(state);
   if (!item) return '';
   const inputText = item.inputs.map(input => `${input.label || input.name || '参数'}（${input.type || '参数'}${input.required ? ' · 必填' : ''}）`);
-  return `<div class="capability-dialog-backdrop" data-capability-dialog-backdrop><section class="capability-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="capability-preview-title" aria-describedby="capability-preview-description"><header><span class="skill-icon">${icon(entryIcon(item))}</span><div><span class="eyebrow">${e(kindLabels[item.kind])} · ${e(item.source)}</span><h2 id="capability-preview-title">${e(item.name)}</h2><span class="badge ${item.available ? 'live' : 'danger'}">${e(item.statusLabel)}</span></div><button type="button" class="icon-button" data-cap-close aria-label="关闭能力快览">×</button></header><p id="capability-preview-description" class="capability-preview-description">${e(item.description || '尚未提供简介')}</p><dl class="capability-preview-grid"><div><dt>适用场景</dt><dd>${join(item.scenarios)}</dd></div><div><dt>输入</dt><dd>${join(inputText)}</dd></div><div><dt>输出</dt><dd>${join(item.formats, item.kind === 'data' ? '结构化数据' : '无需文件')}</dd></div><div><dt>所需工具</dt><dd>${join(item.tools, '无显式工具要求')}</dd></div><div><dt>依赖</dt><dd>${join(item.dependencies, '无额外依赖')}</dd></div><div><dt>状态说明</dt><dd>${e(item.reason || '当前目录状态允许加入研究草稿')}</dd></div></dl><footer><button type="button" class="button" data-cap-close>取消</button>${['skill', 'workflow'].includes(item.kind) ? `<button type="button" class="button" data-cap-manage="${e(item.id)}">进入管理</button>` : ''}<button type="button" class="button primary" ${useAttribute(item)} ${state.busy || !item.available ? 'disabled' : ''}>立即使用</button></footer></section></div>`;
+  const linked = item.kind === 'method' ? `<div><dt>关联业务能力</dt><dd>${item.linkedCapabilities.length ? e(item.linkedCapabilities.map(value => `${value.name}（${value.source === 'required' ? '必需' : '推荐'}）`).join('、')) : '尚未进入默认策略，可手动选择'}</dd></div>` : '';
+  return `<div class="capability-dialog-backdrop" data-capability-dialog-backdrop><section class="capability-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="capability-preview-title" aria-describedby="capability-preview-description"><header><span class="skill-icon">${icon(entryIcon(item))}</span><div><span class="eyebrow">${e(kindLabels[item.kind])} · ${e(item.source)}</span><h2 id="capability-preview-title">${e(item.name)}</h2><span class="badge ${item.available ? 'live' : 'danger'}">${e(item.statusLabel)}</span></div><button type="button" class="icon-button" data-cap-close aria-label="关闭能力快览">×</button></header><p id="capability-preview-description" class="capability-preview-description">${e(item.description || '尚未提供简介')}</p><dl class="capability-preview-grid"><div><dt>适用场景</dt><dd>${join(item.scenarios)}</dd></div><div><dt>输入</dt><dd>${join(inputText)}</dd></div><div><dt>输出</dt><dd>${join(item.formats, item.kind === 'data' ? '结构化数据' : '无需文件')}</dd></div><div><dt>所需工具</dt><dd>${join(item.tools, '无显式工具要求')}</dd></div><div><dt>依赖</dt><dd>${join(item.dependencies, '无额外依赖')}</dd></div>${linked}<div><dt>状态说明</dt><dd>${e(item.reason || '当前目录状态允许加入研究草稿')}</dd></div></dl><footer><button type="button" class="button" data-cap-close>取消</button>${['skill', 'workflow'].includes(item.kind) ? `<button type="button" class="button" data-cap-manage="${e(item.id)}">进入管理</button>` : ''}<button type="button" class="button primary" ${useAttribute(item)} ${state.busy || !item.available ? 'disabled' : ''}>立即使用</button></footer></section></div>`;
 }

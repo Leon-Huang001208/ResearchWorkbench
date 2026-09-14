@@ -134,7 +134,8 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 16
+    assert len(rows) == 26
+    assert len([row for row in rows if row["kind"] == "method"]) == 10
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
@@ -165,7 +166,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 29
+    assert len(tools) == 30
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}
     assert workflow_tools == {
         "report_workbook_refresh",
@@ -257,6 +258,7 @@ def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
             "default_formats": formats,
             "required_tools": tools,
             "dependencies": [],
+            "method_policy": {"required": [], "recommended": [], "excluded": []},
         }
 
     workflows = {
@@ -285,6 +287,7 @@ def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
             "default_formats": ["docx", "html", "xlsx"],
             "required_tools": ["research_run_script"],
             "dependencies": [],
+            "method_policy": {"required": [], "recommended": [], "excluded": []},
         }
 
     specialists = {
