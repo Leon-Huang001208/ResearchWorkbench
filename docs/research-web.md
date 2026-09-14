@@ -72,6 +72,7 @@ rwb web stop
 ```
 
 入口：`http://127.0.0.1:8088/#/fingpt`。3081 与 8088 的 PID、命令指纹和日志保存在 `~/.research-workbench/run/` 与 `logs/`；停止仅操作归属一致的进程，不触碰原有 3080。模型密钥只在设置页填写，不从 3080 或旧数据目录复制。
+仓库启动器会先切换到自身解析出的项目目录，避免从其他 checkout 调用时被同名 Python 包遮蔽；在 Codex Desktop 环境中优先使用其 bundled Node，以保持 DSH 原生模块 ABI 稳定。其他环境仍回退到 `PATH` 中的 Node，也可用 `RESEARCH_NODE_BINARY` 显式固定已审核的可执行文件。
 DSH 源码固定 `c919b2a460753859665db3f60143d525fb9140cf`；CLI 版本为 `0.1.3-alpha.2`。该 Fork 运行分支基于官方最新架构提供原生 `session/delete`，Workbench 兼容桥通过 Typert Gateway 的斜杠命名 RPC、Remote mux 和浏览器会话认证接入；启动器仍记录实际源码提交与构建闭包哈希。
 管理器默认使用固定源码中已构建的 DSH CLI；启动失败会回收本次新建进程并保留日志，不会接管占用端口的外部进程。
 不带 `--research-tools` 可启动禁工具聊天模式；无法完成沙箱启动检查时不要开放脚本。

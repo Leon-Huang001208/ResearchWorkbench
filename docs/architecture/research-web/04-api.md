@@ -223,3 +223,5 @@ Windows 专项作业实际启动 `127.0.0.1:8088`，读取 `/local-integrations`
 Phase 2A/2B/2C 路由现在在未设置环境变量时默认启用；显式 `RESEARCH_MCP_REGISTRY_ENABLED=0`、`RESEARCH_MCP_RUNTIME_ENABLED=0` 或 `RESEARCH_AUTOMATIONS_ENABLED=0` 时，既有 404/禁用契约保持不变。接口路径和 schema 未变化。
 
 2026-09-11 的格式基线维护未新增或修改任何 HTTP 路由、请求字段、响应字段或错误码。
+
+启动器项目根与 Node ABI 固定只影响 3081/8088 进程装配；不新增 HTTP 路由，也不改变任何框架、Artifacts 或研究会话契约。

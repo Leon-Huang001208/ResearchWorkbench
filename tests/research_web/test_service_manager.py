@@ -91,6 +91,17 @@ def test_default_runtime_source_is_project_private(tmp_path, monkeypatch):
     assert resolved.runtime_source == (tmp_path / ".research-workbench" / "dsh-source").resolve()
 
 
+def test_configured_node_binary_precedes_path_lookup(tmp_path, monkeypatch):
+    configured = tmp_path / "node-24"
+    configured.touch()
+    monkeypatch.setenv("RESEARCH_NODE_BINARY", str(configured))
+    monkeypatch.setattr(service_manager_module.shutil, "which", lambda _name: "/node-25")
+
+    resolved = WebServiceManager(project_root=tmp_path, data_root=tmp_path / "data")
+
+    assert resolved.node == str(configured)
+
+
 def test_windows_private_directory_does_not_apply_posix_group_mode_bits(tmp_path):
     private_directory = tmp_path / "private"
     private_directory.mkdir(mode=0o755)

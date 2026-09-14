@@ -99,3 +99,5 @@ DSH 不可用时明确报错，无 LangGraph、固定答案或第二 Supervisor 
 MCP Runtime 与 Automation 默认启用后仍按原有探测、授权、版本锁和风险策略运行；默认启用不等于自动安装 Server、自动授予工具或自动创建任务。显式环境开关关闭时继续失败关闭。
 
 2026-09-11 的格式基线维护不改变本机验证 TTL、状态转换、进程清理或 Runtime 调用路径。
+
+CLI 启动前固定项目根与 Node 选择：Codex Desktop 优先使用 bundled Node，其他宿主使用 `RESEARCH_NODE_BINARY` 或 `PATH`。所选绝对路径进入既有进程命令指纹，因此后续 `status/stop/restart` 仍按同一归属失败关闭。
