@@ -57,6 +57,8 @@ DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒
 
 研究框架位于同一 Research Web Host 内：薄注册表与单一调度器管理 Gold v2、Dollar v1 的生命周期和原子快照，领域定义、评分、采集、上下文及 renderer 保持独立。`#/frameworks/gold` 与 `#/frameworks/dollar` 都是七锚点连续画布。页面 Bot 复用唯一 DSH 执行链；默认解释预设无工具，显式深度验证另建只读检索会话并绑定 slug、方法版本与精确快照 revision。该模块不增加第二个研究引擎、资产终端或事实数据库。
 
+全局 `rwb` 启动器从自身解析出的固定部署根导入 Python 入口，避免调用目录中的同名 checkout 遮蔽；Codex Desktop 优先使用 bundled Node，其他宿主可通过 `RESEARCH_NODE_BINARY` 固定已审核版本。Node 绝对路径继续进入 3081 受管进程指纹，服务、端口、数据根与 API 拓扑不变。
+
 服务管理器的数据、状态和日志私有目录采用对应的平台判断：所有平台拒绝非目录、符号链接和 Windows 重解析点；仅 POSIX 依据 group/other mode 位拒绝宽松权限，Windows 不以该投影替代 ACL。
 
 能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 12 个内置 Skill 和 4 个
