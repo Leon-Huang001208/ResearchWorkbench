@@ -88,6 +88,12 @@ test('production renderer never substitutes browser fixture after an API failure
   assert.doesNotMatch(html, /离线确定性样例|data-framework="gold"/);
 });
 
+test('route transition never renders a snapshot from another framework', () => {
+  const html = renderFrameworks({ slug: 'dollar', status: 'ready', data: goldTestData() });
+  assert.match(html, /正在读取美元流动性框架/);
+  assert.doesNotMatch(html, /data-framework="gold"|data-framework="dollar"/);
+});
+
 test('framework API keeps snapshot binding and idempotency headers', async () => {
   const calls = [];
   const fetcher = async (url, options) => {

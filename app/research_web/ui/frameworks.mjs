@@ -29,6 +29,7 @@ export function renderFrameworks({ slug = null, anchor = 'overview', catalog = n
   if (!slug) return renderHub(catalog);
   const renderer = { gold: renderGoldar, dollar: renderDollar }[slug];
   if (!renderer) return '<section class="framework-not-found"><span class="eyebrow">FRAMEWORK NOT FOUND</span><h1>研究框架不存在</h1><p>当前仅注册黄金与美元流动性框架。</p><a class="button" href="#/frameworks">返回研究框架</a></section>';
+  if (data && data.framework?.slug !== slug) { data = null; status = 'loading'; }
   if (status === 'loading' && !data) return `<section class="framework-loading" role="status"><span></span><strong>正在读取${e(frameworkMeta[slug].name)}…</strong></section>`;
   if (status === 'error' && !data) return `<section class="framework-not-found" role="alert"><span class="eyebrow">FRAMEWORK UNAVAILABLE</span><h1>框架数据暂时不可用</h1><p>${e(error || '请稍后刷新。')}</p><button class="button" type="button" data-framework-retry>重新读取</button></section>`;
   if (!data) return '<section class="framework-not-found" role="status"><h1>框架快照尚未生成</h1><p>服务端完成首次采集后再显示数据，不使用浏览器样例冒充实时结果。</p></section>';
