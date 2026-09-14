@@ -67,6 +67,7 @@ strict domain snapshots, independent collectors and one shared scheduler/storage
 conversations bind slug, method version, chapter, gap ids and exact snapshot revision: explanation is tool-free,
 while explicit verification creates a separate read-only research session. Browser code never substitutes a fixture
 after an API failure, and route transitions reject a cached snapshot whose slug differs from the requested framework.
+Dollar 的 F2 融资管道图在 renderer 内将 60 期实时序列界定为最近 30 期，快照和评分仍保留完整窗口。
 The architecture boundary is documented in
 [research frameworks](architecture/research-web/08-research-frameworks.md).
 The machine-readable [architecture map](architecture/research-web/architecture-map.json) connects

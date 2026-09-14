@@ -622,3 +622,10 @@
 - 该修复位于既有 Browser 节点内部，不改变框架 API、快照 schema、DSH 会话、服务或文件流；现有架构图仍准确。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"框架路由切换增加快照slug一致性守卫，只修复既有浏览器节点内部的异步渲染竞态。","diagrams":[]} -->
+
+## 2026-09-14 — Dollar F2 实时窗口界定
+
+- `plumbing_m` 的 60 期 SOFR−IORB 快照继续完整保留；浏览器只将最近 30 期交给 F2，以符合既有图表密度契约。
+- 该修复只改变既有 Dollar renderer 的展示窗口，不改变快照、评分、API、服务或数据流；现有架构图仍准确。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Dollar F2只界定既有SOFR-IORB序列的展示窗口，不改变浏览器节点、API或数据流。","diagrams":[]} -->
