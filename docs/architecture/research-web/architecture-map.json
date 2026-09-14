@@ -82,6 +82,7 @@
         "tests/research_web/test_cancel_reconciliation.py",
         "tests/research_web/test_service_manager.py",
         "tests/research_web/test_frameworks.py",
+        "tests/research_web/test_framework_collectors.py",
         "tests/research_web/test_tabbit.py"
       ]
     },

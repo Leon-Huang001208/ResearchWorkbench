@@ -35,7 +35,7 @@ let operationsData = { usage: null, tools: null, datahub: null, services: null, 
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
 let automationFormOpen = false; let automationBusy = false;
 let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = '';
-let frameworkState = { status: 'idle', catalog: null, data: null, error: '' };
+let frameworkState = { status: 'idle', catalog: null, data: null, slug: '', error: '' };
 let frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
 let closeFrameworkStream = () => {};
 const workflowVersions = new Map();
@@ -303,7 +303,10 @@ function render() {
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = [...catalog.capabilities, ...catalog.tools, ...catalog.reportWorkflows.map(item => ({ ...item, kind: 'report-workflow' })), ...(catalog.dataCatalog.capabilities || [])];
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${Object.entries(catalog.errors).map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
+  const visibleErrors = Object.entries(catalog.errors).filter(([name]) => (
+    name !== 'artifacts' || (state.route.page === 'workbench' && state.route.section !== 'assets')
+  ));
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
   window.ResearchWebTheme?.syncControls();
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -380,7 +383,9 @@ function scrollFrameworkTarget(anchor, behavior = 'auto') {
 }
 
 async function loadFrameworkPage(ticket = pageGeneration) {
-  frameworkState = { ...frameworkState, status: 'loading', error: '' }; render();
+  const slug = state.route.frameworkSlug || '';
+  const data = frameworkState.slug === slug ? frameworkState.data : null;
+  frameworkState = { ...frameworkState, status: 'loading', data, slug, error: '' }; render();
   try {
     const catalogData = await api.frameworks();
     if (ticket !== pageGeneration || state.route.page !== 'frameworks') return;
@@ -400,7 +405,9 @@ async function ensureFrameworkSession() {
   if (frameworkBot.sessionId) return frameworkBot.sessionId;
   const revision = frameworkState.data?.snapshot?.revision;
   if (!revision) throw new Error('框架快照尚未就绪。');
-  const created = await api.createFrameworkSession('gold', { snapshot_revision: revision, focus_section: state.route.frameworkTab || 'overview', gap_ids: [] });
+  const slug = state.route.frameworkSlug;
+  if (!slug) throw new Error('框架路由尚未就绪。');
+  const created = await api.createFrameworkSession(slug, { snapshot_revision: revision, focus_section: state.route.frameworkTab || 'overview', gap_ids: [] });
   frameworkBot.sessionId = created.session.id; frameworkBot.mode = 'explain'; frameworkBot.detail = await api.detail(created.session.id);
   attachFrameworkStream(created.session.id);
   return created.session.id;
@@ -412,7 +419,7 @@ async function sendFrameworkQuestion(question) {
   try {
     const sid = await ensureFrameworkSession();
     const revision = frameworkState.data.snapshot.revision;
-    await api.frameworkMessage('gold', sid, { text: question.trim(), expected_snapshot_revision: revision, mode: 'explain' }, crypto.randomUUID());
+    await api.frameworkMessage(state.route.frameworkSlug, sid, { text: question.trim(), expected_snapshot_revision: revision, mode: 'explain' }, crypto.randomUUID());
     frameworkBot.draft = ''; frameworkBot.detail = await api.detail(sid);
   } catch (error) {
     frameworkBot.error = error.message; frameworkBot.errorCode = error.code || '';
@@ -424,7 +431,7 @@ async function verifyFrameworkQuestion(question) {
   frameworkBot.busy = true; frameworkBot.error = ''; frameworkBot.errorCode = ''; render();
   try {
     const revision = frameworkState.data.snapshot.revision;
-    const result = await api.verifyFrameworkSession('gold', frameworkBot.sessionId, { expected_snapshot_revision: revision, question: question.trim() || '核验当前最重要的数据缺口与反证条件。' }, crypto.randomUUID());
+    const result = await api.verifyFrameworkSession(state.route.frameworkSlug, frameworkBot.sessionId, { expected_snapshot_revision: revision, question: question.trim() || '核验当前最重要的数据缺口与反证条件。' }, crypto.randomUUID());
     frameworkBot.sessionId = result.session.id; frameworkBot.mode = 'verify'; frameworkBot.draft = ''; frameworkBot.detail = await api.detail(result.session.id);
     attachFrameworkStream(result.session.id);
   } catch (error) {
@@ -826,6 +833,7 @@ async function loadOperations() {
 async function loadWorkbench() {
   const section = state.route.section || 'market';
   if (section === 'assets') {
+    delete catalog.errors.artifacts;
     await Promise.all([loadCatalog(['dataCatalog']), loadAssetWorkspace()]);
     render();
     return;
@@ -907,7 +915,7 @@ async function showRoute() {
   }
   quickCategory = '';
   const requestedRoute = parseRoute(location.hash);
-  if (requestedRoute.page !== 'frameworks') {
+  if (requestedRoute.page !== 'frameworks' || requestedRoute.frameworkSlug !== state.route.frameworkSlug) {
     closeFrameworkStream(); closeFrameworkStream = () => {};
     frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
   }

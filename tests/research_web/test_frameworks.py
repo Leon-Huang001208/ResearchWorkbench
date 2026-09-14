@@ -6,8 +6,12 @@ import os
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from app.research_web.frameworks.base import FrameworkError
+from app.research_web.frameworks.dollar.contracts import DollarSnapshot
+from app.research_web.frameworks.dollar.seed import build_seed as build_dollar_seed
+from app.research_web.frameworks.dollar.store import DollarSnapshotStore
 from app.research_web.frameworks.goldar.seed import build_seed
 from app.research_web.frameworks.goldar.store import GoldSnapshotStore
 from app.research_web.main import create_app
@@ -53,20 +57,33 @@ def framework_api(tmp_path, monkeypatch):
         yield client, native, service
 
 
-def test_catalog_and_gold_data_use_versioned_specific_contract(framework_api):
+def test_catalog_and_framework_data_use_versioned_specific_contracts(framework_api):
     client, _, _ = framework_api
     catalog = client.get("/api/research/frameworks")
     assert catalog.status_code == 200
-    assert [item["slug"] for item in catalog.json()["items"]] == ["gold"]
+    assert [item["slug"] for item in catalog.json()["items"]] == ["gold", "dollar"]
 
     response = client.get("/api/research/frameworks/gold/data")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["framework"]["version"] == "1.0.0"
-    assert payload["framework"]["source_revision"] == "758ae3848d"
+    assert payload["framework"]["version"] == "2.0.0"
+    assert payload["framework"]["source_revision"] == ("758ae3848dc32adf2b361fdd070f98cbc75ce496")
+    assert payload["snapshot"]["schema_version"] == 2
     assert payload["snapshot"]["status"] == "待核验"
     assert payload["snapshot"]["options"]["sources"][0]["proxy"] is True
     assert "funds" not in payload["snapshot"]
+
+    dollar = client.get("/api/research/frameworks/dollar/data")
+    assert dollar.status_code == 200
+    dollar_payload = dollar.json()
+    assert dollar_payload["framework"]["version"] == "1.0.0"
+    assert dollar_payload["framework"]["source_revision"] == (
+        "2c210b45577905c0e8ec5f9c061e7069a6cb3b96"
+    )
+    assert dollar_payload["snapshot"]["schema_version"] == 1
+    assert dollar_payload["snapshot"]["quantity_q"]["key"] == "Q"
+    assert dollar_payload["snapshot"]["cross_border_x"]["key"] == "X"
+    assert dollar_payload["snapshot"]["status"] == "待核验"
 
 
 def test_framework_session_is_bound_to_exact_snapshot_and_safe_preset(framework_api):
@@ -158,8 +175,53 @@ def test_gold_snapshot_store_preserves_and_migrates_legacy_fixture(tmp_path):
 
     store = GoldSnapshotStore(root)
 
-    assert store.read().schema_version == 1
+    assert store.read().schema_version == 2
     assert json.loads((root / "snapshot.legacy-v0.json").read_text(encoding="utf-8")) == legacy
+
+
+def test_gold_snapshot_store_backs_up_v1_before_migrating_to_v2(tmp_path):
+    root = tmp_path / "gold"
+    root.mkdir()
+    legacy = build_seed().model_dump(mode="json")
+    legacy["schema_version"] = 1
+    (root / "snapshot.json").write_text(json.dumps(legacy), encoding="utf-8")
+
+    store = GoldSnapshotStore(root)
+
+    assert store.read().schema_version == 2
+    assert json.loads((root / "snapshot.legacy-v1.json").read_text(encoding="utf-8")) == legacy
+
+
+def test_dollar_store_is_strict_and_blocks_unverified_published_state(tmp_path):
+    store = DollarSnapshotStore(tmp_path / "dollar")
+    assert store.read().revision == build_dollar_seed().revision
+    invalid = store.read().model_dump(mode="json")
+    invalid["status"] = "偏松"
+    invalid["research_state"]["label"] = "偏松"
+
+    with pytest.raises(ValidationError, match="requires 待核验"):
+        DollarSnapshot.model_validate(invalid)
+
+
+def test_framework_session_cannot_cross_framework_boundary(framework_api):
+    client, _, _ = framework_api
+    gold_revision = client.get("/api/research/frameworks/gold/data").json()["snapshot"]["revision"]
+    dollar_revision = client.get("/api/research/frameworks/dollar/data").json()["snapshot"][
+        "revision"
+    ]
+    sid = client.post(
+        "/api/research/frameworks/gold/sessions",
+        json={"snapshot_revision": gold_revision},
+    ).json()["session"]["id"]
+
+    response = client.post(
+        f"/api/research/frameworks/dollar/sessions/{sid}/messages",
+        headers={"Idempotency-Key": "framework-cross-boundary"},
+        json={"text": "解释Q维度", "expected_snapshot_revision": dollar_revision},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "framework_session_mismatch"
 
 
 @pytest.mark.asyncio

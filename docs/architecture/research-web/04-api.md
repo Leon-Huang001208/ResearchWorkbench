@@ -1,6 +1,6 @@
 # Research Web 接口清单
 
-Goldar V1 增加 `/api/research/frameworks` 目录、版本化快照和页面会话接口。解释与深度验证均要求客户端提交当前 `snapshot_revision`；版本漂移返回 409，避免跨快照混合结论。详细字段与模式边界见 [研究框架](08-research-frameworks.md)。
+框架 API 固定登记 Gold 与 Dollar，并按 slug 返回版本化专用快照。解释与深度验证均要求客户端提交当前 `snapshot_revision`；版本漂移返回 409，跨框架会话返回 404，避免混合结论。详细字段与模式边界见 [研究框架](08-research-frameworks.md)。全局 `/artifacts` 只遍历未删除会话；显式查询软删除会话返回 410，恢复后重新可见。
 
 能力工作区 v0 没有新增后端 API。`#/skills` 以 `kind=skill|tool|workflow|data` 作为四个主分区，
 `view=library|mine|plans|connections|market` 只表示类型内二级视图；这些都是纯前端路由参数，继续读取

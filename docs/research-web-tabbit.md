@@ -116,4 +116,6 @@ Office/Wind 显式验证证据在 TTL 截止时刻即失效，零 TTL 不会留�
 
 MCP Runtime 与 Automation 默认启用不自动授权 Tabbit，也不把浏览器工具加入无人值守 allowlist；Tabbit 的实时页面授权、一次性 token 与写操作审批继续独立生效。
 
+研究框架的“解释”预设固定无工具；“深度验证”虽可使用已授权的只读研究工具，但不会自动申请 Tabbit 页面访问、读取当前标签或复用一次性页面 token。框架 slug、章节、缺口与 snapshot revision 的绑定不改变 Tabbit 的独立授权和实时 claim 边界。
+
 2026-09-11 的本机集成格式基线维护不改变 Tabbit 的授权、claim、token 或浏览器运行时边界。

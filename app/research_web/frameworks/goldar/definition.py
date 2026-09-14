@@ -7,8 +7,8 @@ DEFINITION = FrameworkDefinition.model_validate(
         "slug": "gold",
         "name": "黄金研究框架",
         "domain": "commodity",
-        "version": "1.0.0",
-        "source_revision": "758ae3848d",
+        "version": "2.0.0",
+        "source_revision": "758ae3848dc32adf2b361fdd070f98cbc75ce496",
         "question": "黄金当前由哪组实际利率、美元、避险需求与实物资金力量共同定价？",
         "chain": ["宏观状态", "定价驱动", "供需与资金", "持仓与期权", "情景与配置"],
         "counter_evidence": [
@@ -42,7 +42,8 @@ DEFINITION = FrameworkDefinition.model_validate(
             },
         ],
         "method": (
-            "先用确定性指标形成因子贡献，再按支持、拖累、反证和数据缺口解释状态。"
+            "按基本面35%、资金流30%、交易20%、衍生品15%形成四维贡献；因子使用滚动五年"
+            "z-score，GVZ仅作尾部风险监控。再按支持、拖累、反证和数据缺口解释状态。"
             "任一关键输入缺失、过期或口径冲突时，状态降级为待核验。"
         ),
     }

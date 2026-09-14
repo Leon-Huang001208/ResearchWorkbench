@@ -55,7 +55,7 @@ Research Web 在 Windows 上读取 DSH 认证文件及 DataHub 私有控制、�
 
 DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒绝非普通文件、硬链接、符号链接、Windows 重解析点及打开期间的身份替换；POSIX 额外要求 group/other 无权限，Windows 不把无语义的 POSIX mode 投影当作 ACL。Web 客户端与服务管理器复用该边界，不改变回环 RPC 或认证格式。
 
-Goldar V1 位于同一 Research Web Host 内：`frameworks/` 保存版本化黄金方法、严格快照及原子本地存储，`#/frameworks/gold` 将七个研究章节组合成一张连续画布。页面 Bot 复用唯一 DSH 执行链；默认解释预设无工具，显式深度验证另建只读检索会话并绑定精确快照 revision。该模块不增加第二个研究引擎、资产终端或事实数据库。
+研究框架位于同一 Research Web Host 内：薄注册表与单一调度器管理 Gold v2、Dollar v1 的生命周期和原子快照，领域定义、评分、采集、上下文及 renderer 保持独立。`#/frameworks/gold` 与 `#/frameworks/dollar` 都是七锚点连续画布。页面 Bot 复用唯一 DSH 执行链；默认解释预设无工具，显式深度验证另建只读检索会话并绑定 slug、方法版本与精确快照 revision。该模块不增加第二个研究引擎、资产终端或事实数据库。
 
 服务管理器的数据、状态和日志私有目录采用对应的平台判断：所有平台拒绝非目录、符号链接和 Windows 重解析点；仅 POSIX 依据 group/other mode 位拒绝宽松权限，Windows 不以该投影替代 ACL。
 

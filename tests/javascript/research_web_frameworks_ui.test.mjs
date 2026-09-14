@@ -3,11 +3,14 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 
 import { createAPI, parseRoute } from '../../app/research_web/ui/core.mjs';
-import { goldFallbackData, renderFrameworks } from '../../app/research_web/ui/frameworks.mjs';
+import { renderFrameworks } from '../../app/research_web/ui/frameworks.mjs';
+import { dollarTestData } from '../../app/research_web/ui/frameworks/fixtures/dollar-v1.mjs';
+import { goldTestData } from '../../app/research_web/ui/frameworks/fixtures/gold-v0.mjs';
 
 test('legacy tab query remains a safe anchor into the continuous canvas', () => {
   assert.deepEqual(parseRoute('#/frameworks'), { page: 'frameworks', sessionId: null, frameworkSlug: null, frameworkTab: 'overview' });
   assert.equal(parseRoute('#/frameworks/gold?tab=positioning').frameworkTab, 'positioning');
+  assert.equal(parseRoute('#/frameworks/dollar?tab=cross-border').frameworkTab, 'cross-border');
   assert.equal(parseRoute('#/frameworks/gold?tab=unknown').frameworkTab, 'overview');
   assert.equal(parseRoute('#/frameworks/gold/unsafe').frameworkSlug, null);
 });
@@ -17,37 +20,40 @@ test('hub separates framework reasoning from every asset detail class', () => {
   assert.match(html, /框架解释“为什么”/);
   assert.match(html, /个股、基金、债券、外汇和商品详情/);
   assert.match(html, /href="#\/workbench\/assets"/);
-  assert.doesNotMatch(html, /Dollar 研究框架|基金排行|完整 K 线/);
+  assert.match(html, /data-framework-card="gold"/);
+  assert.match(html, /data-framework-card="dollar"/);
+  assert.match(html, /美元流动性框架/);
+  assert.doesNotMatch(html, /基金排行|完整 K 线/);
 });
 
-test('gold is one continuous canvas with seven anchors and four charts', () => {
-  const data = goldFallbackData();
+test('gold is one continuous canvas with seven anchors and five charts', () => {
+  const data = goldTestData();
   const html = renderFrameworks({ slug: 'gold', data, anchor: 'positioning' });
   for (const section of data.framework.sections) {
     assert.match(html, new RegExp(`id="framework-${section.id}"`));
     assert.match(html, new RegExp(`data-framework-anchor="${section.id}"`));
   }
   assert.match(html, /data-framework-anchor="positioning" class="active"/);
-  assert.equal((html.match(/data-lieflat-basics=/g) || []).length, 4);
-  for (const skeleton of ['F2', 'F9', 'F6', 'F5']) assert.match(html, new RegExp(`data-lieflat-basics="${skeleton}"`));
-  assert.doesNotMatch(html, /data-lieflat-basics="(?:F3|L3|F12|L16|G20)"/);
+  assert.equal((html.match(/data-lieflat-basics=/g) || []).length, 5);
+  for (const skeleton of ['F2', 'F9', 'F6', 'F5', 'L4']) assert.match(html, new RegExp(`data-lieflat-basics="${skeleton}"`));
   assert.doesNotMatch(html, /<iframe|<script|<link|<img/i);
   assert.doesNotMatch(html, /加仓|止盈|买入|卖出|减仓/);
 });
 
 test('each Lieflat chart states a conclusion, source and encoding', () => {
-  const html = renderFrameworks({ slug: 'gold', data: goldFallbackData() });
-  assert.match(html, /样例价格接近区间上沿/);
-  assert.match(html, /美元构成主要拖累/);
+  const html = renderFrameworks({ slug: 'gold', data: goldTestData() });
+  assert.match(html, /最新值/);
+  assert.match(html, /已知贡献合计/);
   assert.match(html, /投资与央行需求抵消珠宝需求回落/);
   assert.match(html, /235 执行价的代理压力最集中/);
-  assert.equal((html.match(/来源：/g) || []).length, 4);
+  assert.match(html, /黄金与美元的负相关最显著/);
+  assert.equal((html.match(/来源：/g) || []).length, 5);
   assert.match(html, /代理指标/);
   assert.match(html, /不给出个人仓位/);
 });
 
 test('framework bot exposes explain, verify, busy and stale states', () => {
-  const data = goldFallbackData();
+  const data = goldTestData();
   const closed = renderFrameworks({ slug: 'gold', data, bot: { open: false } });
   assert.match(closed, /data-framework-bot-open/);
   const open = renderFrameworks({ slug: 'gold', data, bot: { open: true, mode: 'explain', sessionId: 's', busy: true, draft: '' } });
@@ -57,6 +63,29 @@ test('framework bot exposes explain, verify, busy and stale states', () => {
   const stale = renderFrameworks({ slug: 'gold', data, bot: { open: true, mode: 'verify', sessionId: 's', errorCode: 'framework_snapshot_changed', error: 'stale' } });
   assert.match(stale, /数据已更新/);
   assert.match(stale, /只读检索已启用/);
+});
+
+test('dollar is one continuous Q-P-g-M-X canvas with six non-repeated charts', () => {
+  const data = dollarTestData();
+  const html = renderFrameworks({ slug: 'dollar', data, anchor: 'cross-border' });
+  for (const section of data.framework.sections) {
+    assert.match(html, new RegExp(`id="framework-${section.id}"`));
+    assert.match(html, new RegExp(`data-framework-anchor="${section.id}"`));
+  }
+  const charts = [...html.matchAll(/data-lieflat-basics="([A-Z0-9]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(charts, ['F9', 'F3', 'F12', 'F6', 'F2', 'F8']);
+  assert.equal(new Set(charts).size, 6);
+  assert.match(html, /净流动性代理/);
+  assert.match(html, /非会计恒等式/);
+  assert.match(html, /跨币种基差缺失必须明示/);
+  assert.doesNotMatch(html, /<iframe|<script|<link|<img/i);
+  assert.doesNotMatch(html, /加仓|止盈|买入|卖出|减仓/);
+});
+
+test('production renderer never substitutes browser fixture after an API failure', () => {
+  const html = renderFrameworks({ slug: 'gold', status: 'error', error: 'offline' });
+  assert.match(html, /框架数据暂时不可用/);
+  assert.doesNotMatch(html, /离线确定性样例|data-framework="gold"/);
 });
 
 test('framework API keeps snapshot binding and idempotency headers', async () => {
