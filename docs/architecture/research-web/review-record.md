@@ -629,3 +629,16 @@
 - 该修复只改变既有 Dollar renderer 的展示窗口，不改变快照、评分、API、服务或数据流；现有架构图仍准确。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Dollar F2只界定既有SOFR-IORB序列的展示窗口，不改变浏览器节点、API或数据流。","diagrams":[]} -->
+
+## 2026-09-14 — Research Workbench 推理方法层
+
+- 能力目录增加十个只读 Method，Skill／Workflow 增加 `method_policy`，研究提交可选择最多三个方法。
+- Research Workbench 保持 Method 权威来源；DSH 只接收原生 Skill 包装。采用工具只记录当前会话的
+  ID、版本和来源，不保存 Prompt、正文或隐藏思维链，不授予外部权限。
+- 复用现有 FastAPI、能力版本、会话收据和 DSH 进程；没有新增服务、端口、数据库、网络边或第二
+  执行器。Prompt 模板阶段因尚无真实质量晋级证据而未启动。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"能力工作区在既有单页壳与目录投影中增加只读Method标签和输入选择，不增加前端数据源或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"现有能力与消息接口扩展Method字段，继续使用同一FastAPI服务、会话收据和目录锁。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"DSH只加载Research Workbench编译的Method Skill包装，并通过现有research-tools插件记录有界身份。","diagrams":[]} -->
+<!-- architecture-review {"group":"automations","structure":"unchanged","reason":"Method层未改变Automation计划、触发、版本锁、授权或外发拓扑。","diagrams":[]} -->

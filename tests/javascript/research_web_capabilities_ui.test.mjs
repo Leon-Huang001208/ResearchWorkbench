@@ -95,7 +95,7 @@ test('one catalog filters kind, source, category and Chinese search, including d
   assert.match(renderCapabilityCatalog({ items: [], error: '读取失败' }), /读取失败/);
 });
 
-test('capability workspace preserves legacy links and exposes four stable primary kinds', async () => {
+test('capability workspace preserves legacy links and exposes five stable primary kinds', async () => {
   const { parseRoute } = await load('core.mjs');
   const { capabilityWorkspaceHash, capabilityWorkspaceKindKey } = await load('capability-workspace.mjs');
   assert.deepEqual(parseRoute('#/skills'), { page: 'skills', sessionId: null, capabilityView: 'library', capabilityKind: 'skill' });
@@ -111,7 +111,7 @@ test('capability workspace preserves legacy links and exposes four stable primar
   assert.equal(capabilityWorkspaceHash('tool', 'connections'), '#/skills?kind=tool&view=connections');
   assert.equal(capabilityWorkspaceHash('tool', 'market'), '#/skills?kind=tool&view=market');
   assert.equal(capabilityWorkspaceHash('data'), '#/skills?kind=data');
-  assert.deepEqual(capabilityWorkspaceKindKey('ArrowRight', 'skill'), { handled: true, kind: 'tool' });
+  assert.deepEqual(capabilityWorkspaceKindKey('ArrowRight', 'skill'), { handled: true, kind: 'method' });
   assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'data' });
   assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'data' });
   assert.deepEqual(capabilityWorkspaceKindKey('Enter', 'tool'), { handled: false });

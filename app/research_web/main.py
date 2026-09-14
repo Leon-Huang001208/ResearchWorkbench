@@ -73,6 +73,7 @@ class Prompt(BaseModel):
     capability_id: str | None = None
     capability_version: int | None = Field(default=None, ge=1, strict=True)
     tool_ids: list[str] = Field(default_factory=list, max_length=3)
+    method_ids: list[str] = Field(default_factory=list, max_length=3)
     expected_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png"]] | None = Field(
         default=None, max_length=5
     )
@@ -388,6 +389,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             capability_id=body.capability_id,
             capability_version=body.capability_version,
             tool_ids=body.tool_ids,
+            method_ids=body.method_ids,
             tabbit_tabs=[item.model_dump() for item in body.tabbit_tabs],
             tabbit_live_confirmed=body.tabbit_live_confirmed,
         )

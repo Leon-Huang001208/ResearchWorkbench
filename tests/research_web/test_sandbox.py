@@ -251,8 +251,9 @@ def test_native_tool_contract_and_trusted_cwd(tmp_path):
     program = (
         f"import {{ apply }} from {json.dumps(plugin.as_uri())};\nconst config = {config_json};"
         + """
-let tool;
-apply({ tools: {register(t) {tool=t;}}, logger: {info(){},warn(){},error(){}}}, config);
+const tools = new Map();
+apply({ tools: {register(t) {tools.set(t.name,t);}}, logger: {info(){},warn(){},error(){}}}, config);
+const tool = tools.get('research_run_script');
 if(tool.name!=='research_run_script') throw Error('missing native tool');
 for(const code of ['', '中'.repeat(30000)]) {
   try { await tool.execute({code},{signal:new AbortController().signal}); throw Error('unbounded source accepted'); }
@@ -288,8 +289,9 @@ def test_native_tool_schemas_match_pinned_dsh_converter(tmp_path):
         f"import {{ apply }} from {json.dumps(plugin.as_uri())};\n"
         "import { assertSupportedJsonSchema, validateJsonSchemaValue, jsonSchemaToTs, jsonSchemaToPy } "
         f"from {json.dumps(converter.as_uri())};\nconst config = {config_json};" + """
-let tool;
-apply({tools:{register(t){tool=t;}},logger:{info(){},warn(){},error(){}}},config);
+const tools = new Map();
+apply({tools:{register(t){tools.set(t.name,t);}},logger:{info(){},warn(){},error(){}}},config);
+const tool = tools.get('research_run_script');
 // Use the same implementation ToolRuntime.register invokes, not a local mock.
 assertSupportedJsonSchema(tool.output.schema);
 assertSupportedJsonSchema(tool.parameters);
@@ -333,11 +335,12 @@ def test_native_tool_runs_inherited_workspace_and_cancels(prepared):
     program = (
         f"import {{ apply }} from {json.dumps(plugin.as_uri())};\nconst config = {config_json}; const cwd = {json.dumps(str(session))};"
         + """
-let tool;
+const tools = new Map();
 const parent = {header:{id:'parent',cwd}};
 const child = {header:{id:'child',cwd,parentSession:'parent'}};
-const ctx = {tools:{register(t){tool=t;}},sessions:{get(id){return id==='parent'?parent:undefined;}},logger:{info(){},warn(){},error(){}}};
+const ctx = {tools:{register(t){tools.set(t.name,t);}},sessions:{get(id){return id==='parent'?parent:undefined;}},logger:{info(){},warn(){},error(){}}};
 apply(ctx,config);
+const tool = tools.get('research_run_script');
 const result = await tool.execute({code:"print('原生工具-success')"},{agent:{session:child},signal:new AbortController().signal});
 if(result.status!=='completed'||result.stdout!=='原生工具-success\\n') throw Error(JSON.stringify(result));
 parent.header.cwd = '/not-this-workspace';
@@ -378,8 +381,9 @@ def test_cancel_reaps_script_after_it_closes_output_streams(prepared):
         "import { existsSync, readFileSync } from 'node:fs';\n"
         "import { setTimeout as pause } from 'node:timers/promises';\n"
         f"const config = {config_json}; const cwd = {json.dumps(str(session))};" + """
-let tool;
-apply({tools:{register(t){tool=t;}},logger:{info(){},warn(){},error(){}}},config);
+const tools = new Map();
+apply({tools:{register(t){tools.set(t.name,t);}},logger:{info(){},warn(){},error(){}}},config);
+const tool = tools.get('research_run_script');
 const controller = new AbortController();
 const execution = tool.execute({code:"import os,time; from pathlib import Path; Path('outputs/started').write_text(str(os.getpid())); os.close(1); os.close(2); time.sleep(4); Path('outputs/after-cancel').write_text('bad')"},{agent:{session:{header:{id:'root',cwd}}},signal:controller.signal});
 const result = execution.then(value=>({value}),error=>({error}));

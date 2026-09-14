@@ -71,11 +71,11 @@ Workflow 的“运行计划”由 `app/research_web/automation/` 提供通用 Au
 
 | 方法与路径 | 输入 / 返回 |
 | --- | --- |
-| GET `/capabilities?kind=skill\|workflow` | `{items, publication_uncertain}`；不传 kind 返回全部 |
+| GET `/capabilities?kind=skill\|workflow\|method` | `{items, publication_uncertain}`；不传 kind 返回全部；Method 只读 |
 | GET `/capabilities/{id}` | 概览、`draft`、`checks`、当前版本 `steps` |
 | POST `/capabilities` | `DraftInput`；201，创建手动草稿 |
 | PATCH `/capabilities/{id}/draft` | 完整替换草稿的 `DraftInput`，不改变已启用版本 |
-| POST `/capabilities/{id}/copy` | `{name,slug}`；201，内置/自建能力均可复制，脚本需重新审查 |
+| POST `/capabilities/{id}/copy` | `{name,slug}`；201，内置/自建 Skill／Workflow 可复制，Method 拒绝复制 |
 | POST `/capabilities/import` | multipart 单个 `file`：精确名 `SKILL.md` 或 `.zip`；201，返回草稿及检查 |
 | POST `/capabilities/{id}/check` | `{valid,status,issues:[{code,message,path}],bindings,checked_at,executes_code:false}` |
 | POST `/capabilities/{id}/publish` | 检查通过后新建整数版本并启用；不修改原版本 |
@@ -83,7 +83,7 @@ Workflow 的“运行计划”由 `app/research_web/automation/` 提供通用 Au
 | POST `/capabilities/{id}/rollback` | `{version:整数}`，显式切回已有版本，不创建或重写旧版本 |
 | GET `/capabilities/{id}/versions` | `{items:[{version,native_name,metadata,published_at,sha256,current}]}` |
 | GET `/capabilities/{id}/versions/{version}` | 原始指令、元数据、文件及步骤，`read_only:true` |
-| GET `/capabilities/{id}/versions/{version}/export` | ZIP：原始 SKILL.md、capability.json、可选 workflow.json、资源 |
+| GET `/capabilities/{id}/versions/{version}/export` | ZIP：SKILL.md、capability.json、可选 workflow.json／method.json、资源 |
 | GET `/tools` | 23 项真实 guard/注册声明：8 项研究/控制工具和 15 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
 | GET `/workflows` | 同一能力目录中四项种子及用户 Workflow；没有平行目录 |
 | GET / POST `/mcp/registries` | 列出或保存官方/私有 Registry 的非敏感配置；关闭功能开关时为 404 |
@@ -199,8 +199,9 @@ shell、Poppler 或子进程依赖。v1 不裁剪 PDF 原页；可读图片附�
 
 ### 会话与提交
 
-已有 `POST /sessions/{sid}/messages` 增加 `capability_id`、`capability_version`（正整数）及
-`tool_ids`（仅表达已登记可选工具的使用意图）。推荐客户端始终传选中的版本。新数据能力统一选择 `datahub_*`；工具名使用子系统语义，不依赖产品名称。
+已有 `POST /sessions/{sid}/messages` 支持 `capability_id`、`capability_version`（正整数）、
+`tool_ids`（仅表达已登记可选工具的使用意图）及最多三个 `method_ids`。推荐客户端始终传选中的
+能力版本。新数据能力统一选择 `datahub_*`；工具名使用子系统语义，不依赖产品名称。
 版本省略时首次受理绑定当时版本；同一幂等键重试使用原收据，不重新执行、不因后来停用而重发。
 非当前版本需要先显式回滚；`skill_id` 保留兼容，原有五个内置 Skill ID 不变。
 显式 `expected_formats`（包括空数组）优先，否则用能力默认格式。
@@ -213,6 +214,12 @@ shell、Poppler 或子进程依赖。v1 不裁剪 PDF 原页；可读图片附�
 `capability_catalog`；详情返回 capability/capability_history，不能将可用快照列表说成实际执行列表。
 DSH 得到的是原生 slash invocation 与当前会话相对资源指引，不绕过其原生 Skill loader。
 旧会话原有 `resources/skills` 不改写。
+
+Method 由 `ReasoningMethodSpec` 固定语义版本、触发／反向触发、输入／输出契约、程序、组合关系和
+评分规则；首版十项均为内置只读、无脚本、无依赖、无工具权限。Skill／Workflow 可声明
+`method_policy`，解析优先级为必需、用户选择、推荐、模型补选，去重后最多三个。选中版本被复制到
+会话资源并由 DSH 原生 Skill 包装加载；实际采用后调用 `rwb_record_method_use`，只记录 ID、版本和
+来源。必需／用户选择缺证据时阻断完成，推荐／模型补选缺证据时降级。默认推荐在真实评测前为空。
 
 创建接口只创建真实会话并把候选要求放入 draft；不自动提交模型、不自动发布。
 创建提示直接包含当前 Metadata 模型的 JSON Schema（必填、枚举、禁止额外字段）；
@@ -303,9 +310,9 @@ tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集�
 
 | 源码 | 测试 | 验证边界 |
 | --- | --- | --- |
-| capabilities/models/packages/catalog/seeds、skills | test_capabilities.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 12 Skill/4 Workflow 离线种子、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
+| capabilities/models/packages/catalog/seeds/methods、skills | test_capabilities.py、test_methods.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 12 Skill/4 Workflow/10 Method 离线种子、方法优先级与追踪、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
 | capabilities/routes、main/service/store | test_capabilities_admission.py、既有 research_web 回归 | 原生名称核对、格式优先、幂等、跨会话、并发、创建产物 |
-| tools、launch_runtime、research.cordis.yml | test_capabilities_native.py | 固定源码真实 provider list/get/watch 与实际注册；不调用模型 |
+| tools、launch_runtime、research.cordis.yml、runtime/research-tools.mjs | test_capabilities_native.py、research_web_method_tool.test.mjs | 固定源码真实 provider list/get/watch 与实际注册；方法记录仅写有界身份；不调用模型 |
 
 实际命令、RED/GREEN 和剩余验收见 [后端任务报告](../.ai/reports/2026-09-03-capabilities-backend.md)。
 本批不涉及桌面/Windows/发布；不以本地协议测试代替主控制器后续真实界面与模型调用验收。

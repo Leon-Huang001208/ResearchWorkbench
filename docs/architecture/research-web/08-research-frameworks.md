@@ -49,3 +49,7 @@ Gold 使用 F2（价格背景）、F9（四维贡献）、F6（需求同比）�
 Dollar 的实时 `plumbing_m` 保存 60 期 SOFR−IORB；F2 renderer 只取最近 30 期，以满足图表密度上限。该裁剪不回写快照，也不改变 M 维评分、来源或观测日期。
 
 框架服务随 8088 由同一固定部署根加载；启动器对调用目录和 Node ABI 的确定性处理不改变框架注册、快照或 Bot 上下文协议。
+
+Research Workbench Method 层不改变 Gold／Dollar 的领域定义、版本、采集、评分、快照或 renderer。
+框架 Bot 仍走唯一 DSH 链；未来如为框架能力配置 `method_policy`，也必须使用当前框架快照 revision，
+且 Method 采用记录不能替代来源、因子或结论证据。首版框架能力未配置默认推荐方法。

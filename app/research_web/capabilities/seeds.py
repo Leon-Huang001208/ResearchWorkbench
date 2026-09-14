@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from .methods import METHOD_SPECS
 from .packages import encode_file
 
 QUESTION_INPUT = {
@@ -192,6 +193,9 @@ def _skill_package(root, spec, protocol):
         "default_formats": list(spec["default_formats"]),
         "required_tools": list(spec["required_tools"]),
         "dependencies": [],
+        # Default routing stays empty until Research Evals show an observable
+        # quality gain without a material latency or cost regression.
+        "method_policy": {"required": [], "recommended": [], "excluded": []},
     }
     return (
         spec["slug"],
@@ -229,6 +233,7 @@ def _workflow_package(spec):
                 "default_formats": ["docx", "html", "xlsx"],
                 "required_tools": ["research_run_script"],
                 "dependencies": [],
+                "method_policy": {"required": [], "recommended": [], "excluded": []},
             },
             "instructions": "",
             "files": [],
@@ -270,4 +275,31 @@ def seed_packages():
     return [
         *(_skill_package(root, spec, protocol) for spec in SKILL_SPECS),
         *(_workflow_package(spec) for spec in WORKFLOW_SPECS),
+        *(_method_package(spec) for spec in METHOD_SPECS),
     ]
+
+
+def _method_package(spec):
+    return (
+        spec.method_id,
+        {
+            "kind": "method",
+            "metadata": {
+                "name": spec.title,
+                "slug": spec.method_id,
+                "description": spec.description,
+                "category": "推理方法",
+                "inputs": [QUESTION_INPUT],
+                "scenarios": spec.triggers,
+                "default_formats": [],
+                "required_tools": [],
+                "dependencies": [],
+                "method_policy": {},
+            },
+            "method_spec": spec.model_dump(),
+            "instructions": "",
+            "files": [],
+            "reviewed_scripts": [],
+            "steps": [],
+        },
+    )

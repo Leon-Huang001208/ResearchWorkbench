@@ -169,3 +169,9 @@ Office 与 Wind 行在既有无阴影检查列表中增加逐项目标操作、�
 研究框架沿用现有 Codex 画布、分隔线、语义色与等宽数字，不引入外部字体、CDN、iframe 或 Goldar 品牌素材。页面以核心问题和研究链路为首要层级，右侧压缩为状态、观测、来源和覆盖；七个页签在内容滚动区吸顶。桌面每行最多两个分析模块，移动端收为单列；页签和宽 SVG 只在自身容器横向滚动，触控目标不低于 44px。
 
 Lieflat 图表只保留数据编码所需线、格、刻度与数值标签：价格 Hairline Area、因子 Rung Waterfall、供需 Paired Rungs、周期 Trend Lineage、期权 Tick Rows、相关性 Matrix Heat。绿色和红色仅表达正负数据语义，所有单元同时显示数字或文字方向，颜色不是唯一线索。`prefers-reduced-motion: reduce` 关闭章节进入动画。
+
+## 2026-09-14 Method 选择与状态
+
+“方法”沿用能力工作区既有卡片、快览、语义色和焦点规则，并作为第五个互斥主标签进入键盘 roving
+顺序。输入区的方法选择器使用原生 details/checkbox，可显示最多三个选择及禁用上限；移动端继承
+既有可换行工具栏与 44px 触控目标。会话采用来源和 `method_trace_incomplete` 均有文字，不依赖颜色。

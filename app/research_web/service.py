@@ -22,6 +22,11 @@ from .automation.delivery import DeliveryDispatcher
 from .automation.service import AutomationService, automation_feature_enabled
 from .automation.transport import DeliveryTransport
 from .capabilities.catalog import CapabilityCatalog
+from .capabilities.methods import (
+    evaluate_method_trace,
+    read_method_trace,
+    resolve_methods,
+)
 from .capabilities.models import CapabilityError, Metadata, Step
 from .capabilities.packages import MAX_COMPRESSED, import_package
 from .capabilities.tools import SELECTABLE
@@ -778,6 +783,7 @@ class ResearchService:
         result["creation_kind"] = row.get("creation_kind")
         latest_receipt = self.store.data["receipts"].get(f"{sid}:{row.get('delivery_key', '')}", {})
         result["capability"] = latest_receipt.get("capability")
+        result["methods"] = latest_receipt.get("methods", [])
         result["capability_history"] = [
             receipt["capability"]
             for key, receipt in self.store.data["receipts"].items()
@@ -900,6 +906,18 @@ class ResearchService:
             and self.connected == {"mux", "host"}
         ):
             result.update(status="failed", error=self.errors.get(sid) or delivery["reasons"][0])
+        evidence = read_method_trace(self.store.directory(sid))[
+            latest_receipt.get("method_trace_start", 0) :
+        ]
+        result["method_trace"] = evaluate_method_trace(result["methods"], evidence)
+        if result["methods"] and not result["can_cancel"] and result["status"] == "completed":
+            if result["method_trace"]["completion_blocked"]:
+                result.update(
+                    status="failed",
+                    error="必需或用户指定的方法缺少调用证据，研究不能标记为完成",
+                )
+            elif result["method_trace"]["method_trace_incomplete"]:
+                result["method_trace_incomplete"] = True
         return result
 
     def _cancel_observation(self, sid):
@@ -917,6 +935,7 @@ class ResearchService:
         capability_id=None,
         capability_version=None,
         tool_ids=(),
+        method_ids=(),
         tabbit_tabs=(),
         tabbit_live_confirmed=False,
     ):
@@ -932,6 +951,7 @@ class ResearchService:
                 and "capability_catalog" not in existing
                 and not capability_id
                 and not tool_ids
+                and not method_ids
                 and capability_version is None
                 and not tabbit_tabs
                 and not tabbit_live_confirmed
@@ -978,6 +998,18 @@ class ResearchService:
                     else None
                 )
             defaults = selection["default_formats"] if selection else None
+            if selection and selection["kind"] == "method":
+                raise CapabilityError(
+                    "方法须通过 method_ids 选择，不能作为业务能力运行",
+                    "method_selection_required",
+                    409,
+                )
+            method_policy = selection.get("method_policy", {}) if selection else {}
+            methods = resolve_methods(
+                self.capabilities,
+                method_policy,
+                user_selected=method_ids,
+            )
             required = expected_formats(formats if formats is not None else defaults, skill_id)
             payload = {
                 "text": text,
@@ -986,6 +1018,7 @@ class ResearchService:
                 "expected_formats": required,
                 "capability": selection,
                 "tool_ids": list(tool_ids),
+                "methods": methods,
                 "tabbit_tabs": list(tabbit_tabs),
                 "tabbit_live_confirmed": tabbit_live_confirmed,
             }
@@ -1040,16 +1073,24 @@ class ResearchService:
                         }
                     )
             native_skill = selection["native_name"] if selection else skill_id
-            if native_skill:
+            if native_skill or methods:
                 skills = await self.skill_catalog(sid)
-                if native_skill not in {skill["name"] for skill in skills["skills"]}:
+                discovered = {skill["name"] for skill in skills["skills"]}
+                if (native_skill and native_skill not in discovered) or any(
+                    method["native_name"] not in discovered for method in methods
+                ):
                     raise CapabilityError(
-                        "能力未由 DSH 原生发现；请等待目录观察，旧实例需空闲后更新启动配置",
+                        "能力或方法未由 DSH 原生发现；请等待目录观察，旧实例需空闲后更新启动配置",
                         "native_discovery_pending",
                         409,
                     )
             if selection:
                 self.capabilities.snapshot(selection, self.store.directory(sid))
+            for method in methods:
+                self.capabilities.snapshot(
+                    self.capabilities.selection(method["method_id"]),
+                    self.store.directory(sid),
+                )
             capability_snapshots = self.capabilities.snapshot_catalog(self.store.directory(sid))
             tabbit_markers = await self.tabbit.live_markers(
                 sid,
@@ -1058,6 +1099,7 @@ class ResearchService:
                 confirmed=tabbit_live_confirmed,
             )
             delivery = self.delivery.begin(sid, key, required)
+            method_trace_start = len(read_method_trace(self.store.directory(sid)))
             if not self.store.reserve(sid, key, digest, delivery):
                 status = self.store.receipt(sid, key)["status"]
                 if status == "accepted":
@@ -1068,6 +1110,9 @@ class ResearchService:
             self.store.receipt(sid, key)["capability_catalog"] = capability_snapshots
             if selection:
                 self.store.receipt(sid, key)["capability"] = selection
+            if methods:
+                self.store.receipt(sid, key)["methods"] = methods
+                self.store.receipt(sid, key)["method_trace_start"] = method_trace_start
             self.store.save()
             prompt = text
             if tabbit_markers:
@@ -1093,6 +1138,15 @@ class ResearchService:
             if tool_ids:
                 prompt += "\n用户选择的研究工具意图（不改变原生审批、权限和限制）：" + ", ".join(
                     tool_ids
+                )
+            if methods:
+                prompt += "\n本次采用的 Research Workbench 推理方法（按优先级解析）：" + json.dumps(
+                    methods, ensure_ascii=False
+                )
+                prompt += (
+                    "\n逐个通过原生 skill 工具载入 native_name。实际开始采用每个方法后，"
+                    "调用 rwb_record_method_use，参数必须与 method_id/version/source 完全一致。"
+                    "该记录只证明方法被采用，不得包含 Prompt、文档正文或隐藏思维链。"
                 )
             if row["mode"] == "claw":
                 prompt += (

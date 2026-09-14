@@ -1,8 +1,9 @@
 """Editable package contracts; validation issues are retained with drafts."""
 
+import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..store import StoreError
 
@@ -21,6 +22,24 @@ class InputField(BaseModel):
     required: bool = True
 
 
+class MethodPolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    required: list[str] = Field(default_factory=list, max_length=3)
+    recommended: list[str] = Field(default_factory=list, max_length=3)
+    excluded: list[str] = Field(default_factory=list, max_length=10)
+
+    @model_validator(mode="after")
+    def validate_sets(self):
+        for values in (self.required, self.recommended, self.excluded):
+            if len(values) != len(set(values)) or any(
+                not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value) for value in values
+            ):
+                raise ValueError("方法策略包含空值或重复项")
+        if set(self.required) & set(self.excluded):
+            raise ValueError("必需方法不能同时被排除")
+        return self
+
+
 class Metadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=120)
@@ -32,6 +51,7 @@ class Metadata(BaseModel):
     default_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png"]]
     required_tools: list[str] = Field(default_factory=list, max_length=20)
     dependencies: list[str] = Field(default_factory=list, max_length=40)
+    method_policy: MethodPolicy = Field(default_factory=MethodPolicy)
 
 
 class Step(BaseModel):

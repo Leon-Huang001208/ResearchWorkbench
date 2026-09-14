@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/research")
 
 @router.get("/capabilities")
 async def catalog(request: Request, kind: str | None = None):
-    if kind not in (None, "skill", "workflow"):
+    if kind not in (None, "skill", "workflow", "method"):
         raise CapabilityError("未知能力类型")
     return request.app.state.research.capabilities.list(kind)
 

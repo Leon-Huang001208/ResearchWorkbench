@@ -115,3 +115,7 @@ DSH 认证控制文件在 POSIX 继续要求私有 mode；Windows 不把 POSIX m
 连接配置仍先刷新临时文件、关闭句柄并原子替换。POSIX 随后刷新父目录；Windows 明确跳过不支持的目录 `fsync`，不把跳过记录伪装成持久化成功证据。
 
 三个 Phase 2 功能默认开启只改变服务装配条件，不创建虚假目录记录、安装清单、授权、Automation 或交付渠道；对应事实仍只在用户显式操作成功后原子持久化，环境变量设为 `0` 时保持原数据不变。
+
+Method 的会话证据独立写入 `<session>/.rwb/method-trace.jsonl`，单行只含 `method_id`、`version`、
+`source`，文件总量限制 64 KiB。Runtime 使用 no-follow 文件句柄、普通文件检查和同步写入；产品读取
+同样拒绝链接、异常类型、超限或无效字段。该文件不是研究正文、产物或数据快照，不进入跨会话共享。

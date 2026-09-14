@@ -4,7 +4,7 @@ const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'h
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
-const capabilityKinds = new Set(['skill', 'tool', 'workflow', 'data']);
+const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data']);
 const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'quantity', 'price', 'fiscal', 'plumbing', 'cross-border', 'evidence']);
 
 export function parseRoute(hash = '') {
@@ -280,12 +280,12 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 }
 
 export function createController({ api, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {};
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
-  const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, expectedFormats: state.expectedFormats });
+  const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, expectedFormats: state.expectedFormats });
   const saveDraft = () => drafts.set(draftKey(), draftState());
   const fail = (error) => { state.error = error?.message || '操作失败，请重试。'; };
   function snapshot(data) {
@@ -301,7 +301,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   async function open(route) {
     saveDraft(); const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false;
-    Object.assign(state, { expectedFormats: null, capability: null, toolIds: [], tabbitTabs: [] }, drafts.get(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '' }); emit();
+    Object.assign(state, { expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, drafts.get(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
@@ -322,7 +322,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
       catch (error) { fail(error); emit(); return; }
     }
     const id = state.detail.id; const ticket = generation; const text = state.draft;
-    const body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: state.toolIds } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
+    const body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: state.toolIds } : {}), ...(state.methodIds.length ? { method_ids: state.methodIds } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
     const signature = JSON.stringify(body); const previous = pending.get(id);
     const attempt = previous?.signature === signature ? previous : { signature, key: makeID() };
     pending.set(id, attempt); state.busy = true; state.error = ''; emit();
@@ -355,6 +355,11 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
       state.capability = value ? structuredClone(value) : null; state.skillId = value?.id || ''; saveDraft();
     },
     setTools: (values) => { state.toolIds = [...new Set(values)]; saveDraft(); },
+    setMethods: (values) => {
+      const unique = [...new Set(values)];
+      if (unique.length > 3) throw new Error('最多选择三个方法');
+      state.methodIds = unique; saveDraft();
+    },
     setFormats: (value) => { state.expectedFormats = value === null ? null : [...new Set(value)]; saveDraft(); },
     addAttachments: (items) => { state.attachments = [...new Map([...state.attachments, ...items].map((file) => [file.id, file])).values()]; saveDraft(); emit(); },
     removeAttachment: (id) => { state.attachments = state.attachments.filter((file) => file.id !== id); saveDraft(); emit(); },

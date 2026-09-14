@@ -61,9 +61,15 @@ DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒
 
 服务管理器的数据、状态和日志私有目录采用对应的平台判断：所有平台拒绝非目录、符号链接和 Windows 重解析点；仅 POSIX 依据 group/other mode 位拒绝宽松权限，Windows 不以该投影替代 ACL。
 
-能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 12 个内置 Skill 和 4 个
-Workflow；其中五个专用研究 Skill 仍通过同一 DSH 原生发现、不可变版本和会话快照链执行，
-没有新增路由 Skill、API 类型或执行器。品牌中立证据协议以
+能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 12 个内置 Skill、4 个 Workflow
+和 10 个只读 Method。`app/research_web/capabilities/methods.py` 拥有 Method 契约、组合解析、
+采用证据检查和独立 Research Eval 矩阵；Skill／Workflow 的 `method_policy` 与请求 `method_ids`
+按“必需、用户选择、推荐、模型补选”解析，组合上限为三个。Method 不授予工具或外部权限，DSH
+只接收带稳定 ID 的原生 Skill 包装；采用记录只包含方法 ID、版本和来源。必需／用户选择缺证据会
+阻断完成，推荐／模型补选缺证据只降级标记。默认策略保持为空，直到真实评测通过。
+
+其中五个专用研究 Skill 仍通过同一 DSH 原生发现、不可变版本和会话快照链执行，没有新增路由
+Skill 或第二执行器。品牌中立证据协议以
 `app/research_web/skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制进每个
 专用包并随版本哈希封存。专用包默认聊天交付，只有 Runtime 实际暴露所需工具且用户明确要求
 文件时才生成文件；决定性原文不可访问时明确降级。研报 PDF 复用沙箱的

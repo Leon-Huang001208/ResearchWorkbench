@@ -121,3 +121,7 @@ MCP Runtime 与 Automation 默认启用不自动授权 Tabbit，也不把浏览�
 2026-09-11 的本机集成格式基线维护不改变 Tabbit 的授权、claim、token 或浏览器运行时边界。
 
 `rwb` 在 Codex Desktop 中固定 bundled Node 后，Tabbit 仍沿用同一受审归档、overlay、授权和一次性 token 边界；该选择仅防止原生 Node 模块 ABI 漂移。
+
+Method 选择不授予 Tabbit 权限，也不会自动添加页面引用、消费一次性正文 token 或改变浏览器 Tool
+审批。即使某个 Method 与使用 Tabbit 的业务 Skill 同时采用，页面授权、实时 claim、只读声明和写
+操作审批仍分别按原协议核对；方法记录不接收标题、URL、正文或浏览器参数。

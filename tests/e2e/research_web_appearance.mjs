@@ -145,9 +145,12 @@ try {
     await page.locator('.capability-workspace-card').first().waitFor();
     await page.locator('[data-cap-kind-nav="skill"]').focus();
     await page.keyboard.press('ArrowRight');
+    await page.waitForURL(/kind=method/);
+    await page.locator('[data-cap-kind-nav="method"][aria-selected="true"]').waitFor();
+    await page.keyboard.press('ArrowRight');
     await page.waitForURL(/kind=tool/);
     await page.locator('[data-cap-kind-nav="tool"][aria-selected="true"]').waitFor();
-    for (const kind of ['skill', 'tool', 'workflow', 'data']) {
+    for (const kind of ['skill', 'method', 'tool', 'workflow', 'data']) {
       await page.goto(base + `/?capability-preview=${theme}-${kind}#/skills?kind=${kind}`);
       await page.locator(`[data-cap-kind-nav="${kind}"][aria-selected="true"]`).waitFor();
       await page.evaluate(() => document.activeElement?.blur());
@@ -179,7 +182,7 @@ try {
     await shot(`${theme}-workflow-editor-mobile`);
     await page.locator('[data-cap-cancel-edit]').click();
     await page.setViewportSize({ width: 1440, height: 1000 });
-    check(`${theme}: Skill/Tool/Workflow/data details and unsaved mobile editor preserve original behaviors`);
+    check(`${theme}: Skill/method/Tool/Workflow/data details and unsaved mobile editor preserve original behaviors`);
   }
   await page.goto(base + '/#/fingpt'); await page.locator('#prompt').waitFor();
   await page.locator('[data-collapse-sidebar]').click();
@@ -199,11 +202,20 @@ try {
   assert.equal(await page.locator('[data-format="md"]').isChecked(), true);
   if (!await page.locator('[data-no-formats]').isVisible()) await page.locator('.format-picker summary').click();
   await page.locator('[data-no-formats]').click();
-  await page.locator('.capability-picker summary').click();
+  await page.locator('details.capability-picker:not(.method-picker) summary').click();
   assert.equal(await page.locator('#skill-select').isVisible(), true);
   assert.equal(await page.locator('#model-select').isVisible(), true);
-  await page.locator('.capability-picker summary').click();
-  check('search Escape, output format selection and full capability picker remain usable without writes');
+  await page.locator('details.capability-picker:not(.method-picker) summary').click();
+  await page.locator('.method-picker summary').click();
+  const methodInputs = page.locator('[data-method-id]');
+  assert.equal(await methodInputs.count(), 10);
+  for (let index = 0; index < 3; index += 1) await methodInputs.nth(index).check();
+  assert.equal(await methodInputs.nth(3).isDisabled(), true);
+  assert.equal(await page.locator('[data-remove-method]').count(), 3);
+  await shot('dark-method-picker');
+  await page.locator('[data-remove-method]').first().click();
+  assert.equal(await page.locator('[data-remove-method]').count(), 2);
+  check('search Escape, output format, capability picker and max-three Method selection remain usable without writes');
   const sessions = await page.evaluate(async () => (await (await fetch('/api/research/sessions')).json()).items || []);
   const session = sessions.find(item => item.mode === 'claw') || sessions[0];
   if (session) {

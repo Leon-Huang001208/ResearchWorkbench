@@ -494,6 +494,12 @@ body { line-height: 1.5; }
 .capability-picker summary { display: flex; align-items: center; cursor: pointer; padding: 6px 2px; }
 .capability-picker summary .ui-icon { width: 13px; height: 13px; }
 .capability-picker select { position: absolute; top: 35px; left: -80px; width: 200px; z-index: 11; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--control-line); }
+.method-picker { margin-left: 0; }
+.method-picker summary { min-width: 68px; }
+.method-picker fieldset { position: absolute; top: 35px; left: -90px; z-index: 12; width: min(290px, 82vw); max-height: 320px; overflow: auto; padding: 8px; background: var(--surface); border: 1px solid var(--control-line); border-radius: 8px; box-shadow: var(--shadow); }
+.method-picker label { display: flex; gap: 8px; align-items: center; padding: 8px; color: var(--text); font-size: 12px; cursor: pointer; }
+.method-picker label:focus-within { outline: 2px solid var(--focus); outline-offset: -2px; }
+.method-picker input:disabled + span { color: var(--muted); }
 .format-picker { position: relative; margin: 0; font-size: 12px; }
 .format-picker summary { list-style: none; border-radius: 6px; padding: 6px 8px; max-width: 215px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .format-picker summary::after { content: '⌄'; margin-left: 5px; }

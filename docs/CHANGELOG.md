@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+### Research Workbench 推理方法层 · 2026-09-14
+
+- 能力中心新增独立、只读的“方法”类型与十个版本化投研方法；Skill／Workflow 可声明
+  `method_policy`，研究请求可显式选择至多三个方法，解析顺序固定为必需、用户选择、推荐、模型补选。
+- DSH 仅把产品 Method 编译为原生 Skill 包装；内部 `rwb_record_method_use` 只记录当前会话的方法
+  ID、版本和采用来源，不保存 Prompt、文档正文或隐藏思维链，也不授予新的文件、数据或网络权限。
+- 必需或用户指定方法缺少采用证据时阻断完成；推荐或模型补选方法缺少证据时以
+  `method_trace_incomplete` 降级。默认推荐保持为空，只有独立 Research Evals 证明质量改善且成本、
+  延迟无明显倒退后才可进入默认策略；Prompt 模板库尚未启用。
+
 ### 黄金/美元框架、Artifacts 与部署入口 · 2026-09-14
 
 - Research Web 新增 Gold v2 与 Dollar v1 连续研究画布、真实来源采集、Lieflat 图表和快照绑定的 DSH 解释/深度验证；全局 Artifacts 不再遍历软删除会话，资产观察不继承其错误。

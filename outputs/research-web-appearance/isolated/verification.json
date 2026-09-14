@@ -18,7 +18,7 @@
     "light capability workspace 1280: 3 columns without overflow",
     "light capability workspace 768: 2 columns without overflow",
     "light capability workspace 390: 1 columns without overflow",
-    "light: Skill/Tool/Workflow details and unsaved mobile editor preserve original behaviors",
+    "light: Skill/method/Tool/Workflow/data details and unsaved mobile editor preserve original behaviors",
     "dark: default, loading-disabled, danger, danger-disabled computed styles",
     "dark: approved secondary-navigation canvas keeps one aligned 800px content column",
     "dark 1440: layout, symbol, navigation",
@@ -34,11 +34,10 @@
     "dark capability workspace 1280: 3 columns without overflow",
     "dark capability workspace 768: 2 columns without overflow",
     "dark capability workspace 390: 1 columns without overflow",
-    "dark: Skill/Tool/Workflow details and unsaved mobile editor preserve original behaviors",
+    "dark: Skill/method/Tool/Workflow/data details and unsaved mobile editor preserve original behaviors",
     "primary navigation and Claw workspace remain available after secondary-sidebar collapse",
     "existing global search opens",
-    "search Escape, output format selection and full capability picker remain usable without writes",
-    "real session readback; activity/data/files panel opens and closes",
+    "search Escape, output format, capability picker and max-three Method selection remain usable without writes",
     "zero model/mutation requests; zero browser runtime errors"
   ],
   "screenshots": [
@@ -58,6 +57,8 @@
     "light-capability-workspace-dialog-390.png",
     "light-capability-skill-1440.png",
     "light-skill-detail.png",
+    "light-capability-method-1440.png",
+    "light-method-detail.png",
     "light-capability-tool-1440.png",
     "light-tool-detail.png",
     "light-capability-workflow-1440.png",
@@ -81,6 +82,8 @@
     "dark-capability-workspace-dialog-390.png",
     "dark-capability-skill-1440.png",
     "dark-skill-detail.png",
+    "dark-capability-method-1440.png",
+    "dark-method-detail.png",
     "dark-capability-tool-1440.png",
     "dark-tool-detail.png",
     "dark-capability-workflow-1440.png",
@@ -88,10 +91,10 @@
     "dark-capability-data-1440.png",
     "dark-data-detail.png",
     "dark-workflow-editor-mobile.png",
-    "dark-session-files.png"
+    "dark-method-picker.png"
   ],
   "errors": [],
   "blockedWrites": 0,
   "status": "passed",
-  "durationMs": 22860
+  "durationMs": 13313
 }
