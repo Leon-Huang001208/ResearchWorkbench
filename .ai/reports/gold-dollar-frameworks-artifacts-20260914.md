@@ -29,7 +29,7 @@ Seeds are deterministic offline fixtures for tests and the first server-side no-
 
 - Focused backend regression: `21 passed`; focused JavaScript regression: `18 passed`.
 - Full Research Web backend suite: `909 passed, 4 skipped`; only the installed Starlette/anyio alias deprecation warning remains.
-- Full Research Web JavaScript suite: `279 passed, 1 skipped`.
+- Full Research Web JavaScript suite after the live route repair: `280 passed, 1 skipped`.
 - Fixture browser acceptance: both routes passed light/dark at 1440, 1280, 1024, 768 and 390 px; both had 44 px anchor targets, no document/main overflow, no page or console error, no iframe or hotlinked resource, and reduced-motion disabled reveal animations. The continuous left anchor rail becomes a single horizontal semantic rail on mobile; no chapter is turned into a separate page. Screenshots and the machine-readable receipt are in `outputs/frameworks-v1/`.
 - Post-deployment live navigation found and repaired a transient cross-framework render: changing the hash from Gold to Dollar could let the route render once before `loadFrameworkPage` cleared the previous snapshot. The renderer now rejects a snapshot whose framework slug differs from the requested route and shows the Dollar loading state instead. A focused regression reproduces the exact ready-state mismatch.
 - Manual screenshot review: Hub hierarchy clearly separates framework reasoning from Asset Observation; Gold and Dollar share the same visual grammar while preserving different causal chains and chart encodings. At 390 px, metadata and the chapter rail reflow without hiding state, evidence coverage or the framework Bot.
