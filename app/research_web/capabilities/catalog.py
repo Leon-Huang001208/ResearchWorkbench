@@ -6,6 +6,7 @@ import hashlib
 import importlib.metadata
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -358,20 +359,55 @@ class CapabilityCatalog:
     def _strict_sha256(value):
         return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
 
-    def _verified_result_digest(self, artifact_dir, value, expected_digest):
+    def _verified_result_digest(self, artifact_dir, value, expected_digest=None):
         if not isinstance(value, dict) or set(value) != COMPARISON_RESULT_FIELDS:
             raise CapabilityError("对照结果字段无效", "invalid_comparison_evidence", 422)
         if not self._strict_sha256(value.get("sha256")):
             raise CapabilityError("对照结果摘要无效", "invalid_comparison_evidence", 422)
         path = self._comparison_path(value.get("path"), base=artifact_dir)
         actual_digest = self._sha256_file(path)
-        if actual_digest != value["sha256"] or actual_digest != expected_digest:
+        if actual_digest != value["sha256"] or (
+            expected_digest is not None and actual_digest != expected_digest
+        ):
             raise CapabilityError("对照结果不匹配", "invalid_comparison_evidence", 422)
         try:
             result = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             raise CapabilityError("对照结果无效", "invalid_comparison_evidence", 422) from exc
         return actual_digest, result
+
+    @classmethod
+    def _comparison_results_equal(cls, expected, actual):
+        """Compare decoded result envelopes while keeping categorical values exact."""
+
+        if isinstance(expected, bool) or isinstance(actual, bool):
+            return type(expected) is type(actual) and expected == actual
+        if type(expected) in {int, float} and type(actual) in {int, float}:
+            try:
+                expected_number = float(expected)
+                actual_number = float(actual)
+            except (OverflowError, TypeError, ValueError):
+                return False
+            return (
+                math.isfinite(expected_number)
+                and math.isfinite(actual_number)
+                and math.isclose(
+                    expected_number,
+                    actual_number,
+                    rel_tol=1e-6,
+                    abs_tol=1e-8,
+                )
+            )
+        if isinstance(expected, dict) and isinstance(actual, dict):
+            return set(expected) == set(actual) and all(
+                cls._comparison_results_equal(expected[key], actual[key]) for key in expected
+            )
+        if isinstance(expected, list) and isinstance(actual, list):
+            return len(expected) == len(actual) and all(
+                cls._comparison_results_equal(left, right)
+                for left, right in zip(expected, actual, strict=True)
+            )
+        return type(expected) is type(actual) and expected == actual
 
     def _verify_comparison_evidence(self, artifact_value, *, changed=False):
         failure_code = "comparison_evidence_changed" if changed else "invalid_comparison_evidence"
@@ -423,13 +459,15 @@ class CapabilityCatalog:
                 ),
                 None,
             )
+            if not self._strict_sha256(packaged_golden):
+                raise CapabilityError("仓库对照摘要无效", failure_code, 422)
             golden_digest, golden_result = self._verified_result_digest(
                 artifact.parent, value.get("golden_result"), packaged_golden
             )
             actual_digest, actual_result = self._verified_result_digest(
-                artifact.parent, value.get("actual_result"), golden_digest
+                artifact.parent, value.get("actual_result")
             )
-            if golden_result != actual_result:
+            if not self._comparison_results_equal(golden_result, actual_result):
                 raise CapabilityError("对照结果不一致", failure_code, 422)
             for result in (golden_result, actual_result):
                 if (

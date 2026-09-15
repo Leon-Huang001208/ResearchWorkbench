@@ -25,11 +25,14 @@ provenance/rights 约定由 CPU reviewed calculator 复制到各自不可变版�
 Skill 目录，也不获得 DataHub、脚本或宿主权限。
 
 六个 Stage 2 Skill 的 enabled 投影增加同一 catalog 内部证据门：启用和回滚到 enabled 均要求
-持久的 macOS Wind/Excel passed evidence artifact。catalog 只接受 artifact 路径，重算输入来源、仓库
-golden、实际结果、artifact 和当前 `calculate.py` 摘要后生成 receipt，并在状态切换重新验证。
+持久的 macOS Wind/Excel passed evidence artifact。catalog 只接受 artifact 路径，分别重算输入来源、
+当前不可变版本 golden、comparison run 实际结果、artifact 和当前 `calculate.py` 摘要；两个结果摘要
+独立，解码后数值按 `rtol=1e-6`/`atol=1e-8` 比较，日期、分类、信号及其余非数值严格一致，再生成
+receipt 并在状态切换重新验证。
 已知初版升级先撤下投影并禁用，发布/保存/校验异常失败关闭。该门不改变公共 API。
 计算器仍在既有 sandbox；POSIX 逐组件 openat/no-follow、Windows final-handle 校验和完整 64 KiB
-UTF-8 envelope 只收紧边界，超限返回小型完整错误，`row_delivery` 不复制顶层 refs。
+UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字节仍允许；超限返回小型完整错误，
+`row_delivery` 不复制顶层 refs。
 
 能力工作区路由以 `kind=skill|tool|workflow|data` 切换四个主分区，以
 `view=library|mine|plans|connections` 切换类型内二级视图；无参数默认 `kind=skill`。

@@ -139,3 +139,5 @@ provenance 和 synthetic golden 进入能力不可变版本，不构成新的 Ru
 Stage 2 后续增加的 evidence artifact 派生 receipt、失败关闭旧版迁移、POSIX 逐组件 openat/Windows
 final-handle loader 和完整 64 KiB UTF-8 envelope 只作用于六个 CPU Skill 的能力或 sandbox 边界；不改变 Tabbit 的页面
 授权、claim、一次性 token、写审批、标签生命周期或浏览器 Runtime。
+receipt 对 packaged golden 与 comparison run actual 分别验摘要并做业务 JSON 比较，六 CLI 成功 stdout
+也不附加换行；这些收紧仍不读取 Tabbit 标签或复用浏览器证据。

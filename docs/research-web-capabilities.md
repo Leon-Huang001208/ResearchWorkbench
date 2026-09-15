@@ -40,11 +40,16 @@ dataset refs、status、limitations、method version、source hashes 和 `intern
 六个 Stage 2 Skill 另外受 catalog comparison receipt 门控：fresh catalog 保持 disabled；已知初版
 脚本升级时先撤下原生投影并持久禁用，发布、保存或校验异常均保留 disabled/uncertain 或使初始化
 失败，绝不恢复 enabled。登记入口只接受 evidence artifact 路径；catalog 严格读取后重算 artifact、
-输入来源、仓库 golden、实际结果和当前 `calculate.py` 摘要，再派生持久 receipt。启用或回滚到
-enabled 时会重新验证 artifact 存在且摘要和绑定未变化。该本机完整性校验不宣称能防止本机管理员
+输入来源、仓库 golden、实际结果和当前 `calculate.py` 摘要，再派生持久 receipt。artifact v1 的
+`golden_result.path/sha256` 必须绑定当前不可变 Skill 版本内的 golden，`actual_result.path/sha256`
+则独立绑定本次 comparison run 的真实 CLI 产物，两者不要求原始字节摘要相同。catalog 解码完整
+JSON 后递归比较业务值：数值使用 `rtol=1e-6`、`atol=1e-8`，日期、分类、信号和其余非数值严格
+一致；摘要自洽但业务结果不同仍拒绝。启用或回滚到 enabled 时会重新验证 artifact 存在且摘要和
+绑定未变化。该本机完整性校验不宣称能防止本机管理员
 主动改写证据；没有真实 artifact 时仍可发现但不可执行。六 CLI 在 POSIX 从 cwd fd 逐组件
 openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性。dataset refs/source hashes 各限
-32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过 64 KiB；无法表达时返回完整
+32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过 64 KiB；成功 stdout 不附加
+换行，因此恰好 65,536 字节仍可完整通过 sandbox 门。无法表达时返回完整
 小型 `workload_too_large`/`reduce_scope`，`row_delivery` 不再重复顶层 refs，也不依赖 sandbox 截断。
 
 阶段 2A 的只读 MCP 市场在三阶段 CI 通过后默认开启；显式设置 `RESEARCH_MCP_REGISTRY_ENABLED=0`

@@ -41,6 +41,9 @@
   和当前脚本摘要；迁移异常先撤下旧投影并保持失败关闭，状态切换重验 artifact 未变。
 - Stage 2 相对 JSON 在 POSIX 逐组件 openat/no-follow、Windows 校验最终句柄；dataset refs/source
   hashes 各限 32 项，完整 UTF-8 JSON envelope 超过 64 KiB 时返回小型 workload 错误而不依赖截断。
+- comparison evidence 分别校验当前版本 golden 与 comparison run actual 的独立摘要，再按数值
+  `rtol=1e-6`/`atol=1e-8`、日期/分类/信号等非数值严格一致做业务 JSON 比较；六 CLI 成功 stdout
+  不附换行，完整 65,536 字节可通过 sandbox 上界。
 - Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
 
 ### CPU 有界投研公共底座 · 2026-09-14

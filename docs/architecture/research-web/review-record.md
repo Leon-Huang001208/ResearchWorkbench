@@ -671,6 +671,9 @@
   loader 改为从 cwd fd 逐组件 openat/no-follow，Windows 校验打开句柄最终路径和 reparse 属性。
 - dataset refs/source hashes 各限 32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过
   64 KiB；无法表达时返回小型完整 workload 错误，`row_delivery` 不再复制顶层 refs。
+- receipt 的 packaged golden 与 comparison run actual 改为分别校验各自声明摘要；解码后数值按
+  `rtol=1e-6`/`atol=1e-8`、日期/分类/信号等非数值严格一致做业务比较，不再要求文件字节相同。
+- 六 CLI 的成功 stdout 不附加换行，使完整输出恰好 65,536 字节时仍符合 sandbox 输出门。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"共享输入契约和预算错误投影只收紧既有research_run_script内部计算器，不新增进程、服务、权限或跨边界数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项内置Skill改为receipt门控的disabled初始状态，仍使用既有目录、版本、检查与选择状态机。","diagrams":[]} -->
@@ -682,3 +685,5 @@
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"相对JSON安全读取、有限数算术和64KiB有界结果仍在既有research_run_script沙箱节点内，不新增进程、权限或跨边界数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"evidence artifact验证与失败关闭迁移只收紧既有catalog状态机和持久索引，不新增公开API或能力类型。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"逐组件openat与完整UTF-8 envelope只收紧既有research_run_script文件和输出边界，不新增执行节点或权限。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"golden与actual独立摘要及业务JSON容差比较只收紧既有comparison receipt verifier，不新增API、状态或持久节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"六CLI移除成功stdout末尾换行只对齐既有64KiB sandbox输出门，不改变执行拓扑或权限。","diagrams":[]} -->

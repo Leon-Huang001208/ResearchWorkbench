@@ -169,6 +169,20 @@ envelope/evidence 反例和必要短门，不再重复该 40 秒套件。文档�
 九个 Python 目标通过 ruff、black、isort，catalog 与共享契约以 `--follow-imports=skip` 通过 mypy；
 36 份 Stage 2 JSON 解析、架构、doc-sync、project constraints 和 `git diff --check` 均通过。
 
+最终两项质量复验以真实 CLI 产物替换了测试中的 golden 字节副本。RED 为 `7 failed, 1 passed in
+5.89s`：一项证明业务对象相同但序列化和摘要不同的 CLI 结果被旧 verifier 误拒，六项证明成功输出
+末尾换行把 65,536 字节推至 sandbox `output_limit`。verifier 现在分别重算并校验 packaged golden 与
+comparison run actual 的声明摘要，仅要求前者绑定当前不可变 Skill 版本；完整 JSON 解码后再递归
+比较，有限数值采用 `rtol=1e-6`、`atol=1e-8`，日期、分类、信号和其他非数值保持严格一致。摘要
+自洽但业务指标不同的 actual 仍返回 `invalid_comparison_evidence`。
+
+六 CLI 成功路径统一以 `sys.stdout.write(serialized)` 输出且不附换行，完整 stdout 恰好 65,536 字节
+仍在真实 sandbox `--max-output 65536` 下完成。新增用例首轮 GREEN 为 `8 passed in 4.85s`，receipt
+全绑定与六个精确边界用例的聚焦回归为 `14 passed, 139 deselected in 18.37s`；本轮未重复 Stage 2
+长回归。定向格式化和数值边界加固后新增 9 项复跑为 `9 passed in 5.30s`；八个 Python 目标通过 ruff、black、
+isort，catalog 与六脚本逐项通过 mypy。architecture、doc-sync、task completion、21 个变更文件的
+project constraints 与 `git diff --check` 均通过。
+
 不会把未执行的平台或真实数据验证写成已通过。
 
 ## 未验证项
@@ -177,4 +191,5 @@ envelope/evidence 反例和必要短门，不再重复该 40 秒套件。文档�
 哈希证据；未验证真实 Provider 数据质量、厂商字段可用性、Windows 原生沙箱或 Excel 运行。Web-only
 代码未修改任何桌面专属路径，不能由本地离线测试推导桌面或跨平台交付结论。六项能力因此保持
 disabled；需要真实 macOS Wind/Excel comparison evidence artifact 经内部 verifier 生成 receipt 才能
-进入启用验收。仓库测试使用 synthetic golden/result 副本，仅验证门禁机制，不是实测 receipt。
+进入启用验收。仓库测试使用 synthetic fixture 经真实 CLI 生成 actual 并与 packaged golden 做业务
+比较，只验证门禁机制，不是 Wind/Excel 实测 receipt。

@@ -235,7 +235,8 @@ def main(argv: list[str] | None = None) -> int:
         if len(args) != 1:
             raise CalculatorError("usage_error")
         payload, size = load_relative_json(args[0], error=CalculatorError, budget=WorkloadBudget())
-        print(strict_json_dumps(calculate(payload, input_bytes=size), error=CalculatorError))
+        serialized = strict_json_dumps(calculate(payload, input_bytes=size), error=CalculatorError)
+        sys.stdout.write(serialized)
         return 0
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")

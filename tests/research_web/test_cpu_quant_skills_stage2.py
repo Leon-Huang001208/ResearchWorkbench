@@ -238,9 +238,23 @@ def _write_comparison_evidence(tmp_path, catalog, slug, **overrides):
     golden = SKILLS_ROOT / slug / "fixtures/golden-result.json"
     actual = evidence_dir / "actual-result.json"
     expected = evidence_dir / "golden-result.json"
-    shutil.copy2(golden, actual)
     shutil.copy2(golden, expected)
-    digest = hashlib.sha256(actual.read_bytes()).hexdigest()
+    scripts = evidence_dir / "scripts"
+    scripts.mkdir()
+    shutil.copy2(SKILLS_ROOT / slug / "scripts/calculate.py", scripts / "calculate.py")
+    for name in ("cpu_budget.py", "input_contract.py"):
+        shutil.copy2(SKILLS_ROOT / "_shared" / name, scripts / name)
+    shutil.copy2(SKILLS_ROOT / slug / "fixtures/input.json", evidence_dir / "input.json")
+    completed = subprocess.run(
+        [sys.executable, "scripts/calculate.py", "input.json"],
+        cwd=evidence_dir,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr.decode()
+    actual.write_bytes(completed.stdout)
+    golden_digest = hashlib.sha256(expected.read_bytes()).hexdigest()
+    actual_digest = hashlib.sha256(actual.read_bytes()).hexdigest()
     source_hashes = json.loads(actual.read_text(encoding="utf-8"))["provenance"]["source_hashes"]
     evidence = {
         "schema_version": 1,
@@ -252,13 +266,58 @@ def _write_comparison_evidence(tmp_path, catalog, slug, **overrides):
         "comparison": "wind_excel",
         "result": "passed",
         "input_source_hashes": source_hashes,
-        "golden_result": {"path": expected.name, "sha256": digest},
-        "actual_result": {"path": actual.name, "sha256": digest},
+        "golden_result": {"path": expected.name, "sha256": golden_digest},
+        "actual_result": {"path": actual.name, "sha256": actual_digest},
     }
     evidence.update(overrides)
     artifact = evidence_dir / "comparison.json"
     artifact.write_text(json.dumps(evidence), encoding="utf-8")
     return artifact, actual
+
+
+def test_comparison_receipt_accepts_real_cli_business_equivalent_result(tmp_path):
+    slug = "daily-market-brief"
+    catalog = CapabilityCatalog(tmp_path)
+    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug)
+    expected = artifact.parent / "golden-result.json"
+
+    assert actual.read_bytes() != expected.read_bytes()
+    assert json.loads(actual.read_bytes()) == json.loads(expected.read_bytes())
+    receipt = catalog.record_comparison_receipt(artifact)
+    assert receipt["actual_result_sha256"] != receipt["golden_result_sha256"]
+
+
+def test_comparison_receipt_rejects_digest_valid_business_difference(tmp_path):
+    slug = "daily-market-brief"
+    catalog = CapabilityCatalog(tmp_path)
+    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug)
+    result = json.loads(actual.read_bytes())
+    result["metrics"]["average_change_pct"] += 0.01
+    actual.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+    evidence = json.loads(artifact.read_text(encoding="utf-8"))
+    evidence["actual_result"]["sha256"] = hashlib.sha256(actual.read_bytes()).hexdigest()
+    artifact.write_text(json.dumps(evidence), encoding="utf-8")
+
+    with pytest.raises(CapabilityError) as error:
+        catalog.record_comparison_receipt(artifact)
+    assert error.value.code == "invalid_comparison_evidence"
+
+
+def test_comparison_business_values_use_numeric_tolerance_and_exact_labels():
+    compare = CapabilityCatalog._comparison_results_equal
+    expected = {
+        "metric": 100.0,
+        "date": "2026-09-12",
+        "category": "industry",
+        "signal": "up",
+    }
+    within_tolerance = {**expected, "metric": 100.00009}
+    outside_tolerance = {**expected, "metric": 100.0002}
+    wrong_label = {**expected, "signal": "down"}
+
+    assert compare(expected, within_tolerance) is True
+    assert compare(expected, outside_tolerance) is False
+    assert compare(expected, wrong_label) is False
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -1081,6 +1140,59 @@ print(json.dumps(result, ensure_ascii=False, sort_keys=True, allow_nan=False))
             sort_keys=True,
         )
     )
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_calculator_cli_exact_65536_byte_stdout_completes_in_real_sandbox(slug, tmp_path):
+    research_root = tmp_path / "research"
+    session = research_root / "sessions" / str(uuid4())
+    for name in ("inputs", "outputs", "tmp", "resources"):
+        (session / name).mkdir(parents=True)
+    scripts = session / "resources" / "calculator" / "scripts"
+    scripts.mkdir(parents=True)
+    shutil.copy2(SKILLS_ROOT / slug / "scripts/calculate.py", scripts / "calculate.py")
+    shutil.copy2(SKILLS_ROOT / "_shared/cpu_budget.py", scripts / "cpu_budget.py")
+    shutil.copy2(SKILLS_ROOT / "_shared/input_contract.py", scripts / "input_contract.py")
+    code = """
+import sys
+from pathlib import Path
+scripts = Path(__SCRIPTS__)
+sys.path.insert(0, str(scripts))
+namespace = {'__name__': 'reviewed_skill_resource'}
+source = (scripts / 'calculate.py').read_text(encoding='utf-8')
+exec(compile(source, 'scripts/calculate.py', 'exec'), namespace)
+namespace['load_relative_json'] = lambda *_args, **_kwargs: ({}, 0)
+namespace['calculate'] = lambda *_args, **_kwargs: {}
+namespace['strict_json_dumps'] = lambda *_args, **_kwargs: 'x' * 65536
+if namespace['main'](['input.json']) != 0:
+    raise RuntimeError('calculator main failed')
+""".replace("__SCRIPTS__", repr(str(scripts)))
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT / "app/research_web/sandbox.py"),
+            "--research-root",
+            str(research_root),
+            "--python",
+            sys.executable,
+            "--session",
+            str(session),
+            "--timeout",
+            "9",
+            "--max-output",
+            "65536",
+        ],
+        input=json.dumps({"code": code}),
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    supervisor = json.loads(result.stdout)
+    assert supervisor["status"] == "completed", supervisor
+    assert supervisor["stderr"] == ""
+    assert len(supervisor["stdout"].encode("utf-8")) == 65536
 
 
 def test_large_provenance_and_text_fail_with_compact_json_inside_real_sandbox(tmp_path):
