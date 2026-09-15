@@ -8,6 +8,7 @@ from typing import Any, TypeVar
 
 ErrorT = TypeVar("ErrorT", bound=ValueError)
 ErrorFactory = Callable[[str], ErrorT]
+SOURCE_KEY_LINE_SEPARATORS = frozenset("\r\n\u2028\u2029")
 
 DATA_CONTRACT_FIELDS = frozenset(
     {
@@ -81,6 +82,7 @@ def validate_source_hashes(
             not isinstance(source, str)
             or not source
             or source != source.strip()
+            or any(separator in source for separator in SOURCE_KEY_LINE_SEPARATORS)
             or not isinstance(digest, str)
             or len(digest) != 64
             or any(character not in "0123456789abcdef" for character in digest.lower())

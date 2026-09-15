@@ -658,9 +658,11 @@
   从父进程采样 RSS，不调用系统 `ps` 或引入新执行权限。
 - 最终复审区分缺失与显式 null 来源哈希：仅字段缺失允许降级；显式 null、空白 key 或带首尾空白的
   非规范 key 固定返回 `invalid_source_hashes`，不再静默 trim 或合并碰撞 key。
+- schema/运行时允许集合进一步对齐：来源 key 内部出现 CR、LF、U+2028 或 U+2029 同样固定拒绝。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"共享输入契约和预算错误投影只收紧既有research_run_script内部计算器，不新增进程、服务、权限或跨边界数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项内置Skill改为receipt门控的disabled初始状态，仍使用既有目录、版本、检查与选择状态机。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"严格日期、CNY和来源哈希验证只收紧既有计算器输入；psutil仅用于测试进程观测，不进入产品Runtime。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"clean目录测试确认disabled六项不进入既有原生provider candidate投影，能力拓扑和状态机不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"来源哈希仅收紧既有共享输入校验和六份schema，不增加执行节点、权限或数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"来源key换行分隔符拒绝仅对齐既有共享校验与schema允许集合，不改变拓扑、权限或数据流。","diagrams":[]} -->

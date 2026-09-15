@@ -92,7 +92,7 @@ ETF 分类或缺失暴露，也不把事件样本不足时的 beta 默认成 1�
 字段映射、来源 provenance、synthetic golden 及受审计算脚本。运行时严格校验 provider、mapping
 及版本、单位、日期语义和复权口径，拒绝晚于结果 `as_of` 的记录与 dataset ref；不等价数据固定
 返回 `data_not_equivalent`。日期只接受 `YYYY-MM-DD`，CNY 计算器拒绝矛盾币种；来源哈希只接受
-规范非空 key 与 SHA-256 value，显式 null/非规范 key 被拒绝，字段缺失时以 partial/limitation 降级。
+规范非空 key 与 SHA-256 value，显式 null、首尾空白或含 CR/LF/Unicode 行段分隔符的 key 被拒绝，字段缺失时以 partial/limitation 降级。
 六项能力在真实 Wind/Excel 对照尚未完成时保持可发现但 disabled，且不
 进入原生 provider candidate 目录；只有登记 macOS Wind 对照 receipt 后才可启用。`cpu_bounded_v1` 的预算、输入契约、结果和 provenance
 资源在种子构建时复制进不可变版本并参与哈希。

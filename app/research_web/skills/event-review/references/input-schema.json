@@ -102,7 +102,7 @@
             "propertyNames": {
                 "type": "string",
                 "minLength": 1,
-                "pattern": "^\\S(?:.*\\S)?$"
+                "pattern": "^(?!.*[\\r\\n\\u2028\\u2029])\\S(?:.*\\S)?$"
             },
             "additionalProperties": {
                 "type": "string",

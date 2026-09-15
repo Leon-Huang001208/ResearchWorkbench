@@ -19,6 +19,7 @@ from pathlib import Path
 import psutil
 import pytest
 import yaml
+from jsonschema import Draft202012Validator
 
 from app.research_web.capabilities.catalog import CapabilityCatalog
 from app.research_web.capabilities.models import CapabilityError
@@ -401,6 +402,10 @@ def test_source_hashes_are_validated_or_explicitly_degraded(slug):
         None,
         {" ": digest},
         {" source ": digest, "source": "b" * 64},
+        {"source\nname": digest},
+        {"source\rname": digest},
+        {"source\u2028name": digest},
+        {"source\u2029name": digest},
     ):
         invalid = copy.deepcopy(payload)
         invalid["source_hashes"] = invalid_hashes
@@ -413,13 +418,23 @@ def test_all_source_hash_schemas_require_canonical_nonblank_keys():
     expected = {
         "type": "string",
         "minLength": 1,
-        "pattern": r"^\S(?:.*\S)?$",
+        "pattern": r"^(?!.*[\r\n\u2028\u2029])\S(?:.*\S)?$",
     }
     for slug in SLUGS:
         schema = json.loads(
             (SKILLS_ROOT / slug / "references/input-schema.json").read_text(encoding="utf-8")
         )
-        assert schema["properties"]["source_hashes"]["propertyNames"] == expected
+        property_names = schema["properties"]["source_hashes"]["propertyNames"]
+        assert property_names == expected
+        validator = Draft202012Validator({"type": "object", "propertyNames": property_names})
+        assert not list(validator.iter_errors({"source name": "value"}))
+        for invalid_key in (
+            "source\nname",
+            "source\rname",
+            "source\u2028name",
+            "source\u2029name",
+        ):
+            assert list(validator.iter_errors({invalid_key: "value"}))
 
 
 @pytest.mark.parametrize("slug", ["daily-market-brief", "etf-flow-monitor"])

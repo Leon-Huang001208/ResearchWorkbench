@@ -28,6 +28,7 @@
   原生 provider candidates，压力测试改由 psutil 跨平台采样子进程 RSS，不依赖系统 `ps` 路径。
 - 来源哈希契约进一步区分字段缺失与显式 null：仅缺失允许降级；null、空白或首尾带空白的 key
   稳定返回 `invalid_source_hashes`，不会通过 trim 静默改名或合并碰撞来源。
+- 统一 schema 与运行时的来源 key 允许集合，内部含 CR、LF、U+2028 或 U+2029 的 key 同样稳定拒绝。
 - Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
 
 ### CPU 有界投研公共底座 · 2026-09-14

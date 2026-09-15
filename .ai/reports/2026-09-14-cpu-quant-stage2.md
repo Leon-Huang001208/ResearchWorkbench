@@ -112,6 +112,14 @@ project constraints、task completion 与 `git diff --check` 均通过；未重�
 project constraints（28 个最终变更文件）、task completion 与 `git diff --check` 均通过。本轮只执行
 聚焦短测，没有重复 Stage 2 或能力全回归。
 
+最终 schema/运行时一致性复审先加入六计算器的 CR、LF、U+2028、U+2029 key 反例，并用
+Draft 2020-12 validator 直接验证六份 `propertyNames` 行为；RED 为
+`7 failed, 73 deselected in 0.42s`。共享 validator 与统一 schema pattern 随后明确拒绝四类换行
+分隔符，普通内部空格仍允许；GREEN 为 `7 passed, 73 deselected in 0.29s`，资源完整性组合复跑为
+`8 passed, 72 deselected in 0.33s`。本轮两个 Python 目标通过 ruff、black、isort，共享生产目标通过
+mypy；六份 schema 解析、架构、doc-sync、project constraints（22 个变更文件）、task completion 与
+`git diff --check` 均通过。本轮继续只运行聚焦短门。
+
 不会把未执行的平台或真实数据验证写成已通过。
 
 ## 未验证项

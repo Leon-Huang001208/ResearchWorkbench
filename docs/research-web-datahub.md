@@ -182,7 +182,7 @@ files条目包含name/path/sha256/size/url/kind=dataset；url为上述专用下�
 输入 `data_contract` 在运行时逐项核验；provider、mapping/version、单位、日期语义或复权不匹配时
 固定返回 `data_not_equivalent`，记录及 dataset ref 晚于结果 `as_of` 时固定返回 `future_data`。当前
 日期输入只接受 `YYYY-MM-DD`；每日简报和 ETF 资金流固定使用 CNY。可选 `source_hashes` 存在时逐项
-校验规范非空 key 与 SHA-256 value，显式 null 或带首尾空白的 key 固定失败；字段缺失时保留空哈希
+校验规范非空 key 与 SHA-256 value，显式 null、带首尾空白或包含 CR/LF/Unicode 行段分隔符的 key 固定失败；字段缺失时保留空哈希
 并以 partial/limitation 降级，不补造、静默改名或合并来源证据。
 Wind Provider 没有等价 ETF 份额、宏观、基金/北向暴露或研究覆盖方法时明确
 `data_not_equivalent`，必须经过其他可调用来源或用户数据 fallback gate，不声称 Wind callable。
