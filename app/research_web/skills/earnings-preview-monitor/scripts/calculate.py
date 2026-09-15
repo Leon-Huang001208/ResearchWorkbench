@@ -6,17 +6,18 @@ import json
 import logging
 import math
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    iso_day,
     reject_future,
     safe_error_payload,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
+    validate_source_hashes,
 )
 
 LOGGER = logging.getLogger("research.skill.earnings_preview_monitor")
@@ -66,11 +67,7 @@ def _text(value: Any) -> str:
 
 
 def _day(value: Any) -> str:
-    value = _text(value)
-    try:
-        return date.fromisoformat(value).isoformat()
-    except ValueError as exc:
-        raise CalculatorError("invalid_date") from exc
+    return iso_day(value, error=CalculatorError)
 
 
 def _number(value: Any) -> float:
@@ -136,6 +133,9 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
     )
+    source_hashes, source_limitations = validate_source_hashes(
+        payload.get("source_hashes"), error=CalculatorError
+    )
     normalized = []
     counts = {"negative": 0, "zero_to_20": 0, "20_to_50": 0, "50_plus": 0}
     exposure_values: dict[str, list[float]] = {field: [] for field in OPTIONAL_EXPOSURES}
@@ -189,6 +189,8 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         for field, values in exposure_values.items()
     }
     missing = [field for field, values in exposure_values.items() if len(values) < len(normalized)]
+    limitations = [f"missing_optional_field:{field}" for field in missing]
+    limitations.extend(source_limitations)
     return {
         "protocol": "cpu_bounded_v1",
         "skill_slug": SKILL_SLUG,
@@ -197,7 +199,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "as_of": as_of,
         "parameters": params,
         "dataset_refs": refs,
-        "status": "partial" if missing else "complete",
+        "status": "partial" if limitations else "complete",
         "metrics": {
             "record_count": len(normalized),
             "growth_midpoint_distribution": [
@@ -207,11 +209,11 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             "provided_field_summaries": summaries,
         },
         "rows": normalized,
-        "limitations": [f"missing_optional_field:{field}" for field in missing],
+        "limitations": limitations,
         "research_only": True,
         "provenance": {
             "dataset_refs": refs,
-            "source_hashes": payload.get("source_hashes", {}),
+            "source_hashes": source_hashes,
             "rights": "internal-only",
             "transformations": [
                 "validate_intervals",

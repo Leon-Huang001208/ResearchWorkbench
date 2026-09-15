@@ -652,6 +652,12 @@
   未来记录与未来 dataset ref；CLI 仅保留安全的工作量超限元数据。
 - 六项真实 Wind/Excel 对照尚未执行，因此内置种子可发现但初始 disabled；已有能力目录、不可变版本、
   DataHub 快照、DSH 原生发现和脚本执行拓扑不变。
+- 后续复审把日期收紧为 `YYYY-MM-DD`、daily/ETF 币种固定 CNY，并统一验证来源 SHA-256；哈希缺失
+  以 partial/limitation 降级。daily 所有集合与非负整数 breadth 与 schema 运行时一致。
+- clean catalog 测试证明 disabled 六项不进入原生 provider candidates；压力测试改用已有 psutil
+  从父进程采样 RSS，不调用系统 `ps` 或引入新执行权限。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"共享输入契约和预算错误投影只收紧既有research_run_script内部计算器，不新增进程、服务、权限或跨边界数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项内置Skill改为receipt门控的disabled初始状态，仍使用既有目录、版本、检查与选择状态机。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"严格日期、CNY和来源哈希验证只收紧既有计算器输入；psutil仅用于测试进程观测，不进入产品Runtime。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"clean目录测试确认disabled六项不进入既有原生provider candidate投影，能力拓扑和状态机不变。","diagrams":[]} -->

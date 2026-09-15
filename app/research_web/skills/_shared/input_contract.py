@@ -40,8 +40,15 @@ def strict_object(
 
 
 def iso_day(value: Any, *, error: ErrorFactory) -> str:
-    if not isinstance(value, str) or not value.strip():
+    if not isinstance(value, str) or not value:
         raise error("invalid_field_type")
+    if (
+        len(value) != 10
+        or value[4] != "-"
+        or value[7] != "-"
+        or not (value[:4] + value[5:7] + value[8:]).isdigit()
+    ):
+        raise error("invalid_date")
     try:
         return date.fromisoformat(value).isoformat()
     except ValueError as exc:
@@ -53,6 +60,30 @@ def reject_future(value: Any, *, as_of: str, error: ErrorFactory) -> str:
     if normalized > as_of:
         raise error("future_data")
     return normalized
+
+
+def validate_source_hashes(
+    value: Any,
+    *,
+    error: ErrorFactory,
+) -> tuple[dict[str, str], list[str]]:
+    """Normalize supplied source digests or mark missing provenance explicitly."""
+    if value is None or value == {}:
+        return {}, ["source_hashes_missing"]
+    if not isinstance(value, dict):
+        raise error("invalid_source_hashes")
+    normalized: dict[str, str] = {}
+    for source, digest in value.items():
+        if (
+            not isinstance(source, str)
+            or not source.strip()
+            or not isinstance(digest, str)
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest.lower())
+        ):
+            raise error("invalid_source_hashes")
+        normalized[source.strip()] = digest.lower()
+    return normalized, []
 
 
 def validate_data_contract(

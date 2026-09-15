@@ -6,17 +6,18 @@ import json
 import logging
 import math
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    iso_day,
     reject_future,
     safe_error_payload,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
+    validate_source_hashes,
 )
 
 LOGGER = logging.getLogger("research.skill.earnings_report_monitor")
@@ -54,11 +55,7 @@ def _text(value: Any) -> str:
 
 
 def _day(value: Any) -> str:
-    value = _text(value)
-    try:
-        return date.fromisoformat(value).isoformat()
-    except ValueError as exc:
-        raise CalculatorError("invalid_date") from exc
+    return iso_day(value, error=CalculatorError)
 
 
 def _number(value: Any) -> float:
@@ -124,6 +121,9 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
     )
+    source_hashes, source_limitations = validate_source_hashes(
+        payload.get("source_hashes"), error=CalculatorError
+    )
     expected_count = params.get("expected_count")
     if type(expected_count) is not int or expected_count < len(records) or expected_count <= 0:
         raise CalculatorError("invalid_field_type")
@@ -159,6 +159,10 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             values.append(row[field])
         normalized.append(row)
     normalized.sort(key=lambda row: (row["disclosure_date"], row["security"]))
+    limitations = (
+        [] if len(normalized) == expected_count else ["expected_universe_not_fully_disclosed"]
+    )
+    limitations.extend(source_limitations)
     return {
         "protocol": "cpu_bounded_v1",
         "skill_slug": SKILL_SLUG,
@@ -167,7 +171,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "as_of": as_of,
         "parameters": {"expected_count": expected_count},
         "dataset_refs": refs,
-        "status": "complete" if len(normalized) == expected_count else "partial",
+        "status": "partial" if limitations else "complete",
         "metrics": {
             "disclosed_count": len(normalized),
             "expected_count": expected_count,
@@ -177,13 +181,11 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             },
         },
         "rows": normalized,
-        "limitations": (
-            [] if len(normalized) == expected_count else ["expected_universe_not_fully_disclosed"]
-        ),
+        "limitations": limitations,
         "research_only": True,
         "provenance": {
             "dataset_refs": refs,
-            "source_hashes": payload.get("source_hashes", {}),
+            "source_hashes": source_hashes,
             "rights": "internal-only",
             "transformations": [
                 "validate_complete_fields",

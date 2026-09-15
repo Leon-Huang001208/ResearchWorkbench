@@ -5,17 +5,18 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    iso_day,
     reject_future,
     safe_error_payload,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
+    validate_source_hashes,
 )
 
 LOGGER = logging.getLogger("research.skill.policy_sentinel")
@@ -52,11 +53,7 @@ def _text(value: Any) -> str:
 
 
 def _day(value: Any) -> str:
-    value = _text(value)
-    try:
-        return date.fromisoformat(value).isoformat()
-    except ValueError as exc:
-        raise CalculatorError("invalid_date") from exc
+    return iso_day(value, error=CalculatorError)
 
 
 def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
@@ -99,6 +96,9 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         as_of=as_of,
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
+    )
+    source_hashes, source_limitations = validate_source_hashes(
+        payload.get("source_hashes"), error=CalculatorError
     )
     keywords = parameters.get("keywords")
     start_date = _day(parameters.get("start_date"))
@@ -157,7 +157,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             "end_date": end_date,
         },
         "dataset_refs": refs,
-        "status": "complete",
+        "status": "partial" if source_limitations else "complete",
         "metrics": {
             "matched_record_count": len(timeline),
             "unique_impact_object_count": len(
@@ -165,11 +165,14 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             ),
         },
         "rows": timeline,
-        "limitations": ["potential_impacts_are_source_supplied_not_investment_advice"],
+        "limitations": [
+            "potential_impacts_are_source_supplied_not_investment_advice",
+            *source_limitations,
+        ],
         "research_only": True,
         "provenance": {
             "dataset_refs": refs,
-            "source_hashes": payload.get("source_hashes", {}),
+            "source_hashes": source_hashes,
             "rights": "internal-only",
             "transformations": [
                 "validate_evidence",

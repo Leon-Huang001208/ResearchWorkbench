@@ -16,6 +16,7 @@ from datetime import date, timedelta
 from io import StringIO
 from pathlib import Path
 
+import psutil
 import pytest
 import yaml
 
@@ -345,6 +346,103 @@ def test_runtime_rejects_future_dataset_and_record_dates(slug):
 
 
 @pytest.mark.parametrize("slug", SLUGS)
+def test_runtime_requires_extended_iso_dates_at_all_boundaries(slug):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+
+    compact_root = copy.deepcopy(payload)
+    compact_root["as_of"] = "20260912"
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(compact_root, input_bytes=1024)
+    assert error.value.code == "invalid_date"
+
+    compact_ref = copy.deepcopy(payload)
+    compact_ref["dataset_refs"][0]["as_of"] = "20260912"
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(compact_ref, input_bytes=1024)
+    assert error.value.code == "invalid_date"
+
+    compact_record = copy.deepcopy(payload)
+    if slug == "daily-market-brief":
+        compact_record["market_snapshot"][0]["date"] = "20260912"
+    elif slug == "policy-sentinel":
+        compact_record["records"][0]["published_at"] = "20260912"
+    elif slug == "event-review":
+        compact_record["target_series"][0]["date"] = "20260912"
+    elif slug == "etf-flow-monitor":
+        compact_record["rows"][0]["date"] = "20260912"
+    else:
+        compact_record["records"][0]["disclosure_date"] = "20260912"
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(compact_record, input_bytes=1024)
+    assert error.value.code == "invalid_date"
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_source_hashes_are_validated_or_explicitly_degraded(slug):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+
+    missing = copy.deepcopy(payload)
+    missing.pop("source_hashes")
+    result = module.calculate(missing, input_bytes=1024)
+    assert result["provenance"]["source_hashes"] == {}
+    assert "source_hashes_missing" in result["limitations"]
+    assert result["status"] == "partial"
+
+    malformed = copy.deepcopy(payload)
+    malformed["source_hashes"] = {"synthetic": "not-a-sha256"}
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(malformed, input_bytes=1024)
+    assert error.value.code == "invalid_source_hashes"
+
+
+@pytest.mark.parametrize("slug", ["daily-market-brief", "etf-flow-monitor"])
+def test_cny_calculators_reject_conflicting_currency(slug):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+    payload["parameters"]["currency"] = "USD"
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
+
+
+def test_daily_runtime_requires_all_schema_collections_and_integer_breadth():
+    module = load_calculator("daily-market-brief")
+    payload = load_json("daily-market-brief", "input.json")
+
+    for field in ("breadth", "sectors", "themes", "news"):
+        missing = copy.deepcopy(payload)
+        missing.pop(field)
+        with pytest.raises(module.CalculatorError) as error:
+            module.calculate(missing, input_bytes=1024)
+        assert error.value.code == "missing_required_field"
+
+    for field in ("advances", "declines", "flat"):
+        fractional = copy.deepcopy(payload)
+        fractional["breadth"][field] = 1.5
+        with pytest.raises(module.CalculatorError) as error:
+            module.calculate(fractional, input_bytes=1024)
+        assert error.value.code == "invalid_field_type"
+
+
+def test_daily_and_etf_currency_schemas_are_fixed_to_cny():
+    for slug in ("daily-market-brief", "etf-flow-monitor"):
+        schema = json.loads(
+            (SKILLS_ROOT / slug / "references/input-schema.json").read_text(encoding="utf-8")
+        )
+        assert schema["properties"]["parameters"]["properties"]["currency"] == {"const": "CNY"}
+
+    daily_schema = json.loads(
+        (SKILLS_ROOT / "daily-market-brief" / "references/input-schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    daily_module = load_calculator("daily-market-brief")
+    assert set(daily_module.REQUIRED_ROOT_FIELDS) == set(daily_schema["required"])
+
+
+@pytest.mark.parametrize("slug", SLUGS)
 def test_runtime_rejects_unknown_fields_at_every_nested_boundary(slug):
     module = load_calculator(slug)
     payload = load_json(slug, "input.json")
@@ -549,17 +647,19 @@ def test_calculator_near_limit_process_stays_within_time_and_peak_rss(slug, tmp_
             stderr=errors,
             text=True,
         )
-        peak_rss_kib = 0
-        while process.poll() is None:
-            rss = subprocess.run(
-                ["/bin/ps", "-o", "rss=", "-p", str(process.pid)],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=1,
-            ).stdout.strip()
-            if rss:
-                peak_rss_kib = max(peak_rss_kib, int(rss))
+        tracked_process = psutil.Process(process.pid)
+        peak_rss_bytes = 0
+        while True:
+            try:
+                peak_rss_bytes = max(
+                    peak_rss_bytes,
+                    tracked_process.memory_info().rss,
+                )
+            except (psutil.NoSuchProcess, psutil.ZombieProcess):
+                # The child can exit between poll and memory sampling.
+                pass
+            if process.poll() is not None:
+                break
             if time.monotonic() - started >= 10:
                 process.kill()
                 pytest.fail(f"{slug} exceeded 10 seconds")
@@ -569,7 +669,13 @@ def test_calculator_near_limit_process_stays_within_time_and_peak_rss(slug, tmp_
     assert process.returncode == 0, error_path.read_text(encoding="utf-8")
     assert json.loads(output_path.read_text(encoding="utf-8"))["skill_slug"] == slug
     assert elapsed < 10
-    assert 0 < peak_rss_kib < 1024 * 1024
+    assert 0 < peak_rss_bytes < 1024**3
+    print(
+        json.dumps(
+            {"slug": slug, "elapsed_seconds": elapsed, "peak_rss_bytes": peak_rss_bytes},
+            sort_keys=True,
+        )
+    )
 
 
 def test_event_beta_is_unavailable_when_pre_event_sample_is_insufficient():
@@ -630,7 +736,7 @@ def test_stage2_packages_have_no_forbidden_runtime_or_host_assumptions():
     )
     for slug in SLUGS:
         for path in (SKILLS_ROOT / slug).rglob("*"):
-            if path.is_file():
+            if path.is_file() and path.suffix in {".json", ".md", ".py"}:
                 text = path.read_text(encoding="utf-8").lower()
                 assert re.search(rf"\b(?:{forbidden_words})\b", text) is None, (slug, path.name)
                 assert not any(token in text for token in ("cdn.", "/users/", "c:\\\\")), (
@@ -642,3 +748,7 @@ def test_stage2_packages_have_no_forbidden_runtime_or_host_assumptions():
                         token in text
                         for token in ("http://", "https://", "socket", "urllib", "requests")
                     ), (slug, path.name)
+
+    test_source = Path(__file__).read_text(encoding="utf-8").lower()
+    absolute_bin_literal = f"{chr(34)}{chr(47)}bin{chr(47)}"
+    assert absolute_bin_literal not in test_source

@@ -6,17 +6,18 @@ import json
 import logging
 import math
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    iso_day,
     reject_future,
     safe_error_payload,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
+    validate_source_hashes,
 )
 
 LOGGER = logging.getLogger("research.skill.event_review")
@@ -56,11 +57,7 @@ def _text(value: Any) -> str:
 
 
 def _day(value: Any) -> str:
-    value = _text(value)
-    try:
-        return date.fromisoformat(value).isoformat()
-    except ValueError as exc:
-        raise CalculatorError("invalid_date") from exc
+    return iso_day(value, error=CalculatorError)
 
 
 def _number(value: Any, *, positive: bool = False) -> float:
@@ -149,6 +146,9 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=DATASET_PROVIDERS,
         error=CalculatorError,
     )
+    source_hashes, source_limitations = validate_source_hashes(
+        payload.get("source_hashes"), error=CalculatorError
+    )
     pre_days = params.get("pre_days")
     post_days = params.get("post_days")
     if type(pre_days) is not int or type(post_days) is not int or pre_days < 1 or post_days < 1:
@@ -182,7 +182,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         if day < event and day in target_returns and day in benchmark_returns
     ]
     beta_status: dict[str, Any]
-    limitations = []
+    limitations = list(source_limitations)
     if len(beta_days) < MIN_BETA_OBSERVATIONS:
         beta_status = {
             "status": "unavailable",
@@ -250,7 +250,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "research_only": True,
         "provenance": {
             "dataset_refs": refs,
-            "source_hashes": payload.get("source_hashes", {}),
+            "source_hashes": source_hashes,
             "rights": "internal-only",
             "transformations": [
                 "align_dates",

@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.research_web.capabilities.catalog import CapabilityCatalog
+from app.research_web.capabilities.seeds import RECEIPT_GATED_SKILLS
 from app.research_web.capabilities.tools import PIN, tool_catalog
 
 
@@ -43,15 +44,32 @@ def source():
     return root
 
 
+def test_clean_catalog_native_candidates_match_enabled_capabilities(tmp_path):
+    catalog = CapabilityCatalog(tmp_path)
+    rows = catalog.list()["items"]
+    enabled = {row["native_name"] for row in rows if row["status"] == "enabled"}
+    disabled = {row["native_name"] for row in rows if row["id"] in RECEIPT_GATED_SKILLS}
+
+    assert disabled
+    assert all(row["status"] == "disabled" for row in rows if row["id"] in RECEIPT_GATED_SKILLS)
+    native_root = catalog.prepare_native_root()
+    candidates = {path.name for path in native_root.iterdir()}
+    assert candidates == enabled
+    assert candidates.isdisjoint(disabled)
+
+
 def test_native_provider_discovers_loads_and_watches_only_product_root(source, tmp_path):
     catalog = CapabilityCatalog(tmp_path)
+    rows = catalog.list()["items"]
+    enabled_count = sum(row["status"] == "enabled" for row in rows)
+    disabled_names = [row["native_name"] for row in rows if row["id"] in RECEIPT_GATED_SKILLS]
     script = r"""
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 const { FileSystemSkillProvider } = await import(pathToFileURL(join(process.cwd(), 'packages/skill/skill-filesystem/src/index.ts')));
-const [root, nativeRoot] = process.argv.slice(1);
+const [root, nativeRoot, expectedCount, disabledJson] = process.argv.slice(1);
 await mkdir(join(root, '.agents/skills/host-canary'), { recursive: true });
 await writeFile(join(root, '.agents/skills/host-canary/SKILL.md'), '---\nname: host-canary\ndescription: forbidden\n---\nnot product');
 const controller = new AbortController();
@@ -61,7 +79,8 @@ const provider=new FileSystemSkillProvider(ctx,{signal:controller.signal,invalid
 try {
   const candidates=await provider.list({cwd:root});
   assert.ok(Array.isArray(candidates));
-  assert.equal(candidates.length,21);
+  assert.equal(candidates.length,Number(expectedCount));
+  assert.ok(JSON.parse(disabledJson).every(name=>!candidates.some(c=>c.name===name)));
   assert.ok(!candidates.some(c=>c.name==='host-canary'));
   const company=candidates.find(c=>c.name==='company-research');
   const loaded=await provider.get(company,{cwd:root});
@@ -83,12 +102,21 @@ try {
   for(let i=0;i<100 && invalidations===count;i++) await new Promise(r=>setTimeout(r,20));
   assert.ok(invalidations>count);
   assert.ok(!(await provider.list({cwd:root})).some(c=>c.name==='rwb-test-v1'));
-  console.log(JSON.stringify({discovered:21,loaded:true,watch:true,hostRootExcluded:true}));
+  console.log(JSON.stringify({discovered:candidates.length,loaded:true,watch:true,hostRootExcluded:true}));
 } finally {await provider.dispose();controller.abort();}
 """
-    result = json.loads(node(source, script, tmp_path, catalog.native_root).strip())
+    result = json.loads(
+        node(
+            source,
+            script,
+            tmp_path,
+            catalog.native_root,
+            enabled_count,
+            json.dumps(disabled_names),
+        ).strip()
+    )
     assert result == {
-        "discovered": 21,
+        "discovered": enabled_count,
         "loaded": True,
         "watch": True,
         "hostRootExcluded": True,

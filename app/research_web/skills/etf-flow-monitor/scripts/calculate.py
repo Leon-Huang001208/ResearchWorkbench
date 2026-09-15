@@ -6,17 +6,18 @@ import json
 import logging
 import math
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    iso_day,
     reject_future,
     safe_error_payload,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
+    validate_source_hashes,
 )
 
 LOGGER = logging.getLogger("research.skill.etf_flow_monitor")
@@ -49,11 +50,7 @@ def _text(value: Any) -> str:
 
 
 def _day(value: Any) -> str:
-    value = _text(value)
-    try:
-        return date.fromisoformat(value).isoformat()
-    except ValueError as exc:
-        raise CalculatorError("invalid_date") from exc
+    return iso_day(value, error=CalculatorError)
 
 
 def _number(value: Any, *, positive: bool = False) -> float:
@@ -100,12 +97,17 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         allowed=frozenset({"currency"}),
         error=CalculatorError,
     )
-    _text(params["currency"])
+    if params["currency"] != "CNY":
+        raise CalculatorError("data_not_equivalent")
+    params = {"currency": "CNY"}
     refs = validate_dataset_refs(
         payload["dataset_refs"],
         as_of=as_of,
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
+    )
+    source_hashes, source_limitations = validate_source_hashes(
+        payload.get("source_hashes"), error=CalculatorError
     )
     normalized: list[dict[str, Any]] = []
     grouped: dict[str, dict[str, float]] = {"type": {}, "industry": {}, "theme": {}}
@@ -166,7 +168,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "as_of": as_of,
         "parameters": params,
         "dataset_refs": refs,
-        "status": "complete",
+        "status": "partial" if source_limitations else "complete",
         "metrics": {
             "etf_count": len(normalized),
             "total_estimated_flow": sum(row["estimated_flow"] for row in normalized),
@@ -176,11 +178,12 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "limitations": [
             "flow_equals_share_change_times_supplied_nav",
             "classifications_are_user_supplied",
+            *source_limitations,
         ],
         "research_only": True,
         "provenance": {
             "dataset_refs": refs,
-            "source_hashes": payload.get("source_hashes", {}),
+            "source_hashes": source_hashes,
             "rights": "internal-only",
             "transformations": [
                 "validate_classification",

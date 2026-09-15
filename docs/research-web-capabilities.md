@@ -31,7 +31,8 @@ Quality Gate 与旧报告编译链没有恢复。
 `app/research_web/skills/_shared/` 另维护 `cpu_bounded_v1` 公共资源约定：`cpu_budget.py` 提供
 50,000 行/64 MiB 累计输入、5,000 行单序列、50 标的 × 1,000 行和 16 MiB 累计制品的确定性验证，
 超限固定 `workload_too_large` 且不截断；`input_contract.py` 校验 provider、mapping/version、单位、
-日期语义、复权与未来数据，CLI 只公开安全的 limit/actual/reduce-scope 超限元数据；结果与 provenance 协议规定 `as_of`、规范化 parameters、
+日期语义、复权与未来数据，日期只接受扩展格式 `YYYY-MM-DD`，并统一校验可选 `source_hashes` 的
+SHA-256；哈希缺失时结果以 limitation 明确降级。CLI 只公开安全的 limit/actual/reduce-scope 超限元数据；结果与 provenance 协议规定 `as_of`、规范化 parameters、
 dataset refs、status、limitations、method version、source hashes 和 `internal-only` rights。它们是供
 后续 reviewed calculator 种子复制并哈希封存的资源，不注册为独立 Skill，也不增加工具权限。
 
@@ -186,7 +187,9 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 分类，两类业绩计算器不补齐缺失字段或暴露。每个包独立携带 provenance、synthetic fixture/golden，
 种子还复制共享预算、输入契约、结果和 provenance 协议进入不可变版本并重新计算 reviewed script
 哈希。六项在真实 Wind/Excel 对照尚未执行时初始为 disabled：目录可发现、详情可检查，但执行选择
-返回 `capability_disabled`；只有登记成功的 macOS Wind 对照 receipt 后方可启用。
+返回 `capability_disabled`，也不会投影进 DSH 原生 provider candidate 目录；只有登记成功的 macOS
+Wind 对照 receipt 后方可启用。每日简报的五类数据集合均为必填，市场宽度只接受非负整数；每日简报
+与 ETF 资金流的币种固定为 CNY。
 
 不登记独立研究路由 Skill；触发与反向条件写入每个包的 frontmatter、产品说明和分类，交给
 现有 DSH Skill discovery。五个专用 Skill 的 `default_formats=[]`，默认在聊天中回答；只有用户

@@ -85,6 +85,23 @@ JSON 解析、`check_research_architecture`、doc-sync、project constraints、t
 `10 passed, 53 deselected in 9.95s`；随后对最终 12 个 Python 变更目标复跑 ruff、black 与 isort，
 并对包含未跟踪共享契约文件在内的 50 个最终变更文件复跑 project constraints，均通过。
 
+第二轮规格复审继续先写失败测试：新增日期、来源哈希、CNY 口径、daily 必填集合/市场宽度及
+跨平台压力测试约束后，聚焦 RED 为 `17 failed, 62 deselected in 0.34s`。共享输入契约随后把日期
+固定为扩展格式 `YYYY-MM-DD`，统一验证六项 `source_hashes`；缺失哈希时保留空映射、添加
+`source_hashes_missing` 并把结果降级为 partial。daily 的运行时必填集合与 schema 对齐，breadth
+只接受非负整数；daily/ETF 的 currency 固定 CNY。clean catalog 的非 DSH 测试进一步证明六个
+disabled slug 不进入 native provider candidate 目录。
+
+新增行为首轮 GREEN 为 `18 passed, 64 deselected in 1.33s`；Stage 2 与 native 聚焦回归为
+`80 passed, 2 skipped in 3.23s`，两个 skip 仅是仍需 `DSH_SOURCE_ROOT` 的固定上游 provider/tool
+源码集成，而 clean catalog candidate 断言不依赖该环境且实际执行通过。压力测试改用项目已有
+psutil 7.2.2 从父进程采样 RSS 并处理退出竞态，不安装依赖、不调用系统 `ps`；六项复跑为
+`6 passed, 73 deselected in 0.72s`，最大单项耗时 `0.08903s`、最大 peak RSS
+`28,049,408 bytes`，均来自 policy-sentinel。
+最终对九个 Python 变更目标执行 ruff、black、isort，对七个生产目标逐项执行 mypy，结果均通过；
+包/schema 聚焦检查 `3 passed, 76 deselected in 1.49s`。`check_research_architecture`、doc-sync、
+project constraints、task completion 与 `git diff --check` 均通过；未重复长回归。
+
 不会把未执行的平台或真实数据验证写成已通过。
 
 ## 未验证项

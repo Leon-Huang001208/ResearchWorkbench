@@ -181,6 +181,8 @@ files条目包含name/path/sha256/size/url/kind=dataset；url为上述专用下�
 提供的披露/预告记录。包内 `field-mapping.json` 固定首选 Wind 字段、单位、日期与复权口径，并由
 输入 `data_contract` 在运行时逐项核验；provider、mapping/version、单位、日期语义或复权不匹配时
 固定返回 `data_not_equivalent`，记录及 dataset ref 晚于结果 `as_of` 时固定返回 `future_data`。当前
+日期输入只接受 `YYYY-MM-DD`；每日简报和 ETF 资金流固定使用 CNY。可选 `source_hashes` 存在时逐项
+校验 SHA-256，缺失时保留空哈希并以 partial/limitation 降级，不补造来源证据。
 Wind Provider 没有等价 ETF 份额、宏观、基金/北向暴露或研究覆盖方法时明确
 `data_not_equivalent`，必须经过其他可调用来源或用户数据 fallback gate，不声称 Wind callable。
 真实 Wind/Excel 对照尚未执行，因此六项内置 Skill 当前可发现但初始 disabled；登记成功的 macOS

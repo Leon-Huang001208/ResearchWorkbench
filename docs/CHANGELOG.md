@@ -23,6 +23,9 @@
   独立进程时间与 peak RSS 门禁。
 - 六个 Skill 在真实 Wind/Excel 对照未执行时初始为 disabled：能力中心仍可发现和检查，但不能选择
   执行；只有登记成功的 macOS Wind 对照 receipt 后方可显式启用。
+- 收紧运行时契约：日期仅接受 `YYYY-MM-DD`，每日简报的所有集合与非负整数市场宽度均为必填，
+  每日简报/ETF 币种固定 CNY；六脚本统一验证来源 SHA-256，缺失时明确降级。disabled 六项不会进入
+  原生 provider candidates，压力测试改由 psutil 跨平台采样子进程 RSS，不依赖系统 `ps` 路径。
 - Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
 
 ### CPU 有界投研公共底座 · 2026-09-14

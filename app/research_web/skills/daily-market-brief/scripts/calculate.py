@@ -6,33 +6,39 @@ import json
 import logging
 import math
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    iso_day,
     reject_future,
     safe_error_payload,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
+    validate_source_hashes,
 )
 
 LOGGER = logging.getLogger("research.skill.daily_market_brief")
 SKILL_SLUG = "daily-market-brief"
 METHOD_VERSION = "1.0.0"
-REQUIRED_ROOT_FIELDS = ("market_snapshot", "as_of", "dataset_refs", "parameters")
+REQUIRED_ROOT_FIELDS = (
+    "market_snapshot",
+    "breadth",
+    "sectors",
+    "themes",
+    "news",
+    "as_of",
+    "dataset_refs",
+    "parameters",
+    "data_contract",
+)
 PRIMARY_ROWS_FIELD = "market_snapshot"
 ALLOWED_ROOT_FIELDS = frozenset(
     (
         *REQUIRED_ROOT_FIELDS,
         "source_hashes",
-        "data_contract",
-        "breadth",
-        "sectors",
-        "themes",
-        "news",
     )
 )
 SUPPORTED_PROVIDERS = frozenset({"synthetic", "datahub"})
@@ -53,12 +59,7 @@ class CalculatorError(ValueError):
 
 
 def _day(value: Any) -> str:
-    if not isinstance(value, str):
-        raise CalculatorError("invalid_field_type")
-    try:
-        return date.fromisoformat(value).isoformat()
-    except ValueError as exc:
-        raise CalculatorError("invalid_date") from exc
+    return iso_day(value, error=CalculatorError)
 
 
 def _number(value: Any) -> float:
@@ -76,12 +77,20 @@ def _text(value: Any) -> str:
     return value.strip()
 
 
-def _list(payload: dict[str, Any], field: str, *, required: bool = False) -> list[Any]:
-    value = payload.get(field, [])
+def _list(payload: dict[str, Any], field: str) -> list[Any]:
+    if field not in payload:
+        raise CalculatorError("missing_required_field")
+    value = payload[field]
     if not isinstance(value, list):
         raise CalculatorError("invalid_field_type")
-    if required and not value:
-        raise CalculatorError("empty_input")
+    return value
+
+
+def _count(value: Any) -> int:
+    if type(value) is not int:
+        raise CalculatorError("invalid_field_type")
+    if value < 0:
+        raise CalculatorError("invalid_number")
     return value
 
 
@@ -99,7 +108,7 @@ def _base(
     budget.add_input(rows=rows, bytes_count=0)
     as_of = _day(payload["as_of"])
     validate_data_contract(
-        payload.get("data_contract"),
+        payload["data_contract"],
         mapping_id=SKILL_SLUG,
         mapping_version=METHOD_VERSION,
         units=CONTRACT_UNITS,
@@ -114,13 +123,17 @@ def _base(
         allowed=frozenset({"market", "currency"}),
         error=CalculatorError,
     )
-    _text(parameters["market"])
-    _text(parameters["currency"])
+    parameters = {"market": _text(parameters["market"]), "currency": parameters["currency"]}
+    if parameters["currency"] != "CNY":
+        raise CalculatorError("data_not_equivalent")
     refs = validate_dataset_refs(
         payload["dataset_refs"],
         as_of=as_of,
         providers=DATASET_PROVIDERS,
         error=CalculatorError,
+    )
+    source_hashes, source_limitations = validate_source_hashes(
+        payload.get("source_hashes"), error=CalculatorError
     )
     return budget, {
         "protocol": "cpu_bounded_v1",
@@ -130,6 +143,8 @@ def _base(
         "as_of": as_of,
         "parameters": parameters,
         "dataset_refs": refs,
+        "source_hashes": source_hashes,
+        "source_limitations": source_limitations,
     }
 
 
@@ -217,17 +232,15 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         error=CalculatorError,
     )
     breadth_date = reject_future(breadth["date"], as_of=result["as_of"], error=CalculatorError)
-    advances = int(_number(breadth.get("advances")))
-    declines = int(_number(breadth.get("declines")))
-    flat = int(_number(breadth.get("flat")))
-    if min(advances, declines, flat) < 0:
-        raise CalculatorError("invalid_number")
+    advances = _count(breadth.get("advances"))
+    declines = _count(breadth.get("declines"))
+    flat = _count(breadth.get("flat"))
     covered = advances + declines + flat
     if covered == 0 or not indices:
         raise CalculatorError("empty_input")
 
     result.update(
-        status="complete",
+        status="partial" if result["source_limitations"] else "complete",
         metrics={
             "index_count": len(indices),
             "average_change_pct": sum(row["change_pct"] for row in indices) / len(indices),
@@ -247,11 +260,14 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             "themes": ranked("themes"),
             "news_evidence": news,
         },
-        limitations=["arrangement_only_no_event_or_policy_inference"],
+        limitations=[
+            "arrangement_only_no_event_or_policy_inference",
+            *result.pop("source_limitations"),
+        ],
         research_only=True,
         provenance={
             "dataset_refs": payload["dataset_refs"],
-            "source_hashes": payload.get("source_hashes", {}),
+            "source_hashes": result.pop("source_hashes"),
             "rights": "internal-only",
             "transformations": ["validate", "sort", "aggregate", METHOD_VERSION],
         },
