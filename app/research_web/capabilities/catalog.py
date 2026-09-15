@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -24,7 +25,12 @@ from core.observability import get_logger
 
 from .models import CapabilityError, Metadata, Step, issue
 from .packages import decode_file, frontmatter, import_package, normalize_files
-from .seeds import builtin_initial_status, seed_packages
+from .seeds import (
+    LEGACY_STAGE2_SCRIPT_SHA256,
+    RECEIPT_GATED_SKILLS,
+    builtin_initial_status,
+    seed_packages,
+)
 from .tools import tool_catalog
 
 log = get_logger(__name__)
@@ -33,6 +39,19 @@ LEGACY_SCRIPT_TOOL = "af_run_script"
 LEGACY_PUBLIC_DATA_TOOL = "af_public_data"
 SCRIPT_TOOL = "research_run_script"
 HOST_PROCESS_MODULES = {"asyncio", "os", "pty"}
+COMPARISON_RECEIPT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "skill_slug",
+        "version",
+        "script_sha256",
+        "compared_at",
+        "platform",
+        "comparison",
+        "result",
+        "evidence_sha256",
+    }
+)
 
 
 def _is_host_process_entry(module, name):
@@ -68,7 +87,13 @@ class CapabilityCatalog:
             if self.index.exists():
                 self.data = json.loads(self.index.read_text(encoding="utf-8"))
             else:
-                self.data = {"schema_version": 1, "items": {}, "pending": None}
+                self.data = {
+                    "schema_version": 1,
+                    "items": {},
+                    "pending": None,
+                    "comparison_receipts": {},
+                }
+            self.data.setdefault("comparison_receipts", {})
             # Built-ins are additive so existing local catalogs receive newly
             # shipped reviewed capabilities without rewriting user packages.
             for cid, draft in seed_packages():
@@ -87,6 +112,7 @@ class CapabilityCatalog:
                         continue
                     self.publish(cid, _status=builtin_initial_status(cid))
             self._migrate_legacy_tool_ids(dict(seed_packages()))
+            self._migrate_stage2_builtins(dict(seed_packages()))
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.error("capability_catalog_unreadable", error_type=type(exc).__name__)
             raise CapabilityError(
@@ -182,6 +208,48 @@ class CapabilityCatalog:
                     error_type=type(exc).__name__,
                 )
 
+    @staticmethod
+    def _record_script_digest(record):
+        return next(
+            (
+                item["sha256"]
+                for item in record.get("files", [])
+                if item.get("path") == "scripts/calculate.py"
+            ),
+            None,
+        )
+
+    def _migrate_stage2_builtins(self, builtins):
+        """Replace only the known initial Stage 2 seeds and keep them disabled."""
+
+        if self.data.get("pending"):
+            return
+        for cid, legacy_digest in LEGACY_STAGE2_SCRIPT_SHA256.items():
+            row = self.data["items"].get(cid)
+            if not row or row.get("source") != "builtin" or not row.get("version"):
+                continue
+            active = row["versions"].get(str(row["version"]))
+            if self._record_script_digest(active or {}) != legacy_digest:
+                continue
+            original = copy.deepcopy(row)
+            try:
+                row["draft"] = self._draft(copy.deepcopy(builtins[cid]))
+                row.update(has_draft=True, checks=None, updated_at=time.time())
+                self.publish(cid, _allow_builtin_migration=True, _status="disabled")
+                log.info(
+                    "capability_stage2_builtin_migrated",
+                    capability_id=cid,
+                    version=row["version"],
+                )
+            except (OSError, CapabilityError, ValueError, TypeError) as exc:
+                self.data["items"][cid] = original
+                self.save()
+                log.error(
+                    "capability_stage2_builtin_migration_failed",
+                    capability_id=cid,
+                    error_type=type(exc).__name__,
+                )
+
     def save(self):
         fd, name = tempfile.mkstemp(prefix="catalog-", dir=self.root)
         try:
@@ -198,6 +266,86 @@ class CapabilityCatalog:
         finally:
             if os.path.exists(name):
                 os.unlink(name)
+
+    @staticmethod
+    def _receipt_key(cid, version):
+        return f"{cid}:{version}"
+
+    def _validate_comparison_receipt(self, value, *, stored=False):
+        fields = COMPARISON_RECEIPT_FIELDS | ({"receipt_sha256"} if stored else set())
+        if not isinstance(value, dict) or set(value) != fields:
+            raise CapabilityError("对照回执字段无效", "invalid_comparison_receipt", 422)
+        cid = value.get("skill_slug")
+        version = value.get("version")
+        if (
+            value.get("schema_version") != 1
+            or cid not in RECEIPT_GATED_SKILLS
+            or type(version) is not int
+            or value.get("platform") != "macos"
+            or value.get("comparison") != "wind_excel"
+            or value.get("result") != "passed"
+        ):
+            raise CapabilityError("对照回执内容无效", "invalid_comparison_receipt", 422)
+        for field in ("script_sha256", "evidence_sha256"):
+            if not isinstance(value.get(field), str) or not re.fullmatch(
+                r"[0-9a-f]{64}", value[field]
+            ):
+                raise CapabilityError("对照回执摘要无效", "invalid_comparison_receipt", 422)
+        compared_at = value.get("compared_at")
+        try:
+            timestamp = datetime.strptime(compared_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        except (TypeError, ValueError) as exc:
+            raise CapabilityError("对照回执时间无效", "invalid_comparison_receipt", 422) from exc
+        if timestamp.timestamp() > time.time() + 300:
+            raise CapabilityError("对照回执时间无效", "invalid_comparison_receipt", 422)
+        try:
+            record = self.row(cid)["versions"][str(version)]
+        except (CapabilityError, KeyError) as exc:
+            raise CapabilityError("对照回执版本无效", "invalid_comparison_receipt", 422) from exc
+        if self._record_script_digest(record) != value["script_sha256"]:
+            raise CapabilityError("对照回执脚本不匹配", "invalid_comparison_receipt", 422)
+        unsigned = {key: value[key] for key in sorted(COMPARISON_RECEIPT_FIELDS)}
+        receipt_sha256 = hashlib.sha256(
+            json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        if stored and value["receipt_sha256"] != receipt_sha256:
+            raise CapabilityError("对照回执校验失败", "invalid_comparison_receipt", 422)
+        return {**unsigned, "receipt_sha256": receipt_sha256}
+
+    def record_comparison_receipt(self, value):
+        """Persist a verified macOS Wind/Excel comparison binding."""
+
+        receipt = self._validate_comparison_receipt(value)
+        key = self._receipt_key(receipt["skill_slug"], receipt["version"])
+        existing = self.data["comparison_receipts"].get(key)
+        if existing is not None and existing != receipt:
+            raise CapabilityError("对照回执不可覆盖", "comparison_receipt_conflict", 409)
+        self.data["comparison_receipts"][key] = receipt
+        self.save()
+        log.info(
+            "capability_comparison_receipt_recorded",
+            capability_id=receipt["skill_slug"],
+            version=receipt["version"],
+        )
+        return copy.deepcopy(receipt)
+
+    def comparison_receipt(self, cid, version=None):
+        row = self.row(cid)
+        target = row["version"] if version is None else version
+        value = self.data["comparison_receipts"].get(self._receipt_key(cid, target))
+        return None if value is None else copy.deepcopy(value)
+
+    def _require_comparison_receipt(self, cid, version):
+        if cid not in RECEIPT_GATED_SKILLS:
+            return
+        value = self.comparison_receipt(cid, version)
+        if value is None:
+            raise CapabilityError(
+                "缺少已验证的 macOS Wind/Excel 对照回执",
+                "comparison_receipt_required",
+                409,
+            )
+        self._validate_comparison_receipt(value, stored=True)
 
     def row(self, cid):
         if (
@@ -819,6 +967,7 @@ class CapabilityCatalog:
         target = version if action == "rollback" else row["version"]
         self.version_path(cid, target)
         if action != "disable":
+            self._require_comparison_receipt(cid, target)
             self._unique(row["versions"][str(target)]["metadata"], cid)
             result = self.validate(row["kind"], row["versions"][str(target)])
             if not result["valid"]:

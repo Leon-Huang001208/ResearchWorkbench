@@ -4,16 +4,23 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import sys
-from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    bounded_result_rows,
+    checked_divide,
+    checked_mean,
+    checked_multiply,
+    checked_number,
+    checked_subtract,
+    checked_sum,
     iso_day,
+    load_relative_json,
     reject_future,
     safe_error_payload,
+    strict_json_dumps,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
@@ -61,12 +68,7 @@ def _day(value: Any) -> str:
 
 
 def _number(value: Any, *, positive: bool = False) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise CalculatorError("invalid_field_type")
-    result = float(value)
-    if not math.isfinite(result) or (positive and result <= 0):
-        raise CalculatorError("invalid_number")
-    return result
+    return checked_number(value, error=CalculatorError, positive=positive)
 
 
 def _series(value: Any, *, as_of: str) -> list[dict[str, float | str]]:
@@ -99,8 +101,15 @@ def _series(value: Any, *, as_of: str) -> list[dict[str, float | str]]:
 
 def _returns(rows: list[dict[str, float | str]]) -> dict[str, float]:
     return {
-        str(rows[index]["date"]): float(rows[index]["close"]) / float(rows[index - 1]["close"])
-        - 1.0
+        str(rows[index]["date"]): checked_subtract(
+            checked_divide(
+                float(rows[index]["close"]),
+                float(rows[index - 1]["close"]),
+                error=CalculatorError,
+            ),
+            1.0,
+            error=CalculatorError,
+        )
         for index in range(1, len(rows))
     }
 
@@ -162,14 +171,34 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         raise CalculatorError("event_window_incomplete")
     window_days = common_days[position - pre_days : position + post_days + 1]
     start, end = window_days[0], window_days[-1]
-    target_return = float(target_by_day[end]["close"]) / float(target_by_day[start]["close"]) - 1.0
-    benchmark_return = (
-        float(benchmark_by_day[end]["close"]) / float(benchmark_by_day[start]["close"]) - 1.0
+    target_return = checked_subtract(
+        checked_divide(
+            float(target_by_day[end]["close"]),
+            float(target_by_day[start]["close"]),
+            error=CalculatorError,
+        ),
+        1.0,
+        error=CalculatorError,
+    )
+    benchmark_return = checked_subtract(
+        checked_divide(
+            float(benchmark_by_day[end]["close"]),
+            float(benchmark_by_day[start]["close"]),
+            error=CalculatorError,
+        ),
+        1.0,
+        error=CalculatorError,
     )
     pre_volumes = [float(target_by_day[day]["volume"]) for day in window_days[:pre_days]]
     post_volumes = [float(target_by_day[day]["volume"]) for day in window_days[pre_days:]]
-    volume_change = (
-        sum(post_volumes) / len(post_volumes) / (sum(pre_volumes) / len(pre_volumes)) - 1.0
+    volume_change = checked_subtract(
+        checked_divide(
+            checked_mean(post_volumes, error=CalculatorError),
+            checked_mean(pre_volumes, error=CalculatorError),
+            error=CalculatorError,
+        ),
+        1.0,
+        error=CalculatorError,
     )
 
     target_returns = _returns(target)
@@ -192,9 +221,19 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     else:
         stocks = [target_returns[day] for day in beta_days]
         markets = [benchmark_returns[day] for day in beta_days]
-        mean_stock = sum(stocks) / len(stocks)
-        mean_market = sum(markets) / len(markets)
-        variance = sum((value - mean_market) ** 2 for value in markets)
+        mean_stock = checked_mean(stocks, error=CalculatorError)
+        mean_market = checked_mean(markets, error=CalculatorError)
+        variance = checked_sum(
+            [
+                checked_multiply(
+                    checked_subtract(value, mean_market, error=CalculatorError),
+                    checked_subtract(value, mean_market, error=CalculatorError),
+                    error=CalculatorError,
+                )
+                for value in markets
+            ],
+            error=CalculatorError,
+        )
         if variance <= 0:
             beta_status = {
                 "status": "unavailable",
@@ -204,19 +243,41 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             }
             limitations.append("beta_alpha_zero_benchmark_variance")
         else:
-            beta = (
-                sum(
-                    (stock - mean_stock) * (market - mean_market)
+            covariance = checked_sum(
+                [
+                    checked_multiply(
+                        checked_subtract(stock, mean_stock, error=CalculatorError),
+                        checked_subtract(market, mean_market, error=CalculatorError),
+                        error=CalculatorError,
+                    )
                     for stock, market in zip(stocks, markets, strict=True)
-                )
-                / variance
+                ],
+                error=CalculatorError,
             )
+            beta = checked_divide(covariance, variance, error=CalculatorError)
             beta_status = {
                 "status": "available",
                 "observations": len(beta_days),
                 "beta": beta,
-                "daily_alpha": mean_stock - beta * mean_market,
+                "daily_alpha": checked_subtract(
+                    mean_stock,
+                    checked_multiply(beta, mean_market, error=CalculatorError),
+                    error=CalculatorError,
+                ),
             }
+    output_rows, row_delivery = bounded_result_rows(
+        [
+            {
+                "date": day,
+                "target_close": target_by_day[day]["close"],
+                "benchmark_close": benchmark_by_day[day]["close"],
+                "target_volume": target_by_day[day]["volume"],
+            }
+            for day in window_days
+        ],
+        processed_input_rows=len(target) + len(benchmark),
+        dataset_refs=refs,
+    )
     return {
         "protocol": "cpu_bounded_v1",
         "skill_slug": SKILL_SLUG,
@@ -231,19 +292,14 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             "window_end": end,
             "target_return": target_return,
             "benchmark_return": benchmark_return,
-            "excess_return": target_return - benchmark_return,
+            "excess_return": checked_subtract(
+                target_return, benchmark_return, error=CalculatorError
+            ),
             "post_vs_pre_volume_change": volume_change,
             "beta_alpha": beta_status,
         },
-        "rows": [
-            {
-                "date": day,
-                "target_close": target_by_day[day]["close"],
-                "benchmark_close": benchmark_by_day[day]["close"],
-                "target_volume": target_by_day[day]["volume"],
-            }
-            for day in window_days
-        ],
+        "rows": output_rows,
+        "row_delivery": row_delivery,
         "limitations": limitations,
         "research_only": True,
         "provenance": {
@@ -261,36 +317,21 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     }
 
 
-def _path(value: str) -> Path:
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts:
-        raise CalculatorError("unsafe_input_path")
-    resolved = (Path.cwd() / path).resolve()
-    if not resolved.is_file():
-        raise CalculatorError("input_unavailable")
-    return resolved
-
-
 def main(argv: list[str] | None = None) -> int:
     try:
         args = sys.argv[1:] if argv is None else argv
         if len(args) != 1:
             raise CalculatorError("usage_error")
-        path = _path(args[0])
-        size = path.stat().st_size
-        WorkloadBudget().add_input(rows=0, bytes_count=size)
-        print(
-            json.dumps(
-                calculate(json.loads(path.read_text(encoding="utf-8")), input_bytes=size),
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
+        payload, size = load_relative_json(args[0], error=CalculatorError, budget=WorkloadBudget())
+        print(strict_json_dumps(calculate(payload, input_bytes=size), error=CalculatorError))
         return 0
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
+        print(
+            json.dumps(safe_error_payload(exc), sort_keys=True, allow_nan=False),
+            file=sys.stderr,
+        )
         return 1
 
 

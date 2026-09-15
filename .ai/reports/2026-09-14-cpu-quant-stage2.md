@@ -120,6 +120,31 @@ Draft 2020-12 validator 直接验证六份 `propertyNames` 行为；RED 为
 mypy；六份 schema 解析、架构、doc-sync、project constraints（22 个变更文件）、task completion 与
 `git diff --check` 均通过。本轮继续只运行聚焦短门。
 
+质量审查整改首先增加六类 RED：持久 comparison receipt/旧版迁移、数值转换和派生有限性、真实
+sandbox 输出门、业绩预告报告期等价、相对 JSON 链接防护及每日简报 provenance 规范化。首轮为
+`54 failed, 74 deselected in 25.51s`，其中 receipt/迁移 18 项、数值 15 项、sandbox 6 项、报告期
+1 项、安全输入 13 项和 dataset refs 1 项。实现遵循 catalog 现有原子 JSON 存储，没有新增顶层 API；
+只有这六个 slug 的启用和回滚到 enabled 会校验绑定 slug、不可变版本、`calculate.py` SHA-256、
+UTC 时间、macOS、`wind_excel`、passed 结果和证据 SHA-256 的持久 receipt。已知初版脚本哈希升级时
+发布当前版本并保持 disabled，不继承旧启用状态。该子组首轮 GREEN 为
+`18 passed, 110 deselected in 25.96s`。
+
+六 CLI 随后统一使用共享相对 JSON 安全 loader：规范化后必须仍在 cwd 内，逐级拒绝符号链接或
+reparse point，并在 no-follow 打开前后核对普通文件身份；六项文件/目录链接反例均稳定拒绝。共享
+受检数值原语覆盖输入 float 转换、加减乘除/求和/均值和全部派生指标，溢出或非有限值统一为
+`invalid_number`，最终 JSON 序列化固定 `allow_nan=false`。该数值、安全输入、错期预告与 daily
+规范 refs 组合为 `30 passed, 98 deselected in 1.12s`。
+
+近上限用例不再直接运行计算器，而是通过真实 `sandbox.py` supervisor、Seatbelt 和 64 KiB
+`max_output` 门；每项完整处理 4,800/9,600/48 行，输出只内联至多 128 条并通过 `row_delivery`
+披露省略计数及规范化 dataset refs。六项为 `6 passed, 122 deselected in 1.37s`，最大单项 wall
+`0.206s`，最大父子进程 RSS 合计 `45,826,048 bytes`，stdout 均小于 64 KiB。更新后的六份 golden
+和输出 schema 直接校验为 `6 passed, 122 deselected in 0.38s`。
+最终未重复能力全回归：除已单独通过的 receipt/迁移用例外，其余 Stage 2 短测为
+`116 passed, 12 deselected in 13.33s`。十个 Python 目标通过 ruff、black、isort，八个生产目标
+逐项通过 mypy；六包 JSON、architecture、doc-sync、project constraints（46 个变更文件）、task
+completion 与 `git diff --check` 均通过。
+
 不会把未执行的平台或真实数据验证写成已通过。
 
 ## 未验证项

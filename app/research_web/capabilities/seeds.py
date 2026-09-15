@@ -268,6 +268,17 @@ RECEIPT_GATED_SKILLS = frozenset(
     }
 )
 
+# Exact scripts shipped by the first Stage 2 seed commit. Only these known
+# immutable built-ins are eligible for the one-way safety migration.
+LEGACY_STAGE2_SCRIPT_SHA256 = {
+    "daily-market-brief": "d63e3750cfb28c2be5e3c492e2ba5bed73fe6914e8fa41033e19613fe330b05e",
+    "policy-sentinel": "a78ae122087231c72b95d98749c1e6a0e764b89336d8c413538025b6faac75d9",
+    "event-review": "6519b155074b9cc57af7bd6410e7379793d338b51bef67cc23682416415b9a8d",
+    "etf-flow-monitor": "3b9d77321f185a570c8d481ec86021c65ac813ad393f6ee293645b2cdeb776c9",
+    "earnings-report-monitor": "fa5c5f36119380028cb4bcb170cb80b84c7c0aaf8f9296939e25410a287d2c59",
+    "earnings-preview-monitor": "189e96f9fcde39a388cf765196eea6e38d9fb25a224fe8a8fcb98668b5a304f1",
+}
+
 
 def builtin_initial_status(capability_id: str) -> str:
     """Keep uncalibrated calculators discoverable but non-executable."""

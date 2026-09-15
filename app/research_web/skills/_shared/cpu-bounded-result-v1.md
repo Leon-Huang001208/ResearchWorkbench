@@ -10,5 +10,9 @@
 - `limitations`: 口径、缺失、覆盖与降级说明数组。
 - `method_version`: calculator 的固定方法版本。
 - `provenance`: 遵循 `provenance-v1.md` 的对象。
+- `row_delivery`: 记录完整处理的输入行数、内联输出行数、省略行数和交付模式；最多内联 128 条。
+  超过时模式为 `summary_with_dataset_refs`，并复用顶层规范化 `dataset_refs`，使 stdout 保持在
+  64 KiB 内且不把有界投影冒充完整明细。
 
 `partial` 不能冒充完整结果；发生预算超限时不返回截断计算结果。
+所有 JSON 输出禁止 NaN/Infinity；数值转换和派生指标在序列化前必须验证为有限数。

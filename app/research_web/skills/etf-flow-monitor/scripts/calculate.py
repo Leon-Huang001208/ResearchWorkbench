@@ -4,16 +4,22 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import sys
-from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    bounded_result_rows,
+    checked_add,
+    checked_multiply,
+    checked_number,
+    checked_subtract,
+    checked_sum,
     iso_day,
+    load_relative_json,
     reject_future,
     safe_error_payload,
+    strict_json_dumps,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
@@ -54,12 +60,7 @@ def _day(value: Any) -> str:
 
 
 def _number(value: Any, *, positive: bool = False) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise CalculatorError("invalid_field_type")
-    result = float(value)
-    if not math.isfinite(result) or (positive and result <= 0):
-        raise CalculatorError("invalid_number")
-    return result
+    return checked_number(value, error=CalculatorError, positive=positive)
 
 
 def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
@@ -135,8 +136,8 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         prior_shares = _number(raw.get("prior_shares"), positive=True)
         nav = _number(raw.get("nav"), positive=True)
         price = _number(raw.get("price"), positive=True)
-        change = shares - prior_shares
-        flow = change * nav
+        change = checked_subtract(shares, prior_shares, error=CalculatorError)
+        flow = checked_multiply(change, nav, error=CalculatorError)
         row: dict[str, Any] = {
             "code": _text(raw.get("code")),
             "date": reject_future(raw.get("date"), as_of=as_of, error=CalculatorError),
@@ -149,7 +150,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         normalized.append(row)
         for dimension, values in grouped.items():
             category = row["classification"][dimension]
-            values[category] = values.get(category, 0.0) + flow
+            values[category] = checked_add(values.get(category, 0.0), flow, error=CalculatorError)
     normalized.sort(key=lambda row: (row["date"], row["code"]))
     summaries = {
         dimension: [
@@ -158,6 +159,11 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         ]
         for dimension, values in grouped.items()
     }
+    output_rows, row_delivery = bounded_result_rows(
+        normalized,
+        processed_input_rows=len(rows),
+        dataset_refs=refs,
+    )
     return {
         "protocol": "cpu_bounded_v1",
         "skill_slug": SKILL_SLUG,
@@ -169,10 +175,13 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "status": "partial" if source_limitations else "complete",
         "metrics": {
             "etf_count": len(normalized),
-            "total_estimated_flow": sum(row["estimated_flow"] for row in normalized),
+            "total_estimated_flow": checked_sum(
+                [row["estimated_flow"] for row in normalized], error=CalculatorError
+            ),
             "classification_summaries": summaries,
         },
-        "rows": normalized,
+        "rows": output_rows,
+        "row_delivery": row_delivery,
         "limitations": [
             "flow_equals_share_change_times_supplied_nav",
             "classifications_are_user_supplied",
@@ -194,36 +203,21 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     }
 
 
-def _path(value: str) -> Path:
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts:
-        raise CalculatorError("unsafe_input_path")
-    result = (Path.cwd() / path).resolve()
-    if not result.is_file():
-        raise CalculatorError("input_unavailable")
-    return result
-
-
 def main(argv: list[str] | None = None) -> int:
     try:
         args = sys.argv[1:] if argv is None else argv
         if len(args) != 1:
             raise CalculatorError("usage_error")
-        path = _path(args[0])
-        size = path.stat().st_size
-        WorkloadBudget().add_input(rows=0, bytes_count=size)
-        print(
-            json.dumps(
-                calculate(json.loads(path.read_text(encoding="utf-8")), input_bytes=size),
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
+        payload, size = load_relative_json(args[0], error=CalculatorError, budget=WorkloadBudget())
+        print(strict_json_dumps(calculate(payload, input_bytes=size), error=CalculatorError))
         return 0
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
+        print(
+            json.dumps(safe_error_payload(exc), sort_keys=True, allow_nan=False),
+            file=sys.stderr,
+        )
         return 1
 
 

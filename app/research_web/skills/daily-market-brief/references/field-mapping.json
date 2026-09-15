@@ -83,5 +83,7 @@
     ],
     "allowed_equivalents": "session snapshot with identical units, dates not later than as_of and source references",
     "non_equivalent": "historical index series, index constituents, fund holdings or inferred turnover returns data_not_equivalent",
-    "enablement_gate": "initially disabled; enable only after a successful macOS Wind comparison receipt is recorded"
+    "input_file_gate": "contained regular relative JSON; file and directory symlinks/reparse points rejected with identity checked before and after open",
+    "output_delivery": "all input rows are processed; at most 128 result rows are inline and larger results declare summary_with_dataset_refs; sandbox stdout limit is 64 KiB",
+    "enablement_gate": "initially disabled; enable or rollback-to-enabled only with a persisted passed macOS wind_excel receipt bound to slug, immutable version and calculate.py SHA-256"
 }

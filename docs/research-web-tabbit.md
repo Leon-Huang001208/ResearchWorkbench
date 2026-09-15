@@ -136,3 +136,6 @@ provenance 和 synthetic golden 进入能力不可变版本，不构成新的 Ru
 后续严格输入契约、未来数据拒绝和初始 disabled/receipt 启用门禁同样只收紧能力选择与
 `research_run_script` 输入；`YYYY-MM-DD`、CNY、无换行分隔符的规范来源哈希 key/value 验证及 psutil 测试采样都不进入浏览器
 交互，disabled 六项也不会成为原生 provider candidates，不让 Tabbit 取得新的页面、网络、文件或执行权限。
+Stage 2 后续增加的持久 comparison receipt、旧版 disabled 迁移、相对 JSON no-follow、有限数算术和
+64 KiB 有界输出同样只作用于六个 CPU Skill 的能力状态或 sandbox 数据边界；不改变 Tabbit 的页面
+授权、claim、一次性 token、写审批、标签生命周期或浏览器 Runtime。

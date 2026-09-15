@@ -6,8 +6,8 @@ import copy
 import importlib.util
 import json
 import math
-import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -15,6 +15,7 @@ from contextlib import chdir, redirect_stderr, redirect_stdout
 from datetime import date, timedelta
 from io import StringIO
 from pathlib import Path
+from uuid import uuid4
 
 import psutil
 import pytest
@@ -37,6 +38,14 @@ SLUGS = (
     "earnings-report-monitor",
     "earnings-preview-monitor",
 )
+OLD_STAGE2_SCRIPT_DIGESTS = {
+    "daily-market-brief": "d63e3750cfb28c2be5e3c492e2ba5bed73fe6914e8fa41033e19613fe330b05e",
+    "policy-sentinel": "a78ae122087231c72b95d98749c1e6a0e764b89336d8c413538025b6faac75d9",
+    "event-review": "6519b155074b9cc57af7bd6410e7379793d338b51bef67cc23682416415b9a8d",
+    "etf-flow-monitor": "3b9d77321f185a570c8d481ec86021c65ac813ad393f6ee293645b2cdeb776c9",
+    "earnings-report-monitor": "fa5c5f36119380028cb4bcb170cb80b84c7c0aaf8f9296939e25410a287d2c59",
+    "earnings-preview-monitor": "189e96f9fcde39a388cf765196eea6e38d9fb25a224fe8a8fcb98668b5a304f1",
+}
 REQUIRED_TOOLS = {
     "daily-market-brief": [
         "research_run_script",
@@ -211,6 +220,98 @@ def test_six_unique_builtin_packages_are_admitted_discoverable_and_disabled(tmp_
         assert detail["checks"]["issues"] == []
 
 
+def _version_script_digest(catalog: CapabilityCatalog, slug: str, version: int) -> str:
+    files = catalog.row(slug)["versions"][str(version)]["files"]
+    return next(item["sha256"] for item in files if item["path"] == "scripts/calculate.py")
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_receipt_gated_skills_require_persistent_bound_macos_comparison(slug, tmp_path):
+    catalog = CapabilityCatalog(tmp_path)
+    version = catalog.row(slug)["version"]
+    script_sha256 = _version_script_digest(catalog, slug, version)
+
+    for action in ("enable", "rollback"):
+        with pytest.raises(CapabilityError) as error:
+            catalog.transition(slug, action, version if action == "rollback" else None)
+        assert error.value.code == "comparison_receipt_required"
+
+    receipt = {
+        "schema_version": 1,
+        "skill_slug": slug,
+        "version": version,
+        "script_sha256": script_sha256,
+        "compared_at": "2026-09-15T00:00:00Z",
+        "platform": "macos",
+        "comparison": "wind_excel",
+        "result": "passed",
+        "evidence_sha256": "e" * 64,
+    }
+    recorded = catalog.record_comparison_receipt(receipt)
+    assert recorded["receipt_sha256"]
+
+    restarted = CapabilityCatalog(tmp_path)
+    assert restarted.comparison_receipt(slug) == recorded
+    assert restarted.transition(slug, "enable")["status"] == "enabled"
+    assert restarted.transition(slug, "disable")["status"] == "disabled"
+    assert restarted.transition(slug, "rollback", version)["status"] == "enabled"
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_comparison_receipt_rejects_wrong_version_digest_time_or_result(slug, tmp_path):
+    catalog = CapabilityCatalog(tmp_path)
+    version = catalog.row(slug)["version"]
+    base = {
+        "schema_version": 1,
+        "skill_slug": slug,
+        "version": version,
+        "script_sha256": _version_script_digest(catalog, slug, version),
+        "compared_at": "2026-09-15T00:00:00Z",
+        "platform": "macos",
+        "comparison": "wind_excel",
+        "result": "passed",
+        "evidence_sha256": "e" * 64,
+    }
+    invalid_values = {
+        "version": version + 1,
+        "script_sha256": "0" * 64,
+        "compared_at": "not-a-time",
+        "result": "failed",
+        "platform": "windows",
+    }
+    for field, value in invalid_values.items():
+        receipt = {**base, field: value}
+        with pytest.raises(CapabilityError) as error:
+            catalog.record_comparison_receipt(receipt)
+        assert error.value.code == "invalid_comparison_receipt"
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_known_initial_stage2_builtin_is_migrated_to_current_disabled_version(slug, tmp_path):
+    catalog = CapabilityCatalog(tmp_path)
+    row = catalog.row(slug)
+    old_version = row["version"]
+    calculate = next(
+        item
+        for item in row["versions"][str(old_version)]["files"]
+        if item["path"] == "scripts/calculate.py"
+    )
+    calculate["sha256"] = OLD_STAGE2_SCRIPT_DIGESTS[slug]
+    row["status"] = "enabled"
+    catalog.save()
+
+    upgraded = CapabilityCatalog(tmp_path)
+    migrated = upgraded.row(slug)
+    assert migrated["version"] == old_version + 1
+    assert migrated["status"] == "disabled"
+    assert (
+        _version_script_digest(upgraded, slug, migrated["version"])
+        != OLD_STAGE2_SCRIPT_DIGESTS[slug]
+    )
+    native_name = migrated["versions"][str(migrated["version"])]["native_name"]
+    assert not (upgraded.native_root / native_name).exists()
+
+
 def test_each_package_has_required_resources_and_reviewed_hashes():
     seeded = dict(seed_packages())
     expected_local = {
@@ -279,6 +380,10 @@ def test_synthetic_golden_is_deterministic_and_fast(slug):
     started = time.monotonic()
     actual = module.calculate(payload, input_bytes=len(json.dumps(payload).encode("utf-8")))
     assert time.monotonic() - started < 2.0
+    output_schema = json.loads(
+        (SKILLS_ROOT / slug / "references/output-schema.json").read_text(encoding="utf-8")
+    )
+    Draft202012Validator(output_schema).validate(actual)
     assert_close(actual, expected)
     assert actual["skill_slug"] == slug
     assert actual["compute_profile"] == "cpu_bounded_v1"
@@ -568,6 +673,103 @@ def test_calculators_reject_unknown_root_fields_and_incomplete_dataset_refs(slug
     assert error.value.code == "invalid_dataset_ref"
 
 
+NUMERIC_SKILLS = (
+    "daily-market-brief",
+    "event-review",
+    "etf-flow-monitor",
+    "earnings-report-monitor",
+    "earnings-preview-monitor",
+)
+
+
+def _set_primary_number(payload: dict, slug: str, value: float) -> None:
+    if slug == "daily-market-brief":
+        payload["market_snapshot"][0]["price"] = value
+    elif slug == "event-review":
+        payload["target_series"][0]["close"] = value
+    elif slug == "etf-flow-monitor":
+        payload["rows"][0]["shares"] = value
+    elif slug == "earnings-report-monitor":
+        payload["records"][0]["revenue"] = value
+    else:
+        payload["records"][0]["profit_low"] = value
+
+
+@pytest.mark.parametrize("slug", NUMERIC_SKILLS)
+def test_cli_maps_integer_float_overflow_to_stable_json(slug, tmp_path):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+    _set_primary_number(payload, slug, 10**400)
+    path = tmp_path / "overflow.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    stdout = StringIO()
+    stderr = StringIO()
+    with chdir(tmp_path), redirect_stdout(stdout), redirect_stderr(stderr):
+        assert module.main([path.name]) == 1
+    assert "Traceback" not in stderr.getvalue()
+    assert json.loads(stderr.getvalue().splitlines()[-1]) == {
+        "error": {"code": "invalid_number", "message": "invalid_number"}
+    }
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_cli_rejects_nonfinite_result_serialization(slug, tmp_path, monkeypatch):
+    module = load_calculator(slug)
+    path = tmp_path / "input.json"
+    path.write_text(json.dumps(load_json(slug, "input.json")), encoding="utf-8")
+    monkeypatch.setattr(module, "calculate", lambda *_args, **_kwargs: {"metric": math.nan})
+    stdout = StringIO()
+    stderr = StringIO()
+    with chdir(tmp_path), redirect_stdout(stdout), redirect_stderr(stderr):
+        assert module.main([path.name]) == 1
+    assert json.loads(stderr.getvalue().splitlines()[-1])["error"]["code"] == "invalid_number"
+
+
+@pytest.mark.parametrize(
+    "slug",
+    ("daily-market-brief", "event-review", "etf-flow-monitor", "earnings-preview-monitor"),
+)
+def test_derived_numeric_overflow_is_rejected(slug):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+    if slug == "daily-market-brief":
+        for row in payload["market_snapshot"]:
+            row["turnover"] = 1e308
+    elif slug == "event-review":
+        for row in payload["target_series"]:
+            row["close"] = 1e-308
+        payload["target_series"][-1]["close"] = 1e308
+    elif slug == "etf-flow-monitor":
+        payload["rows"][0].update(shares=1e308, prior_shares=1.0, nav=1e308)
+    else:
+        payload["records"][0].update(profit_low=1e308, profit_high=1e308)
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "invalid_number"
+
+
+def test_earnings_preview_rejects_mixed_or_wrong_report_period():
+    module = load_calculator("earnings-preview-monitor")
+    payload = load_json("earnings-preview-monitor", "input.json")
+    for index in (0, 1):
+        invalid = copy.deepcopy(payload)
+        invalid["records"][index]["report_period"] = "2026-03-31"
+        with pytest.raises(module.CalculatorError) as error:
+            module.calculate(invalid, input_bytes=1024)
+        assert error.value.code == "data_not_equivalent"
+
+
+def test_daily_provenance_reuses_normalized_dataset_refs():
+    module = load_calculator("daily-market-brief")
+    payload = load_json("daily-market-brief", "input.json")
+    payload["dataset_refs"][0]["dataset_id"] = " fixture-daily "
+    payload["dataset_refs"][0]["sha256"] = "ABCDEF" * 10 + "ABCD"
+    result = module.calculate(payload, input_bytes=1024)
+    assert result["provenance"]["dataset_refs"] == result["dataset_refs"]
+    assert result["dataset_refs"][0]["dataset_id"] == "fixture-daily"
+    assert result["dataset_refs"][0]["sha256"] == ("abcdef" * 10 + "abcd")
+
+
 @pytest.mark.parametrize("slug", SLUGS)
 def test_calculator_cli_accepts_only_relative_json_input(slug):
     module = load_calculator(slug)
@@ -585,6 +787,42 @@ def test_calculator_cli_accepts_only_relative_json_input(slug):
         assert module.main([str((package / "fixtures/input.json").resolve())]) == 1
     error = json.loads(stderr.getvalue().splitlines()[-1])
     assert error == {"error": {"code": "unsafe_input_path", "message": "unsafe_input_path"}}
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+@pytest.mark.parametrize("link_kind", ("file", "directory"))
+def test_calculator_cli_rejects_symlinked_input_or_parent(slug, link_kind, tmp_path):
+    module = load_calculator(slug)
+    real = tmp_path / "real"
+    real.mkdir()
+    target = real / "input.json"
+    target.write_text(json.dumps(load_json(slug, "input.json")), encoding="utf-8")
+    if link_kind == "file":
+        link = tmp_path / "input.json"
+        link_target = target
+        argument = link.name
+    else:
+        link = tmp_path / "linked"
+        link_target = real
+        argument = "linked/input.json"
+    try:
+        link.symlink_to(link_target, target_is_directory=link_kind == "directory")
+    except OSError:
+        pytest.skip("symlinks unavailable on this host")
+    stderr = StringIO()
+    with chdir(tmp_path), redirect_stdout(StringIO()), redirect_stderr(stderr):
+        assert module.main([argument]) == 1
+    assert json.loads(stderr.getvalue().splitlines()[-1])["error"]["code"] == "unsafe_input_path"
+
+
+def test_all_calculator_clis_use_shared_safe_json_loader():
+    shared = (SKILLS_ROOT / "_shared/input_contract.py").read_text(encoding="utf-8")
+    assert "def load_relative_json" in shared
+    for slug in SLUGS:
+        source = (SKILLS_ROOT / slug / "scripts/calculate.py").read_text(encoding="utf-8")
+        assert "load_relative_json" in source
+        assert "def _path(" not in source
+        assert "def _input_path(" not in source
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -667,47 +905,97 @@ def _stress_payload(slug: str) -> dict:
 @pytest.mark.parametrize("slug", SLUGS)
 def test_calculator_near_limit_process_stays_within_time_and_peak_rss(slug, tmp_path):
     payload = _stress_payload(slug)
-    input_path = tmp_path / "input.json"
+    research_root = tmp_path / "research"
+    session = research_root / "sessions" / str(uuid4())
+    for name in ("inputs", "outputs", "tmp", "resources"):
+        (session / name).mkdir(parents=True)
+    scripts = session / "resources" / "calculator" / "scripts"
+    scripts.mkdir(parents=True)
+    shutil.copy2(SKILLS_ROOT / slug / "scripts/calculate.py", scripts / "calculate.py")
+    shutil.copy2(SKILLS_ROOT / "_shared/cpu_budget.py", scripts / "cpu_budget.py")
+    shutil.copy2(SKILLS_ROOT / "_shared/input_contract.py", scripts / "input_contract.py")
+    input_path = session / "inputs" / "input.json"
     input_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     assert input_path.stat().st_size < 8 * 1024 * 1024
-    environment = os.environ.copy()
-    environment["PYTHONPATH"] = str(SKILLS_ROOT / "_shared")
-    output_path = tmp_path / "output.json"
-    error_path = tmp_path / "error.log"
+    code = """
+import json
+import sys
+from pathlib import Path
+scripts = Path(__SCRIPTS__)
+sys.path.insert(0, str(scripts))
+namespace = {'__name__': 'reviewed_skill_resource'}
+source = (scripts / 'calculate.py').read_text(encoding='utf-8')
+exec(compile(source, 'scripts/calculate.py', 'exec'), namespace)
+input_path = Path(__INPUT__)
+raw = input_path.read_bytes()
+result = namespace['calculate'](json.loads(raw), input_bytes=len(raw))
+print(json.dumps(result, ensure_ascii=False, sort_keys=True, allow_nan=False))
+""".replace("__SCRIPTS__", repr(str(scripts))).replace("__INPUT__", repr(str(input_path)))
+    command = [
+        sys.executable,
+        str(PROJECT / "app/research_web/sandbox.py"),
+        "--research-root",
+        str(research_root),
+        "--python",
+        sys.executable,
+        "--session",
+        str(session),
+        "--timeout",
+        "9",
+        "--max-output",
+        str(64 * 1024),
+    ]
     started = time.monotonic()
-    with (
-        output_path.open("w", encoding="utf-8") as output,
-        error_path.open("w", encoding="utf-8") as errors,
-    ):
-        process = subprocess.Popen(
-            [sys.executable, str(SKILLS_ROOT / slug / "scripts/calculate.py"), input_path.name],
-            cwd=tmp_path,
-            env=environment,
-            stdout=output,
-            stderr=errors,
-            text=True,
-        )
-        tracked_process = psutil.Process(process.pid)
-        peak_rss_bytes = 0
-        while True:
-            try:
-                peak_rss_bytes = max(
-                    peak_rss_bytes,
-                    tracked_process.memory_info().rss,
-                )
-            except (psutil.NoSuchProcess, psutil.ZombieProcess):
-                # The child can exit between poll and memory sampling.
-                pass
-            if process.poll() is not None:
-                break
-            if time.monotonic() - started >= 10:
-                process.kill()
-                pytest.fail(f"{slug} exceeded 10 seconds")
-            time.sleep(0.01)
-        process.wait(timeout=1)
+    process = subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert process.stdin is not None
+    process.stdin.write(json.dumps({"code": code}))
+    process.stdin.close()
+    process.stdin = None
+    tracked_process = psutil.Process(process.pid)
+    peak_rss_bytes = 0
+    while process.poll() is None:
+        try:
+            processes = [tracked_process, *tracked_process.children(recursive=True)]
+            peak_rss_bytes = max(
+                peak_rss_bytes,
+                sum(child.memory_info().rss for child in processes if child.is_running()),
+            )
+        except (psutil.NoSuchProcess, psutil.ZombieProcess):
+            pass
+        if time.monotonic() - started >= 10:
+            process.kill()
+            pytest.fail(f"{slug} exceeded 10 seconds")
+        time.sleep(0.01)
+    stdout, stderr = process.communicate(timeout=1)
     elapsed = time.monotonic() - started
-    assert process.returncode == 0, error_path.read_text(encoding="utf-8")
-    assert json.loads(output_path.read_text(encoding="utf-8"))["skill_slug"] == slug
+    assert process.returncode == 0, stderr
+    supervisor_result = json.loads(stdout)
+    assert supervisor_result["status"] == "completed", supervisor_result
+    assert len(supervisor_result["stdout"].encode("utf-8")) < 64 * 1024
+    output = json.loads(supervisor_result["stdout"])
+    assert output["skill_slug"] == slug
+    expected_rows = (
+        9_600
+        if slug == "event-review"
+        else (
+            4_800
+            if slug
+            in {
+                "daily-market-brief",
+                "policy-sentinel",
+            }
+            else 48
+        )
+    )
+    assert output["row_delivery"]["processed_input_rows"] == expected_rows
+    if output["row_delivery"]["mode"] == "summary_with_dataset_refs":
+        assert output["row_delivery"]["dataset_refs"] == output["dataset_refs"]
     assert elapsed < 10
     assert 0 < peak_rss_bytes < 1024**3
     print(

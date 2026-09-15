@@ -5,14 +5,16 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    bounded_result_rows,
     iso_day,
+    load_relative_json,
     reject_future,
     safe_error_payload,
+    strict_json_dumps,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
@@ -143,6 +145,11 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     timeline.sort(key=lambda row: (row["published_at"], row["evidence_id"]))
     if not timeline:
         raise CalculatorError("empty_input")
+    output_rows, row_delivery = bounded_result_rows(
+        timeline,
+        processed_input_rows=len(records),
+        dataset_refs=refs,
+    )
     return {
         "protocol": "cpu_bounded_v1",
         "skill_slug": SKILL_SLUG,
@@ -162,7 +169,8 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
                 {target for row in timeline for target in row["potential_impact_objects"]}
             ),
         },
-        "rows": timeline,
+        "rows": output_rows,
+        "row_delivery": row_delivery,
         "limitations": [
             "potential_impacts_are_source_supplied_not_investment_advice",
             *source_limitations,
@@ -182,36 +190,21 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     }
 
 
-def _path(value: str) -> Path:
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts:
-        raise CalculatorError("unsafe_input_path")
-    resolved = (Path.cwd() / path).resolve()
-    if not resolved.is_file():
-        raise CalculatorError("input_unavailable")
-    return resolved
-
-
 def main(argv: list[str] | None = None) -> int:
     try:
         args = sys.argv[1:] if argv is None else argv
         if len(args) != 1:
             raise CalculatorError("usage_error")
-        path = _path(args[0])
-        size = path.stat().st_size
-        WorkloadBudget().add_input(rows=0, bytes_count=size)
-        print(
-            json.dumps(
-                calculate(json.loads(path.read_text(encoding="utf-8")), input_bytes=size),
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
+        payload, size = load_relative_json(args[0], error=CalculatorError, budget=WorkloadBudget())
+        print(strict_json_dumps(calculate(payload, input_bytes=size), error=CalculatorError))
         return 0
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
+        print(
+            json.dumps(safe_error_payload(exc), sort_keys=True, allow_nan=False),
+            file=sys.stderr,
+        )
         return 1
 
 

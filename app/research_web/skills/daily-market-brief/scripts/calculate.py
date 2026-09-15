@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import sys
-from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    bounded_result_rows,
+    checked_divide,
+    checked_mean,
+    checked_number,
+    checked_sum,
     iso_day,
+    load_relative_json,
     reject_future,
     safe_error_payload,
+    strict_json_dumps,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
@@ -63,12 +68,7 @@ def _day(value: Any) -> str:
 
 
 def _number(value: Any) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise CalculatorError("invalid_field_type")
-    result = float(value)
-    if not math.isfinite(result):
-        raise CalculatorError("invalid_number")
-    return result
+    return checked_number(value, error=CalculatorError)
 
 
 def _text(value: Any) -> str:
@@ -237,16 +237,8 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     if covered == 0 or not indices:
         raise CalculatorError("empty_input")
 
-    result.update(
-        status="partial" if result["source_limitations"] else "complete",
-        metrics={
-            "index_count": len(indices),
-            "average_change_pct": sum(row["change_pct"] for row in indices) / len(indices),
-            "total_turnover": sum(row["turnover"] for row in indices),
-            "advance_ratio": advances / covered,
-            "news_count": len(news),
-        },
-        rows={
+    output_rows, row_delivery = bounded_result_rows(
+        {
             "market_snapshot": indices,
             "breadth": {
                 "date": breadth_date,
@@ -258,13 +250,31 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             "themes": ranked("themes"),
             "news_evidence": news,
         },
+        processed_input_rows=row_count,
+        dataset_refs=result["dataset_refs"],
+    )
+    result.update(
+        status="partial" if result["source_limitations"] else "complete",
+        metrics={
+            "index_count": len(indices),
+            "average_change_pct": checked_mean(
+                [row["change_pct"] for row in indices], error=CalculatorError
+            ),
+            "total_turnover": checked_sum(
+                [row["turnover"] for row in indices], error=CalculatorError
+            ),
+            "advance_ratio": checked_divide(advances, covered, error=CalculatorError),
+            "news_count": len(news),
+        },
+        rows=output_rows,
+        row_delivery=row_delivery,
         limitations=[
             "arrangement_only_no_event_or_policy_inference",
             *result.pop("source_limitations"),
         ],
         research_only=True,
         provenance={
-            "dataset_refs": payload["dataset_refs"],
+            "dataset_refs": result["dataset_refs"],
             "source_hashes": result.pop("source_hashes"),
             "rights": "internal-only",
             "transformations": ["validate", "sort", "aggregate", METHOD_VERSION],
@@ -273,31 +283,21 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     return result
 
 
-def _input_path(argument: str) -> Path:
-    path = Path(argument)
-    if path.is_absolute() or ".." in path.parts:
-        raise CalculatorError("unsafe_input_path")
-    resolved = (Path.cwd() / path).resolve()
-    if not resolved.is_file():
-        raise CalculatorError("input_unavailable")
-    return resolved
-
-
 def main(argv: list[str] | None = None) -> int:
     try:
         args = sys.argv[1:] if argv is None else argv
         if len(args) != 1:
             raise CalculatorError("usage_error")
-        path = _input_path(args[0])
-        size = path.stat().st_size
-        WorkloadBudget().add_input(rows=0, bytes_count=size)
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        print(json.dumps(calculate(payload, input_bytes=size), ensure_ascii=False, sort_keys=True))
+        payload, size = load_relative_json(args[0], error=CalculatorError, budget=WorkloadBudget())
+        print(strict_json_dumps(calculate(payload, input_bytes=size), error=CalculatorError))
         return 0
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
+        print(
+            json.dumps(safe_error_payload(exc), sort_keys=True, allow_nan=False),
+            file=sys.stderr,
+        )
         return 1
 
 

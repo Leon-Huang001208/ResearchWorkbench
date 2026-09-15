@@ -24,6 +24,12 @@ Skill 和 Workflow 使用同一能力包与版本机制；Workflow 编译成 DSH
 provenance/rights 约定由 CPU reviewed calculator 复制到各自不可变版本。共享目录本身不进入
 Skill 目录，也不获得 DataHub、脚本或宿主权限。
 
+六个 Stage 2 Skill 的 enabled 投影增加同一 catalog 内部证据门：启用和回滚到 enabled 均要求
+持久的 macOS Wind/Excel passed receipt 与 slug、不可变版本和 `calculate.py` SHA-256 完全一致；
+已知初版脚本升级到当前不可变版本后强制 disabled。该专用门不改变其他能力的状态机或公共 API。
+计算器仍在既有 sandbox 节点内执行；共享 no-follow 相对 JSON loader、有限数算术和最多 128 条
+内联的 `row_delivery` 只收紧输入/输出边界，全部输入均参与计算且 stdout 上限为 64 KiB。
+
 能力工作区路由以 `kind=skill|tool|workflow|data` 切换四个主分区，以
 `view=library|mine|plans|connections` 切换类型内二级视图；无参数默认 `kind=skill`。
 Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 提供运行计划；Tool 的连接状态

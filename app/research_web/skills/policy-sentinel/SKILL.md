@@ -7,6 +7,7 @@ description: 按关键词与日期筛选政策证据，输出可审计时间线�
 只处理会话内已取得的政策记录。运行 `scripts/calculate.py <relative-input.json>`，逐条保留 evidence ID、来源引用、日期和命中关键词。
 
 输入必须逐项匹配 `references/input-schema.json` 的 `data_contract`：provider、mapping/version、文档单位、发布日期口径和不适用复权标记均须明确；未来记录或未来数据集引用一律拒绝。该内置能力初始为 disabled，只有取得并登记 macOS Wind 对照 receipt 后才可启用。
+输入文件必须是当前工作目录内的普通相对 JSON 文件，不接受文件或目录符号链接。计算会遍历全部证据，但最多内联 128 条命中；超出部分由 `row_delivery=summary_with_dataset_refs` 明确计数并引用规范化数据集，保证 sandbox stdout 低于 64 KiB，不会静默截断。
 根、参数、政策记录和数据集日期严格使用 `YYYY-MM-DD`；`source_hashes` 存在时必须是对象，key 须为非空、首尾无空白且不含 CR/LF 或 Unicode 行/段分隔符的规范名称，value 须为 SHA-256；显式 null 或非规范 key 会被拒绝，字段缺失时结果降级为 partial 并披露 limitation。
 
 - 缺少来源引用或证据 ID 时失败关闭。

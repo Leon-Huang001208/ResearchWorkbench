@@ -659,6 +659,12 @@
 - 最终复审区分缺失与显式 null 来源哈希：仅字段缺失允许降级；显式 null、空白 key 或带首尾空白的
   非规范 key 固定返回 `invalid_source_hashes`，不再静默 trim 或合并碰撞 key。
 - schema/运行时允许集合进一步对齐：来源 key 内部出现 CR、LF、U+2028 或 U+2029 同样固定拒绝。
+- 六项 enabled/rollback 状态增加持久 macOS Wind/Excel comparison receipt 校验，并将已知初版脚本
+  迁移为当前不可变版本且保持 disabled；不新增公开 API、能力类型或执行器。
+- 六 CLI 共用防越界/no-follow/身份复核的相对 JSON loader 与有限数算术；全部输入仍在既有 sandbox
+  内计算，最多内联 128 条并用 `row_delivery` 披露其余数据，使 stdout 保持 64 KiB 上限。
+- 业绩预告记录报告期与参数严格等价，每日简报 provenance 复用规范化 dataset refs；这些是既有
+  calculator 内部契约收紧，不改变模块拓扑。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"共享输入契约和预算错误投影只收紧既有research_run_script内部计算器，不新增进程、服务、权限或跨边界数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项内置Skill改为receipt门控的disabled初始状态，仍使用既有目录、版本、检查与选择状态机。","diagrams":[]} -->
@@ -666,3 +672,5 @@
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"clean目录测试确认disabled六项不进入既有原生provider candidate投影，能力拓扑和状态机不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"来源哈希仅收紧既有共享输入校验和六份schema，不增加执行节点、权限或数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"来源key换行分隔符拒绝仅对齐既有共享校验与schema允许集合，不改变拓扑、权限或数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项专用comparison receipt与已知初版disabled迁移只收紧既有catalog状态机，不增加公开API、能力类型或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"相对JSON安全读取、有限数算术和64KiB有界结果仍在既有research_run_script沙箱节点内，不新增进程、权限或跨边界数据流。","diagrams":[]} -->

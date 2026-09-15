@@ -111,8 +111,11 @@ Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-pr
 CPU Skill 还从 `skills/_shared/` 复制 `cpu_budget.py`、`input_contract.py`、结果与 provenance 协议，分别处理市场简报、
 政策时间线、事件窗、ETF 资金流、业绩披露与业绩预告；计算只读取相对路径 JSON 和已提供字段，
 严格校验 provider/mapping/version/单位/日期/复权与未来数据，不执行 Excel、网络或分类推断。六项
-初始可发现但 disabled，登记 macOS Wind 对照 receipt 后方可启用。对应 golden、失败关闭、预算、
-独立进程时间/RSS 压力与静态扫描位于
+初始可发现但 disabled；启用或回滚到 enabled 前，catalog 必须持久保存并校验绑定 slug、不可变
+版本、计算脚本哈希、UTC 时间、macOS Wind/Excel 通过结果和证据摘要的 receipt。已知初版脚本在
+catalog 升级时迁移到当前不可变版本并保持 disabled。共享输入 loader、有限数算术与
+`row_delivery` 分别守住相对 JSON 文件、数值边界和 64 KiB sandbox stdout；全部输入仍参与计算。
+对应 golden、失败关闭、预算、独立进程时间/RSS 压力与静态扫描位于
 `tests/research_web/test_cpu_quant_skills_stage2.py`。
 研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱
 内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在

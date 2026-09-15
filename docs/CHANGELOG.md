@@ -29,6 +29,14 @@
 - 来源哈希契约进一步区分字段缺失与显式 null：仅缺失允许降级；null、空白或首尾带空白的 key
   稳定返回 `invalid_source_hashes`，不会通过 trim 静默改名或合并碰撞来源。
 - 统一 schema 与运行时的来源 key 允许集合，内部含 CR、LF、U+2028 或 U+2029 的 key 同样稳定拒绝。
+- 增加六项专用启用证据门：catalog 持久保存并校验绑定 slug、不可变版本、计算脚本哈希、UTC 时间、
+  macOS Wind/Excel 通过结果和证据摘要的 receipt；启用及回滚到 enabled 都强制检查。已知初版脚本
+  升级到当前不可变版本时自动保持 disabled，不继承旧启用状态，且没有伪造 receipt 或实际启用。
+- 六 CLI 统一使用防越界/no-follow/身份复核的相对 JSON loader，拒绝文件和目录链接；共享受检数值
+  原语把输入转换或派生溢出稳定映射为 `invalid_number`，输出以 `allow_nan=false` 作最后防线。
+  业绩预告逐条报告期必须等于参数报告期，每日简报 provenance 复用同一份规范化 dataset refs。
+- 近上限数据现在通过真实研究 sandbox 的 64 KiB 输出门：计算处理全部输入，最多内联 128 条，
+  其余以 `row_delivery=summary_with_dataset_refs` 明示省略计数和数据集引用，不静默丢失结果语义。
 - Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
 
 ### CPU 有界投研公共底座 · 2026-09-14

@@ -3145,6 +3145,7 @@ Imports:
 - `ast`
 - `copy`
 - `core.observability`
+- `datetime`
 - `hashlib`
 - `importlib.metadata`
 - `io`
@@ -3168,7 +3169,7 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, save, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, save, _receipt_key, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
 - `_is_host_process_entry`
@@ -5830,13 +5831,36 @@ Imports:
 - `__future__`
 - `collections.abc`
 - `datetime`
+- `json`
+- `math`
+- `os`
+- `pathlib`
+- `stat`
 - `typing`
 
 Functions:
+- `checked_number`
+  - Convert a supplied number without leaking conversion overflows.
+- `checked_arithmetic`
+  - Require every derived arithmetic result to remain finite.
+- `checked_sum`
+- `checked_add`
+- `checked_subtract`
+- `checked_multiply`
+- `checked_divide`
+- `checked_mean`
+- `strict_json_dumps`
+- `bounded_result_rows`
+  - Expose an explicit bounded projection after processing the full input.
+- `_is_link_or_reparse`
+- `load_relative_json`
+  - Read one contained regular JSON file without following links or replacements.
 - `strict_object`
   - Return an exact object or fail without including user content.
 - `iso_day`
 - `reject_future`
+- `validate_source_hashes`
+  - Validate canonical source digests or mark missing provenance explicitly.
 - `validate_data_contract`
   - Require the exact reviewed provider mapping and measurement semantics.
 - `validate_dataset_refs`
@@ -5869,12 +5893,9 @@ Module docstring:
 Imports:
 - `__future__`
 - `cpu_budget`
-- `datetime`
 - `input_contract`
 - `json`
 - `logging`
-- `math`
-- `pathlib`
 - `sys`
 - `typing`
 
@@ -5888,10 +5909,10 @@ Functions:
 - `_number`
 - `_text`
 - `_list`
+- `_count`
 - `_base`
 - `calculate`
   - Return a fixed brief structure without inferring policy or event impacts.
-- `_input_path`
 - `main`
 
 
@@ -5919,12 +5940,9 @@ Module docstring:
 Imports:
 - `__future__`
 - `cpu_budget`
-- `datetime`
 - `input_contract`
 - `json`
 - `logging`
-- `math`
-- `pathlib`
 - `sys`
 - `typing`
 
@@ -5938,7 +5956,6 @@ Functions:
 - `_number`
 - `_bucket`
 - `calculate`
-- `_path`
 - `main`
 
 
@@ -5950,12 +5967,9 @@ Module docstring:
 Imports:
 - `__future__`
 - `cpu_budget`
-- `datetime`
 - `input_contract`
 - `json`
 - `logging`
-- `math`
-- `pathlib`
 - `sys`
 - `typing`
 
@@ -5969,7 +5983,6 @@ Functions:
 - `_number`
 - `_distribution`
 - `calculate`
-- `_path`
 - `main`
 
 
@@ -5981,12 +5994,9 @@ Module docstring:
 Imports:
 - `__future__`
 - `cpu_budget`
-- `datetime`
 - `input_contract`
 - `json`
 - `logging`
-- `math`
-- `pathlib`
 - `sys`
 - `typing`
 
@@ -5999,7 +6009,6 @@ Functions:
 - `_day`
 - `_number`
 - `calculate`
-- `_path`
 - `main`
 
 
@@ -6011,12 +6020,9 @@ Module docstring:
 Imports:
 - `__future__`
 - `cpu_budget`
-- `datetime`
 - `input_contract`
 - `json`
 - `logging`
-- `math`
-- `pathlib`
 - `sys`
 - `typing`
 
@@ -6031,7 +6037,6 @@ Functions:
 - `_series`
 - `_returns`
 - `calculate`
-- `_path`
 - `main`
 
 
@@ -6095,11 +6100,9 @@ Module docstring:
 Imports:
 - `__future__`
 - `cpu_budget`
-- `datetime`
 - `input_contract`
 - `json`
 - `logging`
-- `pathlib`
 - `sys`
 - `typing`
 
@@ -6111,7 +6114,6 @@ Functions:
 - `_text`
 - `_day`
 - `calculate`
-- `_path`
 - `main`
 
 

@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import sys
-from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
 from input_contract import (
+    bounded_result_rows,
+    checked_divide,
+    checked_number,
     iso_day,
+    load_relative_json,
     reject_future,
     safe_error_payload,
+    strict_json_dumps,
     strict_object,
     validate_data_contract,
     validate_dataset_refs,
@@ -59,12 +62,7 @@ def _day(value: Any) -> str:
 
 
 def _number(value: Any) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise CalculatorError("invalid_field_type")
-    result = float(value)
-    if not math.isfinite(result):
-        raise CalculatorError("invalid_number")
-    return result
+    return checked_number(value, error=CalculatorError)
 
 
 def _distribution(values: list[float]) -> list[dict[str, int | str]]:
@@ -161,6 +159,11 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         [] if len(normalized) == expected_count else ["expected_universe_not_fully_disclosed"]
     )
     limitations.extend(source_limitations)
+    output_rows, row_delivery = bounded_result_rows(
+        normalized,
+        processed_input_rows=len(records),
+        dataset_refs=refs,
+    )
     return {
         "protocol": "cpu_bounded_v1",
         "skill_slug": SKILL_SLUG,
@@ -173,12 +176,15 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "metrics": {
             "disclosed_count": len(normalized),
             "expected_count": expected_count,
-            "disclosure_progress": len(normalized) / expected_count,
+            "disclosure_progress": checked_divide(
+                len(normalized), expected_count, error=CalculatorError
+            ),
             "change_distributions": {
                 field: _distribution(values) for field, values in measures.items()
             },
         },
-        "rows": normalized,
+        "rows": output_rows,
+        "row_delivery": row_delivery,
         "limitations": limitations,
         "research_only": True,
         "provenance": {
@@ -195,36 +201,21 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     }
 
 
-def _path(value: str) -> Path:
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts:
-        raise CalculatorError("unsafe_input_path")
-    result = (Path.cwd() / path).resolve()
-    if not result.is_file():
-        raise CalculatorError("input_unavailable")
-    return result
-
-
 def main(argv: list[str] | None = None) -> int:
     try:
         args = sys.argv[1:] if argv is None else argv
         if len(args) != 1:
             raise CalculatorError("usage_error")
-        path = _path(args[0])
-        size = path.stat().st_size
-        WorkloadBudget().add_input(rows=0, bytes_count=size)
-        print(
-            json.dumps(
-                calculate(json.loads(path.read_text(encoding="utf-8")), input_bytes=size),
-                ensure_ascii=False,
-                sort_keys=True,
-            )
-        )
+        payload, size = load_relative_json(args[0], error=CalculatorError, budget=WorkloadBudget())
+        print(strict_json_dumps(calculate(payload, input_bytes=size), error=CalculatorError))
         return 0
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
+        print(
+            json.dumps(safe_error_payload(exc), sort_keys=True, allow_nan=False),
+            file=sys.stderr,
+        )
         return 1
 
 
