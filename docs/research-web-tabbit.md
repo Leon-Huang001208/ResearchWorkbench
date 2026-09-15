@@ -133,3 +133,5 @@ JSON 等无效探针响应失败关闭，不读取或改变 Tabbit 配置。
 JSON，并受同一 FIFO、readiness、预算与沙箱限制；它们不调用 Tabbit、不获得浏览器标签正文，也不
 改变页面授权、claim、一次性 token、写操作审批或浏览器生命周期。包内计算脚本、schema、映射、
 provenance 和 synthetic golden 进入能力不可变版本，不构成新的 Runtime 或浏览器执行节点。
+后续严格输入契约、未来数据拒绝和初始 disabled/receipt 启用门禁同样只收紧能力选择与
+`research_run_script` 输入，不让 Tabbit 取得新的页面、网络、文件或执行权限。

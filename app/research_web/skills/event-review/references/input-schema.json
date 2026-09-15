@@ -1,1 +1,179 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["as_of","parameters","dataset_refs","event_date","target_series","benchmark_series"],"properties":{"as_of":{"type":"string","format":"date"},"event_date":{"type":"string","format":"date"},"parameters":{"type":"object","required":["pre_days","post_days"]},"dataset_refs":{"type":"array","minItems":1,"items":{"type":"object","required":["dataset_id","provider_id","as_of","sha256"],"properties":{"dataset_id":{"type":"string","minLength":1},"provider_id":{"type":"string","minLength":1},"as_of":{"type":"string","format":"date"},"sha256":{"type":"string","pattern":"^[0-9a-fA-F]{64}$"}}}},"source_hashes":{"type":"object"},"target_series":{"$ref":"#/$defs/series"},"benchmark_series":{"$ref":"#/$defs/series"}},"$defs":{"series":{"type":"array","minItems":2,"items":{"type":"object","required":["date","close","volume"],"properties":{"date":{"type":"string","format":"date"},"close":{"type":"number","exclusiveMinimum":0},"volume":{"type":"number","exclusiveMinimum":0}}}}}}
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "as_of",
+        "event_date",
+        "parameters",
+        "data_contract",
+        "dataset_refs",
+        "target_series",
+        "benchmark_series"
+    ],
+    "properties": {
+        "as_of": {
+            "type": "string",
+            "format": "date"
+        },
+        "event_date": {
+            "type": "string",
+            "format": "date"
+        },
+        "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "pre_days",
+                "post_days"
+            ],
+            "properties": {
+                "pre_days": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "post_days": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "data_contract": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "provider",
+                "mapping_id",
+                "mapping_version",
+                "units",
+                "date_semantics",
+                "adjustment"
+            ],
+            "properties": {
+                "provider": {
+                    "enum": [
+                        "synthetic",
+                        "datahub"
+                    ]
+                },
+                "mapping_id": {
+                    "const": "event-review"
+                },
+                "mapping_version": {
+                    "const": "1.0.0"
+                },
+                "units": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "target_close",
+                        "benchmark_close",
+                        "volume",
+                        "return"
+                    ],
+                    "properties": {
+                        "target_close": {
+                            "const": "CNY_per_share"
+                        },
+                        "benchmark_close": {
+                            "const": "points"
+                        },
+                        "volume": {
+                            "const": "share"
+                        },
+                        "return": {
+                            "const": "decimal"
+                        }
+                    }
+                },
+                "date_semantics": {
+                    "const": "trade_date"
+                },
+                "adjustment": {
+                    "const": "forward"
+                }
+            }
+        },
+        "dataset_refs": {
+            "$ref": "#/$defs/dataset_refs"
+        },
+        "source_hashes": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{64}$"
+            }
+        },
+        "target_series": {
+            "$ref": "#/$defs/series"
+        },
+        "benchmark_series": {
+            "$ref": "#/$defs/series"
+        }
+    },
+    "$defs": {
+        "dataset_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "dataset_id",
+                    "provider_id",
+                    "as_of",
+                    "sha256"
+                ],
+                "properties": {
+                    "dataset_id": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "provider_id": {
+                        "enum": [
+                            "synthetic",
+                            "datahub",
+                            "wind"
+                        ]
+                    },
+                    "as_of": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "sha256": {
+                        "type": "string",
+                        "pattern": "^[0-9a-fA-F]{64}$"
+                    }
+                }
+            }
+        },
+        "series": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5000,
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "date",
+                    "close",
+                    "volume"
+                ],
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "close": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                    },
+                    "volume": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                    }
+                }
+            }
+        }
+    }
+}

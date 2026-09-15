@@ -10,13 +10,33 @@ from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
+from input_contract import (
+    reject_future,
+    safe_error_payload,
+    strict_object,
+    validate_data_contract,
+    validate_dataset_refs,
+)
 
 LOGGER = logging.getLogger("research.skill.policy_sentinel")
 SKILL_SLUG = "policy-sentinel"
 METHOD_VERSION = "1.0.0"
 REQUIRED_ROOT_FIELDS = ("records", "as_of", "dataset_refs", "parameters")
 PRIMARY_ROWS_FIELD = "records"
-ALLOWED_ROOT_FIELDS = frozenset((*REQUIRED_ROOT_FIELDS, "source_hashes"))
+ALLOWED_ROOT_FIELDS = frozenset((*REQUIRED_ROOT_FIELDS, "source_hashes", "data_contract"))
+SUPPORTED_PROVIDERS = frozenset({"synthetic", "datahub"})
+CONTRACT_UNITS = {"record": "document"}
+RECORD_FIELDS = frozenset(
+    {
+        "evidence_id",
+        "title",
+        "summary",
+        "published_at",
+        "source",
+        "source_ref",
+        "potential_impact_objects",
+    }
+)
 
 
 class CalculatorError(ValueError):
@@ -39,37 +59,17 @@ def _day(value: Any) -> str:
         raise CalculatorError("invalid_date") from exc
 
 
-def _dataset_refs(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    if set(payload) - ALLOWED_ROOT_FIELDS:
-        raise CalculatorError("unknown_field")
-    refs = payload.get("dataset_refs")
-    required = {"dataset_id", "provider_id", "as_of", "sha256"}
-    if not isinstance(refs, list) or not refs:
-        raise CalculatorError("invalid_field_type")
-    for ref in refs:
-        if not isinstance(ref, dict) or not required <= set(ref):
-            raise CalculatorError("invalid_dataset_ref")
-        _text(ref["dataset_id"])
-        _text(ref["provider_id"])
-        _day(ref["as_of"])
-        digest = ref["sha256"]
-        if (
-            not isinstance(digest, str)
-            or len(digest) != 64
-            or any(character not in "0123456789abcdef" for character in digest.lower())
-        ):
-            raise CalculatorError("invalid_dataset_ref")
-    return refs
-
-
 def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     budget = WorkloadBudget()
     budget.add_input(rows=0, bytes_count=input_bytes)
     if not isinstance(payload, dict):
         raise CalculatorError("invalid_field_type")
-    for field in REQUIRED_ROOT_FIELDS:
-        if field not in payload:
-            raise CalculatorError("missing_required_field")
+    strict_object(
+        payload,
+        required=frozenset(REQUIRED_ROOT_FIELDS),
+        allowed=ALLOWED_ROOT_FIELDS,
+        error=CalculatorError,
+    )
     records = payload["records"]
     if not isinstance(records, list):
         raise CalculatorError("invalid_field_type")
@@ -77,33 +77,59 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         raise CalculatorError("empty_input")
     budget.add_input(rows=len(records), bytes_count=0)
     budget.validate_series(len(records))
-    parameters = payload["parameters"]
-    refs = _dataset_refs(payload)
-    if not isinstance(parameters, dict):
-        raise CalculatorError("invalid_field_type")
+    as_of = _day(payload["as_of"])
+    validate_data_contract(
+        payload.get("data_contract"),
+        mapping_id=SKILL_SLUG,
+        mapping_version=METHOD_VERSION,
+        units=CONTRACT_UNITS,
+        date_semantics="publication_date",
+        adjustment="not_applicable",
+        providers=SUPPORTED_PROVIDERS,
+        error=CalculatorError,
+    )
+    parameters = strict_object(
+        payload["parameters"],
+        required=frozenset({"keywords", "start_date", "end_date"}),
+        allowed=frozenset({"keywords", "start_date", "end_date"}),
+        error=CalculatorError,
+    )
+    refs = validate_dataset_refs(
+        payload["dataset_refs"],
+        as_of=as_of,
+        providers=SUPPORTED_PROVIDERS,
+        error=CalculatorError,
+    )
     keywords = parameters.get("keywords")
     start_date = _day(parameters.get("start_date"))
     end_date = _day(parameters.get("end_date"))
+    if end_date > as_of:
+        raise CalculatorError("future_data")
     if start_date > end_date or not isinstance(keywords, list) or not keywords:
         raise CalculatorError("invalid_field_type")
     normalized_keywords = sorted({_text(value) for value in keywords})
 
     timeline = []
     for raw in records:
-        if not isinstance(raw, dict):
-            raise CalculatorError("invalid_field_type")
-        if not raw.get("source_ref") or not raw.get("evidence_id"):
+        if isinstance(raw, dict) and (not raw.get("source_ref") or not raw.get("evidence_id")):
             raise CalculatorError("evidence_required")
-        published = _day(raw.get("published_at"))
+        raw = strict_object(
+            raw,
+            required=RECORD_FIELDS,
+            allowed=RECORD_FIELDS,
+            error=CalculatorError,
+        )
+        published = reject_future(raw.get("published_at"), as_of=as_of, error=CalculatorError)
         text = f"{_text(raw.get('title'))} {_text(raw.get('summary'))}"
         matched = [
             keyword for keyword in normalized_keywords if keyword.casefold() in text.casefold()
         ]
-        if not start_date <= published <= end_date or not matched:
-            continue
         targets = raw.get("potential_impact_objects")
         if not isinstance(targets, list):
             raise CalculatorError("invalid_field_type")
+        normalized_targets = sorted({_text(value) for value in targets})
+        if not start_date <= published <= end_date or not matched:
+            continue
         timeline.append(
             {
                 "published_at": published,
@@ -113,7 +139,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
                 "source_ref": _text(raw["source_ref"]),
                 "matched_keywords": matched,
                 "matched_rules": ["date_in_range", "keyword_match"],
-                "potential_impact_objects": sorted({_text(value) for value in targets}),
+                "potential_impact_objects": normalized_targets,
             }
         )
     timeline.sort(key=lambda row: (row["published_at"], row["evidence_id"]))
@@ -124,7 +150,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "skill_slug": SKILL_SLUG,
         "method_version": METHOD_VERSION,
         "compute_profile": "cpu_bounded_v1",
-        "as_of": _day(payload["as_of"]),
+        "as_of": as_of,
         "parameters": {
             "keywords": normalized_keywords,
             "start_date": start_date,
@@ -184,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps({"error": {"code": code, "message": code}}), file=sys.stderr)
+        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
         return 1
 
 

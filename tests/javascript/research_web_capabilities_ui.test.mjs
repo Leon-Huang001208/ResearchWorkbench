@@ -176,16 +176,19 @@ test('capability quicklook is an accessible dialog with truthful disabled reason
   assert.doesNotMatch(renderCapabilityPreviewDialog({ tool: { id: 'x', name: '<img>', description: '<script>', selectable: false } }), /<img>|<script>/);
 });
 
-test('capability center renders, filters, opens and selects every built-in Skill without a router card', async () => {
+test('capability center renders every built-in Skill and disables receipt-gated calculators', async () => {
   const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
   const builtinResearchSkills = productBuiltinResearchSkills();
   assert.equal(builtinResearchSkills.length, 18);
   assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 18);
-  assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin && item.enabled), true);
+  assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin), true);
+  const receiptGated = new Set(['daily-market-brief', 'policy-sentinel', 'event-review', 'etf-flow-monitor', 'earnings-report-monitor', 'earnings-preview-monitor']);
+  assert.deepEqual(builtinResearchSkills.filter(item => !item.enabled).map(item => item.id).sort(), [...receiptGated].sort());
 
   const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });
   const selectableIDs = [...catalog.matchAll(/data-use-skill="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(selectableIDs, builtinResearchSkills.map(item => item.id));
+  for (const id of receiptGated) assert.match(catalog, new RegExp(`data-use-skill="${id}"[^>]*disabled`));
   for (const item of builtinResearchSkills) {
     assert.ok(catalog.includes(item.name));
     assert.ok(catalog.includes(`<option value="${item.category}"`));

@@ -89,8 +89,11 @@ Workflow；其中五个专用研究 Skill 与六个 CPU 有界资讯/事件 Skil
 六个 CPU Skill 分别固定编排市场简报、政策证据时间线、事件窗统计、ETF 资金流、业绩披露进度
 和业绩预告区间。它们只消费已取得并带 `dataset_refs` 的 JSON，不联网、不读取 Excel、不猜测
 ETF 分类或缺失暴露，也不把事件样本不足时的 beta 默认成 1。每个包携带独立输入/输出 schema、
-字段映射、来源 provenance、synthetic golden 及受审计算脚本；`cpu_bounded_v1` 的预算、结果和
-provenance 资源在种子构建时复制进不可变版本并参与哈希。
+字段映射、来源 provenance、synthetic golden 及受审计算脚本。运行时严格校验 provider、mapping
+及版本、单位、日期语义和复权口径，拒绝晚于结果 `as_of` 的记录与 dataset ref；不等价数据固定
+返回 `data_not_equivalent`。六项能力在真实 Wind/Excel 对照尚未完成时保持可发现但 disabled，只有
+登记 macOS Wind 对照 receipt 后才可启用。`cpu_bounded_v1` 的预算、输入契约、结果和 provenance
+资源在种子构建时复制进不可变版本并参与哈希。
 
 历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
 

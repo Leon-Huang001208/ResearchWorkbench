@@ -11,6 +11,13 @@ from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
+from input_contract import (
+    reject_future,
+    safe_error_payload,
+    strict_object,
+    validate_data_contract,
+    validate_dataset_refs,
+)
 
 LOGGER = logging.getLogger("research.skill.daily_market_brief")
 SKILL_SLUG = "daily-market-brief"
@@ -18,8 +25,23 @@ METHOD_VERSION = "1.0.0"
 REQUIRED_ROOT_FIELDS = ("market_snapshot", "as_of", "dataset_refs", "parameters")
 PRIMARY_ROWS_FIELD = "market_snapshot"
 ALLOWED_ROOT_FIELDS = frozenset(
-    (*REQUIRED_ROOT_FIELDS, "source_hashes", "breadth", "sectors", "themes", "news")
+    (
+        *REQUIRED_ROOT_FIELDS,
+        "source_hashes",
+        "data_contract",
+        "breadth",
+        "sectors",
+        "themes",
+        "news",
+    )
 )
+SUPPORTED_PROVIDERS = frozenset({"synthetic", "datahub"})
+DATASET_PROVIDERS = frozenset({"synthetic", "datahub", "wind"})
+CONTRACT_UNITS = {
+    "price": "native_quote",
+    "change_pct": "percent",
+    "turnover": "CNY",
+}
 
 
 class CalculatorError(ValueError):
@@ -63,48 +85,49 @@ def _list(payload: dict[str, Any], field: str, *, required: bool = False) -> lis
     return value
 
 
-def _dataset_refs(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    if set(payload) - ALLOWED_ROOT_FIELDS:
-        raise CalculatorError("unknown_field")
-    refs = payload.get("dataset_refs")
-    required = {"dataset_id", "provider_id", "as_of", "sha256"}
-    if not isinstance(refs, list) or not refs:
-        raise CalculatorError("invalid_field_type")
-    for ref in refs:
-        if not isinstance(ref, dict) or not required <= set(ref):
-            raise CalculatorError("invalid_dataset_ref")
-        _text(ref["dataset_id"])
-        _text(ref["provider_id"])
-        _day(ref["as_of"])
-        digest = ref["sha256"]
-        if (
-            not isinstance(digest, str)
-            or len(digest) != 64
-            or any(character not in "0123456789abcdef" for character in digest.lower())
-        ):
-            raise CalculatorError("invalid_dataset_ref")
-    return refs
-
-
 def _base(
     payload: dict[str, Any], *, rows: int, budget: WorkloadBudget
 ) -> tuple[WorkloadBudget, dict]:
-    for field in REQUIRED_ROOT_FIELDS:
-        if field not in payload:
-            raise CalculatorError("missing_required_field")
+    strict_object(
+        payload,
+        required=frozenset(REQUIRED_ROOT_FIELDS),
+        allowed=ALLOWED_ROOT_FIELDS,
+        error=CalculatorError,
+    )
     if not isinstance(payload[REQUIRED_ROOT_FIELDS[0]], list):
         raise CalculatorError("invalid_field_type")
     budget.add_input(rows=rows, bytes_count=0)
-    parameters = payload["parameters"]
-    refs = _dataset_refs(payload)
-    if not isinstance(parameters, dict):
-        raise CalculatorError("invalid_field_type")
+    as_of = _day(payload["as_of"])
+    validate_data_contract(
+        payload.get("data_contract"),
+        mapping_id=SKILL_SLUG,
+        mapping_version=METHOD_VERSION,
+        units=CONTRACT_UNITS,
+        date_semantics="trade_date",
+        adjustment="not_applicable",
+        providers=SUPPORTED_PROVIDERS,
+        error=CalculatorError,
+    )
+    parameters = strict_object(
+        payload["parameters"],
+        required=frozenset({"market", "currency"}),
+        allowed=frozenset({"market", "currency"}),
+        error=CalculatorError,
+    )
+    _text(parameters["market"])
+    _text(parameters["currency"])
+    refs = validate_dataset_refs(
+        payload["dataset_refs"],
+        as_of=as_of,
+        providers=DATASET_PROVIDERS,
+        error=CalculatorError,
+    )
     return budget, {
         "protocol": "cpu_bounded_v1",
         "skill_slug": SKILL_SLUG,
         "method_version": METHOD_VERSION,
         "compute_profile": "cpu_bounded_v1",
-        "as_of": _day(payload["as_of"]),
+        "as_of": as_of,
         "parameters": parameters,
         "dataset_refs": refs,
     }
@@ -127,10 +150,15 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
 
     indices: list[dict[str, Any]] = []
     for raw in collections["market_snapshot"]:
-        if not isinstance(raw, dict):
-            raise CalculatorError("invalid_field_type")
+        raw = strict_object(
+            raw,
+            required=frozenset({"date", "asset", "name", "price", "change_pct", "turnover"}),
+            allowed=frozenset({"date", "asset", "name", "price", "change_pct", "turnover"}),
+            error=CalculatorError,
+        )
         indices.append(
             {
+                "date": reject_future(raw["date"], as_of=result["as_of"], error=CalculatorError),
                 "asset": _text(raw.get("asset")),
                 "name": _text(raw.get("name")),
                 "price": _number(raw.get("price")),
@@ -143,20 +171,38 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     def ranked(name: str) -> list[dict[str, Any]]:
         values: list[dict[str, Any]] = []
         for raw in collections[name]:
-            if not isinstance(raw, dict):
-                raise CalculatorError("invalid_field_type")
+            raw = strict_object(
+                raw,
+                required=frozenset({"date", "name", "change_pct"}),
+                allowed=frozenset({"date", "name", "change_pct"}),
+                error=CalculatorError,
+            )
             values.append(
-                {"name": _text(raw.get("name")), "change_pct": _number(raw.get("change_pct"))}
+                {
+                    "date": reject_future(
+                        raw["date"], as_of=result["as_of"], error=CalculatorError
+                    ),
+                    "name": _text(raw.get("name")),
+                    "change_pct": _number(raw.get("change_pct")),
+                }
             )
         return sorted(values, key=lambda row: (-row["change_pct"], row["name"]))
 
     news = []
     for raw in collections["news"]:
-        if not isinstance(raw, dict) or not raw.get("source_ref"):
+        raw = strict_object(
+            raw,
+            required=frozenset({"published_at", "title", "source", "source_ref"}),
+            allowed=frozenset({"published_at", "title", "source", "source_ref"}),
+            error=CalculatorError,
+        )
+        if not raw.get("source_ref"):
             raise CalculatorError("evidence_required")
         news.append(
             {
-                "published_at": _text(raw.get("published_at")),
+                "published_at": reject_future(
+                    raw["published_at"], as_of=result["as_of"], error=CalculatorError
+                ),
                 "title": _text(raw.get("title")),
                 "source": _text(raw.get("source")),
                 "source_ref": _text(raw.get("source_ref")),
@@ -164,8 +210,13 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         )
     news.sort(key=lambda row: (row["published_at"], row["source_ref"]))
     breadth = payload.get("breadth")
-    if not isinstance(breadth, dict):
-        raise CalculatorError("missing_required_field")
+    breadth = strict_object(
+        breadth,
+        required=frozenset({"date", "advances", "declines", "flat"}),
+        allowed=frozenset({"date", "advances", "declines", "flat"}),
+        error=CalculatorError,
+    )
+    breadth_date = reject_future(breadth["date"], as_of=result["as_of"], error=CalculatorError)
     advances = int(_number(breadth.get("advances")))
     declines = int(_number(breadth.get("declines")))
     flat = int(_number(breadth.get("flat")))
@@ -186,7 +237,12 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         },
         rows={
             "market_snapshot": indices,
-            "breadth": {"advances": advances, "declines": declines, "flat": flat},
+            "breadth": {
+                "date": breadth_date,
+                "advances": advances,
+                "declines": declines,
+                "flat": flat,
+            },
             "sectors": ranked("sectors"),
             "themes": ranked("themes"),
             "news_evidence": news,
@@ -227,7 +283,7 @@ def main(argv: list[str] | None = None) -> int:
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps({"error": {"code": code, "message": code}}), file=sys.stderr)
+        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
         return 1
 
 

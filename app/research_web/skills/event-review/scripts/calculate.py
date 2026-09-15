@@ -11,6 +11,13 @@ from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
+from input_contract import (
+    reject_future,
+    safe_error_payload,
+    strict_object,
+    validate_data_contract,
+    validate_dataset_refs,
+)
 
 LOGGER = logging.getLogger("research.skill.event_review")
 SKILL_SLUG = "event-review"
@@ -25,7 +32,15 @@ REQUIRED_ROOT_FIELDS = (
     "parameters",
 )
 PRIMARY_ROWS_FIELD = "target_series"
-ALLOWED_ROOT_FIELDS = frozenset((*REQUIRED_ROOT_FIELDS, "source_hashes"))
+ALLOWED_ROOT_FIELDS = frozenset((*REQUIRED_ROOT_FIELDS, "source_hashes", "data_contract"))
+SUPPORTED_PROVIDERS = frozenset({"synthetic", "datahub"})
+DATASET_PROVIDERS = frozenset({"synthetic", "datahub", "wind"})
+CONTRACT_UNITS = {
+    "target_close": "CNY_per_share",
+    "benchmark_close": "points",
+    "volume": "share",
+    "return": "decimal",
+}
 
 
 class CalculatorError(ValueError):
@@ -48,29 +63,6 @@ def _day(value: Any) -> str:
         raise CalculatorError("invalid_date") from exc
 
 
-def _dataset_refs(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    if set(payload) - ALLOWED_ROOT_FIELDS:
-        raise CalculatorError("unknown_field")
-    refs = payload.get("dataset_refs")
-    required = {"dataset_id", "provider_id", "as_of", "sha256"}
-    if not isinstance(refs, list) or not refs:
-        raise CalculatorError("invalid_field_type")
-    for ref in refs:
-        if not isinstance(ref, dict) or not required <= set(ref):
-            raise CalculatorError("invalid_dataset_ref")
-        _text(ref["dataset_id"])
-        _text(ref["provider_id"])
-        _day(ref["as_of"])
-        digest = ref["sha256"]
-        if (
-            not isinstance(digest, str)
-            or len(digest) != 64
-            or any(character not in "0123456789abcdef" for character in digest.lower())
-        ):
-            raise CalculatorError("invalid_dataset_ref")
-    return refs
-
-
 def _number(value: Any, *, positive: bool = False) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise CalculatorError("invalid_field_type")
@@ -80,7 +72,7 @@ def _number(value: Any, *, positive: bool = False) -> float:
     return result
 
 
-def _series(value: Any) -> list[dict[str, float | str]]:
+def _series(value: Any, *, as_of: str) -> list[dict[str, float | str]]:
     if not isinstance(value, list):
         raise CalculatorError("invalid_field_type")
     if not value:
@@ -88,9 +80,13 @@ def _series(value: Any) -> list[dict[str, float | str]]:
     result: list[dict[str, float | str]] = []
     seen: set[str] = set()
     for raw in value:
-        if not isinstance(raw, dict):
-            raise CalculatorError("invalid_field_type")
-        day = _day(raw.get("date"))
+        raw = strict_object(
+            raw,
+            required=frozenset({"date", "close", "volume"}),
+            allowed=frozenset({"date", "close", "volume"}),
+            error=CalculatorError,
+        )
+        day = reject_future(raw.get("date"), as_of=as_of, error=CalculatorError)
         if day in seen:
             raise CalculatorError("duplicate_date")
         seen.add(day)
@@ -117,25 +113,47 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     budget.add_input(rows=0, bytes_count=input_bytes)
     if not isinstance(payload, dict):
         raise CalculatorError("invalid_field_type")
-    for field in REQUIRED_ROOT_FIELDS:
-        if field not in payload:
-            raise CalculatorError("missing_required_field")
+    strict_object(
+        payload,
+        required=frozenset(REQUIRED_ROOT_FIELDS),
+        allowed=ALLOWED_ROOT_FIELDS,
+        error=CalculatorError,
+    )
     if not isinstance(payload[REQUIRED_ROOT_FIELDS[0]], list):
         raise CalculatorError("invalid_field_type")
-    target = _series(payload["target_series"])
-    benchmark = _series(payload["benchmark_series"])
+    as_of = _day(payload["as_of"])
+    validate_data_contract(
+        payload.get("data_contract"),
+        mapping_id=SKILL_SLUG,
+        mapping_version=METHOD_VERSION,
+        units=CONTRACT_UNITS,
+        date_semantics="trade_date",
+        adjustment="forward",
+        providers=SUPPORTED_PROVIDERS,
+        error=CalculatorError,
+    )
+    target = _series(payload["target_series"], as_of=as_of)
+    benchmark = _series(payload["benchmark_series"], as_of=as_of)
     budget.add_input(rows=len(target) + len(benchmark), bytes_count=0)
     budget.validate_series(len(target))
     budget.validate_series(len(benchmark))
-    params = payload["parameters"]
-    refs = _dataset_refs(payload)
-    if not isinstance(params, dict):
-        raise CalculatorError("invalid_field_type")
+    params = strict_object(
+        payload["parameters"],
+        required=frozenset({"pre_days", "post_days"}),
+        allowed=frozenset({"pre_days", "post_days"}),
+        error=CalculatorError,
+    )
+    refs = validate_dataset_refs(
+        payload["dataset_refs"],
+        as_of=as_of,
+        providers=DATASET_PROVIDERS,
+        error=CalculatorError,
+    )
     pre_days = params.get("pre_days")
     post_days = params.get("post_days")
     if type(pre_days) is not int or type(post_days) is not int or pre_days < 1 or post_days < 1:
         raise CalculatorError("invalid_field_type")
-    event = _day(payload["event_date"])
+    event = reject_future(payload["event_date"], as_of=as_of, error=CalculatorError)
     target_by_day = {str(row["date"]): row for row in target}
     benchmark_by_day = {str(row["date"]): row for row in benchmark}
     common_days = sorted(set(target_by_day) & set(benchmark_by_day))
@@ -206,7 +224,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "skill_slug": SKILL_SLUG,
         "method_version": METHOD_VERSION,
         "compute_profile": "cpu_bounded_v1",
-        "as_of": _day(payload["as_of"]),
+        "as_of": as_of,
         "parameters": {"event_date": event, "pre_days": pre_days, "post_days": post_days},
         "dataset_refs": refs,
         "status": "partial" if limitations else "complete",
@@ -274,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps({"error": {"code": code, "message": code}}), file=sys.stderr)
+        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
         return 1
 
 

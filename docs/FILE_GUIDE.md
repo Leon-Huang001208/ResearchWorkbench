@@ -81,8 +81,8 @@
 | `app/research_web/tabbit.py` / `runtime/tabbit-adapter.mjs` | Tabbit 配置、会话授权、实时 claim 和一次性内存上下文 |
 | `app/research_web/ui/` | 原生JS产品壳、FinGPT/Claw、输入框、能力目录/编辑器 |
 | `app/research_web/capabilities/` | 18 个内置 Skill/4 个 Workflow 的声明、检查、不可变版本与只读 Tool 目录 |
-| `app/research_web/skills/_shared/` | CPU 有界预算、结果/provenance 与通用证据协议的单一维护源码；不独立注册 |
-| `app/research_web/skills/{daily-market-brief,policy-sentinel,event-review,etf-flow-monitor,earnings-report-monitor,earnings-preview-monitor}/` | 六个独立 CPU 资讯/事件计算包：指令、受审脚本、schema、字段映射、来源记录和 synthetic golden |
+| `app/research_web/skills/_shared/` | CPU 有界预算、严格输入等价性、结果/provenance 与通用证据协议的单一维护源码；构建时复制并哈希，不独立注册 |
+| `app/research_web/skills/{daily-market-brief,policy-sentinel,event-review,etf-flow-monitor,earnings-report-monitor,earnings-preview-monitor}/` | 六个独立 CPU 资讯/事件计算包：指令、受审脚本、strict schema、运行时字段映射、来源记录和 synthetic golden；登记 macOS Wind 对照 receipt 前保持 disabled |
 | `app/research_web/datahub/` | 按需数据能力与会话数据集快照 |
 | `app/research_web/store.py` / `delivery.py` | 归属/文件索引与独立交付检查 |
 | `app/research_web/documentation.py` | 固定图册HTML白名单与隔离CSP |

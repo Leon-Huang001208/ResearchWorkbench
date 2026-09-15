@@ -1,1 +1,57 @@
-{"business_tools":[{"tool":"datahub_get_market_bars","target_fields":{"asset":"stock_id","date":"date","close":"CNY/share","volume":"share","adjustment":"explicit"},"wind":{"callable":true,"constraints":"asset_type=stock; frequency=1d; adjustment one of none, backward, forward; maximum 60 calendar days"}},{"tool":"datahub_get_index_data","benchmark_fields":{"asset":"index_id","as_of":"date","price":"points"},"wind":{"callable":false,"reason":"current binding is a real-time snapshot and cannot supply the required daily benchmark series"}}],"allowed_equivalents":"target and benchmark daily series aligned by ISO date with explicit adjustment and unchanged units","fallback_gate":"daily benchmark series must come from another callable provider or session input; otherwise data_not_equivalent","beta":"pre-event paired close returns only; no default value"}
+{
+    "runtime_contract": {
+        "mapping_id": "event-review",
+        "mapping_version": "1.0.0",
+        "supported_providers": [
+            "synthetic",
+            "datahub"
+        ],
+        "dataset_ref_providers": [
+            "synthetic",
+            "datahub",
+            "wind"
+        ],
+        "units": {
+            "target_close": "CNY_per_share",
+            "benchmark_close": "points",
+            "volume": "share",
+            "return": "decimal"
+        },
+        "date_semantics": "trade_date",
+        "adjustment": "forward",
+        "mismatch_error": "data_not_equivalent",
+        "future_data_error": "future_data"
+    },
+    "business_tools": [
+        {
+            "tool": "datahub_get_market_bars",
+            "target_fields": {
+                "asset": "stock_id",
+                "date": "date",
+                "close": "CNY/share",
+                "volume": "share",
+                "adjustment": "forward"
+            },
+            "wind": {
+                "callable": true,
+                "constraints": "asset_type=stock; frequency=1d; adjustment=forward; maximum 60 calendar days"
+            }
+        },
+        {
+            "tool": "datahub_get_index_data",
+            "benchmark_fields": {
+                "asset": "index_id",
+                "as_of": "date",
+                "price": "points"
+            },
+            "wind": {
+                "callable": false,
+                "reason": "current binding is a real-time snapshot and cannot supply the required daily benchmark series"
+            }
+        }
+    ],
+    "allowed_equivalents": "target and benchmark daily series aligned by ISO trade date with forward adjustment and unchanged units",
+    "fallback_gate": "daily benchmark series must come from another callable provider or session input; otherwise data_not_equivalent",
+    "beta": "pre-event paired close returns only; no default value",
+    "enablement_gate": "initially disabled; enable only after a successful macOS Wind comparison receipt is recorded"
+}

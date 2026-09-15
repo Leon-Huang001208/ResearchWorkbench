@@ -119,6 +119,11 @@ Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次
 必填字段、证据或分类均失败关闭；可选暴露只透明汇总，不推断。六项不新增 Workflow、页面、API、
 网络、Excel 或 GPU 执行路径。
 
+六项输入契约同时由 schema 和运行时执行：根对象、parameters、dataset refs、记录与 ETF 分类均
+拒绝未知字段；provider、mapping/version、单位、日期语义和复权不等价时返回
+`data_not_equivalent`，未来记录或 dataset ref 返回 `future_data`。真实 Wind/Excel 对照未执行前，
+这些内置 Skill 只可发现、不可选择执行；登记 macOS Wind 对照 receipt 后才能启用。
+
 共享证据协议以 `skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制到每个专用包的 `references/evidence-protocol.md`，随不可变版本保存自己的 SHA-256 快照。协议统一来源层级、证据分层、日期口径、基线、反向证据、情景和非个性化建议。搜索摘要不能替代原文，决定性来源不可读时必须降级为“证据不足”或“无法判断”。研报 PDF 通过现有 `research_helpers.read_pdf` 读取；结构化摘要校验和 SVG 知识图谱是沙箱内受审脚本，不使用宿主路径、Poppler、shell 或子进程。v1 不裁剪 PDF 原页，没有可靠来源定位时不生成关系图并标记视觉证据受限。
 
 具体报告使用 `Report Workflow`，不是独立报告执行引擎。每个不可变版本持有自己的 Word/PPT 模板、Excel 公式底稿、品牌素材、映射、结构化步骤和交付合同；共享 Skill 负责检索、市场解读、图表分析和段落写作，共享 Tool 负责 Excel 刷新、底稿提取、模板检查、图表渲染、Office 组装和文件验证。运行修改的是 Run 副本，永不覆盖 Workflow 母版。
@@ -129,7 +134,7 @@ Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次
 
 ## 验证边界
 
-包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`；六个 CPU calculator 的 golden、失败关闭、预算、性能与静态扫描在 `tests/research_web/test_cpu_quant_skills_stage2.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 18 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
+包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`；六个 CPU calculator 的 golden、严格等价性/未来数据失败关闭、预算、独立进程时间与 peak RSS、静态扫描在 `tests/research_web/test_cpu_quant_skills_stage2.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 18 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
 
 2026-09-03 实际对话产物经人工审查发布 `1ba298cc4b754aee9496b7d1c5c78bf7` v1，在新会话 `7ee7b736-673a-4aff-8006-73de6c10b600` 生成并下载 HTML，保存原生名称及编译哈希。手动导入 `528c5a3dd15849b0a7f29fbdf5441b01` 从不完整元数据草稿，经表单编辑、检查、v1、v2、停用、回滚v1、刷新、ZIP导出完成闭环。记录在 `.ai/reports/2026-09-03-research-ui-live.md`；失败首稿与原版本保留。
 

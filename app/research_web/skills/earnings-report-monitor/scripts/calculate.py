@@ -11,13 +11,22 @@ from pathlib import Path
 from typing import Any
 
 from cpu_budget import WorkloadBudget
+from input_contract import (
+    reject_future,
+    safe_error_payload,
+    strict_object,
+    validate_data_contract,
+    validate_dataset_refs,
+)
 
 LOGGER = logging.getLogger("research.skill.earnings_report_monitor")
 SKILL_SLUG = "earnings-report-monitor"
 METHOD_VERSION = "1.0.0"
 REQUIRED_ROOT_FIELDS = ("records", "as_of", "dataset_refs", "parameters")
 PRIMARY_ROWS_FIELD = "records"
-ALLOWED_ROOT_FIELDS = frozenset((*REQUIRED_ROOT_FIELDS, "source_hashes"))
+ALLOWED_ROOT_FIELDS = frozenset((*REQUIRED_ROOT_FIELDS, "source_hashes", "data_contract"))
+SUPPORTED_PROVIDERS = frozenset({"synthetic", "datahub"})
+CONTRACT_UNITS = {"revenue": "CNY", "net_profit": "CNY", "growth": "percent"}
 REQUIRED_RECORD_FIELDS = (
     "security",
     "report_period",
@@ -29,6 +38,7 @@ REQUIRED_RECORD_FIELDS = (
     "revenue_qoq_pct",
     "net_profit_qoq_pct",
 )
+RECORD_FIELDS = frozenset(REQUIRED_RECORD_FIELDS)
 
 
 class CalculatorError(ValueError):
@@ -49,29 +59,6 @@ def _day(value: Any) -> str:
         return date.fromisoformat(value).isoformat()
     except ValueError as exc:
         raise CalculatorError("invalid_date") from exc
-
-
-def _dataset_refs(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    if set(payload) - ALLOWED_ROOT_FIELDS:
-        raise CalculatorError("unknown_field")
-    refs = payload.get("dataset_refs")
-    required = {"dataset_id", "provider_id", "as_of", "sha256"}
-    if not isinstance(refs, list) or not refs:
-        raise CalculatorError("invalid_field_type")
-    for ref in refs:
-        if not isinstance(ref, dict) or not required <= set(ref):
-            raise CalculatorError("invalid_dataset_ref")
-        _text(ref["dataset_id"])
-        _text(ref["provider_id"])
-        _day(ref["as_of"])
-        digest = ref["sha256"]
-        if (
-            not isinstance(digest, str)
-            or len(digest) != 64
-            or any(character not in "0123456789abcdef" for character in digest.lower())
-        ):
-            raise CalculatorError("invalid_dataset_ref")
-    return refs
 
 
 def _number(value: Any) -> float:
@@ -101,9 +88,12 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     budget.add_input(rows=0, bytes_count=input_bytes)
     if not isinstance(payload, dict):
         raise CalculatorError("invalid_field_type")
-    for field in REQUIRED_ROOT_FIELDS:
-        if field not in payload:
-            raise CalculatorError("missing_required_field")
+    strict_object(
+        payload,
+        required=frozenset(REQUIRED_ROOT_FIELDS),
+        allowed=ALLOWED_ROOT_FIELDS,
+        error=CalculatorError,
+    )
     records = payload["records"]
     if not isinstance(records, list):
         raise CalculatorError("invalid_field_type")
@@ -111,10 +101,29 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         raise CalculatorError("empty_input")
     budget.add_input(rows=len(records), bytes_count=0)
     budget.validate_batch(symbol_count=len(records), rows_per_symbol=1)
-    params = payload["parameters"]
-    refs = _dataset_refs(payload)
-    if not isinstance(params, dict):
-        raise CalculatorError("invalid_field_type")
+    as_of = _day(payload["as_of"])
+    validate_data_contract(
+        payload.get("data_contract"),
+        mapping_id=SKILL_SLUG,
+        mapping_version=METHOD_VERSION,
+        units=CONTRACT_UNITS,
+        date_semantics="disclosure_date",
+        adjustment="not_applicable",
+        providers=SUPPORTED_PROVIDERS,
+        error=CalculatorError,
+    )
+    params = strict_object(
+        payload["parameters"],
+        required=frozenset({"expected_count"}),
+        allowed=frozenset({"expected_count"}),
+        error=CalculatorError,
+    )
+    refs = validate_dataset_refs(
+        payload["dataset_refs"],
+        as_of=as_of,
+        providers=SUPPORTED_PROVIDERS,
+        error=CalculatorError,
+    )
     expected_count = params.get("expected_count")
     if type(expected_count) is not int or expected_count < len(records) or expected_count <= 0:
         raise CalculatorError("invalid_field_type")
@@ -124,12 +133,14 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     }
     seen: set[tuple[str, str]] = set()
     for raw in records:
-        if not isinstance(raw, dict):
-            raise CalculatorError("invalid_field_type")
-        if any(field not in raw for field in REQUIRED_RECORD_FIELDS):
-            raise CalculatorError("missing_required_field")
+        raw = strict_object(
+            raw,
+            required=RECORD_FIELDS,
+            allowed=RECORD_FIELDS,
+            error=CalculatorError,
+        )
         security = _text(raw["security"])
-        period = _day(raw["report_period"])
+        period = reject_future(raw["report_period"], as_of=as_of, error=CalculatorError)
         identity = (security, period)
         if identity in seen:
             raise CalculatorError("duplicate_record")
@@ -137,7 +148,9 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         row: dict[str, Any] = {
             "security": security,
             "report_period": period,
-            "disclosure_date": _day(raw["disclosure_date"]),
+            "disclosure_date": reject_future(
+                raw["disclosure_date"], as_of=as_of, error=CalculatorError
+            ),
             "revenue": _number(raw["revenue"]),
             "net_profit": _number(raw["net_profit"]),
         }
@@ -151,7 +164,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "skill_slug": SKILL_SLUG,
         "method_version": METHOD_VERSION,
         "compute_profile": "cpu_bounded_v1",
-        "as_of": _day(payload["as_of"]),
+        "as_of": as_of,
         "parameters": {"expected_count": expected_count},
         "dataset_refs": refs,
         "status": "complete" if len(normalized) == expected_count else "partial",
@@ -211,7 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     except (CalculatorError, json.JSONDecodeError, UnicodeError, OSError, ValueError) as exc:
         code = getattr(exc, "code", "invalid_input")
         LOGGER.error("calculator_failed code=%s", code)
-        print(json.dumps({"error": {"code": code, "message": code}}), file=sys.stderr)
+        print(json.dumps(safe_error_payload(exc), sort_keys=True), file=sys.stderr)
         return 1
 
 

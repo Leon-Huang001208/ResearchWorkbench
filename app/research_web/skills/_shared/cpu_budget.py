@@ -20,8 +20,15 @@ class WorkloadTooLarge(ValueError):
 
     code = "workload_too_large"
 
-    def __init__(self, **limit: int) -> None:
-        self.metadata: dict[str, int | str] = {**limit, "suggestion": "reduce_scope"}
+    def __init__(self, *, resource: str, limit: int, actual: int, legacy_key: str) -> None:
+        self.metadata: dict[str, int | str | bool] = {
+            legacy_key: limit,
+            "resource": resource,
+            "limit": limit,
+            "actual": actual,
+            "reduce_scope": True,
+            "suggestion": "reduce_scope",
+        }
         super().__init__(self.code)
 
 
@@ -47,10 +54,20 @@ class WorkloadBudget:
         next_bytes = self.input_bytes + bytes_count
         if next_rows > MAX_INPUT_ROWS:
             LOGGER.warning("cpu_budget_rejected reason=input_rows")
-            raise WorkloadTooLarge(max_rows=MAX_INPUT_ROWS)
+            raise WorkloadTooLarge(
+                resource="input_rows",
+                limit=MAX_INPUT_ROWS,
+                actual=next_rows,
+                legacy_key="max_rows",
+            )
         if next_bytes > MAX_INPUT_BYTES:
             LOGGER.warning("cpu_budget_rejected reason=input_bytes")
-            raise WorkloadTooLarge(max_input_bytes=MAX_INPUT_BYTES)
+            raise WorkloadTooLarge(
+                resource="input_bytes",
+                limit=MAX_INPUT_BYTES,
+                actual=next_bytes,
+                legacy_key="max_input_bytes",
+            )
         self.input_rows = next_rows
         self.input_bytes = next_bytes
         self._events.append("input")
@@ -58,20 +75,40 @@ class WorkloadBudget:
     def validate_series(self, rows: int) -> None:
         if _count(rows, "series_rows") > MAX_SERIES_ROWS:
             LOGGER.warning("cpu_budget_rejected reason=series_rows")
-            raise WorkloadTooLarge(max_series_rows=MAX_SERIES_ROWS)
+            raise WorkloadTooLarge(
+                resource="series_rows",
+                limit=MAX_SERIES_ROWS,
+                actual=rows,
+                legacy_key="max_series_rows",
+            )
 
     def validate_batch(self, *, symbol_count: int, rows_per_symbol: int) -> None:
         if _count(symbol_count, "symbol_count") > MAX_SYMBOLS:
             LOGGER.warning("cpu_budget_rejected reason=symbol_count")
-            raise WorkloadTooLarge(max_symbols=MAX_SYMBOLS)
+            raise WorkloadTooLarge(
+                resource="symbols",
+                limit=MAX_SYMBOLS,
+                actual=symbol_count,
+                legacy_key="max_symbols",
+            )
         if _count(rows_per_symbol, "rows_per_symbol") > MAX_ROWS_PER_SYMBOL:
             LOGGER.warning("cpu_budget_rejected reason=rows_per_symbol")
-            raise WorkloadTooLarge(max_rows_per_symbol=MAX_ROWS_PER_SYMBOL)
+            raise WorkloadTooLarge(
+                resource="rows_per_symbol",
+                limit=MAX_ROWS_PER_SYMBOL,
+                actual=rows_per_symbol,
+                legacy_key="max_rows_per_symbol",
+            )
 
     def add_artifact(self, bytes_count: int) -> None:
         next_bytes = self.artifact_bytes + _count(bytes_count, "artifact_bytes")
         if next_bytes > MAX_ARTIFACT_BYTES:
             LOGGER.warning("cpu_budget_rejected reason=artifact_bytes")
-            raise WorkloadTooLarge(max_artifact_bytes=MAX_ARTIFACT_BYTES)
+            raise WorkloadTooLarge(
+                resource="artifact_bytes",
+                limit=MAX_ARTIFACT_BYTES,
+                actual=next_bytes,
+                legacy_key="max_artifact_bytes",
+            )
         self.artifact_bytes = next_bytes
         self._events.append("artifact")

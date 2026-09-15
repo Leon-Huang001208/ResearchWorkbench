@@ -3275,6 +3275,8 @@ Imports:
 - `pathlib`
 
 Functions:
+- `builtin_initial_status`
+  - Keep uncalibrated calculators discoverable but non-executable.
 - `_skill_package`
 - `_workflow_package`
 - `seed_packages`
@@ -5819,6 +5821,30 @@ Functions:
 - `_count`
 
 
+## `app/research_web/skills/_shared/input_contract.py`
+
+Module docstring:
+> Strict runtime envelope validation for reviewed CPU calculators.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `datetime`
+- `typing`
+
+Functions:
+- `strict_object`
+  - Return an exact object or fail without including user content.
+- `iso_day`
+- `reject_future`
+- `validate_data_contract`
+  - Require the exact reviewed provider mapping and measurement semantics.
+- `validate_dataset_refs`
+  - Validate exact provenance references and reject look-ahead data.
+- `safe_error_payload`
+  - Expose only stable error codes and explicitly safe budget metadata.
+
+
 ## `app/research_web/skills/company-research/scripts/workflow.py`
 
 Module docstring:
@@ -5844,6 +5870,7 @@ Imports:
 - `__future__`
 - `cpu_budget`
 - `datetime`
+- `input_contract`
 - `json`
 - `logging`
 - `math`
@@ -5861,7 +5888,6 @@ Functions:
 - `_number`
 - `_text`
 - `_list`
-- `_dataset_refs`
 - `_base`
 - `calculate`
   - Return a fixed brief structure without inferring policy or event impacts.
@@ -5894,6 +5920,7 @@ Imports:
 - `__future__`
 - `cpu_budget`
 - `datetime`
+- `input_contract`
 - `json`
 - `logging`
 - `math`
@@ -5908,7 +5935,6 @@ Classes:
 Functions:
 - `_text`
 - `_day`
-- `_dataset_refs`
 - `_number`
 - `_bucket`
 - `calculate`
@@ -5925,6 +5951,7 @@ Imports:
 - `__future__`
 - `cpu_budget`
 - `datetime`
+- `input_contract`
 - `json`
 - `logging`
 - `math`
@@ -5939,7 +5966,6 @@ Classes:
 Functions:
 - `_text`
 - `_day`
-- `_dataset_refs`
 - `_number`
 - `_distribution`
 - `calculate`
@@ -5956,6 +5982,7 @@ Imports:
 - `__future__`
 - `cpu_budget`
 - `datetime`
+- `input_contract`
 - `json`
 - `logging`
 - `math`
@@ -5970,7 +5997,6 @@ Classes:
 Functions:
 - `_text`
 - `_day`
-- `_dataset_refs`
 - `_number`
 - `calculate`
 - `_path`
@@ -5986,6 +6012,7 @@ Imports:
 - `__future__`
 - `cpu_budget`
 - `datetime`
+- `input_contract`
 - `json`
 - `logging`
 - `math`
@@ -6000,7 +6027,6 @@ Classes:
 Functions:
 - `_text`
 - `_day`
-- `_dataset_refs`
 - `_number`
 - `_series`
 - `_returns`
@@ -6070,6 +6096,7 @@ Imports:
 - `__future__`
 - `cpu_budget`
 - `datetime`
+- `input_contract`
 - `json`
 - `logging`
 - `pathlib`
@@ -6083,7 +6110,6 @@ Classes:
 Functions:
 - `_text`
 - `_day`
-- `_dataset_refs`
 - `calculate`
 - `_path`
 - `main`

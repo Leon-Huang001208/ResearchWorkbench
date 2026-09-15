@@ -17,6 +17,12 @@
 - 计算器只接受相对路径 JSON，累计最多 50,000 行/64 MiB，无网络、Excel、CJPY、GPU、子进程或
   线程池路径。空数据、缺证据/分类/必填字段、类型错误与预算超限稳定失败；事件回归样本不足时
   beta/alpha 明确不可用，ETF 和业绩暴露均不推断，所有结果标记 `research_only=true`。
+- 输入 schema 和运行时现在同时严格校验 provider、mapping/version、单位、日期语义、复权口径及
+  所有嵌套对象；不等价输入返回 `data_not_equivalent`，任何记录或 dataset ref 晚于结果 `as_of`
+  返回 `future_data`。CLI 保留超限的安全 limit/actual/reduce-scope 元数据，六类近上限 fixture 通过
+  独立进程时间与 peak RSS 门禁。
+- 六个 Skill 在真实 Wind/Excel 对照未执行时初始为 disabled：能力中心仍可发现和检查，但不能选择
+  执行；只有登记成功的 macOS Wind 对照 receipt 后方可显式启用。
 - Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
 
 ### CPU 有界投研公共底座 · 2026-09-14

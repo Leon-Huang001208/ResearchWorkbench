@@ -108,9 +108,11 @@ Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py
 和六个 CPU 有界资讯/事件 Skill 共 18 项，四个
 Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-protocol.md` 是专用 Skill 的共享证据
 协议源码，构建时复制到每个包的 `references/` 并进入不可变版本哈希；它本身不进入发现目录。
-CPU Skill 还从 `skills/_shared/` 复制 `cpu_budget.py`、结果与 provenance 协议，分别处理市场简报、
+CPU Skill 还从 `skills/_shared/` 复制 `cpu_budget.py`、`input_contract.py`、结果与 provenance 协议，分别处理市场简报、
 政策时间线、事件窗、ETF 资金流、业绩披露与业绩预告；计算只读取相对路径 JSON 和已提供字段，
-不执行 Excel、网络或分类推断。对应 golden、失败关闭、预算与静态扫描位于
+严格校验 provider/mapping/version/单位/日期/复权与未来数据，不执行 Excel、网络或分类推断。六项
+初始可发现但 disabled，登记 macOS Wind 对照 receipt 后方可启用。对应 golden、失败关闭、预算、
+独立进程时间/RSS 压力与静态扫描位于
 `tests/research_web/test_cpu_quant_skills_stage2.py`。
 研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱
 内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在

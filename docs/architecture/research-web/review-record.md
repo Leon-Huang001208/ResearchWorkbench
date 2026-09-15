@@ -645,3 +645,13 @@
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"既有Host研究脚本节点内部增加FIFO单槽调度、readiness、数值线程上限和仅由close释放的poisoned门闩，不新增进程、服务或权限边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"既有DataHub Provider节点增加Wind独立Excel生命周期、清理失败poison、单worker、固定schema质量和失败关闭口径，不新增数据服务、接口或持久数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"共享CPU预算与结果资源由后续Skill种子复制使用，不注册新的Skill种类或执行器。","diagrams":[]} -->
+
+## 2026-09-15 — CPU Skill 输入等价性与启用门禁复审
+
+- 六个 Stage 2 计算器增加共享严格输入契约，拒绝不等价 provider/mapping/version/单位/日期/复权、
+  未来记录与未来 dataset ref；CLI 仅保留安全的工作量超限元数据。
+- 六项真实 Wind/Excel 对照尚未执行，因此内置种子可发现但初始 disabled；已有能力目录、不可变版本、
+  DataHub 快照、DSH 原生发现和脚本执行拓扑不变。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"共享输入契约和预算错误投影只收紧既有research_run_script内部计算器，不新增进程、服务、权限或跨边界数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项内置Skill改为receipt门控的disabled初始状态，仍使用既有目录、版本、检查与选择状态机。","diagrams":[]} -->

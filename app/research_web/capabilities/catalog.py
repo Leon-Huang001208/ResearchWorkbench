@@ -24,7 +24,7 @@ from core.observability import get_logger
 
 from .models import CapabilityError, Metadata, Step, issue
 from .packages import decode_file, frontmatter, import_package, normalize_files
-from .seeds import seed_packages
+from .seeds import builtin_initial_status, seed_packages
 from .tools import tool_catalog
 
 log = get_logger(__name__)
@@ -85,7 +85,7 @@ class CapabilityCatalog:
                             action="skipped",
                         )
                         continue
-                    self.publish(cid)
+                    self.publish(cid, _status=builtin_initial_status(cid))
             self._migrate_legacy_tool_ids(dict(seed_packages()))
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.error("capability_catalog_unreadable", error_type=type(exc).__name__)

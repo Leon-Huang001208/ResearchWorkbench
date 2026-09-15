@@ -1,1 +1,87 @@
-{"business_tools":[{"tool":"datahub_get_index_data","dataset":"quotes","fields":{"asset":"security_id","as_of":"date","name":"text","price":"points","change_pct":"percent"},"wind":{"callable":true,"constraints":"real-time quotes only; date must be omitted"}},{"tool":"datahub_get_market_snapshot","fields":{"asset":"stock_id","as_of":"date","price":"CNY/share","turnover_rate_pct":"percent"},"wind":{"callable":true,"constraints":"asset_type=stock only; no index or ETF inference"}},{"tool":"datahub_get_market_activity","datasets":["fund_flow","margin_trading"],"wind":{"callable":true,"constraints":"stock only; explicit bounded date range; currency and share units retained"}},{"tool":"datahub_search_news","wind":{"callable":false,"fallback_gate":"provider must return evidence_id, source_ref and published_at"}}],"required_brief_fields":["market_snapshot.asset","market_snapshot.name","market_snapshot.price","market_snapshot.change_pct","market_snapshot.turnover","breadth.advances","breadth.declines","breadth.flat"],"allowed_equivalents":"session snapshot with identical units, as_of and source references","non_equivalent":"historical index series, index constituents, fund holdings or inferred turnover returns data_not_equivalent"}
+{
+    "runtime_contract": {
+        "mapping_id": "daily-market-brief",
+        "mapping_version": "1.0.0",
+        "supported_providers": [
+            "synthetic",
+            "datahub"
+        ],
+        "dataset_ref_providers": [
+            "synthetic",
+            "datahub",
+            "wind"
+        ],
+        "units": {
+            "price": "native_quote",
+            "change_pct": "percent",
+            "turnover": "CNY"
+        },
+        "date_semantics": "trade_date",
+        "adjustment": "not_applicable",
+        "mismatch_error": "data_not_equivalent",
+        "future_data_error": "future_data"
+    },
+    "business_tools": [
+        {
+            "tool": "datahub_get_index_data",
+            "dataset": "quotes",
+            "fields": {
+                "asset": "security_id",
+                "as_of": "date",
+                "name": "text",
+                "price": "points",
+                "change_pct": "percent"
+            },
+            "wind": {
+                "callable": true,
+                "constraints": "real-time quotes only; date must be omitted"
+            }
+        },
+        {
+            "tool": "datahub_get_market_snapshot",
+            "fields": {
+                "asset": "stock_id",
+                "as_of": "date",
+                "price": "CNY/share",
+                "turnover_rate_pct": "percent"
+            },
+            "wind": {
+                "callable": true,
+                "constraints": "asset_type=stock only; no index or ETF inference"
+            }
+        },
+        {
+            "tool": "datahub_get_market_activity",
+            "datasets": [
+                "fund_flow",
+                "margin_trading"
+            ],
+            "wind": {
+                "callable": true,
+                "constraints": "stock only; explicit bounded date range; currency and share units retained"
+            }
+        },
+        {
+            "tool": "datahub_search_news",
+            "wind": {
+                "callable": false,
+                "fallback_gate": "provider must return evidence_id, source_ref and published_at"
+            }
+        }
+    ],
+    "required_brief_fields": [
+        "market_snapshot.date",
+        "market_snapshot.asset",
+        "market_snapshot.name",
+        "market_snapshot.price",
+        "market_snapshot.change_pct",
+        "market_snapshot.turnover",
+        "breadth.date",
+        "breadth.advances",
+        "breadth.declines",
+        "breadth.flat"
+    ],
+    "allowed_equivalents": "session snapshot with identical units, dates not later than as_of and source references",
+    "non_equivalent": "historical index series, index constituents, fund holdings or inferred turnover returns data_not_equivalent",
+    "enablement_gate": "initially disabled; enable only after a successful macOS Wind comparison receipt is recorded"
+}

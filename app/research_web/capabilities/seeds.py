@@ -257,6 +257,23 @@ SKILL_SPECS = (
     },
 )
 
+RECEIPT_GATED_SKILLS = frozenset(
+    {
+        "daily-market-brief",
+        "policy-sentinel",
+        "event-review",
+        "etf-flow-monitor",
+        "earnings-report-monitor",
+        "earnings-preview-monitor",
+    }
+)
+
+
+def builtin_initial_status(capability_id: str) -> str:
+    """Keep uncalibrated calculators discoverable but non-executable."""
+    return "disabled" if capability_id in RECEIPT_GATED_SKILLS else "enabled"
+
+
 WORKFLOW_SPECS = (
     {
         "slug": "market-commentary-workflow",
@@ -301,6 +318,7 @@ def _skill_package(root, spec, protocol):
             ("cpu-bounded-result-v1.md", "references/cpu-bounded-result-v1.md"),
             ("provenance-v1.md", "references/provenance-v1.md"),
             ("cpu_budget.py", "scripts/cpu_budget.py"),
+            ("input_contract.py", "scripts/input_contract.py"),
         ):
             files.append(encode_file(package_name, (shared / source_name).read_bytes()))
     metadata = {
