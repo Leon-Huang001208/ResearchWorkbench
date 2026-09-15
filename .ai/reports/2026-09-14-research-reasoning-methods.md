@@ -38,12 +38,14 @@
 - `DSH_SOURCE_ROOT=/Users/leon/.research-workbench/dsh-source python -m pytest tests/research_web --confcutdir=tests/research_web -q`
   ：`920 passed, 1 skipped, 1 warning`；warning 为 Starlette `BlockingPortal` 弃用提示。
 - `DSH_SOURCE_ROOT=/Users/leon/.research-workbench/dsh-source node --test tests/javascript/research_web*.test.mjs`
-  ：`272 passed, 0 failed`。
+  ：功能分支 `272 passed, 0 failed`；合入最新远端默认分支后 `274 passed, 0 failed`。
 - `python -m ruff check ...`、变更 Python 文件的 Black／isort、全部变更 MJS 的 `node --check` 及
   `git diff --check` 均通过。
 - `node scripts/check_research_architecture.mjs`、`python scripts/check_doc_sync.py` 及携带全部变更路径的
   `.agents/project-constraints.mjs` 均为零违反。
 - 隔离浏览器夹具验收通过，共 38 项检查、51 张截图、零模型／变更请求和零浏览器运行时错误；覆盖
   Light／Dark、1440／1280／768／390 响应式布局、五类能力页、键盘页签、方法详情与三方法上限。
+- 合入最新远端默认分支后再次运行完整 Python 回归与同一浏览器验收：Python 仍为
+  `920 passed, 1 skipped, 1 warning`，浏览器仍为 38 项检查、零模型／变更请求和零运行时错误。
 - 人工查看了 Light 方法库、Dark 方法选择器和 390px 移动端能力工作区截图；未见遮挡、横向溢出、
   文本截断或不可见焦点。
