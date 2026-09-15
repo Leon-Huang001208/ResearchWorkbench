@@ -133,9 +133,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
     )
-    source_hashes, source_limitations = validate_source_hashes(
-        payload.get("source_hashes"), error=CalculatorError
-    )
+    source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
     normalized = []
     counts = {"negative": 0, "zero_to_20": 0, "20_to_50": 0, "50_plus": 0}
     exposure_values: dict[str, list[float]] = {field: [] for field in OPTIONAL_EXPOSURES}

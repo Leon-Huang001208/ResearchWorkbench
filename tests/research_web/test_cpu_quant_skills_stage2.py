@@ -396,6 +396,31 @@ def test_source_hashes_are_validated_or_explicitly_degraded(slug):
         module.calculate(malformed, input_bytes=1024)
     assert error.value.code == "invalid_source_hashes"
 
+    digest = "a" * 64
+    for invalid_hashes in (
+        None,
+        {" ": digest},
+        {" source ": digest, "source": "b" * 64},
+    ):
+        invalid = copy.deepcopy(payload)
+        invalid["source_hashes"] = invalid_hashes
+        with pytest.raises(module.CalculatorError) as error:
+            module.calculate(invalid, input_bytes=1024)
+        assert error.value.code == "invalid_source_hashes"
+
+
+def test_all_source_hash_schemas_require_canonical_nonblank_keys():
+    expected = {
+        "type": "string",
+        "minLength": 1,
+        "pattern": r"^\S(?:.*\S)?$",
+    }
+    for slug in SLUGS:
+        schema = json.loads(
+            (SKILLS_ROOT / slug / "references/input-schema.json").read_text(encoding="utf-8")
+        )
+        assert schema["properties"]["source_hashes"]["propertyNames"] == expected
+
 
 @pytest.mark.parametrize("slug", ["daily-market-brief", "etf-flow-monitor"])
 def test_cny_calculators_reject_conflicting_currency(slug):

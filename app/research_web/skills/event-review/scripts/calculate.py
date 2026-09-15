@@ -146,9 +146,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=DATASET_PROVIDERS,
         error=CalculatorError,
     )
-    source_hashes, source_limitations = validate_source_hashes(
-        payload.get("source_hashes"), error=CalculatorError
-    )
+    source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
     pre_days = params.get("pre_days")
     post_days = params.get("post_days")
     if type(pre_days) is not int or type(post_days) is not int or pre_days < 1 or post_days < 1:

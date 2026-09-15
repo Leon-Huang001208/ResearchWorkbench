@@ -32,7 +32,8 @@ Quality Gate 与旧报告编译链没有恢复。
 50,000 行/64 MiB 累计输入、5,000 行单序列、50 标的 × 1,000 行和 16 MiB 累计制品的确定性验证，
 超限固定 `workload_too_large` 且不截断；`input_contract.py` 校验 provider、mapping/version、单位、
 日期语义、复权与未来数据，日期只接受扩展格式 `YYYY-MM-DD`，并统一校验可选 `source_hashes` 的
-SHA-256；哈希缺失时结果以 limitation 明确降级。CLI 只公开安全的 limit/actual/reduce-scope 超限元数据；结果与 provenance 协议规定 `as_of`、规范化 parameters、
+规范非空 key 与 SHA-256 value；显式 null 或带首尾空白的 key 会被拒绝，字段缺失时结果以 limitation
+明确降级。CLI 只公开安全的 limit/actual/reduce-scope 超限元数据；结果与 provenance 协议规定 `as_of`、规范化 parameters、
 dataset refs、status、limitations、method version、source hashes 和 `internal-only` rights。它们是供
 后续 reviewed calculator 种子复制并哈希封存的资源，不注册为独立 Skill，也不增加工具权限。
 

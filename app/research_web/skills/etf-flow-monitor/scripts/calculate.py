@@ -106,9 +106,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
     )
-    source_hashes, source_limitations = validate_source_hashes(
-        payload.get("source_hashes"), error=CalculatorError
-    )
+    source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
     normalized: list[dict[str, Any]] = []
     grouped: dict[str, dict[str, float]] = {"type": {}, "industry": {}, "theme": {}}
     for raw in rows:

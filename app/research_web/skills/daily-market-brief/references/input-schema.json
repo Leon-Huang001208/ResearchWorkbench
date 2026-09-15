@@ -45,7 +45,8 @@
             "type": "object",
             "propertyNames": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "pattern": "^\\S(?:.*\\S)?$"
             },
             "additionalProperties": {
                 "type": "string",

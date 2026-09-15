@@ -63,26 +63,30 @@ def reject_future(value: Any, *, as_of: str, error: ErrorFactory) -> str:
 
 
 def validate_source_hashes(
-    value: Any,
+    payload: Mapping[str, Any],
     *,
     error: ErrorFactory,
 ) -> tuple[dict[str, str], list[str]]:
-    """Normalize supplied source digests or mark missing provenance explicitly."""
-    if value is None or value == {}:
+    """Validate canonical source digests or mark missing provenance explicitly."""
+    if "source_hashes" not in payload:
         return {}, ["source_hashes_missing"]
+    value = payload["source_hashes"]
     if not isinstance(value, dict):
         raise error("invalid_source_hashes")
+    if not value:
+        return {}, ["source_hashes_missing"]
     normalized: dict[str, str] = {}
     for source, digest in value.items():
         if (
             not isinstance(source, str)
-            or not source.strip()
+            or not source
+            or source != source.strip()
             or not isinstance(digest, str)
             or len(digest) != 64
             or any(character not in "0123456789abcdef" for character in digest.lower())
         ):
             raise error("invalid_source_hashes")
-        normalized[source.strip()] = digest.lower()
+        normalized[source] = digest.lower()
     return normalized, []
 
 

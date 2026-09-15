@@ -132,9 +132,7 @@ def _base(
         providers=DATASET_PROVIDERS,
         error=CalculatorError,
     )
-    source_hashes, source_limitations = validate_source_hashes(
-        payload.get("source_hashes"), error=CalculatorError
-    )
+    source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
     return budget, {
         "protocol": "cpu_bounded_v1",
         "skill_slug": SKILL_SLUG,

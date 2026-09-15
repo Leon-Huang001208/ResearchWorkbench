@@ -102,6 +102,16 @@ psutil 7.2.2 从父进程采样 RSS 并处理退出竞态，不安装依赖、�
 包/schema 聚焦检查 `3 passed, 76 deselected in 1.49s`。`check_research_architecture`、doc-sync、
 project constraints、task completion 与 `git diff --check` 均通过；未重复长回归。
 
+最终 Important 复审同样先写失败测试：六个计算器分别覆盖 `source_hashes` 显式 null、空白 key、
+`" source "` 与 `"source"` 的 trim 碰撞，并统一断言六份 input schema 的 `propertyNames`。RED 为
+`7 failed, 73 deselected in 0.29s`。共享校验现在仅把字段缺失视为可披露降级；显式 null、非规范或
+空白 key 稳定返回 `invalid_source_hashes`，也不再静默 trim key。首轮 GREEN 为
+`7 passed, 73 deselected in 0.14s`；同步 schema 和包资源后的聚焦复跑为
+`8 passed, 72 deselected in 0.26s`。八个本轮 Python 目标通过 ruff、black、isort；七个生产目标逐项
+通过 `mypy --follow-imports=skip`。六份 input schema 解析、`check_research_architecture`、doc-sync、
+project constraints（28 个最终变更文件）、task completion 与 `git diff --check` 均通过。本轮只执行
+聚焦短测，没有重复 Stage 2 或能力全回归。
+
 不会把未执行的平台或真实数据验证写成已通过。
 
 ## 未验证项

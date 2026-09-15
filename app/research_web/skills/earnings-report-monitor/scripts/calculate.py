@@ -121,9 +121,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
     )
-    source_hashes, source_limitations = validate_source_hashes(
-        payload.get("source_hashes"), error=CalculatorError
-    )
+    source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
     expected_count = params.get("expected_count")
     if type(expected_count) is not int or expected_count < len(records) or expected_count <= 0:
         raise CalculatorError("invalid_field_type")
