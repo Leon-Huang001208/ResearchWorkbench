@@ -22,7 +22,7 @@ DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是�
 `datahub_index_data` 的 points 口径查询。Capabilities 目录展示这一受支持子集，不因六位代码形式
 推断或扩展 Wind 的可调用资产范围。
 
-当前目录包含 18 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
+当前目录包含 25 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
 统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
 机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
@@ -51,6 +51,14 @@ openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性�
 32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过 64 KiB；成功 stdout 不附加
 换行，因此恰好 65,536 字节仍可完整通过 sandbox 门。无法表达时返回完整
 小型 `workload_too_large`/`reduce_scope`，`row_delivery` 不再重复顶层 refs，也不依赖 sandbox 截断。
+
+七个 Stage 3 Skill（基金匹配、基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控、
+行业拥挤度监控）复用同一 `cpu_bounded_v1` 与 comparison receipt verifier。它们在 fresh catalog
+中可发现但全部 disabled，不进入原生 provider candidates；真实 Wind/Excel comparison evidence
+未完成前不能启用或回滚到 enabled。基金穿透显式支持 percent/decimal、多层与重复路径，并对全部
+给定基金子图做 cycle fail-closed；三个行业计算器只接受预聚合行业数据。七项仍使用严格日期、有限
+数值/受检算术、安全相对 JSON loader、完整 64 KiB envelope 和无尾随换行 stdout，不增加网络、GPU、
+VBA、CJPY、绝对路径或新的执行权限。
 
 阶段 2A 的只读 MCP 市场在三阶段 CI 通过后默认开启；显式设置 `RESEARCH_MCP_REGISTRY_ENABLED=0`
 仍会关闭该入口。目录聚合随仓库

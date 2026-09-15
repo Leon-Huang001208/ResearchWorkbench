@@ -141,3 +141,8 @@ final-handle loader 和完整 64 KiB UTF-8 envelope 只作用于六个 CPU Skill
 授权、claim、一次性 token、写审批、标签生命周期或浏览器 Runtime。
 receipt 对 packaged golden 与 comparison run actual 分别验摘要并做业务 JSON 比较，六 CLI 成功 stdout
 也不附加换行；这些收紧仍不读取 Tabbit 标签或复用浏览器证据。
+
+2026-09-15 新增的七个 Stage 3 基金/组合/行业 CPU Skill 继续只通过既有能力目录和
+`research_run_script` 工作。它们复用安全相对 JSON、预算、64 KiB 完整输出和 comparison receipt
+门禁，全部可发现但默认 disabled；基金穿透的层级/cycle 校验和只吃预聚合数据的行业计算不会请求
+Tabbit 页面、正文 token 或浏览器证据，也不会扩大 claim、写审批、网络、文件或执行权限。

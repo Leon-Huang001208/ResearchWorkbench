@@ -3150,6 +3150,7 @@ Imports:
 - `importlib.metadata`
 - `io`
 - `json`
+- `math`
 - `models`
 - `os`
 - `packages`
@@ -3169,7 +3170,7 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, _withdraw_native_projections, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, _withdraw_native_projections, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
 - `_is_host_process_entry`
@@ -6069,6 +6070,123 @@ Functions:
 - `main`
 
 
+## `app/research_web/skills/fund-matcher/scripts/calculate.py`
+
+Module docstring:
+> Rank supplied fund candidates against an explicit target profile.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/fund-penetration/scripts/calculate.py`
+
+Module docstring:
+> Flatten a supplied fund-of-funds holding graph into terminal exposures.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_weight`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/industry-crowding-monitor/scripts/calculate.py`
+
+Module docstring:
+> Measure rolling turnover-share crowding from supplied industry aggregates.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/industry-prosperity/scripts/calculate.py`
+
+Module docstring:
+> Score supplied pre-aggregated industry indicators with explicit directions.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/industry-quadrant-monitor/scripts/calculate.py`
+
+Module docstring:
+> Classify supplied industry scores by explicit level and momentum thresholds.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `calculate`
+- `main`
+
+
 ## `app/research_web/skills/industry-research/scripts/workflow.py`
 
 Module docstring:
@@ -6126,6 +6244,56 @@ Classes:
 Functions:
 - `_text`
 - `_day`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/portfolio-benchmark-deviation/scripts/calculate.py`
+
+Module docstring:
+> Compare supplied portfolio holdings with a supplied benchmark snapshot.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `math`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_weight`
+- `_sample_std`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/portfolio-overlap/scripts/calculate.py`
+
+Module docstring:
+> Compute deterministic holdings overlap between two supplied portfolios.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_weight`
 - `calculate`
 - `main`
 

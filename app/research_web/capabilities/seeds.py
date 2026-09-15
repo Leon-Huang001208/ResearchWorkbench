@@ -255,6 +255,104 @@ SKILL_SPECS = (
             {"name": "input_file", "label": "业绩预告记录", "type": "file", "required": True}
         ],
     },
+    {
+        "slug": "fund-matcher",
+        "name": "基金匹配",
+        "description": "按明确类别、目标指标与权重对已提供候选基金做确定性距离排序。",
+        "category": "基金",
+        "scenarios": ["基金候选匹配"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_fund_data"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "基金指标输入", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "fund-penetration",
+        "name": "基金持仓穿透",
+        "description": "统一权重单位并穿透基金层级，检测循环并聚合重复底层暴露。",
+        "category": "基金",
+        "scenarios": ["基金持仓穿透"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_fund_data"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "基金层级持仓", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "portfolio-overlap",
+        "name": "组合重合度",
+        "description": "归一化两个组合的持仓权重，计算逐资产共同权重与总体重合度。",
+        "category": "组合",
+        "scenarios": ["组合持仓重合分析"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_fund_data", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "两个组合持仓", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "portfolio-benchmark-deviation",
+        "name": "组合基准偏离",
+        "description": "计算组合相对基准的行业权重差及市值、估值、增速标准差偏离。",
+        "category": "组合",
+        "scenarios": ["组合基准偏离监控"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_index_data", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "组合与基准持仓因子", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "industry-prosperity",
+        "name": "行业景气度",
+        "description": "对预聚合行业指标按明确方向和权重计算透明景气变化分数。",
+        "category": "行业",
+        "scenarios": ["行业景气度研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "行业预聚合指标", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "industry-quadrant-monitor",
+        "name": "行业象限监控",
+        "description": "按显式水平和动量阈值，将预聚合行业景气分数划分四象限。",
+        "category": "行业",
+        "scenarios": ["行业景气象限监控"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "行业景气分数", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "industry-crowding-monitor",
+        "name": "行业拥挤度",
+        "description": "用预聚合行业与全市场成交额计算滚动成交占比和历史经验分位数。",
+        "category": "行业",
+        "scenarios": ["行业成交拥挤度监控"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "行业预聚合成交额", "type": "file", "required": True}
+        ],
+    },
 )
 
 RECEIPT_GATED_SKILLS = frozenset(
@@ -265,6 +363,13 @@ RECEIPT_GATED_SKILLS = frozenset(
         "etf-flow-monitor",
         "earnings-report-monitor",
         "earnings-preview-monitor",
+        "fund-matcher",
+        "fund-penetration",
+        "portfolio-overlap",
+        "portfolio-benchmark-deviation",
+        "industry-prosperity",
+        "industry-quadrant-monitor",
+        "industry-crowding-monitor",
     }
 )
 

@@ -9,7 +9,7 @@
 | `models.py` | 元数据、输入字段、步骤与产品错误契约 | 执行研究 |
 | `packages.py` | 有界 MD/ZIP 读取、路径/类型/编码检查、保留问题 | 安装依赖、解压到任意路径或运行脚本 |
 | `catalog.py` | 草稿、检查、不可变版本、原生目录投影、会话资源快照 | Agent 编排 |
-| `seeds.py` | 十八个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
+| `seeds.py` | 二十五个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
 | `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、数据组织为四个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
@@ -33,6 +33,13 @@ receipt 并在状态切换重新验证。
 计算器仍在既有 sandbox；POSIX 逐组件 openat/no-follow、Windows final-handle 校验和完整 64 KiB
 UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字节仍允许；超限返回小型完整错误，
 `row_delivery` 不复制顶层 refs。
+
+七个 Stage 3 基金/组合/行业 Skill 复用上述版本、sandbox 和 receipt 状态机，在 fresh catalog 中可
+发现但全部 disabled；只有可重算且绑定当前不可变版本的 macOS Wind/Excel comparison evidence
+artifact 才能启用或回滚到 enabled。基金穿透覆盖 percent/decimal、多层、重复路径并对全部给定
+基金子图做 cycle fail-closed；三个行业 Skill 只消费预聚合数据。严格 schema/运行时字段等价、日期、
+有限数值与受检算术、安全相对 JSON loader、`cpu_bounded_v1` 工作量预算及完整 64 KiB 无换行输出
+均沿用现有边界，不新增 API、能力类型、执行器或宿主权限。
 
 能力工作区路由以 `kind=skill|tool|workflow|data` 切换四个主分区，以
 `view=library|mine|plans|connections` 切换类型内二级视图；无参数默认 `kind=skill`。

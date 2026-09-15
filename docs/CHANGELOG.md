@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+### 七个 CPU 有界基金/组合/行业 Skill · 2026-09-15
+
+- 能力中心新增基金匹配、基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控和行业
+  拥挤度监控七个独立内置 Skill，总数更新为 25；它们复用 `cpu_bounded_v1`、安全相对 JSON、严格
+  schema/运行时契约、受检算术、64 KiB 完整输出和 comparison receipt verifier。七项均可发现但
+  默认 disabled，只有可重算并绑定当前不可变版本的真实 macOS Wind/Excel evidence artifact 才能
+  启用或回滚到 enabled。
+
 ### 六个 CPU 有界资讯/事件 Skill · 2026-09-14
 
 - 能力中心新增每日市场简报、政策哨兵、事件复盘、ETF 资金流、业绩报告监控和业绩预告监控六个

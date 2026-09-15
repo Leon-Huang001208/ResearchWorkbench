@@ -134,7 +134,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 22
+    assert len(rows) == 29
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
@@ -154,6 +154,13 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "ETF 资金流监控",
         "财报披露监控",
         "业绩预告监控",
+        "基金匹配",
+        "基金持仓穿透",
+        "组合重合度",
+        "组合基准偏离",
+        "行业景气度",
+        "行业象限监控",
+        "行业拥挤度",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]

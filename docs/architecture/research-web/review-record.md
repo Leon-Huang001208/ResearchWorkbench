@@ -687,3 +687,20 @@
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"逐组件openat与完整UTF-8 envelope只收紧既有research_run_script文件和输出边界，不新增执行节点或权限。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"golden与actual独立摘要及业务JSON容差比较只收紧既有comparison receipt verifier，不新增API、状态或持久节点。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"六CLI移除成功stdout末尾换行只对齐既有64KiB sandbox输出门，不改变执行拓扑或权限。","diagrams":[]} -->
+
+## 2026-09-15 — CPU Skill 阶段 3 基金、组合与行业计算
+
+- 七个新 Skill 通过既有内置种子、不可变版本和 `research_run_script` 沙箱交付，分别承担基金匹配、
+  基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控和行业拥挤度监控；未新增能力类型、
+  API、Workflow、执行器、进程、端口或持久目录。
+- 七项复用 `cpu_bounded_v1`、严格 schema/运行时字段等价、`YYYY-MM-DD` 前视边界、有限数值与受检
+  算术、安全相对 JSON loader、完整 64 KiB UTF-8 envelope 和无尾随换行 stdout。
+- 基金穿透覆盖 percent/decimal、多层持仓和重复路径，对全部给定基金子图做 cycle fail-closed；三个
+  行业计算器只消费预聚合行业指标，不引入个股聚合、数据抓取或隐式 Provider 路由。
+- 七项在 clean catalog 中可发现但全部 disabled，只有绑定当前不可变版本且可重算的 macOS
+  Wind/Excel comparison evidence artifact 才能启用或回滚到 enabled。当前 synthetic fixture/golden
+  只验证计算和门控机制，不代表真实 Wind/Excel 对照。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"七个Stage3内置Skill复用既有目录、不可变版本、disabled状态和comparison receipt门控，不新增API、能力类型或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"七个Stage3计算器继续位于既有research_run_script沙箱，严格输入、受检算术、安全相对JSON和64KiB输出只收紧内部计算边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage3行业计算器只接受预聚合输入，基金与组合计算器也不新增Provider binding或DataHub数据流。","diagrams":[]} -->

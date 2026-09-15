@@ -210,7 +210,7 @@ def test_six_unique_builtin_packages_are_admitted_discoverable_and_disabled(tmp_
 
     catalog = CapabilityCatalog(tmp_path)
     rows = {row["id"]: row for row in catalog.list(kind="skill")["items"]}
-    assert len(rows) == 18
+    assert len(rows) == 25
     for slug in SLUGS:
         row = rows[slug]
         assert row["source"] == "builtin"
