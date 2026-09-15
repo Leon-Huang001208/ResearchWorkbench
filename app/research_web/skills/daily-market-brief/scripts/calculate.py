@@ -14,6 +14,7 @@ from input_contract import (
     checked_mean,
     checked_number,
     checked_sum,
+    checked_text,
     iso_day,
     load_relative_json,
     reject_future,
@@ -72,9 +73,7 @@ def _number(value: Any) -> float:
 
 
 def _text(value: Any) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise CalculatorError("invalid_field_type")
-    return value.strip()
+    return checked_text(value, error=CalculatorError)
 
 
 def _list(payload: dict[str, Any], field: str) -> list[Any]:

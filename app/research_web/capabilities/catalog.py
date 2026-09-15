@@ -39,7 +39,7 @@ LEGACY_SCRIPT_TOOL = "af_run_script"
 LEGACY_PUBLIC_DATA_TOOL = "af_public_data"
 SCRIPT_TOOL = "research_run_script"
 HOST_PROCESS_MODULES = {"asyncio", "os", "pty"}
-COMPARISON_RECEIPT_FIELDS = frozenset(
+COMPARISON_EVIDENCE_FIELDS = frozenset(
     {
         "schema_version",
         "skill_slug",
@@ -49,7 +49,24 @@ COMPARISON_RECEIPT_FIELDS = frozenset(
         "platform",
         "comparison",
         "result",
-        "evidence_sha256",
+        "input_source_hashes",
+        "golden_result",
+        "actual_result",
+    }
+)
+COMPARISON_RESULT_FIELDS = frozenset({"path", "sha256"})
+COMPARISON_RECEIPT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "skill_slug",
+        "version",
+        "script_sha256",
+        "compared_at",
+        "artifact_path",
+        "artifact_sha256",
+        "input_source_hashes_sha256",
+        "golden_result_sha256",
+        "actual_result_sha256",
     }
 )
 
@@ -232,7 +249,10 @@ class CapabilityCatalog:
             if self._record_script_digest(active or {}) != legacy_digest:
                 continue
             original = copy.deepcopy(row)
+            self._withdraw_native_projections(row)
+            row["status"] = "disabled"
             try:
+                self.save()
                 row["draft"] = self._draft(copy.deepcopy(builtins[cid]))
                 row.update(has_draft=True, checks=None, updated_at=time.time())
                 self.publish(cid, _allow_builtin_migration=True, _status="disabled")
@@ -242,13 +262,40 @@ class CapabilityCatalog:
                     version=row["version"],
                 )
             except (OSError, CapabilityError, ValueError, TypeError) as exc:
-                self.data["items"][cid] = original
-                self.save()
+                quarantined = original
+                quarantined["status"] = "disabled"
+                self.data["items"][cid] = quarantined
+                self.data["pending"] = {
+                    "id": cid,
+                    "version": row.get("version"),
+                    "status": "uncertain",
+                }
+                self._withdraw_native_projections(quarantined)
+                try:
+                    self.save()
+                except (OSError, CapabilityError):
+                    pass
                 log.error(
                     "capability_stage2_builtin_migration_failed",
                     capability_id=cid,
                     error_type=type(exc).__name__,
                 )
+                raise CapabilityError(
+                    "内置能力迁移失败；旧版本已撤下并保持禁用",
+                    "stage2_migration_failed",
+                    503,
+                ) from exc
+
+    def _withdraw_native_projections(self, row):
+        """Remove every native projection for one row before fail-closed migration."""
+
+        for record in row.get("versions", {}).values():
+            native_name = record.get("native_name")
+            if not isinstance(native_name, str):
+                continue
+            source = self.native_root / native_name
+            if source.exists():
+                os.replace(source, self.root / "retired" / uuid4().hex)
 
     def save(self):
         fd, name = tempfile.mkstemp(prefix="catalog-", dir=self.root)
@@ -271,8 +318,154 @@ class CapabilityCatalog:
     def _receipt_key(cid, version):
         return f"{cid}:{version}"
 
-    def _validate_comparison_receipt(self, value, *, stored=False):
-        fields = COMPARISON_RECEIPT_FIELDS | ({"receipt_sha256"} if stored else set())
+    @staticmethod
+    def _sha256_file(path):
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for block in iter(lambda: stream.read(64 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+
+    def _comparison_path(self, value, *, base=None):
+        if not isinstance(value, (str, os.PathLike)):
+            raise CapabilityError("对照证据必须为文件路径", "invalid_comparison_evidence", 422)
+        candidate = Path(value)
+        if any(part in {"", ".", ".."} for part in candidate.parts):
+            raise CapabilityError("对照证据路径无效", "invalid_comparison_evidence", 422)
+        if base is not None:
+            if candidate.is_absolute():
+                raise CapabilityError("对照证据路径无效", "invalid_comparison_evidence", 422)
+            candidate = base / candidate
+        try:
+            root = self.data_root.resolve(strict=True)
+            lexical = candidate if candidate.is_absolute() else root / candidate
+            relative = lexical.relative_to(root)
+            current = root
+            for component in relative.parts:
+                current /= component
+                if current.is_symlink():
+                    raise CapabilityError("对照证据路径无效", "invalid_comparison_evidence", 422)
+            resolved = lexical.resolve(strict=True)
+            if not resolved.is_relative_to(root):
+                raise CapabilityError("对照证据路径无效", "invalid_comparison_evidence", 422)
+            if not resolved.is_file():
+                raise CapabilityError("对照证据文件无效", "invalid_comparison_evidence", 422)
+            return resolved
+        except OSError as exc:
+            raise CapabilityError("对照证据不可读取", "invalid_comparison_evidence", 422) from exc
+
+    @staticmethod
+    def _strict_sha256(value):
+        return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+
+    def _verified_result_digest(self, artifact_dir, value, expected_digest):
+        if not isinstance(value, dict) or set(value) != COMPARISON_RESULT_FIELDS:
+            raise CapabilityError("对照结果字段无效", "invalid_comparison_evidence", 422)
+        if not self._strict_sha256(value.get("sha256")):
+            raise CapabilityError("对照结果摘要无效", "invalid_comparison_evidence", 422)
+        path = self._comparison_path(value.get("path"), base=artifact_dir)
+        actual_digest = self._sha256_file(path)
+        if actual_digest != value["sha256"] or actual_digest != expected_digest:
+            raise CapabilityError("对照结果不匹配", "invalid_comparison_evidence", 422)
+        try:
+            result = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise CapabilityError("对照结果无效", "invalid_comparison_evidence", 422) from exc
+        return actual_digest, result
+
+    def _verify_comparison_evidence(self, artifact_value, *, changed=False):
+        failure_code = "comparison_evidence_changed" if changed else "invalid_comparison_evidence"
+        try:
+            artifact = self._comparison_path(artifact_value)
+            raw = artifact.read_bytes()
+            if len(raw) > 64 * 1024:
+                raise CapabilityError("对照证据过大", failure_code, 422)
+            value = json.loads(raw.decode("utf-8"))
+            if not isinstance(value, dict) or set(value) != COMPARISON_EVIDENCE_FIELDS:
+                raise CapabilityError("对照证据字段无效", failure_code, 422)
+            cid = value.get("skill_slug")
+            version = value.get("version")
+            if (
+                value.get("schema_version") != 1
+                or cid not in RECEIPT_GATED_SKILLS
+                or type(version) is not int
+                or value.get("platform") != "macos"
+                or value.get("comparison") != "wind_excel"
+                or value.get("result") != "passed"
+            ):
+                raise CapabilityError("对照证据内容无效", failure_code, 422)
+            compared_at = value.get("compared_at")
+            timestamp = datetime.strptime(compared_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+            if timestamp.timestamp() > time.time() + 300:
+                raise CapabilityError("对照证据时间无效", failure_code, 422)
+            record = self.row(cid)["versions"][str(version)]
+            script_digest = self._record_script_digest(record)
+            if script_digest != value.get("script_sha256"):
+                raise CapabilityError("对照证据脚本不匹配", failure_code, 422)
+            source_hashes = value.get("input_source_hashes")
+            if (
+                not isinstance(source_hashes, dict)
+                or not source_hashes
+                or any(
+                    not isinstance(key, str)
+                    or key != key.strip()
+                    or not key
+                    or not self._strict_sha256(digest)
+                    for key, digest in source_hashes.items()
+                )
+            ):
+                raise CapabilityError("对照输入摘要无效", failure_code, 422)
+            packaged_golden = next(
+                (
+                    item["sha256"]
+                    for item in record.get("files", [])
+                    if item.get("path") == "fixtures/golden-result.json"
+                ),
+                None,
+            )
+            golden_digest, golden_result = self._verified_result_digest(
+                artifact.parent, value.get("golden_result"), packaged_golden
+            )
+            actual_digest, actual_result = self._verified_result_digest(
+                artifact.parent, value.get("actual_result"), golden_digest
+            )
+            if golden_result != actual_result:
+                raise CapabilityError("对照结果不一致", failure_code, 422)
+            for result in (golden_result, actual_result):
+                if (
+                    not isinstance(result, dict)
+                    or result.get("skill_slug") != cid
+                    or result.get("provenance", {}).get("source_hashes") != source_hashes
+                ):
+                    raise CapabilityError("对照结果绑定无效", failure_code, 422)
+            source_digest = hashlib.sha256(
+                json.dumps(source_hashes, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            unsigned = {
+                "schema_version": 1,
+                "skill_slug": cid,
+                "version": version,
+                "script_sha256": script_digest,
+                "compared_at": compared_at,
+                "artifact_path": str(artifact.relative_to(self.data_root.resolve(strict=True))),
+                "artifact_sha256": hashlib.sha256(raw).hexdigest(),
+                "input_source_hashes_sha256": source_digest,
+                "golden_result_sha256": golden_digest,
+                "actual_result_sha256": actual_digest,
+            }
+            receipt_digest = hashlib.sha256(
+                json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
+            return {**unsigned, "receipt_sha256": receipt_digest}
+        except CapabilityError as exc:
+            if exc.code == failure_code:
+                raise
+            raise CapabilityError("对照证据校验失败", failure_code, 422) from exc
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            raise CapabilityError("对照证据校验失败", failure_code, 422) from exc
+
+    def _validate_comparison_receipt(self, value):
+        fields = COMPARISON_RECEIPT_FIELDS | {"receipt_sha256"}
         if not isinstance(value, dict) or set(value) != fields:
             raise CapabilityError("对照回执字段无效", "invalid_comparison_receipt", 422)
         cid = value.get("skill_slug")
@@ -281,15 +474,16 @@ class CapabilityCatalog:
             value.get("schema_version") != 1
             or cid not in RECEIPT_GATED_SKILLS
             or type(version) is not int
-            or value.get("platform") != "macos"
-            or value.get("comparison") != "wind_excel"
-            or value.get("result") != "passed"
         ):
             raise CapabilityError("对照回执内容无效", "invalid_comparison_receipt", 422)
-        for field in ("script_sha256", "evidence_sha256"):
-            if not isinstance(value.get(field), str) or not re.fullmatch(
-                r"[0-9a-f]{64}", value[field]
-            ):
+        for field in COMPARISON_RECEIPT_FIELDS - {
+            "schema_version",
+            "skill_slug",
+            "version",
+            "compared_at",
+            "artifact_path",
+        }:
+            if not self._strict_sha256(value.get(field)):
                 raise CapabilityError("对照回执摘要无效", "invalid_comparison_receipt", 422)
         compared_at = value.get("compared_at")
         try:
@@ -298,24 +492,18 @@ class CapabilityCatalog:
             raise CapabilityError("对照回执时间无效", "invalid_comparison_receipt", 422) from exc
         if timestamp.timestamp() > time.time() + 300:
             raise CapabilityError("对照回执时间无效", "invalid_comparison_receipt", 422)
-        try:
-            record = self.row(cid)["versions"][str(version)]
-        except (CapabilityError, KeyError) as exc:
-            raise CapabilityError("对照回执版本无效", "invalid_comparison_receipt", 422) from exc
-        if self._record_script_digest(record) != value["script_sha256"]:
-            raise CapabilityError("对照回执脚本不匹配", "invalid_comparison_receipt", 422)
         unsigned = {key: value[key] for key in sorted(COMPARISON_RECEIPT_FIELDS)}
         receipt_sha256 = hashlib.sha256(
             json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
-        if stored and value["receipt_sha256"] != receipt_sha256:
+        if value["receipt_sha256"] != receipt_sha256:
             raise CapabilityError("对照回执校验失败", "invalid_comparison_receipt", 422)
         return {**unsigned, "receipt_sha256": receipt_sha256}
 
     def record_comparison_receipt(self, value):
         """Persist a verified macOS Wind/Excel comparison binding."""
 
-        receipt = self._validate_comparison_receipt(value)
+        receipt = self._verify_comparison_evidence(value)
         key = self._receipt_key(receipt["skill_slug"], receipt["version"])
         existing = self.data["comparison_receipts"].get(key)
         if existing is not None and existing != receipt:
@@ -345,7 +533,12 @@ class CapabilityCatalog:
                 "comparison_receipt_required",
                 409,
             )
-        self._validate_comparison_receipt(value, stored=True)
+        self._validate_comparison_receipt(value)
+        current = self._verify_comparison_evidence(
+            self.data_root / value["artifact_path"], changed=True
+        )
+        if current != value:
+            raise CapabilityError("对照证据已改变", "comparison_evidence_changed", 409)
 
     def row(self, cid):
         if (

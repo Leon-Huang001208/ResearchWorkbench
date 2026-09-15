@@ -26,6 +26,36 @@ DATA_CONTRACT_FIELDS = frozenset(
     }
 )
 DATASET_REF_FIELDS = frozenset({"dataset_id", "provider_id", "as_of", "sha256"})
+MAX_DATASET_REFS = 32
+MAX_SOURCE_HASHES = 32
+MAX_TEXT_CHARS = 4_096
+MAX_RESULT_BYTES = 64 * 1_024
+
+
+class ContractTooLarge(ValueError):
+    """Stable, content-free rejection for bounded contract collections or output."""
+
+    code = "workload_too_large"
+
+    def __init__(self, resource: str, limit: int, actual: int) -> None:
+        self.metadata = {
+            "resource": resource,
+            "limit": limit,
+            "actual": actual,
+            "reduce_scope": True,
+        }
+        super().__init__(self.code)
+
+
+def checked_text(value: Any, *, error: ErrorFactory) -> str:
+    """Normalize a required string while bounding material copied to results."""
+
+    if not isinstance(value, str) or not value.strip():
+        raise error("invalid_field_type")
+    normalized = value.strip()
+    if len(normalized) > MAX_TEXT_CHARS:
+        raise ContractTooLarge("text_chars", MAX_TEXT_CHARS, len(normalized))
+    return normalized
 
 
 def checked_number(value: Any, *, error: ErrorFactory, positive: bool = False) -> float:
@@ -85,7 +115,7 @@ def checked_mean(values: list[float], *, error: ErrorFactory) -> float:
 
 def strict_json_dumps(value: Any, *, error: ErrorFactory) -> str:
     try:
-        return json.dumps(
+        serialized = json.dumps(
             value,
             ensure_ascii=False,
             sort_keys=True,
@@ -93,6 +123,10 @@ def strict_json_dumps(value: Any, *, error: ErrorFactory) -> str:
         )
     except (OverflowError, ValueError) as exc:
         raise error("invalid_number") from exc
+    encoded_size = len(serialized.encode("utf-8"))
+    if encoded_size > MAX_RESULT_BYTES:
+        raise ContractTooLarge("result_bytes", MAX_RESULT_BYTES, encoded_size)
+    return serialized
 
 
 def bounded_result_rows(
@@ -118,7 +152,7 @@ def bounded_result_rows(
             "processed_input_rows": processed_input_rows,
             "inline_output_rows": total,
             "omitted_output_rows": 0,
-            "dataset_refs": [],
+            "dataset_refs_reused": True,
         }
     if isinstance(rows, list):
         projection = rows[:inline_limit]
@@ -139,7 +173,7 @@ def bounded_result_rows(
         "processed_input_rows": processed_input_rows,
         "inline_output_rows": inline_rows,
         "omitted_output_rows": total - inline_rows,
-        "dataset_refs": dataset_refs,
+        "dataset_refs_reused": True,
     }
 
 
@@ -159,46 +193,126 @@ def load_relative_json(
     """Read one contained regular JSON file without following links or replacements."""
 
     path = Path(argument)
-    if path.is_absolute() or ".." in path.parts or path == Path("."):
+    if (
+        not isinstance(argument, str)
+        or path.is_absolute()
+        or not path.parts
+        or any(part in {"", ".", ".."} for part in path.parts)
+    ):
         raise error("unsafe_input_path")
+    if os.name == "nt":
+        return _load_relative_json_windows(path, error=error, budget=budget)
+    return _load_relative_json_posix(path, error=error, budget=budget)
+
+
+def _load_relative_json_posix(path: Path, *, error: ErrorFactory, budget: Any) -> tuple[Any, int]:
+    """Open every component relative to an already-open trusted directory fd."""
+
+    directory_flag = getattr(os, "O_DIRECTORY", 0)
+    nofollow_flag = getattr(os, "O_NOFOLLOW", 0)
+    if not directory_flag or not nofollow_flag:
+        raise error("unsafe_input_path")
+    directory_access = getattr(os, "O_SEARCH", os.O_RDONLY)
+    directory_fds: list[int] = []
+    descriptor: int | None = None
+    try:
+        current_fd = os.open(".", directory_access | directory_flag | nofollow_flag)
+        directory_fds.append(current_fd)
+        for component in path.parts[:-1]:
+            next_fd = os.open(
+                component,
+                directory_access | directory_flag | nofollow_flag,
+                dir_fd=current_fd,
+            )
+            opened_directory = os.fstat(next_fd)
+            if _is_link_or_reparse(opened_directory) or not stat.S_ISDIR(opened_directory.st_mode):
+                raise error("unsafe_input_path")
+            directory_fds.append(next_fd)
+            current_fd = next_fd
+        descriptor = os.open(path.parts[-1], os.O_RDONLY | nofollow_flag, dir_fd=current_fd)
+        opened = os.fstat(descriptor)
+        if _is_link_or_reparse(opened) or not stat.S_ISREG(opened.st_mode):
+            raise error("unsafe_input_path")
+        budget.add_input(rows=0, bytes_count=opened.st_size)
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            raw = stream.read()
+        named = os.stat(path.parts[-1], dir_fd=current_fd, follow_symlinks=False)
+        if _is_link_or_reparse(named) or (named.st_dev, named.st_ino, named.st_size) != (
+            opened.st_dev,
+            opened.st_ino,
+            opened.st_size,
+        ):
+            raise error("unsafe_input_path")
+    except OSError as exc:
+        raise error("unsafe_input_path") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        for directory_fd in reversed(directory_fds):
+            os.close(directory_fd)
+    return _decode_json(raw, error=error)
+
+
+def _load_relative_json_windows(path: Path, *, error: ErrorFactory, budget: Any) -> tuple[Any, int]:
+    """Verify the opened Windows handle resolves to the requested non-reparse file."""
+
+    descriptor: int | None = None
     try:
         root = Path.cwd().resolve(strict=True)
+        candidate = root.joinpath(*path.parts)
         current = root
-        for part in path.parts:
-            current /= part
+        for component in path.parts:
+            current /= component
             if _is_link_or_reparse(os.lstat(current)):
                 raise error("unsafe_input_path")
-        resolved = (root / path).resolve(strict=True)
+        resolved = candidate.resolve(strict=True)
         if not resolved.is_relative_to(root):
             raise error("unsafe_input_path")
-        before = os.stat(resolved, follow_symlinks=False)
-        if _is_link_or_reparse(before) or not stat.S_ISREG(before.st_mode):
+        descriptor = os.open(resolved, os.O_RDONLY | getattr(os, "O_BINARY", 0))
+        opened = os.fstat(descriptor)
+        if _is_link_or_reparse(opened) or not stat.S_ISREG(opened.st_mode):
             raise error("unsafe_input_path")
-        budget.add_input(rows=0, bytes_count=before.st_size)
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-        descriptor = os.open(resolved, flags)
-        try:
-            opened = os.fstat(descriptor)
-            if (
-                _is_link_or_reparse(opened)
-                or not stat.S_ISREG(opened.st_mode)
-                or (opened.st_dev, opened.st_ino, opened.st_size)
-                != (before.st_dev, before.st_ino, before.st_size)
-            ):
-                raise error("unsafe_input_path")
-            with os.fdopen(descriptor, "rb", closefd=False) as stream:
-                raw = stream.read()
-            after = os.stat(resolved, follow_symlinks=False)
-            if (after.st_dev, after.st_ino, after.st_size) != (
-                opened.st_dev,
-                opened.st_ino,
-                opened.st_size,
-            ):
-                raise error("unsafe_input_path")
-        finally:
-            os.close(descriptor)
+        final_path = _windows_final_path(descriptor)
+        if final_path is None or os.path.normcase(final_path) != os.path.normcase(str(resolved)):
+            raise error("unsafe_input_path")
+        budget.add_input(rows=0, bytes_count=opened.st_size)
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            raw = stream.read()
+        after = os.stat(resolved, follow_symlinks=False)
+        if (after.st_dev, after.st_ino, after.st_size) != (
+            opened.st_dev,
+            opened.st_ino,
+            opened.st_size,
+        ):
+            raise error("unsafe_input_path")
     except OSError as exc:
-        raise error("input_unavailable") from exc
+        raise error("unsafe_input_path") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+    return _decode_json(raw, error=error)
+
+
+def _windows_final_path(descriptor: int) -> str | None:
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        import msvcrt
+
+        buffer = ctypes.create_unicode_buffer(32_768)
+        length = ctypes.windll.kernel32.GetFinalPathNameByHandleW(  # type: ignore[attr-defined]
+            msvcrt.get_osfhandle(descriptor), buffer, len(buffer), 0
+        )
+        if not length or length >= len(buffer):
+            return None
+        value = buffer.value
+        return value.removeprefix("\\\\?\\")
+    except (AttributeError, OSError, ValueError):
+        return None
+
+
+def _decode_json(raw: bytes, *, error: ErrorFactory) -> tuple[Any, int]:
     try:
         return json.loads(raw.decode("utf-8")), len(raw)
     except (UnicodeError, json.JSONDecodeError) as exc:
@@ -256,6 +370,8 @@ def validate_source_hashes(
     value = payload["source_hashes"]
     if not isinstance(value, dict):
         raise error("invalid_source_hashes")
+    if len(value) > MAX_SOURCE_HASHES:
+        raise ContractTooLarge("source_hashes", MAX_SOURCE_HASHES, len(value))
     if not value:
         return {}, ["source_hashes_missing"]
     normalized: dict[str, str] = {}
@@ -314,6 +430,8 @@ def validate_dataset_refs(
     """Validate exact provenance references and reject look-ahead data."""
     if not isinstance(value, list) or not value:
         raise error("invalid_field_type")
+    if len(value) > MAX_DATASET_REFS:
+        raise ContractTooLarge("dataset_refs", MAX_DATASET_REFS, len(value))
     normalized: list[dict[str, Any]] = []
     for raw in value:
         if not isinstance(raw, dict):
@@ -338,9 +456,10 @@ def validate_dataset_refs(
             or any(character not in "0123456789abcdef" for character in digest.lower())
         ):
             raise error("invalid_dataset_ref")
+        normalized_id = checked_text(dataset_id, error=error)
         normalized.append(
             {
-                "dataset_id": dataset_id.strip(),
+                "dataset_id": normalized_id,
                 "provider_id": provider_id,
                 "as_of": reject_future(raw.get("as_of"), as_of=as_of, error=error),
                 "sha256": digest.lower(),

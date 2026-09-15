@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import json
 import math
@@ -26,7 +27,12 @@ from app.research_web.capabilities.catalog import CapabilityCatalog
 from app.research_web.capabilities.models import CapabilityError
 from app.research_web.capabilities.seeds import seed_packages
 from app.research_web.skills._shared import cpu_budget as cpu_budget_module
-from app.research_web.skills._shared.cpu_budget import MAX_INPUT_BYTES, WorkloadTooLarge
+from app.research_web.skills._shared import input_contract as input_contract_module
+from app.research_web.skills._shared.cpu_budget import (
+    MAX_INPUT_BYTES,
+    WorkloadBudget,
+    WorkloadTooLarge,
+)
 
 PROJECT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = PROJECT / "app/research_web/skills"
@@ -225,6 +231,36 @@ def _version_script_digest(catalog: CapabilityCatalog, slug: str, version: int) 
     return next(item["sha256"] for item in files if item["path"] == "scripts/calculate.py")
 
 
+def _write_comparison_evidence(tmp_path, catalog, slug, **overrides):
+    version = catalog.row(slug)["version"]
+    evidence_dir = tmp_path / "comparison-evidence" / slug
+    evidence_dir.mkdir(parents=True)
+    golden = SKILLS_ROOT / slug / "fixtures/golden-result.json"
+    actual = evidence_dir / "actual-result.json"
+    expected = evidence_dir / "golden-result.json"
+    shutil.copy2(golden, actual)
+    shutil.copy2(golden, expected)
+    digest = hashlib.sha256(actual.read_bytes()).hexdigest()
+    source_hashes = json.loads(actual.read_text(encoding="utf-8"))["provenance"]["source_hashes"]
+    evidence = {
+        "schema_version": 1,
+        "skill_slug": slug,
+        "version": version,
+        "script_sha256": _version_script_digest(catalog, slug, version),
+        "compared_at": "2026-09-15T00:00:00Z",
+        "platform": "macos",
+        "comparison": "wind_excel",
+        "result": "passed",
+        "input_source_hashes": source_hashes,
+        "golden_result": {"path": expected.name, "sha256": digest},
+        "actual_result": {"path": actual.name, "sha256": digest},
+    }
+    evidence.update(overrides)
+    artifact = evidence_dir / "comparison.json"
+    artifact.write_text(json.dumps(evidence), encoding="utf-8")
+    return artifact, actual
+
+
 @pytest.mark.parametrize("slug", SLUGS)
 def test_receipt_gated_skills_require_persistent_bound_macos_comparison(slug, tmp_path):
     catalog = CapabilityCatalog(tmp_path)
@@ -236,54 +272,48 @@ def test_receipt_gated_skills_require_persistent_bound_macos_comparison(slug, tm
             catalog.transition(slug, action, version if action == "rollback" else None)
         assert error.value.code == "comparison_receipt_required"
 
-    receipt = {
-        "schema_version": 1,
-        "skill_slug": slug,
-        "version": version,
-        "script_sha256": script_sha256,
-        "compared_at": "2026-09-15T00:00:00Z",
-        "platform": "macos",
-        "comparison": "wind_excel",
-        "result": "passed",
-        "evidence_sha256": "e" * 64,
-    }
-    recorded = catalog.record_comparison_receipt(receipt)
-    assert recorded["receipt_sha256"]
+    with pytest.raises(CapabilityError) as self_declared:
+        catalog.record_comparison_receipt(
+            {"skill_slug": slug, "result": "passed", "script_sha256": script_sha256}
+        )
+    assert self_declared.value.code == "invalid_comparison_evidence"
+
+    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug)
+    recorded = catalog.record_comparison_receipt(artifact)
+    assert recorded["artifact_sha256"]
 
     restarted = CapabilityCatalog(tmp_path)
     assert restarted.comparison_receipt(slug) == recorded
     assert restarted.transition(slug, "enable")["status"] == "enabled"
     assert restarted.transition(slug, "disable")["status"] == "disabled"
     assert restarted.transition(slug, "rollback", version)["status"] == "enabled"
+    restarted.transition(slug, "disable")
+    actual.write_text("{}", encoding="utf-8")
+    with pytest.raises(CapabilityError) as changed:
+        restarted.transition(slug, "enable")
+    assert changed.value.code == "comparison_evidence_changed"
 
 
 @pytest.mark.parametrize("slug", SLUGS)
 def test_comparison_receipt_rejects_wrong_version_digest_time_or_result(slug, tmp_path):
     catalog = CapabilityCatalog(tmp_path)
     version = catalog.row(slug)["version"]
-    base = {
-        "schema_version": 1,
-        "skill_slug": slug,
-        "version": version,
-        "script_sha256": _version_script_digest(catalog, slug, version),
-        "compared_at": "2026-09-15T00:00:00Z",
-        "platform": "macos",
-        "comparison": "wind_excel",
-        "result": "passed",
-        "evidence_sha256": "e" * 64,
-    }
     invalid_values = {
         "version": version + 1,
         "script_sha256": "0" * 64,
         "compared_at": "not-a-time",
         "result": "failed",
         "platform": "windows",
+        "input_source_hashes": {"unbound-source": "0" * 64},
+        "unexpected": True,
     }
     for field, value in invalid_values.items():
-        receipt = {**base, field: value}
+        artifact, _actual = _write_comparison_evidence(
+            tmp_path / field, catalog, slug, **{field: value}
+        )
         with pytest.raises(CapabilityError) as error:
-            catalog.record_comparison_receipt(receipt)
-        assert error.value.code == "invalid_comparison_receipt"
+            catalog.record_comparison_receipt(artifact)
+        assert error.value.code == "invalid_comparison_evidence"
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -310,6 +340,49 @@ def test_known_initial_stage2_builtin_is_migrated_to_current_disabled_version(sl
     )
     native_name = migrated["versions"][str(migrated["version"])]["native_name"]
     assert not (upgraded.native_root / native_name).exists()
+
+
+@pytest.mark.parametrize("failure_point", ("publish", "save"))
+def test_known_stage2_migration_failure_never_restores_enabled_native(
+    failure_point, tmp_path, monkeypatch
+):
+    slug = "daily-market-brief"
+    catalog = CapabilityCatalog(tmp_path)
+    row = catalog.row(slug)
+    calculate = next(
+        item
+        for item in row["versions"][str(row["version"])]["files"]
+        if item["path"] == "scripts/calculate.py"
+    )
+    calculate["sha256"] = OLD_STAGE2_SCRIPT_DIGESTS[slug]
+    row["status"] = "enabled"
+    native = catalog.native_root / row["versions"][str(row["version"])]["native_name"]
+    native.mkdir()
+    (native / "SKILL.md").write_text("unsafe old projection", encoding="utf-8")
+    catalog.save()
+
+    if failure_point == "publish":
+        original_publish = CapabilityCatalog.publish
+
+        def fail_publish(self, cid, *args, **kwargs):
+            if cid == slug and kwargs.get("_allow_builtin_migration"):
+                raise CapabilityError("injected", "injected_publish_failure", 503)
+            return original_publish(self, cid, *args, **kwargs)
+
+        monkeypatch.setattr(CapabilityCatalog, "publish", fail_publish)
+    else:
+        monkeypatch.setattr(
+            CapabilityCatalog,
+            "save",
+            lambda _self: (_ for _ in ()).throw(OSError("injected save failure")),
+        )
+
+    with pytest.raises(CapabilityError):
+        CapabilityCatalog(tmp_path)
+    assert not native.exists()
+    if failure_point == "publish":
+        persisted = json.loads(catalog.index.read_text(encoding="utf-8"))
+        assert persisted["items"][slug]["status"] == "disabled"
 
 
 def test_each_package_has_required_resources_and_reviewed_hashes():
@@ -362,7 +435,9 @@ def test_each_package_has_required_resources_and_reviewed_hashes():
             "as_of",
             "sha256",
         }
+        assert refs_schema["maxItems"] == 32
         assert refs_schema["items"]["additionalProperties"] is False
+        assert input_schema["properties"]["source_hashes"]["maxProperties"] == 32
         assert input_schema["properties"]["parameters"]["additionalProperties"] is False
         output_schema = json.loads(
             (SKILLS_ROOT / slug / "references/output-schema.json").read_text(encoding="utf-8")
@@ -995,7 +1070,9 @@ print(json.dumps(result, ensure_ascii=False, sort_keys=True, allow_nan=False))
     )
     assert output["row_delivery"]["processed_input_rows"] == expected_rows
     if output["row_delivery"]["mode"] == "summary_with_dataset_refs":
-        assert output["row_delivery"]["dataset_refs"] == output["dataset_refs"]
+        assert output["row_delivery"]["dataset_refs_reused"] is True
+        assert "dataset_refs" not in output["row_delivery"]
+    assert len(json.dumps(output, ensure_ascii=False, allow_nan=False).encode("utf-8")) <= 64 * 1024
     assert elapsed < 10
     assert 0 < peak_rss_bytes < 1024**3
     print(
@@ -1004,6 +1081,141 @@ print(json.dumps(result, ensure_ascii=False, sort_keys=True, allow_nan=False))
             sort_keys=True,
         )
     )
+
+
+def test_large_provenance_and_text_fail_with_compact_json_inside_real_sandbox(tmp_path):
+    slug = "daily-market-brief"
+    payload = load_json(slug, "input.json")
+    payload["news"][0]["title"] = "长" * 20_000
+    payload["dataset_refs"] = [
+        {
+            "dataset_id": f"dataset-{index:03d}-" + "x" * 80,
+            "provider_id": "synthetic",
+            "as_of": payload["as_of"],
+            "sha256": f"{index:064x}",
+        }
+        for index in range(300)
+    ]
+    payload["source_hashes"] = {
+        f"source-{index:03d}-" + "x" * 80: f"{index + 1:064x}" for index in range(300)
+    }
+    research_root = tmp_path / "research"
+    session = research_root / "sessions" / str(uuid4())
+    for name in ("inputs", "outputs", "tmp", "resources"):
+        (session / name).mkdir(parents=True)
+    scripts = session / "resources" / "calculator" / "scripts"
+    scripts.mkdir(parents=True)
+    for name in ("calculate.py",):
+        shutil.copy2(SKILLS_ROOT / slug / "scripts" / name, scripts / name)
+    for name in ("cpu_budget.py", "input_contract.py"):
+        shutil.copy2(SKILLS_ROOT / "_shared" / name, scripts / name)
+    (session / "inputs/input.json").write_text(
+        json.dumps(payload, ensure_ascii=False), encoding="utf-8"
+    )
+    code = """
+import sys
+from pathlib import Path
+scripts = Path(__SCRIPTS__)
+sys.path.insert(0, str(scripts))
+namespace = {'__name__': 'reviewed_skill_resource'}
+source = (scripts / 'calculate.py').read_text(encoding='utf-8')
+exec(compile(source, 'scripts/calculate.py', 'exec'), namespace)
+namespace['main'](['inputs/input.json'])
+""".replace("__SCRIPTS__", repr(str(scripts)))
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT / "app/research_web/sandbox.py"),
+            "--research-root",
+            str(research_root),
+            "--python",
+            sys.executable,
+            "--session",
+            str(session),
+            "--timeout",
+            "9",
+            "--max-output",
+            str(64 * 1024),
+        ],
+        input=json.dumps({"code": code}),
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    supervisor = json.loads(result.stdout)
+    assert supervisor["status"] == "completed", supervisor
+    assert len(supervisor["stdout"].encode()) + len(supervisor["stderr"].encode()) < 64 * 1024
+    error = json.loads(supervisor["stderr"].splitlines()[-1])
+    assert error["error"]["code"] == "workload_too_large"
+    assert error["error"]["metadata"]["reduce_scope"] is True
+
+
+def test_strict_json_envelope_counts_utf8_bytes_and_fails_compactly():
+    with pytest.raises(input_contract_module.ContractTooLarge) as error:
+        input_contract_module.strict_json_dumps({"text": "长" * 22_000}, error=ValueError)
+    assert error.value.metadata == {
+        "resource": "result_bytes",
+        "limit": 64 * 1024,
+        "actual": len(json.dumps({"text": "长" * 22_000}, ensure_ascii=False).encode()),
+        "reduce_scope": True,
+    }
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+@pytest.mark.parametrize("field", ("dataset_refs", "source_hashes"))
+def test_provenance_collection_counts_are_bounded_before_result_build(slug, field):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+    if field == "dataset_refs":
+        template = payload[field][0]
+        payload[field] = [{**template, "dataset_id": f"dataset-{index}"} for index in range(300)]
+    else:
+        payload[field] = {f"source-{index}": f"{index:064x}" for index in range(300)}
+    with pytest.raises(ValueError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert getattr(error.value, "code", None) == "workload_too_large"
+    assert error.value.metadata["reduce_scope"] is True
+
+
+def test_safe_json_loader_rejects_ancestor_directory_switch_race(tmp_path, monkeypatch):
+    victim = tmp_path / "victim"
+    attacker = tmp_path / "attacker"
+    victim.mkdir()
+    attacker.mkdir()
+    (victim / "input.json").write_text('{"source":"victim"}', encoding="utf-8")
+    (attacker / "input.json").write_text('{"source":"attacker"}', encoding="utf-8")
+    original = tmp_path / "original"
+    real_lstat = input_contract_module.os.lstat
+    real_open = input_contract_module.os.open
+    switched = False
+
+    def switch_ancestor():
+        nonlocal switched
+        if switched:
+            return
+        victim.rename(original)
+        victim.symlink_to(attacker, target_is_directory=True)
+        switched = True
+
+    def racing_lstat(path, *args, **kwargs):
+        if Path(path) == victim / "input.json":
+            switch_ancestor()
+        return real_lstat(path, *args, **kwargs)
+
+    def racing_open(path, flags, *args, **kwargs):
+        if path == "victim" and kwargs.get("dir_fd") is not None:
+            switch_ancestor()
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(input_contract_module.os, "lstat", racing_lstat)
+    monkeypatch.setattr(input_contract_module.os, "open", racing_open)
+    with chdir(tmp_path), pytest.raises(ValueError) as error:
+        input_contract_module.load_relative_json(
+            "victim/input.json", error=ValueError, budget=WorkloadBudget()
+        )
+    assert str(error.value) == "unsafe_input_path"
 
 
 def test_event_beta_is_unavailable_when_pre_event_sample_is_insufficient():

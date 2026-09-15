@@ -16,6 +16,7 @@ from input_contract import (
     checked_number,
     checked_subtract,
     checked_sum,
+    checked_text,
     iso_day,
     load_relative_json,
     reject_future,
@@ -58,9 +59,7 @@ class CalculatorError(ValueError):
 
 
 def _text(value: Any) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise CalculatorError("invalid_field_type")
-    return value.strip()
+    return checked_text(value, error=CalculatorError)
 
 
 def _day(value: Any) -> str:

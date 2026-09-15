@@ -145,6 +145,30 @@ reparse point，并在 no-follow 打开前后核对普通文件身份；六项�
 逐项通过 mypy；六包 JSON、architecture、doc-sync、project constraints（46 个变更文件）、task
 completion 与 `git diff --check` 均通过。
 
+最终质量复验继续以 TDD 收紧四处边界。首轮四组为 `28 failed, 116 deselected in 26.81s`；其中
+27 项是 receipt artifact、迁移、封套/集合和 ancestor race 的产品 RED，另 1 项是测试漏导入
+`WorkloadBudget`，修正夹具后再进入实现。comparison receipt 登记现在只接受位于 catalog 数据根的
+严格 evidence artifact 路径，读取脱敏绑定字段并重算 artifact、输入来源、不可变版本内仓库 golden、
+实际结果与当前计算脚本摘要；持久 receipt 由 verifier 派生，enable/rollback 会重新读取 artifact，
+文件缺失或摘要/绑定变化即失败关闭。该设计消除了调用方直接提交 `passed` 字典或自填摘要的路径，
+但不宣称能够抵抗拥有本机写权限的管理员主动伪造整套文件。
+
+已知初版迁移在构造新版本前先撤下原生投影、把状态持久为 disabled；publish/save/validation 异常
+保留 disabled/uncertain 或使 catalog 初始化失败，不再恢复旧 enabled 投影。共享 loader 在 POSIX
+从 cwd 目录描述符开始，以 `dir_fd`、`O_DIRECTORY`、`O_NOFOLLOW` 逐组件打开并通过 `fstat` 验证，
+最终文件也从可信父目录 fd 打开；Windows 路径以打开句柄的最终路径和 reparse 状态复核，无法确认
+时失败关闭。ancestor 目录切换 race、文件/目录 symlink 和 cwd containment 均有稳定反例。
+
+输出边界增加 `dataset_refs`/`source_hashes` 各 32 项、复制文本 4096 字符和完整 strict JSON envelope
+64 KiB UTF-8 限制；超过任一边界返回小型、完整的 `workload_too_large`/`reduce_scope` 错误。
+`row_delivery` 只声明复用规范化顶层 refs，不再第三次复制 refs。300 refs 与长文本用例通过真实
+sandbox 64 KiB gate；六项近上限压力样本全部计算，最大 wall `0.248s`、父子进程峰值 RSS
+`45,416,448 bytes`。四组首次 GREEN 后 Stage 2 专项为 `144 passed in 39.97s`；后续只运行新增
+envelope/evidence 反例和必要短门，不再重复该 40 秒套件。文档同步后的高风险选择性回归为
+`24 passed, 121 deselected in 27.10s`，相关 native catalog 回归为 `1 passed, 2 skipped in 1.97s`。
+九个 Python 目标通过 ruff、black、isort，catalog 与共享契约以 `--follow-imports=skip` 通过 mypy；
+36 份 Stage 2 JSON 解析、架构、doc-sync、project constraints 和 `git diff --check` 均通过。
+
 不会把未执行的平台或真实数据验证写成已通过。
 
 ## 未验证项
@@ -152,4 +176,5 @@ completion 与 `git diff --check` 均通过。
 本阶段未调用真实 Wind、网络或原始 Excel/VBA，三个 Excel 模板与三个外部 Skill 仅作只读来源和
 哈希证据；未验证真实 Provider 数据质量、厂商字段可用性、Windows 原生沙箱或 Excel 运行。Web-only
 代码未修改任何桌面专属路径，不能由本地离线测试推导桌面或跨平台交付结论。六项能力因此保持
-disabled；需要真实 macOS Wind 对照 receipt 才能进入启用验收。
+disabled；需要真实 macOS Wind/Excel comparison evidence artifact 经内部 verifier 生成 receipt 才能
+进入启用验收。仓库测试使用 synthetic golden/result 副本，仅验证门禁机制，不是实测 receipt。

@@ -11,8 +11,11 @@
 - `method_version`: calculator 的固定方法版本。
 - `provenance`: 遵循 `provenance-v1.md` 的对象。
 - `row_delivery`: 记录完整处理的输入行数、内联输出行数、省略行数和交付模式；最多内联 128 条。
-  超过时模式为 `summary_with_dataset_refs`，并复用顶层规范化 `dataset_refs`，使 stdout 保持在
-  64 KiB 内且不把有界投影冒充完整明细。
+  超过时模式为 `summary_with_dataset_refs`，`dataset_refs_reused=true` 指向顶层规范化引用而不复制。
+
+`dataset_refs` 与 `source_hashes` 各最多 32 项，复制到输出的单项文本最多 4096 字符。最终完整 JSON
+envelope（含成功或错误结构）按 UTF-8 计不得超过 64 KiB；无法表达时返回小型、完整的
+`workload_too_large`，metadata 仅含安全的 limit/actual/resource/reduce_scope，不依赖 sandbox 截断。
 
 `partial` 不能冒充完整结果；发生预算超限时不返回截断计算结果。
 所有 JSON 输出禁止 NaN/Infinity；数值转换和派生指标在序列化前必须验证为有限数。

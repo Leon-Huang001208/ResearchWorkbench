@@ -3169,7 +3169,7 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, save, _receipt_key, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, _withdraw_native_projections, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
 - `_is_host_process_entry`
@@ -5838,7 +5838,14 @@ Imports:
 - `stat`
 - `typing`
 
+Classes:
+- `ContractTooLarge`
+  - Stable, content-free rejection for bounded contract collections or output.
+  - methods: __init__
+
 Functions:
+- `checked_text`
+  - Normalize a required string while bounding material copied to results.
 - `checked_number`
   - Convert a supplied number without leaking conversion overflows.
 - `checked_arithmetic`
@@ -5855,6 +5862,12 @@ Functions:
 - `_is_link_or_reparse`
 - `load_relative_json`
   - Read one contained regular JSON file without following links or replacements.
+- `_load_relative_json_posix`
+  - Open every component relative to an already-open trusted directory fd.
+- `_load_relative_json_windows`
+  - Verify the opened Windows handle resolves to the requested non-reparse file.
+- `_windows_final_path`
+- `_decode_json`
 - `strict_object`
   - Return an exact object or fail without including user content.
 - `iso_day`

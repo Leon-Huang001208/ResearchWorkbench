@@ -38,12 +38,14 @@ dataset refs、status、limitations、method version、source hashes 和 `intern
 后续 reviewed calculator 种子复制并哈希封存的资源，不注册为独立 Skill，也不增加工具权限。
 
 六个 Stage 2 Skill 另外受 catalog comparison receipt 门控：fresh catalog 保持 disabled；已知初版
-脚本升级时创建当前不可变版本并保持 disabled。启用或回滚到 enabled 前，内部 catalog 方法会
-校验持久 receipt 的 slug、不可变版本、`calculate.py` SHA-256、UTC 时间、macOS、Wind/Excel
-对照 passed 结果及证据摘要；没有真实 receipt 时仍可发现但不可选择执行。六 CLI 使用共享相对
-JSON 安全 loader 拒绝 cwd 越界、文件/目录链接和打开期间身份替换；受检数值运算与
-`allow_nan=false` 禁止非有限输入/派生输出。全部输入参与计算，输出最多内联 128 条，并以
-`row_delivery` 明示其余数量和规范化 dataset refs，使研究 sandbox stdout 保持在 64 KiB 内。
+脚本升级时先撤下原生投影并持久禁用，发布、保存或校验异常均保留 disabled/uncertain 或使初始化
+失败，绝不恢复 enabled。登记入口只接受 evidence artifact 路径；catalog 严格读取后重算 artifact、
+输入来源、仓库 golden、实际结果和当前 `calculate.py` 摘要，再派生持久 receipt。启用或回滚到
+enabled 时会重新验证 artifact 存在且摘要和绑定未变化。该本机完整性校验不宣称能防止本机管理员
+主动改写证据；没有真实 artifact 时仍可发现但不可执行。六 CLI 在 POSIX 从 cwd fd 逐组件
+openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性。dataset refs/source hashes 各限
+32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过 64 KiB；无法表达时返回完整
+小型 `workload_too_large`/`reduce_scope`，`row_delivery` 不再重复顶层 refs，也不依赖 sandbox 截断。
 
 阶段 2A 的只读 MCP 市场在三阶段 CI 通过后默认开启；显式设置 `RESEARCH_MCP_REGISTRY_ENABLED=0`
 仍会关闭该入口。目录聚合随仓库

@@ -665,6 +665,12 @@
   内计算，最多内联 128 条并用 `row_delivery` 披露其余数据，使 stdout 保持 64 KiB 上限。
 - 业绩预告记录报告期与参数严格等价，每日简报 provenance 复用规范化 dataset refs；这些是既有
   calculator 内部契约收紧，不改变模块拓扑。
+- 最终质量复验把 receipt 登记入口收紧为 evidence artifact 路径：内部重算 artifact、输入来源、
+  仓库 golden、实际结果和当前脚本摘要，状态切换再次验证；不把该校验描述为抵抗本机管理员伪造。
+- 已知初版迁移在发布/保存/校验前撤下原生投影并禁用，异常保持 uncertain 或初始化失败；POSIX
+  loader 改为从 cwd fd 逐组件 openat/no-follow，Windows 校验打开句柄最终路径和 reparse 属性。
+- dataset refs/source hashes 各限 32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过
+  64 KiB；无法表达时返回小型完整 workload 错误，`row_delivery` 不再复制顶层 refs。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"共享输入契约和预算错误投影只收紧既有research_run_script内部计算器，不新增进程、服务、权限或跨边界数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项内置Skill改为receipt门控的disabled初始状态，仍使用既有目录、版本、检查与选择状态机。","diagrams":[]} -->
@@ -674,3 +680,5 @@
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"来源key换行分隔符拒绝仅对齐既有共享校验与schema允许集合，不改变拓扑、权限或数据流。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项专用comparison receipt与已知初版disabled迁移只收紧既有catalog状态机，不增加公开API、能力类型或执行器。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"相对JSON安全读取、有限数算术和64KiB有界结果仍在既有research_run_script沙箱节点内，不新增进程、权限或跨边界数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"evidence artifact验证与失败关闭迁移只收紧既有catalog状态机和持久索引，不新增公开API或能力类型。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"逐组件openat与完整UTF-8 envelope只收紧既有research_run_script文件和输出边界，不新增执行节点或权限。","diagrams":[]} -->

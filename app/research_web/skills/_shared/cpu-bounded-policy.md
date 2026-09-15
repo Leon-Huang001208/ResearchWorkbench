@@ -12,6 +12,7 @@
 计算只依赖 CPU；数值库线程由沙箱固定为 4，不需要也不得探测 GPU。脚本仍受 15 秒默认执行预算、
 60 秒 hard cap、macOS Seatbelt 与现有文件/网络/进程边界约束。
 
-CLI 输入只能是当前工作目录内的普通相对 JSON 文件；规范化后仍须位于 cwd，文件和目录链接或
-重解析点一律拒绝，并在 no-follow 打开前后复核文件身份。计算必须遍历全部已受理输入；输出明细
-采用 `cpu-bounded-result-v1.md` 的有界 `row_delivery`，不得先截断输入再计算。
+CLI 输入只能是当前工作目录内的普通相对 JSON 文件。POSIX 从已打开的 cwd fd 开始逐目录组件
+openat/dir_fd，配合 `O_DIRECTORY`、`O_NOFOLLOW` 和 `fstat`，最终文件也只从可信父目录 fd 打开；
+Windows 校验打开句柄的最终路径与 reparse 属性，无法确认时失败关闭。计算必须遍历全部已受理输入；
+输出采用 `cpu-bounded-result-v1.md` 的有界 `row_delivery` 和完整 UTF-8 envelope，不得先截断输入再计算。

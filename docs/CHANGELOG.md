@@ -37,6 +37,10 @@
   业绩预告逐条报告期必须等于参数报告期，每日简报 provenance 复用同一份规范化 dataset refs。
 - 近上限数据现在通过真实研究 sandbox 的 64 KiB 输出门：计算处理全部输入，最多内联 128 条，
   其余以 `row_delivery=summary_with_dataset_refs` 明示省略计数和数据集引用，不静默丢失结果语义。
+- Stage 2 启用凭证只由严格 evidence artifact 路径验证后派生，绑定输入来源、仓库 golden、实际结果
+  和当前脚本摘要；迁移异常先撤下旧投影并保持失败关闭，状态切换重验 artifact 未变。
+- Stage 2 相对 JSON 在 POSIX 逐组件 openat/no-follow、Windows 校验最终句柄；dataset refs/source
+  hashes 各限 32 项，完整 UTF-8 JSON envelope 超过 64 KiB 时返回小型 workload 错误而不依赖截断。
 - Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
 
 ### CPU 有界投研公共底座 · 2026-09-14

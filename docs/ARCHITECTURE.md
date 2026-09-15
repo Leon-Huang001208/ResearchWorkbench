@@ -94,13 +94,12 @@ ETF 分类或缺失暴露，也不把事件样本不足时的 beta 默认成 1�
 返回 `data_not_equivalent`。日期只接受 `YYYY-MM-DD`，CNY 计算器拒绝矛盾币种；来源哈希只接受
 规范非空 key 与 SHA-256 value，显式 null、首尾空白或含 CR/LF/Unicode 行段分隔符的 key 被拒绝，字段缺失时以 partial/limitation 降级。
 六项能力在真实 Wind/Excel 对照尚未完成时保持可发现但 disabled，且不
-进入原生 provider candidate 目录；启用及回滚到 enabled 都要求 catalog 中存在通过的 macOS
-Wind/Excel 对照 receipt，并精确绑定 slug、不可变版本、`calculate.py` SHA-256、UTC 时间和证据
-摘要。已知初版内置脚本升级时发布当前不可变版本并强制 disabled，不沿用旧启用状态。
-计算器通过共享 no-follow 相对 JSON loader 拒绝越界、文件/目录链接及打开期间的身份替换；共享
-数值原语确保输入转换和派生结果有限，CLI 禁止 NaN/Infinity 序列化。全部输入参与计算，最多
-内联 128 条结果；其余由 `row_delivery` 明示数量并引用规范化 dataset refs，使真实研究 sandbox
-stdout 保持在 64 KiB 内。`cpu_bounded_v1` 的预算、输入契约、结果和 provenance
+进入原生 provider candidate 目录；receipt 只能由严格 evidence artifact 路径生成，绑定输入来源、
+仓库 golden、实际结果、slug、不可变版本和当前脚本摘要，启用及回滚会重新验证 artifact 未变。
+已知初版升级先撤下原生投影并禁用，发布、保存或校验异常均失败关闭。
+POSIX loader 从 cwd fd 逐组件 openat/no-follow，Windows 校验最终句柄路径和 reparse 属性。全部输入
+仍参与计算，dataset refs/source hashes 各限 32 项，完整 JSON envelope 按 UTF-8 不超过 64 KiB；
+无法表达时返回小型完整 workload 错误，`row_delivery` 不复制顶层 refs。`cpu_bounded_v1` 的预算、输入契约、结果和 provenance
 资源在种子构建时复制进不可变版本并参与哈希。
 
 历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
