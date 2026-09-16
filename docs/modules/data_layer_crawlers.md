@@ -255,7 +255,7 @@ Update this section when:
 
 | 文件 | 职责 |
 |------|------|
-| `exceptions.py` | 5 个自定义异常：`WindError`、`WindSessionExpiredError`、`WindNotConnectedError`、`WindFormulaError`、`WindTimeoutError` |
+| `exceptions.py` | 稳定异常：`WindError`、会话/连接/公式/超时异常，以及清理未确认的 `WindCleanupError` |
 | `client.py` | `WindExcelClient`：xlwings 连接管理、心跳检测（`s_info_compname`）、批量列式公式执行、后台保活线程（30min 间隔防自动登出）、15s 超时 |
 | `formulas.py` | ~75 个 Wind 公式生成器，覆盖一致预期/两融/龙虎榜/价格K线/财务/行业指数/资金流向/持有人 |
 | `wind_adapter.py` | `WindAdapter(BaseDataAdapter)`：8 个高层接口（一致预期、两融、龙虎榜、日行情、财务、行业、资金流向、持有人） |
@@ -271,13 +271,18 @@ Update this section when:
 
 **关键设计决策：**
 
-- 连接复用：整个 session 复用同一 Excel 连接，优先连接已运行的实例
+- 连接复用：普通显式调用可在 session 内复用 Excel；Research Web 自动只读调用使用
+  `isolated_app=True`，不枚举或选择用户 workbook，而是持有隐藏独立应用及专用 workbook
 - 自动启动：如果未检测到运行中的 Excel，`WindExcelClient._connect()` 会通过 `xlwings.App(visible=..., add_book=True)` 启动新实例，而不是跳过 Wind 健康检查
 - 批量执行：列式写入公式（Z 列），一次等待 Excel 完成所有计算
 - 心跳检测：每次批量执行前自动检测 Wind 会话有效性，过期时抛出 `WindSessionExpiredError`
 - 保活机制：后台 daemon 线程每 30 分钟执行心跳，防止 Wind 自动登出；过期时触发回调
 
 2026-09-11 的格式基线维护只将批量等待条件展开为 Black 兼容布局，Wind 客户端行为和公开接口保持不变。
+
+2026-09-14 新增隔离应用生命周期和 `WindAdapter.close()`；隔离 workbook 不保存关闭，专用应用退出。
+DataHub Provider 在单 worker 中调用并负责最终清理，fake xlwings 测试验证用户 workbook 不变。
+quit 失败时保留 app 所有权并抛出 `WindCleanupError`；Provider 随即 poison 至进程重启，禁止新实例重叠。
 
 **测试：** `tests/unit/test_wind_adapter.py` — 90+ 个单元测试（5 异常 + 50+ 公式 + 7 结构 + 4 客户端 + 9 新方法）
 

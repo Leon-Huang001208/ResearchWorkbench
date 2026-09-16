@@ -134,8 +134,11 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
     result = client.get("/api/research/capabilities")
     assert result.status_code == 200
     rows = result.json()["items"]
-    assert len(rows) == 26
-    assert len([row for row in rows if row["kind"] == "method"]) == 10
+    shipped = seed_packages()
+    assert len(rows) == len(shipped)
+    assert len([row for row in rows if row["kind"] == "method"]) == sum(
+        draft["kind"] == "method" for _, draft in shipped
+    )
     assert {r["name"] for r in rows if r["kind"] == "skill"} == {
         "资料解读",
         "公司研究",
@@ -149,6 +152,24 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "研报增量分析",
         "因子库研究",
         "框架深度验证",
+        "每日市场简报",
+        "政策哨兵",
+        "事件复盘",
+        "ETF 资金流监控",
+        "财报披露监控",
+        "业绩预告监控",
+        "基金匹配",
+        "基金持仓穿透",
+        "组合重合度",
+        "组合基准偏离",
+        "行业景气度",
+        "行业象限监控",
+        "行业拥挤度",
+        "利率均线择时研究",
+        "股权风险溢价择时研究",
+        "风格轮动研究",
+        "平台突破研究",
+        "缠论确认分型与笔研究",
     }
     assert all(r["source"] == "builtin" and r["version"] == 1 for r in rows)
     workflows = client.get("/api/research/workflows").json()["items"]

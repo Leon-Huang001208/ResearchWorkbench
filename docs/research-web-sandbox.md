@@ -22,6 +22,15 @@
 
 工具参数仅为 `{"code": "..."}`。返回 `{status, stdout, stderr, exit_code, error}`；状态包括 `completed`、`failed`、`timed_out`、`output_limit`、`cancelled`。请求取消或 supervisor 协议失败会使原生工具报错，不伪装成功。最多 65,536 UTF-8 源码字节；stdout/stderr 合计最多配置字节数，截断的不完整 UTF-8 后缀会被丢弃。
 
+宿主插件在任何脚本进程创建前使用进程级 FIFO 队列，全局只运行一个 `research_run_script`。
+排队默认最多 60 秒；超时返回稳定 `runtime_busy`，排队期间取消会从队列移除，之后不能启动。
+15 秒默认执行时限和 60 秒 hard cap 不变。队列等待与运行结果只记录固定 outcome、等待毫秒数和
+状态，不记录源码、参数或输出。
+
+启用研究工具时，启动器只验证其自身已配置的 Python；必须为 3.12 且能实际导入 numpy、pandas、
+matplotlib、openpyxl。失败固定为 `runtime_not_ready` 并保持 Runtime 未就绪，不回退到系统 Python，
+也不硬编码开发机解释器路径。
+
 ## 内核边界
 
 `sandbox.py` 是只依赖标准库的可信 supervisor，不导入 `core.settings`，不读取 `.env` 或数据库配置。它先验证配置的解释器，再以 `/usr/bin/sandbox-exec` 启动隔离的 `-I -S -B` Python。非 macOS 或无 Seatbelt 时拒绝执行，不退回裸 shell。
@@ -40,7 +49,11 @@ Seatbelt 使用 `allow default` 加 `deny file-read-data` 与明确运行库/会
 
 `deny process-exec` 的例外仅为显式 Python 真实可执行文件及其 framework launcher；同一解释器再次 exec 仍继承父 Seatbelt。禁止 fork、任意 shell 和 Mach/IPC 路径，避免把请求转交无沙箱进程。没有任何模型可控的环境变量或可执行文件参数。
 
-子进程环境精确为 `PATH`、`LANG`、`LC_ALL`、`TMPDIR`、`MPLCONFIGDIR`、`XDG_CACHE_HOME`、`__CF_USER_TEXT_ENCODING`。tmp/cache/Matplotlib 配置均指向当前会话 tmp；不继承 API key、数据库地址、HOME、PYTHONPATH、BASH_ENV、DYLD 变量。标准库 MIME 表提前初始化，避免文档库读取宿主 `/etc` 配置。
+子进程环境精确为 `PATH`、`LANG`、`LC_ALL`、`TMPDIR`、`MPLCONFIGDIR`、`XDG_CACHE_HOME`、
+`OMP_NUM_THREADS`、`OPENBLAS_NUM_THREADS`、`VECLIB_MAXIMUM_THREADS`、`NUMEXPR_NUM_THREADS`、
+`__CF_USER_TEXT_ENCODING`。四个数值库线程变量均固定为 `4`；tmp/cache/Matplotlib 配置均指向当前
+会话 tmp；不继承 API key、数据库地址、HOME、PYTHONPATH、BASH_ENV、DYLD 变量。标准库 MIME 表
+提前初始化，避免文档库读取宿主 `/etc` 配置。
 
 ## 资源与错误处理
 
@@ -54,7 +67,11 @@ Seatbelt 使用 `allow default` 加 `deny file-read-data` 与明确运行库/会
 - supervisor 协议有独立输出上限和超时；原生工具取消先发送 SIGTERM，再有界处理异常清理。
 - CLI 日志写 `<researchRoot>/logs/sandbox.log`，只记录固定事件、状态及异常类型；不记录脚本、stdout、输入或凭据。嵌入调用使用标准 logging，可接入现有日志 sink。该独立模块故意不导入会读取应用设置的日志入口。
 
-仍未提供总磁盘配额、总内存/RSS 限制、容器级 CPU/线程配额。Seatbelt 是宿主内核安全边界，不抵御内核漏洞或恶意本机管理员；macOS 内核不可中断进程也可能无法立即清理。不适合不受信任多租户或高风险任意代码托管。需要这些保障时应使用另行审核的 VM/容器执行服务，不能放宽当前规则。未验证 Linux/Windows 支持。
+仍未提供总磁盘配额、总内存/RSS 限制或容器级 CPU 配额；线程环境上限不是内核级线程封锁。
+本底座没有 GPU 依赖，也不探测 GPU。Seatbelt 是宿主内核安全边界，不抵御内核漏洞或恶意本机
+管理员；macOS 内核不可中断进程也可能无法立即清理。不适合不受信任多租户或高风险任意代码托管。
+需要这些保障时应使用另行审核的 VM/容器执行服务，不能放宽当前规则。脚本沙箱仍仅支持 macOS；
+Windows 只运行不启动 provider/脚本的契约测试，不能据此宣称沙箱可用。
 
 ## 已执行验证
 

@@ -9,6 +9,7 @@ from typing import Any
 
 from core.observability import get_logger
 from data_layer.adapters.wind.exceptions import (
+    WindCleanupError,
     WindFormulaError,
     WindNotConnectedError,
     WindSessionExpiredError,
@@ -90,10 +91,12 @@ class WindExcelClient:
         timeout: float = 15.0,
         *,
         isolated_workbook: bool = False,
+        isolated_app: bool = False,
     ):
         self._visible = visible
         self._timeout = timeout
         self._isolated_workbook = isolated_workbook
+        self._isolated_app = isolated_app
         self._app = None
         self._wb = None
         self._sheet = None
@@ -116,20 +119,25 @@ class WindExcelClient:
                 "xlwings not available (NumPy/matplotlib compatibility issue?)"
             )
 
-        # 枚举实例也会初始化 macOS xlwings 引擎。Wind 的登录会话属于
-        # 已运行的 Excel 实例，所以优先复用应用；验证任务通过独占空白
-        # 工作簿隔离，绝不写入用户当前打开的工作簿。
-        try:
-            all_apps = list(xw.apps)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("无法枚举运行中的 Excel 实例: %s", exc)
+        # 自动/只读调用可以要求独立应用；此分支不得枚举或选择用户已打开
+        # 的应用和工作簿，生命周期完全由本客户端持有。
+        if self._isolated_app:
+            logger.info("启动隔离的 Wind Excel 实例")
+            self._app = xw.App(visible=self._visible, add_book=True)
+            self._owns_app = True
             all_apps = []
+        else:
+            try:
+                all_apps = list(xw.apps)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("无法枚举运行中的 Excel 实例: %s", exc)
+                all_apps = []
 
-        if all_apps:
+        if not self._isolated_app and all_apps:
             self._app = all_apps[0]
             logger.info(f"已连接到运行中的 Excel 实例 (PID={self._app.pid})")
             self._owns_app = False
-        else:
+        elif not self._isolated_app:
             logger.info("未检测到运行中的 Excel，启动新实例")
             self._app = xw.App(visible=self._visible, add_book=True)
             self._owns_app = True
@@ -144,7 +152,7 @@ class WindExcelClient:
             self._owns_workbook = True
         else:
             self._wb = self._app.books[0]
-            self._owns_workbook = self._isolated_workbook
+            self._owns_workbook = self._isolated_workbook or self._isolated_app
 
         # Wind Mac 插件在新建 helper sheet 上偶尔只返回 Fetching。
         # 仍使用第一个 sheet，但落在很远的 ZZ 列和高行，避免覆盖用户可见区域和旧缓存。
@@ -594,22 +602,35 @@ class WindExcelClient:
                         logger.error(f"过期回调执行失败: {e}")
                 break
 
-    def close(self):
-        """断开连接。如果是连接的用户 Excel，不关闭；如果是自己启动的，关闭"""
+    def close(self) -> None:
+        """关闭持有资源；无法确认退出时保留所有权状态并失败关闭。"""
         self.stop_keepalive()
+        workbook_close_failed = False
         if self._owns_workbook and self._wb is not None:
             try:
                 self._wb.close()
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"关闭 Wind 工作簿时出错: {e}")
+            except Exception as exc:  # noqa: BLE001 - xlwings error types vary.
+                workbook_close_failed = True
+                logger.warning("关闭 Wind 工作簿失败", error_type=type(exc).__name__)
+            else:
+                self._wb = None
+                self._sheet = None
+                self._owns_workbook = False
         if self._owns_app and self._app is not None:
             try:
-                if not self._owns_workbook and self._wb is not None:
-                    self._wb.close()
                 self._app.quit()
                 logger.info("Wind Excel 客户端已关闭")
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"关闭 Excel 时出错: {e}")
+            except Exception as exc:
+                logger.error("关闭 Wind Excel 应用失败", error_type=type(exc).__name__)
+                raise WindCleanupError() from exc
+            self._app = None
+            self._wb = None
+            self._sheet = None
+            self._owns_app = False
+            self._owns_workbook = False
+            return
+        if workbook_close_failed:
+            raise WindCleanupError()
         self._app = None
         self._wb = None
         self._sheet = None

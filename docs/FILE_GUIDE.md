@@ -85,7 +85,9 @@
 | `app/research_web/service_manager.py` | 3081/8088 跨平台进程归属、健康状态、进程树停止与安全化 Web Doctor |
 | `app/research_web/tabbit.py` / `runtime/tabbit-adapter.mjs` | Tabbit 配置、会话授权、实时 claim 和一次性内存上下文 |
 | `app/research_web/ui/` | 原生JS产品壳、FinGPT/Claw、输入框、能力目录/编辑器 |
-| `app/research_web/capabilities/` | Skill/Workflow包、检查、不可变版本、只读Tool目录 |
+| `app/research_web/capabilities/` | 30 个内置 Skill/4 个 Workflow 的声明、检查、不可变版本与只读 Tool 目录 |
+| `app/research_web/skills/_shared/` | CPU 有界预算、严格输入等价性、结果/provenance 与通用证据协议的单一维护源码；构建时复制并哈希，不独立注册 |
+| `app/research_web/skills/{daily-market-brief,policy-sentinel,event-review,etf-flow-monitor,earnings-report-monitor,earnings-preview-monitor}/` | 六个独立 CPU 资讯/事件计算包：指令、受审脚本、strict schema、运行时字段映射、来源记录和 synthetic golden；仅由经内部重算的 macOS Wind/Excel evidence artifact 派生 receipt，登记前保持 disabled |
 | `app/research_web/datahub/` | 按需数据能力与会话数据集快照 |
 | `app/research_web/store.py` / `delivery.py` | 归属/文件索引与独立交付检查 |
 | `app/research_web/documentation.py` | 固定图册HTML白名单与隔离CSP |
@@ -390,10 +392,10 @@
 | `data_layer/adapters/ifind/__init__.py` | iFinD 公开入口：HTTP、SDK、路由与映射层按需装载，HTTP 探测不启动本地 SDK |
 | `data_layer/adapters/ifind/http_client.py` | iFinD HTTP 客户端：登录、健康检查、只读查询、会话关闭与脱敏错误映射；凭据由调用方从系统凭据库注入 |
 | `data_layer/adapters/ifind/exceptions.py` | iFinD 稳定异常类型：区分认证、权限、限流、超时、响应格式和传输失败，不携带秘密响应正文 |
-| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人）和 WSS 实时行情读取 + parse() + fetch() dispatch |
-| `data_layer/adapters/wind/client.py` | Wind Excel 客户端：xlwings 连接管理（遍历所有 Excel 实例检测 Wind 插件）、心跳检测（TTL 30s 缓存）、WSD 时间序列查询（3 次指数退避重试 + 动态超时）、批量公式执行、后台保活（30min 间隔防自动登出） |
+| `data_layer/adapters/wind/wind_adapter.py` | Wind Excel 适配器：8 个 fetch 方法（一致预期/两融/龙虎榜/日行情/财务/行业/资金流向/持有人）、WSS 实时行情读取、仅在清理确认后释放客户端 + parse() + fetch() dispatch |
+| `data_layer/adapters/wind/client.py` | Wind Excel 客户端：xlwings 连接管理（普通调用可遍历已有实例；`isolated_app` 调用只创建并持有隐藏独立应用/workbook）、清理失败保留所有权、心跳检测（TTL 30s 缓存）、WSD 时间序列查询（3 次指数退避重试 + 动态超时）、批量公式执行、后台保活（30min 间隔防自动登出） |
 | `data_layer/adapters/wind/formulas.py` | Wind 公式生成器：78 个公式（43 个已验证），覆盖一致预期/融资融券/龙虎榜/日行情/财务TTM+MRQ/估值/行业/资金流向/北向/股东/指数 |
-| `data_layer/adapters/wind/exceptions.py` | Wind 自定义异常：会话过期、未连接、公式错误、超时 |
+| `data_layer/adapters/wind/exceptions.py` | Wind 自定义异常：会话过期、未连接、公式错误、超时、生命周期清理未确认 |
 | `data_layer/repositories/wind_repository.py` | Wind 数据仓储：基于 PostgreSQL upsert 的持久化层，支持 4 类 Wind 数据批量保存和查询 |
 | `data_layer/repositories/factor_repository.py` | 因子仓储：基于 PostgreSQL upsert 的持久化层，支持因子定义/值/评估/权重的批量保存和查询 |
 | `app/api/routes/wind.py` | Wind REST API：8 个端点（health/prices/financials/industry/fund-flow/holders） |

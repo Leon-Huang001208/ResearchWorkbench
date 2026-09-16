@@ -1,0 +1,1 @@
+{"method_version":"1.0.0","source_artifacts":{"reference_skill_sha256":"f9caa79c44cb2a2479620004f794c27c3d6e92bb334a22541c5f546b9a0e07ee","reference_script_sha256":"e370f54c310e2ed09cf3cf7ea12c6ac7ed03563ccf3e79426cc1dad835f81c51"},"rewrite":"deterministic_event_window_no_default_beta","rights":"internal-only"}
