@@ -31,6 +31,46 @@ TABBIT_SOURCE_COMMIT = "361ef61f4d42ae51d657ca1351acacd6b5db5d44"
 TABBIT_VENDOR = Path(__file__).parents[2] / "vendor" / "dsh-tabbit" / TABBIT_VERSION
 TABBIT_INSTANCE_PATTERN = re.compile(r"^[A-F0-9]{16}$")
 MCP_INSTALLATION_PATTERN = re.compile(r"^mcp-installation-[a-f0-9]{32}$")
+RESEARCH_PACKAGES = ("numpy", "pandas", "matplotlib", "openpyxl")
+
+
+def validate_research_python(python: Path) -> None:
+    """Fail closed unless the configured runtime is Python 3.12 with CPU libraries."""
+    if not python.is_absolute() or not python.is_file():
+        raise RuntimeError("runtime_not_ready")
+    probe = (
+        "import json,sys;"
+        f"packages={RESEARCH_PACKAGES!r};"
+        "[__import__(name) for name in packages];"
+        "print(json.dumps({'version':list(sys.version_info[:2]),'packages':list(packages)}))"
+    )
+    try:
+        completed = subprocess.run(
+            [str(python), "-I", "-B", "-c", probe],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+            env={"PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8"},
+            cwd="/",
+        )
+        payload = json.loads(completed.stdout)
+        if (
+            completed.returncode != 0
+            or not isinstance(payload, dict)
+            or payload.get("version") != [3, 12]
+            or payload.get("packages") != list(RESEARCH_PACKAGES)
+        ):
+            raise ValueError("unready")
+    except (
+        OSError,
+        subprocess.SubprocessError,
+        ValueError,
+        TypeError,
+        json.JSONDecodeError,
+    ) as exc:
+        log.warning("research_runtime_readiness_failed", error_type=type(exc).__name__)
+        raise RuntimeError("runtime_not_ready") from exc
 
 
 def mcp_runtime_enabled() -> bool:
@@ -468,6 +508,7 @@ def prepare(
     (explain_preset / "agent.cordis.yml").write_text(explain_content, encoding="utf-8")
     mcp_bindings: list[dict[str, object]] = []
     if research_tools:
+        validate_research_python(Path(sys.executable))
         load_control(data, datahub_url)
         public_data_tools = enabled_datahub_tools(data)
         mcp_bindings = load_mcp_runtime_bindings(data)

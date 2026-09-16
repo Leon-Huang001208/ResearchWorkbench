@@ -135,6 +135,14 @@ def resolve(
         "market_activity",
     }:
         legacy = query.model_copy(update={"source": "akshare"})
+    elif selected == "wind" and query.capability in {
+        "market_bars",
+        "market_snapshot",
+        "index_data",
+        "financials",
+        "market_activity",
+    }:
+        legacy = query.model_copy(update={"source": "wind"})
     elif selected == "mysql" and query.capability in {"database_schema", "table_query"}:
         legacy = query.model_copy(update={"source": "mysql"})
     else:

@@ -144,6 +144,55 @@ def test_runtime_launch_enables_mcp_bindings_by_default(monkeypatch):
     assert launch_runtime.mcp_runtime_enabled() is True
 
 
+def test_research_runtime_readiness_accepts_only_python_312_with_required_packages(
+    tmp_path, monkeypatch
+):
+    python = tmp_path / "python"
+    python.touch()
+    observed = {}
+
+    def run(command, **options):
+        observed["command"] = command
+        observed["options"] = options
+        return SimpleNamespace(
+            returncode=0,
+            stdout='{"version":[3,12],"packages":["numpy","pandas","matplotlib","openpyxl"]}\n',
+            stderr="",
+        )
+
+    monkeypatch.setattr(launch_runtime.subprocess, "run", run)
+    launch_runtime.validate_research_python(python)
+
+    assert observed["command"][0] == str(python)
+    assert observed["options"]["env"] == {"PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8"}
+
+
+@pytest.mark.parametrize(
+    "stdout,returncode",
+    [
+        ('{"version":[3,11],"packages":["numpy","pandas","matplotlib","openpyxl"]}\n', 0),
+        ('{"version":[3,12],"packages":["numpy","pandas","matplotlib"]}\n', 0),
+        ("[]\n", 0),
+        ("", 1),
+    ],
+)
+def test_research_runtime_readiness_fails_closed_with_stable_code(
+    tmp_path, monkeypatch, stdout, returncode
+):
+    python = tmp_path / "python"
+    python.touch()
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=returncode, stdout=stdout, stderr="private provider detail"
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="^runtime_not_ready$"):
+        launch_runtime.validate_research_python(python)
+
+
 def test_runtime_rejects_non_object_mcp_activation_without_leaking_parser_errors(
     tmp_path, monkeypatch
 ):

@@ -10,7 +10,7 @@
 | `methods.py` | 十个只读 Method 的契约、组合解析、采用证据检查与 Research Eval 矩阵 | 授权工具、保存研究正文或替代工程 Harness |
 | `packages.py` | 有界 MD/ZIP 读取、路径/类型/编码检查、保留问题 | 安装依赖、解压到任意路径或运行脚本 |
 | `catalog.py` | 草稿、检查、不可变版本、原生目录投影、会话资源快照 | Agent 编排 |
-| `seeds.py` | 十二个研究 Skill、四个步骤式 Workflow、十个 Method 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
+| `seeds.py` | 三十个研究 Skill、四个步骤式 Workflow、十个 Method 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
 | `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、Method、数据组织为五个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
@@ -22,6 +22,56 @@
 Skill、Workflow 和 Method 使用同一不可变版本与原生发现机制；Workflow 编译成 DSH 读取的原生
 Skill 指令，步骤列表是研究模板，不是已执行节点。Method 仍保留 Research Workbench 的
 `kind=method` 和稳定 ID，DSH 只是 Runtime 适配器，不成为 Method 的权威来源。
+
+`skills/_shared/` 的 `cpu_bounded_v1` 只是一组种子资源契约：公共预算模块、结果字段协议与
+provenance/rights 约定由 CPU reviewed calculator 复制到各自不可变版本。共享目录本身不进入
+Skill 目录，也不获得 DataHub、脚本或宿主权限。
+
+六个 Stage 2 Skill 的 enabled 投影增加同一 catalog 内部证据门：启用和回滚到 enabled 均要求
+持久的 macOS Wind/Excel passed evidence artifact。catalog 只接受宿主登记器 HMAC-SHA256 认证的
+artifact v2，分别绑定提交的 synthetic input、独立 actual input、固定宿主执行器身份/摘要、输入来源、
+当前不可变版本 golden、comparison run 实际结果、artifact 和当前 `calculate.py` 摘要；两个结果摘要
+独立，解码后数值按 `rtol=1e-6`/`atol=1e-8` 比较，日期、分类、信号及其余非数值严格一致，再生成
+receipt 并在状态切换和 selection 重新验证。Host 启动还审计全部已启用的 receipt-gated 投影；非 v2、
+HMAC/证据不可复核或登记器密钥缺失时撤下投影并持久化 disabled，不以已知旧摘要为审计边界。
+已知初版升级先撤下投影并禁用，发布/保存/校验异常失败关闭。该门不改变公共 API。
+计算器仍在既有 sandbox；POSIX 逐组件 openat/no-follow、Windows final-handle 校验和完整 64 KiB
+UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字节仍允许；超限返回小型完整错误，
+`row_delivery` 不复制顶层 refs。
+
+对照输入独立性同时检查路径和读取后的 SHA-256；actual input 即使使用不同路径，只要内容与提交的
+synthetic input 完全相同，也不能生成或复验 receipt。Stage 4 的缠论结果另以顶层必填 `asset_id`
+绑定本轮唯一记录身份，混合标的继续失败关闭。两项变更不增加公共 API、状态类型或执行器。
+
+Stage 2 六包的输出 schema 进一步严格限定 parameters、dataset refs 与 provenance：各包实际输出字段
+全部必填、禁止额外字段，dataset refs 最多 32 项并校验 provider、日期和 SHA-256。event-review 的
+beta/alpha 只使用相邻共同交易日之间的同步收益，不把任一侧独有交易日形成的不同跨度配成一组。
+
+七个 Stage 3 基金/组合/行业 Skill 复用上述版本、sandbox 和 receipt 状态机，在 fresh catalog 中可
+发现但全部 disabled；只有可重算且绑定当前不可变版本的 macOS Wind/Excel comparison evidence
+artifact 且通过宿主签名验证才能启用或回滚到 enabled；普通 JSON 和 sandbox 内计算器无法自签。
+Stage 3 的一向安全迁移只接受已列举的完整脚本 SHA-256，包括初始版本及基金穿透、组合基准偏离的
+已发布直接父版本；匹配后撤下旧投影、发布 disabled successor，旧版本 receipt 不会跨版本复用。
+七包的 synthetic source artifact 由 fixture/golden/provenance 实际 SHA-256 绑定，DataHub 工具因字段
+口径未核验标为 `callable=false`。基金穿透覆盖单一快照、percent/decimal、多层、重复路径并对全部
+给定基金子图 cycle fail-closed，以按深度 DP 聚合汇合 DAG 的权重与路径数；组合拒绝隐式杠杆，
+基准偏离要求每条记录的报告期、因子日和行业映射版本与顶层参数严格一致，同一 canonical `asset_id`
+跨组合/基准的行业和因子事实也必须一致；三个行业 Skill 只消费预聚合数据，景气贡献全局最多投影
+128 条，拥挤度统一日历、行业额总和不超市场额且每行业至少形成两个滚动观测。严格 schema/运行时字段等价、日期、
+有限数值与受检算术、安全相对 JSON loader、`cpu_bounded_v1` 工作量预算及完整 64 KiB 无换行输出
+均沿用现有边界，不新增 API、能力类型、执行器或宿主权限。
+
+五个 Stage 4 择时/技术结构 Skill 也复用该状态机：利率均线用前一持久信号计算滞后研究敞口，股权
+风险溢价使用 `1 / PE_TTM - bond_yield_pct / 100` 与滚动经验分位，风格轮动要求显式选择相对比值
+均线或相对强弱动量方法，平台突破只用当前 bar 之前的有限窗口，缠论只提供非递归确认分型与笔子集。
+前三项输入和输出显式绑定各序列 descriptor 的 role、identity、version 与 tenor；synthetic 精确绑定
+fixture，`user_input` 可携带真实业务 identity 并原样回传，Wind/DataHub 只接受 field mapping 明确的
+生产身份白名单。利率/风险溢价的 2Y/10Y 等期限错配、角色/版本变化，以及风格 A/B descriptor 交换
+或重复 identity 均以 `data_not_equivalent` 失败关闭。风格两种方法
+分别保存 golden；缠论双重枢轴与过近反转均返回 `ambiguous_structure`。
+它们不新增执行器、API 或 Provider 权限，clean catalog 中均 disabled；真实宿主 v2 HMAC comparison
+receipt 缺失时不产生原生投影。前三项工作簿仅只读核验且未执行公式；后两项来源不可用，provenance
+只记录未匹配前缀而不猜完整 SHA-256。
 
 能力工作区路由以 `kind=skill|tool|workflow|method|data` 切换五个主分区，以
 `view=library|mine|plans|connections` 切换类型内二级视图；无参数默认 `kind=skill`。
@@ -112,6 +162,12 @@ single 相对同场景 baseline 必须质量提高，平均 token 与延迟均�
 
 Tool 目录只读展示 8 个研究/控制工具与 15 个 `datahub_*` 业务数据工具，共 23 项。新增数据库目录与单表查询仅在本机 MySQL 配置、凭据和依赖就绪后由 Research Runtime 写入 `enabledTools`；配置变化在重启后生效。已注册的只读 DataHub 查询自动执行，未注册能力不会出现在模型工具列表中。
 
+业务工具的参数声明保留 Provider 所需的等价性上下文：`datahub_market_bars` 与
+`datahub_market_snapshot` 暴露受限
+`asset_type` 枚举，但当前 Wind binding 只登记股票，并在 adapter 初始化前要求显式 `stock`。
+指数和 ETF 不按证券代码猜测或回退到股票行情；Wind 指数数据继续由 `datahub_index_data` 以
+points 单位提供。能力目录的资产标签与实际 binding 支持集一致，不能把失败关闭的子能力标为可调用。
+
 Tool 的 MCP 市场是 Phase 2A 的独立只读二级视图。官方 Registry 固定使用 `/v0.1`，私有
 Registry 必须由用户显式配置；认证 Registry 只允许 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth
 授权/token 端点始终为 HTTPS。列表和详情始终保留 Registry 身份，不按名称去重。离线或上游失败
@@ -136,6 +192,18 @@ Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次
 
 2026-09-08 在不改变上述包、版本和执行拓扑的前提下增加五个品牌中立专用 Skill：研报增量分析、金融事件研究、产业链与主题研究、业绩与一致预期、宏观与跨资产。它们分别避开一般资料提取、多事件市场复盘、通用行业报告和完整公司研究；触发与反向条件直接写入 Skill frontmatter 和产品元数据，不登记独立路由 Skill。五项均以 `default_formats=[]` 默认在聊天中回答，文件和 DataHub 仅在 Runtime 实际暴露且用户明确要求时使用。
 
+2026-09-14 增加六个单一职责 CPU Skill：每日市场简报只编排 DataHub 市场/行业/主题/新闻证据；
+政策哨兵只输出证据时间线、关键词命中与输入给定的影响对象；事件复盘确定性计算事件窗收益、
+超额、成交变化，并在回归样本不足时返回 beta/alpha `unavailable`；ETF 资金流只使用用户提供的
+类型/行业/主题分类；业绩报告与业绩预告分别计算披露进度/变化分布和预告中值/增速分布。缺失
+必填字段、证据或分类均失败关闭；可选暴露只透明汇总，不推断。六项不新增 Workflow、页面、API、
+网络、Excel 或 GPU 执行路径。
+
+六项输入契约同时由 schema 和运行时执行：根对象、parameters、dataset refs、记录与 ETF 分类均
+拒绝未知字段；provider、mapping/version、单位、日期语义和复权不等价时返回
+`data_not_equivalent`，未来记录或 dataset ref 返回 `future_data`。真实 Wind/Excel 对照未执行前，
+这些内置 Skill 只可发现、不可选择执行；登记 macOS Wind 对照 receipt 后才能启用。
+
 共享证据协议以 `skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制到每个专用包的 `references/evidence-protocol.md`，随不可变版本保存自己的 SHA-256 快照。协议统一来源层级、证据分层、日期口径、基线、反向证据、情景和非个性化建议。搜索摘要不能替代原文，决定性来源不可读时必须降级为“证据不足”或“无法判断”。研报 PDF 通过现有 `research_helpers.read_pdf` 读取；结构化摘要校验和 SVG 知识图谱是沙箱内受审脚本，不使用宿主路径、Poppler、shell 或子进程。v1 不裁剪 PDF 原页，没有可靠来源定位时不生成关系图并标记视觉证据受限。
 
 具体报告使用 `Report Workflow`，不是独立报告执行引擎。每个不可变版本持有自己的 Word/PPT 模板、Excel 公式底稿、品牌素材、映射、结构化步骤和交付合同；共享 Skill 负责检索、市场解读、图表分析和段落写作，共享 Tool 负责 Excel 刷新、底稿提取、模板检查、图表渲染、Office 组装和文件验证。运行修改的是 Run 副本，永不覆盖 Workflow 母版。
@@ -149,13 +217,13 @@ Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次
 
 ## 验证边界
 
-包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 12 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
+包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`；十八个 CPU calculator 的 golden、严格等价性/未来数据失败关闭、预算、独立进程时间与 peak RSS、静态扫描在 `tests/research_web/test_cpu_quant_skills_stage2.py`、`test_cpu_quant_skills_stage3.py` 与 `test_cpu_quant_skills_stage4.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 30 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
 
 2026-09-03 实际对话产物经人工审查发布 `1ba298cc4b754aee9496b7d1c5c78bf7` v1，在新会话 `7ee7b736-673a-4aff-8006-73de6c10b600` 生成并下载 HTML，保存原生名称及编译哈希。手动导入 `528c5a3dd15849b0a7f29fbdf5441b01` 从不完整元数据草稿，经表单编辑、检查、v1、v2、停用、回滚v1、刷新、ZIP导出完成闭环。记录在 `.ai/reports/2026-09-03-research-ui-live.md`；失败首稿与原版本保留。
 
 Workflow 历史页面按研究记录的不可变版本读取预设步骤；请求失败显示缺失说明且允许显式刷新重试，不能永久缓存失败空步骤，也不能用当前目录替代旧版。恢复后只清除该版本读取错误，不隐藏其他运行错误。预设步骤不显示自动完成勾选。
 
-Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 12 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
+Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 30 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
 
 ## 具体报告 Workflow
 

@@ -17,11 +17,77 @@ Workflow 管理继续进入原专用管理视图。
 
 DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；15 个品牌无关工具始终进入 Runtime 注册集合，DataHub Broker 在每次调用时按最新状态动态选源。没有可调用来源时工具明确失败，配置或探测状态变化不要求重启 Runtime。
 
-当前目录包含 12 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
+`datahub_market_bars` 与 `datahub_market_snapshot` 的公共 Tool schema 接受显式 `asset_type`；当前 Wind binding 只声明股票资产，
+并要求值为 `stock`。缺失类型、指数或 ETF 均由 Provider 在 adapter 初始化前失败关闭，指数只能通过
+`datahub_index_data` 的 points 口径查询。Capabilities 目录展示这一受支持子集，不因六位代码形式
+推断或扩展 Wind 的可调用资产范围。
+
+当前目录包含 30 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
 统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
 机制路由，没有新增路由卡片、能力类型或执行器；原有能力与四个 Workflow 的稳定 ID 和历史
 版本不被覆盖。旧内容生产代码仍只按可独立验证的脚本、提示和模板迁移；Evidence、Claim、
 Quality Gate 与旧报告编译链没有恢复。
+
+`app/research_web/skills/_shared/` 另维护 `cpu_bounded_v1` 公共资源约定：`cpu_budget.py` 提供
+50,000 行/64 MiB 累计输入、5,000 行单序列、50 标的 × 1,000 行和 16 MiB 累计制品的确定性验证，
+超限固定 `workload_too_large` 且不截断；`input_contract.py` 校验 provider、mapping/version、单位、
+日期语义、复权与未来数据，日期只接受扩展格式 `YYYY-MM-DD`，并统一校验可选 `source_hashes` 的
+规范非空 key 与 SHA-256 value；显式 null、带首尾空白或包含 CR/LF/Unicode 行段分隔符的 key 会被拒绝，字段缺失时结果以 limitation
+明确降级。CLI 只公开安全的 limit/actual/reduce-scope 超限元数据；结果与 provenance 协议规定 `as_of`、规范化 parameters、
+dataset refs、status、limitations、method version、source hashes 和 `internal-only` rights。它们是供
+后续 reviewed calculator 种子复制并哈希封存的资源，不注册为独立 Skill，也不增加工具权限。
+
+六个 Stage 2 Skill 另外受 catalog comparison receipt 门控：fresh catalog 保持 disabled；已知初版
+脚本升级时先撤下原生投影并持久禁用，发布、保存或校验异常均保留 disabled/uncertain 或使初始化
+失败，绝不恢复 enabled。登记入口只接受宿主可信登记器认证的 evidence artifact 路径；artifact v2
+必须以 HMAC-SHA256 绑定当前脚本、提交的 synthetic input、独立 Wind/Excel actual input、固定宿主
+执行器身份/可执行文件摘要、输入来源、仓库 golden 与 actual result。登记密钥只存在宿主环境，
+`research_run_script` sandbox 的显式最小环境不继承它，因此被审计算器和普通 JSON 不能自证。catalog 解码完整
+JSON 后递归比较业务值：数值使用 `rtol=1e-6`、`atol=1e-8`，日期、分类、信号和其余非数值严格
+一致；摘要自洽但业务结果不同仍拒绝。启用、回滚和每次 selection 都会重新验证 artifact 存在且摘要和
+绑定未变化；启动时还审计全部已启用的 receipt-gated 能力，不依赖已知旧脚本摘要。非 v2、HMAC/
+证据不可复核或宿主登记密钥缺失时撤下原生投影并持久化 disabled，合法 v2 在登记器可用时保持启用。该本机完整性校验不宣称能防止已取得宿主密钥的本机管理员
+主动改写证据；没有真实 artifact 时仍可发现但不可执行。六 CLI 在 POSIX 从 cwd fd 逐组件
+openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性。dataset refs/source hashes 各限
+32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过 64 KiB；成功 stdout 不附加
+换行，因此恰好 65,536 字节仍可完整通过 sandbox 门。无法表达时返回完整
+小型 `workload_too_large`/`reduce_scope`，`row_delivery` 不再重复顶层 refs，也不依赖 sandbox 截断。
+
+synthetic input 与 actual input 不仅路径必须不同，读取后的 SHA-256 也必须不同；复制 synthetic 到
+另一文件并重新签名仍按无效 evidence 拒绝。Stage 3/4 合法回执测试分别使用提交 source artifact
+与业务等价的完整 actual input，避免只靠格式或路径制造“独立”证据。Stage 4 缠论结果顶层必填
+回传所有记录共同的 `asset_id`，记录身份全部改变时结果身份同步改变，混合身份仍拒绝。
+
+Stage 2 六包输出的 parameters、dataset refs 和 provenance 现使用与 Stage 3/4 一致的严格公共
+schema：必填字段、类型、provider、日期、SHA-256、32 项上限和额外字段均受约束。event-review
+先取标的与基准的共同交易日，再从相邻共同日同时计算两边收益；单侧缺日不会把不同跨度配对。
+
+七个 Stage 3 Skill（基金匹配、基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控、
+行业拥挤度监控）复用同一 `cpu_bounded_v1` 与 comparison receipt verifier。它们在 fresh catalog
+中可发现但全部 disabled，不进入原生 provider candidates；真实 Wind/Excel comparison evidence
+未完成且未由宿主登记器签名前不能启用或回滚到 enabled。七包提交真实可哈希 synthetic source
+artifact 并由 fixture/golden/provenance 绑定其摘要，不再使用占位哈希。Stage 3 旧版本迁移使用封闭
+的完整 SHA-256 白名单，兼容初始脚本和基金穿透、组合基准偏离的已发布直接父脚本；命中后新版本
+保持 disabled，旧原生投影与旧版本 receipt 都不会转移到 successor。未核验的 DataHub 映射均标记
+`callable=false`，只接受 provider 与 dataset refs 一致的 synthetic/user_input。基金穿透支持单一快照
+percent/decimal、多层与重复路径，对全部给定基金子图 cycle fail-closed，并以按深度 DP 聚合汇合 DAG
+的权重和路径数；组合计算拒绝隐式杠杆，基准偏离要求每条记录显式携带并严格匹配顶层报告期、因子日和行业映射版本，
+同一 canonical `asset_id` 跨组合/基准的行业与因子事实也必须一致；因子日期仍绑定同一持仓快照；
+三个行业计算器只接受预聚合行业数据，景气贡献全局最多投影 128 条，拥挤度强制统一交易日序列、
+每日行业额总约束及至少两个同方法滚动观测。七项仍使用严格日期、有限
+数值/受检算术、安全相对 JSON loader、完整 64 KiB envelope 和无尾随换行 stdout，不增加网络、GPU、
+VBA、CJPY、绝对路径或新的执行权限。
+
+五个 Stage 4 Skill（利率均线择时、股权风险溢价择时、风格轮动、平台突破、缠论确认分型与笔）
+同样是单一职责 CPU 计算器。前三项最多处理 5,000 个日频观测；平台突破仅接受最多 50 个明确标的、
+每标的最多 1,000 行，并且当前 bar 不参与平台估计；缠论仅实现严格确认分型和非递归交替笔子集，
+相等平台、双重枢轴或过近反转返回 `ambiguous_structure`。所有输出保留样本、条件、反例、失效条件
+和数据截止日，并标记 `research_only=true`。利率、风险溢价和风格输入/输出同时携带受审
+`series_identity`，固定 descriptor role、version 和 tenor 并校验 identity 格式；synthetic 精确绑定
+fixture，`user_input` 可提供真实业务 identity 并原样回传，Wind/DataHub 仅接受 field mapping 的精确
+生产身份白名单。期限、角色/版本错配以及风格 A/B descriptor 交换或重复 identity 均失败关闭。
+风格均线乖离与相对强弱动量各有独立 golden。当前没有可核验的 Stage 4 已发布前身，故不建立猜测性
+迁移摘要；catalog 只做新增种子，receipt 仍严格绑定不可变版本。
 
 阶段 2A 的只读 MCP 市场在三阶段 CI 通过后默认开启；显式设置 `RESEARCH_MCP_REGISTRY_ENABLED=0`
 仍会关闭该入口。目录聚合随仓库
@@ -156,7 +222,7 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 
 ### 内置研究 Skill 边界
 
-能力中心由 `seeds.py` 的声明式元数据生成 12 个内置 Skill。资料解读、公司研究、行业研究、
+能力中心由 `seeds.py` 的声明式元数据生成 30 个内置 Skill。资料解读、公司研究、行业研究、
 基金评价、市场解读和因子库研究保持各自既有入口；本批新增能力只在下列窄场景触发：
 
 | 专用 Skill | 正向触发 | 反向边界 |
@@ -166,6 +232,17 @@ Workflow 的 kind 为 workflow，instructions 可空；steps 为有序
 | 产业链与主题研究 (`industry-chain-research`) | 价值流、瓶颈、主题阶段及受益/受损映射 | 完整供需、竞争格局和行业关键指标使用行业研究 |
 | 业绩与一致预期 (`earnings-consensus-research`) | 单家公司业绩、指引、预期差与机构分歧 | 完整业务、财务、竞争力、估值与风险使用公司研究 |
 | 宏观与跨资产 (`macro-asset-research`) | 宏观制度、政策、流动性及利率、汇率、股票、信用和商品传导 | 不用于单一公司、产业链或日常多事件复盘 |
+
+十八个 CPU 有界 Skill 是独立计算器；Stage 2 包括 `daily-market-brief`、`policy-sentinel`、`event-review`、
+`etf-flow-monitor`、`earnings-report-monitor`、`earnings-preview-monitor`。它们只读取会话中已取得的
+相对路径 JSON，按照包内 schema 和字段映射验证输入，再返回 `cpu_bounded_v1` 公共字段。市场简报
+不复制事件/政策分析，政策哨兵不生成投资建议，事件复盘不为样本不足的 beta 设默认值，ETF 不猜
+分类，两类业绩计算器不补齐缺失字段或暴露。每个包独立携带 provenance、synthetic fixture/golden，
+种子还复制共享预算、输入契约、结果和 provenance 协议进入不可变版本并重新计算 reviewed script
+哈希。六项在真实 Wind/Excel 对照尚未执行时初始为 disabled：目录可发现、详情可检查，但执行选择
+返回 `capability_disabled`，也不会投影进 DSH 原生 provider candidate 目录；只有登记成功的 macOS
+Wind 对照 receipt 后方可启用。每日简报的五类数据集合均为必填，市场宽度只接受非负整数；每日简报
+与 ETF 资金流的币种固定为 CNY。
 
 不登记独立研究路由 Skill；触发与反向条件写入每个包的 frontmatter、产品说明和分类，交给
 现有 DSH Skill discovery。五个专用 Skill 的 `default_formats=[]`，默认在聊天中回答；只有用户
@@ -310,7 +387,7 @@ tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集�
 
 | 源码 | 测试 | 验证边界 |
 | --- | --- | --- |
-| capabilities/models/packages/catalog/seeds/methods、skills | test_capabilities.py、test_methods.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py | 12 Skill/4 Workflow/10 Method 离线种子、方法优先级与追踪、专用边界、证据协议快照、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
+| capabilities/models/packages/catalog/seeds/methods、skills | test_capabilities.py、test_methods.py、test_capabilities_safety.py、test_capabilities_review.py、test_sell_side_report_skill.py、test_cpu_quant_skills_stage2.py、test_cpu_quant_skills_stage3.py、test_cpu_quant_skills_stage4.py | 30 Skill/4 Workflow/10 Method 离线种子、方法优先级与追踪、专用边界、证据/CPU 协议快照、CPU golden 与失败关闭、恶意ZIP、媒体容器、脚本/进程入口审查、研报校验与SVG、不可变版本/故障重试、回滚唯一性 |
 | capabilities/routes、main/service/store | test_capabilities_admission.py、既有 research_web 回归 | 原生名称核对、格式优先、幂等、跨会话、并发、创建产物 |
 | tools、launch_runtime、research.cordis.yml、runtime/research-tools.mjs | test_capabilities_native.py、research_web_method_tool.test.mjs | 固定源码真实 provider list/get/watch 与实际注册；方法记录仅写有界身份；不调用模型 |
 

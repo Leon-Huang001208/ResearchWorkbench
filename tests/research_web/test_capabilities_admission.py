@@ -347,6 +347,14 @@ def test_native_auto_skill_resources_are_snapshotted_before_plain_send(api):
         "macro-asset-research",
         "sell-side-report-reader",
     } <= capability_ids
+    assert {
+        "daily-market-brief",
+        "policy-sentinel",
+        "event-review",
+        "etf-flow-monitor",
+        "earnings-report-monitor",
+        "earnings-preview-monitor",
+    }.isdisjoint(capability_ids)
     assert "factor-database-research" in capability_ids
     assert "report-production-workflow" in capability_ids
 

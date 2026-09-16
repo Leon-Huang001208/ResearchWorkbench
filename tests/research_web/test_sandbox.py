@@ -154,6 +154,16 @@ def test_does_not_inherit_secret_or_startup_environment(prepared, monkeypatch):
     assert "DATABASE_URL" not in result.stdout
 
 
+def test_numeric_libraries_are_capped_to_four_threads(prepared):
+    module, _root, session, _config = prepared
+    environment = module.child_environment(session)
+
+    assert environment["OMP_NUM_THREADS"] == "4"
+    assert environment["OPENBLAS_NUM_THREADS"] == "4"
+    assert environment["VECLIB_MAXIMUM_THREADS"] == "4"
+    assert environment["NUMEXPR_NUM_THREADS"] == "4"
+
+
 def test_rejects_fork_and_exec_process_escape(prepared):
     module, _root, session, config = prepared
     code = """
@@ -412,3 +422,194 @@ console.log('closed-stream-cancel-reaped');
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout == "closed-stream-cancel-reaped\n"
+
+
+def test_native_tool_serializes_four_calls_fifo_and_logs_queue_outcomes(prepared):
+    _module, root, session, _config = prepared
+    plugin = SOURCE.parent / "runtime/research-tools.mjs"
+    config_json = json.dumps(
+        {
+            "python": str(PYTHON),
+            "runnerPath": str(SOURCE),
+            "researchRoot": str(root),
+            "timeoutSeconds": 5,
+            "queueWaitSeconds": 2,
+        }
+    )
+    program = (
+        f"import {{ apply }} from {json.dumps(plugin.as_uri())};\n"
+        "import { readFileSync } from 'node:fs';\n"
+        f"const config={config_json}; const cwd={json.dumps(str(session))};" + """
+let tool; const logs=[];
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(...v){logs.push(v.join(' '));},warn(){},error(){}}},config);
+const execution=[0,1,2,3].map(i=>tool.execute({code:`from pathlib import Path
+import time
+p=Path('outputs/order.log')
+with p.open('a') as f: f.write('start-${i}\\\\n')
+time.sleep(0.15)
+with p.open('a') as f: f.write('end-${i}\\\\n')`},{agent:{session:{header:{id:String(i),cwd}}},signal:new AbortController().signal}));
+const results=await Promise.all(execution);
+if(results.some(value=>value.status!=='completed')) throw Error(JSON.stringify(results));
+const lines=readFileSync(cwd+'/outputs/order.log','utf8').trim().split('\\n');
+if(JSON.stringify(lines)!==JSON.stringify(['start-0','end-0','start-1','end-1','start-2','end-2','start-3','end-3'])) throw Error(JSON.stringify(lines));
+if(!logs.some(line=>line.includes('research_script_queue')&&line.includes('wait_ms='))) throw Error('queue wait log missing');
+console.log('fifo-queue-passed');
+"""
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", program],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "fifo-queue-passed\n"
+
+
+def test_native_tool_removes_cancelled_waiter_and_times_out_busy_waiter(prepared):
+    _module, root, session, _config = prepared
+    plugin = SOURCE.parent / "runtime/research-tools.mjs"
+    config_json = json.dumps(
+        {
+            "python": str(PYTHON),
+            "runnerPath": str(SOURCE),
+            "researchRoot": str(root),
+            "timeoutSeconds": 5,
+            "queueWaitSeconds": 0.1,
+        }
+    )
+    program = (
+        f"import {{ apply }} from {json.dumps(plugin.as_uri())};\n"
+        "import { existsSync } from 'node:fs';\n"
+        "import { setTimeout as pause } from 'node:timers/promises';\n"
+        f"const config={config_json}; const cwd={json.dumps(str(session))};" + """
+let tool;
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config);
+const first=tool.execute({code:"from pathlib import Path; import time; Path('outputs/active').write_text('yes'); time.sleep(0.35)"},{agent:{session:{header:{id:'first',cwd}}},signal:new AbortController().signal});
+const started=Date.now()+3000;
+while(!existsSync(cwd+'/outputs/active')) { if(Date.now()>started) throw Error('first call did not start'); await pause(10); }
+const cancelled=new AbortController();
+const waiting=tool.execute({code:"from pathlib import Path; Path('outputs/cancelled-started').write_text('bad')"},{agent:{session:{header:{id:'cancelled',cwd}}},signal:cancelled.signal}).then(value=>({value}),error=>({error}));
+cancelled.abort();
+const busy=await tool.execute({code:"from pathlib import Path; Path('outputs/busy-started').write_text('bad')"},{agent:{session:{header:{id:'busy',cwd}}},signal:new AbortController().signal});
+await first;
+const cancelledResult=await waiting;
+if(!cancelledResult.error || !String(cancelledResult.error).match(/cancel|abort/i)) throw Error('queued cancellation not reported');
+if(busy.status!=='failed'||busy.error!=='runtime_busy') throw Error(JSON.stringify(busy));
+if(existsSync(cwd+'/outputs/cancelled-started')||existsSync(cwd+'/outputs/busy-started')) throw Error('removed waiter was started');
+console.log('queue-cancel-timeout-passed');
+"""
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", program],
+        capture_output=True,
+        text=True,
+        timeout=12,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "queue-cancel-timeout-passed\n"
+
+
+def test_native_tool_keeps_fifo_poisoned_until_force_killed_child_closes(prepared):
+    _module, root, session, _config = prepared
+    plugin = SOURCE.parent / "runtime/research-tools.mjs"
+    config_json = json.dumps(
+        {
+            "python": str(PYTHON),
+            "runnerPath": str(SOURCE),
+            "researchRoot": str(root),
+            "timeoutSeconds": 5,
+            "queueWaitSeconds": 0.05,
+        }
+    )
+    program = (
+        f"import {{ apply }} from {json.dumps(plugin.as_uri())};\n"
+        "import { EventEmitter } from 'node:events';\n"
+        "import { PassThrough } from 'node:stream';\n"
+        "import { setTimeout as pause } from 'node:timers/promises';\n"
+        f"const config={config_json}; const cwd={json.dumps(str(session))};" + """
+let tool; const children=[];
+function spawnProcess(){
+  const child=new EventEmitter();
+  child.stdout=new PassThrough(); child.stderr=new PassThrough(); child.stdin=new PassThrough();
+  child.kill=signal=>{child.lastSignal=signal; return true;};
+  children.push(child);
+  if(children.length>1) setTimeout(()=>{child.stdout.end(JSON.stringify({status:'completed',stdout:'ok',stderr:'',exit_code:0,error:null}));child.emit('close',0);},5);
+  return child;
+}
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},spawnProcess,logger:{info(){},warn(){},error(){}}},config);
+const controller=new AbortController();
+const first=tool.execute({code:'print(1)'},{agent:{session:{header:{id:'first',cwd}}},signal:controller.signal}).then(value=>({value}),error=>({error}));
+await pause(5); controller.abort();
+await pause(2100);
+const stopped=await first;
+if(!stopped.error || !String(stopped.error).includes('teardown')) throw Error('unconfirmed teardown was not reported');
+const busy=await tool.execute({code:'print(2)'},{agent:{session:{header:{id:'second',cwd}}},signal:new AbortController().signal});
+if(busy.status!=='failed'||busy.error!=='runtime_busy'||children.length!==1) throw Error('poisoned runtime started another child');
+children[0].emit('close',null);
+await pause(5);
+const recovered=await tool.execute({code:'print(3)'},{agent:{session:{header:{id:'third',cwd}}},signal:new AbortController().signal});
+if(recovered.status!=='completed'||children.length!==2) throw Error('runtime did not recover after close');
+console.log('fifo-poison-recovery-passed');
+"""
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", program],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "fifo-poison-recovery-passed\n"
+
+
+def test_native_tool_child_error_without_close_keeps_fifo_poisoned(prepared):
+    _module, root, session, _config = prepared
+    plugin = SOURCE.parent / "runtime/research-tools.mjs"
+    config_json = json.dumps(
+        {
+            "python": str(PYTHON),
+            "runnerPath": str(SOURCE),
+            "researchRoot": str(root),
+            "timeoutSeconds": 5,
+            "queueWaitSeconds": 0.05,
+        }
+    )
+    program = (
+        f"import {{ apply }} from {json.dumps(plugin.as_uri())};\n"
+        "import { EventEmitter } from 'node:events';\n"
+        "import { PassThrough } from 'node:stream';\n"
+        "import { setTimeout as pause } from 'node:timers/promises';\n"
+        f"const config={config_json}; const cwd={json.dumps(str(session))};" + """
+let tool; const children=[];
+function spawnProcess(){
+  const child=new EventEmitter();
+  child.stdout=new PassThrough(); child.stderr=new PassThrough(); child.stdin=new PassThrough();
+  child.kill=signal=>{child.lastSignal=signal;if(signal==='SIGKILL')setTimeout(()=>child.emit('error',new Error('kill failed')),1);return true;};
+  children.push(child);
+  return child;
+}
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},spawnProcess,logger:{info(){},warn(){},error(){}}},config);
+const controller=new AbortController();
+const first=tool.execute({code:'print(1)'},{agent:{session:{header:{id:'first',cwd}}},signal:controller.signal}).then(value=>({value}),error=>({error}));
+await pause(5); controller.abort();
+await pause(2100);
+const stopped=await first;
+if(!stopped.error || !String(stopped.error).includes('teardown')) throw Error('unconfirmed teardown was not reported');
+const busy=await tool.execute({code:'print(2)'},{agent:{session:{header:{id:'second',cwd}}},signal:new AbortController().signal});
+if(busy.status!=='failed'||busy.error!=='runtime_busy'||children.length!==1) throw Error('child error incorrectly released poisoned slot');
+console.log('fifo-error-poison-passed');
+"""
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", program],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "fifo-error-poison-passed\n"
