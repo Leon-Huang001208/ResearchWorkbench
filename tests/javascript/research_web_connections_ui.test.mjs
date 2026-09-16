@@ -3,7 +3,9 @@ import test from 'node:test';
 
 import {
   buildConfigurationPayload,
+  confirmAutoProbeConsent,
   filterConnectionSources,
+  mergeIntegrationStatuses,
   renderConnectionCenter,
   selectedConnectionId,
 } from '../../app/research_web/ui/connections.mjs';
@@ -36,6 +38,15 @@ const sources = ids.map((id) => ({
   configuration_supported: ['mysql', 'wind', 'ifind', 'tinysoft', 'tushare', 'tavily', 'bing', 'zhiqiu_reports'].includes(id),
   description: `${id} 说明`,
   actions: ['probe'],
+  bucket: id === 'mysql' ? 'available' : ['cnstock_news', 'local_cache'].includes(id) ? 'not_delivered' : 'user_action',
+  responsibility: id === 'mysql' ? null : ['cnstock_news', 'local_cache'].includes(id) ? 'developer' : 'user',
+  stages: {
+    registration: { state: 'complete' },
+    authorization: { state: id === 'mysql' ? 'complete' : 'blocked' },
+    probe: { state: id === 'mysql' ? 'complete' : 'pending' },
+    adaptation: { state: ['mysql', 'cls', 'eastmoney_fund'].includes(id) ? 'complete' : 'blocked' },
+    runtime: { state: id === 'mysql' ? 'complete' : 'blocked' },
+  },
 }));
 
 const model = {
@@ -51,19 +62,95 @@ const model = {
   migration: { available: true, targets: ['tushare'], conflicts: [] },
 };
 
+test('separate connection and integration API responses merge before rendering', () => {
+  const connectionResponse = {
+    groups,
+    sources: [
+      { id: 'wind', name: 'Wind', callable: false, probe_status: 'untested' },
+      { id: 'cls', name: '财联社', callable: false, probe_status: 'untested' },
+    ],
+  };
+  const integrationResponse = {
+    items: [
+      {
+        id: 'data:wind',
+        bucket: 'available',
+        responsibility: 'system',
+        stages: { runtime: 'complete' },
+        probe_state: 'healthy',
+        runtime_callable: true,
+        stale: false,
+        details: { auto_probe_consent: true, auto_probe_consent_required: true },
+      },
+    ],
+  };
+
+  const merged = mergeIntegrationStatuses(connectionResponse, integrationResponse);
+
+  assert.equal(merged.sources[0].callable, true);
+  assert.equal(merged.sources[0].probe_status, 'healthy');
+  assert.equal(merged.sources[0].auto_probe_consent, true);
+  assert.equal(merged.sources[0].auto_probe_consent_required, true);
+  assert.equal(merged.sources[1].probe_status, 'untested');
+  assert.equal(connectionResponse.sources[0].callable, false);
+});
+
+test('metered sources expose explicit auto-probe consent controls', () => {
+  const enabled = {
+    ...model,
+    sources: sources.map((source) => source.id === 'wind'
+      ? { ...source, auto_probe_consent_required: true, auto_probe_consent: true }
+      : source),
+  };
+  const enabledHtml = renderConnectionCenter({ connections: enabled, selectedId: 'wind', configuration: {}, scope: 'data' });
+  assert.match(enabledHtml, /data-integration-consent="wind"/);
+  assert.match(enabledHtml, /data-consent-enabled="true"[^>]*>停用自动检测/);
+
+  const disabledHtml = renderConnectionCenter({
+    connections: {
+      ...enabled,
+      sources: enabled.sources.map((source) => source.id === 'wind'
+        ? { ...source, auto_probe_consent: false }
+        : source),
+    },
+    selectedId: 'wind', configuration: {}, scope: 'data',
+  });
+  assert.match(disabledHtml, /data-consent-enabled="false"[^>]*>允许自动检测/);
+  assert.match(disabledHtml, /账号额度或产生费用/);
+
+  const publicHtml = renderConnectionCenter({ connections: model, selectedId: 'cls', configuration: {}, scope: 'data' });
+  assert.doesNotMatch(publicHtml, /data-auto-probe-consent-control/);
+});
+
+test('enabling and disabling auto-probe both require distinct explicit confirmation', () => {
+  const cancelled = [];
+  assert.equal(confirmAutoProbeConsent((message) => { cancelled.push(message); return false; }, 'Wind', true), false);
+  assert.equal(confirmAutoProbeConsent((message) => { cancelled.push(message); return false; }, 'Wind', false), false);
+  assert.match(cancelled[0], /允许全量检测自动调用 Wind/);
+  assert.match(cancelled[0], /账号额度或产生费用/);
+  assert.match(cancelled[1], /停用 Wind 的自动检测/);
+  assert.match(cancelled[1], /全量检测会跳过该来源/);
+  assert.notEqual(cancelled[0], cancelled[1]);
+
+  const confirmed = [];
+  assert.equal(confirmAutoProbeConsent((message) => { confirmed.push(message); return true; }, 'Wind', true), true);
+  assert.equal(confirmAutoProbeConsent((message) => { confirmed.push(message); return true; }, 'Wind', false), true);
+  assert.deepEqual(confirmed, cancelled);
+});
+
 test('connection center renders a categorized workbench without mixing groups in the first view', () => {
   const html = renderConnectionCenter({ connections: model, selectedId: 'mysql', configuration: { configured: true, secret_configured: true, label: '因子库', host: 'db.internal', port: 3306, user: 'reader', charset: 'gbk', tls_mode: 'required_no_verify' }, scope: 'data' });
   assert.equal((html.match(/data-connection-select=/g) || []).length, 21);
   for (const label of ['专业数据源', 'API 数据源', '公开来源']) assert.match(html, new RegExp(label));
   assert.doesNotMatch(html, /data-connection-select="local_cache"|本机集成/);
-  for (const label of ['已配置', '已检测', '已适配', '可调用']) assert.match(html, new RegExp(label));
+  for (const label of ['登记', '授权', '探测', '适配', '可调用']) assert.match(html, new RegExp(label));
   assert.match(html, /id="connection-config-mysql"/);
   assert.doesNotMatch(html, /本轮仅说明后续适配方向/);
 });
 
 test('data workbench exposes summaries, discovery controls, category tabs and a closable detail drawer', () => {
   const html = renderConnectionCenter({ connections: model, selectedId: 'wind', configuration: { preferred_adapter: 'auto' }, scope: 'data' });
-  for (const label of ['已连接', '待配置', '需处理', '来源总数']) assert.match(html, new RegExp(label));
+  for (const label of ['可用', '检测中', '待你处理', '系统故障', '尚未交付']) assert.match(html, new RegExp(label));
   assert.match(html, /data-connection-search/);
   assert.match(html, /data-connection-status/);
   assert.match(html, /data-connection-group="professional"[^>]*aria-selected="true"/);

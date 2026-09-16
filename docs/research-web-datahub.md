@@ -22,7 +22,7 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 
 ## 全源静态目录
 
-`catalog.py` 始终声明并供页面展示 15 项业务能力和 22 个来源；读取目录不会连接数据库、导入旧 Connector、访问外网、启动 Excel 或产生供应商费用。目录展示范围不等于 Runtime 工具范围：真实 Runtime 只注册启动时 `callable_source_count > 0` 的能力对应工具。
+`catalog.py` 始终声明并供页面展示 15 项业务能力和 22 个来源；读取目录不会连接数据库、导入旧 Connector、访问外网、启动 Excel 或产生供应商费用。15 个品牌无关 Runtime 工具始终注册，目录和协调器状态只决定 Broker 调用时能否找到真实 Provider，不再要求连接变化后重启 Runtime。
 
 业务能力在原有十三项基础上增加数据库目录和数据库单表查询。登记来源增加通用 `mysql`，显示名为“用户 MySQL 数据库”；连接名称可由本机用户命名为“阿里云因子库”等，不把品牌、主机、账号或口令固化到技术标识。
 
@@ -42,9 +42,9 @@ iFinD HTTP 探测在用户完成现有数据源配置后执行真实登录、健
 
 ## 稳定业务 Tool
 
-静态业务工具集合在原有十三项之外增加 `datahub_get_database_schema` 与 `datahub_query_table`。启动器从离线目录读取每项能力的 `callable_source_count`，把大于零的工具 ID 物化到本次 Runtime 的 `enabledTools`；保存 MySQL 配置后可立即在 DataHub 探测，但必须启动或重启 Runtime 才会物化这两个工具。
+静态业务工具集合在原有十三项之外增加 `datahub_get_database_schema` 与 `datahub_query_table`。启动器把全部 15 个稳定工具 ID 写入 Runtime 的 `enabledTools`；保存 MySQL 或其他来源配置后可立即探测并由 Broker 在下一次调用时选用，不需要为工具注册重启 Runtime。
 
-工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。已配置且可用的来源会自动查询，包括需要账户或付费授权的来源，不再弹出逐次确认。没有可调用来源的能力不会注册为 Runtime 工具；Agent 不应调用或重试不存在的工具，也不能降级成网页猜测或演示结果。
+工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。已配置、已授权且可用的来源会自动查询，不再弹出逐次确认。15 个业务工具常驻 Runtime；没有可调用来源时 Broker 返回明确失败，Agent 不应盲目重试，也不能降级成网页猜测或演示结果。
 
 天软 Provider 通过 CJPY SDK 的专用客户端访问固定 `http://tsl.tinysoft.com.cn/tslweb/api`，Provider 边界限制 15 秒和 5000 行；授权值只在 Provider 内使用，不进入结果、普通日志或提示词。返回数据保留供应商原字段和 raw JSON，不猜测单位。项目未自动安装 `cjpy`，因此没有依赖的环境必须诚实显示阻塞。
 

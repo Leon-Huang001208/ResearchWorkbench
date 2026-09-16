@@ -1,0 +1,72 @@
+# 统一集成协调器
+
+## 目标
+
+`IntegrationCoordinator` 是 Research Web Host 内的数据源与本机能力状态编排层。它不替代
+DataHub Provider、本机验证器、Tabbit 或 MCP Host，也不创建新的守护进程。它负责把这些既有
+边界的登记、授权、探测、适配和 Runtime 可调用事实聚合成一个可恢复、可审计的状态模型。
+
+```text
+设置页 / Runtime 状态
+        ↓
+IntegrationCoordinator
+  ├─ DataHub 单来源 probe（公共来源最多并发 4）
+  ├─ 本机发现 probe（串行）
+  └─ Tabbit 保存配置 + Runtime 应用配置 + 实时诊断
+        ↓
+原子状态快照 + 批次进度 + 兼容接口
+```
+
+## 状态契约
+
+`IntegrationItemStatus` 使用 `schema_version=1`，每项包含：
+
+- `registered` 与 `implementation_state`：区分目录登记、已实现和未交付。
+- `configured` 与 `authorized`：配置存在不代表已授权。
+- `stages`：固定为登记、授权、探测、适配、可调用五阶段。
+- `last_attempt_at`、`last_success_at`、`stale` 与安全 `error_code`。
+- `capabilities`：品牌无关业务能力 ID。
+- `runtime_callable` 与 `responsibility`：责任限定为 `user/system/vendor/developer`。
+- `bucket`：`available/checking/user_action/system_fault/not_delivered` 五类页面汇总。
+
+快照仅保存白名单字段，不保存密码、Token、Cookie、MCP 环境变量、用户文件正文或本机绝对路径。
+Provider、配置和环境指纹变化时，旧的成功证据保留为历史时间，但当前探测阶段变为过期，不能继续
+证明可调用。
+
+## 探测与授权
+
+- 服务启动先读取最后一次原子快照，再异步创建 `trigger=startup` 的全量批次。
+- `trigger=manual` 的全量刷新会对全部公共来源和已经取得逐来源授权的来源真实执行探测；未授权的
+  账号、终端或可能计费来源明确显示跳过，不以一次“刷新全部”绕过授权。同 scope 同时只保留一个
+  活动批次。
+- 无凭据公共来源默认允许自动探测；账号、终端或可能计费来源需要逐来源一次性授权。
+- 授权撤销后不再自动探测该来源，旧成功证据立即过期。
+- DataHub 继续拥有单来源探测语义；本机管理器继续拥有软件发现和真实 Office 验证语义。
+- 协调器关闭时取消未完成任务并把批次标为取消，不静默留下“检测中”。
+
+写操作同时要求精确同源 `Origin` 与页面显式用户动作头，用于阻止普通跨站页面驱动本机探测。
+当前产品是单用户 Web-only 回环服务，没有可向普通浏览器安全发放且能抵御同用户本机进程的私有
+会话凭据；因此同源 XSS 和能直接伪造 HTTP 请求的同用户本机进程属于本批明确保留的威胁边界，
+不能把上述头部描述成此类攻击的认证机制。
+
+## API
+
+- `GET /api/research/integrations/status?scope=all|data|local`
+- `POST /api/research/integrations/probe-batches`
+- `GET /api/research/integrations/probe-batches/{id}`
+- `PUT /api/research/integrations/{id}/auto-probe-consent`
+
+原 `/data/sources/{id}/probes`、`/data/probes/{id}`、`/local-integrations/probes` 和本机验证接口继续
+保留。旧页面数据接口允许增加字段，但不删除既有字段。
+
+## Runtime 工具
+
+十五个 `datahub_*` 品牌无关工具常驻 Runtime。可用来源由 DataHub Broker 在每次调用时根据最新
+配置、探测、适配和授权状态选择，因此连接状态变化不要求重启 Runtime。没有可调用来源时查询明确
+失败；显式 `source` 且 `allow_fallback=false` 时不得静默换源。
+
+## 当前批次边界
+
+本批只交付协调、持久化、自动探测、统一 API/UI、Tabbit 双状态和 Runtime 工具常驻。新增 Provider、
+Office 自动授权验证、文件同步和本地 MCP 真实调用属于后续批次；未交付项必须显示为
+`not_delivered/developer`，不能计入用户“需处理”。

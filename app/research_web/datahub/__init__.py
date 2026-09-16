@@ -1,6 +1,7 @@
 """One in-process DataHub shared by read-only Web and approved native tools."""
 
 import asyncio
+import hashlib
 import hmac
 import json
 import re
@@ -27,7 +28,17 @@ PROBE_TIMEOUT = 15
 
 
 class DataHub:
-    def __init__(self, store, *, transport=None, url=None, probe_runner=None):
+    def __init__(
+        self,
+        store,
+        *,
+        transport=None,
+        url=None,
+        probe_runner=None,
+        probe_ttl_seconds=300,
+        max_retained_probes=128,
+        monotonic_clock=time.monotonic,
+    ):
         self.store = store
         self.snapshots = Snapshots(store)
         self.connections = MySQLConnectionStore(store.root)
@@ -38,6 +49,12 @@ class DataHub:
         self.probe_tasks: dict[str, asyncio.Task] = {}
         self.probes: dict[str, dict] = {}
         self.probe_keys: dict[tuple[str, str], str] = {}
+        self._probe_waiters: dict[str, int] = {}
+        self._probe_completion_order: dict[str, int] = {}
+        self._probe_completion_counter = 0
+        self.probe_ttl_seconds = max(0.01, float(probe_ttl_seconds))
+        self.max_retained_probes = max(1, int(max_retained_probes))
+        self._monotonic = monotonic_clock
         self.cache_hits: dict[tuple[str, str], bool] = {}
         self.closed = False
 
@@ -49,6 +66,7 @@ class DataHub:
         )
 
     def _latest_probes(self):
+        self._prune_probes()
         latest = {}
         for probe in self.probes.values():
             if probe.get("status") != "completed":
@@ -65,6 +83,17 @@ class DataHub:
 
     def connection_center(self):
         return build_connection_center(self.catalog(), self.connections)
+
+    def source_configuration_digest(self, source_id: str) -> str:
+        """Return a canonical digest of safe configuration metadata only."""
+
+        payload = json.dumps(
+            self.connections.source_status(source_id),
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def catalog_capability(self, capability_id):
         return catalog_detail(
@@ -83,6 +112,7 @@ class DataHub:
         )
 
     def start_probe(self, source_id, idempotency_key):
+        self._prune_probes()
         if not re.fullmatch(r"[a-z0-9_]{1,64}", source_id):
             raise StoreError("数据来源标识非法")
         if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", idempotency_key):
@@ -102,6 +132,7 @@ class DataHub:
             "duration_ms": None,
             "last_checked_at": None,
             "completed_at": None,
+            "retained_until": None,
         }
         self.probes[probe_id] = record
         self.probe_keys[(source_id, idempotency_key)] = probe_id
@@ -149,10 +180,18 @@ class DataHub:
                 duration_ms=max(0, round((time.monotonic() - started) * 1000)),
                 last_checked_at=checked,
                 completed_at=checked,
+                retained_until=self._monotonic() + self.probe_ttl_seconds,
             )
             log.info("datahub_probe_completed", source=source_id, health=record["health"])
         except asyncio.CancelledError:
-            record.update(status="cancelled", health="untested", failure_code="probe_cancelled")
+            checked = datetime.now(UTC).isoformat()
+            record.update(
+                status="cancelled",
+                health="untested",
+                failure_code="probe_cancelled",
+                completed_at=checked,
+                retained_until=self._monotonic() + self.probe_ttl_seconds,
+            )
             raise
         except TimeoutError as exc:
             checked = datetime.now(UTC).isoformat()
@@ -163,6 +202,7 @@ class DataHub:
                 duration_ms=max(0, round((time.monotonic() - started) * 1000)),
                 last_checked_at=checked,
                 completed_at=checked,
+                retained_until=self._monotonic() + self.probe_ttl_seconds,
             )
             log.warning("datahub_probe_timed_out", source=source_id, error_type=type(exc).__name__)
         except Exception as exc:  # noqa: BLE001 - probe boundary must close vendor errors.
@@ -174,16 +214,99 @@ class DataHub:
                 duration_ms=max(0, round((time.monotonic() - started) * 1000)),
                 last_checked_at=checked,
                 completed_at=checked,
+                retained_until=self._monotonic() + self.probe_ttl_seconds,
             )
             log.warning("datahub_probe_failed", source=source_id, error_type=type(exc).__name__)
         finally:
+            if record.get("status") in {"completed", "cancelled", "failed"}:
+                self._mark_probe_terminal(probe_id)
             self.probe_tasks.pop(probe_id, None)
+            self._prune_probes()
+
+    def _mark_probe_terminal(self, probe_id: str) -> None:
+        self._probe_completion_counter += 1
+        self._probe_completion_order[probe_id] = self._probe_completion_counter
+
+    def _prune_probes(self) -> None:
+        now = self._monotonic()
+        protected_ids = {probe_id for probe_id, count in self._probe_waiters.items() if count > 0}
+        terminal_ids = sorted(
+            (
+                probe_id
+                for probe_id, probe in self.probes.items()
+                if probe.get("status") in {"completed", "cancelled", "failed"}
+            ),
+            key=lambda probe_id: self._probe_completion_order.get(probe_id, 0),
+        )
+        remove_ids = {
+            probe_id
+            for probe_id in terminal_ids
+            if probe_id not in protected_ids
+            if self.probes[probe_id].get("retained_until", now) <= now
+        }
+        retained_ids = [probe_id for probe_id in terminal_ids if probe_id not in remove_ids]
+        excess = len(retained_ids) - self.max_retained_probes
+        for probe_id in retained_ids:
+            if excess <= 0:
+                break
+            if probe_id in protected_ids:
+                continue
+            remove_ids.add(probe_id)
+            excess -= 1
+        for probe_id in remove_ids:
+            self.probes.pop(probe_id, None)
+            self.probe_tasks.pop(probe_id, None)
+            self._probe_completion_order.pop(probe_id, None)
+        for key, probe_id in list(self.probe_keys.items()):
+            if probe_id in remove_ids or probe_id not in self.probes:
+                self.probe_keys.pop(key, None)
 
     def probe(self, probe_id):
+        self._prune_probes()
         try:
             return self.probes[probe_id]
         except KeyError as exc:
             raise StoreError("检测记录不存在") from exc
+
+    async def run_probe(self, source_id: str, idempotency_key: str) -> dict:
+        """Start and await one legacy-compatible probe for coordinator callers."""
+
+        record = self.start_probe(source_id, idempotency_key)
+        probe_id = record["id"]
+        self._probe_waiters[probe_id] = self._probe_waiters.get(probe_id, 0) + 1
+        try:
+            task = self.probe_tasks.get(probe_id)
+            if task is not None:
+                await asyncio.shield(task)
+            return self.probe(probe_id)
+        finally:
+            remaining = self._probe_waiters.get(probe_id, 1) - 1
+            if remaining > 0:
+                self._probe_waiters[probe_id] = remaining
+            else:
+                self._probe_waiters.pop(probe_id, None)
+            self._prune_probes()
+
+    def restore_probe_statuses(self, probes: dict[str, dict]) -> None:
+        """Hydrate safe persisted evidence without reusing credentials or payload data."""
+
+        for source_id, value in probes.items():
+            if self.catalog_source(source_id) is None or value.get("status") != "completed":
+                continue
+            probe_id = f"restored:{source_id}"
+            self.probes[probe_id] = {
+                "id": probe_id,
+                "source_id": source_id,
+                "status": "completed",
+                "health": value.get("health", "untested"),
+                "failure_code": value.get("failure_code"),
+                "duration_ms": value.get("duration_ms"),
+                "last_checked_at": value.get("last_checked_at"),
+                "completed_at": value.get("completed_at") or value.get("last_checked_at"),
+                "retained_until": self._monotonic() + self.probe_ttl_seconds,
+            }
+            self._mark_probe_terminal(probe_id)
+        self._prune_probes()
 
     def detail(self, sid, did):
         return {

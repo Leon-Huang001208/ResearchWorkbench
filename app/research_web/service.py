@@ -34,6 +34,7 @@ from .client import DSHClient, RuntimeFailure
 from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
 from .frameworks import FrameworkService
+from .integrations import IntegrationCoordinator
 from .local_integrations import LocalIntegrationManager
 from .mcp_registry import MCPRegistryService
 from .mcp_runtime.authorization import AuthorizationManager
@@ -180,6 +181,7 @@ class ResearchService:
         mcp_keyring_backend=None,
         runtime_manager=None,
         delivery_keyring_backend=None,
+        auto_probe_on_start: bool = False,
     ):
         self.client, self.store, self.owned = client, store, owned
         self.expected_cwd = expected_cwd
@@ -188,6 +190,10 @@ class ResearchService:
         self.datahub = DataHub(store)
         self.tabbit = TabbitIntegration(client, store)
         self.local_integrations = LocalIntegrationManager(store.root / "local-integrations")
+        self.integrations = IntegrationCoordinator(
+            store.root / "integrations", self.datahub, self.local_integrations, self.tabbit
+        )
+        self.auto_probe_on_start = auto_probe_on_start
         self.mcp_registry = mcp_registry or MCPRegistryService(store.root)
         self._runtime_manager = runtime_manager
         if mcp_runtime is None:
@@ -298,6 +304,9 @@ class ResearchService:
         self.retention_task = asyncio.create_task(
             self._retention_loop(), name="research-session-retention"
         )
+        self.integrations.load()
+        if self.auto_probe_on_start:
+            self.integrations.start()
 
     async def close(self):
         if self.retention_task:
@@ -308,6 +317,7 @@ class ResearchService:
         await self.automations.close()
         await self.report_workflows.close()
         await self.asset_workspace.close()
+        await self.integrations.close()
         await self.local_integrations.close()
         await self.frameworks.close()
         await self.mcp_runtime.close()

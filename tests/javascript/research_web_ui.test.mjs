@@ -75,6 +75,13 @@ test('data probe polling handles completion, failure, malformed status and timeo
   await assert.rejects(core.waitForDataProbe(async () => ({ status: 'queued' }), 'probe-4', { maxAttempts: 2, delay: 0 }), /仍在进行/);
 });
 
+test('integration batch polling budget covers the serialized probe worst case', () => {
+  assert.ok(core.INTEGRATION_BATCH_MAX_ATTEMPTS > 1);
+  assert.ok(core.INTEGRATION_BATCH_POLL_INTERVAL_MS > 0);
+  const pollingWindowMs = (core.INTEGRATION_BATCH_MAX_ATTEMPTS - 1) * core.INTEGRATION_BATCH_POLL_INTERVAL_MS;
+  assert.ok(pollingWindowMs >= 21 * 20 * 1000);
+});
+
 test('controller preserves draft on failed sends and retries with the same idempotency key', async () => {
   assert.equal(typeof core.createController, 'function');
   const keys = []; let failures = 1;

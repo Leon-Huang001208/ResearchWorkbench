@@ -60,7 +60,7 @@ const baseOptions = {
   localIntegrations,
   selectedConfiguration: {},
   migrationOpen: false,
-  tabbit: { status: 'ready', browser_enabled: true, web_fetch_enabled: false, plugin_version: '0.3.4', browser_version: '1.13.23', online_instances: 1, selected_instance: 'ABCDEF0123456789', instances: [] },
+  tabbit: { status: 'ready', browser_enabled: false, web_fetch_enabled: false, saved_config: { browser_enabled: false, web_fetch_enabled: false, instance_id: null }, applied_config: { browser_enabled: true, web_fetch_enabled: false, instance_id: null }, restart_required: true, plugin_version: '0.3.4', browser_version: '1.13.23', online_instances: 1, selected_instance: 'ABCDEF0123456789', instances: [] },
 };
 
 test('settings hash contract covers five canonical sections and safe fallbacks', () => {
@@ -103,13 +103,17 @@ test('settings renders exactly one active body and marks one category current', 
 
 test('only live settings sections render scoped refresh controls', () => {
   assert.deepEqual(settingsRefreshCatalogs('model'), ['runtime', 'models']);
-  assert.deepEqual(settingsRefreshCatalogs('data'), ['connections']);
-  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit']);
+  assert.deepEqual(settingsRefreshCatalogs('data'), ['connections', 'integrations']);
+  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit', 'integrations']);
   assert.deepEqual(settingsRefreshCatalogs('general'), []);
   assert.deepEqual(settingsRefreshCatalogs('docs'), []);
   for (const section of ['model', 'data', 'local']) {
     const html = renderSettingsPage({ ...baseOptions, route: parseRoute(`#/settings/${section}`), hash: `#/settings/${section}` });
     assert.match(html, /data-refresh/);
+  }
+  for (const section of ['data', 'local']) {
+    const html = renderSettingsPage({ ...baseOptions, route: parseRoute(`#/settings/${section}`), hash: `#/settings/${section}` });
+    assert.match(html, /data-refresh[^>]*>重新检测全部</);
   }
   for (const section of ['general', 'docs']) {
     const html = renderSettingsPage({ ...baseOptions, route: parseRoute(`#/settings/${section}`), hash: `#/settings/${section}` });
@@ -120,10 +124,12 @@ test('only live settings sections render scoped refresh controls', () => {
 test('local settings exposes independent Tabbit switches, health, and manual installation guidance', () => {
   const html = renderSettingsPage({ ...baseOptions, route: parseRoute('#/settings/local'), hash: '#/settings/local' });
   assert.match(html, /id="tabbit-settings-form"/);
-  assert.match(html, /name="browser_enabled"[^>]*checked/);
+  assert.doesNotMatch(html, /name="browser_enabled"[^>]*checked/);
   assert.match(html, /name="web_fetch_enabled"/);
   assert.match(html, /dsh-tabbit 0\.3\.4/);
   assert.match(html, /官方安装说明/);
+  assert.match(html, /已保存配置[^]*浏览器自动化：关闭/);
+  assert.match(html, /Runtime 已应用[^]*浏览器自动化：开启/);
 });
 
 test('data and local pages never mix source groups', () => {

@@ -87,6 +87,15 @@ export async function waitForDataProbe(getProbe, probeId, { maxAttempts = 40, de
 
 export const waitForLocalIntegrationProbe = waitForDataProbe;
 export const waitForLocalIntegrationVerification = waitForDataProbe;
+export const INTEGRATION_BATCH_POLL_INTERVAL_MS = 1000;
+export const INTEGRATION_BATCH_MAX_ATTEMPTS = 451;
+export function waitForIntegrationBatch(getBatch, batchId, options = {}) {
+  return waitForDataProbe(getBatch, batchId, {
+    maxAttempts: INTEGRATION_BATCH_MAX_ATTEMPTS,
+    delay: INTEGRATION_BATCH_POLL_INTERVAL_MS,
+    ...options,
+  });
+}
 
 // Never log prompts, response bodies, filenames, credentials or session identifiers.
 export function safeLog(event, metadata = {}) {
@@ -94,11 +103,12 @@ export function safeLog(event, metadata = {}) {
 }
 
 export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSourceClass = globalThis.EventSource, logger = safeLog } = {}) {
-  async function request(path, { method = 'GET', body, key } = {}) {
+  async function request(path, { method = 'GET', body, key, userAction = false } = {}) {
     const headers = { Accept: 'application/json' };
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
     if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
     if (key) headers['Idempotency-Key'] = key;
+    if (userAction) headers['X-Research-User-Action'] = '?1';
     let response;
     try {
       response = await fetcher(`${API_ROOT}${path}`, { method, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
@@ -190,6 +200,10 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     dataCapability: (id) => request(`/data/capabilities/${segment(id)}`),
     dataSource: (id) => request(`/data/sources/${segment(id)}`),
     connections: () => request('/data/connections'),
+    integrations: (scope = 'all') => request(`/integrations/status?scope=${segment(scope)}`),
+    startIntegrationProbeBatch: (scope, key) => request('/integrations/probe-batches', { method: 'POST', body: { scope }, key, userAction: true }),
+    integrationProbeBatch: (id) => request(`/integrations/probe-batches/${segment(id)}`),
+    setIntegrationConsent: (id, consent) => request(`/integrations/${segment(id)}/auto-probe-consent`, { method: 'PUT', body: { consent }, userAction: true }),
     localIntegrations: () => request('/local-integrations'),
     probeLocalIntegrations: (key) => request('/local-integrations/probes', { method: 'POST', body: {}, key }),
     localIntegrationProbe: (id) => request(`/local-integrations/probes/${segment(id)}`),

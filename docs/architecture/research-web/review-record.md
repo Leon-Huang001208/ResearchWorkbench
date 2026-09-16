@@ -642,3 +642,18 @@
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"现有能力与消息接口扩展Method字段，继续使用同一FastAPI服务、会话收据和目录锁。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"DSH只加载Research Workbench编译的Method Skill包装，并通过现有research-tools插件记录有界身份。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"Method层未改变Automation计划、触发、版本锁、授权或外发拓扑。","diagrams":[]} -->
+
+## 2026-09-16 — 统一集成协调器与动态 DataHub 路由
+
+- Research Web Host 内新增统一协调器，恢复安全快照并编排启动/手动探测；数据源、本机发现和 Tabbit
+  仍由既有模块执行，不增加进程、端口、数据库或外部通道。
+- 设置页合并连接目录与统一状态，展示五类汇总、五阶段详情、真实批次进度、逐来源授权及 Tabbit
+  保存/Runtime 双状态；旧单项探测接口继续兼容。
+- 15 个 DataHub 业务工具改为常驻注册，Broker 每次调用按最新安全状态选源；查询仍走既有私有回环、
+  会话归属、参数白名单和快照链。Automation 未改变任务、Run、授权或外发语义。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"统一状态、批次进度、五阶段详情和Tabbit双状态都位于既有设置页与连接中心模块内，没有新增浏览器边界或跨层数据源。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"协调器和四个统一端点封装在既有Research Web Host内并复用DataHub、本机管理器与Tabbit，不新增服务、进程或外部数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"探测恢复、指纹失效和动态选源都复用既有DataHub Provider、业务查询与会话快照边界，没有新增查询通道。","diagrams":[]} -->
+<!-- architecture-review {"group":"automations","structure":"unchanged","reason":"共享ResearchService只增加集成协调器生命周期；Automation的计划、Run、版本锁、MCP授权与外发拓扑保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"十五个DataHub工具由既有public-data适配器常驻注册并继续调用同一私有业务查询入口，DSH进程、Guard和数据流拓扑不变。","diagrams":[]} -->

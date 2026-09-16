@@ -112,6 +112,7 @@ DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取�
 - `service.py`：会话归属、事件归一、状态恢复、幂等提交、原生子Agent取消、审批与问题响应。
 - `store.py`：原子本地 JSON 索引（单 Web worker），不保存模型正文；文件使用不跟随符号链接的目录描述符打开。
 - `main.py`：回环 Web API、安全来源边界、上传与隔离预览；无旧业务启动钩子。
+- `integrations/`：统一五阶段状态、五类汇总、启动/手动探测批次、逐来源自动探测授权和原子安全快照；不替代 Provider、本机验证器或 Tabbit Runtime。
 - `local_integrations/`：无副作用的主机软件发现、安全状态投影和幂等探测任务；不启动厂商软件，不返回本机路径或秘密。
 - `mcp_registry/`：官方/私有 Registry 配置、固定 v0.1 同步、原子目录与缓存、Keyring 秘密引用，以及只生成外部命令的 publisher handoff；不执行 publisher、安装或 MCP 调用。
 - `mcp_runtime/`：不可变安装预览/确认、制品解析与隔离安装、官方 SDK Host、OAuth、schema 快照、风险分级、会话授权、人工审批及 DSH 激活回滚。
@@ -122,7 +123,7 @@ DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取�
 - `skills/`：市场解读、资料解读、公司研究、行业研究、基金评价和因子库研究六类原生 SKILL.md、脚本与模板；禁止扫描用户其他全局 Skill。
 - `resources/`：实际 PDF 页码抽取、Office/HTML/Markdown 文件生成与重开检查。
 - `datahub/`：固定来源、分页、私有原始响应、会话不可变资料、校验读取与缓存；见 [DataHub](research-web-datahub.md)。
-- `runtime/public-data.mjs`：启动时只注册已有可调用来源的 `datahub_*` 工具，并通过可信会话身份与认证回环 DataHub 自动桥接、联动取消，不再重复上游解析或逐次确认；见 [公开数据工具](research-web-public-data.md)。
+- `runtime/public-data.mjs`：常驻注册 15 个品牌无关 `datahub_*` 工具，并通过可信会话身份与认证回环 DataHub 在调用时动态选源、联动取消，不再重复上游解析或逐次确认；见 [公开数据工具](research-web-public-data.md)。
 - `tabbit.py` 与 `runtime/tabbit-adapter.mjs`：保存 Tabbit 非秘密开关、会话授权、候选复核、实时 claim 和一次性内存 token；见 [Tabbit 集成](research-web-tabbit.md)。
 - `vendor/dsh-tabbit/0.3.4/`：固定官方源码提交构建的供应归档、MIT License、来源、哈希和完整文件清单；启动时校验后仅复制到专属 Profile，不运行网络安装或自动升级。
 
@@ -137,6 +138,7 @@ runtime/home/                # 专属DSH历史与凭据
 runtime/work/                # 干净启动目录，无.env
 runtime/*-lock.json           # 本地源码/构建锁
 .control/tabbit.json          # Tabbit 非秘密开关与实例选择，0600
+integrations/status.json      # 五阶段状态、批次证据与逐来源授权的安全快照，0600
 sessions/<uuid>/inputs/      # 上传资料，只读给研究脚本
 sessions/<uuid>/resources/   # 审核过的辅助脚本和模板，只读
 sessions/<uuid>/outputs/     # 真正生成的文件
@@ -200,6 +202,8 @@ Windows 本机集成专项冒烟使用一次性、无真实权限的回环认证
   结论，因此默认推荐和下一阶段 Prompt 模板库保持未启用。
 
 - 本机集成 v0 完成本机服务、Office/Wind/iFinD 本机事实、浏览器应用和显式 Office/Wind 验证入口；自动化代码存在不等于现场验证通过，未产生成功验证记录时仍显示待验证。文件夹同步、浏览器扩展配对与本地 MCP 授权继续明确显示待配置；WindPy 与 iFinD HTTP/SDK 的数据调用继续由 DataHub 判断，不在本机页伪装为可用。
+
+- 集成协调器第 1 批只交付状态、探测、授权、快照、UI 与 Runtime 动态路由底座；未新增 Provider、文件同步或本地 MCP 调用。未交付项归为开发责任，不计入用户“待处理”，也不能由代码就绪推断真实外部来源已可调用。
 
 - 原生 `web_search` 已有真实模型证据；财联社电报、基金净值及其批准/拒绝/等待中取消则是旧 DataHub 逐次审批机制下的历史证据。当前 DataHub 已替换为启动时仅暴露 callable 工具并自动取数；仍不开放任意网页 fetch、MCP 或自动依赖安装。
 - 早期基金示例只有20条单页数据；后续DataHub批次已完成2025净值13页243条、基本资料16项、分红25条、披露持仓220条，并由两个真实子Agent共用快照产出文件。见[DataHub验收](../.ai/reports/2026-09-02-datahub-acceptance.md)。仍缺基准序列、复权总回报、合同/定期报告原文及完整持仓，不能据此宣称完整基金尽调。文件格式验证不替代数据与结论复核。

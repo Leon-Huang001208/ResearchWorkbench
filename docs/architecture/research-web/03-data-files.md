@@ -29,7 +29,7 @@ URL、SMTP 密码与 Webhook 签名秘密由 `ResearchWorkbench.Delivery` 系统
 
 ## 一个数据服务，两种消费者
 
-DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运行的第四种能力，也不是新服务。Web 通过“能力中心 → 数据”浏览 15 项业务数据能力、22 个登记来源及其绑定矩阵；DSH 通过品牌无关的 `datahub_*` 业务 Tool 取数。通用 MySQL 配置与会话文件位于当前设备数据根，密码由系统凭据库隔离；Research Runtime 启动时只注册至少有一个可调用来源的工具。
+DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运行的第四种能力，也不是新服务。Web 通过“能力中心 → 数据”浏览 15 项业务数据能力、22 个登记来源及其绑定矩阵；其中 21 项是远程数据源，`local_cache` 是兼容的本机投影。DSH 通过品牌无关的 `datahub_*` 业务 Tool 取数。通用 MySQL 配置与会话文件位于当前设备数据根，密码由系统凭据库隔离；15 个稳定业务 Tool 常驻 Research Runtime，Broker 在每次调用时按最新状态选源，无可调用 Provider 时返回明确错误。
 
 统一连接中心由 `datahub/connection_center.py` 汇总来源声明、非秘密配置、系统凭据存在性、平台能力、最近探测和 Runtime 适配状态；`datahub/connections.py` 仅原子保存 `<RESEARCH_DATA_HOME>/connections/` 下的非秘密 JSON，秘密通过系统凭据库按来源/账号键隔离。`datahub/probes.py` 执行有界诊断：Wind 沿用本机登录会话，iFinD SDK 探测登录后在 `finally` 登出，Excel 与插件只有实际心跳或工作簿探测才能标记可用。保存配置或检测成功都不自动等价为 Provider 可调用。
 
@@ -50,6 +50,8 @@ DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运
 ## Report Workflow 的 Excel 与文件链
 
 具体报告的 Word/PPT 模板、Excel 底稿、映射、校验规则和交付格式属于不可变 Workflow 版本。运行先复制母版到独立 Run 目录，再由 `report_workflows/workbook.py` 串行控制本机 Excel：检查声明的 Wind/iFinD Provider，刷新、完整重算、等待稳定、保存并产生刷新 manifest。插件未登录、公式错误、日期或必填项不合格、异常零值和超时均进入 `blocked_data`；没有显式字段及口径等价映射时不使用 DataHub 或旧缓存替代。
+
+`integrations/` 内的协调器只保存不含秘密的状态证据：启动先恢复原子快照，再异步探测；数据源和本机设置页的“重新检测全部”会创建真实批次。配置或环境指纹变化使旧证据过期，但保留最近成功时间。账号、终端和可能计费来源必须先取得逐来源自动探测授权。
 
 `report_workflows/tooling.py` 只从刷新后的运行副本提取有界内容，并一次性生成 `report-data.json` 共享快照及 SHA-256。Claw 父任务和至少两个真实子 Agent 读取同一快照，不重复刷新。模型只负责生成会话自有的 `report_payload.json`；即使 Claw 提前创建了同名 Office 文件，Report Workflow 也必须经 `report_rendering.py` 与 `report_render_script.py` 做确定性模板组装，再由独立交付检查重开文件、检查 HTML 非空、占位符、数据日期和文件哈希。PPTX 占位符按段落合并 `<a:t>` 文本片段后替换和检查，跨文本片段的残留同样会被拒绝。Payload 可按 `*_blocks` 家族组织，但显式 `missing` 始终优先于解释文字：缺失区块可显示原因，不能因此通过完整交付门禁。Claw 回合结束只进入交付检查，缺 Payload、投影失败、必需区块或约定格式时保持 `delivery_incomplete`。
 

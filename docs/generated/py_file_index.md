@@ -3149,6 +3149,7 @@ Imports:
 - `importlib.metadata`
 - `io`
 - `json`
+- `methods`
 - `models`
 - `os`
 - `packages`
@@ -3174,6 +3175,30 @@ Functions:
 - `_is_host_process_entry`
 
 
+## `app/research_web/capabilities/methods.py`
+
+Module docstring:
+> Read-only research reasoning methods, routing policy, and observable trace checks.
+
+Imports:
+- `core.observability`
+- `json`
+- `models`
+- `pathlib`
+- `pydantic`
+
+Classes:
+- `ReasoningMethodSpec`
+
+Functions:
+- `resolve_methods`
+  - Resolve required > user > recommended > model without silent truncation.
+- `evaluate_method_trace`
+- `read_method_trace`
+- `evaluation_matrix`
+- `promotion_decision`
+
+
 ## `app/research_web/capabilities/models.py`
 
 Module docstring:
@@ -3181,6 +3206,7 @@ Module docstring:
 
 Imports:
 - `pydantic`
+- `re`
 - `store`
 - `typing`
 
@@ -3188,6 +3214,8 @@ Classes:
 - `CapabilityError`
   - methods: __init__
 - `InputField`
+- `MethodPolicy`
+  - methods: validate_sets
 - `Metadata`
 - `Step`
 - `DraftInput`
@@ -3271,6 +3299,7 @@ Module docstring:
 > Reviewed built-in Skills and explicitly non-executed workflow templates.
 
 Imports:
+- `methods`
 - `packages`
 - `pathlib`
 
@@ -3278,6 +3307,7 @@ Functions:
 - `_skill_package`
 - `_workflow_package`
 - `seed_packages`
+- `_method_package`
 
 
 ## `app/research_web/capabilities/tools.py`
@@ -3383,6 +3413,7 @@ Imports:
 - `contracts`
 - `core.observability`
 - `datetime`
+- `hashlib`
 - `hmac`
 - `json`
 - `probes`
@@ -3395,7 +3426,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, catalog_capability, catalog_source, start_probe, _probe, probe, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, query, _query, cancel, close
+  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, query, _query, cancel, close
 
 
 ## `app/research_web/datahub/broker.py`
@@ -3905,6 +3936,521 @@ Functions:
 - `architecture_document`
 
 
+## `app/research_web/frameworks/__init__.py`
+
+Module docstring:
+> Versioned, Web-only research framework runtime.
+
+Imports:
+- `service`
+
+
+## `app/research_web/frameworks/base.py`
+
+Module docstring:
+> Thin shared contracts for framework metadata and evidence freshness.
+
+Imports:
+- `pydantic`
+- `typing`
+
+Classes:
+- `FrameworkError`
+  - methods: __init__
+- `SourceRecord`
+- `GapRecord`
+- `BlockMeta`
+- `FrameworkSection`
+- `FrameworkDefinition`
+
+
+## `app/research_web/frameworks/dollar/__init__.py`
+
+Module docstring:
+> Dollar liquidity framework definition and strict snapshot runtime.
+
+Imports:
+- `context`
+- `contracts`
+- `definition`
+- `store`
+
+
+## `app/research_web/frameworks/dollar/collector.py`
+
+Module docstring:
+> Q-P-g-M-X public collectors with independent last-good block updates.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `httpx`
+- `sources`
+- `store`
+- `typing`
+
+Classes:
+- `DollarCollector`
+  - methods: __init__, _finish, _mark_failure, collect_core, collect_fiscal
+
+Functions:
+- `_client`
+- `_nearest`
+- `_series`
+- `_metric`
+- `_trend`
+
+
+## `app/research_web/frameworks/dollar/context.py`
+
+Module docstring:
+> Framework-specific DSH context builder for dollar liquidity.
+
+Imports:
+- `contracts`
+- `definition`
+
+Functions:
+- `build_context`
+
+
+## `app/research_web/frameworks/dollar/contracts.py`
+
+Module docstring:
+> Strict Q-P-g-M-X snapshot contract for dollar liquidity research.
+
+Imports:
+- `base`
+- `pydantic`
+- `typing`
+
+Classes:
+- `DollarModel`
+- `Point`
+- `Series`
+- `Metric`
+- `DimensionBlock`
+- `ResearchState`
+- `TransmissionLink`
+- `Transmission`
+- `Event`
+- `Evidence`
+- `DollarSnapshot`
+  - methods: enforce_verification_gate
+
+
+## `app/research_web/frameworks/dollar/definition.py`
+
+Module docstring:
+> Immutable Q-P-g-M-X dollar liquidity method definition.
+
+Imports:
+- `base`
+
+
+## `app/research_web/frameworks/dollar/seed.py`
+
+Module docstring:
+> Deterministic offline Dollar snapshot for tests and first-load disclosure.
+
+Imports:
+- `contracts`
+- `storage`
+
+Functions:
+- `_source`
+- `_points`
+- `_block`
+- `build_seed`
+
+
+## `app/research_web/frameworks/dollar/store.py`
+
+Module docstring:
+> Bounded, strict and atomic storage for the Dollar snapshot.
+
+Imports:
+- `contracts`
+- `pathlib`
+- `seed`
+- `storage`
+
+Classes:
+- `DollarSnapshotStore`
+  - methods: __init__
+
+
+## `app/research_web/frameworks/goldar/__init__.py`
+
+Module docstring:
+> Goldar's domain-specific definition, snapshot and scoring package.
+
+Imports:
+- `context`
+- `contracts`
+- `definition`
+- `store`
+
+
+## `app/research_web/frameworks/goldar/collector.py`
+
+Module docstring:
+> Goldar public-source collectors with block-level last-good preservation.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `contracts`
+- `core.observability`
+- `csv`
+- `datetime`
+- `httpx`
+- `io`
+- `math`
+- `re`
+- `sources`
+- `store`
+- `typing`
+- `zipfile`
+
+Classes:
+- `GoldCollector`
+  - methods: __init__, _replace_factor, _finish, _mark_failure, collect_macro, collect_goldhub, collect_options, collect_cftc
+
+Functions:
+- `_client`
+- `_direction`
+- `_factor`
+- `_first_number`
+
+
+## `app/research_web/frameworks/goldar/context.py`
+
+Module docstring:
+> Framework-specific DSH context builder for Goldar.
+
+Imports:
+- `contracts`
+- `definition`
+
+Functions:
+- `build_context`
+
+
+## `app/research_web/frameworks/goldar/contracts.py`
+
+Module docstring:
+> Strict Goldar snapshot contract; domain fields intentionally remain specific.
+
+Imports:
+- `base`
+- `pydantic`
+- `typing`
+
+Classes:
+- `GoldModel`
+- `Metric`
+- `Factor`
+- `PricePoint`
+- `MarketContext`
+- `PricingDrivers`
+- `DemandCategory`
+- `FlowMetric`
+- `SupplyDemand`
+- `Regime`
+- `CycleMacro`
+- `PositionMetric`
+- `Strike`
+- `OptionsPositioning`
+- `ResearchState`
+- `CorrelationCell`
+- `Scenario`
+- `AllocationContext`
+- `Event`
+- `Evidence`
+- `GoldSnapshot`
+  - methods: enforce_verification_gate
+
+
+## `app/research_web/frameworks/goldar/definition.py`
+
+Module docstring:
+> Immutable Goldar research method definition.
+
+Imports:
+- `base`
+
+
+## `app/research_web/frameworks/goldar/seed.py`
+
+Module docstring:
+> Deterministic offline snapshot used until each live source is configured.
+
+Imports:
+- `contracts`
+- `storage`
+
+Functions:
+- `_source`
+- `build_seed`
+
+
+## `app/research_web/frameworks/goldar/store.py`
+
+Module docstring:
+> Bounded, strict and atomic local storage for the Goldar snapshot.
+
+Imports:
+- `contracts`
+- `pathlib`
+- `seed`
+- `storage`
+
+Classes:
+- `GoldSnapshotStore`
+  - methods: __init__
+
+
+## `app/research_web/frameworks/registry.py`
+
+Module docstring:
+> Thin registry for framework-owned definitions, stores and DSH contexts.
+
+Imports:
+- `__future__`
+- `base`
+- `collections.abc`
+- `dataclasses`
+- `dollar`
+- `goldar`
+- `pathlib`
+- `storage`
+- `typing`
+
+Classes:
+- `FrameworkRuntime`
+  - methods: snapshot, catalog_item
+- `FrameworkRegistry`
+  - methods: __init__, all, get
+
+
+## `app/research_web/frameworks/routes.py`
+
+Module docstring:
+> FastAPI routes for versioned framework data and page-scoped DSH sessions.
+
+Imports:
+- `fastapi`
+- `pydantic`
+- `store`
+- `typing`
+
+Classes:
+- `ExplainSessionInput`
+- `FrameworkMessageInput`
+- `VerifyInput`
+
+Functions:
+- `frameworks`
+- `framework_data`
+- `create_framework_session`
+- `send_framework_message`
+- `verify_framework_session`
+
+
+## `app/research_web/frameworks/scheduler.py`
+
+Module docstring:
+> Single idempotent scheduler for all framework-owned collectors.
+
+Imports:
+- `__future__`
+- `apscheduler.schedulers.asyncio`
+- `core.observability`
+- `datetime`
+- `dollar.collector`
+- `dollar.store`
+- `goldar.collector`
+- `goldar.store`
+- `os`
+- `registry`
+
+Classes:
+- `FrameworkScheduler`
+  - methods: __init__, start, close
+
+Functions:
+- `collectors_enabled`
+
+
+## `app/research_web/frameworks/service.py`
+
+Module docstring:
+> Framework catalog, lifecycle and exact-snapshot DSH conversations.
+
+Imports:
+- `base`
+- `core.observability`
+- `json`
+- `pathlib`
+- `registry`
+- `scheduler`
+
+Classes:
+- `FrameworkService`
+  - methods: __init__, start, close, catalog, data, _binding, _session_binding, _context, create_session, send_message, verify
+
+
+## `app/research_web/frameworks/sources.py`
+
+Module docstring:
+> Bounded public-source helpers used by framework-owned collectors.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `csv`
+- `datetime`
+- `httpx`
+- `io`
+- `math`
+- `zipfile`
+
+Functions:
+- `utc_now`
+- `clamp`
+- `latest_change`
+- `zscore`
+- `get_bytes`
+- `get_json`
+- `get_list`
+- `fred_series`
+- `fred_series_map`
+  - Fetch FRED series with bounded concurrency to avoid remote resets.
+- `source_record`
+
+
+## `app/research_web/frameworks/storage.py`
+
+Module docstring:
+> Strict, bounded and atomic storage shared by framework-specific snapshots.
+
+Imports:
+- `__future__`
+- `base`
+- `collections.abc`
+- `core.observability`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `pydantic`
+- `tempfile`
+- `typing`
+
+Classes:
+- `AtomicSnapshotStore`
+  - Schema-aware snapshot store; domain stores retain their concrete type.
+  - methods: __init__, _read_json, _migrate_legacy_snapshot, read, write
+
+Functions:
+- `compute_revision`
+- `reject_symlink_components`
+  - Reject any existing symlink before resolving or opening a framework path.
+
+
+## `app/research_web/integrations/__init__.py`
+
+Module docstring:
+> Unified integration health, consent and probe orchestration.
+
+Imports:
+- `coordinator`
+- `models`
+
+
+## `app/research_web/integrations/coordinator.py`
+
+Module docstring:
+> Persisted, privacy-safe orchestration for data and local integration probes.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `contextlib`
+- `copy`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `re`
+- `tempfile`
+- `threading`
+- `time`
+- `typing`
+- `uuid`
+
+Classes:
+- `IntegrationStatusPersistenceError`
+  - Raised when unsafe persisted state cannot be atomically sanitized.
+- `IntegrationCoordinator`
+  - Coordinate bounded probes while retaining only safe status evidence.
+  - methods: __init__, load, start, start_batch, _scopes_overlap, wait_batch, batch, _public_batch, _prune_batches, _register_idempotency_key, _run_batch, _probe_data, _probe_local, set_auto_probe_consent, status, _data_sources, _data_fingerprint, _local_fingerprint, _needs_consent, _data_statuses, _local_statuses, _persist, _persist_sync, _safe_tabbit_snapshot, _project_tabbit_snapshot, close
+
+Functions:
+- `_now`
+- `_fingerprint`
+
+
+## `app/research_web/integrations/models.py`
+
+Module docstring:
+> Versioned public contracts for unified integration state.
+
+Imports:
+- `pydantic`
+- `typing`
+
+Classes:
+- `IntegrationItemStatus`
+  - One safe, provider-neutral integration status projection.
+
+
+## `app/research_web/integrations/routes.py`
+
+Module docstring:
+> Versioned unified integration status and probe-batch API.
+
+Imports:
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `pydantic`
+- `typing`
+
+Classes:
+- `ProbeBatchRequest`
+- `ConsentRequest`
+
+Functions:
+- `_require_same_origin_user_action`
+  - Reject drive-by mutations without introducing a browser-held secret.
+- `integration_status`
+- `start_probe_batch`
+- `probe_batch`
+- `update_auto_probe_consent`
+
+
 ## `app/research_web/launch_runtime.py`
 
 Module docstring:
@@ -3914,8 +4460,6 @@ Imports:
 - `argparse`
 - `capabilities.catalog`
 - `core.observability`
-- `datahub.catalog`
-- `datahub.connections`
 - `datahub.contracts`
 - `datahub.security`
 - `hashlib`
@@ -3951,7 +4495,7 @@ Functions:
 - `validate_tabbit_node`
   - Enforce the reviewed package's exact Node engine floor.
 - `enabled_datahub_tools`
-  - Resolve the fixed business tool IDs backed by callable offline catalog sources.
+  - Keep all stable tools registered; the Broker decides availability per call.
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
 - `prepare`
@@ -4002,7 +4546,7 @@ Classes:
   - methods: current
 - `LocalIntegrationManager`
   - Build and persist safe local facts; probes never launch detected software.
-  - methods: __init__, state_path, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, _public_probe, close
+  - methods: __init__, state_path, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
 
 Functions:
 - `_default_module_available`
@@ -4111,6 +4655,9 @@ Imports:
 - `fastapi.exceptions`
 - `fastapi.responses`
 - `fastapi.staticfiles`
+- `frameworks.base`
+- `frameworks.routes`
+- `integrations.routes`
 - `json`
 - `local_integrations`
 - `local_integrations.routes`
@@ -4123,10 +4670,7 @@ Imports:
 - `pathlib`
 - `pydantic`
 - `re`
-- `report_routes`
-- `report_studio`
-- `report_workflow_routes`
-- ... 10 more
+- ... 13 more
 
 Classes:
 - `NewSession`
@@ -4610,6 +5154,7 @@ Imports:
 - `credentials`
 - `hashlib`
 - `hmac`
+- `importlib.util`
 - `installation_store`
 - `json`
 - `models`
@@ -5507,6 +6052,7 @@ Imports:
 - `automation.transport`
 - `base64`
 - `capabilities.catalog`
+- `capabilities.methods`
 - `capabilities.models`
 - `capabilities.packages`
 - `capabilities.tools`
@@ -5516,7 +6062,9 @@ Imports:
 - `datahub`
 - `datetime`
 - `delivery`
+- `frameworks`
 - `hashlib`
+- `integrations`
 - `json`
 - `local_integrations`
 - `mcp_registry`
@@ -5526,10 +6074,7 @@ Imports:
 - `mcp_runtime.installation_store`
 - `mcp_runtime.oauth`
 - `mcp_runtime.package_installer`
-- `mcp_runtime.package_planner`
-- `mcp_runtime.package_resolver`
-- `mcp_runtime.sdk_host`
-- ... 13 more
+- ... 16 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`

@@ -1389,6 +1389,15 @@ class LocalIntegrationManager:
             raise LocalIntegrationError("未找到本机探测任务", "local_probe_not_found", 404)
         return self._public_probe(record)
 
+    async def run_probe(self, idempotency_key: str) -> dict:
+        """Start and await a local discovery probe for the unified coordinator."""
+
+        record = self.start_probe(idempotency_key)
+        task = self.probe_tasks.get(record["id"])
+        if task is not None:
+            await asyncio.shield(task)
+        return self.probe(record["id"])
+
     @staticmethod
     def _public_probe(record: dict) -> dict:
         return {

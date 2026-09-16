@@ -24,9 +24,10 @@
 | MCP Runtime Host | `app/research_web/mcp_runtime/` | 不可变安装、官方 SDK 连接、OAuth、schema/风险/授权快照、人工审批及激活回滚；不执行 Registry 发布 |
 | Automation | `app/research_web/automation/` | 锁定版本任务、IANA 日程、独立 Claw 会话、运行恢复与研究/投递双状态；不自动升级或重试研究 |
 | 连接中心 | `app/research_web/datahub/connection_center.py`、`connections.py`、`probes.py` | 本地非秘密配置、系统凭据引用、平台诊断、旧环境迁移和四维状态；不向浏览器或模型返回秘密 |
+| 集成协调器 | `app/research_web/integrations/` | 聚合 DataHub、本机诊断与 Tabbit 的五阶段状态，编排启动/手动探测批次、逐来源授权和安全快照；不替代 Provider 或验证器 |
 | 本机集成诊断 | `app/research_web/local_integrations/` | 标准应用位置、已知注册信息和 Python 模块的无副作用发现；用户显式触发后，在受管临时目录与可终止子进程中验证 Office/Wind，安全投影不返回路径或秘密 |
 | 受限脚本 | `app/research_web/sandbox.py` | 文件访问、环境和进程终止边界 |
-| 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、私有模块链接校验；启动时按 DataHub 可调用来源注入 `enabledTools`，查询不逐次审批 |
+| 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、私有模块链接校验；常驻注册 15 个 DataHub 业务工具，由 Broker 在调用时按最新状态选源 |
 | Tabbit 适配 | `app/research_web/tabbit.py`、`runtime/tabbit-adapter.mjs`、`vendor/dsh-tabbit/0.3.4/` | 固定供应包校验、会话级页面授权、实时标签 claim、一次性内存上下文与写操作审批；只复用唯一 `ctx.tabbit` 执行器 |
 | 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的进程归属、健康检查、跨平台私有目录校验、项目私有 DSH 源码选择、持久后台启动、停止和失败回滚 |
 | 数据迁移 | `app/research_web/data_migration.py` | 会话/附件/能力/数据集/产物的哈希复制；排除凭据并支持只读归档 |
@@ -40,7 +41,11 @@
 
 十二个内置 Skill 和四个 Workflow 继续进入同一原生发现目录。五个专用研究 Skill 的共享证据协议在种子构建时复制为版本资源，不是独立可调用能力；新增的 `framework-research` 只服务用户显式触发的框架深度验证，并受只读 Runtime 预设约束。研报校验、SVG 重绘和 PDF 读取均受现有 `research_run_script` 沙箱限制。新增静态进程入口检查只拒绝不兼容包，不授予脚本新的进程、网络、文件或依赖安装权限。
 
-Research Runtime 每次启动都从离线 DataHub 能力目录重新计算 `enabledTools`；来源配置变化只有在重启后才改变原生工具注册。缺少可调用来源的工具不暴露给模型。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为 `provider_busy`。
+Research Runtime 固定注册 15 个品牌无关 `datahub_*` 工具。DataHub Broker 在每次调用时读取最新的
+配置、授权、探测与 Provider 状态，因此来源可用性变化无需重启 Runtime；没有可调用来源时明确失败，
+显式指定来源且禁止回退时不会静默换源。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，
+低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为
+`provider_busy`。
 
 Tabbit 由 Profile 私有依赖链按 `base → web-app → dsh-tabbit → research-tabbit-adapter` 顺序加载。供应归档、许可证和文件清单在复制前逐项校验，运行时禁用 `tabbit_browser_install`，不执行下载或自动升级。浏览器自动化默认开启，Tabbit `web_fetch` 接管默认关闭；配置写入 Research Web 数据目录并在下次安全重启生效。页面正文只停留在 DSH 内存的一次性 token 中，不进入产品索引或日志。
 

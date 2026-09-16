@@ -151,17 +151,27 @@ class TabbitIntegration:
         restart_required = self._restart_required or (
             applied != config and self.config_path.exists()
         )
-        if not config["browser_enabled"]:
+        effective = applied if isinstance(applied, dict) else config
+        try:
+            self._validate_config(effective)
+        except TabbitError:
+            effective = config
+        common = {
+            **config,
+            "saved_config": dict(config),
+            "applied_config": dict(effective),
+            "restart_required": restart_required,
+        }
+        if not effective["browser_enabled"]:
             return {
-                **config,
-                "restart_required": restart_required,
+                **common,
                 "status": "disabled",
                 "plugin_version": "0.3.4",
                 "browser_version": None,
                 "launcher_present": False,
                 "cli_available": False,
                 "online_instances": 0,
-                "selected_instance": config["instance_id"],
+                "selected_instance": effective["instance_id"],
                 "instances": [],
             }
         try:
@@ -179,11 +189,10 @@ class TabbitIntegration:
         selected_instance = (
             selected
             if isinstance(selected, str) and INSTANCE_PATTERN.fullmatch(selected)
-            else config["instance_id"]
+            else effective["instance_id"]
         )
         return {
-            **config,
-            "restart_required": restart_required,
+            **common,
             "status": remote_status,
             "plugin_version": remote.get("pluginVersion", "0.3.4"),
             "browser_version": remote.get("browserVersion"),

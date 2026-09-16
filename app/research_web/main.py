@@ -32,6 +32,7 @@ from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
+from .integrations.routes import router as integrations_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
 from .mcp_registry import RegistryError
@@ -124,6 +125,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             Store(ROOT),
             owned=False,
             expected_cwd=ROOT / "runtime" / "work",
+            auto_probe_on_start=True,
         )
         app.state.research = active
         await active.start()
@@ -140,6 +142,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(documentation_router)
     app.include_router(frameworks_router)
     app.include_router(local_integrations_router)
+    app.include_router(integrations_router)
     app.include_router(mcp_registry_router)
     app.include_router(mcp_runtime_router)
     app.include_router(automation_router)

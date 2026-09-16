@@ -15,7 +15,7 @@ Skill 提供能力库/我的 Skill，Tool 提供工具目录/MCP 市场/连接�
 “立即使用”仍调用既有选用逻辑并返回 FinGPT/Claw 草稿，不自动发送。编辑、版本、回滚和报告
 Workflow 管理继续进入原专用管理视图。
 
-DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；只有 `integration_completed && callable` 的来源才会让对应工具进入 Runtime 注册集合。配置变更后页面可以立即重新检测，但原生工具集合仍以研究服务重启时的快照为准。
+DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；15 个品牌无关工具始终进入 Runtime 注册集合，DataHub Broker 在每次调用时按最新状态动态选源。没有可调用来源时工具明确失败，配置或探测状态变化不要求重启 Runtime。
 
 当前目录包含 12 个内置 Skill 和 4 个内置 Workflow，其中并行接入的“因子库研究”继续使用
 统一连接中心提供的受控数据工具。2026-09-08 新增的五个专用研究 Skill 通过现有原生发现
@@ -84,7 +84,7 @@ Workflow 的“运行计划”由 `app/research_web/automation/` 提供通用 Au
 | GET `/capabilities/{id}/versions` | `{items:[{version,native_name,metadata,published_at,sha256,current}]}` |
 | GET `/capabilities/{id}/versions/{version}` | 原始指令、元数据、文件及步骤，`read_only:true` |
 | GET `/capabilities/{id}/versions/{version}/export` | ZIP：SKILL.md、capability.json、可选 workflow.json／method.json、资源 |
-| GET `/tools` | 23 项真实 guard/注册声明：8 项研究/控制工具和 15 项 `datahub_*` 业务数据工具；当前只有具备已适配 Provider 的数据 Tool 可选 |
+| GET `/tools` | 23 项真实 guard/注册声明：8 项研究/控制工具和 15 项常驻 `datahub_*` 业务数据工具；DataHub 在调用时按最新可用 Provider 选源 |
 | GET `/workflows` | 同一能力目录中四项种子及用户 Workflow；没有平行目录 |
 | GET / POST `/mcp/registries` | 列出或保存官方/私有 Registry 的非敏感配置；关闭功能开关时为 404 |
 | GET / PATCH / DELETE `/mcp/registries/{registry_id}` | 读取、修改或删除单个 Registry；秘密只通过凭据引用管理 |

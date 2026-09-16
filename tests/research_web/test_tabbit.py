@@ -89,6 +89,16 @@ async def test_tabbit_defaults_are_browser_on_fetch_off_and_status_is_safe(integ
         "browser_enabled": True,
         "web_fetch_enabled": False,
         "instance_id": None,
+        "saved_config": {
+            "browser_enabled": True,
+            "web_fetch_enabled": False,
+            "instance_id": None,
+        },
+        "applied_config": {
+            "browser_enabled": True,
+            "web_fetch_enabled": False,
+            "instance_id": None,
+        },
         "restart_required": False,
         "status": "ready",
         "plugin_version": "0.3.4",

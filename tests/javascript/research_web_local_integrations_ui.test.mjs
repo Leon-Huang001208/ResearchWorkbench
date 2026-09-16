@@ -130,8 +130,8 @@ test('local verification polling guard invalidates stale page and refresh work',
 });
 
 test('settings local section loads the dedicated model while data keeps DataHub connections', () => {
-  assert.deepEqual(settingsRefreshCatalogs('data'), ['connections']);
-  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit']);
+  assert.deepEqual(settingsRefreshCatalogs('data'), ['connections', 'integrations']);
+  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit', 'integrations']);
   const html = renderSettingsPage({
     route: parseRoute('#/settings/local'),
     hash: '#/settings/local',
@@ -167,6 +167,29 @@ test('dedicated API uses idempotency and local probe polling validates responses
   const result = await waitForLocalIntegrationProbe(async () => states.shift(), 'probe-1', { delay: 0 });
   assert.equal(result.status, 'completed');
   await assert.rejects(waitForLocalIntegrationProbe(async () => ({}), 'probe-2', { delay: 0 }), /响应格式异常/);
+});
+
+test('unified integration API starts and polls scoped probe batches', async () => {
+  const calls = [];
+  const api = createAPI({ fetcher: async (url, options = {}) => {
+    calls.push([url, options]);
+    return new Response(JSON.stringify({ id: 'batch-1', status: 'queued', items: [] }), { status: 202 });
+  }, logger() {} });
+  await api.integrations('local');
+  await api.startIntegrationProbeBatch('local', 'stable-integration-key');
+  await api.integrationProbeBatch('batch/one');
+  await api.setIntegrationConsent('data:wind', true);
+  assert.deepEqual(calls.map(([url]) => url), [
+    '/api/research/integrations/status?scope=local',
+    '/api/research/integrations/probe-batches',
+    '/api/research/integrations/probe-batches/batch%2Fone',
+    '/api/research/integrations/data%3Awind/auto-probe-consent',
+  ]);
+  assert.equal(calls[1][1].headers['Idempotency-Key'], 'stable-integration-key');
+  assert.equal(calls[1][1].headers['X-Research-User-Action'], '?1');
+  assert.equal(calls[1][1].body, JSON.stringify({ scope: 'local' }));
+  assert.equal(calls[3][1].headers['X-Research-User-Action'], '?1');
+  assert.equal(calls[3][1].body, JSON.stringify({ consent: true }));
 });
 
 test('dedicated API starts and polls allowlisted real verifications', async () => {
@@ -205,6 +228,14 @@ test('application controller no longer loads DataHub connections for the local p
   assert.match(app, /document\.scrollingElement/);
   assert.match(app, /scroller\.scrollTo\(\{ top: Math\.max\(0, top\), behavior \}\)/);
   assert.match(app, /prefers-reduced-motion: reduce/);
+  assert.match(app, /mergeIntegrationStatuses\(catalog\.connections, catalog\.integrations\)/);
+  assert.match(app, /data\.consentEnabled === 'true'/);
+  assert.match(app, /confirmAutoProbeConsent\(\(message\) => globalThis\.confirm\?\.\(message\), sourceLabel, nextConsent\)/);
+  assert.match(app, /api\.setIntegrationConsent\(`data:\$\{sourceId\}`/);
+  assert.match(app, /loadCatalog\(\['connections', 'integrations'\]\)/);
+  assert.doesNotMatch(app, /waitForIntegrationBatch[^\n]+maxAttempts:\s*80/);
+  assert.match(app, /completed\.status === 'completed_with_failures'/);
+  assert.match(app, /全量检测已完成，但部分项目失败/);
   assert.doesNotMatch(app, /scrollIntoView/);
   assert.doesNotMatch(app, /sourceId === 'local_cache'/);
 });
