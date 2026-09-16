@@ -17,6 +17,10 @@
   `node-gyp` 编译时找不到 runner 已安装的 Visual Studio 2022。隔离原生诊断显示：当前过滤环境和只恢复
   `PSModulePath` 均发现 0 个实例；恢复 PowerShell、Program Files、ProgramData 与 Common Program Files
   标准路径组后发现 1 个实例。因此第二个根因是安全环境允许列表遗漏了 Windows 原生工具链发现路径。
+- 第一轮环境 repair 让 `node-gyp` 找到并启动 MSBuild，但 MSBuild 的 `FileTracker` 因
+  `CommonApplicationData` 无根路径失败。MSBuild 源码将该值传给 `Path.GetPathRoot`；第二次隔离诊断逐项
+  恢复标准变量，只有 `SYSTEMDRIVE` 单独使路径恢复为 rooted。因此最终允许列表补入系统盘，而不是
+  放宽到完整宿主环境。
 
 ## 修复
 
@@ -33,6 +37,9 @@
   Runs 成功。
 - 隔离诊断 Run `35115008215`：过滤环境与只恢复 `PSModulePath` 均发现 0 个 Visual Studio 实例；
   恢复标准 Windows 工具链发现路径后发现 1 个实例并成功结束。
+- 第一轮环境 repair 的 Bootstrap Run `35116412706`：Visual Studio/MSBuild 已成功启动，随后
+  `FileTracker.InitializeCommonApplicationDataPaths` 因无根路径失败。诊断 Run `35117935767` 证明完整
+  宿主环境与只补 `SYSTEMDRIVE` 均能恢复 rooted 路径，其他逐项候选均不能。
 - 第二轮实现后的 `tests/research_web/test_setup_web.py`：22 passed。
 - Ruff、Black、isort 通过；目标源码 `mypy --follow-imports=skip` 通过。常规传递 mypy 仍命中仓库既有
   `core/observability`、MCP Runtime/Registry 的 16 个无关类型错误，本修复未扩大范围。

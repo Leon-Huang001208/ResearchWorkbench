@@ -38,8 +38,8 @@ Purpose:
   ownership marker.
 - Passes application secrets to neither pip nor Node/Git build commands. Git may retain the host's proxy settings;
   Corepack/Node keep only HTTP(S) proxy protocols, macOS discovers libc++ headers through `xcrun`, and Windows
-  retains only the standard system paths needed for `node-gyp` to discover an already installed Visual Studio C++
-  toolchain.
+  retains only the standard system paths needed for `node-gyp`/MSBuild to discover and run an already installed
+  Visual Studio C++ toolchain.
 
 Update this section when:
 

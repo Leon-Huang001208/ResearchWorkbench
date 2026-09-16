@@ -18547,7 +18547,7 @@ Functions:
 ## `scripts/setup_web.py`
 
 Module docstring:
-> Create, verify, and diagnose the cross-platform Research Workbench Web environment.
+> Create, verify, and diagnose an isolated cross-platform Research Workbench Web environment.
 
 Imports:
 - `__future__`
