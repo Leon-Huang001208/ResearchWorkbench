@@ -54,6 +54,7 @@ jobs:
         shell: pwsh
         run: |
           @'
+          import shutil
           from pathlib import Path
 
           from app.research_web import launch_runtime
@@ -73,7 +74,10 @@ jobs:
               / "home"
           )
           try:
-              count = launch_runtime.prepare_runtime_module_fallback(source, home, "node.exe")
+              node = shutil.which("node")
+              if node is None:
+                  raise RuntimeError("node_missing")
+              count = launch_runtime.prepare_runtime_module_fallback(source, home, node)
           except RuntimeError as exc:
               cause = exc.__cause__
               print(f"fallback_cause={type(cause).__name__}")
