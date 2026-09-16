@@ -151,3 +151,8 @@ receipt 对 packaged golden 与 comparison run actual 分别验摘要并做业�
 Tabbit 页面、正文 token 或浏览器证据，也不会扩大 claim、写审批、网络、文件或执行权限。catalog
 启动时对 enabled receipt 的重新审计及选择前复核也只会撤下不再可信的能力投影，不读取或改变
 Tabbit 的授权、claim、标签、正文 token 与浏览器 Runtime 状态。
+
+2026-09-16 新增的五个 Stage 4 CPU 量化研究 Skill（利率均线、股权风险溢价、风格轮动、平台突破、
+缠论确认分型与笔）仍只消费调用方提供的会话内 JSON，并复用既有 `research_run_script`、预算、
+不可变版本和 comparison receipt 门禁。它们不调用 Tabbit，不读取页面正文或浏览器证据，也不改变
+页面授权、claim、一次性 token、写操作审批或标签生命周期；真实对照证据不足时保持 disabled。

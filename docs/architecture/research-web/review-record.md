@@ -716,3 +716,6 @@
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage3已发布直接父脚本的精确摘要兼容只扩展既有一向迁移白名单；版本、receipt和原生投影状态机不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"七个Stage3计算器继续位于既有research_run_script沙箱；拓扑检环、逐层聚合、严格输入与64KiB输出只收紧内部计算边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage3行业计算器只接受预聚合输入，基金与组合计算器也不新增Provider binding或DataHub数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage4五个CPU研究Skill复用既有种子、不可变版本、disabled与v2 HMAC receipt门禁；仅增加包和声明式元数据。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Stage4计算器继续位于既有research_run_script沙箱，复用cpu_bounded_v1、相对JSON和64KiB输出边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage4仅声明现有业务工具意图，未核验联合字段映射保持callable=false，不新增Provider binding或数据流。","diagrams":[]} -->

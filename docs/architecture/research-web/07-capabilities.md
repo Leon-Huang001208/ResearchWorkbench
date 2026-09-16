@@ -50,6 +50,13 @@ Stage 3 的一向安全迁移只接受已列举的完整脚本 SHA-256，包括�
 有限数值与受检算术、安全相对 JSON loader、`cpu_bounded_v1` 工作量预算及完整 64 KiB 无换行输出
 均沿用现有边界，不新增 API、能力类型、执行器或宿主权限。
 
+五个 Stage 4 择时/技术结构 Skill 也复用该状态机：利率均线用前一持久信号计算滞后研究敞口，股权
+风险溢价使用 `1 / PE_TTM - bond_yield_pct / 100` 与滚动经验分位，风格轮动要求显式选择相对比值
+均线或相对强弱动量方法，平台突破只用当前 bar 之前的有限窗口，缠论只提供非递归确认分型与笔子集。
+它们不新增执行器、API 或 Provider 权限，clean catalog 中均 disabled；真实宿主 v2 HMAC comparison
+receipt 缺失时不产生原生投影。前三项工作簿仅只读核验且未执行公式；后两项来源不可用，provenance
+只记录未匹配前缀而不猜完整 SHA-256。
+
 能力工作区路由以 `kind=skill|tool|workflow|data` 切换四个主分区，以
 `view=library|mine|plans|connections` 切换类型内二级视图；无参数默认 `kind=skill`。
 Skill 与 Workflow 各自拥有能力库和“我的”视图，只有 Workflow 提供运行计划；Tool 的连接状态
@@ -160,13 +167,13 @@ Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次
 
 ## 验证边界
 
-包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`；六个 CPU calculator 的 golden、严格等价性/未来数据失败关闭、预算、独立进程时间与 peak RSS、静态扫描在 `tests/research_web/test_cpu_quant_skills_stage2.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 18 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
+包安全、生命周期、受理互斥、专用创建产物、资源哈希和原生 provider 测试位于 `tests/research_web/test_capabilities*.py`；研报校验、SVG 及沙箱降级在 `tests/research_web/test_sell_side_report_skill.py`；十八个 CPU calculator 的 golden、严格等价性/未来数据失败关闭、预算、独立进程时间与 peak RSS、静态扫描在 `tests/research_web/test_cpu_quant_skills_stage2.py`、`test_cpu_quant_skills_stage3.py` 与 `test_cpu_quant_skills_stage4.py`。能力中心卡片、详情、完整编辑表单、版本、脚本审查和专用创建入口分别在 `ui/capabilities.mjs`、`ui/capability-editor.mjs`、`ui/capability-controller.mjs`，全局/首页/输入选择共享同一目录。当前 UI 继续由目录数据动态生成，因此支持 30 个 Skill 无需新增产品 UI 分支；JavaScript 回归通过项目 Python 环境实例化真实 `CapabilityCatalog` 并调用 `list(kind="skill")`，再把结果交给页面函数核对数量、分类、搜索、详情和不存在路由卡片，并触发真实 `data-use-skill` 页面事件核对输入栏的已选选项与能力 chip。相对解释器 override 先按调用者 cwd 固定为绝对路径；找不到项目解释器时测试明确失败，不回退到手写目录。
 
 2026-09-03 实际对话产物经人工审查发布 `1ba298cc4b754aee9496b7d1c5c78bf7` v1，在新会话 `7ee7b736-673a-4aff-8006-73de6c10b600` 生成并下载 HTML，保存原生名称及编译哈希。手动导入 `528c5a3dd15849b0a7f29fbdf5441b01` 从不完整元数据草稿，经表单编辑、检查、v1、v2、停用、回滚v1、刷新、ZIP导出完成闭环。记录在 `.ai/reports/2026-09-03-research-ui-live.md`；失败首稿与原版本保留。
 
 Workflow 历史页面按研究记录的不可变版本读取预设步骤；请求失败显示缺失说明且允许显式刷新重试，不能永久缓存失败空步骤，也不能用当前目录替代旧版。恢复后只清除该版本读取错误，不隐藏其他运行错误。预设步骤不显示自动完成勾选。
 
-Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 18 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
+Claw 首页直接展示同一目录中的已启用 Workflow（含自建），FinGPT 首页保留四个通用 Skill 快捷入口；完整 30 个 Skill 在能力中心按目录动态展示。分类不发请求，卡片只打开详情或加入草稿。真实Workflow会话 `43170801-cfeb-4c89-914a-a6973dbb8c9a` 使用基金模板v1、两名原生子Agent和四份共享快照，生成DOCX/HTML/XLSX并实际下载、重开；初版Excel内容问题经模型生成v2并独立复算，旧文件未删除。
 
 ## 具体报告 Workflow
 

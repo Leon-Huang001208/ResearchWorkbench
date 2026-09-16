@@ -353,6 +353,99 @@ SKILL_SPECS = (
             {"name": "input_file", "label": "行业预聚合成交额", "type": "file", "required": True}
         ],
     },
+    {
+        "slug": "rate-ma-timing-research",
+        "name": "利率均线择时研究",
+        "description": "按显式均线、乖离阈值和前一日持久信号研究利率方向与滞后敞口；仅输出研究信号。",
+        "category": "量化研究",
+        "scenarios": ["利率均线择时研究"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_index_data",
+            "datahub_get_factor_macro",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "指数与利率日频序列", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "equity-risk-premium-timing",
+        "name": "股权风险溢价择时研究",
+        "description": "由显式 PE TTM 与债券收益率计算股权风险溢价和滚动经验分位；仅输出研究信号。",
+        "category": "量化研究",
+        "scenarios": ["股权风险溢价择时研究"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_index_data",
+            "datahub_get_factor_macro",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {
+                "name": "input_file",
+                "label": "指数估值与债券收益率序列",
+                "type": "file",
+                "required": True,
+            }
+        ],
+    },
+    {
+        "slug": "style-rotation-research",
+        "name": "风格轮动研究",
+        "description": "按显式二选一规则比较两个风格指数的相对比值或相对强弱动量；仅输出研究信号。",
+        "category": "量化研究",
+        "scenarios": ["双风格指数轮动研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_index_data"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {
+                "name": "input_file",
+                "label": "两个风格指数日频序列",
+                "type": "file",
+                "required": True,
+            }
+        ],
+    },
+    {
+        "slug": "platform-breakout",
+        "name": "平台突破研究",
+        "description": "对显式有限观察列表使用前置窗口阻力、支撑、触碰次数与收盘确认分类平台突破。",
+        "category": "量化研究",
+        "scenarios": ["有限观察列表平台突破研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_market_bars"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {
+                "name": "input_file",
+                "label": "有限观察列表前复权日线",
+                "type": "file",
+                "required": True,
+            }
+        ],
+    },
+    {
+        "slug": "chanlun",
+        "name": "缠论确认分型与笔研究",
+        "description": "对单一标的日线做非递归严格分型和交替笔扫描；仅实现确认分型与笔的受限研究子集。",
+        "category": "量化研究",
+        "scenarios": ["单标的确认分型与笔研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_market_bars"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "单标的前复权日线", "type": "file", "required": True}
+        ],
+    },
 )
 
 RECEIPT_GATED_SKILLS = frozenset(
@@ -370,6 +463,11 @@ RECEIPT_GATED_SKILLS = frozenset(
         "industry-prosperity",
         "industry-quadrant-monitor",
         "industry-crowding-monitor",
+        "rate-ma-timing-research",
+        "equity-risk-premium-timing",
+        "style-rotation-research",
+        "platform-breakout",
+        "chanlun",
     }
 )
 

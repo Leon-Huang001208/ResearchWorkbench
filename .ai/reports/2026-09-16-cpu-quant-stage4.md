@@ -1,0 +1,90 @@
+# CPU 量化 Skill Stage 4 实施报告
+
+日期：2026-09-16
+
+## 交付范围
+
+本阶段增加五个独立、CPU 有界、仅研究用途的内置 Skill：
+
+- `rate-ma-timing-research`
+- `equity-risk-premium-timing`
+- `style-rotation-research`
+- `platform-breakout`
+- `chanlun`
+
+每包包含 `SKILL.md`、独立 `scripts/calculate.py`、严格输入/输出 schema、字段映射、来源
+provenance、synthetic source artifact、fixture 与 golden result。五项复用 `cpu_bounded_v1`、安全相对
+JSON loader、有限数算术、64 KiB 完整输出、不可变版本与 v2 HMAC comparison receipt，不新增依赖、
+顶层 API、Workflow、执行器、Provider binding 或桌面路径。
+
+## 方法与失败边界
+
+- 利率均线：尾随均线与绝对乖离阈值只产生新研究信号；研究敞口使用前一持久信号，避免同日
+  前视。历史下限为 `window + 1`。
+- 股权风险溢价：固定 `1 / PE_TTM - bond_yield_pct / 100`，经验分位为窗口内小于等于当前值的比例；
+  PE 必须为正。
+- 风格轮动：调用方必须显式选择相对比值均线或相对强弱动量；未知方法返回 `ambiguous_rule`，
+  符号冲突保持 neutral。
+- 平台突破：仅处理显式有限观察列表，平台由当前 bar 之前的窗口估计；收盘越过 buffer 且阻力触碰
+  次数达标才确认。最多 50 标的、每标的 1,000 行、合计 50,000 行。
+- 缠论：只实现严格确认分型与非递归交替笔子集；相等平台、双重枢轴或过近反转返回
+  `ambiguous_structure`，不声称覆盖中枢、背驰等完整体系。
+
+所有结果包含 `sample_size`、`conditions`、`counterexamples`、`failure_conditions` 与 `data_cutoff`，
+并固定 `research_only=true`，不是交易、下单或个性化投资指令。
+
+## 来源与状态
+
+三份工作簿只做只读公式/缓存检查，未执行公式或宏，未提交原文件：
+
+- 利率均线：`d01ac5155c1ccd07a7b1d192b555b0a9f0d13e951c3ebe0d4199c85d22d1d028`
+- 风险溢价：`1abb2d15f810282ce3617246594de65c02636c57e8b510eff4184dc7044c7ed8`
+- 风格轮动：`9450f30aebb1271b05bc04d086f22676d1e793e22822c43b1a5f7bc3e7e6969a`
+
+对指定 Skill 来源树的 152 个文件计算完整 SHA-256 后，平台突破与缠论给定候选前缀均未匹配。
+两包 provenance 因而明确 `source_artifacts_available=false` / `source unavailable`，只记录未匹配候选
+前缀，不猜测完整摘要。五包 synthetic source artifact 均由 fixture、dataset ref、golden 和 provenance
+绑定实际 SHA-256。
+
+能力目录由 25 项更新为 30 项。五项均 `cpu_profile=true`、加入 `RECEIPT_GATED_SKILLS`，clean catalog
+中可发现但初始 disabled，不生成原生投影。普通 JSON、自证计算器和伪造签名均不能启用；合法
+receipt 只绑定当前不可变版本，发布 successor 后不复用。当前没有可核验的已发布 Stage 4 前身，
+所以不建立猜测性迁移 SHA-256 白名单，只验证旧目录新增种子时仍以 disabled 安装。
+
+## TDD 与验证证据
+
+TDD 记录：
+
+- 利率均线首个 golden 用例先 RED：`1 failed`（calculator 不存在），实现后 `1 passed`。
+- 其余四项 golden 先 RED：`4 failed, 1 passed`（calculator 不存在），实现后五项主路径 `5 passed`。
+- 扩展契约首轮暴露五个测试解析错误：`5 failed, 55 passed`；失败 stderr 按既有 Stage 3 约定包含
+  日志行和末行 JSON，测试改为解析末行后通过。
+- 注册/回执/压力门完成后 Stage 4 专项：`75 passed, 1 warning in 25.15s`。warning 仅为当前 pytest
+  配置中的未知 `asyncio_mode` 选项。
+- 格式化后 Stage 2 + Stage 3 + Stage 4 全量：`377 passed, 1 warning in 208.32s`。
+- 能力目录、准入、原生投影、审查、安全、CPU 预算和 sandbox 聚焦回归：
+  `180 passed, 3 skipped, 1 warning in 564.85s`。首次用禁用插件的命令运行时，除目录数量仍为旧断言
+  外，异步用例因 `pytest-asyncio` 未加载而不能执行；数量和新增名称断言同步后，改用正常插件环境
+  完整复验通过。
+- `scripts/check_doc_sync.py`、`scripts/check_task_completion.py`、52 项 Research Web architecture Node
+  测试和 `.agents/project-constraints.mjs` 均通过；新增 35 个 JSON 文件均可解析，`git diff --check`
+  及相关 Ruff、Black、isort 检查通过。
+
+近上限真实 sandbox 复测（父进程与子进程 RSS 合计）：
+
+| Skill | 输入行 | wall | peak RSS | 内联输出行 |
+| --- | ---: | ---: | ---: | ---: |
+| rate-ma-timing-research | 5,000 | 0.200s | 39.7 MiB | 128 |
+| equity-risk-premium-timing | 5,000 | 0.202s | 40.3 MiB | 128 |
+| style-rotation-research | 5,000 | 0.194s | 38.1 MiB | 128 |
+| platform-breakout | 50,000 | 0.343s | 75.0 MiB | 50 |
+| chanlun | 5,000 | 0.207s | 38.2 MiB | 0 |
+
+所有 sandbox 成功结果均 `<10s`、`<1 GiB peak RSS`、stdout/stderr 合计 `<=65,536 bytes`；压力成功
+只接受 supervisor `completed` 且业务 JSON 可解析，不把 error 当作压力成功。
+
+## 未验证项
+
+未调用真实 Wind、网络、GPU、Excel 或 VBA，未生成可用于启用的真实 comparison receipt，也未验证
+DataHub 联合字段映射与真实数据质量。三份工作簿只读核验不等于真实 Excel/Wind 对照；平台突破与
+缠论来源不可用。Web-only 变更不属于桌面交付，不能据此声称 Windows 或真实桌面集成已验证。

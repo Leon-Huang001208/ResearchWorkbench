@@ -5884,6 +5884,31 @@ Functions:
   - Expose only stable error codes and explicitly safe budget metadata.
 
 
+## `app/research_web/skills/chanlun/scripts/calculate.py`
+
+Module docstring:
+> Build deterministic confirmed fractals and strokes for one supplied series.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `itertools`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `calculate`
+- `main`
+
+
 ## `app/research_web/skills/company-research/scripts/workflow.py`
 
 Module docstring:
@@ -5997,6 +6022,30 @@ Functions:
 - `_day`
 - `_number`
 - `_distribution`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/equity-risk-premium-timing/scripts/calculate.py`
+
+Module docstring:
+> Research a supplied equity risk-premium series with rolling empirical ranks.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
 - `calculate`
 - `main`
 
@@ -6224,6 +6273,30 @@ Functions:
 - `main`
 
 
+## `app/research_web/skills/platform-breakout/scripts/calculate.py`
+
+Module docstring:
+> Classify prior-window platform breakouts for a bounded supplied watchlist.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `calculate`
+- `main`
+
+
 ## `app/research_web/skills/policy-sentinel/scripts/calculate.py`
 
 Module docstring:
@@ -6299,6 +6372,31 @@ Functions:
 - `main`
 
 
+## `app/research_web/skills/rate-ma-timing-research/scripts/calculate.py`
+
+Module docstring:
+> Research the lagged rate moving-average signal on one supplied daily series.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `_parameters`
+- `calculate`
+- `main`
+
+
 ## `app/research_web/skills/sell-side-report-reader/scripts/render_knowledge_graph.py`
 
 Module docstring:
@@ -6346,6 +6444,30 @@ Functions:
 - `_check_named_items`
 - `validate_digest`
   - Return deterministic validation evidence; never repair missing research.
+- `main`
+
+
+## `app/research_web/skills/style-rotation-research/scripts/calculate.py`
+
+Module docstring:
+> Compare two supplied style indices with one explicit deterministic rule.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `calculate`
 - `main`
 
 

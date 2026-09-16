@@ -77,8 +77,8 @@ Goldar V1 位于同一 Research Web Host 内：`frameworks/` 保存版本化黄�
 
 服务管理器的数据、状态和日志私有目录采用对应的平台判断：所有平台拒绝非目录、符号链接和 Windows 重解析点；仅 POSIX 依据 group/other mode 位拒绝宽松权限，Windows 不以该投影替代 ACL。
 
-能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 18 个内置 Skill 和 4 个
-Workflow；其中五个专用研究 Skill 与六个 CPU 有界资讯/事件 Skill 仍通过同一 DSH 原生发现、
+能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 30 个内置 Skill 和 4 个
+Workflow；其中五个专用研究 Skill 与十八个 CPU 有界 Skill 仍通过同一 DSH 原生发现、
 不可变版本和会话快照链执行，
 没有新增路由 Skill、API 类型或执行器。品牌中立证据协议以
 `app/research_web/skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制进每个
@@ -106,6 +106,11 @@ POSIX loader 从 cwd fd 逐组件 openat/no-follow，Windows 校验最终句柄�
 资源在种子构建时复制进不可变版本并参与哈希。
 Stage 3 的基金穿透对汇合 DAG 使用全图拓扑环检和按深度 DP 聚合；组合基准偏离强制同一 canonical
 `asset_id` 跨组合/基准的行业、因子、因子日、报告期和行业映射版本一致。
+Stage 4 在相同边界内增加利率均线、股权风险溢价、双风格轮动、有限观察列表平台突破和单标的
+确认分型/笔五个研究计算器。它们分别限制为 5,000 点单序列，或 50 标的 × 1,000 行显式观察列表；
+不扫描全市场、不递归枚举、不执行 Excel/公式，也不把研究信号解释为交易指令。三份只读核验工作簿
+记录完整 SHA-256；平台突破与缠论候选来源未匹配时明确 `source unavailable`，不猜测完整摘要。
+五项在真实宿主对照缺失时保持 disabled，普通 JSON、自证计算器和旧版本 receipt 均不能启用当前版本。
 
 历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
 

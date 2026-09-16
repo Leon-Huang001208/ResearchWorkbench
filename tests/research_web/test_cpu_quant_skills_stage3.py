@@ -277,7 +277,7 @@ def test_seven_stage3_packages_are_discoverable_disabled_and_receipt_gated(tmp_p
 
     catalog = CapabilityCatalog(tmp_path)
     rows = {row["id"]: row for row in catalog.list(kind="skill")["items"]}
-    assert len(rows) == 25
+    assert len(rows) == 30
     for slug in SLUGS:
         assert rows[slug]["source"] == "builtin"
         assert rows[slug]["status"] == "disabled"
