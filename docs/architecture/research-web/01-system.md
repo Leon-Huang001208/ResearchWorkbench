@@ -4,7 +4,8 @@
 `runtime/dsh/<commit>/` 版本目录；运行时仍是既有 3081 DSH 与 8088 FastAPI 两个受管进程。
 `rwb web doctor` 读取安装摘要与健康事实，不增加守护进程、端口或数据库。
 干净用户目录会先从固定 DSH 模板初始化 `web` Profile，再加入 Tabbit 层；Windows 服务归属使用
-CIM 命令行核对，停止使用 `taskkill /T`，POSIX 继续使用进程组并把僵尸状态视为已退出。
+CIM 核对 PID 与命令行，停止使用 `taskkill /T`，POSIX 继续使用进程组并把僵尸状态视为已退出。
+Profile fallback 在 POSIX 验证 symlink、在 Windows 验证 junction，目标都必须留在固定 DSH 源码。
 
 研究框架由同一 Research Web 服务内的薄注册表暴露 Gold 与 Dollar；目录、调度生命周期、快照存储和新鲜度协议共享，定义、契约、采集、评分、上下文与前端 renderer 保持领域专属。它不增加独立进程、数据库或资产详情服务，浏览器 GET 只读取已保存快照，不触发外网采集。
 

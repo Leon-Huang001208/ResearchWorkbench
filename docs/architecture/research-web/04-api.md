@@ -3,7 +3,8 @@
 本批没有新增 HTTP 路由。`rwb web doctor [--json]` 是本机 CLI 诊断，现有连接目录继续通过
 `GET /api/research/data/connections` 投影天软的依赖、配置、探测和可调用事实；响应仍不含凭据。
 全新 Profile 初始化、Windows Git 长路径和跨平台进程管理同样不新增 HTTP 路由；3081 健康通过后
-才启动既有 8088 API，启动失败不会暴露半就绪接口。
+才启动既有 8088 API，启动失败不会暴露半就绪接口。Windows junction 校验与 CIM PID 存活探测
+只修正启动/回收的本机实现，不改变任何请求或响应 schema。
 
 框架 API 固定登记 Gold 与 Dollar，并按 slug 返回版本化专用快照。解释与深度验证均要求客户端提交当前 `snapshot_revision`；版本漂移返回 409，跨框架会话返回 404，避免混合结论。详细字段与模式边界见 [研究框架](08-research-frameworks.md)。全局 `/artifacts` 只遍历未删除会话；显式查询软删除会话返回 410，恢复后重新可见。
 

@@ -212,6 +212,42 @@ def test_windows_command_line_probe_uses_cim_without_a_shell(manager, monkeypatc
     assert captured["options"]["shell"] is False
 
 
+def test_windows_pid_exists_uses_cim_without_os_kill(manager, monkeypatch):
+    captured = {}
+
+    class Result:
+        returncode = 0
+        stdout = "present\n"
+
+    def run(command, **options):
+        captured.update(command=command, options=options)
+        return Result()
+
+    monkeypatch.setattr(service_manager_module.subprocess, "run", run)
+    monkeypatch.setattr(
+        service_manager_module.os,
+        "kill",
+        lambda *_args: pytest.fail("Windows PID checks must not call os.kill"),
+    )
+
+    assert manager._pid_exists(4321, platform_name="nt") is True
+    assert captured["command"][:4] == [
+        "powershell.exe",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+    ]
+    assert "4321" in captured["command"][4]
+    assert captured["options"]["shell"] is False
+
+    Result.stdout = "absent\n"
+    assert manager._pid_exists(4321, platform_name="nt") is False
+
+    Result.returncode = 2
+    Result.stdout = ""
+    assert manager._pid_exists(4321, platform_name="nt") is True
+
+
 def test_windows_process_tree_termination_uses_taskkill(manager, monkeypatch):
     captured = []
 

@@ -16,7 +16,9 @@ LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Cla
 Web 分发由 `scripts/setup_web.py` 统一管理：checkout 内 `.venv` 消费带哈希的 Python 3.12 Web 锁，
 根包以无依赖模式装入，CJPY 0.5.2 从随包闭合清单安装；固定 DSH 提交在用户私有版本目录构建并
 核对闭包。`rwb web doctor` 只输出安全版本/摘要/健康事实。原生 macOS/Windows 的干净安装 CI 是
-以后每次产品迭代的 Web 交付门禁，不引入数据库或桌面生命周期。
+以后每次产品迭代的 Web 交付门禁，不引入数据库或桌面生命周期。固定 DSH 的 Profile fallback 在
+POSIX 校验 symlink、在 Windows 校验 junction，并要求目标始终位于固定源码；服务 PID 存活与归属在
+Windows 使用 CIM，在 POSIX 使用原生信号/进程状态。
 
 Phase 2B 在同一 Research Web Host 内增加 `app/research_web/mcp_runtime/`。官方 Python SDK
 负责 Streamable HTTP / stdio、工具、资源、提示和 OAuth 客户端协议；Research Web 仍独占安装清单、

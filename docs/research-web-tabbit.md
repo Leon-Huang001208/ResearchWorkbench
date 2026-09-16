@@ -4,7 +4,8 @@ Web 一键安装固定 Node 支持范围与同一个 DSH 提交/构建闭包，�
 其 Profile、实时 claim、一次性正文 token、只读声明或写操作审批。Doctor 只报告 Runtime/端口
 健康，不读取标签标题、URL、Cookie 或正文。
 空白 Runtime Home 会先由固定 DSH 模板创建 `profiles/web/package.json`，随后才追加经清单校验的
-`dsh-tabbit` 与适配器；开发机残留 Profile 不再是首次安装前提。
+`dsh-tabbit` 与适配器；开发机残留 Profile 不再是首次安装前提。Profile 模块映射在 POSIX 校验
+symlink、在 Windows 校验 junction，并拒绝任何越出固定 DSH 源码的目标；这不改变 Tabbit 授权或正文边界。
 
 Goldar 框架解释与深度验证沿用同一个专属 DSH，但其 `framework-explain` / `framework-verify` 预设不装配 Tabbit；框架 Bot 不读取用户浏览器标签，也不改变本页 claim、授权和正文生命周期。
 

@@ -60,6 +60,33 @@ def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monke
     assert (home / "profiles/web/package.json").is_file()
 
 
+def test_runtime_module_fallback_accepts_a_windows_junction_inside_private_source(
+    tmp_path, monkeypatch
+):
+    source = make_source(tmp_path)
+    home = tmp_path / "home"
+    target = source / "packages/example"
+    target.mkdir(parents=True)
+    junction = home / "profiles/node_modules/dsh-example"
+
+    def run(*_args, **_kwargs):
+        junction.mkdir(parents=True)
+        return SimpleNamespace(returncode=0)
+
+    original_resolve = Path.resolve
+
+    def resolve(path, *args, **kwargs):
+        if path == junction:
+            return target
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(launch_runtime.subprocess, "run", run)
+    monkeypatch.setattr(Path, "is_junction", lambda path: path == junction)
+    monkeypatch.setattr(Path, "resolve", resolve)
+
+    assert launch_runtime.prepare_runtime_module_fallback(source, home, "/node") == 1
+
+
 def test_runtime_module_fallback_rejects_external_target(tmp_path, monkeypatch):
     source = make_source(tmp_path)
     home = tmp_path / "home"

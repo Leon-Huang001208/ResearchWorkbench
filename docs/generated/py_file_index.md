@@ -4526,7 +4526,7 @@ Functions:
 ## `app/research_web/launch_runtime.py`
 
 Module docstring:
-> Launch only an owned DSH instance with a fixed build and clean environment.
+> Launch only an owned cross-platform DSH instance with a fixed, validated build.
 
 Imports:
 - `argparse`
@@ -6169,7 +6169,7 @@ Functions:
 ## `app/research_web/service_manager.py`
 
 Module docstring:
-> Persistent, project-owned process manager for the Research Workbench Web stack.
+> Persistent, cross-platform process manager for the project-owned Web stack.
 
 Imports:
 - `__future__`

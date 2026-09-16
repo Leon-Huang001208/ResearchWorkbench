@@ -27,6 +27,9 @@
 - Windows Node 构建环境允许列表补入标准 PowerShell/Program Files/系统盘工具链路径，使 `node-gyp`
   能定位、且 MSBuild 能运行已安装的 Visual Studio 2022 C++ Build Tools；应用密钥仍不会进入安装
   子进程。安装文档同步说明固定 DSH 的 `fs-ext` 在 Windows 上需要该系统工具链。
+- Windows Runtime Profile 后置校验将 DSH 创建的 junction 与 POSIX symlink 同等视为候选，但仍要求
+  严格目标位于固定源码；服务 PID 存活检查在 Windows 改用 CIM，避免 `os.kill(pid, 0)` 的
+  `WinError 87` 掩盖真实启动错误。
 - 新增 `rwb web doctor [--json]`、Windows `rwb.cmd`、安全安装清单和原生 macOS/Windows 干净
   checkout 安装 CI。项目规则要求以后每次 Web 迭代持续维护锁、安装器、Doctor、文档和一键流程。
 

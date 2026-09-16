@@ -3,7 +3,8 @@
 一键安装固定 DSH 来源、提交、pnpm 与构建闭包，但不改变消息受理、双 WebSocket、SSE、恢复、
 审批或取消协议。安装失败不会启动候选 Runtime，也不会接管当前 3081/8088。
 首次启动会在任何 Tabbit/Profile 变更前由固定 DSH 模板创建 `web` Profile；Windows 用 CIM 核对
-PID 命令行并按受管进程树停止，POSIX 仍按进程组停止。这些平台分支不改变 Runtime 协议。
+PID 命令行并按受管进程树停止，POSIX 仍按进程组停止。模块 fallback 的 Windows junction 与
+POSIX symlink 均须严格解析回固定源码。这些平台分支不改变 Runtime 协议。
 
 Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
 

@@ -82,7 +82,8 @@
 |---|---|
 | `app/research_web/main.py` | FastAPI、产品边界与现有会话路由 |
 | `app/research_web/service.py` / `client.py` | DSH协议适配、原生历史与SSE状态 |
-| `app/research_web/service_manager.py` | 3081/8088 跨平台进程归属、健康状态、进程树停止与安全化 Web Doctor |
+| `app/research_web/launch_runtime.py` | 固定 DSH/Tabbit/研究工具启动、构建闭包及 POSIX symlink/Windows junction 的 Profile fallback 边界 |
+| `app/research_web/service_manager.py` | 3081/8088 跨平台进程归属、Windows CIM/POSIX 存活检查、进程树停止与安全化 Web Doctor |
 | `app/research_web/tabbit.py` / `runtime/tabbit-adapter.mjs` | Tabbit 配置、会话授权、实时 claim 和一次性内存上下文 |
 | `app/research_web/ui/` | 原生JS产品壳、FinGPT/Claw、输入框、能力目录/编辑器 |
 | `app/research_web/capabilities/` | 30 个内置 Skill/4 个 Workflow 的声明、检查、不可变版本与只读 Tool 目录 |

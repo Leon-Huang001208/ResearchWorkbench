@@ -21,6 +21,11 @@
   `CommonApplicationData` 无根路径失败。MSBuild 源码将该值传给 `Path.GetPathRoot`；第二次隔离诊断逐项
   恢复标准变量，只有 `SYSTEMDRIVE` 单独使路径恢复为 rooted。因此最终允许列表补入系统盘，而不是
   放宽到完整宿主环境。
+- Bootstrap Run `35119476907` 首次完成 Windows 全量安装与原生 DSH 构建，随后 Runtime 3081 启动
+  超时，清理又被 Windows `os.kill(pid, 0)` 的 `WinError 87` 掩盖。隔离诊断 Run `35124847609`
+  直接调用 Profile fallback，Node 子进程返回成功，但 Python 后置校验报告“模块目录为空”；固定 DSH
+  源码明确在 Windows 用 `symlinkSync(..., 'junction')`。因此第三个根因是后置校验只识别 symlink，
+  而非构建或环境失败。
 
 ## 修复
 
@@ -28,6 +33,8 @@
 - 三个操作统一启用长路径并固定换行语义；Windows 额外统一使用 `core.symlinks=false`。
 - 校验仍使用 `--untracked-files=no` 并拒绝其他已跟踪修改；不修改机器级 Git 配置。
 - Windows Node 构建只额外继承标准系统工具链路径，仍过滤 `CJ_KEY`、模型密钥和其他应用环境变量。
+- Profile fallback 同时识别 symlink 与 junction，再对每个严格解析目标执行固定源码目录包含检查；
+  Windows PID 存活检查改用无 shell CIM，探测失败按“仍存活”关闭失败。
 
 ## 验证
 
@@ -41,6 +48,8 @@
   `FileTracker.InitializeCommonApplicationDataPaths` 因无根路径失败。诊断 Run `35117935767` 证明完整
   宿主环境与只补 `SYSTEMDRIVE` 均能恢复 rooted 路径，其他逐项候选均不能。
 - 第二轮实现后的 `tests/research_web/test_setup_web.py`：22 passed。
+- Junction/PID 生命周期修复后的安装器、Runtime 启动与服务管理回归：77 passed；其中 junction 与
+  Windows CIM 两项测试都先观察到目标失败，再由最窄实现转绿。
 - Ruff、Black、isort 通过；目标源码 `mypy --follow-imports=skip` 通过。常规传递 mypy 仍命中仓库既有
   `core/observability`、MCP Runtime/Registry 的 16 个无关类型错误，本修复未扩大范围。
 - 文档同步与项目约束：0 violations；Research Web 架构门禁：52 passed。

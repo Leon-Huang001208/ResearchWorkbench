@@ -14,7 +14,8 @@ service manager uses native Windows process inspection/termination instead of PO
 operations additionally share `core.symlinks=false` semantics for the pinned repository's Git symlinks.
 Windows Node builds retain only standard PowerShell/Program Files/system-drive discovery paths so `node-gyp` and
 MSBuild can use the preinstalled Visual Studio C++ toolchain without exposing application secrets.
-`app/research_web/service_manager.py` owns the path-free
+Runtime profile fallback validation accepts POSIX symlinks and Windows junctions only when their strict targets stay
+inside the pinned DSH source. `app/research_web/service_manager.py` owns the path-free
 `rwb web doctor` result.
 Every later Web iteration must keep `.github/workflows/research-web-bootstrap.yml` green on clean native macOS
 and Windows runners; see [the installation contract](research-web-installation.md).
@@ -122,7 +123,7 @@ DataHub catalog, brand-neutral business tools, broker, Provider, probe and snaps
 
 `app/research_web/datahub/security.py` keeps descriptor-relative, no-follow IO on POSIX and a Windows-only path fallback for private control files, receipts and immutable snapshots. The fallback validates canonical containment, reparse points, regular-file identity, hard-link count and size, and closes file handles before atomic replacement. `client.py` applies the same Windows identity boundary to the DSH auth record; `store.py` applies it to downloads and restores owner-write permission only inside product-owned trees during purge. Native `windows-2022` CI must start the full loopback service before local-integration support is considered verified.
 `app/research_web/runtime_auth.py` is the shared DSH authentication-record reader for `client.py` and `service_manager.py`. It bounds content, rejects aliases and identity replacement on every platform, applies POSIX mode checks only on POSIX, and is exercised by the same native Windows service smoke test.
-`app/research_web/service_manager.py` applies the same platform distinction to its private data, state and log directories: type, symlink and Windows reparse checks remain universal, while group/other mode checks remain POSIX-only.
+`app/research_web/service_manager.py` applies the same platform distinction to its private data, state and log directories: type, symlink and Windows reparse checks remain universal, while group/other mode checks remain POSIX-only. PID liveness and command ownership use CIM on Windows; `os.kill(pid, 0)` remains POSIX-only.
 
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
 `app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill、五个专用 Skill、一个框架核验 Skill

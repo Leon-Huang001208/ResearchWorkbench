@@ -1,5 +1,16 @@
 # 架构迭代核对记录
 
+## 2026-09-17 — Windows Web Bootstrap Runtime 生命周期收口
+
+- 固定 DSH 的 Profile fallback 后置校验在 Windows 接受 Node 创建的 junction、在 POSIX 接受
+  symlink，并继续逐项严格解析到固定源码目录；未新增模块、进程、端口、API 或持久化类别。
+- 服务管理器的 PID 存活检查在 Windows 使用无 shell CIM，归属命令仍由 CIM 复核，终止仍用
+  `taskkill /T`；POSIX 信号、僵尸判断与进程组语义不变。
+- 本批只修复既有 3081/8088 启动与失败回收的跨平台实现，十张架构图拓扑无需重生成。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"仅修复既有Service Manager的Windows PID存活探测与失败回收；8088路由、状态文件、认证和响应契约不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"仅让既有Profile fallback后置校验识别Windows junction并继续执行固定源码包含检查；3081节点、命令、Profile和工具装配拓扑不变。","diagrams":[]} -->
+
 ## 2026-09-16 — 现有 DataHub Provider 真实闭环补强
 
 - AKShare 探针改为固定域名、禁用环境代理/重定向、限制 16 KiB 且受 10 秒总墙钟约束的可取消异步交易日历请求，并与查询共享容量门闩。

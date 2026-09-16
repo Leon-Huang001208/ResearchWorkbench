@@ -7,7 +7,8 @@ DSH clone、checkout 与干净工作树校验都只对当前子命令应用同�
 配置，不修改机器级 Git 配置；Windows 进程检查与 `taskkill` 均以参数数组且 `shell=false` 调用，
 并在终止前复核受管命令签名。Windows Node 构建的允许列表只额外保留 PowerShell 模块、标准系统程序
 目录与系统盘发现路径，供 `node-gyp`/MSBuild 使用已安装的 Visual Studio C++ 工具链；不传应用密钥
-或任意环境变量。
+或任意环境变量。DSH Profile fallback 的 POSIX symlink 与 Windows junction 都必须严格解析回固定
+源码目录；Windows PID 存活检查使用无 shell 的 CIM 参数数组，不调用语义不兼容的 `os.kill(pid, 0)`。
 
 Gold 与 Dollar 快照在路径解析前拒绝任一现存符号链接组件，限制为 2 MiB，使用各自严格 schema 和内容 revision，并同目录原子替换。旧 Gold V1 结构先保留为 `snapshot.legacy-v1.json`；已存在备份时拒绝覆盖。生产浏览器不导入测试 fixture，来源失败不得伪装成实时成功。Bot 上下文另设 80,000 字符上限，默认解释预设不暴露工具。
 
@@ -32,7 +33,7 @@ Gold 与 Dollar 快照在路径解析前拒绝任一现存符号链接组件，�
 | 本机诊断 → 宿主 | 发现只读取标准位置/注册项/模块；真实验证须显式触发并限制目标、Office 容器内确定名称的临时文件、独立进程组和超时；Excel 使用本轮独立实例，PowerPoint 保存后按随机文件名重新绑定本轮对象，Wind 复用已登录 Excel 但只操作独占空白工作簿，且只上报验证器真正拥有的进程供精确清理；投影排除绝对路径、秘密、命令与环境变量 | `local_integrations/`、`report_workflows/workbook.py` / `test_local_integrations.py`、`test_report_workflows.py` |
 | 浏览器 → 集成写操作 | 仅接受精确同源 `Origin` 和显式用户动作头；探测与授权快照只保存白名单状态字段，原子文件权限为当前用户。该边界不抵御同源 XSS 或能伪造本机 HTTP 请求的同用户进程 | `integrations/` / `test_integration_coordinator.py`、设置页 JS 回归 |
 | FastAPI → DSH | 固定回环 RPC、共享有界认证控制读取、文件身份/别名检查、方法白名单、双事件通道 | `runtime_auth.py`、`client.py` / `test_runtime_auth.py`、`test_protocol.py`、`test_event_recovery.py` |
-| 服务管理 → 私有目录 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL | `service_manager.py` / `test_service_manager.py` |
+| 服务管理 → 私有目录/进程 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL。Windows 用 CIM 核对 PID/命令并用 `taskkill /T` 清理，POSIX 使用信号与 `ps` 状态 | `service_manager.py` / `test_service_manager.py` |
 | 用户 → 会话文件 | 会话归属、规范路径、安全文件描述符、有限上传体积和类型 | `store.py`、`main.py` / `test_store.py`、`test_artifacts.py` |
 | DSH → 工具 | 精确注册工具集合，子 Agent 深度、并发和步骤限制 | `runtime/guard.mjs` / `research_web_guard.test.mjs` |
 | 会话 → Tabbit 标签页 | 当前 Runtime 生命周期内的会话授权；发送前按所选实例实时重验可 claim 的 HTTP(S) 标签；正文仅进入绑定会话、单次消费、10 分钟过期的 DSH 内存 token | `tabbit.py`、`runtime/tabbit-adapter.mjs` / `test_tabbit.py`、`research_web_tabbit_adapter.test.mjs` |

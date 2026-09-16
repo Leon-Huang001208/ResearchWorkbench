@@ -1,4 +1,4 @@
-"""Launch only an owned DSH instance with a fixed build and clean environment."""
+"""Launch only an owned cross-platform DSH instance with a fixed, validated build."""
 
 import argparse
 import hashlib
@@ -456,10 +456,12 @@ await runtime.healProfilesModuleFallback({ installAnchor: anchor, profile });
     links: list[Path] = []
     if modules.is_dir():
         for item in modules.iterdir():
-            if item.is_symlink():
+            if item.is_symlink() or item.is_junction():
                 links.append(item)
             elif item.is_dir() and item.name.startswith("@"):
-                links.extend(child for child in item.iterdir() if child.is_symlink())
+                links.extend(
+                    child for child in item.iterdir() if child.is_symlink() or child.is_junction()
+                )
     if not links:
         raise RuntimeError("DSH profile 模块目录为空")
     for link in links:
