@@ -441,7 +441,7 @@ def test_native_tool_serializes_four_calls_fifo_and_logs_queue_outcomes(prepared
         "import { readFileSync } from 'node:fs';\n"
         f"const config={config_json}; const cwd={json.dumps(str(session))};" + """
 let tool; const logs=[];
-apply({tools:{register(t){tool=t;}},logger:{info(...v){logs.push(v.join(' '));},warn(){},error(){}}},config);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(...v){logs.push(v.join(' '));},warn(){},error(){}}},config);
 const execution=[0,1,2,3].map(i=>tool.execute({code:`from pathlib import Path
 import time
 p=Path('outputs/order.log')
@@ -485,7 +485,7 @@ def test_native_tool_removes_cancelled_waiter_and_times_out_busy_waiter(prepared
         "import { setTimeout as pause } from 'node:timers/promises';\n"
         f"const config={config_json}; const cwd={json.dumps(str(session))};" + """
 let tool;
-apply({tools:{register(t){tool=t;}},logger:{info(){},warn(){},error(){}}},config);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config);
 const first=tool.execute({code:"from pathlib import Path; import time; Path('outputs/active').write_text('yes'); time.sleep(0.35)"},{agent:{session:{header:{id:'first',cwd}}},signal:new AbortController().signal});
 const started=Date.now()+3000;
 while(!existsSync(cwd+'/outputs/active')) { if(Date.now()>started) throw Error('first call did not start'); await pause(10); }
@@ -539,7 +539,7 @@ function spawnProcess(){
   if(children.length>1) setTimeout(()=>{child.stdout.end(JSON.stringify({status:'completed',stdout:'ok',stderr:'',exit_code:0,error:null}));child.emit('close',0);},5);
   return child;
 }
-apply({tools:{register(t){tool=t;}},spawnProcess,logger:{info(){},warn(){},error(){}}},config);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},spawnProcess,logger:{info(){},warn(){},error(){}}},config);
 const controller=new AbortController();
 const first=tool.execute({code:'print(1)'},{agent:{session:{header:{id:'first',cwd}}},signal:controller.signal}).then(value=>({value}),error=>({error}));
 await pause(5); controller.abort();
@@ -592,7 +592,7 @@ function spawnProcess(){
   children.push(child);
   return child;
 }
-apply({tools:{register(t){tool=t;}},spawnProcess,logger:{info(){},warn(){},error(){}}},config);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},spawnProcess,logger:{info(){},warn(){},error(){}}},config);
 const controller=new AbortController();
 const first=tool.execute({code:'print(1)'},{agent:{session:{header:{id:'first',cwd}}},signal:controller.signal}).then(value=>({value}),error=>({error}));
 await pause(5); controller.abort();
