@@ -25,6 +25,10 @@
 - 三份参考工作簿只读核验完整 SHA-256，未执行公式或宏；平台突破与缠论候选来源未匹配时明确记录
   `source unavailable` 和候选前缀，不猜测完整摘要。DataHub 联合字段映射尚未核验，保持
   `callable=false`。当前无可核验的已发布 Stage 4 前身，故不建立猜测性迁移白名单；receipt 不跨版本复用。
+- 质量复审要求 comparison evidence 的 synthetic/actual input 路径与内容摘要都独立；复制 synthetic
+  到不同路径并重新签名仍失败关闭，Stage 2/3/4 合法 receipt fixture 改用内容真实不同但业务可比的
+  actual input。缠论结果新增顶层必填 `asset_id`，由唯一记录身份原样派生；全量改名会改变结果身份，
+  混合标的继续返回 `data_not_equivalent`。
 
 ### 七个 CPU 有界基金/组合/行业 Skill · 2026-09-15
 

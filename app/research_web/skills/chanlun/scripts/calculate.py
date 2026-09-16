@@ -201,6 +201,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "method_version": METHOD_VERSION,
         "compute_profile": "cpu_bounded_v1",
         "as_of": as_of,
+        "asset_id": asset_id,
         "parameters": parameters,
         "dataset_refs": refs,
         "status": "partial" if source_limitations or not strokes else "complete",

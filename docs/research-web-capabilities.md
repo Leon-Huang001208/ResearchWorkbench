@@ -53,6 +53,11 @@ openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性�
 换行，因此恰好 65,536 字节仍可完整通过 sandbox 门。无法表达时返回完整
 小型 `workload_too_large`/`reduce_scope`，`row_delivery` 不再重复顶层 refs，也不依赖 sandbox 截断。
 
+synthetic input 与 actual input 不仅路径必须不同，读取后的 SHA-256 也必须不同；复制 synthetic 到
+另一文件并重新签名仍按无效 evidence 拒绝。Stage 3/4 合法回执测试分别使用提交 source artifact
+与业务等价的完整 actual input，避免只靠格式或路径制造“独立”证据。Stage 4 缠论结果顶层必填
+回传所有记录共同的 `asset_id`，记录身份全部改变时结果身份同步改变，混合身份仍拒绝。
+
 七个 Stage 3 Skill（基金匹配、基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控、
 行业拥挤度监控）复用同一 `cpu_bounded_v1` 与 comparison receipt verifier。它们在 fresh catalog
 中可发现但全部 disabled，不进入原生 provider candidates；真实 Wind/Excel comparison evidence

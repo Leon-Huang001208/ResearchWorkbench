@@ -736,3 +736,14 @@
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage4 series identity/version/tenor、独立golden与来源描述修正只收紧既有不可变能力包契约，不新增能力类型、API或状态。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Stage4身份等价性和缠论歧义结构检查继续运行在既有research_run_script沙箱内，不新增执行节点、网络或文件权限。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage4 provider-aware身份契约只允许field mapping已核验生产白名单；当前Wind/DataHub白名单为空且继续callable=false。","diagrams":[]} -->
+
+## 2026-09-16 — CPU Skill 阶段 4 质量复审修正
+
+- catalog 在读取 synthetic/actual input 后强制 SHA-256 不同；路径不同但内容完全相同的已签名 evidence
+  仍按无效证据失败关闭。Stage 2/3/4 合法 receipt 测试使用内容真实不同但业务可比的 actual input，
+  golden/actual 输出继续按既有数值容差和非数值严格等价比较。
+- 缠论结果 schema 与 golden 新增顶层必填 `asset_id`，来源固定为所有输入记录共同的已验证身份；
+  全量记录改名会改变结果身份，混合标的仍返回 `data_not_equivalent`。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"comparison input内容独立性只收紧既有artifact v2验证器，不新增API、receipt字段、状态或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"缠论顶层asset_id由既有单标的校验结果派生，仍在同一research_run_script沙箱与输出envelope内。","diagrams":[]} -->

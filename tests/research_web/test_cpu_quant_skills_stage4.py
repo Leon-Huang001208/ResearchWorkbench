@@ -236,6 +236,27 @@ def test_chanlun_builds_deterministic_non_recursive_confirmed_strokes():
     assert actual["metrics"]["latest_research_signal"] == "confirmed_up_swing"
 
 
+def test_chanlun_returns_unique_asset_identity_and_rejects_mixed_assets():
+    module = load_calculator("chanlun")
+    base = load_json("chanlun", "input.json")
+
+    original = module.calculate(copy.deepcopy(base), input_bytes=1024)
+    renamed = copy.deepcopy(base)
+    for record in renamed["records"]:
+        record["asset_id"] = "RENAMED.SH"
+    renamed_result = module.calculate(renamed, input_bytes=1024)
+
+    assert original["asset_id"] == "TEST.SH"
+    assert renamed_result["asset_id"] == "RENAMED.SH"
+    assert renamed_result["asset_id"] != original["asset_id"]
+
+    mixed = copy.deepcopy(base)
+    mixed["records"][-1]["asset_id"] = "OTHER.SH"
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(mixed, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
+
+
 @pytest.mark.parametrize("slug", SLUGS)
 def test_stage4_packages_have_strict_valid_schemas_goldens_and_provenance(slug):
     folder = SKILLS_ROOT / slug
@@ -816,7 +837,16 @@ def _write_comparison_evidence(tmp_path: Path, catalog: CapabilityCatalog, slug:
     shutil.copy2(SKILLS_ROOT / slug / "fixtures/golden-result.json", expected)
     shutil.copy2(expected, actual)
     shutil.copy2(SKILLS_ROOT / slug / "fixtures/source-artifact.json", synthetic_input)
-    shutil.copy2(synthetic_input, actual_input)
+    shutil.copy2(SKILLS_ROOT / slug / "fixtures/input.json", actual_input)
+    synthetic_payload = json.loads(synthetic_input.read_bytes())
+    actual_payload = json.loads(actual_input.read_bytes())
+    synthetic_digest = hashlib.sha256(synthetic_input.read_bytes()).hexdigest()
+    assert actual_payload["records"] == synthetic_payload["records"]
+    assert synthetic_digest in actual_payload["source_hashes"].values()
+    assert synthetic_digest in {
+        dataset_ref["sha256"] for dataset_ref in actual_payload["dataset_refs"]
+    }
+    assert actual_input.read_bytes() != synthetic_input.read_bytes()
     output = json.loads(actual.read_text(encoding="utf-8"))
     evidence = {
         "schema_version": 2,

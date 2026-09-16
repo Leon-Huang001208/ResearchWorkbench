@@ -579,6 +579,8 @@ class CapabilityCatalog:
             )
             if value["synthetic_input"]["path"] == value["actual_input"]["path"]:
                 raise CapabilityError("对照输入未分离", failure_code, 422)
+            if synthetic_input_digest == actual_input_digest:
+                raise CapabilityError("对照输入内容未独立", failure_code, 422)
             golden_digest, golden_result = self._verified_result_digest(
                 artifact.parent, value.get("golden_result"), packaged_golden
             )

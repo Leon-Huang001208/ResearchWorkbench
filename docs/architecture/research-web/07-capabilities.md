@@ -36,6 +36,10 @@ HMAC/证据不可复核或登记器密钥缺失时撤下投影并持久化 disab
 UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字节仍允许；超限返回小型完整错误，
 `row_delivery` 不复制顶层 refs。
 
+对照输入独立性同时检查路径和读取后的 SHA-256；actual input 即使使用不同路径，只要内容与提交的
+synthetic input 完全相同，也不能生成或复验 receipt。Stage 4 的缠论结果另以顶层必填 `asset_id`
+绑定本轮唯一记录身份，混合标的继续失败关闭。两项变更不增加公共 API、状态类型或执行器。
+
 七个 Stage 3 基金/组合/行业 Skill 复用上述版本、sandbox 和 receipt 状态机，在 fresh catalog 中可
 发现但全部 disabled；只有可重算且绑定当前不可变版本的 macOS Wind/Excel comparison evidence
 artifact 且通过宿主签名验证才能启用或回滚到 enabled；普通 JSON 和 sandbox 内计算器无法自签。

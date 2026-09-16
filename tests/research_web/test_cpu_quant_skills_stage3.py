@@ -312,10 +312,16 @@ def _write_comparison_evidence(tmp_path: Path, catalog: CapabilityCatalog, slug:
     synthetic_input = evidence_dir / "synthetic-input.json"
     actual_input = evidence_dir / "wind-excel-actual-input.json"
     shutil.copy2(source_artifact, synthetic_input)
-    actual_input.write_text(
-        json.dumps(json.loads(source_artifact.read_text(encoding="utf-8")), indent=2),
-        encoding="utf-8",
-    )
+    shutil.copy2(SKILLS_ROOT / slug / "fixtures/input.json", actual_input)
+    synthetic_payload = json.loads(synthetic_input.read_bytes())
+    actual_payload = json.loads(actual_input.read_bytes())
+    synthetic_digest = hashlib.sha256(synthetic_input.read_bytes()).hexdigest()
+    assert actual_payload["records"] == synthetic_payload["records"]
+    assert synthetic_digest in actual_payload["source_hashes"].values()
+    assert synthetic_digest in {
+        dataset_ref["sha256"] for dataset_ref in actual_payload["dataset_refs"]
+    }
+    assert actual_input.read_bytes() != synthetic_input.read_bytes()
     actual.write_text(
         json.dumps(json.loads(expected.read_text(encoding="utf-8")), indent=2),
         encoding="utf-8",

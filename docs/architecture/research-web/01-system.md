@@ -48,6 +48,11 @@ catalog 初始化时会重新审计全部已启用的 receipt-gated 能力；非
 密钥缺失时，立即撤下原生投影并持久化 disabled。能力选择前再次执行同一门禁，避免重启后的陈旧
 enabled 状态绕过证据校验；该收紧不新增服务、接口、执行器或持久节点。
 
+comparison evidence 的 synthetic/actual input 必须同时满足相对路径不同和读取后 SHA-256 不同；仅复制
+synthetic 内容到另一文件再由登记器签名仍按 `invalid_comparison_evidence` 失败关闭。缠论计算器继续
+要求所有记录属于同一 `asset_id`，并在结果顶层必填回传该唯一身份；改变整组记录身份会改变结果身份，
+混合身份仍返回 `data_not_equivalent`。两项均只收紧既有目录与计算器契约。
+
 Research Runtime 每次启动都从离线 DataHub 能力目录重新计算 `enabledTools`；来源配置变化只有在重启后才改变原生工具注册。缺少可调用来源的工具不暴露给模型。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为 `provider_busy`。
 
 Wind 只以五项具备封闭适配路径的 capability binding 参与 callable 计算；市场活动内部只开放

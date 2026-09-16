@@ -259,10 +259,23 @@ def _write_comparison_evidence(tmp_path, catalog, slug, monkeypatch, **overrides
     actual_input = evidence_dir / "wind-excel-actual-input.json"
     fixture_input = SKILLS_ROOT / slug / "fixtures/input.json"
     shutil.copy2(fixture_input, synthetic_input)
+    actual_payload = json.loads(fixture_input.read_text(encoding="utf-8"))
+    actual_payload["data_contract"]["provider"] = "datahub"
+    for dataset_ref in actual_payload["dataset_refs"]:
+        dataset_ref["provider_id"] = "datahub"
     actual_input.write_text(
-        json.dumps(json.loads(fixture_input.read_text(encoding="utf-8")), indent=2),
+        json.dumps(actual_payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    synthetic_payload = json.loads(synthetic_input.read_bytes())
+    normalized_actual = copy.deepcopy(actual_payload)
+    normalized_actual["data_contract"]["provider"] = synthetic_payload["data_contract"]["provider"]
+    for actual_ref, synthetic_ref in zip(
+        normalized_actual["dataset_refs"], synthetic_payload["dataset_refs"], strict=True
+    ):
+        actual_ref["provider_id"] = synthetic_ref["provider_id"]
+    assert normalized_actual == synthetic_payload
+    assert actual_input.read_bytes() != synthetic_input.read_bytes()
     actual.write_text(
         json.dumps(json.loads(expected.read_text(encoding="utf-8")), indent=2),
         encoding="utf-8",
@@ -312,8 +325,31 @@ def test_comparison_receipt_accepts_trusted_independent_business_equivalent_resu
 
     assert actual.read_bytes() != expected.read_bytes()
     assert json.loads(actual.read_bytes()) == json.loads(expected.read_bytes())
+    evidence = json.loads(artifact.read_text(encoding="utf-8"))
+    synthetic_input = artifact.parent / evidence["synthetic_input"]["path"]
+    actual_input = artifact.parent / evidence["actual_input"]["path"]
+    assert json.loads(actual_input.read_bytes()) != json.loads(synthetic_input.read_bytes())
     receipt = catalog.record_comparison_receipt(artifact)
     assert receipt["actual_result_sha256"] != receipt["golden_result_sha256"]
+
+
+def test_comparison_receipt_rejects_signed_duplicate_input_content(tmp_path, monkeypatch):
+    slug = "daily-market-brief"
+    catalog = CapabilityCatalog(tmp_path)
+    artifact, _actual = _write_comparison_evidence(tmp_path, catalog, slug, monkeypatch)
+    evidence = json.loads(artifact.read_text(encoding="utf-8"))
+    synthetic_input = artifact.parent / evidence["synthetic_input"]["path"]
+    actual_input = artifact.parent / evidence["actual_input"]["path"]
+    actual_input.write_bytes(synthetic_input.read_bytes())
+    evidence["actual_input"]["sha256"] = hashlib.sha256(actual_input.read_bytes()).hexdigest()
+    evidence["registrar_signature"] = _registrar_signature(evidence)
+    artifact.write_text(json.dumps(evidence), encoding="utf-8")
+
+    with pytest.raises(CapabilityError) as error:
+        catalog.record_comparison_receipt(artifact)
+
+    assert error.value.code == "invalid_comparison_evidence"
+    assert catalog.comparison_receipt(slug) is None
 
 
 def test_comparison_receipt_rejects_digest_valid_business_difference(tmp_path, monkeypatch):

@@ -28,7 +28,8 @@ JSON loader、有限数算术、64 KiB 完整输出、不可变版本与 v2 HMAC
 - 平台突破：仅处理显式有限观察列表，平台由当前 bar 之前的窗口估计；收盘越过 buffer 且阻力触碰
   次数达标才确认。最多 50 标的、每标的 1,000 行、合计 50,000 行。
 - 缠论：只实现严格确认分型与非递归交替笔子集；相等平台、双重枢轴或过近反转返回
-  `ambiguous_structure`，不声称覆盖中枢、背驰等完整体系。
+  `ambiguous_structure`，不声称覆盖中枢、背驰等完整体系；结果顶层必填回传所有记录共同的
+  `asset_id`，全量记录改名会同步改变结果身份，混合标的仍失败关闭。
 
 所有结果包含 `sample_size`、`conditions`、`counterexamples`、`failure_conditions` 与 `data_cutoff`，
 并固定 `research_only=true`，不是交易、下单或个性化投资指令。
@@ -89,6 +90,17 @@ TDD 记录：
   `396 passed in 207.60s`；能力目录、准入、原生投影、审查、安全、CPU 预算和 sandbox 聚焦回归
   `180 passed, 3 skipped, 1 warning in 1350.11s`。warning 仍仅为当前 pytest 配置中的未知
   `asyncio_mode` 选项；五项 Stage 4 能力在每轮 seed 后均保持 disabled。
+- 质量复审针对 comparison input 内容独立性和缠论结果身份先得到 `2 failed, 4 passed`；catalog 增加
+  读取后 SHA-256 不同门禁、缠论顶层回传唯一 `asset_id` 后，定向集 GREEN 为 `6 passed in 18.72s`。
+  Stage 2/3/4 合法 receipt fixture 均改用内容真实不同但业务可比的 actual input；复制 synthetic 到
+  不同路径后重新签名仍返回 `invalid_comparison_evidence`。Stage 4 专项为 `95 passed in 20.68s`；
+  receipt helper 增加业务记录等价、source artifact 摘要可追溯与输入字节不同断言后，聚焦复验
+  `4 passed in 18.99s`，最终 Stage 2 + Stage 3 + Stage 4 全量为 `398 passed in 178.57s`。
+- 最终能力目录、准入、原生投影、审查、安全、CPU 预算和 sandbox 聚焦回归为
+  `180 passed, 3 skipped, 1 warning in 719.68s`。相关 Ruff、Black、isort、122 个 Stage 2/3/4 JSON
+  解析、文档同步、任务完成检查、52 项架构测试和项目约束均通过。`chanlun` 独立 mypy 与 catalog
+  `--follow-imports=skip` 检查通过；catalog 常规 mypy 仍被未触及的 `core/observability/{tracer,metrics}.py`
+  和 `data_layer/adapters/wind/wind_adapter.py` 共 15 个既有错误阻断。
 
 近上限真实 sandbox 复测（父进程与子进程 RSS 合计）：
 
