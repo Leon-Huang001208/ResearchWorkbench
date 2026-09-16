@@ -30,6 +30,8 @@
 - Windows Runtime 将 pnpm Profile 目录 junction 纳入固定源码树 containment 校验，不再把合法模块回退
   误报为空；服务 PID 存活检查改用无 shell PowerShell 探针，避免 `os.kill(pid, 0)` 的 `WinError 87`，
   启动失败和正常停止都能安全回收本轮进程树。
+- 固定 `vendor/dsh-tabbit/0.3.4/` 供应目录改为 Git 字节稳定 checkout，避免 Windows 换行转换使 MIT
+  License 摘要漂移；Runtime 继续按 manifest 严格校验归档、许可证和文件清单。
 - Office/Wind 验证传入 Workbook 的 timeout 显式钳制到 180 秒总预算减 10 秒协调余量，避免 Windows
   单调时钟浮点舍入让参数略高于 170 秒硬上限；不增加真实 Excel/Wind 支持声明。
 - 新增 `rwb web doctor [--json]`、Windows `rwb.cmd`、安全安装清单和原生 macOS/Windows 干净

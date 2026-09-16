@@ -37,6 +37,7 @@
 | `rwb` / `rwb.cmd` | 使用项目专属 `.venv` 的跨平台 CLI 入口 |
 | `requirements/web.in` / `requirements/web.lock` | Web 直接依赖与 Python 3.12 跨平台哈希锁 |
 | `vendor/cjpy/0.5.2/` | CJPY 0.5.2 wheel、许可证、来源和跨平台字节稳定的闭合 SHA-256 清单 |
+| `vendor/dsh-tabbit/0.3.4/` | Tabbit 0.3.4 固定归档、MIT License、来源、文件清单与跨平台字节稳定摘要 |
 | `pytest.ini` | Pytest 测试框架配置 |
 | `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
 | `.gitignore` | Git 忽略文件配置 |

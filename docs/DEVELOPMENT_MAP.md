@@ -5,7 +5,8 @@ This file maps Research Workbench subsystems to source files, tests, and require
 ## Current Web research implementation (2026-09-11)
 
 The public Web bootstrap is owned by `scripts/setup_web.py`, `setup-web.sh`, `setup-web.cmd`,
-`requirements/web.in`, `requirements/web.lock`, `vendor/cjpy/0.5.2/` and the cross-platform `rwb` launchers.
+`requirements/web.in`, `requirements/web.lock`, the byte-stable `vendor/cjpy/0.5.2/` and
+`vendor/dsh-tabbit/0.3.4/` supply closures, and the cross-platform `rwb` launchers.
 It creates a checkout-local Python 3.12 environment, consumes only the hashed Web lock, installs the root
 distribution without legacy dependencies, verifies vendored CJPY, and builds the exact DSH commit in a private
 versioned directory. Fresh Runtime homes initialize the pinned DSH `web` profile before verified Tabbit layers are

@@ -60,8 +60,9 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
   带哈希的解析结果。用户端只消费锁文件。
 - 根项目包以 `--no-deps` 安装，避免把历史 PostgreSQL、LangGraph、量化和桌面依赖引入 Web 环境。
 - `vendor/cjpy/0.5.2/` 保存批准的 Apache-2.0 wheel、来源、许可证与闭合哈希清单；禁止回退到
-  PyPI 的旧版 CJPY。仓库属性禁止 Git 在 Windows checkout 改写该闭合制品目录的字节，确保同一清单摘要
-  可在 macOS 与 Windows 验证。
+  PyPI 的旧版 CJPY。`vendor/dsh-tabbit/0.3.4/` 的归档、MIT License 与 manifest 同样属于固定供应
+  闭包。仓库属性禁止 Git 在 Windows checkout 改写这两个制品目录的字节，确保同一清单摘要可在
+  macOS 与 Windows 验证。
 - DSH 只从 `Leon-Huang001208/deepseek-harness` 获取提交
   `c919b2a460753859665db3f60143d525fb9140cf`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
   Git clone、固定提交 checkout 与后续干净工作树校验都使用同一组命令级配置：

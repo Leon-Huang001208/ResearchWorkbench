@@ -161,6 +161,7 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     shell = (project_root / "setup-web.sh").read_text(encoding="utf-8")
     windows = (project_root / "setup-web.cmd").read_text(encoding="utf-8")
     windows_cli = (project_root / "rwb.cmd").read_text(encoding="utf-8")
+    attributes = (project_root / ".gitattributes").read_text(encoding="utf-8")
 
     assert "scripts/setup_web.py" in shell
     assert '"%PROJECT_ROOT%\\scripts\\setup_web.py"' in windows
@@ -168,6 +169,7 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     assert "research_workbench_entrypoint" in windows_cli
     assert "exit /b %errorlevel%" not in windows
     assert windows.count("if errorlevel 1 exit /b 1") == 2
+    assert "/vendor/dsh-tabbit/0.3.4/** -text" in attributes
 
 
 def test_private_corepack_shim_is_added_to_the_child_build_path(

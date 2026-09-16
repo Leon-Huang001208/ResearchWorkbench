@@ -1,4 +1,5 @@
 /vendor/cjpy/0.5.2/** -text
+/vendor/dsh-tabbit/0.3.4/** -text
 /setup-web.sh text eol=lf
 /setup-web.cmd text eol=crlf
 /rwb.cmd text eol=crlf
