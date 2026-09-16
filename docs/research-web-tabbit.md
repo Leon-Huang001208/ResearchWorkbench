@@ -13,7 +13,8 @@ Goldar 框架解释与深度验证沿用同一个专属 DSH，但其 `framework-
 Research Web 在私有 DSH Web Profile 中固定加载 `dsh-tabbit` 0.3.4 和
 `research-tabbit-adapter`。供应归档、MIT License、官方源码提交、SHA-256、npm integrity 与文件清单
 位于 `vendor/dsh-tabbit/0.3.4/`。Runtime 启动时先校验归档，再复制到私有
-`runtime/home/profiles/node_modules/`；不从网络下载、安装或升级 Tabbit。
+`runtime/home/profiles/node_modules/`；不从网络下载、安装或升级 Tabbit。该闭合制品目录在
+`.gitattributes` 中标记为 `-text`，Windows checkout 不得把许可证或来源文件改写为 CRLF 后再参与哈希。
 
 Profile bundle 顺序固定为 `base`、`web-app`、`dsh-tabbit`、
 `research-tabbit-adapter`。`tabbit-installer` 始终禁用，guard 同时拒绝安装/更新工具。

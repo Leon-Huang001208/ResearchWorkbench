@@ -3,6 +3,7 @@
 一键安装只允许固定 PyPI 索引、指定 DSH GitHub 仓库和随包 CJPY 文件集；Python 锁、wheel、来源、
 提交、工作树与 DSH 构建闭包任一不符即关闭失败。子进程环境采用允许列表，不传应用密钥；安装器只
 修复带当前 checkout 所有权标记的 `.venv` 与 DSH 目录，并拒绝符号链接/Windows 重解析点。
+随包 CJPY 与 dsh-tabbit 版本目录均禁止 Git 文本转换，许可证、来源、manifest 与归档按原始字节校验。
 DSH clone、checkout 与干净工作树校验都只对当前子命令应用同一组长路径、换行和 Windows symlink
 配置，不修改机器级 Git 配置；Windows 进程检查与 `taskkill` 均以参数数组且 `shell=false` 调用，
 并在终止前复核受管命令签名。Windows Node 构建的允许列表只额外保留 PowerShell 模块、标准系统程序

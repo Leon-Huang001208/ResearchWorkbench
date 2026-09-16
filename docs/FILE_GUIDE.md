@@ -96,7 +96,7 @@
 | `scripts/setup_web.py` | 项目专属 `.venv`、哈希锁、CJPY、私有 Corepack shim，以及统一 Git 语义和受限 Windows C++ 工具链发现/运行环境的固定 DSH 跨平台安装器 |
 | `.github/workflows/research-web-bootstrap.yml` | 干净 macOS/Windows 一键安装、启动和 Doctor 门禁 |
 | `docs/architecture/research-web/` | 当前Markdown、映射清单与八张JSON图源 |
-| `vendor/dsh-tabbit/0.3.4/` | 固定官方源码提交的归档、MIT License、完整性哈希和文件清单 |
+| `vendor/dsh-tabbit/0.3.4/` | 固定官方源码提交的归档、MIT License、完整性哈希和文件清单；仓库属性保持跨平台 checkout 字节稳定 |
 | `outputs/research-web-architecture/` | 八图HTML、交付/视觉回执与人工核对所用截图 |
 
 ### app/api/ - FastAPI 后端接口

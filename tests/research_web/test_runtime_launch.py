@@ -267,6 +267,13 @@ def make_tabbit_vendor(tmp_path: Path) -> Path:
     return vendor
 
 
+def test_vendored_tabbit_closure_is_byte_stable_on_windows_checkout():
+    project_root = Path(__file__).resolve().parents[2]
+    attributes = (project_root / ".gitattributes").read_text(encoding="utf-8").splitlines()
+
+    assert "/vendor/dsh-tabbit/0.3.4/** -text" in attributes
+
+
 def test_tabbit_archive_is_verified_and_staged_into_private_profile(tmp_path):
     vendor = make_tabbit_vendor(tmp_path)
     home = tmp_path / "home"

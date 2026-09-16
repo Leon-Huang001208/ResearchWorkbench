@@ -30,6 +30,8 @@
 - Windows Runtime 将 pnpm Profile 目录 junction 纳入固定源码树 containment 校验，不再把合法模块回退
   误报为空；服务 PID 存活检查改用无 shell PowerShell 探针，避免 `os.kill(pid, 0)` 的 `WinError 87`，
   启动失败和正常停止都能安全回收本轮进程树。
+- 固定 `dsh-tabbit` 0.3.4 供应目录标记为 `-text`，Windows checkout 不再把 LICENSE 改写为 CRLF
+  后触发错误的许可证完整性失败；跨平台字节稳定性进入 Runtime 回归。
 - 新增 `rwb web doctor [--json]`、Windows `rwb.cmd`、安全安装清单和原生 macOS/Windows 干净
   checkout 安装 CI。项目规则要求以后每次 Web 迭代持续维护锁、安装器、Doctor、文档和一键流程。
 

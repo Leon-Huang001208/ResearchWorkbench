@@ -26,6 +26,10 @@
   诊断 Run `35122535136` 的安全 runtime.log 证明能力目录、DataHub 与 MCP 已准备完成，失败发生在
   Profile 模块回退校验；Windows pnpm 使用目录 junction，而实现只枚举 symlink。因此第四个根因是
   合法 junction 被误报为“模块目录为空”，并伴随一个独立的 Windows PID 探针不兼容问题。
+- junction/PID 修复后的 Bootstrap Run `35130424631` 再次完成 Windows 安装，但 Runtime 在
+  `owned_dsh_launch` 前退出。隔离 Run `35133744490` 逐步证明 285 个 fallback、Tabbit 前置准备均完成，
+  随后 `stage_tabbit_package` 明确返回许可证完整性失败；根因是 Git 在 Windows checkout 将随包
+  LICENSE 改写为 CRLF，而 manifest 固定 LF 原始字节摘要。
 
 ## 修复
 
@@ -36,6 +40,7 @@
 - Runtime Profile 模块校验同时识别 POSIX symlink 与 Windows junction，解析后仍要求目标位于固定
   DSH 源码树；Windows PID 存活检查改用参数数组调用的 PowerShell `Get-Process`，探针异常时按存活
   失败关闭，终止仍使用 `taskkill /T`。
+- `vendor/dsh-tabbit/0.3.4/**` 通过仓库属性禁用文本转换，并由回归测试锁定该跨平台闭合要求。
 
 ## 验证
 
