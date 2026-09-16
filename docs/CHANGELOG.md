@@ -15,10 +15,13 @@
   分位；风格轮动显式二选一；平台突破排除当前 bar 并限制 50×1,000 显式观察列表；缠论仅实现严格
   确认分型和非递归交替笔，歧义结构失败关闭。所有结果均含样本、条件、反例、失效条件和截止日，
   并标记为研究用途而非交易/下单指令。
-- 利率、风险溢价和风格输入/输出新增必填 `series_identity`，严格绑定每条序列的 identity、version 和
-  tenor；期限错配、指数身份/版本变化、风格 A/B 交换或重复均返回 `data_not_equivalent`。风格均线
-  乖离方法增加独立 golden；缠论双重枢轴与过近反转均有明确失败关闭测试。五包静态扫描覆盖全部
-  指令、schema、fixture、映射、provenance 和脚本，禁止绝对产品路径及网络/GPU/Excel 执行栈。
+- 利率、风险溢价和风格输入/输出新增必填、provider-aware 的 `series_identity`。descriptor 固定
+  role/version/tenor 并校验 identity 格式；synthetic 精确绑定 fixture，`user_input` 可携带真实业务
+  identity 并原样回传，角色交换、期限/版本错配与风格重复 identity 均失败关闭。Wind/DataHub 仅接受
+  field mapping 的精确生产身份白名单，当前无已核验身份。风格均线乖离方法增加独立 golden；缠论
+  双重枢轴与过近反转均有明确失败关闭测试。五包静态扫描覆盖全部指令、schema、fixture、映射、
+  provenance 和脚本；10 份 schema 恢复官方 Draft 2020-12 元数据 URI，代码与配置仍禁止可执行网络、
+  GPU 和 Excel 栈。
 - 三份参考工作簿只读核验完整 SHA-256，未执行公式或宏；平台突破与缠论候选来源未匹配时明确记录
   `source unavailable` 和候选前缀，不猜测完整摘要。DataHub 联合字段映射尚未核验，保持
   `callable=false`。当前无可核验的已发布 Stage 4 前身，故不建立猜测性迁移白名单；receipt 不跨版本复用。

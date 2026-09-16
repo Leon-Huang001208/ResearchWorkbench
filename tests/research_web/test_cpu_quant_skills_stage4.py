@@ -74,6 +74,52 @@ NUMERIC_FIELDS = {
     "chanlun": "close",
 }
 REGISTRAR_KEY_HEX = "d4" * 32
+OFFICIAL_JSON_SCHEMA_URI = "https://json-schema.org/draft/2020-12/schema"
+
+USER_INPUT_SERIES_IDENTITIES = {
+    "rate-ma-timing-research": {
+        "asset_series": {
+            "role": "asset_index",
+            "identity": "CSI.000300.SH.close",
+            "version": "close_v1",
+            "tenor": "spot",
+        },
+        "rate_series": {
+            "role": "government_bond_yield",
+            "identity": "CN.CGB.yield.10Y",
+            "version": "yield_pct_v1",
+            "tenor": "10Y",
+        },
+    },
+    "equity-risk-premium-timing": {
+        "index_series": {
+            "role": "equity_index_valuation",
+            "identity": "CSI.000300.SH.pe_ttm",
+            "version": "pe_ttm_v1",
+            "tenor": "spot",
+        },
+        "bond_yield_series": {
+            "role": "government_bond_yield",
+            "identity": "CN.CGB.yield.10Y",
+            "version": "yield_pct_v1",
+            "tenor": "10Y",
+        },
+    },
+    "style-rotation-research": {
+        "style_a_series": {
+            "role": "style_a_index",
+            "identity": "CSI.style.growth.close",
+            "version": "close_v1",
+            "tenor": "spot",
+        },
+        "style_b_series": {
+            "role": "style_b_index",
+            "identity": "CSI.style.value.close",
+            "version": "close_v1",
+            "tenor": "spot",
+        },
+    },
+}
 
 
 def load_json(slug: str, name: str) -> dict:
@@ -201,6 +247,8 @@ def test_stage4_packages_have_strict_valid_schemas_goldens_and_provenance(slug):
     output_schema = json.loads(
         (folder / "references/output-schema.json").read_text(encoding="utf-8")
     )
+    assert input_schema["$schema"] == OFFICIAL_JSON_SCHEMA_URI
+    assert output_schema["$schema"] == OFFICIAL_JSON_SCHEMA_URI
     Draft202012Validator.check_schema(input_schema)
     Draft202012Validator.check_schema(output_schema)
     assert (
@@ -265,11 +313,18 @@ def test_stage4_schema_fields_and_runtime_contract_constants_are_equivalent(slug
     if slug in SERIES_IDENTITY_SLUGS:
         identity_schema = schema["properties"]["series_identity"]
         assert set(identity_schema["required"]) == set(module.SERIES_IDENTITY_FIELDS)
-        for name, expected in module.EXPECTED_SERIES_IDENTITY.items():
+        assert set(module.SYNTHETIC_SERIES_IDENTITIES) == set(module.SERIES_IDENTITY_FIELDS)
+        for name, expected in module.SERIES_ROLE_CONTRACTS.items():
             descriptor = identity_schema["properties"][name]
             assert set(descriptor["required"]) == set(module.SERIES_DESCRIPTOR_FIELDS)
-            assert descriptor["properties"] == {
-                field: {"const": value} for field, value in expected.items()
+            assert descriptor["properties"]["role"] == {"const": expected["role"]}
+            assert descriptor["properties"]["version"] == {"const": expected["version"]}
+            assert descriptor["properties"]["tenor"] == {"const": expected["tenor"]}
+            assert descriptor["properties"]["identity"] == {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": module.SERIES_IDENTITY_PATTERN,
             }
     actual = module.calculate(load_json(slug, "input.json"), input_bytes=1024)
     assert set(actual) == set(output_schema["properties"])
@@ -371,6 +426,99 @@ def test_stage4_series_identity_is_required_and_round_trips_to_output(slug):
     with pytest.raises(module.CalculatorError) as error:
         module.calculate(missing, input_bytes=1024)
     assert error.value.code == "missing_required_field"
+
+
+@pytest.mark.parametrize("slug", SERIES_IDENTITY_SLUGS)
+def test_stage4_user_input_accepts_business_series_identity_and_round_trips(slug):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+    payload["data_contract"]["provider"] = "user_input"
+    payload["dataset_refs"][0]["provider_id"] = "user_input"
+    payload["source_hashes"] = {"user_input": payload["dataset_refs"][0]["sha256"]}
+    payload["series_identity"] = copy.deepcopy(USER_INPUT_SERIES_IDENTITIES[slug])
+
+    schema = json.loads(
+        (SKILLS_ROOT / slug / "references/input-schema.json").read_text(encoding="utf-8")
+    )
+    assert list(Draft202012Validator(schema).iter_errors(payload)) == []
+    result = module.calculate(payload, input_bytes=1024)
+
+    assert result["series_identity"] == USER_INPUT_SERIES_IDENTITIES[slug]
+
+
+@pytest.mark.parametrize(
+    ("slug", "mutate"),
+    (
+        (
+            "rate-ma-timing-research",
+            lambda identity: identity.update(
+                {
+                    "asset_series": identity["rate_series"],
+                    "rate_series": identity["asset_series"],
+                }
+            ),
+        ),
+        (
+            "equity-risk-premium-timing",
+            lambda identity: identity["index_series"].update({"identity": ""}),
+        ),
+        (
+            "style-rotation-research",
+            lambda identity: identity["style_b_series"].update(
+                {"identity": identity["style_a_series"]["identity"]}
+            ),
+        ),
+        (
+            "style-rotation-research",
+            lambda identity: identity["style_b_series"].update({"role": "style_a_index"}),
+        ),
+        (
+            "rate-ma-timing-research",
+            lambda identity: identity["rate_series"].update({"tenor": "2Y"}),
+        ),
+    ),
+)
+def test_stage4_user_input_rejects_wrong_role_identity_or_tenor(slug, mutate):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+    payload["data_contract"]["provider"] = "user_input"
+    payload["dataset_refs"][0]["provider_id"] = "user_input"
+    payload["series_identity"] = copy.deepcopy(USER_INPUT_SERIES_IDENTITIES[slug])
+    mutate(payload["series_identity"])
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+
+    assert error.value.code == "data_not_equivalent"
+
+
+@pytest.mark.parametrize("slug", SERIES_IDENTITY_SLUGS)
+def test_stage4_series_identity_mapping_is_provider_aware_and_production_closed(slug):
+    module = load_calculator(slug)
+    mapping = json.loads(
+        (SKILLS_ROOT / slug / "references/field-mapping.json").read_text(encoding="utf-8")
+    )["runtime_contract"]
+    identity_contract = mapping["series_identity"]
+
+    assert identity_contract["descriptor_fields"] == ["role", "identity", "version", "tenor"]
+    assert identity_contract["identity_pattern"] == module.SERIES_IDENTITY_PATTERN
+    assert identity_contract["provider_rules"]["user_input"]["series"] == (
+        module.SERIES_ROLE_CONTRACTS
+    )
+    assert (
+        identity_contract["provider_rules"]["synthetic"]["series"]
+        == load_json(slug, "input.json")["series_identity"]
+    )
+    for provider in ("datahub", "wind"):
+        assert identity_contract["provider_rules"][provider]["mode"] == "exact_allowlist"
+        assert identity_contract["provider_rules"][provider]["series"] == []
+
+        payload = load_json(slug, "input.json")
+        payload["data_contract"]["provider"] = provider
+        payload["dataset_refs"][0]["provider_id"] = provider
+        with pytest.raises(module.CalculatorError) as error:
+            module.calculate(payload, input_bytes=1024)
+        assert error.value.code == "data_not_equivalent"
 
 
 def test_rate_and_erp_reject_series_identity_version_and_tenor_mismatch():
@@ -560,7 +708,9 @@ def test_stage4_packages_do_not_contain_absolute_paths_or_forbidden_execution_st
             re.search(rf"\b{token}\b", lowered) is None
             for token in ("socket", "requests", "urllib", "httpx", "cjpy")
         ), slug
-        assert "http://" not in lowered and "https://" not in lowered
+        assert "http://" not in lowered
+        assert lowered.count("https://") == 2
+        assert lowered.count(OFFICIAL_JSON_SCHEMA_URI) == 2
         assert re.search(r"/(?:users|home)/[^/]+/", lowered) is None, slug
         assert re.search(r"[a-z]:\\\\(?:users|documents and settings)\\\\", lowered) is None, slug
         assert "load_relative_json" in source

@@ -6037,6 +6037,7 @@ Imports:
 - `input_contract`
 - `json`
 - `logging`
+- `re`
 - `sys`
 - `typing`
 
@@ -6384,6 +6385,7 @@ Imports:
 - `input_contract`
 - `json`
 - `logging`
+- `re`
 - `sys`
 - `typing`
 
@@ -6460,6 +6462,7 @@ Imports:
 - `input_contract`
 - `json`
 - `logging`
+- `re`
 - `sys`
 - `typing`
 

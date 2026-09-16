@@ -33,10 +33,13 @@ JSON loader、有限数算术、64 KiB 完整输出、不可变版本与 v2 HMAC
 所有结果包含 `sample_size`、`conditions`、`counterexamples`、`failure_conditions` 与 `data_cutoff`，
 并固定 `research_only=true`，不是交易、下单或个性化投资指令。
 
-规格复审后，利率均线、风险溢价与风格轮动的输入和输出均增加必填 `series_identity`，分别固定每条
-序列的 identity、version 与 tenor。运行时不接受期限错配、指数身份/版本变化或风格 A/B 交换、重复；
-失败稳定返回 `data_not_equivalent`。风格均线乖离方法增加独立 input/golden，平台突破与缠论不可用
-来源的 provenance 不再记录本机绝对路径。五包静态检查覆盖完整包，不只检查 calculator。
+规格复审后，利率均线、风险溢价与风格轮动的输入和输出均增加必填、provider-aware 的
+`series_identity`。每条 descriptor 固定 role/version/tenor 并校验非空 identity 格式：synthetic
+精确绑定提交 fixture，`user_input` 可携带真实业务 identity 并原样回传；角色交换、风格重复 identity、
+版本或期限错配均返回 `data_not_equivalent`。Wind/DataHub 仅可使用 field mapping 的精确生产白名单，
+当前没有已核验身份，保持失败关闭。风格均线乖离方法增加独立 input/golden，平台突破与缠论不可用
+来源的 provenance 不再记录本机绝对路径。五包静态检查覆盖完整包，允许 10 份 schema 唯一的官方
+Draft 2020-12 元数据 URI，但继续禁止代码和配置的可执行网络能力。
 
 ## 来源与状态
 
@@ -79,6 +82,13 @@ TDD 记录：
   Stage 4 专项 GREEN 为 `83 passed, 1 warning in 25.83s`，Stage 2 + Stage 3 + Stage 4 为
   `385 passed, 1 warning in 217.34s`；能力聚焦回归为
   `180 passed, 3 skipped, 1 warning in 553.48s`。
+- provider-aware 身份与 schema 自描述复审先得到 `17 failed, 2 passed`；最小实现后的新增/受影响
+  定向集为 `24 passed`。空 identity 错误码补充先 RED 为 `1 failed, 4 passed`，修正后 GREEN 为
+  `5 passed`。
+- 源码冻结后的最终复验：Stage 4 专项 `94 passed in 24.84s`；Stage 2 + Stage 3 + Stage 4 全量
+  `396 passed in 207.60s`；能力目录、准入、原生投影、审查、安全、CPU 预算和 sandbox 聚焦回归
+  `180 passed, 3 skipped, 1 warning in 1350.11s`。warning 仍仅为当前 pytest 配置中的未知
+  `asyncio_mode` 选项；五项 Stage 4 能力在每轮 seed 后均保持 disabled。
 
 近上限真实 sandbox 复测（父进程与子进程 RSS 合计）：
 

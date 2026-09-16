@@ -728,6 +728,11 @@
   验证为 `ambiguous_structure`。
 - 五包静态扫描扩展到 SKILL、references、fixtures 和 scripts；后两项不可用来源仅保留逻辑描述和
   候选摘要前缀，不记录本机绝对路径。该修正没有增加 API、Provider binding、执行器、持久节点或权限。
+- 二次复审将前三项身份契约改为 provider-aware descriptor：role/version/tenor 固定，identity 校验
+  非空格式；synthetic 精确绑定 fixture，`user_input` 可原样回传真实业务 identity。Wind/DataHub
+  未命中 field mapping 精确生产身份白名单时失败关闭。五包十份 schema 恢复官方 Draft 2020-12
+  自描述 URI；静态检查只允许该元数据 URI，不增加远程加载或可执行网络能力。
 
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage4 series identity/version/tenor、独立golden与来源描述修正只收紧既有不可变能力包契约，不新增能力类型、API或状态。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Stage4身份等价性和缠论歧义结构检查继续运行在既有research_run_script沙箱内，不新增执行节点、网络或文件权限。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage4 provider-aware身份契约只允许field mapping已核验生产白名单；当前Wind/DataHub白名单为空且继续callable=false。","diagrams":[]} -->

@@ -53,8 +53,10 @@ Stage 3 的一向安全迁移只接受已列举的完整脚本 SHA-256，包括�
 五个 Stage 4 择时/技术结构 Skill 也复用该状态机：利率均线用前一持久信号计算滞后研究敞口，股权
 风险溢价使用 `1 / PE_TTM - bond_yield_pct / 100` 与滚动经验分位，风格轮动要求显式选择相对比值
 均线或相对强弱动量方法，平台突破只用当前 bar 之前的有限窗口，缠论只提供非递归确认分型与笔子集。
-前三项输入和输出显式绑定各序列的 identity、version 与 tenor；利率/风险溢价的 2Y/10Y 等期限错配、
-指数身份或版本变化，以及风格 A/B 序列交换或重复均以 `data_not_equivalent` 失败关闭。风格两种方法
+前三项输入和输出显式绑定各序列 descriptor 的 role、identity、version 与 tenor；synthetic 精确绑定
+fixture，`user_input` 可携带真实业务 identity 并原样回传，Wind/DataHub 只接受 field mapping 明确的
+生产身份白名单。利率/风险溢价的 2Y/10Y 等期限错配、角色/版本变化，以及风格 A/B descriptor 交换
+或重复 identity 均以 `data_not_equivalent` 失败关闭。风格两种方法
 分别保存 golden；缠论双重枢轴与过近反转均返回 `ambiguous_structure`。
 它们不新增执行器、API 或 Provider 权限，clean catalog 中均 disabled；真实宿主 v2 HMAC comparison
 receipt 缺失时不产生原生投影。前三项工作簿仅只读核验且未执行公式；后两项来源不可用，provenance

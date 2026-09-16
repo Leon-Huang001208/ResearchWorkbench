@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 from typing import Any
 
@@ -38,18 +39,23 @@ ALLOWED_ROOT_FIELDS = ROOT_FIELDS | {"source_hashes"}
 PARAMETER_FIELDS = frozenset({"moving_average_window", "deviation_threshold", "position_step"})
 RECORD_FIELDS = frozenset({"date", "asset_close", "rate_pct"})
 SERIES_IDENTITY_FIELDS = frozenset({"asset_series", "rate_series"})
-SERIES_DESCRIPTOR_FIELDS = frozenset({"identity", "version", "tenor"})
-EXPECTED_SERIES_IDENTITY = {
+SERIES_DESCRIPTOR_FIELDS = frozenset({"role", "identity", "version", "tenor"})
+SERIES_IDENTITY_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+SERIES_ROLE_CONTRACTS = {
     "asset_series": {
-        "identity": "synthetic_rate_timing_asset_index",
+        "role": "asset_index",
         "version": "close_v1",
         "tenor": "spot",
     },
     "rate_series": {
-        "identity": "synthetic_rate_timing_government_bond_yield",
+        "role": "government_bond_yield",
         "version": "yield_pct_v1",
         "tenor": "10Y",
     },
+}
+SYNTHETIC_SERIES_IDENTITIES = {
+    "asset_series": "synthetic_rate_timing_asset_index",
+    "rate_series": "synthetic_rate_timing_government_bond_yield",
 }
 CONTRACT_UNITS = {
     "asset_close": "index_points",
@@ -90,7 +96,7 @@ def _parameters(value: Any) -> dict[str, float | int]:
     }
 
 
-def _series_identity(value: Any) -> dict[str, dict[str, str]]:
+def _series_identity(value: Any, *, provider: str) -> dict[str, dict[str, str]]:
     identity = strict_object(
         value,
         required=SERIES_IDENTITY_FIELDS,
@@ -105,10 +111,23 @@ def _series_identity(value: Any) -> dict[str, dict[str, str]]:
             allowed=SERIES_DESCRIPTOR_FIELDS,
             error=CalculatorError,
         )
-        normalized[name] = {field: descriptor[field] for field in ("identity", "version", "tenor")}
-        if not all(isinstance(item, str) and item for item in normalized[name].values()):
+        normalized[name] = {
+            field: descriptor[field] for field in ("role", "identity", "version", "tenor")
+        }
+        if not all(isinstance(item, str) for item in normalized[name].values()):
             raise CalculatorError("invalid_field_type")
-    if normalized != EXPECTED_SERIES_IDENTITY:
+        expected = SERIES_ROLE_CONTRACTS[name]
+        if any(normalized[name][field] != value for field, value in expected.items()):
+            raise CalculatorError("data_not_equivalent")
+        if re.fullmatch(SERIES_IDENTITY_PATTERN, normalized[name]["identity"]) is None:
+            raise CalculatorError("data_not_equivalent")
+        if provider == "synthetic" and (
+            normalized[name]["identity"] != SYNTHETIC_SERIES_IDENTITIES[name]
+        ):
+            raise CalculatorError("data_not_equivalent")
+        if provider not in {"synthetic", "user_input"}:
+            raise CalculatorError("data_not_equivalent")
+    if len({descriptor["identity"] for descriptor in normalized.values()}) != len(normalized):
         raise CalculatorError("data_not_equivalent")
     return normalized
 
@@ -133,7 +152,9 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
     )
-    series_identity = _series_identity(payload["series_identity"])
+    series_identity = _series_identity(
+        payload["series_identity"], provider=data_contract["provider"]
+    )
     parameters = _parameters(payload["parameters"])
     records = payload["records"]
     if not isinstance(records, list) or not records:
