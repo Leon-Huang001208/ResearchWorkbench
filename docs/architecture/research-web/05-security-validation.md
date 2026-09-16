@@ -3,6 +3,8 @@
 一键安装只允许固定 PyPI 索引、指定 DSH GitHub 仓库和随包 CJPY 文件集；Python 锁、wheel、来源、
 提交、工作树与 DSH 构建闭包任一不符即关闭失败。子进程环境采用允许列表，不传应用密钥；安装器只
 修复带当前 checkout 所有权标记的 `.venv` 与 DSH 目录，并拒绝符号链接/Windows 重解析点。
+DSH clone/checkout 只对当前子命令启用 `core.longpaths=true`，不修改机器级 Git 配置；Windows
+进程检查与 `taskkill` 均以参数数组且 `shell=false` 调用，并在终止前复核受管命令签名。
 
 Gold 与 Dollar 快照在路径解析前拒绝任一现存符号链接组件，限制为 2 MiB，使用各自严格 schema 和内容 revision，并同目录原子替换。旧 Gold V1 结构先保留为 `snapshot.legacy-v1.json`；已存在备份时拒绝覆盖。生产浏览器不导入测试 fixture，来源失败不得伪装成实时成功。Bot 上下文另设 80,000 字符上限，默认解释预设不暴露工具。
 

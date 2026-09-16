@@ -28,7 +28,28 @@ def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monke
     target.mkdir(parents=True)
 
     def run(*args, **kwargs):
-        assert "healProfilesModuleFallback({ installAnchor: anchor, home })" in args[0][3]
+        assert "loadProfile('dsh', 'web', anchor, home)" in args[0][3]
+        assert "healProfilesModuleFallback({ installAnchor: anchor, profile })" in args[0][3]
+        profile = home / "profiles/web"
+        profile.mkdir(parents=True)
+        (profile / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "dsh-profile-web",
+                    "private": True,
+                    "dependencies": {},
+                    "dsh": {
+                        "profile": {
+                            "bundles": [
+                                "@deepseek-ai/dsh-base",
+                                "@deepseek-ai/dsh-web-app",
+                            ],
+                            "patchReload": "live",
+                        }
+                    },
+                }
+            )
+        )
         modules = home / "profiles/node_modules/@deepseek-ai"
         modules.mkdir(parents=True)
         (modules / "dsh-example").symlink_to(target)
@@ -36,6 +57,7 @@ def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monke
 
     monkeypatch.setattr(launch_runtime.subprocess, "run", run)
     assert launch_runtime.prepare_runtime_module_fallback(source, home, "/node") == 1
+    assert (home / "profiles/web/package.json").is_file()
 
 
 def test_runtime_module_fallback_rejects_external_target(tmp_path, monkeypatch):

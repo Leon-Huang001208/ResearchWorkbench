@@ -2,6 +2,8 @@
 
 Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定义、采集、快照 schema、评分、
 renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。
+全新 DSH `web` Profile 初始化和跨平台服务进程管理只保证这条唯一 Runtime 可启动/停止，不改变
+Gold、Dollar 的注册、采集、评分、快照或页面协议。
 
 ## 产品边界
 

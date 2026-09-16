@@ -33,7 +33,7 @@
 |---|---|
 | `README.md` | 项目主文档，包含概述、快速开始、核心特性、使用指南 |
 | `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest、mypy error-code debt list 等工具配置 |
-| `setup-web.sh` / `setup-web.cmd` | macOS/Windows Web 一键安装入口；调用同一 Python 安装器 |
+| `setup-web.sh` / `setup-web.cmd` | macOS/Windows Web 一键安装入口；调用同一 Python 安装器并传播真实失败码 |
 | `rwb` / `rwb.cmd` | 使用项目专属 `.venv` 的跨平台 CLI 入口 |
 | `requirements/web.in` / `requirements/web.lock` | Web 直接依赖与 Python 3.12 跨平台哈希锁 |
 | `vendor/cjpy/0.5.2/` | CJPY 0.5.2 wheel、许可证、来源和跨平台字节稳定的闭合 SHA-256 清单 |
@@ -82,7 +82,7 @@
 |---|---|
 | `app/research_web/main.py` | FastAPI、产品边界与现有会话路由 |
 | `app/research_web/service.py` / `client.py` | DSH协议适配、原生历史与SSE状态 |
-| `app/research_web/service_manager.py` | 3081/8088 进程归属、健康状态与安全化 Web Doctor |
+| `app/research_web/service_manager.py` | 3081/8088 跨平台进程归属、健康状态、进程树停止与安全化 Web Doctor |
 | `app/research_web/tabbit.py` / `runtime/tabbit-adapter.mjs` | Tabbit 配置、会话授权、实时 claim 和一次性内存上下文 |
 | `app/research_web/ui/` | 原生JS产品壳、FinGPT/Claw、输入框、能力目录/编辑器 |
 | `app/research_web/capabilities/` | Skill/Workflow包、检查、不可变版本、只读Tool目录 |

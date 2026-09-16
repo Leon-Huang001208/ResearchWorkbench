@@ -740,6 +740,8 @@ class SetupWebInstaller:
             [
                 str(self.git_executable),
                 "-c",
+                "core.longpaths=true",
+                "-c",
                 "core.autocrlf=false",
                 "-c",
                 "core.eol=lf",
@@ -757,6 +759,8 @@ class SetupWebInstaller:
         self._run_checked(
             [
                 str(self.git_executable),
+                "-c",
+                "core.longpaths=true",
                 "-c",
                 "core.autocrlf=false",
                 "-C",

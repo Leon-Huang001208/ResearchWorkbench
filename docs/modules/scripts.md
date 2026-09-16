@@ -28,7 +28,8 @@ Purpose:
   root package without dependencies, and verifies the vendored `cjpy==0.5.2` wheel and transport dependencies.
 - Clones, checks out and builds the pinned DSH commit with its declared pnpm version; a user-private Corepack shim
   keeps nested DSH build commands independent from global pnpm. The first successful build records a path-specific
-  closure attestation that Doctor rechecks on later runs.
+  closure attestation that Doctor rechecks on later runs. Clone and checkout opt into Git long-path handling so the
+  same pinned source can be materialized on Windows without requiring a machine-level Git setting.
 - Rejects unsupported Python/Node versions, unknown managed directories, links/reparse points, mismatched hashes,
   dirty or wrong DSH sources, and incomplete builds. `--repair` is limited to directories bearing this installer's
   ownership marker.

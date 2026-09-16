@@ -418,3 +418,32 @@ def test_provision_dsh_recovers_a_completed_installer_staging_directory(
     marker = json.loads((installer.dsh_source / ".rwb-dsh-source.json").read_text(encoding="utf-8"))
     assert marker["closure_sha256"] == "b" * 64
     assert marker["closure_files"] == 11084
+
+
+def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installer = SetupWebInstaller(project_root=tmp_path, data_home=tmp_path / "data")
+    commands: list[list[str]] = []
+    verified = {
+        "commit": "c919b2a460753859665db3f60143d525fb9140cf",
+        "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
+        "pnpm": "11.7.0",
+        "closure_sha256": "b" * 64,
+        "closure_files": 11084,
+    }
+
+    def record(command, **_kwargs):
+        commands.append(command)
+
+    monkeypatch.setattr(installer, "_run_checked", record)
+    monkeypatch.setattr(installer, "verify_dsh_source", lambda *_args, **_kwargs: verified)
+    monkeypatch.setattr(installer, "prepare_pnpm_shims", lambda environment: environment)
+    monkeypatch.setattr(installer, "dsh_build_commands", lambda _source: [])
+    monkeypatch.setattr(installer, "_publish_dsh_build", lambda _source, state: state)
+
+    assert installer.provision_dsh() == verified
+
+    git_commands = [command for command in commands if command[0] == str(installer.git_executable)]
+    assert len(git_commands) == 2
+    assert all("core.longpaths=true" in command for command in git_commands)

@@ -17,6 +17,9 @@
   来源、提交、工作树或闭包不符时关闭失败。
 - CJPY 闭合制品目录通过仓库属性保持 checkout 字节稳定，Windows 包装器传播安装器真实失败退出码，避免
   平台换行转换或批处理变量展开把失败误报为成功。
+- DSH 子 checkout 在 clone/checkout 两步显式启用 Git 长路径；全新用户目录会先初始化固定 `web`
+  Profile 再装入 Tabbit。Windows 服务归属与进程树停止使用原生命令，POSIX 停止会识别僵尸进程，
+  不再依赖开发机残留 Profile 或 POSIX-only `ps`/`killpg`。
 - 新增 `rwb web doctor [--json]`、Windows `rwb.cmd`、安全安装清单和原生 macOS/Windows 干净
   checkout 安装 CI。项目规则要求以后每次 Web 迭代持续维护锁、安装器、Doctor、文档和一键流程。
 

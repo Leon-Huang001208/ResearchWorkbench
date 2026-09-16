@@ -186,6 +186,67 @@ def test_pid_reuse_or_foreign_command_fails_closed(manager, monkeypatch):
         manager._owned_state(process)
 
 
+def test_windows_command_line_probe_uses_cim_without_a_shell(manager, monkeypatch):
+    captured = {}
+
+    class Result:
+        returncode = 0
+        stdout = "python.exe -m app.research_web.main:app"
+
+    def run(command, **options):
+        captured.update(command=command, options=options)
+        return Result()
+
+    monkeypatch.setattr(service_manager_module.subprocess, "run", run)
+
+    command_line = manager._command_line(4321, platform_name="nt")
+
+    assert command_line == Result.stdout
+    assert captured["command"][:4] == [
+        "powershell.exe",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+    ]
+    assert "4321" in captured["command"][4]
+    assert captured["options"]["shell"] is False
+
+
+def test_windows_process_tree_termination_uses_taskkill(manager, monkeypatch):
+    captured = []
+
+    class Result:
+        returncode = 0
+
+    def run(command, **options):
+        captured.append((command, options))
+        return Result()
+
+    monkeypatch.setattr(service_manager_module.subprocess, "run", run)
+
+    manager._terminate_pid(4321, force=False, platform_name="nt")
+    manager._terminate_pid(4321, force=True, platform_name="nt")
+
+    assert captured[0][0] == ["taskkill.exe", "/PID", "4321", "/T"]
+    assert captured[1][0] == ["taskkill.exe", "/PID", "4321", "/T", "/F"]
+    assert all(options["shell"] is False for _command, options in captured)
+
+
+def test_posix_zombie_is_not_treated_as_a_live_owned_process(manager, monkeypatch):
+    class Result:
+        returncode = 0
+        stdout = "Z+"
+
+    monkeypatch.setattr(service_manager_module.os, "kill", lambda _pid, _signal: None)
+    monkeypatch.setattr(
+        service_manager_module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: Result(),
+    )
+
+    assert manager._pid_exists(4321, platform_name="posix") is False
+
+
 def test_start_is_idempotent_and_waits_for_both_services(manager, monkeypatch):
     manager._prepare_private_directories()
     ownership = {"runtime": None, "web": None}

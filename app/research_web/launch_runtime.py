@@ -382,7 +382,8 @@ def prepare_runtime_module_fallback(source: Path, home: Path, node: str) -> int:
 import { pathToFileURL } from 'node:url';
 const [modulePath, anchor, home] = process.argv.slice(1);
 const runtime = await import(pathToFileURL(modulePath).href);
-await runtime.healProfilesModuleFallback({ installAnchor: anchor, home });
+const profile = runtime.loadProfile('dsh', 'web', anchor, home);
+await runtime.healProfilesModuleFallback({ installAnchor: anchor, profile });
 """
     environment = {
         "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",

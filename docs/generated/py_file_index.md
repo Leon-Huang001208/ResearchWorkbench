@@ -6151,7 +6151,7 @@ Classes:
 - `ManagedProcess`
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _read_install_manifest, _dsh_build_status, doctor, tabbit_status
+  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _read_install_manifest, _dsh_build_status, doctor, tabbit_status
 
 Functions:
 - `_is_unsafe_private_directory`
