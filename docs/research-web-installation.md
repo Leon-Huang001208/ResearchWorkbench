@@ -2,11 +2,13 @@
 
 ## 支持范围
 
-首版支持 macOS 与 Windows 的 Web 产品，不安装 Tauri、桌面 sidecar、数据库或桌面安装包。用户只需先安装：
+首版支持 macOS 与 Windows 的 Web 产品，不安装 Tauri、桌面 sidecar、数据库或桌面安装包。用户需先安装：
 
 - Python 3.12
 - Node.js 22.19+（22 系列）或 24.x；Node 23 和 25+ 不在支持范围
 - Git
+- Windows：Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载；固定 DSH 的
+  `fs-ext` 原生模块需要本机编译，安装器不会静默安装或修改系统工具链
 
 Wind、iFinD、Office 等厂商/系统软件是可选能力，缺失不阻止 Web 主体启动。模型密钥、`CJ_KEY`、
 Cookie 和账号只在本机设置页录入，不进入代码包、安装清单或日志。
@@ -68,6 +70,9 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
   官方的普通文件表示但仍拒绝其他修改。首次启动会先用固定 DSH 模板
   初始化 `web` Profile，再写入已校验的 Tabbit bundle；
   不能依赖开发机残留的 `profiles/web/package.json`。
+  Windows Node 构建只额外继承 PowerShell 模块、Program Files、ProgramData 与 Common Program Files
+  的标准发现路径，使 `node-gyp` 能定位用户已经安装的 Visual Studio 工具链；密钥和其他应用环境变量
+  仍不进入子进程。
   安装器固定闭包文件数，首次成功构建后将当前安装目录对应的闭包摘要写入受管标记和安装清单，
   后续 Doctor 按该本机证明检测篡改。CSS Modules 会把绝对构建目录影响到产物摘要，因此不把任意用户目录误声明为
   同一全局摘要。GitHub 不可达、提交/来源/文件数不符，或本机证明后续不匹配时，安装关闭失败，不使用任意本机 DSH。

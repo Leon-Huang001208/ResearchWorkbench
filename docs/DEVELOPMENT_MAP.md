@@ -12,6 +12,8 @@ versioned directory. Fresh Runtime homes initialize the pinned DSH `web` profile
 staged; DSH clone, checkout, and verification share command-level Git long-path and line-ending settings, and the
 service manager uses native Windows process inspection/termination instead of POSIX-only commands. Windows DSH
 operations additionally share `core.symlinks=false` semantics for the pinned repository's Git symlinks.
+Windows Node builds retain only standard PowerShell/Program Files discovery paths so `node-gyp` can locate the
+preinstalled Visual Studio C++ toolchain without exposing application secrets.
 `app/research_web/service_manager.py` owns the path-free
 `rwb web doctor` result.
 Every later Web iteration must keep `.github/workflows/research-web-bootstrap.yml` green on clean native macOS

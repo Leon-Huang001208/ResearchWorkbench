@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create and diagnose the project-owned Research Workbench Web environment."""
+"""Create, verify, and diagnose the cross-platform Research Workbench Web environment."""
 
 from __future__ import annotations
 
@@ -209,6 +209,18 @@ class SetupWebInstaller:
     def _node_subprocess_environment(self) -> dict[str, str]:
         """Return a credential-free environment with only Node-compatible proxies."""
         environment = self._subprocess_environment()
+        if self.platform_name == "nt":
+            for key in (
+                "PSMODULEPATH",
+                "PROGRAMFILES",
+                "PROGRAMFILES(X86)",
+                "PROGRAMDATA",
+                "COMMONPROGRAMFILES",
+                "COMMONPROGRAMFILES(X86)",
+            ):
+                value = os.environ.get(key)
+                if value:
+                    environment[key] = value
         for key in (
             "HTTP_PROXY",
             "HTTPS_PROXY",

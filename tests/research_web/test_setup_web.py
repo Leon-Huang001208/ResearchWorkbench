@@ -283,6 +283,32 @@ def test_node_subprocess_environment_drops_proxy_protocols_corepack_cannot_parse
     assert node_environment["HTTPS_PROXY"] == "http://127.0.0.1:18080"
 
 
+def test_windows_node_environment_preserves_standard_toolchain_discovery_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected = {
+        "PSMODULEPATH": r"C:\Program Files\WindowsPowerShell\Modules",
+        "PROGRAMFILES": r"C:\Program Files",
+        "PROGRAMFILES(X86)": r"C:\Program Files (x86)",
+        "PROGRAMDATA": r"C:\ProgramData",
+        "COMMONPROGRAMFILES": r"C:\Program Files\Common Files",
+        "COMMONPROGRAMFILES(X86)": r"C:\Program Files (x86)\Common Files",
+    }
+    for key, value in expected.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setenv("OPENAI_API_KEY", "must-not-escape")
+    installer = SetupWebInstaller(
+        project_root=tmp_path,
+        data_home=tmp_path / "data",
+        platform_name="nt",
+    )
+
+    environment = installer._node_subprocess_environment()
+
+    assert {key: environment.get(key) for key in expected} == expected
+    assert "OPENAI_API_KEY" not in environment
+
+
 def test_node_subprocess_environment_uses_discovered_macos_sdk_headers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

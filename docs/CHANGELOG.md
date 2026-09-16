@@ -24,6 +24,9 @@
   Git 支持的普通文件形式检出时不会被误判为篡改；clone、checkout 与 status 现在还统一使用命令级
   长路径和换行配置，避免长 staging 路径在原生 Windows 上误报 `dsh_worktree_modified`，其他已跟踪
   文件修改仍关闭失败。
+- Windows Node 构建环境允许列表补入标准 PowerShell/Program Files 工具链发现路径，使 `node-gyp`
+  能定位已安装的 Visual Studio 2022 C++ Build Tools；应用密钥仍不会进入安装子进程。安装文档同步说明
+  固定 DSH 的 `fs-ext` 在 Windows 上需要该系统工具链。
 - 新增 `rwb web doctor [--json]`、Windows `rwb.cmd`、安全安装清单和原生 macOS/Windows 干净
   checkout 安装 CI。项目规则要求以后每次 Web 迭代持续维护锁、安装器、Doctor、文档和一键流程。
 

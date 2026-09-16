@@ -37,7 +37,9 @@ Purpose:
   dirty or wrong DSH sources, and incomplete builds. `--repair` is limited to directories bearing this installer's
   ownership marker.
 - Passes application secrets to neither pip nor Node/Git build commands. Git may retain the host's proxy settings;
-  Corepack/Node keep only HTTP(S) proxy protocols, and macOS discovers libc++ headers through `xcrun`.
+  Corepack/Node keep only HTTP(S) proxy protocols, macOS discovers libc++ headers through `xcrun`, and Windows
+  retains only the standard system paths needed for `node-gyp` to discover an already installed Visual Studio C++
+  toolchain.
 
 Update this section when:
 
