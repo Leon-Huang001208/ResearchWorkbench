@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create, verify, and diagnose the cross-platform Research Workbench Web environment."""
+"""Create, verify, and diagnose an isolated cross-platform Research Workbench Web environment."""
 
 from __future__ import annotations
 
@@ -215,6 +215,7 @@ class SetupWebInstaller:
                 "PROGRAMFILES",
                 "PROGRAMFILES(X86)",
                 "PROGRAMDATA",
+                "SYSTEMDRIVE",
                 "COMMONPROGRAMFILES",
                 "COMMONPROGRAMFILES(X86)",
             ):

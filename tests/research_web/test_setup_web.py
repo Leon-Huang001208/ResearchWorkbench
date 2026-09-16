@@ -291,6 +291,7 @@ def test_windows_node_environment_preserves_standard_toolchain_discovery_paths(
         "PROGRAMFILES": r"C:\Program Files",
         "PROGRAMFILES(X86)": r"C:\Program Files (x86)",
         "PROGRAMDATA": r"C:\ProgramData",
+        "SYSTEMDRIVE": "C:",
         "COMMONPROGRAMFILES": r"C:\Program Files\Common Files",
         "COMMONPROGRAMFILES(X86)": r"C:\Program Files (x86)\Common Files",
     }

@@ -70,9 +70,9 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
   官方的普通文件表示但仍拒绝其他修改。首次启动会先用固定 DSH 模板
   初始化 `web` Profile，再写入已校验的 Tabbit bundle；
   不能依赖开发机残留的 `profiles/web/package.json`。
-  Windows Node 构建只额外继承 PowerShell 模块、Program Files、ProgramData 与 Common Program Files
-  的标准发现路径，使 `node-gyp` 能定位用户已经安装的 Visual Studio 工具链；密钥和其他应用环境变量
-  仍不进入子进程。
+  Windows Node 构建只额外继承 PowerShell 模块、Program Files、ProgramData、系统盘与 Common
+  Program Files 的标准发现路径，使 `node-gyp`/MSBuild 能定位并运行用户已经安装的 Visual Studio
+  工具链；密钥和其他应用环境变量仍不进入子进程。
   安装器固定闭包文件数，首次成功构建后将当前安装目录对应的闭包摘要写入受管标记和安装清单，
   后续 Doctor 按该本机证明检测篡改。CSS Modules 会把绝对构建目录影响到产物摘要，因此不把任意用户目录误声明为
   同一全局摘要。GitHub 不可达、提交/来源/文件数不符，或本机证明后续不匹配时，安装关闭失败，不使用任意本机 DSH。
