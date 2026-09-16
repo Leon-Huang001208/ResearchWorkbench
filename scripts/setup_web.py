@@ -715,21 +715,9 @@ class SetupWebInstaller:
             raise RuntimeError("dsh_publish_failed") from exc
         return verified
 
-    def _dsh_staging_pattern(self) -> re.Pattern[str]:
-        """Match installer-owned staging names without extending Windows build paths."""
-        if self.platform_name == "nt":
-            return re.compile(r"^\.s-[a-f0-9]{12}$")
-        return re.compile(rf"^\.{DSH_COMMIT}\.staging-[a-f0-9]{{32}}$")
-
-    def _new_dsh_staging(self) -> Path:
-        """Keep Windows node-gyp paths below legacy MSBuild tracking limits."""
-        if self.platform_name == "nt":
-            return self.dsh_root / f".s-{uuid4().hex[:12]}"
-        return self.dsh_root / f".{DSH_COMMIT}.staging-{uuid4().hex}"
-
     def _recover_completed_dsh_staging(self) -> dict[str, object] | None:
         """Publish a prior completed installer staging after full verification."""
-        pattern = self._dsh_staging_pattern()
+        pattern = re.compile(rf"^\.{DSH_COMMIT}\.staging-[a-f0-9]{{32}}$")
         try:
             candidates = sorted(
                 (
@@ -773,7 +761,7 @@ class SetupWebInstaller:
         if recovered is not None:
             return recovered
 
-        staging = self._new_dsh_staging()
+        staging = self.dsh_root / f".{DSH_COMMIT}.staging-{uuid4().hex}"
         git_environment = self._subprocess_environment()
         node_environment = self._node_subprocess_environment()
         self._run_checked(

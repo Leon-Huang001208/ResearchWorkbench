@@ -17,9 +17,6 @@
   `node-gyp` 编译时找不到 runner 已安装的 Visual Studio 2022。隔离原生诊断显示：当前过滤环境和只恢复
   `PSModulePath` 均发现 0 个实例；恢复 PowerShell、Program Files、ProgramData 与 Common Program Files
   标准路径组后发现 1 个实例。因此第二个根因是安全环境允许列表遗漏了 Windows 原生工具链发现路径。
-- 后续默认分支 Run `35117553534` 已成功发现 Visual Studio，但 `fs-ext` 的 MSBuild FileTracker 在
-  含提交哈希和完整 UUID 的深层 staging 路径上抛出 `The path is not of a legal form`。因此第三个根因
-  是原生构建的临时目录名过长，而不是工具链缺失或 DSH 源码错误。
 
 ## 修复
 
@@ -27,8 +24,6 @@
 - 三个操作统一启用长路径并固定换行语义；Windows 额外统一使用 `core.symlinks=false`。
 - 校验仍使用 `--untracked-files=no` 并拒绝其他已跟踪修改；不修改机器级 Git 配置。
 - Windows Node 构建只额外继承标准系统工具链路径，仍过滤 `CJ_KEY`、模型密钥和其他应用环境变量。
-- Windows staging 改为同一私有 `dsh` 根目录下的 `.s-<12 hex>`；POSIX 名称不变。完成目录仍先验证
-  固定提交、工作树和闭包，再通过同文件系统原子改名发布；短名称同样参与中断恢复扫描。
 
 ## 验证
 
@@ -39,7 +34,6 @@
 - 隔离诊断 Run `35115008215`：过滤环境与只恢复 `PSModulePath` 均发现 0 个 Visual Studio 实例；
   恢复标准 Windows 工具链发现路径后发现 1 个实例并成功结束。
 - 第二轮实现后的 `tests/research_web/test_setup_web.py`：22 passed。
-- 第三轮路径回归在实现前为 2 failed，最小修复后目标用例为 2 passed。
 - Ruff、Black、isort 通过；目标源码 `mypy --follow-imports=skip` 通过。常规传递 mypy 仍命中仓库既有
   `core/observability`、MCP Runtime/Registry 的 16 个无关类型错误，本修复未扩大范围。
 - 文档同步与项目约束：0 violations；Research Web 架构门禁：52 passed。

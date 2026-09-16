@@ -98,8 +98,6 @@ SOCKS 代理，Corepack/Node 仅保留其支持的 HTTP/HTTPS 代理。代理值
 `.github/workflows/research-web-bootstrap.yml` 对每个 PR 与主分支更新在干净的 `macos-14` 和
 `windows-2022` runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检查 Doctor，并验证
 无凭据天软不会误报可调用。该门禁属于 Web 交付，不触发桌面/Tauri/sidecar 验收。
-Windows 的 DSH 构建 staging 使用同一私有 `dsh` 根目录下的短名称，避免 pnpm/node-gyp 深层路径
-触发旧版 MSBuild FileTracker 路径限制；构建完成后仍须核验提交、工作树与闭包并原子发布。
 
 维护者更新直接依赖后，用 Python 3.12 重新生成锁：
 
