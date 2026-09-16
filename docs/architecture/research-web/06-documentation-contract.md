@@ -1,5 +1,9 @@
 # 图文更新清单契约与门禁
 
+项目约束现在额外要求 `.github/workflows/research-web-bootstrap.yml` 同时包含原生 macOS/Windows
+干净安装、公开 setup 入口、Doctor、CJPY 0.5.2 和无凭据天软不可调用断言。该安装门禁与本文件的
+架构图/回执门禁并行，不能互相替代。
+
 本文件定义实际 `scripts/check_research_architecture.mjs` 的输入格式；Python 文档检查与现有 Project Constraints CI 调用同一仓库内检查器。详见 [门禁模块说明](../../research-web-documentation.md)。CI 配置已接线，未声称远端 CI 已执行。
 
 ## 清单文件

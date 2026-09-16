@@ -1,5 +1,9 @@
 # Research Web 前端
 
+2026-09-16 的一键安装批次只为数据源错误增加依赖缺失、版本错误、认证、权限、限流和厂商不可达的
+明确文案；设置页、路由、抽屉和状态数据源仍由既有 `connections.mjs` 负责。安装入口与持续安装门禁
+见 [Research Web 一键本地安装](research-web-installation.md)。
+
 ## 范围与入口
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 真实模型与浏览器旅程见 [验收记录](research-web-acceptance.md)。

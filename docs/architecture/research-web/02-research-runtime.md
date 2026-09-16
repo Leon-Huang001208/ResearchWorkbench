@@ -1,5 +1,8 @@
 # 研究协议、执行状态与恢复
 
+一键安装固定 DSH 来源、提交、pnpm 与构建闭包，但不改变消息受理、双 WebSocket、SSE、恢复、
+审批或取消协议。安装失败不会启动候选 Runtime，也不会接管当前 3081/8088。
+
 Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
 
 框架页面 Bot 仍由本运行时承载：`framework-explain` 是无工具的快照解释预设，用户显式触发的 `framework-verify` 才装配只读检索和公共数据工具。验证会话与解释会话分离，并绑定框架 slug、章节、缺口、方法版本和同一精确快照 revision；旧 revision 返回 409，Bot 不修改评分或快照，也没有第二个 Agent Runtime。

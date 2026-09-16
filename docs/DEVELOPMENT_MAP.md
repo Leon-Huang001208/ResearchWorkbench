@@ -4,6 +4,14 @@ This file maps Research Workbench subsystems to source files, tests, and require
 
 ## Current Web research implementation (2026-09-11)
 
+The public Web bootstrap is owned by `scripts/setup_web.py`, `setup-web.sh`, `setup-web.cmd`,
+`requirements/web.in`, `requirements/web.lock`, `vendor/cjpy/0.5.2/` and the cross-platform `rwb` launchers.
+It creates a checkout-local Python 3.12 environment, consumes only the hashed Web lock, installs the root
+distribution without legacy dependencies, verifies vendored CJPY, and builds the exact DSH commit in a private
+versioned directory. `app/research_web/service_manager.py` owns the path-free `rwb web doctor` result.
+Every later Web iteration must keep `.github/workflows/research-web-bootstrap.yml` green on clean native macOS
+and Windows runners; see [the installation contract](research-web-installation.md).
+
 Research Web Phase 2B adds `app/research_web/mcp_runtime/`: immutable installation selection and
 confirmation, fixed npm/PyPI/MCPB artifact resolution, isolated local payloads, Streamable HTTP/stdio
 transports, OAuth 2.1 + PKCE, exact schema snapshots, tool risk policy, session grants, one-call approvals

@@ -667,3 +667,18 @@
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"探测恢复、指纹失效和动态选源都复用既有DataHub Provider、业务查询与会话快照边界，没有新增查询通道。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"共享ResearchService只增加集成协调器生命周期；Automation的计划、Run、版本锁、MCP授权与外发拓扑保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"十五个DataHub工具由既有public-data适配器常驻注册并继续调用同一私有业务查询入口，DSH进程、Guard和数据流拓扑不变。","diagrams":[]} -->
+
+## 2026-09-16 — Web 一键环境、CJPY 0.5.2 与持续安装门禁
+
+- 新增跨平台公开 setup 入口、checkout 专属 Python 3.12 `.venv`、带哈希 Web 锁、随包 CJPY
+  0.5.2、固定 DSH 构建和安全化 Doctor；这些是运行前的可复现供应链，不新增生产服务或端口。
+- 天软状态现在区分依赖缺失/版本错误与厂商认证、权限、限流、不可达；保存 Key 后由每次调用动态
+  读取凭据库，未配置 CI 仍明确不可调用。
+- 原生 macOS/Windows CI 对每个 PR 与主分支更新执行干净安装、DSH 构建、3081/8088 启动、Doctor
+  和无凭据天软断言；安装文档与项目规则把这项要求固化为后续迭代门禁。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅细分既有数据源卡片的安全错误文案，设置页、路由、抽屉和状态数据源保持不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Doctor和版本化DSH路径仍由既有Service Manager管理同一3081/8088，不新增HTTP路由、进程或端口。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"CJPY依赖版本检查和动态凭据读取只收紧既有天软Provider就绪状态，Broker、业务查询和快照链不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"安装器固定来源提交与构建闭包后仍启动同一专属DSH及既有工具适配器，没有新增运行节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"新增跨平台安装CI作为并行交付门禁，既有十图映射、回执、视觉检查和Web文档入口机制保持不变。","diagrams":[]} -->

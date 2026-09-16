@@ -33,9 +33,7 @@ def data_source(
         else (
             "blocked_config"
             if not configured
-            else "blocked_dependency"
-            if not dependency_ready
-            else "ready"
+            else "blocked_dependency" if not dependency_ready else "ready"
         )
     )
     return {
@@ -642,6 +640,36 @@ def test_tabbit_non_ready_statuses_have_actionable_ownership(
         value for value in coordinator.status("local")["items"] if value["id"] == "local:tabbit"
     )
 
+    assert item["bucket"] == bucket
+    assert item["responsibility"] == responsibility
+
+
+@pytest.mark.parametrize(
+    ("error_code", "bucket", "responsibility"),
+    [
+        ("vendor_auth_failed", "user_action", "user"),
+        ("vendor_permission_denied", "user_action", "user"),
+        ("blocked_dependency", "system_fault", "system"),
+        ("dependency_version_mismatch", "system_fault", "system"),
+        ("vendor_rate_limited", "system_fault", "vendor"),
+        ("vendor_unreachable", "system_fault", "vendor"),
+    ],
+)
+def test_data_probe_failures_identify_the_next_responsible_party(
+    tmp_path, error_code, bucket, responsibility
+):
+    source = data_source("tinysoft")
+    source["readiness"].update(health="unavailable", failure_code=error_code)
+    coordinator = IntegrationCoordinator(
+        tmp_path / error_code,
+        FakeDataHub([source]),
+        FakeLocalIntegrations(),
+        FakeTabbit(),
+    )
+
+    item = coordinator.status("data")["items"][0]
+
+    assert item["error_code"] == error_code
     assert item["bucket"] == bucket
     assert item["responsibility"] == responsibility
 

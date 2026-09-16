@@ -21,6 +21,19 @@
 - 桌面端改动严格遵守 `docs/desktop_packaging.md`；宣称 Windows 支持前，必须有原生 Windows CI 的构建和健康检查证据。
 - 发布桌面端版本前，另须在真实 Windows 环境完成安装级冒烟测试。
 
+## Web installation contract (mandatory)
+
+- 每次产品迭代都必须保持公开入口 `./setup-web.sh`、`setup-web.cmd` 与
+  `python scripts/setup_web.py` 可从干净 checkout 完成安装；不得依赖开发者全局 Python/Node 包。
+- 修改 Web Python/Node 依赖、`app/research_web/`、`app/cli/`、固定 DSH、CJPY、启动器或配置流程时，
+  必须同步核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`、
+  `docs/research-web-installation.md` 和 `.github/workflows/research-web-bootstrap.yml`；无须改变的文件应由
+  安装 CI 证明仍兼容，不能仅凭本机已有环境判断。
+- Web 交付必须等待原生 macOS 与 Windows 的干净安装、固定 DSH 构建、3081/8088 健康检查和
+  `rwb web doctor --json` 通过。无厂商凭据的 CI 必须把天软显示为“依赖已安装但待配置”，不得伪报可调用。
+- 新增用户可配置能力时，Doctor、安装文档、安全清单和一键流程必须同步覆盖；秘密只由本机设置页或
+  系统凭据库接收，禁止写入锁文件、安装日志、CI 产物或代码包。
+
 ## Safety and delivery
 
 - 不覆盖或回退无关改动。

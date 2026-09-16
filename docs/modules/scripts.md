@@ -19,6 +19,27 @@
 
 ## Files
 
+### `scripts/setup_web.py`
+
+Purpose:
+
+- Implements the shared macOS/Windows Web bootstrap used by `setup-web.sh` and `setup-web.cmd`.
+- Creates only an installer-owned checkout `.venv`, consumes `requirements/web.lock` with hashes, installs the
+  root package without dependencies, and verifies the vendored `cjpy==0.5.2` wheel and transport dependencies.
+- Clones, checks out and builds the pinned DSH commit with its declared pnpm version; the first successful build
+  records a path-specific closure attestation that Doctor rechecks on later runs.
+- Rejects unsupported Python/Node versions, unknown managed directories, links/reparse points, mismatched hashes,
+  dirty or wrong DSH sources, and incomplete builds. `--repair` is limited to directories bearing this installer's
+  ownership marker.
+- Passes application secrets to neither pip nor Node/Git build commands. Git may retain the host's proxy settings;
+  Corepack/Node keep only HTTP(S) proxy protocols, and macOS discovers libc++ headers through `xcrun`.
+
+Update this section when:
+
+- The Web prerequisite range, Python lock, CJPY bundle, DSH identity/build, ownership marker, safe environment or
+  public setup flags change.
+- `rwb web doctor`, clean-install CI, or the user-facing installation contract changes.
+
 ## Desktop launch and packaging
 
 ### `scripts/desktop/backend_launcher.py`

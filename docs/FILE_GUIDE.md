@@ -33,6 +33,10 @@
 |---|---|
 | `README.md` | 项目主文档，包含概述、快速开始、核心特性、使用指南 |
 | `pyproject.toml` | 项目配置文件，包含 black、isort、ruff、pytest、mypy error-code debt list 等工具配置 |
+| `setup-web.sh` / `setup-web.cmd` | macOS/Windows Web 一键安装入口；调用同一 Python 安装器 |
+| `rwb` / `rwb.cmd` | 使用项目专属 `.venv` 的跨平台 CLI 入口 |
+| `requirements/web.in` / `requirements/web.lock` | Web 直接依赖与 Python 3.12 跨平台哈希锁 |
+| `vendor/cjpy/0.5.2/` | CJPY 0.5.2 wheel、许可证、来源和闭合 SHA-256 清单 |
 | `pytest.ini` | Pytest 测试框架配置 |
 | `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
 | `.gitignore` | Git 忽略文件配置 |
@@ -78,6 +82,7 @@
 |---|---|
 | `app/research_web/main.py` | FastAPI、产品边界与现有会话路由 |
 | `app/research_web/service.py` / `client.py` | DSH协议适配、原生历史与SSE状态 |
+| `app/research_web/service_manager.py` | 3081/8088 进程归属、健康状态与安全化 Web Doctor |
 | `app/research_web/tabbit.py` / `runtime/tabbit-adapter.mjs` | Tabbit 配置、会话授权、实时 claim 和一次性内存上下文 |
 | `app/research_web/ui/` | 原生JS产品壳、FinGPT/Claw、输入框、能力目录/编辑器 |
 | `app/research_web/capabilities/` | Skill/Workflow包、检查、不可变版本、只读Tool目录 |
@@ -85,6 +90,8 @@
 | `app/research_web/store.py` / `delivery.py` | 归属/文件索引与独立交付检查 |
 | `app/research_web/documentation.py` | 固定图册HTML白名单与隔离CSP |
 | `scripts/check_research_architecture.mjs` | 无全局Archify依赖的源码/文档/图/回执一致性检查 |
+| `scripts/setup_web.py` | 项目专属 `.venv`、哈希锁、CJPY 和固定 DSH 的跨平台安装器 |
+| `.github/workflows/research-web-bootstrap.yml` | 干净 macOS/Windows 一键安装、启动和 Doctor 门禁 |
 | `docs/architecture/research-web/` | 当前Markdown、映射清单与八张JSON图源 |
 | `vendor/dsh-tabbit/0.3.4/` | 固定官方源码提交的归档、MIT License、完整性哈希和文件清单 |
 | `outputs/research-web-architecture/` | 八图HTML、交付/视觉回执与人工核对所用截图 |

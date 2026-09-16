@@ -1,5 +1,8 @@
 # 研究框架
 
+Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定义、采集、快照 schema、评分、
+renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。
+
 ## 产品边界
 
 研究框架是 Research Web 的解释层，不是第二个资产行情终端。`#/frameworks` 固定列出黄金与美元流动性，`#/frameworks/gold` 和 `#/frameworks/dollar` 分别提供专用研究画布；资产观察继续负责个股、基金、债券、外汇和商品的行情与资产详情。框架引用的美债、美元、基金和商品只作为因果驱动、传导或组合背景。

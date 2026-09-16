@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "package": "cjpy",
+  "version": "0.5.2",
+  "wheel": "cjpy-0.5.2-py3-none-any.whl",
+  "files": {
+    "LICENSE": "6727ef7a9b1844ba225c76436938c66a049ae5ddb4cb2936455f471be657493b",
+    "SOURCE.md": "a295bde0eb5e768ca0ca62380f3aebec0fc8dd9e07aacdc67a53c132ca9fc259",
+    "cjpy-0.5.2-py3-none-any.whl": "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
+  }
+}

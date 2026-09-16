@@ -34,6 +34,8 @@ Update this section when:
 Research Web commands:
 
 - `rwb web start|stop|restart|status` — manage the owned loopback Web/DSH processes.
+- `rwb web doctor [--json]` — verify the project-owned Python lock, CJPY 0.5.2,
+  Node, pinned DSH closure, private data root and 3081/8088 health without exposing paths or secrets.
 - `rwb web tabbit-status` — read-only Tabbit health and pending-restart summary. It deliberately omits paths, cookies, tab titles, URLs and page content; installation and upgrades remain manual.
 
 ### `app/cli/commands/*.py`

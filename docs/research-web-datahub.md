@@ -170,6 +170,14 @@ XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/H
 
 2026-09-16 现有 Provider 闭环复验中，AKShare、财联社和东方财富基金均通过真实只读探测；三者分别完成 `market_bars`、`search_news`、`fund_data/nav` 查询、会话隔离快照和真实 `datahub_*` Runtime 调用。天软与 MySQL 只完成依赖、契约和安全错误映射验证；由于没有在产品配置中获得天软 Token、厂商许可和可达只读 MySQL 测试库，不能把它们写成真实成功。详细证据见 `.ai/reports/test_report_integration_providers_20260916_b2.md`。
 
+Web 一键环境只接受随包且哈希匹配的 `cjpy==0.5.2`，并同时验证 `requests`、`urllib3`。缺包返回
+`blocked_dependency`，CJPY 版本错误返回 `dependency_version_mismatch`。`CJ_KEY` 由系统凭据库在
+每次探测/查询时动态读取，保存后 `restart_required=false`；无凭据的干净安装必须保持
+`configured=false`、`callable=false`。安装与升级流程见
+[Research Web 一键本地安装](research-web-installation.md)。
+真实探测的 `vendor_auth_failed` 和 `vendor_permission_denied` 属于用户可处理的凭据/账号权限问题；
+`blocked_dependency` 和 `dependency_version_mismatch` 属于本机环境问题；限流或不可达保留为供应商问题。
+
 MySQL 的单元与界面验收使用模拟 Keyring、PyMySQL 连接和安全化 API 响应，不使用对话中出现过的旧口令。真实连接只有在用户轮换口令、重新保存并显式发起探测后才可验收；Research Web 在 Windows 与 Linux 上的系统凭据库后端仍需对应操作系统 CI 验证。桌面 sidecar、Tauri 安装包和安装级烟测不在本次范围内。
 Windows 原生本机集成专项已覆盖 DataHub 私有回环控制文件的服务启动读取：路径回退拒绝符号链接/重解析点、目录越界、非普通文件、硬链接和超限内容，并核对打开前后文件身份。POSIX 的 descriptor-relative 路径保持不变；该专项不证明 Windows 上的会话快照发布、连接配置写入或系统凭据库已经完成全量验收。
 连接配置原子替换在 POSIX 刷新父目录；Windows 明确跳过不支持的目录 `fsync`。这不降低临时文件刷新和关闭句柄后替换的要求，也不把跳过视为安装级持久化验收。

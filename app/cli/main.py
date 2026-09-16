@@ -4,6 +4,8 @@ import importlib
 import json
 import logging
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -18,6 +20,7 @@ from app.research_web.report_studio import ReportStudio, ReportStudioError
 from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
+    format_doctor_status,
     format_status,
     format_tabbit_status,
 )
@@ -41,6 +44,27 @@ LAZY_COMMANDS = {
     "signal": ("app.cli.commands.signal", "signal"),
     "timing": ("app.cli.commands.timing", "timing"),
 }
+
+
+@contextmanager
+def _machine_output_logging(enabled: bool) -> Iterator[None]:
+    """Keep console logs off stdout while emitting a machine-readable payload."""
+    if not enabled:
+        yield
+        return
+    redirected: list[tuple[logging.StreamHandler, object]] = []
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.StreamHandler) and not isinstance(
+            handler, logging.FileHandler
+        ):
+            redirected.append((handler, handler.stream))
+            handler.setStream(sys.stderr)
+    try:
+        with redirect_stdout(sys.stderr):
+            yield
+    finally:
+        for handler, stream in redirected:
+            handler.setStream(stream)
 
 
 class LazyCommandGroup(click.Group):
@@ -156,6 +180,23 @@ def web_tabbit_status() -> None:
     manager = WebServiceManager()
     try:
         click.echo(format_tabbit_status(manager.tabbit_status()))
+    except ServiceManagerError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@web.command("doctor")
+@click.option("--json", "json_output", is_flag=True, help="输出安全化 JSON")
+def web_doctor(json_output: bool) -> None:
+    """检查 Web 锁、CJPY、Node、DSH、数据目录、端口和服务健康。"""
+    manager = WebServiceManager()
+    try:
+        with _machine_output_logging(json_output):
+            report = manager.doctor()
+        click.echo(
+            json.dumps(report, ensure_ascii=False, indent=2)
+            if json_output
+            else format_doctor_status(report)
+        )
     except ServiceManagerError as exc:
         raise click.ClickException(str(exc)) from exc
 

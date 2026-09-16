@@ -19,11 +19,12 @@ import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from core.observability import get_logger
 
-from .launch_runtime import PINNED_COMMIT
+from .launch_runtime import PINNED_COMMIT, calculate_build_closure
 from .runtime_auth import read_runtime_auth_record
 
 log = get_logger(__name__)
@@ -35,6 +36,9 @@ ACTIVE_STATES = {"running", "awaiting_approval", "disconnected", "interrupted"}
 RUNTIME_TOKEN_PATTERN = re.compile(
     r"dsh web: http://127\.0\.0\.1:(\d+)/\?token=([A-Za-z0-9_-]{43})"
 )
+CJPY_VERSION = "0.5.2"
+CJPY_SHA256 = "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
+ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 
 
 class ServiceManagerError(RuntimeError):
@@ -91,7 +95,7 @@ class WebServiceManager:
         self.runtime_source = (
             runtime_source
             or (Path(configured_source).expanduser() if configured_source else None)
-            or self.data_root.parent / "dsh-source"
+            or self.data_root.parent / "runtime" / "dsh" / PINNED_COMMIT
         ).resolve()
         self.python = python or sys.executable
         self.node = (
@@ -441,6 +445,17 @@ class WebServiceManager:
     def _spawn(self, process: ManagedProcess) -> int:
         log_path = self.log_root / f"{process.role}.log"
         environment = os.environ.copy()
+        for key in (
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+        ):
+            value = environment.get(key)
+            if value and urlsplit(value).scheme.lower() not in {"http", "https"}:
+                environment.pop(key, None)
         environment.update(
             {
                 "RESEARCH_DATA_HOME": str(self.data_root),
@@ -618,6 +633,168 @@ class WebServiceManager:
             }
         return result
 
+    @staticmethod
+    def _executable_version(path: str) -> str | None:
+        try:
+            result = subprocess.run(
+                [path, "--version"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                return None
+            return (result.stdout or result.stderr).strip()[:80] or None
+        except (OSError, subprocess.SubprocessError):
+            return None
+
+    def _installed_package_versions(self) -> dict[str, str | None]:
+        script = (
+            "import importlib.metadata as m, json\n"
+            "out = {}\n"
+            "for name in ('cjpy', 'requests', 'urllib3'):\n"
+            "    try:\n"
+            "        out[name] = m.version(name)\n"
+            "    except m.PackageNotFoundError:\n"
+            "        out[name] = None\n"
+            "print(json.dumps(out))\n"
+        )
+        try:
+            result = subprocess.run(
+                [self.python, "-c", script],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            value = json.loads(result.stdout) if result.returncode == 0 else {}
+            return {
+                name: str(value[name]) if isinstance(value.get(name), str) else None
+                for name in ("cjpy", "requests", "urllib3")
+            }
+        except (OSError, TypeError, ValueError, json.JSONDecodeError, subprocess.SubprocessError):
+            return {name: None for name in ("cjpy", "requests", "urllib3")}
+
+    def _read_install_manifest(self) -> dict[str, Any]:
+        path = self.data_root.parent / "install" / "manifest.json"
+        try:
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 64 * 1024:
+                return {}
+            value = json.loads(path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) and value.get("schema_version") == 1 else {}
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return {}
+
+    def _dsh_build_status(self) -> dict[str, Any]:
+        try:
+            commit = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=self.runtime_source,
+                text=True,
+                timeout=10,
+            ).strip()
+            closure_sha256, closure_files = calculate_build_closure(self.runtime_source)
+            manifest = self._read_install_manifest()
+            ready = (
+                commit == PINNED_COMMIT
+                and manifest.get("dsh_commit") == commit
+                and manifest.get("dsh_closure_sha256") == closure_sha256
+                and manifest.get("dsh_closure_files") == closure_files
+                and (self.runtime_source / "apps/cli/lib/bin.js").is_file()
+            )
+            return {
+                "commit": commit,
+                "closure_sha256": closure_sha256,
+                "closure_files": closure_files,
+                "ready": ready,
+            }
+        except (OSError, subprocess.SubprocessError):
+            return {
+                "commit": None,
+                "closure_sha256": None,
+                "closure_files": None,
+                "ready": False,
+            }
+
+    def doctor(self) -> dict[str, Any]:
+        """Return a path-free, credential-free Web installation diagnosis."""
+        manifest = self._read_install_manifest()
+        lock = self.project_root / "requirements" / "web.lock"
+        try:
+            lock_sha256 = hashlib.sha256(lock.read_bytes()).hexdigest()
+        except OSError:
+            lock_sha256 = None
+        package_versions = self._installed_package_versions()
+        dsh = self._dsh_build_status()
+        try:
+            raw_status = self.status()
+            services = {
+                role: {
+                    "port": int(raw_status["services"][role]["port"]),
+                    "running": bool(raw_status["services"][role]["running"]),
+                    "healthy": bool(raw_status["services"][role]["healthy"]),
+                }
+                for role in ("runtime", "web")
+            }
+        except (KeyError, TypeError, ValueError, ServiceManagerError):
+            services = {
+                "runtime": {"port": self.runtime_port, "running": False, "healthy": False},
+                "web": {"port": self.web_port, "running": False, "healthy": False},
+            }
+        environment_owned = (self.project_root / ".venv" / ENVIRONMENT_MARKER).is_file()
+        lock_matches = bool(lock_sha256 and manifest.get("web_lock_sha256") == lock_sha256)
+        cjpy_ready = (
+            package_versions.get("cjpy") == CJPY_VERSION
+            and bool(package_versions.get("requests"))
+            and bool(package_versions.get("urllib3"))
+            and manifest.get("cjpy_version") == CJPY_VERSION
+            and manifest.get("cjpy_sha256") == CJPY_SHA256
+        )
+        dsh_ready = bool(
+            dsh.get("ready")
+            and manifest.get("dsh_commit") == PINNED_COMMIT
+            and manifest.get("dsh_closure_sha256") == dsh.get("closure_sha256")
+        )
+        issues = []
+        for ready, code in (
+            (manifest.get("status") == "installed", "install_manifest_invalid"),
+            (environment_owned, "environment_not_owned"),
+            (lock_matches, "web_lock_mismatch"),
+            (cjpy_ready, "cjpy_not_ready"),
+            (self._executable_version(self.node) is not None, "node_unavailable"),
+            (dsh_ready, "dsh_not_ready"),
+        ):
+            if not ready:
+                issues.append(code)
+        return {
+            "schema_version": 1,
+            "ok": not issues,
+            "issues": issues,
+            "python": {
+                "version": self._executable_version(self.python),
+                "environment_owned": environment_owned,
+                "lock_sha256": lock_sha256,
+                "lock_matches_manifest": lock_matches,
+            },
+            "node": {"version": self._executable_version(self.node)},
+            "cjpy": {
+                "version": package_versions.get("cjpy"),
+                "wheel_sha256": CJPY_SHA256 if cjpy_ready else None,
+                "requests": package_versions.get("requests"),
+                "urllib3": package_versions.get("urllib3"),
+                "ready": cjpy_ready,
+            },
+            "dsh": {
+                "commit": dsh.get("commit"),
+                "closure_sha256": dsh.get("closure_sha256"),
+                "closure_files": dsh.get("closure_files"),
+                "ready": dsh_ready,
+            },
+            "data": {"ready": self.data_root.is_dir()},
+            "services": services,
+        }
+
     def tabbit_status(self) -> dict[str, Any]:
         """Return the safe, read-only Tabbit diagnostic exposed by the BFF."""
         if not self._web_healthy():
@@ -661,5 +838,23 @@ def format_tabbit_status(status: dict[str, Any]) -> str:
             f"online instances: {status.get('online_instances') or 0}",
             f"selected instance: {status.get('selected_instance') or '-'}",
             f"restart required: {'yes' if status.get('restart_required') else 'no'}",
+        ]
+    )
+
+
+def format_doctor_status(status: dict[str, Any]) -> str:
+    """Render the safe doctor projection for a terminal."""
+    return "\n".join(
+        [
+            f"overall: {'ready' if status.get('ok') else 'needs attention'}",
+            f"Python: {status.get('python', {}).get('version') or 'missing'}",
+            "Web lock: "
+            + ("verified" if status.get("python", {}).get("lock_matches_manifest") else "invalid"),
+            f"CJPY: {status.get('cjpy', {}).get('version') or 'missing'}",
+            f"Node: {status.get('node', {}).get('version') or 'missing'}",
+            f"DSH: {'ready' if status.get('dsh', {}).get('ready') else 'invalid'}",
+            f"Runtime 3081: {'healthy' if status.get('services', {}).get('runtime', {}).get('healthy') else 'stopped'}",
+            f"Web 8088: {'healthy' if status.get('services', {}).get('web', {}).get('healthy') else 'stopped'}",
+            "issues: " + (", ".join(status.get("issues", [])) or "none"),
         ]
     )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.metadata as importlib_metadata
 import os
 from datetime import datetime
 from importlib.util import find_spec
@@ -613,23 +614,35 @@ def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
     return any(bool(environ.get(key, "").strip()) for key in keys)
 
 
-def _dependency_ready(source_id: str, dependencies: list[str]) -> bool:
+def _dependency_status(source_id: str, dependencies: list[str]) -> tuple[bool, str | None]:
     if not dependencies:
-        return True
+        return True, None
     if source_id in {"wind", "tinysoft", "ifind", "akshare", "mysql"}:
         try:
             modules = {
                 "wind": ("WindPy", "xlwings"),
-                "tinysoft": ("cjpy",),
+                "tinysoft": ("cjpy", "requests", "urllib3"),
                 "ifind": ("iFinD", "iFinDPy"),
                 "akshare": ("akshare",),
                 "mysql": ("pymysql", "keyring"),
             }[source_id]
             readiness = [find_spec(module) is not None for module in modules]
-            return any(readiness) if source_id in {"wind", "ifind"} else all(readiness)
+            ready = any(readiness) if source_id in {"wind", "ifind"} else all(readiness)
+            if not ready:
+                return False, "blocked_dependency"
+            if source_id == "tinysoft" and importlib_metadata.version("cjpy") != "0.5.2":
+                return False, "dependency_version_mismatch"
+            return True, None
+        except importlib_metadata.PackageNotFoundError:
+            return False, "blocked_dependency"
         except (ImportError, AttributeError, ValueError):
-            return False
-    return False
+            return False, "blocked_dependency"
+    return False, "blocked_dependency"
+
+
+def _dependency_ready(source_id: str, dependencies: list[str]) -> bool:
+    """Compatibility helper retained for callers that only need the Boolean projection."""
+    return _dependency_status(source_id, dependencies)[0]
 
 
 def build_catalog(
@@ -666,7 +679,7 @@ def build_catalog(
                 configured = configured and bool((connection_status or {}).get("secret_configured"))
         else:
             configured = _configured(auth, keys, env)
-        dependency_ready = _dependency_ready(sid, deps)
+        dependency_ready, dependency_failure_code = _dependency_status(sid, deps)
         allowed = integrated and sid not in DISABLED
         if sid in DISABLED or not integrated:
             state: IntegrationState = "disabled"
@@ -707,7 +720,8 @@ def build_catalog(
                     integration_state=state,
                     health=health,
                     last_checked_at=probe.get("last_checked_at"),
-                    failure_code=probe.get("failure_code"),
+                    failure_code=probe.get("failure_code")
+                    or (dependency_failure_code if integrated else None),
                     duration_ms=probe.get("duration_ms"),
                 ),
             ).model_dump(mode="json")

@@ -48,6 +48,17 @@ Registry 默认只接受 HTTPS；唯一 HTTP 例外是 `auth=none` 且主机精�
 
 ## 开发启动
 
+普通用户使用 Web 一键安装，不需要先安装本项目的全量开发依赖：
+
+```bash
+./setup-web.sh          # macOS
+setup-web.cmd           # Windows
+```
+
+安装器创建 checkout 专属 `.venv`、消费带哈希的 `requirements/web.lock`、校验随包 CJPY 0.5.2，
+并构建固定提交的 DSH。参数、Doctor、安全清单和后续迭代门禁见
+[Research Web 一键本地安装](research-web-installation.md)。
+
 完整开发环境仍使用 `pip install -e ".[dev]"`。如果只需要修复已有的 uv 管理环境并运行
 Research Web 测试，可安装最小依赖集：
 
@@ -59,7 +70,8 @@ uv pip install --python .venv/bin/python \
 uv pip check --python .venv/bin/python
 ```
 
-该最小环境不包含 `akshare`、`cjpy`、WindPy 等可选数据提供方 SDK；缺少它们时，对应工具会按
+上述手工最小开发环境不等于公开一键安装环境；公开 Web 锁包含 AKShare、随包 CJPY 所需依赖和
+当前 Web Runtime 闭包。WindPy 等厂商系统能力仍为可选；缺少它们时，对应工具会按
 来源目录标记为不可选，测试不会把本机恰好安装的提供方当作固定产品能力。
 
 安装项目命令后，使用项目级后台管理器启动；命令返回或终端关闭后，两个进程仍继续运行：

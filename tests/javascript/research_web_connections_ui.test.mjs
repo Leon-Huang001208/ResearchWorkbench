@@ -202,6 +202,28 @@ test('unadapted and no-auth sources show diagnostics without a fake form', () =>
   assert.match(html, /检测/);
 });
 
+test('data source failures explain dependency, authentication, permission, rate and reachability states', () => {
+  const cases = [
+    ['blocked_dependency', '缺少依赖'],
+    ['dependency_version_mismatch', '依赖版本错误'],
+    ['vendor_auth_failed', '认证失败'],
+    ['vendor_permission_denied', '权限不足'],
+    ['vendor_rate_limited', '请求受限'],
+    ['vendor_unreachable', '厂商不可达'],
+  ];
+  for (const [errorCode, label] of cases) {
+    const tinysoft = { ...sources.find((source) => source.id === 'tinysoft'), error_code: errorCode };
+    const html = renderConnectionCenter({
+      connections: { ...model, sources: [tinysoft] },
+      selectedId: 'tinysoft',
+      configuration: { configured: true, secret_configured: true },
+      scope: 'data',
+    });
+    assert.match(html, new RegExp(label));
+    assert.doesNotMatch(html, />已检测</);
+  }
+});
+
 test('local integration page leads with one overall diagnosis and defers technical stages', () => {
   const html = renderConnectionCenter({ connections: model, selectedId: 'local_cache', configuration: null, scope: 'local' });
   assert.match(html, /尚未接入可调用链路/);

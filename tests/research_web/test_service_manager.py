@@ -9,6 +9,7 @@ from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
     _is_unsafe_private_directory,
+    format_doctor_status,
     format_status,
 )
 
@@ -67,6 +68,8 @@ def test_process_contract_supports_isolated_staging_ports(manager):
 
 def test_spawn_exports_the_exact_private_web_origin_for_mcp_callbacks(manager, monkeypatch):
     captured = {}
+    monkeypatch.setenv("ALL_PROXY", "socks5://127.0.0.1:1080")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:18080")
 
     class Process:
         pid = 4321
@@ -82,13 +85,24 @@ def test_spawn_exports_the_exact_private_web_origin_for_mcp_callbacks(manager, m
     manager._spawn(manager._processes()[1])
 
     assert captured["env"]["RESEARCH_WEB_INTERNAL_URL"] == "http://127.0.0.1:8088"
+    assert "ALL_PROXY" not in captured["env"]
+    assert captured["env"]["HTTPS_PROXY"] == "http://127.0.0.1:18080"
 
 
 def test_default_runtime_source_is_project_private(tmp_path, monkeypatch):
     monkeypatch.delenv("RESEARCH_DSH_SOURCE", raising=False)
     data_root = tmp_path / ".research-workbench" / "research-web"
     resolved = WebServiceManager(project_root=tmp_path, data_root=data_root)
-    assert resolved.runtime_source == (tmp_path / ".research-workbench" / "dsh-source").resolve()
+    assert (
+        resolved.runtime_source
+        == (
+            tmp_path
+            / ".research-workbench"
+            / "runtime"
+            / "dsh"
+            / service_manager_module.PINNED_COMMIT
+        ).resolve()
+    )
 
 
 def test_configured_node_binary_precedes_path_lookup(tmp_path, monkeypatch):
@@ -288,6 +302,126 @@ def test_status_formatter_is_concise():
     assert "runtime: healthy" in rendered
     assert "web: stopped" in rendered
     assert "8088/#/fingpt" in rendered
+
+
+def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, monkeypatch):
+    environment = manager.project_root / ".venv"
+    environment.mkdir()
+    (environment / ".rwb-web-environment.json").write_text(
+        json.dumps({"schema_version": 1, "owner": "research-workbench-web-installer"}),
+        encoding="utf-8",
+    )
+    lock = manager.project_root / "requirements" / "web.lock"
+    lock.parent.mkdir()
+    lock.write_text("locked-runtime", encoding="utf-8")
+    lock_sha = service_manager_module.hashlib.sha256(lock.read_bytes()).hexdigest()
+    install_root = manager.data_root.parent / "install"
+    install_root.mkdir(parents=True)
+    (install_root / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "status": "installed",
+                "web_lock_sha256": lock_sha,
+                "cjpy_version": "0.5.2",
+                "cjpy_sha256": "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94",
+                "dsh_commit": service_manager_module.PINNED_COMMIT,
+                "dsh_closure_sha256": "closure-ok",
+                "CJ_KEY": "must-never-escape",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(manager, "_executable_version", lambda _path: "safe-version")
+    monkeypatch.setattr(
+        manager,
+        "_installed_package_versions",
+        lambda: {"cjpy": "0.5.2", "requests": "2.33.0", "urllib3": "2.5.0"},
+    )
+    monkeypatch.setattr(
+        manager,
+        "_dsh_build_status",
+        lambda: {
+            "commit": service_manager_module.PINNED_COMMIT,
+            "closure_sha256": "closure-ok",
+            "closure_files": 11084,
+            "ready": True,
+        },
+    )
+    monkeypatch.setattr(
+        manager,
+        "status",
+        lambda: {
+            "url": manager.web_url,
+            "services": {
+                "runtime": {"running": True, "healthy": True, "pid": 111, "port": 3081},
+                "web": {"running": True, "healthy": True, "pid": 222, "port": 8088},
+            },
+        },
+    )
+
+    report = manager.doctor()
+    serialized = json.dumps(report, ensure_ascii=False)
+
+    assert report["ok"] is True
+    assert report["python"]["lock_matches_manifest"] is True
+    assert report["cjpy"]["version"] == "0.5.2"
+    assert report["services"]["web"] == {"port": 8088, "running": True, "healthy": True}
+    assert str(manager.project_root) not in serialized
+    assert "must-never-escape" not in serialized
+    rendered = format_doctor_status(report)
+    assert "CJPY: 0.5.2" in rendered
+    assert "DSH: ready" in rendered
+
+
+def test_dsh_build_status_uses_the_private_install_attestation(manager, monkeypatch):
+    monkeypatch.setattr(
+        service_manager_module.subprocess,
+        "check_output",
+        lambda *_args, **_kwargs: service_manager_module.PINNED_COMMIT,
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "calculate_build_closure",
+        lambda _source: ("local-closure", 11084),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_read_install_manifest",
+        lambda: {
+            "schema_version": 1,
+            "dsh_commit": service_manager_module.PINNED_COMMIT,
+            "dsh_closure_sha256": "local-closure",
+            "dsh_closure_files": 11084,
+        },
+    )
+    (manager.runtime_source / "apps" / "cli" / "lib").mkdir(parents=True)
+    (manager.runtime_source / "apps" / "cli" / "lib" / "bin.js").touch()
+
+    assert manager._dsh_build_status()["ready"] is True
+
+    monkeypatch.setattr(
+        service_manager_module,
+        "calculate_build_closure",
+        lambda _source: ("tampered-closure", 11084),
+    )
+    assert manager._dsh_build_status()["ready"] is False
+
+
+def test_package_version_probe_preserves_present_packages_when_one_is_missing(manager, monkeypatch):
+    class Result:
+        returncode = 0
+        stdout = json.dumps({"cjpy": None, "requests": "2.34.2", "urllib3": "2.8.0"})
+
+    monkeypatch.setattr(
+        service_manager_module.subprocess, "run", lambda *_args, **_kwargs: Result()
+    )
+
+    assert manager._installed_package_versions() == {
+        "cjpy": None,
+        "requests": "2.34.2",
+        "urllib3": "2.8.0",
+    }
 
 
 def test_runtime_health_exchanges_cookie_and_writes_private_auth(manager, monkeypatch):

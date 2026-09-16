@@ -113,6 +113,18 @@ FinGPT 在 DSH 不可用时可确定性回退 LangGraph。Claw 缺少健康 team
 
 ## CLI 命令
 
+### `rwb web doctor`
+
+核对项目专属 `.venv`、Web 锁摘要、CJPY 0.5.2、Node、固定 DSH 构建闭包、私有数据目录以及
+3081/8088 健康状态。`--json` 返回安全化机器可读结果，不包含路径、密钥、Cookie、环境变量值或
+用户文件正文。首次安装与修复入口见
+[`docs/research-web-installation.md`](research-web-installation.md)。
+
+```bash
+rwb web doctor
+rwb web doctor --json
+```
+
 ### `rwb web tabbit-status`
 
 读取 Research Web 当前 Tabbit 健康、版本、两个开关、在线实例数和待重启状态。

@@ -260,13 +260,13 @@ def test_runtime_overlay_disables_installer_and_keeps_fetch_takeover_off_by_defa
     assert 'name: "/adapter.mjs"' in overlay
 
 
-@pytest.mark.parametrize("version", ["v22.19.0", "v22.20.1", "v24.0.0", "v25.9.0"])
+@pytest.mark.parametrize("version", ["v22.19.0", "v22.20.1", "v24.0.0", "v24.19.0"])
 def test_tabbit_node_supported_versions(version, monkeypatch):
     monkeypatch.setattr(launch_runtime.subprocess, "check_output", lambda *args, **kwargs: version)
     assert launch_runtime.validate_tabbit_node("node") == version.removeprefix("v")
 
 
-@pytest.mark.parametrize("version", ["v22.18.0", "v23.9.0", "v21.20.0"])
+@pytest.mark.parametrize("version", ["v22.18.0", "v23.9.0", "v25.9.0", "v21.20.0"])
 def test_tabbit_node_unsupported_versions_fail_closed(version, monkeypatch):
     monkeypatch.setattr(launch_runtime.subprocess, "check_output", lambda *args, **kwargs: version)
     with pytest.raises(RuntimeError, match="22.19"):
