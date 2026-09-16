@@ -37,6 +37,24 @@ SAFE_TABBIT_STATUSES = {
     "error",
 }
 SAFE_VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
+USER_ACTION_DATA_ERRORS = frozenset(
+    {
+        "auto_probe_consent_required",
+        "blocked_config",
+        "credential_missing",
+        "not_configured",
+        "vendor_auth_failed",
+        "vendor_permission_denied",
+    }
+)
+SYSTEM_DATA_ERRORS = frozenset(
+    {
+        "blocked_dependency",
+        "credential_store_unavailable",
+        "dependency_version_mismatch",
+        "probe_failed",
+    }
+)
 
 
 class IntegrationStatusPersistenceError(RuntimeError):
@@ -656,6 +674,17 @@ class IntegrationCoordinator:
     def _needs_consent(source: dict) -> bool:
         return source.get("auth_type") != "none" or source.get("fee") != "free"
 
+    @staticmethod
+    def _data_failure_ownership(error_code: object, health: object) -> tuple[str, str]:
+        """Map safe provider errors to the party that can take the next action."""
+        if error_code in USER_ACTION_DATA_ERRORS:
+            return "user_action", "user"
+        if error_code in SYSTEM_DATA_ERRORS:
+            return "system_fault", "system"
+        if health == "unavailable":
+            return "system_fault", "vendor"
+        return "user_action", "user"
+
     def _data_statuses(self) -> list[dict]:
         values = []
         for source in self._data_sources():
@@ -671,6 +700,7 @@ class IntegrationCoordinator:
             consent_required = self._needs_consent(source)
             authorized = configured and (not consent_required or self.consents.get(item_id, False))
             health = readiness.get("health") or record.get("probe_health") or "untested"
+            error_code = record.get("error_code") or readiness.get("failure_code")
             stale = bool(record.get("stale")) or (
                 bool(record.get("fingerprint"))
                 and record.get("fingerprint") != self._data_fingerprint(source)
@@ -698,8 +728,7 @@ class IntegrationCoordinator:
             elif runtime_callable:
                 bucket, responsibility = "available", "system"
             else:
-                bucket = "system_fault" if health == "unavailable" else "user_action"
-                responsibility = "vendor" if health == "unavailable" else "user"
+                bucket, responsibility = self._data_failure_ownership(error_code, health)
             values.append(
                 {
                     "id": item_id,
@@ -727,7 +756,7 @@ class IntegrationCoordinator:
                     or readiness.get("last_checked_at"),
                     "last_success_at": record.get("last_success_at"),
                     "stale": stale,
-                    "error_code": record.get("error_code") or readiness.get("failure_code"),
+                    "error_code": error_code,
                     "details": {
                         "auto_probe_consent": self.consents.get(item_id, False),
                         "auto_probe_consent_required": consent_required,

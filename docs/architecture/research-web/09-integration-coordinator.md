@@ -1,5 +1,9 @@
 # 统一集成协调器
 
+一键安装为协调器提供可复现的 Web 依赖与 CJPY 0.5.2，但不把“已安装”当成探测或可调用成功。
+没有 `CJ_KEY` 时天软保持待用户配置；保存后的秘密由凭据库在每次探测/查询时动态读取，协调器仍
+按既有五阶段模型和责任归因记录结果。
+
 ## 目标
 
 `IntegrationCoordinator` 是 Research Web Host 内的数据源与本机能力状态编排层。它不替代
@@ -28,6 +32,10 @@ IntegrationCoordinator
 - `capabilities`：品牌无关业务能力 ID。
 - `runtime_callable` 与 `responsibility`：责任限定为 `user/system/vendor/developer`。
 - `bucket`：`available/checking/user_action/system_fault/not_delivered` 五类页面汇总。
+
+认证失败和账号权限不足归入 `user_action/user`，因为下一步是用户更换本机凭据或联系供应商开通账号；
+依赖缺失、版本错误和凭据库不可用归入 `system_fault/system`；限流、供应商不可达和供应商响应异常归入
+`system_fault/vendor`。页面不再把无效 Key 误显示为本机系统故障。
 
 快照仅保存白名单字段，不保存密码、Token、Cookie、MCP 环境变量、用户文件正文或本机绝对路径。
 Provider、配置和环境指纹变化时，旧的成功证据保留为历史时间，但当前探测阶段变为过期，不能继续

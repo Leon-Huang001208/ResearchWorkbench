@@ -1,5 +1,9 @@
 # Research Web 文档门禁与安全入口
 
+Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 macOS/Windows runner 上执行；
+`.agents/project-constraints.json` 校验其平台、公开 setup 入口、Doctor、CJPY 和无凭据天软断言。
+它不替代本页的架构映射、回执、截图和人工审阅门禁。
+
 ## 模块边界
 
 `scripts/check_research_architecture.mjs` 是仓库内、仅使用 Node 标准库的离线检查核心。

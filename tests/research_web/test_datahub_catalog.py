@@ -160,6 +160,91 @@ def test_mysql_tools_become_callable_only_with_local_profile_secret_and_dependen
     assert source["readiness"]["integration_state"] == "blocked_config"
 
 
+def test_tinysoft_rejects_the_public_cjpy_version_with_a_specific_failure(monkeypatch):
+    import app.research_web.datahub.catalog as module
+
+    monkeypatch.setattr(
+        module,
+        "find_spec",
+        lambda name: object() if name in {"cjpy", "requests", "urllib3"} else None,
+    )
+    monkeypatch.setattr(
+        module.importlib_metadata,
+        "version",
+        lambda name: "0.3.6" if name == "cjpy" else "1.0.0",
+    )
+
+    catalog = build_catalog(
+        environ={},
+        connection_statuses={
+            "tinysoft": {
+                "configured": True,
+                "secret_configured": True,
+                "credential_store_available": True,
+            }
+        },
+    )
+    source = next(item for item in catalog["sources"] if item["id"] == "tinysoft")
+
+    assert source["readiness"]["dependency_ready"] is False
+    assert source["readiness"]["integration_state"] == "blocked_dependency"
+    assert source["readiness"]["failure_code"] == "dependency_version_mismatch"
+    assert source["readiness"]["callable"] is False
+
+
+def test_tinysoft_requires_the_cjpy_transport_dependencies(monkeypatch):
+    import app.research_web.datahub.catalog as module
+
+    monkeypatch.setattr(
+        module,
+        "find_spec",
+        lambda name: object() if name in {"cjpy", "requests"} else None,
+    )
+    monkeypatch.setattr(module.importlib_metadata, "version", lambda _name: "0.5.2")
+
+    catalog = build_catalog(
+        environ={},
+        connection_statuses={
+            "tinysoft": {
+                "configured": True,
+                "secret_configured": True,
+                "credential_store_available": True,
+            }
+        },
+    )
+    source = next(item for item in catalog["sources"] if item["id"] == "tinysoft")
+
+    assert source["readiness"]["dependency_ready"] is False
+    assert source["readiness"]["failure_code"] == "blocked_dependency"
+
+
+def test_tinysoft_accepts_only_the_complete_052_dependency_set(monkeypatch):
+    import app.research_web.datahub.catalog as module
+
+    monkeypatch.setattr(
+        module,
+        "find_spec",
+        lambda name: object() if name in {"cjpy", "requests", "urllib3"} else None,
+    )
+    monkeypatch.setattr(module.importlib_metadata, "version", lambda _name: "0.5.2")
+
+    catalog = build_catalog(
+        environ={},
+        connection_statuses={
+            "tinysoft": {
+                "configured": True,
+                "secret_configured": True,
+                "credential_store_available": True,
+            }
+        },
+    )
+    source = next(item for item in catalog["sources"] if item["id"] == "tinysoft")
+
+    assert source["readiness"]["dependency_ready"] is True
+    assert source["readiness"]["integration_state"] == "ready"
+    assert source["readiness"]["failure_code"] is None
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("module_name", "entrypoint", "capability"),

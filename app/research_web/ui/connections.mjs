@@ -9,6 +9,16 @@ const statusText = {
   not_installed: '未安装', not_logged_in: '未登录', not_applicable: '不适用',
   degraded: '受限', detected: '已检测到组件', failed: '失败', error: '异常', unknown: '待检测',
 };
+const sourceFailureDefinitions = {
+  blocked_dependency: ['缺少依赖', '安装或修复项目专属 Web 环境后重新检测。'],
+  dependency_missing: ['缺少依赖', '安装或修复项目专属 Web 环境后重新检测。'],
+  dependency_version_mismatch: ['依赖版本错误', '当前 SDK 版本与项目锁定版本不一致，请运行安装修复。'],
+  vendor_auth_failed: ['认证失败', '请确认本机设置中保存的账号或密钥仍然有效。'],
+  credential_missing: ['认证失败', '请先在本机设置中保存该来源所需的凭据。'],
+  vendor_permission_denied: ['权限不足', '当前厂商账号没有执行该探测或查询所需的权限。'],
+  vendor_rate_limited: ['请求受限', '厂商额度或频率限制已触发，请稍后重试或检查账号额度。'],
+  vendor_unreachable: ['厂商不可达', '当前无法连接厂商服务，请检查网络后重新检测。'],
+};
 const integrationLabels = { excel_automation: 'Excel 自动化', wind_excel: 'Wind 插件', ifind_excel: 'iFinD 插件', report_workflow: '报告工作流' };
 const localIntegrationKeys = Object.keys(integrationLabels);
 
@@ -446,6 +456,13 @@ function renderAutoProbeConsent(source) {
   return `<section class="notice warning small" data-auto-probe-consent-control><p>${e(copy)}</p><button class="button" type="button" data-integration-consent="${e(source.id)}" data-consent-enabled="${enabled}">${enabled ? '停用自动检测' : '允许自动检测'}</button></section>`;
 }
 
+function renderSourceFailure(source) {
+  const code = String(source?.error_code || source?.failure_code || source?.readiness?.failure_code || '');
+  if (!code) return '';
+  const [title, description] = sourceFailureDefinitions[code] || ['检测未通过', '请重新检测；若问题持续，请查看本机服务日志。'];
+  return `<section class="notice error small" data-source-failure="${e(code)}"><strong>${e(title)}</strong><p>${e(description)}</p></section>`;
+}
+
 function renderDetail(source, configuration, connections, { drawer = false } = {}) {
   if (!source) return '<section class="connection-detail"><p class="muted">请选择一个数据源。</p></section>';
   let body;
@@ -457,7 +474,7 @@ function renderDetail(source, configuration, connections, { drawer = false } = {
   else if (source.id === 'local_cache' || source.group === 'local') body = renderIntegration(connections?.platform);
   else body = renderUnavailable(source);
   const close = drawer ? '<button class="connection-detail-close" type="button" data-connection-detail-close aria-label="关闭数据源详情">×</button>' : '';
-  return `<section class="connection-detail ${drawer ? 'connection-drawer' : ''}" ${drawer ? 'id="connection-detail" data-connection-drawer' : ''} aria-labelledby="connection-title"><header class="connection-detail-header"><div><p class="eyebrow">${e(authLabel(source))}</p><h2 id="connection-title" tabindex="-1">${e(sourceName(source))}</h2><p class="muted">${e(source.description || '')}</p></div>${close}</header>${renderStateMatrix(source)}${renderAutoProbeConsent(source)}${body}</section>`;
+  return `<section class="connection-detail ${drawer ? 'connection-drawer' : ''}" ${drawer ? 'id="connection-detail" data-connection-drawer' : ''} aria-labelledby="connection-title"><header class="connection-detail-header"><div><p class="eyebrow">${e(authLabel(source))}</p><h2 id="connection-title" tabindex="-1">${e(sourceName(source))}</h2><p class="muted">${e(source.description || '')}</p></div>${close}</header>${renderStateMatrix(source)}${renderSourceFailure(source)}${renderAutoProbeConsent(source)}${body}</section>`;
 }
 
 function renderMigration(migration, open) {

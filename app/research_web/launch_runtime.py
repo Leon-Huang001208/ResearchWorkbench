@@ -360,8 +360,8 @@ def validate_tabbit_node(node: str) -> str:
     if match is None:
         raise RuntimeError("Tabbit Runtime 的 Node.js 版本格式无效")
     major, minor, _ = map(int, match.groups())
-    if not (major >= 24 or (major == 22 and minor >= 19)):
-        raise RuntimeError("dsh-tabbit 0.3.4 要求 Node.js 22.19+ 或 24+")
+    if not (major == 24 or (major == 22 and minor >= 19)):
+        raise RuntimeError("dsh-tabbit 0.3.4 要求 Node.js 22.19.x+ 或 24.x")
     return version.removeprefix("v")
 
 
@@ -568,22 +568,11 @@ def prepare(
         encoding="utf-8",
     )
     # Pin the actual JS/config closure, not just the top-level CLI version.
-    digest = hashlib.sha256()
-    count = 0
-    for root in (source / "packages", source / "apps/cli", source / "vendor"):
-        for path in sorted(root.rglob("*")):
-            if (
-                path.is_file()
-                and "node_modules" not in path.parts
-                and ("lib" in path.parts or path.suffix in {".yml", ".json", ".ts"})
-            ):
-                digest.update(str(path.relative_to(source)).encode())
-                digest.update(path.read_bytes())
-                count += 1
+    closure_sha256, closure_files = calculate_build_closure(source)
     manifest = {
         "source_commit": commit,
-        "closure_sha256": digest.hexdigest(),
-        "closure_files": count,
+        "closure_sha256": closure_sha256,
+        "closure_files": closure_files,
         "mode": "source" if source_mode else "build",
     }
     manifest_path = runtime / ("source-lock.json" if source_mode else "build-lock.json")
@@ -620,6 +609,23 @@ def prepare(
         env["TSX_TSCONFIG_PATH"] = str(source / "tsconfig.json")
         command[1:1] = ["--import", str(source / "node_modules/tsx/dist/loader.mjs")]
     return command, env, work
+
+
+def calculate_build_closure(source: Path) -> tuple[str, int]:
+    """Hash the platform-neutral DSH runtime source/build closure."""
+    digest = hashlib.sha256()
+    count = 0
+    for root in (source / "packages", source / "apps/cli", source / "vendor"):
+        for path in sorted(root.rglob("*")):
+            if (
+                path.is_file()
+                and "node_modules" not in path.parts
+                and ("lib" in path.parts or path.suffix in {".yml", ".json", ".ts"})
+            ):
+                digest.update(path.relative_to(source).as_posix().encode())
+                digest.update(path.read_bytes())
+                count += 1
+    return digest.hexdigest(), count
 
 
 def main():

@@ -1,5 +1,9 @@
 # Research Web Tabbit 集成
 
+Web 一键安装固定 Node 支持范围与同一个 DSH 提交/构建闭包，但不下载或升级 Tabbit，也不改变
+其 Profile、实时 claim、一次性正文 token、只读声明或写操作审批。Doctor 只报告 Runtime/端口
+健康，不读取标签标题、URL、Cookie 或正文。
+
 Goldar 框架解释与深度验证沿用同一个专属 DSH，但其 `framework-explain` / `framework-verify` 预设不装配 Tabbit；框架 Bot 不读取用户浏览器标签，也不改变本页 claim、授权和正文生命周期。
 
 ## 范围
@@ -12,7 +16,7 @@ Research Web 在私有 DSH Web Profile 中固定加载 `dsh-tabbit` 0.3.4 和
 Profile bundle 顺序固定为 `base`、`web-app`、`dsh-tabbit`、
 `research-tabbit-adapter`。`tabbit-installer` 始终禁用，guard 同时拒绝安装/更新工具。
 缺少 launcher、浏览器离线、版本低于 1.9.0 或多实例未选择时只返回诊断。包要求运行
-Node `^22.19.0 || >=24`；Node 23 不受支持。
+Node `^22.19.0 || ^24.0.0`；Node 23 和 25+ 不受支持。
 
 DSH 的状态、Profile 和凭据仍由私有 `DSH_HOME` 隔离；启动环境只保留宿主的 `HOME`，并在
 Windows 上按存在性保留 `USERPROFILE`、`LOCALAPPDATA`，供官方插件定位浏览器拥有的 launcher

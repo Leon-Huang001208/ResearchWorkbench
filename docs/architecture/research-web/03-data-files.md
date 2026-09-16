@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+Web 安装清单位于 Research Workbench 私有数据根的 `install/manifest.json`，只保存代码/依赖版本与
+摘要；CJPY wheel、Web 锁和 DSH 闭包均以哈希核对。清单和安装日志不保存 `CJ_KEY`、模型密钥、
+Cookie、环境变量值或用户文件正文，也不改变会话数据集/产物目录。
+
 Gold 与 Dollar 快照分别位于产品数据根的 `frameworks/gold/` 和 `frameworks/dollar/`，采用各自严格 schema（Gold V2、Dollar V1）、内容 revision、2 MiB 上限和同目录原子替换。路径解析前拒绝任何现存符号链接组件；识别到旧 Gold V1 结构时先保留单份 `snapshot.legacy-v1.json` 再安装确定性 seed。框架快照不进入 Automation 事实索引、会话正文或资产数据集。
 
 Phase 2A 另在 `<RESEARCH_DATA_HOME>/mcp-registry/` 保存非敏感 Registry 索引以及按 Registry

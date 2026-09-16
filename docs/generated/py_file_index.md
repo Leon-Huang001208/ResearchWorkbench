@@ -2830,6 +2830,8 @@ Imports:
 - `app.research_web.service_manager`
 - `app.research_web.store`
 - `click`
+- `collections.abc`
+- `contextlib`
 - `importlib`
 - `json`
 - `logging`
@@ -2843,6 +2845,8 @@ Classes:
   - methods: list_commands, get_command, format_commands
 
 Functions:
+- `_machine_output_logging`
+  - Keep console logs off stdout while emitting a machine-readable payload.
 - `cli`
   - Research Workbench - 本地优先的研究工作台。
 - `web`
@@ -2854,6 +2858,8 @@ Functions:
   - 查看两个项目服务的归属与健康状态。
 - `web_tabbit_status`
   - 查看不含路径、Cookie 或页面元数据的 Tabbit 诊断。
+- `web_doctor`
+  - 检查 Web 锁、CJPY、Node、DSH、数据目录、端口和服务健康。
 - `web_stop`
   - 停止仅属于当前项目的 8088/3081 进程。
 - `web_restart`
@@ -3458,6 +3464,7 @@ Imports:
 - `__future__`
 - `contracts`
 - `datetime`
+- `importlib.metadata`
 - `importlib.util`
 - `os`
 - `pydantic`
@@ -3471,7 +3478,9 @@ Classes:
 
 Functions:
 - `_configured`
+- `_dependency_status`
 - `_dependency_ready`
+  - Compatibility helper retained for callers that only need the Boolean projection.
 - `build_catalog`
   - Return a fresh JSON-ready catalog without importing or constructing any connector.
 - `catalog_detail`
@@ -4419,7 +4428,7 @@ Classes:
   - Raised when unsafe persisted state cannot be atomically sanitized.
 - `IntegrationCoordinator`
   - Coordinate bounded probes while retaining only safe status evidence.
-  - methods: __init__, load, start, start_batch, _scopes_overlap, wait_batch, batch, _public_batch, _prune_batches, _register_idempotency_key, _run_batch, _probe_data, _probe_local, set_auto_probe_consent, status, _data_sources, _data_fingerprint, _local_fingerprint, _needs_consent, _data_statuses, _local_statuses, _persist, _persist_sync, _safe_tabbit_snapshot, _project_tabbit_snapshot, close
+  - methods: __init__, load, start, start_batch, _scopes_overlap, wait_batch, batch, _public_batch, _prune_batches, _register_idempotency_key, _run_batch, _probe_data, _probe_local, set_auto_probe_consent, status, _data_sources, _data_fingerprint, _local_fingerprint, _needs_consent, _data_failure_ownership, _data_statuses, _local_statuses, _persist, _persist_sync, _safe_tabbit_snapshot, _project_tabbit_snapshot, close
 
 Functions:
 - `_now`
@@ -4513,6 +4522,8 @@ Functions:
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
 - `prepare`
+- `calculate_build_closure`
+  - Hash the platform-neutral DSH runtime source/build closure.
 - `main`
 
 
@@ -6130,6 +6141,7 @@ Imports:
 - `tempfile`
 - `time`
 - `typing`
+- `urllib.parse`
 - `uuid`
 - `webbrowser`
 
@@ -6139,7 +6151,7 @@ Classes:
 - `ManagedProcess`
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, restart_runtime, status, tabbit_status
+  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _read_install_manifest, _dsh_build_status, doctor, tabbit_status
 
 Functions:
 - `_is_unsafe_private_directory`
@@ -6147,6 +6159,8 @@ Functions:
 - `format_status`
 - `format_tabbit_status`
   - Render diagnostics without paths, page metadata, cookies, or content.
+- `format_doctor_status`
+  - Render the safe doctor projection for a terminal.
 
 
 ## `app/research_web/skills/company-research/scripts/workflow.py`
@@ -8247,6 +8261,7 @@ Imports:
 - `core.model_gateway.base`
 - `core.observability`
 - `core.settings.config`
+- `httpx`
 - `pydantic`
 - `time`
 - `typing`
@@ -17930,6 +17945,41 @@ Imports:
 - `sys`
 
 Functions:
+- `main`
+
+
+## `scripts/setup_web.py`
+
+Module docstring:
+> Create and diagnose the project-owned Research Workbench Web environment.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `shutil`
+- `stat`
+- `subprocess`
+- `sys`
+- `urllib.parse`
+- `uuid`
+- `zipfile`
+
+Classes:
+- `SetupWebInstaller`
+  - Public bootstrap API used by the shell wrappers and contract tests.
+  - methods: __init__, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _subprocess_environment, _node_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, _corepack_prefix, dsh_build_commands, _environment_python, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, install
+
+Functions:
+- `_command_version`
+- `_configure_logging`
 - `main`
 
 

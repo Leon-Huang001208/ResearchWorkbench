@@ -355,6 +355,16 @@ def test_single_secret_sources_retain_blank_and_support_clear(tmp_path, source_i
     assert "single-secret" not in json.dumps(keyring.values)
 
 
+def test_tinysoft_saved_key_is_applied_dynamically_without_a_restart(tmp_path):
+    service, _keyring = configured_service(tmp_path)
+
+    status = service.datahub.connections.save_source("tinysoft", {"token": "dynamic-key"})
+
+    assert status["configured"] is True
+    assert status["secret_configured"] is True
+    assert status["restart_required"] is False
+
+
 def test_wind_saves_adapter_only_and_unsupported_sources_reject_writes(tmp_path):
     service, _keyring = configured_service(tmp_path)
     with TestClient(create_app(service)) as client:

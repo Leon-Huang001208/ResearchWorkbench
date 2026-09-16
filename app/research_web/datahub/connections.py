@@ -423,7 +423,7 @@ class MySQLConnectionStore:
                 "configured": secret_configured,
                 "secret_configured": secret_configured,
                 "credential_store_available": True,
-                "restart_required": secret_configured,
+                "restart_required": secret_configured and source != "tinysoft",
                 "failure_code": None,
             }
         except CredentialStoreError:

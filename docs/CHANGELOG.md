@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+### Web 一键本地环境与 CJPY 0.5.2 · 2026-09-16
+
+- 新增 macOS `setup-web.sh`、Windows `setup-web.cmd` 和跨平台 `scripts/setup_web.py`：在 checkout
+  内创建安装器拥有的 `.venv`，按 Python 3.12 跨平台哈希锁安装 Web 闭包，并以无依赖模式安装根包。
+- CJPY 0.5.2 以 Apache-2.0 wheel、来源说明和闭合 SHA-256 清单随包发布；安装器禁止从 PyPI
+  回退旧版，同时验证 `requests`/`urllib3`。天软每次调用动态读取系统凭据库，保存 Key 不要求重启。
+- DSH 固定到提交 `c919b2a460753859665db3f60143d525fb9140cf` 与 `pnpm@11.7.0`，按版本写入
+  用户私有运行目录并核对构建闭包；来源、提交、工作树或闭包不符时关闭失败。
+- 新增 `rwb web doctor [--json]`、Windows `rwb.cmd`、安全安装清单和原生 macOS/Windows 干净
+  checkout 安装 CI。项目规则要求以后每次 Web 迭代持续维护锁、安装器、Doctor、文档和一键流程。
+
 ### 现有 DataHub Provider 闭环 · 2026-09-16
 
 - AKShare 自动检测改用可取消的异步 HTTP 流：固定 URL、禁用代理/重定向、限制 16 KiB，3 秒连接

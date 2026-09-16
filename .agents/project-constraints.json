@@ -122,6 +122,20 @@
         ".agents/project-constraints.mjs",
         "--changed-file"
       ]
+    },
+    {
+      "name": "Web 一键安装必须在原生 macOS 与 Windows 持续验证",
+      "workflow": ".github/workflows/research-web-bootstrap.yml",
+      "requireAll": [
+        "macos-14",
+        "windows-2022",
+        "setup-web.sh --no-start",
+        "setup-web.cmd --no-start",
+        "web doctor --json",
+        "cjpy') == '0.5.2'",
+        "tinysoft",
+        "callable"
+      ]
     }
   ]
 }
