@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import ssl
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -141,7 +142,7 @@ def _connect(configuration, password):
     try:
         import pymysql
     except ImportError as exc:
-        raise ProviderError("dependency_unavailable") from exc
+        raise ProviderError("blocked_dependency") from exc
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
@@ -264,6 +265,32 @@ def _submit(query, configuration, password):
     return future
 
 
+def _failure_code(exc: Exception) -> str:
+    if isinstance(exc, ProviderError):
+        code = str(exc)
+        return code if re.fullmatch(r"[a-z0-9_]{1,64}", code) else "provider_error"
+    error_code = exc.args[0] if exc.args and isinstance(exc.args[0], int) else None
+    if error_code in {1045, 1698}:
+        return "vendor_auth_failed"
+    if error_code in {1044, 1142, 1143, 1227}:
+        return "vendor_permission_denied"
+    if error_code in {1049}:
+        return "vendor_database_missing"
+    if error_code in {1205, 1213}:
+        return "vendor_busy"
+    if error_code == 2026:
+        return "vendor_tls_failed"
+    if error_code in {2002, 2003, 2005, 2006, 2013}:
+        return "vendor_unreachable"
+    if isinstance(exc, ssl.SSLError):
+        return "vendor_tls_failed"
+    if isinstance(exc, ImportError):
+        return "blocked_dependency"
+    if isinstance(exc, (ConnectionError, OSError, TimeoutError)):
+        return "vendor_unreachable"
+    return "provider_error"
+
+
 async def fetch(query: BusinessQuery, configuration, password) -> Result:
     future = _submit(query, configuration, password)
     if future is None:
@@ -291,13 +318,12 @@ async def fetch(query: BusinessQuery, configuration, password) -> Result:
             provider_id="mysql", status="failed", limitations=[reason, "tls_certificate_unverified"]
         )
     except Exception as exc:  # noqa: BLE001 - normalize driver errors without exposing details
-        log.warning(
-            "datahub_mysql_incomplete", reason="provider_error", error_type=type(exc).__name__
-        )
+        reason = _failure_code(exc)
+        log.warning("datahub_mysql_incomplete", reason=reason, error_type=type(exc).__name__)
         return Result(
             provider_id="mysql",
             status="failed",
-            limitations=["provider_error", "tls_certificate_unverified"],
+            limitations=[reason, "tls_certificate_unverified"],
         )
 
 

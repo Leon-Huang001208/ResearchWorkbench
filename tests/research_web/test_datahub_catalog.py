@@ -1,8 +1,10 @@
 """Static full-source catalog, manual probes and business routing."""
 
 import asyncio
+import re
 import sys
 import threading
+from datetime import date, datetime, timedelta
 from importlib import import_module
 from types import ModuleType
 
@@ -112,8 +114,10 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
 def test_provider_deadlines_are_unified_below_bridge_timeout():
     import app.research_web.datahub.providers_akshare as akshare_provider
     import app.research_web.datahub.providers_cjpy as tinysoft_provider
+    from app.research_web.datahub import PROBE_TIMEOUT
 
     assert akshare_provider.DEADLINE == tinysoft_provider.DEADLINE == 15
+    assert akshare_provider.PROBE_DEADLINE < PROBE_TIMEOUT
     assert akshare_provider.DEADLINE < 22
 
 
@@ -288,6 +292,67 @@ async def test_akshare_provider_sanitizes_unexpected_transport_failure(monkeypat
     assert "secret" not in str(result.limitations)
 
 
+@pytest.mark.asyncio
+async def test_akshare_probe_uses_lightweight_remote_trade_calendar(monkeypatch):
+    import app.research_web.datahub.providers_akshare as provider
+
+    calls = []
+    package = ModuleType("akshare")
+
+    async def fetch_probe_payload():
+        calls.append(provider.PROBE_URL)
+        return b'var datelist="fixture";var KLC_TD_SH=datelist;'
+
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_fetch_probe_payload", fetch_probe_payload)
+
+    result = await provider.probe()
+
+    assert result == {"health": "healthy", "failure_code": None}
+    assert calls == [provider.PROBE_URL]
+
+
+@pytest.mark.asyncio
+async def test_akshare_probe_preserves_safe_provider_failure_code(monkeypatch):
+    import app.research_web.datahub.providers_akshare as provider
+
+    async def blocked_dependency():
+        raise provider.ProviderError("blocked_dependency")
+
+    monkeypatch.setattr(provider, "_probe_remote", blocked_dependency)
+
+    assert await provider.probe() == {
+        "health": "unavailable",
+        "failure_code": "blocked_dependency",
+    }
+
+
+@pytest.mark.asyncio
+async def test_akshare_probe_deadline_cancels_stream_and_releases_shared_capacity(monkeypatch):
+    import app.research_web.datahub.providers_akshare as provider
+
+    started = asyncio.Event()
+
+    async def blocked_probe():
+        started.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(provider, "_probe_remote", blocked_probe)
+    monkeypatch.setattr(provider, "PROBE_DEADLINE", 0.2)
+    first_probe = asyncio.create_task(provider.probe())
+    await asyncio.wait_for(started.wait(), timeout=1)
+
+    busy_query = await provider.fetch(
+        BusinessQuery(capability="search_assets", source="akshare", parameters={})
+    )
+    assert busy_query.status == "failed"
+    assert busy_query.limitations[-1] == "provider_busy"
+    assert await first_probe == {"health": "unavailable", "failure_code": "deadline"}
+
+    assert provider._CAPACITY.acquire(blocking=False)
+    provider._CAPACITY.release()
+
+
 def test_business_query_rejects_provider_escape_hatches():
     for parameters in (
         {"url": "https://evil.test"},
@@ -347,6 +412,64 @@ async def test_tinysoft_provider_uses_business_contract_without_legacy_lifecycle
 
 
 @pytest.mark.asyncio
+async def test_tinysoft_snapshot_supplies_a_recent_vendor_date_window(monkeypatch):
+    import app.research_web.datahub.providers_cjpy as provider
+
+    package = ModuleType("cjpy")
+    base = ModuleType("cjpy.base")
+    captured = {}
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        def _create_session(self):
+            return type("Session", (), {"trust_env": True})()
+
+    def market_data(**kwargs):
+        captured.update(kwargs)
+        return [{"close": 1}, {"close": 2}]
+
+    base.CjClient = Client
+    package.base = base
+    package.get_market_data = market_data
+    monkeypatch.setitem(sys.modules, "cjpy", package)
+    monkeypatch.setitem(sys.modules, "cjpy.base", base)
+
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_snapshot",
+            source="tinysoft",
+            parameters={"assets": ["600000.SH"]},
+        ),
+        token="fixture-key",
+    )
+
+    assert result.status == "complete"
+    assert result.rows == [{"close": 2}]
+    assert re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", captured["start"])
+    assert re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", captured["end"])
+    assert date.fromisoformat(captured["end"]) - date.fromisoformat(captured["start"]) == timedelta(
+        days=14
+    )
+    assert date.fromisoformat(captured["end"]) == datetime.now(provider.SHANGHAI_TZ).date()
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        {"start_date": "2026-02-30", "end_date": "2026-03-01"},
+        {"start_date": "2026-03-02", "end_date": "2026-03-01"},
+    ],
+)
+def test_tinysoft_rejects_invalid_or_reversed_date_ranges(parameters):
+    import app.research_web.datahub.providers_cjpy as provider
+
+    with pytest.raises(provider.ProviderError, match="invalid_date_range"):
+        provider._required_date_range(parameters)
+
+
+@pytest.mark.asyncio
 async def test_tinysoft_missing_key_is_safe_blocked_config(monkeypatch):
     import app.research_web.datahub.providers_cjpy as provider
 
@@ -356,6 +479,71 @@ async def test_tinysoft_missing_key_is_safe_blocked_config(monkeypatch):
     )
     assert result.status == "failed"
     assert result.limitations == ["blocked_config"]
+
+
+@pytest.mark.asyncio
+async def test_tinysoft_vendor_errors_are_classified_without_leaking_details(monkeypatch):
+    import app.research_web.datahub.providers_cjpy as provider
+
+    class CjRequestError(Exception):
+        pass
+
+    monkeypatch.setattr(
+        provider,
+        "_sync_query",
+        lambda *_args: (_ for _ in ()).throw(
+            CjRequestError("HTTP 401 response contains secret-token")
+        ),
+    )
+    result = await provider.fetch(
+        BusinessQuery(capability="search_assets", source="tinysoft", parameters={}),
+        token="secret-token",
+    )
+
+    assert result.status == "failed"
+    assert result.limitations == ["vendor_auth_failed"]
+    assert "secret-token" not in str(result.limitations)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "vendor_row",
+    [
+        {"debug": "Bearer secret-token"},
+        {"Bearer secret-token": "debug"},
+        {"nested": {"Bearer secret-token": "debug"}},
+    ],
+)
+async def test_tinysoft_rejects_token_reflected_by_successful_vendor_response(
+    monkeypatch, vendor_row
+):
+    import app.research_web.datahub.providers_cjpy as provider
+
+    package = ModuleType("cjpy")
+    base = ModuleType("cjpy.base")
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        def _create_session(self):
+            return type("Session", (), {"trust_env": True})()
+
+    base.CjClient = Client
+    package.base = base
+    package.get_stocks = lambda **_kwargs: [vendor_row]
+    monkeypatch.setitem(sys.modules, "cjpy", package)
+    monkeypatch.setitem(sys.modules, "cjpy.base", base)
+
+    result = await provider.fetch(
+        BusinessQuery(capability="search_assets", source="tinysoft", parameters={}),
+        token="secret-token",
+    )
+
+    assert result.status == "failed"
+    assert result.limitations == ["credential_reflection"]
+    assert result.rows == []
+    assert result.raw == []
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
+
 from core.observability import get_logger
 
 from .contracts import BusinessQuery
@@ -18,6 +20,9 @@ from .providers import MAX_ROWS, ProviderError, Result
 
 log = get_logger(__name__)
 DEADLINE = 15
+PROBE_DEADLINE = 10
+PROBE_URL = "https://finance.sina.com.cn/realstock/company/klc_td_sh.txt"
+PROBE_MAX_BYTES = 16 * 1024
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="datahub-akshare")
 _CAPACITY = threading.BoundedSemaphore(1)
 
@@ -29,16 +34,20 @@ def _release_capacity(_future: Future) -> None:
         log.error("datahub_akshare_capacity_release_failed")
 
 
-def _submit(query: BusinessQuery) -> Future | None:
+def _submit_work(function, *args) -> Future | None:
     if not _CAPACITY.acquire(blocking=False):
         return None
     try:
-        future = _EXECUTOR.submit(_invoke, query)
+        future = _EXECUTOR.submit(function, *args)
     except Exception:
         _CAPACITY.release()
         raise
     future.add_done_callback(_release_capacity)
     return future
+
+
+def _submit(query: BusinessQuery) -> Future | None:
+    return _submit_work(_invoke, query)
 
 
 def _symbol(value: str) -> str:
@@ -48,15 +57,17 @@ def _symbol(value: str) -> str:
     return match.group(1)
 
 
+def _market_code(symbol: str) -> str:
+    if symbol.startswith(("5", "6", "9")):
+        return "SH"
+    if symbol.startswith(("4", "8")):
+        return "BJ"
+    return "SZ"
+
+
 def _market_symbol(value: str) -> str:
     symbol = _symbol(value)
-    prefix = (
-        "sh"
-        if symbol.startswith(("5", "6", "9"))
-        else "bj"
-        if symbol.startswith(("4", "8"))
-        else "sz"
-    )
+    prefix = _market_code(symbol).lower()
     return f"{prefix}{symbol}"
 
 
@@ -80,10 +91,7 @@ def _records(frame) -> list[dict]:
     rows = frame.to_dict(orient="records")
     if not isinstance(rows, list):
         raise ProviderError("invalid_dataframe")
-    return [
-        {str(key): _clean(value) for key, value in row.items()}
-        for row in rows[:MAX_ROWS]
-    ]
+    return [{str(key): _clean(value) for key, value in row.items()} for row in rows[:MAX_ROWS]]
 
 
 def _pick(row: dict, *names: str):
@@ -127,13 +135,7 @@ def _normalize_assets(rows: list[dict], query: BusinessQuery) -> list[dict]:
             continue
         if needle and needle not in code.casefold() and needle not in name.casefold():
             continue
-        market = (
-            "SH"
-            if code.startswith(("5", "6", "9"))
-            else "BJ"
-            if code.startswith(("4", "8"))
-            else "SZ"
-        )
+        market = _market_code(code)
         normalized.append(
             {
                 "asset_id": f"{code}.{market}",
@@ -170,9 +172,7 @@ def _normalize_bars(rows: list[dict], query: BusinessQuery) -> list[dict]:
 
 
 def _normalize_snapshot(rows: list[dict], query: BusinessQuery) -> list[dict]:
-    requested = {
-        str(value).split(".")[0] for value in query.parameters.get("assets", [])
-    }
+    requested = {str(value).split(".")[0] for value in query.parameters.get("assets", [])}
     normalized = []
     for row in rows:
         code = str(_pick(row, "代码", "code") or "").strip()
@@ -180,13 +180,7 @@ def _normalize_snapshot(rows: list[dict], query: BusinessQuery) -> list[dict]:
             continue
         if not re.fullmatch(r"[0-9]{6}", code):
             continue
-        market = (
-            "SH"
-            if code.startswith(("5", "6", "9"))
-            else "BJ"
-            if code.startswith(("4", "8"))
-            else "SZ"
-        )
+        market = _market_code(code)
         normalized.append(
             {
                 "asset": f"{code}.{market}",
@@ -281,17 +275,59 @@ def _invoke(query: BusinessQuery):
         )
     if capability == "market_activity":
         symbol = _symbol(str(parameters["asset"]))
-        market = (
-            "sh"
-            if symbol.startswith("6")
-            else "bj"
-            if symbol.startswith(("4", "8"))
-            else "sz"
-        )
-        return ak.stock_individual_fund_flow(
-            stock=symbol, market=market
-        ), _normalize_generic
+        market = "sh" if symbol.startswith("6") else "bj" if symbol.startswith(("4", "8")) else "sz"
+        return ak.stock_individual_fund_flow(stock=symbol, market=market), _normalize_generic
     raise ProviderError("capability_not_implemented")
+
+
+async def _fetch_probe_payload() -> bytes:
+    timeout = httpx.Timeout(8, connect=3)
+    async with (
+        httpx.AsyncClient(timeout=timeout, trust_env=False, follow_redirects=False) as client,
+        client.stream("GET", PROBE_URL) as response,
+    ):
+        response.raise_for_status()
+        payload = bytearray()
+        async for chunk in response.aiter_bytes():
+            payload.extend(chunk)
+            if len(payload) > PROBE_MAX_BYTES:
+                raise ProviderError("response_too_large")
+    return bytes(payload)
+
+
+async def _probe_remote() -> int:
+    """Probe AKShare's fixed Sina calendar upstream with a cancellable stream."""
+
+    try:
+        import akshare  # noqa: F401 - dependency presence is part of probe readiness.
+    except ImportError as exc:
+        raise ProviderError("blocked_dependency") from exc
+    payload = await _fetch_probe_payload()
+    if not payload.startswith(b'var datelist="') or not payload.rstrip().endswith(
+        b'";var KLC_TD_SH=datelist;'
+    ):
+        raise ProviderError("vendor_schema_invalid")
+    return 1
+
+
+def _probe_failure_code(exc: Exception) -> str:
+    if isinstance(exc, ProviderError):
+        code = str(exc)
+        return code if re.fullmatch(r"[a-z0-9_]{1,64}", code) else "probe_failed"
+    if isinstance(exc, TimeoutError):
+        return "deadline"
+    if isinstance(exc, ImportError):
+        return "blocked_dependency"
+    if isinstance(exc, OSError) or type(exc).__name__ in {
+        "ConnectTimeout",
+        "ConnectionError",
+        "HTTPStatusError",
+        "ProxyError",
+        "ReadTimeout",
+        "SSLError",
+    }:
+        return "vendor_unreachable"
+    return "probe_failed"
 
 
 async def fetch(query: BusinessQuery) -> Result:
@@ -330,9 +366,7 @@ async def fetch(query: BusinessQuery) -> Result:
                 ),
                 default=None,
             )
-            result.raw = [
-                json.dumps(source_rows, ensure_ascii=False, default=str).encode()
-            ]
+            result.raw = [json.dumps(source_rows, ensure_ascii=False, default=str).encode()]
             result.raw_bytes = len(result.raw[0])
     except asyncio.CancelledError:
         log.info("datahub_akshare_cancelled", capability=query.capability)
@@ -367,27 +401,28 @@ async def fetch(query: BusinessQuery) -> Result:
 
 
 async def probe() -> dict:
-    query = BusinessQuery(
-        capability="search_assets", source="akshare", parameters={"query": ""}
-    )
-    try:
-        future = _submit(query)
-    except Exception as exc:  # noqa: BLE001 - probe must contain arbitrary provider failures.
-        log.warning(
-            "datahub_akshare_probe_submit_failed", error_type=type(exc).__name__
-        )
-        return {"health": "unavailable", "failure_code": "probe_failed"}
-    if future is None:
+    if not _CAPACITY.acquire(blocking=False):
         log.info("datahub_akshare_probe_busy")
         return {"health": "unavailable", "failure_code": "provider_busy"}
     try:
-        async with asyncio.timeout(DEADLINE):
-            frame, _ = await asyncio.wrap_future(future)
+        async with asyncio.timeout(PROBE_DEADLINE):
+            row_count = await _probe_remote()
             return {
-                "health": "healthy" if len(_records(frame)) else "degraded",
+                "health": "healthy" if row_count else "degraded",
                 "failure_code": None,
             }
-    except Exception as exc:
-        if isinstance(exc, asyncio.CancelledError):
-            raise
-        return {"health": "unavailable", "failure_code": "probe_failed"}
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - probe must contain arbitrary HTTP/provider failures.
+        failure_code = _probe_failure_code(exc)
+        log.warning(
+            "datahub_akshare_probe_failed",
+            failure_code=failure_code,
+            error_type=type(exc).__name__,
+        )
+        return {"health": "unavailable", "failure_code": failure_code}
+    finally:
+        try:
+            _CAPACITY.release()
+        except ValueError:
+            log.error("datahub_akshare_probe_capacity_release_failed")

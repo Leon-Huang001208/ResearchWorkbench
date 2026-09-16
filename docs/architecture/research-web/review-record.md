@@ -1,5 +1,15 @@
 # 架构迭代核对记录
 
+## 2026-09-16 — 现有 DataHub Provider 真实闭环补强
+
+- AKShare 探针改为固定域名、禁用环境代理/重定向、限制 16 KiB 且受 10 秒总墙钟约束的可取消异步交易日历请求，并与查询共享容量门闩。
+- 天软 CJPY 增加精确版本与离线 wheel 哈希锁、安全错误映射、Token 反射拒绝和最近 14 天实时快照窗口；MySQL 增加缺驱动及常见认证、权限、网络、TLS 等稳定错误分类。日志、API 与快照均不携带 SDK/数据库原始错误正文。
+- 本批仅收紧既有 Provider 内部探针、日期契约和错误归因，不新增来源、业务 Tool、接口、持久化类别、服务或跨模块数据流，因此现有 DataHub、Runtime 与文件流图无需重生成。公共来源真实验证与天软/MySQL 外部账号验收继续分开记录。
+
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"仅补强既有AKShare、天软CJPY和MySQL Provider的探针时限、日期契约、可选依赖与安全错误映射；目录、Broker、15个业务Tool和快照数据流不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Runtime仍通过既有品牌无关DataHub Tool和Broker调用Provider，本批没有新增注册工具、进程、接口或授权边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"查询结果仍写入既有JSON、CSV和Manifest快照；只收紧错误正文不落盘的约束，没有新增持久化类别。","diagrams":[]} -->
+
 ## 2026-09-11 — MCP 安装、授权与 Research Web Host
 
 - Registry 仍是只读发现边界；新增 `mcp_runtime` 负责固定制品解析、完整二次确认、不可变安装清单、官方 SDK 连接与 OAuth，秘密只进入独立系统凭据库。

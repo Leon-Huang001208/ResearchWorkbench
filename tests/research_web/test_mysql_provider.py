@@ -262,3 +262,36 @@ def test_schema_result_above_global_row_limit_is_rejected(monkeypatch):
     with pytest.raises(ProviderError, match="row_limit"):
         _invoke(query, local_config(), "secret")
     assert connection.rolled_back and connection.closed
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error_code", "expected"),
+    [
+        (1045, "vendor_auth_failed"),
+        (1142, "vendor_permission_denied"),
+        (2003, "vendor_unreachable"),
+        (2026, "vendor_tls_failed"),
+    ],
+)
+async def test_driver_errors_are_safely_classified(monkeypatch, error_code, expected):
+    import pymysql
+
+    import app.research_web.datahub.providers_mysql as provider
+
+    monkeypatch.setattr(
+        provider,
+        "_invoke",
+        lambda *_args: (_ for _ in ()).throw(
+            pymysql.err.OperationalError(error_code, "password=secret-value")
+        ),
+    )
+    result = await provider.fetch(
+        BusinessQuery(capability="database_schema", source="mysql", parameters={}),
+        local_config(),
+        "secret-value",
+    )
+
+    assert result.status == "failed"
+    assert result.limitations[0] == expected
+    assert "secret-value" not in str(result.limitations)
