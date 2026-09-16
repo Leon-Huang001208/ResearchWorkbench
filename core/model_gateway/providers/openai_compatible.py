@@ -12,6 +12,7 @@ Volcano-specific multimodal embedding endpoint is auto-detected from the base_ur
 import time
 from typing import Any
 
+import httpx
 from pydantic import BaseModel
 
 from core.interfaces import EmbeddingResponse, ModelResponse
@@ -42,12 +43,18 @@ class OpenAICompatibleProvider(BaseProvider):
     def __init__(self, profile: ProviderProfile):
         self._provider_name = profile.name
         self._base_url = profile.base_url
+        self._api_key = profile.api_key
         self._has_multimodal_embed = profile.base_url and "volces.com" in profile.base_url
+        endpoint = httpx.URL(profile.base_url)
+        loopback = endpoint.host in {"127.0.0.1", "localhost", "::1"}
+        if endpoint.scheme != "https" and not (endpoint.scheme == "http" and loopback):
+            raise ValueError("OpenAI-compatible provider URL is unsafe")
+        if endpoint.query or endpoint.fragment:
+            raise ValueError("OpenAI-compatible provider URL must not contain query or fragment")
+        self._chat_endpoint = f"{profile.base_url.rstrip('/')}/chat/completions"
+        timeout = httpx.Timeout(120.0, connect=30.0)
+        self._http_client = httpx.Client(timeout=timeout, trust_env=False)
         if OpenAIClient is not None:
-            import httpx
-
-            timeout = httpx.Timeout(120.0, connect=30.0)
-            self._http_client = httpx.Client(timeout=timeout, trust_env=False)
             self._client = OpenAIClient(
                 api_key=profile.api_key,
                 base_url=profile.base_url,
@@ -80,22 +87,48 @@ class OpenAICompatibleProvider(BaseProvider):
                     **kwargs,
                 )
                 content = response.choices[0].message.content or ""
-                # DeepSeek V4 may return reasoning_content when thinking mode is on
-                if not content:
-                    reasoning = getattr(response.choices[0].message, "reasoning_content", None)
-                    if reasoning:
-                        content = reasoning
                 tokens_used = response.usage.total_tokens if response.usage else 0
             else:
-                content = (
-                    f"[{self._provider_name} API not available" " - OpenAI package not installed]"
+                request_timeout = kwargs.pop("timeout", None)
+                payload: dict[str, Any] = {
+                    "model": model,
+                    "messages": messages,
+                    "temperature": temperature,
+                }
+                if max_tokens is not None:
+                    payload["max_tokens"] = max_tokens
+                payload.update(kwargs)
+                request_options = (
+                    {"timeout": request_timeout} if request_timeout is not None else {}
                 )
-        except Exception as e:
+                response = self._http_client.post(
+                    self._chat_endpoint,
+                    headers={
+                        "Authorization": f"Bearer {self._api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                    **request_options,
+                )
+                response.raise_for_status()
+                body = response.json()
+                message = body["choices"][0]["message"]
+                value = message.get("content") or ""
+                if not isinstance(value, str):
+                    raise ValueError("provider content must be text")
+                content = value
+                model = str(body.get("model") or model)
+                tokens_used = int((body.get("usage") or {}).get("total_tokens") or 0)
+        except Exception as e:  # noqa: BLE001 - provider SDK exceptions vary by version
             logger.error(
-                f"{self._provider_name} chat error",
-                error=str(e),
+                "OpenAI-compatible provider chat failed",
+                provider_name=self._provider_name,
+                error_type=type(e).__name__,
+                status_code=(
+                    e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+                ),
             )
-            content = f"Error: {e}"
+            content = "Error: configured provider request failed"
 
         latency_ms = int((time.time() - start_time) * 1000)
 
@@ -153,7 +186,7 @@ class OpenAICompatibleProvider(BaseProvider):
 
                 data = parse_json_content(content)
                 return output_schema(**data)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - structured providers vary by SDK
                 # 原生路径不可用（端点不支持 strict / 解析失败），降级到 prompt 注入重试
                 logger.warning(
                     f"{self._provider_name} native response_format unavailable, "
@@ -185,7 +218,7 @@ class OpenAICompatibleProvider(BaseProvider):
         try:
             if self._client:
                 embedding, tokens_used = self._do_embed(text, model, **kwargs)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - embedding providers vary by SDK
             logger.error(
                 f"{self._provider_name} embed error",
                 error=str(e),
@@ -230,8 +263,7 @@ class OpenAICompatibleProvider(BaseProvider):
 
         base_url = self._base_url
         # Strip /v1 suffix if present (multimodal endpoint uses /v3)
-        if base_url.endswith("/v1"):
-            base_url = base_url[:-3]
+        base_url = base_url.removesuffix("/v1")
 
         url = f"{base_url.rstrip('/')}/v3/embeddings/multimodal"
         payload = {
