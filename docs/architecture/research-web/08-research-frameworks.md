@@ -4,6 +4,8 @@ Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定�
 renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。
 全新 DSH `web` Profile 初始化、Windows junction containment 和 PowerShell PID 探针只保证这条唯一 Runtime 可启动/停止，不改变
 Gold、Dollar 的注册、采集、评分、快照或页面协议。
+Office/Wind 验证 timeout 的跨平台浮点上界修正只作用于本机集成验证器，不进入框架采集、评分、
+renderer 或 Bot 会话。
 
 ## 产品边界
 

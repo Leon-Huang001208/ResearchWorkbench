@@ -1223,6 +1223,10 @@ def test_wind_verifier_runs_bounded_smoke_then_full_and_guards_published_source(
         WorkbookFormulaProvider,
     )
 
+    # At this magnitude, IEEE-754 rounds ``now + 180`` to a 192-second delta.
+    # The verifier must still pass at most the declared 170-second phase budget.
+    monkeypatch.setattr(verifiers.time, "monotonic", lambda: 1.5e17)
+
     source = tmp_path / "published" / "workbooks" / "wind.xlsx"
     source.parent.mkdir(parents=True)
     source.write_bytes(b"immutable-published-workbook")

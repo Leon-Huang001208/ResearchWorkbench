@@ -129,7 +129,7 @@ DSH 认证控制文件由 Web 客户端和服务管理器共用的安全读取�
 - `mcp_registry/`：官方/私有 Registry 配置、固定 v0.1 同步、原子目录与缓存、Keyring 秘密引用，以及只生成外部命令的 publisher handoff；不执行 publisher、安装或 MCP 调用。
 - `mcp_runtime/`：不可变安装预览/确认、制品解析与隔离安装、官方 SDK Host、OAuth、schema 快照、风险分级、会话授权、人工审批及 DSH 激活回滚。
 - `runtime/mcp-adapter.mjs`：只注册当前激活清单中的 `mcp__*` 声明，经私有控制通道代理调用，不持有 MCP 凭据或绕过 Host guard。
-- `local_integrations/verifiers.py`：用户显式触发的 macOS Office/Wind 真实验证；所有目标使用 180 秒业务上限，在独立进程组和受管验证目录中执行，超时会终止进程树。Excel 要求全量重算并重开读值；PowerPoint 由 AppleScript 直接创建、保存并按随机文件名重新绑定对象，不依赖未声明的 `python-pptx`。Wind 复用已登录 Excel 应用中的厂商会话，但只操作验证器独占的空白工作簿并执行最小公式心跳；既有 Excel 应用和用户工作簿不属于清理目标。插件弹出二维码安全验证时投影为“待授权”。具体报告工作簿仍由各自 Workflow 单独刷新和判断。
+- `local_integrations/verifiers.py`：用户显式触发的 macOS Office/Wind 真实验证；所有目标使用 180 秒业务上限，在独立进程组和受管验证目录中执行，超时会终止进程树。传给 Workbook 的单阶段 timeout 还显式钳制为总预算减 10 秒协调余量，避免平台浮点舍入越界。Excel 要求全量重算并重开读值；PowerPoint 由 AppleScript 直接创建、保存并按随机文件名重新绑定对象，不依赖未声明的 `python-pptx`。Wind 复用已登录 Excel 应用中的厂商会话，但只操作验证器独占的空白工作簿并执行最小公式心跳；既有 Excel 应用和用户工作簿不属于清理目标。插件弹出二维码安全验证时投影为“待授权”。具体报告工作簿仍由各自 Workflow 单独刷新和判断。
 - `ui/`：正式五页与原生模块，详见 [UI 文档](research-web-ui.md)。
 - `runtime/`：专属 DSH composition、工具白名单与每轮执行上限。
 - `skills/`：30 个内置 Skill 的原生 SKILL.md、脚本、schema、fixture 与模板；其中十八个 CPU 计算器复用 `cpu_bounded_v1` 和 comparison receipt 门禁。只从项目种子发现，不扫描用户其他全局 Skill。

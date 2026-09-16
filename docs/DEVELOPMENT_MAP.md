@@ -5,7 +5,8 @@ This file maps Research Workbench subsystems to source files, tests, and require
 ## Current Web research implementation (2026-09-11)
 
 The public Web bootstrap is owned by `scripts/setup_web.py`, `setup-web.sh`, `setup-web.cmd`,
-`requirements/web.in`, `requirements/web.lock`, `vendor/cjpy/0.5.2/` and the cross-platform `rwb` launchers.
+`requirements/web.in`, `requirements/web.lock`, the byte-stable `vendor/cjpy/0.5.2/` and
+`vendor/dsh-tabbit/0.3.4/` supply closures, and the cross-platform `rwb` launchers.
 It creates a checkout-local Python 3.12 environment, consumes only the hashed Web lock, installs the root
 distribution without legacy dependencies, verifies vendored CJPY, and builds the exact DSH commit in a private
 versioned directory. Fresh Runtime homes initialize the pinned DSH `web` profile before verified Tabbit layers are
@@ -126,6 +127,7 @@ DataHub catalog, brand-neutral business tools, broker, Provider, probe and snaps
 `app/research_web/datahub/security.py` keeps descriptor-relative, no-follow IO on POSIX and a Windows-only path fallback for private control files, receipts and immutable snapshots. The fallback validates canonical containment, reparse points, regular-file identity, hard-link count and size, and closes file handles before atomic replacement. `client.py` applies the same Windows identity boundary to the DSH auth record; `store.py` applies it to downloads and restores owner-write permission only inside product-owned trees during purge. Native `windows-2022` CI must start the full loopback service before local-integration support is considered verified.
 `app/research_web/runtime_auth.py` is the shared DSH authentication-record reader for `client.py` and `service_manager.py`. It bounds content, rejects aliases and identity replacement on every platform, applies POSIX mode checks only on POSIX, and is exercised by the same native Windows service smoke test.
 `app/research_web/service_manager.py` applies the same platform distinction to its private data, state and log directories: type, symlink and Windows reparse checks remain universal, while group/other mode checks remain POSIX-only.
+`app/research_web/local_integrations/verifiers.py` explicitly caps each Workbook refresh timeout at the 180-second verification budget minus the 10-second process-coordination reserve; this avoids platform float rounding from exceeding the declared child-operation ceiling.
 
 Research Web 的内置能力元数据由 `app/research_web/capabilities/seeds.py` 声明；能力包源码位于
 `app/research_web/skills/<slug>/`。当前主分支的六个既有 Skill、五个专用 Skill、一个框架核验 Skill

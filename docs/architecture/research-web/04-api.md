@@ -211,7 +211,7 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 - `GET /data/connections` 汇总 22 个来源的配置、检测、适配和可调用状态；通用 configuration 接口只回传非秘密字段与 `secret_configured`。旧环境迁移必须先预览、再携带明确来源与二次确认执行，任一步失败均补偿恢复配置、凭据和 `.env`。
 - `GET /local-integrations` 返回本机集成的安全四维状态；`POST /local-integrations/probes` 要求 `Idempotency-Key` 并返回 202 与独立任务 ID，查询接口只返回安全化状态或错误。服务端只允许一个真实探测执行，使用固定字段与安全操作路由白名单，并对无副作用检测设置时限；超时结果不会落盘。v0 探测不启动软件，不返回命中路径、注册表值、命令参数或环境变量。
 - `GET /integrations/status?scope=all|data|local` 返回统一五阶段状态和五类汇总；`POST /integrations/probe-batches` 创建启动或手动全量探测，`GET /integrations/probe-batches/{id}` 返回批次进度，`PUT /integrations/{id}/auto-probe-consent` 管理收费、登录或厂商来源的自动探测授权。活动 scope 去重；公共来源最多并发 4，厂商来源串行。原数据源和本机单项接口继续作为兼容层。
-- `POST /local-integrations/verifications` 仅接受 Excel、Word、PowerPoint 与 Wind Excel 白名单目标并要求 `Idempotency-Key`；查询接口返回安全化进度与结果。Office 验证只操作服务生成的临时文件；Wind 只在独占空白工作簿执行最小厂商公式并把二维码安全验证映射为待授权。PowerPoint 不要求 `python-pptx`；进程及超时清理由服务端绑定本轮真实所有权，既有用户 Excel 不得成为清理目标。
+- `POST /local-integrations/verifications` 仅接受 Excel、Word、PowerPoint 与 Wind Excel 白名单目标并要求 `Idempotency-Key`；查询接口返回安全化进度与结果。Office 验证只操作服务生成的临时文件；Wind 只在独占空白工作簿执行最小厂商公式并把二维码安全验证映射为待授权。PowerPoint 不要求 `python-pptx`；Workbook 阶段 timeout 显式受 180 秒总预算减 10 秒协调余量约束，进程及超时清理由服务端绑定本轮真实所有权，既有用户 Excel 不得成为清理目标。
 - 本机验证结果只有在上下文指纹一致且尚未到达 TTL 截止时才参与 `callable` 投影；TTL 为 `0` 时立即失效。
 - 研究取数只使用 `internal/data/business-query`，接受稳定业务能力、白名单来源 ID 和能力限定参数；旧产品前缀工具及其平行查询接口已经移除。浏览器不能直接调用 internal 入口。
 - 研究台查询和交接均使用 `Idempotency-Key` 并经过串行准入。交接在创建目标会话前验证请求中的数据集归属，并限制页面上下文为 64 KiB；查询受理或 DSH 回合结束均不等于报告交付完成。

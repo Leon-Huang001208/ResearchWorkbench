@@ -37,6 +37,7 @@
 | `rwb` / `rwb.cmd` | 使用项目专属 `.venv` 的跨平台 CLI 入口 |
 | `requirements/web.in` / `requirements/web.lock` | Web 直接依赖与 Python 3.12 跨平台哈希锁 |
 | `vendor/cjpy/0.5.2/` | CJPY 0.5.2 wheel、许可证、来源和跨平台字节稳定的闭合 SHA-256 清单 |
+| `vendor/dsh-tabbit/0.3.4/` | Tabbit 0.3.4 固定归档、MIT License、来源、文件清单与跨平台字节稳定摘要 |
 | `pytest.ini` | Pytest 测试框架配置 |
 | `.env.example` | 环境变量模板，复制为 `.env` 后使用 |
 | `.gitignore` | Git 忽略文件配置 |
@@ -85,6 +86,7 @@
 | `app/research_web/service_manager.py` | 3081/8088 跨平台进程归属、健康状态、Windows PowerShell PID 探针、进程树停止与安全化 Web Doctor |
 | `app/research_web/launch_runtime.py` | 固定 DSH/Tabbit 启动、受限环境与构建闭包；POSIX symlink 和 Windows pnpm junction 都必须解析回固定源码树 |
 | `app/research_web/tabbit.py` / `runtime/tabbit-adapter.mjs` | Tabbit 配置、会话授权、实时 claim 和一次性内存上下文 |
+| `app/research_web/local_integrations/verifiers.py` | Office/Wind 显式验证、进程树清理、来源不变性与 180 秒总预算/10 秒协调余量的确定性 timeout 上限 |
 | `app/research_web/ui/` | 原生JS产品壳、FinGPT/Claw、输入框、能力目录/编辑器 |
 | `app/research_web/capabilities/` | 30 个内置 Skill/4 个 Workflow 的声明、检查、不可变版本与只读 Tool 目录 |
 | `app/research_web/skills/_shared/` | CPU 有界预算、严格输入等价性、结果/provenance 与通用证据协议的单一维护源码；构建时复制并哈希，不独立注册 |

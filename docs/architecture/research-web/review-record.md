@@ -852,6 +852,8 @@
   解析并限制最终目标仍在固定 DSH 源码树内，不再把合法模块回退误报为空。
 - Windows PID 存活探针改为无 shell PowerShell `Get-Process`，终止仍使用 `taskkill /T`；不再调用
   Windows 不支持的 `os.kill(pid, 0)`，探针异常继续按进程存活失败关闭。
+- Workbook 验证阶段 timeout 显式钳制为 180 秒总预算减 10 秒协调余量，消除 Windows 单调时钟
+  浮点舍入导致的上界漂移；验证进程、输入、输出和支持平台边界不变。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Windows PID探针只修复既有3081/8088受管进程生命周期，不新增API、进程节点、端口或持久状态。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"pnpm junction containment只收紧既有DSH Profile模块回退校验，Runtime组合、工具、权限和数据流不变。","diagrams":[]} -->
