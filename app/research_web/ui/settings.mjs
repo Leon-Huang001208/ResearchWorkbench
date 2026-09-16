@@ -27,8 +27,8 @@ export function settingsConnectionId(hash, sources, section) {
 
 export function settingsRefreshCatalogs(section) {
   if (section === 'model') return ['runtime', 'models'];
-  if (section === 'data') return ['connections'];
-  if (section === 'local') return ['localIntegrations', 'tabbit'];
+  if (section === 'data') return ['connections', 'integrations'];
+  if (section === 'local') return ['localIntegrations', 'tabbit', 'integrations'];
   return [];
 }
 
@@ -37,7 +37,8 @@ function renderSettingsNavigation(activeSection) {
 }
 
 function renderSettingsHeader(section) {
-  return `<header class="settings-page-header"><div><p class="eyebrow">${e(section.eyebrow)}</p><h1>${e(section.label)}</h1><p class="muted">${e(section.description)}</p></div>${section.refreshable ? '<button class="button" type="button" data-refresh>刷新状态</button>' : ''}</header>`;
+  const refreshLabel = ['data', 'local'].includes(section.id) ? '重新检测全部' : '刷新状态';
+  return `<header class="settings-page-header"><div><p class="eyebrow">${e(section.eyebrow)}</p><h1>${e(section.label)}</h1><p class="muted">${e(section.description)}</p></div>${section.refreshable ? `<button class="button" type="button" data-refresh>${refreshLabel}</button>` : ''}</header>`;
 }
 
 function renderModelSettings({ runtime, models, runtimeLabel, busy, modelFailures }) {
@@ -60,14 +61,24 @@ function renderTabbitSettings(tabbit, busy) {
   const state = tabbit?.status || 'error';
   const instances = Array.isArray(tabbit?.instances) ? tabbit.instances : [];
   const selected = tabbit?.selected_instance || tabbit?.instance_id || '';
+  const saved = tabbit?.saved_config || { browser_enabled: tabbit?.browser_enabled !== false, web_fetch_enabled: tabbit?.web_fetch_enabled === true };
+  const applied = tabbit?.applied_config || saved;
+  const switchLabel = (value) => value ? '开启' : '关闭';
+  const configTruth = `<div class="tabbit-config-truth"><p><strong>已保存配置</strong> · 浏览器自动化：${switchLabel(saved.browser_enabled)} · web_fetch：${switchLabel(saved.web_fetch_enabled)}</p><p><strong>Runtime 已应用</strong> · 浏览器自动化：${switchLabel(applied.browser_enabled)} · web_fetch：${switchLabel(applied.web_fetch_enabled)}</p></div>`;
   const instanceSelect = instances.length > 1 ? `<label>运行实例<select name="instance_id" required><option value="">请选择实例</option>${instances.map((item) => `<option value="${e(item.id)}" ${selected === item.id ? 'selected' : ''}>${e(item.name || item.id)} · ${item.online ? '在线' : '离线'} · ${e(item.id)}</option>`).join('')}</select></label>` : `<input type="hidden" name="instance_id" value="${e(selected)}">`;
-  return `<section class="settings-card tabbit-settings"><div class="section-heading"><div><p class="eyebrow">浏览器自动化</p><h2>Tabbit CLI</h2></div><span class="badge ${state === 'ready' ? 'live' : 'danger'}">${e(labels[state] || labels.error)}</span></div><p class="muted">dsh-tabbit ${e(tabbit?.plugin_version || '0.3.4')} · 浏览器 ${e(tabbit?.browser_version || '未检测到')} · 在线实例 ${e(tabbit?.online_instances ?? 0)}</p>${tabbit?.restart_required ? '<div class="notice warning" role="status">配置已保存，需在研究任务空闲后重启 Runtime 才会应用。</div>' : ''}<form id="tabbit-settings-form"><label class="switch-row"><span><strong>浏览器自动化</strong><small>允许 Agent 按任务使用 tabbit_browser；默认开启。</small></span><input type="checkbox" name="browser_enabled" ${tabbit?.browser_enabled !== false ? 'checked' : ''}></label><label class="switch-row"><span><strong>Tabbit 接管 web_fetch</strong><small>使用真实浏览器登录态获取网页；默认关闭，开启时浏览器自动化必须同时开启。</small></span><input type="checkbox" name="web_fetch_enabled" ${tabbit?.web_fetch_enabled === true ? 'checked' : ''}></label>${instanceSelect}<div class="button-row"><button class="button primary" type="submit" ${busy ? 'disabled' : ''}>保存 Tabbit 配置</button><button class="button" type="button" data-tabbit-refresh ${busy ? 'disabled' : ''}>刷新诊断</button></div></form><p class="small muted">Research Workbench 不会下载或升级 Tabbit。缺少 CLI、浏览器离线或版本低于 1.9.0 时，请按 <a href="https://github.com/Tabbit-Browser/dsh-tabbit#readme" target="_blank" rel="noopener noreferrer">官方安装说明 ↗</a> 手动处理并重启 Tabbit。</p><p class="small muted">只读调用依赖调用方的 <code>read_only: true</code> 声明，并非对 Playwright 代码的静态证明；写操作会逐次请求原生审批。</p></section>`;
+  return `<section class="settings-card tabbit-settings"><div class="section-heading"><div><p class="eyebrow">浏览器自动化</p><h2>Tabbit CLI</h2></div><span class="badge ${state === 'ready' ? 'live' : 'danger'}">${e(labels[state] || labels.error)}</span></div><p class="muted">dsh-tabbit ${e(tabbit?.plugin_version || '0.3.4')} · 浏览器 ${e(tabbit?.browser_version || '未检测到')} · 在线实例 ${e(tabbit?.online_instances ?? 0)}</p>${configTruth}${tabbit?.restart_required ? '<div class="notice warning" role="status">配置已保存，需在研究任务空闲后重启 Runtime 才会应用。</div>' : ''}<form id="tabbit-settings-form"><label class="switch-row"><span><strong>浏览器自动化</strong><small>允许 Agent 按任务使用 tabbit_browser；默认开启。</small></span><input type="checkbox" name="browser_enabled" ${saved.browser_enabled ? 'checked' : ''}></label><label class="switch-row"><span><strong>Tabbit 接管 web_fetch</strong><small>使用真实浏览器登录态获取网页；默认关闭，开启时浏览器自动化必须同时开启。</small></span><input type="checkbox" name="web_fetch_enabled" ${saved.web_fetch_enabled ? 'checked' : ''}></label>${instanceSelect}<div class="button-row"><button class="button primary" type="submit" ${busy ? 'disabled' : ''}>保存 Tabbit 配置</button><button class="button" type="button" data-tabbit-refresh ${busy ? 'disabled' : ''}>刷新诊断</button></div></form><p class="small muted">Research Workbench 不会下载或升级 Tabbit。缺少 CLI、浏览器离线或版本低于 1.9.0 时，请按 <a href="https://github.com/Tabbit-Browser/dsh-tabbit#readme" target="_blank" rel="noopener noreferrer">官方安装说明 ↗</a> 手动处理并重启 Tabbit。</p><p class="small muted">只读调用依赖调用方的 <code>read_only: true</code> 声明，并非对 Playwright 代码的静态证明；写操作会逐次请求原生审批。</p></section>`;
 }
 
 function renderSettingsBody(options) {
-  const { section, runtime, tabbit, models, runtimeLabel, busy, modelFailures, connections, localIntegrations, localVerificationTarget, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
+  const { section, runtime, tabbit, models, runtimeLabel, busy, modelFailures, connections, integrations, localIntegrations, localVerificationTarget, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
   if (section === 'model') return renderModelSettings({ runtime, models, runtimeLabel, busy, modelFailures });
-  if (section === 'local') return `${renderTabbitSettings(tabbit, busy)}${renderLocalIntegrationConsole(localIntegrations, { busy, verificationTarget: localVerificationTarget })}`;
+  if (section === 'local') {
+    const localSummary = (integrations?.items || []).filter((item) => item?.scope === 'local').reduce((summary, item) => {
+      summary[item.bucket] = (summary[item.bucket] || 0) + 1;
+      return summary;
+    }, { available: 0, checking: 0, user_action: 0, system_fault: 0, not_delivered: 0 });
+    return `${renderTabbitSettings(tabbit, busy)}${renderLocalIntegrationConsole(localIntegrations, { busy, verificationTarget: localVerificationTarget, integrationSummary: localSummary })}`;
+  }
   if (section === 'data') {
     return renderConnectionCenter({
       connections,

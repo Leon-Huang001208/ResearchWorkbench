@@ -11,7 +11,7 @@
 该入口不启动旧 API 生命周期，不要求 PostgreSQL/pgvector，不使用 Evidence、Claim、Quality Gate、
 LangGraph、第二套 Supervisor 或旧报告编译链。Web 包含 FinGPT、Claw、历史、文件和设置。
 产品壳只在运行时需要配置、事件通道连接中或健康失败时显示顶栏提示；健康状态静默，完整 DSH
-诊断与手动刷新继续由设置、运行与用量及对应业务页面承担，不改变运行时 API 或事件拓扑。设置在同一产品壳内使用五个互斥的 Hash 子页，仅按当前子页加载所需状态。本机集成子页使用独立的进程内诊断管理器和 `/api/research/local-integrations` 接口，不再把 DataHub 的 `local_cache` 投影当作整机能力结论。
+诊断与手动刷新继续由设置、运行与用量及对应业务页面承担。设置在同一产品壳内使用五个互斥的 Hash 子页，仅按当前子页加载所需状态。进程内 `IntegrationCoordinator` 聚合 DataHub、本机诊断和 Tabbit，启动恢复安全快照后异步探测，并通过 `/api/research/integrations/*` 提供全量批次；原数据源与本机接口继续兼容。
 
 Phase 2B 在同一 Research Web Host 内增加 `app/research_web/mcp_runtime/`。官方 Python SDK
 负责 Streamable HTTP / stdio、工具、资源、提示和 OAuth 客户端协议；Research Web 仍独占安装清单、
@@ -47,9 +47,9 @@ Runtime 内存中以会话绑定、单次消费、10 分钟过期 token 暂存�
 供应、Profile 顺序、API、只读声明限制、macOS 真实验收和 Windows 原生 CI 交付边界见
 [Tabbit 集成](research-web-tabbit.md)。
 
-数据源子页在前端将 21 个远程来源投影为专业、API、公开三类工作台，并从现有连接状态派生汇总、搜索和筛选结果。卡片选择仅控制同页配置抽屉，保存、检测、移除和凭据处理仍走原有连接中心接口；本机集成仍位于独立设置子页。因此本次信息架构调整不增加 DataHub 来源、不改变 Runtime Tool 物化条件，也不引入新的后端拓扑。
+数据源子页在前端将 21 个远程来源投影为专业、API、公开三类工作台，并消费统一五阶段状态派生汇总、搜索和筛选结果。卡片选择仅控制同页配置抽屉，保存、移除和凭据处理仍走原有连接中心接口；单项探测保持兼容，全量重检由协调器批次执行。本机集成仍位于独立设置子页，协调器只是 Host 内模块，不引入新守护进程。
 
-当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 15 项能力与 22 个登记来源；统一连接中心从当前设备 `<RESEARCH_DATA_HOME>/connections/` 读取各来源非秘密配置，MySQL、iFinD、知丘及 Key 型来源的秘密固定存入操作系统凭据库。Wind 只依赖用户本机已登录会话，Excel 作为分层本机能力诊断。真实 Runtime 仅在启动或重启时物化 `callable_source_count > 0` 的品牌无关 `datahub_*` 业务 Tool。MySQL 只开放逐级 schema 和参数化单表查询，不接受原始 SQL；登记、配置、探测、适配和可调用状态分别显示，组件检测成功不等于可调用。
+当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 15 项能力与 22 个登记来源；统一连接中心从当前设备 `<RESEARCH_DATA_HOME>/connections/` 读取各来源非秘密配置，秘密固定存入操作系统凭据库。15 个品牌无关 `datahub_*` 业务 Tool 常驻 Runtime，Broker 根据最新配置、授权、探测和适配状态动态选源。MySQL 只开放逐级 schema 和参数化单表查询，不接受原始 SQL；登记、授权、探测、适配和可调用状态分别显示，组件检测成功不等于可调用。
 
 Research Web 在 Windows 上读取 DSH 认证文件及 DataHub 私有控制、调用收据和会话快照时使用受限路径回退：拒绝符号链接和重解析点、限制文件类型/大小/硬链接并核对打开前后的文件身份；快照目录发布仍为同目录原子改名。POSIX 继续使用 `dir_fd`、`O_DIRECTORY` 与 `O_NOFOLLOW`；两条路径不改变 DataHub 服务节点或 API 拓扑。永久删除会先为产品所有的只读文件恢复所有者写权限，且不跟随链接或重解析点。
 

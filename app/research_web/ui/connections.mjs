@@ -11,6 +11,41 @@ const statusText = {
 };
 const integrationLabels = { excel_automation: 'Excel 自动化', wind_excel: 'Wind 插件', ifind_excel: 'iFinD 插件', report_workflow: '报告工作流' };
 const localIntegrationKeys = Object.keys(integrationLabels);
+
+export function mergeIntegrationStatuses(connections = {}, integrations = {}) {
+  const integrationById = new Map(
+    (Array.isArray(integrations?.items) ? integrations.items : []).map((item) => [item.id, item]),
+  );
+  return {
+    ...connections,
+    sources: (Array.isArray(connections?.sources) ? connections.sources : []).map((source) => {
+      const status = integrationById.get(`data:${source.id}`);
+      if (!status) return { ...source };
+      return {
+        ...source,
+        bucket: status.bucket,
+        responsibility: status.responsibility,
+        stages: status.stages,
+        probe_status: status.probe_state,
+        callable: status.runtime_callable,
+        last_attempt_at: status.last_attempt_at,
+        last_success_at: status.last_success_at,
+        stale: status.stale,
+        error_code: status.error_code,
+        auto_probe_consent: status.details?.auto_probe_consent === true,
+        auto_probe_consent_required: status.details?.auto_probe_consent_required === true,
+      };
+    }),
+  };
+}
+
+export function confirmAutoProbeConsent(confirmAction, sourceLabel, nextConsent) {
+  if (typeof confirmAction !== 'function') return false;
+  const message = nextConsent
+    ? `允许全量检测自动调用 ${sourceLabel}？该操作可能使用登录会话、账号额度或产生费用。`
+    : `停用 ${sourceLabel} 的自动检测？停用后，全量检测会跳过该来源，手动检测仍可单独执行。`;
+  return confirmAction(message) === true;
+}
 const localStatusDefinitions = {
   healthy: ['环境已就绪', 'ready', '当前服务设备已通过这项环境检查。'],
   available: ['环境已就绪', 'ready', '当前服务设备已通过这项环境检查。'],
@@ -83,7 +118,7 @@ function renderLocalIntegrationRow(item, verificationTarget = '') {
   return `<article class="local-integration-row" data-local-integration="${e(item?.id || '')}"><div class="local-integration-identity"><div><strong>${e(item?.label || '未命名集成')}</strong><span class="local-status ${e(tone)}"><span aria-hidden="true"></span>${e(item?.status || '异常')}</span></div><p>${e(item?.message || '服务未提供状态说明。')}</p>${item?.detail ? `<small>${e(item.detail)}</small>` : ''}${checked}${actions || verifyAction ? `<div class="button-row">${actions}${verifyAction}</div>` : ''}</div><div class="local-integration-truths" aria-label="${e(item?.label || '')} 状态">${localTruth('发现', item?.discovery || '异常')}${localTruth('授权', item?.authorization || '异常')}${localTruth('验证', item?.verification || '异常')}${localTruth('可调用', callable)}</div></article>`;
 }
 
-export function renderLocalIntegrationConsole(model = {}, { busy = false, verificationTarget = '' } = {}) {
+export function renderLocalIntegrationConsole(model = {}, { busy = false, verificationTarget = '', integrationSummary = null } = {}) {
   const categories = Array.isArray(model?.categories) ? model.categories : [];
   const items = Array.isArray(model?.items) ? model.items : [];
   const byId = new Map(items.map((item) => [item.id, item]));
@@ -103,7 +138,10 @@ export function renderLocalIntegrationConsole(model = {}, { busy = false, verifi
     : busy
       ? '正在检测本机集成状态，请稍候。'
       : `${serviceLabel}，${summary.available ?? 0} 项可用，${summary.needs_attention ?? 0} 项需处理。`;
-  return `<section class="local-integration-console" data-local-integrations-console><p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${e(announcement)}</p><section class="local-integration-summary" aria-label="本机集成概览"><div><span class="local-service-indicator ${model?.service?.online ? 'ready' : 'danger'}"><span aria-hidden="true"></span>${e(serviceLabel)}</span><p>诊断分别保留发现、授权、验证和可调用事实。</p></div><dl><div><dt><strong>${e(summary.available ?? 0)}</strong> 项可用</dt></div><div><dt><strong>${e(summary.needs_attention ?? 0)}</strong> 项需处理</dt></div></dl><button class="button primary local-integrations-probe" type="button" data-local-integrations-probe ${busy ? 'disabled aria-busy="true"' : ''}>${busy ? '检测中…' : '重新检测'}</button></section>${nav}${groups}<section class="local-report-automation"><div><p class="eyebrow">WORKFLOW</p><h2>报告自动化</h2><p>报告工作流消费 Excel、Word、PowerPoint、Wind/iFinD 数据能力生成报告，并根据自身资源与依赖单独判断能否运行。</p></div><a class="button" href="#/skills?kind=workflow">查看报告 Workflow</a></section></section>`;
+  const unified = integrationSummary && typeof integrationSummary === 'object'
+    ? [['可用', integrationSummary.available], ['检测中', integrationSummary.checking], ['待你处理', integrationSummary.user_action], ['系统故障', integrationSummary.system_fault], ['尚未交付', integrationSummary.not_delivered]]
+    : [['可用', summary.available], ['需处理', summary.needs_attention]];
+  return `<section class="local-integration-console" data-local-integrations-console><p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${e(announcement)}</p><section class="local-integration-summary" aria-label="本机集成概览"><div><span class="local-service-indicator ${model?.service?.online ? 'ready' : 'danger'}"><span aria-hidden="true"></span>${e(serviceLabel)}</span><p>诊断分别保留发现、授权、验证和可调用事实。</p></div><dl>${unified.map(([label, value]) => `<div><dt><strong>${e(value ?? 0)}</strong> 项${e(label)}</dt></div>`).join('')}</dl><button class="button primary local-integrations-probe" type="button" data-local-integrations-probe ${busy ? 'disabled aria-busy="true"' : ''}>${busy ? '检测中…' : '重新检测'}</button></section>${nav}${groups}<section class="local-report-automation"><div><p class="eyebrow">WORKFLOW</p><h2>报告自动化</h2><p>报告工作流消费 Excel、Word、PowerPoint、Wind/iFinD 数据能力生成报告，并根据自身资源与依赖单独判断能否运行。</p></div><a class="button" href="#/skills?kind=workflow">查看报告 Workflow</a></section></section>`;
 }
 
 function get(values, key) {
@@ -119,11 +157,23 @@ function isProbed(source) {
 }
 
 function sourceState(source) {
+  const stages = source?.stages || {};
+  const stageComplete = (name, fallback) => {
+    const stage = stages[name];
+    const value = typeof stage === 'object' ? stage?.state : stage;
+    return value ? ['complete', 'healthy', 'available'].includes(value) : fallback;
+  };
   const configured = source?.configured === true;
   const probed = isProbed(source);
   const integrated = source?.integration_completed === true;
   const callable = source?.callable === true;
-  return { configured, probed, integrated, callable };
+  return {
+    registered: stageComplete('registration', true),
+    authorized: stageComplete('authorization', configured),
+    probed: stageComplete('probe', probed),
+    integrated: stageComplete('adaptation', integrated),
+    callable: stageComplete('runtime', callable),
+  };
 }
 
 function stateBadge(label, active, kind = '') {
@@ -132,7 +182,7 @@ function stateBadge(label, active, kind = '') {
 
 function renderStateMatrix(source) {
   const state = sourceState(source);
-  return `<div class="connection-state-matrix" aria-label="连接状态">${stateBadge('已配置', state.configured)}${stateBadge('已检测', state.probed)}${stateBadge('已适配', state.integrated)}${stateBadge('可调用', state.callable, 'callable')}</div>`;
+  return `<div class="connection-state-matrix" aria-label="连接状态">${stateBadge('登记', state.registered)}${stateBadge('授权', state.authorized)}${stateBadge('探测', state.probed)}${stateBadge('适配', state.integrated)}${stateBadge('可调用', state.callable, 'callable')}</div>`;
 }
 
 function authLabel(source) {
@@ -140,6 +190,12 @@ function authLabel(source) {
 }
 
 function compactStatus(source) {
+  const bucket = source?.bucket;
+  if (bucket === 'available') return ['可用', 'live'];
+  if (bucket === 'checking') return ['检测中', 'warning'];
+  if (bucket === 'user_action') return ['待你处理', 'warning'];
+  if (bucket === 'system_fault') return ['系统故障', 'danger'];
+  if (bucket === 'not_delivered') return ['尚未交付', ''];
   const state = sourceState(source);
   if (state.callable) return ['可调用', 'live'];
   if (!state.integrated) return ['尚未适配', ''];
@@ -149,6 +205,8 @@ function compactStatus(source) {
 }
 
 function connectionStatusKey(source) {
+  if (source?.bucket === 'available') return 'connected';
+  if (source?.bucket) return 'attention';
   const [label] = compactStatus(source);
   if (label === '可调用') return 'connected';
   if (label === '待配置') return 'pending';
@@ -204,14 +262,16 @@ function renderNavigation(connections, selectedId) {
 
 function renderConnectionSummary(sources) {
   const counts = sources.reduce((summary, source) => {
-    summary[connectionStatusKey(source)] += 1;
+    const bucket = source?.bucket || ({ connected: 'available', pending: 'user_action', attention: 'system_fault' })[connectionStatusKey(source)];
+    summary[bucket] = (summary[bucket] || 0) + 1;
     return summary;
-  }, { connected: 0, pending: 0, attention: 0 });
+  }, { available: 0, checking: 0, user_action: 0, system_fault: 0, not_delivered: 0 });
   const items = [
-    ['已连接', counts.connected, 'connected'],
-    ['待配置', counts.pending, 'pending'],
-    ['需处理', counts.attention, 'attention'],
-    ['来源总数', sources.length, 'total'],
+    ['可用', counts.available, 'connected'],
+    ['检测中', counts.checking, 'pending'],
+    ['待你处理', counts.user_action, 'attention'],
+    ['系统故障', counts.system_fault, 'attention'],
+    ['尚未交付', counts.not_delivered, 'total'],
   ];
   return `<dl class="connection-summary" aria-label="数据源状态概览">${items.map(([label, value, kind]) => `<div class="connection-summary-item ${kind}"><dt><span aria-hidden="true"></span>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>`;
 }
@@ -377,6 +437,15 @@ function renderUnavailable(source) {
   return `<p class="muted">${e(source.description || '当前只提供来源状态与诊断。')}</p>${source.integration_completed ? '' : '<p class="notice warning small">尚未适配 DataHub 查询边界。保存配置或检测成功都不会把它误标为可调用。</p>'}<div class="button-row">${probe}<a class="button" href="#/skills?kind=data">查看 DataHub 目录</a></div>`;
 }
 
+function renderAutoProbeConsent(source) {
+  if (source?.auto_probe_consent_required !== true) return '';
+  const enabled = source?.auto_probe_consent === true;
+  const copy = enabled
+    ? '已允许全量检测自动调用该来源；你可以随时停用。'
+    : '该来源可能需要登录、账号额度或产生费用；启用前会再次确认。';
+  return `<section class="notice warning small" data-auto-probe-consent-control><p>${e(copy)}</p><button class="button" type="button" data-integration-consent="${e(source.id)}" data-consent-enabled="${enabled}">${enabled ? '停用自动检测' : '允许自动检测'}</button></section>`;
+}
+
 function renderDetail(source, configuration, connections, { drawer = false } = {}) {
   if (!source) return '<section class="connection-detail"><p class="muted">请选择一个数据源。</p></section>';
   let body;
@@ -388,7 +457,7 @@ function renderDetail(source, configuration, connections, { drawer = false } = {
   else if (source.id === 'local_cache' || source.group === 'local') body = renderIntegration(connections?.platform);
   else body = renderUnavailable(source);
   const close = drawer ? '<button class="connection-detail-close" type="button" data-connection-detail-close aria-label="关闭数据源详情">×</button>' : '';
-  return `<section class="connection-detail ${drawer ? 'connection-drawer' : ''}" ${drawer ? 'id="connection-detail" data-connection-drawer' : ''} aria-labelledby="connection-title"><header class="connection-detail-header"><div><p class="eyebrow">${e(authLabel(source))}</p><h2 id="connection-title" tabindex="-1">${e(sourceName(source))}</h2><p class="muted">${e(source.description || '')}</p></div>${close}</header>${renderStateMatrix(source)}${body}</section>`;
+  return `<section class="connection-detail ${drawer ? 'connection-drawer' : ''}" ${drawer ? 'id="connection-detail" data-connection-drawer' : ''} aria-labelledby="connection-title"><header class="connection-detail-header"><div><p class="eyebrow">${e(authLabel(source))}</p><h2 id="connection-title" tabindex="-1">${e(sourceName(source))}</h2><p class="muted">${e(source.description || '')}</p></div>${close}</header>${renderStateMatrix(source)}${renderAutoProbeConsent(source)}${body}</section>`;
 }
 
 function renderMigration(migration, open) {

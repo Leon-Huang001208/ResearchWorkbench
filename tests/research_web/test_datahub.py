@@ -6,6 +6,7 @@ import json
 import os
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -54,6 +55,96 @@ def make_hub(module, tmp_path, handler):
     store = Store(tmp_path)
     sid = store.create("claw", "test")["id"]
     return module.DataHub(store, transport=httpx.MockTransport(handler)), store, sid
+
+
+def test_configuration_digest_changes_without_exposing_safe_input(hub_module, tmp_path):
+    hub = hub_module.DataHub(Store(tmp_path))
+    safe_status = {
+        "configured": True,
+        "host": "database.internal",
+        "secret_configured": False,
+    }
+    hub.connections.source_status = lambda _source_id: safe_status
+    before = hub.source_configuration_digest("mysql")
+    safe_status["secret_configured"] = True
+    after = hub.source_configuration_digest("mysql")
+
+    assert len(before) == 64 and len(after) == 64
+    assert before != after
+    assert "database.internal" not in before + after
+
+
+@pytest.mark.asyncio
+async def test_probe_retention_bounds_records_and_idempotency_keys(hub_module, tmp_path):
+    now = [100.0]
+    hub = hub_module.DataHub(
+        Store(tmp_path),
+        probe_ttl_seconds=10,
+        max_retained_probes=2,
+        monotonic_clock=lambda: now[0],
+    )
+    completed = []
+    for key in ("probe-key-one", "probe-key-two", "probe-key-three"):
+        completed.append(await hub.run_probe("cnstock_news", key))
+
+    assert len(hub.probes) == 2
+    assert len(hub.probe_keys) == 2
+    with pytest.raises(StoreError, match="检测记录不存在"):
+        hub.probe(completed[0]["id"])
+    replay = hub.start_probe("cnstock_news", "probe-key-three")
+    assert replay["id"] == completed[-1]["id"]
+
+    now[0] += 11
+    with pytest.raises(StoreError, match="检测记录不存在"):
+        hub.probe(completed[-1]["id"])
+    assert hub.probe_keys == {}
+    await hub.close()
+
+
+@pytest.mark.asyncio
+async def test_out_of_order_probe_completion_protects_awaited_result(hub_module, tmp_path):
+    first_started = asyncio.Event()
+    release_first = asyncio.Event()
+    calls = 0
+
+    async def probe_runner(_source_id, _configuration, _read_secret):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            first_started.set()
+            await release_first.wait()
+        return {"health": "healthy", "failure_code": None}
+
+    hub = hub_module.DataHub(
+        Store(tmp_path),
+        probe_runner=probe_runner,
+        max_retained_probes=1,
+    )
+    hub.connections.source_configuration = lambda _source_id: SimpleNamespace(
+        model_dump=lambda: {"preferred_adapter": "auto"}
+    )
+    hub.connections.statuses = lambda: {
+        "wind": {
+            "configured": True,
+            "secret_configured": False,
+            "credential_store_available": True,
+            "restart_required": False,
+            "failure_code": None,
+        }
+    }
+
+    slow_task = asyncio.create_task(hub.run_probe("wind", "out-of-order-slow"))
+    await first_started.wait()
+    fast = await hub.run_probe("wind", "out-of-order-fast")
+    release_first.set()
+    slow = await slow_task
+
+    assert slow["status"] == "completed"
+    assert hub.probe(slow["id"])["id"] == slow["id"]
+    with pytest.raises(StoreError, match="检测记录不存在"):
+        hub.probe(fast["id"])
+    assert len(hub.probes) == 1
+    await hub.close()
 
 
 @pytest.mark.parametrize(
@@ -526,7 +617,7 @@ def test_launcher_prepares_private_bridge_config_without_secret_environment(tmp_
     )
 
 
-def test_launcher_enables_only_callable_datahub_tools(tmp_path, monkeypatch):
+def test_launcher_keeps_all_business_datahub_tools_registered(tmp_path, monkeypatch):
     from app.research_web import launch_runtime
 
     source = tmp_path / "source"
@@ -538,73 +629,23 @@ def test_launcher_enables_only_callable_datahub_tools(tmp_path, monkeypatch):
         "check_output",
         lambda *args, **kw: launch_runtime.PINNED_COMMIT,
     )
-    monkeypatch.setattr(
-        launch_runtime,
-        "build_catalog",
-        lambda **_kwargs: {
-            "capabilities": [
-                {"id": "search_news", "callable_source_count": 1},
-                {"id": "search_web", "callable_source_count": 0},
-                {"id": "fund_data", "callable_source_count": 2},
-            ]
-        },
-    )
-
     data = tmp_path / "data"
     launch_runtime.prepare(source, data, "/usr/bin/node", 3081, research_tools=True)
 
     preset = (data / "runtime/home/.agent-presets/research-web/agent.cordis.yml").read_text()
-    assert 'enabledTools: ["datahub_get_fund_data", "datahub_search_news"]' in preset
-    assert "datahub_search_web" not in preset
-
-    monkeypatch.setattr(
-        launch_runtime,
-        "build_catalog",
-        lambda **_kwargs: {
-            "capabilities": [
-                {"id": "search_news", "callable_source_count": 0},
-                {"id": "fund_data", "callable_source_count": 0},
-            ]
-        },
-    )
-    empty_data = tmp_path / "empty-data"
-    launch_runtime.prepare(source, empty_data, "/usr/bin/node", 3081, research_tools=True)
-    empty_preset = (
-        empty_data / "runtime/home/.agent-presets/research-web/agent.cordis.yml"
-    ).read_text()
-    assert "enabledTools: []" in empty_preset
+    for tool_id in launch_runtime.BUSINESS_TOOLS.values():
+        assert tool_id in preset
 
 
-def test_launcher_passes_all_user_connection_statuses_to_runtime_catalog(tmp_path, monkeypatch):
+def test_launcher_tool_registration_does_not_read_connection_credentials(tmp_path, monkeypatch):
     from app.research_web import launch_runtime
 
-    expected = {
-        "tinysoft": {
-            "configured": True,
-            "secret_configured": True,
-            "credential_store_available": True,
-        }
-    }
-    observed = {}
-
-    class ConnectionStore:
-        def __init__(self, root):
-            assert root == tmp_path
-
-        def statuses(self):
-            return expected
-
-    def catalog(**kwargs):
-        observed.update(kwargs)
-        return {"capabilities": []}
-
-    monkeypatch.setattr(launch_runtime, "MySQLConnectionStore", ConnectionStore)
-    monkeypatch.setattr(launch_runtime, "build_catalog", catalog)
-    assert launch_runtime.enabled_datahub_tools(tmp_path) == []
-    assert observed == {"connection_statuses": expected}
+    assert launch_runtime.enabled_datahub_tools(tmp_path) == list(
+        launch_runtime.BUSINESS_TOOLS.values()
+    )
 
 
-def test_launcher_rejects_invalid_datahub_tool_catalog(tmp_path, monkeypatch):
+def test_launcher_datahub_tool_catalog_is_stable_without_provider_state(tmp_path, monkeypatch):
     from app.research_web import launch_runtime
 
     source = tmp_path / "source"
@@ -616,12 +657,10 @@ def test_launcher_rejects_invalid_datahub_tool_catalog(tmp_path, monkeypatch):
         "check_output",
         lambda *args, **kw: launch_runtime.PINNED_COMMIT,
     )
-    monkeypatch.setattr(launch_runtime, "build_catalog", dict)
     data = tmp_path / "data"
-
-    with pytest.raises(RuntimeError, match="工具目录无效"):
-        launch_runtime.prepare(source, data, "/usr/bin/node", 3081, research_tools=True)
-    assert not (data / "runtime/home/.agent-presets/research-web/agent.cordis.yml").exists()
+    launch_runtime.prepare(source, data, "/usr/bin/node", 3081, research_tools=True)
+    preset = (data / "runtime/home/.agent-presets/research-web/agent.cordis.yml").read_text()
+    assert "datahub_search_web" in preset
 
 
 @pytest.mark.asyncio

@@ -21,12 +21,13 @@ Gold 与 Dollar 快照在路径解析前拒绝任一现存符号链接组件，�
 | Automation → Claw / MCP | 每个 Run 使用独立会话并锁定目标版本、内容 SHA 与工具 schema；无人值守只允许任务明确授权的只读工具，私有数据须任务级授权，高风险工具拒绝 | `automation/service.py`、`mcp_runtime/service.py` / Automation 与 MCP route tests |
 | Automation → 投递渠道 | 研究/投递状态分离；HTTPS 或字面 loopback、SMTP STARTTLS、通用 Webhook 固定事件 ID/时间戳/HMAC；渠道秘密只进 `ResearchWorkbench.Delivery` | `automation/delivery.py`、`channels.py`、`transport.py` / delivery、channel、transport tests |
 | 本机诊断 → 宿主 | 发现只读取标准位置/注册项/模块；真实验证须显式触发并限制目标、Office 容器内确定名称的临时文件、独立进程组和超时；Excel 使用本轮独立实例，PowerPoint 保存后按随机文件名重新绑定本轮对象，Wind 复用已登录 Excel 但只操作独占空白工作簿，且只上报验证器真正拥有的进程供精确清理；投影排除绝对路径、秘密、命令与环境变量 | `local_integrations/`、`report_workflows/workbook.py` / `test_local_integrations.py`、`test_report_workflows.py` |
+| 浏览器 → 集成写操作 | 仅接受精确同源 `Origin` 和显式用户动作头；探测与授权快照只保存白名单状态字段，原子文件权限为当前用户。该边界不抵御同源 XSS 或能伪造本机 HTTP 请求的同用户进程 | `integrations/` / `test_integration_coordinator.py`、设置页 JS 回归 |
 | FastAPI → DSH | 固定回环 RPC、共享有界认证控制读取、文件身份/别名检查、方法白名单、双事件通道 | `runtime_auth.py`、`client.py` / `test_runtime_auth.py`、`test_protocol.py`、`test_event_recovery.py` |
 | 服务管理 → 私有目录 | 拒绝非目录、符号链接和 Windows 重解析点；POSIX 检查 group/other mode 位，Windows 不将 mode 投影当作 ACL | `service_manager.py` / `test_service_manager.py` |
 | 用户 → 会话文件 | 会话归属、规范路径、安全文件描述符、有限上传体积和类型 | `store.py`、`main.py` / `test_store.py`、`test_artifacts.py` |
 | DSH → 工具 | 精确注册工具集合，子 Agent 深度、并发和步骤限制 | `runtime/guard.mjs` / `research_web_guard.test.mjs` |
 | 会话 → Tabbit 标签页 | 当前 Runtime 生命周期内的会话授权；发送前按所选实例实时重验可 claim 的 HTTP(S) 标签；正文仅进入绑定会话、单次消费、10 分钟过期的 DSH 内存 token | `tabbit.py`、`runtime/tabbit-adapter.mjs` / `test_tabbit.py`、`research_web_tabbit_adapter.test.mjs` |
-| DSH → 公开数据 | 原生审批；私有认证 BFF 入口，固定来源/参数，无任意 URL、重定向或自动安装 | `runtime/public-data.mjs`、`datahub/` / `research_web_public_data.test.mjs`、`test_datahub.py` |
+| DSH → 公开数据 | 15 个品牌无关工具常驻；私有认证 BFF 入口在每次调用时按最新安全状态选源，固定来源/参数，无任意 URL、重定向或自动安装 | `runtime/public-data.mjs`、`datahub/` / `research_web_public_data.test.mjs`、`test_datahub.py` |
 | 脚本 → 宿主 | macOS Seatbelt 内核约束，环境变量白名单；只读 inputs/resources，仅 outputs/tmp 可写，无网络和子进程 | `sandbox.py` / `test_sandbox.py` |
 | HTML → 浏览器凭据 | 隔离 iframe，后端 sandbox CSP，无同源权限；模型 Markdown 先转义 | `main.py`、`ui/markdown.mjs`、`ui/views.mjs` / UI 安全测试 |
 | 研究结束 → 交付完成 | 本任务输出基线、哈希复核、沙箱解析与重开；旧产物、附件和正文不补文件格式 | `delivery.py`、`delivery_validation.py` / `test_delivery.py` |
@@ -53,6 +54,7 @@ Windows 不使用 POSIX mode bit 证明 DSH 认证文件或 DataHub 私有文件
 5. 图文一致性检查只核对路径、接口、字节哈希及更新记录。人工仍需审查语义、权限和实现是否相符。
 6. 本机集成“已发现”不能替代真实调用验证；Office 只有创建/刷新、保存、关闭、重开与必需结果校验全部成功才可投影为可调用，Wind 则必须返回预期的最小厂商公式结果。二维码安全验证投影为待授权；超时、权限、登录或厂商异常均关闭失败。
 7. 本机验证证据的 TTL 使用包含截止边界；零 TTL 必须立即关闭可调用投影。POSIX 进程组清理测试不在缺少对应系统调用的 Windows 上伪执行。
+8. 集成协调器同时保留最近尝试与最近成功；配置、环境或 Provider 指纹变化会使旧证据过期。公共来源最多并发四个，厂商来源串行，未获逐来源授权的收费、登录或厂商探测保持跳过。
 
 ## 当前可复跑命令
 

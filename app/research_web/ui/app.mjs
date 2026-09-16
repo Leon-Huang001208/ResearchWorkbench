@@ -1,4 +1,4 @@
-import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
+import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
 import { icon } from './icons.mjs';
@@ -15,13 +15,13 @@ import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
-import { buildConfigurationPayload, createLocalIntegrationPollingGuard } from './connections.mjs';
+import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, mergeIntegrationStatuses } from './connections.mjs';
 import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
-const catalog = { runtime: null, tabbit: null, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
+const catalog = { runtime: null, tabbit: null, integrations: { summary: {}, items: [], latest_batch: null }, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [] };
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let tabbitOpen = false; let tabbitLoading = false; let tabbitIndex = 0; let tabbitCandidates = []; let tabbitRequest = 0;
@@ -204,6 +204,7 @@ function settingsPage() {
     modelFailures: catalog.modelFailures,
     connections: catalog.connections,
     localIntegrations: catalog.localIntegrations,
+    integrations: catalog.integrations,
     localVerificationTarget,
     selectedConfiguration: selectedConnectionConfiguration,
     migrationOpen,
@@ -348,11 +349,19 @@ async function loadCatalog(names = ['runtime', 'models', 'workspaces', 'sessions
         items: Array.isArray(data?.items) ? data.items : [],
         last_checked_at: data?.last_checked_at || null,
       };
+      else if (name === 'integrations') catalog.integrations = {
+        summary: data?.summary || {},
+        items: Array.isArray(data?.items) ? data.items : [],
+        latest_batch: data?.latest_batch || null,
+      };
       else if (name === 'artifacts') catalog.artifacts = data.items || [];
       else catalog[name] = data.items || [];
       delete catalog.errors[name];
     } catch (error) { catalog.errors[name] = error.message; if (name === 'runtime') catalog.runtime = null; }
   }));
+  if (names.includes('connections') || names.includes('integrations')) {
+    catalog.connections = mergeIntegrationStatuses(catalog.connections, catalog.integrations);
+  }
   render();
 }
 
@@ -1666,6 +1675,22 @@ root.addEventListener('click', async (event) => {
     if (result) { success = '本机配置和系统凭据已移除；历史快照保持可读。'; selectedConnectionConfiguration = null; await loadCatalog(['connections', 'dataCatalog', 'tools']); await loadConnectionConfiguration(sourceId); }
     return;
   }
+  if ('integrationConsent' in data) {
+    const sourceId = data.integrationConsent;
+    const enabled = data.consentEnabled === 'true';
+    const nextConsent = !enabled;
+    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
+    if (!confirmAutoProbeConsent((message) => globalThis.confirm?.(message), sourceLabel, nextConsent)) return;
+    const result = await controller.action(
+      () => api.setIntegrationConsent(`data:${sourceId}`, nextConsent),
+      { refreshAfter: false },
+    );
+    if (result) {
+      success = nextConsent ? `已允许自动检测 ${sourceLabel}。` : `已停用 ${sourceLabel} 的自动检测。`;
+      await loadCatalog(['connections', 'integrations']);
+    }
+    return;
+  }
   if ('connectionProbe' in data) {
     const sourceId = data.connectionProbe; state.error = ''; success = '';
     const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
@@ -1803,6 +1828,7 @@ root.addEventListener('click', async (event) => {
   if ('new' in data) { history.pushState(null, '', state.route.page === 'claw' ? '#/claw' : '#/fingpt'); await showRoute(); controller.setDraft(''); render(); document.querySelector('#prompt')?.focus(); }
   if ('refresh' in data) {
     success = '';
+    state.error = '';
     if (state.route.page === 'workbench') await loadWorkbench();
     else if (state.route.page === 'operations') await loadOperations();
     else if (state.route.page === 'history' && state.route.historyView === 'deleted') await loadCatalog(['deletedSessions']);
@@ -1813,8 +1839,35 @@ root.addEventListener('click', async (event) => {
         localVerificationTarget = '';
       }
       if (section === 'data') selectedConnectionConfiguration = null;
-      const catalogs = settingsRefreshCatalogs(section);
-      if (catalogs.length) await loadCatalog(catalogs);
+      if (['data', 'local'].includes(section)) {
+        const scope = section;
+        if (scope === 'data') connectionProbeBusy = true;
+        else localIntegrationProbeBusy = true;
+        render();
+        try {
+          const accepted = await api.startIntegrationProbeBatch(scope, `integration-${scope}-${crypto.randomUUID()}`);
+          if (typeof accepted?.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的全量检测批次。');
+          const completed = await waitForIntegrationBatch((batchId) => api.integrationProbeBatch(batchId), accepted.id);
+          await loadCatalog(settingsRefreshCatalogs(section));
+          if (completed.status === 'completed_with_failures') {
+            state.error = '全量检测已完成，但部分项目失败，请根据状态说明处理。';
+          } else if (completed.status === 'completed') {
+            success = section === 'data' ? '数据源已完成全量重新检测。' : '本机集成已完成全量重新检测。';
+          } else {
+            throw new Error('全量检测未完成，请查看服务日志。');
+          }
+        } catch (error) {
+          state.error = error?.message || '全量检测失败，请重试。';
+          safeLog('integration_probe_batch_failed', { status: error?.code || error?.name || 'unknown' });
+        } finally {
+          connectionProbeBusy = false;
+          localIntegrationProbeBusy = false;
+          render();
+        }
+      } else {
+        const catalogs = settingsRefreshCatalogs(section);
+        if (catalogs.length) await loadCatalog(catalogs);
+      }
       if (section === 'data') {
         const selectedId = currentSettingsConnectionId();
         if (selectedId) await loadConnectionConfiguration(selectedId);

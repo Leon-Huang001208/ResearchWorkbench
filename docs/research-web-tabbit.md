@@ -44,6 +44,10 @@ Windows 启动 Web 时读取的 DSH 认证文件不使用 POSIX mode bit 作为 
 重启门禁仍会拒绝重启，因此配置保持待应用，不会中断任务。多个在线实例时必须选择一个
 16 位大写十六进制实例 ID。
 
+统一集成状态同时保留 Tabbit 的“已保存配置”和当前 Runtime “已应用配置”，并单独展示
+`restart_required`。重新检测只刷新诊断事实，不把待应用配置冒充已生效；旧快照恢复时只接受
+白名单状态与版本格式，发现遗留敏感字段会先原子清洗再向 DataHub 恢复其他状态。
+
 只读命令 `rwb web tabbit-status` 输出状态、版本、开关、在线实例数量和是否需要重启；它不输出
 路径、Cookie、标签标题、URL 或正文。状态枚举为 `ready`、`disabled`、`launcher_missing`、
 `browser_offline`、`unsupported_version`、`instance_selection_required`、`error`。

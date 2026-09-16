@@ -15,8 +15,6 @@ from pathlib import Path, PurePosixPath
 from core.observability import get_logger, setup_logging
 
 from .capabilities.catalog import CapabilityCatalog
-from .datahub.catalog import build_catalog
-from .datahub.connections import MySQLConnectionStore
 from .datahub.contracts import BUSINESS_TOOLS
 from .datahub.security import directory, load_control, read_file
 from .mcp_runtime.authorization import (
@@ -368,21 +366,10 @@ def validate_tabbit_node(node: str) -> str:
 
 
 def enabled_datahub_tools(data: Path | None = None) -> list[str]:
-    """Resolve the fixed business tool IDs backed by callable offline catalog sources."""
-    try:
-        connection_statuses = MySQLConnectionStore(data).statuses() if data is not None else None
-        capabilities = build_catalog(connection_statuses=connection_statuses)["capabilities"]
-        callable_capabilities = {
-            item["id"] for item in capabilities if item["callable_source_count"] > 0
-        }
-        return [
-            tool_id
-            for capability_id, tool_id in BUSINESS_TOOLS.items()
-            if capability_id in callable_capabilities
-        ]
-    except Exception as exc:
-        log.error("datahub_runtime_tool_catalog_failed", error_type=type(exc).__name__)
-        raise RuntimeError("DataHub 可调用工具目录无效，拒绝启动 Runtime") from exc
+    """Keep all stable tools registered; the Broker decides availability per call."""
+
+    del data
+    return list(BUSINESS_TOOLS.values())
 
 
 def prepare_runtime_module_fallback(source: Path, home: Path, node: str) -> int:

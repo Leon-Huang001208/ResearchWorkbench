@@ -57,7 +57,8 @@
         "app/research_web/tabbit.py",
         "app/research_web/projection.py",
         "app/research_web/frameworks/",
-        "app/research_web/local_integrations/"
+        "app/research_web/local_integrations/",
+        "app/research_web/integrations/"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -65,6 +66,7 @@
         "docs/architecture/research-web/04-api.md",
         "docs/architecture/research-web/05-security-validation.md",
         "docs/architecture/research-web/08-research-frameworks.md",
+        "docs/architecture/research-web/09-integration-coordinator.md",
         "docs/research-web-tabbit.md"
       ],
       "diagrams": [
@@ -83,6 +85,7 @@
         "tests/research_web/test_service_manager.py",
         "tests/research_web/test_frameworks.py",
         "tests/research_web/test_framework_collectors.py",
+        "tests/research_web/test_integration_coordinator.py",
         "tests/research_web/test_tabbit.py"
       ]
     },
@@ -118,6 +121,7 @@
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/09-integration-coordinator.md",
         "docs/research-web-datahub.md"
       ],
       "diagrams": [
@@ -128,6 +132,7 @@
       "tests": [
         "tests/research_web/test_datahub.py",
         "tests/research_web/test_datahub_catalog.py",
+        "tests/research_web/test_integration_coordinator.py",
         "tests/research_web/test_mysql_configuration.py",
         "tests/research_web/test_mysql_provider.py",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
@@ -1065,6 +1070,34 @@
     }
   ],
   "apis": [
+    {
+      "method": "GET",
+      "path": "/api/research/integrations/status",
+      "source": "app/research_web/integrations/routes.py",
+      "declaredPath": "/status",
+      "prefix": "/api/research/integrations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/integrations/probe-batches",
+      "source": "app/research_web/integrations/routes.py",
+      "declaredPath": "/probe-batches",
+      "prefix": "/api/research/integrations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/integrations/probe-batches/{batch_id}",
+      "source": "app/research_web/integrations/routes.py",
+      "declaredPath": "/probe-batches/{batch_id}",
+      "prefix": "/api/research/integrations"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/integrations/{item_id}/auto-probe-consent",
+      "source": "app/research_web/integrations/routes.py",
+      "declaredPath": "/{item_id}/auto-probe-consent",
+      "prefix": "/api/research/integrations"
+    },
     {
       "method": "GET",
       "path": "/api/research/frameworks",

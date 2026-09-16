@@ -17,6 +17,7 @@
 7. [能力管理](07-capabilities.md)：Skill、Tool、Workflow、数据目录，及包、版本、原生发现和会话只读资源。
 8. [运行与用量](../../research-web-operations.md)：真实 usage、Agent、工具、DataHub、服务健康和项目存储聚合。
 9. [研究框架](08-research-frameworks.md)：Gold/Dollar Hub、连续专属画布、真实采集、快照 Bot 与渐进抽象边界。
+10. [统一集成协调器](09-integration-coordinator.md)：数据源与本机能力的五阶段状态、启动/手动探测、授权和持久证据。
 
 可交互图文位于仓库 `outputs/research-web-architecture/`，也可从 Web 设置的「架构文档」打开。JSON 图源在本目录 `diagrams/`。十图均以实际源码为依据；本轮新增报告运行序列与 Excel 数据流，并更新模块依赖、运行状态和交付状态。最终图均达到 showcase 9/9、零错误零警告，并通过四视口检查与人工截图核对。图形证据与产品验收分开保存。
 

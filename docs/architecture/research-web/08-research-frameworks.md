@@ -53,3 +53,7 @@ Dollar 的实时 `plumbing_m` 保存 60 期 SOFR−IORB；F2 renderer 只取最�
 Research Workbench Method 层不改变 Gold／Dollar 的领域定义、版本、采集、评分、快照或 renderer。
 框架 Bot 仍走唯一 DSH 链；未来如为框架能力配置 `method_policy`，也必须使用当前框架快照 revision，
 且 Method 采用记录不能替代来源、因子或结论证据。首版框架能力未配置默认推荐方法。
+
+统一集成协调器只改变设置页的来源/本机状态聚合和 DataHub 业务工具的动态选源，不改变 Gold、Dollar
+的专用采集器、快照 revision、评分或 Bot 会话绑定。框架来源失败仍按各自 collector 的最后成功值与
+缺口规则处理，不能用集成页的“可用”替代框架快照证据。
