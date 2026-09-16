@@ -73,6 +73,7 @@ jobs:
               / "runtime"
               / "home"
           )
+          data = Path.home() / ".research-workbench" / "research-web"
           try:
               node = shutil.which("node")
               if node is None:
@@ -86,6 +87,16 @@ jobs:
               print(f"fallback_stderr={getattr(cause, 'stderr', '')}")
               raise
           print(f"fallback_module_count={count}")
+          manifest = launch_runtime.stage_tabbit_package(launch_runtime.TABBIT_VENDOR, home)
+          print(f"tabbit_package_version={manifest['version']}")
+          adapter = launch_runtime.stage_tabbit_adapter(
+              Path(launch_runtime.__file__).parent / "runtime" / "tabbit-adapter.mjs",
+              home,
+          )
+          print(f"tabbit_adapter_ready={adapter.name}")
+          control = data / ".control" / "tabbit-applied.json"
+          launch_runtime._atomic_json(control, launch_runtime.load_tabbit_config(data))
+          print(f"tabbit_control_ready={control.name}")
           '@ | .\.venv\Scripts\python.exe -
 
       - name: Verify macOS environment and start services
