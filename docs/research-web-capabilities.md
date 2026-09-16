@@ -57,7 +57,9 @@ openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性�
 行业拥挤度监控）复用同一 `cpu_bounded_v1` 与 comparison receipt verifier。它们在 fresh catalog
 中可发现但全部 disabled，不进入原生 provider candidates；真实 Wind/Excel comparison evidence
 未完成且未由宿主登记器签名前不能启用或回滚到 enabled。七包提交真实可哈希 synthetic source
-artifact 并由 fixture/golden/provenance 绑定其摘要，不再使用占位哈希。未核验的 DataHub 映射均标记
+artifact 并由 fixture/golden/provenance 绑定其摘要，不再使用占位哈希。Stage 3 旧版本迁移使用封闭
+的完整 SHA-256 白名单，兼容初始脚本和基金穿透、组合基准偏离的已发布直接父脚本；命中后新版本
+保持 disabled，旧原生投影与旧版本 receipt 都不会转移到 successor。未核验的 DataHub 映射均标记
 `callable=false`，只接受 provider 与 dataset refs 一致的 synthetic/user_input。基金穿透支持单一快照
 percent/decimal、多层与重复路径，对全部给定基金子图 cycle fail-closed，并以按深度 DP 聚合汇合 DAG
 的权重和路径数；组合计算拒绝隐式杠杆，基准偏离要求每条记录显式携带并严格匹配顶层报告期、因子日和行业映射版本，

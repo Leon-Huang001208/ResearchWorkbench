@@ -46,9 +46,14 @@ provenance、可哈希 synthetic source artifact、fixture 与 golden result。�
 research sandbox 使用显式最小环境，不继承此密钥。缺少登记器、普通 JSON 自报、签名篡改或任一绑定
 制品变化均失败关闭。测试用独立重编码结果模拟登记器协议，不调用被审 `calculate.py` 生成 actual 后
 启用。启动时 catalog 逐项复核所有已启用的 receipt-gated 能力，非 v2、HMAC/证据不可复核或缺少
-登记密钥时撤下投影并持久化 disabled；selection 也执行同一防御性门禁。catalog 以七个初始 Stage 3 脚本的精确 SHA-256 识别已安装旧版本，先撤下旧原生投影并禁用，
-再发布当前不可变 successor；receipt 绑定旧版本，不能被新版本复用。真实 Wind/Excel 尚未执行，因此
-七项仍 disabled。
+登记密钥时撤下投影并持久化 disabled；selection 也执行同一防御性门禁。catalog 以七个初始 Stage 3
+脚本及两个已发布直接父版本的精确 SHA-256 白名单识别已安装旧版本，先撤下旧原生投影并禁用，再
+发布当前不可变 successor；receipt 绑定旧版本，不能被新版本复用。直接父提交
+`4647589c53e3aca75b9310f6600eac081d0599fa` 中基金穿透与组合基准偏离脚本的摘要分别经
+`git show <commit>:<path> | shasum -a 256` 逐字计算为
+`d9721c43c5e89ebe43bed8a0e4da47ad86c663d319794b09f1839a33b0d913c7` 与
+`13dbeb59c8240c6eabcd79acf857291b9781d30382eff56a75df0c1801133d16`；原始旧摘要继续兼容，不接受
+任何未列举摘要。真实 Wind/Excel 尚未执行，因此七项仍 disabled。
 
 本阶段只把能够逐字核验的来源写入 provenance：
 
@@ -93,6 +98,15 @@ Important 复审按 TDD 新增组合基准偏离混合报告期/行业映射版�
 聚焦为 `24 passed in 0.79s`，Stage 3 全量为 `144 passed in 30.11s`，Stage 2 + Stage 3 清除代理环境
 后首次为 `300 passed in 104.52s`，提交前最终新鲜复跑为 `300 passed in 298.27s`。新 DAG 用例在
 sandbox 内约 1 秒完成并保持 `<1 GiB peak RSS`。
+
+直接父版本迁移阻断按 TDD 增加两个参数化回归：先由真实 `record_comparison_receipt()` 生成并复核
+合法 v2 receipt，再构造已启用父版本及原生投影。实现前聚焦 RED 为 `2 failed`，均准确失败在重启后
+版本未递增；把两个精确父脚本摘要加入白名单并让迁移器兼容单摘要/摘要集合后，聚焦 GREEN（同时
+覆盖原始旧摘要兼容）为 `9 passed, 137 deselected in 37.36s`。断言覆盖新版本 disabled、旧投影撤下、
+旧 receipt 仅绑定旧版本、新版本无 receipt、active script 切换为当前摘要且不生成新原生投影。修复后
+Stage 2 + Stage 3 清除代理环境并禁用外部 pytest 插件自动加载的全量结果为
+`302 passed, 1 warning in 167.29s`；warning 仅为当前 pytest 配置中的未知 `asyncio_mode` 选项。
+格式化后对同一聚焦集的新鲜复跑为 `9 passed, 137 deselected, 1 warning in 238.29s`。
 
 - 目标 Python 文件通过 `ruff check`、`black --check` 与 `isort --check-only`。
 - `catalog.py`、`seeds.py` 与共享输入契约合并通过 `mypy --follow-imports=skip`；七个

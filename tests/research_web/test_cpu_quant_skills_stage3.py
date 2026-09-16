@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import copy
 import hashlib
+import hmac
 import importlib.util
 import json
 import re
@@ -52,6 +53,11 @@ OLD_STAGE3_SCRIPT_DIGESTS = {
     "industry-quadrant-monitor": "c3efd22876b06bacc39ba56cba411de1075fe5b0b884c15855be59a5d9175513",
     "industry-crowding-monitor": "418a7eb9003c3242202d772d5493ce6a7b36813db5c882f7c522953bdfaf33db",
 }
+PARENT_STAGE3_SCRIPT_DIGESTS = {
+    "fund-penetration": "d9721c43c5e89ebe43bed8a0e4da47ad86c663d319794b09f1839a33b0d913c7",
+    "portfolio-benchmark-deviation": "13dbeb59c8240c6eabcd79acf857291b9781d30382eff56a75df0c1801133d16",
+}
+REGISTRAR_KEY_HEX = "d4" * 32
 REQUIRED_PACKAGE_FILES = {
     "SKILL.md",
     "scripts/calculate.py",
@@ -352,6 +358,18 @@ def _write_comparison_evidence(tmp_path: Path, catalog: CapabilityCatalog, slug:
     return artifact, actual
 
 
+def _sign_comparison_evidence(artifact: Path) -> None:
+    evidence = json.loads(artifact.read_text(encoding="utf-8"))
+    unsigned = {key: value for key, value in evidence.items() if key != "registrar_signature"}
+    canonical = json.dumps(
+        unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    evidence["registrar_signature"] = hmac.new(
+        bytes.fromhex(REGISTRAR_KEY_HEX), canonical, hashlib.sha256
+    ).hexdigest()
+    artifact.write_text(json.dumps(evidence), encoding="utf-8")
+
+
 def test_stage3_plain_json_cannot_self_attest_a_comparison_receipt(tmp_path):
     catalog = CapabilityCatalog(tmp_path)
     for slug in SLUGS:
@@ -416,6 +434,50 @@ def test_known_initial_stage3_builtin_is_migrated_without_reusing_receipt_or_pro
     assert not native.exists()
     migrated_native_name = migrated["versions"][str(migrated["version"])]["native_name"]
     assert not (upgraded.native_root / migrated_native_name).exists()
+
+
+@pytest.mark.parametrize("slug", tuple(PARENT_STAGE3_SCRIPT_DIGESTS))
+def test_direct_parent_stage3_builtin_is_migrated_without_reusing_valid_v2_receipt(
+    slug, tmp_path, monkeypatch
+):
+    monkeypatch.setenv("RESEARCH_COMPARISON_REGISTRAR_KEY", REGISTRAR_KEY_HEX)
+    catalog = CapabilityCatalog(tmp_path)
+    row = catalog.row(slug)
+    old_version = row["version"]
+    calculate = next(
+        item
+        for item in row["versions"][str(old_version)]["files"]
+        if item["path"] == "scripts/calculate.py"
+    )
+    parent_digest = PARENT_STAGE3_SCRIPT_DIGESTS[slug]
+    calculate["sha256"] = parent_digest
+    artifact, _actual = _write_comparison_evidence(tmp_path, catalog, slug)
+    _sign_comparison_evidence(artifact)
+    old_receipt = catalog.record_comparison_receipt(artifact)
+    catalog._require_comparison_receipt(slug, old_version)
+    row["status"] = "enabled"
+    old_native_name = row["versions"][str(old_version)]["native_name"]
+    old_native = catalog.native_root / old_native_name
+    old_native.mkdir()
+    (old_native / "SKILL.md").write_text("direct parent projection", encoding="utf-8")
+    catalog.save()
+
+    upgraded = CapabilityCatalog(tmp_path)
+    migrated = upgraded.row(slug)
+    new_version = old_version + 1
+
+    assert migrated["version"] == new_version
+    assert migrated["status"] == "disabled"
+    assert not old_native.exists()
+    assert upgraded.comparison_receipt(slug, old_version) == old_receipt
+    assert upgraded.comparison_receipt(slug, new_version) is None
+    assert (
+        _version_script_digest(upgraded, slug, new_version)
+        == hashlib.sha256((SKILLS_ROOT / slug / "scripts/calculate.py").read_bytes()).hexdigest()
+    )
+    assert _version_script_digest(upgraded, slug, new_version) != parent_digest
+    new_native_name = migrated["versions"][str(new_version)]["native_name"]
+    assert not (upgraded.native_root / new_native_name).exists()
 
 
 @pytest.mark.parametrize("slug", SLUGS)

@@ -276,11 +276,12 @@ class CapabilityCatalog:
         if self.data.get("pending"):
             return
         for cid, legacy_digest in legacy_digests.items():
+            expected_digests = (legacy_digest,) if isinstance(legacy_digest, str) else legacy_digest
             row = self.data["items"].get(cid)
             if not row or row.get("source") != "builtin" or not row.get("version"):
                 continue
             active = row["versions"].get(str(row["version"]))
-            if self._record_script_digest(active or {}) != legacy_digest:
+            if self._record_script_digest(active or {}) not in expected_digests:
                 continue
             original = copy.deepcopy(row)
             self._withdraw_native_projections(row)

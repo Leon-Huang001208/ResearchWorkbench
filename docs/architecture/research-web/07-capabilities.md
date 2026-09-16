@@ -39,6 +39,8 @@ UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字�
 七个 Stage 3 基金/组合/行业 Skill 复用上述版本、sandbox 和 receipt 状态机，在 fresh catalog 中可
 发现但全部 disabled；只有可重算且绑定当前不可变版本的 macOS Wind/Excel comparison evidence
 artifact 且通过宿主签名验证才能启用或回滚到 enabled；普通 JSON 和 sandbox 内计算器无法自签。
+Stage 3 的一向安全迁移只接受已列举的完整脚本 SHA-256，包括初始版本及基金穿透、组合基准偏离的
+已发布直接父版本；匹配后撤下旧投影、发布 disabled successor，旧版本 receipt 不会跨版本复用。
 七包的 synthetic source artifact 由 fixture/golden/provenance 实际 SHA-256 绑定，DataHub 工具因字段
 口径未核验标为 `callable=false`。基金穿透覆盖单一快照、percent/decimal、多层、重复路径并对全部
 给定基金子图 cycle fail-closed，以按深度 DP 聚合汇合 DAG 的权重与路径数；组合拒绝隐式杠杆，
