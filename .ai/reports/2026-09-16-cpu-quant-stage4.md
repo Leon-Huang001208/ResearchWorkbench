@@ -101,6 +101,17 @@ TDD 记录：
   解析、文档同步、任务完成检查、52 项架构测试和项目约束均通过。`chanlun` 独立 mypy 与 catalog
   `--follow-imports=skip` 检查通过；catalog 常规 mypy 仍被未触及的 `core/observability/{tracer,metrics}.py`
   和 `data_layer/adapters/wind/wind_adapter.py` 共 15 个既有错误阻断。
+- 最终分支复审补充六包输出公共契约 mutation 负测及 event-review 单侧缺交易日回归，初始 RED 为
+  `8 failed`：六份 schema 均未拒绝无效 mutation，目标或基准单侧缺日时 beta 分别误算约
+  `0.00245` 与 `18.8647`，而同步配对预期为 `1.5`。六包严格化 parameters/dataset refs/provenance、
+  event-review 改为相邻共同交易日收益后，定向 GREEN 为 `8 passed in 0.22s`，Stage 2 专项为
+  `165 passed in 169.40s`。源码冻结后的 Stage 2 + Stage 3 + Stage 4 全量回归为
+  `406 passed in 1523.05s`；能力目录、准入、原生投影、审查、安全、CPU 预算和 sandbox 最终回归为
+  `180 passed, 3 skipped, 1 warning in 1070.51s`。首次能力回归因共享虚拟环境中 dataless
+  `pytokens` 元数据读取超时产生级联 fixture 错误；精确 materialize 后，同一最终源码重跑通过，
+  该环境失败不作为代码通过证据。最终 Ruff、Black、isort、event-review mypy、122 个 Stage 2/3/4
+  JSON 解析、文档同步、任务完成检查、52 项架构测试、项目约束、Python 文件索引无漂移及
+  `git diff --check` 均通过。
 
 近上限真实 sandbox 复测（父进程与子进程 RSS 合计）：
 

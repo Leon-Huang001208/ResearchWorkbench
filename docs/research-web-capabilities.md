@@ -58,6 +58,10 @@ synthetic input 与 actual input 不仅路径必须不同，读取后的 SHA-256
 与业务等价的完整 actual input，避免只靠格式或路径制造“独立”证据。Stage 4 缠论结果顶层必填
 回传所有记录共同的 `asset_id`，记录身份全部改变时结果身份同步改变，混合身份仍拒绝。
 
+Stage 2 六包输出的 parameters、dataset refs 和 provenance 现使用与 Stage 3/4 一致的严格公共
+schema：必填字段、类型、provider、日期、SHA-256、32 项上限和额外字段均受约束。event-review
+先取标的与基准的共同交易日，再从相邻共同日同时计算两边收益；单侧缺日不会把不同跨度配对。
+
 七个 Stage 3 Skill（基金匹配、基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控、
 行业拥挤度监控）复用同一 `cpu_bounded_v1` 与 comparison receipt verifier。它们在 fresh catalog
 中可发现但全部 disabled，不进入原生 provider candidates；真实 Wind/Excel comparison evidence

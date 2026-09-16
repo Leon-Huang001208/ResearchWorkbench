@@ -22,7 +22,7 @@ from uuid import uuid4
 import psutil
 import pytest
 import yaml
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker
 
 from app.research_web.capabilities.catalog import (
     COMPARISON_EXECUTOR_IDENTITY,
@@ -644,6 +644,118 @@ def test_synthetic_golden_is_deterministic_and_fast(slug):
     assert actual["status"] in {"complete", "partial", "insufficient_data"}
     assert isinstance(actual["limitations"], list)
     assert isinstance(actual["dataset_refs"], list) and actual["dataset_refs"]
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_output_schema_rejects_common_contract_mutations(slug):
+    schema = json.loads(
+        (SKILLS_ROOT / slug / "references/output-schema.json").read_text(encoding="utf-8")
+    )
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    golden = load_json(slug, "golden-result.json")
+    validator.validate(golden)
+
+    invalid_results = []
+
+    missing_parameter = copy.deepcopy(golden)
+    missing_parameter["parameters"].pop(next(iter(missing_parameter["parameters"])))
+    invalid_results.append(missing_parameter)
+
+    wrong_parameter_type = copy.deepcopy(golden)
+    parameter = next(iter(wrong_parameter_type["parameters"]))
+    wrong_parameter_type["parameters"][parameter] = {"wrong": "type"}
+    invalid_results.append(wrong_parameter_type)
+
+    extra_parameter = copy.deepcopy(golden)
+    extra_parameter["parameters"]["unreviewed"] = True
+    invalid_results.append(extra_parameter)
+
+    missing_dataset_field = copy.deepcopy(golden)
+    missing_dataset_field["dataset_refs"][0].pop("dataset_id")
+    invalid_results.append(missing_dataset_field)
+
+    invalid_provider = copy.deepcopy(golden)
+    invalid_provider["dataset_refs"][0]["provider_id"] = "unreviewed"
+    invalid_results.append(invalid_provider)
+
+    invalid_dataset_date = copy.deepcopy(golden)
+    invalid_dataset_date["dataset_refs"][0]["as_of"] = "20260912"
+    invalid_results.append(invalid_dataset_date)
+
+    invalid_dataset_sha = copy.deepcopy(golden)
+    invalid_dataset_sha["dataset_refs"][0]["sha256"] = "not-a-sha256"
+    invalid_results.append(invalid_dataset_sha)
+
+    extra_dataset_field = copy.deepcopy(golden)
+    extra_dataset_field["dataset_refs"][0]["unreviewed"] = True
+    invalid_results.append(extra_dataset_field)
+
+    too_many_dataset_refs = copy.deepcopy(golden)
+    too_many_dataset_refs["dataset_refs"] = [
+        copy.deepcopy(golden["dataset_refs"][0]) for _ in range(33)
+    ]
+    invalid_results.append(too_many_dataset_refs)
+
+    missing_provenance_field = copy.deepcopy(golden)
+    missing_provenance_field["provenance"].pop("rights")
+    invalid_results.append(missing_provenance_field)
+
+    invalid_source_hash = copy.deepcopy(golden)
+    invalid_source_hash["provenance"]["source_hashes"] = {"source": "not-a-sha256"}
+    invalid_results.append(invalid_source_hash)
+
+    extra_provenance_field = copy.deepcopy(golden)
+    extra_provenance_field["provenance"]["unreviewed"] = True
+    invalid_results.append(extra_provenance_field)
+
+    for invalid in invalid_results:
+        assert list(validator.iter_errors(invalid))
+
+
+@pytest.mark.parametrize("missing_side", ("target", "benchmark"))
+def test_event_beta_alpha_uses_returns_between_adjacent_common_trading_days(missing_side):
+    module = load_calculator("event-review")
+    payload = load_json("event-review", "input.json")
+    common_days = [date(2026, 7, 1) + timedelta(days=index * 2) for index in range(23)]
+    market_returns = [0.001 * (1 + index % 5) for index in range(1, len(common_days))]
+    expected_beta = 1.5
+    expected_alpha = 0.002
+    target_price = 100.0
+    benchmark_price = 1000.0
+    target_series = [{"date": common_days[0].isoformat(), "close": target_price, "volume": 100.0}]
+    benchmark_series = [
+        {"date": common_days[0].isoformat(), "close": benchmark_price, "volume": 1000.0}
+    ]
+    for day, market_return in zip(common_days[1:], market_returns, strict=True):
+        benchmark_price *= 1.0 + market_return
+        target_price *= 1.0 + expected_alpha + expected_beta * market_return
+        target_series.append({"date": day.isoformat(), "close": target_price, "volume": 100.0})
+        benchmark_series.append(
+            {"date": day.isoformat(), "close": benchmark_price, "volume": 1000.0}
+        )
+
+    unmatched_day = (common_days[10] + timedelta(days=1)).isoformat()
+    if missing_side == "target":
+        benchmark_series.append(
+            {"date": unmatched_day, "close": benchmark_price * 3.0, "volume": 1000.0}
+        )
+    else:
+        target_series.append({"date": unmatched_day, "close": target_price * 3.0, "volume": 100.0})
+
+    payload["target_series"] = target_series
+    payload["benchmark_series"] = benchmark_series
+    payload["as_of"] = common_days[-1].isoformat()
+    payload["event_date"] = common_days[-2].isoformat()
+    payload["parameters"] = {"pre_days": 1, "post_days": 1}
+    payload["dataset_refs"][0]["as_of"] = payload["as_of"]
+
+    result = module.calculate(payload, input_bytes=4096)
+
+    beta_alpha = result["metrics"]["beta_alpha"]
+    assert beta_alpha["status"] == "available"
+    assert beta_alpha["observations"] == 20
+    assert math.isclose(beta_alpha["beta"], expected_beta, rel_tol=1e-9, abs_tol=1e-9)
+    assert math.isclose(beta_alpha["daily_alpha"], expected_alpha, rel_tol=1e-9, abs_tol=1e-9)
 
 
 @pytest.mark.parametrize("slug", SLUGS)

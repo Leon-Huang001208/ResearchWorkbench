@@ -53,6 +53,10 @@ synthetic 内容到另一文件再由登记器签名仍按 `invalid_comparison_e
 要求所有记录属于同一 `asset_id`，并在结果顶层必填回传该唯一身份；改变整组记录身份会改变结果身份，
 混合身份仍返回 `data_not_equivalent`。两项均只收紧既有目录与计算器契约。
 
+Stage 2 六包输出 schema 的 parameters、dataset refs 与 provenance 现与 Stage 3/4 采用相同失败关闭
+公共契约；event-review 回归在同一计算节点先对齐共同交易日，再计算相邻共同日的配对收益。该修正
+不新增 API、状态、执行器或数据源，也不改变能力默认 disabled 与 receipt 门禁。
+
 Research Runtime 每次启动都从离线 DataHub 能力目录重新计算 `enabledTools`；来源配置变化只有在重启后才改变原生工具注册。缺少可调用来源的工具不暴露给模型。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为 `provider_busy`。
 
 Wind 只以五项具备封闭适配路径的 capability binding 参与 callable 计算；市场活动内部只开放

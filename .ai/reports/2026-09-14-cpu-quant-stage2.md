@@ -183,6 +183,23 @@ comparison run actual 的声明摘要，仅要求前者绑定当前不可变 Ski
 isort，catalog 与六脚本逐项通过 mypy。architecture、doc-sync、task completion、21 个变更文件的
 project constraints 与 `git diff --check` 均通过。
 
+最终分支审查再以 TDD 修正输出契约和事件收益配对。六包 output schema 的 parameters、dataset refs
+与 provenance 加入必填、类型、provider、日期、SHA-256、最多 32 项及额外字段约束；真实 golden
+继续通过，删除必填、错误类型/provider/日期/SHA、33 项 refs 和额外字段 mutation 全部失败关闭。
+event-review 先按共同交易日对齐目标与基准价格，再从相邻共同日同时计算两侧收益，避免任一侧独有
+交易日导致两日目标收益与一日基准收益配对。目标/基准两种单侧缺日反例预期 beta 为 `1.5`、daily
+alpha 为 `0.002`，各用 20 个同步观测。
+
+新增用例首轮 RED 为 `8 failed`：六份 schema 接受无效 mutation；单侧缺日时 beta 分别误算约
+`0.00245` 与 `18.8647`。最小实现后定向 GREEN 为 `8 passed in 0.22s`，Stage 2 专项为
+`165 passed in 169.40s`。源码冻结后的 Stage 2 + Stage 3 + Stage 4 全量回归为
+`406 passed in 1523.05s`；能力目录、准入、原生投影、审查、安全、CPU 预算和 sandbox 最终回归为
+`180 passed, 3 skipped, 1 warning in 1070.51s`。首次能力回归因共享虚拟环境中 dataless
+`pytokens` 元数据读取超时产生级联 fixture 错误；精确 materialize 该文件后，同一最终源码重跑通过，
+该环境失败不作为代码通过证据。最终 Ruff、Black、isort、event-review mypy、122 个 Stage 2/3/4
+JSON 解析、文档同步、任务完成检查、52 项架构测试、项目约束、Python 文件索引无漂移及
+`git diff --check` 均通过。
+
 不会把未执行的平台或真实数据验证写成已通过。
 
 ## 未验证项

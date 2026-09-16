@@ -166,3 +166,6 @@ Stage 4 质量复验进一步要求 comparison receipt 的 synthetic/actual 输�
 必须不同；测试证据同时绑定相同业务记录及 source artifact 摘要，避免用无关文件满足独立性门禁。
 缠论结果顶层回传唯一 `asset_id`，混合标的继续失败关闭。这些变化仍只作用于能力证据与离线计算
 结果，不读取 Tabbit 页面或扩大其授权、claim、token、网络和写操作边界。
+
+Stage 2 输出 schema 严格化与 event-review 共同交易日收益配对修正仍只处理调用方已提供的离线 JSON；
+不读取 Tabbit 标签、页面正文或浏览器证据，也不改变授权、claim、一次性 token 和写操作审批。

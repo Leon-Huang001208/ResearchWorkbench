@@ -747,3 +747,13 @@
 
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"comparison input内容独立性只收紧既有artifact v2验证器，不新增API、receipt字段、状态或执行器。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"缠论顶层asset_id由既有单标的校验结果派生，仍在同一research_run_script沙箱与输出envelope内。","diagrams":[]} -->
+
+## 2026-09-16 — Stage 2 输出契约与事件收益配对修正
+
+- 六包输出 schema 的 parameters、dataset refs 与 provenance 对齐 Stage 3/4 公共严格契约；真实
+  golden 继续通过，删除必填、错误类型/provider/日期/SHA、33 项 refs 和额外字段 mutation 均失败。
+- event-review 先按共同交易日对齐标的与基准价格，再从相邻共同日同时计算事件前配对收益；目标或
+  基准任一侧缺日时不再将两日收益与一日收益配对。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage2输出schema严格化只收紧现有不可变能力包的结果验证，不新增能力类型、状态或API。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"event-review共同交易日配对仍在既有research_run_script计算节点内，不新增数据源、网络、文件或执行权限。","diagrams":[]} -->

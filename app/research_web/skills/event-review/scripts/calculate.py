@@ -98,18 +98,18 @@ def _series(value: Any, *, as_of: str) -> list[dict[str, float | str]]:
     return sorted(result, key=lambda row: row["date"])
 
 
-def _returns(rows: list[dict[str, float | str]]) -> dict[str, float]:
+def _returns(rows_by_day: dict[str, dict[str, float | str]], days: list[str]) -> dict[str, float]:
     return {
-        str(rows[index]["date"]): checked_subtract(
+        days[index]: checked_subtract(
             checked_divide(
-                float(rows[index]["close"]),
-                float(rows[index - 1]["close"]),
+                float(rows_by_day[days[index]]["close"]),
+                float(rows_by_day[days[index - 1]]["close"]),
                 error=CalculatorError,
             ),
             1.0,
             error=CalculatorError,
         )
-        for index in range(1, len(rows))
+        for index in range(1, len(days))
     }
 
 
@@ -200,8 +200,8 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         error=CalculatorError,
     )
 
-    target_returns = _returns(target)
-    benchmark_returns = _returns(benchmark)
+    target_returns = _returns(target_by_day, common_days)
+    benchmark_returns = _returns(benchmark_by_day, common_days)
     beta_days = [
         day
         for day in common_days

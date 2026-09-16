@@ -87,6 +87,9 @@
 - comparison evidence 分别校验当前版本 golden 与 comparison run actual 的独立摘要，再按数值
   `rtol=1e-6`/`atol=1e-8`、日期/分类/信号等非数值严格一致做业务 JSON 比较；六 CLI 成功 stdout
   不附换行，完整 65,536 字节可通过 sandbox 上界。
+- 六包输出 schema 的 parameters、dataset refs 与 provenance 对齐 Stage 3/4 严格公共契约：必填、
+  类型、provider、日期、SHA-256、最多 32 项和额外字段全部失败关闭。事件复盘的 beta/alpha 先按
+  共同交易日对齐两条价格序列，再从相邻共同日同时计算收益，任一侧独有交易日不再造成跨度错配。
 - Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
 
 ### CPU 有界投研公共底座 · 2026-09-14
