@@ -54,6 +54,8 @@
   `35129989243` 将失败精确定位到 `stage_tabbit_package` 的 MIT License 哈希。Windows checkout
   改写了供应许可证换行，而 manifest 固定 LF 字节摘要。新增 `.gitattributes` 供应目录 `-text`
   约束后，入口回归从 1 failed 变为 1 passed，归档与 License 哈希校验本身未放宽。
+- 包含 Runtime 与供应字节修复的临时原生 Windows Run `35132204238` 完整成功：fallback 发现 285 个
+  模块，Tabbit package/adapter/control staging、3081/8088 启动、Doctor、无凭据天软断言与停止均通过。
 - Runtime repair 的 Windows 本机集成 Run `35125207395` 另暴露 Workbook 验证 timeout 在 Windows
   单调时钟浮点舍入下可略高于 170 秒硬上限；原生参数化用例为 RED。预算计算显式加入 170 秒上限后，
   同一两种来源变更分支定向回归为 2 passed，180 秒总预算和 10 秒协调余量不变。
