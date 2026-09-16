@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+### 现有 DataHub Provider 闭环 · 2026-09-16
+
+- AKShare 自动检测改用可取消的异步 HTTP 流：固定 URL、禁用代理/重定向、限制 16 KiB，3 秒连接
+  与 8 秒读超时受 10 秒总墙钟 deadline 约束；取消后立即释放共享容量，不再用约 45 秒的全量目录探测。
+- 项目在 `tinysoft` 可选依赖中精确声明 `cjpy==0.5.2`，用 `requirements/tinysoft.lock` 锁定已批准
+  厂商 wheel 的 SHA-256，并验证 `PyMySQL 1.2.0` 与厂商
+  `cjpy 0.5.2` 可在隔离 Python 3.12 环境共同安装；公开索引没有 `cjpy 0.5.2`，厂商环境安装
+  时必须使用离线 wheelhouse、`--no-index --no-deps --require-hashes`，基础安装不被私有制品阻断。
+- 天软和 MySQL 将认证、权限、限流、网络/TLS、数据库与供应商 schema 错误映射为安全错误码，
+  天软同时拒绝成功响应中的 Token 反射；不把驱动/SDK 原始错误正文、口令或 Token 暴露到日志、
+  API 或快照。
+- AKShare、财联社、东方财富基金已完成真实探测、业务查询、会话快照和 Runtime 工具调用；天软与
+  MySQL 因尚未提供真实授权/测试库继续显示待用户处理，不以代码就绪冒充真实可调用。
+
 ### Research Workbench 推理方法层 · 2026-09-14
 
 - 能力中心新增独立、只读的“方法”类型与十个版本化投研方法；Skill／Workflow 可声明

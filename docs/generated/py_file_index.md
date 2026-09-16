@@ -3657,6 +3657,7 @@ Imports:
 - `contracts`
 - `core.observability`
 - `datetime`
+- `httpx`
 - `json`
 - `math`
 - `providers`
@@ -3666,8 +3667,10 @@ Imports:
 
 Functions:
 - `_release_capacity`
+- `_submit_work`
 - `_submit`
 - `_symbol`
+- `_market_code`
 - `_market_symbol`
 - `_clean`
 - `_records`
@@ -3679,6 +3682,10 @@ Functions:
 - `_normalize_snapshot`
 - `_normalize_generic`
 - `_invoke`
+- `_fetch_probe_payload`
+- `_probe_remote`
+  - Probe AKShare's fixed Sina calendar upstream with a cancellable stream.
+- `_probe_failure_code`
 - `fetch`
 - `probe`
 
@@ -3708,9 +3715,14 @@ Functions:
 - `_submit`
 - `_json_value`
 - `canonical_vendor_code`
+- `_effective_token`
+- `_required_date`
+- `_required_date_range`
 - `_rows`
+- `_contains_secret`
 - `_client`
 - `_sync_query`
+- `_failure_code`
 - `fetch`
 - `probe`
 
@@ -3730,6 +3742,7 @@ Imports:
 - `decimal`
 - `json`
 - `providers`
+- `re`
 - `ssl`
 - `threading`
 - `typing`
@@ -3746,6 +3759,7 @@ Functions:
 - `_connect`
 - `_invoke`
 - `_submit`
+- `_failure_code`
 - `fetch`
 - `probe`
 

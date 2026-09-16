@@ -46,7 +46,7 @@ iFinD HTTP 探测在用户完成现有数据源配置后执行真实登录、健
 
 工具只接受对应能力的业务参数及可选 `source`/`allow_fallback`。`source` 必须是目录中的 ID；URL、请求头、凭据、模块名和磁盘路径在 Pydantic 边界被拒绝。已配置、已授权且可用的来源会自动查询，不再弹出逐次确认。15 个业务工具常驻 Runtime；没有可调用来源时 Broker 返回明确失败，Agent 不应盲目重试，也不能降级成网页猜测或演示结果。
 
-天软 Provider 通过 CJPY SDK 的专用客户端访问固定 `http://tsl.tinysoft.com.cn/tslweb/api`，Provider 边界限制 15 秒和 5000 行；授权值只在 Provider 内使用，不进入结果、普通日志或提示词。返回数据保留供应商原字段和 raw JSON，不猜测单位。项目未自动安装 `cjpy`，因此没有依赖的环境必须诚实显示阻塞。
+天软 Provider 通过固定的 CJPY SDK 0.5.2 专用客户端访问 SDK 固定服务，Provider 边界限制 15 秒和 5000 行；授权值只在 Provider 内使用，不进入结果、普通日志或提示词。供应商成功响应若反射当前 Token，会以 `credential_reflection` 失败关闭且不生成 rows/raw；其余返回数据保留供应商原字段和 raw JSON，不猜测单位。项目在 `tinysoft` 可选依赖中精确声明 `cjpy==0.5.2`，避免未使用天软的基础安装被私有制品阻断；公开 Python 索引截至本批验证仅提供到 0.3.6。厂商环境须先安装普通项目依赖，再从批准的本地 wheelhouse 使用 `--no-index --no-deps --require-hashes` 和 `requirements/tinysoft.lock` 安装经 SHA-256 锁定的厂商 wheel；不能从混合索引解析未来同名版本。缺少可复现制品时继续显示 `blocked_dependency`。
 
 自动执行只移除 DataHub 的逐次确认，不放宽其他边界：回环 token、`trustedDirectory` 父系验证、能力/来源白名单与固定参数 schema、会话隔离快照、取消联动、22 秒原生桥接超时和 15 秒 Provider deadline 均继续生效。
 
@@ -91,7 +91,9 @@ HTML资料将换行表头仅用于匹配时去空白，原文字段名仍保留�
 - `partial`：已经取得部分可用行但后来失败/触限/冲突；不得自动命中完整缓存。
 - `failed`：没有可用行且取数或解析失败；manifest明确标记失败，不伪装报告交付。
 
-AKShare 和天软是同步 SDK/库 Provider，其底层线程在 Python 内不能被安全强杀。两者分别使用专用单线程执行器、并发容量 1 和15秒 Provider deadline：首次超时返回带 `deadline` 限制的 `failed` dataset；线程真正退出前，后续请求立即返回带 `provider_busy` 限制的 `failed` dataset，不排队、不另起线程。该 Provider 释放容量后才接受下一次查询，不影响其他 Provider 的独立容量。
+AKShare 业务查询和天软是同步 SDK/库 Provider，其底层线程在 Python 内不能被安全强杀。两者分别使用专用单线程执行器、并发容量 1 和15秒 Provider deadline：首次超时返回带 `deadline` 限制的 `failed` dataset；线程真正退出前，后续请求立即返回带 `provider_busy` 限制的 `failed` dataset，不排队、不另起线程。该 Provider 释放容量后才接受下一次查询，不影响其他 Provider 的独立容量。AKShare 自动探测改用可取消的异步 HTTP 流，直接访问固定新浪交易日历 URL，禁用环境代理和重定向，限制响应为 16 KiB；3 秒连接与 8 秒读超时受外层 10 秒总墙钟 deadline 约束，取消时关闭网络流并在 `finally` 立即释放与查询共享的容量。业务查询仍按能力使用真实 AKShare 接口，不把“可导入”当健康。
+
+天软与 MySQL 的供应商异常只投影为有限错误码：配置/依赖、认证、权限、限流、网络/TLS、数据库不存在、供应商 schema 或通用 Provider 失败。SDK、驱动或服务器返回的原始错误正文不会进入 API、快照或日志。MySQL 使用项目声明的 `PyMySQL>=1.2.0`；探测和查询复用同一只读授权、TLS、事务与容量边界。
 
 同值重复日期去重并记录；唯一日期数少于供应商总量时status=partial，即使来源页确已结束、pagination_complete=true。
 冲突日期从可用解析记录移除、不任选其一，原始响应保留。直接 HTTP Provider 的取消会立即停止 HTTP；同步 SDK Provider 的取消只终止等待且不发布快照，底层线程按上一段约束隔离至自然退出。私有调用收据保留 cancelled。
@@ -165,6 +167,8 @@ XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/H
 
 离线：`python -m pytest tests/research_web --confcutdir=tests/research_web -q`及`DSH_SOURCE_ROOT=/Users/leon/Developer/deepseek-harness node --test tests/javascript/research_web*.test.mjs`。
 还执行ruff/black/isort/mypy及项目任务完整性检查；2026-09-04 全源目录、真实公开探测、Web 五视口和 Archify 证据见`.ai/reports/2026-09-04-datahub-full-source-catalog.md`，早期 DataHub 实现记录见`.ai/reports/2026-09-02-datahub-implementation.md`。
+
+2026-09-16 现有 Provider 闭环复验中，AKShare、财联社和东方财富基金均通过真实只读探测；三者分别完成 `market_bars`、`search_news`、`fund_data/nav` 查询、会话隔离快照和真实 `datahub_*` Runtime 调用。天软与 MySQL 只完成依赖、契约和安全错误映射验证；由于没有在产品配置中获得天软 Token、厂商许可和可达只读 MySQL 测试库，不能把它们写成真实成功。详细证据见 `.ai/reports/test_report_integration_providers_20260916_b2.md`。
 
 MySQL 的单元与界面验收使用模拟 Keyring、PyMySQL 连接和安全化 API 响应，不使用对话中出现过的旧口令。真实连接只有在用户轮换口令、重新保存并显式发起探测后才可验收；Research Web 在 Windows 与 Linux 上的系统凭据库后端仍需对应操作系统 CI 验证。桌面 sidecar、Tauri 安装包和安装级烟测不在本次范围内。
 Windows 原生本机集成专项已覆盖 DataHub 私有回环控制文件的服务启动读取：路径回退拒绝符号链接/重解析点、目录越界、非普通文件、硬链接和超限内容，并核对打开前后文件身份。POSIX 的 descriptor-relative 路径保持不变；该专项不证明 Windows 上的会话快照发布、连接配置写入或系统凭据库已经完成全量验收。
