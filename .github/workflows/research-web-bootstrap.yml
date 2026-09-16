@@ -92,6 +92,7 @@ jobs:
 
       - name: Stop Windows services
         if: always() && runner.os == 'Windows'
+        continue-on-error: true
         shell: pwsh
         run: if (Test-Path -LiteralPath '.venv\Scripts\python.exe') { & .\rwb.cmd web stop }
 

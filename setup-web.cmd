@@ -7,7 +7,8 @@ if not errorlevel 1 (
   py -3.12 -c "import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 12) else 1)" >nul 2>nul
   if not errorlevel 1 (
     py -3.12 "%PROJECT_ROOT%\scripts\setup_web.py" %*
-    exit /b %errorlevel%
+    if errorlevel 1 exit /b 1
+    exit /b 0
   )
 )
 
@@ -17,4 +18,5 @@ if errorlevel 1 (
   exit /b 1
 )
 python "%PROJECT_ROOT%\scripts\setup_web.py" %*
-exit /b %errorlevel%
+if errorlevel 1 exit /b 1
+exit /b 0

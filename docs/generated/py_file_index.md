@@ -17975,7 +17975,7 @@ Imports:
 Classes:
 - `SetupWebInstaller`
   - Public bootstrap API used by the shell wrappers and contract tests.
-  - methods: __init__, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _subprocess_environment, _node_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, _corepack_prefix, dsh_build_commands, _environment_python, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, install
+  - methods: __init__, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _subprocess_environment, _node_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, install
 
 Functions:
 - `_command_version`

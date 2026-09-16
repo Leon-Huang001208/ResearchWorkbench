@@ -35,7 +35,7 @@
   `No broken requirements found`。
 - 根包以无依赖模式安装，随包 `cjpy==0.5.2` 安装并真实导入；同时导入
   `requests==2.34.2`、`urllib3==2.8.0`。
-- 完整 Research Web Python 回归：987 passed、4 skipped；格式化后的改动相关回归：157 passed。
+- 完整 Research Web Python 回归：987 passed、4 skipped；CI 修复后的改动相关回归：158 passed。
 - 完整 Research Web JavaScript 回归：279 passed、1 skipped（280 tests）。
 - Ruff、Black、isort、文档同步、项目约束、JSON/YAML/Bash 语法和 `git diff --check` 全部通过。
 - 修改的 7 个 Python 源文件在隔离导入模式下通过 mypy；严格传递检查仍命中仓库既有的 24 个类型错误，
@@ -54,6 +54,9 @@
 
 ## 尚未完成或不可外推
 
-- 新增的原生 macOS/Windows bootstrap workflow 尚未在远端运行；合并前不得宣称 Windows 已通过。
+- 首次原生 bootstrap CI 暴露两个仅在干净 runner 出现的问题：DSH 嵌套构建找不到全局 `pnpm`，以及
+  Windows checkout 改写 CJPY 文本制品字节。修复通过项目私有 Corepack shim、闭合制品 `-text` 属性和
+  Windows 包装器真实退出码传播完成；本机真实 shim 冒烟解析为 `pnpm 11.7.0`，最终状态仍以修复后的
+  原生 CI 为准。
 - 天软当前阻塞于厂商认证，未进入无回退业务查询、不可变快照和 Runtime Tool 验收。需用户在本机设置页更换或确认厂商有效
   `CJ_KEY`；无需重启服务。本记录未读取、输出或迁移该密钥。

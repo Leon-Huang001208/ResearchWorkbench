@@ -458,6 +458,34 @@ class SetupWebInstaller:
             [*prefix, f"pnpm@{DSH_PNPM}", "run", "build"],
         ]
 
+    def prepare_pnpm_shims(self, environment: dict[str, str]) -> dict[str, str]:
+        """Expose a project-private pnpm shim to DSH child build scripts."""
+        directory = self.data_home / "runtime" / "corepack-shims" / DSH_PNPM
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self._reject_alias(directory, "corepack_shim_directory_unsafe")
+        self._run_checked(
+            [
+                *self._corepack_prefix(),
+                "enable",
+                "pnpm",
+                "--install-directory",
+                str(directory),
+            ],
+            cwd=self.project_root,
+            environment=environment,
+            failure_code="corepack_shim_install_failed",
+            timeout=120,
+        )
+        candidates = (directory / "pnpm", directory / "pnpm.cmd")
+        if not any(candidate.is_file() for candidate in candidates):
+            raise RuntimeError("corepack_shim_missing")
+        updated = dict(environment)
+        existing_path = updated.get("PATH", "")
+        updated["PATH"] = (
+            f"{directory}{os.pathsep}{existing_path}" if existing_path else str(directory)
+        )
+        return updated
+
     @staticmethod
     def _environment_python(environment: Path) -> Path:
         if os.name == "nt":
@@ -743,6 +771,7 @@ class SetupWebInstaller:
             timeout=300,
         )
         self.verify_dsh_source(staging, require_build=False)
+        node_environment = self.prepare_pnpm_shims(node_environment)
         for index, command in enumerate(self.dsh_build_commands(staging), 1):
             self._run_checked(
                 command,

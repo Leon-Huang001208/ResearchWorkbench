@@ -58,12 +58,14 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
   带哈希的解析结果。用户端只消费锁文件。
 - 根项目包以 `--no-deps` 安装，避免把历史 PostgreSQL、LangGraph、量化和桌面依赖引入 Web 环境。
 - `vendor/cjpy/0.5.2/` 保存批准的 Apache-2.0 wheel、来源、许可证与闭合哈希清单；禁止回退到
-  PyPI 的旧版 CJPY。
+  PyPI 的旧版 CJPY。仓库属性禁止 Git 在 Windows checkout 改写该闭合制品目录的字节，确保同一清单摘要
+  可在 macOS 与 Windows 验证。
 - DSH 只从 `Leon-Huang001208/deepseek-harness` 获取提交
   `c919b2a460753859665db3f60143d525fb9140cf`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
   安装器固定闭包文件数，首次成功构建后将当前安装目录对应的闭包摘要写入受管标记和安装清单，
   后续 Doctor 按该本机证明检测篡改。CSS Modules 会把绝对构建目录影响到产物摘要，因此不把任意用户目录误声明为
   同一全局摘要。GitHub 不可达、提交/来源/文件数不符，或本机证明后续不匹配时，安装关闭失败，不使用任意本机 DSH。
+  DSH 构建子进程使用用户私有数据目录中的 Corepack shim；嵌套构建也固定解析 `pnpm@11.7.0`，不依赖全局 pnpm。
 
 安装清单写入用户私有 `~/.research-workbench/install/manifest.json`，仅记录代码提交、Python/Node
 版本、Web 锁摘要、CJPY 版本/摘要、DSH 提交/闭包和诊断状态。安装日志位于仓库 `logs/setup-web.log`。

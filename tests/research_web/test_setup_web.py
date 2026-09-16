@@ -166,6 +166,50 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     assert '"%PROJECT_ROOT%\\scripts\\setup_web.py"' in windows
     assert "%PROJECT_ROOT%\\.venv\\Scripts\\python.exe" in windows_cli
     assert "research_workbench_entrypoint" in windows_cli
+    assert "exit /b %errorlevel%" not in windows
+    assert windows.count("if errorlevel 1 exit /b 1") == 2
+
+
+def test_private_corepack_shim_is_added_to_the_child_build_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corepack = tmp_path / "corepack"
+    corepack.write_text("fixture", encoding="utf-8")
+    installer = SetupWebInstaller(
+        project_root=tmp_path,
+        data_home=tmp_path / "private-data",
+        corepack_executable=corepack,
+    )
+    recorded: dict[str, object] = {}
+
+    def fake_run_checked(command, *, cwd, environment, failure_code, timeout):
+        recorded.update(
+            command=command,
+            cwd=cwd,
+            environment=environment,
+            failure_code=failure_code,
+            timeout=timeout,
+        )
+        shim_directory = Path(command[-1])
+        shim_directory.mkdir(parents=True, exist_ok=True)
+        (shim_directory / ("pnpm.cmd" if os.name == "nt" else "pnpm")).write_text(
+            "fixture", encoding="utf-8"
+        )
+
+    monkeypatch.setattr(installer, "_run_checked", fake_run_checked)
+
+    environment = installer.prepare_pnpm_shims({"PATH": "original-path"})
+
+    shim_directory = installer.data_home / "runtime" / "corepack-shims" / "11.7.0"
+    assert recorded["command"] == [
+        str(corepack.resolve()),
+        "enable",
+        "pnpm",
+        "--install-directory",
+        str(shim_directory),
+    ]
+    assert recorded["failure_code"] == "corepack_shim_install_failed"
+    assert environment["PATH"] == f"{shim_directory}{os.pathsep}original-path"
 
 
 @pytest.mark.parametrize(
