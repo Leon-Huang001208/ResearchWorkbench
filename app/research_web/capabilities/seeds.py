@@ -384,6 +384,19 @@ LEGACY_STAGE2_SCRIPT_SHA256 = {
     "earnings-preview-monitor": "189e96f9fcde39a388cf765196eea6e38d9fb25a224fe8a8fcb98668b5a304f1",
 }
 
+# Exact scripts shipped by the first Stage 3 seed commit. Matching by the
+# immutable file digest prevents user or later built-in versions from being
+# rewritten by this one-way safety migration.
+LEGACY_STAGE3_SCRIPT_SHA256 = {
+    "fund-matcher": "e0d0b61aeae71ffd409f0cdddd42d459c874b06dfcb489524b1e49e2692b978f",
+    "fund-penetration": "ae4349dfbc3755b599eec265d70bce4e5470791c312c211f6f747900df11dc54",
+    "portfolio-overlap": "454419b2b58a720c364d3bf3883be3840adb35fdd38152f1204b0fe3e2c1df5f",
+    "portfolio-benchmark-deviation": "c216c3ea377ae6fa5ace72260ce60b909fdefa7fe813200f7988112801f2b80a",
+    "industry-prosperity": "31df916c150ea791f7581a817e1efc19f33f6581b4ca8967feff0a5ed1225da2",
+    "industry-quadrant-monitor": "c3efd22876b06bacc39ba56cba411de1075fe5b0b884c15855be59a5d9175513",
+    "industry-crowding-monitor": "418a7eb9003c3242202d772d5493ce6a7b36813db5c882f7c522953bdfaf33db",
+}
+
 
 def builtin_initial_status(capability_id: str) -> str:
     """Keep uncalibrated calculators discoverable but non-executable."""

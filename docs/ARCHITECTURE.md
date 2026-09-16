@@ -94,8 +94,10 @@ ETF 分类或缺失暴露，也不把事件样本不足时的 beta 默认成 1�
 返回 `data_not_equivalent`。日期只接受 `YYYY-MM-DD`，CNY 计算器拒绝矛盾币种；来源哈希只接受
 规范非空 key 与 SHA-256 value，显式 null、首尾空白或含 CR/LF/Unicode 行段分隔符的 key 被拒绝，字段缺失时以 partial/limitation 降级。
 六项能力在真实 Wind/Excel 对照尚未完成时保持可发现但 disabled，且不
-进入原生 provider candidate 目录；receipt 只能由严格 evidence artifact 路径生成，绑定输入来源、
-仓库 golden、实际结果、slug、不可变版本和当前脚本摘要，启用及回滚会重新验证 artifact 未变。
+进入原生 provider candidate 目录；receipt 只能由宿主登记器 HMAC-SHA256 认证的 evidence artifact v2
+生成，绑定提交 synthetic input、独立 Wind/Excel actual input、固定宿主执行器、输入来源、仓库
+golden、实际结果、slug、不可变版本和当前脚本摘要，启用及回滚会重新验证 artifact 未变。登记密钥
+不会传入 `research_run_script` sandbox，普通 JSON 或被审计算器不能自证。
 已知初版升级先撤下原生投影并禁用，发布、保存或校验异常均失败关闭。
 POSIX loader 从 cwd fd 逐组件 openat/no-follow，Windows 校验最终句柄路径和 reparse 属性。全部输入
 仍参与计算，dataset refs/source hashes 各限 32 项，完整 JSON envelope 按 UTF-8 不超过 64 KiB；

@@ -30,7 +30,7 @@ from input_contract import (
 LOGGER = logging.getLogger("research.skill.fund_penetration")
 SKILL_SLUG = "fund-penetration"
 METHOD_VERSION = "1.0.0"
-SUPPORTED_PROVIDERS = frozenset({"synthetic", "datahub", "user_input"})
+SUPPORTED_PROVIDERS = frozenset({"synthetic", "user_input"})
 ROOT_FIELDS = frozenset({"as_of", "parameters", "data_contract", "dataset_refs", "records"})
 ALLOWED_ROOT_FIELDS = ROOT_FIELDS | {"source_hashes"}
 PARAMETER_FIELDS = frozenset({"root_fund_id", "max_depth"})
@@ -67,7 +67,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         error=CalculatorError,
     )
     as_of = iso_day(payload["as_of"], error=CalculatorError)
-    validate_data_contract(
+    data_contract = validate_data_contract(
         payload["data_contract"],
         mapping_id=SKILL_SLUG,
         mapping_version=METHOD_VERSION,
@@ -96,6 +96,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         payload["dataset_refs"],
         as_of=as_of,
         providers=SUPPORTED_PROVIDERS,
+        contract_provider=data_contract["provider"],
         error=CalculatorError,
     )
     source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
@@ -105,6 +106,8 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     duplicate_edges = 0
     holding_types: dict[str, str] = {}
     owners: set[str] = set()
+    raw_rows_by_owner: dict[str, int] = {}
+    snapshot_date: str | None = None
     for raw in records:
         raw = strict_object(
             raw,
@@ -122,15 +125,24 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             raise CalculatorError("conflicting_holding_type")
         holding_types[holding] = holding_type
         owners.add(owner)
+        raw_rows_by_owner[owner] = raw_rows_by_owner.get(owner, 0) + 1
+        budget.validate_batch(
+            symbol_count=len(raw_rows_by_owner),
+            rows_per_symbol=max(raw_rows_by_owner.values()),
+        )
         key = (owner, holding, holding_type)
         weight = _weight(raw["weight"], raw["weight_unit"])
+        disclosure_date = reject_future(raw["as_of"], as_of=as_of, error=CalculatorError)
+        if snapshot_date is None:
+            snapshot_date = disclosure_date
+        elif disclosure_date != snapshot_date:
+            raise CalculatorError("data_not_equivalent")
         if key in edges:
             duplicate_edges += 1
             edges[key] = checked_add(edges[key], weight, error=CalculatorError)
         else:
             edges[key] = weight
-        disclosure_date = reject_future(raw["as_of"], as_of=as_of, error=CalculatorError)
-        edge_dates[key] = max(edge_dates.get(key, disclosure_date), disclosure_date)
+        edge_dates[key] = disclosure_date
     if root not in owners:
         raise CalculatorError("root_fund_unavailable")
     adjacency: dict[str, list[tuple[str, str, float, str]]] = {}
@@ -147,11 +159,6 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         owner_edges.sort(key=lambda edge: (edge[0], edge[1]))
         if holding_types.get(owner) == "security":
             raise CalculatorError("invalid_hierarchy")
-    budget.validate_batch(
-        symbol_count=len(adjacency),
-        rows_per_symbol=max(len(owner_edges) for owner_edges in adjacency.values()),
-    )
-
     visited: set[str] = set()
     visiting: set[str] = set()
 

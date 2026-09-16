@@ -3147,6 +3147,7 @@ Imports:
 - `core.observability`
 - `datetime`
 - `hashlib`
+- `hmac`
 - `importlib.metadata`
 - `io`
 - `json`
@@ -3170,7 +3171,7 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, _withdraw_native_projections, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
 - `_is_host_process_entry`

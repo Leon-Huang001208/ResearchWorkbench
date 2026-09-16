@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import hmac
 import importlib.util
 import json
 import math
@@ -23,7 +24,10 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
-from app.research_web.capabilities.catalog import CapabilityCatalog
+from app.research_web.capabilities.catalog import (
+    COMPARISON_EXECUTOR_IDENTITY,
+    CapabilityCatalog,
+)
 from app.research_web.capabilities.models import CapabilityError
 from app.research_web.capabilities.seeds import seed_packages
 from app.research_web.skills._shared import cpu_budget as cpu_budget_module
@@ -44,6 +48,17 @@ SLUGS = (
     "earnings-report-monitor",
     "earnings-preview-monitor",
 )
+REGISTRAR_KEY_HEX = "d4" * 32
+
+
+def _registrar_signature(evidence: dict) -> str:
+    unsigned = {key: value for key, value in evidence.items() if key != "registrar_signature"}
+    canonical = json.dumps(
+        unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hmac.new(bytes.fromhex(REGISTRAR_KEY_HEX), canonical, hashlib.sha256).hexdigest()
+
+
 OLD_STAGE2_SCRIPT_DIGESTS = {
     "daily-market-brief": "d63e3750cfb28c2be5e3c492e2ba5bed73fe6914e8fa41033e19613fe330b05e",
     "policy-sentinel": "a78ae122087231c72b95d98749c1e6a0e764b89336d8c413538025b6faac75d9",
@@ -231,7 +246,8 @@ def _version_script_digest(catalog: CapabilityCatalog, slug: str, version: int) 
     return next(item["sha256"] for item in files if item["path"] == "scripts/calculate.py")
 
 
-def _write_comparison_evidence(tmp_path, catalog, slug, **overrides):
+def _write_comparison_evidence(tmp_path, catalog, slug, monkeypatch, **overrides):
+    monkeypatch.setenv("RESEARCH_COMPARISON_REGISTRAR_KEY", REGISTRAR_KEY_HEX)
     version = catalog.row(slug)["version"]
     evidence_dir = tmp_path / "comparison-evidence" / slug
     evidence_dir.mkdir(parents=True)
@@ -239,25 +255,23 @@ def _write_comparison_evidence(tmp_path, catalog, slug, **overrides):
     actual = evidence_dir / "actual-result.json"
     expected = evidence_dir / "golden-result.json"
     shutil.copy2(golden, expected)
-    scripts = evidence_dir / "scripts"
-    scripts.mkdir()
-    shutil.copy2(SKILLS_ROOT / slug / "scripts/calculate.py", scripts / "calculate.py")
-    for name in ("cpu_budget.py", "input_contract.py"):
-        shutil.copy2(SKILLS_ROOT / "_shared" / name, scripts / name)
-    shutil.copy2(SKILLS_ROOT / slug / "fixtures/input.json", evidence_dir / "input.json")
-    completed = subprocess.run(
-        [sys.executable, "scripts/calculate.py", "input.json"],
-        cwd=evidence_dir,
-        capture_output=True,
-        check=False,
+    synthetic_input = evidence_dir / "synthetic-input.json"
+    actual_input = evidence_dir / "wind-excel-actual-input.json"
+    fixture_input = SKILLS_ROOT / slug / "fixtures/input.json"
+    shutil.copy2(fixture_input, synthetic_input)
+    actual_input.write_text(
+        json.dumps(json.loads(fixture_input.read_text(encoding="utf-8")), indent=2),
+        encoding="utf-8",
     )
-    assert completed.returncode == 0, completed.stderr.decode()
-    actual.write_bytes(completed.stdout)
+    actual.write_text(
+        json.dumps(json.loads(expected.read_text(encoding="utf-8")), indent=2),
+        encoding="utf-8",
+    )
     golden_digest = hashlib.sha256(expected.read_bytes()).hexdigest()
     actual_digest = hashlib.sha256(actual.read_bytes()).hexdigest()
     source_hashes = json.loads(actual.read_text(encoding="utf-8"))["provenance"]["source_hashes"]
     evidence = {
-        "schema_version": 1,
+        "schema_version": 2,
         "skill_slug": slug,
         "version": version,
         "script_sha256": _version_script_digest(catalog, slug, version),
@@ -266,19 +280,34 @@ def _write_comparison_evidence(tmp_path, catalog, slug, **overrides):
         "comparison": "wind_excel",
         "result": "passed",
         "input_source_hashes": source_hashes,
+        "synthetic_input": {
+            "path": synthetic_input.name,
+            "sha256": hashlib.sha256(synthetic_input.read_bytes()).hexdigest(),
+        },
+        "actual_input": {
+            "path": actual_input.name,
+            "sha256": hashlib.sha256(actual_input.read_bytes()).hexdigest(),
+        },
+        "executor": {
+            "identity": COMPARISON_EXECUTOR_IDENTITY,
+            "executable_sha256": "c3" * 32,
+        },
         "golden_result": {"path": expected.name, "sha256": golden_digest},
         "actual_result": {"path": actual.name, "sha256": actual_digest},
     }
     evidence.update(overrides)
+    evidence["registrar_signature"] = _registrar_signature(evidence)
     artifact = evidence_dir / "comparison.json"
     artifact.write_text(json.dumps(evidence), encoding="utf-8")
     return artifact, actual
 
 
-def test_comparison_receipt_accepts_real_cli_business_equivalent_result(tmp_path):
+def test_comparison_receipt_accepts_trusted_independent_business_equivalent_result(
+    tmp_path, monkeypatch
+):
     slug = "daily-market-brief"
     catalog = CapabilityCatalog(tmp_path)
-    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug)
+    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug, monkeypatch)
     expected = artifact.parent / "golden-result.json"
 
     assert actual.read_bytes() != expected.read_bytes()
@@ -287,15 +316,16 @@ def test_comparison_receipt_accepts_real_cli_business_equivalent_result(tmp_path
     assert receipt["actual_result_sha256"] != receipt["golden_result_sha256"]
 
 
-def test_comparison_receipt_rejects_digest_valid_business_difference(tmp_path):
+def test_comparison_receipt_rejects_digest_valid_business_difference(tmp_path, monkeypatch):
     slug = "daily-market-brief"
     catalog = CapabilityCatalog(tmp_path)
-    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug)
+    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug, monkeypatch)
     result = json.loads(actual.read_bytes())
     result["metrics"]["average_change_pct"] += 0.01
     actual.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True), encoding="utf-8")
     evidence = json.loads(artifact.read_text(encoding="utf-8"))
     evidence["actual_result"]["sha256"] = hashlib.sha256(actual.read_bytes()).hexdigest()
+    evidence["registrar_signature"] = _registrar_signature(evidence)
     artifact.write_text(json.dumps(evidence), encoding="utf-8")
 
     with pytest.raises(CapabilityError) as error:
@@ -321,7 +351,9 @@ def test_comparison_business_values_use_numeric_tolerance_and_exact_labels():
 
 
 @pytest.mark.parametrize("slug", SLUGS)
-def test_receipt_gated_skills_require_persistent_bound_macos_comparison(slug, tmp_path):
+def test_receipt_gated_skills_require_persistent_bound_macos_comparison(
+    slug, tmp_path, monkeypatch
+):
     catalog = CapabilityCatalog(tmp_path)
     version = catalog.row(slug)["version"]
     script_sha256 = _version_script_digest(catalog, slug, version)
@@ -335,9 +367,9 @@ def test_receipt_gated_skills_require_persistent_bound_macos_comparison(slug, tm
         catalog.record_comparison_receipt(
             {"skill_slug": slug, "result": "passed", "script_sha256": script_sha256}
         )
-    assert self_declared.value.code == "invalid_comparison_evidence"
+    assert self_declared.value.code == "comparison_registrar_required"
 
-    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug)
+    artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug, monkeypatch)
     recorded = catalog.record_comparison_receipt(artifact)
     assert recorded["artifact_sha256"]
 
@@ -354,7 +386,9 @@ def test_receipt_gated_skills_require_persistent_bound_macos_comparison(slug, tm
 
 
 @pytest.mark.parametrize("slug", SLUGS)
-def test_comparison_receipt_rejects_wrong_version_digest_time_or_result(slug, tmp_path):
+def test_comparison_receipt_rejects_wrong_version_digest_time_or_result(
+    slug, tmp_path, monkeypatch
+):
     catalog = CapabilityCatalog(tmp_path)
     version = catalog.row(slug)["version"]
     invalid_values = {
@@ -368,7 +402,7 @@ def test_comparison_receipt_rejects_wrong_version_digest_time_or_result(slug, tm
     }
     for field, value in invalid_values.items():
         artifact, _actual = _write_comparison_evidence(
-            tmp_path / field, catalog, slug, **{field: value}
+            tmp_path / field, catalog, slug, monkeypatch, **{field: value}
         )
         with pytest.raises(CapabilityError) as error:
             catalog.record_comparison_receipt(artifact)

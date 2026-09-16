@@ -21,9 +21,13 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
-from app.research_web.capabilities.catalog import CapabilityCatalog
+from app.research_web.capabilities.catalog import (
+    COMPARISON_EXECUTOR_IDENTITY,
+    CapabilityCatalog,
+)
 from app.research_web.capabilities.models import CapabilityError
 from app.research_web.capabilities.seeds import RECEIPT_GATED_SKILLS, seed_packages
+from app.research_web.sandbox import child_environment
 from app.research_web.skills._shared import cpu_budget as cpu_budget_module
 from app.research_web.skills._shared import input_contract as input_contract_module
 
@@ -38,6 +42,15 @@ SLUGS = (
     "industry-quadrant-monitor",
     "industry-crowding-monitor",
 )
+OLD_STAGE3_SCRIPT_DIGESTS = {
+    "fund-matcher": "e0d0b61aeae71ffd409f0cdddd42d459c874b06dfcb489524b1e49e2692b978f",
+    "fund-penetration": "ae4349dfbc3755b599eec265d70bce4e5470791c312c211f6f747900df11dc54",
+    "portfolio-overlap": "454419b2b58a720c364d3bf3883be3840adb35fdd38152f1204b0fe3e2c1df5f",
+    "portfolio-benchmark-deviation": "c216c3ea377ae6fa5ace72260ce60b909fdefa7fe813200f7988112801f2b80a",
+    "industry-prosperity": "31df916c150ea791f7581a817e1efc19f33f6581b4ca8967feff0a5ed1225da2",
+    "industry-quadrant-monitor": "c3efd22876b06bacc39ba56cba411de1075fe5b0b884c15855be59a5d9175513",
+    "industry-crowding-monitor": "418a7eb9003c3242202d772d5493ce6a7b36813db5c882f7c522953bdfaf33db",
+}
 REQUIRED_PACKAGE_FILES = {
     "SKILL.md",
     "scripts/calculate.py",
@@ -47,6 +60,7 @@ REQUIRED_PACKAGE_FILES = {
     "references/provenance.json",
     "fixtures/input.json",
     "fixtures/golden-result.json",
+    "fixtures/source-artifact.json",
 }
 DATE_FIELDS = {
     "fund-matcher": ("records", "as_of"),
@@ -169,7 +183,7 @@ def test_fund_penetration_rejects_disconnected_cycles():
     assert error.value.code == "cycle_detected"
 
 
-def test_fund_penetration_uses_latest_date_across_duplicate_edges_and_paths():
+def test_fund_penetration_rejects_mixed_snapshot_dates():
     module = load_calculator("fund-penetration")
     payload = load_json("fund-penetration", "input.json")
     payload["records"][0]["weight"] = 25
@@ -185,14 +199,9 @@ def test_fund_penetration_uses_latest_date_across_duplicate_edges_and_paths():
             "as_of": "2026-09-15",
         },
     )
-    for record in payload["records"]:
-        if record["owner_id"] == "FUND-B":
-            record["as_of"] = "2026-09-13"
-
-    result = module.calculate(payload, input_bytes=1024)
-
-    stock_z = next(row for row in result["rows"] if row["asset_id"] == "STOCK-Z")
-    assert stock_z["as_of"] == "2026-09-15"
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
 
 
 def test_portfolio_overlap_aggregates_duplicates_and_normalizes_each_book():
@@ -290,23 +299,23 @@ def _write_comparison_evidence(tmp_path: Path, catalog: CapabilityCatalog, slug:
     actual = evidence_dir / "actual-result.json"
     expected = evidence_dir / "golden-result.json"
     shutil.copy2(SKILLS_ROOT / slug / "fixtures/golden-result.json", expected)
-    scripts = evidence_dir / "scripts"
-    scripts.mkdir()
-    shutil.copy2(SKILLS_ROOT / slug / "scripts/calculate.py", scripts / "calculate.py")
-    for name in ("cpu_budget.py", "input_contract.py"):
-        shutil.copy2(SKILLS_ROOT / "_shared" / name, scripts / name)
-    shutil.copy2(SKILLS_ROOT / slug / "fixtures/input.json", evidence_dir / "input.json")
-    completed = subprocess.run(
-        [sys.executable, "scripts/calculate.py", "input.json"],
-        cwd=evidence_dir,
-        capture_output=True,
-        check=False,
+    source_artifact = SKILLS_ROOT / slug / "fixtures/source-artifact.json"
+    if not source_artifact.exists():
+        source_artifact = SKILLS_ROOT / slug / "fixtures/input.json"
+    synthetic_input = evidence_dir / "synthetic-input.json"
+    actual_input = evidence_dir / "wind-excel-actual-input.json"
+    shutil.copy2(source_artifact, synthetic_input)
+    actual_input.write_text(
+        json.dumps(json.loads(source_artifact.read_text(encoding="utf-8")), indent=2),
+        encoding="utf-8",
     )
-    assert completed.returncode == 0, completed.stderr.decode("utf-8")
-    actual.write_bytes(completed.stdout)
-    output = json.loads(completed.stdout)
+    actual.write_text(
+        json.dumps(json.loads(expected.read_text(encoding="utf-8")), indent=2),
+        encoding="utf-8",
+    )
+    output = json.loads(actual.read_text(encoding="utf-8"))
     evidence = {
-        "schema_version": 1,
+        "schema_version": 2,
         "skill_slug": slug,
         "version": version,
         "script_sha256": _version_script_digest(catalog, slug, version),
@@ -315,6 +324,18 @@ def _write_comparison_evidence(tmp_path: Path, catalog: CapabilityCatalog, slug:
         "comparison": "wind_excel",
         "result": "passed",
         "input_source_hashes": output["provenance"]["source_hashes"],
+        "synthetic_input": {
+            "path": synthetic_input.name,
+            "sha256": hashlib.sha256(synthetic_input.read_bytes()).hexdigest(),
+        },
+        "actual_input": {
+            "path": actual_input.name,
+            "sha256": hashlib.sha256(actual_input.read_bytes()).hexdigest(),
+        },
+        "executor": {
+            "identity": COMPARISON_EXECUTOR_IDENTITY,
+            "executable_sha256": "c3" * 32,
+        },
         "golden_result": {
             "path": expected.name,
             "sha256": hashlib.sha256(expected.read_bytes()).hexdigest(),
@@ -323,28 +344,77 @@ def _write_comparison_evidence(tmp_path: Path, catalog: CapabilityCatalog, slug:
             "path": actual.name,
             "sha256": hashlib.sha256(actual.read_bytes()).hexdigest(),
         },
+        "registrar_signature": "0" * 64,
     }
     artifact = evidence_dir / "comparison.json"
     artifact.write_text(json.dumps(evidence), encoding="utf-8")
     return artifact, actual
 
 
-def test_stage3_receipts_bind_current_version_script_and_real_cli_artifacts(tmp_path):
+def test_stage3_plain_json_cannot_self_attest_a_comparison_receipt(tmp_path):
     catalog = CapabilityCatalog(tmp_path)
     for slug in SLUGS:
-        artifact, actual = _write_comparison_evidence(tmp_path, catalog, slug)
-        recorded = catalog.record_comparison_receipt(artifact)
-        assert recorded["version"] == catalog.row(slug)["version"]
-        assert recorded["script_sha256"] == _version_script_digest(
-            catalog, slug, recorded["version"]
-        )
-        restarted = CapabilityCatalog(tmp_path)
-        assert restarted.transition(slug, "enable")["status"] == "enabled"
-        restarted.transition(slug, "disable")
-        actual.write_text("{}", encoding="utf-8")
-        with pytest.raises(CapabilityError) as changed:
-            restarted.transition(slug, "enable")
-        assert changed.value.code == "comparison_evidence_changed"
+        artifact, _actual = _write_comparison_evidence(tmp_path, catalog, slug)
+        with pytest.raises(CapabilityError) as error:
+            catalog.record_comparison_receipt(artifact)
+        assert error.value.code == "comparison_registrar_required"
+        assert catalog.comparison_receipt(slug) is None
+
+
+def test_stage3_forged_registrar_signature_cannot_enable(tmp_path, monkeypatch):
+    monkeypatch.setenv("RESEARCH_COMPARISON_REGISTRAR_KEY", "d4" * 32)
+    catalog = CapabilityCatalog(tmp_path)
+    artifact, _actual = _write_comparison_evidence(tmp_path, catalog, "fund-matcher")
+
+    with pytest.raises(CapabilityError) as error:
+        catalog.record_comparison_receipt(artifact)
+
+    assert error.value.code == "invalid_comparison_evidence"
+    assert catalog.comparison_receipt("fund-matcher") is None
+
+
+def test_comparison_registrar_key_is_never_in_sandbox_child_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("RESEARCH_COMPARISON_REGISTRAR_KEY", "d4" * 32)
+
+    environment = child_environment(tmp_path)
+
+    assert "RESEARCH_COMPARISON_REGISTRAR_KEY" not in environment
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_known_initial_stage3_builtin_is_migrated_without_reusing_receipt_or_projection(
+    slug, tmp_path
+):
+    catalog = CapabilityCatalog(tmp_path)
+    row = catalog.row(slug)
+    old_version = row["version"]
+    calculate = next(
+        item
+        for item in row["versions"][str(old_version)]["files"]
+        if item["path"] == "scripts/calculate.py"
+    )
+    calculate["sha256"] = OLD_STAGE3_SCRIPT_DIGESTS[slug]
+    row["status"] = "enabled"
+    native_name = row["versions"][str(old_version)]["native_name"]
+    native = catalog.native_root / native_name
+    native.mkdir()
+    (native / "SKILL.md").write_text("unsafe initial projection", encoding="utf-8")
+    catalog.data["comparison_receipts"][f"{slug}:{old_version}"] = {
+        "schema_version": 2,
+        "skill_slug": slug,
+        "version": old_version,
+    }
+    catalog.save()
+
+    upgraded = CapabilityCatalog(tmp_path)
+    migrated = upgraded.row(slug)
+
+    assert migrated["version"] == old_version + 1
+    assert migrated["status"] == "disabled"
+    assert upgraded.comparison_receipt(slug) is None
+    assert not native.exists()
+    migrated_native_name = migrated["versions"][str(migrated["version"])]["native_name"]
+    assert not (upgraded.native_root / migrated_native_name).exists()
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -470,6 +540,112 @@ def test_stage3_runtime_rejects_non_iso_dates_contract_mismatch_and_bad_source_h
     with pytest.raises(module.CalculatorError) as error:
         module.calculate(bad_hash, input_bytes=1024)
     assert error.value.code == "invalid_source_hashes"
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_stage3_dataset_ref_provider_must_match_data_contract_provider(slug):
+    module = load_calculator(slug)
+    payload = copy.deepcopy(load_json(slug, "input.json"))
+    payload["dataset_refs"][0]["provider_id"] = "user_input"
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_stage3_unverified_datahub_mapping_fails_closed(slug):
+    module = load_calculator(slug)
+    payload = copy.deepcopy(load_json(slug, "input.json"))
+    payload["data_contract"]["provider"] = "datahub"
+    for dataset_ref in payload["dataset_refs"]:
+        dataset_ref["provider_id"] = "datahub"
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
+    mapping = json.loads(
+        (SKILLS_ROOT / slug / "references/field-mapping.json").read_text(encoding="utf-8")
+    )
+    assert all(tool["callable"] is False for tool in mapping["business_tools"])
+
+
+@pytest.mark.parametrize("slug", ("portfolio-overlap", "portfolio-benchmark-deviation"))
+def test_portfolio_calculators_reject_mixed_snapshot_dates(slug):
+    module = load_calculator(slug)
+    payload = copy.deepcopy(load_json(slug, "input.json"))
+    payload["records"][0]["as_of"] = "2026-09-14"
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
+
+
+@pytest.mark.parametrize("slug", ("portfolio-overlap", "portfolio-benchmark-deviation"))
+def test_portfolio_calculators_reject_implicit_leverage(slug):
+    module = load_calculator(slug)
+    payload = copy.deepcopy(load_json(slug, "input.json"))
+    payload["records"][0]["weight"] = 1.01
+    payload["records"][0]["weight_unit"] = "decimal"
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "invalid_weight"
+
+
+@pytest.mark.parametrize("slug", ("portfolio-overlap", "portfolio-benchmark-deviation"))
+def test_portfolio_calculators_reject_leveraged_book_totals(slug):
+    module = load_calculator(slug)
+    payload = copy.deepcopy(load_json(slug, "input.json"))
+    target_book = "PORT-A" if slug == "portfolio-overlap" else "portfolio"
+    leveraged_weight = 0.4 if slug == "portfolio-overlap" else 0.6
+    for record in payload["records"]:
+        identity = record.get("portfolio_id", record.get("book"))
+        if identity == target_book:
+            record["weight"] = leveraged_weight
+            record["weight_unit"] = "decimal"
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "invalid_weight_sum"
+
+
+def test_benchmark_deviation_requires_explicit_factor_and_mapping_cutoffs():
+    module = load_calculator("portfolio-benchmark-deviation")
+    payload = copy.deepcopy(load_json("portfolio-benchmark-deviation", "input.json"))
+    payload["parameters"].update(
+        report_period="2026-06-30",
+        factor_date="2026-09-15",
+        industry_mapping_version="citics-2026-v1",
+    )
+
+    result = module.calculate(payload, input_bytes=1024)
+
+    assert result["parameters"] == {
+        "portfolio_id": payload["parameters"]["portfolio_id"],
+        "benchmark_id": payload["parameters"]["benchmark_id"],
+        "report_period": "2026-06-30",
+        "factor_date": "2026-09-15",
+        "industry_mapping_version": "citics-2026-v1",
+    }
+
+
+def test_industry_crowding_rejects_noncanonical_calendar_and_market_overallocation():
+    module = load_calculator("industry-crowding-monitor")
+    payload = copy.deepcopy(load_json("industry-crowding-monitor", "input.json"))
+    missing_day = copy.deepcopy(payload)
+    missing_day["records"].pop()
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(missing_day, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
+
+    overallocated = copy.deepcopy(payload)
+    for record in overallocated["records"]:
+        if record["date"] == overallocated["as_of"]:
+            record["industry_turnover"] = record["total_market_turnover"] * 0.6
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(overallocated, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -736,6 +912,84 @@ def _stress_payload(slug: str) -> dict:
     return payload
 
 
+def test_fund_penetration_owner_limit_counts_raw_rows_before_duplicate_aggregation():
+    module = load_calculator("fund-penetration")
+    payload = copy.deepcopy(load_json("fund-penetration", "input.json"))
+    payload["records"] = [
+        {
+            "owner_id": "FUND-A",
+            "holding_id": "STOCK-X",
+            "holding_type": "security",
+            "weight": 0.0005,
+            "weight_unit": "decimal",
+            "as_of": payload["as_of"],
+        }
+        for _ in range(1001)
+    ]
+
+    with pytest.raises(Exception) as error:
+        module.calculate(payload, input_bytes=64 * 1024)
+    assert getattr(error.value, "code", None) == "workload_too_large"
+    assert error.value.metadata["resource"] == "rows_per_symbol"
+
+
+def test_industry_prosperity_projects_nested_contributions_globally_to_128():
+    module = load_calculator("industry-prosperity")
+    payload = _stress_payload("industry-prosperity")
+
+    result = module.calculate(
+        payload, input_bytes=len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+    )
+
+    assert sum(len(row["indicator_contributions"]) for row in result["rows"]) == 128
+    assert result["row_delivery"]["nested_inline_output_rows"] == 128
+    assert result["row_delivery"]["nested_omitted_output_rows"] == 4_872
+    encoded = json.dumps(result, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    assert len(encoded) <= 64 * 1024
+
+
+def test_stage3_synthetic_source_artifacts_are_real_and_bound_to_fixtures():
+    for slug in SLUGS:
+        artifact = SKILLS_ROOT / slug / "fixtures/source-artifact.json"
+        assert artifact.is_file()
+        digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        payload = load_json(slug, "input.json")
+        golden = load_json(slug, "golden-result.json")
+        assert payload["source_hashes"] == {"synthetic": digest}
+        assert payload["dataset_refs"][0]["sha256"] == digest
+        assert golden["provenance"]["source_hashes"] == {"synthetic": digest}
+        assert golden["dataset_refs"][0]["sha256"] == digest
+        provenance = json.loads(
+            (SKILLS_ROOT / slug / "references/provenance.json").read_text(encoding="utf-8")
+        )
+        assert provenance["synthetic_source_artifact_sha256"] == digest
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_stage3_over_limit_workloads_fail_with_stable_error(slug):
+    module = load_calculator(slug)
+    payload = _stress_payload(slug)
+    if slug == "fund-matcher":
+        extra = copy.deepcopy(payload["records"][0])
+        extra["fund_code"] = "FUND-OVER-LIMIT"
+        payload["records"].append(extra)
+    elif slug == "industry-quadrant-monitor":
+        extra = copy.deepcopy(payload["records"][0])
+        extra["industry"] = "IND-OVER-LIMIT"
+        payload["records"].append(extra)
+    elif slug == "industry-crowding-monitor":
+        payload["records"].append(copy.deepcopy(payload["records"][0]))
+    else:
+        needed = 5_001 - len(payload["records"])
+        repeated = payload["records"] * (needed // len(payload["records"]) + 1)
+        payload["records"].extend(copy.deepcopy(repeated[:needed]))
+
+    with pytest.raises(Exception) as error:
+        module.calculate(payload, input_bytes=64 * 1024)
+    assert getattr(error.value, "code", None) == "workload_too_large"
+    assert error.value.metadata["reduce_scope"] is True
+
+
 @pytest.mark.parametrize("slug", SLUGS)
 def test_stage3_near_limit_process_stays_within_sandbox_time_rss_and_output(slug, tmp_path):
     payload = _stress_payload(slug)
@@ -811,13 +1065,9 @@ namespace['main'](['inputs/input.json'])
         supervisor["stderr"].encode("utf-8")
     )
     assert output_size <= 64 * 1024
-    if supervisor["stderr"]:
-        error = json.loads(supervisor["stderr"].splitlines()[-1])["error"]
-        assert error["code"] == "workload_too_large"
-        assert error["metadata"]["reduce_scope"] is True
-    else:
-        result = json.loads(supervisor["stdout"])
-        assert result["skill_slug"] == slug
-        assert result["row_delivery"]["processed_input_rows"] == len(payload["records"])
+    assert supervisor["stderr"] == "", supervisor
+    result = json.loads(supervisor["stdout"])
+    assert result["skill_slug"] == slug
+    assert result["row_delivery"]["processed_input_rows"] == len(payload["records"])
     assert elapsed < 10
     assert 0 < peak_rss_bytes < 1024**3

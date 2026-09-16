@@ -33,10 +33,18 @@ from input_contract import (
 LOGGER = logging.getLogger("research.skill.portfolio_benchmark_deviation")
 SKILL_SLUG = "portfolio-benchmark-deviation"
 METHOD_VERSION = "1.0.0"
-SUPPORTED_PROVIDERS = frozenset({"synthetic", "datahub", "user_input"})
+SUPPORTED_PROVIDERS = frozenset({"synthetic", "user_input"})
 ROOT_FIELDS = frozenset({"as_of", "parameters", "data_contract", "dataset_refs", "records"})
 ALLOWED_ROOT_FIELDS = ROOT_FIELDS | {"source_hashes"}
-PARAMETER_FIELDS = frozenset({"portfolio_id", "benchmark_id"})
+PARAMETER_FIELDS = frozenset(
+    {
+        "portfolio_id",
+        "benchmark_id",
+        "report_period",
+        "factor_date",
+        "industry_mapping_version",
+    }
+)
 FEATURES = ("market_cap", "pe_ttm", "profit_growth_yoy_pct")
 RECORD_FIELDS = frozenset(
     {"book", "book_id", "asset_id", "industry", "weight", "weight_unit", "as_of", *FEATURES}
@@ -62,7 +70,7 @@ def _weight(value: Any, unit: Any) -> float:
         weight = checked_divide(weight, 100.0, error=CalculatorError)
     elif unit != "decimal":
         raise CalculatorError("data_not_equivalent")
-    if weight <= 0:
+    if weight <= 0 or weight > 1:
         raise CalculatorError("invalid_weight")
     return weight
 
@@ -99,7 +107,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         payload, required=ROOT_FIELDS, allowed=ALLOWED_ROOT_FIELDS, error=CalculatorError
     )
     as_of = iso_day(payload["as_of"], error=CalculatorError)
-    validate_data_contract(
+    data_contract = validate_data_contract(
         payload["data_contract"],
         mapping_id=SKILL_SLUG,
         mapping_version=METHOD_VERSION,
@@ -117,6 +125,13 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     )
     portfolio_id = checked_text(parameters["portfolio_id"], error=CalculatorError)
     benchmark_id = checked_text(parameters["benchmark_id"], error=CalculatorError)
+    report_period = reject_future(parameters["report_period"], as_of=as_of, error=CalculatorError)
+    factor_date = reject_future(parameters["factor_date"], as_of=as_of, error=CalculatorError)
+    industry_mapping_version = checked_text(
+        parameters["industry_mapping_version"], error=CalculatorError
+    )
+    if report_period > factor_date:
+        raise CalculatorError("data_not_equivalent")
     if portfolio_id == benchmark_id:
         raise CalculatorError("book_ids_must_differ")
     records = payload["records"]
@@ -125,12 +140,17 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     budget.add_input(rows=len(records), bytes_count=0)
     budget.validate_series(len(records))
     refs = validate_dataset_refs(
-        payload["dataset_refs"], as_of=as_of, providers=SUPPORTED_PROVIDERS, error=CalculatorError
+        payload["dataset_refs"],
+        as_of=as_of,
+        providers=SUPPORTED_PROVIDERS,
+        contract_provider=data_contract["provider"],
+        error=CalculatorError,
     )
     source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
     books: dict[str, dict[str, dict[str, Any]]] = {"portfolio": {}, "benchmark": {}}
     expected_ids = {"portfolio": portfolio_id, "benchmark": benchmark_id}
     duplicate_rows = 0
+    snapshot_date: str | None = None
     for raw in records:
         raw = strict_object(
             raw, required=RECORD_FIELDS, allowed=RECORD_FIELDS, error=CalculatorError
@@ -140,7 +160,13 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             raise CalculatorError("data_not_equivalent")
         asset_id = checked_text(raw["asset_id"], error=CalculatorError)
         industry = checked_text(raw["industry"], error=CalculatorError)
-        reject_future(raw["as_of"], as_of=as_of, error=CalculatorError)
+        holding_date = reject_future(raw["as_of"], as_of=as_of, error=CalculatorError)
+        if snapshot_date is None:
+            snapshot_date = holding_date
+        elif holding_date != snapshot_date:
+            raise CalculatorError("data_not_equivalent")
+        if holding_date != factor_date:
+            raise CalculatorError("data_not_equivalent")
         values = {
             feature: checked_number(raw[feature], error=CalculatorError) for feature in FEATURES
         }
@@ -152,6 +178,8 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
             ):
                 raise CalculatorError("conflicting_duplicate_asset")
             existing["weight"] = checked_add(existing["weight"], weight, error=CalculatorError)
+            if existing["weight"] > 1:
+                raise CalculatorError("invalid_weight")
             duplicate_rows += 1
         else:
             books[book][asset_id] = {"weight": weight, "industry": industry, **values}
@@ -164,6 +192,8 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     }
     if any(total <= 0 for total in totals.values()):
         raise CalculatorError("empty_book")
+    if any(total > 1.000000001 for total in totals.values()):
+        raise CalculatorError("invalid_weight_sum")
     for book, values in books.items():
         for row in values.values():
             row["weight"] = checked_divide(row["weight"], totals[book], error=CalculatorError)
@@ -239,7 +269,13 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "method_version": METHOD_VERSION,
         "compute_profile": "cpu_bounded_v1",
         "as_of": as_of,
-        "parameters": {"portfolio_id": portfolio_id, "benchmark_id": benchmark_id},
+        "parameters": {
+            "portfolio_id": portfolio_id,
+            "benchmark_id": benchmark_id,
+            "report_period": report_period,
+            "factor_date": factor_date,
+            "industry_mapping_version": industry_mapping_version,
+        },
         "dataset_refs": refs,
         "status": "partial" if source_limitations else "complete",
         "metrics": {"overall": overall, "duplicate_rows_aggregated": duplicate_rows},
@@ -261,6 +297,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
                 "weighted_means",
                 "sample_standard_deviation",
                 "industry_weight_difference",
+                "explicit_report_factor_and_industry_mapping_cutoffs",
                 METHOD_VERSION,
             ],
         },

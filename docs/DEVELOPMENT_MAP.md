@@ -111,12 +111,16 @@ Workflow 保持原有执行边界。`app/research_web/skills/_shared/evidence-pr
 CPU Skill 还从 `skills/_shared/` 复制 `cpu_budget.py`、`input_contract.py`、结果与 provenance 协议，分别处理市场简报、
 政策时间线、事件窗、ETF 资金流、业绩披露与业绩预告；计算只读取相对路径 JSON 和已提供字段，
 严格校验 provider/mapping/version/单位/日期/复权与未来数据，不执行 Excel、网络或分类推断。六项
-初始可发现但 disabled；comparison receipt 只能由严格 evidence artifact 路径生成，并绑定输入来源、
-仓库 golden、实际结果和当前脚本摘要，状态切换会重新验证。旧版迁移先撤下投影并禁用，异常失败
+初始可发现但 disabled；comparison receipt 只能由宿主登记器 HMAC 认证的 evidence artifact v2 生成，
+并绑定提交 synthetic input、独立 Wind/Excel actual input、固定宿主执行器、输入来源、仓库 golden、
+实际结果和当前脚本摘要，状态切换会重新验证；登记密钥不会进入 research sandbox。旧版迁移先撤下投影并禁用，异常失败
 关闭。共享 POSIX openat/Windows final-handle loader、有限数算术与完整 64 KiB UTF-8 envelope 守住
 输入和输出，dataset refs/source hashes 各限 32 项，`row_delivery` 不复制顶层 refs；全部输入仍参与计算。
 对应 golden、失败关闭、预算、独立进程时间/RSS 压力与静态扫描位于
-`tests/research_web/test_cpu_quant_skills_stage2.py`。
+`tests/research_web/test_cpu_quant_skills_stage2.py`。Stage 3 的七个基金/组合/行业包追加在同一目录与门禁：
+每包提交 `fixtures/source-artifact.json` 并绑定真实摘要；DataHub 字段映射未核验时 `callable=false`，
+运行时强制 contract/ref provider 一致；快照、权重、因子口径、行业日历/总额和全局 128 条嵌套投影
+反例位于 `tests/research_web/test_cpu_quant_skills_stage3.py`。
 研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱
 内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在
 `tests/research_web/test_capabilities*.py` 和 `tests/research_web/test_sell_side_report_skill.py`；

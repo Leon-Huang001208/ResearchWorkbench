@@ -3,6 +3,7 @@
 import ast
 import copy
 import hashlib
+import hmac
 import importlib.metadata
 import io
 import json
@@ -28,6 +29,7 @@ from .models import CapabilityError, Metadata, Step, issue
 from .packages import decode_file, frontmatter, import_package, normalize_files
 from .seeds import (
     LEGACY_STAGE2_SCRIPT_SHA256,
+    LEGACY_STAGE3_SCRIPT_SHA256,
     RECEIPT_GATED_SKILLS,
     builtin_initial_status,
     seed_packages,
@@ -51,11 +53,18 @@ COMPARISON_EVIDENCE_FIELDS = frozenset(
         "comparison",
         "result",
         "input_source_hashes",
+        "synthetic_input",
+        "actual_input",
+        "executor",
         "golden_result",
         "actual_result",
+        "registrar_signature",
     }
 )
 COMPARISON_RESULT_FIELDS = frozenset({"path", "sha256"})
+COMPARISON_EXECUTOR_FIELDS = frozenset({"identity", "executable_sha256"})
+COMPARISON_EXECUTOR_IDENTITY = "research-workbench-host-wind-excel-v1"
+COMPARISON_REGISTRAR_KEY_ENV = "RESEARCH_COMPARISON_REGISTRAR_KEY"
 COMPARISON_RECEIPT_FIELDS = frozenset(
     {
         "schema_version",
@@ -66,6 +75,10 @@ COMPARISON_RECEIPT_FIELDS = frozenset(
         "artifact_path",
         "artifact_sha256",
         "input_source_hashes_sha256",
+        "synthetic_input_sha256",
+        "actual_input_sha256",
+        "executor_identity",
+        "executor_sha256",
         "golden_result_sha256",
         "actual_result_sha256",
     }
@@ -131,6 +144,7 @@ class CapabilityCatalog:
                     self.publish(cid, _status=builtin_initial_status(cid))
             self._migrate_legacy_tool_ids(dict(seed_packages()))
             self._migrate_stage2_builtins(dict(seed_packages()))
+            self._migrate_stage3_builtins(dict(seed_packages()))
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.error("capability_catalog_unreadable", error_type=type(exc).__name__)
             raise CapabilityError(
@@ -240,9 +254,27 @@ class CapabilityCatalog:
     def _migrate_stage2_builtins(self, builtins):
         """Replace only the known initial Stage 2 seeds and keep them disabled."""
 
+        self._migrate_known_builtins(
+            builtins,
+            LEGACY_STAGE2_SCRIPT_SHA256,
+            stage="stage2",
+        )
+
+    def _migrate_stage3_builtins(self, builtins):
+        """Replace only the known initial Stage 3 seeds and keep them disabled."""
+
+        self._migrate_known_builtins(
+            builtins,
+            LEGACY_STAGE3_SCRIPT_SHA256,
+            stage="stage3",
+        )
+
+    def _migrate_known_builtins(self, builtins, legacy_digests, *, stage):
+        """Publish safe successors for exact initial built-in script versions."""
+
         if self.data.get("pending"):
             return
-        for cid, legacy_digest in LEGACY_STAGE2_SCRIPT_SHA256.items():
+        for cid, legacy_digest in legacy_digests.items():
             row = self.data["items"].get(cid)
             if not row or row.get("source") != "builtin" or not row.get("version"):
                 continue
@@ -258,7 +290,7 @@ class CapabilityCatalog:
                 row.update(has_draft=True, checks=None, updated_at=time.time())
                 self.publish(cid, _allow_builtin_migration=True, _status="disabled")
                 log.info(
-                    "capability_stage2_builtin_migrated",
+                    f"capability_{stage}_builtin_migrated",
                     capability_id=cid,
                     version=row["version"],
                 )
@@ -277,13 +309,13 @@ class CapabilityCatalog:
                 except (OSError, CapabilityError):
                     pass
                 log.error(
-                    "capability_stage2_builtin_migration_failed",
+                    f"capability_{stage}_builtin_migration_failed",
                     capability_id=cid,
                     error_type=type(exc).__name__,
                 )
                 raise CapabilityError(
                     "内置能力迁移失败；旧版本已撤下并保持禁用",
-                    "stage2_migration_failed",
+                    f"{stage}_migration_failed",
                     503,
                 ) from exc
 
@@ -376,6 +408,32 @@ class CapabilityCatalog:
             raise CapabilityError("对照结果无效", "invalid_comparison_evidence", 422) from exc
         return actual_digest, result
 
+    @staticmethod
+    def _comparison_registrar_key():
+        value = os.environ.get(COMPARISON_REGISTRAR_KEY_ENV, "")
+        try:
+            key = bytes.fromhex(value)
+        except ValueError as exc:
+            raise CapabilityError(
+                "未配置可信对照登记器", "comparison_registrar_required", 503
+            ) from exc
+        if len(key) != 32:
+            raise CapabilityError("未配置可信对照登记器", "comparison_registrar_required", 503)
+        return key
+
+    @classmethod
+    def _verify_registrar_signature(cls, value):
+        supplied = value.get("registrar_signature")
+        if not cls._strict_sha256(supplied):
+            raise CapabilityError("对照登记签名无效", "invalid_comparison_evidence", 422)
+        unsigned = {key: value[key] for key in sorted(set(value) - {"registrar_signature"})}
+        canonical = json.dumps(
+            unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        expected = hmac.new(cls._comparison_registrar_key(), canonical, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(supplied, expected):
+            raise CapabilityError("对照登记签名无效", "invalid_comparison_evidence", 422)
+
     @classmethod
     def _comparison_results_equal(cls, expected, actual):
         """Compare decoded result envelopes while keeping categorical values exact."""
@@ -412,6 +470,7 @@ class CapabilityCatalog:
     def _verify_comparison_evidence(self, artifact_value, *, changed=False):
         failure_code = "comparison_evidence_changed" if changed else "invalid_comparison_evidence"
         try:
+            self._comparison_registrar_key()
             artifact = self._comparison_path(artifact_value)
             raw = artifact.read_bytes()
             if len(raw) > 64 * 1024:
@@ -419,10 +478,11 @@ class CapabilityCatalog:
             value = json.loads(raw.decode("utf-8"))
             if not isinstance(value, dict) or set(value) != COMPARISON_EVIDENCE_FIELDS:
                 raise CapabilityError("对照证据字段无效", failure_code, 422)
+            self._verify_registrar_signature(value)
             cid = value.get("skill_slug")
             version = value.get("version")
             if (
-                value.get("schema_version") != 1
+                value.get("schema_version") != 2
                 or cid not in RECEIPT_GATED_SKILLS
                 or type(version) is not int
                 or value.get("platform") != "macos"
@@ -451,6 +511,14 @@ class CapabilityCatalog:
                 )
             ):
                 raise CapabilityError("对照输入摘要无效", failure_code, 422)
+            executor = value.get("executor")
+            if (
+                not isinstance(executor, dict)
+                or set(executor) != COMPARISON_EXECUTOR_FIELDS
+                or executor.get("identity") != COMPARISON_EXECUTOR_IDENTITY
+                or not self._strict_sha256(executor.get("executable_sha256"))
+            ):
+                raise CapabilityError("对照执行器无效", failure_code, 422)
             packaged_golden = next(
                 (
                     item["sha256"]
@@ -461,6 +529,31 @@ class CapabilityCatalog:
             )
             if not self._strict_sha256(packaged_golden):
                 raise CapabilityError("仓库对照摘要无效", failure_code, 422)
+            packaged_synthetic = next(
+                (
+                    item["sha256"]
+                    for item in record.get("files", [])
+                    if item.get("path") == "fixtures/source-artifact.json"
+                ),
+                next(
+                    (
+                        item["sha256"]
+                        for item in record.get("files", [])
+                        if item.get("path") == "fixtures/input.json"
+                    ),
+                    None,
+                ),
+            )
+            if not self._strict_sha256(packaged_synthetic):
+                raise CapabilityError("仓库合成输入摘要无效", failure_code, 422)
+            synthetic_input_digest, _synthetic_input = self._verified_result_digest(
+                artifact.parent, value.get("synthetic_input"), packaged_synthetic
+            )
+            actual_input_digest, _actual_input = self._verified_result_digest(
+                artifact.parent, value.get("actual_input")
+            )
+            if value["synthetic_input"]["path"] == value["actual_input"]["path"]:
+                raise CapabilityError("对照输入未分离", failure_code, 422)
             golden_digest, golden_result = self._verified_result_digest(
                 artifact.parent, value.get("golden_result"), packaged_golden
             )
@@ -480,7 +573,7 @@ class CapabilityCatalog:
                 json.dumps(source_hashes, sort_keys=True, separators=(",", ":")).encode()
             ).hexdigest()
             unsigned = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "skill_slug": cid,
                 "version": version,
                 "script_sha256": script_digest,
@@ -488,6 +581,10 @@ class CapabilityCatalog:
                 "artifact_path": str(artifact.relative_to(self.data_root.resolve(strict=True))),
                 "artifact_sha256": hashlib.sha256(raw).hexdigest(),
                 "input_source_hashes_sha256": source_digest,
+                "synthetic_input_sha256": synthetic_input_digest,
+                "actual_input_sha256": actual_input_digest,
+                "executor_identity": executor["identity"],
+                "executor_sha256": executor["executable_sha256"],
                 "golden_result_sha256": golden_digest,
                 "actual_result_sha256": actual_digest,
             }
@@ -496,7 +593,7 @@ class CapabilityCatalog:
             ).hexdigest()
             return {**unsigned, "receipt_sha256": receipt_digest}
         except CapabilityError as exc:
-            if exc.code == failure_code:
+            if exc.code in {failure_code, "comparison_registrar_required"}:
                 raise
             raise CapabilityError("对照证据校验失败", failure_code, 422) from exc
         except (OSError, KeyError, TypeError, ValueError) as exc:
@@ -509,7 +606,7 @@ class CapabilityCatalog:
         cid = value.get("skill_slug")
         version = value.get("version")
         if (
-            value.get("schema_version") != 1
+            value.get("schema_version") != 2
             or cid not in RECEIPT_GATED_SKILLS
             or type(version) is not int
         ):
@@ -520,10 +617,13 @@ class CapabilityCatalog:
             "version",
             "compared_at",
             "artifact_path",
+            "executor_identity",
         }:
             if not self._strict_sha256(value.get(field)):
                 raise CapabilityError("对照回执摘要无效", "invalid_comparison_receipt", 422)
         compared_at = value.get("compared_at")
+        if value.get("executor_identity") != COMPARISON_EXECUTOR_IDENTITY:
+            raise CapabilityError("对照回执执行器无效", "invalid_comparison_receipt", 422)
         try:
             timestamp = datetime.strptime(compared_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
         except (TypeError, ValueError) as exc:
@@ -539,7 +639,7 @@ class CapabilityCatalog:
         return {**unsigned, "receipt_sha256": receipt_sha256}
 
     def record_comparison_receipt(self, value):
-        """Persist a verified macOS Wind/Excel comparison binding."""
+        """Persist a host-registrar-authenticated macOS Wind/Excel comparison."""
 
         receipt = self._verify_comparison_evidence(value)
         key = self._receipt_key(receipt["skill_slug"], receipt["version"])

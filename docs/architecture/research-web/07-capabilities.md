@@ -25,7 +25,8 @@ provenance/rights 约定由 CPU reviewed calculator 复制到各自不可变版�
 Skill 目录，也不获得 DataHub、脚本或宿主权限。
 
 六个 Stage 2 Skill 的 enabled 投影增加同一 catalog 内部证据门：启用和回滚到 enabled 均要求
-持久的 macOS Wind/Excel passed evidence artifact。catalog 只接受 artifact 路径，分别重算输入来源、
+持久的 macOS Wind/Excel passed evidence artifact。catalog 只接受宿主登记器 HMAC-SHA256 认证的
+artifact v2，分别绑定提交的 synthetic input、独立 actual input、固定宿主执行器身份/摘要、输入来源、
 当前不可变版本 golden、comparison run 实际结果、artifact 和当前 `calculate.py` 摘要；两个结果摘要
 独立，解码后数值按 `rtol=1e-6`/`atol=1e-8` 比较，日期、分类、信号及其余非数值严格一致，再生成
 receipt 并在状态切换重新验证。
@@ -36,8 +37,11 @@ UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字�
 
 七个 Stage 3 基金/组合/行业 Skill 复用上述版本、sandbox 和 receipt 状态机，在 fresh catalog 中可
 发现但全部 disabled；只有可重算且绑定当前不可变版本的 macOS Wind/Excel comparison evidence
-artifact 才能启用或回滚到 enabled。基金穿透覆盖 percent/decimal、多层、重复路径并对全部给定
-基金子图做 cycle fail-closed；三个行业 Skill 只消费预聚合数据。严格 schema/运行时字段等价、日期、
+artifact 且通过宿主签名验证才能启用或回滚到 enabled；普通 JSON 和 sandbox 内计算器无法自签。
+七包的 synthetic source artifact 由 fixture/golden/provenance 实际 SHA-256 绑定，DataHub 工具因字段
+口径未核验标为 `callable=false`。基金穿透覆盖单一快照、percent/decimal、多层、重复路径并对全部
+给定基金子图 cycle fail-closed；组合拒绝隐式杠杆，基准偏离显式要求报告期/因子日/行业映射版本；
+三个行业 Skill 只消费预聚合数据，景气贡献全局最多投影 128 条，拥挤度统一日历且行业额总和不超市场额。严格 schema/运行时字段等价、日期、
 有限数值与受检算术、安全相对 JSON loader、`cpu_bounded_v1` 工作量预算及完整 64 KiB 无换行输出
 均沿用现有边界，不新增 API、能力类型、执行器或宿主权限。
 

@@ -425,6 +425,7 @@ def validate_dataset_refs(
     *,
     as_of: str,
     providers: frozenset[str],
+    contract_provider: str | None = None,
     error: ErrorFactory,
 ) -> list[dict[str, Any]]:
     """Validate exact provenance references and reject look-ahead data."""
@@ -448,6 +449,7 @@ def validate_dataset_refs(
             or not dataset_id.strip()
             or not isinstance(provider_id, str)
             or provider_id not in providers
+            or (contract_provider is not None and provider_id != contract_provider)
         ):
             raise error("data_not_equivalent")
         if (

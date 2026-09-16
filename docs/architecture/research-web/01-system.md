@@ -38,6 +38,13 @@
 
 二十五个内置 Skill 和四个 Workflow 继续进入同一能力目录。五个专用研究 Skill 的共享证据协议在种子构建时复制为版本资源，不是独立可调用能力；`framework-research` 只服务用户显式触发的框架深度验证，并受只读 Runtime 预设约束。六个 CPU 有界资讯/事件 Skill 通过相同版本机制封存计算脚本、严格输入输出 schema、运行时 provider/mapping/version/单位/日期/复权契约、来源哈希、synthetic golden 及 `cpu_bounded_v1` 共享资源。共享契约只接受 `YYYY-MM-DD`，验证来源哈希的规范非空 key 与 SHA-256 value，并固定 daily/ETF 的 CNY 口径；显式 null、首尾空白或含 CR/LF/Unicode 行段分隔符的 key 被拒绝，字段缺失时结果明确降级。它们在真实 Wind/Excel 对照未执行时可在能力中心发现但保持 disabled，不进入原生 provider candidates；catalog 只从严格 macOS Wind/Excel evidence artifact 路径派生 receipt，分别重算当前版本 golden 与 comparison run actual 摘要，再以数值容差和非数值严格一致做业务 JSON 比较，并在启用或回滚时复核文件未变。已知初版升级先撤下投影并禁用，异常失败关闭。六 CLI 在 POSIX 从 cwd fd 逐组件 openat/no-follow，Windows 校验最终句柄；dataset refs/source hashes 各限 32 项，完整 JSON envelope 按 UTF-8 不超过 64 KiB，成功 stdout 不附换行且恰好 65,536 字节仍允许，`row_delivery` 不复制顶层 refs。Stage 3 另增加七个基金/组合/行业 CPU Skill；它们复用同一严格 schema/运行时契约、安全 loader、受检算术、预算、envelope 和 comparison receipt verifier，全部可发现但默认 disabled，真实对照缺失时不能进入原生投影。基金穿透对完整输入子图 cycle fail-closed，行业计算器只吃预聚合数据。研报校验、SVG 重绘、PDF 读取及 CPU JSON 计算均受现有 `research_run_script` 沙箱限制。静态进程入口检查只拒绝不兼容包，不授予脚本新的进程、网络、文件或依赖安装权限。
 
+comparison receipt 当前采用 artifact v2：宿主登记器以 HMAC-SHA256 绑定当前脚本、提交 synthetic
+input、独立 Wind/Excel actual input、固定宿主执行器和两侧结果；`research_run_script` sandbox 的显式
+最小环境不继承登记密钥，普通 JSON 与被审计算器不能自证。Stage 3 七包提交实际 synthetic source
+artifact，未核验 DataHub 映射标为 `callable=false` 并强制 contract/ref provider 一致；基金/组合只接
+受单一快照和非杠杆权重，基准偏离显式绑定报告期/因子日/行业版，行业计算增加全局 128 条嵌套投影
+与统一日历/成交总额约束。真实宿主签名对照仍缺失，所以七项继续 disabled。
+
 Research Runtime 每次启动都从离线 DataHub 能力目录重新计算 `enabledTools`；来源配置变化只有在重启后才改变原生工具注册。缺少可调用来源的工具不暴露给模型。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为 `provider_busy`。
 
 Wind 只以五项具备封闭适配路径的 capability binding 参与 callable 计算；市场活动内部只开放

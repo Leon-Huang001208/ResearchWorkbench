@@ -29,7 +29,7 @@ from input_contract import (
 LOGGER = logging.getLogger("research.skill.industry_crowding_monitor")
 SKILL_SLUG = "industry-crowding-monitor"
 METHOD_VERSION = "1.0.0"
-SUPPORTED_PROVIDERS = frozenset({"synthetic", "datahub", "user_input"})
+SUPPORTED_PROVIDERS = frozenset({"synthetic", "user_input"})
 ROOT_FIELDS = frozenset({"as_of", "parameters", "data_contract", "dataset_refs", "records"})
 ALLOWED_ROOT_FIELDS = ROOT_FIELDS | {"source_hashes"}
 PARAMETER_FIELDS = frozenset({"rolling_days", "percentile_days", "high_crowding_threshold"})
@@ -55,7 +55,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         payload, required=ROOT_FIELDS, allowed=ALLOWED_ROOT_FIELDS, error=CalculatorError
     )
     as_of = iso_day(payload["as_of"], error=CalculatorError)
-    validate_data_contract(
+    data_contract = validate_data_contract(
         payload["data_contract"],
         mapping_id=SKILL_SLUG,
         mapping_version=METHOD_VERSION,
@@ -87,12 +87,17 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         raise CalculatorError("empty_input")
     budget.add_input(rows=len(records), bytes_count=0)
     refs = validate_dataset_refs(
-        payload["dataset_refs"], as_of=as_of, providers=SUPPORTED_PROVIDERS, error=CalculatorError
+        payload["dataset_refs"],
+        as_of=as_of,
+        providers=SUPPORTED_PROVIDERS,
+        contract_provider=data_contract["provider"],
+        error=CalculatorError,
     )
     source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
     grouped: dict[str, list[dict[str, Any]]] = {}
     seen: set[tuple[str, str]] = set()
     total_by_date: dict[str, float] = {}
+    industry_total_by_date: dict[str, float] = {}
     for raw in records:
         raw = strict_object(
             raw, required=RECORD_FIELDS, allowed=RECORD_FIELDS, error=CalculatorError
@@ -111,6 +116,9 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         if day in total_by_date and total_by_date[day] != total_turnover:
             raise CalculatorError("inconsistent_market_total")
         total_by_date[day] = total_turnover
+        industry_total_by_date[day] = checked_add(
+            industry_total_by_date.get(day, 0.0), industry_turnover, error=CalculatorError
+        )
         grouped.setdefault(industry, []).append(
             {
                 "date": day,
@@ -121,6 +129,18 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     budget.validate_batch(
         symbol_count=len(grouped), rows_per_symbol=max(len(values) for values in grouped.values())
     )
+    canonical_dates: set[str] | None = None
+    for series in grouped.values():
+        dates = {row["date"] for row in series}
+        if canonical_dates is None:
+            canonical_dates = dates
+        elif dates != canonical_dates:
+            raise CalculatorError("data_not_equivalent")
+    if not canonical_dates or max(canonical_dates) != as_of:
+        raise CalculatorError("data_not_equivalent")
+    for day, industry_total in industry_total_by_date.items():
+        if industry_total > total_by_date[day] + 1e-9:
+            raise CalculatorError("data_not_equivalent")
     rows: list[dict[str, Any]] = []
     for industry, series in grouped.items():
         series.sort(key=lambda row: row["date"])

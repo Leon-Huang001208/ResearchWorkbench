@@ -140,9 +140,11 @@ Stage 2 后续增加的 evidence artifact 派生 receipt、失败关闭旧版迁
 final-handle loader 和完整 64 KiB UTF-8 envelope 只作用于六个 CPU Skill 的能力或 sandbox 边界；不改变 Tabbit 的页面
 授权、claim、一次性 token、写审批、标签生命周期或浏览器 Runtime。
 receipt 对 packaged golden 与 comparison run actual 分别验摘要并做业务 JSON 比较，六 CLI 成功 stdout
-也不附加换行；这些收紧仍不读取 Tabbit 标签或复用浏览器证据。
+也不附加换行；artifact v2 还由宿主登记器 HMAC 绑定 synthetic/actual 输入和固定执行器，登记密钥不
+进入 research sandbox。这些收紧仍不读取 Tabbit 标签或复用浏览器证据。
 
 2026-09-15 新增的七个 Stage 3 基金/组合/行业 CPU Skill 继续只通过既有能力目录和
 `research_run_script` 工作。它们复用安全相对 JSON、预算、64 KiB 完整输出和 comparison receipt
-门禁，全部可发现但默认 disabled；基金穿透的层级/cycle 校验和只吃预聚合数据的行业计算不会请求
+门禁，全部可发现但默认 disabled；未核验 DataHub 映射为 `callable=false`，单一快照/非杠杆权重、
+景气嵌套投影与拥挤度统一日历总额约束均只处理调用方已提供 JSON。基金穿透的层级/cycle 校验和只吃预聚合数据的行业计算不会请求
 Tabbit 页面、正文 token 或浏览器证据，也不会扩大 claim、写审批、网络、文件或执行权限。

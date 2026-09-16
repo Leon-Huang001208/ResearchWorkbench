@@ -11,8 +11,11 @@
 - 能力中心新增基金匹配、基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控和行业
   拥挤度监控七个独立内置 Skill，总数更新为 25；它们复用 `cpu_bounded_v1`、安全相对 JSON、严格
   schema/运行时契约、受检算术、64 KiB 完整输出和 comparison receipt verifier。七项均可发现但
-  默认 disabled，只有可重算并绑定当前不可变版本的真实 macOS Wind/Excel evidence artifact 才能
-  启用或回滚到 enabled。
+  默认 disabled。receipt verifier 升级为宿主登记器 HMAC 认证的 artifact v2，绑定提交 synthetic
+  input、独立 Wind/Excel actual input、固定执行器、golden/actual 与当前脚本；普通 JSON 和 sandbox
+  内计算器不能自证。七包用真实 source artifact SHA-256 替换占位哈希，未核验 DataHub 映射为
+  `callable=false`，并补齐单一快照、非杠杆权重、显式因子口径、行业统一日历/总额和全局 128 条嵌套
+  投影边界。真实宿主签名 Wind/Excel evidence 缺失时仍不可启用或回滚到 enabled。
 
 ### 六个 CPU 有界资讯/事件 Skill · 2026-09-14
 

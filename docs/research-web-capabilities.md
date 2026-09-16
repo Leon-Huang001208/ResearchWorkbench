@@ -39,13 +39,13 @@ dataset refs、status、limitations、method version、source hashes 和 `intern
 
 六个 Stage 2 Skill 另外受 catalog comparison receipt 门控：fresh catalog 保持 disabled；已知初版
 脚本升级时先撤下原生投影并持久禁用，发布、保存或校验异常均保留 disabled/uncertain 或使初始化
-失败，绝不恢复 enabled。登记入口只接受 evidence artifact 路径；catalog 严格读取后重算 artifact、
-输入来源、仓库 golden、实际结果和当前 `calculate.py` 摘要，再派生持久 receipt。artifact v1 的
-`golden_result.path/sha256` 必须绑定当前不可变 Skill 版本内的 golden，`actual_result.path/sha256`
-则独立绑定本次 comparison run 的真实 CLI 产物，两者不要求原始字节摘要相同。catalog 解码完整
+失败，绝不恢复 enabled。登记入口只接受宿主可信登记器认证的 evidence artifact 路径；artifact v2
+必须以 HMAC-SHA256 绑定当前脚本、提交的 synthetic input、独立 Wind/Excel actual input、固定宿主
+执行器身份/可执行文件摘要、输入来源、仓库 golden 与 actual result。登记密钥只存在宿主环境，
+`research_run_script` sandbox 的显式最小环境不继承它，因此被审计算器和普通 JSON 不能自证。catalog 解码完整
 JSON 后递归比较业务值：数值使用 `rtol=1e-6`、`atol=1e-8`，日期、分类、信号和其余非数值严格
 一致；摘要自洽但业务结果不同仍拒绝。启用或回滚到 enabled 时会重新验证 artifact 存在且摘要和
-绑定未变化。该本机完整性校验不宣称能防止本机管理员
+绑定未变化。该本机完整性校验不宣称能防止已取得宿主密钥的本机管理员
 主动改写证据；没有真实 artifact 时仍可发现但不可执行。六 CLI 在 POSIX 从 cwd fd 逐组件
 openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性。dataset refs/source hashes 各限
 32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过 64 KiB；成功 stdout 不附加
@@ -55,8 +55,12 @@ openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性�
 七个 Stage 3 Skill（基金匹配、基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控、
 行业拥挤度监控）复用同一 `cpu_bounded_v1` 与 comparison receipt verifier。它们在 fresh catalog
 中可发现但全部 disabled，不进入原生 provider candidates；真实 Wind/Excel comparison evidence
-未完成前不能启用或回滚到 enabled。基金穿透显式支持 percent/decimal、多层与重复路径，并对全部
-给定基金子图做 cycle fail-closed；三个行业计算器只接受预聚合行业数据。七项仍使用严格日期、有限
+未完成且未由宿主登记器签名前不能启用或回滚到 enabled。七包提交真实可哈希 synthetic source
+artifact 并由 fixture/golden/provenance 绑定其摘要，不再使用占位哈希。未核验的 DataHub 映射均标记
+`callable=false`，只接受 provider 与 dataset refs 一致的 synthetic/user_input。基金穿透支持单一快照
+percent/decimal、多层与重复路径，对全部给定基金子图 cycle fail-closed；组合计算拒绝隐式杠杆，
+基准偏离显式绑定报告期、因子日期和行业映射版本；三个行业计算器只接受预聚合行业数据，景气贡献
+全局最多投影 128 条，拥挤度强制统一交易日序列及每日行业额总约束。七项仍使用严格日期、有限
 数值/受检算术、安全相对 JSON loader、完整 64 KiB envelope 和无尾随换行 stdout，不增加网络、GPU、
 VBA、CJPY、绝对路径或新的执行权限。
 

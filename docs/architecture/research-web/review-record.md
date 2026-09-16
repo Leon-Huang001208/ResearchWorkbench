@@ -695,11 +695,15 @@
   API、Workflow、执行器、进程、端口或持久目录。
 - 七项复用 `cpu_bounded_v1`、严格 schema/运行时字段等价、`YYYY-MM-DD` 前视边界、有限数值与受检
   算术、安全相对 JSON loader、完整 64 KiB UTF-8 envelope 和无尾随换行 stdout。
-- 基金穿透覆盖 percent/decimal、多层持仓和重复路径，对全部给定基金子图做 cycle fail-closed；三个
-  行业计算器只消费预聚合行业指标，不引入个股聚合、数据抓取或隐式 Provider 路由。
+- 七包提交可哈希 synthetic source artifact 并由 fixture/golden/provenance 绑定真实摘要；未核验的
+  DataHub 映射标记 `callable=false`，contract provider 必须与全部 dataset refs 一致。
+- 基金穿透覆盖 percent/decimal、多层持仓和重复路径，对全部给定基金子图做 cycle fail-closed，并
+  只在单一快照内聚合；组合拒绝隐式杠杆，基准偏离显式绑定报告期、因子日和行业映射版本；三个
+  行业计算器只消费预聚合行业指标，景气贡献全局最多投影 128 条，拥挤度要求统一交易日与市场总额约束。
 - 七项在 clean catalog 中可发现但全部 disabled，只有绑定当前不可变版本且可重算的 macOS
-  Wind/Excel comparison evidence artifact 才能启用或回滚到 enabled。当前 synthetic fixture/golden
-  只验证计算和门控机制，不代表真实 Wind/Excel 对照。
+  Wind/Excel comparison evidence artifact v2 且由宿主登记器 HMAC 认证后才能启用或回滚到 enabled。
+  证据绑定 synthetic/actual 输入与固定宿主执行器；sandbox 不继承密钥，普通 JSON 不能自证。当前
+  synthetic fixture/golden 只验证计算和门控机制，不代表真实 Wind/Excel 对照。
 
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"七个Stage3内置Skill复用既有目录、不可变版本、disabled状态和comparison receipt门控，不新增API、能力类型或执行器。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"七个Stage3计算器继续位于既有research_run_script沙箱，严格输入、受检算术、安全相对JSON和64KiB输出只收紧内部计算边界。","diagrams":[]} -->
