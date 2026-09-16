@@ -57,6 +57,116 @@
 - 全局 `rwb` 启动器先进入解析出的部署根，并在 Codex Desktop 可用时固定 bundled Node；其他环境可用 `RESEARCH_NODE_BINARY` 显式选择，避免同名包遮蔽和 DSH 原生模块 ABI 漂移。
 - 框架路由切换时会先核对快照 slug；旧框架快照不能进入新框架 renderer，异步读取期间显示目标框架加载态。
 - Dollar 的 SOFR−IORB F2 图固定取实时序列最近 30 期，保留当前值并避免 60 期采集窗口触发图表上限降级。
+### 五个 CPU 有界择时/技术结构研究 Skill · 2026-09-16
+
+- 能力中心新增利率均线择时、股权风险溢价择时、风格轮动、平台突破和缠论确认分型/笔五个独立
+  Skill，总数更新为 30；复用 `cpu_bounded_v1`、安全相对 JSON、严格 schema/运行时等价、64 KiB
+  完整输出、不可变版本和宿主 HMAC comparison receipt，五项均可发现但默认 disabled。
+- 利率均线使用前一持久信号生成滞后研究敞口；风险溢价使用 earnings yield 减债券收益率与滚动经验
+  分位；风格轮动显式二选一；平台突破排除当前 bar 并限制 50×1,000 显式观察列表；缠论仅实现严格
+  确认分型和非递归交替笔，歧义结构失败关闭。所有结果均含样本、条件、反例、失效条件和截止日，
+  并标记为研究用途而非交易/下单指令。
+- 利率、风险溢价和风格输入/输出新增必填、provider-aware 的 `series_identity`。descriptor 固定
+  role/version/tenor 并校验 identity 格式；synthetic 精确绑定 fixture，`user_input` 可携带真实业务
+  identity 并原样回传，角色交换、期限/版本错配与风格重复 identity 均失败关闭。Wind/DataHub 仅接受
+  field mapping 的精确生产身份白名单，当前无已核验身份。风格均线乖离方法增加独立 golden；缠论
+  双重枢轴与过近反转均有明确失败关闭测试。五包静态扫描覆盖全部指令、schema、fixture、映射、
+  provenance 和脚本；10 份 schema 恢复官方 Draft 2020-12 元数据 URI，代码与配置仍禁止可执行网络、
+  GPU 和 Excel 栈。
+- 三份参考工作簿只读核验完整 SHA-256，未执行公式或宏；平台突破与缠论候选来源未匹配时明确记录
+  `source unavailable` 和候选前缀，不猜测完整摘要。DataHub 联合字段映射尚未核验，保持
+  `callable=false`。当前无可核验的已发布 Stage 4 前身，故不建立猜测性迁移白名单；receipt 不跨版本复用。
+- 质量复审要求 comparison evidence 的 synthetic/actual input 路径与内容摘要都独立；复制 synthetic
+  到不同路径并重新签名仍失败关闭，Stage 2/3/4 合法 receipt fixture 改用内容真实不同但业务可比的
+  actual input。缠论结果新增顶层必填 `asset_id`，由唯一记录身份原样派生；全量改名会改变结果身份，
+  混合标的继续返回 `data_not_equivalent`。
+
+### 七个 CPU 有界基金/组合/行业 Skill · 2026-09-15
+
+- 能力中心新增基金匹配、基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控和行业
+  拥挤度监控七个独立内置 Skill，总数更新为 25；它们复用 `cpu_bounded_v1`、安全相对 JSON、严格
+  schema/运行时契约、受检算术、64 KiB 完整输出和 comparison receipt verifier。七项均可发现但
+  默认 disabled。receipt verifier 升级为宿主登记器 HMAC 认证的 artifact v2，绑定提交 synthetic
+  input、独立 Wind/Excel actual input、固定执行器、golden/actual 与当前脚本；普通 JSON 和 sandbox
+  内计算器不能自证。七包用真实 source artifact SHA-256 替换占位哈希，未核验 DataHub 映射为
+  `callable=false`，并补齐单一快照、非杠杆权重、显式因子口径、行业统一日历/总额和全局 128 条嵌套
+  投影边界。真实宿主签名 Wind/Excel evidence 缺失时仍不可启用或回滚到 enabled。
+- 复审后进一步要求组合基准偏离的每条记录显式携带并匹配顶层报告期与行业映射版本；行业拥挤度
+  每行业至少形成两个同口径滚动观测，输出 schema 同步限定 `percentile_observations >= 2`。
+- 质量复审补齐三项失败关闭：启动审计所有已启用的 receipt-gated 能力，非 v2、证据/HMAC 不可复核
+  或缺少登记密钥时撤下原生投影并持久禁用，selection 同样复核；基金穿透改为全图拓扑环检加按深度
+  DP，129 边/43 owner/15 层汇合 DAG 不再指数展开；组合基准偏离以 canonical `asset_id` 强制组合与
+  基准的行业、因子、因子日、报告期和行业映射版本一致。
+- Stage 3 安全迁移白名单补入基金穿透与组合基准偏离的已发布直接父脚本精确摘要，同时保留初始摘要；
+  已启用父版本即使持有合法 v2 receipt，重启也先撤下旧投影、发布 disabled 新版本，且不复用旧 receipt。
+
+### 六个 CPU 有界资讯/事件 Skill · 2026-09-14
+
+- 能力中心新增每日市场简报、政策哨兵、事件复盘、ETF 资金流、业绩报告监控和业绩预告监控六个
+  独立内置 Skill，总数更新为 18；沿用既有原生发现、选择、不可变版本和会话资源快照，不新增
+  Workflow、页面、顶层 API 或执行器。
+- 每个 Skill 独立保存指令、受审 `calculate.py`、输入/输出 schema、DataHub/Wind 字段映射、来源
+  provenance 与 synthetic golden；种子构建把 `cpu_bounded_v1` 预算、结果、provenance 协议和共享
+  预算模块复制到版本资源，并按现有机制生成/核验 reviewed script 哈希。
+- 计算器只接受相对路径 JSON，累计最多 50,000 行/64 MiB，无网络、Excel、CJPY、GPU、子进程或
+  线程池路径。空数据、缺证据/分类/必填字段、类型错误与预算超限稳定失败；事件回归样本不足时
+  beta/alpha 明确不可用，ETF 和业绩暴露均不推断，所有结果标记 `research_only=true`。
+- 输入 schema 和运行时现在同时严格校验 provider、mapping/version、单位、日期语义、复权口径及
+  所有嵌套对象；不等价输入返回 `data_not_equivalent`，任何记录或 dataset ref 晚于结果 `as_of`
+  返回 `future_data`。CLI 保留超限的安全 limit/actual/reduce-scope 元数据，六类近上限 fixture 通过
+  独立进程时间与 peak RSS 门禁。
+- 六个 Skill 在真实 Wind/Excel 对照未执行时初始为 disabled：能力中心仍可发现和检查，但不能选择
+  执行；只有登记成功的 macOS Wind 对照 receipt 后方可显式启用。
+- 收紧运行时契约：日期仅接受 `YYYY-MM-DD`，每日简报的所有集合与非负整数市场宽度均为必填，
+  每日简报/ETF 币种固定 CNY；六脚本统一验证来源 SHA-256，缺失时明确降级。disabled 六项不会进入
+  原生 provider candidates，压力测试改由 psutil 跨平台采样子进程 RSS，不依赖系统 `ps` 路径。
+- 来源哈希契约进一步区分字段缺失与显式 null：仅缺失允许降级；null、空白或首尾带空白的 key
+  稳定返回 `invalid_source_hashes`，不会通过 trim 静默改名或合并碰撞来源。
+- 统一 schema 与运行时的来源 key 允许集合，内部含 CR、LF、U+2028 或 U+2029 的 key 同样稳定拒绝。
+- 增加六项专用启用证据门：catalog 持久保存并校验绑定 slug、不可变版本、计算脚本哈希、UTC 时间、
+  macOS Wind/Excel 通过结果和证据摘要的 receipt；启用及回滚到 enabled 都强制检查。已知初版脚本
+  升级到当前不可变版本时自动保持 disabled，不继承旧启用状态，且没有伪造 receipt 或实际启用。
+- 六 CLI 统一使用防越界/no-follow/身份复核的相对 JSON loader，拒绝文件和目录链接；共享受检数值
+  原语把输入转换或派生溢出稳定映射为 `invalid_number`，输出以 `allow_nan=false` 作最后防线。
+  业绩预告逐条报告期必须等于参数报告期，每日简报 provenance 复用同一份规范化 dataset refs。
+- 近上限数据现在通过真实研究 sandbox 的 64 KiB 输出门：计算处理全部输入，最多内联 128 条，
+  其余以 `row_delivery=summary_with_dataset_refs` 明示省略计数和数据集引用，不静默丢失结果语义。
+- Stage 2 启用凭证只由严格 evidence artifact 路径验证后派生，绑定输入来源、仓库 golden、实际结果
+  和当前脚本摘要；迁移异常先撤下旧投影并保持失败关闭，状态切换重验 artifact 未变。
+- Stage 2 相对 JSON 在 POSIX 逐组件 openat/no-follow、Windows 校验最终句柄；dataset refs/source
+  hashes 各限 32 项，完整 UTF-8 JSON envelope 超过 64 KiB 时返回小型 workload 错误而不依赖截断。
+- comparison evidence 分别校验当前版本 golden 与 comparison run actual 的独立摘要，再按数值
+  `rtol=1e-6`/`atol=1e-8`、日期/分类/信号等非数值严格一致做业务 JSON 比较；六 CLI 成功 stdout
+  不附换行，完整 65,536 字节可通过 sandbox 上界。
+- 六包输出 schema 的 parameters、dataset refs 与 provenance 对齐 Stage 3/4 严格公共契约：必填、
+  类型、provider、日期、SHA-256、最多 32 项和额外字段全部失败关闭。事件复盘的 beta/alpha 先按
+  共同交易日对齐两条价格序列，再从相邻共同日同时计算收益，任一侧独有交易日不再造成跨度错配。
+- Excel 模板和外部 Skill 仅作只读来源证据，未执行或提交；本轮未调用真实 Wind、网络或 Excel。
+
+### CPU 有界投研公共底座 · 2026-09-14
+
+- `research_run_script` 新增宿主级 FIFO 单执行队列、60 秒排队上限、稳定 `runtime_busy` 和排队取消移除；
+  数值库线程统一限制为 4，保留 15 秒默认执行和 60 秒 hard cap。
+- 研究工具启动只接受 Python 3.12 且实际具备 numpy、pandas、matplotlib、openpyxl；失败保持
+  `runtime_not_ready`，不回退系统 Python。新增 `cpu_bounded_v1` 公共预算、结果与 provenance 资源，
+  无 GPU 依赖，不注册独立 Skill。
+- DataHub 新增受限 Wind provider/binding，只映射现有 WindAdapter 的封闭行情、快照、指数、财务和
+  市场活动方法；任意公式/表达式/路径/凭据被拒绝，未登录、方法不可用、口径不等价和 5,000 行超限
+  均稳定失败关闭。审查后收紧为 capability/dataset 固定字段、类型、单位和日期 schema，拒绝 adapter
+  未知列以及证券身份/请求日期不一致响应；指数仅声明可执行 `quotes`，指数点位单位为 points，融券
+  余量单位为 share。龙虎榜接口不再伪装为大宗交易，连同无等价方法的宏观/利率与基金持仓均不标记
+  Wind callable。Wind DataHub 市场范围收紧为 `.SH`/`.SZ`/`.BJ` A 股，只有 xlwings/Excel 路径可
+  就绪；只有 WindPy 或配置 `client_api` 不会令 Runtime 暴露 Wind 工具。
+  Wind `market_bars` 与 `market_snapshot` 只声明股票子集，要求显式 `asset_type=stock`，指数仍通过 points 口径的
+  `index_data` 查询；不依据代码外形猜测股票、指数或 ETF。日线行情、资金流和融资融券在任何
+  adapter 调用前验证日期类型与顺序，并以 60 个日历日为硬跨度上限，反向或超长区间失败关闭；
+  请求终点未覆盖时只返回 partial，不把 WSD 的 1,000 行截断误报完整。自动查询使用单 worker、
+  18 秒 deadline 及每次独立的隐藏 Excel 应用/工作簿，最终不保存并关闭；超时或取消不会允许新调用
+  与旧 Excel 重叠。workbook/app 清理未确认时返回 `wind_cleanup_failed`，保留所有权并 poison Provider
+  至进程重启。固定 schema 验证最低有效字段及用户请求字段，关键值全空失败、部分缺失标为 partial。
+  `research_run_script` 仅在 child `close` 后释放 FIFO 槽；强杀仍未关闭时进入 poisoned busy 状态，
+  `error` 事件也不能替代 `close` 或清除 poison，直到实际 close 或 Runtime 重启。
+  未调用真实 Wind 或网络；沙箱仍为 macOS only，Windows 仅保留 provider-free 契约测试。
 
 ### Research Web 本地依赖与测试基线 · 2026-09-13
 

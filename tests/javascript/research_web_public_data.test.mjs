@@ -103,6 +103,30 @@ test('automatic business query uses the stable DataHub contract without reading 
   } finally {globalThis.fetch=original;}
 });
 
+test('market bars forwards explicit asset type context to DataHub',async()=>{
+  const f=await fixture();const requests=[];const original=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>{requests.push({url,options});return reply({...dataset,provider:'wind',capability:'market_bars'});};
+  try {
+    const tool=f.tools.get('datahub_get_market_bars');
+    await tool.execute({asset:'600519.SH',asset_type:'stock',start_date:'2026-09-01',end_date:'2026-09-11'},f.exec);
+    assert.equal(requests.length,1);
+    const body=JSON.parse(requests[0].options.body);
+    assert.equal(body.query.parameters.asset_type,'stock');
+  } finally {globalThis.fetch=original;}
+});
+
+test('market snapshot forwards explicit asset type context to DataHub',async()=>{
+  const f=await fixture();const requests=[];const original=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>{requests.push({url,options});return reply({...dataset,provider:'wind',capability:'market_snapshot'});};
+  try {
+    const tool=f.tools.get('datahub_get_market_snapshot');
+    await tool.execute({assets:['600519.SH'],asset_type:'stock',fields:['close']},f.exec);
+    assert.equal(requests.length,1);
+    const body=JSON.parse(requests[0].options.body);
+    assert.equal(body.query.parameters.asset_type,'stock');
+  } finally {globalThis.fetch=original;}
+});
+
 test('business query ignores inherited schema and common properties',async()=>{
   const f=await fixture();const requests=[];const original=globalThis.fetch;let inheritedReads=0;
   const inherited={

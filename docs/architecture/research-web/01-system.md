@@ -43,13 +43,51 @@
 
 数据目录和能力中心 UI 已接入当前源码；上表指源码职责，不表示登记的 22 个来源都已适配、配置或完成真实连接验收。当前东方财富基金与财联社可直接调用；MySQL 与天软仅在本机配置、依赖和权限满足条件时进入各自能力路由。
 
-十二个内置 Skill 和四个 Workflow 继续进入同一原生发现目录。五个专用研究 Skill 的共享证据协议在种子构建时复制为版本资源，不是独立可调用能力；新增的 `framework-research` 只服务用户显式触发的框架深度验证，并受只读 Runtime 预设约束。研报校验、SVG 重绘和 PDF 读取均受现有 `research_run_script` 沙箱限制。新增静态进程入口检查只拒绝不兼容包，不授予脚本新的进程、网络、文件或依赖安装权限。
+三十个内置 Skill 和四个 Workflow 继续进入同一能力目录。五个专用研究 Skill 的共享证据协议在种子构建时复制为版本资源，不是独立可调用能力；`framework-research` 只服务用户显式触发的框架深度验证，并受只读 Runtime 预设约束。六个 CPU 有界资讯/事件 Skill 通过相同版本机制封存计算脚本、严格输入输出 schema、运行时 provider/mapping/version/单位/日期/复权契约、来源哈希、synthetic golden 及 `cpu_bounded_v1` 共享资源。共享契约只接受 `YYYY-MM-DD`，验证来源哈希的规范非空 key 与 SHA-256 value，并固定 daily/ETF 的 CNY 口径；显式 null、首尾空白或含 CR/LF/Unicode 行段分隔符的 key 被拒绝，字段缺失时结果明确降级。它们在真实 Wind/Excel 对照未执行时可在能力中心发现但保持 disabled，不进入原生 provider candidates；catalog 只从严格 macOS Wind/Excel evidence artifact 路径派生 receipt，分别重算当前版本 golden 与 comparison run actual 摘要，再以数值容差和非数值严格一致做业务 JSON 比较，并在启用或回滚时复核文件未变。已知初版升级先撤下投影并禁用，异常失败关闭。六 CLI 在 POSIX 从 cwd fd 逐组件 openat/no-follow，Windows 校验最终句柄；dataset refs/source hashes 各限 32 项，完整 JSON envelope 按 UTF-8 不超过 64 KiB，成功 stdout 不附换行且恰好 65,536 字节仍允许，`row_delivery` 不复制顶层 refs。Stage 3 另增加七个基金/组合/行业 CPU Skill；它们复用同一严格 schema/运行时契约、安全 loader、受检算术、预算、envelope 和 comparison receipt verifier，全部可发现但默认 disabled，真实对照缺失时不能进入原生投影。基金穿透对完整输入子图 cycle fail-closed，行业计算器只吃预聚合数据。Stage 4 再增加利率均线、股权风险溢价、风格轮动、平台突破和缠论确认分型与笔五项 CPU 研究 Skill；同样复用严格 loader、预算、不可变版本和 receipt 门禁，并在真实对照证据缺失时保持 disabled。前三项以必填 provider-aware series identity 在输入和输出中绑定 descriptor role、identity、version 和 tenor：synthetic 精确绑定 fixture，`user_input` 可携带并原样回传符合格式的真实业务 identity；角色、期限、版本或风格双序列唯一性错配均失败关闭。Wind/DataHub 未命中 field mapping 精确生产身份白名单时同样失败关闭。平台突破只处理显式有限观察列表，缠论只实现非递归严格分型与交替笔的受限子集，歧义结构失败关闭。研报校验、SVG 重绘、PDF 读取及 CPU JSON 计算均受现有 `research_run_script` 沙箱限制。静态进程入口检查只拒绝不兼容包，不授予脚本新的进程、网络、文件或依赖安装权限。
+
+comparison receipt 当前采用 artifact v2：宿主登记器以 HMAC-SHA256 绑定当前脚本、提交 synthetic
+input、独立 Wind/Excel actual input、固定宿主执行器和两侧结果；`research_run_script` sandbox 的显式
+最小环境不继承登记密钥，普通 JSON 与被审计算器不能自证。Stage 3 七包提交实际 synthetic source
+artifact，未核验 DataHub 映射标为 `callable=false` 并强制 contract/ref provider 一致；基金/组合只接
+受单一快照和非杠杆权重，基准偏离逐条匹配顶层报告期/因子日/行业版，行业计算增加全局 128 条嵌套投影、
+统一日历/成交总额约束和拥挤度至少两个滚动观测。真实宿主签名对照仍缺失，所以七项继续 disabled。
+catalog 初始化时会重新审计全部已启用的 receipt-gated 能力；非 v2、HMAC/绑定证据不可复核或登记器
+密钥缺失时，立即撤下原生投影并持久化 disabled。能力选择前再次执行同一门禁，避免重启后的陈旧
+enabled 状态绕过证据校验；该收紧不新增服务、接口、执行器或持久节点。
+
+comparison evidence 的 synthetic/actual input 必须同时满足相对路径不同和读取后 SHA-256 不同；仅复制
+synthetic 内容到另一文件再由登记器签名仍按 `invalid_comparison_evidence` 失败关闭。缠论计算器继续
+要求所有记录属于同一 `asset_id`，并在结果顶层必填回传该唯一身份；改变整组记录身份会改变结果身份，
+混合身份仍返回 `data_not_equivalent`。两项均只收紧既有目录与计算器契约。
+
+Stage 2 六包输出 schema 的 parameters、dataset refs 与 provenance 现与 Stage 3/4 采用相同失败关闭
+公共契约；event-review 回归在同一计算节点先对齐共同交易日，再计算相邻共同日的配对收益。该修正
+不新增 API、状态、执行器或数据源，也不改变能力默认 disabled 与 receipt 门禁。
 
 Research Runtime 固定注册 15 个品牌无关 `datahub_*` 工具。DataHub Broker 在每次调用时读取最新的
 配置、授权、探测与 Provider 状态，因此来源可用性变化无需重启 Runtime；没有可调用来源时明确失败，
 显式指定来源且禁止回退时不会静默换源。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，
 低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为
 `provider_busy`。
+
+Wind 只以五项具备封闭适配路径的 capability binding 参与 callable 计算；市场活动内部只开放
+资金流、融资融券和股东数据，现有龙虎榜方法不作为大宗交易暴露。指数限定实时 `quotes`，没有等价
+方法的宏观/利率与基金持仓不登记为 Wind binding。Provider 返回值必须先经过 capability/dataset
+固定 schema，并逐行匹配证券身份和请求日期，未知列或越界响应不会进入会话数据集。该 DataHub
+Provider 仅实例化 xlwings/Excel `WindAdapter`，故只有 WindPy 或选择 `client_api` 不计为 callable；
+所有 Wind binding 的市场范围固定为 `.SH`、`.SZ`、`.BJ` A 股。`market_bars` 与 `market_snapshot`
+binding 只声明股票，请求必须显式携带 `asset_type=stock`；指数和 ETF 不由六位代码推断，指数仅走 points 口径的
+`index_data`。日线行情、资金流和融资融券在构造或探测 adapter 前完成起止日期类型、正序和最多
+60 个日历日跨度检查，避免先执行潜在大查询再依赖返回行数门禁；返回终点不足只标记 partial。
+
+启用研究脚本时，Host 使用当前受管启动解释器执行 readiness 探测：必须是 Python 3.12 且能导入
+numpy、pandas、matplotlib、openpyxl；失败投影为稳定的 `runtime_not_ready`，不搜索或回退系统
+Python；非对象 JSON 等无效探针响应同样失败关闭。`research_run_script` 在可信 Host Runtime 中共享一条 FIFO 队列，全局只运行一个脚本，
+排队最多 60 秒；取消项在获准执行前移除，超时返回 `runtime_busy`。脚本仍受默认 15 秒和 60 秒
+hard cap。FIFO 槽只在子进程发出 `close` 后释放；SIGKILL 后仍无法确认关闭时 Host 进入 poisoned
+busy 状态，拒绝启动后续脚本。通用 child `error` 只说明执行异常，不证明进程已关闭，因此不能释放
+槽或清 poison；恢复只依赖实际 close 或 Runtime 重启。
+队列不会把权限或宿主状态授予子进程。
 
 Tabbit 由 Profile 私有依赖链按 `base → web-app → dsh-tabbit → research-tabbit-adapter` 顺序加载。供应归档、许可证和文件清单在复制前逐项校验，运行时禁用 `tabbit_browser_install`，不执行下载或自动升级。浏览器自动化默认开启，Tabbit `web_fetch` 接管默认关闭；配置写入 Research Web 数据目录并在下次安全重启生效。页面正文只停留在 DSH 内存的一次性 token 中，不进入产品索引或日志。
 
@@ -79,6 +117,10 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。`rwb web start` 默认从 `~/.research-workbench/dsh-source/` 启动经过固定提交构建的项目私有 DSH，只管理 3081/8088；`RESEARCH_DSH_SOURCE` 仅用于显式覆盖。状态文件保存 PID、命令指纹、项目路径和数据根；运行监控和停止命令都要求状态内容与实际 PID 命令签名一致，绝不把任意存活 PID 当成受管进程，也绝不操作用户原有 3080。服务仅回环；无多人权限体系，不应直接暴露公网。
 
 只验证当前 macOS 脚本隔离；不把 Web 本地成功当作 Linux/Windows/桌面支持证据。DSH 固定源码提交为 `c919b2a460753859665db3f60143d525fb9140cf`，基于官方最新版并包含会话原生永久删除协议与持久层实现。
+
+研究脚本是本机 CPU-only 能力，无 GPU 依赖；数值库子进程线程上限固定为 4。当前沙箱仍只在
+macOS 支持，Windows 只执行不加载 Wind 的 Provider 契约测试，不能作为 Windows 沙箱或真实
+Wind 会话的支持证据。
 
 Phase 2A/2B/2C 的 Registry、Runtime 与 Automation 在远端门禁通过后默认初始化；三个保留环境开关仍可显式设为 `0` 独立关闭。数据根、系统凭据库、单 worker 和专属 DSH 边界不变。
 

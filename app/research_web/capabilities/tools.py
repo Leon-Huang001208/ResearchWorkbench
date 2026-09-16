@@ -86,6 +86,7 @@ DATA_PROPERTIES = {
     "market_bars": (
         {
             "asset": "string",
+            "asset_type": "string",
             "start_date": "string",
             "end_date": "string",
             "frequency": "string",
@@ -93,7 +94,10 @@ DATA_PROPERTIES = {
         },
         ["asset", "start_date", "end_date"],
     ),
-    "market_snapshot": ({"assets": "array", "fields": "array"}, ["assets"]),
+    "market_snapshot": (
+        {"assets": "array", "asset_type": "string", "fields": "array"},
+        ["assets"],
+    ),
     "index_data": (
         {"index": "string", "dataset": "string", "date": "string"},
         ["index", "dataset"],
@@ -274,6 +278,8 @@ def tool_catalog(data_root: Path | None = None):
                 "distributions",
                 "holdings",
             ]
+        elif capability_id in {"market_bars", "market_snapshot"}:
+            properties["asset_type"]["enum"] = ["stock", "index", "etf"]
         selectable = capability["callable_source_count"] > 0
         items.append(
             {
