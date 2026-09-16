@@ -29,7 +29,8 @@ Skill 目录，也不获得 DataHub、脚本或宿主权限。
 artifact v2，分别绑定提交的 synthetic input、独立 actual input、固定宿主执行器身份/摘要、输入来源、
 当前不可变版本 golden、comparison run 实际结果、artifact 和当前 `calculate.py` 摘要；两个结果摘要
 独立，解码后数值按 `rtol=1e-6`/`atol=1e-8` 比较，日期、分类、信号及其余非数值严格一致，再生成
-receipt 并在状态切换重新验证。
+receipt 并在状态切换和 selection 重新验证。Host 启动还审计全部已启用的 receipt-gated 投影；非 v2、
+HMAC/证据不可复核或登记器密钥缺失时撤下投影并持久化 disabled，不以已知旧摘要为审计边界。
 已知初版升级先撤下投影并禁用，发布/保存/校验异常失败关闭。该门不改变公共 API。
 计算器仍在既有 sandbox；POSIX 逐组件 openat/no-follow、Windows final-handle 校验和完整 64 KiB
 UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字节仍允许；超限返回小型完整错误，
@@ -40,8 +41,9 @@ UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字�
 artifact 且通过宿主签名验证才能启用或回滚到 enabled；普通 JSON 和 sandbox 内计算器无法自签。
 七包的 synthetic source artifact 由 fixture/golden/provenance 实际 SHA-256 绑定，DataHub 工具因字段
 口径未核验标为 `callable=false`。基金穿透覆盖单一快照、percent/decimal、多层、重复路径并对全部
-给定基金子图 cycle fail-closed；组合拒绝隐式杠杆，基准偏离要求每条记录的报告期/行业映射版本与
-顶层参数严格一致且因子日等于持仓快照；三个行业 Skill 只消费预聚合数据，景气贡献全局最多投影
+给定基金子图 cycle fail-closed，以按深度 DP 聚合汇合 DAG 的权重与路径数；组合拒绝隐式杠杆，
+基准偏离要求每条记录的报告期、因子日和行业映射版本与顶层参数严格一致，同一 canonical `asset_id`
+跨组合/基准的行业和因子事实也必须一致；三个行业 Skill 只消费预聚合数据，景气贡献全局最多投影
 128 条，拥挤度统一日历、行业额总和不超市场额且每行业至少形成两个滚动观测。严格 schema/运行时字段等价、日期、
 有限数值与受检算术、安全相对 JSON loader、`cpu_bounded_v1` 工作量预算及完整 64 KiB 无换行输出
 均沿用现有边界，不新增 API、能力类型、执行器或宿主权限。

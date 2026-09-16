@@ -148,4 +148,6 @@ receipt 对 packaged golden 与 comparison run actual 分别验摘要并做业�
 门禁，全部可发现但默认 disabled；未核验 DataHub 映射为 `callable=false`，单一快照/非杠杆权重、
 基准偏离逐条报告期/行业映射等价、景气嵌套投影与拥挤度统一日历总额及至少两个滚动观测约束均只
 处理调用方已提供 JSON。基金穿透的层级/cycle 校验和只吃预聚合数据的行业计算不会请求
-Tabbit 页面、正文 token 或浏览器证据，也不会扩大 claim、写审批、网络、文件或执行权限。
+Tabbit 页面、正文 token 或浏览器证据，也不会扩大 claim、写审批、网络、文件或执行权限。catalog
+启动时对 enabled receipt 的重新审计及选择前复核也只会撤下不再可信的能力投影，不读取或改变
+Tabbit 的授权、claim、标签、正文 token 与浏览器 Runtime 状态。

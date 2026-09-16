@@ -698,14 +698,18 @@
 - 七包提交可哈希 synthetic source artifact 并由 fixture/golden/provenance 绑定真实摘要；未核验的
   DataHub 映射标记 `callable=false`，contract provider 必须与全部 dataset refs 一致。
 - 基金穿透覆盖 percent/decimal、多层持仓和重复路径，对全部给定基金子图做 cycle fail-closed，并
-  只在单一快照内聚合；组合拒绝隐式杠杆，基准偏离逐条匹配顶层报告期和行业映射版本并绑定因子日；
+  以拓扑检环及逐层动态聚合在单一快照内保留重复路径语义；组合拒绝隐式杠杆，基准偏离逐条匹配
+  顶层报告期、因子日和行业映射版本，并要求跨组合/基准的 canonical 资产因子事实一致；
   三个行业计算器只消费预聚合行业指标，景气贡献全局最多投影 128 条，拥挤度要求统一交易日、市场
   总额约束以及每行业至少两个同口径滚动观测。
 - 七项在 clean catalog 中可发现但全部 disabled，只有绑定当前不可变版本且可重算的 macOS
   Wind/Excel comparison evidence artifact v2 且由宿主登记器 HMAC 认证后才能启用或回滚到 enabled。
   证据绑定 synthetic/actual 输入与固定宿主执行器；sandbox 不继承密钥，普通 JSON 不能自证。当前
   synthetic fixture/golden 只验证计算和门控机制，不代表真实 Wind/Excel 对照。
+- catalog 初始化时重新审计全部 enabled receipt-gated 能力，并在非 v2、签名/证据不可复核或缺少
+  登记器密钥时撤下原生投影、持久化 disabled；能力选择前再次复核。该失败关闭仍位于既有 catalog
+  状态机和本地索引边界内，不新增 API、Runtime 或存储拓扑。
 
-<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"七个Stage3内置Skill复用既有目录、不可变版本、disabled状态和comparison receipt门控，不新增API、能力类型或执行器。","diagrams":[]} -->
-<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"七个Stage3计算器继续位于既有research_run_script沙箱，严格输入、受检算术、安全相对JSON和64KiB输出只收紧内部计算边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"七个Stage3内置Skill复用既有目录、不可变版本和comparison receipt状态机；启动审计与选择复核只撤下不可信原生投影，不新增API、能力类型或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"七个Stage3计算器继续位于既有research_run_script沙箱；拓扑检环、逐层聚合、严格输入与64KiB输出只收紧内部计算边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage3行业计算器只接受预聚合输入，基金与组合计算器也不新增Provider binding或DataHub数据流。","diagrams":[]} -->

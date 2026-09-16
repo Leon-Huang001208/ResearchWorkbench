@@ -96,13 +96,16 @@ ETF 分类或缺失暴露，也不把事件样本不足时的 beta 默认成 1�
 六项能力在真实 Wind/Excel 对照尚未完成时保持可发现但 disabled，且不
 进入原生 provider candidate 目录；receipt 只能由宿主登记器 HMAC-SHA256 认证的 evidence artifact v2
 生成，绑定提交 synthetic input、独立 Wind/Excel actual input、固定宿主执行器、输入来源、仓库
-golden、实际结果、slug、不可变版本和当前脚本摘要，启用及回滚会重新验证 artifact 未变。登记密钥
-不会传入 `research_run_script` sandbox，普通 JSON 或被审计算器不能自证。
+golden、实际结果、slug、不可变版本和当前脚本摘要，启用、回滚与 selection 会重新验证 artifact 未变。
+启动时审计所有已启用的 receipt-gated 投影；非 v2、HMAC/证据不可复核或缺少登记密钥时撤下投影并
+持久禁用，不只处理已知旧脚本摘要。登记密钥不会传入 `research_run_script` sandbox，普通 JSON 或被审计算器不能自证。
 已知初版升级先撤下原生投影并禁用，发布、保存或校验异常均失败关闭。
 POSIX loader 从 cwd fd 逐组件 openat/no-follow，Windows 校验最终句柄路径和 reparse 属性。全部输入
 仍参与计算，dataset refs/source hashes 各限 32 项，完整 JSON envelope 按 UTF-8 不超过 64 KiB；
 无法表达时返回小型完整 workload 错误，`row_delivery` 不复制顶层 refs。`cpu_bounded_v1` 的预算、输入契约、结果和 provenance
 资源在种子构建时复制进不可变版本并参与哈希。
+Stage 3 的基金穿透对汇合 DAG 使用全图拓扑环检和按深度 DP 聚合；组合基准偏离强制同一 canonical
+`asset_id` 跨组合/基准的行业、因子、因子日、报告期和行业映射版本一致。
 
 历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
 

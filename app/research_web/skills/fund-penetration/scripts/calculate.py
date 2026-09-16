@@ -159,69 +159,83 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         owner_edges.sort(key=lambda edge: (edge[0], edge[1]))
         if holding_types.get(owner) == "security":
             raise CalculatorError("invalid_hierarchy")
-    visited: set[str] = set()
-    visiting: set[str] = set()
-
-    def validate_acyclic(owner: str) -> None:
-        if owner in visiting:
-            raise CalculatorError("cycle_detected")
-        if owner in visited:
-            return
-        visiting.add(owner)
-        for holding, holding_type, _weight_value, _disclosure_date in adjacency.get(owner, []):
+    indegree = {owner: 0 for owner in adjacency}
+    for owner_edges in adjacency.values():
+        for holding, holding_type, _weight_value, _disclosure_date in owner_edges:
             if holding_type == "fund" and holding in adjacency:
-                validate_acyclic(holding)
-        visiting.remove(owner)
-        visited.add(owner)
-
-    for owner in sorted(adjacency):
-        validate_acyclic(owner)
+                indegree[holding] += 1
+    ready = sorted(owner for owner, count in indegree.items() if count == 0)
+    visited_count = 0
+    while ready:
+        owner = ready.pop(0)
+        visited_count += 1
+        for holding, holding_type, _weight_value, _disclosure_date in adjacency[owner]:
+            if holding_type != "fund" or holding not in adjacency:
+                continue
+            indegree[holding] -= 1
+            if indegree[holding] == 0:
+                ready.append(holding)
+                ready.sort()
+    if visited_count != len(adjacency):
+        raise CalculatorError("cycle_detected")
 
     exposures: dict[tuple[str, str], dict[str, Any]] = {}
-    duplicate_leaf_paths = 0
     unresolved = 0
 
-    def visit(
-        owner: str,
-        multiplier: float,
-        depth: int,
-        path: frozenset[str],
-        path_as_of: str | None,
-    ) -> None:
-        nonlocal duplicate_leaf_paths, unresolved
-        if owner in path:
-            raise CalculatorError("cycle_detected")
-        next_path = path | {owner}
-        for holding, holding_type, weight, disclosure_date in adjacency.get(owner, []):
-            contribution = checked_multiply(multiplier, weight, error=CalculatorError)
-            effective_as_of = max(path_as_of or disclosure_date, disclosure_date)
-            expandable = holding_type == "fund" and holding in adjacency
-            if expandable:
-                if holding in next_path:
-                    raise CalculatorError("cycle_detected")
-                if depth >= max_depth:
-                    unresolved += 1
-                else:
-                    visit(holding, contribution, depth + 1, next_path, effective_as_of)
-                    continue
-            key = (holding, holding_type)
-            if key in exposures:
-                duplicate_leaf_paths += 1
-                exposures[key]["effective_weight"] = checked_add(
-                    exposures[key]["effective_weight"], contribution, error=CalculatorError
+    frontier: dict[str, dict[str, Any]] = {
+        root: {"effective_weight": 1.0, "path_count": 1, "as_of": None}
+    }
+    depth = 1
+    while frontier:
+        next_frontier: dict[str, dict[str, Any]] = {}
+        for owner in sorted(frontier):
+            state = frontier[owner]
+            for holding, holding_type, weight, disclosure_date in adjacency.get(owner, []):
+                contribution = checked_multiply(
+                    state["effective_weight"], weight, error=CalculatorError
                 )
-                exposures[key]["path_count"] += 1
-                exposures[key]["as_of"] = max(exposures[key]["as_of"], effective_as_of)
-            else:
-                exposures[key] = {
-                    "asset_id": holding,
-                    "asset_type": holding_type,
-                    "effective_weight": contribution,
-                    "path_count": 1,
-                    "as_of": effective_as_of,
-                }
-
-    visit(root, 1.0, 1, frozenset(), None)
+                effective_as_of = max(state["as_of"] or disclosure_date, disclosure_date)
+                path_count = state["path_count"]
+                expandable = holding_type == "fund" and holding in adjacency
+                if expandable and depth < max_depth:
+                    if holding in next_frontier:
+                        target = next_frontier[holding]
+                        target["effective_weight"] = checked_add(
+                            target["effective_weight"], contribution, error=CalculatorError
+                        )
+                        target["path_count"] += path_count
+                        target["as_of"] = max(target["as_of"], effective_as_of)
+                    else:
+                        next_frontier[holding] = {
+                            "effective_weight": contribution,
+                            "path_count": path_count,
+                            "as_of": effective_as_of,
+                        }
+                    continue
+                if expandable:
+                    unresolved += path_count
+                exposure_key = (holding, holding_type)
+                if exposure_key in exposures:
+                    exposures[exposure_key]["effective_weight"] = checked_add(
+                        exposures[exposure_key]["effective_weight"],
+                        contribution,
+                        error=CalculatorError,
+                    )
+                    exposures[exposure_key]["path_count"] += path_count
+                    exposures[exposure_key]["as_of"] = max(
+                        exposures[exposure_key]["as_of"], effective_as_of
+                    )
+                else:
+                    exposures[exposure_key] = {
+                        "asset_id": holding,
+                        "asset_type": holding_type,
+                        "effective_weight": contribution,
+                        "path_count": path_count,
+                        "as_of": effective_as_of,
+                    }
+        frontier = next_frontier
+        depth += 1
+    duplicate_leaf_paths = sum(row["path_count"] - 1 for row in exposures.values())
     rows = sorted(exposures.values(), key=lambda row: (-row["effective_weight"], row["asset_id"]))
     total_exposure = checked_sum([row["effective_weight"] for row in rows], error=CalculatorError)
     limitations = [

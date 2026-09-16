@@ -145,6 +145,7 @@ class CapabilityCatalog:
             self._migrate_legacy_tool_ids(dict(seed_packages()))
             self._migrate_stage2_builtins(dict(seed_packages()))
             self._migrate_stage3_builtins(dict(seed_packages()))
+            self._audit_enabled_receipt_gates()
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.error("capability_catalog_unreadable", error_type=type(exc).__name__)
             raise CapabilityError(
@@ -329,6 +330,29 @@ class CapabilityCatalog:
             source = self.native_root / native_name
             if source.exists():
                 os.replace(source, self.root / "retired" / uuid4().hex)
+
+    def _audit_enabled_receipt_gates(self):
+        """Fail closed when an enabled gated package cannot be reverified at startup."""
+
+        changed = False
+        for cid in sorted(RECEIPT_GATED_SKILLS):
+            row = self.data["items"].get(cid)
+            if not row or row.get("status") != "enabled" or not row.get("version"):
+                continue
+            try:
+                self._require_comparison_receipt(cid, row["version"])
+            except CapabilityError as exc:
+                self._withdraw_native_projections(row)
+                row.update(status="disabled", updated_at=time.time())
+                changed = True
+                log.warning(
+                    "capability_receipt_gate_failed_closed",
+                    capability_id=cid,
+                    version=row["version"],
+                    receipt_error=exc.code,
+                )
+        if changed:
+            self.save()
 
     def save(self):
         fd, name = tempfile.mkstemp(prefix="catalog-", dir=self.root)
@@ -1315,6 +1339,7 @@ class CapabilityCatalog:
             raise CapabilityError(
                 "只能使用当前启用版本；历史版本需先显式回滚", "version_conflict", 409
             )
+        self._require_comparison_receipt(cid, row["version"])
         record = row["versions"][str(row["version"])]
         checked = self.validate(row["kind"], record)
         if not checked["valid"]:

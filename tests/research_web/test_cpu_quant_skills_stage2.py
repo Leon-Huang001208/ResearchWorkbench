@@ -385,6 +385,54 @@ def test_receipt_gated_skills_require_persistent_bound_macos_comparison(
     assert changed.value.code == "comparison_evidence_changed"
 
 
+def test_selection_and_restart_reject_legacy_receipt_for_current_enabled_projection(
+    tmp_path, monkeypatch
+):
+    slug = "daily-market-brief"
+    catalog = CapabilityCatalog(tmp_path)
+    artifact, _actual = _write_comparison_evidence(tmp_path, catalog, slug, monkeypatch)
+    catalog.record_comparison_receipt(artifact)
+    catalog.transition(slug, "enable")
+    row = catalog.row(slug)
+    native = catalog.native_root / row["versions"][str(row["version"])]["native_name"]
+    catalog.data["comparison_receipts"][f"{slug}:{row['version']}"] = {
+        "schema_version": 1,
+        "skill_slug": slug,
+        "version": row["version"],
+    }
+    catalog.save()
+
+    with pytest.raises(CapabilityError) as selection_error:
+        catalog.selection(slug)
+    assert selection_error.value.code == "invalid_comparison_receipt"
+
+    restarted = CapabilityCatalog(tmp_path)
+    assert restarted.row(slug)["status"] == "disabled"
+    assert not native.exists()
+    persisted = json.loads(restarted.index.read_text(encoding="utf-8"))
+    assert persisted["items"][slug]["status"] == "disabled"
+
+
+def test_restart_keeps_valid_v2_receipt_only_while_registrar_can_reverify(tmp_path, monkeypatch):
+    slug = "daily-market-brief"
+    catalog = CapabilityCatalog(tmp_path)
+    artifact, _actual = _write_comparison_evidence(tmp_path, catalog, slug, monkeypatch)
+    catalog.record_comparison_receipt(artifact)
+    catalog.transition(slug, "enable")
+
+    verified = CapabilityCatalog(tmp_path)
+    assert verified.row(slug)["status"] == "enabled"
+    assert verified.selection(slug)["id"] == slug
+
+    monkeypatch.delenv("RESEARCH_COMPARISON_REGISTRAR_KEY")
+    failed_closed = CapabilityCatalog(tmp_path)
+    assert failed_closed.row(slug)["status"] == "disabled"
+    native_name = failed_closed.row(slug)["versions"][str(failed_closed.row(slug)["version"])][
+        "native_name"
+    ]
+    assert not (failed_closed.native_root / native_name).exists()
+
+
 @pytest.mark.parametrize("slug", SLUGS)
 def test_comparison_receipt_rejects_wrong_version_digest_time_or_result(
     slug, tmp_path, monkeypatch

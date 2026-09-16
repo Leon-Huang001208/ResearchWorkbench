@@ -13,11 +13,13 @@ provenance、可哈希 synthetic source artifact、fixture 与 golden result。�
 - 基金匹配只对输入给定的风格、风险和业绩特征计算归一化加权 L1 距离；不抓取基金数据，也不生成
   买卖建议。
 - 基金穿透统一接受 percent/decimal 权重，支持多层基金持仓和重复路径聚合；对全部给定基金子图做
-  环检测（包括根基金不可达的子图），发现 cycle 即失败关闭。所有边必须来自同一完整快照，混合
+  拓扑环检测（包括根基金不可达的子图），发现 cycle 即失败关闭；合法汇合 DAG 按深度动态聚合到达
+  权重、路径数和日期，不按路径指数递归。所有边必须来自同一完整快照，混合
   日期返回 `data_not_equivalent`；每 owner 1,000 行上限在重复边聚合前按原始受理行计数。
 - 组合重合度与组合基准偏离都只接受单一快照，转换后每行权重限定 `(0, 1]` 且每侧合计不超过 1，
-  不把杠杆隐式归一化。基准偏离另要求每条记录显式携带并严格匹配顶层报告期与行业映射版本，因子
-  日期必须等于持仓快照；混合值返回 `data_not_equivalent`。
+  不把杠杆隐式归一化。基准偏离另要求每条记录显式携带并严格匹配顶层报告期、因子日与行业映射
+  版本；同一 canonical `asset_id` 跨组合/基准的行业和因子事实也必须一致。因子日期必须等于持仓快照；
+  混合值返回 `data_not_equivalent`。
 - 三个行业 Skill 只接受调用方预聚合的行业指标：景气度计算方向调整的加权百分比变化，象限监控按
   给定水平和动量阈值分类，拥挤度监控计算行业成交额占全市场成交额的滚动比例及历史经验分位；均
   不读取个股明细或自行聚合原始行情。景气度的嵌套指标贡献在完整计算后全局最多投影 128 条；拥挤
@@ -43,7 +45,8 @@ provenance、可哈希 synthetic source artifact、fixture 与 golden result。�
 文件摘要。catalog 只接受由宿主侧 `RESEARCH_COMPARISON_REGISTRAR_KEY` 产生的 HMAC-SHA256 签名；
 research sandbox 使用显式最小环境，不继承此密钥。缺少登记器、普通 JSON 自报、签名篡改或任一绑定
 制品变化均失败关闭。测试用独立重编码结果模拟登记器协议，不调用被审 `calculate.py` 生成 actual 后
-启用。catalog 以七个初始 Stage 3 脚本的精确 SHA-256 识别已安装旧版本，先撤下旧原生投影并禁用，
+启用。启动时 catalog 逐项复核所有已启用的 receipt-gated 能力，非 v2、HMAC/证据不可复核或缺少
+登记密钥时撤下投影并持久化 disabled；selection 也执行同一防御性门禁。catalog 以七个初始 Stage 3 脚本的精确 SHA-256 识别已安装旧版本，先撤下旧原生投影并禁用，
 再发布当前不可变 successor；receipt 绑定旧版本，不能被新版本复用。真实 Wind/Excel 尚未执行，因此
 七项仍 disabled。
 
@@ -54,8 +57,8 @@ research sandbox 使用显式最小环境，不继承此密钥。缺少登记器
 
 - 组合基准偏离工作簿 SHA-256：
   `415d61e46b2c390de928c0f33011792d94f70efb508e59176d7aa77168c6c504`。
-- 组合基准偏离 synthetic source artifact 增加逐条报告期与行业映射版本后的 SHA-256：
-  `a99cd661c67ac72c0fcee6bfb5779a439439884de22b5e290f41d5fd81f1d1ee`。
+- 组合基准偏离 synthetic source artifact 增加逐条报告期、因子日、行业映射版本及跨 book canonical
+  资产事实后的 SHA-256：`c5ef76a518b567ffa654235fe445e17f1ac6c5b2ec0406d23edd4b8b3baf9b1a`。
 - 行业拥挤度工作簿 SHA-256：
   `24010fb2dd76604442d89b7ea4c3c691e3cdc198c87bd191ed1aaf020a0bb831`。
 - 基金匹配、基金穿透、组合重合度、行业景气度和行业象限监控的原始 Skill/script 在已检查的来源
@@ -82,6 +85,15 @@ Important 复审按 TDD 新增组合基准偏离混合报告期/行业映射版�
 `136 passed in 34.49s`，Stage 2 + Stage 3 清除 `ALL_PROXY`/`all_proxy` 后为
 `290 passed in 105.67s`。
 
+最终阻断复审继续按 TDD 收口三处问题：receipt gate 的 selection 与无登记密钥重启场景先观察到
+`2 failed`；组合基准偏离的七个 canonical 资产字段冲突用例均先返回 `unknown_field` 而非预期的
+`data_not_equivalent`；基金穿透构造 129 边、43 owner、15 层、`3**15` 条逻辑路径的汇合 DAG，旧
+逐路径实现于真实 sandbox 9 秒超时。实现启动/选择双重 receipt 审计、跨 book canonical 资产事实
+门禁，以及拓扑检环加逐层 DP 聚合后，receipt 聚焦为 `2 passed in 6.19s`，schema/golden/canonical/DAG
+聚焦为 `24 passed in 0.79s`，Stage 3 全量为 `144 passed in 30.11s`，Stage 2 + Stage 3 清除代理环境
+后首次为 `300 passed in 104.52s`，提交前最终新鲜复跑为 `300 passed in 298.27s`。新 DAG 用例在
+sandbox 内约 1 秒完成并保持 `<1 GiB peak RSS`。
+
 - 目标 Python 文件通过 `ruff check`、`black --check` 与 `isort --check-only`。
 - `catalog.py`、`seeds.py` 与共享输入契约合并通过 `mypy --follow-imports=skip`；七个
   `calculate.py` 也按独立 Skill 包的真实模块边界逐项通过，避免同名模块 `calculate` 冲突。
@@ -91,14 +103,19 @@ Important 复审按 TDD 新增组合基准偏离混合报告期/行业映射版�
 - capability、admission、native、review、safety、CPU budget 与 sandbox 联合回归首次受宿主
   `ALL_PROXY=socks5://127.0.0.1:29757` 污染：venv 未安装可选 `socksio`，得到 `1 failed, 68 passed,
   3 skipped, 111 errors`；这不是产品依赖缺失，未安装新包。清除 `all_proxy`/`ALL_PROXY` 后原命令
-  复验为 `180 passed, 3 skipped, 1 warning in 352.30s`；warning 为 Starlette/anyio 第三方弃用提示。
+  最终复验为 `180 passed, 3 skipped, 1 warning in 525.58s`；warning 为 Starlette/anyio 第三方弃用提示。
 - 七包 49 份 JSON（含七个 source artifact）解析通过。普通索引生成命令因工作树 16 个未改动
   `__init__.py` 是 macOS dataless placeholder 而阻塞；使用只读 `git show :path` 为这些文件供给索引
   生成器后，`docs/generated/py_file_index.md` 成功重建。架构、doc-sync、显式传入全部变更文件的
   project constraints、task completion 与 `git diff --check` 均通过。
-- Important 复审的两个 calculator 与 Stage 3 测试再次通过 Ruff、Black、isort；两个 calculator 分别
-  通过独立 mypy，49 份 JSON 解析通过。Python 索引生成器再次成功运行且内容无新增 diff；显式变更集
-  的架构、project constraints、doc sync 与 task completion 均通过。
+- 最终五个变更 Python 文件通过 Ruff、Black、isort；`catalog.py` 与两个 calculator 分别按真实模块
+  边界通过 mypy。首轮最终 mypy 暴露基金穿透函数复用局部变量名导致二元 exposure key 被推断为
+  三元 edge key 的 5 个类型错误；最小重命名后同一 mypy 通过，基金穿透聚焦回归为
+  `6 passed, 138 deselected in 1.13s`。
+- Python 索引生成器最终直接成功运行，并把新增 `_audit_enabled_receipt_gates` 方法写入受管索引；该
+  生成差异随本次提交交付。补齐 runtime/capabilities 所要求的系统、Tabbit 边界与 review record 后，
+  显式最终变更集的 architecture、project constraints、doc sync、task completion 与
+  `git diff --check` 全部通过。
 
 不会把未执行的平台或真实数据验证写成已通过。
 

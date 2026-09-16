@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 from datetime import date, timedelta
+from itertools import pairwise
 from pathlib import Path
 from uuid import uuid4
 
@@ -650,6 +651,43 @@ def test_benchmark_deviation_rejects_mixed_record_cutoffs(field, mismatched_valu
     assert error.value.code == "data_not_equivalent"
 
 
+@pytest.mark.parametrize(
+    ("field", "mismatched_value"),
+    (
+        ("industry", "Energy"),
+        ("market_cap", 999),
+        ("pe_ttm", 99),
+        ("profit_growth_yoy_pct", 99),
+        ("factor_date", "2026-09-14"),
+        ("report_period", "2026-03-31"),
+        ("industry_mapping_version", "citics-2025-v1"),
+    ),
+)
+def test_benchmark_deviation_rejects_cross_book_canonical_asset_conflicts(field, mismatched_value):
+    module = load_calculator("portfolio-benchmark-deviation")
+    payload = copy.deepcopy(load_json("portfolio-benchmark-deviation", "input.json"))
+    canonical = {}
+    for record in payload["records"]:
+        record["factor_date"] = payload["parameters"]["factor_date"]
+        if record["book"] == "portfolio":
+            canonical[record["asset_id"]] = {
+                key: record[key]
+                for key in ("industry", "market_cap", "pe_ttm", "profit_growth_yoy_pct")
+            }
+        else:
+            record.update(canonical[record["asset_id"]])
+    target = next(
+        record
+        for record in payload["records"]
+        if record["book"] == "benchmark" and record["asset_id"] == "STOCK-X"
+    )
+    target[field] = mismatched_value
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
+
+
 def test_industry_crowding_rejects_noncanonical_calendar_and_market_overallocation():
     module = load_calculator("industry-crowding-monitor")
     payload = copy.deepcopy(load_json("industry-crowding-monitor", "input.json"))
@@ -891,11 +929,12 @@ def _stress_payload(slug: str) -> dict:
                 "weight": 2,
                 "weight_unit": "percent",
                 "as_of": as_of,
+                "factor_date": payload["parameters"]["factor_date"],
                 "report_period": payload["parameters"]["report_period"],
                 "industry_mapping_version": payload["parameters"]["industry_mapping_version"],
-                "market_cap": 100 + index + offset,
-                "pe_ttm": 10 + index / 10 + offset,
-                "profit_growth_yoy_pct": 5 + index / 5 + offset,
+                "market_cap": 100 + index,
+                "pe_ttm": 10 + index / 10,
+                "profit_growth_yoy_pct": 5 + index / 5,
             }
             for book, book_id, offset in (
                 ("portfolio", "PORT-A", 1),
@@ -942,6 +981,53 @@ def _stress_payload(slug: str) -> dict:
             for industry in range(50)
             for index, day in enumerate(days)
         ]
+    return payload
+
+
+def _reconvergent_fund_penetration_payload() -> dict:
+    payload = copy.deepcopy(load_json("fund-penetration", "input.json"))
+    as_of = payload["as_of"]
+    layers = [[f"FUND-L{depth:02d}-{branch}" for branch in range(3)] for depth in range(1, 15)]
+    records = [
+        {
+            "owner_id": "FUND-A",
+            "holding_id": holding,
+            "holding_type": "fund",
+            "weight": 1 / 3,
+            "weight_unit": "decimal",
+            "as_of": as_of,
+        }
+        for holding in layers[0]
+    ]
+    for owners, holdings in pairwise(layers):
+        records.extend(
+            {
+                "owner_id": owner,
+                "holding_id": holding,
+                "holding_type": "fund",
+                "weight": 1 / 3,
+                "weight_unit": "decimal",
+                "as_of": as_of,
+            }
+            for owner in owners
+            for holding in holdings
+        )
+    records.extend(
+        {
+            "owner_id": owner,
+            "holding_id": f"STOCK-{leaf}",
+            "holding_type": "security",
+            "weight": 1 / 3,
+            "weight_unit": "decimal",
+            "as_of": as_of,
+        }
+        for owner in layers[-1]
+        for leaf in range(3)
+    )
+    payload["parameters"]["max_depth"] = 15
+    payload["records"] = records
+    assert len(records) == 129
+    assert len({record["owner_id"] for record in records}) == 43
     return payload
 
 
@@ -1023,9 +1109,7 @@ def test_stage3_over_limit_workloads_fail_with_stable_error(slug):
     assert error.value.metadata["reduce_scope"] is True
 
 
-@pytest.mark.parametrize("slug", SLUGS)
-def test_stage3_near_limit_process_stays_within_sandbox_time_rss_and_output(slug, tmp_path):
-    payload = _stress_payload(slug)
+def _run_stage3_sandbox(payload: dict, slug: str, tmp_path: Path) -> tuple[dict, float, int]:
     research_root = tmp_path / "research"
     session = research_root / "sessions" / str(uuid4())
     for name in ("inputs", "outputs", "tmp", "resources"):
@@ -1102,5 +1186,26 @@ namespace['main'](['inputs/input.json'])
     result = json.loads(supervisor["stdout"])
     assert result["skill_slug"] == slug
     assert result["row_delivery"]["processed_input_rows"] == len(payload["records"])
+    return result, elapsed, peak_rss_bytes
+
+
+@pytest.mark.parametrize("slug", SLUGS)
+def test_stage3_near_limit_process_stays_within_sandbox_time_rss_and_output(slug, tmp_path):
+    payload = _stress_payload(slug)
+
+    _result, elapsed, peak_rss_bytes = _run_stage3_sandbox(payload, slug, tmp_path)
+
+    assert elapsed < 10
+    assert 0 < peak_rss_bytes < 1024**3
+
+
+def test_fund_penetration_reconvergent_dag_is_bounded_in_real_sandbox(tmp_path):
+    payload = _reconvergent_fund_penetration_payload()
+
+    result, elapsed, peak_rss_bytes = _run_stage3_sandbox(payload, "fund-penetration", tmp_path)
+
+    assert result["metrics"]["terminal_exposure_count"] == 3
+    assert result["metrics"]["duplicate_leaf_paths_aggregated"] == 3**15 - 3
+    assert sum(row["path_count"] for row in result["rows"]) == 3**15
     assert elapsed < 10
     assert 0 < peak_rss_bytes < 1024**3

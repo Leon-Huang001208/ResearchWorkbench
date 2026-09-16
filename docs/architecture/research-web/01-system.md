@@ -44,6 +44,9 @@ input、独立 Wind/Excel actual input、固定宿主执行器和两侧结果；
 artifact，未核验 DataHub 映射标为 `callable=false` 并强制 contract/ref provider 一致；基金/组合只接
 受单一快照和非杠杆权重，基准偏离逐条匹配顶层报告期/因子日/行业版，行业计算增加全局 128 条嵌套投影、
 统一日历/成交总额约束和拥挤度至少两个滚动观测。真实宿主签名对照仍缺失，所以七项继续 disabled。
+catalog 初始化时会重新审计全部已启用的 receipt-gated 能力；非 v2、HMAC/绑定证据不可复核或登记器
+密钥缺失时，立即撤下原生投影并持久化 disabled。能力选择前再次执行同一门禁，避免重启后的陈旧
+enabled 状态绕过证据校验；该收紧不新增服务、接口、执行器或持久节点。
 
 Research Runtime 每次启动都从离线 DataHub 能力目录重新计算 `enabledTools`；来源配置变化只有在重启后才改变原生工具注册。缺少可调用来源的工具不暴露给模型。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为 `provider_busy`。
 

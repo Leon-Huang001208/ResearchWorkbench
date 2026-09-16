@@ -55,6 +55,7 @@ RECORD_FIELDS = frozenset(
         "weight",
         "weight_unit",
         "as_of",
+        "factor_date",
         "report_period",
         "industry_mapping_version",
         *FEATURES,
@@ -160,6 +161,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     source_hashes, source_limitations = validate_source_hashes(payload, error=CalculatorError)
     books: dict[str, dict[str, dict[str, Any]]] = {"portfolio": {}, "benchmark": {}}
     expected_ids = {"portfolio": portfolio_id, "benchmark": benchmark_id}
+    canonical_assets: dict[str, dict[str, Any]] = {}
     duplicate_rows = 0
     snapshot_date: str | None = None
     for raw in records:
@@ -175,11 +177,13 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         record_report_period = reject_future(
             raw["report_period"], as_of=as_of, error=CalculatorError
         )
+        record_factor_date = reject_future(raw["factor_date"], as_of=as_of, error=CalculatorError)
         record_mapping_version = checked_text(
             raw["industry_mapping_version"], error=CalculatorError
         )
         if (
             record_report_period != report_period
+            or record_factor_date != factor_date
             or record_mapping_version != industry_mapping_version
         ):
             raise CalculatorError("data_not_equivalent")
@@ -192,6 +196,17 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         values = {
             feature: checked_number(raw[feature], error=CalculatorError) for feature in FEATURES
         }
+        canonical = {
+            "industry": industry,
+            "factor_date": record_factor_date,
+            "report_period": record_report_period,
+            "industry_mapping_version": record_mapping_version,
+            **values,
+        }
+        existing_canonical = canonical_assets.get(asset_id)
+        if existing_canonical is not None and existing_canonical != canonical:
+            raise CalculatorError("data_not_equivalent")
+        canonical_assets[asset_id] = canonical
         weight = _weight(raw["weight"], raw["weight_unit"])
         if asset_id in books[book]:
             existing = books[book][asset_id]
@@ -319,6 +334,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
                 "weighted_means",
                 "sample_standard_deviation",
                 "industry_weight_difference",
+                "cross_book_canonical_asset_consistency",
                 "explicit_report_factor_and_industry_mapping_cutoffs",
                 METHOD_VERSION,
             ],

@@ -44,8 +44,9 @@ dataset refs、status、limitations、method version、source hashes 和 `intern
 执行器身份/可执行文件摘要、输入来源、仓库 golden 与 actual result。登记密钥只存在宿主环境，
 `research_run_script` sandbox 的显式最小环境不继承它，因此被审计算器和普通 JSON 不能自证。catalog 解码完整
 JSON 后递归比较业务值：数值使用 `rtol=1e-6`、`atol=1e-8`，日期、分类、信号和其余非数值严格
-一致；摘要自洽但业务结果不同仍拒绝。启用或回滚到 enabled 时会重新验证 artifact 存在且摘要和
-绑定未变化。该本机完整性校验不宣称能防止已取得宿主密钥的本机管理员
+一致；摘要自洽但业务结果不同仍拒绝。启用、回滚和每次 selection 都会重新验证 artifact 存在且摘要和
+绑定未变化；启动时还审计全部已启用的 receipt-gated 能力，不依赖已知旧脚本摘要。非 v2、HMAC/
+证据不可复核或宿主登记密钥缺失时撤下原生投影并持久化 disabled，合法 v2 在登记器可用时保持启用。该本机完整性校验不宣称能防止已取得宿主密钥的本机管理员
 主动改写证据；没有真实 artifact 时仍可发现但不可执行。六 CLI 在 POSIX 从 cwd fd 逐组件
 openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性。dataset refs/source hashes 各限
 32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过 64 KiB；成功 stdout 不附加
@@ -58,8 +59,9 @@ openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性�
 未完成且未由宿主登记器签名前不能启用或回滚到 enabled。七包提交真实可哈希 synthetic source
 artifact 并由 fixture/golden/provenance 绑定其摘要，不再使用占位哈希。未核验的 DataHub 映射均标记
 `callable=false`，只接受 provider 与 dataset refs 一致的 synthetic/user_input。基金穿透支持单一快照
-percent/decimal、多层与重复路径，对全部给定基金子图 cycle fail-closed；组合计算拒绝隐式杠杆，
-基准偏离要求每条记录显式携带并严格匹配顶层报告期和行业映射版本，因子日期仍绑定同一持仓快照；
+percent/decimal、多层与重复路径，对全部给定基金子图 cycle fail-closed，并以按深度 DP 聚合汇合 DAG
+的权重和路径数；组合计算拒绝隐式杠杆，基准偏离要求每条记录显式携带并严格匹配顶层报告期、因子日和行业映射版本，
+同一 canonical `asset_id` 跨组合/基准的行业与因子事实也必须一致；因子日期仍绑定同一持仓快照；
 三个行业计算器只接受预聚合行业数据，景气贡献全局最多投影 128 条，拥挤度强制统一交易日序列、
 每日行业额总约束及至少两个同方法滚动观测。七项仍使用严格日期、有限
 数值/受检算术、安全相对 JSON loader、完整 64 KiB envelope 和无尾随换行 stdout，不增加网络、GPU、
