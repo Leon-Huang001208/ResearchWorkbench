@@ -62,6 +62,7 @@ class SetupWebInstaller:
         node_version_reader: Callable[[Path], str] | None = None,
         corepack_executable: Path | None = None,
         npm_executable: Path | None = None,
+        platform_name: str | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
         self.data_home = Path(data_home or Path.home() / ".research-workbench").resolve()
@@ -77,11 +78,16 @@ class SetupWebInstaller:
         self.npm_executable = Path(discovered_npm).resolve() if discovered_npm else None
         self.version_reader = version_reader or _command_version
         self.node_version_reader = node_version_reader or _command_version
+        self.platform_name = platform_name or os.name
         self.log = logging.getLogger("research_workbench.setup_web")
         self.dsh_root = self.data_home / "runtime" / "dsh"
         self.dsh_source = self.dsh_root / DSH_COMMIT
         self.install_root = self.data_home / "install"
         self.install_manifest = self.install_root / "manifest.json"
+
+    def _git_symlink_options(self) -> list[str]:
+        """Keep checkout and status semantics aligned on Windows hosts."""
+        return ["-c", "core.symlinks=false"] if self.platform_name == "nt" else []
 
     @staticmethod
     def _python_supported(value: str) -> bool:
@@ -600,7 +606,13 @@ class SetupWebInstaller:
             if commit != DSH_COMMIT:
                 raise RuntimeError("dsh_commit_mismatch")
             status = subprocess.check_output(
-                [str(self.git_executable), "status", "--porcelain", "--untracked-files=no"],
+                [
+                    str(self.git_executable),
+                    *self._git_symlink_options(),
+                    "status",
+                    "--porcelain",
+                    "--untracked-files=no",
+                ],
                 cwd=source,
                 text=True,
                 timeout=15,
@@ -741,6 +753,7 @@ class SetupWebInstaller:
                 str(self.git_executable),
                 "-c",
                 "core.longpaths=true",
+                *self._git_symlink_options(),
                 "-c",
                 "core.autocrlf=false",
                 "-c",
@@ -761,6 +774,7 @@ class SetupWebInstaller:
                 str(self.git_executable),
                 "-c",
                 "core.longpaths=true",
+                *self._git_symlink_options(),
                 "-c",
                 "core.autocrlf=false",
                 "-C",

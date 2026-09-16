@@ -29,7 +29,9 @@ Purpose:
 - Clones, checks out and builds the pinned DSH commit with its declared pnpm version; a user-private Corepack shim
   keeps nested DSH build commands independent from global pnpm. The first successful build records a path-specific
   closure attestation that Doctor rechecks on later runs. Clone and checkout opt into Git long-path handling so the
-  same pinned source can be materialized on Windows without requiring a machine-level Git setting.
+  same pinned source can be materialized on Windows without requiring a machine-level Git setting. Windows checkout
+  and dirty-worktree verification both use `core.symlinks=false`, so Git's regular-file representation of repository
+  symlinks is accepted consistently without weakening checks for other tracked changes.
 - Rejects unsupported Python/Node versions, unknown managed directories, links/reparse points, mismatched hashes,
   dirty or wrong DSH sources, and incomplete builds. `--repair` is limited to directories bearing this installer's
   ownership marker.

@@ -63,7 +63,9 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
 - DSH 只从 `Leon-Huang001208/deepseek-harness` 获取提交
   `c919b2a460753859665db3f60143d525fb9140cf`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
   Git clone 与固定提交 checkout 都显式启用 `core.longpaths=true`，因此 Windows 不依赖机器级 Git
-  长路径配置。首次启动会先用固定 DSH 模板初始化 `web` Profile，再写入已校验的 Tabbit bundle；
+  长路径配置。固定提交包含 Git symlink；Windows checkout 与后续干净工作树校验统一使用
+  `core.symlinks=false`，接受 Git 官方的普通文件表示但仍拒绝其他修改。首次启动会先用固定 DSH 模板
+  初始化 `web` Profile，再写入已校验的 Tabbit bundle；
   不能依赖开发机残留的 `profiles/web/package.json`。
   安装器固定闭包文件数，首次成功构建后将当前安装目录对应的闭包摘要写入受管标记和安装清单，
   后续 Doctor 按该本机证明检测篡改。CSS Modules 会把绝对构建目录影响到产物摘要，因此不把任意用户目录误声明为

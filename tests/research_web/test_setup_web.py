@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.setup_web import SetupWebInstaller
+from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
 def test_check_only_rejects_an_unowned_virtual_environment_without_mutating_it(
@@ -423,7 +423,11 @@ def test_provision_dsh_recovers_a_completed_installer_staging_directory(
 def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    installer = SetupWebInstaller(project_root=tmp_path, data_home=tmp_path / "data")
+    installer = SetupWebInstaller(
+        project_root=tmp_path,
+        data_home=tmp_path / "data",
+        platform_name="nt",
+    )
     commands: list[list[str]] = []
     verified = {
         "commit": "c919b2a460753859665db3f60143d525fb9140cf",
@@ -447,3 +451,33 @@ def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
     git_commands = [command for command in commands if command[0] == str(installer.git_executable)]
     assert len(git_commands) == 2
     assert all("core.longpaths=true" in command for command in git_commands)
+    assert all("core.symlinks=false" in command for command in git_commands)
+
+
+def test_windows_dsh_verification_uses_the_checkout_symlink_semantics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "dsh"
+    source.mkdir()
+    (source / "package.json").write_text('{"packageManager":"pnpm@11.7.0"}', encoding="utf-8")
+    installer = SetupWebInstaller(
+        project_root=tmp_path,
+        data_home=tmp_path / "data",
+        platform_name="nt",
+    )
+    commands: list[list[str]] = []
+
+    def check_output(command, **_kwargs):
+        commands.append(command)
+        if "get-url" in command:
+            return DSH_REMOTE
+        if "rev-parse" in command:
+            return DSH_COMMIT
+        return ""
+
+    monkeypatch.setattr(subprocess, "check_output", check_output)
+
+    installer.verify_dsh_source(source, require_build=False)
+
+    status = next(command for command in commands if "status" in command)
+    assert status[1:3] == ["-c", "core.symlinks=false"]

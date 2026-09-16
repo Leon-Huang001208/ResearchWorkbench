@@ -33,6 +33,10 @@
   启用长路径；Runtime 先由固定 DSH 模板初始化 `web` Profile，再追加经校验的 Tabbit 层。
 - 服务管理器补齐 Windows CIM 命令行核对与 `taskkill /T` 进程树停止，同时让 POSIX 即时停止识别
   已退出的僵尸子进程；没有增加 Python 依赖。
+- 第三轮 CI 的 macOS 干净安装、启动、Doctor 和停止全部通过；Windows 已通过 Web 锁、根包、
+  CJPY 0.5.2 与长路径 checkout，但固定 DSH 的 11 个 Git symlink 被 runner 以普通文件检出后，旧校验
+  因未沿用 checkout 的 symlink 语义而报 `dsh_worktree_modified`。安装器现对 Windows checkout 和
+  `git status` 一致使用 `core.symlinks=false`，仍拒绝除此之外的已跟踪修改。
 
 ## 已执行验证（功能分支交付前）
 
@@ -40,8 +44,8 @@
   `No broken requirements found`。
 - 根包以无依赖模式安装，随包 `cjpy==0.5.2` 安装并真实导入；同时导入
   `requests==2.34.2`、`urllib3==2.8.0`。
-- 早期完整 Research Web Python 回归：987 passed、4 skipped；第二轮 CI 修复所覆盖的安装器、Runtime
-  启动与服务管理器目标回归：68 passed。
+- 早期完整 Research Web Python 回归：987 passed、4 skipped；最终 CI 修复所覆盖的安装器、Runtime
+  启动与服务管理器目标回归：69 passed。
 - 第二轮修复后的完整 Python 回归在清除宿主代理变量后达到 991 passed、4 skipped、1 failed；唯一失败
   是 `test_web_help_does_not_import_legacy_research_stack` 的 10 秒超时。等价脚本最终在读取开发 `.venv`
   的 `entry_points.txt` 时收到宿主文件系统 `Errno 60 Operation timed out`，不是 CLI 契约断言失败；当前磁盘
@@ -69,6 +73,7 @@
 - 首次原生 bootstrap CI 暴露两个仅在干净 runner 出现的问题：DSH 嵌套构建找不到全局 `pnpm`，以及
   Windows checkout 改写 CJPY 文本制品字节。修复通过项目私有 Corepack shim、闭合制品 `-text` 属性和
   Windows 包装器真实退出码传播完成；第二轮继续暴露并修复 Windows Git 长路径与全新 DSH Profile
-  初始化。最终状态仍以第三轮原生 CI 为准，当前不得宣称双平台交付通过。
+  初始化，第三轮再暴露并修复 Windows symlink 工作树语义。最终状态仍以后续原生 CI 为准，当前不得
+  宣称双平台交付通过。
 - 天软当前阻塞于厂商认证，未进入无回退业务查询、不可变快照和 Runtime Tool 验收。需用户在本机设置页更换或确认厂商有效
   `CJ_KEY`；无需重启服务。本记录未读取、输出或迁移该密钥。
