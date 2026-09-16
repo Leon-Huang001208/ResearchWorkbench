@@ -101,3 +101,31 @@ similarity = |tokens(predicted) ∩ tokens(gold)| / |tokens(predicted) ∪ token
 ### Grouped Metrics
 
 Results are broken down by `event_type` and `source_type` for granular analysis.
+
+## Research Method Evals (`datasets/research_methods_v1.jsonl`)
+
+该数据集是独立于 Research Web 产品 API 和工程 Harness 的固定合成证据集。它恰好包含三个
+版本化场景：来源冲突、产业链比较和陌生领域验证。每个场景包含 4–8 条带稳定
+`evidence_id`、`source_tier`、`stance` 与 `as_of` 的证据；至少一条反方证据且至少覆盖两种来源层级。
+
+运行器为 `python -m benchmarks.research_methods`。CLI 复用项目 `ModelGatewayImpl` 与当前
+`TASK_REASONING` 路由；共用 OpenAI-compatible provider 在 SDK 不可用时使用既有 `httpx` 后备，
+不会复制评测专用模型客户端或回退到其他 provider。一次完整运行固定执行 63 次 `reasoning` 调用：
+
+- 3 个在所有方法间复用的 baseline；
+- 10 个 Method × 3 个场景的 single 变体；
+- 10 个 Method × 3 个场景的 combined 变体。
+
+所有变体共享相同结构化输出契约，使用 `temperature=0`、固定随机顺序和相同 token 上限。
+评分只读取可观察字段：有效证据 ID、来源分层、反证、决定变量、因果步骤、专家冲突、跨域
+失效条件、实验样本、停止条件和决策阈值，不使用 judge model 或隐藏思维链。
+
+原始请求对应的模型输出仅写入私有目录
+`~/.research-workbench/research-evals/<run-id>/`（目录 `0700`、文件 `0600`）。仓库结果目录
+`benchmarks/results/research_methods_v1/` 只保存逐项分数、请求/响应 SHA-256、模型标识、token
+成本代理、延迟和汇总，不保存 Prompt、证据正文或模型正文。任一调用失败或结构化输出无效时，
+整轮失败关闭且不产生晋级候选。
+
+single 相对同场景 baseline 必须质量提高，同时平均 token 与延迟均不超过 baseline 的 110%，
+且该方法关键 rubric 在三个 single 场景均非零，才会列为人工审阅候选。combined 只用于组合
+分析；运行器不会自动修改 `method_policy.recommended`。

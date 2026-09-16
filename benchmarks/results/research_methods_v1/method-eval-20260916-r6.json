@@ -1,0 +1,2067 @@
+{
+  "calls": [
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:horizontal-vertical-analysis:steelman-comparison:unfamiliar-domain-validation-v1",
+      "latency_ms": 49168,
+      "method_ids": [
+        "horizontal-vertical-analysis",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "7fce563ebff08ba208d6f3b74efddcf9ae4d16243a6ecd6ac1eac45ff02bd440",
+      "response_hash": "227a10e05e2ac75749da805c7f4d213c9ae41467f4bd843480e22fec8c390c09",
+      "tokens_used": 4224,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:expert-perspectives:source-conflict-v1",
+      "latency_ms": 49442,
+      "method_ids": [
+        "expert-perspectives"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "cfef9f48f44deeaa973ebb49fbc97cd5e27a59b19505790d9d857d8e46600dda",
+      "response_hash": "fc03dfef3a870df0a06be29af4d7a86dd39aa14c86ae6a8c095093ceec80d8bd",
+      "tokens_used": 4245,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:cross-domain-transfer:source-conflict-v1",
+      "latency_ms": 49489,
+      "method_ids": [
+        "cross-domain-transfer"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "d445f4823a7755aa4c4d86a53faa25b2dcc926fc23f8bce94959b521c6a84752",
+      "response_hash": "b3ab83bbdfd6a63c2f177e4b39fdd90fd165f934a6e2fd6a87b5c25a7a77dee9",
+      "tokens_used": 4386,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:expert-perspectives:industry-chain-comparison-v1",
+      "latency_ms": 55526,
+      "method_ids": [
+        "expert-perspectives"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "74d25e624027427f668a206ee9b42b68f4046c765a565120311c2ccc3d4cedb9",
+      "response_hash": "51d99c8b1c323991bc7cf1e4c4c1bfb200d41644bda7d0d992468092f24e6038",
+      "tokens_used": 4722,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:expert-perspectives:steelman-comparison:industry-chain-comparison-v1",
+      "latency_ms": 91658,
+      "method_ids": [
+        "expert-perspectives",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "dd1797e7417ce5fc06dcffafd4491c2cd41c868e1ef36d92bb1bd42b59010422",
+      "response_hash": "b7eafc770a303cf341f1cb191761ea1236a1170cc6e3820e415ebc930b7d0c5c",
+      "tokens_used": 7626,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:reverse-engineering:fact-checking:unfamiliar-domain-validation-v1",
+      "latency_ms": 49071,
+      "method_ids": [
+        "reverse-engineering",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "9a7eba858b2d77f6a2c976bb73cfedd98781625e90a2e19abee624c9d3cfb0d2",
+      "response_hash": "8c788492b6990ed5eed41bb05f78e083f44af1d4cbbad2c31d42d6a6aefaaa4a",
+      "tokens_used": 4409,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:reverse-engineering:unfamiliar-domain-validation-v1",
+      "latency_ms": 60926,
+      "method_ids": [
+        "reverse-engineering"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "8d11ce7f1911d44f7a4570ebee752951fd4d28cdc92e1c4be15b935a13179494",
+      "response_hash": "164f2a00d6ec6d25b718776452f6567e53b550eaf129d32796250ce80cb7575a",
+      "tokens_used": 5249,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:minimal-experiment:fact-checking:source-conflict-v1",
+      "latency_ms": 53262,
+      "method_ids": [
+        "minimal-experiment",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "f84591fe4b505ca4a1a8026c807d340d9f01927a422ce8d3f87f964d3f5dfdf1",
+      "response_hash": "5953e422a659a9715b4a23e09e6cf5453e50465709e65200d944329941dd64cb",
+      "tokens_used": 4934,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:fact-checking:steelman-comparison:unfamiliar-domain-validation-v1",
+      "latency_ms": 52992,
+      "method_ids": [
+        "fact-checking",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "e0bc9445fd52eadd5915ef64c37a55825199df7236a536b470b23cfb91965cac",
+      "response_hash": "883970d0eb7575786888320bb386103dc6212e7ed939e7facc0b14bbce19ce0d",
+      "tokens_used": 4896,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:socratic-clarification:industry-chain-comparison-v1",
+      "latency_ms": 46512,
+      "method_ids": [
+        "socratic-clarification"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "38bfda0d322f0cde58ba636bc6b6e728db4e5a3085de1d88e26b2cbbe8c940ec",
+      "response_hash": "77e289f394be6bc5ad980c8a9739dbcc3b052215bd8ea068a7ef360caa500b5f",
+      "tokens_used": 4541,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:cross-domain-transfer:unfamiliar-domain-validation-v1",
+      "latency_ms": 59497,
+      "method_ids": [
+        "cross-domain-transfer"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "fb367c571b4b2c83a66a89e3b195922ee85eb31d7b9927fd3db1b8e0a621b694",
+      "response_hash": "795505c5149c083a32678146be0a2b85f69a67c18b252313623b14b2e185ceb2",
+      "tokens_used": 5719,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:steelman-comparison:fact-checking:unfamiliar-domain-validation-v1",
+      "latency_ms": 45519,
+      "method_ids": [
+        "steelman-comparison",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "8a3f10bbc071aaa1f5725b78a5030a0d7108fa00cc78c97e5898d4f290440e8a",
+      "response_hash": "d31ddce46ea378abf9ed4f3d85da272c92c04926332fecc36d642a280bf07147",
+      "tokens_used": 4658,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:expert-perspectives:unfamiliar-domain-validation-v1",
+      "latency_ms": 41548,
+      "method_ids": [
+        "expert-perspectives"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "252ab421a07c758a45ab2d8b5ab0236d62f88dd0d6d00013772dd71aaf61e6d9",
+      "response_hash": "53b64028422fd3ee05ad551d8899818c6cb17666f347954910ec4ddcb0f4bbdd",
+      "tokens_used": 4441,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:steelman-comparison:fact-checking:industry-chain-comparison-v1",
+      "latency_ms": 31512,
+      "method_ids": [
+        "steelman-comparison",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.8,
+      "request_hash": "93894f6fbc42fed4851a7a597b402de1c25ad393f748a1e7a1c5362100730bf3",
+      "response_hash": "2202b97a86d90daed7ffebaa2e7b4d6a56f19cd22558305ce929ca17bc082812",
+      "tokens_used": 3810,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:minimal-experiment:industry-chain-comparison-v1",
+      "latency_ms": 42604,
+      "method_ids": [
+        "minimal-experiment"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "64c896ac3b5c38b4b39eb76c7e4a4f20c1b0bdc4caeb9744c640f0cb8dbd6c81",
+      "response_hash": "c19ba29ede15a0e91bf76ddd152c9f982f52d45f540d5d638d4c1b72282ec0db",
+      "tokens_used": 4646,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:steelman-comparison:industry-chain-comparison-v1",
+      "latency_ms": 54280,
+      "method_ids": [
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.8,
+      "request_hash": "e2c7c1787ec682ded95efbf45af702241cf1bc689f78af51e8bddc0fa85f7b9c",
+      "response_hash": "94558e2bc26849622add2cb4739386246c5ea127c3b8212b66545f74e882b825",
+      "tokens_used": 5197,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 0.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:reverse-engineering:source-conflict-v1",
+      "latency_ms": 46639,
+      "method_ids": [
+        "reverse-engineering"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.8,
+      "request_hash": "89f330bdb7e00d476af32f2e7c5e665439689e8ebcdc377c52f428246a9cff2f",
+      "response_hash": "37a43744fab19398526cacdd0dbc5336693964e10b1852b23f72e7a78bb834ec",
+      "tokens_used": 4849,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:minimal-experiment:source-conflict-v1",
+      "latency_ms": 53806,
+      "method_ids": [
+        "minimal-experiment"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "dd25849c7ed23bb7e6e06fb1a611da73a5cee4d20b3d103597a9fcee6a6adbe9",
+      "response_hash": "2bd55764fd8753168491f7671d429f671efbca8df6c4a265acc0e9371806b5c4",
+      "tokens_used": 5349,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:first-principles:unfamiliar-domain-validation-v1",
+      "latency_ms": 61413,
+      "method_ids": [
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "4cf23e09a19d5df03c0e528275bdf3571703156d9df79b45ab97f829d98937d9",
+      "response_hash": "abac20beddddfa051e5a487f0bf6ce17c5db1d50661a099df9f6fa48a9d27558",
+      "tokens_used": 5772,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:dual-layer-explanation:industry-chain-comparison-v1",
+      "latency_ms": 48194,
+      "method_ids": [
+        "dual-layer-explanation"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "cf32b5f9794ae35b5a63bf1084c7cbf3e21337b9337ee29e88d6745c7e7dd529",
+      "response_hash": "5f4962f581b5c8f18b8d6fca2df90295b07b7ed89379dd451d0d1f7d36bfc55d",
+      "tokens_used": 4991,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:first-principles:minimal-experiment:source-conflict-v1",
+      "latency_ms": 43310,
+      "method_ids": [
+        "first-principles",
+        "minimal-experiment"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "61ced39fbb87c058d57ea4fee895f36f6373fadd4d4622e82e1923f5ec45e8ce",
+      "response_hash": "4227e055bf6b39435d761acee867350301f96bee1082a1745b6bb12ce6710ab5",
+      "tokens_used": 4539,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:socratic-clarification:fact-checking:industry-chain-comparison-v1",
+      "latency_ms": 40309,
+      "method_ids": [
+        "socratic-clarification",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "4d2187f60f1c705be2a9b4fb2f20d0988903e680da0763d2ed7387bf6805a7b0",
+      "response_hash": "11e42d8a1c0cd8693bf5748744006f8dc8ecd8117f70a76dfffe8bf1a9fd780d",
+      "tokens_used": 4688,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:socratic-clarification:unfamiliar-domain-validation-v1",
+      "latency_ms": 40060,
+      "method_ids": [
+        "socratic-clarification"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "de983b4b60c098d756a99fdeff79e6efb9a744c6f5fa1643095ced22ed535161",
+      "response_hash": "cffa0eede02a96138aebd47856e98b26934c54443d03ba86b28e4ada176ac9f9",
+      "tokens_used": 4129,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:fact-checking:industry-chain-comparison-v1",
+      "latency_ms": 42158,
+      "method_ids": [
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.8,
+      "request_hash": "e50c3008261948ed625cf10a9aea71619e16c2c31c6be7906e9f279886f86ee9",
+      "response_hash": "9b158be64714e3958b2eb48a262783b6426e678fb780ab146a8c38031e4437cb",
+      "tokens_used": 4630,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:dual-layer-explanation:first-principles:source-conflict-v1",
+      "latency_ms": 27407,
+      "method_ids": [
+        "dual-layer-explanation",
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "99c602e84ad174c75b9ee046c3911055cadf0203116eb73045cb88591834bc4b",
+      "response_hash": "3f5fc50acc7b58e66e418ab72f83750e4bd2618c527412b26ca8ea2402c28ccd",
+      "tokens_used": 3551,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:fact-checking:unfamiliar-domain-validation-v1",
+      "latency_ms": 39351,
+      "method_ids": [
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "34956385ddb181e7e671ba97a18a60fd2d69689c40a770fdde2e6d0b0c595c88",
+      "response_hash": "58361f44f7002126eeba3656462da39db0d8cf4c06adf47a09e08250488bba7c",
+      "tokens_used": 4330,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:cross-domain-transfer:first-principles:industry-chain-comparison-v1",
+      "latency_ms": 47046,
+      "method_ids": [
+        "cross-domain-transfer",
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "bec37e4141f86e0381ea8facbb2664d5f8222996738223561d51abc98045d1f2",
+      "response_hash": "7b454766b6361e34f7f571f2dea94848566c990d6d47e4e830bfe3cec9a8baba",
+      "tokens_used": 4728,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 0.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 0.0,
+        "transfer_failure_conditions": 0.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:first-principles:industry-chain-comparison-v1",
+      "latency_ms": 41229,
+      "method_ids": [
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.5,
+      "request_hash": "ad747f9dbe916c4db2a11b97f401af207fbd8a641bdf05215ca4172649bf8523",
+      "response_hash": "ac99bbf36233348abe7a3475733bc7674b30800b2161b17a2682b490a37b32ff",
+      "tokens_used": 4427,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:first-principles:minimal-experiment:unfamiliar-domain-validation-v1",
+      "latency_ms": 44733,
+      "method_ids": [
+        "first-principles",
+        "minimal-experiment"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "7081ac4b618fba1ab52f715dd04dc5e11a620239d22a8e547416103ef612e195",
+      "response_hash": "1461c3ed4f1d46cd95542fae05e1db141766f3a1e8aabfaafdc33c426852ba37",
+      "tokens_used": 4589,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:reverse-engineering:industry-chain-comparison-v1",
+      "latency_ms": 34950,
+      "method_ids": [
+        "reverse-engineering"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.8,
+      "request_hash": "37be0e3eea8da4aef3dea58ca54ba7b9e949c57b0ed4da27796bfdc0c74dec95",
+      "response_hash": "25eb98c323b9c6e7e65bf1bbdcbccf3388001d6e6dd913355400b6ab89708c48",
+      "tokens_used": 3908,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:minimal-experiment:fact-checking:unfamiliar-domain-validation-v1",
+      "latency_ms": 45665,
+      "method_ids": [
+        "minimal-experiment",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "344b8eabcfcc4410522a54fefbf743c51f455792a8a47f36e84c7e1ea4ed6abc",
+      "response_hash": "701b185f0f45aa6693b8e69b1d409ba807c34977d2d610502414cda04ffc3952",
+      "tokens_used": 4708,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:reverse-engineering:fact-checking:industry-chain-comparison-v1",
+      "latency_ms": 41005,
+      "method_ids": [
+        "reverse-engineering",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "d4e30ba8e6e5f9449a2c60be90202aec5855c73cf9661d762819d2b18b3da609",
+      "response_hash": "fefc2def39561b4bbd6f179fa9d92c5cbc051b306a790426fa2ed33a5da0b062",
+      "tokens_used": 4695,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "baseline:unfamiliar-domain-validation-v1",
+      "latency_ms": 42374,
+      "method_ids": [],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "47aaa6412a283061165e306fc20a8305fa9b95ff2d4e4a55a14fa2f8364caf5c",
+      "response_hash": "2ec9ae2f33661c885e673be9c57aeb52fba24ee00b28343f338babe9d8f9caed",
+      "tokens_used": 4512,
+      "variant": "baseline"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:minimal-experiment:unfamiliar-domain-validation-v1",
+      "latency_ms": 45299,
+      "method_ids": [
+        "minimal-experiment"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "8a1809e78992b2ad97e55f1a8c9cadf281e8d5dda3e3a53a8b328bbe06bce2b9",
+      "response_hash": "208f1e78d85b92c8279f20bb54ab8adc4625f23a3c6ae0d409e6791c62e17b31",
+      "tokens_used": 5223,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:expert-perspectives:steelman-comparison:unfamiliar-domain-validation-v1",
+      "latency_ms": 39277,
+      "method_ids": [
+        "expert-perspectives",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "4e3ff3ea4ee27c1f00b99ae868805efc79096fb21eb7c6f8f36e19a206996309",
+      "response_hash": "3fc61234beae325753b2fd3b11e4a1f7650b5836d2edad78eef7d54cd46801ca",
+      "tokens_used": 4071,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:horizontal-vertical-analysis:steelman-comparison:industry-chain-comparison-v1",
+      "latency_ms": 40894,
+      "method_ids": [
+        "horizontal-vertical-analysis",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "3235328a3102373946f45e47c370538909a209d3557f55d94955e305136cc2fd",
+      "response_hash": "8230072a050ab7f9724b8609865b9a2fa1ffbb63459e9264f4eac14dacb9ffbd",
+      "tokens_used": 4473,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:fact-checking:steelman-comparison:industry-chain-comparison-v1",
+      "latency_ms": 39832,
+      "method_ids": [
+        "fact-checking",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "5a350e3a684578b77d44b999769665fc064415090b57cfd43411bbda2289b04e",
+      "response_hash": "2a46bd80c91fd7823f16029abfd5cb1e4c46c1dc0d78f9bc524fa10b09a1f33a",
+      "tokens_used": 4580,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 0.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:steelman-comparison:source-conflict-v1",
+      "latency_ms": 43363,
+      "method_ids": [
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "d05b8d59b61877dfe6b6b70cbde99cd71bf53fa67753cca356c2541667512dce",
+      "response_hash": "7df78b27a892c0a33390453cfee88364b567717f40e44f91af006387c992d66f",
+      "tokens_used": 4584,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 0.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "baseline:source-conflict-v1",
+      "latency_ms": 53687,
+      "method_ids": [],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.8,
+      "request_hash": "3aea616fe0cf2f0615f187aa9369bb0eafeb3bbd3971607369f10f57afbbdba2",
+      "response_hash": "37cce9c6781288f6475b8fd5dd215f2c3f62b4931f9ed85436a956b311b8d8ee",
+      "tokens_used": 5601,
+      "variant": "baseline"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:cross-domain-transfer:first-principles:source-conflict-v1",
+      "latency_ms": 37435,
+      "method_ids": [
+        "cross-domain-transfer",
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "e21c0f292c700c5d4d6c216e9d523b88299502a288ceaba06c2bd8871ffe0a4c",
+      "response_hash": "f627f41988554e651948c769378132efb5b4a99e25fc27ca614d82bf9564c709",
+      "tokens_used": 4166,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:expert-perspectives:steelman-comparison:source-conflict-v1",
+      "latency_ms": 27595,
+      "method_ids": [
+        "expert-perspectives",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "6274c1443c613ccfdfeceb5c52da93309ab418cf224655ed733b6fdeb853413e",
+      "response_hash": "0881ca206909e1a878a43ac5901411ca86f3be40e0a8bf81448be064d51bea4b",
+      "tokens_used": 3383,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:fact-checking:source-conflict-v1",
+      "latency_ms": 50225,
+      "method_ids": [
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "28bc3e23c7e717960c6f6b9bc17e42b8338e98c71b8fa0a544f7f81fead73f4a",
+      "response_hash": "238923c74c6cd98e61f6c844b21d762ef0578480aa5b221252242939fb4a99ba",
+      "tokens_used": 5392,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:horizontal-vertical-analysis:source-conflict-v1",
+      "latency_ms": 44986,
+      "method_ids": [
+        "horizontal-vertical-analysis"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "61175272ce09d433be0ee249812c4eecb96b6d94c558d302b917eff624951530",
+      "response_hash": "ba27039fb9d4009b6ce22c18c3ab8760dbfc9ed0c89029b78db94af59bc4e3ae",
+      "tokens_used": 4710,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:dual-layer-explanation:source-conflict-v1",
+      "latency_ms": 36645,
+      "method_ids": [
+        "dual-layer-explanation"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "2cafa04cd22d6aea12a5639475b3bafaebd5e33d0bde4765c582d60a27247575",
+      "response_hash": "17f0dbc1b62cb4912be0aad27c68acc1c0b4ab6538e4d2e46a0e7c45304d31f3",
+      "tokens_used": 4120,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:socratic-clarification:fact-checking:source-conflict-v1",
+      "latency_ms": 32870,
+      "method_ids": [
+        "socratic-clarification",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "7f29313665f4f21e9fa86d767d776a7fa2540ae746d4205ebc4951040e834487",
+      "response_hash": "2433fe738f5c3eb1230eb630fcac666319d9a334c900c7e89d3a59c024d9ad0d",
+      "tokens_used": 3898,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:fact-checking:steelman-comparison:source-conflict-v1",
+      "latency_ms": 53179,
+      "method_ids": [
+        "fact-checking",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "3d8bb3cc315d10be281673ffc49008e32edd1b6073953d12ef6627f8e7c137c2",
+      "response_hash": "9b13c10e406f21d417b40bf7fd543faa7b99e974d89b9f5281ad7b2f83199b86",
+      "tokens_used": 5819,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:dual-layer-explanation:unfamiliar-domain-validation-v1",
+      "latency_ms": 29427,
+      "method_ids": [
+        "dual-layer-explanation"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "8e5537e3425b66b5b70698ee3425d196c7eca4ffd4829b2d5296f4c6d8fce1d6",
+      "response_hash": "2776b96e71a187583deff001ea3bb938b0cb4ffbd89a12754ba537b22d4a1d98",
+      "tokens_used": 3349,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:horizontal-vertical-analysis:industry-chain-comparison-v1",
+      "latency_ms": 33724,
+      "method_ids": [
+        "horizontal-vertical-analysis"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.8,
+      "request_hash": "8537c3b1548e9c2c76c01699732c602c7edac9931a7e428cf986505c41cb4fae",
+      "response_hash": "f6dbc01f44f0d45cc43a6ebe2786176047cb93a7d2c967379a5e5ac8a5dd9586",
+      "tokens_used": 4076,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:first-principles:minimal-experiment:industry-chain-comparison-v1",
+      "latency_ms": 34885,
+      "method_ids": [
+        "first-principles",
+        "minimal-experiment"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "be440b3884ccfa0009da07454c37643c9c1236d43c20bc5783b093ed1750b014",
+      "response_hash": "1f28e6c602e1ee0e0349b3f7afe953e088e9257ae36f4baf21458fa1fe313f8a",
+      "tokens_used": 4238,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:horizontal-vertical-analysis:steelman-comparison:source-conflict-v1",
+      "latency_ms": 39606,
+      "method_ids": [
+        "horizontal-vertical-analysis",
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "c458451ebc4f14309e93755a092dcfff7e1efc8b63c315586ccf55c49e26d3a4",
+      "response_hash": "5c75e3c8be21fcb3a44470e95dcc632a7fdff6ed6075da9684120ab3a8b6343b",
+      "tokens_used": 4404,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 0.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:steelman-comparison:fact-checking:source-conflict-v1",
+      "latency_ms": 73083,
+      "method_ids": [
+        "steelman-comparison",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "e6db005180c7813753f1eb4bf57baf19dfb1722d3c180357c956bf76f9a91727",
+      "response_hash": "11f204b11759784a0fab4e845899a70f7a4d89f41a9c57d6d758ad814761e682",
+      "tokens_used": 6822,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:horizontal-vertical-analysis:unfamiliar-domain-validation-v1",
+      "latency_ms": 32997,
+      "method_ids": [
+        "horizontal-vertical-analysis"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "5eab793061ba17678b2d8deb19da68fae5074fbb932281b72fb9d65814b31c55",
+      "response_hash": "d835e3b35e77f6a5d135bcc67aa4e78f19dcb17a3d6676c2f27e9cc3fd70af77",
+      "tokens_used": 3889,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:dual-layer-explanation:first-principles:industry-chain-comparison-v1",
+      "latency_ms": 43553,
+      "method_ids": [
+        "dual-layer-explanation",
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "22a9950b0641c853028f45e405a379c54d14fb3bfe8a7085581959be996fa2ac",
+      "response_hash": "ac8c9b49096e963a49b8b44eda064e327e2088cdfb89e6b0565ecca92c251e38",
+      "tokens_used": 4945,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:socratic-clarification:source-conflict-v1",
+      "latency_ms": 61902,
+      "method_ids": [
+        "socratic-clarification"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "2b16da86cdea880b984e82f52508b92f80ede25302ca0ac1e28c508ab8ef406d",
+      "response_hash": "e7c2cd5a4469c2ae2ec95c9b0970ba48de86457a821c50c244dffea917bdd76a",
+      "tokens_used": 5991,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:cross-domain-transfer:first-principles:unfamiliar-domain-validation-v1",
+      "latency_ms": 47660,
+      "method_ids": [
+        "cross-domain-transfer",
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "c620134a708eb237ddf3b67e3133a07cb01da8e4d160f4d66108607c757f8c60",
+      "response_hash": "7cbf42ba10e44797916d9dff2414f2b447624fbbaf70ae724c8e3ec9306469ba",
+      "tokens_used": 6067,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "baseline:industry-chain-comparison-v1",
+      "latency_ms": 32602,
+      "method_ids": [],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "b12b360a95a542d7e13b405bfcb2f3f3617c1cc5eeb2348a1d567397d4324a22",
+      "response_hash": "bb9ec9466ef7a64f5a1f48690d5d33d546a45a8cc0cfbd5d757a2569535e77cd",
+      "tokens_used": 4068,
+      "variant": "baseline"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:steelman-comparison:unfamiliar-domain-validation-v1",
+      "latency_ms": 42688,
+      "method_ids": [
+        "steelman-comparison"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "1c93bdd27aa5cdd4472204e1ecd0e0e4a4c099f47248c23205fd9619c92bccc6",
+      "response_hash": "b01023662853b11445412dad0779d7db5e39e5c043798eae0e055fd777071437",
+      "tokens_used": 5303,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:first-principles:source-conflict-v1",
+      "latency_ms": 21427,
+      "method_ids": [
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.9,
+      "request_hash": "cac55af2528212cc08bdc561f2656de3c6f41d9c41870fa31b3da4dab4b79826",
+      "response_hash": "79e933c963a4ab2b7f68cad3fbb85a748eae4eb13d19a4cedc2fcb333dd7705f",
+      "tokens_used": 2894,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:dual-layer-explanation:first-principles:unfamiliar-domain-validation-v1",
+      "latency_ms": 51292,
+      "method_ids": [
+        "dual-layer-explanation",
+        "first-principles"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "eb034cc4d813c868c8f429a2939073b00c73ec7f89eaf87da91bb11c8aae335e",
+      "response_hash": "3ab12dfe97a34e0fa03e7009ada722ae569ee30ae3f772b17b4a5d3ae40e17a3",
+      "tokens_used": 5365,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:source-conflict-v1",
+      "case_id": "source-conflict-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:reverse-engineering:fact-checking:source-conflict-v1",
+      "latency_ms": 31818,
+      "method_ids": [
+        "reverse-engineering",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "8d9ecd50a8befda020464f13903254f1007dffd2021854bc5495a9e438909bc7",
+      "response_hash": "64fd16e704e71641bbc0224cafb6415955929db60bab480d37323e889fdcb01e",
+      "tokens_used": 3845,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:unfamiliar-domain-validation-v1",
+      "case_id": "unfamiliar-domain-validation-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:socratic-clarification:fact-checking:unfamiliar-domain-validation-v1",
+      "latency_ms": 43626,
+      "method_ids": [
+        "socratic-clarification",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "c734e7f271d34806419ab382de6441065f0cf8f9be2021f68e3c460653ec65b0",
+      "response_hash": "2e7c39e2ec6502c8798ada7397d68fdb4e6010d182fa6aa70dfcec437545fff4",
+      "tokens_used": 4665,
+      "variant": "combined"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 0.0,
+        "expert_conflicts": 0.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "single:cross-domain-transfer:industry-chain-comparison-v1",
+      "latency_ms": 37163,
+      "method_ids": [
+        "cross-domain-transfer"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 0.8,
+      "request_hash": "07efe3f1ac8c46cea8376b8ffbeeb629fa6dd76c07fb03142414e8b735970976",
+      "response_hash": "70252b776407c69d95ca2444624ca5851da4ef67f2472ffd76868a07af9c9afe",
+      "tokens_used": 4344,
+      "variant": "single"
+    },
+    {
+      "baseline_ref": "baseline:industry-chain-comparison-v1",
+      "case_id": "industry-chain-comparison-v1",
+      "criteria": {
+        "causal_steps": 1.0,
+        "counter_evidence": 1.0,
+        "decision_thresholds": 1.0,
+        "decision_variables": 1.0,
+        "experiment_sample": 1.0,
+        "expert_conflicts": 1.0,
+        "source_layers": 1.0,
+        "stop_conditions": 1.0,
+        "transfer_failure_conditions": 1.0,
+        "valid_evidence_ids": 1.0
+      },
+      "invocation_id": "combined:minimal-experiment:fact-checking:industry-chain-comparison-v1",
+      "latency_ms": 37998,
+      "method_ids": [
+        "minimal-experiment",
+        "fact-checking"
+      ],
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "quality_score": 1.0,
+      "request_hash": "9b15646888d4b2cb8f0062de36b66c6692f511dffc813b600b14963fcbedf981",
+      "response_hash": "ba815a551bc46e8179ff7f94aa43d974cae927d32455dd681fc323cd8a71a12a",
+      "tokens_used": 4419,
+      "variant": "combined"
+    }
+  ],
+  "completed_calls": 63,
+  "dataset_hash": "69c3336f9b26f3e7b83344a5541a642e7f3fad46f6cbff2bb1ba6d016bba6af9",
+  "dataset_version": "1.0.0",
+  "default_recommendations_changed": false,
+  "expected_calls": 63,
+  "failure": null,
+  "method_results": [
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 38935.0,
+        "partner": "fact-checking",
+        "quality": 0.9666666666666667,
+        "token_cost_proxy": 4417.0
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": false,
+        "quality_improved": true,
+        "token_within_10_percent": true
+      },
+      "method_id": "socratic-clarification",
+      "single": {
+        "latency_ms": 49491.333333333336,
+        "quality": 0.9666666666666667,
+        "token_cost_proxy": 4887.0
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 40750.666666666664,
+        "partner": "first-principles",
+        "quality": 0.9666666666666667,
+        "token_cost_proxy": 4620.333333333333
+      },
+      "gate": {
+        "candidate": true,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": true,
+        "quality_improved": true,
+        "token_within_10_percent": true
+      },
+      "method_id": "dual-layer-explanation",
+      "single": {
+        "latency_ms": 38088.666666666664,
+        "quality": 1.0,
+        "token_cost_proxy": 4153.333333333333
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 40631.333333333336,
+        "partner": "fact-checking",
+        "quality": 1.0,
+        "token_cost_proxy": 4316.333333333333
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": false,
+        "quality_improved": false,
+        "token_within_10_percent": true
+      },
+      "method_id": "reverse-engineering",
+      "single": {
+        "latency_ms": 47505.0,
+        "quality": 0.8666666666666667,
+        "token_cost_proxy": 4668.666666666667
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 43222.666666666664,
+        "partner": "steelman-comparison",
+        "quality": 0.9666666666666667,
+        "token_cost_proxy": 4367.0
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": true,
+        "quality_improved": false,
+        "token_within_10_percent": true
+      },
+      "method_id": "horizontal-vertical-analysis",
+      "single": {
+        "latency_ms": 37235.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4225.0
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 48667.666666666664,
+        "partner": "steelman-comparison",
+        "quality": 1.0,
+        "token_cost_proxy": 5098.333333333333
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": true,
+        "quality_improved": false,
+        "token_within_10_percent": true
+      },
+      "method_id": "fact-checking",
+      "single": {
+        "latency_ms": 43911.333333333336,
+        "quality": 0.9,
+        "token_cost_proxy": 4784.0
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 52843.333333333336,
+        "partner": "steelman-comparison",
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 5026.666666666667
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": false,
+        "quality_improved": true,
+        "token_within_10_percent": true
+      },
+      "method_id": "expert-perspectives",
+      "single": {
+        "latency_ms": 48838.666666666664,
+        "quality": 0.9666666666666667,
+        "token_cost_proxy": 4469.333333333333
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 40976.0,
+        "partner": "minimal-experiment",
+        "quality": 0.9666666666666667,
+        "token_cost_proxy": 4455.333333333333
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": true,
+        "quality_improved": false,
+        "token_within_10_percent": true
+      },
+      "method_id": "first-principles",
+      "single": {
+        "latency_ms": 41356.333333333336,
+        "quality": 0.8,
+        "token_cost_proxy": 4364.333333333333
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 44047.0,
+        "partner": "first-principles",
+        "quality": 0.9666666666666667,
+        "token_cost_proxy": 4987.0
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": false,
+        "quality_improved": false,
+        "token_within_10_percent": true
+      },
+      "method_id": "cross-domain-transfer",
+      "single": {
+        "latency_ms": 48716.333333333336,
+        "quality": 0.9,
+        "token_cost_proxy": 4816.333333333333
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 50038.0,
+        "partner": "fact-checking",
+        "quality": 0.9,
+        "token_cost_proxy": 5096.666666666667
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": false,
+        "latency_within_10_percent": true,
+        "quality_improved": false,
+        "token_within_10_percent": true
+      },
+      "method_id": "steelman-comparison",
+      "single": {
+        "latency_ms": 46777.0,
+        "quality": 0.9,
+        "token_cost_proxy": 5028.0
+      }
+    },
+    {
+      "baseline": {
+        "latency_ms": 42887.666666666664,
+        "quality": 0.9333333333333333,
+        "token_cost_proxy": 4727.0
+      },
+      "combined": {
+        "latency_ms": 45641.666666666664,
+        "partner": "fact-checking",
+        "quality": 1.0,
+        "token_cost_proxy": 4687.0
+      },
+      "gate": {
+        "candidate": false,
+        "critical_rubric_nonzero": true,
+        "latency_within_10_percent": false,
+        "quality_improved": true,
+        "token_within_10_percent": true
+      },
+      "method_id": "minimal-experiment",
+      "single": {
+        "latency_ms": 47236.333333333336,
+        "quality": 0.9666666666666667,
+        "token_cost_proxy": 5072.666666666667
+      }
+    }
+  ],
+  "promotion_candidates": [
+    "dual-layer-explanation"
+  ],
+  "run_id": "method-eval-20260916-r6",
+  "schema_version": 1,
+  "seed": 20260915,
+  "status": "completed"
+}

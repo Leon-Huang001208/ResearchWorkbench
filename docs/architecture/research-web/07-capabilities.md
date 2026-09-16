@@ -61,10 +61,22 @@ JSONL 写入 `method_id`、`version`、`source`，不接收 Prompt、文档正�
 每一轮以提交前偏移量隔离证据，旧轮记录不能满足新轮检查。必需或用户指定 Method 缺证据时将完成
 状态改为失败；推荐或模型补选缺证据时保留结果并标记 `method_trace_incomplete`。
 
-Research Evals 与工程 Harness 独立。每个 Method 生成至少三个投研场景，并比较无方法、单方法和
-组合方法，只评分来源区分、反证、决定变量、实验条件等可观察结果。只有质量改善且成本、延迟均未
-明显倒退时才能进入默认推荐；当前 Skill／Workflow 的默认策略为空。用户可编辑 Prompt 模板库属于
-下一阶段，必须等待真实模型评测通过；现有报告项目的 `prompt_templates.md` 保持原状。
+Research Evals 与工程 Harness 独立，由 `benchmarks/research_methods.py` 读取三份固定、版本化的
+合成投研证据包。一次完整运行复用三个 baseline，并执行 30 个 single 与 30 个 combined 变体，
+共 63 次 `reasoning` 模型调用；全部变体使用同一结构化输出契约、`temperature=0` 与固定随机顺序。
+CLI 复用 `ModelGatewayImpl` 解析当前 `TASK_REASONING` 的 provider/model；共用 OpenAI-compatible
+provider 在 SDK 缺失时使用现有 `httpx` 后备，配置、凭据或端点失败时不切换其他模型。
+评分只检查有效证据 ID、来源区分、反证、决定变量、因果步骤、专家冲突、跨域失效条件、实验样本、
+停止条件和决策阈值等可观察结果，不调用评审模型，也不收集隐藏思维链。原始模型输出只进入用户私有
+目录；仓库仅保存分数、哈希、模型标识、token 成本代理和延迟。
+
+single 相对同场景 baseline 必须质量提高，平均 token 与延迟均不得超过 10% 回退，且方法关键 rubric
+在三个场景均非零，才会生成供人工审阅的晋级候选；combined 只用于组合分析。任一调用失败或输出
+无效时整轮失败关闭。评测不会自动修改当前为空的默认推荐。用户可编辑 Prompt 模板库属于下一阶段，
+必须等待真实模型评测通过并完成候选人工审阅；现有报告项目的 `prompt_templates.md` 保持原状。
+
+2026-09-16 的真实 `deepseek-v4-pro` 运行完成 63/63 次调用；`dual-layer-explanation` 是唯一满足
+质量、token、延迟与关键 rubric 全部门槛的人工审阅候选。该结果没有自动更新默认推荐。
 
 能力目录、内置 Skill、Report Workflow 和 Research Web 运行配置统一显式使用 UTF-8 读取与原子写入，不依赖操作系统默认代码页；Windows 原生 CI 会实际启动服务并读取中文内置能力，以验证这条启动链路。
 

@@ -15,6 +15,13 @@
 - 必需或用户指定方法缺少采用证据时阻断完成；推荐或模型补选方法缺少证据时以
   `method_trace_incomplete` 降级。默认推荐保持为空，只有独立 Research Evals 证明质量改善且成本、
   延迟无明显倒退后才可进入默认策略；Prompt 模板库尚未启用。
+- 新增与产品 API、UI 和工程 Harness 隔离的 Method Eval runner，以及三份固定合成投研证据包；
+  每轮复用 3 个 baseline，执行 30 个 single 和 30 个 combined `reasoning` 调用。仓库结果只保留
+  可观察分数、哈希、模型标识、token 成本代理与延迟，原始输出留在用户私有目录；失败关闭且只生成
+  人工审阅候选，不自动启用默认推荐。
+- Method Eval 复用共用 `ModelGatewayImpl`；OpenAI-compatible provider 在 SDK 缺失时使用既有
+  `httpx` 后备且不暴露 `reasoning_content`。真实 `deepseek-v4-pro` 运行完成 63/63 次调用，只有
+  `dual-layer-explanation` 进入人工审阅候选，默认推荐仍为空。
 
 ### 黄金/美元框架、Artifacts 与部署入口 · 2026-09-14
 
