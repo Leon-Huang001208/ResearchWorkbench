@@ -16,7 +16,7 @@
 不可变安装记录、健康探测、Runtime 启停、OAuth、会话授权、资源/提示读取、高风险审批及 DSH
 私有工具代理。Phase 2C 增加通用 Automation、运行查询/重试、报告日程显式迁移与投递渠道接口。
 
-本轮跨平台修复不新增或修改 HTTP 路由。Windows 上的 Runtime 认证读取、DataHub 快照接口和会话文件下载在进入既有响应契约前执行规范路径、重解析点、普通文件及打开前后身份校验；失败继续返回既有安全错误，不暴露本机路径或文件内容。waterfall/cancel 的空或非字符串标识在协议边界统一返回 `protocol_error`。
+本轮跨平台修复不新增或修改 HTTP 路由。Windows 上的 Runtime 认证读取、DataHub 快照接口和会话文件下载在进入既有响应契约前执行规范路径、重解析点、普通文件及打开前后身份校验；Profile junction containment 与 PowerShell PID 探针只修复 3081 生命周期，不改变响应 schema。失败继续返回既有安全错误，不暴露本机路径或文件内容。waterfall/cancel 的空或非字符串标识在协议边界统一返回 `protocol_error`。
 MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修正发生在服务装配和安装预览
 边界，不改变请求或响应 schema；目录类型、符号链接和重解析点仍关闭失败，POSIX 私有权限检查
 保持不变。

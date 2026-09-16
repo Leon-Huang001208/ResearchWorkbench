@@ -56,7 +56,10 @@ current worktree has no `.venv`, allowing isolated worktrees to reuse the projec
 their source root. It enters that resolved root before importing the entrypoint and, in Codex Desktop, exports
 the bundled Node as `RESEARCH_NODE_BINARY`; `service_manager.py` gives this explicit value precedence over
 `PATH`. Launcher and precedence regressions live in `tests/research_web/test_cli_lazy.py` and
-`test_service_manager.py`.
+`test_service_manager.py`. Native Windows lifecycle checks use a no-shell PowerShell PID probe rather than
+`os.kill(pid, 0)`, and `launch_runtime.py` accepts pnpm directory junctions only after resolving them back inside
+the pinned DSH source tree; corresponding regressions live in `test_service_manager.py` and
+`test_runtime_launch.py`.
 
 Research Web Phase 2A adds the feature-gated, read-only MCP Registry catalog in
 `app/research_web/mcp_registry/`. `catalog.py` aggregates the fixed official `/v0.1` API and explicitly

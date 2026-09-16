@@ -232,6 +232,38 @@ def test_windows_process_tree_termination_uses_taskkill(manager, monkeypatch):
     assert all(options["shell"] is False for _command, options in captured)
 
 
+@pytest.mark.parametrize(("returncode", "expected"), [(0, True), (1, False)])
+def test_windows_pid_probe_uses_powershell_without_os_kill(
+    manager, monkeypatch, returncode, expected
+):
+    captured = {}
+
+    class Result:
+        def __init__(self, code):
+            self.returncode = code
+
+    def run(command, **options):
+        captured.update(command=command, options=options)
+        return Result(returncode)
+
+    monkeypatch.setattr(
+        service_manager_module.os,
+        "kill",
+        lambda *_args: pytest.fail("Windows PID probes must not call os.kill"),
+    )
+    monkeypatch.setattr(service_manager_module.subprocess, "run", run)
+
+    assert manager._pid_exists(4321, platform_name="nt") is expected
+    assert captured["command"][:4] == [
+        "powershell.exe",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+    ]
+    assert "4321" in captured["command"][4]
+    assert captured["options"]["shell"] is False
+
+
 def test_posix_zombie_is_not_treated_as_a_live_owned_process(manager, monkeypatch):
     class Result:
         returncode = 0

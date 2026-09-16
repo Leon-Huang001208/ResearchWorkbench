@@ -238,13 +238,33 @@ class WebServiceManager:
     @staticmethod
     def _pid_exists(pid: int, *, platform_name: str | None = None) -> bool:
         platform_name = platform_name or os.name
+        if platform_name == "nt":
+            try:
+                result = subprocess.run(
+                    [
+                        "powershell.exe",
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-Command",
+                        (
+                            f"if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) "
+                            "{ exit 0 } else { exit 1 }"
+                        ),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    shell=False,
+                )
+            except (OSError, subprocess.SubprocessError):
+                return True
+            return result.returncode == 0
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
             return False
         except PermissionError:
-            return True
-        if platform_name == "nt":
             return True
         try:
             status = subprocess.run(

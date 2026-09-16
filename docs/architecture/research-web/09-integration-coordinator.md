@@ -4,6 +4,7 @@
 没有 `CJ_KEY` 时天软保持待用户配置；保存后的秘密由凭据库在每次探测/查询时动态读取，协调器仍
 按既有五阶段模型和责任归因记录结果。
 安装器对 Windows DSH checkout 启用命令级长路径，Runtime 首次启动先初始化固定 `web` Profile；
+Profile junction containment 与 PowerShell PID 探针仅保证 Windows 3081 安全启动和回收；
 这些修复只保证协调器所在 8088/3081 可复现启动，不把任何来源状态提升为可调用。
 
 ## 目标

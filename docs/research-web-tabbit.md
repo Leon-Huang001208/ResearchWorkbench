@@ -108,6 +108,8 @@ Python/API、Node adapter、前端交互和 Runtime staging 可用模拟 Runtime
 验证，但这不证明真实浏览器可用。当前 Web-only 功能的合并门禁为：真实 macOS 覆盖状态诊断、
 首次授权、1/8 页实时 DOM、动态表单内容、二次确认、标签保持打开、失败保留草稿、只读自动执行、
 写操作审批、`web_fetch` 开关和缺失/旧版指引，同时原生 macOS/Windows CI 均通过。
+Windows Profile 的 pnpm 模块回退使用目录 junction；Runtime 启动校验必须像 POSIX symlink 一样解析
+并限制其最终目标仍在固定 DSH 源码树内，不能把合法 junction 误报为“模块目录为空”。
 
 2026-09-10 的真实 macOS 验收使用 Apple Silicon、官方签名并公证的 Tabbit 1.13.24.0、可用
 `tabbit-cli` 和一个在线实例，以上旅程均已通过。Windows 交付以原生 CI 的 Runtime staging、路径

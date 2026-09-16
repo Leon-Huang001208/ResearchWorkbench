@@ -77,6 +77,33 @@ def test_runtime_module_fallback_rejects_external_target(tmp_path, monkeypatch):
         launch_runtime.prepare_runtime_module_fallback(source, home, "/node")
 
 
+def test_runtime_module_fallback_accepts_windows_junctions_inside_private_source(
+    tmp_path, monkeypatch
+):
+    source = make_source(tmp_path)
+    home = tmp_path / "home"
+    target = source / "packages/example"
+    target.mkdir(parents=True)
+    link = home / "profiles/node_modules/dsh-example"
+    original_is_symlink = Path.is_symlink
+
+    def run(*_args, **_kwargs):
+        link.parent.mkdir(parents=True)
+        link.symlink_to(target, target_is_directory=True)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(launch_runtime.subprocess, "run", run)
+    monkeypatch.setattr(
+        Path,
+        "is_symlink",
+        lambda path: False if path == link else original_is_symlink(path),
+    )
+    monkeypatch.setattr(Path, "is_junction", lambda path: path == link)
+    monkeypatch.setattr(launch_runtime.os, "name", "nt")
+
+    assert launch_runtime.prepare_runtime_module_fallback(source, home, "/node") == 1
+
+
 def test_runtime_keeps_dsh_home_private_but_uses_host_home_for_tabbit(tmp_path, monkeypatch):
     source = make_source(tmp_path)
     data = tmp_path / "data"
