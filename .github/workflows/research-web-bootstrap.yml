@@ -49,6 +49,41 @@ jobs:
         shell: cmd
         run: setup-web.cmd --no-start
 
+      - name: Probe Windows runtime module fallback
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+
+          from app.research_web import launch_runtime
+
+          source = (
+              Path.home()
+              / ".research-workbench"
+              / "runtime"
+              / "dsh"
+              / launch_runtime.PINNED_COMMIT
+          )
+          home = (
+              Path.home()
+              / ".research-workbench"
+              / "research-web"
+              / "runtime"
+              / "home"
+          )
+          try:
+              count = launch_runtime.prepare_runtime_module_fallback(source, home, "node.exe")
+          except RuntimeError as exc:
+              cause = exc.__cause__
+              print(f"fallback_cause={type(cause).__name__}")
+              print(f"fallback_returncode={getattr(cause, 'returncode', None)}")
+              print(f"fallback_stdout={getattr(cause, 'stdout', '')}")
+              print(f"fallback_stderr={getattr(cause, 'stderr', '')}")
+              raise
+          print(f"fallback_module_count={count}")
+          '@ | .\.venv\Scripts\python.exe -
+
       - name: Verify macOS environment and start services
         if: runner.os == 'macOS'
         shell: bash
