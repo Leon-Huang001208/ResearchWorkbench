@@ -41,6 +41,7 @@ SLUGS = (
     "platform-breakout",
     "chanlun",
 )
+SERIES_IDENTITY_SLUGS = SLUGS[:3]
 REQUIRED_PACKAGE_FILES = {
     "SKILL.md",
     "scripts/calculate.py",
@@ -51,6 +52,12 @@ REQUIRED_PACKAGE_FILES = {
     "fixtures/input.json",
     "fixtures/golden-result.json",
     "fixtures/source-artifact.json",
+}
+REQUIRED_PACKAGE_FILES_BY_SLUG = {
+    "style-rotation-research": {
+        "fixtures/moving-average-deviation-input.json",
+        "fixtures/moving-average-deviation-golden-result.json",
+    }
 }
 DATE_FIELDS = {
     "rate-ma-timing-research": "date",
@@ -143,6 +150,26 @@ def test_style_rotation_research_uses_explicit_relative_strength_momentum():
     assert actual["metrics"]["latest_research_signal"] == "style_a_preferred"
 
 
+def test_style_rotation_moving_average_deviation_has_independent_golden_and_signal():
+    module = load_calculator("style-rotation-research")
+    payload = load_json("style-rotation-research", "moving-average-deviation-input.json")
+
+    actual = module.calculate(payload, input_bytes=len(json.dumps(payload).encode("utf-8")))
+
+    assert_close(
+        actual,
+        load_json("style-rotation-research", "moving-average-deviation-golden-result.json"),
+    )
+    assert actual["parameters"]["method"] == "moving_average_deviation"
+    assert actual["metrics"]["latest_research_signal"] == "style_a_preferred"
+    assert math.isclose(
+        actual["rows"][-1]["deviation"],
+        0.015173206016441121,
+        rel_tol=1e-6,
+        abs_tol=1e-8,
+    )
+
+
 def test_platform_breakout_uses_only_prior_window_and_bounded_watchlist():
     module = load_calculator("platform-breakout")
     payload = load_json("platform-breakout", "input.json")
@@ -166,7 +193,8 @@ def test_chanlun_builds_deterministic_non_recursive_confirmed_strokes():
 @pytest.mark.parametrize("slug", SLUGS)
 def test_stage4_packages_have_strict_valid_schemas_goldens_and_provenance(slug):
     folder = SKILLS_ROOT / slug
-    assert REQUIRED_PACKAGE_FILES <= {
+    required_files = REQUIRED_PACKAGE_FILES | REQUIRED_PACKAGE_FILES_BY_SLUG.get(slug, set())
+    assert required_files <= {
         path.relative_to(folder).as_posix() for path in folder.rglob("*") if path.is_file()
     }
     input_schema = json.loads((folder / "references/input-schema.json").read_text(encoding="utf-8"))
@@ -234,6 +262,15 @@ def test_stage4_schema_fields_and_runtime_contract_constants_are_equivalent(slug
     assert contract_schema["properties"]["units"]["properties"] == {
         key: {"const": value} for key, value in module.CONTRACT_UNITS.items()
     }
+    if slug in SERIES_IDENTITY_SLUGS:
+        identity_schema = schema["properties"]["series_identity"]
+        assert set(identity_schema["required"]) == set(module.SERIES_IDENTITY_FIELDS)
+        for name, expected in module.EXPECTED_SERIES_IDENTITY.items():
+            descriptor = identity_schema["properties"][name]
+            assert set(descriptor["required"]) == set(module.SERIES_DESCRIPTOR_FIELDS)
+            assert descriptor["properties"] == {
+                field: {"const": value} for field, value in expected.items()
+            }
     actual = module.calculate(load_json(slug, "input.json"), input_bytes=1024)
     assert set(actual) == set(output_schema["properties"])
     assert actual["protocol"] == "cpu_bounded_v1"
@@ -321,6 +358,60 @@ def test_stage4_runtime_rejects_contract_provider_hash_and_future_mismatches(slu
     assert error.value.code == "future_data"
 
 
+@pytest.mark.parametrize("slug", SERIES_IDENTITY_SLUGS)
+def test_stage4_series_identity_is_required_and_round_trips_to_output(slug):
+    module = load_calculator(slug)
+    payload = load_json(slug, "input.json")
+
+    result = module.calculate(payload, input_bytes=1024)
+
+    assert result["series_identity"] == payload["series_identity"]
+    missing = copy.deepcopy(payload)
+    missing.pop("series_identity")
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(missing, input_bytes=1024)
+    assert error.value.code == "missing_required_field"
+
+
+def test_rate_and_erp_reject_series_identity_version_and_tenor_mismatch():
+    cases = (
+        ("rate-ma-timing-research", "rate_series", "tenor", "2Y"),
+        ("rate-ma-timing-research", "asset_series", "identity", "wrong_asset"),
+        ("equity-risk-premium-timing", "bond_yield_series", "tenor", "2Y"),
+        ("equity-risk-premium-timing", "index_series", "identity", "wrong_index"),
+        ("equity-risk-premium-timing", "index_series", "version", "wrong_version"),
+    )
+    for slug, series, field, value in cases:
+        module = load_calculator(slug)
+        payload = load_json(slug, "input.json")
+        payload["series_identity"][series][field] = value
+        with pytest.raises(module.CalculatorError) as error:
+            module.calculate(payload, input_bytes=1024)
+        assert error.value.code == "data_not_equivalent"
+
+
+def test_style_rejects_swapped_duplicate_or_version_mismatched_series_identity():
+    module = load_calculator("style-rotation-research")
+    base = load_json("style-rotation-research", "input.json")
+
+    swapped = copy.deepcopy(base)
+    swapped["series_identity"]["style_a_series"], swapped["series_identity"]["style_b_series"] = (
+        swapped["series_identity"]["style_b_series"],
+        swapped["series_identity"]["style_a_series"],
+    )
+    duplicate = copy.deepcopy(base)
+    duplicate["series_identity"]["style_b_series"] = copy.deepcopy(
+        duplicate["series_identity"]["style_a_series"]
+    )
+    version_mismatch = copy.deepcopy(base)
+    version_mismatch["series_identity"]["style_a_series"]["version"] = "wrong_version"
+
+    for payload in (swapped, duplicate, version_mismatch):
+        with pytest.raises(module.CalculatorError) as error:
+            module.calculate(payload, input_bytes=1024)
+        assert error.value.code == "data_not_equivalent"
+
+
 @pytest.mark.parametrize("slug", SLUGS)
 def test_stage4_runtime_enforces_finite_numbers_and_explicit_partial_provenance(slug):
     module = load_calculator(slug)
@@ -365,6 +456,28 @@ def test_stage4_explicit_ambiguous_rules_fail_closed():
     assert error.value.code == "ambiguous_structure"
 
 
+def test_chanlun_dual_pivot_fails_closed_as_ambiguous_structure():
+    module = load_calculator("chanlun")
+    payload = load_json("chanlun", "input.json")
+    payload["records"][3].update({"high": 12, "low": 7, "close": 9})
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+
+    assert error.value.code == "ambiguous_structure"
+
+
+def test_chanlun_too_close_reversal_fails_closed_as_ambiguous_structure():
+    module = load_calculator("chanlun")
+    payload = load_json("chanlun", "input.json")
+    payload["parameters"]["minimum_separation_bars"] = 3
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+
+    assert error.value.code == "ambiguous_structure"
+
+
 @pytest.mark.parametrize("slug", SLUGS)
 def test_stage4_cli_is_strict_json_relative_safe_bounded_and_without_success_newline(
     slug, tmp_path
@@ -402,7 +515,7 @@ def test_stage4_cli_is_strict_json_relative_safe_bounded_and_without_success_new
     )
 
 
-def test_stage4_calculators_do_not_import_forbidden_execution_or_network_stacks():
+def test_stage4_packages_do_not_contain_absolute_paths_or_forbidden_execution_stacks():
     forbidden_roots = {
         "asyncio",
         "concurrent",
@@ -421,7 +534,8 @@ def test_stage4_calculators_do_not_import_forbidden_execution_or_network_stacks(
     }
     forbidden_tokens = ("cuda", "mps", "metal", "vba", "openpyxl")
     for slug in SLUGS:
-        source = (SKILLS_ROOT / slug / "scripts/calculate.py").read_text(encoding="utf-8")
+        folder = SKILLS_ROOT / slug
+        source = (folder / "scripts/calculate.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         imports = {
             alias.name.split(".", 1)[0]
@@ -435,10 +549,20 @@ def test_stage4_calculators_do_not_import_forbidden_execution_or_network_stacks(
             if isinstance(node, ast.ImportFrom) and node.module
         }
         assert imports.isdisjoint(forbidden_roots), (slug, imports & forbidden_roots)
-        lowered = source.lower()
+        package_text = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in folder.rglob("*")
+            if path.is_file() and path.suffix in {".md", ".json", ".py"}
+        )
+        lowered = package_text.lower()
         assert all(re.search(rf"\b{token}\b", lowered) is None for token in forbidden_tokens), slug
+        assert all(
+            re.search(rf"\b{token}\b", lowered) is None
+            for token in ("socket", "requests", "urllib", "httpx", "cjpy")
+        ), slug
         assert "http://" not in lowered and "https://" not in lowered
-        assert "/users/leon/" not in lowered
+        assert re.search(r"/(?:users|home)/[^/]+/", lowered) is None, slug
+        assert re.search(r"[a-z]:\\\\(?:users|documents and settings)\\\\", lowered) is None, slug
         assert "load_relative_json" in source
         assert "allow_nan=False" in source
 
@@ -467,6 +591,9 @@ def test_stage4_synthetic_source_artifacts_are_real_and_bound_to_fixtures():
             (SKILLS_ROOT / slug / "references/provenance.json").read_text(encoding="utf-8")
         )
         assert provenance["synthetic_source_artifact_sha256"] == digest
+        if slug in SERIES_IDENTITY_SLUGS:
+            source_artifact = json.loads(artifact.read_text(encoding="utf-8"))
+            assert source_artifact["series_identity"] == payload["series_identity"]
 
 
 def test_five_stage4_packages_are_discoverable_disabled_and_receipt_gated(tmp_path):

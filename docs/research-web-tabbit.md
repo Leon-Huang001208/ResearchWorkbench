@@ -156,3 +156,7 @@ Tabbit 的授权、claim、标签、正文 token 与浏览器 Runtime 状态。
 缠论确认分型与笔）仍只消费调用方提供的会话内 JSON，并复用既有 `research_run_script`、预算、
 不可变版本和 comparison receipt 门禁。它们不调用 Tabbit，不读取页面正文或浏览器证据，也不改变
 页面授权、claim、一次性 token、写操作审批或标签生命周期；真实对照证据不足时保持 disabled。
+
+Stage 4 复审增加的 series identity/version/tenor 契约、风格独立 golden 和缠论歧义结构负测只收紧
+计算器已提供 JSON 的等价性判断。它们不访问 Tabbit、页面正文、浏览器网络或一次性 token，也不
+改变 claim、写操作审批和标签生命周期。

@@ -31,10 +31,26 @@ LOGGER = logging.getLogger("research.skill.rate_ma_timing_research")
 SKILL_SLUG = "rate-ma-timing-research"
 METHOD_VERSION = "1.0.0"
 SUPPORTED_PROVIDERS = frozenset({"synthetic", "user_input"})
-ROOT_FIELDS = frozenset({"as_of", "parameters", "data_contract", "dataset_refs", "records"})
+ROOT_FIELDS = frozenset(
+    {"as_of", "parameters", "data_contract", "series_identity", "dataset_refs", "records"}
+)
 ALLOWED_ROOT_FIELDS = ROOT_FIELDS | {"source_hashes"}
 PARAMETER_FIELDS = frozenset({"moving_average_window", "deviation_threshold", "position_step"})
 RECORD_FIELDS = frozenset({"date", "asset_close", "rate_pct"})
+SERIES_IDENTITY_FIELDS = frozenset({"asset_series", "rate_series"})
+SERIES_DESCRIPTOR_FIELDS = frozenset({"identity", "version", "tenor"})
+EXPECTED_SERIES_IDENTITY = {
+    "asset_series": {
+        "identity": "synthetic_rate_timing_asset_index",
+        "version": "close_v1",
+        "tenor": "spot",
+    },
+    "rate_series": {
+        "identity": "synthetic_rate_timing_government_bond_yield",
+        "version": "yield_pct_v1",
+        "tenor": "10Y",
+    },
+}
 CONTRACT_UNITS = {
     "asset_close": "index_points",
     "rate": "percent",
@@ -74,6 +90,29 @@ def _parameters(value: Any) -> dict[str, float | int]:
     }
 
 
+def _series_identity(value: Any) -> dict[str, dict[str, str]]:
+    identity = strict_object(
+        value,
+        required=SERIES_IDENTITY_FIELDS,
+        allowed=SERIES_IDENTITY_FIELDS,
+        error=CalculatorError,
+    )
+    normalized: dict[str, dict[str, str]] = {}
+    for name in SERIES_IDENTITY_FIELDS:
+        descriptor = strict_object(
+            identity[name],
+            required=SERIES_DESCRIPTOR_FIELDS,
+            allowed=SERIES_DESCRIPTOR_FIELDS,
+            error=CalculatorError,
+        )
+        normalized[name] = {field: descriptor[field] for field in ("identity", "version", "tenor")}
+        if not all(isinstance(item, str) and item for item in normalized[name].values()):
+            raise CalculatorError("invalid_field_type")
+    if normalized != EXPECTED_SERIES_IDENTITY:
+        raise CalculatorError("data_not_equivalent")
+    return normalized
+
+
 def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     budget = WorkloadBudget()
     budget.add_input(rows=0, bytes_count=input_bytes)
@@ -94,6 +133,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
     )
+    series_identity = _series_identity(payload["series_identity"])
     parameters = _parameters(payload["parameters"])
     records = payload["records"]
     if not isinstance(records, list) or not records:
@@ -203,6 +243,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "compute_profile": "cpu_bounded_v1",
         "as_of": as_of,
         "parameters": parameters,
+        "series_identity": series_identity,
         "dataset_refs": refs,
         "status": "partial" if source_limitations else "complete",
         "metrics": {

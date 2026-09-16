@@ -4,7 +4,7 @@ description: 对两条显式风格指数序列执行均线乖离或相对强弱�
 ---
 # 风格轮动研究
 
-运行 `scripts/calculate.py <relative-input.json>`。每次仅比较两条、同一交易日历和同一前复权口径的风格指数，方法必须明确选择 `moving_average_deviation` 或 `relative_strength_momentum`。前者在相对比值乖离低于阈值时按移动平均方向分类；后者以两指数窗口收益差及其滞后变化的同号关系分类。符号冲突为 `neutral`，不得猜测。
+运行 `scripts/calculate.py <relative-input.json>`。每次仅比较两条、同一交易日历和同一前复权口径的风格指数；输入必须提供顺序固定且互不相同的 A/B 指数 identity、version、tenor，输出原样回传该 `series_identity`。A/B 交换、重复身份或版本变化均以 `data_not_equivalent` 失败关闭。方法必须明确选择 `moving_average_deviation` 或 `relative_strength_momentum`，两种方法分别有独立 golden 验证。前者在相对比值乖离低于阈值时按移动平均方向分类；后者以两指数窗口收益差及其滞后变化的同号关系分类。符号冲突为 `neutral`，不得猜测。
 
 少于所选方法所需窗口返回 `insufficient_history`；未知方法返回 `ambiguous_rule`。provider、字段、单位、日期和复权不等价返回 `data_not_equivalent`。所有结果包含样本、条件、冲突反例、失效条件和截止日，是研究信号而非交易或下单指令。
 

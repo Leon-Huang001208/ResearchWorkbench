@@ -73,7 +73,9 @@ VBA、CJPY、绝对路径或新的执行权限。
 同样是单一职责 CPU 计算器。前三项最多处理 5,000 个日频观测；平台突破仅接受最多 50 个明确标的、
 每标的最多 1,000 行，并且当前 bar 不参与平台估计；缠论仅实现严格确认分型和非递归交替笔子集，
 相等平台、双重枢轴或过近反转返回 `ambiguous_structure`。所有输出保留样本、条件、反例、失效条件
-和数据截止日，并标记 `research_only=true`。当前没有可核验的 Stage 4 已发布前身，故不建立猜测性
+和数据截止日，并标记 `research_only=true`。利率、风险溢价和风格输入/输出同时携带受审
+`series_identity`，固定每条序列的 identity、version 和 tenor；期限、指数身份/版本错配以及风格
+A/B 交换或重复均失败关闭。风格均线乖离与相对强弱动量各有独立 golden。当前没有可核验的 Stage 4 已发布前身，故不建立猜测性
 迁移摘要；catalog 只做新增种子，receipt 仍严格绑定不可变版本。
 
 阶段 2A 的只读 MCP 市场在三阶段 CI 通过后默认开启；显式设置 `RESEARCH_MCP_REGISTRY_ENABLED=0`

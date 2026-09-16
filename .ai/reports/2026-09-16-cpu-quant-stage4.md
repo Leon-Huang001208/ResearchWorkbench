@@ -33,6 +33,11 @@ JSON loader、有限数算术、64 KiB 完整输出、不可变版本与 v2 HMAC
 所有结果包含 `sample_size`、`conditions`、`counterexamples`、`failure_conditions` 与 `data_cutoff`，
 并固定 `research_only=true`，不是交易、下单或个性化投资指令。
 
+规格复审后，利率均线、风险溢价与风格轮动的输入和输出均增加必填 `series_identity`，分别固定每条
+序列的 identity、version 与 tenor。运行时不接受期限错配、指数身份/版本变化或风格 A/B 交换、重复；
+失败稳定返回 `data_not_equivalent`。风格均线乖离方法增加独立 input/golden，平台突破与缠论不可用
+来源的 provenance 不再记录本机绝对路径。五包静态检查覆盖完整包，不只检查 calculator。
+
 ## 来源与状态
 
 三份工作簿只做只读公式/缓存检查，未执行公式或宏，未提交原文件：
@@ -67,8 +72,13 @@ TDD 记录：
   外，异步用例因 `pytest-asyncio` 未加载而不能执行；数量和新增名称断言同步后，改用正常插件环境
   完整复验通过。
 - `scripts/check_doc_sync.py`、`scripts/check_task_completion.py`、52 项 Research Web architecture Node
-  测试和 `.agents/project-constraints.mjs` 均通过；新增 35 个 JSON 文件均可解析，`git diff --check`
+  测试和 `.agents/project-constraints.mjs` 均通过；新增 37 个 JSON 文件均可解析，`git diff --check`
   及相关 Ruff、Black、isort 检查通过。
+- 规格复审修正先增加身份/期限、独立 golden、整包静态扫描和缠论歧义结构测试，初始 RED 为
+  `7 failed, 2 passed`；其中缠论双重枢轴与过近反转两项已由现有实现正确失败关闭。最小实现后
+  Stage 4 专项 GREEN 为 `83 passed, 1 warning in 25.83s`，Stage 2 + Stage 3 + Stage 4 为
+  `385 passed, 1 warning in 217.34s`；能力聚焦回归为
+  `180 passed, 3 skipped, 1 warning in 553.48s`。
 
 近上限真实 sandbox 复测（父进程与子进程 RSS 合计）：
 

@@ -28,10 +28,26 @@ LOGGER = logging.getLogger("research.skill.equity_risk_premium_timing")
 SKILL_SLUG = "equity-risk-premium-timing"
 METHOD_VERSION = "1.0.0"
 SUPPORTED_PROVIDERS = frozenset({"synthetic", "user_input"})
-ROOT_FIELDS = frozenset({"as_of", "parameters", "data_contract", "dataset_refs", "records"})
+ROOT_FIELDS = frozenset(
+    {"as_of", "parameters", "data_contract", "series_identity", "dataset_refs", "records"}
+)
 ALLOWED_ROOT_FIELDS = ROOT_FIELDS | {"source_hashes"}
 PARAMETER_FIELDS = frozenset({"quantile_window", "lower_quantile", "upper_quantile"})
 RECORD_FIELDS = frozenset({"date", "index_close", "pe_ttm", "bond_yield_pct"})
+SERIES_IDENTITY_FIELDS = frozenset({"index_series", "bond_yield_series"})
+SERIES_DESCRIPTOR_FIELDS = frozenset({"identity", "version", "tenor"})
+EXPECTED_SERIES_IDENTITY = {
+    "index_series": {
+        "identity": "synthetic_equity_risk_premium_index",
+        "version": "pe_ttm_v1",
+        "tenor": "spot",
+    },
+    "bond_yield_series": {
+        "identity": "synthetic_equity_risk_premium_government_bond_yield",
+        "version": "yield_pct_v1",
+        "tenor": "10Y",
+    },
+}
 CONTRACT_UNITS = {
     "index_close": "index_points",
     "pe_ttm": "multiple",
@@ -51,6 +67,29 @@ def _number(value: Any, *, positive: bool = False) -> float:
     return checked_number(value, error=CalculatorError, positive=positive)
 
 
+def _series_identity(value: Any) -> dict[str, dict[str, str]]:
+    identity = strict_object(
+        value,
+        required=SERIES_IDENTITY_FIELDS,
+        allowed=SERIES_IDENTITY_FIELDS,
+        error=CalculatorError,
+    )
+    normalized: dict[str, dict[str, str]] = {}
+    for name in SERIES_IDENTITY_FIELDS:
+        descriptor = strict_object(
+            identity[name],
+            required=SERIES_DESCRIPTOR_FIELDS,
+            allowed=SERIES_DESCRIPTOR_FIELDS,
+            error=CalculatorError,
+        )
+        normalized[name] = {field: descriptor[field] for field in ("identity", "version", "tenor")}
+        if not all(isinstance(item, str) and item for item in normalized[name].values()):
+            raise CalculatorError("invalid_field_type")
+    if normalized != EXPECTED_SERIES_IDENTITY:
+        raise CalculatorError("data_not_equivalent")
+    return normalized
+
+
 def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     budget = WorkloadBudget()
     budget.add_input(rows=0, bytes_count=input_bytes)
@@ -68,6 +107,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         providers=SUPPORTED_PROVIDERS,
         error=CalculatorError,
     )
+    series_identity = _series_identity(payload["series_identity"])
     raw_parameters = strict_object(
         payload["parameters"],
         required=PARAMETER_FIELDS,
@@ -154,6 +194,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         "compute_profile": "cpu_bounded_v1",
         "as_of": as_of,
         "parameters": parameters,
+        "series_identity": series_identity,
         "dataset_refs": refs,
         "status": "partial" if source_limitations else "complete",
         "metrics": {

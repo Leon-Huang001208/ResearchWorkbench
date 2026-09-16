@@ -719,3 +719,15 @@
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage4五个CPU研究Skill复用既有种子、不可变版本、disabled与v2 HMAC receipt门禁；仅增加包和声明式元数据。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Stage4计算器继续位于既有research_run_script沙箱，复用cpu_bounded_v1、相对JSON和64KiB输出边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage4仅声明现有业务工具意图，未核验联合字段映射保持callable=false，不新增Provider binding或数据流。","diagrams":[]} -->
+
+## 2026-09-16 — CPU Skill 阶段 4 规格复审修正
+
+- 利率均线、股权风险溢价和风格轮动的输入/输出增加必填 `series_identity`，逐条绑定 identity、
+  version 与 tenor；运行时严格拒绝期限错配、指数身份/版本变化及风格 A/B 交换或重复。
+- 风格均线乖离方法增加独立 input/golden 与数值容差、信号断言；缠论双重枢轴及过近反转均明确
+  验证为 `ambiguous_structure`。
+- 五包静态扫描扩展到 SKILL、references、fixtures 和 scripts；后两项不可用来源仅保留逻辑描述和
+  候选摘要前缀，不记录本机绝对路径。该修正没有增加 API、Provider binding、执行器、持久节点或权限。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage4 series identity/version/tenor、独立golden与来源描述修正只收紧既有不可变能力包契约，不新增能力类型、API或状态。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Stage4身份等价性和缠论歧义结构检查继续运行在既有research_run_script沙箱内，不新增执行节点、网络或文件权限。","diagrams":[]} -->

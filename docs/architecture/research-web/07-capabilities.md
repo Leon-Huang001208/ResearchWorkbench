@@ -9,7 +9,7 @@
 | `models.py` | 元数据、输入字段、步骤与产品错误契约 | 执行研究 |
 | `packages.py` | 有界 MD/ZIP 读取、路径/类型/编码检查、保留问题 | 安装依赖、解压到任意路径或运行脚本 |
 | `catalog.py` | 草稿、检查、不可变版本、原生目录投影、会话资源快照 | Agent 编排 |
-| `seeds.py` | 二十五个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
+| `seeds.py` | 三十个研究 Skill、四个步骤式 Workflow 的声明式内置元数据与共享协议装包 | 虚构在线市场或新增路由器 |
 | `tools.py` | 固定 DSH 注册与最终 guard 白名单对应的只读工具目录 | 新增工具权限 |
 | `routes.py` | `/api/research/capabilities` 等产品操作 | 绕过研究服务锁直接修改活动运行 |
 | `ui/capability-workspace.mjs` | 将 Skill、Tool、Workflow、数据组织为四个互斥主标签，并组合各自目录、管理入口、现有报告日程和连接安全摘要；渲染快览 dialog | 创建第二份目录、混排类型、推断热门排序或执行能力 |
@@ -53,6 +53,9 @@ Stage 3 的一向安全迁移只接受已列举的完整脚本 SHA-256，包括�
 五个 Stage 4 择时/技术结构 Skill 也复用该状态机：利率均线用前一持久信号计算滞后研究敞口，股权
 风险溢价使用 `1 / PE_TTM - bond_yield_pct / 100` 与滚动经验分位，风格轮动要求显式选择相对比值
 均线或相对强弱动量方法，平台突破只用当前 bar 之前的有限窗口，缠论只提供非递归确认分型与笔子集。
+前三项输入和输出显式绑定各序列的 identity、version 与 tenor；利率/风险溢价的 2Y/10Y 等期限错配、
+指数身份或版本变化，以及风格 A/B 序列交换或重复均以 `data_not_equivalent` 失败关闭。风格两种方法
+分别保存 golden；缠论双重枢轴与过近反转均返回 `ambiguous_structure`。
 它们不新增执行器、API 或 Provider 权限，clean catalog 中均 disabled；真实宿主 v2 HMAC comparison
 receipt 缺失时不产生原生投影。前三项工作簿仅只读核验且未执行公式；后两项来源不可用，provenance
 只记录未匹配前缀而不猜完整 SHA-256。

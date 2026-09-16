@@ -6046,6 +6046,7 @@ Classes:
 
 Functions:
 - `_number`
+- `_series_identity`
 - `calculate`
 - `main`
 
@@ -6393,6 +6394,7 @@ Classes:
 Functions:
 - `_number`
 - `_parameters`
+- `_series_identity`
 - `calculate`
 - `main`
 
@@ -6467,6 +6469,7 @@ Classes:
 
 Functions:
 - `_number`
+- `_series_identity`
 - `calculate`
 - `main`
 
