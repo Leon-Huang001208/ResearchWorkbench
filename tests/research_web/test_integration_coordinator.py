@@ -33,7 +33,9 @@ def data_source(
         else (
             "blocked_config"
             if not configured
-            else "blocked_dependency" if not dependency_ready else "ready"
+            else "blocked_dependency"
+            if not dependency_ready
+            else "ready"
         )
     )
     return {
