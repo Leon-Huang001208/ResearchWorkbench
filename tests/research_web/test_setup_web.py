@@ -446,6 +446,34 @@ def test_provision_dsh_recovers_a_completed_installer_staging_directory(
     assert marker["closure_files"] == 11084
 
 
+def test_windows_provision_dsh_uses_and_recovers_a_short_staging_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installer = SetupWebInstaller(
+        project_root=tmp_path,
+        data_home=tmp_path / "data",
+        platform_name="nt",
+    )
+    staging = installer.dsh_root / ".s-0123456789ab"
+    staging.mkdir(parents=True)
+    verified = {
+        "commit": "c919b2a460753859665db3f60143d525fb9140cf",
+        "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
+        "pnpm": "11.7.0",
+        "closure_sha256": "b" * 64,
+        "closure_files": 11084,
+    }
+    monkeypatch.setattr(installer, "verify_dsh_source", lambda *_args, **_kwargs: verified)
+    monkeypatch.setattr(
+        installer,
+        "_run_checked",
+        lambda *_args, **_kwargs: pytest.fail("completed Windows staging was not recovered"),
+    )
+
+    assert installer.provision_dsh() == verified
+    assert installer.dsh_source.is_dir()
+
+
 def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -487,6 +515,11 @@ def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
         "core.eol=lf",
     ]
     assert all(command[1:9] == expected_options for command in git_commands)
+    clone_destination = Path(git_commands[0][-1])
+    assert clone_destination.parent == installer.dsh_root
+    assert clone_destination.name.startswith(".s-")
+    assert len(clone_destination.name) == len(".s-") + 12
+    assert set(clone_destination.name.removeprefix(".s-")) <= set("0123456789abcdef")
 
 
 def test_windows_dsh_verification_uses_the_checkout_worktree_semantics(

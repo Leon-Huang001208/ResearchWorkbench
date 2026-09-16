@@ -92,7 +92,7 @@
 | `app/research_web/store.py` / `delivery.py` | 归属/文件索引与独立交付检查 |
 | `app/research_web/documentation.py` | 固定图册HTML白名单与隔离CSP |
 | `scripts/check_research_architecture.mjs` | 无全局Archify依赖的源码/文档/图/回执一致性检查 |
-| `scripts/setup_web.py` | 项目专属 `.venv`、哈希锁、CJPY、私有 Corepack shim，以及统一 Git 语义和受限 Windows C++ 工具链发现环境的固定 DSH 跨平台安装器 |
+| `scripts/setup_web.py` | 项目专属 `.venv`、哈希锁、CJPY、私有 Corepack shim，以及统一 Git 语义、短 Windows DSH staging 路径和受限 C++ 工具链发现环境的固定 DSH 跨平台安装器 |
 | `.github/workflows/research-web-bootstrap.yml` | 干净 macOS/Windows 一键安装、启动和 Doctor 门禁 |
 | `docs/architecture/research-web/` | 当前Markdown、映射清单与八张JSON图源 |
 | `vendor/dsh-tabbit/0.3.4/` | 固定官方源码提交的归档、MIT License、完整性哈希和文件清单 |

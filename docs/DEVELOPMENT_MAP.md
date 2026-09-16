@@ -13,7 +13,9 @@ staged; DSH clone, checkout, and verification share command-level Git long-path 
 service manager uses native Windows process inspection/termination instead of POSIX-only commands. Windows DSH
 operations additionally share `core.symlinks=false` semantics for the pinned repository's Git symlinks.
 Windows Node builds retain only standard PowerShell/Program Files discovery paths so `node-gyp` can locate the
-preinstalled Visual Studio C++ toolchain without exposing application secrets.
+preinstalled Visual Studio C++ toolchain without exposing application secrets. Windows DSH builds use a short
+installer-owned staging basename under the same private runtime root so nested pnpm/node-gyp paths remain usable
+by MSBuild FileTracker while verified publication stays atomic.
 `app/research_web/service_manager.py` owns the path-free
 `rwb web doctor` result.
 Every later Web iteration must keep `.github/workflows/research-web-bootstrap.yml` green on clean native macOS

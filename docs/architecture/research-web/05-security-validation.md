@@ -6,7 +6,9 @@
 DSH clone、checkout 与干净工作树校验都只对当前子命令应用同一组长路径、换行和 Windows symlink
 配置，不修改机器级 Git 配置；Windows 进程检查与 `taskkill` 均以参数数组且 `shell=false` 调用，
 并在终止前复核受管命令签名。Windows Node 构建的允许列表只额外保留 PowerShell 模块与标准系统程序
-目录发现路径，供 `node-gyp` 定位已安装的 Visual Studio C++ 工具链；不传应用密钥或任意环境变量。
+目录发现路径，供 `node-gyp` 定位已安装的 Visual Studio C++ 工具链；DSH staging 在同一私有根目录
+使用短随机名称，避免深层依赖路径触发 MSBuild FileTracker 限制，核验与原子发布边界不变；不传应用
+密钥或任意环境变量。
 
 Gold 与 Dollar 快照在路径解析前拒绝任一现存符号链接组件，限制为 2 MiB，使用各自严格 schema 和内容 revision，并同目录原子替换。旧 Gold V1 结构先保留为 `snapshot.legacy-v1.json`；已存在备份时拒绝覆盖。生产浏览器不导入测试 fixture，来源失败不得伪装成实时成功。Bot 上下文另设 80,000 字符上限，默认解释预设不暴露工具。
 

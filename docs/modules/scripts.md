@@ -32,7 +32,9 @@ Purpose:
   command-level long-path and line-ending settings, so the same pinned source can be materialized and verified on
   Windows without machine-level Git settings. Windows also uses `core.symlinks=false` for all three operations, so
   Git's regular-file representation of repository symlinks is accepted consistently without weakening checks for
-  other tracked changes.
+  other tracked changes. Its DSH build staging stays under the same private runtime root but uses a short random
+  basename, keeping nested pnpm/node-gyp paths within MSBuild FileTracker limits without weakening verification or
+  atomic publication.
 - Rejects unsupported Python/Node versions, unknown managed directories, links/reparse points, mismatched hashes,
   dirty or wrong DSH sources, and incomplete builds. `--repair` is limited to directories bearing this installer's
   ownership marker.
