@@ -51,6 +51,24 @@ Runtime 内存中以会话绑定、单次消费、10 分钟过期 token 暂存�
 
 当前 DataHub 是 FastAPI 进程内的数据目录、白名单选源、Provider 适配与会话快照层。能力中心“数据”页始终展示 15 项能力与 22 个登记来源；统一连接中心从当前设备 `<RESEARCH_DATA_HOME>/connections/` 读取各来源非秘密配置，秘密固定存入操作系统凭据库。15 个品牌无关 `datahub_*` 业务 Tool 常驻 Runtime，Broker 根据最新配置、授权、探测和适配状态动态选源。MySQL 只开放逐级 schema 和参数化单表查询，不接受原始 SQL；登记、授权、探测、适配和可调用状态分别显示，组件检测成功不等于可调用。
 
+阶段 1 CPU 投研底座把 `research_run_script` 放入宿主进程级 FIFO 队列，全局单执行、排队最多
+60 秒，超时稳定 `runtime_busy`，排队取消不启动。启用时只接受可导入 numpy/pandas/matplotlib/
+openpyxl 的配置 Python 3.12；子进程数值线程固定为 4。`skills/_shared` 的 `cpu_bounded_v1` 统一
+累计输入、单序列、批量标的和制品预算及来源协议，不作为独立 Skill。DataHub Wind binding 只调用
+现有适配器的封闭业务方法，并按 capability/dataset 投影固定字段、类型、单位和日期。指数只登记
+可执行的实时行情子集；现有 `fetch_block_trades` 实际为龙虎榜，和宏观利率、指数成分、基金持仓
+一样不登记为 Wind callable，直接调用的不等价请求返回 `data_not_equivalent`。Wind DataHub 当前
+只通过 xlwings/Excel 适配器支持 `.SH`、`.SZ`、`.BJ` A 股代码；Client API 偏好或只有 WindPy
+均不构成可调用证据。响应逐行核对证券身份和请求日期范围，指数点位及融券余量分别使用 points、
+share 单位。Wind 历史行情和实时快照进一步要求显式 `asset_type=stock`，不根据六位代码猜测指数或 ETF；指数
+继续只走 `index_data`。Wind 自动调用使用容量为 1 的专用 worker、18 秒 deadline，以及每次新建并
+最终无保存关闭的隐藏独立 Excel 应用/工作簿；不选择用户已打开的 workbook。日频历史入口在接触
+adapter 前验证日期类型、顺序和最多 60 个日历日的硬跨度，超限固定失败而不先拉取数据，响应未覆盖
+请求终点时只标记 partial。固定 schema 还验证最低有效字段和请求字段完整性。本底座无 GPU 依赖；
+Excel quit 未确认时保留 client 所有权并将 Wind Provider poison 到进程重启，防止新实例重叠。
+沙箱仍是 macOS only，Windows 仅跑
+provider-free 契约测试。
+
 Research Web 在 Windows 上读取 DSH 认证文件及 DataHub 私有控制、调用收据和会话快照时使用受限路径回退：拒绝符号链接和重解析点、限制文件类型/大小/硬链接并核对打开前后的文件身份；快照目录发布仍为同目录原子改名。POSIX 继续使用 `dir_fd`、`O_DIRECTORY` 与 `O_NOFOLLOW`；两条路径不改变 DataHub 服务节点或 API 拓扑。永久删除会先为产品所有的只读文件恢复所有者写权限，且不跟随链接或重解析点。
 
 DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒绝非普通文件、硬链接、符号链接、Windows 重解析点及打开期间的身份替换；POSIX 额外要求 group/other 无权限，Windows 不把无语义的 POSIX mode 投影当作 ACL。Web 客户端与服务管理器复用该边界，不改变回环 RPC 或认证格式。
@@ -61,19 +79,45 @@ DSH 认证控制文件由 `runtime_auth.py` 统一有界读取：所有平台拒
 
 服务管理器的数据、状态和日志私有目录采用对应的平台判断：所有平台拒绝非目录、符号链接和 Windows 重解析点；仅 POSIX 依据 group/other mode 位拒绝宽松权限，Windows 不以该投影替代 ACL。
 
-能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 12 个内置 Skill、4 个 Workflow
+能力中心当前由 `app/research_web/capabilities/seeds.py` 声明 30 个内置 Skill、4 个 Workflow
 和 10 个只读 Method。`app/research_web/capabilities/methods.py` 拥有 Method 契约、组合解析、
 采用证据检查和独立 Research Eval 矩阵；Skill／Workflow 的 `method_policy` 与请求 `method_ids`
 按“必需、用户选择、推荐、模型补选”解析，组合上限为三个。Method 不授予工具或外部权限，DSH
 只接收带稳定 ID 的原生 Skill 包装；采用记录只包含方法 ID、版本和来源。必需／用户选择缺证据会
 阻断完成，推荐／模型补选缺证据只降级标记。默认策略保持为空，直到真实评测通过。
 
-其中五个专用研究 Skill 仍通过同一 DSH 原生发现、不可变版本和会话快照链执行，没有新增路由
-Skill 或第二执行器。品牌中立证据协议以
+其中五个专用研究 Skill 与十八个 CPU 有界 Skill 仍通过同一 DSH 原生发现、不可变版本和会话
+快照链执行，没有新增路由 Skill、API 类型或第二执行器。品牌中立证据协议以
 `app/research_web/skills/_shared/evidence-protocol.md` 为单一维护源码，种子构建时复制进每个
 专用包并随版本哈希封存。专用包默认聊天交付，只有 Runtime 实际暴露所需工具且用户明确要求
 文件时才生成文件；决定性原文不可访问时明确降级。研报 PDF 复用沙箱的
 `research_helpers.read_pdf`，校验与 SVG 重绘脚本不能派生宿主进程。
+
+六个 CPU Skill 分别固定编排市场简报、政策证据时间线、事件窗统计、ETF 资金流、业绩披露进度
+和业绩预告区间。它们只消费已取得并带 `dataset_refs` 的 JSON，不联网、不读取 Excel、不猜测
+ETF 分类或缺失暴露，也不把事件样本不足时的 beta 默认成 1。每个包携带独立输入/输出 schema、
+字段映射、来源 provenance、synthetic golden 及受审计算脚本。运行时严格校验 provider、mapping
+及版本、单位、日期语义和复权口径，拒绝晚于结果 `as_of` 的记录与 dataset ref；不等价数据固定
+返回 `data_not_equivalent`。日期只接受 `YYYY-MM-DD`，CNY 计算器拒绝矛盾币种；来源哈希只接受
+规范非空 key 与 SHA-256 value，显式 null、首尾空白或含 CR/LF/Unicode 行段分隔符的 key 被拒绝，字段缺失时以 partial/limitation 降级。
+六项能力在真实 Wind/Excel 对照尚未完成时保持可发现但 disabled，且不
+进入原生 provider candidate 目录；receipt 只能由宿主登记器 HMAC-SHA256 认证的 evidence artifact v2
+生成，绑定提交 synthetic input、独立 Wind/Excel actual input、固定宿主执行器、输入来源、仓库
+golden、实际结果、slug、不可变版本和当前脚本摘要，启用、回滚与 selection 会重新验证 artifact 未变。
+启动时审计所有已启用的 receipt-gated 投影；非 v2、HMAC/证据不可复核或缺少登记密钥时撤下投影并
+持久禁用，不只处理已知旧脚本摘要。登记密钥不会传入 `research_run_script` sandbox，普通 JSON 或被审计算器不能自证。
+已知初版升级先撤下原生投影并禁用，发布、保存或校验异常均失败关闭。
+POSIX loader 从 cwd fd 逐组件 openat/no-follow，Windows 校验最终句柄路径和 reparse 属性。全部输入
+仍参与计算，dataset refs/source hashes 各限 32 项，完整 JSON envelope 按 UTF-8 不超过 64 KiB；
+无法表达时返回小型完整 workload 错误，`row_delivery` 不复制顶层 refs。`cpu_bounded_v1` 的预算、输入契约、结果和 provenance
+资源在种子构建时复制进不可变版本并参与哈希。
+Stage 3 的基金穿透对汇合 DAG 使用全图拓扑环检和按深度 DP 聚合；组合基准偏离强制同一 canonical
+`asset_id` 跨组合/基准的行业、因子、因子日、报告期和行业映射版本一致。
+Stage 4 在相同边界内增加利率均线、股权风险溢价、双风格轮动、有限观察列表平台突破和单标的
+确认分型/笔五个研究计算器。它们分别限制为 5,000 点单序列，或 50 标的 × 1,000 行显式观察列表；
+不扫描全市场、不递归枚举、不执行 Excel/公式，也不把研究信号解释为交易指令。三份只读核验工作簿
+记录完整 SHA-256；平台突破与缠论候选来源未匹配时明确 `source unavailable`，不猜测完整摘要。
+五项在真实宿主对照缺失时保持 disabled，普通 JSON、自证计算器和旧版本 receipt 均不能启用当前版本。
 
 历史市场首页 writer 的事务内失效记录位于 `data_layer.repositories.market_home_invalidation`，由数据仓库直接调用；`services.market_home_invalidation` 只保留调度与物化协调。这样数据层不再反向依赖服务层，同时维持原有同事务 outbox 语义。旧研究 Supervisor、Graph、Session/Run 和模板注册表只在各自外部执行边界记录异常并原样抛出，不改变 Research Web 的 DSH 唯一执行链。
 

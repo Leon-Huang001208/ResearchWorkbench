@@ -144,7 +144,369 @@ SKILL_SPECS = (
         ],
         "evidence_protocol": True,
     },
+    {
+        "slug": "daily-market-brief",
+        "name": "每日市场简报",
+        "description": "将市场快照、涨跌成交、行业主题与新闻证据编排为固定结构简报；不替代事件或政策分析。",
+        "category": "市场监控",
+        "scenarios": ["每日市场证据简报"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_index_data",
+            "datahub_get_market_snapshot",
+            "datahub_get_market_activity",
+            "datahub_search_news",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "结构化市场输入", "type": "file", "required": True},
+            {"name": "as_of", "label": "数据截止日", "type": "date", "required": True},
+        ],
+    },
+    {
+        "slug": "policy-sentinel",
+        "name": "政策哨兵",
+        "description": "按关键词和日期输出政策证据时间线、命中规则与来源已给出的潜在影响对象；不生成投资建议。",
+        "category": "事件与政策",
+        "scenarios": ["政策证据监控"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_search_news",
+            "datahub_search_announcements",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "政策记录", "type": "file", "required": True},
+            {"name": "as_of", "label": "数据截止日", "type": "date", "required": True},
+        ],
+    },
+    {
+        "slug": "event-review",
+        "name": "事件复盘",
+        "description": "确定性计算事件窗收益、超额表现、成交变化及可用的 beta/alpha；不使用默认 beta。",
+        "category": "事件与政策",
+        "scenarios": ["标的事件窗口复盘"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_market_bars"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "标的与基准日频序列", "type": "file", "required": True},
+            {"name": "event_date", "label": "事件日期", "type": "date", "required": True},
+        ],
+    },
+    {
+        "slug": "etf-flow-monitor",
+        "name": "ETF 资金流监控",
+        "description": "由 ETF 份额变化和 NAV 估算资金流，严格按用户提供的类型、行业和主题分类汇总。",
+        "category": "基金",
+        "scenarios": ["ETF 份额资金流监控"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_fund_data",
+            "datahub_query_table",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "ETF 份额与分类输入", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "earnings-report-monitor",
+        "name": "财报披露监控",
+        "description": "按证券、报告期、披露日及营收净利同比环比记录，计算披露进度和变化分布。",
+        "category": "公司与业绩",
+        "scenarios": ["财报披露进度监控"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_financials",
+            "datahub_query_table",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "财报披露记录", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "earnings-preview-monitor",
+        "name": "业绩预告监控",
+        "description": "计算业绩预告利润和增速区间中值，仅汇总输入已提供的估值、资金与研究覆盖字段。",
+        "category": "公司与业绩",
+        "scenarios": ["业绩预告区间监控"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_financials",
+            "datahub_get_market_snapshot",
+            "datahub_get_market_activity",
+            "datahub_search_research",
+            "datahub_query_table",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "业绩预告记录", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "fund-matcher",
+        "name": "基金匹配",
+        "description": "按明确类别、目标指标与权重对已提供候选基金做确定性距离排序。",
+        "category": "基金",
+        "scenarios": ["基金候选匹配"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_fund_data"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "基金指标输入", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "fund-penetration",
+        "name": "基金持仓穿透",
+        "description": "统一权重单位并穿透基金层级，检测循环并聚合重复底层暴露。",
+        "category": "基金",
+        "scenarios": ["基金持仓穿透"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_fund_data"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "基金层级持仓", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "portfolio-overlap",
+        "name": "组合重合度",
+        "description": "归一化两个组合的持仓权重，计算逐资产共同权重与总体重合度。",
+        "category": "组合",
+        "scenarios": ["组合持仓重合分析"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_fund_data", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "两个组合持仓", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "portfolio-benchmark-deviation",
+        "name": "组合基准偏离",
+        "description": "计算组合相对基准的行业权重差及市值、估值、增速标准差偏离。",
+        "category": "组合",
+        "scenarios": ["组合基准偏离监控"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_index_data", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "组合与基准持仓因子", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "industry-prosperity",
+        "name": "行业景气度",
+        "description": "对预聚合行业指标按明确方向和权重计算透明景气变化分数。",
+        "category": "行业",
+        "scenarios": ["行业景气度研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "行业预聚合指标", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "industry-quadrant-monitor",
+        "name": "行业象限监控",
+        "description": "按显式水平和动量阈值，将预聚合行业景气分数划分四象限。",
+        "category": "行业",
+        "scenarios": ["行业景气象限监控"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "行业景气分数", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "industry-crowding-monitor",
+        "name": "行业拥挤度",
+        "description": "用预聚合行业与全市场成交额计算滚动成交占比和历史经验分位数。",
+        "category": "行业",
+        "scenarios": ["行业成交拥挤度监控"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_query_table"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "行业预聚合成交额", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "rate-ma-timing-research",
+        "name": "利率均线择时研究",
+        "description": "按显式均线、乖离阈值和前一日持久信号研究利率方向与滞后敞口；仅输出研究信号。",
+        "category": "量化研究",
+        "scenarios": ["利率均线择时研究"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_index_data",
+            "datahub_get_factor_macro",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "指数与利率日频序列", "type": "file", "required": True}
+        ],
+    },
+    {
+        "slug": "equity-risk-premium-timing",
+        "name": "股权风险溢价择时研究",
+        "description": "由显式 PE TTM 与债券收益率计算股权风险溢价和滚动经验分位；仅输出研究信号。",
+        "category": "量化研究",
+        "scenarios": ["股权风险溢价择时研究"],
+        "default_formats": [],
+        "required_tools": [
+            "research_run_script",
+            "datahub_get_index_data",
+            "datahub_get_factor_macro",
+        ],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {
+                "name": "input_file",
+                "label": "指数估值与债券收益率序列",
+                "type": "file",
+                "required": True,
+            }
+        ],
+    },
+    {
+        "slug": "style-rotation-research",
+        "name": "风格轮动研究",
+        "description": "按显式二选一规则比较两个风格指数的相对比值或相对强弱动量；仅输出研究信号。",
+        "category": "量化研究",
+        "scenarios": ["双风格指数轮动研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_index_data"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {
+                "name": "input_file",
+                "label": "两个风格指数日频序列",
+                "type": "file",
+                "required": True,
+            }
+        ],
+    },
+    {
+        "slug": "platform-breakout",
+        "name": "平台突破研究",
+        "description": "对显式有限观察列表使用前置窗口阻力、支撑、触碰次数与收盘确认分类平台突破。",
+        "category": "量化研究",
+        "scenarios": ["有限观察列表平台突破研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_market_bars"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {
+                "name": "input_file",
+                "label": "有限观察列表前复权日线",
+                "type": "file",
+                "required": True,
+            }
+        ],
+    },
+    {
+        "slug": "chanlun",
+        "name": "缠论确认分型与笔研究",
+        "description": "对单一标的日线做非递归严格分型和交替笔扫描；仅实现确认分型与笔的受限研究子集。",
+        "category": "量化研究",
+        "scenarios": ["单标的确认分型与笔研究"],
+        "default_formats": [],
+        "required_tools": ["research_run_script", "datahub_get_market_bars"],
+        "evidence_protocol": False,
+        "cpu_profile": True,
+        "inputs": [
+            {"name": "input_file", "label": "单标的前复权日线", "type": "file", "required": True}
+        ],
+    },
 )
+
+RECEIPT_GATED_SKILLS = frozenset(
+    {
+        "daily-market-brief",
+        "policy-sentinel",
+        "event-review",
+        "etf-flow-monitor",
+        "earnings-report-monitor",
+        "earnings-preview-monitor",
+        "fund-matcher",
+        "fund-penetration",
+        "portfolio-overlap",
+        "portfolio-benchmark-deviation",
+        "industry-prosperity",
+        "industry-quadrant-monitor",
+        "industry-crowding-monitor",
+        "rate-ma-timing-research",
+        "equity-risk-premium-timing",
+        "style-rotation-research",
+        "platform-breakout",
+        "chanlun",
+    }
+)
+
+# Exact scripts shipped by the first Stage 2 seed commit. Only these known
+# immutable built-ins are eligible for the one-way safety migration.
+LEGACY_STAGE2_SCRIPT_SHA256 = {
+    "daily-market-brief": "d63e3750cfb28c2be5e3c492e2ba5bed73fe6914e8fa41033e19613fe330b05e",
+    "policy-sentinel": "a78ae122087231c72b95d98749c1e6a0e764b89336d8c413538025b6faac75d9",
+    "event-review": "6519b155074b9cc57af7bd6410e7379793d338b51bef67cc23682416415b9a8d",
+    "etf-flow-monitor": "3b9d77321f185a570c8d481ec86021c65ac813ad393f6ee293645b2cdeb776c9",
+    "earnings-report-monitor": "fa5c5f36119380028cb4bcb170cb80b84c7c0aaf8f9296939e25410a287d2c59",
+    "earnings-preview-monitor": "189e96f9fcde39a388cf765196eea6e38d9fb25a224fe8a8fcb98668b5a304f1",
+}
+
+# Exact scripts shipped by the first Stage 3 seed commit and known published
+# predecessors. Matching by immutable file digest prevents user or unknown
+# later built-in versions from being rewritten by this one-way safety migration.
+LEGACY_STAGE3_SCRIPT_SHA256 = {
+    "fund-matcher": "e0d0b61aeae71ffd409f0cdddd42d459c874b06dfcb489524b1e49e2692b978f",
+    "fund-penetration": (
+        "ae4349dfbc3755b599eec265d70bce4e5470791c312c211f6f747900df11dc54",
+        "d9721c43c5e89ebe43bed8a0e4da47ad86c663d319794b09f1839a33b0d913c7",
+    ),
+    "portfolio-overlap": "454419b2b58a720c364d3bf3883be3840adb35fdd38152f1204b0fe3e2c1df5f",
+    "portfolio-benchmark-deviation": (
+        "c216c3ea377ae6fa5ace72260ce60b909fdefa7fe813200f7988112801f2b80a",
+        "13dbeb59c8240c6eabcd79acf857291b9781d30382eff56a75df0c1801133d16",
+    ),
+    "industry-prosperity": "31df916c150ea791f7581a817e1efc19f33f6581b4ca8967feff0a5ed1225da2",
+    "industry-quadrant-monitor": "c3efd22876b06bacc39ba56cba411de1075fe5b0b884c15855be59a5d9175513",
+    "industry-crowding-monitor": "418a7eb9003c3242202d772d5493ce6a7b36813db5c882f7c522953bdfaf33db",
+}
+
+
+def builtin_initial_status(capability_id: str) -> str:
+    """Keep uncalibrated calculators discoverable but non-executable."""
+    return "disabled" if capability_id in RECEIPT_GATED_SKILLS else "enabled"
+
 
 WORKFLOW_SPECS = (
     {
@@ -183,12 +545,22 @@ def _skill_package(root, spec, protocol):
     ]
     if spec["evidence_protocol"]:
         files.append(encode_file("references/evidence-protocol.md", protocol.read_bytes()))
+    if spec.get("cpu_profile"):
+        shared = root / "_shared"
+        for source_name, package_name in (
+            ("cpu-bounded-policy.md", "references/cpu-bounded-policy.md"),
+            ("cpu-bounded-result-v1.md", "references/cpu-bounded-result-v1.md"),
+            ("provenance-v1.md", "references/provenance-v1.md"),
+            ("cpu_budget.py", "scripts/cpu_budget.py"),
+            ("input_contract.py", "scripts/input_contract.py"),
+        ):
+            files.append(encode_file(package_name, (shared / source_name).read_bytes()))
     metadata = {
         "slug": spec["slug"],
         "name": spec["name"],
         "description": spec["description"],
         "category": spec["category"],
-        "inputs": [dict(QUESTION_INPUT)],
+        "inputs": [dict(item) for item in spec.get("inputs", [QUESTION_INPUT])],
         "scenarios": list(spec["scenarios"]),
         "default_formats": list(spec["default_formats"]),
         "required_tools": list(spec["required_tools"]),

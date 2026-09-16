@@ -486,6 +486,10 @@ async def fetch(query: Query | BusinessQuery, *, transport=None, connections=Non
                 raise ProviderError("mysql_configuration_unavailable")
             configuration, password = connections.credentials()
             return await mysql_fetch(query, configuration, password)
+        elif query.source == "wind":
+            from .providers_wind import fetch as wind_fetch
+
+            return await wind_fetch(query)
         else:
             raise ProviderError("business_provider_not_implemented")
     result = Result()

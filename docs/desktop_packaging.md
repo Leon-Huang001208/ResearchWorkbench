@@ -6,6 +6,13 @@ Research Workbench is moving toward a Tauri desktop shell while keeping the curr
 
 2026-09-11 的 Wind 客户端格式基线维护仅展开既有布尔条件的 Black 排版，生成的 Python 语义与桌面打包输入不变；它不构成新的桌面功能或平台支持声明。
 
+2026-09-14 的 Research Web Wind DataHub 只读边界为 `WindExcelClient` 增加显式 `isolated_app` 生命周期：
+启用时不枚举、选择或写入用户现有 Excel/workbook，而是创建隐藏独立应用及其专用 workbook，并在
+finally 中不保存关闭 workbook、退出该应用。该变更由 fake xlwings 契约测试覆盖；未调用真实 Wind，
+若 workbook/app 关闭或 quit 无法确认，客户端保留资源引用和所有权并抛出固定 cleanup failure；
+Research Web Provider 随即保持 poisoned busy 至进程重启，不会再创建可能与残留 Excel 重叠的新实例。
+也不构成 Windows 或安装包可用性证明，相关发布仍须满足本文原生 Windows CI 与真实安装烟测门禁。
+
 ## Current Shape
 
 - Existing UI remains served by `app.api.main:app`.

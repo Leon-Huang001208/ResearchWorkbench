@@ -3145,10 +3145,13 @@ Imports:
 - `ast`
 - `copy`
 - `core.observability`
+- `datetime`
 - `hashlib`
+- `hmac`
 - `importlib.metadata`
 - `io`
 - `json`
+- `math`
 - `methods`
 - `models`
 - `os`
@@ -3169,7 +3172,7 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, save, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
 - `_is_host_process_entry`
@@ -3304,6 +3307,8 @@ Imports:
 - `pathlib`
 
 Functions:
+- `builtin_initial_status`
+  - Keep uncalibrated calculators discoverable but non-executable.
 - `_skill_package`
 - `_workflow_package`
 - `seed_packages`
@@ -3762,6 +3767,50 @@ Functions:
 - `_failure_code`
 - `fetch`
 - `probe`
+
+
+## `app/research_web/datahub/providers_wind.py`
+
+Module docstring:
+> Restricted Wind DataHub provider using only reviewed adapter methods.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `concurrent.futures`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `providers`
+- `re`
+- `threading`
+- `typing`
+- `zoneinfo`
+
+Functions:
+- `_asset`
+- `_day`
+- `_bounded_history_range`
+- `_preflight`
+- `_schema_key`
+- `_text`
+- `_provider_date`
+- `_field_value`
+- `_schema`
+- `_field_metadata`
+- `_equivalent_asset`
+- `_equivalent_day`
+- `_validate_record_identity`
+- `_records`
+- `_requested_output_fields`
+- `_quality_limitations`
+- `_make_adapter`
+- `_run_adapter`
+- `_clear_outstanding`
+- `_submit`
+- `_invoke`
+- `fetch`
 
 
 ## `app/research_web/datahub/routes.py`
@@ -4490,6 +4539,8 @@ Imports:
 - `tempfile`
 
 Functions:
+- `validate_research_python`
+  - Fail closed unless the configured runtime is Python 3.12 with CPU libraries.
 - `mcp_runtime_enabled`
 - `load_mcp_runtime_bindings`
   - Load exact Host-verified bindings for the next dedicated DSH start.
@@ -6149,6 +6200,114 @@ Functions:
   - Render diagnostics without paths, page metadata, cookies, or content.
 
 
+## `app/research_web/skills/_shared/cpu_budget.py`
+
+Module docstring:
+> Deterministic CPU workload budgets copied into reviewed calculator Skills.
+
+Imports:
+- `__future__`
+- `dataclasses`
+- `logging`
+- `typing`
+
+Classes:
+- `WorkloadTooLarge`
+  - Stable, content-free workload rejection for reviewed calculators.
+  - methods: __init__
+- `WorkloadBudget`
+  - Accumulate inputs and artifacts without silently truncating either.
+  - methods: add_input, validate_series, validate_batch, add_artifact
+
+Functions:
+- `_count`
+
+
+## `app/research_web/skills/_shared/input_contract.py`
+
+Module docstring:
+> Strict runtime envelope validation for reviewed CPU calculators.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `datetime`
+- `json`
+- `math`
+- `os`
+- `pathlib`
+- `stat`
+- `typing`
+
+Classes:
+- `ContractTooLarge`
+  - Stable, content-free rejection for bounded contract collections or output.
+  - methods: __init__
+
+Functions:
+- `checked_text`
+  - Normalize a required string while bounding material copied to results.
+- `checked_number`
+  - Convert a supplied number without leaking conversion overflows.
+- `checked_arithmetic`
+  - Require every derived arithmetic result to remain finite.
+- `checked_sum`
+- `checked_add`
+- `checked_subtract`
+- `checked_multiply`
+- `checked_divide`
+- `checked_mean`
+- `strict_json_dumps`
+- `bounded_result_rows`
+  - Expose an explicit bounded projection after processing the full input.
+- `_is_link_or_reparse`
+- `load_relative_json`
+  - Read one contained regular JSON file without following links or replacements.
+- `_load_relative_json_posix`
+  - Open every component relative to an already-open trusted directory fd.
+- `_load_relative_json_windows`
+  - Verify the opened Windows handle resolves to the requested non-reparse file.
+- `_windows_final_path`
+- `_decode_json`
+- `strict_object`
+  - Return an exact object or fail without including user content.
+- `iso_day`
+- `reject_future`
+- `validate_source_hashes`
+  - Validate canonical source digests or mark missing provenance explicitly.
+- `validate_data_contract`
+  - Require the exact reviewed provider mapping and measurement semantics.
+- `validate_dataset_refs`
+  - Validate exact provenance references and reject look-ahead data.
+- `safe_error_payload`
+  - Expose only stable error codes and explicitly safe budget metadata.
+
+
+## `app/research_web/skills/chanlun/scripts/calculate.py`
+
+Module docstring:
+> Build deterministic confirmed fractals and strokes for one supplied series.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `itertools`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `calculate`
+- `main`
+
+
 ## `app/research_web/skills/company-research/scripts/workflow.py`
 
 Module docstring:
@@ -6162,6 +6321,37 @@ Imports:
 - `sys`
 
 Functions:
+- `main`
+
+
+## `app/research_web/skills/daily-market-brief/scripts/calculate.py`
+
+Module docstring:
+> Deterministically arrange supplied market evidence into a daily brief.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - Stable content-free calculator rejection.
+  - methods: __init__
+
+Functions:
+- `_day`
+- `_number`
+- `_text`
+- `_list`
+- `_count`
+- `_base`
+- `calculate`
+  - Return a fixed brief structure without inferring policy or event impacts.
 - `main`
 
 
@@ -6181,6 +6371,140 @@ Functions:
 - `main`
 
 
+## `app/research_web/skills/earnings-preview-monitor/scripts/calculate.py`
+
+Module docstring:
+> Calculate earnings-preview interval midpoints and transparent exposures.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_number`
+- `_bucket`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/earnings-report-monitor/scripts/calculate.py`
+
+Module docstring:
+> Calculate disclosure progress and reported growth distributions.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_number`
+- `_distribution`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/equity-risk-premium-timing/scripts/calculate.py`
+
+Module docstring:
+> Research a supplied equity risk-premium series with rolling empirical ranks.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `re`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `_series_identity`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/etf-flow-monitor/scripts/calculate.py`
+
+Module docstring:
+> Calculate ETF flows only from supplied shares, NAV and classifications.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_number`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/event-review/scripts/calculate.py`
+
+Module docstring:
+> Deterministic event-window performance and pre-event beta calculation.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `_number`
+- `_series`
+- `_returns`
+- `calculate`
+- `main`
+
+
 ## `app/research_web/skills/fund-evaluation/scripts/workflow.py`
 
 Module docstring:
@@ -6194,6 +6518,123 @@ Imports:
 - `sys`
 
 Functions:
+- `main`
+
+
+## `app/research_web/skills/fund-matcher/scripts/calculate.py`
+
+Module docstring:
+> Rank supplied fund candidates against an explicit target profile.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/fund-penetration/scripts/calculate.py`
+
+Module docstring:
+> Flatten a supplied fund-of-funds holding graph into terminal exposures.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_weight`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/industry-crowding-monitor/scripts/calculate.py`
+
+Module docstring:
+> Measure rolling turnover-share crowding from supplied industry aggregates.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/industry-prosperity/scripts/calculate.py`
+
+Module docstring:
+> Score supplied pre-aggregated industry indicators with explicit directions.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/industry-quadrant-monitor/scripts/calculate.py`
+
+Module docstring:
+> Classify supplied industry scores by explicit level and momentum thresholds.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `calculate`
 - `main`
 
 
@@ -6230,6 +6671,132 @@ Functions:
 - `_timestamp`
 - `rank`
   - Return a deterministic ordering with visible scores and no inferred facts.
+- `main`
+
+
+## `app/research_web/skills/platform-breakout/scripts/calculate.py`
+
+Module docstring:
+> Classify prior-window platform breakouts for a bounded supplied watchlist.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/policy-sentinel/scripts/calculate.py`
+
+Module docstring:
+> Build an evidence-only policy timeline from supplied records.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_text`
+- `_day`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/portfolio-benchmark-deviation/scripts/calculate.py`
+
+Module docstring:
+> Compare supplied portfolio holdings with a supplied benchmark snapshot.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `math`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_weight`
+- `_sample_std`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/portfolio-overlap/scripts/calculate.py`
+
+Module docstring:
+> Compute deterministic holdings overlap between two supplied portfolios.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_weight`
+- `calculate`
+- `main`
+
+
+## `app/research_web/skills/rate-ma-timing-research/scripts/calculate.py`
+
+Module docstring:
+> Research the lagged rate moving-average signal on one supplied daily series.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `re`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `_parameters`
+- `_series_identity`
+- `calculate`
 - `main`
 
 
@@ -6280,6 +6847,32 @@ Functions:
 - `_check_named_items`
 - `validate_digest`
   - Return deterministic validation evidence; never repair missing research.
+- `main`
+
+
+## `app/research_web/skills/style-rotation-research/scripts/calculate.py`
+
+Module docstring:
+> Compare two supplied style indices with one explicit deterministic rule.
+
+Imports:
+- `__future__`
+- `cpu_budget`
+- `input_contract`
+- `json`
+- `logging`
+- `re`
+- `sys`
+- `typing`
+
+Classes:
+- `CalculatorError`
+  - methods: __init__
+
+Functions:
+- `_number`
+- `_series_identity`
+- `calculate`
 - `main`
 
 
@@ -8247,6 +8840,7 @@ Imports:
 - `core.model_gateway.base`
 - `core.observability`
 - `core.settings.config`
+- `httpx`
 - `pydantic`
 - `time`
 - `typing`
@@ -9223,6 +9817,9 @@ Module docstring:
 Classes:
 - `WindError`
   - Wind 插件通用错误基类
+- `WindCleanupError`
+  - 受管 Excel 生命周期未能确认结束。
+  - methods: __init__
 - `WindNotConnectedError`
   - Excel 未运行或 Wind 插件未加载
   - methods: __init__
@@ -9461,7 +10058,7 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
+  - methods: __init__, _get_client, is_available, close, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
 
 Functions:
 - `_safe_float_wind`

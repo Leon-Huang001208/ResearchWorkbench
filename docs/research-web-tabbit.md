@@ -129,3 +129,54 @@ MCP Runtime 与 Automation 默认启用不自动授权 Tabbit，也不把浏览�
 Method 选择不授予 Tabbit 权限，也不会自动添加页面引用、消费一次性正文 token 或改变浏览器 Tool
 审批。即使某个 Method 与使用 Tabbit 的业务 Skill 同时采用，页面授权、实时 claim、只读声明和写
 操作审批仍分别按原协议核对；方法记录不接收标题、URL、正文或浏览器参数。
+2026-09-14 研究脚本 Host 增加全局 FIFO 单执行队列和 Python 3.12/科学计算包 readiness 门禁。
+这只收紧 `research_run_script` 的本机 CPU 执行；Tabbit 的页面 claim、一次性正文 token、写审批与
+浏览器生命周期不变。脚本槽仅在 child close 后释放；强杀无法确认关闭时 Runtime 保持 busy，避免
+后续脚本与残留进程重叠，child `error` 事件也不能替代 close 或解除该状态。
+浏览器实例选择保持独立，排队或 `runtime_not_ready` 不会扩大页面访问权限。readiness 对非对象
+JSON 等无效探针响应失败关闭，不读取或改变 Tabbit 配置。
+
+同阶段 DataHub Runtime 的 `market_bars` 与 `market_snapshot` 工具增加显式 `asset_type` 上下文；Wind binding 仅接受
+`stock`，指数和 ETF 不会按代码形态猜测或改走股票行情。该工具契约不进入 Tabbit 页面请求、claim
+或正文 token，Tabbit 也不能提供缺失的资产类型来绕过 Provider 的失败关闭。
+
+2026-09-14 新增的六个 CPU 资讯/事件 Skill 仍只经既有 `research_run_script` 读取会话内相对路径
+JSON，并受同一 FIFO、readiness、预算与沙箱限制；它们不调用 Tabbit、不获得浏览器标签正文，也不
+改变页面授权、claim、一次性 token、写操作审批或浏览器生命周期。包内计算脚本、schema、映射、
+provenance 和 synthetic golden 进入能力不可变版本，不构成新的 Runtime 或浏览器执行节点。
+后续严格输入契约、未来数据拒绝和初始 disabled/receipt 启用门禁同样只收紧能力选择与
+`research_run_script` 输入；`YYYY-MM-DD`、CNY、无换行分隔符的规范来源哈希 key/value 验证及 psutil 测试采样都不进入浏览器
+交互，disabled 六项也不会成为原生 provider candidates，不让 Tabbit 取得新的页面、网络、文件或执行权限。
+Stage 2 后续增加的 evidence artifact 派生 receipt、失败关闭旧版迁移、POSIX 逐组件 openat/Windows
+final-handle loader 和完整 64 KiB UTF-8 envelope 只作用于六个 CPU Skill 的能力或 sandbox 边界；不改变 Tabbit 的页面
+授权、claim、一次性 token、写审批、标签生命周期或浏览器 Runtime。
+receipt 对 packaged golden 与 comparison run actual 分别验摘要并做业务 JSON 比较，六 CLI 成功 stdout
+也不附加换行；artifact v2 还由宿主登记器 HMAC 绑定 synthetic/actual 输入和固定执行器，登记密钥不
+进入 research sandbox。这些收紧仍不读取 Tabbit 标签或复用浏览器证据。
+
+2026-09-15 新增的七个 Stage 3 基金/组合/行业 CPU Skill 继续只通过既有能力目录和
+`research_run_script` 工作。它们复用安全相对 JSON、预算、64 KiB 完整输出和 comparison receipt
+门禁，全部可发现但默认 disabled；未核验 DataHub 映射为 `callable=false`，单一快照/非杠杆权重、
+基准偏离逐条报告期/行业映射等价、景气嵌套投影与拥挤度统一日历总额及至少两个滚动观测约束均只
+处理调用方已提供 JSON。基金穿透的层级/cycle 校验和只吃预聚合数据的行业计算不会请求
+Tabbit 页面、正文 token 或浏览器证据，也不会扩大 claim、写审批、网络、文件或执行权限。catalog
+启动时对 enabled receipt 的重新审计及选择前复核也只会撤下不再可信的能力投影，不读取或改变
+Tabbit 的授权、claim、标签、正文 token 与浏览器 Runtime 状态。
+
+2026-09-16 新增的五个 Stage 4 CPU 量化研究 Skill（利率均线、股权风险溢价、风格轮动、平台突破、
+缠论确认分型与笔）仍只消费调用方提供的会话内 JSON，并复用既有 `research_run_script`、预算、
+不可变版本和 comparison receipt 门禁。它们不调用 Tabbit，不读取页面正文或浏览器证据，也不改变
+页面授权、claim、一次性 token、写操作审批或标签生命周期；真实对照证据不足时保持 disabled。
+
+Stage 4 复审增加的 provider-aware series descriptor role/identity/version/tenor 契约、风格独立
+golden 和缠论歧义结构负测只收紧计算器已提供 JSON 的等价性判断；官方 JSON Schema 元数据 URI
+也不触发远程加载。它们不访问 Tabbit、页面正文、浏览器网络或一次性 token，也不
+改变 claim、写操作审批和标签生命周期。
+
+Stage 4 质量复验进一步要求 comparison receipt 的 synthetic/actual 输入不仅路径分离，内容摘要也
+必须不同；测试证据同时绑定相同业务记录及 source artifact 摘要，避免用无关文件满足独立性门禁。
+缠论结果顶层回传唯一 `asset_id`，混合标的继续失败关闭。这些变化仍只作用于能力证据与离线计算
+结果，不读取 Tabbit 页面或扩大其授权、claim、token、网络和写操作边界。
+
+Stage 2 输出 schema 严格化与 event-review 共同交易日收益配对修正仍只处理调用方已提供的离线 JSON；
+不读取 Tabbit 标签、页面正文或浏览器证据，也不改变授权、claim、一次性 token 和写操作审批。

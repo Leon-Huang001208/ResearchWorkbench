@@ -217,6 +217,17 @@ class TestWindAdapterStructure:
         result = adapter.is_available()
         assert result is False
 
+    def test_close_releases_owned_client(self):
+        from data_layer.adapters.wind import WindAdapter, WindExcelClient
+
+        mock_client = MagicMock(spec=WindExcelClient)
+        adapter = WindAdapter(client=mock_client)
+
+        adapter.close()
+
+        mock_client.close.assert_called_once_with()
+        assert adapter._client is None
+
     def test_fetch_invalid_data_type_raises(self):
         from data_layer.adapters.wind import WindAdapter
 
@@ -312,6 +323,46 @@ class TestWindClientLogic:
         assert client._app is running_app
         assert client._wb is isolated_workbook
 
+    def test_connect_isolated_app_never_selects_user_workbook_and_closes_without_save(self):
+        from data_layer.adapters.wind.client import WindExcelClient
+
+        user_workbook = MagicMock()
+        user_workbook.sentinel = "untouched"
+        running_books = MagicMock()
+        running_books.__len__.return_value = 1
+        running_books.__getitem__.return_value = user_workbook
+        running_app = MagicMock(books=running_books)
+
+        isolated_workbook = MagicMock()
+        isolated_workbook.sheets = [MagicMock()]
+        isolated_books = MagicMock()
+        isolated_books.__len__.return_value = 1
+        isolated_books.__getitem__.return_value = isolated_workbook
+        isolated_app = MagicMock(books=isolated_books)
+
+        xw = MagicMock()
+        xw.apps = [running_app]
+        xw.App.return_value = isolated_app
+
+        with patch.dict("sys.modules", {"xlwings": xw}):
+            client = WindExcelClient(
+                visible=False,
+                isolated_workbook=True,
+                isolated_app=True,
+            )
+            client._connect()
+            client.close()
+
+        xw.App.assert_called_once_with(visible=False, add_book=True)
+        running_books.__getitem__.assert_not_called()
+        user_workbook.save.assert_not_called()
+        user_workbook.close.assert_not_called()
+        running_app.quit.assert_not_called()
+        assert user_workbook.sentinel == "untouched"
+        isolated_workbook.save.assert_not_called()
+        isolated_workbook.close.assert_called_once_with()
+        isolated_app.quit.assert_called_once_with()
+
     def test_close_isolated_workbook_does_not_quit_running_excel(self):
         from data_layer.adapters.wind.client import WindExcelClient
 
@@ -327,6 +378,32 @@ class TestWindClientLogic:
 
         workbook.close.assert_called_once_with()
         app.quit.assert_not_called()
+
+    def test_close_keeps_owned_app_state_when_quit_is_not_confirmed(self):
+        from data_layer.adapters.wind.client import WindExcelClient
+
+        app = MagicMock()
+        app.quit.side_effect = RuntimeError("Excel remained alive")
+        workbook = MagicMock()
+        client = WindExcelClient(isolated_workbook=True, isolated_app=True)
+        client._app = app
+        client._wb = workbook
+        client._sheet = MagicMock()
+        client._owns_app = True
+        client._owns_workbook = True
+
+        with pytest.raises(Exception, match="wind_cleanup_failed"):
+            client.close()
+
+        assert client._app is app
+        assert client._owns_app is True
+        assert client._wb is None
+        assert client._owns_workbook is False
+
+        app.quit.side_effect = None
+        client.close()
+        assert client._app is None
+        assert client._owns_app is False
         assert client._app is None
         assert client._wb is None
 

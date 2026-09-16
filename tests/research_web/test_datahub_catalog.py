@@ -67,7 +67,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "eastmoney_fund",
     }
     wind = next(source for source in catalog["sources"] if source["id"] == "wind")
-    assert wind["readiness"]["integration_completed"] is False
+    assert wind["readiness"]["integration_completed"] is True
     assert wind["readiness"]["callable"] is False
     tinysoft = next(source for source in catalog["sources"] if source["id"] == "tinysoft")
     assert tinysoft["readiness"]["integration_completed"] is True
@@ -636,7 +636,7 @@ def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path):
         assert "token" not in serialized and "roll_data" not in serialized
 
 
-def test_probe_for_unintegrated_source_never_touches_network(tmp_path):
+def test_probe_for_unconfigured_wind_source_never_touches_network(tmp_path):
     calls = []
     hub = DataHub(
         Store(tmp_path),
@@ -650,5 +650,5 @@ def test_probe_for_unintegrated_source_never_touches_network(tmp_path):
 
     result = asyncio.run(run())
     assert result["health"] == "unavailable"
-    assert result["failure_code"] == "disabled"
+    assert result["failure_code"] == "blocked_config"
     assert calls == []

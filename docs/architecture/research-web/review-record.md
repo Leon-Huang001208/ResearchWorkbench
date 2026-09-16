@@ -9,6 +9,18 @@
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"仅补强既有AKShare、天软CJPY和MySQL Provider的探针时限、日期契约、可选依赖与安全错误映射；目录、Broker、15个业务Tool和快照数据流不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Runtime仍通过既有品牌无关DataHub Tool和Broker调用Provider，本批没有新增注册工具、进程、接口或授权边界。","diagrams":[]} -->
 <!-- architecture-review {"group":"files","structure":"unchanged","reason":"查询结果仍写入既有JSON、CSV和Manifest快照；只收紧错误正文不落盘的约束，没有新增持久化类别。","diagrams":[]} -->
+## 2026-09-14 — 六个 CPU 有界资讯/事件 Skill
+
+- 能力目录增加每日市场简报、政策哨兵、事件复盘、ETF 资金流、业绩报告监控和业绩预告监控六个
+  独立内置包；均复用既有检查、不可变版本、原生发现、会话资源快照与 `research_run_script` 沙箱。
+- 种子把阶段 1 CPU 预算、结果和 provenance 资源复制进每个版本并生成 reviewed script 哈希；各包
+  仅消费相对路径 JSON，不新增网络、Excel、GPU、子进程、线程池、服务、页面、API 或 Workflow。
+- DataHub/Wind 字段映射只描述现有可调用业务工具和明确 fallback gate；ETF 分类及可选暴露由输入
+  提供，事件回归样本不足返回 unavailable。现有十张架构图已覆盖能力发布、Runtime 脚本调用和
+  DataHub 会话快照关系，因此无需改变拓扑或重生成图源。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"六个CPU计算包复用既有research_run_script沙箱、FIFO、预算和会话相对路径输入，不新增执行节点或权限。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录增加六个声明式内置Skill及版本资源，仍复用现有检查、发布、原生发现、选择和快照链。","diagrams":[]} -->
 
 ## 2026-09-11 — MCP 安装、授权与 Research Web Host
 
@@ -667,3 +679,150 @@
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"探测恢复、指纹失效和动态选源都复用既有DataHub Provider、业务查询与会话快照边界，没有新增查询通道。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"共享ResearchService只增加集成协调器生命周期；Automation的计划、Run、版本锁、MCP授权与外发拓扑保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"十五个DataHub工具由既有public-data适配器常驻注册并继续调用同一私有业务查询入口，DSH进程、Guard和数据流拓扑不变。","diagrams":[]} -->
+## 2026-09-14 — CPU 有界研究底座与受限 Wind DataHub Provider
+
+- `research_run_script` Host 增加单槽 FIFO 队列、60 秒排队截止、排队取消移除与无输入内容的
+  wait/run outcome 日志；执行超时和既有沙箱权限保持不变。
+- Runtime 启用研究脚本前验证受管 Python 3.12 与 numpy、pandas、matplotlib、openpyxl，失败使用
+  既有 Runtime 状态投影并返回 `runtime_not_ready`，不新增公开 API 或解释器回退。
+- DataHub 增加 Wind 封闭业务映射；只调用现有适配器方法，并以 capability/dataset 固定输出字段、
+  类型、单位和日期映射拒绝未知列。指数仅登记可执行的 `quotes` 子集；宏观/利率和基金持仓在没有
+  真实等价方法时不登记为 Wind callable。复审进一步移除以龙虎榜方法伪装的大宗交易入口，只将
+  xlwings/Excel 视为 DataHub Wind Provider 就绪依赖，并把所有 binding 市场收紧至 A 股。固定 schema
+  同时逐行核对证券身份和请求日期；指数点位和融券余量分别标记 points、share。未登录、方法缺失、
+  口径不等价和 5,000 行上限均失败关闭。
+- 第三轮复审把 Wind `market_bars` binding 明确收紧到股票，并将 `asset_type` 加入稳定 BusinessQuery、
+  Runtime bridge 与能力工具 schema；缺失类型、指数或 ETF 请求均在 adapter 前失败关闭。日线行情、
+  资金流与融资融券共用前置历史区间验证，拒绝非字符串、反向和超过 60 个日历日的区间，不再
+  只依赖取数后的 5,000 行上限。
+- 第三轮补充复审将同一显式资产类型契约应用于 Wind `market_snapshot`：binding 只声明股票，缺失、
+  指数或 ETF 在 adapter 实例化、可用性检查和方法调用前返回 `data_not_equivalent`；通用能力仍可由
+  其他 Provider 声明其真实支持的指数或 ETF 子集。
+- 代码质量复审将自动 Wind 查询改为每次独立隐藏 Excel 应用/workbook 并在 finally 中无保存关闭，
+  不枚举或选择用户 workbook；容量为 1 的 worker 使用 18 秒 deadline，超时或取消后保持
+  `provider_busy` 直到原调用返回并回收。历史跨度前置收紧为 60 日历日，终点未覆盖时标记 partial；
+  每个固定 schema 验证最低有效字段和请求字段，关键值全空失败、部分缺失只返回 partial。
+- Host FIFO 只在 child close 后释放；强杀仍未 close 时保持 poisoned busy，实际 close 或 Runtime
+  重启后才恢复。上述竞态、隔离生命周期和字段质量均用 fake process/xlwings/adapter 验证，未访问
+  真实 Wind 或用户 workbook。
+- 后续复审明确通用 child `error` 事件不是生命周期终止证据，不能释放 FIFO 或清 poison。Wind
+  workbook/app close/quit 异常同样保留 client 所有权并返回 `wind_cleanup_failed`，Provider 保持
+  poisoned busy 至进程重启，不创建新 Excel。fake kill-error/no-close 与 quit side effect 回归覆盖该边界。
+- 这些变化收紧既有 Host Runtime 和 DataHub Provider 节点内部的调度、readiness 与映射，不新增
+  进程、端口、持久目录、浏览器接口或跨模块连线，现有十张图继续准确。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"既有Host研究脚本节点内部增加FIFO单槽调度、readiness、数值线程上限和仅由close释放的poisoned门闩，不新增进程、服务或权限边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"既有DataHub Provider节点增加Wind独立Excel生命周期、清理失败poison、单worker、固定schema质量和失败关闭口径，不新增数据服务、接口或持久数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"共享CPU预算与结果资源由后续Skill种子复制使用，不注册新的Skill种类或执行器。","diagrams":[]} -->
+
+## 2026-09-15 — CPU Skill 输入等价性与启用门禁复审
+
+- 六个 Stage 2 计算器增加共享严格输入契约，拒绝不等价 provider/mapping/version/单位/日期/复权、
+  未来记录与未来 dataset ref；CLI 仅保留安全的工作量超限元数据。
+- 六项真实 Wind/Excel 对照尚未执行，因此内置种子可发现但初始 disabled；已有能力目录、不可变版本、
+  DataHub 快照、DSH 原生发现和脚本执行拓扑不变。
+- 后续复审把日期收紧为 `YYYY-MM-DD`、daily/ETF 币种固定 CNY，并统一验证来源 SHA-256；哈希缺失
+  以 partial/limitation 降级。daily 所有集合与非负整数 breadth 与 schema 运行时一致。
+- clean catalog 测试证明 disabled 六项不进入原生 provider candidates；压力测试改用已有 psutil
+  从父进程采样 RSS，不调用系统 `ps` 或引入新执行权限。
+- 最终复审区分缺失与显式 null 来源哈希：仅字段缺失允许降级；显式 null、空白 key 或带首尾空白的
+  非规范 key 固定返回 `invalid_source_hashes`，不再静默 trim 或合并碰撞 key。
+- schema/运行时允许集合进一步对齐：来源 key 内部出现 CR、LF、U+2028 或 U+2029 同样固定拒绝。
+- 六项 enabled/rollback 状态增加持久 macOS Wind/Excel comparison receipt 校验，并将已知初版脚本
+  迁移为当前不可变版本且保持 disabled；不新增公开 API、能力类型或执行器。
+- 六 CLI 共用防越界/no-follow/身份复核的相对 JSON loader 与有限数算术；全部输入仍在既有 sandbox
+  内计算，最多内联 128 条并用 `row_delivery` 披露其余数据，使 stdout 保持 64 KiB 上限。
+- 业绩预告记录报告期与参数严格等价，每日简报 provenance 复用规范化 dataset refs；这些是既有
+  calculator 内部契约收紧，不改变模块拓扑。
+- 最终质量复验把 receipt 登记入口收紧为 evidence artifact 路径：内部重算 artifact、输入来源、
+  仓库 golden、实际结果和当前脚本摘要，状态切换再次验证；不把该校验描述为抵抗本机管理员伪造。
+- 已知初版迁移在发布/保存/校验前撤下原生投影并禁用，异常保持 uncertain 或初始化失败；POSIX
+  loader 改为从 cwd fd 逐组件 openat/no-follow，Windows 校验打开句柄最终路径和 reparse 属性。
+- dataset refs/source hashes 各限 32 项、复制文本限 4096 字符，完整 JSON envelope 按 UTF-8 计不超过
+  64 KiB；无法表达时返回小型完整 workload 错误，`row_delivery` 不再复制顶层 refs。
+- receipt 的 packaged golden 与 comparison run actual 改为分别校验各自声明摘要；解码后数值按
+  `rtol=1e-6`/`atol=1e-8`、日期/分类/信号等非数值严格一致做业务比较，不再要求文件字节相同。
+- 六 CLI 的成功 stdout 不附加换行，使完整输出恰好 65,536 字节时仍符合 sandbox 输出门。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"共享输入契约和预算错误投影只收紧既有research_run_script内部计算器，不新增进程、服务、权限或跨边界数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项内置Skill改为receipt门控的disabled初始状态，仍使用既有目录、版本、检查与选择状态机。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"严格日期、CNY和来源哈希验证只收紧既有计算器输入；psutil仅用于测试进程观测，不进入产品Runtime。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"clean目录测试确认disabled六项不进入既有原生provider candidate投影，能力拓扑和状态机不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"来源哈希仅收紧既有共享输入校验和六份schema，不增加执行节点、权限或数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"来源key换行分隔符拒绝仅对齐既有共享校验与schema允许集合，不改变拓扑、权限或数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"六项专用comparison receipt与已知初版disabled迁移只收紧既有catalog状态机，不增加公开API、能力类型或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"相对JSON安全读取、有限数算术和64KiB有界结果仍在既有research_run_script沙箱节点内，不新增进程、权限或跨边界数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"evidence artifact验证与失败关闭迁移只收紧既有catalog状态机和持久索引，不新增公开API或能力类型。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"逐组件openat与完整UTF-8 envelope只收紧既有research_run_script文件和输出边界，不新增执行节点或权限。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"golden与actual独立摘要及业务JSON容差比较只收紧既有comparison receipt verifier，不新增API、状态或持久节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"六CLI移除成功stdout末尾换行只对齐既有64KiB sandbox输出门，不改变执行拓扑或权限。","diagrams":[]} -->
+
+## 2026-09-15 — CPU Skill 阶段 3 基金、组合与行业计算
+
+- 七个新 Skill 通过既有内置种子、不可变版本和 `research_run_script` 沙箱交付，分别承担基金匹配、
+  基金穿透、组合重合度、组合基准偏离、行业景气度、行业象限监控和行业拥挤度监控；未新增能力类型、
+  API、Workflow、执行器、进程、端口或持久目录。
+- 七项复用 `cpu_bounded_v1`、严格 schema/运行时字段等价、`YYYY-MM-DD` 前视边界、有限数值与受检
+  算术、安全相对 JSON loader、完整 64 KiB UTF-8 envelope 和无尾随换行 stdout。
+- 七包提交可哈希 synthetic source artifact 并由 fixture/golden/provenance 绑定真实摘要；未核验的
+  DataHub 映射标记 `callable=false`，contract provider 必须与全部 dataset refs 一致。
+- 基金穿透覆盖 percent/decimal、多层持仓和重复路径，对全部给定基金子图做 cycle fail-closed，并
+  以拓扑检环及逐层动态聚合在单一快照内保留重复路径语义；组合拒绝隐式杠杆，基准偏离逐条匹配
+  顶层报告期、因子日和行业映射版本，并要求跨组合/基准的 canonical 资产因子事实一致；
+  三个行业计算器只消费预聚合行业指标，景气贡献全局最多投影 128 条，拥挤度要求统一交易日、市场
+  总额约束以及每行业至少两个同口径滚动观测。
+- 七项在 clean catalog 中可发现但全部 disabled，只有绑定当前不可变版本且可重算的 macOS
+  Wind/Excel comparison evidence artifact v2 且由宿主登记器 HMAC 认证后才能启用或回滚到 enabled。
+  证据绑定 synthetic/actual 输入与固定宿主执行器；sandbox 不继承密钥，普通 JSON 不能自证。当前
+  synthetic fixture/golden 只验证计算和门控机制，不代表真实 Wind/Excel 对照。
+- catalog 初始化时重新审计全部 enabled receipt-gated 能力，并在非 v2、签名/证据不可复核或缺少
+  登记器密钥时撤下原生投影、持久化 disabled；能力选择前再次复核。该失败关闭仍位于既有 catalog
+  状态机和本地索引边界内，不新增 API、Runtime 或存储拓扑。
+- Stage 3 迁移的精确摘要白名单补入基金穿透与组合基准偏离的已发布直接父脚本，并保留初始摘要；
+  合法旧 v2 receipt 仍只绑定旧版本，successor 保持 disabled 且不继承原生投影。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"七个Stage3内置Skill复用既有目录、不可变版本和comparison receipt状态机；启动审计与选择复核只撤下不可信原生投影，不新增API、能力类型或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage3已发布直接父脚本的精确摘要兼容只扩展既有一向迁移白名单；版本、receipt和原生投影状态机不变。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"七个Stage3计算器继续位于既有research_run_script沙箱；拓扑检环、逐层聚合、严格输入与64KiB输出只收紧内部计算边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage3行业计算器只接受预聚合输入，基金与组合计算器也不新增Provider binding或DataHub数据流。","diagrams":[]} -->
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage4五个CPU研究Skill复用既有种子、不可变版本、disabled与v2 HMAC receipt门禁；仅增加包和声明式元数据。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Stage4计算器继续位于既有research_run_script沙箱，复用cpu_bounded_v1、相对JSON和64KiB输出边界。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage4仅声明现有业务工具意图，未核验联合字段映射保持callable=false，不新增Provider binding或数据流。","diagrams":[]} -->
+
+## 2026-09-16 — CPU Skill 阶段 4 规格复审修正
+
+- 利率均线、股权风险溢价和风格轮动的输入/输出增加必填 `series_identity`，逐条绑定 identity、
+  version 与 tenor；运行时严格拒绝期限错配、指数身份/版本变化及风格 A/B 交换或重复。
+- 风格均线乖离方法增加独立 input/golden 与数值容差、信号断言；缠论双重枢轴及过近反转均明确
+  验证为 `ambiguous_structure`。
+- 五包静态扫描扩展到 SKILL、references、fixtures 和 scripts；后两项不可用来源仅保留逻辑描述和
+  候选摘要前缀，不记录本机绝对路径。该修正没有增加 API、Provider binding、执行器、持久节点或权限。
+- 二次复审将前三项身份契约改为 provider-aware descriptor：role/version/tenor 固定，identity 校验
+  非空格式；synthetic 精确绑定 fixture，`user_input` 可原样回传真实业务 identity。Wind/DataHub
+  未命中 field mapping 精确生产身份白名单时失败关闭。五包十份 schema 恢复官方 Draft 2020-12
+  自描述 URI；静态检查只允许该元数据 URI，不增加远程加载或可执行网络能力。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage4 series identity/version/tenor、独立golden与来源描述修正只收紧既有不可变能力包契约，不新增能力类型、API或状态。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Stage4身份等价性和缠论歧义结构检查继续运行在既有research_run_script沙箱内，不新增执行节点、网络或文件权限。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Stage4 provider-aware身份契约只允许field mapping已核验生产白名单；当前Wind/DataHub白名单为空且继续callable=false。","diagrams":[]} -->
+
+## 2026-09-16 — CPU Skill 阶段 4 质量复审修正
+
+- catalog 在读取 synthetic/actual input 后强制 SHA-256 不同；路径不同但内容完全相同的已签名 evidence
+  仍按无效证据失败关闭。Stage 2/3/4 合法 receipt 测试使用内容真实不同但业务可比的 actual input，
+  golden/actual 输出继续按既有数值容差和非数值严格等价比较。
+- 缠论结果 schema 与 golden 新增顶层必填 `asset_id`，来源固定为所有输入记录共同的已验证身份；
+  全量记录改名会改变结果身份，混合标的仍返回 `data_not_equivalent`。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"comparison input内容独立性只收紧既有artifact v2验证器，不新增API、receipt字段、状态或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"缠论顶层asset_id由既有单标的校验结果派生，仍在同一research_run_script沙箱与输出envelope内。","diagrams":[]} -->
+
+## 2026-09-16 — Stage 2 输出契约与事件收益配对修正
+
+- 六包输出 schema 的 parameters、dataset refs 与 provenance 对齐 Stage 3/4 公共严格契约；真实
+  golden 继续通过，删除必填、错误类型/provider/日期/SHA、33 项 refs 和额外字段 mutation 均失败。
+- event-review 先按共同交易日对齐标的与基准价格，再从相邻共同日同时计算事件前配对收益；目标或
+  基准任一侧缺日时不再将两日收益与一日收益配对。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"Stage2输出schema严格化只收紧现有不可变能力包的结果验证，不新增能力类型、状态或API。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"event-review共同交易日配对仍在既有research_run_script计算节点内，不新增数据源、网络、文件或执行权限。","diagrams":[]} -->

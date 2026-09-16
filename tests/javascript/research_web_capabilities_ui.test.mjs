@@ -44,15 +44,17 @@ function projectPython({ callerCwd = process.cwd(), environment = process.env } 
   throw new Error(`No project Python found. Set RWB_TEST_PYTHON to an executable interpreter. Checked: ${candidates.join(', ')}`);
 }
 
-function productBuiltinResearchSkills() {
+function productCapabilityFixture() {
   const marker = '__RWB_CAPABILITY_CATALOG__';
   const script = [
     'import json, tempfile',
     'from pathlib import Path',
     'from app.research_web.capabilities.catalog import CapabilityCatalog',
+    'from app.research_web.capabilities.seeds import RECEIPT_GATED_SKILLS, SKILL_SPECS',
     'with tempfile.TemporaryDirectory(prefix="rwb-ui-capabilities-") as directory:',
     '    catalog = CapabilityCatalog(Path(directory))',
-    `    print(${JSON.stringify(marker)} + json.dumps(catalog.list(kind="skill"), ensure_ascii=False))`,
+    '    payload = {"items": catalog.list(kind="skill")["items"], "expected_skill_count": len(SKILL_SPECS), "receipt_gated": sorted(RECEIPT_GATED_SKILLS)}',
+    `    print(${JSON.stringify(marker)} + json.dumps(payload, ensure_ascii=False))`,
   ].join('\n');
   const result = spawnSync(projectPython(), ['-c', script], {
     cwd: projectRoot,
@@ -64,7 +66,11 @@ function productBuiltinResearchSkills() {
   }
   const payload = result.stdout.split(/\r?\n/).find(line => line.startsWith(marker));
   if (!payload) throw new Error(`Product CapabilityCatalog returned no marked JSON payload. stdout: ${result.stdout}`);
-  return JSON.parse(payload.slice(marker.length)).items;
+  return JSON.parse(payload.slice(marker.length));
+}
+
+function productBuiltinResearchSkills() {
+  return productCapabilityFixture().items;
 }
 
 test('relative Python override resolves once against the caller cwd and runs from the worktree', () => {
@@ -176,16 +182,20 @@ test('capability quicklook is an accessible dialog with truthful disabled reason
   assert.doesNotMatch(renderCapabilityPreviewDialog({ tool: { id: 'x', name: '<img>', description: '<script>', selectable: false } }), /<img>|<script>/);
 });
 
-test('capability center renders, filters, opens and selects every built-in Skill without a router card', async () => {
+test('capability center renders every built-in Skill and disables receipt-gated calculators', async () => {
   const { filterCapabilities, renderCapabilityCatalog, renderCapabilityDetail } = await load('capabilities.mjs');
-  const builtinResearchSkills = productBuiltinResearchSkills();
-  assert.equal(builtinResearchSkills.length, 12);
-  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, 12);
-  assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin && item.enabled), true);
+  const fixture = productCapabilityFixture();
+  const builtinResearchSkills = fixture.items;
+  assert.equal(builtinResearchSkills.length, fixture.expected_skill_count);
+  assert.equal(new Set(builtinResearchSkills.map(item => item.id)).size, fixture.expected_skill_count);
+  assert.equal(builtinResearchSkills.every(item => item.kind === 'skill' && item.builtin), true);
+  const receiptGated = new Set(fixture.receipt_gated);
+  assert.deepEqual(builtinResearchSkills.filter(item => !item.enabled).map(item => item.id).sort(), [...receiptGated].sort());
 
   const catalog = renderCapabilityCatalog({ items: builtinResearchSkills, kind: 'skill' });
   const selectableIDs = [...catalog.matchAll(/data-use-skill="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(selectableIDs, builtinResearchSkills.map(item => item.id));
+  for (const id of receiptGated) assert.match(catalog, new RegExp(`data-use-skill="${id}"[^>]*disabled`));
   for (const item of builtinResearchSkills) {
     assert.ok(catalog.includes(item.name));
     assert.ok(catalog.includes(`<option value="${item.category}"`));
