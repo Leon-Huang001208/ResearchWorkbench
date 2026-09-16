@@ -566,6 +566,7 @@ def _verify_wind(data_root: Path, run_root: Path) -> dict[str, Any]:
                 policy_timeout = min(
                     float(policy.timeout_seconds),
                     remaining - PROCESS_COORDINATION_GRACE_SECONDS,
+                    VERIFICATION_TIMEOUT_SECONDS - PROCESS_COORDINATION_GRACE_SECONDS,
                 )
                 bounded_policy = policy.model_copy(update={"timeout_seconds": policy_timeout})
                 before = _sha256(source)

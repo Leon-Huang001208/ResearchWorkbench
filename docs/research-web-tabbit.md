@@ -122,7 +122,7 @@ Windows Profile 的 pnpm 模块回退使用目录 junction；Runtime 启动校�
 Phase 2C Automation 通过独立 Claw 会话复用同一 Research Service，但不自动申请 Tabbit 页面访问、
 不保存标签正文或页面授权，也不改变实时 claim、一次性 token 与写操作审批契约。
 
-Office/Wind 显式验证证据在 TTL 截止时刻即失效，零 TTL 不会留下可调用状态；该修复不改变 Tabbit 的独立授权、会话或浏览器运行时边界。
+Office/Wind 显式验证证据在 TTL 截止时刻即失效，零 TTL 不会留下可调用状态；Workbook 阶段 timeout 的 170 秒确定性上限只保证 180 秒总预算中的 10 秒协调余量，不改变 Tabbit 的独立授权、会话或浏览器运行时边界。
 
 2026-09-11 本机集成 Wind 改为复用已登录 Excel 并只操作独占空白工作簿执行最小公式心跳，不再以某份报告工作簿代表插件状态。该变化只收紧 Wind 验证与进程所有权边界，不改变 Tabbit 的页面授权、claim、一次性 token、标签保持、实时正文或浏览器数据生命周期。
 

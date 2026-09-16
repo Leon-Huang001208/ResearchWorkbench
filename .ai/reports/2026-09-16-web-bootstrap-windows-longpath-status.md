@@ -50,6 +50,9 @@
   宿主环境与只补 `SYSTEMDRIVE` 均能恢复 rooted 路径，其他逐项候选均不能。
 - 第二轮实现后的 `tests/research_web/test_setup_web.py`：22 passed。
 - Runtime junction 与 PID 探针回归在实现前为 3 failed，最小修复后目标用例为 3 passed。
+- Runtime repair 的 Windows 本机集成 Run `35125207395` 另暴露 Workbook 验证 timeout 在 Windows
+  单调时钟浮点舍入下可略高于 170 秒硬上限；原生参数化用例为 RED。预算计算显式加入 170 秒上限后，
+  同一两种来源变更分支定向回归为 2 passed，180 秒总预算和 10 秒协调余量不变。
 - Ruff、Black、isort 通过；目标源码 `mypy --follow-imports=skip` 通过。常规传递 mypy 仍命中仓库既有
   `core/observability`、MCP Runtime/Registry 的 16 个无关类型错误，本修复未扩大范围。
 - 文档同步与项目约束：0 violations；Research Web 架构门禁：52 passed。

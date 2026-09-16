@@ -68,7 +68,8 @@ Provider、配置和环境指纹变化时，旧的成功证据保留为历史时
 - `PUT /api/research/integrations/{id}/auto-probe-consent`
 
 原 `/data/sources/{id}/probes`、`/data/probes/{id}`、`/local-integrations/probes` 和本机验证接口继续
-保留。旧页面数据接口允许增加字段，但不删除既有字段。
+保留；本机验证内部的 Workbook timeout 明确受 180 秒总预算减 10 秒协调余量约束，不改变协调器
+状态或来源可调用判定。旧页面数据接口允许增加字段，但不删除既有字段。
 
 ## Runtime 工具
 

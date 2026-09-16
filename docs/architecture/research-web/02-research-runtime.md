@@ -106,7 +106,7 @@ Tabbit 配置和 Runtime 锁文件固定按 UTF-8 读写。POSIX 继续使用文
 
 DSH 不可用时明确报错，无 LangGraph、固定答案或第二 Supervisor 回退。已有资料和能力目录的只读可用性与运行能力分开。
 
-本机 Office/Wind 显式验证证据在 TTL 截止时刻即失效；`verification_ttl_seconds=0` 不允许同一时钟刻度继续复用。POSIX 进程组与 Windows `taskkill /T /F` 由各自平台测试独立覆盖。
+本机 Office/Wind 显式验证证据在 TTL 截止时刻即失效；`verification_ttl_seconds=0` 不允许同一时钟刻度继续复用。Workbook 单阶段 timeout 显式不超过 180 秒总预算减 10 秒协调余量，避免平台浮点舍入越界。POSIX 进程组与 Windows `taskkill /T /F` 由各自平台测试独立覆盖。
 
 ## 代码与测试
 
