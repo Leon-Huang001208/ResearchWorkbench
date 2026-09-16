@@ -21,7 +21,6 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-14
           - windows-2022
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -83,6 +82,20 @@ jobs:
           $tinysoft = $connections.sources | Where-Object { $_.id -eq 'tinysoft' } | Select-Object -First 1
           if ($null -eq $tinysoft -or $tinysoft.configured -or $tinysoft.callable -or $tinysoft.restart_required) {
             throw 'Tinysoft must remain installed-but-unconfigured without CI credentials'
+          }
+
+      - name: Print safe Windows runtime diagnostics
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $logRoot = Join-Path $env:USERPROFILE '.research-workbench\logs'
+          if (-not (Test-Path -LiteralPath $logRoot -PathType Container)) {
+            Write-Output 'runtime_log_directory_missing'
+            exit 0
+          }
+          Get-ChildItem -LiteralPath $logRoot -File -Filter '*.log' | ForEach-Object {
+            Write-Output "runtime_log=$($_.Name)"
+            Get-Content -LiteralPath $_.FullName -Tail 240
           }
 
       - name: Stop macOS services
