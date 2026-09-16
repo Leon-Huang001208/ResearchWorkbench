@@ -85,9 +85,13 @@ class SetupWebInstaller:
         self.install_root = self.data_home / "install"
         self.install_manifest = self.install_root / "manifest.json"
 
-    def _git_symlink_options(self) -> list[str]:
-        """Keep checkout and status semantics aligned on Windows hosts."""
-        return ["-c", "core.symlinks=false"] if self.platform_name == "nt" else []
+    def _git_worktree_options(self) -> list[str]:
+        """Keep clone, checkout, and status semantics aligned across hosts."""
+        options = ["-c", "core.longpaths=true"]
+        if self.platform_name == "nt":
+            options.extend(["-c", "core.symlinks=false"])
+        options.extend(["-c", "core.autocrlf=false", "-c", "core.eol=lf"])
+        return options
 
     @staticmethod
     def _python_supported(value: str) -> bool:
@@ -608,7 +612,7 @@ class SetupWebInstaller:
             status = subprocess.check_output(
                 [
                     str(self.git_executable),
-                    *self._git_symlink_options(),
+                    *self._git_worktree_options(),
                     "status",
                     "--porcelain",
                     "--untracked-files=no",
@@ -751,13 +755,7 @@ class SetupWebInstaller:
         self._run_checked(
             [
                 str(self.git_executable),
-                "-c",
-                "core.longpaths=true",
-                *self._git_symlink_options(),
-                "-c",
-                "core.autocrlf=false",
-                "-c",
-                "core.eol=lf",
+                *self._git_worktree_options(),
                 "clone",
                 "--filter=blob:none",
                 "--no-checkout",
@@ -772,11 +770,7 @@ class SetupWebInstaller:
         self._run_checked(
             [
                 str(self.git_executable),
-                "-c",
-                "core.longpaths=true",
-                *self._git_symlink_options(),
-                "-c",
-                "core.autocrlf=false",
+                *self._git_worktree_options(),
                 "-C",
                 str(staging),
                 "checkout",

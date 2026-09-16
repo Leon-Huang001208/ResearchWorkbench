@@ -9,9 +9,10 @@ The public Web bootstrap is owned by `scripts/setup_web.py`, `setup-web.sh`, `se
 It creates a checkout-local Python 3.12 environment, consumes only the hashed Web lock, installs the root
 distribution without legacy dependencies, verifies vendored CJPY, and builds the exact DSH commit in a private
 versioned directory. Fresh Runtime homes initialize the pinned DSH `web` profile before verified Tabbit layers are
-staged; Windows source checkout enables Git long paths locally, and the service manager uses native Windows process
-inspection/termination instead of POSIX-only commands. Windows DSH checkout and verification share
-`core.symlinks=false` semantics for the pinned repository's Git symlinks. `app/research_web/service_manager.py` owns the path-free
+staged; DSH clone, checkout, and verification share command-level Git long-path and line-ending settings, and the
+service manager uses native Windows process inspection/termination instead of POSIX-only commands. Windows DSH
+operations additionally share `core.symlinks=false` semantics for the pinned repository's Git symlinks.
+`app/research_web/service_manager.py` owns the path-free
 `rwb web doctor` result.
 Every later Web iteration must keep `.github/workflows/research-web-bootstrap.yml` green on clean native macOS
 and Windows runners; see [the installation contract](research-web-installation.md).
