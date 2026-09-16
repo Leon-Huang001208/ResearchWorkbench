@@ -57,6 +57,10 @@ def child_environment(session: Path) -> dict[str, str]:
         "TMPDIR": str(session / "tmp"),
         "MPLCONFIGDIR": str(session / "tmp/matplotlib"),
         "XDG_CACHE_HOME": str(session / "tmp/cache"),
+        "OMP_NUM_THREADS": "4",
+        "OPENBLAS_NUM_THREADS": "4",
+        "VECLIB_MAXIMUM_THREADS": "4",
+        "NUMEXPR_NUM_THREADS": "4",
         "__CF_USER_TEXT_ENCODING": f"0x{os.getuid():X}:0x0:0x0",
     }
 

@@ -9,6 +9,72 @@ export const inject = ['tools', 'sessions'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const METHOD_IDS = new Set(['socratic-clarification','dual-layer-explanation','reverse-engineering','horizontal-vertical-analysis','fact-checking','expert-perspectives','first-principles','cross-domain-transfer','steelman-comparison','minimal-experiment']);
 const METHOD_SOURCES = new Set(['required','user-selected','recommended','model-supplemented']);
+let scriptRunning = false;
+let scriptPoisoned = false;
+const scriptWaiters = [];
+
+function releaseScriptSlot() {
+  if (!scriptRunning) return;
+  scriptRunning = false;
+  while (scriptWaiters.length) {
+    const waiter = scriptWaiters.shift();
+    if (waiter.done) continue;
+    waiter.done = true;
+    clearTimeout(waiter.timer);
+    waiter.signal.removeEventListener('abort', waiter.abort);
+    scriptRunning = true;
+    waiter.resolve(releaseScriptSlot);
+    return;
+  }
+}
+
+function acquireScriptSlot(signal, waitSeconds, logger) {
+  const queuedAt = Date.now();
+  if (scriptPoisoned) {
+    logger.warn('research_script_queue outcome=runtime_busy wait_ms=0');
+    return Promise.resolve(null);
+  }
+  if (!scriptRunning) {
+    scriptRunning = true;
+    logger.info('research_script_queue outcome=started wait_ms=0');
+    return Promise.resolve(releaseScriptSlot);
+  }
+  return new Promise((resolveSlot, reject) => {
+    const waiter = {
+      done: false,
+      signal,
+      resolve(release) {
+        logger.info(`research_script_queue outcome=started wait_ms=${Date.now() - queuedAt}`);
+        resolveSlot(release);
+      },
+      abort() {},
+      timer: undefined,
+    };
+    const remove = () => {
+      const index = scriptWaiters.indexOf(waiter);
+      if (index >= 0) scriptWaiters.splice(index, 1);
+    };
+    waiter.abort = () => {
+      if (waiter.done) return;
+      waiter.done = true;
+      clearTimeout(waiter.timer);
+      remove();
+      logger.info(`research_script_queue outcome=cancelled wait_ms=${Date.now() - queuedAt}`);
+      reject(new Error('research script cancelled while queued'));
+    };
+    waiter.timer = setTimeout(() => {
+      if (waiter.done) return;
+      waiter.done = true;
+      remove();
+      signal.removeEventListener('abort', waiter.abort);
+      logger.info(`research_script_queue outcome=runtime_busy wait_ms=${Date.now() - queuedAt}`);
+      resolveSlot(null);
+    }, waitSeconds * 1000);
+    signal.addEventListener('abort', waiter.abort, { once: true });
+    scriptWaiters.push(waiter);
+    if (signal.aborted) waiter.abort();
+  });
+}
 
 /** Validate immutable DSH lineage; a cold/missing ancestor fails closed. */
 export async function trustedDirectory(ctx, exec, config) {
@@ -38,8 +104,10 @@ export function apply(ctx, config) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
   }
   const timeoutSeconds = config.timeoutSeconds ?? 15;
+  const queueWaitSeconds = config.queueWaitSeconds ?? 60;
   const maxOutputBytes = config.maxOutputBytes ?? 65536;
-  if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > 60 || !Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 1048576) {
+  const spawnProcess = typeof ctx.spawnProcess === 'function' ? ctx.spawnProcess : spawn;
+  if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > 60 || !Number.isFinite(queueWaitSeconds) || queueWaitSeconds <= 0 || queueWaitSeconds > 60 || !Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 1048576) {
     throw new Error('research-tools execution limits are invalid');
   }
   ctx.tools.register({
@@ -53,23 +121,37 @@ export function apply(ctx, config) {
     async execute(args, exec) {
       if (!args || Object.keys(args).length !== 1 || typeof args.code !== 'string' || !args.code.trim() || Buffer.byteLength(args.code) > 65536) throw new Error('research script accepts only bounded code');
       exec.signal.throwIfAborted();
-      const cwd = await trustedDirectory(ctx, exec, config);
-      exec.signal.throwIfAborted();
-      ctx.logger.info('research_script_started');
-      return await new Promise((resolveResult, reject) => {
-        const child = spawn(config.python, ['-I', '-S', '-B', config.runnerPath, '--research-root', config.researchRoot, '--python', config.python, '--session', cwd, '--timeout', String(timeoutSeconds), '--max-output', String(maxOutputBytes)], {
+      const release = await acquireScriptSlot(exec.signal, queueWaitSeconds, ctx.logger);
+      if (release === null) return { status: 'failed', stdout: '', stderr: '', exit_code: null, error: 'runtime_busy' };
+      let childSpawned = false;
+      try {
+        const cwd = await trustedDirectory(ctx, exec, config);
+        exec.signal.throwIfAborted();
+        ctx.logger.info('research_script_run outcome=started');
+        return await new Promise((resolveResult, reject) => {
+        const child = spawnProcess(config.python, ['-I', '-S', '-B', config.runnerPath, '--research-root', config.researchRoot, '--python', config.python, '--session', cwd, '--timeout', String(timeoutSeconds), '--max-output', String(maxOutputBytes)], {
           cwd, env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'],
         });
+        childSpawned = true;
         const output = [];
         let bytes = 0;
         let stopReason;
         let forceStop;
         let settled = false;
+        let slotReleased = false;
+        const releaseAfterClose = () => {
+          if (slotReleased) return;
+          slotReleased = true;
+          scriptPoisoned = false;
+          release();
+        };
         const stop = reason => {
           if (settled) return;
           stopReason ??= reason;
           child.kill('SIGTERM');
           forceStop ??= setTimeout(() => {
+            scriptPoisoned = true;
+            ctx.logger.error('research_script_run outcome=poisoned');
             child.kill('SIGKILL');
             cleanup();
             if (!settled) { settled = true; reject(new Error('research supervisor teardown could not be confirmed')); }
@@ -86,9 +168,17 @@ export function apply(ctx, config) {
         });
         child.stderr.on('data', () => {});
         child.stdin.on('error', () => stop('research supervisor rejected its input'));
-        child.on('error', () => { cleanup(); settled = true; ctx.logger.error('research_script_spawn_failed'); reject(new Error('research supervisor could not start')); });
+        child.on('error', () => {
+          cleanup();
+          scriptPoisoned = true;
+          ctx.logger.error('research_script_run outcome=poisoned');
+          if (settled) return;
+          settled = true;
+          reject(new Error('research supervisor could not start'));
+        });
         child.on('close', code => {
           cleanup();
+          releaseAfterClose();
           if (settled) return;
           settled = true;
           if (stopReason || code !== 0) { ctx.logger.warn('research_script_supervisor_failed'); reject(new Error(stopReason ?? 'research supervisor failed')); return; }
@@ -96,13 +186,16 @@ export function apply(ctx, config) {
             const result = JSON.parse(Buffer.concat(output).toString('utf8'));
             if (!result || typeof result.status !== 'string' || typeof result.stdout !== 'string' || typeof result.stderr !== 'string' || !(result.error === null || typeof result.error === 'string') || !(result.exit_code === null || Number.isSafeInteger(result.exit_code))) throw new Error('invalid response');
             if (Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr) > maxOutputBytes) throw new Error('invalid response size');
-            ctx.logger.info('research_script_finished status=%s', result.status);
+            ctx.logger.info('research_script_run outcome=%s', result.status);
             resolveResult(result);
           } catch { ctx.logger.error('research_script_protocol_failed'); reject(new Error('research supervisor returned an invalid response')); }
         });
         child.stdin.end(JSON.stringify({ code: args.code }));
         if (exec.signal.aborted) onAbort();
-      });
+        });
+      } finally {
+        if (!childSpawned) release();
+      }
     },
   });
   ctx.tools.register({

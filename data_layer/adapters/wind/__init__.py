@@ -2,6 +2,7 @@
 
 from data_layer.adapters.wind.client import WindExcelClient
 from data_layer.adapters.wind.exceptions import (
+    WindCleanupError,
     WindError,
     WindFormulaError,
     WindNotConnectedError,
@@ -12,10 +13,11 @@ from data_layer.adapters.wind.wind_adapter import WindAdapter
 
 __all__ = [
     "WindAdapter",
-    "WindExcelClient",
+    "WindCleanupError",
     "WindError",
-    "WindSessionExpiredError",
+    "WindExcelClient",
     "WindFormulaError",
     "WindNotConnectedError",
+    "WindSessionExpiredError",
     "WindTimeoutError",
 ]

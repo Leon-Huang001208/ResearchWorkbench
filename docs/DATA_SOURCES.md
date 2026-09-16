@@ -22,6 +22,12 @@ Wind 适配器通过 xlwings 操控 macOS Excel 中的 Wind 插件获取数据�
 
 2026-09-11 的格式基线维护只调整 Wind 客户端条件表达式的 Black 排版，公式、登录、超时和降级契约均未改变。
 
+2026-09-14 的 Research Web DataHub 自动查询使用 `isolated_app=True`：客户端不枚举或选择用户
+已打开的 Excel/workbook，而是创建隐藏独立应用和专用 workbook，并在结束时不保存关闭。Provider
+用单 worker、18 秒 deadline 串行调用；超时或取消后在原调用完成清理前保持 busy。历史查询另有
+60 日历日取数前边界和终点覆盖检查。若 Excel quit 无法确认，客户端保留所有权并返回
+`wind_cleanup_failed`，DataHub poison 至进程重启；这些约束不改变旧 Connector 的显式调用策略。
+
 iFinD 在当前 Research Web 中区分 HTTP 与本地 SDK：macOS 使用用户在数据源设置页保存的 HTTP Base/mailbox 配置与系统凭据库密码；探测必须依次通过登录、健康、最小只读数据查询和会话关闭，空数据或授权失败不会标记健康。Windows/Linux 的 SDK 属于独立厂商依赖，不随项目分发，也不能由普通同花顺客户端推断为可用。
 
 适配器包公开符号按需装载：单独使用 iFinD HTTP 不会初始化 CNINFO、数据库仓储或 iFinD SDK，因此 Research Web 本机服务不需要为未使用的数据源安装 PostgreSQL 驱动。

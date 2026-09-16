@@ -91,10 +91,10 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "professional",
         "terminal",
         [],
-        ["WindPy/xlwings"],
-        ["A股", "港股", "债券", "基金"],
+        ["xlwings"],
+        ["A股"],
         "account",
-        "专业终端；仅在本机授权会话可用。",
+        "专业终端；当前 DataHub 仅通过本机授权的 Wind Excel 会话读取 A 股数据。",
     ),
     (
         "tinysoft",
@@ -376,7 +376,7 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
         "历史行情",
         "行情",
         "读取日线等历史行情及复权口径。",
-        ["asset", "start_date", "end_date", "frequency", "adjustment"],
+        ["asset", "asset_type", "start_date", "end_date", "frequency", "adjustment"],
         ["date", "open", "high", "low", "close", "volume"],
         ["A股", "港股", "美股"],
         ["股票", "指数", "ETF"],
@@ -386,7 +386,7 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
         "实时快照",
         "行情",
         "读取当前或最近可得行情快照。",
-        ["assets", "fields"],
+        ["assets", "asset_type", "fields"],
         ["as_of", "price", "change_pct", "volume"],
         ["A股", "港股", "美股"],
         ["股票", "指数", "ETF"],
@@ -541,7 +541,7 @@ BINDING_SPECS = {
     "index_data": [
         ("csindex", ["index_constituents", "index_valuation"]),
         ("tinysoft", ["daily_quotes"]),
-        ("wind", ["index_data"]),
+        ("wind", ["quotes"]),
         ("akshare", ["index_daily"]),
         ("yahoo", ["index_daily"]),
     ],
@@ -556,7 +556,7 @@ BINDING_SPECS = {
         ("chinastock", ["financials"]),
     ],
     "market_activity": [
-        ("wind", ["fund_flow", "margin_trading", "block_trades", "holder_data"]),
+        ("wind", ["fund_flow", "margin_trading", "holder_data"]),
         ("ifind", ["fund_flow", "industry"]),
         ("chinastock", ["fund_flow", "sentiment"]),
         ("akshare", ["fund_flow"]),
@@ -591,7 +591,7 @@ BINDING_SPECS = {
     "table_query": [("mysql", ["single_table_select"])],
 }
 
-INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare", "mysql"}
+INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare", "mysql", "wind"}
 DISABLED = {"szse", "cninfo"}
 IMPLEMENTED_BINDINGS = {
     ("tinysoft", "search_assets"),
@@ -603,6 +603,15 @@ IMPLEMENTED_BINDINGS = {
     ("akshare", "market_snapshot"),
     ("akshare", "financials"),
     ("akshare", "market_activity"),
+    ("wind", "market_bars"),
+    ("wind", "market_snapshot"),
+    ("wind", "index_data"),
+    ("wind", "financials"),
+    ("wind", "market_activity"),
+}
+BINDING_ASSETS = {
+    ("wind", "market_bars"): ["股票"],
+    ("wind", "market_snapshot"): ["股票"],
 }
 
 
@@ -620,14 +629,14 @@ def _dependency_status(source_id: str, dependencies: list[str]) -> tuple[bool, s
     if source_id in {"wind", "tinysoft", "ifind", "akshare", "mysql"}:
         try:
             modules = {
-                "wind": ("WindPy", "xlwings"),
+                "wind": ("xlwings",),
                 "tinysoft": ("cjpy", "requests", "urllib3"),
                 "ifind": ("iFinD", "iFinDPy"),
                 "akshare": ("akshare",),
                 "mysql": ("pymysql", "keyring"),
             }[source_id]
             readiness = [find_spec(module) is not None for module in modules]
-            ready = any(readiness) if source_id in {"wind", "ifind"} else all(readiness)
+            ready = any(readiness) if source_id == "ifind" else all(readiness)
             if not ready:
                 return False, "blocked_dependency"
             if source_id == "tinysoft" and importlib_metadata.version("cjpy") != "0.5.2":
@@ -680,6 +689,8 @@ def build_catalog(
         else:
             configured = _configured(auth, keys, env)
         dependency_ready, dependency_failure_code = _dependency_status(sid, deps)
+        if sid == "wind" and (connection_status or {}).get("preferred_adapter") == "client_api":
+            dependency_ready = False
         allowed = integrated and sid not in DISABLED
         if sid in DISABLED or not integrated:
             state: IntegrationState = "disabled"
@@ -732,7 +743,7 @@ def build_catalog(
         for priority, (source_id, datasets) in enumerate(candidates, 1):
             source = by_source[source_id]
             implemented = source_id in INTEGRATED and (
-                source_id not in {"tinysoft", "akshare"}
+                source_id not in {"tinysoft", "akshare", "wind"}
                 or (source_id, capability_id) in IMPLEMENTED_BINDINGS
             )
             bindings.append(
@@ -742,7 +753,7 @@ def build_catalog(
                     datasets=datasets,
                     priority=priority,
                     markets=source["markets"],
-                    assets=[],
+                    assets=BINDING_ASSETS.get((source_id, capability_id), []),
                     coverage=source["description"],
                     implemented=implemented,
                 ).model_dump(mode="json")

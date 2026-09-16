@@ -9,8 +9,8 @@ export const inject = ['tools', 'sessions'];
 const BUSINESS = {
   datahub_search_assets: ['search_assets','识别证券、基金和指数代码',{query:{type:'string'},market:{type:'string'},asset_type:{type:'string'}},['query']],
   datahub_get_trading_calendar: ['trading_calendar','读取交易日历',{market:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['market','start_date','end_date']],
-  datahub_get_market_bars: ['market_bars','读取历史行情与复权口径',{asset:{type:'string'},start_date:{type:'string'},end_date:{type:'string'},frequency:{type:'string'},adjustment:{type:'string'}},['asset','start_date','end_date']],
-  datahub_get_market_snapshot: ['market_snapshot','读取当前或最近行情快照',{assets:{type:'array',items:{type:'string'}},fields:{type:'array',items:{type:'string'}}},['assets']],
+  datahub_get_market_bars: ['market_bars','读取历史行情与复权口径',{asset:{type:'string'},asset_type:{type:'string',enum:['stock','index','etf']},start_date:{type:'string'},end_date:{type:'string'},frequency:{type:'string'},adjustment:{type:'string'}},['asset','start_date','end_date']],
+  datahub_get_market_snapshot: ['market_snapshot','读取当前或最近行情快照',{assets:{type:'array',items:{type:'string'}},asset_type:{type:'string',enum:['stock','index','etf']},fields:{type:'array',items:{type:'string'}}},['assets']],
   datahub_get_index_data: ['index_data','读取指数行情、成分或估值',{index:{type:'string'},dataset:{type:'string'},date:{type:'string'}},['index','dataset']],
   datahub_get_financials: ['financials','读取财务报表与标准化指标',{asset:{type:'string'},statements:{type:'array',items:{type:'string'}},periods:{type:'array',items:{type:'string'}}},['asset']],
   datahub_get_market_activity: ['market_activity','读取资金与交易事件',{asset:{type:'string'},dataset:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['asset','dataset']],
