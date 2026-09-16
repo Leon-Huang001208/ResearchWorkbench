@@ -698,8 +698,9 @@
 - 七包提交可哈希 synthetic source artifact 并由 fixture/golden/provenance 绑定真实摘要；未核验的
   DataHub 映射标记 `callable=false`，contract provider 必须与全部 dataset refs 一致。
 - 基金穿透覆盖 percent/decimal、多层持仓和重复路径，对全部给定基金子图做 cycle fail-closed，并
-  只在单一快照内聚合；组合拒绝隐式杠杆，基准偏离显式绑定报告期、因子日和行业映射版本；三个
-  行业计算器只消费预聚合行业指标，景气贡献全局最多投影 128 条，拥挤度要求统一交易日与市场总额约束。
+  只在单一快照内聚合；组合拒绝隐式杠杆，基准偏离逐条匹配顶层报告期和行业映射版本并绑定因子日；
+  三个行业计算器只消费预聚合行业指标，景气贡献全局最多投影 128 条，拥挤度要求统一交易日、市场
+  总额约束以及每行业至少两个同口径滚动观测。
 - 七项在 clean catalog 中可发现但全部 disabled，只有绑定当前不可变版本且可重算的 macOS
   Wind/Excel comparison evidence artifact v2 且由宿主登记器 HMAC 认证后才能启用或回滚到 enabled。
   证据绑定 synthetic/actual 输入与固定宿主执行器；sandbox 不继承密钥，普通 JSON 不能自证。当前

@@ -16,6 +16,8 @@
   内计算器不能自证。七包用真实 source artifact SHA-256 替换占位哈希，未核验 DataHub 映射为
   `callable=false`，并补齐单一快照、非杠杆权重、显式因子口径、行业统一日历/总额和全局 128 条嵌套
   投影边界。真实宿主签名 Wind/Excel evidence 缺失时仍不可启用或回滚到 enabled。
+- 复审后进一步要求组合基准偏离的每条记录显式携带并匹配顶层报告期与行业映射版本；行业拥挤度
+  每行业至少形成两个同口径滚动观测，输出 schema 同步限定 `percentile_observations >= 2`。
 
 ### 六个 CPU 有界资讯/事件 Skill · 2026-09-14
 

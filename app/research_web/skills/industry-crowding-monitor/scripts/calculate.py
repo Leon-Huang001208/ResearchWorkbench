@@ -144,7 +144,7 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     for industry, series in grouped.items():
         series.sort(key=lambda row: row["date"])
-        if len(series) < rolling_days:
+        if len(series) < rolling_days + 1:
             raise CalculatorError("insufficient_history")
         industry_prefix = [0.0]
         market_prefix = [0.0]

@@ -42,8 +42,8 @@ comparison receipt 当前采用 artifact v2：宿主登记器以 HMAC-SHA256 绑
 input、独立 Wind/Excel actual input、固定宿主执行器和两侧结果；`research_run_script` sandbox 的显式
 最小环境不继承登记密钥，普通 JSON 与被审计算器不能自证。Stage 3 七包提交实际 synthetic source
 artifact，未核验 DataHub 映射标为 `callable=false` 并强制 contract/ref provider 一致；基金/组合只接
-受单一快照和非杠杆权重，基准偏离显式绑定报告期/因子日/行业版，行业计算增加全局 128 条嵌套投影
-与统一日历/成交总额约束。真实宿主签名对照仍缺失，所以七项继续 disabled。
+受单一快照和非杠杆权重，基准偏离逐条匹配顶层报告期/因子日/行业版，行业计算增加全局 128 条嵌套投影、
+统一日历/成交总额约束和拥挤度至少两个滚动观测。真实宿主签名对照仍缺失，所以七项继续 disabled。
 
 Research Runtime 每次启动都从离线 DataHub 能力目录重新计算 `enabledTools`；来源配置变化只有在重启后才改变原生工具注册。缺少可调用来源的工具不暴露给模型。AKShare、天软等同步 Provider 的单次截止时间为 15 秒，低于桥接层 22 秒；超时保存 `failed` 数据集，并以单线程门闩把仍未返回的第三方调用隔离为 `provider_busy`。
 

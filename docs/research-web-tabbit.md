@@ -146,5 +146,6 @@ receipt 对 packaged golden 与 comparison run actual 分别验摘要并做业�
 2026-09-15 新增的七个 Stage 3 基金/组合/行业 CPU Skill 继续只通过既有能力目录和
 `research_run_script` 工作。它们复用安全相对 JSON、预算、64 KiB 完整输出和 comparison receipt
 门禁，全部可发现但默认 disabled；未核验 DataHub 映射为 `callable=false`，单一快照/非杠杆权重、
-景气嵌套投影与拥挤度统一日历总额约束均只处理调用方已提供 JSON。基金穿透的层级/cycle 校验和只吃预聚合数据的行业计算不会请求
+基准偏离逐条报告期/行业映射等价、景气嵌套投影与拥挤度统一日历总额及至少两个滚动观测约束均只
+处理调用方已提供 JSON。基金穿透的层级/cycle 校验和只吃预聚合数据的行业计算不会请求
 Tabbit 页面、正文 token 或浏览器证据，也不会扩大 claim、写审批、网络、文件或执行权限。

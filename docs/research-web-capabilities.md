@@ -59,8 +59,9 @@ openat/no-follow，在 Windows 校验打开句柄最终路径和 reparse 属性�
 artifact 并由 fixture/golden/provenance 绑定其摘要，不再使用占位哈希。未核验的 DataHub 映射均标记
 `callable=false`，只接受 provider 与 dataset refs 一致的 synthetic/user_input。基金穿透支持单一快照
 percent/decimal、多层与重复路径，对全部给定基金子图 cycle fail-closed；组合计算拒绝隐式杠杆，
-基准偏离显式绑定报告期、因子日期和行业映射版本；三个行业计算器只接受预聚合行业数据，景气贡献
-全局最多投影 128 条，拥挤度强制统一交易日序列及每日行业额总约束。七项仍使用严格日期、有限
+基准偏离要求每条记录显式携带并严格匹配顶层报告期和行业映射版本，因子日期仍绑定同一持仓快照；
+三个行业计算器只接受预聚合行业数据，景气贡献全局最多投影 128 条，拥挤度强制统一交易日序列、
+每日行业额总约束及至少两个同方法滚动观测。七项仍使用严格日期、有限
 数值/受检算术、安全相对 JSON loader、完整 64 KiB envelope 和无尾随换行 stdout，不增加网络、GPU、
 VBA、CJPY、绝对路径或新的执行权限。
 

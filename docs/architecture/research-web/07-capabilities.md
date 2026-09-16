@@ -40,8 +40,9 @@ UTF-8 envelope 只收紧边界，成功 stdout 不附换行且恰好 65,536 字�
 artifact 且通过宿主签名验证才能启用或回滚到 enabled；普通 JSON 和 sandbox 内计算器无法自签。
 七包的 synthetic source artifact 由 fixture/golden/provenance 实际 SHA-256 绑定，DataHub 工具因字段
 口径未核验标为 `callable=false`。基金穿透覆盖单一快照、percent/decimal、多层、重复路径并对全部
-给定基金子图 cycle fail-closed；组合拒绝隐式杠杆，基准偏离显式要求报告期/因子日/行业映射版本；
-三个行业 Skill 只消费预聚合数据，景气贡献全局最多投影 128 条，拥挤度统一日历且行业额总和不超市场额。严格 schema/运行时字段等价、日期、
+给定基金子图 cycle fail-closed；组合拒绝隐式杠杆，基准偏离要求每条记录的报告期/行业映射版本与
+顶层参数严格一致且因子日等于持仓快照；三个行业 Skill 只消费预聚合数据，景气贡献全局最多投影
+128 条，拥挤度统一日历、行业额总和不超市场额且每行业至少形成两个滚动观测。严格 schema/运行时字段等价、日期、
 有限数值与受检算术、安全相对 JSON loader、`cpu_bounded_v1` 工作量预算及完整 64 KiB 无换行输出
 均沿用现有边界，不新增 API、能力类型、执行器或宿主权限。
 

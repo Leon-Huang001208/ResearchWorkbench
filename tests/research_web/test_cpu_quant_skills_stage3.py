@@ -630,6 +630,26 @@ def test_benchmark_deviation_requires_explicit_factor_and_mapping_cutoffs():
     }
 
 
+@pytest.mark.parametrize(
+    ("field", "mismatched_value"),
+    (
+        ("report_period", "2026-03-31"),
+        ("industry_mapping_version", "citics-2025-v1"),
+    ),
+)
+def test_benchmark_deviation_rejects_mixed_record_cutoffs(field, mismatched_value):
+    module = load_calculator("portfolio-benchmark-deviation")
+    payload = copy.deepcopy(load_json("portfolio-benchmark-deviation", "input.json"))
+    for record in payload["records"]:
+        record["report_period"] = payload["parameters"]["report_period"]
+        record["industry_mapping_version"] = payload["parameters"]["industry_mapping_version"]
+    payload["records"][0][field] = mismatched_value
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "data_not_equivalent"
+
+
 def test_industry_crowding_rejects_noncanonical_calendar_and_market_overallocation():
     module = load_calculator("industry-crowding-monitor")
     payload = copy.deepcopy(load_json("industry-crowding-monitor", "input.json"))
@@ -646,6 +666,17 @@ def test_industry_crowding_rejects_noncanonical_calendar_and_market_overallocati
     with pytest.raises(module.CalculatorError) as error:
         module.calculate(overallocated, input_bytes=1024)
     assert error.value.code == "data_not_equivalent"
+
+
+def test_industry_crowding_rejects_single_rolling_observation():
+    module = load_calculator("industry-crowding-monitor")
+    payload = copy.deepcopy(load_json("industry-crowding-monitor", "input.json"))
+    earliest_day = min(record["date"] for record in payload["records"])
+    payload["records"] = [record for record in payload["records"] if record["date"] != earliest_day]
+
+    with pytest.raises(module.CalculatorError) as error:
+        module.calculate(payload, input_bytes=1024)
+    assert error.value.code == "insufficient_history"
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -860,6 +891,8 @@ def _stress_payload(slug: str) -> dict:
                 "weight": 2,
                 "weight_unit": "percent",
                 "as_of": as_of,
+                "report_period": payload["parameters"]["report_period"],
+                "industry_mapping_version": payload["parameters"]["industry_mapping_version"],
                 "market_cap": 100 + index + offset,
                 "pe_ttm": 10 + index / 10 + offset,
                 "profit_growth_yoy_pct": 5 + index / 5 + offset,

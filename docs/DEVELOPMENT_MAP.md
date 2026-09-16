@@ -119,7 +119,8 @@ CPU Skill 还从 `skills/_shared/` 复制 `cpu_budget.py`、`input_contract.py`�
 对应 golden、失败关闭、预算、独立进程时间/RSS 压力与静态扫描位于
 `tests/research_web/test_cpu_quant_skills_stage2.py`。Stage 3 的七个基金/组合/行业包追加在同一目录与门禁：
 每包提交 `fixtures/source-artifact.json` 并绑定真实摘要；DataHub 字段映射未核验时 `callable=false`，
-运行时强制 contract/ref provider 一致；快照、权重、因子口径、行业日历/总额和全局 128 条嵌套投影
+运行时强制 contract/ref provider 一致；快照、权重、逐条报告期/行业映射口径、行业日历/总额、
+拥挤度至少两个滚动观测和全局 128 条嵌套投影
 反例位于 `tests/research_web/test_cpu_quant_skills_stage3.py`。
 研报增量能力另含 `scripts/validate_digest.py` 和 `scripts/render_knowledge_graph.py`，在既有研究沙箱
 内运行并复用 `research_helpers.read_pdf`，不得调用宿主进程。检查、种子、导出与会话快照覆盖在

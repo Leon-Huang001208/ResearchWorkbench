@@ -47,7 +47,18 @@ PARAMETER_FIELDS = frozenset(
 )
 FEATURES = ("market_cap", "pe_ttm", "profit_growth_yoy_pct")
 RECORD_FIELDS = frozenset(
-    {"book", "book_id", "asset_id", "industry", "weight", "weight_unit", "as_of", *FEATURES}
+    {
+        "book",
+        "book_id",
+        "asset_id",
+        "industry",
+        "weight",
+        "weight_unit",
+        "as_of",
+        "report_period",
+        "industry_mapping_version",
+        *FEATURES,
+    }
 )
 CONTRACT_UNITS = {
     "weight": "record_declared_decimal_or_percent",
@@ -161,6 +172,17 @@ def calculate(payload: dict[str, Any], *, input_bytes: int) -> dict[str, Any]:
         asset_id = checked_text(raw["asset_id"], error=CalculatorError)
         industry = checked_text(raw["industry"], error=CalculatorError)
         holding_date = reject_future(raw["as_of"], as_of=as_of, error=CalculatorError)
+        record_report_period = reject_future(
+            raw["report_period"], as_of=as_of, error=CalculatorError
+        )
+        record_mapping_version = checked_text(
+            raw["industry_mapping_version"], error=CalculatorError
+        )
+        if (
+            record_report_period != report_period
+            or record_mapping_version != industry_mapping_version
+        ):
+            raise CalculatorError("data_not_equivalent")
         if snapshot_date is None:
             snapshot_date = holding_date
         elif holding_date != snapshot_date:
