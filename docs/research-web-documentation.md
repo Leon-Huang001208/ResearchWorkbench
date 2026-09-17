@@ -15,6 +15,14 @@ Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 
 清单见 [architecture-map.json](architecture/research-web/architecture-map.json)。
 最终必须包含 01–10 十图，不能用部分完成状态跳过门禁。其中 09 是报告运行序列，10 是 Excel 刷新、共享快照与文件组装数据流。
 
+根 README 另由 [README 复核回执](architecture/research-web/readme-review.json) 记录本轮
+`updated` 或 `unchanged` 决策。`.agents/project-constraints.json` 将 Research Web、CLI、公开入口和
+两份包清单声明为触发范围；触发后必须把回执放入完整 changed-file 集。回执严格限制为四字段
+schema 1，且必须是仓库内普通 JSON 文件。`updated` 要求同批包含 `README.md`，`unchanged`
+只需写明非空摘要和具体原因。根 README 同时进入现有本地 Markdown 断链检查。
+该配置块本身不可缩减或重定向：README、回执、三个目录前缀和两份包清单都与检查器固定常量
+做集合等价校验；仅数组顺序可变，空、缺失、额外、重复或替代路径均失败。
+
 ## 本地命令
 
 ```bash
@@ -47,6 +55,9 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 - 视觉回执必须绑定当前 HTML，四个固定视口 1440×900 / 1600×1000 / 1920×1080 /
   2048×1320 包含性通过；截图存在。人工记录独立绑定同一 JSON/HTML 哈希与实际查看截图。
 - 检查当前 canonical/module Markdown 和生成 index.html 的本地链接；不扩展为清理历史文档。
+- 检查根 `README.md` 的本地链接；触发代码/包清单改动时核对 README 复核回执是否进入变更集，
+  并验证 `updated` 与 README 变更之间的条件关系。
+- 对 README 门禁配置执行固定路径与固定触发集合校验，不能通过删项、加重复项或改指向缩小门禁。
 
 每个变化模块组在 review-record 追加可机读标记，例如：
 
@@ -85,7 +96,8 @@ API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单�
 
 `tests/javascript/research_web_architecture.test.mjs` 构造独立临时十图 fixture，验证有效输入，
 源码无说明、未映射模块、失效接口/前缀、图源或 HTML 与旧回执、缺图、断链、丢失截图和
-旧人工哈希等负向案例；fixture 的文本图片不是实际视觉证据，不进入生成文档目录。
+旧人工哈希等负向案例；同一行为测试还覆盖缺少 README 回执、`updated` 漏改 README、无效或
+空白 `unchanged`、合法两种结论及根 README 断链。fixture 的文本图片不是实际视觉证据，不进入生成文档目录。
 `tests/research_web/test_doc_sync.py` 验证 Python 委托和 Git 失败边界；
 `tests/research_web/test_documentation.py` 验证路由、CSP、穿越、链接、缺失及离线访问。
 

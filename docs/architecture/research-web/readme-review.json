@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "disposition": "updated",
+  "summary": "根 README 已重写为当前 Research Web 的安装、启动、使用与文档入口。",
+  "reason": "本轮用户入口说明发生实质变化，需要让首次访问仓库的用户直接看到 Web-only 产品边界和公开安装流程。"
+}

@@ -3,11 +3,26 @@
   "researchArchitectureMap": "docs/architecture/research-web/architecture-map.json",
   "requiredFiles": [
     "AGENTS.md",
+    "README.md",
     "docs/ARCHITECTURE.md",
     "docs/DEVELOPMENT_MAP.md",
     "docs/AGENT_WORKFLOW.md",
-    "docs/desktop_packaging.md"
+    "docs/desktop_packaging.md",
+    "docs/architecture/research-web/readme-review.json"
   ],
+  "readmeReview": {
+    "receipt": "docs/architecture/research-web/readme-review.json",
+    "readme": "README.md",
+    "sourcePrefixes": [
+      "app/research_web/",
+      "app/cli/",
+      "research_workbench_entrypoint/"
+    ],
+    "sourceFiles": [
+      "pyproject.toml",
+      "package.json"
+    ]
+  },
   "changeRules": [
     {
       "name": "核心源码改动需要工程文档联动",

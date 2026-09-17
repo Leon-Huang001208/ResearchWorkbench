@@ -12,6 +12,8 @@ const mapPath = 'docs/architecture/research-web/architecture-map.json';
 const source = 'app/research_web/main.py';
 const document = 'docs/module.md';
 const review = 'docs/architecture/research-web/review-record.md';
+const rootReadme = 'README.md';
+const readmeReview = 'docs/architecture/research-web/readme-review.json';
 const ids = ['01-deployment', '02-module-dependencies', '03-research-sequence', '04-data-file-flow', '05-capability-flow', '06-run-state', '07-delivery-state', '08-iteration-docs', '09-report-workflow-sequence', '10-excel-report-dataflow'];
 const hash = value => ({ sha256: createHash('sha256').update(value).digest('hex'), bytes: Buffer.byteLength(value) });
 
@@ -22,6 +24,7 @@ function fixture(t) {
   const read = file => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
   write(source, '@app.get("/api/research/runtime")\nasync def runtime():\n    return {}\n');
   write(document, '# Module\n\n[Source](../app/research_web/main.py)\n');
+  write(rootReadme, '# Fixture project\n\n[Architecture](docs/architecture/research-web/README.md)\n');
   write('tests/check.py', '# fixture test');
   write(review, '<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Only error text changed; API and runtime relationships are unchanged.","diagrams":[]} -->');
   write('docs/architecture/research-web/README.md', '# Current architecture\n\n[Module](../../module.md)');
@@ -56,8 +59,101 @@ async function check(f, changedFiles=[]) {
   return checkResearchArchitecture({projectRoot:f.root,changedFiles});
 }
 
+async function checkConstraints(f, changedFiles=[]) {
+  const {checkProjectConstraints} = await import('../../.agents/project-constraints.mjs');
+  return checkProjectConstraints({projectRoot:f.root,changedFiles});
+}
+
+function configureReadmeReview(f, receipt={schemaVersion:1,disposition:'unchanged',summary:'本轮无需调整根 README。',reason:'改动不影响用户入口、安装方式或产品说明。'}) {
+  f.write(readmeReview, receipt);
+  f.write('.agents/project-constraints.json', {
+    schemaVersion:1,
+    requiredFiles:[rootReadme,readmeReview],
+    readmeReview:{
+      receipt:readmeReview,
+      readme:rootReadme,
+      sourcePrefixes:['app/research_web/','app/cli/','research_workbench_entrypoint/'],
+      sourceFiles:['pyproject.toml','package.json'],
+    },
+  });
+}
+
 test('portable offline fixture validates ten diagrams and ignores development absolute paths', async t => {
   assert.deepEqual((await check(fixture(t))).violations, []);
+});
+
+test('root README participates in local Markdown link validation', async t => {
+  const f=fixture(t);f.write(rootReadme,'# Fixture project\n\n[Broken](docs/missing.md)\n');
+  const result=await check(f);
+  assert.ok(result.violations.some(item=>item.code==='link_missing' && item.path===rootReadme),JSON.stringify(result));
+});
+
+test('Research Web, CLI, entrypoint, and package changes require the README review receipt in the changed set', async t => {
+  for (const changed of ['app/research_web/main.py','app/cli/main.py','research_workbench_entrypoint/main.py','pyproject.toml','package.json']) {
+    const f=fixture(t);configureReadmeReview(f);
+    const result=await checkConstraints(f,[changed]);
+    assert.ok(result.violations.some(item=>item.code==='readme_review_not_changed' && item.path===readmeReview),`${changed}: ${JSON.stringify(result)}`);
+  }
+});
+
+test('missing README review configuration fails closed', async t => {
+  const f=fixture(t);f.write('.agents/project-constraints.json',{schemaVersion:1});
+  await assert.rejects(()=>checkConstraints(f,['app/research_web/main.py']),/invalid README review configuration/);
+});
+
+test('README review configuration cannot weaken or redirect the canonical gate', async t => {
+  const invalidMutations = [
+    ['empty prefixes',configuration=>{configuration.readmeReview.sourcePrefixes=[];}],
+    ['empty files',configuration=>{configuration.readmeReview.sourceFiles=[];}],
+    ['missing app CLI prefix',configuration=>{configuration.readmeReview.sourcePrefixes=configuration.readmeReview.sourcePrefixes.filter(value=>value!=='app/cli/');}],
+    ['duplicate prefix hiding an omission',configuration=>{configuration.readmeReview.sourcePrefixes=['app/research_web/','app/research_web/','research_workbench_entrypoint/'];}],
+    ['extra prefix',configuration=>{configuration.readmeReview.sourcePrefixes.push('app/other/');}],
+    ['missing package.json',configuration=>{configuration.readmeReview.sourceFiles=configuration.readmeReview.sourceFiles.filter(value=>value!=='package.json');}],
+    ['duplicate file',configuration=>{configuration.readmeReview.sourceFiles.push('package.json');}],
+    ['README redirection',configuration=>{configuration.readmeReview.readme='docs/README.md';}],
+    ['receipt redirection',configuration=>{configuration.readmeReview.receipt='docs/architecture/research-web/other-review.json';}],
+  ];
+  for (const [name,mutate] of invalidMutations) {
+    const f=fixture(t);configureReadmeReview(f);const configuration=f.read('.agents/project-constraints.json');mutate(configuration);f.write('.agents/project-constraints.json',configuration);
+    await assert.rejects(()=>checkConstraints(f,['package.json']),/invalid README review configuration/,name);
+  }
+  const reordered=fixture(t);configureReadmeReview(reordered);const configuration=reordered.read('.agents/project-constraints.json');configuration.readmeReview.sourcePrefixes.reverse();configuration.readmeReview.sourceFiles.reverse();reordered.write('.agents/project-constraints.json',configuration);
+  assert.deepEqual((await checkConstraints(reordered)).violations,[]);
+});
+
+test('updated README review requires README.md in the changed set', async t => {
+  const f=fixture(t);configureReadmeReview(f,{schemaVersion:1,disposition:'updated',summary:'根 README 已同步当前 Research Web 使用入口。',reason:'本轮改变了用户可见的安装与启动说明。'});
+  const result=await checkConstraints(f,['app/research_web/main.py',readmeReview]);
+  assert.ok(result.violations.some(item=>item.code==='readme_not_changed' && item.path===rootReadme),JSON.stringify(result));
+});
+
+test('malformed, non-exact, or empty unchanged README reviews fail closed', async t => {
+  const invalidReceipts = [
+    '{',
+    {schemaVersion:1,disposition:'unchanged',summary:' ',reason:'改动不影响用户入口。'},
+    {schemaVersion:1,disposition:'unchanged',summary:'本轮无需调整根 README。',reason:' '},
+    {schemaVersion:1,disposition:'unchanged',summary:'本轮无需调整根 README。',reason:'改动不影响用户入口。',extra:true},
+  ];
+  for (const receipt of invalidReceipts) {
+    const f=fixture(t);configureReadmeReview(f,receipt);
+    const result=await checkConstraints(f,[readmeReview]);
+    assert.ok(result.violations.some(item=>item.code==='readme_review_invalid' && item.path===readmeReview),JSON.stringify(result));
+  }
+});
+
+test('README review receipt must be a regular in-repository file', async t => {
+  const f=fixture(t);configureReadmeReview(f);
+  fs.unlinkSync(path.join(f.root,readmeReview));
+  fs.symlinkSync(path.join(f.root,rootReadme),path.join(f.root,readmeReview));
+  const result=await checkConstraints(f,[readmeReview]);
+  assert.ok(result.violations.some(item=>item.code==='readme_review_invalid' && item.path===readmeReview),JSON.stringify(result));
+});
+
+test('valid updated and unchanged README reviews pass their changed-set rules', async t => {
+  const updated=fixture(t);configureReadmeReview(updated,{schemaVersion:1,disposition:'updated',summary:'根 README 已同步当前 Research Web 使用入口。',reason:'本轮改变了用户可见的安装与启动说明。'});
+  assert.deepEqual((await checkConstraints(updated,['app/research_web/main.py',readmeReview,rootReadme])).violations,[]);
+  const unchanged=fixture(t);configureReadmeReview(unchanged);
+  assert.deepEqual((await checkConstraints(unchanged,['app/cli/main.py',readmeReview])).violations,[]);
 });
 
 test('API Atlas distinguishes unique operations from overlapping source declarations', t => {
@@ -120,11 +216,10 @@ test('Git base includes committed, unstaged and untracked sources; invalid base 
 });
 
 test('project constraints delegates to the same architecture gate',async t=>{
-  const f=fixture(t);f.write('.agents/project-constraints.json',{schemaVersion:1,researchArchitectureMap:mapPath});
-  const {checkProjectConstraints}=await import('../../.agents/project-constraints.mjs');
-  assert.deepEqual(checkProjectConstraints({projectRoot:f.root}).violations,[]);
+  const f=fixture(t);configureReadmeReview(f);const configuration=f.read('.agents/project-constraints.json');configuration.researchArchitectureMap=mapPath;f.write('.agents/project-constraints.json',configuration);
+  assert.deepEqual((await checkConstraints(f)).violations,[]);
   f.write(source,'@app.get("/api/research/deleted")\nasync def runtime(): pass');
-  assert.ok(checkProjectConstraints({projectRoot:f.root}).violations.some(v=>v.code==='api_inventory'));
+  assert.ok((await checkConstraints(f)).violations.some(v=>v.code==='api_inventory'));
 });
 
 test('settings contains a fixed read-only architecture entry with opener isolation',()=>{

@@ -245,6 +245,7 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
 
   // Restrict link checking to current canonical/module Markdown and the generated entry, not legacy docs.
   try {for (const file of walk(root,path.posix.dirname(map.canonicalEntry))) if(file.endsWith('.md')) textFiles.add(file);} catch {issue('reference_missing',map.canonicalEntry,'Canonical documentation tree unavailable');}
+  textFiles.add('README.md');
   textFiles.add(`${ARTIFACT_ROOT}/index.html`);
   for (const file of textFiles) {
     const bytes=read(file);if(!bytes)continue;
