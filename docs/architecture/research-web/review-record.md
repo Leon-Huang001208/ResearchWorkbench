@@ -6,6 +6,8 @@
   产品导航与当前文档入口；本轮回执结论为 `updated`。
 - Project Constraints 新增严格四字段 README 复核回执。Research Web、CLI、公开入口或包清单变更
   必须同步提交回执；`updated` 必须同批包含根 README，`unchanged` 必须保留具体非空理由。
+- README、回执、三个触发目录和两份包清单由检查器固定；配置只能顺序不同，空、缺失、额外、重复
+  或重定向均关闭失败，运行时不信任配置值重新决定触发范围。
 - 架构检查器将根 README 纳入现有离线 Markdown 断链检查。该门禁只增加迭代审查证据与失败关闭
   条件，不改变 Research Web 服务、API、Runtime、持久化、权限或数据流，因此十张架构图无需重生成。
 

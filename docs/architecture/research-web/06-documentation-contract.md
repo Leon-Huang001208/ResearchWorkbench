@@ -14,6 +14,11 @@
 `schemaVersion`、`disposition`、`summary`、`reason` 四个字段：版本固定为 `1`，结论只能是
 `updated` 或 `unchanged`，摘要和原因必须是去除首尾空白后仍非空的文字。
 
+`.agents/project-constraints.json` 中的 `readmeReview` 块是强制固定契约：`readme` 只能是
+`README.md`，`receipt` 只能是上述回执路径，三个目录前缀和 `pyproject.toml` / `package.json`
+必须与检查器内置集合完全相等。数组顺序不影响结果，但空数组、缺失、额外项、重复项或路径重定向
+均在读取配置时关闭失败；检查器后续使用自己的固定值执行触发与 changed-file 判断。
+
 本轮回执进入变更集且结论为 `updated` 时，`README.md` 也必须进入同一变更集；`unchanged`
 则用具体原因证明根说明无需调整。回执本身始终接受 schema、普通文件、仓库内路径和无符号链接
 校验。已提交的历史 `updated` 不要求未来无关迭代重复改 README。

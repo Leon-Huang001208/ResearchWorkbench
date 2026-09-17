@@ -7,6 +7,10 @@ const CONFIGURATION_PATH = ".agents/project-constraints.json";
 const TOP_LEVEL_KEYS = new Set(["schemaVersion", "requiredFiles", "changeRules", "contentRules", "dependencyRules", "ciRules", "researchArchitectureMap", "readmeReview"]);
 const README_REVIEW_CONFIGURATION_KEYS = new Set(["receipt", "readme", "sourcePrefixes", "sourceFiles"]);
 const README_REVIEW_RECEIPT_KEYS = new Set(["schemaVersion", "disposition", "summary", "reason"]);
+const README_REVIEW_RECEIPT = "docs/architecture/research-web/readme-review.json";
+const ROOT_README = "README.md";
+const README_REVIEW_SOURCE_PREFIXES = ["app/research_web/", "app/cli/", "research_workbench_entrypoint/"];
+const README_REVIEW_SOURCE_FILES = ["pyproject.toml", "package.json"];
 
 function isWithin(root, candidate) {
   return candidate === root || candidate.startsWith(`${root}${path.sep}`);
@@ -62,6 +66,12 @@ function assertExactKeys(value, expected, field) {
   if (keys.length !== expected.size || keys.some(key => !expected.has(key))) throw new Error(`invalid ${field}`);
 }
 
+function assertExactSet(value, expected, field) {
+  if (value.length !== expected.length || new Set(value).size !== expected.length || expected.some(item => !value.includes(item))) {
+    throw new Error(`invalid ${field}`);
+  }
+}
+
 function loadConfiguration(root) {
   const file = safeTarget(root, CONFIGURATION_PATH, {label: "constraints file"});
   let configuration;
@@ -99,13 +109,23 @@ function loadConfiguration(root) {
     requireAll: assertTextArray(item.requireAll, "CI rule required content")
   })));
   assertExactKeys(configuration.readmeReview, README_REVIEW_CONFIGURATION_KEYS, "README review configuration");
-  const readmeReview = {
+  const configuredReadmeReview = {
     receipt: normalizeRelative(configuration.readmeReview.receipt, "README review receipt"),
     readme: normalizeRelative(configuration.readmeReview.readme, "README path"),
     sourcePrefixes: assertStringArray(configuration.readmeReview.sourcePrefixes, "README review source prefixes"),
     sourceFiles: assertStringArray(configuration.readmeReview.sourceFiles, "README review source files")
   };
-  if (readmeReview.sourcePrefixes.some(prefix => !prefix.endsWith("/"))) throw new Error("invalid README review source prefixes");
+  if (configuredReadmeReview.receipt !== README_REVIEW_RECEIPT || configuredReadmeReview.readme !== ROOT_README) {
+    throw new Error("invalid README review configuration");
+  }
+  assertExactSet(configuredReadmeReview.sourcePrefixes, README_REVIEW_SOURCE_PREFIXES, "README review configuration");
+  assertExactSet(configuredReadmeReview.sourceFiles, README_REVIEW_SOURCE_FILES, "README review configuration");
+  const readmeReview = {
+    receipt: README_REVIEW_RECEIPT,
+    readme: ROOT_README,
+    sourcePrefixes: [...README_REVIEW_SOURCE_PREFIXES],
+    sourceFiles: [...README_REVIEW_SOURCE_FILES]
+  };
   const researchArchitectureMap = configuration.researchArchitectureMap;
   if (researchArchitectureMap !== undefined && researchArchitectureMap !== MAP_PATH) throw new Error("invalid research architecture map");
   return {requiredFiles, changeRules, contentRules, dependencyRules, ciRules, researchArchitectureMap, readmeReview};

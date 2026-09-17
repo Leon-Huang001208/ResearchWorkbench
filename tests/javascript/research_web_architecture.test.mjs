@@ -101,6 +101,26 @@ test('missing README review configuration fails closed', async t => {
   await assert.rejects(()=>checkConstraints(f,['app/research_web/main.py']),/invalid README review configuration/);
 });
 
+test('README review configuration cannot weaken or redirect the canonical gate', async t => {
+  const invalidMutations = [
+    ['empty prefixes',configuration=>{configuration.readmeReview.sourcePrefixes=[];}],
+    ['empty files',configuration=>{configuration.readmeReview.sourceFiles=[];}],
+    ['missing app CLI prefix',configuration=>{configuration.readmeReview.sourcePrefixes=configuration.readmeReview.sourcePrefixes.filter(value=>value!=='app/cli/');}],
+    ['duplicate prefix hiding an omission',configuration=>{configuration.readmeReview.sourcePrefixes=['app/research_web/','app/research_web/','research_workbench_entrypoint/'];}],
+    ['extra prefix',configuration=>{configuration.readmeReview.sourcePrefixes.push('app/other/');}],
+    ['missing package.json',configuration=>{configuration.readmeReview.sourceFiles=configuration.readmeReview.sourceFiles.filter(value=>value!=='package.json');}],
+    ['duplicate file',configuration=>{configuration.readmeReview.sourceFiles.push('package.json');}],
+    ['README redirection',configuration=>{configuration.readmeReview.readme='docs/README.md';}],
+    ['receipt redirection',configuration=>{configuration.readmeReview.receipt='docs/architecture/research-web/other-review.json';}],
+  ];
+  for (const [name,mutate] of invalidMutations) {
+    const f=fixture(t);configureReadmeReview(f);const configuration=f.read('.agents/project-constraints.json');mutate(configuration);f.write('.agents/project-constraints.json',configuration);
+    await assert.rejects(()=>checkConstraints(f,['package.json']),/invalid README review configuration/,name);
+  }
+  const reordered=fixture(t);configureReadmeReview(reordered);const configuration=reordered.read('.agents/project-constraints.json');configuration.readmeReview.sourcePrefixes.reverse();configuration.readmeReview.sourceFiles.reverse();reordered.write('.agents/project-constraints.json',configuration);
+  assert.deepEqual((await checkConstraints(reordered)).violations,[]);
+});
+
 test('updated README review requires README.md in the changed set', async t => {
   const f=fixture(t);configureReadmeReview(f,{schemaVersion:1,disposition:'updated',summary:'根 README 已同步当前 Research Web 使用入口。',reason:'本轮改变了用户可见的安装与启动说明。'});
   const result=await checkConstraints(f,['app/research_web/main.py',readmeReview]);

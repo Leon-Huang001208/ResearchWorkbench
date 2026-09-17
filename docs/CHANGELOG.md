@@ -12,6 +12,8 @@
   产品导航和当前文档，不再把历史平台能力放在首次使用路径上。
 - 新增严格四字段 `readme-review.json`。Research Web、CLI、公开入口或包清单变更必须在同一
   changed-file 集中提交回执；`updated` 强制同步根 README，`unchanged` 要求非空摘要和具体原因。
+- README/回执路径和三个目录、两份包清单触发集合固定在检查器内；配置空、缺项、多项、重复或
+  重定向均失败，数组仅允许顺序不同，不能通过缩减配置关闭门禁。
 - 根 README 纳入离线 Markdown 本地链接检查；行为 fixture 覆盖缺回执、无 README 的 `updated`、
   无效/空白 `unchanged`、两种有效结论、符号链接回执和根 README 断链。
 

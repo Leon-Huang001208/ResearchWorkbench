@@ -20,6 +20,8 @@ Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 
 两份包清单声明为触发范围；触发后必须把回执放入完整 changed-file 集。回执严格限制为四字段
 schema 1，且必须是仓库内普通 JSON 文件。`updated` 要求同批包含 `README.md`，`unchanged`
 只需写明非空摘要和具体原因。根 README 同时进入现有本地 Markdown 断链检查。
+该配置块本身不可缩减或重定向：README、回执、三个目录前缀和两份包清单都与检查器固定常量
+做集合等价校验；仅数组顺序可变，空、缺失、额外、重复或替代路径均失败。
 
 ## 本地命令
 
@@ -55,6 +57,7 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 - 检查当前 canonical/module Markdown 和生成 index.html 的本地链接；不扩展为清理历史文档。
 - 检查根 `README.md` 的本地链接；触发代码/包清单改动时核对 README 复核回执是否进入变更集，
   并验证 `updated` 与 README 变更之间的条件关系。
+- 对 README 门禁配置执行固定路径与固定触发集合校验，不能通过删项、加重复项或改指向缩小门禁。
 
 每个变化模块组在 review-record 追加可机读标记，例如：
 
