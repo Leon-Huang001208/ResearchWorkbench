@@ -4,7 +4,9 @@ import {fileURLToPath} from "node:url";
 import {checkResearchArchitecture, MAP_PATH, writeCheckLog} from "../scripts/check_research_architecture.mjs";
 
 const CONFIGURATION_PATH = ".agents/project-constraints.json";
-const TOP_LEVEL_KEYS = new Set(["schemaVersion", "requiredFiles", "changeRules", "contentRules", "dependencyRules", "ciRules", "researchArchitectureMap"]);
+const TOP_LEVEL_KEYS = new Set(["schemaVersion", "requiredFiles", "changeRules", "contentRules", "dependencyRules", "ciRules", "researchArchitectureMap", "readmeReview"]);
+const README_REVIEW_CONFIGURATION_KEYS = new Set(["receipt", "readme", "sourcePrefixes", "sourceFiles"]);
+const README_REVIEW_RECEIPT_KEYS = new Set(["schemaVersion", "disposition", "summary", "reason"]);
 
 function isWithin(root, candidate) {
   return candidate === root || candidate.startsWith(`${root}${path.sep}`);
@@ -54,6 +56,12 @@ function assertRule(rule, field, validator) {
   return validator(rule);
 }
 
+function assertExactKeys(value, expected, field) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`invalid ${field}`);
+  const keys = Object.keys(value);
+  if (keys.length !== expected.size || keys.some(key => !expected.has(key))) throw new Error(`invalid ${field}`);
+}
+
 function loadConfiguration(root) {
   const file = safeTarget(root, CONFIGURATION_PATH, {label: "constraints file"});
   let configuration;
@@ -90,9 +98,20 @@ function loadConfiguration(root) {
     workflow: normalizeRelative(item.workflow, "CI workflow"),
     requireAll: assertTextArray(item.requireAll, "CI rule required content")
   })));
+  let readmeReview;
+  if (configuration.readmeReview !== undefined) {
+    assertExactKeys(configuration.readmeReview, README_REVIEW_CONFIGURATION_KEYS, "README review configuration");
+    readmeReview = {
+      receipt: normalizeRelative(configuration.readmeReview.receipt, "README review receipt"),
+      readme: normalizeRelative(configuration.readmeReview.readme, "README path"),
+      sourcePrefixes: assertStringArray(configuration.readmeReview.sourcePrefixes, "README review source prefixes"),
+      sourceFiles: assertStringArray(configuration.readmeReview.sourceFiles, "README review source files")
+    };
+    if (readmeReview.sourcePrefixes.some(prefix => !prefix.endsWith("/"))) throw new Error("invalid README review source prefixes");
+  }
   const researchArchitectureMap = configuration.researchArchitectureMap;
   if (researchArchitectureMap !== undefined && researchArchitectureMap !== MAP_PATH) throw new Error("invalid research architecture map");
-  return {requiredFiles, changeRules, contentRules, dependencyRules, ciRules, researchArchitectureMap};
+  return {requiredFiles, changeRules, contentRules, dependencyRules, ciRules, researchArchitectureMap, readmeReview};
 }
 
 function violation(code, rule, pathValue, message) {
@@ -103,6 +122,22 @@ function matchesPrefix(file, prefixes) {
   return prefixes.some(prefix => file === prefix.slice(0, -1) || file.startsWith(prefix));
 }
 
+function readReadmeReview(root, rule, violations) {
+  try {
+    const file = safeTarget(root, rule.receipt, {label: "README review receipt"});
+    if (!fs.statSync(file).isFile()) throw new Error("receipt is not a regular file");
+    const receipt = JSON.parse(fs.readFileSync(file, "utf8"));
+    assertExactKeys(receipt, README_REVIEW_RECEIPT_KEYS, "README review receipt");
+    if (receipt.schemaVersion !== 1 || !["updated", "unchanged"].includes(receipt.disposition)) throw new Error("invalid README review receipt");
+    if (typeof receipt.summary !== "string" || receipt.summary.trim().length === 0) throw new Error("invalid README review summary");
+    if (typeof receipt.reason !== "string" || receipt.reason.trim().length === 0) throw new Error("invalid README review reason");
+    return receipt;
+  } catch {
+    violations.push(violation("readme_review_invalid", "README 复核回执", rule.receipt, "README 复核回执必须是仓库内普通 JSON 文件，并严格满足四字段 schema"));
+    return null;
+  }
+}
+
 export function checkProjectConstraints({projectRoot, changedFiles = []}) {
   const root = rootDirectory(projectRoot);
   if (!Array.isArray(changedFiles)) throw new Error("invalid changed files");
@@ -111,8 +146,24 @@ export function checkProjectConstraints({projectRoot, changedFiles = []}) {
   const violations = [];
 
   for (const file of configuration.requiredFiles) {
-    if (!safeTarget(root, file, {missing: "null", label: "required file"})) {
-      violations.push(violation("required_file_missing", "必需项目文件", file, `缺少必需文件：${file}`));
+    try {
+      if (!safeTarget(root, file, {missing: "null", label: "required file"})) {
+        violations.push(violation("required_file_missing", "必需项目文件", file, `缺少必需文件：${file}`));
+      }
+    } catch {
+      violations.push(violation("required_file_invalid", "必需项目文件", file, `必需文件不是安全的仓库内路径：${file}`));
+    }
+  }
+  if (configuration.readmeReview) {
+    const rule = configuration.readmeReview;
+    const receipt = readReadmeReview(root, rule, violations);
+    const reviewRequired = checkedFiles.some(file => matchesPrefix(file, rule.sourcePrefixes) || rule.sourceFiles.includes(file));
+    const reviewChanged = checkedFiles.includes(rule.receipt);
+    if (reviewRequired && !reviewChanged) {
+      violations.push(violation("readme_review_not_changed", "README 复核回执", rule.receipt, `改动 ${rule.sourcePrefixes.concat(rule.sourceFiles).join("、")} 时必须同步更新 README 复核回执`));
+    }
+    if (receipt && reviewChanged && receipt.disposition === "updated" && !checkedFiles.includes(rule.readme)) {
+      violations.push(violation("readme_not_changed", "README 复核回执", rule.readme, `README 复核结论为 updated 时必须同步更新：${rule.readme}`));
     }
   }
   for (const rule of configuration.changeRules) {

@@ -1,5 +1,16 @@
 # 架构迭代核对记录
 
+## 2026-09-17 — 根 README 刷新与复核门禁
+
+- 根 README 已聚焦当前 Research Web 的 Web-only 产品边界、公开安装入口、服务管理、模型/数据、
+  产品导航与当前文档入口；本轮回执结论为 `updated`。
+- Project Constraints 新增严格四字段 README 复核回执。Research Web、CLI、公开入口或包清单变更
+  必须同步提交回执；`updated` 必须同批包含根 README，`unchanged` 必须保留具体非空理由。
+- 架构检查器将根 README 纳入现有离线 Markdown 断链检查。该门禁只增加迭代审查证据与失败关闭
+  条件，不改变 Research Web 服务、API、Runtime、持久化、权限或数据流，因此十张架构图无需重生成。
+
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"新增根README复核回执、changed-file联动和本地断链检查，只收紧既有文档门禁，不改变文档服务、运行时模块、API或数据流拓扑。","diagrams":[]} -->
+
 ## 2026-09-16 — 现有 DataHub Provider 真实闭环补强
 
 - AKShare 探针改为固定域名、禁用环境代理/重定向、限制 16 KiB 且受 10 秒总墙钟约束的可取消异步交易日历请求，并与查询共享容量门闩。

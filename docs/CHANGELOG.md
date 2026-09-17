@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+### 根 README 刷新与复核门禁 · 2026-09-17
+
+- 根 README 重新聚焦当前 Research Web 的 Web-only 边界、公开安装入口、服务管理、模型/数据配置、
+  产品导航和当前文档，不再把历史平台能力放在首次使用路径上。
+- 新增严格四字段 `readme-review.json`。Research Web、CLI、公开入口或包清单变更必须在同一
+  changed-file 集中提交回执；`updated` 强制同步根 README，`unchanged` 要求非空摘要和具体原因。
+- 根 README 纳入离线 Markdown 本地链接检查；行为 fixture 覆盖缺回执、无 README 的 `updated`、
+  无效/空白 `unchanged`、两种有效结论、符号链接回执和根 README 断链。
+
 ### Web 一键本地环境与 CJPY 0.5.2 · 2026-09-16
 
 - 新增 macOS `setup-web.sh`、Windows `setup-web.cmd` 和跨平台 `scripts/setup_web.py`：在 checkout
