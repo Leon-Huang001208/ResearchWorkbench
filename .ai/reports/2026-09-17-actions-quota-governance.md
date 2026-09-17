@@ -30,3 +30,11 @@ GitHub 账户的 90%／100% included-usage 邮件提醒与仓库默认 7 天保�
 ## CI repair
 
 首次公开仓库 CI 中 Project Constraints、Research Web Checks 与 Bootstrap macOS 通过；Windows Verify 的原生测试发现旧断言仍要求宽泛的 `app/research_web/**` 触发器。修复只把该测试更新为新的窄路径白名单及明确拒绝宽泛触发器，不改变 workflow 或运行时代码。repair 提交应只重跑 Project Constraints、Research Web Checks 与 Windows Verify，不再触发 Bootstrap。
+
+## 公开仓库交付收口
+
+- GitHub API 已确认 `Leon-Huang001208/ResearchWorkbench` 为 `PUBLIC`，默认分支为 `master`。
+- `76d1ea1053187569bb23d30f9a22b894ccbc0675`：Project Constraints、Research Web Checks、Research Web Bootstrap 的 macOS／Windows 均通过。
+- `de39abcdbf3551c9985615e4cf80cd121a3a16b3`：Project Constraints、Research Web Checks、Research Web Windows Verify 均通过。
+- 受管 delivery 状态为 `cleaned`，Harness 硬门返回 delivery `cleaned`、CI `passed`。
+- 当前权威政策已从 private 额度冻结切换为 `public-standard`；若以后转回 private 或使用 billable runner，2,000 分钟阈值策略自动重新生效。
