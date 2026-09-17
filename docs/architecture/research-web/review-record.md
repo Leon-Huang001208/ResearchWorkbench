@@ -1,5 +1,14 @@
 # 架构迭代核对记录
 
+## 2026-09-17 — Tabbit CI 暂停自动触发
+
+- 耗时的 `Research Web Tabbit Verify` 取消普通 push 与 pull request 自动触发，仅保留手动
+  `workflow_dispatch`；双平台矩阵和测试内容未删除。
+- 快速 Project Constraints CI 增加独立触发器契约测试，防止后续误恢复自动执行。该变化只调整
+  CI 调度策略，不改变 Research Web、DSH、Tabbit Runtime、API、授权或数据流，因此十图无需更新。
+
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"Project Constraints新增Tabbit手动触发契约测试只收紧CI调度守卫，不改变文档服务、研究运行时、API或数据流拓扑。","diagrams":[]} -->
+
 ## 2026-09-17 — 根 README 刷新与复核门禁
 
 - 根 README 已聚焦当前 Research Web 的 Web-only 产品边界、公开安装入口、服务管理、模型/数据、
