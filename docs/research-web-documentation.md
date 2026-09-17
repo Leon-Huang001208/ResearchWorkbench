@@ -12,6 +12,9 @@ Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 
 `.github/workflows/project-constraints.yml` 先运行架构／治理负向 fixtures 与 Tabbit 手动触发契约，再检查真实变更和清单。
 不要求开发机绝对目录、Archify 安装、模型服务或网络，不生成或篡改回执。
 
+Actions 触发与免费额度以 [GitHub Actions 额度治理](actions-budget.md) 为准：Project Constraints 和普通 Research Web 回归使用 Ubuntu；Bootstrap、Windows、Tabbit 与 Desktop 只在各自边界触发。额度达到冻结状态时，本地门禁仍可运行，但不得创建远端 Actions run。
+Ubuntu 日常回归使用有界 Python 合同集和 `research_web*.test.mjs`；全量 `tests/research_web/` 仍按变更风险在本地交付阶段运行，不把长耗时全量套件伪装成便宜的 push 门禁。
+
 输入契约见 [当前架构契约](architecture/research-web/06-documentation-contract.md)，
 清单见 [architecture-map.json](architecture/research-web/architecture-map.json)。
 最终必须包含 01–10 十图，不能用部分完成状态跳过门禁。其中 09 是报告运行序列，10 是 Excel 刷新、共享快照与文件组装数据流。
@@ -29,6 +32,7 @@ schema 1，且必须是仓库内普通 JSON 文件。`updated` 要求同批包�
 ```bash
 node --test tests/javascript/research_web_architecture.test.mjs
 node --test tests/javascript/documentation_governance.test.mjs
+node --test tests/javascript/actions_quota_governance.test.mjs
 node scripts/check_documentation_governance.mjs --project .
 python scripts/generate_py_file_index.py --check
 node scripts/check_research_architecture.mjs --project . --base <git-revision>
@@ -64,6 +68,7 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 - 对 README 门禁配置执行固定路径与固定触发集合校验，不能通过删项、加重复项或改指向缩小门禁。
 - 对全部受跟踪 Markdown 执行状态分类；同一主题只允许一个 current 权威，当前文档的相对链接与锚点必须存在。
 - 对当前文档拒绝已知退役命令；`docs/generated/py_file_index.md` 必须与生成器输出完全一致。
+- 检查 docs-only、普通 Web、安装面、Windows、Tabbit 与 Desktop 的 workflow 路由；自动 workflow 必须有 concurrency、取消旧运行和超时，Web artifact 保留期不得超过 3 天。
 
 每个变化模块组在本次任务的 `.ai/reports/*.md` 中写入可机读标记，例如：
 
@@ -105,6 +110,7 @@ API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单�
 旧人工哈希等负向案例；同一行为测试还覆盖缺少 README 回执、`updated` 漏改 README、无效或
 空白 `unchanged`、合法两种结论及根 README 断链。fixture 的文本图片不是实际视觉证据，不进入生成文档目录。
 `tests/javascript/documentation_governance.test.mjs` 验证未分类文件、重复权威、断链、缺锚点与退役命令；
+`tests/javascript/actions_quota_governance.test.mjs` 验证 Actions 路由、平台边界、并发、超时和证据保留；
 `tests/scripts/test_generate_py_file_index.py` 验证生成结果的确定性与公开结构漂移；
 `tests/research_web/test_doc_sync.py` 验证 Python 聚合入口和 Git 失败边界；
 `tests/research_web/test_documentation.py` 验证路由、CSP、穿越、链接、缺失及离线访问。

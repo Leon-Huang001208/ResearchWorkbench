@@ -6,6 +6,8 @@
 
 本文件定义实际 `scripts/check_research_architecture.mjs` 的输入格式；Python 文档检查与现有 Project Constraints CI 调用同一仓库内检查器。快速 CI 同时运行 Tabbit 手动触发契约测试，防止耗时双平台矩阵重新挂回普通 push 或 pull request，但不执行矩阵本身。详见 [门禁模块说明](../../research-web-documentation.md)。CI 配置已接线，未声称远端 CI 已执行。
 
+Project Constraints 还运行 Actions 额度路由契约：docs-only 只进入 Ubuntu 门禁；普通 Research Web 进入 Linux 检查；安装、Windows、Tabbit 和 Desktop 分别使用独立且有界的触发面。额度与冻结状态以 [Actions 额度治理](../../actions-budget.md) 为准。
+
 ## 根 README 复核回执
 
 每次改动 `app/research_web/`、`app/cli/`、`research_workbench_entrypoint/`、`pyproject.toml`
@@ -60,6 +62,7 @@ JSON 改动需要重新生成对应 HTML 和交付回执。检查实际字节的
 - 变化属于结构调整，但核对记录没有说明图文如何同步。
 - Markdown 未被治理清单分类、主题存在重复 current 权威、当前链接/锚点失效或退役命令重新出现。
 - Python 文件公开结构变化后，生成索引仍是旧内容。
+- docs-only 触发原生平台、安装面没有触发 Bootstrap、普通 Web 缺少 Linux 检查、Tabbit 重新自动触发，或自动 workflow 缺少并发取消、超时和短期 artifact 保留。
 
 一致性检查不是语义证明：人工仍需核对箭头、版本/权限边界、失败状态与真实代码。未通过的产品、模型或平台验收必须单列，不能被图文检查结果覆盖。
 

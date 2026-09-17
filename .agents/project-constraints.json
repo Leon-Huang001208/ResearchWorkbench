@@ -9,6 +9,7 @@
     "docs/ARCHITECTURE.md",
     "docs/DEVELOPMENT_MAP.md",
     "docs/AGENT_WORKFLOW.md",
+    "docs/actions-budget.md",
     "docs/desktop_packaging.md",
     "docs/architecture/research-web/readme-review.json",
     "scripts/check_documentation_governance.mjs"
@@ -120,7 +121,11 @@
         ".agents/project-constraints.mjs",
         "--changed-file",
         "check_documentation_governance.mjs",
-        "generate_py_file_index.py --check"
+        "generate_py_file_index.py --check",
+        "actions_quota_governance.test.mjs",
+        "concurrency:",
+        "cancel-in-progress: true",
+        "timeout-minutes: 10"
       ]
     },
     {
@@ -134,7 +139,47 @@
         "web doctor --json",
         "cjpy') == '0.5.2'",
         "tinysoft",
-        "callable"
+        "callable",
+        "scripts/setup_web.py",
+        "requirements/web.lock",
+        "if: success()",
+        "if: failure()",
+        "retention-days: 3"
+      ]
+    },
+    {
+      "name": "Research Web 日常检查必须使用有界 Linux workflow",
+      "workflow": ".github/workflows/research-web-checks.yml",
+      "requireAll": [
+        "ubuntu-latest",
+        "timeout-minutes: 20",
+        "cancel-in-progress: true",
+        "tests/research_web/test_protocol.py",
+        "tests/research_web/test_integration_coordinator.py",
+        "tests/research_web/test_documentation.py",
+        "tests/research_web/test_doc_sync.py",
+        "tests/research_web/test_cli_lazy.py",
+        "tests/javascript/research_web*.test.mjs"
+      ]
+    },
+    {
+      "name": "Windows Web 验证必须保持窄路径与短期证据",
+      "workflow": ".github/workflows/research-web-windows-verify.yml",
+      "requireAll": [
+        "windows-2022",
+        "app/research_web/local_integrations/**",
+        "app/research_web/runtime_auth.py",
+        "app/research_web/service_manager.py",
+        "retention-days: 3"
+      ]
+    },
+    {
+      "name": "Tabbit 双平台验证必须保持手动触发",
+      "workflow": ".github/workflows/research-web-tabbit.yml",
+      "requireAll": [
+        "workflow_dispatch:",
+        "macos-14",
+        "windows-2022"
       ]
     }
   ]
