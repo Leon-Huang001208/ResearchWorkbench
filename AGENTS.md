@@ -37,7 +37,7 @@
 ## Safety and delivery
 
 - 不覆盖或回退无关改动。
-- 任何 `git push`、PR merge、tag、`gh run rerun`、`workflow_dispatch` 或受管发布前，必须读取 `docs/actions-budget.md`。当 Actions included usage 达到 95% 或 GitHub 返回 billing-blocked 时，仅允许本地编辑、测试和提交；只有当前 Billing 页面或 API 证明新周期额度已重置，才恢复远端操作。
+- 任何 `git push`、PR merge、tag、`gh run rerun`、`workflow_dispatch` 或受管发布前，必须读取 `docs/actions-budget.md` 并核对当前仓库 visibility。private／billable 状态下，当 Actions included usage 达到 95% 或当前 run 返回 billing-blocked 时，仅允许本地编辑、测试和提交；只有当前 Billing/API 证明额度已重置，或 GitHub API 证明仓库已变为 public 且当前标准 runner run 能启动，才恢复远端操作。旧 billing-blocked 记录不能覆盖更新的公开仓库运行证据。
 - 并行或高风险的仓库改动必须使用独立 Git worktree；worktree 是本地修改隔离，不等同于后台/远程执行通道。
 - 长时但只读的研究、CI 日志分析或审查使用后台/远程；后台/远程任务若编辑仓库且存在并行或风险，必须使用独立 worktree 或等效隔离的远端 workspace。
 - 未获用户明确授权，不执行破坏性操作、发布、处理秘密或外部协调。
