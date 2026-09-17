@@ -98,17 +98,14 @@ function loadConfiguration(root) {
     workflow: normalizeRelative(item.workflow, "CI workflow"),
     requireAll: assertTextArray(item.requireAll, "CI rule required content")
   })));
-  let readmeReview;
-  if (configuration.readmeReview !== undefined) {
-    assertExactKeys(configuration.readmeReview, README_REVIEW_CONFIGURATION_KEYS, "README review configuration");
-    readmeReview = {
-      receipt: normalizeRelative(configuration.readmeReview.receipt, "README review receipt"),
-      readme: normalizeRelative(configuration.readmeReview.readme, "README path"),
-      sourcePrefixes: assertStringArray(configuration.readmeReview.sourcePrefixes, "README review source prefixes"),
-      sourceFiles: assertStringArray(configuration.readmeReview.sourceFiles, "README review source files")
-    };
-    if (readmeReview.sourcePrefixes.some(prefix => !prefix.endsWith("/"))) throw new Error("invalid README review source prefixes");
-  }
+  assertExactKeys(configuration.readmeReview, README_REVIEW_CONFIGURATION_KEYS, "README review configuration");
+  const readmeReview = {
+    receipt: normalizeRelative(configuration.readmeReview.receipt, "README review receipt"),
+    readme: normalizeRelative(configuration.readmeReview.readme, "README path"),
+    sourcePrefixes: assertStringArray(configuration.readmeReview.sourcePrefixes, "README review source prefixes"),
+    sourceFiles: assertStringArray(configuration.readmeReview.sourceFiles, "README review source files")
+  };
+  if (readmeReview.sourcePrefixes.some(prefix => !prefix.endsWith("/"))) throw new Error("invalid README review source prefixes");
   const researchArchitectureMap = configuration.researchArchitectureMap;
   if (researchArchitectureMap !== undefined && researchArchitectureMap !== MAP_PATH) throw new Error("invalid research architecture map");
   return {requiredFiles, changeRules, contentRules, dependencyRules, ciRules, researchArchitectureMap, readmeReview};
@@ -154,17 +151,15 @@ export function checkProjectConstraints({projectRoot, changedFiles = []}) {
       violations.push(violation("required_file_invalid", "必需项目文件", file, `必需文件不是安全的仓库内路径：${file}`));
     }
   }
-  if (configuration.readmeReview) {
-    const rule = configuration.readmeReview;
-    const receipt = readReadmeReview(root, rule, violations);
-    const reviewRequired = checkedFiles.some(file => matchesPrefix(file, rule.sourcePrefixes) || rule.sourceFiles.includes(file));
-    const reviewChanged = checkedFiles.includes(rule.receipt);
-    if (reviewRequired && !reviewChanged) {
-      violations.push(violation("readme_review_not_changed", "README 复核回执", rule.receipt, `改动 ${rule.sourcePrefixes.concat(rule.sourceFiles).join("、")} 时必须同步更新 README 复核回执`));
-    }
-    if (receipt && reviewChanged && receipt.disposition === "updated" && !checkedFiles.includes(rule.readme)) {
-      violations.push(violation("readme_not_changed", "README 复核回执", rule.readme, `README 复核结论为 updated 时必须同步更新：${rule.readme}`));
-    }
+  const readmeReview = configuration.readmeReview;
+  const receipt = readReadmeReview(root, readmeReview, violations);
+  const reviewRequired = checkedFiles.some(file => matchesPrefix(file, readmeReview.sourcePrefixes) || readmeReview.sourceFiles.includes(file));
+  const reviewChanged = checkedFiles.includes(readmeReview.receipt);
+  if (reviewRequired && !reviewChanged) {
+    violations.push(violation("readme_review_not_changed", "README 复核回执", readmeReview.receipt, `改动 ${readmeReview.sourcePrefixes.concat(readmeReview.sourceFiles).join("、")} 时必须同步更新 README 复核回执`));
+  }
+  if (receipt && reviewChanged && receipt.disposition === "updated" && !checkedFiles.includes(readmeReview.readme)) {
+    violations.push(violation("readme_not_changed", "README 复核回执", readmeReview.readme, `README 复核结论为 updated 时必须同步更新：${readmeReview.readme}`));
   }
   for (const rule of configuration.changeRules) {
     if (checkedFiles.some(file => matchesPrefix(file, rule.sourcePrefixes)) && !checkedFiles.some(file => rule.requiredDocuments.includes(file))) {

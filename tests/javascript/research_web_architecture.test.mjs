@@ -96,6 +96,11 @@ test('Research Web, CLI, entrypoint, and package changes require the README revi
   }
 });
 
+test('missing README review configuration fails closed', async t => {
+  const f=fixture(t);f.write('.agents/project-constraints.json',{schemaVersion:1});
+  await assert.rejects(()=>checkConstraints(f,['app/research_web/main.py']),/invalid README review configuration/);
+});
+
 test('updated README review requires README.md in the changed set', async t => {
   const f=fixture(t);configureReadmeReview(f,{schemaVersion:1,disposition:'updated',summary:'根 README 已同步当前 Research Web 使用入口。',reason:'本轮改变了用户可见的安装与启动说明。'});
   const result=await checkConstraints(f,['app/research_web/main.py',readmeReview]);
@@ -191,11 +196,10 @@ test('Git base includes committed, unstaged and untracked sources; invalid base 
 });
 
 test('project constraints delegates to the same architecture gate',async t=>{
-  const f=fixture(t);f.write('.agents/project-constraints.json',{schemaVersion:1,researchArchitectureMap:mapPath});
-  const {checkProjectConstraints}=await import('../../.agents/project-constraints.mjs');
-  assert.deepEqual(checkProjectConstraints({projectRoot:f.root}).violations,[]);
+  const f=fixture(t);configureReadmeReview(f);const configuration=f.read('.agents/project-constraints.json');configuration.researchArchitectureMap=mapPath;f.write('.agents/project-constraints.json',configuration);
+  assert.deepEqual((await checkConstraints(f)).violations,[]);
   f.write(source,'@app.get("/api/research/deleted")\nasync def runtime(): pass');
-  assert.ok(checkProjectConstraints({projectRoot:f.root}).violations.some(v=>v.code==='api_inventory'));
+  assert.ok((await checkConstraints(f)).violations.some(v=>v.code==='api_inventory'));
 });
 
 test('settings contains a fixed read-only architecture entry with opener isolation',()=>{
