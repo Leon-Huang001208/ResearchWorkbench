@@ -9,16 +9,6 @@
   ],
   "rules": [
     {
-      "exact": "_temp_buffer.md",
-      "status": "cleanup-candidate",
-      "purpose": "unreferenced temporary test document"
-    },
-    {
-      "exact": "tests/deep-research-report.md",
-      "status": "cleanup-candidate",
-      "purpose": "unreferenced duplicate report artifact"
-    },
-    {
       "prefix": "docs/archive/",
       "status": "historical",
       "purpose": "superseded plans, implementation records, acceptance snapshots and legacy manuals"

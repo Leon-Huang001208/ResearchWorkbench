@@ -32,11 +32,10 @@
 | 文档 | changed-and-verified | 现役入口收敛、历史集中归档、全部 Markdown 纳管 |
 | 规则 | changed-and-verified | AGENTS 继续为真身，CLAUDE 与 UI Skill 去重并纠正源码边界 |
 | 记忆 | out-of-scope | Codex 生成记忆保持只读；项目过期待办进入历史归档 |
-| 工作区 | pending | 受管交付和 CI 完成前保留 feature/integration 现场；原工作区覆盖层不修改 |
+| 工作区 | pending | 用户已确认清场；候选文件进入删除提交，受管 worktree 在第二轮 CI 后清理 |
 
-## 清理候选（未删除）
+## 清理结果
 
-- `_temp_buffer.md` 与 `_temp_buffer.docx`：无引用的临时测试文件。
-- `tests/deep-research-report.md`：无测试引用的重复报告材料。
-
-上述候选必须在完整交付汇报后由用户再次明确确认，才能清理。
+- 用户在完整交付汇报后明确授权清理。
+- `_temp_buffer.md` 与 `tests/deep-research-report.md` 已进入受管 Git 删除提交，可从历史恢复。
+- 原工作区未跟踪的 `_temp_buffer.docx` 在远端删除提交通过后单独移除。
