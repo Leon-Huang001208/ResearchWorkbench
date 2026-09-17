@@ -26,3 +26,7 @@
 
 额度重置前不执行远端 Actions，因此 macOS、Windows、GitHub-hosted Ubuntu 与观察性 docs-only 路由结果均保持 `pending`，不能写成通过。
 GitHub 账户的 90%／100% included-usage 邮件提醒与仓库默认 7 天保留期也属于重置后的管理员动作；本轮没有修改账户设置、预算或付款方式。
+
+## CI repair
+
+首次公开仓库 CI 中 Project Constraints、Research Web Checks 与 Bootstrap macOS 通过；Windows Verify 的原生测试发现旧断言仍要求宽泛的 `app/research_web/**` 触发器。修复只把该测试更新为新的窄路径白名单及明确拒绝宽泛触发器，不改变 workflow 或运行时代码。repair 提交应只重跑 Project Constraints、Research Web Checks 与 Windows Verify，不再触发 Bootstrap。

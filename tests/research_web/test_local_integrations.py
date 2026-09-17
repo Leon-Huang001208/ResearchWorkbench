@@ -215,7 +215,17 @@ def test_windows_ci_runs_native_contracts_and_loopback_probe():
     assert "runs-on: windows-2022" in workflow
     assert 'python-version: "3.11"' in workflow
     assert 'node-version: "20"' in workflow
-    assert '- "app/research_web/**"' in workflow
+    assert '- "app/research_web/**"' not in workflow
+    for path in (
+        "app/research_web/local_integrations/**",
+        "app/research_web/runtime_auth.py",
+        "app/research_web/service_manager.py",
+        "app/research_web/client.py",
+        "app/research_web/launch_runtime.py",
+        "app/research_web/datahub/security.py",
+        "app/research_web/store.py",
+    ):
+        assert f'- "{path}"' in workflow
     assert "tests/research_web/test_local_integrations.py" in workflow
     assert "tests/research_web/test_runtime_auth.py" in workflow
     assert "test_windows_runtime_auth_does_not_apply_posix_group_mode_bits" in workflow
