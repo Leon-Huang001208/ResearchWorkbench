@@ -358,10 +358,15 @@
         "scripts/build_research_web_api_atlas.mjs",
         ".agents/project-constraints.mjs",
         ".agents/project-constraints.json",
-        ".github/workflows/project-constraints.yml"
+        ".github/workflows/project-constraints.yml",
+        ".github/workflows/research-web-bootstrap.yml",
+        ".github/workflows/research-web-checks.yml",
+        ".github/workflows/research-web-tabbit.yml",
+        ".github/workflows/research-web-windows-verify.yml"
       ],
       "documents": [
         "docs/README.md",
+        "docs/actions-budget.md",
         "docs/documentation-governance.json",
         "docs/research-web-documentation.md",
         "docs/architecture/research-web/06-documentation-contract.md"
@@ -371,6 +376,7 @@
       ],
       "tests": [
         "tests/javascript/research_web_architecture.test.mjs",
+        "tests/javascript/actions_quota_governance.test.mjs",
         "tests/javascript/documentation_governance.test.mjs",
         "tests/research_web/test_documentation.py",
         "tests/research_web/test_doc_sync.py",

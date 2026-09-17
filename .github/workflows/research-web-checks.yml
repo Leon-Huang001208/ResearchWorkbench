@@ -1,0 +1,75 @@
+name: Research Web Checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "app/research_web/**"
+      - "app/cli/**"
+      - "research_workbench_entrypoint/**"
+      - "tests/research_web/**"
+      - "tests/javascript/research_web*.test.mjs"
+      - "requirements/web.in"
+      - "requirements/web.lock"
+      - "pyproject.toml"
+      - ".github/workflows/research-web-checks.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "app/research_web/**"
+      - "app/cli/**"
+      - "research_workbench_entrypoint/**"
+      - "tests/research_web/**"
+      - "tests/javascript/research_web*.test.mjs"
+      - "requirements/web.in"
+      - "requirements/web.lock"
+      - "pyproject.toml"
+      - ".github/workflows/research-web-checks.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-web-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Setup Node 22.19
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.19.0"
+
+      - name: Install declared test dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -e ".[dev]"
+
+      - name: Run Research Web Python contracts
+        run: |
+          .venv/bin/python -m pytest \
+            tests/research_web/test_protocol.py \
+            tests/research_web/test_integration_coordinator.py \
+            tests/research_web/test_documentation.py \
+            tests/research_web/test_doc_sync.py \
+            tests/research_web/test_cli_lazy.py \
+            --confcutdir=tests/research_web -q
+
+      - name: Run Research Web JavaScript contracts
+        shell: bash
+        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs

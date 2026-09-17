@@ -2,9 +2,49 @@ name: Research Web Bootstrap
 
 on:
   pull_request:
+    paths:
+      - "setup-web.sh"
+      - "setup-web.cmd"
+      - "scripts/setup_web.py"
+      - "requirements/web.in"
+      - "requirements/web.lock"
+      - "pyproject.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "rwb"
+      - "rwb.cmd"
+      - "research_workbench_entrypoint/**"
+      - "app/cli/main.py"
+      - "app/research_web/service_manager.py"
+      - "app/research_web/runtime_auth.py"
+      - "app/research_web/launch_runtime.py"
+      - "app/research_web/runtime/**"
+      - "vendor/cjpy/**"
+      - "vendor/dsh-tabbit/**"
+      - ".github/workflows/research-web-bootstrap.yml"
   push:
     branches:
       - master
+    paths:
+      - "setup-web.sh"
+      - "setup-web.cmd"
+      - "scripts/setup_web.py"
+      - "requirements/web.in"
+      - "requirements/web.lock"
+      - "pyproject.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "rwb"
+      - "rwb.cmd"
+      - "research_workbench_entrypoint/**"
+      - "app/cli/main.py"
+      - "app/research_web/service_manager.py"
+      - "app/research_web/runtime_auth.py"
+      - "app/research_web/launch_runtime.py"
+      - "app/research_web/runtime/**"
+      - "vendor/cjpy/**"
+      - "vendor/dsh-tabbit/**"
+      - ".github/workflows/research-web-bootstrap.yml"
   workflow_dispatch:
 
 permissions:
@@ -96,14 +136,25 @@ jobs:
         shell: pwsh
         run: if (Test-Path -LiteralPath '.venv\Scripts\python.exe') { & .\rwb.cmd web stop }
 
-      - name: Upload safe bootstrap evidence
-        if: always()
+      - name: Upload minimal successful bootstrap evidence
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: research-web-bootstrap-${{ matrix.os }}-${{ github.run_id }}
           path: |
             doctor.json
             connections.json
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Upload bootstrap failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-web-bootstrap-failure-${{ matrix.os }}-${{ github.run_id }}
+          path: |
+            doctor.json
+            connections.json
             logs/setup-web.log
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 3

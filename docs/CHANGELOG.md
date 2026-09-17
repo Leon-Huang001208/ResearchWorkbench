@@ -8,6 +8,7 @@
 
 ### Changed
 
+- 2026-09-17：Actions 免费额度治理改为分层路由；普通 Research Web 回归迁到 Ubuntu，Bootstrap／Windows／Desktop 仅由对应路径触发，Tabbit 保持手动，并将 Web 证据保留期缩短为 3 天。该变更在额度重置前仅保留为 local-only 提交。
 - 2026-09-17：`Research Web Tabbit Verify` 暂停普通 push／pull request 自动触发，仅保留手动运行；双平台合同套件保持不变，轻量触发器契约继续由 Project Constraints 自动验证。
 - 2026-09-17：建立唯一文档门户和机器可读治理清单；当前、生成、历史、包内与待清理文档不再混用。
 - 2026-09-17：Research Web 成为 README、架构和开发映射中的唯一当前产品入口；旧 FastAPI／PostgreSQL 与桌面说明降级为兼容参考或历史。

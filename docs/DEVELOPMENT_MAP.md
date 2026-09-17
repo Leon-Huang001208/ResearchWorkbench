@@ -40,9 +40,11 @@ Research Web 的完整源码→文档→测试→图映射以 `architecture/rese
 - `AGENTS.md`：共享工程规则真身；`CLAUDE.md` 只保留 Claude 专属差异。
 - `docs/AGENT_WORKFLOW.md`：选择本地快环、worktree 或后台／远程执行。
 - `.agents/project-constraints.json`：架构、平台和文档治理门禁配置。
+- `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。
 - 源码结构或导入发生变化时运行 `python scripts/generate_py_file_index.py --check`；需要更新时先生成再复核。
 - `Research Web Tabbit Verify` 当前仅手动触发；Tabbit 契约变化或平台支持声明必须显式运行双平台工作流，自动 Project Constraints 继续检查其触发器契约。
+- 普通 Research Web 改动由 Ubuntu `Research Web Checks` 承担；Bootstrap、Windows Verify 和 Desktop Verify 必须依路径命中，不能由 docs-only 提交触发。
 
 ## 最小验证
 

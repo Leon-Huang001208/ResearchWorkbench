@@ -6,9 +6,14 @@ on:
     branches:
       - master
 
+concurrency:
+  group: project-constraints-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +26,7 @@ jobs:
           node-version: "20"
 
       - name: Test portable Research Web architecture gate
-        run: node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/research_web_tabbit_workflow.test.mjs
+        run: node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/research_web_tabbit_workflow.test.mjs tests/javascript/actions_quota_governance.test.mjs
 
       - name: Verify documentation governance and generated index
         run: |
