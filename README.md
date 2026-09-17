@@ -42,21 +42,21 @@ python scripts/setup_web.py
 可在安装后检查运行环境：
 
 ```bash
-rwb web doctor
-rwb web doctor --json
+./rwb web doctor
+./rwb web doctor --json
 ```
 
-Windows 请将 `rwb` 替换为 `rwb.cmd`。
+Windows 请将 `./rwb` 替换为 `rwb.cmd`。
 
 ## 启动与管理服务
 
 Research Web 管理专属 DSH 运行时（3081）和 Web 服务（8088）。从仓库根目录运行：
 
 ```bash
-rwb web start
-rwb web status
-rwb web restart
-rwb web stop
+./rwb web start
+./rwb web status
+./rwb web restart
+./rwb web stop
 ```
 
 服务启动后访问 [http://127.0.0.1:8088/#/fingpt](http://127.0.0.1:8088/#/fingpt)。`start` 是幂等的；服务由项目管理器后台运行，命令结束或终端关闭不会停止它。`stop` 与 `restart` 只处理命令指纹和归属均匹配的项目进程，不会接管用户已有的运行时或端口占用进程。
@@ -72,13 +72,13 @@ rwb web stop
 从旧研究目录迁移前，先查看不写入的摘要：
 
 ```bash
-rwb migrate-research-data --dry-run
+./rwb migrate-research-data --dry-run
 ```
 
 确认后执行迁移：
 
 ```bash
-rwb migrate-research-data
+./rwb migrate-research-data
 ```
 
 该操作复制研究会话、附件、能力版本、数据集和产物，但不会复制凭据。迁移完成并完成恢复验证后，如需将来源目录保留为只读备份，可显式使用 `--archive-source`。
