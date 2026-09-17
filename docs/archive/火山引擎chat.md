@@ -1,10 +1,12 @@
+> **历史归档**：本文只记录当时的方案、实现或验收，不是当前产品说明。现役入口为仓库 `docs/README.md`。
+
 `POST https://ark.cn-beijing.volces.com/api/v3/chat/completions`   [运行](https://api.volcengine.com/api-explorer/?action=ChatCompletions&groupName=%E5%AF%B9%E8%AF%9D%28Chat%29%20API&serviceCode=ark&version=2024-01-01)
 发送包含文本、图片、视频、音频等模态的消息列表，模型将生成对话中的下一条消息。
 
 Tips：一键展开折叠，快速检索内容
 :::tip
 打开页面右上角开关后，**ctrl ** + f 可检索页面内所有内容。
-`<span>`![图片](https://portal.volccdn.com/obj/volcfe/cloud-universal-doc/upload_952f1a5ff1c9fc29c4642af62ee3d3ee.png) 
+`<span>`![图片](https://portal.volccdn.com/obj/volcfe/cloud-universal-doc/upload_952f1a5ff1c9fc29c4642af62ee3d3ee.png)
 
 :::
 

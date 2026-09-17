@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "implemented_local",
-  "reviewRecord": "docs/architecture/research-web/review-record.md",
+  "reviewReceiptDirectory": ".ai/reports/",
   "canonicalEntry": "docs/architecture/research-web/README.md",
   "artifactRoot": "outputs/research-web-architecture",
   "groups": [
@@ -95,7 +95,7 @@
         "app/research_web/mcp_registry/"
       ],
       "documents": [
-        "docs/research-web.md",
+        "docs/architecture/research-web/README.md",
         "docs/research-web-capabilities.md",
         "docs/architecture/research-web/01-system.md",
         "docs/architecture/research-web/03-data-files.md",
@@ -145,7 +145,7 @@
         "app/research_web/mcp_runtime/"
       ],
       "documents": [
-        "docs/research-web.md",
+        "docs/architecture/research-web/README.md",
         "docs/research-web-capabilities.md",
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/03-data-files.md",
@@ -176,7 +176,7 @@
         "app/research_web/ui/capability-workspace.mjs"
       ],
       "documents": [
-        "docs/research-web.md",
+        "docs/architecture/research-web/README.md",
         "docs/research-web-capabilities.md",
         "docs/research-web-ui.md",
         "docs/architecture/research-web/01-system.md",
@@ -352,13 +352,17 @@
       "sources": [
         "app/research_web/documentation.py",
         "scripts/check_research_architecture.mjs",
+        "scripts/check_documentation_governance.mjs",
         "scripts/check_doc_sync.py",
+        "scripts/generate_py_file_index.py",
         "scripts/build_research_web_api_atlas.mjs",
         ".agents/project-constraints.mjs",
         ".agents/project-constraints.json",
         ".github/workflows/project-constraints.yml"
       ],
       "documents": [
+        "docs/README.md",
+        "docs/documentation-governance.json",
         "docs/research-web-documentation.md",
         "docs/architecture/research-web/06-documentation-contract.md"
       ],
@@ -367,8 +371,10 @@
       ],
       "tests": [
         "tests/javascript/research_web_architecture.test.mjs",
+        "tests/javascript/documentation_governance.test.mjs",
         "tests/research_web/test_documentation.py",
         "tests/research_web/test_doc_sync.py",
+        "tests/scripts/test_generate_py_file_index.py",
         "tests/e2e/research_web_documentation.mjs"
       ]
     }

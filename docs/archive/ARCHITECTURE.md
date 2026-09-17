@@ -1,3 +1,5 @@
+> **历史归档**：本文只记录当时的方案、实现或验收，不是当前产品说明。现役入口为仓库 `docs/README.md`。
+
 # Research Workbench 架构文档
 
 ## 系统总览
@@ -469,7 +471,7 @@ Timing Engine 融合多类择时模型：
 ## 完整数据流
 
 ```
-外部数据源 → 数据层(适配器 → 解析 → 归一化) → 知识层(实体解析 → 断言存储 → Event Database → Temporal Industry Graph → 向量编码) 
+外部数据源 → 数据层(适配器 → 解析 → 归一化) → 知识层(实体解析 → 断言存储 → Event Database → Temporal Industry Graph → 向量编码)
 → 推理层(知识召回 → 事件理解 → 产业链传播 → 认知扩散/市场阶段识别) → 认知Agent层(多视角观点 → 黑板冲突检测)
 → 择时层(Regime / Flow / Crowding / Market Clock) → 信号实验室(Event Alpha Signal → Event Study → 评分 → 仓位/风险约束)
 → 记忆与学习层(Event → Return → Failure / Strategy Memory)
@@ -504,7 +506,7 @@ Model Gateway 是对大语言模型和嵌入模型访问的抽象层，设计目
 class BaseProvider(ABC):
     @abstractmethod
     def chat(messages, model, temperature, max_tokens) -> ModelResponse
-    @abstractmethod  
+    @abstractmethod
     def structured_output(messages, output_schema, model, temperature) -> BaseModel
     @abstractmethod
     def embed(text, model) -> EmbeddingResponse

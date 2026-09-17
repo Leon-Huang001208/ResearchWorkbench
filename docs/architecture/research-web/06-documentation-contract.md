@@ -30,7 +30,7 @@
 | 字段 | 用途 |
 |---|---|
 | `schemaVersion` | 当前为 1 |
-| `canonicalEntry` / `reviewRecord` | 当前架构主入口及每次迭代核对记录 |
+| `canonicalEntry` / `reviewReceiptDirectory` | 当前架构主入口及任务级核对报告目录 |
 | `artifactRoot` / `visualReview` | 唯一生成文档根目录、人工查看记录 |
 | `groups[]` | `id`、`sources`（目录前缀或精确文件）、`documents`、`diagrams`、`tests` |
 | `apis[]` | `method`、完整 `path`、实际 `source`、装饰器中的 `declaredPath` 及 `prefix` |
@@ -41,7 +41,7 @@
 
 ## 更新检查规则
 
-源码变更先匹配模块组。Python、JS/MJS、CSS、HTML、Skill 文档/模板/脚本和 Runtime 配置都必须被覆盖。相关模块说明与本次核对记录需要更新。结构未改变时，在核对记录说明“不改图的原因”；不强制为了凑 diff 改图坐标。
+源码变更先匹配模块组。Python、JS/MJS、CSS、HTML、Skill 文档/模板/脚本和 Runtime 配置都必须被覆盖。相关模块说明与本次 `.ai/reports/*.md` 任务报告需要更新。检查器只读取 changed-file 集里的报告；结构未改变时说明“不改图的原因”，不强制为了凑 diff 改图坐标。
 
 JSON 改动需要重新生成对应 HTML 和交付回执。检查实际字节的 SHA-256/长度是否与 Archify `deliver` 回执相符，回执必须报告 showcase 9/9、零错误零警告。视觉回执必须对应相同 HTML 哈希且四视口包含性成功，截图文件存在。人工记录另绑定相同哈希，并列出实际查看截图；不篡改自动回执里的 `visualReview: pending`。
 
@@ -58,6 +58,8 @@ JSON 改动需要重新生成对应 HTML 和交付回执。检查实际字节的
 - 回执不是仓库内普通文件、包含额外字段、JSON 无效，或摘要/原因只有空白。
 - 图示遗漏节点/关系的源码关联，或视觉记录仍绑定旧 HTML。
 - 变化属于结构调整，但核对记录没有说明图文如何同步。
+- Markdown 未被治理清单分类、主题存在重复 current 权威、当前链接/锚点失效或退役命令重新出现。
+- Python 文件公开结构变化后，生成索引仍是旧内容。
 
 一致性检查不是语义证明：人工仍需核对箭头、版本/权限边界、失败状态与真实代码。未通过的产品、模型或平台验收必须单列，不能被图文检查结果覆盖。
 
@@ -65,6 +67,6 @@ JSON 改动需要重新生成对应 HTML 和交付回执。检查实际字节的
 
 `node scripts/check_research_architecture.mjs --project . --base <git-revision>` 检查 base 到 HEAD、staged、unstaged 与 untracked。`python scripts/check_doc_sync.py --project . --base <git-revision>` 复用核心并保留原 Python 文档要求。参数错误、Git 失败或校验不完整均失败。
 
-核对记录使用 `<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"具体说明为什么本次模块边界与状态未变，不能只写已更新。","diagrams":[]} -->`。结构变化使用 `changed` 并列出本次真实改动的对应图源 ID；结构未变无需制造图源变更，但仍更新说明和记录。
+本次任务报告使用 `<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"具体说明为什么本次模块边界与状态未变，不能只写已更新。","diagrams":[]} -->`。结构变化使用 `changed` 并列出本次真实改动的对应图源 ID；结构未变无需制造图源变更，但仍提交任务级说明。
 
 Web 只读入口 `/api/research/documentation/index.html`、由接口清单生成的 `api-atlas.html` 及十个固定图文件由 `documentation.py` 提供；逐级 nofollow、硬链接拒绝、4 MiB 限额与隔离 CSP，不提供仓库或 Runtime 私有路径。

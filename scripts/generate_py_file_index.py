@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Generate a Markdown index of Python files, classes, functions, and imports."""
+"""Generate or verify the Markdown index of Python files and public structure."""
 
 from __future__ import annotations
 
+import argparse
 import ast
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,24 +29,26 @@ INCLUDE_DIRS = [
 ]
 
 
-def rel(path: Path) -> str:
-    return str(path.relative_to(ROOT))
+def rel(path: Path, root: Path = ROOT) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.name
 
 
 def first_line(text: str) -> str:
     return text.strip().splitlines()[0] if text.strip() else ""
 
 
-def summarize_file(path: Path) -> str:
+def summarize_file(path: Path, *, root: Path = ROOT) -> str:
     source = path.read_text(encoding="utf-8", errors="ignore")
 
     try:
         tree = ast.parse(source)
     except SyntaxError:
-        return f"## `{rel(path)}`\n\nParse error.\n\n"
+        return f"## `{rel(path, root)}`\n\nParse error.\n\n"
 
     module_doc = ast.get_docstring(tree) or ""
-
     classes: list[tuple[str, str, list[str]]] = []
     functions: list[tuple[str, str]] = []
     imports: list[str] = []
@@ -65,23 +69,16 @@ def summarize_file(path: Path) -> str:
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             functions.append((node.name, ast.get_docstring(node) or ""))
 
-    lines: list[str] = []
-    lines.append(f"## `{rel(path)}`\n")
-
+    lines: list[str] = [f"## `{rel(path, root)}`\n"]
     if module_doc:
-        lines.append("Module docstring:")
-        lines.append(f"> {first_line(module_doc)}")
-        lines.append("")
-
+        lines.extend(["Module docstring:", f"> {first_line(module_doc)}", ""])
     if imports:
-        unique_imports = sorted(set(item for item in imports if item))
+        unique_imports = sorted({item for item in imports if item})
         lines.append("Imports:")
-        for item in unique_imports[:30]:
-            lines.append(f"- `{item}`")
+        lines.extend(f"- `{item}`" for item in unique_imports[:30])
         if len(unique_imports) > 30:
             lines.append(f"- ... {len(unique_imports) - 30} more")
         lines.append("")
-
     if classes:
         lines.append("Classes:")
         for name, doc, methods in classes:
@@ -91,7 +88,6 @@ def summarize_file(path: Path) -> str:
             if methods:
                 lines.append(f"  - methods: {', '.join(methods)}")
         lines.append("")
-
     if functions:
         lines.append("Functions:")
         for name, doc in functions:
@@ -99,16 +95,14 @@ def summarize_file(path: Path) -> str:
             if doc:
                 lines.append(f"  - {first_line(doc)}")
         lines.append("")
-
     return "\n".join(lines) + "\n"
 
 
-def main() -> int:
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-
+def build_index(root: Path = ROOT, include_dirs: list[str] | None = None) -> str:
+    directories = include_dirs if include_dirs is not None else INCLUDE_DIRS
     files: list[Path] = []
-    for directory in INCLUDE_DIRS:
-        base = ROOT / directory
+    for directory in directories:
+        base = root / directory
         if base.exists():
             files.extend(sorted(base.rglob("*.py")))
 
@@ -119,13 +113,41 @@ def main() -> int:
         "Do not manually edit this file.",
         "",
     ]
-
     for path in files:
-        if "__pycache__" in path.parts:
-            continue
-        content.append(summarize_file(path))
+        if "__pycache__" not in path.parts:
+            content.append(summarize_file(path, root=root))
+    return "\n".join(content)
 
-    OUTPUT.write_text("\n".join(content), encoding="utf-8")
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check", action="store_true", help="fail when the committed index is stale"
+    )
+    options = parser.parse_args(argv)
+
+    expected = build_index()
+    if options.check:
+        try:
+            actual = OUTPUT.read_text(encoding="utf-8")
+        except OSError as exc:
+            print(f"Python file index check failed: {exc}", file=sys.stderr)
+            return 1
+        if actual != expected:
+            print(
+                "Python file index is stale; run `python scripts/generate_py_file_index.py`.",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"Verified {rel(OUTPUT)}")
+        return 0
+
+    try:
+        OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+        OUTPUT.write_text(expected, encoding="utf-8")
+    except OSError as exc:
+        print(f"Python file index generation failed: {exc}", file=sys.stderr)
+        return 1
     print(f"Generated {rel(OUTPUT)}")
     return 0
 

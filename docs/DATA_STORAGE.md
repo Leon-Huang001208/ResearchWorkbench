@@ -1,5 +1,7 @@
 # Research Workbench 数据存储设计文档
 
+> 本文维护旧兼容 FastAPI／PostgreSQL 平台的存储合同。当前 Research Web 不以 PostgreSQL、pgvector 或 Alembic 为启动前提；当前产品数据归属见 [Research Web 架构](architecture/research-web/03-data-files.md)。
+
 ## 目录
 
 1. [概述](#概述)

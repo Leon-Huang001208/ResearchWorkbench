@@ -92,12 +92,20 @@ Purpose:
 - Generates Python file index documentation
 - Parses source files for classes, functions, imports
 - Outputs to docs/generated/py_file_index.md
-- Scans the following directories (INCLUDE_DIRS): `app/`, `connectors/`, `core/`, `data_layer/`, `knowledge_layer/`, `reasoning/`, `cognitive_agents/`, `timing_engine/`, `signal_lab/`, `memory_learning/`, `reporting/`, `services/`, `storage/`, `ingestion/`, `cron_jobs/`, `scripts/`, `workers/`
+- `--check` compares the committed index with deterministic generated content without writing files
+- Scans the `INCLUDE_DIRS` declared in the script; the list is code-owned and must not be copied into other current documents
 
 Update this section when:
 - Parsing logic changes
 - Output format changes
 - Included directories change
+
+### Documentation governance
+
+- `scripts/check_documentation_governance.mjs` validates that every tracked or untracked Markdown file is classified by `docs/documentation-governance.json`.
+- The same check enforces one current authority per topic, current relative links and anchors, retired-command exclusions, and explicit archive banners.
+- `scripts/check_doc_sync.py` composes governance, generated-index and Research Web architecture checks, then applies narrow compatibility-module owner mappings.
+- Research Web architecture decisions are recorded in the changed task report under `.ai/reports/`, not appended to a permanent review log.
 
 ### `scripts/migrate_lsh_theme_data.py`
 
@@ -369,8 +377,7 @@ Update this section when:
 
 When files in this module change, check:
 - `docs/modules/scripts.md`
-- `docs/REFERENCE.md` (when user-facing)
+- `docs/REFERENCE.md` (only when user-facing commands change)
 - `docs/backup_restore.md` (when backup/restore changes)
-- `docs/FILE_GUIDE.md`
-- `docs/CHANGELOG.md`
-- `docs/generated/py_file_index.md`
+- `docs/CHANGELOG.md` (only for user-visible behavior)
+- `docs/generated/py_file_index.md` with `--check`; regenerate only when public Python structure changed

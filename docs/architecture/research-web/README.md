@@ -2,7 +2,7 @@
 
 这是当前研究产品的唯一架构主入口。源码范围为 `app/research_web/`；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。
 
-研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。逐项变更见 [迭代核对](review-record.md)。图形通过不替代产品、数据覆盖或真实连接审查。
+研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
 
 ## 阅读顺序
 
@@ -42,11 +42,10 @@ rwb web stop
 
 旧研究目录先用 `rwb migrate-research-data --dry-run` 查看迁移摘要，再执行复制。凭据不会迁移；新实例需在设置页重新填写。Web 恢复验证通过后可使用 `--archive-source` 将旧目录改为只读迁移备份。
 
-当前实施分支为 `codex/web-consolidation`。此前记录见 [原研究验收](../../research-web-acceptance.md)、[DataHub 资料共享验收](../../../.ai/reports/2026-09-02-datahub-acceptance.md)；本轮在这些真实会话和文件基础上新增研究台与监控，并重新执行公开来源、接口、浏览器和全套 Research Web 回归。
+日期型验收、具体会话和任务命令位于 `.ai/reports/`；历史 Research Web 验收已进入 [归档](../../archive/acceptance/research-web-acceptance-2026-09-02.md)。这些记录只证明当时的环境和路径，不能替代当前任务复验。
 
-## 当前报告 Workflow 验收边界
+## 当前验收原则
 
-- 华安 ETF 周报已完成两份 Wind 底稿真实刷新、一次共享快照和两个真实 Claw 子 Agent；DOCX、HTML、XLSX 均已生成并可重开。
-- 该次运行仍为 `delivery_incomplete`：模型 Payload 未覆盖全部必需区块。文件有效不等于内容合同完整，因此没有改记 `completed`，也未开放日程。
-- 创业板 50 的活动底稿实际为 iFinD/同花顺公式；误标 Wind 的文件只作 `legacy_mislabeled` 历史资源。当前机器未发现 iFinD Excel 插件，真实探测返回 `formula_error`，所以该 Workflow 尚不能完成真实刷新。
-- 华安 ETF 投资风向标和 AI 周报尚未满足本轮完整真实运行门槛。分支因此暂不合并、不推送、不清理旧 worktree；这些动作只在必需验收全部通过后执行。
+- 文件结构有效不等于报告内容合同完整；运行、交付和内容质量分别记录。
+- 外部数据、模型、Office/Wind、浏览器和平台支持只对本次实际验证的环境成立。
+- 旧分支、会话、产物或验收记录不决定当前 Git 交付状态；每次交付以本次 Harness、CI 和任务报告为准。

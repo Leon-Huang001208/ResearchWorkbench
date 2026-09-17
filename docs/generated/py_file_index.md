@@ -17482,7 +17482,7 @@ Functions:
 ## `scripts/check_doc_sync.py`
 
 Module docstring:
-> Check whether changed source files triggered required documentation updates.
+> Check source-to-document ownership, governance, generated index and Research Web maps.
 
 Imports:
 - `__future__`
@@ -17495,8 +17495,10 @@ Imports:
 Functions:
 - `collect_changes`
   - Use NUL-delimited Git output, including individual untracked files.
+- `run_check`
 - `check_research_docs`
-  - Invoke the repository-owned Node core used by project-constraints CI.
+- `check_governance`
+- `check_generated_index`
 - `main`
 
 
@@ -17992,17 +17994,20 @@ Functions:
 ## `scripts/generate_py_file_index.py`
 
 Module docstring:
-> Generate a Markdown index of Python files, classes, functions, and imports.
+> Generate or verify the Markdown index of Python files and public structure.
 
 Imports:
 - `__future__`
+- `argparse`
 - `ast`
 - `pathlib`
+- `sys`
 
 Functions:
 - `rel`
 - `first_line`
 - `summarize_file`
+- `build_index`
 - `main`
 
 

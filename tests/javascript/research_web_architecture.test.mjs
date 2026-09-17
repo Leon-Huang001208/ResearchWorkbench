@@ -182,6 +182,22 @@ test('explicit unchanged reason permits unchanged diagrams, but changed structur
   assert.ok((await check(f,[source,document,review])).violations.some(v=>v.code==='structure_diagram_not_changed'));
 });
 
+test('task-scoped architecture receipt replaces the cumulative review record', async t => {
+  const f=fixture(t);const map=f.read(mapPath);delete map.reviewRecord;map.reviewReceiptDirectory='.ai/reports/';f.write(mapPath,map);
+  const taskReport='.ai/reports/task.md';
+  f.write(taskReport,'<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"Only documentation wording changed; runtime relationships remain unchanged.","diagrams":[]} -->');
+  assert.deepEqual((await check(f,[source,document,taskReport])).violations,[]);
+  const missing=await check(f,[source,document]);
+  assert.ok(missing.violations.some(v=>v.code==='review_not_changed' && v.path==='.ai/reports/'),JSON.stringify(missing));
+});
+
+test('task-scoped architecture receipt requires a meaningful marker', async t => {
+  const f=fixture(t);const map=f.read(mapPath);delete map.reviewRecord;map.reviewReceiptDirectory='.ai/reports/';f.write(mapPath,map);
+  const taskReport='.ai/reports/task.md';f.write(taskReport,'# no architecture decision');
+  const result=await check(f,[source,document,taskReport]);
+  assert.ok(result.violations.some(v=>v.code==='review_invalid' && v.path==='.ai/reports/'),JSON.stringify(result));
+});
+
 const mutations = [
   ['old HTML after graph change','specification_hash',f=>f.write(f.read(mapPath).diagrams[0].source, {components:[{id:'new-node'}]})],
   ['changed HTML without new receipt','artifact_hash',f=>f.write(f.read(mapPath).diagrams[0].artifact,'changed')],

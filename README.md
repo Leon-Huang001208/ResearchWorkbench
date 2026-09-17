@@ -113,11 +113,8 @@ DataHub 是 Research Web 进程内的数据目录、白名单路由、Provider �
 
 ## 文档
 
+- [文档门户](docs/README.md)：按入门、架构、开发、运维、参考和历史组织的唯一索引。
 - [Research Web 当前架构](docs/architecture/research-web/README.md)：当前产品的唯一架构入口、运行边界与阅读路径。
-- [Development Map](docs/DEVELOPMENT_MAP.md)：源码、测试、安装与文档更新职责。
-- [Research Web DataHub](docs/research-web-datahub.md)：数据源目录、连接状态、Provider 与查询边界。
-- [Changelog](docs/CHANGELOG.md)：变更历史。
-- [Desktop Packaging History](docs/desktop_packaging.md)：保留的桌面打包历史与重新开启桌面工作的验收边界。
 - [Research Web 一键本地安装](docs/research-web-installation.md)：完整安装前提、固定制品与跨平台安装门禁。
 
 ## 历史功能

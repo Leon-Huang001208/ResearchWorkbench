@@ -1,9 +1,11 @@
+> **历史归档**：本文只记录当时的方案、实现或验收，不是当前产品说明。现役入口为仓库 `docs/README.md`。
+
 # iFinD 数据源接入架构设计
 
-> **文档版本：** v1.0  
-> **作者：** 架构师 🏛️  
-> **日期：** 2026-05-06  
-> **状态：** 待评审  
+> **文档版本：** v1.0
+> **作者：** 架构师 🏛️
+> **日期：** 2026-05-06
+> **状态：** 待评审
 
 ---
 
@@ -97,7 +99,7 @@ class IFinDClient(Protocol):
     ) -> list[dict]:
         """
         历史行情查询
-        
+
         Args:
             codes: 证券代码列表，如 ["600519.SH"]
             indicators: 指标列表，如 ["ths_open_stock", "ths_close_stock"]
@@ -158,10 +160,10 @@ class IFinDClient(Protocol):
 class IFinDSDKClient:
     """
     Python SDK 后端实现
-    
+
     依赖：iFinD Python 包（pip install iFinD）
     平台：Windows / Linux（需运行 iFinD 终端）
-    
+
     内部封装：
     - THS_iFinDLogin → login()
     - THS_History → history()
@@ -172,16 +174,16 @@ class IFinDSDKClient:
     - THS_DataPool → data_pool()
     - THS_EdbQuery → edb_query()
     """
-    
+
     def __init__(self, username: str, password: str): ...
-    
+
     async def login(self) -> bool:
         """
         调用 THS_iFinDLogin(username, password)
         返回 0 表示成功，其他为错误码
         """
         ...
-    
+
     async def is_alive(self) -> bool:
         """
         检查 iFinD 终端进程是否存在 + SDK 连接是否存活
@@ -195,18 +197,18 @@ class IFinDSDKClient:
 class IFinDHTTPClient:
     """
     HTTP API 后端实现
-    
+
     依赖：httpx（异步 HTTP 客户端）
     平台：跨平台（macOS 优先选择）
-    
+
     认证流程：
     1. POST /login 传入 username/password
     2. 获取 token，后续请求携带 Authorization: Bearer <token>
     3. token 过期前自动刷新
     """
-    
+
     def __init__(self, username: str, password: str, base_url: str): ...
-    
+
     async def login(self) -> bool:
         """
         POST {base_url}/login
@@ -214,7 +216,7 @@ class IFinDHTTPClient:
         Response: {"token": "...", "expires_in": 7200}
         """
         ...
-    
+
     async def is_alive(self) -> bool:
         """
         GET {base_url}/health 或轻量级请求确认 token 有效
@@ -228,48 +230,48 @@ class IFinDHTTPClient:
 class IFinDAdapter(BaseDataAdapter):
     """
     iFinD 数据适配器 - 统一入口
-    
+
     职责：
     1. 根据 IFIND_BACKEND 配置选择后端 Client
     2. 调用 Client 获取原始数据
     3. 通过 IFinDMapper 映射为 AssetAnalysisSnapshot
     4. 封装为 DocumentEnvelope 返回
     """
-    
+
     def __init__(self, settings: Settings):
         super().__init__(source_type="ifind")
         self._client = self._create_client(settings)
         self._mapper = IFinDMapper()
         self._logged_in = False
-    
+
     def _create_client(self, settings: Settings) -> IFinDClient:
         """根据配置创建后端 Client"""
         ...
-    
+
     # ── 业务方法（替换现有 stub）──
-    
+
     async def fetch_stock_quotes(
         self, codes: list[str], start_date: str, end_date: str
     ) -> list[AssetAnalysisSnapshot]: ...
-    
+
     async def fetch_financial_report(
         self, code: str, report_type: str = "annual"
     ) -> list[AssetAnalysisSnapshot]: ...
-    
+
     async def fetch_fund_flow(
         self, codes: list[str], start_date: str, end_date: str
     ) -> list[AssetAnalysisSnapshot]: ...
-    
+
     async def fetch_industry_classification(
         self, codes: list[str]
     ) -> list[AssetAnalysisSnapshot]: ...
-    
+
     async def fetch_macro_indicators(
         self, indicators: list[str], start_date: str, end_date: str
     ) -> list[AssetAnalysisSnapshot]: ...
-    
+
     # ── DataAdapter 接口实现 ──
-    
+
     def fetch(self, **kwargs) -> list[DocumentEnvelope]: ...
     def parse(self, source, **kwargs) -> DocumentEnvelope: ...
 ```
@@ -468,33 +470,33 @@ iFinD edb_query() 返回
 class IFinDMapper:
     """
     iFinD 原始数据 → AssetAnalysisSnapshot 映射器
-    
+
     职责：
     1. 将 iFinD Client 返回的原始 dict 转换为 AssetAnalysisSnapshot
     2. 计算衍生指标（估值、均线等）
     3. 生成 canonical_id 和 as_of 时间戳
     """
-    
+
     def map_quotes(
         self, code: str, raw_data: list[dict], as_of: datetime
     ) -> AssetAnalysisSnapshot: ...
-    
+
     def map_financial(
         self, code: str, raw_data: list[dict], as_of: datetime
     ) -> AssetAnalysisSnapshot: ...
-    
+
     def map_fund_flow(
         self, code: str, raw_data: list[dict], as_of: datetime
     ) -> AssetAnalysisSnapshot: ...
-    
+
     def map_industry(
         self, code: str, raw_data: list[dict], as_of: datetime
     ) -> AssetAnalysisSnapshot: ...
-    
+
     def map_macro(
         self, indicators: list[str], raw_data: list[dict], as_of: datetime
     ) -> AssetAnalysisSnapshot: ...
-    
+
     def map_research_report(
         self, code: str, raw_data: list[dict], as_of: datetime
     ) -> AssetAnalysisSnapshot: ...
@@ -567,17 +569,17 @@ class IFinDMapper:
 class IFinDQuotaManager:
     """
     配额管理器
-    
+
     职责：
     1. 记录每次 API 调用
     2. 当日调用次数接近限额时发出 WARNING
     3. 超过限额时阻断请求并告警
     """
-    
+
     # 建议配置
     DAILY_QUOTA_WARNING_THRESHOLD = 0.8   # 80% 时告警
     DAILY_QUOTA_HARD_LIMIT = 1.0          # 100% 时阻断
-    
+
     def check_quota(self) -> bool: ...
     def record_call(self, api_name: str, cost: int = 1) -> None: ...
     def get_remaining(self) -> int: ...
@@ -737,5 +739,5 @@ data_layer/
 
 ---
 
-> **架构师评语**：这个架构能撑三年吗？  
+> **架构师评语**：这个架构能撑三年吗？
 > —— 双后端 + Protocol + Mapper 的分层设计，为未来新增数据源（Wind、Choice 等）留了扩展空间。IFinDClient Protocol 可直接复用为通用数据源协议。假设同花顺不改变 API 契约，三年内只需在 Mapper 层适配新指标即可。

@@ -6,7 +6,7 @@ import path from "node:path";
 const root = process.cwd();
 const outputDirectory = path.join(
   root,
-  "docs/architecture/merged-platform/detailed/diagrams",
+  "docs/archive/architecture/merged-platform/detailed/diagrams",
 );
 
 const domains = [
