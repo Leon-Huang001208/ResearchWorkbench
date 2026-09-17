@@ -8,7 +8,7 @@ Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 
 
 `scripts/check_research_architecture.mjs` 是仓库内、仅使用 Node 标准库的离线检查核心。
 `scripts/check_doc_sync.py` 与 `.agents/project-constraints.mjs` 调用相同核心；现有
-`.github/workflows/project-constraints.yml` 先运行负向 fixtures，再检查真实变更和清单。
+`.github/workflows/project-constraints.yml` 先运行架构负向 fixtures 与 Tabbit 手动触发契约，再检查真实变更和清单。
 不要求开发机绝对目录、Archify 安装、模型服务或网络，不生成或篡改回执。
 
 输入契约见 [当前架构契约](architecture/research-web/06-documentation-contract.md)，
@@ -100,6 +100,8 @@ API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单�
 空白 `unchanged`、合法两种结论及根 README 断链。fixture 的文本图片不是实际视觉证据，不进入生成文档目录。
 `tests/research_web/test_doc_sync.py` 验证 Python 委托和 Git 失败边界；
 `tests/research_web/test_documentation.py` 验证路由、CSP、穿越、链接、缺失及离线访问。
+`tests/javascript/research_web_tabbit_workflow.test.mjs` 由同一快速 Project Constraints CI 执行，
+只验证耗时 Tabbit 双平台矩阵保持 `workflow_dispatch` 手动触发，不运行该矩阵本身。
 
 Node CLI/Project Constraints 将非敏感计数和错误代码写入 `logs/research-architecture-check.jsonl`；
 后端与 Python 入口使用项目日志设施，不记录请求输入、秘密或任意异常文件路径。

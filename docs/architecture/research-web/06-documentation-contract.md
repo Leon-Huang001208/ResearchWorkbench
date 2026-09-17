@@ -4,7 +4,7 @@
 干净安装、公开 setup 入口、Doctor、CJPY 0.5.2 和无凭据天软不可调用断言。该安装门禁与本文件的
 架构图/回执门禁并行，不能互相替代。
 
-本文件定义实际 `scripts/check_research_architecture.mjs` 的输入格式；Python 文档检查与现有 Project Constraints CI 调用同一仓库内检查器。详见 [门禁模块说明](../../research-web-documentation.md)。CI 配置已接线，未声称远端 CI 已执行。
+本文件定义实际 `scripts/check_research_architecture.mjs` 的输入格式；Python 文档检查与现有 Project Constraints CI 调用同一仓库内检查器。快速 CI 同时运行 Tabbit 手动触发契约测试，防止耗时双平台矩阵重新挂回普通 push 或 pull request，但不执行矩阵本身。详见 [门禁模块说明](../../research-web-documentation.md)。CI 配置已接线，未声称远端 CI 已执行。
 
 ## 根 README 复核回执
 

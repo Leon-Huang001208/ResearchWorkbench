@@ -12,6 +12,8 @@
   `workflow_dispatch`，避免每次 Web 迭代都等待完整 macOS/Windows Tabbit 合同套件。
 - 测试内容和双平台矩阵保持不变；Tabbit 契约改动或重新声明平台验证时必须手动运行该工作流并等待
   两个平台通过，真实 Windows 浏览器仍不视为已验证。
+- 轻量触发器契约测试继续由快速的 `Project Constraints` 自动执行，防止后续误把耗时矩阵重新挂回
+  普通 `push` 或 `pull_request`。
 
 ### 根 README 刷新与复核门禁 · 2026-09-17
 
