@@ -1,3 +1,5 @@
+> **历史归档**：本文只记录当时的方案、实现或验收，不是当前产品说明。现役入口为仓库 `docs/README.md`。
+
 # 更新日志
 
 所有 notable 项目变更都记录在此文件中。
@@ -16,7 +18,7 @@
   - Improved audit reporting that clearly distinguishes fully rebuilt state from partially recovered/deferred items
   - Improved resumability with clear failure classification for partial recovery runs
 - **#30** Complete factual-layer recovery by persisting regenerated assertions during object-storage backfill: upgraded `scripts/backfill_from_objects.py` to fully reconstruct the factual layer by persisting all regenerated assertions into the database after extraction. All assertions are properly linked to restored source documents with stable metadata, provenance, and deterministic ids for idempotency. Re-running backfill will not create uncontrolled duplicates. Recovery reports now include counts of regenerated, persisted, and skipped assertions. Added complete unit tests covering full end-to-end recovery scenarios (source document -> assertions -> canonical events).
-- **#28** Add automated backup, restore drills, and migration discipline for durable persistence: 
+- **#28** Add automated backup, restore drills, and migration discipline for durable persistence:
   - Added `scripts/backup_db.py` supporting PostgreSQL full backups with automatic compression and retention cleanup
   - Added `scripts/restore_db.py` supporting point-in-time restores from compressed or uncompressed backups
   - Added `docs/backup_restore.md` with backup/restore procedures, quarterly restore drill checklist, Alembic migration discipline, and explicit data storage responsibility matrix

@@ -10,7 +10,7 @@ from services.legacy_capability_gate import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-CAPABILITY_MAP = ROOT / "docs/architecture/merged-platform/lsh-capability-map.yaml"
+CAPABILITY_MAP = ROOT / "docs/archive/architecture/merged-platform/lsh-capability-map.yaml"
 
 
 def test_duplicate_capability_stays_blocked_until_every_removal_evidence_exists():

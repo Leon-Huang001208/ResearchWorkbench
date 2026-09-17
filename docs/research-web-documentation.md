@@ -6,9 +6,10 @@ Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 
 
 ## 模块边界
 
-`scripts/check_research_architecture.mjs` 是仓库内、仅使用 Node 标准库的离线检查核心。
-`scripts/check_doc_sync.py` 与 `.agents/project-constraints.mjs` 调用相同核心；现有
-`.github/workflows/project-constraints.yml` 先运行架构负向 fixtures 与 Tabbit 手动触发契约，再检查真实变更和清单。
+`scripts/check_research_architecture.mjs` 是 Research Web 图文映射的离线检查核心；
+`scripts/check_documentation_governance.mjs` 校验全部 Markdown 的状态分类、主题权威、当前链接和退役命令。
+`scripts/check_doc_sync.py` 组合上述检查与 Python 生成索引校验；`.agents/project-constraints.mjs` 保留架构与平台约束。现有
+`.github/workflows/project-constraints.yml` 先运行架构／治理负向 fixtures 与 Tabbit 手动触发契约，再检查真实变更和清单。
 不要求开发机绝对目录、Archify 安装、模型服务或网络，不生成或篡改回执。
 
 输入契约见 [当前架构契约](architecture/research-web/06-documentation-contract.md)，
@@ -27,6 +28,9 @@ schema 1，且必须是仓库内普通 JSON 文件。`updated` 要求同批包�
 
 ```bash
 node --test tests/javascript/research_web_architecture.test.mjs
+node --test tests/javascript/documentation_governance.test.mjs
+node scripts/check_documentation_governance.mjs --project .
+python scripts/generate_py_file_index.py --check
 node scripts/check_research_architecture.mjs --project . --base <git-revision>
 python scripts/check_doc_sync.py --project . --base <git-revision>
 node .agents/project-constraints.mjs --project . --changed-file app/research_web/main.py
@@ -48,7 +52,7 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 - 扫描源码中的 HTTP 装饰器及 APIRouter 前缀，双向比较接口 inventory；新增遗漏和旧接口均失败。
   HTTP 装饰器接受位置参数或 `path=` 字面量，含换行和其他参数在前的形式；动态路径、转义路径及
   不支持的 `api_route`/`route`/`websocket` 声明明确报 `api_declaration_unsupported`，不静默漏检。
-- 变更组的每份模块说明和本次 review-record 必须出现在变更清单；核对记录有明确结构决策。
+- 变更组的每份模块说明和本次 `.ai/reports/*.md` 任务报告必须出现在变更清单；任务报告含明确结构决策。
 - 图源、HTML 的实际 SHA-256 和字节数必须匹配 deliver；要求 showcase 9/9、零错误零警告。
   HTML、deliver 回执和视觉回执还必须使用根目录内按十图 ID 固定的规范文件名；
   `../`、非规范别名和其他文件名在读取前即被拒绝。
@@ -58,15 +62,17 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 - 检查根 `README.md` 的本地链接；触发代码/包清单改动时核对 README 复核回执是否进入变更集，
   并验证 `updated` 与 README 变更之间的条件关系。
 - 对 README 门禁配置执行固定路径与固定触发集合校验，不能通过删项、加重复项或改指向缩小门禁。
+- 对全部受跟踪 Markdown 执行状态分类；同一主题只允许一个 current 权威，当前文档的相对链接与锚点必须存在。
+- 对当前文档拒绝已知退役命令；`docs/generated/py_file_index.md` 必须与生成器输出完全一致。
 
-每个变化模块组在 review-record 追加可机读标记，例如：
+每个变化模块组在本次任务的 `.ai/reports/*.md` 中写入可机读标记，例如：
 
 ```html
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅增加只读设置入口，既有研究请求与文件预览边界保持不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"documentation","structure":"changed","reason":"新增离线一致性检查和隔离HTML入口，08图记录实际接线。","diagrams":["08-iteration-docs"]} -->
 ```
 
-同组最后一个标记生效；`changed` 必须列出组内实际变化的图源，`unchanged` 必须有具体原因。
+检查器只读取 changed-file 集内的任务报告；历史报告不会覆盖本次决定。同组最后一个标记生效；`changed` 必须列出组内实际变化的图源，`unchanged` 必须有具体原因。
 文件和字符串匹配不能证明说明与箭头语义正确，人工源码/图文审查仍是独立交付条件。
 自动回执的 `visualReview: pending` 不被检查器改写成伪造的人工通过。
 
@@ -98,11 +104,14 @@ API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单�
 源码无说明、未映射模块、失效接口/前缀、图源或 HTML 与旧回执、缺图、断链、丢失截图和
 旧人工哈希等负向案例；同一行为测试还覆盖缺少 README 回执、`updated` 漏改 README、无效或
 空白 `unchanged`、合法两种结论及根 README 断链。fixture 的文本图片不是实际视觉证据，不进入生成文档目录。
-`tests/research_web/test_doc_sync.py` 验证 Python 委托和 Git 失败边界；
+`tests/javascript/documentation_governance.test.mjs` 验证未分类文件、重复权威、断链、缺锚点与退役命令；
+`tests/scripts/test_generate_py_file_index.py` 验证生成结果的确定性与公开结构漂移；
+`tests/research_web/test_doc_sync.py` 验证 Python 聚合入口和 Git 失败边界；
 `tests/research_web/test_documentation.py` 验证路由、CSP、穿越、链接、缺失及离线访问。
 `tests/javascript/research_web_tabbit_workflow.test.mjs` 由同一快速 Project Constraints CI 执行，
 只验证耗时 Tabbit 双平台矩阵保持 `workflow_dispatch` 手动触发，不运行该矩阵本身。
 
-Node CLI/Project Constraints 将非敏感计数和错误代码写入 `logs/research-architecture-check.jsonl`；
+架构与治理 CLI 将非敏感计数和错误代码分别写入 `logs/research-architecture-check.jsonl` 与
+`logs/documentation-governance.jsonl`；
 后端与 Python 入口使用项目日志设施，不记录请求输入、秘密或任意异常文件路径。
 单元测试不能代替真实浏览器脚本交互、人工看图或模型/平台验收；这三类证据应分别记录。

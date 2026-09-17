@@ -123,11 +123,19 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
     return {checkedFiles,violations};
   }
   const textFiles = new Set([map.canonicalEntry]);
-  const reviewText = read(map.reviewRecord)?.toString('utf8') || '';
+  const reviewReceiptDirectory = typeof map.reviewReceiptDirectory === 'string' ? map.reviewReceiptDirectory : null;
+  const reviewFiles = reviewReceiptDirectory
+    ? checkedFiles.filter(file=>file.startsWith(reviewReceiptDirectory) && file.endsWith('.md'))
+    : [map.reviewRecord].filter(Boolean);
+  const reviewSource = reviewReceiptDirectory || map.reviewRecord || MAP_PATH;
+  if (!reviewReceiptDirectory && typeof map.reviewRecord !== 'string') {
+    issue('map_schema',MAP_PATH,'Expected reviewReceiptDirectory or legacy reviewRecord');
+  }
+  const reviewText = reviewFiles.map(file=>read(file)?.toString('utf8') || '').join('\n');
   const reviews = new Map();
   for (const match of reviewText.matchAll(/<!--\s*architecture-review\s+(\{[^]*?\})\s*-->/g)) {
     try { const entry=JSON.parse(match[1]); reviews.set(entry.group,entry); }
-    catch { issue('review_invalid',map.reviewRecord,'Invalid architecture-review JSON marker'); }
+    catch { issue('review_invalid',reviewSource,'Invalid architecture-review JSON marker'); }
   }
   const groups=[];
   for (const group of map.groups) {
@@ -141,16 +149,16 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
     for (const id of group.diagrams) if (!map.diagrams.some(diagram=>diagram.id===id)) issue('diagram_inventory',MAP_PATH,`Unknown group diagram: ${id}`);
     if (!checkedFiles.some(file=>matches(file,group.sources))) continue;
     for (const document of group.documents) if (!changed.has(document)) issue('module_document_not_changed',document,`Source changed in ${group.id}`);
-    if (!changed.has(map.reviewRecord)) issue('review_not_changed',map.reviewRecord,`Source changed in ${group.id}`);
+    if (!reviewFiles.some(file=>changed.has(file))) issue('review_not_changed',reviewSource,`Source changed in ${group.id}`);
     const review=reviews.get(group.id);
     if (!review || !['changed','unchanged'].includes(review.structure) || typeof review.reason!=='string' || review.reason.trim().length<12 || !Array.isArray(review.diagrams)) {
-      issue('review_invalid',map.reviewRecord,`Missing meaningful structure decision for ${group.id}`); continue;
+      issue('review_invalid',reviewSource,`Missing meaningful structure decision for ${group.id}`); continue;
     }
     if (review.structure==='changed') {
-      if (!review.diagrams.length) issue('structure_diagram_not_changed',map.reviewRecord,`No affected diagrams for ${group.id}`);
+      if (!review.diagrams.length) issue('structure_diagram_not_changed',reviewSource,`No affected diagrams for ${group.id}`);
       for (const id of review.diagrams) {
         const diagram=map.diagrams.find(item=>item.id===id);
-        if (!group.diagrams.includes(id) || !diagram || !changed.has(diagram.source)) issue('structure_diagram_not_changed',map.reviewRecord,`Expected changed graph source: ${id}`);
+        if (!group.diagrams.includes(id) || !diagram || !changed.has(diagram.source)) issue('structure_diagram_not_changed',reviewSource,`Expected changed graph source: ${id}`);
       }
     }
   }

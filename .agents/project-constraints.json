@@ -4,11 +4,14 @@
   "requiredFiles": [
     "AGENTS.md",
     "README.md",
+    "docs/README.md",
+    "docs/documentation-governance.json",
     "docs/ARCHITECTURE.md",
     "docs/DEVELOPMENT_MAP.md",
     "docs/AGENT_WORKFLOW.md",
     "docs/desktop_packaging.md",
-    "docs/architecture/research-web/readme-review.json"
+    "docs/architecture/research-web/readme-review.json",
+    "scripts/check_documentation_governance.mjs"
   ],
   "readmeReview": {
     "receipt": "docs/architecture/research-web/readme-review.json",
@@ -24,26 +27,6 @@
     ]
   },
   "changeRules": [
-    {
-      "name": "核心源码改动需要工程文档联动",
-      "sourcePrefixes": [
-        "app/",
-        "core/",
-        "services/",
-        "data_layer/",
-        "cognitive_agents/",
-        "timing_engine/",
-        "signal_lab/",
-        "reporting/",
-        "storage/",
-        "connectors/"
-      ],
-      "requiredDocuments": [
-        "docs/CHANGELOG.md",
-        "docs/DEVELOPMENT_MAP.md",
-        "docs/ARCHITECTURE.md"
-      ]
-    },
     {
       "name": "桌面改动需要跨平台交付文档",
       "sourcePrefixes": [
@@ -135,7 +118,9 @@
       "requireAll": [
         "ubuntu-latest",
         ".agents/project-constraints.mjs",
-        "--changed-file"
+        "--changed-file",
+        "check_documentation_governance.mjs",
+        "generate_py_file_index.py --check"
       ]
     },
     {

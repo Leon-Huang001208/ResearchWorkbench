@@ -11,7 +11,7 @@ import {
 } from '../../scripts/architecture/build_merged_platform_atlas.mjs';
 
 const catalogRoot = new URL(
-  '../../docs/architecture/merged-platform/detailed/catalog/',
+  '../../docs/archive/architecture/merged-platform/detailed/catalog/',
   import.meta.url,
 );
 
@@ -138,7 +138,7 @@ test('blueprint index links the Atlas and supplied diagram groups', () => {
 
 test('blueprint contains exactly eight shared and thirty domain diagrams', async () => {
   const sourceRoot = new URL(
-    '../../docs/architecture/merged-platform/detailed/diagrams/',
+    '../../docs/archive/architecture/merged-platform/detailed/diagrams/',
     import.meta.url,
   );
   const outputRoot = new URL(

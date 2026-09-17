@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "statuses": [
+    "current",
+    "generated",
+    "historical",
+    "package-internal",
+    "cleanup-candidate"
+  ],
+  "rules": [
+    {
+      "exact": "_temp_buffer.md",
+      "status": "cleanup-candidate",
+      "purpose": "unreferenced temporary test document"
+    },
+    {
+      "exact": "tests/deep-research-report.md",
+      "status": "cleanup-candidate",
+      "purpose": "unreferenced duplicate report artifact"
+    },
+    {
+      "prefix": "docs/archive/",
+      "status": "historical",
+      "purpose": "superseded plans, implementation records, acceptance snapshots and legacy manuals"
+    },
+    {
+      "prefix": ".ai/",
+      "status": "historical",
+      "purpose": "task-scoped implementation and verification evidence"
+    },
+    {
+      "prefix": ".superpowers/",
+      "status": "historical",
+      "purpose": "session planning residue retained for traceability"
+    },
+    {
+      "prefix": "docs/research/",
+      "status": "historical",
+      "purpose": "dated research and evaluation material"
+    },
+    {
+      "prefix": "docs/generated/",
+      "status": "generated",
+      "purpose": "machine-generated source index"
+    },
+    {
+      "prefix": "docs/design/",
+      "status": "package-internal",
+      "purpose": "design system guidance maintained with the relevant UI surface"
+    },
+    {
+      "prefix": "docs/frontend/",
+      "status": "package-internal",
+      "purpose": "compatibility frontend workflow and component guidance"
+    },
+    {
+      "prefix": "docs/references/",
+      "status": "package-internal",
+      "purpose": "specialized implementation reference material"
+    },
+    {
+      "prefix": "outputs/",
+      "status": "generated",
+      "purpose": "generated or delivered visual artifacts"
+    },
+    {
+      "prefix": ".agents/skills/",
+      "status": "package-internal",
+      "purpose": "project skill instructions and references"
+    },
+    {
+      "prefix": "app/",
+      "status": "package-internal",
+      "purpose": "runtime skill, template and product assets"
+    },
+    {
+      "prefix": "benchmarks/",
+      "status": "package-internal",
+      "purpose": "benchmark formats and fixtures"
+    },
+    {
+      "prefix": "report_projects/",
+      "status": "package-internal",
+      "purpose": "report project prompt templates"
+    },
+    {
+      "prefix": "runtimes/",
+      "status": "package-internal",
+      "purpose": "runtime plugin documentation"
+    },
+    {
+      "prefix": "vendor/",
+      "status": "package-internal",
+      "purpose": "vendored package documentation"
+    },
+    {
+      "exact": "README.md",
+      "status": "current",
+      "purpose": "product overview and quick start"
+    },
+    {
+      "exact": "AGENTS.md",
+      "status": "current",
+      "purpose": "shared agent rules authority"
+    },
+    {
+      "exact": "CLAUDE.md",
+      "status": "current",
+      "purpose": "Claude-specific rule delta"
+    },
+    {
+      "prefix": "docs/",
+      "status": "current",
+      "purpose": "current product, architecture, development, operations and compatibility documentation"
+    }
+  ],
+  "authorities": [
+    {"topic": "product-overview", "path": "README.md"},
+    {"topic": "documentation-index", "path": "docs/README.md"},
+    {"topic": "system-architecture", "path": "docs/ARCHITECTURE.md"},
+    {"topic": "research-web-architecture", "path": "docs/architecture/research-web/README.md"},
+    {"topic": "development-map", "path": "docs/DEVELOPMENT_MAP.md"},
+    {"topic": "reference-entry", "path": "docs/REFERENCE.md"},
+    {"topic": "research-web-data", "path": "docs/research-web-datahub.md"},
+    {"topic": "backup-restore", "path": "docs/backup_restore.md"},
+    {"topic": "change-history", "path": "docs/CHANGELOG.md"},
+    {"topic": "agent-rules", "path": "AGENTS.md"}
+  ],
+  "forbiddenCurrentPatterns": [
+    {"id": "root-auto-ingest", "text": "python auto_ingest_service.py"},
+    {"id": "root-view-db", "text": "python view_db.py"},
+    {"id": "retired-af-console", "text": "`af` console-script"},
+    {"id": "stale-web-consolidation-branch", "text": "当前实施分支为 `codex/web-consolidation`"}
+  ]
+}

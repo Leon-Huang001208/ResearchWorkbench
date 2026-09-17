@@ -1,3 +1,5 @@
+> **历史归档**：本文只记录当时的方案、实现或验收，不是当前产品说明。现役入口为仓库 `docs/README.md`。
+
 `POST https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal`  [运行](https://api.volcengine.com/api-explorer/?action=EmbeddingsMultimodal&data=%7B%7D&groupName=%E5%90%91%E9%87%8F%E5%8C%96%20API&query=%7B%7D&serviceCode=ark&version=2024-01-01)
 当您需通过语义来处理视频、图像和文本，如以图搜图、语义检索等，可以调用多模态向量化服务，将视频、图像和文本转化为向量，来分析其语义关系。本文为您提供接口的参数详细说明供您查阅。
 
