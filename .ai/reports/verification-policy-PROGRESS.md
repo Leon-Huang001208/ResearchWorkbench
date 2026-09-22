@@ -1,0 +1,32 @@
+# verification-policy PROGRESS
+- 2026-09-22 开工：目标是生成机器可读最小验收计划；规划器只读且不执行命令。
+- 边界：策略真源仅 `.agents/verification-policy.json`；未知与高风险路径 fail-closed。
+- 路由：纯 `app/research_web/` Web 改动不得产生任何桌面门。
+- 基线：`master == origin/master == remote master == 399e94d261cf6f314e61d5089212064fd560de52`。
+- 基线：工作树干净，dataless=0，策略与兼容入口均不存在。
+- 基线测试：`research_web_architecture.test.mjs` 62 passed、0 failed、0 skipped。
+- 交付：Harness `verification-policy` 已启动；受管隔离 worktree 已创建。
+- 下一步：完成设计与实施计划，然后严格执行测试先行 RED→GREEN。
+- 设计完成：已固化严格 JSON 合同、只读边界、路径安全、风险合并与 Web-only/desktop 分流。
+- 计划完成：已拆成合同 RED、最小 GREEN、文档、feature 验收、集成复验与受管交付五阶段。
+- RED：`node --test tests/javascript/verification_policy.test.mjs` 实测 12 tests、0 pass、12 fail、0 skipped、0 todo；关键原因是 `scripts/plan_verification.mjs` 不存在（`MODULE_NOT_FOUND`），符合预期。
+- 合同冻结：真实 CLI 测试覆盖 Web/文档、高风险/未知/桌面、合并去重、非法 JSON、严格 schema、符号链接/越界路径、稳定错误码与不执行命令。
+- GREEN：首次实现运行暴露 reason 码不接受下划线（5 pass/7 fail），最小修复 identifier 校验后复跑为 12 passed、0 failed、0 skipped、0 todo（833.65 ms）；同项失败 1 次，未触发三次停线。
+- 最小实现完成：策略 schema、只读规划器、最高风险/门合并、稳定错误 JSON 与关键文件登记均已落盘；无新依赖。
+- 入口与文档完成：恢复薄 `verify-task`，AGENT_WORKFLOW 与 DEVELOPMENT_MAP 已指向唯一策略真源并明确 Web-only/高风险边界；定点 `rg` 自检通过。
+- Project Constraints 第 1 轮失败：可选的 requiredFiles 登记触发现有 documentation 模块五份越界文档与结构回执要求。按白名单和“不深塞逻辑”硬约束撤销该配置 diff，不伪造 changed-file；设计、计划与开发地图已同步记录这一有证据的调整。
+- Feature 验收通过：策略测试 12/12、架构测试 62/62，均 0 failed/skipped/todo；Web 样例为 `local-only` 且桌面门为 0，desktop 样例为 `full-delivery` 且含 packaging/native Windows 门。
+- Feature 治理通过：文档治理 477 files/61 current/0 violations；Python 索引 verified；全 10 个改动文件 Project Constraints 第 2 轮 `violations: []`。
+- 交付阻塞：`.claude/commands/verify-task.md` 位于被忽略目录；`git add -f` 后文档治理连续 3 轮均为 478 files、唯一 violation 为该路径 `markdown_unclassified`。已按三次停线规则停止该项；治理 manifest 不在白名单，禁止绕过并暂停 commit/prepare/publish/cleanup。
+- 最优本地状态：10 个白名单文件已暂存，`git diff --cached --check` 通过；静态语法/JSON、Python 索引与全改动 Project Constraints 通过，受管 feature worktree 保留供解除阻塞后续跑。
+- 续跑复核：兼容入口仍以普通文件模式 `100644` 暂存，仍命中 `.gitignore:66`；治理 manifest 仍无 `.claude/` 分类，受管交付仍为 `started`/未发布。阻塞条件未变化，无白名单内安全修复。
+- 第三次 goal-turn 阻塞审计：`claudeRules=0`、入口仍为 `100644` 暂存、cached diff 校验通过、受管交付仍为 `started`。同一外部授权阻塞连续三轮成立，达到正式 blocked 阈值；本地最优结果继续保留，不执行越界修复或发布。
+- 目标自动恢复后的第三次阻塞审计：入口仍为 `100644` 暂存、`claudeRules=0`、cached diff 校验通过；没有外部授权或状态变化。恢复后的同一阻塞再次达到三轮阈值，重新正式标记 blocked。
+- 用户已明确扩大白名单：允许治理 manifest 与 documentation 架构组五份权威文档仅为 `.claude/commands/` 的 `package-internal` 分类同步；继续现有 worktree，不重做 RED→GREEN。
+- 治理修复已落盘：薄兼容入口保持项目规划器委托，Project Constraints 配置与 workflow 均未修改；下一步重跑全部 feature 验收。
+- 治理阻塞解除：`documentation-governance.json` JSON 有效；文档治理实测 478 files、61 current、0 violations。BLOCKED 已恢复为“无”。
+- 扩大白名单后的 feature 验收通过：策略 12/12、架构 62/62、治理 7/7、Actions 路由 6/6，全部 0 failed/skipped/todo；Web 与 desktop 计划符合合同，Python 索引 verified，全 15 文件 Project Constraints `violations: []`。
+- 范围检查通过：暂存差异仅含扩大后的 15 个白名单文件，1142 insertions/1 deletion，`git diff --cached --check` 通过；准备提交 feature 分支。
+- Feature 提交完成：`6cfc1c4e`（`feat: add verification policy planner`），包含扩大后 15 个白名单文件；提交前最终验收与 cached diff 校验均为通过。
+
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"仅登记薄 Claude 兼容入口并同步最小验收规划文档；现有产品文档拓扑、运行架构与 08 图接线均未改变。","diagrams":[]} -->

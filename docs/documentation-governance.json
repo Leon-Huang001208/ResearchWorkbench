@@ -59,6 +59,11 @@
       "purpose": "project skill instructions and references"
     },
     {
+      "prefix": ".claude/commands/",
+      "status": "package-internal",
+      "purpose": "thin Claude compatibility commands that delegate to project-owned workflows"
+    },
+    {
       "prefix": "app/",
       "status": "package-internal",
       "purpose": "runtime skill, template and product assets"

@@ -1,0 +1,269 @@
+{
+  "schemaVersion": 1,
+  "riskOrder": [
+    "docs-only",
+    "local-only",
+    "full-delivery"
+  ],
+  "catalogs": {
+    "tests": {
+      "research-web-architecture": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    "documentation": {
+      "documentation-governance": "node scripts/check_documentation_governance.mjs --project .",
+      "python-file-index": "python scripts/generate_py_file_index.py --check",
+      "desktop-packaging": "docs/desktop_packaging.md"
+    },
+    "ci": {
+      "project-constraints": ".github/workflows/project-constraints.yml",
+      "research-web-checks": ".github/workflows/research-web-checks.yml",
+      "native-windows-desktop": ".github/workflows/desktop-verify.yml#windows-2022"
+    }
+  },
+  "rules": [
+    {
+      "id": "desktop",
+      "risk": "full-delivery",
+      "reason": "desktop_change",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "src-tauri/",
+          "desktop/",
+          "scripts/desktop/",
+          "services/desktop_platform/",
+          "data_layer/adapters/wind/",
+          "core/settings/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [],
+      "documentation": [
+        "desktop-packaging"
+      ],
+      "ci": [
+        "project-constraints",
+        "native-windows-desktop"
+      ]
+    },
+    {
+      "id": "contract",
+      "risk": "full-delivery",
+      "reason": "public_contract_change",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "contracts/"
+        ],
+        "segments": [
+          "contracts",
+          "protocols"
+        ],
+        "suffixes": [
+          ".openapi.json"
+        ]
+      },
+      "tests": [],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
+      "id": "schema",
+      "risk": "full-delivery",
+      "reason": "schema_change",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "schemas/",
+          "migrations/"
+        ],
+        "segments": [
+          "schemas",
+          "migrations"
+        ],
+        "suffixes": [
+          ".schema.json"
+        ]
+      },
+      "tests": [],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
+      "id": "dependency",
+      "risk": "full-delivery",
+      "reason": "dependency_change",
+      "match": {
+        "files": [
+          "package.json",
+          "package-lock.json",
+          "pnpm-lock.yaml",
+          "yarn.lock",
+          "pyproject.toml",
+          "uv.lock"
+        ],
+        "prefixes": [
+          "requirements/"
+        ],
+        "segments": [],
+        "suffixes": [
+          ".lock"
+        ]
+      },
+      "tests": [],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
+      "id": "ci",
+      "risk": "full-delivery",
+      "reason": "ci_change",
+      "match": {
+        "files": [
+          ".agents/project-constraints.json",
+          ".agents/project-constraints.mjs",
+          ".agents/verification-policy.json",
+          "scripts/plan_verification.mjs",
+          "tests/javascript/verification_policy.test.mjs"
+        ],
+        "prefixes": [
+          ".github/workflows/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
+      "id": "security",
+      "risk": "full-delivery",
+      "reason": "security_change",
+      "match": {
+        "files": [
+          "SECURITY.md"
+        ],
+        "prefixes": [
+          "security/"
+        ],
+        "segments": [
+          "security"
+        ],
+        "suffixes": []
+      },
+      "tests": [],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
+      "id": "release",
+      "risk": "full-delivery",
+      "reason": "release_change",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "release/",
+          "scripts/release/"
+        ],
+        "segments": [
+          "release"
+        ],
+        "suffixes": []
+      },
+      "tests": [],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
+      "id": "documentation",
+      "risk": "docs-only",
+      "reason": "documentation_only",
+      "match": {
+        "files": [
+          "README.md"
+        ],
+        "prefixes": [
+          "docs/",
+          ".ai/reports/",
+          ".claude/commands/"
+        ],
+        "segments": [],
+        "suffixes": [
+          ".md"
+        ]
+      },
+      "tests": [],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
+      "id": "research-web",
+      "risk": "local-only",
+      "reason": "research_web_change",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "app/research_web/",
+          "app/web/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-architecture"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    }
+  ],
+  "fallback": {
+    "risk": "full-delivery",
+    "reason": "unknown_path",
+    "tests": [],
+    "documentation": [
+      "documentation-governance"
+    ],
+    "ci": [
+      "project-constraints"
+    ]
+  }
+}

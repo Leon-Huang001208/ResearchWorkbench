@@ -26,6 +26,7 @@
 ## 开发
 
 - [Agent 工作流](AGENT_WORKFLOW.md)：本地快环、worktree、后台／远程和交付证据。
+- [最小验收规划兼容入口](../.claude/commands/verify-task.md)：仅把 Claude 命令转交给项目只读规划器；规则真源仍是 `.agents/verification-policy.json`。
 - [参考入口](REFERENCE.md)：当前 CLI、API Atlas、生成索引与兼容平台参考。
 - [文件指南兼容入口](FILE_GUIDE.md)：旧文件级手册的退役说明与替代入口。
 - [Research Web 文档门禁](research-web-documentation.md)：架构清单、图文检查和安全 Web 入口。
