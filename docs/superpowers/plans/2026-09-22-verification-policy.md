@@ -142,7 +142,7 @@
 
   Run: `git status --short`、`git diff --check`、`git diff --stat`、`git diff --name-only`。Expected: 只有允许路径；BLOCKED 存在且内容为“无”或准确阻塞项。提交消息使用 `feat: add verification policy planner`。
 
-- [ ] **Step 4: 受管 prepare**
+- [x] **Step 4: 受管 prepare**
 
   Run: `node "$HOME/.agents/leon-engineering/runtime/iteration-delivery.mjs" --prepare --project /Users/leon/Developer/ResearchWorkbench --task-id verification-policy`
 
