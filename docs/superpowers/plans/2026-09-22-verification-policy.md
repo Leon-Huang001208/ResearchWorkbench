@@ -152,11 +152,11 @@
 
 **Files:** no functional edits unless a verified failure requires an allowlisted repair
 
-- [ ] **Step 1: 在 integration worktree 重跑 Task 4 全部验收**
+- [x] **Step 1: 在 integration worktree 重跑 Task 4 全部验收**
 
   必须使用控制器返回的 integration worktree，重新运行全部命令和全改动 Project Constraints。任何失败都回到 feature worktree 做最小修复、提交、再次 prepare；同一验收累计三次失败后停止该项并记录 BLOCKED。
 
-- [ ] **Step 2: 发布前检查 Actions 预算与仓库 visibility**
+- [x] **Step 2: 发布前检查 Actions 预算与仓库 visibility**
 
   读取 `docs/actions-budget.md`，通过当前 GitHub API/CLI 只读查询确认仓库 visibility 与远端默认分支。只有门禁允许时才调用受管 publish。
 

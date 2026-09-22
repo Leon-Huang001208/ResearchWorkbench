@@ -29,5 +29,7 @@
 - 范围检查通过：暂存差异仅含扩大后的 15 个白名单文件，1142 insertions/1 deletion，`git diff --cached --check` 通过；准备提交 feature 分支。
 - Feature 提交完成：`6cfc1c4e`（`feat: add verification policy planner`），包含扩大后 15 个白名单文件；提交前最终验收与 cached diff 校验均为通过。
 - 受管 prepare 完成：feature HEAD `5704c8e1ad7e87cb628db38dfb3f42439258fe96` 合入 integration commit `8871f3b3b6df4419225732135538ca7116c912b4`，integration worktree 为 `/Users/leon/Developer/ResearchWorkbench-worktrees/verification-policy-integration`。
+- 第一轮集成验收通过并直接发布 `8871f3b3b6df4419225732135538ca7116c912b4`；首次 publish 因控制器要求整数秒而拒绝小数 `5.594`，状态未变，改用向上取整 `6` 后成功。Project Constraints CI run `35678232211` completed/success。
+- 控制器从 `ci_passed` 纳入后续报告提交，创建 revision 1 integration commit `8bf954d297cc2cc2b0bbd02f5d9bccf5d85d4bd3`。revision 1 验收再次为策略 12/12、架构 62/62、治理 7/7、Actions 6/6，全部 0 failed/skipped/todo；其余必需门均通过。
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"仅登记薄 Claude 兼容入口并同步最小验收规划文档；现有产品文档拓扑、运行架构与 08 图接线均未改变。","diagrams":[]} -->
