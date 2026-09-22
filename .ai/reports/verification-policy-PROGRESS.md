@@ -27,5 +27,6 @@
 - 治理阻塞解除：`documentation-governance.json` JSON 有效；文档治理实测 478 files、61 current、0 violations。BLOCKED 已恢复为“无”。
 - 扩大白名单后的 feature 验收通过：策略 12/12、架构 62/62、治理 7/7、Actions 路由 6/6，全部 0 failed/skipped/todo；Web 与 desktop 计划符合合同，Python 索引 verified，全 15 文件 Project Constraints `violations: []`。
 - 范围检查通过：暂存差异仅含扩大后的 15 个白名单文件，1142 insertions/1 deletion，`git diff --cached --check` 通过；准备提交 feature 分支。
+- Feature 提交完成：`6cfc1c4e`（`feat: add verification policy planner`），包含扩大后 15 个白名单文件；提交前最终验收与 cached diff 校验均为通过。
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"仅登记薄 Claude 兼容入口并同步最小验收规划文档；现有产品文档拓扑、运行架构与 08 图接线均未改变。","diagrams":[]} -->
