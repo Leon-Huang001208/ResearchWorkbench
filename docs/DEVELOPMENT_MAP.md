@@ -60,3 +60,5 @@ node .agents/project-constraints.mjs --project . --changed-file <path>
 ```
 
 先对完整 changed set 重复传入 `--changed-file`，再按 JSON 输出执行；多文件取最高风险并合并去重。纯 Web 改动不得触发桌面门；公开契约、schema、依赖、CI、安全、桌面、发布与未知路径升级 `full-delivery`。Project Constraints 保持独立的架构/平台/文档门，不复制策略内容。测试、浏览器、原生平台和真实外部服务证据按计划与实际风险增加；未运行的检查必须明确标为未验证。
+
+已知组件测试可以在策略中按精确文件映射到对应 `local-only` 专项闭环；当前框架映射覆盖 `test_frameworks.py`、`test_framework_collectors.py` 与 `research_web_frameworks_ui.test.mjs`。未登记测试仍按 `unknown_path` 升级 `full-delivery`，不得仅凭位于 `tests/` 目录推断低风险。

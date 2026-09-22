@@ -45,6 +45,8 @@ worktree 只隔离文件冲突，绝不取代桌面端原生 Windows CI，也不
 
 当前产品迭代阶段为 **Web-only**。仅修改 `app/web/`、`app/research_web/`、通用 Web API/Runtime、共享 Python/Node 依赖或 Web 文档时，不进入桌面端例外，也不运行 sidecar、Tauri、安装包或原生桌面 CI。只有用户明确重新开启桌面工作，或任务直接修改 `src-tauri/`、`desktop/`、`scripts/desktop/`、`services/desktop_platform/` 等桌面专属路径时，才恢复下列桌面验收。
 
+Research Web 框架源码与三个已登记框架测试文件使用同一个组件专项闭环：框架 Python、采集器和 UI 测试。框架源码仍叠加通用 Research Web 架构测试；已登记测试文件不因位于 `tests/` 而落入未知路径。其他未登记测试继续 fail closed，不能用通用测试目录规则批量降级。
+
 交付时应明确以下不可省略的验收范围：
 
 1. 原生 Windows CI 至少覆盖依赖安装、Python sidecar（`.exe`）构建、Tauri Windows 安装包构建、真实 PostgreSQL + pgvector 的 `ready` `/health` 检查，以及数据库不可达时的 `setup_required` `/health` 检查。
