@@ -16,6 +16,9 @@ function policy() {
     catalogs: {
       tests: {
         "research-web-architecture": "node --test tests/javascript/research_web_architecture.test.mjs",
+        "research-web-frameworks-python": "python -m pytest tests/research_web/test_frameworks.py",
+        "research-web-framework-collectors": "python -m pytest tests/research_web/test_framework_collectors.py",
+        "research-web-frameworks-ui": "node --test tests/javascript/research_web_frameworks_ui.test.mjs",
       },
       documentation: {
         "documentation-governance": "node scripts/check_documentation_governance.mjs --project .",
@@ -112,6 +115,25 @@ function policy() {
         reason: "research_web_change",
         match: {files: [], prefixes: ["app/research_web/", "app/web/"], segments: [], suffixes: []},
         tests: ["research-web-architecture"],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks"],
+      },
+      {
+        id: "research-web-frameworks",
+        risk: "local-only",
+        reason: "research_web_framework_change",
+        match: {
+          files: [
+            "app/research_web/ui/frameworks.mjs",
+            "tests/research_web/test_frameworks.py",
+            "tests/research_web/test_framework_collectors.py",
+            "tests/javascript/research_web_frameworks_ui.test.mjs",
+          ],
+          prefixes: ["app/research_web/frameworks/", "app/research_web/ui/frameworks/"],
+          segments: [],
+          suffixes: [],
+        },
+        tests: frameworkTestIds,
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks"],
       },
