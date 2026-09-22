@@ -40,6 +40,8 @@ Research Web 的完整源码→文档→测试→图映射以 `architecture/rese
 - `AGENTS.md`：共享工程规则真身；`CLAUDE.md` 只保留 Claude 专属差异。
 - `docs/AGENT_WORKFLOW.md`：选择本地快环、worktree 或后台／远程执行。
 - `.agents/project-constraints.json`：架构、平台和文档治理门禁配置。
+- `.agents/verification-policy.json`：改动路径到风险档、测试、文档和 CI 门的唯一机器真源。
+- `scripts/plan_verification.mjs`：只读合并全部改动的最小验收计划；不执行计划中的命令。
 - `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。
 - 源码结构或导入发生变化时运行 `python scripts/generate_py_file_index.py --check`；需要更新时先生成再复核。
@@ -49,6 +51,7 @@ Research Web 的完整源码→文档→测试→图映射以 `architecture/rese
 ## 最小验证
 
 ```bash
+node scripts/plan_verification.mjs --project . --changed-file <path>
 node scripts/check_documentation_governance.mjs --project .
 python scripts/generate_py_file_index.py --check
 node scripts/check_research_architecture.mjs --project . --base <base>
@@ -56,4 +59,4 @@ python scripts/check_doc_sync.py --project . --base <base>
 node .agents/project-constraints.mjs --project . --changed-file <path>
 ```
 
-测试、浏览器、原生平台和真实外部服务证据按改动风险另行增加；未运行的检查必须明确标为未验证。
+先对完整 changed set 重复传入 `--changed-file`，再按 JSON 输出执行；多文件取最高风险并合并去重。纯 Web 改动不得触发桌面门；公开契约、schema、依赖、CI、安全、桌面、发布与未知路径升级 `full-delivery`。Project Constraints 保持独立的架构/平台/文档门，不复制策略内容。测试、浏览器、原生平台和真实外部服务证据按计划与实际风险增加；未运行的检查必须明确标为未验证。

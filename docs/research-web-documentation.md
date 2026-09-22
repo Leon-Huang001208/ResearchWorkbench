@@ -12,6 +12,8 @@ Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 
 `.github/workflows/project-constraints.yml` 先运行架构／治理负向 fixtures 与 Tabbit 手动触发契约，再检查真实变更和清单。
 不要求开发机绝对目录、Archify 安装、模型服务或网络，不生成或篡改回执。
 
+`.agents/verification-policy.json` 与 `scripts/plan_verification.mjs` 负责把完整 changed set 映射为最小验收计划；规划器只输出 JSON，不运行其中的测试、Git、CI 或发布命令。`.claude/commands/verify-task.md` 是受跟踪的薄兼容入口，按 `package-internal` 分类，只调用项目规划器，不复制路由表。Project Constraints 继续负责架构、平台和文档硬门，不承载这份路径策略。
+
 Actions 触发与免费额度以 [GitHub Actions 额度治理](actions-budget.md) 为准：Project Constraints 和普通 Research Web 回归使用 Ubuntu；Bootstrap、Windows、Tabbit 与 Desktop 只在各自边界触发。额度达到冻结状态时，本地门禁仍可运行，但不得创建远端 Actions run。
 Ubuntu 日常回归使用有界 Python 合同集和 `research_web*.test.mjs`；全量 `tests/research_web/` 仍按变更风险在本地交付阶段运行，不把长耗时全量套件伪装成便宜的 push 门禁。
 

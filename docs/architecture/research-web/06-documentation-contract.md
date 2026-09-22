@@ -8,6 +8,12 @@
 
 Project Constraints 还运行 Actions 额度路由契约：docs-only 只进入 Ubuntu 门禁；普通 Research Web 进入 Linux 检查；安装、Windows、Tabbit 和 Desktop 分别使用独立且有界的触发面。额度与冻结状态以 [Actions 额度治理](../../actions-budget.md) 为准。
 
+## 最小验收计划合同
+
+`.agents/verification-policy.json` 是 changed-file 风险与验收门的唯一机器真源；`scripts/plan_verification.mjs` 只读校验策略和仓库相对路径，按最高风险合并多文件计划。公开契约、schema、依赖、CI、安全、桌面、发布和未知路径 fail-closed 到 `full-delivery`；普通 Research Web 路径不得附加桌面门。
+
+`.claude/commands/verify-task.md` 只是 `package-internal` 的薄兼容入口，必须调用项目规划器并按 JSON 输出执行，不得复制规则表。规划器本身不运行测试、Git、CI 或发布；Project Constraints 与受管交付控制器分别验证项目硬门和真实交付状态。
+
 ## 根 README 复核回执
 
 每次改动 `app/research_web/`、`app/cli/`、`research_workbench_entrypoint/`、`pyproject.toml`

@@ -23,6 +23,22 @@
 
 选择后仍应先阅读相关规则、目标文件及其直接依赖；任务范围、所有权或验收不明确时，先同步并拆分，而不是扩大执行范围。
 
+## 最小验收规划（Verification planning）
+
+在决定具体测试和交付范围前，用项目内只读规划器为全部改动路径生成机器可读计划：
+
+```bash
+node scripts/plan_verification.mjs --project . \
+  --changed-file <changed-file> \
+  --changed-file <another-changed-file>
+```
+
+`.agents/verification-policy.json` 是唯一政策真源；规划器只输出 `risk`、原因及相关 tests、documentation、CI 门，不运行测试、Git、CI 或发布。`.agents/project-constraints.json` 只保证这些关键文件存在，不拥有或复制路由表。
+
+计划必须覆盖完整 changed set，并按最高风险合并。公开契约、schema、依赖、CI、安全、桌面、发布和未知路径一律为 `full-delivery`。未知路径不能降级；非法策略、符号链接或越界路径必须先失败，不能退回猜测计划。
+
+普通 `app/research_web/` 与 `app/web/` Web-only 改动只选择相关 Web、文档与轻量 CI 门，desktop、Windows、Tauri、sidecar 和 installer 门数量必须为 0。只有桌面专属路径才附加原生 Windows 与 [`desktop_packaging.md`](desktop_packaging.md) 门。
+
 ## 桌面端例外（Desktop exception）
 
 worktree 只隔离文件冲突，绝不取代桌面端原生 Windows CI，也不能取代真实 Windows 安装级烟测。凡影响 `src-tauri/`、`desktop/`、`scripts/desktop/`、sidecar、桌面配置或路径、安装包、自动更新、Excel/Wind 集成的改动，都必须以 [`desktop_packaging.md`](desktop_packaging.md) 的跨平台开发与发布验证流程为准。
