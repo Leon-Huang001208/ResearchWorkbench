@@ -16,6 +16,9 @@ function policy() {
     catalogs: {
       tests: {
         "research-web-architecture": "node --test tests/javascript/research_web_architecture.test.mjs",
+        "research-web-frameworks-python": "python -m pytest tests/research_web/test_frameworks.py",
+        "research-web-framework-collectors": "python -m pytest tests/research_web/test_framework_collectors.py",
+        "research-web-frameworks-ui": "node --test tests/javascript/research_web_frameworks_ui.test.mjs",
       },
       documentation: {
         "documentation-governance": "node scripts/check_documentation_governance.mjs --project .",
@@ -115,6 +118,25 @@ function policy() {
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks"],
       },
+      {
+        id: "research-web-frameworks",
+        risk: "local-only",
+        reason: "research_web_framework_change",
+        match: {
+          files: [
+            "app/research_web/ui/frameworks.mjs",
+            "tests/research_web/test_frameworks.py",
+            "tests/research_web/test_framework_collectors.py",
+            "tests/javascript/research_web_frameworks_ui.test.mjs",
+          ],
+          prefixes: ["app/research_web/frameworks/", "app/research_web/ui/frameworks/"],
+          segments: [],
+          suffixes: [],
+        },
+        tests: frameworkTestIds,
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks"],
+      },
     ],
     fallback: {
       risk: "full-delivery",
@@ -158,6 +180,12 @@ function gateIds(plan) {
   return [...plan.tests, ...plan.documentation, ...plan.ci].map(item => item.id);
 }
 
+const frameworkTestIds = [
+  "research-web-frameworks-python",
+  "research-web-framework-collectors",
+  "research-web-frameworks-ui",
+];
+
 test("pure Research Web UI and Python changes never add desktop gates", () => {
   const plan = success(run(repositoryRoot, ["app/research_web/ui/app.mjs", "app/research_web/service.py"]));
   assert.equal(plan.risk, "local-only");
@@ -166,6 +194,67 @@ test("pure Research Web UI and Python changes never add desktop gates", () => {
     assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into Web-only plan`);
   }
   assert.deepEqual(plan.tests.map(item => item.id), ["research-web-architecture"]);
+});
+
+test("framework source selects architecture and all framework-specific tests", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/frameworks/service.py",
+    "app/research_web/ui/frameworks/goldar.mjs",
+  ]));
+  assert.equal(plan.risk, "local-only");
+  assert.deepEqual(plan.tests.map(item => item.id), ["research-web-architecture", ...frameworkTestIds]);
+  const ids = gateIds(plan).join(" ").toLowerCase();
+  for (const forbidden of ["desktop", "windows", "tauri", "sidecar", "installer"]) {
+    assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into framework plan`);
+  }
+});
+
+test("known framework test files use the framework-specific local closure", () => {
+  const plan = success(run(repositoryRoot, [
+    "tests/research_web/test_frameworks.py",
+    "tests/research_web/test_framework_collectors.py",
+    "tests/javascript/research_web_frameworks_ui.test.mjs",
+  ]));
+  assert.equal(plan.risk, "local-only");
+  assert.deepEqual(plan.tests.map(item => item.id), frameworkTestIds);
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+});
+
+test("unmapped test files still fail closed", () => {
+  const plan = success(run(repositoryRoot, ["tests/research_web/test_unmapped_component.py"]));
+  assert.equal(plan.risk, "full-delivery");
+  assert.deepEqual(plan.reasons, [{
+    path: "tests/research_web/test_unmapped_component.py",
+    rule: "fallback",
+    code: "unknown_path",
+  }]);
+});
+
+test("high-risk paths keep full delivery while retaining framework tests", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/frameworks/service.py",
+    "requirements/web.lock",
+  ]));
+  assert.equal(plan.risk, "full-delivery");
+  assert.deepEqual(plan.tests.map(item => item.id), ["research-web-architecture", ...frameworkTestIds]);
+  assert.equal(plan.reasons.some(item => item.code === "dependency_change"), true);
+});
+
+test("framework gates remain ordered and deduplicated across repeated paths", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/frameworks/service.py",
+    "tests/research_web/test_frameworks.py",
+    "app/research_web/frameworks/service.py",
+  ]));
+  assert.deepEqual(plan.changedFiles, [
+    "app/research_web/frameworks/service.py",
+    "tests/research_web/test_frameworks.py",
+  ]);
+  assert.deepEqual(plan.tests.map(item => item.id), ["research-web-architecture", ...frameworkTestIds]);
+  for (const collection of [plan.tests, plan.documentation, plan.ci]) {
+    const ids = collection.map(item => item.id);
+    assert.equal(new Set(ids).size, ids.length);
+  }
 });
 
 test("documentation changes only select documentation-related checks", () => {
