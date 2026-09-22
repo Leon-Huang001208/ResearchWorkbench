@@ -160,10 +160,10 @@
 
   读取 `docs/actions-budget.md`，通过当前 GitHub API/CLI 只读查询确认仓库 visibility 与远端默认分支。只有门禁允许时才调用受管 publish。
 
-- [ ] **Step 3: 受管 publish 与 status**
+- [x] **Step 3: 受管 publish 与 status**
 
   使用 integration worktree 全部验收的单一 verification command、`--verification-status passed` 和实测秒数调用 `--publish`，再轮询 `--status` 到 `passed` 或 `not_configured`。若远端默认分支漂移，重新 `prepare` 并重复集成复验；禁止 force-push。
 
-- [ ] **Step 4: 安全 cleanup 与 Harness 硬门**
+- [x] **Step 4: 安全 cleanup 与 Harness 硬门**
 
   CI 结论允许后调用受管 `--cleanup`。在 Harness 中记录本轮真实验证命令、passed 和实测时长，再运行 `harness-enforce.mjs --project /Users/leon/Developer/ResearchWorkbench --task-id verification-policy --require-delivery`。最后验证远端默认分支包含交付提交、主仓工作树干净、受管 worktree/分支已安全移除，并更新 PROGRESS/BLOCKED。
