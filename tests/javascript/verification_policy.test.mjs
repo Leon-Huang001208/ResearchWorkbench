@@ -546,26 +546,45 @@ test("Web installation code and tests require the focused test plus native boots
   ]));
 });
 
-test("Research Web workflow changes require the GitHub macOS bootstrap gate", () => {
-  const plan = success(run(repositoryRoot, [
-    ".github/workflows/research-web-bootstrap.yml",
-    ".github/workflows/research-web-windows-verify.yml",
-    "tests/javascript/actions_quota_governance.test.mjs",
-    "tests/research_web/test_local_integrations.py",
-  ]));
-  assert.equal(plan.risk, "full-delivery");
-  assert.equal(plan.requiredLevel, "L4");
-  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
-  assert.equal(plan.tests.some(item => item.id === "research-web-local-integrations"), true);
-  assert.deepEqual(new Set(plan.receiptTemplate.externalGateIds), new Set([
-    "project-constraints",
-    "research-web-checks",
-    "research-web-bootstrap",
-  ]));
-  const bootstrap = plan.ci.find((item) => item.id === "research-web-bootstrap");
-  assert.equal(bootstrap.value, ".github/workflows/research-web-bootstrap.yml#macos-14");
-  assert.equal(bootstrap.execution, "external");
-});
+for (const file of [
+  ".github/workflows/research-web-bootstrap.yml",
+  ".github/workflows/research-web-windows-verify.yml",
+  "tests/javascript/actions_quota_governance.test.mjs",
+]) {
+  test(`focused Research Web CI path requires exactly the macOS external gates: ${file}`, () => {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.risk, "full-delivery");
+    assert.equal(plan.requiredLevel, "L4");
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+    assert.equal(plan.tests.some(item => item.id === "research-web-local-integrations"), true);
+    assert.deepEqual(new Set(plan.receiptTemplate.externalGateIds), new Set([
+      "project-constraints",
+      "research-web-checks",
+      "research-web-bootstrap",
+    ]));
+    const bootstrap = plan.ci.find((item) => item.id === "research-web-bootstrap");
+    assert.equal(bootstrap.value, ".github/workflows/research-web-bootstrap.yml#macos-14");
+    assert.equal(bootstrap.execution, "external");
+  });
+}
+
+for (const file of [
+  "tests/research_web/test_local_integrations.py",
+  "app/research_web/local_integrations/manager.py",
+]) {
+  test(`local integrations path independently selects only its focused local closure: ${file}`, () => {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.risk, "local-only");
+    assert.equal(plan.requiredLevel, "L1");
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+    assert.deepEqual(new Set(plan.tests.map(item => item.id)), new Set([
+      "research-web-local-integrations",
+      "research-web-architecture",
+    ]));
+    assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
+    assert.deepEqual(plan.ci, []);
+  });
+}
 
 test("unmapped test files still fail closed", () => {
   const plan = success(run(repositoryRoot, ["tests/research_web/test_unmapped_component.py"]));

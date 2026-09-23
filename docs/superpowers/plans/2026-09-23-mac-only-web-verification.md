@@ -585,21 +585,28 @@ Run:
 ```bash
 node scripts/plan_verification.mjs \
   --project . \
-  --changed-file .github/workflows/research-web-bootstrap.yml \
-  --changed-file .github/workflows/research-web-windows-verify.yml \
   --changed-file .agents/project-constraints.json \
   --changed-file .agents/verification-policy.json \
-  --changed-file tests/javascript/actions_quota_governance.test.mjs \
-  --changed-file tests/javascript/verification_policy.test.mjs \
-  --changed-file tests/research_web/test_local_integrations.py \
-  --changed-file AGENTS.md \
-  --changed-file docs/research-web-installation.md \
-  --changed-file docs/research-web-documentation.md \
-  --changed-file docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md \
-  --changed-file docs/superpowers/plans/2026-09-23-mac-only-web-verification.md \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification-plan.json \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification-receipt.json \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification.md \
+  --changed-file .ai/reports/2026-09-23-research-web-startup-preflight-receipt.json \
+  --changed-file .ai/reports/2026-09-23-research-web-startup-preflight.md \
+  --changed-file .github/workflows/research-web-bootstrap.yml \
+  --changed-file .github/workflows/research-web-checks.yml \
+  --changed-file .github/workflows/research-web-windows-verify.yml \
+  --changed-file AGENTS.md \
+  --changed-file docs/README.md \
+  --changed-file docs/actions-budget.md \
+  --changed-file docs/architecture/research-web/06-documentation-contract.md \
+  --changed-file docs/documentation-governance.json \
+  --changed-file docs/research-web-documentation.md \
+  --changed-file docs/research-web-installation.md \
+  --changed-file docs/superpowers/plans/2026-09-23-mac-only-web-verification.md \
+  --changed-file docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md \
+  --changed-file tests/javascript/actions_quota_governance.test.mjs \
+  --changed-file tests/javascript/verification_policy.test.mjs \
+  --changed-file tests/research_web/test_local_integrations.py \
   > .ai/reports/2026-09-23-mac-only-web-verification-plan.json
 ```
 
@@ -613,32 +620,39 @@ Execute the exact local closure emitted by the calibrated policy:
 node --test tests/javascript/verification_policy.test.mjs
 node --test tests/javascript/verification_receipt.test.mjs
 node --test tests/javascript/incremental_validation_skill.test.mjs
-python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web -q
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web -q
 node --test tests/javascript/research_web_architecture.test.mjs
-python -m pytest tests/research_web/test_protocol.py
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_protocol.py
 node --test \
   tests/javascript/research_web_architecture.test.mjs \
   tests/javascript/documentation_governance.test.mjs \
   tests/javascript/actions_quota_governance.test.mjs
 node scripts/check_documentation_governance.mjs --project .
-python scripts/generate_py_file_index.py --check
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python scripts/generate_py_file_index.py --check
 node .agents/project-constraints.mjs \
   --project . \
-  --changed-file .github/workflows/research-web-bootstrap.yml \
-  --changed-file .github/workflows/research-web-windows-verify.yml \
   --changed-file .agents/project-constraints.json \
   --changed-file .agents/verification-policy.json \
-  --changed-file tests/javascript/actions_quota_governance.test.mjs \
-  --changed-file tests/javascript/verification_policy.test.mjs \
-  --changed-file tests/research_web/test_local_integrations.py \
-  --changed-file AGENTS.md \
-  --changed-file docs/research-web-installation.md \
-  --changed-file docs/research-web-documentation.md \
-  --changed-file docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md \
-  --changed-file docs/superpowers/plans/2026-09-23-mac-only-web-verification.md \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification-plan.json \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification-receipt.json \
-  --changed-file .ai/reports/2026-09-23-mac-only-web-verification.md
+  --changed-file .ai/reports/2026-09-23-mac-only-web-verification.md \
+  --changed-file .ai/reports/2026-09-23-research-web-startup-preflight-receipt.json \
+  --changed-file .ai/reports/2026-09-23-research-web-startup-preflight.md \
+  --changed-file .github/workflows/research-web-bootstrap.yml \
+  --changed-file .github/workflows/research-web-checks.yml \
+  --changed-file .github/workflows/research-web-windows-verify.yml \
+  --changed-file AGENTS.md \
+  --changed-file docs/README.md \
+  --changed-file docs/actions-budget.md \
+  --changed-file docs/architecture/research-web/06-documentation-contract.md \
+  --changed-file docs/documentation-governance.json \
+  --changed-file docs/research-web-documentation.md \
+  --changed-file docs/research-web-installation.md \
+  --changed-file docs/superpowers/plans/2026-09-23-mac-only-web-verification.md \
+  --changed-file docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md \
+  --changed-file tests/javascript/actions_quota_governance.test.mjs \
+  --changed-file tests/javascript/verification_policy.test.mjs \
+  --changed-file tests/research_web/test_local_integrations.py
 git diff --check
 git diff --check b36fb0ee6be4cd13b19b89311adfed82bc129f9d..HEAD
 ```
@@ -698,57 +712,73 @@ node /Users/leon/.agents/leon-engineering/runtime/iteration-delivery.mjs \
   --task-id mac-only-web-verification-delivery
 ```
 
-Use `/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/p0-web-stability-worktrees/mac-only-web-verification-delivery-integration` for the merged-result verification. Run this complete closure:
+Use the integration worktree returned by the controller for merged-result verification; `--replace-prepared` may return a revision-suffixed path. All initial-delivery changed-file commands below enumerate the exact 22-file set relative to `b36fb0ee6be4cd13b19b89311adfed82bc129f9d`, including the two carried P0 reports and four documentation-governance files. The later evidence-only closeout has its own two-file delta. Run this complete closure:
 
 ```bash
 cd /Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/p0-web-stability-worktrees/mac-only-web-verification-delivery-integration
 task_mac_verify_started=$(date +%s)
+# Use the controller-returned integration path after --replace-prepared.
 node scripts/plan_verification.mjs \
   --project . \
-  --changed-file .github/workflows/research-web-bootstrap.yml \
-  --changed-file .github/workflows/research-web-windows-verify.yml \
   --changed-file .agents/project-constraints.json \
   --changed-file .agents/verification-policy.json \
-  --changed-file tests/javascript/actions_quota_governance.test.mjs \
-  --changed-file tests/javascript/verification_policy.test.mjs \
-  --changed-file tests/research_web/test_local_integrations.py \
-  --changed-file AGENTS.md \
-  --changed-file docs/research-web-installation.md \
-  --changed-file docs/research-web-documentation.md \
-  --changed-file docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md \
-  --changed-file docs/superpowers/plans/2026-09-23-mac-only-web-verification.md \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification-plan.json \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification-receipt.json \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification.md \
+  --changed-file .ai/reports/2026-09-23-research-web-startup-preflight-receipt.json \
+  --changed-file .ai/reports/2026-09-23-research-web-startup-preflight.md \
+  --changed-file .github/workflows/research-web-bootstrap.yml \
+  --changed-file .github/workflows/research-web-checks.yml \
+  --changed-file .github/workflows/research-web-windows-verify.yml \
+  --changed-file AGENTS.md \
+  --changed-file docs/README.md \
+  --changed-file docs/actions-budget.md \
+  --changed-file docs/architecture/research-web/06-documentation-contract.md \
+  --changed-file docs/documentation-governance.json \
+  --changed-file docs/research-web-documentation.md \
+  --changed-file docs/research-web-installation.md \
+  --changed-file docs/superpowers/plans/2026-09-23-mac-only-web-verification.md \
+  --changed-file docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md \
+  --changed-file tests/javascript/actions_quota_governance.test.mjs \
+  --changed-file tests/javascript/verification_policy.test.mjs \
+  --changed-file tests/research_web/test_local_integrations.py \
   > .ai/reports/2026-09-23-mac-only-web-verification-plan.json
 node --test tests/javascript/verification_policy.test.mjs
 node --test tests/javascript/verification_receipt.test.mjs
 node --test tests/javascript/incremental_validation_skill.test.mjs
-python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web -q
-python -m pytest tests/research_web/test_protocol.py
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web -q
+node --test tests/javascript/research_web_architecture.test.mjs
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_protocol.py
 node --test \
   tests/javascript/research_web_architecture.test.mjs \
   tests/javascript/documentation_governance.test.mjs \
   tests/javascript/actions_quota_governance.test.mjs
 node scripts/check_documentation_governance.mjs --project .
-python scripts/generate_py_file_index.py --check
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python scripts/generate_py_file_index.py --check
 node .agents/project-constraints.mjs \
   --project . \
-  --changed-file .github/workflows/research-web-bootstrap.yml \
-  --changed-file .github/workflows/research-web-windows-verify.yml \
   --changed-file .agents/project-constraints.json \
   --changed-file .agents/verification-policy.json \
-  --changed-file tests/javascript/actions_quota_governance.test.mjs \
-  --changed-file tests/javascript/verification_policy.test.mjs \
-  --changed-file tests/research_web/test_local_integrations.py \
-  --changed-file AGENTS.md \
-  --changed-file docs/research-web-installation.md \
-  --changed-file docs/research-web-documentation.md \
-  --changed-file docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md \
-  --changed-file docs/superpowers/plans/2026-09-23-mac-only-web-verification.md \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification-plan.json \
   --changed-file .ai/reports/2026-09-23-mac-only-web-verification-receipt.json \
-  --changed-file .ai/reports/2026-09-23-mac-only-web-verification.md
+  --changed-file .ai/reports/2026-09-23-mac-only-web-verification.md \
+  --changed-file .ai/reports/2026-09-23-research-web-startup-preflight-receipt.json \
+  --changed-file .ai/reports/2026-09-23-research-web-startup-preflight.md \
+  --changed-file .github/workflows/research-web-bootstrap.yml \
+  --changed-file .github/workflows/research-web-checks.yml \
+  --changed-file .github/workflows/research-web-windows-verify.yml \
+  --changed-file AGENTS.md \
+  --changed-file docs/README.md \
+  --changed-file docs/actions-budget.md \
+  --changed-file docs/architecture/research-web/06-documentation-contract.md \
+  --changed-file docs/documentation-governance.json \
+  --changed-file docs/research-web-documentation.md \
+  --changed-file docs/research-web-installation.md \
+  --changed-file docs/superpowers/plans/2026-09-23-mac-only-web-verification.md \
+  --changed-file docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md \
+  --changed-file tests/javascript/actions_quota_governance.test.mjs \
+  --changed-file tests/javascript/verification_policy.test.mjs \
+  --changed-file tests/research_web/test_local_integrations.py
 node scripts/validate_verification_receipt.mjs \
   --project . \
   --plan .ai/reports/2026-09-23-mac-only-web-verification-plan.json \

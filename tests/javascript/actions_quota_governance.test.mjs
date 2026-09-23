@@ -130,6 +130,20 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
 });
 
+for (const file of [
+  '.github/workflows/research-web-bootstrap.yml',
+  '.github/workflows/research-web-windows-verify.yml',
+  'tests/javascript/actions_quota_governance.test.mjs',
+]) {
+  test(`focused CI path automatically triggers both required Web workflows: ${file}`, () => {
+    for (const event of ['pull_request', 'push']) {
+      for (const name of ['bootstrap', 'checks']) {
+        assert.equal(triggersForPath(workflows[name], event, file), true, `${name}: ${event}: ${file}`);
+      }
+    }
+  });
+}
+
 test('Bootstrap has exactly one macOS clean-install job and its intended triggers', () => {
   assert.deepEqual(
     workflowTriggers(workflows.bootstrap),

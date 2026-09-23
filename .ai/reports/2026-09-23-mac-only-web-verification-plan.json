@@ -3,7 +3,7 @@
   "risk": "full-delivery",
   "requiredLevel": "L4",
   "changeSummary": {
-    "fileCount": 21,
+    "fileCount": 22,
     "ruleIds": [
       "ci",
       "documentation",
@@ -22,25 +22,26 @@
   "changedFiles": [
     ".agents/project-constraints.json",
     ".agents/verification-policy.json",
+    ".ai/reports/2026-09-23-mac-only-web-verification-plan.json",
+    ".ai/reports/2026-09-23-mac-only-web-verification-receipt.json",
+    ".ai/reports/2026-09-23-mac-only-web-verification.md",
     ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
     ".ai/reports/2026-09-23-research-web-startup-preflight.md",
     ".github/workflows/research-web-bootstrap.yml",
+    ".github/workflows/research-web-checks.yml",
     ".github/workflows/research-web-windows-verify.yml",
     "AGENTS.md",
+    "docs/README.md",
+    "docs/actions-budget.md",
+    "docs/architecture/research-web/06-documentation-contract.md",
+    "docs/documentation-governance.json",
     "docs/research-web-documentation.md",
     "docs/research-web-installation.md",
     "docs/superpowers/plans/2026-09-23-mac-only-web-verification.md",
     "docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md",
     "tests/javascript/actions_quota_governance.test.mjs",
     "tests/javascript/verification_policy.test.mjs",
-    "tests/research_web/test_local_integrations.py",
-    "docs/README.md",
-    "docs/actions-budget.md",
-    "docs/documentation-governance.json",
-    "docs/architecture/research-web/06-documentation-contract.md",
-    ".ai/reports/2026-09-23-mac-only-web-verification-plan.json",
-    ".ai/reports/2026-09-23-mac-only-web-verification-receipt.json",
-    ".ai/reports/2026-09-23-mac-only-web-verification.md"
+    "tests/research_web/test_local_integrations.py"
   ],
   "impact": [
     {
@@ -62,6 +63,36 @@
       ],
       "coupling": "high",
       "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-mac-only-web-verification-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-mac-only-web-verification-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-mac-only-web-verification.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
     },
     {
       "path": ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
@@ -114,6 +145,26 @@
       "minimumLevel": "L3"
     },
     {
+      "path": ".github/workflows/research-web-checks.yml",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-checks.yml",
+      "rule": "critical-chain",
+      "reason": "critical_chain_change",
+      "modules": [
+        "critical-chain"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L3"
+    },
+    {
       "path": ".github/workflows/research-web-windows-verify.yml",
       "rule": "research-web-ci",
       "reason": "research_web_ci_change",
@@ -145,6 +196,46 @@
     },
     {
       "path": "AGENTS.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/actions-budget.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/06-documentation-contract.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/documentation-governance.json",
       "rule": "documentation",
       "reason": "documentation_only",
       "modules": [
@@ -222,76 +313,6 @@
       ],
       "coupling": "low",
       "minimumLevel": "L1"
-    },
-    {
-      "path": "docs/README.md",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
-    },
-    {
-      "path": "docs/actions-budget.md",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
-    },
-    {
-      "path": "docs/documentation-governance.json",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
-    },
-    {
-      "path": "docs/architecture/research-web/06-documentation-contract.md",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
-    },
-    {
-      "path": ".ai/reports/2026-09-23-mac-only-web-verification-plan.json",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
-    },
-    {
-      "path": ".ai/reports/2026-09-23-mac-only-web-verification-receipt.json",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
-    },
-    {
-      "path": ".ai/reports/2026-09-23-mac-only-web-verification.md",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
     }
   ],
   "reasons": [
@@ -304,6 +325,21 @@
       "path": ".agents/verification-policy.json",
       "rule": "ci",
       "code": "ci_change"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-mac-only-web-verification-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-mac-only-web-verification-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-mac-only-web-verification.md",
+      "rule": "documentation",
+      "code": "documentation_only"
     },
     {
       "path": ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
@@ -331,6 +367,16 @@
       "code": "critical_chain_change"
     },
     {
+      "path": ".github/workflows/research-web-checks.yml",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".github/workflows/research-web-checks.yml",
+      "rule": "critical-chain",
+      "code": "critical_chain_change"
+    },
+    {
       "path": ".github/workflows/research-web-windows-verify.yml",
       "rule": "research-web-ci",
       "code": "research_web_ci_change"
@@ -347,6 +393,26 @@
     },
     {
       "path": "AGENTS.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/README.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/actions-budget.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/06-documentation-contract.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/documentation-governance.json",
       "rule": "documentation",
       "code": "documentation_only"
     },
@@ -384,41 +450,6 @@
       "path": "tests/research_web/test_local_integrations.py",
       "rule": "research-web-local-integrations",
       "code": "research_web_local_integrations_change"
-    },
-    {
-      "path": "docs/README.md",
-      "rule": "documentation",
-      "code": "documentation_only"
-    },
-    {
-      "path": "docs/actions-budget.md",
-      "rule": "documentation",
-      "code": "documentation_only"
-    },
-    {
-      "path": "docs/documentation-governance.json",
-      "rule": "documentation",
-      "code": "documentation_only"
-    },
-    {
-      "path": "docs/architecture/research-web/06-documentation-contract.md",
-      "rule": "documentation",
-      "code": "documentation_only"
-    },
-    {
-      "path": ".ai/reports/2026-09-23-mac-only-web-verification-plan.json",
-      "rule": "documentation",
-      "code": "documentation_only"
-    },
-    {
-      "path": ".ai/reports/2026-09-23-mac-only-web-verification-receipt.json",
-      "rule": "documentation",
-      "code": "documentation_only"
-    },
-    {
-      "path": ".ai/reports/2026-09-23-mac-only-web-verification.md",
-      "rule": "documentation",
-      "code": "documentation_only"
     }
   ],
   "escalations": [],
@@ -628,25 +659,26 @@
     "changedFiles": [
       ".agents/project-constraints.json",
       ".agents/verification-policy.json",
+      ".ai/reports/2026-09-23-mac-only-web-verification-plan.json",
+      ".ai/reports/2026-09-23-mac-only-web-verification-receipt.json",
+      ".ai/reports/2026-09-23-mac-only-web-verification.md",
       ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
       ".ai/reports/2026-09-23-research-web-startup-preflight.md",
       ".github/workflows/research-web-bootstrap.yml",
+      ".github/workflows/research-web-checks.yml",
       ".github/workflows/research-web-windows-verify.yml",
       "AGENTS.md",
+      "docs/README.md",
+      "docs/actions-budget.md",
+      "docs/architecture/research-web/06-documentation-contract.md",
+      "docs/documentation-governance.json",
       "docs/research-web-documentation.md",
       "docs/research-web-installation.md",
       "docs/superpowers/plans/2026-09-23-mac-only-web-verification.md",
       "docs/superpowers/specs/2026-09-23-mac-only-web-verification-design.md",
       "tests/javascript/actions_quota_governance.test.mjs",
       "tests/javascript/verification_policy.test.mjs",
-      "tests/research_web/test_local_integrations.py",
-      "docs/README.md",
-      "docs/actions-budget.md",
-      "docs/documentation-governance.json",
-      "docs/architecture/research-web/06-documentation-contract.md",
-      ".ai/reports/2026-09-23-mac-only-web-verification-plan.json",
-      ".ai/reports/2026-09-23-mac-only-web-verification-receipt.json",
-      ".ai/reports/2026-09-23-mac-only-web-verification.md"
+      "tests/research_web/test_local_integrations.py"
     ],
     "requiredValidationIds": [
       "verification-policy-contracts",
