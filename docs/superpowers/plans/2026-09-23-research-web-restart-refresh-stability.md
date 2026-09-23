@@ -69,9 +69,17 @@ git -C /Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-web-res
   merge --ff-only codex/post-p1-health-audit
 git -C /Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-web-restart-refresh-stability-delivery \
   log -2 --oneline
+audit_head="$(git -C /Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit rev-parse HEAD)"
+feature_head="$(git -C /Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-web-restart-refresh-stability-delivery rev-parse HEAD)"
+test "$feature_head" = "$audit_head"
 ```
 
 Expected: the exact spec and plan commits are preserved; no patch is recreated and no source file changes yet.
+
+The delivery receipt's `featureCommit` remains the `--start` snapshot and must
+not be treated as the live feature HEAD after this fast-forward. The assertion
+above is the live feature/audit comparison. Only the receipt refreshed by
+`--prepare` is authoritative for integration verification.
 
 ### Task 1: Calibrate incremental validation for service lifecycle, API and UI changes
 
