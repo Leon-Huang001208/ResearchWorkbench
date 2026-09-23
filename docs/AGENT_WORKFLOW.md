@@ -2,6 +2,8 @@
 
 本指南用于在开始工作前选择合适的执行方式，并定义可复核的交付证据。共享规则以仓库根目录的 `AGENTS.md` 为准；`.agents/skills/` 中存放已跟踪的项目 skills。`.claude/` 仅是本机可选配置，不能作为共享规则来源。
 
+数据能力仅在对应任务中按需加载：`wind-find-finance-skill` 负责金融能力发现，`wind-mcp-skill` 负责受支持的 Wind 查询；`cls`、`cnstock` 和 `data-connector-development` 只维护 legacy crawler/Connector 层，不能把代码存在误报为当前 Research Web DataHub Provider 可调用。全局目录不再承载这些项目专属 Skill。
+
 ## 任务路由（Routing rules）
 
 先按下列优先级路由，而不是只凭任务大小选择。后台/远程是执行通道，worktree 是本地仓库修改隔离；二者可以组合，长时本身不要求 worktree。选择最小但足够的方式，不因任务看似复杂而跳过验证。
