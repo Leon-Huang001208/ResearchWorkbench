@@ -727,6 +727,60 @@ def test_session_list_bounds_child_queries_and_preserves_store_order(api):
 
 
 @pytest.mark.asyncio
+async def test_session_list_reconciles_only_created_idle_stale_running_rows(tmp_path, monkeypatch):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    uncreated = service.store.create("fingpt", "未创建但缓存运行")
+    native_running = service.store.create("fingpt", "原生仍在运行")
+    child_running = service.store.create("fingpt", "子任务仍在运行")
+    eligible = service.store.create("fingpt", "应恢复的陈旧运行会话")
+    rows = [uncreated, native_running, child_running, eligible]
+    for index, row in enumerate(rows):
+        row["status"] = "running"
+        row["updated_at"] = index
+    for row in (native_running, child_running, eligible):
+        row["created"] = True
+    service.store.save()
+
+    original = native.rpc
+
+    async def eligibility_rpc(method, payload):
+        if method == "session.list":
+            return {"items": [{"sessionId": native_running["id"], "running": True}]}
+        if method == "subagent.list":
+            entries = (
+                [{"id": "active-child", "activity": "running"}]
+                if payload["parentSessionId"] == child_running["id"]
+                else []
+            )
+            return {"entries": entries}
+        return await original(method, payload)
+
+    detail_calls = []
+
+    async def tracked_detail(sid):
+        detail_calls.append(sid)
+        if sid == uncreated["id"]:
+            raise RuntimeFailure("该会话未成功创建，请新建研究", "session_create_failed")
+        return {"status": "completed"}
+
+    native.rpc = eligibility_rpc
+    monkeypatch.setattr(service, "detail", tracked_detail)
+    items = await service.list_sessions()
+
+    assert [item["id"] for item in items] == [row["id"] for row in reversed(rows)]
+    statuses = {item["id"]: item["status"] for item in items}
+    assert statuses[uncreated["id"]] == "running"
+    assert statuses[native_running["id"]] == "running"
+    assert statuses[child_running["id"]] == "running"
+    assert statuses[eligible["id"]] == "completed"
+    assert uncreated["id"] not in detail_calls
+    assert native_running["id"] not in detail_calls
+    assert child_running["id"] not in detail_calls
+    assert detail_calls == [eligible["id"]]
+
+
+@pytest.mark.asyncio
 async def test_session_list_reconciles_stale_running_details_concurrently_in_order(
     tmp_path, monkeypatch
 ):

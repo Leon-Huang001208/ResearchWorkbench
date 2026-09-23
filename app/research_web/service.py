@@ -631,6 +631,7 @@ class ResearchService:
             row
             for row, children in zip(rows, children_by_row, strict=True)
             if row.get("deleted_at") is None
+            and row["created"]
             and not running.get(row["id"])
             and not any(child.get("activity") == "running" for child in children["entries"])
             and row["status"] == "running"
@@ -664,7 +665,7 @@ class ResearchService:
             child_running = any(child.get("activity") == "running" for child in children["entries"])
             if running.get(row["id"]) or child_running:
                 result["status"] = "running"
-            elif result["status"] == "running":
+            elif row["id"] in reconciled_statuses:
                 result["status"] = reconciled_statuses[row["id"]]
             results.append(result)
         return results
