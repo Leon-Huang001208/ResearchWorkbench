@@ -120,7 +120,7 @@
     {"topic": "backup-restore", "path": "docs/backup_restore.md"},
     {"topic": "change-history", "path": "docs/CHANGELOG.md"},
     {"topic": "agent-rules", "path": "AGENTS.md"},
-    {"topic": "actions-budget-policy", "path": "docs/actions-budget.md"}
+    {"topic": "actions-budget-policy", "path": "docs/actions-budget.md", "purpose": "Actions budget, automatic macOS Web verification, manual Windows Web evidence, and desktop gate separation"}
   ],
   "forbiddenCurrentPatterns": [
     {"id": "root-auto-ingest", "text": "python auto_ingest_service.py"},
