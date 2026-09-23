@@ -49,3 +49,10 @@ rwb web stop
 - 文件结构有效不等于报告内容合同完整；运行、交付和内容质量分别记录。
 - 外部数据、模型、Office/Wind、浏览器和平台支持只对本次实际验证的环境成立。
 - 旧分支、会话、产物或验收记录不决定当前 Git 交付状态；每次交付以本次 Harness、CI 和任务报告为准。
+
+## 2026-09-23 稳定性变更回执
+
+本轮只收紧非强制重启的活动会话授权、会话/子 Agent 目录的并发有界读取，以及前端每个目录独立的
+pending count、generation、逐资源 settled 与 latest-request-wins 账本。只有 runtime pending 和
+settled runtime failure 分别投影为可见 connecting/offline。阅读顺序、文档权威关系、十图清单、
+模块边界、Automation 与信息架构均未变化；外部 CI 和真实浏览器验收另由后续交付阶段记录。

@@ -395,3 +395,11 @@ tools.py 是已核实原生注册的离线投影，读取现有 guard 取交集�
 本批不涉及桌面/Windows/发布；不以本地协议测试代替主控制器后续真实界面与模型调用验收。
 
 Windows 原生回环验证会从冷目录装载全部中文内置 Skill。能力种子、工具白名单和能力索引均显式按 UTF-8 读取或原子写入，避免系统默认代码页改变能力内容或阻止服务启动；该验证不代表 Wind/iFinD 厂商登录已经完成。
+
+## 2026-09-23 稳定性变更回执
+
+本轮一次 `session.list` 加父作用域 `subagent.list` 的有界目录读取，以及每个前端目录独立的 pending
+count、generation、逐资源 settled 与 latest-request-wins，不改变能力种子、不可变版本、原生投影、
+Tool/Workflow/Method 契约、DataHub 动态选源、MCP 授权或 Automation 锁定关系。能力目录 pending
+不会投影为全局 connecting/offline；这两个可见状态仅来自 runtime pending/settled failure。能力目录
+内容与执行权限均未扩大，能力架构图和信息层级保持不变。

@@ -144,3 +144,10 @@ DSH 认证控制文件在 POSIX 继续要求私有 mode；Windows 不把 POSIX m
 Method 的会话证据独立写入 `<session>/.rwb/method-trace.jsonl`，单行只含 `method_id`、`version`、
 `source`，文件总量限制 64 KiB。Runtime 使用 no-follow 文件句柄、普通文件检查和同步写入；产品读取
 同样拒绝链接、异常类型、超限或无效字段。该文件不是研究正文、产物或数据快照，不进入跨会话共享。
+
+## 2026-09-23 稳定性变更回执
+
+本轮重启活动授权和目录读取有界化不新增或迁移持久数据。会话索引、资料快照、附件、产物、交付
+收据、能力版本、Automation Run、系统凭据库和清理语义均未变化。各目录独立的 pending count、
+generation、逐资源 settled 和 latest-request-wins 都是内存请求账本；只有 runtime 的 pending/settled
+failure 会投影为可见 connecting/offline，且不会写入新的缓存或文件。数据文件关系和相关架构图保持不变。

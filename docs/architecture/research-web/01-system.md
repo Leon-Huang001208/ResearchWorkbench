@@ -140,3 +140,15 @@ Phase 2A/2B/2C 的 Registry、Runtime 与 Automation 在远端门禁通过后默
 2026-09-14 增加的 Method 层仍位于现有 FastAPI 能力目录与同一 DSH Runtime：Research Workbench
 拥有结构化 Method 契约和策略，DSH 只读取编译后的原生 Skill 包装。没有新增服务、端口、worker、
 数据库或第二研究引擎；Codex／Claude 工程框架不属于本部署拓扑。
+
+## 2026-09-23 重启与刷新稳定性回执
+
+服务管理器的非强制重启改为先查询已认证 DSH `session/list`，任一运行会话都会阻止重启。会话目录
+仍由同一 ResearchService/DSHClient 链读取，一次 `session.list` 后以并发不超过 8 的父作用域
+`subagent.list` 补齐子状态（50 个父会话的扇出同样受此上限约束）。仅同时满足“已创建、存储状态为
+`running`、原生父会话空闲、全部子会话空闲”的陈旧行进入 `detail()` 状态恢复；恢复也以不超过 8 的
+并发、原目录顺序执行。任一异常或调用方取消都会取消并等待所有未完成的恢复任务后再传播原异常；未创建、
+原生仍运行或子会话仍运行的行不恢复。前端每个目录独立维护 pending count 与 generation，按资源 settled，且
+latest request wins；仅 runtime pending 向 UI/Composer/submit 投影可见 `connecting`，仅 settled
+runtime failure 投影 `offline`。现有 3081/8088、单 worker、Automation、DataHub、文件与信息架构
+关系均未改变，架构图清单不变。

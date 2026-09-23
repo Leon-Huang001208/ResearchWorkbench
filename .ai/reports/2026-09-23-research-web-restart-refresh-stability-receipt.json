@@ -1,0 +1,502 @@
+{
+  "schemaVersion": 1,
+  "changeSummary": {
+    "fileCount": 29,
+    "ruleIds": [
+      "ci",
+      "documentation",
+      "research-web",
+      "research-web-api",
+      "research-web-service-lifecycle-delivery",
+      "research-web-ui-core",
+      "research-web-service-manager"
+    ],
+    "impactIds": [
+      "verification-system",
+      "documentation",
+      "research-web",
+      "research-web-api",
+      "research-web-service-lifecycle",
+      "research-web-ui"
+    ]
+  },
+  "changedFiles": [
+    ".agents/verification-policy.json",
+    ".ai/reports/2026-09-23-research-web-restart-refresh-stability-plan.json",
+    ".ai/reports/2026-09-23-research-web-restart-refresh-stability-receipt.json",
+    ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md",
+    "app/research_web/service.py",
+    "app/research_web/service_manager.py",
+    "app/research_web/ui/app.mjs",
+    "app/research_web/ui/composer.mjs",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/09-integration-coordinator.md",
+    "docs/architecture/research-web/README.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/generated/py_file_index.md",
+    "docs/research-web-appearance.md",
+    "docs/research-web-capabilities.md",
+    "docs/research-web-tabbit.md",
+    "docs/research-web-ui.md",
+    "docs/superpowers/plans/2026-09-23-research-web-restart-refresh-stability.md",
+    "docs/superpowers/specs/2026-09-23-research-web-restart-refresh-stability-design.md",
+    "tests/javascript/research_web_capabilities_ui.test.mjs",
+    "tests/javascript/research_web_ui.test.mjs",
+    "tests/javascript/verification_policy.test.mjs",
+    "tests/research_web/test_api.py",
+    "tests/research_web/test_service_manager.py"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "impact": [
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-restart-refresh-stability-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-restart-refresh-stability-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/service.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service.py",
+      "rule": "research-web-api",
+      "reason": "research_web_api_change",
+      "modules": [
+        "research-web-api"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web-service-lifecycle-delivery",
+      "reason": "research_web_service_lifecycle_delivery",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "app/research_web/ui/app.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/app.mjs",
+      "rule": "research-web-ui-core",
+      "reason": "research_web_ui_change",
+      "modules": [
+        "research-web-ui"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/composer.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/composer.mjs",
+      "rule": "research-web-ui-core",
+      "reason": "research_web_ui_change",
+      "modules": [
+        "research-web-ui"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-capabilities.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-23-research-web-restart-refresh-stability.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-23-research-web-restart-refresh-stability-design.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/javascript/research_web_capabilities_ui.test.mjs",
+      "rule": "research-web-ui-core",
+      "reason": "research_web_ui_change",
+      "modules": [
+        "research-web-ui"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/javascript/research_web_ui.test.mjs",
+      "rule": "research-web-ui-core",
+      "reason": "research_web_ui_change",
+      "modules": [
+        "research-web-ui"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_api.py",
+      "rule": "research-web-api",
+      "reason": "research_web_api_change",
+      "modules": [
+        "research-web-api"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_service_manager.py",
+      "rule": "research-web-service-manager",
+      "reason": "research_web_service_manager_change",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    }
+  ],
+  "executed": [
+    {
+      "id": "verification-policy-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 2.047,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "verification-receipt-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 1.586,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "incremental-validation-skill-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 0.119,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "status": "passed",
+      "durationSeconds": 2.854,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 3.132,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "status": "passed",
+      "durationSeconds": 0.187,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "research-web-api",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 196.602,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 1.885,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "status": "passed",
+      "durationSeconds": 1.498,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "research-web-ui",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 12.298,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.16,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 1.108,
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
+    }
+  ],
+  "result": "blocked",
+  "uncoveredRisks": [
+    "external_gate_not_run:project-constraints",
+    "external_gate_not_run:research-web-checks",
+    "external_gate_not_run:research-web-bootstrap"
+  ],
+  "escalation": {
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
+  }
+}

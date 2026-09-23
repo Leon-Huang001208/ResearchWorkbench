@@ -1,6 +1,7 @@
 """BFF acceptance tests: native transport is replaced only for deterministic regressions."""
 
 import asyncio
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -661,6 +662,271 @@ def test_active_child_keeps_parent_stoppable_in_detail_and_history(api):
     native.rpc = child_rpc
     assert client.get(f"/api/research/sessions/{sid}").json()["status"] == "running"
     assert client.get("/api/research/sessions").json()["items"][0]["status"] == "running"
+
+
+def test_session_list_bounds_child_queries_and_preserves_store_order(api):
+    client, native, service = api
+    session_ids = []
+    for index in range(50):
+        row = service.store.create("fingpt", f"研究 {index}")
+        row["created"] = True
+        row["status"] = "idle"
+        row["updated_at"] = index
+        session_ids.append(row["id"])
+    not_created = service.store.create("fingpt", "未创建研究")
+    not_created["updated_at"] = 50
+    deleted = service.store.create("fingpt", "已删除研究")
+    deleted["created"] = True
+    deleted["updated_at"] = 51
+    deleted["deleted_at"] = time.time()
+    target = session_ids[24]
+    service.store.session(target)["status"] = "completed"
+    service.store.save()
+
+    original = native.rpc
+    active = 0
+    max_active = 0
+    queried_parents = []
+
+    async def bounded_rpc(method, payload):
+        nonlocal active, max_active
+        if method == "session.list":
+            return {"items": []}
+        if method == "subagent.list":
+            queried_parents.append(payload["parentSessionId"])
+            active += 1
+            max_active = max(max_active, active)
+            try:
+                await asyncio.sleep(0.01)
+                entries = (
+                    [{"id": "child", "activity": "running"}]
+                    if payload["parentSessionId"] == target
+                    else []
+                )
+                return {"entries": entries}
+            finally:
+                active -= 1
+        return await original(method, payload)
+
+    native.rpc = bounded_rpc
+    response = client.get("/api/research/sessions?view=all")
+
+    assert response.status_code == 200, response.text
+    items = response.json()["items"]
+    assert [item["id"] for item in items] == [
+        deleted["id"],
+        not_created["id"],
+        *reversed(session_ids),
+    ]
+    assert next(item for item in items if item["id"] == target)["status"] == "running"
+    assert all(item["status"] == "idle" for item in items if item["id"] != target)
+    assert sorted(queried_parents) == sorted(session_ids)
+    assert not_created["id"] not in queried_parents
+    assert deleted["id"] not in queried_parents
+    assert 1 < max_active <= 8
+
+
+@pytest.mark.asyncio
+async def test_session_list_reconciles_only_created_idle_stale_running_rows(tmp_path, monkeypatch):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    uncreated = service.store.create("fingpt", "未创建但缓存运行")
+    native_running = service.store.create("fingpt", "原生仍在运行")
+    child_running = service.store.create("fingpt", "子任务仍在运行")
+    eligible = service.store.create("fingpt", "应恢复的陈旧运行会话")
+    rows = [uncreated, native_running, child_running, eligible]
+    for index, row in enumerate(rows):
+        row["status"] = "running"
+        row["updated_at"] = index
+    for row in (native_running, child_running, eligible):
+        row["created"] = True
+    service.store.save()
+
+    original = native.rpc
+
+    async def eligibility_rpc(method, payload):
+        if method == "session.list":
+            return {"items": [{"sessionId": native_running["id"], "running": True}]}
+        if method == "subagent.list":
+            entries = (
+                [{"id": "active-child", "activity": "running"}]
+                if payload["parentSessionId"] == child_running["id"]
+                else []
+            )
+            return {"entries": entries}
+        return await original(method, payload)
+
+    detail_calls = []
+
+    async def tracked_detail(sid):
+        detail_calls.append(sid)
+        if sid == uncreated["id"]:
+            raise RuntimeFailure("该会话未成功创建，请新建研究", "session_create_failed")
+        return {"status": "completed"}
+
+    native.rpc = eligibility_rpc
+    monkeypatch.setattr(service, "detail", tracked_detail)
+    items = await service.list_sessions()
+
+    assert [item["id"] for item in items] == [row["id"] for row in reversed(rows)]
+    statuses = {item["id"]: item["status"] for item in items}
+    assert statuses[uncreated["id"]] == "running"
+    assert statuses[native_running["id"]] == "running"
+    assert statuses[child_running["id"]] == "running"
+    assert statuses[eligible["id"]] == "completed"
+    assert uncreated["id"] not in detail_calls
+    assert native_running["id"] not in detail_calls
+    assert child_running["id"] not in detail_calls
+    assert detail_calls == [eligible["id"]]
+
+
+@pytest.mark.asyncio
+async def test_session_list_reconciles_stale_running_details_concurrently_in_order(
+    tmp_path, monkeypatch
+):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    session_ids = []
+    terminal_statuses = {}
+    for index in range(10):
+        row = service.store.create("fingpt", f"陈旧运行会话 {index}")
+        row["created"] = True
+        row["status"] = "running"
+        row["updated_at"] = index
+        session_ids.append(row["id"])
+        terminal_statuses[row["id"]] = "completed" if index % 2 == 0 else "failed"
+    service.store.save()
+
+    active = 0
+    max_active = 0
+    finished = set()
+    delay_seconds = 0.04
+
+    async def delayed_detail(sid):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        try:
+            await asyncio.sleep(delay_seconds)
+            return {"status": terminal_statuses[sid]}
+        finally:
+            active -= 1
+            finished.add(sid)
+
+    monkeypatch.setattr(service, "detail", delayed_detail)
+    started = time.monotonic()
+    items = await service.list_sessions()
+    elapsed = time.monotonic() - started
+
+    concurrency_ok = 1 < max_active <= 8
+    duration_ok = elapsed < delay_seconds * 6
+    assert concurrency_ok and duration_ok, (
+        f"max_active={max_active}, elapsed={elapsed:.3f}s, " f"limit={delay_seconds * 6:.3f}s"
+    )
+    assert 1 < max_active <= 8
+    assert [item["id"] for item in items] == list(reversed(session_ids))
+    assert [item["status"] for item in items] == [
+        terminal_statuses[sid] for sid in reversed(session_ids)
+    ]
+    assert active == 0
+    assert finished == set(session_ids)
+
+
+@pytest.mark.asyncio
+async def test_session_list_cancels_stale_detail_tasks_before_reconciliation_failure(
+    tmp_path, monkeypatch
+):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    rows = [service.store.create("fingpt", f"陈旧运行会话 {index}") for index in range(10)]
+    for index, row in enumerate(rows):
+        row["created"] = True
+        row["status"] = "running"
+        row["updated_at"] = index
+    service.store.save()
+
+    failed_sid = rows[-1]["id"]
+    active = 0
+    started = set()
+    completed = set()
+    cancelled = set()
+
+    async def failing_detail(sid):
+        nonlocal active
+        active += 1
+        started.add(sid)
+        try:
+            if sid == failed_sid:
+                await asyncio.sleep(0.01)
+                raise RuntimeFailure("detail reconciliation failed", "detail_reconciliation_failed")
+            await asyncio.sleep(0.2)
+            completed.add(sid)
+            return {"status": "completed"}
+        except asyncio.CancelledError:
+            cancelled.add(sid)
+            raise
+        finally:
+            active -= 1
+
+    monkeypatch.setattr(service, "detail", failing_detail)
+    with pytest.raises(RuntimeFailure, match="detail reconciliation failed"):
+        await service.list_sessions()
+    active_after_failure = active
+    completed_after_failure = set(completed)
+    await asyncio.sleep(0.3)
+
+    assert len(started) > 1
+    assert active_after_failure == 0
+    assert completed_after_failure == set()
+    assert active == 0
+    assert completed == set()
+    assert cancelled == started - {failed_sid}
+
+
+def test_session_list_cancels_slow_child_lookups_before_runtime_failure_response(api):
+    client, native, service = api
+    rows = [service.store.create("fingpt", f"研究 {index}") for index in range(20)]
+    for index, row in enumerate(rows):
+        row["created"] = True
+        row["updated_at"] = index
+    service.store.save()
+    failed_parent = rows[-1]["id"]
+    original = native.rpc
+    active = 0
+    completed = []
+
+    async def failing_rpc(method, payload):
+        nonlocal active
+        if method == "session.list":
+            return {"items": []}
+        if method == "subagent.list":
+            parent_id = payload["parentSessionId"]
+            active += 1
+            try:
+                if parent_id == failed_parent:
+                    await asyncio.sleep(0.01)
+                    raise RuntimeFailure("child lookup failed", "child_lookup_failed")
+                await asyncio.sleep(0.1)
+                completed.append(parent_id)
+                return {"entries": []}
+            finally:
+                active -= 1
+        return await original(method, payload)
+
+    native.rpc = failing_rpc
+    response = client.get("/api/research/sessions")
+    active_after_response = active
+    completed_after_response = list(completed)
+    time.sleep(0.4)
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {"code": "child_lookup_failed", "message": "child lookup failed"}
+    }
+    assert active_after_response == 0
+    assert completed_after_response == []
+    assert active == 0
+    assert completed == []
 
 
 @pytest.mark.asyncio

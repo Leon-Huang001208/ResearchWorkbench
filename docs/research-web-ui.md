@@ -175,3 +175,11 @@ macOS 本机集成页为 Excel、Word、PowerPoint 和 Wind Excel 分别提供�
 研究输入区可手动选择最多三个方法；方法 chip 只表示当前草稿的用户选择。发送后，会话页依据服务端
 收据显示实际解析的方法及“能力必需／用户选择／能力推荐／模型补选”来源。推荐或模型补选方法缺少
 采用证据时显示 `method_trace_incomplete` 降级提示；必需或用户指定缺证据时显示真实失败状态。
+
+## 2026-09-23 目录刷新状态回执
+
+会话、能力与其他浏览器目录分别维护自己的 pending count 与 generation；每个资源在自己的请求
+settled 后独立渲染，旧 generation 的迟到响应不能覆盖最新请求。只有 runtime pending 会通过
+UI、Composer 和 submit 投影为用户可见的 `connecting`，也只有 settled runtime failure 会投影为
+`offline`；其他目录的 pending/failure 保留各自资源级 loading/error 语义。该修正不改变 Hash 路由、
+目录来源、会话/Automation 关系或 API 公共契约；本地测试不冒充 Task 6 的真实浏览器验收。

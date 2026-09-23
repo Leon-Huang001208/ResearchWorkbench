@@ -32,7 +32,6 @@ log = get_logger(__name__)
 WEB_PORT = 8088
 RUNTIME_PORT = 3081
 WEB_URL = f"http://127.0.0.1:{WEB_PORT}/#/fingpt"
-ACTIVE_STATES = {"running", "awaiting_approval", "disconnected", "interrupted"}
 RUNTIME_TOKEN_PATTERN = re.compile(
     r"dsh web: http://127\.0\.0\.1:(\d+)/\?token=([A-Za-z0-9_-]{43})"
 )
@@ -457,59 +456,88 @@ class WebServiceManager:
             connection.close()
 
     def _write_runtime_auth(self, cookie: str) -> dict[str, str]:
-        runtime = self.data_root / "runtime"
-        runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
-        package = json.loads((self.runtime_source / "package.json").read_text(encoding="utf-8"))
-        value = {
-            "authority": f"127.0.0.1:{self.runtime_port}",
-            "cookie": cookie,
-            "cwd": str((runtime / "work").resolve()),
-            "source_commit": PINNED_COMMIT,
-            "version": str(package["version"]),
-        }
-        fd, name = tempfile.mkstemp(prefix="auth-", dir=runtime)
+        name: str | None = None
         try:
+            runtime = self.data_root / "runtime"
+            runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
+            package = json.loads((self.runtime_source / "package.json").read_text(encoding="utf-8"))
+            value = {
+                "authority": f"127.0.0.1:{self.runtime_port}",
+                "cookie": cookie,
+                "cwd": str((runtime / "work").resolve()),
+                "source_commit": PINNED_COMMIT,
+                "version": str(package["version"]),
+            }
+            fd, name = tempfile.mkstemp(prefix="auth-", dir=runtime)
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(value, stream, ensure_ascii=False, indent=2)
                 stream.flush()
                 os.fsync(stream.fileno())
             os.chmod(name, 0o600)
             os.replace(name, self._runtime_auth_path())
-        except (OSError, KeyError, TypeError, ValueError) as exc:
-            Path(name).unlink(missing_ok=True)
+        except (
+            OSError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ValueError,
+            UnicodeDecodeError,
+            ServiceManagerError,
+        ) as exc:
+            if name is not None:
+                try:
+                    Path(name).unlink(missing_ok=True)
+                except OSError:
+                    log.warning("research_runtime_auth_temp_cleanup_failed")
             raise ServiceManagerError("无法写入 DSH 认证控制文件") from exc
         return value
 
-    def _runtime_healthy(self) -> bool:
+    def _runtime_sessions(self) -> list[dict[str, Any]]:
         rpc_id = str(uuid4())
         auth = self._read_runtime_auth()
         if auth is None:
             token = self._runtime_launch_token()
             cookie = self._exchange_runtime_cookie(token) if token else None
             if cookie is None:
-                return False
-            try:
-                auth = self._write_runtime_auth(cookie)
-            except (OSError, ValueError, json.JSONDecodeError, ServiceManagerError):
-                return False
+                raise ServiceManagerError("DSH 认证不可用")
+            auth = self._write_runtime_auth(cookie)
+        value = self._json_request(
+            self.runtime_port,
+            "POST",
+            "/api/session/list",
+            {
+                "type": "client-request",
+                "rpcId": rpc_id,
+                "method": "session/list",
+                "payload": {"args": {"_request": {}}},
+            },
+            {"Cookie": auth["cookie"]},
+        )
+        result = value.get("result")
+        if (
+            value.get("type") != "server-response"
+            or value.get("rpcId") != rpc_id
+            or not isinstance(result, dict)
+            or result.get("ok") is not True
+            or not isinstance(result.get("value"), dict)
+            or not isinstance(result["value"].get("items"), list)
+        ):
+            raise ServiceManagerError("DSH 会话状态响应无效")
+        items = result["value"]["items"]
+        for item in items:
+            if (
+                not isinstance(item, dict)
+                or not isinstance(item.get("sessionId"), str)
+                or not item["sessionId"]
+                or not isinstance(item.get("running"), bool)
+            ):
+                raise ServiceManagerError("DSH 会话状态响应无效")
+        return items
+
+    def _runtime_healthy(self) -> bool:
         try:
-            value = self._json_request(
-                self.runtime_port,
-                "POST",
-                "/api/session/list",
-                {
-                    "type": "client-request",
-                    "rpcId": rpc_id,
-                    "method": "session/list",
-                    "payload": {"args": {"_request": {}}},
-                },
-                {"Cookie": auth["cookie"]},
-            )
-            return (
-                value.get("type") == "server-response"
-                and value.get("rpcId") == rpc_id
-                and value.get("result", {}).get("ok") is True
-            )
+            self._runtime_sessions()
+            return True
         except ServiceManagerError:
             return False
 
@@ -629,14 +657,10 @@ class WebServiceManager:
 
     def _active_research(self) -> list[str]:
         try:
-            result = self._json_request(self.web_port, "GET", "/api/research/sessions")
-        except ServiceManagerError:
-            raise ServiceManagerError("无法核对活动研究；未执行重启，可显式使用 --force")
-        return [
-            str(item.get("id"))
-            for item in result.get("items", [])
-            if item.get("status") in ACTIVE_STATES
-        ]
+            items = self._runtime_sessions()
+            return [item["sessionId"] for item in items if item["running"]]
+        except ServiceManagerError as exc:
+            raise ServiceManagerError("无法核对活动研究；未执行重启，可显式使用 --force") from exc
 
     def _stop_one(self, process: ManagedProcess) -> bool:
         state = self._owned_state(process)

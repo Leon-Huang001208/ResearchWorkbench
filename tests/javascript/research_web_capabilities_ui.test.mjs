@@ -22,6 +22,17 @@ const cap = (extra = {}) => ({ id: 'my-skill', kind: 'skill', name: '我的研�
 const load = (name) => import(new URL(name, root));
 const session = () => ({ id: 's1', mode: 'fingpt', status: 'idle', messages: [] });
 
+function deferredResponse() {
+  let resolve;
+  let reject;
+  const promise = new Promise((done, fail) => { resolve = done; reject = fail; });
+  return {
+    promise,
+    resolveJSON: (body, init) => resolve(new Response(JSON.stringify(body), init)),
+    reject,
+  };
+}
+
 function projectPython({ callerCwd = process.cwd(), environment = process.env } = {}) {
   const executable = process.platform === 'win32' ? path.join('Scripts', 'python.exe') : path.join('bin', 'python');
   const override = environment.RWB_TEST_PYTHON;
@@ -436,6 +447,107 @@ test('offline runtime keeps draft editable and capability browsing available but
   assert.doesNotMatch(html, /<textarea[^>]*disabled/);
   assert.match(html, /type="submit"[^>]*disabled/);
   assert.match(html, /运行时未就绪/);
+});
+
+test('connecting runtime is distinct from a settled offline runtime', () => {
+  const pending = composer.renderComposer({
+    draft: '继续准备草稿', runtimeReady: false, runtimePending: true,
+  });
+  assert.doesNotMatch(pending, /<textarea[^>]*disabled/);
+  assert.match(pending, /type="submit"[^>]*disabled/);
+  assert.match(pending, /正在连接运行时/);
+  assert.doesNotMatch(pending, /离线/);
+
+  const offline = composer.renderComposer({
+    draft: '继续准备草稿', runtimeReady: false, runtimePending: false,
+  });
+  assert.match(offline, /未就绪或离线/);
+  assert.doesNotMatch(offline, /正在连接运行时/);
+});
+
+test('overlapping runtime refreshes stay pending and the latest request wins', async () => {
+  const handlers = new Map(); const calls = []; const runtimeRequests = [];
+  const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+  const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
+  const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const originalLog = console.info;
+  let runtimeReads = 0;
+  const submitTag = () => rootElement.innerHTML.match(/<button type="submit"[^>]*>/)?.[0] || '';
+  const tick = () => new Promise(resolve => setImmediate(resolve));
+  try {
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: false }), addEventListener() {} } });
+    Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/fingpt' } });
+    Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState: (_a, _b, hash) => { globalThis.location.hash = hash; } } });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
+      calls.push([url, options.method]);
+      if (url.endsWith('/runtime')) {
+        runtimeReads += 1;
+        if (runtimeReads === 1) return new Response(JSON.stringify({ connected: true, credential_configured: true }));
+        const request = runtimeRequests.shift();
+        assert.ok(request, `unexpected runtime request ${runtimeReads}`);
+        return request.promise;
+      }
+      const payload = url.endsWith('/models') ? { groups: [] } : { items: [] };
+      return new Response(JSON.stringify(payload));
+    } });
+    console.info = () => {};
+    await load(`app.mjs?catalog-overlap=${Date.now()}`);
+    assert.doesNotMatch(submitTag(), /disabled/);
+
+    const olderFailure = deferredResponse(); const newerSuccess = deferredResponse();
+    runtimeRequests.push(olderFailure, newerSuccess);
+    const firstRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    const secondRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    await tick();
+    const cachedPendingHTML = rootElement.innerHTML;
+    const cachedPendingSubmit = submitTag();
+
+    handlers.get('input')({ target: { id: 'prompt', value: '连接期间保留草稿', dataset: {}, closest: () => null } });
+    await handlers.get('submit')({ preventDefault() {}, target: { id: 'composer', dataset: {}, matches: () => false } });
+    const wroteWhilePending = calls.some(([, method]) => method !== 'GET');
+
+    olderFailure.reject(new TypeError('older runtime refresh failed'));
+    await firstRefresh;
+    await tick();
+    const afterOlderFailureHTML = rootElement.innerHTML;
+    const afterOlderFailureSubmit = submitTag();
+
+    newerSuccess.resolveJSON({ connected: true, credential_configured: true });
+    await secondRefresh;
+    const afterFinalSuccessHTML = rootElement.innerHTML;
+    const afterFinalSuccessSubmit = submitTag();
+
+    const olderStale = deferredResponse(); const latestSuccess = deferredResponse();
+    runtimeRequests.push(olderStale, latestSuccess);
+    const olderRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    const latestRefresh = handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
+    await tick();
+    latestSuccess.resolveJSON({ connected: true, credential_configured: true });
+    await latestRefresh;
+    const whileOlderOutstandingHTML = rootElement.innerHTML;
+    const whileOlderOutstandingSubmit = submitTag();
+    olderStale.resolveJSON({ connected: false, credential_configured: true });
+    await olderRefresh;
+    const afterStaleResultHTML = rootElement.innerHTML;
+    const afterStaleResultSubmit = submitTag();
+
+    assert.match(cachedPendingHTML, /正在连接运行时/);
+    assert.match(cachedPendingSubmit, /disabled/);
+    assert.equal(wroteWhilePending, false, 'pending runtime must block programmatic submit too');
+    assert.match(afterOlderFailureHTML, /正在连接运行时/);
+    assert.doesNotMatch(afterOlderFailureHTML, /未就绪或离线/);
+    assert.match(afterOlderFailureSubmit, /disabled/);
+    assert.doesNotMatch(afterFinalSuccessHTML, /正在连接运行时|未就绪或离线/);
+    assert.doesNotMatch(afterFinalSuccessSubmit, /disabled/);
+    assert.match(whileOlderOutstandingHTML, /正在连接运行时/);
+    assert.match(whileOlderOutstandingSubmit, /disabled/);
+    assert.doesNotMatch(afterStaleResultHTML, /正在连接运行时|未就绪或离线/);
+    assert.doesNotMatch(afterStaleResultSubmit, /disabled/);
+  } finally {
+    console.info = originalLog;
+    for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
+  }
 });
 
 test('real app event handlers close/select slash, search and drawers without any model or tool write', async () => {
