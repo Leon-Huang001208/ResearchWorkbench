@@ -9,9 +9,13 @@
 - GREEN: schema v2 policy and planner now emit L0-L4, change summary, path-level impact, escalations, uncovered risks, level-grouped validations, compatibility categories, and a receipt template. `node --test tests/javascript/verification_policy.test.mjs` passed 24/24 with 0 failed/skipped/cancelled/todo (1517.61 ms).
 - Static verification: `node --check scripts/plan_verification.mjs`, JSON parsing of `.agents/verification-policy.json`, and `git diff --check` all exited 0.
 - The planner still imports only Node `fs`, `path`, and `url`; commands stored in the policy are returned as data and the marker-based contract proves they are not executed.
+- Receipt RED: `node --test tests/javascript/verification_receipt.test.mjs` produced 12 tests, 0 passed and 12 failed (900.61 ms); every failure traced to the missing `scripts/validate_verification_receipt.mjs`, as intended.
+- Ruling: receipt evidence includes an explicit `external` array. A `full-delivery` plan cannot mark an external gate `not_required`; any `not_run` gate forces result `blocked` plus an uncovered-risk entry. Cost if wrong: CI/platform obligations could disappear from an otherwise green local receipt.
+- Receipt GREEN: the focused receipt suite passed 12/12 (1279.53 ms). The combined planner/receipt contract passed 36/36 with 0 failed/skipped/cancelled/todo (1469.85 ms). `node --check scripts/validate_verification_receipt.mjs` and `git diff --check` exited 0.
+- The validator rejects missing/unknown checks, mismatched change or impact data, level downgrades, false success, insufficient failure escalation, unsafe/symlinked inputs and schema drift. A marker test proves command strings in plan data are never executed.
 
 ## Current next step
 
-Define the receipt contract with tests first, observe missing-validator RED, then implement strict plan-to-receipt validation.
+Add the project-local skill and synchronize current workflow/development documentation without duplicating policy routing tables.
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"The task currently adds design and plan records only; product runtime topology and diagrams are unchanged.","diagrams":[]} -->
