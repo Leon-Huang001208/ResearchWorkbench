@@ -9,8 +9,8 @@ import {fileURLToPath} from "node:url";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const plannerPath = path.join(repositoryRoot, "scripts/plan_verification.mjs");
 
-function catalog(level, value) {
-  return {level, value};
+function catalog(level, value, execution = "local") {
+  return {level, execution, value};
 }
 
 function rule({id, risk, minimumLevel, reason, impact, coupling, match, tests = [], documentation = [], ci = []}) {
@@ -52,12 +52,12 @@ function policy() {
       documentation: {
         "documentation-governance": catalog("L0", "node scripts/check_documentation_governance.mjs --project ."),
         "python-file-index": catalog("L0", "python scripts/generate_py_file_index.py --check"),
-        "desktop-packaging": catalog("L4", "docs/desktop_packaging.md"),
+        "desktop-packaging": catalog("L4", "docs/desktop_packaging.md", "external"),
       },
       ci: {
-        "project-constraints": catalog("L4", ".github/workflows/project-constraints.yml"),
-        "research-web-checks": catalog("L4", ".github/workflows/research-web-checks.yml"),
-        "native-windows-desktop": catalog("L4", ".github/workflows/desktop-verify.yml#windows-2022"),
+        "project-constraints": catalog("L4", ".github/workflows/project-constraints.yml", "external"),
+        "research-web-checks": catalog("L4", ".github/workflows/research-web-checks.yml", "external"),
+        "native-windows-desktop": catalog("L4", ".github/workflows/desktop-verify.yml#windows-2022", "external"),
       },
     },
     rules: [
@@ -498,6 +498,10 @@ test("small framework renderer change selects L1 without L4", () => {
     "research-web-frameworks-ui",
   ]);
   assert.deepEqual(plan.validationsByLevel.L4, []);
+  assert.equal(
+    [...plan.tests, ...plan.documentation].every(item => item.execution === "local"),
+    true,
+  );
   assert.equal(plan.ci.some(item => item.id === "native-windows-desktop"), false);
 });
 
@@ -580,6 +584,8 @@ test("desktop changes require native Windows and desktop packaging gates", () =>
   assert.equal(plan.requiredLevel, "L4");
   assert.equal(plan.documentation.some(item => item.id === "desktop-packaging"), true);
   assert.equal(plan.ci.some(item => item.id === "native-windows-desktop"), true);
+  assert.equal(plan.documentation.find(item => item.id === "desktop-packaging").execution, "external");
+  assert.equal(plan.ci.every(item => item.execution === "external"), true);
 });
 
 test("unknown paths fail closed without pretending to be desktop changes", () => {

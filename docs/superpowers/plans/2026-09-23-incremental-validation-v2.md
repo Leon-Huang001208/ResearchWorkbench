@@ -105,7 +105,7 @@
   }
   ```
 
-  Every catalog item receives `level` and `value`. Every rule receives
+  Every catalog item receives `level`, `execution`, and `value`. Every rule receives
   `minimumLevel`, non-empty `impact`, and `coupling`. Add precise rules for
   framework renderers, framework backend, critical chains, core/shared and
   data-model boundaries. Keep unknown fallback at `full-delivery`/`L4`.
@@ -124,7 +124,8 @@
   ```
 
   Reject unknown fields, missing impacts, duplicate impacts, invalid coupling,
-  catalog entries whose level is unknown, and an escalation target below L1.
+  catalog entries whose level or local/external execution is unknown, and an
+  escalation target below L1.
 
 - [ ] **Step 3: Parse runtime signals**
 

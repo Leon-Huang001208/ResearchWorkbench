@@ -273,14 +273,14 @@
       "id": "verification-policy-contracts",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 1.64,
+      "durationSeconds": 1.62,
       "evidence": ".ai/reports/incremental-validation-v2-PROGRESS.md"
     },
     {
       "id": "verification-receipt-contracts",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 1.2,
+      "durationSeconds": 1.53,
       "evidence": ".ai/reports/incremental-validation-v2-PROGRESS.md"
     },
     {
@@ -294,7 +294,7 @@
       "id": "research-web-verification-full",
       "level": "L4",
       "status": "passed",
-      "durationSeconds": 2.89,
+      "durationSeconds": 2.92,
       "evidence": ".ai/reports/incremental-validation-v2-PROGRESS.md"
     },
     {
@@ -308,7 +308,7 @@
       "id": "python-file-index",
       "level": "L0",
       "status": "passed",
-      "durationSeconds": 1.14,
+      "durationSeconds": 1.15,
       "evidence": ".ai/reports/incremental-validation-v2-PROGRESS.md"
     }
   ],

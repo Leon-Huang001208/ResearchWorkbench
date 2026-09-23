@@ -23,7 +23,7 @@ const PLAN_KEYS = new Set([
 ]);
 const CHANGE_SUMMARY_KEYS = new Set(["fileCount", "ruleIds", "impactIds"]);
 const IMPACT_KEYS = new Set(["path", "rule", "reason", "modules", "coupling", "minimumLevel"]);
-const VALIDATION_KEYS = new Set(["id", "level", "category", "value"]);
+const VALIDATION_KEYS = new Set(["id", "level", "execution", "category", "value"]);
 const TEMPLATE_KEYS = new Set(["plannedLevel", "changedFiles", "requiredValidationIds", "externalGateIds"]);
 const RECEIPT_KEYS = new Set([
   "schemaVersion",
@@ -125,6 +125,17 @@ function assertNoSymlinkComponents(root, relative, {required, code = "PATH_ERROR
   }
 }
 
+function assertRegularEvidence(root, relative, code) {
+  assertNoSymlinkComponents(root, relative, {required: true, code});
+  let metadata;
+  try {
+    metadata = fs.statSync(path.join(root, relative));
+  } catch {
+    fail(code, "evidence file is unavailable");
+  }
+  if (!metadata.isFile()) fail(code, "evidence must be a regular file");
+}
+
 function readJson(root, relative, code) {
   const normalized = normalizeRepositoryPath(relative);
   assertNoSymlinkComponents(root, normalized, {required: true});
@@ -206,7 +217,8 @@ function parsePlan(value) {
     for (const item of items) {
       assertExactKeys(item, VALIDATION_KEYS, "validation item", code);
       const id = assertIdentifier(item.id, "validation ID", code);
-      if (item.level !== level || !["tests", "documentation", "ci"].includes(item.category) ||
+      if (item.level !== level || !["local", "external"].includes(item.execution) ||
+          !["tests", "documentation", "ci"].includes(item.category) ||
           typeof item.value !== "string" || item.value.length === 0 || validations.has(id)) {
         fail(code, "invalid validation item");
       }
@@ -244,6 +256,13 @@ function parsePlan(value) {
     if (!validations.has(id)) fail(code, "receipt template references unknown validation");
   }
   if (requiredValidationIds.some(id => externalGateIds.includes(id))) fail(code, "receipt template IDs overlap");
+  const projected = [...value.tests, ...value.documentation, ...value.ci];
+  const expectedRequiredIds = projected.filter(item => item.execution === "local").map(item => item.id);
+  const expectedExternalIds = projected.filter(item => item.execution === "external").map(item => item.id);
+  if (JSON.stringify(requiredValidationIds) !== JSON.stringify(expectedRequiredIds) ||
+      JSON.stringify(externalGateIds) !== JSON.stringify(expectedExternalIds)) {
+    fail(code, "receipt template omits or misclassifies a validation");
+  }
   return {...value, validations};
 }
 
@@ -274,8 +293,8 @@ function parseReceipt(value, root, plan) {
       value.plannedLevel !== plan.requiredLevel || JSON.stringify(value.impact) !== JSON.stringify(plan.impact)) {
     fail(code, "receipt does not match plan");
   }
-  if (LEVEL_ORDER.indexOf(value.actualLevel) < LEVEL_ORDER.indexOf(value.plannedLevel)) {
-    fail(code, "actual level is below planned level");
+  if (value.actualLevel !== value.plannedLevel) {
+    fail(code, "actual level must match the planned level");
   }
   for (const risk of plan.uncoveredRisks) {
     if (!value.uncoveredRisks.includes(risk)) fail(code, "receipt omits a planned uncovered risk");
@@ -295,8 +314,8 @@ function parseReceipt(value, root, plan) {
       fail(code, "invalid executed validation");
     }
     const evidence = normalizeRepositoryPath(item.evidence, code);
-    assertNoSymlinkComponents(root, evidence, {required: true, code});
-    if (item.status === "failed" || item.status === "unexpected") hasFailure = true;
+    assertRegularEvidence(root, evidence, code);
+    if (item.status === "failed" || item.status === "unexpected" || item.status === "blocked") hasFailure = true;
     executed.set(id, item);
   }
   for (const id of plan.receiptTemplate.requiredValidationIds) {
@@ -314,7 +333,7 @@ function parseReceipt(value, root, plan) {
       fail(code, "invalid external gate");
     }
     const evidence = normalizeRepositoryPath(item.evidence, code);
-    assertNoSymlinkComponents(root, evidence, {required: true, code});
+    assertRegularEvidence(root, evidence, code);
     if (item.status === "failed") hasFailure = true;
     if (item.status === "not_run") notRunExternal.push(id);
     if (plan.risk === "full-delivery" && item.status === "not_required") {

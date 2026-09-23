@@ -19,7 +19,7 @@ const TOP_LEVEL_KEYS = new Set([
 ]);
 const ESCALATION_KEYS = new Set(["highCouplingImpactThreshold", "targetLevel"]);
 const CATALOG_KEYS = new Set(["tests", "documentation", "ci"]);
-const CATALOG_ITEM_KEYS = new Set(["level", "value"]);
+const CATALOG_ITEM_KEYS = new Set(["level", "execution", "value"]);
 const RULE_KEYS = new Set([
   "id",
   "risk",
@@ -158,10 +158,13 @@ function parseCatalog(value, label) {
     assertIdentifier(id, `${label} id`);
     assertExactKeys(catalogValue, CATALOG_ITEM_KEYS, `${label} item`);
     const level = assertLevel(catalogValue.level, `${label} level`);
+    if (catalogValue.execution !== "local" && catalogValue.execution !== "external") {
+      fail("POLICY_ERROR", `invalid ${label} execution`);
+    }
     if (typeof catalogValue.value !== "string" || catalogValue.value.trim().length === 0) {
       fail("POLICY_ERROR", `invalid ${label} value`);
     }
-    result.set(id, {level, value: catalogValue.value});
+    result.set(id, {level, execution: catalogValue.execution, value: catalogValue.value});
   }
   return result;
 }
@@ -321,7 +324,7 @@ function selectedCatalogItems(catalog, ids, category, maximumLevelIndex) {
   for (const id of ids) {
     const entry = catalog.get(id);
     if (LEVEL_ORDER.indexOf(entry.level) > maximumLevelIndex) continue;
-    items.push({id, level: entry.level, category, value: entry.value});
+    items.push({id, level: entry.level, execution: entry.execution, category, value: entry.value});
   }
   return items;
 }
@@ -447,14 +450,9 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
   const validationsByLevel = Object.fromEntries(policy.levelOrder.map(level => [level, []]));
   for (const item of [...tests, ...documentation, ...ci]) validationsByLevel[item.level].push(item);
 
-  const requiredValidationIds = [
-    ...tests.map(item => item.id),
-    ...documentation.filter(item => !item.value.endsWith(".md")).map(item => item.id),
-  ];
-  const externalGateIds = [
-    ...documentation.filter(item => item.value.endsWith(".md")).map(item => item.id),
-    ...ci.map(item => item.id),
-  ];
+  const selectedValidations = [...tests, ...documentation, ...ci];
+  const requiredValidationIds = selectedValidations.filter(item => item.execution === "local").map(item => item.id);
+  const externalGateIds = selectedValidations.filter(item => item.execution === "external").map(item => item.id);
 
   return {
     schemaVersion: 2,

@@ -59,7 +59,8 @@ function fixture(t, {plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"
   fs.mkdirSync(path.join(root, "logs"), {recursive: true});
   const actualReceipt = receipt ?? validReceipt(plan);
   for (const item of [...actualReceipt.executed, ...actualReceipt.external]) {
-    fs.writeFileSync(path.join(root, item.evidence), `${item.id}\n`);
+    const evidencePath = path.join(root, item.evidence);
+    if (!fs.existsSync(evidencePath)) fs.writeFileSync(evidencePath, `${item.id}\n`);
   }
   fs.writeFileSync(path.join(root, "plan.json"), `${JSON.stringify(plan, null, 2)}\n`);
   fs.writeFileSync(path.join(root, "receipt.json"), `${JSON.stringify(actualReceipt, null, 2)}\n`);
@@ -115,6 +116,13 @@ test("missing required validation is rejected", t => {
   failure(run(root), "RECEIPT_ERROR");
 });
 
+test("tampered plan cannot remove a required validation from its receipt template", t => {
+  const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
+  plan.receiptTemplate.requiredValidationIds.pop();
+  const {root} = fixture(t, {plan, receipt: validReceipt(plan)});
+  failure(run(root), "PLAN_ERROR");
+});
+
 test("changed-file and impact mismatches are rejected", t => {
   const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
   const changedReceipt = validReceipt(plan);
@@ -155,11 +163,27 @@ test("actual level below planned level is rejected", t => {
   failure(run(root), "RECEIPT_ERROR");
 });
 
+test("actual level above planned level requires a newly planned receipt", t => {
+  const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
+  const receipt = validReceipt(plan);
+  receipt.actualLevel = "L4";
+  const {root} = fixture(t, {plan, receipt});
+  failure(run(root), "RECEIPT_ERROR");
+});
+
 test("failed validation cannot be reported as passed", t => {
   const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
   const receipt = validReceipt(plan);
   receipt.executed[0].status = "failed";
   receipt.escalation = {required: true, targetLevel: "L2", reasons: ["validation_failure"]};
+  const {root} = fixture(t, {plan, receipt});
+  failure(run(root), "RECEIPT_ERROR");
+});
+
+test("blocked validation cannot be reported as passed", t => {
+  const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
+  const receipt = validReceipt(plan);
+  receipt.executed[0].status = "blocked";
   const {root} = fixture(t, {plan, receipt});
   failure(run(root), "RECEIPT_ERROR");
 });
@@ -215,6 +239,14 @@ test("schema drift and unsafe input paths fail explicitly", t => {
   fs.writeFileSync(path.join(root, "receipt.json"), `${JSON.stringify(receipt)}\n`);
   failure(run(root), "RECEIPT_ERROR");
   failure(run(root, "../plan.json"), "PATH_ERROR");
+});
+
+test("evidence references must be regular files", t => {
+  const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
+  const receipt = validReceipt(plan);
+  receipt.executed[0].evidence = "logs";
+  const {root} = fixture(t, {plan, receipt});
+  failure(run(root), "RECEIPT_ERROR");
 });
 
 test("commands stored in a plan are never executed", t => {

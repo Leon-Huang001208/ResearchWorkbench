@@ -54,7 +54,7 @@ The v2 policy adds:
 
 - `levelOrder`: exactly `L0` through `L4`;
 - `escalation`: the high-coupling module threshold and target level;
-- catalog entries shaped as `{ "level": "Lx", "value": "command-or-gate" }`;
+- catalog entries shaped as `{ "level": "Lx", "execution": "local|external", "value": "command-or-gate" }`;
 - rule fields `minimumLevel`, `impact`, and `coupling`;
 - the same fields on the fail-closed fallback.
 
@@ -62,6 +62,9 @@ The v2 policy adds:
 `low` or `high`. When the complete changed set reaches the configured number of
 distinct high-coupling impacts, the planner raises the plan to at least L3 and
 records `multiple_high_coupling_modules`.
+
+`execution` is explicit policy data. Receipt classification never infers an
+external gate from a filename, suffix, or command string.
 
 High-risk rules force L4 for public contracts, schema, configuration owned by
 the verification/CI system, core abstractions, shared utilities, data models or

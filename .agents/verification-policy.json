@@ -20,74 +20,91 @@
     "tests": {
       "verification-policy-contracts": {
         "level": "L1",
+        "execution": "local",
         "value": "node --test tests/javascript/verification_policy.test.mjs"
       },
       "verification-receipt-contracts": {
         "level": "L1",
+        "execution": "local",
         "value": "node --test tests/javascript/verification_receipt.test.mjs"
       },
       "incremental-validation-skill-contracts": {
         "level": "L1",
+        "execution": "local",
         "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
       },
       "research-web-framework-collectors": {
         "level": "L1",
+        "execution": "local",
         "value": "python -m pytest tests/research_web/test_framework_collectors.py"
       },
       "research-web-frameworks-ui": {
         "level": "L1",
+        "execution": "local",
         "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
       },
       "project-constraints-local": {
         "level": "L2",
+        "execution": "local",
         "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
       },
       "research-web-architecture": {
         "level": "L1",
+        "execution": "local",
         "value": "node --test tests/javascript/research_web_architecture.test.mjs"
       },
       "research-web-frameworks-python": {
         "level": "L2",
+        "execution": "local",
         "value": "python -m pytest tests/research_web/test_frameworks.py"
       },
       "research-web-framework-smoke": {
         "level": "L3",
+        "execution": "local",
         "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts"
       },
       "research-web-critical-smoke": {
         "level": "L3",
+        "execution": "local",
         "value": "python -m pytest tests/research_web/test_protocol.py"
       },
       "research-web-verification-full": {
         "level": "L4",
+        "execution": "local",
         "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
       }
     },
     "documentation": {
       "documentation-governance": {
         "level": "L0",
+        "execution": "local",
         "value": "node scripts/check_documentation_governance.mjs --project ."
       },
       "python-file-index": {
         "level": "L0",
+        "execution": "local",
         "value": "python scripts/generate_py_file_index.py --check"
       },
       "desktop-packaging": {
         "level": "L4",
+        "execution": "external",
         "value": "docs/desktop_packaging.md"
       }
     },
     "ci": {
       "project-constraints": {
         "level": "L4",
+        "execution": "external",
         "value": ".github/workflows/project-constraints.yml"
       },
       "research-web-checks": {
         "level": "L4",
+        "execution": "external",
         "value": ".github/workflows/research-web-checks.yml"
       },
       "native-windows-desktop": {
         "level": "L4",
+        "execution": "external",
         "value": ".github/workflows/desktop-verify.yml#windows-2022"
       }
     }

@@ -203,12 +203,14 @@
       {
         "id": "documentation-governance",
         "level": "L0",
+        "execution": "local",
         "category": "documentation",
         "value": "node scripts/check_documentation_governance.mjs --project ."
       },
       {
         "id": "python-file-index",
         "level": "L0",
+        "execution": "local",
         "category": "documentation",
         "value": "python scripts/generate_py_file_index.py --check"
       }
@@ -217,12 +219,14 @@
       {
         "id": "research-web-architecture",
         "level": "L1",
+        "execution": "local",
         "category": "tests",
         "value": "node --test tests/javascript/research_web_architecture.test.mjs"
       },
       {
         "id": "research-web-frameworks-ui",
         "level": "L1",
+        "execution": "local",
         "category": "tests",
         "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
       }
@@ -235,12 +239,14 @@
     {
       "id": "research-web-architecture",
       "level": "L1",
+      "execution": "local",
       "category": "tests",
       "value": "node --test tests/javascript/research_web_architecture.test.mjs"
     },
     {
       "id": "research-web-frameworks-ui",
       "level": "L1",
+      "execution": "local",
       "category": "tests",
       "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
     }
@@ -249,12 +255,14 @@
     {
       "id": "documentation-governance",
       "level": "L0",
+      "execution": "local",
       "category": "documentation",
       "value": "node scripts/check_documentation_governance.mjs --project ."
     },
     {
       "id": "python-file-index",
       "level": "L0",
+      "execution": "local",
       "category": "documentation",
       "value": "python scripts/generate_py_file_index.py --check"
     }
