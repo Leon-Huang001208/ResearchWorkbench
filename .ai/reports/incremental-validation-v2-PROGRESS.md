@@ -31,9 +31,13 @@
 - Policy catalog entries now carry explicit `execution: local|external`; validator recomputes receipt-template membership from the full plan projection, requires actual and planned levels to match, treats blocked execution as failure-like, and requires every evidence reference to be a regular non-symlink file.
 - Harness recovery: read-only migration preview found 7 legacy files (2036 bytes), zero conflicts, and tree hash `4582c49034cc5331853c40a364cee102a936a4eb7501c195b49b316b7362190e`. The managed migration copied and verified them into Git-common storage without deleting the legacy directory and emitted an explicit rollback record.
 - Harness outcome is truthfully `blocked`/`external` with local verification `passed` and measured duration 8 seconds. `harness-enforce` exited 1 with `latest outcome is not completed/passed`, matching the unresolved remote CI/integration boundary rather than manufacturing completion.
+- 2026-09-23 final delivery: the user explicitly authorized publication. Managed integration commit `215b83410283c0e7f3f1f556f36a2755fcd708b2` was published directly to `master`; Project Constraints run `35820215161` completed successfully; controller cleanup removed all managed delivery worktrees and branches.
+- Delivery Harness tasks were updated to `completed/passed`. The delivery hard gate returned `deliveryStatus=cleaned`, `ciStatus=passed`, `remoteCommit=215b83410283c0e7f3f1f556f36a2755fcd708b2`.
+- The main-worktree legacy Harness directory was not deleted: after verifying it was a real private directory with no active Harness process, it was atomically preserved as `.ai/harness.legacy-preserved-20260923T1300` so the Git-common Harness and canonical delivery receipt could be verified together.
+- A concurrent, independently delivered project-skill portfolio advanced remote `master` to `ad60a98e0e740335a75ab60968d53ba8f8be73ef`; that commit contains `215b8341` in its ancestry. This closeout revision changes only the current verification evidence surfaces.
 
 ## Current next step
 
-Perform whole-branch review, re-run the final changed-set plan after evidence files are included, record Harness outcome, and request explicit authorization before any integration or remote publication.
+No remaining action. The incremental validation framework is published, CI-verified, knowledge-closed, and delivery-cleaned.
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"Incremental validation changes project policy, scripts, tests and workflow documentation without changing Research Web runtime topology or diagram wiring.","diagrams":[]} -->
