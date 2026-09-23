@@ -1,0 +1,1933 @@
+{
+  "schemaVersion": 2,
+  "risk": "local-only",
+  "requiredLevel": "L3",
+  "changeSummary": {
+    "fileCount": 80,
+    "ruleIds": [
+      "documentation",
+      "research-web",
+      "research-web-framework-backend",
+      "research-web-framework-ui",
+      "framework-artifacts"
+    ],
+    "impactIds": [
+      "documentation",
+      "research-web",
+      "framework-backend",
+      "framework-ui",
+      "framework-artifacts"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+    "app/research_web/frameworks/base.py",
+    "app/research_web/frameworks/dollar/__init__.py",
+    "app/research_web/frameworks/dollar/collector.py",
+    "app/research_web/frameworks/dollar/context.py",
+    "app/research_web/frameworks/dollar/contracts.py",
+    "app/research_web/frameworks/dollar/definition.py",
+    "app/research_web/frameworks/dollar/seed.py",
+    "app/research_web/frameworks/dollar/store.py",
+    "app/research_web/frameworks/goldar/__init__.py",
+    "app/research_web/frameworks/goldar/collector.py",
+    "app/research_web/frameworks/goldar/context.py",
+    "app/research_web/frameworks/goldar/contracts.py",
+    "app/research_web/frameworks/goldar/definition.py",
+    "app/research_web/frameworks/goldar/seed.py",
+    "app/research_web/frameworks/goldar/store.py",
+    "app/research_web/frameworks/registry.py",
+    "app/research_web/frameworks/scheduler.py",
+    "app/research_web/frameworks/service.py",
+    "app/research_web/frameworks/sources.py",
+    "app/research_web/frameworks/storage.py",
+    "app/research_web/ui/app.mjs",
+    "app/research_web/ui/appearance.css",
+    "app/research_web/ui/core.mjs",
+    "app/research_web/ui/frameworks.mjs",
+    "app/research_web/ui/frameworks/charts/lieflat.mjs",
+    "app/research_web/ui/frameworks/common.mjs",
+    "app/research_web/ui/frameworks/dollar.mjs",
+    "app/research_web/ui/frameworks/fixtures/dollar-v1.mjs",
+    "app/research_web/ui/frameworks/fixtures/gold-v0.mjs",
+    "app/research_web/ui/frameworks/goldar.mjs",
+    "app/research_web/ui/shell.mjs",
+    "app/research_web/workbench.py",
+    "docs/ARCHITECTURE.md",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/README.md",
+    "docs/architecture/research-web/architecture-map.json",
+    "docs/architecture/research-web/review-record.md",
+    "docs/research-web-appearance.md",
+    "docs/research-web-tabbit.md",
+    "docs/research-web-ui.md",
+    "docs/research-web.md",
+    "outputs/frameworks-v1/dollar-dark-1440x900-overview.png",
+    "outputs/frameworks-v1/dollar-dark-390x844-overview.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-bot.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-cross-border.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-evidence.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-fiscal.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-overview.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-plumbing.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-price.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-quantity.png",
+    "outputs/frameworks-v1/dollar-light-390x844-bot.png",
+    "outputs/frameworks-v1/dollar-light-390x844-overview.png",
+    "outputs/frameworks-v1/gold-dark-1440x900-overview.png",
+    "outputs/frameworks-v1/gold-dark-390x844-overview.png",
+    "outputs/frameworks-v1/gold-light-1440x900-allocation.png",
+    "outputs/frameworks-v1/gold-light-1440x900-bot.png",
+    "outputs/frameworks-v1/gold-light-1440x900-cycle.png",
+    "outputs/frameworks-v1/gold-light-1440x900-drivers.png",
+    "outputs/frameworks-v1/gold-light-1440x900-evidence.png",
+    "outputs/frameworks-v1/gold-light-1440x900-overview.png",
+    "outputs/frameworks-v1/gold-light-1440x900-positioning.png",
+    "outputs/frameworks-v1/gold-light-1440x900-supply.png",
+    "outputs/frameworks-v1/gold-light-390x844-bot.png",
+    "outputs/frameworks-v1/gold-light-390x844-overview.png",
+    "outputs/frameworks-v1/light-1440x900-hub.png",
+    "outputs/frameworks-v1/verification.json",
+    "tests/e2e/research_web_goldar_v0.mjs",
+    "tests/javascript/research_web_frameworks_ui.test.mjs",
+    "tests/javascript/research_web_workbench.test.mjs",
+    "tests/research_web/test_framework_collectors.py",
+    "tests/research_web/test_frameworks.py",
+    "tests/research_web/test_workbench_operations.py"
+  ],
+  "impact": [
+    {
+      "path": ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/frameworks/base.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/base.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/__init__.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/__init__.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/collector.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/collector.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/context.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/context.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/contracts.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/contracts.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/definition.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/definition.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/seed.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/seed.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/store.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/store.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/__init__.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/__init__.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/collector.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/collector.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/context.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/context.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/contracts.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/contracts.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/definition.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/definition.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/seed.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/seed.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/store.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/store.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/registry.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/registry.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/scheduler.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/scheduler.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/service.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/service.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/sources.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/sources.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/storage.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/frameworks/storage.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/app.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/appearance.css",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/core.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/charts/lieflat.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/charts/lieflat.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/common.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/common.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/fixtures/dollar-v1.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/fixtures/dollar-v1.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/fixtures/gold-v0.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/fixtures/gold-v0.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/goldar.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/goldar.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/shell.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/workbench.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/architecture-map.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/review-record.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-dark-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-dark-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-bot.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-cross-border.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-evidence.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-fiscal.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-plumbing.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-price.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-quantity.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-390x844-bot.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-dark-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-dark-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-allocation.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-bot.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-cycle.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-drivers.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-evidence.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-positioning.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-supply.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-390x844-bot.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/light-1440x900-hub.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/verification.json",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/e2e/research_web_goldar_v0.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/javascript/research_web_frameworks_ui.test.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/javascript/research_web_workbench.test.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_framework_collectors.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_frameworks.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_workbench_operations.py",
+      "rule": "research-web-framework-backend",
+      "reason": "research_web_framework_backend_change",
+      "modules": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    }
+  ],
+  "reasons": [
+    {
+      "path": ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "app/research_web/frameworks/base.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/base.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/__init__.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/__init__.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/collector.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/collector.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/context.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/context.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/contracts.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/contracts.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/definition.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/definition.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/seed.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/seed.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/store.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/dollar/store.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/__init__.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/__init__.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/collector.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/collector.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/context.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/context.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/contracts.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/contracts.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/definition.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/definition.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/seed.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/seed.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/store.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/goldar/store.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/registry.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/registry.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/scheduler.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/scheduler.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/service.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/service.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/sources.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/sources.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/frameworks/storage.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/frameworks/storage.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "app/research_web/ui/app.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/appearance.css",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/core.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/charts/lieflat.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/charts/lieflat.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/common.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/common.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/fixtures/dollar-v1.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/fixtures/dollar-v1.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/fixtures/gold-v0.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/fixtures/gold-v0.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/goldar.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/goldar.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "app/research_web/ui/shell.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/workbench.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/README.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/architecture-map.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/review-record.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-dark-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-dark-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-bot.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-cross-border.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-evidence.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-fiscal.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-plumbing.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-price.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-quantity.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-390x844-bot.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-dark-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-dark-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-allocation.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-bot.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-cycle.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-drivers.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-evidence.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-positioning.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-supply.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-390x844-bot.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/light-1440x900-hub.png",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "outputs/frameworks-v1/verification.json",
+      "rule": "framework-artifacts",
+      "code": "framework_artifact_change"
+    },
+    {
+      "path": "tests/e2e/research_web_goldar_v0.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "tests/javascript/research_web_frameworks_ui.test.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "tests/javascript/research_web_workbench.test.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "tests/research_web/test_framework_collectors.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "tests/research_web/test_frameworks.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    },
+    {
+      "path": "tests/research_web/test_workbench_operations.py",
+      "rule": "research-web-framework-backend",
+      "code": "research_web_framework_backend_change"
+    }
+  ],
+  "escalations": [
+    {
+      "code": "multiple_high_coupling_modules",
+      "fromLevel": "L1",
+      "toLevel": "L3",
+      "impacts": [
+        "framework-backend",
+        "framework-ui"
+      ]
+    }
+  ],
+  "uncoveredRisks": [],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [
+      {
+        "id": "research-web-architecture",
+        "level": "L1",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+      },
+      {
+        "id": "research-web-framework-collectors",
+        "level": "L1",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_framework_collectors.py"
+      },
+      {
+        "id": "research-web-frameworks-ui",
+        "level": "L1",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
+      }
+    ],
+    "L2": [
+      {
+        "id": "project-constraints-local",
+        "level": "L2",
+        "category": "tests",
+        "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+      },
+      {
+        "id": "research-web-frameworks-python",
+        "level": "L2",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_frameworks.py"
+      }
+    ],
+    "L3": [
+      {
+        "id": "research-web-framework-smoke",
+        "level": "L3",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts"
+      }
+    ],
+    "L4": []
+  },
+  "tests": [
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "category": "tests",
+      "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+    },
+    {
+      "id": "research-web-framework-collectors",
+      "level": "L1",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_framework_collectors.py"
+    },
+    {
+      "id": "research-web-frameworks-python",
+      "level": "L2",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_frameworks.py"
+    },
+    {
+      "id": "research-web-framework-smoke",
+      "level": "L3",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts"
+    },
+    {
+      "id": "research-web-frameworks-ui",
+      "level": "L1",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [],
+  "receiptTemplate": {
+    "plannedLevel": "L3",
+    "changedFiles": [
+      ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+      "app/research_web/frameworks/base.py",
+      "app/research_web/frameworks/dollar/__init__.py",
+      "app/research_web/frameworks/dollar/collector.py",
+      "app/research_web/frameworks/dollar/context.py",
+      "app/research_web/frameworks/dollar/contracts.py",
+      "app/research_web/frameworks/dollar/definition.py",
+      "app/research_web/frameworks/dollar/seed.py",
+      "app/research_web/frameworks/dollar/store.py",
+      "app/research_web/frameworks/goldar/__init__.py",
+      "app/research_web/frameworks/goldar/collector.py",
+      "app/research_web/frameworks/goldar/context.py",
+      "app/research_web/frameworks/goldar/contracts.py",
+      "app/research_web/frameworks/goldar/definition.py",
+      "app/research_web/frameworks/goldar/seed.py",
+      "app/research_web/frameworks/goldar/store.py",
+      "app/research_web/frameworks/registry.py",
+      "app/research_web/frameworks/scheduler.py",
+      "app/research_web/frameworks/service.py",
+      "app/research_web/frameworks/sources.py",
+      "app/research_web/frameworks/storage.py",
+      "app/research_web/ui/app.mjs",
+      "app/research_web/ui/appearance.css",
+      "app/research_web/ui/core.mjs",
+      "app/research_web/ui/frameworks.mjs",
+      "app/research_web/ui/frameworks/charts/lieflat.mjs",
+      "app/research_web/ui/frameworks/common.mjs",
+      "app/research_web/ui/frameworks/dollar.mjs",
+      "app/research_web/ui/frameworks/fixtures/dollar-v1.mjs",
+      "app/research_web/ui/frameworks/fixtures/gold-v0.mjs",
+      "app/research_web/ui/frameworks/goldar.mjs",
+      "app/research_web/ui/shell.mjs",
+      "app/research_web/workbench.py",
+      "docs/ARCHITECTURE.md",
+      "docs/DEVELOPMENT_MAP.md",
+      "docs/architecture/research-web/01-system.md",
+      "docs/architecture/research-web/02-research-runtime.md",
+      "docs/architecture/research-web/03-data-files.md",
+      "docs/architecture/research-web/04-api.md",
+      "docs/architecture/research-web/05-security-validation.md",
+      "docs/architecture/research-web/08-research-frameworks.md",
+      "docs/architecture/research-web/README.md",
+      "docs/architecture/research-web/architecture-map.json",
+      "docs/architecture/research-web/review-record.md",
+      "docs/research-web-appearance.md",
+      "docs/research-web-tabbit.md",
+      "docs/research-web-ui.md",
+      "docs/research-web.md",
+      "outputs/frameworks-v1/dollar-dark-1440x900-overview.png",
+      "outputs/frameworks-v1/dollar-dark-390x844-overview.png",
+      "outputs/frameworks-v1/dollar-light-1440x900-bot.png",
+      "outputs/frameworks-v1/dollar-light-1440x900-cross-border.png",
+      "outputs/frameworks-v1/dollar-light-1440x900-evidence.png",
+      "outputs/frameworks-v1/dollar-light-1440x900-fiscal.png",
+      "outputs/frameworks-v1/dollar-light-1440x900-overview.png",
+      "outputs/frameworks-v1/dollar-light-1440x900-plumbing.png",
+      "outputs/frameworks-v1/dollar-light-1440x900-price.png",
+      "outputs/frameworks-v1/dollar-light-1440x900-quantity.png",
+      "outputs/frameworks-v1/dollar-light-390x844-bot.png",
+      "outputs/frameworks-v1/dollar-light-390x844-overview.png",
+      "outputs/frameworks-v1/gold-dark-1440x900-overview.png",
+      "outputs/frameworks-v1/gold-dark-390x844-overview.png",
+      "outputs/frameworks-v1/gold-light-1440x900-allocation.png",
+      "outputs/frameworks-v1/gold-light-1440x900-bot.png",
+      "outputs/frameworks-v1/gold-light-1440x900-cycle.png",
+      "outputs/frameworks-v1/gold-light-1440x900-drivers.png",
+      "outputs/frameworks-v1/gold-light-1440x900-evidence.png",
+      "outputs/frameworks-v1/gold-light-1440x900-overview.png",
+      "outputs/frameworks-v1/gold-light-1440x900-positioning.png",
+      "outputs/frameworks-v1/gold-light-1440x900-supply.png",
+      "outputs/frameworks-v1/gold-light-390x844-bot.png",
+      "outputs/frameworks-v1/gold-light-390x844-overview.png",
+      "outputs/frameworks-v1/light-1440x900-hub.png",
+      "outputs/frameworks-v1/verification.json",
+      "tests/e2e/research_web_goldar_v0.mjs",
+      "tests/javascript/research_web_frameworks_ui.test.mjs",
+      "tests/javascript/research_web_workbench.test.mjs",
+      "tests/research_web/test_framework_collectors.py",
+      "tests/research_web/test_frameworks.py",
+      "tests/research_web/test_workbench_operations.py"
+    ],
+    "requiredValidationIds": [
+      "research-web-architecture",
+      "project-constraints-local",
+      "research-web-framework-collectors",
+      "research-web-frameworks-python",
+      "research-web-framework-smoke",
+      "research-web-frameworks-ui",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": []
+  }
+}

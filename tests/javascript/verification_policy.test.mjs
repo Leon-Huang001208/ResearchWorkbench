@@ -27,6 +27,10 @@ function policy() {
       tests: {
         "verification-policy-contracts": catalog("L1", "node --test tests/javascript/verification_policy.test.mjs"),
         "verification-receipt-contracts": catalog("L1", "node --test tests/javascript/verification_receipt.test.mjs"),
+        "incremental-validation-skill-contracts": catalog(
+          "L1",
+          "node --test tests/javascript/incremental_validation_skill.test.mjs",
+        ),
         "research-web-framework-collectors": catalog("L1", "python -m pytest tests/research_web/test_framework_collectors.py"),
         "research-web-frameworks-ui": catalog("L1", "node --test tests/javascript/research_web_frameworks_ui.test.mjs"),
         "project-constraints-local": catalog(
@@ -42,7 +46,7 @@ function policy() {
         "research-web-critical-smoke": catalog("L3", "python -m pytest tests/research_web/test_protocol.py"),
         "research-web-verification-full": catalog(
           "L4",
-          "node --test tests/javascript/verification_policy.test.mjs tests/javascript/verification_receipt.test.mjs tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs",
+          "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs",
         ),
       },
       documentation: {
@@ -124,12 +128,18 @@ function policy() {
             "scripts/validate_verification_receipt.mjs",
             "tests/javascript/verification_policy.test.mjs",
             "tests/javascript/verification_receipt.test.mjs",
+            "tests/javascript/incremental_validation_skill.test.mjs",
           ],
-          prefixes: [".github/workflows/"],
+          prefixes: [".agents/skills/incremental-validation/", ".github/workflows/"],
           segments: [],
           suffixes: [],
         },
-        tests: ["verification-policy-contracts", "verification-receipt-contracts", "research-web-verification-full"],
+        tests: [
+          "verification-policy-contracts",
+          "verification-receipt-contracts",
+          "incremental-validation-skill-contracts",
+          "research-web-verification-full",
+        ],
         documentation: ["documentation-governance"],
         ci: ["project-constraints"],
       }),
@@ -532,6 +542,15 @@ test("verification policy change cannot fall below L4", () => {
   assert.deepEqual(plan.uncoveredRisks, []);
   assert.equal(plan.receiptTemplate.requiredValidationIds.includes("research-web-verification-full"), true);
   assert.equal(plan.receiptTemplate.externalGateIds.includes("project-constraints"), true);
+  const full = plan.tests.find(item => item.id === "research-web-verification-full").value;
+  assert.doesNotMatch(full, /verification_policy|verification_receipt|incremental_validation_skill/);
+});
+
+test("incremental validation workflow contract is a known L4 policy path", () => {
+  const plan = success(run(repositoryRoot, ["tests/javascript/incremental_validation_skill.test.mjs"]));
+  assert.equal(plan.requiredLevel, "L4");
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.equal(plan.receiptTemplate.requiredValidationIds.includes("incremental-validation-skill-contracts"), true);
 });
 
 test("runtime failure signals escalate one level each and deduplicate", () => {

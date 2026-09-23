@@ -1,0 +1,285 @@
+{
+  "schemaVersion": 2,
+  "risk": "local-only",
+  "requiredLevel": "L1",
+  "changeSummary": {
+    "fileCount": 10,
+    "ruleIds": [
+      "documentation",
+      "research-web",
+      "research-web-framework-ui"
+    ],
+    "impactIds": [
+      "documentation",
+      "research-web",
+      "framework-ui"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+    "app/research_web/ui/frameworks/dollar.mjs",
+    "docs/ARCHITECTURE.md",
+    "docs/CHANGELOG.md",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/review-record.md",
+    "docs/research-web-appearance.md",
+    "docs/research-web-ui.md",
+    "tests/javascript/research_web_frameworks_ui.test.mjs"
+  ],
+  "impact": [
+    {
+      "path": ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/CHANGELOG.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/review-record.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/javascript/research_web_frameworks_ui.test.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    }
+  ],
+  "reasons": [
+    {
+      "path": ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/CHANGELOG.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/review-record.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "tests/javascript/research_web_frameworks_ui.test.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    }
+  ],
+  "escalations": [],
+  "uncoveredRisks": [],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [
+      {
+        "id": "research-web-architecture",
+        "level": "L1",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+      },
+      {
+        "id": "research-web-frameworks-ui",
+        "level": "L1",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
+      }
+    ],
+    "L2": [],
+    "L3": [],
+    "L4": []
+  },
+  "tests": [
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "research-web-frameworks-ui",
+      "level": "L1",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [],
+  "receiptTemplate": {
+    "plannedLevel": "L1",
+    "changedFiles": [
+      ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+      "app/research_web/ui/frameworks/dollar.mjs",
+      "docs/ARCHITECTURE.md",
+      "docs/CHANGELOG.md",
+      "docs/DEVELOPMENT_MAP.md",
+      "docs/architecture/research-web/08-research-frameworks.md",
+      "docs/architecture/research-web/review-record.md",
+      "docs/research-web-appearance.md",
+      "docs/research-web-ui.md",
+      "tests/javascript/research_web_frameworks_ui.test.mjs"
+    ],
+    "requiredValidationIds": [
+      "research-web-architecture",
+      "research-web-frameworks-ui",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": []
+  }
+}

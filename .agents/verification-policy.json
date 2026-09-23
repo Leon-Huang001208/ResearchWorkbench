@@ -26,6 +26,10 @@
         "level": "L1",
         "value": "node --test tests/javascript/verification_receipt.test.mjs"
       },
+      "incremental-validation-skill-contracts": {
+        "level": "L1",
+        "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
+      },
       "research-web-framework-collectors": {
         "level": "L1",
         "value": "python -m pytest tests/research_web/test_framework_collectors.py"
@@ -56,7 +60,7 @@
       },
       "research-web-verification-full": {
         "level": "L4",
-        "value": "node --test tests/javascript/verification_policy.test.mjs tests/javascript/verification_receipt.test.mjs tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
       }
     },
     "documentation": {
@@ -239,9 +243,11 @@
           "scripts/plan_verification.mjs",
           "scripts/validate_verification_receipt.mjs",
           "tests/javascript/verification_policy.test.mjs",
-          "tests/javascript/verification_receipt.test.mjs"
+          "tests/javascript/verification_receipt.test.mjs",
+          "tests/javascript/incremental_validation_skill.test.mjs"
         ],
         "prefixes": [
+          ".agents/skills/incremental-validation/",
           ".github/workflows/"
         ],
         "segments": [],
@@ -250,6 +256,7 @@
       "tests": [
         "verification-policy-contracts",
         "verification-receipt-contracts",
+        "incremental-validation-skill-contracts",
         "research-web-verification-full"
       ],
       "documentation": [
