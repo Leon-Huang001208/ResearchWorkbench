@@ -38,6 +38,10 @@ function policy() {
           "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>",
         ),
         "research-web-architecture": catalog("L1", "node --test tests/javascript/research_web_architecture.test.mjs"),
+        "research-web-service-manager": catalog(
+          "L1",
+          "python -m pytest tests/research_web/test_service_manager.py",
+        ),
         "research-web-frameworks-python": catalog("L2", "python -m pytest tests/research_web/test_frameworks.py"),
         "research-web-framework-smoke": catalog(
           "L3",
@@ -240,6 +244,32 @@ function policy() {
         ci: ["project-constraints", "research-web-checks"],
       }),
       rule({
+        id: "research-web-service-manager",
+        risk: "local-only",
+        minimumLevel: "L1",
+        reason: "research_web_service_manager_change",
+        impact: ["research-web-service-lifecycle"],
+        coupling: "low",
+        match: {
+          files: [
+            "app/research_web/service_manager.py",
+            "tests/research_web/test_service_manager.py",
+          ],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-service-manager",
+          "research-web-architecture",
+          "project-constraints-local",
+          "research-web-critical-smoke",
+          "research-web-verification-full",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks"],
+      }),
+      rule({
         id: "research-web-framework-backend",
         risk: "local-only",
         minimumLevel: "L1",
@@ -392,6 +422,21 @@ test("known framework test files use the framework-specific local closure", () =
     "research-web-frameworks-ui",
   ]));
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+});
+
+test("service manager code and its regression test use the focused local closure", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/service_manager.py",
+    "tests/research_web/test_service_manager.py",
+  ]));
+  assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L1");
+  assert.deepEqual(plan.tests.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-service-manager",
+  ]);
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
 });
 
 test("unmapped test files still fail closed", () => {

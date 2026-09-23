@@ -590,6 +590,18 @@ class WebServiceManager:
             raise ServiceManagerError("DSH 源码目录不存在；请设置 RESEARCH_DSH_SOURCE")
         if not Path(self.python).exists() or not Path(self.node).exists():
             raise ServiceManagerError("Python 或 Node.js 可执行文件不存在")
+        diagnosis = self._installation_diagnosis()
+        if not diagnosis.get("ok"):
+            issues = [issue for issue in diagnosis.get("issues", []) if isinstance(issue, str)] or [
+                "unknown"
+            ]
+            log.error("research_web_installation_not_ready", issues=issues)
+            raise ServiceManagerError(
+                "Web 安装未就绪（"
+                + ", ".join(issues)
+                + "）；请先运行 ./setup-web.sh（Windows 使用 setup-web.cmd），"
+                "再用 rwb web doctor --json 复核"
+            )
         runtime, web = self._processes()
         created: list[ManagedProcess] = []
         try:
@@ -799,8 +811,8 @@ class WebServiceManager:
                 "ready": False,
             }
 
-    def doctor(self) -> dict[str, Any]:
-        """Return a path-free, credential-free Web installation diagnosis."""
+    def _installation_diagnosis(self) -> dict[str, Any]:
+        """Return installation facts without probing or mutating service health."""
         manifest = self._read_install_manifest()
         lock = self.project_root / "requirements" / "web.lock"
         try:
@@ -809,21 +821,6 @@ class WebServiceManager:
             lock_sha256 = None
         package_versions = self._installed_package_versions()
         dsh = self._dsh_build_status()
-        try:
-            raw_status = self.status()
-            services = {
-                role: {
-                    "port": int(raw_status["services"][role]["port"]),
-                    "running": bool(raw_status["services"][role]["running"]),
-                    "healthy": bool(raw_status["services"][role]["healthy"]),
-                }
-                for role in ("runtime", "web")
-            }
-        except (KeyError, TypeError, ValueError, ServiceManagerError):
-            services = {
-                "runtime": {"port": self.runtime_port, "running": False, "healthy": False},
-                "web": {"port": self.web_port, "running": False, "healthy": False},
-            }
         environment_owned = (self.project_root / ".venv" / ENVIRONMENT_MARKER).is_file()
         lock_matches = bool(lock_sha256 and manifest.get("web_lock_sha256") == lock_sha256)
         cjpy_ready = (
@@ -874,8 +871,27 @@ class WebServiceManager:
                 "ready": dsh_ready,
             },
             "data": {"ready": self.data_root.is_dir()},
-            "services": services,
         }
+
+    def doctor(self) -> dict[str, Any]:
+        """Return a path-free, credential-free Web installation diagnosis."""
+        diagnosis = self._installation_diagnosis()
+        try:
+            raw_status = self.status()
+            services = {
+                role: {
+                    "port": int(raw_status["services"][role]["port"]),
+                    "running": bool(raw_status["services"][role]["running"]),
+                    "healthy": bool(raw_status["services"][role]["healthy"]),
+                }
+                for role in ("runtime", "web")
+            }
+        except (KeyError, TypeError, ValueError, ServiceManagerError):
+            services = {
+                "runtime": {"port": self.runtime_port, "running": False, "healthy": False},
+                "web": {"port": self.web_port, "running": False, "healthy": False},
+            }
+        return {**diagnosis, "services": services}
 
     def tabbit_status(self) -> dict[str, Any]:
         """Return the safe, read-only Tabbit diagnostic exposed by the BFF."""

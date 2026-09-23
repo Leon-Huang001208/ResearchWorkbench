@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 1,
+  "changeSummary": {
+    "fileCount": 17,
+    "ruleIds": [
+      "ci",
+      "documentation",
+      "research-web",
+      "research-web-service-manager"
+    ],
+    "impactIds": [
+      "verification-system",
+      "documentation",
+      "research-web",
+      "research-web-service-lifecycle"
+    ]
+  },
+  "changedFiles": [
+    ".agents/verification-policy.json",
+    ".ai/reports/2026-09-23-research-web-startup-preflight-plan.json",
+    ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
+    ".ai/reports/2026-09-23-research-web-startup-preflight.md",
+    "app/research_web/service_manager.py",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/09-integration-coordinator.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/generated/py_file_index.md",
+    "docs/research-web-installation.md",
+    "docs/research-web-tabbit.md",
+    "tests/javascript/verification_policy.test.mjs",
+    "tests/research_web/test_service_manager.py"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "impact": [
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web-service-manager",
+      "reason": "research_web_service_manager_change",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_service_manager.py",
+      "rule": "research-web-service-manager",
+      "reason": "research_web_service_manager_change",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    }
+  ],
+  "executed": [
+    {
+      "id": "verification-policy-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 1.44,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "verification-receipt-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 1.26,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "incremental-validation-skill-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 0.07,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "status": "passed",
+      "durationSeconds": 2.01,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 2.49,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "status": "passed",
+      "durationSeconds": 0.01,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 1.61,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "status": "passed",
+      "durationSeconds": 0.89,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.1,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 1.08,
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-23-research-web-startup-preflight.md"
+    }
+  ],
+  "result": "blocked",
+  "uncoveredRisks": [
+    "external_gate_not_run:project-constraints",
+    "external_gate_not_run:research-web-checks"
+  ],
+  "escalation": {
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
+  }
+}

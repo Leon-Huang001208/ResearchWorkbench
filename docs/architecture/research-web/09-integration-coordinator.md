@@ -6,6 +6,8 @@
 安装器对 Windows DSH checkout 启用命令级长路径，Runtime 首次启动先初始化固定 `web` Profile；
 Profile junction containment 与 PowerShell PID 探针仅保证 Windows 3081 安全启动和回收；
 这些修复只保证协调器所在 8088/3081 可复现启动，不把任何来源状态提升为可调用。
+服务管理器在 spawn 前校验 Doctor 安装事实；安装未就绪时协调器和启动探测都不会创建。
+该前置门不把 CJPY 已安装、数据源已登记或历史探测快照误报为当前可调用。
 
 ## 目标
 

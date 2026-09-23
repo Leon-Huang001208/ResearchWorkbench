@@ -53,6 +53,11 @@
         "execution": "local",
         "value": "node --test tests/javascript/research_web_architecture.test.mjs"
       },
+      "research-web-service-manager": {
+        "level": "L1",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_service_manager.py"
+      },
       "research-web-frameworks-python": {
         "level": "L2",
         "execution": "local",
@@ -514,6 +519,40 @@
       "tests": [
         "research-web-architecture",
         "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-service-manager",
+      "risk": "local-only",
+      "minimumLevel": "L1",
+      "reason": "research_web_service_manager_change",
+      "impact": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "match": {
+        "files": [
+          "app/research_web/service_manager.py",
+          "tests/research_web/test_service_manager.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-service-manager",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
         "research-web-verification-full"
       ],
       "documentation": [

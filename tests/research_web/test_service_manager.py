@@ -283,6 +283,7 @@ def test_start_is_idempotent_and_waits_for_both_services(manager, monkeypatch):
     manager._prepare_private_directories()
     ownership = {"runtime": None, "web": None}
     spawned = []
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(manager, "_owned_state", lambda process: ownership[process.role])
     monkeypatch.setattr(manager, "_port_open", lambda port: False)
 
@@ -309,9 +310,71 @@ def test_start_is_idempotent_and_waits_for_both_services(manager, monkeypatch):
     assert spawned == ["runtime", "web"]
 
 
+def test_start_fails_fast_when_web_installation_is_not_ready(manager, monkeypatch):
+    lock = manager.project_root / "requirements" / "web.lock"
+    lock.parent.mkdir()
+    lock.write_text("locked-runtime", encoding="utf-8")
+    lock_sha = service_manager_module.hashlib.sha256(lock.read_bytes()).hexdigest()
+    monkeypatch.setattr(
+        manager,
+        "_read_install_manifest",
+        lambda: {
+            "schema_version": 1,
+            "status": "installed",
+            "web_lock_sha256": lock_sha,
+            "cjpy_version": service_manager_module.CJPY_VERSION,
+            "cjpy_sha256": service_manager_module.CJPY_SHA256,
+            "dsh_commit": service_manager_module.PINNED_COMMIT,
+            "dsh_closure_sha256": "closure-ok",
+        },
+    )
+    monkeypatch.setattr(
+        manager,
+        "_installed_package_versions",
+        lambda: {"cjpy": None, "requests": "2.33.0", "urllib3": "2.5.0"},
+    )
+    monkeypatch.setattr(
+        manager,
+        "_dsh_build_status",
+        lambda: {
+            "commit": service_manager_module.PINNED_COMMIT,
+            "closure_sha256": "closure-ok",
+            "closure_files": 11084,
+            "ready": True,
+        },
+    )
+    monkeypatch.setattr(manager, "_executable_version", lambda _path: "safe-version")
+    monkeypatch.setattr(
+        manager,
+        "_runtime_healthy",
+        lambda: pytest.fail("installation preflight must not contact Runtime"),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_web_healthy",
+        lambda: pytest.fail("installation preflight must not contact Web"),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_spawn",
+        lambda _process: pytest.fail(
+            "start must not spawn services before installation preflight passes"
+        ),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager.start(open_browser=False)
+
+    message = str(captured.value)
+    assert "environment_not_owned" in message
+    assert "cjpy_not_ready" in message
+    assert "setup-web" in message
+
+
 def test_start_rolls_back_only_new_processes(manager, monkeypatch):
     manager._prepare_private_directories()
     stopped = []
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(manager, "_ensure_startable", lambda process: True)
     monkeypatch.setattr(manager, "_spawn", lambda process: 123)
     checks = iter([True, False])

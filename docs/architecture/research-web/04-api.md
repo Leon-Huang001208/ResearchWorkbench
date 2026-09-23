@@ -2,6 +2,8 @@
 
 本批没有新增 HTTP 路由。`rwb web doctor [--json]` 是本机 CLI 诊断，现有连接目录继续通过
 `GET /api/research/data/connections` 投影天软的依赖、配置、探测和可调用事实；响应仍不含凭据。
+`rwb web start` 现在在任何进程创建前消费 Doctor 的固定安装 issue；失败只改变 CLI 错误精度和
+等待时长，不新增 HTTP 字段、路由或状态码，也不会暴露本机路径与凭据。
 全新 Profile 初始化、Windows Git 长路径和跨平台进程管理同样不新增 HTTP 路由；3081 健康通过后
 才启动既有 8088 API，启动失败不会暴露半就绪接口。
 

@@ -3,6 +3,8 @@
 Web 一键安装固定 Node 支持范围与同一个 DSH 提交/构建闭包，但不下载或升级 Tabbit，也不改变
 其 Profile、实时 claim、一次性正文 token、只读声明或写操作审批。Doctor 只报告 Runtime/端口
 健康，不读取标签标题、URL、Cookie 或正文。
+`rwb web start` 在 spawn 前要求 Doctor 安装事实通过；失败时不会加载 Tabbit Profile、claim 页面或
+创建正文 token，并只返回安装 issue 与安装器指引。该门禁不新增 Tabbit 权限或浏览器探测。
 空白 Runtime Home 会先由固定 DSH 模板创建 `profiles/web/package.json`，随后才追加经清单校验的
 `dsh-tabbit` 与适配器；开发机残留 Profile 不再是首次安装前提。
 

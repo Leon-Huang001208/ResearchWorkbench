@@ -52,6 +52,9 @@ python scripts/setup_web.py
 
 Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要、端口和健康状态，不输出路径、
 环境变量值、凭据或用户文件正文。
+`rwb web start` 会在创建 3081/8088 子进程前复用 Doctor 的安装检查。若 checkout `.venv` 不受安装器
+所有、锁摘要不符、CJPY/Node/DSH 未就绪，命令立即列出稳定 issue code，并提示重新运行上述安装器；
+它不会先创建候选 Runtime 再等待健康超时。
 
 ## 依赖与固定制品
 
