@@ -86,11 +86,12 @@ class WebServiceManager:
     ) -> None:
         self.project_root = (project_root or Path(__file__).parents[2]).resolve()
         configured_data = os.environ.get("RESEARCH_DATA_HOME")
-        self.data_root = (
+        configured_data_root = (
             data_root
             or (Path(configured_data).expanduser() if configured_data else None)
             or Path.home() / ".research-workbench" / "research-web"
-        ).resolve()
+        )
+        self.data_root = Path(os.path.abspath(configured_data_root))
         configured_source = os.environ.get("RESEARCH_DSH_SOURCE")
         self.runtime_source = (
             runtime_source
@@ -159,7 +160,7 @@ class WebServiceManager:
         )
 
     def _prepare_private_directories(self) -> None:
-        for path in (self.data_root, self.run_root, self.log_root):
+        for path in (self.data_root.parent, self.data_root, self.run_root, self.log_root):
             path.mkdir(parents=True, exist_ok=True, mode=0o700)
             identity = path.lstat()
             if _is_unsafe_private_directory(path, identity, platform_name=os.name):
@@ -780,6 +781,99 @@ class WebServiceManager:
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
             return {}
 
+    def _runtime_build_lock_matches(self, dsh: dict[str, Any]) -> bool:
+        expected_sha256 = dsh.get("closure_sha256")
+        expected_files = dsh.get("closure_files")
+        if not isinstance(expected_sha256, str) or type(expected_files) is not int:
+            return False
+        path = self.data_root / "runtime" / "build-lock.json"
+        try:
+            if os.name == "nt":
+                trusted_root = self.data_root.resolve(strict=True)
+                for directory in (self.data_root.parent, self.data_root, path.parent):
+                    identity = directory.lstat()
+                    if _is_unsafe_private_directory(
+                        directory, identity, platform_name="nt"
+                    ) or not directory.resolve(strict=True).is_relative_to(trusted_root.parent):
+                        return False
+                before = path.lstat()
+                reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+                if (
+                    path.is_symlink()
+                    or bool(getattr(before, "st_file_attributes", 0) & reparse_flag)
+                    or not stat.S_ISREG(before.st_mode)
+                    or before.st_nlink != 1
+                    or before.st_size > 64 * 1024
+                ):
+                    return False
+                with path.open("rb") as stream:
+                    opened = os.fstat(stream.fileno())
+                    raw = stream.read(64 * 1024 + 1)
+                after = path.lstat()
+                identities = {
+                    (item.st_dev, item.st_ino, item.st_size) for item in (before, opened, after)
+                }
+                if len(identities) != 1 or len(raw) > 64 * 1024:
+                    return False
+            else:
+                parent = os.open(
+                    self.data_root.parent,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                )
+                try:
+                    root = os.open(
+                        self.data_root.name,
+                        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                        dir_fd=parent,
+                    )
+                    try:
+                        runtime = os.open(
+                            "runtime",
+                            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                            dir_fd=root,
+                        )
+                        try:
+                            handle = os.open(
+                                "build-lock.json",
+                                os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                                dir_fd=runtime,
+                            )
+                            try:
+                                identity = os.fstat(handle)
+                                if (
+                                    not stat.S_ISREG(identity.st_mode)
+                                    or identity.st_nlink != 1
+                                    or identity.st_size > 64 * 1024
+                                    or bool(identity.st_mode & 0o077)
+                                ):
+                                    return False
+                                raw = os.read(handle, 64 * 1024 + 1)
+                            finally:
+                                os.close(handle)
+                        finally:
+                            os.close(runtime)
+                    finally:
+                        os.close(root)
+                finally:
+                    os.close(parent)
+            if len(raw) > 64 * 1024:
+                return False
+            value = json.loads(raw.decode("utf-8"))
+            return (
+                isinstance(value, dict)
+                and set(value) == {"source_commit", "closure_sha256", "closure_files", "mode"}
+                and type(value.get("closure_files")) is int
+                and value
+                == {
+                    "source_commit": PINNED_COMMIT,
+                    "closure_sha256": expected_sha256,
+                    "closure_files": expected_files,
+                    "mode": "build",
+                }
+            )
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return False
+
     def _dsh_build_status(self) -> dict[str, Any]:
         try:
             commit = subprocess.check_output(
@@ -835,6 +929,7 @@ class WebServiceManager:
             and manifest.get("dsh_commit") == PINNED_COMMIT
             and manifest.get("dsh_closure_sha256") == dsh.get("closure_sha256")
         )
+        runtime_lock_matches = bool(dsh_ready and self._runtime_build_lock_matches(dsh))
         issues = []
         for ready, code in (
             (manifest.get("status") == "installed", "install_manifest_invalid"),
@@ -843,6 +938,7 @@ class WebServiceManager:
             (cjpy_ready, "cjpy_not_ready"),
             (self._executable_version(self.node) is not None, "node_unavailable"),
             (dsh_ready, "dsh_not_ready"),
+            (runtime_lock_matches, "dsh_runtime_lock_mismatch"),
         ):
             if not ready:
                 issues.append(code)
@@ -869,6 +965,7 @@ class WebServiceManager:
                 "closure_sha256": dsh.get("closure_sha256"),
                 "closure_files": dsh.get("closure_files"),
                 "ready": dsh_ready,
+                "runtime_lock_matches": runtime_lock_matches,
             },
             "data": {"ready": self.data_root.is_dir()},
         }

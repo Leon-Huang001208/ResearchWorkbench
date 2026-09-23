@@ -8,6 +8,8 @@ Profile junction containment 与 PowerShell PID 探针仅保证 Windows 3081 安
 这些修复只保证协调器所在 8088/3081 可复现启动，不把任何来源状态提升为可调用。
 服务管理器在 spawn 前校验 Doctor 安装事实；安装未就绪时协调器和启动探测都不会创建。
 该前置门不把 CJPY 已安装、数据源已登记或历史探测快照误报为当前可调用。
+Node 选择与 Runtime build lock 的一致性只决定 3081 是否可安全启动，不改变协调器五阶段状态、
+授权或 Provider 可调用结论。
 
 ## 目标
 

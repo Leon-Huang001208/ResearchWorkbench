@@ -58,6 +58,11 @@
         "execution": "local",
         "value": "python -m pytest tests/research_web/test_service_manager.py"
       },
+      "research-web-installation": {
+        "level": "L1",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_setup_web.py"
+      },
       "research-web-frameworks-python": {
         "level": "L2",
         "execution": "local",
@@ -106,6 +111,11 @@
         "level": "L4",
         "execution": "external",
         "value": ".github/workflows/research-web-checks.yml"
+      },
+      "research-web-bootstrap": {
+        "level": "L4",
+        "execution": "external",
+        "value": ".github/workflows/research-web-bootstrap.yml"
       },
       "native-windows-desktop": {
         "level": "L4",
@@ -562,6 +572,45 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-installation",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_installation_change",
+      "impact": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "rwb",
+          "rwb.cmd",
+          "setup-web.sh",
+          "setup-web.cmd",
+          "scripts/setup_web.py",
+          "tests/research_web/test_setup_web.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-installation",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap"
       ]
     },
     {

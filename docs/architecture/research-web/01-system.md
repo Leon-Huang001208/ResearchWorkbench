@@ -5,6 +5,10 @@
 `rwb web doctor` 读取安装摘要与健康事实，不增加守护进程、端口或数据库。
 `rwb web start` 在创建任何子进程前复用同一份 Doctor 安装事实；checkout 专属环境、Web 锁、
 CJPY、Node 或固定 DSH 未就绪时直接返回稳定 issue code 和安装器指引，不再先启动 3081 后等待超时。
+安装器与 `rwb` 使用同一 Node 选择顺序：显式参数、`RESEARCH_NODE_BINARY`、可执行的 Codex bundled
+Node、最后才是 PATH；Node 构建子进程也把选中版本置于 PATH 首位。安装事务只用已经通过固定
+提交与闭包校验的 DSH state 原子刷新 Runtime build lock，Doctor 同时核对该锁。POSIX 锁读写逐级
+使用 no-follow 目录描述符；Windows 逐级拒绝 reparse point，目录 alias 不会越出产品数据根。
 干净用户目录会先从固定 DSH 模板初始化 `web` Profile，再加入 Tabbit 层；Windows Profile 的 pnpm
 目录 junction 与 POSIX symlink 一样必须解析回固定源码树。Windows 服务归属使用 CIM 命令行核对、
 无 shell PowerShell PID 探针和 `taskkill /T`，POSIX 继续使用进程组并把僵尸状态视为已退出。

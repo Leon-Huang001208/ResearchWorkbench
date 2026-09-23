@@ -3,18 +3,20 @@
   "risk": "full-delivery",
   "requiredLevel": "L4",
   "changeSummary": {
-    "fileCount": 17,
+    "fileCount": 19,
     "ruleIds": [
       "ci",
       "documentation",
       "research-web",
-      "research-web-service-manager"
+      "research-web-service-manager",
+      "research-web-installation"
     ],
     "impactIds": [
       "verification-system",
       "documentation",
       "research-web",
-      "research-web-service-lifecycle"
+      "research-web-service-lifecycle",
+      "web-installation"
     ]
   },
   "changedFiles": [
@@ -33,8 +35,10 @@
     "docs/generated/py_file_index.md",
     "docs/research-web-installation.md",
     "docs/research-web-tabbit.md",
+    "scripts/setup_web.py",
     "tests/javascript/verification_policy.test.mjs",
-    "tests/research_web/test_service_manager.py"
+    "tests/research_web/test_service_manager.py",
+    "tests/research_web/test_setup_web.py"
   ],
   "impact": [
     {
@@ -198,6 +202,16 @@
       "minimumLevel": "L0"
     },
     {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
       "path": "tests/javascript/verification_policy.test.mjs",
       "rule": "ci",
       "reason": "ci_change",
@@ -216,6 +230,16 @@
       ],
       "coupling": "low",
       "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
     }
   ],
   "reasons": [
@@ -300,6 +324,11 @@
       "code": "documentation_only"
     },
     {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "code": "research_web_installation_change"
+    },
+    {
       "path": "tests/javascript/verification_policy.test.mjs",
       "rule": "ci",
       "code": "ci_change"
@@ -308,11 +337,22 @@
       "path": "tests/research_web/test_service_manager.py",
       "rule": "research-web-service-manager",
       "code": "research_web_service_manager_change"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "code": "research_web_installation_change"
     }
   ],
   "escalations": [
     {
       "code": "validation_failure",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    },
+    {
+      "code": "unexpected_behavior",
       "fromLevel": "L4",
       "toLevel": "L4",
       "impacts": []
@@ -371,6 +411,13 @@
         "execution": "local",
         "category": "tests",
         "value": "python -m pytest tests/research_web/test_service_manager.py"
+      },
+      {
+        "id": "research-web-installation",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_setup_web.py"
       }
     ],
     "L2": [
@@ -412,6 +459,13 @@
         "execution": "external",
         "category": "ci",
         "value": ".github/workflows/research-web-checks.yml"
+      },
+      {
+        "id": "research-web-bootstrap",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/research-web-bootstrap.yml"
       }
     ]
   },
@@ -471,6 +525,13 @@
       "execution": "local",
       "category": "tests",
       "value": "python -m pytest tests/research_web/test_protocol.py"
+    },
+    {
+      "id": "research-web-installation",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_setup_web.py"
     }
   ],
   "documentation": [
@@ -503,6 +564,13 @@
       "execution": "external",
       "category": "ci",
       "value": ".github/workflows/research-web-checks.yml"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/research-web-bootstrap.yml"
     }
   ],
   "receiptTemplate": {
@@ -523,8 +591,10 @@
       "docs/generated/py_file_index.md",
       "docs/research-web-installation.md",
       "docs/research-web-tabbit.md",
+      "scripts/setup_web.py",
       "tests/javascript/verification_policy.test.mjs",
-      "tests/research_web/test_service_manager.py"
+      "tests/research_web/test_service_manager.py",
+      "tests/research_web/test_setup_web.py"
     ],
     "requiredValidationIds": [
       "verification-policy-contracts",
@@ -535,12 +605,14 @@
       "project-constraints-local",
       "research-web-service-manager",
       "research-web-critical-smoke",
+      "research-web-installation",
       "documentation-governance",
       "python-file-index"
     ],
     "externalGateIds": [
       "project-constraints",
-      "research-web-checks"
+      "research-web-checks",
+      "research-web-bootstrap"
     ]
   }
 }

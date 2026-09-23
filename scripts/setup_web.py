@@ -65,10 +65,26 @@ class SetupWebInstaller:
         platform_name: str | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
-        self.data_home = Path(data_home or Path.home() / ".research-workbench").resolve()
+        configured_data_home = Path(data_home or Path.home() / ".research-workbench").expanduser()
+        self.data_home = Path(os.path.abspath(configured_data_home))
         self.venv = self.project_root / ".venv"
         self.python_executable = Path(python_executable or sys.executable).resolve()
-        self.node_executable = Path(node_executable or shutil.which("node") or "node").resolve()
+        configured_node = os.environ.get("RESEARCH_NODE_BINARY")
+        codex_bundled_node = (
+            Path.home() / ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+        )
+        discovered_node = (
+            node_executable
+            or configured_node
+            or (
+                codex_bundled_node
+                if codex_bundled_node.is_file() and os.access(codex_bundled_node, os.X_OK)
+                else None
+            )
+            or shutil.which("node")
+            or "node"
+        )
+        self.node_executable = Path(discovered_node).expanduser().resolve()
         self.git_executable = Path(git_executable or shutil.which("git") or "git").resolve()
         discovered_corepack = corepack_executable or shutil.which("corepack")
         self.corepack_executable = (
@@ -109,6 +125,12 @@ class SetupWebInstaller:
     def check(self) -> dict[str, object]:
         """Inspect prerequisites and ownership without mutating the checkout."""
         issues: list[str] = []
+        if self.data_home.exists() and (
+            self.data_home.is_symlink()
+            or self._is_reparse_point(self.data_home)
+            or not self.data_home.is_dir()
+        ):
+            issues.append("data_home_unsafe")
         if self.venv.exists() and not (self.venv / ENVIRONMENT_MARKER).is_file():
             issues.append("unowned_virtual_environment")
         for code, path in (
@@ -167,6 +189,114 @@ class SetupWebInstaller:
         finally:
             temporary.unlink(missing_ok=True)
 
+    def _runtime_lock_directory(self) -> int | Path:
+        """Open the product runtime directory without following aliases."""
+        self.data_home.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self._reject_alias(self.data_home, "runtime_build_lock_unsafe")
+        if self.platform_name == "nt":
+            trusted_root = self.data_home.resolve(strict=True)
+            directory = self.data_home
+            for component in ("research-web", "runtime"):
+                directory = directory / component
+                directory.mkdir(mode=0o700, exist_ok=True)
+                identity = directory.lstat()
+                if (
+                    self._is_reparse_point(directory)
+                    or directory.is_symlink()
+                    or not stat.S_ISDIR(identity.st_mode)
+                    or not directory.resolve(strict=True).is_relative_to(trusted_root)
+                ):
+                    raise RuntimeError("runtime_build_lock_unsafe")
+            return directory
+
+        descriptor = None
+        try:
+            descriptor = os.open(self.data_home, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            for component in ("research-web", "runtime"):
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
+                child = os.open(
+                    component,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=descriptor,
+                )
+                identity = os.fstat(child)
+                if not stat.S_ISDIR(identity.st_mode):
+                    os.close(child)
+                    raise RuntimeError("runtime_build_lock_unsafe")
+                os.close(descriptor)
+                descriptor = child
+            return descriptor
+        except (OSError, RuntimeError) as exc:
+            if descriptor is not None:
+                os.close(descriptor)
+            if isinstance(exc, RuntimeError):
+                raise
+            raise RuntimeError("runtime_build_lock_unsafe") from exc
+
+    def _write_runtime_lock_json(self, value: dict[str, object]) -> None:
+        directory = self._runtime_lock_directory()
+        name = "build-lock.json"
+        if isinstance(directory, Path):
+            destination = directory / name
+            try:
+                if destination.exists() or destination.is_symlink():
+                    identity = destination.lstat()
+                    if (
+                        self._is_reparse_point(destination)
+                        or destination.is_symlink()
+                        or not stat.S_ISREG(identity.st_mode)
+                        or identity.st_nlink != 1
+                    ):
+                        raise RuntimeError("runtime_build_lock_unsafe")
+                self._atomic_json(destination, value)
+                return
+            except OSError as exc:
+                raise RuntimeError("runtime_build_lock_unsafe") from exc
+
+        temporary = f".build-lock.{uuid4().hex}.tmp"
+        handle = None
+        try:
+            try:
+                existing = os.stat(name, dir_fd=directory, follow_symlinks=False)
+            except FileNotFoundError:
+                existing = None
+            if existing is not None and (
+                not stat.S_ISREG(existing.st_mode)
+                or existing.st_nlink != 1
+                or bool(existing.st_mode & 0o077)
+            ):
+                raise RuntimeError("runtime_build_lock_unsafe")
+            handle = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory,
+            )
+            with os.fdopen(handle, "w", encoding="utf-8") as stream:
+                handle = None
+                identity = os.fstat(stream.fileno())
+                if not stat.S_ISREG(identity.st_mode) or identity.st_nlink != 1:
+                    raise RuntimeError("runtime_build_lock_unsafe")
+                json.dump(value, stream, ensure_ascii=False, indent=2)
+                stream.write("\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, name, src_dir_fd=directory, dst_dir_fd=directory)
+            os.fsync(directory)
+        except OSError as exc:
+            raise RuntimeError("runtime_build_lock_unsafe") from exc
+        finally:
+            if handle is not None:
+                os.close(handle)
+            try:
+                os.unlink(temporary, dir_fd=directory)
+            except FileNotFoundError:
+                pass
+            os.close(directory)
+
     def _subprocess_environment(self) -> dict[str, str]:
         """Return a minimal build environment without application credentials."""
         allowed = {
@@ -209,6 +339,11 @@ class SetupWebInstaller:
     def _node_subprocess_environment(self) -> dict[str, str]:
         """Return a credential-free environment with only Node-compatible proxies."""
         environment = self._subprocess_environment()
+        node_directory = str(self.node_executable.parent)
+        existing_path = environment.get("PATH", "")
+        environment["PATH"] = (
+            f"{node_directory}{os.pathsep}{existing_path}" if existing_path else node_directory
+        )
         if self.platform_name == "nt":
             for key in (
                 "PSMODULEPATH",
@@ -847,6 +982,28 @@ class SetupWebInstaller:
         self._atomic_json(self.install_manifest, manifest)
         return manifest
 
+    def write_runtime_build_lock(self, *, dsh_state: dict[str, object]) -> dict[str, object]:
+        """Publish the verified DSH closure consumed by the runtime launcher."""
+        commit = dsh_state.get("commit")
+        closure_sha256 = dsh_state.get("closure_sha256")
+        closure_files = dsh_state.get("closure_files")
+        if (
+            commit != DSH_COMMIT
+            or not isinstance(closure_sha256, str)
+            or re.fullmatch(r"[a-f0-9]{64}", closure_sha256) is None
+            or type(closure_files) is not int
+            or closure_files != DSH_CLOSURE_FILES
+        ):
+            raise RuntimeError("dsh_runtime_lock_invalid")
+        runtime_lock: dict[str, object] = {
+            "source_commit": commit,
+            "closure_sha256": closure_sha256,
+            "closure_files": closure_files,
+            "mode": "build",
+        }
+        self._write_runtime_lock_json(runtime_lock)
+        return runtime_lock
+
     def install(self, *, repair: bool = False, start: bool = True) -> dict[str, object]:
         """Install the Web stack and optionally start both loopback services."""
         report = self.check()
@@ -864,6 +1021,7 @@ class SetupWebInstaller:
         environment_python = self.prepare_environment(repair=repair)
         python_state = self.install_python_dependencies(environment_python)
         dsh_state = self.provision_dsh(repair=repair)
+        self.write_runtime_build_lock(dsh_state=dsh_state)
         manifest = self.write_install_manifest(
             python_state=python_state,
             dsh_state=dsh_state,

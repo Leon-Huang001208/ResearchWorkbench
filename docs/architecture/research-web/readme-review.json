@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "本轮无需调整根 README，现有 Research Web 安装与启动入口仍然准确。",
-  "reason": "启动命令只在进程创建前复用既有 Doctor 安装事实；公开入口、安装命令和产品定位均未改变。"
+  "summary": "本轮无需调整根 README，现有 Research Web 一键安装与启动入口仍然准确。",
+  "reason": "变更统一内部 Node 选择并同步已验证 Runtime build lock；公开命令、前置条件与产品定位均未改变。"
 }

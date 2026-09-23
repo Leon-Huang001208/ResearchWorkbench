@@ -40,6 +40,10 @@ python scripts/setup_web.py
 - `--repair`：只修复带本项目所有权标记的 `.venv` 或 DSH 目录；未知目录拒绝覆盖。
 - `--no-start`：安装完成但不启动服务。
 
+Node 选择顺序为：调用方显式传入、`RESEARCH_NODE_BINARY`、可执行的 Codex bundled Node、PATH。
+安装器会把选中 Node 的目录放在 npm/Corepack/DSH 构建子进程 PATH 首位，避免版本检查使用 Node 24
+而原生模块实际由 PATH 中的 Node 25 构建。Node 23 与 25+ 仍关闭失败，不会自动下载替代运行时。
+
 安装完成后可运行：
 
 ```bash
@@ -55,6 +59,11 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
 `rwb web start` 会在创建 3081/8088 子进程前复用 Doctor 的安装检查。若 checkout `.venv` 不受安装器
 所有、锁摘要不符、CJPY/Node/DSH 未就绪，命令立即列出稳定 issue code，并提示重新运行上述安装器；
 它不会先创建候选 Runtime 再等待健康超时。
+安装成功还会从已验证 DSH state 原子刷新 `research-web/runtime/build-lock.json`；Doctor 返回
+`dsh.runtime_lock_matches`，锁缺失或与当前 commit/closure/文件数不符时报告
+`dsh_runtime_lock_mismatch`，不会把“安装清单有效”误报成 Runtime 可启动。
+锁路径逐级拒绝符号链接和 Windows reparse point；POSIX 使用 no-follow 目录描述符完成 0600 原子
+替换并拒绝 hardlink，Doctor 以相同边界有界读取。closure 文件数只接受 JSON 整数，不接受浮点等价值。
 
 ## 依赖与固定制品
 

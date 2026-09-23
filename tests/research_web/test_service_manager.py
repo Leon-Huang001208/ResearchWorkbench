@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -515,6 +516,20 @@ def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, mo
             },
         },
     )
+    runtime_lock = manager.data_root / "runtime" / "build-lock.json"
+    runtime_lock.parent.mkdir(parents=True)
+    runtime_lock.write_text(
+        json.dumps(
+            {
+                "source_commit": service_manager_module.PINNED_COMMIT,
+                "closure_sha256": "closure-ok",
+                "closure_files": 11084,
+                "mode": "build",
+            }
+        ),
+        encoding="utf-8",
+    )
+    runtime_lock.chmod(0o600)
 
     report = manager.doctor()
     serialized = json.dumps(report, ensure_ascii=False)
@@ -528,6 +543,21 @@ def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, mo
     rendered = format_doctor_status(report)
     assert "CJPY: 0.5.2" in rendered
     assert "DSH: ready" in rendered
+
+    runtime_lock.write_text(
+        json.dumps(
+            {
+                "source_commit": service_manager_module.PINNED_COMMIT,
+                "closure_sha256": "stale-closure",
+                "closure_files": 11084,
+                "mode": "build",
+            }
+        ),
+        encoding="utf-8",
+    )
+    stale = manager.doctor()
+    assert stale["ok"] is False
+    assert "dsh_runtime_lock_mismatch" in stale["issues"]
 
 
 def test_dsh_build_status_uses_the_private_install_attestation(manager, monkeypatch):
@@ -562,6 +592,127 @@ def test_dsh_build_status_uses_the_private_install_attestation(manager, monkeypa
         lambda _source: ("tampered-closure", 11084),
     )
     assert manager._dsh_build_status()["ready"] is False
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_runtime_build_lock_reader_rejects_a_linked_runtime_directory(manager):
+    manager._prepare_private_directories()
+    external = manager.project_root / "external-runtime"
+    external.mkdir()
+    (external / "build-lock.json").write_text(
+        json.dumps(
+            {
+                "source_commit": service_manager_module.PINNED_COMMIT,
+                "closure_sha256": "closure-ok",
+                "closure_files": 11084,
+                "mode": "build",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (manager.data_root / "runtime").symlink_to(external, target_is_directory=True)
+
+    assert (
+        manager._runtime_build_lock_matches(
+            {"closure_sha256": "closure-ok", "closure_files": 11084}
+        )
+        is False
+    )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_runtime_build_lock_reader_rejects_a_linked_data_parent(manager):
+    external_parent = manager.project_root / "external-data"
+    runtime = external_parent / manager.data_root.name / "runtime"
+    runtime.mkdir(parents=True)
+    lock = runtime / "build-lock.json"
+    lock.write_text(
+        json.dumps(
+            {
+                "source_commit": service_manager_module.PINNED_COMMIT,
+                "closure_sha256": "closure-ok",
+                "closure_files": 11084,
+                "mode": "build",
+            }
+        ),
+        encoding="utf-8",
+    )
+    lock.chmod(0o600)
+    manager.data_root.parent.symlink_to(external_parent, target_is_directory=True)
+
+    assert (
+        manager._runtime_build_lock_matches(
+            {"closure_sha256": "closure-ok", "closure_files": 11084}
+        )
+        is False
+    )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_runtime_build_lock_reader_rejects_a_preexisting_data_parent_alias(tmp_path):
+    external_parent = tmp_path / "external-data"
+    runtime = external_parent / "research-web" / "runtime"
+    runtime.mkdir(parents=True)
+    lock = runtime / "build-lock.json"
+    lock.write_text(
+        json.dumps(
+            {
+                "source_commit": service_manager_module.PINNED_COMMIT,
+                "closure_sha256": "closure-ok",
+                "closure_files": 11084,
+                "mode": "build",
+            }
+        ),
+        encoding="utf-8",
+    )
+    lock.chmod(0o600)
+    alias = tmp_path / "data-alias"
+    alias.symlink_to(external_parent, target_is_directory=True)
+    source = tmp_path / "dsh"
+    source.mkdir()
+    python = tmp_path / "python"
+    python.touch()
+    node = tmp_path / "node"
+    node.touch()
+    manager = WebServiceManager(
+        project_root=tmp_path,
+        data_root=alias / "research-web",
+        runtime_source=source,
+        python=str(python),
+        node=str(node),
+    )
+
+    assert (
+        manager._runtime_build_lock_matches(
+            {"closure_sha256": "closure-ok", "closure_files": 11084}
+        )
+        is False
+    )
+
+
+def test_runtime_build_lock_reader_requires_an_integer_file_count(manager):
+    manager._prepare_private_directories()
+    runtime = manager.data_root / "runtime"
+    runtime.mkdir()
+    (runtime / "build-lock.json").write_text(
+        json.dumps(
+            {
+                "source_commit": service_manager_module.PINNED_COMMIT,
+                "closure_sha256": "closure-ok",
+                "closure_files": 11084.0,
+                "mode": "build",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (runtime / "build-lock.json").chmod(0o600)
+
+    assert (
+        manager._runtime_build_lock_matches(
+            {"closure_sha256": "closure-ok", "closure_files": 11084}
+        )
+        is False
+    )
 
 
 def test_package_version_probe_preserves_present_packages_when_one_is_missing(manager, monkeypatch):
