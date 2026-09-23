@@ -77,7 +77,7 @@ test('documentation-only changes use only the lightweight constraints workflow',
   assert.equal(triggersForPath(workflows.desktop, 'push', file), false);
 });
 
-test('installation changes trigger the native bootstrap matrix', () => {
+test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   for (const file of [
     'setup-web.sh',
     'setup-web.cmd',
@@ -89,7 +89,7 @@ test('installation changes trigger the native bootstrap matrix', () => {
     assert.equal(triggersForPath(workflows.bootstrap, 'pull_request', file), true, file);
   }
   assert.match(workflows.bootstrap, /macos-14/);
-  assert.match(workflows.bootstrap, /windows-2022/);
+  assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
 });
 
 test('ordinary Research Web code uses Linux checks without unnecessary native jobs', () => {
@@ -101,20 +101,17 @@ test('ordinary Research Web code uses Linux checks without unnecessary native jo
   const platformSpecific = 'app/research_web/service_manager.py';
   assert.equal(triggersForPath(workflows.checks, 'push', platformSpecific), true);
   assert.equal(triggersForPath(workflows.bootstrap, 'push', platformSpecific), true);
-  assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), true);
+  assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), false);
 });
 
 test('platform workflows retain explicit routing boundaries', () => {
   assert.deepEqual(workflowTriggers(workflows.tabbit), ['workflow_dispatch']);
-  assert.equal(
-    triggersForPath(workflows.windows, 'push', 'app/research_web/local_integrations/manager.py'),
-    true,
-  );
+  assert.deepEqual(workflowTriggers(workflows.windows), ['workflow_dispatch']);
   assert.equal(triggersForPath(workflows.desktop, 'push', 'src-tauri/src/main.rs'), true);
 });
 
 test('automatic workflows cancel stale runs and use bounded jobs', () => {
-  for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints, workflows.windows]) {
+  for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints]) {
     assert.match(source, /concurrency:/);
     assert.match(source, /cancel-in-progress: true/);
     assert.match(source, /timeout-minutes:/);
