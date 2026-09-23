@@ -288,7 +288,7 @@ Add protocol tests for `_runtime_sessions()` using monkeypatched auth and `_json
 - [ ] **Step 2: Run RED service-manager tests**
 
 ```bash
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q
 ```
 
 Expected: new tests fail because `_runtime_sessions` does not exist and `_active_research` still calls Web `/sessions`.
@@ -359,7 +359,7 @@ def _active_research(self) -> list[str]:
 - [ ] **Step 4: Run GREEN service-manager tests**
 
 ```bash
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q
 ```
 
 Expected: all service-manager tests pass; existing active-research refusal tests remain green.
@@ -406,7 +406,7 @@ Assert the `/api/research/sessions` response keeps store order/status semantics,
 - [ ] **Step 2: Run RED API tests**
 
 ```bash
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest \
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest \
   tests/research_web/test_api.py \
   --confcutdir=tests/research_web -q
 ```
@@ -440,7 +440,7 @@ Iterate with `for row, children in zip(rows, children_by_row, strict=True)` and 
 - [ ] **Step 4: Run GREEN API tests**
 
 ```bash
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest \
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest \
   tests/research_web/test_api.py \
   --confcutdir=tests/research_web -q
 ```
@@ -669,14 +669,14 @@ The calibrated plan must execute exactly this local closure:
 node --test tests/javascript/verification_policy.test.mjs
 node --test tests/javascript/verification_receipt.test.mjs
 node --test tests/javascript/incremental_validation_skill.test.mjs
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q
 node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs
 node --test tests/javascript/research_web_architecture.test.mjs
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest tests/research_web/test_protocol.py
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_protocol.py
 node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs
 node scripts/check_documentation_governance.mjs --project .
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python scripts/generate_py_file_index.py --check
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python scripts/generate_py_file_index.py --check
 node - <<'NODE'
 const { spawnSync } = require('node:child_process');
 const plan = require('./.ai/reports/2026-09-23-research-web-restart-refresh-stability-plan.json');
@@ -767,14 +767,14 @@ NODE
 node --test tests/javascript/verification_policy.test.mjs
 node --test tests/javascript/verification_receipt.test.mjs
 node --test tests/javascript/incremental_validation_skill.test.mjs
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q
 node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs
 node --test tests/javascript/research_web_architecture.test.mjs
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python -m pytest tests/research_web/test_protocol.py
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_protocol.py
 node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs
 node scripts/check_documentation_governance.mjs --project .
-/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/post-p1-health-audit/.venv/bin/python scripts/generate_py_file_index.py --check
+/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python scripts/generate_py_file_index.py --check
 node - <<'NODE'
 const { spawnSync } = require('node:child_process');
 const plan = require('./.ai/reports/2026-09-23-research-web-restart-refresh-stability-plan.json');
