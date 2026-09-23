@@ -761,6 +761,139 @@ def test_runtime_health_exchanges_cookie_and_writes_private_auth(manager, monkey
     assert requests[0][4] == {"Cookie": "dsh-auth-test=value"}
 
 
+def test_runtime_sessions_returns_authoritative_session_list(manager, monkeypatch):
+    monkeypatch.setattr(
+        manager,
+        "_read_runtime_auth",
+        lambda: {"cookie": "dsh-auth-test=value"},
+    )
+    requests = []
+
+    def request(port, method, path, payload=None, extra_headers=None):
+        requests.append((port, method, path, payload, extra_headers))
+        return {
+            "type": "server-response",
+            "rpcId": payload["rpcId"],
+            "result": {
+                "ok": True,
+                "value": {
+                    "items": [
+                        {"sessionId": "idle-parent", "running": False},
+                        {"sessionId": "running-child", "running": True},
+                    ]
+                },
+            },
+        }
+
+    monkeypatch.setattr(manager, "_json_request", request)
+
+    assert manager._runtime_sessions() == [
+        {"sessionId": "idle-parent", "running": False},
+        {"sessionId": "running-child", "running": True},
+    ]
+    assert requests[0][0:3] == (3081, "POST", "/api/session/list")
+    assert requests[0][3]["type"] == "client-request"
+    assert requests[0][3]["method"] == "session/list"
+    assert requests[0][3]["payload"] == {"args": {"_request": {}}}
+    assert requests[0][4] == {"Cookie": "dsh-auth-test=value"}
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {
+            "type": "server-response",
+            "rpcId": "mismatched",
+            "result": {"ok": True, "value": {"items": []}},
+        },
+        {
+            "type": "server-response",
+            "rpcId": None,
+            "result": {"ok": False, "value": {"items": []}},
+        },
+        {
+            "type": "server-response",
+            "rpcId": None,
+            "result": {"ok": True},
+        },
+        {
+            "type": "server-response",
+            "rpcId": None,
+            "result": {"ok": True, "value": []},
+        },
+    ],
+)
+def test_runtime_sessions_rejects_invalid_protocol_response(manager, monkeypatch, response):
+    monkeypatch.setattr(
+        manager,
+        "_read_runtime_auth",
+        lambda: {"cookie": "dsh-auth-test=value"},
+    )
+
+    def request(_port, _method, _path, payload=None, _extra_headers=None):
+        value = dict(response)
+        if value.get("rpcId") is None:
+            value["rpcId"] = payload["rpcId"]
+        return value
+
+    monkeypatch.setattr(manager, "_json_request", request)
+
+    with pytest.raises(ServiceManagerError, match="DSH 会话状态响应无效"):
+        manager._runtime_sessions()
+
+
+def test_runtime_sessions_fails_closed_when_auth_is_unavailable(manager, monkeypatch):
+    monkeypatch.setattr(manager, "_read_runtime_auth", lambda: None)
+    monkeypatch.setattr(manager, "_runtime_launch_token", lambda: None)
+    monkeypatch.setattr(
+        manager,
+        "_json_request",
+        lambda *_args, **_kwargs: pytest.fail("request must not run without auth"),
+    )
+
+    with pytest.raises(ServiceManagerError, match="DSH 认证不可用"):
+        manager._runtime_sessions()
+
+
+def test_runtime_healthy_reuses_runtime_sessions(manager, monkeypatch):
+    calls = []
+    monkeypatch.setattr(manager, "_runtime_sessions", lambda: calls.append(True) or [])
+
+    assert manager._runtime_healthy() is True
+    assert calls == [True]
+
+    def fail():
+        raise ServiceManagerError("DSH 会话状态响应无效")
+
+    monkeypatch.setattr(manager, "_runtime_sessions", fail)
+    assert manager._runtime_healthy() is False
+
+
+def test_active_research_uses_all_authoritative_runtime_sessions(manager, monkeypatch):
+    monkeypatch.setattr(
+        manager,
+        "_runtime_sessions",
+        lambda: [
+            {"sessionId": "idle-parent", "running": False},
+            {"sessionId": "running-child", "running": True},
+            {"sessionId": "unknown-running", "running": True},
+        ],
+    )
+
+    assert manager._active_research() == ["running-child", "unknown-running"]
+
+
+@pytest.mark.parametrize(
+    "items",
+    [None, [{}], [{"sessionId": "x", "running": "yes"}], [{"sessionId": "", "running": False}]],
+)
+def test_active_research_fails_closed_on_invalid_runtime_sessions(manager, monkeypatch, items):
+    monkeypatch.setattr(manager, "_runtime_sessions", lambda: items)
+
+    with pytest.raises(ServiceManagerError, match="无法核对活动研究"):
+        manager._active_research()
+
+
 def test_runtime_auth_fails_closed_for_foreign_authority(manager):
     manager._prepare_private_directories()
     auth_path = manager._runtime_auth_path()
