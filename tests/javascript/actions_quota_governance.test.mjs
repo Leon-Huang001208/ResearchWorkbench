@@ -36,16 +36,25 @@ function workflowJobs(source) {
   const jobs = [];
   for (let index = start + 1; index < lines.length;) {
     if (/^\S/.test(lines[index])) break;
-    const job = lines[index].match(/^  (.+):\s*$/);
-    if (!job) {
+    const line = lines[index];
+    if (!/^  \S/.test(line)) {
       index += 1;
       continue;
     }
-    const rawId = job[1].trim();
-    const id = (
-      (rawId.startsWith('"') && rawId.endsWith('"'))
-      || (rawId.startsWith("'") && rawId.endsWith("'"))
-    ) ? rawId.slice(1, -1) : rawId;
+    const value = line.slice(2);
+    if (value.startsWith('#') || value.startsWith('- ')) {
+      index += 1;
+      continue;
+    }
+    const quoted = value.match(/^(?:"((?:[^"\\]|\\.)*)"|'((?:[^']|'')*)')\s*:/);
+    const separator = value.indexOf(':');
+    if (!quoted && separator <= 0) {
+      index += 1;
+      continue;
+    }
+    const id = quoted
+      ? (quoted[1] ?? quoted[2].replaceAll("''", "'"))
+      : value.slice(0, separator).trim();
     let runsOn = null;
     index += 1;
     while (index < lines.length && !/^\S/.test(lines[index]) && !/^  \S/.test(lines[index])) {
@@ -136,6 +145,9 @@ test('workflow job parser detects unquoted and quoted extra job keys', () => {
     'jobs:',
     '  clean-install:',
     '    runs-on: macos-14',
+    '    strategy:',
+    '      matrix:',
+    '        os: [macos-14]',
     '  extra_job:',
     '    runs-on: ubuntu-latest',
     '  ExtraJob:',
@@ -144,15 +156,22 @@ test('workflow job parser detects unquoted and quoted extra job keys', () => {
     '    runs-on: macos-14',
     "  'single-quoted-extra':",
     '    runs-on: ubuntu-latest',
+    '  inline-extra: { runs-on: ubuntu-latest, steps: [] }',
+    '  commented-extra: # manual verification only',
   ].join('\n');
 
-  assert.deepEqual(workflowJobs(source), [
+  const jobs = workflowJobs(source);
+  assert.deepEqual(jobs, [
     {id: 'clean-install', runsOn: 'macos-14'},
     {id: 'extra_job', runsOn: 'ubuntu-latest'},
     {id: 'ExtraJob', runsOn: 'windows-2022'},
     {id: 'quoted-extra', runsOn: 'macos-14'},
     {id: 'single-quoted-extra', runsOn: 'ubuntu-latest'},
+    {id: 'inline-extra', runsOn: null},
+    {id: 'commented-extra', runsOn: null},
   ]);
+  assert.equal(jobs.some(({id}) => id === 'strategy'), false);
+  assert.equal(jobs.some(({id}) => id === 'matrix'), false);
 });
 
 test('ordinary Research Web code uses Linux checks without unnecessary native jobs', () => {
