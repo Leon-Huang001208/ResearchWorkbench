@@ -72,6 +72,7 @@ SESSION_DELETE_BLOCKED_STATUSES = {
 }
 SESSION_RETENTION_SECONDS = 30 * 24 * 60 * 60
 SESSION_PURGE_INTERVAL_SECONDS = 6 * 60 * 60
+SUBAGENT_LIST_CONCURRENCY = 8
 MCP_CONFIRMATION_KEY_ACCOUNT = "confirmation-signing-v1"
 MCP_INTERNAL_URL = "http://127.0.0.1:8088"
 
@@ -609,17 +610,21 @@ class ResearchService:
         active_rows = [row for row in rows if row.get("deleted_at") is None]
         native = await self.client.rpc("session.list", {}) if active_rows else {"items": []}
         running = {item["sessionId"]: item["running"] for item in native["items"]}
+        semaphore = asyncio.Semaphore(SUBAGENT_LIST_CONCURRENCY)
+
+        async def children_for(row):
+            if row.get("deleted_at") is not None or not row["created"]:
+                return {"entries": []}
+            async with semaphore:
+                return await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
+
+        children_by_row = await asyncio.gather(*(children_for(row) for row in rows))
         results = []
-        for row in rows:
+        for row, children in zip(rows, children_by_row, strict=True):
             result = self.summary(row)
             if row.get("deleted_at") is not None:
                 results.append(result)
                 continue
-            children = (
-                await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
-                if row["created"]
-                else {"entries": []}
-            )
             child_running = any(child.get("activity") == "running" for child in children["entries"])
             if running.get(row["id"]) or child_running:
                 result["status"] = "running"

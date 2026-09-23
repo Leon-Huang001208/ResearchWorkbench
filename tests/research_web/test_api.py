@@ -663,6 +663,78 @@ def test_active_child_keeps_parent_stoppable_in_detail_and_history(api):
     assert client.get("/api/research/sessions").json()["items"][0]["status"] == "running"
 
 
+def test_session_list_bounds_child_queries_and_preserves_store_order(api):
+    client, native, service = api
+    session_ids = []
+    for index in range(50):
+        row = service.store.create("fingpt", f"研究 {index}")
+        row["created"] = True
+        row["status"] = "idle"
+        row["updated_at"] = index
+        session_ids.append(row["id"])
+    target = session_ids[24]
+    service.store.session(target)["status"] = "completed"
+    service.store.save()
+
+    original = native.rpc
+    active = 0
+    max_active = 0
+
+    async def bounded_rpc(method, payload):
+        nonlocal active, max_active
+        if method == "session.list":
+            return {"items": []}
+        if method == "subagent.list":
+            active += 1
+            max_active = max(max_active, active)
+            try:
+                await asyncio.sleep(0.01)
+                entries = (
+                    [{"id": "child", "activity": "running"}]
+                    if payload["parentSessionId"] == target
+                    else []
+                )
+                return {"entries": entries}
+            finally:
+                active -= 1
+        return await original(method, payload)
+
+    native.rpc = bounded_rpc
+    response = client.get("/api/research/sessions")
+
+    assert response.status_code == 200, response.text
+    items = response.json()["items"]
+    assert [item["id"] for item in items] == list(reversed(session_ids))
+    assert next(item for item in items if item["id"] == target)["status"] == "running"
+    assert all(item["status"] == "idle" for item in items if item["id"] != target)
+    assert 1 < max_active <= 8
+
+
+def test_session_list_propagates_child_lookup_runtime_failure(api):
+    client, native, service = api
+    rows = [service.store.create("fingpt", f"研究 {index}") for index in range(3)]
+    for row in rows:
+        row["created"] = True
+    service.store.save()
+    failed_parent = rows[1]["id"]
+    original = native.rpc
+
+    async def failing_rpc(method, payload):
+        if method == "session.list":
+            return {"items": []}
+        if method == "subagent.list" and payload["parentSessionId"] == failed_parent:
+            raise RuntimeFailure("child lookup failed", "child_lookup_failed")
+        return await original(method, payload)
+
+    native.rpc = failing_rpc
+    response = client.get("/api/research/sessions")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {"code": "child_lookup_failed", "message": "child lookup failed"}
+    }
+
+
 @pytest.mark.asyncio
 async def test_model_configuration_serializes_with_session_creation(tmp_path):
     native = NativeFixture()
