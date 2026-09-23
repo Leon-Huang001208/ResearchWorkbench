@@ -4,7 +4,7 @@
 
 - Windows automatic validation is paused; no Windows result is claimed for this policy-change delivery.
 - Local macOS validation passed before publication.
-- GitHub macOS Bootstrap remains a required external gate and is still pending until publish.
+- The required GitHub external gates passed on the first published commit.
 - Desktop Windows rules were not changed.
 
 The planner changed set is fixed to the 22 files in
@@ -56,17 +56,24 @@ Verify remains manual-only. The policy suite now checks each CI path independent
 the local-integrations test path and source path as L1/local-only with exactly two focused tests and no external
 gates. Task 5/6 initial-delivery commands enumerate all 22 files. The historical P0 receipt schema is unchanged.
 
-## Pre-publication external gates
+## First-publication external gates
 
-No external gate ran from this local Task 5 closure:
+The conflict-free replacement integration commit
+`810708c41854ef9f4b60170663a3f72f0b225400` was published directly to `origin/master` after its complete
+22-file merged result passed locally in 35 measured seconds. All automatically created runs for that exact SHA
+were inspected after completion:
 
-- `project-constraints`: `not_run`; it requires the published GitHub workflow.
-- `research-web-checks`: `not_run`; it requires the published GitHub workflow.
-- `research-web-bootstrap`: `not_run`; the required target is GitHub `macos-14`.
+| Gate | Run / attempt | Job evidence | Conclusion |
+| --- | --- | --- | --- |
+| `project-constraints` | [35859438620](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35859438620), attempt 1, push | job `check` (`107175730286`) | `success` |
+| `research-web-checks` | [35859438637](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35859438637), attempt 1, push | job `checks` (`107175730559`) | `success` |
+| `research-web-bootstrap` | [35859438469](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35859438469), attempt 1, push | exactly one job: `Clean Web install (macos-14)` (`107175730265`) | `success` |
 
-Accordingly the receipt result is honestly `blocked`, with one uncovered risk for each pending external gate.
-Windows is not an external gate in this plan, was not run, and is not claimed. The retained Windows Web workflow
-can only run after a user explicitly dispatches it; desktop Windows rules remain unchanged.
+The complete run listing for the commit contained exactly those three push runs. It contained no
+`Research Web Windows Verify` run, no Windows job, and no rerun. Windows was not run and is not claimed as
+verified. The retained Windows Web workflow remains manual-only; it was not dispatched. Desktop Windows rules
+remain unchanged. With the three required external gates passed, the receipt result is `passed` and has no
+uncovered external-gate risk.
 
 ## Architecture review
 
