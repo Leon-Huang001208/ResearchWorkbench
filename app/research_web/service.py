@@ -627,6 +627,34 @@ class ResearchService:
                     task.cancel()
             await asyncio.gather(*child_tasks, return_exceptions=True)
             raise
+        stale_rows = [
+            row
+            for row, children in zip(rows, children_by_row, strict=True)
+            if row.get("deleted_at") is None
+            and not running.get(row["id"])
+            and not any(child.get("activity") == "running" for child in children["entries"])
+            and row["status"] == "running"
+        ]
+
+        async def reconcile_detail(row):
+            # Recover completion during BFF downtime from the authoritative log.
+            self.loaded.discard(row["id"])
+            async with semaphore:
+                return await self.detail(row["id"])
+
+        detail_tasks = [asyncio.create_task(reconcile_detail(row)) for row in stale_rows]
+        try:
+            stale_details = await asyncio.gather(*detail_tasks)
+        except BaseException:
+            for task in detail_tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*detail_tasks, return_exceptions=True)
+            raise
+        reconciled_statuses = {
+            row["id"]: detail["status"]
+            for row, detail in zip(stale_rows, stale_details, strict=True)
+        }
         results = []
         for row, children in zip(rows, children_by_row, strict=True):
             result = self.summary(row)
@@ -637,10 +665,7 @@ class ResearchService:
             if running.get(row["id"]) or child_running:
                 result["status"] = "running"
             elif result["status"] == "running":
-                # Recover completion during BFF downtime from the authoritative log.
-                self.loaded.discard(row["id"])
-                detail = await self.detail(row["id"])
-                result["status"] = detail["status"]
+                result["status"] = reconciled_statuses[row["id"]]
             results.append(result)
         return results
 

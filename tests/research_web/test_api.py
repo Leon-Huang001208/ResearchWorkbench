@@ -726,6 +726,109 @@ def test_session_list_bounds_child_queries_and_preserves_store_order(api):
     assert 1 < max_active <= 8
 
 
+@pytest.mark.asyncio
+async def test_session_list_reconciles_stale_running_details_concurrently_in_order(
+    tmp_path, monkeypatch
+):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    session_ids = []
+    terminal_statuses = {}
+    for index in range(10):
+        row = service.store.create("fingpt", f"陈旧运行会话 {index}")
+        row["created"] = True
+        row["status"] = "running"
+        row["updated_at"] = index
+        session_ids.append(row["id"])
+        terminal_statuses[row["id"]] = "completed" if index % 2 == 0 else "failed"
+    service.store.save()
+
+    active = 0
+    max_active = 0
+    finished = set()
+    delay_seconds = 0.04
+
+    async def delayed_detail(sid):
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        try:
+            await asyncio.sleep(delay_seconds)
+            return {"status": terminal_statuses[sid]}
+        finally:
+            active -= 1
+            finished.add(sid)
+
+    monkeypatch.setattr(service, "detail", delayed_detail)
+    started = time.monotonic()
+    items = await service.list_sessions()
+    elapsed = time.monotonic() - started
+
+    concurrency_ok = 1 < max_active <= 8
+    duration_ok = elapsed < delay_seconds * 6
+    assert concurrency_ok and duration_ok, (
+        f"max_active={max_active}, elapsed={elapsed:.3f}s, " f"limit={delay_seconds * 6:.3f}s"
+    )
+    assert 1 < max_active <= 8
+    assert [item["id"] for item in items] == list(reversed(session_ids))
+    assert [item["status"] for item in items] == [
+        terminal_statuses[sid] for sid in reversed(session_ids)
+    ]
+    assert active == 0
+    assert finished == set(session_ids)
+
+
+@pytest.mark.asyncio
+async def test_session_list_cancels_stale_detail_tasks_before_reconciliation_failure(
+    tmp_path, monkeypatch
+):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    rows = [service.store.create("fingpt", f"陈旧运行会话 {index}") for index in range(10)]
+    for index, row in enumerate(rows):
+        row["created"] = True
+        row["status"] = "running"
+        row["updated_at"] = index
+    service.store.save()
+
+    failed_sid = rows[-1]["id"]
+    active = 0
+    started = set()
+    completed = set()
+    cancelled = set()
+
+    async def failing_detail(sid):
+        nonlocal active
+        active += 1
+        started.add(sid)
+        try:
+            if sid == failed_sid:
+                await asyncio.sleep(0.01)
+                raise RuntimeFailure("detail reconciliation failed", "detail_reconciliation_failed")
+            await asyncio.sleep(0.2)
+            completed.add(sid)
+            return {"status": "completed"}
+        except asyncio.CancelledError:
+            cancelled.add(sid)
+            raise
+        finally:
+            active -= 1
+
+    monkeypatch.setattr(service, "detail", failing_detail)
+    with pytest.raises(RuntimeFailure, match="detail reconciliation failed"):
+        await service.list_sessions()
+    active_after_failure = active
+    completed_after_failure = set(completed)
+    await asyncio.sleep(0.3)
+
+    assert len(started) > 1
+    assert active_after_failure == 0
+    assert completed_after_failure == set()
+    assert active == 0
+    assert completed == set()
+    assert cancelled == started - {failed_sid}
+
+
 def test_session_list_cancels_slow_child_lookups_before_runtime_failure_response(api):
     client, native, service = api
     rows = [service.store.create("fingpt", f"研究 {index}") for index in range(20)]
