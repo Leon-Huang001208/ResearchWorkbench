@@ -76,10 +76,12 @@ test "$feature_head" = "$audit_head"
 
 Expected: the exact spec and plan commits are preserved; no patch is recreated and no source file changes yet.
 
-The delivery receipt's `featureCommit` remains the `--start` snapshot and must
-not be treated as the live feature HEAD after this fast-forward. The assertion
-above is the live feature/audit comparison. Only the receipt refreshed by
-`--prepare` is authoritative for integration verification.
+Before `--prepare`, the delivery receipt's `featureCommit` is only the `--start`
+snapshot and must not be treated as the live feature HEAD after this
+fast-forward. The assertion above is the live feature/audit comparison.
+Successful `--prepare` updates `featureCommit` to that live feature HEAD and
+writes the authoritative `integrationWorktree` and `integrationCommit` for
+merged verification.
 
 ### Task 1: Calibrate incremental validation for service lifecycle, API and UI changes
 
