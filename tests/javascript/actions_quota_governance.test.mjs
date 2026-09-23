@@ -29,6 +29,44 @@ function workflowTriggers(source) {
   return triggers;
 }
 
+function workflowJobs(source) {
+  const lines = source.split(/\r?\n/);
+  const start = lines.findIndex((line) => line === 'jobs:');
+  assert.notEqual(start, -1, 'workflow must declare jobs');
+  const jobs = [];
+  for (let index = start + 1; index < lines.length;) {
+    if (/^\S/.test(lines[index])) break;
+    const line = lines[index];
+    if (!/^  \S/.test(line)) {
+      index += 1;
+      continue;
+    }
+    const value = line.slice(2);
+    if (value.startsWith('#') || value.startsWith('- ')) {
+      index += 1;
+      continue;
+    }
+    const quoted = value.match(/^(?:"((?:[^"\\]|\\.)*)"|'((?:[^']|'')*)')\s*:/);
+    const separator = value.indexOf(':');
+    if (!quoted && separator <= 0) {
+      index += 1;
+      continue;
+    }
+    const id = quoted
+      ? (quoted[1] ?? quoted[2].replaceAll("''", "'"))
+      : value.slice(0, separator).trim();
+    let runsOn = null;
+    index += 1;
+    while (index < lines.length && !/^\S/.test(lines[index]) && !/^  \S/.test(lines[index])) {
+      const runner = lines[index].match(/^    runs-on: (.+)$/);
+      if (runner) runsOn = runner[1];
+      index += 1;
+    }
+    jobs.push({id, runsOn});
+  }
+  return jobs;
+}
+
 function triggerPaths(source, event) {
   const lines = source.split(/\r?\n/);
   const onIndex = lines.findIndex((line) => line === 'on:');
@@ -77,7 +115,7 @@ test('documentation-only changes use only the lightweight constraints workflow',
   assert.equal(triggersForPath(workflows.desktop, 'push', file), false);
 });
 
-test('installation changes trigger the native bootstrap matrix', () => {
+test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   for (const file of [
     'setup-web.sh',
     'setup-web.cmd',
@@ -89,7 +127,65 @@ test('installation changes trigger the native bootstrap matrix', () => {
     assert.equal(triggersForPath(workflows.bootstrap, 'pull_request', file), true, file);
   }
   assert.match(workflows.bootstrap, /macos-14/);
-  assert.match(workflows.bootstrap, /windows-2022/);
+  assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
+});
+
+for (const file of [
+  '.github/workflows/research-web-bootstrap.yml',
+  '.github/workflows/research-web-windows-verify.yml',
+  'tests/javascript/actions_quota_governance.test.mjs',
+]) {
+  test(`focused CI path automatically triggers both required Web workflows: ${file}`, () => {
+    for (const event of ['pull_request', 'push']) {
+      for (const name of ['bootstrap', 'checks']) {
+        assert.equal(triggersForPath(workflows[name], event, file), true, `${name}: ${event}: ${file}`);
+      }
+    }
+  });
+}
+
+test('Bootstrap has exactly one macOS clean-install job and its intended triggers', () => {
+  assert.deepEqual(
+    workflowTriggers(workflows.bootstrap),
+    ['pull_request', 'push', 'workflow_dispatch'],
+  );
+  assert.deepEqual(workflowJobs(workflows.bootstrap), [
+    {id: 'clean-install', runsOn: 'macos-14'},
+  ]);
+});
+
+test('workflow job parser detects unquoted and quoted extra job keys', () => {
+  const source = [
+    'jobs:',
+    '  clean-install:',
+    '    runs-on: macos-14',
+    '    strategy:',
+    '      matrix:',
+    '        os: [macos-14]',
+    '  extra_job:',
+    '    runs-on: ubuntu-latest',
+    '  ExtraJob:',
+    '    runs-on: windows-2022',
+    '  "quoted-extra":',
+    '    runs-on: macos-14',
+    "  'single-quoted-extra':",
+    '    runs-on: ubuntu-latest',
+    '  inline-extra: { runs-on: ubuntu-latest, steps: [] }',
+    '  commented-extra: # manual verification only',
+  ].join('\n');
+
+  const jobs = workflowJobs(source);
+  assert.deepEqual(jobs, [
+    {id: 'clean-install', runsOn: 'macos-14'},
+    {id: 'extra_job', runsOn: 'ubuntu-latest'},
+    {id: 'ExtraJob', runsOn: 'windows-2022'},
+    {id: 'quoted-extra', runsOn: 'macos-14'},
+    {id: 'single-quoted-extra', runsOn: 'ubuntu-latest'},
+    {id: 'inline-extra', runsOn: null},
+    {id: 'commented-extra', runsOn: null},
+  ]);
+  assert.equal(jobs.some(({id}) => id === 'strategy'), false);
+  assert.equal(jobs.some(({id}) => id === 'matrix'), false);
 });
 
 test('ordinary Research Web code uses Linux checks without unnecessary native jobs', () => {
@@ -101,20 +197,17 @@ test('ordinary Research Web code uses Linux checks without unnecessary native jo
   const platformSpecific = 'app/research_web/service_manager.py';
   assert.equal(triggersForPath(workflows.checks, 'push', platformSpecific), true);
   assert.equal(triggersForPath(workflows.bootstrap, 'push', platformSpecific), true);
-  assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), true);
+  assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), false);
 });
 
 test('platform workflows retain explicit routing boundaries', () => {
   assert.deepEqual(workflowTriggers(workflows.tabbit), ['workflow_dispatch']);
-  assert.equal(
-    triggersForPath(workflows.windows, 'push', 'app/research_web/local_integrations/manager.py'),
-    true,
-  );
+  assert.deepEqual(workflowTriggers(workflows.windows), ['workflow_dispatch']);
   assert.equal(triggersForPath(workflows.desktop, 'push', 'src-tauri/src/main.rs'), true);
 });
 
 test('automatic workflows cancel stale runs and use bounded jobs', () => {
-  for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints, workflows.windows]) {
+  for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints]) {
     assert.match(source, /concurrency:/);
     assert.match(source, /cancel-in-progress: true/);
     assert.match(source, /timeout-minutes:/);

@@ -1,8 +1,10 @@
 # 图文更新清单契约与门禁
 
-项目约束现在额外要求 `.github/workflows/research-web-bootstrap.yml` 同时包含原生 macOS/Windows
-干净安装、公开 setup 入口、Doctor、CJPY 0.5.2 和无凭据天软不可调用断言。该安装门禁与本文件的
-架构图/回执门禁并行，不能互相替代。
+项目约束现在额外要求 `.github/workflows/research-web-bootstrap.yml` 在原生 `macos-14`
+持续执行干净安装、公开 setup 入口、Doctor、CJPY 0.5.2 和无凭据天软不可调用断言。
+Windows Web 验证保留原生 `windows-2022` 任务，但暂停自动触发并只接受用户显式 `workflow_dispatch`；
+未运行时不生成 Windows 通过结论。该 Web 平台路由与本文件的架构图/回执门禁并行，也不改变
+Desktop/Tauri/sidecar 的独立 Windows 验收规则；这些门禁不能互相替代。
 
 本文件定义实际 `scripts/check_research_architecture.mjs` 的输入格式；Python 文档检查与现有 Project Constraints CI 调用同一仓库内检查器。快速 CI 同时运行 Tabbit 手动触发契约测试，防止耗时双平台矩阵重新挂回普通 push 或 pull request，但不执行矩阵本身。详见 [门禁模块说明](../../research-web-documentation.md)。CI 配置已接线，未声称远端 CI 已执行。
 

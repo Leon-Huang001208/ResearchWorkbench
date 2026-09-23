@@ -63,6 +63,11 @@
         "execution": "local",
         "value": "python -m pytest tests/research_web/test_setup_web.py"
       },
+      "research-web-local-integrations": {
+        "level": "L1",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_local_integrations.py"
+      },
       "research-web-frameworks-python": {
         "level": "L2",
         "execution": "local",
@@ -115,7 +120,7 @@
       "research-web-bootstrap": {
         "level": "L4",
         "execution": "external",
-        "value": ".github/workflows/research-web-bootstrap.yml"
+        "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
       },
       "native-windows-desktop": {
         "level": "L4",
@@ -256,6 +261,42 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-ci",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_ci_change",
+      "impact": [
+        "research-web-verification"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          ".github/workflows/research-web-bootstrap.yml",
+          ".github/workflows/research-web-windows-verify.yml",
+          "tests/javascript/actions_quota_governance.test.mjs"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "verification-policy-contracts",
+        "verification-receipt-contracts",
+        "incremental-validation-skill-contracts",
+        "research-web-verification-full",
+        "research-web-local-integrations",
+        "project-constraints-local"
+      ],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap"
       ]
     },
     {
@@ -507,6 +548,38 @@
       "tests": [],
       "documentation": [],
       "ci": []
+    },
+    {
+      "id": "research-web-local-integrations",
+      "risk": "local-only",
+      "minimumLevel": "L1",
+      "reason": "research_web_local_integrations_change",
+      "impact": [
+        "research-web-local-integrations"
+      ],
+      "coupling": "low",
+      "match": {
+        "files": [
+          "tests/research_web/test_local_integrations.py"
+        ],
+        "prefixes": [
+          "app/research_web/local_integrations/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-local-integrations",
+        "research-web-architecture"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
     },
     {
       "id": "research-web",

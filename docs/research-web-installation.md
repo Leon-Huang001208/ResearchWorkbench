@@ -109,9 +109,11 @@ SOCKS 代理，Corepack/Node 仅保留其支持的 HTTP/HTTPS 代理。代理值
 
 任何 Web 功能、Python/Node 依赖、DSH、CJPY、启动或配置流程变更，都必须重新核对本文件、
 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py` 和 Doctor。仓库级
-`.github/workflows/research-web-bootstrap.yml` 对每个 PR 与主分支更新在干净的 `macos-14` 和
-`windows-2022` runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检查 Doctor，并验证
-无凭据天软不会误报可调用。该门禁属于 Web 交付，不触发桌面/Tauri/sidecar 验收。
+`.github/workflows/research-web-bootstrap.yml` 对相关 PR 与主分支更新在干净的 GitHub `macos-14`
+runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检查 Doctor，并验证无凭据天软不会
+误报可调用。本机 macOS 验证必须先通过，但不能替代该远端干净环境门。Windows Web 自动验证当前
+暂停；`.github/workflows/research-web-windows-verify.yml` 仅保留手动入口，Windows 实机结果由用户
+单独提供，未运行时不得标记为通过。该边界不改变桌面/Tauri/sidecar 的独立 Windows 门禁。
 
 维护者更新直接依赖后，用 Python 3.12 重新生成锁：
 

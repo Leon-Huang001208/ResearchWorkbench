@@ -1,6 +1,8 @@
 # Research Web 文档门禁与安全入口
 
-Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 macOS/Windows runner 上执行；
+Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 提供 GitHub `macos-14` 干净安装、
+固定 DSH 构建、3081/8088 启动、Doctor 和无凭据天软断言证据；Windows Web 证据在用户完成 Windows
+实机验证后单独提供，详见 [Research Web 安装契约](research-web-installation.md)。
 `.agents/project-constraints.json` 校验其平台、公开 setup 入口、Doctor、CJPY 和无凭据天软断言。
 它不替代本页的架构映射、回执、截图和人工审阅门禁。
 
@@ -70,7 +72,9 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 - 对 README 门禁配置执行固定路径与固定触发集合校验，不能通过删项、加重复项或改指向缩小门禁。
 - 对全部受跟踪 Markdown 执行状态分类；同一主题只允许一个 current 权威，当前文档的相对链接与锚点必须存在。
 - 对当前文档拒绝已知退役命令；`docs/generated/py_file_index.md` 必须与生成器输出完全一致。
-- 检查 docs-only、普通 Web、安装面、Windows、Tabbit 与 Desktop 的 workflow 路由；自动 workflow 必须有 concurrency、取消旧运行和超时，Web artifact 保留期不得超过 3 天。
+- 检查 docs-only、普通 Web、安装面、Windows、Tabbit 与 Desktop 的 workflow 路由；自动 workflow
+  必须有 concurrency、取消旧运行和超时，Web artifact 保留期不得超过 3 天。Research Web 安装自动
+  门只允许 GitHub macOS，Windows Web 与 Tabbit 暂停期间必须保持 `workflow_dispatch` 手动入口。
 
 每个变化模块组在本次任务的 `.ai/reports/*.md` 中写入可机读标记，例如：
 

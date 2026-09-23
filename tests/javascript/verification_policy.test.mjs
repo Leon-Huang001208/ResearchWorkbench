@@ -46,6 +46,10 @@ function policy() {
           "L1",
           "python -m pytest tests/research_web/test_setup_web.py",
         ),
+        "research-web-local-integrations": catalog(
+          "L1",
+          "python -m pytest tests/research_web/test_local_integrations.py",
+        ),
         "research-web-frameworks-python": catalog("L2", "python -m pytest tests/research_web/test_frameworks.py"),
         "research-web-framework-smoke": catalog(
           "L3",
@@ -65,7 +69,11 @@ function policy() {
       ci: {
         "project-constraints": catalog("L4", ".github/workflows/project-constraints.yml", "external"),
         "research-web-checks": catalog("L4", ".github/workflows/research-web-checks.yml", "external"),
-        "research-web-bootstrap": catalog("L4", ".github/workflows/research-web-bootstrap.yml", "external"),
+        "research-web-bootstrap": catalog(
+          "L4",
+          ".github/workflows/research-web-bootstrap.yml#macos-14",
+          "external",
+        ),
         "native-windows-desktop": catalog("L4", ".github/workflows/desktop-verify.yml#windows-2022", "external"),
       },
     },
@@ -122,6 +130,34 @@ function policy() {
         tests: ["research-web-verification-full"],
         documentation: ["documentation-governance"],
         ci: ["project-constraints"],
+      }),
+      rule({
+        id: "research-web-ci",
+        risk: "full-delivery",
+        minimumLevel: "L4",
+        reason: "research_web_ci_change",
+        impact: ["research-web-verification"],
+        coupling: "high",
+        match: {
+          files: [
+            ".github/workflows/research-web-bootstrap.yml",
+            ".github/workflows/research-web-windows-verify.yml",
+            "tests/javascript/actions_quota_governance.test.mjs",
+          ],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "verification-policy-contracts",
+          "verification-receipt-contracts",
+          "incremental-validation-skill-contracts",
+          "research-web-verification-full",
+          "research-web-local-integrations",
+          "project-constraints-local",
+        ],
+        documentation: ["documentation-governance"],
+        ci: ["project-constraints", "research-web-checks", "research-web-bootstrap"],
       }),
       rule({
         id: "ci",
@@ -235,6 +271,23 @@ function policy() {
         tests: [],
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints"],
+      }),
+      rule({
+        id: "research-web-local-integrations",
+        risk: "local-only",
+        minimumLevel: "L1",
+        reason: "research_web_local_integrations_change",
+        impact: ["research-web-local-integrations"],
+        coupling: "low",
+        match: {
+          files: ["tests/research_web/test_local_integrations.py"],
+          prefixes: ["app/research_web/local_integrations/"],
+          segments: [],
+          suffixes: [],
+        },
+        tests: ["research-web-local-integrations", "research-web-architecture"],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks"],
       }),
       rule({
         id: "research-web",
@@ -492,6 +545,46 @@ test("Web installation code and tests require the focused test plus native boots
     "research-web-bootstrap",
   ]));
 });
+
+for (const file of [
+  ".github/workflows/research-web-bootstrap.yml",
+  ".github/workflows/research-web-windows-verify.yml",
+  "tests/javascript/actions_quota_governance.test.mjs",
+]) {
+  test(`focused Research Web CI path requires exactly the macOS external gates: ${file}`, () => {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.risk, "full-delivery");
+    assert.equal(plan.requiredLevel, "L4");
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+    assert.equal(plan.tests.some(item => item.id === "research-web-local-integrations"), true);
+    assert.deepEqual(new Set(plan.receiptTemplate.externalGateIds), new Set([
+      "project-constraints",
+      "research-web-checks",
+      "research-web-bootstrap",
+    ]));
+    const bootstrap = plan.ci.find((item) => item.id === "research-web-bootstrap");
+    assert.equal(bootstrap.value, ".github/workflows/research-web-bootstrap.yml#macos-14");
+    assert.equal(bootstrap.execution, "external");
+  });
+}
+
+for (const file of [
+  "tests/research_web/test_local_integrations.py",
+  "app/research_web/local_integrations/manager.py",
+]) {
+  test(`local integrations path independently selects only its focused local closure: ${file}`, () => {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.risk, "local-only");
+    assert.equal(plan.requiredLevel, "L1");
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+    assert.deepEqual(new Set(plan.tests.map(item => item.id)), new Set([
+      "research-web-local-integrations",
+      "research-web-architecture",
+    ]));
+    assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
+    assert.deepEqual(plan.ci, []);
+  });
+}
 
 test("unmapped test files still fail closed", () => {
   const plan = success(run(repositoryRoot, ["tests/research_web/test_unmapped_component.py"]));

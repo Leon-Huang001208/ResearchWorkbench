@@ -31,13 +31,13 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 | --- | --- | --- |
 | 文档、归档、报告 | Project Constraints（Ubuntu） | Bootstrap、Windows、Desktop、Tabbit |
 | 普通 Research Web／CLI | Research Web Checks（Ubuntu） | Bootstrap、Desktop；非 Windows 专属时不跑 Windows Verify |
-| 安装器、Web 锁、启动器、固定 DSH/CJPY、服务装配 | Research Web Checks + Bootstrap（macOS/Windows） | Desktop |
-| Windows 路径、认证文件、本机集成、服务管理 | Research Web Checks + Windows Verify | Desktop |
+| 安装器、Web 锁、启动器、固定 DSH/CJPY、服务装配 | Research Web Checks + Bootstrap（自动 `macos-14`） | Windows Web 自动验证、Desktop |
+| Windows 路径、认证文件、本机集成、服务管理 | Research Web Checks；Windows Verify 仅用户显式 `workflow_dispatch` | Desktop |
 | Tabbit 平台合同 | 用户显式 `workflow_dispatch` | 普通 push／PR 自动触发 |
 | 桌面专属路径 | Desktop Verify | 普通 Web workflow 不能替代桌面门禁 |
 | Desktop Release | tag 或显式 dispatch | 普通 push |
 
-Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。
+Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 当前只自动运行 `macos-14`；Windows Web workflow 保留原生 `windows-2022` 任务与 3 天证据，但仅在用户显式手动触发时运行。未执行的 Windows 任务不得写成已通过，且这一 Web 路由边界不改变 Desktop Verify 的独立 Windows 规则。
 Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。

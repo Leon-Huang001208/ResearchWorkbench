@@ -13,6 +13,9 @@ on:
       - "requirements/web.lock"
       - "pyproject.toml"
       - ".github/workflows/research-web-checks.yml"
+      - ".github/workflows/research-web-bootstrap.yml"
+      - ".github/workflows/research-web-windows-verify.yml"
+      - "tests/javascript/actions_quota_governance.test.mjs"
   push:
     branches:
       - master
@@ -26,6 +29,9 @@ on:
       - "requirements/web.lock"
       - "pyproject.toml"
       - ".github/workflows/research-web-checks.yml"
+      - ".github/workflows/research-web-bootstrap.yml"
+      - ".github/workflows/research-web-windows-verify.yml"
+      - "tests/javascript/actions_quota_governance.test.mjs"
 
 permissions:
   contents: read
