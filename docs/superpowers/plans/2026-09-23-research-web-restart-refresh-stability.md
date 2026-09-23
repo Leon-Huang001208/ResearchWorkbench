@@ -60,14 +60,14 @@ node /Users/leon/.agents/leon-engineering/runtime/iteration-delivery.mjs \
 
 Expected feature worktree:
 
-`/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/research-web-restart-refresh-stability-delivery`
+`/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-web-restart-refresh-stability-delivery`
 
 - [ ] **Step 3: Fast-forward the managed feature branch to the reviewed commits**
 
 ```bash
-git -C /Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/research-web-restart-refresh-stability-delivery \
+git -C /Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-web-restart-refresh-stability-delivery \
   merge --ff-only codex/post-p1-health-audit
-git -C /Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/research-web-restart-refresh-stability-delivery \
+git -C /Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/research-web-restart-refresh-stability-delivery \
   log -2 --oneline
 ```
 
@@ -745,7 +745,23 @@ node /Users/leon/.agents/leon-engineering/runtime/iteration-delivery.mjs \
   --task-id research-web-restart-refresh-stability-delivery
 ```
 
-In `/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/research-web-restart-refresh-stability-delivery-integration`, run this exact deterministic closure before any runtime/browser claim:
+Resolve and enter the controller-created integration worktree before any runtime/browser claim:
+
+```bash
+delivery_file=/Users/leon/Desktop/Projects/ResearchWorkbench/.git/leon-engineering/deliveries/research-web-restart-refresh-stability-delivery.json
+integration_worktree="$(node -e '
+const fs = require("node:fs");
+const delivery = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+if (typeof delivery.integrationWorktree !== "string" || !delivery.integrationWorktree.startsWith("/")) {
+  throw new Error("delivery integrationWorktree must be an absolute path");
+}
+process.stdout.write(delivery.integrationWorktree);
+' "$delivery_file")"
+test -d "$integration_worktree"
+cd "$integration_worktree"
+```
+
+Run this exact deterministic closure there:
 
 ```bash
 node - <<'NODE'
