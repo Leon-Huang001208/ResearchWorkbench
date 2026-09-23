@@ -195,3 +195,9 @@ Stage 4 质量复验进一步要求 comparison receipt 的 synthetic/actual 输�
 
 Stage 2 输出 schema 严格化与 event-review 共同交易日收益配对修正仍只处理调用方已提供的离线 JSON；
 不读取 Tabbit 标签、页面正文或浏览器证据，也不改变授权、claim、一次性 token 和写操作审批。
+
+## 2026-09-23 稳定性变更回执
+
+非强制重启现在更严格地以已认证 DSH 会话活动阻止中断；目录刷新只调整会话/浏览器目录的有界读取
+和 loading/offline 呈现。Tabbit 的保存配置、Runtime 应用配置、会话授权、实时 claim、一次性正文
+token、`read_only` 声明、写审批和标签生命周期均未变化，也不由本轮本地测试宣称真实浏览器通过。

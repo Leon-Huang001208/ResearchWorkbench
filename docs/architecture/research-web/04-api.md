@@ -242,3 +242,10 @@ Phase 2A/2B/2C 路由现在在未设置环境变量时默认启用；显式 `RES
 会话详情增加解析后的 `methods`、`method_trace` 及可选 `method_trace_incomplete`。方法冲突、超限、
 排除或版本不可用在原生提交前返回结构化 409；方法本身不能作为 `capability_id` 运行。现有端点路径
 和幂等键语义不变。
+
+## 2026-09-23 稳定性变更回执
+
+本轮未新增或修改 HTTP 路由、请求字段、响应字段或错误码。`rwb web restart` 在 CLI 内通过已认证
+DSH `session/list` 判断活动会话；目录聚合在服务内部执行一次 `session.list` 和全部合格父作用域
+`subagent.list`，并发上限为 8，失败取消并等待其余请求后传播。浏览器目录的 pending/connecting、
+逐资源 settled 与真实失败 offline 均为既有响应上的呈现语义，不形成新 API 或 Automation 契约。

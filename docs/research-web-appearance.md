@@ -185,3 +185,9 @@ Lieflat 图表只保留数据编码所需线、格、刻度与数值标签：价
 “方法”沿用能力工作区既有卡片、快览、语义色和焦点规则，并作为第五个互斥主标签进入键盘 roving
 顺序。输入区的方法选择器使用原生 details/checkbox，可显示最多三个选择及禁用上限；移动端继承
 既有可换行工具栏与 44px 触控目标。会话采用来源和 `method_trace_incomplete` 均有文字，不依赖颜色。
+
+## 2026-09-23 刷新呈现回执
+
+目录刷新期间继续复用既有 loading、disabled、warning 与 offline 语义 token；`pending` /
+`connecting` 保持为进行中状态，每个资源 settled 后独立更新，offline 仅在真实失败后出现。没有新增
+布局、主题变量、响应式断点或交互组件，信息架构、Automation 入口和既有 Light/Dark 关系不变。

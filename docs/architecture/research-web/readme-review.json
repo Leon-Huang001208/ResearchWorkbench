@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "本轮无需调整根 README，现有 Research Web 一键安装与启动入口仍然准确。",
-  "reason": "变更统一内部 Node 选择并同步已验证 Runtime build lock；公开命令、前置条件与产品定位均未改变。"
+  "summary": "本轮无需调整根 README，现有 Research Web 一键安装、启动、状态与重启入口仍然准确。",
+  "reason": "本轮只收紧内部重启活动授权、目录并发读取和浏览器加载状态；公开命令、安装前置条件、端口、产品定位与用户启动流程均未改变。"
 }
