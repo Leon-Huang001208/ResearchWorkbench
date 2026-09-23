@@ -35,6 +35,7 @@ function policy() {
           "L3",
           "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts",
         ),
+        "research-web-critical-smoke": catalog("L3", "python -m pytest tests/research_web/test_protocol.py"),
         "research-web-verification-full": catalog(
           "L4",
           "node --test tests/javascript/verification_policy.test.mjs tests/javascript/verification_receipt.test.mjs tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs",
@@ -184,7 +185,7 @@ function policy() {
         impact: ["critical-chain"],
         coupling: "high",
         match: {files: [], prefixes: [], segments: ["parser", "parsers", "workflow", "workflows", "agents", "orchestration"], suffixes: []},
-        tests: ["research-web-architecture"],
+        tests: ["research-web-architecture", "research-web-critical-smoke"],
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints"],
       }),
@@ -254,6 +255,7 @@ function policy() {
         tests: [
           "research-web-frameworks-ui",
           "research-web-architecture",
+          "research-web-frameworks-python",
           "research-web-framework-smoke",
           "research-web-verification-full",
         ],

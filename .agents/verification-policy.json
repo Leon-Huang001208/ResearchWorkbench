@@ -1,33 +1,99 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "riskOrder": [
     "docs-only",
     "local-only",
     "full-delivery"
   ],
+  "levelOrder": [
+    "L0",
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
+  "escalation": {
+    "highCouplingImpactThreshold": 2,
+    "targetLevel": "L3"
+  },
   "catalogs": {
     "tests": {
-      "research-web-architecture": "node --test tests/javascript/research_web_architecture.test.mjs",
-      "research-web-frameworks-python": "python -m pytest tests/research_web/test_frameworks.py",
-      "research-web-framework-collectors": "python -m pytest tests/research_web/test_framework_collectors.py",
-      "research-web-frameworks-ui": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
+      "verification-policy-contracts": {
+        "level": "L1",
+        "value": "node --test tests/javascript/verification_policy.test.mjs"
+      },
+      "verification-receipt-contracts": {
+        "level": "L1",
+        "value": "node --test tests/javascript/verification_receipt.test.mjs"
+      },
+      "research-web-framework-collectors": {
+        "level": "L1",
+        "value": "python -m pytest tests/research_web/test_framework_collectors.py"
+      },
+      "research-web-frameworks-ui": {
+        "level": "L1",
+        "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
+      },
+      "research-web-architecture": {
+        "level": "L1",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+      },
+      "research-web-frameworks-python": {
+        "level": "L2",
+        "value": "python -m pytest tests/research_web/test_frameworks.py"
+      },
+      "research-web-framework-smoke": {
+        "level": "L3",
+        "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts"
+      },
+      "research-web-critical-smoke": {
+        "level": "L3",
+        "value": "python -m pytest tests/research_web/test_protocol.py"
+      },
+      "research-web-verification-full": {
+        "level": "L4",
+        "value": "node --test tests/javascript/verification_policy.test.mjs tests/javascript/verification_receipt.test.mjs tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+      }
     },
     "documentation": {
-      "documentation-governance": "node scripts/check_documentation_governance.mjs --project .",
-      "python-file-index": "python scripts/generate_py_file_index.py --check",
-      "desktop-packaging": "docs/desktop_packaging.md"
+      "documentation-governance": {
+        "level": "L0",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      "python-file-index": {
+        "level": "L0",
+        "value": "python scripts/generate_py_file_index.py --check"
+      },
+      "desktop-packaging": {
+        "level": "L4",
+        "value": "docs/desktop_packaging.md"
+      }
     },
     "ci": {
-      "project-constraints": ".github/workflows/project-constraints.yml",
-      "research-web-checks": ".github/workflows/research-web-checks.yml",
-      "native-windows-desktop": ".github/workflows/desktop-verify.yml#windows-2022"
+      "project-constraints": {
+        "level": "L2",
+        "value": ".github/workflows/project-constraints.yml"
+      },
+      "research-web-checks": {
+        "level": "L4",
+        "value": ".github/workflows/research-web-checks.yml"
+      },
+      "native-windows-desktop": {
+        "level": "L4",
+        "value": ".github/workflows/desktop-verify.yml#windows-2022"
+      }
     }
   },
   "rules": [
     {
       "id": "desktop",
       "risk": "full-delivery",
+      "minimumLevel": "L4",
       "reason": "desktop_change",
+      "impact": [
+        "desktop-platform"
+      ],
+      "coupling": "high",
       "match": {
         "files": [],
         "prefixes": [
@@ -53,7 +119,12 @@
     {
       "id": "contract",
       "risk": "full-delivery",
+      "minimumLevel": "L4",
       "reason": "public_contract_change",
+      "impact": [
+        "public-contract"
+      ],
+      "coupling": "high",
       "match": {
         "files": [],
         "prefixes": [
@@ -67,7 +138,9 @@
           ".openapi.json"
         ]
       },
-      "tests": [],
+      "tests": [
+        "research-web-verification-full"
+      ],
       "documentation": [
         "documentation-governance"
       ],
@@ -78,12 +151,16 @@
     {
       "id": "schema",
       "risk": "full-delivery",
+      "minimumLevel": "L4",
       "reason": "schema_change",
+      "impact": [
+        "schema-boundary"
+      ],
+      "coupling": "high",
       "match": {
         "files": [],
         "prefixes": [
-          "schemas/",
-          "migrations/"
+          "schemas/"
         ],
         "segments": [
           "schemas",
@@ -93,7 +170,9 @@
           ".schema.json"
         ]
       },
-      "tests": [],
+      "tests": [
+        "research-web-verification-full"
+      ],
       "documentation": [
         "documentation-governance"
       ],
@@ -104,7 +183,12 @@
     {
       "id": "dependency",
       "risk": "full-delivery",
+      "minimumLevel": "L4",
       "reason": "dependency_change",
+      "impact": [
+        "dependency-graph"
+      ],
+      "coupling": "high",
       "match": {
         "files": [
           "package.json",
@@ -122,7 +206,9 @@
           ".lock"
         ]
       },
-      "tests": [],
+      "tests": [
+        "research-web-verification-full"
+      ],
       "documentation": [
         "documentation-governance",
         "python-file-index"
@@ -135,14 +221,21 @@
     {
       "id": "ci",
       "risk": "full-delivery",
+      "minimumLevel": "L4",
       "reason": "ci_change",
+      "impact": [
+        "verification-system"
+      ],
+      "coupling": "high",
       "match": {
         "files": [
           ".agents/project-constraints.json",
           ".agents/project-constraints.mjs",
           ".agents/verification-policy.json",
           "scripts/plan_verification.mjs",
-          "tests/javascript/verification_policy.test.mjs"
+          "scripts/validate_verification_receipt.mjs",
+          "tests/javascript/verification_policy.test.mjs",
+          "tests/javascript/verification_receipt.test.mjs"
         ],
         "prefixes": [
           ".github/workflows/"
@@ -150,7 +243,11 @@
         "segments": [],
         "suffixes": []
       },
-      "tests": [],
+      "tests": [
+        "verification-policy-contracts",
+        "verification-receipt-contracts",
+        "research-web-verification-full"
+      ],
       "documentation": [
         "documentation-governance"
       ],
@@ -159,9 +256,76 @@
       ]
     },
     {
+      "id": "core",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "core_abstraction_change",
+      "impact": [
+        "core-abstraction"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "core/"
+        ],
+        "segments": [
+          "_shared"
+        ],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
+      "id": "data-model",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "data_model_change",
+      "impact": [
+        "data-model"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "data_layer/models/",
+          "models/",
+          "migrations/"
+        ],
+        "segments": [
+          "migrations"
+        ],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
       "id": "security",
       "risk": "full-delivery",
+      "minimumLevel": "L4",
       "reason": "security_change",
+      "impact": [
+        "security-boundary"
+      ],
+      "coupling": "high",
       "match": {
         "files": [
           "SECURITY.md"
@@ -174,7 +338,9 @@
         ],
         "suffixes": []
       },
-      "tests": [],
+      "tests": [
+        "research-web-verification-full"
+      ],
       "documentation": [
         "documentation-governance"
       ],
@@ -185,7 +351,12 @@
     {
       "id": "release",
       "risk": "full-delivery",
+      "minimumLevel": "L4",
       "reason": "release_change",
+      "impact": [
+        "release-boundary"
+      ],
+      "coupling": "high",
       "match": {
         "files": [],
         "prefixes": [
@@ -197,7 +368,9 @@
         ],
         "suffixes": []
       },
-      "tests": [],
+      "tests": [
+        "research-web-verification-full"
+      ],
       "documentation": [
         "documentation-governance"
       ],
@@ -206,9 +379,48 @@
       ]
     },
     {
+      "id": "critical-chain",
+      "risk": "local-only",
+      "minimumLevel": "L3",
+      "reason": "critical_chain_change",
+      "impact": [
+        "critical-chain"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [],
+        "prefixes": [],
+        "segments": [
+          "parser",
+          "parsers",
+          "workflow",
+          "workflows",
+          "agents",
+          "orchestration"
+        ],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-architecture",
+        "research-web-critical-smoke"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints"
+      ]
+    },
+    {
       "id": "documentation",
       "risk": "docs-only",
+      "minimumLevel": "L0",
       "reason": "documentation_only",
+      "impact": [
+        "documentation"
+      ],
+      "coupling": "low",
       "match": {
         "files": [
           "README.md"
@@ -235,7 +447,12 @@
     {
       "id": "research-web",
       "risk": "local-only",
+      "minimumLevel": "L1",
       "reason": "research_web_change",
+      "impact": [
+        "research-web"
+      ],
+      "coupling": "low",
       "match": {
         "files": [],
         "prefixes": [
@@ -246,7 +463,8 @@
         "suffixes": []
       },
       "tests": [
-        "research-web-architecture"
+        "research-web-architecture",
+        "research-web-verification-full"
       ],
       "documentation": [
         "documentation-governance",
@@ -258,27 +476,67 @@
       ]
     },
     {
-      "id": "research-web-frameworks",
+      "id": "research-web-framework-backend",
       "risk": "local-only",
-      "reason": "research_web_framework_change",
+      "minimumLevel": "L1",
+      "reason": "research_web_framework_backend_change",
+      "impact": [
+        "framework-backend"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "tests/research_web/test_frameworks.py",
+          "tests/research_web/test_framework_collectors.py"
+        ],
+        "prefixes": [
+          "app/research_web/frameworks/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-framework-collectors",
+        "research-web-architecture",
+        "research-web-frameworks-python",
+        "research-web-framework-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-framework-ui",
+      "risk": "local-only",
+      "minimumLevel": "L1",
+      "reason": "research_web_framework_ui_change",
+      "impact": [
+        "framework-ui"
+      ],
+      "coupling": "high",
       "match": {
         "files": [
           "app/research_web/ui/frameworks.mjs",
-          "tests/research_web/test_frameworks.py",
-          "tests/research_web/test_framework_collectors.py",
           "tests/javascript/research_web_frameworks_ui.test.mjs"
         ],
         "prefixes": [
-          "app/research_web/frameworks/",
           "app/research_web/ui/frameworks/"
         ],
         "segments": [],
         "suffixes": []
       },
       "tests": [
+        "research-web-frameworks-ui",
+        "research-web-architecture",
         "research-web-frameworks-python",
-        "research-web-framework-collectors",
-        "research-web-frameworks-ui"
+        "research-web-framework-smoke",
+        "research-web-verification-full"
       ],
       "documentation": [
         "documentation-governance",
@@ -292,8 +550,15 @@
   ],
   "fallback": {
     "risk": "full-delivery",
+    "minimumLevel": "L4",
     "reason": "unknown_path",
-    "tests": [],
+    "impact": [
+      "unknown-boundary"
+    ],
+    "coupling": "high",
+    "tests": [
+      "research-web-verification-full"
+    ],
     "documentation": [
       "documentation-governance"
     ],
