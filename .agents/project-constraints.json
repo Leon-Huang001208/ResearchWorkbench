@@ -132,6 +132,7 @@
       "name": "Web 一键安装必须在 GitHub 原生 macOS 持续验证",
       "workflow": ".github/workflows/research-web-bootstrap.yml",
       "requireAll": [
+        "Clean Web install (macos-14)",
         "macos-14",
         "setup-web.sh --no-start",
         "web doctor --json",

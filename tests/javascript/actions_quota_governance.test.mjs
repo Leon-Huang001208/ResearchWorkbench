@@ -29,6 +29,31 @@ function workflowTriggers(source) {
   return triggers;
 }
 
+function workflowJobs(source) {
+  const lines = source.split(/\r?\n/);
+  const start = lines.findIndex((line) => line === 'jobs:');
+  assert.notEqual(start, -1, 'workflow must declare jobs');
+  const jobs = [];
+  for (let index = start + 1; index < lines.length;) {
+    if (/^\S/.test(lines[index])) break;
+    const job = lines[index].match(/^  ([a-z][a-z0-9-]*):$/);
+    if (!job) {
+      index += 1;
+      continue;
+    }
+    const id = job[1];
+    let runsOn = null;
+    index += 1;
+    while (index < lines.length && !/^\S/.test(lines[index]) && !/^  \S/.test(lines[index])) {
+      const runner = lines[index].match(/^    runs-on: (.+)$/);
+      if (runner) runsOn = runner[1];
+      index += 1;
+    }
+    jobs.push({id, runsOn});
+  }
+  return jobs;
+}
+
 function triggerPaths(source, event) {
   const lines = source.split(/\r?\n/);
   const onIndex = lines.findIndex((line) => line === 'on:');
@@ -90,6 +115,16 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   }
   assert.match(workflows.bootstrap, /macos-14/);
   assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
+});
+
+test('Bootstrap has exactly one macOS clean-install job and its intended triggers', () => {
+  assert.deepEqual(
+    workflowTriggers(workflows.bootstrap),
+    ['pull_request', 'push', 'workflow_dispatch'],
+  );
+  assert.deepEqual(workflowJobs(workflows.bootstrap), [
+    {id: 'clean-install', runsOn: 'macos-14'},
+  ]);
 });
 
 test('ordinary Research Web code uses Linux checks without unnecessary native jobs', () => {
