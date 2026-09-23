@@ -110,6 +110,8 @@ A receipt is JSON with these required facts:
 - impact assessment copied from the plan;
 - every actually executed validation with ID, level, status, duration, and
   evidence reference;
+- every selected external CI/platform/document gate with an explicit observed,
+  not-run, or not-required state;
 - overall result;
 - uncovered risks;
 - escalation decision, target, and reasons.
@@ -120,6 +122,10 @@ validations, unknown validation IDs, an actual level below the plan, false
 success when a check failed, and missing escalation after failure or unexpected
 behavior. Success writes one stable JSON verdict to stdout; failures write one
 stable error object to stderr and exit non-zero.
+
+For `full-delivery`, an external gate cannot be `not_required`. A `not_run`
+external gate forces a `blocked` receipt and a named uncovered risk, preserving
+the boundary between local evidence and CI/platform evidence.
 
 The receipt may contain extra executed checks only when their IDs exist in the
 plan. This keeps evidence review bounded and prevents an unrelated full-suite

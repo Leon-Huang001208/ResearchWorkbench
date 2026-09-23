@@ -204,6 +204,11 @@
       durationSeconds: 1,
       evidence: `logs/${id}.log`,
     })),
+    external: plan.receiptTemplate.externalGateIds.map(id => ({
+      id,
+      status: plan.risk === "full-delivery" ? "passed" : "not_required",
+      evidence: `logs/${id}.log`,
+    })),
     result: "passed",
     uncoveredRisks: [],
     escalation: {required: false, targetLevel: null, reasons: []},
@@ -213,8 +218,8 @@
   Test valid success, missing required validation, changed-file mismatch,
   unknown validation, actual level below planned, failed validation reported as
   passed, missing escalation after failure/unexpected behavior, insufficient
-  escalation target, symlinked inputs, schema drift, and policy command text
-  never being executed.
+  escalation target, an unrun `full-delivery` external gate forcing `blocked`,
+  symlinked inputs, schema drift, and policy command text never being executed.
 
 - [ ] **Step 2: Run receipt tests to RED**
 

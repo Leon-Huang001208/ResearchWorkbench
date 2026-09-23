@@ -13,9 +13,12 @@
 - Ruling: receipt evidence includes an explicit `external` array. A `full-delivery` plan cannot mark an external gate `not_required`; any `not_run` gate forces result `blocked` plus an uncovered-risk entry. Cost if wrong: CI/platform obligations could disappear from an otherwise green local receipt.
 - Receipt GREEN: the focused receipt suite passed 12/12 (1279.53 ms). The combined planner/receipt contract passed 36/36 with 0 failed/skipped/cancelled/todo (1469.85 ms). `node --check scripts/validate_verification_receipt.mjs` and `git diff --check` exited 0.
 - The validator rejects missing/unknown checks, mismatched change or impact data, level downgrades, false success, insufficient failure escalation, unsafe/symlinked inputs and schema drift. A marker test proves command strings in plan data are never executed.
+- Skill RED: before the project Skill and document changes existed, `node --test tests/javascript/incremental_validation_skill.test.mjs` produced 5 tests, 0 passed and 5 failed (92.73 ms) on missing Skill files and missing L0-L4/receipt documentation.
+- Skill GREEN: the same structural/trigger contract passed 5/5 (56.60 ms). The Skill references the planner/validator and requires complete changed sets, escalation, receipts, external gates and uncovered risks without copying route matchers.
+- Documentation verification: governance reported 487 Markdown files, 65 current and `violations: []`; Python index was verified; documentation governance tests passed 7/7 with 0 failed/skipped/cancelled/todo (159.84 ms).
 
 ## Current next step
 
-Add the project-local skill and synchronize current workflow/development documentation without duplicating policy routing tables.
+Generate and execute the three real representative plans and preserve mechanically valid receipts with measured command evidence.
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"The task currently adds design and plan records only; product runtime topology and diagrams are unchanged.","diagrams":[]} -->
