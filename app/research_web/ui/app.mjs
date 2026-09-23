@@ -23,6 +23,29 @@ const api = createAPI();
 const root = document.querySelector('#app');
 const defaultCatalogNames = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'];
 const catalog = { runtime: null, tabbit: null, integrations: { summary: {}, items: [], latest_batch: null }, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [], pending: new Set(defaultCatalogNames) };
+const catalogPendingCounts = new Map();
+const catalogRequestGenerations = new Map();
+
+function startCatalogRequest(name) {
+  catalogPendingCounts.set(name, (catalogPendingCounts.get(name) || 0) + 1);
+  catalog.pending.add(name);
+  const generation = (catalogRequestGenerations.get(name) || 0) + 1;
+  catalogRequestGenerations.set(name, generation);
+  return generation;
+}
+
+function isLatestCatalogRequest(name, generation) {
+  return catalogRequestGenerations.get(name) === generation;
+}
+
+function finishCatalogRequest(name) {
+  const remaining = (catalogPendingCounts.get(name) || 1) - 1;
+  if (remaining > 0) catalogPendingCounts.set(name, remaining);
+  else {
+    catalogPendingCounts.delete(name);
+    catalog.pending.delete(name);
+  }
+}
 let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let tabbitOpen = false; let tabbitLoading = false; let tabbitIndex = 0; let tabbitCandidates = []; let tabbitRequest = 0;
@@ -174,7 +197,9 @@ function closeMCPServerDialog({ restoreFocus = true } = {}) {
 function composer() {
   const disabled = state.busy || state.loading || Boolean(state.route.sessionId && !state.detail);
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady: catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false, runtimePending: catalog.pending.has('runtime') });
+  const runtimePending = catalog.pending.has('runtime');
+  const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
+  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
 }
 
 function landing() {
@@ -325,11 +350,12 @@ function render() {
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
-  names.forEach(name => catalog.pending.add(name));
+  const requests = names.map(name => ({ name, generation: startCatalogRequest(name) }));
   render();
-  await Promise.all(names.map(async (name) => {
+  await Promise.all(requests.map(async ({ name, generation }) => {
     try {
       const data = name === 'deletedSessions' ? await api.sessions('deleted') : name === 'tabbit' ? await api.tabbitStatus() : await api[name]();
+      if (!isLatestCatalogRequest(name, generation)) return;
       if (name === 'runtime') catalog.runtime = data;
       else if (name === 'tabbit') catalog.tabbit = data;
       else if (name === 'models') { catalog.models = data.groups || []; catalog.modelFailures = data.failures || []; }
@@ -361,9 +387,13 @@ async function loadCatalog(names = defaultCatalogNames) {
       else if (name === 'artifacts') catalog.artifacts = data.items || [];
       else catalog[name] = data.items || [];
       delete catalog.errors[name];
-    } catch (error) { catalog.errors[name] = error.message; if (name === 'runtime') catalog.runtime = null; }
+    } catch (error) {
+      if (!isLatestCatalogRequest(name, generation)) return;
+      catalog.errors[name] = error.message;
+      if (name === 'runtime') catalog.runtime = null;
+    }
     finally {
-      catalog.pending.delete(name);
+      finishCatalogRequest(name);
       render();
     }
   }));
@@ -1523,7 +1553,7 @@ root.addEventListener('submit', async (event) => {
     if (state.draft.trimStart().startsWith('/')) { slashOpen = true; slashIndex = 0; render(); return; }
     if (!state.draft.trim() || state.busy || slashOpen) return;
     if (state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))) { state.error = '上一任务与交付尚未确认结束；草稿已保留，未发送。'; render(); return; }
-    if (!catalog.runtime?.connected || catalog.runtime.credential_configured === false) { state.error = '运行时未就绪，请检查连接与授权；草稿已保留。'; render(); return; }
+    if (catalog.pending.has('runtime') || !catalog.runtime?.connected || catalog.runtime.credential_configured === false) { state.error = '运行时未就绪，请检查连接与授权；草稿已保留。'; render(); return; }
     if (await ensureSession()) { await controller.send(); await loadCatalog(['sessions']); }
   }
   if (event.target.id === 'tabbit-settings-form') {

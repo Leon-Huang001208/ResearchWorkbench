@@ -176,7 +176,9 @@ test('catalog initializes every default resource as pending and passes runtime p
   assert.match(app, /const defaultCatalogNames = \['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'\];/);
   assert.match(app, /pending:\s*new Set\(defaultCatalogNames\)/);
   assert.match(app, /if \(catalog\.pending\.has\('runtime'\)\) return 'DSH 连接中';/);
-  assert.match(app, /runtimePending:\s*catalog\.pending\.has\('runtime'\)/);
+  assert.match(app, /const runtimePending = catalog\.pending\.has\('runtime'\);/);
+  assert.match(app, /const runtimeReady = !runtimePending && catalog\.runtime\?\.connected === true && catalog\.runtime\?\.credential_configured !== false;/);
+  assert.match(app, /runtimeReady, runtimePending/);
 });
 
 test('catalog loader renders before requests and again as every resource settles', async () => {
@@ -186,13 +188,13 @@ test('catalog loader renders before requests and again as every resource settles
   const loader = app.slice(start, end);
   assert.match(loader, /async function loadCatalog\(names = defaultCatalogNames\)/);
 
-  const markPending = loader.indexOf('names.forEach(name => catalog.pending.add(name));');
+  const markPending = loader.indexOf('const requests = names.map(name => ({ name, generation: startCatalogRequest(name) }));');
   const renderPending = loader.indexOf('render();', markPending);
-  const startRequests = loader.indexOf('await Promise.all', renderPending);
+  const startRequests = loader.indexOf('await Promise.all(requests.map', renderPending);
   assert.ok(markPending >= 0, 'requested catalog names must be marked pending');
   assert.ok(renderPending > markPending, 'pending state must render after names are marked');
   assert.ok(startRequests > renderPending, 'pending state must render before requests are awaited');
-  assert.match(loader, /finally\s*{\s*catalog\.pending\.delete\(name\);\s*render\(\);\s*}/s);
+  assert.match(loader, /finally\s*{\s*finishCatalogRequest\(name\);\s*render\(\);\s*}/s);
 });
 
 test('connection secrets are cleared immediately after request serialization', async () => {
