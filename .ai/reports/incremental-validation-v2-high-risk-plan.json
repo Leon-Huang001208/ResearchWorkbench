@@ -3,7 +3,7 @@
   "risk": "full-delivery",
   "requiredLevel": "L4",
   "changeSummary": {
-    "fileCount": 15,
+    "fileCount": 21,
     "ruleIds": [
       "ci",
       "documentation"
@@ -19,6 +19,12 @@
     ".agents/verification-policy.json",
     ".ai/reports/incremental-validation-v2-BLOCKED.md",
     ".ai/reports/incremental-validation-v2-PROGRESS.md",
+    ".ai/reports/incremental-validation-v2-cross-plan.json",
+    ".ai/reports/incremental-validation-v2-cross-receipt.json",
+    ".ai/reports/incremental-validation-v2-high-risk-plan.json",
+    ".ai/reports/incremental-validation-v2-high-risk-receipt.json",
+    ".ai/reports/incremental-validation-v2-small-plan.json",
+    ".ai/reports/incremental-validation-v2-small-receipt.json",
     ".claude/commands/verify-task.md",
     "docs/AGENT_WORKFLOW.md",
     "docs/DEVELOPMENT_MAP.md",
@@ -93,6 +99,66 @@
     },
     {
       "path": ".ai/reports/incremental-validation-v2-PROGRESS.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-cross-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-cross-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-high-risk-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-high-risk-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-small-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-small-receipt.json",
       "rule": "documentation",
       "reason": "documentation_only",
       "modules": [
@@ -235,6 +301,36 @@
     },
     {
       "path": ".ai/reports/incremental-validation-v2-PROGRESS.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-cross-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-cross-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-high-risk-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-high-risk-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-small-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/incremental-validation-v2-small-receipt.json",
       "rule": "documentation",
       "code": "documentation_only"
     },
@@ -399,6 +495,12 @@
       ".agents/verification-policy.json",
       ".ai/reports/incremental-validation-v2-BLOCKED.md",
       ".ai/reports/incremental-validation-v2-PROGRESS.md",
+      ".ai/reports/incremental-validation-v2-cross-plan.json",
+      ".ai/reports/incremental-validation-v2-cross-receipt.json",
+      ".ai/reports/incremental-validation-v2-high-risk-plan.json",
+      ".ai/reports/incremental-validation-v2-high-risk-receipt.json",
+      ".ai/reports/incremental-validation-v2-small-plan.json",
+      ".ai/reports/incremental-validation-v2-small-receipt.json",
       ".claude/commands/verify-task.md",
       "docs/AGENT_WORKFLOW.md",
       "docs/DEVELOPMENT_MAP.md",
