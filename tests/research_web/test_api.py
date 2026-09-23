@@ -1,6 +1,7 @@
 """BFF acceptance tests: native transport is replaced only for deterministic regressions."""
 
 import asyncio
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -672,6 +673,12 @@ def test_session_list_bounds_child_queries_and_preserves_store_order(api):
         row["status"] = "idle"
         row["updated_at"] = index
         session_ids.append(row["id"])
+    not_created = service.store.create("fingpt", "未创建研究")
+    not_created["updated_at"] = 50
+    deleted = service.store.create("fingpt", "已删除研究")
+    deleted["created"] = True
+    deleted["updated_at"] = 51
+    deleted["deleted_at"] = time.time()
     target = session_ids[24]
     service.store.session(target)["status"] = "completed"
     service.store.save()
@@ -679,12 +686,14 @@ def test_session_list_bounds_child_queries_and_preserves_store_order(api):
     original = native.rpc
     active = 0
     max_active = 0
+    queried_parents = []
 
     async def bounded_rpc(method, payload):
         nonlocal active, max_active
         if method == "session.list":
             return {"items": []}
         if method == "subagent.list":
+            queried_parents.append(payload["parentSessionId"])
             active += 1
             max_active = max(max_active, active)
             try:
@@ -700,39 +709,67 @@ def test_session_list_bounds_child_queries_and_preserves_store_order(api):
         return await original(method, payload)
 
     native.rpc = bounded_rpc
-    response = client.get("/api/research/sessions")
+    response = client.get("/api/research/sessions?view=all")
 
     assert response.status_code == 200, response.text
     items = response.json()["items"]
-    assert [item["id"] for item in items] == list(reversed(session_ids))
+    assert [item["id"] for item in items] == [
+        deleted["id"],
+        not_created["id"],
+        *reversed(session_ids),
+    ]
     assert next(item for item in items if item["id"] == target)["status"] == "running"
     assert all(item["status"] == "idle" for item in items if item["id"] != target)
+    assert sorted(queried_parents) == sorted(session_ids)
+    assert not_created["id"] not in queried_parents
+    assert deleted["id"] not in queried_parents
     assert 1 < max_active <= 8
 
 
-def test_session_list_propagates_child_lookup_runtime_failure(api):
+def test_session_list_cancels_slow_child_lookups_before_runtime_failure_response(api):
     client, native, service = api
-    rows = [service.store.create("fingpt", f"研究 {index}") for index in range(3)]
-    for row in rows:
+    rows = [service.store.create("fingpt", f"研究 {index}") for index in range(20)]
+    for index, row in enumerate(rows):
         row["created"] = True
+        row["updated_at"] = index
     service.store.save()
-    failed_parent = rows[1]["id"]
+    failed_parent = rows[-1]["id"]
     original = native.rpc
+    active = 0
+    completed = []
 
     async def failing_rpc(method, payload):
+        nonlocal active
         if method == "session.list":
             return {"items": []}
-        if method == "subagent.list" and payload["parentSessionId"] == failed_parent:
-            raise RuntimeFailure("child lookup failed", "child_lookup_failed")
+        if method == "subagent.list":
+            parent_id = payload["parentSessionId"]
+            active += 1
+            try:
+                if parent_id == failed_parent:
+                    await asyncio.sleep(0.01)
+                    raise RuntimeFailure("child lookup failed", "child_lookup_failed")
+                await asyncio.sleep(0.1)
+                completed.append(parent_id)
+                return {"entries": []}
+            finally:
+                active -= 1
         return await original(method, payload)
 
     native.rpc = failing_rpc
     response = client.get("/api/research/sessions")
+    active_after_response = active
+    completed_after_response = list(completed)
+    time.sleep(0.4)
 
     assert response.status_code == 503
     assert response.json() == {
         "error": {"code": "child_lookup_failed", "message": "child lookup failed"}
     }
+    assert active_after_response == 0
+    assert completed_after_response == []
+    assert active == 0
+    assert completed == []
 
 
 @pytest.mark.asyncio

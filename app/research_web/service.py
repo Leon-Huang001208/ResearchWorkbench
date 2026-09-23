@@ -618,7 +618,15 @@ class ResearchService:
             async with semaphore:
                 return await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
 
-        children_by_row = await asyncio.gather(*(children_for(row) for row in rows))
+        child_tasks = [asyncio.create_task(children_for(row)) for row in rows]
+        try:
+            children_by_row = await asyncio.gather(*child_tasks)
+        except BaseException:
+            for task in child_tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*child_tasks, return_exceptions=True)
+            raise
         results = []
         for row, children in zip(rows, children_by_row, strict=True):
             result = self.summary(row)
