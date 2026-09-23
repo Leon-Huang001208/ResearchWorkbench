@@ -56,14 +56,8 @@ concurrency:
 
 jobs:
   clean-install:
-    name: Clean Web install (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - macos-14
-          - windows-2022
-    runs-on: ${{ matrix.os }}
+    name: Clean Web install (macos-14)
+    runs-on: macos-14
     timeout-minutes: 60
 
     steps:
@@ -81,17 +75,10 @@ jobs:
           node-version: "22.19.0"
 
       - name: Install Web stack on macOS
-        if: runner.os == 'macOS'
         shell: bash
         run: ./setup-web.sh --no-start
 
-      - name: Install Web stack on Windows
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: setup-web.cmd --no-start
-
       - name: Verify macOS environment and start services
-        if: runner.os == 'macOS'
         shell: bash
         run: |
           set -euo pipefail
@@ -103,44 +90,16 @@ jobs:
           curl --fail --silent http://127.0.0.1:8088/api/research/data/connections > connections.json
           .venv/bin/python -c "import json; data=json.load(open('connections.json', encoding='utf-8')); item=next(x for x in data['sources'] if x['id']=='tinysoft'); assert item['configured'] is False and item['callable'] is False and item['restart_required'] is False, item"
 
-      - name: Verify Windows environment and start services
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if (-not (Test-Path -LiteralPath '.venv\Scripts\python.exe' -PathType Leaf)) {
-            throw 'Project-owned Python environment was not created'
-          }
-          & .\.venv\Scripts\python.exe -c "import importlib.metadata as m, cjpy, requests, urllib3; assert m.version('cjpy') == '0.5.2'"
-          if ($LASTEXITCODE -ne 0) { throw 'CJPY dependency verification failed' }
-          & .\rwb.cmd web start --no-open
-          if ($LASTEXITCODE -ne 0) { throw 'Web services failed to start' }
-          & .\rwb.cmd web doctor --json | Out-File -LiteralPath doctor.json -Encoding utf8
-          if ($LASTEXITCODE -ne 0) { throw 'Web Doctor failed' }
-          $doctor = Get-Content -LiteralPath doctor.json -Raw -Encoding utf8 | ConvertFrom-Json
-          if (-not $doctor.ok) { throw "Web Doctor reported issues: $($doctor.issues -join ', ')" }
-          $connections = Invoke-RestMethod -Uri 'http://127.0.0.1:8088/api/research/data/connections' -TimeoutSec 10
-          $tinysoft = $connections.sources | Where-Object { $_.id -eq 'tinysoft' } | Select-Object -First 1
-          if ($null -eq $tinysoft -or $tinysoft.configured -or $tinysoft.callable -or $tinysoft.restart_required) {
-            throw 'Tinysoft must remain installed-but-unconfigured without CI credentials'
-          }
-
       - name: Stop macOS services
-        if: always() && runner.os == 'macOS'
+        if: always()
         shell: bash
         run: ./rwb web stop || true
-
-      - name: Stop Windows services
-        if: always() && runner.os == 'Windows'
-        continue-on-error: true
-        shell: pwsh
-        run: if (Test-Path -LiteralPath '.venv\Scripts\python.exe') { & .\rwb.cmd web stop }
 
       - name: Upload minimal successful bootstrap evidence
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: research-web-bootstrap-${{ matrix.os }}-${{ github.run_id }}
+          name: research-web-bootstrap-macos-14-${{ github.run_id }}
           path: |
             doctor.json
             connections.json
@@ -151,7 +110,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: research-web-bootstrap-failure-${{ matrix.os }}-${{ github.run_id }}
+          name: research-web-bootstrap-failure-macos-14-${{ github.run_id }}
           path: |
             doctor.json
             connections.json

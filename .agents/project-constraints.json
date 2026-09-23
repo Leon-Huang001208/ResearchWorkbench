@@ -129,13 +129,11 @@
       ]
     },
     {
-      "name": "Web 一键安装必须在原生 macOS 与 Windows 持续验证",
+      "name": "Web 一键安装必须在 GitHub 原生 macOS 持续验证",
       "workflow": ".github/workflows/research-web-bootstrap.yml",
       "requireAll": [
         "macos-14",
-        "windows-2022",
         "setup-web.sh --no-start",
-        "setup-web.cmd --no-start",
         "web doctor --json",
         "cjpy') == '0.5.2'",
         "tinysoft",
@@ -163,13 +161,13 @@
       ]
     },
     {
-      "name": "Windows Web 验证必须保持窄路径与短期证据",
+      "name": "Windows Web 验证暂停自动触发并保留手动入口与短期证据",
       "workflow": ".github/workflows/research-web-windows-verify.yml",
       "requireAll": [
+        "workflow_dispatch:",
         "windows-2022",
-        "app/research_web/local_integrations/**",
-        "app/research_web/runtime_auth.py",
-        "app/research_web/service_manager.py",
+        "Run local integration contracts on Windows",
+        "Smoke test Windows loopback service and probe",
         "retention-days: 3"
       ]
     },

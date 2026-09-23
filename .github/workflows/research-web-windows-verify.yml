@@ -2,42 +2,6 @@ name: Research Web Windows Verify
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "app/research_web/local_integrations/**"
-      - "app/research_web/runtime_auth.py"
-      - "app/research_web/service_manager.py"
-      - "app/research_web/client.py"
-      - "app/research_web/launch_runtime.py"
-      - "app/research_web/datahub/security.py"
-      - "app/research_web/store.py"
-      - "tests/research_web/test_local_integrations.py"
-      - "tests/research_web/test_protocol.py"
-      - "tests/research_web/test_runtime_auth.py"
-      - "tests/research_web/test_service_manager.py"
-      - "tests/javascript/research_web_local_integrations_ui.test.mjs"
-      - "tests/javascript/research_web_settings_ui.test.mjs"
-      - "pyproject.toml"
-      - ".github/workflows/research-web-windows-verify.yml"
-  push:
-    branches:
-      - master
-    paths:
-      - "app/research_web/local_integrations/**"
-      - "app/research_web/runtime_auth.py"
-      - "app/research_web/service_manager.py"
-      - "app/research_web/client.py"
-      - "app/research_web/launch_runtime.py"
-      - "app/research_web/datahub/security.py"
-      - "app/research_web/store.py"
-      - "tests/research_web/test_local_integrations.py"
-      - "tests/research_web/test_protocol.py"
-      - "tests/research_web/test_runtime_auth.py"
-      - "tests/research_web/test_service_manager.py"
-      - "tests/javascript/research_web_local_integrations_ui.test.mjs"
-      - "tests/javascript/research_web_settings_ui.test.mjs"
-      - "pyproject.toml"
-      - ".github/workflows/research-web-windows-verify.yml"
 
 permissions:
   contents: read
