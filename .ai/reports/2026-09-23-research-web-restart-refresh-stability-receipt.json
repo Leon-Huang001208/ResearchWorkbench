@@ -390,70 +390,70 @@
       "id": "verification-policy-contracts",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 2.04,
+      "durationSeconds": 2.047,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "verification-receipt-contracts",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 1.55,
+      "durationSeconds": 1.586,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "incremental-validation-skill-contracts",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 0.1,
+      "durationSeconds": 0.119,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "research-web-verification-full",
       "level": "L4",
       "status": "passed",
-      "durationSeconds": 2.93,
+      "durationSeconds": 2.854,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "research-web-architecture",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 3.05,
+      "durationSeconds": 3.132,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "project-constraints-local",
       "level": "L2",
       "status": "passed",
-      "durationSeconds": 0.2,
+      "durationSeconds": 0.187,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "research-web-api",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 179.73,
+      "durationSeconds": 196.602,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "research-web-service-manager",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 5.28,
+      "durationSeconds": 1.885,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "research-web-critical-smoke",
       "level": "L3",
       "status": "passed",
-      "durationSeconds": 4.71,
+      "durationSeconds": 1.498,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
       "id": "research-web-ui",
       "level": "L1",
       "status": "passed",
-      "durationSeconds": 12.68,
+      "durationSeconds": 12.298,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     },
     {
@@ -467,7 +467,7 @@
       "id": "python-file-index",
       "level": "L0",
       "status": "passed",
-      "durationSeconds": 1.14,
+      "durationSeconds": 1.108,
       "evidence": ".ai/reports/2026-09-23-research-web-restart-refresh-stability.md"
     }
   ],

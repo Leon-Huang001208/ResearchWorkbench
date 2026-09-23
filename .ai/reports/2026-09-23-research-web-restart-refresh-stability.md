@@ -14,6 +14,21 @@ No production source or test is changed by this task. Framework, Tabbit, integra
 data-file, Automation, and information-architecture relationships remain unchanged. Local verification does
 not claim browser acceptance, real lifecycle acceptance, publication, or remote CI; those are Task 6 items.
 
+## Task 6: 陈旧运行会话恢复
+
+Task 6 first measured the integration endpoint at **2.161 s**, which failed the `< 2.0 s` live latency hard
+gate. That is a failed baseline, not post-fix evidence. The root cause was a second, serial recovery phase:
+after the bounded parent/child state fan-out, stored `running` rows whose native parent and children were idle
+called `detail()` one at a time to recover terminal status.
+
+`e467f5634c49aefdc99e9907ebe654e70c344f53` moves that recovery behind the existing limit of 8, preserves
+directory order, and on any `BaseException` (including caller cancellation) cancels and awaits unfinished
+recovery tasks before re-raising. `84d764f63d15571814a6e6938f5c053343a9d232` narrows eligibility: only a
+created stored-`running` row with an idle native parent and idle children enters recovery. `created=False`, a
+native-running parent, and a child-running parent remain out of `detail()`; their existing summary/running
+projection is retained. The 50-parent child fan-out remains capped at 8, and the recovery fan-out is capped at
+the same 8. No fixed live latency, browser acceptance, or CI result is claimed here.
+
 ## Fix round 1 RED audit
 
 Before editing, a bounded search across all 17 Task 5-owned paths found 10 Task 5-authored locations that
@@ -66,6 +81,34 @@ level. All 12 local validations are `passed`; all three external gates are `not_
 `node scripts/validate_verification_receipt.mjs --project . --plan .ai/reports/2026-09-23-research-web-restart-refresh-stability-plan.json --receipt .ai/reports/2026-09-23-research-web-restart-refresh-stability-receipt.json`
 exited 0 and returned `valid: true`, `result: blocked`, `plannedLevel: L4`, `actualLevel: L4`,
 `executedCount: 12`, and `escalationRequired: false`.
+
+## Task 6 final local verification at `84d764f63`
+
+The fixed plan remains 29 paths, `full-delivery` / L4, 12 local validation IDs, and three external
+gates. The final local run used the checkout's pre-existing `.venv` for pytest; no dependency was installed.
+The shell's `python` (`/opt/homebrew/opt/python@3.12/libexec/bin/python`) first reported
+`No module named pytest` in 0.040 s. That environment observation is not a code-test result, so the planned
+Python checks were rerun with the existing checkout environment and their passed wall times below are the
+receipt values.
+
+| Plan ID | Result | Count / evidence | Duration |
+| --- | --- | --- | ---: |
+| `documentation-governance` | passed | 501 files, 69 current, 0 violations | 0.160 s |
+| `python-file-index` | passed | `docs/generated/py_file_index.md` verified | 1.108 s |
+| `verification-policy-contracts` | passed | 35/35 | 2.047 s |
+| `verification-receipt-contracts` | passed | 16/16 | 1.586 s |
+| `incremental-validation-skill-contracts` | passed | 5/5 | 0.119 s |
+| `research-web-architecture` | passed | 62/62 | 3.132 s |
+| `research-web-api` | passed | 33/33; one Starlette/AnyIO deprecation warning | 196.602 s |
+| `research-web-service-manager` | passed | 57/57; expected test log assertions emitted | 1.885 s |
+| `research-web-ui` | passed | 67/67 | 12.298 s |
+| `project-constraints-local` | passed | all 29 fixed paths, 0 violations | 0.187 s |
+| `research-web-critical-smoke` | passed | 19/19 | 1.498 s |
+| `research-web-verification-full` | passed | 80/80 | 2.854 s |
+
+The report and receipt change only evidence and documentation. After those writes, documentation governance,
+the Python index check, project constraints over the same 29 paths, receipt validation, and `git diff --check`
+must still pass before this documentation closeout can be committed.
 
 ## Final diff and ownership check
 
