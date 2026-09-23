@@ -456,26 +456,39 @@ class WebServiceManager:
             connection.close()
 
     def _write_runtime_auth(self, cookie: str) -> dict[str, str]:
-        runtime = self.data_root / "runtime"
-        runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
-        package = json.loads((self.runtime_source / "package.json").read_text(encoding="utf-8"))
-        value = {
-            "authority": f"127.0.0.1:{self.runtime_port}",
-            "cookie": cookie,
-            "cwd": str((runtime / "work").resolve()),
-            "source_commit": PINNED_COMMIT,
-            "version": str(package["version"]),
-        }
-        fd, name = tempfile.mkstemp(prefix="auth-", dir=runtime)
+        name: str | None = None
         try:
+            runtime = self.data_root / "runtime"
+            runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
+            package = json.loads((self.runtime_source / "package.json").read_text(encoding="utf-8"))
+            value = {
+                "authority": f"127.0.0.1:{self.runtime_port}",
+                "cookie": cookie,
+                "cwd": str((runtime / "work").resolve()),
+                "source_commit": PINNED_COMMIT,
+                "version": str(package["version"]),
+            }
+            fd, name = tempfile.mkstemp(prefix="auth-", dir=runtime)
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(value, stream, ensure_ascii=False, indent=2)
                 stream.flush()
                 os.fsync(stream.fileno())
             os.chmod(name, 0o600)
             os.replace(name, self._runtime_auth_path())
-        except (OSError, KeyError, TypeError, ValueError) as exc:
-            Path(name).unlink(missing_ok=True)
+        except (
+            OSError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ValueError,
+            UnicodeDecodeError,
+            ServiceManagerError,
+        ) as exc:
+            if name is not None:
+                try:
+                    Path(name).unlink(missing_ok=True)
+                except OSError:
+                    log.warning("research_runtime_auth_temp_cleanup_failed")
             raise ServiceManagerError("无法写入 DSH 认证控制文件") from exc
         return value
 
@@ -510,7 +523,16 @@ class WebServiceManager:
             or not isinstance(result["value"].get("items"), list)
         ):
             raise ServiceManagerError("DSH 会话状态响应无效")
-        return result["value"]["items"]
+        items = result["value"]["items"]
+        for item in items:
+            if (
+                not isinstance(item, dict)
+                or not isinstance(item.get("sessionId"), str)
+                or not item["sessionId"]
+                or not isinstance(item.get("running"), bool)
+            ):
+                raise ServiceManagerError("DSH 会话状态响应无效")
+        return items
 
     def _runtime_healthy(self) -> bool:
         try:
@@ -636,20 +658,7 @@ class WebServiceManager:
     def _active_research(self) -> list[str]:
         try:
             items = self._runtime_sessions()
-            if not isinstance(items, list):
-                raise ServiceManagerError("DSH 会话状态响应无效")
-            active = []
-            for item in items:
-                if (
-                    not isinstance(item, dict)
-                    or not isinstance(item.get("sessionId"), str)
-                    or not item["sessionId"]
-                    or not isinstance(item.get("running"), bool)
-                ):
-                    raise ServiceManagerError("DSH 会话状态响应无效")
-                if item["running"]:
-                    active.append(item["sessionId"])
-            return active
+            return [item["sessionId"] for item in items if item["running"]]
         except ServiceManagerError as exc:
             raise ServiceManagerError("无法核对活动研究；未执行重启，可显式使用 --force") from exc
 
