@@ -171,6 +171,30 @@ test('entrypoint is self hosted and settings do not persist secrets in browser s
   assert.match(app, /password/);
 });
 
+test('catalog initializes every default resource as pending and passes runtime pending explicitly', async () => {
+  const app = await readFile(new URL('app.mjs', root), 'utf8');
+  assert.match(app, /const defaultCatalogNames = \['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'\];/);
+  assert.match(app, /pending:\s*new Set\(defaultCatalogNames\)/);
+  assert.match(app, /if \(catalog\.pending\.has\('runtime'\)\) return 'DSH 连接中';/);
+  assert.match(app, /runtimePending:\s*catalog\.pending\.has\('runtime'\)/);
+});
+
+test('catalog loader renders before requests and again as every resource settles', async () => {
+  const app = await readFile(new URL('app.mjs', root), 'utf8');
+  const start = app.indexOf('async function loadCatalog');
+  const end = app.indexOf('\nfunction attachFrameworkStream', start);
+  const loader = app.slice(start, end);
+  assert.match(loader, /async function loadCatalog\(names = defaultCatalogNames\)/);
+
+  const markPending = loader.indexOf('names.forEach(name => catalog.pending.add(name));');
+  const renderPending = loader.indexOf('render();', markPending);
+  const startRequests = loader.indexOf('await Promise.all', renderPending);
+  assert.ok(markPending >= 0, 'requested catalog names must be marked pending');
+  assert.ok(renderPending > markPending, 'pending state must render after names are marked');
+  assert.ok(startRequests > renderPending, 'pending state must render before requests are awaited');
+  assert.match(loader, /finally\s*{\s*catalog\.pending\.delete\(name\);\s*render\(\);\s*}/s);
+});
+
 test('connection secrets are cleared immediately after request serialization', async () => {
   const app = await readFile(new URL('app.mjs', root), 'utf8');
   const request = app.indexOf('api.saveSourceConfiguration(sourceId, payload)');

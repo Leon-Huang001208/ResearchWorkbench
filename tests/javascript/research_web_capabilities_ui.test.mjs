@@ -438,6 +438,22 @@ test('offline runtime keeps draft editable and capability browsing available but
   assert.match(html, /运行时未就绪/);
 });
 
+test('connecting runtime is distinct from a settled offline runtime', () => {
+  const pending = composer.renderComposer({
+    draft: '继续准备草稿', runtimeReady: false, runtimePending: true,
+  });
+  assert.doesNotMatch(pending, /<textarea[^>]*disabled/);
+  assert.match(pending, /type="submit"[^>]*disabled/);
+  assert.match(pending, /正在连接运行时/);
+  assert.doesNotMatch(pending, /离线/);
+
+  const offline = composer.renderComposer({
+    draft: '继续准备草稿', runtimeReady: false, runtimePending: false,
+  });
+  assert.match(offline, /未就绪或离线/);
+  assert.doesNotMatch(offline, /正在连接运行时/);
+});
+
 test('real app event handlers close/select slash, search and drawers without any model or tool write', async () => {
   const handlers = new Map(); const calls = []; const logs = [];
   const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
