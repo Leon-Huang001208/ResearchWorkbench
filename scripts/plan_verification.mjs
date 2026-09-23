@@ -6,11 +6,43 @@ import {fileURLToPath} from "node:url";
 
 const POLICY_PATH = ".agents/verification-policy.json";
 const RISK_ORDER = ["docs-only", "local-only", "full-delivery"];
-const TOP_LEVEL_KEYS = new Set(["schemaVersion", "riskOrder", "catalogs", "rules", "fallback"]);
+const LEVEL_ORDER = ["L0", "L1", "L2", "L3", "L4"];
+const SIGNALS = new Set(["validation_failure", "unexpected_behavior"]);
+const TOP_LEVEL_KEYS = new Set([
+  "schemaVersion",
+  "riskOrder",
+  "levelOrder",
+  "escalation",
+  "catalogs",
+  "rules",
+  "fallback",
+]);
+const ESCALATION_KEYS = new Set(["highCouplingImpactThreshold", "targetLevel"]);
 const CATALOG_KEYS = new Set(["tests", "documentation", "ci"]);
-const RULE_KEYS = new Set(["id", "risk", "reason", "match", "tests", "documentation", "ci"]);
+const CATALOG_ITEM_KEYS = new Set(["level", "execution", "value"]);
+const RULE_KEYS = new Set([
+  "id",
+  "risk",
+  "minimumLevel",
+  "reason",
+  "impact",
+  "coupling",
+  "match",
+  "tests",
+  "documentation",
+  "ci",
+]);
 const MATCH_KEYS = new Set(["files", "prefixes", "segments", "suffixes"]);
-const FALLBACK_KEYS = new Set(["risk", "reason", "tests", "documentation", "ci"]);
+const FALLBACK_KEYS = new Set([
+  "risk",
+  "minimumLevel",
+  "reason",
+  "impact",
+  "coupling",
+  "tests",
+  "documentation",
+  "ci",
+]);
 const IDENTIFIER = /^[a-z0-9][a-z0-9_-]*$/;
 
 class PlannerError extends Error {
@@ -37,8 +69,13 @@ function assertIdentifier(value, label) {
   return value;
 }
 
-function assertStringArray(value, label, validate) {
-  if (!Array.isArray(value)) fail("POLICY_ERROR", `invalid ${label}`);
+function assertLevel(value, label) {
+  if (!LEVEL_ORDER.includes(value)) fail("POLICY_ERROR", `invalid ${label}`);
+  return value;
+}
+
+function assertStringArray(value, label, validate, {nonEmpty = false} = {}) {
+  if (!Array.isArray(value) || (nonEmpty && value.length === 0)) fail("POLICY_ERROR", `invalid ${label}`);
   const seen = new Set();
   for (const item of value) {
     if (typeof item !== "string" || item.length === 0 || seen.has(item)) fail("POLICY_ERROR", `invalid ${label}`);
@@ -119,8 +156,15 @@ function parseCatalog(value, label) {
   const result = new Map();
   for (const [id, catalogValue] of Object.entries(value)) {
     assertIdentifier(id, `${label} id`);
-    if (typeof catalogValue !== "string" || catalogValue.trim().length === 0) fail("POLICY_ERROR", `invalid ${label} value`);
-    result.set(id, catalogValue);
+    assertExactKeys(catalogValue, CATALOG_ITEM_KEYS, `${label} item`);
+    const level = assertLevel(catalogValue.level, `${label} level`);
+    if (catalogValue.execution !== "local" && catalogValue.execution !== "external") {
+      fail("POLICY_ERROR", `invalid ${label} execution`);
+    }
+    if (typeof catalogValue.value !== "string" || catalogValue.value.trim().length === 0) {
+      fail("POLICY_ERROR", `invalid ${label} value`);
+    }
+    result.set(id, {level, execution: catalogValue.execution, value: catalogValue.value});
   }
   return result;
 }
@@ -128,6 +172,34 @@ function parseCatalog(value, label) {
 function validateReferences(ids, catalog, label) {
   assertStringArray(ids, label, item => assertIdentifier(item, label));
   if (ids.some(id => !catalog.has(id))) fail("POLICY_ERROR", `unknown ${label} reference`);
+}
+
+function parseSelection(value, catalogs, label, {withMatch}) {
+  assertExactKeys(value, withMatch ? RULE_KEYS : FALLBACK_KEYS, label);
+  const reason = assertIdentifier(value.reason, `${label} reason`);
+  const minimumLevel = assertLevel(value.minimumLevel, `${label} minimum level`);
+  const impact = assertStringArray(value.impact, `${label} impact`, item => assertIdentifier(item, `${label} impact`), {
+    nonEmpty: true,
+  });
+  if (value.coupling !== "low" && value.coupling !== "high") fail("POLICY_ERROR", `invalid ${label} coupling`);
+  if (!RISK_ORDER.includes(value.risk)) fail("POLICY_ERROR", `invalid ${label} risk`);
+  validateReferences(value.tests, catalogs.tests, `${label} tests`);
+  validateReferences(value.documentation, catalogs.documentation, `${label} documentation`);
+  validateReferences(value.ci, catalogs.ci, `${label} CI`);
+
+  let match;
+  if (withMatch) {
+    assertExactKeys(value.match, MATCH_KEYS, `${label} match`);
+    match = {
+      files: assertStringArray(value.match.files, `${label} files`, validateMatchPath),
+      prefixes: assertStringArray(value.match.prefixes, `${label} prefixes`, validatePrefix),
+      segments: assertStringArray(value.match.segments, `${label} segments`, validateSegment),
+      suffixes: assertStringArray(value.match.suffixes, `${label} suffixes`, validateSuffix),
+    };
+    if (Object.values(match).every(items => items.length === 0)) fail("POLICY_ERROR", `${label} has no matchers`);
+  }
+
+  return {...value, reason, minimumLevel, impact, match};
 }
 
 function parsePolicy(raw) {
@@ -138,11 +210,22 @@ function parsePolicy(raw) {
     fail("POLICY_ERROR", "verification policy is not valid JSON");
   }
   assertExactKeys(value, TOP_LEVEL_KEYS, "verification policy");
-  if (value.schemaVersion !== 1) fail("POLICY_ERROR", "unsupported verification policy schema");
+  if (value.schemaVersion !== 2) fail("POLICY_ERROR", "unsupported verification policy schema");
   if (!Array.isArray(value.riskOrder) || value.riskOrder.length !== RISK_ORDER.length ||
       value.riskOrder.some((risk, index) => risk !== RISK_ORDER[index])) {
     fail("POLICY_ERROR", "invalid risk order");
   }
+  if (!Array.isArray(value.levelOrder) || value.levelOrder.length !== LEVEL_ORDER.length ||
+      value.levelOrder.some((level, index) => level !== LEVEL_ORDER[index])) {
+    fail("POLICY_ERROR", "invalid level order");
+  }
+  assertExactKeys(value.escalation, ESCALATION_KEYS, "escalation policy");
+  if (!Number.isInteger(value.escalation.highCouplingImpactThreshold) ||
+      value.escalation.highCouplingImpactThreshold < 2) {
+    fail("POLICY_ERROR", "invalid high-coupling impact threshold");
+  }
+  const targetLevel = assertLevel(value.escalation.targetLevel, "escalation target level");
+  if (LEVEL_ORDER.indexOf(targetLevel) < 1) fail("POLICY_ERROR", "invalid escalation target level");
 
   assertExactKeys(value.catalogs, CATALOG_KEYS, "catalogs");
   const catalogs = {
@@ -154,33 +237,26 @@ function parsePolicy(raw) {
   if (!Array.isArray(value.rules) || value.rules.length === 0) fail("POLICY_ERROR", "verification rules are required");
   const ruleIds = new Set();
   const rules = value.rules.map((rule, index) => {
-    assertExactKeys(rule, RULE_KEYS, `rule ${index}`);
+    const parsed = parseSelection(rule, catalogs, `rule ${index}`, {withMatch: true});
     const id = assertIdentifier(rule.id, `rule ${index} id`);
-    const reason = assertIdentifier(rule.reason, `rule ${index} reason`);
-    if (ruleIds.has(id) || !RISK_ORDER.includes(rule.risk)) fail("POLICY_ERROR", `invalid rule ${index}`);
+    if (ruleIds.has(id)) fail("POLICY_ERROR", `invalid rule ${index}`);
     ruleIds.add(id);
-    assertExactKeys(rule.match, MATCH_KEYS, `rule ${id} match`);
-    const match = {
-      files: assertStringArray(rule.match.files, `rule ${id} files`, validateMatchPath),
-      prefixes: assertStringArray(rule.match.prefixes, `rule ${id} prefixes`, validatePrefix),
-      segments: assertStringArray(rule.match.segments, `rule ${id} segments`, validateSegment),
-      suffixes: assertStringArray(rule.match.suffixes, `rule ${id} suffixes`, validateSuffix),
-    };
-    if (Object.values(match).every(items => items.length === 0)) fail("POLICY_ERROR", `rule ${id} has no matchers`);
-    validateReferences(rule.tests, catalogs.tests, `rule ${id} tests`);
-    validateReferences(rule.documentation, catalogs.documentation, `rule ${id} documentation`);
-    validateReferences(rule.ci, catalogs.ci, `rule ${id} CI`);
-    return {...rule, id, reason, match};
+    return {...parsed, id};
   });
 
-  assertExactKeys(value.fallback, FALLBACK_KEYS, "fallback");
-  if (value.fallback.risk !== "full-delivery" || value.fallback.reason !== "unknown_path") {
+  const fallback = parseSelection(value.fallback, catalogs, "fallback", {withMatch: false});
+  if (fallback.risk !== "full-delivery" || fallback.minimumLevel !== "L4" ||
+      fallback.reason !== "unknown_path" || fallback.coupling !== "high") {
     fail("POLICY_ERROR", "fallback must fail closed");
   }
-  validateReferences(value.fallback.tests, catalogs.tests, "fallback tests");
-  validateReferences(value.fallback.documentation, catalogs.documentation, "fallback documentation");
-  validateReferences(value.fallback.ci, catalogs.ci, "fallback CI");
-  return {riskOrder: value.riskOrder, catalogs, rules, fallback: value.fallback};
+  return {
+    riskOrder: value.riskOrder,
+    levelOrder: value.levelOrder,
+    escalation: {...value.escalation, targetLevel},
+    catalogs,
+    rules,
+    fallback,
+  };
 }
 
 function loadPolicy(root) {
@@ -199,16 +275,27 @@ function loadPolicy(root) {
 }
 
 function parseArgs(args) {
-  const options = {changedFiles: []};
+  const options = {changedFiles: [], signals: []};
+  const signalSet = new Set();
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
-    if (argument !== "--project" && argument !== "--changed-file") fail("ARGUMENT_ERROR", "unknown option");
+    if (argument !== "--project" && argument !== "--changed-file" && argument !== "--signal") {
+      fail("ARGUMENT_ERROR", "unknown option");
+    }
     const value = args[index + 1];
     if (!value || value.startsWith("--")) fail("ARGUMENT_ERROR", `${argument} requires a value`);
     if (argument === "--project") {
       if (options.project !== undefined) fail("ARGUMENT_ERROR", "--project may only be provided once");
       options.project = value;
-    } else options.changedFiles.push(value);
+    } else if (argument === "--changed-file") {
+      options.changedFiles.push(value);
+    } else {
+      if (!SIGNALS.has(value)) fail("ARGUMENT_ERROR", "unsupported escalation signal");
+      if (!signalSet.has(value)) {
+        signalSet.add(value);
+        options.signals.push(value);
+      }
+    }
     index += 1;
   }
   if (!options.project) fail("ARGUMENT_ERROR", "--project is required");
@@ -232,11 +319,22 @@ function appendUnique(target, seen, values) {
   }
 }
 
-function catalogItems(catalog, ids) {
-  return ids.map(id => ({id, value: catalog.get(id)}));
+function selectedCatalogItems(catalog, ids, category, maximumLevelIndex) {
+  const items = [];
+  for (const id of ids) {
+    const entry = catalog.get(id);
+    if (LEVEL_ORDER.indexOf(entry.level) > maximumLevelIndex) continue;
+    items.push({id, level: entry.level, execution: entry.execution, category, value: entry.value});
+  }
+  return items;
 }
 
-export function planVerification({projectRoot, changedFiles}) {
+function nextLevel(level) {
+  const index = LEVEL_ORDER.indexOf(level);
+  return LEVEL_ORDER[Math.min(index + 1, LEVEL_ORDER.length - 1)];
+}
+
+export function planVerification({projectRoot, changedFiles, signals = []}) {
   const root = safeProjectRoot(projectRoot);
   const normalizedFiles = [];
   const seenFiles = new Set();
@@ -248,44 +346,148 @@ export function planVerification({projectRoot, changedFiles}) {
       normalizedFiles.push(normalized);
     }
   }
+  const normalizedSignals = [];
+  const seenSignals = new Set();
+  for (const signal of signals) {
+    if (!SIGNALS.has(signal)) fail("ARGUMENT_ERROR", "unsupported escalation signal");
+    if (!seenSignals.has(signal)) {
+      seenSignals.add(signal);
+      normalizedSignals.push(signal);
+    }
+  }
+
   const policy = loadPolicy(root);
   let riskIndex = 0;
+  let levelIndex = 0;
   const reasons = [];
   const reasonKeys = new Set();
+  const impact = [];
+  const impactKeys = new Set();
+  const ruleIds = [];
+  const ruleSeen = new Set();
+  const impactIds = [];
+  const impactSeen = new Set();
+  const highCouplingImpactIds = new Set();
   const gateIds = {tests: [], documentation: [], ci: []};
   const gateSeen = {tests: new Set(), documentation: new Set(), ci: new Set()};
+  const uncoveredRisks = [];
 
   for (const changedFile of normalizedFiles) {
     const matchedRules = policy.rules.filter(rule => matches(rule.match, changedFile));
     const selections = matchedRules.length > 0 ? matchedRules : [{id: "fallback", ...policy.fallback}];
     for (const selection of selections) {
       riskIndex = Math.max(riskIndex, policy.riskOrder.indexOf(selection.risk));
+      levelIndex = Math.max(levelIndex, policy.levelOrder.indexOf(selection.minimumLevel));
       const reason = {path: changedFile, rule: selection.id, code: selection.reason};
       const reasonKey = JSON.stringify(reason);
       if (!reasonKeys.has(reasonKey)) {
         reasonKeys.add(reasonKey);
         reasons.push(reason);
       }
+      const impactRecord = {
+        path: changedFile,
+        rule: selection.id,
+        reason: selection.reason,
+        modules: [...selection.impact],
+        coupling: selection.coupling,
+        minimumLevel: selection.minimumLevel,
+      };
+      const impactKey = JSON.stringify(impactRecord);
+      if (!impactKeys.has(impactKey)) {
+        impactKeys.add(impactKey);
+        impact.push(impactRecord);
+      }
+      if (!ruleSeen.has(selection.id)) {
+        ruleSeen.add(selection.id);
+        ruleIds.push(selection.id);
+      }
+      for (const moduleId of selection.impact) {
+        if (!impactSeen.has(moduleId)) {
+          impactSeen.add(moduleId);
+          impactIds.push(moduleId);
+        }
+        if (selection.coupling === "high") highCouplingImpactIds.add(moduleId);
+      }
       for (const category of Object.keys(gateIds)) {
         appendUnique(gateIds[category], gateSeen[category], selection[category]);
+      }
+      if (selection.id === "fallback" && !uncoveredRisks.includes("unknown_impact_boundary")) {
+        uncoveredRisks.push("unknown_impact_boundary");
       }
     }
   }
 
+  const escalations = [];
+  if (highCouplingImpactIds.size >= policy.escalation.highCouplingImpactThreshold) {
+    const targetIndex = policy.levelOrder.indexOf(policy.escalation.targetLevel);
+    if (targetIndex > levelIndex) {
+      const fromLevel = policy.levelOrder[levelIndex];
+      levelIndex = targetIndex;
+      escalations.push({
+        code: "multiple_high_coupling_modules",
+        fromLevel,
+        toLevel: policy.levelOrder[levelIndex],
+        impacts: [...highCouplingImpactIds],
+      });
+    }
+  }
+  for (const signal of normalizedSignals) {
+    const fromLevel = policy.levelOrder[levelIndex];
+    const toLevel = nextLevel(fromLevel);
+    levelIndex = policy.levelOrder.indexOf(toLevel);
+    escalations.push({code: signal, fromLevel, toLevel, impacts: []});
+  }
+
+  const requiredLevel = policy.levelOrder[levelIndex];
+  const tests = selectedCatalogItems(policy.catalogs.tests, gateIds.tests, "tests", levelIndex);
+  const documentation = selectedCatalogItems(
+    policy.catalogs.documentation,
+    gateIds.documentation,
+    "documentation",
+    levelIndex,
+  );
+  const ci = selectedCatalogItems(policy.catalogs.ci, gateIds.ci, "ci", levelIndex);
+  const validationsByLevel = Object.fromEntries(policy.levelOrder.map(level => [level, []]));
+  for (const item of [...tests, ...documentation, ...ci]) validationsByLevel[item.level].push(item);
+
+  const selectedValidations = [...tests, ...documentation, ...ci];
+  const requiredValidationIds = selectedValidations.filter(item => item.execution === "local").map(item => item.id);
+  const externalGateIds = selectedValidations.filter(item => item.execution === "external").map(item => item.id);
+
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     risk: policy.riskOrder[riskIndex],
+    requiredLevel,
+    changeSummary: {
+      fileCount: normalizedFiles.length,
+      ruleIds,
+      impactIds,
+    },
     changedFiles: normalizedFiles,
+    impact,
     reasons,
-    tests: catalogItems(policy.catalogs.tests, gateIds.tests),
-    documentation: catalogItems(policy.catalogs.documentation, gateIds.documentation),
-    ci: catalogItems(policy.catalogs.ci, gateIds.ci),
+    escalations,
+    uncoveredRisks,
+    validationsByLevel,
+    tests,
+    documentation,
+    ci,
+    receiptTemplate: {
+      plannedLevel: requiredLevel,
+      changedFiles: normalizedFiles,
+      requiredValidationIds,
+      externalGateIds,
+    },
   };
 }
 
 function main(args) {
   const options = parseArgs(args);
-  const result = planVerification({projectRoot: options.project, changedFiles: options.changedFiles});
+  const result = planVerification({
+    projectRoot: options.project,
+    changedFiles: options.changedFiles,
+    signals: options.signals,
+  });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
@@ -295,7 +497,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   } catch (error) {
     const code = error instanceof PlannerError ? error.code : "INTERNAL_ERROR";
     const message = error instanceof PlannerError ? error.message : "unexpected planner failure";
-    process.stderr.write(`${JSON.stringify({schemaVersion: 1, error: {code, message}})}\n`);
+    process.stderr.write(`${JSON.stringify({schemaVersion: 2, error: {code, message}})}\n`);
     process.exitCode = 1;
   }
 }

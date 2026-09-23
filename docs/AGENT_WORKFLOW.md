@@ -33,13 +33,50 @@ node scripts/plan_verification.mjs --project . \
   --changed-file <another-changed-file>
 ```
 
-`.agents/verification-policy.json` 是唯一政策真源；规划器只输出 `risk`、原因及相关 tests、documentation、CI 门，不运行测试、Git、CI 或发布。`.agents/project-constraints.json` 只保证这些关键文件存在，不拥有或复制路由表。
+`.agents/verification-policy.json` 是唯一政策真源；规划器只输出计划，不运行测试、Git、CI、发布或策略中的命令。`.agents/project-constraints.json` 保持独立架构门，不拥有或复制路由表。
 
-计划必须覆盖完整 changed set，并按最高风险合并。公开契约、schema、依赖、CI、安全、桌面、发布和未知路径一律为 `full-delivery`。未知路径不能降级；非法策略、符号链接或越界路径必须先失败，不能退回猜测计划。
+### L0-L4 分层
+
+| 等级 | 最小验收语义 | 典型证据 |
+| --- | --- | --- |
+| L0 | 静态合法性 | syntax、format/lint、JSON/config、文档治理、生成索引 |
+| L1 | 修改模块局部单元 | 与变更组件直接映射的测试 |
+| L2 | 上下游依赖闭包 | 架构约束、直接接口与依赖链测试 |
+| L3 | 相关关键路径 smoke | 跨越本次边界的最短 API/runtime/user 路径 |
+| L4 | 完整相关验收 | full relevant suite/build、交付与必需平台/CI 门 |
+
+`requiredLevel` 是完整 changed set 的最高必要等级；`validationsByLevel` 是实际执行真源。等级是累积责任，但不会凭空加入不相关平台门。Web-only 的 L4 仍不能伪称已执行桌面 Windows 验收；只有规划器实际输出的外部门才进入回执。
+
+### Change → Impact → Validation
+
+每次迭代必须读取并保留：
+
+- `changeSummary` 与 `changedFiles`：改了什么；
+- `impact` 与 `reasons`：影响模块、耦合和边界；
+- `validationsByLevel`：最能证明影响的最小测试、文档和外部门；
+- `escalations` 与 `uncoveredRisks`：为何扩大、仍未覆盖什么。
+
+多个高耦合模块由策略自动提升到至少 L3。公开契约、schema/config、核心抽象/共享工具、数据模型/迁移、依赖、CI、安全、桌面、发布和未知边界保持 L4/fail-closed；parser、workflow 和 agent orchestration 等已知关键链至少 L3。具体路径与命令只在策略中维护，本文不复制。
+
+### 执行、升级与回执
+
+按 L0→`requiredLevel` 执行输出项，并为每个实际检查记录状态、耗时和证据路径。局部失败后用 `--signal validation_failure` 重新规划；非预期行为用 `--signal unexpected_behavior`。两种 signal 均逐级扩大范围并保留升级原因。
+
+最终 receipt 必须包含变更摘要、精确 changed set、计划/实际等级、影响判断、已执行项、`external` 门、结果、`uncoveredRisks` 与升级决定，然后运行：
+
+```bash
+node scripts/validate_verification_receipt.mjs --project . \
+  --plan <plan-json> \
+  --receipt <receipt-json>
+```
+
+回执校验失败就不是完成。`full-delivery` 的外部门不得写成 `not_required`；未运行时必须以 `blocked` 和对应未覆盖风险保留，不能用本机检查冒充 CI/平台证据。
+
+计划必须覆盖完整 changed set，并按最高风险合并。未知路径不能降级；非法策略、符号链接或越界路径必须先失败，不能退回猜测计划。
 
 普通 `app/research_web/` 与 `app/web/` Web-only 改动只选择相关 Web、文档与轻量 CI 门，desktop、Windows、Tauri、sidecar 和 installer 门数量必须为 0。只有桌面专属路径才附加原生 Windows 与 [`desktop_packaging.md`](desktop_packaging.md) 门。
 
-Research Web 框架源码与三个已登记框架测试文件使用同一个组件专项闭环：框架 Python、采集器和 UI 测试。框架源码仍叠加通用 Research Web 架构测试；已登记测试文件不因位于 `tests/` 而落入未知路径。其他未登记测试继续 fail closed，不能用通用测试目录规则批量降级。
+Research Web 框架的 backend、renderer 与已登记测试按组件影响合并；单个 renderer 可停在局部闭包，backend+renderer 等高耦合跨模块集合自动扩大到依赖和 smoke 闭包。其他未登记测试继续 fail closed，不能用通用测试目录规则批量降级。
 
 ## 桌面端例外（Desktop exception）
 

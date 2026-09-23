@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "changeSummary": {
+    "fileCount": 10,
+    "ruleIds": [
+      "documentation",
+      "research-web",
+      "research-web-framework-ui"
+    ],
+    "impactIds": [
+      "documentation",
+      "research-web",
+      "framework-ui"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+    "app/research_web/ui/frameworks/dollar.mjs",
+    "docs/ARCHITECTURE.md",
+    "docs/CHANGELOG.md",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/review-record.md",
+    "docs/research-web-appearance.md",
+    "docs/research-web-ui.md",
+    "tests/javascript/research_web_frameworks_ui.test.mjs"
+  ],
+  "plannedLevel": "L1",
+  "actualLevel": "L1",
+  "impact": [
+    {
+      "path": ".ai/reports/gold-dollar-frameworks-artifacts-20260914.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/CHANGELOG.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/review-record.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/javascript/research_web_frameworks_ui.test.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    }
+  ],
+  "executed": [
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 2.91,
+      "evidence": ".ai/reports/incremental-validation-v2-PROGRESS.md"
+    },
+    {
+      "id": "research-web-frameworks-ui",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 0.16,
+      "evidence": ".ai/reports/incremental-validation-v2-PROGRESS.md"
+    },
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.19,
+      "evidence": ".ai/reports/incremental-validation-v2-PROGRESS.md"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 1.15,
+      "evidence": ".ai/reports/incremental-validation-v2-PROGRESS.md"
+    }
+  ],
+  "external": [],
+  "result": "passed",
+  "uncoveredRisks": [],
+  "escalation": {
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
+  }
+}
