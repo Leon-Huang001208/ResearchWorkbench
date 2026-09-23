@@ -53,6 +53,16 @@
         "execution": "local",
         "value": "node --test tests/javascript/research_web_architecture.test.mjs"
       },
+      "research-web-api": {
+        "level": "L1",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_api.py"
+      },
+      "research-web-ui": {
+        "level": "L1",
+        "execution": "local",
+        "value": "node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs"
+      },
       "research-web-service-manager": {
         "level": "L1",
         "execution": "local",
@@ -614,6 +624,71 @@
       ]
     },
     {
+      "id": "research-web-api",
+      "risk": "local-only",
+      "minimumLevel": "L1",
+      "reason": "research_web_api_change",
+      "impact": [
+        "research-web-api"
+      ],
+      "coupling": "low",
+      "match": {
+        "files": [
+          "app/research_web/service.py",
+          "tests/research_web/test_api.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-api",
+        "research-web-architecture",
+        "project-constraints-local"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-ui-core",
+      "risk": "local-only",
+      "minimumLevel": "L1",
+      "reason": "research_web_ui_change",
+      "impact": [
+        "research-web-ui"
+      ],
+      "coupling": "low",
+      "match": {
+        "files": [
+          "app/research_web/ui/app.mjs",
+          "app/research_web/ui/composer.mjs",
+          "tests/javascript/research_web_ui.test.mjs",
+          "tests/javascript/research_web_capabilities_ui.test.mjs"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-ui",
+        "research-web-architecture",
+        "project-constraints-local"
+      ],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
       "id": "research-web-service-manager",
       "risk": "local-only",
       "minimumLevel": "L1",
@@ -624,7 +699,6 @@
       "coupling": "low",
       "match": {
         "files": [
-          "app/research_web/service_manager.py",
           "tests/research_web/test_service_manager.py"
         ],
         "prefixes": [],
@@ -645,6 +719,40 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-service-lifecycle-delivery",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_service_lifecycle_delivery",
+      "impact": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/service_manager.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-service-manager",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap"
       ]
     },
     {

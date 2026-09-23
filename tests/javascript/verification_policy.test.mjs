@@ -38,6 +38,14 @@ function policy() {
           "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>",
         ),
         "research-web-architecture": catalog("L1", "node --test tests/javascript/research_web_architecture.test.mjs"),
+        "research-web-api": catalog(
+          "L1",
+          "python -m pytest tests/research_web/test_api.py",
+        ),
+        "research-web-ui": catalog(
+          "L1",
+          "node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs",
+        ),
         "research-web-service-manager": catalog(
           "L1",
           "python -m pytest tests/research_web/test_service_manager.py",
@@ -302,6 +310,45 @@ function policy() {
         ci: ["project-constraints", "research-web-checks"],
       }),
       rule({
+        id: "research-web-api",
+        risk: "local-only",
+        minimumLevel: "L1",
+        reason: "research_web_api_change",
+        impact: ["research-web-api"],
+        coupling: "low",
+        match: {
+          files: ["app/research_web/service.py", "tests/research_web/test_api.py"],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: ["research-web-api", "research-web-architecture", "project-constraints-local"],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks"],
+      }),
+      rule({
+        id: "research-web-ui-core",
+        risk: "local-only",
+        minimumLevel: "L1",
+        reason: "research_web_ui_change",
+        impact: ["research-web-ui"],
+        coupling: "low",
+        match: {
+          files: [
+            "app/research_web/ui/app.mjs",
+            "app/research_web/ui/composer.mjs",
+            "tests/javascript/research_web_ui.test.mjs",
+            "tests/javascript/research_web_capabilities_ui.test.mjs",
+          ],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: ["research-web-ui", "research-web-architecture", "project-constraints-local"],
+        documentation: ["documentation-governance"],
+        ci: ["project-constraints", "research-web-checks"],
+      }),
+      rule({
         id: "research-web-service-manager",
         risk: "local-only",
         minimumLevel: "L1",
@@ -309,10 +356,7 @@ function policy() {
         impact: ["research-web-service-lifecycle"],
         coupling: "low",
         match: {
-          files: [
-            "app/research_web/service_manager.py",
-            "tests/research_web/test_service_manager.py",
-          ],
+          files: ["tests/research_web/test_service_manager.py"],
           prefixes: [],
           segments: [],
           suffixes: [],
@@ -326,6 +370,29 @@ function policy() {
         ],
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks"],
+      }),
+      rule({
+        id: "research-web-service-lifecycle-delivery",
+        risk: "full-delivery",
+        minimumLevel: "L4",
+        reason: "research_web_service_lifecycle_delivery",
+        impact: ["research-web-service-lifecycle"],
+        coupling: "high",
+        match: {
+          files: ["app/research_web/service_manager.py"],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-service-manager",
+          "research-web-architecture",
+          "project-constraints-local",
+          "research-web-critical-smoke",
+          "research-web-verification-full",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks", "research-web-bootstrap"],
       }),
       rule({
         id: "research-web-installation",
@@ -469,7 +536,11 @@ test("pure Research Web UI and Python changes never add desktop gates", () => {
   for (const forbidden of ["desktop", "windows", "tauri", "sidecar", "installer"]) {
     assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into Web-only plan`);
   }
-  assert.deepEqual(plan.tests.map(item => item.id), ["research-web-architecture"]);
+  assert.deepEqual(plan.tests.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-ui",
+    "research-web-api",
+  ]);
 });
 
 test("framework source selects architecture and all framework-specific tests", () => {
@@ -512,18 +583,55 @@ test("known framework test files use the framework-specific local closure", () =
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
 });
 
-test("service manager code and its regression test use the focused local closure", () => {
+test("service lifecycle changes require the focused test and GitHub macOS bootstrap", () => {
   const plan = success(run(repositoryRoot, [
     "app/research_web/service_manager.py",
     "tests/research_web/test_service_manager.py",
   ]));
+  assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.equal(plan.tests.some(item => item.id === "research-web-service-manager"), true);
+  assert.deepEqual(new Set(plan.receiptTemplate.externalGateIds), new Set([
+    "project-constraints",
+    "research-web-checks",
+    "research-web-bootstrap",
+  ]));
+  assert.equal(
+    plan.ci.find(item => item.id === "research-web-bootstrap").value,
+    ".github/workflows/research-web-bootstrap.yml#macos-14",
+  );
+});
+
+test("session catalog source and test use the focused API closure", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/service.py",
+    "tests/research_web/test_api.py",
+  ]));
   assert.equal(plan.risk, "local-only");
   assert.equal(plan.requiredLevel, "L1");
-  assert.deepEqual(plan.tests.map(item => item.id), [
-    "research-web-architecture",
-    "research-web-service-manager",
-  ]);
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.deepEqual(new Set(plan.tests.map(item => item.id)), new Set([
+    "research-web-architecture",
+    "research-web-api",
+  ]));
+  assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
+});
+
+test("core UI source and tests use the focused UI closure", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/ui/app.mjs",
+    "app/research_web/ui/composer.mjs",
+    "tests/javascript/research_web_ui.test.mjs",
+    "tests/javascript/research_web_capabilities_ui.test.mjs",
+  ]));
+  assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L1");
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.deepEqual(new Set(plan.tests.map(item => item.id)), new Set([
+    "research-web-architecture",
+    "research-web-ui",
+  ]));
   assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
 });
 
