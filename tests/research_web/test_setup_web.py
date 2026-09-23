@@ -14,6 +14,40 @@ import pytest
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
+def test_installer_prefers_configured_node_over_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configured = tmp_path / "node-24"
+    configured.write_text("fixture", encoding="utf-8")
+    path_node = tmp_path / "node-25"
+    path_node.write_text("fixture", encoding="utf-8")
+    monkeypatch.setenv("RESEARCH_NODE_BINARY", str(configured))
+    monkeypatch.setattr(shutil, "which", lambda name: str(path_node) if name == "node" else None)
+
+    installer = SetupWebInstaller(project_root=tmp_path)
+
+    assert installer.node_executable == configured.resolve()
+
+
+def test_installer_prefers_codex_bundled_node_over_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    bundled = home / ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+    bundled.parent.mkdir(parents=True)
+    bundled.write_text("fixture", encoding="utf-8")
+    bundled.chmod(0o755)
+    path_node = tmp_path / "node-25"
+    path_node.write_text("fixture", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("RESEARCH_NODE_BINARY", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda name: str(path_node) if name == "node" else None)
+
+    installer = SetupWebInstaller(project_root=tmp_path)
+
+    assert installer.node_executable == bundled.resolve()
+
+
 def test_check_only_rejects_an_unowned_virtual_environment_without_mutating_it(
     tmp_path: Path,
 ) -> None:
@@ -285,6 +319,24 @@ def test_node_subprocess_environment_drops_proxy_protocols_corepack_cannot_parse
     assert node_environment["HTTPS_PROXY"] == "http://127.0.0.1:18080"
 
 
+def test_node_subprocess_environment_puts_selected_node_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    node = tmp_path / "node-24" / "bin" / "node"
+    node.parent.mkdir(parents=True)
+    node.write_text("fixture", encoding="utf-8")
+    monkeypatch.setenv("PATH", "/usr/local/bin:/usr/bin")
+    installer = SetupWebInstaller(
+        project_root=tmp_path,
+        data_home=tmp_path / "data",
+        node_executable=node,
+    )
+
+    environment = installer._node_subprocess_environment()
+
+    assert environment["PATH"].split(os.pathsep)[0] == str(node.parent.resolve())
+
+
 def test_windows_node_environment_preserves_standard_toolchain_discovery_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -392,6 +444,112 @@ def test_install_manifest_is_an_allowlist_and_never_serializes_secrets(tmp_path:
         "last_diagnosis",
     }
     assert "must-not-escape" not in serialized
+
+
+def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installer = SetupWebInstaller(
+        project_root=tmp_path / "checkout",
+        data_home=tmp_path / "data",
+        python_executable=Path(sys.executable),
+        node_executable=Path(sys.executable),
+        git_executable=Path(shutil.which("git") or sys.executable),
+        version_reader=lambda _path: "3.12.9",
+        node_version_reader=lambda _path: "v24.8.0",
+    )
+    environment_python = tmp_path / "checkout/.venv/bin/python"
+    dsh_state = {
+        "commit": DSH_COMMIT,
+        "remote": DSH_REMOTE,
+        "pnpm": "11.7.0",
+        "closure_sha256": "b" * 64,
+        "closure_files": 11084,
+    }
+    monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(installer, "prepare_environment", lambda repair=False: environment_python)
+    monkeypatch.setattr(
+        installer,
+        "install_python_dependencies",
+        lambda _python: {
+            "lock_sha256": "lock",
+            "cjpy_version": "0.5.2",
+            "cjpy_sha256": "wheel",
+        },
+    )
+    monkeypatch.setattr(installer, "provision_dsh", lambda repair=False: dsh_state)
+    runtime_lock = installer.data_home / "research-web/runtime/build-lock.json"
+    runtime_lock.parent.mkdir(parents=True)
+    runtime_lock.write_text('{"closure_sha256":"stale"}', encoding="utf-8")
+    runtime_lock.chmod(0o600)
+
+    installer.install(start=False)
+
+    assert json.loads(runtime_lock.read_text(encoding="utf-8")) == {
+        "source_commit": DSH_COMMIT,
+        "closure_sha256": "b" * 64,
+        "closure_files": 11084,
+        "mode": "build",
+    }
+    assert runtime_lock.stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_runtime_build_lock_writer_rejects_a_linked_runtime_directory(
+    tmp_path: Path,
+) -> None:
+    installer = SetupWebInstaller(project_root=tmp_path, data_home=tmp_path / "data")
+    research_web = installer.data_home / "research-web"
+    research_web.mkdir(parents=True)
+    external = tmp_path / "external"
+    external.mkdir()
+    (research_web / "runtime").symlink_to(external, target_is_directory=True)
+
+    with pytest.raises(RuntimeError, match="^runtime_build_lock_unsafe$"):
+        installer.write_runtime_build_lock(
+            dsh_state={
+                "commit": DSH_COMMIT,
+                "closure_sha256": "b" * 64,
+                "closure_files": 11084,
+            }
+        )
+
+    assert not (external / "build-lock.json").exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_runtime_build_lock_writer_rejects_a_preexisting_data_home_alias(
+    tmp_path: Path,
+) -> None:
+    external = tmp_path / "external-data"
+    external.mkdir()
+    alias = tmp_path / "data-alias"
+    alias.symlink_to(external, target_is_directory=True)
+    installer = SetupWebInstaller(project_root=tmp_path, data_home=alias)
+
+    with pytest.raises(RuntimeError, match="^runtime_build_lock_unsafe$"):
+        installer.write_runtime_build_lock(
+            dsh_state={
+                "commit": DSH_COMMIT,
+                "closure_sha256": "b" * 64,
+                "closure_files": 11084,
+            }
+        )
+
+    assert not (external / "research-web/runtime/build-lock.json").exists()
+
+
+def test_runtime_build_lock_writer_requires_an_integer_file_count(tmp_path: Path) -> None:
+    installer = SetupWebInstaller(project_root=tmp_path, data_home=tmp_path / "data")
+
+    with pytest.raises(RuntimeError, match="^dsh_runtime_lock_invalid$"):
+        installer.write_runtime_build_lock(
+            dsh_state={
+                "commit": DSH_COMMIT,
+                "closure_sha256": "b" * 64,
+                "closure_files": 11084.0,
+            }
+        )
 
 
 def test_owned_dsh_source_requires_a_well_formed_local_closure_attestation(

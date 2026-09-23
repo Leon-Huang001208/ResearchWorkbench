@@ -1,0 +1,618 @@
+{
+  "schemaVersion": 2,
+  "risk": "full-delivery",
+  "requiredLevel": "L4",
+  "changeSummary": {
+    "fileCount": 19,
+    "ruleIds": [
+      "ci",
+      "documentation",
+      "research-web",
+      "research-web-service-manager",
+      "research-web-installation"
+    ],
+    "impactIds": [
+      "verification-system",
+      "documentation",
+      "research-web",
+      "research-web-service-lifecycle",
+      "web-installation"
+    ]
+  },
+  "changedFiles": [
+    ".agents/verification-policy.json",
+    ".ai/reports/2026-09-23-research-web-startup-preflight-plan.json",
+    ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
+    ".ai/reports/2026-09-23-research-web-startup-preflight.md",
+    "app/research_web/service_manager.py",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/09-integration-coordinator.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/generated/py_file_index.md",
+    "docs/research-web-installation.md",
+    "docs/research-web-tabbit.md",
+    "scripts/setup_web.py",
+    "tests/javascript/verification_policy.test.mjs",
+    "tests/research_web/test_service_manager.py",
+    "tests/research_web/test_setup_web.py"
+  ],
+  "impact": [
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web-service-manager",
+      "reason": "research_web_service_manager_change",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_service_manager.py",
+      "rule": "research-web-service-manager",
+      "reason": "research_web_service_manager_change",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "reasons": [
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-23-research-web-startup-preflight.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web-service-manager",
+      "code": "research_web_service_manager_change"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "code": "research_web_installation_change"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": "tests/research_web/test_service_manager.py",
+      "rule": "research-web-service-manager",
+      "code": "research_web_service_manager_change"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "code": "research_web_installation_change"
+    }
+  ],
+  "escalations": [
+    {
+      "code": "validation_failure",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    },
+    {
+      "code": "unexpected_behavior",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    }
+  ],
+  "uncoveredRisks": [],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "execution": "local",
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "execution": "local",
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [
+      {
+        "id": "verification-policy-contracts",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/verification_policy.test.mjs"
+      },
+      {
+        "id": "verification-receipt-contracts",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/verification_receipt.test.mjs"
+      },
+      {
+        "id": "incremental-validation-skill-contracts",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
+      },
+      {
+        "id": "research-web-architecture",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+      },
+      {
+        "id": "research-web-service-manager",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_service_manager.py"
+      },
+      {
+        "id": "research-web-installation",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_setup_web.py"
+      }
+    ],
+    "L2": [
+      {
+        "id": "project-constraints-local",
+        "level": "L2",
+        "execution": "local",
+        "category": "tests",
+        "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+      }
+    ],
+    "L3": [
+      {
+        "id": "research-web-critical-smoke",
+        "level": "L3",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_protocol.py"
+      }
+    ],
+    "L4": [
+      {
+        "id": "research-web-verification-full",
+        "level": "L4",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+      },
+      {
+        "id": "project-constraints",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/project-constraints.yml"
+      },
+      {
+        "id": "research-web-checks",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/research-web-checks.yml"
+      },
+      {
+        "id": "research-web-bootstrap",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/research-web-bootstrap.yml"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "id": "verification-policy-contracts",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_policy.test.mjs"
+    },
+    {
+      "id": "verification-receipt-contracts",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_receipt.test.mjs"
+    },
+    {
+      "id": "incremental-validation-skill-contracts",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "execution": "local",
+      "category": "tests",
+      "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_service_manager.py"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_protocol.py"
+    },
+    {
+      "id": "research-web-installation",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_setup_web.py"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "execution": "local",
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "execution": "local",
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [
+    {
+      "id": "project-constraints",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/project-constraints.yml"
+    },
+    {
+      "id": "research-web-checks",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/research-web-checks.yml"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/research-web-bootstrap.yml"
+    }
+  ],
+  "receiptTemplate": {
+    "plannedLevel": "L4",
+    "changedFiles": [
+      ".agents/verification-policy.json",
+      ".ai/reports/2026-09-23-research-web-startup-preflight-plan.json",
+      ".ai/reports/2026-09-23-research-web-startup-preflight-receipt.json",
+      ".ai/reports/2026-09-23-research-web-startup-preflight.md",
+      "app/research_web/service_manager.py",
+      "docs/architecture/research-web/01-system.md",
+      "docs/architecture/research-web/02-research-runtime.md",
+      "docs/architecture/research-web/04-api.md",
+      "docs/architecture/research-web/05-security-validation.md",
+      "docs/architecture/research-web/08-research-frameworks.md",
+      "docs/architecture/research-web/09-integration-coordinator.md",
+      "docs/architecture/research-web/readme-review.json",
+      "docs/generated/py_file_index.md",
+      "docs/research-web-installation.md",
+      "docs/research-web-tabbit.md",
+      "scripts/setup_web.py",
+      "tests/javascript/verification_policy.test.mjs",
+      "tests/research_web/test_service_manager.py",
+      "tests/research_web/test_setup_web.py"
+    ],
+    "requiredValidationIds": [
+      "verification-policy-contracts",
+      "verification-receipt-contracts",
+      "incremental-validation-skill-contracts",
+      "research-web-verification-full",
+      "research-web-architecture",
+      "project-constraints-local",
+      "research-web-service-manager",
+      "research-web-critical-smoke",
+      "research-web-installation",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": [
+      "project-constraints",
+      "research-web-checks",
+      "research-web-bootstrap"
+    ]
+  }
+}

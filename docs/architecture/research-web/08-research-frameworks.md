@@ -2,6 +2,9 @@
 
 Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定义、采集、快照 schema、评分、
 renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。
+启动前 Doctor 门只阻止未完成安装的 checkout 创建共享 Runtime；通过后仍沿用同一框架注册表、
+调度器和快照协议，不增加框架进程或改变评分、renderer 与 Bot 会话绑定。
+Runtime build lock 只绑定同一已验证 DSH 闭包；锁修复不修改 Gold/Dollar 定义、快照 revision 或调度频率。
 全新 DSH `web` Profile 初始化、Windows junction containment 和 PowerShell PID 探针只保证这条唯一 Runtime 可启动/停止，不改变
 Gold、Dollar 的注册、采集、评分、快照或页面协议。
 Office/Wind 验证 timeout 的跨平台浮点上界修正只作用于本机集成验证器，不进入框架采集、评分、

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "根 README 保留当前 Research Web 安装与启动入口，并改为指向唯一文档门户。",
-  "reason": "本轮建立了 docs/README.md 权威索引，需要移除根 README 中重复且容易漂移的专项文档清单。"
+  "disposition": "unchanged",
+  "summary": "本轮无需调整根 README，现有 Research Web 一键安装与启动入口仍然准确。",
+  "reason": "变更统一内部 Node 选择并同步已验证 Runtime build lock；公开命令、前置条件与产品定位均未改变。"
 }

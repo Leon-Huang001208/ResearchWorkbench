@@ -38,6 +38,14 @@ function policy() {
           "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>",
         ),
         "research-web-architecture": catalog("L1", "node --test tests/javascript/research_web_architecture.test.mjs"),
+        "research-web-service-manager": catalog(
+          "L1",
+          "python -m pytest tests/research_web/test_service_manager.py",
+        ),
+        "research-web-installation": catalog(
+          "L1",
+          "python -m pytest tests/research_web/test_setup_web.py",
+        ),
         "research-web-frameworks-python": catalog("L2", "python -m pytest tests/research_web/test_frameworks.py"),
         "research-web-framework-smoke": catalog(
           "L3",
@@ -57,6 +65,7 @@ function policy() {
       ci: {
         "project-constraints": catalog("L4", ".github/workflows/project-constraints.yml", "external"),
         "research-web-checks": catalog("L4", ".github/workflows/research-web-checks.yml", "external"),
+        "research-web-bootstrap": catalog("L4", ".github/workflows/research-web-bootstrap.yml", "external"),
         "native-windows-desktop": catalog("L4", ".github/workflows/desktop-verify.yml#windows-2022", "external"),
       },
     },
@@ -240,6 +249,62 @@ function policy() {
         ci: ["project-constraints", "research-web-checks"],
       }),
       rule({
+        id: "research-web-service-manager",
+        risk: "local-only",
+        minimumLevel: "L1",
+        reason: "research_web_service_manager_change",
+        impact: ["research-web-service-lifecycle"],
+        coupling: "low",
+        match: {
+          files: [
+            "app/research_web/service_manager.py",
+            "tests/research_web/test_service_manager.py",
+          ],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-service-manager",
+          "research-web-architecture",
+          "project-constraints-local",
+          "research-web-critical-smoke",
+          "research-web-verification-full",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks"],
+      }),
+      rule({
+        id: "research-web-installation",
+        risk: "full-delivery",
+        minimumLevel: "L4",
+        reason: "research_web_installation_change",
+        impact: ["web-installation"],
+        coupling: "high",
+        match: {
+          files: [
+            "rwb",
+            "rwb.cmd",
+            "setup-web.sh",
+            "setup-web.cmd",
+            "scripts/setup_web.py",
+            "tests/research_web/test_setup_web.py",
+          ],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-installation",
+          "research-web-architecture",
+          "project-constraints-local",
+          "research-web-critical-smoke",
+          "research-web-verification-full",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks", "research-web-bootstrap"],
+      }),
+      rule({
         id: "research-web-framework-backend",
         risk: "local-only",
         minimumLevel: "L1",
@@ -392,6 +457,40 @@ test("known framework test files use the framework-specific local closure", () =
     "research-web-frameworks-ui",
   ]));
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+});
+
+test("service manager code and its regression test use the focused local closure", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/service_manager.py",
+    "tests/research_web/test_service_manager.py",
+  ]));
+  assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L1");
+  assert.deepEqual(plan.tests.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-service-manager",
+  ]);
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
+});
+
+test("Web installation code and tests require the focused test plus native bootstrap CI", () => {
+  const plan = success(run(repositoryRoot, [
+    "scripts/setup_web.py",
+    "tests/research_web/test_setup_web.py",
+  ]));
+  assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.equal(
+    plan.receiptTemplate.requiredValidationIds.includes("research-web-installation"),
+    true,
+  );
+  assert.deepEqual(new Set(plan.receiptTemplate.externalGateIds), new Set([
+    "project-constraints",
+    "research-web-checks",
+    "research-web-bootstrap",
+  ]));
 });
 
 test("unmapped test files still fail closed", () => {
