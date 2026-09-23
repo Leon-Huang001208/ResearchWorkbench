@@ -2,7 +2,7 @@
 
 ## 状态
 
-交付迭代进行中：首次本地提交后，真实一键安装与浏览器旅程又发现 Node 选择及 Runtime build lock 两项 P0 缺陷；已 TDD 修复，待重新完成 L0–L4、远端集成与 CI。
+P0 启动稳定性切片已完成并发布：本地 L0–L4、真实一键安装、生命周期、浏览器旅程及远端 macOS/Windows 干净环境均已通过。
 
 ## 问题与根因
 
@@ -42,12 +42,15 @@
 - 第二轮独立审查发现 Runtime build-lock 父目录 alias 与浮点文件数可绕过；新增 POSIX no-follow dir-fd / Windows reparse 安全边界、严格四字段与整数校验，并以 runtime/data-parent symlink 和浮点负测锁定。
 - 最终定点复核进一步发现构造器 `.resolve()` 会抹去预先存在的 data alias；data_home/data_root 现保留未解析绝对路径并在 IO 前逐级拒绝 alias，对应构造前 writer/reader 负测通过。
 - 首次远端 Bootstrap 的 macOS 安装成功但启动门失败；clean runner 上嵌套 DSH 目录先创建了 0755 data home，新 parent-private 门按设计拒绝。repair 在写锁前仅把当前用户拥有的产品 data home 收紧为 0700，并新增回归；不放宽 alias/owner 边界。
+- repair commit `b36fb0ee6be4cd13b19b89311adfed82bc129f9d` 已发布到 `origin/master`。Project Constraints run `35836550928`、Research Web Checks run `35836550964` 均成功。
+- Research Web Bootstrap run `35836550986` 的 macOS job 首次即成功；Windows 首次冷启动在异常慢 runner 上超过固定 35 秒窗口而失败，同一 run 的 failed-job 原位重跑（attempt 2）在全新 Windows runner 上 8 分 50 秒成功。首次失败及重跑成功均保留为证据，没有把失败记录改写成一次通过。
+- 独立 Windows local integrations run `35835140845` 成功；最终远端 Bootstrap 同时包含 macOS 与 Windows 安装、启动、Doctor、HTTP 与清理成功证据。
 
-## 远端集成交接
+## 远端集成结果
 
-- 本功能分支基线之后 `origin/master` 已前进到 `e3193f4f`，包含 Token A/B 报告交付。
-- 必须由 `iteration-delivery --prepare` 无损集成最新远端，明确保留 `.ai/reports/2026-09-23-codex-token-ab.md`；不得把其删除计入本任务。
-- `prepare` 后必须从 merged result 的真实 changed set 重新生成 plan/receipt、重跑全部本地 L0–L4，并在 publish 后读取三个外部门结果。
+- 本功能分支基线之后 `origin/master` 前进到 `e3193f4f`；`iteration-delivery --prepare` 已无损集成并保留 `.ai/reports/2026-09-23-codex-token-ab.md`。
+- merged result 使用 19 个真实 changed files 重新生成 plan/receipt 并重跑全部本地 L0–L4；publish 后三个必需外部门均通过。
+- 当前实现远端提交为 `b36fb0ee6be4cd13b19b89311adfed82bc129f9d`；本报告与 receipt 的收尾提交只记录已发生的交付证据，不改变运行时行为。
 
 ## 架构判断
 
