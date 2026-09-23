@@ -34,6 +34,10 @@
         "level": "L1",
         "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
       },
+      "project-constraints-local": {
+        "level": "L2",
+        "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+      },
       "research-web-architecture": {
         "level": "L1",
         "value": "node --test tests/javascript/research_web_architecture.test.mjs"
@@ -71,7 +75,7 @@
     },
     "ci": {
       "project-constraints": {
-        "level": "L2",
+        "level": "L4",
         "value": ".github/workflows/project-constraints.yml"
       },
       "research-web-checks": {
@@ -445,6 +449,27 @@
       ]
     },
     {
+      "id": "framework-artifacts",
+      "risk": "docs-only",
+      "minimumLevel": "L0",
+      "reason": "framework_artifact_change",
+      "impact": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "outputs/frameworks-v1/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [],
+      "documentation": [],
+      "ci": []
+    },
+    {
       "id": "research-web",
       "risk": "local-only",
       "minimumLevel": "L1",
@@ -464,6 +489,7 @@
       },
       "tests": [
         "research-web-architecture",
+        "project-constraints-local",
         "research-web-verification-full"
       ],
       "documentation": [
@@ -487,7 +513,8 @@
       "match": {
         "files": [
           "tests/research_web/test_frameworks.py",
-          "tests/research_web/test_framework_collectors.py"
+          "tests/research_web/test_framework_collectors.py",
+          "tests/research_web/test_workbench_operations.py"
         ],
         "prefixes": [
           "app/research_web/frameworks/"
@@ -499,6 +526,7 @@
         "research-web-framework-collectors",
         "research-web-architecture",
         "research-web-frameworks-python",
+        "project-constraints-local",
         "research-web-framework-smoke",
         "research-web-verification-full"
       ],
@@ -523,7 +551,9 @@
       "match": {
         "files": [
           "app/research_web/ui/frameworks.mjs",
-          "tests/javascript/research_web_frameworks_ui.test.mjs"
+          "tests/e2e/research_web_goldar_v0.mjs",
+          "tests/javascript/research_web_frameworks_ui.test.mjs",
+          "tests/javascript/research_web_workbench.test.mjs"
         ],
         "prefixes": [
           "app/research_web/ui/frameworks/"
@@ -535,6 +565,7 @@
         "research-web-frameworks-ui",
         "research-web-architecture",
         "research-web-frameworks-python",
+        "project-constraints-local",
         "research-web-framework-smoke",
         "research-web-verification-full"
       ],

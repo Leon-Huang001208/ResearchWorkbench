@@ -29,6 +29,10 @@ function policy() {
         "verification-receipt-contracts": catalog("L1", "node --test tests/javascript/verification_receipt.test.mjs"),
         "research-web-framework-collectors": catalog("L1", "python -m pytest tests/research_web/test_framework_collectors.py"),
         "research-web-frameworks-ui": catalog("L1", "node --test tests/javascript/research_web_frameworks_ui.test.mjs"),
+        "project-constraints-local": catalog(
+          "L2",
+          "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>",
+        ),
         "research-web-architecture": catalog("L1", "node --test tests/javascript/research_web_architecture.test.mjs"),
         "research-web-frameworks-python": catalog("L2", "python -m pytest tests/research_web/test_frameworks.py"),
         "research-web-framework-smoke": catalog(
@@ -47,7 +51,7 @@ function policy() {
         "desktop-packaging": catalog("L4", "docs/desktop_packaging.md"),
       },
       ci: {
-        "project-constraints": catalog("L2", ".github/workflows/project-constraints.yml"),
+        "project-constraints": catalog("L4", ".github/workflows/project-constraints.yml"),
         "research-web-checks": catalog("L4", ".github/workflows/research-web-checks.yml"),
         "native-windows-desktop": catalog("L4", ".github/workflows/desktop-verify.yml#windows-2022"),
       },
@@ -190,6 +194,18 @@ function policy() {
         ci: ["project-constraints"],
       }),
       rule({
+        id: "framework-artifacts",
+        risk: "docs-only",
+        minimumLevel: "L0",
+        reason: "framework_artifact_change",
+        impact: ["framework-artifacts"],
+        coupling: "low",
+        match: {files: [], prefixes: ["outputs/frameworks-v1/"], segments: [], suffixes: []},
+        tests: [],
+        documentation: [],
+        ci: [],
+      }),
+      rule({
         id: "documentation",
         risk: "docs-only",
         minimumLevel: "L0",
@@ -209,7 +225,7 @@ function policy() {
         impact: ["research-web"],
         coupling: "low",
         match: {files: [], prefixes: ["app/research_web/", "app/web/"], segments: [], suffixes: []},
-        tests: ["research-web-architecture", "research-web-verification-full"],
+        tests: ["research-web-architecture", "project-constraints-local", "research-web-verification-full"],
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks"],
       }),
@@ -224,6 +240,7 @@ function policy() {
           files: [
             "tests/research_web/test_frameworks.py",
             "tests/research_web/test_framework_collectors.py",
+            "tests/research_web/test_workbench_operations.py",
           ],
           prefixes: ["app/research_web/frameworks/"],
           segments: [],
@@ -233,6 +250,7 @@ function policy() {
           "research-web-framework-collectors",
           "research-web-architecture",
           "research-web-frameworks-python",
+          "project-constraints-local",
           "research-web-framework-smoke",
           "research-web-verification-full",
         ],
@@ -247,7 +265,12 @@ function policy() {
         impact: ["framework-ui"],
         coupling: "high",
         match: {
-          files: ["app/research_web/ui/frameworks.mjs", "tests/javascript/research_web_frameworks_ui.test.mjs"],
+          files: [
+            "app/research_web/ui/frameworks.mjs",
+            "tests/e2e/research_web_goldar_v0.mjs",
+            "tests/javascript/research_web_frameworks_ui.test.mjs",
+            "tests/javascript/research_web_workbench.test.mjs",
+          ],
           prefixes: ["app/research_web/ui/frameworks/"],
           segments: [],
           suffixes: [],
@@ -256,6 +279,7 @@ function policy() {
           "research-web-frameworks-ui",
           "research-web-architecture",
           "research-web-frameworks-python",
+          "project-constraints-local",
           "research-web-framework-smoke",
           "research-web-verification-full",
         ],
@@ -329,6 +353,7 @@ test("framework source selects architecture and all framework-specific tests", (
   assert.equal(plan.requiredLevel, "L3");
   assert.deepEqual(plan.tests.map(item => item.id), [
     "research-web-architecture",
+    "project-constraints-local",
     "research-web-framework-collectors",
     "research-web-frameworks-python",
     "research-web-framework-smoke",
@@ -352,6 +377,7 @@ test("known framework test files use the framework-specific local closure", () =
     "research-web-framework-collectors",
     "research-web-architecture",
     "research-web-frameworks-python",
+    "project-constraints-local",
     "research-web-framework-smoke",
     "research-web-frameworks-ui",
   ]));
@@ -476,12 +502,27 @@ test("cross-module framework change escalates high coupling impacts to L3", () =
     true,
   );
   assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+    "project-constraints-local",
     "research-web-frameworks-python",
-    "project-constraints",
   ]);
   assert.deepEqual(plan.validationsByLevel.L3.map(item => item.id), [
     "research-web-framework-smoke",
   ]);
+  assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
+});
+
+test("tracked framework artifacts and supporting tests stay in the known L3 closure", () => {
+  const plan = success(run(repositoryRoot, [
+    "outputs/frameworks-v1/verification.json",
+    "tests/e2e/research_web_goldar_v0.mjs",
+    "tests/javascript/research_web_workbench.test.mjs",
+    "tests/research_web/test_workbench_operations.py",
+  ]));
+  assert.equal(plan.requiredLevel, "L3");
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.equal(plan.changeSummary.impactIds.includes("framework-artifacts"), true);
+  assert.equal(plan.changeSummary.impactIds.includes("framework-backend"), true);
+  assert.equal(plan.changeSummary.impactIds.includes("framework-ui"), true);
 });
 
 test("verification policy change cannot fall below L4", () => {

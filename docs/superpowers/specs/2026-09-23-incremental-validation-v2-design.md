@@ -45,6 +45,8 @@ Levels are cumulative as an acceptance obligation: a plan at L3 must preserve
 the applicable L0-L3 validations selected by its rules. A higher level does not
 silently invent unrelated platform gates; for example, a non-desktop L4 change
 does not claim native Windows desktop acceptance unless a desktop rule matched.
+Local Project Constraints is an executable L2 validation; the GitHub workflow
+receipt remains a distinct L4 external gate.
 
 ## Policy schema
 
@@ -66,6 +68,8 @@ the verification/CI system, core abstractions, shared utilities, data models or
 database migrations, dependencies, CI, security, desktop, and release paths.
 Known parser, workflow, and agent-orchestration paths require at least L3.
 Unknown paths remain L4 with `unknown_path` and never inherit desktop gates.
+Fixed, governed framework evidence under `outputs/frameworks-v1/` is recognized
+as an L0 artifact impact; other output paths remain unknown and fail closed.
 
 ## Change to impact to validation flow
 

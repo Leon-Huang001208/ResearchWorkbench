@@ -16,9 +16,12 @@
 - Skill RED: before the project Skill and document changes existed, `node --test tests/javascript/incremental_validation_skill.test.mjs` produced 5 tests, 0 passed and 5 failed (92.73 ms) on missing Skill files and missing L0-L4/receipt documentation.
 - Skill GREEN: the same structural/trigger contract passed 5/5 (56.60 ms). The Skill references the planner/validator and requires complete changed sets, escalation, receipts, external gates and uncovered risks without copying route matchers.
 - Documentation verification: governance reported 487 Markdown files, 65 current and `violations: []`; Python index was verified; documentation governance tests passed 7/7 with 0 failed/skipped/cancelled/todo (159.84 ms).
+- Ruling: L2 now selects executable `project-constraints-local`; the GitHub Project Constraints workflow remains an L4 external gate. Targeted RED showed the old L2 output (`project-constraints`) differed from the required local ID; targeted GREEN passed after the split. Cost if wrong: local L2 could otherwise name a workflow without producing runnable evidence.
+- Real-iteration mapping RED: fixed framework artifacts and three supporting test paths from historical cross-module commit `de69d1a28` produced L4/`unknown_path`. After adding only the governed `outputs/frameworks-v1/` prefix and exact framework-supporting tests, targeted GREEN passed; the complete 80-file commit now plans `local-only` L3 with no uncovered risk.
+- Historical small iteration `47cb20e6a` (10 changed files) plans `local-only` L1 with four required validations and zero external/L4 gates. Historical cross-module iteration `de69d1a28` (80 files) plans L3 with eight required validations and zero external/L4 gates.
 
 ## Current next step
 
-Generate and execute the three real representative plans and preserve mechanically valid receipts with measured command evidence.
+Execute the remaining L3-only commands for the real cross-module iteration, then generate three plan/receipt artifacts and the current implementation's L4 evidence.
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"The task currently adds design and plan records only; product runtime topology and diagrams are unchanged.","diagrams":[]} -->
