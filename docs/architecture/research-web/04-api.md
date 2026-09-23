@@ -247,5 +247,7 @@ Phase 2A/2B/2C 路由现在在未设置环境变量时默认启用；显式 `RES
 
 本轮未新增或修改 HTTP 路由、请求字段、响应字段或错误码。`rwb web restart` 在 CLI 内通过已认证
 DSH `session/list` 判断活动会话；目录聚合在服务内部执行一次 `session.list` 和全部合格父作用域
-`subagent.list`，并发上限为 8，失败取消并等待其余请求后传播。浏览器目录的 pending/connecting、
-逐资源 settled 与真实失败 offline 均为既有响应上的呈现语义，不形成新 API 或 Automation 契约。
+`subagent.list`，并发上限为 8，失败取消并等待其余请求后传播。各浏览器目录独立维护 pending count
+与 generation，逐资源 settled 且 latest request wins；只有 runtime pending/settled failure 会分别
+投影为 UI/Composer/submit 的可见 connecting/offline。这些均为既有响应上的客户端语义，不形成新
+API 或 Automation 契约。

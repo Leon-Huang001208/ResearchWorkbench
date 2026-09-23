@@ -398,6 +398,8 @@ Windows 原生回环验证会从冷目录装载全部中文内置 Skill。能力
 
 ## 2026-09-23 稳定性变更回执
 
-本轮一次 `session.list` 加父作用域 `subagent.list` 的有界目录读取，以及前端逐资源加载呈现，不改变
-能力种子、不可变版本、原生投影、Tool/Workflow/Method 契约、DataHub 动态选源、MCP 授权或
-Automation 锁定关系。能力目录内容与执行权限均未扩大，能力架构图和信息层级保持不变。
+本轮一次 `session.list` 加父作用域 `subagent.list` 的有界目录读取，以及每个前端目录独立的 pending
+count、generation、逐资源 settled 与 latest-request-wins，不改变能力种子、不可变版本、原生投影、
+Tool/Workflow/Method 契约、DataHub 动态选源、MCP 授权或 Automation 锁定关系。能力目录 pending
+不会投影为全局 connecting/offline；这两个可见状态仅来自 runtime pending/settled failure。能力目录
+内容与执行权限均未扩大，能力架构图和信息层级保持不变。

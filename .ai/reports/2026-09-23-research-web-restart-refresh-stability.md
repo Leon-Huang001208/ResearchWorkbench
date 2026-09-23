@@ -7,12 +7,22 @@ This Task 5 evidence covers the complete feature branch through Task 4 and docum
 ```text
 restart -> authenticated DSH session/list -> any running session blocks non-force restart
 session catalog -> one session.list + all eligible parent-scoped subagent.list calls with concurrency <= 8; failures cancel and await the remaining fan-out before propagating
-browser catalog -> pending/connecting -> per-resource settled render -> offline only after real failure
+browser catalogs -> each catalog tracks its own pending count and generation -> per-resource settled render -> latest request wins; only runtime pending is projected as visible connecting, and only settled runtime failure is projected as offline
 ```
 
 No production source or test is changed by this task. Framework, Tabbit, integrations, capabilities,
 data-file, Automation, and information-architecture relationships remain unchanged. Local verification does
 not claim browser acceptance, real lifecycle acceptance, publication, or remote CI; those are Task 6 items.
+
+## Fix round 1 RED audit
+
+Before editing, a bounded search across all 17 Task 5-owned paths found 10 Task 5-authored locations that
+collapsed internal catalog request bookkeeping into a generalized visible `connecting` / `offline` claim.
+The expected contract is narrower: every catalog independently owns a pending count and generation, renders
+each resource as it settles, and lets the latest request win; only runtime pending reaches UI/Composer/submit as
+visible `connecting`, and only a settled runtime failure reaches those surfaces as `offline`. Existing Tabbit
+`browser_offline`, MCP stale/offline, delivery pending, and publication pending occurrences are separate
+contracts and were not rewritten.
 
 ## Local validation evidence
 
@@ -23,20 +33,21 @@ the test runner printed a distinct internal duration, that value is included in 
 
 | Plan ID | Level | Command | Observed result | Duration |
 | --- | --- | --- | --- | ---: |
-| `documentation-governance` | L0 | `node scripts/check_documentation_governance.mjs --project .` | passed; 501 files, 69 current, 0 violations | 0.129 s |
-| `python-file-index` | L0 | `/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python scripts/generate_py_file_index.py --check` | passed; generated index verified | 1.102 s |
-| `verification-policy-contracts` | L1 | `node --test tests/javascript/verification_policy.test.mjs` | passed; 35/35 | 1.995 s |
-| `verification-receipt-contracts` | L1 | `node --test tests/javascript/verification_receipt.test.mjs` | passed; 16/16 | 1.457 s |
-| `incremental-validation-skill-contracts` | L1 | `node --test tests/javascript/incremental_validation_skill.test.mjs` | passed; 5/5 | 0.044 s |
-| `research-web-architecture` | L1 | `node --test tests/javascript/research_web_architecture.test.mjs` | passed; 62/62 | 2.849 s |
-| `research-web-api` | L1 | `/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q` | passed; 30/30 in 176.15 s; one Starlette/AnyIO deprecation warning | 177.720 s |
-| `research-web-service-manager` | L1 | `/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q` | passed; 57/57 in 3.88 s; expected warning/error log-path assertions emitted | 5.375 s |
-| `research-web-ui` | L1 | `node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs` | passed; 67/67 | 11.889 s |
-| `project-constraints-local` | L2 | `node .agents/project-constraints.mjs --project . --changed-file <repeat for all 29 plan paths>` | passed; 29 files, 0 violations | 0.151 s |
-| `research-web-critical-smoke` | L3 | `/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_protocol.py` | passed; 19/19 in 0.28 s; pytest warned that `pyproject.toml` config was ignored in favor of `pytest.ini` | 1.408 s |
-| `research-web-verification-full` | L4 | `node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs` | passed; 80/80 | 2.935 s |
+| `documentation-governance` | L0 | `node scripts/check_documentation_governance.mjs --project .` | passed; 501 files, 69 current, 0 violations | 0.160 s |
+| `python-file-index` | L0 | `/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python scripts/generate_py_file_index.py --check` | passed; generated index verified | 1.140 s |
+| `verification-policy-contracts` | L1 | `node --test tests/javascript/verification_policy.test.mjs` | passed; 35/35 | 2.040 s |
+| `verification-receipt-contracts` | L1 | `node --test tests/javascript/verification_receipt.test.mjs` | passed; 16/16 | 1.550 s |
+| `incremental-validation-skill-contracts` | L1 | `node --test tests/javascript/incremental_validation_skill.test.mjs` | passed; 5/5 | 0.100 s |
+| `research-web-architecture` | L1 | `node --test tests/javascript/research_web_architecture.test.mjs` | passed; 62/62 | 3.050 s |
+| `research-web-api` | L1 | `/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q` | passed; 30/30 in 179.26 s; one Starlette/AnyIO deprecation warning | 179.730 s |
+| `research-web-service-manager` | L1 | `/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_service_manager.py -q` | passed; 57/57 in 4.01 s; expected warning/error log-path assertions emitted | 5.280 s |
+| `research-web-ui` | L1 | `node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs` | passed; 67/67 | 12.680 s |
+| `project-constraints-local` | L2 | `node .agents/project-constraints.mjs --project . --changed-file <repeat for all 29 plan paths>` | passed; 29 files, 0 violations | 0.200 s |
+| `research-web-critical-smoke` | L3 | `/Users/leon/Desktop/Projects/ResearchWorkbench/.venv/bin/python -m pytest tests/research_web/test_protocol.py` | passed; 19/19 in 3.47 s; pytest warned that `pyproject.toml` config was ignored in favor of `pytest.ini` | 4.710 s |
+| `research-web-verification-full` | L4 | `node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs` | passed; 80/80 | 2.930 s |
 
-Final passing local closure duration was 207.054 seconds. Every shell invocation also printed the pre-existing
+Fix round 1 reran the complete final 12-item local closure after narrowing the visibility language. Its recorded
+wall-time total is 213.570 seconds. Every shell invocation also printed the pre-existing
 login-shell warning `/Users/leon/.bash_profile: line 57: /Users/leon/.cargo/env: No such file or directory`; it
 did not change any command exit status.
 
@@ -74,7 +85,7 @@ per gate, and remains `blocked` even when all local checks pass.
 The implementation changes existing restart authority, bounded catalog reads, and loading semantics without
 adding a service, route, persistent store, Automation edge, navigation level, or diagram relationship.
 
-<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Per-resource catalog loading now preserves pending or connecting until settlement and shows offline only after a real failure; UI modules, routes, navigation, and diagram relationships are unchanged.","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"Each catalog now owns an independent pending count and generation, renders resources as they settle, and lets the latest request win; only runtime pending or settled runtime failure is projected as visible connecting or offline, while UI modules, routes, navigation, and diagrams remain unchanged.","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Authenticated restart authority and bounded session/subagent catalog reads stay inside the existing service-manager, ResearchService, and DSHClient boundaries with no new API or runtime node.","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"Catalog refresh and restart guards do not change Automation targets, schedules, Run persistence, delivery channels, or the existing capability-workspace relationship.","diagrams":[]} -->
 

@@ -52,6 +52,7 @@ rwb web stop
 
 ## 2026-09-23 稳定性变更回执
 
-本轮只收紧非强制重启的活动会话授权、会话/子 Agent 目录的并发有界读取，以及目录资源的
-pending/connecting、逐资源 settled 和真实失败 offline 呈现。阅读顺序、文档权威关系、十图清单、
+本轮只收紧非强制重启的活动会话授权、会话/子 Agent 目录的并发有界读取，以及前端每个目录独立的
+pending count、generation、逐资源 settled 与 latest-request-wins 账本。只有 runtime pending 和
+settled runtime failure 分别投影为可见 connecting/offline。阅读顺序、文档权威关系、十图清单、
 模块边界、Automation 与信息架构均未变化；外部 CI 和真实浏览器验收另由后续交付阶段记录。

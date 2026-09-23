@@ -148,5 +148,6 @@ Method 的会话证据独立写入 `<session>/.rwb/method-trace.jsonl`，单行�
 ## 2026-09-23 稳定性变更回执
 
 本轮重启活动授权和目录读取有界化不新增或迁移持久数据。会话索引、资料快照、附件、产物、交付
-收据、能力版本、Automation Run、系统凭据库和清理语义均未变化；浏览器目录的逐资源 settled 与
-offline 呈现也不会写入新的缓存或文件。数据文件关系和相关架构图保持不变。
+收据、能力版本、Automation Run、系统凭据库和清理语义均未变化。各目录独立的 pending count、
+generation、逐资源 settled 和 latest-request-wins 都是内存请求账本；只有 runtime 的 pending/settled
+failure 会投影为可见 connecting/offline，且不会写入新的缓存或文件。数据文件关系和相关架构图保持不变。

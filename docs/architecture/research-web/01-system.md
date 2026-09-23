@@ -145,5 +145,7 @@ Phase 2A/2B/2C 的 Registry、Runtime 与 Automation 在远端门禁通过后默
 
 服务管理器的非强制重启改为先查询已认证 DSH `session/list`，任一运行会话都会阻止重启。会话目录
 仍由同一 ResearchService/DSHClient 链读取，一次 `session.list` 后以并发不超过 8 的父作用域
-`subagent.list` 补齐子状态；前端目录按资源 settled 呈现并只在真实失败后显示 offline。现有
-3081/8088、单 worker、Automation、DataHub、文件与信息架构关系均未改变，架构图清单不变。
+`subagent.list` 补齐子状态。前端每个目录独立维护 pending count 与 generation，按资源 settled，且
+latest request wins；仅 runtime pending 向 UI/Composer/submit 投影可见 `connecting`，仅 settled
+runtime failure 投影 `offline`。现有 3081/8088、单 worker、Automation、DataHub、文件与信息架构
+关系均未改变，架构图清单不变。

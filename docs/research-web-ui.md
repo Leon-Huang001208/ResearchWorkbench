@@ -178,7 +178,8 @@ macOS 本机集成页为 Excel、Word、PowerPoint 和 Wind Excel 分别提供�
 
 ## 2026-09-23 目录刷新状态回执
 
-会话、能力与浏览器目录刷新统一保留可见的 `pending` / `connecting` 状态；每个资源在自己的请求
-settled 后独立渲染，不因同批其他资源仍在途而提前清空加载态。只有真实请求失败才显示 offline，
-已完成或仍连接中的资源不会被迟到失败覆盖。该修正不改变 Hash 路由、目录来源、会话/Automation
-关系或 API 公共契约；本地测试不冒充 Task 6 的真实浏览器验收。
+会话、能力与其他浏览器目录分别维护自己的 pending count 与 generation；每个资源在自己的请求
+settled 后独立渲染，旧 generation 的迟到响应不能覆盖最新请求。只有 runtime pending 会通过
+UI、Composer 和 submit 投影为用户可见的 `connecting`，也只有 settled runtime failure 会投影为
+`offline`；其他目录的 pending/failure 保留各自资源级 loading/error 语义。该修正不改变 Hash 路由、
+目录来源、会话/Automation 关系或 API 公共契约；本地测试不冒充 Task 6 的真实浏览器验收。

@@ -70,6 +70,7 @@ Research Workbench Method 层不改变 Gold／Dollar 的领域定义、版本、
 
 ## 2026-09-23 稳定性变更回执
 
-本轮重启活动授权、会话目录有界读取和浏览器目录逐资源加载只作用于既有服务管理、目录聚合与 UI
-状态。Gold/Dollar 的定义、采集器、调度、快照 schema/revision、评分、renderer、Bot 会话绑定及
-页面信息架构均未变化；不需要修改框架图源或制造新的运行节点。
+本轮重启活动授权、会话目录有界读取和各目录独立的 pending count/generation、逐资源 settled、
+latest-request-wins 只作用于既有服务管理、目录聚合与 UI 状态；runtime-only 的可见
+connecting/offline 不进入框架状态。Gold/Dollar 的定义、采集器、调度、快照 schema/revision、
+评分、renderer、Bot 会话绑定及页面信息架构均未变化；不需要修改框架图源或制造新的运行节点。
