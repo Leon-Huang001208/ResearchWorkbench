@@ -33,10 +33,13 @@ The first baseline already demonstrated the high-cost failure mode: a narrowly s
 
 ## Static context result
 
-Separate static measurement after Skill portfolio cleanup:
+Fresh-host measurement must keep cwd constant because project Skills are part of the prompt. In the ResearchWorkbench cwd, after Skill portfolio cleanup and the 0.19.3 restart:
 
-- prompt input: 67,993 → 53,617 bytes (-21.14%);
-- `SKILL.md` references: 184 → 93 (-91).
+- prompt input: 67,993 → 61,047 bytes (-10.22%);
+- `SKILL.md` references: 184 → 102 (-82);
+- final prompt SHA-256: `ed8bd113f8bfbc38d0dd7422a737da57d9db2480fc83fe4148317e9bc8bf26cf`.
+
+The earlier 53,617 / 93 measurement was taken in the `claude-engineering` cwd, which does not load ResearchWorkbench project Skills. It remains useful as a framework-cwd measurement but is not used for the ResearchWorkbench before/after percentage.
 
 This fixed-context improvement is retained independently of the rejected profile.
 
