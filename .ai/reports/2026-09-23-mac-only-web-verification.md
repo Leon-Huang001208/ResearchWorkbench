@@ -36,14 +36,18 @@ The local test commands observed 260 passing tests and one declared platform ski
 validation also appears in the L4 suite). The exact 22-file plan matches the diff from base byte-for-byte as a
 sorted path set; regeneration is deterministic. Complete local closure took 31 measured seconds. Documentation
 governance, the Python index, Project Constraints, and both working-tree/base diff checks passed. The receipt
-remains blocked until the three required remote gates run.
+was blocked at this prepublication point until the three required remote gates ran; its final status is
+`passed`, as documented in the first-publication evidence below.
 
-Raw outputs and exact command arguments are preserved under:
+Temporary raw outputs and exact command arguments existed through prepublication review under:
 
 `/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/p0-web-stability-worktrees/p0-web-stability-delivery-integration/.superpowers/sdd/2026-09-23-mac-only-web-verification/final-fix-feature-logs`
 
-Each validation has a `<Plan ID>.log`; `results.json` contains commands and measured durations, and
-`exact-set.json` records the deterministic 22-file comparison. Python pytest used the existing project Python;
+Required controller cleanup later deleted that ignored SDD workspace, so it is not a durable raw-log archive
+and no stable raw archive is claimed. Durable evidence consists of the committed plan, receipt, and this report,
+plus the immutable GitHub run links, IDs, attempts, job counts, and conclusions below. Before cleanup, each
+validation had a `<Plan ID>.log`; `results.json` recorded commands and measured durations, and `exact-set.json`
+recorded the deterministic 22-file comparison. Python pytest used the existing project Python;
 local-integrations additionally used `--confcutdir=tests/research_web -q`. One existing Starlette/AnyIO
 deprecation warning and the declared platform skip remain; no dependencies were installed.
 
