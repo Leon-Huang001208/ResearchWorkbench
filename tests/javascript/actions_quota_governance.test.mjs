@@ -36,12 +36,16 @@ function workflowJobs(source) {
   const jobs = [];
   for (let index = start + 1; index < lines.length;) {
     if (/^\S/.test(lines[index])) break;
-    const job = lines[index].match(/^  ([a-z][a-z0-9-]*):$/);
+    const job = lines[index].match(/^  (.+):\s*$/);
     if (!job) {
       index += 1;
       continue;
     }
-    const id = job[1];
+    const rawId = job[1].trim();
+    const id = (
+      (rawId.startsWith('"') && rawId.endsWith('"'))
+      || (rawId.startsWith("'") && rawId.endsWith("'"))
+    ) ? rawId.slice(1, -1) : rawId;
     let runsOn = null;
     index += 1;
     while (index < lines.length && !/^\S/.test(lines[index]) && !/^  \S/.test(lines[index])) {
@@ -124,6 +128,30 @@ test('Bootstrap has exactly one macOS clean-install job and its intended trigger
   );
   assert.deepEqual(workflowJobs(workflows.bootstrap), [
     {id: 'clean-install', runsOn: 'macos-14'},
+  ]);
+});
+
+test('workflow job parser detects unquoted and quoted extra job keys', () => {
+  const source = [
+    'jobs:',
+    '  clean-install:',
+    '    runs-on: macos-14',
+    '  extra_job:',
+    '    runs-on: ubuntu-latest',
+    '  ExtraJob:',
+    '    runs-on: windows-2022',
+    '  "quoted-extra":',
+    '    runs-on: macos-14',
+    "  'single-quoted-extra':",
+    '    runs-on: ubuntu-latest',
+  ].join('\n');
+
+  assert.deepEqual(workflowJobs(source), [
+    {id: 'clean-install', runsOn: 'macos-14'},
+    {id: 'extra_job', runsOn: 'ubuntu-latest'},
+    {id: 'ExtraJob', runsOn: 'windows-2022'},
+    {id: 'quoted-extra', runsOn: 'macos-14'},
+    {id: 'single-quoted-extra', runsOn: 'ubuntu-latest'},
   ]);
 });
 
