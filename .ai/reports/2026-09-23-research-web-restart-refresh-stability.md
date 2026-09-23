@@ -10,9 +10,10 @@ session catalog -> one session.list + all eligible parent-scoped subagent.list c
 browser catalogs -> each catalog tracks its own pending count and generation -> per-resource settled render -> latest request wins; only runtime pending is projected as visible connecting, and only settled runtime failure is projected as offline
 ```
 
-No production source or test is changed by this task. Framework, Tabbit, integrations, capabilities,
-data-file, Automation, and information-architecture relationships remain unchanged. Local verification does
-not claim browser acceptance, real lifecycle acceptance, publication, or remote CI; those are Task 6 items.
+No production source or test is changed by this evidence closeout. Framework, Tabbit, integrations,
+capabilities, data-file, Automation, and information-architecture relationships remain unchanged. The feature
+was published at `c9a2cc85332539f2d5a9eeb2cdc1ae278acb1a62`; the final closeout adds observed macOS lifecycle,
+browser, and remote-CI evidence without claiming Windows verification.
 
 ## Task 6: 陈旧运行会话恢复
 
@@ -75,11 +76,11 @@ were rerun and passed as recorded above. The initial stale-index failure is not 
 ## Receipt validation
 
 The receipt copies the final plan's exact change summary, changed paths, impact list, planned level, and actual
-level. All 12 local validations are `passed`; all three external gates are `not_run`; the receipt result remains
-`blocked` with one `external_gate_not_run:<id>` risk per gate.
+level. All 12 local validations and all three required external gates are `passed`; the result is `passed` and
+there are no uncovered risks.
 
 `node scripts/validate_verification_receipt.mjs --project . --plan .ai/reports/2026-09-23-research-web-restart-refresh-stability-plan.json --receipt .ai/reports/2026-09-23-research-web-restart-refresh-stability-receipt.json`
-exited 0 and returned `valid: true`, `result: blocked`, `plannedLevel: L4`, `actualLevel: L4`,
+exited 0 and returned `valid: true`, `result: passed`, `plannedLevel: L4`, `actualLevel: L4`,
 `executedCount: 12`, and `escalationRequired: false`.
 
 ## Task 6 final local verification at `84d764f63`
@@ -119,9 +120,29 @@ edited by Task 5.
 
 ## External gates
 
-Task 5 intentionally does not publish or run remote gates. The final receipt therefore records Project
-Constraints, Research Web Checks, and macOS Bootstrap (`macos-14` only) as `not_run`, with one uncovered risk
-per gate, and remains `blocked` even when all local checks pass.
+The published feature SHA is `c9a2cc85332539f2d5a9eeb2cdc1ae278acb1a62`. Its three automatically triggered
+remote gates all passed:
+
+| Gate | Run | Result |
+| --- | --- | --- |
+| Project Constraints | [35907788606](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35907788606) | passed |
+| Research Web Checks | [35907788633](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35907788633) | passed |
+| Research Web Bootstrap | [35907788663](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35907788663) | passed |
+
+Bootstrap had exactly one job, `Clean Web install (macos-14)`. This SHA has exactly these three automatic runs;
+there was no Windows run. Windows remains explicitly unrun and unclaimed.
+
+## Final macOS lifecycle and browser acceptance
+
+The final macOS lifecycle verification passed: clean setup, stopped-state doctor, idempotent PID observation,
+restart with both PIDs replaced, runtime-only recovery while the Web service remained available, stop/start, and
+the final stopped state. The 50-session first response was **1.861 s**, satisfying the `< 2.0 s` hard gate.
+
+Browser first load initially exposed `connecting`, without `offline`, then reached `ready`. An explicit reload
+captured `connecting` / no `offline` at 398 ms, with send disabled and skills visible. After settlement, the UI
+showed `DeepSeek-V4-Flash`, send enabled, and both capability and skills content visible. The supporting local
+screenshots and DOM captures are retained locally; user-absolute paths are deliberately omitted from this public
+report. The complete final verification duration was **5520 s**.
 
 ## Architecture review
 
@@ -134,6 +155,4 @@ adding a service, route, persistent store, Automation edge, navigation level, or
 
 ## Residual risks
 
-- The three required external gates have not run in Task 5.
-- Real browser interaction and real restart/session lifecycle acceptance have not run in Task 5.
-- Publication, remote CI inspection, and final delivery closeout belong to Task 6.
+- Windows did not run for this Web-only change and is not claimed as verified.
