@@ -9,33 +9,56 @@ import {fileURLToPath} from "node:url";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const plannerPath = path.join(repositoryRoot, "scripts/plan_verification.mjs");
 
+function catalog(level, value) {
+  return {level, value};
+}
+
+function rule({id, risk, minimumLevel, reason, impact, coupling, match, tests = [], documentation = [], ci = []}) {
+  return {id, risk, minimumLevel, reason, impact, coupling, match, tests, documentation, ci};
+}
+
 function policy() {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     riskOrder: ["docs-only", "local-only", "full-delivery"],
+    levelOrder: ["L0", "L1", "L2", "L3", "L4"],
+    escalation: {highCouplingImpactThreshold: 2, targetLevel: "L3"},
     catalogs: {
       tests: {
-        "research-web-architecture": "node --test tests/javascript/research_web_architecture.test.mjs",
-        "research-web-frameworks-python": "python -m pytest tests/research_web/test_frameworks.py",
-        "research-web-framework-collectors": "python -m pytest tests/research_web/test_framework_collectors.py",
-        "research-web-frameworks-ui": "node --test tests/javascript/research_web_frameworks_ui.test.mjs",
+        "verification-policy-contracts": catalog("L1", "node --test tests/javascript/verification_policy.test.mjs"),
+        "verification-receipt-contracts": catalog("L1", "node --test tests/javascript/verification_receipt.test.mjs"),
+        "research-web-framework-collectors": catalog("L1", "python -m pytest tests/research_web/test_framework_collectors.py"),
+        "research-web-frameworks-ui": catalog("L1", "node --test tests/javascript/research_web_frameworks_ui.test.mjs"),
+        "research-web-architecture": catalog("L1", "node --test tests/javascript/research_web_architecture.test.mjs"),
+        "research-web-frameworks-python": catalog("L2", "python -m pytest tests/research_web/test_frameworks.py"),
+        "research-web-framework-smoke": catalog(
+          "L3",
+          "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts",
+        ),
+        "research-web-verification-full": catalog(
+          "L4",
+          "node --test tests/javascript/verification_policy.test.mjs tests/javascript/verification_receipt.test.mjs tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs",
+        ),
       },
       documentation: {
-        "documentation-governance": "node scripts/check_documentation_governance.mjs --project .",
-        "python-file-index": "python scripts/generate_py_file_index.py --check",
-        "desktop-packaging": "docs/desktop_packaging.md",
+        "documentation-governance": catalog("L0", "node scripts/check_documentation_governance.mjs --project ."),
+        "python-file-index": catalog("L0", "python scripts/generate_py_file_index.py --check"),
+        "desktop-packaging": catalog("L4", "docs/desktop_packaging.md"),
       },
       ci: {
-        "project-constraints": ".github/workflows/project-constraints.yml",
-        "research-web-checks": ".github/workflows/research-web-checks.yml",
-        "native-windows-desktop": ".github/workflows/desktop-verify.yml#windows-2022",
+        "project-constraints": catalog("L2", ".github/workflows/project-constraints.yml"),
+        "research-web-checks": catalog("L4", ".github/workflows/research-web-checks.yml"),
+        "native-windows-desktop": catalog("L4", ".github/workflows/desktop-verify.yml#windows-2022"),
       },
     },
     rules: [
-      {
+      rule({
         id: "desktop",
         risk: "full-delivery",
+        minimumLevel: "L4",
         reason: "desktop_change",
+        impact: ["desktop-platform"],
+        coupling: "high",
         match: {
           files: [],
           prefixes: ["src-tauri/", "desktop/", "scripts/desktop/", "services/desktop_platform/"],
@@ -45,103 +68,206 @@ function policy() {
         tests: [],
         documentation: ["desktop-packaging"],
         ci: ["project-constraints", "native-windows-desktop"],
-      },
-      {
+      }),
+      rule({
         id: "contract",
         risk: "full-delivery",
+        minimumLevel: "L4",
         reason: "public_contract_change",
+        impact: ["public-contract"],
+        coupling: "high",
         match: {files: [], prefixes: ["contracts/"], segments: ["contracts"], suffixes: []},
-        tests: [],
+        tests: ["research-web-verification-full"],
         documentation: ["documentation-governance"],
         ci: ["project-constraints"],
-      },
-      {
+      }),
+      rule({
         id: "schema",
         risk: "full-delivery",
+        minimumLevel: "L4",
         reason: "schema_change",
+        impact: ["schema-boundary"],
+        coupling: "high",
         match: {files: [], prefixes: ["schemas/"], segments: ["schemas", "migrations"], suffixes: [".schema.json"]},
-        tests: [],
+        tests: ["research-web-verification-full"],
         documentation: ["documentation-governance"],
         ci: ["project-constraints"],
-      },
-      {
+      }),
+      rule({
         id: "dependency",
         risk: "full-delivery",
+        minimumLevel: "L4",
         reason: "dependency_change",
+        impact: ["dependency-graph"],
+        coupling: "high",
         match: {files: ["package.json", "pyproject.toml"], prefixes: ["requirements/"], segments: [], suffixes: [".lock"]},
-        tests: [],
+        tests: ["research-web-verification-full"],
         documentation: ["documentation-governance"],
         ci: ["project-constraints"],
-      },
-      {
+      }),
+      rule({
         id: "ci",
         risk: "full-delivery",
+        minimumLevel: "L4",
         reason: "ci_change",
-        match: {files: [".agents/verification-policy.json"], prefixes: [".github/workflows/"], segments: [], suffixes: []},
-        tests: [],
+        impact: ["verification-system"],
+        coupling: "high",
+        match: {
+          files: [
+            ".agents/verification-policy.json",
+            "scripts/plan_verification.mjs",
+            "scripts/validate_verification_receipt.mjs",
+            "tests/javascript/verification_policy.test.mjs",
+            "tests/javascript/verification_receipt.test.mjs",
+          ],
+          prefixes: [".github/workflows/"],
+          segments: [],
+          suffixes: [],
+        },
+        tests: ["verification-policy-contracts", "verification-receipt-contracts", "research-web-verification-full"],
         documentation: ["documentation-governance"],
         ci: ["project-constraints"],
-      },
-      {
+      }),
+      rule({
+        id: "core",
+        risk: "full-delivery",
+        minimumLevel: "L4",
+        reason: "core_abstraction_change",
+        impact: ["core-abstraction"],
+        coupling: "high",
+        match: {files: [], prefixes: ["core/"], segments: ["_shared"], suffixes: []},
+        tests: ["research-web-verification-full"],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints"],
+      }),
+      rule({
+        id: "data-model",
+        risk: "full-delivery",
+        minimumLevel: "L4",
+        reason: "data_model_change",
+        impact: ["data-model"],
+        coupling: "high",
+        match: {files: [], prefixes: ["data_layer/models/", "models/", "migrations/"], segments: ["migrations"], suffixes: []},
+        tests: ["research-web-verification-full"],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints"],
+      }),
+      rule({
         id: "security",
         risk: "full-delivery",
+        minimumLevel: "L4",
         reason: "security_change",
+        impact: ["security-boundary"],
+        coupling: "high",
         match: {files: ["SECURITY.md"], prefixes: ["security/"], segments: ["security"], suffixes: []},
-        tests: [],
+        tests: ["research-web-verification-full"],
         documentation: ["documentation-governance"],
         ci: ["project-constraints"],
-      },
-      {
+      }),
+      rule({
         id: "release",
         risk: "full-delivery",
+        minimumLevel: "L4",
         reason: "release_change",
+        impact: ["release-boundary"],
+        coupling: "high",
         match: {files: [], prefixes: ["release/", "scripts/release/"], segments: ["release"], suffixes: []},
-        tests: [],
+        tests: ["research-web-verification-full"],
         documentation: ["documentation-governance"],
         ci: ["project-constraints"],
-      },
-      {
+      }),
+      rule({
+        id: "critical-chain",
+        risk: "local-only",
+        minimumLevel: "L3",
+        reason: "critical_chain_change",
+        impact: ["critical-chain"],
+        coupling: "high",
+        match: {files: [], prefixes: [], segments: ["parser", "parsers", "workflow", "workflows", "agents", "orchestration"], suffixes: []},
+        tests: ["research-web-architecture"],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints"],
+      }),
+      rule({
         id: "documentation",
         risk: "docs-only",
+        minimumLevel: "L0",
         reason: "documentation_only",
+        impact: ["documentation"],
+        coupling: "low",
         match: {files: ["README.md"], prefixes: ["docs/", ".ai/reports/", ".claude/commands/"], segments: [], suffixes: [".md"]},
         tests: [],
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints"],
-      },
-      {
+      }),
+      rule({
         id: "research-web",
         risk: "local-only",
+        minimumLevel: "L1",
         reason: "research_web_change",
+        impact: ["research-web"],
+        coupling: "low",
         match: {files: [], prefixes: ["app/research_web/", "app/web/"], segments: [], suffixes: []},
-        tests: ["research-web-architecture"],
+        tests: ["research-web-architecture", "research-web-verification-full"],
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks"],
-      },
-      {
-        id: "research-web-frameworks",
+      }),
+      rule({
+        id: "research-web-framework-backend",
         risk: "local-only",
-        reason: "research_web_framework_change",
+        minimumLevel: "L1",
+        reason: "research_web_framework_backend_change",
+        impact: ["framework-backend"],
+        coupling: "high",
         match: {
           files: [
-            "app/research_web/ui/frameworks.mjs",
             "tests/research_web/test_frameworks.py",
             "tests/research_web/test_framework_collectors.py",
-            "tests/javascript/research_web_frameworks_ui.test.mjs",
           ],
-          prefixes: ["app/research_web/frameworks/", "app/research_web/ui/frameworks/"],
+          prefixes: ["app/research_web/frameworks/"],
           segments: [],
           suffixes: [],
         },
-        tests: frameworkTestIds,
+        tests: [
+          "research-web-framework-collectors",
+          "research-web-architecture",
+          "research-web-frameworks-python",
+          "research-web-framework-smoke",
+          "research-web-verification-full",
+        ],
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks"],
-      },
+      }),
+      rule({
+        id: "research-web-framework-ui",
+        risk: "local-only",
+        minimumLevel: "L1",
+        reason: "research_web_framework_ui_change",
+        impact: ["framework-ui"],
+        coupling: "high",
+        match: {
+          files: ["app/research_web/ui/frameworks.mjs", "tests/javascript/research_web_frameworks_ui.test.mjs"],
+          prefixes: ["app/research_web/ui/frameworks/"],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-frameworks-ui",
+          "research-web-architecture",
+          "research-web-framework-smoke",
+          "research-web-verification-full",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks"],
+      }),
     ],
     fallback: {
       risk: "full-delivery",
+      minimumLevel: "L4",
       reason: "unknown_path",
-      tests: [],
+      impact: ["unknown-boundary"],
+      coupling: "high",
+      tests: ["research-web-verification-full"],
       documentation: ["documentation-governance"],
       ci: ["project-constraints"],
     },
@@ -156,9 +282,10 @@ function fixture(t, value = policy()) {
   return root;
 }
 
-function run(project, changedFiles) {
+function run(project, changedFiles, signals = []) {
   const args = [plannerPath, "--project", project];
   for (const changedFile of changedFiles) args.push("--changed-file", changedFile);
+  for (const signal of signals) args.push("--signal", signal);
   return spawnSync(process.execPath, args, {encoding: "utf8"});
 }
 
@@ -180,15 +307,10 @@ function gateIds(plan) {
   return [...plan.tests, ...plan.documentation, ...plan.ci].map(item => item.id);
 }
 
-const frameworkTestIds = [
-  "research-web-frameworks-python",
-  "research-web-framework-collectors",
-  "research-web-frameworks-ui",
-];
-
 test("pure Research Web UI and Python changes never add desktop gates", () => {
   const plan = success(run(repositoryRoot, ["app/research_web/ui/app.mjs", "app/research_web/service.py"]));
   assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L1");
   const ids = gateIds(plan).join(" ").toLowerCase();
   for (const forbidden of ["desktop", "windows", "tauri", "sidecar", "installer"]) {
     assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into Web-only plan`);
@@ -202,7 +324,14 @@ test("framework source selects architecture and all framework-specific tests", (
     "app/research_web/ui/frameworks/goldar.mjs",
   ]));
   assert.equal(plan.risk, "local-only");
-  assert.deepEqual(plan.tests.map(item => item.id), ["research-web-architecture", ...frameworkTestIds]);
+  assert.equal(plan.requiredLevel, "L3");
+  assert.deepEqual(plan.tests.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-framework-collectors",
+    "research-web-frameworks-python",
+    "research-web-framework-smoke",
+    "research-web-frameworks-ui",
+  ]);
   const ids = gateIds(plan).join(" ").toLowerCase();
   for (const forbidden of ["desktop", "windows", "tauri", "sidecar", "installer"]) {
     assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into framework plan`);
@@ -216,7 +345,14 @@ test("known framework test files use the framework-specific local closure", () =
     "tests/javascript/research_web_frameworks_ui.test.mjs",
   ]));
   assert.equal(plan.risk, "local-only");
-  assert.deepEqual(plan.tests.map(item => item.id), frameworkTestIds);
+  assert.equal(plan.requiredLevel, "L3");
+  assert.deepEqual(new Set(plan.tests.map(item => item.id)), new Set([
+    "research-web-framework-collectors",
+    "research-web-architecture",
+    "research-web-frameworks-python",
+    "research-web-framework-smoke",
+    "research-web-frameworks-ui",
+  ]));
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
 });
 
@@ -236,7 +372,9 @@ test("high-risk paths keep full delivery while retaining framework tests", () =>
     "requirements/web.lock",
   ]));
   assert.equal(plan.risk, "full-delivery");
-  assert.deepEqual(plan.tests.map(item => item.id), ["research-web-architecture", ...frameworkTestIds]);
+  assert.equal(plan.requiredLevel, "L4");
+  assert.equal(plan.tests.some(item => item.id === "research-web-verification-full"), true);
+  assert.equal(plan.tests.some(item => item.id === "research-web-framework-collectors"), true);
   assert.equal(plan.reasons.some(item => item.code === "dependency_change"), true);
 });
 
@@ -250,7 +388,11 @@ test("framework gates remain ordered and deduplicated across repeated paths", ()
     "app/research_web/frameworks/service.py",
     "tests/research_web/test_frameworks.py",
   ]);
-  assert.deepEqual(plan.tests.map(item => item.id), ["research-web-architecture", ...frameworkTestIds]);
+  assert.equal(plan.requiredLevel, "L1");
+  assert.deepEqual(plan.tests.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-framework-collectors",
+  ]);
   for (const collection of [plan.tests, plan.documentation, plan.ci]) {
     const ids = collection.map(item => item.id);
     assert.equal(new Set(ids).size, ids.length);
@@ -260,9 +402,10 @@ test("framework gates remain ordered and deduplicated across repeated paths", ()
 test("documentation changes only select documentation-related checks", () => {
   const plan = success(run(repositoryRoot, ["docs/AGENT_WORKFLOW.md"]));
   assert.equal(plan.risk, "docs-only");
+  assert.equal(plan.requiredLevel, "L0");
   assert.deepEqual(plan.tests, []);
   assert.deepEqual(plan.documentation.map(item => item.id), ["documentation-governance", "python-file-index"]);
-  assert.deepEqual(plan.ci.map(item => item.id), ["project-constraints"]);
+  assert.deepEqual(plan.ci, []);
 });
 
 test("contract schema dependency CI security and release changes require full delivery", () => {
@@ -277,13 +420,102 @@ test("contract schema dependency CI security and release changes require full de
   for (const [changedFile, reason] of cases) {
     const plan = success(run(repositoryRoot, [changedFile]));
     assert.equal(plan.risk, "full-delivery", changedFile);
+    assert.equal(plan.requiredLevel, "L4", changedFile);
     assert.equal(plan.reasons.some(item => item.code === reason), true, changedFile);
   }
+});
+
+test("core shared utility and data model changes require L4", () => {
+  const cases = new Map([
+    ["core/contracts/runtime.py", "core_abstraction_change"],
+    ["app/research_web/skills/_shared/evidence-protocol.md", "core_abstraction_change"],
+    ["data_layer/models/research.py", "data_model_change"],
+    ["migrations/019_result.sql", "data_model_change"],
+  ]);
+  for (const [changedFile, reason] of cases) {
+    const plan = success(run(repositoryRoot, [changedFile]));
+    assert.equal(plan.requiredLevel, "L4", changedFile);
+    assert.equal(plan.reasons.some(item => item.code === reason), true, changedFile);
+  }
+});
+
+test("known parser workflow and agent orchestration changes require L3", () => {
+  for (const changedFile of [
+    "app/research_web/parsers/request.py",
+    "app/research_web/workflows/report.py",
+    "app/research_web/agents/coordinator.py",
+    "app/research_web/orchestration/runner.py",
+  ]) {
+    const plan = success(run(repositoryRoot, [changedFile]));
+    assert.equal(plan.requiredLevel, "L3", changedFile);
+    assert.equal(plan.reasons.some(item => item.code === "critical_chain_change"), true, changedFile);
+  }
+});
+
+test("small framework renderer change selects L1 without L4", () => {
+  const plan = success(run(repositoryRoot, ["app/research_web/ui/frameworks/goldar.mjs"]));
+  assert.equal(plan.requiredLevel, "L1");
+  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-frameworks-ui",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L4, []);
+  assert.equal(plan.ci.some(item => item.id === "native-windows-desktop"), false);
+});
+
+test("cross-module framework change escalates high coupling impacts to L3", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/frameworks/goldar/store.py",
+    "app/research_web/ui/frameworks/goldar.mjs",
+  ]));
+  assert.equal(plan.requiredLevel, "L3");
+  assert.equal(
+    plan.escalations.some(item => item.code === "multiple_high_coupling_modules"),
+    true,
+  );
+  assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+    "research-web-frameworks-python",
+    "project-constraints",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L3.map(item => item.id), [
+    "research-web-framework-smoke",
+  ]);
+});
+
+test("verification policy change cannot fall below L4", () => {
+  const plan = success(run(repositoryRoot, [".agents/verification-policy.json"]));
+  assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
+  assert.deepEqual(plan.uncoveredRisks, []);
+  assert.equal(plan.receiptTemplate.requiredValidationIds.includes("research-web-verification-full"), true);
+  assert.equal(plan.receiptTemplate.externalGateIds.includes("project-constraints"), true);
+});
+
+test("runtime failure signals escalate one level each and deduplicate", () => {
+  const changed = ["app/research_web/ui/frameworks/goldar.mjs"];
+  const failed = success(run(repositoryRoot, changed, ["validation_failure", "validation_failure"]));
+  assert.equal(failed.requiredLevel, "L2");
+  assert.deepEqual(failed.escalations.map(item => item.code), ["validation_failure"]);
+  assert.equal(failed.validationsByLevel.L2.some(item => item.id === "research-web-frameworks-python"), true);
+
+  const unexpected = success(run(repositoryRoot, changed, ["validation_failure", "unexpected_behavior"]));
+  assert.equal(unexpected.requiredLevel, "L3");
+  assert.deepEqual(unexpected.escalations.map(item => item.code), [
+    "validation_failure",
+    "unexpected_behavior",
+  ]);
+  assert.equal(unexpected.validationsByLevel.L3.some(item => item.id === "research-web-framework-smoke"), true);
+});
+
+test("unknown runtime escalation signals fail explicitly", t => {
+  const root = fixture(t);
+  failure(run(root, ["docs/example.md"], ["not_a_signal"]), "ARGUMENT_ERROR");
 });
 
 test("desktop changes require native Windows and desktop packaging gates", () => {
   const plan = success(run(repositoryRoot, ["src-tauri/tauri.conf.json"]));
   assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
   assert.equal(plan.documentation.some(item => item.id === "desktop-packaging"), true);
   assert.equal(plan.ci.some(item => item.id === "native-windows-desktop"), true);
 });
@@ -291,8 +523,10 @@ test("desktop changes require native Windows and desktop packaging gates", () =>
 test("unknown paths fail closed without pretending to be desktop changes", () => {
   const plan = success(run(repositoryRoot, ["unmapped/new-area.txt"]));
   assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
   assert.deepEqual(plan.reasons, [{path: "unmapped/new-area.txt", rule: "fallback", code: "unknown_path"}]);
   assert.equal(gateIds(plan).some(id => id === "native-windows-desktop" || id === "desktop-packaging"), false);
+  assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"]);
 });
 
 test("multiple changed files deduplicate inputs and gates while keeping highest risk", () => {
@@ -358,7 +592,7 @@ test("the planner never executes commands stored in the policy", t => {
   const root = fixture(t);
   const marker = path.join(root, "executed.txt");
   const injected = policy();
-  injected.catalogs.documentation["documentation-governance"] =
+  injected.catalogs.documentation["documentation-governance"].value =
     `node -e "require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'executed')"`;
   fs.writeFileSync(path.join(root, ".agents/verification-policy.json"), `${JSON.stringify(injected, null, 2)}\n`);
   const plan = success(run(root, ["docs/example.md"]));
