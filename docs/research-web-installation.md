@@ -63,7 +63,8 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
 `dsh.runtime_lock_matches`，锁缺失或与当前 commit/closure/文件数不符时报告
 `dsh_runtime_lock_mismatch`，不会把“安装清单有效”误报成 Runtime 可启动。
 锁路径逐级拒绝符号链接和 Windows reparse point；POSIX 使用 no-follow 目录描述符完成 0600 原子
-替换并拒绝 hardlink，Doctor 以相同边界有界读取。closure 文件数只接受 JSON 整数，不接受浮点等价值。
+替换并拒绝 hardlink，Doctor 以相同边界有界读取。写锁前会把当前用户拥有的产品 data home 收紧为
+0700；未知 owner 或 alias 不自动修复。closure 文件数只接受 JSON 整数，不接受浮点等价值。
 
 ## 依赖与固定制品
 

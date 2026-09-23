@@ -539,6 +539,25 @@ def test_runtime_build_lock_writer_rejects_a_preexisting_data_home_alias(
     assert not (external / "research-web/runtime/build-lock.json").exists()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX private modes do not model Windows ACLs")
+def test_runtime_build_lock_writer_makes_the_owned_data_home_private(
+    tmp_path: Path,
+) -> None:
+    data_home = tmp_path / "data"
+    data_home.mkdir(mode=0o755)
+    installer = SetupWebInstaller(project_root=tmp_path, data_home=data_home)
+
+    installer.write_runtime_build_lock(
+        dsh_state={
+            "commit": DSH_COMMIT,
+            "closure_sha256": "b" * 64,
+            "closure_files": 11084,
+        }
+    )
+
+    assert data_home.stat().st_mode & 0o777 == 0o700
+
+
 def test_runtime_build_lock_writer_requires_an_integer_file_count(tmp_path: Path) -> None:
     installer = SetupWebInstaller(project_root=tmp_path, data_home=tmp_path / "data")
 

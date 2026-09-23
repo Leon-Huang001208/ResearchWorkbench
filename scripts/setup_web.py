@@ -193,6 +193,13 @@ class SetupWebInstaller:
         """Open the product runtime directory without following aliases."""
         self.data_home.mkdir(parents=True, exist_ok=True, mode=0o700)
         self._reject_alias(self.data_home, "runtime_build_lock_unsafe")
+        data_home_identity = self.data_home.lstat()
+        if not stat.S_ISDIR(data_home_identity.st_mode):
+            raise RuntimeError("runtime_build_lock_unsafe")
+        if self.platform_name != "nt":
+            if data_home_identity.st_uid != os.getuid():
+                raise RuntimeError("runtime_build_lock_unsafe")
+            os.chmod(self.data_home, 0o700)
         if self.platform_name == "nt":
             trusted_root = self.data_home.resolve(strict=True)
             directory = self.data_home

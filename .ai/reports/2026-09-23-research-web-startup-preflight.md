@@ -37,10 +37,11 @@
 - 公开安装入口 `./setup-web.sh --no-start` 在锁定依赖、CJPY 0.5.2、Node 24.19.0 与固定 DSH 上通过；Doctor `ok:true` 且 `runtime_lock_matches:true`。
 - 实际生命周期通过：首次 start、幂等 start、restart、stop→start、Runtime SIGTERM 后仅重建 3081、外部 3081 占用时拒绝且不误杀。
 - HTTP 根页面 200，Runtime API `connected=true`、`health_check_passed=true`；Codex 内置浏览器可见 FinGPT、研究输入、模型目录、发送按钮与 Skill 入口，刷新后的异步 catalog 最终恢复可用状态。
-- 安装与安全修复后的本地闭包：policy 28/28、service-manager 34/34、setup-web 29/29、architecture 62/62、protocol 19/19、L4 local 75/75、Project Constraints 0 violations；Ruff、isort、diff-check、Black 通过。
+- 安装与安全修复后的本地闭包：policy 28/28、service-manager 34/34、setup-web 30/30、architecture 62/62、protocol 19/19、L4 local 75/75、Project Constraints 0 violations；Ruff、isort、diff-check、Black 通过。
 - 增量策略对安装脚本与测试使用显式 `research-web-installation` L4 路由，必跑 setup-web Python 回归，并新增原生 macOS/Windows `research-web-bootstrap` 外部门；最终计划无 unknown/uncovered risk。
 - 第二轮独立审查发现 Runtime build-lock 父目录 alias 与浮点文件数可绕过；新增 POSIX no-follow dir-fd / Windows reparse 安全边界、严格四字段与整数校验，并以 runtime/data-parent symlink 和浮点负测锁定。
 - 最终定点复核进一步发现构造器 `.resolve()` 会抹去预先存在的 data alias；data_home/data_root 现保留未解析绝对路径并在 IO 前逐级拒绝 alias，对应构造前 writer/reader 负测通过。
+- 首次远端 Bootstrap 的 macOS 安装成功但启动门失败；clean runner 上嵌套 DSH 目录先创建了 0755 data home，新 parent-private 门按设计拒绝。repair 在写锁前仅把当前用户拥有的产品 data home 收紧为 0700，并新增回归；不放宽 alias/owner 边界。
 
 ## 远端集成交接
 
