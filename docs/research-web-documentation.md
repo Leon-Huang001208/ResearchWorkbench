@@ -1,6 +1,8 @@
 # Research Web 文档门禁与安全入口
 
-Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 在干净 macOS/Windows runner 上执行；
+Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 提供 GitHub `macos-14` 干净安装、
+固定 DSH 构建、3081/8088 启动、Doctor 和无凭据天软断言证据；Windows Web 证据在用户完成 Windows
+实机验证后单独提供，详见 [Research Web 安装契约](research-web-installation.md)。
 `.agents/project-constraints.json` 校验其平台、公开 setup 入口、Doctor、CJPY 和无凭据天软断言。
 它不替代本页的架构映射、回执、截图和人工审阅门禁。
 
