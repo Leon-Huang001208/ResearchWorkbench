@@ -84,6 +84,10 @@ node scripts/validate_verification_receipt.mjs --project . \
 
 Research Web 框架的 backend、renderer 与已登记测试按组件影响合并；单个 renderer 可停在局部闭包，backend+renderer 等高耦合跨模块集合自动扩大到依赖和 smoke 闭包。其他未登记测试继续 fail closed，不能用通用测试目录规则批量降级。
 
+`app/research_web/datahub/` subtree 由全局 delegated namespace 机制交给 namespace owners：只有策略显式 allowlist 的公共 Provider 才能使用 L1-L3 专项闭包。路径命中 delegated namespace 后，只允许在该 namespace 内以正向 `files` 或 `prefixes` 建立所有权的规则参与匹配；没有 owner 接住时必须回到 L4 fallback。Broker、contracts、security、snapshots、专业 Provider 和未来新增路径都不能被通用目录、segment 或 suffix 规则降级。
+
+Asset Workbench UI 与 backend 使用彼此独立的专项规则。公共 Provider 与 UI 同时变化会形成两个 high-coupling impacts，自动提升到 L3，并执行覆盖 API、快照与呈现的资产观察 smoke；这不会扩大到桌面平台门。
+
 ## 桌面端例外（Desktop exception）
 
 worktree 只隔离文件冲突，绝不取代桌面端原生 Windows CI，也不能取代真实 Windows 安装级烟测。凡影响 `src-tauri/`、`desktop/`、`scripts/desktop/`、sidecar、桌面配置或路径、安装包、自动更新、Excel/Wind 集成的改动，都必须以 [`desktop_packaging.md`](desktop_packaging.md) 的跨平台开发与发布验证流程为准。

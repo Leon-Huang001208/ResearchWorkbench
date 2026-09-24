@@ -23,6 +23,11 @@ This Skill cannot publish, cannot execute planned commands automatically, and
 cannot downgrade an L4 plan. The scripts never execute command strings stored
 in policy, plan, or receipt JSON. Missing impact mappings fail closed.
 
+Policy rules may use a validated negative prefix (`excludePrefixes`) to declare
+a delegated namespace. Once a changed path enters that namespace, only
+namespace owner rules participate; if no owner matches, planning must use the
+fallback. A delegated namespace cannot skip fallback or directly lower risk.
+
 ## Examples
 
 ### Example 1: Small change
