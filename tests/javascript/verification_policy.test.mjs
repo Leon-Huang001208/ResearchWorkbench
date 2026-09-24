@@ -936,6 +936,62 @@ test("multiple changed files deduplicate inputs and gates while keeping highest 
   }
 });
 
+test("excludePrefixes delegates excluded paths to fallback without overriding other rules", t => {
+  const value = policy();
+  const generic = value.rules.find(item => item.id === "research-web");
+  assert.ok(generic);
+  generic.match.excludePrefixes = ["app/research_web/datahub/"];
+  value.rules.push(rule({
+    id: "known-datahub",
+    risk: "local-only",
+    minimumLevel: "L2",
+    reason: "known_datahub_change",
+    impact: ["known-datahub"],
+    coupling: "high",
+    match: {
+      files: ["app/research_web/datahub/providers_akshare.py"],
+      prefixes: [],
+      segments: [],
+      suffixes: [],
+    },
+    tests: ["research-web-architecture"],
+  }));
+  const root = fixture(t, value);
+
+  const known = success(run(root, ["app/research_web/datahub/providers_akshare.py"]));
+  assert.equal(known.requiredLevel, "L2");
+  assert.deepEqual(known.changeSummary.ruleIds, ["known-datahub"]);
+
+  const unknown = success(run(root, ["app/research_web/datahub/new_provider.py"]));
+  assert.equal(unknown.requiredLevel, "L4");
+  assert.deepEqual(unknown.reasons, [{
+    path: "app/research_web/datahub/new_provider.py",
+    rule: "fallback",
+    code: "unknown_path",
+  }]);
+  assert.deepEqual(unknown.uncoveredRisks, ["unknown_impact_boundary"]);
+});
+
+test("excludePrefixes remains optional but rejects unsafe or unknown match fields", t => {
+  success(run(fixture(t), ["src-tauri/tauri.conf.json"]));
+
+  for (const excludePrefixes of [
+    ["../datahub/"],
+    ["/absolute/datahub/"],
+    ["app\\research_web\\datahub\\"],
+    ["app/research_web/datahub"],
+    ["app/research_web/datahub/", "app/research_web/datahub/"],
+  ]) {
+    const value = policy();
+    value.rules[0].match.excludePrefixes = excludePrefixes;
+    failure(run(fixture(t, value), ["src-tauri/tauri.conf.json"]), "POLICY_ERROR");
+  }
+
+  const unknownMatchField = policy();
+  unknownMatchField.rules[0].match.unexpectedExclusion = [];
+  failure(run(fixture(t, unknownMatchField), ["src-tauri/tauri.conf.json"]), "POLICY_ERROR");
+});
+
 test("invalid JSON and weakened schemas fail with stable policy errors", t => {
   const invalidJson = fixture(t);
   fs.writeFileSync(path.join(invalidJson, ".agents/verification-policy.json"), "{broken\n");
