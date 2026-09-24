@@ -33,8 +33,8 @@ evidence files. The project-local planner selected `full-delivery` / L4 with six
 external gate, Project Constraints. Research Web Checks, macOS Bootstrap, Windows, desktop, Tauri, and sidecar
 gates are not selected because no product/runtime/platform path changes.
 
-Final local validation results are recorded in the receipt after running the complete planned closure. Until the
-external Project Constraints run is observed, the receipt remains `blocked` with an explicit external-gate risk.
+Final local validation results are recorded in the receipt after running the complete planned closure. The
+initial feature receipt remained `blocked` until the planned external Project Constraints run was observed.
 
 | Plan ID | Level | Result | Duration |
 | --- | --- | --- | ---: |
@@ -61,3 +61,11 @@ Only command isolation in the read-only verification policy changes; the Researc
 Windows automatic verification remains paused and is not claimed. The planner does not select macOS Bootstrap for
 this policy-only change; the preceding installation delivery already proved the current product bootstrap on local
 macOS and GitHub `macos-14`.
+
+## External evidence
+
+Integration commit `ed1ad17ccf13df9d11afb126df035eb3157d3f7f` was published to the remote default branch.
+The only planned external gate, Project Constraints run
+[35945849825](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35945849825), completed with
+`success`. No Research Web Checks, macOS Bootstrap, Windows, desktop, Tauri, or sidecar run was triggered for
+this policy-only change, matching the saved plan rather than manufacturing unrelated evidence.
