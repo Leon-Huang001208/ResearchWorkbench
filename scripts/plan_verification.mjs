@@ -272,6 +272,9 @@ function parsePolicy(raw) {
     escalation: {...value.escalation, targetLevel},
     catalogs,
     rules,
+    delegatedPrefixes: [...new Set(
+      rules.flatMap(rule => rule.match.excludePrefixes),
+    )].sort((left, right) => right.length - left.length),
     fallback,
   };
 }
@@ -327,6 +330,11 @@ function matches(match, changedFile) {
     match.prefixes.some(prefix => changedFile.startsWith(prefix)) ||
     match.segments.some(segment => segments.includes(segment)) ||
     match.suffixes.some(suffix => changedFile.endsWith(suffix));
+}
+
+function ownsDelegatedPrefix(match, prefix) {
+  return match.files.some(file => file.startsWith(prefix)) ||
+    match.prefixes.some(candidate => candidate.startsWith(prefix));
 }
 
 function appendUnique(target, seen, values) {
@@ -391,7 +399,11 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
   const uncoveredRisks = [];
 
   for (const changedFile of normalizedFiles) {
-    const matchedRules = policy.rules.filter(rule => matches(rule.match, changedFile));
+    const delegatedPrefix = policy.delegatedPrefixes.find(prefix => changedFile.startsWith(prefix));
+    const candidateRules = delegatedPrefix
+      ? policy.rules.filter(rule => ownsDelegatedPrefix(rule.match, delegatedPrefix))
+      : policy.rules;
+    const matchedRules = candidateRules.filter(rule => matches(rule.match, changedFile));
     const selections = matchedRules.length > 0 ? matchedRules : [{id: "fallback", ...policy.fallback}];
     for (const selection of selections) {
       riskIndex = Math.max(riskIndex, policy.riskOrder.indexOf(selection.risk));
