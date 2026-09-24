@@ -1184,6 +1184,25 @@ test("unregistered DataHub boundaries remain L4 fallback paths", () => {
   }
 });
 
+test("nested unregistered DataHub paths remain L4 fallback boundaries", () => {
+  for (const changedFile of [
+    "app/research_web/datahub/workflows/new_provider.py",
+    "app/research_web/datahub/parsers/new_provider.py",
+    "app/research_web/datahub/README.md",
+  ]) {
+    const plan = success(run(repositoryRoot, [changedFile]));
+    assert.equal(plan.risk, "full-delivery", changedFile);
+    assert.equal(plan.requiredLevel, "L4", changedFile);
+    assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], changedFile);
+    assert.deepEqual(plan.reasons, [{
+      path: changedFile,
+      rule: "fallback",
+      code: "unknown_path",
+    }], changedFile);
+    assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"], changedFile);
+  }
+});
+
 for (const {changedFile, ruleIds, impactIds} of [
   {
     changedFile: "app/research_web/asset_workspace.py",
@@ -1505,6 +1524,118 @@ test("excludePrefixes delegates excluded paths to fallback without overriding ot
     code: "unknown_path",
   }]);
   assert.deepEqual(unknown.uncoveredRisks, ["unknown_impact_boundary"]);
+});
+
+test("delegated namespace isolates nested paths from global matchers", t => {
+  const value = policy();
+  value.rules.push(rule({
+    id: "global-app-parent",
+    risk: "local-only",
+    minimumLevel: "L1",
+    reason: "global_app_parent_change",
+    impact: ["global-app-parent"],
+    coupling: "low",
+    match: {
+      files: [],
+      prefixes: ["app/"],
+      segments: [],
+      suffixes: [],
+    },
+    tests: ["research-web-architecture"],
+  }));
+  const root = fixture(t, value);
+
+  for (const changedFile of [
+    "app/research_web/datahub/workflows/new_provider.py",
+    "app/research_web/datahub/parsers/new_provider.py",
+    "app/research_web/datahub/README.md",
+  ]) {
+    const plan = success(run(root, [changedFile]));
+    assert.equal(plan.risk, "full-delivery", changedFile);
+    assert.equal(plan.requiredLevel, "L4", changedFile);
+    assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], changedFile);
+    assert.deepEqual(plan.reasons, [{
+      path: changedFile,
+      rule: "fallback",
+      code: "unknown_path",
+    }], changedFile);
+    assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"], changedFile);
+  }
+});
+
+test("delegated namespace keeps its prefix owner and isolates global segments", t => {
+  const value = policy();
+  value.rules.push(rule({
+    id: "datahub-public-owner",
+    risk: "local-only",
+    minimumLevel: "L2",
+    reason: "datahub_public_owner_change",
+    impact: ["datahub-public-owner"],
+    coupling: "high",
+    match: {
+      files: [],
+      prefixes: ["app/research_web/datahub/public/"],
+      segments: [],
+      suffixes: [],
+    },
+    tests: ["research-web-architecture"],
+  }));
+  const root = fixture(t, value);
+
+  const plan = success(run(root, ["app/research_web/datahub/public/workflows/provider.py"]));
+  assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L2");
+  assert.deepEqual(plan.changeSummary.ruleIds, ["datahub-public-owner"]);
+  assert.deepEqual(plan.changeSummary.impactIds, ["datahub-public-owner"]);
+  assert.deepEqual(plan.uncoveredRisks, []);
+});
+
+test("delegated namespace selects the longest matching prefix", t => {
+  const value = policy();
+  const generic = value.rules.find(item => item.id === "research-web");
+  assert.ok(generic);
+  generic.match.excludePrefixes = [
+    "app/research_web/datahub/",
+    "app/research_web/datahub/public/",
+  ];
+  value.rules.push(
+    rule({
+      id: "datahub-broad-owner",
+      risk: "local-only",
+      minimumLevel: "L2",
+      reason: "datahub_broad_owner_change",
+      impact: ["datahub-broad-owner"],
+      coupling: "high",
+      match: {
+        files: [],
+        prefixes: ["app/research_web/datahub/"],
+        segments: [],
+        suffixes: [],
+      },
+      tests: ["research-web-architecture"],
+    }),
+    rule({
+      id: "datahub-public-owner",
+      risk: "local-only",
+      minimumLevel: "L2",
+      reason: "datahub_public_owner_change",
+      impact: ["datahub-public-owner"],
+      coupling: "high",
+      match: {
+        files: [],
+        prefixes: ["app/research_web/datahub/public/"],
+        segments: [],
+        suffixes: [],
+      },
+      tests: ["research-web-architecture"],
+    }),
+  );
+  const root = fixture(t, value);
+
+  const plan = success(run(root, ["app/research_web/datahub/public/provider.py"]));
+  assert.equal(plan.requiredLevel, "L2");
+  assert.deepEqual(plan.changeSummary.ruleIds, ["datahub-public-owner"]);
+  assert.deepEqual(plan.changeSummary.impactIds, ["datahub-public-owner"]);
 });
 
 test("excludePrefixes remains optional but rejects unsafe or unknown match fields", t => {

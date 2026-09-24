@@ -4,7 +4,7 @@
 
 **Goal:** Route known AKShare Provider and Asset Workbench changes through a direct L1-L3 acceptance closure while keeping every unregistered DataHub path fail-closed at L4.
 
-**Architecture:** Add one optional negative-prefix matcher to the read-only planner so the generic Research Web rule can delegate the DataHub subtree. Exact allowlist rules then recognize only AKShare and Asset Workbench boundaries; every other DataHub source falls through to the existing L4 fallback. Direct catalogs cover Provider, DataHub core, Workbench UI/API, and a single L3 asset-observation smoke path.
+**Architecture:** Treat the union of optional negative prefixes as delegated namespaces in the read-only planner. For a path in such a namespace, only rules with positive files or prefixes inside that namespace may participate; global segments, suffixes, and parent prefixes are isolated. Exact allowlist rules then recognize only AKShare and Asset Workbench boundaries; every other DataHub source falls through to the existing L4 fallback. Direct catalogs cover Provider, DataHub core, Workbench UI/API, and a single L3 asset-observation smoke path.
 
 **Tech Stack:** Node.js ESM planner and `node:test`; JSON verification policy; Python 3.12/`pytest`; Markdown governance; managed Git worktrees and GitHub Actions.
 
@@ -24,83 +24,36 @@
 - Existing design: `docs/superpowers/specs/2026-09-24-datahub-workbench-verification-routing-design.md`.
 - This plan: `docs/superpowers/plans/2026-09-24-datahub-workbench-verification-routing.md`.
 
-### Task 1: Add RED contracts for negative-prefix delegation
+### Task 1: Add RED contracts for namespace delegation safety
 
 **Files:**
 - Modify: `tests/javascript/verification_policy.test.mjs`
 - Test: `tests/javascript/verification_policy.test.mjs`
 
-- [ ] **Step 1: Add a fixture test proving an excluded prefix falls through**
+- [ ] **Step 1: Add real-policy nested-path fail-closed contracts**
 
-Add near the policy schema tests:
+Prove each of these paths produces `full-delivery` / L4, `ruleIds=["fallback"]`, `unknown_path`, and
+`unknown_impact_boundary`:
 
-```javascript
-test("excludePrefixes delegates excluded paths to fallback without overriding other rules", t => {
-  const root = fixture(t);
-  const value = policy();
-  const generic = value.rules.find(item => item.id === "research-web");
-  generic.match.excludePrefixes = ["app/research_web/datahub/"];
-  value.rules.push(rule({
-    id: "known-datahub",
-    risk: "local-only",
-    minimumLevel: "L2",
-    reason: "known_datahub_change",
-    impact: ["known-datahub"],
-    coupling: "high",
-    match: {
-      files: ["app/research_web/datahub/providers_akshare.py"],
-      prefixes: [],
-      segments: [],
-      suffixes: [],
-    },
-    tests: ["research-web-architecture"],
-  }));
-  writePolicy(root, value);
-
-  const known = success(run(root, ["app/research_web/datahub/providers_akshare.py"]));
-  assert.equal(known.requiredLevel, "L2");
-  assert.deepEqual(known.changeSummary.ruleIds, ["known-datahub"]);
-
-  const unknown = success(run(root, ["app/research_web/datahub/new_provider.py"]));
-  assert.equal(unknown.requiredLevel, "L4");
-  assert.deepEqual(unknown.reasons, [{
-    path: "app/research_web/datahub/new_provider.py",
-    rule: "fallback",
-    code: "unknown_path",
-  }]);
-  assert.deepEqual(unknown.uncoveredRisks, ["unknown_impact_boundary"]);
-});
+```text
+app/research_web/datahub/workflows/new_provider.py
+app/research_web/datahub/parsers/new_provider.py
+app/research_web/datahub/README.md
 ```
 
-- [ ] **Step 2: Add strict-schema failure cases**
+- [ ] **Step 2: Add fixture collision and owner contracts**
 
-Add:
+With generic DataHub delegation active, add global low-level parent-prefix, `workflows` / `parsers` segment, and
+`.md` suffix rules. Nested DataHub paths must still fall back. Then add a namespace owner prefix
+`app/research_web/datahub/public/`; `public/workflows/provider.py` must select only that owner even though a global
+segment rule also matches.
 
-```javascript
-test("excludePrefixes remains optional but rejects unsafe or unknown match fields", t => {
-  for (const invalid of [
-    ["../datahub/"],
-    ["/absolute/datahub/"],
-    ["app\\research_web\\datahub\\"],
-    ["app/research_web/datahub"],
-    ["app/research_web/datahub/", "app/research_web/datahub/"],
-  ]) {
-    const root = fixture(t);
-    const value = policy();
-    value.rules[0].match.excludePrefixes = invalid;
-    writePolicy(root, value);
-    failure(run(root, ["docs/example.md"]), "POLICY_ERROR");
-  }
+- [ ] **Step 3: Add longest-prefix contract**
 
-  const root = fixture(t);
-  const value = policy();
-  value.rules[0].match.unexpectedExclusion = [];
-  writePolicy(root, value);
-  failure(run(root, ["docs/example.md"]), "POLICY_ERROR");
-});
-```
+Declare both `app/research_web/datahub/` and `app/research_web/datahub/public/` delegated. Add one owner for each
+namespace and prove a public path selects only the more specific owner.
 
-- [ ] **Step 3: Run RED**
+- [ ] **Step 4: Run RED**
 
 Run:
 
@@ -108,80 +61,61 @@ Run:
 node --test tests/javascript/verification_policy.test.mjs
 ```
 
-Expected: the new tests fail with `POLICY_ERROR` because `excludePrefixes` is not an allowed match key.
+Expected: new namespace tests fail because current planner only applies exclusions to the declaring rule; the
+existing 56 contracts remain green.
 
-- [ ] **Step 4: Commit RED**
+- [ ] **Step 5: Commit design, plan, and RED**
 
 ```bash
-git add tests/javascript/verification_policy.test.mjs
-git commit -m "test: define delegated verification match contract"
+git add docs/superpowers/specs/2026-09-24-datahub-workbench-verification-routing-design.md \
+  docs/superpowers/plans/2026-09-24-datahub-workbench-verification-routing.md \
+  tests/javascript/verification_policy.test.mjs
+git commit -m "test: define namespace delegation safety"
 ```
 
-### Task 2: Implement optional `excludePrefixes`
+### Task 2: Enforce global delegated namespaces
 
 **Files:**
-- Modify: `scripts/plan_verification.mjs:35,177-202,312-320`
+- Modify: `scripts/plan_verification.mjs`
 - Test: `tests/javascript/verification_policy.test.mjs`
 
-- [ ] **Step 1: Permit required plus optional match keys**
+- [ ] **Step 1: Return normalized delegated prefixes from policy loading**
 
-Replace the match key constant and add a validator:
+After parsing all rules, collect every rule's `match.excludePrefixes`, deduplicate, and sort longest first. Return
+the result as `delegatedPrefixes` alongside `rules`:
 
 ```javascript
-const MATCH_REQUIRED_KEYS = new Set(["files", "prefixes", "segments", "suffixes"]);
-const MATCH_OPTIONAL_KEYS = new Set(["excludePrefixes"]);
+const delegatedPrefixes = [...new Set(
+  rules.flatMap(rule => rule.match.excludePrefixes),
+)].sort((left, right) => right.length - left.length);
+```
 
-function assertMatchKeys(value, label) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    fail("POLICY_ERROR", `invalid ${label}`);
-  }
-  const keys = Object.keys(value);
-  if ([...MATCH_REQUIRED_KEYS].some(key => !keys.includes(key)) ||
-      keys.some(key => !MATCH_REQUIRED_KEYS.has(key) && !MATCH_OPTIONAL_KEYS.has(key))) {
-    fail("POLICY_ERROR", `invalid ${label} keys`);
-  }
+- [ ] **Step 2: Define namespace ownership**
+
+Only positive files and prefixes inside the delegated namespace establish ownership:
+
+```javascript
+function ownsDelegatedPrefix(match, prefix) {
+  return match.files.some(file => file.startsWith(prefix)) ||
+    match.prefixes.some(candidate => candidate.startsWith(prefix));
 }
 ```
 
-- [ ] **Step 2: Parse the exclusion list without making it a positive matcher**
+- [ ] **Step 3: Restrict candidates before ordinary matching**
 
-Replace the `withMatch` block in `parseSelection` with:
-
-```javascript
-  let match;
-  if (withMatch) {
-    assertMatchKeys(value.match, `${label} match`);
-    match = {
-      files: assertStringArray(value.match.files, `${label} files`, validateMatchPath),
-      prefixes: assertStringArray(value.match.prefixes, `${label} prefixes`, validatePrefix),
-      segments: assertStringArray(value.match.segments, `${label} segments`, validateSegment),
-      suffixes: assertStringArray(value.match.suffixes, `${label} suffixes`, validateSuffix),
-      excludePrefixes: assertStringArray(
-        value.match.excludePrefixes ?? [],
-        `${label} exclude prefixes`,
-        validatePrefix,
-      ),
-    };
-    if ([match.files, match.prefixes, match.segments, match.suffixes].every(items => items.length === 0)) {
-      fail("POLICY_ERROR", `${label} has no matchers`);
-    }
-  }
-```
-
-- [ ] **Step 3: Apply exclusions before positive matching**
-
-Replace `matches` with:
+For each changed path, select the longest matching delegated prefix, limit candidates to owner rules, then call
+the unchanged ordinary `matches` function. Preserve the existing per-rule exclusion check inside `matches`:
 
 ```javascript
-function matches(match, changedFile) {
-  if (match.excludePrefixes.some(prefix => changedFile.startsWith(prefix))) return false;
-  const segments = changedFile.split("/");
-  return match.files.includes(changedFile) ||
-    match.prefixes.some(prefix => changedFile.startsWith(prefix)) ||
-    match.segments.some(segment => segments.includes(segment)) ||
-    match.suffixes.some(suffix => changedFile.endsWith(suffix));
-}
+const delegatedPrefix = policy.delegatedPrefixes.find(prefix => changedFile.startsWith(prefix));
+const candidateRules = delegatedPrefix
+  ? policy.rules.filter(rule => ownsDelegatedPrefix(rule.match, delegatedPrefix))
+  : policy.rules;
+const matchedRules = candidateRules.filter(rule => matches(rule.match, changedFile));
 ```
+
+If no owner rule matches, use the existing fallback unchanged. Do not make segments, suffixes, or parent prefixes
+owners, and do not change risk merging, receipt construction, or signal escalation.
 
 - [ ] **Step 4: Run GREEN and regression tests**
 
@@ -196,7 +130,7 @@ Expected: all tests pass; old fixture rules without `excludePrefixes` remain val
 
 ```bash
 git add scripts/plan_verification.mjs tests/javascript/verification_policy.test.mjs
-git commit -m "feat: support delegated verification prefixes"
+git commit -m "fix: enforce delegated verification namespaces"
 ```
 
 ### Task 3: Add RED routing matrix contracts
@@ -277,6 +211,9 @@ test("unregistered DataHub boundaries remain L4 fallback paths", () => {
     "app/research_web/datahub/security.py",
     "app/research_web/datahub/snapshots.py",
     "app/research_web/datahub/future_provider.py",
+    "app/research_web/datahub/workflows/new_provider.py",
+    "app/research_web/datahub/parsers/new_provider.py",
+    "app/research_web/datahub/README.md",
     "tests/research_web/test_datahub_wind.py",
   ]) {
     const plan = success(run(repositoryRoot, [changedFile]));
@@ -286,6 +223,10 @@ test("unregistered DataHub boundaries remain L4 fallback paths", () => {
   }
 });
 ```
+
+Fixture coverage must also include a specialized prefix owner colliding with a global `workflows` segment rule;
+the exact `ruleIds` must contain only the owner. Add an overlapping broad and narrow namespace case to prove the
+longest delegated prefix wins.
 
 - [ ] **Step 2: Add backend-only expectation**
 

@@ -36,9 +36,10 @@
 
 ### 方案 1：带安全排除的限定组件路由（采用）
 
-给通用 `research-web` 规则增加可选的 `excludePrefixes`，仅排除
-`app/research_web/datahub/`。随后用精确 allowlist 登记 AKShare 公共 Provider；未被专项规则接住的
-DataHub 路径自然落回既有 L4 fallback。Asset Workbench 使用精确文件规则，不需要排除整个 UI。
+给通用 `research-web` 规则增加可选的 `excludePrefixes`，声明
+`app/research_web/datahub/` 为 delegated namespace。规划器汇总所有规则的排除前缀，并只允许在该
+namespace 内拥有正向 `files` 或 `prefixes` 的专项规则参与匹配；未被 owner rule 接住的 DataHub 路径
+自然落回既有 L4 fallback。Asset Workbench 使用精确文件规则，不需要排除整个 UI。
 
 优点：能同时减少误升级并修复当前 DataHub 高风险源码被通用 L1 吞掉的问题；未来新 DataHub 文件默认
 fail closed。缺点：规划器 match schema 增加一个受控字段，需要严格反向测试。
@@ -54,16 +55,22 @@ fail closed。缺点：规划器 match schema 增加一个受控字段，需要�
 
 ## Match 语义扩展
 
-`match` 新增可选 `excludePrefixes: string[]`。规则匹配流程固定为：
+`match` 新增可选 `excludePrefixes: string[]`。所有规则的 `excludePrefixes` 联合集合声明 delegated
+namespaces，而不只是让声明字段的当前规则退出。规则匹配流程固定为：
 
 1. 先规范化并校验 changed path；
-2. 若路径命中任一 `excludePrefixes`，该规则不匹配；
-3. 否则再按现有 `files | prefixes | segments | suffixes` 任一命中规则处理；
-4. 若所有规则都不匹配，继续使用现有 fallback。
+2. 从去重且按长度降序的 delegated prefixes 中选出 changed path 命中的最长前缀；
+3. 若命中 delegated namespace，候选规则只保留 owner rules：规则必须有正向 `files` 以该前缀开头，
+   或正向 `prefixes` 自身以该前缀开头；
+4. 再对候选规则执行现有 `files | prefixes | segments | suffixes` 匹配，并保留每条规则自身的
+   `excludePrefixes` 退出行为；
+5. 若没有 owner rule 正向命中，继续使用现有 fallback。
 
-`excludePrefixes` 不是风险覆盖、优先级或降级机制；它只能让当前规则退出。不能抵消其他规则，不能让
-路径跳过 fallback，也不能接受绝对路径、反斜杠、遍历、控制字符或符号链接组件。字段缺失等价于空
-数组，保持旧策略兼容；未知 match 字段仍失败关闭。
+`excludePrefixes` 不是风险覆盖、优先级或降级机制。它既保留当前规则退出语义，也建立 namespace
+所有权边界：`segments`、`suffixes` 以及位于 namespace 之外的父级 `prefixes` 不能成为 owner，因而
+不能把 delegated path 从 fallback 中重新捞回。多个 delegated prefixes 同时命中时只使用最长前缀，
+防止较宽 owner 越过更具体的边界。该字段不能让路径跳过 fallback，也不能接受绝对路径、反斜杠、
+遍历、控制字符或符号链接组件。字段缺失等价于空数组，保持旧策略兼容；未知 match 字段仍失败关闭。
 
 通用 `research-web` 规则设置：
 
@@ -140,6 +147,7 @@ UI-only 改动停在 L1；当运行时 signal、backend 或 Provider impact 把�
 | `test_datahub_catalog.py` | L2；已知路径，无 `unknown_path` |
 | `research_web_workbench.test.mjs` | L1；不再选择任何 framework 测试 |
 | Broker/contracts/security/snapshots/Wind/MySQL/CJPY/未来 DataHub 文件 | L4 fallback |
+| DataHub 下嵌套 `workflows/`、`parsers/` 或 `README.md` | L4 fallback；全局 segment/suffix 规则不得越界 |
 | 上述任一项 + CI/schema/dependency/security/desktop/release 路径 | 最高风险 L4，不丢失专项检查 |
 
 L3 仍没有桌面、Tauri、sidecar 或 Windows 门。用户要求的发布后 Mac-only Bootstrap 属于交付补充证据，
@@ -148,6 +156,9 @@ L3 仍没有桌面、Tauri、sidecar 或 Windows 门。用户要求的发布后 
 ## 错误处理与安全
 
 - 策略解析继续 exact-key 校验；`excludePrefixes` 只接受规范的仓库相对前缀。
+- 规划器加载策略时把全部排除前缀去重并按长度降序；嵌套 namespace 必须选择最长命中。
+- delegated namespace 的 owner 只由 namespace 内的正向 `files` / `prefixes` 建立；全局
+  `segments`、`suffixes` 和父级 prefix 即使形式上匹配也必须被隔离。
 - 空 allowlist、非法 catalog 引用、重复 ID、非法 level/execution、符号链接和越界路径继续显式失败。
 - 排除通用规则后若专项规则缺失，计划必须出现 `unknown_path`、L4 和
   `unknown_impact_boundary`。
@@ -161,10 +172,12 @@ L3 仍没有桌面、Tauri、sidecar 或 Windows 门。用户要求的发布后 
 1. 上述路由矩阵的每一行。
 2. AKShare + asset UI 的 `multiple_high_coupling_modules` L3 升级及 L0-L3 累积 ID。
 3. Workbench 测试不再命中 framework impact 或 framework catalogs。
-4. 新的 DataHub 未登记路径只命中 fallback L4。
-5. `excludePrefixes` 缺省兼容、命中退出、不能覆盖其他规则、非法路径/字段失败关闭。
-6. 所有新增 Python catalogs 含 `--confcutdir=tests/research_web`。
-7. 现有 framework、installation、desktop、security、CI、unknown 和 receipt 合同全部不回归。
+4. 新的 DataHub 未登记路径及其嵌套 `workflows/`、`parsers/`、`README.md` 只命中 fallback L4。
+5. `excludePrefixes` 缺省兼容、命中退出、隔离全局 segment/suffix/父 prefix、非法路径/字段失败关闭。
+6. 专项 prefix owner 在 namespace 内仍能命中，且与全局规则碰撞时只保留 owner；嵌套 delegated
+   prefixes 使用最长前缀，不允许较宽 owner 越界。
+7. 所有新增 Python catalogs 含 `--confcutdir=tests/research_web`。
+8. 现有 framework、installation、desktop、security、CI、unknown 和 receipt 合同全部不回归。
 
 另外对真实仓库运行代表性 planner：
 
