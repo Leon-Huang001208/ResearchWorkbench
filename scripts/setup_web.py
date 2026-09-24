@@ -380,6 +380,29 @@ class SetupWebInstaller:
             environment["CPLUS_INCLUDE_PATH"] = str(cpp_include)
         return environment
 
+    def _python_subprocess_environment(self) -> dict[str, str]:
+        """Return a credential-free environment with only pip-compatible proxies."""
+        environment = self._subprocess_environment()
+        filtered = 0
+        for key in (
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+        ):
+            value = environment.get(key)
+            if value and urlsplit(value).scheme.lower() not in {"http", "https"}:
+                environment.pop(key, None)
+                filtered += 1
+        if filtered:
+            self.log.warning(
+                "setup_web_python_proxy_protocol_filtered",
+                extra={"proxy_count": filtered},
+            )
+        return environment
+
     @staticmethod
     def _macos_cpp_include() -> Path | None:
         """Find the active macOS SDK libc++ headers for native Node modules."""
@@ -544,7 +567,7 @@ class SetupWebInstaller:
             raise RuntimeError("web_lock_missing") from exc
         if "--hash=sha256:" not in lock_text or "cjpy==" in lock_text.lower():
             raise RuntimeError("web_lock_invalid")
-        environment = self._subprocess_environment()
+        environment = self._python_subprocess_environment()
         commands = self.dependency_install_commands(environment_python)
         # A previous interrupted or repeated run can leave the root distribution metadata in
         # place. Remove only this project's distribution before checking the Web-only closure;

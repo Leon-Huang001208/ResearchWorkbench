@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "changeSummary": {
+    "fileCount": 10,
+    "ruleIds": [
+      "documentation",
+      "research-web-installation"
+    ],
+    "impactIds": [
+      "documentation",
+      "web-installation"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/2026-09-24-research-web-python-socks-proxy-plan.json",
+    ".ai/reports/2026-09-24-research-web-python-socks-proxy-receipt.json",
+    ".ai/reports/2026-09-24-research-web-python-socks-proxy.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/generated/py_file_index.md",
+    "docs/modules/scripts.md",
+    "docs/research-web-installation.md",
+    "scripts/setup_web.py",
+    "tests/research_web/test_setup_web.py"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "impact": [
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/modules/scripts.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "executed": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.165,
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.829,
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    },
+    {
+      "id": "research-web-installation",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 2.688,
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 2.254,
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "status": "passed",
+      "durationSeconds": 0.114,
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "status": "passed",
+      "durationSeconds": 0.801,
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "status": "passed",
+      "durationSeconds": 2.217,
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
+    }
+  ],
+  "result": "blocked",
+  "uncoveredRisks": [
+    "external_gate_not_run:project-constraints",
+    "external_gate_not_run:research-web-checks",
+    "external_gate_not_run:research-web-bootstrap"
+  ],
+  "escalation": {
+    "required": true,
+    "targetLevel": "L4",
+    "reasons": [
+      "validation_failure"
+    ]
+  }
+}

@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 2,
+  "risk": "full-delivery",
+  "requiredLevel": "L4",
+  "changeSummary": {
+    "fileCount": 10,
+    "ruleIds": [
+      "documentation",
+      "research-web-installation"
+    ],
+    "impactIds": [
+      "documentation",
+      "web-installation"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/2026-09-24-research-web-python-socks-proxy-plan.json",
+    ".ai/reports/2026-09-24-research-web-python-socks-proxy-receipt.json",
+    ".ai/reports/2026-09-24-research-web-python-socks-proxy.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/generated/py_file_index.md",
+    "docs/modules/scripts.md",
+    "docs/research-web-installation.md",
+    "scripts/setup_web.py",
+    "tests/research_web/test_setup_web.py"
+  ],
+  "impact": [
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/modules/scripts.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "reasons": [
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/modules/scripts.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "code": "research_web_installation_change"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "code": "research_web_installation_change"
+    }
+  ],
+  "escalations": [
+    {
+      "code": "validation_failure",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    }
+  ],
+  "uncoveredRisks": [],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "execution": "local",
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "execution": "local",
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [
+      {
+        "id": "research-web-installation",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_setup_web.py"
+      },
+      {
+        "id": "research-web-architecture",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+      }
+    ],
+    "L2": [
+      {
+        "id": "project-constraints-local",
+        "level": "L2",
+        "execution": "local",
+        "category": "tests",
+        "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+      }
+    ],
+    "L3": [
+      {
+        "id": "research-web-critical-smoke",
+        "level": "L3",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_protocol.py"
+      }
+    ],
+    "L4": [
+      {
+        "id": "research-web-verification-full",
+        "level": "L4",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+      },
+      {
+        "id": "project-constraints",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/project-constraints.yml"
+      },
+      {
+        "id": "research-web-checks",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/research-web-checks.yml"
+      },
+      {
+        "id": "research-web-bootstrap",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "id": "research-web-installation",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_setup_web.py"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "execution": "local",
+      "category": "tests",
+      "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_protocol.py"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "execution": "local",
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "execution": "local",
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [
+    {
+      "id": "project-constraints",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/project-constraints.yml"
+    },
+    {
+      "id": "research-web-checks",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/research-web-checks.yml"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
+    }
+  ],
+  "receiptTemplate": {
+    "plannedLevel": "L4",
+    "changedFiles": [
+      ".ai/reports/2026-09-24-research-web-python-socks-proxy-plan.json",
+      ".ai/reports/2026-09-24-research-web-python-socks-proxy-receipt.json",
+      ".ai/reports/2026-09-24-research-web-python-socks-proxy.md",
+      "docs/architecture/research-web/01-system.md",
+      "docs/architecture/research-web/05-security-validation.md",
+      "docs/generated/py_file_index.md",
+      "docs/modules/scripts.md",
+      "docs/research-web-installation.md",
+      "scripts/setup_web.py",
+      "tests/research_web/test_setup_web.py"
+    ],
+    "requiredValidationIds": [
+      "research-web-installation",
+      "research-web-architecture",
+      "project-constraints-local",
+      "research-web-critical-smoke",
+      "research-web-verification-full",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": [
+      "project-constraints",
+      "research-web-checks",
+      "research-web-bootstrap"
+    ]
+  }
+}
