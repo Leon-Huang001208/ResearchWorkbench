@@ -195,14 +195,12 @@
   "external": [
     {
       "id": "project-constraints",
-      "status": "not_run",
+      "status": "passed",
       "evidence": ".ai/reports/2026-09-24-datahub-workbench-routing.md"
     }
   ],
-  "result": "blocked",
-  "uncoveredRisks": [
-    "external_gate_not_run:project-constraints"
-  ],
+  "result": "passed",
+  "uncoveredRisks": [],
   "escalation": {
     "required": false,
     "targetLevel": null,

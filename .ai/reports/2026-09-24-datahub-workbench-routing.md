@@ -3,7 +3,7 @@
 ## 状态与范围
 
 - 本地证据状态：计划要求的 6 个 local validation 全部通过；5 个新增 direct catalog 均真实可执行并通过。
-- 接受状态：`blocked`。唯一外部门 `project-constraints` 尚未运行；本任务不执行 prepare、publish、cleanup、GitHub dispatch 或 CI。
+- 接受状态：`passed`。计划内唯一外部门 `project-constraints` 已成功，receipt 已从 pre-CI blocked 收敛为 passed。
 - 本轮验证开始：`2026-09-24T07:26:06Z`。
 - 工作树基线：证据刷新从 `4f86c518f33939506fbf396d3033acde9bebf66b` 开始；该 HEAD 已包含后续 L4 signal 修复。本任务仍只更新 plan、receipt、report。Python 索引验证一致，未生成索引差异。
 - 完整 changed set：11 个路径；plan 的 `risk=full-delivery`、`requiredLevel=L4`，原因是 verification policy、planner、policy contracts 与 skill workflow 属于 `verification-system`。
@@ -90,7 +90,7 @@
 | L1 | `incremental-validation-skill-contracts` | passed | 0.08s | 5 passed、0 failed/skipped/todo |
 | L4 | `research-web-verification-full` | passed | 2.77s | 80 passed、0 failed/skipped/todo |
 
-L2/L3 在本任务完整 plan 中为空。所有 required local IDs 都以本报告作为 receipt evidence。外部 `project-constraints` 记为 `not_run`，因此 receipt 结果必须是 `blocked`。
+L2/L3 在本任务完整 plan 中为空。所有 required local IDs 都以本报告作为 receipt evidence。外部 `project-constraints` 已以成功 run 回执记为 `passed`，receipt 结果为 `passed`。
 
 ## 五个 direct catalog 实跑
 
@@ -106,19 +106,29 @@ Python 命令统一使用既有 `/Users/leon/Desktop/Projects/ResearchWorkbench-
 
 附加静态检查已执行：`node --check scripts/plan_verification.mjs` 通过（0.02s）；`git diff --check` 通过（0.04s）。
 
-最终证据闭环已执行完整 11 路径的本地 Project Constraints（0.17s，`violations: []`）、receipt validator（`valid=true`、`result=blocked`、planned/actual L4、executedCount 6、escalationRequired false）、governance（508 files、71 current、0 violations）、index（verified）、JSON/Node 语法与 diff 格式检查，全部得到通过回执。本地约束执行不等于外部 `.github/workflows/project-constraints.yml` 已运行；receipt 中该 external gate 仍如实为 `not_run`。
+最终证据闭环已执行完整 11 路径的本地 Project Constraints（0.17s，`violations: []`）、governance（508 files、71 current、0 violations）、index（verified）、JSON/Node 语法与 diff 格式检查，全部得到通过回执。外部 Project Constraints 随后也取得独立成功 run；最终 receipt validator 输出 `valid=true`、`result=passed`、planned/actual L4、executedCount 6、escalationRequired false。
+
+## Publication / External evidence
+
+- Integration/product SHA：`ddf983d43c71c7da3420876b4e31e7a48e553420`。
+- 本地 merged integration verification：147 秒，通过。
+- 计划内外部门 Project Constraints：[run 35971132236](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35971132236)，`success`。
+- 用户 standing supplemental Mac-only Research Web Bootstrap：[run 35971152295](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35971152295)，`success`。唯一 `macos-14` job 完成 clean install、start、doctor、connections、stop 与 artifact upload。该 run 是用户要求的补充验收，不属于 plan 的 `externalGateIds`，因此没有伪造为 receipt 外部门。
+- Windows、desktop、Tauri、sidecar 和 installer 验收均未运行，也未声明通过；本次变更的产品边界仍是 Web-only。
+- 本 evidence-only 提交发生在 product SHA 之后；其内容只更新报告与 receipt，仍应由后续轻量文档/约束 CI 对最终证据提交做常规复核，不影响上述 product SHA 的产品验收结论。
 
 ## 失败、重规划与工具环境
 
 - 第一次矩阵摘要命令使用了环境不存在的 `jq`，planner 因下游提前关闭收到 `EPIPE`；没有产生或执行 plan。改用 Node 解析 stdout 后，全部矩阵成功。
 - macOS 自带 Bash 不支持 `mapfile`；完整 changed set 采集改为 Bash 3 兼容的数组循环后成功。
-- 两项均属于证据脚本/格式化工具兼容问题，不是产品 validation failure，也没有失败的本地 validation，因此未伪造 `validation_failure` 或 `unexpected_behavior` signal 重规划。保存的 plan 与所有执行项均来自成功的真实 planner 输出。
+- 外部集成后 `origin/master` 已推进到 product SHA；旧 evidence 分支的实时三点 diff 不再能枚举本任务 11 路径。最终 Project Constraints 因而从已保存且曾与 planner stdout 字节比对一致的 plan `changedFiles` 读取精确 11 路径，实测 `checkedFiles` 完整且 `violations: []`。
+- 前三项均属于证据脚本兼容或外部基线推进问题，不是产品 validation failure，也没有失败的本地 validation，因此未伪造 `validation_failure` 或 `unexpected_behavior` signal 重规划。保存的 plan 与所有执行项均来自成功的真实 planner 输出。
 
 ## 架构、平台边界、P4 收益与未知风险
 
 - 架构边界：本次只改变 verification policy、只读 planner、合同测试与治理文档；不改变 Research Web API、运行时、数据模型、数据库或用户界面。delegated namespace 是候选规则隔离，不是风险覆盖或优先级捷径。
 - 平台边界：L1-L3 专项闭包只服务 Web；不会凭空加入 desktop、Tauri、sidecar、installer 或 native Windows 门。当前任务因验证系统自身变更仍正确到 L4。
 - P4 收益：已知 AKShare / Asset Workbench 改动现在获得与组件耦合匹配的 L1-L3 快环，减少误触发 L4 和无关 framework catalog；同时未知 DataHub 边界从可能被通用规则缩窄，改为机械 L4 fail-closed。收益是更快且更可信的反馈，不以削弱硬门换速度。
-- 未知风险：GitHub `project-constraints` 尚未运行，receipt 因此外部阻塞；真实 CI runner 与远端集成状态不在本任务证据内。Windows 没有运行，也不得宣称 Windows 已验证。direct tests 的两条依赖 deprecation warning 未影响通过，但仍是上游环境债务。Task 5 两个非阻塞文档建议仍待未来处理。
+- 未知风险：Windows 没有运行，也不得宣称 Windows 已验证；desktop/Tauri/sidecar/installer 不在本次 Web-only 验收范围。direct tests 的两条依赖 deprecation warning 未影响通过，但仍是上游环境债务。Task 5 两个非阻塞文档建议仍待未来处理。
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"This evidence records verification-policy routing and local acceptance without changing Research Web product topology, APIs, runtime components, or platform ownership.","diagrams":[]} -->
