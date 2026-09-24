@@ -1338,12 +1338,54 @@ for (const {name, changedFile, signals, ruleIds, level2Ids, escalations} of [
     assert.deepEqual(plan.validationsByLevel.L3.map(item => item.id), [
       "research-web-asset-workspace-smoke",
     ]);
+    assert.deepEqual(plan.validationsByLevel.L4, []);
     assert.equal(
       plan.tests.find(item => item.id === "research-web-asset-workspace-smoke")?.value,
       "python -m pytest tests/research_web/test_asset_workspace.py::test_asset_observation_tracks_each_block_and_freezes_handoff_context --confcutdir=tests/research_web",
     );
   });
 }
+
+for (const {name, changedFiles} of [
+  {
+    name: "AKShare provider",
+    changedFiles: ["app/research_web/datahub/providers_akshare.py"],
+  },
+  {
+    name: "Asset Workbench backend",
+    changedFiles: ["tests/research_web/test_asset_workspace.py"],
+  },
+]) {
+  test(`${name} retains full validation after two runtime signals`, () => {
+    const plan = success(run(repositoryRoot, changedFiles, ["validation_failure", "unexpected_behavior"]));
+    assert.equal(plan.requiredLevel, "L4");
+    assert.equal(plan.validationsByLevel.L4.some(item => item.id === "research-web-verification-full"), true);
+  });
+}
+
+test("Provider plus Workbench UI retains full validation after a validation failure", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/datahub/providers_akshare.py",
+    "app/research_web/ui/asset-workspace.mjs",
+  ], ["validation_failure"]));
+  assert.equal(plan.requiredLevel, "L4");
+  assert.equal(plan.validationsByLevel.L4.some(item => item.id === "research-web-verification-full"), true);
+});
+
+test("three specialized rules declare the full validation catalog", () => {
+  const actual = JSON.parse(fs.readFileSync(
+    path.join(repositoryRoot, ".agents/verification-policy.json"),
+    "utf8",
+  ));
+  const rules = new Map(actual.rules.map(item => [item.id, item]));
+  for (const id of [
+    "research-web-datahub-public-provider",
+    "research-web-asset-workbench-ui",
+    "research-web-asset-workbench-backend",
+  ]) {
+    assert.equal(rules.get(id)?.tests.includes("research-web-verification-full"), true, id);
+  }
+});
 
 for (const {name, changedFile, ruleId, impactId, catalogId, catalogValue} of [
   {

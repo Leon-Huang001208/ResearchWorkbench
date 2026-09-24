@@ -246,6 +246,47 @@ test("asset Workbench backend uses L2 and selects its direct contracts", () => {
     "research-web-asset-workspace-python",
   ]);
 });
+
+for (const {name, changedFiles} of [
+  {
+    name: "AKShare provider",
+    changedFiles: ["app/research_web/datahub/providers_akshare.py"],
+  },
+  {
+    name: "Asset Workbench backend",
+    changedFiles: ["tests/research_web/test_asset_workspace.py"],
+  },
+]) {
+  test(`${name} retains full validation after two runtime signals`, () => {
+    const plan = success(run(repositoryRoot, changedFiles, ["validation_failure", "unexpected_behavior"]));
+    assert.equal(plan.requiredLevel, "L4");
+    assert.equal(plan.validationsByLevel.L4.some(item => item.id === "research-web-verification-full"), true);
+  });
+}
+
+test("Provider plus Workbench UI retains full validation after a validation failure", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/datahub/providers_akshare.py",
+    "app/research_web/ui/asset-workspace.mjs",
+  ], ["validation_failure"]));
+  assert.equal(plan.requiredLevel, "L4");
+  assert.equal(plan.validationsByLevel.L4.some(item => item.id === "research-web-verification-full"), true);
+});
+
+test("three specialized rules declare the full validation catalog", () => {
+  const actual = JSON.parse(fs.readFileSync(
+    path.join(repositoryRoot, ".agents/verification-policy.json"),
+    "utf8",
+  ));
+  const rules = new Map(actual.rules.map(item => [item.id, item]));
+  for (const id of [
+    "research-web-datahub-public-provider",
+    "research-web-asset-workbench-ui",
+    "research-web-asset-workbench-backend",
+  ]) {
+    assert.equal(rules.get(id)?.tests.includes("research-web-verification-full"), true, id);
+  }
+});
 ```
 
 - [ ] **Step 3: Run RED**
@@ -365,7 +406,8 @@ Do not add exclusions to any other rule.
     "research-web-datahub-public-provider",
     "project-constraints-local",
     "research-web-datahub-core",
-    "research-web-asset-workspace-smoke"
+    "research-web-asset-workspace-smoke",
+    "research-web-verification-full"
   ],
   "documentation": ["documentation-governance", "python-file-index"],
   "ci": ["project-constraints", "research-web-checks"]
@@ -396,7 +438,8 @@ Do not add exclusions to any other rule.
     "research-web-asset-workbench-ui",
     "project-constraints-local",
     "research-web-asset-workspace-python",
-    "research-web-asset-workspace-smoke"
+    "research-web-asset-workspace-smoke",
+    "research-web-verification-full"
   ],
   "documentation": ["documentation-governance"],
   "ci": ["project-constraints", "research-web-checks"]
@@ -431,7 +474,8 @@ Remove `tests/javascript/research_web_workbench.test.mjs` from
     "research-web-asset-workbench-ui",
     "project-constraints-local",
     "research-web-asset-workspace-python",
-    "research-web-asset-workspace-smoke"
+    "research-web-asset-workspace-smoke",
+    "research-web-verification-full"
   ],
   "documentation": ["documentation-governance", "python-file-index"],
   "ci": ["project-constraints", "research-web-checks"]
@@ -465,6 +509,7 @@ rule({
     "project-constraints-local",
     "research-web-datahub-core",
     "research-web-asset-workspace-smoke",
+    "research-web-verification-full",
   ],
   documentation: ["documentation-governance", "python-file-index"],
   ci: ["project-constraints", "research-web-checks"],
@@ -491,6 +536,7 @@ rule({
     "project-constraints-local",
     "research-web-asset-workspace-python",
     "research-web-asset-workspace-smoke",
+    "research-web-verification-full",
   ],
   documentation: ["documentation-governance"],
   ci: ["project-constraints", "research-web-checks"],
@@ -518,6 +564,7 @@ rule({
     "project-constraints-local",
     "research-web-asset-workspace-python",
     "research-web-asset-workspace-smoke",
+    "research-web-verification-full",
   ],
   documentation: ["documentation-governance", "python-file-index"],
   ci: ["project-constraints", "research-web-checks"],

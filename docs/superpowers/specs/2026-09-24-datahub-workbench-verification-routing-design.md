@@ -103,8 +103,9 @@ namespaces，而不只是让声明字段的当前规则退出。规则匹配流�
   - `tests/research_web/test_datahub_catalog.py`
 - `risk=local-only`，`minimumLevel=L2`，`impact=["datahub-public-provider"]`，
   `coupling=high`。
-- 选择 Provider L1、DataHub core L2、架构 L1、Project Constraints L2、资产 smoke L3、文档治理和
-  Python 索引。
+- 选择 Provider L1、DataHub core L2、架构 L1、Project Constraints L2、资产 smoke L3、文档治理、
+  Python 索引和 `research-web-verification-full`；后者为 L4 catalog，正常 L1-L3 计划不会出现，
+  但 signal 或其他高风险升级到 L4 时必须保留。
 - CI 仍引用 Project Constraints / Research Web Checks，但只在计划实际达到 L4 时出现。
 
 本轮只允许 AKShare，因为已有真实缺失值问题、Provider 测试和浏览器证据。其他 Provider 必须在单独
@@ -116,8 +117,9 @@ namespaces，而不只是让声明字段的当前规则退出。规则匹配流�
   - `app/research_web/ui/asset-workspace.mjs`
   - `tests/javascript/research_web_workbench.test.mjs`
 - `minimumLevel=L1`，`impact=["asset-workbench-ui"]`，`coupling=high`。
-- 选择 Workbench UI、架构、Asset Workspace Python L2、Project Constraints L2、资产 smoke L3 与
-  文档治理。
+- 选择 Workbench UI、架构、Asset Workspace Python L2、Project Constraints L2、资产 smoke L3、
+  文档治理和 `research-web-verification-full`；后者为 L4 catalog，正常 L1-L3 计划不会出现，但
+  signal 或其他高风险升级到 L4 时必须保留。
 - 从现有 `research-web-framework-ui.match.files` 删除
   `tests/javascript/research_web_workbench.test.mjs`；其他框架映射不变。
 
@@ -130,8 +132,9 @@ UI-only 改动停在 L1；当运行时 signal、backend 或 Provider impact 把�
   - `app/research_web/asset_routes.py`
   - `tests/research_web/test_asset_workspace.py`
 - `minimumLevel=L2`，`impact=["asset-workbench-backend"]`，`coupling=high`。
-- 选择 Asset Workspace Python、Workbench UI、架构、Project Constraints、资产 smoke、文档治理和
-  Python 索引。
+- 选择 Asset Workspace Python、Workbench UI、架构、Project Constraints、资产 smoke、文档治理、
+  Python 索引和 `research-web-verification-full`；后者为 L4 catalog，正常 L1-L3 计划不会出现，但
+  signal 或其他高风险升级到 L4 时必须保留。
 
 `workbench.py`、`test_workbench_operations.py` 和研究台其他页面暂不移入本规则；它们的边界更广，
 需要单独证据，避免借本任务顺手降级。
@@ -177,7 +180,9 @@ L3 仍没有桌面、Tauri、sidecar 或 Windows 门。用户要求的发布后 
 6. 专项 prefix owner 在 namespace 内仍能命中，且与全局规则碰撞时只保留 owner；嵌套 delegated
    prefixes 使用最长前缀，不允许较宽 owner 越界。
 7. 所有新增 Python catalogs 含 `--confcutdir=tests/research_web`。
-8. 现有 framework、installation、desktop、security、CI、unknown 和 receipt 合同全部不回归。
+8. 三条专项规则都声明 `research-web-verification-full`；正常 L1/L2/L3 矩阵不出现它，signal 或
+   高风险升到 L4 时必须出现。
+9. 现有 framework、installation、desktop、security、CI、unknown 和 receipt 合同全部不回归。
 
 另外对真实仓库运行代表性 planner：
 
