@@ -181,26 +181,22 @@
   "external": [
     {
       "id": "project-constraints",
-      "status": "not_run",
+      "status": "passed",
       "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
     },
     {
       "id": "research-web-checks",
-      "status": "not_run",
+      "status": "passed",
       "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
     },
     {
       "id": "research-web-bootstrap",
-      "status": "not_run",
+      "status": "passed",
       "evidence": ".ai/reports/2026-09-24-research-web-python-socks-proxy.md"
     }
   ],
-  "result": "blocked",
-  "uncoveredRisks": [
-    "external_gate_not_run:project-constraints",
-    "external_gate_not_run:research-web-checks",
-    "external_gate_not_run:research-web-bootstrap"
-  ],
+  "result": "passed",
+  "uncoveredRisks": [],
   "escalation": {
     "required": true,
     "targetLevel": "L4",
