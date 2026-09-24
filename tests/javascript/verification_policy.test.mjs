@@ -976,6 +976,7 @@ test("excludePrefixes remains optional but rejects unsafe or unknown match field
   success(run(fixture(t), ["src-tauri/tauri.conf.json"]));
 
   for (const excludePrefixes of [
+    null,
     ["../datahub/"],
     ["/absolute/datahub/"],
     ["app\\research_web\\datahub\\"],

@@ -206,7 +206,7 @@ function parseSelection(value, catalogs, label, {withMatch}) {
       segments: assertStringArray(value.match.segments, `${label} segments`, validateSegment),
       suffixes: assertStringArray(value.match.suffixes, `${label} suffixes`, validateSuffix),
       excludePrefixes: assertStringArray(
-        value.match.excludePrefixes ?? [],
+        value.match.excludePrefixes === undefined ? [] : value.match.excludePrefixes,
         `${label} exclude prefixes`,
         validatePrefix,
       ),
