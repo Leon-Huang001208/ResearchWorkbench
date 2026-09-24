@@ -81,14 +81,37 @@ try {
         const geometry = await page.evaluate(() => ({
           documentOverflow: document.documentElement.scrollWidth > innerWidth,
           mainOverflow: document.querySelector('#main').scrollWidth > document.querySelector('#main').clientWidth,
+          mainLandmarks: document.querySelectorAll('main').length,
+          canvasTag: document.querySelector('.framework-canvas')?.tagName,
+          canvasLabel: document.querySelector('.framework-canvas')?.getAttribute('aria-label'),
+          heroStacked: document.querySelector('.framework-hero-meta').getBoundingClientRect().top >= document.querySelector('.framework-hero-main').getBoundingClientRect().bottom - 1,
+          metadataFits: [...document.querySelectorAll('.framework-hero-meta dd')].every(item => item.scrollWidth <= item.clientWidth),
+          launcher: (() => {
+            const item = document.querySelector('[data-framework-bot-open]');
+            const rect = item.getBoundingClientRect();
+            const canvas = document.querySelector('.framework-canvas').getBoundingClientRect();
+            const overlapsCanvas = rect.left < canvas.right && rect.right > canvas.left && rect.top < canvas.bottom && rect.bottom > canvas.top;
+            return { width: rect.width, height: rect.height, label: item.getAttribute('aria-label'), overlapsCanvas };
+          })(),
           tabHeight: Math.min(...[...document.querySelectorAll('.framework-anchor-rail a')].map(item => item.getBoundingClientRect().height)),
           chartOverflowReady: [...document.querySelectorAll('.lieflat-chart')].every(item => getComputedStyle(item).overflowX === 'auto' || item.scrollWidth <= item.clientWidth),
         }));
         assert.equal(geometry.documentOverflow, false);
         assert.equal(geometry.mainOverflow, false);
+        assert.equal(geometry.mainLandmarks, 1);
+        assert.equal(geometry.canvasTag, 'SECTION');
+        assert.equal(geometry.canvasLabel, frameworkCase.slug === 'gold' ? '黄金研究画布' : '美元流动性研究画布');
         assert.ok(geometry.tabHeight >= 44);
         assert.equal(geometry.chartOverflowReady, true);
-        if ([1440, 390].includes(width)) {
+        if (width <= 900) {
+          assert.equal(geometry.heroStacked, true);
+          assert.equal(geometry.metadataFits, true);
+          assert.equal(geometry.launcher.label, '问当前框架');
+          assert.ok(geometry.launcher.width <= 44.1);
+          assert.ok(geometry.launcher.height <= 44.1);
+          assert.equal(geometry.launcher.overlapsCanvas, false);
+        }
+        if ([1440, 768, 390].includes(width)) {
           const filename = `${frameworkCase.slug}-${theme}-${width}x${height}-overview.png`;
           await page.screenshot({ path: path.join(outputRoot, filename), fullPage: true });
           report.screenshots.push(filename);

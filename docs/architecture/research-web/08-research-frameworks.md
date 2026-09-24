@@ -14,7 +14,7 @@ renderer 或 Bot 会话。
 
 研究框架是 Research Web 的解释层，不是第二个资产行情终端。`#/frameworks` 固定列出黄金与美元流动性，`#/frameworks/gold` 和 `#/frameworks/dollar` 分别提供专用研究画布；资产观察继续负责个股、基金、债券、外汇和商品的行情与资产详情。框架引用的美债、美元、基金和商品只作为因果驱动、传导或组合背景。
 
-两个框架都使用一张连续研究画布，而不是七个相互割裂的页面。Gold 的七个语义锚点保持不变；Dollar 按“总览 → Q 总量水库 → P 资金价格 → g 财政水流 → M 融资管道 → X 跨境美元 → 传导与证据”排列。`?tab=` 深链映射到同页锚点。桌面 Bot 是画布右侧的吸顶解释面板，移动端为全页底部面板。
+两个框架都使用一张连续研究画布，而不是七个相互割裂的页面。Gold 的七个语义锚点保持不变；Dollar 按“总览 → Q 总量水库 → P 资金价格 → g 财政水流 → M 融资管道 → X 跨境美元 → 传导与证据”排列。`?tab=` 深链映射到同页锚点。产品壳持有唯一 `main` 地标，专属 renderer 把连续画布输出为带框架名称的 `section` 区域。桌面 Bot 是画布右侧的吸顶解释面板，移动端为全页底部面板；900px 及以下的关闭入口收为 44px 图标按钮，打开态契约不变。
 
 ## 版本化专用包
 
@@ -52,7 +52,7 @@ Gold 使用 F2（价格背景）、F9（四维贡献）、F6（需求同比）�
 
 ## 验证
 
-`tests/research_web/test_frameworks.py` 覆盖两框架目录、严格契约、精确快照绑定、跨框架拒绝、迁移和生命周期；`test_framework_collectors.py` 覆盖转换、门限、CFTC 幂等与最后成功值。`test_workbench_operations.py` 覆盖全局 Artifacts 忽略软删除会话、显式查询仍返回 410、恢复后重新出现。JavaScript 测试覆盖两个连续画布、图表、无浏览器 fixture、状态与安全用语。浏览器验收覆盖浅/深色、1440/1024/768/390、键盘锚点、Bot、横向溢出和 reduced-motion。
+`tests/research_web/test_frameworks.py` 覆盖两框架目录、严格契约、精确快照绑定、跨框架拒绝、迁移和生命周期；`test_framework_collectors.py` 覆盖转换、门限、CFTC 幂等与最后成功值。`test_workbench_operations.py` 覆盖全局 Artifacts 忽略软删除会话、显式查询仍返回 410、恢复后重新出现。JavaScript 测试覆盖两个连续画布、单一主地标、具名画布区域、图表、无浏览器 fixture、状态与安全用语。浏览器验收覆盖浅/深色、1440/1024/768/390、900px 窄屏标题摘要、44px Bot 入口、键盘锚点、Bot、横向溢出和 reduced-motion。
 
 框架间 hash 路由切换还必须覆盖“目标 slug 已更新、旧快照仍在内存”的同步渲染窗口；`frameworks.mjs` 在调用专属 renderer 前拒绝 slug 不一致的快照，并显示目标框架加载态。
 
