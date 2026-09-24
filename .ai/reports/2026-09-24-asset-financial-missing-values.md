@@ -56,9 +56,19 @@ corrected, and replanned with `validation_failure`. The first L4 combination was
 untracked `.venv.broken-20260911/`; the exact directory was excluded only for the verification process and the
 same 80-test command then passed.
 
-The local receipt remains `blocked` until the two selected GitHub gates complete. Windows and desktop
-verification remain paused and are not claimed. The user's standing Mac rule will be satisfied with a manual
-Mac-only Bootstrap after the merged result passes.
+## Publication and external evidence
+
+Integration commit `3c5115e69776e1442467f871d36d90803d3bb91c` was published to remote `master`. The selected
+[Project Constraints run 35952862863](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35952862863)
+and [Research Web Checks run 35952862823](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35952862823)
+both completed with `success`.
+
+The user's standing Mac rule was satisfied by manually dispatching the Mac-only
+[Research Web Bootstrap run 35952879895](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35952879895)
+against the same commit. Its single `Clean Web install (macos-14)` job completed install, environment checks,
+service start, Doctor, connection API smoke, stop, and evidence upload with `success`. The workflow containing a
+Windows matrix was not dispatched. Windows, desktop, Tauri, sidecar, and installer-release behavior remain
+unrun and unclaimed.
 
 ## Architecture review
 
