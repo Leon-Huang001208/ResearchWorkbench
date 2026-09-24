@@ -739,7 +739,8 @@
         "research-web-datahub-public-provider",
         "project-constraints-local",
         "research-web-datahub-core",
-        "research-web-asset-workspace-smoke"
+        "research-web-asset-workspace-smoke",
+        "research-web-verification-full"
       ],
       "documentation": [
         "documentation-governance",
@@ -773,7 +774,8 @@
         "research-web-asset-workbench-ui",
         "project-constraints-local",
         "research-web-asset-workspace-python",
-        "research-web-asset-workspace-smoke"
+        "research-web-asset-workspace-smoke",
+        "research-web-verification-full"
       ],
       "documentation": [
         "documentation-governance"
@@ -807,7 +809,8 @@
         "research-web-asset-workbench-ui",
         "project-constraints-local",
         "research-web-asset-workspace-python",
-        "research-web-asset-workspace-smoke"
+        "research-web-asset-workspace-smoke",
+        "research-web-verification-full"
       ],
       "documentation": [
         "documentation-governance",
