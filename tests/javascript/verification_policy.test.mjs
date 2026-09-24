@@ -859,52 +859,107 @@ test("tracked framework artifacts and supporting tests stay in the known L3 clos
   assert.equal(plan.changeSummary.impactIds.includes("framework-ui"), true);
 });
 
-test("AKShare provider uses the bounded L2 DataHub closure", () => {
-  const plan = success(run(repositoryRoot, [
-    "app/research_web/datahub/providers_akshare.py",
-    "tests/research_web/test_datahub_catalog.py",
-  ]));
-  assert.equal(plan.risk, "local-only");
-  assert.equal(plan.requiredLevel, "L2");
-  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
-  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
-    "research-web-architecture",
-    "research-web-datahub-public-provider",
-  ]);
-  assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
-    "project-constraints-local",
-    "research-web-datahub-core",
-  ]);
-  assert.deepEqual(plan.validationsByLevel.L3, []);
-  assert.deepEqual(plan.validationsByLevel.L4, []);
-});
+for (const changedFile of [
+  "app/research_web/datahub/providers_akshare.py",
+  "tests/research_web/test_datahub_catalog.py",
+]) {
+  test(`AKShare provider path uses the bounded L2 DataHub closure: ${changedFile}`, () => {
+    const plan = success(run(repositoryRoot, [changedFile]));
+    assert.equal(plan.risk, "local-only");
+    assert.equal(plan.requiredLevel, "L2");
+    assert.deepEqual(plan.changeSummary.ruleIds, ["research-web-datahub-public-provider"]);
+    assert.deepEqual(plan.changeSummary.impactIds, ["datahub-public-provider"]);
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+    assert.deepEqual(plan.validationsByLevel.L0.map(item => item.id), [
+      "documentation-governance",
+      "python-file-index",
+    ]);
+    assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+      "research-web-architecture",
+      "research-web-datahub-public-provider",
+    ]);
+    assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+      "project-constraints-local",
+      "research-web-datahub-core",
+    ]);
+    assert.deepEqual(plan.validationsByLevel.L3, []);
+    assert.deepEqual(plan.validationsByLevel.L4, []);
+    assert.equal(
+      plan.tests.find(item => item.id === "research-web-datahub-public-provider")?.value,
+      "python -m pytest tests/research_web/test_datahub_catalog.py --confcutdir=tests/research_web",
+    );
+  });
+}
 
-test("asset Workbench UI no longer selects framework validation", () => {
-  const plan = success(run(repositoryRoot, [
-    "app/research_web/ui/asset-workspace.mjs",
-    "tests/javascript/research_web_workbench.test.mjs",
-  ]));
-  assert.equal(plan.requiredLevel, "L1");
-  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
-    "research-web-architecture",
-    "research-web-asset-workbench-ui",
-  ]);
-  assert.equal(plan.changeSummary.impactIds.includes("framework-ui"), false);
-  assert.equal(plan.tests.some(item => item.id.startsWith("research-web-framework")), false);
-});
+for (const {changedFile, ruleIds, impactIds, level0Ids} of [
+  {
+    changedFile: "app/research_web/ui/asset-workspace.mjs",
+    ruleIds: ["research-web", "research-web-asset-workbench-ui"],
+    impactIds: ["research-web", "asset-workbench-ui"],
+    level0Ids: ["documentation-governance", "python-file-index"],
+  },
+  {
+    changedFile: "tests/javascript/research_web_workbench.test.mjs",
+    ruleIds: ["research-web-asset-workbench-ui"],
+    impactIds: ["asset-workbench-ui"],
+    level0Ids: ["documentation-governance"],
+  },
+]) {
+  test(`asset Workbench UI path selects only its direct L1 closure: ${changedFile}`, () => {
+    const plan = success(run(repositoryRoot, [changedFile]));
+    assert.equal(plan.risk, "local-only");
+    assert.equal(plan.requiredLevel, "L1");
+    assert.deepEqual(plan.changeSummary.ruleIds, ruleIds);
+    assert.deepEqual(plan.changeSummary.impactIds, impactIds);
+    assert.deepEqual(plan.validationsByLevel.L0.map(item => item.id), level0Ids);
+    assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+      "research-web-architecture",
+      "research-web-asset-workbench-ui",
+    ]);
+    assert.deepEqual(plan.validationsByLevel.L2, []);
+    assert.deepEqual(plan.validationsByLevel.L3, []);
+    assert.deepEqual(plan.validationsByLevel.L4, []);
+    assert.equal(plan.changeSummary.impactIds.includes("framework-ui"), false);
+    assert.equal(plan.tests.some(item => item.id.startsWith("research-web-framework")), false);
+    assert.equal(
+      plan.tests.find(item => item.id === "research-web-asset-workbench-ui")?.value,
+      "node --test tests/javascript/research_web_workbench.test.mjs",
+    );
+  });
+}
 
 test("AKShare plus asset UI escalates to the bounded L3 user path", () => {
   const plan = success(run(repositoryRoot, [
     "app/research_web/datahub/providers_akshare.py",
     "app/research_web/ui/asset-workspace.mjs",
   ]));
+  assert.equal(plan.risk, "local-only");
   assert.equal(plan.requiredLevel, "L3");
+  assert.deepEqual(plan.changeSummary.ruleIds, [
+    "research-web-datahub-public-provider",
+    "research-web",
+    "research-web-asset-workbench-ui",
+  ]);
+  assert.deepEqual(plan.changeSummary.impactIds, [
+    "datahub-public-provider",
+    "research-web",
+    "asset-workbench-ui",
+  ]);
   assert.deepEqual(plan.escalations, [{
     code: "multiple_high_coupling_modules",
     fromLevel: "L2",
     toLevel: "L3",
     impacts: ["datahub-public-provider", "asset-workbench-ui"],
   }]);
+  assert.deepEqual(plan.validationsByLevel.L0.map(item => item.id), [
+    "documentation-governance",
+    "python-file-index",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-datahub-public-provider",
+    "research-web-asset-workbench-ui",
+  ]);
   assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
     "project-constraints-local",
     "research-web-datahub-core",
@@ -913,42 +968,124 @@ test("AKShare plus asset UI escalates to the bounded L3 user path", () => {
   assert.deepEqual(plan.validationsByLevel.L3.map(item => item.id), [
     "research-web-asset-workspace-smoke",
   ]);
+  assert.deepEqual(plan.validationsByLevel.L4, []);
+  assert.deepEqual(plan.receiptTemplate.requiredValidationIds, [
+    "research-web-architecture",
+    "research-web-datahub-public-provider",
+    "project-constraints-local",
+    "research-web-datahub-core",
+    "research-web-asset-workspace-smoke",
+    "research-web-asset-workbench-ui",
+    "research-web-asset-workspace-python",
+    "documentation-governance",
+    "python-file-index",
+  ]);
   assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
+  assert.equal(
+    plan.tests.find(item => item.id === "research-web-asset-workspace-smoke")?.value,
+    "python -m pytest tests/research_web/test_asset_workspace.py::test_asset_observation_tracks_each_block_and_freezes_handoff_context --confcutdir=tests/research_web",
+  );
 });
 
 test("unregistered DataHub boundaries remain L4 fallback paths", () => {
-  for (const changedFile of [
-    "app/research_web/datahub/providers_wind.py",
-    "app/research_web/datahub/providers_mysql.py",
-    "app/research_web/datahub/providers_cjpy.py",
-    "app/research_web/datahub/broker.py",
-    "app/research_web/datahub/contracts.py",
-    "app/research_web/datahub/security.py",
-    "app/research_web/datahub/snapshots.py",
+  const currentDataHubPythonFiles = fs.readdirSync(
+    path.join(repositoryRoot, "app/research_web/datahub"),
+    {withFileTypes: true},
+  ).filter(entry => (
+    entry.isFile()
+    && entry.name.endsWith(".py")
+    && entry.name !== "providers_akshare.py"
+  )).map(entry => `app/research_web/datahub/${entry.name}`).sort();
+  const fallbackPaths = [...new Set([
+    ...currentDataHubPythonFiles,
     "app/research_web/datahub/future_provider.py",
     "tests/research_web/test_datahub_wind.py",
-  ]) {
+  ])];
+
+  assert.equal(currentDataHubPythonFiles.length > 0, true);
+  assert.equal(fallbackPaths.includes("app/research_web/datahub/providers_akshare.py"), false);
+  assert.equal(fallbackPaths.includes("app/research_web/datahub/future_provider.py"), true);
+  assert.equal(fallbackPaths.includes("tests/research_web/test_datahub_wind.py"), true);
+  for (const changedFile of fallbackPaths) {
     const plan = success(run(repositoryRoot, [changedFile]));
+    assert.equal(plan.risk, "full-delivery", changedFile);
     assert.equal(plan.requiredLevel, "L4", changedFile);
-    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), true, changedFile);
+    assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], changedFile);
+    assert.deepEqual(plan.reasons, [{
+      path: changedFile,
+      rule: "fallback",
+      code: "unknown_path",
+    }], changedFile);
     assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"], changedFile);
   }
 });
 
-test("asset Workbench backend uses L2 and selects its direct contracts", () => {
+for (const {changedFile, ruleIds, impactIds} of [
+  {
+    changedFile: "app/research_web/asset_workspace.py",
+    ruleIds: ["research-web", "research-web-asset-workbench-backend"],
+    impactIds: ["research-web", "asset-workbench-backend"],
+  },
+  {
+    changedFile: "app/research_web/asset_routes.py",
+    ruleIds: ["research-web", "research-web-asset-workbench-backend"],
+    impactIds: ["research-web", "asset-workbench-backend"],
+  },
+  {
+    changedFile: "tests/research_web/test_asset_workspace.py",
+    ruleIds: ["research-web-asset-workbench-backend"],
+    impactIds: ["asset-workbench-backend"],
+  },
+]) {
+  test(`asset Workbench backend path uses L2 direct contracts: ${changedFile}`, () => {
+    const plan = success(run(repositoryRoot, [changedFile]));
+    assert.equal(plan.risk, "local-only");
+    assert.equal(plan.requiredLevel, "L2");
+    assert.deepEqual(plan.changeSummary.ruleIds, ruleIds);
+    assert.deepEqual(plan.changeSummary.impactIds, impactIds);
+    assert.deepEqual(plan.validationsByLevel.L0.map(item => item.id), [
+      "documentation-governance",
+      "python-file-index",
+    ]);
+    assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+      "research-web-architecture",
+      "research-web-asset-workbench-ui",
+    ]);
+    assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+      "project-constraints-local",
+      "research-web-asset-workspace-python",
+    ]);
+    assert.deepEqual(plan.validationsByLevel.L3, []);
+    assert.deepEqual(plan.validationsByLevel.L4, []);
+    assert.equal(
+      plan.tests.find(item => item.id === "research-web-asset-workspace-python")?.value,
+      "python -m pytest tests/research_web/test_asset_workspace.py --confcutdir=tests/research_web",
+    );
+  });
+}
+
+test("AKShare provider keeps its catalog when a dependency change requires L4", () => {
   const plan = success(run(repositoryRoot, [
-    "app/research_web/asset_workspace.py",
-    "tests/research_web/test_asset_workspace.py",
+    "app/research_web/datahub/providers_akshare.py",
+    "requirements/web.lock",
   ]));
-  assert.equal(plan.requiredLevel, "L2");
-  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
-    "research-web-architecture",
-    "research-web-asset-workbench-ui",
+  assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
+  assert.deepEqual(plan.changeSummary.ruleIds, [
+    "research-web-datahub-public-provider",
+    "dependency",
   ]);
-  assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
-    "project-constraints-local",
-    "research-web-asset-workspace-python",
+  assert.deepEqual(plan.changeSummary.impactIds, [
+    "datahub-public-provider",
+    "dependency-graph",
   ]);
+  assert.equal(plan.reasons.some(item => item.code === "dependency_change"), true);
+  assert.equal(
+    plan.tests.find(item => item.id === "research-web-datahub-public-provider")?.value,
+    "python -m pytest tests/research_web/test_datahub_catalog.py --confcutdir=tests/research_web",
+  );
+  assert.equal(plan.receiptTemplate.externalGateIds.includes("project-constraints"), true);
+  assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-checks"), true);
 });
 
 test("verification policy change cannot fall below L4", () => {
