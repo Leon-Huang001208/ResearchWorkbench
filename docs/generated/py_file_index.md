@@ -3695,6 +3695,7 @@ Functions:
 - `_normalize_bars`
 - `_normalize_snapshot`
 - `_normalize_generic`
+- `_normalize_financials`
 - `_invoke`
 - `_fetch_probe_payload`
 - `_probe_remote`

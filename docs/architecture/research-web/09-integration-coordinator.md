@@ -101,6 +101,9 @@ disabled。
 快照及 Runtime 调用证据；天软和 MySQL 在用户完成逐来源授权并提供真实外部条件前仍保持
 `user_action`，不得以依赖可导入或模拟连接替代成功证据。
 
+AKShare 财务摘要的布尔缺失哨兵规范化只发生在 Provider 结果边界，不改变目录登记、五阶段状态、
+探测授权、动态选源或 `runtime_callable` 判定；Provider 查询成功仍与单元格是否缺失分开表达。
+
 专业数据源扩展、其他公共/监管来源、文件同步和本地 MCP 真实调用属于后续批次；未交付项必须显示为
 `not_delivered/developer`，不能计入用户“需处理”。
 

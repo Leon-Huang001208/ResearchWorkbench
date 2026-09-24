@@ -68,6 +68,9 @@ Research Workbench Method 层不改变 Gold／Dollar 的领域定义、版本、
 的专用采集器、快照 revision、评分或 Bot 会话绑定。框架来源失败仍按各自 collector 的最后成功值与
 缺口规则处理，不能用集成页的“可用”替代框架快照证据。
 
+资产观察对 AKShare 财务缺失哨兵的规范化不进入 Gold／Dollar 专用 collector、快照 schema、评分或
+Bot 上下文；框架数据缺口仍只由各自严格契约判断。
+
 ## 2026-09-23 稳定性变更回执
 
 本轮重启活动授权、会话目录有界读取和各目录独立的 pending count/generation、逐资源 settled、

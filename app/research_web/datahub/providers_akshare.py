@@ -208,6 +208,17 @@ def _normalize_generic(rows: list[dict], query: BusinessQuery) -> list[dict]:
     return normalized
 
 
+def _normalize_financials(rows: list[dict], query: BusinessQuery) -> list[dict]:
+    normalized = _normalize_generic(rows, query)
+    return [
+        {
+            key: None if key != "asset" and isinstance(value, bool) else value
+            for key, value in row.items()
+        }
+        for row in normalized
+    ]
+
+
 def _invoke(query: BusinessQuery):
     import akshare as ak
 
@@ -271,7 +282,7 @@ def _invoke(query: BusinessQuery):
             ak.stock_financial_abstract_ths(
                 symbol=_symbol(str(parameters["asset"])), indicator="按报告期"
             ),
-            _normalize_generic,
+            _normalize_financials,
         )
     if capability == "market_activity":
         symbol = _symbol(str(parameters["asset"]))

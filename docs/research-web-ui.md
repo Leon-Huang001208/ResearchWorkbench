@@ -57,7 +57,7 @@ Phase 2A/2B/2C 通过 CI 后，MCP 市场、MCP Runtime 与 Automation 默认可
 - 框架 Bot 默认只解释当前服务器快照，显式“深度验证”才创建独立只读研究会话；两者都绑定精确框架 slug、章节、缺口 ID 与 `snapshot_revision`，跨框架或快照变化后要求重新开始。桌面为右侧吸顶面板，移动端为全页底部面板。
 - 全局 Artifacts 错误只属于研究会话页。资产观察不请求 Artifacts，进入资产页时也会清除旧页面遗留的 Artifacts 错误；软删除会话在恢复前不会重新进入全局产物目录。
 - `@` 标签候选仅在用户展开菜单后读取；首次展开先获得当前会话页面访问授权。候选按标题或 URL 过滤，支持键盘操作和最多 8 个可移除 chip。发送前必须二次确认实时 claim 及可能改变分组；授权、claim 或提取失败均保留正文和 chips。`/` 菜单优先且不与 `@` 菜单同时展开。设置 → 本地集成分别控制浏览器自动化和 Tabbit `web_fetch` 接管，配置只在 Runtime 重启后生效。完整契约和 `read_only` 限制见 [Tabbit 集成](research-web-tabbit.md)。
-- 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。DataHub 标准字段 `turnover` 表示成交额，`turnover_rate_pct` 表示换手率；两者不得混用，缺少换手率时显示未知。没有真实值时不补价格、估值、主题或同类比较。
+- 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。DataHub 标准字段 `turnover` 表示成交额，`turnover_rate_pct` 表示换手率；两者不得混用，缺少换手率时显示未知。AKShare 财务摘要历史快照中的布尔缺失哨兵只在财务区块显示为 `—`，其他区块的真实布尔值保持原样；新财务快照在 Provider 边界保存为 `null`。没有真实值时不补价格、估值、主题或同类比较。
 - Claw 首页先读取 `/report-workflows`，单独展示已迁移的报告 Workflow；通用 Workflow 卡不会冒充具体报告。点击详情只查看资源与版本，点击运行才创建独立 Claw 会话。AI 周报处于 `needs_attention` 时禁止运行。
 - 运行与用量页使用单个 `/operations/summary` 汇总请求，避免并发遍历同一 DSH 历史造成瞬时健康误判；页面无停止、重启或删除按钮。缺失 usage 与模型价格分别显示“未知”和“费用未配置”。
 - 会话详情来自 `GET /sessions/{id}`；SSE `snapshot` 替换真实详情，`runtime_error` 显示运行错误。事件连接恢复只重新读取快照，不重发消息。跨会话旧响应会被忽略；较旧 HTTP 快照不会覆盖后来到达的 SSE 输出。

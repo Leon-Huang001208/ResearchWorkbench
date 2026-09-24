@@ -1,0 +1,469 @@
+{
+  "schemaVersion": 2,
+  "risk": "full-delivery",
+  "requiredLevel": "L4",
+  "changeSummary": {
+    "fileCount": 15,
+    "ruleIds": [
+      "research-web",
+      "fallback",
+      "research-web-framework-ui",
+      "documentation"
+    ],
+    "impactIds": [
+      "research-web",
+      "unknown-boundary",
+      "framework-ui",
+      "documentation"
+    ]
+  },
+  "changedFiles": [
+    "app/research_web/datahub/providers_akshare.py",
+    "app/research_web/ui/asset-workspace.mjs",
+    "tests/research_web/test_datahub_catalog.py",
+    "tests/javascript/research_web_workbench.test.mjs",
+    "docs/research-web-datahub.md",
+    "docs/research-web-ui.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/09-integration-coordinator.md",
+    "docs/research-web-appearance.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/generated/py_file_index.md",
+    ".ai/reports/2026-09-24-asset-financial-missing-values-plan.json",
+    ".ai/reports/2026-09-24-asset-financial-missing-values-receipt.json",
+    ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+  ],
+  "impact": [
+    {
+      "path": "app/research_web/datahub/providers_akshare.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/asset-workspace.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_datahub_catalog.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/research_web_workbench.test.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/research-web-datahub.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    }
+  ],
+  "reasons": [
+    {
+      "path": "app/research_web/datahub/providers_akshare.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/asset-workspace.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "tests/research_web/test_datahub_catalog.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/javascript/research_web_workbench.test.mjs",
+      "rule": "research-web-framework-ui",
+      "code": "research_web_framework_ui_change"
+    },
+    {
+      "path": "docs/research-web-datahub.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    }
+  ],
+  "escalations": [
+    {
+      "code": "validation_failure",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    }
+  ],
+  "uncoveredRisks": [
+    "unknown_impact_boundary"
+  ],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "execution": "local",
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "execution": "local",
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [
+      {
+        "id": "research-web-architecture",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+      },
+      {
+        "id": "research-web-frameworks-ui",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
+      }
+    ],
+    "L2": [
+      {
+        "id": "project-constraints-local",
+        "level": "L2",
+        "execution": "local",
+        "category": "tests",
+        "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+      },
+      {
+        "id": "research-web-frameworks-python",
+        "level": "L2",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_frameworks.py --confcutdir=tests/research_web"
+      }
+    ],
+    "L3": [
+      {
+        "id": "research-web-framework-smoke",
+        "level": "L3",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts --confcutdir=tests/research_web"
+      }
+    ],
+    "L4": [
+      {
+        "id": "research-web-verification-full",
+        "level": "L4",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+      },
+      {
+        "id": "project-constraints",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/project-constraints.yml"
+      },
+      {
+        "id": "research-web-checks",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/research-web-checks.yml"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "execution": "local",
+      "category": "tests",
+      "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+    },
+    {
+      "id": "research-web-frameworks-ui",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
+    },
+    {
+      "id": "research-web-frameworks-python",
+      "level": "L2",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_frameworks.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-framework-smoke",
+      "level": "L3",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts --confcutdir=tests/research_web"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "execution": "local",
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "execution": "local",
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [
+    {
+      "id": "project-constraints",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/project-constraints.yml"
+    },
+    {
+      "id": "research-web-checks",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/research-web-checks.yml"
+    }
+  ],
+  "receiptTemplate": {
+    "plannedLevel": "L4",
+    "changedFiles": [
+      "app/research_web/datahub/providers_akshare.py",
+      "app/research_web/ui/asset-workspace.mjs",
+      "tests/research_web/test_datahub_catalog.py",
+      "tests/javascript/research_web_workbench.test.mjs",
+      "docs/research-web-datahub.md",
+      "docs/research-web-ui.md",
+      "docs/architecture/research-web/03-data-files.md",
+      "docs/architecture/research-web/09-integration-coordinator.md",
+      "docs/research-web-appearance.md",
+      "docs/architecture/research-web/08-research-frameworks.md",
+      "docs/architecture/research-web/readme-review.json",
+      "docs/generated/py_file_index.md",
+      ".ai/reports/2026-09-24-asset-financial-missing-values-plan.json",
+      ".ai/reports/2026-09-24-asset-financial-missing-values-receipt.json",
+      ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    ],
+    "requiredValidationIds": [
+      "research-web-architecture",
+      "project-constraints-local",
+      "research-web-verification-full",
+      "research-web-frameworks-ui",
+      "research-web-frameworks-python",
+      "research-web-framework-smoke",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": [
+      "project-constraints",
+      "research-web-checks"
+    ]
+  }
+}
