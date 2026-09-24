@@ -31,7 +31,7 @@ function policy() {
           "L1",
           "node --test tests/javascript/incremental_validation_skill.test.mjs",
         ),
-        "research-web-framework-collectors": catalog("L1", "python -m pytest tests/research_web/test_framework_collectors.py"),
+        "research-web-framework-collectors": catalog("L1", "python -m pytest tests/research_web/test_framework_collectors.py --confcutdir=tests/research_web"),
         "research-web-frameworks-ui": catalog("L1", "node --test tests/javascript/research_web_frameworks_ui.test.mjs"),
         "project-constraints-local": catalog(
           "L2",
@@ -40,7 +40,7 @@ function policy() {
         "research-web-architecture": catalog("L1", "node --test tests/javascript/research_web_architecture.test.mjs"),
         "research-web-api": catalog(
           "L1",
-          "python -m pytest tests/research_web/test_api.py",
+          "python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web",
         ),
         "research-web-ui": catalog(
           "L1",
@@ -48,22 +48,22 @@ function policy() {
         ),
         "research-web-service-manager": catalog(
           "L1",
-          "python -m pytest tests/research_web/test_service_manager.py",
+          "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web",
         ),
         "research-web-installation": catalog(
           "L1",
-          "python -m pytest tests/research_web/test_setup_web.py",
+          "python -m pytest tests/research_web/test_setup_web.py --confcutdir=tests/research_web",
         ),
         "research-web-local-integrations": catalog(
           "L1",
-          "python -m pytest tests/research_web/test_local_integrations.py",
+          "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web",
         ),
-        "research-web-frameworks-python": catalog("L2", "python -m pytest tests/research_web/test_frameworks.py"),
+        "research-web-frameworks-python": catalog("L2", "python -m pytest tests/research_web/test_frameworks.py --confcutdir=tests/research_web"),
         "research-web-framework-smoke": catalog(
           "L3",
-          "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts",
+          "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts --confcutdir=tests/research_web",
         ),
-        "research-web-critical-smoke": catalog("L3", "python -m pytest tests/research_web/test_protocol.py"),
+        "research-web-critical-smoke": catalog("L3", "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"),
         "research-web-verification-full": catalog(
           "L4",
           "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs",
@@ -494,6 +494,26 @@ function policy() {
     },
   };
 }
+
+test("every focused Research Web Python catalog isolates the repository root conftest", () => {
+  const actual = JSON.parse(fs.readFileSync(
+    path.join(repositoryRoot, ".agents/verification-policy.json"),
+    "utf8",
+  ));
+  const catalogs = Object.entries(actual.catalogs.tests).filter(([, item]) => (
+    item.execution === "local"
+    && item.value.startsWith("python -m pytest tests/research_web/")
+  ));
+
+  assert.equal(catalogs.length, 8);
+  for (const [id, item] of catalogs) {
+    assert.match(
+      item.value,
+      / --confcutdir=tests\/research_web(?: |$)/,
+      `${id} must not load the repository root conftest`,
+    );
+  }
+});
 
 function fixture(t, value = policy()) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "rwb-verification-policy-"));
