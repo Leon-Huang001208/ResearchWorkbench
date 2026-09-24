@@ -95,7 +95,8 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
 安装清单写入用户私有 `~/.research-workbench/install/manifest.json`，仅记录代码提交、Python/Node
 版本、Web 锁摘要、CJPY 版本/摘要、DSH 提交/闭包和诊断状态。安装日志位于仓库 `logs/setup-web.log`。
 安装子进程只透传平台基础变量和标准 `HTTP(S)_PROXY` / `ALL_PROXY` / `NO_PROXY` 网络配置；Git 可使用宿主的
-SOCKS 代理，Corepack/Node 仅保留其支持的 HTTP/HTTPS 代理。代理值不写入日志或清单。macOS 构建原生 Node
+SOCKS 代理，pip 与 Corepack/Node 仅保留其支持的 HTTP/HTTPS 代理。大小写代理变量采用同一协议过滤，
+被过滤时日志只记录变量数量，不记录代理值，也不修改宿主环境。macOS 构建原生 Node
 模块时，安装器通过 `xcrun` 发现当前 SDK 的 libc++ 头文件，不写系统路径。`CJ_KEY`、模型密钥及其他应用秘密不会传给安装命令。
 
 ## 天软状态

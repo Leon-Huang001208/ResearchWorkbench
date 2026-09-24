@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -317,6 +318,69 @@ def test_node_subprocess_environment_drops_proxy_protocols_corepack_cannot_parse
     assert "ALL_PROXY" not in node_environment
     assert "all_proxy" not in node_environment
     assert node_environment["HTTPS_PROXY"] == "http://127.0.0.1:18080"
+
+
+def test_python_dependency_install_drops_proxy_protocols_pip_cannot_bootstrap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    for key in (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("HTTP_PROXY", "socks5h://127.0.0.1:1080")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:18080")
+    monkeypatch.setenv("ALL_PROXY", "socks5://127.0.0.1:1080")
+    monkeypatch.setenv("http_proxy", "ftp://127.0.0.1:2121")
+    monkeypatch.setenv("https_proxy", "https://127.0.0.1:18443")
+    monkeypatch.setenv("all_proxy", "socks5h://127.0.0.1:1080")
+    project_root = tmp_path / "checkout"
+    lock = project_root / "requirements" / "web.lock"
+    lock.parent.mkdir(parents=True)
+    lock.write_text("fixture --hash=sha256:" + "a" * 64, encoding="utf-8")
+    installer = SetupWebInstaller(project_root=project_root, data_home=tmp_path / "data")
+    monkeypatch.setattr(
+        installer,
+        "verify_cjpy_bundle",
+        lambda: {"version": "0.5.2", "sha256": "b" * 64},
+    )
+    monkeypatch.setattr(
+        installer,
+        "dependency_install_commands",
+        lambda _python: [[f"command-{index}"] for index in range(4)],
+    )
+    environments: list[dict[str, str]] = []
+
+    def record_environment(_command, *, environment, **_kwargs) -> None:
+        environments.append(dict(environment))
+
+    monkeypatch.setattr(installer, "_run_checked", record_environment)
+    caplog.set_level(logging.WARNING, logger="research_workbench.setup_web")
+
+    installer.install_python_dependencies(project_root / ".venv" / "bin" / "python")
+
+    git_environment = installer._subprocess_environment()
+    assert git_environment["ALL_PROXY"].startswith("socks5:")
+    assert git_environment["all_proxy"].startswith("socks5h:")
+    assert environments
+    assert all("HTTP_PROXY" not in environment for environment in environments)
+    assert all("http_proxy" not in environment for environment in environments)
+    assert all("ALL_PROXY" not in environment for environment in environments)
+    assert all("all_proxy" not in environment for environment in environments)
+    assert all(
+        environment["HTTPS_PROXY"] == "http://127.0.0.1:18080" for environment in environments
+    )
+    assert all(
+        environment["https_proxy"] == "https://127.0.0.1:18443" for environment in environments
+    )
+    assert "setup_web_python_proxy_protocol_filtered" in caplog.messages
+    assert "127.0.0.1:1080" not in caplog.text
 
 
 def test_node_subprocess_environment_puts_selected_node_first(
