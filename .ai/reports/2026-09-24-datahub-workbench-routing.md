@@ -4,8 +4,8 @@
 
 - 本地证据状态：计划要求的 6 个 local validation 全部通过；5 个新增 direct catalog 均真实可执行并通过。
 - 接受状态：`blocked`。唯一外部门 `project-constraints` 尚未运行；本任务不执行 prepare、publish、cleanup、GitHub dispatch 或 CI。
-- 验证开始：`2026-09-24T06:49:13Z`。
-- 工作树基线：在 `origin/master` 之后保留既有 17 个提交；本任务只新增 plan、receipt、report。Python 索引验证一致，未生成索引差异。
+- 本轮验证开始：`2026-09-24T07:26:06Z`。
+- 工作树基线：证据刷新从 `4f86c518f33939506fbf396d3033acde9bebf66b` 开始；该 HEAD 已包含后续 L4 signal 修复。本任务仍只更新 plan、receipt、report。Python 索引验证一致，未生成索引差异。
 - 完整 changed set：11 个路径；plan 的 `risk=full-delivery`、`requiredLevel=L4`，原因是 verification policy、planner、policy contracts 与 skill workflow 属于 `verification-system`。
 
 ## 问题证据与批准设计
@@ -15,7 +15,7 @@
 1. 把 `app/research_web/datahub/` 设为 delegated namespace。
 2. 只有 namespace 内正向 `files` / `prefixes` 可建立 owner；全局 `segments`、`suffixes` 和 namespace 外父 prefix 不能越界。
 3. 只为 AKShare public provider 与 Asset Workbench UI/backend 建立精确 allowlist；未登记路径必须回到 L4 fallback。
-4. 多个 delegated prefix 取最长命中；多高耦合组件按现有合同升至 L3；CI/schema/dependency/security/desktop/release 仍保留最高风险及全部门禁。
+4. 多个 delegated prefix 取最长命中；正常、无 signal 的已知组件仍停在 L1-L3 最小闭包。运行时 signal 升到 L4 时必须保留 `research-web-verification-full`，CI/schema/dependency/security/desktop/release 仍保留最高风险及全部门禁。
 5. planner 仍只读，catalog 命令由执行阶段运行，receipt 独立证明真实结果。
 
 ## RED / GREEN 提交证据
@@ -25,7 +25,7 @@
 | 1：delegated match schema | `6061b8fa4`：38 total，37 pass / 1 expected fail（invalid match keys） | Task 2 实现后闭合 |
 | 2：可选 `excludePrefixes` | `1ab4c290a` 首次 GREEN：policy 38/38、receipt 16/16；规格审查发现显式 `null` 被 `?? []` 接受。`d1cf5c3e1` 补测试后先为 37/38 | `d1cf5c3e1` 最终 policy 38/38、receipt 16/16；仅 `undefined` 使用缺省值 |
 | 3：路由矩阵 | `e76d63314` 43 total=38/5；`301e8037a` 48=38/10；`9a2139801` 51=38/13；`d33094851` 54=38/16；`b4410e8e1` 56=38/18。失败均来自新增合同，既有 38 始终通过 | Task 4 policy 实现后闭合 |
-| 4：catalog 与规则 | `59f4f1edd` 初始 policy 56/56，但独立质量审查发现 nested counterexample。`e9da5537a` 全局 namespace RED：60 total=56 pass / 4 expected fail | `3afc27f0a` policy 60/60；合并 Node policy+receipt+skill 81/81，full local 80/80；`f250f5fa1` 修正文案 |
+| 4：catalog 与规则 | `59f4f1edd` 初始 policy 56/56，但独立质量审查发现 nested counterexample。`e9da5537a` 全局 namespace RED：60 total=56 pass / 4 expected fail。后续 P2 `22d25f34c` 要求 signal 升至 L4 后保留 full validation：64 total=61 pass / 3 expected fail | `3afc27f0a` policy 60/60；`f250f5fa1` 修正文案；`4f86c518f` 修复 L4 signal 闭包后 policy 64/64。正常 L1-L3 不新增 full；仅实际升到 L4 时保留 full |
 | 5：文档 | 规格审查先后发现 longest/owner 定义不足、architecture map 与 verification policy 权威冲突、backend closure 漏 JS test | `2c8b6db06`、`f71d86010`、`463cf394d` 闭合；最终 governance 0 violation、index verified、skill 5/5、policy 60/60、diff clean |
 
 ## Global namespace blocker 与修复
@@ -40,7 +40,7 @@
 - Task 1：规格审查 compliant；质量审查无 Critical/Important/Minor，Ready。确认 exact allowlist、unknown fallback、unsafe/null/unknown-field 覆盖。
 - Task 2：规格初审发现 `null` 宽松接受；补 RED 并修复后规格通过。质量审查无问题，Ready。
 - Task 3：规格/质量多轮补齐联合 changed-set 掩盖、逐文件路径、`asset_routes.py`、L0-L3 累积、动态 DataHub fallback、精确命令、高风险组合、每规则 signal smoke、UI/backend L4 gate retention；最终规格通过、质量 Ready。
-- Task 4：初始规格通过；质量审查复现 global namespace blocker。批准并完成全局修复后，最终规格通过，质量 Ready/merge、无 file issues；确认 longest prefix、files/prefixes-only owner、nested fallback、owner collision、per-rule exclude 与高风险 gate union。
+- Task 4：初始规格通过；质量审查复现 global namespace blocker。批准并完成全局修复后，最终规格通过，质量 Ready/merge、无 file issues；确认 longest prefix、files/prefixes-only owner、nested fallback、owner collision、per-rule exclude 与高风险 gate union。后续 P2 进一步确认：正常 L1-L3 路由不增加 full validation，但 signal 实际升到 L4 后必须保留 `research-web-verification-full`。
 - Task 5：规格审查发现并闭合 owner/longest 定义、权威冲突和 backend closure 缺口；最终规格通过。质量 Ready；保留两个非阻塞建议：未来可增加新增文档语义断言，`DEVELOPMENT_MAP` 的重复映射还可继续降重。两项均未伪报为本次已实现。
 
 ## 代表性真实 planner 矩阵
@@ -63,19 +63,19 @@
 
 ## 完整 changed set 与 plan
 
-`git diff --name-only origin/master...HEAD` 的 8 个既有路径，加上本次 3 个证据路径，组成以下 11 个精确路径：
+当前 `git diff --name-only origin/master...HEAD` 已直接包含 3 个证据路径；去重后组成以下 11 个精确路径：
 
 1. `.agents/skills/incremental-validation/README.md`
 2. `.agents/verification-policy.json`
-3. `docs/AGENT_WORKFLOW.md`
-4. `docs/DEVELOPMENT_MAP.md`
-5. `docs/superpowers/plans/2026-09-24-datahub-workbench-verification-routing.md`
-6. `docs/superpowers/specs/2026-09-24-datahub-workbench-verification-routing-design.md`
-7. `scripts/plan_verification.mjs`
-8. `tests/javascript/verification_policy.test.mjs`
-9. `.ai/reports/2026-09-24-datahub-workbench-routing-plan.json`
-10. `.ai/reports/2026-09-24-datahub-workbench-routing-receipt.json`
-11. `.ai/reports/2026-09-24-datahub-workbench-routing.md`
+3. `.ai/reports/2026-09-24-datahub-workbench-routing-plan.json`
+4. `.ai/reports/2026-09-24-datahub-workbench-routing-receipt.json`
+5. `.ai/reports/2026-09-24-datahub-workbench-routing.md`
+6. `docs/AGENT_WORKFLOW.md`
+7. `docs/DEVELOPMENT_MAP.md`
+8. `docs/superpowers/plans/2026-09-24-datahub-workbench-verification-routing.md`
+9. `docs/superpowers/specs/2026-09-24-datahub-workbench-verification-routing-design.md`
+10. `scripts/plan_verification.mjs`
+11. `tests/javascript/verification_policy.test.mjs`
 
 真实 plan 的 `changeSummary` 为 `fileCount=11`、`ruleIds=[ci, documentation]`、`impactIds=[verification-system, documentation]`；无 plan escalation、无预先 uncovered risk。required local IDs 是 policy、receipt、skill、full、documentation-governance、python-file-index；外部门是 `project-constraints`。
 
@@ -83,12 +83,12 @@
 
 | Level | ID | 结果 | 时长 | 实证摘要 |
 | --- | --- | --- | ---: | --- |
-| L0 | `documentation-governance` | passed | 0.16s | 507 files、71 current、`violations: []` |
-| L0 | `python-file-index` | passed | 1.17s | `Verified docs/generated/py_file_index.md`，无生成差异 |
-| L1 | `verification-policy-contracts` | passed | 4.01s | 60 passed、0 failed/skipped/todo |
-| L1 | `verification-receipt-contracts` | passed | 1.53s | 16 passed、0 failed/skipped/todo |
-| L1 | `incremental-validation-skill-contracts` | passed | 0.10s | 5 passed、0 failed/skipped/todo |
-| L4 | `research-web-verification-full` | passed | 2.92s | 80 passed、0 failed/skipped/todo |
+| L0 | `documentation-governance` | passed | 0.16s | 508 files、71 current、`violations: []` |
+| L0 | `python-file-index` | passed | 1.03s | `Verified docs/generated/py_file_index.md`，无生成差异 |
+| L1 | `verification-policy-contracts` | passed | 3.73s | 64 passed、0 failed/skipped/todo |
+| L1 | `verification-receipt-contracts` | passed | 1.40s | 16 passed、0 failed/skipped/todo |
+| L1 | `incremental-validation-skill-contracts` | passed | 0.08s | 5 passed、0 failed/skipped/todo |
+| L4 | `research-web-verification-full` | passed | 2.77s | 80 passed、0 failed/skipped/todo |
 
 L2/L3 在本任务完整 plan 中为空。所有 required local IDs 都以本报告作为 receipt evidence。外部 `project-constraints` 记为 `not_run`，因此 receipt 结果必须是 `blocked`。
 
@@ -98,15 +98,15 @@ Python 命令统一使用既有 `/Users/leon/Desktop/Projects/ResearchWorkbench-
 
 | Catalog | 结果 | 时长 |
 | --- | --- | ---: |
-| `test_datahub_catalog.py` | 27 passed，1 warning | 10.29s |
-| `test_datahub.py` | 51 passed | 20.97s |
-| `research_web_workbench.test.mjs` | 10 passed，0 skipped/todo | 0.12s |
-| `test_asset_workspace.py` | 3 passed，1 warning | 18.98s |
-| L3 `test_asset_observation_tracks_each_block_and_freezes_handoff_context` | 1 passed，1 warning | 6.96s |
+| `test_datahub_catalog.py` | 27 passed，1 warning | 8.15s |
+| `test_datahub.py` | 51 passed | 19.28s |
+| `research_web_workbench.test.mjs` | 10 passed，0 skipped/todo | 0.11s |
+| `test_asset_workspace.py` | 3 passed，1 warning | 17.77s |
+| L3 `test_asset_observation_tracks_each_block_and_freezes_handoff_context` | 1 passed，1 warning | 6.69s |
 
-附加静态检查：`node --check scripts/plan_verification.mjs` 通过（0.03s）；首次 `git diff --check` 通过（0.02s）。
+附加静态检查已执行：`node --check scripts/plan_verification.mjs` 通过（0.02s）；`git diff --check` 通过（0.04s）。
 
-最终证据闭环中，完整 11 路径的本地 Project Constraints 检查通过（0.16s，`violations: []`）。这只是本地约束执行，不等于外部 `.github/workflows/project-constraints.yml` 已运行；receipt 中该 external gate 仍如实为 `not_run`。receipt validator 通过（0.03s），输出 `valid=true`、`result=blocked`、planned/actual L4、executedCount 6、escalationRequired false。最终 governance、index、JSON/Node 语法与 diff 格式会在提交前再跑一次。
+最终证据闭环已执行完整 11 路径的本地 Project Constraints（0.17s，`violations: []`）、receipt validator（`valid=true`、`result=blocked`、planned/actual L4、executedCount 6、escalationRequired false）、governance（508 files、71 current、0 violations）、index（verified）、JSON/Node 语法与 diff 格式检查，全部得到通过回执。本地约束执行不等于外部 `.github/workflows/project-constraints.yml` 已运行；receipt 中该 external gate 仍如实为 `not_run`。
 
 ## 失败、重规划与工具环境
 
