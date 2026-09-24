@@ -66,9 +66,27 @@ Research Web runtime component.
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"The installer changes only the allowlisted environment passed to Python dependency subprocesses; Web Host, DSH, API, service, and process relationships remain unchanged.","diagrams":[]} -->
 
-## Pending external evidence
+## Merged macOS acceptance
 
-Until publication, Project Constraints, Research Web Checks, and macOS Bootstrap remain `not_run`; the receipt
-must remain `blocked`. A real fresh macOS setup with both SOCKS variable spellings, stopped/running Doctor,
-start/status/stop, and final stopped state is also required before publication. GitHub Windows verification is
-not part of this plan.
+Integration commit `6df3113e7c2237c2900231c3d1322488a7e552ad` passed the complete seven-item L4 local closure. Its worktree
+started without `.venv`; the public `setup-web.sh --no-start` command ran with both upper- and lower-case
+`ALL_PROXY=socks5://127.0.0.1:<port>` set and completed without manually unsetting either value. The setup log
+contained `setup_web_python_proxy_protocol_filtered` and contained neither the proxy URL nor SOCKS scheme.
+
+Stopped-state Doctor returned `ok: true` with an installer-owned Python 3.12.13 environment, matching lock,
+`cjpy==0.5.2`, verified DSH closure and both services stopped. `rwb web start --no-open`, status, and running-state
+Doctor then reported healthy 3081/8088 services. `rwb web stop` returned both services to stopped state.
+
+## External evidence
+
+The published integration SHA triggered exactly three automatic runs, all passed:
+
+| Gate | Run | Result |
+| --- | --- | --- |
+| Project Constraints | [35941999113](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35941999113) | passed |
+| Research Web Checks | [35941999116](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35941999116) | passed |
+| Research Web Bootstrap | [35941999002](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35941999002) | passed |
+
+Bootstrap contained exactly one job, `Clean Web install (macos-14)`, and completed setup, environment/service
+verification, stop, and successful evidence upload. There was no Windows run. Windows remains explicitly unrun
+and unclaimed under the user's manual-Windows boundary.
