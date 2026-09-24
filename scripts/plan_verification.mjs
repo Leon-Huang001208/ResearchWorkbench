@@ -32,7 +32,8 @@ const RULE_KEYS = new Set([
   "documentation",
   "ci",
 ]);
-const MATCH_KEYS = new Set(["files", "prefixes", "segments", "suffixes"]);
+const MATCH_REQUIRED_KEYS = new Set(["files", "prefixes", "segments", "suffixes"]);
+const MATCH_OPTIONAL_KEYS = new Set(["excludePrefixes"]);
 const FALLBACK_KEYS = new Set([
   "risk",
   "minimumLevel",
@@ -60,6 +61,15 @@ function assertExactKeys(value, expected, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) fail("POLICY_ERROR", `invalid ${label}`);
   const keys = Object.keys(value);
   if (keys.length !== expected.size || keys.some(key => !expected.has(key))) {
+    fail("POLICY_ERROR", `invalid ${label} keys`);
+  }
+}
+
+function assertMatchKeys(value, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) fail("POLICY_ERROR", `invalid ${label}`);
+  const keys = Object.keys(value);
+  if ([...MATCH_REQUIRED_KEYS].some(key => !keys.includes(key)) ||
+      keys.some(key => !MATCH_REQUIRED_KEYS.has(key) && !MATCH_OPTIONAL_KEYS.has(key))) {
     fail("POLICY_ERROR", `invalid ${label} keys`);
   }
 }
@@ -189,14 +199,21 @@ function parseSelection(value, catalogs, label, {withMatch}) {
 
   let match;
   if (withMatch) {
-    assertExactKeys(value.match, MATCH_KEYS, `${label} match`);
+    assertMatchKeys(value.match, `${label} match`);
     match = {
       files: assertStringArray(value.match.files, `${label} files`, validateMatchPath),
       prefixes: assertStringArray(value.match.prefixes, `${label} prefixes`, validatePrefix),
       segments: assertStringArray(value.match.segments, `${label} segments`, validateSegment),
       suffixes: assertStringArray(value.match.suffixes, `${label} suffixes`, validateSuffix),
+      excludePrefixes: assertStringArray(
+        value.match.excludePrefixes ?? [],
+        `${label} exclude prefixes`,
+        validatePrefix,
+      ),
     };
-    if (Object.values(match).every(items => items.length === 0)) fail("POLICY_ERROR", `${label} has no matchers`);
+    if ([match.files, match.prefixes, match.segments, match.suffixes].every(items => items.length === 0)) {
+      fail("POLICY_ERROR", `${label} has no matchers`);
+    }
   }
 
   return {...value, reason, minimumLevel, impact, match};
@@ -304,6 +321,7 @@ function parseArgs(args) {
 }
 
 function matches(match, changedFile) {
+  if (match.excludePrefixes.some(prefix => changedFile.startsWith(prefix))) return false;
   const segments = changedFile.split("/");
   return match.files.includes(changedFile) ||
     match.prefixes.some(prefix => changedFile.startsWith(prefix)) ||
