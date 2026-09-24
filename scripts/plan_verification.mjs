@@ -32,7 +32,8 @@ const RULE_KEYS = new Set([
   "documentation",
   "ci",
 ]);
-const MATCH_KEYS = new Set(["files", "prefixes", "segments", "suffixes"]);
+const MATCH_REQUIRED_KEYS = new Set(["files", "prefixes", "segments", "suffixes"]);
+const MATCH_OPTIONAL_KEYS = new Set(["excludePrefixes"]);
 const FALLBACK_KEYS = new Set([
   "risk",
   "minimumLevel",
@@ -60,6 +61,15 @@ function assertExactKeys(value, expected, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) fail("POLICY_ERROR", `invalid ${label}`);
   const keys = Object.keys(value);
   if (keys.length !== expected.size || keys.some(key => !expected.has(key))) {
+    fail("POLICY_ERROR", `invalid ${label} keys`);
+  }
+}
+
+function assertMatchKeys(value, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) fail("POLICY_ERROR", `invalid ${label}`);
+  const keys = Object.keys(value);
+  if ([...MATCH_REQUIRED_KEYS].some(key => !keys.includes(key)) ||
+      keys.some(key => !MATCH_REQUIRED_KEYS.has(key) && !MATCH_OPTIONAL_KEYS.has(key))) {
     fail("POLICY_ERROR", `invalid ${label} keys`);
   }
 }
@@ -189,14 +199,21 @@ function parseSelection(value, catalogs, label, {withMatch}) {
 
   let match;
   if (withMatch) {
-    assertExactKeys(value.match, MATCH_KEYS, `${label} match`);
+    assertMatchKeys(value.match, `${label} match`);
     match = {
       files: assertStringArray(value.match.files, `${label} files`, validateMatchPath),
       prefixes: assertStringArray(value.match.prefixes, `${label} prefixes`, validatePrefix),
       segments: assertStringArray(value.match.segments, `${label} segments`, validateSegment),
       suffixes: assertStringArray(value.match.suffixes, `${label} suffixes`, validateSuffix),
+      excludePrefixes: assertStringArray(
+        value.match.excludePrefixes === undefined ? [] : value.match.excludePrefixes,
+        `${label} exclude prefixes`,
+        validatePrefix,
+      ),
     };
-    if (Object.values(match).every(items => items.length === 0)) fail("POLICY_ERROR", `${label} has no matchers`);
+    if ([match.files, match.prefixes, match.segments, match.suffixes].every(items => items.length === 0)) {
+      fail("POLICY_ERROR", `${label} has no matchers`);
+    }
   }
 
   return {...value, reason, minimumLevel, impact, match};
@@ -255,6 +272,9 @@ function parsePolicy(raw) {
     escalation: {...value.escalation, targetLevel},
     catalogs,
     rules,
+    delegatedPrefixes: [...new Set(
+      rules.flatMap(rule => rule.match.excludePrefixes),
+    )].sort((left, right) => right.length - left.length),
     fallback,
   };
 }
@@ -304,11 +324,17 @@ function parseArgs(args) {
 }
 
 function matches(match, changedFile) {
+  if (match.excludePrefixes.some(prefix => changedFile.startsWith(prefix))) return false;
   const segments = changedFile.split("/");
   return match.files.includes(changedFile) ||
     match.prefixes.some(prefix => changedFile.startsWith(prefix)) ||
     match.segments.some(segment => segments.includes(segment)) ||
     match.suffixes.some(suffix => changedFile.endsWith(suffix));
+}
+
+function ownsDelegatedPrefix(match, prefix) {
+  return match.files.some(file => file.startsWith(prefix)) ||
+    match.prefixes.some(candidate => candidate.startsWith(prefix));
 }
 
 function appendUnique(target, seen, values) {
@@ -373,7 +399,11 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
   const uncoveredRisks = [];
 
   for (const changedFile of normalizedFiles) {
-    const matchedRules = policy.rules.filter(rule => matches(rule.match, changedFile));
+    const delegatedPrefix = policy.delegatedPrefixes.find(prefix => changedFile.startsWith(prefix));
+    const candidateRules = delegatedPrefix
+      ? policy.rules.filter(rule => ownsDelegatedPrefix(rule.match, delegatedPrefix))
+      : policy.rules;
+    const matchedRules = candidateRules.filter(rule => matches(rule.match, changedFile));
     const selections = matchedRules.length > 0 ? matchedRules : [{id: "fallback", ...policy.fallback}];
     for (const selection of selections) {
       riskIndex = Math.max(riskIndex, policy.riskOrder.indexOf(selection.risk));

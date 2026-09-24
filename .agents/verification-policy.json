@@ -63,6 +63,31 @@
         "execution": "local",
         "value": "node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs"
       },
+      "research-web-datahub-public-provider": {
+        "level": "L1",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_datahub_catalog.py --confcutdir=tests/research_web"
+      },
+      "research-web-datahub-core": {
+        "level": "L2",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_datahub.py --confcutdir=tests/research_web"
+      },
+      "research-web-asset-workbench-ui": {
+        "level": "L1",
+        "execution": "local",
+        "value": "node --test tests/javascript/research_web_workbench.test.mjs"
+      },
+      "research-web-asset-workspace-python": {
+        "level": "L2",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_asset_workspace.py --confcutdir=tests/research_web"
+      },
+      "research-web-asset-workspace-smoke": {
+        "level": "L3",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_asset_workspace.py::test_asset_observation_tracks_each_block_and_freezes_handoff_context --confcutdir=tests/research_web"
+      },
       "research-web-service-manager": {
         "level": "L1",
         "execution": "local",
@@ -606,6 +631,9 @@
           "app/research_web/",
           "app/web/"
         ],
+        "excludePrefixes": [
+          "app/research_web/datahub/"
+        ],
         "segments": [],
         "suffixes": []
       },
@@ -682,6 +710,111 @@
       ],
       "documentation": [
         "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-datahub-public-provider",
+      "risk": "local-only",
+      "minimumLevel": "L2",
+      "reason": "research_web_datahub_public_provider_change",
+      "impact": [
+        "datahub-public-provider"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/datahub/providers_akshare.py",
+          "tests/research_web/test_datahub_catalog.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-architecture",
+        "research-web-datahub-public-provider",
+        "project-constraints-local",
+        "research-web-datahub-core",
+        "research-web-asset-workspace-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-asset-workbench-ui",
+      "risk": "local-only",
+      "minimumLevel": "L1",
+      "reason": "research_web_asset_workbench_ui_change",
+      "impact": [
+        "asset-workbench-ui"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/ui/asset-workspace.mjs",
+          "tests/javascript/research_web_workbench.test.mjs"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-architecture",
+        "research-web-asset-workbench-ui",
+        "project-constraints-local",
+        "research-web-asset-workspace-python",
+        "research-web-asset-workspace-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-asset-workbench-backend",
+      "risk": "local-only",
+      "minimumLevel": "L2",
+      "reason": "research_web_asset_workbench_backend_change",
+      "impact": [
+        "asset-workbench-backend"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/asset_workspace.py",
+          "app/research_web/asset_routes.py",
+          "tests/research_web/test_asset_workspace.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-architecture",
+        "research-web-asset-workbench-ui",
+        "project-constraints-local",
+        "research-web-asset-workspace-python",
+        "research-web-asset-workspace-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
       ],
       "ci": [
         "project-constraints",
@@ -845,8 +978,7 @@
         "files": [
           "app/research_web/ui/frameworks.mjs",
           "tests/e2e/research_web_goldar_v0.mjs",
-          "tests/javascript/research_web_frameworks_ui.test.mjs",
-          "tests/javascript/research_web_workbench.test.mjs"
+          "tests/javascript/research_web_frameworks_ui.test.mjs"
         ],
         "prefixes": [
           "app/research_web/ui/frameworks/"
