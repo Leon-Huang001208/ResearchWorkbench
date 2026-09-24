@@ -859,6 +859,98 @@ test("tracked framework artifacts and supporting tests stay in the known L3 clos
   assert.equal(plan.changeSummary.impactIds.includes("framework-ui"), true);
 });
 
+test("AKShare provider uses the bounded L2 DataHub closure", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/datahub/providers_akshare.py",
+    "tests/research_web/test_datahub_catalog.py",
+  ]));
+  assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L2");
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-datahub-public-provider",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+    "project-constraints-local",
+    "research-web-datahub-core",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L3, []);
+  assert.deepEqual(plan.validationsByLevel.L4, []);
+});
+
+test("asset Workbench UI no longer selects framework validation", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/ui/asset-workspace.mjs",
+    "tests/javascript/research_web_workbench.test.mjs",
+  ]));
+  assert.equal(plan.requiredLevel, "L1");
+  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-asset-workbench-ui",
+  ]);
+  assert.equal(plan.changeSummary.impactIds.includes("framework-ui"), false);
+  assert.equal(plan.tests.some(item => item.id.startsWith("research-web-framework")), false);
+});
+
+test("AKShare plus asset UI escalates to the bounded L3 user path", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/datahub/providers_akshare.py",
+    "app/research_web/ui/asset-workspace.mjs",
+  ]));
+  assert.equal(plan.requiredLevel, "L3");
+  assert.deepEqual(plan.escalations, [{
+    code: "multiple_high_coupling_modules",
+    fromLevel: "L2",
+    toLevel: "L3",
+    impacts: ["datahub-public-provider", "asset-workbench-ui"],
+  }]);
+  assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+    "project-constraints-local",
+    "research-web-datahub-core",
+    "research-web-asset-workspace-python",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L3.map(item => item.id), [
+    "research-web-asset-workspace-smoke",
+  ]);
+  assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
+});
+
+test("unregistered DataHub boundaries remain L4 fallback paths", () => {
+  for (const changedFile of [
+    "app/research_web/datahub/providers_wind.py",
+    "app/research_web/datahub/providers_mysql.py",
+    "app/research_web/datahub/providers_cjpy.py",
+    "app/research_web/datahub/broker.py",
+    "app/research_web/datahub/contracts.py",
+    "app/research_web/datahub/security.py",
+    "app/research_web/datahub/snapshots.py",
+    "app/research_web/datahub/future_provider.py",
+    "tests/research_web/test_datahub_wind.py",
+  ]) {
+    const plan = success(run(repositoryRoot, [changedFile]));
+    assert.equal(plan.requiredLevel, "L4", changedFile);
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), true, changedFile);
+    assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"], changedFile);
+  }
+});
+
+test("asset Workbench backend uses L2 and selects its direct contracts", () => {
+  const plan = success(run(repositoryRoot, [
+    "app/research_web/asset_workspace.py",
+    "tests/research_web/test_asset_workspace.py",
+  ]));
+  assert.equal(plan.requiredLevel, "L2");
+  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-asset-workbench-ui",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+    "project-constraints-local",
+    "research-web-asset-workspace-python",
+  ]);
+});
+
 test("verification policy change cannot fall below L4", () => {
   const plan = success(run(repositoryRoot, [".agents/verification-policy.json"]));
   assert.equal(plan.risk, "full-delivery");
