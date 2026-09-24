@@ -36,7 +36,7 @@
       "research-web-framework-collectors": {
         "level": "L1",
         "execution": "local",
-        "value": "python -m pytest tests/research_web/test_framework_collectors.py"
+        "value": "python -m pytest tests/research_web/test_framework_collectors.py --confcutdir=tests/research_web"
       },
       "research-web-frameworks-ui": {
         "level": "L1",
@@ -56,7 +56,7 @@
       "research-web-api": {
         "level": "L1",
         "execution": "local",
-        "value": "python -m pytest tests/research_web/test_api.py"
+        "value": "python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web"
       },
       "research-web-ui": {
         "level": "L1",
@@ -66,32 +66,32 @@
       "research-web-service-manager": {
         "level": "L1",
         "execution": "local",
-        "value": "python -m pytest tests/research_web/test_service_manager.py"
+        "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
       },
       "research-web-installation": {
         "level": "L1",
         "execution": "local",
-        "value": "python -m pytest tests/research_web/test_setup_web.py"
+        "value": "python -m pytest tests/research_web/test_setup_web.py --confcutdir=tests/research_web"
       },
       "research-web-local-integrations": {
         "level": "L1",
         "execution": "local",
-        "value": "python -m pytest tests/research_web/test_local_integrations.py"
+        "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
       },
       "research-web-frameworks-python": {
         "level": "L2",
         "execution": "local",
-        "value": "python -m pytest tests/research_web/test_frameworks.py"
+        "value": "python -m pytest tests/research_web/test_frameworks.py --confcutdir=tests/research_web"
       },
       "research-web-framework-smoke": {
         "level": "L3",
         "execution": "local",
-        "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts"
+        "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts --confcutdir=tests/research_web"
       },
       "research-web-critical-smoke": {
         "level": "L3",
         "execution": "local",
-        "value": "python -m pytest tests/research_web/test_protocol.py"
+        "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
       },
       "research-web-verification-full": {
         "level": "L4",

@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "changeSummary": {
+    "fileCount": 6,
+    "ruleIds": [
+      "ci",
+      "documentation"
+    ],
+    "impactIds": [
+      "verification-system",
+      "documentation"
+    ]
+  },
+  "changedFiles": [
+    ".agents/verification-policy.json",
+    ".ai/reports/2026-09-24-research-web-confcutdir-policy-plan.json",
+    ".ai/reports/2026-09-24-research-web-confcutdir-policy-receipt.json",
+    ".ai/reports/2026-09-24-research-web-confcutdir-policy.md",
+    "docs/AGENT_WORKFLOW.md",
+    "tests/javascript/verification_policy.test.mjs"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "impact": [
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/AGENT_WORKFLOW.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "executed": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.147,
+      "evidence": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.909,
+      "evidence": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md"
+    },
+    {
+      "id": "verification-policy-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 1.592,
+      "evidence": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md"
+    },
+    {
+      "id": "verification-receipt-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 1.208,
+      "evidence": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md"
+    },
+    {
+      "id": "incremental-validation-skill-contracts",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 0.074,
+      "evidence": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "status": "passed",
+      "durationSeconds": 2.437,
+      "evidence": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md"
+    }
+  ],
+  "result": "blocked",
+  "uncoveredRisks": [
+    "external_gate_not_run:project-constraints"
+  ],
+  "escalation": {
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
+  }
+}

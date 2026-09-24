@@ -37,6 +37,10 @@ node scripts/plan_verification.mjs --project . \
 
 `.agents/verification-policy.json` 是唯一政策真源；规划器只输出计划，不运行测试、Git、CI、发布或策略中的命令。`.agents/project-constraints.json` 保持独立架构门，不拥有或复制路由表。
 
+所有聚焦 `tests/research_web/` 的 Python catalog 必须带 `--confcutdir=tests/research_web`，与 GitHub
+Research Web Checks 使用同一测试边界。这样本机 `.env`、根 `tests/conftest.py` 的兼容平台数据库
+fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非 Research Web 测试本身保持不变。
+
 ### L0-L4 分层
 
 | 等级 | 最小验收语义 | 典型证据 |

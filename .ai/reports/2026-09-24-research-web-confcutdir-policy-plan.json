@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 2,
+  "risk": "full-delivery",
+  "requiredLevel": "L4",
+  "changeSummary": {
+    "fileCount": 6,
+    "ruleIds": [
+      "ci",
+      "documentation"
+    ],
+    "impactIds": [
+      "verification-system",
+      "documentation"
+    ]
+  },
+  "changedFiles": [
+    ".agents/verification-policy.json",
+    ".ai/reports/2026-09-24-research-web-confcutdir-policy-plan.json",
+    ".ai/reports/2026-09-24-research-web-confcutdir-policy-receipt.json",
+    ".ai/reports/2026-09-24-research-web-confcutdir-policy.md",
+    "docs/AGENT_WORKFLOW.md",
+    "tests/javascript/verification_policy.test.mjs"
+  ],
+  "impact": [
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/AGENT_WORKFLOW.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "reasons": [
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-research-web-confcutdir-policy.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/AGENT_WORKFLOW.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    }
+  ],
+  "escalations": [],
+  "uncoveredRisks": [],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "execution": "local",
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "execution": "local",
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [
+      {
+        "id": "verification-policy-contracts",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/verification_policy.test.mjs"
+      },
+      {
+        "id": "verification-receipt-contracts",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/verification_receipt.test.mjs"
+      },
+      {
+        "id": "incremental-validation-skill-contracts",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
+      }
+    ],
+    "L2": [],
+    "L3": [],
+    "L4": [
+      {
+        "id": "research-web-verification-full",
+        "level": "L4",
+        "execution": "local",
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+      },
+      {
+        "id": "project-constraints",
+        "level": "L4",
+        "execution": "external",
+        "category": "ci",
+        "value": ".github/workflows/project-constraints.yml"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "id": "verification-policy-contracts",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_policy.test.mjs"
+    },
+    {
+      "id": "verification-receipt-contracts",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_receipt.test.mjs"
+    },
+    {
+      "id": "incremental-validation-skill-contracts",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "execution": "local",
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "execution": "local",
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "execution": "local",
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [
+    {
+      "id": "project-constraints",
+      "level": "L4",
+      "execution": "external",
+      "category": "ci",
+      "value": ".github/workflows/project-constraints.yml"
+    }
+  ],
+  "receiptTemplate": {
+    "plannedLevel": "L4",
+    "changedFiles": [
+      ".agents/verification-policy.json",
+      ".ai/reports/2026-09-24-research-web-confcutdir-policy-plan.json",
+      ".ai/reports/2026-09-24-research-web-confcutdir-policy-receipt.json",
+      ".ai/reports/2026-09-24-research-web-confcutdir-policy.md",
+      "docs/AGENT_WORKFLOW.md",
+      "tests/javascript/verification_policy.test.mjs"
+    ],
+    "requiredValidationIds": [
+      "verification-policy-contracts",
+      "verification-receipt-contracts",
+      "incremental-validation-skill-contracts",
+      "research-web-verification-full",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": [
+      "project-constraints"
+    ]
+  }
+}
