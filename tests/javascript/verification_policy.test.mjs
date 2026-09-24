@@ -888,6 +888,10 @@ for (const changedFile of [
       plan.tests.find(item => item.id === "research-web-datahub-public-provider")?.value,
       "python -m pytest tests/research_web/test_datahub_catalog.py --confcutdir=tests/research_web",
     );
+    assert.equal(
+      plan.tests.find(item => item.id === "research-web-datahub-core")?.value,
+      "python -m pytest tests/research_web/test_datahub.py --confcutdir=tests/research_web",
+    );
   });
 }
 
@@ -1151,6 +1155,73 @@ test("asset Workbench backend source and test merge into one L2 direct closure",
   assert.deepEqual(plan.validationsByLevel.L4, []);
 });
 
+for (const {name, changedFile, signals, ruleIds, level2Ids, escalations} of [
+  {
+    name: "AKShare provider validation failure",
+    changedFile: "app/research_web/datahub/providers_akshare.py",
+    signals: ["validation_failure"],
+    ruleIds: ["research-web-datahub-public-provider"],
+    level2Ids: ["project-constraints-local", "research-web-datahub-core"],
+    escalations: [{
+      code: "validation_failure",
+      fromLevel: "L2",
+      toLevel: "L3",
+      impacts: [],
+    }],
+  },
+  {
+    name: "asset Workbench backend validation failure",
+    changedFile: "app/research_web/asset_workspace.py",
+    signals: ["validation_failure"],
+    ruleIds: ["research-web", "research-web-asset-workbench-backend"],
+    level2Ids: ["project-constraints-local", "research-web-asset-workspace-python"],
+    escalations: [{
+      code: "validation_failure",
+      fromLevel: "L2",
+      toLevel: "L3",
+      impacts: [],
+    }],
+  },
+  {
+    name: "asset Workbench UI failure and unexpected behavior",
+    changedFile: "app/research_web/ui/asset-workspace.mjs",
+    signals: ["validation_failure", "unexpected_behavior"],
+    ruleIds: ["research-web", "research-web-asset-workbench-ui"],
+    level2Ids: ["project-constraints-local", "research-web-asset-workspace-python"],
+    escalations: [
+      {
+        code: "validation_failure",
+        fromLevel: "L1",
+        toLevel: "L2",
+        impacts: [],
+      },
+      {
+        code: "unexpected_behavior",
+        fromLevel: "L2",
+        toLevel: "L3",
+        impacts: [],
+      },
+    ],
+  },
+]) {
+  test(`component signal escalation selects its own L3 closure: ${name}`, () => {
+    const plan = success(run(repositoryRoot, [changedFile], signals));
+    assert.equal(plan.risk, "local-only");
+    assert.equal(plan.requiredLevel, "L3");
+    assert.deepEqual(plan.changeSummary.ruleIds, ruleIds);
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+    assert.deepEqual(plan.escalations, escalations);
+    assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), level2Ids);
+    assert.deepEqual(plan.validationsByLevel.L3.map(item => item.id), [
+      "research-web-asset-workspace-smoke",
+    ]);
+    assert.equal(
+      plan.tests.find(item => item.id === "research-web-asset-workspace-smoke")?.value,
+      "python -m pytest tests/research_web/test_asset_workspace.py::test_asset_observation_tracks_each_block_and_freezes_handoff_context --confcutdir=tests/research_web",
+    );
+  });
+}
+
 test("AKShare provider keeps its catalog when a dependency change requires L4", () => {
   const plan = success(run(repositoryRoot, [
     "app/research_web/datahub/providers_akshare.py",
@@ -1171,8 +1242,14 @@ test("AKShare provider keeps its catalog when a dependency change requires L4", 
     plan.tests.find(item => item.id === "research-web-datahub-public-provider")?.value,
     "python -m pytest tests/research_web/test_datahub_catalog.py --confcutdir=tests/research_web",
   );
-  assert.equal(plan.receiptTemplate.externalGateIds.includes("project-constraints"), true);
-  assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-checks"), true);
+  assert.deepEqual(plan.receiptTemplate.externalGateIds, [
+    "project-constraints",
+    "research-web-checks",
+  ]);
+  assert.equal(
+    gateIds(plan).some(id => id === "native-windows-desktop" || id === "desktop-packaging"),
+    false,
+  );
 });
 
 test("verification policy change cannot fall below L4", () => {
