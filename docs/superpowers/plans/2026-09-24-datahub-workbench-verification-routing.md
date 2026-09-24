@@ -576,8 +576,7 @@ Extend the DataHub and UI rows so they name:
 Add a behavior-only note:
 
 ```markdown
-通用规则可以用受校验的 negative prefix 把子树交还给专项 allowlist；排除后若没有专项规则命中，
-必须落入 fallback。negative prefix 不能覆盖其他规则或直接降低风险。
+命中 delegated namespace 后仅 namespace owner rules 参与；无 owner 必须 fallback；不能跳过 fallback 或直接降低风险。
 ```
 
 Do not copy the production file list into the skill README.
