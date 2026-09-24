@@ -361,6 +361,56 @@ async def test_akshare_provider_normalizes_business_data_without_legacy_run(
 
 
 @pytest.mark.asyncio
+async def test_akshare_financials_normalize_boolean_missing_sentinels(monkeypatch):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+    package.stock_financial_abstract_ths = lambda **kwargs: pd.DataFrame(
+        [
+            {
+                "报告期": "1998-12-31",
+                "净利润": "1.47亿",
+                "净利润同比增长率": False,
+                "扣非净利润": True,
+            }
+        ]
+    )
+    monkeypatch.setitem(sys.modules, "akshare", package)
+
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="financials",
+            source="akshare",
+            parameters={"asset": "600519", "statements": ["indicators"], "periods": 8},
+        )
+    )
+
+    assert result.status == "complete"
+    assert result.rows == [
+        {
+            "asset": "600519",
+            "报告期": "1998-12-31",
+            "净利润": "1.47亿",
+            "净利润同比增长率": None,
+            "扣非净利润": None,
+        }
+    ]
+    assert (
+        provider._normalize_generic(
+            [{"provider_boolean": False}],
+            BusinessQuery(
+                capability="market_activity",
+                source="akshare",
+                parameters={"asset": "600519", "dataset": "fund_flow"},
+            ),
+        )[0]["provider_boolean"]
+        is False
+    )
+
+
+@pytest.mark.asyncio
 async def test_akshare_provider_sanitizes_unexpected_transport_failure(monkeypatch):
     import app.research_web.datahub.providers_akshare as provider
 

@@ -105,6 +105,28 @@ test('asset workspace never turns absent market values into zero', async () => {
   }
 });
 
+test('asset financial table renders legacy boolean missing sentinels as unknown', async () => {
+  const assets = await import(new URL('asset-workspace.mjs', root));
+  const html = assets.renderAssetWorkspace({
+    observation: {
+      asset: '600519', asset_type: 'stock',
+      blocks: {
+        financials: { status: 'complete', dataset: { provider: 'akshare' } },
+        activity: { status: 'complete', dataset: { provider: 'custom' } },
+      },
+    },
+    rows: {
+      financials: [{ 报告期: '1998-12-31', 净利润: '1.47亿', 净利润同比增长率: false }],
+      activity: [{ provider_boolean: false }],
+    },
+  });
+  const financials = html.slice(html.indexOf('FINANCIALS'), html.indexOf('ACTIVITY'));
+  const activity = html.slice(html.indexOf('ACTIVITY'));
+  assert.match(financials, /<td>—<\/td>/);
+  assert.doesNotMatch(financials, /<td>false<\/td>/);
+  assert.match(activity, /<td>false<\/td>/);
+});
+
 test('operations page makes unknown usage and missing pricing explicit', async () => {
   const operations = await import(new URL('operations.mjs', root));
   const html = operations.renderOperations({

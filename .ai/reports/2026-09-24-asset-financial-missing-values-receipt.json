@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "changeSummary": {
+    "fileCount": 15,
+    "ruleIds": [
+      "research-web",
+      "fallback",
+      "research-web-framework-ui",
+      "documentation"
+    ],
+    "impactIds": [
+      "research-web",
+      "unknown-boundary",
+      "framework-ui",
+      "documentation"
+    ]
+  },
+  "changedFiles": [
+    "app/research_web/datahub/providers_akshare.py",
+    "app/research_web/ui/asset-workspace.mjs",
+    "tests/research_web/test_datahub_catalog.py",
+    "tests/javascript/research_web_workbench.test.mjs",
+    "docs/research-web-datahub.md",
+    "docs/research-web-ui.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/09-integration-coordinator.md",
+    "docs/research-web-appearance.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/generated/py_file_index.md",
+    ".ai/reports/2026-09-24-asset-financial-missing-values-plan.json",
+    ".ai/reports/2026-09-24-asset-financial-missing-values-receipt.json",
+    ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "impact": [
+    {
+      "path": "app/research_web/datahub/providers_akshare.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/asset-workspace.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_datahub_catalog.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/research_web_workbench.test.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/research-web-datahub.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-asset-financial-missing-values.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    }
+  ],
+  "executed": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.13,
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 1.01,
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 2.35,
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    },
+    {
+      "id": "research-web-frameworks-ui",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 0.13,
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "status": "passed",
+      "durationSeconds": 0.15,
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    },
+    {
+      "id": "research-web-frameworks-python",
+      "level": "L2",
+      "status": "passed",
+      "durationSeconds": 25.31,
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    },
+    {
+      "id": "research-web-framework-smoke",
+      "level": "L3",
+      "status": "passed",
+      "durationSeconds": 6.05,
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "status": "passed",
+      "durationSeconds": 2.38,
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "not_run",
+      "evidence": ".ai/reports/2026-09-24-asset-financial-missing-values.md"
+    }
+  ],
+  "result": "blocked",
+  "uncoveredRisks": [
+    "unknown_impact_boundary",
+    "external_gate_not_run:project-constraints",
+    "external_gate_not_run:research-web-checks"
+  ],
+  "escalation": {
+    "required": true,
+    "targetLevel": "L4",
+    "reasons": [
+      "validation_failure"
+    ]
+  }
+}

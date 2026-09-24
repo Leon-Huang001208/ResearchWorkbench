@@ -2,5 +2,5 @@
   "schemaVersion": 1,
   "disposition": "unchanged",
   "summary": "本轮无需调整根 README，现有 Research Web 产品定位、安装与启动入口仍然准确。",
-  "reason": "本轮只修正 Gold／Dollar 详情页的窄屏布局、Bot 入口停靠和 HTML 地标语义；公开命令、安装前置条件、端口、数据契约、产品入口与用户启动流程均未改变。"
+  "reason": "本轮只规范化 AKShare 财务缺失哨兵并修正资产观察表格呈现；公开命令、安装前置条件、端口、产品入口和用户启动流程均未改变。"
 }
