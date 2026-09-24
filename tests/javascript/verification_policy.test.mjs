@@ -46,6 +46,26 @@ function policy() {
           "L1",
           "node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs",
         ),
+        "research-web-datahub-public-provider": catalog(
+          "L1",
+          "python -m pytest tests/research_web/test_datahub_catalog.py --confcutdir=tests/research_web",
+        ),
+        "research-web-datahub-core": catalog(
+          "L2",
+          "python -m pytest tests/research_web/test_datahub.py --confcutdir=tests/research_web",
+        ),
+        "research-web-asset-workbench-ui": catalog(
+          "L1",
+          "node --test tests/javascript/research_web_workbench.test.mjs",
+        ),
+        "research-web-asset-workspace-python": catalog(
+          "L2",
+          "python -m pytest tests/research_web/test_asset_workspace.py --confcutdir=tests/research_web",
+        ),
+        "research-web-asset-workspace-smoke": catalog(
+          "L3",
+          "python -m pytest tests/research_web/test_asset_workspace.py::test_asset_observation_tracks_each_block_and_freezes_handoff_context --confcutdir=tests/research_web",
+        ),
         "research-web-service-manager": catalog(
           "L1",
           "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web",
@@ -304,7 +324,13 @@ function policy() {
         reason: "research_web_change",
         impact: ["research-web"],
         coupling: "low",
-        match: {files: [], prefixes: ["app/research_web/", "app/web/"], segments: [], suffixes: []},
+        match: {
+          files: [],
+          prefixes: ["app/research_web/", "app/web/"],
+          excludePrefixes: ["app/research_web/datahub/"],
+          segments: [],
+          suffixes: [],
+        },
         tests: ["research-web-architecture", "project-constraints-local", "research-web-verification-full"],
         documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks"],
@@ -346,6 +372,85 @@ function policy() {
         },
         tests: ["research-web-ui", "research-web-architecture", "project-constraints-local"],
         documentation: ["documentation-governance"],
+        ci: ["project-constraints", "research-web-checks"],
+      }),
+      rule({
+        id: "research-web-datahub-public-provider",
+        risk: "local-only",
+        minimumLevel: "L2",
+        reason: "research_web_datahub_public_provider_change",
+        impact: ["datahub-public-provider"],
+        coupling: "high",
+        match: {
+          files: [
+            "app/research_web/datahub/providers_akshare.py",
+            "tests/research_web/test_datahub_catalog.py",
+          ],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-architecture",
+          "research-web-datahub-public-provider",
+          "project-constraints-local",
+          "research-web-datahub-core",
+          "research-web-asset-workspace-smoke",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks"],
+      }),
+      rule({
+        id: "research-web-asset-workbench-ui",
+        risk: "local-only",
+        minimumLevel: "L1",
+        reason: "research_web_asset_workbench_ui_change",
+        impact: ["asset-workbench-ui"],
+        coupling: "high",
+        match: {
+          files: [
+            "app/research_web/ui/asset-workspace.mjs",
+            "tests/javascript/research_web_workbench.test.mjs",
+          ],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-architecture",
+          "research-web-asset-workbench-ui",
+          "project-constraints-local",
+          "research-web-asset-workspace-python",
+          "research-web-asset-workspace-smoke",
+        ],
+        documentation: ["documentation-governance"],
+        ci: ["project-constraints", "research-web-checks"],
+      }),
+      rule({
+        id: "research-web-asset-workbench-backend",
+        risk: "local-only",
+        minimumLevel: "L2",
+        reason: "research_web_asset_workbench_backend_change",
+        impact: ["asset-workbench-backend"],
+        coupling: "high",
+        match: {
+          files: [
+            "app/research_web/asset_workspace.py",
+            "app/research_web/asset_routes.py",
+            "tests/research_web/test_asset_workspace.py",
+          ],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-architecture",
+          "research-web-asset-workbench-ui",
+          "project-constraints-local",
+          "research-web-asset-workspace-python",
+          "research-web-asset-workspace-smoke",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks"],
       }),
       rule({
@@ -464,7 +569,6 @@ function policy() {
             "app/research_web/ui/frameworks.mjs",
             "tests/e2e/research_web_goldar_v0.mjs",
             "tests/javascript/research_web_frameworks_ui.test.mjs",
-            "tests/javascript/research_web_workbench.test.mjs",
           ],
           prefixes: ["app/research_web/ui/frameworks/"],
           segments: [],
@@ -505,7 +609,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 8);
+  assert.equal(catalogs.length, 12);
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -1380,7 +1484,7 @@ test("excludePrefixes delegates excluded paths to fallback without overriding ot
     impact: ["known-datahub"],
     coupling: "high",
     match: {
-      files: ["app/research_web/datahub/providers_akshare.py"],
+      files: ["app/research_web/datahub/known_provider.py"],
       prefixes: [],
       segments: [],
       suffixes: [],
@@ -1389,7 +1493,7 @@ test("excludePrefixes delegates excluded paths to fallback without overriding ot
   }));
   const root = fixture(t, value);
 
-  const known = success(run(root, ["app/research_web/datahub/providers_akshare.py"]));
+  const known = success(run(root, ["app/research_web/datahub/known_provider.py"]));
   assert.equal(known.requiredLevel, "L2");
   assert.deepEqual(known.changeSummary.ruleIds, ["known-datahub"]);
 
