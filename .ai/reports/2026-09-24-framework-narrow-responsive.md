@@ -57,10 +57,24 @@ The complete post-change L0-L2 closure passed:
 | `project-constraints-local` | L2 | passed; 29 paths, 0 violations | 0.16 s |
 | `research-web-frameworks-python` | L2 | passed; 9/9 | 23.29 s |
 
-The planner selected no external gate. This Web-only local task therefore does not claim GitHub, Windows,
-desktop, Tauri, sidecar, or installer verification. The supplementary Chrome run passed in 20.70 s and is kept
-outside the receipt IDs because the policy did not select a separate browser validation item. The 16 generated
-files under `outputs/frameworks-v1/` are included in the 29-path plan and receipt as low-risk framework artifacts.
+The planner selected no external gate. The supplementary Chrome run passed in 20.70 s and is kept outside the
+receipt IDs because the policy did not select a separate browser validation item. The 16 generated files under
+`outputs/frameworks-v1/` are included in the 29-path plan and receipt as low-risk framework artifacts.
+
+## Publication and GitHub macOS evidence
+
+Integration commit `063cfd31dc0f43562ef19257797a3d36fe88909e` was published to remote `master`. The automatic
+[Project Constraints run 35950068467](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35950068467)
+and [Research Web Checks run 35950068465](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35950068465)
+both completed with `success`.
+
+The verification policy did not require a platform gate for this Web-only UI change, but the user's standing Mac
+rule required GitHub macOS evidence after local Mac success. Therefore the Mac-only
+[Research Web Bootstrap run 35950222270](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/35950222270)
+was dispatched manually against the same commit. Its single `Clean Web install (macos-14)` job completed setup,
+environment checks, service start, Doctor, connection API smoke, stop, and evidence upload with `success`.
+`Research Web Tabbit Verify` was not dispatched because its matrix would also start Windows. No Windows,
+desktop, Tauri, sidecar, or installer-release claim is made.
 
 ## Architecture review
 
