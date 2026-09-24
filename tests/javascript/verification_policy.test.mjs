@@ -1222,6 +1222,44 @@ for (const {name, changedFile, signals, ruleIds, level2Ids, escalations} of [
   });
 }
 
+for (const {name, changedFile, ruleId, impactId, catalogId, catalogValue} of [
+  {
+    name: "asset Workbench UI test",
+    changedFile: "tests/javascript/research_web_workbench.test.mjs",
+    ruleId: "research-web-asset-workbench-ui",
+    impactId: "asset-workbench-ui",
+    catalogId: "research-web-asset-workbench-ui",
+    catalogValue: "node --test tests/javascript/research_web_workbench.test.mjs",
+  },
+  {
+    name: "asset Workbench backend test",
+    changedFile: "tests/research_web/test_asset_workspace.py",
+    ruleId: "research-web-asset-workbench-backend",
+    impactId: "asset-workbench-backend",
+    catalogId: "research-web-asset-workspace-python",
+    catalogValue: "python -m pytest tests/research_web/test_asset_workspace.py --confcutdir=tests/research_web",
+  },
+]) {
+  test(`Workbench test path retains its direct catalog at L4: ${name}`, () => {
+    const plan = success(run(repositoryRoot, [changedFile, "requirements/web.lock"]));
+    assert.equal(plan.risk, "full-delivery");
+    assert.equal(plan.requiredLevel, "L4");
+    assert.deepEqual(plan.changeSummary.ruleIds, [ruleId, "dependency"]);
+    assert.deepEqual(plan.changeSummary.impactIds, [impactId, "dependency-graph"]);
+    assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+    assert.deepEqual(plan.uncoveredRisks, []);
+    assert.deepEqual(plan.receiptTemplate.externalGateIds, [
+      "project-constraints",
+      "research-web-checks",
+    ]);
+    assert.equal(plan.tests.find(item => item.id === catalogId)?.value, catalogValue);
+    const ids = gateIds(plan).join(" ").toLowerCase();
+    for (const forbidden of ["desktop", "windows"]) {
+      assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into Workbench L4 plan`);
+    }
+  });
+}
+
 test("AKShare provider keeps its catalog when a dependency change requires L4", () => {
   const plan = success(run(repositoryRoot, [
     "app/research_web/datahub/providers_akshare.py",
