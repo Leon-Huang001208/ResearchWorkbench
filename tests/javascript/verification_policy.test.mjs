@@ -891,6 +891,32 @@ for (const changedFile of [
   });
 }
 
+test("AKShare provider source and test merge into one bounded L2 closure", () => {
+  const changedFiles = [
+    "app/research_web/datahub/providers_akshare.py",
+    "tests/research_web/test_datahub_catalog.py",
+  ];
+  const plan = success(run(repositoryRoot, changedFiles));
+  assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L2");
+  assert.deepEqual(plan.changedFiles, changedFiles);
+  assert.equal(plan.changeSummary.fileCount, 2);
+  assert.deepEqual(plan.changeSummary.ruleIds, ["research-web-datahub-public-provider"]);
+  assert.deepEqual(plan.changeSummary.impactIds, ["datahub-public-provider"]);
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assert.deepEqual(plan.escalations, []);
+  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-datahub-public-provider",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+    "project-constraints-local",
+    "research-web-datahub-core",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L3, []);
+  assert.deepEqual(plan.validationsByLevel.L4, []);
+});
+
 for (const {changedFile, ruleIds, impactIds, level0Ids} of [
   {
     changedFile: "app/research_web/ui/asset-workspace.mjs",
@@ -927,6 +953,36 @@ for (const {changedFile, ruleIds, impactIds, level0Ids} of [
     );
   });
 }
+
+test("asset Workbench UI source and test merge without framework validation", () => {
+  const changedFiles = [
+    "app/research_web/ui/asset-workspace.mjs",
+    "tests/javascript/research_web_workbench.test.mjs",
+  ];
+  const plan = success(run(repositoryRoot, changedFiles));
+  assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L1");
+  assert.deepEqual(plan.changedFiles, changedFiles);
+  assert.equal(plan.changeSummary.fileCount, 2);
+  assert.deepEqual(plan.changeSummary.ruleIds, [
+    "research-web",
+    "research-web-asset-workbench-ui",
+  ]);
+  assert.deepEqual(plan.changeSummary.impactIds, [
+    "research-web",
+    "asset-workbench-ui",
+  ]);
+  assert.deepEqual(plan.escalations, []);
+  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-asset-workbench-ui",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L2, []);
+  assert.deepEqual(plan.validationsByLevel.L3, []);
+  assert.deepEqual(plan.validationsByLevel.L4, []);
+  assert.equal(plan.changeSummary.impactIds.includes("framework-ui"), false);
+  assert.equal(plan.tests.some(item => item.id.startsWith("research-web-framework")), false);
+});
 
 test("AKShare plus asset UI escalates to the bounded L3 user path", () => {
   const plan = success(run(repositoryRoot, [
@@ -1063,6 +1119,37 @@ for (const {changedFile, ruleIds, impactIds} of [
     );
   });
 }
+
+test("asset Workbench backend source and test merge into one L2 direct closure", () => {
+  const changedFiles = [
+    "app/research_web/asset_workspace.py",
+    "tests/research_web/test_asset_workspace.py",
+  ];
+  const plan = success(run(repositoryRoot, changedFiles));
+  assert.equal(plan.risk, "local-only");
+  assert.equal(plan.requiredLevel, "L2");
+  assert.deepEqual(plan.changedFiles, changedFiles);
+  assert.equal(plan.changeSummary.fileCount, 2);
+  assert.deepEqual(plan.changeSummary.ruleIds, [
+    "research-web",
+    "research-web-asset-workbench-backend",
+  ]);
+  assert.deepEqual(plan.changeSummary.impactIds, [
+    "research-web",
+    "asset-workbench-backend",
+  ]);
+  assert.deepEqual(plan.escalations, []);
+  assert.deepEqual(plan.validationsByLevel.L1.map(item => item.id), [
+    "research-web-architecture",
+    "research-web-asset-workbench-ui",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L2.map(item => item.id), [
+    "project-constraints-local",
+    "research-web-asset-workspace-python",
+  ]);
+  assert.deepEqual(plan.validationsByLevel.L3, []);
+  assert.deepEqual(plan.validationsByLevel.L4, []);
+});
 
 test("AKShare provider keeps its catalog when a dependency change requires L4", () => {
   const plan = success(run(repositoryRoot, [
