@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 1,
+  "changeSummary": {
+    "fileCount": 29,
+    "ruleIds": [
+      "research-web",
+      "research-web-framework-ui",
+      "documentation",
+      "framework-artifacts"
+    ],
+    "impactIds": [
+      "research-web",
+      "framework-ui",
+      "documentation",
+      "framework-artifacts"
+    ]
+  },
+  "changedFiles": [
+    "app/research_web/ui/appearance.css",
+    "app/research_web/ui/frameworks/common.mjs",
+    "app/research_web/ui/frameworks/goldar.mjs",
+    "app/research_web/ui/frameworks/dollar.mjs",
+    "tests/javascript/research_web_frameworks_ui.test.mjs",
+    "tests/e2e/research_web_goldar_v0.mjs",
+    "docs/research-web-appearance.md",
+    "docs/research-web-ui.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/readme-review.json",
+    ".ai/reports/2026-09-24-framework-narrow-responsive-plan.json",
+    ".ai/reports/2026-09-24-framework-narrow-responsive-receipt.json",
+    ".ai/reports/2026-09-24-framework-narrow-responsive.md",
+    "outputs/frameworks-v1/dollar-dark-1440x900-overview.png",
+    "outputs/frameworks-v1/dollar-dark-390x844-overview.png",
+    "outputs/frameworks-v1/dollar-light-1440x900-bot.png",
+    "outputs/frameworks-v1/dollar-light-390x844-bot.png",
+    "outputs/frameworks-v1/dollar-light-390x844-overview.png",
+    "outputs/frameworks-v1/gold-dark-1440x900-overview.png",
+    "outputs/frameworks-v1/gold-dark-390x844-overview.png",
+    "outputs/frameworks-v1/gold-light-1440x900-bot.png",
+    "outputs/frameworks-v1/gold-light-1440x900-overview.png",
+    "outputs/frameworks-v1/gold-light-390x844-bot.png",
+    "outputs/frameworks-v1/gold-light-390x844-overview.png",
+    "outputs/frameworks-v1/verification.json",
+    "outputs/frameworks-v1/dollar-dark-768x1024-overview.png",
+    "outputs/frameworks-v1/dollar-light-768x1024-overview.png",
+    "outputs/frameworks-v1/gold-dark-768x1024-overview.png",
+    "outputs/frameworks-v1/gold-light-768x1024-overview.png"
+  ],
+  "plannedLevel": "L2",
+  "actualLevel": "L2",
+  "impact": [
+    {
+      "path": "app/research_web/ui/appearance.css",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/common.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/common.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/goldar.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/goldar.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/frameworks/dollar.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/javascript/research_web_frameworks_ui.test.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/e2e/research_web_goldar_v0.mjs",
+      "rule": "research-web-framework-ui",
+      "reason": "research_web_framework_ui_change",
+      "modules": [
+        "framework-ui"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-framework-narrow-responsive-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-framework-narrow-responsive-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-24-framework-narrow-responsive.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-dark-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-dark-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-1440x900-bot.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-390x844-bot.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-dark-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-dark-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-bot.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-1440x900-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-390x844-bot.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-390x844-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/verification.json",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-dark-768x1024-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/dollar-light-768x1024-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-dark-768x1024-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/frameworks-v1/gold-light-768x1024-overview.png",
+      "rule": "framework-artifacts",
+      "reason": "framework_artifact_change",
+      "modules": [
+        "framework-artifacts"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    }
+  ],
+  "executed": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.13,
+      "evidence": ".ai/reports/2026-09-24-framework-narrow-responsive.md"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "passed",
+      "durationSeconds": 0.91,
+      "evidence": ".ai/reports/2026-09-24-framework-narrow-responsive.md"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 2.23,
+      "evidence": ".ai/reports/2026-09-24-framework-narrow-responsive.md"
+    },
+    {
+      "id": "research-web-frameworks-ui",
+      "level": "L1",
+      "status": "passed",
+      "durationSeconds": 0.11,
+      "evidence": ".ai/reports/2026-09-24-framework-narrow-responsive.md"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "status": "passed",
+      "durationSeconds": 0.16,
+      "evidence": ".ai/reports/2026-09-24-framework-narrow-responsive.md"
+    },
+    {
+      "id": "research-web-frameworks-python",
+      "level": "L2",
+      "status": "passed",
+      "durationSeconds": 23.29,
+      "evidence": ".ai/reports/2026-09-24-framework-narrow-responsive.md"
+    }
+  ],
+  "external": [],
+  "result": "passed",
+  "uncoveredRisks": [],
+  "escalation": {
+    "required": true,
+    "targetLevel": "L2",
+    "reasons": [
+      "validation_failure"
+    ]
+  }
+}

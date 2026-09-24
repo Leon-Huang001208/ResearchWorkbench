@@ -22,7 +22,7 @@ export function evidenceList(items) {
 }
 
 export function frameworkBot(bot, revision, example = '为什么当前状态仍然是“待核验”？') {
-  if (!bot?.open) return '<button class="framework-bot-launch" type="button" data-framework-bot-open><span aria-hidden="true">✦</span><strong>问框架</strong><small>基于当前快照解释</small></button>';
+  if (!bot?.open) return '<button class="framework-bot-launch" type="button" data-framework-bot-open aria-label="问当前框架"><span aria-hidden="true">✦</span><strong>问框架</strong><small>基于当前快照解释</small></button>';
   const messages = (bot.detail?.messages || []).map((item) => `<article class="framework-bot-message ${e(item.role || 'assistant')}"><span>${item.role === 'user' ? '你' : bot.mode === 'verify' ? '验证' : '框架'}</span><p>${e(item.text || '')}</p></article>`).join('');
   const stale = bot.errorCode === 'framework_snapshot_changed';
   return `<aside class="framework-bot" aria-label="框架对话" data-revision="${e(revision)}">

@@ -9,6 +9,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -21,6 +32,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -33,6 +55,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -45,6 +78,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -57,6 +101,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -69,6 +124,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -81,6 +147,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": true,
+        "metadataFits": true,
+        "launcher": {
+          "width": 44,
+          "height": 44,
+          "label": "问当前框架",
+          "overlapsCanvas": false
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -93,6 +170,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": true,
+        "metadataFits": true,
+        "launcher": {
+          "width": 44,
+          "height": 44,
+          "label": "问当前框架",
+          "overlapsCanvas": false
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -105,6 +193,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": true,
+        "metadataFits": true,
+        "launcher": {
+          "width": 44,
+          "height": 44,
+          "label": "问当前框架",
+          "overlapsCanvas": false
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -117,6 +216,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": true,
+        "metadataFits": true,
+        "launcher": {
+          "width": 44,
+          "height": 44,
+          "label": "问当前框架",
+          "overlapsCanvas": false
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -129,6 +239,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -141,6 +262,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -153,6 +285,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -165,6 +308,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -177,6 +331,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -189,6 +354,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": false,
+        "metadataFits": true,
+        "launcher": {
+          "width": 146,
+          "height": 50.5,
+          "label": "问当前框架",
+          "overlapsCanvas": true
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -201,6 +377,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": true,
+        "metadataFits": true,
+        "launcher": {
+          "width": 44,
+          "height": 44,
+          "label": "问当前框架",
+          "overlapsCanvas": false
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -213,6 +400,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": true,
+        "metadataFits": true,
+        "launcher": {
+          "width": 44,
+          "height": 44,
+          "label": "问当前框架",
+          "overlapsCanvas": false
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -225,6 +423,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "黄金研究画布",
+        "heroStacked": true,
+        "metadataFits": true,
+        "launcher": {
+          "width": 44,
+          "height": 44,
+          "label": "问当前框架",
+          "overlapsCanvas": false
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -237,6 +446,17 @@
       "geometry": {
         "documentOverflow": false,
         "mainOverflow": false,
+        "mainLandmarks": 1,
+        "canvasTag": "SECTION",
+        "canvasLabel": "美元流动性研究画布",
+        "heroStacked": true,
+        "metadataFits": true,
+        "launcher": {
+          "width": 44,
+          "height": 44,
+          "label": "问当前框架",
+          "overlapsCanvas": false
+        },
         "tabHeight": 44,
         "chartOverflowReady": true
       }
@@ -260,12 +480,16 @@
     "gold-light-1440x900-bot.png",
     "dollar-light-1440x900-overview.png",
     "dollar-light-1440x900-bot.png",
+    "gold-light-768x1024-overview.png",
+    "dollar-light-768x1024-overview.png",
     "gold-light-390x844-overview.png",
     "gold-light-390x844-bot.png",
     "dollar-light-390x844-overview.png",
     "dollar-light-390x844-bot.png",
     "gold-dark-1440x900-overview.png",
     "dollar-dark-1440x900-overview.png",
+    "gold-dark-768x1024-overview.png",
+    "dollar-dark-768x1024-overview.png",
     "gold-dark-390x844-overview.png",
     "dollar-dark-390x844-overview.png",
     "gold-light-1440x900-drivers.png",

@@ -40,6 +40,18 @@ test('gold is one continuous canvas with seven anchors and five charts', () => {
   assert.doesNotMatch(html, /加仓|止盈|买入|卖出|减仓/);
 });
 
+test('framework renderers expose one named canvas region without nesting a main landmark', () => {
+  const cases = [
+    ['gold', goldTestData(), '黄金研究画布'],
+    ['dollar', dollarTestData(), '美元流动性研究画布'],
+  ];
+  for (const [slug, data, label] of cases) {
+    const html = renderFrameworks({ slug, data });
+    assert.match(html, new RegExp(`<section class="framework-canvas" aria-label="${label}">`));
+    assert.doesNotMatch(html, /<main class="framework-canvas">/);
+  }
+});
+
 test('each Lieflat chart states a conclusion, source and encoding', () => {
   const html = renderFrameworks({ slug: 'gold', data: goldTestData() });
   assert.match(html, /最新值/);
@@ -55,7 +67,8 @@ test('each Lieflat chart states a conclusion, source and encoding', () => {
 test('framework bot exposes explain, verify, busy and stale states', () => {
   const data = goldTestData();
   const closed = renderFrameworks({ slug: 'gold', data, bot: { open: false } });
-  assert.match(closed, /data-framework-bot-open/);
+  assert.match(closed, /data-framework-bot-open aria-label="问当前框架"/);
+  assert.match(closed, /<\/section><button class="framework-bot-launch"[\s\S]*<\/button><\/div>\s*<\/article>$/);
   const open = renderFrameworks({ slug: 'gold', data, bot: { open: true, mode: 'explain', sessionId: 's', busy: true, draft: '' } });
   assert.match(open, /无工具解释/);
   assert.match(open, /DSH 正在处理/);
@@ -117,6 +130,10 @@ test('framework API keeps snapshot binding and idempotency headers', async () =>
 test('responsive and reduced-motion contracts cover anchor rail, charts and bot', async () => {
   const css = await readFile(new URL('../../app/research_web/ui/appearance.css', import.meta.url), 'utf8');
   assert.match(css, /\.framework-anchor-rail a[^}]+min-height:\s*44px/s);
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]+\.framework-hero\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]+\.framework-bot-launch\s*\{[^}]*width:\s*44px[^}]*min-width:\s*44px[^}]*height:\s*44px/s);
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]+\.framework-bot-launch\s*\{[^}]*position:\s*sticky[^}]*grid-column:\s*2/s);
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]+\.framework-bot-launch strong[^}]+display:\s*none/s);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]+\.framework-bot/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]+\.lf-draw/);
 });
