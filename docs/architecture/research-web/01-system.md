@@ -15,6 +15,9 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 干净用户目录会先从固定 DSH 模板初始化 `web` Profile，再加入 Tabbit 层；Windows Profile 的 pnpm
 目录 junction 与 POSIX symlink 一样必须解析回固定源码树。Windows 服务归属使用 CIM 命令行核对、
 无 shell PowerShell PID 探针和 `taskkill /T`，POSIX 继续使用进程组并把僵尸状态视为已退出。
+显式 `--repair` 复用安装器自有 `.venv` 前先做 15 秒 pip 探测；不可响应时保留 `.venv.failed-*`
+并原子重建。安装清单只在 checkout 的 `app.research_web.main:app` 于 300 秒内真实导入后写为
+`installed`，因此依赖文件存在但 Web 源码仍不可读取时不会误报安装完成。
 
 研究框架由同一 Research Web 服务内的薄注册表暴露 Gold 与 Dollar；目录、调度生命周期、快照存储和新鲜度协议共享，定义、契约、采集、评分、上下文与前端 renderer 保持领域专属。它不增加独立进程、数据库或资产详情服务，浏览器 GET 只读取已保存快照，不触发外网采集。
 

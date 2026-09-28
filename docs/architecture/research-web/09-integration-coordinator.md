@@ -12,6 +12,8 @@ Node 选择与 Runtime build lock 的一致性只决定 3081 是否可安全启�
 授权或 Provider 可调用结论。
 纯 `rwb web status` 的导入不创建协调器，也不加载 Capability、MCP 或 DataHub Runtime 功能图；
 Doctor、start 与 8088 Host 仍在各自既有边界内加载并验证这些组件。
+安装阶段的 Web import readiness 不运行 lifespan 或协调器启动探测，不读取凭据，也不把任何来源
+从已安装提升为已配置、已验证或当前可调用。
 
 ## 目标
 

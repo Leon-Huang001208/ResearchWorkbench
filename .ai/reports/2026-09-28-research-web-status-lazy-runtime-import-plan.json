@@ -3,17 +3,19 @@
   "risk": "full-delivery",
   "requiredLevel": "L4",
   "changeSummary": {
-    "fileCount": 16,
+    "fileCount": 19,
     "ruleIds": [
       "documentation",
       "research-web",
       "research-web-service-lifecycle-delivery",
+      "research-web-installation",
       "research-web-service-manager"
     ],
     "impactIds": [
       "documentation",
       "research-web",
-      "research-web-service-lifecycle"
+      "research-web-service-lifecycle",
+      "web-installation"
     ]
   },
   "changedFiles": [
@@ -31,8 +33,11 @@
     "docs/architecture/research-web/09-integration-coordinator.md",
     "docs/architecture/research-web/readme-review.json",
     "docs/generated/py_file_index.md",
+    "docs/research-web-installation.md",
     "docs/research-web-tabbit.md",
-    "tests/research_web/test_service_manager.py"
+    "scripts/setup_web.py",
+    "tests/research_web/test_service_manager.py",
+    "tests/research_web/test_setup_web.py"
   ],
   "impact": [
     {
@@ -186,6 +191,16 @@
       "minimumLevel": "L0"
     },
     {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
       "path": "docs/research-web-tabbit.md",
       "rule": "documentation",
       "reason": "documentation_only",
@@ -196,6 +211,16 @@
       "minimumLevel": "L0"
     },
     {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
       "path": "tests/research_web/test_service_manager.py",
       "rule": "research-web-service-manager",
       "reason": "research_web_service_manager_change",
@@ -204,6 +229,16 @@
       ],
       "coupling": "low",
       "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
     }
   ],
   "reasons": [
@@ -283,19 +318,40 @@
       "code": "documentation_only"
     },
     {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
       "path": "docs/research-web-tabbit.md",
       "rule": "documentation",
       "code": "documentation_only"
     },
     {
+      "path": "scripts/setup_web.py",
+      "rule": "research-web-installation",
+      "code": "research_web_installation_change"
+    },
+    {
       "path": "tests/research_web/test_service_manager.py",
       "rule": "research-web-service-manager",
       "code": "research_web_service_manager_change"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation",
+      "code": "research_web_installation_change"
     }
   ],
   "escalations": [
     {
       "code": "validation_failure",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    },
+    {
+      "code": "unexpected_behavior",
       "fromLevel": "L4",
       "toLevel": "L4",
       "impacts": []
@@ -333,6 +389,13 @@
         "execution": "local",
         "category": "tests",
         "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
+      },
+      {
+        "id": "research-web-installation",
+        "level": "L1",
+        "execution": "local",
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_setup_web.py --confcutdir=tests/research_web"
       }
     ],
     "L2": [
@@ -419,6 +482,13 @@
       "execution": "local",
       "category": "tests",
       "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-installation",
+      "level": "L1",
+      "execution": "local",
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_setup_web.py --confcutdir=tests/research_web"
     }
   ],
   "documentation": [
@@ -477,8 +547,11 @@
       "docs/architecture/research-web/09-integration-coordinator.md",
       "docs/architecture/research-web/readme-review.json",
       "docs/generated/py_file_index.md",
+      "docs/research-web-installation.md",
       "docs/research-web-tabbit.md",
-      "tests/research_web/test_service_manager.py"
+      "scripts/setup_web.py",
+      "tests/research_web/test_service_manager.py",
+      "tests/research_web/test_setup_web.py"
     ],
     "requiredValidationIds": [
       "research-web-architecture",
@@ -486,6 +559,7 @@
       "research-web-verification-full",
       "research-web-service-manager",
       "research-web-critical-smoke",
+      "research-web-installation",
       "documentation-governance",
       "python-file-index"
     ],

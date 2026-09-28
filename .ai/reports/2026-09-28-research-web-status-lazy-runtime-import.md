@@ -1,82 +1,113 @@
-# Research Web status lazy runtime import
+# Research Web status import and owned-environment recovery
 
 ## Scope and reproduction
 
 The P0 audit found that the first `./rwb web status` invocation could take about 30 seconds even when both
-managed services were stopped. The interrupted stack was reading
-`app/research_web/capabilities/packages.py` through this eager import chain:
+managed services were stopped. The interrupted stack was reading capability packages through this eager chain:
 
 ```text
 service_manager -> launch_runtime -> capabilities.catalog -> capabilities.packages
 ```
 
-The `status()` path does not prepare the DSH runtime, enumerate capabilities, or calculate the DSH build
-closure. It only needs the pinned commit to derive the default runtime path and validate owned runtime state.
-Warm measurements still showed `service_manager` import at about 0.59 seconds, including about 0.28 seconds
-inside `launch_runtime` and its FastAPI, MCP, DataHub, and capability dependencies.
+The status path does not prepare DSH, enumerate capabilities, or calculate the DSH build closure. It only needs
+the pinned commit to derive the default runtime path and validate owned state. Warm measurements still showed
+`service_manager` import at about 0.59 seconds, including about 0.28 seconds inside `launch_runtime` and its
+FastAPI, MCP, DataHub, and capability dependencies.
 
-## Minimal repair
+## Repairs
 
 - Move the shared pinned DSH commit to the lightweight `app.research_web` package root while preserving the
   existing `PINNED_COMMIT` exports in both consumers.
-- Keep `calculate_build_closure()` available at the existing service-manager seam, but import its implementation
-  only when Doctor or installation diagnosis actually requests the DSH closure.
-- Add a subprocess regression test proving that importing `service_manager` does not load `launch_runtime`,
-  capability packages, or MCP routes.
+- Keep `calculate_build_closure()` at the existing service-manager seam, but import its implementation only when
+  Doctor or installation diagnosis requests the DSH closure.
+- Add a fresh-subprocess regression proving `service_manager` import does not load `launch_runtime`, capability
+  packages, or MCP routes.
+- Make explicit `--repair` test pip responsiveness for 15 seconds before reusing an installer-owned `.venv`.
+  An unresponsive environment is preserved as `.venv.failed-<id>` and replaced through the existing staging
+  transaction; unowned environments remain fail-closed.
+- Before writing an `installed` manifest, use the new environment to import the checkout's
+  `app.research_web.main:app` with a 300-second bound. This materializes cold FileProvider source reads during
+  installation and returns `python_web_import_failed` instead of deferring the failure to `start`.
 
-The change does not alter service ownership checks, PID handling, ports, HTTP health, DSH health, Doctor build
-attestation, start/stop/restart behavior, public commands, or response formatting.
+Service ownership, PID checks, ports, HTTP/DSH health, Doctor build attestation, public commands, and response
+formats remain unchanged. The existing repair/install transaction is stronger before service lifecycle execution.
 
 ## TDD and observed behavior
 
-- RED: the new subprocess assertion failed because `app.research_web.launch_runtime` was present in
-  `sys.modules` immediately after importing `service_manager`.
-- GREEN: the same assertion passed after the import boundary change.
-- Direct import improved from about 0.59 seconds to 0.18 seconds in the observed warm-cache comparison.
-- Three real stopped-service status invocations completed in 0.34, 0.28, and 0.25 seconds and continued to
-  report Runtime 3081 and Web 8088 as stopped.
-- No Python package or runtime dependency was installed; an existing development environment backup supplied
-  the local pytest runner.
+- RED: importing `service_manager` loaded `app.research_web.launch_runtime`; GREEN keeps the entire runtime
+  feature graph absent. Direct import improved from about 0.59 seconds to 0.18 seconds.
+- Three stopped-service status calls completed in 0.34, 0.28, and 0.25 seconds with the existing output contract.
+- The authorized first `setup-web --no-start` attempt reproduced the owned-environment gap: pip could not respond
+  within the existing 120-second uninstall step and returned `python_root_uninstall_failed`, while Doctor still
+  projected the old manifest as ready.
+- RED proved `prepare_environment(repair=True)` reused an environment whose Python existed but whose pip was
+  unresponsive. GREEN preserves that environment and creates a replacement; the full setup suite passed 32/32.
+- The first Web start after dependency repair exposed a second gap: Runtime became healthy, but cold checkout
+  imports exceeded the 35-second Web window. A diagnostic import advanced through real source modules and
+  completed in 235.68 seconds, proving FileProvider cold reads rather than a deadlock.
+- RED proved installation had no Web entrypoint readiness step. GREEN added the bounded source import and install
+  orchestration contract; the full setup suite passed 33/33.
+- Targeted Ruff, Black, isort, and `git diff --check` passed for both Python repair slices.
 
 ## Incremental validation
 
-The complete changed set is routed to L4 because `service_manager.py` owns the Research Web service lifecycle.
-The first L0 attempt correctly found the generated Python index stale after the import boundary changed. The
-index was regenerated and the plan was rerun with `validation_failure`. The next L2 attempt correctly required
-this task report and an updated README review receipt; both failures remain part of the evidence trail.
+The complete set is routed to L4 because `service_manager.py` owns the service lifecycle and `setup_web.py` owns
+the public clean-install contract. Earlier validation correctly found a stale Python index and missing
+documentation/architecture receipts; both failures were preserved and replanned with `validation_failure`.
+Live Mac acceptance then exposed the two installation failures above, so the final plan also records
+`unexpected_behavior`.
 
-The complete 16-path plan includes source, focused test, mapped architecture documents, README review, generated
-index, report, plan, and receipt. The final local closure passed:
+The original 16-path status-only closure passed before live Mac acceptance. The final 19-path plan additionally
+includes `scripts/setup_web.py`, its focused test, and the installation document. The expanded local closure
+passed:
 
 | Plan ID | Level | Result | Duration |
 | --- | --- | --- | ---: |
-| `documentation-governance` | L0 | passed; 509 files, 71 current, 0 violations | 0.16 s |
-| `python-file-index` | L0 | passed; generated index verified | 1.18 s |
-| `research-web-architecture` | L1 | passed; 62/62 | 3.06 s |
-| `research-web-service-manager` | L1 | passed; 58/58 | 1.12 s |
-| `project-constraints-local` | L2 | passed; 16 paths, 0 violations | 0.13 s |
-| `research-web-critical-smoke` | L3 | passed; 19/19 | 0.47 s |
-| `research-web-verification-full` | L4 | passed; 80/80 | 3.05 s |
+| `documentation-governance` | L0 | passed; 509 files, 71 current, 0 violations | 0.15 s |
+| `python-file-index` | L0 | passed; generated index verified | 1.04 s |
+| `research-web-architecture` | L1 | passed; 62/62 | 2.66 s |
+| `research-web-service-manager` | L1 | passed; 58/58 | 0.72 s |
+| `research-web-installation` | L1 | passed; 33/33 | 3.81 s |
+| `project-constraints-local` | L2 | passed; 19 paths, 0 violations | 0.13 s |
+| `research-web-critical-smoke` | L3 | passed; 19/19 | 0.40 s |
+| `research-web-verification-full` | L4 | passed; 80/80 | 2.62 s |
 
-Targeted Ruff, Black, isort, and `git diff --check` also passed. A worktree Doctor run still performed the full
-DSH closure check (`dsh.ready=true`, `runtime_lock_matches=true`) in 11.91 seconds; it correctly reported the
-isolated worktree checkout as not installed (`environment_not_owned`, `cjpy_not_ready`) rather than claiming the
-shared main-checkout environment. The receipt remains `blocked` until all three required external gates pass.
+The receipt remains blocked until all required external gates pass.
+
+## Local macOS installation and lifecycle
+
+- `./setup-web.sh --repair --no-start` preserved the broken environment as
+  `.venv.failed-99733fec859740e896fbf76d6c78f375`, recreated `.venv`, installed the hash-locked Web closure,
+  verified CJPY 0.5.2 and the pinned DSH closure, and completed with `started:false`.
+- Re-running the same public repair entry after the Web import gate landed completed successfully and wrote an
+  installation manifest for code commit `fe3d8d1bc61fd28ca9c9d286d65dc2d40f2d13f2`.
+- Doctor returned `ok:true`, no issues, `dsh.ready=true`, and `runtime_lock_matches=true`.
+- Start completed in 10.03 seconds; restart in 9.97 seconds; stop removed both owned processes and closed
+  3081/8088; the subsequent start completed in 9.39 seconds.
+- Every running state returned Runtime API `connected=true` and `health_check_passed=true`.
+- The visible in-app browser opened FinGPT, rendered navigation, composer, model catalog, and Skill entries,
+  survived normal refresh and managed-restart refresh, showed connection refusal after stop, and recovered on
+  the next start.
+
 Windows Web automation is paused by project policy and is not part of this change's claims.
 
-An independent Python review found no Critical, Important, or Minor issue. It separately confirmed that the real
-CLI status path keeps the runtime feature graph unloaded, traced Doctor and start through the lazy closure seam,
+## Review boundary
+
+Independent Python review found no Critical or Important issue and declared the complete code Ready. Its only
+Minor noted that the unresponsive-pip test returned a nonzero code rather than raising the real timeout; the test
+now raises `subprocess.TimeoutExpired`, and the 33/33 setup suite passed again. The earlier status review also
+confirmed the real CLI keeps the runtime feature graph unloaded, traced Doctor and start through the lazy seam,
 and passed Runtime launch plus protocol tests 46/46. A supplemental mypy run produced no output for more than two
-minutes and was interrupted, so it is explicitly not reported as passed; mypy is not in this plan's required
-validation closure.
+minutes and was interrupted, so it is not reported as passed.
 
 ## Architecture and documentation review
 
 The Research Web process topology, loopback ports, public CLI and HTTP contracts, DSH launch contract, health
-model, capability graph, and installation flow are unchanged. The existing architecture documents therefore
-remain accurate. The generated Python index is updated because `service_manager` no longer has a top-level
-`launch_runtime` import and now exposes the lazy closure seam. The root README remains accurate for the same
-reason: user-visible setup and lifecycle commands did not change.
+model, and capability graph are unchanged. Installation keeps the same public entrypoints, locks, ownership
+marker, staging transaction, and fixed DSH; explicit repair now detects an unresponsive owned environment, and
+installation proves the Web entrypoint before publishing success. The generated Python index reflects the new
+installer probes and service-manager lazy seam. The root README remains accurate because user-visible commands
+did not change; detailed repair semantics live in the installation document.
 
-<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"The service manager keeps the existing CLI, process ownership, health, and Doctor contracts while deferring the DSH build scanner until installation diagnosis requests it; no API, service, storage, or topology edge changes.","diagrams":[]} -->
-<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"The DSH launcher retains the same pinned commit, preparation, capability, MCP, and execution behavior; only the service-manager import boundary stops loading the runtime feature graph during status-only commands.","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"The service manager keeps the existing CLI, process ownership, health, and Doctor contracts; installer repair and Web import readiness run before service creation and add no API, service, storage, or topology edge.","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"The DSH launcher retains the same pinned commit, capability, MCP, and execution behavior; repair preserves the existing environment transaction and the install import probe does not run Runtime or lifespan services.","diagrams":[]} -->

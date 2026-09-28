@@ -134,7 +134,7 @@ def test_web_import_readiness_uses_the_project_source_with_a_bounded_probe(
     project_root = tmp_path / "checkout"
     project_root.mkdir()
     installer = SetupWebInstaller(project_root=project_root, data_home=tmp_path / "data")
-    environment_python = project_root / ".venv/bin/python"
+    environment_python = installer._environment_python(project_root / ".venv")
     recorded: dict[str, object] = {}
 
     def record(command, *, cwd, environment, failure_code, timeout):
@@ -245,7 +245,7 @@ def test_repair_replaces_an_owned_environment_when_pip_is_unresponsive(
     def run(command, **options):
         recorded.append((list(command), int(options["timeout"])))
         if command[1:] == ["-m", "pip", "--version"]:
-            return subprocess.CompletedProcess(command, 1)
+            raise subprocess.TimeoutExpired(command, options["timeout"])
         destination = Path(command[-1])
         environment_python = installer._environment_python(destination)
         environment_python.parent.mkdir(parents=True)
