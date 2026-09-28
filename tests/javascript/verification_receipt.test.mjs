@@ -28,27 +28,40 @@ function validationMap(plan) {
 
 function validReceipt(plan) {
   const validations = validationMap(plan);
+  const realMachine = plan.receiptTemplate.releaseGateIds.map(id => ({
+    id,
+    status: "MANUAL_REQUIRED",
+    evidence: `logs/${id}-manual-required.log`,
+  }));
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     changeSummary: plan.changeSummary,
     changedFiles: plan.changedFiles,
     plannedLevel: plan.requiredLevel,
     actualLevel: plan.requiredLevel,
+    components: plan.components,
+    platforms: plan.platforms,
     impact: plan.impact,
     executed: plan.receiptTemplate.requiredValidationIds.map(id => ({
       id,
       level: validations.get(id).level,
-      status: "passed",
+      status: "PASS",
       durationSeconds: 1,
       evidence: `logs/${id}.log`,
     })),
     external: plan.receiptTemplate.externalGateIds.map(id => ({
       id,
-      status: plan.risk === "full-delivery" ? "passed" : "not_required",
+      status: "PASS",
       evidence: `logs/${id}.log`,
     })),
-    result: "passed",
-    uncoveredRisks: [...plan.uncoveredRisks],
+    realMachine,
+    result: "PASS",
+    mergeReady: true,
+    releaseReady: realMachine.length === 0,
+    uncoveredRisks: [
+      ...plan.uncoveredRisks,
+      ...realMachine.map(item => `real_machine_manual_required:${item.id}`),
+    ],
     escalation: {required: false, targetLevel: null, reasons: []},
   };
 }
@@ -58,8 +71,13 @@ function fixture(t, {plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   fs.mkdirSync(path.join(root, "logs"), {recursive: true});
   const actualReceipt = receipt ?? validReceipt(plan);
-  for (const item of [...actualReceipt.executed, ...actualReceipt.external]) {
+  for (const item of [
+    ...actualReceipt.executed,
+    ...actualReceipt.external,
+    ...(actualReceipt.realMachine ?? []),
+  ]) {
     const evidencePath = path.join(root, item.evidence);
+    fs.mkdirSync(path.dirname(evidencePath), {recursive: true});
     if (!fs.existsSync(evidencePath)) fs.writeFileSync(evidencePath, `${item.id}\n`);
   }
   fs.writeFileSync(path.join(root, "plan.json"), `${JSON.stringify(plan, null, 2)}\n`);
@@ -98,12 +116,111 @@ test("valid receipt proves every required validation and external gate", t => {
   const {root, plan} = fixture(t);
   const verdict = success(run(root));
   assert.deepEqual(verdict, {
-    schemaVersion: 1,
+    schemaVersion: 2,
     valid: true,
-    result: "passed",
+    result: "PASS",
     plannedLevel: plan.requiredLevel,
     actualLevel: plan.requiredLevel,
     executedCount: plan.receiptTemplate.requiredValidationIds.length,
+    externalCount: plan.receiptTemplate.externalGateIds.length,
+    realMachineCount: plan.receiptTemplate.releaseGateIds.length,
+    escalationRequired: false,
+    mergeReady: true,
+    releaseReady: true,
+  });
+});
+
+test("case G keeps required Windows CI NOT_RUN and blocks merge readiness", t => {
+  const plan = planFor(["setup-web.cmd"]);
+  const receipt = validReceipt(plan);
+  const windows = receipt.external.find(item => item.id === "research-web-windows-verify");
+  assert.ok(windows);
+  windows.status = "NOT_RUN";
+  windows.evidence = "logs/research-web-windows-verify-not-run.log";
+  receipt.result = "BLOCKED";
+  receipt.mergeReady = false;
+  receipt.releaseReady = false;
+  receipt.uncoveredRisks.push("external_gate_not_run:research-web-windows-verify");
+
+  const {root} = fixture(t, {plan, receipt});
+  const verdict = success(run(root));
+  assert.equal(verdict.result, "BLOCKED");
+  assert.equal(verdict.mergeReady, false);
+  assert.equal(verdict.releaseReady, false);
+});
+
+test("case H separates passed Windows CI from manual real-machine release evidence", t => {
+  const plan = planFor(["src-tauri/tauri.conf.json"]);
+  const receipt = validReceipt(plan);
+  assert.equal(receipt.external.find(item => item.id === "native-windows-desktop")?.status, "PASS");
+  assert.deepEqual(receipt.realMachine, [{
+    id: "windows-desktop-installation",
+    status: "MANUAL_REQUIRED",
+    evidence: "logs/windows-desktop-installation-manual-required.log",
+  }]);
+
+  const {root} = fixture(t, {plan, receipt});
+  const verdict = success(run(root));
+  assert.equal(verdict.result, "PASS");
+  assert.equal(verdict.mergeReady, true);
+  assert.equal(verdict.releaseReady, false);
+});
+
+test("receipt v2 rejects noncanonical and false-positive status projections", t => {
+  const plan = planFor(["setup-web.cmd"]);
+
+  const notRequired = validReceipt(plan);
+  notRequired.external[0].status = "NOT_REQUIRED";
+  failure(run(fixture(t, {plan, receipt: notRequired}).root), "RECEIPT_ERROR");
+
+  const lowercase = validReceipt(plan);
+  lowercase.executed[0].status = "passed";
+  failure(run(fixture(t, {plan, receipt: lowercase}).root), "RECEIPT_ERROR");
+
+  const falseReady = validReceipt(plan);
+  falseReady.external.find(item => item.id === "research-web-windows-verify").status = "NOT_RUN";
+  falseReady.result = "BLOCKED";
+  falseReady.releaseReady = false;
+  falseReady.uncoveredRisks.push("external_gate_not_run:research-web-windows-verify");
+  failure(run(fixture(t, {plan, receipt: falseReady}).root), "RECEIPT_ERROR");
+
+  const missingLane = validReceipt(plan);
+  missingLane.external.pop();
+  failure(run(fixture(t, {plan, receipt: missingLane}).root), "RECEIPT_ERROR");
+});
+
+test("real-machine PASS requires regular evidence", t => {
+  const plan = planFor(["src-tauri/tauri.conf.json"]);
+  const receipt = validReceipt(plan);
+  receipt.realMachine[0].status = "PASS";
+  receipt.realMachine[0].evidence = "logs/windows-real-machine-pass.log";
+  receipt.uncoveredRisks = receipt.uncoveredRisks.filter(
+    risk => risk !== "real_machine_manual_required:windows-desktop-installation",
+  );
+  receipt.releaseReady = true;
+  const {root} = fixture(t, {plan, receipt});
+  fs.rmSync(path.join(root, receipt.realMachine[0].evidence));
+  failure(run(root), "RECEIPT_ERROR");
+});
+
+test("legacy plan v2 and receipt v1 remain valid without rewriting", t => {
+  const plan = JSON.parse(fs.readFileSync(
+    path.join(repositoryRoot, ".ai/reports/incremental-validation-v2-small-plan.json"),
+    "utf8",
+  ));
+  const receipt = JSON.parse(fs.readFileSync(
+    path.join(repositoryRoot, ".ai/reports/incremental-validation-v2-small-receipt.json"),
+    "utf8",
+  ));
+  const {root} = fixture(t, {plan, receipt});
+  const verdict = success(run(root));
+  assert.deepEqual(verdict, {
+    schemaVersion: 1,
+    valid: true,
+    result: "passed",
+    plannedLevel: "L1",
+    actualLevel: "L1",
+    executedCount: 4,
     escalationRequired: false,
   });
 });
@@ -142,7 +259,7 @@ test("unknown validation id and level mismatch are rejected", t => {
   unknownReceipt.executed.push({
     id: "unplanned-suite",
     level: "L4",
-    status: "passed",
+    status: "PASS",
     durationSeconds: 1,
     evidence: "logs/unplanned-suite.log",
   });
@@ -174,7 +291,7 @@ test("actual level above planned level requires a newly planned receipt", t => {
 test("failed validation cannot be reported as passed", t => {
   const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
   const receipt = validReceipt(plan);
-  receipt.executed[0].status = "failed";
+  receipt.executed[0].status = "FAIL";
   receipt.escalation = {required: true, targetLevel: "L2", reasons: ["validation_failure"]};
   const {root} = fixture(t, {plan, receipt});
   failure(run(root), "RECEIPT_ERROR");
@@ -183,27 +300,25 @@ test("failed validation cannot be reported as passed", t => {
 test("blocked validation cannot be reported as passed", t => {
   const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
   const receipt = validReceipt(plan);
-  receipt.executed[0].status = "blocked";
+  receipt.executed[0].status = "BLOCKED";
   const {root} = fixture(t, {plan, receipt});
   failure(run(root), "RECEIPT_ERROR");
 });
 
-test("failure or unexpected behavior requires next-level escalation", t => {
+test("failed validation requires next-level escalation", t => {
   const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
-  for (const status of ["failed", "unexpected"]) {
-    const receipt = validReceipt(plan);
-    receipt.executed[0].status = status;
-    receipt.result = "failed";
-    const {root} = fixture(t, {plan, receipt});
-    failure(run(root), "RECEIPT_ERROR");
-  }
+  const receipt = validReceipt(plan);
+  receipt.executed[0].status = "FAIL";
+  receipt.result = "FAIL";
+  const {root} = fixture(t, {plan, receipt});
+  failure(run(root), "RECEIPT_ERROR");
 });
 
 test("insufficient escalation target is rejected", t => {
   const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
   const receipt = validReceipt(plan);
-  receipt.executed[0].status = "failed";
-  receipt.result = "failed";
+  receipt.executed[0].status = "FAIL";
+  receipt.result = "FAIL";
   receipt.escalation = {required: true, targetLevel: "L1", reasons: ["validation_failure"]};
   const {root} = fixture(t, {plan, receipt});
   failure(run(root), "RECEIPT_ERROR");
@@ -212,13 +327,15 @@ test("insufficient escalation target is rejected", t => {
 test("full-delivery external gate that was not run forces blocked result", t => {
   const plan = planFor([".agents/verification-policy.json"]);
   const receipt = validReceipt(plan);
-  receipt.external[0].status = "not_run";
+  receipt.external[0].status = "NOT_RUN";
   receipt.external[0].evidence = "logs/project-constraints-not-run.log";
-  receipt.result = "blocked";
+  receipt.result = "BLOCKED";
+  receipt.mergeReady = false;
+  receipt.releaseReady = false;
   receipt.uncoveredRisks.push(`external_gate_not_run:${receipt.external[0].id}`);
   const {root} = fixture(t, {plan, receipt});
   const verdict = success(run(root));
-  assert.equal(verdict.result, "blocked");
+  assert.equal(verdict.result, "BLOCKED");
 });
 
 test("symlinked plan and receipt inputs fail explicitly", t => {
