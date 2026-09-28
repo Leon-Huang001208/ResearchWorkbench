@@ -31,13 +31,14 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 | --- | --- | --- |
 | 文档、归档、报告 | Project Constraints（Ubuntu） | Bootstrap、Windows、Desktop、Tabbit |
 | 普通 Research Web／CLI | Research Web Checks（Ubuntu） | Bootstrap、Desktop；非 Windows 专属时不跑 Windows Verify |
-| 安装器、Web 锁、启动器、固定 DSH/CJPY、服务装配 | Research Web Checks + Bootstrap（自动 `macos-14`） | Windows Web 自动验证、Desktop |
-| Windows 路径、认证文件、本机集成、服务管理 | Research Web Checks；Windows Verify 仅用户显式 `workflow_dispatch` | Desktop |
+| 共享安装器、Web 锁、固定 DSH/CJPY、跨平台 runtime/服务装配 | Research Web Checks + Bootstrap（`macos-14`）+ Windows Verify（`windows-2022`） | Desktop |
+| macOS shell launcher | Research Web Checks + Bootstrap | Windows、Desktop |
+| Windows launcher、路径、认证文件、本机集成、编码/进程/服务管理 | Research Web Checks + Windows Verify | Bootstrap、Desktop |
 | Tabbit 平台合同 | 用户显式 `workflow_dispatch` | 普通 push／PR 自动触发 |
 | 桌面专属路径 | Desktop Verify | 普通 Web workflow 不能替代桌面门禁 |
 | Desktop Release | tag 或显式 dispatch | 普通 push |
 
-Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 当前只自动运行 `macos-14`；Windows Web workflow 保留原生 `windows-2022` 任务与 3 天证据，但仅在用户显式手动触发时运行。未执行的 Windows 任务不得写成已通过，且这一 Web 路由边界不改变 Desktop Verify 的独立 Windows 规则。
+Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 只运行 `macos-14`；Windows Web workflow 对平台敏感 changed set 条件自动运行原生 `windows-2022`，同时保留 `workflow_dispatch`。普通 UI、文档、纯 framework/DataHub 业务代码不得触发 Windows runner。Windows workflow 未选择时是 `NOT_REQUIRED`，已选择但未执行时是 `NOT_RUN`，均不得写成 `PASS`；Windows CI 也不能替代真实 Windows 安装、升级或 Office/Wind 验证。这一 Web 路由边界不改变 Desktop Verify 的独立原生双平台规则。
 Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
@@ -54,7 +55,7 @@ Research Web Checks 的 Python 部分固定为协议、集成协调、文档服�
 
 2026-09-17 先观测到 private 状态下 2,000 / 2,000 included minutes 和 billing-blocked，随后通过 GitHub API 确认仓库已改为 `PUBLIC`。提交 `76d1ea1053187569bb23d30f9a22b894ccbc0675` 的 Project Constraints、Research Web Checks 和 Bootstrap 双平台均正常启动并通过；repair 提交 `de39abcdbf3551c9985615e4cf80cd121a3a16b3` 的 Project Constraints、Research Web Checks 和 Windows Verify 也通过。因此当前状态是 `public-standard`，旧 billing-blocked 只作为历史证据保留，不再冻结标准 runner。
 
-本次文档修正就是计划中的 docs-only 观察性提交：它只能创建 Project Constraints。若出现 Research Web Checks、Bootstrap、Windows、Tabbit 或 Desktop run，视为路由回归并修复后再关闭任务。
+docs-only 提交只能创建 Project Constraints。若出现 Research Web Checks、Bootstrap、Windows、Tabbit 或 Desktop run，视为路由回归。平台敏感提交则以 `.agents/verification-policy.json` 和 workflow path 合同共同决定 Ubuntu、macOS、Windows 或真实设备责任，不从历史 run 推断当前 gate 已通过。
 
 ## 月度记录模板
 

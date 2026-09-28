@@ -8,13 +8,16 @@ Research Workbench acceptance closure. Read [SKILL.md](SKILL.md) before use.
 - The complete repository-relative changed-file set.
 - Optional runtime escalation signals: `validation_failure` or
   `unexpected_behavior`.
-- Actual command, CI, platform, duration, and evidence results.
+- Actual local, CI and real-machine status, duration, evidence and escalation results.
 
 ## Outputs
 
-- A schema-v2 JSON plan from `scripts/plan_verification.mjs`.
-- A JSON receipt containing actual executions, external gates, uncovered risks,
-  and escalation decisions.
+- A schema-v3 JSON plan containing components, risk/level, platforms and
+  local/CI/real-machine lanes from `scripts/plan_verification.mjs`.
+- A schema-v2 JSON receipt containing actual executions, CI gates,
+  real-machine release gates, merge/release readiness, uncovered risks and
+  escalation decisions. The validator remains read-only compatible with
+  historical plan-v2/receipt-v1 evidence.
 - A validator verdict from `scripts/validate_verification_receipt.mjs`.
 
 ## Safety boundaries
@@ -22,6 +25,10 @@ Research Workbench acceptance closure. Read [SKILL.md](SKILL.md) before use.
 This Skill cannot publish, cannot execute planned commands automatically, and
 cannot downgrade an L4 plan. The scripts never execute command strings stored
 in policy, plan, or receipt JSON. Missing impact mappings fail closed.
+
+Canonical receipt statuses are `PASS`, `FAIL`, `SKIPPED`, `NOT_REQUIRED`,
+`NOT_RUN`, `BLOCKED`, and `MANUAL_REQUIRED`. A selected required gate is proven
+only by `PASS`; Windows CI and Windows real-machine evidence remain separate.
 
 Policy rules may use a validated negative prefix (`excludePrefixes`) to declare
 a delegated namespace. If multiple delegated prefixes match, the longest one

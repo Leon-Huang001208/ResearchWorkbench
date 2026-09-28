@@ -24,6 +24,7 @@
 - `.gitattributes`, `.gitignore`: repository-wide line-ending and machine-state contracts.
 - `AGENTS.md`, `docs/AGENT_WORKFLOW.md`, `docs/DEVELOPMENT_MAP.md`, `docs/actions-budget.md`, `docs/README.md`: authoritative developer, platform, verification and operations guidance.
 - `.agents/skills/incremental-validation/SKILL.md`, `.agents/skills/incremental-validation/README.md`: project skill synchronized with the new plan/receipt contract.
+- `.claude/commands/verify-task.md`, `tests/javascript/incremental_validation_skill.test.mjs`: thin compatibility entry and its schema-v3 contract.
 - `.ai/reports/2026-09-28-platform-aware-minimal-acceptance*.json|md`: actual plan, receipt and evidence summary.
 
 ### Task 1: Freeze platform-aware planner behavior with failing tests
@@ -347,8 +348,11 @@ git commit -m "chore: standardize cross-platform Git semantics"
 - Modify: `docs/DEVELOPMENT_MAP.md`
 - Modify: `docs/actions-budget.md`
 - Modify: `docs/README.md`
+- Modify: `docs/research-web-documentation.md`
 - Modify: `.agents/skills/incremental-validation/SKILL.md`
 - Modify: `.agents/skills/incremental-validation/README.md`
+- Modify: `.claude/commands/verify-task.md`
+- Modify: `tests/javascript/incremental_validation_skill.test.mjs`
 
 - [ ] **Step 1: Update the authoritative Git/Worktree SOP**
 
@@ -374,7 +378,8 @@ Expected: documentation governance and skill contracts pass.
 - [ ] **Step 5: Commit documentation**
 
 ```bash
-git add AGENTS.md docs/AGENT_WORKFLOW.md docs/DEVELOPMENT_MAP.md docs/actions-budget.md docs/README.md .agents/skills/incremental-validation/SKILL.md .agents/skills/incremental-validation/README.md
+git add AGENTS.md docs/AGENT_WORKFLOW.md docs/DEVELOPMENT_MAP.md docs/actions-budget.md docs/README.md docs/research-web-documentation.md .agents/skills/incremental-validation/SKILL.md .agents/skills/incremental-validation/README.md tests/javascript/incremental_validation_skill.test.mjs
+git add -f .claude/commands/verify-task.md
 git commit -m "docs: define cross-platform development and acceptance"
 ```
 
@@ -445,6 +450,7 @@ node .agents/project-constraints.mjs --project . \
   --changed-file .agents/verification-policy.json \
   --changed-file .agents/skills/incremental-validation/README.md \
   --changed-file .agents/skills/incremental-validation/SKILL.md \
+  --changed-file .claude/commands/verify-task.md \
   --changed-file .ai/reports/2026-09-28-platform-aware-minimal-acceptance-plan.json \
   --changed-file .ai/reports/2026-09-28-platform-aware-minimal-acceptance-receipt.json \
   --changed-file .ai/reports/2026-09-28-platform-aware-minimal-acceptance.md \
@@ -457,6 +463,7 @@ node .agents/project-constraints.mjs --project . \
   --changed-file docs/DEVELOPMENT_MAP.md \
   --changed-file docs/README.md \
   --changed-file docs/actions-budget.md \
+  --changed-file docs/research-web-documentation.md \
   --changed-file docs/superpowers/plans/2026-09-28-platform-aware-minimal-acceptance.md \
   --changed-file docs/superpowers/specs/2026-09-28-platform-aware-minimal-acceptance-design.md \
   --changed-file scripts/plan_verification.mjs \

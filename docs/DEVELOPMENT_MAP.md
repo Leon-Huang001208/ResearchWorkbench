@@ -42,10 +42,11 @@
 - `AGENTS.md`：共享工程规则真身；`CLAUDE.md` 只保留 Claude 专属差异。
 - `docs/AGENT_WORKFLOW.md`：选择本地快环、worktree 或后台／远程执行。
 - `.agents/project-constraints.json`：架构、平台和文档治理门禁配置。
-- `.agents/verification-policy.json`：改动路径到影响、L0-L4、测试、文档和 CI 门的唯一机器真源。
-- `scripts/plan_verification.mjs`：只读合并全部改动的 Change → Impact → Validation 计划；不执行计划中的命令。
-- `scripts/validate_verification_receipt.mjs`：只读核对 plan 与真实 receipt，禁止漏项、降级、假通过和丢失外部门。
-- `tests/javascript/verification_policy.test.mjs`、`verification_receipt.test.mjs`：规划、升级、安全与证据合同。
+- `.agents/verification-policy.json`：改动路径到 Component × Risk(L0-L4) × Platform、local/CI/real-machine lane 和 merge/release gate 的唯一机器真源。
+- `scripts/plan_verification.mjs`：只读合并全部改动的 changed-set 计划；输出 components、platforms、逐级验证和三个 lane，不执行计划中的命令。
+- `scripts/validate_verification_receipt.mjs`：只读核对 plan 与真实 receipt，禁止漏项、降级、跨层假通过和错误的 merge/release readiness；继续只读兼容历史 plan v2/receipt v1。
+- `tests/javascript/verification_policy.test.mjs`、`verification_receipt.test.mjs`：规划、升级、平台、状态、安全与证据合同。
+- `tests/javascript/repository_cross_platform_contract.test.mjs`：Git 换行、vendor 字节稳定和本机状态忽略合同。
 - `.agents/skills/incremental-validation/`：Codex/Claude 共用的项目增量验收流程；只引用策略和脚本，不复制路由表。
 - `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。
@@ -65,6 +66,6 @@ python scripts/check_doc_sync.py --project . --base <base>
 node .agents/project-constraints.mjs --project . --changed-file <path>
 ```
 
-先对完整 changed set 重复传入 `--changed-file`，再按 `validationsByLevel` 从 L0 执行到 `requiredLevel`；多文件取最高风险并合并去重。局部失败或非预期行为必须带 signal 重新规划。receipt 保存摘要、影响、实际执行、结果、外部门、未覆盖风险和升级判断，并通过 validator 才能交接。Project Constraints 保持独立的架构/平台/文档门，不复制策略内容。
+先对完整 changed set 重复传入 `--changed-file`，再按 `validationsByLevel` 从 L0 执行到 `requiredLevel`；多文件取最高风险并合并去重。局部失败或非预期行为必须带 signal 重新规划。receipt 保存摘要、组件、平台、local/CI/real-machine 实际状态、`mergeReady`、`releaseReady`、未覆盖风险和升级判断，并通过 validator 才能交接。选中 gate 未运行时记录 `NOT_RUN` 或 `MANUAL_REQUIRED`，绝不写成 `PASS`。Project Constraints 保持独立的架构/平台/文档门，不复制策略内容。
 
 已知组件可以在策略中映射不同等级的候选验证：低等级只选择局部项，耦合或 signal 升级后才纳入依赖/smoke/full 项。未登记测试仍按 `unknown_path` 升级 L4/`full-delivery`，不得仅凭位于 `tests/` 目录推断低风险。
