@@ -623,6 +623,21 @@ class SetupWebInstaller:
             "cjpy_sha256": bundle["sha256"],
         }
 
+    def verify_web_import(self, environment_python: Path) -> None:
+        """Prove the installed interpreter can load the checkout's Web entrypoint."""
+        self._run_checked(
+            [
+                str(environment_python),
+                "-B",
+                "-c",
+                "from app.research_web.main import app; assert app is not None",
+            ],
+            cwd=self.project_root,
+            environment=self._python_subprocess_environment(),
+            failure_code="python_web_import_failed",
+            timeout=300,
+        )
+
     def _corepack_prefix(self) -> list[str]:
         if self.corepack_executable is not None and self.corepack_executable.is_file():
             return [str(self.corepack_executable)]
@@ -680,6 +695,32 @@ class SetupWebInstaller:
             return environment / "Scripts" / "python.exe"
         return environment / "bin" / "python"
 
+    def _environment_pip_ready(self, environment_python: Path) -> bool:
+        """Bound repair-mode reuse by the package manager needed for installation."""
+        try:
+            completed = subprocess.run(
+                [str(environment_python), "-m", "pip", "--version"],
+                cwd=self.project_root,
+                env=self._python_subprocess_environment(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=15,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            self.log.warning(
+                "setup_web_owned_environment_probe_failed",
+                extra={"error_type": type(exc).__name__},
+            )
+            return False
+        if completed.returncode != 0:
+            self.log.warning(
+                "setup_web_owned_environment_probe_failed",
+                extra={"return_code": completed.returncode},
+            )
+            return False
+        return True
+
     def _owned_environment(self, environment: Path) -> bool:
         marker = environment / ENVIRONMENT_MARKER
         try:
@@ -701,7 +742,9 @@ class SetupWebInstaller:
             if not self._owned_environment(self.venv):
                 raise RuntimeError("unowned_virtual_environment")
             environment_python = self._environment_python(self.venv)
-            if environment_python.is_file():
+            if environment_python.is_file() and (
+                not repair or self._environment_pip_ready(environment_python)
+            ):
                 return environment_python
             if not repair:
                 raise RuntimeError("owned_virtual_environment_broken")
@@ -1012,6 +1055,18 @@ class SetupWebInstaller:
         self._atomic_json(self.install_manifest, manifest)
         return manifest
 
+    def write_install_transaction_state(self) -> dict[str, object]:
+        """Invalidate any previous success before the installation mutates owned state."""
+        manifest: dict[str, object] = {
+            "schema_version": 1,
+            "status": "installing",
+            "code_commit": self._code_commit(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "last_diagnosis": "installing",
+        }
+        self._atomic_json(self.install_manifest, manifest)
+        return manifest
+
     def write_runtime_build_lock(self, *, dsh_state: dict[str, object]) -> dict[str, object]:
         """Publish the verified DSH closure consumed by the runtime launcher."""
         commit = dsh_state.get("commit")
@@ -1048,8 +1103,10 @@ class SetupWebInstaller:
             raise RuntimeError("unowned_virtual_environment")
         if blocking:
             raise RuntimeError(str(blocking[0]))
+        self.write_install_transaction_state()
         environment_python = self.prepare_environment(repair=repair)
         python_state = self.install_python_dependencies(environment_python)
+        self.verify_web_import(environment_python)
         dsh_state = self.provision_dsh(repair=repair)
         self.write_runtime_build_lock(dsh_state=dsh_state)
         manifest = self.write_install_manifest(

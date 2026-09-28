@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "本轮无需调整根 README，现有 Research Web 产品定位、安装与启动入口仍然准确。",
-  "reason": "本轮只规范化 AKShare 财务缺失哨兵并修正资产观察表格呈现；公开命令、安装前置条件、端口、产品入口和用户启动流程均未改变。"
+  "summary": "本轮无需调整根 README，现有 Research Web 产品定位、公开安装入口、状态诊断与服务管理命令仍然准确。",
+  "reason": "本轮让 web status 避免非必要 Runtime 功能图导入，并增强既有 --repair、Web import readiness 与陈旧安装清单失效的失败关闭行为；公开入口、锁定依赖、端口、产品导航和用户启动命令均未改变，详细修复语义已同步到安装文档。"
 }
