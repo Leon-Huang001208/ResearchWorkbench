@@ -110,6 +110,8 @@ Windows workflow 保留既有 local-integration test、loopback smoke 和三天�
 
 Desktop Verify/Release 的 job、runner、sidecar、数据库和打包逻辑不修改；policy 只显式投影既有 macOS 与 Windows gate，并新增真实 Windows 安装 release gate。
 
+若 native Windows CI 暴露现有 `rwb web` 进程生命周期缺陷，只允许最小修复已归属的 Web service-manager 边界：状态文件、PID、命令签名与强制失败的 fail-closed 语义不得放宽，修复必须有 Windows termination RED→GREEN，并同步 research-api 文档组。Desktop-owned runtime 不进入该修复范围。
+
 ## Git、Worktree 与文件语义
 
 `docs/AGENT_WORKFLOW.md` 成为设备、branch、worktree、verification、PR、merge 与 cleanup 的权威 SOP：

@@ -6,7 +6,7 @@
 - 基线：`6dee571f53de62faae7ac3bf22dda6b9607c839c`。
 - 实现位于外部 sparse worktree；主 checkout 的历史 untracked 文件未修改或清理。
 - Policy / planner：schema v3；receipt：schema v2；历史 plan v2 / receipt v1 继续只读兼容。
-- 当前 changed set：30 个精确仓库相对路径；最终 plan 为 `full-delivery / L4`。
+- 当前 changed set：40 个精确仓库相对路径；最终 plan 为 `full-delivery / L4`。
 - 当前外部状态：4 个 CI merge gate 均尚未运行；不能写成 `PASS`。本次未修改 Desktop-owned path，因此最终 plan 没有 real-machine release gate。
 
 ## A-F 真实 Planner 矩阵
@@ -46,7 +46,7 @@ Case D 没有 macOS Bootstrap；Case E 的 hosted CI 与 Windows Real Machine �
 
 - 初始 plan：26 files，L4；`documentation-governance=PASS`，第一次 `python-file-index` 在 sparse checkout 中因受管 Python 文件未全部检出而失败。
 - 诊断证据：仓库共有 1302 个 tracked Python 文件；生成器声明的 15 个源码目录在补充 sparse patterns 后逐目录 `tracked == actual`。未运行生成命令，没有制造错误索引 diff。
-- 按政策用 `--signal validation_failure` 重规划；最终 plan 包含 30 files，仍为 L4，记录 `validation_failure: L4 → L4`，local closure 未缩小。新增两份文件是 Project Constraints 明确要求同步的 documentation group 权威文件。
+- 按政策用 `--signal validation_failure` 重规划；最终 plan 包含 40 files，仍为 L4，记录 `validation_failure: L4 → L4`，local closure 未缩小。新增文件还包括 Windows stop 修复、service-manager 回归、完整 research-api 文档组与 README 复核回执。
 - 初始 plan 保存在 `2026-09-28-platform-aware-minimal-acceptance-initial-plan.json`，最终 signal plan 保存在 `2026-09-28-platform-aware-minimal-acceptance-plan.json`。
 
 ## 本地验证进度
@@ -61,7 +61,8 @@ Case D 没有 macOS Bootstrap；Case E 的 hosted CI 与 Windows Real Machine �
 | L1 | `repository-cross-platform-contracts` | PASS | 3/3 |
 | L1 | `research-web-local-integrations` | PASS after interpreter/environment correction | 45 passed、1 native-Windows skip、1 upstream warning；未安装依赖 |
 | L1 | `research-web-architecture` | PASS | 62/62 |
-| L2 | `project-constraints-local` | PASS | 30 checked files、0 violations；首次 sparse reference failure 后补检出受跟踪 artifact/vendor/entrypoint，并同步完整 documentation group |
+| L1 | `research-web-service-manager` | PASS | 59/59；Windows 非强制 taskkill 失败允许进入强制升级，强制失败仍 fail closed |
+| L2 | `project-constraints-local` | PASS | 40 checked files、0 violations；首次 sparse reference failure 后补检出受跟踪 artifact/vendor/entrypoint，并同步完整 documentation/research-api groups 与 README 复核回执 |
 | L3 | `research-web-critical-smoke` | PASS | 19/19 |
 | L4 | `research-web-verification-full` | PASS | 87/87；architecture、documentation governance、Actions routing、Git semantics |
 
@@ -69,7 +70,7 @@ Case D 没有 macOS Bootstrap；Case E 的 hosted CI 与 Windows Real Machine �
 
 执行技能的 `.superpowers` ledger 最初未被项目忽略；新增真实 `git check-ignore --no-index` RED 后，在 `.gitignore` 增加 `.superpowers/` 并复跑 Git semantics 3/3 GREEN。Ledger 是本机恢复状态，未进入提交。
 
-最终本地 closure 的 11 个 required IDs 均为 `PASS`。Receipt validator 对最终 plan/receipt 实际输出 `valid=true`、`result=BLOCKED`、planned/actual L4、executedCount 11、externalCount 4、realMachineCount 0、`mergeReady=false`、`releaseReady=false`（0.09s）。
+最终本地 closure 的 12 个 required IDs 均为 `PASS`。Receipt validator 对最终 plan/receipt 实际输出 `valid=true`、`result=BLOCKED`、planned/actual L4、executedCount 12、externalCount 4、realMachineCount 0、`mergeReady=false`、`releaseReady=false`。
 
 ## 外部 Gate 与交付状态
 
@@ -100,6 +101,12 @@ Fresh Code Reviewer 对 `6dee571f5..158463f69` 做只读 whole-branch review，�
 
 Fix pass 后最终回归：Node 六组 173/173；Python local integrations 45 passed / 1 native-Windows skip，protocol 19/19；L4 full relevant 87/87。未运行的真实 GitHub Windows job 仍保持 `NOT_RUN`。
 
+## PR #74 首轮 Windows CI 与修复
+
+PR #74 首轮 head `e926930cb` 的 Project Constraints、Research Web Checks 和 macOS Bootstrap 通过。Windows run `36393593463` 的公开 `setup-web.cmd --no-start`、`rwb.cmd web start --no-open` 与 `doctor --json` 均通过；Doctor 证实 Python 3.12.10、Node 22.19.0、CJPY 0.5.2、固定 DSH 和 8088/3081 健康。随后 `rwb.cmd web stop` 在 1.65 秒内返回“无法停止 Windows 服务进程树”，后续 Windows contracts 被跳过。
+
+根因是 `_terminate_pid(force=False)` 对非强制 `taskkill /T` 的任何非零结果立即抛错，使 `_stop_one` 无法进入既有等待与 `/F` 强制升级。新增 RED 后将抛错条件收窄为 `force=true` 且 PID 仍存活；非强制失败现在进入既有升级流程，强制失败继续 fail closed。定点回归 2/2、完整 service-manager 59/59。当前修复 head 尚需新的 GitHub Windows run，因此四个 hosted gates 在最新 receipt 中重新保持 `NOT_RUN`。
+
 ## 架构与平台边界
 
 - 本次改变验证策略、只读 planner/validator、Web workflow triggers、Git 文件语义和开发者文档，不改变 Research Web API、DSH 研究引擎、数据模型或运行时拓扑。
@@ -108,3 +115,4 @@ Fix pass 后最终回归：Node 六组 173/173；Python local integrations 45 pa
 - 没有 push、PR、workflow dispatch、merge、tag 或 release。
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"This change formalizes verification, Git workflow and platform evidence contracts without changing Research Web product topology, API ownership, runtime components or data flow.","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"Windows graceful process-tree termination now reaches the existing forced owned-process escalation; Research Web services, APIs, runtime topology and ownership checks remain unchanged.","diagrams":[]} -->

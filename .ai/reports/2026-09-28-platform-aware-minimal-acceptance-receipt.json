@@ -1,14 +1,17 @@
 {
   "schemaVersion": 2,
   "changeSummary": {
-    "fileCount": 30,
+    "fileCount": 40,
     "ruleIds": [
       "ci",
       "documentation",
       "repository-git-semantics",
       "research-web-ci",
       "critical-chain",
-      "research-web-local-integrations"
+      "research-web",
+      "research-web-service-lifecycle-delivery",
+      "research-web-local-integrations",
+      "research-web-service-manager"
     ],
     "impactIds": [
       "verification-system",
@@ -16,6 +19,8 @@
       "repository-git-semantics",
       "research-web-verification",
       "critical-chain",
+      "research-web",
+      "research-web-service-lifecycle",
       "research-web-local-integrations"
     ]
   },
@@ -33,13 +38,22 @@
     ".github/workflows/research-web-windows-verify.yml",
     ".gitignore",
     "AGENTS.md",
+    "app/research_web/service_manager.py",
     "docs/AGENT_WORKFLOW.md",
     "docs/DEVELOPMENT_MAP.md",
     "docs/README.md",
     "docs/actions-budget.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
     "docs/architecture/research-web/06-documentation-contract.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/09-integration-coordinator.md",
+    "docs/architecture/research-web/readme-review.json",
     "docs/documentation-governance.json",
     "docs/research-web-documentation.md",
+    "docs/research-web-tabbit.md",
     "docs/superpowers/plans/2026-09-28-platform-aware-minimal-acceptance.md",
     "docs/superpowers/specs/2026-09-28-platform-aware-minimal-acceptance-design.md",
     "scripts/plan_verification.mjs",
@@ -49,7 +63,8 @@
     "tests/javascript/repository_cross_platform_contract.test.mjs",
     "tests/javascript/verification_policy.test.mjs",
     "tests/javascript/verification_receipt.test.mjs",
-    "tests/research_web/test_local_integrations.py"
+    "tests/research_web/test_local_integrations.py",
+    "tests/research_web/test_service_manager.py"
   ],
   "plannedLevel": "L4",
   "actualLevel": "L4",
@@ -59,6 +74,8 @@
     "repository-git-semantics",
     "research-web-verification",
     "critical-chain",
+    "research-web",
+    "research-web-service-lifecycle",
     "research-web-local-integrations"
   ],
   "platforms": [
@@ -260,6 +277,26 @@
       "minimumLevel": "L0"
     },
     {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web-service-lifecycle-delivery",
+      "reason": "research_web_service_lifecycle_delivery",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
       "path": "docs/AGENT_WORKFLOW.md",
       "rule": "documentation",
       "reason": "documentation_only",
@@ -300,7 +337,77 @@
       "minimumLevel": "L0"
     },
     {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
       "path": "docs/architecture/research-web/06-documentation-contract.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
       "rule": "documentation",
       "reason": "documentation_only",
       "modules": [
@@ -321,6 +428,16 @@
     },
     {
       "path": "docs/research-web-documentation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
       "rule": "documentation",
       "reason": "documentation_only",
       "modules": [
@@ -428,6 +545,16 @@
       ],
       "coupling": "high",
       "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_service_manager.py",
+      "rule": "research-web-service-manager",
+      "reason": "research_web_service_manager_change",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
     }
   ],
   "executed": [
@@ -435,77 +562,84 @@
       "id": "verification-policy-contracts",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 4.965795292,
+      "durationSeconds": 7.376265458,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "verification-receipt-contracts",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 2.966046667,
+      "durationSeconds": 3.843902167,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "incremental-validation-skill-contracts",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 0.214136125,
+      "durationSeconds": 0.496527958,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "research-web-verification-full",
       "level": "L4",
       "status": "PASS",
-      "durationSeconds": 2.221248875,
+      "durationSeconds": 6.639291416,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "repository-cross-platform-contracts",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 1.110826041,
+      "durationSeconds": 1.636642709,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "research-web-local-integrations",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 17.603533625,
+      "durationSeconds": 25.1253315,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "project-constraints-local",
       "level": "L2",
       "status": "PASS",
-      "durationSeconds": 0.329681333,
+      "durationSeconds": 0.432439208,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "research-web-architecture",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 3.75065875,
+      "durationSeconds": 6.77582175,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "research-web-critical-smoke",
       "level": "L3",
       "status": "PASS",
-      "durationSeconds": 1.182945167,
+      "durationSeconds": 2.135258375,
+      "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 3.848426166,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "documentation-governance",
       "level": "L0",
       "status": "PASS",
-      "durationSeconds": 0.239243333,
+      "durationSeconds": 0.295087875,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "python-file-index",
       "level": "L0",
       "status": "PASS",
-      "durationSeconds": 1.363023083,
+      "durationSeconds": 1.506544208,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     }
   ],

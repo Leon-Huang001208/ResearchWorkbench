@@ -22,6 +22,7 @@
 - `tests/javascript/repository_cross_platform_contract.test.mjs`: `.gitattributes` and `.gitignore` behavior.
 - `.github/workflows/research-web-bootstrap.yml`: macOS-only and shared platform-sensitive automatic routing.
 - `.github/workflows/research-web-windows-verify.yml`: conditional Windows automatic routing, retained manual dispatch, public setup/rwb smoke and existing local-integration contracts.
+- `app/research_web/service_manager.py`, `tests/research_web/test_service_manager.py`: Windows graceful-to-forced owned-process termination and regression coverage discovered by native CI.
 - `.gitattributes`, `.gitignore`: repository-wide line-ending and machine-state contracts.
 - `AGENTS.md`, `docs/AGENT_WORKFLOW.md`, `docs/DEVELOPMENT_MAP.md`, `docs/actions-budget.md`, `docs/README.md`: authoritative developer, platform, verification and operations guidance.
 - `.agents/skills/incremental-validation/SKILL.md`, `.agents/skills/incremental-validation/README.md`: project skill synchronized with the new plan/receipt contract.
@@ -466,13 +467,22 @@ node .agents/project-constraints.mjs --project . \
   --changed-file .github/workflows/research-web-windows-verify.yml \
   --changed-file .gitignore \
   --changed-file AGENTS.md \
+  --changed-file app/research_web/service_manager.py \
   --changed-file docs/AGENT_WORKFLOW.md \
   --changed-file docs/DEVELOPMENT_MAP.md \
   --changed-file docs/README.md \
   --changed-file docs/actions-budget.md \
+  --changed-file docs/architecture/research-web/01-system.md \
+  --changed-file docs/architecture/research-web/02-research-runtime.md \
+  --changed-file docs/architecture/research-web/04-api.md \
+  --changed-file docs/architecture/research-web/05-security-validation.md \
   --changed-file docs/research-web-documentation.md \
   --changed-file docs/documentation-governance.json \
   --changed-file docs/architecture/research-web/06-documentation-contract.md \
+  --changed-file docs/architecture/research-web/08-research-frameworks.md \
+  --changed-file docs/architecture/research-web/09-integration-coordinator.md \
+  --changed-file docs/architecture/research-web/readme-review.json \
+  --changed-file docs/research-web-tabbit.md \
   --changed-file docs/superpowers/plans/2026-09-28-platform-aware-minimal-acceptance.md \
   --changed-file docs/superpowers/specs/2026-09-28-platform-aware-minimal-acceptance-design.md \
   --changed-file scripts/plan_verification.mjs \
@@ -482,7 +492,8 @@ node .agents/project-constraints.mjs --project . \
   --changed-file tests/javascript/repository_cross_platform_contract.test.mjs \
   --changed-file tests/javascript/verification_policy.test.mjs \
   --changed-file tests/javascript/verification_receipt.test.mjs \
-  --changed-file tests/research_web/test_local_integrations.py
+  --changed-file tests/research_web/test_local_integrations.py \
+  --changed-file tests/research_web/test_service_manager.py
 git diff --check 6dee571f53de62faae7ac3bf22dda6b9607c839c..HEAD
 ```
 
@@ -497,3 +508,40 @@ Record only observed local verification results and measured durations. Because 
 - [ ] **Step 5: Hand off PR-ready state**
 
 Report branch, worktree, commits, changed files, actual commands, test counts, unrun external gates, `mergeReady`, `releaseReady`, and the separate authorization needed for push/PR/dispatch/merge/cleanup.
+
+### Task 10: Close the first native Windows PR failure
+
+**Files:**
+- Modify: `app/research_web/service_manager.py`
+- Modify: `tests/research_web/test_service_manager.py`
+- Modify: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance.md`
+- Modify: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance-plan.json`
+- Modify: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance-receipt.json`
+- Modify: `docs/architecture/research-web/01-system.md`
+- Modify: `docs/architecture/research-web/02-research-runtime.md`
+- Modify: `docs/architecture/research-web/04-api.md`
+- Modify: `docs/architecture/research-web/05-security-validation.md`
+- Modify: `docs/architecture/research-web/08-research-frameworks.md`
+- Modify: `docs/architecture/research-web/09-integration-coordinator.md`
+- Modify: `docs/architecture/research-web/readme-review.json`
+- Modify: `docs/research-web-tabbit.md`
+
+- [ ] **Step 1: Preserve the failed native receipt**
+
+Record PR #74 run `36393593463`: public install/start/doctor passed; `rwb.cmd web stop` failed before Windows contracts, so Windows remains FAIL/NOT_RUN rather than PASS.
+
+- [ ] **Step 2: Add Windows process-tree RED**
+
+Require a failed non-forced `taskkill /T` to return control to `_stop_one` for its existing wait and `/F` escalation, while a failed forced taskkill with a live PID still raises `ServiceManagerError`.
+
+- [ ] **Step 3: Implement the minimal ownership-preserving fix**
+
+Only raise immediately for a nonzero forced taskkill when the PID remains live. Keep state-file, PID and command-signature ownership checks unchanged.
+
+- [ ] **Step 4: Run local closure and update evidence**
+
+Run the two targeted Windows termination tests, full `test_service_manager.py`, every validation from the regenerated complete changed-set plan, receipt validator, documentation governance and Project Constraints. Keep all hosted gates `NOT_RUN` for the new unpushed head.
+
+- [ ] **Step 5: Push the fix and observe the new PR checks**
+
+Push without force. Do not rerun the obsolete failed run; wait for the new head's automatic Project Constraints, Research Web Checks, macOS Bootstrap and Windows Verify receipts.
