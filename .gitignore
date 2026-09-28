@@ -9,6 +9,7 @@ rag/cache/
 
 # Python
 __pycache__/
+.venv*/
 *.pyc
 *.pyo
 *.egg-info/
@@ -64,6 +65,7 @@ backup/
 
 # Claude Code
 .claude/
+.codex/
 .worktrees/
 .ai/*
 !.ai/reports/
