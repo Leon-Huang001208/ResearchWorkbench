@@ -26,7 +26,7 @@ Case D 没有 macOS Bootstrap；Case E 的 hosted CI 与 Windows Real Machine �
 
 ## G-H Receipt 语义
 
-`node --test tests/javascript/verification_receipt.test.mjs` 实测 21/21 通过，其中：
+`node --test tests/javascript/verification_receipt.test.mjs` 最终实测 22/22 通过，其中：
 
 - G：必需 `research-web-windows-verify=NOT_RUN` 时，validator 返回 `result=BLOCKED`、`mergeReady=false`、`releaseReady=false`，并要求 `external_gate_not_run:research-web-windows-verify`。
 - H：`native-windows-desktop=PASS` 且 `windows-desktop-installation=MANUAL_REQUIRED` 时，validator 返回 `result=PASS`、`mergeReady=true`、`releaseReady=false`。它不会输出单一的 “Windows PASS”。
@@ -63,7 +63,7 @@ Case D 没有 macOS Bootstrap；Case E 的 hosted CI 与 Windows Real Machine �
 | L1 | `research-web-architecture` | PASS | 62/62 |
 | L2 | `project-constraints-local` | PASS | 30 checked files、0 violations；首次 sparse reference failure 后补检出受跟踪 artifact/vendor/entrypoint，并同步完整 documentation group |
 | L3 | `research-web-critical-smoke` | PASS | 19/19 |
-| L4 | `research-web-verification-full` | PASS | 84/84；architecture、documentation governance、Actions routing、Git semantics |
+| L4 | `research-web-verification-full` | PASS | 87/87；architecture、documentation governance、Actions routing、Git semantics |
 
 第一次 Python suite 使用 Homebrew Python 时因没有 pytest 无法启动；随后复用已有 Python 3.12.13 dev venv（pytest 9.1.1），未安装依赖。首个完整运行暴露旧 manual-only workflow 断言和一次不可复现的 Excel 状态失败；更新已批准的 conditional workflow 合同后，两个失败点定点 2/2 通过，完整 suite 复跑 45 passed / 1 native-Windows skip。没有修改 local-integration 业务代码。
 
@@ -83,6 +83,22 @@ Case D 没有 macOS Bootstrap；Case E 的 hosted CI 与 Windows Real Machine �
 | `research-web-windows-verify` | `NOT_RUN` | GitHub `windows-2022` conditional verification 未运行 |
 
 因此 receipt 必须保持 `BLOCKED`、`mergeReady=false`、`releaseReady=false`。本次 changed set 没有 Desktop-owned path，`realMachine=[]` 是未选择而不是实机 PASS。
+
+## Fresh Review 与唯一 Fix Pass
+
+Fresh Code Reviewer 对 `6dee571f5..158463f69` 做只读 whole-branch review，报告 1 Critical、2 Important、0 Minor：
+
+1. validator 会信任自洽但被整体删 gate 的 plan-v3；
+2. dependency policy 的部分 files/prefixes/suffixes 没有对应 workflow filter；
+3. Windows launcher 会触发 Windows job，但 job 没有实际执行公开 setup/rwb contract。
+
+三项均重新定级成立，并在唯一 fix pass 中先 RED 后 GREEN：
+
+- Canonical plan trust：一致删除 `research-web-windows-verify` 后，旧 validator 错误返回 `PASS / mergeReady=true`；修复后 validator 使用当前 policy 和 plan signals 重跑 canonical planner，篡改 plan 返回 `PLAN_ERROR`。Receipt suite 最终 22/22。
+- Policy/workflow coverage：Actions 测试从 policy 枚举选择 macOS/Windows gate 的所有确定性 `files/prefixes/segments/suffixes`；首次发现 Bootstrap 漏掉 `tests/research_web/test_setup_web.py`，补齐后 15/15。
+- Windows launcher acceptance：Windows job 升级为 Python 3.12 / Node 22.19，执行 `setup-web.cmd --no-start`、`rwb.cmd web start --no-open`、`doctor --json` 和 always-stop，并运行 `test_setup_web.py`。JS Actions 15/15、Python workflow contract 1/1。
+
+Fix pass 后最终回归：Node 六组 173/173；Python local integrations 45 passed / 1 native-Windows skip，protocol 19/19；L4 full relevant 87/87。未运行的真实 GitHub Windows job 仍保持 `NOT_RUN`。
 
 ## 架构与平台边界
 

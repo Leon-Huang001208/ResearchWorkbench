@@ -106,7 +106,7 @@ Validator 保留 legacy 分支，继续验证现有 plan schema v2 + receipt sch
 
 `.github/workflows/research-web-windows-verify.yml` 保留 `workflow_dispatch`，增加 `pull_request` 和 `master` push 的窄路径触发。正向路径覆盖共享 Web 安装、依赖、runtime、service lifecycle、Windows launcher、Windows local integration、Windows workflow 和其契约测试；普通 UI、文档、纯 framework/DataHub 业务代码不触发 Windows runner。
 
-Windows workflow 的现有安装、测试、loopback smoke 和三天证据主体保持不变。macOS Bootstrap 移除纯 Windows launcher 路径，继续覆盖 macOS launcher、共享安装、依赖和跨平台 runtime。Actions 合同测试同时验证正向与负向代表路径，防止两个 workflow 的 path filters 漂移。
+Windows workflow 保留既有 local-integration test、loopback smoke 和三天证据，同时对 platform-sensitive changed set 从 clean checkout 执行公开 `setup-web.cmd --no-start`、`rwb.cmd` start/doctor/stop 与 setup contracts，确保 launcher 触发的是相关验证。macOS Bootstrap 移除纯 Windows launcher 路径，继续覆盖 macOS launcher、共享安装、依赖和跨平台 runtime。Actions 合同从 policy 机械枚举确定性 matcher，并同时验证正向与负向代表路径，防止两个 workflow 的 path filters 漂移。
 
 Desktop Verify/Release 的 job、runner、sidecar、数据库和打包逻辑不修改；policy 只显式投影既有 macOS 与 Windows gate，并新增真实 Windows 安装 release gate。
 

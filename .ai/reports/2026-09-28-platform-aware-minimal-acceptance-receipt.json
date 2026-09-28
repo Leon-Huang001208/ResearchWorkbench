@@ -435,77 +435,77 @@
       "id": "verification-policy-contracts",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 4.829410833,
+      "durationSeconds": 4.965795292,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "verification-receipt-contracts",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 2.282666458,
+      "durationSeconds": 2.966046667,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "incremental-validation-skill-contracts",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 0.122757209,
+      "durationSeconds": 0.214136125,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "research-web-verification-full",
       "level": "L4",
       "status": "PASS",
-      "durationSeconds": 2.931756,
+      "durationSeconds": 2.221248875,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "repository-cross-platform-contracts",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 0.602449792,
+      "durationSeconds": 1.110826041,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "research-web-local-integrations",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 19.851058125,
+      "durationSeconds": 17.603533625,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "project-constraints-local",
       "level": "L2",
       "status": "PASS",
-      "durationSeconds": 0.172888625,
+      "durationSeconds": 0.329681333,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "research-web-architecture",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 3.3923775,
+      "durationSeconds": 3.75065875,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "research-web-critical-smoke",
       "level": "L3",
       "status": "PASS",
-      "durationSeconds": 0.616387666,
+      "durationSeconds": 1.182945167,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "documentation-governance",
       "level": "L0",
       "status": "PASS",
-      "durationSeconds": 0.181787959,
+      "durationSeconds": 0.239243333,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     },
     {
       "id": "python-file-index",
       "level": "L0",
       "status": "PASS",
-      "durationSeconds": 1.214190583,
+      "durationSeconds": 1.363023083,
       "evidence": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md"
     }
   ],

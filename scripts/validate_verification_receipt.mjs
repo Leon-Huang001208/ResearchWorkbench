@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 
+import {planVerification} from "./plan_verification.mjs";
+
 const LEVEL_ORDER = ["L0", "L1", "L2", "L3", "L4"];
 const PLATFORM_ORDER = [
   "generic",
@@ -732,7 +734,26 @@ function parseReceipt(value, root, plan) {
 
 export function validateVerificationReceipt({projectRoot, planPath, receiptPath}) {
   const root = safeProjectRoot(projectRoot);
-  const plan = parsePlan(readJson(root, planPath, "PLAN_ERROR"));
+  const rawPlan = readJson(root, planPath, "PLAN_ERROR");
+  const plan = parsePlan(rawPlan);
+  if (plan.schemaVersion === 3) {
+    const signals = plan.escalations
+      .map(item => item?.code)
+      .filter(code => code === "validation_failure" || code === "unexpected_behavior");
+    let canonical;
+    try {
+      canonical = planVerification({
+        projectRoot: root,
+        changedFiles: plan.changedFiles,
+        signals,
+      });
+    } catch {
+      fail("PLAN_ERROR", "plan cannot be reproduced from the current policy");
+    }
+    if (JSON.stringify(rawPlan) !== JSON.stringify(canonical)) {
+      fail("PLAN_ERROR", "plan does not match the current policy");
+    }
+  }
   const receipt = parseReceipt(readJson(root, receiptPath, "RECEIPT_ERROR"), root, plan);
   if (plan.schemaVersion === 2) {
     return {

@@ -15,6 +15,10 @@ const workflows = {
   tabbit: readWorkflow('research-web-tabbit.yml'),
   windows: readWorkflow('research-web-windows-verify.yml'),
 };
+const verificationPolicy = JSON.parse(fs.readFileSync(
+  new URL('../../.agents/verification-policy.json', import.meta.url),
+  'utf8',
+));
 
 function workflowTriggers(source) {
   const lines = source.split(/\r?\n/);
@@ -106,6 +110,36 @@ function triggersForPath(source, event, file) {
   return paths === null || paths.some((pattern) => matchesPath(pattern, file));
 }
 
+function representativeRulePaths(rule) {
+  return [
+    ...rule.match.files,
+    ...rule.match.prefixes.map(prefix => `${prefix}__routing_probe__.txt`),
+    ...rule.match.segments.map(segment => `__routing_probe__/${segment}/file.txt`),
+    ...rule.match.suffixes.map(suffix => `__routing_probe__/file${suffix}`),
+  ];
+}
+
+for (const [gate, workflowName] of [
+  ['research-web-bootstrap', 'bootstrap'],
+  ['research-web-windows-verify', 'windows'],
+]) {
+  test(`${gate} workflow covers every deterministic policy matcher`, () => {
+    const routedRules = verificationPolicy.rules.filter(rule => rule.ci.includes(gate));
+    assert.ok(routedRules.length > 0);
+    for (const rule of routedRules) {
+      for (const file of representativeRulePaths(rule)) {
+        for (const event of ['pull_request', 'push']) {
+          assert.equal(
+            triggersForPath(workflows[workflowName], event, file),
+            true,
+            `${gate}: ${rule.id}: ${event}: ${file}`,
+          );
+        }
+      }
+    }
+  });
+}
+
 test('documentation-only changes use only the lightweight constraints workflow', () => {
   const file = 'docs/README.md';
   assert.equal(triggersForPath(workflows.constraints, 'push', file), true);
@@ -121,6 +155,11 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
     'rwb',
     'scripts/setup_web.py',
     'requirements/web.lock',
+    'requirements/desktop.in',
+    'package-lock.json',
+    'yarn.lock',
+    'uv.lock',
+    'nested/dependency.lock',
     'vendor/cjpy/0.5.2/manifest.json',
   ]) {
     assert.equal(triggersForPath(workflows.bootstrap, 'push', file), true, file);
@@ -242,6 +281,16 @@ test('platform workflows retain explicit routing boundaries', () => {
     {id: 'windows-local-integrations', runsOn: 'windows-2022'},
   ]);
   assert.equal(triggersForPath(workflows.desktop, 'push', 'src-tauri/src/main.rs'), true);
+});
+
+test('Windows verification executes the public installer and launcher contract', () => {
+  assert.match(workflows.windows, /python-version: "3\.12"/);
+  assert.match(workflows.windows, /node-version: "22\.19\.0"/);
+  assert.match(workflows.windows, /shell: cmd[\s\S]*setup-web\.cmd --no-start/);
+  assert.match(workflows.windows, /rwb\.cmd web start --no-open/);
+  assert.match(workflows.windows, /rwb\.cmd web doctor --json > doctor\.json/);
+  assert.match(workflows.windows, /rwb\.cmd web stop/);
+  assert.match(workflows.windows, /tests\/research_web\/test_setup_web\.py/);
 });
 
 test('automatic workflows cancel stale runs and use bounded jobs', () => {

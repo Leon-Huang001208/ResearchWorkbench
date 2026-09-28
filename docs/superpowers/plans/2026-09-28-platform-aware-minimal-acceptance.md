@@ -21,7 +21,7 @@
 - `tests/research_web/test_local_integrations.py`: Python-side Windows workflow and native loopback contract.
 - `tests/javascript/repository_cross_platform_contract.test.mjs`: `.gitattributes` and `.gitignore` behavior.
 - `.github/workflows/research-web-bootstrap.yml`: macOS-only and shared platform-sensitive automatic routing.
-- `.github/workflows/research-web-windows-verify.yml`: conditional Windows automatic routing plus retained manual dispatch.
+- `.github/workflows/research-web-windows-verify.yml`: conditional Windows automatic routing, retained manual dispatch, public setup/rwb smoke and existing local-integration contracts.
 - `.gitattributes`, `.gitignore`: repository-wide line-ending and machine-state contracts.
 - `AGENTS.md`, `docs/AGENT_WORKFLOW.md`, `docs/DEVELOPMENT_MAP.md`, `docs/actions-budget.md`, `docs/README.md`: authoritative developer, platform, verification and operations guidance.
 - `.agents/skills/incremental-validation/SKILL.md`, `.agents/skills/incremental-validation/README.md`: project skill synchronized with the new plan/receipt contract.
@@ -285,9 +285,9 @@ node --test tests/javascript/actions_quota_governance.test.mjs
 
 Expected: new Windows automatic-trigger and macOS negative-route assertions fail.
 
-- [ ] **Step 3: Update workflow triggers only**
+- [ ] **Step 3: Update workflow routing and platform acceptance**
 
-Add narrow `pull_request.paths` and `push.branches: [master] / paths` to Windows Verify while retaining `workflow_dispatch`, concurrency, timeout, runner, commands and artifacts. Remove pure Windows launcher entries from macOS Bootstrap paths; do not change Desktop workflows.
+Add narrow `pull_request.paths` and `push.branches: [master] / paths` to Windows Verify while retaining `workflow_dispatch`, concurrency, native runner and short-lived artifacts. Run the public Windows installer and launcher (`setup-web.cmd --no-start`, `rwb.cmd` start/doctor/stop) plus setup contracts before the existing local-integration smoke. Remove pure Windows launcher entries from macOS Bootstrap paths; do not change Desktop workflows. Mechanically compare every policy rule that selects a native Web gate with the corresponding workflow filter.
 
 - [ ] **Step 4: Run Actions GREEN**
 

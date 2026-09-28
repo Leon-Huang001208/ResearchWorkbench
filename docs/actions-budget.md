@@ -39,6 +39,7 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 | Desktop Release | tag 或显式 dispatch | 普通 push |
 
 Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 只运行 `macos-14`；Windows Web workflow 对平台敏感 changed set 条件自动运行原生 `windows-2022`，同时保留 `workflow_dispatch`。普通 UI、文档、纯 framework/DataHub 业务代码不得触发 Windows runner。Windows workflow 未选择时是 `NOT_REQUIRED`，已选择但未执行时是 `NOT_RUN`，均不得写成 `PASS`；Windows CI 也不能替代真实 Windows 安装、升级或 Office/Wind 验证。这一 Web 路由边界不改变 Desktop Verify 的独立原生双平台规则。
+Windows job 在 clean checkout 上执行公开 `setup-web.cmd --no-start`、`rwb.cmd` start/doctor/stop、setup contracts、local-integration contracts 和 loopback smoke；路径触发本身不能替代这些真实 job steps。
 Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
