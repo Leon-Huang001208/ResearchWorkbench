@@ -35,7 +35,7 @@
 ## 运维
 
 - [Research Web 运行与用量](research-web-operations.md)：只读健康、用量和存储聚合。
-- [GitHub Actions 额度治理](actions-budget.md)：免费分钟、冻结状态、conditional macOS/Windows workflow 路由及 Windows CI／实机证据边界。
+- [GitHub Actions 额度治理](actions-budget.md)：免费分钟、冻结状态、macOS 自动门、Windows 真机 dispatch 的 GitHub CI 及独立实机证据边界。
 - [备份、恢复与迁移](backup_restore.md)：当前 Research Web 数据目录、迁移和凭据边界。
 - [Research Web 文件交付](research-web-delivery.md)：产物格式、校验和交付状态。
 - [桌面打包历史](desktop_packaging.md)：只有明确重启桌面工作时才适用的跨平台门禁。

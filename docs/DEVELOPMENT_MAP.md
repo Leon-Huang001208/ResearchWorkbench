@@ -52,7 +52,7 @@
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。
 - 源码结构或导入发生变化时运行 `python scripts/generate_py_file_index.py --check`；需要更新时先生成再复核。
 - `Research Web Tabbit Verify` 当前仅手动触发；Tabbit 契约变化或平台支持声明必须显式运行双平台工作流，自动 Project Constraints 继续检查其触发器契约。
-- 普通 Research Web 改动由 Ubuntu `Research Web Checks` 承担；Bootstrap、Windows Verify 和 Desktop Verify 必须依路径命中，不能由 docs-only 提交触发。
+- 普通 Research Web 改动由 Ubuntu `Research Web Checks` 承担；Bootstrap 和 Desktop Verify 必须依路径命中，不能由 docs-only 提交触发。Windows Verify 由 policy changed-set 条件选择，但只能从 Windows 真机以 exact SHA `workflow_dispatch`，不能由 Mac PR/push 自动触发。
 
 ## 最小验证
 

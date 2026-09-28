@@ -121,7 +121,6 @@ function representativeRulePaths(rule) {
 
 for (const [gate, workflowName] of [
   ['research-web-bootstrap', 'bootstrap'],
-  ['research-web-windows-verify', 'windows'],
 ]) {
   test(`${gate} workflow covers every deterministic policy matcher`, () => {
     const routedRules = verificationPolicy.rules.filter(rule => rule.ci.includes(gate));
@@ -138,6 +137,18 @@ for (const [gate, workflowName] of [
       }
     }
   });
+}
+
+function policyRuleMatches(rule, file) {
+  const segments = file.split('/');
+  return rule.match.files.includes(file)
+    || rule.match.prefixes.some(prefix => file.startsWith(prefix))
+    || rule.match.segments.some(segment => segments.includes(segment))
+    || rule.match.suffixes.some(suffix => file.endsWith(suffix));
+}
+
+function policyRequiresGate(file, gate) {
+  return verificationPolicy.rules.some(rule => rule.ci.includes(gate) && policyRuleMatches(rule, file));
 }
 
 test('documentation-only changes use only the lightweight constraints workflow', () => {
@@ -173,7 +184,7 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   }
 });
 
-test('platform-sensitive Web changes conditionally trigger Windows verification', () => {
+test('policy conditionally requires Windows verification without Mac PR auto-triggering it', () => {
   for (const file of [
     'setup-web.cmd',
     'rwb.cmd',
@@ -187,8 +198,9 @@ test('platform-sensitive Web changes conditionally trigger Windows verification'
     'vendor/cjpy/0.5.2/manifest.json',
     '.gitattributes',
   ]) {
-    assert.equal(triggersForPath(workflows.windows, 'push', file), true, `push: ${file}`);
-    assert.equal(triggersForPath(workflows.windows, 'pull_request', file), true, `pull_request: ${file}`);
+    assert.equal(policyRequiresGate(file, 'research-web-windows-verify'), true, file);
+    assert.equal(triggersForPath(workflows.windows, 'push', file), false, `push: ${file}`);
+    assert.equal(triggersForPath(workflows.windows, 'pull_request', file), false, `pull_request: ${file}`);
   }
 
   for (const file of [
@@ -199,6 +211,7 @@ test('platform-sensitive Web changes conditionally trigger Windows verification'
     'app/research_web/frameworks/service.py',
     'app/research_web/datahub/providers_akshare.py',
   ]) {
+    assert.equal(policyRequiresGate(file, 'research-web-windows-verify'), false, file);
     assert.equal(triggersForPath(workflows.windows, 'push', file), false, file);
     assert.equal(triggersForPath(workflows.windows, 'pull_request', file), false, file);
   }
@@ -211,10 +224,12 @@ for (const file of [
 ]) {
   test(`focused CI path automatically triggers both required Web workflows: ${file}`, () => {
     for (const event of ['pull_request', 'push']) {
-      for (const name of ['bootstrap', 'checks', 'windows']) {
+      for (const name of ['bootstrap', 'checks']) {
         assert.equal(triggersForPath(workflows[name], event, file), true, `${name}: ${event}: ${file}`);
       }
     }
+    assert.equal(triggersForPath(workflows.windows, 'pull_request', file), false, file);
+    assert.equal(triggersForPath(workflows.windows, 'push', file), false, file);
   });
 }
 
@@ -271,12 +286,13 @@ test('ordinary Research Web code uses Linux checks without unnecessary native jo
   const platformSpecific = 'app/research_web/service_manager.py';
   assert.equal(triggersForPath(workflows.checks, 'push', platformSpecific), true);
   assert.equal(triggersForPath(workflows.bootstrap, 'push', platformSpecific), true);
-  assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), true);
+  assert.equal(policyRequiresGate(platformSpecific, 'research-web-windows-verify'), true);
+  assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), false);
 });
 
 test('platform workflows retain explicit routing boundaries', () => {
   assert.deepEqual(workflowTriggers(workflows.tabbit), ['workflow_dispatch']);
-  assert.deepEqual(workflowTriggers(workflows.windows), ['pull_request', 'push', 'workflow_dispatch']);
+  assert.deepEqual(workflowTriggers(workflows.windows), ['workflow_dispatch']);
   assert.deepEqual(workflowJobs(workflows.windows), [
     {id: 'windows-local-integrations', runsOn: 'windows-2022'},
   ]);
@@ -284,6 +300,8 @@ test('platform workflows retain explicit routing boundaries', () => {
 });
 
 test('Windows verification executes the public installer and launcher contract', () => {
+  assert.match(workflows.windows, /expected_sha:[\s\S]*required: true/);
+  assert.match(workflows.windows, /GITHUB_SHA[\s\S]*EXPECTED_SHA/);
   assert.match(workflows.windows, /python-version: "3\.12"/);
   assert.match(workflows.windows, /node-version: "22\.19\.0"/);
   assert.match(workflows.windows, /shell: cmd[\s\S]*setup-web\.cmd --no-start/);

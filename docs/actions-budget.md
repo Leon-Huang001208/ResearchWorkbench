@@ -27,18 +27,18 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 
 ## Workflow 路由
 
-| 改动 | 自动门禁 | 不应触发 |
+| 改动 | 自动门禁 / Windows 验证责任 | 不应触发 |
 | --- | --- | --- |
 | 文档、归档、报告 | Project Constraints（Ubuntu） | Bootstrap、Windows、Desktop、Tabbit |
 | 普通 Research Web／CLI | Research Web Checks（Ubuntu） | Bootstrap、Desktop；非 Windows 专属时不跑 Windows Verify |
-| 共享安装器、Web 锁、固定 DSH/CJPY、跨平台 runtime/服务装配 | Research Web Checks + Bootstrap（`macos-14`）+ Windows Verify（`windows-2022`） | Desktop |
+| 共享安装器、Web 锁、固定 DSH/CJPY、跨平台 runtime/服务装配 | 自动 Research Web Checks + Bootstrap；Windows 真机对 exact SHA dispatch Windows Verify | Desktop |
 | macOS shell launcher | Research Web Checks + Bootstrap | Windows、Desktop |
-| Windows launcher、路径、认证文件、本机集成、编码/进程/服务管理 | Research Web Checks + Windows Verify | Bootstrap、Desktop |
+| Windows launcher、路径、认证文件、本机集成、编码/进程/服务管理 | 自动 Research Web Checks；Windows 真机对 exact SHA dispatch Windows Verify | Bootstrap、Desktop |
 | Tabbit 平台合同 | 用户显式 `workflow_dispatch` | 普通 push／PR 自动触发 |
 | 桌面专属路径 | Desktop Verify | 普通 Web workflow 不能替代桌面门禁 |
 | Desktop Release | tag 或显式 dispatch | 普通 push |
 
-Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 只运行 `macos-14`；Windows Web workflow 对平台敏感 changed set 条件自动运行原生 `windows-2022`，同时保留 `workflow_dispatch`。普通 UI、文档、纯 framework/DataHub 业务代码不得触发 Windows runner。Windows workflow 未选择时是 `NOT_REQUIRED`，已选择但未执行时是 `NOT_RUN`，均不得写成 `PASS`；Windows CI 也不能替代真实 Windows 安装、升级或 Office/Wind 验证。这一 Web 路由边界不改变 Desktop Verify 的独立原生双平台规则。
+Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 只运行 `macos-14`。Windows Web workflow 只保留 `workflow_dispatch`：policy 对 platform-sensitive changed set 选择 Windows gate 后，Windows 真机 checkout 待验 ref，以该机 `git rev-parse HEAD` 得到的 exact SHA 发起 `windows-2022`。Mac PR/push 不触发 Windows workflow。普通 UI、文档、纯 framework/DataHub 业务代码不选择 Windows gate。Windows workflow 未选择时是 `NOT_REQUIRED`，已选择但未从 Windows 真机执行时是 `NOT_RUN`，均不得写成 `PASS`；Windows GitHub CI 也不能替代同一或另一 Windows 真机上的安装、升级、真实用户目录或 Office/Wind 验证。这一 Web 路由边界不改变 Desktop Verify 的独立原生双平台规则。
 Windows job 在 clean checkout 上执行公开 `setup-web.cmd --no-start`、`rwb.cmd` start/doctor/stop、setup contracts、local-integration contracts 和 loopback smoke；路径触发本身不能替代这些真实 job steps。
 Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
 

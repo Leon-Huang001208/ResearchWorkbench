@@ -21,7 +21,7 @@
 - `tests/research_web/test_local_integrations.py`: Python-side Windows workflow and native loopback contract.
 - `tests/javascript/repository_cross_platform_contract.test.mjs`: `.gitattributes` and `.gitignore` behavior.
 - `.github/workflows/research-web-bootstrap.yml`: macOS-only and shared platform-sensitive automatic routing.
-- `.github/workflows/research-web-windows-verify.yml`: conditional Windows automatic routing, retained manual dispatch, public setup/rwb smoke and existing local-integration contracts.
+- `.github/workflows/research-web-windows-verify.yml`: Windows-machine-dispatched exact-SHA verification with public setup/rwb smoke and existing local-integration contracts.
 - `app/research_web/service_manager.py`, `tests/research_web/test_service_manager.py`: Windows graceful-to-forced owned-process termination and regression coverage discovered by native CI.
 - `.gitattributes`, `.gitignore`: repository-wide line-ending and machine-state contracts.
 - `AGENTS.md`, `docs/AGENT_WORKFLOW.md`, `docs/DEVELOPMENT_MAP.md`, `docs/actions-budget.md`, `docs/README.md`: authoritative developer, platform, verification and operations guidance.
@@ -264,7 +264,7 @@ git add scripts/validate_verification_receipt.mjs
 git commit -m "feat: validate platform and real-machine evidence"
 ```
 
-### Task 5: Make Windows Web CI conditional and platform-correct
+### Task 5: Make Windows Web CI conditionally required and platform-correct
 
 **Files:**
 - Modify: `tests/javascript/actions_quota_governance.test.mjs`
@@ -274,7 +274,7 @@ git commit -m "feat: validate platform and real-machine evidence"
 
 - [ ] **Step 1: Add failing workflow routing assertions**
 
-Require Windows workflow triggers `pull_request`, `push`, and `workflow_dispatch`. Positive automatic paths include shared setup/runtime/dependencies, Windows launchers, Windows local integration, the workflow itself and its contract test. Negative paths include docs, ordinary UI, framework business logic and public DataHub providers.
+Require policy rules to select the Windows gate for shared setup/runtime/dependencies, Windows launchers, native integrations and fixed vendor runtime. Require the Windows workflow to remain `workflow_dispatch` only, with a required `expected_sha` copied from the Windows verification checkout. Mac PR/push must not trigger it.
 
 Require macOS Bootstrap not to trigger for `setup-web.cmd` or `rwb.cmd`, while shared setup/runtime still triggers both workflows.
 
@@ -284,11 +284,11 @@ Require macOS Bootstrap not to trigger for `setup-web.cmd` or `rwb.cmd`, while s
 node --test tests/javascript/actions_quota_governance.test.mjs
 ```
 
-Expected: new Windows automatic-trigger and macOS negative-route assertions fail.
+Expected: new policy-conditioned/manual-dispatch and macOS negative-route assertions fail.
 
 - [ ] **Step 3: Update workflow routing and platform acceptance**
 
-Add narrow `pull_request.paths` and `push.branches: [master] / paths` to Windows Verify while retaining `workflow_dispatch`, concurrency, native runner and short-lived artifacts. Run the public Windows installer and launcher (`setup-web.cmd --no-start`, `rwb.cmd` start/doctor/stop) plus setup contracts before the existing local-integration smoke. Remove pure Windows launcher entries from macOS Bootstrap paths; do not change Desktop workflows. Mechanically compare every policy rule that selects a native Web gate with the corresponding workflow filter.
+Keep Windows Verify `workflow_dispatch` only; require `expected_sha` and fail before installation when it differs from `GITHUB_SHA`. Run the public Windows installer and launcher (`setup-web.cmd --no-start`, `rwb.cmd` start/doctor/stop) plus setup contracts before the existing local-integration smoke. Remove pure Windows launcher entries from macOS Bootstrap paths; do not change Desktop workflows. Mechanically verify macOS policy/filter coverage and that policy-selected Windows gates never auto-run from Mac PR/push.
 
 - [ ] **Step 4: Run Actions GREEN**
 
@@ -352,6 +352,7 @@ git commit -m "chore: standardize cross-platform Git semantics"
 - Modify: `docs/actions-budget.md`
 - Modify: `docs/README.md`
 - Modify: `docs/research-web-documentation.md`
+- Modify: `docs/research-web-installation.md`
 - Modify: `docs/documentation-governance.json`
 - Modify: `docs/architecture/research-web/06-documentation-contract.md`
 - Modify: `.agents/skills/incremental-validation/SKILL.md`
@@ -369,7 +370,7 @@ Describe component/risk/platform dimensions, local/CI/real-machine lanes, merge 
 
 - [ ] **Step 3: Update Actions and skill guidance**
 
-Replace “Windows always manual” with conditional automatic Windows routing plus retained manual dispatch. Keep Desktop separation and public-standard budget facts. Synchronize both files of the modified incremental-validation skill.
+Document that Windows routing is conditional in policy but execution is manual from the Windows verification machine with an exact SHA. Keep Desktop separation and public-standard budget facts. Synchronize both files of the modified incremental-validation skill.
 
 - [ ] **Step 4: Run documentation checks**
 
@@ -383,7 +384,7 @@ Expected: documentation governance and skill contracts pass.
 - [ ] **Step 5: Commit documentation**
 
 ```bash
-git add AGENTS.md docs/AGENT_WORKFLOW.md docs/DEVELOPMENT_MAP.md docs/actions-budget.md docs/README.md docs/research-web-documentation.md docs/documentation-governance.json docs/architecture/research-web/06-documentation-contract.md .agents/skills/incremental-validation/SKILL.md .agents/skills/incremental-validation/README.md tests/javascript/incremental_validation_skill.test.mjs
+git add AGENTS.md docs/AGENT_WORKFLOW.md docs/DEVELOPMENT_MAP.md docs/actions-budget.md docs/README.md docs/research-web-documentation.md docs/research-web-installation.md docs/documentation-governance.json docs/architecture/research-web/06-documentation-contract.md .agents/skills/incremental-validation/SKILL.md .agents/skills/incremental-validation/README.md tests/javascript/incremental_validation_skill.test.mjs
 git add -f .claude/commands/verify-task.md
 git commit -m "docs: define cross-platform development and acceptance"
 ```
@@ -477,6 +478,7 @@ node .agents/project-constraints.mjs --project . \
   --changed-file docs/architecture/research-web/04-api.md \
   --changed-file docs/architecture/research-web/05-security-validation.md \
   --changed-file docs/research-web-documentation.md \
+  --changed-file docs/research-web-installation.md \
   --changed-file docs/documentation-governance.json \
   --changed-file docs/architecture/research-web/06-documentation-contract.md \
   --changed-file docs/architecture/research-web/08-research-frameworks.md \
@@ -493,7 +495,8 @@ node .agents/project-constraints.mjs --project . \
   --changed-file tests/javascript/verification_policy.test.mjs \
   --changed-file tests/javascript/verification_receipt.test.mjs \
   --changed-file tests/research_web/test_local_integrations.py \
-  --changed-file tests/research_web/test_service_manager.py
+  --changed-file tests/research_web/test_service_manager.py \
+  --changed-file tests/research_web/test_setup_web.py
 git diff --check 6dee571f53de62faae7ac3bf22dda6b9607c839c..HEAD
 ```
 
@@ -514,6 +517,7 @@ Report branch, worktree, commits, changed files, actual commands, test counts, u
 **Files:**
 - Modify: `app/research_web/service_manager.py`
 - Modify: `tests/research_web/test_service_manager.py`
+- Modify: `tests/research_web/test_setup_web.py`
 - Modify: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance.md`
 - Modify: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance-plan.json`
 - Modify: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance-receipt.json`
@@ -544,4 +548,8 @@ Run the two targeted Windows termination tests, full `test_service_manager.py`, 
 
 - [ ] **Step 5: Push the fix and observe the new PR checks**
 
-Push without force. Do not rerun the obsolete failed run; wait for the new head's automatic Project Constraints, Research Web Checks, macOS Bootstrap and Windows Verify receipts.
+Push without force. Do not rerun obsolete failed runs; wait for automatic Project Constraints, Research Web Checks and macOS Bootstrap. Leave Windows Verify `NOT_RUN` until the Windows verification machine dispatches the exact head SHA.
+
+- [ ] **Step 6: Correct Windows-only setup test assumptions if native CI exposes them**
+
+Keep the full Windows setup suite enabled. Make only its fixtures/assertions platform-aware: the Codex bundled Node path is macOS-only, environment-variable aliases are case-insensitive on Windows, and POSIX mode bits are not a Windows ACL proof. Do not change a public installer that already completed successfully on the native runner.

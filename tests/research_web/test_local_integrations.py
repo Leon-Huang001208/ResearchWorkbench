@@ -215,14 +215,10 @@ def test_windows_conditional_workflow_retains_native_contracts_and_loopback_prob
     trigger_block = workflow.split("permissions:", maxsplit=1)[0]
 
     assert "  workflow_dispatch:" in trigger_block
-    assert "  pull_request:" in trigger_block
-    assert "  push:" in trigger_block
-    assert '      - "setup-web.cmd"' in trigger_block
-    assert '      - "scripts/setup_web.py"' in trigger_block
-    assert '      - "app/research_web/runtime/**"' in trigger_block
-    assert '      - "app/research_web/local_integrations/**"' in trigger_block
-    assert '      - "app/research_web/ui/**"' not in trigger_block
-    assert '      - "app/research_web/frameworks/**"' not in trigger_block
+    assert "  pull_request:" not in trigger_block
+    assert "  push:" not in trigger_block
+    assert "expected_sha:" in trigger_block
+    assert "required: true" in trigger_block
     assert "runs-on: windows-2022" in workflow
     assert 'python-version: "3.12"' in workflow
     assert 'node-version: "22.19.0"' in workflow
@@ -234,6 +230,8 @@ def test_windows_conditional_workflow_retains_native_contracts_and_loopback_prob
     assert "rwb.cmd web start --no-open" in workflow
     assert "rwb.cmd web doctor --json > doctor.json" in workflow
     assert "rwb.cmd web stop" in workflow
+    assert "GITHUB_SHA" in workflow
+    assert "EXPECTED_SHA" in workflow
     assert "test_windows_runtime_auth_does_not_apply_posix_group_mode_bits" in workflow
     assert "test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits" in workflow
     assert "tests/research_web/test_api.py" not in workflow

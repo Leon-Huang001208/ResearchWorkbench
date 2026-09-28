@@ -20,7 +20,7 @@ master
   → safe cleanup
 ```
 
-短期分支使用 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或 `platform/macos/*`。Mac 是主要开发机，负责功能、架构、重构和 macOS 本地验证；Windows 默认运行 `git switch master` 与 `git pull --ff-only` 后验证最新集成版本，验证成功不创建分支。只有 Windows-only 缺陷才从最新 `master` 建立 `platform/windows/*`，并通过 PR 回到 `master`。禁止长期维护 `windows`、`macos`、`develop` 或设备专属代码线。
+短期分支使用 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或 `platform/macos/*`。Mac 是主要开发机，负责功能、架构、重构和 macOS 本地验证；Windows 默认运行 `git switch master` 与 `git pull --ff-only` 后验证最新集成版本，验证成功不创建分支。只有 Windows-only 缺陷才从最新 `master` 建立 `platform/windows/*`，并通过 PR 回到 `master`。需要 GitHub Windows CI 时，Windows 真机先 checkout 待验 ref、读取 `git rev-parse HEAD`，再从该机 dispatch workflow 并传入 `expected_sha`；Mac 不发送 Windows dispatch。禁止长期维护 `windows`、`macos`、`develop` 或设备专属代码线。
 
 一个并行任务对应一个明确 branch，原则上对应一个独立 worktree。合并后仅在确认提交已进入 `master`、worktree 没有未归并修改且没有进程占用时，才移除该 worktree 和失效短期分支。仓库当前没有 GitHub branch protection；“不直接在 master 开发”是项目契约，不得误报为远端已机械强制。
 
@@ -105,7 +105,7 @@ node scripts/validate_verification_receipt.mjs --project . \
 
 计划必须覆盖完整 changed set，并按最高风险合并。未知路径不能降级；非法策略、符号链接或越界路径必须先失败，不能退回猜测计划。
 
-普通 `app/research_web/` 与 `app/web/` Web-only 改动只选择相关 Web、文档与轻量 CI 门，desktop、Windows、Tauri、sidecar 和 installer 门数量必须为 0。共享安装/runtime、Windows launcher、本机集成和路径/编码/进程边界条件触发 Windows Web CI；只有桌面专属路径才附加原生 macOS/Windows Desktop gate 与 [`desktop_packaging.md`](desktop_packaging.md) 的发布前实机门。
+普通 `app/research_web/` 与 `app/web/` Web-only 改动只选择相关 Web、文档与轻量 CI 门，desktop、Windows、Tauri、sidecar 和 installer 门数量必须为 0。共享安装/runtime、Windows launcher、本机集成和路径/编码/进程边界会让 Router 选择 Windows Web CI gate；该 gate 仅由 Windows 真机对 exact SHA 手动 dispatch，Mac PR/push 不自动执行。只有桌面专属路径才附加原生 macOS/Windows Desktop gate 与 [`desktop_packaging.md`](desktop_packaging.md) 的发布前实机门。
 
 Research Web 框架的 backend、renderer 与已登记测试按组件影响合并；单个 renderer 可停在局部闭包，backend+renderer 等高耦合跨模块集合自动扩大到依赖和 smoke 闭包。其他未登记测试继续 fail closed，不能用通用测试目录规则批量降级。
 
