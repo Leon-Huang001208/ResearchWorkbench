@@ -478,9 +478,10 @@ node .agents/project-constraints.mjs --project . \
   --changed-file scripts/plan_verification.mjs \
   --changed-file scripts/validate_verification_receipt.mjs \
   --changed-file tests/javascript/actions_quota_governance.test.mjs \
+  --changed-file tests/javascript/incremental_validation_skill.test.mjs \
   --changed-file tests/javascript/repository_cross_platform_contract.test.mjs \
   --changed-file tests/javascript/verification_policy.test.mjs \
-  --changed-file tests/javascript/verification_receipt.test.mjs
+  --changed-file tests/javascript/verification_receipt.test.mjs \
   --changed-file tests/research_web/test_local_integrations.py
 git diff --check 6dee571f53de62faae7ac3bf22dda6b9607c839c..HEAD
 ```
