@@ -15,6 +15,10 @@ const workflows = {
   tabbit: readWorkflow('research-web-tabbit.yml'),
   windows: readWorkflow('research-web-windows-verify.yml'),
 };
+const verificationPolicy = JSON.parse(fs.readFileSync(
+  new URL('../../.agents/verification-policy.json', import.meta.url),
+  'utf8',
+));
 
 function workflowTriggers(source) {
   const lines = source.split(/\r?\n/);
@@ -106,6 +110,47 @@ function triggersForPath(source, event, file) {
   return paths === null || paths.some((pattern) => matchesPath(pattern, file));
 }
 
+function representativeRulePaths(rule) {
+  return [
+    ...rule.match.files,
+    ...rule.match.prefixes.map(prefix => `${prefix}__routing_probe__.txt`),
+    ...rule.match.segments.map(segment => `__routing_probe__/${segment}/file.txt`),
+    ...rule.match.suffixes.map(suffix => `__routing_probe__/file${suffix}`),
+  ];
+}
+
+for (const [gate, workflowName] of [
+  ['research-web-bootstrap', 'bootstrap'],
+]) {
+  test(`${gate} workflow covers every deterministic policy matcher`, () => {
+    const routedRules = verificationPolicy.rules.filter(rule => rule.ci.includes(gate));
+    assert.ok(routedRules.length > 0);
+    for (const rule of routedRules) {
+      for (const file of representativeRulePaths(rule)) {
+        for (const event of ['pull_request', 'push']) {
+          assert.equal(
+            triggersForPath(workflows[workflowName], event, file),
+            true,
+            `${gate}: ${rule.id}: ${event}: ${file}`,
+          );
+        }
+      }
+    }
+  });
+}
+
+function policyRuleMatches(rule, file) {
+  const segments = file.split('/');
+  return rule.match.files.includes(file)
+    || rule.match.prefixes.some(prefix => file.startsWith(prefix))
+    || rule.match.segments.some(segment => segments.includes(segment))
+    || rule.match.suffixes.some(suffix => file.endsWith(suffix));
+}
+
+function policyRequiresGate(file, gate) {
+  return verificationPolicy.rules.some(rule => rule.ci.includes(gate) && policyRuleMatches(rule, file));
+}
+
 test('documentation-only changes use only the lightweight constraints workflow', () => {
   const file = 'docs/README.md';
   assert.equal(triggersForPath(workflows.constraints, 'push', file), true);
@@ -118,9 +163,14 @@ test('documentation-only changes use only the lightweight constraints workflow',
 test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   for (const file of [
     'setup-web.sh',
-    'setup-web.cmd',
+    'rwb',
     'scripts/setup_web.py',
     'requirements/web.lock',
+    'requirements/desktop.in',
+    'package-lock.json',
+    'yarn.lock',
+    'uv.lock',
+    'nested/dependency.lock',
     'vendor/cjpy/0.5.2/manifest.json',
   ]) {
     assert.equal(triggersForPath(workflows.bootstrap, 'push', file), true, file);
@@ -128,6 +178,43 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   }
   assert.match(workflows.bootstrap, /macos-14/);
   assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
+  for (const file of ['setup-web.cmd', 'rwb.cmd']) {
+    assert.equal(triggersForPath(workflows.bootstrap, 'push', file), false, file);
+    assert.equal(triggersForPath(workflows.bootstrap, 'pull_request', file), false, file);
+  }
+});
+
+test('policy conditionally requires Windows verification without Mac PR auto-triggering it', () => {
+  for (const file of [
+    'setup-web.cmd',
+    'rwb.cmd',
+    'scripts/setup_web.py',
+    'requirements/web.lock',
+    'app/research_web/service_manager.py',
+    'app/research_web/runtime_auth.py',
+    'app/research_web/runtime/launcher.py',
+    'app/research_web/local_integrations/manager.py',
+    'tests/research_web/test_local_integrations.py',
+    'vendor/cjpy/0.5.2/manifest.json',
+    '.gitattributes',
+  ]) {
+    assert.equal(policyRequiresGate(file, 'research-web-windows-verify'), true, file);
+    assert.equal(triggersForPath(workflows.windows, 'push', file), false, `push: ${file}`);
+    assert.equal(triggersForPath(workflows.windows, 'pull_request', file), false, `pull_request: ${file}`);
+  }
+
+  for (const file of [
+    'docs/README.md',
+    'setup-web.sh',
+    'rwb',
+    'app/research_web/ui/app.mjs',
+    'app/research_web/frameworks/service.py',
+    'app/research_web/datahub/providers_akshare.py',
+  ]) {
+    assert.equal(policyRequiresGate(file, 'research-web-windows-verify'), false, file);
+    assert.equal(triggersForPath(workflows.windows, 'push', file), false, file);
+    assert.equal(triggersForPath(workflows.windows, 'pull_request', file), false, file);
+  }
 });
 
 for (const file of [
@@ -141,6 +228,8 @@ for (const file of [
         assert.equal(triggersForPath(workflows[name], event, file), true, `${name}: ${event}: ${file}`);
       }
     }
+    assert.equal(triggersForPath(workflows.windows, 'pull_request', file), false, file);
+    assert.equal(triggersForPath(workflows.windows, 'push', file), false, file);
   });
 }
 
@@ -197,17 +286,33 @@ test('ordinary Research Web code uses Linux checks without unnecessary native jo
   const platformSpecific = 'app/research_web/service_manager.py';
   assert.equal(triggersForPath(workflows.checks, 'push', platformSpecific), true);
   assert.equal(triggersForPath(workflows.bootstrap, 'push', platformSpecific), true);
+  assert.equal(policyRequiresGate(platformSpecific, 'research-web-windows-verify'), true);
   assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), false);
 });
 
 test('platform workflows retain explicit routing boundaries', () => {
   assert.deepEqual(workflowTriggers(workflows.tabbit), ['workflow_dispatch']);
   assert.deepEqual(workflowTriggers(workflows.windows), ['workflow_dispatch']);
+  assert.deepEqual(workflowJobs(workflows.windows), [
+    {id: 'windows-local-integrations', runsOn: 'windows-2022'},
+  ]);
   assert.equal(triggersForPath(workflows.desktop, 'push', 'src-tauri/src/main.rs'), true);
 });
 
+test('Windows verification executes the public installer and launcher contract', () => {
+  assert.match(workflows.windows, /expected_sha:[\s\S]*required: true/);
+  assert.match(workflows.windows, /GITHUB_SHA[\s\S]*EXPECTED_SHA/);
+  assert.match(workflows.windows, /python-version: "3\.12"/);
+  assert.match(workflows.windows, /node-version: "22\.19\.0"/);
+  assert.match(workflows.windows, /shell: cmd[\s\S]*setup-web\.cmd --no-start/);
+  assert.match(workflows.windows, /rwb\.cmd web start --no-open/);
+  assert.match(workflows.windows, /rwb\.cmd web doctor --json > doctor\.json/);
+  assert.match(workflows.windows, /rwb\.cmd web stop/);
+  assert.match(workflows.windows, /tests\/research_web\/test_setup_web\.py/);
+});
+
 test('automatic workflows cancel stale runs and use bounded jobs', () => {
-  for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints]) {
+  for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints, workflows.windows]) {
     assert.match(source, /concurrency:/);
     assert.match(source, /cancel-in-progress: true/);
     assert.match(source, /timeout-minutes:/);

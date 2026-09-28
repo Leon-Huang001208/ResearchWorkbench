@@ -203,3 +203,8 @@ generation、逐资源 settled 与 latest-request-wins 账本。只有 Research 
 failure 会在 UI/Composer/submit 显示 connecting/offline；Tabbit 自身既有 `browser_offline` 诊断是
 另一契约。Tabbit 的保存配置、Runtime 应用配置、会话授权、实时 claim、一次性正文 token、
 `read_only` 声明、写审批和标签生命周期均未变化，也不由本轮本地测试宣称真实浏览器通过。
+
+## 2026-09-28 Windows 停止兼容回执
+
+Windows 受管服务的非强制停止失败现在可升级到既有强制进程树终止；该变化不修改 Tabbit Profile、
+浏览器实例选择、页面授权、claim、一次性正文 token、写审批或真实浏览器验收边界。

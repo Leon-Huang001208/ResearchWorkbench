@@ -112,9 +112,11 @@ SOCKS 代理，pip 与 Corepack/Node 仅保留其支持的 HTTP/HTTPS 代理。�
 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py` 和 Doctor。仓库级
 `.github/workflows/research-web-bootstrap.yml` 对相关 PR 与主分支更新在干净的 GitHub `macos-14`
 runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检查 Doctor，并验证无凭据天软不会
-误报可调用。本机 macOS 验证必须先通过，但不能替代该远端干净环境门。Windows Web 自动验证当前
-暂停；`.github/workflows/research-web-windows-verify.yml` 仅保留手动入口，Windows 实机结果由用户
-单独提供，未运行时不得标记为通过。该边界不改变桌面/Tauri/sidecar 的独立 Windows 门禁。
+误报可调用。本机 macOS 验证必须先通过，但不能替代该远端干净环境门。Windows Web workflow 仅
+保留手动入口：当 policy 选择 Windows gate 时，必须在 Windows 真机 checkout 待验 ref，从该机以
+`git rev-parse HEAD` 的 exact SHA 发起 GitHub `windows-2022`；Mac 不发起该 workflow。GitHub Windows
+结果与 Windows 真机安装、升级、用户目录、Office/Excel/Wind 结果分别记录，任一未运行均不得标记为
+通过。该边界不改变桌面/Tauri/sidecar 的独立 Windows 门禁。
 
 维护者更新直接依赖后，用 Python 3.12 重新生成锁：
 

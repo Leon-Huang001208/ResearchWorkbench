@@ -7,19 +7,38 @@ import {fileURLToPath} from "node:url";
 const POLICY_PATH = ".agents/verification-policy.json";
 const RISK_ORDER = ["docs-only", "local-only", "full-delivery"];
 const LEVEL_ORDER = ["L0", "L1", "L2", "L3", "L4"];
+const PLATFORM_ORDER = [
+  "generic",
+  "linux",
+  "macos",
+  "windows",
+  "cross-platform",
+  "real-machine-required",
+];
+const STATUS_ORDER = [
+  "PASS",
+  "FAIL",
+  "SKIPPED",
+  "NOT_REQUIRED",
+  "NOT_RUN",
+  "BLOCKED",
+  "MANUAL_REQUIRED",
+];
 const SIGNALS = new Set(["validation_failure", "unexpected_behavior"]);
 const TOP_LEVEL_KEYS = new Set([
   "schemaVersion",
   "riskOrder",
   "levelOrder",
+  "platformOrder",
+  "statusOrder",
   "escalation",
   "catalogs",
   "rules",
   "fallback",
 ]);
 const ESCALATION_KEYS = new Set(["highCouplingImpactThreshold", "targetLevel"]);
-const CATALOG_KEYS = new Set(["tests", "documentation", "ci"]);
-const CATALOG_ITEM_KEYS = new Set(["level", "execution", "value"]);
+const CATALOG_KEYS = new Set(["tests", "documentation", "ci", "realMachine"]);
+const CATALOG_ITEM_KEYS = new Set(["level", "lane", "gate", "platforms", "value"]);
 const RULE_KEYS = new Set([
   "id",
   "risk",
@@ -28,9 +47,11 @@ const RULE_KEYS = new Set([
   "impact",
   "coupling",
   "match",
+  "platforms",
   "tests",
   "documentation",
   "ci",
+  "realMachine",
 ]);
 const MATCH_REQUIRED_KEYS = new Set(["files", "prefixes", "segments", "suffixes"]);
 const MATCH_OPTIONAL_KEYS = new Set(["excludePrefixes"]);
@@ -40,9 +61,11 @@ const FALLBACK_KEYS = new Set([
   "reason",
   "impact",
   "coupling",
+  "platforms",
   "tests",
   "documentation",
   "ci",
+  "realMachine",
 ]);
 const IDENTIFIER = /^[a-z0-9][a-z0-9_-]*$/;
 
@@ -91,6 +114,17 @@ function assertStringArray(value, label, validate, {nonEmpty = false} = {}) {
     if (typeof item !== "string" || item.length === 0 || seen.has(item)) fail("POLICY_ERROR", `invalid ${label}`);
     validate?.(item, label);
     seen.add(item);
+  }
+  return value;
+}
+
+function assertOrderedPlatforms(value, label) {
+  assertStringArray(value, label, undefined, {nonEmpty: true});
+  let previous = -1;
+  for (const platform of value) {
+    const index = PLATFORM_ORDER.indexOf(platform);
+    if (index === -1 || index <= previous) fail("POLICY_ERROR", `invalid ${label}`);
+    previous = index;
   }
   return value;
 }
@@ -161,20 +195,26 @@ function assertNoSymlinkComponents(root, relative, {required, code}) {
   }
 }
 
-function parseCatalog(value, label) {
+function parseCatalog(value, label, expectedLane, expectedGate) {
   if (!value || typeof value !== "object" || Array.isArray(value)) fail("POLICY_ERROR", `invalid ${label}`);
   const result = new Map();
   for (const [id, catalogValue] of Object.entries(value)) {
     assertIdentifier(id, `${label} id`);
     assertExactKeys(catalogValue, CATALOG_ITEM_KEYS, `${label} item`);
     const level = assertLevel(catalogValue.level, `${label} level`);
-    if (catalogValue.execution !== "local" && catalogValue.execution !== "external") {
-      fail("POLICY_ERROR", `invalid ${label} execution`);
-    }
+    if (catalogValue.lane !== expectedLane) fail("POLICY_ERROR", `invalid ${label} lane`);
+    if (catalogValue.gate !== expectedGate) fail("POLICY_ERROR", `invalid ${label} gate`);
+    const platforms = assertOrderedPlatforms(catalogValue.platforms, `${label} platforms`);
     if (typeof catalogValue.value !== "string" || catalogValue.value.trim().length === 0) {
       fail("POLICY_ERROR", `invalid ${label} value`);
     }
-    result.set(id, {level, execution: catalogValue.execution, value: catalogValue.value});
+    result.set(id, {
+      level,
+      lane: catalogValue.lane,
+      gate: catalogValue.gate,
+      platforms,
+      value: catalogValue.value,
+    });
   }
   return result;
 }
@@ -191,11 +231,13 @@ function parseSelection(value, catalogs, label, {withMatch}) {
   const impact = assertStringArray(value.impact, `${label} impact`, item => assertIdentifier(item, `${label} impact`), {
     nonEmpty: true,
   });
+  const platforms = assertOrderedPlatforms(value.platforms, `${label} platforms`);
   if (value.coupling !== "low" && value.coupling !== "high") fail("POLICY_ERROR", `invalid ${label} coupling`);
   if (!RISK_ORDER.includes(value.risk)) fail("POLICY_ERROR", `invalid ${label} risk`);
   validateReferences(value.tests, catalogs.tests, `${label} tests`);
   validateReferences(value.documentation, catalogs.documentation, `${label} documentation`);
   validateReferences(value.ci, catalogs.ci, `${label} CI`);
+  validateReferences(value.realMachine, catalogs.realMachine, `${label} real machine`);
 
   let match;
   if (withMatch) {
@@ -216,7 +258,7 @@ function parseSelection(value, catalogs, label, {withMatch}) {
     }
   }
 
-  return {...value, reason, minimumLevel, impact, match};
+  return {...value, reason, minimumLevel, impact, platforms, match};
 }
 
 function parsePolicy(raw) {
@@ -227,7 +269,7 @@ function parsePolicy(raw) {
     fail("POLICY_ERROR", "verification policy is not valid JSON");
   }
   assertExactKeys(value, TOP_LEVEL_KEYS, "verification policy");
-  if (value.schemaVersion !== 2) fail("POLICY_ERROR", "unsupported verification policy schema");
+  if (value.schemaVersion !== 3) fail("POLICY_ERROR", "unsupported verification policy schema");
   if (!Array.isArray(value.riskOrder) || value.riskOrder.length !== RISK_ORDER.length ||
       value.riskOrder.some((risk, index) => risk !== RISK_ORDER[index])) {
     fail("POLICY_ERROR", "invalid risk order");
@@ -235,6 +277,14 @@ function parsePolicy(raw) {
   if (!Array.isArray(value.levelOrder) || value.levelOrder.length !== LEVEL_ORDER.length ||
       value.levelOrder.some((level, index) => level !== LEVEL_ORDER[index])) {
     fail("POLICY_ERROR", "invalid level order");
+  }
+  if (!Array.isArray(value.platformOrder) || value.platformOrder.length !== PLATFORM_ORDER.length ||
+      value.platformOrder.some((platform, index) => platform !== PLATFORM_ORDER[index])) {
+    fail("POLICY_ERROR", "invalid platform order");
+  }
+  if (!Array.isArray(value.statusOrder) || value.statusOrder.length !== STATUS_ORDER.length ||
+      value.statusOrder.some((status, index) => status !== STATUS_ORDER[index])) {
+    fail("POLICY_ERROR", "invalid status order");
   }
   assertExactKeys(value.escalation, ESCALATION_KEYS, "escalation policy");
   if (!Number.isInteger(value.escalation.highCouplingImpactThreshold) ||
@@ -246,9 +296,10 @@ function parsePolicy(raw) {
 
   assertExactKeys(value.catalogs, CATALOG_KEYS, "catalogs");
   const catalogs = {
-    tests: parseCatalog(value.catalogs.tests, "test catalog"),
-    documentation: parseCatalog(value.catalogs.documentation, "documentation catalog"),
-    ci: parseCatalog(value.catalogs.ci, "CI catalog"),
+    tests: parseCatalog(value.catalogs.tests, "test catalog", "local", "merge"),
+    documentation: parseCatalog(value.catalogs.documentation, "documentation catalog", "local", "merge"),
+    ci: parseCatalog(value.catalogs.ci, "CI catalog", "ci", "merge"),
+    realMachine: parseCatalog(value.catalogs.realMachine, "real-machine catalog", "real-machine", "release"),
   };
 
   if (!Array.isArray(value.rules) || value.rules.length === 0) fail("POLICY_ERROR", "verification rules are required");
@@ -263,12 +314,15 @@ function parsePolicy(raw) {
 
   const fallback = parseSelection(value.fallback, catalogs, "fallback", {withMatch: false});
   if (fallback.risk !== "full-delivery" || fallback.minimumLevel !== "L4" ||
-      fallback.reason !== "unknown_path" || fallback.coupling !== "high") {
+      fallback.reason !== "unknown_path" || fallback.coupling !== "high" ||
+      JSON.stringify(fallback.platforms) !== JSON.stringify(["cross-platform"])) {
     fail("POLICY_ERROR", "fallback must fail closed");
   }
   return {
     riskOrder: value.riskOrder,
     levelOrder: value.levelOrder,
+    platformOrder: value.platformOrder,
+    statusOrder: value.statusOrder,
     escalation: {...value.escalation, targetLevel},
     catalogs,
     rules,
@@ -350,7 +404,15 @@ function selectedCatalogItems(catalog, ids, category, maximumLevelIndex) {
   for (const id of ids) {
     const entry = catalog.get(id);
     if (LEVEL_ORDER.indexOf(entry.level) > maximumLevelIndex) continue;
-    items.push({id, level: entry.level, execution: entry.execution, category, value: entry.value});
+    items.push({
+      id,
+      level: entry.level,
+      lane: entry.lane,
+      gate: entry.gate,
+      platforms: [...entry.platforms],
+      category,
+      value: entry.value,
+    });
   }
   return items;
 }
@@ -394,8 +456,14 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
   const impactIds = [];
   const impactSeen = new Set();
   const highCouplingImpactIds = new Set();
-  const gateIds = {tests: [], documentation: [], ci: []};
-  const gateSeen = {tests: new Set(), documentation: new Set(), ci: new Set()};
+  const gateIds = {tests: [], documentation: [], ci: [], realMachine: []};
+  const gateSeen = {
+    tests: new Set(),
+    documentation: new Set(),
+    ci: new Set(),
+    realMachine: new Set(),
+  };
+  const platformSeen = new Set();
   const uncoveredRisks = [];
 
   for (const changedFile of normalizedFiles) {
@@ -438,6 +506,7 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
         }
         if (selection.coupling === "high") highCouplingImpactIds.add(moduleId);
       }
+      for (const platform of selection.platforms) platformSeen.add(platform);
       for (const category of Object.keys(gateIds)) {
         appendUnique(gateIds[category], gateSeen[category], selection[category]);
       }
@@ -477,17 +546,31 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
     levelIndex,
   );
   const ci = selectedCatalogItems(policy.catalogs.ci, gateIds.ci, "ci", levelIndex);
+  const realMachine = selectedCatalogItems(
+    policy.catalogs.realMachine,
+    gateIds.realMachine,
+    "realMachine",
+    levelIndex,
+  );
   const validationsByLevel = Object.fromEntries(policy.levelOrder.map(level => [level, []]));
-  for (const item of [...tests, ...documentation, ...ci]) validationsByLevel[item.level].push(item);
+  for (const item of [...tests, ...documentation, ...ci, ...realMachine]) {
+    validationsByLevel[item.level].push(item);
+    for (const platform of item.platforms) platformSeen.add(platform);
+  }
 
-  const selectedValidations = [...tests, ...documentation, ...ci];
-  const requiredValidationIds = selectedValidations.filter(item => item.execution === "local").map(item => item.id);
-  const externalGateIds = selectedValidations.filter(item => item.execution === "external").map(item => item.id);
+  const selectedValidations = [...tests, ...documentation, ...ci, ...realMachine];
+  const local = selectedValidations.filter(item => item.lane === "local");
+  const requiredValidationIds = local.filter(item => item.gate === "merge").map(item => item.id);
+  const externalGateIds = ci.filter(item => item.gate === "merge").map(item => item.id);
+  const releaseGateIds = realMachine.filter(item => item.gate === "release").map(item => item.id);
+  const platforms = policy.platformOrder.filter(platform => platformSeen.has(platform));
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     risk: policy.riskOrder[riskIndex],
     requiredLevel,
+    components: impactIds,
+    platforms,
     changeSummary: {
       fileCount: normalizedFiles.length,
       ruleIds,
@@ -502,11 +585,14 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
     tests,
     documentation,
     ci,
+    local,
+    realMachine,
     receiptTemplate: {
       plannedLevel: requiredLevel,
       changedFiles: normalizedFiles,
       requiredValidationIds,
       externalGateIds,
+      releaseGateIds,
     },
   };
 }
@@ -527,7 +613,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   } catch (error) {
     const code = error instanceof PlannerError ? error.code : "INTERNAL_ERROR";
     const message = error instanceof PlannerError ? error.message : "unexpected planner failure";
-    process.stderr.write(`${JSON.stringify({schemaVersion: 2, error: {code, message}})}\n`);
+    process.stderr.write(`${JSON.stringify({schemaVersion: 3, error: {code, message}})}\n`);
     process.exitCode = 1;
   }
 }

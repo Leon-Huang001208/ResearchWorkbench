@@ -112,3 +112,8 @@ AKShare 财务摘要的布尔缺失哨兵规范化只发生在 Provider 结果�
 本轮服务重启活动门禁、会话/子 Agent 目录有界读取和浏览器目录加载呈现均不进入
 `IntegrationCoordinator`。五阶段状态、五类责任桶、探测授权、批次并发、快照持久化、DataHub
 动态选源和 Tabbit 双状态关系均未变化；无需修改协调器 API、Automation 关系或架构图。
+
+## 2026-09-28 Windows 停止兼容回执
+
+Windows 服务管理器只对已经归属核对的进程在非强制停止失败后升级 `/F`；该变化不改变协调器五阶段
+状态、责任归因、探测/授权、Provider callable 或本机集成真实验证结果。

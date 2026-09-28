@@ -4,15 +4,19 @@ on:
   pull_request:
     paths:
       - "setup-web.sh"
-      - "setup-web.cmd"
       - "scripts/setup_web.py"
       - "requirements/web.in"
       - "requirements/web.lock"
+      - "requirements/**"
       - "pyproject.toml"
       - "package.json"
+      - "package-lock.json"
       - "pnpm-lock.yaml"
+      - "yarn.lock"
+      - "uv.lock"
+      - "*.lock"
+      - "**/*.lock"
       - "rwb"
-      - "rwb.cmd"
       - "research_workbench_entrypoint/**"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
@@ -24,20 +28,25 @@ on:
       - ".github/workflows/research-web-bootstrap.yml"
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
+      - "tests/research_web/test_setup_web.py"
   push:
     branches:
       - master
     paths:
       - "setup-web.sh"
-      - "setup-web.cmd"
       - "scripts/setup_web.py"
       - "requirements/web.in"
       - "requirements/web.lock"
+      - "requirements/**"
       - "pyproject.toml"
       - "package.json"
+      - "package-lock.json"
       - "pnpm-lock.yaml"
+      - "yarn.lock"
+      - "uv.lock"
+      - "*.lock"
+      - "**/*.lock"
       - "rwb"
-      - "rwb.cmd"
       - "research_workbench_entrypoint/**"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
@@ -49,6 +58,7 @@ on:
       - ".github/workflows/research-web-bootstrap.yml"
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
+      - "tests/research_web/test_setup_web.py"
   workflow_dispatch:
 
 permissions:

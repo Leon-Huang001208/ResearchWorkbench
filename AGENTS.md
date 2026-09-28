@@ -30,14 +30,24 @@
   `docs/research-web-installation.md` 和 `.github/workflows/research-web-bootstrap.yml`；无须改变的文件应由
   安装 CI 证明仍兼容，不能仅凭本机已有环境判断。
 - Web 交付必须先完成本机 macOS 相关验证，再等待 GitHub `macos-14` 干净安装、固定 DSH 构建、
-  3081/8088 健康检查和 `rwb web doctor --json` 通过；本机成功不能替代 GitHub Mac。Windows Web
-  自动验证当前暂停，由用户在 Windows 实机执行并单独提供回执，未提供时不得宣称 Windows 已验证。
+  3081/8088 健康检查和 `rwb web doctor --json` 通过；本机成功不能替代 GitHub Mac。安装、共享 runtime、
+  Windows launcher、路径/编码/进程和本机集成等平台敏感改动会由 Router 标记为需要 GitHub
+  `windows-2022`，但 Mac PR/push 不自动触发；必须在 Windows 真机 checkout 待验 commit 后，从该机
+  以 exact SHA 执行 `workflow_dispatch`。Windows CI 不能替代 Windows 实机安装、升级、
+  Office/Wind 或企业环境验证；未执行的层级必须保留 `NOT_RUN` 或 `MANUAL_REQUIRED`，不得宣称通过。
   无厂商凭据的 CI 必须把天软显示为“依赖已安装但待配置”，不得伪报可调用。
 - 新增用户可配置能力时，Doctor、安装文档、安全清单和一键流程必须同步覆盖；秘密只由本机设置页或
   系统凭据库接收，禁止写入锁文件、安装日志、CI 产物或代码包。
 
 ## Safety and delivery
 
+- GitHub 是 Mac、Windows 与 Codex worktree 之间 Git-managed source code 的唯一真相源；不得用云盘、
+  Finder/Explorer、U 盘或移动硬盘覆盖同步源码。`master` 是唯一长期集成分支，功能和修复必须从最新
+  `master` 建立 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或
+  `platform/macos/*` 短期分支/worktree，经验证和 PR 合回 `master` 后再清理。
+- Windows 默认只 fast-forward 最新 `master` 并做原生验证；只有发现 Windows-only 缺陷时才创建
+  `platform/windows/*`。不要长期维护 `windows`、`macos` 或 `develop` 平行分支。仓库当前没有远端
+  branch protection，以上是项目契约，不能把它描述成 GitHub 已机械强制。
 - 不覆盖或回退无关改动。
 - 任何 `git push`、PR merge、tag、`gh run rerun`、`workflow_dispatch` 或受管发布前，必须读取 `docs/actions-budget.md` 并核对当前仓库 visibility。private／billable 状态下，当 Actions included usage 达到 95% 或当前 run 返回 billing-blocked 时，仅允许本地编辑、测试和提交；只有当前 Billing/API 证明额度已重置，或 GitHub API 证明仓库已变为 public 且当前标准 runner run 能启动，才恢复远端操作。旧 billing-blocked 记录不能覆盖更新的公开仓库运行证据。
 - 并行或高风险的仓库改动必须使用独立 Git worktree；worktree 是本地修改隔离，不等同于后台/远程执行通道。
