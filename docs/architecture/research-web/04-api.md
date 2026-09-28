@@ -6,6 +6,8 @@
 等待时长，不新增 HTTP 字段、路由或状态码，也不会暴露本机路径与凭据。
 Doctor 的安全 CLI JSON 在 `dsh.runtime_lock_matches` 报告已验证安装闭包是否等于 Runtime build
 lock；不匹配加入 `dsh_runtime_lock_mismatch`。该字段不进入 HTTP API，也不返回文件路径。
+`rwb web status` 的轻量导入边界同样不新增 HTTP 路由、字段或状态码；Doctor 需要构建证明时仍执行
+完整 DSH 闭包校验，status 仅报告既有进程与健康投影。
 全新 Profile 初始化、Windows Git 长路径和跨平台进程管理同样不新增 HTTP 路由；3081 健康通过后
 才启动既有 8088 API，启动失败不会暴露半就绪接口。
 

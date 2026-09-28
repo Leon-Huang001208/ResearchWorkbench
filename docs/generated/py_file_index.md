@@ -6179,7 +6179,6 @@ Imports:
 - `hashlib`
 - `http.client`
 - `json`
-- `launch_runtime`
 - `os`
 - `pathlib`
 - `re`
@@ -6206,6 +6205,8 @@ Classes:
   - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_sessions, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _read_install_manifest, _runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, doctor, tabbit_status
 
 Functions:
+- `calculate_build_closure`
+  - Load the expensive DSH build scanner only for installation diagnosis.
 - `_is_unsafe_private_directory`
   - Validate directory structure without treating Windows mode bits as ACLs.
 - `format_status`

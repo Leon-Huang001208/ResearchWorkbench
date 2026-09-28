@@ -14,6 +14,7 @@ from pathlib import Path, PurePosixPath
 
 from core.observability import get_logger, setup_logging
 
+from . import PINNED_DSH_COMMIT
 from .capabilities.catalog import CapabilityCatalog
 from .datahub.contracts import BUSINESS_TOOLS
 from .datahub.security import directory, load_control, read_file
@@ -25,7 +26,7 @@ from .mcp_runtime.authorization import (
 from .store import StoreError
 
 log = get_logger(__name__)
-PINNED_COMMIT = "c919b2a460753859665db3f60143d525fb9140cf"
+PINNED_COMMIT = PINNED_DSH_COMMIT
 TABBIT_VERSION = "0.3.4"
 TABBIT_SOURCE_COMMIT = "361ef61f4d42ae51d657ca1351acacd6b5db5d44"
 TABBIT_VENDOR = Path(__file__).parents[2] / "vendor" / "dsh-tabbit" / TABBIT_VERSION

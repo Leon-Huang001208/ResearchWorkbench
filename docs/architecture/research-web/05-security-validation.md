@@ -18,6 +18,8 @@ DSH state 原子更新；文件数必须是严格整数。POSIX 逐级使用 `di
 和独占临时文件，Windows 逐级校验 canonical path 与 reparse point；最终文件拒绝 symlink、hardlink、
 越界大小和非私有 POSIX mode。安装器在写锁前只对当前用户拥有的产品 data home 收紧为 0700，
 未知 owner 或 alias 仍失败关闭。缺失、陈旧或路径不安全时 Doctor 和 start 均失败关闭。
+状态命令的轻量导入只避免在诊断前加载 DSH Capability/MCP 功能图，不跳过任何归属、端口、认证或
+HTTP 健康核对；Doctor 与 start 仍延迟加载并执行完整构建闭包和安装证明。
 
 Gold 与 Dollar 快照在路径解析前拒绝任一现存符号链接组件，限制为 2 MiB，使用各自严格 schema 和内容 revision，并同目录原子替换。旧 Gold V1 结构先保留为 `snapshot.legacy-v1.json`；已存在备份时拒绝覆盖。生产浏览器不导入测试 fixture，来源失败不得伪装成实时成功。Bot 上下文另设 80,000 字符上限，默认解释预设不暴露工具。
 

@@ -3,6 +3,8 @@
 公开 Web 安装器在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的
 `runtime/dsh/<commit>/` 版本目录；运行时仍是既有 3081 DSH 与 8088 FastAPI 两个受管进程。
 `rwb web doctor` 读取安装摘要与健康事实，不增加守护进程、端口或数据库。
+`rwb web status` 只加载轻量服务管理合同并核对进程、端口与真实健康；DSH 构建闭包、Capability
+目录和 MCP Runtime 功能图仅在 Doctor、安装诊断或实际 Runtime 启动需要时加载。
 `rwb web start` 在创建任何子进程前复用同一份 Doctor 安装事实；checkout 专属环境、Web 锁、
 CJPY、Node 或固定 DSH 未就绪时直接返回稳定 issue code 和安装器指引，不再先启动 3081 后等待超时。
 安装器与 `rwb` 使用同一 Node 选择顺序：显式参数、`RESEARCH_NODE_BINARY`、可执行的 Codex bundled
