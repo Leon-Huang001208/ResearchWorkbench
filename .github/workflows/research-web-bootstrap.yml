@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - "setup-web.sh"
-      - "setup-web.cmd"
       - "scripts/setup_web.py"
       - "requirements/web.in"
       - "requirements/web.lock"
@@ -12,7 +11,6 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "rwb"
-      - "rwb.cmd"
       - "research_workbench_entrypoint/**"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
@@ -29,7 +27,6 @@ on:
       - master
     paths:
       - "setup-web.sh"
-      - "setup-web.cmd"
       - "scripts/setup_web.py"
       - "requirements/web.in"
       - "requirements/web.lock"
@@ -37,7 +34,6 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "rwb"
-      - "rwb.cmd"
       - "research_workbench_entrypoint/**"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"

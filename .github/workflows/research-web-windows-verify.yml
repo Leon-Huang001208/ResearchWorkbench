@@ -1,6 +1,68 @@
 name: Research Web Windows Verify
 
 on:
+  pull_request:
+    paths:
+      - ".gitattributes"
+      - ".gitignore"
+      - "setup-web.cmd"
+      - "rwb.cmd"
+      - "scripts/setup_web.py"
+      - "requirements/web.in"
+      - "requirements/web.lock"
+      - "pyproject.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "research_workbench_entrypoint/**"
+      - "app/cli/main.py"
+      - "app/research_web/service_manager.py"
+      - "app/research_web/runtime_auth.py"
+      - "app/research_web/launch_runtime.py"
+      - "app/research_web/runtime/**"
+      - "app/research_web/local_integrations/**"
+      - "vendor/cjpy/**"
+      - "vendor/dsh-tabbit/**"
+      - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_local_integrations.py"
+      - "tests/research_web/test_runtime_auth.py"
+      - "tests/research_web/test_service_manager.py"
+      - "tests/research_web/test_protocol.py"
+      - ".github/workflows/research-web-bootstrap.yml"
+      - ".github/workflows/research-web-windows-verify.yml"
+      - "tests/javascript/actions_quota_governance.test.mjs"
+      - "tests/javascript/repository_cross_platform_contract.test.mjs"
+  push:
+    branches:
+      - master
+    paths:
+      - ".gitattributes"
+      - ".gitignore"
+      - "setup-web.cmd"
+      - "rwb.cmd"
+      - "scripts/setup_web.py"
+      - "requirements/web.in"
+      - "requirements/web.lock"
+      - "pyproject.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "research_workbench_entrypoint/**"
+      - "app/cli/main.py"
+      - "app/research_web/service_manager.py"
+      - "app/research_web/runtime_auth.py"
+      - "app/research_web/launch_runtime.py"
+      - "app/research_web/runtime/**"
+      - "app/research_web/local_integrations/**"
+      - "vendor/cjpy/**"
+      - "vendor/dsh-tabbit/**"
+      - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_local_integrations.py"
+      - "tests/research_web/test_runtime_auth.py"
+      - "tests/research_web/test_service_manager.py"
+      - "tests/research_web/test_protocol.py"
+      - ".github/workflows/research-web-bootstrap.yml"
+      - ".github/workflows/research-web-windows-verify.yml"
+      - "tests/javascript/actions_quota_governance.test.mjs"
+      - "tests/javascript/repository_cross_platform_contract.test.mjs"
   workflow_dispatch:
 
 permissions:

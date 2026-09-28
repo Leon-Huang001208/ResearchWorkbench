@@ -118,7 +118,7 @@ test('documentation-only changes use only the lightweight constraints workflow',
 test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   for (const file of [
     'setup-web.sh',
-    'setup-web.cmd',
+    'rwb',
     'scripts/setup_web.py',
     'requirements/web.lock',
     'vendor/cjpy/0.5.2/manifest.json',
@@ -128,6 +128,41 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   }
   assert.match(workflows.bootstrap, /macos-14/);
   assert.doesNotMatch(workflows.bootstrap, /windows-2022/);
+  for (const file of ['setup-web.cmd', 'rwb.cmd']) {
+    assert.equal(triggersForPath(workflows.bootstrap, 'push', file), false, file);
+    assert.equal(triggersForPath(workflows.bootstrap, 'pull_request', file), false, file);
+  }
+});
+
+test('platform-sensitive Web changes conditionally trigger Windows verification', () => {
+  for (const file of [
+    'setup-web.cmd',
+    'rwb.cmd',
+    'scripts/setup_web.py',
+    'requirements/web.lock',
+    'app/research_web/service_manager.py',
+    'app/research_web/runtime_auth.py',
+    'app/research_web/runtime/launcher.py',
+    'app/research_web/local_integrations/manager.py',
+    'tests/research_web/test_local_integrations.py',
+    'vendor/cjpy/0.5.2/manifest.json',
+    '.gitattributes',
+  ]) {
+    assert.equal(triggersForPath(workflows.windows, 'push', file), true, `push: ${file}`);
+    assert.equal(triggersForPath(workflows.windows, 'pull_request', file), true, `pull_request: ${file}`);
+  }
+
+  for (const file of [
+    'docs/README.md',
+    'setup-web.sh',
+    'rwb',
+    'app/research_web/ui/app.mjs',
+    'app/research_web/frameworks/service.py',
+    'app/research_web/datahub/providers_akshare.py',
+  ]) {
+    assert.equal(triggersForPath(workflows.windows, 'push', file), false, file);
+    assert.equal(triggersForPath(workflows.windows, 'pull_request', file), false, file);
+  }
 });
 
 for (const file of [
@@ -137,7 +172,7 @@ for (const file of [
 ]) {
   test(`focused CI path automatically triggers both required Web workflows: ${file}`, () => {
     for (const event of ['pull_request', 'push']) {
-      for (const name of ['bootstrap', 'checks']) {
+      for (const name of ['bootstrap', 'checks', 'windows']) {
         assert.equal(triggersForPath(workflows[name], event, file), true, `${name}: ${event}: ${file}`);
       }
     }
@@ -197,17 +232,20 @@ test('ordinary Research Web code uses Linux checks without unnecessary native jo
   const platformSpecific = 'app/research_web/service_manager.py';
   assert.equal(triggersForPath(workflows.checks, 'push', platformSpecific), true);
   assert.equal(triggersForPath(workflows.bootstrap, 'push', platformSpecific), true);
-  assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), false);
+  assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), true);
 });
 
 test('platform workflows retain explicit routing boundaries', () => {
   assert.deepEqual(workflowTriggers(workflows.tabbit), ['workflow_dispatch']);
-  assert.deepEqual(workflowTriggers(workflows.windows), ['workflow_dispatch']);
+  assert.deepEqual(workflowTriggers(workflows.windows), ['pull_request', 'push', 'workflow_dispatch']);
+  assert.deepEqual(workflowJobs(workflows.windows), [
+    {id: 'windows-local-integrations', runsOn: 'windows-2022'},
+  ]);
   assert.equal(triggersForPath(workflows.desktop, 'push', 'src-tauri/src/main.rs'), true);
 });
 
 test('automatic workflows cancel stale runs and use bounded jobs', () => {
-  for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints]) {
+  for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints, workflows.windows]) {
     assert.match(source, /concurrency:/);
     assert.match(source, /cancel-in-progress: true/);
     assert.match(source, /timeout-minutes:/);
