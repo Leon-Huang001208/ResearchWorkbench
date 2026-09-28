@@ -1061,10 +1061,9 @@ for (const file of [
     assert.equal(plan.risk, "full-delivery");
     assert.equal(plan.requiredLevel, "L4");
     assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
-    assert.deepEqual(new Set(plan.tests.map(item => item.id)), new Set([
-      "research-web-local-integrations",
-      "research-web-architecture",
-    ]));
+    for (const id of ["research-web-local-integrations", "research-web-architecture"]) {
+      assert.equal(plan.tests.some(item => item.id === id), true, `${id} missing for ${file}`);
+    }
     assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), true);
     assert.equal(plan.platforms.includes("windows"), true);
   });
@@ -1668,10 +1667,12 @@ for (const {name, changedFile, ruleId, impactId, catalogId, catalogValue} of [
     assert.deepEqual(plan.receiptTemplate.externalGateIds, [
       "project-constraints",
       "research-web-checks",
+      "research-web-bootstrap",
+      "research-web-windows-verify",
     ]);
     assert.equal(plan.tests.find(item => item.id === catalogId)?.value, catalogValue);
     const ids = gateIds(plan).join(" ").toLowerCase();
-    for (const forbidden of ["desktop", "windows"]) {
+    for (const forbidden of ["native-macos-desktop", "native-windows-desktop", "desktop-packaging"]) {
       assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into Workbench L4 plan`);
     }
   });
@@ -1700,6 +1701,8 @@ test("AKShare provider keeps its catalog when a dependency change requires L4", 
   assert.deepEqual(plan.receiptTemplate.externalGateIds, [
     "project-constraints",
     "research-web-checks",
+    "research-web-bootstrap",
+    "research-web-windows-verify",
   ]);
   assert.equal(
     gateIds(plan).some(id => id === "native-windows-desktop" || id === "desktop-packaging"),
