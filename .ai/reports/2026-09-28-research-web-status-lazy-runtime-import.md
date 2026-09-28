@@ -28,6 +28,9 @@ FastAPI, MCP, DataHub, and capability dependencies.
 - Before writing an `installed` manifest, use the new environment to import the checkout's
   `app.research_web.main:app` with a 300-second bound. This materializes cold FileProvider source reads during
   installation and returns `python_web_import_failed` instead of deferring the failure to `start`.
+- Before the first owned-environment mutation, atomically replace any previous successful manifest with a
+  minimal `status=installing` transaction record. A failed readiness or later step therefore cannot leave stale
+  `installed` evidence for Doctor/start.
 
 Service ownership, PID checks, ports, HTTP/DSH health, Doctor build attestation, public commands, and response
 formats remain unchanged. The existing repair/install transaction is stronger before service lifecycle execution.
@@ -47,6 +50,9 @@ formats remain unchanged. The existing repair/install transaction is stronger be
   completed in 235.68 seconds, proving FileProvider cold reads rather than a deadlock.
 - RED proved installation had no Web entrypoint readiness step. GREEN added the bounded source import and install
   orchestration contract; the full setup suite passed 33/33.
+- Review found that a failed readiness could leave an older successful manifest intact. RED preloaded stale
+  `installed` evidence and failed; GREEN publishes `installing` before mutation, keeps DSH provisioning out of a
+  failed readiness path, and passed the full setup suite 34/34.
 - Targeted Ruff, Black, isort, and `git diff --check` passed for both Python repair slices.
 
 ## Incremental validation
@@ -63,14 +69,14 @@ passed:
 
 | Plan ID | Level | Result | Duration |
 | --- | --- | --- | ---: |
-| `documentation-governance` | L0 | passed; 509 files, 71 current, 0 violations | 0.15 s |
-| `python-file-index` | L0 | passed; generated index verified | 1.04 s |
-| `research-web-architecture` | L1 | passed; 62/62 | 2.66 s |
-| `research-web-service-manager` | L1 | passed; 58/58 | 0.72 s |
-| `research-web-installation` | L1 | passed; 33/33 | 3.81 s |
-| `project-constraints-local` | L2 | passed; 19 paths, 0 violations | 0.13 s |
-| `research-web-critical-smoke` | L3 | passed; 19/19 | 0.40 s |
-| `research-web-verification-full` | L4 | passed; 80/80 | 2.62 s |
+| `documentation-governance` | L0 | passed; 509 files, 71 current, 0 violations | 0.13 s |
+| `python-file-index` | L0 | passed; generated index verified | 0.93 s |
+| `research-web-architecture` | L1 | passed; 62/62 | 2.49 s |
+| `research-web-service-manager` | L1 | passed; 58/58 | 0.64 s |
+| `research-web-installation` | L1 | passed; 34/34 | 3.81 s |
+| `project-constraints-local` | L2 | passed; 19 paths, 0 violations | 0.14 s |
+| `research-web-critical-smoke` | L3 | passed; 19/19 | 0.53 s |
+| `research-web-verification-full` | L4 | passed; 80/80 | 2.56 s |
 
 The receipt remains blocked until all required external gates pass.
 
@@ -81,6 +87,8 @@ The receipt remains blocked until all required external gates pass.
   verified CJPY 0.5.2 and the pinned DSH closure, and completed with `started:false`.
 - Re-running the same public repair entry after the Web import gate landed completed successfully and wrote an
   installation manifest for code commit `fe3d8d1bc61fd28ca9c9d286d65dc2d40f2d13f2`.
+- After the stale-manifest repair landed, the public repair entry completed again and the final manifest read
+  `status=installed`, `code_commit=4e460a7b4fd2cd912d07f1a6db005d9a299d3899`; Doctor and start remained healthy.
 - Doctor returned `ok:true`, no issues, `dsh.ready=true`, and `runtime_lock_matches=true`.
 - Start completed in 10.03 seconds; restart in 9.97 seconds; stop removed both owned processes and closed
   3081/8088; the subsequent start completed in 9.39 seconds.
@@ -93,19 +101,19 @@ Windows Web automation is paused by project policy and is not part of this chang
 
 ## Review boundary
 
-Independent Python review found no Critical or Important issue and declared the complete code Ready. Its only
-Minor noted that the unresponsive-pip test returned a nonzero code rather than raising the real timeout; the test
-now raises `subprocess.TimeoutExpired`, and the 33/33 setup suite passed again. The earlier status review also
-confirmed the real CLI keeps the runtime feature graph unloaded, traced Doctor and start through the lazy seam,
-and passed Runtime launch plus protocol tests 46/46. A supplemental mypy run produced no output for more than two
-minutes and was interrupted, so it is not reported as passed.
+The initial full Python review found no Critical issue, one Important stale-manifest gap, and one Minor about
+timeout fidelity. Both were fixed by the transaction record and exact `TimeoutExpired` regressions. Fresh review
+confirmed the Important closed, found no new Critical, Important, or Minor issue, and declared the code Ready.
+The earlier status review also confirmed the real CLI keeps the runtime feature graph unloaded and passed Runtime
+launch plus protocol tests 46/46. A supplemental mypy run produced no output for more than two minutes and was
+interrupted, so it is not reported as passed.
 
 ## Architecture and documentation review
 
 The Research Web process topology, loopback ports, public CLI and HTTP contracts, DSH launch contract, health
 model, and capability graph are unchanged. Installation keeps the same public entrypoints, locks, ownership
-marker, staging transaction, and fixed DSH; explicit repair now detects an unresponsive owned environment, and
-installation proves the Web entrypoint before publishing success. The generated Python index reflects the new
+marker, staging transaction, and fixed DSH; explicit repair now detects an unresponsive owned environment,
+invalidates stale success before mutation, and proves the Web entrypoint before publishing success. The generated Python index reflects the new
 installer probes and service-manager lazy seam. The root README remains accurate because user-visible commands
 did not change; detailed repair semantics live in the installation document.
 
