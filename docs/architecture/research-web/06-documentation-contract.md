@@ -2,8 +2,9 @@
 
 项目约束现在额外要求 `.github/workflows/research-web-bootstrap.yml` 在原生 `macos-14`
 持续执行干净安装、公开 setup 入口、Doctor、CJPY 0.5.2 和无凭据天软不可调用断言。
-Windows Web 验证保留原生 `windows-2022` 任务，但暂停自动触发并只接受用户显式 `workflow_dispatch`；
-未运行时不生成 Windows 通过结论。该 Web 平台路由与本文件的架构图/回执门禁并行，也不改变
+Windows Web 验证保留原生 `windows-2022` 任务，对共享安装/runtime、Windows launcher、路径/编码/
+进程和本机集成条件自动触发，同时保留用户显式 `workflow_dispatch`；未选择时为 `NOT_REQUIRED`，
+已选择但未运行时为 `NOT_RUN`，均不生成 Windows 通过结论。该 Web 平台路由与本文件的架构图/回执门禁并行，也不改变
 Desktop/Tauri/sidecar 的独立 Windows 验收规则；这些门禁不能互相替代。
 
 本文件定义实际 `scripts/check_research_architecture.mjs` 的输入格式；Python 文档检查与现有 Project Constraints CI 调用同一仓库内检查器。快速 CI 同时运行 Tabbit 手动触发契约测试，防止耗时双平台矩阵重新挂回普通 push 或 pull request，但不执行矩阵本身。详见 [门禁模块说明](../../research-web-documentation.md)。CI 配置已接线，未声称远端 CI 已执行。
@@ -12,7 +13,7 @@ Project Constraints 还运行 Actions 额度路由契约：docs-only 只进入 U
 
 ## 最小验收计划合同
 
-`.agents/verification-policy.json` 是 changed-file 风险与验收门的唯一机器真源；`scripts/plan_verification.mjs` 只读校验策略和仓库相对路径，按最高风险合并多文件计划。公开契约、schema、依赖、CI、安全、桌面、发布和未知路径 fail-closed 到 `full-delivery`；普通 Research Web 路径不得附加桌面门。
+`.agents/verification-policy.json` 是 changed-file 的 Component × Risk × Platform、local/CI/real-machine lane 与 merge/release gate 唯一机器真源；`scripts/plan_verification.mjs` 只读校验策略和仓库相对路径，按最高风险合并多文件计划。公开契约、schema、依赖、CI、安全、桌面、发布和未知路径 fail-closed 到 `full-delivery`；普通 Research Web 路径不得附加桌面门。
 
 `.claude/commands/verify-task.md` 只是 `package-internal` 的薄兼容入口，必须调用项目规划器并按 JSON 输出执行，不得复制规则表。规划器本身不运行测试、Git、CI 或发布；Project Constraints 与受管交付控制器分别验证项目硬门和真实交付状态。
 
@@ -70,7 +71,7 @@ JSON 改动需要重新生成对应 HTML 和交付回执。检查实际字节的
 - 变化属于结构调整，但核对记录没有说明图文如何同步。
 - Markdown 未被治理清单分类、主题存在重复 current 权威、当前链接/锚点失效或退役命令重新出现。
 - Python 文件公开结构变化后，生成索引仍是旧内容。
-- docs-only 触发原生平台、安装面没有触发 Bootstrap、普通 Web 缺少 Linux 检查、Tabbit 重新自动触发，或自动 workflow 缺少并发取消、超时和短期 artifact 保留。
+- docs-only 触发原生平台、共享安装/runtime 没有触发所需 macOS/Windows gate、Windows launcher 错触发 macOS、普通 Web 缺少 Linux 检查、Tabbit 重新自动触发，或自动 workflow 缺少并发取消、超时和短期 artifact 保留。
 
 一致性检查不是语义证明：人工仍需核对箭头、版本/权限边界、失败状态与真实代码。未通过的产品、模型或平台验收必须单列，不能被图文检查结果覆盖。
 

@@ -66,6 +66,7 @@ backup/
 # Claude Code
 .claude/
 .codex/
+.superpowers/
 .worktrees/
 .ai/*
 !.ai/reports/

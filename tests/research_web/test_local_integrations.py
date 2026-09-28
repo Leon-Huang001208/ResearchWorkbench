@@ -207,7 +207,7 @@ def test_native_windows_runner_uses_real_host_detection_without_claiming_vendor_
     assert manager.environment.registry_app_exists("rwb-ci-definitely-missing.exe") is False
 
 
-def test_windows_manual_workflow_retains_native_contracts_and_loopback_probe():
+def test_windows_conditional_workflow_retains_native_contracts_and_loopback_probe():
     workflow = (
         Path(__file__).resolve().parents[2] / ".github/workflows/research-web-windows-verify.yml"
     ).read_text(encoding="utf-8")
@@ -215,8 +215,14 @@ def test_windows_manual_workflow_retains_native_contracts_and_loopback_probe():
     trigger_block = workflow.split("permissions:", maxsplit=1)[0]
 
     assert "  workflow_dispatch:" in trigger_block
-    assert "  pull_request:" not in trigger_block
-    assert "  push:" not in trigger_block
+    assert "  pull_request:" in trigger_block
+    assert "  push:" in trigger_block
+    assert '      - "setup-web.cmd"' in trigger_block
+    assert '      - "scripts/setup_web.py"' in trigger_block
+    assert '      - "app/research_web/runtime/**"' in trigger_block
+    assert '      - "app/research_web/local_integrations/**"' in trigger_block
+    assert '      - "app/research_web/ui/**"' not in trigger_block
+    assert '      - "app/research_web/frameworks/**"' not in trigger_block
     assert "runs-on: windows-2022" in workflow
     assert 'python-version: "3.11"' in workflow
     assert 'node-version: "20"' in workflow

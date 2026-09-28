@@ -18,6 +18,7 @@
 - `tests/javascript/verification_policy.test.mjs`: policy/planner contracts and representative cases A-F.
 - `tests/javascript/verification_receipt.test.mjs`: status, readiness, legacy compatibility and representative cases G-H.
 - `tests/javascript/actions_quota_governance.test.mjs`: conditional macOS/Windows workflow path boundaries.
+- `tests/research_web/test_local_integrations.py`: Python-side Windows workflow and native loopback contract.
 - `tests/javascript/repository_cross_platform_contract.test.mjs`: `.gitattributes` and `.gitignore` behavior.
 - `.github/workflows/research-web-bootstrap.yml`: macOS-only and shared platform-sensitive automatic routing.
 - `.github/workflows/research-web-windows-verify.yml`: conditional Windows automatic routing plus retained manual dispatch.
@@ -268,6 +269,7 @@ git commit -m "feat: validate platform and real-machine evidence"
 - Modify: `tests/javascript/actions_quota_governance.test.mjs`
 - Modify: `.github/workflows/research-web-bootstrap.yml`
 - Modify: `.github/workflows/research-web-windows-verify.yml`
+- Modify: `tests/research_web/test_local_integrations.py`
 
 - [ ] **Step 1: Add failing workflow routing assertions**
 
@@ -298,7 +300,7 @@ Expected: all workflow routing contracts pass.
 - [ ] **Step 5: Commit conditional CI routing**
 
 ```bash
-git add tests/javascript/actions_quota_governance.test.mjs .github/workflows/research-web-bootstrap.yml .github/workflows/research-web-windows-verify.yml
+git add tests/javascript/actions_quota_governance.test.mjs tests/research_web/test_local_integrations.py .github/workflows/research-web-bootstrap.yml .github/workflows/research-web-windows-verify.yml
 git commit -m "ci: route Windows verification by changed paths"
 ```
 
@@ -349,6 +351,8 @@ git commit -m "chore: standardize cross-platform Git semantics"
 - Modify: `docs/actions-budget.md`
 - Modify: `docs/README.md`
 - Modify: `docs/research-web-documentation.md`
+- Modify: `docs/documentation-governance.json`
+- Modify: `docs/architecture/research-web/06-documentation-contract.md`
 - Modify: `.agents/skills/incremental-validation/SKILL.md`
 - Modify: `.agents/skills/incremental-validation/README.md`
 - Modify: `.claude/commands/verify-task.md`
@@ -378,7 +382,7 @@ Expected: documentation governance and skill contracts pass.
 - [ ] **Step 5: Commit documentation**
 
 ```bash
-git add AGENTS.md docs/AGENT_WORKFLOW.md docs/DEVELOPMENT_MAP.md docs/actions-budget.md docs/README.md docs/research-web-documentation.md .agents/skills/incremental-validation/SKILL.md .agents/skills/incremental-validation/README.md tests/javascript/incremental_validation_skill.test.mjs
+git add AGENTS.md docs/AGENT_WORKFLOW.md docs/DEVELOPMENT_MAP.md docs/actions-budget.md docs/README.md docs/research-web-documentation.md docs/documentation-governance.json docs/architecture/research-web/06-documentation-contract.md .agents/skills/incremental-validation/SKILL.md .agents/skills/incremental-validation/README.md tests/javascript/incremental_validation_skill.test.mjs
 git add -f .claude/commands/verify-task.md
 git commit -m "docs: define cross-platform development and acceptance"
 ```
@@ -387,6 +391,7 @@ git commit -m "docs: define cross-platform development and acceptance"
 
 **Files:**
 - Create: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance.md`
+- Create: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance-initial-plan.json`
 - Create: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance-plan.json`
 - Create: `.ai/reports/2026-09-28-platform-aware-minimal-acceptance-receipt.json`
 
@@ -420,6 +425,7 @@ node scripts/validate_verification_receipt.mjs --project . \
 
 ```bash
 git add .ai/reports/2026-09-28-platform-aware-minimal-acceptance.md \
+  .ai/reports/2026-09-28-platform-aware-minimal-acceptance-initial-plan.json \
   .ai/reports/2026-09-28-platform-aware-minimal-acceptance-plan.json \
   .ai/reports/2026-09-28-platform-aware-minimal-acceptance-receipt.json
 git commit -m "docs: record platform-aware acceptance evidence"
@@ -452,6 +458,7 @@ node .agents/project-constraints.mjs --project . \
   --changed-file .agents/skills/incremental-validation/SKILL.md \
   --changed-file .claude/commands/verify-task.md \
   --changed-file .ai/reports/2026-09-28-platform-aware-minimal-acceptance-plan.json \
+  --changed-file .ai/reports/2026-09-28-platform-aware-minimal-acceptance-initial-plan.json \
   --changed-file .ai/reports/2026-09-28-platform-aware-minimal-acceptance-receipt.json \
   --changed-file .ai/reports/2026-09-28-platform-aware-minimal-acceptance.md \
   --changed-file .gitattributes \
@@ -464,6 +471,8 @@ node .agents/project-constraints.mjs --project . \
   --changed-file docs/README.md \
   --changed-file docs/actions-budget.md \
   --changed-file docs/research-web-documentation.md \
+  --changed-file docs/documentation-governance.json \
+  --changed-file docs/architecture/research-web/06-documentation-contract.md \
   --changed-file docs/superpowers/plans/2026-09-28-platform-aware-minimal-acceptance.md \
   --changed-file docs/superpowers/specs/2026-09-28-platform-aware-minimal-acceptance-design.md \
   --changed-file scripts/plan_verification.mjs \
@@ -472,6 +481,7 @@ node .agents/project-constraints.mjs --project . \
   --changed-file tests/javascript/repository_cross_platform_contract.test.mjs \
   --changed-file tests/javascript/verification_policy.test.mjs \
   --changed-file tests/javascript/verification_receipt.test.mjs
+  --changed-file tests/research_web/test_local_integrations.py
 git diff --check 6dee571f53de62faae7ac3bf22dda6b9607c839c..HEAD
 ```
 
