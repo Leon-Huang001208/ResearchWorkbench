@@ -587,6 +587,62 @@ def test_install_manifest_is_an_allowlist_and_never_serializes_secrets(tmp_path:
     assert "must-not-escape" not in serialized
 
 
+def test_install_invalidates_a_stale_manifest_before_web_import_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    installer = SetupWebInstaller(
+        project_root=tmp_path / "checkout",
+        data_home=tmp_path / "data",
+        python_executable=Path(sys.executable),
+        node_executable=Path(sys.executable),
+        git_executable=Path(shutil.which("git") or sys.executable),
+        version_reader=lambda _path: "3.12.13",
+        node_version_reader=lambda _path: "v24.8.0",
+    )
+    installer.install_manifest.parent.mkdir(parents=True)
+    installer.install_manifest.write_text(
+        json.dumps({"schema_version": 1, "status": "installed", "sentinel": "stale"}),
+        encoding="utf-8",
+    )
+    environment_python = installer._environment_python(installer.venv)
+    monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(installer, "_code_commit", lambda: "a" * 40)
+    monkeypatch.setattr(installer, "prepare_environment", lambda repair=False: environment_python)
+    monkeypatch.setattr(
+        installer,
+        "install_python_dependencies",
+        lambda _python: {
+            "lock_sha256": "lock",
+            "cjpy_version": "0.5.2",
+            "cjpy_sha256": "wheel",
+        },
+    )
+    monkeypatch.setattr(
+        installer,
+        "verify_web_import",
+        lambda _python: (_ for _ in ()).throw(RuntimeError("python_web_import_failed")),
+    )
+    monkeypatch.setattr(
+        installer,
+        "provision_dsh",
+        lambda repair=False: (_ for _ in ()).throw(AssertionError("DSH must not be provisioned")),
+    )
+
+    with pytest.raises(RuntimeError, match="^python_web_import_failed$"):
+        installer.install(start=False)
+
+    manifest = json.loads(installer.install_manifest.read_text(encoding="utf-8"))
+    assert manifest == {
+        "schema_version": 1,
+        "status": "installing",
+        "code_commit": "a" * 40,
+        "started_at": manifest["started_at"],
+        "last_diagnosis": "installing",
+    }
+    assert "sentinel" not in manifest
+
+
 def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

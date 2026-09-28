@@ -45,6 +45,8 @@ python scripts/setup_web.py
 安装器只会在当前 `.venv` 能从 checkout 加载 `app.research_web.main:app` 后写入 `installed` 清单；
 该 Web import readiness 最多等待 300 秒，用于完成云盘/FileProvider 冷文件的首次读取。超时或导入
 失败返回 `python_web_import_failed`，不会把仅依赖已安装但当前 Web 入口不可加载的环境标记为完成。
+开始修改安装器自有环境前，旧成功清单会被原子替换为 `installing`；任一步失败都保留该非完成
+状态，Doctor 与 start 因而不能继续信任上一次安装的陈旧 `installed` 证据。
 
 Node 选择顺序为：调用方显式传入、`RESEARCH_NODE_BINARY`、可执行的 Codex bundled Node、PATH。
 安装器会把选中 Node 的目录放在 npm/Corepack/DSH 构建子进程 PATH 首位，避免版本检查使用 Node 24

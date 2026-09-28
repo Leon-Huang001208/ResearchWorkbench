@@ -1055,6 +1055,18 @@ class SetupWebInstaller:
         self._atomic_json(self.install_manifest, manifest)
         return manifest
 
+    def write_install_transaction_state(self) -> dict[str, object]:
+        """Invalidate any previous success before the installation mutates owned state."""
+        manifest: dict[str, object] = {
+            "schema_version": 1,
+            "status": "installing",
+            "code_commit": self._code_commit(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "last_diagnosis": "installing",
+        }
+        self._atomic_json(self.install_manifest, manifest)
+        return manifest
+
     def write_runtime_build_lock(self, *, dsh_state: dict[str, object]) -> dict[str, object]:
         """Publish the verified DSH closure consumed by the runtime launcher."""
         commit = dsh_state.get("commit")
@@ -1091,6 +1103,7 @@ class SetupWebInstaller:
             raise RuntimeError("unowned_virtual_environment")
         if blocking:
             raise RuntimeError(str(blocking[0]))
+        self.write_install_transaction_state()
         environment_python = self.prepare_environment(repair=repair)
         python_state = self.install_python_dependencies(environment_python)
         self.verify_web_import(environment_python)
