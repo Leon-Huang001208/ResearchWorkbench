@@ -4,11 +4,15 @@
 审批或取消协议。安装失败不会启动候选 Runtime，也不会接管当前 3081/8088。
 服务管理器在 spawn 前消费 Doctor 的安装 issue；只有安装状态 `ok` 才进入 3081/8088 生命周期。
 这是一条进程前置门，不新增 Runtime 状态，也不改变会话恢复、幂等受理或活动研究重启门禁。
+纯 `rwb web status` 不加载 DSH 启动功能图；固定提交来自轻量共享合同，构建闭包扫描仅由 Doctor
+和安装诊断延迟加载，因此状态核对不会提前装配 Capability、MCP 或 DataHub Runtime。
 安装事务会把已验证 DSH commit、closure SHA、文件数与 build mode 原子写入 Runtime build lock；
 锁与当前受管 DSH 不一致时 Doctor 返回 `dsh_runtime_lock_mismatch`，启动不会进入 DSH 执行链。
 首次启动会在任何 Tabbit/Profile 变更前由固定 DSH 模板创建 `web` Profile；Windows 用 CIM 核对
 PID 命令行、用 PowerShell 探测 PID 存活并按受管进程树停止，POSIX 仍按进程组停止。pnpm 的 Windows
 junction 和 POSIX symlink 都只在解析目标仍位于固定源码树时接受。这些平台分支不改变 Runtime 协议。
+安装阶段的 Web import readiness 只验证 checkout 入口可加载，不执行 FastAPI lifespan、不启动框架
+调度器、集成探测或 3081/8088；实际进程和健康状态仍只由 `rwb web start` 建立。
 
 Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
 

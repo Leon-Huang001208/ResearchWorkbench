@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -30,6 +32,29 @@ def manager(tmp_path: Path) -> WebServiceManager:
         python=str(python),
         node=str(node),
     )
+
+
+def test_import_does_not_load_runtime_feature_graph():
+    project_root = Path(__file__).resolve().parents[2]
+    script = """
+import sys
+
+import app.research_web.service_manager
+
+assert "app.research_web.launch_runtime" not in sys.modules
+assert "app.research_web.capabilities.packages" not in sys.modules
+assert "app.research_web.mcp_runtime.routes" not in sys.modules
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
 
 
 def test_process_contract_uses_brand_neutral_runtime_and_fixed_ports(manager):

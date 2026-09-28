@@ -127,6 +127,41 @@ def test_dependency_plan_uses_the_hash_lock_and_never_resolves_cjpy_from_pypi() 
     assert "cjpy==" not in lock_text.lower()
 
 
+def test_web_import_readiness_uses_the_project_source_with_a_bounded_probe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = SetupWebInstaller(project_root=project_root, data_home=tmp_path / "data")
+    environment_python = installer._environment_python(project_root / ".venv")
+    recorded: dict[str, object] = {}
+
+    def record(command, *, cwd, environment, failure_code, timeout):
+        recorded.update(
+            command=command,
+            cwd=cwd,
+            environment=environment,
+            failure_code=failure_code,
+            timeout=timeout,
+        )
+
+    monkeypatch.setattr(installer, "_run_checked", record)
+
+    installer.verify_web_import(environment_python)
+
+    assert recorded["command"] == [
+        str(environment_python),
+        "-B",
+        "-c",
+        "from app.research_web.main import app; assert app is not None",
+    ]
+    assert recorded["cwd"] == project_root
+    assert recorded["failure_code"] == "python_web_import_failed"
+    assert recorded["timeout"] == 300
+    assert "PYTHONPATH" not in recorded["environment"]
+
+
 def test_dsh_verifier_rejects_a_repository_at_the_wrong_commit(tmp_path: Path) -> None:
     source = tmp_path / "dsh"
     source.mkdir()
@@ -188,6 +223,48 @@ def test_installer_creates_and_reuses_only_its_owned_virtual_environment(
     assert marker["schema_version"] == 1
     assert marker["owner"] == "research-workbench-web-installer"
     assert "secret" not in json.dumps(marker).lower()
+
+
+def test_repair_replaces_an_owned_environment_when_pip_is_unresponsive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = SetupWebInstaller(
+        project_root=project_root,
+        data_home=tmp_path / "private-data",
+        python_executable=Path(sys.executable),
+        version_reader=lambda _path: "Python 3.12.13",
+    )
+    installer.prepare_environment()
+    sentinel = project_root / ".venv" / "stalled-environment.txt"
+    sentinel.write_text("preserve for rollback", encoding="utf-8")
+    recorded: list[tuple[list[str], int]] = []
+
+    def run(command, **options):
+        recorded.append((list(command), int(options["timeout"])))
+        if command[1:] == ["-m", "pip", "--version"]:
+            raise subprocess.TimeoutExpired(command, options["timeout"])
+        destination = Path(command[-1])
+        environment_python = installer._environment_python(destination)
+        environment_python.parent.mkdir(parents=True)
+        environment_python.write_text("replacement", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    environment_python = installer.prepare_environment(repair=True)
+
+    backups = list(project_root.glob(".venv.failed-*"))
+    assert environment_python == installer._environment_python(project_root / ".venv")
+    assert not (project_root / ".venv" / sentinel.name).exists()
+    assert len(backups) == 1
+    assert (backups[0] / sentinel.name).read_text(encoding="utf-8") == "preserve for rollback"
+    assert recorded[0] == (
+        [str(installer._environment_python(project_root / ".venv")), "-m", "pip", "--version"],
+        15,
+    )
 
 
 def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -> None:
@@ -523,6 +600,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
         node_version_reader=lambda _path: "v24.8.0",
     )
     environment_python = tmp_path / "checkout/.venv/bin/python"
+    web_imports: list[Path] = []
     dsh_state = {
         "commit": DSH_COMMIT,
         "remote": DSH_REMOTE,
@@ -541,6 +619,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
             "cjpy_sha256": "wheel",
         },
     )
+    monkeypatch.setattr(installer, "verify_web_import", web_imports.append)
     monkeypatch.setattr(installer, "provision_dsh", lambda repair=False: dsh_state)
     runtime_lock = installer.data_home / "research-web/runtime/build-lock.json"
     runtime_lock.parent.mkdir(parents=True)
@@ -549,6 +628,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
 
     installer.install(start=False)
 
+    assert web_imports == [environment_python]
     assert json.loads(runtime_lock.read_text(encoding="utf-8")) == {
         "source_commit": DSH_COMMIT,
         "closure_sha256": "b" * 64,

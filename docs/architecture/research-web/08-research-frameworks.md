@@ -9,6 +9,10 @@ Runtime build lock 只绑定同一已验证 DSH 闭包；锁修复不修改 Gold
 Gold、Dollar 的注册、采集、评分、快照或页面协议。
 Office/Wind 验证 timeout 的跨平台浮点上界修正只作用于本机集成验证器，不进入框架采集、评分、
 renderer 或 Bot 会话。
+`rwb web status` 不再因服务管理器导入而加载 Runtime Capability/MCP 功能图；这只缩短停止态诊断
+路径，不改变 Gold/Dollar 注册、调度、快照、评分、renderer 或 Bot 预设。
+安装阶段的 Web import readiness 可以加载框架定义以证明入口完整，但不进入 FastAPI lifespan，
+因此不会启动采集调度、读取外部来源、写快照或创建 Bot 会话。
 
 ## 产品边界
 
