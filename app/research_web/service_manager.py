@@ -24,10 +24,11 @@ from uuid import uuid4
 
 from core.observability import get_logger
 
-from .launch_runtime import PINNED_COMMIT, calculate_build_closure
+from . import PINNED_DSH_COMMIT
 from .runtime_auth import read_runtime_auth_record
 
 log = get_logger(__name__)
+PINNED_COMMIT = PINNED_DSH_COMMIT
 
 WEB_PORT = 8088
 RUNTIME_PORT = 3081
@@ -38,6 +39,13 @@ RUNTIME_TOKEN_PATTERN = re.compile(
 CJPY_VERSION = "0.5.2"
 CJPY_SHA256 = "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
+
+
+def calculate_build_closure(source: Path) -> tuple[str, int]:
+    """Load the expensive DSH build scanner only for installation diagnosis."""
+    from .launch_runtime import calculate_build_closure as calculate
+
+    return calculate(source)
 
 
 class ServiceManagerError(RuntimeError):
