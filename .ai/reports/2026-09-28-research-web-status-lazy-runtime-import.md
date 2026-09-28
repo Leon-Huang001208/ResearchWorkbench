@@ -78,7 +78,7 @@ passed:
 | `research-web-critical-smoke` | L3 | passed; 19/19 | 0.53 s |
 | `research-web-verification-full` | L4 | passed; 80/80 | 2.56 s |
 
-The receipt remains blocked until all required external gates pass.
+The product receipt is now passed after all required external gates completed on the same product SHA.
 
 ## Local macOS installation and lifecycle
 
@@ -96,6 +96,20 @@ The receipt remains blocked until all required external gates pass.
 - The visible in-app browser opened FinGPT, rendered navigation, composer, model catalog, and Skill entries,
   survived normal refresh and managed-restart refresh, showed connection refusal after stop, and recovered on
   the next start.
+
+## Publication and external evidence
+
+Integration commit `42fd95b54269bf3073b8824e44a1f601dacdddf6` was published directly to remote `master`.
+All required workflows used that exact head SHA and completed successfully:
+
+- [Project Constraints run 36412103687](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/36412103687)
+  passed its architecture, documentation, generated-index, and project-constraint gates.
+- [Research Web Checks run 36412103760](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/36412103760)
+  passed declared dependency installation plus Python and JavaScript contracts in 3 minutes 32 seconds.
+- [Research Web Bootstrap run 36412103849](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/36412103849)
+  ran exactly one `Clean Web install (macos-14)` job and passed clean installation, environment checks,
+  3081/8088 startup and health, Doctor/connections evidence, stop, and minimal artifact upload in 5 minutes
+  26 seconds.
 
 Windows Web automation is paused by project policy and is not part of this change's claims.
 
