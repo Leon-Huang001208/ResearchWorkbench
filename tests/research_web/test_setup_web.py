@@ -127,6 +127,41 @@ def test_dependency_plan_uses_the_hash_lock_and_never_resolves_cjpy_from_pypi() 
     assert "cjpy==" not in lock_text.lower()
 
 
+def test_web_import_readiness_uses_the_project_source_with_a_bounded_probe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = SetupWebInstaller(project_root=project_root, data_home=tmp_path / "data")
+    environment_python = project_root / ".venv/bin/python"
+    recorded: dict[str, object] = {}
+
+    def record(command, *, cwd, environment, failure_code, timeout):
+        recorded.update(
+            command=command,
+            cwd=cwd,
+            environment=environment,
+            failure_code=failure_code,
+            timeout=timeout,
+        )
+
+    monkeypatch.setattr(installer, "_run_checked", record)
+
+    installer.verify_web_import(environment_python)
+
+    assert recorded["command"] == [
+        str(environment_python),
+        "-B",
+        "-c",
+        "from app.research_web.main import app; assert app is not None",
+    ]
+    assert recorded["cwd"] == project_root
+    assert recorded["failure_code"] == "python_web_import_failed"
+    assert recorded["timeout"] == 300
+    assert "PYTHONPATH" not in recorded["environment"]
+
+
 def test_dsh_verifier_rejects_a_repository_at_the_wrong_commit(tmp_path: Path) -> None:
     source = tmp_path / "dsh"
     source.mkdir()
@@ -565,6 +600,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
         node_version_reader=lambda _path: "v24.8.0",
     )
     environment_python = tmp_path / "checkout/.venv/bin/python"
+    web_imports: list[Path] = []
     dsh_state = {
         "commit": DSH_COMMIT,
         "remote": DSH_REMOTE,
@@ -583,6 +619,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
             "cjpy_sha256": "wheel",
         },
     )
+    monkeypatch.setattr(installer, "verify_web_import", web_imports.append)
     monkeypatch.setattr(installer, "provision_dsh", lambda repair=False: dsh_state)
     runtime_lock = installer.data_home / "research-web/runtime/build-lock.json"
     runtime_lock.parent.mkdir(parents=True)
@@ -591,6 +628,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
 
     installer.install(start=False)
 
+    assert web_imports == [environment_python]
     assert json.loads(runtime_lock.read_text(encoding="utf-8")) == {
         "source_commit": DSH_COMMIT,
         "closure_sha256": "b" * 64,

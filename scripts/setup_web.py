@@ -623,6 +623,21 @@ class SetupWebInstaller:
             "cjpy_sha256": bundle["sha256"],
         }
 
+    def verify_web_import(self, environment_python: Path) -> None:
+        """Prove the installed interpreter can load the checkout's Web entrypoint."""
+        self._run_checked(
+            [
+                str(environment_python),
+                "-B",
+                "-c",
+                "from app.research_web.main import app; assert app is not None",
+            ],
+            cwd=self.project_root,
+            environment=self._python_subprocess_environment(),
+            failure_code="python_web_import_failed",
+            timeout=300,
+        )
+
     def _corepack_prefix(self) -> list[str]:
         if self.corepack_executable is not None and self.corepack_executable.is_file():
             return [str(self.corepack_executable)]
@@ -1078,6 +1093,7 @@ class SetupWebInstaller:
             raise RuntimeError(str(blocking[0]))
         environment_python = self.prepare_environment(repair=repair)
         python_state = self.install_python_dependencies(environment_python)
+        self.verify_web_import(environment_python)
         dsh_state = self.provision_dsh(repair=repair)
         self.write_runtime_build_lock(dsh_state=dsh_state)
         manifest = self.write_install_manifest(
