@@ -190,6 +190,48 @@ def test_installer_creates_and_reuses_only_its_owned_virtual_environment(
     assert "secret" not in json.dumps(marker).lower()
 
 
+def test_repair_replaces_an_owned_environment_when_pip_is_unresponsive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = SetupWebInstaller(
+        project_root=project_root,
+        data_home=tmp_path / "private-data",
+        python_executable=Path(sys.executable),
+        version_reader=lambda _path: "Python 3.12.13",
+    )
+    installer.prepare_environment()
+    sentinel = project_root / ".venv" / "stalled-environment.txt"
+    sentinel.write_text("preserve for rollback", encoding="utf-8")
+    recorded: list[tuple[list[str], int]] = []
+
+    def run(command, **options):
+        recorded.append((list(command), int(options["timeout"])))
+        if command[1:] == ["-m", "pip", "--version"]:
+            return subprocess.CompletedProcess(command, 1)
+        destination = Path(command[-1])
+        environment_python = installer._environment_python(destination)
+        environment_python.parent.mkdir(parents=True)
+        environment_python.write_text("replacement", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    environment_python = installer.prepare_environment(repair=True)
+
+    backups = list(project_root.glob(".venv.failed-*"))
+    assert environment_python == installer._environment_python(project_root / ".venv")
+    assert not (project_root / ".venv" / sentinel.name).exists()
+    assert len(backups) == 1
+    assert (backups[0] / sentinel.name).read_text(encoding="utf-8") == "preserve for rollback"
+    assert recorded[0] == (
+        [str(installer._environment_python(project_root / ".venv")), "-m", "pip", "--version"],
+        15,
+    )
+
+
 def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -> None:
     project_root = Path(__file__).resolve().parents[2]
 

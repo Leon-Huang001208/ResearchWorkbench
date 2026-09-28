@@ -680,6 +680,32 @@ class SetupWebInstaller:
             return environment / "Scripts" / "python.exe"
         return environment / "bin" / "python"
 
+    def _environment_pip_ready(self, environment_python: Path) -> bool:
+        """Bound repair-mode reuse by the package manager needed for installation."""
+        try:
+            completed = subprocess.run(
+                [str(environment_python), "-m", "pip", "--version"],
+                cwd=self.project_root,
+                env=self._python_subprocess_environment(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=15,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            self.log.warning(
+                "setup_web_owned_environment_probe_failed",
+                extra={"error_type": type(exc).__name__},
+            )
+            return False
+        if completed.returncode != 0:
+            self.log.warning(
+                "setup_web_owned_environment_probe_failed",
+                extra={"return_code": completed.returncode},
+            )
+            return False
+        return True
+
     def _owned_environment(self, environment: Path) -> bool:
         marker = environment / ENVIRONMENT_MARKER
         try:
@@ -701,7 +727,9 @@ class SetupWebInstaller:
             if not self._owned_environment(self.venv):
                 raise RuntimeError("unowned_virtual_environment")
             environment_python = self._environment_python(self.venv)
-            if environment_python.is_file():
+            if environment_python.is_file() and (
+                not repair or self._environment_pip_ready(environment_python)
+            ):
                 return environment_python
             if not repair:
                 raise RuntimeError("owned_virtual_environment_broken")

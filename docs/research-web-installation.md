@@ -37,7 +37,9 @@ python scripts/setup_web.py
 `cjpy==0.5.2`、构建固定 DSH、启动 3081/8088 并打开浏览器。可用参数：
 
 - `--check-only`：只检查，不写入。
-- `--repair`：只修复带本项目所有权标记的 `.venv` 或 DSH 目录；未知目录拒绝覆盖。
+- `--repair`：只修复带本项目所有权标记的 `.venv` 或 DSH 目录；复用 `.venv` 前以 15 秒上限
+  验证其中的 pip 可响应，失败时把旧环境保留为 `.venv.failed-<id>` 后原子创建新环境；未知目录
+  仍拒绝覆盖。
 - `--no-start`：安装完成但不启动服务。
 
 Node 选择顺序为：调用方显式传入、`RESEARCH_NODE_BINARY`、可执行的 Codex bundled Node、PATH。
