@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "riskOrder": [
     "docs-only",
     "local-only",
@@ -12,6 +12,23 @@
     "L3",
     "L4"
   ],
+  "platformOrder": [
+    "generic",
+    "linux",
+    "macos",
+    "windows",
+    "cross-platform",
+    "real-machine-required"
+  ],
+  "statusOrder": [
+    "PASS",
+    "FAIL",
+    "SKIPPED",
+    "NOT_REQUIRED",
+    "NOT_RUN",
+    "BLOCKED",
+    "MANUAL_REQUIRED"
+  ],
   "escalation": {
     "highCouplingImpactThreshold": 2,
     "targetLevel": "L3"
@@ -20,147 +37,298 @@
     "tests": {
       "verification-policy-contracts": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node --test tests/javascript/verification_policy.test.mjs"
       },
       "verification-receipt-contracts": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node --test tests/javascript/verification_receipt.test.mjs"
       },
       "incremental-validation-skill-contracts": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
       },
       "research-web-framework-collectors": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_framework_collectors.py --confcutdir=tests/research_web"
       },
       "research-web-frameworks-ui": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node --test tests/javascript/research_web_frameworks_ui.test.mjs"
       },
       "project-constraints-local": {
         "level": "L2",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
       },
       "research-web-architecture": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node --test tests/javascript/research_web_architecture.test.mjs"
       },
       "research-web-api": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web"
       },
       "research-web-ui": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs"
       },
       "research-web-datahub-public-provider": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_datahub_catalog.py --confcutdir=tests/research_web"
       },
       "research-web-datahub-core": {
         "level": "L2",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_datahub.py --confcutdir=tests/research_web"
       },
       "research-web-asset-workbench-ui": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node --test tests/javascript/research_web_workbench.test.mjs"
       },
       "research-web-asset-workspace-python": {
         "level": "L2",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_asset_workspace.py --confcutdir=tests/research_web"
       },
       "research-web-asset-workspace-smoke": {
         "level": "L3",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_asset_workspace.py::test_asset_observation_tracks_each_block_and_freezes_handoff_context --confcutdir=tests/research_web"
       },
       "research-web-service-manager": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
       },
       "research-web-installation": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_setup_web.py --confcutdir=tests/research_web"
       },
       "research-web-local-integrations": {
         "level": "L1",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
       },
       "research-web-frameworks-python": {
         "level": "L2",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_frameworks.py --confcutdir=tests/research_web"
       },
       "research-web-framework-smoke": {
         "level": "L3",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_frameworks.py::test_catalog_and_framework_data_use_versioned_specific_contracts --confcutdir=tests/research_web"
       },
       "research-web-critical-smoke": {
         "level": "L3",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
       },
       "research-web-verification-full": {
         "level": "L4",
-        "execution": "local",
-        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs"
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+      },
+      "repository-cross-platform-contracts": {
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "node --test tests/javascript/repository_cross_platform_contract.test.mjs"
       }
     },
     "documentation": {
       "documentation-governance": {
         "level": "L0",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "node scripts/check_documentation_governance.mjs --project ."
       },
       "python-file-index": {
         "level": "L0",
-        "execution": "local",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "python scripts/generate_py_file_index.py --check"
       },
       "desktop-packaging": {
         "level": "L4",
-        "execution": "external",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
         "value": "docs/desktop_packaging.md"
       }
     },
     "ci": {
       "project-constraints": {
         "level": "L4",
-        "execution": "external",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "linux"
+        ],
         "value": ".github/workflows/project-constraints.yml"
       },
       "research-web-checks": {
         "level": "L4",
-        "execution": "external",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "linux"
+        ],
         "value": ".github/workflows/research-web-checks.yml"
       },
       "research-web-bootstrap": {
         "level": "L4",
-        "execution": "external",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "macos"
+        ],
         "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
       },
       "native-windows-desktop": {
         "level": "L4",
-        "execution": "external",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "windows"
+        ],
         "value": ".github/workflows/desktop-verify.yml#windows-2022"
+      },
+      "research-web-windows-verify": {
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "windows"
+        ],
+        "value": ".github/workflows/research-web-windows-verify.yml#windows-2022"
+      },
+      "native-macos-desktop": {
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "macos"
+        ],
+        "value": ".github/workflows/desktop-verify.yml#macos-14"
+      }
+    },
+    "realMachine": {
+      "windows-desktop-installation": {
+        "level": "L4",
+        "lane": "real-machine",
+        "gate": "release",
+        "platforms": [
+          "windows",
+          "real-machine-required"
+        ],
+        "value": "docs/desktop_packaging.md#windows-real-machine-smoke"
       }
     }
   },
@@ -187,13 +355,23 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform",
+        "real-machine-required"
+      ],
       "tests": [],
       "documentation": [
         "desktop-packaging"
       ],
       "ci": [
         "project-constraints",
+        "native-macos-desktop",
         "native-windows-desktop"
+      ],
+      "realMachine": [
+        "windows-desktop-installation"
       ]
     },
     {
@@ -218,6 +396,9 @@
           ".openapi.json"
         ]
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-verification-full"
       ],
@@ -226,7 +407,8 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "schema",
@@ -250,6 +432,9 @@
           ".schema.json"
         ]
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-verification-full"
       ],
@@ -258,7 +443,8 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "dependency",
@@ -286,6 +472,11 @@
           ".lock"
         ]
       },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
       "tests": [
         "research-web-verification-full"
       ],
@@ -295,8 +486,11 @@
       ],
       "ci": [
         "project-constraints",
-        "research-web-checks"
-      ]
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-ci",
@@ -317,6 +511,12 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "linux",
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
       "tests": [
         "verification-policy-contracts",
         "verification-receipt-contracts",
@@ -331,8 +531,10 @@
       "ci": [
         "project-constraints",
         "research-web-checks",
-        "research-web-bootstrap"
-      ]
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
     },
     {
       "id": "ci",
@@ -361,6 +563,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "verification-policy-contracts",
         "verification-receipt-contracts",
@@ -372,7 +577,45 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
+    },
+    {
+      "id": "repository-git-semantics",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "repository_git_semantics_change",
+      "impact": [
+        "repository-git-semantics"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          ".gitattributes",
+          ".gitignore",
+          "tests/javascript/repository_cross_platform_contract.test.mjs"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "repository-cross-platform-contracts",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
     },
     {
       "id": "core",
@@ -393,6 +636,9 @@
         ],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-verification-full"
       ],
@@ -402,7 +648,8 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "data-model",
@@ -425,6 +672,9 @@
         ],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-verification-full"
       ],
@@ -434,7 +684,8 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "security",
@@ -457,6 +708,9 @@
         ],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-verification-full"
       ],
@@ -465,7 +719,8 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "release",
@@ -487,6 +742,9 @@
         ],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-verification-full"
       ],
@@ -495,7 +753,8 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "critical-chain",
@@ -519,6 +778,9 @@
         ],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-architecture",
         "research-web-critical-smoke"
@@ -529,7 +791,8 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "documentation",
@@ -554,6 +817,9 @@
           ".md"
         ]
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [],
       "documentation": [
         "documentation-governance",
@@ -561,7 +827,8 @@
       ],
       "ci": [
         "project-constraints"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "framework-artifacts",
@@ -580,19 +847,23 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [],
       "documentation": [],
-      "ci": []
+      "ci": [],
+      "realMachine": []
     },
     {
       "id": "research-web-local-integrations",
-      "risk": "local-only",
-      "minimumLevel": "L1",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
       "reason": "research_web_local_integrations_change",
       "impact": [
         "research-web-local-integrations"
       ],
-      "coupling": "low",
+      "coupling": "high",
       "match": {
         "files": [
           "tests/research_web/test_local_integrations.py"
@@ -603,6 +874,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "windows"
+      ],
       "tests": [
         "research-web-local-integrations",
         "research-web-architecture"
@@ -613,8 +887,10 @@
       ],
       "ci": [
         "project-constraints",
-        "research-web-checks"
-      ]
+        "research-web-checks",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web",
@@ -637,6 +913,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-architecture",
         "project-constraints-local",
@@ -649,7 +928,8 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-api",
@@ -669,6 +949,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-api",
         "research-web-architecture",
@@ -681,7 +964,8 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-ui-core",
@@ -703,6 +987,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-ui",
         "research-web-architecture",
@@ -714,7 +1001,8 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-datahub-public-provider",
@@ -734,6 +1022,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-architecture",
         "research-web-datahub-public-provider",
@@ -749,7 +1040,8 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-asset-workbench-ui",
@@ -769,6 +1061,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-architecture",
         "research-web-asset-workbench-ui",
@@ -783,7 +1078,8 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-asset-workbench-backend",
@@ -804,6 +1100,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-architecture",
         "research-web-asset-workbench-ui",
@@ -819,7 +1118,8 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-service-manager",
@@ -838,6 +1138,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-service-manager",
         "research-web-architecture",
@@ -852,7 +1155,54 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
+    },
+    {
+      "id": "research-web-runtime-platform",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_runtime_platform_change",
+      "impact": [
+        "research-web-runtime"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/cli/main.py",
+          "app/research_web/runtime_auth.py",
+          "app/research_web/launch_runtime.py"
+        ],
+        "prefixes": [
+          "app/research_web/runtime/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-service-manager",
+        "research-web-architecture",
+        "research-web-local-integrations",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-service-lifecycle-delivery",
@@ -871,6 +1221,11 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
       "tests": [
         "research-web-service-manager",
         "research-web-architecture",
@@ -885,11 +1240,13 @@
       "ci": [
         "project-constraints",
         "research-web-checks",
-        "research-web-bootstrap"
-      ]
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
     },
     {
-      "id": "research-web-installation",
+      "id": "research-web-installation-shared",
       "risk": "full-delivery",
       "minimumLevel": "L4",
       "reason": "research_web_installation_change",
@@ -899,10 +1256,6 @@
       "coupling": "high",
       "match": {
         "files": [
-          "rwb",
-          "rwb.cmd",
-          "setup-web.sh",
-          "setup-web.cmd",
           "scripts/setup_web.py",
           "tests/research_web/test_setup_web.py"
         ],
@@ -910,6 +1263,51 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-installation",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
+    },
+    {
+      "id": "research-web-installation-macos",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_macos_launcher_change",
+      "impact": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "rwb",
+          "setup-web.sh"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos"
+      ],
       "tests": [
         "research-web-installation",
         "research-web-architecture",
@@ -925,7 +1323,47 @@
         "project-constraints",
         "research-web-checks",
         "research-web-bootstrap"
-      ]
+      ],
+      "realMachine": []
+    },
+    {
+      "id": "research-web-installation-windows",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_windows_launcher_change",
+      "impact": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "rwb.cmd",
+          "setup-web.cmd"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "windows"
+      ],
+      "tests": [
+        "research-web-installation",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-framework-backend",
@@ -948,6 +1386,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-framework-collectors",
         "research-web-architecture",
@@ -963,7 +1404,8 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
     },
     {
       "id": "research-web-framework-ui",
@@ -986,6 +1428,9 @@
         "segments": [],
         "suffixes": []
       },
+      "platforms": [
+        "generic"
+      ],
       "tests": [
         "research-web-frameworks-ui",
         "research-web-architecture",
@@ -1001,7 +1446,8 @@
       "ci": [
         "project-constraints",
         "research-web-checks"
-      ]
+      ],
+      "realMachine": []
     }
   ],
   "fallback": {
@@ -1012,6 +1458,9 @@
       "unknown-boundary"
     ],
     "coupling": "high",
+    "platforms": [
+      "cross-platform"
+    ],
     "tests": [
       "research-web-verification-full"
     ],
@@ -1020,6 +1469,7 @@
     ],
     "ci": [
       "project-constraints"
-    ]
+    ],
+    "realMachine": []
   }
 }
