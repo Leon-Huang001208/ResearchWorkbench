@@ -373,6 +373,7 @@ test("commands stored in a plan are never executed", t => {
   const command = `node -e "require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'executed')"`;
   plan.tests[0].value = command;
   plan.validationsByLevel[plan.tests[0].level].find(item => item.id === plan.tests[0].id).value = command;
+  plan.local.find(item => item.id === plan.tests[0].id).value = command;
   const {root} = fixture(t, {plan, receipt: validReceipt(plan)});
   success(run(root));
   assert.equal(fs.existsSync(marker), false);
