@@ -20,6 +20,12 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from research_workbench_entrypoint.web_contract import node_version_issue
+
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 CJPY_VERSION = "0.5.2"
 CJPY_WHEEL = "cjpy-0.5.2-py3-none-any.whl"
@@ -116,11 +122,7 @@ class SetupWebInstaller:
 
     @staticmethod
     def _node_supported(value: str) -> bool:
-        match = re.search(r"(?<!\d)(\d+)\.(\d+)", value)
-        if not match:
-            return False
-        major, minor = int(match.group(1)), int(match.group(2))
-        return (major == 22 and minor >= 19) or major == 24
+        return node_version_issue(value) is None
 
     def check(self) -> dict[str, object]:
         """Inspect prerequisites and ownership without mutating the checkout."""

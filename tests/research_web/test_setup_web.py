@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from research_workbench_entrypoint.web_contract import node_version_issue
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
@@ -360,6 +361,21 @@ def test_check_rejects_unsupported_python_and_node_versions_without_writes(
     assert expected in report["issues"]
     assert not data_home.exists()
     assert not (project_root / ".venv").exists()
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "v22.18.9",
+        "v22.19.0",
+        "v23.11.0",
+        "v24.0.0",
+        "v25.0.0",
+        "not-a-version",
+    ],
+)
+def test_installer_node_support_remains_aligned_with_shared_contract(value: str) -> None:
+    assert SetupWebInstaller._node_supported(value) is (node_version_issue(value) is None)
 
 
 def test_subprocess_environment_drops_application_secrets_and_update_notices(
