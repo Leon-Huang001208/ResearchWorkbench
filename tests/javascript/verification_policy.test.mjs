@@ -612,7 +612,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 15);
+  assert.equal(catalogs.length, 16);
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -655,6 +655,16 @@ function gateIds(plan) {
   return [...plan.tests, ...plan.documentation, ...plan.ci].map(item => item.id);
 }
 
+function assertFullDockerRoute(plan) {
+  assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
+  assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-docker"), true);
+  const ids = gateIds(plan);
+  for (const forbidden of ["native-windows-desktop", "desktop-packaging"]) {
+    assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into Docker/runtime plan`);
+  }
+}
+
 test("dual-runtime catalogs and Docker external gate keep their exact contracts", () => {
   const actual = JSON.parse(fs.readFileSync(
     path.join(repositoryRoot, ".agents/verification-policy.json"),
@@ -667,6 +677,10 @@ test("dual-runtime catalogs and Docker external gate keep their exact contracts"
   assert.deepEqual(actual.catalogs.tests["research-web-container-runtime"], catalog(
     "L2",
     "python -m pytest tests/research_web/test_container_supervisor.py tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web",
+  ));
+  assert.deepEqual(actual.catalogs.tests["research-web-runtime-contract"], catalog(
+    "L1",
+    "python -m pytest tests/research_web/test_runtime_contract.py --confcutdir=tests/research_web",
   ));
   assert.deepEqual(actual.catalogs.tests["research-web-docker-contract"], catalog(
     "L2",
@@ -691,13 +705,12 @@ test("Docker packaging routes to L4 Docker acceptance without desktop gates", ()
     "docker/entrypoint.sh",
     "docker/supervisor.py",
     "docker/healthcheck.py",
+    "tests/javascript/docker_runtime_contract.test.mjs",
   ]));
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
-  assert.equal(plan.requiredLevel, "L4");
+  assertFullDockerRoute(plan);
   assert.equal(plan.tests.some(item => item.id === "research-web-docker-contract"), true);
   assert.equal(plan.tests.some(item => item.id === "research-web-container-runtime"), true);
-  assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-docker"), true);
-  assert.equal(plan.receiptTemplate.externalGateIds.includes("native-windows-desktop"), false);
 });
 
 test("host runtime router is known full delivery and selects focused mode tests", () => {
@@ -709,9 +722,8 @@ test("host runtime router is known full delivery and selects focused mode tests"
     "tests/research_web/test_docker_runtime.py",
   ]));
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
-  assert.equal(plan.requiredLevel, "L4");
+  assertFullDockerRoute(plan);
   assert.equal(plan.tests.some(item => item.id === "research-web-runtime-mode"), true);
-  assert.equal(plan.receiptTemplate.externalGateIds.includes("native-windows-desktop"), false);
 });
 
 test("runtime contract and credential backend paths use their narrow L4 routes", () => {
@@ -721,17 +733,20 @@ test("runtime contract and credential backend paths use their narrow L4 routes",
     "tests/research_web/test_runtime_contract.py",
   ]));
   assert.equal(runtimeContract.reasons.some(item => item.code === "unknown_path"), false);
-  assert.equal(runtimeContract.requiredLevel, "L4");
-  assert.equal(runtimeContract.receiptTemplate.externalGateIds.includes("native-windows-desktop"), false);
+  assertFullDockerRoute(runtimeContract);
+  assert.equal(runtimeContract.tests.some(item => item.id === "research-web-runtime-contract"), true);
+  assert.equal(
+    runtimeContract.tests.find(item => item.id === "research-web-runtime-contract")?.value,
+    "python -m pytest tests/research_web/test_runtime_contract.py --confcutdir=tests/research_web",
+  );
 
   const credentials = success(run(repositoryRoot, [
     "app/research_web/credential_backend.py",
     "tests/research_web/test_credential_backend.py",
   ]));
   assert.equal(credentials.reasons.some(item => item.code === "unknown_path"), false);
-  assert.equal(credentials.requiredLevel, "L4");
+  assertFullDockerRoute(credentials);
   assert.equal(credentials.tests.some(item => item.id === "research-web-credential-backend"), true);
-  assert.equal(credentials.receiptTemplate.externalGateIds.includes("native-windows-desktop"), false);
 });
 
 test("pure Research Web UI and Python changes never add desktop gates", () => {

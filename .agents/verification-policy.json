@@ -108,6 +108,11 @@
         "execution": "local",
         "value": "python -m pytest tests/research_web/test_container_supervisor.py tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web"
       },
+      "research-web-runtime-contract": {
+        "level": "L1",
+        "execution": "local",
+        "value": "python -m pytest tests/research_web/test_runtime_contract.py --confcutdir=tests/research_web"
+      },
       "research-web-docker-contract": {
         "level": "L2",
         "execution": "local",
@@ -623,7 +628,8 @@
         "files": [
           "Dockerfile",
           "compose.yaml",
-          ".dockerignore"
+          ".dockerignore",
+          "tests/javascript/docker_runtime_contract.test.mjs"
         ],
         "prefixes": [
           "docker/"
@@ -669,6 +675,7 @@
         "suffixes": []
       },
       "tests": [
+        "research-web-runtime-contract",
         "research-web-container-runtime",
         "research-web-installation",
         "research-web-architecture",
