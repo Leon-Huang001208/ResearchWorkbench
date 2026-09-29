@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://leon-engineering.local/schemas/verification-policy-v3.schema.json",
+  "title": "leon-engineering verification policy v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "riskOrder",
+    "levelOrder",
+    "platformOrder",
+    "statusOrder",
+    "escalation",
+    "catalogs",
+    "rules",
+    "fallback"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 3},
+    "riskOrder": {"const": ["docs-only", "local-only", "full-delivery"]},
+    "levelOrder": {"const": ["L0", "L1", "L2", "L3", "L4"]},
+    "platformOrder": {"const": ["generic", "linux", "macos", "windows", "cross-platform", "real-machine-required"]},
+    "statusOrder": {"const": ["PASS", "FAIL", "SKIPPED", "NOT_REQUIRED", "NOT_RUN", "BLOCKED", "MANUAL_REQUIRED"]},
+    "escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["highCouplingImpactThreshold", "targetLevel"],
+      "properties": {
+        "highCouplingImpactThreshold": {"type": "integer", "minimum": 2},
+        "targetLevel": {"enum": ["L1", "L2", "L3", "L4"]}
+      }
+    },
+    "catalogs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tests", "documentation", "ci", "realMachine"],
+      "properties": {
+        "tests": {"$ref": "#/$defs/catalog"},
+        "documentation": {"$ref": "#/$defs/catalog"},
+        "ci": {"$ref": "#/$defs/catalog"},
+        "realMachine": {"$ref": "#/$defs/catalog"}
+      }
+    },
+    "rules": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/rule"}},
+    "fallback": {"$ref": "#/$defs/fallback"}
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+    "level": {"enum": ["L0", "L1", "L2", "L3", "L4"]},
+    "platform": {"enum": ["generic", "linux", "macos", "windows", "cross-platform", "real-machine-required"]},
+    "catalog": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"$ref": "#/$defs/catalogItem"}
+    },
+    "catalogItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "lane", "gate", "platforms", "value"],
+      "properties": {
+        "level": {"$ref": "#/$defs/level"},
+        "lane": {"enum": ["local", "ci", "real-machine"]},
+        "gate": {"enum": ["merge", "release"]},
+        "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/platform"}},
+        "value": {"type": "string", "minLength": 1}
+      }
+    },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "prefixes", "segments", "suffixes"],
+      "properties": {
+        "files": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "prefixes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 2}},
+        "segments": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "suffixes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^\\."}},
+        "excludePrefixes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 2}}
+      }
+    },
+    "selection": {
+      "type": "object",
+      "required": ["risk", "minimumLevel", "reason", "impact", "coupling", "platforms", "tests", "documentation", "ci", "realMachine"],
+      "properties": {
+        "risk": {"enum": ["docs-only", "local-only", "full-delivery"]},
+        "minimumLevel": {"$ref": "#/$defs/level"},
+        "reason": {"$ref": "#/$defs/identifier"},
+        "impact": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "coupling": {"enum": ["low", "high"]},
+        "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/platform"}},
+        "tests": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "documentation": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "ci": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "realMachine": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "rule": {
+      "allOf": [
+        {"$ref": "#/$defs/selection"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "match"],
+          "properties": {
+            "id": {"$ref": "#/$defs/identifier"},
+            "match": {"$ref": "#/$defs/match"},
+            "risk": true,
+            "minimumLevel": true,
+            "reason": true,
+            "impact": true,
+            "coupling": true,
+            "platforms": true,
+            "tests": true,
+            "documentation": true,
+            "ci": true,
+            "realMachine": true
+          }
+        }
+      ]
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk", "minimumLevel", "reason", "impact", "coupling", "platforms", "tests", "documentation", "ci", "realMachine"],
+      "properties": {
+        "risk": {"enum": ["docs-only", "local-only", "full-delivery"]},
+        "minimumLevel": {"$ref": "#/$defs/level"},
+        "reason": {"$ref": "#/$defs/identifier"},
+        "impact": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "coupling": {"enum": ["low", "high"]},
+        "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/platform"}},
+        "tests": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "documentation": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "ci": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "realMachine": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    }
+  }
+}

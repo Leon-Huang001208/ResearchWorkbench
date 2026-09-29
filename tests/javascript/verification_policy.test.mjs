@@ -9,19 +9,62 @@ import {fileURLToPath} from "node:url";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const plannerPath = path.join(repositoryRoot, "scripts/plan_verification.mjs");
 
-function catalog(level, value, execution = "local") {
-  return {level, execution, value};
+function catalog(level, value, lane = "local", gate = "merge", platforms = ["generic"]) {
+  return {level, lane, gate, platforms, value};
 }
 
-function rule({id, risk, minimumLevel, reason, impact, coupling, match, tests = [], documentation = [], ci = []}) {
-  return {id, risk, minimumLevel, reason, impact, coupling, match, tests, documentation, ci};
+function rule({
+  id,
+  risk,
+  minimumLevel,
+  reason,
+  impact,
+  coupling,
+  match,
+  platforms = ["generic"],
+  tests = [],
+  documentation = [],
+  ci = [],
+  realMachine = [],
+}) {
+  return {
+    id,
+    risk,
+    minimumLevel,
+    reason,
+    impact,
+    coupling,
+    match,
+    platforms,
+    tests,
+    documentation,
+    ci,
+    realMachine,
+  };
 }
 
 function policy() {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     riskOrder: ["docs-only", "local-only", "full-delivery"],
     levelOrder: ["L0", "L1", "L2", "L3", "L4"],
+    platformOrder: [
+      "generic",
+      "linux",
+      "macos",
+      "windows",
+      "cross-platform",
+      "real-machine-required",
+    ],
+    statusOrder: [
+      "PASS",
+      "FAIL",
+      "SKIPPED",
+      "NOT_REQUIRED",
+      "NOT_RUN",
+      "BLOCKED",
+      "MANUAL_REQUIRED",
+    ],
     escalation: {highCouplingImpactThreshold: 2, targetLevel: "L3"},
     catalogs: {
       tests: {
@@ -92,17 +135,60 @@ function policy() {
       documentation: {
         "documentation-governance": catalog("L0", "node scripts/check_documentation_governance.mjs --project ."),
         "python-file-index": catalog("L0", "python scripts/generate_py_file_index.py --check"),
-        "desktop-packaging": catalog("L4", "docs/desktop_packaging.md", "external"),
+        "desktop-packaging": catalog("L4", "docs/desktop_packaging.md"),
       },
       ci: {
-        "project-constraints": catalog("L4", ".github/workflows/project-constraints.yml", "external"),
-        "research-web-checks": catalog("L4", ".github/workflows/research-web-checks.yml", "external"),
+        "project-constraints": catalog(
+          "L4",
+          ".github/workflows/project-constraints.yml",
+          "ci",
+          "merge",
+          ["linux"],
+        ),
+        "research-web-checks": catalog(
+          "L4",
+          ".github/workflows/research-web-checks.yml",
+          "ci",
+          "merge",
+          ["linux"],
+        ),
         "research-web-bootstrap": catalog(
           "L4",
           ".github/workflows/research-web-bootstrap.yml#macos-14",
-          "external",
+          "ci",
+          "merge",
+          ["macos"],
         ),
-        "native-windows-desktop": catalog("L4", ".github/workflows/desktop-verify.yml#windows-2022", "external"),
+        "research-web-windows-verify": catalog(
+          "L4",
+          ".github/workflows/research-web-windows-verify.yml#windows-2022",
+          "ci",
+          "merge",
+          ["windows"],
+        ),
+        "native-macos-desktop": catalog(
+          "L4",
+          ".github/workflows/desktop-verify.yml#macos-14",
+          "ci",
+          "merge",
+          ["macos"],
+        ),
+        "native-windows-desktop": catalog(
+          "L4",
+          ".github/workflows/desktop-verify.yml#windows-2022",
+          "ci",
+          "merge",
+          ["windows"],
+        ),
+      },
+      realMachine: {
+        "windows-desktop-installation": catalog(
+          "L4",
+          "docs/desktop_packaging.md#windows-real-machine-smoke",
+          "real-machine",
+          "release",
+          ["windows", "real-machine-required"],
+        ),
       },
     },
     rules: [
@@ -113,6 +199,7 @@ function policy() {
         reason: "desktop_change",
         impact: ["desktop-platform"],
         coupling: "high",
+        platforms: ["macos", "windows", "cross-platform", "real-machine-required"],
         match: {
           files: [],
           prefixes: ["src-tauri/", "desktop/", "scripts/desktop/", "services/desktop_platform/"],
@@ -121,7 +208,8 @@ function policy() {
         },
         tests: [],
         documentation: ["desktop-packaging"],
-        ci: ["project-constraints", "native-windows-desktop"],
+        ci: ["project-constraints", "native-macos-desktop", "native-windows-desktop"],
+        realMachine: ["windows-desktop-installation"],
       }),
       rule({
         id: "contract",
@@ -154,10 +242,16 @@ function policy() {
         reason: "dependency_change",
         impact: ["dependency-graph"],
         coupling: "high",
+        platforms: ["macos", "windows", "cross-platform"],
         match: {files: ["package.json", "pyproject.toml"], prefixes: ["requirements/"], segments: [], suffixes: [".lock"]},
         tests: ["research-web-verification-full"],
         documentation: ["documentation-governance"],
-        ci: ["project-constraints"],
+        ci: [
+          "project-constraints",
+          "research-web-checks",
+          "research-web-bootstrap",
+          "research-web-windows-verify",
+        ],
       }),
       rule({
         id: "research-web-ci",
@@ -166,6 +260,7 @@ function policy() {
         reason: "research_web_ci_change",
         impact: ["research-web-verification"],
         coupling: "high",
+        platforms: ["linux", "macos", "windows", "cross-platform"],
         match: {
           files: [
             ".github/workflows/research-web-bootstrap.yml",
@@ -185,7 +280,12 @@ function policy() {
           "project-constraints-local",
         ],
         documentation: ["documentation-governance"],
-        ci: ["project-constraints", "research-web-checks", "research-web-bootstrap"],
+        ci: [
+          "project-constraints",
+          "research-web-checks",
+          "research-web-bootstrap",
+          "research-web-windows-verify",
+        ],
       }),
       rule({
         id: "ci",
@@ -302,11 +402,12 @@ function policy() {
       }),
       rule({
         id: "research-web-local-integrations",
-        risk: "local-only",
-        minimumLevel: "L1",
+        risk: "full-delivery",
+        minimumLevel: "L4",
         reason: "research_web_local_integrations_change",
         impact: ["research-web-local-integrations"],
-        coupling: "low",
+        coupling: "high",
+        platforms: ["windows"],
         match: {
           files: ["tests/research_web/test_local_integrations.py"],
           prefixes: ["app/research_web/local_integrations/"],
@@ -315,7 +416,7 @@ function policy() {
         },
         tests: ["research-web-local-integrations", "research-web-architecture"],
         documentation: ["documentation-governance", "python-file-index"],
-        ci: ["project-constraints", "research-web-checks"],
+        ci: ["project-constraints", "research-web-checks", "research-web-windows-verify"],
       }),
       rule({
         id: "research-web",
@@ -486,6 +587,7 @@ function policy() {
         reason: "research_web_service_lifecycle_delivery",
         impact: ["research-web-service-lifecycle"],
         coupling: "high",
+        platforms: ["macos", "windows", "cross-platform"],
         match: {
           files: ["app/research_web/service_manager.py"],
           prefixes: [],
@@ -500,21 +602,23 @@ function policy() {
           "research-web-verification-full",
         ],
         documentation: ["documentation-governance", "python-file-index"],
-        ci: ["project-constraints", "research-web-checks", "research-web-bootstrap"],
+        ci: [
+          "project-constraints",
+          "research-web-checks",
+          "research-web-bootstrap",
+          "research-web-windows-verify",
+        ],
       }),
       rule({
-        id: "research-web-installation",
+        id: "research-web-installation-shared",
         risk: "full-delivery",
         minimumLevel: "L4",
         reason: "research_web_installation_change",
         impact: ["web-installation"],
         coupling: "high",
+        platforms: ["macos", "windows", "cross-platform"],
         match: {
           files: [
-            "rwb",
-            "rwb.cmd",
-            "setup-web.sh",
-            "setup-web.cmd",
             "scripts/setup_web.py",
             "tests/research_web/test_setup_web.py",
           ],
@@ -530,7 +634,60 @@ function policy() {
           "research-web-verification-full",
         ],
         documentation: ["documentation-governance", "python-file-index"],
+        ci: [
+          "project-constraints",
+          "research-web-checks",
+          "research-web-bootstrap",
+          "research-web-windows-verify",
+        ],
+      }),
+      rule({
+        id: "research-web-installation-macos",
+        risk: "full-delivery",
+        minimumLevel: "L4",
+        reason: "research_web_macos_launcher_change",
+        impact: ["web-installation"],
+        coupling: "high",
+        platforms: ["macos"],
+        match: {
+          files: ["rwb", "setup-web.sh"],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-installation",
+          "research-web-architecture",
+          "project-constraints-local",
+          "research-web-critical-smoke",
+          "research-web-verification-full",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
         ci: ["project-constraints", "research-web-checks", "research-web-bootstrap"],
+      }),
+      rule({
+        id: "research-web-installation-windows",
+        risk: "full-delivery",
+        minimumLevel: "L4",
+        reason: "research_web_windows_launcher_change",
+        impact: ["web-installation"],
+        coupling: "high",
+        platforms: ["windows"],
+        match: {
+          files: ["rwb.cmd", "setup-web.cmd"],
+          prefixes: [],
+          segments: [],
+          suffixes: [],
+        },
+        tests: [
+          "research-web-installation",
+          "research-web-architecture",
+          "project-constraints-local",
+          "research-web-critical-smoke",
+          "research-web-verification-full",
+        ],
+        documentation: ["documentation-governance", "python-file-index"],
+        ci: ["project-constraints", "research-web-checks", "research-web-windows-verify"],
       }),
       rule({
         id: "research-web-framework-backend",
@@ -595,9 +752,11 @@ function policy() {
       reason: "unknown_path",
       impact: ["unknown-boundary"],
       coupling: "high",
+      platforms: ["cross-platform"],
       tests: ["research-web-verification-full"],
       documentation: ["documentation-governance"],
       ci: ["project-constraints"],
+      realMachine: [],
     },
   };
 }
@@ -608,7 +767,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     "utf8",
   ));
   const catalogs = Object.entries(actual.catalogs.tests).filter(([, item]) => (
-    item.execution === "local"
+    item.lane === "local"
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
@@ -652,8 +811,95 @@ function failure(result, code) {
 }
 
 function gateIds(plan) {
-  return [...plan.tests, ...plan.documentation, ...plan.ci].map(item => item.id);
+  return [...plan.tests, ...plan.documentation, ...plan.ci, ...(plan.realMachine ?? [])].map(item => item.id);
 }
+
+function assertDimensions(plan, {components, platforms, local = [], ci = [], realMachine = []}) {
+  assert.deepEqual(plan.components, components);
+  assert.deepEqual(plan.platforms, platforms);
+  assert.deepEqual(plan.local.map(item => item.id), local);
+  assert.deepEqual(plan.ci.map(item => item.id), ci);
+  assert.deepEqual(plan.realMachine.map(item => item.id), realMachine);
+}
+
+const representativeCases = {
+  purePython: ["app/research_web/frameworks/goldar/context.py"],
+  webUi: ["app/research_web/ui/app.mjs"],
+  sharedSetup: ["scripts/setup_web.py"],
+  windowsLauncher: ["setup-web.cmd"],
+  desktop: ["src-tauri/tauri.conf.json"],
+  unknown: ["future/platform/new_adapter.py"],
+};
+
+test("representative A-F routes expose component risk and platform dimensions", () => {
+  const purePython = success(run(repositoryRoot, representativeCases.purePython));
+  assert.equal(purePython.requiredLevel, "L1");
+  assertDimensions(purePython, {
+    components: ["research-web", "framework-backend"],
+    platforms: ["generic"],
+    local: [
+      "research-web-architecture",
+      "research-web-framework-collectors",
+      "documentation-governance",
+      "python-file-index",
+    ],
+  });
+
+  const webUi = success(run(repositoryRoot, representativeCases.webUi));
+  assert.equal(webUi.requiredLevel, "L1");
+  assertDimensions(webUi, {
+    components: ["research-web", "research-web-ui"],
+    platforms: ["generic"],
+    local: [
+      "research-web-architecture",
+      "research-web-ui",
+      "documentation-governance",
+      "python-file-index",
+    ],
+  });
+
+  const sharedSetup = success(run(repositoryRoot, representativeCases.sharedSetup));
+  assert.equal(sharedSetup.requiredLevel, "L4");
+  assert.deepEqual(sharedSetup.components, ["web-installation"]);
+  assert.deepEqual(sharedSetup.platforms, ["generic", "linux", "macos", "windows", "cross-platform"]);
+  assert.deepEqual(sharedSetup.ci.map(item => item.id), [
+    "project-constraints",
+    "research-web-checks",
+    "research-web-bootstrap",
+    "research-web-windows-verify",
+  ]);
+
+  const windowsLauncher = success(run(repositoryRoot, representativeCases.windowsLauncher));
+  assert.equal(windowsLauncher.requiredLevel, "L4");
+  assert.deepEqual(windowsLauncher.components, ["web-installation"]);
+  assert.deepEqual(windowsLauncher.platforms, ["generic", "linux", "windows"]);
+  assert.deepEqual(windowsLauncher.ci.map(item => item.id), [
+    "project-constraints",
+    "research-web-checks",
+    "research-web-windows-verify",
+  ]);
+  assert.equal(windowsLauncher.ci.some(item => item.id === "research-web-bootstrap"), false);
+
+  const desktop = success(run(repositoryRoot, representativeCases.desktop));
+  assert.equal(desktop.requiredLevel, "L4");
+  assertDimensions(desktop, {
+    components: ["desktop-platform"],
+    platforms: ["generic", "linux", "macos", "windows", "cross-platform", "real-machine-required"],
+    local: ["desktop-packaging"],
+    ci: ["project-constraints", "native-macos-desktop", "native-windows-desktop"],
+    realMachine: ["windows-desktop-installation"],
+  });
+
+  const unknown = success(run(repositoryRoot, representativeCases.unknown));
+  assert.equal(unknown.requiredLevel, "L4");
+  assertDimensions(unknown, {
+    components: ["unknown-boundary"],
+    platforms: ["generic", "linux", "cross-platform"],
+    local: ["research-web-verification-full", "documentation-governance"],
+    ci: ["project-constraints"],
+  });
+  assert.deepEqual(unknown.uncoveredRisks, ["unknown_impact_boundary"]);
+});
 
 test("pure Research Web UI and Python changes never add desktop gates", () => {
   const plan = success(run(repositoryRoot, ["app/research_web/ui/app.mjs", "app/research_web/service.py"]));
@@ -710,7 +956,7 @@ test("known framework test files use the framework-specific local closure", () =
   assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
 });
 
-test("service lifecycle changes require the focused test and GitHub macOS bootstrap", () => {
+test("service lifecycle changes require the focused test and native macOS plus Windows CI", () => {
   const plan = success(run(repositoryRoot, [
     "app/research_web/service_manager.py",
     "tests/research_web/test_service_manager.py",
@@ -723,6 +969,7 @@ test("service lifecycle changes require the focused test and GitHub macOS bootst
     "project-constraints",
     "research-web-checks",
     "research-web-bootstrap",
+    "research-web-windows-verify",
   ]));
   assert.equal(
     plan.ci.find(item => item.id === "research-web-bootstrap").value,
@@ -778,6 +1025,7 @@ test("Web installation code and tests require the focused test plus native boots
     "project-constraints",
     "research-web-checks",
     "research-web-bootstrap",
+    "research-web-windows-verify",
   ]));
 });
 
@@ -786,7 +1034,7 @@ for (const file of [
   ".github/workflows/research-web-windows-verify.yml",
   "tests/javascript/actions_quota_governance.test.mjs",
 ]) {
-  test(`focused Research Web CI path requires exactly the macOS external gates: ${file}`, () => {
+  test(`focused Research Web CI path requires both native Web workflows: ${file}`, () => {
     const plan = success(run(repositoryRoot, [file]));
     assert.equal(plan.risk, "full-delivery");
     assert.equal(plan.requiredLevel, "L4");
@@ -796,10 +1044,11 @@ for (const file of [
       "project-constraints",
       "research-web-checks",
       "research-web-bootstrap",
+      "research-web-windows-verify",
     ]));
     const bootstrap = plan.ci.find((item) => item.id === "research-web-bootstrap");
     assert.equal(bootstrap.value, ".github/workflows/research-web-bootstrap.yml#macos-14");
-    assert.equal(bootstrap.execution, "external");
+    assert.equal(bootstrap.lane, "ci");
   });
 }
 
@@ -807,17 +1056,16 @@ for (const file of [
   "tests/research_web/test_local_integrations.py",
   "app/research_web/local_integrations/manager.py",
 ]) {
-  test(`local integrations path independently selects only its focused local closure: ${file}`, () => {
+  test(`local integrations path requires focused contracts and Windows CI: ${file}`, () => {
     const plan = success(run(repositoryRoot, [file]));
-    assert.equal(plan.risk, "local-only");
-    assert.equal(plan.requiredLevel, "L1");
+    assert.equal(plan.risk, "full-delivery");
+    assert.equal(plan.requiredLevel, "L4");
     assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
-    assert.deepEqual(new Set(plan.tests.map(item => item.id)), new Set([
-      "research-web-local-integrations",
-      "research-web-architecture",
-    ]));
-    assert.deepEqual(plan.receiptTemplate.externalGateIds, []);
-    assert.deepEqual(plan.ci, []);
+    for (const id of ["research-web-local-integrations", "research-web-architecture"]) {
+      assert.equal(plan.tests.some(item => item.id === id), true, `${id} missing for ${file}`);
+    }
+    assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), true);
+    assert.equal(plan.platforms.includes("windows"), true);
   });
 }
 
@@ -858,7 +1106,7 @@ test("framework gates remain ordered and deduplicated across repeated paths", ()
     "research-web-architecture",
     "research-web-framework-collectors",
   ]);
-  for (const collection of [plan.tests, plan.documentation, plan.ci]) {
+  for (const collection of [plan.tests, plan.documentation, plan.ci, plan.realMachine ?? []]) {
     const ids = collection.map(item => item.id);
     assert.equal(new Set(ids).size, ids.length);
   }
@@ -926,7 +1174,7 @@ test("small framework renderer change selects L1 without L4", () => {
   ]);
   assert.deepEqual(plan.validationsByLevel.L4, []);
   assert.equal(
-    [...plan.tests, ...plan.documentation].every(item => item.execution === "local"),
+    [...plan.tests, ...plan.documentation].every(item => item.lane === "local"),
     true,
   );
   assert.equal(plan.ci.some(item => item.id === "native-windows-desktop"), false);
@@ -1419,10 +1667,12 @@ for (const {name, changedFile, ruleId, impactId, catalogId, catalogValue} of [
     assert.deepEqual(plan.receiptTemplate.externalGateIds, [
       "project-constraints",
       "research-web-checks",
+      "research-web-bootstrap",
+      "research-web-windows-verify",
     ]);
     assert.equal(plan.tests.find(item => item.id === catalogId)?.value, catalogValue);
     const ids = gateIds(plan).join(" ").toLowerCase();
-    for (const forbidden of ["desktop", "windows"]) {
+    for (const forbidden of ["native-macos-desktop", "native-windows-desktop", "desktop-packaging"]) {
       assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into Workbench L4 plan`);
     }
   });
@@ -1451,6 +1701,8 @@ test("AKShare provider keeps its catalog when a dependency change requires L4", 
   assert.deepEqual(plan.receiptTemplate.externalGateIds, [
     "project-constraints",
     "research-web-checks",
+    "research-web-bootstrap",
+    "research-web-windows-verify",
   ]);
   assert.equal(
     gateIds(plan).some(id => id === "native-windows-desktop" || id === "desktop-packaging"),
@@ -1467,6 +1719,17 @@ test("verification policy change cannot fall below L4", () => {
   assert.equal(plan.receiptTemplate.externalGateIds.includes("project-constraints"), true);
   const full = plan.tests.find(item => item.id === "research-web-verification-full").value;
   assert.doesNotMatch(full, /verification_policy|verification_receipt|incremental_validation_skill/);
+});
+
+test("managed shared verification runtime is a known L4 verification-system boundary", () => {
+  const plan = success(run(repositoryRoot, [
+    ".agents/runtime/leon-engineering/lib/verification/planner.mjs",
+  ]));
+  assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
+  assert.deepEqual(plan.changeSummary.ruleIds, ["ci"]);
+  assert.deepEqual(plan.changeSummary.impactIds, ["verification-system"]);
+  assert.deepEqual(plan.uncoveredRisks, []);
 });
 
 test("incremental validation workflow contract is a known L4 policy path", () => {
@@ -1497,14 +1760,18 @@ test("unknown runtime escalation signals fail explicitly", t => {
   failure(run(root, ["docs/example.md"], ["not_a_signal"]), "ARGUMENT_ERROR");
 });
 
-test("desktop changes require native Windows and desktop packaging gates", () => {
+test("desktop changes require native macOS Windows and real-machine release gates", () => {
   const plan = success(run(repositoryRoot, ["src-tauri/tauri.conf.json"]));
   assert.equal(plan.risk, "full-delivery");
   assert.equal(plan.requiredLevel, "L4");
   assert.equal(plan.documentation.some(item => item.id === "desktop-packaging"), true);
+  assert.equal(plan.ci.some(item => item.id === "native-macos-desktop"), true);
   assert.equal(plan.ci.some(item => item.id === "native-windows-desktop"), true);
-  assert.equal(plan.documentation.find(item => item.id === "desktop-packaging").execution, "external");
-  assert.equal(plan.ci.every(item => item.execution === "external"), true);
+  assert.equal(plan.realMachine.some(item => item.id === "windows-desktop-installation"), true);
+  assert.equal(plan.documentation.find(item => item.id === "desktop-packaging").lane, "local");
+  assert.equal(plan.ci.every(item => item.lane === "ci"), true);
+  assert.equal(plan.realMachine.every(item => item.lane === "real-machine"), true);
+  assert.deepEqual(plan.receiptTemplate.releaseGateIds, ["windows-desktop-installation"]);
 });
 
 test("unknown paths fail closed without pretending to be desktop changes", () => {
@@ -1512,7 +1779,15 @@ test("unknown paths fail closed without pretending to be desktop changes", () =>
   assert.equal(plan.risk, "full-delivery");
   assert.equal(plan.requiredLevel, "L4");
   assert.deepEqual(plan.reasons, [{path: "unmapped/new-area.txt", rule: "fallback", code: "unknown_path"}]);
-  assert.equal(gateIds(plan).some(id => id === "native-windows-desktop" || id === "desktop-packaging"), false);
+  assert.equal(
+    gateIds(plan).some(id => [
+      "native-macos-desktop",
+      "native-windows-desktop",
+      "desktop-packaging",
+      "windows-desktop-installation",
+    ].includes(id)),
+    false,
+  );
   assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"]);
 });
 
@@ -1529,7 +1804,7 @@ test("multiple changed files deduplicate inputs and gates while keeping highest 
     "requirements/web.lock",
     "docs/AGENT_WORKFLOW.md",
   ]);
-  for (const collection of [plan.tests, plan.documentation, plan.ci]) {
+  for (const collection of [plan.tests, plan.documentation, plan.ci, plan.realMachine ?? []]) {
     const ids = collection.map(item => item.id);
     assert.equal(new Set(ids).size, ids.length);
   }
@@ -1716,6 +1991,26 @@ test("invalid JSON and weakened schemas fail with stable policy errors", t => {
   const weakFallback = policy();
   weakFallback.fallback.risk = "local-only";
   failure(run(fixture(t, weakFallback), ["docs/example.md"]), "POLICY_ERROR");
+});
+
+test("schema v3 rejects missing or unknown platform lane gate and real-machine fields", t => {
+  const mutations = [
+    value => { delete value.platformOrder; },
+    value => { value.platformOrder[3] = "plan9"; },
+    value => { delete value.statusOrder; },
+    value => { delete value.catalogs.tests["research-web-architecture"].lane; },
+    value => { delete value.catalogs.tests["research-web-architecture"].gate; },
+    value => { delete value.catalogs.tests["research-web-architecture"].platforms; },
+    value => { delete value.rules[0].platforms; },
+    value => { delete value.rules[0].realMachine; },
+    value => { delete value.fallback.realMachine; },
+  ];
+
+  for (const mutate of mutations) {
+    const value = policy();
+    mutate(value);
+    failure(run(fixture(t, value), ["docs/example.md"]), "POLICY_ERROR");
+  }
 });
 
 test("a symlinked policy file fails explicitly", t => {

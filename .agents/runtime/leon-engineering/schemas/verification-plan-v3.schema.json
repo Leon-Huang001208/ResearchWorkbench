@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://leon-engineering.local/schemas/verification-plan-v3.schema.json",
+  "title": "leon-engineering verification plan v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "risk",
+    "requiredLevel",
+    "components",
+    "platforms",
+    "changeSummary",
+    "changedFiles",
+    "impact",
+    "reasons",
+    "escalations",
+    "uncoveredRisks",
+    "validationsByLevel",
+    "tests",
+    "documentation",
+    "ci",
+    "local",
+    "realMachine",
+    "receiptTemplate"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 3},
+    "risk": {"enum": ["docs-only", "local-only", "full-delivery"]},
+    "requiredLevel": {"enum": ["L0", "L1", "L2", "L3", "L4"]},
+    "components": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "changeSummary": {"type": "object"},
+    "changedFiles": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "impact": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "reasons": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "escalations": {"type": "array", "items": {"type": "object"}},
+    "uncoveredRisks": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "validationsByLevel": {"type": "object"},
+    "tests": {"type": "array", "items": {"$ref": "#/$defs/validation"}},
+    "documentation": {"type": "array", "items": {"$ref": "#/$defs/validation"}},
+    "ci": {"type": "array", "items": {"$ref": "#/$defs/validation"}},
+    "local": {"type": "array", "items": {"$ref": "#/$defs/validation"}},
+    "realMachine": {"type": "array", "items": {"$ref": "#/$defs/validation"}},
+    "receiptTemplate": {"type": "object"},
+    "changeSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries"],
+      "properties": {
+        "entries": {"type": "array", "minItems": 1, "items": {"type": "object"}}
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "baseCommit",
+        "headCommit",
+        "changeSetSha256",
+        "policySha256",
+        "frameworkVersion",
+        "frameworkCommit",
+        "frameworkSha256",
+        "planSha256"
+      ],
+      "properties": {
+        "source": {"const": "git"},
+        "baseCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "headCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "changeSetSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policySha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "frameworkVersion": {"type": "string", "minLength": 1},
+        "frameworkCommit": {"type": ["string", "null"]},
+        "frameworkSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "planSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "dependentRequired": {
+    "binding": ["changeSet"],
+    "changeSet": ["binding"]
+  },
+  "$defs": {
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "level", "lane", "gate", "platforms", "category", "value"],
+      "properties": {
+        "id": {"type": "string"},
+        "level": {"enum": ["L0", "L1", "L2", "L3", "L4"]},
+        "lane": {"enum": ["local", "ci", "real-machine"]},
+        "gate": {"enum": ["merge", "release"]},
+        "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+        "category": {"enum": ["tests", "documentation", "ci", "realMachine"]},
+        "value": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
