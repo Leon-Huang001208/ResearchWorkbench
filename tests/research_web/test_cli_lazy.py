@@ -103,8 +103,8 @@ def test_web_doctor_supports_safe_json_and_human_output(monkeypatch):
         "installation_ok": True,
         "product_ready": False,
         "model_ready": False,
-        "issues": [],
-        "warnings": [],
+        "issues": ["web_state_invalid"],
+        "warnings": ["loopback_proxy_bypass_missing"],
         "python": {"version": "Python 3.12.9", "lock_matches_manifest": True},
         "node": {"version": "v24.8.0"},
         "cjpy": {"version": "0.5.2", "ready": True},
@@ -157,6 +157,8 @@ def test_web_doctor_supports_safe_json_and_human_output(monkeypatch):
     assert "Model: not ready" in human_result.output
     assert "CJPY: 0.5.2" in human_result.output
     assert "DSH: ready" in human_result.output
+    assert "issues: web_state_invalid" in human_result.output
+    assert "warnings: loopback_proxy_bypass_missing" in human_result.output
 
 
 def test_web_status_exits_zero_with_safe_service_issues(monkeypatch):

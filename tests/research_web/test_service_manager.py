@@ -1777,6 +1777,12 @@ def test_status_exposes_full_fact_chain(manager, monkeypatch):
 
 
 def test_doctor_keeps_other_service_when_one_state_is_invalid(manager, monkeypatch):
+    monkeypatch.setattr(service_manager_module.os, "environ", {})
+    monkeypatch.setattr(
+        manager,
+        "_model_diagnosis",
+        lambda: pytest.fail("model diagnosis must not run before product readiness"),
+    )
     probes = iter(
         [
             ServiceProbe(
@@ -2903,6 +2909,7 @@ def test_status_formatter_is_concise():
 
 
 def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, monkeypatch):
+    monkeypatch.setattr(service_manager_module.os, "environ", {})
     environment = manager.project_root / ".venv"
     environment.mkdir()
     (environment / ".rwb-web-environment.json").write_text(
@@ -2930,7 +2937,11 @@ def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, mo
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(manager, "_executable_version", lambda _path: "safe-version")
+    monkeypatch.setattr(
+        manager,
+        "_executable_version",
+        lambda path: "v24.19.0" if path == manager.node else "Python 3.12.9",
+    )
     monkeypatch.setattr(
         manager,
         "_installed_package_versions",
@@ -3398,6 +3409,535 @@ def test_runtime_auth_regeneration_fails_closed_when_tempfile_creation_fails(man
     with pytest.raises(ServiceManagerError) as captured:
         manager._active_research()
     assert str(captured.value) == "无法核对活动研究；未执行重启，可显式使用 --force"
+
+
+class _FakeHttpResponse:
+    def __init__(self, status, content_type, body):
+        self.status = status
+        self._content_type = content_type
+        self._body = body
+        self.read_limit = None
+
+    def getheader(self, name):
+        assert name == "Content-Type"
+        return self._content_type
+
+    def read(self, limit):
+        self.read_limit = limit
+        return self._body[:limit]
+
+
+class _FakeHttpConnection:
+    def __init__(self, response=None, *, error=None):
+        self.response = response
+        self.error = error
+        self.closed = False
+        self.requested = None
+
+    def request(self, method, path, body=None, headers=None):
+        self.requested = (method, path, body, headers)
+        if self.error is not None:
+            raise self.error
+
+    def getresponse(self):
+        return self.response
+
+    def close(self):
+        self.closed = True
+
+
+def test_direct_loopback_text_request_is_bounded_and_always_closes(manager, monkeypatch):
+    response = _FakeHttpResponse(200, "text/plain; charset=utf-8", b"ready")
+    connection = _FakeHttpConnection(response)
+    captured = {}
+
+    def connect(host, port, timeout):
+        captured.update(host=host, port=port, timeout=timeout)
+        return connection
+
+    monkeypatch.setattr(service_manager_module.http.client, "HTTPConnection", connect)
+
+    result = manager._text_request(8088, "/health", max_bytes=32)
+
+    assert result == (200, "text/plain; charset=utf-8", "ready")
+    assert captured == {"host": "127.0.0.1", "port": 8088, "timeout": 2}
+    assert connection.requested == ("GET", "/health", None, {})
+    assert response.read_limit == 33
+    assert connection.closed is True
+
+
+@pytest.mark.parametrize(
+    ("response", "error"),
+    [
+        (_FakeHttpResponse(200, "text/plain", b"x" * 34), None),
+        (None, ConnectionRefusedError("private endpoint")),
+        (_FakeHttpResponse(200, "text/plain", b"\xff"), None),
+    ],
+    ids=["oversize", "connection", "non-utf8"],
+)
+def test_direct_loopback_text_request_returns_only_stable_failures(
+    manager, monkeypatch, response, error
+):
+    connection = _FakeHttpConnection(response, error=error)
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connection,
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._text_request(8088, "/health", max_bytes=32)
+
+    assert str(captured.value) == "本地服务响应无效"
+    assert "private endpoint" not in str(captured.value)
+    assert connection.closed is True
+
+
+def _readiness_responses(**overrides):
+    values = {
+        "/api/research/runtime": (
+            200,
+            "application/json",
+            json.dumps(
+                {
+                    "connected": True,
+                    "health_check_passed": True,
+                    "provider": "provider",
+                    "model": "model",
+                    "credential_configured": True,
+                }
+            ),
+        ),
+        "/": (200, "text/html; charset=utf-8", "<title>Research Workbench · Research</title>"),
+        "/static/app.mjs": (
+            200,
+            "text/javascript; charset=utf-8",
+            "const defaultCatalogNames = ['runtime'];",
+        ),
+    }
+    values.update(overrides)
+    return values
+
+
+@pytest.mark.parametrize(
+    ("overrides", "issue"),
+    [
+        (
+            {
+                "/api/research/runtime": (
+                    200,
+                    "application/json",
+                    '{"connected": false, "health_check_passed": true}',
+                )
+            },
+            "web_runtime_api_failed",
+        ),
+        (
+            {"/api/research/runtime": (200, "application/json", "{")},
+            "web_runtime_api_failed",
+        ),
+        (
+            {
+                "/api/research/runtime": (
+                    200,
+                    "application/json",
+                    '{"connected": true, "health_check_passed": false}',
+                )
+            },
+            "web_runtime_api_failed",
+        ),
+        ({"/": (503, "text/html", "unavailable")}, "web_root_failed"),
+        ({"/": (200, "text/plain", "Research Workbench · Research")}, "web_root_failed"),
+        ({"/": (200, "text/html", "wrong shell")}, "web_root_failed"),
+        ({"/static/app.mjs": (404, "text/javascript", "missing")}, "web_static_asset_failed"),
+        (
+            {"/static/app.mjs": (200, "text/plain", "const defaultCatalogNames = [];")},
+            "web_static_asset_failed",
+        ),
+        (
+            {"/static/app.mjs": (200, "application/javascript", "wrong bundle")},
+            "web_static_asset_failed",
+        ),
+    ],
+)
+def test_web_readiness_maps_each_product_surface_failure(manager, monkeypatch, overrides, issue):
+    responses = _readiness_responses(**overrides)
+    monkeypatch.setattr(
+        manager,
+        "_text_request",
+        lambda _port, _path, *, max_bytes: responses[_path],
+    )
+
+    result = manager._web_ready()
+
+    assert result.ready is False
+    assert result.issues == (issue,)
+
+
+def test_web_readiness_requires_runtime_root_and_static_asset(manager, monkeypatch):
+    responses = _readiness_responses()
+    requested = []
+
+    def request(_port, path, *, max_bytes):
+        requested.append((path, max_bytes))
+        return responses[path]
+
+    monkeypatch.setattr(manager, "_text_request", request)
+
+    result = manager._web_ready()
+
+    assert result.ready is True
+    assert result.issues == ()
+    assert [path for path, _limit in requested] == [
+        "/api/research/runtime",
+        "/",
+        "/static/app.mjs",
+    ]
+    assert all(limit <= 2 * 1024 * 1024 for _path, limit in requested)
+
+
+def test_web_probe_preserves_specific_readiness_issue(manager, monkeypatch):
+    process, state_path = _valid_state(manager, "web")
+    state = json.loads(state_path.read_bytes())
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: _authoritative_process_fact(process, state),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (int(state["pid"]),), None),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_web_ready",
+        lambda: service_manager_module._WebReadiness(False, ("web_static_asset_failed",)),
+    )
+
+    probe = manager._probe_service(process)
+
+    assert probe.ready is False
+    assert probe.protocol == "failed"
+    assert probe.issues == ("web_static_asset_failed",)
+
+
+def test_start_waits_for_runtime_readiness_before_web_spawn_and_browser(manager, monkeypatch):
+    processes = {process.role: process for process in manager._processes()}
+    probes = {
+        role: _service_probe(
+            role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+        for role in ("runtime", "web")
+    }
+    events = []
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+
+    def spawn_and_wait(process):
+        events.append(f"spawn:{process.role}")
+        if process.role == "web":
+            assert probes["runtime"].ready is True
+        probes[process.role] = _service_probe(
+            process.role, pid=101 if process.role == "runtime" else 202
+        )
+        events.append(f"ready:{process.role}")
+        return probes[process.role].pid
+
+    monkeypatch.setattr(manager, "_spawn_and_wait", spawn_and_wait)
+
+    def status():
+        events.append("status:final")
+        return {
+            "url": manager.web_url,
+            "product_ready": all(probe.ready for probe in probes.values()),
+            "warnings": [],
+            "services": {},
+        }
+
+    monkeypatch.setattr(manager, "status", status)
+    monkeypatch.setattr(
+        service_manager_module.webbrowser,
+        "open",
+        lambda url: events.append(f"browser:{url}") or True,
+    )
+
+    result = manager.start(open_browser=True)
+
+    assert result["product_ready"] is True
+    assert events == [
+        "spawn:runtime",
+        "ready:runtime",
+        "spawn:web",
+        "ready:web",
+        "status:final",
+        f"browser:{manager.web_url}",
+    ]
+    assert processes["runtime"].role == "runtime"
+
+
+@pytest.mark.parametrize(
+    "browser_result",
+    [
+        False,
+        service_manager_module.webbrowser.Error("expected"),
+        OSError("expected"),
+        subprocess.SubprocessError("expected"),
+    ],
+    ids=["false", "browser-error", "os-error", "platform-error"],
+)
+def test_browser_open_failure_is_a_nonblocking_warning_without_rollback(
+    manager, monkeypatch, browser_result
+):
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: _service_probe(process.role, pid=101 if process.role == "runtime" else 202),
+    )
+    monkeypatch.setattr(
+        manager, "_rollback_spawned", lambda *_args: pytest.fail("must not rollback")
+    )
+    monkeypatch.setattr(
+        manager,
+        "status",
+        lambda: {
+            "url": manager.web_url,
+            "product_ready": True,
+            "warnings": [],
+            "services": {},
+        },
+    )
+
+    def open_browser(_url):
+        if isinstance(browser_result, BaseException):
+            raise browser_result
+        return browser_result
+
+    monkeypatch.setattr(service_manager_module.webbrowser, "open", open_browser)
+
+    result = manager._start_locked(diagnosis={"ok": True}, open_browser=True)
+
+    assert result["product_ready"] is True
+    assert result["warnings"] == ["browser_open_failed"]
+    assert result["url"] == manager.web_url
+
+
+def test_no_open_never_calls_browser_and_adds_no_warning(manager, monkeypatch):
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: _service_probe(process.role, pid=101 if process.role == "runtime" else 202),
+    )
+    monkeypatch.setattr(
+        manager,
+        "status",
+        lambda: {
+            "url": manager.web_url,
+            "product_ready": True,
+            "warnings": [],
+            "services": {},
+        },
+    )
+    monkeypatch.setattr(
+        service_manager_module.webbrowser,
+        "open",
+        lambda _url: pytest.fail("--no-open must not call browser"),
+    )
+
+    result = manager._start_locked(diagnosis={"ok": True}, open_browser=False)
+
+    assert result["warnings"] == []
+
+
+def test_browser_never_opens_when_final_product_status_is_not_ready(manager, monkeypatch):
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: _service_probe(process.role, pid=101 if process.role == "runtime" else 202),
+    )
+    monkeypatch.setattr(
+        manager,
+        "status",
+        lambda: {
+            "url": manager.web_url,
+            "product_ready": False,
+            "warnings": [],
+            "services": {},
+        },
+    )
+    monkeypatch.setattr(
+        service_manager_module.webbrowser,
+        "open",
+        lambda _url: pytest.fail("partial readiness must never open the browser"),
+    )
+
+    result = manager._start_locked(diagnosis={"ok": True}, open_browser=True)
+
+    assert result["product_ready"] is False
+    assert result["warnings"] == []
+
+
+def test_browser_unexpected_base_exception_is_not_swallowed(manager, monkeypatch):
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: _service_probe(process.role, pid=101 if process.role == "runtime" else 202),
+    )
+    monkeypatch.setattr(
+        manager,
+        "status",
+        lambda: {
+            "url": manager.web_url,
+            "product_ready": True,
+            "warnings": [],
+            "services": {},
+        },
+    )
+    monkeypatch.setattr(
+        service_manager_module.webbrowser,
+        "open",
+        lambda _url: (_ for _ in ()).throw(KeyboardInterrupt()),
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        manager._start_locked(diagnosis={"ok": True}, open_browser=True)
+
+
+@pytest.mark.parametrize(
+    ("exists", "version", "issue"),
+    [
+        (False, None, "node_unavailable"),
+        (True, None, "node_version_invalid"),
+        (True, "not-a-version", "node_version_invalid"),
+        (True, "v20.19.0", "node_version_unsupported"),
+        (True, "v24.19.0", None),
+    ],
+)
+def test_node_diagnosis_uses_shared_install_contract(manager, monkeypatch, exists, version, issue):
+    monkeypatch.setattr(service_manager_module.Path, "is_file", lambda path: exists)
+    monkeypatch.setattr(manager, "_executable_version", lambda _path: version)
+
+    assert manager._node_diagnosis() == (version, issue)
+
+
+@pytest.mark.parametrize(
+    ("runtime", "models", "ready", "warnings"),
+    [
+        (
+            {"provider": None, "model": None, "credential_configured": True},
+            {"groups": [], "failures": []},
+            False,
+            ("model_configuration_missing",),
+        ),
+        (
+            {"provider": "provider", "model": "model", "credential_configured": False},
+            {"groups": [], "failures": []},
+            False,
+            ("model_credential_missing",),
+        ),
+        (
+            {"provider": "provider", "model": "model", "credential_configured": True},
+            {"groups": [], "failures": [{"provider": "private", "error": "secret"}]},
+            False,
+            ("model_catalog_unavailable",),
+        ),
+        (
+            {"provider": "provider", "model": "model", "credential_configured": True},
+            {"groups": {}, "failures": []},
+            False,
+            ("model_catalog_unavailable",),
+        ),
+        (
+            {"provider": "provider", "model": "model", "credential_configured": True},
+            {"groups": [], "failures": []},
+            True,
+            (),
+        ),
+    ],
+)
+def test_model_diagnosis_is_safe_nonblocking_and_never_generates(
+    manager, monkeypatch, runtime, models, ready, warnings
+):
+    requests = []
+
+    def request(_port, method, path, payload=None, extra_headers=None):
+        requests.append((method, path, payload, extra_headers))
+        if path == "/api/research/runtime":
+            return runtime
+        if path == "/api/research/models":
+            return models
+        pytest.fail("model diagnosis must not invoke generation endpoints")
+
+    monkeypatch.setattr(manager, "_json_request", request)
+
+    result = manager._model_diagnosis()
+
+    assert result == (ready, warnings)
+    assert requests == [
+        ("GET", "/api/research/runtime", None, None),
+        ("GET", "/api/research/models", None, None),
+    ]
+    assert "secret" not in repr(result)
+
+
+def test_model_catalog_request_failure_is_warning_only(manager, monkeypatch):
+    def request(_port, _method, path, payload=None, extra_headers=None):
+        if path == "/api/research/runtime":
+            return {"provider": "provider", "model": "model", "credential_configured": True}
+        raise ServiceManagerError("private provider failure")
+
+    monkeypatch.setattr(manager, "_json_request", request)
+
+    assert manager._model_diagnosis() == (False, ("model_catalog_unavailable",))
+
+
+@pytest.mark.parametrize("environment", [{"HTTP_PROXY": "secret"}, {"https_proxy": "secret"}])
+def test_doctor_merges_safe_proxy_warning_only(manager, monkeypatch, environment):
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(
+        manager,
+        "_service_probes",
+        lambda: (
+            _service_probe("runtime", pid=101),
+            _service_probe("web", pid=202),
+        ),
+    )
+    monkeypatch.setattr(manager, "_model_diagnosis", lambda: (True, ()))
+    monkeypatch.setattr(service_manager_module.os, "environ", environment)
+
+    report = manager.doctor()
+
+    assert report["ok"] is True
+    assert report["installation_ok"] is True
+    assert report["product_ready"] is True
+    assert report["model_ready"] is True
+    assert report["issues"] == []
+    assert report["warnings"] == ["loopback_proxy_bypass_missing"]
+    assert "secret" not in json.dumps(report)
+
+
+def test_status_formatter_prints_warnings_and_copyable_url():
+    rendered = format_status(
+        {
+            "url": "http://127.0.0.1:8088/#/fingpt",
+            "product_ready": True,
+            "warnings": ["browser_open_failed"],
+            "services": {
+                role: _service_probe(role, pid=101 if role == "runtime" else 202).public()
+                for role in ("runtime", "web")
+            },
+        }
+    )
+
+    assert "warnings: browser_open_failed" in rendered
+    assert "url: http://127.0.0.1:8088/#/fingpt" in rendered
 
 
 def test_runtime_auth_regeneration_preserves_service_manager_fail_closed_contract(

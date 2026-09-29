@@ -27,10 +27,13 @@ from uuid import uuid4
 from core.observability import get_logger
 from research_workbench_entrypoint.web_contract import (
     CONTROL_JSON_MAX_BYTES,
+    MAX_HTTP_BODY_BYTES,
     PROCESS_START_TOLERANCE_SECONDS,
     ListenerFact,
     listener_pids,
+    node_version_issue,
     probe_process,
+    proxy_warnings,
     read_private_json,
     signature_matches_argv,
 )
@@ -53,6 +56,9 @@ CJPY_VERSION = "0.5.2"
 CJPY_SHA256 = "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 STATE_LIMIT_BYTES = CONTROL_JSON_MAX_BYTES
+WEB_TEXT_MAX_BYTES = min(MAX_HTTP_BODY_BYTES, 256 * 1024)
+WEB_ROOT_MARKER = "Research Workbench · Research"
+WEB_STATIC_MARKER = "const defaultCatalogNames ="
 MAX_STATE_STRING_LENGTH = 4096
 STATE_KEYS = {
     "version",
@@ -135,6 +141,17 @@ class _ProcessFact:
     ownership: str
     pid: int | None
     issues: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _WebReadiness:
+    """Complete, allowlisted Research Web protocol readiness."""
+
+    ready: bool
+    issues: tuple[str, ...]
+
+    def __bool__(self) -> bool:
+        return self.ready
 
 
 class WebServiceManager:
@@ -456,10 +473,8 @@ class WebServiceManager:
         except ServiceManagerError:
             return False
 
-    def _protocol_health(self, process: ManagedProcess) -> bool:
-        return (
-            self._runtime_protocol_healthy() if process.role == "runtime" else self._web_healthy()
-        )
+    def _protocol_health(self, process: ManagedProcess) -> bool | _WebReadiness:
+        return self._runtime_protocol_healthy() if process.role == "runtime" else self._web_ready()
 
     def _probe_service(self, process: ManagedProcess) -> ServiceProbe:
         """Build the ordered state-to-protocol fact chain for one service."""
@@ -529,14 +544,18 @@ class WebServiceManager:
             and observed.pid in listener.pids
         ):
             try:
-                ready = self._protocol_health(process)
+                health = self._protocol_health(process)
+                ready = bool(health)
                 protocol = "passed" if ready else "failed"
                 if not ready:
-                    issues.append(
-                        "runtime_health_failed"
-                        if process.role == "runtime"
-                        else "web_runtime_api_failed"
-                    )
+                    if isinstance(health, _WebReadiness):
+                        issues.extend(health.issues)
+                    else:
+                        issues.append(
+                            "runtime_health_failed"
+                            if process.role == "runtime"
+                            else "web_runtime_api_failed"
+                        )
             except (OSError, TypeError, ValueError, ServiceManagerError):
                 protocol = "failed"
                 issues.append(f"{process.role}_protocol_probe_failed")
@@ -681,6 +700,37 @@ class WebServiceManager:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.settimeout(0.25)
             return sock.connect_ex(("127.0.0.1", port)) == 0
+
+    @staticmethod
+    def _text_request(
+        port: int,
+        path: str,
+        *,
+        max_bytes: int,
+    ) -> tuple[int, str | None, str]:
+        """Read one bounded direct-loopback response without proxy mediation."""
+        if max_bytes <= 0 or max_bytes > MAX_HTTP_BODY_BYTES:
+            raise ServiceManagerError("本地服务响应无效")
+        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+        try:
+            connection.request("GET", path, body=None, headers={})
+            response = connection.getresponse()
+            raw = response.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                raise ValueError("response too large")
+            return response.status, response.getheader("Content-Type"), raw.decode("utf-8")
+        except (
+            OSError,
+            ValueError,
+            UnicodeError,
+            http.client.HTTPException,
+        ) as exc:
+            raise ServiceManagerError("本地服务响应无效") from exc
+        finally:
+            try:
+                connection.close()
+            except (OSError, http.client.HTTPException):
+                log.warning("research_loopback_connection_close_failed")
 
     @staticmethod
     def _json_request(
@@ -866,12 +916,84 @@ class WebServiceManager:
         except ServiceManagerError:
             return False
 
-    def _web_healthy(self) -> bool:
+    @staticmethod
+    def _media_type(value: str | None) -> str:
+        return (value or "").split(";", 1)[0].strip().lower()
+
+    def _web_ready(self) -> _WebReadiness:
+        """Require Runtime projection, product shell, and primary module asset."""
+        issues: list[str] = []
         try:
-            value = self._json_request(self.web_port, "GET", "/api/research/runtime")
-            return value.get("connected") is True
-        except ServiceManagerError:
-            return False
+            status, content_type, body = self._text_request(
+                self.web_port,
+                "/api/research/runtime",
+                max_bytes=CONTROL_JSON_MAX_BYTES,
+            )
+            value = json.loads(body)
+            if (
+                status < 200
+                or status >= 300
+                or self._media_type(content_type) != "application/json"
+                or type(value) is not dict
+                or value.get("connected") is not True
+                or value.get("health_check_passed") is not True
+            ):
+                raise ValueError("runtime projection not ready")
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            UnicodeError,
+            ServiceManagerError,
+        ):
+            issues.append("web_runtime_api_failed")
+        try:
+            status, content_type, body = self._text_request(
+                self.web_port,
+                "/",
+                max_bytes=WEB_TEXT_MAX_BYTES,
+            )
+            if (
+                status != 200
+                or self._media_type(content_type) != "text/html"
+                or WEB_ROOT_MARKER not in body
+            ):
+                raise ValueError("root shell not ready")
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            UnicodeError,
+            ServiceManagerError,
+        ):
+            issues.append("web_root_failed")
+        try:
+            status, content_type, body = self._text_request(
+                self.web_port,
+                "/static/app.mjs",
+                max_bytes=WEB_TEXT_MAX_BYTES,
+            )
+            if (
+                status != 200
+                or self._media_type(content_type)
+                not in {"application/javascript", "text/javascript"}
+                or WEB_STATIC_MARKER not in body
+            ):
+                raise ValueError("static module not ready")
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            UnicodeError,
+            ServiceManagerError,
+        ):
+            issues.append("web_static_asset_failed")
+        stable_issues = tuple(dict.fromkeys(issues))
+        return _WebReadiness(not stable_issues, stable_issues)
+
+    def _web_healthy(self) -> bool:
+        """Compatibility predicate backed by complete product readiness."""
+        return self._web_ready().ready
 
     @staticmethod
     def _wait(check, timeout: float) -> bool:
@@ -1367,9 +1489,22 @@ class WebServiceManager:
                 except ServiceManagerError:
                     log.error("research_service_rollback_failed", role=process.role)
             raise
-        if open_browser:
-            webbrowser.open(self.web_url)
-        return self.status()
+        status = self.status()
+        if open_browser and status.get("product_ready") is True:
+            browser_failed = False
+            try:
+                browser_failed = webbrowser.open(self.web_url) is not True
+            except (webbrowser.Error, OSError, subprocess.SubprocessError):
+                browser_failed = True
+            if browser_failed:
+                log.warning("research_web_browser_open_failed")
+                status = dict(status)
+                warnings = status.get("warnings", [])
+                status["warnings"] = list(warnings) if isinstance(warnings, list) else []
+                status["warnings"] = list(
+                    dict.fromkeys([*status["warnings"], "browser_open_failed"])
+                )
+        return status
 
     def start(self, *, open_browser: bool = True) -> dict[str, Any]:
         diagnosis = self._require_installation_ready()
@@ -1571,6 +1706,13 @@ class WebServiceManager:
         except (OSError, TypeError, ValueError, json.JSONDecodeError, subprocess.SubprocessError):
             return {name: None for name in ("cjpy", "requests", "urllib3")}
 
+    def _node_diagnosis(self) -> tuple[str | None, str | None]:
+        """Classify Node with the shared Web installation contract."""
+        if not Path(self.node).is_file():
+            return None, "node_unavailable"
+        version = self._executable_version(self.node)
+        return version, node_version_issue(version)
+
     def _read_install_manifest(self) -> dict[str, Any]:
         path = self.data_root.parent / "install" / "manifest.json"
         try:
@@ -1730,18 +1872,20 @@ class WebServiceManager:
             and manifest.get("dsh_closure_sha256") == dsh.get("closure_sha256")
         )
         runtime_lock_matches = bool(dsh_ready and self._runtime_build_lock_matches(dsh))
+        node_version, node_issue = self._node_diagnosis()
         issues = []
         for ready, code in (
             (manifest.get("status") == "installed", "install_manifest_invalid"),
             (environment_owned, "environment_not_owned"),
             (lock_matches, "web_lock_mismatch"),
             (cjpy_ready, "cjpy_not_ready"),
-            (self._executable_version(self.node) is not None, "node_unavailable"),
             (dsh_ready, "dsh_not_ready"),
             (runtime_lock_matches, "dsh_runtime_lock_mismatch"),
         ):
             if not ready:
                 issues.append(code)
+        if node_issue is not None:
+            issues.append(node_issue)
         return {
             "schema_version": 1,
             "ok": not issues,
@@ -1752,7 +1896,7 @@ class WebServiceManager:
                 "lock_sha256": lock_sha256,
                 "lock_matches_manifest": lock_matches,
             },
-            "node": {"version": self._executable_version(self.node)},
+            "node": {"version": node_version},
             "cjpy": {
                 "version": package_versions.get("cjpy"),
                 "wheel_sha256": CJPY_SHA256 if cjpy_ready else None,
@@ -1770,6 +1914,40 @@ class WebServiceManager:
             "data": {"ready": self.data_root.is_dir()},
         }
 
+    def _model_diagnosis(self) -> tuple[bool, tuple[str, ...]]:
+        """Read safe model configuration/catalog facts without generation calls."""
+        warnings: list[str] = []
+        try:
+            runtime = self._json_request(self.web_port, "GET", "/api/research/runtime")
+        except ServiceManagerError:
+            return False, ("model_catalog_unavailable",)
+        provider = runtime.get("provider")
+        model = runtime.get("model")
+        configured = (
+            isinstance(provider, str)
+            and bool(provider.strip())
+            and isinstance(model, str)
+            and bool(model.strip())
+        )
+        credential_configured = runtime.get("credential_configured") is True
+        if not configured:
+            warnings.append("model_configuration_missing")
+        if not credential_configured:
+            warnings.append("model_credential_missing")
+
+        catalog_ready = False
+        try:
+            catalog = self._json_request(self.web_port, "GET", "/api/research/models")
+            groups = catalog.get("groups")
+            failures = catalog.get("failures")
+            catalog_ready = isinstance(groups, list) and isinstance(failures, list) and not failures
+            if not catalog_ready:
+                warnings.append("model_catalog_unavailable")
+        except ServiceManagerError:
+            warnings.append("model_catalog_unavailable")
+        stable_warnings = tuple(dict.fromkeys(warnings))
+        return configured and credential_configured and catalog_ready, stable_warnings
+
     def doctor(self) -> dict[str, Any]:
         """Return a path-free, credential-free Web installation diagnosis."""
         diagnosis = self._installation_diagnosis()
@@ -1779,15 +1957,18 @@ class WebServiceManager:
             installation_issues = []
         service_issues = [issue for probe in probes for issue in probe.issues]
         installation_ok = bool(diagnosis.get("ok"))
+        product_ready = all(probe.ready for probe in probes)
+        model_ready, model_warnings = self._model_diagnosis() if product_ready else (False, ())
+        warnings = list(dict.fromkeys([*model_warnings, *proxy_warnings(os.environ)]))
         return {
             **diagnosis,
             "schema_version": 2,
             "ok": installation_ok,
             "installation_ok": installation_ok,
-            "product_ready": all(probe.ready for probe in probes),
-            "model_ready": False,
+            "product_ready": product_ready,
+            "model_ready": model_ready,
             "issues": list(dict.fromkeys([*installation_issues, *service_issues])),
-            "warnings": [],
+            "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
         }
 
@@ -1838,6 +2019,9 @@ def format_status(status: dict[str, Any]) -> str:
         issues = item.get("issues", [])
         if issues:
             lines.append(f"  issues: {', '.join(issues)}")
+    warnings = status.get("warnings", [])
+    if warnings:
+        lines.append(f"warnings: {', '.join(warnings)}")
     lines.append(f"url: {status['url']}")
     return "\n".join(lines)
 
