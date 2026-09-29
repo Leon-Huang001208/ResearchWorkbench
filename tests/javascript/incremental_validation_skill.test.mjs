@@ -30,7 +30,10 @@ test("skill requires the complete plan execute escalate receipt loop", () => {
   ]) {
     assert.match(skill, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
-  assert.doesNotMatch(skill, /src-tauri|requirements\/|core\//);
+  assert.doesNotMatch(
+    skill,
+    /src-tauri|requirements\/|core\/|Dockerfile|compose\.yaml|research_workbench_entrypoint/,
+  );
 });
 
 test("skill README documents inputs outputs safety and three examples", () => {
