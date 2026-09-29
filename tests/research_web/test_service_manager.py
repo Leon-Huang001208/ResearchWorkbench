@@ -3412,10 +3412,11 @@ def test_runtime_auth_regeneration_fails_closed_when_tempfile_creation_fails(man
 
 
 class _FakeHttpResponse:
-    def __init__(self, status, content_type, body):
+    def __init__(self, status, content_type, body, *, read_error=None):
         self.status = status
         self._content_type = content_type
         self._body = body
+        self._read_error = read_error
         self.read_limit = None
 
     def getheader(self, name):
@@ -3424,13 +3425,16 @@ class _FakeHttpResponse:
 
     def read(self, limit):
         self.read_limit = limit
+        if self._read_error is not None:
+            raise self._read_error
         return self._body[:limit]
 
 
 class _FakeHttpConnection:
-    def __init__(self, response=None, *, error=None):
+    def __init__(self, response=None, *, error=None, close_error=None):
         self.response = response
         self.error = error
+        self.close_error = close_error
         self.closed = False
         self.requested = None
 
@@ -3444,6 +3448,8 @@ class _FakeHttpConnection:
 
     def close(self):
         self.closed = True
+        if self.close_error is not None:
+            raise self.close_error
 
 
 def test_direct_loopback_text_request_is_bounded_and_always_closes(manager, monkeypatch):
@@ -3490,6 +3496,169 @@ def test_direct_loopback_text_request_returns_only_stable_failures(
 
     assert str(captured.value) == "本地服务响应无效"
     assert "private endpoint" not in str(captured.value)
+    assert connection.closed is True
+
+
+def test_json_request_reads_limit_plus_one_and_rejects_valid_prefix_with_trailing_data(
+    manager, monkeypatch
+):
+    prefix = b'{"ok": true}'
+    body = (
+        prefix
+        + b" " * (service_manager_module.MAX_HTTP_BODY_BYTES - len(prefix))
+        + b"private-trailing-data"
+    )
+    response = _FakeHttpResponse(200, "application/json", body)
+    connection = _FakeHttpConnection(response)
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connection,
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._json_request(8088, "GET", "/api/research/runtime")
+
+    assert str(captured.value) == "本地服务尚未就绪"
+    assert response.read_limit == service_manager_module.MAX_HTTP_BODY_BYTES + 1
+    assert connection.closed is True
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "application/json; charset=utf-8",
+        "Application/Problem+JSON; profile=safe",
+        "application/vnd.research-workbench+json",
+    ],
+    ids=["json-with-parameters", "problem-json-case-insensitive", "vendor-json"],
+)
+def test_json_request_accepts_application_json_and_structured_json_suffixes(
+    manager, monkeypatch, content_type
+):
+    response = _FakeHttpResponse(200, content_type, b'{"ok": true}')
+    connection = _FakeHttpConnection(response)
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connection,
+    )
+
+    assert manager._json_request(8088, "GET", "/api/research/runtime") == {"ok": True}
+    assert connection.closed is True
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    [None, "", "text/plain", "application/jsonp", "application/problem+xml"],
+    ids=["missing", "empty", "text", "jsonp", "structured-xml"],
+)
+def test_json_request_rejects_missing_or_non_json_content_type(manager, monkeypatch, content_type):
+    response = _FakeHttpResponse(200, content_type, b'{"ok": true}')
+    connection = _FakeHttpConnection(response)
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connection,
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._json_request(8088, "GET", "/api/research/runtime")
+
+    assert str(captured.value) == "本地服务尚未就绪"
+    assert connection.closed is True
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b"\xffprivate-utf8", b'{"private-json":'],
+    ids=["invalid-utf8", "invalid-json"],
+)
+def test_json_request_maps_decode_and_parse_failures_to_stable_error(manager, monkeypatch, body):
+    response = _FakeHttpResponse(200, "application/json", body)
+    connection = _FakeHttpConnection(response)
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connection,
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._json_request(8088, "GET", "/api/research/runtime")
+
+    assert str(captured.value) == "本地服务尚未就绪"
+    assert "private" not in str(captured.value)
+    assert connection.closed is True
+
+
+def test_json_request_maps_close_failure_after_success_to_stable_error(manager, monkeypatch):
+    response = _FakeHttpResponse(200, "application/json", b'{"ok": true}')
+    connection = _FakeHttpConnection(
+        response,
+        close_error=OSError("private-close-secret"),
+    )
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connection,
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._json_request(8088, "GET", "/api/research/runtime")
+
+    assert str(captured.value) == "本地服务尚未就绪"
+    assert "private-close-secret" not in str(captured.value)
+    assert connection.closed is True
+
+
+def test_json_request_does_not_mistake_outer_exception_for_primary_failure(manager, monkeypatch):
+    response = _FakeHttpResponse(200, "application/json", b'{"ok": true}')
+    connection = _FakeHttpConnection(
+        response,
+        close_error=OSError("private-close-secret"),
+    )
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connection,
+    )
+
+    try:
+        raise LookupError("outer failure")
+    except LookupError:
+        with pytest.raises(ServiceManagerError) as captured:
+            manager._json_request(8088, "GET", "/api/research/runtime")
+
+    assert str(captured.value) == "本地服务尚未就绪"
+    assert connection.closed is True
+
+
+@pytest.mark.parametrize("primary_failure", ["request", "read", "parse"])
+def test_json_request_close_failure_does_not_mask_primary_failure(
+    manager, monkeypatch, primary_failure
+):
+    response = _FakeHttpResponse(
+        200,
+        "application/json",
+        b"{" if primary_failure == "parse" else b'{"ok": true}',
+        read_error=(OSError("private-read-secret") if primary_failure == "read" else None),
+    )
+    connection = _FakeHttpConnection(
+        response,
+        error=(OSError("private-request-secret") if primary_failure == "request" else None),
+        close_error=OSError("private-close-secret"),
+    )
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connection,
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._json_request(8088, "GET", "/api/research/runtime")
+
+    assert str(captured.value) == "本地服务尚未就绪"
+    assert "private" not in str(captured.value)
     assert connection.closed is True
 
 
@@ -3696,13 +3865,38 @@ def test_start_waits_for_runtime_readiness_before_web_spawn_and_browser(manager,
 def test_browser_open_failure_is_a_nonblocking_warning_without_rollback(
     manager, monkeypatch, browser_result
 ):
+    probes = {
+        role: _service_probe(
+            role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+        for role in ("runtime", "web")
+    }
+    spawned = []
     monkeypatch.setattr(
         manager,
         "_probe_service",
-        lambda process: _service_probe(process.role, pid=101 if process.role == "runtime" else 202),
+        lambda process: probes[process.role],
     )
+
+    def spawn_and_wait(process):
+        pid = 101 if process.role == "runtime" else 202
+        spawned.append((process.role, pid))
+        probes[process.role] = _service_probe(process.role, pid=pid)
+        return pid
+
+    monkeypatch.setattr(manager, "_spawn_and_wait", spawn_and_wait)
     monkeypatch.setattr(
         manager, "_rollback_spawned", lambda *_args: pytest.fail("must not rollback")
+    )
+    monkeypatch.setattr(
+        manager, "_stop_owned_probe", lambda *_args: pytest.fail("must not stop a ready service")
     )
     monkeypatch.setattr(
         manager,
@@ -3727,6 +3921,7 @@ def test_browser_open_failure_is_a_nonblocking_warning_without_rollback(
     assert result["product_ready"] is True
     assert result["warnings"] == ["browser_open_failed"]
     assert result["url"] == manager.web_url
+    assert spawned == [("runtime", 101), ("web", 202)]
 
 
 def test_no_open_never_calls_browser_and_adds_no_warning(manager, monkeypatch):
@@ -3896,6 +4091,74 @@ def test_model_catalog_request_failure_is_warning_only(manager, monkeypatch):
     monkeypatch.setattr(manager, "_json_request", request)
 
     assert manager._model_diagnosis() == (False, ("model_catalog_unavailable",))
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "oversize",
+        "missing-content-type",
+        "wrong-content-type",
+        "invalid-utf8",
+        "invalid-json",
+        "close",
+    ],
+)
+def test_doctor_maps_json_response_failures_to_model_catalog_warning(manager, monkeypatch, failure):
+    runtime_response = _FakeHttpResponse(
+        200,
+        "application/json",
+        b'{"provider":"provider","model":"model","credential_configured":true}',
+    )
+    if failure == "oversize":
+        prefix = b'{"groups":[],"failures":[]}'
+        body = (
+            prefix
+            + b" " * (service_manager_module.MAX_HTTP_BODY_BYTES - len(prefix))
+            + b"private-trailing-data"
+        )
+        catalog_response = _FakeHttpResponse(200, "application/json", body)
+        catalog_connection = _FakeHttpConnection(catalog_response)
+    elif failure in {"missing-content-type", "wrong-content-type"}:
+        content_type = None if failure == "missing-content-type" else "text/plain"
+        catalog_connection = _FakeHttpConnection(
+            _FakeHttpResponse(200, content_type, b'{"groups":[],"failures":[]}')
+        )
+    elif failure == "invalid-utf8":
+        catalog_connection = _FakeHttpConnection(
+            _FakeHttpResponse(200, "application/json", b"\xffprivate-utf8")
+        )
+    elif failure == "invalid-json":
+        catalog_connection = _FakeHttpConnection(
+            _FakeHttpResponse(200, "application/json", b'{"private-json":')
+        )
+    else:
+        catalog_connection = _FakeHttpConnection(
+            _FakeHttpResponse(200, "application/json", b'{"groups":[],"failures":[]}'),
+            close_error=OSError("private-close-secret"),
+        )
+    connections = [
+        _FakeHttpConnection(runtime_response),
+        catalog_connection,
+    ]
+    monkeypatch.setattr(
+        service_manager_module.http.client,
+        "HTTPConnection",
+        lambda *_args, **_kwargs: connections.pop(0),
+    )
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(
+        manager,
+        "_service_probes",
+        lambda: (_service_probe("runtime", pid=101), _service_probe("web", pid=202)),
+    )
+
+    report = manager.doctor()
+
+    assert report["product_ready"] is True
+    assert report["model_ready"] is False
+    assert report["warnings"] == ["model_catalog_unavailable"]
+    assert "private" not in json.dumps(report)
 
 
 @pytest.mark.parametrize("environment", [{"HTTP_PROXY": "secret"}, {"https_proxy": "secret"}])

@@ -744,20 +744,48 @@ class WebServiceManager:
         body = json.dumps(payload).encode() if payload is not None else None
         headers = {"Content-Type": "application/json"} if body is not None else {}
         headers.update(extra_headers or {})
+        request_succeeded = False
         try:
             connection.request(method, path, body=body, headers=headers)
             response = connection.getresponse()
-            raw = response.read(2 * 1024 * 1024)
             if response.status < 200 or response.status >= 300:
-                raise ServiceManagerError(f"HTTP {response.status}")
-            value = json.loads(raw)
+                raise ValueError("unexpected response status")
+            content_type = WebServiceManager._media_type(response.getheader("Content-Type"))
+            structured_json = (
+                content_type.startswith("application/")
+                and len(content_type) > len("application/+json")
+                and content_type.endswith("+json")
+            )
+            if content_type != "application/json" and not structured_json:
+                raise ValueError("unexpected response content type")
+            raw = response.read(MAX_HTTP_BODY_BYTES + 1)
+            if len(raw) > MAX_HTTP_BODY_BYTES:
+                raise ValueError("response too large")
+            value = json.loads(raw.decode("utf-8"))
             if not isinstance(value, dict):
-                raise ServiceManagerError("响应不是 JSON 对象")
+                raise TypeError("response is not a JSON object")
+            request_succeeded = True
             return value
-        except (OSError, ValueError, json.JSONDecodeError, http.client.HTTPException) as exc:
-            raise ServiceManagerError("本地服务尚未就绪") from exc
+        except (
+            OSError,
+            UnicodeError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+            http.client.HTTPException,
+        ):
+            raise ServiceManagerError("本地服务尚未就绪") from None
         finally:
-            connection.close()
+            try:
+                connection.close()
+            except (OSError, http.client.HTTPException) as exc:
+                if not request_succeeded:
+                    log.warning(
+                        "research_loopback_connection_close_failed",
+                        error_type=type(exc).__name__,
+                    )
+                else:
+                    raise ServiceManagerError("本地服务尚未就绪") from None
 
     def _read_runtime_auth(self) -> dict[str, str] | None:
         path = self._runtime_auth_path()
