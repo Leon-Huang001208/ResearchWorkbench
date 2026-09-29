@@ -418,6 +418,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             "RESEARCH_WEB_INTERNAL_URL": f"http://127.0.0.1:{config.web_port}",
             "PYTHONUNBUFFERED": "1",
         }
+        environment.pop("RWB_DSH_STAGED", None)
         for spec in (specs.runtime, specs.web):
             if requested:
                 raise _ExternalShutdown
@@ -425,6 +426,8 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                 raise RuntimeError("child exited")
             with runtime_state_directory(config.state_root):
                 child_environment = {**environment, ROLE_ENVIRONMENT_KEY: spec.role}
+                if spec.role == "runtime" and os.environ.get("RWB_DSH_STAGED") == "1":
+                    child_environment["RWB_DSH_STAGED"] = "1"
                 output.remember_secret(f"{ROLE_ENVIRONMENT_KEY}={spec.role}")
                 child = subprocess.Popen(
                     spec.command, cwd=config.project_root, env=child_environment,

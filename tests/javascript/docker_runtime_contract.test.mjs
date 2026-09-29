@@ -41,6 +41,7 @@ test('runtime copies a bounded application set and uses the non-root PID1 superv
   assert.ok(runtime.includes('EXPOSE 8088'));
   assert.ok(runtime.some((line) => line.startsWith('HEALTHCHECK ') && line.endsWith('["/opt/rwb/venv/bin/python", "/opt/rwb/docker/healthcheck.py"]')));
   const environment = runtime.find((line) => line.startsWith('ENV '));
+  assert.deepEqual([...environment.matchAll(/\bRWB_DSH_STAGED=(\S+)/g)].map((match) => match[1]), ['1']);
   for (const field of ['LOG_DIR=/state/logs', 'OBJECT_STORAGE_PATH=/data/research-web/objects', 'PDF_MARKDOWN_DIR=/data/research-web/markdown', 'PDF_RAW_TEXT_DIR=/data/research-web/raw_text', 'RESEARCH_RUN_MODE=web-prod']) {
     assert.ok(environment.includes(field), `import-time settings must stay writable: ${field}`);
   }

@@ -28,6 +28,7 @@ def stop(signum, frame):
 signal.signal(signal.SIGTERM, stop)
 signal.signal(signal.SIGINT, stop)
 record("start")
+Path(events + ".staged-" + role).write_text(os.environ.get("RWB_DSH_STAGED", "absent"))
 print("service fixture ready", flush=True)
 if mode != "no-cookie-header":
     print("Cookie: dsh-auth-fixture=private-cookie", flush=True)
@@ -236,6 +237,22 @@ def launch(tmp_path):
 
 def started(root, role):
     return any(item[:2] == [role, "start"] for item in events(root))
+
+
+@pytest.mark.parametrize("flag", [None, "", "0", "invalid", "1", "1 "])
+def test_staged_flag_is_exact_and_reaches_only_runtime_child(launch, monkeypatch, flag):
+    if flag is None:
+        monkeypatch.delenv("RWB_DSH_STAGED", raising=False)
+    else:
+        monkeypatch.setenv("RWB_DSH_STAGED", flag)
+    proc, root, _, _ = launch()
+    wait_for(lambda: (root / "events.staged-web").exists() or proc.poll() is not None)
+    assert proc.poll() is None, proc.communicate()[0]
+    proc.terminate()
+    output = proc.communicate(timeout=5)[0]
+    assert proc.returncode == 0, output
+    assert (root / "events.staged-runtime").read_text() == ("1" if flag == "1" else "absent")
+    assert (root / "events.staged-web").read_text() == "absent"
 
 
 @pytest.mark.parametrize("stop_signal", [signal.SIGTERM, signal.SIGINT])

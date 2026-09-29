@@ -44,21 +44,23 @@ def test_staged_manifest_returns_original_verified_closure(tmp_path):
     assert verify_staged_runtime(staged(tmp_path)) == facts()
 
 
-def test_launcher_uses_original_source_closure_for_staged_state_lock(tmp_path):
+def test_launcher_uses_original_source_closure_for_staged_state_lock(tmp_path, monkeypatch):
     from app.research_web.launch_runtime import prepare
 
     source = staged(tmp_path)
     data = tmp_path / "data"
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
     prepare(source, data, "/node", 3081)
     lock = json.loads((data / "runtime/build-lock.json").read_text())
     assert lock["closure_sha256"] == facts()["closure_sha256"]
     assert lock["closure_files"] == facts()["closure_files"]
 
 
-def test_launcher_rejects_staged_tampering_before_data_mutation(tmp_path):
+def test_launcher_rejects_staged_tampering_before_data_mutation(tmp_path, monkeypatch):
     from app.research_web.launch_runtime import prepare
 
     source = staged(tmp_path)
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
     (source / "apps/cli/lib/bin.js").write_text("tampered")
     data = tmp_path / "data"
     with pytest.raises(RuntimeError, match="staged_runtime_invalid"):
@@ -71,6 +73,7 @@ def test_container_launcher_requires_manifest_and_rejects_source_mode(tmp_path, 
     from app.research_web.staged_runtime import MANIFEST
 
     source = staged(tmp_path)
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
     with pytest.raises(RuntimeError, match="staged_runtime_invalid"):
         prepare(source, tmp_path / "data", "/node", 3081, source_mode=True)
     (source / MANIFEST).unlink()
@@ -78,6 +81,54 @@ def test_container_launcher_requires_manifest_and_rejects_source_mode(tmp_path, 
     with pytest.raises(RuntimeError, match="staged_runtime_invalid"):
         prepare(source, tmp_path / "data", "/node", 3081)
     assert not (tmp_path / "data").exists()
+
+
+@pytest.mark.parametrize("flag", [None, "", "0", "invalid", "true", "01", " 1", "1 "])
+def test_native_ignores_forged_staged_inventory_and_detects_changed_js(
+    tmp_path, monkeypatch, flag
+):
+    from app.research_web.launch_runtime import calculate_build_closure, prepare
+    from app.research_web.staged_runtime import MANIFEST, write_staged_manifest
+
+    if flag is None:
+        monkeypatch.delenv("RWB_DSH_STAGED", raising=False)
+    else:
+        monkeypatch.setenv("RWB_DSH_STAGED", flag)
+    source = staged(tmp_path)
+    data = tmp_path / "data"
+    actual_hash, actual_count = calculate_build_closure(source)
+    prepare(source, data, "/node", 3081)
+    lock_path = data / "runtime/build-lock.json"
+    original_lock = lock_path.read_bytes()
+    lock = json.loads(original_lock)
+    assert (lock["closure_sha256"], lock["closure_files"]) == (actual_hash, actual_count)
+
+    # An attacker regenerates the inventory after editing JS, retaining stale
+    # claimed source facts. Native must still detect the real closure change.
+    (source / "apps/cli/lib/bin.js").write_text("// modified JS")
+    (source / MANIFEST).unlink()
+    write_staged_manifest(source, facts())
+    with pytest.raises(RuntimeError, match="DSH 构建发生变化"):
+        prepare(source, data, "/node", 3081)
+    assert lock_path.read_bytes() == original_lock
+
+
+@pytest.mark.parametrize("flag", [None, "", "0", "invalid", "true", "01", " 1", "1 "])
+def test_native_does_not_read_or_validate_an_unselected_staged_manifest(
+    tmp_path, monkeypatch, flag
+):
+    from app.research_web.launch_runtime import calculate_build_closure, prepare
+    from app.research_web.staged_runtime import MANIFEST
+
+    if flag is None:
+        monkeypatch.delenv("RWB_DSH_STAGED", raising=False)
+    else:
+        monkeypatch.setenv("RWB_DSH_STAGED", flag)
+    source = staged(tmp_path)
+    (source / MANIFEST).write_text("not JSON")
+    prepare(source, tmp_path / "data", "/node", 3081)
+    lock = json.loads((tmp_path / "data/runtime/build-lock.json").read_text())
+    assert (lock["closure_sha256"], lock["closure_files"]) == calculate_build_closure(source)
 
 
 def test_staged_manifest_rejects_ambiguous_duplicate_keys(tmp_path):

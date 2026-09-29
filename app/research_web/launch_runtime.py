@@ -494,9 +494,9 @@ def prepare(
     *,
     state_root: Path | None = None,
 ) -> tuple[list[str], dict, Path]:
-    staged_source = verify_staged_runtime(
-        source, required=os.environ.get("RWB_DSH_STAGED") == "1"
-    )
+    staged_source = None
+    if os.environ.get("RWB_DSH_STAGED") == "1":
+        staged_source = verify_staged_runtime(source, required=True)
     if staged_source is not None and source_mode:
         raise RuntimeError("staged_runtime_invalid")
     state = state_root if state_root is not None else data.resolve() / "runtime"

@@ -20,8 +20,10 @@ Docker 构建先对完整 DSH checkout 执行相同的固定 remote、commit、p
 模块、上游声明的运行资源及所需第三方生产依赖保留。`.rwb-dsh-runtime.json` 是构建时派生的
 资产清单，不是第二份依赖配置：它记录原始固定来源和完整闭包事实，以及目录、普通文件、符号
 链接的确定性清单和摘要。镜像 launcher 在创建运行状态前拒绝缺失、额外、篡改、越界链接、
-alias、错误 schema 或超限清单，并继续把原始已验证闭包写入既有 build lock。Native checkout
-没有该清单时，仍执行原有 Git identity 和 `calculate_build_closure` 路径。最终镜像还以非 root
+alias、错误 schema 或超限清单，并继续把原始已验证闭包写入既有 build lock。仅镜像环境明确
+设置 `RWB_DSH_STAGED=1` 时启用该路径；supervisor 只向 DSH launcher 子进程传递这个精确值。
+未设置、空值、`0` 或其他值均不启用，Native 即使存在伪造或损坏的 staged 清单也忽略它，始终
+执行原有 Git identity 和 `calculate_build_closure` 路径。最终镜像还以非 root
 用户导入 Web、CLI、supervisor、healthcheck 和 iFinD HTTP 路径，避免宿主源码掩盖镜像漏包。
 
 Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
