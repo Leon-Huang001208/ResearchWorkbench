@@ -7,6 +7,9 @@ import json
 import os
 import socket
 import stat
+import struct
+import subprocess
+import sys
 import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -210,15 +213,104 @@ def test_private_json_reader_rejects_windows_opened_leaf_identity_change(
             ("uvicorn", "app.research_web.main:app", "--port", "8088"),
             True,
         ),
+        (("source", "3081"), ("3081", "source"), False),
+        (("source", "3081"), ("source", "--flag", "value", "3081"), True),
     ],
 )
 def test_signature_matching_requires_exact_argv_tokens(signature, argv, expected) -> None:
     assert signature_matches_argv(signature, argv) is expected
 
 
-def test_posix_process_probe_includes_exact_argv_and_start_identity(
+def test_linux_cmdline_reader_preserves_nul_delimited_argv_boundaries(tmp_path: Path) -> None:
+    pid = 4321
+    path = tmp_path / str(pid) / "cmdline"
+    path.parent.mkdir()
+    path.write_bytes(b"python\0--project\0/project with spaces\0--port\x003081\0")
+
+    assert web_contract._read_linux_argv(pid, proc_root=tmp_path) == (
+        "python",
+        "--project",
+        "/project with spaces",
+        "--port",
+        "3081",
+    )
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"python\0unterminated", b"x" * (256 * 1024 + 1), b""],
+    ids=["malformed", "oversize", "empty"],
+)
+def test_linux_cmdline_reader_returns_unavailable_for_invalid_content(
+    tmp_path: Path, content: bytes
+) -> None:
+    pid = 4321
+    path = tmp_path / str(pid) / "cmdline"
+    path.parent.mkdir()
+    path.write_bytes(content)
+
+    assert web_contract._read_linux_argv(pid, proc_root=tmp_path) is None
+
+
+def test_linux_cmdline_reader_returns_unavailable_when_unreadable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "4321" / "cmdline"
+    path.parent.mkdir()
+    path.write_bytes(b"python\0")
+    original_open = Path.open
+
+    def denied(current: Path, *args, **kwargs):
+        if current == path:
+            raise PermissionError("private procfs detail")
+        return original_open(current, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", denied)
+
+    assert web_contract._read_linux_argv(4321, proc_root=tmp_path) is None
+
+
+def test_macos_procargs2_parser_preserves_exact_argv_tokens() -> None:
+    argv = ("/usr/bin/python3", "--project", "/project with spaces", "3081")
+    payload = (
+        struct.pack("=i", len(argv))
+        + b"/usr/bin/python3\0"
+        + b"\0\0\0"
+        + b"\0".join(item.encode() for item in argv)
+        + b"\0USER=test\0"
+    )
+
+    assert web_contract._parse_macos_procargs2(payload) == argv
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"",
+        struct.pack("=i", 0) + b"/python\0\0",
+        struct.pack("=i", 3) + b"/python\0\0python\0only-two\0",
+        b"x" * (256 * 1024 + 1),
+    ],
+    ids=["empty", "argc-zero", "argc-mismatch", "oversize"],
+)
+def test_macos_procargs2_parser_rejects_malformed_or_oversized_payload(payload: bytes) -> None:
+    assert web_contract._parse_macos_procargs2(payload) is None
+
+
+def test_macos_argv_reader_returns_unavailable_when_sysctl_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    class Library:
+        @staticmethod
+        def sysctl(*_args) -> int:
+            return -1
+
+    monkeypatch.setattr(web_contract.ctypes, "CDLL", lambda *_args, **_kwargs: Library())
+
+    assert web_contract._read_macos_argv(4321) is None
+
+
+def test_other_posix_never_guesses_argv_from_ps(monkeypatch: pytest.MonkeyPatch) -> None:
     class Result:
         returncode = 0
 
@@ -228,22 +320,39 @@ def test_posix_process_probe_includes_exact_argv_and_start_identity(
     results = iter(
         [
             Result("S+\n"),
-            Result("python -m uvicorn --port 3081\n"),
+            Result("python --project /project with spaces --port 3081\n"),
             Result("Mon Sep 29 15:00:00 2026\n"),
         ]
     )
     monkeypatch.setattr(os, "kill", lambda _pid, _signal: None)
     monkeypatch.setattr(web_contract, "_run_process_probe", lambda _command: next(results))
 
-    fact = probe_process(4321, platform_name="posix")
+    fact = probe_process(4321, platform_name="freebsd")
 
-    assert fact.argv == ("python", "-m", "uvicorn", "--port", "3081")
-    assert (
-        fact.started_at
-        == datetime.strptime("Mon Sep 29 15:00:00 2026", "%a %b %d %H:%M:%S %Y")
-        .astimezone()
-        .timestamp()
+    assert fact.state == "alive"
+    assert fact.argv is None
+    assert fact.issue == "process_argv_unavailable"
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="requires macOS KERN_PROCARGS2")
+def test_macos_real_child_probe_preserves_spaced_argv_token() -> None:
+    spaced = "/tmp/research workbench exact argv"
+    token = "unique-port-3081-exact-token"
+    child = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(5)", spaced, token],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
+    try:
+        fact = probe_process(child.pid)
+        assert fact.state == "alive"
+        assert fact.argv is not None
+        assert spaced in fact.argv
+        assert token in fact.argv
+        assert signature_matches_argv((spaced, token), fact.argv) is True
+    finally:
+        child.terminate()
+        child.wait(timeout=5)
 
 
 @pytest.mark.parametrize(

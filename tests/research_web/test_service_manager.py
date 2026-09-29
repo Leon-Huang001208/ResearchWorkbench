@@ -340,6 +340,42 @@ def test_probe_rejects_numeric_and_embedded_signature_token_collisions(
     assert "runtime_pid_foreign" in probe.issues
 
 
+def test_probe_owns_exact_spaced_signature_tokens(manager, tmp_path, monkeypatch):
+    project_root = tmp_path / "project with spaces"
+    project_root.mkdir()
+    data_root = tmp_path / "data with spaces" / "research-web"
+    spaced = WebServiceManager(
+        project_root=project_root,
+        data_root=data_root,
+        runtime_source=manager.runtime_source,
+        python=manager.python,
+        node=manager.node,
+    )
+    process, state_path = _valid_state(spaced, "web")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    argv = ("uvicorn", *process.signature, "--flag-between-signatures")
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact(
+            "alive", "display text is not authoritative", None, argv, float(state["started_at"])
+        ),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (int(state["pid"]),), None),
+    )
+    monkeypatch.setattr(spaced, "_protocol_health", lambda _process: True)
+
+    probe = spaced._probe_service(process)
+
+    assert str(project_root) in process.signature
+    assert " " in str(project_root)
+    assert probe.ownership == "owned"
+    assert probe.ready is True
+
+
 def test_probe_requires_owned_pid_to_be_the_exact_listener(manager, monkeypatch):
     process, state_path = _valid_state(manager, "runtime")
     state = json.loads(state_path.read_text(encoding="utf-8"))

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import http.client
 import json
@@ -11,7 +12,9 @@ import re
 import shlex
 import socket
 import stat
+import struct
 import subprocess
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -26,6 +29,7 @@ PORT_TIMEOUT_SECONDS = 0.25
 HTTP_TIMEOUT_SECONDS = 2
 MAX_HTTP_BODY_BYTES = 2 * 1024 * 1024
 CONTROL_JSON_MAX_BYTES = 64 * 1024
+PROCESS_ARGV_MAX_BYTES = 256 * 1024
 
 log = logging.getLogger("research_workbench.web_contract")
 
@@ -383,8 +387,90 @@ def _command_argv(command_line: str, *, platform_name: str) -> tuple[str, ...] |
 
 
 def signature_matches_argv(signature: tuple[str, ...], argv: tuple[str, ...] | None) -> bool:
-    """Require every ownership signature item to be an exact process argv token."""
-    return bool(argv) and bool(signature) and all(part in argv for part in signature)
+    """Require signature items as an exact ordered argv subsequence."""
+    if not argv or not signature:
+        return False
+    position = 0
+    for token in argv:
+        if token == signature[position]:
+            position += 1
+            if position == len(signature):
+                return True
+    return False
+
+
+def _read_linux_argv(
+    pid: int,
+    *,
+    proc_root: Path = Path("/proc"),
+) -> tuple[str, ...] | None:
+    """Read exact Linux argv boundaries from the bounded procfs cmdline record."""
+    try:
+        with (proc_root / str(pid) / "cmdline").open("rb") as stream:
+            raw = stream.read(PROCESS_ARGV_MAX_BYTES + 1)
+    except OSError:
+        return None
+    if not raw or len(raw) > PROCESS_ARGV_MAX_BYTES or not raw.endswith(b"\0"):
+        return None
+    values = raw[:-1].split(b"\0")
+    if not values or not values[0]:
+        return None
+    return tuple(os.fsdecode(value) for value in values)
+
+
+def _parse_macos_procargs2(raw: bytes) -> tuple[str, ...] | None:
+    """Parse one bounded KERN_PROCARGS2 payload without guessing token boundaries."""
+    if len(raw) < 4 or len(raw) > PROCESS_ARGV_MAX_BYTES:
+        return None
+    argc = struct.unpack_from("=i", raw)[0]
+    if argc < 1 or argc > 4096:
+        return None
+    position = 4
+    executable_end = raw.find(b"\0", position)
+    if executable_end < position:
+        return None
+    position = executable_end + 1
+    while position < len(raw) and raw[position] == 0:
+        position += 1
+    argv: list[str] = []
+    for _index in range(argc):
+        end = raw.find(b"\0", position)
+        if end < position:
+            return None
+        argv.append(os.fsdecode(raw[position:end]))
+        position = end + 1
+    return tuple(argv) if argv and argv[0] else None
+
+
+def _read_macos_argv(pid: int) -> tuple[str, ...] | None:
+    """Read exact macOS argv through bounded KERN_PROCARGS2 sysctl."""
+    try:
+        library = ctypes.CDLL(None, use_errno=True)
+        sysctl = library.sysctl
+        mib = (ctypes.c_int * 3)(1, 49, pid)  # CTL_KERN, KERN_PROCARGS2, pid
+        size = ctypes.c_size_t(PROCESS_ARGV_MAX_BYTES)
+        buffer = ctypes.create_string_buffer(PROCESS_ARGV_MAX_BYTES)
+        result = sysctl(
+            mib,
+            ctypes.c_uint(3),
+            buffer,
+            ctypes.byref(size),
+            None,
+            ctypes.c_size_t(0),
+        )
+        if result != 0 or size.value > PROCESS_ARGV_MAX_BYTES:
+            return None
+        return _parse_macos_procargs2(buffer.raw[: size.value])
+    except (AttributeError, OSError, OverflowError, TypeError, ValueError):
+        return None
+
+
+def _exact_posix_argv(pid: int, *, platform_name: str) -> tuple[str, ...] | None:
+    if platform_name.startswith("linux"):
+        return _read_linux_argv(pid)
+    if platform_name == "darwin":
+        return _read_macos_argv(pid)
+    return None
 
 
 def _parse_process_start(value: str, *, platform_name: str) -> float | None:
@@ -458,7 +544,7 @@ def _windows_process(pid: int) -> ProcessFact:
     )
 
 
-def _posix_process(pid: int) -> ProcessFact:
+def _posix_process(pid: int, *, platform_name: str) -> ProcessFact:
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -488,11 +574,14 @@ def _posix_process(pid: int) -> ProcessFact:
         else None
     )
     issue = None if started_at is not None else "process_start_probe_failed"
+    argv = _exact_posix_argv(pid, platform_name=platform_name)
+    if issue is None and argv is None:
+        issue = "process_argv_unavailable"
     return ProcessFact(
         "alive",
         command_line,
         issue,
-        _command_argv(command_line, platform_name="posix") if command_line else None,
+        argv,
         started_at,
     )
 
@@ -501,7 +590,12 @@ def probe_process(pid: int, *, platform_name: str | None = None) -> ProcessFact:
     """Inspect one PID with bounded, non-shell operating-system probes."""
     if pid <= 1:
         return ProcessFact("missing", None, None)
-    return _windows_process(pid) if (platform_name or os.name) == "nt" else _posix_process(pid)
+    current_platform = platform_name or ("nt" if os.name == "nt" else sys.platform)
+    return (
+        _windows_process(pid)
+        if current_platform == "nt"
+        else _posix_process(pid, platform_name=current_platform)
+    )
 
 
 def pid_exists(pid: int, *, platform_name: str | None = None) -> bool:
