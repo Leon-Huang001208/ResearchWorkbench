@@ -207,7 +207,7 @@ def _read_state(
             project_root=project_root,
             data_home=data_home,
         )
-    except (OSError, UnicodeError, TypeError, ValueError, OverflowError):
+    except (OSError, UnicodeError, TypeError, ValueError, OverflowError, RecursionError):
         return "invalid", None
     return ("valid", state) if state is not None else ("invalid", None)
 

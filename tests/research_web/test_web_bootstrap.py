@@ -397,6 +397,72 @@ def test_service_facts_reject_malformed_or_oversized_state_without_disclosure(
     assert str(tmp_path) not in json.dumps(services)
 
 
+def _write_deeply_nested_state(data_home: Path) -> None:
+    run_root = data_home.parent / "run"
+    run_root.mkdir(parents=True, exist_ok=True)
+    nested = ("[" * 10_000) + "0" + ("]" * 10_000)
+    assert len(nested.encode("utf-8")) < web_bootstrap.STATE_LIMIT_BYTES
+    (run_root / "web.json").write_text(nested, encoding="utf-8")
+
+
+def test_deeply_nested_json_is_a_safe_invalid_fact_for_api_and_runner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    _write_deeply_nested_state(data_home)
+    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+
+    report = web_bootstrap.diagnose(tmp_path, environment={"RESEARCH_DATA_HOME": str(data_home)})
+    monkeypatch.setenv("RESEARCH_DATA_HOME", str(data_home))
+    exit_code, stdout, stderr = _run_capture(["web", "doctor", "--json"], tmp_path)
+
+    assert report["services"]["web"]["state"] == "invalid"
+    assert report["services"]["web"]["issues"] == ["web_state_invalid"]
+    assert exit_code == 0
+    assert json.loads(stdout)["services"]["web"]["issues"] == ["web_state_invalid"]
+    assert str(tmp_path) not in stdout
+    assert "RecursionError" not in stdout
+    assert "Traceback" not in stdout
+    assert stderr == ""
+
+
+def test_real_bootstrap_cli_contains_deep_json_recursion_without_disclosure(
+    tmp_path: Path,
+) -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    data_home = tmp_path / "private" / "research-web"
+    _write_deeply_nested_state(data_home)
+    environment = os.environ.copy()
+    environment["RESEARCH_DATA_HOME"] = str(data_home)
+    environment["PYTHONPATH"] = str(project_root)
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "research_workbench_entrypoint.web_bootstrap",
+            "web",
+            "doctor",
+            "--json",
+        ],
+        cwd=project_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+    report = json.loads(completed.stdout)
+    assert completed.returncode == 0, completed.stderr
+    assert report["services"]["web"]["state"] == "invalid"
+    assert report["services"]["web"]["issues"] == ["web_state_invalid"]
+    assert str(tmp_path) not in completed.stdout
+    assert "RecursionError" not in completed.stdout
+    assert "Traceback" not in completed.stdout
+    assert completed.stderr == ""
+
+
 def test_service_facts_distinguish_dead_foreign_and_listener_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
