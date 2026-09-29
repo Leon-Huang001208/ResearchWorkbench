@@ -283,10 +283,12 @@ def _read_posix_state(path: Path) -> tuple[str, bytes | None]:
 
 def _read_windows_state(path: Path) -> tuple[str, bytes | None]:
     try:
+        parent_identities = []
         for ancestor in (path.parent.parent, path.parent):
             identity = ancestor.lstat()
             if _unsafe_identity(identity, directory=True):
                 return "invalid", None
+            parent_identities.append((ancestor, identity))
         before = path.lstat()
         if _unsafe_identity(before, directory=False) or before.st_size > STATE_LIMIT_BYTES:
             return "invalid", None
@@ -302,6 +304,12 @@ def _read_windows_state(path: Path) -> tuple[str, bytes | None]:
             or _identity(opened) != _identity(after)
         ):
             return "invalid", None
+        for ancestor, identity in parent_identities:
+            current = ancestor.lstat()
+            if _unsafe_identity(current, directory=True) or _identity(identity) != _identity(
+                current
+            ):
+                return "invalid", None
         return "valid", raw
     except FileNotFoundError:
         return "missing", None

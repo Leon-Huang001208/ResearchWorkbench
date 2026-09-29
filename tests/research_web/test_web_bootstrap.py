@@ -691,6 +691,49 @@ def test_windows_state_rejects_reparse_leaf(
     assert value is None
 
 
+@pytest.mark.parametrize("parent_role", ["data", "run"])
+def test_windows_state_rejects_parent_identity_change_during_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, parent_role: str
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    _write_state(tmp_path, data_home, "web")
+    state_path = data_home.parent / "run" / "web.json"
+    target = state_path.parent.parent if parent_role == "data" else state_path.parent
+    original_lstat = Path.lstat
+    target_reads = 0
+
+    def changing_parent_lstat(path: Path):
+        nonlocal target_reads
+        identity = original_lstat(path)
+        if path == target:
+            target_reads += 1
+            if target_reads > 1:
+                return SimpleNamespace(
+                    st_mode=identity.st_mode,
+                    st_file_attributes=0,
+                    st_dev=identity.st_dev,
+                    st_ino=identity.st_ino + 1,
+                    st_nlink=identity.st_nlink,
+                    st_size=identity.st_size,
+                )
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", changing_parent_lstat)
+
+    state, value = web_bootstrap._read_state(
+        state_path,
+        role="web",
+        port=8088,
+        project_root=tmp_path.resolve(),
+        data_home=data_home,
+        platform_name="nt",
+    )
+
+    assert target_reads == 2
+    assert state == "invalid"
+    assert value is None
+
+
 def test_service_facts_distinguish_dead_foreign_and_listener_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
