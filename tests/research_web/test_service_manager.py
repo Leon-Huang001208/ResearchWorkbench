@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from app.research_web import runtime_auth as runtime_auth_module
+from app.research_web import service_diagnostics as service_diagnostics_module
 from app.research_web import service_manager as service_manager_module
 from app.research_web.service_diagnostics import ServiceProbe
 from app.research_web.service_manager import (
@@ -17,6 +18,14 @@ from app.research_web.service_manager import (
     format_status,
 )
 from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+
+def test_internal_probe_facts_stay_private_to_service_manager():
+    assert not hasattr(service_diagnostics_module, "StateFact")
+    assert not hasattr(service_diagnostics_module, "ProcessFact")
+    assert service_manager_module._StateFact.__dataclass_params__.frozen is True
+    assert service_manager_module._ProcessFact.__dataclass_params__.frozen is True
+    assert service_manager_module._ProcessFact is not ProcessFact
 
 
 def test_service_probe_public_is_safe_and_compatible():

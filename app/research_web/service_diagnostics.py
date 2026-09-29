@@ -6,27 +6,6 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class StateFact:
-    """Validated state-file facts retained only inside the service manager."""
-
-    state: str
-    pid: int | None
-    signature: tuple[str, ...]
-    issues: tuple[str, ...]
-    started_at: float | None = None
-
-
-@dataclass(frozen=True)
-class ProcessFact:
-    """Process and ownership facts without command or operating-system errors."""
-
-    process: str
-    ownership: str
-    pid: int | None
-    issues: tuple[str, ...]
-
-
-@dataclass(frozen=True)
 class ServiceProbe:
     """A complete service fact chain with a deliberately narrow projection."""
 

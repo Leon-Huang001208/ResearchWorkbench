@@ -36,7 +36,7 @@ from research_workbench_entrypoint.web_contract import (
 
 from . import PINNED_DSH_COMMIT
 from .runtime_auth import read_runtime_auth_record
-from .service_diagnostics import ProcessFact, ServiceProbe, StateFact
+from .service_diagnostics import ServiceProbe
 
 log = get_logger(__name__)
 PINNED_COMMIT = PINNED_DSH_COMMIT
@@ -100,6 +100,27 @@ class ManagedProcess:
     port: int
     command: tuple[str, ...]
     signature: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _StateFact:
+    """Validated state-file facts private to the service manager."""
+
+    state: str
+    pid: int | None
+    signature: tuple[str, ...]
+    issues: tuple[str, ...]
+    started_at: float | None = None
+
+
+@dataclass(frozen=True)
+class _ProcessFact:
+    """Process ownership facts without commands or operating-system errors."""
+
+    process: str
+    ownership: str
+    pid: int | None
+    issues: tuple[str, ...]
 
 
 class WebServiceManager:
@@ -268,7 +289,7 @@ class WebServiceManager:
         log.warning("research_service_state_invalid", role=process.role)
         raise ServiceManagerError(f"{process.role} 服务状态无法安全确认")
 
-    def _probe_state(self, process: ManagedProcess) -> StateFact:
+    def _probe_state(self, process: ManagedProcess) -> _StateFact:
         """Read one bounded state file without repairing or otherwise mutating it."""
         path = self._state_path(process.role)
         fact = read_private_json(
@@ -277,9 +298,9 @@ class WebServiceManager:
             max_bytes=STATE_LIMIT_BYTES,
         )
         if fact.state == "missing":
-            return StateFact("missing", None, (), ())
+            return _StateFact("missing", None, (), ())
         if fact.state != "valid":
-            return StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
+            return _StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
         value = fact.value
 
         safe_pid = (
@@ -290,7 +311,7 @@ class WebServiceManager:
             else None
         )
         if type(value) is not dict or set(value) != STATE_KEYS:
-            return StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
+            return _StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
         command = value.get("command")
         signature = value.get("signature")
         strings = (
@@ -334,8 +355,8 @@ class WebServiceManager:
             and signature == list(process.signature)
         )
         if not valid:
-            return StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
-        return StateFact(
+            return _StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
+        return _StateFact(
             "valid",
             safe_pid,
             tuple(signature),
@@ -344,13 +365,13 @@ class WebServiceManager:
         )
 
     def _probe_pid_and_ownership(
-        self, process: ManagedProcess, state: StateFact
-    ) -> tuple[StateFact, ProcessFact]:
+        self, process: ManagedProcess, state: _StateFact
+    ) -> tuple[_StateFact, _ProcessFact]:
         """Classify PID presence and command ownership without lifecycle actions."""
         role = process.role
         if state.pid is None:
             process_state = "missing" if state.state == "missing" else "inaccessible"
-            return state, ProcessFact(process_state, "unknown", None, ())
+            return state, _ProcessFact(process_state, "unknown", None, ())
         observed = probe_process(state.pid)
         if state.state != "valid":
             issue = (
@@ -359,16 +380,16 @@ class WebServiceManager:
                 else f"{role}_state_invalid"
             )
             return (
-                StateFact("invalid", state.pid, (), (issue,)),
-                ProcessFact(observed.state, "unknown", None, ()),
+                _StateFact("invalid", state.pid, (), (issue,)),
+                _ProcessFact(observed.state, "unknown", None, ()),
             )
         if observed.state == "missing":
             return (
-                StateFact("stale", state.pid, state.signature, (f"{role}_state_stale",)),
-                ProcessFact("missing", "unknown", None, ()),
+                _StateFact("stale", state.pid, state.signature, (f"{role}_state_stale",)),
+                _ProcessFact("missing", "unknown", None, ()),
             )
         if observed.state == "inaccessible" or not observed.command_line:
-            return state, ProcessFact(
+            return state, _ProcessFact(
                 "inaccessible",
                 "unknown",
                 None,
@@ -380,17 +401,17 @@ class WebServiceManager:
             or observed.started_at is None
             or state.started_at is None
         ):
-            return state, ProcessFact(
+            return state, _ProcessFact(
                 "alive",
                 "unknown",
                 None,
                 (f"{role}_process_identity_unavailable",),
             )
         if not signature_matches_argv(state.signature, observed.argv):
-            return state, ProcessFact("alive", "foreign", None, (f"{role}_pid_foreign",))
+            return state, _ProcessFact("alive", "foreign", None, (f"{role}_pid_foreign",))
         if abs(observed.started_at - state.started_at) > PROCESS_START_TOLERANCE_SECONDS:
-            return state, ProcessFact("alive", "foreign", None, (f"{role}_pid_reused",))
-        return state, ProcessFact("alive", "owned", state.pid, ())
+            return state, _ProcessFact("alive", "foreign", None, (f"{role}_pid_reused",))
+        return state, _ProcessFact("alive", "owned", state.pid, ())
 
     def _runtime_protocol_healthy(self) -> bool:
         """Run session/list only with an existing authenticated runtime record."""
@@ -420,7 +441,7 @@ class WebServiceManager:
             RecursionError,
             ServiceManagerError,
         ):
-            state = StateFact("invalid", None, (), (f"{process.role}_state_probe_failed",))
+            state = _StateFact("invalid", None, (), (f"{process.role}_state_probe_failed",))
         try:
             state, observed = self._probe_pid_and_ownership(process, state)
         except (
@@ -431,7 +452,7 @@ class WebServiceManager:
             ServiceManagerError,
             subprocess.SubprocessError,
         ):
-            observed = ProcessFact(
+            observed = _ProcessFact(
                 "inaccessible",
                 "unknown",
                 None,
@@ -453,14 +474,14 @@ class WebServiceManager:
         ready = False
         if listener.state == "unknown":
             if observed.ownership == "owned":
-                observed = ProcessFact("alive", "unknown", None, observed.issues)
+                observed = _ProcessFact("alive", "unknown", None, observed.issues)
             issues.append(f"{process.role}_listener_probe_failed")
         elif (
             listener.state == "listening"
             and observed.ownership == "owned"
             and observed.pid not in listener.pids
         ):
-            observed = ProcessFact("alive", "foreign", None, observed.issues)
+            observed = _ProcessFact("alive", "foreign", None, observed.issues)
             issues.append(f"{process.role}_port_owner_mismatch")
         elif listener.state == "listening" and observed.ownership != "owned":
             invalid_port_issue = f"{process.role}_state_invalid_port_listening"
