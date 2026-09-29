@@ -57,9 +57,21 @@ class LifecycleLock:
         return bool(getattr(identity, "st_file_attributes", 0) & _REPARSE_FLAG)
 
     @classmethod
-    def _safe_directory_identity(cls, path: Path) -> tuple[int, int]:
+    def _safe_directory_identity(
+        cls,
+        path: Path,
+        *,
+        require_private_mode: bool = True,
+    ) -> tuple[int, int]:
         identity = path.lstat()
-        if path.is_symlink() or cls._is_reparse(identity) or not stat.S_ISDIR(identity.st_mode):
+        if (
+            path.is_symlink()
+            or cls._is_reparse(identity)
+            or not stat.S_ISDIR(identity.st_mode)
+            or (
+                os.name != "nt" and require_private_mode and stat.S_IMODE(identity.st_mode) != 0o700
+            )
+        ):
             raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
         return identity.st_dev, identity.st_ino
 
@@ -75,9 +87,10 @@ class LifecycleLock:
                 directory.mkdir(mode=0o700)
                 if os.name != "nt":
                     os.chmod(directory, 0o700)
-            self._safe_directory_identity(parent)
+            self._safe_directory_identity(parent, require_private_mode=False)
             if os.name != "nt":
                 os.chmod(parent, 0o700)
+            self._safe_directory_identity(parent)
         except LifecycleLockError:
             raise
         except OSError as exc:
@@ -104,7 +117,7 @@ class LifecycleLock:
                 or not stat.S_ISREG(before.st_mode)
                 or before.st_nlink != 1
                 or before.st_size > _OWNER_LIMIT_BYTES
-                or (os.name != "nt" and bool(before.st_mode & 0o177))
+                or (os.name != "nt" and stat.S_IMODE(before.st_mode) != 0o600)
             ):
                 raise ValueError("unsafe owner")
             flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)

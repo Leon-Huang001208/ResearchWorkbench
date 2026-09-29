@@ -1,5 +1,6 @@
 import json
 import os
+import stat
 import subprocess
 import sys
 import time
@@ -178,6 +179,45 @@ def test_lifecycle_lock_rejects_parent_alias_and_unexpected_lock_content(tmp_pat
     assert content_error.value.code == "lifecycle_busy"
     assert (path / "owner.json").exists()
     assert (path / "unexpected").read_text(encoding="utf-8") == "keep"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX mode bits do not prove Windows ACLs")
+@pytest.mark.parametrize("lock_mode", [0o755, 0o701, 0o777])
+def test_lifecycle_lock_rejects_non_private_existing_directory_modes(tmp_path, lock_mode):
+    path = tmp_path / "run" / "lifecycle.lock"
+    path.parent.mkdir(mode=0o700)
+    _write_lock_owner(path, pid=424242)
+    path.chmod(lock_mode)
+
+    with (
+        pytest.raises(LifecycleLockError) as captured,
+        LifecycleLock(path, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("an unsafe directory mode must never be reclaimed")
+
+    assert captured.value.code == "lifecycle_busy"
+    assert stat.S_IMODE(path.stat().st_mode) == lock_mode
+    assert (path / "owner.json").exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX mode bits do not prove Windows ACLs")
+@pytest.mark.parametrize("owner_mode", [0o400, 0o200, 0o000, 0o644, 0o601])
+def test_lifecycle_lock_rejects_non_exact_existing_owner_modes(tmp_path, owner_mode):
+    path = tmp_path / "run" / "lifecycle.lock"
+    path.parent.mkdir(mode=0o700)
+    _write_lock_owner(path, pid=424242)
+    owner = path / "owner.json"
+    owner.chmod(owner_mode)
+
+    with (
+        pytest.raises(LifecycleLockError) as captured,
+        LifecycleLock(path, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("an unsafe owner mode must never be reclaimed")
+
+    assert captured.value.code == "lifecycle_busy"
+    assert stat.S_IMODE(owner.stat().st_mode) == owner_mode
+    assert path.exists()
 
 
 def test_lifecycle_lock_exit_never_removes_replacement_owner(tmp_path):
@@ -785,7 +825,7 @@ def test_restart_holds_one_lock_without_calling_public_lifecycle_methods(manager
     monkeypatch.setattr(
         manager, "_service_probes", lambda: (_service_probe("runtime"), _service_probe("web"))
     )
-    monkeypatch.setattr(manager, "_active_research", list)
+    monkeypatch.setattr(manager, "_active_research_read_only", lambda _probe: [])
     monkeypatch.setattr(manager, "stop", lambda: pytest.fail("restart must not call public stop"))
     monkeypatch.setattr(
         manager, "start", lambda **_kwargs: pytest.fail("restart must not call public start")
@@ -802,11 +842,186 @@ def test_restart_active_research_guard_runs_before_stop(manager, monkeypatch):
     monkeypatch.setattr(
         manager, "_service_probes", lambda: (_service_probe("runtime"), _service_probe("web"))
     )
-    monkeypatch.setattr(manager, "_active_research", lambda: ["session-1"])
+    monkeypatch.setattr(manager, "_active_research_read_only", lambda _probe: ["session-1"])
     monkeypatch.setattr(manager, "_stop_locked", lambda: pytest.fail("guard must run first"))
 
     with pytest.raises(ServiceManagerError, match="活动研究"):
         manager.restart(force=False, open_browser=False)
+
+
+@pytest.mark.parametrize("method_name", ["restart", "restart_runtime"])
+@pytest.mark.parametrize(
+    ("case", "probe"),
+    [
+        (
+            "port-closed",
+            _service_probe(
+                "runtime",
+                port_state="closed",
+                protocol="not_run",
+                ready=False,
+                pid=101,
+                issues=("runtime_port_closed",),
+            ),
+        ),
+        (
+            "port-unknown",
+            _service_probe(
+                "runtime",
+                port_state="unknown",
+                protocol="not_run",
+                ready=False,
+                pid=101,
+                issues=("runtime_listener_probe_failed",),
+            ),
+        ),
+        (
+            "listener-mismatch",
+            _service_probe(
+                "runtime",
+                protocol="not_run",
+                ready=False,
+                pid=101,
+                issues=("runtime_port_owner_mismatch",),
+            ),
+        ),
+        (
+            "listener-unverified",
+            _service_probe(
+                "runtime",
+                protocol="not_run",
+                ready=False,
+                pid=101,
+                issues=("runtime_listener_probe_failed",),
+            ),
+        ),
+        (
+            "auth-missing",
+            _service_probe(
+                "runtime",
+                protocol="failed",
+                ready=False,
+                pid=101,
+                issues=("runtime_health_failed",),
+            ),
+        ),
+    ],
+)
+def test_nonforce_restart_never_bootstraps_auth_when_activity_is_unverified(
+    manager, monkeypatch, method_name, case, probe
+):
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    if method_name == "restart":
+        monkeypatch.setattr(
+            manager,
+            "_service_probes",
+            lambda: (probe, _service_probe("web", pid=202)),
+        )
+        monkeypatch.setattr(
+            manager,
+            "_stop_locked",
+            lambda: pytest.fail("an unverified restart must not stop services"),
+        )
+    else:
+        monkeypatch.setattr(manager, "_probe_service", lambda _process: probe)
+        monkeypatch.setattr(
+            manager,
+            "_stop_owned_probe",
+            lambda *_args: pytest.fail("an unverified restart must not stop Runtime"),
+        )
+    monkeypatch.setattr(
+        manager,
+        "_read_runtime_auth",
+        (
+            (lambda: None)
+            if case == "auth-missing"
+            else lambda: pytest.fail("unsafe listener facts must not reach auth")
+        ),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_runtime_sessions",
+        lambda: pytest.fail("restart guards must not bootstrap Runtime auth"),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_runtime_launch_token",
+        lambda: pytest.fail("restart guards must not read launch tokens"),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_exchange_runtime_cookie",
+        lambda _token: pytest.fail("restart guards must not exchange cookies"),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_write_runtime_auth",
+        lambda _cookie: pytest.fail("restart guards must not write auth"),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        if method_name == "restart":
+            manager.restart(force=False, open_browser=False)
+        else:
+            manager.restart_runtime(force=False)
+
+    assert captured.value.code == "active_research_unverified"
+    assert "--force" in str(captured.value)
+
+
+def test_read_only_restart_activity_check_uses_existing_authenticated_session_only(
+    manager, monkeypatch
+):
+    runtime = _service_probe("runtime", pid=101)
+    auth = {"cookie": "dsh-auth-test=value"}
+    monkeypatch.setattr(manager, "_read_runtime_auth", lambda: auth)
+    monkeypatch.setattr(
+        manager,
+        "_runtime_sessions_authenticated",
+        lambda observed: (
+            [
+                {"sessionId": "idle", "running": False},
+                {"sessionId": "running", "running": True},
+            ]
+            if observed is auth
+            else pytest.fail("the exact existing auth record must be reused")
+        ),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_runtime_sessions",
+        lambda: pytest.fail("the read-only guard must not use auth bootstrap"),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_write_runtime_auth",
+        lambda _cookie: pytest.fail("the read-only guard must not write auth"),
+    )
+
+    assert manager._active_research_read_only(runtime) == ["running"]
+
+
+def test_read_only_restart_activity_check_maps_probe_failure_to_stable_refusal(
+    manager, monkeypatch
+):
+    runtime = _service_probe("runtime", pid=101)
+    monkeypatch.setattr(
+        manager,
+        "_read_runtime_auth",
+        lambda: {"cookie": "dsh-auth-test=value"},
+    )
+    monkeypatch.setattr(
+        manager,
+        "_runtime_sessions_authenticated",
+        lambda _auth: (_ for _ in ()).throw(OSError("private transport detail")),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._active_research_read_only(runtime)
+
+    assert captured.value.code == "active_research_unverified"
+    assert "private transport detail" not in str(captured.value)
+    assert "--force" in str(captured.value)
 
 
 def test_restart_runtime_stops_and_rebuilds_only_owned_runtime(manager, monkeypatch):
@@ -817,7 +1032,7 @@ def test_restart_runtime_stops_and_rebuilds_only_owned_runtime(manager, monkeypa
     events: list[str] = []
     monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
-    monkeypatch.setattr(manager, "_active_research", list)
+    monkeypatch.setattr(manager, "_active_research_read_only", lambda _probe: [])
 
     def stop_owned(process, _probe):
         events.append(f"stop:{process.role}")
@@ -1867,7 +2082,7 @@ def test_restart_refuses_active_research_without_force(manager, monkeypatch):
         "_service_probes",
         lambda: (_service_probe("runtime", pid=123), _service_probe("web", pid=456)),
     )
-    monkeypatch.setattr(manager, "_active_research", lambda: ["session-1"])
+    monkeypatch.setattr(manager, "_active_research_read_only", lambda _probe: ["session-1"])
     with pytest.raises(ServiceManagerError, match="活动研究"):
         manager.restart(force=False, open_browser=False)
 
@@ -1884,7 +2099,7 @@ def test_restart_runtime_keeps_web_online_and_waits_for_owned_runtime(manager, m
 
     monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
-    monkeypatch.setattr(manager, "_active_research", list)
+    monkeypatch.setattr(manager, "_active_research_read_only", lambda _probe: [])
 
     def stop_one(process, _probe):
         stopped.append(process.role)
@@ -1922,7 +2137,7 @@ def test_restart_runtime_refuses_active_research_without_force(manager, monkeypa
     monkeypatch.setattr(
         manager, "_probe_service", lambda process: _service_probe(process.role, pid=123)
     )
-    monkeypatch.setattr(manager, "_active_research", lambda: ["session-1"])
+    monkeypatch.setattr(manager, "_active_research_read_only", lambda _probe: ["session-1"])
 
     with pytest.raises(ServiceManagerError, match="活动研究"):
         manager.restart_runtime(force=False)

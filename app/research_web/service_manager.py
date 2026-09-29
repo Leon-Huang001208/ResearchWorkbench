@@ -1366,6 +1366,51 @@ class WebServiceManager:
         except ServiceManagerError as exc:
             raise ServiceManagerError("无法核对活动研究；未执行重启，可显式使用 --force") from exc
 
+    def _active_research_read_only(self, probe: ServiceProbe) -> list[str]:
+        """Check activity with existing auth only; never bootstrap credentials."""
+        unsafe_issues = {
+            f"{probe.role}_state_invalid_live_pid",
+            f"{probe.role}_state_invalid_port_listening",
+            f"{probe.role}_pid_foreign",
+            f"{probe.role}_pid_reused",
+            f"{probe.role}_ownership_unverified",
+            f"{probe.role}_port_in_use_unknown",
+            f"{probe.role}_port_owner_mismatch",
+            f"{probe.role}_process_identity_unavailable",
+            f"{probe.role}_process_inaccessible",
+            f"{probe.role}_listener_probe_failed",
+        }
+        if (
+            not self._is_owned_alive(probe)
+            or probe.port_state != "listening"
+            or probe.pid is None
+            or any(issue in unsafe_issues for issue in probe.issues)
+        ):
+            raise ServiceManagerError(
+                "active_research_unverified: 无法只读核对活动研究；"
+                "未执行重启，确需中断时使用 --force",
+                code="active_research_unverified",
+                role="runtime",
+            )
+        auth = self._read_runtime_auth()
+        if auth is None:
+            raise ServiceManagerError(
+                "active_research_unverified: 无法只读核对活动研究；"
+                "未执行重启，确需中断时使用 --force",
+                code="active_research_unverified",
+                role="runtime",
+            )
+        try:
+            items = self._runtime_sessions_authenticated(auth)
+        except (OSError, TypeError, ValueError, ServiceManagerError) as exc:
+            raise ServiceManagerError(
+                "active_research_unverified: 无法只读核对活动研究；"
+                "未执行重启，确需中断时使用 --force",
+                code="active_research_unverified",
+                role="runtime",
+            ) from exc
+        return [item["sessionId"] for item in items if item["running"]]
+
     def _stop_one(self, process: ManagedProcess) -> bool:
         """Compatibility wrapper using the authoritative probe chain."""
         probe = self._probe_service(process)
@@ -1401,7 +1446,7 @@ class WebServiceManager:
                 self._probe_action(probe)
             runtime_probe = next(probe for probe in probes if probe.role == "runtime")
             if self._is_owned_alive(runtime_probe) and not force:
-                active = self._active_research()
+                active = self._active_research_read_only(runtime_probe)
                 if active:
                     raise ServiceManagerError(
                         f"存在 {len(active)} 个活动研究，拒绝重启；确需中断时使用 --force",
@@ -1423,7 +1468,7 @@ class WebServiceManager:
             probe = self._probe_service(runtime)
             action = self._probe_action(probe)
             if action in {"ready", "owned_unhealthy"} and not force:
-                active = self._active_research()
+                active = self._active_research_read_only(probe)
                 if active:
                     raise ServiceManagerError(
                         f"存在 {len(active)} 个活动研究，拒绝重启 Runtime；确需中断时使用 --force",
