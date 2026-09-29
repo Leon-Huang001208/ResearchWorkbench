@@ -130,13 +130,15 @@ class SetupWebInstaller:
     def check(self) -> dict[str, object]:
         """Inspect prerequisites and ownership without mutating the checkout."""
         issues: list[str] = []
+        environment_exists = self.venv.exists()
+        environment_owned = self._owned_environment(self.venv) if environment_exists else False
         if self.data_home.exists() and (
             self.data_home.is_symlink()
             or self._is_reparse_point(self.data_home)
             or not self.data_home.is_dir()
         ):
             issues.append("data_home_unsafe")
-        if self.venv.exists() and not (self.venv / ENVIRONMENT_MARKER).is_file():
+        if environment_exists and not environment_owned:
             issues.append("unowned_virtual_environment")
         for code, path in (
             ("python_missing", self.python_executable),
@@ -163,7 +165,7 @@ class SetupWebInstaller:
             "schema_version": 1,
             "ok": not issues,
             "issues": issues,
-            "environment_owned": (self.venv / ENVIRONMENT_MARKER).is_file(),
+            "environment_owned": environment_owned,
         }
 
     @staticmethod

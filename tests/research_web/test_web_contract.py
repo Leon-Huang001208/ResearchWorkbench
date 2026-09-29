@@ -57,6 +57,19 @@ def test_node_version_issue_matches_install_contract(value: str | None, issue: s
     assert node_version_issue(value) == issue
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        f"v{'9' * 5000}.0.0",
+        f"v24.{'9' * 5000}.0",
+        f"v24.0.{'9' * 5000}",
+    ],
+    ids=["major", "minor", "patch"],
+)
+def test_node_version_issue_rejects_overlong_numeric_segments(value: str) -> None:
+    assert node_version_issue(value) == "node_version_invalid"
+
+
 def _write_interpreter(project_root: Path, platform_name: str) -> Path:
     relative = "Scripts/python.exe" if platform_name == "nt" else "bin/python"
     interpreter = project_root / ".venv" / relative

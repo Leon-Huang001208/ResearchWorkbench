@@ -6,9 +6,11 @@ import json
 import logging
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -17,6 +19,18 @@ from research_workbench_entrypoint.web_contract import (
     node_version_issue,
 )
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
+
+
+def _installer_for_check(project_root: Path, data_home: Path) -> SetupWebInstaller:
+    return SetupWebInstaller(
+        project_root=project_root,
+        data_home=data_home,
+        python_executable=Path(sys.executable),
+        node_executable=Path(sys.executable),
+        git_executable=Path(sys.executable),
+        version_reader=lambda _path: "3.12.9",
+        node_version_reader=lambda _path: "v24.8.0",
+    )
 
 
 def test_installer_prefers_configured_node_over_path(
@@ -233,6 +247,9 @@ def test_installer_creates_and_reuses_only_its_owned_virtual_environment(
     }
     assert classify_python_environment(project_root, platform_name=os.name).issue is None
     assert installer._owned_environment(project_root / ".venv") is True
+    report = installer.check()
+    assert report["environment_owned"] is True
+    assert "unowned_virtual_environment" not in report["issues"]
     assert "secret" not in json.dumps(marker).lower()
 
 
@@ -257,6 +274,87 @@ def test_installer_marker_is_rejected_after_moving_to_another_checkout(
     assert fact.issue == "python_environment_incomplete"
     assert fact.marker_valid is False
     assert second_installer._owned_environment(second / ".venv") is False
+    report = second_installer.check()
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
+
+
+def test_check_rejects_a_forged_environment_marker(tmp_path: Path) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = _installer_for_check(project_root, tmp_path / "private-data")
+    installer.prepare_environment()
+    marker_path = project_root / ".venv" / ".rwb-web-environment.json"
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    marker["owner"] = "forged-owner"
+    marker_path.write_text(json.dumps(marker), encoding="utf-8")
+
+    report = installer.check()
+
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_check_rejects_a_marker_symlink(tmp_path: Path) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = _installer_for_check(project_root, tmp_path / "private-data")
+    installer.prepare_environment()
+    marker = project_root / ".venv" / ".rwb-web-environment.json"
+    real_marker = project_root / "real-marker.json"
+    marker.replace(real_marker)
+    marker.symlink_to(real_marker)
+
+    report = installer.check()
+
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_check_rejects_an_environment_symlink(tmp_path: Path) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = _installer_for_check(project_root, tmp_path / "private-data")
+    installer.prepare_environment()
+    environment = project_root / ".venv"
+    real_environment = tmp_path / "real-environment"
+    environment.replace(real_environment)
+    environment.symlink_to(real_environment, target_is_directory=True)
+
+    report = installer.check()
+
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
+
+
+def test_check_rejects_a_windows_reparse_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = _installer_for_check(project_root, tmp_path / "private-data")
+    installer.prepare_environment()
+    installer.platform_name = "nt"
+    environment = project_root / ".venv"
+    original_lstat = Path.lstat
+
+    def lstat(path: Path) -> os.stat_result | SimpleNamespace:
+        identity = original_lstat(path)
+        if path == environment:
+            return SimpleNamespace(
+                st_mode=identity.st_mode,
+                st_file_attributes=getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400),
+            )
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", lstat)
+
+    report = installer.check()
+
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
 
 
 def test_repair_replaces_an_owned_environment_when_pip_is_unresponsive(
