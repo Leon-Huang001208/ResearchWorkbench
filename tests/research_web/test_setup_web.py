@@ -413,6 +413,8 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     assert "research_workbench_entrypoint" in windows_cli
     assert "import click; import app.cli.main" in windows_cli
     assert "research_workbench_entrypoint.web_bootstrap" in windows_cli
+    assert "classify_python_environment" in windows_cli
+    assert "ENVIRONMENT_OWNER_ROOT" in windows_cli
     assert "py -3.12" in windows_cli
     assert "python3" in windows_cli
     assert "python" in windows_cli

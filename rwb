@@ -12,6 +12,7 @@ while [ -L "$SCRIPT_PATH" ]; do
 done
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
 PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+ENVIRONMENT_OWNER_ROOT=$PROJECT_ROOT
 
 if [ ! -x "$PYTHON_BIN" ] && command -v git >/dev/null 2>&1; then
   GIT_COMMON_DIR=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null || true)
@@ -23,6 +24,7 @@ if [ ! -x "$PYTHON_BIN" ] && command -v git >/dev/null 2>&1; then
     COMMON_ROOT=$(CDPATH= cd -- "$(dirname -- "$GIT_COMMON_DIR")" 2>/dev/null && pwd -P || true)
     if [ -n "$COMMON_ROOT" ] && [ -x "$COMMON_ROOT/.venv/bin/python" ]; then
       PYTHON_BIN="$COMMON_ROOT/.venv/bin/python"
+      ENVIRONMENT_OWNER_ROOT=$COMMON_ROOT
     fi
   fi
 fi
@@ -35,7 +37,28 @@ fi
 
 cd "$PROJECT_ROOT"
 
-if [ -x "$PYTHON_BIN" ] && "$PYTHON_BIN" -c 'import click; import app.cli.main' >/dev/null 2>&1; then
+BOOTSTRAP_PYTHON=
+if command -v python3.12 >/dev/null 2>&1; then
+  BOOTSTRAP_PYTHON=$(command -v python3.12)
+elif command -v python3 >/dev/null 2>&1; then
+  BOOTSTRAP_PYTHON=$(command -v python3)
+fi
+
+ENVIRONMENT_STATUS=
+if [ -x "$PYTHON_BIN" ]; then
+  VALIDATION_PYTHON=${BOOTSTRAP_PYTHON:-$PYTHON_BIN}
+  if ENVIRONMENT_STATUS=$(
+    "$VALIDATION_PYTHON" -c \
+      'import sys; from pathlib import Path; from research_workbench_entrypoint.web_contract import classify_python_environment; print(classify_python_environment(Path(sys.argv[1])).issue or "owned")' \
+      "$ENVIRONMENT_OWNER_ROOT" 2>/dev/null
+  ); then
+    :
+  else
+    ENVIRONMENT_STATUS=python_environment_unusable
+  fi
+fi
+
+if [ "$ENVIRONMENT_STATUS" = "owned" ] && "$PYTHON_BIN" -c 'import click; import app.cli.main' >/dev/null 2>&1; then
   if [ -z "${RESEARCH_NODE_BINARY:-}" ] && [ -n "${HOME:-}" ]; then
     CODEX_BUNDLED_NODE="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
     if [ -x "$CODEX_BUNDLED_NODE" ]; then
@@ -46,14 +69,14 @@ if [ -x "$PYTHON_BIN" ] && "$PYTHON_BIN" -c 'import click; import app.cli.main' 
 fi
 
 if [ -x "$PYTHON_BIN" ]; then
-  export RWB_BOOTSTRAP_PYTHON_ISSUE=python_environment_unusable
-fi
-
-BOOTSTRAP_PYTHON=
-if command -v python3.12 >/dev/null 2>&1; then
-  BOOTSTRAP_PYTHON=$(command -v python3.12)
-elif command -v python3 >/dev/null 2>&1; then
-  BOOTSTRAP_PYTHON=$(command -v python3)
+  case "$ENVIRONMENT_STATUS" in
+    python_environment_missing|python_environment_incomplete|python_environment_unusable)
+      export RWB_BOOTSTRAP_PYTHON_ISSUE=$ENVIRONMENT_STATUS
+      ;;
+    *)
+      export RWB_BOOTSTRAP_PYTHON_ISSUE=python_environment_unusable
+      ;;
+  esac
 fi
 
 if [ -z "$BOOTSTRAP_PYTHON" ]; then

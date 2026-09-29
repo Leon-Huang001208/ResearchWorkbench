@@ -24,6 +24,9 @@ from .web_contract import (
 )
 
 STATE_LIMIT_BYTES = 64 * 1024
+MAX_PID = (2**31) - 1
+MAX_STARTED_AT = 253_402_300_799
+MAX_STRING_BYTES = 4096
 RUNTIME_PORT = 3081
 WEB_PORT = 8088
 PYTHON_ISSUES = {
@@ -66,9 +69,23 @@ def _argument(command: list[str], name: str) -> str | None:
 def _safe_string_list(value: object, *, limit: int) -> list[str] | None:
     if type(value) is not list or not 1 <= len(value) <= limit:
         return None
-    if any(type(item) is not str or not item or len(item) > 4096 for item in value):
+    if any(type(item) is not str or not item or len(item) > MAX_STRING_BYTES for item in value):
         return None
     return value
+
+
+def _bounded_string(value: object, *, limit: int = MAX_STRING_BYTES) -> str | None:
+    if type(value) is not str or not value or len(value) > limit:
+        return None
+    return value
+
+
+def _valid_started_at(value: object) -> bool:
+    if type(value) is int:
+        return 0 <= value <= MAX_STARTED_AT
+    if type(value) is float:
+        return math.isfinite(value) and 0 <= value <= MAX_STARTED_AT
+    return False
 
 
 def _expected_signature(
@@ -127,28 +144,27 @@ def _valid_state(
     command = _safe_string_list(value.get("command"), limit=64)
     signature = _safe_string_list(value.get("signature"), limit=8)
     started_at = value.get("started_at")
+    stored_role = _bounded_string(value.get("role"), limit=16)
+    stored_project_root = _bounded_string(value.get("project_root"))
+    stored_data_root = _bounded_string(value.get("data_root"))
+    fingerprint = _bounded_string(value.get("fingerprint"), limit=64)
     expected_signature = (
         _expected_signature(role, command, project_root, data_home) if command else None
     )
     valid = (
         type(value.get("version")) is int
         and value["version"] == 1
-        and type(value.get("role")) is str
-        and value["role"] == role
+        and stored_role == role
         and type(value.get("pid")) is int
-        and value["pid"] > 1
+        and 2 <= value["pid"] <= MAX_PID
         and type(value.get("port")) is int
+        and 1 <= value["port"] <= 65535
         and value["port"] == port
-        and type(started_at) in {int, float}
-        and math.isfinite(started_at)
-        and started_at >= 0
-        and type(value.get("project_root")) is str
-        and value["project_root"] == str(project_root)
-        and type(value.get("data_root")) is str
-        and value["data_root"] == str(data_home)
+        and _valid_started_at(started_at)
+        and stored_project_root == str(project_root)
+        and stored_data_root == str(data_home)
         and command is not None
-        and type(value.get("fingerprint")) is str
-        and value["fingerprint"] == _fingerprint(command)
+        and fingerprint == _fingerprint(command)
         and signature is not None
         and expected_signature is not None
         and signature == expected_signature
@@ -184,15 +200,15 @@ def _read_state(
         if len(raw) > STATE_LIMIT_BYTES:
             return "invalid", None
         value = json.loads(raw.decode("utf-8"))
-    except (OSError, UnicodeError, ValueError, TypeError, json.JSONDecodeError):
+        state = _valid_state(
+            value,
+            role=role,
+            port=port,
+            project_root=project_root,
+            data_home=data_home,
+        )
+    except (OSError, UnicodeError, TypeError, ValueError, OverflowError):
         return "invalid", None
-    state = _valid_state(
-        value,
-        role=role,
-        port=port,
-        project_root=project_root,
-        data_home=data_home,
-    )
     return ("valid", state) if state is not None else ("invalid", None)
 
 
