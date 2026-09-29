@@ -149,13 +149,13 @@ class SetupWebInstaller:
             try:
                 if not self._python_supported(self.version_reader(self.python_executable)):
                     issues.append("python_version_unsupported")
-            except (OSError, RuntimeError, subprocess.SubprocessError):
+            except (OSError, RuntimeError, subprocess.SubprocessError, UnicodeError):
                 issues.append("python_version_unreadable")
         if "node_missing" not in issues:
             try:
                 if not self._node_supported(self.node_version_reader(self.node_executable)):
                     issues.append("node_version_unsupported")
-            except (OSError, RuntimeError, subprocess.SubprocessError):
+            except (OSError, RuntimeError, subprocess.SubprocessError, UnicodeError):
                 issues.append("node_version_unreadable")
         if issues:
             self.log.warning("setup_web_check_failed", extra={"issue_count": len(issues)})

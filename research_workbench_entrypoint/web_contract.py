@@ -55,7 +55,7 @@ class HttpFact:
 
 def node_version_issue(value: str | None) -> str | None:
     """Return the stable issue for a Node version under the Web install contract."""
-    match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", (value or "").strip())
+    match = re.fullmatch(r"v?([0-9]+)\.([0-9]+)\.([0-9]+)", (value or "").strip())
     if match is None:
         return "node_version_invalid"
     major, minor, _patch = (int(part) for part in match.groups())

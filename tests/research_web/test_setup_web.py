@@ -397,6 +397,35 @@ def test_check_rejects_unsupported_python_and_node_versions_without_writes(
 
 
 @pytest.mark.parametrize(
+    ("reader", "expected"),
+    [
+        ("python", "python_version_unreadable"),
+        ("node", "node_version_unreadable"),
+    ],
+)
+def test_check_classifies_version_reader_decode_failures(
+    tmp_path: Path, reader: str, expected: str
+) -> None:
+    def decode_failure(_path: Path) -> str:
+        raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "private decode detail")
+
+    installer = SetupWebInstaller(
+        project_root=tmp_path,
+        data_home=tmp_path / "private-data",
+        python_executable=Path(sys.executable),
+        node_executable=Path(sys.executable),
+        git_executable=Path(sys.executable),
+        version_reader=decode_failure if reader == "python" else lambda _path: "3.12.9",
+        node_version_reader=(decode_failure if reader == "node" else lambda _path: "v24.8.0"),
+    )
+
+    report = installer.check()
+
+    assert report["issues"] == [expected]
+    assert "private decode detail" not in repr(report)
+
+
+@pytest.mark.parametrize(
     "value",
     [
         "v22.18.9",
