@@ -7,21 +7,24 @@ import json
 import logging
 import math
 import os
-import stat
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from .web_contract import (
+    CONTROL_JSON_MAX_BYTES,
+    PROCESS_START_TOLERANCE_SECONDS,
     ProcessFact,
     classify_python_environment,
-    port_listening,
+    listener_pids,
     probe_process,
     proxy_warnings,
+    read_private_json,
+    signature_matches_argv,
 )
 
-STATE_LIMIT_BYTES = 64 * 1024
+STATE_LIMIT_BYTES = CONTROL_JSON_MAX_BYTES
 MAX_PID = (2**31) - 1
 MAX_STARTED_AT = 253_402_300_799
 MAX_STRING_BYTES = 4096
@@ -182,121 +185,6 @@ def _valid_state(
     return value if valid else None
 
 
-def _identity(identity: os.stat_result | Any) -> tuple[int, int]:
-    return int(identity.st_dev), int(identity.st_ino)
-
-
-def _unsafe_identity(identity: os.stat_result | Any, *, directory: bool) -> bool:
-    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
-    expected = stat.S_ISDIR(identity.st_mode) if directory else stat.S_ISREG(identity.st_mode)
-    return (
-        not expected
-        or stat.S_ISLNK(identity.st_mode)
-        or bool(getattr(identity, "st_file_attributes", 0) & reparse_flag)
-        or (not directory and getattr(identity, "st_nlink", 1) != 1)
-    )
-
-
-def _read_descriptor(fd: int) -> bytes:
-    chunks: list[bytes] = []
-    remaining = STATE_LIMIT_BYTES + 1
-    while remaining:
-        chunk = os.read(fd, min(8192, remaining))
-        if not chunk:
-            break
-        chunks.append(chunk)
-        remaining -= len(chunk)
-    return b"".join(chunks)
-
-
-def _open_posix_directory(path: Path) -> int:
-    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    parts = path.absolute().parts
-    current = os.open(parts[0], flags | no_follow)
-    completed = False
-    try:
-        for part in parts[1:]:
-            following = os.open(part, flags | no_follow, dir_fd=current)
-            os.close(current)
-            current = following
-        completed = True
-        return current
-    finally:
-        if not completed:
-            os.close(current)
-
-
-def _read_posix_state(path: Path) -> tuple[str, bytes | None]:
-    directory_fd: int | None = None
-    state_fd: int | None = None
-    try:
-        directory_fd = _open_posix_directory(path.parent)
-        before = os.stat(path.name, dir_fd=directory_fd, follow_symlinks=False)
-        if _unsafe_identity(before, directory=False) or before.st_size > STATE_LIMIT_BYTES:
-            return "invalid", None
-        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-        state_fd = os.open(path.name, flags, dir_fd=directory_fd)
-        opened = os.fstat(state_fd)
-        after = os.stat(path.name, dir_fd=directory_fd, follow_symlinks=False)
-        if (
-            _unsafe_identity(opened, directory=False)
-            or _unsafe_identity(after, directory=False)
-            or opened.st_size > STATE_LIMIT_BYTES
-            or after.st_size > STATE_LIMIT_BYTES
-            or _identity(before) != _identity(opened)
-            or _identity(opened) != _identity(after)
-        ):
-            return "invalid", None
-        raw = _read_descriptor(state_fd)
-        return ("valid", raw) if len(raw) <= STATE_LIMIT_BYTES else ("invalid", None)
-    except FileNotFoundError:
-        return "missing", None
-    except (OSError, TypeError, ValueError, OverflowError):
-        return "invalid", None
-    finally:
-        if state_fd is not None:
-            os.close(state_fd)
-        if directory_fd is not None:
-            os.close(directory_fd)
-
-
-def _read_windows_state(path: Path) -> tuple[str, bytes | None]:
-    try:
-        parent_identities = []
-        for ancestor in (path.parent.parent, path.parent):
-            identity = ancestor.lstat()
-            if _unsafe_identity(identity, directory=True):
-                return "invalid", None
-            parent_identities.append((ancestor, identity))
-        before = path.lstat()
-        if _unsafe_identity(before, directory=False) or before.st_size > STATE_LIMIT_BYTES:
-            return "invalid", None
-        with path.open("rb") as stream:
-            opened = os.fstat(stream.fileno())
-            raw = stream.read(STATE_LIMIT_BYTES + 1)
-        after = path.lstat()
-        if (
-            _unsafe_identity(opened, directory=False)
-            or _unsafe_identity(after, directory=False)
-            or len(raw) > STATE_LIMIT_BYTES
-            or _identity(before) != _identity(opened)
-            or _identity(opened) != _identity(after)
-        ):
-            return "invalid", None
-        for ancestor, identity in parent_identities:
-            current = ancestor.lstat()
-            if _unsafe_identity(current, directory=True) or _identity(identity) != _identity(
-                current
-            ):
-                return "invalid", None
-        return "valid", raw
-    except FileNotFoundError:
-        return "missing", None
-    except (OSError, TypeError, ValueError, OverflowError):
-        return "invalid", None
-
-
 def _read_state(
     path: Path,
     *,
@@ -306,21 +194,23 @@ def _read_state(
     data_home: Path,
     platform_name: str | None = None,
 ) -> tuple[str, dict[str, Any] | None]:
-    state_status, raw = (
-        _read_windows_state(path) if (platform_name or os.name) == "nt" else _read_posix_state(path)
+    fact = read_private_json(
+        path,
+        trusted_root=data_home.parent,
+        max_bytes=STATE_LIMIT_BYTES,
+        platform_name=platform_name,
     )
-    if state_status != "valid" or raw is None:
-        return state_status, None
+    if fact.state != "valid":
+        return fact.state, None
     try:
-        value = json.loads(raw.decode("utf-8"))
         state = _valid_state(
-            value,
+            fact.value,
             role=role,
             port=port,
             project_root=project_root,
             data_home=data_home,
         )
-    except (OSError, UnicodeError, TypeError, ValueError, OverflowError, RecursionError):
+    except (TypeError, ValueError, OverflowError, RecursionError):
         return "invalid", None
     return ("valid", state) if state is not None else ("invalid", None)
 
@@ -339,9 +229,10 @@ def _service_fact(
         project_root=project_root,
         data_home=data_home,
     )
-    listening = port_listening(port)
+    listener = listener_pids(port)
     process_status = "missing" if state_status == "missing" else "inaccessible"
     ownership = "unknown"
+    owned_pid: int | None = None
     issues: list[str] = []
     if state_status == "invalid":
         issues.append(f"{role}_state_invalid")
@@ -352,24 +243,41 @@ def _service_fact(
             issues.append(f"{role}_process_missing")
         elif process.state == "inaccessible" or not process.command_line:
             issues.append(f"{role}_process_unavailable")
-        elif all(part in process.command_line for part in state["signature"]):
+        elif process.issue is not None or process.argv is None or process.started_at is None:
             issues.append(f"{role}_ownership_unverified")
-        else:
+        elif not signature_matches_argv(tuple(state["signature"]), process.argv):
             ownership = "foreign"
             issues.append(f"{role}_process_foreign")
-    if listening:
-        ownership = "unknown" if ownership != "foreign" else ownership
+        elif abs(process.started_at - float(state["started_at"])) > (
+            PROCESS_START_TOLERANCE_SECONDS
+        ):
+            ownership = "foreign"
+            issues.append(f"{role}_pid_reused")
+        else:
+            ownership = "owned"
+            owned_pid = int(state["pid"])
+    if listener.state == "unknown":
+        ownership = "unknown" if ownership == "owned" else ownership
+        owned_pid = None
+        issues.append(f"{role}_listener_probe_failed")
+    elif listener.state == "listening" and ownership == "owned" and owned_pid not in listener.pids:
+        ownership = "foreign"
+        owned_pid = None
+        issues.append(f"{role}_port_owner_mismatch")
+    elif listener.state == "listening" and ownership != "owned":
         issues.append(f"{role}_port_in_use_unknown")
+    elif listener.state == "closed" and ownership == "owned":
+        issues.append(f"{role}_port_closed")
     return {
         "state": state_status,
         "process": process_status,
         "ownership": ownership,
-        "port_state": "listening" if listening else "closed",
+        "port_state": listener.state,
         "protocol": "not_run",
         "ready": False,
-        "running": False,
+        "running": process_status == "alive" and ownership == "owned",
         "healthy": False,
-        "pid": None,
+        "pid": owned_pid if ownership == "owned" else None,
         "port": port,
         "issues": issues,
     }

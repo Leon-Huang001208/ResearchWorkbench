@@ -8,6 +8,7 @@ import os
 import socket
 import stat
 import threading
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,16 +18,273 @@ import pytest
 from research_workbench_entrypoint import web_contract
 from research_workbench_entrypoint.web_contract import (
     HttpFact,
+    ListenerFact,
+    PrivateJsonFact,
     ProcessFact,
     classify_python_environment,
     command_line,
     http_get,
+    listener_pids,
     node_version_issue,
     pid_exists,
     port_listening,
     probe_process,
     proxy_warnings,
+    read_private_json,
+    signature_matches_argv,
 )
+
+
+def _write_private_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value), encoding="utf-8")
+    path.chmod(0o600)
+
+
+def test_private_json_reader_requires_private_regular_single_link_file(tmp_path: Path) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+
+    assert read_private_json(path, trusted_root=root, max_bytes=1024) == PrivateJsonFact(
+        "valid", {"schema": 1}, None
+    )
+
+    path.chmod(0o644)
+    assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+    path.chmod(0o600)
+    hardlink = root / "run" / "hardlink.json"
+    os.link(path, hardlink)
+    assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX link behavior")
+@pytest.mark.parametrize("alias", ["parent", "leaf"])
+def test_private_json_reader_rejects_parent_and_leaf_symlinks(tmp_path: Path, alias: str) -> None:
+    root = tmp_path / "private"
+    foreign = tmp_path / "foreign"
+    foreign_path = foreign / "state.json"
+    _write_private_json(foreign_path, {"schema": 1})
+    run = root / "run"
+    root.mkdir()
+    if alias == "parent":
+        run.symlink_to(foreign, target_is_directory=True)
+        path = run / "state.json"
+    else:
+        run.mkdir()
+        path = run / "state.json"
+        path.symlink_to(foreign_path)
+
+    assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"x" * 1025, (("[" * 1100) + "0" + ("]" * 1100)).encode()],
+    ids=["oversize", "deep-json"],
+)
+def test_private_json_reader_bounds_content_without_disclosure(
+    tmp_path: Path, content: bytes
+) -> None:
+    root = tmp_path / "private"
+    path = root / "state.json"
+    path.parent.mkdir()
+    path.write_bytes(content)
+    path.chmod(0o600)
+
+    fact = read_private_json(path, trusted_root=root, max_bytes=1024)
+
+    assert fact == PrivateJsonFact("invalid", None, "private_json_invalid")
+    assert str(tmp_path) not in repr(fact)
+
+
+@pytest.mark.parametrize("race", ["parent", "leaf"])
+def test_private_json_reader_rejects_posix_identity_races(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, race: str
+) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+    original_fstat = os.fstat
+    seen_directories = 0
+
+    def changed_fstat(fd: int):
+        nonlocal seen_directories
+        identity = original_fstat(fd)
+        target = (
+            stat.S_ISREG(identity.st_mode) if race == "leaf" else stat.S_ISDIR(identity.st_mode)
+        )
+        if target:
+            if race == "parent":
+                seen_directories += 1
+                target = seen_directories > 1
+            if target:
+                return SimpleNamespace(
+                    st_mode=identity.st_mode,
+                    st_dev=identity.st_dev,
+                    st_ino=identity.st_ino + 1,
+                    st_nlink=identity.st_nlink,
+                    st_size=identity.st_size,
+                )
+        return identity
+
+    monkeypatch.setattr(os, "fstat", changed_fstat)
+
+    assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+
+
+@pytest.mark.parametrize("race", ["reparse-parent", "reparse-leaf", "parent", "leaf"])
+def test_private_json_reader_rejects_windows_reparse_and_identity_models(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, race: str
+) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+    target = root / "run" if "parent" in race else path
+    original_lstat = Path.lstat
+    reads = 0
+
+    def modeled_lstat(current: Path):
+        nonlocal reads
+        identity = original_lstat(current)
+        if current != target:
+            return identity
+        reads += 1
+        changed = race.startswith("reparse") or reads > 1
+        if not changed:
+            return identity
+        return SimpleNamespace(
+            st_mode=identity.st_mode,
+            st_file_attributes=(0x400 if race.startswith("reparse") else 0),
+            st_dev=identity.st_dev,
+            st_ino=identity.st_ino + (0 if race.startswith("reparse") else 1),
+            st_nlink=identity.st_nlink,
+            st_size=identity.st_size,
+        )
+
+    monkeypatch.setattr(Path, "lstat", modeled_lstat)
+
+    assert (
+        read_private_json(path, trusted_root=root, max_bytes=1024, platform_name="nt").state
+        == "invalid"
+    )
+
+
+def test_private_json_reader_rejects_windows_opened_leaf_identity_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+    original_fstat = os.fstat
+
+    def changed_fstat(fd: int):
+        identity = original_fstat(fd)
+        if stat.S_ISREG(identity.st_mode):
+            return SimpleNamespace(
+                st_mode=identity.st_mode,
+                st_file_attributes=0,
+                st_dev=identity.st_dev,
+                st_ino=identity.st_ino + 1,
+                st_nlink=identity.st_nlink,
+                st_size=identity.st_size,
+            )
+        return identity
+
+    monkeypatch.setattr(os, "fstat", changed_fstat)
+
+    assert (
+        read_private_json(path, trusted_root=root, max_bytes=1024, platform_name="nt").state
+        == "invalid"
+    )
+
+
+@pytest.mark.parametrize(
+    ("signature", "argv", "expected"),
+    [
+        (("3081",), ("python", "--port", "3081"), True),
+        (("3081",), ("python", "--port", "13081"), False),
+        (("3081",), ("python", "prefix-3081-suffix"), False),
+        (
+            ("app.research_web.main:app", "8088"),
+            ("uvicorn", "app.research_web.main:app", "--port", "8088"),
+            True,
+        ),
+    ],
+)
+def test_signature_matching_requires_exact_argv_tokens(signature, argv, expected) -> None:
+    assert signature_matches_argv(signature, argv) is expected
+
+
+def test_posix_process_probe_includes_exact_argv_and_start_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Result:
+        returncode = 0
+
+        def __init__(self, stdout: str) -> None:
+            self.stdout = stdout
+
+    results = iter(
+        [
+            Result("S+\n"),
+            Result("python -m uvicorn --port 3081\n"),
+            Result("Mon Sep 29 15:00:00 2026\n"),
+        ]
+    )
+    monkeypatch.setattr(os, "kill", lambda _pid, _signal: None)
+    monkeypatch.setattr(web_contract, "_run_process_probe", lambda _command: next(results))
+
+    fact = probe_process(4321, platform_name="posix")
+
+    assert fact.argv == ("python", "-m", "uvicorn", "--port", "3081")
+    assert (
+        fact.started_at
+        == datetime.strptime("Mon Sep 29 15:00:00 2026", "%a %b %d %H:%M:%S %Y")
+        .astimezone()
+        .timestamp()
+    )
+
+
+@pytest.mark.parametrize(
+    ("platform_name", "returncode", "stdout", "expected"),
+    [
+        ("posix", 0, "4321\n9876\n", ListenerFact("listening", (4321, 9876), None)),
+        ("posix", 1, "", ListenerFact("closed", (), None)),
+        ("nt", 0, "4321\n", ListenerFact("listening", (4321,), None)),
+    ],
+)
+def test_listener_pid_probe_returns_exact_bounded_owners(
+    monkeypatch: pytest.MonkeyPatch,
+    platform_name: str,
+    returncode: int,
+    stdout: str,
+    expected: ListenerFact,
+) -> None:
+    calls = []
+
+    class Result:
+        def __init__(self) -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+
+    monkeypatch.setattr(
+        web_contract,
+        "_run_process_probe",
+        lambda command: calls.append(command) or Result(),
+    )
+
+    assert listener_pids(3081, platform_name=platform_name) == expected
+    if platform_name == "nt":
+        assert "Get-NetTCPConnection" in calls[0][-1]
+    else:
+        assert calls[0] == ["lsof", "-nP", "-iTCP:3081", "-sTCP:LISTEN", "-t"]
+
+
+def test_listener_pid_probe_failure_is_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(web_contract, "_run_process_probe", lambda _command: None)
+
+    assert listener_pids(3081) == ListenerFact("unknown", (), "listener_probe_failed")
 
 
 @pytest.mark.parametrize(
@@ -338,8 +596,10 @@ def test_windows_process_probe_uses_powershell_without_a_shell(
         [
             Result(0),
             Result(0, "python.exe -m app.research_web.main:app\n"),
+            Result(0, "2026-09-29T07:00:00+00:00\n"),
             Result(0),
             Result(0, "python.exe -m app.research_web.main:app\n"),
+            Result(0, "2026-09-29T07:00:00+00:00\n"),
         ]
     )
 
@@ -355,6 +615,8 @@ def test_windows_process_probe_uses_powershell_without_a_shell(
         state="alive",
         command_line="python.exe -m app.research_web.main:app",
         issue=None,
+        argv=("python.exe", "-m", "app.research_web.main:app"),
+        started_at=datetime.fromisoformat("2026-09-29T07:00:00+00:00").timestamp(),
     )
     assert pid_exists(4321, platform_name="nt") is True
     assert all(
@@ -434,7 +696,13 @@ def test_posix_command_line_uses_bounded_non_shell_probes(
             self.returncode = 0
             self.stdout = stdout
 
-    results = iter([Result("S+\n"), Result("python -m uvicorn app.research_web.main:app\n")])
+    results = iter(
+        [
+            Result("S+\n"),
+            Result("python -m uvicorn app.research_web.main:app\n"),
+            Result("Mon Sep 29 15:00:00 2026\n"),
+        ]
+    )
     monkeypatch.setattr(os, "kill", lambda _pid, _signal: None)
 
     def run(command: list[str], **options: object) -> Result:
@@ -448,6 +716,7 @@ def test_posix_command_line_uses_bounded_non_shell_probes(
     )
     assert calls[0][0] == ["ps", "-p", "4321", "-o", "stat="]
     assert calls[1][0] == ["ps", "-p", "4321", "-o", "command="]
+    assert calls[2][0] == ["ps", "-p", "4321", "-o", "lstart="]
     assert all(call[1]["shell"] is False for call in calls)
     assert all(int(call[1]["timeout"]) <= 5 for call in calls)
 

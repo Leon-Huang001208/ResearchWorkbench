@@ -6,17 +6,18 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class _StateFact:
+class StateFact:
     """Validated state-file facts retained only inside the service manager."""
 
     state: str
     pid: int | None
     signature: tuple[str, ...]
     issues: tuple[str, ...]
+    started_at: float | None = None
 
 
 @dataclass(frozen=True)
-class _ProcessFact:
+class ProcessFact:
     """Process and ownership facts without command or operating-system errors."""
 
     process: str
@@ -41,7 +42,7 @@ class ServiceProbe:
     issues: tuple[str, ...]
 
     def public(self, *, log: str | None = None) -> dict[str, object]:
-        """Return only allowlisted facts suitable for CLI and JSON output."""
+        """Return safe facts; ``log`` is an opt-in status CLI compatibility field."""
         value: dict[str, object] = {
             "state": self.state,
             "process": self.process,

@@ -17,7 +17,7 @@ from types import SimpleNamespace
 import pytest
 
 from research_workbench_entrypoint import web_bootstrap
-from research_workbench_entrypoint.web_contract import ProcessFact
+from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
 
 
 def _run_capture(argv: list[str], project_root: Path) -> tuple[int, str, str]:
@@ -235,7 +235,9 @@ def _write_state(project_root: Path, data_home: Path, role: str) -> dict[str, ob
     state = _service_state(project_root, data_home, role)
     run_root = data_home.parent / "run"
     run_root.mkdir(parents=True, exist_ok=True)
-    (run_root / f"{role}.json").write_text(json.dumps(state), encoding="utf-8")
+    state_path = run_root / f"{role}.json"
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+    state_path.chmod(0o600)
     return state
 
 
@@ -298,7 +300,9 @@ def test_service_facts_reject_adversarial_json_scalars_without_raising(
     run_root = data_home.parent / "run"
     run_root.mkdir(parents=True)
     (run_root / "web.json").write_text(json.dumps(state), encoding="utf-8")
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     services = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)
 
@@ -318,7 +322,9 @@ def test_diagnose_reports_huge_integer_state_as_a_safe_invalid_fact(
     run_root = data_home.parent / "run"
     run_root.mkdir(parents=True)
     (run_root / "web.json").write_text(json.dumps(state), encoding="utf-8")
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     report = web_bootstrap.diagnose(tmp_path, environment={"RESEARCH_DATA_HOME": str(data_home)})
 
@@ -344,7 +350,9 @@ def test_cli_keeps_doctor_and_status_available_for_huge_integer_state(
     run_root.mkdir(parents=True)
     (run_root / "web.json").write_text(json.dumps(state), encoding="utf-8")
     monkeypatch.setenv("RESEARCH_DATA_HOME", str(data_home))
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     exit_code, stdout, stderr = _run_capture(argv, tmp_path)
 
@@ -371,7 +379,11 @@ def test_service_facts_keep_state_process_ownership_port_and_protocol_separate(
         return ProcessFact("alive", " ".join(state["signature"]), None)
 
     monkeypatch.setattr(web_bootstrap, "probe_process", process)
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: True)
+    monkeypatch.setattr(
+        web_bootstrap,
+        "listener_pids",
+        lambda port: ListenerFact("listening", (4242 if port == 3081 else 4343,), None),
+    )
 
     services = web_bootstrap.bootstrap_service_facts(project_root, data_home)
 
@@ -418,7 +430,9 @@ def test_signature_match_without_start_identity_never_claims_ownership(
         "probe_process",
         lambda _pid: ProcessFact("alive", " ".join(state["signature"]), None),
     )
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
 
@@ -431,6 +445,79 @@ def test_signature_match_without_start_identity_never_claims_ownership(
     assert service["issues"] == ["web_ownership_unverified"]
 
 
+def test_bootstrap_claims_owned_only_with_start_identity_and_exact_listener(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    state = _write_state(tmp_path, data_home, "web")
+    signature = tuple(state["signature"])
+    monkeypatch.setattr(
+        web_bootstrap,
+        "probe_process",
+        lambda _pid: ProcessFact(
+            "alive",
+            " ".join(signature),
+            None,
+            signature,
+            float(state["started_at"]),
+        ),
+    )
+    monkeypatch.setattr(
+        web_bootstrap,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (int(state["pid"]),), None),
+    )
+
+    service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
+
+    assert service["ownership"] == "owned"
+    assert service["port_state"] == "listening"
+    assert service["running"] is True
+    assert service["ready"] is False
+    assert service["pid"] == state["pid"]
+    assert service["issues"] == []
+
+
+@pytest.mark.parametrize(
+    ("start_offset", "listener", "issue"),
+    [
+        (-60, ListenerFact("listening", (4321,), None), "web_pid_reused"),
+        (0, ListenerFact("listening", (9876,), None), "web_port_owner_mismatch"),
+        (0, ListenerFact("unknown", (), "listener_probe_failed"), "web_listener_probe_failed"),
+    ],
+)
+def test_bootstrap_never_owns_reused_pid_or_unverified_listener(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    start_offset: int,
+    listener: ListenerFact,
+    issue: str,
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    state = _write_state(tmp_path, data_home, "web")
+    signature = tuple(state["signature"])
+    monkeypatch.setattr(
+        web_bootstrap,
+        "probe_process",
+        lambda _pid: ProcessFact(
+            "alive",
+            " ".join(signature),
+            None,
+            signature,
+            float(state["started_at"]) + start_offset,
+        ),
+    )
+    monkeypatch.setattr(web_bootstrap, "listener_pids", lambda _port: listener)
+
+    service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
+
+    assert service["ownership"] != "owned"
+    assert service["running"] is False
+    assert service["ready"] is False
+    assert issue in service["issues"]
+    assert service["port_state"] == listener.state
+
+
 @pytest.mark.parametrize("content", ["not-json", "x" * (64 * 1024 + 1)])
 def test_service_facts_reject_malformed_or_oversized_state_without_disclosure(
     tmp_path: Path,
@@ -441,7 +528,9 @@ def test_service_facts_reject_malformed_or_oversized_state_without_disclosure(
     run_root = data_home.parent / "run"
     run_root.mkdir(parents=True)
     (run_root / "web.json").write_text(content, encoding="utf-8")
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     services = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)
 
@@ -466,7 +555,9 @@ def test_deeply_nested_json_is_a_safe_invalid_fact_for_api_and_runner(
 ) -> None:
     data_home = tmp_path / "private" / "research-web"
     _write_deeply_nested_state(data_home)
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     report = web_bootstrap.diagnose(tmp_path, environment={"RESEARCH_DATA_HOME": str(data_home)})
     monkeypatch.setenv("RESEARCH_DATA_HOME", str(data_home))
@@ -542,7 +633,9 @@ def test_service_state_rejects_parent_and_leaf_symlinks(
         "probe_process",
         lambda _pid: pytest.fail("aliased state must not reach process probe"),
     )
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
 
@@ -561,7 +654,9 @@ def test_service_state_rejects_non_regular_and_hardlinked_files(
     run_root.mkdir(parents=True)
     state_path = run_root / "web.json"
     os.mkfifo(state_path)
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
     assert web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]["state"] == "invalid"
 
     state_path.unlink()
@@ -623,7 +718,9 @@ def test_service_state_rejects_identity_changes_around_descriptor_open(
     monkeypatch.setattr(web_bootstrap.os, "open", raced_open)
     monkeypatch.setattr(web_bootstrap.os, "fstat", raced_fstat)
     monkeypatch.setattr(web_bootstrap.os, "stat", raced_stat)
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
 
@@ -716,15 +813,29 @@ def test_service_facts_distinguish_dead_foreign_and_listener_only(
 ) -> None:
     data_home = tmp_path / "private" / "research-web"
     runtime = _write_state(tmp_path, data_home, "runtime")
-    _write_state(tmp_path, data_home, "web")
+    web = _write_state(tmp_path, data_home, "web")
 
     def process(pid: int) -> ProcessFact:
         if pid == runtime["pid"]:
             return ProcessFact("missing", None, None)
-        return ProcessFact("alive", "python unrelated.py", None)
+        return ProcessFact(
+            "alive",
+            "python unrelated.py",
+            None,
+            ("python", "unrelated.py"),
+            float(web["started_at"]),
+        )
 
     monkeypatch.setattr(web_bootstrap, "probe_process", process)
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda port: port == 3081)
+    monkeypatch.setattr(
+        web_bootstrap,
+        "listener_pids",
+        lambda port: (
+            ListenerFact("listening", (4242,), None)
+            if port == 3081
+            else ListenerFact("closed", (), None)
+        ),
+    )
 
     services = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)
 
@@ -746,7 +857,11 @@ def test_service_facts_distinguish_dead_foreign_and_listener_only(
 def test_listener_without_state_is_never_reported_healthy(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: True)
+    monkeypatch.setattr(
+        web_bootstrap,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (9999,), None),
+    )
 
     services = web_bootstrap.bootstrap_service_facts(
         tmp_path, tmp_path / "private" / "research-web"
@@ -785,7 +900,9 @@ def test_bootstrap_diagnostics_never_unlink_kill_or_create_state(
         "probe_process",
         lambda _pid: ProcessFact("missing", None, None),
     )
-    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        web_bootstrap, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     services = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)
 

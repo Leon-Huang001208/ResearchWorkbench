@@ -8,19 +8,24 @@ import json
 import logging
 import os
 import re
+import shlex
 import socket
 import stat
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 PROCESS_TIMEOUT_SECONDS = 2
+# State is persisted immediately after Popen; ps/CIM timestamps may be second-granularity.
+PROCESS_START_TOLERANCE_SECONDS = 5.0
 PORT_TIMEOUT_SECONDS = 0.25
 HTTP_TIMEOUT_SECONDS = 2
 MAX_HTTP_BODY_BYTES = 2 * 1024 * 1024
+CONTROL_JSON_MAX_BYTES = 64 * 1024
 
 log = logging.getLogger("research_workbench.web_contract")
 
@@ -41,6 +46,26 @@ class ProcessFact:
     state: Literal["missing", "alive", "inaccessible"]
     command_line: str | None
     issue: str | None
+    argv: tuple[str, ...] | None = None
+    started_at: float | None = None
+
+
+@dataclass(frozen=True)
+class ListenerFact:
+    """Exact listener-owner facts, or unknown when the platform probe failed."""
+
+    state: Literal["closed", "listening", "unknown"]
+    pids: tuple[int, ...]
+    issue: str | None
+
+
+@dataclass(frozen=True)
+class PrivateJsonFact:
+    """A bounded private control-file read without path or parser disclosure."""
+
+    state: Literal["missing", "valid", "invalid"]
+    value: object | None
+    issue: str | None
 
 
 @dataclass(frozen=True)
@@ -51,6 +76,179 @@ class HttpFact:
     content_type: str | None
     body: bytes
     issue: str | None
+
+
+def _file_identity(identity: os.stat_result | object) -> tuple[int, int, int]:
+    return int(identity.st_dev), int(identity.st_ino), int(identity.st_size)  # type: ignore[attr-defined]
+
+
+def _directory_identity(identity: os.stat_result | object) -> tuple[int, int]:
+    return int(identity.st_dev), int(identity.st_ino)  # type: ignore[attr-defined]
+
+
+def _unsafe_control_identity(
+    identity: os.stat_result | object,
+    *,
+    directory: bool,
+    platform_name: str,
+) -> bool:
+    mode = int(identity.st_mode)  # type: ignore[attr-defined]
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return (
+        (not stat.S_ISDIR(mode) if directory else not stat.S_ISREG(mode))
+        or stat.S_ISLNK(mode)
+        or bool(getattr(identity, "st_file_attributes", 0) & reparse_flag)
+        or (not directory and getattr(identity, "st_nlink", 1) != 1)
+        or (platform_name != "nt" and not directory and bool(mode & 0o077))
+    )
+
+
+def _read_bounded_descriptor(fd: int, max_bytes: int) -> bytes:
+    chunks: list[bytes] = []
+    remaining = max_bytes + 1
+    while remaining:
+        chunk = os.read(fd, min(8192, remaining))
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def _read_private_json_posix(path: Path, trusted_root: Path, max_bytes: int) -> bytes:
+    root = trusted_root.absolute()
+    target = path.absolute()
+    if not target.is_relative_to(root):
+        raise ValueError("control path outside trusted root")
+    directory_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    file_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    current = os.open(root.anchor, directory_flags)
+    try:
+        parent_parts = (*root.parts[1:], *target.relative_to(root).parts[:-1])
+        for part in parent_parts:
+            before = os.stat(part, dir_fd=current, follow_symlinks=False)
+            following = os.open(part, directory_flags, dir_fd=current)
+            opened = os.fstat(following)
+            after = os.stat(part, dir_fd=current, follow_symlinks=False)
+            if (
+                _unsafe_control_identity(before, directory=True, platform_name="posix")
+                or _unsafe_control_identity(opened, directory=True, platform_name="posix")
+                or _unsafe_control_identity(after, directory=True, platform_name="posix")
+                or _directory_identity(before) != _directory_identity(opened)
+                or _directory_identity(opened) != _directory_identity(after)
+            ):
+                os.close(following)
+                raise ValueError("unsafe control directory")
+            os.close(current)
+            current = following
+        leaf = target.name
+        before = os.stat(leaf, dir_fd=current, follow_symlinks=False)
+        if (
+            _unsafe_control_identity(before, directory=False, platform_name="posix")
+            or before.st_size > max_bytes
+        ):
+            raise ValueError("unsafe control file")
+        handle = os.open(leaf, file_flags, dir_fd=current)
+        try:
+            opened = os.fstat(handle)
+            raw = _read_bounded_descriptor(handle, max_bytes)
+        finally:
+            os.close(handle)
+        after = os.stat(leaf, dir_fd=current, follow_symlinks=False)
+        if (
+            _unsafe_control_identity(opened, directory=False, platform_name="posix")
+            or _unsafe_control_identity(after, directory=False, platform_name="posix")
+            or opened.st_size > max_bytes
+            or after.st_size > max_bytes
+            or len(raw) > max_bytes
+            or _file_identity(before) != _file_identity(opened)
+            or _file_identity(opened) != _file_identity(after)
+        ):
+            raise ValueError("control file identity changed")
+        return raw
+    finally:
+        os.close(current)
+
+
+def _read_private_json_windows(path: Path, trusted_root: Path, max_bytes: int) -> bytes:
+    root = trusted_root.absolute()
+    target = path.absolute()
+    if not target.is_relative_to(root):
+        raise ValueError("control path outside trusted root")
+    parents = [root]
+    current = root
+    for part in target.relative_to(root).parts[:-1]:
+        current = current / part
+        parents.append(current)
+    parent_identities = []
+    for parent in parents:
+        identity = parent.lstat()
+        if _unsafe_control_identity(identity, directory=True, platform_name="nt"):
+            raise ValueError("unsafe control directory")
+        parent_identities.append((parent, identity))
+    before = target.lstat()
+    if (
+        _unsafe_control_identity(before, directory=False, platform_name="nt")
+        or before.st_size > max_bytes
+    ):
+        raise ValueError("unsafe control file")
+    with target.open("rb") as stream:
+        opened = os.fstat(stream.fileno())
+        raw = stream.read(max_bytes + 1)
+    after = target.lstat()
+    if (
+        _unsafe_control_identity(opened, directory=False, platform_name="nt")
+        or _unsafe_control_identity(after, directory=False, platform_name="nt")
+        or len(raw) > max_bytes
+        or _file_identity(before) != _file_identity(opened)
+        or _file_identity(opened) != _file_identity(after)
+    ):
+        raise ValueError("control file identity changed")
+    for parent, before_parent in parent_identities:
+        after_parent = parent.lstat()
+        if _unsafe_control_identity(
+            after_parent, directory=True, platform_name="nt"
+        ) or _directory_identity(before_parent) != _directory_identity(after_parent):
+            raise ValueError("control directory identity changed")
+    return raw
+
+
+def read_private_json(
+    path: Path,
+    *,
+    trusted_root: Path,
+    max_bytes: int = CONTROL_JSON_MAX_BYTES,
+    platform_name: str | None = None,
+) -> PrivateJsonFact:
+    """Read bounded JSON below a trusted root without following aliases or leaking errors."""
+    if max_bytes < 1:
+        return PrivateJsonFact("invalid", None, "private_json_invalid")
+    current_platform = platform_name or os.name
+    try:
+        raw = (
+            _read_private_json_windows(path, trusted_root, max_bytes)
+            if current_platform == "nt"
+            else _read_private_json_posix(path, trusted_root, max_bytes)
+        )
+        value = json.loads(raw.decode("utf-8"))
+        return PrivateJsonFact("valid", value, None)
+    except FileNotFoundError:
+        return PrivateJsonFact("missing", None, "private_json_missing")
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        UnicodeError,
+        OverflowError,
+        RecursionError,
+        json.JSONDecodeError,
+    ):
+        return PrivateJsonFact("invalid", None, "private_json_invalid")
 
 
 def node_version_issue(value: str | None) -> str | None:
@@ -167,6 +365,37 @@ def _run_process_probe(command: list[str]) -> subprocess.CompletedProcess[str] |
         return None
 
 
+def _command_argv(command_line: str, *, platform_name: str) -> tuple[str, ...] | None:
+    try:
+        values = shlex.split(command_line, posix=platform_name != "nt")
+    except ValueError:
+        return None
+    if platform_name == "nt":
+        values = [
+            (
+                value[1:-1]
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}
+                else value
+            )
+            for value in values
+        ]
+    return tuple(values) if values else None
+
+
+def signature_matches_argv(signature: tuple[str, ...], argv: tuple[str, ...] | None) -> bool:
+    """Require every ownership signature item to be an exact process argv token."""
+    return bool(argv) and bool(signature) and all(part in argv for part in signature)
+
+
+def _parse_process_start(value: str, *, platform_name: str) -> float | None:
+    try:
+        if platform_name == "nt":
+            return datetime.fromisoformat(value.strip()).timestamp()
+        return datetime.strptime(value.strip(), "%a %b %d %H:%M:%S %Y").astimezone().timestamp()
+    except (OverflowError, ValueError):
+        return None
+
+
 def _windows_process(pid: int) -> ProcessFact:
     presence = _run_process_probe(
         [
@@ -200,7 +429,33 @@ def _windows_process(pid: int) -> ProcessFact:
     )
     if command is None or command.returncode != 0:
         return ProcessFact("inaccessible", None, "process_probe_failed")
-    return ProcessFact("alive", command.stdout.strip() or None, None)
+    command_line = command.stdout.strip() or None
+    started = _run_process_probe(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            (
+                f"$process = Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}'; "
+                "if ($null -ne $process) { "
+                "$process.CreationDate.ToUniversalTime().ToString('o') }"
+            ),
+        ]
+    )
+    started_at = (
+        _parse_process_start(started.stdout, platform_name="nt")
+        if started is not None and started.returncode == 0
+        else None
+    )
+    issue = None if started_at is not None else "process_start_probe_failed"
+    return ProcessFact(
+        "alive",
+        command_line,
+        issue,
+        _command_argv(command_line, platform_name="nt") if command_line else None,
+        started_at,
+    )
 
 
 def _posix_process(pid: int) -> ProcessFact:
@@ -225,7 +480,21 @@ def _posix_process(pid: int) -> ProcessFact:
     command = _run_process_probe(["ps", "-p", str(pid), "-o", "command="])
     if command is None or command.returncode != 0:
         return ProcessFact("inaccessible", None, "process_probe_failed")
-    return ProcessFact("alive", command.stdout.strip() or None, None)
+    command_line = command.stdout.strip() or None
+    started = _run_process_probe(["ps", "-p", str(pid), "-o", "lstart="])
+    started_at = (
+        _parse_process_start(started.stdout, platform_name="posix")
+        if started is not None and started.returncode == 0
+        else None
+    )
+    issue = None if started_at is not None else "process_start_probe_failed"
+    return ProcessFact(
+        "alive",
+        command_line,
+        issue,
+        _command_argv(command_line, platform_name="posix") if command_line else None,
+        started_at,
+    )
 
 
 def probe_process(pid: int, *, platform_name: str | None = None) -> ProcessFact:
@@ -254,6 +523,44 @@ def port_listening(port: int) -> bool:
             return True
     except OSError:
         return False
+
+
+def listener_pids(port: int, *, platform_name: str | None = None) -> ListenerFact:
+    """Return exact loopback TCP listener PIDs using bounded platform-native probes."""
+    if port < 1 or port > 65535:
+        return ListenerFact("unknown", (), "listener_probe_failed")
+    current_platform = platform_name or os.name
+    command = (
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            (
+                "Get-NetTCPConnection -State Listen -LocalPort "
+                f"{port} -ErrorAction SilentlyContinue | "
+                "Select-Object -ExpandProperty OwningProcess -Unique"
+            ),
+        ]
+        if current_platform == "nt"
+        else ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"]
+    )
+    result = _run_process_probe(command)
+    if result is None:
+        return ListenerFact("unknown", (), "listener_probe_failed")
+    if result.returncode != 0:
+        if current_platform != "nt" and result.returncode == 1 and not result.stdout.strip():
+            return ListenerFact("closed", (), None)
+        return ListenerFact("unknown", (), "listener_probe_failed")
+    try:
+        values = tuple(
+            sorted({int(item.strip()) for item in result.stdout.splitlines() if item.strip()})
+        )
+    except ValueError:
+        return ListenerFact("unknown", (), "listener_probe_failed")
+    if len(values) > 64 or any(pid <= 1 or pid > (2**31) - 1 for pid in values):
+        return ListenerFact("unknown", (), "listener_probe_failed")
+    return ListenerFact("listening", values, None) if values else ListenerFact("closed", (), None)
 
 
 def http_get(port: int, path: str) -> HttpFact:

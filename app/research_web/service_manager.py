@@ -24,11 +24,19 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from core.observability import get_logger
-from research_workbench_entrypoint.web_contract import port_listening, probe_process
+from research_workbench_entrypoint.web_contract import (
+    CONTROL_JSON_MAX_BYTES,
+    PROCESS_START_TOLERANCE_SECONDS,
+    ListenerFact,
+    listener_pids,
+    probe_process,
+    read_private_json,
+    signature_matches_argv,
+)
 
 from . import PINNED_DSH_COMMIT
 from .runtime_auth import read_runtime_auth_record
-from .service_diagnostics import ServiceProbe, _ProcessFact, _StateFact
+from .service_diagnostics import ProcessFact, ServiceProbe, StateFact
 
 log = get_logger(__name__)
 PINNED_COMMIT = PINNED_DSH_COMMIT
@@ -42,7 +50,7 @@ RUNTIME_TOKEN_PATTERN = re.compile(
 CJPY_VERSION = "0.5.2"
 CJPY_SHA256 = "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
-STATE_LIMIT_BYTES = 64 * 1024
+STATE_LIMIT_BYTES = CONTROL_JSON_MAX_BYTES
 MAX_STATE_STRING_LENGTH = 4096
 STATE_KEYS = {
     "version",
@@ -260,50 +268,19 @@ class WebServiceManager:
         log.warning("research_service_state_invalid", role=process.role)
         raise ServiceManagerError(f"{process.role} 服务状态无法安全确认")
 
-    def _probe_state(self, process: ManagedProcess) -> _StateFact:
+    def _probe_state(self, process: ManagedProcess) -> StateFact:
         """Read one bounded state file without repairing or otherwise mutating it."""
         path = self._state_path(process.role)
-        try:
-            before = path.lstat()
-            if (
-                not stat.S_ISREG(before.st_mode)
-                or stat.S_ISLNK(before.st_mode)
-                or before.st_nlink != 1
-                or before.st_size > STATE_LIMIT_BYTES
-            ):
-                return _StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
-            flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-            handle = os.open(path, flags)
-            try:
-                opened = os.fstat(handle)
-                raw = os.read(handle, STATE_LIMIT_BYTES + 1)
-            finally:
-                os.close(handle)
-            after = path.lstat()
-            before_identity = (before.st_dev, before.st_ino, before.st_size)
-            opened_identity = (opened.st_dev, opened.st_ino, opened.st_size)
-            after_identity = (after.st_dev, after.st_ino, after.st_size)
-            if (
-                not stat.S_ISREG(opened.st_mode)
-                or opened.st_nlink != 1
-                or len(raw) > STATE_LIMIT_BYTES
-                or before_identity != opened_identity
-                or opened_identity != after_identity
-            ):
-                return _StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
-            value = json.loads(raw.decode("utf-8"))
-        except FileNotFoundError:
-            return _StateFact("missing", None, (), ())
-        except (
-            OSError,
-            TypeError,
-            ValueError,
-            UnicodeError,
-            OverflowError,
-            RecursionError,
-            json.JSONDecodeError,
-        ):
-            return _StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
+        fact = read_private_json(
+            path,
+            trusted_root=self.data_root.parent,
+            max_bytes=STATE_LIMIT_BYTES,
+        )
+        if fact.state == "missing":
+            return StateFact("missing", None, (), ())
+        if fact.state != "valid":
+            return StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
+        value = fact.value
 
         safe_pid = (
             value.get("pid")
@@ -313,7 +290,7 @@ class WebServiceManager:
             else None
         )
         if type(value) is not dict or set(value) != STATE_KEYS:
-            return _StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
+            return StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
         command = value.get("command")
         signature = value.get("signature")
         strings = (
@@ -357,17 +334,23 @@ class WebServiceManager:
             and signature == list(process.signature)
         )
         if not valid:
-            return _StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
-        return _StateFact("valid", safe_pid, tuple(signature), ())
+            return StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
+        return StateFact(
+            "valid",
+            safe_pid,
+            tuple(signature),
+            (),
+            float(value["started_at"]),
+        )
 
     def _probe_pid_and_ownership(
-        self, process: ManagedProcess, state: _StateFact
-    ) -> tuple[_StateFact, _ProcessFact]:
+        self, process: ManagedProcess, state: StateFact
+    ) -> tuple[StateFact, ProcessFact]:
         """Classify PID presence and command ownership without lifecycle actions."""
         role = process.role
         if state.pid is None:
             process_state = "missing" if state.state == "missing" else "inaccessible"
-            return state, _ProcessFact(process_state, "unknown", None, ())
+            return state, ProcessFact(process_state, "unknown", None, ())
         observed = probe_process(state.pid)
         if state.state != "valid":
             issue = (
@@ -376,24 +359,38 @@ class WebServiceManager:
                 else f"{role}_state_invalid"
             )
             return (
-                _StateFact("invalid", state.pid, (), (issue,)),
-                _ProcessFact(observed.state, "unknown", None, ()),
+                StateFact("invalid", state.pid, (), (issue,)),
+                ProcessFact(observed.state, "unknown", None, ()),
             )
         if observed.state == "missing":
             return (
-                _StateFact("stale", state.pid, state.signature, (f"{role}_state_stale",)),
-                _ProcessFact("missing", "unknown", None, ()),
+                StateFact("stale", state.pid, state.signature, (f"{role}_state_stale",)),
+                ProcessFact("missing", "unknown", None, ()),
             )
         if observed.state == "inaccessible" or not observed.command_line:
-            return state, _ProcessFact(
+            return state, ProcessFact(
                 "inaccessible",
                 "unknown",
                 None,
                 (f"{role}_process_inaccessible",),
             )
-        if not all(part in observed.command_line for part in state.signature):
-            return state, _ProcessFact("alive", "foreign", None, (f"{role}_pid_foreign",))
-        return state, _ProcessFact("alive", "owned", state.pid, ())
+        if (
+            observed.issue is not None
+            or observed.argv is None
+            or observed.started_at is None
+            or state.started_at is None
+        ):
+            return state, ProcessFact(
+                "alive",
+                "unknown",
+                None,
+                (f"{role}_process_identity_unavailable",),
+            )
+        if not signature_matches_argv(state.signature, observed.argv):
+            return state, ProcessFact("alive", "foreign", None, (f"{role}_pid_foreign",))
+        if abs(observed.started_at - state.started_at) > PROCESS_START_TOLERANCE_SECONDS:
+            return state, ProcessFact("alive", "foreign", None, (f"{role}_pid_reused",))
+        return state, ProcessFact("alive", "owned", state.pid, ())
 
     def _runtime_protocol_healthy(self) -> bool:
         """Run session/list only with an existing authenticated runtime record."""
@@ -413,35 +410,90 @@ class WebServiceManager:
 
     def _probe_service(self, process: ManagedProcess) -> ServiceProbe:
         """Build the ordered state-to-protocol fact chain for one service."""
-        state = self._probe_state(process)
-        state, observed = self._probe_pid_and_ownership(process, state)
-        listening = port_listening(process.port)
+        try:
+            state = self._probe_state(process)
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            OverflowError,
+            RecursionError,
+            ServiceManagerError,
+        ):
+            state = StateFact("invalid", None, (), (f"{process.role}_state_probe_failed",))
+        try:
+            state, observed = self._probe_pid_and_ownership(process, state)
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            OverflowError,
+            ServiceManagerError,
+            subprocess.SubprocessError,
+        ):
+            observed = ProcessFact(
+                "inaccessible",
+                "unknown",
+                None,
+                (f"{process.role}_process_probe_failed",),
+            )
+        try:
+            listener = listener_pids(process.port)
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            OverflowError,
+            ServiceManagerError,
+            subprocess.SubprocessError,
+        ):
+            listener = ListenerFact("unknown", (), "listener_probe_failed")
         issues = [*state.issues, *observed.issues]
         protocol = "not_run"
         ready = False
-        if observed.process == "alive" and observed.ownership == "owned" and listening:
-            ready = self._protocol_health(process)
-            protocol = "passed" if ready else "failed"
-            if not ready:
-                issues.append(
-                    "runtime_health_failed"
-                    if process.role == "runtime"
-                    else "web_runtime_api_failed"
-                )
-        elif observed.process == "alive" and observed.ownership == "owned":
-            issues.append(f"{process.role}_port_closed")
-        elif listening:
+        if listener.state == "unknown":
+            if observed.ownership == "owned":
+                observed = ProcessFact("alive", "unknown", None, observed.issues)
+            issues.append(f"{process.role}_listener_probe_failed")
+        elif (
+            listener.state == "listening"
+            and observed.ownership == "owned"
+            and observed.pid not in listener.pids
+        ):
+            observed = ProcessFact("alive", "foreign", None, observed.issues)
+            issues.append(f"{process.role}_port_owner_mismatch")
+        elif listener.state == "listening" and observed.ownership != "owned":
             invalid_port_issue = f"{process.role}_state_invalid_port_listening"
             if state.state == "invalid" and invalid_port_issue not in issues:
                 issues.append(invalid_port_issue)
             issues.append(f"{process.role}_port_in_use_unknown")
+        elif listener.state == "closed" and observed.ownership == "owned":
+            issues.append(f"{process.role}_port_closed")
+        if (
+            observed.process == "alive"
+            and observed.ownership == "owned"
+            and listener.state == "listening"
+            and observed.pid in listener.pids
+        ):
+            try:
+                ready = self._protocol_health(process)
+                protocol = "passed" if ready else "failed"
+                if not ready:
+                    issues.append(
+                        "runtime_health_failed"
+                        if process.role == "runtime"
+                        else "web_runtime_api_failed"
+                    )
+            except (OSError, TypeError, ValueError, ServiceManagerError):
+                protocol = "failed"
+                issues.append(f"{process.role}_protocol_probe_failed")
         return ServiceProbe(
             role=process.role,
             port=process.port,
             state=state.state,
             process=observed.process,
             ownership=observed.ownership,
-            port_state="listening" if listening else "closed",
+            port_state=listener.state,
             protocol=protocol,
             ready=ready,
             pid=observed.pid,
@@ -449,39 +501,7 @@ class WebServiceManager:
         )
 
     def _service_probes(self) -> tuple[ServiceProbe, ...]:
-        probes = []
-        for process in self._processes():
-            try:
-                probes.append(self._probe_service(process))
-            except (
-                OSError,
-                TypeError,
-                ValueError,
-                OverflowError,
-                RecursionError,
-                ServiceManagerError,
-                subprocess.SubprocessError,
-            ) as exc:
-                log.warning(
-                    "research_service_probe_failed",
-                    role=process.role,
-                    error_type=type(exc).__name__,
-                )
-                probes.append(
-                    ServiceProbe(
-                        process.role,
-                        process.port,
-                        "invalid",
-                        "inaccessible",
-                        "unknown",
-                        "closed",
-                        "not_run",
-                        False,
-                        None,
-                        (f"{process.role}_probe_failed",),
-                    )
-                )
-        return tuple(probes)
+        return tuple(self._probe_service(process) for process in self._processes())
 
     @staticmethod
     def _pid_exists(pid: int, *, platform_name: str | None = None) -> bool:

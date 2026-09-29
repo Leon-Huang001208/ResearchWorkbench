@@ -16,7 +16,7 @@ from app.research_web.service_manager import (
     format_doctor_status,
     format_status,
 )
-from research_workbench_entrypoint.web_contract import ProcessFact
+from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
 
 
 def test_service_probe_public_is_safe_and_compatible():
@@ -159,12 +159,17 @@ def test_doctor_keeps_other_service_when_one_state_is_invalid(manager, monkeypat
 def test_probe_valid_owned_listener_passes_protocol_without_mutation(manager, monkeypatch):
     process, state_path = _valid_state(manager, "runtime")
     before = state_path.read_bytes()
+    state = json.loads(before)
     monkeypatch.setattr(
         service_manager_module,
         "probe_process",
-        lambda _pid: ProcessFact("alive", " ".join(process.signature), None),
+        lambda _pid: _authoritative_process_fact(process, state),
     )
-    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: True)
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (int(state["pid"]),), None),
+    )
     monkeypatch.setattr(manager, "_protocol_health", lambda _process: True)
     monkeypatch.setattr(
         manager,
@@ -196,7 +201,9 @@ def test_probe_dead_pid_is_stale_and_does_not_unlink_state(manager, monkeypatch)
         "probe_process",
         lambda _pid: ProcessFact("missing", None, None),
     )
-    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        service_manager_module, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     probe = manager._probe_service(process)
 
@@ -216,7 +223,9 @@ def test_status_does_not_remove_stale_state(manager, monkeypatch):
         "probe_process",
         lambda _pid: ProcessFact("missing", None, None),
     )
-    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        service_manager_module, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     status = manager.status()
 
@@ -226,13 +235,18 @@ def test_status_does_not_remove_stale_state(manager, monkeypatch):
 
 
 def test_runtime_probe_never_regenerates_missing_auth(manager, monkeypatch):
-    process, _state_path = _valid_state(manager, "runtime")
+    process, state_path = _valid_state(manager, "runtime")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
     monkeypatch.setattr(
         service_manager_module,
         "probe_process",
-        lambda _pid: ProcessFact("alive", " ".join(process.signature), None),
+        lambda _pid: _authoritative_process_fact(process, state),
     )
-    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: True)
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (int(state["pid"]),), None),
+    )
     monkeypatch.setattr(manager, "_read_runtime_auth", lambda: None)
     monkeypatch.setattr(
         manager,
@@ -247,11 +261,218 @@ def test_runtime_probe_never_regenerates_missing_auth(manager, monkeypatch):
     assert probe.issues == ("runtime_health_failed",)
 
 
+def _authoritative_process_fact(process, state: dict[str, object]) -> ProcessFact:
+    return ProcessFact(
+        "alive",
+        " ".join(process.signature),
+        None,
+        tuple(process.signature),
+        float(state["started_at"]),
+    )
+
+
+def test_probe_rejects_same_signature_pid_reuse_by_start_identity(manager, monkeypatch):
+    process, state_path = _valid_state(manager, "runtime")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact(
+            "alive",
+            " ".join(process.signature),
+            None,
+            tuple(process.signature),
+            float(state["started_at"]) - 60,
+        ),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (int(state["pid"]),), None),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_protocol_health",
+        lambda _process: pytest.fail("reused PID must never reach protocol"),
+    )
+
+    probe = manager._probe_service(process)
+
+    assert probe.process == "alive"
+    assert probe.ownership == "foreign"
+    assert probe.ready is False
+    assert probe.issues == ("runtime_pid_reused", "runtime_port_in_use_unknown")
+
+
+@pytest.mark.parametrize("colliding_port", ["13081", "prefix-3081-suffix"])
+def test_probe_rejects_numeric_and_embedded_signature_token_collisions(
+    manager, monkeypatch, colliding_port
+):
+    process, state_path = _valid_state(manager, "runtime")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    argv = tuple(
+        colliding_port if item == str(process.port) else item for item in process.signature
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact("alive", " ".join(argv), None, argv, float(state["started_at"])),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (int(state["pid"]),), None),
+    )
+
+    probe = manager._probe_service(process)
+
+    assert probe.ownership == "foreign"
+    assert probe.ready is False
+    assert "runtime_pid_foreign" in probe.issues
+
+
+def test_probe_requires_owned_pid_to_be_the_exact_listener(manager, monkeypatch):
+    process, state_path = _valid_state(manager, "runtime")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: _authoritative_process_fact(process, state),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (9876,), None),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_protocol_health",
+        lambda _process: pytest.fail("foreign listener must never reach protocol"),
+    )
+
+    probe = manager._probe_service(process)
+
+    assert probe.process == "alive"
+    assert probe.ownership == "foreign"
+    assert probe.ready is False
+    assert probe.issues == ("runtime_port_owner_mismatch",)
+
+
+def test_probe_listener_failure_preserves_process_facts_as_unknown(manager, monkeypatch):
+    process, state_path = _valid_state(manager, "runtime")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: _authoritative_process_fact(process, state),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("unknown", (), "listener_probe_failed"),
+    )
+
+    probe = manager._probe_service(process)
+
+    assert probe.state == "valid"
+    assert probe.process == "alive"
+    assert probe.ownership == "unknown"
+    assert probe.port_state == "unknown"
+    assert probe.protocol == "not_run"
+    assert probe.issues == ("runtime_listener_probe_failed",)
+
+
+@pytest.mark.parametrize("stage", ["state", "process", "listener", "protocol"])
+def test_probe_stage_errors_preserve_already_observed_facts(manager, monkeypatch, stage):
+    process, state_path = _valid_state(manager, "runtime")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    if stage == "state":
+        monkeypatch.setattr(
+            manager, "_probe_state", lambda _process: (_ for _ in ()).throw(OSError())
+        )
+    else:
+        monkeypatch.setattr(
+            service_manager_module,
+            "probe_process",
+            lambda _pid: (
+                (_ for _ in ()).throw(OSError())
+                if stage == "process"
+                else _authoritative_process_fact(process, state)
+            ),
+        )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: (
+            (_ for _ in ()).throw(OSError())
+            if stage == "listener"
+            else ListenerFact("listening", (int(state["pid"]),), None)
+        ),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_protocol_health",
+        lambda _process: ((_ for _ in ()).throw(OSError()) if stage == "protocol" else True),
+    )
+
+    probe = manager._probe_service(process)
+
+    if stage == "state":
+        assert probe.state == "invalid"
+        assert probe.process == "inaccessible"
+        assert probe.port_state == "listening"
+    elif stage == "process":
+        assert probe.state == "valid"
+        assert probe.process == "inaccessible"
+        assert probe.port_state == "listening"
+    elif stage == "listener":
+        assert probe.state == "valid"
+        assert probe.process == "alive"
+        assert probe.ownership == "unknown"
+        assert probe.port_state == "unknown"
+    else:
+        assert probe.state == "valid"
+        assert probe.process == "alive"
+        assert probe.ownership == "owned"
+        assert probe.port_state == "listening"
+        assert probe.protocol == "failed"
+    assert probe.ready is False
+    assert any(issue.startswith("runtime_") for issue in probe.issues)
+
+
+def test_status_keeps_other_service_when_one_probe_stage_errors(manager, monkeypatch):
+    original = manager._probe_state
+
+    def state_probe(process):
+        if process.role == "runtime":
+            raise OSError("private detail")
+        return original(process)
+
+    monkeypatch.setattr(manager, "_probe_state", state_probe)
+    monkeypatch.setattr(
+        service_manager_module, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
+
+    status = manager.status()
+
+    assert status["services"]["runtime"]["state"] == "invalid"
+    assert status["services"]["runtime"]["issues"] == ["runtime_state_probe_failed"]
+    assert status["services"]["web"]["state"] == "missing"
+    assert status["services"]["web"]["issues"] == []
+    assert "private detail" not in json.dumps(status)
+
+
 @pytest.mark.parametrize(
     ("process_fact", "expected_process", "ownership", "issue"),
     [
         (
-            ProcessFact("alive", "python unrelated.py", None),
+            ProcessFact(
+                "alive",
+                "python unrelated.py",
+                None,
+                ("python", "unrelated.py"),
+                1.0,
+            ),
             "alive",
             "foreign",
             "runtime_pid_foreign",
@@ -275,7 +496,9 @@ def test_probe_distinguishes_foreign_and_unknown_processes(
 ):
     process, _state_path = _valid_state(manager, "runtime")
     monkeypatch.setattr(service_manager_module, "probe_process", lambda _pid: process_fact)
-    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        service_manager_module, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     probe = manager._probe_service(process)
 
@@ -287,7 +510,11 @@ def test_probe_distinguishes_foreign_and_unknown_processes(
 
 def test_probe_listener_without_owned_service_is_not_ready(manager, monkeypatch):
     process = manager._processes()[0]
-    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: True)
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (9999,), None),
+    )
 
     probe = manager._probe_service(process)
 
@@ -334,7 +561,9 @@ def test_probe_rejects_adversarial_state_without_throwing_or_mutating(manager, m
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state_path.write_text(mutate(state), encoding="utf-8")
     before = state_path.read_bytes()
-    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: False)
+    monkeypatch.setattr(
+        service_manager_module, "listener_pids", lambda _port: ListenerFact("closed", (), None)
+    )
 
     probe = manager._probe_service(process)
 
