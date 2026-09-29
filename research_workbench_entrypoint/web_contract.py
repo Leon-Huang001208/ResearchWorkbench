@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import http.client
 import json
 import logging
 import os
 import re
 import socket
+import stat
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -53,25 +55,62 @@ class HttpFact:
 
 def node_version_issue(value: str | None) -> str | None:
     """Return the stable issue for a Node version under the Web install contract."""
-    match = re.search(r"(?<!\d)(\d+)\.(\d+)", value or "")
+    match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", (value or "").strip())
     if match is None:
         return "node_version_invalid"
-    major, minor = (int(part) for part in match.groups())
+    major, minor, _patch = (int(part) for part in match.groups())
     return None if (major == 22 and minor >= 19) or major == 24 else "node_version_unsupported"
 
 
-def _marker_valid(path: Path) -> bool:
+def environment_marker_valid(
+    environment: Path,
+    project_root: Path,
+    *,
+    platform_name: str | None = None,
+) -> bool:
+    """Validate the exact installer marker without following aliases."""
+    marker = environment / ENVIRONMENT_MARKER
+    current_platform = platform_name or os.name
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError, UnicodeDecodeError):
+        environment_identity = environment.lstat()
+        marker_identity = marker.lstat()
+        reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+        if (
+            not stat.S_ISDIR(environment_identity.st_mode)
+            or stat.S_ISLNK(environment_identity.st_mode)
+            or not stat.S_ISREG(marker_identity.st_mode)
+            or stat.S_ISLNK(marker_identity.st_mode)
+            or (
+                current_platform == "nt"
+                and (
+                    bool(getattr(environment_identity, "st_file_attributes", 0) & reparse_flag)
+                    or bool(getattr(marker_identity, "st_file_attributes", 0) & reparse_flag)
+                )
+            )
+        ):
+            return False
+        value = json.loads(marker.read_text(encoding="utf-8"))
+        project_root_digest = hashlib.sha256(str(project_root.resolve()).encode()).hexdigest()
+    except (OSError, ValueError, UnicodeError):
         return False
     return (
         type(value) is dict
-        and set(value) == {"schema_version", "owner"}
+        and set(value)
+        == {
+            "schema_version",
+            "owner",
+            "project_root_sha256",
+            "python",
+            "created_at",
+        }
         and type(value.get("schema_version")) is int
         and value["schema_version"] == 1
         and type(value.get("owner")) is str
         and value["owner"] == "research-workbench-web-installer"
+        and type(value.get("project_root_sha256")) is str
+        and value["project_root_sha256"] == project_root_digest
+        and type(value.get("python")) is str
+        and type(value.get("created_at")) is str
     )
 
 
@@ -83,7 +122,9 @@ def classify_python_environment(
     environment = project_root / ".venv"
     relative = "Scripts/python.exe" if current_platform == "nt" else "bin/python"
     interpreter = environment / relative
-    marker_valid = _marker_valid(environment / ENVIRONMENT_MARKER)
+    marker_valid = environment_marker_valid(
+        environment, project_root, platform_name=current_platform
+    )
     if not environment.exists():
         issue = "python_environment_missing"
     elif not interpreter.is_file() or not marker_valid:
@@ -113,10 +154,12 @@ def _run_process_probe(command: list[str]) -> subprocess.CompletedProcess[str] |
             check=False,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=PROCESS_TIMEOUT_SECONDS,
             shell=False,
         )
-    except (OSError, subprocess.SubprocessError) as exc:
+    except (OSError, subprocess.SubprocessError, UnicodeError) as exc:
         log.warning(
             "research_web_process_probe_failed",
             extra={"error_type": type(exc).__name__},

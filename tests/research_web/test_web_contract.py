@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import socket
+import stat
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from research_workbench_entrypoint import web_contract
 from research_workbench_entrypoint.web_contract import (
     HttpFact,
     ProcessFact,
@@ -31,10 +35,16 @@ from research_workbench_entrypoint.web_contract import (
         ("v22.19.0", None),
         ("22.99.1", None),
         ("v24.0.0", None),
+        ("  v24.0.0  ", None),
         ("v24.999.0", None),
         ("v22.18.9", "node_version_unsupported"),
         ("v23.11.0", "node_version_unsupported"),
         ("v25.0.0", "node_version_unsupported"),
+        ("garbage v24.0.0 trailing", "node_version_invalid"),
+        ("v24.0.0.1", "node_version_invalid"),
+        ("release-22.19beta", "node_version_invalid"),
+        ("v22.19", "node_version_invalid"),
+        ("v24.0.0-beta.1", "node_version_invalid"),
         ("not-a-version", "node_version_invalid"),
         ("", "node_version_invalid"),
         (None, "node_version_invalid"),
@@ -53,6 +63,22 @@ def _write_interpreter(project_root: Path, platform_name: str) -> Path:
     return interpreter
 
 
+def _environment_marker(project_root: Path) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "owner": "research-workbench-web-installer",
+        "project_root_sha256": hashlib.sha256(str(project_root.resolve()).encode()).hexdigest(),
+        "python": "Python 3.12.13",
+        "created_at": "2026-09-29T12:00:00+00:00",
+    }
+
+
+def _write_environment_marker(project_root: Path, value: object) -> Path:
+    marker = project_root / ".venv" / ".rwb-web-environment.json"
+    marker.write_text(json.dumps(value), encoding="utf-8")
+    return marker
+
+
 @pytest.mark.parametrize(
     ("platform_name", "relative"),
     [("posix", "bin/python"), ("nt", "Scripts/python.exe")],
@@ -61,11 +87,7 @@ def test_python_environment_selects_platform_interpreter_and_accepts_exact_marke
     tmp_path: Path, platform_name: str, relative: str
 ) -> None:
     interpreter = _write_interpreter(tmp_path, platform_name)
-    marker = tmp_path / ".venv" / ".rwb-web-environment.json"
-    marker.write_text(
-        json.dumps({"schema_version": 1, "owner": "research-workbench-web-installer"}),
-        encoding="utf-8",
-    )
+    _write_environment_marker(tmp_path, _environment_marker(tmp_path))
 
     fact = classify_python_environment(tmp_path, platform_name=platform_name)
 
@@ -73,6 +95,12 @@ def test_python_environment_selects_platform_interpreter_and_accepts_exact_marke
     assert fact.interpreter == tmp_path / ".venv" / relative
     assert fact.interpreter == interpreter
     assert fact.marker_valid is True
+    assert (
+        web_contract.environment_marker_valid(
+            tmp_path / ".venv", tmp_path, platform_name=platform_name
+        )
+        is True
+    )
 
 
 def test_python_environment_distinguishes_missing_incomplete_and_unusable(
@@ -87,10 +115,7 @@ def test_python_environment_distinguishes_missing_incomplete_and_unusable(
     incomplete = classify_python_environment(tmp_path, platform_name="posix")
     assert incomplete.issue == "python_environment_incomplete"
 
-    (environment / ".rwb-web-environment.json").write_text(
-        '{"schema_version":1,"owner":"research-workbench-web-installer"}',
-        encoding="utf-8",
-    )
+    _write_environment_marker(tmp_path, _environment_marker(tmp_path))
     binary = environment / "bin" / "python"
     binary.parent.mkdir()
     binary.write_text("not executable", encoding="utf-8")
@@ -101,34 +126,150 @@ def test_python_environment_distinguishes_missing_incomplete_and_unusable(
 
 
 @pytest.mark.parametrize(
-    "marker",
+    ("field", "value"),
     [
-        "not-json",
-        "[]",
-        '"not-an-object"',
-        "null",
-        '{"owner":"research-workbench-web-installer"}',
-        '{"schema_version":1}',
-        '{"schema_version":true,"owner":"research-workbench-web-installer"}',
-        '{"schema_version":1.0,"owner":"research-workbench-web-installer"}',
-        '{"schema_version":"1","owner":"research-workbench-web-installer"}',
-        '{"schema_version":2,"owner":"research-workbench-web-installer"}',
-        '{"schema_version":1,"owner":true}',
-        '{"schema_version":1,"owner":1}',
-        '{"schema_version":1,"owner":"someone-else"}',
-        ('{"schema_version":1,"owner":"research-workbench-web-installer",' '"unexpected":true}'),
+        ("schema_version", True),
+        ("schema_version", 1.0),
+        ("schema_version", "1"),
+        ("schema_version", 2),
+        ("owner", True),
+        ("owner", 1),
+        ("owner", "someone-else"),
+        ("project_root_sha256", 1),
+        ("project_root_sha256", "0" * 64),
+        ("python", None),
+        ("created_at", 1),
     ],
 )
-def test_python_environment_rejects_malformed_or_non_exact_marker(
-    tmp_path: Path, marker: str
+def test_python_environment_rejects_wrong_marker_field_types_and_values(
+    tmp_path: Path, field: str, value: object
 ) -> None:
     _write_interpreter(tmp_path, "posix")
-    (tmp_path / ".venv" / ".rwb-web-environment.json").write_text(marker, encoding="utf-8")
+    marker = _environment_marker(tmp_path)
+    marker[field] = value
+    _write_environment_marker(tmp_path, marker)
 
     fact = classify_python_environment(tmp_path, platform_name="posix")
 
     assert fact.issue == "python_environment_incomplete"
     assert fact.marker_valid is False
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["not-json", "[]", '"not-an-object"', "null"],
+)
+def test_python_environment_rejects_invalid_or_non_object_marker(
+    tmp_path: Path, value: str
+) -> None:
+    _write_interpreter(tmp_path, "posix")
+    marker = tmp_path / ".venv" / ".rwb-web-environment.json"
+    marker.write_text(value, encoding="utf-8")
+
+    fact = classify_python_environment(tmp_path, platform_name="posix")
+
+    assert fact.issue == "python_environment_incomplete"
+    assert fact.marker_valid is False
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "schema_version",
+        "owner",
+        "project_root_sha256",
+        "python",
+        "created_at",
+    ],
+)
+def test_python_environment_rejects_missing_marker_keys(tmp_path: Path, missing: str) -> None:
+    _write_interpreter(tmp_path, "posix")
+    marker = _environment_marker(tmp_path)
+    marker.pop(missing)
+    _write_environment_marker(tmp_path, marker)
+
+    assert (
+        classify_python_environment(tmp_path, platform_name="posix").issue
+        == "python_environment_incomplete"
+    )
+
+
+def test_python_environment_rejects_extra_marker_keys(tmp_path: Path) -> None:
+    _write_interpreter(tmp_path, "posix")
+    marker = _environment_marker(tmp_path)
+    marker["unexpected"] = True
+    _write_environment_marker(tmp_path, marker)
+
+    assert (
+        classify_python_environment(tmp_path, platform_name="posix").issue
+        == "python_environment_incomplete"
+    )
+
+
+def test_python_environment_rejects_marker_bound_to_another_checkout(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    _write_interpreter(second, "posix")
+    _write_environment_marker(second, _environment_marker(first))
+
+    fact = classify_python_environment(second, platform_name="posix")
+
+    assert fact.issue == "python_environment_incomplete"
+    assert fact.marker_valid is False
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_python_environment_rejects_marker_symlink(tmp_path: Path) -> None:
+    _write_interpreter(tmp_path, "posix")
+    real_marker = tmp_path / "real-marker.json"
+    real_marker.write_text(json.dumps(_environment_marker(tmp_path)), encoding="utf-8")
+    (tmp_path / ".venv" / ".rwb-web-environment.json").symlink_to(real_marker)
+
+    assert (
+        classify_python_environment(tmp_path, platform_name="posix").issue
+        == "python_environment_incomplete"
+    )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_python_environment_rejects_environment_symlink(tmp_path: Path) -> None:
+    real_root = tmp_path / "real"
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    _write_interpreter(real_root, "posix")
+    _write_environment_marker(real_root, _environment_marker(project_root))
+    (project_root / ".venv").symlink_to(real_root / ".venv", target_is_directory=True)
+
+    assert (
+        classify_python_environment(project_root, platform_name="posix").issue
+        == "python_environment_incomplete"
+    )
+
+
+def test_python_environment_rejects_windows_reparse_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = tmp_path / ".venv"
+    _write_interpreter(tmp_path, "nt")
+    _write_environment_marker(tmp_path, _environment_marker(tmp_path))
+    original_lstat = Path.lstat
+
+    def lstat(path: Path) -> os.stat_result | SimpleNamespace:
+        identity = original_lstat(path)
+        if path == environment:
+            return SimpleNamespace(
+                st_mode=identity.st_mode,
+                st_file_attributes=getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400),
+            )
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", lstat)
+
+    assert web_contract.environment_marker_valid(environment, tmp_path, platform_name="nt") is False
 
 
 @pytest.mark.parametrize(
@@ -206,6 +347,8 @@ def test_windows_process_probe_uses_powershell_without_a_shell(
     )
     assert all(call[1]["shell"] is False for call in calls)
     assert all(int(call[1]["timeout"]) <= 5 for call in calls)
+    assert all(call[1]["encoding"] == "utf-8" for call in calls)
+    assert all(call[1]["errors"] == "replace" for call in calls)
 
 
 def test_windows_missing_pid_and_probe_failure_are_distinct(
@@ -228,6 +371,20 @@ def test_windows_missing_pid_and_probe_failure_are_distinct(
     assert "sensitive" not in repr(fact)
     assert pid_exists(4321, platform_name="nt") is True
     assert command_line(4321, platform_name="nt") == ""
+
+
+def test_process_probe_decode_failure_returns_a_stable_inaccessible_fact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail(*_args: object, **_kwargs: object) -> object:
+        raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "private decode detail")
+
+    monkeypatch.setattr("subprocess.run", fail)
+
+    fact = probe_process(4321, platform_name="nt")
+
+    assert fact == ProcessFact("inaccessible", None, "process_probe_failed")
+    assert "private decode detail" not in repr(fact)
 
 
 def test_posix_zombie_is_missing_and_access_denied_is_inaccessible(

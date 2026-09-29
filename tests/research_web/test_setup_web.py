@@ -12,7 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from research_workbench_entrypoint.web_contract import node_version_issue
+from research_workbench_entrypoint.web_contract import (
+    classify_python_environment,
+    node_version_issue,
+)
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
@@ -221,9 +224,39 @@ def test_installer_creates_and_reuses_only_its_owned_virtual_environment(
     assert environment_python == reused_python
     assert environment_python.is_file()
     marker = json.loads((project_root / ".venv" / ".rwb-web-environment.json").read_text())
-    assert marker["schema_version"] == 1
-    assert marker["owner"] == "research-workbench-web-installer"
+    assert set(marker) == {
+        "schema_version",
+        "owner",
+        "project_root_sha256",
+        "python",
+        "created_at",
+    }
+    assert classify_python_environment(project_root, platform_name=os.name).issue is None
+    assert installer._owned_environment(project_root / ".venv") is True
     assert "secret" not in json.dumps(marker).lower()
+
+
+def test_installer_marker_is_rejected_after_moving_to_another_checkout(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    installer = SetupWebInstaller(
+        project_root=first,
+        data_home=tmp_path / "private-data",
+        python_executable=Path(sys.executable),
+    )
+    installer.prepare_environment()
+    (first / ".venv").replace(second / ".venv")
+
+    fact = classify_python_environment(second, platform_name=os.name)
+    second_installer = SetupWebInstaller(project_root=second)
+
+    assert fact.issue == "python_environment_incomplete"
+    assert fact.marker_valid is False
+    assert second_installer._owned_environment(second / ".venv") is False
 
 
 def test_repair_replaces_an_owned_environment_when_pip_is_unresponsive(

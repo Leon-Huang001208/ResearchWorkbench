@@ -24,7 +24,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from research_workbench_entrypoint.web_contract import node_version_issue
+from research_workbench_entrypoint.web_contract import (
+    environment_marker_valid,
+    node_version_issue,
+)
 
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 CJPY_VERSION = "0.5.2"
@@ -724,19 +727,11 @@ class SetupWebInstaller:
         return True
 
     def _owned_environment(self, environment: Path) -> bool:
-        marker = environment / ENVIRONMENT_MARKER
-        try:
-            if environment.is_symlink() or marker.is_symlink():
-                return False
-            value = json.loads(marker.read_text(encoding="utf-8"))
-            return (
-                value.get("schema_version") == 1
-                and value.get("owner") == "research-workbench-web-installer"
-                and value.get("project_root_sha256")
-                == hashlib.sha256(str(self.project_root).encode()).hexdigest()
-            )
-        except (OSError, AttributeError, TypeError, json.JSONDecodeError):
-            return False
+        return environment_marker_valid(
+            environment,
+            self.project_root,
+            platform_name=self.platform_name,
+        )
 
     def prepare_environment(self, *, repair: bool = False) -> Path:
         """Create or reuse the marked project-local Python 3.12 environment."""
