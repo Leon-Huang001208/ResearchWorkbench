@@ -2,13 +2,16 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
 
+from app.research_web import lifecycle_lock as lifecycle_lock_module
 from app.research_web import runtime_auth as runtime_auth_module
 from app.research_web import service_diagnostics as service_diagnostics_module
 from app.research_web import service_manager as service_manager_module
+from app.research_web.lifecycle_lock import LifecycleLock, LifecycleLockError
 from app.research_web.service_diagnostics import ServiceProbe
 from app.research_web.service_manager import (
     ServiceManagerError,
@@ -18,6 +21,843 @@ from app.research_web.service_manager import (
     format_status,
 )
 from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+
+def _write_lock_owner(path: Path, *, pid: int, token: str = "a" * 32) -> None:
+    path.mkdir(mode=0o700)
+    owner = path / "owner.json"
+    owner.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "pid": pid,
+                "token": token,
+                "started_at": time.time(),
+            }
+        ),
+        encoding="utf-8",
+    )
+    owner.chmod(0o600)
+
+
+def test_lifecycle_lock_rejects_live_owner_and_two_contenders(tmp_path):
+    path = tmp_path / "run" / "lifecycle.lock"
+
+    with LifecycleLock(path, lambda pid: pid == os.getpid(), pid=os.getpid()):
+        owner = json.loads((path / "owner.json").read_text(encoding="utf-8"))
+        assert set(owner) == {"schema_version", "pid", "token", "started_at"}
+        assert owner["pid"] == os.getpid()
+        assert len(owner["token"]) == 32
+        assert path.stat().st_mode & 0o777 == 0o700
+        assert path.parent.stat().st_mode & 0o777 == 0o700
+        assert (path / "owner.json").stat().st_mode & 0o777 == 0o600
+
+        with (
+            pytest.raises(LifecycleLockError) as captured,
+            LifecycleLock(path, lambda _pid: True, pid=os.getpid() + 1),
+        ):
+            pytest.fail("a live owner must exclude a second contender")
+
+        assert captured.value.code == "lifecycle_busy"
+        assert "lifecycle_busy" in str(captured.value)
+
+    assert not path.exists()
+
+
+def test_lifecycle_lock_recovers_confirmed_dead_owner_once(tmp_path):
+    path = tmp_path / "run" / "lifecycle.lock"
+    path.parent.mkdir(mode=0o700)
+    _write_lock_owner(path, pid=424242)
+
+    with LifecycleLock(path, lambda pid: pid != 424242, pid=os.getpid()):
+        owner = json.loads((path / "owner.json").read_text(encoding="utf-8"))
+        assert owner["pid"] == os.getpid()
+        assert owner["token"] != "a" * 32
+
+    assert list(path.parent.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "owner_payload",
+    [
+        "{",
+        json.dumps(
+            {
+                "schema_version": 1,
+                "pid": True,
+                "token": "a" * 32,
+                "started_at": 0,
+            }
+        ),
+        json.dumps(
+            {
+                "schema_version": 1,
+                "pid": 123,
+                "token": "not-a-token",
+                "started_at": 0,
+            }
+        ),
+        json.dumps(
+            {
+                "schema_version": 1,
+                "pid": 123,
+                "token": "a" * 32,
+                "started_at": 10**500,
+            }
+        ),
+        "[" * 1100 + "0" + "]" * 1100,
+        json.dumps({"huge": "x" * 5000}),
+    ],
+    ids=["malformed", "bool-pid", "bad-token", "huge-time", "deep", "oversize"],
+)
+def test_lifecycle_lock_treats_malformed_or_unbounded_owner_as_busy(tmp_path, owner_payload):
+    path = tmp_path / "run" / "lifecycle.lock"
+    path.parent.mkdir(mode=0o700)
+    path.mkdir(mode=0o700)
+    owner = path / "owner.json"
+    owner.write_text(owner_payload, encoding="utf-8")
+    owner.chmod(0o600)
+
+    with (
+        pytest.raises(LifecycleLockError) as captured,
+        LifecycleLock(path, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("malformed ownership must never be reclaimed")
+
+    assert captured.value.code == "lifecycle_busy"
+    assert path.exists()
+
+
+def test_lifecycle_lock_rejects_alias_and_hardlinked_owner(tmp_path):
+    run_root = tmp_path / "run"
+    run_root.mkdir(mode=0o700)
+    actual = run_root / "actual.lock"
+    _write_lock_owner(actual, pid=424242)
+    alias = run_root / "lifecycle.lock"
+    alias.symlink_to(actual, target_is_directory=True)
+
+    with (
+        pytest.raises(LifecycleLockError, match="busy") as alias_error,
+        LifecycleLock(alias, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("directory aliases are not lock ownership")
+    assert alias_error.value.code == "lifecycle_busy"
+
+    alias.unlink()
+    owner = actual / "owner.json"
+    os.link(owner, run_root / "owner-alias.json")
+    with (
+        pytest.raises(LifecycleLockError) as hardlink_error,
+        LifecycleLock(actual, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("hardlinked owner files are not reclaimable")
+    assert hardlink_error.value.code == "lifecycle_busy"
+
+
+def test_lifecycle_lock_rejects_parent_alias_and_unexpected_lock_content(tmp_path):
+    actual_parent = tmp_path / "actual"
+    actual_parent.mkdir(mode=0o700)
+    alias_parent = tmp_path / "alias"
+    alias_parent.symlink_to(actual_parent, target_is_directory=True)
+
+    with (
+        pytest.raises(LifecycleLockError) as alias_error,
+        LifecycleLock(alias_parent / "lifecycle.lock", lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("parent aliases must not redirect lifecycle ownership")
+    assert alias_error.value.code == "lifecycle_busy"
+
+    path = actual_parent / "lifecycle.lock"
+    _write_lock_owner(path, pid=424242)
+    (path / "unexpected").write_text("keep", encoding="utf-8")
+    with (
+        pytest.raises(LifecycleLockError) as content_error,
+        LifecycleLock(path, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("unexpected lock content must not be deleted")
+    assert content_error.value.code == "lifecycle_busy"
+    assert (path / "owner.json").exists()
+    assert (path / "unexpected").read_text(encoding="utf-8") == "keep"
+
+
+def test_lifecycle_lock_exit_never_removes_replacement_owner(tmp_path):
+    path = tmp_path / "run" / "lifecycle.lock"
+    lock = LifecycleLock(path, lambda _pid: True, pid=os.getpid())
+    lock.__enter__()
+    replacement = {
+        "schema_version": 1,
+        "pid": os.getpid() + 1,
+        "token": "b" * 32,
+        "started_at": time.time(),
+    }
+    (path / "owner.json").write_text(json.dumps(replacement), encoding="utf-8")
+    (path / "owner.json").chmod(0o600)
+
+    with pytest.raises(LifecycleLockError) as captured:
+        lock.__exit__(None, None, None)
+
+    assert captured.value.code == "lifecycle_lock_ownership_lost"
+    assert path.exists()
+    assert json.loads((path / "owner.json").read_text(encoding="utf-8")) == replacement
+
+
+def test_lifecycle_lock_stale_recovery_does_not_delete_raced_owner(tmp_path, monkeypatch):
+    path = tmp_path / "run" / "lifecycle.lock"
+    path.parent.mkdir(mode=0o700)
+    _write_lock_owner(path, pid=424242)
+    original_rename = lifecycle_lock_module.os.rename
+    raced = False
+
+    def race_once(source, target, *args, **kwargs):
+        nonlocal raced
+        if not raced and Path(source) == path:
+            raced = True
+            replacement = {
+                "schema_version": 1,
+                "pid": os.getpid(),
+                "token": "c" * 32,
+                "started_at": time.time(),
+            }
+            (path / "owner.json").write_text(json.dumps(replacement), encoding="utf-8")
+            (path / "owner.json").chmod(0o600)
+        return original_rename(source, target, *args, **kwargs)
+
+    monkeypatch.setattr(lifecycle_lock_module.os, "rename", race_once)
+
+    with (
+        pytest.raises(LifecycleLockError) as captured,
+        LifecycleLock(path, lambda pid: pid != 424242, pid=os.getpid() + 1),
+    ):
+        pytest.fail("a raced owner must not be removed")
+
+    assert captured.value.code == "lifecycle_busy"
+    remaining = list(path.parent.iterdir())
+    assert remaining
+    assert any(
+        json.loads((item / "owner.json").read_text(encoding="utf-8"))["token"] == "c" * 32
+        for item in remaining
+        if item.is_dir()
+    )
+
+
+def _service_probe(
+    role: str,
+    *,
+    state: str = "valid",
+    process: str = "alive",
+    ownership: str = "owned",
+    port_state: str = "listening",
+    protocol: str = "passed",
+    ready: bool = True,
+    pid: int | None = 101,
+    issues: tuple[str, ...] = (),
+) -> ServiceProbe:
+    return ServiceProbe(
+        role,
+        3081 if role == "runtime" else 8088,
+        state,
+        process,
+        ownership,
+        port_state,
+        protocol,
+        ready,
+        pid,
+        issues,
+    )
+
+
+def test_service_manager_error_exposes_safe_code_role_and_string():
+    error = ServiceManagerError("safe message", code="runtime_process_exited", role="runtime")
+
+    assert str(error) == "safe message"
+    assert error.code == "runtime_process_exited"
+    assert error.role == "runtime"
+
+
+def test_start_ready_owned_stack_is_idempotent_and_preserves_pids(manager, monkeypatch):
+    probes = {
+        "runtime": _service_probe("runtime", pid=101),
+        "web": _service_probe("web", pid=202),
+    }
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+    monkeypatch.setattr(
+        manager,
+        "_spawn",
+        lambda _process: pytest.fail("ready owned services must not be respawned"),
+    )
+
+    result = manager.start(open_browser=False)
+
+    assert result["services"]["runtime"]["pid"] == 101
+    assert result["services"]["web"]["pid"] == 202
+
+
+def test_start_removes_dead_stale_state_then_spawns(manager, monkeypatch):
+    runtime, web = manager._processes()
+    manager._prepare_private_directories()
+    manager._write_state(runtime, 101)
+    probes = {
+        "runtime": _service_probe(
+            "runtime",
+            state="stale",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+            issues=("runtime_state_stale",),
+        ),
+        "web": _service_probe("web", pid=202),
+    }
+    spawned: list[str] = []
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+
+    def spawn(process):
+        spawned.append(process.role)
+        probes[process.role] = _service_probe(process.role, pid=303)
+        return 303
+
+    monkeypatch.setattr(manager, "_spawn", spawn)
+
+    manager.start(open_browser=False)
+
+    assert spawned == [runtime.role]
+    assert not manager._state_path(runtime.role).exists()
+    assert probes[web.role].pid == 202
+
+
+def test_start_quarantines_invalid_closed_state_and_replaces_prior_copy(manager, monkeypatch):
+    runtime, _web = manager._processes()
+    manager._prepare_private_directories()
+    state_path = manager._state_path(runtime.role)
+    state_path.write_text("{new-invalid", encoding="utf-8")
+    state_path.chmod(0o600)
+    quarantine = manager.run_root / "runtime.invalid.json"
+    quarantine.write_text("old-invalid", encoding="utf-8")
+    quarantine.chmod(0o600)
+    probes = {
+        "runtime": _service_probe(
+            "runtime",
+            state="invalid",
+            process="inaccessible",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+            issues=("runtime_state_invalid",),
+        ),
+        "web": _service_probe("web", pid=202),
+    }
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+
+    def spawn(process):
+        probes[process.role] = _service_probe(process.role, pid=303)
+        return 303
+
+    monkeypatch.setattr(manager, "_spawn", spawn)
+
+    manager.start(open_browser=False)
+
+    assert not state_path.exists()
+    assert quarantine.read_text(encoding="utf-8") == "{new-invalid"
+    assert quarantine.stat().st_mode & 0o777 == 0o600
+    assert not list(manager.run_root.glob("runtime.invalid-*.json"))
+
+
+@pytest.mark.parametrize(
+    "probe",
+    [
+        _service_probe(
+            "runtime",
+            state="invalid",
+            process="alive",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+            issues=("runtime_state_invalid_live_pid",),
+        ),
+        _service_probe(
+            "runtime",
+            state="invalid",
+            process="inaccessible",
+            ownership="unknown",
+            port_state="listening",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+            issues=("runtime_state_invalid_port_listening",),
+        ),
+        _service_probe(
+            "runtime",
+            process="alive",
+            ownership="foreign",
+            ready=False,
+            pid=None,
+            protocol="not_run",
+            issues=("runtime_pid_foreign", "runtime_port_in_use_unknown"),
+        ),
+        _service_probe(
+            "runtime",
+            process="alive",
+            ownership="foreign",
+            ready=False,
+            pid=None,
+            protocol="not_run",
+            issues=("runtime_port_owner_mismatch",),
+        ),
+    ],
+    ids=["invalid-live", "invalid-listener", "foreign-pid", "listener-mismatch"],
+)
+def test_start_refuses_unsafe_probe_without_killing_or_spawning(manager, monkeypatch, probe):
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: probe if process.role == "runtime" else _service_probe("web", pid=202),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_terminate_pid",
+        lambda *_args, **_kwargs: pytest.fail("unsafe probes must never be killed"),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_spawn",
+        lambda _process: pytest.fail("unsafe probes must never be replaced"),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager.start(open_browser=False)
+
+    assert captured.value.code in probe.issues
+    assert captured.value.code in str(captured.value)
+    assert captured.value.role == "runtime"
+
+
+def test_start_rebuilds_owned_unhealthy_runtime_stack_in_dependency_order(manager, monkeypatch):
+    probes = {
+        "runtime": _service_probe(
+            "runtime",
+            protocol="failed",
+            ready=False,
+            pid=101,
+            issues=("runtime_health_failed",),
+        ),
+        "web": _service_probe("web", pid=202),
+    }
+    events: list[str] = []
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+
+    def stop_owned(process, _probe):
+        events.append(f"stop:{process.role}")
+        probes[process.role] = _service_probe(
+            process.role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+        return True
+
+    def spawn(process):
+        events.append(f"spawn:{process.role}")
+        probes[process.role] = _service_probe(
+            process.role, pid=303 if process.role == "runtime" else 404
+        )
+        return probes[process.role].pid
+
+    monkeypatch.setattr(manager, "_stop_owned_probe", stop_owned)
+    monkeypatch.setattr(manager, "_spawn", spawn)
+
+    manager.start(open_browser=False)
+
+    assert events == ["stop:web", "stop:runtime", "spawn:runtime", "spawn:web"]
+
+
+def test_start_rebuilds_only_owned_unhealthy_web(manager, monkeypatch):
+    probes = {
+        "runtime": _service_probe("runtime", pid=101),
+        "web": _service_probe(
+            "web",
+            protocol="failed",
+            ready=False,
+            pid=202,
+            issues=("web_runtime_api_failed",),
+        ),
+    }
+    events: list[str] = []
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+
+    def stop_owned(process, _probe):
+        events.append(f"stop:{process.role}")
+        probes[process.role] = _service_probe(
+            process.role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+        return True
+
+    def spawn(process):
+        events.append(f"spawn:{process.role}")
+        probes[process.role] = _service_probe(process.role, pid=303)
+        return 303
+
+    monkeypatch.setattr(manager, "_stop_owned_probe", stop_owned)
+    monkeypatch.setattr(manager, "_spawn", spawn)
+
+    manager.start(open_browser=False)
+
+    assert events == ["stop:web", "spawn:web"]
+
+
+def test_wait_for_ready_reports_confirmed_early_exit_without_sleep(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda _process: _service_probe(
+            "runtime",
+            state="stale",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+            issues=("runtime_state_stale",),
+        ),
+    )
+    monkeypatch.setattr(
+        service_manager_module.time,
+        "sleep",
+        lambda _seconds: pytest.fail("confirmed exits must not sleep until timeout"),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._wait_for_ready(runtime, 303, timeout=35)
+
+    assert captured.value.code == "runtime_process_exited"
+    assert captured.value.role == "runtime"
+
+
+def test_wait_for_ready_times_out_with_last_stable_issue(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    ticks = iter([0.0, 0.0, 0.2])
+    monkeypatch.setattr(service_manager_module.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda _process: _service_probe(
+            "runtime",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=303,
+            issues=("runtime_port_closed",),
+        ),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._wait_for_ready(runtime, 303, timeout=0.1)
+
+    assert captured.value.code == "runtime_health_timeout"
+    assert captured.value.role == "runtime"
+    assert "runtime_port_closed" in str(captured.value)
+
+
+def test_wait_for_ready_bootstraps_runtime_auth_before_authoritative_ready(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    probes = iter(
+        [
+            _service_probe(
+                "runtime",
+                protocol="failed",
+                ready=False,
+                pid=303,
+                issues=("runtime_health_failed",),
+            ),
+            _service_probe("runtime", pid=303),
+        ]
+    )
+    bootstrapped: list[bool] = []
+    monkeypatch.setattr(manager, "_probe_service", lambda _process: next(probes))
+    monkeypatch.setattr(manager, "_runtime_sessions", lambda: bootstrapped.append(True) or [])
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+
+    result = manager._wait_for_ready(runtime, 303, timeout=1)
+
+    assert result.ready is True
+    assert bootstrapped == [True]
+
+
+def test_start_rollback_targets_only_process_spawned_by_this_invocation(manager, monkeypatch):
+    probes = {
+        "runtime": _service_probe("runtime", pid=101),
+        "web": _service_probe(
+            "web",
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        ),
+    }
+    rolled_back: list[tuple[str, int]] = []
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+    monkeypatch.setattr(manager, "_spawn", lambda _process: 303)
+
+    def wait_for_ready(process, pid, *, timeout):
+        if process.role == "web":
+            raise ServiceManagerError("web timeout", code="web_health_timeout", role="web")
+        return _service_probe("runtime", pid=pid)
+
+    monkeypatch.setattr(manager, "_wait_for_ready", wait_for_ready)
+    monkeypatch.setattr(
+        manager,
+        "_rollback_spawned",
+        lambda process, pid: rolled_back.append((process.role, pid)),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager.start(open_browser=False)
+
+    assert captured.value.code == "web_health_timeout"
+    assert rolled_back == [("web", 303)]
+
+
+def test_spawn_and_wait_rolls_back_its_exact_spawn_on_wait_failure(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    rolled_back: list[tuple[str, int]] = []
+    monkeypatch.setattr(manager, "_spawn", lambda _process: 303)
+    monkeypatch.setattr(
+        manager,
+        "_wait_for_ready",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ServiceManagerError(
+                "runtime timeout",
+                code="runtime_health_timeout",
+                role="runtime",
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_rollback_spawned",
+        lambda process, pid: rolled_back.append((process.role, pid)),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._spawn_and_wait(runtime)
+
+    assert captured.value.code == "runtime_health_timeout"
+    assert rolled_back == [("runtime", 303)]
+
+
+def test_stop_orders_web_before_runtime_and_returns_final_facts(manager, monkeypatch):
+    probes = {
+        "runtime": _service_probe("runtime", pid=101),
+        "web": _service_probe("web", pid=202),
+    }
+    stopped: list[str] = []
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+
+    def stop_owned(process, _probe):
+        stopped.append(process.role)
+        probes[process.role] = _service_probe(
+            process.role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+        return True
+
+    monkeypatch.setattr(manager, "_stop_owned_probe", stop_owned)
+
+    result = manager.stop()
+
+    assert stopped == ["web", "runtime"]
+    assert result["services"]["runtime"]["running"] is False
+    assert result["services"]["web"]["running"] is False
+
+
+def test_stop_cleans_dead_stale_state_without_removing_runtime_auth(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    manager._prepare_private_directories()
+    manager._write_state(runtime, 101)
+    auth = manager._runtime_auth_path()
+    auth.parent.mkdir(parents=True, exist_ok=True)
+    auth.write_text("retained", encoding="utf-8")
+
+    def probe(process):
+        if process.role == "runtime":
+            return _service_probe(
+                "runtime",
+                state="stale",
+                process="missing",
+                ownership="unknown",
+                port_state="closed",
+                protocol="not_run",
+                ready=False,
+                pid=None,
+                issues=("runtime_state_stale",),
+            )
+        return _service_probe(
+            "web",
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+
+    monkeypatch.setattr(manager, "_probe_service", probe)
+
+    manager.stop()
+
+    assert not manager._state_path(runtime.role).exists()
+    assert auth.read_text(encoding="utf-8") == "retained"
+
+
+def test_runtime_rebuild_reports_coded_auth_cleanup_failure(manager):
+    runtime = manager._processes()[0]
+    manager._prepare_private_directories()
+    manager._write_state(runtime, 101)
+    auth = manager._runtime_auth_path()
+    auth.mkdir(parents=True)
+    stale = _service_probe(
+        "runtime",
+        state="stale",
+        process="missing",
+        ownership="unknown",
+        port_state="closed",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+        issues=("runtime_state_stale",),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._normalize_absent_probe(runtime, stale, clear_runtime_auth=True)
+
+    assert captured.value.code == "runtime_ownership_unverified"
+
+
+def test_restart_holds_one_lock_without_calling_public_lifecycle_methods(manager, monkeypatch):
+    entries = 0
+
+    class Lock:
+        def __enter__(self):
+            nonlocal entries
+            entries += 1
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(manager, "_lifecycle_lock", Lock)
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(
+        manager, "_service_probes", lambda: (_service_probe("runtime"), _service_probe("web"))
+    )
+    monkeypatch.setattr(manager, "_active_research", list)
+    monkeypatch.setattr(manager, "stop", lambda: pytest.fail("restart must not call public stop"))
+    monkeypatch.setattr(
+        manager, "start", lambda **_kwargs: pytest.fail("restart must not call public start")
+    )
+    monkeypatch.setattr(manager, "_stop_locked", lambda: {"services": {}})
+    monkeypatch.setattr(manager, "_start_locked", lambda **_kwargs: {"ok": True})
+
+    assert manager.restart(force=False, open_browser=False) == {"ok": True}
+    assert entries == 1
+
+
+def test_restart_active_research_guard_runs_before_stop(manager, monkeypatch):
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(
+        manager, "_service_probes", lambda: (_service_probe("runtime"), _service_probe("web"))
+    )
+    monkeypatch.setattr(manager, "_active_research", lambda: ["session-1"])
+    monkeypatch.setattr(manager, "_stop_locked", lambda: pytest.fail("guard must run first"))
+
+    with pytest.raises(ServiceManagerError, match="活动研究"):
+        manager.restart(force=False, open_browser=False)
+
+
+def test_restart_runtime_stops_and_rebuilds_only_owned_runtime(manager, monkeypatch):
+    probes = {
+        "runtime": _service_probe("runtime", pid=101),
+        "web": _service_probe("web", pid=202),
+    }
+    events: list[str] = []
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+    monkeypatch.setattr(manager, "_active_research", list)
+
+    def stop_owned(process, _probe):
+        events.append(f"stop:{process.role}")
+        probes[process.role] = _service_probe(
+            process.role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+        return True
+
+    def spawn(process):
+        events.append(f"spawn:{process.role}")
+        probes[process.role] = _service_probe(process.role, pid=303)
+        return 303
+
+    monkeypatch.setattr(manager, "_stop_owned_probe", stop_owned)
+    monkeypatch.setattr(manager, "_spawn", spawn)
+
+    result = manager.restart_runtime(force=False)
+
+    assert events == ["stop:runtime", "spawn:runtime"]
+    assert probes["web"].pid == 202
+    assert result == {"running": True, "healthy": True, "pid": 303, "port": 3081}
+
+
+def test_lifecycle_lock_contention_maps_to_coded_service_error(manager):
+    path = manager.run_root / "lifecycle.lock"
+
+    with (
+        LifecycleLock(path, lambda _pid: True, pid=os.getpid()),
+        pytest.raises(ServiceManagerError) as captured,
+    ):
+        manager.stop()
+
+    assert captured.value.code == "lifecycle_busy"
 
 
 def test_internal_probe_facts_stay_private_to_service_manager():
@@ -892,30 +1732,30 @@ def test_posix_zombie_is_not_treated_as_a_live_owned_process(manager, monkeypatc
 
 def test_start_is_idempotent_and_waits_for_both_services(manager, monkeypatch):
     manager._prepare_private_directories()
-    ownership = {"runtime": None, "web": None}
+    probes = {
+        role: _service_probe(
+            role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+        for role in ("runtime", "web")
+    }
     spawned = []
     monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
-    monkeypatch.setattr(manager, "_owned_state", lambda process: ownership[process.role])
-    monkeypatch.setattr(manager, "_port_open", lambda port: False)
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
 
     def spawn(process):
         spawned.append(process.role)
-        ownership[process.role] = {"pid": 100 + len(spawned)}
-        return ownership[process.role]["pid"]
+        pid = 100 + len(spawned)
+        probes[process.role] = _service_probe(process.role, pid=pid)
+        return pid
 
     monkeypatch.setattr(manager, "_spawn", spawn)
-    monkeypatch.setattr(manager, "_wait", lambda check, timeout: True)
-    monkeypatch.setattr(
-        manager,
-        "status",
-        lambda: {
-            "url": "http://127.0.0.1:8088/#/fingpt",
-            "services": {
-                "runtime": {"running": True, "healthy": True, "pid": 101, "port": 3081},
-                "web": {"running": True, "healthy": True, "pid": 102, "port": 8088},
-            },
-        },
-    )
     manager.start(open_browser=False)
     manager.start(open_browser=False)
     assert spawned == ["runtime", "web"]
@@ -984,21 +1824,49 @@ def test_start_fails_fast_when_web_installation_is_not_ready(manager, monkeypatc
 
 def test_start_rolls_back_only_new_processes(manager, monkeypatch):
     manager._prepare_private_directories()
-    stopped = []
+    probes = {
+        role: _service_probe(
+            role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
+        for role in ("runtime", "web")
+    }
+    stopped: list[str] = []
     monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
-    monkeypatch.setattr(manager, "_ensure_startable", lambda process: True)
-    monkeypatch.setattr(manager, "_spawn", lambda process: 123)
-    checks = iter([True, False])
-    monkeypatch.setattr(manager, "_wait", lambda check, timeout: next(checks))
-    monkeypatch.setattr(manager, "_stop_one", lambda process: stopped.append(process.role))
-    with pytest.raises(ServiceManagerError, match="Web 8088"):
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+    monkeypatch.setattr(manager, "_spawn", lambda _process: 123)
+
+    def wait_for_ready(process, pid, *, timeout):
+        if process.role == "web":
+            raise ServiceManagerError("Web timeout", code="web_health_timeout", role="web")
+        return _service_probe(process.role, pid=pid)
+
+    monkeypatch.setattr(manager, "_wait_for_ready", wait_for_ready)
+    monkeypatch.setattr(
+        manager,
+        "_rollback_spawned",
+        lambda process, _pid: stopped.append(process.role),
+    )
+    with pytest.raises(ServiceManagerError) as captured:
         manager.start(open_browser=False)
+    assert captured.value.code == "web_health_timeout"
     assert stopped == ["web", "runtime"]
 
 
 def test_restart_refuses_active_research_without_force(manager, monkeypatch):
     manager._prepare_private_directories()
-    monkeypatch.setattr(manager, "_owned_state", lambda process: {"pid": 123})
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(
+        manager,
+        "_service_probes",
+        lambda: (_service_probe("runtime", pid=123), _service_probe("web", pid=456)),
+    )
     monkeypatch.setattr(manager, "_active_research", lambda: ["session-1"])
     with pytest.raises(ServiceManagerError, match="活动研究"):
         manager.restart(force=False, open_browser=False)
@@ -1007,40 +1875,53 @@ def test_restart_refuses_active_research_without_force(manager, monkeypatch):
 def test_restart_runtime_keeps_web_online_and_waits_for_owned_runtime(manager, monkeypatch):
     manager._prepare_private_directories()
     runtime, web = manager._processes()
-    ownership = {"runtime": {"pid": 101}, "web": {"pid": 202}}
+    probes = {
+        "runtime": _service_probe("runtime", pid=101),
+        "web": _service_probe("web", pid=202),
+    }
     stopped: list[str] = []
     spawned: list[str] = []
 
-    monkeypatch.setattr(manager, "_owned_state", lambda process: ownership[process.role])
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
     monkeypatch.setattr(manager, "_active_research", list)
 
-    def stop_one(process):
+    def stop_one(process, _probe):
         stopped.append(process.role)
-        ownership[process.role] = None
+        probes[process.role] = _service_probe(
+            process.role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        )
         return True
 
     def spawn(process):
         spawned.append(process.role)
-        ownership[process.role] = {"pid": 303}
+        probes[process.role] = _service_probe(process.role, pid=303)
         return 303
 
-    monkeypatch.setattr(manager, "_stop_one", stop_one)
+    monkeypatch.setattr(manager, "_stop_owned_probe", stop_one)
     monkeypatch.setattr(manager, "_spawn", spawn)
-    monkeypatch.setattr(manager, "_port_open", lambda port: False)
-    monkeypatch.setattr(manager, "_wait", lambda check, timeout: check())
-    monkeypatch.setattr(manager, "_runtime_healthy", lambda: ownership["runtime"] is not None)
 
     result = manager.restart_runtime(force=False)
 
     assert stopped == [runtime.role]
     assert spawned == [runtime.role]
-    assert ownership[web.role] == {"pid": 202}
+    assert probes[web.role].pid == 202
     assert result == {"running": True, "healthy": True, "pid": 303, "port": 3081}
 
 
 def test_restart_runtime_refuses_active_research_without_force(manager, monkeypatch):
     manager._prepare_private_directories()
-    monkeypatch.setattr(manager, "_owned_state", lambda process: {"pid": 123})
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(
+        manager, "_probe_service", lambda process: _service_probe(process.role, pid=123)
+    )
     monkeypatch.setattr(manager, "_active_research", lambda: ["session-1"])
 
     with pytest.raises(ServiceManagerError, match="活动研究"):
@@ -1049,8 +1930,20 @@ def test_restart_runtime_refuses_active_research_without_force(manager, monkeypa
 
 def test_stop_never_targets_unowned_process(manager, monkeypatch):
     manager._prepare_private_directories()
-    monkeypatch.setattr(manager, "_owned_state", lambda process: None)
-    monkeypatch.setattr(manager, "status", lambda: {"url": "x", "services": {}})
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: _service_probe(
+            process.role,
+            state="missing",
+            process="missing",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        ),
+    )
     kill_calls = []
     monkeypatch.setattr("os.killpg", lambda *args: kill_calls.append(args))
     manager.stop()
