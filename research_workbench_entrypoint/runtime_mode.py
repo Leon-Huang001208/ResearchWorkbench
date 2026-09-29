@@ -191,8 +191,11 @@ def _pin_posix_parents(path: Path, *, node_only: bool = False) -> Iterator[int]:
         if parent is None:
             _fail("unsafe_path")
         yield parent
-        comparison = _node_identity if node_only else _identity
         for descriptor, ancestor, name, before in directories:
+            # Retained descriptors protect the traversal identity. Unrelated
+            # sibling creation in shared ancestors is not a private-file change.
+            # Keep full metadata on the immediate parent for rename-and-restore.
+            comparison = _identity if not node_only and descriptor == parent else _node_identity
             if comparison(os.fstat(descriptor)) != comparison(before) or comparison(
                 os.stat(name, dir_fd=ancestor, follow_symlinks=False)
             ) != comparison(before):
@@ -495,11 +498,15 @@ class RuntimeModeStore:
         log.debug("runtime_mode operation=read code=ok")
         return record
 
-    def write(self, mode: RuntimeMode) -> RuntimeModeRecord:
+    def write(
+        self, mode: RuntimeMode, *, expected: RuntimeModeRecord | None = None
+    ) -> RuntimeModeRecord:
         try:
             if type(mode) is not str or mode not in ("native", "docker"):
                 _fail("value")
             current, before = self._load(allow_missing_private_repair=True)
+            if expected is not None and current != expected:
+                _fail("changed")
             installation_id = current.installation_id or uuid4().hex
             updated_at = datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
             expected = RuntimeModeRecord(_SCHEMA_VERSION, mode, installation_id, updated_at)

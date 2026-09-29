@@ -14,36 +14,36 @@ PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
 PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
 
 if [ ! -x "$PYTHON_BIN" ] && command -v git >/dev/null 2>&1; then
-  GIT_COMMON_DIR=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null || true)
+  if GIT_COMMON_DIR=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null); then :; else GIT_COMMON_DIR=; fi
   if [ -n "$GIT_COMMON_DIR" ]; then
     case "$GIT_COMMON_DIR" in
       /*) ;;
       *) GIT_COMMON_DIR="$PROJECT_ROOT/$GIT_COMMON_DIR" ;;
     esac
-    COMMON_ROOT=$(CDPATH= cd -- "$(dirname -- "$GIT_COMMON_DIR")" 2>/dev/null && pwd -P || true)
+    if COMMON_ROOT=$(CDPATH= cd -- "$(dirname -- "$GIT_COMMON_DIR")" 2>/dev/null && pwd -P); then :; else COMMON_ROOT=; fi
     if [ -n "$COMMON_ROOT" ] && [ -x "$COMMON_ROOT/.venv/bin/python" ]; then
       PYTHON_BIN="$COMMON_ROOT/.venv/bin/python"
     fi
   fi
 fi
 
-if [ ! -x "$PYTHON_BIN" ]; then
-  echo "Research Workbench Python 环境不存在：$PYTHON_BIN" >&2
+# Bootstrap uses host Python before the Native venv is required.
+HOST_PYTHON=
+for CANDIDATE in python3.12 python3; do
+  if command -v "$CANDIDATE" >/dev/null 2>&1; then
+    if "$CANDIDATE" -c 'import sys; raise SystemExit(sys.version_info < (3, 12))' >/dev/null 2>&1; then
+      HOST_PYTHON=$(command -v "$CANDIDATE")
+      break
+    fi
+  fi
+done
+if [ -z "$HOST_PYTHON" ] && [ -x "$PYTHON_BIN" ]; then
+  HOST_PYTHON=$PYTHON_BIN
+fi
+if [ -z "$HOST_PYTHON" ]; then
+  echo 'Research Workbench requires host Python 3.12 or newer. Run setup-web first.' >&2
   exit 1
 fi
 
-if [ -z "${RESEARCH_NODE_BINARY:-}" ] && [ -n "${HOME:-}" ]; then
-  CODEX_BUNDLED_NODE="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
-  if [ -x "$CODEX_BUNDLED_NODE" ]; then
-    export RESEARCH_NODE_BINARY="$CODEX_BUNDLED_NODE"
-  fi
-fi
-
-if [ -n "${PYTHONPATH:-}" ]; then
-  export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
-else
-  export PYTHONPATH="$PROJECT_ROOT"
-fi
-
 cd "$PROJECT_ROOT"
-exec "$PYTHON_BIN" -m research_workbench_entrypoint "$@"
+exec "$HOST_PYTHON" -m research_workbench_entrypoint.bootstrap "$@"

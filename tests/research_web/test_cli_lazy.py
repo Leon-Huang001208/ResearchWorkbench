@@ -1,10 +1,78 @@
 import json
 import logging
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 from click.testing import CliRunner
+
+
+def _isolated_launcher(tmp_path):
+    root = Path(__file__).resolve().parents[2]
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    shutil.copy2(root / "rwb", checkout / "rwb")
+    shutil.copytree(root / "research_workbench_entrypoint", checkout / "research_workbench_entrypoint", ignore=shutil.ignore_patterns("__pycache__"))
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    environment = {"HOME": str(home), "PATH": os.environ["PATH"], "PYTHONPATH": "/foreign"}
+    return checkout, home, environment
+
+
+def test_runtime_status_without_venv_is_read_only(tmp_path):
+    checkout, home, environment = _isolated_launcher(tmp_path)
+    result = subprocess.run([str(checkout / "rwb"), "runtime", "status", "--json"], env=environment, capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["mode"] == "native"
+    assert not (home / ".research-workbench").exists()
+
+
+def test_docker_web_status_without_venv_is_stdlib_only(tmp_path):
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    checkout, home, environment = _isolated_launcher(tmp_path)
+    RuntimeModeStore(home / ".research-workbench").write("docker")
+    # An empty PATH containing only Python proves no Click or Native venv is needed.
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    (bindir / "python3").symlink_to(sys.executable)
+    environment["PATH"] = str(bindir) + ":/usr/bin:/bin"
+    result = subprocess.run([str(checkout / "rwb"), "web", "status", "--json"], env=environment, capture_output=True, text=True, timeout=10)
+    assert result.returncode == 1
+    assert json.loads(result.stdout)["issues"] == ["docker_cli_missing"]
+    assert "Python 环境不存在" not in result.stderr
+
+
+def test_native_and_legacy_exec_exact_venv_argv_environment_exit(tmp_path):
+    checkout, home, environment = _isolated_launcher(tmp_path)
+    python = checkout / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nprintf '%s\\n' \"$PYTHONPATH\" \"$RESEARCH_NODE_BINARY\"\nexit 37\n")
+    python.chmod(0o755)
+    node = home / ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+    node.parent.mkdir(parents=True)
+    node.write_text("")
+    node.chmod(0o755)
+    for args in (["web", "status"], ["legacy-command", "space value", "$literal"]):
+        result = subprocess.run([str(checkout / "rwb"), *args], env=environment, capture_output=True, text=True, timeout=10)
+        assert result.returncode == 37, result.stderr
+        assert result.stdout.splitlines() == ["-m", "research_workbench_entrypoint", *args, str(checkout) + ":/foreign", str(node)]
+
+
+def test_legacy_delegation_does_not_read_unrelated_mode_record(tmp_path):
+    checkout, home, environment = _isolated_launcher(tmp_path)
+    python = checkout / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("#!/bin/sh\nexit 37\n")
+    python.chmod(0o755)
+    record = home / ".research-workbench" / "install" / "runtime.json"
+    record.parent.mkdir(parents=True, mode=0o700)
+    record.write_text("corrupt")
+    record.chmod(0o600)
+    completed = subprocess.run([str(checkout / "rwb"), "legacy-command"], env=environment,
+                               capture_output=True, text=True, timeout=10)
+    assert completed.returncode == 37
 
 
 def test_web_help_does_not_import_legacy_research_stack():

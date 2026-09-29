@@ -94,6 +94,42 @@ def test_first_write_is_private_and_generates_one_persistent_id(tmp_path: Path) 
     assert RuntimeModeStore(home).read() == second
 
 
+def test_unrelated_ancestor_entry_change_does_not_invalidate_read(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    expected = store.write("native")
+    original = os.open
+
+    def concurrent_sibling(candidate, flags, *args, **kwargs):
+        if Path(candidate).name == "runtime.json":
+            (tmp_path / "unrelated").mkdir()
+        return original(candidate, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", concurrent_sibling)
+    assert store.read() == expected
+
+
+def test_same_mode_switch_is_read_only(tmp_path):
+    from research_workbench_entrypoint.bootstrap import switch_runtime
+
+    home = tmp_path / "missing"
+    store = RuntimeModeStore(home)
+    assert switch_runtime(store, "native", None, None) == {
+        "schema_version": 1, "ok": True, "issues": [], "mode": "native", "changed": False,
+    }
+    assert not home.exists()
+
+
+def test_conditional_mode_write_rejects_concurrent_change(tmp_path):
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    expected = store.write("native")
+    changed = RuntimeModeStore(home).write("docker")
+    with pytest.raises(RuntimeModeError, match="runtime_mode_changed"):
+        store.write("native", expected=expected)
+    assert store.read() == changed
+
+
 @pytest.mark.parametrize(
     "raw,code",
     [
