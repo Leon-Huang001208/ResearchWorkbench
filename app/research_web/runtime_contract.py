@@ -91,7 +91,7 @@ def _pin_windows_parents(path: Path) -> Iterator[None]:
                 # FILE_READ_ATTRIBUTES; FILE_SHARE_READ only; OPEN_EXISTING;
                 # FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT.
                 # Earlier ancestors are already locked before advancing.
-                handle = _winapi.CreateFile(str(component), 0x80, 1, None, 3, 0x02200000, 0)
+                handle = _winapi.CreateFile(str(component), 0x80, 1, 0, 3, 0x02200000, 0)
                 stack.callback(_winapi.CloseHandle, handle)
                 identity = component.lstat()
                 if (

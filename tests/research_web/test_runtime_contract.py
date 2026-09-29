@@ -214,11 +214,15 @@ def test_windows_parent_handles_pin_and_close_on_every_exit(tmp_path, monkeypatc
     closed = []
 
     def create_file(path, access, sharing, security, disposition, flags, template):
+        # CPython 3.12 parses the security-attributes pointer as an integer.
+        # Match the native parser, rather than accepting a ctypes-style None.
+        if type(security) is not int:
+            raise TypeError("security_attributes must be an integer")
         assert access == 0x80  # FILE_READ_ATTRIBUTES
         assert sharing == 1  # FILE_SHARE_READ only: deny write/delete handles
         assert disposition == 3  # OPEN_EXISTING
         assert flags == 0x02200000  # BACKUP_SEMANTICS | OPEN_REPARSE_POINT
-        assert security is None and template == 0
+        assert security == 0 and template == 0
         if failure == "open" and opened:
             raise OSError("sensitive Windows path")
         handle = len(opened) + 1
@@ -246,6 +250,8 @@ def test_windows_parent_handles_pin_and_close_on_every_exit(tmp_path, monkeypatc
         with runtime_contract._pin_windows_parents(tmp_path / "contract.json"):
             assert len(opened) == len((tmp_path / "contract.json").parents)
             assert closed == []
+    expected_handles = 1 if failure == "open" else len((tmp_path / "contract.json").parents)
+    assert len(opened) == expected_handles
     assert closed == [handle for _, handle in reversed(opened)]
 
 
