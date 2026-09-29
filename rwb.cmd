@@ -12,6 +12,7 @@ for /f "usebackq delims=" %%I in (`git -C "%PROJECT_ROOT%" rev-parse --git-commo
 if not defined GIT_COMMON_DIR goto candidate_selected
 if "%GIT_COMMON_DIR:~1,1%"==":" goto common_dir_absolute
 if "%GIT_COMMON_DIR:~0,2%"=="\\" goto common_dir_absolute
+if "%GIT_COMMON_DIR:~0,2%"=="//" goto common_dir_absolute
 for %%I in ("%PROJECT_ROOT%\%GIT_COMMON_DIR%\..") do set "COMMON_ROOT=%%~fI"
 goto common_candidate
 

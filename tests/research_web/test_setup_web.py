@@ -417,6 +417,7 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     assert "candidate_environment_exit_code" in windows_cli
     assert "ENVIRONMENT_OWNER_ROOT" in windows_cli
     assert 'git -C "%PROJECT_ROOT%" rev-parse --git-common-dir' in windows_cli
+    assert 'if "%GIT_COMMON_DIR:~0,2%"=="//" goto common_dir_absolute' in windows_cli
     assert 'set "ENVIRONMENT_OWNER_ROOT=%COMMON_ROOT%"' in windows_cli
     assert "%COMMON_ROOT%\\.venv\\Scripts\\python.exe" in windows_cli
     assert ":bootstrap_missing" in windows_cli

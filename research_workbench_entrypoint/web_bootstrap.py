@@ -14,10 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from .web_contract import (
-    HttpFact,
     ProcessFact,
     classify_python_environment,
-    http_get,
     port_listening,
     probe_process,
     proxy_warnings,
@@ -58,24 +56,6 @@ def _data_home(environment: Mapping[str, str]) -> Path:
     if configured:
         return _absolute(Path(configured))
     return _absolute(Path.home() / ".research-workbench" / "research-web")
-
-
-def select_candidate_environment(
-    project_root: Path,
-    *,
-    common_root: Path | None = None,
-    platform_name: str | None = None,
-) -> tuple[Path, Path]:
-    """Select the local environment, or an explicit common-checkout fallback."""
-    current_platform = platform_name or os.name
-    relative = Path("Scripts/python.exe" if current_platform == "nt" else "bin/python")
-    project = Path(project_root).resolve()
-    local = project / ".venv" / relative
-    if local.is_file() or common_root is None:
-        return local, project
-    common = Path(common_root).resolve()
-    candidate = common / ".venv" / relative
-    return (candidate, common) if candidate.is_file() else (local, project)
 
 
 def candidate_environment_exit_code(owner_root: Path, *, platform_name: str | None = None) -> int:
@@ -345,22 +325,6 @@ def _read_state(
     return ("valid", state) if state is not None else ("invalid", None)
 
 
-def _http_protocol(port: int) -> tuple[str, bool]:
-    root: HttpFact = http_get(port, "/")
-    static: HttpFact = http_get(port, "/static/app.mjs")
-    root_type = (root.content_type or "").split(";", 1)[0].strip().lower()
-    static_type = (static.content_type or "").split(";", 1)[0].strip().lower()
-    healthy = (
-        root.issue is None
-        and root.status == 200
-        and root_type == "text/html"
-        and static.issue is None
-        and static.status == 200
-        and static_type in {"application/javascript", "text/javascript"}
-    )
-    return ("passed", True) if healthy else ("failed", False)
-
-
 def _service_fact(
     *,
     role: str,
@@ -378,7 +342,6 @@ def _service_fact(
     listening = port_listening(port)
     process_status = "missing" if state_status == "missing" else "inaccessible"
     ownership = "unknown"
-    owned_pid: int | None = None
     issues: list[str] = []
     if state_status == "invalid":
         issues.append(f"{role}_state_invalid")
@@ -394,30 +357,19 @@ def _service_fact(
         else:
             ownership = "foreign"
             issues.append(f"{role}_process_foreign")
-    if listening and ownership != "owned":
+    if listening:
         ownership = "unknown" if ownership != "foreign" else ownership
         issues.append(f"{role}_port_in_use_unknown")
-    if ownership == "owned" and not listening:
-        issues.append(f"{role}_port_closed")
-
-    protocol = "not_run"
-    protocol_healthy = False
-    if role == "web" and ownership == "owned" and listening:
-        protocol, protocol_healthy = _http_protocol(port)
-        if not protocol_healthy:
-            issues.append("web_protocol_failed")
-    running = ownership == "owned" and process_status == "alive"
-    healthy = running and listening and protocol_healthy
     return {
         "state": state_status,
         "process": process_status,
         "ownership": ownership,
         "port_state": "listening" if listening else "closed",
-        "protocol": protocol,
-        "ready": healthy,
-        "running": running,
-        "healthy": healthy,
-        "pid": owned_pid,
+        "protocol": "not_run",
+        "ready": False,
+        "running": False,
+        "healthy": False,
+        "pid": None,
         "port": port,
         "issues": issues,
     }

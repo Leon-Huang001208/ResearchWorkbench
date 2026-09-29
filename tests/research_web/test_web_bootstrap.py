@@ -17,7 +17,7 @@ from types import SimpleNamespace
 import pytest
 
 from research_workbench_entrypoint import web_bootstrap
-from research_workbench_entrypoint.web_contract import HttpFact, ProcessFact
+from research_workbench_entrypoint.web_contract import ProcessFact
 
 
 def _run_capture(argv: list[str], project_root: Path) -> tuple[int, str, str]:
@@ -84,29 +84,6 @@ def test_windows_candidate_exit_code_preserves_exact_environment_issue(
         _write_windows_environment(tmp_path, executable=True)
 
     assert web_bootstrap.candidate_environment_exit_code(tmp_path, platform_name="nt") == expected
-
-
-def test_environment_candidate_model_prefers_local_then_valid_common_owner(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "worktree"
-    common_root = tmp_path / "common checkout"
-    project_root.mkdir()
-    common_root.mkdir()
-    common_python = _write_windows_environment(common_root, executable=True)
-
-    interpreter, owner = web_bootstrap.select_candidate_environment(
-        project_root, common_root=common_root, platform_name="nt"
-    )
-
-    assert interpreter == common_python
-    assert owner == common_root
-    local_python = _write_windows_environment(project_root, executable=True)
-    interpreter, owner = web_bootstrap.select_candidate_environment(
-        project_root, common_root=common_root, platform_name="nt"
-    )
-    assert interpreter == local_python
-    assert owner == project_root
 
 
 @pytest.mark.parametrize(
@@ -395,11 +372,6 @@ def test_service_facts_keep_state_process_ownership_port_and_protocol_separate(
 
     monkeypatch.setattr(web_bootstrap, "probe_process", process)
     monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: True)
-    monkeypatch.setattr(
-        web_bootstrap,
-        "http_get",
-        lambda *_args: pytest.fail("unverified ownership must not run protocol probes"),
-    )
 
     services = web_bootstrap.bootstrap_service_facts(project_root, data_home)
 
@@ -429,6 +401,11 @@ def test_service_facts_keep_state_process_ownership_port_and_protocol_separate(
         "port": 8088,
         "issues": ["web_ownership_unverified", "web_port_in_use_unknown"],
     }
+
+
+def test_bootstrap_exposes_no_authoritative_protocol_probe_surface() -> None:
+    assert not hasattr(web_bootstrap, "_http_protocol")
+    assert "http_get" not in vars(web_bootstrap)
 
 
 def test_signature_match_without_start_identity_never_claims_ownership(
@@ -770,11 +747,6 @@ def test_listener_without_state_is_never_reported_healthy(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: True)
-    monkeypatch.setattr(
-        web_bootstrap,
-        "http_get",
-        lambda _port, _path: HttpFact(200, "text/html", b"ignored", None),
-    )
 
     services = web_bootstrap.bootstrap_service_facts(
         tmp_path, tmp_path / "private" / "research-web"
