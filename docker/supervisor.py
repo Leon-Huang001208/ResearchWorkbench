@@ -26,6 +26,8 @@ from core.settings import settings
 from docker.healthcheck import ContainerHealth
 
 log = get_logger(__name__)
+ROLE_ENVIRONMENT_KEY = "RWB_SUPERVISOR_ROLE"
+MAX_ROLE_ENVIRONMENT_BYTES = 64 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,7 +104,8 @@ class ChildOutput:
         # Learn explicit credential fields, then redact values wherever repeated.
         # Plain messages such as "cookie cache ready" do not contain a field.
         for field in re.finditer(
-            r"(?:dsh-auth-[\w-]+|token|credential|password|api[_-]?key|cookie)[\"']?\s*[=:]\s*"
+            r"(?:dsh-auth-[\w-]+|token|credential|password|api[_-]?key|cookie|RWB_SUPERVISOR_ROLE)"
+            r"[\"']?\s*[=:]\s*"
             r"[\"']?([^\s;\"',}]+)", line, re.I,
         ):
             self.remember_secret(field[1])
@@ -167,6 +170,31 @@ class _ProcessIdentity:
     zombie: bool
 
 
+def _read_role_environment(pid):
+    """Read a bounded Linux proc environment solely for exact role selection."""
+    if sys.platform != "linux":
+        return b""
+    with (Path("/proc") / str(pid) / "environ").open("rb") as stream:
+        return stream.read(MAX_ROLE_ENVIRONMENT_BYTES + 1)
+
+
+def _adopted_role(pid, identity):
+    try:
+        raw = _read_role_environment(pid)
+        if len(raw) > MAX_ROLE_ENVIRONMENT_BYTES:
+            return "unknown"
+        prefix = ROLE_ENVIRONMENT_KEY.encode() + b"="
+        markers = [item[len(prefix):] for item in raw.split(b"\0") if item.startswith(prefix)]
+        current = _process_snapshot().get(pid)
+        if current is None or current.birth != identity.birth:
+            return "unknown"
+        if len(markers) == 1 and markers[0] in {b"runtime", b"web"}:
+            return markers[0].decode("ascii")
+    except OSError:
+        pass
+    return "unknown"
+
+
 def _process_snapshot():
     """Read ancestry and birth identity only; never inspect commands or env."""
     result = {}
@@ -212,6 +240,7 @@ class _OwnedProcesses:
         self.owned = {}  # pid -> (role, birth, optional pidfd)
         self.libc = None
         self.was_subreaper = None
+        self.unknown_roles_seen = False
         self.adopts = os.getpid() == 1
         if sys.platform == "linux" and not self.adopts:
             import ctypes
@@ -233,7 +262,7 @@ class _OwnedProcesses:
             self.close()
             raise
 
-    def refresh(self, children, orphan_role="web"):
+    def refresh(self, children):
         snapshot = _process_snapshot()
         for pid, (_, birth, descriptor) in list(self.owned.items()):
             if pid not in snapshot or snapshot[pid].birth != birth:
@@ -247,7 +276,11 @@ class _OwnedProcesses:
         if self.adopts:
             for pid, info in snapshot.items():
                 if info.parent == os.getpid() and (pid, info.birth) not in self.baseline:
-                    roles.setdefault(pid, orphan_role)
+                    if pid not in roles:
+                        roles[pid] = _adopted_role(pid, info)
+                        if roles[pid] == "unknown":
+                            self.unknown_roles_seen = True
+                            _event("unknown", "unclassified", "unknown_owned_role")
         # Resolve ancestry to closure even when children appear before parents.
         while True:
             additions = {pid: roles[info.parent] for pid, info in snapshot.items()
@@ -320,7 +353,7 @@ def _stop(child, role, timeout, output, children, ownership):
     escalated = False
     while True:
         _reap_children(children)
-        live = ownership.refresh(children, orphan_role=role)
+        live = ownership.refresh(children)
         targets = {pid for pid in live if ownership.owned[pid][0] == role}
         if not targets:
             break
@@ -340,7 +373,8 @@ def _stop(child, role, timeout, output, children, ownership):
                     escalated = True
                 ownership.send(pid, signal.SIGKILL)
         output.drain(.025)
-    child.wait(timeout=1)
+    if child is not None:
+        child.wait(timeout=1)
     output.drain()
     _event(role, "stopped", "child_reaped")
 
@@ -390,20 +424,22 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             if any(child.poll() is not None for child in children.values()):
                 raise RuntimeError("child exited")
             with runtime_state_directory(config.state_root):
+                child_environment = {**environment, ROLE_ENVIRONMENT_KEY: spec.role}
+                output.remember_secret(f"{ROLE_ENVIRONMENT_KEY}={spec.role}")
                 child = subprocess.Popen(
-                    spec.command, cwd=config.project_root, env=environment,
+                    spec.command, cwd=config.project_root, env=child_environment,
                     stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT, start_new_session=True, close_fds=True,
                 )
                 # Retain cleanup ownership even if the guard's exit recheck fails.
                 children[spec.role] = child
-                ownership.refresh(children, orphan_role=spec.role)
+                ownership.refresh(children)
             output.register(child, spec.role)
             _event(spec.role, "starting", "child_started")
             deadline = time.monotonic() + config.startup_timeout
             while True:
                 output.drain(.025)
-                ownership.refresh(children, orphan_role=spec.role)
+                ownership.refresh(children)
                 _reap_children(children)
                 if requested:
                     raise _ExternalShutdown
@@ -438,6 +474,15 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                 except (OSError, RuntimeError, subprocess.SubprocessError):
                     _event(role, "failed", "cleanup_failed")
                     status = 1
+        if ownership is not None:
+            try:
+                # Unproven adoptees never participate in Web/DSH role ordering.
+                _stop(None, "unknown", config.shutdown_timeout, output, children, ownership)
+                if ownership.unknown_roles_seen:
+                    status = 1
+            except (OSError, RuntimeError, subprocess.SubprocessError):
+                _event("unknown", "failed", "cleanup_failed")
+                status = 1
         try:
             with runtime_state_directory(config.state_root):
                 (config.state_root / "auth.json").unlink(missing_ok=True)

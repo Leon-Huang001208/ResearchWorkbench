@@ -1,6 +1,8 @@
 import hashlib
 import io
 import json
+import subprocess
+import sys
 import tarfile
 from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
@@ -134,6 +136,53 @@ def test_runtime_keeps_dsh_home_private_but_uses_host_home_for_tabbit(tmp_path, 
     assert env["HOME"] == str(host_home)
     assert env["USERPROFILE"] == str(host_home)
     assert env["LOCALAPPDATA"] == str(local_app_data)
+
+
+@pytest.mark.parametrize("marker", ["runtime", "web", "invalid", "runtime\nweb", ""])
+def test_clean_runtime_exec_environment_retains_only_exact_runtime_role(
+    tmp_path, monkeypatch, marker
+):
+    source = make_source(tmp_path)
+    monkeypatch.setenv("RWB_SUPERVISOR_ROLE", marker)
+    monkeypatch.setenv("UNRELATED_HOST_VALUE", "must-not-cross-exec-boundary")
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output",
+        lambda *args, **kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    _, env, _ = launch_runtime.prepare(source, tmp_path / "data", "/node", 3081)
+    assert env.get("RWB_SUPERVISOR_ROLE") == ("runtime" if marker == "runtime" else None)
+    assert "UNRELATED_HOST_VALUE" not in env
+    assert "must-not-cross-exec-boundary" not in env.values()
+
+
+def test_runtime_role_survives_real_exec_with_clean_environment(tmp_path):
+    source = make_source(tmp_path)
+    # Python stands in for Node only at the final executable boundary. The real
+    # launcher prepare/main/execve path supplies the environment to this process.
+    (source / "apps/cli/lib/bin.js").write_text(
+        "import json,os\n"
+        "print(json.dumps({'role':os.environ.get('RWB_SUPERVISOR_ROLE'),"
+        "'host':os.environ.get('UNRELATED_HOST_VALUE')}))\n"
+    )
+    runner = """
+import os, sys
+from app.research_web import launch_runtime as launcher
+launcher.setup_logging = lambda: None
+launcher.subprocess.check_output = lambda *a, **k: launcher.PINNED_COMMIT
+launcher.validate_tabbit_node = lambda node: '24.0.0'
+launcher.prepare_runtime_module_fallback = lambda *a: 0
+launcher.stage_tabbit_package = lambda *a: {'version':'fixture','source_commit':'fixture'}
+launcher.stage_tabbit_adapter = lambda *a: None
+os.environ['RWB_SUPERVISOR_ROLE'] = 'runtime'
+os.environ['UNRELATED_HOST_VALUE'] = 'must-not-cross-exec-boundary'
+sys.argv = ['launcher', '--source', sys.argv[1], '--data', sys.argv[2], '--node', sys.executable]
+launcher.main()
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", runner, str(source), str(tmp_path / "data")],
+        capture_output=True, text=True, timeout=5, check=True,
+    )
+    assert json.loads(completed.stdout.splitlines()[-1]) == {"role": "runtime", "host": None}
 
 
 @pytest.mark.parametrize("separate_state", [False, True])

@@ -37,6 +37,19 @@ if mode != "no-cookie-header" or role == "web":
 print('{"credential":"structured-credential-value"}', flush=True)
 print("retry credential structured-credential-value", flush=True)
 print(os.environ["FIXTURE_SECRET"], flush=True)
+print("RWB_SUPERVISOR_ROLE=" + os.environ.get("RWB_SUPERVISOR_ROLE", "missing"), flush=True)
+def spawn_adopted():
+    intermediate = os.fork()
+    if intermediate == 0:
+        if os.fork() != 0:
+            os._exit(0)
+        os.setsid()
+        environment = dict(os.environ)
+        if mode == "adopted-missing": environment.pop("RWB_SUPERVISOR_ROLE", None)
+        if mode == "adopted-invalid": environment["RWB_SUPERVISOR_ROLE"] = "invalid-role-marker"
+        worker = str(Path(events).parent / "worker.py")
+        os.execve(sys.executable, [sys.executable, worker, role + "-worker", events], environment)
+    os.waitpid(intermediate, 0)
 if mode == "descendant" and os.fork() == 0:
     role = "worker"
     record("start")
@@ -75,11 +88,35 @@ if role == "runtime":
     print("retry credential " + "x" * 43, flush=True)
     print("dsh web: http://127.0.0.1:" + port + "/?token=" + "y" * 43, flush=True)
     print("old credential " + "x" * 43 + " new credential " + "y" * 43, flush=True)
+spawned = False
 while True:
+    if mode.startswith("adopted") and not spawned and Path(events + ".spawn").exists():
+        spawn_adopted()
+        spawned = True
     if Path(events + ".exit-" + role).exists():
         record("exit")
         raise SystemExit(9)
     server.handle_request()
+'''
+
+WORKER = r'''
+import json, os, signal, sys, time
+from pathlib import Path
+role, events = sys.argv[1:]
+def record(event):
+    with open(events, "a") as stream:
+        stream.write(json.dumps([role, event, time.monotonic(), os.getpid()]) + "\n")
+def stop(signum, frame):
+    record("term")
+    raise SystemExit(0)
+signal.signal(signal.SIGTERM, stop)
+marker = os.environ.get("RWB_SUPERVISOR_ROLE")
+raw = b"FIXTURE_ENV=never-disclose-process-environment\0"
+if marker is not None: raw += b"RWB_SUPERVISOR_ROLE=" + marker.encode() + b"\0"
+Path(events + ".role-" + str(os.getpid())).write_bytes(raw)
+record("start")
+print("RWB_SUPERVISOR_ROLE=" + str(marker), flush=True)
+while True: time.sleep(.01)
 '''
 
 RUNNER = r'''
@@ -102,6 +139,37 @@ def specs(**kwargs):
     return WebProcessSpecs(spec("runtime", config.runtime_port, runtime_mode),
         spec("web", config.web_port, web_mode), config.state_root)
 supervisor.build_process_specs = specs
+if sys.platform == "darwin" and (runtime_mode.startswith("adopted") or web_mode.startswith("adopted")):
+    # macOS cannot adopt these orphans. Model only Linux's PPID observation;
+    # keep real child PIDs, sessions, signals and birth identities for cleanup.
+    from dataclasses import replace
+    import os
+    original_snapshot = supervisor._process_snapshot
+    original_init = supervisor._OwnedProcesses.__init__
+    def snapshot():
+        values = original_snapshot()
+        records = [json.loads(line) for line in (root/"events").read_text().splitlines()] if (root/"events").exists() else []
+        started = {row[3]: row[0] for row in records if row[1] == "start"}
+        family = {pid for pid, info in values.items() if info.parent == os.getpid()}
+        while True:
+            added = {pid for pid, info in values.items() if info.parent in family} - family
+            if not added: break
+            family.update(added)
+        for pid, info in list(values.items()):
+            if pid in family and pid not in started:
+                del values[pid]  # Hide intermediate/pre-exec ancestry and ps helper.
+            elif started.get(pid, "").endswith("-worker"):
+                if info.parent == 1:
+                    values[pid] = replace(info, parent=os.getpid())
+                else:
+                    del values[pid]  # Never expose its pre-adoption ancestry.
+        return values
+    def init(self):
+        original_init(self)
+        self.adopts = True
+    supervisor._process_snapshot = snapshot
+    supervisor._OwnedProcesses.__init__ = init
+    supervisor._read_role_environment = lambda pid: (root/("events.role-" + str(pid))).read_bytes()
 raise SystemExit(supervisor.run(config))
 '''
 
@@ -135,6 +203,7 @@ def launch(tmp_path):
     (root / "source").mkdir()
     (root / "source/package.json").write_text('{"version":"fixture"}')
     (root / "child.py").write_text(CHILD)
+    (root / "worker.py").write_text(WORKER)
     processes = []
 
     def start(runtime="normal", web="normal", state_mode=0o700):
@@ -206,6 +275,86 @@ def test_auth_record_cookie_redacted_without_prior_cookie_output(launch):
     persisted = "".join(path.read_text() for path in (root / "data/logs").glob("*.log"))
     assert "private-cookie" not in output + persisted
     assert "cookie cache ready" in output and "retry credential [redacted]" in output
+
+
+@pytest.mark.parametrize("runtime_mode", ["adopted", "adopted-missing", "adopted-invalid"])
+def test_unobserved_adopted_workers_keep_proven_roles_or_cleanup_last(launch, runtime_mode):
+    unrelated = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        proc, root, _, _ = launch(runtime=runtime_mode, web="adopted")
+        wait_for(lambda: started(root, "web") or proc.poll() is not None)
+        (root / "events.spawn").touch()
+        wait_for(lambda: started(root, "web-worker") or proc.poll() is not None)
+        wait_for(lambda: started(root, "runtime-worker") or proc.poll() is not None)
+        assert proc.poll() is None, proc.communicate()[0]
+        time.sleep(.2)
+        proc.terminate()
+        output = proc.communicate(timeout=6)[0]
+        unknown = runtime_mode != "adopted"
+        assert proc.returncode == (1 if unknown else 0), output
+        terms = {row[0]: row[2] for row in events(root) if row[1] == "term"}
+        assert terms["web-worker"] < terms["runtime"]
+        assert terms["web"] < terms["runtime-worker"]
+        assert terms["web-worker"] < terms["runtime-worker"]
+        if unknown:
+            assert terms["runtime"] < terms["runtime-worker"]
+            assert "unknown_owned_role" in output
+        persisted = "".join(path.read_text() for path in (root / "data/logs").glob("*.log"))
+        for path in root.glob("events.role-*"):
+            for entry in path.read_bytes().split(b"\0"):
+                if entry.startswith(b"RWB_SUPERVISOR_ROLE="):
+                    assert entry.decode() not in output + persisted
+        assert "never-disclose-process-environment" not in output + persisted
+        assert unrelated.poll() is None
+        for row in events(root):
+            if row[0].endswith("-worker") and row[1] == "start":
+                with pytest.raises(ProcessLookupError):
+                    os.kill(row[3], 0)
+    finally:
+        unrelated.terminate()
+        unrelated.wait(timeout=3)
+
+
+@pytest.mark.parametrize("raw,expected", [
+    (b"RWB_SUPERVISOR_ROLE=runtime\0", "runtime"),
+    (b"RWB_SUPERVISOR_ROLE=web\0", "web"),
+    (b"OTHER_ROLE=runtime\0", "unknown"),
+    (b"RWB_SUPERVISOR_ROLE=runtime-extra\0", "unknown"),
+    (b"RWB_SUPERVISOR_ROLE=web\0RWB_SUPERVISOR_ROLE=runtime\0", "unknown"),
+    (b"RWB_SUPERVISOR_ROLE=runtime\0" + b"x" * 65536, "unknown"),
+])
+def test_adopted_role_uses_only_one_exact_bounded_marker(monkeypatch, raw, expected):
+    from docker import supervisor
+
+    identity = supervisor._ProcessIdentity(os.getpid(), os.getpid(), "birth", False)
+    monkeypatch.setattr(supervisor, "_read_role_environment", lambda pid: raw)
+    monkeypatch.setattr(supervisor, "_process_snapshot", lambda: {42: identity})
+    assert supervisor._adopted_role(42, identity) == expected
+    monkeypatch.setattr(supervisor, "_process_snapshot", lambda: {})
+    assert supervisor._adopted_role(42, identity) == "unknown"
+
+
+def test_baseline_direct_child_is_not_adopted_or_signalled(monkeypatch):
+    from docker import supervisor
+
+    baseline = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    ownership = supervisor._OwnedProcesses()
+    ownership.adopts = True
+    try:
+        actual_snapshot = supervisor._process_snapshot
+        def snapshot():
+            # Exclude the transient ps helper used on macOS, retain the real baseline.
+            return {pid: info for pid, info in actual_snapshot().items()
+                    if info.parent != os.getpid() or pid == baseline.pid}
+        monkeypatch.setattr(supervisor, "_process_snapshot", snapshot)
+        assert baseline.pid not in ownership.refresh({})
+        assert baseline.pid not in ownership.owned
+        assert not ownership.unknown_roles_seen
+        assert baseline.poll() is None
+    finally:
+        ownership.close()
+        baseline.terminate()
+        baseline.wait(timeout=3)
 
 
 @pytest.mark.parametrize("unexpected", [False, True])

@@ -670,6 +670,8 @@ def _prepare_runtime(
     for name in ("USERPROFILE", "LOCALAPPDATA"):
         if value := os.environ.get(name):
             env[name] = value
+    if os.environ.get("RWB_SUPERVISOR_ROLE") == "runtime":
+        env["RWB_SUPERVISOR_ROLE"] = "runtime"
     if isinstance(tabbit_config.get("instance_id"), str):
         env["TABBIT_PLAYWRIGHT_INSTANCE"] = str(tabbit_config["instance_id"])
     command = [
