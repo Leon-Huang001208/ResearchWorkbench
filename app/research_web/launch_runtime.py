@@ -494,7 +494,7 @@ def prepare(
     state_root: Path | None = None,
 ) -> tuple[list[str], dict, Path]:
     state = state_root if state_root is not None else data.resolve() / "runtime"
-    with runtime_state_directory(state, create=True):
+    with runtime_state_directory(state, create=True, native_data_root=data.resolve()):
         return _prepare_runtime(
             source,
             data,

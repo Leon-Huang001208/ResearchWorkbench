@@ -166,6 +166,35 @@ def test_prepare_separates_persistent_data_from_runtime_state(
         assert not (state / "home").exists()
 
 
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="Legacy POSIX directory permissions")
+@pytest.mark.parametrize("layout", ["legacy_native", "public_parent", "custom"])
+def test_direct_prepare_legacy_native_state_requires_private_data(tmp_path, monkeypatch, layout):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    data.mkdir(mode=0o700)
+    state = data / "runtime" if layout != "custom" else tmp_path / "state"
+    state.mkdir(mode=0o755)
+    state.chmod(0o755)
+    if layout == "public_parent":
+        data.chmod(0o755)
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "check_output",
+        lambda *_args, **_kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    if layout == "legacy_native":
+        command, env, work = launch_runtime.prepare(source, data, "/node", 3081)
+        assert command[command.index("--patch") + 1] == str(state / "overlay.yml")
+        assert env["DSH_HOME"] == str(state / "home")
+        assert work == state / "work"
+        assert state.stat().st_mode & 0o777 == 0o755
+    else:
+        with pytest.raises(ValueError, match="runtime_state_unsafe"):
+            launch_runtime.prepare(source, data, "/node", 3081, state_root=state)
+        assert not (state / "overlay.yml").exists()
+        assert not (state / "build-lock.json").exists()
+
+
 @pytest.mark.parametrize("mode", ["default", "explicit_state", "data_alias"])
 def test_launch_cli_accepts_state_and_preserves_historical_default(tmp_path, monkeypatch, mode):
     data = tmp_path / "data"

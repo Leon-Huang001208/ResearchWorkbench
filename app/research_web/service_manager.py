@@ -135,7 +135,7 @@ class WebServiceManager:
 
     def _prepare_private_directories(self) -> None:
         try:
-            with runtime_state_directory(self.runtime_state_root):
+            with runtime_state_directory(self.runtime_state_root, native_data_root=self.data_root):
                 pass
         except FileNotFoundError:
             pass  # A first launch creates private runtime state at the write boundary.
@@ -373,7 +373,7 @@ class WebServiceManager:
     def _read_runtime_auth(self) -> dict[str, str] | None:
         path = self._runtime_auth_path()
         try:
-            with runtime_state_directory(self.runtime_state_root):
+            with runtime_state_directory(self.runtime_state_root, native_data_root=self.data_root):
                 value = read_runtime_auth_record(path)
             expected = {
                 "authority": f"127.0.0.1:{self.runtime_port}",
@@ -440,7 +440,9 @@ class WebServiceManager:
 
     def _write_runtime_auth(self, cookie: str) -> dict[str, str]:
         try:
-            with runtime_state_directory(self.runtime_state_root, create=True):
+            with runtime_state_directory(
+                self.runtime_state_root, create=True, native_data_root=self.data_root
+            ):
                 return self._write_runtime_auth_record(cookie)
         except (OSError, RuntimeStateError) as exc:
             raise ServiceManagerError("无法写入 DSH 认证控制文件") from exc
@@ -548,7 +550,9 @@ class WebServiceManager:
 
     def _spawn(self, process: ManagedProcess) -> int:
         try:
-            with runtime_state_directory(self.runtime_state_root, create=True):
+            with runtime_state_directory(
+                self.runtime_state_root, create=True, native_data_root=self.data_root
+            ):
                 return self._spawn_owned_process(process)
         except (OSError, RuntimeStateError) as exc:
             raise ServiceManagerError(f"无法启动 {process.role} 服务") from exc
@@ -674,7 +678,9 @@ class WebServiceManager:
         self._state_path(process.role).unlink(missing_ok=True)
         if process.role == "runtime":
             try:
-                with runtime_state_directory(self.runtime_state_root):
+                with runtime_state_directory(
+                    self.runtime_state_root, native_data_root=self.data_root
+                ):
                     self._runtime_auth_path().unlink(missing_ok=True)
             except FileNotFoundError:
                 pass
@@ -809,7 +815,7 @@ class WebServiceManager:
 
     def _runtime_build_lock_matches(self, dsh: dict[str, Any]) -> bool:
         try:
-            with runtime_state_directory(self.runtime_state_root):
+            with runtime_state_directory(self.runtime_state_root, native_data_root=self.data_root):
                 return self._read_runtime_build_lock_matches(dsh)
         except (OSError, RuntimeStateError):
             return False

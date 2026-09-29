@@ -287,6 +287,75 @@ def test_manager_explicit_state_keeps_native_ownership_and_persistent_work(manag
     assert isolated._runtime_build_lock_matches(lock)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Legacy POSIX directory permissions")
+@pytest.mark.parametrize("layout", ["legacy_native", "public_parent", "custom"])
+def test_legacy_native_state_reads_preserve_permissions(manager, monkeypatch, layout):
+    manager._prepare_private_directories()
+    state = manager.data_root / "runtime"
+    if layout == "custom":
+        state = manager.project_root / "custom-state"
+        manager.runtime_state_root = state
+    state.mkdir(mode=0o755)
+    state.chmod(0o755)
+    if layout == "public_parent":
+        manager.data_root.chmod(0o755)
+    auth = {
+        "authority": "127.0.0.1:3081",
+        "cookie": "dsh-auth-test=value",
+        "cwd": str((manager.data_root / "runtime/work").resolve()),
+        "source_commit": service_manager_module.PINNED_COMMIT,
+        "version": "test",
+    }
+    lock = {
+        "source_commit": service_manager_module.PINNED_COMMIT,
+        "closure_sha256": "a" * 64,
+        "closure_files": 3,
+        "mode": "build",
+    }
+    for name, record in (("auth.json", auth), ("build-lock.json", lock)):
+        (state / name).write_text(json.dumps(record))
+        (state / name).chmod(0o600)
+    monkeypatch.setattr(os, "chmod", lambda *_args, **_kwargs: pytest.fail("read path chmod"))
+    monkeypatch.setattr(Path, "chmod", lambda *_args, **_kwargs: pytest.fail("read path chmod"))
+    if layout == "legacy_native":
+        manager._prepare_private_directories()
+        assert manager._read_runtime_auth() == auth
+        assert manager._runtime_build_lock_matches(lock)
+        assert manager._processes()[0].command[-1] == "--research-tools"
+        assert state.stat().st_mode & 0o777 == 0o755
+    else:
+        with pytest.raises(ServiceManagerError):
+            manager._prepare_private_directories()
+        assert manager._read_runtime_auth() is None
+        assert not manager._runtime_build_lock_matches(lock)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Legacy POSIX directory permissions")
+def test_legacy_native_state_supports_owned_start_stop_and_auth_write(manager, monkeypatch):
+    manager._prepare_private_directories()
+    state = manager.data_root / "runtime"
+    state.mkdir(mode=0o755)
+    state.chmod(0o755)
+    (manager.runtime_source / "package.json").write_text('{"version":"test"}')
+    record = manager._write_runtime_auth("dsh-auth-test=value")
+    assert manager._read_runtime_auth() == record
+    runtime = manager._processes()[0]
+    monkeypatch.setattr(
+        service_manager_module.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: type("Process", (), {"pid": 4321})(),
+    )
+    monkeypatch.setattr(manager, "_write_state", lambda *_args: None)
+    assert manager._spawn(runtime) == 4321
+    manager._write_runtime_auth("dsh-auth-test=value")
+    monkeypatch.setattr(manager, "_owned_state", lambda _process: {"pid": 4321})
+    monkeypatch.setattr(manager, "_terminate_pid", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(manager, "_pid_exists", lambda _pid: False)
+    assert manager._stop_one(runtime)
+    assert not manager._runtime_auth_path().exists()
+    assert state.stat().st_mode & 0o777 == 0o755
+
+
 def test_spawn_exports_the_exact_private_web_origin_for_mcp_callbacks(manager, monkeypatch):
     captured = {}
     monkeypatch.setenv("ALL_PROXY", "socks5://127.0.0.1:1080")
@@ -737,7 +806,9 @@ def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, mo
         },
     )
     runtime_lock = manager.data_root / "runtime" / "build-lock.json"
-    runtime_lock.parent.mkdir(parents=True, mode=0o700)
+    # The legacy installer protects data itself; runtime can be an intermediate 0755 parent.
+    manager.data_root.mkdir(parents=True, mode=0o700)
+    runtime_lock.parent.mkdir(parents=True)
     runtime_lock.write_text(
         json.dumps(
             {
@@ -1237,7 +1308,7 @@ def test_runtime_auth_fails_closed_for_foreign_authority(manager):
 def test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits(manager, monkeypatch):
     manager._prepare_private_directories()
     auth_path = manager._runtime_auth_path()
-    auth_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    auth_path.parent.mkdir(parents=True, exist_ok=True)
     auth_path.write_text(
         json.dumps(
             {
