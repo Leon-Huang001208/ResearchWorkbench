@@ -414,7 +414,17 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     assert "import click; import app.cli.main" in windows_cli
     assert "research_workbench_entrypoint.web_bootstrap" in windows_cli
     assert "classify_python_environment" in windows_cli
+    assert "candidate_environment_exit_code" in windows_cli
     assert "ENVIRONMENT_OWNER_ROOT" in windows_cli
+    assert 'git -C "%PROJECT_ROOT%" rev-parse --git-common-dir' in windows_cli
+    assert 'set "ENVIRONMENT_OWNER_ROOT=%COMMON_ROOT%"' in windows_cli
+    assert "%COMMON_ROOT%\\.venv\\Scripts\\python.exe" in windows_cli
+    assert ":bootstrap_missing" in windows_cli
+    assert ":bootstrap_incomplete" in windows_cli
+    assert ":bootstrap_unusable" in windows_cli
+    assert windows_cli.index("candidate_environment_exit_code") < windows_cli.index(
+        "import click; import app.cli.main"
+    )
     assert "py -3.12" in windows_cli
     assert "python3" in windows_cli
     assert "python" in windows_cli

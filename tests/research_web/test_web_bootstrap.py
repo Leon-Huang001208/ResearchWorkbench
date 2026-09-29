@@ -7,10 +7,12 @@ import io
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -46,6 +48,65 @@ def _write_environment(project_root: Path, *, executable: bool, marker: bool = T
             json.dumps(_environment_marker(project_root)), encoding="utf-8"
         )
     return interpreter
+
+
+def _write_windows_environment(
+    project_root: Path, *, executable: bool, marker: bool = True
+) -> Path:
+    interpreter = project_root / ".venv" / "Scripts" / "python.exe"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text("fixture", encoding="utf-8")
+    interpreter.chmod(0o755 if executable else 0o644)
+    if marker:
+        (project_root / ".venv" / ".rwb-web-environment.json").write_text(
+            json.dumps(_environment_marker(project_root)), encoding="utf-8"
+        )
+    return interpreter
+
+
+@pytest.mark.parametrize(
+    ("arrange", "expected"),
+    [
+        ("missing", 41),
+        ("incomplete", 42),
+        ("unusable", 43),
+        ("owned", 0),
+    ],
+)
+def test_windows_candidate_exit_code_preserves_exact_environment_issue(
+    tmp_path: Path, arrange: str, expected: int
+) -> None:
+    if arrange == "incomplete":
+        _write_windows_environment(tmp_path, executable=True, marker=False)
+    elif arrange == "unusable":
+        _write_windows_environment(tmp_path, executable=False)
+    elif arrange == "owned":
+        _write_windows_environment(tmp_path, executable=True)
+
+    assert web_bootstrap.candidate_environment_exit_code(tmp_path, platform_name="nt") == expected
+
+
+def test_environment_candidate_model_prefers_local_then_valid_common_owner(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "worktree"
+    common_root = tmp_path / "common checkout"
+    project_root.mkdir()
+    common_root.mkdir()
+    common_python = _write_windows_environment(common_root, executable=True)
+
+    interpreter, owner = web_bootstrap.select_candidate_environment(
+        project_root, common_root=common_root, platform_name="nt"
+    )
+
+    assert interpreter == common_python
+    assert owner == common_root
+    local_python = _write_windows_environment(project_root, executable=True)
+    interpreter, owner = web_bootstrap.select_candidate_environment(
+        project_root, common_root=common_root, platform_name="nt"
+    )
+    assert interpreter == local_python
+    assert owner == project_root
 
 
 @pytest.mark.parametrize(
@@ -337,12 +398,7 @@ def test_service_facts_keep_state_process_ownership_port_and_protocol_separate(
     monkeypatch.setattr(
         web_bootstrap,
         "http_get",
-        lambda _port, path: HttpFact(
-            200,
-            "application/javascript" if path.endswith(".mjs") else "text/html; charset=utf-8",
-            b"ignored",
-            None,
-        ),
+        lambda *_args: pytest.fail("unverified ownership must not run protocol probes"),
     )
 
     services = web_bootstrap.bootstrap_service_facts(project_root, data_home)
@@ -350,29 +406,52 @@ def test_service_facts_keep_state_process_ownership_port_and_protocol_separate(
     assert services["runtime"] == {
         "state": "valid",
         "process": "alive",
-        "ownership": "owned",
+        "ownership": "unknown",
         "port_state": "listening",
         "protocol": "not_run",
         "ready": False,
-        "running": True,
+        "running": False,
         "healthy": False,
-        "pid": 4242,
+        "pid": None,
         "port": 3081,
-        "issues": [],
+        "issues": ["runtime_ownership_unverified", "runtime_port_in_use_unknown"],
     }
     assert services["web"] == {
         "state": "valid",
         "process": "alive",
-        "ownership": "owned",
+        "ownership": "unknown",
         "port_state": "listening",
-        "protocol": "passed",
-        "ready": True,
-        "running": True,
-        "healthy": True,
-        "pid": 4343,
+        "protocol": "not_run",
+        "ready": False,
+        "running": False,
+        "healthy": False,
+        "pid": None,
         "port": 8088,
-        "issues": [],
+        "issues": ["web_ownership_unverified", "web_port_in_use_unknown"],
     }
+
+
+def test_signature_match_without_start_identity_never_claims_ownership(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    state = _write_state(tmp_path, data_home, "web")
+    monkeypatch.setattr(
+        web_bootstrap,
+        "probe_process",
+        lambda _pid: ProcessFact("alive", " ".join(state["signature"]), None),
+    )
+    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+
+    service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
+
+    assert service["process"] == "alive"
+    assert service["ownership"] == "unknown"
+    assert service["running"] is False
+    assert service["healthy"] is False
+    assert service["ready"] is False
+    assert service["pid"] is None
+    assert service["issues"] == ["web_ownership_unverified"]
 
 
 @pytest.mark.parametrize("content", ["not-json", "x" * (64 * 1024 + 1)])
@@ -461,6 +540,155 @@ def test_real_bootstrap_cli_contains_deep_json_recursion_without_disclosure(
     assert "RecursionError" not in completed.stdout
     assert "Traceback" not in completed.stdout
     assert completed.stderr == ""
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX symlink contract")
+@pytest.mark.parametrize("alias", ["run", "leaf"])
+def test_service_state_rejects_parent_and_leaf_symlinks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, alias: str
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    foreign_root = tmp_path / "foreign-run"
+    state = _service_state(tmp_path, data_home, "web")
+    foreign_root.mkdir()
+    foreign_state = foreign_root / "web.json"
+    foreign_state.write_text(json.dumps(state), encoding="utf-8")
+    run_root = data_home.parent / "run"
+    run_root.parent.mkdir(parents=True)
+    if alias == "run":
+        run_root.symlink_to(foreign_root, target_is_directory=True)
+    else:
+        run_root.mkdir()
+        (run_root / "web.json").symlink_to(foreign_state)
+    monkeypatch.setattr(
+        web_bootstrap,
+        "probe_process",
+        lambda _pid: pytest.fail("aliased state must not reach process probe"),
+    )
+    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+
+    service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
+
+    assert service["state"] == "invalid"
+    assert service["ownership"] == "unknown"
+    assert service["pid"] is None
+    assert service["issues"] == ["web_state_invalid"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX filesystem contract")
+def test_service_state_rejects_non_regular_and_hardlinked_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    run_root = data_home.parent / "run"
+    run_root.mkdir(parents=True)
+    state_path = run_root / "web.json"
+    os.mkfifo(state_path)
+    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+    assert web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]["state"] == "invalid"
+
+    state_path.unlink()
+    foreign = tmp_path / "foreign.json"
+    foreign.write_text(json.dumps(_service_state(tmp_path, data_home, "web")), encoding="utf-8")
+    os.link(foreign, state_path)
+
+    service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
+    assert service["state"] == "invalid"
+    assert service["issues"] == ["web_state_invalid"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX descriptor contract")
+@pytest.mark.parametrize("race", ["open", "fstat", "after_stat"])
+def test_service_state_rejects_identity_changes_around_descriptor_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, race: str
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    _write_state(tmp_path, data_home, "web")
+    foreign = tmp_path / "foreign.json"
+    foreign.write_text(json.dumps(_service_state(tmp_path, data_home, "web")), encoding="utf-8")
+    original_open = os.open
+    original_fstat = os.fstat
+    original_stat = os.stat
+    leaf_stats = 0
+
+    def raced_open(path, flags, mode=0o777, *, dir_fd=None):
+        if race == "open" and path == "web.json" and dir_fd is not None:
+            return original_open(foreign, flags, mode)
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    def raced_fstat(fd):
+        identity = original_fstat(fd)
+        if race == "fstat" and stat.S_ISREG(identity.st_mode):
+            return SimpleNamespace(
+                st_mode=identity.st_mode,
+                st_dev=identity.st_dev,
+                st_ino=identity.st_ino + 1,
+                st_nlink=identity.st_nlink,
+                st_size=identity.st_size,
+            )
+        return identity
+
+    def raced_stat(path, *, dir_fd=None, follow_symlinks=True):
+        nonlocal leaf_stats
+        identity = original_stat(path, dir_fd=dir_fd, follow_symlinks=follow_symlinks)
+        if race == "after_stat" and path == "web.json" and dir_fd is not None:
+            leaf_stats += 1
+            if leaf_stats == 2:
+                return SimpleNamespace(
+                    st_mode=identity.st_mode,
+                    st_dev=identity.st_dev,
+                    st_ino=identity.st_ino + 1,
+                    st_nlink=identity.st_nlink,
+                    st_size=identity.st_size,
+                )
+        return identity
+
+    monkeypatch.setattr(web_bootstrap.os, "open", raced_open)
+    monkeypatch.setattr(web_bootstrap.os, "fstat", raced_fstat)
+    monkeypatch.setattr(web_bootstrap.os, "stat", raced_stat)
+    monkeypatch.setattr(web_bootstrap, "port_listening", lambda _port: False)
+
+    service = web_bootstrap.bootstrap_service_facts(tmp_path, data_home)["web"]
+
+    assert service["state"] == "invalid"
+    assert service["ownership"] == "unknown"
+    assert service["pid"] is None
+
+
+def test_windows_state_rejects_reparse_leaf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_home = tmp_path / "private" / "research-web"
+    _write_state(tmp_path, data_home, "web")
+    state_path = data_home.parent / "run" / "web.json"
+    original_lstat = Path.lstat
+
+    def reparse_lstat(path: Path):
+        identity = original_lstat(path)
+        if path == state_path:
+            return SimpleNamespace(
+                st_mode=identity.st_mode,
+                st_file_attributes=getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400),
+                st_dev=identity.st_dev,
+                st_ino=identity.st_ino,
+                st_nlink=identity.st_nlink,
+                st_size=identity.st_size,
+            )
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", reparse_lstat)
+
+    state, value = web_bootstrap._read_state(
+        state_path,
+        role="web",
+        port=8088,
+        project_root=tmp_path.resolve(),
+        data_home=data_home,
+        platform_name="nt",
+    )
+
+    assert state == "invalid"
+    assert value is None
 
 
 def test_service_facts_distinguish_dead_foreign_and_listener_only(

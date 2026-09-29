@@ -39,6 +39,12 @@ ALLOWED_COMMANDS = {
     ("web", "doctor"),
     ("web", "doctor", "--json"),
 }
+ENVIRONMENT_EXIT_CODES = {
+    None: 0,
+    "python_environment_missing": 41,
+    "python_environment_incomplete": 42,
+    "python_environment_unusable": 43,
+}
 
 log = logging.getLogger("research_workbench.web_bootstrap")
 
@@ -52,6 +58,30 @@ def _data_home(environment: Mapping[str, str]) -> Path:
     if configured:
         return _absolute(Path(configured))
     return _absolute(Path.home() / ".research-workbench" / "research-web")
+
+
+def select_candidate_environment(
+    project_root: Path,
+    *,
+    common_root: Path | None = None,
+    platform_name: str | None = None,
+) -> tuple[Path, Path]:
+    """Select the local environment, or an explicit common-checkout fallback."""
+    current_platform = platform_name or os.name
+    relative = Path("Scripts/python.exe" if current_platform == "nt" else "bin/python")
+    project = Path(project_root).resolve()
+    local = project / ".venv" / relative
+    if local.is_file() or common_root is None:
+        return local, project
+    common = Path(common_root).resolve()
+    candidate = common / ".venv" / relative
+    return (candidate, common) if candidate.is_file() else (local, project)
+
+
+def candidate_environment_exit_code(owner_root: Path, *, platform_name: str | None = None) -> int:
+    """Map the exact safe environment classification to a batch-friendly code."""
+    issue = classify_python_environment(Path(owner_root), platform_name=platform_name).issue
+    return ENVIRONMENT_EXIT_CODES.get(issue, ENVIRONMENT_EXIT_CODES["python_environment_unusable"])
 
 
 def _fingerprint(command: list[str]) -> str:
@@ -172,6 +202,113 @@ def _valid_state(
     return value if valid else None
 
 
+def _identity(identity: os.stat_result | Any) -> tuple[int, int]:
+    return int(identity.st_dev), int(identity.st_ino)
+
+
+def _unsafe_identity(identity: os.stat_result | Any, *, directory: bool) -> bool:
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    expected = stat.S_ISDIR(identity.st_mode) if directory else stat.S_ISREG(identity.st_mode)
+    return (
+        not expected
+        or stat.S_ISLNK(identity.st_mode)
+        or bool(getattr(identity, "st_file_attributes", 0) & reparse_flag)
+        or (not directory and getattr(identity, "st_nlink", 1) != 1)
+    )
+
+
+def _read_descriptor(fd: int) -> bytes:
+    chunks: list[bytes] = []
+    remaining = STATE_LIMIT_BYTES + 1
+    while remaining:
+        chunk = os.read(fd, min(8192, remaining))
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def _open_posix_directory(path: Path) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    parts = path.absolute().parts
+    current = os.open(parts[0], flags | no_follow)
+    completed = False
+    try:
+        for part in parts[1:]:
+            following = os.open(part, flags | no_follow, dir_fd=current)
+            os.close(current)
+            current = following
+        completed = True
+        return current
+    finally:
+        if not completed:
+            os.close(current)
+
+
+def _read_posix_state(path: Path) -> tuple[str, bytes | None]:
+    directory_fd: int | None = None
+    state_fd: int | None = None
+    try:
+        directory_fd = _open_posix_directory(path.parent)
+        before = os.stat(path.name, dir_fd=directory_fd, follow_symlinks=False)
+        if _unsafe_identity(before, directory=False) or before.st_size > STATE_LIMIT_BYTES:
+            return "invalid", None
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        state_fd = os.open(path.name, flags, dir_fd=directory_fd)
+        opened = os.fstat(state_fd)
+        after = os.stat(path.name, dir_fd=directory_fd, follow_symlinks=False)
+        if (
+            _unsafe_identity(opened, directory=False)
+            or _unsafe_identity(after, directory=False)
+            or opened.st_size > STATE_LIMIT_BYTES
+            or after.st_size > STATE_LIMIT_BYTES
+            or _identity(before) != _identity(opened)
+            or _identity(opened) != _identity(after)
+        ):
+            return "invalid", None
+        raw = _read_descriptor(state_fd)
+        return ("valid", raw) if len(raw) <= STATE_LIMIT_BYTES else ("invalid", None)
+    except FileNotFoundError:
+        return "missing", None
+    except (OSError, TypeError, ValueError, OverflowError):
+        return "invalid", None
+    finally:
+        if state_fd is not None:
+            os.close(state_fd)
+        if directory_fd is not None:
+            os.close(directory_fd)
+
+
+def _read_windows_state(path: Path) -> tuple[str, bytes | None]:
+    try:
+        for ancestor in (path.parent.parent, path.parent):
+            identity = ancestor.lstat()
+            if _unsafe_identity(identity, directory=True):
+                return "invalid", None
+        before = path.lstat()
+        if _unsafe_identity(before, directory=False) or before.st_size > STATE_LIMIT_BYTES:
+            return "invalid", None
+        with path.open("rb") as stream:
+            opened = os.fstat(stream.fileno())
+            raw = stream.read(STATE_LIMIT_BYTES + 1)
+        after = path.lstat()
+        if (
+            _unsafe_identity(opened, directory=False)
+            or _unsafe_identity(after, directory=False)
+            or len(raw) > STATE_LIMIT_BYTES
+            or _identity(before) != _identity(opened)
+            or _identity(opened) != _identity(after)
+        ):
+            return "invalid", None
+        return "valid", raw
+    except FileNotFoundError:
+        return "missing", None
+    except (OSError, TypeError, ValueError, OverflowError):
+        return "invalid", None
+
+
 def _read_state(
     path: Path,
     *,
@@ -179,26 +316,14 @@ def _read_state(
     port: int,
     project_root: Path,
     data_home: Path,
+    platform_name: str | None = None,
 ) -> tuple[str, dict[str, Any] | None]:
+    state_status, raw = (
+        _read_windows_state(path) if (platform_name or os.name) == "nt" else _read_posix_state(path)
+    )
+    if state_status != "valid" or raw is None:
+        return state_status, None
     try:
-        identity = path.lstat()
-    except FileNotFoundError:
-        return "missing", None
-    except OSError:
-        return "invalid", None
-    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
-    if (
-        not stat.S_ISREG(identity.st_mode)
-        or stat.S_ISLNK(identity.st_mode)
-        or bool(getattr(identity, "st_file_attributes", 0) & reparse_flag)
-        or identity.st_size > STATE_LIMIT_BYTES
-    ):
-        return "invalid", None
-    try:
-        with path.open("rb") as stream:
-            raw = stream.read(STATE_LIMIT_BYTES + 1)
-        if len(raw) > STATE_LIMIT_BYTES:
-            return "invalid", None
         value = json.loads(raw.decode("utf-8"))
         state = _valid_state(
             value,
@@ -257,8 +382,7 @@ def _service_fact(
         elif process.state == "inaccessible" or not process.command_line:
             issues.append(f"{role}_process_unavailable")
         elif all(part in process.command_line for part in state["signature"]):
-            ownership = "owned"
-            owned_pid = state["pid"]
+            issues.append(f"{role}_ownership_unverified")
         else:
             ownership = "foreign"
             issues.append(f"{role}_process_foreign")
