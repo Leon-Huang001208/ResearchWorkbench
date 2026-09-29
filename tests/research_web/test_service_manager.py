@@ -371,7 +371,12 @@ def test_lifecycle_guard_rejects_alias_hardlink_and_intermediate_ancestor_alias(
 
     with (
         pytest.raises(LifecycleLockError) as ancestor_error,
-        LifecycleLock(aliased_path, lambda _pid: False, pid=os.getpid()),
+        LifecycleLock(
+            aliased_path,
+            lambda _pid: False,
+            pid=os.getpid(),
+            trusted_root=tmp_path,
+        ),
     ):
         pytest.fail("an intermediate ancestor alias must not redirect ownership")
     assert ancestor_error.value.code == "lifecycle_busy"
@@ -397,6 +402,98 @@ def test_lifecycle_guard_requires_exact_private_posix_mode(tmp_path, guard_mode)
     assert captured.value.code == "lifecycle_busy"
     assert stat.S_IMODE(guard.stat().st_mode) == guard_mode
     assert not path.exists()
+
+
+@pytest.mark.skipif(
+    sys.platform != "darwin" or not Path("/var").is_symlink(),
+    reason="requires the real macOS /var system alias",
+)
+def test_lifecycle_lock_accepts_system_alias_above_explicit_trusted_root(tmp_path):
+    resolved = str(tmp_path)
+    assert resolved.startswith("/private/var/")
+    lexical_tmp = Path("/var") / Path(resolved).relative_to("/private/var")
+    trusted_root = lexical_tmp / "managed"
+    trusted_root.mkdir(mode=0o700)
+    path = trusted_root / "run" / "lifecycle.lock"
+
+    with LifecycleLock(
+        path,
+        _test_pid_exists,
+        trusted_root=trusted_root,
+    ):
+        assert path.exists()
+
+    assert not path.exists()
+    assert path.with_name(f"{path.name}.guard").exists()
+
+
+def test_lifecycle_lock_rejects_symlinked_trusted_root_without_outside_mutation(tmp_path):
+    actual = tmp_path / "actual"
+    actual.mkdir(mode=0o700)
+    trusted_alias = tmp_path / "trusted"
+    trusted_alias.symlink_to(actual, target_is_directory=True)
+    path = trusted_alias / "run" / "lifecycle.lock"
+
+    with (
+        pytest.raises(LifecycleLockError) as captured,
+        LifecycleLock(
+            path,
+            _test_pid_exists,
+            trusted_root=trusted_alias,
+        ),
+    ):
+        pytest.fail("the trusted root itself cannot be an alias")
+
+    assert captured.value.code == "lifecycle_busy"
+    assert list(actual.iterdir()) == []
+
+
+def test_lifecycle_lock_rejects_alias_inside_trusted_root_without_outside_mutation(tmp_path):
+    trusted_root = tmp_path / "trusted"
+    trusted_root.mkdir(mode=0o700)
+    outside = tmp_path / "outside"
+    (outside / "nested").mkdir(parents=True)
+    (trusted_root / "alias").symlink_to(outside, target_is_directory=True)
+    path = trusted_root / "alias" / "nested" / "lifecycle.lock"
+
+    with (
+        pytest.raises(LifecycleLockError) as captured,
+        LifecycleLock(
+            path,
+            _test_pid_exists,
+            trusted_root=trusted_root,
+        ),
+    ):
+        pytest.fail("an alias inside the trusted root cannot redirect lock ownership")
+
+    assert captured.value.code == "lifecycle_busy"
+    assert not (outside / "nested" / "lifecycle.lock").exists()
+    assert not (outside / "nested" / "lifecycle.lock.guard").exists()
+
+
+@pytest.mark.parametrize("outside_kind", ["sibling", "traversal"])
+def test_lifecycle_lock_rejects_paths_outside_lexical_trusted_root(tmp_path, outside_kind):
+    trusted_root = tmp_path / "trusted"
+    trusted_root.mkdir(mode=0o700)
+    outside = tmp_path / "outside"
+    path = (
+        outside / "lifecycle.lock"
+        if outside_kind == "sibling"
+        else trusted_root / ".." / "outside" / "lifecycle.lock"
+    )
+
+    with (
+        pytest.raises(LifecycleLockError) as captured,
+        LifecycleLock(
+            path,
+            _test_pid_exists,
+            trusted_root=trusted_root,
+        ),
+    ):
+        pytest.fail("the lock path must remain within the lexical trusted root")
+
+    assert captured.value.code == "lifecycle_busy"
+    assert not outside.exists()
 
 
 def test_directory_fsync_is_posix_only(tmp_path, monkeypatch):
@@ -479,6 +576,90 @@ def test_windows_ancestor_validation_rejects_modeled_reparse_component(tmp_path,
         LifecycleLock._validate_existing_ancestors(target, platform_name="nt")
 
     assert captured.value.code == "lifecycle_busy"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="uses the native POSIX advisory lock")
+def test_guard_unlock_failure_after_success_is_coded_and_path_free(tmp_path, monkeypatch):
+    path = tmp_path / "run" / "lifecycle.lock"
+    lock = LifecycleLock(path, _test_pid_exists)
+    lock.__enter__()
+    original = lifecycle_lock_module.fcntl.flock
+
+    def fail_unlock(handle, operation):
+        if operation == lifecycle_lock_module.fcntl.LOCK_UN:
+            raise OSError("private unlock detail")
+        return original(handle, operation)
+
+    monkeypatch.setattr(lifecycle_lock_module.fcntl, "flock", fail_unlock)
+
+    with pytest.raises(LifecycleLockError) as captured:
+        lock.__exit__(None, None, None)
+
+    assert captured.value.code == "lifecycle_lock_release_failed"
+    assert "private unlock detail" not in str(captured.value)
+    assert str(path) not in str(captured.value)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="uses the native POSIX advisory lock")
+def test_guard_release_error_never_replaces_service_manager_body_error(tmp_path, monkeypatch):
+    path = tmp_path / "run" / "lifecycle.lock"
+    body_error = ServiceManagerError("original lifecycle failure", code="runtime_health_timeout")
+    original = lifecycle_lock_module.fcntl.flock
+
+    with pytest.raises(ServiceManagerError) as captured, LifecycleLock(path, _test_pid_exists):
+
+        def fail_unlock(handle, operation):
+            if operation == lifecycle_lock_module.fcntl.LOCK_UN:
+                raise OSError("private unlock detail")
+            return original(handle, operation)
+
+        monkeypatch.setattr(lifecycle_lock_module.fcntl, "flock", fail_unlock)
+        raise body_error
+
+    assert captured.value is body_error
+
+
+def test_windows_guard_unlock_failure_still_attempts_close(manager, monkeypatch):
+    path = manager.run_root / "lifecycle.lock"
+    lock = LifecycleLock(path, _test_pid_exists)
+    lock._guard_handle = 91
+    closed: list[int] = []
+
+    class WindowsLocking:
+        LK_UNLCK = 3
+
+        @staticmethod
+        def locking(_handle, _mode, _size):
+            raise OSError("private Windows unlock detail")
+
+    monkeypatch.setattr(lifecycle_lock_module, "msvcrt", WindowsLocking)
+    monkeypatch.setattr(lifecycle_lock_module.os, "lseek", lambda *_args: 0)
+    monkeypatch.setattr(lifecycle_lock_module.os, "close", closed.append)
+
+    with pytest.raises(LifecycleLockError) as captured:
+        lock._release_guard(platform_name="nt")
+
+    assert captured.value.code == "lifecycle_lock_release_failed"
+    assert "private Windows unlock detail" not in str(captured.value)
+    assert closed == [91]
+
+
+def test_guard_close_failure_is_coded_without_raw_error(manager, monkeypatch):
+    path = manager.run_root / "lifecycle.lock"
+    lock = LifecycleLock(path, _test_pid_exists)
+    lock._guard_handle = 91
+    monkeypatch.setattr(lifecycle_lock_module.fcntl, "flock", lambda *_args: None)
+    monkeypatch.setattr(
+        lifecycle_lock_module.os,
+        "close",
+        lambda _handle: (_ for _ in ()).throw(OSError("private close detail")),
+    )
+
+    with pytest.raises(LifecycleLockError) as captured:
+        lock._release_guard(platform_name="posix")
+
+    assert captured.value.code == "lifecycle_lock_release_failed"
+    assert "private close detail" not in str(captured.value)
 
 
 def test_lifecycle_lock_exit_never_removes_replacement_owner(tmp_path):
@@ -596,6 +777,28 @@ def test_service_manager_error_exposes_safe_code_role_and_string():
     assert str(error) == "safe message"
     assert error.code == "runtime_process_exited"
     assert error.role == "runtime"
+
+
+def test_service_manager_passes_product_private_root_to_lifecycle_lock(manager, monkeypatch):
+    observed: dict[str, object] = {}
+
+    class Lock:
+        def __init__(self, path, pid_exists, pid=None, *, trusted_root=None):
+            observed.update(path=path, pid_exists=pid_exists, pid=pid, trusted_root=trusted_root)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(service_manager_module, "LifecycleLock", Lock)
+
+    with manager._lifecycle_lock():
+        pass
+
+    assert observed["path"] == manager.run_root / "lifecycle.lock"
+    assert observed["trusted_root"] == manager.data_root.parent
 
 
 def test_start_ready_owned_stack_is_idempotent_and_preserves_pids(manager, monkeypatch):
@@ -1527,6 +1730,7 @@ def manager(tmp_path: Path) -> WebServiceManager:
     node = tmp_path / "node"
     python.touch()
     node.touch()
+    (tmp_path / "data").mkdir(mode=0o700)
     return WebServiceManager(
         project_root=tmp_path,
         data_root=tmp_path / "data" / "research-web",
@@ -2886,6 +3090,7 @@ def test_runtime_build_lock_reader_rejects_a_linked_data_parent(manager):
         encoding="utf-8",
     )
     lock.chmod(0o600)
+    manager.data_root.parent.rmdir()
     manager.data_root.parent.symlink_to(external_parent, target_is_directory=True)
 
     assert (

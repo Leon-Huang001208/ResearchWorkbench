@@ -63,8 +63,20 @@ class LifecycleLock:
         path: Path,
         pid_exists: Callable[[int], bool],
         pid: int | None = None,
+        *,
+        trusted_root: Path | None = None,
     ) -> None:
-        self.path = Path(path)
+        self.path = Path(os.path.abspath(path))
+        self._trusted_root_explicit = trusted_root is not None
+        self.trusted_root = Path(
+            os.path.abspath(trusted_root if trusted_root is not None else self.path.parent)
+        )
+        try:
+            relative = self.path.relative_to(self.trusted_root)
+        except ValueError as exc:
+            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy") from exc
+        if not relative.parts:
+            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
         self.pid_exists = pid_exists
         self.pid = os.getpid() if pid is None else pid
         if type(self.pid) is not int or self.pid <= 1:
@@ -167,24 +179,140 @@ class LifecycleLock:
         finally:
             os.close(handle)
 
-    def _prepare_parent(self) -> None:
+    def _trusted_root_identity(self, *, platform_name: str) -> tuple[int, int]:
+        try:
+            before = self.trusted_root.lstat()
+            if (
+                self.trusted_root.is_symlink()
+                or self._is_reparse(before)
+                or not stat.S_ISDIR(before.st_mode)
+                or (platform_name != "nt" and stat.S_IMODE(before.st_mode) != 0o700)
+            ):
+                raise OSError("unsafe trusted root")
+            if platform_name == "nt":
+                after = self.trusted_root.lstat()
+                if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                    raise OSError("trusted root changed")
+                return before.st_dev, before.st_ino
+            flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            handle = os.open(self.trusted_root, flags)
+            try:
+                opened = os.fstat(handle)
+            finally:
+                os.close(handle)
+            after = self.trusted_root.lstat()
+            identities = {(item.st_dev, item.st_ino) for item in (before, opened, after)}
+            if len(identities) != 1:
+                raise OSError("trusted root changed")
+            return before.st_dev, before.st_ino
+        except OSError as exc:
+            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy") from exc
+
+    def _prepare_default_trusted_root(self, *, platform_name: str) -> None:
+        if self.trusted_root.exists():
+            return
+        if self._trusted_root_explicit:
+            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
+        try:
+            self._validate_existing_ancestors(
+                self.trusted_root.parent,
+                platform_name=platform_name,
+            )
+            self.trusted_root.mkdir(mode=0o700)
+            if platform_name != "nt":
+                os.chmod(self.trusted_root, 0o700)
+        except (OSError, LifecycleLockError) as exc:
+            if isinstance(exc, LifecycleLockError):
+                raise
+            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy") from exc
+
+    def _walk_managed_parent(
+        self,
+        *,
+        create_missing: bool,
+        platform_name: str,
+    ) -> None:
+        self._prepare_default_trusted_root(platform_name=platform_name)
+        expected_root = self._trusted_root_identity(platform_name=platform_name)
         parent = self.path.parent
         try:
-            self._validate_existing_ancestors(parent)
-            missing: list[Path] = []
-            cursor = parent
-            while not cursor.exists():
-                missing.append(cursor)
-                cursor = cursor.parent
-            for directory in reversed(missing):
-                directory.mkdir(mode=0o700)
-                if os.name != "nt":
-                    os.chmod(directory, 0o700)
-            self._safe_directory_identity(parent, require_private_mode=False)
-            if os.name != "nt":
-                os.chmod(parent, 0o700)
-            self._validate_existing_ancestors(parent)
-            self._safe_directory_identity(parent)
+            relative = parent.relative_to(self.trusted_root)
+        except ValueError as exc:
+            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy") from exc
+
+        if platform_name == "nt":
+            canonical_root = self.trusted_root.resolve(strict=True)
+            current = self.trusted_root
+            observed: list[tuple[Path, tuple[int, int]]] = []
+            for part in relative.parts:
+                current /= part
+                try:
+                    identity = current.lstat()
+                except FileNotFoundError:
+                    if not create_missing:
+                        raise LifecycleLockError(
+                            "lifecycle lock is busy", code="lifecycle_busy"
+                        ) from None
+                    current.mkdir(mode=0o700)
+                    identity = current.lstat()
+                if (
+                    current.is_symlink()
+                    or self._is_reparse(identity)
+                    or not stat.S_ISDIR(identity.st_mode)
+                ):
+                    raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
+                try:
+                    current.resolve(strict=True).relative_to(canonical_root)
+                except ValueError as exc:
+                    raise LifecycleLockError(
+                        "lifecycle lock is busy", code="lifecycle_busy"
+                    ) from exc
+                observed.append((current, (identity.st_dev, identity.st_ino)))
+            for component, expected in observed:
+                identity = component.lstat()
+                if (identity.st_dev, identity.st_ino) != expected:
+                    raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
+        else:
+            flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            handle = os.open(self.trusted_root, flags)
+            try:
+                for part in relative.parts:
+                    try:
+                        child = os.open(part, flags, dir_fd=handle)
+                    except FileNotFoundError:
+                        if not create_missing:
+                            raise LifecycleLockError(
+                                "lifecycle lock is busy", code="lifecycle_busy"
+                            ) from None
+                        os.mkdir(part, mode=0o700, dir_fd=handle)
+                        child = os.open(part, flags, dir_fd=handle)
+                        os.fchmod(child, 0o700)
+                    try:
+                        opened = os.fstat(child)
+                        named = os.stat(part, dir_fd=handle, follow_symlinks=False)
+                        if (
+                            not stat.S_ISDIR(opened.st_mode)
+                            or stat.S_ISLNK(named.st_mode)
+                            or stat.S_IMODE(opened.st_mode) != 0o700
+                            or (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino)
+                        ):
+                            raise LifecycleLockError(
+                                "lifecycle lock is busy", code="lifecycle_busy"
+                            )
+                    except Exception:
+                        os.close(child)
+                        raise
+                    os.close(handle)
+                    handle = child
+            finally:
+                os.close(handle)
+        if self._trusted_root_identity(platform_name=platform_name) != expected_root:
+            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
+
+    def _prepare_parent(self) -> None:
+        try:
+            self._walk_managed_parent(create_missing=True, platform_name=os.name)
+            self._safe_directory_identity(self.path.parent)
         except LifecycleLockError:
             raise
         except OSError as exc:
@@ -195,7 +323,7 @@ class LifecycleLock:
         handle: int | None = None
         created = False
         try:
-            self._validate_existing_ancestors(self.guard_path.parent, platform_name=platform_name)
+            self._walk_managed_parent(create_missing=False, platform_name=platform_name)
             flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
             try:
                 handle = os.open(self.guard_path, flags | os.O_CREAT | os.O_EXCL, 0o600)
@@ -245,6 +373,7 @@ class LifecycleLock:
             return
         self._guard_handle = None
         platform_name = platform_name or os.name
+        failed = False
         try:
             if platform_name == "nt":
                 if msvcrt is not None:
@@ -252,8 +381,17 @@ class LifecycleLock:
                     msvcrt.locking(handle, msvcrt.LK_UNLCK, 1)
             elif fcntl is not None:
                 fcntl.flock(handle, fcntl.LOCK_UN)
-        finally:
+        except OSError:
+            failed = True
+        try:
             os.close(handle)
+        except OSError:
+            failed = True
+        if failed:
+            raise LifecycleLockError(
+                "lifecycle_lock_release_failed",
+                code="lifecycle_lock_release_failed",
+            )
 
     @classmethod
     def _read_owner(cls, directory: Path) -> tuple[dict[str, object], tuple[int, int, int]]:
@@ -423,13 +561,22 @@ class LifecycleLock:
                 raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
             return self
         except Exception:
-            self._release_guard()
+            try:
+                self._release_guard()
+            except LifecycleLockError:
+                log.error("research_lifecycle_lock_release_failed")
             raise
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
         if not self._entered:
-            self._release_guard()
+            try:
+                self._release_guard()
+            except LifecycleLockError:
+                if exc_value is None:
+                    raise
+                log.error("research_lifecycle_lock_release_failed")
             return False
+        cleanup_error: LifecycleLockError | None = None
         try:
             if self._directory_identity != self._safe_directory_identity(self.path):
                 raise LifecycleLockError(
@@ -455,16 +602,27 @@ class LifecycleLock:
             log.info("research_lifecycle_lock_released")
         except LifecycleLockError as error:
             if error.code == "lifecycle_lock_ownership_lost":
-                raise
-            raise LifecycleLockError(
-                "lifecycle lock ownership was lost",
-                code="lifecycle_lock_ownership_lost",
-            ) from error
+                cleanup_error = error
+            else:
+                cleanup_error = LifecycleLockError(
+                    "lifecycle lock ownership was lost",
+                    code="lifecycle_lock_ownership_lost",
+                )
         except OSError as error:
-            raise LifecycleLockError(
+            cleanup_error = LifecycleLockError(
                 "lifecycle lock ownership was lost",
                 code="lifecycle_lock_ownership_lost",
-            ) from error
-        finally:
+            )
+            cleanup_error.__cause__ = error
+        release_error: LifecycleLockError | None = None
+        try:
             self._release_guard()
+        except LifecycleLockError as error:
+            release_error = error
+        if cleanup_error is not None:
+            raise cleanup_error
+        if release_error is not None:
+            if exc_value is None:
+                raise release_error
+            log.error("research_lifecycle_lock_release_failed")
         return False

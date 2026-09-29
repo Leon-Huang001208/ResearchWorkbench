@@ -182,14 +182,18 @@ class WebServiceManager:
     def _lifecycle_lock(self):
         """Map lock ownership failures to the stable lifecycle error contract."""
         try:
-            with LifecycleLock(self.run_root / "lifecycle.lock", self._pid_exists):
+            with LifecycleLock(
+                self.run_root / "lifecycle.lock",
+                self._pid_exists,
+                trusted_root=self.data_root.parent,
+            ):
                 yield
         except LifecycleLockError as exc:
-            message = (
-                "服务生命周期锁归属已丢失"
-                if exc.code == "lifecycle_lock_ownership_lost"
-                else "另一项服务生命周期操作正在进行"
-            )
+            messages = {
+                "lifecycle_lock_ownership_lost": "服务生命周期锁归属已丢失",
+                "lifecycle_lock_release_failed": "服务生命周期锁释放失败",
+            }
+            message = messages.get(exc.code, "另一项服务生命周期操作正在进行")
             raise ServiceManagerError(f"{exc.code}: {message}", code=exc.code) from exc
 
     def _processes(self) -> tuple[ManagedProcess, ManagedProcess]:
