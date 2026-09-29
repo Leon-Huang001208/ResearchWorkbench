@@ -12,8 +12,9 @@
 
 - 接入前 current-master 策略、回执与 Skill 合同：85 passed。
 - 平台 schema-v3 / receipt-v2 合同移植后：87 passed。
-- 共享 runtime 薄入口接管后，planner、receipt 与 Skill 合同：92 passed。
+- 共享 runtime 薄入口接管后，planner、receipt 与 Skill 合同：93 passed。
 - runtime `preview → install → upgrade → verify` 均在隔离 worktree 完成；最终 manifest verify 为 `valid: true`、`drift: []`。
+- 完整 24-file changed set 规划为 `full-delivery/L4`，已知规则为 verification-system、schema 与 documentation，`uncoveredRisks: []`。
 
 受管 manifest 记录 policy 3、plan 3、receipt 2，以及 11 个 runtime 文件的 SHA-256。安装和升级私有回执保存在 Git common 目录，未提交本机绝对路径。
 

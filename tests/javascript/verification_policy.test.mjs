@@ -1721,6 +1721,17 @@ test("verification policy change cannot fall below L4", () => {
   assert.doesNotMatch(full, /verification_policy|verification_receipt|incremental_validation_skill/);
 });
 
+test("managed shared verification runtime is a known L4 verification-system boundary", () => {
+  const plan = success(run(repositoryRoot, [
+    ".agents/runtime/leon-engineering/lib/verification/planner.mjs",
+  ]));
+  assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
+  assert.deepEqual(plan.changeSummary.ruleIds, ["ci"]);
+  assert.deepEqual(plan.changeSummary.impactIds, ["verification-system"]);
+  assert.deepEqual(plan.uncoveredRisks, []);
+});
+
 test("incremental validation workflow contract is a known L4 policy path", () => {
   const plan = success(run(repositoryRoot, ["tests/javascript/incremental_validation_skill.test.mjs"]));
   assert.equal(plan.requiredLevel, "L4");
