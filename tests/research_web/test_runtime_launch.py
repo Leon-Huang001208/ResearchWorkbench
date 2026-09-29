@@ -11,6 +11,16 @@ from app.research_web import launch_runtime
 from app.research_web.mcp_runtime.authorization import AuthorizationManager
 
 
+def test_runtime_constants_share_the_machine_contract():
+    from app.research_web import PINNED_DSH_COMMIT
+    from app.research_web.runtime_contract import load_runtime_contract
+
+    contract = load_runtime_contract()
+    assert PINNED_DSH_COMMIT == contract.dsh_commit
+    assert launch_runtime.PINNED_COMMIT == contract.dsh_commit
+    assert launch_runtime.RUNTIME_CONTRACT == contract
+
+
 def make_source(tmp_path: Path) -> Path:
     source = tmp_path / "source"
     (source / "packages/boot/app-boot/lib").mkdir(parents=True)

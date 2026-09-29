@@ -20,14 +20,20 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+# The public script must import checkout facts before dependencies are installed.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).absolute().parents[1]))
+
+from app.research_web import RUNTIME_CONTRACT
+
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
-CJPY_VERSION = "0.5.2"
-CJPY_WHEEL = "cjpy-0.5.2-py3-none-any.whl"
-CJPY_SHA256 = "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
-DSH_REMOTE = "https://github.com/Leon-Huang001208/deepseek-harness.git"
-DSH_COMMIT = "c919b2a460753859665db3f60143d525fb9140cf"
-DSH_PNPM = "11.7.0"
-DSH_CLOSURE_FILES = 11084
+CJPY_VERSION = RUNTIME_CONTRACT.cjpy_version
+CJPY_WHEEL = f"cjpy-{CJPY_VERSION}-py3-none-any.whl"
+CJPY_SHA256 = RUNTIME_CONTRACT.cjpy_sha256
+DSH_REMOTE = RUNTIME_CONTRACT.dsh_remote
+DSH_COMMIT = RUNTIME_CONTRACT.dsh_commit
+DSH_PNPM = RUNTIME_CONTRACT.dsh_pnpm
+DSH_CLOSURE_FILES = RUNTIME_CONTRACT.dsh_closure_files
 DSH_MARKER = ".rwb-dsh-source.json"
 COREPACK_VERSION = "0.34.0"
 PYPI_INDEX = "https://pypi.org/simple"
@@ -112,7 +118,11 @@ class SetupWebInstaller:
     @staticmethod
     def _python_supported(value: str) -> bool:
         match = re.search(r"(?<!\d)(\d+)\.(\d+)", value)
-        return bool(match and (int(match.group(1)), int(match.group(2))) == (3, 12))
+        return bool(
+            match
+            and (int(match.group(1)), int(match.group(2)))
+            == (RUNTIME_CONTRACT.python_major, RUNTIME_CONTRACT.python_minor)
+        )
 
     @staticmethod
     def _node_supported(value: str) -> bool:
@@ -120,7 +130,9 @@ class SetupWebInstaller:
         if not match:
             return False
         major, minor = int(match.group(1)), int(match.group(2))
-        return (major == 22 and minor >= 19) or major == 24
+        return (major == 22 and minor >= 19) or (
+            major == RUNTIME_CONTRACT.node_major and minor >= RUNTIME_CONTRACT.node_minimum_minor
+        )
 
     def check(self) -> dict[str, object]:
         """Inspect prerequisites and ownership without mutating the checkout."""
@@ -501,7 +513,7 @@ class SetupWebInstaller:
                 metadata = archive.read(metadata_names[0]).decode("utf-8")
             if (
                 "\nName: cjpy\n" not in f"\n{metadata}"
-                or "\nVersion: 0.5.2\n" not in f"\n{metadata}"
+                or f"\nVersion: {CJPY_VERSION}\n" not in f"\n{metadata}"
             ):
                 raise ValueError("wheel identity mismatch")
             if "\nLicense-Expression: Apache-2.0\n" not in f"\n{metadata}":
@@ -607,7 +619,7 @@ class SetupWebInstaller:
         validation = (
             "import importlib.metadata as m; "
             "import cjpy, requests, urllib3; "
-            "assert m.version('cjpy') == '0.5.2'; "
+            f"assert m.version('cjpy') == {CJPY_VERSION!r}; "
             "assert m.version('requests'); assert m.version('urllib3')"
         )
         self._run_checked(

@@ -15,6 +15,25 @@ import pytest
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
+def test_runtime_constants_share_the_machine_contract() -> None:
+    from app.research_web.runtime_contract import load_runtime_contract
+    from scripts import setup_web
+
+    contract = load_runtime_contract()
+    assert setup_web.CJPY_VERSION == contract.cjpy_version
+    assert setup_web.CJPY_WHEEL == f"cjpy-{contract.cjpy_version}-py3-none-any.whl"
+    assert setup_web.CJPY_SHA256 == contract.cjpy_sha256
+    assert setup_web.DSH_REMOTE == contract.dsh_remote
+    assert setup_web.DSH_COMMIT == contract.dsh_commit
+    assert setup_web.DSH_PNPM == contract.dsh_pnpm
+    assert setup_web.DSH_CLOSURE_FILES == contract.dsh_closure_files
+    assert setup_web.RUNTIME_CONTRACT == contract
+    assert SetupWebInstaller._node_supported("v22.19.0")
+    assert SetupWebInstaller._node_supported("v24.0.0")
+    assert not SetupWebInstaller._node_supported("v22.18.0")
+    assert not SetupWebInstaller._node_supported("v25.0.0")
+
+
 def test_installer_prefers_configured_node_over_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

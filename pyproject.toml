@@ -26,6 +26,7 @@ packages = [
   "reasoning",
   "research_workbench_mcp_server",
   "reporting",
+  "runtimes",
   "services",
   "signal_lab",
   "storage",

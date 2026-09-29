@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 from core.observability import get_logger, setup_logging
 
-from . import PINNED_DSH_COMMIT
+from . import PINNED_DSH_COMMIT, RUNTIME_CONTRACT
 from .capabilities.catalog import CapabilityCatalog
 from .datahub.contracts import BUSINESS_TOOLS
 from .datahub.security import directory, load_control, read_file
@@ -59,7 +59,8 @@ def validate_research_python(python: Path) -> None:
         if (
             completed.returncode != 0
             or not isinstance(payload, dict)
-            or payload.get("version") != [3, 12]
+            or payload.get("version")
+            != [RUNTIME_CONTRACT.python_major, RUNTIME_CONTRACT.python_minor]
             or payload.get("packages") != list(RESEARCH_PACKAGES)
         ):
             raise ValueError("unready")
@@ -401,7 +402,10 @@ def validate_tabbit_node(node: str) -> str:
     if match is None:
         raise RuntimeError("Tabbit Runtime 的 Node.js 版本格式无效")
     major, minor, _ = map(int, match.groups())
-    if not (major == 24 or (major == 22 and minor >= 19)):
+    if not (
+        (major == RUNTIME_CONTRACT.node_major and minor >= RUNTIME_CONTRACT.node_minimum_minor)
+        or (major == 22 and minor >= 19)
+    ):
         raise RuntimeError("dsh-tabbit 0.3.4 要求 Node.js 22.19.x+ 或 24.x")
     return version.removeprefix("v")
 
