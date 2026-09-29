@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "adapter": "leon-engineering-project-runtime",
   "frameworkVersion": "0.19.3",
-  "sourceCommit": "b095d2194e7f9ca095ada24764c0665b0ffb3f67",
+  "sourceCommit": "5f0ddd1a0b09ab4581d9aa2a29967cf89025804f",
   "protocols": {
     "policy": 3,
     "plan": 3,
@@ -17,8 +17,8 @@
     "lib/verification/planner.mjs": "28fce106fd75cd16bb494273f520e64bc76513eb1c3e32b49e0ae7048a6b88ac",
     "lib/verification/policy.mjs": "0dc16d1468e1c36f3d02ebf3e4eae49694a6e43ad3d641580c18a36d77478a30",
     "lib/verification/receipt.mjs": "caddd155697aeb9ce60fa0904b897f9dbb3675aa94201898d42de6ca13c33813",
-    "schemas/verification-policy-v3.schema.json": "4b6216e168a8c7662d76c4f5bf69a51973ab2c84a8d794176fb1e08f90083c18",
-    "schemas/verification-plan-v3.schema.json": "828bb9ba28b7ae9091c86f0dc8a32afd9db8629c821fc61f07e4bec71317378e",
-    "schemas/verification-receipt-v2.schema.json": "cb7e3b6fc0b7372a7b2245416405e537aa832dea6e5320d83aad92b626dd6e51"
+    "schemas/verification-policy-v3.schema.json": "59c76195c1a218f460d1d84600d86bd49546b2f55a8b8cecec5bf1e2aa54a1de",
+    "schemas/verification-plan-v3.schema.json": "d4d95e006519227e131a54189da7d8f9e1b6b6d7ca4a9a6dbb984264f8d75959",
+    "schemas/verification-receipt-v2.schema.json": "07d61910adc48428d318eddaf979b86815c5ea7511035b9e78ba4aab29c09be9"
   }
 }

@@ -22,9 +22,7 @@
     "ci",
     "local",
     "realMachine",
-    "receiptTemplate",
-    "changeSet",
-    "binding"
+    "receiptTemplate"
   ],
   "properties": {
     "schemaVersion": {"const": 3},
@@ -79,6 +77,10 @@
         "planSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }
     }
+  },
+  "dependentRequired": {
+    "binding": ["changeSet"],
+    "changeSet": ["binding"]
   },
   "$defs": {
     "validation": {

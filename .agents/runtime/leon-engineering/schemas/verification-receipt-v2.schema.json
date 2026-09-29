@@ -6,7 +6,6 @@
   "additionalProperties": false,
   "required": [
     "schemaVersion",
-    "binding",
     "changeSummary",
     "changedFiles",
     "plannedLevel",
@@ -57,7 +56,7 @@
     "executed": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "level", "status", "durationSeconds", "source", "evidence"],
+      "required": ["id", "level", "status", "durationSeconds", "evidence"],
       "properties": {
         "id": {"type": "string"},
         "level": {"$ref": "#/$defs/level"},
@@ -70,7 +69,7 @@
     "external": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "status", "source", "evidence"],
+      "required": ["id", "status", "evidence"],
       "properties": {
         "id": {"type": "string"},
         "status": {"$ref": "#/$defs/status"},

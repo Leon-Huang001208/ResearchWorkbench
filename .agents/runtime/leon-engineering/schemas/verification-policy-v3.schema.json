@@ -118,10 +118,21 @@
       ]
     },
     "fallback": {
-      "allOf": [
-        {"$ref": "#/$defs/selection"},
-        {"type": "object", "additionalProperties": false}
-      ]
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk", "minimumLevel", "reason", "impact", "coupling", "platforms", "tests", "documentation", "ci", "realMachine"],
+      "properties": {
+        "risk": {"enum": ["docs-only", "local-only", "full-delivery"]},
+        "minimumLevel": {"$ref": "#/$defs/level"},
+        "reason": {"$ref": "#/$defs/identifier"},
+        "impact": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "coupling": {"enum": ["low", "high"]},
+        "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/platform"}},
+        "tests": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "documentation": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "ci": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "realMachine": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
     }
   }
 }
