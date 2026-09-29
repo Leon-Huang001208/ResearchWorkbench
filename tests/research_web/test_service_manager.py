@@ -8,6 +8,7 @@ import pytest
 
 from app.research_web import runtime_auth as runtime_auth_module
 from app.research_web import service_manager as service_manager_module
+from app.research_web.service_diagnostics import ServiceProbe
 from app.research_web.service_manager import (
     ServiceManagerError,
     WebServiceManager,
@@ -15,6 +16,37 @@ from app.research_web.service_manager import (
     format_doctor_status,
     format_status,
 )
+from research_workbench_entrypoint.web_contract import ProcessFact
+
+
+def test_service_probe_public_is_safe_and_compatible():
+    probe = ServiceProbe(
+        role="runtime",
+        port=3081,
+        state="valid",
+        process="alive",
+        ownership="foreign",
+        port_state="listening",
+        protocol="not_run",
+        ready=False,
+        pid=4321,
+        issues=("runtime_pid_foreign",),
+    )
+
+    assert probe.public(log="/safe/runtime.log") == {
+        "state": "valid",
+        "process": "alive",
+        "ownership": "foreign",
+        "port_state": "listening",
+        "protocol": "not_run",
+        "ready": False,
+        "running": False,
+        "healthy": False,
+        "pid": None,
+        "port": 3081,
+        "issues": ["runtime_pid_foreign"],
+        "log": "/safe/runtime.log",
+    }
 
 
 @pytest.fixture
@@ -32,6 +64,285 @@ def manager(tmp_path: Path) -> WebServiceManager:
         python=str(python),
         node=str(node),
     )
+
+
+def _valid_state(manager: WebServiceManager, role: str, pid: int = 4321) -> tuple[object, Path]:
+    manager._prepare_private_directories()
+    process = next(item for item in manager._processes() if item.role == role)
+    manager._write_state(process, pid)
+    return process, manager._state_path(role)
+
+
+def test_status_exposes_full_fact_chain(manager, monkeypatch):
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: ServiceProbe(
+            role=process.role,
+            port=process.port,
+            state="valid",
+            process="alive",
+            ownership="owned",
+            port_state="listening",
+            protocol="passed" if process.role == "runtime" else "failed",
+            ready=process.role == "runtime",
+            pid=101 if process.role == "runtime" else 202,
+            issues=() if process.role == "runtime" else ("web_runtime_api_failed",),
+        ),
+    )
+
+    status = manager.status()
+
+    assert status["product_ready"] is False
+    assert status["warnings"] == []
+    assert status["services"]["runtime"]["ready"] is True
+    assert status["services"]["web"]["running"] is True
+    assert status["services"]["web"]["healthy"] is False
+    assert status["services"]["web"]["issues"] == ["web_runtime_api_failed"]
+    assert status["services"]["runtime"]["log"].endswith("runtime.log")
+
+
+def test_doctor_keeps_other_service_when_one_state_is_invalid(manager, monkeypatch):
+    probes = iter(
+        [
+            ServiceProbe(
+                "runtime",
+                3081,
+                "invalid",
+                "inaccessible",
+                "unknown",
+                "closed",
+                "not_run",
+                False,
+                None,
+                ("runtime_state_invalid",),
+            ),
+            ServiceProbe(
+                "web",
+                8088,
+                "valid",
+                "alive",
+                "owned",
+                "listening",
+                "passed",
+                True,
+                222,
+                (),
+            ),
+        ]
+    )
+    monkeypatch.setattr(manager, "_probe_service", lambda _process: next(probes))
+    monkeypatch.setattr(
+        manager,
+        "_installation_diagnosis",
+        lambda: {
+            "schema_version": 1,
+            "ok": True,
+            "issues": ["shared_issue", "runtime_state_invalid"],
+        },
+    )
+
+    report = manager.doctor()
+
+    assert report["schema_version"] == 2
+    assert report["ok"] is True
+    assert report["installation_ok"] is True
+    assert report["product_ready"] is False
+    assert report["model_ready"] is False
+    assert report["issues"] == ["shared_issue", "runtime_state_invalid"]
+    assert report["warnings"] == []
+    assert report["services"]["runtime"]["issues"] == ["runtime_state_invalid"]
+    assert report["services"]["web"]["ready"] is True
+    assert "log" not in report["services"]["web"]
+
+
+def test_probe_valid_owned_listener_passes_protocol_without_mutation(manager, monkeypatch):
+    process, state_path = _valid_state(manager, "runtime")
+    before = state_path.read_bytes()
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact("alive", " ".join(process.signature), None),
+    )
+    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: True)
+    monkeypatch.setattr(manager, "_protocol_health", lambda _process: True)
+    monkeypatch.setattr(
+        manager,
+        "_terminate_pid",
+        lambda *_args, **_kwargs: pytest.fail("read-only probe must never terminate"),
+    )
+
+    probe = manager._probe_service(process)
+
+    assert probe == ServiceProbe(
+        "runtime",
+        3081,
+        "valid",
+        "alive",
+        "owned",
+        "listening",
+        "passed",
+        True,
+        4321,
+        (),
+    )
+    assert state_path.read_bytes() == before
+
+
+def test_probe_dead_pid_is_stale_and_does_not_unlink_state(manager, monkeypatch):
+    process, state_path = _valid_state(manager, "runtime")
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact("missing", None, None),
+    )
+    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: False)
+
+    probe = manager._probe_service(process)
+
+    assert probe.state == "stale"
+    assert probe.process == "missing"
+    assert probe.ownership == "unknown"
+    assert probe.protocol == "not_run"
+    assert probe.ready is False
+    assert "runtime_state_stale" in probe.issues
+    assert state_path.exists()
+
+
+def test_status_does_not_remove_stale_state(manager, monkeypatch):
+    _process, state_path = _valid_state(manager, "runtime")
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact("missing", None, None),
+    )
+    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: False)
+
+    status = manager.status()
+
+    assert status["services"]["runtime"]["state"] == "stale"
+    assert status["services"]["web"]["state"] == "missing"
+    assert state_path.exists()
+
+
+def test_runtime_probe_never_regenerates_missing_auth(manager, monkeypatch):
+    process, _state_path = _valid_state(manager, "runtime")
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact("alive", " ".join(process.signature), None),
+    )
+    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: True)
+    monkeypatch.setattr(manager, "_read_runtime_auth", lambda: None)
+    monkeypatch.setattr(
+        manager,
+        "_write_runtime_auth",
+        lambda _cookie: pytest.fail("read-only probe must not write auth"),
+    )
+
+    probe = manager._probe_service(process)
+
+    assert probe.protocol == "failed"
+    assert probe.ready is False
+    assert probe.issues == ("runtime_health_failed",)
+
+
+@pytest.mark.parametrize(
+    ("process_fact", "expected_process", "ownership", "issue"),
+    [
+        (
+            ProcessFact("alive", "python unrelated.py", None),
+            "alive",
+            "foreign",
+            "runtime_pid_foreign",
+        ),
+        (
+            ProcessFact("alive", None, None),
+            "inaccessible",
+            "unknown",
+            "runtime_process_inaccessible",
+        ),
+        (
+            ProcessFact("inaccessible", None, "process_access_denied"),
+            "inaccessible",
+            "unknown",
+            "runtime_process_inaccessible",
+        ),
+    ],
+)
+def test_probe_distinguishes_foreign_and_unknown_processes(
+    manager, monkeypatch, process_fact, expected_process, ownership, issue
+):
+    process, _state_path = _valid_state(manager, "runtime")
+    monkeypatch.setattr(service_manager_module, "probe_process", lambda _pid: process_fact)
+    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: False)
+
+    probe = manager._probe_service(process)
+
+    assert probe.process == expected_process
+    assert probe.ownership == ownership
+    assert issue in probe.issues
+    assert probe.pid is None
+
+
+def test_probe_listener_without_owned_service_is_not_ready(manager, monkeypatch):
+    process = manager._processes()[0]
+    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: True)
+
+    probe = manager._probe_service(process)
+
+    assert probe.state == "missing"
+    assert probe.port_state == "listening"
+    assert probe.protocol == "not_run"
+    assert probe.ready is False
+    assert probe.issues == ("runtime_port_in_use_unknown",)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda state: "{",
+        lambda state: json.dumps({**state, "extra": True}),
+        lambda state: json.dumps({**state, "pid": "4321"}),
+        lambda state: json.dumps({**state, "fingerprint": "0" * 64}),
+        lambda state: json.dumps({**state, "signature": ["wrong"]}),
+        lambda state: json.dumps({**state, "project_root": "/wrong"}),
+        lambda state: json.dumps({**state, "data_root": "/wrong"}),
+        lambda state: json.dumps({**state, "role": "web"}),
+        lambda state: json.dumps({**state, "port": 9999}),
+        lambda state: json.dumps({**state, "started_at": 10**500}),
+        lambda state: "[" * 1100 + "0" + "]" * 1100,
+        lambda state: json.dumps({"huge": "x" * (65 * 1024)}),
+    ],
+    ids=[
+        "malformed-json",
+        "wrong-keys",
+        "wrong-types",
+        "fingerprint",
+        "signature",
+        "project-root",
+        "data-root",
+        "role",
+        "port",
+        "huge-started-at",
+        "deep-json",
+        "oversize",
+    ],
+)
+def test_probe_rejects_adversarial_state_without_throwing_or_mutating(manager, monkeypatch, mutate):
+    process, state_path = _valid_state(manager, "runtime")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state_path.write_text(mutate(state), encoding="utf-8")
+    before = state_path.read_bytes()
+    monkeypatch.setattr(service_manager_module, "port_listening", lambda _port: False)
+
+    probe = manager._probe_service(process)
+
+    assert probe.state == "invalid"
+    assert probe.process in {"inaccessible", "missing"}
+    assert probe.ownership == "unknown"
+    assert probe.issues == ("runtime_state_invalid",)
+    assert state_path.read_bytes() == before
 
 
 def test_import_does_not_load_runtime_feature_graph():
@@ -476,13 +787,41 @@ def test_status_formatter_is_concise():
     value = {
         "url": "http://127.0.0.1:8088/#/fingpt",
         "services": {
-            "runtime": {"running": True, "healthy": True, "pid": 10, "port": 3081},
-            "web": {"running": False, "healthy": False, "pid": None, "port": 8088},
+            "runtime": {
+                "state": "valid",
+                "process": "alive",
+                "ownership": "owned",
+                "port_state": "listening",
+                "protocol": "passed",
+                "ready": True,
+                "running": True,
+                "healthy": True,
+                "pid": 10,
+                "port": 3081,
+                "issues": [],
+            },
+            "web": {
+                "state": "missing",
+                "process": "missing",
+                "ownership": "unknown",
+                "port_state": "closed",
+                "protocol": "not_run",
+                "ready": False,
+                "running": False,
+                "healthy": False,
+                "pid": None,
+                "port": 8088,
+                "issues": ["web_state_missing"],
+            },
         },
     }
     rendered = format_status(value)
     assert "runtime: healthy" in rendered
     assert "web: stopped" in rendered
+    assert "state=valid" in rendered
+    assert "ownership=owned" in rendered
+    assert "protocol=passed" in rendered
+    assert "web_state_missing" in rendered
     assert "8088/#/fingpt" in rendered
 
 
@@ -532,14 +871,15 @@ def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, mo
     )
     monkeypatch.setattr(
         manager,
-        "status",
-        lambda: {
-            "url": manager.web_url,
-            "services": {
-                "runtime": {"running": True, "healthy": True, "pid": 111, "port": 3081},
-                "web": {"running": True, "healthy": True, "pid": 222, "port": 8088},
-            },
-        },
+        "_service_probes",
+        lambda: (
+            ServiceProbe(
+                "runtime", 3081, "valid", "alive", "owned", "listening", "passed", True, 111, ()
+            ),
+            ServiceProbe(
+                "web", 8088, "valid", "alive", "owned", "listening", "passed", True, 222, ()
+            ),
+        ),
     )
     runtime_lock = manager.data_root / "runtime" / "build-lock.json"
     runtime_lock.parent.mkdir(parents=True)
@@ -562,10 +902,20 @@ def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, mo
     assert report["ok"] is True
     assert report["python"]["lock_matches_manifest"] is True
     assert report["cjpy"]["version"] == "0.5.2"
-    assert report["services"]["web"] == {"port": 8088, "running": True, "healthy": True}
+    assert report["schema_version"] == 2
+    assert report["installation_ok"] is True
+    assert report["product_ready"] is True
+    assert report["model_ready"] is False
+    assert report["services"]["web"]["port"] == 8088
+    assert report["services"]["web"]["running"] is True
+    assert report["services"]["web"]["healthy"] is True
+    assert "log" not in report["services"]["web"]
     assert str(manager.project_root) not in serialized
     assert "must-never-escape" not in serialized
     rendered = format_doctor_status(report)
+    assert "Installation: ready" in rendered
+    assert "Product: ready" in rendered
+    assert "Model: not ready" in rendered
     assert "CJPY: 0.5.2" in rendered
     assert "DSH: ready" in rendered
 

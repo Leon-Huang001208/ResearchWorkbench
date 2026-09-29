@@ -170,7 +170,7 @@ def web_start(no_open: bool) -> None:
 
 @web.command("status")
 def web_status() -> None:
-    """查看两个项目服务的归属与健康状态。"""
+    """查看两个项目服务的独立事实链；诊断问题不改变退出码。"""
     _run_web_action("status", open_browser=False)
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import http.client
 import json
+import math
 import os
 import re
 import shutil
@@ -23,9 +24,11 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from core.observability import get_logger
+from research_workbench_entrypoint.web_contract import port_listening, probe_process
 
 from . import PINNED_DSH_COMMIT
 from .runtime_auth import read_runtime_auth_record
+from .service_diagnostics import ServiceProbe, _ProcessFact, _StateFact
 
 log = get_logger(__name__)
 PINNED_COMMIT = PINNED_DSH_COMMIT
@@ -39,6 +42,20 @@ RUNTIME_TOKEN_PATTERN = re.compile(
 CJPY_VERSION = "0.5.2"
 CJPY_SHA256 = "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
+STATE_LIMIT_BYTES = 64 * 1024
+MAX_STATE_STRING_LENGTH = 4096
+STATE_KEYS = {
+    "version",
+    "role",
+    "pid",
+    "port",
+    "started_at",
+    "project_root",
+    "data_root",
+    "command",
+    "fingerprint",
+    "signature",
+}
 
 
 def calculate_build_closure(source: Path) -> tuple[str, int]:
@@ -242,6 +259,229 @@ class WebServiceManager:
             return None
         log.warning("research_service_state_invalid", role=process.role)
         raise ServiceManagerError(f"{process.role} 服务状态无法安全确认")
+
+    def _probe_state(self, process: ManagedProcess) -> _StateFact:
+        """Read one bounded state file without repairing or otherwise mutating it."""
+        path = self._state_path(process.role)
+        try:
+            before = path.lstat()
+            if (
+                not stat.S_ISREG(before.st_mode)
+                or stat.S_ISLNK(before.st_mode)
+                or before.st_nlink != 1
+                or before.st_size > STATE_LIMIT_BYTES
+            ):
+                return _StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
+            flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+            handle = os.open(path, flags)
+            try:
+                opened = os.fstat(handle)
+                raw = os.read(handle, STATE_LIMIT_BYTES + 1)
+            finally:
+                os.close(handle)
+            after = path.lstat()
+            before_identity = (before.st_dev, before.st_ino, before.st_size)
+            opened_identity = (opened.st_dev, opened.st_ino, opened.st_size)
+            after_identity = (after.st_dev, after.st_ino, after.st_size)
+            if (
+                not stat.S_ISREG(opened.st_mode)
+                or opened.st_nlink != 1
+                or len(raw) > STATE_LIMIT_BYTES
+                or before_identity != opened_identity
+                or opened_identity != after_identity
+            ):
+                return _StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
+            value = json.loads(raw.decode("utf-8"))
+        except FileNotFoundError:
+            return _StateFact("missing", None, (), ())
+        except (
+            OSError,
+            TypeError,
+            ValueError,
+            UnicodeError,
+            OverflowError,
+            RecursionError,
+            json.JSONDecodeError,
+        ):
+            return _StateFact("invalid", None, (), (f"{process.role}_state_invalid",))
+
+        safe_pid = (
+            value.get("pid")
+            if type(value) is dict
+            and type(value.get("pid")) is int
+            and 2 <= value["pid"] <= (2**31) - 1
+            else None
+        )
+        if type(value) is not dict or set(value) != STATE_KEYS:
+            return _StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
+        command = value.get("command")
+        signature = value.get("signature")
+        strings = (
+            command,
+            signature,
+            [value.get("role"), value.get("project_root"), value.get("data_root")],
+        )
+        bounded = all(
+            type(items) is list
+            and items
+            and all(
+                type(item) is str and item and len(item) <= MAX_STATE_STRING_LENGTH
+                for item in items
+            )
+            for items in strings
+        )
+        valid = (
+            bounded
+            and type(value.get("version")) is int
+            and value["version"] == 1
+            and value["role"] == process.role
+            and safe_pid is not None
+            and type(value.get("port")) is int
+            and value["port"] == process.port
+            and (
+                (
+                    type(value.get("started_at")) is int
+                    and 0 <= value["started_at"] <= 253_402_300_799
+                )
+                or (
+                    type(value.get("started_at")) is float
+                    and math.isfinite(value["started_at"])
+                    and 0 <= value["started_at"] <= 253_402_300_799
+                )
+            )
+            and value["project_root"] == str(self.project_root)
+            and value["data_root"] == str(self.data_root)
+            and len(command) <= 64
+            and len(signature) <= 8
+            and value.get("fingerprint") == self._fingerprint(command)
+            and signature == list(process.signature)
+        )
+        if not valid:
+            return _StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
+        return _StateFact("valid", safe_pid, tuple(signature), ())
+
+    def _probe_pid_and_ownership(
+        self, process: ManagedProcess, state: _StateFact
+    ) -> tuple[_StateFact, _ProcessFact]:
+        """Classify PID presence and command ownership without lifecycle actions."""
+        role = process.role
+        if state.pid is None:
+            process_state = "missing" if state.state == "missing" else "inaccessible"
+            return state, _ProcessFact(process_state, "unknown", None, ())
+        observed = probe_process(state.pid)
+        if state.state != "valid":
+            issue = (
+                f"{role}_state_invalid_live_pid"
+                if observed.state != "missing"
+                else f"{role}_state_invalid"
+            )
+            return (
+                _StateFact("invalid", state.pid, (), (issue,)),
+                _ProcessFact(observed.state, "unknown", None, ()),
+            )
+        if observed.state == "missing":
+            return (
+                _StateFact("stale", state.pid, state.signature, (f"{role}_state_stale",)),
+                _ProcessFact("missing", "unknown", None, ()),
+            )
+        if observed.state == "inaccessible" or not observed.command_line:
+            return state, _ProcessFact(
+                "inaccessible",
+                "unknown",
+                None,
+                (f"{role}_process_inaccessible",),
+            )
+        if not all(part in observed.command_line for part in state.signature):
+            return state, _ProcessFact("alive", "foreign", None, (f"{role}_pid_foreign",))
+        return state, _ProcessFact("alive", "owned", state.pid, ())
+
+    def _runtime_protocol_healthy(self) -> bool:
+        """Run session/list only with an existing authenticated runtime record."""
+        auth = self._read_runtime_auth()
+        if auth is None:
+            return False
+        try:
+            self._runtime_sessions_authenticated(auth)
+            return True
+        except ServiceManagerError:
+            return False
+
+    def _protocol_health(self, process: ManagedProcess) -> bool:
+        return (
+            self._runtime_protocol_healthy() if process.role == "runtime" else self._web_healthy()
+        )
+
+    def _probe_service(self, process: ManagedProcess) -> ServiceProbe:
+        """Build the ordered state-to-protocol fact chain for one service."""
+        state = self._probe_state(process)
+        state, observed = self._probe_pid_and_ownership(process, state)
+        listening = port_listening(process.port)
+        issues = [*state.issues, *observed.issues]
+        protocol = "not_run"
+        ready = False
+        if observed.process == "alive" and observed.ownership == "owned" and listening:
+            ready = self._protocol_health(process)
+            protocol = "passed" if ready else "failed"
+            if not ready:
+                issues.append(
+                    "runtime_health_failed"
+                    if process.role == "runtime"
+                    else "web_runtime_api_failed"
+                )
+        elif observed.process == "alive" and observed.ownership == "owned":
+            issues.append(f"{process.role}_port_closed")
+        elif listening:
+            invalid_port_issue = f"{process.role}_state_invalid_port_listening"
+            if state.state == "invalid" and invalid_port_issue not in issues:
+                issues.append(invalid_port_issue)
+            issues.append(f"{process.role}_port_in_use_unknown")
+        return ServiceProbe(
+            role=process.role,
+            port=process.port,
+            state=state.state,
+            process=observed.process,
+            ownership=observed.ownership,
+            port_state="listening" if listening else "closed",
+            protocol=protocol,
+            ready=ready,
+            pid=observed.pid,
+            issues=tuple(dict.fromkeys(issues)),
+        )
+
+    def _service_probes(self) -> tuple[ServiceProbe, ...]:
+        probes = []
+        for process in self._processes():
+            try:
+                probes.append(self._probe_service(process))
+            except (
+                OSError,
+                TypeError,
+                ValueError,
+                OverflowError,
+                RecursionError,
+                ServiceManagerError,
+                subprocess.SubprocessError,
+            ) as exc:
+                log.warning(
+                    "research_service_probe_failed",
+                    role=process.role,
+                    error_type=type(exc).__name__,
+                )
+                probes.append(
+                    ServiceProbe(
+                        process.role,
+                        process.port,
+                        "invalid",
+                        "inaccessible",
+                        "unknown",
+                        "closed",
+                        "not_run",
+                        False,
+                        None,
+                        (f"{process.role}_probe_failed",),
+                    )
+                )
+        return tuple(probes)
 
     @staticmethod
     def _pid_exists(pid: int, *, platform_name: str | None = None) -> bool:
@@ -500,15 +740,9 @@ class WebServiceManager:
             raise ServiceManagerError("无法写入 DSH 认证控制文件") from exc
         return value
 
-    def _runtime_sessions(self) -> list[dict[str, Any]]:
+    def _runtime_sessions_authenticated(self, auth: dict[str, str]) -> list[dict[str, Any]]:
+        """Read authoritative sessions using an already validated auth record."""
         rpc_id = str(uuid4())
-        auth = self._read_runtime_auth()
-        if auth is None:
-            token = self._runtime_launch_token()
-            cookie = self._exchange_runtime_cookie(token) if token else None
-            if cookie is None:
-                raise ServiceManagerError("DSH 认证不可用")
-            auth = self._write_runtime_auth(cookie)
         value = self._json_request(
             self.runtime_port,
             "POST",
@@ -541,6 +775,16 @@ class WebServiceManager:
             ):
                 raise ServiceManagerError("DSH 会话状态响应无效")
         return items
+
+    def _runtime_sessions(self) -> list[dict[str, Any]]:
+        auth = self._read_runtime_auth()
+        if auth is None:
+            token = self._runtime_launch_token()
+            cookie = self._exchange_runtime_cookie(token) if token else None
+            if cookie is None:
+                raise ServiceManagerError("DSH 认证不可用")
+            auth = self._write_runtime_auth(cookie)
+        return self._runtime_sessions_authenticated(auth)
 
     def _runtime_healthy(self) -> bool:
         try:
@@ -746,19 +990,17 @@ class WebServiceManager:
         }
 
     def status(self) -> dict[str, Any]:
-        self._prepare_private_directories()
-        result: dict[str, Any] = {"url": self.web_url, "services": {}}
-        for process in self._processes():
-            state = self._owned_state(process)
-            healthy = self._runtime_healthy() if process.role == "runtime" else self._web_healthy()
-            result["services"][process.role] = {
-                "running": state is not None,
-                "healthy": healthy,
-                "pid": state["pid"] if state else None,
-                "port": process.port,
-                "log": str(self.log_root / f"{process.role}.log"),
-            }
-        return result
+        """Return independent, read-only facts for both product services."""
+        probes = self._service_probes()
+        return {
+            "url": self.web_url,
+            "product_ready": all(probe.ready for probe in probes),
+            "warnings": [],
+            "services": {
+                probe.role: probe.public(log=str(self.log_root / f"{probe.role}.log"))
+                for probe in probes
+            },
+        }
 
     @staticmethod
     def _executable_version(path: str) -> str | None:
@@ -1005,22 +1247,23 @@ class WebServiceManager:
     def doctor(self) -> dict[str, Any]:
         """Return a path-free, credential-free Web installation diagnosis."""
         diagnosis = self._installation_diagnosis()
-        try:
-            raw_status = self.status()
-            services = {
-                role: {
-                    "port": int(raw_status["services"][role]["port"]),
-                    "running": bool(raw_status["services"][role]["running"]),
-                    "healthy": bool(raw_status["services"][role]["healthy"]),
-                }
-                for role in ("runtime", "web")
-            }
-        except (KeyError, TypeError, ValueError, ServiceManagerError):
-            services = {
-                "runtime": {"port": self.runtime_port, "running": False, "healthy": False},
-                "web": {"port": self.web_port, "running": False, "healthy": False},
-            }
-        return {**diagnosis, "services": services}
+        probes = self._service_probes()
+        installation_issues = diagnosis.get("issues", [])
+        if not isinstance(installation_issues, list):
+            installation_issues = []
+        service_issues = [issue for probe in probes for issue in probe.issues]
+        installation_ok = bool(diagnosis.get("ok"))
+        return {
+            **diagnosis,
+            "schema_version": 2,
+            "ok": installation_ok,
+            "installation_ok": installation_ok,
+            "product_ready": all(probe.ready for probe in probes),
+            "model_ready": False,
+            "issues": list(dict.fromkeys([*installation_issues, *service_issues])),
+            "warnings": [],
+            "services": {probe.role: probe.public() for probe in probes},
+        }
 
     def tabbit_status(self) -> dict[str, Any]:
         """Return the safe, read-only Tabbit diagnostic exposed by the BFF."""
@@ -1046,8 +1289,29 @@ def format_status(status: dict[str, Any]) -> str:
     lines = []
     for role in ("runtime", "web"):
         item = status["services"][role]
-        state = "healthy" if item["healthy"] else "running" if item["running"] else "stopped"
-        lines.append(f"{role}: {state} (port {item['port']}, pid {item['pid'] or '-'})")
+        if item.get("ready") or item.get("healthy"):
+            summary = "healthy"
+        elif (
+            item.get("state", "missing") == "missing"
+            and item.get("process", "missing") == "missing"
+            and item.get("port_state", "closed") == "closed"
+        ):
+            summary = "stopped"
+        else:
+            summary = "not ready"
+        lines.append(
+            f"{role}: {summary} "
+            f"(state={item.get('state', 'unknown')}, "
+            f"process={item.get('process', 'unknown')}, "
+            f"ownership={item.get('ownership', 'unknown')}, "
+            f"port={item.get('port_state', 'unknown')}:{item.get('port', '-')}, "
+            f"protocol={item.get('protocol', 'not_run')}, "
+            f"ready={'yes' if item.get('ready', item.get('healthy')) else 'no'}, "
+            f"pid={item.get('pid') or '-'})"
+        )
+        issues = item.get("issues", [])
+        if issues:
+            lines.append(f"  issues: {', '.join(issues)}")
     lines.append(f"url: {status['url']}")
     return "\n".join(lines)
 
@@ -1071,17 +1335,33 @@ def format_tabbit_status(status: dict[str, Any]) -> str:
 
 def format_doctor_status(status: dict[str, Any]) -> str:
     """Render the safe doctor projection for a terminal."""
-    return "\n".join(
+    lines = [
+        "Installation: "
+        + ("ready" if status.get("installation_ok", status.get("ok")) else "needs attention"),
+        f"Product: {'ready' if status.get('product_ready') else 'not ready'}",
+        f"Model: {'ready' if status.get('model_ready') else 'not ready'}",
+        f"Python: {status.get('python', {}).get('version') or 'missing'}",
+        "Web lock: "
+        + ("verified" if status.get("python", {}).get("lock_matches_manifest") else "invalid"),
+        f"CJPY: {status.get('cjpy', {}).get('version') or 'missing'}",
+        f"Node: {status.get('node', {}).get('version') or 'missing'}",
+        f"DSH: {'ready' if status.get('dsh', {}).get('ready') else 'invalid'}",
+    ]
+    for role, label in (("runtime", "Runtime"), ("web", "Web")):
+        item = status.get("services", {}).get(role, {})
+        lines.append(
+            f"{label} {item.get('port', 3081 if role == 'runtime' else 8088)}: "
+            f"{'healthy' if item.get('ready', item.get('healthy')) else 'not ready'} "
+            f"(state={item.get('state', 'unknown')}, "
+            f"process={item.get('process', 'unknown')}, "
+            f"ownership={item.get('ownership', 'unknown')}, "
+            f"port={item.get('port_state', 'unknown')}, "
+            f"protocol={item.get('protocol', 'not_run')})"
+        )
+    lines.extend(
         [
-            f"overall: {'ready' if status.get('ok') else 'needs attention'}",
-            f"Python: {status.get('python', {}).get('version') or 'missing'}",
-            "Web lock: "
-            + ("verified" if status.get("python", {}).get("lock_matches_manifest") else "invalid"),
-            f"CJPY: {status.get('cjpy', {}).get('version') or 'missing'}",
-            f"Node: {status.get('node', {}).get('version') or 'missing'}",
-            f"DSH: {'ready' if status.get('dsh', {}).get('ready') else 'invalid'}",
-            f"Runtime 3081: {'healthy' if status.get('services', {}).get('runtime', {}).get('healthy') else 'stopped'}",
-            f"Web 8088: {'healthy' if status.get('services', {}).get('web', {}).get('healthy') else 'stopped'}",
             "issues: " + (", ".join(status.get("issues", [])) or "none"),
+            "warnings: " + (", ".join(status.get("warnings", [])) or "none"),
         ]
     )
+    return "\n".join(lines)
