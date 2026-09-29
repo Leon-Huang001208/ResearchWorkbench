@@ -36,7 +36,7 @@ from research_workbench_entrypoint.web_contract import (
 )
 
 from . import PINNED_DSH_COMMIT
-from .lifecycle_lock import LifecycleLock, LifecycleLockError
+from .lifecycle_lock import LifecycleLock, LifecycleLockError, _fsync_directory
 from .runtime_auth import read_runtime_auth_record
 from .service_diagnostics import ServiceProbe
 
@@ -878,6 +878,36 @@ class WebServiceManager:
             time.sleep(0.25)
         return False
 
+    @staticmethod
+    def _terminate_failed_spawn(child: Any, *, platform_name: str | None = None) -> None:
+        """Terminate and reap the exact just-created child after state write failure."""
+        platform_name = platform_name or os.name
+        try:
+            if platform_name == "nt":
+                child.terminate()
+            else:
+                os.killpg(child.pid, signal.SIGTERM)
+        except (OSError, ProcessLookupError):
+            pass
+        try:
+            child.wait(timeout=2)
+            return
+        except subprocess.TimeoutExpired:
+            pass
+        except (OSError, subprocess.SubprocessError):
+            log.warning("research_service_failed_spawn_wait_failed")
+        try:
+            if platform_name == "nt":
+                child.kill()
+            else:
+                os.killpg(child.pid, signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            pass
+        try:
+            child.wait(timeout=2)
+        except (OSError, subprocess.SubprocessError):
+            log.error("research_service_failed_spawn_reap_failed")
+
     def _spawn(self, process: ManagedProcess) -> int:
         log_path = self.log_root / f"{process.role}.log"
         environment = os.environ.copy()
@@ -917,9 +947,6 @@ class WebServiceManager:
                 )
             finally:
                 stream.close()
-            self._write_state(process, child.pid)
-            log.info("research_service_started", role=process.role, pid=child.pid)
-            return child.pid
         except OSError as exc:
             log.error("research_service_start_failed", role=process.role)
             raise ServiceManagerError(
@@ -927,6 +954,18 @@ class WebServiceManager:
                 code=f"{process.role}_process_exited",
                 role=process.role,
             ) from exc
+        try:
+            self._write_state(process, child.pid)
+        except Exception as exc:
+            self._terminate_failed_spawn(child)
+            log.error("research_service_state_write_failed", role=process.role)
+            raise ServiceManagerError(
+                f"{process.role}_state_write_failed: 无法记录 {process.role} 服务状态",
+                code=f"{process.role}_state_write_failed",
+                role=process.role,
+            ) from exc
+        log.info("research_service_started", role=process.role, pid=child.pid)
+        return child.pid
 
     def _ensure_startable(self, process: ManagedProcess) -> bool:
         state = self._owned_state(process)
@@ -1052,67 +1091,40 @@ class WebServiceManager:
                 role=process.role,
             ) from exc
 
-    def _quarantine_invalid_state(self, process: ManagedProcess) -> None:
+    def _quarantine_invalid_state(
+        self,
+        process: ManagedProcess,
+        *,
+        platform_name: str | None = None,
+    ) -> None:
         """Move one exact invalid state into one bounded private diagnostic copy."""
         source = self._state_path(process.role)
-        staging = self.run_root / f".{process.role}.state-{uuid4().hex}"
         quarantine = self.run_root / f"{process.role}.invalid.json"
-        name: str | None = None
-        published = False
-        before: tuple[int, int, int] | None = None
+        platform_name = platform_name or os.name
         try:
             before = self._state_file_identity(source)
-            os.rename(source, staging)
-            moved = self._state_file_identity(staging)
-            if moved != before:
-                if not source.exists():
-                    os.rename(staging, source)
-                raise OSError("state changed")
             flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
-            handle = os.open(staging, flags)
+            handle = os.open(source, flags)
             try:
                 opened = os.fstat(handle)
                 raw = os.read(handle, STATE_LIMIT_BYTES + 1)
             finally:
                 os.close(handle)
-            if (opened.st_dev, opened.st_ino, opened.st_size) != moved or len(
-                raw
-            ) > STATE_LIMIT_BYTES:
+            after = self._state_file_identity(source)
+            if (
+                (opened.st_dev, opened.st_ino, opened.st_size) != before
+                or after != before
+                or len(raw) > STATE_LIMIT_BYTES
+            ):
                 raise OSError("state changed")
-            fd, name = tempfile.mkstemp(prefix=f"{process.role}-invalid-", dir=self.run_root)
-            with os.fdopen(fd, "wb") as stream:
-                stream.write(raw)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.chmod(name, 0o600)
-            os.replace(name, quarantine)
-            name = None
-            published = True
-            directory = os.open(self.run_root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-            try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
-            staging.unlink()
+            if platform_name != "nt":
+                os.chmod(source, 0o600)
+            if self._state_file_identity(source) != before:
+                raise OSError("state changed")
+            os.replace(source, quarantine)
+            _fsync_directory(self.run_root, platform_name=platform_name)
             log.warning("research_service_state_quarantined", role=process.role)
         except OSError as exc:
-            if name is not None:
-                try:
-                    Path(name).unlink(missing_ok=True)
-                except OSError:
-                    log.warning("research_service_quarantine_temp_cleanup_failed")
-            try:
-                if (
-                    before is not None
-                    and staging.exists()
-                    and self._state_file_identity(staging) == before
-                ):
-                    if published:
-                        staging.unlink()
-                    elif not source.exists():
-                        os.rename(staging, source)
-            except OSError:
-                log.warning("research_service_quarantine_restore_failed", role=process.role)
             raise ServiceManagerError(
                 f"{process.role} 服务状态无法安全隔离",
                 code=f"{process.role}_ownership_unverified",
@@ -1127,9 +1139,13 @@ class WebServiceManager:
         clear_runtime_auth: bool = False,
     ) -> None:
         if probe.state == "missing":
+            if process.role == "runtime" and clear_runtime_auth:
+                self._clear_runtime_auth()
             return
         if probe.state == "invalid":
             self._quarantine_invalid_state(process)
+            if process.role == "runtime" and clear_runtime_auth:
+                self._clear_runtime_auth()
             return
         if probe.state == "stale":
             state = self._probe_state(process)
@@ -1328,18 +1344,16 @@ class WebServiceManager:
                 actions["web"] = "missing"
 
             if actions["runtime"] != "ready":
-                if actions["runtime"] != "missing":
-                    self._normalize_absent_probe(
-                        runtime,
-                        probes["runtime"],
-                        clear_runtime_auth=True,
-                    )
+                self._normalize_absent_probe(
+                    runtime,
+                    probes["runtime"],
+                    clear_runtime_auth=True,
+                )
                 runtime_pid = self._spawn_and_wait(runtime)
                 spawned.append((runtime, runtime_pid))
 
             if actions["web"] != "ready":
-                if actions["web"] != "missing":
-                    self._normalize_absent_probe(web, probes["web"])
+                self._normalize_absent_probe(web, probes["web"])
                 web_pid = self._spawn_and_wait(web)
                 spawned.append((web, web_pid))
         except Exception:

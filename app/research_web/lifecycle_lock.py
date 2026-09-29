@@ -16,12 +16,33 @@ from uuid import uuid4
 
 from core.observability import get_logger
 
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - native Windows
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - POSIX
+    msvcrt = None
+
 log = get_logger(__name__)
 
 _OWNER_NAME = "owner.json"
 _OWNER_LIMIT_BYTES = 4096
 _TOKEN_PATTERN = re.compile(r"[0-9a-f]{32}")
 _REPARSE_FLAG = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+
+
+def _fsync_directory(path: Path, *, platform_name: str | None = None) -> None:
+    """Persist a directory entry where directory fsync is supported."""
+    if (platform_name or os.name) == "nt":
+        return
+    handle = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(handle)
+    finally:
+        os.close(handle)
 
 
 class LifecycleLockError(RuntimeError):
@@ -49,6 +70,8 @@ class LifecycleLock:
         if type(self.pid) is not int or self.pid <= 1:
             raise LifecycleLockError("lifecycle lock owner is invalid", code="lifecycle_busy")
         self.token = uuid4().hex
+        self.guard_path = self.path.with_name(f"{self.path.name}.guard")
+        self._guard_handle: int | None = None
         self._directory_identity: tuple[int, int] | None = None
         self._entered = False
 
@@ -75,9 +98,79 @@ class LifecycleLock:
             raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
         return identity.st_dev, identity.st_ino
 
+    @classmethod
+    def _validate_existing_ancestors(
+        cls,
+        path: Path,
+        *,
+        platform_name: str | None = None,
+    ) -> None:
+        """Reject aliases and reparse points in every existing component."""
+        platform_name = platform_name or os.name
+        absolute = Path(os.path.abspath(path))
+        if platform_name == "nt":
+            observed: list[tuple[Path, tuple[int, int]]] = []
+            current = Path(absolute.anchor)
+            anchor = current.resolve(strict=True)
+            for part in absolute.parts[1:]:
+                current /= part
+                try:
+                    identity = current.lstat()
+                except FileNotFoundError:
+                    break
+                if (
+                    current.is_symlink()
+                    or cls._is_reparse(identity)
+                    or not stat.S_ISDIR(identity.st_mode)
+                ):
+                    raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
+                try:
+                    current.resolve(strict=True).relative_to(anchor)
+                except ValueError as exc:
+                    raise LifecycleLockError(
+                        "lifecycle lock is busy", code="lifecycle_busy"
+                    ) from exc
+                observed.append((current, (identity.st_dev, identity.st_ino)))
+            for component, expected in observed:
+                identity = component.lstat()
+                if (identity.st_dev, identity.st_ino) != expected:
+                    raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
+            return
+
+        anchor = Path(absolute.anchor or os.sep)
+        handle = os.open(anchor, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            for part in absolute.parts[1:]:
+                flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+                try:
+                    child = os.open(part, flags, dir_fd=handle)
+                except FileNotFoundError:
+                    break
+                except OSError as exc:
+                    raise LifecycleLockError(
+                        "lifecycle lock is busy", code="lifecycle_busy"
+                    ) from exc
+                try:
+                    opened = os.fstat(child)
+                    named = os.stat(part, dir_fd=handle, follow_symlinks=False)
+                    if (
+                        not stat.S_ISDIR(opened.st_mode)
+                        or stat.S_ISLNK(named.st_mode)
+                        or (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino)
+                    ):
+                        raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
+                except Exception:
+                    os.close(child)
+                    raise
+                os.close(handle)
+                handle = child
+        finally:
+            os.close(handle)
+
     def _prepare_parent(self) -> None:
         parent = self.path.parent
         try:
+            self._validate_existing_ancestors(parent)
             missing: list[Path] = []
             cursor = parent
             while not cursor.exists():
@@ -90,11 +183,77 @@ class LifecycleLock:
             self._safe_directory_identity(parent, require_private_mode=False)
             if os.name != "nt":
                 os.chmod(parent, 0o700)
+            self._validate_existing_ancestors(parent)
             self._safe_directory_identity(parent)
         except LifecycleLockError:
             raise
         except OSError as exc:
             raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy") from exc
+
+    def _acquire_guard(self, *, platform_name: str | None = None) -> None:
+        platform_name = platform_name or os.name
+        handle: int | None = None
+        created = False
+        try:
+            self._validate_existing_ancestors(self.guard_path.parent, platform_name=platform_name)
+            flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+            try:
+                handle = os.open(self.guard_path, flags | os.O_CREAT | os.O_EXCL, 0o600)
+                created = True
+            except FileExistsError:
+                handle = os.open(self.guard_path, flags)
+            if created and platform_name != "nt":
+                os.fchmod(handle, 0o600)
+            if created:
+                os.fsync(handle)
+                _fsync_directory(self.guard_path.parent, platform_name=platform_name)
+            before = self.guard_path.lstat()
+            opened = os.fstat(handle)
+            after = self.guard_path.lstat()
+            identities = {(item.st_dev, item.st_ino) for item in (before, opened, after)}
+            if (
+                len(identities) != 1
+                or self.guard_path.is_symlink()
+                or self._is_reparse(before)
+                or not stat.S_ISREG(before.st_mode)
+                or before.st_nlink != 1
+                or before.st_size > 1
+                or (platform_name != "nt" and stat.S_IMODE(before.st_mode) != 0o600)
+            ):
+                raise OSError("unsafe lifecycle guard")
+            if platform_name == "nt":
+                if msvcrt is None:
+                    raise OSError("native Windows locking unavailable")
+                if before.st_size == 0:
+                    os.write(handle, b"\0")
+                    os.fsync(handle)
+                os.lseek(handle, 0, os.SEEK_SET)
+                msvcrt.locking(handle, msvcrt.LK_NBLCK, 1)
+            else:
+                if fcntl is None:
+                    raise OSError("POSIX locking unavailable")
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._guard_handle = handle
+        except (OSError, BlockingIOError) as exc:
+            if handle is not None:
+                os.close(handle)
+            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy") from exc
+
+    def _release_guard(self, *, platform_name: str | None = None) -> None:
+        handle = self._guard_handle
+        if handle is None:
+            return
+        self._guard_handle = None
+        platform_name = platform_name or os.name
+        try:
+            if platform_name == "nt":
+                if msvcrt is not None:
+                    os.lseek(handle, 0, os.SEEK_SET)
+                    msvcrt.locking(handle, msvcrt.LK_UNLCK, 1)
+            elif fcntl is not None:
+                fcntl.flock(handle, fcntl.LOCK_UN)
+        finally:
+            os.close(handle)
 
     @classmethod
     def _read_owner(cls, directory: Path) -> tuple[dict[str, object], tuple[int, int, int]]:
@@ -160,7 +319,7 @@ class LifecycleLock:
             raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
         return value, (after.st_dev, after.st_ino, after.st_size)
 
-    def _write_owner(self) -> None:
+    def _write_owner(self, *, platform_name: str | None = None) -> None:
         payload = {
             "schema_version": 1,
             "pid": self.pid,
@@ -176,11 +335,7 @@ class LifecycleLock:
                 os.fsync(stream.fileno())
             os.chmod(name, 0o600)
             os.replace(name, self.path / _OWNER_NAME)
-            directory_handle = os.open(self.path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-            try:
-                os.fsync(directory_handle)
-            finally:
-                os.close(directory_handle)
+            _fsync_directory(self.path, platform_name=platform_name)
         except OSError as exc:
             if name is not None:
                 try:
@@ -259,15 +414,21 @@ class LifecycleLock:
 
     def __enter__(self) -> Self:
         self._prepare_parent()
-        if self._create():
+        self._acquire_guard()
+        try:
+            if self._create():
+                return self
+            self._reclaim_dead_owner()
+            if not self._create():
+                raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
             return self
-        self._reclaim_dead_owner()
-        if not self._create():
-            raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
-        return self
+        except Exception:
+            self._release_guard()
+            raise
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
         if not self._entered:
+            self._release_guard()
             return False
         try:
             if self._directory_identity != self._safe_directory_identity(self.path):
@@ -304,4 +465,6 @@ class LifecycleLock:
                 "lifecycle lock ownership was lost",
                 code="lifecycle_lock_ownership_lost",
             ) from error
+        finally:
+            self._release_guard()
         return False

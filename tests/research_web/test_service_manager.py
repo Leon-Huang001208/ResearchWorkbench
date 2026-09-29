@@ -1,5 +1,7 @@
 import json
+import multiprocessing
 import os
+import signal
 import stat
 import subprocess
 import sys
@@ -22,6 +24,48 @@ from app.research_web.service_manager import (
     format_status,
 )
 from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+
+def _test_pid_exists(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _lock_process(path: str, entered, release, results, *, crash: bool = False) -> None:
+    try:
+        with LifecycleLock(Path(path), _test_pid_exists):
+            entered.set()
+            if crash:
+                os._exit(0)
+            results.put(("entered", os.getpid()))
+            release.wait(5)
+    except LifecycleLockError as exc:
+        results.put(("error", exc.code))
+
+
+def _paused_stale_recovery_process(path: str, observed, resume, hold, results) -> None:
+    target = Path(path)
+    original = LifecycleLock._read_owner.__func__
+
+    def paused_read(cls, directory):
+        owner = original(cls, directory)
+        if directory == target:
+            observed.set()
+            resume.wait(5)
+        return owner
+
+    LifecycleLock._read_owner = classmethod(paused_read)
+    try:
+        with LifecycleLock(target, _test_pid_exists):
+            results.put(("entered", os.getpid()))
+            hold.wait(5)
+    except LifecycleLockError as exc:
+        results.put(("error", exc.code))
 
 
 def _write_lock_owner(path: Path, *, pid: int, token: str = "a" * 32) -> None:
@@ -75,7 +119,7 @@ def test_lifecycle_lock_recovers_confirmed_dead_owner_once(tmp_path):
         assert owner["pid"] == os.getpid()
         assert owner["token"] != "a" * 32
 
-    assert list(path.parent.iterdir()) == []
+    assert list(path.parent.iterdir()) == [path.with_name(f"{path.name}.guard")]
 
 
 @pytest.mark.parametrize(
@@ -220,6 +264,223 @@ def test_lifecycle_lock_rejects_non_exact_existing_owner_modes(tmp_path, owner_m
     assert path.exists()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="uses the native POSIX advisory lock")
+def test_lifecycle_guard_prevents_stale_lock_aba_between_real_contenders(tmp_path):
+    context = multiprocessing.get_context("fork")
+    path = tmp_path / "run" / "lifecycle.lock"
+    path.parent.mkdir(mode=0o700)
+    _write_lock_owner(path, pid=424242)
+    observed = context.Event()
+    resume = context.Event()
+    hold = context.Event()
+    results = context.Queue()
+    first = context.Process(
+        target=_paused_stale_recovery_process,
+        args=(str(path), observed, resume, hold, results),
+    )
+    second_entered = context.Event()
+    second_release = context.Event()
+    second = context.Process(
+        target=_lock_process,
+        args=(str(path), second_entered, second_release, results),
+    )
+    third_entered = context.Event()
+    third_release = context.Event()
+    third = context.Process(
+        target=_lock_process,
+        args=(str(path), third_entered, third_release, results),
+    )
+    try:
+        first.start()
+        assert observed.wait(5)
+        second.start()
+        second.join(5)
+        assert second.exitcode == 0
+        assert results.get(timeout=2) == ("error", "lifecycle_busy")
+        assert not second_entered.is_set()
+
+        resume.set()
+        assert results.get(timeout=5)[0] == "entered"
+        third.start()
+        third.join(5)
+        assert third.exitcode == 0
+        assert results.get(timeout=2) == ("error", "lifecycle_busy")
+        assert not third_entered.is_set()
+    finally:
+        resume.set()
+        hold.set()
+        second_release.set()
+        third_release.set()
+        for process in (first, second, third):
+            process.join(5)
+            if process.is_alive():
+                process.terminate()
+                process.join(2)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="uses the native POSIX advisory lock")
+def test_lifecycle_guard_is_released_by_process_crash_and_persists(tmp_path):
+    context = multiprocessing.get_context("fork")
+    path = tmp_path / "run" / "lifecycle.lock"
+    entered = context.Event()
+    release = context.Event()
+    results = context.Queue()
+    crashed = context.Process(
+        target=_lock_process,
+        args=(str(path), entered, release, results),
+        kwargs={"crash": True},
+    )
+
+    crashed.start()
+    assert entered.wait(5)
+    crashed.join(5)
+    assert crashed.exitcode == 0
+
+    with LifecycleLock(path, _test_pid_exists):
+        assert path.exists()
+
+    guard = path.with_name(f"{path.name}.guard")
+    assert guard.is_file()
+    assert stat.S_IMODE(guard.stat().st_mode) == 0o600
+
+
+def test_lifecycle_guard_rejects_alias_hardlink_and_intermediate_ancestor_alias(tmp_path):
+    run_root = tmp_path / "run"
+    run_root.mkdir(mode=0o700)
+    path = run_root / "lifecycle.lock"
+    guard = path.with_name(f"{path.name}.guard")
+    guard.write_text("", encoding="utf-8")
+    guard.chmod(0o600)
+    os.link(guard, tmp_path / "guard-alias")
+
+    with (
+        pytest.raises(LifecycleLockError) as hardlink_error,
+        LifecycleLock(path, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("a hardlinked guard must not establish ownership")
+    assert hardlink_error.value.code == "lifecycle_busy"
+    assert not path.exists()
+
+    (tmp_path / "guard-alias").unlink()
+    guard.unlink()
+    outside = tmp_path / "outside"
+    (outside / "nested").mkdir(parents=True, mode=0o700)
+    alias = tmp_path / "alias"
+    alias.symlink_to(outside, target_is_directory=True)
+    aliased_path = alias / "nested" / "lifecycle.lock"
+
+    with (
+        pytest.raises(LifecycleLockError) as ancestor_error,
+        LifecycleLock(aliased_path, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("an intermediate ancestor alias must not redirect ownership")
+    assert ancestor_error.value.code == "lifecycle_busy"
+    assert not (outside / "nested" / "lifecycle.lock").exists()
+    assert not (outside / "nested" / "lifecycle.lock.guard").exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX mode bits do not prove Windows ACLs")
+@pytest.mark.parametrize("guard_mode", [0o400, 0o644, 0o601])
+def test_lifecycle_guard_requires_exact_private_posix_mode(tmp_path, guard_mode):
+    path = tmp_path / "run" / "lifecycle.lock"
+    path.parent.mkdir(mode=0o700)
+    guard = path.with_name(f"{path.name}.guard")
+    guard.write_text("", encoding="utf-8")
+    guard.chmod(guard_mode)
+
+    with (
+        pytest.raises(LifecycleLockError) as captured,
+        LifecycleLock(path, lambda _pid: False, pid=os.getpid()),
+    ):
+        pytest.fail("an unsafe guard mode must not establish ownership")
+
+    assert captured.value.code == "lifecycle_busy"
+    assert stat.S_IMODE(guard.stat().st_mode) == guard_mode
+    assert not path.exists()
+
+
+def test_directory_fsync_is_posix_only(tmp_path, monkeypatch):
+    events: list[object] = []
+    monkeypatch.setattr(
+        lifecycle_lock_module.os,
+        "open",
+        lambda path, flags: events.append((Path(path), flags)) or 91,
+    )
+    monkeypatch.setattr(
+        lifecycle_lock_module.os,
+        "fsync",
+        lambda handle: events.append(("fsync", handle)),
+    )
+    monkeypatch.setattr(
+        lifecycle_lock_module.os,
+        "close",
+        lambda handle: events.append(("close", handle)),
+    )
+
+    lifecycle_lock_module._fsync_directory(tmp_path, platform_name="nt")
+    assert events == []
+
+    lifecycle_lock_module._fsync_directory(tmp_path, platform_name="posix")
+    assert events[0][0] == tmp_path
+    assert events[1:] == [("fsync", 91), ("close", 91)]
+
+
+def test_lock_owner_write_skips_directory_fsync_on_windows_model(tmp_path, monkeypatch):
+    path = tmp_path / "lifecycle.lock"
+    path.mkdir(mode=0o700)
+    lock = LifecycleLock(path, lambda _pid: False, pid=os.getpid())
+    observed: list[str] = []
+    monkeypatch.setattr(
+        lifecycle_lock_module,
+        "_fsync_directory",
+        lambda _path, *, platform_name=None: observed.append(str(platform_name)),
+    )
+
+    lock._write_owner(platform_name="nt")
+
+    assert observed == ["nt"]
+
+
+def test_lifecycle_guard_uses_nonblocking_windows_locking_model(tmp_path, monkeypatch):
+    path = tmp_path / "run" / "lifecycle.lock"
+    lock = LifecycleLock(path, lambda _pid: False, pid=os.getpid())
+    events: list[tuple[int, int, int]] = []
+
+    class WindowsLocking:
+        LK_NBLCK = 2
+        LK_UNLCK = 3
+
+        @staticmethod
+        def locking(handle, mode, size):
+            events.append((handle, mode, size))
+
+    monkeypatch.setattr(lifecycle_lock_module, "msvcrt", WindowsLocking)
+    lock._prepare_parent()
+
+    lock._acquire_guard(platform_name="nt")
+    handle = lock._guard_handle
+    lock._release_guard(platform_name="nt")
+
+    assert events == [(handle, WindowsLocking.LK_NBLCK, 1), (handle, WindowsLocking.LK_UNLCK, 1)]
+
+
+def test_windows_ancestor_validation_rejects_modeled_reparse_component(tmp_path, monkeypatch):
+    intermediate = tmp_path / "intermediate"
+    target = intermediate / "nested"
+    target.mkdir(parents=True)
+    reparse_inode = intermediate.lstat().st_ino
+    monkeypatch.setattr(
+        LifecycleLock,
+        "_is_reparse",
+        staticmethod(lambda identity: identity.st_ino == reparse_inode),
+    )
+
+    with pytest.raises(LifecycleLockError) as captured:
+        LifecycleLock._validate_existing_ancestors(target, platform_name="nt")
+
+    assert captured.value.code == "lifecycle_busy"
+
+
 def test_lifecycle_lock_exit_never_removes_replacement_owner(tmp_path):
     path = tmp_path / "run" / "lifecycle.lock"
     lock = LifecycleLock(path, lambda _pid: True, pid=os.getpid())
@@ -239,6 +500,10 @@ def test_lifecycle_lock_exit_never_removes_replacement_owner(tmp_path):
     assert captured.value.code == "lifecycle_lock_ownership_lost"
     assert path.exists()
     assert json.loads((path / "owner.json").read_text(encoding="utf-8")) == replacement
+    contender = LifecycleLock(path, lambda _pid: True, pid=os.getpid() + 2)
+    contender._prepare_parent()
+    contender._acquire_guard()
+    contender._release_guard()
 
 
 def test_lifecycle_lock_stale_recovery_does_not_delete_raced_owner(tmp_path, monkeypatch):
@@ -306,6 +571,25 @@ def _service_probe(
     )
 
 
+def _write_syntactically_valid_runtime_auth(manager: WebServiceManager) -> Path:
+    path = manager._runtime_auth_path()
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.write_text(
+        json.dumps(
+            {
+                "authority": f"127.0.0.1:{manager.runtime_port}",
+                "cookie": "dsh-auth-stale=value",
+                "cwd": str((manager.data_root / "runtime/work").resolve()),
+                "source_commit": service_manager_module.PINNED_COMMIT,
+                "version": "0.1.3-alpha.2",
+            }
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o600)
+    return path
+
+
 def test_service_manager_error_exposes_safe_code_role_and_string():
     error = ServiceManagerError("safe message", code="runtime_process_exited", role="runtime")
 
@@ -369,6 +653,71 @@ def test_start_removes_dead_stale_state_then_spawns(manager, monkeypatch):
     assert probes[web.role].pid == 202
 
 
+@pytest.mark.parametrize("state_kind", ["missing", "invalid"])
+def test_start_clears_exact_stale_runtime_auth_after_safe_normalization(
+    manager, monkeypatch, state_kind
+):
+    runtime, _web = manager._processes()
+    manager._prepare_private_directories()
+    auth = _write_syntactically_valid_runtime_auth(manager)
+    if state_kind == "invalid":
+        state_path = manager._state_path(runtime.role)
+        state_path.write_text("{invalid", encoding="utf-8")
+        state_path.chmod(0o600)
+    probes = {
+        "runtime": _service_probe(
+            "runtime",
+            state=state_kind,
+            process="missing" if state_kind == "missing" else "inaccessible",
+            ownership="unknown",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+            issues=() if state_kind == "missing" else ("runtime_state_invalid",),
+        ),
+        "web": _service_probe("web", pid=202),
+    }
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+
+    def spawn_and_wait(process):
+        assert process.role == "runtime"
+        assert not auth.exists()
+        probes[process.role] = _service_probe(process.role, pid=303)
+        return 303
+
+    monkeypatch.setattr(manager, "_spawn_and_wait", spawn_and_wait)
+
+    manager.start(open_browser=False)
+
+    assert not auth.exists()
+
+
+def test_start_unsafe_runtime_never_clears_existing_auth(manager, monkeypatch):
+    manager._prepare_private_directories()
+    auth = _write_syntactically_valid_runtime_auth(manager)
+    blocked = _service_probe(
+        "runtime",
+        ownership="foreign",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+        issues=("runtime_pid_foreign", "runtime_port_in_use_unknown"),
+    )
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: blocked if process.role == "runtime" else _service_probe("web", pid=202),
+    )
+
+    with pytest.raises(ServiceManagerError):
+        manager.start(open_browser=False)
+
+    assert auth.exists()
+
+
 def test_start_quarantines_invalid_closed_state_and_replaces_prior_copy(manager, monkeypatch):
     runtime, _web = manager._processes()
     manager._prepare_private_directories()
@@ -407,6 +756,63 @@ def test_start_quarantines_invalid_closed_state_and_replaces_prior_copy(manager,
     assert quarantine.read_text(encoding="utf-8") == "{new-invalid"
     assert quarantine.stat().st_mode & 0o777 == 0o600
     assert not list(manager.run_root.glob("runtime.invalid-*.json"))
+
+
+def test_quarantine_skips_directory_fsync_on_windows_model(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    manager._prepare_private_directories()
+    source = manager._state_path(runtime.role)
+    source.write_text("{invalid", encoding="utf-8")
+    source.chmod(0o600)
+    observed: list[str] = []
+    monkeypatch.setattr(
+        service_manager_module,
+        "_fsync_directory",
+        lambda _path, *, platform_name=None: observed.append(str(platform_name)),
+    )
+
+    manager._quarantine_invalid_state(runtime, platform_name="nt")
+
+    assert observed == ["nt"]
+
+
+def test_repeated_quarantine_retains_only_one_fixed_diagnostic(manager):
+    runtime = manager._processes()[0]
+    manager._prepare_private_directories()
+    source = manager._state_path(runtime.role)
+
+    source.write_text("first-invalid", encoding="utf-8")
+    source.chmod(0o600)
+    manager._quarantine_invalid_state(runtime)
+    source.write_text("second-invalid", encoding="utf-8")
+    source.chmod(0o600)
+    manager._quarantine_invalid_state(runtime)
+
+    entries = [path.name for path in manager.run_root.iterdir()]
+    assert entries == ["runtime.invalid.json"]
+    assert (manager.run_root / "runtime.invalid.json").read_text(encoding="utf-8") == (
+        "second-invalid"
+    )
+
+
+def test_quarantine_fsync_failure_leaves_no_uuid_staging_residue(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    manager._prepare_private_directories()
+    source = manager._state_path(runtime.role)
+    source.write_text("new-invalid", encoding="utf-8")
+    source.chmod(0o600)
+    monkeypatch.setattr(
+        service_manager_module,
+        "_fsync_directory",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("fsync failed")),
+        raising=False,
+    )
+
+    with pytest.raises(ServiceManagerError):
+        manager._quarantine_invalid_state(runtime)
+
+    entries = [path.name for path in manager.run_root.iterdir()]
+    assert entries == ["runtime.invalid.json"]
 
 
 @pytest.mark.parametrize(
@@ -1753,6 +2159,91 @@ def test_spawn_exports_the_exact_private_web_origin_for_mcp_callbacks(manager, m
     assert captured["env"]["RESEARCH_WEB_INTERNAL_URL"] == "http://127.0.0.1:8088"
     assert "ALL_PROXY" not in captured["env"]
     assert captured["env"]["HTTPS_PROXY"] == "http://127.0.0.1:18080"
+
+
+def test_spawn_state_write_failure_terminates_and_reaps_exact_posix_child(manager, monkeypatch):
+    manager._prepare_private_directories()
+    signals: list[tuple[int, signal.Signals]] = []
+
+    class Child:
+        pid = 4321
+        wait_calls = 0
+
+        def wait(self, *, timeout):
+            self.wait_calls += 1
+            assert timeout == 2
+            return 0
+
+    child = Child()
+    monkeypatch.setattr(service_manager_module.subprocess, "Popen", lambda *_a, **_kw: child)
+    monkeypatch.setattr(
+        manager,
+        "_write_state",
+        lambda *_args: (_ for _ in ()).throw(ServiceManagerError("state write failed")),
+    )
+    monkeypatch.setattr(
+        service_manager_module.os,
+        "killpg",
+        lambda pid, sent: signals.append((pid, sent)),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._spawn(manager._processes()[1])
+
+    assert captured.value.code == "web_state_write_failed"
+    assert signals == [(4321, signal.SIGTERM)]
+    assert child.wait_calls == 1
+
+
+def test_failed_spawn_cleanup_forces_posix_group_after_grace_timeout(manager, monkeypatch):
+    signals: list[tuple[int, signal.Signals]] = []
+
+    class Child:
+        pid = 4321
+        wait_calls = 0
+
+        def wait(self, *, timeout):
+            self.wait_calls += 1
+            if self.wait_calls == 1:
+                raise subprocess.TimeoutExpired("child", timeout)
+            return 0
+
+    child = Child()
+    monkeypatch.setattr(
+        service_manager_module.os,
+        "killpg",
+        lambda pid, sent: signals.append((pid, sent)),
+    )
+
+    manager._terminate_failed_spawn(child, platform_name="posix")
+
+    assert signals == [(4321, signal.SIGTERM), (4321, signal.SIGKILL)]
+    assert child.wait_calls == 2
+
+
+def test_failed_spawn_cleanup_uses_exact_windows_child_handle(manager):
+    events: list[str] = []
+
+    class Child:
+        pid = 4321
+        wait_calls = 0
+
+        def terminate(self):
+            events.append("terminate")
+
+        def kill(self):
+            events.append("kill")
+
+        def wait(self, *, timeout):
+            self.wait_calls += 1
+            events.append(f"wait:{timeout}")
+            if self.wait_calls == 1:
+                raise subprocess.TimeoutExpired("child", timeout)
+            return 0
+
+    manager._terminate_failed_spawn(Child(), platform_name="nt")
+
+    assert events == ["terminate", "wait:2", "kill", "wait:2"]
 
 
 def test_default_runtime_source_is_project_private(tmp_path, monkeypatch):
