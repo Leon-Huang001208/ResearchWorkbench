@@ -41,6 +41,25 @@ def _write_payload(home: Path, payload: object) -> Path:
     return path
 
 
+def _with_uid(identity: os.stat_result, uid: int) -> SimpleNamespace:
+    return SimpleNamespace(
+        **{
+            name: getattr(identity, name)
+            for name in (
+                "st_mode",
+                "st_nlink",
+                "st_size",
+                "st_dev",
+                "st_ino",
+                "st_mtime_ns",
+                "st_ctime_ns",
+            )
+        },
+        st_uid=uid,
+        st_file_attributes=getattr(identity, "st_file_attributes", 0),
+    )
+
+
 def test_missing_record_defaults_to_native_without_writing(tmp_path: Path) -> None:
     home = tmp_path / "home"
     home.mkdir()
@@ -222,6 +241,91 @@ def test_read_rejects_non_private_storage(tmp_path: Path, target: str, mode: int
         RuntimeModeStore(home).read()
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX ownership contract")
+@pytest.mark.parametrize("target", ["directory", "file"])
+def test_read_rejects_other_uid_path_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
+) -> None:
+    home = tmp_path / "home"
+    path = _write_payload(home, _payload())
+    selected = path.parent if target == "directory" else path
+    original = Path.lstat
+
+    def lstat(candidate: Path):
+        identity = original(candidate)
+        if candidate == selected:
+            return _with_uid(identity, os.getuid() + 1)
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", lstat)
+
+    with pytest.raises(RuntimeModeError, match="^runtime_mode_unsafe_path$"):
+        RuntimeModeStore(home).read()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX ownership contract")
+@pytest.mark.parametrize("target", ["directory", "file"])
+def test_read_rejects_other_uid_open_descriptor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
+) -> None:
+    home = tmp_path / "home"
+    path = _write_payload(home, _payload())
+    selected = path.parent if target == "directory" else path
+    selected_inode = selected.stat().st_ino
+    original = os.fstat
+
+    def fstat(descriptor: int):
+        identity = original(descriptor)
+        if identity.st_ino == selected_inode:
+            return _with_uid(identity, os.getuid() + 1)
+        return identity
+
+    monkeypatch.setattr(os, "fstat", fstat)
+
+    with pytest.raises(RuntimeModeError, match="^runtime_mode_unsafe_path$"):
+        RuntimeModeStore(home).read()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained descriptor contract")
+def test_private_directory_chmod_uses_retained_descriptor_during_swap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    install = home / "install"
+    install.mkdir()
+    install.chmod(0o755)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    outside.chmod(0o755)
+    moved = home / "moved-install"
+    install_inode = install.stat().st_ino
+    original = os.fchmod
+    attacked: list[bool] = []
+
+    def fchmod(descriptor: int, mode: int):
+        identity = os.fstat(descriptor)
+        if identity.st_ino == install_inode and not attacked:
+            attacked.append(True)
+            install.rename(moved)
+            install.symlink_to(outside, target_is_directory=True)
+            try:
+                return original(descriptor, mode)
+            finally:
+                install.unlink()
+                moved.rename(install)
+        return original(descriptor, mode)
+
+    monkeypatch.setattr(os, "fchmod", fchmod)
+
+    record = RuntimeModeStore(home).write("docker")
+
+    assert record.mode == "docker"
+    assert attacked == [True]
+    assert stat.S_IMODE(install.stat().st_mode) == 0o700
+    assert stat.S_IMODE(outside.stat().st_mode) == 0o755
+
+
 def test_rejects_windows_reparse_attribute(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     path = _write_payload(home, _payload())
@@ -312,6 +416,53 @@ def test_simulated_windows_parent_handles_reject_replacement(
 
     assert len(opened) == len(path.parents)
     assert closed == list(reversed(opened))
+
+
+def test_public_windows_read_write_does_not_treat_mode_bits_as_acl(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    path = _write_payload(home, _payload())
+    path.parent.chmod(0o755)
+    path.chmod(0o644)
+    store = RuntimeModeStore(home)
+    fresh_store = RuntimeModeStore(home)
+    opened: list[int] = []
+    closed: list[int] = []
+
+    def create_file(_path, access, sharing, security, disposition, flags, template):
+        assert (access, sharing, security, disposition, flags, template) == (
+            0x80,
+            1,
+            0,
+            3,
+            0x02200000,
+            0,
+        )
+        handle = len(opened) + 1
+        opened.append(handle)
+        return handle
+
+    def close_handle(handle):
+        closed.append(handle)
+
+    monkeypatch.setitem(
+        sys.modules,
+        "_winapi",
+        SimpleNamespace(CreateFile=create_file, CloseHandle=close_handle),
+    )
+    monkeypatch.setattr(runtime_mode.os, "name", "nt")
+    monkeypatch.setattr(runtime_mode.os, "chmod", lambda *_args, **_kwargs: None)
+
+    before = store.read()
+    after = store.write("docker")
+
+    assert before.mode == "native"
+    assert after.mode == "docker"
+    assert after.installation_id == before.installation_id
+    assert fresh_store.read() == after
+    assert opened
+    assert sorted(closed) == opened
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Exercises POSIX retained directory descriptors")

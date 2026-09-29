@@ -70,6 +70,25 @@ def _is_reparse(identity: os.stat_result) -> bool:
     return bool(getattr(identity, "st_file_attributes", 0) & _REPARSE_POINT)
 
 
+def _validate_posix_private_directory(identity: os.stat_result) -> None:
+    if (
+        not stat.S_ISDIR(identity.st_mode)
+        or identity.st_uid != os.getuid()
+        or stat.S_IMODE(identity.st_mode) != 0o700
+    ):
+        _fail("unsafe_path")
+
+
+def _validate_posix_private_file(identity: os.stat_result) -> None:
+    if (
+        not stat.S_ISREG(identity.st_mode)
+        or identity.st_nlink != 1
+        or identity.st_uid != os.getuid()
+        or stat.S_IMODE(identity.st_mode) != 0o600
+    ):
+        _fail("unsafe_path")
+
+
 def _path_identity(path: Path) -> os.stat_result:
     """Validate every component without resolving aliases and return the leaf identity."""
     leaf: os.stat_result | None = None
@@ -80,19 +99,15 @@ def _path_identity(path: Path) -> os.stat_result:
         if component == path:
             if not stat.S_ISREG(identity.st_mode) or identity.st_nlink != 1:
                 _fail("unsafe_path")
-            if os.name == "posix" and stat.S_IMODE(identity.st_mode) != 0o600:
-                _fail("unsafe_path")
+            if os.name == "posix":
+                _validate_posix_private_file(identity)
             if identity.st_size > MAX_RUNTIME_MODE_BYTES:
                 _fail("too_large")
             leaf = identity
         elif not stat.S_ISDIR(identity.st_mode):
             _fail("unsafe_path")
-        elif (
-            os.name == "posix"
-            and component == path.parent
-            and stat.S_IMODE(identity.st_mode) != 0o700
-        ):
-            _fail("unsafe_path")
+        elif os.name == "posix" and component == path.parent:
+            _validate_posix_private_directory(identity)
     if leaf is None:
         _fail("unsafe_path")
     return leaf
@@ -109,7 +124,7 @@ def _validate_directory_chain(path: Path) -> None:
             _fail("unsafe_path")
 
 
-def _validate_existing_prefix(path: Path) -> None:
+def _validate_existing_prefix(path: Path, *, allow_private_repair: bool = False) -> None:
     """Reject aliases in existing ancestors even when the leaf is absent."""
     for component in (*reversed(path.parents), path):
         try:
@@ -120,6 +135,11 @@ def _validate_existing_prefix(path: Path) -> None:
             _fail("unsafe_path")
         if component != path and not stat.S_ISDIR(identity.st_mode):
             _fail("unsafe_path")
+        if os.name == "posix" and component == path.parent:
+            if identity.st_uid != os.getuid():
+                _fail("unsafe_path")
+            if not allow_private_repair:
+                _validate_posix_private_directory(identity)
 
 
 @contextmanager
@@ -179,6 +199,65 @@ def _pin_posix_parents(path: Path, *, node_only: bool = False) -> Iterator[int]:
                 _fail("changed")
 
 
+def _open_posix_directory(parent: int, name: str) -> tuple[int, os.stat_result]:
+    before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+    if not stat.S_ISDIR(before.st_mode) or stat.S_ISLNK(before.st_mode) or _is_reparse(before):
+        _fail("unsafe_path")
+    descriptor = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+    after = os.fstat(descriptor)
+    if _node_identity(after) != _node_identity(before):
+        os.close(descriptor)
+        _fail("changed")
+    return descriptor, after
+
+
+@contextmanager
+def _private_posix_parent(path: Path) -> Iterator[int]:
+    """Create and retain the private install directory without path chmod races."""
+    home = path.parent.parent
+    with ExitStack() as stack:
+        home_parent = stack.enter_context(_pin_posix_parents(home, node_only=True))
+        try:
+            os.mkdir(home.name, mode=0o700, dir_fd=home_parent)
+        except FileExistsError:
+            pass
+        home_descriptor, home_identity = _open_posix_directory(home_parent, home.name)
+        stack.callback(os.close, home_descriptor)
+        if home_identity.st_uid != os.getuid():
+            _fail("unsafe_path")
+
+        try:
+            os.mkdir(path.parent.name, mode=0o700, dir_fd=home_descriptor)
+        except FileExistsError:
+            pass
+        install_descriptor, install_identity = _open_posix_directory(
+            home_descriptor, path.parent.name
+        )
+        stack.callback(os.close, install_descriptor)
+        if install_identity.st_uid != os.getuid():
+            _fail("unsafe_path")
+        os.fchmod(install_descriptor, 0o700)
+        install_identity = os.fstat(install_descriptor)
+        _validate_posix_private_directory(install_identity)
+        install_entry = os.stat(path.parent.name, dir_fd=home_descriptor, follow_symlinks=False)
+        if _node_identity(install_entry) != _node_identity(install_identity):
+            _fail("changed")
+
+        yield install_descriptor
+
+        current_home = os.stat(home.name, dir_fd=home_parent, follow_symlinks=False)
+        current_install = os.stat(
+            path.parent.name, dir_fd=home_descriptor, follow_symlinks=False
+        )
+        if (
+            _node_identity(current_home) != _node_identity(home_identity)
+            or current_home.st_uid != os.getuid()
+            or _node_identity(current_install) != _node_identity(install_identity)
+        ):
+            _fail("changed")
+        _validate_posix_private_directory(os.fstat(install_descriptor))
+
+
 def _read_bytes(path: Path) -> tuple[bytes, os.stat_result]:
     before = _path_identity(path)
     flags = (
@@ -193,8 +272,11 @@ def _read_bytes(path: Path) -> tuple[bytes, os.stat_result]:
             descriptor = os.open(path, flags)
         else:
             parent = stack.enter_context(_pin_posix_parents(path))
+            _validate_posix_private_directory(os.fstat(parent))
             descriptor = os.open(path.name, flags, dir_fd=parent)
         stack.callback(os.close, descriptor)
+        if os.name == "posix":
+            _validate_posix_private_file(os.fstat(descriptor))
         if _identity(os.fstat(descriptor)) != _identity(before):
             _fail("changed")
         with os.fdopen(descriptor, "rb", closefd=False) as stream:
@@ -290,6 +372,7 @@ def _leaf_identity_at(parent: int, name: str) -> os.stat_result | None:
         or identity.st_nlink != 1
     ):
         _fail("unsafe_path")
+    _validate_posix_private_file(identity)
     return identity
 
 
@@ -304,7 +387,7 @@ def _write_all(descriptor: int, raw: bytes) -> None:
 
 def _atomic_write_posix(path: Path, raw: bytes, expected: os.stat_result | None) -> None:
     temporary = f".runtime.json.{secrets.token_hex(16)}.tmp"
-    with _pin_posix_parents(path, node_only=True) as parent:
+    with _private_posix_parent(path) as parent:
         if not _same_identity(_leaf_identity_at(parent, path.name), expected):
             _fail("changed")
         descriptor: int | None = None
@@ -316,6 +399,7 @@ def _atomic_write_posix(path: Path, raw: bytes, expected: os.stat_result | None)
                 dir_fd=parent,
             )
             os.fchmod(descriptor, 0o600)
+            _validate_posix_private_file(os.fstat(descriptor))
             _write_all(descriptor, raw)
             os.fsync(descriptor)
             os.close(descriptor)
@@ -345,7 +429,6 @@ def _atomic_write_windows(path: Path, raw: bytes, expected: os.stat_result | Non
                 os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
                 0o600,
             )
-            os.chmod(temporary, 0o600)
             _write_all(descriptor, raw)
             os.fsync(descriptor)
             os.close(descriptor)
@@ -370,11 +453,15 @@ class RuntimeModeStore:
         self.path = self.home / "install" / "runtime.json"
         self._installation_id: str | None = None
 
-    def _load(self) -> tuple[RuntimeModeRecord, os.stat_result | None]:
+    def _load(
+        self, *, allow_missing_private_repair: bool = False
+    ) -> tuple[RuntimeModeRecord, os.stat_result | None]:
         try:
             self.path.lstat()
         except FileNotFoundError:
-            _validate_existing_prefix(self.path)
+            _validate_existing_prefix(
+                self.path, allow_private_repair=allow_missing_private_repair
+            )
             return RuntimeModeRecord(_SCHEMA_VERSION, "native", "", None), None
         raw, identity = _read_bytes(self.path)
         record = _decode(raw)
@@ -383,14 +470,13 @@ class RuntimeModeStore:
         self._installation_id = record.installation_id
         return record, identity
 
-    def _ensure_private_directory(self) -> None:
-        self.home.mkdir(mode=0o700, exist_ok=True)
-        _validate_directory_chain(self.home)
-        self.path.parent.mkdir(mode=0o700, exist_ok=True)
-        _validate_directory_chain(self.path.parent)
-        os.chmod(self.path.parent, 0o700)
-        if stat.S_IMODE(self.path.parent.stat().st_mode) != 0o700:
-            _fail("unsafe_path")
+    def _ensure_windows_directories(self) -> None:
+        with _pin_windows_parents(self.home, node_only=True):
+            self.home.mkdir(mode=0o700, exist_ok=True)
+            _validate_directory_chain(self.home)
+        with _pin_windows_parents(self.path.parent, node_only=True):
+            self.path.parent.mkdir(mode=0o700, exist_ok=True)
+            _validate_directory_chain(self.path.parent)
 
     @staticmethod
     def _log_failure(operation: str, error: RuntimeModeError) -> None:
@@ -413,7 +499,7 @@ class RuntimeModeStore:
         try:
             if type(mode) is not str or mode not in ("native", "docker"):
                 _fail("value")
-            current, before = self._load()
+            current, before = self._load(allow_missing_private_repair=True)
             installation_id = current.installation_id or uuid4().hex
             updated_at = datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
             expected = RuntimeModeRecord(_SCHEMA_VERSION, mode, installation_id, updated_at)
@@ -430,8 +516,8 @@ class RuntimeModeStore:
                 ).encode("utf-8")
                 + b"\n"
             )
-            self._ensure_private_directory()
             if os.name == "nt":
+                self._ensure_windows_directories()
                 _atomic_write_windows(self.path, raw, before)
             else:
                 _atomic_write_posix(self.path, raw, before)
