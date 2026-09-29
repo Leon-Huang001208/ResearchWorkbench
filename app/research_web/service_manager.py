@@ -26,6 +26,7 @@ from core.observability import get_logger
 from . import PINNED_DSH_COMMIT
 from .process_spec import ProcessSpec, build_process_specs
 from .runtime_auth import read_runtime_auth_record
+from .runtime_state import RuntimeStateError, runtime_state_directory
 
 log = get_logger(__name__)
 PINNED_COMMIT = PINNED_DSH_COMMIT
@@ -133,6 +134,13 @@ class WebServiceManager:
         return specs.runtime, specs.web
 
     def _prepare_private_directories(self) -> None:
+        try:
+            with runtime_state_directory(self.runtime_state_root):
+                pass
+        except FileNotFoundError:
+            pass  # A first launch creates private runtime state at the write boundary.
+        except RuntimeStateError as exc:
+            raise ServiceManagerError("Runtime 状态目录不安全") from exc
         for path in (self.data_root.parent, self.data_root, self.run_root, self.log_root):
             path.mkdir(parents=True, exist_ok=True, mode=0o700)
             identity = path.lstat()
@@ -365,7 +373,8 @@ class WebServiceManager:
     def _read_runtime_auth(self) -> dict[str, str] | None:
         path = self._runtime_auth_path()
         try:
-            value = read_runtime_auth_record(path)
+            with runtime_state_directory(self.runtime_state_root):
+                value = read_runtime_auth_record(path)
             expected = {
                 "authority": f"127.0.0.1:{self.runtime_port}",
                 "cwd": str((self.data_root / "runtime/work").resolve()),
@@ -430,10 +439,16 @@ class WebServiceManager:
             connection.close()
 
     def _write_runtime_auth(self, cookie: str) -> dict[str, str]:
+        try:
+            with runtime_state_directory(self.runtime_state_root, create=True):
+                return self._write_runtime_auth_record(cookie)
+        except (OSError, RuntimeStateError) as exc:
+            raise ServiceManagerError("无法写入 DSH 认证控制文件") from exc
+
+    def _write_runtime_auth_record(self, cookie: str) -> dict[str, str]:
         name: str | None = None
         try:
             runtime = self.runtime_state_root
-            runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
             package = json.loads((self.runtime_source / "package.json").read_text(encoding="utf-8"))
             value = {
                 "authority": f"127.0.0.1:{self.runtime_port}",
@@ -532,6 +547,13 @@ class WebServiceManager:
         return False
 
     def _spawn(self, process: ManagedProcess) -> int:
+        try:
+            with runtime_state_directory(self.runtime_state_root, create=True):
+                return self._spawn_owned_process(process)
+        except (OSError, RuntimeStateError) as exc:
+            raise ServiceManagerError(f"无法启动 {process.role} 服务") from exc
+
+    def _spawn_owned_process(self, process: ManagedProcess) -> int:
         log_path = self.log_root / f"{process.role}.log"
         environment = os.environ.copy()
         for key in (
@@ -651,7 +673,13 @@ class WebServiceManager:
             self._terminate_pid(pid, force=True)
         self._state_path(process.role).unlink(missing_ok=True)
         if process.role == "runtime":
-            self._runtime_auth_path().unlink(missing_ok=True)
+            try:
+                with runtime_state_directory(self.runtime_state_root):
+                    self._runtime_auth_path().unlink(missing_ok=True)
+            except FileNotFoundError:
+                pass
+            except RuntimeStateError as exc:
+                raise ServiceManagerError("Runtime 状态目录不安全") from exc
         log.info("research_service_stopped", role=process.role, pid=pid)
         return True
 
@@ -780,6 +808,13 @@ class WebServiceManager:
             return {}
 
     def _runtime_build_lock_matches(self, dsh: dict[str, Any]) -> bool:
+        try:
+            with runtime_state_directory(self.runtime_state_root):
+                return self._read_runtime_build_lock_matches(dsh)
+        except (OSError, RuntimeStateError):
+            return False
+
+    def _read_runtime_build_lock_matches(self, dsh: dict[str, Any]) -> bool:
         expected_sha256 = dsh.get("closure_sha256")
         expected_files = dsh.get("closure_files")
         if not isinstance(expected_sha256, str) or type(expected_files) is not int:

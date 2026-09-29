@@ -23,6 +23,7 @@ from .mcp_runtime.authorization import (
     AuthorizationManager,
     ExactToolAllowlist,
 )
+from .runtime_state import runtime_state_directory
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -492,6 +493,31 @@ def prepare(
     *,
     state_root: Path | None = None,
 ) -> tuple[list[str], dict, Path]:
+    state = state_root if state_root is not None else data.resolve() / "runtime"
+    with runtime_state_directory(state, create=True):
+        return _prepare_runtime(
+            source,
+            data,
+            node,
+            port,
+            source_mode,
+            research_tools,
+            datahub_url,
+            state_root=state,
+        )
+
+
+def _prepare_runtime(
+    source: Path,
+    data: Path,
+    node: str,
+    port: int,
+    source_mode=False,
+    research_tools=False,
+    datahub_url: str | None = None,
+    *,
+    state_root: Path,
+) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
     tabbit_config = load_tabbit_config(data)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
@@ -501,9 +527,9 @@ def prepare(
     if not executable.is_file():
         raise RuntimeError("DSH 构建不存在；请先授权构建依赖")
     runtime = data / "runtime"
-    state = Path(os.path.abspath(state_root)) if state_root is not None else runtime
+    state = state_root.absolute()
     home, work, temp = (runtime / name for name in ("home", "work", "tmp"))
-    for path in (state, home, work, temp):
+    for path in (home, work, temp):
         path.mkdir(parents=True, exist_ok=True, mode=0o700)
         if path.is_symlink():
             raise RuntimeError("Runtime 目录不可为符号链接")

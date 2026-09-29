@@ -172,6 +172,81 @@ def test_shared_container_specs_change_only_state_and_web_host(manager):
     assert container.web.signature == native.web.signature
 
 
+@pytest.mark.parametrize(
+    "unsafe", ["writable", "symlink", "ancestor_symlink", "ancestor_writable", "file"]
+)
+@pytest.mark.parametrize("operation", ["prepare", "read_auth", "write_auth", "spawn", "build_lock"])
+def test_manager_rejects_unsafe_state_before_file_access(manager, monkeypatch, unsafe, operation):
+    if os.name == "nt" and unsafe != "file":
+        pytest.skip("POSIX mode and symlink fixtures; Windows semantics tested separately")
+    state = manager.project_root / "private-state"
+    target = manager.project_root / "target"
+    target.mkdir(mode=0o700)
+    if unsafe == "writable":
+        state.mkdir(mode=0o777)
+        state.chmod(0o777)
+    elif unsafe == "symlink":
+        state.symlink_to(target, target_is_directory=True)
+    elif unsafe == "ancestor_symlink":
+        alias = manager.project_root / "alias"
+        alias.symlink_to(target, target_is_directory=True)
+        state = alias / "state"
+        (target / "state").mkdir(mode=0o700)
+    elif unsafe == "ancestor_writable":
+        target.chmod(0o777)
+        state = target / "state"
+        state.mkdir(mode=0o700)
+    else:
+        state.write_text("not a directory")
+    manager.runtime_state_root = state
+    (manager.runtime_source / "package.json").write_text('{"version":"test"}')
+    accesses = []
+    original_open = Path.open
+    original_unlink = Path.unlink
+    original_os_open = os.open
+
+    def checked_os_open(path, *args, **kwargs):
+        if str(path) == "build-lock.json":
+            pytest.fail("build lock accessed before rejecting unsafe directory")
+        return original_os_open(path, *args, **kwargs)
+
+    def checked_open(path, *args, **kwargs):
+        if path.parent == state:
+            accesses.append(path.name)
+            pytest.fail("state file accessed before rejecting unsafe directory")
+        return original_open(path, *args, **kwargs)
+
+    def checked_unlink(path, *args, **kwargs):
+        if path.parent == state:
+            accesses.append(path.name)
+            pytest.fail("state file deleted before rejecting unsafe directory")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", checked_open)
+    monkeypatch.setattr(Path, "unlink", checked_unlink)
+    monkeypatch.setattr(os, "open", checked_os_open)
+    monkeypatch.setattr(
+        service_manager_module,
+        "read_runtime_auth_record",
+        lambda _path: pytest.fail("auth reader reached unsafe state"),
+    )
+    if operation == "read_auth":
+        assert manager._read_runtime_auth() is None
+    elif operation == "build_lock":
+        assert not manager._runtime_build_lock_matches(
+            {"closure_sha256": "a" * 64, "closure_files": 3}
+        )
+    else:
+        with pytest.raises(ServiceManagerError):
+            if operation == "prepare":
+                manager._prepare_private_directories()
+            elif operation == "write_auth":
+                manager._write_runtime_auth("dsh-auth-test=value")
+            else:
+                manager._spawn(manager._processes()[0])
+    assert not accesses
+
+
 def test_manager_explicit_state_keeps_native_ownership_and_persistent_work(manager, monkeypatch):
     state = manager.project_root / "state"
     isolated = WebServiceManager(
@@ -662,7 +737,7 @@ def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, mo
         },
     )
     runtime_lock = manager.data_root / "runtime" / "build-lock.json"
-    runtime_lock.parent.mkdir(parents=True)
+    runtime_lock.parent.mkdir(parents=True, mode=0o700)
     runtime_lock.write_text(
         json.dumps(
             {
@@ -1162,7 +1237,7 @@ def test_runtime_auth_fails_closed_for_foreign_authority(manager):
 def test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits(manager, monkeypatch):
     manager._prepare_private_directories()
     auth_path = manager._runtime_auth_path()
-    auth_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     auth_path.write_text(
         json.dumps(
             {

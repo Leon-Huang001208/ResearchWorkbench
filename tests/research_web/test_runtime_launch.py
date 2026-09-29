@@ -137,7 +137,9 @@ def test_runtime_keeps_dsh_home_private_but_uses_host_home_for_tabbit(tmp_path, 
 
 
 @pytest.mark.parametrize("separate_state", [False, True])
-def test_prepare_separates_persistent_data_from_runtime_state(tmp_path, monkeypatch, separate_state):
+def test_prepare_separates_persistent_data_from_runtime_state(
+    tmp_path, monkeypatch, separate_state
+):
     from app.research_web.client import _default_auth_path
 
     source = make_source(tmp_path)
@@ -190,6 +192,145 @@ def test_launch_cli_accepts_state_and_preserves_historical_default(tmp_path, mon
         launch_runtime.main()
     assert failure.value.code == 1
     assert observed["state_root"] == state
+
+
+@pytest.mark.parametrize(
+    "unsafe", ["writable", "symlink", "ancestor_symlink", "ancestor_writable", "file"]
+)
+@pytest.mark.parametrize("entrypoint", ["prepare", "cli"])
+def test_launch_rejects_unsafe_state_before_file_access(tmp_path, monkeypatch, unsafe, entrypoint):
+    if launch_runtime.os.name == "nt" and unsafe != "file":
+        pytest.skip("POSIX mode and symlink fixtures; Windows semantics tested separately")
+    source = make_source(tmp_path)
+    state = tmp_path / "state"
+    target = tmp_path / "target"
+    target.mkdir(mode=0o700)
+    if unsafe == "writable":
+        state.mkdir(mode=0o777)
+        state.chmod(0o777)
+    elif unsafe == "symlink":
+        state.symlink_to(target, target_is_directory=True)
+    elif unsafe == "ancestor_symlink":
+        alias = tmp_path / "alias"
+        alias.symlink_to(target, target_is_directory=True)
+        state = alias / "state"
+        (target / "state").mkdir(mode=0o700)
+    elif unsafe == "ancestor_writable":
+        target.chmod(0o777)
+        state = target / "state"
+        state.mkdir(mode=0o700)
+    else:
+        state.write_text("not a directory")
+    original_open = Path.open
+
+    def checked_open(path, *args, **kwargs):
+        if path.parent == state:
+            pytest.fail("state file accessed before rejecting unsafe directory")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", checked_open)
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "check_output",
+        lambda *args, **kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    if entrypoint == "prepare":
+        with pytest.raises((RuntimeError, ValueError), match="runtime_state_unsafe"):
+            launch_runtime.prepare(source, tmp_path / "data", "/node", 3081, state_root=state)
+    else:
+        monkeypatch.setattr(launch_runtime, "setup_logging", lambda: None)
+        monkeypatch.setattr(launch_runtime, "validate_tabbit_node", lambda _node: "24.0.0")
+        monkeypatch.setattr(
+            launch_runtime.sys,
+            "argv",
+            [
+                "launch_runtime",
+                "--source",
+                str(source),
+                "--data",
+                str(tmp_path / "data"),
+                "--state",
+                str(state),
+            ],
+        )
+        with pytest.raises(SystemExit) as error:
+            launch_runtime.main()
+        assert error.value.code == 1
+
+
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX ownership and identity fixture")
+def test_runtime_state_boundary_checks_owner_mode_and_identity(tmp_path, monkeypatch):
+    import os
+
+    from app.research_web import runtime_state
+
+    state = tmp_path / "new" / "state"
+    with runtime_state.runtime_state_directory(state, create=True):
+        assert state.stat().st_mode & 0o777 == 0o700
+        assert state.parent.stat().st_mode & 0o777 == 0o700
+    original_lstat = Path.lstat
+
+    def wrong_owner(path):
+        identity = original_lstat(path)
+        if path == state:
+            fields = list(identity)
+            fields[4] = os.getuid() + 1
+            return os.stat_result(fields)
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", wrong_owner)
+    with pytest.raises(runtime_state.RuntimeStateError):
+        with runtime_state.runtime_state_directory(state):
+            pytest.fail("wrong owner accepted")
+    monkeypatch.setattr(Path, "lstat", original_lstat)
+    with pytest.raises(runtime_state.RuntimeStateError):
+        with runtime_state.runtime_state_directory(state):
+            state.rename(tmp_path / "old-state")
+            state.mkdir(mode=0o700)
+
+
+def test_runtime_state_windows_rejects_reparse_without_using_posix_mode_as_acl():
+    import stat
+
+    from app.research_web import runtime_state
+
+    windows_identity = SimpleNamespace(st_mode=stat.S_IFDIR | 0o777, st_file_attributes=0)
+    runtime_state._validate_directory(windows_identity, leaf=True, platform_name="nt")
+    windows_identity.st_file_attributes = 0x400
+    with pytest.raises(runtime_state.RuntimeStateError):
+        runtime_state._validate_directory(windows_identity, leaf=True, platform_name="nt")
+
+
+def test_runtime_state_disappearance_during_open_is_rejected_before_body(tmp_path, monkeypatch):
+    from app.research_web import runtime_state
+
+    state = tmp_path / "state"
+    state.mkdir(mode=0o700)
+    original_lstat = Path.lstat
+    calls = 0
+
+    def disappear(path):
+        nonlocal calls
+        if path == state:
+            calls += 1
+            if calls == 2:
+                raise FileNotFoundError("simulated concurrent replacement")
+        return original_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", disappear)
+    with pytest.raises(runtime_state.RuntimeStateError, match="runtime_state_unsafe"):
+        with runtime_state.runtime_state_directory(state):
+            pytest.fail("changed directory accepted")
+
+
+def test_runtime_state_boundary_preserves_caller_errors(tmp_path):
+    from app.research_web.runtime_state import runtime_state_directory
+
+    failure = ValueError("caller validation failed")
+    with pytest.raises(ValueError) as raised:
+        with runtime_state_directory(tmp_path / "state", create=True):
+            raise failure
+    assert raised.value is failure
 
 
 def test_runtime_projects_only_active_host_verified_mcp_bindings(tmp_path, monkeypatch):
