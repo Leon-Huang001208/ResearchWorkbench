@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://leon-engineering.local/schemas/verification-receipt-v2.schema.json",
+  "title": "leon-engineering bound verification receipt v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "binding",
+    "changeSummary",
+    "changedFiles",
+    "plannedLevel",
+    "actualLevel",
+    "components",
+    "platforms",
+    "impact",
+    "executed",
+    "external",
+    "realMachine",
+    "result",
+    "mergeReady",
+    "releaseReady",
+    "uncoveredRisks",
+    "escalation"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "binding": {"type": "object"},
+    "changeSummary": {"type": "object"},
+    "changedFiles": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "plannedLevel": {"$ref": "#/$defs/level"},
+    "actualLevel": {"$ref": "#/$defs/level"},
+    "components": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "platforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "impact": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "executed": {"type": "array", "items": {"$ref": "#/$defs/executed"}},
+    "external": {"type": "array", "items": {"$ref": "#/$defs/external"}},
+    "realMachine": {"type": "array", "items": {"$ref": "#/$defs/external"}},
+    "result": {"enum": ["PASS", "FAIL", "BLOCKED"]},
+    "mergeReady": {"type": "boolean"},
+    "releaseReady": {"type": "boolean"},
+    "uncoveredRisks": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "targetLevel", "reasons"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "targetLevel": {"oneOf": [{"$ref": "#/$defs/level"}, {"type": "null"}]},
+        "reasons": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {
+    "level": {"enum": ["L0", "L1", "L2", "L3", "L4"]},
+    "status": {"enum": ["PASS", "FAIL", "SKIPPED", "NOT_REQUIRED", "NOT_RUN", "BLOCKED", "MANUAL_REQUIRED"]},
+    "executed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "level", "status", "durationSeconds", "source", "evidence"],
+      "properties": {
+        "id": {"type": "string"},
+        "level": {"$ref": "#/$defs/level"},
+        "status": {"$ref": "#/$defs/status"},
+        "durationSeconds": {"type": "number", "minimum": 0},
+        "source": {"const": "runner"},
+        "evidence": {"type": "string", "minLength": 1}
+      }
+    },
+    "external": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "source", "evidence"],
+      "properties": {
+        "id": {"type": "string"},
+        "status": {"$ref": "#/$defs/status"},
+        "source": {"enum": ["ci", "manual"]},
+        "evidence": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -43,8 +43,9 @@
 - `docs/AGENT_WORKFLOW.md`：选择本地快环、worktree 或后台／远程执行。
 - `.agents/project-constraints.json`：架构、平台和文档治理门禁配置。
 - `.agents/verification-policy.json`：改动路径到影响、L0-L4、测试、文档和 CI 门的唯一机器真源。
-- `scripts/plan_verification.mjs`：只读合并全部改动的 Change → Impact → Validation 计划；不执行计划中的命令。
-- `scripts/validate_verification_receipt.mjs`：只读核对 plan 与真实 receipt，禁止漏项、降级、假通过和丢失外部门。
+- `.agents/runtime/leon-engineering/manifest.json`：共享验收内核的固定版本、source commit、协议和受管文件哈希；不拥有项目策略。
+- `scripts/plan_verification.mjs`：共享内核的只读薄入口，合并全部改动的 Change → Impact → Validation 计划；不执行计划中的命令。
+- `scripts/validate_verification_receipt.mjs`：共享内核的只读薄入口，核对 plan 与真实 receipt，禁止漏项、降级、假通过和丢失外部门。
 - `tests/javascript/verification_policy.test.mjs`、`verification_receipt.test.mjs`：规划、升级、安全与证据合同。
 - `.agents/skills/incremental-validation/`：Codex/Claude 共用的项目增量验收流程；只引用策略和脚本，不复制路由表。
 - `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
