@@ -3,7 +3,7 @@
 ## 范围
 
 - RWB 基线：`master` / `4d6a4eff6c64ef1580b0e86552d5c47391ff6dd7`。
-- leon-engineering：0.19.3 / `5f0ddd1a0b09ab4581d9aa2a29967cf89025804f`。
+- leon-engineering：0.19.3 / `b44e6630eef64e93f14feafdc2501b243935a8c5`（已发布 `main`，CI passed）。
 - 接入方式：`.agents/runtime/leon-engineering/` 的 manifest-owned 最小运行时。
 - 项目继续拥有 `.agents/verification-policy.json`、业务映射、平台支持和必需门。
 - 未修改 `app/`、`src-tauri/`、`desktop/`、安装器、workflow 或其他产品源码。

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "adapter": "leon-engineering-project-runtime",
   "frameworkVersion": "0.19.3",
-  "sourceCommit": "5f0ddd1a0b09ab4581d9aa2a29967cf89025804f",
+  "sourceCommit": "b44e6630eef64e93f14feafdc2501b243935a8c5",
   "protocols": {
     "policy": 3,
     "plan": 3,
