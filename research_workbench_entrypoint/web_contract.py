@@ -65,10 +65,14 @@ def _marker_valid(path: Path) -> bool:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError, UnicodeDecodeError):
         return False
-    return value == {
-        "schema_version": 1,
-        "owner": "research-workbench-web-installer",
-    }
+    return (
+        type(value) is dict
+        and set(value) == {"schema_version", "owner"}
+        and type(value.get("schema_version")) is int
+        and value["schema_version"] == 1
+        and type(value.get("owner")) is str
+        and value["owner"] == "research-workbench-web-installer"
+    )
 
 
 def classify_python_environment(
