@@ -23,15 +23,26 @@ def record(event):
         f.write(json.dumps([role, event, time.monotonic(), os.getpid()]) + "\n")
 def stop(signum, frame):
     record("term")
-    if mode != "stubborn":
+    if mode != "stubborn" and not (mode == "detached-stubborn" and role == "worker"):
         raise SystemExit(0)
 signal.signal(signal.SIGTERM, stop)
 signal.signal(signal.SIGINT, stop)
 record("start")
 print("service fixture ready", flush=True)
-print("Cookie: dsh-auth-fixture=private-cookie", flush=True)
+if mode != "no-cookie-header":
+    print("Cookie: dsh-auth-fixture=private-cookie", flush=True)
+print("cookie cache ready", flush=True)
+if mode != "no-cookie-header" or role == "web":
+    print("retry credential private-cookie", flush=True)
+print('{"credential":"structured-credential-value"}', flush=True)
+print("retry credential structured-credential-value", flush=True)
 print(os.environ["FIXTURE_SECRET"], flush=True)
 if mode == "descendant" and os.fork() == 0:
+    role = "worker"
+    record("start")
+    while True: time.sleep(.01)
+if mode.startswith("detached") and os.fork() == 0:
+    os.setsid()
     role = "worker"
     record("start")
     while True: time.sleep(.01)
@@ -61,6 +72,9 @@ server = http.server.HTTPServer(("127.0.0.1", int(port)), Handler)
 server.timeout = .03
 if role == "runtime":
     print("dsh web: http://127.0.0.1:" + port + "/?token=" + "x" * 43, flush=True)
+    print("retry credential " + "x" * 43, flush=True)
+    print("dsh web: http://127.0.0.1:" + port + "/?token=" + "y" * 43, flush=True)
+    print("old credential " + "x" * 43 + " new credential " + "y" * 43, flush=True)
 while True:
     if Path(events + ".exit-" + role).exists():
         record("exit")
@@ -167,13 +181,69 @@ def test_start_order_signal_cleanup_and_redacted_forwarding(launch, stop_signal)
     assert sequence.index(["runtime", "probe"]) < sequence.index(["web", "start"])
     assert sequence.index(["web", "term"]) < sequence.index(["runtime", "term"])
     assert "service fixture ready" in output
+    assert "cookie cache ready" in output
+    assert "retry credential [redacted]" in output
     assert "role" in output and "state" in output and "code" in output
-    assert SECRET not in output and "private-cookie" not in output and "x" * 43 not in output
+    assert all(value not in output for value in (
+        SECRET, "private-cookie", "x" * 43, "y" * 43, "structured-credential-value"
+    ))
     assert "kill" not in output
     assert not (root / "state/auth.json").exists()
     persisted = "".join(path.read_text() for path in (root / "data/logs").glob("*.log"))
     assert "service fixture ready" in persisted and "health_ready" in persisted
-    assert SECRET not in persisted and "private-cookie" not in persisted and "x" * 43 not in persisted
+    assert "cookie cache ready" in persisted
+    assert all(value not in persisted for value in (
+        SECRET, "private-cookie", "x" * 43, "y" * 43, "structured-credential-value"
+    ))
+
+
+def test_auth_record_cookie_redacted_without_prior_cookie_output(launch):
+    proc, root, _, _ = launch(runtime="no-cookie-header", web="no-cookie-header")
+    wait_for(lambda: started(root, "web") or proc.poll() is not None)
+    proc.terminate()
+    output = proc.communicate(timeout=5)[0]
+    assert proc.returncode == 0, output
+    persisted = "".join(path.read_text() for path in (root / "data/logs").glob("*.log"))
+    assert "private-cookie" not in output + persisted
+    assert "cookie cache ready" in output and "retry credential [redacted]" in output
+
+
+@pytest.mark.parametrize("unexpected", [False, True])
+@pytest.mark.parametrize("worker_mode", ["detached", "detached-stubborn"])
+def test_cleans_setsid_descendant_even_after_direct_parent_exit(launch, unexpected, worker_mode):
+    unrelated = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        proc, root, _, _ = launch(web=worker_mode)
+        wait_for(lambda: started(root, "worker") or proc.poll() is not None)
+        assert proc.poll() is None, proc.communicate()[0]
+        worker_pid = next(row[3] for row in events(root) if row[:2] == ["worker", "start"])
+        assert os.getpgid(worker_pid) == worker_pid
+        time.sleep(.2)  # Allow the non-PID-1 macOS fixture to observe ancestry before orphaning.
+        before = time.monotonic()
+        if unexpected:
+            (root / "events.exit-web").touch()
+        else:
+            proc.terminate()
+        output = proc.communicate(timeout=6)[0]
+        assert proc.returncode == (1 if unexpected else 0), output
+        assert ["worker", "term"] in [row[:2] for row in events(root)], output
+        if worker_mode == "detached-stubborn":
+            assert time.monotonic() - before >= .35
+            assert "signal_kill" in output
+        def worker_gone():
+            try:
+                os.kill(worker_pid, 0)
+                return False
+            except ProcessLookupError:
+                return True
+        wait_for(worker_gone, timeout=2)
+        assert unrelated.poll() is None
+        worker_term = next(row[2] for row in events(root) if row[:2] == ["worker", "term"])
+        runtime_term = next(row[2] for row in events(root) if row[:2] == ["runtime", "term"])
+        assert worker_term < runtime_term
+    finally:
+        unrelated.terminate()
+        unrelated.wait(timeout=3)
 
 
 @pytest.mark.parametrize("runtime,web", [("unhealthy", "normal"), ("normal", "missing"), ("normal", "unhealthy")])

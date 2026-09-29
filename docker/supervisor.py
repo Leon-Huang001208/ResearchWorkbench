@@ -18,6 +18,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.research_web.process_spec import build_process_specs
+from app.research_web.runtime_auth import read_runtime_auth_record
 from app.research_web.runtime_state import runtime_state_directory
 from app.research_web.service_manager import RUNTIME_TOKEN_PATTERN
 from core.observability import get_logger, setup_logging
@@ -73,6 +74,19 @@ class ChildOutput:
             if value and re.search(r"SECRET|PASSWORD|TOKEN|COOKIE|AUTH|API_KEY", key, re.I)
         ]
 
+    def remember_secret(self, value):
+        if isinstance(value, str) and value and value not in self.secrets:
+            if len(self.secrets) >= 1024:
+                raise RuntimeError("redaction_capacity_exceeded")
+            self.secrets.append(value)
+
+    def remember_auth(self, state_root):
+        with runtime_state_directory(state_root):
+            cookie = read_runtime_auth_record(state_root / "auth.json").get("cookie")
+            self.remember_secret(cookie)
+            if isinstance(cookie, str) and "=" in cookie:
+                self.remember_secret(cookie.split("=", 1)[1])
+
     def register(self, child, role):
         os.set_blocking(child.stdout.fileno(), False)
         self.selector.register(child.stdout, selectors.EVENT_READ, role)
@@ -83,9 +97,22 @@ class ChildOutput:
         match = RUNTIME_TOKEN_PATTERN.search(line)
         if match and role == "runtime" and int(match[1]) == self.runtime_port:
             self.token = match[2]
-        if re.search(r"token=|cookie|dsh-auth-", line, re.I):
+            self.remember_secret(self.token)
             return
-        for secret in self.secrets:
+        # Learn explicit credential fields, then redact values wherever repeated.
+        # Plain messages such as "cookie cache ready" do not contain a field.
+        for field in re.finditer(
+            r"(?:dsh-auth-[\w-]+|token|credential|password|api[_-]?key|cookie)[\"']?\s*[=:]\s*"
+            r"[\"']?([^\s;\"',}]+)", line, re.I,
+        ):
+            self.remember_secret(field[1])
+        cookie_header = re.search(r"(?:set-cookie|cookie)[\"']?\s*:\s*(.+)", line, re.I)
+        if cookie_header:
+            self.remember_secret(cookie_header[1].strip().strip("\"'"))
+            for item in cookie_header[1].split(";"):
+                if "=" in item:
+                    self.remember_secret(item.split("=", 1)[1].strip())
+        for secret in sorted(self.secrets, key=len, reverse=True):
             line = line.replace(secret, "[redacted]")
         if line:
             log.info(json.dumps({
@@ -121,6 +148,7 @@ class ChildOutput:
             key.fileobj.close()
         self.selector.close()
         self.token = None
+        self.secrets.clear()
 
 
 def _event(role, state, code):
@@ -131,13 +159,141 @@ class _ExternalShutdown(Exception):
     """Transfer control to cleanup without freezing the return status first."""
 
 
-def _group_exists(child):
-    child.poll()
-    try:
-        os.killpg(child.pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
+@dataclass(frozen=True, slots=True)
+class _ProcessIdentity:
+    parent: int
+    group: int
+    birth: str
+    zombie: bool
+
+
+def _process_snapshot():
+    """Read ancestry and birth identity only; never inspect commands or env."""
+    result = {}
+    if sys.platform == "linux":
+        for path in Path("/proc").iterdir():
+            if not path.name.isdecimal():
+                continue
+            try:
+                raw = (path / "stat").read_text()
+            except (FileNotFoundError, ProcessLookupError):
+                continue
+            fields = raw.rsplit(")", 1)[1].split()
+            result[int(path.name)] = _ProcessIdentity(
+                int(fields[1]), int(fields[2]), fields[19], fields[0] == "Z"
+            )
+    elif sys.platform == "darwin":
+        # This is a test/development fallback; the image uses Linux /proc.
+        process = subprocess.run(
+            ["/bin/ps", "-axo", "pid=,ppid=,pgid=,lstart=,stat="],
+            capture_output=True, text=True, timeout=.5, check=True,
+        )
+        for line in process.stdout.splitlines():
+            fields = line.split()
+            if len(fields) != 9:
+                raise RuntimeError("process_snapshot_invalid")
+            result[int(fields[0])] = _ProcessIdentity(
+                int(fields[1]), int(fields[2]), " ".join(fields[3:8]), "Z" in fields[8]
+            )
+    else:
+        raise RuntimeError("supervisor_platform_unsupported")
+    return result
+
+
+class _OwnedProcesses:
+    """Retain descendant ownership across setsid, reparenting and parent exit.
+
+    Linux PID 1 receives orphans natively. Non-PID-1 Linux fixture runs use a
+    process-local subreaper, restored on close. pidfds pin Linux signal targets;
+    the macOS fallback rechecks birth identity before each per-PID signal.
+    """
+
+    def __init__(self):
+        self.owned = {}  # pid -> (role, birth, optional pidfd)
+        self.libc = None
+        self.was_subreaper = None
+        self.adopts = os.getpid() == 1
+        if sys.platform == "linux" and not self.adopts:
+            import ctypes
+
+            self.libc = ctypes.CDLL(None, use_errno=True)
+            previous = ctypes.c_int()
+            if self.libc.prctl(37, ctypes.byref(previous), 0, 0, 0) != 0:
+                raise RuntimeError("subreaper_query_failed")
+            if self.libc.prctl(36, 1, 0, 0, 0) != 0:
+                raise RuntimeError("subreaper_enable_failed")
+            self.was_subreaper = previous.value
+            self.adopts = True
+        try:
+            self.baseline = {
+                (pid, info.birth) for pid, info in _process_snapshot().items()
+                if info.parent == os.getpid()
+            }
+        except Exception:
+            self.close()
+            raise
+
+    def refresh(self, children, orphan_role="web"):
+        snapshot = _process_snapshot()
+        for pid, (_, birth, descriptor) in list(self.owned.items()):
+            if pid not in snapshot or snapshot[pid].birth != birth:
+                if descriptor is not None:
+                    os.close(descriptor)
+                del self.owned[pid]
+        roles = {pid: record[0] for pid, record in self.owned.items()}
+        for role, child in children.items():
+            if child.returncode is None and child.pid in snapshot:
+                roles[child.pid] = role
+        if self.adopts:
+            for pid, info in snapshot.items():
+                if info.parent == os.getpid() and (pid, info.birth) not in self.baseline:
+                    roles.setdefault(pid, orphan_role)
+        # Resolve ancestry to closure even when children appear before parents.
+        while True:
+            additions = {pid: roles[info.parent] for pid, info in snapshot.items()
+                         if pid not in roles and info.parent in roles}
+            if not additions:
+                break
+            roles.update(additions)
+        for pid, role in roles.items():
+            if pid in self.owned or pid not in snapshot:
+                continue
+            info = snapshot[pid]
+            descriptor = None
+            if sys.platform == "linux":
+                try:
+                    descriptor = os.pidfd_open(pid)
+                except ProcessLookupError:
+                    continue
+                # Pinning can race with PID reuse; do not adopt a new identity.
+                current = _process_snapshot().get(pid)
+                if current is None or current.birth != info.birth:
+                    os.close(descriptor)
+                    continue
+            self.owned[pid] = (role, info.birth, descriptor)
+        return {pid: info for pid, info in snapshot.items()
+                if pid in self.owned}
+
+    def send(self, pid, signum):
+        _, birth, descriptor = self.owned[pid]
+        try:
+            if descriptor is not None:
+                signal.pidfd_send_signal(descriptor, signum)
+            else:
+                current = _process_snapshot().get(pid)
+                if current is not None and current.birth == birth:
+                    os.kill(pid, signum)
+        except ProcessLookupError:
+            pass
+
+    def close(self):
+        for _, _, descriptor in self.owned.values():
+            if descriptor is not None:
+                os.close(descriptor)
+        self.owned.clear()
+        if self.was_subreaper is not None:
+            if self.libc.prctl(36, self.was_subreaper, 0, 0, 0) != 0:
+                raise RuntimeError("subreaper_restore_failed")
 
 
 def _reap_children(children):
@@ -157,25 +313,33 @@ def _reap_children(children):
     return reaped
 
 
-def _stop(child, role, timeout, output, children):
-    _reap_children(children)
-    if not _group_exists(child):
-        return
+def _stop(child, role, timeout, output, children, ownership):
     _event(role, "stopping", "signal_term")
-    try:
-        os.killpg(child.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
     deadline = time.monotonic() + timeout
-    while _group_exists(child) and time.monotonic() < deadline:
-        output.drain(min(.025, max(0, deadline - time.monotonic())))
+    signalled = set()
+    escalated = False
+    while True:
         _reap_children(children)
-    if _group_exists(child):
-        _event(role, "stopping", "signal_kill")
-        try:
-            os.killpg(child.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        live = ownership.refresh(children, orphan_role=role)
+        targets = {pid for pid in live if ownership.owned[pid][0] == role}
+        if not targets:
+            break
+        now = time.monotonic()
+        if now >= deadline + 1:
+            raise RuntimeError("owned_descendants_survived")
+        for pid in targets:
+            if live[pid].zombie:
+                continue  # Keep waiting/reaping; a zombie is not a signal target.
+            identity = (pid, ownership.owned[pid][1])
+            if identity not in signalled:
+                ownership.send(pid, signal.SIGTERM)
+                signalled.add(identity)
+            if now >= deadline:
+                if not escalated:
+                    _event(role, "stopping", "signal_kill")
+                    escalated = True
+                ownership.send(pid, signal.SIGKILL)
+        output.drain(.025)
     child.wait(timeout=1)
     output.drain()
     _event(role, "stopped", "child_reaped")
@@ -188,6 +352,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
     requested = False
     status = 1
     previous = {}
+    ownership = None
 
     def shutdown(signum, frame):
         nonlocal requested
@@ -201,6 +366,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             setup_logging()
         if config.startup_timeout <= 0 or config.shutdown_timeout <= 0:
             raise ValueError("invalid timeout")
+        ownership = _OwnedProcesses()
         with runtime_state_directory(config.state_root):
             (config.state_root / "auth.json").unlink(missing_ok=True)
         specs = build_process_specs(
@@ -231,11 +397,13 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                 )
                 # Retain cleanup ownership even if the guard's exit recheck fails.
                 children[spec.role] = child
+                ownership.refresh(children, orphan_role=spec.role)
             output.register(child, spec.role)
             _event(spec.role, "starting", "child_started")
             deadline = time.monotonic() + config.startup_timeout
             while True:
                 output.drain(.025)
+                ownership.refresh(children, orphan_role=spec.role)
                 _reap_children(children)
                 if requested:
                     raise _ExternalShutdown
@@ -246,10 +414,13 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                     _event(spec.role, "failed", "startup_timeout")
                     raise RuntimeError("startup timeout")
                 if probe(config, spec.role, min(.25, remaining), launch_token=output.token):
+                    if spec.role == "runtime" and probe is real_probe:
+                        output.remember_auth(config.state_root)
                     _event(spec.role, "healthy", "health_ready")
                     break
         while not requested:
             output.drain(.05)
+            ownership.refresh(children)
             _reap_children(children)
             if any(child.poll() is not None for child in children.values()):
                 _event("stack", "failed", "unexpected_child_exit")
@@ -263,8 +434,8 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
         for role in ("web", "runtime"):
             if role in children:
                 try:
-                    _stop(children[role], role, config.shutdown_timeout, output, children)
-                except (OSError, subprocess.SubprocessError):
+                    _stop(children[role], role, config.shutdown_timeout, output, children, ownership)
+                except (OSError, RuntimeError, subprocess.SubprocessError):
                     _event(role, "failed", "cleanup_failed")
                     status = 1
         try:
@@ -278,6 +449,15 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             if child.stdout is not None and not child.stdout.closed:
                 child.stdout.close()
         _reap_children(children)
+        if ownership is not None:
+            try:
+                if ownership.refresh(children):
+                    _event("stack", "failed", "owned_descendants_survived")
+                    status = 1
+                ownership.close()
+            except (OSError, RuntimeError, subprocess.SubprocessError):
+                _event("stack", "failed", "ownership_cleanup_failed")
+                status = 1
         for signum, handler in previous.items():
             signal.signal(signum, handler)
         _event("stack", "stopped", "shutdown_complete" if status == 0 else "shutdown_failed")
