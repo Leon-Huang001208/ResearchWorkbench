@@ -20,6 +20,9 @@ COPY app/cli app/cli
 COPY core/__init__.py core/__init__.py
 COPY core/settings core/settings
 COPY core/observability core/observability
+COPY data_layer/__init__.py data_layer/__init__.py
+COPY data_layer/adapters/__init__.py data_layer/adapters/__init__.py
+COPY data_layer/adapters/ifind/__init__.py data_layer/adapters/ifind/exceptions.py data_layer/adapters/ifind/http_client.py data_layer/adapters/ifind/
 COPY research_workbench_entrypoint research_workbench_entrypoint
 COPY runtimes/__init__.py runtimes/research_web.json runtimes/
 COPY vendor/cjpy vendor/cjpy
@@ -61,27 +64,7 @@ WORKDIR /opt/rwb/dsh
 RUN corepack pnpm@11.7.0 install --frozen-lockfile \
     && corepack pnpm@11.7.0 run build
 WORKDIR /opt/rwb
-RUN python - <<'PY'
-import logging
-import shutil
-import subprocess
-from pathlib import Path
-from scripts.setup_web import SetupWebInstaller, DSH_COMMIT
-
-logging.basicConfig(level=logging.INFO)
-source = Path('/opt/rwb/dsh')
-installer = SetupWebInstaller(project_root=Path.cwd(), data_home=Path('/tmp/rwb-build'))
-verified = installer.verify_dsh_source(source)
-# The launcher checks git rev-parse HEAD. Retain only this verified public identity,
-# not checkout history, remote configuration, credentials, hooks, or Git objects.
-shutil.rmtree(source / '.git')
-for name in ('objects', 'refs'):
-    (source / '.git' / name).mkdir(parents=True)
-(source / '.git' / 'HEAD').write_text(DSH_COMMIT + '\n')
-assert subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip() == DSH_COMMIT
-assert installer.calculate_dsh_closure(source) == (verified['closure_sha256'], verified['closure_files'])
-logging.info('docker_dsh_closure_verified files=%s', verified['closure_files'])
-PY
+RUN python docker/stage_dsh.py
 
 FROM ${PYTHON_IMAGE} AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates libstdc++6 libgomp1 \
@@ -96,6 +79,7 @@ ENV VIRTUAL_ENV=/opt/rwb/venv \
     PYTHONUNBUFFERED=1 \
     RWB_DATA_ROOT=/data/research-web \
     RWB_RUNTIME_STATE=/state \
+    RWB_DSH_STAGED=1 \
     LOG_DIR=/state/logs \
     OBJECT_STORAGE_PATH=/data/research-web/objects \
     PDF_MARKDOWN_DIR=/data/research-web/markdown \
@@ -108,17 +92,42 @@ COPY --from=dsh-builder /usr/local/lib/node_modules/corepack /usr/local/lib/node
 COPY --from=python-builder /opt/rwb/venv /opt/rwb/venv
 COPY --from=python-builder /opt/rwb/app /opt/rwb/app
 COPY --from=python-builder /opt/rwb/core /opt/rwb/core
+COPY --from=python-builder /opt/rwb/data_layer /opt/rwb/data_layer
 COPY --from=python-builder /opt/rwb/research_workbench_entrypoint /opt/rwb/research_workbench_entrypoint
 COPY --from=python-builder /opt/rwb/runtimes /opt/rwb/runtimes
 COPY --from=python-builder /opt/rwb/vendor/dsh-tabbit /opt/rwb/vendor/dsh-tabbit
-COPY --from=python-builder --chmod=755 /opt/rwb/docker /opt/rwb/docker
+COPY --from=python-builder --chmod=755 /opt/rwb/docker/entrypoint.sh /opt/rwb/docker/entrypoint.sh
+COPY --from=python-builder /opt/rwb/docker/supervisor.py /opt/rwb/docker/supervisor.py
+COPY --from=python-builder /opt/rwb/docker/healthcheck.py /opt/rwb/docker/healthcheck.py
 COPY --from=python-builder /opt/rwb/pyproject.toml /opt/rwb/pyproject.toml
 COPY outputs/research-web-architecture /opt/rwb/outputs/research-web-architecture
-COPY --from=dsh-builder --chown=rwb:rwb /opt/rwb/dsh /opt/dsh
+COPY --from=dsh-builder --chown=rwb:rwb /opt/rwb/dsh-runtime /opt/dsh
 RUN ln -s /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
     && ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 USER rwb
+RUN python -I - <<'PY'
+import importlib
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+root = Path('/opt/rwb')
+sys.path.insert(0, str(root))
+with tempfile.TemporaryDirectory() as temporary:
+    for key in ('LOG_DIR', 'OBJECT_STORAGE_PATH', 'PDF_MARKDOWN_DIR', 'PDF_RAW_TEXT_DIR'):
+        os.environ[key] = str(Path(temporary) / key)
+    for name in ('app.research_web.main', 'app.research_web.launch_runtime', 'app.cli.main',
+                 'docker.supervisor', 'docker.healthcheck', 'data_layer.adapters.ifind.http_client'):
+        module = importlib.import_module(name)
+        assert Path(module.__file__).is_relative_to(root / name.split('.')[0]), name
+    from app.research_web.staged_runtime import verify_staged_runtime
+    from app.research_web.launch_runtime import prepare_runtime_module_fallback
+    verify_staged_runtime(Path('/opt/dsh'), required=True)
+    prepare_runtime_module_fallback(Path('/opt/dsh'), Path(temporary) / 'dsh-home', '/usr/local/bin/node')
+    print('docker_final_image_import_smoke_passed')
+PY
 VOLUME ["/data/research-web", "/state", "/run/rwb-secrets"]
 EXPOSE 8088
 HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=3 CMD ["/opt/rwb/venv/bin/python", "/opt/rwb/docker/healthcheck.py"]

@@ -27,7 +27,8 @@ test('builders reuse the hashed Web lock, vendored CJPY and pinned DSH verifier'
   assert.match(file, /--no-index --no-deps vendor\/cjpy\/0\.5\.2\/cjpy-0\.5\.2-py3-none-any\.whl/);
   assert.match(file, new RegExp(`corepack pnpm@${contract.dsh.pnpm.replaceAll('.', '\\.')} install --frozen-lockfile`));
   assert.match(file, /DSH_REMOTE, DSH_COMMIT/);
-  assert.match(file, /verify_dsh_source\(source\)/);
+  assert.match(file, /RUN python docker\/stage_dsh\.py/);
+  assert.match(read('docker/stage_dsh.py'), /verified = installer\.verify_dsh_source\(source\)[\s\S]*stage_assets\(source, Path\("\/opt\/rwb\/dsh-runtime"\), verified\)/);
   assert.doesNotMatch(file, /requirements\/docker|git clone .*main|git clone .*master/);
 });
 
@@ -45,9 +46,10 @@ test('runtime copies a bounded application set and uses the non-root PID1 superv
   }
   assert.deepEqual(runtime.filter((line) => line.startsWith('COPY ')).map((line) => line.split(/\s+/).slice(-2, -1)[0]), [
     '/usr/local/bin/node', '/usr/local/lib/node_modules/npm', '/usr/local/lib/node_modules/corepack', '/opt/rwb/venv',
-    '/opt/rwb/app', '/opt/rwb/core', '/opt/rwb/research_workbench_entrypoint',
-    '/opt/rwb/runtimes', '/opt/rwb/vendor/dsh-tabbit', '/opt/rwb/docker', '/opt/rwb/pyproject.toml',
-    'outputs/research-web-architecture', '/opt/rwb/dsh',
+    '/opt/rwb/app', '/opt/rwb/core', '/opt/rwb/data_layer', '/opt/rwb/research_workbench_entrypoint',
+    '/opt/rwb/runtimes', '/opt/rwb/vendor/dsh-tabbit', '/opt/rwb/docker/entrypoint.sh',
+    '/opt/rwb/docker/supervisor.py', '/opt/rwb/docker/healthcheck.py', '/opt/rwb/pyproject.toml',
+    'outputs/research-web-architecture', '/opt/rwb/dsh-runtime',
   ]);
   assert.doesNotMatch(read('Dockerfile'), /^COPY \.\s|^(ARG|ENV) .*?(?:KEY|TOKEN|PASSWORD)=/m);
   assert.match(read('docker/entrypoint.sh'), /exec \/opt\/rwb\/venv\/bin\/python \/opt\/rwb\/docker\/supervisor\.py/);
@@ -96,7 +98,10 @@ test('build context denies local state and allows only runtime packaging inputs'
   assert.deepEqual(allowed, [
     '!Dockerfile', '!pyproject.toml', '!app/', '!app/__init__.py', '!app/research_web/', '!app/research_web/**',
     '!app/cli/', '!app/cli/**', '!core/', '!core/__init__.py', '!core/settings/', '!core/settings/**',
-    '!core/observability/', '!core/observability/**', '!research_workbench_entrypoint/', '!research_workbench_entrypoint/**',
+    '!core/observability/', '!core/observability/**',
+    '!data_layer/', '!data_layer/__init__.py', '!data_layer/adapters/', '!data_layer/adapters/__init__.py',
+    '!data_layer/adapters/ifind/', '!data_layer/adapters/ifind/__init__.py', '!data_layer/adapters/ifind/exceptions.py', '!data_layer/adapters/ifind/http_client.py',
+    '!research_workbench_entrypoint/', '!research_workbench_entrypoint/**',
     '!runtimes/', '!runtimes/__init__.py', '!runtimes/research_web.json', '!requirements/', '!requirements/web.lock',
     '!vendor/', '!vendor/cjpy/', '!vendor/cjpy/**', '!vendor/dsh-tabbit/', '!vendor/dsh-tabbit/**',
     '!scripts/', '!scripts/setup_web.py', '!docker/', '!docker/**',
@@ -106,4 +111,14 @@ test('build context denies local state and allows only runtime packaging inputs'
   for (const pattern of ['**/.git', '**/.worktrees', '**/.venv*', '**/logs', '**/.ai', '**/.ai/reports', '**/__pycache__', '**/.cache', '**/.env*', '**/credentials', '**/secrets', '**/.research-workbench', '**/.runtime', '**/data', '**/auth.json', '**/.ssh', '**/.aws', '**/*.pem', '**/*.key', '**/node_modules', '**/*.pyc', '**/.DS_Store']) {
     assert.ok(patterns.lastIndexOf(pattern) > patterns.lastIndexOf(allowed.at(-1)), `deny ${pattern} after allowlist`);
   }
+});
+
+test('the final filesystem is import-smoked as non-root and requires staged integrity', () => {
+  const runtime = read('Dockerfile').split('FROM ${PYTHON_IMAGE} AS runtime')[1];
+  assert.match(runtime, /RWB_DSH_STAGED=1/);
+  assert.match(runtime, /USER rwb\nRUN python -I - <<'PY'/);
+  assert.match(runtime, /app\.research_web\.main/);
+  assert.match(runtime, /data_layer\.adapters\.ifind\.http_client/);
+  assert.match(runtime, /docker_final_image_import_smoke_passed/);
+  assert.doesNotMatch(runtime, /COPY[^\n]*\/opt\/rwb\/dsh \/opt\/dsh/);
 });

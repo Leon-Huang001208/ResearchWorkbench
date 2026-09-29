@@ -24,6 +24,7 @@ from .mcp_runtime.authorization import (
     ExactToolAllowlist,
 )
 from .runtime_state import runtime_state_directory
+from .staged_runtime import verify_staged_runtime
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -493,6 +494,11 @@ def prepare(
     *,
     state_root: Path | None = None,
 ) -> tuple[list[str], dict, Path]:
+    staged_source = verify_staged_runtime(
+        source, required=os.environ.get("RWB_DSH_STAGED") == "1"
+    )
+    if staged_source is not None and source_mode:
+        raise RuntimeError("staged_runtime_invalid")
     state = state_root if state_root is not None else data.resolve() / "runtime"
     with runtime_state_directory(state, create=True, native_data_root=data.resolve()):
         return _prepare_runtime(
@@ -504,6 +510,7 @@ def prepare(
             research_tools,
             datahub_url,
             state_root=state,
+            staged_source=staged_source,
         )
 
 
@@ -517,6 +524,7 @@ def _prepare_runtime(
     datahub_url: str | None = None,
     *,
     state_root: Path,
+    staged_source: dict | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
     tabbit_config = load_tabbit_config(data)
@@ -648,7 +656,11 @@ def _prepare_runtime(
         encoding="utf-8",
     )
     # Pin the actual JS/config closure, not just the top-level CLI version.
-    closure_sha256, closure_files = calculate_build_closure(source)
+    if staged_source is None:
+        closure_sha256, closure_files = calculate_build_closure(source)
+    else:
+        closure_sha256 = staged_source["closure_sha256"]
+        closure_files = staged_source["closure_files"]
     manifest = {
         "source_commit": commit,
         "closure_sha256": closure_sha256,

@@ -14,6 +14,16 @@ junction 和 POSIX symlink 都只在解析目标仍位于固定源码树时接�
 安装阶段的 Web import readiness 只验证 checkout 入口可加载，不执行 FastAPI lifespan、不启动框架
 调度器、集成探测或 3081/8088；实际进程和健康状态仍只由 `rwb web start` 建立。
 
+Docker 构建先对完整 DSH checkout 执行相同的固定 remote、commit、pnpm 与完整构建闭包验证，
+通过后才按已安装的 production dependency graph 和上游 package `files` 字段生成运行资产目录。
+开发依赖、测试、fixture、文档、benchmark、website 和 Git 历史不会进入该目录；CLI、profile
+模块、上游声明的运行资源及所需第三方生产依赖保留。`.rwb-dsh-runtime.json` 是构建时派生的
+资产清单，不是第二份依赖配置：它记录原始固定来源和完整闭包事实，以及目录、普通文件、符号
+链接的确定性清单和摘要。镜像 launcher 在创建运行状态前拒绝缺失、额外、篡改、越界链接、
+alias、错误 schema 或超限清单，并继续把原始已验证闭包写入既有 build lock。Native checkout
+没有该清单时，仍执行原有 Git identity 和 `calculate_build_closure` 路径。最终镜像还以非 root
+用户导入 Web、CLI、supervisor、healthcheck 和 iFinD HTTP 路径，避免宿主源码掩盖镜像漏包。
+
 Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
 
 框架页面 Bot 仍由本运行时承载：`framework-explain` 是无工具的快照解释预设，用户显式触发的 `framework-verify` 才装配只读检索和公共数据工具。验证会话与解释会话分离，并绑定框架 slug、章节、缺口、方法版本和同一精确快照 revision；旧 revision 返回 409，Bot 不修改评分或快照，也没有第二个 Agent Runtime。
