@@ -92,6 +92,126 @@ def test_process_contract_supports_isolated_staging_ports(manager):
     assert staged.web_url == "http://127.0.0.1:18088/#/fingpt"
 
 
+def test_shared_process_specs_preserve_native_commands_and_are_immutable(manager):
+    from dataclasses import FrozenInstanceError
+
+    from app.research_web.process_spec import build_process_specs
+
+    specs = build_process_specs(
+        python=manager.python,
+        node=manager.node,
+        project_root=manager.project_root,
+        data_root=manager.data_root,
+        runtime_source=manager.runtime_source,
+        state_root=manager.data_root / "runtime",
+        web_host="127.0.0.1",
+        web_port=8088,
+        runtime_port=3081,
+    )
+    assert specs.runtime.command == (
+        manager.python,
+        "-m",
+        "app.research_web.launch_runtime",
+        "--source",
+        str(manager.runtime_source),
+        "--data",
+        str(manager.data_root),
+        "--node",
+        manager.node,
+        "--port",
+        "3081",
+        "--datahub-url",
+        "http://127.0.0.1:8088",
+        "--research-tools",
+    )
+    assert specs.web.command == (
+        manager.python,
+        "-m",
+        "uvicorn",
+        "app.research_web.main:app",
+        "--app-dir",
+        str(manager.project_root),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8088",
+    )
+    assert (specs.runtime, specs.web) == manager._processes()
+    assert specs.runtime_state_root == manager.data_root / "runtime"
+    with pytest.raises(FrozenInstanceError):
+        specs.web.port = 9999
+    with pytest.raises(FrozenInstanceError):
+        specs.runtime_state_root = Path("/other")
+
+
+def test_shared_container_specs_change_only_state_and_web_host(manager):
+    from app.research_web.process_spec import build_process_specs
+
+    options = dict(
+        python=manager.python,
+        node=manager.node,
+        project_root=manager.project_root,
+        data_root=manager.data_root,
+        runtime_source=manager.runtime_source,
+        web_port=18088,
+        runtime_port=13081,
+    )
+    native = build_process_specs(
+        **options, state_root=manager.data_root / "runtime", web_host="127.0.0.1"
+    )
+    container = build_process_specs(**options, state_root=Path("/state"), web_host="0.0.0.0")
+    assert container.runtime.command == native.runtime.command + ("--state", "/state")
+    assert container.runtime.signature == (
+        native.runtime.signature[0],
+        "/state/overlay.yml",
+        "13081",
+    )
+    assert container.web.command == tuple(
+        "0.0.0.0" if part == "127.0.0.1" else part for part in native.web.command
+    )
+    assert container.web.signature == native.web.signature
+
+
+def test_manager_explicit_state_keeps_native_ownership_and_persistent_work(manager, monkeypatch):
+    state = manager.project_root / "state"
+    isolated = WebServiceManager(
+        project_root=manager.project_root,
+        data_root=manager.data_root,
+        runtime_source=manager.runtime_source,
+        runtime_state_root=state,
+        python=manager.python,
+        node=manager.node,
+    )
+    isolated._prepare_private_directories()
+    (manager.runtime_source / "package.json").write_text('{"version":"test"}')
+    record = isolated._write_runtime_auth("dsh-auth-test=value")
+    assert isolated.run_root == manager.run_root
+    assert isolated.log_root == manager.log_root
+    assert isolated._runtime_auth_path() == state / "auth.json"
+    assert record["cwd"] == str((manager.data_root / "runtime/work").resolve())
+    assert isolated._read_runtime_auth() == record
+    captured = {}
+
+    def popen(command, **options):
+        captured.update(options)
+        return type("Process", (), {"pid": 4321})()
+
+    monkeypatch.setattr(service_manager_module.subprocess, "Popen", popen)
+    monkeypatch.setattr(isolated, "_write_state", lambda *_args: None)
+    isolated._spawn(isolated._processes()[1])
+    assert captured["env"]["RESEARCH_RUNTIME_AUTH"] == str(state / "auth.json")
+    assert isolated._processes()[0].signature[1] == str(state / "overlay.yml")
+    lock = {
+        "source_commit": service_manager_module.PINNED_COMMIT,
+        "closure_sha256": "a" * 64,
+        "closure_files": 3,
+        "mode": "build",
+    }
+    (state / "build-lock.json").write_text(json.dumps(lock))
+    (state / "build-lock.json").chmod(0o600)
+    assert isolated._runtime_build_lock_matches(lock)
+
+
 def test_spawn_exports_the_exact_private_web_origin_for_mcp_callbacks(manager, monkeypatch):
     captured = {}
     monkeypatch.setenv("ALL_PROXY", "socks5://127.0.0.1:1080")

@@ -136,6 +136,62 @@ def test_runtime_keeps_dsh_home_private_but_uses_host_home_for_tabbit(tmp_path, 
     assert env["LOCALAPPDATA"] == str(local_app_data)
 
 
+@pytest.mark.parametrize("separate_state", [False, True])
+def test_prepare_separates_persistent_data_from_runtime_state(tmp_path, monkeypatch, separate_state):
+    from app.research_web.client import _default_auth_path
+
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    state = tmp_path / "state" if separate_state else data / "runtime"
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "check_output",
+        lambda *args, **kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    monkeypatch.setenv("RESEARCH_DATA_HOME", str(data))
+    monkeypatch.setenv("RESEARCH_RUNTIME_AUTH", str(state / "auth.json"))
+    options = {"state_root": state} if separate_state else {}
+    command, env, work = launch_runtime.prepare(source, data, "/node", 3081, **options)
+    assert env["DSH_HOME"] == str(data.resolve() / "runtime/home")
+    assert work == data.resolve() / "runtime/work"
+    assert command[command.index("--host") + 1] == "127.0.0.1"
+    assert command[command.index("--patch") + 1] == str(state.resolve() / "overlay.yml")
+    assert (state / "build-lock.json").is_file()
+    assert _default_auth_path() == state / "auth.json"
+    if separate_state:
+        assert not (data / "runtime/overlay.yml").exists()
+        assert not (data / "runtime/build-lock.json").exists()
+        assert not (state / "home").exists()
+
+
+@pytest.mark.parametrize("mode", ["default", "explicit_state", "data_alias"])
+def test_launch_cli_accepts_state_and_preserves_historical_default(tmp_path, monkeypatch, mode):
+    data = tmp_path / "data"
+    state = tmp_path / "state" if mode == "explicit_state" else data / "runtime"
+    if mode == "data_alias":
+        data.mkdir()
+        alias = tmp_path / "data-alias"
+        alias.symlink_to(data, target_is_directory=True)
+        data = alias
+    argv = ["launch_runtime", "--source", str(tmp_path / "source"), "--data", str(data)]
+    if mode == "explicit_state":
+        argv += ["--state", str(state)]
+    monkeypatch.setattr(launch_runtime.sys, "argv", argv)
+    monkeypatch.setattr(launch_runtime, "setup_logging", lambda: None)
+    monkeypatch.setattr(launch_runtime, "validate_tabbit_node", lambda _node: "24.0.0")
+    observed = {}
+
+    def prepare(*args, **kwargs):
+        observed.update(kwargs)
+        raise RuntimeError("stop before any service launch")
+
+    monkeypatch.setattr(launch_runtime, "prepare", prepare)
+    with pytest.raises(SystemExit) as failure:
+        launch_runtime.main()
+    assert failure.value.code == 1
+    assert observed["state_root"] == state
+
+
 def test_runtime_projects_only_active_host_verified_mcp_bindings(tmp_path, monkeypatch):
     installation_id = "mcp-installation-0123456789abcdef0123456789abcdef"
     authorization = AuthorizationManager(tmp_path)

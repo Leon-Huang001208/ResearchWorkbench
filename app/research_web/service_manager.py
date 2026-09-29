@@ -16,7 +16,6 @@ import sys
 import tempfile
 import time
 import webbrowser
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -25,6 +24,7 @@ from uuid import uuid4
 from core.observability import get_logger
 
 from . import PINNED_DSH_COMMIT
+from .process_spec import ProcessSpec, build_process_specs
 from .runtime_auth import read_runtime_auth_record
 
 log = get_logger(__name__)
@@ -69,12 +69,8 @@ def _is_unsafe_private_directory(
     )
 
 
-@dataclass(frozen=True)
-class ManagedProcess:
-    role: str
-    port: int
-    command: tuple[str, ...]
-    signature: tuple[str, ...]
+# Preserve the import name used by Native lifecycle consumers.
+ManagedProcess = ProcessSpec
 
 
 class WebServiceManager:
@@ -86,6 +82,7 @@ class WebServiceManager:
         project_root: Path | None = None,
         data_root: Path | None = None,
         runtime_source: Path | None = None,
+        runtime_state_root: Path | None = None,
         python: str | None = None,
         node: str | None = None,
         web_port: int = WEB_PORT,
@@ -99,6 +96,9 @@ class WebServiceManager:
             or Path.home() / ".research-workbench" / "research-web"
         )
         self.data_root = Path(os.path.abspath(configured_data_root))
+        self.runtime_state_root = Path(
+            os.path.abspath(runtime_state_root or self.data_root / "runtime")
+        )
         configured_source = os.environ.get("RESEARCH_DSH_SOURCE")
         self.runtime_source = (
             runtime_source
@@ -119,52 +119,18 @@ class WebServiceManager:
         self.log_root = self.data_root.parent / "logs"
 
     def _processes(self) -> tuple[ManagedProcess, ManagedProcess]:
-        runtime_command = (
-            self.python,
-            "-m",
-            "app.research_web.launch_runtime",
-            "--source",
-            str(self.runtime_source),
-            "--data",
-            str(self.data_root),
-            "--node",
-            self.node,
-            "--port",
-            str(self.runtime_port),
-            "--datahub-url",
-            f"http://127.0.0.1:{self.web_port}",
-            "--research-tools",
+        specs = build_process_specs(
+            python=self.python,
+            node=self.node,
+            project_root=self.project_root,
+            data_root=self.data_root,
+            runtime_source=self.runtime_source,
+            state_root=self.runtime_state_root,
+            web_host="127.0.0.1",
+            web_port=self.web_port,
+            runtime_port=self.runtime_port,
         )
-        web_command = (
-            self.python,
-            "-m",
-            "uvicorn",
-            "app.research_web.main:app",
-            "--app-dir",
-            str(self.project_root),
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(self.web_port),
-        )
-        return (
-            ManagedProcess(  # type: ignore[call-arg]
-                "runtime",
-                self.runtime_port,
-                runtime_command,
-                (
-                    str(self.runtime_source / "apps/cli/lib/bin.js"),
-                    str(self.data_root / "runtime/overlay.yml"),
-                    str(self.runtime_port),
-                ),
-            ),
-            ManagedProcess(  # type: ignore[call-arg]
-                "web",
-                self.web_port,
-                web_command,
-                ("app.research_web.main:app", str(self.project_root), str(self.web_port)),
-            ),
-        )
+        return specs.runtime, specs.web
 
     def _prepare_private_directories(self) -> None:
         for path in (self.data_root.parent, self.data_root, self.run_root, self.log_root):
@@ -177,7 +143,7 @@ class WebServiceManager:
         return self.run_root / f"{role}.json"
 
     def _runtime_auth_path(self) -> Path:
-        return self.data_root / "runtime" / "auth.json"
+        return self.runtime_state_root / "auth.json"
 
     @staticmethod
     def _fingerprint(command: tuple[str, ...] | list[str]) -> str:
@@ -466,13 +432,13 @@ class WebServiceManager:
     def _write_runtime_auth(self, cookie: str) -> dict[str, str]:
         name: str | None = None
         try:
-            runtime = self.data_root / "runtime"
+            runtime = self.runtime_state_root
             runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
             package = json.loads((self.runtime_source / "package.json").read_text(encoding="utf-8"))
             value = {
                 "authority": f"127.0.0.1:{self.runtime_port}",
                 "cookie": cookie,
-                "cwd": str((runtime / "work").resolve()),
+                "cwd": str((self.data_root / "runtime/work").resolve()),
                 "source_commit": PINNED_COMMIT,
                 "version": str(package["version"]),
             }
@@ -818,11 +784,15 @@ class WebServiceManager:
         expected_files = dsh.get("closure_files")
         if not isinstance(expected_sha256, str) or type(expected_files) is not int:
             return False
-        path = self.data_root / "runtime" / "build-lock.json"
+        path = self.runtime_state_root / "build-lock.json"
         try:
             if os.name == "nt":
-                trusted_root = self.data_root.resolve(strict=True)
-                for directory in (self.data_root.parent, self.data_root, path.parent):
+                trusted_root = self.runtime_state_root.parent.resolve(strict=True)
+                for directory in (
+                    self.runtime_state_root.parent.parent,
+                    self.runtime_state_root.parent,
+                    self.runtime_state_root,
+                ):
                     identity = directory.lstat()
                     if _is_unsafe_private_directory(
                         directory, identity, platform_name="nt"
@@ -849,18 +819,18 @@ class WebServiceManager:
                     return False
             else:
                 parent = os.open(
-                    self.data_root.parent,
+                    self.runtime_state_root.parent.parent,
                     os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                 )
                 try:
                     root = os.open(
-                        self.data_root.name,
+                        self.runtime_state_root.parent.name or ".",
                         os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                         dir_fd=parent,
                     )
                     try:
                         runtime = os.open(
-                            "runtime",
+                            self.runtime_state_root.name,
                             os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                             dir_fd=root,
                         )

@@ -489,6 +489,8 @@ def prepare(
     source_mode=False,
     research_tools=False,
     datahub_url: str | None = None,
+    *,
+    state_root: Path | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
     tabbit_config = load_tabbit_config(data)
@@ -499,8 +501,9 @@ def prepare(
     if not executable.is_file():
         raise RuntimeError("DSH 构建不存在；请先授权构建依赖")
     runtime = data / "runtime"
+    state = Path(os.path.abspath(state_root)) if state_root is not None else runtime
     home, work, temp = (runtime / name for name in ("home", "work", "tmp"))
-    for path in (home, work, temp):
+    for path in (state, home, work, temp):
         path.mkdir(parents=True, exist_ok=True, mode=0o700)
         if path.is_symlink():
             raise RuntimeError("Runtime 目录不可为符号链接")
@@ -578,7 +581,7 @@ def prepare(
             encoding="utf-8",
         )
     guard = (package / "guard.mjs").resolve()
-    overlay = runtime / "overlay.yml"
+    overlay = state / "overlay.yml"
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"
     overlay.write_text(
         "\n".join(
@@ -626,7 +629,7 @@ def prepare(
         "closure_files": closure_files,
         "mode": "source" if source_mode else "build",
     }
-    manifest_path = runtime / ("source-lock.json" if source_mode else "build-lock.json")
+    manifest_path = state / ("source-lock.json" if source_mode else "build-lock.json")
     if manifest_path.exists() and json.loads(manifest_path.read_text(encoding="utf-8")) != manifest:
         raise RuntimeError("DSH 构建发生变化，请重新审核后更新专属构建锁")
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -683,6 +686,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--state", type=Path, help="Runtime state directory; default <data>/runtime")
     parser.add_argument("--node", default="/usr/local/bin/node")
     parser.add_argument("--port", type=int, default=3081)
     parser.add_argument(
@@ -712,6 +716,7 @@ def main():
             args.source_mode,
             args.research_tools,
             args.datahub_url,
+            state_root=args.state if args.state is not None else args.data.resolve() / "runtime",
         )
         module_count = prepare_runtime_module_fallback(
             args.source.resolve(), args.data.resolve() / "runtime/home", args.node
