@@ -11,6 +11,8 @@ import logging
 import os
 import re
 import stat
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn
@@ -47,7 +49,7 @@ class ResearchWebRuntimeContract:
 
 
 def _fail(suffix: str) -> NoReturn:
-    raise RuntimeContractError(f"runtime_contract_{suffix}")
+    raise RuntimeContractError(f"runtime_contract_{suffix}") from None
 
 
 def _path_identity(path: Path) -> os.stat_result:
@@ -77,6 +79,65 @@ def _identity(value: os.stat_result) -> tuple[int, ...]:
     )
 
 
+@contextmanager
+def _pin_windows_parents(path: Path) -> Iterator[None]:
+    """Hold non-reparse directory handles denying writes/renames during the read."""
+    try:
+        import _winapi
+
+        with ExitStack() as stack:
+            parents = []
+            for component in reversed(path.parents):
+                # FILE_READ_ATTRIBUTES; FILE_SHARE_READ only; OPEN_EXISTING;
+                # FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT.
+                # Earlier ancestors are already locked before advancing.
+                handle = _winapi.CreateFile(str(component), 0x80, 1, None, 3, 0x02200000, 0)
+                stack.callback(_winapi.CloseHandle, handle)
+                identity = component.lstat()
+                if (
+                    not stat.S_ISDIR(identity.st_mode)
+                    or getattr(identity, "st_file_attributes", 0) & 0x400
+                ):
+                    _fail("unsafe_path")
+                parents.append((component, identity))
+            yield
+            for component, identity in parents:
+                if _identity(component.lstat()) != _identity(identity):
+                    _fail("changed")
+    except (ImportError, AttributeError, OSError, TypeError):
+        _fail("io")
+
+
+@contextmanager
+def _pin_posix_parents(path: Path) -> Iterator[int]:
+    """Traverse from root using retained directory descriptors, never path aliases."""
+    with ExitStack() as stack:
+        parent = None
+        directories = []
+        for component in reversed(path.parents):
+            name = str(component) if parent is None else component.name
+            before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+            descriptor = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            stack.callback(os.close, descriptor)
+            if (
+                not stat.S_ISDIR(before.st_mode)
+                or _identity(os.fstat(descriptor)) != _identity(before)
+            ):
+                _fail("changed")
+            directories.append((descriptor, parent, name, before))
+            parent = descriptor
+        if parent is None:
+            _fail("unsafe_path")
+        yield parent
+        for descriptor, ancestor, name, before in directories:
+            if (
+                _identity(os.fstat(descriptor)) != _identity(before)
+                or _identity(os.stat(name, dir_fd=ancestor, follow_symlinks=False))
+                != _identity(before)
+            ):
+                _fail("changed")
+
+
 def _read(path: Path) -> bytes:
     before = _path_identity(path)
     flags = (
@@ -85,8 +146,14 @@ def _read(path: Path) -> bytes:
         | getattr(os, "O_NONBLOCK", 0)
         | getattr(os, "O_BINARY", 0)
     )
-    descriptor = os.open(path, flags)
-    try:
+    with ExitStack() as stack:
+        if os.name == "nt":
+            stack.enter_context(_pin_windows_parents(path))
+            descriptor = os.open(path, flags)
+        else:
+            parent = stack.enter_context(_pin_posix_parents(path))
+            descriptor = os.open(path.name, flags, dir_fd=parent)
+        stack.callback(os.close, descriptor)
         if _identity(os.fstat(descriptor)) != _identity(before):
             _fail("changed")
         # A bounded read also protects against growth after the size check.
@@ -100,8 +167,6 @@ def _read(path: Path) -> bytes:
         ):
             _fail("changed")
         return raw
-    finally:
-        os.close(descriptor)
 
 
 def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -142,7 +207,9 @@ def _validate(value: object) -> ResearchWebRuntimeContract:
         dsh["commit"],
         dsh["pnpm"],
     )
-    if any(type(item) is not int for item in integers) or any(type(item) is not str for item in strings):
+    if any(type(item) is not int for item in integers) or any(
+        type(item) is not str for item in strings
+    ):
         _fail("type")
     # Supported schema/engine families are validation policy, not release pins.
     if integers[:5] != (1, 3, 12, 24, 0):
@@ -191,18 +258,18 @@ def load_runtime_contract(path: Path | None = None) -> ResearchWebRuntimeContrac
     try:
         try:
             raw = _read(Path(path).absolute() if path is not None else DEFAULT_CONTRACT_PATH)
-        except (OSError, ValueError, TypeError) as exc:
-            raise RuntimeContractError("runtime_contract_io") from exc
+        except (OSError, ValueError, TypeError):
+            raise RuntimeContractError("runtime_contract_io") from None
         try:
             text = raw.decode("utf-8")
-        except UnicodeError as exc:
-            raise RuntimeContractError("runtime_contract_encoding") from exc
+        except UnicodeError:
+            raise RuntimeContractError("runtime_contract_encoding") from None
         try:
             payload = json.loads(
                 text, object_pairs_hook=_unique_object, parse_constant=lambda _: _fail("json")
             )
-        except (ValueError, RecursionError) as exc:
-            raise RuntimeContractError("runtime_contract_json") from exc
+        except (ValueError, RecursionError):
+            raise RuntimeContractError("runtime_contract_json") from None
         contract = _validate(payload)
     except RuntimeContractError as exc:
         log.warning("runtime_contract_load_failed: %s", exc.code)

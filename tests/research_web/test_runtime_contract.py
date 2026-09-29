@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import traceback
 import zipfile
 from dataclasses import FrozenInstanceError, asdict
 from pathlib import Path
@@ -170,10 +171,127 @@ def test_rejects_invalid_or_unbounded_bytes(tmp_path, raw, code):
 
 
 def test_read_failure_has_stable_redacted_error(tmp_path, caplog):
-    with pytest.raises(RuntimeContractError, match="^runtime_contract_io$"):
+    with pytest.raises(RuntimeContractError, match="^runtime_contract_io$") as caught:
         load_runtime_contract(tmp_path / "secret-path.json")
     assert "runtime_contract_io" in caplog.text
     assert "secret-path" not in caplog.text
+    formatted = "".join(traceback.format_exception(caught.value))
+    assert str(tmp_path / "secret-path.json") not in formatted
+
+
+def test_rejects_ancestor_alias_swapped_and_restored_during_open(tmp_path, monkeypatch):
+    parent = tmp_path / "trusted"
+    parent.mkdir()
+    path = write_contract(parent, EXPECTED)
+    moved = tmp_path / "moved"
+    original = os.open
+    attacked = []
+
+    def open_through_swapped_ancestor(candidate, flags, *args, **kwargs):
+        if Path(candidate).name != path.name:
+            return original(candidate, flags, *args, **kwargs)
+        attacked.append(True)
+        parent.rename(moved)
+        parent.symlink_to(moved, target_is_directory=True)
+        try:
+            return original(candidate, flags, *args, **kwargs)
+        finally:
+            parent.unlink()
+            moved.rename(parent)
+
+    monkeypatch.setattr(os, "open", open_through_swapped_ancestor)
+    code = "io" if os.name == "nt" else "changed"
+    with pytest.raises(RuntimeContractError, match=f"^runtime_contract_{code}$"):
+        load_runtime_contract(path)
+    assert attacked == [True]
+
+
+@pytest.mark.parametrize("failure", ["none", "open", "body", "close"])
+def test_windows_parent_handles_pin_and_close_on_every_exit(tmp_path, monkeypatch, failure):
+    from app.research_web import runtime_contract
+
+    opened = []
+    closed = []
+
+    def create_file(path, access, sharing, security, disposition, flags, template):
+        assert access == 0x80  # FILE_READ_ATTRIBUTES
+        assert sharing == 1  # FILE_SHARE_READ only: deny write/delete handles
+        assert disposition == 3  # OPEN_EXISTING
+        assert flags == 0x02200000  # BACKUP_SEMANTICS | OPEN_REPARSE_POINT
+        assert security is None and template == 0
+        if failure == "open" and opened:
+            raise OSError("sensitive Windows path")
+        handle = len(opened) + 1
+        opened.append((path, handle))
+        return handle
+
+    def close_handle(handle):
+        closed.append(handle)
+        if failure == "close" and len(closed) == 1:
+            raise OSError("sensitive Windows path")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "_winapi",
+        SimpleNamespace(CreateFile=create_file, CloseHandle=close_handle),
+    )
+    if failure != "none":
+        with pytest.raises(RuntimeContractError, match="^runtime_contract_io$") as caught:
+            with runtime_contract._pin_windows_parents(tmp_path / "contract.json"):
+                assert failure != "open", "must fail before yielding"
+                if failure == "body":
+                    raise OSError("sensitive Windows path")
+        assert "sensitive Windows path" not in "".join(traceback.format_exception(caught.value))
+    else:
+        with runtime_contract._pin_windows_parents(tmp_path / "contract.json"):
+            assert len(opened) == len((tmp_path / "contract.json").parents)
+            assert closed == []
+    assert closed == [handle for _, handle in reversed(opened)]
+
+
+def test_windows_missing_api_fails_closed_without_raw_chain(tmp_path, monkeypatch):
+    from app.research_web import runtime_contract
+
+    monkeypatch.setitem(sys.modules, "_winapi", None)
+    with pytest.raises(RuntimeContractError, match="^runtime_contract_io$") as caught:
+        with runtime_contract._pin_windows_parents(tmp_path / "contract.json"):
+            pytest.fail("missing API must not permit a path-only fallback")
+    assert "ModuleNotFoundError" not in "".join(traceback.format_exception(caught.value))
+
+
+@pytest.mark.parametrize("failure", ["none", "directory_open", "leaf_open", "read"])
+@pytest.mark.skipif(os.name != "posix", reason="Tests POSIX directory descriptor lifetime")
+def test_posix_retained_descriptors_close_on_every_exit(tmp_path, monkeypatch, failure):
+    path = write_contract(tmp_path, EXPECTED)
+    opened = []
+    real_open = os.open
+    real_fdopen = os.fdopen
+
+    def checked_open(candidate, flags, *args, **kwargs):
+        leaf = Path(candidate).name == path.name
+        if (failure == "directory_open" and opened) or (failure == "leaf_open" and leaf):
+            raise OSError("sensitive path")
+        descriptor = real_open(candidate, flags, *args, **kwargs)
+        opened.append(descriptor)
+        return descriptor
+
+    def checked_fdopen(*args, **kwargs):
+        if failure == "read":
+            raise OSError("sensitive path")
+        return real_fdopen(*args, **kwargs)
+
+    monkeypatch.setattr(os, "open", checked_open)
+    monkeypatch.setattr(os, "fdopen", checked_fdopen)
+    if failure == "none":
+        assert load_runtime_contract(path).dsh_commit == EXPECTED["dsh"]["commit"]
+        assert len(opened) == len(path.parents) + 1
+    else:
+        with pytest.raises(RuntimeContractError, match="^runtime_contract_io$"):
+            load_runtime_contract(path)
+    assert opened
+    for descriptor in opened:
+        with pytest.raises(OSError):
+            os.fstat(descriptor)
 
 
 def test_rejects_windows_reparse_attribute(tmp_path, monkeypatch):
@@ -199,10 +317,12 @@ def test_rejects_file_replacement_and_closes_descriptor(tmp_path, monkeypatch, p
     original = os.open
     descriptors = []
 
-    def open_replaced(candidate, flags):
+    def open_replaced(candidate, flags, *args, **kwargs):
+        if Path(candidate).name != path.name:
+            return original(candidate, flags, *args, **kwargs)
         if phase == "before_open":
             replacement.replace(path)
-        descriptor = original(candidate, flags)
+        descriptor = original(candidate, flags, *args, **kwargs)
         descriptors.append(descriptor)
         if phase == "after_open":
             replacement.replace(path)
@@ -218,7 +338,7 @@ def test_rejects_file_replacement_and_closes_descriptor(tmp_path, monkeypatch, p
 def test_permission_failure_is_stable(tmp_path, monkeypatch):
     path = write_contract(tmp_path, EXPECTED)
 
-    def deny_open(*_args):
+    def deny_open(*_args, **_kwargs):
         raise PermissionError("private filesystem information")
 
     monkeypatch.setattr(os, "open", deny_open)
