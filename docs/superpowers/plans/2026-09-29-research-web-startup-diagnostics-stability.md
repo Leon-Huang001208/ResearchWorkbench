@@ -62,26 +62,73 @@ import importlib.metadata as metadata
 import json
 import sys
 
-versions = {name: metadata.version(name) for name in ("cjpy", "pytest", "requests", "urllib3")}
+versions = {name: metadata.version(name) for name in ("cjpy", "requests", "urllib3")}
+try:
+    metadata.version("pytest")
+except metadata.PackageNotFoundError:
+    pytest_in_public_runtime_closure = False
+else:
+    pytest_in_public_runtime_closure = True
+
 assert sys.version_info[:2] == (3, 12), sys.version
 assert versions["cjpy"] == "0.5.2", versions
-print(json.dumps(versions, sort_keys=True))
+assert not pytest_in_public_runtime_closure, "pytest is not part of the public runtime closure"
+print(
+    json.dumps(
+        {
+            "python": ".".join(map(str, sys.version_info[:3])),
+            "packages": versions,
+            "pytest_in_public_runtime_closure": pytest_in_public_runtime_closure,
+        },
+        sort_keys=True,
+    )
+)
 PY
 ~~~
 
-Expected: exit 0 and cjpy equals 0.5.2.
+Expected: exit 0; Python is 3.12; cjpy equals 0.5.2; requests and urllib3
+metadata are readable; pytest is explicitly recorded as absent from the public
+runtime closure rather than required from the product environment.
 
 - [ ] **Step 4: Run the existing focused baseline**
 
+Use the pre-existing development environment strictly as the test runner. Run
+both commands from the assigned worktree so pytest imports the current worktree
+source, not a source copy from the runner environment.
+
 ~~~bash
-.venv/bin/python -m pytest \
+TEST_RUNNER=/Users/leon/Desktop/Projects/ResearchWorkbench-dev-venv-backup-20260924/bin/python
+"$TEST_RUNNER" - <<'PY'
+import importlib.metadata as metadata
+import json
+import sys
+
+print(
+    json.dumps(
+        {
+            "python": ".".join(map(str, sys.version_info[:3])),
+            "pytest": metadata.version("pytest"),
+        },
+        sort_keys=True,
+    )
+)
+PY
+"$TEST_RUNNER" -m pytest \
   tests/research_web/test_service_manager.py \
   tests/research_web/test_setup_web.py \
   tests/research_web/test_cli_lazy.py \
   -q --confcutdir=tests/research_web
 ~~~
 
-Expected: all existing tests pass. If one fails, stop and report the exact node ID before editing.
+Expected: the runner reports Python 3.12.13 and pytest 9.1.1, then all existing
+tests pass against the current worktree source. If one fails, stop and report
+the exact node ID before editing.
+
+**Evidence separation rule:** Product `.venv` metadata proves the installed
+product runtime closure; the external development runner proves the current
+worktree source tests. Neither evidence substitutes for the other. The task
+report must record the exact setup command, the external runner path and
+Python/pytest versions, and the focused baseline pass count.
 
 - [ ] **Step 5: Confirm repair did not change tracked files**
 
