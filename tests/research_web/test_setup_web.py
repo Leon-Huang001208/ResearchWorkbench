@@ -411,6 +411,12 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     assert '"%PROJECT_ROOT%\\scripts\\setup_web.py"' in windows
     assert "%PROJECT_ROOT%\\.venv\\Scripts\\python.exe" in windows_cli
     assert "research_workbench_entrypoint" in windows_cli
+    assert "import click; import app.cli.main" in windows_cli
+    assert "research_workbench_entrypoint.web_bootstrap" in windows_cli
+    assert "py -3.12" in windows_cli
+    assert "python3" in windows_cli
+    assert "python" in windows_cli
+    assert "RWB_BOOTSTRAP_PYTHON_ISSUE" in windows_cli
     assert "exit /b %errorlevel%" not in windows
     assert windows.count("if errorlevel 1 exit /b 1") == 2
     assert "/vendor/dsh-tabbit/0.3.4/** -text" in attributes

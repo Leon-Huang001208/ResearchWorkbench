@@ -27,18 +27,6 @@ if [ ! -x "$PYTHON_BIN" ] && command -v git >/dev/null 2>&1; then
   fi
 fi
 
-if [ ! -x "$PYTHON_BIN" ]; then
-  echo "Research Workbench Python 环境不存在：$PYTHON_BIN" >&2
-  exit 1
-fi
-
-if [ -z "${RESEARCH_NODE_BINARY:-}" ] && [ -n "${HOME:-}" ]; then
-  CODEX_BUNDLED_NODE="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
-  if [ -x "$CODEX_BUNDLED_NODE" ]; then
-    export RESEARCH_NODE_BINARY="$CODEX_BUNDLED_NODE"
-  fi
-fi
-
 if [ -n "${PYTHONPATH:-}" ]; then
   export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 else
@@ -46,4 +34,32 @@ else
 fi
 
 cd "$PROJECT_ROOT"
-exec "$PYTHON_BIN" -m research_workbench_entrypoint "$@"
+
+if [ -x "$PYTHON_BIN" ] && "$PYTHON_BIN" -c 'import click; import app.cli.main' >/dev/null 2>&1; then
+  if [ -z "${RESEARCH_NODE_BINARY:-}" ] && [ -n "${HOME:-}" ]; then
+    CODEX_BUNDLED_NODE="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+    if [ -x "$CODEX_BUNDLED_NODE" ]; then
+      export RESEARCH_NODE_BINARY="$CODEX_BUNDLED_NODE"
+    fi
+  fi
+  exec "$PYTHON_BIN" -m research_workbench_entrypoint "$@"
+fi
+
+if [ -x "$PYTHON_BIN" ]; then
+  export RWB_BOOTSTRAP_PYTHON_ISSUE=python_environment_unusable
+fi
+
+BOOTSTRAP_PYTHON=
+if command -v python3.12 >/dev/null 2>&1; then
+  BOOTSTRAP_PYTHON=$(command -v python3.12)
+elif command -v python3 >/dev/null 2>&1; then
+  BOOTSTRAP_PYTHON=$(command -v python3)
+fi
+
+if [ -z "$BOOTSTRAP_PYTHON" ]; then
+  echo "python_runtime_unavailable" >&2
+  echo "Run ./setup-web.sh --repair --no-start (Windows: setup-web.cmd --repair --no-start)." >&2
+  exit 1
+fi
+
+exec "$BOOTSTRAP_PYTHON" -m research_workbench_entrypoint.web_bootstrap "$@"
