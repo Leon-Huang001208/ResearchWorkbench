@@ -154,6 +154,13 @@ test('Bootstrap has exactly one macOS clean-install job and its intended trigger
   ]);
 });
 
+test('macOS bootstrap proves product readiness and browser assets', () => {
+  assert.match(workflows.bootstrap, /report\['installation_ok'\] is True/);
+  assert.match(workflows.bootstrap, /report\['product_ready'\] is True/);
+  assert.match(workflows.bootstrap, /http:\/\/127\.0\.0\.1:8088\/\s*>\s*root\.html/);
+  assert.match(workflows.bootstrap, /http:\/\/127\.0\.0\.1:8088\/static\/app\.mjs\s*>\s*app\.mjs/);
+});
+
 test('workflow job parser detects unquoted and quoted extra job keys', () => {
   const source = [
     'jobs:',

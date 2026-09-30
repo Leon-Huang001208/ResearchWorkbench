@@ -44,7 +44,7 @@ Research Web Checks 的 Python 部分固定为协议、集成协调、文档服�
 
 ## Artifact 与保留期
 
-- Bootstrap 成功只上传 `doctor.json` 和 `connections.json`；完整 `logs/setup-web.log` 只在失败时上传。
+- Bootstrap 成功上传 `doctor.json`、`connections.json`、首页 `root.html` 和主静态模块 `app.mjs`，证明干净 runner 的安装/产品 ready 与页面资源可读取；完整 `logs/setup-web.log` 只在失败时上传。
 - Bootstrap 和 Windows Verify 的任务 artifact 保留 3 天。
 - GitHub 仓库默认 Actions artifact/log retention 由仓库所有者设为 7 天；该设置不由本地代码自动修改。
 - 若账户仍有 private 仓库或其他 included-usage 消耗，在 Billing 的 budgets/alerts 中启用 90% 与 100% 邮件提醒，但不得创建正额度预算、付款方式或允许付费超额。将提醒状态与仓库默认保留期一起记入月度记录。

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "本轮无需调整根 README，现有 Research Web 产品定位、公开安装入口、状态诊断与服务管理命令仍然准确。",
-  "reason": "本轮让 web status 避免非必要 Runtime 功能图导入，并增强既有 --repair、Web import readiness 与陈旧安装清单失效的失败关闭行为；公开入口、锁定依赖、端口、产品导航和用户启动命令均未改变，详细修复语义已同步到安装文档。"
+  "disposition": "updated",
+  "summary": "README 已加入 Python 环境损坏时的只读诊断入口、完整页面就绪门和模型配置与 Web 可访问性分离说明。",
+  "reason": "本次修改 rwb/rwb.cmd、research_workbench_entrypoint、app/cli 与 Research Web 服务管理合同；README 同步网页打不开时的标准排查命令，以及浏览器只在 DSH、Web API、首页和静态资源 ready 后打开的用户可见行为。"
 }
