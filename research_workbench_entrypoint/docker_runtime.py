@@ -64,6 +64,7 @@ def result(*issues: str, **facts: Any) -> dict[str, Any]:
 def safe_log_text(value: str) -> str:
     """Suppress authentication-bearing lines and terminal controls before display."""
     output = []
+    value = "".join(c for c in value if c == "\n" or c.isprintable())
     for line in value.splitlines():
         if len(line) > 4096 or re.search(
             r"token|cookie|authorization|bearer|password|secret|api[_ -]?key|credential",
@@ -71,7 +72,7 @@ def safe_log_text(value: str) -> str:
         ):
             output.append("[sensitive or oversized log line omitted]\n")
         else:
-            output.append("".join(c for c in line if c == "\t" or c.isprintable()) + "\n")
+            output.append(line + "\n")
     return "".join(output)
 
 
@@ -545,7 +546,8 @@ class DockerRuntime:
 
     def _status(self, containers) -> dict:
         running = bool(containers and containers[0]["running"])
-        healthy = bool(running and containers[0]["health"] == "healthy")
+        healthy = bool(running and containers[0]["state"] == "running"
+                       and containers[0]["health"] == "healthy")
         return result(mode="docker", ownership="verified" if containers else "absent",
             url=f"http://127.0.0.1:{self.ports[0]}/#/fingpt",
             container_state=containers[0]["state"] if containers else "absent",

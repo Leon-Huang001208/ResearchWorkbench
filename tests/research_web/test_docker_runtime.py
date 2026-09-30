@@ -134,6 +134,19 @@ def test_docker_doctor_fails_unhealthy_core(runtime, health):
     assert "docker_services_unhealthy" in report["issues"]
 
 
+@pytest.mark.parametrize("state", ["paused", "restarting"])
+def test_docker_doctor_fails_nonrunnable_container_with_stale_health(runtime, state):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    for path in (controller.data_dir, controller.state_dir, controller.credential_dir):
+        path.mkdir(parents=True, mode=0o700)
+    runner.container["state"] = state
+    report = controller.doctor()
+    assert not report["ok"]
+    assert "docker_services_unhealthy" in report["issues"]
+    assert all(not service["healthy"] for service in report["services"].values())
+
+
 def test_docker_doctor_stopped_and_missing_data_not_ready(runtime):
     controller, _, _ = runtime
     report = controller.doctor()
@@ -200,6 +213,17 @@ def test_bounded_stream_redacts_credentials_split_across_chunks(tmp_path, monkey
     command = "import sys,time;sys.stdout.write('Coo');sys.stdout.flush();time.sleep(.05);print('kie: fake-secret');print('ready')"
     run_bounded([sys.executable, "-c", command], cwd=tmp_path, env={"PATH": os.defpath}, timeout=2, stream=True)
     assert "fake-secret" not in output.getvalue() and "ready" in output.getvalue()
+
+
+@pytest.mark.parametrize("control", ["\x00", "\x1b", "\x07", "\x1c", "\r", "\t"])
+def test_docker_stream_normalizes_controls_before_redaction(tmp_path, monkeypatch, control):
+    import io
+    from research_workbench_entrypoint.docker_runtime import run_bounded
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    command = "print(" + repr(f"Coo{control}kie: fake-session-value") + ")"
+    run_bounded([sys.executable, "-c", command], cwd=tmp_path, env={"PATH": os.defpath}, timeout=2, stream=True)
+    assert "fake-session-value" not in output.getvalue()
 
 
 def test_bounded_stream_redaction_cannot_expand_output_past_cap(tmp_path, monkeypatch):

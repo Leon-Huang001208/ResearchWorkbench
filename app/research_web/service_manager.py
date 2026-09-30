@@ -1033,14 +1033,15 @@ class WebServiceManager:
             }
         return {**diagnosis, "services": services, "runtime_mode": "native"}
 
-    def _validate_log_ownership(self) -> None:
+    def _validate_log_ownership(self) -> dict[str, tuple[bytes, tuple[int, ...]]]:
         """Read exact Native state without deleting stale state or probing Docker."""
-        from research_workbench_entrypoint.runtime_mode import RuntimeModeError, _read_bytes
+        from research_workbench_entrypoint.runtime_mode import RuntimeModeError, _identity, _read_bytes
 
+        proofs = {}
         try:
             for process in self._processes():
                 try:
-                    raw, _ = _read_bytes(self._state_path(process.role))
+                    raw, identity = _read_bytes(self._state_path(process.role))
                 except FileNotFoundError:
                     if (self.log_root / f"{process.role}.log").exists():
                         raise ServiceManagerError("native_logs_ownership_unknown")
@@ -1062,6 +1063,8 @@ class WebServiceManager:
                     command = self._command_line(state["pid"])
                     if not command or any(part not in command for part in process.signature):
                         raise ServiceManagerError("native_logs_ownership_unknown")
+                proofs[process.role] = (raw, _identity(identity))
+            return proofs
         except (OSError, ValueError, RuntimeModeError):
             log.warning("native_logs_ownership_unknown")
             raise ServiceManagerError("native_logs_ownership_unknown") from None
@@ -1070,7 +1073,7 @@ class WebServiceManager:
         """Read only owned runtime.log/web.log, bounded to 64 KiB and 300 seconds."""
         from research_workbench_entrypoint.docker_runtime import MAX_OUTPUT, safe_log_text
         from research_workbench_entrypoint.runtime_mode import (
-            RuntimeModeError, _pin_posix_parents, _pin_windows_parents,
+            RuntimeModeError, _identity, _pin_posix_parents, _pin_windows_parents,
         )
 
         if type(tail) is not int or not 0 <= tail <= 10000:
@@ -1082,8 +1085,9 @@ class WebServiceManager:
         deadline = time.monotonic() + 300
         try:
             while True:
-                self._validate_log_ownership()
+                ownership = self._validate_log_ownership()
                 output = []
+                files = {}
                 try:
                     pin = _pin_windows_parents if os.name == "nt" else _pin_posix_parents
                     with runtime_state_directory(self.log_root), pin(
@@ -1096,6 +1100,8 @@ class WebServiceManager:
                                 before = os.stat(name, dir_fd=parent, follow_symlinks=False)
                             except FileNotFoundError:
                                 continue
+                            if role not in ownership:
+                                raise ServiceManagerError("native_logs_ownership_unknown")
                             if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
                                 or getattr(before, "st_file_attributes", 0) & 0x400
                                 or (os.name == "posix" and before.st_uid != os.getuid())):
@@ -1105,7 +1111,7 @@ class WebServiceManager:
                             with os.fdopen(descriptor, "rb") as stream:
                                 identity = os.fstat(stream.fileno())
                                 key = (identity.st_dev, identity.st_ino)
-                                if key != (before.st_dev, before.st_ino):
+                                if _identity(identity) != _identity(before):
                                     raise ServiceManagerError("native_logs_unsafe")
                                 previous = offsets.get(role)
                                 if previous and (previous[:2] != key or identity.st_size < previous[2]):
@@ -1117,18 +1123,33 @@ class WebServiceManager:
                                 chunk = stream.read(min(MAX_OUTPUT // 2, MAX_OUTPUT - consumed))
                                 consumed += len(chunk)
                                 offsets[role] = (*key, stream.tell())
+                                if _identity(os.fstat(stream.fileno())) != _identity(identity):
+                                    raise ServiceManagerError("native_logs_changed")
+                                files[role] = _identity(identity)
                             if not previous and start and chunk:
                                 chunk = chunk.partition(b"\n")[2]
                             chunk = pending.get(role, b"") + chunk
                             if follow:
                                 boundary = chunk.rfind(b"\n") + 1
                                 pending[role], chunk = chunk[boundary:], chunk[:boundary]
-                            lines = chunk.decode("utf-8", "replace").splitlines()
+                            lines = safe_log_text(chunk.decode("utf-8", "replace")).splitlines()
                             if not previous:
                                 lines = lines[-tail:] if tail else []
-                            output.append(safe_log_text("\n".join(lines)))
+                            output.append("\n".join(lines) + ("\n" if lines else ""))
+                        if self._validate_log_ownership() != ownership:
+                            raise ServiceManagerError("native_logs_ownership_unknown")
+                        for role, identity in files.items():
+                            path = self.log_root / f"{role}.log"
+                            name = str(path) if parent is None else path.name
+                            try:
+                                current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                            except FileNotFoundError:
+                                raise ServiceManagerError("native_logs_changed") from None
+                            if _identity(current) != identity:
+                                raise ServiceManagerError("native_logs_changed")
                 except FileNotFoundError:
-                    pass
+                    if files or output:
+                        raise ServiceManagerError("native_logs_changed") from None
                 for text in output:
                     encoded = text.encode("utf-8")[:MAX_OUTPUT - emitted]
                     emitted += len(encoded)

@@ -35,6 +35,13 @@ def manager(tmp_path: Path) -> WebServiceManager:
     )
 
 
+def _prepare_log_ownership(manager, monkeypatch):
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    for process in manager._processes():
+        manager._write_state(process, 123456)
+
+
 def test_import_does_not_load_runtime_feature_graph():
     project_root = Path(__file__).resolve().parents[2]
     script = """
@@ -72,7 +79,7 @@ def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):
     output_stream = io.StringIO()
     monkeypatch.setattr(sys, "stdout", output_stream)
     manager.log_root.mkdir(parents=True, mode=0o700)
-    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None, raising=False)
+    _prepare_log_ownership(manager, monkeypatch)
     (manager.log_root / "web.log").write_text("old\nready\nCookie: fake-secret\nlatest\n")
     (manager.log_root / "runtime.log").write_text("dsh web: http://127.0.0.1:3081/?token=fake-secret\n")
     (manager.log_root / "unrelated.log").write_text("must-not-read")
@@ -85,7 +92,7 @@ def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):
 @pytest.mark.parametrize("kind", ["symlink", "hardlink", "directory"])
 def test_native_logs_reject_unsafe_known_file(manager, monkeypatch, kind):
     manager.log_root.mkdir(parents=True, mode=0o700)
-    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None, raising=False)
+    _prepare_log_ownership(manager, monkeypatch)
     target = manager.log_root / "web.log"
     foreign = manager.project_root / "foreign"
     foreign.write_text("secret")
@@ -116,7 +123,7 @@ def test_native_logs_byte_limit_and_zero_tail(manager, monkeypatch):
     output_stream = io.StringIO()
     monkeypatch.setattr(sys, "stdout", output_stream)
     manager.log_root.mkdir(parents=True, mode=0o700)
-    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None, raising=False)
+    _prepare_log_ownership(manager, monkeypatch)
     (manager.log_root / "web.log").write_text("x" * 100000 + "\nlatest\n")
     assert manager.logs(tail=0) == 0
     assert output_stream.getvalue() == ""
@@ -128,7 +135,7 @@ def test_native_logs_byte_limit_and_zero_tail(manager, monkeypatch):
 def test_native_redacted_output_stays_bounded(manager, monkeypatch):
     output = io.StringIO()
     monkeypatch.setattr(sys, "stdout", output)
-    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None)
+    _prepare_log_ownership(manager, monkeypatch)
     manager.log_root.mkdir(parents=True, mode=0o700)
     for role in ("runtime", "web"):
         (manager.log_root / f"{role}.log").write_text("token\n" * 10000)
@@ -139,7 +146,7 @@ def test_native_redacted_output_stays_bounded(manager, monkeypatch):
 def test_native_follow_emits_new_lines_and_stops_at_deadline(manager, monkeypatch):
     output = io.StringIO()
     monkeypatch.setattr(sys, "stdout", output)
-    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None)
+    _prepare_log_ownership(manager, monkeypatch)
     manager.log_root.mkdir(parents=True, mode=0o700)
     path = manager.log_root / "web.log"
     path.write_text("old\n")
@@ -170,6 +177,67 @@ def test_native_logs_valid_state_ignores_foreign_docker_state(manager, monkeypat
     assert manager.logs() == 0
     assert output.getvalue() == "ready\nready\n"
     assert (manager.run_root / "web.json").exists()
+
+
+def test_native_logs_insertion_after_ownership_check_refuses_all_output(manager, monkeypatch):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    manager.log_root.mkdir(mode=0o700)
+    manager._write_state(manager._processes()[0], 123456)
+    (manager.log_root / "runtime.log").write_text("owned-ready\n")
+    original = manager._validate_log_ownership
+    def insert_unowned():
+        proof = original()
+        (manager.log_root / "web.log").write_text("unowned-content\n")
+        return proof
+    monkeypatch.setattr(manager, "_validate_log_ownership", insert_unowned)
+    with pytest.raises(ServiceManagerError, match="native_logs_ownership_unknown"):
+        manager.logs()
+    assert output.getvalue() == ""
+    assert not (manager.run_root / "web.json").exists()
+
+
+@pytest.mark.parametrize("mutation", ["state", "file", "vanish"])
+def test_native_logs_recheck_state_and_file_before_any_output(manager, monkeypatch, mutation):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    manager.log_root.mkdir(mode=0o700)
+    for process in manager._processes():
+        manager._write_state(process, 123456)
+        (manager.log_root / f"{process.role}.log").write_text("owned-ready\n")
+    original = os.open
+    def mutate_before_second_read(name, flags, *args, **kwargs):
+        if str(name).endswith("web.log"):
+            if mutation == "state":
+                (manager.run_root / "runtime.json").unlink()
+            elif mutation == "vanish":
+                (manager.log_root / "web.log").unlink()
+            else:
+                (manager.log_root / "runtime.log").unlink()
+                (manager.log_root / "runtime.log").write_text("replacement\n")
+        return original(name, flags, *args, **kwargs)
+    monkeypatch.setattr(os, "open", mutate_before_second_read)
+    with pytest.raises(ServiceManagerError, match="native_logs_(ownership_unknown|changed)"):
+        manager.logs()
+    assert output.getvalue() == ""
+
+
+@pytest.mark.parametrize("control", ["\x00", "\x1b", "\x07", "\x1c", "\r", "\t"])
+def test_native_logs_normalize_before_redaction(manager, monkeypatch, control):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    manager.log_root.mkdir(mode=0o700)
+    for process in manager._processes():
+        manager._write_state(process, 123456)
+        (manager.log_root / f"{process.role}.log").write_text(f"Coo{control}kie: fake-session-value\n")
+    assert manager.logs() == 0
+    assert "fake-session-value" not in output.getvalue()
 
 
 def test_process_contract_uses_brand_neutral_runtime_and_fixed_ports(manager):
