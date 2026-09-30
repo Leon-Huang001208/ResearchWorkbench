@@ -1105,6 +1105,7 @@ def test_start_rebuilds_owned_unhealthy_runtime_stack_in_dependency_order(manage
     events: list[str] = []
     monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+    monkeypatch.setattr(manager, "_active_research_read_only", lambda _probe: [])
 
     def stop_owned(process, _probe):
         events.append(f"stop:{process.role}")
@@ -1133,6 +1134,50 @@ def test_start_rebuilds_owned_unhealthy_runtime_stack_in_dependency_order(manage
     manager.start(open_browser=False)
 
     assert events == ["stop:web", "stop:runtime", "spawn:runtime", "spawn:web"]
+
+
+@pytest.mark.parametrize("activity", ["running", "unverified"])
+def test_start_never_stops_owned_runtime_when_research_may_be_active(
+    manager, monkeypatch, activity
+):
+    probes = {
+        "runtime": _service_probe(
+            "runtime",
+            protocol="failed",
+            ready=False,
+            pid=101,
+            issues=("runtime_health_failed",),
+        ),
+        "web": _service_probe("web", pid=202),
+    }
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
+    monkeypatch.setattr(
+        manager,
+        "_stop_owned_probe",
+        lambda *_args: pytest.fail("start must preserve possibly active research"),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_spawn_and_wait",
+        lambda *_args: pytest.fail("start must not replace possibly active research"),
+    )
+
+    def activity_check(_probe):
+        if activity == "running":
+            return ["session-1"]
+        raise ServiceManagerError(
+            "active_research_unverified", code="active_research_unverified", role="runtime"
+        )
+
+    monkeypatch.setattr(manager, "_active_research_read_only", activity_check)
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager.start(open_browser=False)
+
+    assert captured.value.code == (
+        "active_research" if activity == "running" else "active_research_unverified"
+    )
 
 
 def test_start_rebuilds_only_owned_unhealthy_web(manager, monkeypatch):
@@ -4255,11 +4300,69 @@ def test_browser_never_opens_when_final_product_status_is_not_ready(manager, mon
         "open",
         lambda _url: pytest.fail("partial readiness must never open the browser"),
     )
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._start_locked(diagnosis={"ok": True}, open_browser=True)
+
+    assert captured.value.code == "product_not_ready"
+
+
+def test_start_reports_final_web_health_issue(manager, monkeypatch):
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: _service_probe(process.role, pid=101 if process.role == "runtime" else 202),
+    )
+    monkeypatch.setattr(
+        manager,
+        "status",
+        lambda: {
+            "url": manager.web_url,
+            "product_ready": False,
+            "warnings": [],
+            "services": {
+                "runtime": {"ready": True, "issues": []},
+                "web": {"ready": False, "issues": ["web_static_asset_failed"]},
+            },
+        },
+    )
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._start_locked(diagnosis={"ok": True}, open_browser=False)
+
+    assert captured.value.code == "web_static_asset_failed"
+    assert captured.value.role == "web"
+
+
+def test_start_rechecks_transient_final_product_status_before_opening_browser(manager, monkeypatch):
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda process: _service_probe(process.role, pid=101 if process.role == "runtime" else 202),
+    )
+    checks = iter([False, True])
+    monkeypatch.setattr(
+        manager,
+        "status",
+        lambda: {
+            "url": manager.web_url,
+            "product_ready": next(checks),
+            "warnings": [],
+            "services": {},
+        },
+    )
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+    opened = []
+    monkeypatch.setattr(
+        service_manager_module.webbrowser, "open", lambda url: opened.append(url) or True
+    )
 
     result = manager._start_locked(diagnosis={"ok": True}, open_browser=True)
 
-    assert result["product_ready"] is False
-    assert result["warnings"] == []
+    assert result["product_ready"] is True
+    assert opened == [manager.web_url]
 
 
 def test_browser_unexpected_base_exception_is_not_swallowed(manager, monkeypatch):

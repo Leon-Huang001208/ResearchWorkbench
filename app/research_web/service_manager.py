@@ -1545,6 +1545,14 @@ class WebServiceManager:
         spawned: list[tuple[ManagedProcess, int]] = []
         try:
             if actions["runtime"] == "owned_unhealthy":
+                active = self._active_research_read_only(probes["runtime"])
+                if active:
+                    raise ServiceManagerError(
+                        f"存在 {len(active)} 个活动研究，拒绝自动重建 Runtime；"
+                        "确需中断时使用 rwb web restart --force",
+                        code="active_research",
+                        role="runtime",
+                    )
                 if actions["web"] in {"ready", "owned_unhealthy"}:
                     self._stop_owned_probe(web, probes["web"])
                     actions["web"] = "missing"
@@ -1578,7 +1586,33 @@ class WebServiceManager:
                     log.error("research_service_rollback_failed", role=process.role)
             raise
         status = self.status()
-        if open_browser and status.get("product_ready") is True:
+        for _attempt in range(10):
+            if status.get("product_ready") is True:
+                break
+            time.sleep(0.5)
+            status = self.status()
+        if status.get("product_ready") is not True:
+            services = status.get("services")
+            role = None
+            code = "product_not_ready"
+            if isinstance(services, dict):
+                for candidate in ("runtime", "web"):
+                    service = services.get(candidate)
+                    if isinstance(service, dict) and service.get("ready") is not True:
+                        role = candidate
+                        issues = service.get("issues")
+                        if isinstance(issues, list) and issues and isinstance(issues[0], str):
+                            code = issues[0]
+                        else:
+                            code = f"{candidate}_health_failed"
+                        break
+            log.error("research_web_final_readiness_failed", role=role, code=code)
+            raise ServiceManagerError(
+                f"{code}: Research Web 最终就绪检查失败；运行 rwb web doctor --json 查看服务状态",
+                code=code,
+                role=role,
+            )
+        if open_browser:
             browser_failed = False
             try:
                 browser_failed = webbrowser.open(self.web_url) is not True

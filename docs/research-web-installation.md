@@ -73,8 +73,11 @@ Doctor schema 2 区分 `installation_ok`、`product_ready` 与 `model_ready`。�
 ready。Node 22.19+（22 系列）或 24.x 由安装器与 Doctor 使用同一版本合同核对，其他版本或畸形
 输出报告独立 issue。模型配置、凭据或目录问题只列入 warning，不阻止 Web 与设置页启动；Doctor 不
 通过真实生成请求测试模型密钥。
-`start` 在已确认死亡且端口关闭时恢复 stale state；归属明确但不健康的服务按 Web → DSH 的停止
-顺序重建，然后依次等待 DSH、Web Runtime API、首页与 `/static/app.mjs`。归属不明的 PID、监听者或
+`start` 在已确认死亡且端口关闭时恢复 stale state；归属明确但不健康的 DSH 只有在只读核对确认
+没有活动研究后，才按 Web → DSH 的停止顺序重建。活动研究存在或无法核对时拒绝自动停止，并提示
+显式 `rwb web restart --force`。随后依次等待 DSH、Web Runtime API、首页与 `/static/app.mjs`，
+并复查最终产品就绪状态；未就绪时返回非零退出码和具体健康 issue，不会误报启动成功或打开浏览器。
+归属不明的 PID、监听者或
 损坏且仍可能活动的 state 会失败关闭，不接管或终止未知进程。生命周期操作由同一排他锁串行化；
 浏览器打开失败会返回 `browser_open_failed` warning 和可复制 URL，已健康服务继续运行。
 `rwb web start` 会在创建 3081/8088 子进程前复用 Doctor 的安装检查。若 checkout `.venv` 不受安装器
