@@ -12,10 +12,16 @@ Research Workbench acceptance closure. Read [SKILL.md](SKILL.md) before use.
 
 ## Outputs
 
-- A schema-v2 JSON plan from `scripts/plan_verification.mjs`.
-- A JSON receipt containing actual executions, external gates, uncovered risks,
-  and escalation decisions.
+- A schema-v3 JSON plan from `scripts/plan_verification.mjs`, with component,
+  risk, validation-level and platform dimensions.
+- A receipt-v2 JSON document containing actual executions, CI merge gates,
+  real-machine release gates, readiness, uncovered risks, and escalation.
 - A validator verdict from `scripts/validate_verification_receipt.mjs`.
+
+The thin scripts import the manifest-owned runtime at
+`.agents/runtime/leon-engineering/`. Its manifest records leon-engineering
+version `0.19.3`, source commit, protocol versions, file list and SHA-256 values;
+project policy remains outside that managed directory.
 
 ## Safety boundaries
 
