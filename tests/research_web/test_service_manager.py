@@ -5,6 +5,7 @@ import signal
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -2467,6 +2468,17 @@ def test_process_contract_supports_isolated_staging_ports(manager):
     assert runtime.command[runtime.command.index("--datahub-url") + 1] == ("http://127.0.0.1:18088")
     assert web.command[-1] == "18088"
     assert staged.web_url == "http://127.0.0.1:18088/#/fingpt"
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS /tmp is a system alias")
+def test_runtime_signature_canonicalizes_system_alias_above_data_root():
+    with tempfile.TemporaryDirectory(prefix="rwb-signature-", dir="/var/tmp") as directory:
+        manager = WebServiceManager(data_root=Path(directory) / "research-web")
+        runtime, _web = manager._processes()
+
+        assert runtime.signature[1] == str(
+            (manager.data_root / "runtime" / "overlay.yml").resolve()
+        )
 
 
 def test_spawn_exports_the_exact_private_web_origin_for_mcp_callbacks(manager, monkeypatch):

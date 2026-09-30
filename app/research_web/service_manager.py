@@ -249,7 +249,7 @@ class WebServiceManager:
                 runtime_command,
                 (
                     str(self.runtime_source / "apps/cli/lib/bin.js"),
-                    str(self.data_root / "runtime/overlay.yml"),
+                    str((self.data_root / "runtime/overlay.yml").resolve()),
                     str(self.runtime_port),
                 ),
             ),
