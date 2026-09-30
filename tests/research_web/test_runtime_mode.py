@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import multiprocessing
 import os
 import re
 import stat
@@ -465,8 +466,16 @@ def test_public_windows_read_write_does_not_treat_mode_bits_as_acl(
     fresh_store = RuntimeModeStore(home)
     opened: list[int] = []
     closed: list[int] = []
+    lock_descriptors = {}
+    lock_operations = []
 
     def create_file(_path, access, sharing, security, disposition, flags, template):
+        if access == 0xC0000000:
+            assert (sharing, security, disposition, flags, template) == (3, 0, 4, 0x00200000, 0)
+            handle = len(opened) + 1
+            opened.append(handle)
+            lock_descriptors[handle] = os.open(str(_path), os.O_RDWR | os.O_CREAT, 0o600)
+            return handle
         assert (access, sharing, security, disposition, flags, template) == (
             0x80,
             1,
@@ -482,11 +491,19 @@ def test_public_windows_read_write_does_not_treat_mode_bits_as_acl(
     def close_handle(handle):
         closed.append(handle)
 
+    def transfer_handle(handle, flags):
+        closed.append(handle)  # The returned fd now owns and closes this handle.
+        return lock_descriptors.pop(handle)
+
     monkeypatch.setitem(
         sys.modules,
         "_winapi",
         SimpleNamespace(CreateFile=create_file, CloseHandle=close_handle),
     )
+    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(
+        open_osfhandle=transfer_handle, LK_NBLCK=1, LK_UNLCK=0,
+        locking=lambda fd, operation, size: lock_operations.append((operation, size)),
+    ))
     monkeypatch.setattr(runtime_mode.os, "name", "nt")
     monkeypatch.setattr(runtime_mode.os, "chmod", lambda *_args, **_kwargs: None)
 
@@ -498,7 +515,8 @@ def test_public_windows_read_write_does_not_treat_mode_bits_as_acl(
     assert after.installation_id == before.installation_id
     assert fresh_store.read() == after
     assert opened
-    assert sorted(closed) == opened
+    assert sorted(closed) == sorted(opened)
+    assert lock_operations == [(1, 1), (0, 1)]
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Exercises POSIX retained directory descriptors")
@@ -573,7 +591,8 @@ def test_failed_atomic_replace_cleans_temporary_file(
     with pytest.raises(RuntimeModeError, match="^runtime_mode_io$") as caught:
         RuntimeModeStore(home).write("docker")
 
-    assert list((home / "install").iterdir()) == []
+    assert [item.name for item in (home / "install").iterdir()] == ["runtime.lock"]
+    assert stat.S_IMODE((home / "install/runtime.lock").stat().st_mode) == 0o600
     assert "private filesystem detail" not in "".join(traceback.format_exception(caught.value))
 
 
@@ -613,3 +632,148 @@ def test_module_import_is_stdlib_only() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
+
+
+def _interleaved_writer(home, expected, entered, release, started, finished, results, hold):
+    original = os.replace
+    original_load = RuntimeModeStore._load
+    replaced = False
+
+    def replace(*args, **kwargs):
+        nonlocal replaced
+        if hold == "replace":
+            entered.set()
+            if not release.wait(10):
+                raise TimeoutError("test release timeout")
+        value = original(*args, **kwargs)
+        replaced = True
+        return value
+
+    def load(store, *args, **kwargs):
+        if hold == "readback" and replaced:
+            entered.set()
+            if not release.wait(10):
+                raise TimeoutError("test release timeout")
+        return original_load(store, *args, **kwargs)
+
+    os.replace = replace
+    RuntimeModeStore._load = load
+    started.set()
+    try:
+        record = RuntimeModeStore(Path(home)).write("docker", expected=expected)
+        results.put(("ok", record.installation_id))
+    except RuntimeModeError as error:
+        results.put((error.code, None))
+    finally:
+        finished.set()
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_cross_process_writes_are_serialized_through_readback(tmp_path, existing):
+    home = tmp_path / "home"
+    initial = RuntimeModeStore(home).write("native") if existing else None
+    context = multiprocessing.get_context("spawn")
+    entered, release = context.Event(), context.Event()
+    started = [context.Event(), context.Event()]
+    finished = [context.Event(), context.Event()]
+    results = context.Queue()
+    children = [context.Process(target=_interleaved_writer, args=(str(home), initial,
+                entered, release, started[index], finished[index], results,
+                "replace" if index == 0 else "none"))
+                for index in range(2)]
+    try:
+        children[0].start()
+        assert entered.wait(10)
+        children[1].start()
+        assert started[1].wait(10)
+        assert not finished[1].wait(0.3), "second writer bypassed the critical section"
+    finally:
+        release.set()
+        for child in children:
+            if child.pid is not None:
+                child.join(10)
+                if child.is_alive():
+                    child.terminate()
+                    child.join(5)
+    assert all(child.exitcode == 0 for child in children)
+    values = [results.get(timeout=2), results.get(timeout=2)]
+    if existing:
+        assert sorted(value[0] for value in values) == ["ok", "runtime_mode_changed"]
+    else:
+        assert [value[0] for value in values] == ["ok", "ok"]
+        assert values[0][1] == values[1][1] == RuntimeModeStore(home).read().installation_id
+
+
+def test_cross_process_lock_covers_persisted_readback(tmp_path):
+    home = tmp_path / "home"
+    initial = RuntimeModeStore(home).write("native")
+    context = multiprocessing.get_context("spawn")
+    entered, release = context.Event(), context.Event()
+    started = [context.Event(), context.Event()]
+    finished = [context.Event(), context.Event()]
+    results = context.Queue()
+    children = [context.Process(target=_interleaved_writer, args=(str(home), initial,
+                entered, release, started[index], finished[index], results,
+                "readback" if index == 0 else "none")) for index in range(2)]
+    try:
+        children[0].start()
+        assert entered.wait(10)
+        children[1].start()
+        assert started[1].wait(10)
+        assert not finished[1].wait(0.3), "second writer entered before readback finished"
+    finally:
+        release.set()
+        for child in children:
+            if child.pid is not None:
+                child.join(10)
+                if child.is_alive():
+                    child.terminate()
+                    child.join(5)
+    assert all(child.exitcode == 0 for child in children)
+    assert sorted(results.get(timeout=2)[0] for _ in children) == ["ok", "runtime_mode_changed"]
+
+
+def test_higher_ancestor_rename_restore_cannot_redirect_record(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    expected = RuntimeModeStore(home).write("native")
+    decoy = tmp_path / "decoy"
+    foreign = RuntimeModeStore(decoy).write("docker")
+    moved = tmp_path / "moved"
+    original = os.open
+    attacked = []
+    def swap(candidate, flags, *args, **kwargs):
+        if Path(candidate).name != "runtime.json":
+            return original(candidate, flags, *args, **kwargs)
+        attacked.append(True)
+        home.rename(moved)
+        decoy.rename(home)
+        try:
+            return original(candidate, flags, *args, **kwargs)
+        finally:
+            home.rename(decoy)
+            moved.rename(home)
+    monkeypatch.setattr(os, "open", swap)
+    assert RuntimeModeStore(home).read() == expected
+    assert expected.installation_id != foreign.installation_id
+    assert attacked == [True]
+
+
+@pytest.mark.parametrize("kind", ["symlink", "hardlink", "public"])
+def test_write_lock_rejects_unsafe_leaf(tmp_path, kind):
+    home = tmp_path / "home"
+    record = RuntimeModeStore(home).write("native")
+    lock = home / "install/runtime.lock"
+    lock.unlink(missing_ok=True)
+    foreign = tmp_path / "foreign"
+    foreign.write_bytes(b"x")
+    foreign.chmod(0o600)
+    if kind == "symlink":
+        lock.symlink_to(foreign)
+    elif kind == "hardlink":
+        os.link(foreign, lock)
+    else:
+        lock.write_bytes(b"x")
+        lock.chmod(0o644)
+    with pytest.raises(RuntimeModeError):
+        RuntimeModeStore(home).write("docker")
+    assert RuntimeModeStore(home).read() == record

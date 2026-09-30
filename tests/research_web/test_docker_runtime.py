@@ -4,6 +4,9 @@ import json
 import os
 import socket
 import subprocess
+import signal
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -398,3 +401,45 @@ def test_start_opens_only_verified_runtime_url(runtime, monkeypatch):
     assert opened == [f"http://127.0.0.1:{controller.ports[0]}/#/fingpt"]
     assert controller.start(open_browser=False)["ok"]
     assert len(opened) == 1
+
+
+@pytest.mark.parametrize("overflow", [False, True])
+@pytest.mark.parametrize("parent_ignores_term", [False, True])
+def test_bounded_runner_kills_descendants_but_not_unrelated(tmp_path, overflow, parent_ignores_term):
+    from research_workbench_entrypoint.docker_runtime import ControlError, run_bounded, port_busy
+    ready = tmp_path / "child.json"
+    child_script = (
+        "import socket,signal,time,os,json; from pathlib import Path; "
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
+        "s=socket.socket(); s.bind(('127.0.0.1',0)); s.listen(); "
+        f"Path({str(ready)!r}).write_text(json.dumps([os.getpid(),s.getsockname()[1]])); "
+        "time.sleep(30)"
+    )
+    script = (
+        "import subprocess,sys,time,signal; from pathlib import Path; "
+        + ("signal.signal(signal.SIGTERM,signal.SIG_IGN); " if parent_ignores_term else "")
+        + f"p=subprocess.Popen([sys.executable,'-c',{child_script!r}]); "
+        f"ready=Path({str(ready)!r})\n"
+        "while not ready.exists(): time.sleep(.01)\n"
+        + ("print('x'*100000,flush=True)\n" if overflow else "")
+        + "time.sleep(30)\n"
+    )
+    unrelated = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"])
+    child_pid = None
+    try:
+        with pytest.raises(ControlError, match="runtime_output_limit" if overflow else "runtime_command_timeout"):
+            run_bounded([sys.executable, "-c", script], cwd=tmp_path,
+                        env=dict(os.environ), timeout=1.5, max_output=1000)
+        child_pid, port = json.loads(ready.read_text())
+        assert not port_busy(port), "owned descendant remained alive after runner returned"
+        assert unrelated.poll() is None
+    finally:
+        if child_pid is None and ready.exists():
+            child_pid, _ = json.loads(ready.read_text())
+        if child_pid:
+            try:
+                os.kill(child_pid, getattr(signal, "SIGKILL", signal.SIGTERM))
+            except ProcessLookupError:
+                pass
+        unrelated.terminate()
+        unrelated.wait(timeout=5)

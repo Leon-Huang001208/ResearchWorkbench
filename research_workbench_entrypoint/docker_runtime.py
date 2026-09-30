@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import signal
 import socket
 import stat
 import subprocess
@@ -58,6 +59,138 @@ def result(*issues: str, **facts: Any) -> dict[str, Any]:
     return {"schema_version": 1, "ok": not issues, "issues": list(issues), **facts}
 
 
+class _WindowsProcessJob:
+    """Own descendants before a suspended command can execute any user code."""
+
+    def __init__(self):
+        import ctypes
+        from ctypes import wintypes
+
+        class BasicLimits(ctypes.Structure):
+            _fields_ = [
+                ("ProcessTime", ctypes.c_longlong), ("JobTime", ctypes.c_longlong),
+                ("Flags", wintypes.DWORD), ("MinWorkingSet", ctypes.c_size_t),
+                ("MaxWorkingSet", ctypes.c_size_t), ("ActiveProcesses", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t), ("Priority", wintypes.DWORD),
+                ("Scheduling", wintypes.DWORD),
+            ]
+
+        class Counters(ctypes.Structure):
+            _fields_ = [(name, ctypes.c_ulonglong) for name in
+                        ("ReadOps", "WriteOps", "OtherOps", "ReadBytes", "WriteBytes", "OtherBytes")]
+
+        class ExtendedLimits(ctypes.Structure):
+            _fields_ = [("Basic", BasicLimits), ("IO", Counters),
+                        ("ProcessMemory", ctypes.c_size_t), ("JobMemory", ctypes.c_size_t),
+                        ("PeakProcessMemory", ctypes.c_size_t), ("PeakJobMemory", ctypes.c_size_t)]
+
+        class Accounting(ctypes.Structure):
+            _fields_ = [(name, ctypes.c_longlong) for name in
+                        ("TotalUser", "TotalKernel", "PeriodUser", "PeriodKernel")] + [
+                            (name, wintypes.DWORD) for name in
+                            ("PageFaults", "TotalProcesses", "ActiveProcesses", "TerminatedProcesses")]
+
+        self.accounting_type = Accounting
+        self.kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        self.kernel.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+        self.kernel.CreateJobObjectW.restype = wintypes.HANDLE
+        self.kernel.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int,
+                                                       ctypes.c_void_p, wintypes.DWORD]
+        self.kernel.SetInformationJobObject.restype = wintypes.BOOL
+        self.kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        self.kernel.AssignProcessToJobObject.restype = wintypes.BOOL
+        self.kernel.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        self.kernel.TerminateJobObject.restype = wintypes.BOOL
+        self.kernel.QueryInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int,
+                                                         ctypes.c_void_p, wintypes.DWORD,
+                                                         ctypes.c_void_p]
+        self.kernel.QueryInformationJobObject.restype = wintypes.BOOL
+        self.kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        self.kernel.CloseHandle.restype = wintypes.BOOL
+        self.handle = self.kernel.CreateJobObjectW(None, None)
+        if not self.handle:
+            raise ControlError("runtime_process_tree_unavailable")
+        limits = ExtendedLimits()
+        limits.Basic.Flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE; no breakaway.
+        if not self.kernel.SetInformationJobObject(self.handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
+            self.close()
+            raise ControlError("runtime_process_tree_unavailable")
+
+    def attach_and_resume(self, process) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        if not self.kernel.AssignProcessToJobObject(self.handle, int(process._handle)):
+            raise ControlError("runtime_process_tree_unavailable")
+        # Popen closes its primary thread handle. Resume the retained process
+        # only after job assignment; this avoids a spawn-before-assignment race.
+        resume = ctypes.WinDLL("ntdll").NtResumeProcess
+        resume.argtypes = [wintypes.HANDLE]
+        resume.restype = wintypes.LONG
+        if resume(int(process._handle)) < 0:
+            raise ControlError("runtime_process_tree_unavailable")
+
+    def terminate(self) -> None:
+        import ctypes
+
+        if not self.kernel.TerminateJobObject(self.handle, 1):
+            raise ControlError("runtime_process_tree_cleanup_failed")
+        deadline = time.monotonic() + 5
+        while True:
+            accounting = self.accounting_type()
+            if not self.kernel.QueryInformationJobObject(self.handle, 1, ctypes.byref(accounting),
+                                                        ctypes.sizeof(accounting), None):
+                raise ControlError("runtime_process_tree_cleanup_failed")
+            if accounting.ActiveProcesses == 0:
+                break
+            if time.monotonic() >= deadline:
+                raise ControlError("runtime_process_tree_cleanup_failed")
+            time.sleep(0.02)
+
+    def close(self) -> None:
+        if self.handle:
+            self.kernel.CloseHandle(self.handle)
+            self.handle = None
+
+
+def _terminate_command_tree(process, job=None) -> None:
+    """Gracefully stop only this launch's session/job, then escalate and reap."""
+    def signal_group(value) -> bool:
+        try:
+            os.killpg(process.pid, value)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            # Darwin reports EPERM, not ESRCH, for an already-dead session;
+            # getpgid on its unreaped zombie is ESRCH. Do not reinterpret a
+            # permission failure on a live leader or on another platform.
+            if sys.platform == "darwin":
+                try:
+                    os.getpgid(process.pid)
+                except ProcessLookupError:
+                    return False
+            raise
+
+    if job is not None:
+        try:
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        except OSError:
+            pass  # Detached/non-console Windows children still belong to the job.
+    else:
+        if not signal_group(signal.SIGTERM):
+            process.wait(timeout=5)
+            return
+    # Descendants may ignore TERM after their parent exits; always escalate the
+    # owned group/job after this grace period, not just a still-running parent.
+    time.sleep(0.2)
+    if job is not None:
+        job.terminate()
+    else:
+        signal_group(signal.SIGKILL)
+    process.wait(timeout=5)
+
+
 def run_bounded(
     argv: list[str], *, cwd: Path, env: dict[str, str], timeout: float,
     max_output: int = MAX_OUTPUT, stream: bool = False,
@@ -67,10 +200,31 @@ def run_bounded(
     Follow is still bounded by timeout and byte count. It cannot silently grow
     memory or fill a temporary file when an untrusted daemon prints endlessly.
     """
-    process = subprocess.Popen(
-        argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False,
-    )
+    try:
+        job = _WindowsProcessJob() if os.name == "nt" else None
+    except (OSError, ImportError, AttributeError):
+        raise ControlError("runtime_process_tree_unavailable") from None
+    try:
+        process = subprocess.Popen(
+            argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False,
+            start_new_session=os.name != "nt",
+            creationflags=(0x00000004 | subprocess.CREATE_NEW_PROCESS_GROUP) if job else 0,
+        )
+    except BaseException:
+        if job is not None:
+            job.close()
+        raise
+    if job is not None:
+        try:
+            job.attach_and_resume(process)
+        except BaseException:
+            job.close()
+            process.kill()
+            process.wait(timeout=5)
+            for pipe in (process.stdout, process.stderr):
+                pipe.close()
+            raise
     buffers = [bytearray(), bytearray()]
     overflow = threading.Event()
 
@@ -83,7 +237,6 @@ def run_bounded(
                 buffers[index].extend(chunk[:max(0, available)])
                 if len(chunk) > available:
                     overflow.set()
-                    process.kill()
                     return
                 if stream:
                     destination = sys.stdout if index == 0 else sys.stderr
@@ -97,15 +250,31 @@ def run_bounded(
     threads = [threading.Thread(target=drain, args=(index,), daemon=True) for index in (0, 1)]
     for thread in threads:
         thread.start()
+    failure = None
+    deadline = time.monotonic() + timeout
     try:
-        process.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait(timeout=5)
-        raise ControlError("runtime_command_timeout") from None
+        while True:
+            if overflow.is_set():
+                failure = "runtime_output_limit"
+                break
+            if not any(thread.is_alive() for thread in threads):
+                if overflow.is_set():
+                    continue
+                if process.poll() is not None:
+                    break
+            if time.monotonic() >= deadline:
+                failure = "runtime_command_timeout"
+                break
+            overflow.wait(min(0.02, max(0, deadline - time.monotonic())))
+        if failure:
+            _terminate_command_tree(process, job)
     finally:
+        if job is not None:
+            job.close()
         for thread in threads:
             thread.join(timeout=1)
+    if failure:
+        raise ControlError(failure)
     if any(thread.is_alive() for thread in threads):
         raise ControlError("runtime_command_timeout")
     if overflow.is_set():

@@ -248,13 +248,42 @@ def _emit(value: dict) -> int:
     return 0 if value["ok"] else 1
 
 
+def _command_arguments(argv: list[str]) -> list[str]:
+    """Locate the command after only the two existing Click root options.
+
+    The original list is retained for Native exec. Docker diagnostics continue
+    using their stderr-only logging contract, independent of legacy file logging.
+    Unknown options are left to the existing CLI rather than guessed/skipped.
+    """
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == "--":
+            return argv[index + 1:]
+        option, equals, value = token.partition("=")
+        if option not in ("--log-level", "--log-file"):
+            break
+        if not equals:
+            index += 1
+            if index >= len(argv) or argv[index].startswith("-"):
+                raise ControlError("runtime_root_option_invalid")
+            value = argv[index]
+        if not value or "\0" in value:
+            raise ControlError("runtime_root_option_invalid")
+        if option == "--log-level" and not isinstance(getattr(logging, value.upper(), None), int):
+            raise ControlError("runtime_root_option_invalid")
+        index += 1
+    return argv[index:]
+
+
 def dispatch(argv: list[str], project_root: Path) -> int | None:
     """Return None only when already executing the selected Native entrypoint."""
     home = Path.home() / ".research-workbench"
     store = RuntimeModeStore(home)
     try:
-        record = store.read() if argv[:1] in (["runtime"], ["web"]) else None
-        if argv[:1] == ["runtime"]:
+        command_argv = _command_arguments(argv)
+        record = store.read() if command_argv[:1] in (["runtime"], ["web"]) else None
+        if command_argv[:1] == ["runtime"]:
             assert record is not None
             parser = argparse.ArgumentParser(prog="rwb runtime")
             sub = parser.add_subparsers(dest="command", required=True)
@@ -263,12 +292,12 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
             use.add_argument("target", choices=("native", "docker"))
             use.add_argument("--stop-current", action="store_true")
             use.add_argument("--json", action="store_true")
-            args = parser.parse_args(argv[1:])
+            args = parser.parse_args(command_argv[1:])
             if args.command == "status":
                 return _emit(result(mode=record.mode, installation_id=record.installation_id or None))
             return _emit(switch_runtime(store, args.target, DockerRuntime(project_root, home),
                                        NativeRuntime(project_root, home), stop_current=args.stop_current))
-        if argv[:1] == ["web"] and record is not None and record.mode == "docker":
+        if command_argv[:1] == ["web"] and record is not None and record.mode == "docker":
             parser = argparse.ArgumentParser(prog="rwb web")
             sub = parser.add_subparsers(dest="command", required=True)
             for command in ("install", "start", "stop", "restart", "status", "doctor", "logs"):
@@ -282,7 +311,7 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
                 if command == "logs":
                     child.add_argument("--follow", action="store_true")
                     child.add_argument("--tail", type=int, default=100)
-            args = parser.parse_args(argv[1:])
+            args = parser.parse_args(command_argv[1:])
             controller = DockerRuntime(project_root, home)
             if args.command == "logs":
                 return controller.logs(args.follow, args.tail)

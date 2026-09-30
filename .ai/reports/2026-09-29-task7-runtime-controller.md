@@ -35,3 +35,32 @@ were explicitly reserved for later tasks. Full evidence and RED/GREEN chronology
 are in `.superpowers/sdd/2026-09-29-native-docker-dual-runtime/task-7-report.md`.
 
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"Adds the approved stdlib host bootstrap and Docker ownership controller while preserving Native execution and the single DSH engine; documentation, architecture inventory and diagram synchronization belong to the task-series closeout.","diagrams":[]} -->
+
+## Task 7 review fix round 1 (2026-09-30)
+
+The review identified three defects in the first commit: conditional mode writes
+could race across processes, root Click logging options could skip Docker routing,
+and bounded-command failure stopped only the direct process. The follow-up uses
+a persistent private mode lock across compare, write, and readback; parses the
+two supported root logging options before dispatch while preserving original
+Native argv; and owns a POSIX session or Windows Job for timeout/output cleanup.
+An explicit higher-ancestor rename-and-restore test proves that the retained
+POSIX descriptor reads the original record instead of a temporary decoy.
+
+The focused mode/controller/CLI suite passed **151 tests**. The mode/controller
+subset passed **125 tests**; the protocol smoke passed **19 tests**; the static
+Docker contract passed **7 tests**; the architecture Node suite passed **62
+tests**, and the combined governance/architecture Node suite passed **80 tests**.
+The existing setup entrypoint check passed **1 test**. Python compilation,
+`sh -n rwb`, and `git diff --check` passed. A launcher smoke with a resolved
+temporary HOME returned Native, exit 0, and no home entries. The first smoke
+used macOS's `/var` symlink alias and correctly failed closed with
+`runtime_mode_unsafe_path`; it did not create any home entry.
+
+The policy planner selected L4. Documentation governance passed, but the
+generated Python index is stale and Project Constraints reports the missing
+README review receipt plus four unmapped runtime source files from earlier
+tasks. Those remain task-series closure work; this Task 7 review fix does not
+claim a complete policy receipt or external CI pass. The Windows Job path has
+an executable cross-platform descendant regression test, but no native Windows
+run was performed here. No Docker image or real service was started or stopped.

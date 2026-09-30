@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 
@@ -73,6 +74,53 @@ def test_legacy_delegation_does_not_read_unrelated_mode_record(tmp_path):
     completed = subprocess.run([str(checkout / "rwb"), "legacy-command"], env=environment,
                                capture_output=True, text=True, timeout=10)
     assert completed.returncode == 37
+
+
+@pytest.mark.parametrize("prefix", [
+    ["--log-level", "DEBUG"], ["--log-level=WARNING"],
+    ["--log-file", "ignored.log"], ["--log-file=ignored.log"],
+    ["--log-level=INFO", "--log-file", "ignored.log"],
+])
+@pytest.mark.parametrize("command", ["web", "runtime"])
+def test_prefixed_docker_commands_without_venv(tmp_path, prefix, command):
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    checkout, home, environment = _isolated_launcher(tmp_path)
+    RuntimeModeStore(home / ".research-workbench").write("docker")
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    (bindir / "python3").symlink_to(sys.executable)
+    environment["PATH"] = str(bindir) + ":/usr/bin:/bin"
+    completed = subprocess.run([str(checkout / "rwb"), *prefix, command, "status", "--json"],
+                               env=environment, capture_output=True, text=True, timeout=10)
+    value = json.loads(completed.stdout)
+    assert value["mode"] == "docker"
+    assert value["issues"] == (["docker_cli_missing"] if command == "web" else [])
+    assert not (checkout / "ignored.log").exists()
+
+
+@pytest.mark.parametrize("prefix", [
+    ["--log-level"], ["--log-level="], ["--log-level", "--log-file=x"],
+    ["--log-level=bogus"], ["--log-file"], ["--log-file="],
+])
+def test_malformed_root_options_fail_with_clean_json(tmp_path, prefix):
+    checkout, _, environment = _isolated_launcher(tmp_path)
+    completed = subprocess.run([str(checkout / "rwb"), *prefix], env=environment,
+                               capture_output=True, text=True, timeout=10)
+    assert completed.returncode == 1
+    assert json.loads(completed.stdout)["issues"] == ["runtime_root_option_invalid"]
+
+
+def test_native_prefix_argv_is_preserved_exactly(tmp_path):
+    checkout, _, environment = _isolated_launcher(tmp_path)
+    python = checkout / ".venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n")
+    python.chmod(0o755)
+    args = ["--log-level=DEBUG", "--log-file", "space name.log", "web", "status"]
+    completed = subprocess.run([str(checkout / "rwb"), *args], env=environment,
+                               capture_output=True, text=True, timeout=10)
+    assert completed.returncode == 37
+    assert completed.stdout.splitlines() == ["-m", "research_workbench_entrypoint", *args]
 
 
 def test_web_help_does_not_import_legacy_research_stack():

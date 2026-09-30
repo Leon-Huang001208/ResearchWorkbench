@@ -8,6 +8,7 @@ import os
 import re
 import secrets
 import stat
+import time
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
@@ -239,7 +240,8 @@ def _private_posix_parent(path: Path) -> Iterator[int]:
         stack.callback(os.close, install_descriptor)
         if install_identity.st_uid != os.getuid():
             _fail("unsafe_path")
-        os.fchmod(install_descriptor, 0o700)
+        if stat.S_IMODE(install_identity.st_mode) != 0o700:
+            os.fchmod(install_descriptor, 0o700)
         install_identity = os.fstat(install_descriptor)
         _validate_posix_private_directory(install_identity)
         install_entry = os.stat(path.parent.name, dir_fd=home_descriptor, follow_symlinks=False)
@@ -481,6 +483,94 @@ class RuntimeModeStore:
             self.path.parent.mkdir(mode=0o700, exist_ok=True)
             _validate_directory_chain(self.path.parent)
 
+    @contextmanager
+    def _write_lock(self) -> Iterator[None]:
+        """Retain one private, never-unlinked lock inode through readback.
+
+        POSIX flock serializes independent descriptors/processes. Windows uses
+        a byte lock on a no-reparse handle opened without delete sharing, so the
+        locked file cannot be replaced while any writer retains its handle.
+        Read-only operations never enter this context or create a lock file.
+        """
+        lock_path = self.path.with_name("runtime.lock")
+        with ExitStack() as stack:
+            if os.name == "nt":
+                import _winapi
+                import msvcrt
+
+                self._ensure_windows_directories()
+                stack.enter_context(_pin_windows_parents(lock_path, node_only=True))
+                # GENERIC_READ | GENERIC_WRITE, share read/write but not delete,
+                # OPEN_ALWAYS, FILE_FLAG_OPEN_REPARSE_POINT.
+                handle = _winapi.CreateFile(str(lock_path), 0xC0000000, 3, 0, 4, 0x00200000, 0)
+                try:
+                    descriptor = msvcrt.open_osfhandle(handle, os.O_RDWR | getattr(os, "O_BINARY", 0))
+                except BaseException:
+                    _winapi.CloseHandle(handle)
+                    raise
+                stack.callback(os.close, descriptor)
+
+                def acquire() -> None:
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+
+                def release() -> None:
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+
+                def entry() -> os.stat_result:
+                    return _path_identity(lock_path)
+            else:
+                import fcntl
+
+                parent = stack.enter_context(_private_posix_parent(self.path))
+                descriptor = os.open(lock_path.name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
+                                     0o600, dir_fd=parent)
+                stack.callback(os.close, descriptor)
+
+                def acquire() -> None:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+                def release() -> None:
+                    fcntl.flock(descriptor, fcntl.LOCK_UN)
+
+                def entry() -> os.stat_result:
+                    identity = _leaf_identity_at(parent, lock_path.name)
+                    if identity is None:
+                        _fail("changed")
+                    return identity
+
+            def verify() -> None:
+                opened = os.fstat(descriptor)
+                current = entry()
+                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
+                        or opened.st_size not in (0, 1)
+                        or _node_identity(opened) != _node_identity(current)):
+                    _fail("unsafe_path")
+                if os.name == "posix":
+                    _validate_posix_private_file(opened)
+
+            verify()
+            deadline = time.monotonic() + 10
+            while True:
+                try:
+                    acquire()
+                    break
+                except OSError as error:
+                    import errno
+                    if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                        raise
+                    if time.monotonic() >= deadline:
+                        _fail("lock_timeout")
+                    time.sleep(0.02)
+            stack.callback(release)
+            verify()
+            if os.name == "nt" and os.fstat(descriptor).st_size == 0:
+                os.write(descriptor, b"\0")
+                os.fsync(descriptor)
+            yield
+            verify()
+
     @staticmethod
     def _log_failure(operation: str, error: RuntimeModeError) -> None:
         log.warning("runtime_mode operation=%s code=%s", operation, error.code)
@@ -504,6 +594,20 @@ class RuntimeModeStore:
         try:
             if type(mode) is not str or mode not in ("native", "docker"):
                 _fail("value")
+            with self._write_lock():
+                return self._write_locked(mode, expected=expected)
+        except RuntimeModeError as error:
+            self._log_failure("write", error)
+            raise
+        except (OSError, TypeError, ValueError):
+            error = RuntimeModeError("runtime_mode_io")
+            self._log_failure("write", error)
+            raise error from None
+
+    def _write_locked(
+        self, mode: RuntimeMode, *, expected: RuntimeModeRecord | None
+    ) -> RuntimeModeRecord:
+        try:
             current, before = self._load(allow_missing_private_repair=True)
             if expected is not None and current != expected:
                 _fail("changed")
