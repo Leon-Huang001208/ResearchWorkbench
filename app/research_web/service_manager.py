@@ -1345,6 +1345,32 @@ class WebServiceManager:
                 role="runtime",
             ) from exc
 
+    def _spawned_process_pending(self, process: ManagedProcess, pid: int) -> bool:
+        """Allow the exact new launcher to finish exec/bind before ownership is final."""
+        try:
+            state = self._probe_state(process)
+            if state.state != "valid" or state.pid != pid or state.started_at is None:
+                return False
+            observed = probe_process(pid)
+            if (
+                observed.state != "alive"
+                or observed.issue is not None
+                or observed.argv is None
+                or observed.started_at is None
+                or abs(observed.started_at - state.started_at) > PROCESS_START_TOLERANCE_SECONDS
+            ):
+                return False
+            launcher_args = process.command[1:]
+            if not (
+                signature_matches_argv(launcher_args, observed.argv)
+                or signature_matches_argv(process.signature, observed.argv)
+            ):
+                return False
+            listener = listener_pids(process.port)
+            return listener.state != "listening" or pid in listener.pids
+        except (OSError, TypeError, ValueError, OverflowError, ServiceManagerError):
+            return False
+
     def _wait_for_ready(
         self,
         process: ManagedProcess,
@@ -1361,8 +1387,10 @@ class WebServiceManager:
             if (
                 probe.process == "missing"
                 or probe.state in {"missing", "stale"}
-                or probe.ownership != "owned"
-                or probe.pid != pid
+                or (
+                    (probe.ownership != "owned" or probe.pid != pid)
+                    and not self._spawned_process_pending(process, pid)
+                )
             ):
                 raise ServiceManagerError(
                     f"{process.role}_process_exited: "
@@ -1390,6 +1418,34 @@ class WebServiceManager:
                 )
             time.sleep(0.25)
 
+    def _stop_transition_pending(
+        self, process: ManagedProcess, pid: int, probe: ServiceProbe
+    ) -> bool:
+        """Wait for an already signalled PID and its listener to disappear."""
+        if probe.state == "stale" and probe.process == "missing":
+            listener = listener_pids(process.port)
+            return listener.state == "unknown" or (
+                listener.state == "listening" and listener.pids == (pid,)
+            )
+        if (
+            probe.state == "valid"
+            and probe.process in {"alive", "inaccessible"}
+            and probe.port_state in {"closed", "unknown"}
+        ):
+            if self._spawned_process_pending(process, pid):
+                return True
+            try:
+                state = self._probe_state(process)
+                listener = listener_pids(process.port)
+                return (
+                    state.state == "valid"
+                    and state.pid == pid
+                    and listener.state in {"closed", "unknown"}
+                )
+            except (OSError, TypeError, ValueError, ServiceManagerError):
+                return False
+        return False
+
     def _stop_owned_probe(self, process: ManagedProcess, probe: ServiceProbe) -> bool:
         if not self._is_owned_alive(probe) or probe.pid is None:
             raise ServiceManagerError(
@@ -1411,7 +1467,9 @@ class WebServiceManager:
             current = self._probe_service(process)
             if self._is_safe_absent(current):
                 break
-            if not self._is_owned_alive(current) or current.pid != pid:
+            if not (
+                self._is_owned_alive(current) and current.pid == pid
+            ) and not self._stop_transition_pending(process, pid, current):
                 raise ServiceManagerError(
                     f"{process.role} 服务归属无法安全确认",
                     code=f"{process.role}_ownership_unverified",
@@ -1432,7 +1490,9 @@ class WebServiceManager:
                 current = self._probe_service(process)
                 if self._is_safe_absent(current):
                     break
-                if not self._is_owned_alive(current) or current.pid != pid:
+                if not (
+                    self._is_owned_alive(current) and current.pid == pid
+                ) and not self._stop_transition_pending(process, pid, current):
                     raise ServiceManagerError(
                         f"{process.role} 服务归属无法安全确认",
                         code=f"{process.role}_ownership_unverified",

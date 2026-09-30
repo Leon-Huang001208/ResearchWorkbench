@@ -124,6 +124,9 @@ def _read_private_json_posix(path: Path, trusted_root: Path, max_bytes: int) -> 
     target = path.absolute()
     if not target.is_relative_to(root):
         raise ValueError("control path outside trusted root")
+    relative = target.relative_to(root)
+    if ".." in relative.parts:
+        raise ValueError("control path outside trusted root")
     directory_flags = (
         os.O_RDONLY
         | getattr(os, "O_DIRECTORY", 0)
@@ -131,10 +134,21 @@ def _read_private_json_posix(path: Path, trusted_root: Path, max_bytes: int) -> 
         | getattr(os, "O_NOFOLLOW", 0)
     )
     file_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-    current = os.open(root.anchor, directory_flags)
+    root_before = root.lstat()
+    if _unsafe_control_identity(root_before, directory=True, platform_name="posix"):
+        raise ValueError("unsafe trusted root")
+    current = os.open(root, directory_flags)
     try:
-        parent_parts = (*root.parts[1:], *target.relative_to(root).parts[:-1])
-        for part in parent_parts:
+        root_opened = os.fstat(current)
+        root_after = root.lstat()
+        if (
+            _unsafe_control_identity(root_opened, directory=True, platform_name="posix")
+            or _unsafe_control_identity(root_after, directory=True, platform_name="posix")
+            or _directory_identity(root_before) != _directory_identity(root_opened)
+            or _directory_identity(root_opened) != _directory_identity(root_after)
+        ):
+            raise ValueError("trusted root identity changed")
+        for part in relative.parts[:-1]:
             before = os.stat(part, dir_fd=current, follow_symlinks=False)
             following = os.open(part, directory_flags, dir_fd=current)
             opened = os.fstat(following)

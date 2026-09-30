@@ -1206,6 +1206,127 @@ def test_wait_for_ready_reports_confirmed_early_exit_without_sleep(manager, monk
     assert captured.value.role == "runtime"
 
 
+def test_wait_for_ready_allows_spawned_launcher_before_port_listens(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    probes = iter(
+        [
+            _service_probe(
+                "runtime",
+                ownership="foreign",
+                port_state="closed",
+                protocol="not_run",
+                ready=False,
+                pid=None,
+                issues=("runtime_pid_foreign",),
+            ),
+            _service_probe("runtime", pid=303),
+        ]
+    )
+    monkeypatch.setattr(manager, "_probe_service", lambda _process: next(probes))
+    monkeypatch.setattr(
+        manager,
+        "_probe_state",
+        lambda _process: service_manager_module._StateFact(
+            "valid", 303, runtime.signature, (), 100.0
+        ),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact("alive", "launcher", None, runtime.command, 100.0),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("closed", (), None),
+    )
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+
+    assert manager._wait_for_ready(runtime, 303, timeout=1).ready is True
+
+
+def test_wait_for_ready_rejects_unrelated_pid_during_startup(manager, monkeypatch):
+    runtime = manager._processes()[0]
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda _process: _service_probe(
+            "runtime",
+            ownership="foreign",
+            port_state="closed",
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        ),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_probe_state",
+        lambda _process: service_manager_module._StateFact(
+            "valid", 303, runtime.signature, (), 100.0
+        ),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact("alive", "unrelated", None, ("python", "other.py"), 100.0),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("closed", (), None),
+    )
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._wait_for_ready(runtime, 303, timeout=1)
+
+    assert captured.value.code == "runtime_process_exited"
+
+
+@pytest.mark.parametrize(
+    ("started_at", "listener"),
+    [
+        (80.0, ListenerFact("closed", (), None)),
+        (100.0, ListenerFact("listening", (404,), None)),
+    ],
+    ids=["reused-pid", "foreign-listener"],
+)
+def test_wait_for_ready_rejects_unverified_spawned_identity(
+    manager, monkeypatch, started_at, listener
+):
+    runtime = manager._processes()[0]
+    monkeypatch.setattr(
+        manager,
+        "_probe_service",
+        lambda _process: _service_probe(
+            "runtime",
+            ownership="unknown",
+            port_state=listener.state,
+            protocol="not_run",
+            ready=False,
+            pid=None,
+        ),
+    )
+    monkeypatch.setattr(
+        manager,
+        "_probe_state",
+        lambda _process: service_manager_module._StateFact(
+            "valid", 303, runtime.signature, (), 100.0
+        ),
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact("alive", "launcher", None, runtime.command, started_at),
+    )
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda _port: listener)
+
+    with pytest.raises(ServiceManagerError) as captured:
+        manager._wait_for_ready(runtime, 303, timeout=1)
+
+    assert captured.value.code == "runtime_process_exited"
+
+
 def test_wait_for_ready_times_out_with_last_stable_issue(manager, monkeypatch):
     runtime = manager._processes()[0]
     ticks = iter([0.0, 0.0, 0.2])
@@ -2864,6 +2985,143 @@ def test_stop_never_targets_unowned_process(manager, monkeypatch):
     monkeypatch.setattr("os.killpg", lambda *args: kill_calls.append(args))
     manager.stop()
     assert kill_calls == []
+
+
+def test_stop_waits_for_dead_pid_listener_to_close(manager, monkeypatch):
+    web = manager._processes()[1]
+    initial = _service_probe("web", pid=202)
+    transition = _service_probe(
+        "web",
+        state="stale",
+        process="missing",
+        ownership="unknown",
+        port_state="listening",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+    )
+    absent = _service_probe(
+        "web",
+        state="stale",
+        process="missing",
+        ownership="unknown",
+        port_state="closed",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+    )
+    probes = iter([initial, transition, absent])
+    monkeypatch.setattr(manager, "_probe_service", lambda _process: next(probes))
+    monkeypatch.setattr(manager, "_terminate_pid", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(manager, "_remove_exact_state", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (202,), None),
+    )
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+
+    assert manager._stop_owned_probe(web, initial) is True
+
+
+def test_stop_waits_for_verified_pid_when_listener_probe_is_temporarily_unknown(
+    manager, monkeypatch
+):
+    web = manager._processes()[1]
+    initial = _service_probe("web", pid=202)
+    pending = _service_probe(
+        "web",
+        ownership="unknown",
+        port_state="unknown",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+    )
+    absent = _service_probe(
+        "web",
+        state="stale",
+        process="missing",
+        ownership="unknown",
+        port_state="closed",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+    )
+    probes = iter([initial, pending, absent])
+    monkeypatch.setattr(manager, "_probe_service", lambda _process: next(probes))
+    monkeypatch.setattr(manager, "_spawned_process_pending", lambda _process, pid: pid == 202)
+    monkeypatch.setattr(manager, "_terminate_pid", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(manager, "_remove_exact_state", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+
+    assert manager._stop_owned_probe(web, initial) is True
+
+
+def test_stop_waits_for_unreadable_signalled_pid_without_force_kill(manager, monkeypatch):
+    web = manager._processes()[1]
+    initial = _service_probe("web", pid=202)
+    pending = _service_probe(
+        "web",
+        state="valid",
+        process="inaccessible",
+        ownership="unknown",
+        port_state="unknown",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+    )
+    absent = _service_probe(
+        "web",
+        state="stale",
+        process="missing",
+        ownership="unknown",
+        port_state="closed",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+    )
+    probes = iter([initial, pending, absent])
+    terminated = []
+    monkeypatch.setattr(manager, "_probe_service", lambda _process: next(probes))
+    monkeypatch.setattr(
+        manager,
+        "_probe_state",
+        lambda _process: service_manager_module._StateFact("valid", 202, web.signature, (), 100.0),
+    )
+    monkeypatch.setattr(
+        manager, "_terminate_pid", lambda pid, *, force: terminated.append((pid, force))
+    )
+    monkeypatch.setattr(manager, "_remove_exact_state", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("unknown", (), "listener_probe_failed"),
+    )
+    monkeypatch.setattr(service_manager_module.time, "sleep", lambda _seconds: None)
+
+    assert manager._stop_owned_probe(web, initial) is True
+    assert terminated == [(202, False)]
+
+
+def test_stop_transition_rejects_foreign_listener(manager, monkeypatch):
+    web = manager._processes()[1]
+    stale = _service_probe(
+        "web",
+        state="stale",
+        process="missing",
+        ownership="unknown",
+        port_state="listening",
+        protocol="not_run",
+        ready=False,
+        pid=None,
+    )
+    monkeypatch.setattr(
+        service_manager_module,
+        "listener_pids",
+        lambda _port: ListenerFact("listening", (404,), None),
+    )
+
+    assert manager._stop_transition_pending(web, 202, stale) is False
 
 
 def test_status_formatter_is_concise():

@@ -10,6 +10,7 @@ import stat
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -59,6 +60,33 @@ def test_private_json_reader_requires_private_regular_single_link_file(tmp_path:
     hardlink = root / "run" / "hardlink.json"
     os.link(path, hardlink)
     assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS /var is a system alias")
+def test_private_json_reader_accepts_system_alias_above_trusted_root() -> None:
+    with tempfile.TemporaryDirectory(prefix="rwb-private-json-", dir="/var/tmp") as directory:
+        root = Path(directory)
+        path = root / "run" / "state.json"
+        _write_private_json(path, {"schema": 1})
+
+        assert read_private_json(path, trusted_root=root, max_bytes=1024) == PrivateJsonFact(
+            "valid", {"schema": 1}, None
+        )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX symlink behavior")
+def test_private_json_reader_rejects_alias_at_root_and_relative_escape(tmp_path: Path) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+    alias = tmp_path / "alias"
+    alias.symlink_to(root, target_is_directory=True)
+    assert read_private_json(alias / "run" / "state.json", trusted_root=alias).state == "invalid"
+
+    foreign = tmp_path / "foreign" / "state.json"
+    _write_private_json(foreign, {"schema": 2})
+    escaped = root / ".." / "foreign" / "state.json"
+    assert read_private_json(escaped, trusted_root=root).state == "invalid"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX link behavior")
