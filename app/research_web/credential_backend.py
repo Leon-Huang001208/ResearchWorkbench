@@ -182,12 +182,20 @@ class PrivateFileCredentialBackend:
                 stack.callback(os.close, directory)
             assert directory is not None
             self._verify_root(directory)
-            lock = os.open(
-                ".credentials.lock",
-                os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK,
-                0o600,
-                dir_fd=directory,
-            )
+            lock_flags = os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK
+            try:
+                # Darwin can return ENOENT for concurrent nonexclusive
+                # O_CREAT|O_NOFOLLOW opens. Elect one creator atomically.
+                lock = os.open(
+                    ".credentials.lock",
+                    lock_flags | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                    dir_fd=directory,
+                )
+            except FileExistsError:
+                # A loser only opens the winner's inode; disappearance or an
+                # unsafe replacement must fail closed, never recreate the lock.
+                lock = os.open(".credentials.lock", lock_flags, dir_fd=directory)
             stack.callback(os.close, lock)
             _validate_file(os.fstat(lock))
             deadline = time.monotonic() + _LOCK_TIMEOUT_SECONDS

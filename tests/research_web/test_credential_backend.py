@@ -1,5 +1,6 @@
 """Credential boundary tests use only temporary paths and fake secrets."""
 
+import errno
 import os
 import stat
 import subprocess
@@ -224,6 +225,52 @@ def test_concurrent_instances_and_processes(root):
         stdout, stderr = child.communicate(timeout=30)
         assert child.returncode == 0, (stdout, stderr)
     assert len(list(root.glob("*.json"))) == 30
+
+
+@pytest.mark.parametrize("contender", ["private", "symlink", "hardlink", "public", "removed"])
+def test_lock_creation_loser_opens_validated_existing_inode(root, monkeypatch, contender):
+    """Deterministically model the observed Darwin concurrent-create outcome."""
+    backend = PrivateFileCredentialBackend(root)
+    real_open = module.os.open
+    raced = False
+    contender_identity = None
+    lock_path = root / ".credentials.lock"
+
+    def race(name, flags, *args, **kwargs):
+        nonlocal raced, contender_identity
+        if name == ".credentials.lock" and flags & os.O_CREAT and not raced:
+            raced = True
+            # A competing initializer publishes the lock before our open resolves.
+            descriptor = real_open(name, flags | os.O_EXCL, *args, **kwargs)
+            contender_identity = module._identity(os.fstat(descriptor))
+            os.close(descriptor)
+            if contender in {"symlink", "hardlink"}:
+                outside = root.parent / "fake-contender-lock"
+                lock_path.rename(outside)
+                if contender == "symlink":
+                    lock_path.symlink_to(outside)
+                else:
+                    os.link(outside, lock_path)
+            elif contender == "public":
+                lock_path.chmod(0o644)
+            elif contender == "removed":
+                lock_path.unlink()
+                raise FileExistsError(errno.EEXIST, "simulated concurrent winner")
+            if not flags & os.O_EXCL:
+                # Observed nonexclusive O_CREAT|O_NOFOLLOW result on macOS.
+                raise FileNotFoundError(errno.ENOENT, "simulated concurrent create")
+        return real_open(name, flags, *args, **kwargs)
+
+    monkeypatch.setattr(module.os, "open", race)
+    if contender == "private":
+        backend.set_password("s", "a", "fake-value")
+        assert backend.get_password("s", "a") == "fake-value"
+        assert module._identity(lock_path.stat()) == contender_identity
+    else:
+        with pytest.raises(CredentialBackendError):
+            backend.set_password("s", "a", "fake-value")
+        assert not list(root.glob("*.json"))
+    assert raced
 
 
 def test_default_injection_and_explicit_falsey_backend(root, monkeypatch, tmp_path):
