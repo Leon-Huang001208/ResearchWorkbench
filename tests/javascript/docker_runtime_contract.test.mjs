@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 const root = new URL('../../', import.meta.url);
@@ -122,4 +125,69 @@ test('the final filesystem is import-smoked as non-root and requires staged inte
   assert.match(runtime, /data_layer\.adapters\.ifind\.http_client/);
   assert.match(runtime, /docker_final_image_import_smoke_passed/);
   assert.doesNotMatch(runtime, /COPY[^\n]*\/opt\/rwb\/dsh \/opt\/dsh/);
+});
+
+test('Docker CI bounds the two architecture builds and has read-only permissions', () => {
+  const workflow = read('.github/workflows/research-web-docker.yml');
+  assert.match(workflow, /permissions:\n  contents: read\n/);
+  assert.match(workflow, /cancel-in-progress: true/);
+  assert.match(workflow, /timeout-minutes: 60/);
+  assert.match(workflow, /max-parallel: 1/);
+  assert.match(workflow, /platform: \[linux\/amd64, linux\/arm64\]/);
+  assert.match(workflow, /uses: docker\/setup-qemu-action@v3\n\s+with:\n\s+platforms: arm64/);
+  assert.match(workflow, /uses: docker\/setup-buildx-action@v3/);
+  assert.match(workflow, /docker buildx build --load --platform "\$DOCKER_DEFAULT_PLATFORM" --tag "\$RWB_IMAGE"/);
+  assert.match(workflow, /RWB_IMAGE=research-workbench:ci-\$\{GITHUB_SHA\}-\$\{arch\}/);
+  assert.doesNotMatch(workflow, /secrets\.|--build-arg|--push|docker login|continue-on-error|\|\| true/);
+});
+
+test('Docker CI validates health, restart, persistence, cleanup and safe evidence', () => {
+  const workflow = read('.github/workflows/research-web-docker.yml');
+  for (const fragment of [
+    'mktemp -d', 'docker compose config --quiet', 'docker compose up -d --no-build --wait --wait-timeout 180',
+    'http://127.0.0.1:8088/api/research/runtime', 'docker/healthcheck.py',
+    'docker compose restart', 'docker compose down --timeout 35', 'persistent-fixture.txt',
+    'socket.create_connection', '3081', '8088', 'sudo rm -rf -- "$RWB_CI_ROOT"',
+  ]) assert.ok(workflow.includes(fragment), fragment);
+  assert.match(workflow, /if: always\(\)/);
+  assert.match(workflow, /Scan and redact failure logs\n\s+if: failure\(\)/);
+  assert.match(workflow, /SECRET_PATTERN/);
+  assert.match(workflow, /if: success\(\)[\s\S]*health\.json[\s\S]*retention-days: 3/);
+  assert.match(workflow, /failure-redacted\.log[\s\S]*retention-days: 3/);
+  assert.doesNotMatch(workflow, /path:.*(?:raw|secrets|auth\.json)/);
+  const policy = JSON.parse(read('.agents/verification-policy.json'));
+  assert.equal(policy.catalogs.ci['research-web-docker'].value, '.github/workflows/research-web-docker.yml#docker-runtime');
+});
+
+test('failure evidence drops labelled and unlabelled values before upload', () => {
+  const source = read('.github/workflows/research-web-docker.yml');
+  const step = source.split('      - name: Scan and redact failure logs\n')[1].split('\n      - name:')[0];
+  const script = step.match(/python3 - <<'PY'\n([\s\S]*?)\n          PY/)[1]
+    .split('\n').map((line) => line.slice(10)).join('\n');
+  const directory = mkdtempSync(join(tmpdir(), 'rwb-ci-redaction-'));
+  try {
+    mkdirSync(join(directory, 'raw'));
+    mkdirSync(join(directory, 'evidence'));
+    writeFileSync(join(directory, 'raw', 'runtime.log'), [
+      'authorization: Bearer fixture-labelled-private-value',
+      'fixture-unlabelled-private-value',
+      'cookie=dsh-auth-local=fixture-cookie-value',
+      'health_ready',
+      '\u001b[31mtoken=fixture-terminal-value\u001b[0m',
+    ].join('\n'));
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', script], {
+      env: {...process.env, RWB_CI_ROOT: directory}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '');
+    const output = readFileSync(join(directory, 'evidence', 'failure-redacted.log'), 'utf8');
+    assert.doesNotMatch(output, /fixture-|Bearer|dsh-auth|\u001b/);
+    const report = JSON.parse(output)['runtime.log'];
+    assert.equal(report.scanned_lines, 5);
+    assert.equal(report.sensitive_lines_redacted, 3);
+    assert.equal(report.events.health_ready, 1);
+    assert.equal(report.all_raw_lines_omitted, true);
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
 });
