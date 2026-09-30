@@ -6,8 +6,10 @@ import socket
 import subprocess
 import signal
 import sys
+import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -443,3 +445,117 @@ def test_bounded_runner_kills_descendants_but_not_unrelated(tmp_path, overflow, 
                 pass
         unrelated.terminate()
         unrelated.wait(timeout=5)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Real POSIX SIGINT process-session probe")
+def test_bounded_runner_sigint_cleans_direct_and_descendant(tmp_path):
+    from research_workbench_entrypoint.docker_runtime import port_busy
+
+    child_ready = tmp_path / "descendant.json"
+    ready = tmp_path / "owned.json"
+    descendant_script = (
+        "import json,os,signal,socket,time; from pathlib import Path; "
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
+        "sock=socket.socket(); sock.bind(('127.0.0.1',0)); sock.listen(); "
+        f"Path({str(child_ready)!r}).write_text(json.dumps([os.getpid(),sock.getsockname()[1]])); "
+        "time.sleep(30)"
+    )
+    command_script = (
+        "import json,os,signal,socket,subprocess,sys,time; from pathlib import Path; "
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
+        "sock=socket.socket(); sock.bind(('127.0.0.1',0)); sock.listen(); "
+        f"subprocess.Popen([sys.executable,'-c',{descendant_script!r}]); "
+        f"child=Path({str(child_ready)!r})\n"
+        "while not child.exists(): time.sleep(.01)\n"
+        f"Path({str(ready)!r}).write_text(json.dumps([os.getpid(),sock.getsockname()[1],*json.loads(child.read_text())]))\n"
+        "time.sleep(30)\n"
+    )
+    runner_script = (
+        "import os,sys; from pathlib import Path; "
+        "from research_workbench_entrypoint.docker_runtime import run_bounded\n"
+        "try:\n"
+        f" run_bounded([sys.executable,'-c',{command_script!r}],cwd=Path({str(tmp_path)!r}),env=dict(os.environ),timeout=30)\n"
+        "except KeyboardInterrupt:\n"
+        " print('original-interrupt',flush=True); raise SystemExit(73)\n"
+    )
+    runner = subprocess.Popen([sys.executable, "-c", runner_script],
+                              cwd=Path(__file__).resolve().parents[2],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              start_new_session=True)
+    unrelated = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"])
+    owned = None
+    try:
+        deadline = time.monotonic() + 10
+        while not ready.exists() and time.monotonic() < deadline:
+            time.sleep(.02)
+        assert ready.exists(), "owned process tree did not start"
+        owned = json.loads(ready.read_text())
+        assert port_busy(owned[1]) and port_busy(owned[3])
+        os.kill(runner.pid, signal.SIGINT)
+        stdout, stderr = runner.communicate(timeout=10)
+        assert runner.returncode == 73, stderr.decode("utf-8", "replace")
+        assert b"original-interrupt" in stdout
+        assert not port_busy(owned[1]), "direct process remained after SIGINT"
+        assert not port_busy(owned[3]), "descendant remained after SIGINT"
+        with pytest.raises(ProcessLookupError):
+            os.kill(owned[0], 0)  # The direct child was reaped, not left as a zombie.
+        assert unrelated.poll() is None
+    finally:
+        if runner.poll() is None:
+            runner.kill()
+            runner.wait(timeout=5)
+        if owned is None and ready.exists():
+            owned = json.loads(ready.read_text())
+        pids = [owned[0], owned[2]] if owned else []
+        if child_ready.exists() and not owned:
+            pids.append(json.loads(child_ready.read_text())[0])
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        unrelated.terminate()
+        unrelated.wait(timeout=5)
+
+
+def test_bounded_runner_cleanup_error_is_visible_with_original_interrupt(tmp_path, monkeypatch, caplog):
+    import research_workbench_entrypoint.docker_runtime as runtime
+
+    class InterruptedEvent:
+        def is_set(self):
+            return False
+
+        def wait(self, _seconds):
+            raise KeyboardInterrupt
+
+    def failed_cleanup(process, job):
+        process.kill()
+        process.wait(timeout=5)
+        raise runtime.ControlError("runtime_process_tree_cleanup_failed")
+
+    monkeypatch.setattr(runtime, "threading", SimpleNamespace(
+        Event=InterruptedEvent, Thread=threading.Thread,
+    ))
+    monkeypatch.setattr(runtime, "_terminate_command_tree", failed_cleanup)
+    with pytest.raises(KeyboardInterrupt) as caught:
+        runtime.run_bounded([sys.executable, "-c", "import time;time.sleep(30)"],
+                            cwd=tmp_path, env=dict(os.environ), timeout=30)
+    assert "runtime_process_tree_cleanup_failed" in " ".join(caught.value.__notes__)
+    assert "runtime_process_tree_cleanup_failed" in caplog.text
+
+
+def test_bounded_runner_cleanup_error_preserves_timeout_code(tmp_path, monkeypatch, caplog):
+    import research_workbench_entrypoint.docker_runtime as runtime
+
+    def failed_cleanup(process, job):
+        process.kill()
+        process.wait(timeout=5)
+        raise runtime.ControlError("runtime_process_tree_cleanup_failed")
+
+    monkeypatch.setattr(runtime, "_terminate_command_tree", failed_cleanup)
+    with pytest.raises(runtime.ControlError) as caught:
+        runtime.run_bounded([sys.executable, "-c", "import time;time.sleep(30)"],
+                            cwd=tmp_path, env=dict(os.environ), timeout=.05)
+    assert caught.value.code == "runtime_command_timeout"
+    assert "runtime_process_tree_cleanup_failed" in " ".join(caught.value.__notes__)
+    assert "runtime_process_tree_cleanup_failed" in caplog.text

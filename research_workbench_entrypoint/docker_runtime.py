@@ -248,11 +248,14 @@ def run_bounded(
             pipe.close()
 
     threads = [threading.Thread(target=drain, args=(index,), daemon=True) for index in (0, 1)]
-    for thread in threads:
-        thread.start()
+    started = []
     failure = None
     deadline = time.monotonic() + timeout
+    cleanup_started = False
     try:
+        for thread in threads:
+            thread.start()
+            started.append(thread)
         while True:
             if overflow.is_set():
                 failure = "runtime_output_limit"
@@ -267,11 +270,26 @@ def run_bounded(
                 break
             overflow.wait(min(0.02, max(0, deadline - time.monotonic())))
         if failure:
-            _terminate_command_tree(process, job)
+            cleanup_started = True
+            try:
+                _terminate_command_tree(process, job)
+            except BaseException:
+                log.error("runtime_command_cleanup code=runtime_process_tree_cleanup_failed")
+                error = ControlError(failure)
+                error.add_note("runtime_process_tree_cleanup_failed")
+                raise error from None
+    except BaseException as interrupted:
+        if not cleanup_started:
+            try:
+                _terminate_command_tree(process, job)
+            except BaseException:
+                log.error("runtime_command_cleanup code=runtime_process_tree_cleanup_failed")
+                interrupted.add_note("runtime_process_tree_cleanup_failed")
+        raise
     finally:
         if job is not None:
             job.close()
-        for thread in threads:
+        for thread in started:
             thread.join(timeout=1)
     if failure:
         raise ControlError(failure)

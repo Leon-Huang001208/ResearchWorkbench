@@ -64,3 +64,22 @@ tasks. Those remain task-series closure work; this Task 7 review fix does not
 claim a complete policy receipt or external CI pass. The Windows Job path has
 an executable cross-platform descendant regression test, but no native Windows
 run was performed here. No Docker image or real service was started or stopped.
+
+## Task 7 review fix round 2 (2026-09-30)
+
+`run_bounded` now handles `KeyboardInterrupt` and other cancellation exceptions
+after process launch by terminating the owned POSIX session or Windows Job and
+reaping the direct process before re-raising the original exception. The same
+cleanup covers an exception during reader-thread startup. If cleanup itself
+fails, a path-free error code is logged and attached as an exception note;
+timeout and output-limit failures retain their stable codes.
+
+A real POSIX SIGINT regression was RED before the fix: the direct command still
+held its listening port after the runner exited. A second RED test found no
+cleanup-failure note. Both were GREEN after the fix. The SIGINT test also proves
+the direct process was reaped, the descendant's port was released, and an
+unrelated process survived. A separate injected cleanup failure retained the
+timeout error code and exposed the cleanup failure. The full mode/controller/CLI
+suite passed **154 tests**. Python compilation and `git diff --check` passed. The policy planner
+still selects L4; its stale index, README receipt, architecture mappings and
+unrun external gates remain open at the task-series boundary.
