@@ -15,31 +15,58 @@ The implementation is isolated on `codex/research-web-startup-stability`, based 
 - Task 5 added an advisory lifecycle guard and owned-process reconciliation. RED reproduced stale-lock ABA with forked contenders, old Runtime auth after safe recovery, orphaning after `Popen`/state-write failure, Windows directory fsync, ancestor alias handling, and `/var` system-alias over-rejection. Real fork contention and a real macOS `/var` temp path passed after repair. Final service-manager suite was 176 passed; shared/protocol suite 270 passed.
 - Task 6 required Runtime API, root HTML and `/static/app.mjs` to pass before opening a browser. Model and proxy failures are separate warnings. RED was 31 failures across readiness, browser, Node, model and proxy cases; the focused suite became 219 passed, with 264 shared/protocol cases and 80 JS cases. Subsequent JSON boundary review reproduced 14 failures for size/media type/close behavior, then passed 362 related cases. The final quality fix isolated an installation-contract unit test from the real 8088 port and restored safe internal exception chaining: five targeted RED failures became five passes; service-manager/CLI/protocol suite was 260 passed. Ruff, Black, isort and diff checks passed for that fix.
 
-These are source and controlled-test results. They do not yet establish that the changed services remain reachable after the terminal exits or across refresh and restart on this machine.
+The source tests were followed by default-port macOS lifecycle and browser observations below. The first live start and two stop attempts exposed timing defects absent from simulated probes. Targeted RED tests preceded the launcher-transition, termination-transition and macOS trusted-root fixes. The resulting contract/setup/bootstrap/service-manager/CLI/protocol subset passed 515/515; Ruff, Black and isort passed on affected files.
 
 ## Service-state fault matrix
 
 | Case | Expected action | Current evidence |
 | --- | --- | --- |
-| Ready owned Runtime and Web | Idempotent start, preserve PID | Unit contract passed; live acceptance not run |
-| Dead PID and closed port | Remove stale state under lock, start | Unit contract passed; live acceptance not run |
-| Damaged state with no live PID/listener | Quarantine exact file, rebuild | Unit contract passed; live acceptance not run |
-| Owned but unhealthy Runtime | Stop owned Web then Runtime, rebuild | Unit contract passed; live acceptance not run |
-| Unknown/foreign PID or listener | Refuse without termination | Unit contract passed; live fault injection not run |
+| Ready owned Runtime and Web | Idempotent start, preserve PID | Live repeat start kept Runtime 91275 and Web 91393 |
+| Dead PID and closed port | Remove stale state under lock, start | Live Web SIGTERM produced stale Web; start kept Runtime 53941 and started Web 60510. DSH SIGTERM produced stale Runtime; restart recovered both services |
+| Damaged state with no live PID/listener | Quarantine exact file, rebuild | Clean checkout first startup left a state invalid after the `/tmp` signature correction; the next `start` quarantined it and reached healthy 3081/8088 |
+| Owned but unhealthy Runtime | Stop owned Web then Runtime, rebuild | Live restart after DSH SIGTERM stopped old Web 60510 before new Runtime/Web became ready |
+| Unknown/foreign PID or listener | Refuse without termination | Real external socket on isolated alternate port 54392 returned `runtime_port_in_use_unknown`; socket stayed open |
 | Competing lifecycle commands | One OS guard owner | Real forked contender test passed; product lifecycle not run |
-| Browser open failure | Keep ready services, emit warning and URL | Unit contract passed; visible browser acceptance not run |
+| Browser open failure | Keep ready services, emit warning and URL | Unit contract passed; successful default `./rwb web start` returned ready without warning |
 
 ## Local macOS installation and lifecycle
 
-The public installer repair with `--no-start` passed. The real default `./rwb web start|status|restart|stop` sequence on this branch is not_run. Terminal detachment, stale PID fault injection, external port conflict and sustained 3081/8088 health remain not_run.
+The public installer repair with `--no-start` passed. Before live correction, the first default `start --no-open` returned `runtime_process_exited` in 1.75 s while its Python launcher was still becoming Node; Runtime subsequently listened on 3081. The wait path now recognizes only the exact PID, state, start time and launcher/final argv during that bounded transition. The next start stopped that owned unhealthy Runtime and reached both healthy services in 11.80 s. A first normal stop exposed transient probe loss after Web SIGTERM; a traced stop observed the legitimate `valid/alive/port closed` → `stale/missing/port closed` sequence. The stop wait now tolerates an already-signalled PID only while it waits for listener closure; it never force-kills an unverified PID.
+
+After fixes, a complete live start created Runtime 44878 and Web 44993; stop exited 0, removed both states and closed both ports. A later start created 48452/48558; ordinary restart verified zero active research, stopped both, and created 53941/54592. `ps` returned no old PIDs. Web SIGTERM left a stale Web state; `start --no-open` preserved DSH 53941 and created Web 60510. DSH SIGTERM left Runtime stale and Web not ready with `web_runtime_api_failed`; ordinary `restart --no-open` stopped Web 60510, created DSH 70035 and Web 70502, and returned both healthy. All these child services had PPID 1 after the launching shell exited.
+
+One bounded observation window sampled Runtime API, root HTML and `/static/app.mjs` six times over about 50 seconds; all 18 direct loopback requests passed, and Runtime API returned `connected=true` and `health_check_passed=true` each time. The main module was read completely at 136,029 bytes after an earlier pipeline check using `rg -q` prematurely closed curl's pipe; that earlier curl error is not counted as a resource failure. `./rwb web doctor --json` while running reported schema 2, `installation_ok=true`, `product_ready=true`, no issues, and both service probes ready.
+
+An isolated detached checkout began at `1cf4cd5d5` with a separate temporary data root. The first fixed-DSH pnpm install attempt reached 1,246/1,265 packages but returned exit 23 after a network fetch timeout, yielding `dsh_build_step_1_failed`. A repair retry hit a transient Git clone `curl 56` / “Can't assign requested address” and returned `dsh_clone_failed`. After a read-only `git ls-remote` succeeded, the next bounded repair attempt completed the exact pinned DSH build and wrote `status=installed`, `started=false`. This sequence demonstrates recovery by retry; it does not prove a first-attempt installation under unreliable network conditions.
+
+The clean checkout's first public `start --no-open` then exposed a macOS `/tmp` versus `/private/tmp` overlay argv mismatch. The manager correctly refused to treat the resulting process as owned, but the command returned `runtime_process_exited` after 16.77 s and left its newly created Runtime listening. A focused RED confirmed the signature mismatch; the Runtime overlay signature now uses the resolved path. The exact leftover PID 14710 was verified against its command and 3081 listener, then terminated. After switching the clean checkout to commit `cb5540742`, `status` identified the old dead-PID state as invalid with port closed. `start --no-open` quarantined that state, started Runtime 2382 and Web 3067, and returned both healthy in 12.94 s. The clean checkout's Doctor returned schema 2, `installation_ok=true`, `product_ready=true`, `model_ready=false`, warning `model_credential_missing`, and both service probes ready. Runtime API reported `connected=true`, `health_check_passed=true`, `credential_configured=false`; root HTML (948 bytes) and `/static/app.mjs` (136,029 bytes) passed complete direct-loopback reads. Both processes remained alive with PPID 1 after the launcher exited. Public `stop` then stopped both, cleared the ports and state, and returned success.
+
+The detached checkout had no tracked changes. After the exact test PIDs were absent, `git worktree remove` removed the checkout. The temporary data root held only this test's install, runtime, logs and generated read-only capabilities; ordinary `rm -r` removed its writable portion but stopped on read-only Skill directories. Their directories were made owner-writable within that exact 1.8 MiB residual test root, then the root was removed. Both temporary paths were confirmed absent; these disposable test artifacts are not recoverable after cleanup.
 
 ## Browser and refresh acceptance
 
-First load, reload, restart reload, setting page access without a model credential, static asset stability and a bounded observation window remain not_run. The app browser has not been used to certify this branch.
+The in-app browser opened `http://127.0.0.1:8088/#/fingpt` and rendered navigation, composer, DeepSeek-V4-Flash selection and Skill cards. An explicit reload briefly displayed “正在连接运行时” and a disabled send control, then settled to the configured model and enabled send without a false offline state. The settings and model-service pages loaded and showed DSH connected. With the same tab open, an ordinary managed restart changed the Runtime/Web PIDs; reloading the model page again moved from “DSH 连接中” to “DSH 已连接” and restored the selected model. The browser-specific plugin could not initialize because macOS rejected its native module signature; the app's alternate computer-use browser surface provided these visible observations. In the isolated clean data root with no model credential, a fresh browser tab loaded `#/settings/model` and visibly showed “需要配置模型 / DSH 待授权” with the API Key input while Doctor still reported `product_ready=true`. No credential was entered or changed.
 
 ## Incremental validation
 
-The final changed set will be planned with `scripts/plan_verification.mjs`; its L0–L4 closure and `scripts/validate_verification_receipt.mjs` remain pending. The macOS Bootstrap workflow contract was added test-first: the new JS assertion failed against the old workflow, then `node --test tests/javascript/actions_quota_governance.test.mjs` passed 12/12 after the workflow began checking schema 2, installation/product/service ready, root HTML and the main ES module. On 2026-09-30, the complete committed and working changed set passed Project Constraints with `violations: []`, documentation governance with 512 files / 73 current / 0 violations, the generated Python index check, and 62/62 Research Web architecture tests. These local checks do not certify remote CI.
+The complete 40-path changed set was routed by `scripts/plan_verification.mjs` to L4 / `full-delivery`. The plan retains `validation_failure` and `unexpected_behavior` escalation signals from live discovery and names `unknown_impact_boundary`; no gate was downgraded. The macOS Bootstrap workflow contract was added test-first: the new JS assertion failed against the old workflow, then passed after the workflow began checking schema 2, installation/product/service ready, root HTML and the main ES module. All 12 selected local validations were rerun after the final code changes and exited 0. Generic `python` test commands used the pre-existing Python 3.12 development interpreter; product `.venv` supplied runtime and installation facts. The local integration skip remains a skip, not a pass.
+
+| Level | Validation | Command | Result | Duration |
+| --- | --- | --- | --- | ---: |
+| L0 | documentation-governance | `node scripts/check_documentation_governance.mjs --project .` | exit 0; 512 files; 73 current; 0 violations | 0.20 s |
+| L0 | python-file-index | `python scripts/generate_py_file_index.py --check` | exit 0; index verified | 1.22 s |
+| L1 | verification-policy-contracts | `node --test tests/javascript/verification_policy.test.mjs` | exit 0; 64 passed | 4.87 s |
+| L1 | verification-receipt-contracts | `node --test tests/javascript/verification_receipt.test.mjs` | exit 0; 16 passed | 1.91 s |
+| L1 | incremental-validation-skill-contracts | `node --test tests/javascript/incremental_validation_skill.test.mjs` | exit 0; 5 passed | 0.16 s |
+| L1 | research-web-local-integrations | `python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web -q` | exit 0; 45 passed; 1 skipped; 1 warning | 22.40 s |
+| L1 | research-web-architecture | `node --test tests/javascript/research_web_architecture.test.mjs` | exit 0; 62 passed | 3.94 s |
+| L1 | research-web-service-manager | `python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web -q` | exit 0; 244 passed | 2.15 s |
+| L1 | research-web-installation | `python -m pytest tests/research_web/test_setup_web.py --confcutdir=tests/research_web -q` | exit 0; 47 passed | 15.72 s |
+| L2 | project-constraints-local | `node .agents/project-constraints.mjs --project . --changed-file <all 40 paths>` | exit 0; 0 violations | 0.50 s |
+| L3 | research-web-critical-smoke | `python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web -q` | exit 0; 19 passed | 1.84 s |
+| L4 | research-web-verification-full | `node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs` | exit 0; 81 passed | 3.45 s |
+
+The plan and receipt validator accepted all 12 executed local items. The receipt remains `blocked` because the three required GitHub workflows are still `not_run` on a published SHA; this is not a local test failure.
 
 ## Publication and external gates
 
@@ -47,7 +74,7 @@ Publication is not_run. Project Constraints, Research Web Checks and GitHub `mac
 
 ## Unverified items and residual risks
 
-The product runtime environment currently has no pytest by design; source tests used the separate pre-existing development interpreter. Native Windows behavior is supported by static/model contracts only. No live Web/DSH lifecycle, terminal-detachment or browser evidence has yet been collected for this branch. Remote delivery requires the current Actions budget/visibility check and user authorization.
+The product runtime environment has no pytest by design; source tests used the separate pre-existing development interpreter. Native Windows behavior is supported by static/model contracts only. The local clean installer needed retries after npm fetch timeout and Git connection failure; GitHub's clean `macos-14` Bootstrap remains the required independent installation gate. Remote delivery requires the current Actions budget/visibility check and user authorization.
 
 ## Architecture review
 
