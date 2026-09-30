@@ -25,7 +25,11 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).absolute().parents[1]))
 
 from app.research_web import RUNTIME_CONTRACT
-from research_workbench_entrypoint.docker_runtime import DockerRuntime as _DockerRuntimeController
+from research_workbench_entrypoint.docker_runtime import (
+    ControlError,
+    DockerRuntime as _DockerRuntimeController,
+    port_busy,
+)
 from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
 
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
@@ -1239,6 +1243,29 @@ def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> None:
 class DockerRuntime(_DockerRuntimeController):
     """Public installer adapter around the stdlib Docker lifecycle controller."""
 
+    def _verify_selection_safe(self, current: object) -> None:
+        """Apply the bootstrap's no-stop switch checks before publishing setup state."""
+        from research_workbench_entrypoint.bootstrap import NativeRuntime, _running
+
+        checked = self.preflight()
+        if not checked.get("ok"):
+            raise RuntimeError(_docker_issue(checked, "docker_preflight_failed"))
+        native = NativeRuntime(self.project_root, self.home, ports=self.ports).status()
+        docker = self.status()
+        if not native.get("ok") or not docker.get("ok"):
+            raise RuntimeError("runtime_stop_current_required")
+        try:
+            native_running = _running(native)
+            docker_running = _running(docker)
+            if native_running or docker_running:
+                raise RuntimeError("runtime_stop_current_required")
+        except ControlError as exc:
+            raise RuntimeError("runtime_ownership_unknown") from exc
+        if any(port_busy(port) for port in self.ports):
+            raise RuntimeError("runtime_stop_current_required")
+        if RuntimeModeStore(self.home).read() != current:
+            raise RuntimeError("runtime_mode_changed")
+
     def install(self, *, repair: bool = False, start: bool = True) -> dict[str, object]:
         # The controller always performs a bounded build and verifies its image
         # identity. Repair repeats that same safe build without deleting state.
@@ -1255,13 +1282,14 @@ class DockerRuntime(_DockerRuntimeController):
         store = RuntimeModeStore(self.home)
         current = store.read()
         if not current.installation_id:
-            store.write(current.mode)
+            current = store.write(current.mode)
+        self._verify_selection_safe(current)
         if start:
             started = self.start()
             if not started.get("ok"):
                 raise RuntimeError(_docker_issue(started, "docker_start_failed"))
         _write_docker_manifest(self.home / "install/docker-manifest.json", manifest)
-        store.write("docker")
+        store.write("docker", expected=current)
         return manifest
 
 
@@ -1288,6 +1316,10 @@ _DOCKER_REMEDIATION = {
     "docker_port_3081_conflict": "请先释放本机 3081 端口。",
     "docker_ownership_mismatch": "检测到容器归属冲突，请检查已有容器。",
     "docker_build_not_ready": "请重新运行 Docker 模式安装以构建受管镜像。",
+    "docker_build_failed": "Docker 镜像构建失败，请检查 Docker Desktop 与构建日志后重试。",
+    "docker_start_failed": "Docker 服务启动失败，请检查容器状态与健康检查后重试。",
+    "docker_io": "Docker 命令或本机文件访问失败，请检查 Docker Desktop 后重试。",
+    "runtime_stop_current_required": "当前运行时或端口仍在使用；请先通过 rwb runtime 安全停止或切换。",
 }
 
 
@@ -1342,12 +1374,11 @@ def main(argv: list[str] | None = None) -> int:
         code = str(exc)
         if arguments.runtime == "docker":
             code = code if re.fullmatch(r"[a-z][a-z0-9_]{1,79}", code) else "docker_install_failed"
-            advice = _DOCKER_REMEDIATION.get(code)
-            if advice is not None:
-                platform = "Windows" if os.name == "nt" else "macOS"
-                print(f"安装失败：{code}。{advice.format(platform=platform)}", file=sys.stderr)
-            else:
-                print(f"安装失败：{code}", file=sys.stderr)
+            advice = _DOCKER_REMEDIATION.get(
+                code, "请检查 Docker Desktop 状态和安装日志后重试。"
+            )
+            platform = "Windows" if os.name == "nt" else "macOS"
+            print(f"安装失败：{code}。{advice.format(platform=platform)}", file=sys.stderr)
         else:
             print(f"安装失败：{exc}", file=sys.stderr)
         logging.getLogger("research_workbench.setup_web").error(

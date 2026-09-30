@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import shutil
+import socket
 import subprocess
 import sys
 from contextlib import redirect_stderr, redirect_stdout
@@ -15,6 +16,20 @@ from pathlib import Path
 import pytest
 
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
+
+
+def _allow_idle_runtime_selection(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts import setup_web
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+
+    idle = {
+        "ok": True,
+        "services": {"web": {"running": False}, "runtime": {"running": False}},
+    }
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight", lambda _self: idle)
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "status", lambda _self: idle)
+    monkeypatch.setattr(NativeRuntime, "status", lambda _self: idle)
+    monkeypatch.setattr(setup_web, "port_busy", lambda _port: False)
 
 
 def test_runtime_parser_defaults_to_native_and_accepts_explicit_selection() -> None:
@@ -60,6 +75,7 @@ def test_docker_install_writes_summary_and_mode_only_after_verified_build(
 
     monkeypatch.setattr(setup_web._DockerRuntimeController, "install", build)
     monkeypatch.setattr(setup_web._DockerRuntimeController, "start", start)
+    _allow_idle_runtime_selection(monkeypatch)
     monkeypatch.setattr(
         SetupWebInstaller,
         "prepare_environment",
@@ -119,7 +135,11 @@ def test_docker_check_only_is_read_only_and_outputs_safe_json(
     home.mkdir(mode=0o700)
     monkeypatch.setattr(setup_web.Path, "home", classmethod(lambda _cls: home))
     monkeypatch.setattr(setup_web, "__file__", str(project / "scripts/setup_web.py"))
-    monkeypatch.setattr(setup_web, "_configure_logging", lambda _root: None)
+    monkeypatch.setattr(
+        setup_web,
+        "_configure_logging",
+        lambda _root: pytest.fail("check-only must not configure file logging"),
+    )
 
     class RecordingDocker:
         def __init__(self, *_args) -> None:
@@ -141,6 +161,62 @@ def test_docker_check_only_is_read_only_and_outputs_safe_json(
     assert str(tmp_path) not in output
     assert not (home / ".research-workbench").exists()
     assert not (project / "logs").exists()
+
+
+@pytest.mark.parametrize("native_running", [False, True])
+def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_running: bool
+) -> None:
+    from scripts import setup_web
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    project = tmp_path / "checkout"
+    (project / "requirements").mkdir(parents=True)
+    (project / "requirements/web.lock").write_text("locked\n", encoding="utf-8")
+    (project / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    store = RuntimeModeStore(home)
+    before = store.write("native")
+    manifest_path = home / "install/docker-manifest.json"
+    manifest_path.write_text('{"previous":true}\n', encoding="utf-8")
+    manifest_path.chmod(0o600)
+    calls: list[list[str]] = []
+
+    def recording_runner(argv: list[str], **_options: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        output = ""
+        if argv[1:2] == ["info"]:
+            output = '"aarch64"'
+        elif argv[1:3] == ["image", "inspect"]:
+            output = json.dumps({"id": "sha256:" + "a" * 64, "runtime": "docker"})
+        return subprocess.CompletedProcess(argv, 0, output, "")
+
+    if native_running:
+        monkeypatch.setattr(
+            NativeRuntime,
+            "status",
+            lambda _self: {
+                "ok": True,
+                "services": {"web": {"running": True}, "runtime": {"running": True}},
+            },
+        )
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        controller = setup_web.DockerRuntime(
+            project, home, runner=recording_runner,
+            ports=(listener.getsockname()[1], 13081),
+        )
+        with pytest.raises(RuntimeError, match="^runtime_stop_current_required$"):
+            controller.install(start=False)
+
+    assert any("build" in call for call in calls)
+    assert not any("up" in call or "stop" in call for call in calls)
+    assert store.read() == before
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == {"previous": True}
+    assert not (project / ".venv").exists()
 
 
 @pytest.mark.parametrize(
@@ -207,6 +283,7 @@ def test_docker_start_failure_preserves_native_selection(
         "start",
         lambda _self: {"ok": False, "issues": ["docker_port_8088_occupied"]},
     )
+    _allow_idle_runtime_selection(monkeypatch)
     arguments = setup_web.build_parser().parse_args(["--runtime", "docker", "--repair"])
     with pytest.raises(RuntimeError, match="^docker_port_8088_occupied$"):
         setup_web.install_selected_runtime(arguments, project_root=project)
@@ -215,8 +292,18 @@ def test_docker_start_failure_preserves_native_selection(
     assert not (data_home / "install/docker-manifest.json").exists()
 
 
-def test_docker_failure_uses_platform_remediation_without_paths(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("code", "remediation"),
+    [
+        ("docker_cli_missing", "Docker Desktop"),
+        ("docker_build_failed", "构建失败"),
+        ("docker_start_failed", "启动失败"),
+        ("docker_io", "文件访问失败"),
+        ("runtime_ownership_unknown", "安装日志"),
+    ],
+)
+def test_docker_failure_uses_safe_remediation_without_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, code: str, remediation: str
 ) -> None:
     from scripts import setup_web
 
@@ -228,13 +315,13 @@ def test_docker_failure_uses_platform_remediation_without_paths(
     monkeypatch.setattr(
         setup_web._DockerRuntimeController,
         "install",
-        lambda _self: {"ok": False, "issues": ["docker_cli_missing"]},
+        lambda _self: {"ok": False, "issues": [code]},
     )
     captured = StringIO()
     with redirect_stderr(captured):
         assert setup_web.main(["--runtime", "docker", "--no-start"]) == 1
-    assert "docker_cli_missing" in captured.getvalue()
-    assert "Docker Desktop" in captured.getvalue()
+    assert code in captured.getvalue()
+    assert remediation in captured.getvalue()
     assert str(tmp_path) not in captured.getvalue()
 
 
