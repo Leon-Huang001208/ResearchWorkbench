@@ -773,8 +773,8 @@ class WebServiceManager:
             ValueError,
             json.JSONDecodeError,
             http.client.HTTPException,
-        ):
-            raise ServiceManagerError("本地服务尚未就绪") from None
+        ) as exc:
+            raise ServiceManagerError("本地服务尚未就绪") from exc
         finally:
             try:
                 connection.close()
@@ -785,7 +785,7 @@ class WebServiceManager:
                         error_type=type(exc).__name__,
                     )
                 else:
-                    raise ServiceManagerError("本地服务尚未就绪") from None
+                    raise ServiceManagerError("本地服务尚未就绪") from exc
 
     def _read_runtime_auth(self) -> dict[str, str] | None:
         path = self._runtime_auth_path()

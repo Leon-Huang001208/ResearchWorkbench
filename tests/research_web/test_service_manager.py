@@ -2910,6 +2910,12 @@ def test_status_formatter_is_concise():
 
 def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, monkeypatch):
     monkeypatch.setattr(service_manager_module.os, "environ", {})
+
+    def unexpected_http_request(*_args, **_kwargs):
+        raise AssertionError("installation contract must not contact port 8088")
+
+    monkeypatch.setattr(manager, "_json_request", unexpected_http_request)
+    monkeypatch.setattr(manager, "_model_diagnosis", lambda: (False, ()))
     environment = manager.project_root / ".venv"
     environment.mkdir()
     (environment / ".rwb-web-environment.json").write_text(
@@ -3608,6 +3614,7 @@ def test_json_request_maps_close_failure_after_success_to_stable_error(manager, 
 
     assert str(captured.value) == "本地服务尚未就绪"
     assert "private-close-secret" not in str(captured.value)
+    assert captured.value.__cause__ is connection.close_error
     assert connection.closed is True
 
 
@@ -3659,6 +3666,12 @@ def test_json_request_close_failure_does_not_mask_primary_failure(
 
     assert str(captured.value) == "本地服务尚未就绪"
     assert "private" not in str(captured.value)
+    if primary_failure in {"request", "read"}:
+        assert captured.value.__cause__ is (
+            connection.error if primary_failure == "request" else response._read_error
+        )
+    else:
+        assert isinstance(captured.value.__cause__, json.JSONDecodeError)
     assert connection.closed is True
 
 
