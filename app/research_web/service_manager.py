@@ -1031,7 +1031,117 @@ class WebServiceManager:
                 "runtime": {"port": self.runtime_port, "running": False, "healthy": False},
                 "web": {"port": self.web_port, "running": False, "healthy": False},
             }
-        return {**diagnosis, "services": services}
+        return {**diagnosis, "services": services, "runtime_mode": "native"}
+
+    def _validate_log_ownership(self) -> None:
+        """Read exact Native state without deleting stale state or probing Docker."""
+        from research_workbench_entrypoint.runtime_mode import RuntimeModeError, _read_bytes
+
+        try:
+            for process in self._processes():
+                try:
+                    raw, _ = _read_bytes(self._state_path(process.role))
+                except FileNotFoundError:
+                    if (self.log_root / f"{process.role}.log").exists():
+                        raise ServiceManagerError("native_logs_ownership_unknown")
+                    continue
+                state = json.loads(raw)
+                if not isinstance(state, dict) or not (
+                    state.get("version") == 1 and state.get("role") == process.role
+                    and state.get("port") == process.port
+                    and state.get("project_root") == str(self.project_root)
+                    and state.get("data_root") == str(self.data_root)
+                    and isinstance(state.get("command"), list)
+                    and all(isinstance(part, str) for part in state["command"])
+                    and state.get("fingerprint") == self._fingerprint(state["command"])
+                    and state.get("signature") == list(process.signature)
+                    and type(state.get("pid")) is int and state["pid"] > 1
+                ):
+                    raise ServiceManagerError("native_logs_ownership_unknown")
+                if self._pid_exists(state["pid"]):
+                    command = self._command_line(state["pid"])
+                    if not command or any(part not in command for part in process.signature):
+                        raise ServiceManagerError("native_logs_ownership_unknown")
+        except (OSError, ValueError, RuntimeModeError):
+            log.warning("native_logs_ownership_unknown")
+            raise ServiceManagerError("native_logs_ownership_unknown") from None
+
+    def logs(self, *, tail: int = 100, follow: bool = False) -> int:
+        """Read only owned runtime.log/web.log, bounded to 64 KiB and 300 seconds."""
+        from research_workbench_entrypoint.docker_runtime import MAX_OUTPUT, safe_log_text
+        from research_workbench_entrypoint.runtime_mode import (
+            RuntimeModeError, _pin_posix_parents, _pin_windows_parents,
+        )
+
+        if type(tail) is not int or not 0 <= tail <= 10000:
+            raise ServiceManagerError("native_logs_tail_invalid")
+        offsets: dict[str, tuple[int, int, int]] = {}
+        pending: dict[str, bytes] = {}
+        consumed = 0
+        emitted = 0
+        deadline = time.monotonic() + 300
+        try:
+            while True:
+                self._validate_log_ownership()
+                output = []
+                try:
+                    pin = _pin_windows_parents if os.name == "nt" else _pin_posix_parents
+                    with runtime_state_directory(self.log_root), pin(
+                        self.log_root / "web.log", node_only=True
+                    ) as parent:
+                        for role in ("runtime", "web"):
+                            path = self.log_root / f"{role}.log"
+                            name = str(path) if parent is None else path.name
+                            try:
+                                before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                            except FileNotFoundError:
+                                continue
+                            if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                                or getattr(before, "st_file_attributes", 0) & 0x400
+                                or (os.name == "posix" and before.st_uid != os.getuid())):
+                                raise ServiceManagerError("native_logs_unsafe")
+                            descriptor = os.open(name, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                                                 | getattr(os, "O_NONBLOCK", 0), dir_fd=parent)
+                            with os.fdopen(descriptor, "rb") as stream:
+                                identity = os.fstat(stream.fileno())
+                                key = (identity.st_dev, identity.st_ino)
+                                if key != (before.st_dev, before.st_ino):
+                                    raise ServiceManagerError("native_logs_unsafe")
+                                previous = offsets.get(role)
+                                if previous and (previous[:2] != key or identity.st_size < previous[2]):
+                                    raise ServiceManagerError("native_logs_changed")
+                                start = previous[2] if previous else max(0, identity.st_size - MAX_OUTPUT // 2)
+                                if not previous and tail == 0:
+                                    start = identity.st_size
+                                stream.seek(start)
+                                chunk = stream.read(min(MAX_OUTPUT // 2, MAX_OUTPUT - consumed))
+                                consumed += len(chunk)
+                                offsets[role] = (*key, stream.tell())
+                            if not previous and start and chunk:
+                                chunk = chunk.partition(b"\n")[2]
+                            chunk = pending.get(role, b"") + chunk
+                            if follow:
+                                boundary = chunk.rfind(b"\n") + 1
+                                pending[role], chunk = chunk[boundary:], chunk[:boundary]
+                            lines = chunk.decode("utf-8", "replace").splitlines()
+                            if not previous:
+                                lines = lines[-tail:] if tail else []
+                            output.append(safe_log_text("\n".join(lines)))
+                except FileNotFoundError:
+                    pass
+                for text in output:
+                    encoded = text.encode("utf-8")[:MAX_OUTPUT - emitted]
+                    emitted += len(encoded)
+                    sys.stdout.write(encoded.decode("utf-8", "ignore"))
+                sys.stdout.flush()
+                if not follow:
+                    return 0
+                if consumed >= MAX_OUTPUT or emitted >= MAX_OUTPUT or time.monotonic() >= deadline:
+                    raise ServiceManagerError("native_logs_limit")
+                time.sleep(0.1)
+        except (OSError, RuntimeStateError, RuntimeModeError):
+            log.warning("native_logs_unsafe")
+            raise ServiceManagerError("native_logs_unsafe") from None
 
     def tabbit_status(self) -> dict[str, Any]:
         """Return the safe, read-only Tabbit diagnostic exposed by the BFF."""

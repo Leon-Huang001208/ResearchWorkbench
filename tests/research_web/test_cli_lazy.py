@@ -10,6 +10,20 @@ import pytest
 from click.testing import CliRunner
 
 
+def test_native_web_logs_cli_options(monkeypatch):
+    from app.cli import main as module
+    calls = []
+    class Manager:
+        def logs(self, *, tail, follow):
+            calls.append((tail, follow))
+            return 0
+    monkeypatch.setattr(module, "WebServiceManager", Manager)
+    result = CliRunner().invoke(module.cli, ["web", "logs", "--tail", "7", "--follow"])
+    assert result.exit_code == 0, result.output
+    assert calls == [(7, True)]
+    assert "logs" in CliRunner().invoke(module.cli, ["web", "--help"]).output
+
+
 def _isolated_launcher(tmp_path):
     root = Path(__file__).resolve().parents[2]
     checkout = tmp_path / "checkout"

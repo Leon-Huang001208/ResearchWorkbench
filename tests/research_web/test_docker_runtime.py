@@ -70,6 +70,7 @@ def owned(controller, runner):
         "running": True,
         "state": "running",
         "health": "healthy",
+        "ports": {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(controller.ports[0])}]},
         "mounts": [
             {"Type": "bind", "Source": str(controller.data_dir), "Destination": "/data/research-web"},
             {"Type": "bind", "Source": str(controller.state_dir), "Destination": "/state"},
@@ -99,6 +100,117 @@ def test_compose_identity_and_minimal_environment(runtime, monkeypatch):
         assert "COMPOSE_FILE" not in options["env"]
         assert "SECRET" not in json.dumps(options["env"])
         assert not any(".Config.Env" in part for part in argv)
+
+
+def test_docker_doctor_allowlisted_health_and_capabilities(runtime):
+    controller, runner, record = runtime
+    owned(controller, runner)
+    for directory in (controller.data_dir, controller.state_dir, controller.credential_dir):
+        directory.mkdir(parents=True, mode=0o700)
+    report = controller.doctor()
+    assert report["ok"] and report["runtime_mode"] == "docker"
+    assert report["engine"]["ready"] and report["compose"]["ready"]
+    assert report["container"]["state"] == "running"
+    assert len(report["container"]["ownership_id"]) == 64
+    assert report["data"]["ready"] and report["volumes"]["verified"]
+    assert report["ports"]["verified"]
+    assert report["python"]["applicable"] is False
+    assert report["cjpy"]["applicable"] is False
+    assert report["capabilities"]["office"]["status"] == "unavailable_in_docker"
+    assert report["services"]["runtime"]["pid"] is None
+    raw = json.dumps(report)
+    assert str(controller.home) not in raw and str(controller.project_root) not in raw
+    assert record.installation_id not in raw
+    assert "Env" not in raw and "Cookie" not in raw
+
+
+@pytest.mark.parametrize("health", ["unhealthy", "starting", "none"])
+def test_docker_doctor_fails_unhealthy_core(runtime, health):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["health"] = health
+    report = controller.doctor()
+    assert not report["ok"]
+    assert "docker_services_unhealthy" in report["issues"]
+
+
+def test_docker_doctor_stopped_and_missing_data_not_ready(runtime):
+    controller, _, _ = runtime
+    report = controller.doctor()
+    assert not report["ok"]
+    assert "docker_container_absent" in report["issues"]
+    assert "docker_data_unavailable" in report["issues"]
+
+
+def test_windows_credential_mount_fails_closed_before_creation(runtime, monkeypatch):
+    import research_workbench_entrypoint.docker_runtime as module
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    monkeypatch.setattr(module.sys, "platform", "win32")
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    report = controller.start(open_browser=False)
+    assert report["issues"] == ["docker_credentials_acl_unverified"]
+    assert not controller.credential_dir.exists()
+    assert not any("up" in argv for argv, _ in runner.calls)
+
+
+@pytest.mark.parametrize("tail", [-1, 10001, True])
+def test_docker_log_limits_refuse_before_read(runtime, tail):
+    controller, runner, _ = runtime
+    assert controller.logs(tail=tail) == 1
+    assert not runner.calls
+
+
+def test_docker_logs_use_bounded_tail_and_explicit_follow(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    assert controller.logs(tail=17, follow=True) == 0
+    argv, options = runner.calls[-1]
+    assert argv[argv.index("--tail") + 1] == "17" and "--follow" in argv
+    assert options["timeout"] <= 300 and options["max_output"] <= 65536
+
+
+@pytest.mark.parametrize("bindings", [{}, {"8088/tcp": [{"HostIp": "0.0.0.0", "HostPort": "18088"}]},
+                                      {"3081/tcp": [{"HostIp": "127.0.0.1", "HostPort": "13081"}]}])
+def test_docker_doctor_refuses_wrong_port_bindings(runtime, bindings):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["ports"] = bindings
+    assert "docker_ports_mismatch" in controller.doctor()["issues"]
+
+
+def test_docker_logs_revalidate_immutable_container_before_read(runtime, monkeypatch):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    original = controller._containers
+    def replaced():
+        values = original()
+        runner.container["installation"] = "foreign"
+        return values
+    monkeypatch.setattr(controller, "_containers", replaced)
+    assert controller.logs() == 1
+    assert not any("logs" in argv for argv, _ in runner.calls)
+
+
+def test_bounded_stream_redacts_credentials_split_across_chunks(tmp_path, monkeypatch):
+    import io
+    from research_workbench_entrypoint.docker_runtime import run_bounded
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    command = "import sys,time;sys.stdout.write('Coo');sys.stdout.flush();time.sleep(.05);print('kie: fake-secret');print('ready')"
+    run_bounded([sys.executable, "-c", command], cwd=tmp_path, env={"PATH": os.defpath}, timeout=2, stream=True)
+    assert "fake-secret" not in output.getvalue() and "ready" in output.getvalue()
+
+
+def test_bounded_stream_redaction_cannot_expand_output_past_cap(tmp_path, monkeypatch):
+    import io
+    from research_workbench_entrypoint.docker_runtime import ControlError, run_bounded
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    with pytest.raises(ControlError, match="runtime_output_limit"):
+        run_bounded([sys.executable, "-c", "print('token\\n' * 150)"], cwd=tmp_path,
+                    env={"PATH": os.defpath}, timeout=2, stream=True, max_output=1000)
+    assert len(output.getvalue().encode()) <= 1000
 
 
 @pytest.mark.parametrize("failure,code", [

@@ -6,6 +6,7 @@ or unrestricted inspect output is ever included in a diagnostic report.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -41,6 +42,7 @@ _CONTAINER_FORMAT = (
     '"working_dir":{{json (index .Config.Labels "com.docker.compose.project.working_dir")}},'
     '"running":{{json .State.Running}},"state":{{json .State.Status}},'
     '"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}"none"{{end}},'
+    '"ports":{{json .NetworkSettings.Ports}},'
     '"mounts":[{{range $i,$m := .Mounts}}{{if $i}},{{end}}'
     '{"Source":{{json $m.Source}},"Destination":{{json $m.Destination}},'
     '"Type":{{json $m.Type}}}{{end}}]}'
@@ -57,6 +59,20 @@ class ControlError(RuntimeError):
 
 def result(*issues: str, **facts: Any) -> dict[str, Any]:
     return {"schema_version": 1, "ok": not issues, "issues": list(issues), **facts}
+
+
+def safe_log_text(value: str) -> str:
+    """Suppress authentication-bearing lines and terminal controls before display."""
+    output = []
+    for line in value.splitlines():
+        if len(line) > 4096 or re.search(
+            r"token|cookie|authorization|bearer|password|secret|api[_ -]?key|credential",
+            line, re.IGNORECASE,
+        ):
+            output.append("[sensitive or oversized log line omitted]\n")
+        else:
+            output.append("".join(c for c in line if c == "\t" or c.isprintable()) + "\n")
+    return "".join(output)
 
 
 class _WindowsProcessJob:
@@ -231,6 +247,22 @@ def run_bounded(
     def drain(index: int) -> None:
         pipe = process.stdout if index == 0 else process.stderr
         assert pipe is not None
+        pending = bytearray()
+        emitted = 0
+
+        def display(chunk: bytes) -> bool:
+            nonlocal emitted
+            destination = sys.stdout if index == 0 else sys.stderr
+            encoded = safe_log_text(chunk.decode("utf-8", "replace")).encode("utf-8")
+            available = max_output - emitted
+            destination.write(encoded[:available].decode("utf-8", "ignore"))
+            destination.flush()
+            emitted += min(len(encoded), available)
+            if len(encoded) > available:
+                overflow.set()
+                return False
+            return True
+
         try:
             while chunk := pipe.read1(4096):
                 available = max_output - len(buffers[index])
@@ -239,9 +271,15 @@ def run_bounded(
                     overflow.set()
                     return
                 if stream:
-                    destination = sys.stdout if index == 0 else sys.stderr
-                    destination.write(chunk.decode("utf-8", "replace"))
-                    destination.flush()
+                    pending.extend(chunk)
+                    boundary = pending.rfind(b"\n")
+                    if boundary < 0:
+                        continue
+                    if not display(pending[:boundary + 1]):
+                        return
+                    del pending[:boundary + 1]
+            if stream and pending:
+                display(pending)
         except (OSError, ValueError):
             overflow.set()
         finally:
@@ -498,6 +536,7 @@ class DockerRuntime:
 
     def preflight(self, *, require_image=True) -> dict:
         def check():
+            self._credential_mount_boundary()
             self._availability()
             image = self._image() if require_image else None
             self._containers()
@@ -520,11 +559,66 @@ class DockerRuntime:
         return self._guard("status", inspect)
 
     def doctor(self) -> dict:
-        checked = self.preflight()
-        if not checked["ok"]:
-            return checked
-        status = self.status()
-        return {**status, "image_id": checked["image_id"]}
+        facts = {
+            "runtime_mode": "docker", "mode": "docker",
+            "engine": {"ready": False}, "compose": {"ready": False},
+            "container": {"state": "unknown", "ownership_id": None},
+            "image": {"ready": False, "id": None},
+            "ports": {"web": self.ports[0], "runtime": self.ports[1], "verified": False},
+            "volumes": {"verified": False, "data": "bind", "state": "bind", "credentials": "bind"},
+            "data": {"ready": False},
+            "python": {"applicable": False}, "node": {"applicable": False},
+            "cjpy": {"applicable": False},
+            "services": {role: {"running": False, "healthy": False, "pid": None, "port": port}
+                         for role, port in (("web", self.ports[0]), ("runtime", self.ports[1]))},
+            "capabilities": {name: {"status": "unavailable_in_docker", "required": False}
+                             for name in ("office", "wind", "tabbit")},
+        }
+
+        def diagnose():
+            self._availability()
+            facts["engine"]["ready"] = True
+            facts["compose"]["ready"] = True
+            image = self._image()
+            facts["image"] = {"ready": True, "id": image["id"]}
+            containers = self._containers()
+            status = self._status(containers)
+            facts["services"] = status["services"]
+            facts["container"] = {
+                "state": status["container_state"],
+                "ownership_id": hashlib.sha256(
+                    (self.installation_id + containers[0]["id"]).encode()
+                ).hexdigest() if containers else None,
+            }
+            facts["volumes"]["verified"] = bool(containers)
+            facts["data"]["ready"] = all(path.is_dir() for path in
+                (self.data_dir, self.state_dir, self.credential_dir))
+            issues = []
+            if containers:
+                ports = containers[0].get("ports")
+                bindings = {key: value for key, value in ports.items() if value} if isinstance(ports, dict) else None
+                facts["ports"]["verified"] = bindings == {
+                    "8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(self.ports[0])}]
+                }
+                if not facts["ports"]["verified"]:
+                    issues.append("docker_ports_mismatch")
+            if not containers:
+                issues.append("docker_container_absent")
+            elif not all(service["healthy"] for service in facts["services"].values()):
+                issues.append("docker_services_unhealthy")
+            if not facts["data"]["ready"]:
+                issues.append("docker_data_unavailable")
+            self._credential_mount_boundary()
+            return result(*issues)
+
+        report = self._guard("doctor", diagnose)
+        return {**report, **facts}
+
+    def _credential_mount_boundary(self) -> None:
+        # Windows mode bits do not prove a private ACL. Until a native ACL
+        # preparer/verifier is accepted, never mount host credential material.
+        if sys.platform == "win32":
+            raise ControlError("docker_credentials_acl_unverified")
 
     def _ports_free(self):
         for port, code in zip(self.ports, ("docker_port_8088_occupied", "docker_port_3081_conflict")):
@@ -544,6 +638,7 @@ class DockerRuntime:
 
     def start(self, *, open_browser=True) -> dict:
         def start_owned():
+            self._credential_mount_boundary()
             self._availability()
             self._image()
             containers = self._containers()
@@ -625,6 +720,7 @@ class DockerRuntime:
                 return result()
             # Immutable container ID prevents a concurrent Compose replacement
             # from redirecting logs after the ownership check.
+            self._inspect(containers[0]["id"])
             argv = ["docker", "logs", "--tail", str(tail)]
             if follow:
                 argv.append("--follow")

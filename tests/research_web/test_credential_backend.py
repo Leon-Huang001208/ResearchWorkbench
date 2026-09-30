@@ -47,6 +47,16 @@ def test_round_trip_private_hashed_utf8_records(root):
     backend.delete_password("service", "account")
 
 
+def test_credentials_persist_across_fresh_backend_instance(root):
+    first = PrivateFileCredentialBackend(root)
+    first.set_password("provider", "account", "fake-persistent-secret")
+    del first
+    fresh = PrivateFileCredentialBackend(root)
+    assert fresh.get_password("provider", "account") == "fake-persistent-secret"
+    fresh.delete_password("provider", "account")
+    assert PrivateFileCredentialBackend(root).get_password("provider", "account") is None
+
+
 def test_factory_native_and_exact_explicit_path(root, monkeypatch):
     monkeypatch.delenv("RESEARCH_CREDENTIAL_HOME", raising=False)
     assert isinstance(default_credential_backend(), SystemKeyringBackend)

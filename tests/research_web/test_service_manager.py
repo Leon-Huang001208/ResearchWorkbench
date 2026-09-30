@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import subprocess
@@ -55,6 +56,120 @@ assert "app.research_web.mcp_runtime.routes" not in sys.modules
     )
 
     assert completed.returncode == 0, completed.stderr or completed.stdout
+
+
+def test_native_doctor_adds_mode_without_changing_previous_payload(manager, monkeypatch):
+    previous = {"schema_version": 1, "ok": True, "issues": [],
+                **{key: {"ready": True} for key in ("python", "node", "cjpy", "dsh", "data")}}
+    services = {role: {"port": port, "running": False, "healthy": False}
+                for role, port in (("runtime", 3081), ("web", 8088))}
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: previous)
+    monkeypatch.setattr(manager, "status", lambda: {"services": services})
+    assert manager.doctor() == {**previous, "services": services, "runtime_mode": "native"}
+
+
+def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):
+    output_stream = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output_stream)
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None, raising=False)
+    (manager.log_root / "web.log").write_text("old\nready\nCookie: fake-secret\nlatest\n")
+    (manager.log_root / "runtime.log").write_text("dsh web: http://127.0.0.1:3081/?token=fake-secret\n")
+    (manager.log_root / "unrelated.log").write_text("must-not-read")
+    assert manager.logs(tail=3) == 0
+    output = output_stream.getvalue()
+    assert "latest" in output and "ready" in output
+    assert "fake-secret" not in output and "must-not-read" not in output and "old" not in output
+
+
+@pytest.mark.parametrize("kind", ["symlink", "hardlink", "directory"])
+def test_native_logs_reject_unsafe_known_file(manager, monkeypatch, kind):
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None, raising=False)
+    target = manager.log_root / "web.log"
+    foreign = manager.project_root / "foreign"
+    foreign.write_text("secret")
+    if kind == "symlink":
+        target.symlink_to(foreign)
+    elif kind == "hardlink":
+        os.link(foreign, target)
+    else:
+        target.mkdir()
+    with pytest.raises(ServiceManagerError, match="native_logs_unsafe"):
+        manager.logs()
+
+
+def test_native_logs_refuse_unknown_owner_before_output(manager, monkeypatch):
+    output_stream = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output_stream)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    path = manager.run_root / "web.json"
+    path.write_text('{"pid": 123, "version": 9}')
+    path.chmod(0o600)
+    with pytest.raises(ServiceManagerError, match="native_logs_ownership_unknown"):
+        manager.logs()
+    assert output_stream.getvalue() == ""
+    assert path.exists()
+
+
+def test_native_logs_byte_limit_and_zero_tail(manager, monkeypatch):
+    output_stream = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output_stream)
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None, raising=False)
+    (manager.log_root / "web.log").write_text("x" * 100000 + "\nlatest\n")
+    assert manager.logs(tail=0) == 0
+    assert output_stream.getvalue() == ""
+    assert manager.logs(tail=10000) == 0
+    output = output_stream.getvalue()
+    assert len(output.encode()) <= 65536 and "latest" in output
+
+
+def test_native_redacted_output_stays_bounded(manager, monkeypatch):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None)
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    for role in ("runtime", "web"):
+        (manager.log_root / f"{role}.log").write_text("token\n" * 10000)
+    assert manager.logs(tail=10000) == 0
+    assert len(output.getvalue().encode()) <= 65536
+
+
+def test_native_follow_emits_new_lines_and_stops_at_deadline(manager, monkeypatch):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_validate_log_ownership", lambda: None)
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    path = manager.log_root / "web.log"
+    path.write_text("old\n")
+    clock = [0]
+    monkeypatch.setattr(service_manager_module.time, "monotonic", lambda: clock[0])
+    def advance(seconds):
+        with path.open("a") as stream:
+            stream.write("new\n")
+        clock[0] = 301
+    monkeypatch.setattr(service_manager_module.time, "sleep", advance)
+    with pytest.raises(ServiceManagerError, match="native_logs_limit"):
+        manager.logs(tail=0, follow=True)
+    assert output.getvalue() == "new\n"
+
+
+def test_native_logs_valid_state_ignores_foreign_docker_state(manager, monkeypatch):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    manager.log_root.mkdir(mode=0o700)
+    for process in manager._processes():
+        manager._write_state(process, 123456)
+        (manager.log_root / f"{process.role}.log").write_text("ready\n")
+    docker = manager.run_root / "docker"
+    docker.mkdir(mode=0o700)
+    (docker / "web.json").write_text("foreign malformed state")
+    assert manager.logs() == 0
+    assert output.getvalue() == "ready\nready\n"
+    assert (manager.run_root / "web.json").exists()
 
 
 def test_process_contract_uses_brand_neutral_runtime_and_fixed_ports(manager):

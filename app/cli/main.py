@@ -207,6 +207,19 @@ def web_stop() -> None:
     _run_web_action("stop", open_browser=False)
 
 
+@web.command("logs")
+@click.option("--tail", type=click.IntRange(0, 10000), default=100, show_default=True)
+@click.option("--follow", is_flag=True, help="跟随日志，最多 300 秒或 64 KiB")
+def web_logs(tail: int, follow: bool) -> None:
+    """读取归属已确认的 Web/DSH 日志；过滤认证信息。"""
+    try:
+        code = WebServiceManager().logs(tail=tail, follow=follow)
+    except ServiceManagerError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if code:
+        raise click.exceptions.Exit(code)
+
+
 @web.command("restart")
 @click.option("--force", is_flag=True, help="允许中断活动研究")
 @click.option("--no-open", is_flag=True, help="重启后不打开浏览器")

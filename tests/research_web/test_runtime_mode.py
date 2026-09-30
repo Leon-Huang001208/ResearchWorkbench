@@ -121,6 +121,58 @@ def test_same_mode_switch_is_read_only(tmp_path):
     assert not home.exists()
 
 
+def test_switch_round_trip_preserves_real_data_and_isolates_runtime_state(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import bootstrap
+
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    record = store.write("native")
+    data = home / "research-web"
+    data.mkdir(mode=0o700)
+    fixture = data / "research-fixture.json"
+    fixture.write_text('{"session":"persisted","revision":1}')
+    snapshots = []
+
+    class OwnedController:
+        ports = (18088, 13081)
+
+        def __init__(self, root):
+            self.root = root
+            root.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+        def start(self):
+            (self.root / "owned-state.json").write_text('{"running":true}')
+            snapshots.append(json.loads(fixture.read_text()))
+
+        def preflight(self):
+            return {"ok": fixture.is_file(), "issues": []}
+
+        def status(self):
+            path = self.root / "owned-state.json"
+            running = path.exists() and json.loads(path.read_text())["running"]
+            return {"ok": True, "services": {role: {"running": running} for role in ("web", "runtime")}}
+
+        def stop(self):
+            (self.root / "owned-state.json").write_text('{"running":false}')
+            return {"ok": True}
+
+    native = OwnedController(home / "run")
+    docker = OwnedController(home / "run/docker" / record.installation_id)
+    monkeypatch.setattr(bootstrap, "port_busy", lambda port: False)
+    native.start()
+    assert not docker.status()["services"]["web"]["running"]
+    assert bootstrap.switch_runtime(store, "docker", docker, native)["issues"] == ["runtime_stop_current_required"]
+    assert store.read().mode == "native"
+    assert bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)["ok"]
+    docker.start()
+    assert not native.status()["services"]["web"]["running"]
+    assert bootstrap.switch_runtime(store, "native", docker, native, stop_current=True)["ok"]
+    native.start()
+    assert store.read().mode == "native" and store.read().installation_id == record.installation_id
+    assert snapshots == [{"session": "persisted", "revision": 1}] * 3
+    assert not docker.status()["services"]["web"]["running"]
+
+
 def test_conditional_mode_write_rejects_concurrent_change(tmp_path):
     home = tmp_path / "home"
     store = RuntimeModeStore(home)
