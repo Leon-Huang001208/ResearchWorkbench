@@ -4,7 +4,7 @@
 
 On 2026-09-29 the main checkout had a `.venv` directory without an executable Python. `./rwb web status` and `./rwb web doctor --json` exited before the CLI loaded; neither 3081 nor 8088 was listening. A retained environment could invoke the manager directly, which removed confirmed-dead stale PID state and reported an unowned environment. This established the entrypoint and diagnostic gap. No conclusion about sustained browser availability follows from that stopped-state observation.
 
-The implementation is isolated on `codex/research-web-startup-stability`, based on `4d6a4eff6`. It does not change DSH source, model credentials, desktop sidecars, or the paused Windows Web automation policy. The design and implementation plan are in `docs/superpowers/specs/2026-09-29-research-web-startup-diagnostics-stability-design.md` and `docs/superpowers/plans/2026-09-29-research-web-startup-diagnostics-stability.md`.
+The implementation is isolated on `codex/research-web-startup-stability`, originally based on `4d6a4eff6` and locally integrated with remote `master` at `e39b6e2cc`. It does not change DSH source, model credentials, desktop sidecars, or the paused Windows Web automation policy. The design and implementation plan are in `docs/superpowers/specs/2026-09-29-research-web-startup-diagnostics-stability-design.md` and `docs/superpowers/plans/2026-09-29-research-web-startup-diagnostics-stability.md`.
 
 ## Changes and RED/GREEN evidence
 
@@ -17,6 +17,8 @@ The implementation is isolated on `codex/research-web-startup-stability`, based 
 
 The source tests were followed by default-port macOS lifecycle and browser observations below. The first live start and two stop attempts exposed timing defects absent from simulated probes. Targeted RED tests preceded the launcher-transition, termination-transition and macOS trusted-root fixes. The resulting contract/setup/bootstrap/service-manager/CLI/protocol subset passed 515/515; Ruff, Black and isort passed on affected files.
 
+The final read-only review found two further startup races. RED tests reproduced that ordinary `start` would stop an owned but temporarily unhealthy DSH without checking active research, and that a final `product_ready=false` could still return success. `start` now checks activity before any Runtime/Web stop, refuses an active or unverified session, and retries final product readiness for a bounded interval before returning a service-specific nonzero error. The service-manager suite passed 247 cases after this fix; Ruff and isort passed. Black formatting was applied through the existing Python module because the old `black` executable's shebang pointed to a removed interpreter. No dependency was installed.
+
 ## Service-state fault matrix
 
 | Case | Expected action | Current evidence |
@@ -24,7 +26,7 @@ The source tests were followed by default-port macOS lifecycle and browser obser
 | Ready owned Runtime and Web | Idempotent start, preserve PID | Live repeat start kept Runtime 91275 and Web 91393 |
 | Dead PID and closed port | Remove stale state under lock, start | Live Web SIGTERM produced stale Web; start kept Runtime 53941 and started Web 60510. DSH SIGTERM produced stale Runtime; restart recovered both services |
 | Damaged state with no live PID/listener | Quarantine exact file, rebuild | Clean checkout first startup left a state invalid after the `/tmp` signature correction; the next `start` quarantined it and reached healthy 3081/8088 |
-| Owned but unhealthy Runtime | Stop owned Web then Runtime, rebuild | Live restart after DSH SIGTERM stopped old Web 60510 before new Runtime/Web became ready |
+| Owned but unhealthy Runtime | Read-only activity check first; refuse active/unknown research, otherwise stop owned Web then Runtime and rebuild | RED/GREEN guard tests passed; live restart after confirmed-dead DSH stopped old Web 60510 before new Runtime/Web became ready |
 | Unknown/foreign PID or listener | Refuse without termination | Real external socket on isolated alternate port 54392 returned `runtime_port_in_use_unknown`; socket stayed open |
 | Competing lifecycle commands | One OS guard owner | Real forked contender test passed; product lifecycle not run |
 | Browser open failure | Keep ready services, emit warning and URL | Unit contract passed; successful default `./rwb web start` returned ready without warning |
@@ -49,7 +51,7 @@ The in-app browser opened `http://127.0.0.1:8088/#/fingpt` and rendered navigati
 
 ## Incremental validation
 
-The complete 40-path changed set was routed by `scripts/plan_verification.mjs` to L4 / `full-delivery`. The plan retains `validation_failure` and `unexpected_behavior` escalation signals from live discovery and names `unknown_impact_boundary`; no gate was downgraded. The macOS Bootstrap workflow contract was added test-first: the new JS assertion failed against the old workflow, then passed after the workflow began checking schema 2, installation/product/service ready, root HTML and the main ES module. All 12 selected local validations were rerun after the final code changes and exited 0. Generic `python` test commands used the pre-existing Python 3.12 development interpreter; product `.venv` supplied runtime and installation facts. The local integration skip remains a skip, not a pass.
+The complete 40-path changed set was routed by the prior schema-2 `scripts/plan_verification.mjs` to L4 / `full-delivery`. The plan retains `validation_failure` and `unexpected_behavior` escalation signals from live discovery and names `unknown_impact_boundary`; no gate was downgraded. The macOS Bootstrap workflow contract was added test-first: the new JS assertion failed against the old workflow, then passed after the workflow began checking schema 2, installation/product/service ready, root HTML and the main ES module. All 12 selected local validations in the table below passed before the final review fix and remote integration. They are historical evidence, not a claim that the newly integrated schema-3 closure has passed. Generic `python` test commands used the pre-existing Python 3.12 development interpreter; product `.venv` supplied runtime and installation facts. The local integration skip remains a skip, not a pass.
 
 | Level | Validation | Command | Result | Duration |
 | --- | --- | --- | --- | ---: |
@@ -66,11 +68,34 @@ The complete 40-path changed set was routed by `scripts/plan_verification.mjs` t
 | L3 | research-web-critical-smoke | `python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web -q` | exit 0; 19 passed | 1.84 s |
 | L4 | research-web-verification-full | `node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs` | exit 0; 81 passed | 3.45 s |
 
-The plan and receipt validator accepted all 12 executed local items. The receipt remains `blocked` because the three required GitHub workflows are still `not_run` on a published SHA; this is not a local test failure.
+The prior schema-2 plan and receipt validator accepted all 12 executed local items. That historical receipt remains `blocked` because its three required GitHub workflows were `not_run` on a published SHA; this is not a local test failure. The integrated schema-3 policy selects four CI merge gates, including native Windows Web verification; none has run for this branch.
+
+## Post-review and remote integration follow-up
+
+The remote `master` merge completed without conflict and brought in the shared schema-3 verification planner and schema-2 receipt validator. Its 11-file project runtime manifest matched all managed SHA-256 checks. The new policy still routes the complete 40-path branch change set to L4 / `full-delivery`, with 12 local checks, four CI merge gates and `unknown_impact_boundary`. The old schema-2 receipt is retained only as an earlier evidence snapshot. The complete schema-3 local closure passed in L0→L4 order:
+
+| Level | Validation | Observed result | Duration |
+| --- | --- | --- | ---: |
+| L0 | documentation-governance | exit 0; 513 files, 73 current, 0 violations | 0.43 s |
+| L0 | python-file-index | exit 0; generated index verified | 1.40 s |
+| L1 | verification-policy-contracts | exit 0; 67 passed | 5.61 s |
+| L1 | verification-receipt-contracts | exit 0; 21 passed | 2.44 s |
+| L1 | incremental-validation-skill-contracts | exit 0; 5 passed | 0.27 s |
+| L1 | research-web-local-integrations | exit 0; 45 passed, 1 skipped, 1 warning | 21.56 s |
+| L1 | research-web-architecture | exit 0; 62 passed | 3.08 s |
+| L1 | research-web-service-manager | exit 0; 248 passed | 1.94 s |
+| L1 | research-web-installation | exit 0; 47 passed | 15.33 s |
+| L2 | project-constraints-local | exit 0; complete 40-path set, 0 violations | 0.13 s |
+| L3 | research-web-critical-smoke | exit 0; 19 passed | 1.08 s |
+| L4 | research-web-verification-full | exit 0; 81 passed | 2.72 s |
+
+The selected Python checks used the existing Python 3.12 development interpreter with `--confcutdir=tests/research_web`; no product dependency was installed for testing. Beyond the planned closure, the six-suite Web startup regression set passed 520/520 in 23.25 seconds. Ruff, Black and isort checks passed on all 12 changed Python files. The one local-integration skip and warning remain recorded as such.
+
+After the merge, `./rwb web doctor --json` reported `installation_ok=true`, both services missing and both ports closed. `./rwb web start --no-open` exited 0 in about 13 seconds, with owned ready DSH PID 74536 and Web PID 75078. `./rwb web status` confirmed both ready; direct loopback GET returned HTTP 200 for root HTML (948 bytes) and `/static/app.mjs` (136,029 bytes). `./rwb web stop` exited 0, stopped those exact PIDs and reported both ports closed. No service was left running by this smoke test.
 
 ## Publication and external gates
 
-Publication is not_run. Project Constraints, Research Web Checks and GitHub `macos-14` clean Bootstrap are not_run on a published SHA. Windows Web native verification remains paused by current project policy and is not claimed.
+Publication is not_run. Project Constraints, Research Web Checks, GitHub `macos-14` clean Bootstrap and schema-3-selected Windows Web Verify are not_run on a published SHA. The project's Windows Web native-verification pause remains in force until a user decision; Windows behavior is not claimed.
 
 ## Unverified items and residual risks
 
