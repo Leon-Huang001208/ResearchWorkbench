@@ -1,8 +1,13 @@
 # Research Web DataHub
 
+Native 和 Docker 复用 15 项业务能力、22 个来源、Broker 动态选源和会话快照合同。连接秘密沿用
+`ResearchWorkbench.DataHub` 服务命名空间：Native 默认存于宿主 keyring，Docker 仅存于
+显式配置的受检私有凭据目录；模式切换不迁移秘密。容器内缺少宿主 Wind/Office 驱动、GUI 或
+已登录会话时，不能把 Native 的旧探测结果当作 Docker 当前可调用证明。
+
 DataHub是`app/research_web/datahub/`内的FastAPI进程模块，不是新守护进程、调度器或全局行情数据库。
 DSH仍是唯一研究引擎；Web只读资料，原生插件通过受控回环桥接查询同一DataHub。已配置且可用的来源自动执行，不逐次确认。
-不导入旧Connector.run、AKShare生命周期或旧报告编译链。通用 MySQL Provider 使用项目依赖 PyMySQL 与 keyring；它不是固定阿里云账号适配器。
+不导入旧Connector.run、AKShare生命周期或旧报告编译链。通用 MySQL Provider 使用项目依赖 PyMySQL 与当前模式的凭据后端；它不是固定阿里云账号适配器。
 
 ## 当前定位与命名
 
@@ -34,9 +39,9 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 - `allowed` / `callable`：是否允许进入业务路由、当前是否实际可调用。
 - `health` / `last_checked_at`：最近一次显式探测结果，而不是页面加载时偷偷检测。
 
-数据源设置页由 `GET /data/connections` 提供不含秘密的统一来源投影。MySQL、iFinD、知丘、天软、Tushare、Tavily 与 Bing 的非秘密配置写入 `<RESEARCH_DATA_HOME>/connections/`，秘密使用 `ResearchWorkbench.DataHub` 系统凭据库命名空间；Wind 只记录接入偏好，不接收账号密码。Wind Client API 探测只读取当前会话连接状态且不会代为登录；配置保存、来源探测、Provider 适配和 Runtime 可调用是四个独立事实。`#/settings/local` 不再消费此响应或 `local_cache` 投影；它使用专用本机诊断接口，DataHub 的既有接口和研究查询保持兼容。
+数据源设置页由 `GET /data/connections` 提供不含秘密的统一来源投影。MySQL、iFinD、知丘、天软、Tushare、Tavily 与 Bing 的非秘密配置写入 `<RESEARCH_DATA_HOME>/connections/`，秘密使用 `ResearchWorkbench.DataHub` 凭据服务命名空间；Wind 只记录接入偏好，不接收账号密码。Wind Client API 探测只读取当前会话连接状态且不会代为登录；配置保存、来源探测、Provider 适配和 Runtime 可调用是四个独立事实。`#/settings/local` 不再消费此响应或 `local_cache` 投影；它使用专用本机诊断接口，DataHub 的既有接口和研究查询保持兼容。
 
-iFinD HTTP 探测在用户完成现有数据源配置后执行真实登录、健康检查、最小只读基础数据查询和登出；登录成功但空响应、权限或配额失败都不会标记健康。Token 只存在于客户端会话与系统凭据库，不返回本机集成页或写入日志。
+iFinD HTTP 探测在用户完成现有数据源配置后执行真实登录、健康检查、最小只读基础数据查询和登出；登录成功但空响应、权限或配额失败都不会标记健康。Token 只存在于客户端会话与当前模式的凭据后端，不返回本机集成页或写入日志。
 
 东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable；其财务摘要把供应商布尔缺失哨兵规范化为 JSON `null`，不把 `false` 作为财务数值写入新快照，其他 capability 的真实布尔字段不受影响。Wind 新增受限 DataHub binding，只复用现有 xlwings/Excel `WindAdapter` 的封闭方法映射：股票日线行情、快照、指数实时行情 `quotes`、固定财务指标，以及资金流、融资融券和股东数据；现有 `fetch_block_trades` 实际返回龙虎榜，不能等价为大宗交易，因此不登记。Wind `market_bars` binding 的资产范围固定为股票，BusinessQuery 与 Runtime 工具接受显式 `asset_type` 上下文，但 Wind Provider 只允许 `stock`；缺失、指数或 ETF 均在 adapter 初始化前返回 `data_not_equivalent`，不会只凭六位代码推断。指数继续通过 `index_data` 的 points 口径查询。每个 capability/dataset 都投影到固定输出字段、类型、单位和日期语义，并拒绝 adapter 返回的任何未知列、其他证券或越界日期；指数身份也必须与请求一致。指数点位使用 points，融券余量使用 share，不能按 CNY/share 或 CNY 发布。业务请求只接受 `.SH`、`.SZ`、`.BJ` A 股代码及封闭字段、日期和复权枚举；不接受 Wind 公式、表达式、路径、凭据或任意字段。只有 xlwings/Excel 路径构成该 Provider 的依赖就绪条件，只有 WindPy 或配置 `preferred_adapter=client_api` 时不能进入 Runtime callable 计算。未登录返回 `wind_not_logged_in`，当前适配器缺方法返回 `wind_method_unavailable`，身份、单位、日期、复权或数据集不等价返回 `data_not_equivalent`。指数成分、宏观/利率及基金持仓没有已核实的现有适配器等价方法，因此不登记为 Wind 已实现绑定。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
 
@@ -62,7 +67,7 @@ Wind 的日线、资金流与融资融券入口在 adapter 初始化前验证 IS
 
 ### 用户 MySQL 边界
 
-- 非秘密字段 `label`、`host`、`port`、`user`、`charset`、`tls_mode` 原子写入 `<RESEARCH_DATA_HOME>/connections/mysql.json`。密码固定使用系统凭据库服务 `ResearchWorkbench.DataHub`、账户 `mysql:default:password`；API 只返回 `secret_configured`，不回填密码。
+- 非秘密字段 `label`、`host`、`port`、`user`、`charset`、`tls_mode` 原子写入 `<RESEARCH_DATA_HOME>/connections/mysql.json`。密码固定使用凭据服务 `ResearchWorkbench.DataHub`、账户 `mysql:default:password`；API 只返回 `secret_configured`，不回填密码。
 - 凭据库不可用、锁定或写入失败返回 `credential_store_unavailable`，不降级到环境变量或明文。保存与删除使用补偿流程；删除连接不级联删除既有会话快照。
 - `required_no_verify` 使用显式 SSLContext 强制 TLS、关闭证书验证，不允许明文降级。来源详情和每份快照均含 `tls_certificate_unverified`。
 - 每次探测与查询先执行 `SHOW GRANTS`；仅允许 `USAGE`、`SELECT`、`SHOW VIEW`，检测到写入、DDL、管理、`ALL PRIVILEGES` 或 `GRANT OPTION` 即以 `unsafe_privileges` 阻断。
@@ -127,7 +132,7 @@ Windows 不使用 POSIX mode bit 作为 ACL 证明。控制文件、调用收据
 
 ```text
 .control/datahub.json                         # 新产品控制凭据，只给可信服务/原生插件
-connections/mysql.json                        # MySQL非秘密配置；密码在系统凭据库
+connections/mysql.json                        # MySQL非秘密配置；密码在当前模式的凭据后端
 .control/calls/<sid>/<call-hash>.json          # 稳定调用ID + 参数指纹 + 受理/结果
 .control/snapshots/<sid>/<dataset_id>/         # 原始响应 + 权威manifest
 sessions/<sid>/inputs/datasets/<dataset_id>/   # 只读rows.json、rows.csv、manifest.json
@@ -203,14 +208,14 @@ XLSX应包含原始解析记录和公式/计算说明、dataset_id/hash；DOCX/H
 2026-09-16 现有 Provider 闭环复验中，AKShare、财联社和东方财富基金均通过真实只读探测；三者分别完成 `market_bars`、`search_news`、`fund_data/nav` 查询、会话隔离快照和真实 `datahub_*` Runtime 调用。天软与 MySQL 只完成依赖、契约和安全错误映射验证；由于没有在产品配置中获得天软 Token、厂商许可和可达只读 MySQL 测试库，不能把它们写成真实成功。详细证据见 `.ai/reports/test_report_integration_providers_20260916_b2.md`。
 
 Web 一键环境只接受随包且哈希匹配的 `cjpy==0.5.2`，并同时验证 `requests`、`urllib3`。缺包返回
-`blocked_dependency`，CJPY 版本错误返回 `dependency_version_mismatch`。`CJ_KEY` 由系统凭据库在
+`blocked_dependency`，CJPY 版本错误返回 `dependency_version_mismatch`。`CJ_KEY` 由当前模式的凭据后端在
 每次探测/查询时动态读取，保存后 `restart_required=false`；无凭据的干净安装必须保持
 `configured=false`、`callable=false`。安装与升级流程见
 [Research Web 一键本地安装](research-web-installation.md)。
 真实探测的 `vendor_auth_failed` 和 `vendor_permission_denied` 属于用户可处理的凭据/账号权限问题；
 `blocked_dependency` 和 `dependency_version_mismatch` 属于本机环境问题；限流或不可达保留为供应商问题。
 
-MySQL 的单元与界面验收使用模拟 Keyring、PyMySQL 连接和安全化 API 响应，不使用对话中出现过的旧口令。真实连接只有在用户轮换口令、重新保存并显式发起探测后才可验收；Research Web 在 Windows 与 Linux 上的系统凭据库后端仍需对应操作系统 CI 验证。桌面 sidecar、Tauri 安装包和安装级烟测不在本次范围内。
+MySQL 的单元与界面验收使用模拟凭据后端、PyMySQL 连接和安全化 API 响应，不使用对话中出现过的旧口令。真实连接只有在用户轮换口令、重新保存并显式发起探测后才可验收；Native 系统 keyring 和 Docker 私有凭据目录须按各自平台单独验证，不能用模拟测试代替。桌面 sidecar、Tauri 安装包和安装级烟测不在本次范围内。
 Windows 原生本机集成专项已覆盖 DataHub 私有回环控制文件的服务启动读取：路径回退拒绝符号链接/重解析点、目录越界、非普通文件、硬链接和超限内容，并核对打开前后文件身份。POSIX 的 descriptor-relative 路径保持不变；该专项不证明 Windows 上的会话快照发布、连接配置写入或系统凭据库已经完成全量验收。
 连接配置原子替换在 POSIX 刷新父目录；Windows 明确跳过不支持的目录 `fsync`。这不降低临时文件刷新和关闭句柄后替换的要求，也不把跳过视为安装级持久化验收。
 真实来源只读核对由父任务记录在`.ai/reports/2026-09-02-datahub-source-probes.md`，不把离线测试当真实模型闭环。

@@ -23,8 +23,9 @@
 
 Purpose:
 
-- Implements the shared macOS/Windows Web bootstrap used by `setup-web.sh` and `setup-web.cmd`.
-- Creates only an installer-owned checkout `.venv`, consumes `requirements/web.lock` with hashes, installs the
+- Implements the shared macOS/Windows Web bootstrap used by `setup-web.sh` and `setup-web.cmd`; `--runtime` defaults
+  to Native, while Docker uses the same pinned Web/DSH contract and a separate accepted-image manifest.
+- On Native, creates only an installer-owned checkout `.venv`, consumes `requirements/web.lock` with hashes, installs the
   root package without dependencies, and verifies the vendored `cjpy==0.5.2` wheel and transport dependencies.
 - Clones, checks out and builds the pinned DSH commit with its declared pnpm version; a user-private Corepack shim
   keeps nested DSH build commands independent from global pnpm. The first successful build records a path-specific
@@ -36,6 +37,11 @@ Purpose:
 - Rejects unsupported Python/Node versions, unknown managed directories, links/reparse points, mismatched hashes,
   dirty or wrong DSH sources, and incomplete builds. `--repair` is limited to directories bearing this installer's
   ownership marker.
+- On Docker, builds an independent candidate tag and checks its immutable image ID and lock/Compose/runtime contract
+  before publishing the private accepted-image manifest. Default start waits for both DSH and Web health; `--no-start`
+  records only an accepted build. A different old container image requires explicit `--repair`, which rechecks stopped
+  ownership and free ports before a non-force removal; failed candidates preserve the prior accepted image and data.
+  Windows Docker fails closed while credential-directory ACL preparation cannot be proved.
 - Passes application secrets to neither pip nor Node/Git build commands. Git may retain the host's proxy settings;
   pip and Corepack/Node keep only HTTP(S) proxy protocols across upper- and lower-case variables. Filtering records
   only a bounded count, never a proxy value, and does not mutate the host environment. macOS discovers libc++ headers through `xcrun`, and Windows
@@ -147,7 +153,7 @@ Research Web uses the repository-owned `scripts/check_research_architecture.mjs`
 also invoked by `.agents/project-constraints.mjs` and the existing Project Constraints CI.
 `check_doc_sync.py` accepts `--project`, `--base` and repeated `--changed-file`, using
 NUL-delimited Git output to include individual untracked files and failing closed on Git errors.
-The shared core checks all eight required diagrams, current API/source/test references,
+The shared core checks all ten required diagrams, current API/source/test references,
 canonical links, byte hashes, showcase 9/9 receipts, four viewport containment receipts,
 and explicit same-hash human screenshot reviews. Source changes require mapped Markdown
 and an `architecture-review` marker in the review record; unknown Research Web source fails.

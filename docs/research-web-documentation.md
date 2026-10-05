@@ -1,5 +1,10 @@
 # Research Web 文档门禁与安全入口
 
+Native/Docker 的当前部署拓扑由 `01-deployment` 和架构清单记录，详细安装身份、镜像接受、
+健康等待与平台限制以[安装契约](research-web-installation.md)为准。模块文档应同步说明凭据
+后端选择与不变的 API/Provider/能力合同。完整分支约束检查需覆盖基线到 HEAD 以及暂存、
+未暂存和新增报告；只检查最近修复或手选文件不能作为分支收尾证据。
+
 Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 提供 GitHub `macos-14` 干净安装、
 固定 DSH 构建、3081/8088 启动、Doctor 和无凭据天软断言证据；Windows Web 证据在用户完成 Windows
 实机验证后单独提供，详见 [Research Web 安装契约](research-web-installation.md)。

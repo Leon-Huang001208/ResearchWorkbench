@@ -1,5 +1,10 @@
 # 研究框架
 
+Native 和 Docker 复用 Gold/Dollar 的定义、快照 revision、评分、renderer 和 Bot 请求合同。
+模式只改变同一 3081/8088 服务的部署位置；Docker 单容器健康检查同时要求两项服务 ready，
+但框架采集是否取得真实外部数据仍由各自来源与缺口规则判断。Docker 健康通过不证明宿主
+Office/Wind 等可选集成可用，也不构成 Windows Docker 验收。
+
 Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定义、采集、快照 schema、评分、
 renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。
 启动前 Doctor 门只阻止未完成安装的 checkout 创建共享 Runtime；通过后仍沿用同一框架注册表、
