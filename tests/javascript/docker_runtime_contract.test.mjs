@@ -193,3 +193,40 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
     rmSync(directory, {recursive: true, force: true});
   }
 });
+
+
+test('lifecycle failure evidence preserves the exact fixed stage and exit code', () => {
+  const step = read('.github/workflows/research-web-docker.yml')
+    .split('      - name: Exercise health restart and persistent data\n')[1]
+    .split('\n      - name:')[0];
+  const script = step.split('        run: |\n')[1]
+    .split('\n').map(line => line.startsWith('          ') ? line.slice(10) : line).join('\n');
+  const phases = ['initial_start', 'initial_health', 'web_connected', 'fixture_write',
+    'restart', 'restart_wait', 'restart_health', 'down', 'up', 'up_health',
+    'fixture_read', 'private_port', 'success_evidence'];
+  const directory = mkdtempSync(join(tmpdir(), 'rwb-ci-phase-'));
+  const shim = `
+    docker() { printf '%s\\n' 'fixture-private-value'; if [ "$phase" = "$RWB_TEST_FAIL_PHASE" ]; then return 37; fi; }
+    curl() { printf '%s\\n' '{"connected":true}'; if [ "$phase" = "$RWB_TEST_FAIL_PHASE" ]; then return 37; fi; }
+    python3() { while IFS= read -r line; do :; done; if [ "$phase" = "$RWB_TEST_FAIL_PHASE" ]; then return 37; fi; }
+  `;
+  try {
+    mkdirSync(join(directory, 'raw'));
+    mkdirSync(join(directory, 'evidence'));
+    for (const phase of [...phases, 'none']) {
+      const result = spawnSync('/bin/bash', ['-c', shim + script], {
+        env: {...process.env, RWB_CI_ROOT: directory, RWB_TEST_FAIL_PHASE: phase},
+        encoding: 'utf8', timeout: 10000,
+      });
+      assert.equal(result.status, phase === 'none' ? 0 : 37, result.stderr);
+      const evidence = readFileSync(join(directory, 'evidence/runtime-stage.json'), 'utf8');
+      assert.deepEqual(JSON.parse(evidence), {
+        phase: phase === 'none' ? 'success_evidence' : phase,
+        exit_code: phase === 'none' ? 0 : 37,
+      });
+      assert.doesNotMatch(evidence, /fixture-|password|cookie|token/i);
+    }
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
+});

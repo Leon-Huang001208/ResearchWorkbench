@@ -116,6 +116,10 @@ Related service:
 - CLI invocation tests
 - Command output verification
 - Error case handling tests
+- Docker-missing launcher tests restrict the actual child PATH to task-owned Python,
+  dirname and readlink links. They never append host binary directories. A separate
+  bootstrap subprocess disables site-packages and confirms Click/Native CLI is not
+  imported. Docker-present behavior remains covered by the runtime controller tests.
 
 ---
 

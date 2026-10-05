@@ -181,19 +181,33 @@ jobs:
       - name: Exercise health restart and persistent data
         run: |
           set -euo pipefail
+          # Export only a fixed stage and numeric status; raw logs remain private.
+          phase=initial_start
+          trap 'status=$?; printf "{\"phase\":\"%s\",\"exit_code\":%s}\n" "$phase" "$status" > "$RWB_CI_ROOT/evidence/runtime-stage.json"; exit "$status"' EXIT
           {
             docker compose up -d --no-build --wait --wait-timeout 180
             # Reuses authenticated DSH 3081 sessions and connected Web 8088 probes.
+            phase=initial_health
             docker compose exec -T research-web python /opt/rwb/docker/healthcheck.py
+            phase=web_connected
             curl --fail --silent --max-time 10 http://127.0.0.1:8088/api/research/runtime | python3 -c 'import json,sys; assert json.load(sys.stdin)["connected"] is True'
+            phase=fixture_write
             docker compose exec -T research-web python -c 'from pathlib import Path; Path("/data/research-web/persistent-fixture.txt").write_text("rwb-ci-nonsecret-fixture\n")'
+            phase=restart
             docker compose restart
+            phase=restart_wait
             docker compose up -d --no-build --wait --wait-timeout 180
+            phase=restart_health
             docker compose exec -T research-web python /opt/rwb/docker/healthcheck.py
+            phase=down
             docker compose down --timeout 35
+            phase=up
             docker compose up -d --no-build --wait --wait-timeout 180
+            phase=up_health
             docker compose exec -T research-web python /opt/rwb/docker/healthcheck.py
+            phase=fixture_read
             docker compose exec -T research-web python -c 'from pathlib import Path; assert Path("/data/research-web/persistent-fixture.txt").read_text() == "rwb-ci-nonsecret-fixture\n"'
+            phase=private_port
             # DSH must remain private to the container network namespace.
             python3 - <<'PY'
           import socket
@@ -206,6 +220,7 @@ jobs:
               raise SystemExit("private_runtime_port_exposed")
           PY
           } > "$RWB_CI_ROOT/raw/runtime.log" 2>&1
+          phase=success_evidence
           python3 - <<'PY'
           import json, os
           from pathlib import Path
@@ -276,6 +291,7 @@ jobs:
           path: |
             ${{ env.RWB_CI_ROOT }}/evidence/health.json
             ${{ env.RWB_CI_ROOT }}/evidence/compose-services.txt
+            ${{ env.RWB_CI_ROOT }}/evidence/runtime-stage.json
           if-no-files-found: error
           retention-days: 3
 
@@ -284,7 +300,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: docker-failure-${{ strategy.job-index }}-${{ github.run_id }}
-          path: ${{ env.RWB_CI_ROOT }}/evidence/failure-redacted.log
+          path: |
+            ${{ env.RWB_CI_ROOT }}/evidence/failure-redacted.log
+            ${{ env.RWB_CI_ROOT }}/evidence/runtime-stage.json
           if-no-files-found: error
           retention-days: 3
 

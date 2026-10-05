@@ -57,6 +57,54 @@ def _isolated_launcher(tmp_path):
     return checkout, home, environment
 
 
+def _docker_missing_environment(tmp_path, environment):
+    """Give the launcher its shell tools without exposing host Docker binaries."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    (bindir / "python3").symlink_to(sys.executable)
+    for tool in ("dirname", "readlink"):
+        executable = shutil.which(tool, path=os.defpath)
+        if executable is None:
+            pytest.fail(f"required launcher tool unavailable: {tool}")
+        (bindir / tool).symlink_to(executable)
+    environment["PATH"] = str(bindir)
+    return bindir
+
+
+def test_missing_docker_path_is_isolated_in_the_child(tmp_path):
+    _, _, environment = _isolated_launcher(tmp_path)
+    bindir = _docker_missing_environment(tmp_path, environment)
+    completed = subprocess.run(
+        [str(bindir / "python3"), "-S", "-c",
+         "import json,os,shutil,sys; print(json.dumps({"
+         "'path': os.environ['PATH'], 'docker': shutil.which('docker'),"
+         "'click_loaded': 'click' in sys.modules}))"],
+        env=environment, capture_output=True, text=True, timeout=10, check=True,
+    )
+    value = json.loads(completed.stdout)
+    assert value == {"path": str(bindir), "docker": None, "click_loaded": False}
+
+
+def test_docker_bootstrap_runs_without_site_packages_or_click(tmp_path):
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    checkout, home, environment = _isolated_launcher(tmp_path)
+    bindir = _docker_missing_environment(tmp_path, environment)
+    RuntimeModeStore(home / ".research-workbench").write("docker")
+    script = (
+        "import sys; from pathlib import Path; "
+        "from research_workbench_entrypoint.bootstrap import dispatch; "
+        "status=dispatch(['web','status','--json'], Path.cwd()); "
+        "assert status == 1; "
+        "assert 'click' not in sys.modules and 'app.cli.main' not in sys.modules"
+    )
+    completed = subprocess.run(
+        [str(bindir / "python3"), "-S", "-c", script], cwd=checkout,
+        env=environment, capture_output=True, text=True, timeout=10, check=True,
+    )
+    assert json.loads(completed.stdout)["issues"] == ["docker_cli_missing"]
+
+
 def _mark_test_environment_owned(checkout):
     (checkout / ".venv/.rwb-web-environment.json").write_text(json.dumps({
         "schema_version": 1, "owner": "research-workbench-web-installer",
@@ -84,11 +132,7 @@ def test_docker_web_status_without_venv_is_stdlib_only(tmp_path, native_environm
         if native_environment == "unusable":
             _mark_test_environment_owned(checkout)
     RuntimeModeStore(home / ".research-workbench").write("docker")
-    # An empty PATH containing only Python proves no Click or Native venv is needed.
-    bindir = tmp_path / "bin"
-    bindir.mkdir()
-    (bindir / "python3").symlink_to(sys.executable)
-    environment["PATH"] = str(bindir) + ":/usr/bin:/bin"
+    _docker_missing_environment(tmp_path, environment)
     result = subprocess.run([str(checkout / "rwb"), "web", "status", "--json"], env=environment, capture_output=True, text=True, timeout=10)
     assert result.returncode == 1
     assert json.loads(result.stdout)["issues"] == ["docker_cli_missing"]
@@ -138,10 +182,7 @@ def test_prefixed_docker_commands_without_venv(tmp_path, prefix, command):
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
     checkout, home, environment = _isolated_launcher(tmp_path)
     RuntimeModeStore(home / ".research-workbench").write("docker")
-    bindir = tmp_path / "bin"
-    bindir.mkdir()
-    (bindir / "python3").symlink_to(sys.executable)
-    environment["PATH"] = str(bindir) + ":/usr/bin:/bin"
+    _docker_missing_environment(tmp_path, environment)
     completed = subprocess.run([str(checkout / "rwb"), *prefix, command, "status", "--json"],
                                env=environment, capture_output=True, text=True, timeout=10)
     value = json.loads(completed.stdout)
