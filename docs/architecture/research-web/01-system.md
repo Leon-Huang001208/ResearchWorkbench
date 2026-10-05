@@ -3,8 +3,8 @@
 公开 Web 安装器在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的
 `runtime/dsh/<commit>/` 版本目录；运行时仍是既有 3081 DSH 与 8088 FastAPI 两个受管进程。
 `rwb web doctor` 读取安装摘要与健康事实，不增加守护进程、端口或数据库。
-checkout Python 环境缺失或损坏时，`rwb`/`rwb.cmd` 仅将 `web status` 和 `web doctor` 转入
-标准库后备诊断；后备诊断不管理服务，也不声称 DSH/Web ready。正常环境由
+checkout Python 环境缺失或损坏时，`rwb`/`rwb.cmd` 将顶层 `--help`、`web status` 和
+`web doctor` 转入标准库后备入口；帮助输出不探测服务，诊断不管理服务或声称 DSH/Web ready。正常环境由
 `service_diagnostics.py` 表达 state、进程、归属、端口、协议与 ready，
 `lifecycle_lock.py` 串行化 `start/stop/restart`，`service_manager.py` 只对已证明归属的进程执行恢复。
 Web ready 同时要求 DSH 已认证协议、`/api/research/runtime`、首页和 `/static/app.mjs` 通过；
@@ -58,7 +58,7 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 | Tabbit 适配 | `app/research_web/tabbit.py`、`runtime/tabbit-adapter.mjs`、`vendor/dsh-tabbit/0.3.4/` | 固定供应包校验、会话级页面授权、实时标签 claim、一次性内存上下文与写操作审批；只复用唯一 `ctx.tabbit` 执行器 |
 | 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的安装前置诊断、进程归属、健康检查、跨平台私有目录校验、项目私有 DSH 源码选择、持久后台启动、停止和失败回滚 |
 | 服务事实与生命周期锁 | `app/research_web/service_diagnostics.py`、`lifecycle_lock.py` | 无副作用的进程/监听/协议事实投影与受管服务操作排他；不授权未知 PID |
-| 后备诊断合同 | `research_workbench_entrypoint/web_contract.py`、`web_bootstrap.py` | 共享 Node/环境/安全读取合同，以及 `.venv` 不可用时的只读 status/Doctor |
+| 后备诊断合同 | `research_workbench_entrypoint/web_contract.py`、`web_bootstrap.py` | 共享 Node/环境/安全读取合同，以及 `.venv` 不可用时的静态帮助与只读 status/Doctor |
 | 数据迁移 | `app/research_web/data_migration.py` | 会话/附件/能力/数据集/产物的哈希复制；排除凭据并支持只读归档 |
 | 能力管理 | `app/research_web/capabilities/`、`app/research_web/skills/` | 草稿、声明式内置种子、受检资源、版本、原生目录投影、版本化证据协议与只读 Tool 声明 |
 | 报告 Workflow | `app/research_web/report_workflows/`、`report_workflow_routes.py` | 具体报告的模板/底稿资源、不可变版本、迁移、Claw 运行、Excel 刷新、日程与独立交付 |

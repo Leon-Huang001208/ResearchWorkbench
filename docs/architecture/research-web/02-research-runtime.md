@@ -20,6 +20,8 @@ PID 命令行、用 PowerShell 探测 PID 存活并按受管进程树停止，PO
 junction 和 POSIX symlink 都只在解析目标仍位于固定源码树时接受。这些平台分支不改变 Runtime 协议。
 安装阶段的 Web import readiness 只验证 checkout 入口可加载，不执行 FastAPI lifespan、不启动框架
 调度器、集成探测或 3081/8088；实际进程和健康状态仍只由 `rwb web start` 建立。
+未安装环境中的顶层 `rwb --help` 仅输出标准库静态帮助，不进入 DSH 会话、认证、启动或恢复链；
+`web start/restart/stop` 仍由原安装门拒绝。
 
 Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
 

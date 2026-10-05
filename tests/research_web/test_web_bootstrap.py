@@ -144,7 +144,6 @@ def test_doctor_honors_safe_launcher_probe_failure_override(tmp_path: Path) -> N
         ["web", "status", "--json"],
         ["web", "doctor", "--verbose"],
         ["web", "doctor", "--json", "extra"],
-        ["--help"],
     ],
 )
 def test_bootstrap_rejects_every_command_outside_the_exact_allowlist(
@@ -159,6 +158,26 @@ def test_bootstrap_rejects_every_command_outside_the_exact_allowlist(
     assert "./setup-web.sh --repair --no-start" in stderr
     assert "setup-web.cmd --repair --no-start" in stderr
     assert str(tmp_path) not in stderr
+
+
+def test_bootstrap_help_requires_no_installation_or_service_probe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        web_bootstrap,
+        "diagnose",
+        lambda _root: pytest.fail("help must not inspect installation or services"),
+    )
+
+    exit_code, stdout, stderr = _run_capture(["--help"], tmp_path)
+
+    assert exit_code == 0
+    assert "Usage: rwb" in stdout
+    assert "web status" in stdout
+    assert "web doctor" in stdout
+    assert "setup-web.sh --repair --no-start" in stdout
+    assert stderr == ""
+    assert str(tmp_path) not in stdout
 
 
 @pytest.mark.parametrize(
@@ -1104,6 +1123,31 @@ def test_posix_launcher_falls_back_to_bootstrap_for_an_incomplete_environment(
     assert completed.returncode == 0, completed.stderr
     assert report["issues"][0] == "python_environment_incomplete"
     assert str(tmp_path) not in completed.stdout
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX launcher contract")
+@pytest.mark.parametrize("environment_state", ["missing", "incomplete"])
+def test_posix_launcher_help_works_without_an_installed_environment(
+    tmp_path: Path, environment_state: str
+) -> None:
+    checkout, environment = _temporary_launcher_checkout(tmp_path)
+    if environment_state == "incomplete":
+        (checkout / ".venv").mkdir()
+
+    completed = subprocess.run(
+        [str(checkout / "rwb"), "--help"],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "web status" in completed.stdout
+    assert "web doctor" in completed.stdout
+    assert "setup-web.sh --repair --no-start" in completed.stdout
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX launcher contract")
