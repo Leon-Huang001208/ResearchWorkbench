@@ -13,7 +13,7 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 | 文档 | 状态 | 受众 | 权威范围 | 更新触发 |
 | --- | --- | --- | --- | --- |
 | [根 README](../README.md) | current | 使用者 | 产品定位、安装、启动、导航 | 用户入口或安装行为变化 |
-| [Research Web 一键安装](research-web-installation.md) | current | 使用者、运维 | 锁定依赖、Doctor、跨平台安装 | 安装器或依赖基线变化 |
+| [Research Web 一键安装](research-web-installation.md) | current | 使用者、运维 | 锁定依赖、Doctor、启动恢复与页面 ready、跨平台安装 | 安装器、依赖或启动健康合同变化 |
 | [Research Web UI](research-web-ui.md) | current | 使用者、前端开发 | 页面、交互与 DOM 合同 | 用户流程或 UI 合同变化 |
 | [能力与版本](research-web-capabilities.md) | current | 使用者、能力开发 | Skill、Method、Tool、Workflow | 能力目录或版本规则变化 |
 
@@ -31,6 +31,7 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 
 - [Agent 工作流](AGENT_WORKFLOW.md)：本地快环、worktree、后台／远程和交付证据。
 - [最小验收规划兼容入口](../.claude/commands/verify-task.md)：仅把 Claude 命令转交给项目只读规划器；规则真源仍是 `.agents/verification-policy.json`。
+- [共享验收内核接入回执](../.ai/reports/2026-09-29-leon-verification-shared-runtime.md)：受管 runtime 版本、兼容验证与未运行外部门。
 - [参考入口](REFERENCE.md)：当前 CLI、API Atlas、生成索引与兼容平台参考。
 - [文件指南兼容入口](FILE_GUIDE.md)：旧文件级手册的退役说明与替代入口。
 - [Research Web 文档门禁](research-web-documentation.md)：架构清单、图文检查和安全 Web 入口。

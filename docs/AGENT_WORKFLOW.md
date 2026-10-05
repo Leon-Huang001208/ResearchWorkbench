@@ -39,6 +39,12 @@ node scripts/plan_verification.mjs --project . \
 
 `.agents/verification-policy.json` 是唯一政策真源；规划器只输出计划，不运行测试、Git、CI、发布或策略中的命令。`.agents/project-constraints.json` 保持独立架构门，不拥有或复制路由表。
 
+规划与回执算法来自 `.agents/runtime/leon-engineering/` 的受管最小运行时；
+`manifest.json` 固定框架版本、source commit、协议版本和每个受管文件哈希。
+`scripts/plan_verification.mjs` 与 `scripts/validate_verification_receipt.mjs`
+只保留项目兼容 CLI 和导出接口。项目策略、业务映射和平台支持仍由本仓拥有，
+不得从开发者 home 或浮动 `main` 导入。
+
 所有聚焦 `tests/research_web/` 的 Python catalog 必须带 `--confcutdir=tests/research_web`，与 GitHub
 Research Web Checks 使用同一测试边界。这样本机 `.env`、根 `tests/conftest.py` 的兼容平台数据库
 fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非 Research Web 测试本身保持不变。
@@ -70,7 +76,7 @@ fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非
 
 按 L0→`requiredLevel` 执行输出项，并为每个实际检查记录状态、耗时和证据路径。局部失败后用 `--signal validation_failure` 重新规划；非预期行为用 `--signal unexpected_behavior`。两种 signal 均逐级扩大范围并保留升级原因。
 
-最终 receipt 必须包含变更摘要、精确 changed set、计划/实际等级、影响判断、已执行项、`external` 门、结果、`uncoveredRisks` 与升级决定，然后运行：
+最终 receipt 必须包含变更摘要、精确 changed set、计划/实际等级、组件与平台、已执行项、`external` CI 门、`realMachine` 发布门、`mergeReady`、`releaseReady`、结果、`uncoveredRisks` 与升级决定，然后运行：
 
 ```bash
 node scripts/validate_verification_receipt.mjs --project . \

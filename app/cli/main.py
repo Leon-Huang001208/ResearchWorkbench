@@ -178,9 +178,10 @@ def web_status(json_output: bool = False) -> None:
     try:
         with _machine_output_logging(True):
             status = WebServiceManager().status()
-        report = {"schema_version": 1, "ok": True, "issues": [], "mode": "native",
+        report = {"schema_version": 2, "ok": True, "issues": status.get("issues", []), "mode": "native",
                   "services": {role: {key: service.get(key) for key in
-                                      ("running", "healthy", "pid", "port")}
+                                      ("running", "healthy", "pid", "port", "state", "process",
+                                       "ownership", "port_state", "protocol", "ready", "issues")}
                                for role, service in status["services"].items()
                                if role in ("web", "runtime")}}
         click.echo(json.dumps(report, ensure_ascii=False, indent=2))

@@ -114,6 +114,7 @@
     {"topic": "documentation-index", "path": "docs/README.md"},
     {"topic": "system-architecture", "path": "docs/ARCHITECTURE.md"},
     {"topic": "research-web-architecture", "path": "docs/architecture/research-web/README.md"},
+    {"topic": "research-web-installation", "path": "docs/research-web-installation.md", "purpose": "Public setup, status and Doctor recovery, macOS clean-install readiness, and Windows verification boundary"},
     {"topic": "development-map", "path": "docs/DEVELOPMENT_MAP.md"},
     {"topic": "reference-entry", "path": "docs/REFERENCE.md"},
     {"topic": "research-web-data", "path": "docs/research-web-datahub.md"},

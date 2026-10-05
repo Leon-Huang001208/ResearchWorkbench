@@ -12,6 +12,7 @@ while [ -L "$SCRIPT_PATH" ]; do
 done
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
 PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+ENVIRONMENT_OWNER_ROOT=$PROJECT_ROOT
 
 if [ ! -x "$PYTHON_BIN" ] && command -v git >/dev/null 2>&1; then
   if GIT_COMMON_DIR=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null); then :; else GIT_COMMON_DIR=; fi
@@ -23,6 +24,7 @@ if [ ! -x "$PYTHON_BIN" ] && command -v git >/dev/null 2>&1; then
     if COMMON_ROOT=$(CDPATH= cd -- "$(dirname -- "$GIT_COMMON_DIR")" 2>/dev/null && pwd -P); then :; else COMMON_ROOT=; fi
     if [ -n "$COMMON_ROOT" ] && [ -x "$COMMON_ROOT/.venv/bin/python" ]; then
       PYTHON_BIN="$COMMON_ROOT/.venv/bin/python"
+      ENVIRONMENT_OWNER_ROOT=$COMMON_ROOT
     fi
   fi
 fi
@@ -41,7 +43,8 @@ if [ -z "$HOST_PYTHON" ] && [ -x "$PYTHON_BIN" ]; then
   HOST_PYTHON=$PYTHON_BIN
 fi
 if [ -z "$HOST_PYTHON" ]; then
-  echo 'Research Workbench requires host Python 3.12 or newer. Run setup-web first.' >&2
+  echo 'python_runtime_unavailable' >&2
+  echo 'Run ./setup-web.sh --repair --no-start (Windows: setup-web.cmd --repair --no-start).' >&2
   exit 1
 fi
 

@@ -5,6 +5,13 @@ Native 和 Docker 复用 Gold/Dollar 的定义、快照 revision、评分、rend
 但框架采集是否取得真实外部数据仍由各自来源与缺口规则判断。Docker 健康通过不证明宿主
 Office/Wind 等可选集成可用，也不构成 Windows Docker 验收。
 
+2026-09-29 启动稳定性变更只调整 Research Web/DSH 的进程归属、恢复与页面 ready 判定。
+Gold/Dollar 仍由同一 3081 Runtime 和 8088 Host 执行；定义、采集器、调度、快照 schema/revision、
+评分、renderer、Bot 会话绑定和框架图源均未改变。模型未配置时 Web 设置页可访问，不代表框架
+解释或深度验证已经可调用；该能力继续由真实 Runtime、模型及快照状态决定。
+未安装环境的顶层 `rwb --help` 只输出静态诊断指引，不加载 Gold/Dollar 定义、采集器、快照
+或 Bot；本轮 CI 修复不改变框架版本和页面合同。
+
 Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定义、采集、快照 schema、评分、
 renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。
 启动前 Doctor 门只阻止未完成安装的 checkout 创建共享 Runtime；通过后仍沿用同一框架注册表、

@@ -160,6 +160,25 @@ Node 选择顺序为：调用方显式传入、`RESEARCH_NODE_BINARY`、可执�
 
 Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要、端口和健康状态，不输出路径、
 环境变量值、凭据或用户文件正文。
+若 checkout `.venv` 缺失、所有权标记不完整或解释器不可用，顶层 `--help`、`web status` 与
+`web doctor --json` 仍由仅使用系统 Python 标准库的受限入口提供帮助或安全诊断；该入口拒绝
+`start/restart/stop`，不读取 Runtime Cookie，也不改写 PID/state。系统 Python 也缺失时，入口返回
+`python_runtime_unavailable` 并提示重新运行公开安装器。
+该限制只适用于选中的 Native 模式：stdlib bootstrap 先选择部署模式，Docker 命令在 Native
+环境缺失或损坏时仍可路由。Native 的 `web status --json` 同样提供 schema 2 的安全事实；
+工作树复用公共 checkout 的 `.venv` 时按该环境所属根验证安装标记，不回退导入全局产品包。
+Doctor schema 2 区分 `installation_ok`、`product_ready` 与 `model_ready`。服务状态按 state、真实 PID、
+启动身份与命令归属、监听 PID、DSH 协议、Web HTTP 逐级核对；PID 文件或开放端口单独存在都不构成
+ready。Node 22.19+（22 系列）或 24.x 由安装器与 Doctor 使用同一版本合同核对，其他版本或畸形
+输出报告独立 issue。模型配置、凭据或目录问题只列入 warning，不阻止 Web 与设置页启动；Doctor 不
+通过真实生成请求测试模型密钥。
+`start` 在已确认死亡且端口关闭时恢复 stale state；归属明确但不健康的 DSH 只有在只读核对确认
+没有活动研究后，才按 Web → DSH 的停止顺序重建。活动研究存在或无法核对时拒绝自动停止，并提示
+显式 `rwb web restart --force`。随后依次等待 DSH、Web Runtime API、首页与 `/static/app.mjs`，
+并复查最终产品就绪状态；未就绪时返回非零退出码和具体健康 issue，不会误报启动成功或打开浏览器。
+归属不明的 PID、监听者或
+损坏且仍可能活动的 state 会失败关闭，不接管或终止未知进程。生命周期操作由同一排他锁串行化；
+浏览器打开失败会返回 `browser_open_failed` warning 和可复制 URL，已健康服务继续运行。
 `rwb web start` 会在创建 3081/8088 子进程前复用 Doctor 的安装检查。若 checkout `.venv` 不受安装器
 所有、锁摘要不符、CJPY/Node/DSH 未就绪，命令立即列出稳定 issue code，并提示重新运行上述安装器；
 它不会先创建候选 Runtime 再等待健康超时。
@@ -219,6 +238,8 @@ runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检�
 误报可调用。本机 macOS 验证必须先通过，但不能替代该远端干净环境门。Windows Web 自动验证当前
 暂停；`.github/workflows/research-web-windows-verify.yml` 仅保留手动入口，Windows 实机结果由用户
 单独提供，未运行时不得标记为通过。该边界不改变桌面/Tauri/sidecar 的独立 Windows 门禁。
+Bootstrap 的 macOS 验收还要求 Doctor schema 2 的安装/产品 ready、双服务 ready，以及首页和主
+静态模块实际可读取；本机运行和单元测试不能替代该干净 runner 的结果。
 
 维护者更新直接依赖后，用 Python 3.12 重新生成锁：
 

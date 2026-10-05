@@ -8,8 +8,9 @@ node scripts/plan_verification.mjs --project . \
   --changed-file <another-changed-file>
 ```
 
-读取 JSON 中的 `requiredLevel`、`validationsByLevel`、`impact`、
-`uncoveredRisks` 与 `receiptTemplate`，按 L0→L4 顺序执行实际输出。局部验证失败或
+读取 JSON 中的 `requiredLevel`、`components`、`platforms`、
+`validationsByLevel`、`impact`、`uncoveredRisks` 与 `receiptTemplate`，按
+L0→L4 顺序执行实际输出。局部验证失败或
 出现非预期行为时，分别追加 `--signal validation_failure` 或
 `--signal unexpected_behavior` 重新规划，不得沿用原低等级结论。
 

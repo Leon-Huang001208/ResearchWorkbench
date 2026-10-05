@@ -51,7 +51,7 @@ Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`�
 
 ## Artifact 与保留期
 
-- Bootstrap 成功只上传 `doctor.json` 和 `connections.json`；完整 `logs/setup-web.log` 只在失败时上传。
+- Bootstrap 成功上传 `doctor.json`、`connections.json`、首页 `root.html` 和主静态模块 `app.mjs`，证明干净 runner 的安装/产品 ready 与页面资源可读取；完整 `logs/setup-web.log` 只在失败时上传。
 - Bootstrap 和 Windows Verify 的任务 artifact 保留 3 天。
 - Docker 成功 artifact 只含固定字段的健康摘要与 Compose 服务名，失败 artifact 仅含经过秘密模式扫描的固定事件分类计数；全部原始行被省略，原始 build/runtime/container 日志和凭据目录不上传。Docker artifact 保留 3 天。
 - GitHub 仓库默认 Actions artifact/log retention 由仓库所有者设为 7 天；该设置不由本地代码自动修改。

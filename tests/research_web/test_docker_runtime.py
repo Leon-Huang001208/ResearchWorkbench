@@ -54,14 +54,22 @@ class RecordingRunner:
 
 
 @pytest.fixture
-def runtime(tmp_path):
+def available_ports():
+    with socket.socket() as web, socket.socket() as runtime:
+        web.bind(("127.0.0.1", 0))
+        runtime.bind(("127.0.0.1", 0))
+        return web.getsockname()[1], runtime.getsockname()[1]
+
+
+@pytest.fixture
+def runtime(tmp_path, available_ports):
     from research_workbench_entrypoint.docker_runtime import DockerRuntime
 
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
     record = RuntimeModeStore(home).write("docker")
     runner = RecordingRunner()
-    controller = DockerRuntime(tmp_path, home, runner=runner, ports=(18088, 13081))
+    controller = DockerRuntime(tmp_path, home, runner=runner, ports=available_ports)
     from scripts.setup_web import _docker_manifest
     (tmp_path / "requirements").mkdir()
     (tmp_path / "requirements/web.lock").write_text("locked")
@@ -654,7 +662,7 @@ def test_switch_waits_both_real_ports_and_keeps_mode_on_timeout(runtime):
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen()
-        controller.ports = (18088, listener.getsockname()[1])
+        controller.ports = (controller.ports[0], listener.getsockname()[1])
         result = switch_runtime(store, "docker", controller, Native(True), stop_current=True, wait_timeout=0.05)
         assert result["issues"] == ["runtime_ports_not_released"]
         assert store.read().mode == "native"
@@ -671,7 +679,7 @@ def test_switch_refuses_unknown_port_even_with_stop_flag(runtime):
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen()
-        controller.ports = (listener.getsockname()[1], 13081)
+        controller.ports = (listener.getsockname()[1], controller.ports[1])
         native = Native()
         result = switch_runtime(store, "docker", controller, native, stop_current=True)
         assert result["issues"] == ["runtime_ownership_unknown"]
@@ -719,13 +727,20 @@ def test_unknown_native_state_is_never_stopped(runtime):
     assert "stop" not in native.events
 
 
-def test_native_bridge_without_venv_is_read_only(tmp_path):
+@pytest.mark.parametrize("environment", ["missing", "broken"])
+def test_native_bridge_without_venv_is_read_only(tmp_path, available_ports, environment):
     from research_workbench_entrypoint.bootstrap import NativeRuntime
 
     home = tmp_path / "home"
-    controller = NativeRuntime(tmp_path, home, ports=(18088, 13081))
+    if environment == "broken":
+        python = tmp_path / ".venv/bin/python"
+        python.parent.mkdir(parents=True)
+        python.write_text("unowned Native executable")
+    controller = NativeRuntime(tmp_path, home, ports=available_ports)
     assert controller.status()["ok"]
-    assert controller.preflight()["issues"] == ["native_environment_missing"]
+    assert controller.preflight()["issues"] == [
+        "native_environment_missing" if environment == "missing" else "native_environment_unusable"
+    ]
     assert not home.exists()
 
 
@@ -759,19 +774,19 @@ def test_logs_preserve_owned_process_exit_code(runtime):
     assert controller.logs() == 17
 
 
-def test_native_probe_preserves_stale_state_and_refuses_foreign_before_stop(tmp_path, monkeypatch):
+def test_native_probe_preserves_stale_state_and_refuses_foreign_before_stop(tmp_path, monkeypatch, available_ports):
     from research_workbench_entrypoint.bootstrap import _native_probe
     from app.research_web.service_manager import WebServiceManager
 
     home = tmp_path / "home"
     run = home / "run"
     run.mkdir(parents=True, mode=0o700)
-    manager = WebServiceManager(project_root=tmp_path, data_root=home / "research-web", web_port=18088, runtime_port=13081)
+    manager = WebServiceManager(project_root=tmp_path, data_root=home / "research-web", web_port=available_ports[0], runtime_port=available_ports[1])
     for process in manager._processes():
         manager._write_state(process, 123456)
     monkeypatch.setattr(WebServiceManager, "_pid_exists", staticmethod(lambda pid: False))
     original = (run / "web.json").read_bytes()
-    assert _native_probe("status", tmp_path, home, (18088, 13081))["ok"]
+    assert _native_probe("status", tmp_path, home, available_ports)["ok"]
     assert (run / "web.json").read_bytes() == original
     value = json.loads(original)
     value["project_root"] = "/foreign"
@@ -780,16 +795,16 @@ def test_native_probe_preserves_stale_state_and_refuses_foreign_before_stop(tmp_
     monkeypatch.setattr(WebServiceManager, "_stop_one", lambda *args: stopped.append(True))
     from research_workbench_entrypoint.docker_runtime import ControlError
     with pytest.raises(ControlError, match="runtime_ownership_unknown"):
-        _native_probe("stop", tmp_path, home, (18088, 13081))
+        _native_probe("stop", tmp_path, home, available_ports)
     assert not stopped
 
 
-def test_native_bridge_subprocess_with_temporary_home_does_not_write(tmp_path):
+def test_native_bridge_subprocess_with_temporary_home_does_not_write(tmp_path, available_ports):
     from research_workbench_entrypoint.bootstrap import NativeRuntime
 
     root = Path(__file__).resolve().parents[2]
     home = tmp_path / "absent"
-    controller = NativeRuntime(root, home, ports=(18088, 13081))
+    controller = NativeRuntime(root, home, ports=available_ports)
     assert controller.status()["ok"]
     assert not home.exists()
 

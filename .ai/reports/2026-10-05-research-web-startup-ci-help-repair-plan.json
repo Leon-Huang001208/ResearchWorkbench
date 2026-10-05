@@ -1,0 +1,439 @@
+{
+  "schemaVersion": 3,
+  "risk": "full-delivery",
+  "requiredLevel": "L4",
+  "components": [
+    "documentation",
+    "unknown-boundary"
+  ],
+  "platforms": [
+    "generic",
+    "linux",
+    "cross-platform"
+  ],
+  "changeSummary": {
+    "fileCount": 14,
+    "ruleIds": [
+      "documentation",
+      "fallback"
+    ],
+    "impactIds": [
+      "documentation",
+      "unknown-boundary"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/2026-10-05-research-web-startup-ci-help-repair-plan.json",
+    ".ai/reports/2026-10-05-research-web-startup-ci-help-repair-receipt.json",
+    ".ai/reports/2026-10-05-research-web-startup-ci-help-repair.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/09-integration-coordinator.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/research-web-installation.md",
+    "docs/research-web-tabbit.md",
+    "research_workbench_entrypoint/web_bootstrap.py",
+    "tests/research_web/test_web_bootstrap.py"
+  ],
+  "impact": [
+    {
+      "path": ".ai/reports/2026-10-05-research-web-startup-ci-help-repair-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-05-research-web-startup-ci-help-repair-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-05-research-web-startup-ci-help-repair.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "research_workbench_entrypoint/web_bootstrap.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_web_bootstrap.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "reasons": [
+    {
+      "path": ".ai/reports/2026-10-05-research-web-startup-ci-help-repair-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-10-05-research-web-startup-ci-help-repair-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-10-05-research-web-startup-ci-help-repair.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "research_workbench_entrypoint/web_bootstrap.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/research_web/test_web_bootstrap.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    }
+  ],
+  "escalations": [
+    {
+      "code": "validation_failure",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    },
+    {
+      "code": "unexpected_behavior",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    }
+  ],
+  "uncoveredRisks": [
+    "unknown_impact_boundary"
+  ],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [],
+    "L2": [],
+    "L3": [],
+    "L4": [
+      {
+        "id": "research-web-verification-full",
+        "level": "L4",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+      },
+      {
+        "id": "project-constraints",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "linux"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/project-constraints.yml"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [
+    {
+      "id": "project-constraints",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "linux"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/project-constraints.yml"
+    }
+  ],
+  "local": [
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+    },
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "realMachine": [],
+  "receiptTemplate": {
+    "plannedLevel": "L4",
+    "changedFiles": [
+      ".ai/reports/2026-10-05-research-web-startup-ci-help-repair-plan.json",
+      ".ai/reports/2026-10-05-research-web-startup-ci-help-repair-receipt.json",
+      ".ai/reports/2026-10-05-research-web-startup-ci-help-repair.md",
+      "docs/architecture/research-web/01-system.md",
+      "docs/architecture/research-web/02-research-runtime.md",
+      "docs/architecture/research-web/04-api.md",
+      "docs/architecture/research-web/05-security-validation.md",
+      "docs/architecture/research-web/08-research-frameworks.md",
+      "docs/architecture/research-web/09-integration-coordinator.md",
+      "docs/architecture/research-web/readme-review.json",
+      "docs/research-web-installation.md",
+      "docs/research-web-tabbit.md",
+      "research_workbench_entrypoint/web_bootstrap.py",
+      "tests/research_web/test_web_bootstrap.py"
+    ],
+    "requiredValidationIds": [
+      "research-web-verification-full",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": [
+      "project-constraints"
+    ],
+    "releaseGateIds": []
+  }
+}

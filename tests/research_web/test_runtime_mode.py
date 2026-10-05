@@ -17,6 +17,38 @@ from types import SimpleNamespace
 
 import pytest
 
+
+def test_native_dispatch_incomplete_environment_uses_safe_diagnostics(tmp_path, monkeypatch):
+    import io
+    from research_workbench_entrypoint import bootstrap
+
+    python = tmp_path / ".venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text("not an owned environment")
+    monkeypatch.setattr(bootstrap, "native_python", lambda _root: python)
+    monkeypatch.setattr(bootstrap.os, "execve", lambda *_args: pytest.fail("unowned exec"))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    assert bootstrap.dispatch(["web", "doctor", "--json"], tmp_path) == 0
+    report = json.loads(output.getvalue())
+    assert report["schema_version"] == 2
+    assert report["issues"] == ["python_environment_incomplete"]
+    assert not report["installation_ok"]
+
+
+def test_native_switch_bridge_rejects_pid_reuse_facts(tmp_path, monkeypatch):
+    from app.research_web.service_diagnostics import ServiceProbe
+    from app.research_web.service_manager import WebServiceManager
+    from research_workbench_entrypoint import bootstrap
+
+    monkeypatch.setattr(WebServiceManager, "_service_probes", lambda _self: (
+        ServiceProbe("runtime", 3081, "valid", "alive", "foreign", "listening",
+                     "not_run", False, None, ("runtime_pid_reused",)),
+    ))
+    with pytest.raises(bootstrap.ControlError, match="runtime_ownership_unknown"):
+        bootstrap._native_probe("status", tmp_path, tmp_path, (8088, 3081))
+
 from research_workbench_entrypoint import runtime_mode
 from research_workbench_entrypoint.runtime_mode import RuntimeModeError, RuntimeModeStore
 

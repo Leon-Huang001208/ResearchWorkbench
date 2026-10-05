@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -24,7 +25,7 @@ def test_native_status_json_preserves_public_shape_and_hides_paths(monkeypatch):
     result = CliRunner().invoke(module.cli, ["web", "status", "--json"])
     assert result.exit_code == 0, result.output
     report = json.loads(result.output)
-    assert report["schema_version"] == 1 and report["mode"] == "native"
+    assert report["schema_version"] == 2 and report["mode"] == "native"
     assert report["ok"] is True and report["issues"] == []
     assert report["services"]["web"]["running"] is False
     assert "SECRET" not in result.output
@@ -56,6 +57,14 @@ def _isolated_launcher(tmp_path):
     return checkout, home, environment
 
 
+def _mark_test_environment_owned(checkout):
+    (checkout / ".venv/.rwb-web-environment.json").write_text(json.dumps({
+        "schema_version": 1, "owner": "research-workbench-web-installer",
+        "project_root_sha256": hashlib.sha256(str(checkout.resolve()).encode()).hexdigest(),
+        "python": "Python 3.12.0", "created_at": "2026-10-05T00:00:00Z",
+    }))
+
+
 def test_runtime_status_without_venv_is_read_only(tmp_path):
     checkout, home, environment = _isolated_launcher(tmp_path)
     result = subprocess.run([str(checkout / "rwb"), "runtime", "status", "--json"], env=environment, capture_output=True, text=True, timeout=10)
@@ -64,9 +73,16 @@ def test_runtime_status_without_venv_is_read_only(tmp_path):
     assert not (home / ".research-workbench").exists()
 
 
-def test_docker_web_status_without_venv_is_stdlib_only(tmp_path):
+@pytest.mark.parametrize("native_environment", ["missing", "unowned", "unusable"])
+def test_docker_web_status_without_venv_is_stdlib_only(tmp_path, native_environment):
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
     checkout, home, environment = _isolated_launcher(tmp_path)
+    if native_environment != "missing":
+        python = checkout / ".venv/bin/python"
+        python.parent.mkdir(parents=True)
+        python.write_text("not an executable Native environment")
+        if native_environment == "unusable":
+            _mark_test_environment_owned(checkout)
     RuntimeModeStore(home / ".research-workbench").write("docker")
     # An empty PATH containing only Python proves no Click or Native venv is needed.
     bindir = tmp_path / "bin"
@@ -83,8 +99,9 @@ def test_native_and_legacy_exec_exact_venv_argv_environment_exit(tmp_path):
     checkout, home, environment = _isolated_launcher(tmp_path)
     python = checkout / ".venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
-    python.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nprintf '%s\\n' \"$PYTHONPATH\" \"$RESEARCH_NODE_BINARY\"\nexit 37\n")
+    python.write_text("#!/bin/sh\nif [ \"$1\" = -c ]; then exit 0; fi\nprintf '%s\\n' \"$@\"\nprintf '%s\\n' \"$PYTHONPATH\" \"$RESEARCH_NODE_BINARY\"\nexit 37\n")
     python.chmod(0o755)
+    _mark_test_environment_owned(checkout)
     node = home / ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
     node.parent.mkdir(parents=True)
     node.write_text("")
@@ -99,8 +116,9 @@ def test_legacy_delegation_does_not_read_unrelated_mode_record(tmp_path):
     checkout, home, environment = _isolated_launcher(tmp_path)
     python = checkout / ".venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
-    python.write_text("#!/bin/sh\nexit 37\n")
+    python.write_text("#!/bin/sh\nif [ \"$1\" = -c ]; then exit 0; fi\nexit 37\n")
     python.chmod(0o755)
+    _mark_test_environment_owned(checkout)
     record = home / ".research-workbench" / "install" / "runtime.json"
     record.parent.mkdir(parents=True, mode=0o700)
     record.write_text("corrupt")
@@ -148,8 +166,9 @@ def test_native_prefix_argv_is_preserved_exactly(tmp_path):
     checkout, _, environment = _isolated_launcher(tmp_path)
     python = checkout / ".venv/bin/python"
     python.parent.mkdir(parents=True)
-    python.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 37\n")
+    python.write_text("#!/bin/sh\nif [ \"$1\" = -c ]; then exit 0; fi\nprintf '%s\\n' \"$@\"\nexit 37\n")
     python.chmod(0o755)
+    _mark_test_environment_owned(checkout)
     args = ["--log-level=DEBUG", "--log-file", "space name.log", "web", "status"]
     completed = subprocess.run([str(checkout / "rwb"), *args], env=environment,
                                capture_output=True, text=True, timeout=10)
@@ -184,6 +203,9 @@ assert "services.ask_factory" not in sys.modules
 
 def test_stable_entrypoint_prioritizes_current_repository(monkeypatch):
     import research_workbench_entrypoint
+    from research_workbench_entrypoint import bootstrap
+
+    monkeypatch.setattr(bootstrap, "dispatch", lambda *_args: None)
 
     project_root = str(Path(research_workbench_entrypoint.__file__).resolve().parents[1])
     monkeypatch.setattr(sys, "path", ["/sibling-project", *sys.path])
@@ -248,16 +270,44 @@ def test_web_doctor_supports_safe_json_and_human_output(monkeypatch):
     from app.cli import main as cli_module
 
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "ok": True,
-        "issues": [],
+        "installation_ok": True,
+        "product_ready": False,
+        "model_ready": False,
+        "issues": ["web_state_invalid"],
+        "warnings": ["loopback_proxy_bypass_missing"],
         "python": {"version": "Python 3.12.9", "lock_matches_manifest": True},
         "node": {"version": "v24.8.0"},
         "cjpy": {"version": "0.5.2", "ready": True},
         "dsh": {"ready": True},
         "services": {
-            "runtime": {"port": 3081, "running": True, "healthy": True},
-            "web": {"port": 8088, "running": True, "healthy": True},
+            "runtime": {
+                "state": "valid",
+                "process": "alive",
+                "ownership": "owned",
+                "port_state": "listening",
+                "protocol": "passed",
+                "ready": True,
+                "port": 3081,
+                "running": True,
+                "healthy": True,
+                "pid": 101,
+                "issues": [],
+            },
+            "web": {
+                "state": "invalid",
+                "process": "inaccessible",
+                "ownership": "unknown",
+                "port_state": "closed",
+                "protocol": "not_run",
+                "ready": False,
+                "port": 8088,
+                "running": False,
+                "healthy": False,
+                "pid": None,
+                "issues": ["web_state_invalid"],
+            },
         },
     }
 
@@ -274,5 +324,62 @@ def test_web_doctor_supports_safe_json_and_human_output(monkeypatch):
     assert json.loads(json_result.stdout) == report
     assert "diagnostic warning" in json_result.stderr
     assert human_result.exit_code == 0, human_result.output
+    assert "Installation: ready" in human_result.output
+    assert "Product: not ready" in human_result.output
+    assert "Model: not ready" in human_result.output
     assert "CJPY: 0.5.2" in human_result.output
     assert "DSH: ready" in human_result.output
+    assert "issues: web_state_invalid" in human_result.output
+    assert "warnings: loopback_proxy_bypass_missing" in human_result.output
+
+
+def test_web_status_exits_zero_with_safe_service_issues(monkeypatch):
+    from app.cli import main as cli_module
+
+    private_path = "/private/project/secret-token"
+
+    class Manager:
+        def status(self):
+            return {
+                "url": "http://127.0.0.1:8088/#/fingpt",
+                "product_ready": False,
+                "warnings": [],
+                "services": {
+                    "runtime": {
+                        "state": "invalid",
+                        "process": "inaccessible",
+                        "ownership": "unknown",
+                        "port_state": "closed",
+                        "protocol": "not_run",
+                        "ready": False,
+                        "running": False,
+                        "healthy": False,
+                        "pid": None,
+                        "port": 3081,
+                        "issues": ["runtime_state_invalid"],
+                        "log": private_path,
+                    },
+                    "web": {
+                        "state": "missing",
+                        "process": "missing",
+                        "ownership": "unknown",
+                        "port_state": "closed",
+                        "protocol": "not_run",
+                        "ready": False,
+                        "running": False,
+                        "healthy": False,
+                        "pid": None,
+                        "port": 8088,
+                        "issues": [],
+                        "log": private_path,
+                    },
+                },
+            }
+
+    monkeypatch.setattr(cli_module, "WebServiceManager", Manager)
+
+    result = CliRunner().invoke(cli_module.cli, ["web", "status"])
+
+    assert result.exit_code == 0, result.output
+    assert "runtime_state_invalid" in result.output
+    assert private_path not in result.output

@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时间/监听者事实链，停止调用同一
+排他生命周期入口；状态查询不隔离或删除 stale/invalid 文件。Native 日志读取也复用精确进程
+身份，并在输出前核对状态文件内容和 inode，不能凭命令行子串或重用的 PID 证明归属。
+
 Docker supervisor 的启动顺序先准备 `/state/runtime` 与 `/run/rwb-secrets/private` 私有叶，
 再清理本次认证状态、启动 DSH、探测并启动 Web。健康检查复用 `/state/runtime/auth.json`；
 重启保留私有叶及凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
@@ -28,6 +32,13 @@ Doctor 保留 `dsh` 字段，区分健康 ready、摘要构建证据 build_verif
 一键安装固定 DSH 来源、提交、pnpm 与构建闭包，但不改变消息受理、双 WebSocket、SSE、恢复、
 审批或取消协议。安装失败不会启动候选 Runtime，也不会接管当前 3081/8088。
 服务管理器在 spawn 前消费 Doctor 的安装 issue；只有安装状态 `ok` 才进入 3081/8088 生命周期。
+启动生命周期由排他锁覆盖。管理器先有界读取私有 state，再核对 PID 存活、精确 argv、真实启动时间、
+端口监听 PID 与带认证的 DSH `session/list`；任何一个事实无法确认都不会把 PID 或开放端口当作
+owned/healthy。死 PID 与关闭端口形成可恢复 stale state；归属明确但不健康时先停止受管 Web，
+再重建 DSH 与 Web；foreign/unknown 进程保持原状并返回稳定错误。非强制重启只使用现有认证材料
+只读核对活动研究，核对失败即拒绝。Runtime auth 只在安全受管重建时更新。
+Web 进程就绪还要求 Runtime API、首页 HTML 与主 ES 模块实际读取成功；随后才打开浏览器。
+模型目录或凭据缺失只影响 `model_ready`，不改变 `product_ready` 与设置页可访问性。
 这是一条进程前置门，不新增 Runtime 状态，也不改变会话恢复、幂等受理或活动研究重启门禁。
 纯 `rwb web status` 不加载 DSH 启动功能图；固定提交来自轻量共享合同，构建闭包扫描仅由 Doctor
 和安装诊断延迟加载，因此状态核对不会提前装配 Capability、MCP 或 DataHub Runtime。
@@ -38,6 +49,8 @@ PID 命令行、用 PowerShell 探测 PID 存活并按受管进程树停止，PO
 junction 和 POSIX symlink 都只在解析目标仍位于固定源码树时接受。这些平台分支不改变 Runtime 协议。
 安装阶段的 Web import readiness 只验证 checkout 入口可加载，不执行 FastAPI lifespan、不启动框架
 调度器、集成探测或 3081/8088；实际进程和健康状态仍只由 `rwb web start` 建立。
+未安装环境中的顶层 `rwb --help` 仅输出标准库静态帮助，不进入 DSH 会话、认证、启动或恢复链；
+`web start/restart/stop` 仍由原安装门拒绝。
 
 Docker 构建先对完整 DSH checkout 执行相同的固定 remote、commit、pnpm 与完整构建闭包验证，
 通过后才按已安装的 production dependency graph 和上游 package `files` 字段生成运行资产目录。

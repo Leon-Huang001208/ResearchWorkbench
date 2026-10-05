@@ -7,6 +7,9 @@ Native/Docker 是既有 Research Web 的部署选择。部署拓扑以 `01-deplo
 
 项目约束现在额外要求 `.github/workflows/research-web-bootstrap.yml` 在原生 `macos-14`
 持续执行干净安装、公开 setup 入口、Doctor、CJPY 0.5.2 和无凭据天软不可调用断言。
+当前 Bootstrap 还必须从 Doctor schema 2 确认 `installation_ok`、`product_ready` 和双服务
+ready，并在直连回环 HTTP 下读取首页 HTML 与 `/static/app.mjs`。这些文件是短期 CI artifact，
+只证明干净 macOS runner 的最小页面资源可访问，不宣称可见浏览器或 Windows 实机已经验证。
 Windows Web 验证保留原生 `windows-2022` 任务，但暂停自动触发并只接受用户显式 `workflow_dispatch`；
 未运行时不生成 Windows 通过结论。该 Web 平台路由与本文件的架构图/回执门禁并行，也不改变
 Desktop/Tauri/sidecar 的独立 Windows 验收规则；这些门禁不能互相替代。

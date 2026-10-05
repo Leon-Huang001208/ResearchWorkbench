@@ -69,7 +69,7 @@ def build_process_specs(
             command=runtime_command,
             signature=(
                 str(runtime_source / "apps/cli/lib/bin.js"),
-                str(state_root / "overlay.yml"),
+                str((state_root / "overlay.yml").resolve()),
                 str(runtime_port),
             ),
         ),

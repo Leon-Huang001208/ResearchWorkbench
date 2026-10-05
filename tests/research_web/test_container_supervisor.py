@@ -69,8 +69,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
         else:
             self.send_response(200)
+            content_type = "application/json"
+            body = json.dumps({"connected": mode != "unhealthy",
+                               "health_check_passed": mode != "unhealthy"}).encode()
+            if self.path == "/":
+                content_type = "text/html"
+                body = "Research Workbench · Research".encode()
+            elif self.path == "/static/app.mjs":
+                content_type = "text/javascript"
+                body = b"const defaultCatalogNames = [];"
+            self.send_header("Content-Type", content_type)
             self.end_headers()
-            self.wfile.write(json.dumps({"connected": mode != "unhealthy"}).encode())
+            self.wfile.write(body)
     def do_POST(self):
         request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         record("probe")
@@ -468,6 +478,23 @@ def test_healthcheck_import_exists():
     from docker.supervisor import SupervisorConfig, run
 
     assert callable(check) and callable(run) and SupervisorConfig.__dataclass_params__.frozen
+
+
+def test_container_full_page_probe_uses_shared_total_deadline(tmp_path, monkeypatch):
+    from docker.healthcheck import ContainerHealth
+
+    probe = ContainerHealth(timeout=.1, data_root=tmp_path / "data")
+    calls = []
+
+    def request(port, method, path, *args):
+        calls.append((port, method, path))
+        return 200, {"Content-Type": "text/html"}, b"Research Workbench"
+
+    monkeypatch.setattr(probe, "_request", request)
+    assert probe._text_request(18088, "/", max_bytes=100) == (
+        200, "text/html", "Research Workbench"
+    )
+    assert calls == [(18088, "GET", "/")]
 
 
 def test_healthcheck_rejects_bad_rpc_and_bounds_slow_response(launch):

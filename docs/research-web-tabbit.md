@@ -5,6 +5,12 @@ Docker 部署不会把宿主 Tabbit 的 launcher、已登录浏览器实例、�
 和写操作审批合同继续适用。模式切换不复制 Tabbit 授权，也不把浏览器能力标为可调用；
 Windows Docker 当前还受凭据目录 ACL 失败关闭边界约束。
 
+2026-09-29 启动稳定性变更增加 Web/DSH ready 与页面静态资源检查，但不会自动连接、授权或使用
+Tabbit。Doctor 的产品 ready 不代表浏览器实例在线，也不读取标签、URL、Cookie 或正文；Tabbit
+仍由独立的 Runtime 状态、会话授权、实时 claim、一次性 token 与写操作审批约束。
+未安装环境中的顶层 `rwb --help` 仅打印静态诊断指引，不加载 Tabbit Profile、读取标签
+或申请浏览器授权；本轮 CI 修复不改变本页运行时合同。
+
 Web 一键安装固定 Node 支持范围与同一个 DSH 提交/构建闭包，但不下载或升级 Tabbit，也不改变
 其 Profile、实时 claim、一次性正文 token、只读声明或写操作审批。Doctor 只报告 Runtime/端口
 健康，不读取标签标题、URL、Cookie 或正文。

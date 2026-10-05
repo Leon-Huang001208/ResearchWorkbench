@@ -102,7 +102,10 @@ jobs:
           .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3; assert m.version('cjpy') == '0.5.2'"
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json
-          .venv/bin/python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['ok'], report"
+          .venv/bin/python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['schema_version'] == 2 and report['installation_ok'] is True and report['product_ready'] is True and all(report['services'][role]['ready'] is True for role in ('runtime', 'web')), report"
+          curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/ > root.html
+          curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:8088/static/app.mjs > app.mjs
+          .venv/bin/python -c "from pathlib import Path; assert 'Research Workbench · Research' in Path('root.html').read_text(encoding='utf-8'); assert 'const defaultCatalogNames =' in Path('app.mjs').read_text(encoding='utf-8')"
           curl --fail --silent http://127.0.0.1:8088/api/research/data/connections > connections.json
           .venv/bin/python -c "import json; data=json.load(open('connections.json', encoding='utf-8')); item=next(x for x in data['sources'] if x['id']=='tinysoft'); assert item['configured'] is False and item['callable'] is False and item['restart_required'] is False, item"
 
@@ -118,6 +121,8 @@ jobs:
           name: research-web-bootstrap-macos-14-${{ github.run_id }}
           path: |
             doctor.json
+            root.html
+            app.mjs
             connections.json
           if-no-files-found: ignore
           retention-days: 3
@@ -129,6 +134,8 @@ jobs:
           name: research-web-bootstrap-failure-macos-14-${{ github.run_id }}
           path: |
             doctor.json
+            root.html
+            app.mjs
             connections.json
             logs/setup-web.log
           if-no-files-found: ignore

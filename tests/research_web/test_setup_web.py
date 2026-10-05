@@ -7,14 +7,20 @@ import logging
 import os
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from research_workbench_entrypoint.web_contract import (
+    classify_python_environment,
+    node_version_issue,
+)
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
@@ -493,6 +499,17 @@ def test_runtime_constants_share_the_machine_contract() -> None:
     assert not SetupWebInstaller._node_supported("v22.18.0")
     assert not SetupWebInstaller._node_supported("v25.0.0")
 
+def _installer_for_check(project_root: Path, data_home: Path) -> SetupWebInstaller:
+    return SetupWebInstaller(
+        project_root=project_root,
+        data_home=data_home,
+        python_executable=Path(sys.executable),
+        node_executable=Path(sys.executable),
+        git_executable=Path(sys.executable),
+        version_reader=lambda _path: "3.12.9",
+        node_version_reader=lambda _path: "v24.8.0",
+    )
+
 
 def test_installer_prefers_configured_node_over_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -699,9 +716,123 @@ def test_installer_creates_and_reuses_only_its_owned_virtual_environment(
     assert environment_python == reused_python
     assert environment_python.is_file()
     marker = json.loads((project_root / ".venv" / ".rwb-web-environment.json").read_text())
-    assert marker["schema_version"] == 1
-    assert marker["owner"] == "research-workbench-web-installer"
+    assert set(marker) == {
+        "schema_version",
+        "owner",
+        "project_root_sha256",
+        "python",
+        "created_at",
+    }
+    assert classify_python_environment(project_root, platform_name=os.name).issue is None
+    assert installer._owned_environment(project_root / ".venv") is True
+    report = installer.check()
+    assert report["environment_owned"] is True
+    assert "unowned_virtual_environment" not in report["issues"]
     assert "secret" not in json.dumps(marker).lower()
+
+
+def test_installer_marker_is_rejected_after_moving_to_another_checkout(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    installer = SetupWebInstaller(
+        project_root=first,
+        data_home=tmp_path / "private-data",
+        python_executable=Path(sys.executable),
+    )
+    installer.prepare_environment()
+    (first / ".venv").replace(second / ".venv")
+
+    fact = classify_python_environment(second, platform_name=os.name)
+    second_installer = SetupWebInstaller(project_root=second)
+
+    assert fact.issue == "python_environment_incomplete"
+    assert fact.marker_valid is False
+    assert second_installer._owned_environment(second / ".venv") is False
+    report = second_installer.check()
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
+
+
+def test_check_rejects_a_forged_environment_marker(tmp_path: Path) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = _installer_for_check(project_root, tmp_path / "private-data")
+    installer.prepare_environment()
+    marker_path = project_root / ".venv" / ".rwb-web-environment.json"
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    marker["owner"] = "forged-owner"
+    marker_path.write_text(json.dumps(marker), encoding="utf-8")
+
+    report = installer.check()
+
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_check_rejects_a_marker_symlink(tmp_path: Path) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = _installer_for_check(project_root, tmp_path / "private-data")
+    installer.prepare_environment()
+    marker = project_root / ".venv" / ".rwb-web-environment.json"
+    real_marker = project_root / "real-marker.json"
+    marker.replace(real_marker)
+    marker.symlink_to(real_marker)
+
+    report = installer.check()
+
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_check_rejects_an_environment_symlink(tmp_path: Path) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = _installer_for_check(project_root, tmp_path / "private-data")
+    installer.prepare_environment()
+    environment = project_root / ".venv"
+    real_environment = tmp_path / "real-environment"
+    environment.replace(real_environment)
+    environment.symlink_to(real_environment, target_is_directory=True)
+
+    report = installer.check()
+
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
+
+
+def test_check_rejects_a_windows_reparse_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    installer = _installer_for_check(project_root, tmp_path / "private-data")
+    installer.prepare_environment()
+    installer.platform_name = "nt"
+    environment = project_root / ".venv"
+    original_lstat = Path.lstat
+
+    def lstat(path: Path) -> os.stat_result | SimpleNamespace:
+        identity = original_lstat(path)
+        if path == environment:
+            return SimpleNamespace(
+                st_mode=identity.st_mode,
+                st_file_attributes=getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400),
+            )
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", lstat)
+
+    report = installer.check()
+
+    assert report["environment_owned"] is False
+    assert "unowned_virtual_environment" in report["issues"]
 
 
 def test_repair_replaces_an_owned_environment_when_pip_is_unresponsive(
@@ -760,6 +891,25 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     assert windows.count(" %*") == 2
     assert "%PROJECT_ROOT%\\.venv\\Scripts\\python.exe" in windows_cli
     assert "research_workbench_entrypoint" in windows_cli
+    assert "import click; import app.cli.main" in windows_cli
+    assert "research_workbench_entrypoint.web_bootstrap" in windows_cli
+    assert "classify_python_environment" in windows_cli
+    assert "candidate_environment_exit_code" in windows_cli
+    assert "ENVIRONMENT_OWNER_ROOT" in windows_cli
+    assert 'git -C "%PROJECT_ROOT%" rev-parse --git-common-dir' in windows_cli
+    assert 'if "%GIT_COMMON_DIR:~0,2%"=="//" goto common_dir_absolute' in windows_cli
+    assert 'set "ENVIRONMENT_OWNER_ROOT=%COMMON_ROOT%"' in windows_cli
+    assert "%COMMON_ROOT%\\.venv\\Scripts\\python.exe" in windows_cli
+    assert ":bootstrap_missing" in windows_cli
+    assert ":bootstrap_incomplete" in windows_cli
+    assert ":bootstrap_unusable" in windows_cli
+    assert windows_cli.index("candidate_environment_exit_code") < windows_cli.index(
+        "import click; import app.cli.main"
+    )
+    assert "py -3.12" in windows_cli
+    assert "python3" in windows_cli
+    assert "python" in windows_cli
+    assert "RWB_BOOTSTRAP_PYTHON_ISSUE" in windows_cli
     assert "exit /b %errorlevel%" not in windows
     assert windows.count("if errorlevel 1 exit /b 1") == 2
     assert "/vendor/dsh-tabbit/0.3.4/** -text" in attributes
@@ -841,6 +991,50 @@ def test_check_rejects_unsupported_python_and_node_versions_without_writes(
     assert expected in report["issues"]
     assert not data_home.exists()
     assert not (project_root / ".venv").exists()
+
+
+@pytest.mark.parametrize(
+    ("reader", "expected"),
+    [
+        ("python", "python_version_unreadable"),
+        ("node", "node_version_unreadable"),
+    ],
+)
+def test_check_classifies_version_reader_decode_failures(
+    tmp_path: Path, reader: str, expected: str
+) -> None:
+    def decode_failure(_path: Path) -> str:
+        raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "private decode detail")
+
+    installer = SetupWebInstaller(
+        project_root=tmp_path,
+        data_home=tmp_path / "private-data",
+        python_executable=Path(sys.executable),
+        node_executable=Path(sys.executable),
+        git_executable=Path(sys.executable),
+        version_reader=decode_failure if reader == "python" else lambda _path: "3.12.9",
+        node_version_reader=(decode_failure if reader == "node" else lambda _path: "v24.8.0"),
+    )
+
+    report = installer.check()
+
+    assert report["issues"] == [expected]
+    assert "private decode detail" not in repr(report)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "v22.18.9",
+        "v22.19.0",
+        "v23.11.0",
+        "v24.0.0",
+        "v25.0.0",
+        "not-a-version",
+    ],
+)
+def test_installer_node_support_remains_aligned_with_shared_contract(value: str) -> None:
+    assert SetupWebInstaller._node_supported(value) is (node_version_issue(value) is None)
 
 
 def test_subprocess_environment_drops_application_secrets_and_update_notices(

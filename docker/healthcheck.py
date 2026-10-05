@@ -83,6 +83,19 @@ class ContainerHealth(WebServiceManager):
         except (ValueError, UnicodeError) as exc:
             raise ServiceManagerError("probe_invalid_response") from exc
 
+    def _text_request(self, port, path, *, max_bytes):
+        """Keep shared full-page readiness inside this probe's total budget."""
+        if not 0 < max_bytes <= MAX_RESPONSE_BYTES:
+            raise ServiceManagerError("probe_response_limit")
+        status, headers, raw = self._request(port, "GET", path)
+        try:
+            if len(raw) > max_bytes:
+                raise ValueError("response too large")
+            return status, headers.get("Content-Type"), raw.decode("utf-8")
+        except (ValueError, UnicodeError) as exc:
+            log.warning("container_health", code="probe_invalid_response")
+            raise ServiceManagerError("probe_invalid_response") from exc
+
     def _exchange_runtime_cookie(self, token):
         # Same token exchange contract as Native, using this probe's total budget.
         try:

@@ -8,6 +8,8 @@ Native/Docker 的当前部署拓扑由 `01-deployment` 和架构清单记录，�
 Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 提供 GitHub `macos-14` 干净安装、
 固定 DSH 构建、3081/8088 启动、Doctor 和无凭据天软断言证据；Windows Web 证据在用户完成 Windows
 实机验证后单独提供，详见 [Research Web 安装契约](research-web-installation.md)。
+该 macOS job 还核对 Doctor schema 2 的安装/产品/双服务 ready，并读取首页与主静态模块作为
+浏览器可访问性的最小 HTTP 证据；它不替代可见浏览器的首次打开和刷新验收。
 `.agents/project-constraints.json` 校验其平台、公开 setup 入口、Doctor、CJPY 和无凭据天软断言。
 它不替代本页的架构映射、回执、截图和人工审阅门禁。
 

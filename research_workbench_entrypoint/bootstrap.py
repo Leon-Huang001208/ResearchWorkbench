@@ -20,7 +20,8 @@ from .docker_runtime import (
     MAX_OUTPUT, ControlError, DockerRuntime, minimal_environment, port_busy,
     result, run_bounded,
 )
-from .runtime_mode import RuntimeModeError, RuntimeModeStore, _read_bytes
+from .runtime_mode import RuntimeModeError, RuntimeModeStore
+from .web_contract import classify_python_environment
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ def native_python(project_root: Path) -> Path:
     """Keep the existing checkout/worktree venv lookup without PATH fallback."""
     suffix = Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
     candidate = project_root / ".venv" / suffix
-    if candidate.is_file() or os.name == "nt":
+    if candidate.exists() or candidate.is_symlink() or (project_root / ".venv").exists():
         return candidate
     try:
         completed = run_bounded(
@@ -72,7 +73,7 @@ def native_environment(project_root: Path, *, minimal: bool = False) -> dict[str
 
 def _native_probe(operation: str, project_root: Path, home: Path, ports: tuple[int, int]) -> dict:
     """Called only inside the exact Native venv; status never calls mutating status()."""
-    from app.research_web.service_manager import WebServiceManager
+    from app.research_web.service_manager import ServiceManagerError, WebServiceManager
 
     manager = WebServiceManager(
         project_root=project_root, data_root=home / "research-web",
@@ -84,42 +85,23 @@ def _native_probe(operation: str, project_root: Path, home: Path, ports: tuple[i
 
     def states() -> dict:
         services = {}
-        for process in manager._processes():
-            path = manager._state_path(process.role)
+        for probe in manager._service_probes():
+            # Switch preflight is read-only: never normalize invalid/stale files.
+            if probe.state == "invalid":
+                raise ControlError("runtime_ownership_unknown")
             try:
-                raw, _ = _read_bytes(path)
-            except FileNotFoundError:
-                state = None
-            else:
-                state = json.loads(raw)
-                if not isinstance(state, dict) or not (
-                    state.get("version") == 1
-                    and state.get("role") == process.role
-                    and state.get("port") == process.port
-                    and state.get("project_root") == str(manager.project_root)
-                    and state.get("data_root") == str(manager.data_root)
-                    and isinstance(state.get("command"), list)
-                    and all(isinstance(part, str) for part in state["command"])
-                    and state.get("fingerprint") == manager._fingerprint(state["command"])
-                    and state.get("signature") == list(process.signature)
-                    and type(state.get("pid")) is int and state["pid"] > 1
-                ):
-                    raise ControlError("runtime_ownership_unknown")
-                if not manager._pid_exists(state["pid"]):
-                    state = None  # A read must not delete even a stale state file.
-                else:
-                    command = manager._command_line(state["pid"])
-                    if not command or any(part not in command for part in process.signature):
-                        raise ControlError("runtime_ownership_unknown")
-            services[process.role] = {"running": state is not None, "port": process.port}
+                manager._probe_action(probe)
+            except ServiceManagerError as exc:
+                raise ControlError("runtime_ownership_unknown") from exc
+            services[probe.role] = probe.public()
+        if set(services) != {"web", "runtime"}:
+            raise ControlError("runtime_ownership_unknown")
         return services
 
     services = states()  # Validate both roles before any stop operation.
     if operation == "stop":
-        for process in reversed(manager._processes()):
-            if services[process.role]["running"]:
-                states()  # Revalidate private files and PID identities at the boundary.
-                manager._stop_one(process)
+        # The Native manager owns locking and final identity revalidation.
+        manager.stop()
         services = states()
     return result(mode="native", services=services)
 
@@ -150,7 +132,11 @@ class NativeRuntime:
 
     def _probe(self, operation: str) -> dict:
         python = native_python(self.project_root)
-        if not python.is_file():
+        environment_issue = (
+            classify_python_environment(python.parent.parent.parent).issue
+            if python.is_file() else "python_environment_missing"
+        )
+        if environment_issue is not None:
             if operation == "status" and not any(
                 (self.home / "run" / (role + ".json")).exists()
                 or (self.home / "run" / (role + ".json")).is_symlink()
@@ -160,8 +146,11 @@ class NativeRuntime:
                     role: {"running": False, "port": port}
                     for role, port in zip(("web", "runtime"), self.ports)
                 })
-            return result("native_environment_missing" if operation == "preflight"
-                          else "runtime_ownership_unknown", mode="native")
+            return result(
+                ("native_environment_missing" if environment_issue == "python_environment_missing"
+                 else "native_environment_unusable") if operation == "preflight"
+                else "runtime_ownership_unknown", mode="native",
+            )
         try:
             completed = self.runner(
                 [str(python), "-c", "from research_workbench_entrypoint.bootstrap import native_probe_main; native_probe_main()",
@@ -322,8 +311,24 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
                 options["force"] = args.force
             return _emit(getattr(controller, args.command)(**options))
         python = native_python(project_root)
-        if not python.is_file():
-            return _emit(result("native_environment_missing"))
+        environment_issue = classify_python_environment(python.parent.parent.parent).issue
+        if environment_issue is None:
+            try:
+                checked = run_bounded(
+                    [str(python), "-c", "import click; import app.cli.main"],
+                    cwd=project_root, env=native_environment(project_root, minimal=True),
+                    timeout=10, max_output=4096,
+                )
+                if checked.returncode:
+                    environment_issue = "python_environment_unusable"
+            except (OSError, ControlError, subprocess.SubprocessError):
+                environment_issue = "python_environment_unusable"
+        if environment_issue is not None:
+            from .web_bootstrap import run
+
+            log.warning("native_environment code=%s", environment_issue)
+            os.environ["RWB_BOOTSTRAP_PYTHON_ISSUE"] = environment_issue
+            return run(command_argv, project_root)
         if Path(sys.executable).absolute() == python.absolute():
             os.environ.update(native_environment(project_root))
             return None
