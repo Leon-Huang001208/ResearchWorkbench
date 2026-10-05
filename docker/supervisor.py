@@ -42,6 +42,7 @@ class SupervisorConfig:
     runtime_port: int = 3081
     startup_timeout: float = 35.0
     shutdown_timeout: float = 8.0
+    credential_root: Path | None = None
 
 
 class HealthProbe(Protocol):
@@ -395,6 +396,14 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
     try:
         for signum in (signal.SIGTERM, signal.SIGINT):
             previous[signum] = signal.signal(signum, shutdown)
+        # Desktop bind roots can be presented as root-owned. Create and pin
+        # private children as the container user before auth, probes or spawn;
+        # never chmod/chown the mount roots or weaken the shared validator.
+        for private_root in (config.state_root, config.credential_root):
+            if private_root is not None:
+                with runtime_state_directory(private_root, create=True):
+                    pass
+        _event("stack", "prepared", "private_directories_ready")
         with runtime_state_directory(config.data_root / "logs", create=True) as log_root:
             settings.LOG_DIR = str(log_root)
             setup_logging()
@@ -419,6 +428,8 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             "PYTHONUNBUFFERED": "1",
         }
         environment.pop("RWB_DSH_STAGED", None)
+        if config.credential_root is not None:
+            environment["RESEARCH_CREDENTIAL_HOME"] = str(config.credential_root)
         for spec in (specs.runtime, specs.web):
             if requested:
                 raise _ExternalShutdown
@@ -516,7 +527,8 @@ def main():
     data = Path(os.environ.get("RWB_DATA_ROOT", "/data/research-web"))
     try:
         return run(SupervisorConfig(
-            data_root=data, state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state")),
+            data_root=data, state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
+            credential_root=Path(os.environ.get("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")),
             project_root=Path("/opt/rwb"), runtime_source=Path("/opt/dsh"),
             python=sys.executable, node="/usr/local/bin/node",
         ))

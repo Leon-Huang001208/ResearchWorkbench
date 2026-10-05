@@ -116,7 +116,7 @@ def check(state_root: Path, data_root: Path, runtime_port=3081, web_port=8088, *
 
 def main():
     return check(
-        Path(os.environ.get("RWB_RUNTIME_STATE", "/state")),
+        Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
         Path(os.environ.get("RWB_DATA_ROOT", "/data/research-web")),
     )
 

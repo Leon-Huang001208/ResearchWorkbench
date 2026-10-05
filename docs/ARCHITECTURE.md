@@ -22,6 +22,7 @@ Research Web FastAPI Host（8088）
 - Native 以两个宿主进程运行 Web 与 DSH；Docker 以一个非 root 容器运行两者，仅向宿主回环发布 Web 8088，DSH 3081 留在容器内。`rwb runtime` 先按私有模式记录选择，再由 `rwb web` 按进程或容器归属管理；同一数据目录只允许顺序使用。
 - Host 与 Runtime 保持回环访问边界；两种模式都不接管未知进程、容器或端口。
 - Docker 安装摘要绑定不可变 image ID、依赖锁、DSH/CJPY 与 Compose；公开启动和 Doctor 必须验证该已接受构建。构建候选使用独立 tag，启动等待真实健康后才发布选择；失败只回滚本次创建且再次确认归属的容器。
+- Docker 状态/凭据 bind 根内的私有叶由容器用户创建与严格验证；实际状态为 `/state/runtime`，凭据为 `/run/rwb-secrets/private`，不改变共享产品数据根或 Native 路径。
 - 当前产品不要求 PostgreSQL、pgvector、Tauri、桌面 sidecar 或旧 `app/api` 生命周期。
 - 当前阶段为 Web-only；只有修改桌面专属路径或用户重新开启桌面工作时，才应用桌面原生 CI 和安装级烟测。
 

@@ -1,5 +1,10 @@
 # 安全边界与验证方法
 
+Docker Desktop bind 根的 UID 映射不能替代私有目录所有权证明。Docker-only 使用挂载内
+由非 root 容器 UID 创建的 0700 子目录；原 runtime_state_directory 与 File credential
+backend 的 owner、mode、dirfd/no-follow 检查保持不变。新增回归覆盖启动前准备、重启复用、
+state/credential alias 和不安全权限拒绝；物理 bind 映射必须另记真实 Docker 证据。
+
 Docker 公共 start/Doctor 必须安全读取接受摘要并按不可变 image ID 核对实际容器，不能因
 共享 tag、静态 runtime label 或 `running=true` 就宣称 ready。回归覆盖摘要损坏/缺失、
 alias/hardlink/超限、锁/Compose/DSH 不匹配、tag 改写、延迟健康及失败回滚归属。

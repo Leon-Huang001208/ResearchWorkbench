@@ -115,6 +115,14 @@ Windows 将入口写为 `rwb.cmd runtime status --json`、`rwb.cmd runtime use d
 
 两种模式依次使用 `~/.research-workbench/research-web/` 中的同一会话、资料、附件和产物，绝不能同时写入。Native 的 PID、认证和运行状态位于 `~/.research-workbench/run/`；Docker 的状态位于 `run/docker/<installation-id>/`，容器归属由项目、服务、安装身份、镜像、挂载及端口核对，不复用 Native 的状态/认证文件。Docker 凭据存于 `secrets/docker/<installation-id>/` 并单独 bind mount 到容器；Native 仍使用宿主系统凭据库，模式切换不复制或迁移密码/令牌。Compose 只将宿主 `127.0.0.1:8088` 发布给浏览器；DSH 3081 仍留在单容器内部回环。容器以非 root、只读根文件系统、受限能力和显式可写挂载运行。
 
+Docker 的挂载根与实际私有目录不同：`/state` 仍是状态 bind 根，DSH 状态和认证实际位于
+`/state/runtime`；`/run/rwb-secrets` 仍是凭据 bind 根，File backend 显式使用
+`RESEARCH_CREDENTIAL_HOME=/run/rwb-secrets/private`。supervisor 以容器 UID 10001 在首次
+认证、健康探测和子进程启动前创建 0700 私有叶，重启时验证并复用。Docker Desktop 可能把
+宿主创建的 bind 根呈现为 UID 0；不会因此放宽私有叶 owner/权限/no-follow 检查，也不会
+chmod/chown 挂载根。`LOG_DIR=/state/logs` 独立于私有状态叶，避免导入期日志目录创建
+提前生成权限不正确的状态叶。用户 data-root、Native 路径及 Inspector 挂载契约不变。
+
 Docker 容器无法等同宿主系统集成环境：Office/Wind、宿主凭据库、Tabbit 等需要 GUI、驱动、会话或本机 CLI 的能力不得仅因目录可见就标记为可调用。模型密钥须在选定模式中重新配置；Doctor/日志输出不应包含秘密或用户文件正文。`./rwb web logs --tail 100` 为有界尾部；Docker 的 `--follow` 最多读取 300 秒，每条输出流上限 64 KiB，超时或超限会结束读取，退出读取不停止服务。Doctor 的稳定 `issues` 可用于定位：`docker_cli_missing`、`docker_daemon_unavailable`、`docker_compose_missing`、`docker_architecture_unsupported`、`docker_port_8088_occupied`、`docker_port_3081_conflict`、`docker_ownership_mismatch`、`docker_build_not_ready`、`docker_data_home_unsafe`、`docker_credentials_acl_unverified`、`docker_services_unhealthy`、`runtime_stop_current_required`。按代码修复前置环境或停止已确认归属的旧模式，再重试；不要删除未知容器或修改状态文件。
 
 升级时先 `web stop`，更新受审源码和锁后用对应 `--runtime` 重建/安装，执行 Doctor、status 和实际启动验证；不能把旧安装摘要视为新代码证明。修复用同一模式的 `--repair`，先保留现有数据并核对所有权。卸载运行部分可停止服务、移除自己受管的镜像/容器或 Native `.venv`；产品数据、Docker 私有凭据和 Native 系统凭据默认保留，需先另行备份并取得明确授权才清理。没有自动执行跨模式凭据迁移或破坏性卸载。

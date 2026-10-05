@@ -534,8 +534,81 @@ def test_entrypoint_is_only_validation_and_exec():
     script = (ROOT / "docker/entrypoint.sh").read_text()
     assert script.splitlines() == [
         "#!/bin/sh", "set -eu", ': "${RWB_DATA_ROOT:=/data/research-web}"',
-        ': "${RWB_RUNTIME_STATE:=/state}"',
+        ': "${RWB_RUNTIME_STATE:=/state/runtime}"',
+        ': "${RESEARCH_CREDENTIAL_HOME:=/run/rwb-secrets/private}"',
         'test -d "$RWB_DATA_ROOT" && test -w "$RWB_DATA_ROOT"',
-        'test -d "$RWB_RUNTIME_STATE" && test -w "$RWB_RUNTIME_STATE"',
+        'test -d "${RWB_RUNTIME_STATE%/*}" && test -w "${RWB_RUNTIME_STATE%/*}"',
+        'test -d "${RESEARCH_CREDENTIAL_HOME%/*}" && test -w "${RESEARCH_CREDENTIAL_HOME%/*}"',
+        'export RWB_DATA_ROOT RWB_RUNTIME_STATE RESEARCH_CREDENTIAL_HOME',
         "exec /opt/rwb/venv/bin/python /opt/rwb/docker/supervisor.py",
     ]
+
+
+def test_private_mount_leaves_are_prepared_before_ownership_and_reused(tmp_path, monkeypatch):
+    from docker import supervisor
+    import stat
+
+    root = tmp_path.resolve()
+    state_mount, secret_mount = root / "state", root / "secrets"
+    state_mount.mkdir(mode=0o700)
+    secret_mount.mkdir(mode=0o700)
+    config = supervisor.SupervisorConfig(
+        data_root=root / "data", state_root=state_mount / "runtime",
+        credential_root=secret_mount / "private", project_root=ROOT,
+        runtime_source=root / "source", python=sys.executable, node="unused",
+    )
+    observed = []
+
+    def stop_after_preparation():
+        observed.append(tuple((path.stat().st_ino, path.stat().st_uid,
+                               stat.S_IMODE(path.stat().st_mode))
+                              for path in (config.state_root, config.credential_root)))
+        raise RuntimeError("fixture_stop_before_children")
+
+    monkeypatch.setattr(supervisor, "_OwnedProcesses", stop_after_preparation)
+    monkeypatch.setattr(supervisor, "setup_logging", lambda: None)
+    monkeypatch.setattr(supervisor.settings, "LOG_DIR", supervisor.settings.LOG_DIR)
+    assert supervisor.run(config) == 1
+    assert supervisor.run(config) == 1
+    assert observed[0] == observed[1]
+    assert all(owner == os.getuid() and mode == 0o700 for _, owner, mode in observed[0])
+
+
+@pytest.mark.parametrize("bad_leaf", ["state", "credential"])
+@pytest.mark.parametrize("kind", ["alias", "mode"])
+def test_unsafe_private_mount_leaf_fails_before_children(tmp_path, monkeypatch, bad_leaf, kind):
+    from docker import supervisor
+
+    root = tmp_path.resolve()
+    state, credential = root / "state/runtime", root / "secrets/private"
+    state.parent.mkdir(mode=0o700)
+    credential.parent.mkdir(mode=0o700)
+    path = state if bad_leaf == "state" else credential
+    if kind == "alias":
+        target = root / "foreign"
+        target.mkdir(mode=0o700)
+        path.symlink_to(target, target_is_directory=True)
+    else:
+        path.mkdir(mode=0o755)
+    config = supervisor.SupervisorConfig(
+        data_root=root / "data", state_root=state, credential_root=credential,
+        project_root=ROOT, runtime_source=root / "source", python=sys.executable, node="unused",
+    )
+    monkeypatch.setattr(supervisor, "_OwnedProcesses", lambda: pytest.fail("unsafe mount reached child ownership"))
+    assert supervisor.run(config) == 1
+
+
+def test_supervisor_and_health_defaults_share_private_state_leaf(monkeypatch):
+    from docker import healthcheck, supervisor
+
+    for name in ("RWB_DATA_ROOT", "RWB_RUNTIME_STATE", "RESEARCH_CREDENTIAL_HOME"):
+        monkeypatch.delenv(name, raising=False)
+    configs = []
+    monkeypatch.setattr(supervisor, "run", lambda config: configs.append(config) or 0)
+    assert supervisor.main() == 0
+    assert configs[0].state_root == Path("/state/runtime")
+    assert configs[0].credential_root == Path("/run/rwb-secrets/private")
+    checks = []
+    monkeypatch.setattr(healthcheck, "check", lambda *args: checks.append(args) or 0)
+    assert healthcheck.main() == 0
+    assert checks[0][0] == configs[0].state_root

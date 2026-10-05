@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+Docker 实际持久化状态位于状态 bind 的 `runtime/` 子目录，凭据记录位于独立凭据 bind 的
+`private/` 子目录；两者由容器用户创建，避免将 Desktop 映射为 root 的挂载根误作私有叶。
+容器重建后继续验证和复用这些叶，不迁移或复制 Native Keychain，也不改变 canonical data-root。
+
 Docker 接受摘要 `install/docker-manifest.json` 是私有、限长、禁止 alias 的部署状态，绑定
 image ID 与构建合同，不能充当研究数据。候选健康失败或发布失败只回滚本次已确认归属的
 容器；共享研究数据、独立凭据与旧接受镜像保留。模式提交失败恢复旧接受摘要字节。

@@ -57,6 +57,23 @@ def test_credentials_persist_across_fresh_backend_instance(root):
     assert PrivateFileCredentialBackend(root).get_password("provider", "account") is None
 
 
+def test_container_private_leaf_persists_with_bind_parent_unchanged(tmp_path, monkeypatch):
+    mount = tmp_path.resolve() / "mount"
+    mount.mkdir(mode=0o700)
+    before = mount.stat()
+    leaf = mount / "private"
+    monkeypatch.setenv("RESEARCH_CREDENTIAL_HOME", str(leaf))
+    first = default_credential_backend()
+    assert isinstance(first, PrivateFileCredentialBackend)
+    first.set_password("fixture", "account", "fake-container-secret")
+    fresh = default_credential_backend()
+    assert fresh.get_password("fixture", "account") == "fake-container-secret"
+    assert stat.S_IMODE(leaf.stat().st_mode) == 0o700
+    assert leaf.stat().st_uid == os.getuid()
+    after = mount.stat()
+    assert (before.st_uid, before.st_mode, before.st_ino) == (after.st_uid, after.st_mode, after.st_ino)
+
+
 def test_factory_native_and_exact_explicit_path(root, monkeypatch):
     monkeypatch.delenv("RESEARCH_CREDENTIAL_HOME", raising=False)
     assert isinstance(default_credential_backend(), SystemKeyringBackend)

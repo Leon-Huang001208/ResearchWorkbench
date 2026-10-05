@@ -12,7 +12,8 @@
       "ports": ["127.0.0.1:${RWB_WEB_PORT:-8088}:8088"],
       "environment": {
         "RWB_DATA_ROOT": "/data/research-web",
-        "RWB_RUNTIME_STATE": "/state",
+        "RWB_RUNTIME_STATE": "/state/runtime",
+        "RESEARCH_CREDENTIAL_HOME": "/run/rwb-secrets/private",
         "LOG_DIR": "/state/logs"
       },
       "volumes": [

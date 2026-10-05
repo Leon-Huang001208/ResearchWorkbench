@@ -23,6 +23,11 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 
 ## Native 与 Docker 部署分支
 
+状态与凭据的 bind targets 仍是 `/state`、`/run/rwb-secrets`；容器 UID 10001 在其内部创建
+`runtime`、`private` 两个 0700 私有叶。supervisor 在 auth/probe/spawn 前调用现有严格目录
+校验，healthcheck 只读使用同一状态叶，Docker 显式选用 File credential backend。此区分
+兼容 Docker Desktop 的 bind 根 UID 映射，不引入 root-init 或宿主 UID 动态映射。
+
 Docker controller 的接受状态来自私有安装摘要中的不可变镜像身份及当前构建合同；单容器
 启动只在双服务真实健康后成功。每次候选构建拥有独立 tag，发布失败不会通过共享 tag 改变
 选定镜像。此修复保留 Native/Docker 部署拓扑、DSH 唯一引擎及已有端口/挂载边界。
