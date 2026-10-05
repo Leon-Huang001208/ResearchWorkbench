@@ -30,6 +30,9 @@ on:
       - ".github/workflows/research-web-bootstrap.yml"
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
+      - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_runtime_mode.py"
+      - "tests/research_web/test_docker_runtime.py"
   push:
     branches:
       - master
@@ -61,6 +64,9 @@ on:
       - ".github/workflows/research-web-bootstrap.yml"
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
+      - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_runtime_mode.py"
+      - "tests/research_web/test_docker_runtime.py"
   workflow_dispatch:
 
 permissions:

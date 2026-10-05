@@ -106,6 +106,23 @@ function triggersForPath(source, event, file) {
   return paths === null || paths.some((pattern) => matchesPath(pattern, file));
 }
 
+test('Docker runtime test paths retain required Native bootstrap coverage', () => {
+  const policy = JSON.parse(fs.readFileSync(
+    new URL('../../.agents/verification-policy.json', import.meta.url), 'utf8',
+  ));
+  for (const file of [
+    'tests/research_web/test_runtime_contract.py',
+    'tests/research_web/test_runtime_mode.py',
+    'tests/research_web/test_docker_runtime.py',
+  ]) {
+    assert.ok(policy.rules.some(rule => rule.match.files.includes(file)
+      && rule.ci.includes('research-web-bootstrap')), `policy must require bootstrap: ${file}`);
+    for (const event of ['pull_request', 'push']) {
+      assert.equal(triggersForPath(workflows.bootstrap, event, file), true, `${event}: ${file}`);
+    }
+  }
+});
+
 test('documentation-only changes use only the lightweight constraints workflow', () => {
   const file = 'docs/README.md';
   assert.equal(triggersForPath(workflows.constraints, 'push', file), true);

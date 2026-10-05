@@ -1487,8 +1487,8 @@
       "id": "research-web-verification-full",
       "level": "L4",
       "status": "PASS",
-      "durationSeconds": 3.149985542,
-      "evidence": "logs/pr74-pr77-repair/rwb-pr77-l4-js.log"
+      "durationSeconds": 2.787660459,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr77-l4-js-route-fixed.log"
     },
     {
       "id": "research-web-docker-contract",
@@ -1508,8 +1508,8 @@
       "id": "research-web-architecture",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 3.149985542,
-      "evidence": "logs/pr74-pr77-repair/rwb-pr77-l4-js.log"
+      "durationSeconds": 2.787660459,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr77-l4-js-route-fixed.log"
     },
     {
       "id": "project-constraints-local",
