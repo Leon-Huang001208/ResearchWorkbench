@@ -8,6 +8,8 @@ state/process/ownership/port/protocol/ready。模型 warning 不改变 Web ready
 `rwb web status` 与 Doctor 即使发现问题也在形成完整投影时退出 0；无 `.venv` 时受限后备入口
 只提供诊断。既有 `/api/research/runtime` 与 `/api/research/models` 仅供只读就绪/模型事实核对，
 不提交研究消息、不生成内容或泄漏 Provider failure 正文。
+未安装环境的顶层 `rwb --help` 现在由后备入口直接输出静态帮助；它不请求任何 HTTP API，
+不改变本页路由、响应字段或错误码。
 `rwb web start` 现在在任何进程创建前消费 Doctor 的固定安装 issue；失败只改变 CLI 错误精度和
 等待时长，不新增 HTTP 字段、路由或状态码，也不会暴露本机路径与凭据。
 Doctor 的安全 CLI JSON 在 `dsh.runtime_lock_matches` 报告已验证安装闭包是否等于 Runtime build

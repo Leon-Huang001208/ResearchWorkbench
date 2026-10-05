@@ -64,9 +64,9 @@ Node 选择顺序为：调用方显式传入、`RESEARCH_NODE_BINARY`、可执�
 
 Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要、端口和健康状态，不输出路径、
 环境变量值、凭据或用户文件正文。
-若 checkout `.venv` 缺失、所有权标记不完整或解释器不可用，`web status` 与 `web doctor --json`
-仍由仅使用系统 Python 标准库的受限入口提供安全诊断；该入口拒绝 `start/restart/stop`，不读取
-Runtime Cookie，也不改写 PID/state。系统 Python 也缺失时，入口返回
+若 checkout `.venv` 缺失、所有权标记不完整或解释器不可用，顶层 `--help`、`web status` 与
+`web doctor --json` 仍由仅使用系统 Python 标准库的受限入口提供帮助或安全诊断；该入口拒绝
+`start/restart/stop`，不读取 Runtime Cookie，也不改写 PID/state。系统 Python 也缺失时，入口返回
 `python_runtime_unavailable` 并提示重新运行公开安装器。
 Doctor schema 2 区分 `installation_ok`、`product_ready` 与 `model_ready`。服务状态按 state、真实 PID、
 启动身份与命令归属、监听 PID、DSH 协议、Web HTTP 逐级核对；PID 文件或开放端口单独存在都不构成

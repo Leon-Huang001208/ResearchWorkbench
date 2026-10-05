@@ -13,6 +13,8 @@ DSH clone、checkout 与干净工作树校验都只对当前子命令应用同�
 服务启动在 spawn 前复用 Doctor 的安全化安装投影；未受安装器所有的 checkout 环境、锁漂移、
 CJPY/Node/DSH 未就绪均失败关闭并只输出稳定 issue code，不以 35 秒健康等待掩盖安装错误。
 后备 status/Doctor 只用标准库读取有界非秘密状态，不加载 Runtime auth 或执行生命周期操作。
+后备顶层 `--help` 更窄：只输出固定命令与安装提示，不读取状态、凭据或监听端口；其他未知命令
+及未安装环境中的生命周期操作继续失败关闭。
 共享私有 JSON reader 对 POSIX 使用 no-follow 描述符与 0600/单链接检查，对 Windows 拒绝
 reparse 并复核打开前后身份。普通服务归属须同时证明 state 签名、精确 argv、进程启动身份和
 监听 PID；不能证明时为 unknown，不凭 PID 文件或端口猜测。生命周期 guard 锁串行化状态恢复；

@@ -4,6 +4,8 @@
 Gold/Dollar 仍由同一 3081 Runtime 和 8088 Host 执行；定义、采集器、调度、快照 schema/revision、
 评分、renderer、Bot 会话绑定和框架图源均未改变。模型未配置时 Web 设置页可访问，不代表框架
 解释或深度验证已经可调用；该能力继续由真实 Runtime、模型及快照状态决定。
+未安装环境的顶层 `rwb --help` 只输出静态诊断指引，不加载 Gold/Dollar 定义、采集器、快照
+或 Bot；本轮 CI 修复不改变框架版本和页面合同。
 
 Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定义、采集、快照 schema、评分、
 renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。

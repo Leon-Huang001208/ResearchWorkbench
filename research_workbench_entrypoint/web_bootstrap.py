@@ -36,10 +36,19 @@ PYTHON_ISSUES = {
     "python_environment_unusable",
 }
 ALLOWED_COMMANDS = {
+    ("--help",),
     ("web", "status"),
     ("web", "doctor"),
     ("web", "doctor", "--json"),
 }
+BOOTSTRAP_HELP = """Usage: rwb [OPTIONS] COMMAND [ARGS]...
+
+Web environment unavailable; these read-only commands remain available:
+  web status            Show service facts
+  web doctor [--json]   Diagnose installation and service health
+
+Install or repair: ./setup-web.sh --repair --no-start
+Windows: setup-web.cmd --repair --no-start"""
 ENVIRONMENT_EXIT_CODES = {
     None: 0,
     "python_environment_missing": 41,
@@ -382,6 +391,10 @@ def run(argv: Sequence[str], project_root: Path | None = None) -> int:
     if command not in ALLOWED_COMMANDS:
         print(_rejection_message(_python_issue(root, os.environ)), file=sys.stderr)
         return 1
+    if command == ("--help",):
+        log.debug("research_web_bootstrap_help_requested")
+        print(BOOTSTRAP_HELP)
+        return 0
     report = diagnose(root)
     if command == ("web", "doctor", "--json"):
         print(json.dumps(report, ensure_ascii=False, indent=2))

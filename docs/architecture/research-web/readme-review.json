@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "README 已加入 Python 环境损坏时的只读诊断入口、完整页面就绪门和模型配置与 Web 可访问性分离说明。",
-  "reason": "本次修改 rwb/rwb.cmd、research_workbench_entrypoint、app/cli 与 Research Web 服务管理合同；README 同步网页打不开时的标准排查命令，以及浏览器只在 DSH、Web API、首页和静态资源 ready 后打开的用户可见行为。"
+  "disposition": "unchanged",
+  "summary": "已复核根 README；现有安装、启动和 Doctor 指引仍准确，无须改动入口说明。",
+  "reason": "本轮仅修复未安装环境中的顶层静态帮助；安装方式、服务生命周期和产品主入口不变，细节已更新安装指南与模块文档。"
 }
