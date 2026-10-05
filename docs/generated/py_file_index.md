@@ -2862,6 +2862,8 @@ Functions:
   - 检查 Web 锁、CJPY、Node、DSH、数据目录、端口和服务健康。
 - `web_stop`
   - 停止仅属于当前项目的 8088/3081 进程。
+- `web_logs`
+  - 读取归属已确认的 Web/DSH 日志；过滤认证信息。
 - `web_restart`
   - 在无活动研究时重启项目服务。
 - `migrate_research_data`
@@ -2874,6 +2876,9 @@ Functions:
 
 Module docstring:
 > Standalone native-DSH research product; no legacy app lifecycle.
+
+Imports:
+- `runtime_contract`
 
 
 ## `app/research_web/asset_routes.py`
@@ -2950,11 +2955,12 @@ Module docstring:
 ## `app/research_web/automation/channels.py`
 
 Module docstring:
-> Delivery-channel metadata with operational configuration in the OS keyring.
+> Delivery-channel metadata with operational configuration in private storage.
 
 Imports:
 - `__future__`
 - `core.observability`
+- `credential_backend`
 - `hashlib`
 - `ipaddress`
 - `json`
@@ -2963,8 +2969,6 @@ Imports:
 - `uuid`
 
 Classes:
-- `_SystemKeyring`
-  - methods: _module, get_password, set_password, delete_password
 - `DeliveryChannelStore`
   - methods: __init__, _account, list, get, configuration, put, delete
 
@@ -3373,6 +3377,49 @@ Functions:
   - Read one manager-owned authentication record through a fail-closed boundary.
 
 
+## `app/research_web/credential_backend.py`
+
+Module docstring:
+> Native keyring or explicitly configured, private Linux-container credentials.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `contextlib`
+- `core.observability`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `runtime_state`
+- `secrets`
+- `stat`
+- `threading`
+- `time`
+- `typing`
+
+Classes:
+- `CredentialBackend`
+  - methods: get_password, set_password, delete_password
+- `CredentialBackendError`
+  - Stable failure without paths, account names or secret values.
+- `SystemKeyringBackend`
+  - Lazy adapter: ordinary Native startup never creates a file credential store.
+  - methods: get_password, set_password, delete_password
+- `PrivateFileCredentialBackend`
+  - Descriptor-relative, bounded, process-serialized POSIX credential records.
+  - methods: __init__, _name, _verify_root, _locked_directory, _read, get_password, set_password, delete_password
+
+Functions:
+- `_safe_errors`
+- `_identity`
+- `_file_state`
+- `_validate_file`
+- `_encode`
+- `default_credential_backend`
+  - Select private files only for an explicitly present, exact absolute root.
+
+
 ## `app/research_web/data_migration.py`
 
 Module docstring:
@@ -3516,6 +3563,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `core.observability`
+- `credential_backend`
 - `functools`
 - `json`
 - `os`
@@ -3547,8 +3595,6 @@ Classes:
 - `SingleSecretConfigurationUpdate`
   - methods: exclusive_secret_action
 - `WindConfiguration`
-- `_SystemKeyring`
-  - methods: _module, get_password, set_password, delete_password
 - `MySQLConnectionStore`
   - Local profiles; compatibility methods continue to target MySQL.
   - methods: __init__, _path, _read_profile, configuration, source_configuration, _secret, _set_secret_account, _delete_secret_account, _account_name, credentials, read_source_secret, status, _status, source_status, statuses, _write_profile, _write_configuration, _delete_profile, _delete_configuration, _set_secret, _delete_secret, _restore_secret_values, save, _models_for_update, _profile_secret_accounts, save_source, delete, delete_source, _env_values, migration_preview, _parse_accounts, _migration_payload, _write_env, _restore_env, apply_migration
@@ -4541,7 +4587,9 @@ Imports:
 - `os`
 - `pathlib`
 - `re`
+- `runtime_state`
 - `shutil`
+- `staged_runtime`
 - `store`
 - `subprocess`
 - `sys`
@@ -4574,6 +4622,7 @@ Functions:
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
 - `prepare`
+- `_prepare_runtime`
 - `calculate_build_closure`
   - Hash the platform-neutral DSH runtime source/build closure.
 - `main`
@@ -4808,18 +4857,17 @@ Functions:
 ## `app/research_web/mcp_registry/credentials.py`
 
 Module docstring:
-> OS-keyring-only secret storage for MCP Registry authentication.
+> Runtime-selected private secret storage for MCP Registry authentication.
 
 Imports:
 - `__future__`
 - `core.observability`
+- `credential_backend`
 - `json`
 
 Classes:
 - `CredentialError`
   - Stable credential-store failure without secret content.
-- `_SystemKeyring`
-  - methods: _module, get_password, set_password, delete_password
 - `RegistryCredentialStore`
   - methods: __init__, account, snapshot, read, write, delete, configured, restore, authorization, replace
 
@@ -5066,11 +5114,12 @@ Functions:
 ## `app/research_web/mcp_runtime/credentials.py`
 
 Module docstring:
-> OS-keyring-only storage for MCP server credentials.
+> Runtime-selected private storage for MCP server credentials.
 
 Imports:
 - `__future__`
 - `core.observability`
+- `credential_backend`
 - `hashlib`
 - `json`
 - `re`
@@ -5079,8 +5128,6 @@ Imports:
 Classes:
 - `RuntimeCredentialError`
   - Stable failure that never contains credential content.
-- `_SystemKeyring`
-  - methods: _module, get_password, set_password, delete_password
 - `RuntimeCredentialStore`
   - Persist bounded JSON credential records under installation-scoped keys.
   - methods: __init__, account, reference, write, read, delete
@@ -5099,6 +5146,7 @@ Imports:
 - `base64`
 - `collections.abc`
 - `core.observability`
+- `credential_backend`
 - `datetime`
 - `hashlib`
 - `hmac`
@@ -5529,6 +5577,26 @@ Functions:
 - `services`
 - `storage`
 - `summary`
+
+
+## `app/research_web/process_spec.py`
+
+Module docstring:
+> Immutable process commands shared without taking lifecycle ownership.
+
+Imports:
+- `__future__`
+- `dataclasses`
+- `pathlib`
+- `typing`
+
+Classes:
+- `ProcessSpec`
+- `WebProcessSpecs`
+
+Functions:
+- `build_process_specs`
+  - Describe the same DSH/Web contract for Native and container supervisors.
 
 
 ## `app/research_web/projection.py`
@@ -6068,6 +6136,73 @@ Functions:
   - Read one bounded control record without trusting path aliases or replacements.
 
 
+## `app/research_web/runtime_contract.py`
+
+Module docstring:
+> Strict stdlib-only runtime facts shared by bootstrap and the lightweight Host.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `contextlib`
+- `dataclasses`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+- `typing`
+
+Classes:
+- `RuntimeContractError`
+  - Invalid runtime facts; code and message are stable and contain no input.
+  - methods: __init__
+- `ResearchWebRuntimeContract`
+  - Validated immutable facts; the JSON file is the only source of pin values.
+
+Functions:
+- `_fail`
+- `_path_identity`
+- `_identity`
+- `_pin_windows_parents`
+  - Hold non-reparse directory handles denying writes/renames during the read.
+- `_pin_posix_parents`
+  - Traverse from root using retained directory descriptors, never path aliases.
+- `_read`
+- `_unique_object`
+- `_exact_object`
+- `_validate`
+- `load_runtime_contract`
+  - Load bounded UTF-8 JSON, rejecting aliases, replacements and invalid facts.
+
+
+## `app/research_web/runtime_state.py`
+
+Module docstring:
+> Stdlib-only, fail-closed directory boundary for private runtime state.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `contextlib`
+- `logging`
+- `os`
+- `pathlib`
+- `stat`
+- `sys`
+
+Classes:
+- `RuntimeStateError`
+  - An unsafe runtime state directory; never includes a sensitive path.
+
+Functions:
+- `_identity`
+- `_validate_directory`
+- `runtime_state_directory`
+  - Validate and pin every ancestor before state access, then recheck identity.
+
+
 ## `app/research_web/sandbox.py`
 
 Module docstring:
@@ -6136,6 +6271,7 @@ Imports:
 - `client`
 - `contextlib`
 - `core.observability`
+- `credential_backend`
 - `datahub`
 - `datetime`
 - `delivery`
@@ -6150,8 +6286,7 @@ Imports:
 - `mcp_runtime.credentials`
 - `mcp_runtime.installation_store`
 - `mcp_runtime.oauth`
-- `mcp_runtime.package_installer`
-- ... 16 more
+- ... 17 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
@@ -6175,14 +6310,15 @@ Module docstring:
 Imports:
 - `__future__`
 - `core.observability`
-- `dataclasses`
 - `hashlib`
 - `http.client`
 - `json`
 - `os`
 - `pathlib`
+- `process_spec`
 - `re`
 - `runtime_auth`
+- `runtime_state`
 - `shutil`
 - `signal`
 - `socket`
@@ -6199,10 +6335,9 @@ Imports:
 Classes:
 - `ServiceManagerError`
   - Safe CLI-facing service lifecycle failure.
-- `ManagedProcess`
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _runtime_sessions, _runtime_healthy, _web_healthy, _wait, _spawn, _ensure_startable, start, _active_research, _stop_one, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _read_install_manifest, _runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, doctor, tabbit_status
+  - methods: __init__, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions, _runtime_healthy, _web_healthy, _wait, _spawn, _spawn_owned_process, _ensure_startable, start, _active_research, _stop_one, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, doctor, _validate_log_ownership, logs, tabbit_status
 
 Functions:
 - `calculate_build_closure`
@@ -6890,6 +7025,33 @@ Functions:
 - `_series_identity`
 - `calculate`
 - `main`
+
+
+## `app/research_web/staged_runtime.py`
+
+Module docstring:
+> Validate the derived Docker asset inventory; Native checkouts stay unchanged.
+
+Imports:
+- `__future__`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+
+Functions:
+- `_read_regular`
+- `_source_facts`
+- `_inventory`
+- `_digest`
+- `_unique_object`
+- `write_staged_manifest`
+  - Build-only publication after the complete checkout verifier has passed.
+- `verify_staged_runtime`
+  - Fail closed on image assets; return None only for an ordinary Native tree.
 
 
 ## `app/research_web/store.py`
@@ -18558,6 +18720,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `app.research_web`
 - `argparse`
 - `collections.abc`
 - `datetime`
@@ -18567,6 +18730,8 @@ Imports:
 - `os`
 - `pathlib`
 - `re`
+- `research_workbench_entrypoint.docker_runtime`
+- `research_workbench_entrypoint.runtime_mode`
 - `shutil`
 - `stat`
 - `subprocess`
@@ -18579,10 +18744,21 @@ Classes:
 - `SetupWebInstaller`
   - Public bootstrap API used by the shell wrappers and contract tests.
   - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install
+- `DockerRuntime`
+  - Public installer adapter around the stdlib Docker lifecycle controller.
+  - methods: _verify_selection_safe, install
 
 Functions:
 - `_command_version`
 - `_configure_logging`
+- `build_parser`
+  - Keep the public bootstrap flags testable without invoking installation.
+- `_docker_issue`
+- `_docker_manifest`
+  - Record public build facts, never command output or host file paths.
+- `_write_docker_manifest`
+  - Publish only into the private install directory owned by mode store.
+- `install_selected_runtime`
 - `main`
 
 

@@ -37,17 +37,17 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "15c6f7a9e2ce432a527aaed47dcb63e908e0ba268e1b69492e812f8105c6f3ce",
-      "specificationSha256": "91eef51a8867860319669905a4d289e5e725c68c962c5cfe1c5c9e6bfa6c141d",
+      "artifactSha256": "400f75c7067b30c1fc5d284b65461787234a8071d45446cd8a2594e666cdd0c9",
+      "specificationSha256": "94c6eaa9a365b3fee1d7a481742f21d0dd4c962311f18721e1118ae990c10def",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-10",
+      "reviewer": "Task 12 documentation review",
+      "date": "2026-10-05",
       "captures": [
         "01-deployment.visual-check.1440x900.light.png",
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已人工查看上述最终哈希对应截图；持久化服务管理、8088/3081 所有权、Tabbit Browser、私有供应包与实时 claim 路径清晰，未见遮挡、节点穿线或内容裁剪。四视口包含性由独立自动回执记录，视觉查看不证明真实浏览器验收。"
+      "notes": "已人工查看同一最终哈希的 1440 浅色与 2048 深色截图；同一源码合同、Native 双进程、Docker 单容器、顺序共用数据与独立凭据关系可读，未见遮挡、节点穿线或内容裁剪。四视口自动包含性由独立回执记录；图示不证明真实 Docker 构建、生命周期或 Windows 可用。"
     },
     {
       "id": "03-research-sequence",

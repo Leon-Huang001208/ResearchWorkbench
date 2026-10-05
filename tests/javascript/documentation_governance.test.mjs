@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {mkdir, mkdtemp, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -36,6 +37,20 @@ test('repository Markdown governance is complete', () => {
   const result = checkDocumentationGovernance({projectRoot:repositoryRoot});
   assert.deepEqual(result.violations, []);
   assert.ok(result.files > 400);
+});
+
+test('current-product entry explains both Web runtimes without changing the Native default', () => {
+  const readme = readFileSync(path.join(repositoryRoot, 'README.md'), 'utf8');
+  const installation = readFileSync(path.join(repositoryRoot, 'docs/research-web-installation.md'), 'utf8');
+  for (const text of [readme, installation]) {
+    assert.match(text, /--runtime docker/);
+    assert.match(text, /--runtime native/);
+    assert.match(text, /默认[^\n]*Native|无参数[^\n]*Native/);
+    assert.match(text, /--stop-current/);
+  }
+  assert.match(readme, /\.\/rwb web doctor/);
+  assert.match(installation, /rwb\.cmd runtime use docker/);
+  assert.match(installation, /docker_credentials_acl_unverified/);
 });
 
 test('valid classification, authority, link and anchor pass', async () => {

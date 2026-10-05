@@ -4,9 +4,19 @@
 
 ## 当前 Research Web
 
+| 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
+| --- | --- | --- | --- | --- |
+| `runtimes/research_web.json`、`app/research_web/runtime_contract.py` | Native/Docker 共用 Python、Node、CJPY、DSH、pnpm 事实 | `research-web-installation.md`、`architecture/research-web/01-system.md` | `test_runtime_contract.py`、`docker_runtime_contract.test.mjs` | 固定版本、闭包或镜像事实变化 |
+| `research_workbench_entrypoint/runtime_mode.py`、`bootstrap.py`、`docker_runtime.py` | 无 `.venv` 的模式路由、安全切换、Compose 归属 | `research-web-installation.md`、`architecture/research-web/02-research-runtime.md` | `test_runtime_mode.py`、`test_docker_runtime.py` | mode schema、CLI、归属或错误码变化 |
+| `app/research_web/process_spec.py`、`runtime_state.py`、`staged_runtime.py`、`launch_runtime.py`、`service_manager.py` | 共用进程规范，分离认证状态和镜像内已验证 DSH 资产 | `architecture/research-web/01-system.md`、`02-research-runtime.md` | `test_service_manager.py`、`test_runtime_launch.py`、`test_staged_runtime.py` | 生命周期、挂载或 DSH 资产合同变化 |
+| `app/research_web/credential_backend.py`、连接/MCP/Automation 调用点 | Native 系统 keyring 与 Docker 私有文件凭据后端的明确选择 | `architecture/research-web/03-data-files.md`、`05-security-validation.md` | `test_credential_backend.py`、相关连接/MCP/Automation 测试 | 凭据存储、ACL 或跨模式边界变化 |
+| `Dockerfile`、`compose.yaml`、`.dockerignore`、`docker/` | 非 root 单容器镜像、DSH/Web 监督、认证健康检查 | `research-web-installation.md`、`architecture/research-web/01-system.md` | `test_docker_packaging.py`、`test_container_supervisor.py`、`docker_runtime_contract.test.mjs` | 基础镜像、构建、挂载、端口或健康变化 |
+
+以下原有表继续映射产品模块；上表只添加部署与运行边界，不创建第二套 Web/DSH 引擎。
+
 | 源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |
-| `app/research_web/main.py`、`service.py`、`client.py` | HTTP/SSE、会话和 DSH 投影 | `architecture/research-web/01-system.md`、`02-research-runtime.md`、`04-api.md` | `tests/research_web/test_api.py`、`test_protocol.py` | 路由、状态、恢复或认证变化 |
+| `app/research_web/main.py`、`service.py`、`client.py` | HTTP/SSE、会话和 DSH 投影；按运行模式注入凭据后端 | `architecture/research-web/01-system.md`、`02-research-runtime.md`、`04-api.md` | `tests/research_web/test_api.py`、`test_protocol.py` | 路由、状态、恢复或认证变化 |
 | `app/research_web/ui/`、`app/research_web/asset_workspace.py`、`app/research_web/asset_routes.py` | 当前产品原生 UI 与 Asset Workbench backend | `research-web-ui.md`、`research-web-appearance.md` | 验证策略 focused closure：`ui/asset-workspace.mjs` → `tests/javascript/research_web_workbench.test.mjs`；`asset_workspace.py` / `asset_routes.py` → `tests/javascript/research_web_workbench.test.mjs` + `tests/research_web/test_asset_workspace.py`，并累积架构与 Project Constraints 检查；其他 UI 运行相关测试和 E2E | 导航、DOM、可访问性、交互或 Asset Workbench API 合同变化 |
 | `app/research_web/datahub/` | 目录、Provider、Broker、快照 | `research-web-datahub.md`、`architecture/research-web/03-data-files.md` | `providers_akshare.py` → `tests/research_web/test_datahub_catalog.py` + `tests/research_web/test_datahub.py`；其他已登记 DataHub 测试 | 能力、来源、字段、路由或快照合同变化 |
 | `app/research_web/integrations/` | 五阶段集成状态和探测编排 | `architecture/research-web/09-integration-coordinator.md` | `tests/research_web/test_integration*.py` | 状态、归因、授权或探测变化 |
@@ -18,6 +28,8 @@
 | `documentation.py`、文档检查脚本 | 安全只读文档入口和离线门禁 | `research-web-documentation.md`、`architecture/research-web/06-documentation-contract.md` | 文档治理、架构和路由测试 | 文档 schema、索引、图文或检查策略变化 |
 
 `architecture/research-web/architecture-map.json` 是 Research Web 架构 source/document/test/diagram inventory 的机器真源；`.agents/verification-policy.json` 是 changed-file → impact → validation route 的唯一机器真源。两者互补且不互相推导：新增 Research Web 源文件仍须进入架构清单，而本表的测试闭包说明不能替代 verification policy。
+
+Docker CI 由 `.github/workflows/research-web-docker.yml` 按策略条件触发；本机 Docker 构建、Native/macOS 安装门及真实 Windows 回执必须分别记录，源码测试不替代平台生命周期。仅 docs 变化按 changed set 的规划器结果验收，不能因旧任务已验收而虚写回执。
 
 上述 DataHub 专项映射仅登记策略中明确允许的路径。未登记 DataHub 路径继续 fallback / fail closed，不能仅凭目录位置推断为低风险。`asset_workspace.py` / `asset_routes.py` → `research_web_workbench.test.mjs` + `test_asset_workspace.py` 只说明验证策略的 focused closure，不表示本次修改了 `architecture-map.json` 或从架构 inventory 推导了验收路由。
 

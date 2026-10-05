@@ -1,6 +1,6 @@
 # 部署与模块职责
 
-公开 Web 安装器在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的
+公开 Web 安装器的 Native 路径在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的
 `runtime/dsh/<commit>/` 版本目录；运行时仍是既有 3081 DSH 与 8088 FastAPI 两个受管进程。
 `rwb web doctor` 读取安装摘要与健康事实，不增加守护进程、端口或数据库。
 `rwb web status` 只加载轻量服务管理合同并核对进程、端口与真实健康；DSH 构建闭包、Capability
@@ -20,6 +20,14 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 `installed`，因此依赖文件存在但 Web 源码仍不可读取时不会误报安装完成。
 安装器在首次修改自有环境前先把旧成功清单原子改为 `installing`；任何失败都会保持非完成状态，
 不能让 Doctor 或下一次 start 继续消费上一次事务的陈旧成功证据。
+
+## Native 与 Docker 部署分支
+
+`research_workbench_entrypoint/bootstrap.py` 在导入 Native Click/.venv 前，以 stdlib 读取 `install/runtime.json`；无参数安装和缺省模式仍是 Native。`rwb runtime use native|docker` 只在新旧模式的服务/端口归属可验证时切换；有运行中旧模式需显式 `--stop-current`。`runtimes/research_web.json` 是 Python/Node/CJPY/固定 DSH/pnpm 的单一版本事实。`app/research_web/process_spec.py` 定义 DSH/Web 命令，Native 服务管理器和 Docker supervisor 共用；`runtime_state.py` 将认证与 build lock 等状态从产品数据分离。
+
+Docker 路径由 `Dockerfile` 构建固定资产，以 `docker/stage_dsh.py` 派生经 `app/research_web/staged_runtime.py` 验证的运行目录，不把完整 Git/dev/test 树留在最终镜像。`compose.yaml` 以非 root、只读根文件系统、能力剥离的单容器运行 `docker/supervisor.py`，后者顺序启动 DSH 和 FastAPI，保持唯一研究引擎、双服务健康和有界停止。只有 `127.0.0.1:8088` 发布到宿主；DSH 3081 留在容器回环。`docker/healthcheck.py` 同时检查认证 DSH 与 Web。Docker 容器、镜像、挂载、端口和安装身份均由 host controller 校验；未知归属失败关闭。
+
+产品数据仍是 `~/.research-workbench/research-web/`，Native 与 Docker 顺序共享，不并发访问。Native PID/认证状态、Docker `run/docker/<installation-id>/` 状态以及 Docker `secrets/docker/<installation-id>/` 凭据分别管理；`app/research_web/credential_backend.py` 只在 Docker 显式配置时使用私有文件后端，Native 继续走宿主 keyring。Docker 的宿主 Office/Wind/Tabbit 等本机集成不因 Web 可启动而自动可调用；Windows Docker ACL 未验证时 `docker_credentials_acl_unverified` 关闭失败。部署图 `01-deployment` 表示拓扑，不替代真实镜像构建、运行或平台验收。
 
 研究框架由同一 Research Web 服务内的薄注册表暴露 Gold 与 Dollar；目录、调度生命周期、快照存储和新鲜度协议共享，定义、契约、采集、评分、上下文与前端 renderer 保持领域专属。它不增加独立进程、数据库或资产详情服务，浏览器 GET 只读取已保存快照，不触发外网采集。
 

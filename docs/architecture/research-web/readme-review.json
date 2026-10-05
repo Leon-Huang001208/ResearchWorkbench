@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "本轮无需调整根 README，现有 Research Web 产品定位、公开安装入口、状态诊断与服务管理命令仍然准确。",
-  "reason": "本轮让 web status 避免非必要 Runtime 功能图导入，并增强既有 --repair、Web import readiness 与陈旧安装清单失效的失败关闭行为；公开入口、锁定依赖、端口、产品导航和用户启动命令均未改变，详细修复语义已同步到安装文档。"
+  "disposition": "updated",
+  "summary": "根 README 已展示 Docker 推荐安装、Native 默认兼容、安全模式切换、同一数据目录与分离凭据边界。",
+  "reason": "新增 --runtime docker 与 rwb runtime 用户可见入口，改变安装和生命周期说明；README 必须同步列出 Windows 对应命令及未完成的 Docker/Windows 真实验收。"
 }
