@@ -30,7 +30,10 @@ from research_workbench_entrypoint.docker_runtime import (
     DockerRuntime as _DockerRuntimeController,
     port_busy,
 )
-from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+from research_workbench_entrypoint.runtime_mode import (
+    RuntimeModeStore, _atomic_write_posix, _leaf_identity_at, _private_posix_parent,
+    _read_bytes, _same_identity,
+)
 
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 CJPY_VERSION = RUNTIME_CONTRACT.cjpy_version
@@ -1243,11 +1246,11 @@ def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> None:
 class DockerRuntime(_DockerRuntimeController):
     """Public installer adapter around the stdlib Docker lifecycle controller."""
 
-    def _verify_selection_safe(self, current: object) -> None:
+    def _verify_selection_safe(self, current: object, image_id: str, *, repair=False) -> None:
         """Apply the bootstrap's no-stop switch checks before publishing setup state."""
         from research_workbench_entrypoint.bootstrap import NativeRuntime, _running
 
-        checked = self.preflight()
+        checked = self.preflight(require_image=False)
         if not checked.get("ok"):
             raise RuntimeError(_docker_issue(checked, "docker_preflight_failed"))
         native = NativeRuntime(self.project_root, self.home, ports=self.ports).status()
@@ -1263,6 +1266,10 @@ class DockerRuntime(_DockerRuntimeController):
             raise RuntimeError("runtime_ownership_unknown") from exc
         if any(port_busy(port) for port in self.ports):
             raise RuntimeError("runtime_stop_current_required")
+        if checked.get("container_image_id") not in (None, image_id):
+            if not repair:
+                raise RuntimeError("docker_upgrade_requires_container_disposition")
+            self._dispose_stopped_for_repair(current)
         if RuntimeModeStore(self.home).read() != current:
             raise RuntimeError("runtime_mode_changed")
 
@@ -1283,14 +1290,58 @@ class DockerRuntime(_DockerRuntimeController):
         current = store.read()
         if not current.installation_id:
             current = store.write(current.mode)
-        self._verify_selection_safe(current)
-        if start:
-            started = self.start()
-            if not started.get("ok"):
-                raise RuntimeError(_docker_issue(started, "docker_start_failed"))
-        _write_docker_manifest(self.home / "install/docker-manifest.json", manifest)
-        store.write("docker", expected=current)
+        self._verify_selection_safe(current, image_id, repair=repair)
+        try:
+            if start:
+                started = self._start_candidate(manifest)
+                if not started.get("ok"):
+                    raise RuntimeError(_docker_issue(started, "docker_start_failed"))
+                if not all(started.get("services", {}).get(role, {}).get("healthy") is True
+                           for role in ("web", "runtime")):
+                    raise RuntimeError("docker_services_unhealthy")
+            self._publish_selection(store, current, manifest)
+        except (OSError, RuntimeError):
+            self._rollback_created()
+            raise
         return manifest
+
+    def _publish_selection(self, store, current, manifest):
+        """Serialize mode publication and restore the receipt on a failed commit."""
+        path = self.home / "install/docker-manifest.json"
+        with store._write_lock():
+            if store.read() != current:
+                raise RuntimeError("runtime_mode_changed")
+            self._manifest(allow_missing=True, check_contract=False)
+            try:
+                previous, _ = _read_bytes(path)
+            except FileNotFoundError:
+                previous = None
+            try:
+                _write_docker_manifest(path, manifest)
+                # Already-selected Docker upgrades commit in the receipt's
+                # atomic replacement: no fallible mode write follows it.
+                if current.mode != "docker":
+                    store._write_locked("docker", expected=current)
+            except (OSError, RuntimeError):
+                try:
+                    published, identity = _read_bytes(path)
+                except FileNotFoundError:
+                    published, identity = None, None
+                try:
+                    matches = published is not None and json.loads(published) == manifest
+                except ValueError:
+                    raise RuntimeError("docker_install_summary_changed") from None
+                if matches:
+                    if previous is not None:
+                        _atomic_write_posix(path, previous, identity)
+                    else:
+                        with _private_posix_parent(path) as parent:
+                            if not _same_identity(_leaf_identity_at(parent, path.name), identity):
+                                raise RuntimeError("docker_install_summary_changed") from None
+                            os.unlink(path.name, dir_fd=parent)
+                            os.fsync(parent)
+                logging.getLogger("research_workbench.setup_web").warning("docker_setup_publish_failed")
+                raise
 
 
 def install_selected_runtime(arguments: argparse.Namespace, *, project_root: Path) -> dict[str, object]:

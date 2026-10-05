@@ -1,5 +1,10 @@
 # DataHub、研究资料与实际文件
 
+Docker 接受摘要 `install/docker-manifest.json` 是私有、限长、禁止 alias 的部署状态，绑定
+image ID 与构建合同，不能充当研究数据。候选健康失败或发布失败只回滚本次已确认归属的
+容器；共享研究数据、独立凭据与旧接受镜像保留。模式提交失败恢复旧接受摘要字节。
+显式离线 repair 只可非 force 移除已证明停止且归属正确的旧容器，不删除其镜像或挂载数据。
+
 双运行时不复制或分叉研究事实：Native 与 Docker 依次 bind/读取同一 `~/.research-workbench/research-web/`，会话、附件、DataHub 快照和产物仍使用下述相同文件合同。模式切换先停止并确认旧模式退出，禁止并发写。进程/认证/build lock 不放在产品数据中：Native 保留自身 `run/` 状态，Docker 使用 `run/docker/<installation-id>/`；Docker 凭据单独存入 `secrets/docker/<installation-id>/` 并 mount 到容器，Native 系统 keyring 不自动迁入。安装摘要分别记录 Native 与 Docker 事实，不能互相证明健康。卸载默认保留数据和秘密，任何清理需独立授权及备份。
 
 Web 安装清单位于 Research Workbench 私有数据根的 `install/manifest.json`，只保存代码/依赖版本与

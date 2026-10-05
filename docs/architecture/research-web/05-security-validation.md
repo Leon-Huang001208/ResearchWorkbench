@@ -1,5 +1,11 @@
 # 安全边界与验证方法
 
+Docker 公共 start/Doctor 必须安全读取接受摘要并按不可变 image ID 核对实际容器，不能因
+共享 tag、静态 runtime label 或 `running=true` 就宣称 ready。回归覆盖摘要损坏/缺失、
+alias/hardlink/超限、锁/Compose/DSH 不匹配、tag 改写、延迟健康及失败回滚归属。
+合同 pin 仅放宽无关祖先内容活动，直接父目录瞬时 alias 检测保持；API/集成测试的内存
+keyring 隔离只在测试作用域内生效，不降低生产凭据后端的错误传播。
+
 Docker 与 Native 复用固定运行合同，但部署证据分开：Docker 构建需验证完整 DSH 来源/闭包及精简运行资产清单，镜像内再以非 root 做 Web、CLI、supervisor 和健康入口检查。Compose 不向宿主发布 DSH 3081，只 bind 共享产品数据、独立运行状态和独立凭据目录；只读根、cap drop 与 `no-new-privileges` 不是宿主系统集成能力证明。Host controller 对容器归属标签、镜像、挂载和端口做有界核对，未知实例不删除或接管。Docker 凭据目录的 Windows ACL 不能证明时返回 `docker_credentials_acl_unverified`，不得用 POSIX mode 位替代 Windows ACL。Native 保留系统 keyring。模拟单元测试与源码检查不证明真实 Docker 镜像、Windows 生命周期或第三方软件可调用；它们应在任务回执中分别列为未验证门。
 
 一键安装只允许固定 PyPI 索引、指定 DSH GitHub 仓库和随包 CJPY 文件集；Python 锁、wheel、来源、

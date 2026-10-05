@@ -6165,6 +6165,7 @@ Functions:
 - `_fail`
 - `_path_identity`
 - `_identity`
+- `_node_identity`
 - `_pin_windows_parents`
   - Hold non-reparse directory handles denying writes/renames during the read.
 - `_pin_posix_parents`
@@ -18746,7 +18747,7 @@ Classes:
   - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install
 - `DockerRuntime`
   - Public installer adapter around the stdlib Docker lifecycle controller.
-  - methods: _verify_selection_safe, install
+  - methods: _verify_selection_safe, install, _publish_selection
 
 Functions:
 - `_command_version`

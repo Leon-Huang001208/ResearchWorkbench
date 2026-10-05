@@ -19,10 +19,11 @@ import sys
 import threading
 import time
 import webbrowser
+from uuid import uuid4
 from pathlib import Path
 from typing import Any
 
-from .runtime_mode import RuntimeModeError, RuntimeModeStore
+from .runtime_mode import RuntimeModeError, RuntimeModeStore, _read_bytes, _unique_object
 
 log = logging.getLogger(__name__)
 MAX_OUTPUT = 65536
@@ -372,6 +373,7 @@ class DockerRuntime:
         self.runner = runner
         self.ports = ports
         self.store = RuntimeModeStore(self.home)
+        self._created_container = None
 
     @property
     def installation_id(self) -> str:
@@ -402,23 +404,23 @@ class DockerRuntime:
     def credential_dir(self) -> Path:
         return self.home / "secrets" / "docker" / self.installation_id
 
-    def _environment(self) -> dict[str, str]:
+    def _environment(self, image: str = IMAGE) -> dict[str, str]:
         return {
             **minimal_environment(), "RWB_DATA_DIR": str(self.data_dir),
             "RWB_STATE_DIR": str(self.state_dir),
             "RWB_CREDENTIAL_DIR": str(self.credential_dir),
             "RWB_INSTALLATION_ID": self.installation_id,
             "RWB_WEB_PORT": str(self.ports[0]),
-            "RWB_IMAGE": IMAGE,
+            "RWB_IMAGE": image,
             # Explicitly disable implicit .env interpolation even for a trusted
             # project directory; no secrets are imported by the Compose process.
             "COMPOSE_DISABLE_ENV_FILE": "1",
         }
 
-    def _call(self, argv, code, *, timeout=20, stream=False, check=True):
+    def _call(self, argv, code, *, timeout=20, stream=False, check=True, image=IMAGE):
         try:
             completed = self.runner(
-                list(argv), cwd=self.project_root, env=self._environment(),
+                list(argv), cwd=self.project_root, env=self._environment(image),
                 timeout=timeout, max_output=MAX_OUTPUT, stream=stream,
             )
         except FileNotFoundError:
@@ -471,6 +473,76 @@ class DockerRuntime:
         if value.get("runtime") != "docker":
             raise ControlError("docker_ownership_mismatch")
         return value
+
+    def _manifest(self, *, allow_missing=False, check_contract=True) -> dict | None:
+        """Read only a private bounded accepted receipt; never infer it from a tag."""
+        try:
+            raw, _ = _read_bytes(self.home / "install/docker-manifest.json")
+            value = json.loads(raw, object_pairs_hook=_unique_object)
+        except FileNotFoundError:
+            if allow_missing and self.store.read().mode != "docker":
+                return None
+            raise ControlError("docker_manifest_missing") from None
+        except (OSError, ValueError, RuntimeModeError):
+            raise ControlError("docker_manifest_invalid") from None
+        self._validate_manifest(value, check_contract=check_contract)
+        return value
+
+    def _validate_manifest(self, value, *, check_contract=True) -> None:
+        from app.research_web.runtime_contract import RuntimeContractError, load_runtime_contract
+
+        keys = {"schema_version", "status", "runtime", "code_commit", "image_id", "python_version",
+                "node_major", "web_lock_sha256", "cjpy_version", "cjpy_sha256", "dsh_commit",
+                "compose_sha256", "installed_at"}
+        if (not isinstance(value, dict) or set(value) != keys
+                or type(value.get("schema_version")) is not int
+                or value["schema_version"] != 1
+                or value.get("status") != "installed" or value.get("runtime") != "docker"
+                or not isinstance(value.get("image_id"), str)
+                or not _IMAGE_ID.fullmatch(value["image_id"])):
+            raise ControlError("docker_manifest_invalid")
+        if (type(value["node_major"]) is not int or value["node_major"] < 1
+                or not all(isinstance(value[key], str) and value[key]
+                           for key in ("python_version", "cjpy_version", "installed_at"))
+                or (value["code_commit"] is not None and
+                    (not isinstance(value["code_commit"], str)
+                     or not re.fullmatch("[a-f0-9]{40}", value["code_commit"])))):
+            raise ControlError("docker_manifest_invalid")
+        for key, length in (("web_lock_sha256", 64), ("compose_sha256", 64),
+                            ("cjpy_sha256", 64), ("dsh_commit", 40)):
+            if not isinstance(value.get(key), str) or not re.fullmatch("[a-f0-9]{%d}" % length, value[key]):
+                raise ControlError("docker_manifest_invalid")
+        if not check_contract:
+            return
+        try:
+            contract = load_runtime_contract()
+        except RuntimeContractError:
+            raise ControlError("docker_build_contract_mismatch") from None
+        expected = {
+            "python_version": f"{contract.python_major}.{contract.python_minor}",
+            "node_major": contract.node_major, "cjpy_version": contract.cjpy_version,
+            "cjpy_sha256": contract.cjpy_sha256, "dsh_commit": contract.dsh_commit,
+        }
+        try:
+            expected.update({key: hashlib.sha256((self.project_root / path).read_bytes()).hexdigest()
+                             for key, path in (("web_lock_sha256", "requirements/web.lock"),
+                                               ("compose_sha256", "compose.yaml"))})
+        except OSError:
+            raise ControlError("docker_build_contract_mismatch") from None
+        if any(value.get(key) != expected_value for key, expected_value in expected.items()):
+            raise ControlError("docker_build_contract_mismatch")
+
+    def _accepted_image(self) -> dict:
+        manifest = self._manifest()
+        image = self._image(manifest["image_id"])
+        if image["id"] != manifest["image_id"]:
+            raise ControlError("docker_image_mismatch")
+        return image
+
+    @staticmethod
+    def _match_image(containers, image_id):
+        if any(container["image"] != image_id for container in containers):
+            raise ControlError("docker_image_mismatch")
 
     def _containers(self) -> list[dict]:
         if not self.installation_id:
@@ -539,9 +611,12 @@ class DockerRuntime:
         def check():
             self._credential_mount_boundary()
             self._availability()
-            image = self._image() if require_image else None
-            self._containers()
-            return result(mode="docker", image_id=image["id"] if image else None)
+            image = self._accepted_image() if require_image else None
+            containers = self._containers()
+            if image:
+                self._match_image(containers, image["id"])
+            return result(mode="docker", image_id=image["id"] if image else None,
+                          container_image_id=containers[0]["image"] if containers else None)
         return self._guard("preflight", check)
 
     def _status(self, containers) -> dict:
@@ -571,6 +646,8 @@ class DockerRuntime:
             "data": {"ready": False},
             "python": {"applicable": False}, "node": {"applicable": False},
             "cjpy": {"applicable": False},
+            "dsh": {"ready": False, "build_verified": False, "commit": None,
+                    "host_applicable": False},
             "services": {role: {"running": False, "healthy": False, "pid": None, "port": port}
                          for role, port in (("web", self.ports[0]), ("runtime", self.ports[1]))},
             "capabilities": {name: {"status": "unavailable_in_docker", "required": False}
@@ -581,11 +658,15 @@ class DockerRuntime:
             self._availability()
             facts["engine"]["ready"] = True
             facts["compose"]["ready"] = True
-            image = self._image()
+            image = self._accepted_image()
             facts["image"] = {"ready": True, "id": image["id"]}
             containers = self._containers()
+            self._match_image(containers, image["id"])
             status = self._status(containers)
             facts["services"] = status["services"]
+            facts["dsh"] = {"ready": status["services"]["runtime"]["healthy"],
+                            "build_verified": True, "commit": self._manifest()["dsh_commit"],
+                            "host_applicable": False}
             facts["container"] = {
                 "state": status["container_state"],
                 "ownership_id": hashlib.sha256(
@@ -630,22 +711,43 @@ class DockerRuntime:
     def install(self) -> dict:
         def build():
             self._availability()
+            self._manifest(allow_missing=True, check_contract=False)
             self._containers()
             if not self.installation_id:
                 self.store.write(self.store.read().mode)
             self._safe_home()
-            self._call([*self.compose_prefix, "build", "research-web"], "docker_build_failed", timeout=1800)
-            return result(mode="docker", image_id=self._image()["id"])
+            candidate = "research-workbench:build-" + uuid4().hex
+            self._call([*self.compose_prefix, "build", "research-web"], "docker_build_failed", timeout=1800, image=candidate)
+            return result(mode="docker", image_id=self._image(candidate)["id"])
         return self._guard("install", build)
 
-    def start(self, *, open_browser=True) -> dict:
+    def _wait_ready(self, image_id, *, wait_timeout=120) -> dict:
+        deadline = time.monotonic() + wait_timeout
+        while True:
+            containers = self._containers()
+            self._match_image(containers, image_id)
+            if not containers or not containers[0]["running"]:
+                raise ControlError("docker_start_failed")
+            report = self._status(containers)
+            if all(service["healthy"] for service in report["services"].values()):
+                return report
+            if containers[0]["health"] != "starting" or containers[0]["state"] != "running":
+                raise ControlError("docker_services_unhealthy")
+            if time.monotonic() >= deadline:
+                raise ControlError("docker_ready_timeout")
+            time.sleep(0.25)
+
+    def _start_image(self, image_id, *, open_browser=True, wait_timeout=120) -> dict:
+        self._created_container = None
         def start_owned():
             self._credential_mount_boundary()
             self._availability()
-            self._image()
+            if self._image(image_id)["id"] != image_id:
+                raise ControlError("docker_image_mismatch")
             containers = self._containers()
+            self._match_image(containers, image_id)
             if containers and containers[0]["running"]:
-                return self._status(containers)
+                return self._wait_ready(image_id, wait_timeout=wait_timeout)
             self._ports_free()
             from .bootstrap import NativeRuntime, _running
             native = NativeRuntime(self.project_root, self.home, ports=self.ports).status()
@@ -664,12 +766,22 @@ class DockerRuntime:
                 except RuntimeStateError:
                     raise ControlError("docker_data_home_unsafe") from None
             self._safe_home()
-            self._containers()
-            self._call([*self.compose_prefix, "up", "--detach", "--no-build", "--pull", "never", "research-web"], "docker_start_failed", timeout=60)
-            report = self._status(self._containers())
-            if not report["services"]["web"]["running"]:
-                raise ControlError("docker_start_failed")
-            return report
+            before = self._containers()
+            self._match_image(before, image_id)
+            created_id = None
+            try:
+                self._call([*self.compose_prefix, "up", "--detach", "--no-build", "--pull", "never", "research-web"], "docker_start_failed", timeout=60, image=image_id)
+                after = self._containers()
+                self._match_image(after, image_id)
+                if not before and after:
+                    created_id = after[0]["id"]
+                    self._created_container = (created_id, image_id)
+                return self._wait_ready(image_id, wait_timeout=wait_timeout)
+            except (ControlError, OSError) as error:
+                log.warning("docker_runtime code=%s", error.code if isinstance(error, ControlError) else "docker_io")
+                if created_id:
+                    self._rollback_created()
+                raise
         report = self._guard("start", start_owned)
         if report["ok"] and open_browser:
             try:
@@ -678,6 +790,50 @@ class DockerRuntime:
             except (OSError, webbrowser.Error):
                 log.warning("docker_runtime code=browser_unavailable")
         return report
+
+    def start(self, *, open_browser=True, wait_timeout=120) -> dict:
+        def accepted_start():
+            self._credential_mount_boundary()
+            image = self._accepted_image()
+            return self._start_image(image["id"], open_browser=open_browser, wait_timeout=wait_timeout)
+        return self._guard("start", accepted_start)
+
+    def _rollback_created(self):
+        if self._created_container is None:
+            return
+        identity, image_id = self._created_container
+        try:
+            current = self._inspect(identity)
+            self._match_image([current], image_id)
+            self._call(["docker", "rm", "--force", identity], "docker_rollback_failed")
+            self._created_container = None
+        except (ControlError, OSError):
+            log.warning("docker_runtime code=docker_rollback_failed")
+            raise ControlError("docker_rollback_failed") from None
+
+    def _start_candidate(self, manifest: dict) -> dict:
+        # Private installer transaction entry. Public start always reloads the
+        # accepted receipt and cannot inherit this candidate selection.
+        self._manifest(allow_missing=True, check_contract=False)
+        self._validate_manifest(manifest)
+        return self._start_image(manifest["image_id"], open_browser=False)
+
+    def _dispose_stopped_for_repair(self, current) -> None:
+        """Explicit repair may remove an owned stopped container, never its image/data."""
+        manifest = self._manifest(check_contract=False)
+        containers = self._containers()
+        self._match_image(containers, manifest["image_id"])
+        for container in containers:
+            checked = self._inspect(container["id"])
+            if checked["running"] or checked["state"] not in ("created", "exited", "dead"):
+                raise ControlError("runtime_stop_current_required")
+            if self.store.read() != current:
+                raise ControlError("runtime_mode_changed")
+            # No force and no volume flag: Docker rejects a concurrent start.
+            self._call(["docker", "rm", container["id"]], "docker_repair_disposition_failed")
+            log.info("docker_runtime operation=repair_disposition code=ok")
+        if self._containers():
+            raise ControlError("docker_ownership_mismatch")
 
     def stop(self, *, wait_timeout=10) -> dict:
         def stop_owned():

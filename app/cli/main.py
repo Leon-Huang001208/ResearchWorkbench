@@ -169,9 +169,26 @@ def web_start(no_open: bool) -> None:
 
 
 @web.command("status")
-def web_status() -> None:
+@click.option("--json", "json_output", is_flag=True, help="输出安全化 JSON")
+def web_status(json_output: bool = False) -> None:
     """查看两个项目服务的归属与健康状态。"""
-    _run_web_action("status", open_browser=False)
+    if not json_output:
+        _run_web_action("status", open_browser=False)
+        return
+    try:
+        with _machine_output_logging(True):
+            status = WebServiceManager().status()
+        report = {"schema_version": 1, "ok": True, "issues": [], "mode": "native",
+                  "services": {role: {key: service.get(key) for key in
+                                      ("running", "healthy", "pid", "port")}
+                               for role, service in status["services"].items()
+                               if role in ("web", "runtime")}}
+        click.echo(json.dumps(report, ensure_ascii=False, indent=2))
+    except ServiceManagerError as exc:
+        logging.getLogger(__name__).warning("native_status_failed")
+        click.echo(json.dumps({"schema_version": 1, "ok": False, "issues": ["native_status_failed"],
+                               "mode": "native", "services": {}}))
+        raise click.exceptions.Exit(1) from exc
 
 
 @web.command("tabbit-status")

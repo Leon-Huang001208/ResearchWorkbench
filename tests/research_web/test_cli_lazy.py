@@ -10,6 +10,26 @@ import pytest
 from click.testing import CliRunner
 
 
+def test_native_status_json_preserves_public_shape_and_hides_paths(monkeypatch):
+    from app.cli import main as module
+
+    class Manager:
+        def status(self):
+            return {"url": "http://127.0.0.1:8088/#/fingpt", "services": {
+                role: {"running": False, "healthy": False, "pid": None, "port": port,
+                       "log": "/private/SECRET.log"}
+                for role, port in (("web", 8088), ("runtime", 3081))}}
+
+    monkeypatch.setattr(module, "WebServiceManager", Manager)
+    result = CliRunner().invoke(module.cli, ["web", "status", "--json"])
+    assert result.exit_code == 0, result.output
+    report = json.loads(result.output)
+    assert report["schema_version"] == 1 and report["mode"] == "native"
+    assert report["ok"] is True and report["issues"] == []
+    assert report["services"]["web"]["running"] is False
+    assert "SECRET" not in result.output
+
+
 def test_native_web_logs_cli_options(monkeypatch):
     from app.cli import main as module
     calls = []

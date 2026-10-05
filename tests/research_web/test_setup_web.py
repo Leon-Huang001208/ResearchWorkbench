@@ -26,7 +26,7 @@ def _allow_idle_runtime_selection(monkeypatch: pytest.MonkeyPatch) -> None:
         "ok": True,
         "services": {"web": {"running": False}, "runtime": {"running": False}},
     }
-    monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight", lambda _self: idle)
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight", lambda _self, **_kwargs: idle)
     monkeypatch.setattr(setup_web._DockerRuntimeController, "status", lambda _self: idle)
     monkeypatch.setattr(NativeRuntime, "status", lambda _self: idle)
     monkeypatch.setattr(setup_web, "port_busy", lambda _port: False)
@@ -180,7 +180,8 @@ def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
     store = RuntimeModeStore(home)
     before = store.write("native")
     manifest_path = home / "install/docker-manifest.json"
-    manifest_path.write_text('{"previous":true}\n', encoding="utf-8")
+    previous = setup_web._docker_manifest(project, "sha256:" + "b" * 64)
+    manifest_path.write_text(json.dumps(previous), encoding="utf-8")
     manifest_path.chmod(0o600)
     calls: list[list[str]] = []
 
@@ -215,7 +216,7 @@ def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
     assert any("build" in call for call in calls)
     assert not any("up" in call or "stop" in call for call in calls)
     assert store.read() == before
-    assert json.loads(manifest_path.read_text(encoding="utf-8")) == {"previous": True}
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == previous
     assert not (project / ".venv").exists()
 
 
@@ -280,8 +281,8 @@ def test_docker_start_failure_preserves_native_selection(
     )
     monkeypatch.setattr(
         setup_web._DockerRuntimeController,
-        "start",
-        lambda _self: {"ok": False, "issues": ["docker_port_8088_occupied"]},
+        "_start_candidate",
+        lambda _self, _manifest: {"ok": False, "issues": ["docker_port_8088_occupied"]},
     )
     _allow_idle_runtime_selection(monkeypatch)
     arguments = setup_web.build_parser().parse_args(["--runtime", "docker", "--repair"])
@@ -413,6 +414,65 @@ def test_docker_success_main_prints_only_public_summary(
         "started": False,
     }
     assert str(tmp_path) not in captured.getvalue()
+
+
+@pytest.mark.parametrize("failure", ["publish", "mode", "unhealthy", "old_container"])
+def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatch, failure):
+    from scripts import setup_web
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    project = tmp_path / "checkout"
+    (project / "requirements").mkdir(parents=True)
+    (project / "requirements/web.lock").write_text("locked")
+    (project / "compose.yaml").write_text("services: {}")
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    current = store.write("native")
+    old = setup_web._docker_manifest(project, "sha256:" + "a" * 64)
+    path = home / "install/docker-manifest.json"
+    setup_web._write_docker_manifest(path, old)
+    previous = path.read_bytes()
+    controller = setup_web.DockerRuntime(project, home)
+    _allow_idle_runtime_selection(monkeypatch)
+    if failure == "old_container":
+        monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight",
+                            lambda self, **kwargs: {"ok": True, "container_image_id": old["image_id"]})
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "install",
+                        lambda self: {"ok": True, "image_id": "sha256:" + "b" * 64})
+    monkeypatch.setattr(controller, "_start_candidate", lambda manifest: {
+        "ok": True, "services": {role: {"healthy": failure != "unhealthy"}
+                                 for role in ("web", "runtime")}})
+    rolled_back = []
+    monkeypatch.setattr(controller, "_rollback_created", lambda: rolled_back.append(True))
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("injected_publish_failure")
+
+    if failure == "publish":
+        monkeypatch.setattr(setup_web, "_write_docker_manifest", fail)
+    elif failure == "mode":
+        monkeypatch.setattr(RuntimeModeStore, "_write_locked", fail)
+    with pytest.raises(RuntimeError, match="injected_publish_failure|docker_services_unhealthy|docker_upgrade_requires_container_disposition"):
+        controller.install(start=failure != "old_container")
+    assert path.read_bytes() == previous
+    assert store.read() == current
+    assert rolled_back == ([] if failure == "old_container" else [True])
+    assert controller._manifest()["image_id"] == old["image_id"]
+
+
+def test_candidate_start_refuses_existing_corrupt_manifest(tmp_path, monkeypatch):
+    from scripts import setup_web
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    home = tmp_path / "home"
+    RuntimeModeStore(home).write("native")
+    path = home / "install/docker-manifest.json"
+    path.write_text("{corrupt")
+    path.chmod(0o600)
+    controller = setup_web.DockerRuntime(tmp_path, home)
+    monkeypatch.setattr(controller, "_start_image", lambda *args, **kwargs: pytest.fail("must reject before launch"))
+    with pytest.raises(setup_web.ControlError, match="docker_manifest_invalid"):
+        controller._start_candidate({"image_id": "sha256:" + "a" * 64})
 
 
 def test_runtime_constants_share_the_machine_contract() -> None:

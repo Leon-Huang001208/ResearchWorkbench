@@ -23,6 +23,10 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 
 ## Native 与 Docker 部署分支
 
+Docker controller 的接受状态来自私有安装摘要中的不可变镜像身份及当前构建合同；单容器
+启动只在双服务真实健康后成功。每次候选构建拥有独立 tag，发布失败不会通过共享 tag 改变
+选定镜像。此修复保留 Native/Docker 部署拓扑、DSH 唯一引擎及已有端口/挂载边界。
+
 `research_workbench_entrypoint/bootstrap.py` 在导入 Native Click/.venv 前，以 stdlib 读取 `install/runtime.json`；无参数安装和缺省模式仍是 Native。`rwb runtime use native|docker` 只在新旧模式的服务/端口归属可验证时切换；有运行中旧模式需显式 `--stop-current`。`runtimes/research_web.json` 是 Python/Node/CJPY/固定 DSH/pnpm 的单一版本事实。`app/research_web/process_spec.py` 定义 DSH/Web 命令，Native 服务管理器和 Docker supervisor 共用；`runtime_state.py` 将认证与 build lock 等状态从产品数据分离。
 
 Docker 路径由 `Dockerfile` 构建固定资产，以 `docker/stage_dsh.py` 派生经 `app/research_web/staged_runtime.py` 验证的运行目录，不把完整 Git/dev/test 树留在最终镜像。`compose.yaml` 以非 root、只读根文件系统、能力剥离的单容器运行 `docker/supervisor.py`，后者顺序启动 DSH 和 FastAPI，保持唯一研究引擎、双服务健康和有界停止。只有 `127.0.0.1:8088` 发布到宿主；DSH 3081 留在容器回环。`docker/healthcheck.py` 同时检查认证 DSH 与 Web。Docker 容器、镜像、挂载、端口和安装身份均由 host controller 校验；未知归属失败关闭。

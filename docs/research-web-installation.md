@@ -48,6 +48,21 @@ python scripts/setup_web.py --runtime native
 
 `--runtime` 缺省为 `native`，包括 shell、`.cmd` 和底层 Python 入口；不会因 Docker 已安装而改变旧调用语义。Docker 安装路径会做只读 preflight、构建受管镜像并核验镜像身份；只有已验证的项目安装身份且当前运行时/端口无冲突时才发布安装摘要和选择 Docker。`--no-start` 仅跳过启动，不代表镜像已实际健康运行。Docker 安装摘要为 `~/.research-workbench/install/docker-manifest.json`，与 Native 安装清单分开。
 
+Docker 构建使用每次独立的候选 tag；接受摘要记录不可变 image ID，后续 start/Doctor 不依赖
+`research-workbench:local` 当前指向。摘要通过私有文件、长度、无 alias 和字段校验，再核对
+Web 锁、Compose、Python/Node 与 CJPY/DSH 构建合同；缺失、损坏或合同不一致会失败关闭。
+默认启动有界等待容器健康检查证明 DSH/Web 同时 ready；starting 超时、unhealthy 或退出都
+不会发布成功模式或打开浏览器。失败只删除本次新建且重新确认归属的容器，保留既有容器、
+数据和凭据。显式 `--no-start` 仍允许仅接受已验证构建，不宣称实际 ready。
+候选启动或发布失败保留先前接受的镜像；模式提交失败时恢复先前摘要。已有容器使用其他
+image ID 时，普通安装返回 `docker_upgrade_requires_container_disposition`。显式 `--repair`
+可在确认旧受管容器停止、端口空闲后再次检查归属，并用非 force 的精确 ID 删除该停止容器；
+并发启动时删除失败关闭。旧接受摘要和旧不可变镜像、产品数据、凭据始终保留到候选接受，
+失败时可按旧接受合同重新 start。若同时修改了锁或 Compose，需要恢复旧合同后才能按旧镜像
+启动；不会用不匹配的新合同启动旧镜像。`--no-start` 同样要求显式 repair 才处置旧容器。
+相关错误为 `docker_manifest_missing`、`docker_manifest_invalid`、`docker_build_contract_mismatch`、
+`docker_image_mismatch`、`docker_ready_timeout`、`docker_services_unhealthy`、`docker_rollback_failed`。
+
 下述 `.venv` 和宿主 Node 说明仅适用于 Native。Native 默认流程会检查前置条件、创建项目自有 `.venv`、按哈希锁安装 Web 依赖、校验并安装随包
 `cjpy==0.5.2`、构建固定 DSH、启动 3081/8088 并打开浏览器。可用参数：
 

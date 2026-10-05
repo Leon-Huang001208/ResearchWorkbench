@@ -31,6 +31,12 @@
 
 Docker CI 由 `.github/workflows/research-web-docker.yml` 按策略条件触发；本机 Docker 构建、Native/macOS 安装门及真实 Windows 回执必须分别记录，源码测试不替代平台生命周期。仅 docs 变化按 changed set 的规划器结果验收，不能因旧任务已验收而虚写回执。
 
+Docker 启动/安装修复的目标闭包还覆盖 `test_setup_web.py` 的候选失败与摘要恢复、
+`test_cli_lazy.py` 的 Native `status --json` 安全投影。`test_docker_runtime.py` 检查延迟健康、
+失败回滚归属、不可变镜像选择及 Doctor 的 `dsh` 公共字段；`test_runtime_contract.py` 成对检查
+无关祖先目录活动和合同父目录瞬时 alias。API 与本机集成测试使用每例独立的内存 keyring，
+不读取宿主凭据；生产凭据错误仍失败关闭。
+
 上述 DataHub 专项映射仅登记策略中明确允许的路径。未登记 DataHub 路径继续 fallback / fail closed，不能仅凭目录位置推断为低风险。`asset_workspace.py` / `asset_routes.py` → `research_web_workbench.test.mjs` + `test_asset_workspace.py` 只说明验证策略的 focused closure，不表示本次修改了 `architecture-map.json` 或从架构 inventory 推导了验收路由。
 
 ## 兼容平台

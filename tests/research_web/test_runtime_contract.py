@@ -179,6 +179,23 @@ def test_read_failure_has_stable_redacted_error(tmp_path, caplog):
     assert str(tmp_path / "secret-path.json") not in formatted
 
 
+def test_unrelated_ancestor_sibling_activity_does_not_change_contract(tmp_path, monkeypatch):
+    parent = tmp_path / "trusted"
+    parent.mkdir()
+    path = write_contract(parent, EXPECTED)
+    original = os.open
+
+    def open_with_sibling(candidate, flags, *args, **kwargs):
+        if Path(candidate).name == path.name:
+            sibling = tmp_path / "unrelated"
+            sibling.mkdir()
+            sibling.rmdir()
+        return original(candidate, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", open_with_sibling)
+    assert load_runtime_contract(path).dsh_commit == EXPECTED["dsh"]["commit"]
+
+
 def test_rejects_ancestor_alias_swapped_and_restored_during_open(tmp_path, monkeypatch):
     parent = tmp_path / "trusted"
     parent.mkdir()

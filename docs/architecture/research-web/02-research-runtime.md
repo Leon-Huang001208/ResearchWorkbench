@@ -2,6 +2,21 @@
 
 模式选择只决定进程部署：Native 由服务管理器管理两个宿主进程，Docker 由单容器 supervisor 管理 DSH/Web；研究提交、双 WebSocket、SSE、审批与恢复协议共用。`rwb runtime status --json` 读取当前模式与安装身份；`rwb runtime use docker|native` 在旧模式运行时要求 `--stop-current` 且必须验证旧实例归属。两模式不可并发写同一研究数据。Docker `rwb web status|doctor --json` 将稳定 `issues` 返回给操作者，状态或镜像归属不明不自动接管。Windows Docker 凭据 ACL 当前未通过可证安全边界，不作为已验收模式。
 
+Docker 公开 start 与 Doctor 从私有接受摘要读取不可变 image ID，并检查依赖/Compose 合同及
+容器实际 image ID；每次安装构建独立候选 tag，不能通过覆盖共享 tag 改变选定镜像。
+候选启动仅由安装事务调用，公开 start 每次重新加载接受摘要。启动在默认 120 秒健康等待
+预算内轮询（各 Docker 命令仍有独立超时），只在 DSH/Web 健康时返回成功；退出、unhealthy、
+超时均失败。本次创建容器的回滚再次验证不可变 ID 和归属；失败回滚不删除既有容器。
+显式离线 repair 可在候选启动前非 force 删除已再次验证的停止容器，但保留旧接受镜像、
+摘要、数据及凭据；失败后可按仍匹配的旧合同重新创建旧实例。运行中的容器不会被自动停止或删除。
+Doctor 保留 `dsh` 字段，区分健康 ready、摘要构建证据 build_verified、固定 commit 和宿主
+不适用项，不填造宿主 DSH/Node 版本。Native `web status --json` 同样输出安全服务投影，
+不会序列化日志路径，原有非 JSON 输出保持不变。
+
+合同读取使用 dirfd/no-follow；祖先目录比较节点 identity（设备、inode、mode、uid/gid），
+无关祖先 sibling 创建/删除不会被误判为合同替换。合同文件和直接父目录仍比较完整 metadata，
+保留瞬时 rename/alias/restore 攻击检测；直接父目录发生内容活动仍保守失败关闭。
+
 一键安装固定 DSH 来源、提交、pnpm 与构建闭包，但不改变消息受理、双 WebSocket、SSE、恢复、
 审批或取消协议。安装失败不会启动候选 Runtime，也不会接管当前 3081/8088。
 服务管理器在 spawn 前消费 Doctor 的安装 issue；只有安装状态 `ok` 才进入 3081/8088 生命周期。

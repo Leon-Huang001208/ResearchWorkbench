@@ -36,13 +36,15 @@ class RecordingRunner:
         elif command[1:3] == ("image", "inspect"):
             output = json.dumps({"id": "sha256:" + "b" * 64, "runtime": "docker"})
         elif command[1:2] == ("ps",):
-            output = "c" * 64 if self.container else ""
+            output = self.container["id"] if self.container else ""
         elif command[1:3] == ("container", "inspect"):
             output = json.dumps(self.container)
         elif command[1:2] == ("stop",):
             self.container["running"] = False
             if self.on_stop:
                 self.on_stop()
+        elif command[1:2] == ("rm",):
+            self.container = None
         return subprocess.CompletedProcess(argv, 0, output, "")
 
 
@@ -55,6 +57,13 @@ def runtime(tmp_path):
     record = RuntimeModeStore(home).write("docker")
     runner = RecordingRunner()
     controller = DockerRuntime(tmp_path, home, runner=runner, ports=(18088, 13081))
+    from scripts.setup_web import _docker_manifest
+    (tmp_path / "requirements").mkdir()
+    (tmp_path / "requirements/web.lock").write_text("locked")
+    (tmp_path / "compose.yaml").write_text("services: {}")
+    manifest = home / "install/docker-manifest.json"
+    manifest.write_text(json.dumps(_docker_manifest(tmp_path, "sha256:" + "b" * 64)))
+    manifest.chmod(0o600)
     return controller, runner, record
 
 
@@ -118,10 +127,228 @@ def test_docker_doctor_allowlisted_health_and_capabilities(runtime):
     assert report["cjpy"]["applicable"] is False
     assert report["capabilities"]["office"]["status"] == "unavailable_in_docker"
     assert report["services"]["runtime"]["pid"] is None
+    assert report["dsh"]["ready"] is True
+    assert report["dsh"]["build_verified"] is True
     raw = json.dumps(report)
     assert str(controller.home) not in raw and str(controller.project_root) not in raw
     assert record.installation_id not in raw
     assert "Env" not in raw and "Cookie" not in raw
+
+
+@pytest.mark.parametrize("health,code", [("unhealthy", "docker_services_unhealthy"),
+                                       ("starting", "docker_ready_timeout")])
+def test_start_existing_unhealthy_fails_without_removing(runtime, health, code):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["health"] = health
+    report = controller.start(open_browser=False, wait_timeout=0)
+    assert report["issues"] == [code]
+    assert not any("rm" in argv for argv, _ in runner.calls)
+
+
+def test_public_start_requires_accepted_manifest(runtime):
+    controller, runner, _ = runtime
+    path = controller.home / "install/docker-manifest.json"
+    if path.exists():
+        path.unlink()
+    assert controller.start(open_browser=False)["issues"] == ["docker_manifest_missing"]
+    assert not any("up" in argv for argv, _ in runner.calls)
+
+
+def test_start_waits_for_delayed_health(runtime, monkeypatch):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    monkeypatch.setattr(controller, "_ports_free", lambda: None)
+    sleeps = []
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    health = iter(("starting", "starting", "healthy"))
+
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            owned(controller, runner)
+        if argv[1:3] == ["container", "inspect"]:
+            runner.container["health"] = next(health, "healthy")
+        return runner(argv, **kwargs)
+
+    controller.runner = launch
+    report = controller.start(open_browser=False)
+    assert report["ok"] and report["services"]["runtime"]["healthy"]
+    assert sleeps == [0.25]
+    up_options = next(options for argv, options in runner.calls if "up" in argv)
+    assert up_options["env"]["RWB_IMAGE"] == "sha256:" + "b" * 64
+
+
+@pytest.mark.parametrize("health,running,code", [
+    ("unhealthy", True, "docker_services_unhealthy"),
+    ("starting", False, "docker_start_failed"),
+    ("starting", True, "docker_ready_timeout"),
+])
+@pytest.mark.parametrize("foreign_on_rollback", [False, True])
+def test_start_late_failure_rolls_back_only_verified_new_container(
+    runtime, monkeypatch, health, running, code, foreign_on_rollback
+):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    monkeypatch.setattr(controller, "_ports_free", lambda: None)
+    inspections = []
+
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            owned(controller, runner)
+            runner.container.update(health=health, running=running,
+                                    state="running" if running else "exited")
+        if argv[1:3] == ["container", "inspect"]:
+            inspections.append(True)
+            if foreign_on_rollback and len(inspections) == 3:
+                runner.container["installation"] = "foreign"
+        return runner(argv, **kwargs)
+
+    controller.runner = launch
+    report = controller.start(open_browser=False, wait_timeout=0)
+    assert report["issues"] == ["docker_rollback_failed" if foreign_on_rollback else code]
+    removals = [argv for argv, _ in runner.calls if argv[1:2] == ["rm"]]
+    assert removals == ([] if foreign_on_rollback else [["docker", "rm", "--force", "c" * 64]])
+    assert controller.data_dir.is_dir() and controller.credential_dir.is_dir()
+
+
+@pytest.mark.parametrize("mutation,code", [
+    ("json", "docker_manifest_invalid"), ("symlink", "docker_manifest_invalid"),
+    ("hardlink", "docker_manifest_invalid"), ("large", "docker_manifest_invalid"),
+    ("lock", "docker_build_contract_mismatch"), ("compose", "docker_build_contract_mismatch"),
+    ("dsh", "docker_build_contract_mismatch"),
+])
+def test_accepted_manifest_fails_closed(runtime, mutation, code):
+    controller, runner, _ = runtime
+    path = controller.home / "install/docker-manifest.json"
+    if mutation == "json":
+        path.write_text("{invalid")
+    elif mutation == "large":
+        path.write_text(" " * 17000)
+    elif mutation in ("symlink", "hardlink"):
+        other = path.with_name("other.json")
+        path.rename(other)
+        path.symlink_to(other) if mutation == "symlink" else os.link(other, path)
+    elif mutation in ("lock", "compose"):
+        (controller.project_root / ("requirements/web.lock" if mutation == "lock" else "compose.yaml")).write_text("changed")
+    else:
+        value = json.loads(path.read_text())
+        value["dsh_commit"] = "0" * 40
+        path.write_text(json.dumps(value))
+    assert controller.start(open_browser=False)["issues"] == [code]
+    assert not any("up" in argv for argv, _ in runner.calls)
+
+
+def test_overwritten_mutable_tag_cannot_change_accepted_image(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+
+    def retagged(argv, **kwargs):
+        if argv[1:3] == ["image", "inspect"] and not argv[-1].startswith("sha256:"):
+            return subprocess.CompletedProcess(argv, 0, json.dumps({"id": "sha256:" + "a" * 64, "runtime": "docker"}), "")
+        return runner(argv, **kwargs)
+
+    controller.runner = retagged
+    assert controller.start(open_browser=False)["ok"]
+    assert all(argv[-1].startswith("sha256:") for argv, _ in runner.calls
+               if argv[1:3] == ["image", "inspect"])
+
+
+def test_doctor_rejects_container_outside_accepted_image(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["image"] = "sha256:" + "a" * 64
+
+    def immutable(argv, **kwargs):
+        if argv[1:3] == ["image", "inspect"]:
+            return subprocess.CompletedProcess(argv, 0, json.dumps({"id": argv[-1], "runtime": "docker"}), "")
+        return runner(argv, **kwargs)
+
+    controller.runner = immutable
+    assert controller.doctor()["issues"] == ["docker_image_mismatch"]
+
+
+def test_candidate_does_not_override_public_missing_manifest(runtime):
+    controller, _, _ = runtime
+    controller._candidate_image = "sha256:" + "b" * 64
+    (controller.home / "install/docker-manifest.json").unlink()
+    assert controller.start(open_browser=False)["issues"] == ["docker_manifest_missing"]
+
+
+@pytest.mark.parametrize("failure", ["none", "unhealthy", "publish", "no_start", "race"])
+def test_explicit_repair_disposes_only_stopped_owned_container_and_keeps_fallback(
+    runtime, monkeypatch, failure
+):
+    from scripts import setup_web
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container.update(running=False, state="exited")
+    path = controller.home / "install/docker-manifest.json"
+    previous = path.read_bytes()
+    candidate_image = "sha256:" + "a" * 64
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    monkeypatch.setattr(setup_web, "port_busy", lambda port: False)
+
+    def launch(argv, **kwargs):
+        if argv[1:3] == ["image", "inspect"]:
+            identity = argv[-1] if argv[-1].startswith("sha256:") else candidate_image
+            return subprocess.CompletedProcess(argv, 0, json.dumps({"id": identity, "runtime": "docker"}), "")
+        if "up" in argv:
+            owned(installer, runner)
+            runner.container.update(id="d" * 64, image=kwargs["env"]["RWB_IMAGE"])
+            if failure == "unhealthy" and runner.container["image"] == candidate_image:
+                runner.container["health"] = "unhealthy"
+        if argv[1:2] == ["rm"] and "--force" not in argv and failure == "race":
+            runner.container.update(running=True, state="running")
+            runner.calls.append((argv, kwargs))
+            return subprocess.CompletedProcess(argv, 1, "", "container is running")
+        return runner(argv, **kwargs)
+
+    installer = setup_web.DockerRuntime(controller.project_root, controller.home,
+                                        runner=launch, ports=controller.ports)
+    monkeypatch.setattr(installer, "_ports_free", lambda: None)
+    if failure == "publish":
+        def fail_publish(*args):
+            raise RuntimeError("injected_publish_failure")
+        monkeypatch.setattr(setup_web, "_write_docker_manifest", fail_publish)
+    if failure in ("unhealthy", "publish", "race"):
+        with pytest.raises(RuntimeError):
+            installer.install(repair=True)
+        assert path.read_bytes() == previous
+        if failure != "race":
+            assert installer.start(open_browser=False)["ok"]
+            assert runner.container["image"] == "sha256:" + "b" * 64
+        else:
+            assert runner.container["id"] == "c" * 64 and runner.container["running"]
+    else:
+        assert installer.install(repair=True, start=failure != "no_start")["image_id"] == candidate_image
+    removals = [argv for argv, _ in runner.calls if argv[1:2] == ["rm"]]
+    assert ["docker", "rm", "c" * 64] in removals
+    assert not any("--force" in argv and argv[-1] == "c" * 64 for argv in removals)
+    if failure == "no_start":
+        assert not any("up" in argv for argv, _ in runner.calls)
+
+
+def test_repair_reinspection_refuses_concurrent_start_before_rm(runtime, monkeypatch):
+    from research_workbench_entrypoint.docker_runtime import ControlError
+    controller, runner, record = runtime
+    owned(controller, runner)
+    runner.container.update(running=False, state="exited")
+    original = controller._inspect
+    calls = []
+
+    def inspect(identity):
+        calls.append(identity)
+        if len(calls) == 2:
+            runner.container.update(running=True, state="running")
+        return original(identity)
+
+    monkeypatch.setattr(controller, "_inspect", inspect)
+    with pytest.raises(ControlError, match="runtime_stop_current_required"):
+        controller._dispose_stopped_for_repair(record)
+    assert not any(argv[1:2] == ["rm"] for argv, _ in runner.calls)
 
 
 @pytest.mark.parametrize("health", ["unhealthy", "starting", "none"])
@@ -510,6 +737,8 @@ def test_install_and_start_use_only_named_service_without_autostart(runtime):
     assert controller.install()["ok"]
     assert any(argv[-2:] == ["build", "research-web"] for argv, _ in runner.calls)
     assert not any("up" in argv for argv, _ in runner.calls)
+    build_env = next(options["env"] for argv, options in runner.calls if "build" in argv)
+    assert build_env["RWB_IMAGE"].startswith("research-workbench:build-")
     def on_up(argv, **kwargs):
         if "up" in argv:
             owned(controller, runner)

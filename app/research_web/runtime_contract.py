@@ -79,6 +79,11 @@ def _identity(value: os.stat_result) -> tuple[int, ...]:
     )
 
 
+def _node_identity(value: os.stat_result) -> tuple[int, ...]:
+    # Ancestor directory entries are unrelated to the pinned contract contents.
+    return (value.st_dev, value.st_ino, value.st_mode, value.st_uid, value.st_gid)
+
+
 @contextmanager
 def _pin_windows_parents(path: Path) -> Iterator[None]:
     """Hold non-reparse directory handles denying writes/renames during the read."""
@@ -102,7 +107,8 @@ def _pin_windows_parents(path: Path) -> Iterator[None]:
                 parents.append((component, identity))
             yield
             for component, identity in parents:
-                if _identity(component.lstat()) != _identity(identity):
+                comparison = _identity if component == path.parent else _node_identity
+                if comparison(component.lstat()) != comparison(identity):
                     _fail("changed")
     except (ImportError, AttributeError, OSError, TypeError):
         _fail("io")
@@ -121,7 +127,7 @@ def _pin_posix_parents(path: Path) -> Iterator[int]:
             stack.callback(os.close, descriptor)
             if (
                 not stat.S_ISDIR(before.st_mode)
-                or _identity(os.fstat(descriptor)) != _identity(before)
+                or _node_identity(os.fstat(descriptor)) != _node_identity(before)
             ):
                 _fail("changed")
             directories.append((descriptor, parent, name, before))
@@ -130,10 +136,11 @@ def _pin_posix_parents(path: Path) -> Iterator[int]:
             _fail("unsafe_path")
         yield parent
         for descriptor, ancestor, name, before in directories:
+            comparison = _identity if descriptor == parent else _node_identity
             if (
-                _identity(os.fstat(descriptor)) != _identity(before)
-                or _identity(os.stat(name, dir_fd=ancestor, follow_symlinks=False))
-                != _identity(before)
+                comparison(os.fstat(descriptor)) != comparison(before)
+                or comparison(os.stat(name, dir_fd=ancestor, follow_symlinks=False))
+                != comparison(before)
             ):
                 _fail("changed")
 
