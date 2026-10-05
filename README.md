@@ -67,7 +67,9 @@ Research Web 管理专属 DSH 运行时（3081）和 Web 服务（8088）。从�
 
 ### 模型配置
 
-在产品的 **Settings（设置）→ Model（模型服务）** 中配置模型。模型密钥只由本机设置与操作系统凭据库处理，不写入代码包、安装清单、日志或旧数据迁移结果。
+在产品的 **Settings（设置）→ Model（模型服务）** 中配置固定 Runtime 支持的 DeepSeek 模型。API Key 留空保留、填写替换、独立按钮清除；已有会话保留选模，任务运行时拒绝配置变更。保存、Runtime 可达与真实生成分别展示，生成测试由用户显式发起。
+
+macOS Native 的模型凭据由产品 overlay 挂载的固定用途桥接存入系统 Keychain，按规范化 data home 隔离；不回退环境、旧凭据 YAML 或 `.env`，也不把 Keychain 值复制到文件。不迁移旧模型 Key，需在该实例设置页重新录入。Host 浏览器认证 record 保留固定 DSH 的受控文件实现，和模型 Key 分开。其他平台或 Keychain 不可用时模型失败关闭，设置页与 Host 认证仍可使用；其他平台系统模型存储尚未验证。
 
 ### 旧 Research Web 数据迁移
 

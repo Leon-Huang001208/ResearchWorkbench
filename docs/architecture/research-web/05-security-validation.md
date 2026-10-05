@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+macOS Native 的固定模型 ref 通过 owned overlay 挂载产品 provider，私有 stdio 桥接只允许 resolve/describe/set/unset 与所属规范化 data home。桥接使用受管产品 Python，直接选择 macOS Keyring；其他平台、未知后端、拒绝访问或进程失败均失败关闭。秘密只存在系统库和受控进程内存/管道，不进入 argv、环境、URL、普通日志或报告；只散列公开 data home 路径生成命名空间，不散列秘密。不新增通用取密 HTTP API、不复制生产 Key。合成值 Keychain 验证与真实供应商生命周期分开。
+
+模型配置保持同源、回环与专属 Runtime 所有权检查。不回退环境、`.credentials.yaml`、项目 `.env` 或 DSH_HOME `.env`，不复制 Keychain 值到旧文件。浏览器认证的 client-connection/browser-session 与 readRecord/modifyRecord 仍使用固定 DSH 原有受控实现及独立 `.browser-credentials.yaml`；模型未配置、清除、桥接失败不使 record 接口失效。配置保存不读取旧秘密制作备份。活动父/子任务阻止凭据更新；凭据提交结果未知时拒绝新请求，不能假定旧秘密未变。最小生成是用户显式操作，不由列表、刷新、Doctor 或保存自动触发。
+
 一键安装只允许固定 PyPI 索引、指定 DSH GitHub 仓库和随包 CJPY 文件集；Python 锁、wheel、来源、
 提交、工作树与 DSH 构建闭包任一不符即关闭失败。子进程环境采用允许列表，不传应用密钥；安装器只
 修复带当前 checkout 所有权标记的 `.venv` 与 DSH 目录，并拒绝符号链接/Windows 重解析点。

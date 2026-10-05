@@ -31,6 +31,8 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 
 ## 当前启动链
 
+模型设置继续通过同一 `ResearchService` 与专属 DSH 处理，不增加模型执行器。固定 Provider 与 Runtime 标识分离，配置只改变新会话默认模型；用户显式生成测试复用原生会话及最终事件。研究工具插件只读取已声明注入的 Cordis 服务，子进程测试替身由独立函数参数提供，不进入运行时服务依赖。
+
 `ui/index.html` → 原生 ES 模块 → 同源 FastAPI `app.research_web.main:app` → `ResearchService` → `DSHClient` → 产品专属 DSH。原生下行双 WebSocket 归一为 Web SSE 快照。模型调用、执行循环、原生日志、工具、Skill 与子 Agent 均由 DSH 完成。
 
 独立入口不导入旧 FastAPI 生命周期、后台爬虫、知识处理或数据库迁移。轻量模块只复用项目日志设施等实用基础组件。
@@ -133,7 +135,7 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 - Automation 与 Run 事实位于数据根的原子索引；任务锁定目标版本、内容 SHA 与 MCP 工具 schema 快照。投递渠道 JSON 只保存非敏感投影，URL、密码和签名秘密只进入 `ResearchWorkbench.Delivery`。
 - 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；Excel、Word、PowerPoint 的真实验证副本位于各自 Office 容器内。Wind 复用当前 Excel 厂商会话但只持有独占空白工作簿；监督器仅清理本轮真正拥有的进程，用户已有 Excel 不进入清理集合。不持久化探测到的绝对路径、命令参数、环境变量或秘密。
 - 本机显式验证结果按 TTL 和上下文指纹读取；TTL 截止时刻即失效，`0` 表示不产生可复用的可调用证据。
-- 原生凭据只存在专属 DSH 私有目录，不提供给研究脚本环境。
+- macOS Native 模型 ref 仅进入按 data home 隔离的系统 Keychain，产品 overlay/私有进程桥接挂载于固定 DSH CredentialProvider 扩展点。Host 认证 record 独立保留于专属 DSH 私有目录；两者都不提供给研究脚本环境。其他平台模型系统存储未实施，失败关闭而不回退文件。
 - Tabbit 页面访问授权只存在于当前 Research Runtime 生命周期；实时正文 token 绑定当前会话、单次消费并在 10 分钟后过期。
 - 迁移只复制研究状态和 DSH 会话索引；凭据、运行时 overlay、临时文件、旧控制令牌与日志不复制。新实例需要在设置页重新授权模型。
 

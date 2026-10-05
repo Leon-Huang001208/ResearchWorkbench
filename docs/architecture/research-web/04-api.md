@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+1A收口：`ModelConfig.api_key`拒绝明显掩码、redacted/hidden占位及空白，错误响应仍固定invalid_request且不回显输入。普通新消息在受理收据/Native prompt之前检查凭据，configured严格为true才继续；缺失为model_credentials_missing，未确认形状为model_credential_state_unavailable。Runtime credential_storage来自受控source映射，未知不猜测为Keychain。
+
+模型页新增 `POST /api/research/runtime/model/test`：用户显式最小生成，通过现有 DSH 会话与最终事件验收，返回 `status`、`selection`、`checked_at`、可选 `session_id/code`；不返回密钥或推理正文。`PUT /runtime/model` 增加互斥的 `clear_api_key`，返回 `configured/applied_to/inference_verified`，保存不代表推理通过。Runtime GET 分开展示已保存、新会话应用、凭据配置、后端类型、提交结果未知及最近测试。
+
+macOS Native 模型 bridge 失败时，Runtime GET 保留成功的 Host `connected/health_check_passed`，仅将 `credential_configured` 设为 null、`credential_storage` 设为 unknown、`credential_code` 设为稳定 `model_credential_backend_unavailable`。不回显 Keychain 异常、不把未知当作可用；保存/请求仍沿既有失败关闭与 uncertain 处理。
+
 本批没有新增 HTTP 路由。`rwb web doctor [--json]` 是本机 CLI 诊断，现有连接目录继续通过
 `GET /api/research/data/connections` 投影天软的依赖、配置、探测和可调用事实；响应仍不含凭据。
 本轮仍不新增 HTTP 路由；CLI Doctor JSON 升为 schema 2，保留 `ok` 的安装语义，并增加
@@ -91,6 +97,7 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | PUT | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
 | GET | `/api/research/models` | `app/research_web/main.py` |
 | PUT | `/api/research/runtime/model` | `app/research_web/main.py` |
+| POST | `/api/research/runtime/model/test` | `app/research_web/main.py` |
 | GET | `/api/research/workspaces` | `app/research_web/main.py` |
 | GET | `/api/research/sessions` | `app/research_web/main.py` |
 | POST | `/api/research/sessions` | `app/research_web/main.py` |

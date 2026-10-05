@@ -273,6 +273,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     approve: (id, approval, decision) => request(`${sessionPath(id)}/approvals/${segment(approval)}`, { method: 'POST', body: { decision } }),
     answer: (id, question, answers) => request(`${sessionPath(id)}/questions/${segment(question)}`, { method: 'POST', body: { answers } }),
     configure: (body) => request('/runtime/model', { method: 'PUT', body }),
+    testModel: () => request('/runtime/model/test', { method: 'POST', body: {} }),
     tabbitStatus: () => request('/runtime/tabbit'),
     configureTabbit: (body) => request('/runtime/tabbit', { method: 'PUT', body }),
     tabbitAccess: (id, decision) => request(`${sessionPath(id)}/tabbit-access`, { method: 'POST', body: { decision } }),

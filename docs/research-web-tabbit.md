@@ -1,5 +1,7 @@
 # Research Web Tabbit 集成
 
+模型设置与Tabbit配置仍分别保存。模型默认更新只作用于新会话，活动任务阻止共享模型凭据更新；最小模型生成测试使用无浏览器工具的框架解释preset，不读取标签页或申请Tabbit授权。研究工具子进程测试注入修复不改变Tabbit的实例选择、只读声明、claim、token或原生审批。
+
 2026-09-29 启动稳定性变更增加 Web/DSH ready 与页面静态资源检查，但不会自动连接、授权或使用
 Tabbit。Doctor 的产品 ready 不代表浏览器实例在线，也不读取标签、URL、Cookie 或正文；Tabbit
 仍由独立的 Runtime 状态、会话授权、实时 claim、一次性 token 与写操作审批约束。

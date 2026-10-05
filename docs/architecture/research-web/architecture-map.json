@@ -238,6 +238,7 @@
       "id": "runtime",
       "sources": [
         "app/research_web/launch_runtime.py",
+        "app/research_web/model_credentials.py",
         "app/research_web/runtime/",
         "vendor/dsh-tabbit/0.3.4/",
         "app/research_web/sandbox.py",
@@ -257,6 +258,9 @@
       ],
       "tests": [
         "tests/research_web/test_runtime_launch.py",
+        "tests/research_web/test_model_credentials.py",
+        "tests/research_web/model_credentials_native.mjs",
+        "tests/javascript/research_web_model_credentials.test.mjs",
         "tests/research_web/test_sandbox.py",
         "tests/javascript/research_web_guard.test.mjs",
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
@@ -545,6 +549,10 @@
       "receipt": "outputs/research-web-architecture/01-deployment.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/01-deployment.visual-check.json",
       "evidence": [
+        {
+          "subjects": ["modelKeychain", "model-credential-pipe"],
+          "source": "app/research_web/model_credentials.py"
+        },
         {
           "subjects": [
             "web"
@@ -1536,6 +1544,13 @@
       "path": "/api/research/runtime/model",
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/runtime/model",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/runtime/model/test",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/runtime/model/test",
       "prefix": ""
     },
     {

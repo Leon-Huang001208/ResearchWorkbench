@@ -579,6 +579,17 @@ def prepare(
     overlay.write_text(
         "\n".join(
             [
+                "- id: credentials",
+                "  disabled: true",
+                "- insert:",
+                "    - id: research-model-credentials",
+                f"      name: {json.dumps(str(package / 'model-credentials.mjs'))}",
+                "      config:",
+                f"        python: {json.dumps(sys.executable)}",
+                f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
+                f"        dataHome: {json.dumps(str(data))}",
+                f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
+                f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- id: llm-deepseek",
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",

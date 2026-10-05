@@ -539,7 +539,7 @@ function spawnProcess(){
   if(children.length>1) setTimeout(()=>{child.stdout.end(JSON.stringify({status:'completed',stdout:'ok',stderr:'',exit_code:0,error:null}));child.emit('close',0);},5);
   return child;
 }
-apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},spawnProcess,logger:{info(){},warn(){},error(){}}},config);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config,spawnProcess);
 const controller=new AbortController();
 const first=tool.execute({code:'print(1)'},{agent:{session:{header:{id:'first',cwd}}},signal:controller.signal}).then(value=>({value}),error=>({error}));
 await pause(5); controller.abort();
@@ -592,7 +592,7 @@ function spawnProcess(){
   children.push(child);
   return child;
 }
-apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},spawnProcess,logger:{info(){},warn(){},error(){}}},config);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config,spawnProcess);
 const controller=new AbortController();
 const first=tool.execute({code:'print(1)'},{agent:{session:{header:{id:'first',cwd}}},signal:controller.signal}).then(value=>({value}),error=>({error}));
 await pause(5); controller.abort();

@@ -4917,13 +4917,14 @@
         <path data-edge-from="migration" data-edge-to="session" data-edge-label="核验后复制研究数据" data-edge-key="2" data-edge-id="migrate-session" data-composition-points="240,435;355,435" d="M 240 435 L 355 435" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="web" data-edge-to="bff" data-edge-label="HTTP / SSE" data-edge-key="3" data-edge-id="web-http" data-composition-points="240,269;355,269" d="M 240 269 L 355 269" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="bff" data-edge-to="dsh" data-edge-label="RPC / 双 WS" data-edge-key="4" data-edge-id="runtime-wire" data-composition-points="555,269;670,269" d="M 555 269 L 670 269" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="dsh" data-edge-to="model" data-edge-label="模型调用" data-edge-key="5" data-edge-id="inference" data-composition-points="870,262;985,262" d="M 870 262 L 985 262" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="session" data-edge-to="index" data-edge-label="归属与幂等收据" data-edge-key="6" data-edge-id="ownership" data-composition-points="455,478;455,558" d="M 455 478 L 455 558" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="dsh" data-edge-to="history" data-edge-label="原生日志" data-edge-key="7" data-edge-id="native-log" data-composition-points="770,226;770,146" d="M 770 226 L 770 146" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="bff" data-edge-to="session" data-edge-label="上传与下载" data-edge-key="8" data-edge-id="files" data-composition-points="455,312;455,392" d="M 455 312 L 455 392" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="dsh" data-edge-to="sandbox" data-edge-label="白名单工具" data-edge-key="9" data-edge-id="execute" data-composition-points="770,312;770,392" d="M 770 312 L 770 392" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="sandbox" data-edge-to="session" data-edge-label="会话内读写" data-edge-key="10" data-edge-id="isolated-files" data-composition-points="670,435;555,435" d="M 670 435 L 555 435" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="dsh" data-edge-to="tabbit" data-edge-label="原子 claim · 只读 DOM · keep" data-edge-key="11" data-edge-id="live-tabs" data-composition-points="870,276;927.5,276;927.5,435;985,435" d="M 870 276 L 919.5 276 Q 927.5 276 927.5 284 L 927.5 427 Q 927.5 435 935.5 435 L 985 435" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="dsh" data-edge-to="model" data-edge-label="模型调用" data-edge-key="5" data-edge-id="inference" data-composition-points="870,269;985,269" d="M 870 269 L 985 269" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="dsh" data-edge-to="modelKeychain" data-edge-label="私有进程桥接" data-edge-key="6" data-edge-id="model-credential-pipe" data-composition-points="870,255;894,255;894,170;1085,170;1085,146" d="M 870 255 L 886 255 Q 894 255 894 247 L 894 178 Q 894 170 902 170 L 1077 170 Q 1085 170 1085 162 L 1085 146" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="session" data-edge-to="index" data-edge-label="归属与幂等收据" data-edge-key="7" data-edge-id="ownership" data-composition-points="455,478;455,558" d="M 455 478 L 455 558" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="dsh" data-edge-to="history" data-edge-label="原生日志" data-edge-key="8" data-edge-id="native-log" data-composition-points="770,226;770,146" d="M 770 226 L 770 146" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="bff" data-edge-to="session" data-edge-label="上传与下载" data-edge-key="9" data-edge-id="files" data-composition-points="455,312;455,392" d="M 455 312 L 455 392" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="dsh" data-edge-to="sandbox" data-edge-label="白名单工具" data-edge-key="10" data-edge-id="execute" data-composition-points="770,312;770,392" d="M 770 312 L 770 392" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="sandbox" data-edge-to="session" data-edge-label="会话内读写" data-edge-key="11" data-edge-id="isolated-files" data-composition-points="670,435;555,435" d="M 670 435 L 555 435" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="dsh" data-edge-to="tabbit" data-edge-label="原子 claim · 只读 DOM · keep" data-edge-key="12" data-edge-id="live-tabs" data-composition-points="870,283;927.5,283;927.5,435;985,435" d="M 870 283 L 919.5 283 Q 927.5 283 927.5 291 L 927.5 427 Q 927.5 435 935.5 435 L 985 435" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
 
         <!-- Components -->
         <g id="node-manager" data-node-id="manager" data-node-label="rwb 服务管理" tabindex="0" role="button" aria-label="Focus rwb 服务管理, PID 指纹 · 健康等待 · 回滚, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="PID 指纹 · 健康等待 · 回滚" data-node-context="Architecture component">
@@ -4997,8 +4998,8 @@
         <text data-detail="context" x="455" y="615" class="t-muted" font-size="9" text-anchor="middle">归属 · 文件 · 幂等收据</text>
         </g>
 
-        <g id="node-history" data-node-id="history" data-node-label="DSH 私有目录" tabindex="0" role="button" aria-label="Focus DSH 私有目录, 原生会话历史与凭据, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="原生会话历史与凭据" data-node-context="Architecture component">
-          <title>DSH 私有目录 · 原生会话历史与凭据 · Architecture component</title>
+        <g id="node-history" data-node-id="history" data-node-label="DSH 私有目录" tabindex="0" role="button" aria-label="Focus DSH 私有目录, 原生历史 · Host 认证 record, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="原生历史 · Host 认证 record" data-node-context="Architecture component">
+          <title>DSH 私有目录 · 原生历史 · Host 认证 record · Architecture component</title>
           <rect x="670" y="60" width="200" height="86" rx="6" class="c-mask"/>
           <rect x="670" y="60" width="200" height="86" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(676 66) scale(0.6875)">
@@ -5006,7 +5007,19 @@
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-detail-anchor x="770" y="101" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">DSH 私有目录</text>
-        <text data-detail="context" x="770" y="117" class="t-muted" font-size="9" text-anchor="middle">原生会话历史与凭据</text>
+        <text data-detail="context" x="770" y="117" class="t-muted" font-size="9" text-anchor="middle">原生历史 · Host 认证 record</text>
+        </g>
+
+        <g id="node-modelKeychain" data-node-id="modelKeychain" data-node-label="macOS Keychain" tabindex="0" role="button" aria-label="Focus macOS Keychain, 固定模型 ref · data home 隔离, Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="固定模型 ref · data home 隔离" data-node-context="Architecture component">
+          <title>macOS Keychain · 固定模型 ref · data home 隔离 · Architecture component</title>
+          <rect x="985" y="60" width="200" height="86" rx="6" class="c-mask"/>
+          <rect x="985" y="60" width="200" height="86" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(991 66) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-detail-anchor x="1085" y="101" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">macOS Keychain</text>
+        <text data-detail="context" x="1085" y="117" class="t-muted" font-size="9" text-anchor="middle">固定模型 ref · data home 隔离</text>
         </g>
 
         <g id="node-migration" data-node-id="migration" data-node-label="研究数据迁移" tabindex="0" role="button" aria-label="Focus 研究数据迁移, 白名单复制 · 数量/大小/SHA, Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="白名单复制 · 数量/大小/SHA" data-node-context="Architecture component">
@@ -5091,32 +5104,36 @@
           <text x="612.5" y="259" class="t-backend" font-size="8" text-anchor="middle">RPC / 双 WS</text>
         </g>
         <g data-detail="context" data-edge-from="dsh" data-edge-to="model" data-edge-label="模型调用" data-edge-key="5" data-edge-id="inference">
-          <rect x="903.3" y="242" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="927.5" y="252" class="t-muted" font-size="8" text-anchor="middle">模型调用</text>
+          <rect x="903.3" y="249" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="927.5" y="259" class="t-muted" font-size="8" text-anchor="middle">模型调用</text>
         </g>
-        <g data-detail="context" data-edge-from="session" data-edge-to="index" data-edge-label="归属与幂等收据" data-edge-key="6" data-edge-id="ownership">
+        <g data-detail="context" data-edge-from="dsh" data-edge-to="modelKeychain" data-edge-label="私有进程桥接" data-edge-key="6" data-edge-id="model-credential-pipe">
+          <rect x="860.2" y="192.5" width="67.6" height="14" rx="3" class="c-mask"/>
+          <text x="894" y="202.5" class="t-security" font-size="8" text-anchor="middle">私有进程桥接</text>
+        </g>
+        <g data-detail="context" data-edge-from="session" data-edge-to="index" data-edge-label="归属与幂等收据" data-edge-key="7" data-edge-id="ownership">
           <rect x="416.4" y="482" width="77.2" height="14" rx="3" class="c-mask"/>
           <text x="455" y="492" class="t-muted" font-size="8" text-anchor="middle">归属与幂等收据</text>
         </g>
-        <g data-detail="context" data-edge-from="dsh" data-edge-to="history" data-edge-label="原生日志" data-edge-key="7" data-edge-id="native-log">
+        <g data-detail="context" data-edge-from="dsh" data-edge-to="history" data-edge-label="原生日志" data-edge-key="8" data-edge-id="native-log">
           <rect x="745.8" y="206" width="48.4" height="14" rx="3" class="c-mask"/>
           <text x="770" y="216" class="t-muted" font-size="8" text-anchor="middle">原生日志</text>
         </g>
-        <g data-detail="context" data-edge-from="bff" data-edge-to="session" data-edge-label="上传与下载" data-edge-key="8" data-edge-id="files">
+        <g data-detail="context" data-edge-from="bff" data-edge-to="session" data-edge-label="上传与下载" data-edge-key="9" data-edge-id="files">
           <rect x="426" y="316" width="58" height="14" rx="3" class="c-mask"/>
           <text x="455" y="326" class="t-muted" font-size="8" text-anchor="middle">上传与下载</text>
         </g>
-        <g data-detail="context" data-edge-from="dsh" data-edge-to="sandbox" data-edge-label="白名单工具" data-edge-key="9" data-edge-id="execute">
+        <g data-detail="context" data-edge-from="dsh" data-edge-to="sandbox" data-edge-label="白名单工具" data-edge-key="10" data-edge-id="execute">
           <rect x="741" y="316" width="58" height="14" rx="3" class="c-mask"/>
           <text x="770" y="326" class="t-security" font-size="8" text-anchor="middle">白名单工具</text>
         </g>
-        <g data-detail="context" data-edge-from="sandbox" data-edge-to="session" data-edge-label="会话内读写" data-edge-key="10" data-edge-id="isolated-files">
+        <g data-detail="context" data-edge-from="sandbox" data-edge-to="session" data-edge-label="会话内读写" data-edge-key="11" data-edge-id="isolated-files">
           <rect x="583.5" y="415" width="58" height="14" rx="3" class="c-mask"/>
           <text x="612.5" y="425" class="t-security" font-size="8" text-anchor="middle">会话内读写</text>
         </g>
-        <g data-detail="context" data-edge-from="dsh" data-edge-to="tabbit" data-edge-label="原子 claim · 只读 DOM · keep" data-edge-key="11" data-edge-id="live-tabs">
-          <rect x="855.3" y="335.5" width="144.4" height="14" rx="3" class="c-mask"/>
-          <text x="927.5" y="345.5" class="t-security" font-size="8" text-anchor="middle">原子 claim · 只读 DOM · keep</text>
+        <g data-detail="context" data-edge-from="dsh" data-edge-to="tabbit" data-edge-label="原子 claim · 只读 DOM · keep" data-edge-key="12" data-edge-id="live-tabs">
+          <rect x="855.3" y="339" width="144.4" height="14" rx="3" class="c-mask"/>
+          <text x="927.5" y="349" class="t-security" font-size="8" text-anchor="middle">原子 claim · 只读 DOM · keep</text>
         </g>
 
         <!-- Legend -->

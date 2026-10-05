@@ -16,7 +16,7 @@ from fastapi import FastAPI, Header, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from core.observability import get_logger, setup_logging
@@ -114,6 +114,18 @@ class ModelConfig(BaseModel):
     provider: Literal["deepseek-official"] = "deepseek-official"
     model: str = Field(min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9._:/-]+$")
     api_key: str | None = Field(default=None, min_length=1, max_length=1024, repr=False)
+    clear_api_key: bool = False
+
+    @field_validator("api_key")
+    @classmethod
+    def reject_masked_key(cls, value: str | None) -> str | None:
+        if value is not None:
+            stripped = value.strip()
+            if not stripped or set(stripped) <= {"*", "•", "●"} or stripped.casefold() in {
+                "[redacted]", "<redacted>", "[hidden]", "<hidden>"
+            }:
+                raise ValueError("credential placeholder is not a new key")
+        return value
 
 
 def create_app(service: ResearchService | None = None) -> FastAPI:
@@ -301,7 +313,15 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.put("/api/research/runtime/model")
     async def configure_model(body: ModelConfig, request: Request):
-        return await svc(request).configure_model(body.provider, body.model, body.api_key)
+        if body.clear_api_key and body.api_key is not None:
+            raise StoreError("替换与清除凭据不能同时提交", "invalid_request", 422)
+        return await svc(request).configure_model(
+            body.provider, body.model, body.api_key, clear_api_key=body.clear_api_key
+        )
+
+    @app.post("/api/research/runtime/model/test")
+    async def test_model(request: Request):
+        return await svc(request).test_model()
 
     @app.get("/api/research/runtime/tabbit")
     async def tabbit_status(request: Request):

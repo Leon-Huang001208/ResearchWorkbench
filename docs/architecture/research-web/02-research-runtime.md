@@ -1,5 +1,17 @@
 # 研究协议、执行状态与恢复
 
+## 模型配置与显式验收
+
+模型 Provider 固定为 `deepseek-official`，模型 ID 由固定 DSH 的真实目录校验。保存与显式测试共用串行边界；保存共享凭据前拒绝活动父/子任务。已有会话保留模型，新会话在创建时应用默认值；凭据由Runtime共享，替换后用于所有后续模型请求。凭据变更前先持久化旧模型与 `model_configuration_uncertain`，成功后才提交新默认值并清标记。写入前只读拒绝不改旧状态；RPC开始后的拒绝、取消、进程退出、传输或最终保存失败均保留未知标记，冷恢复也阻断后续模型请求。固定DSH的credential/rejected也可能代表提交后的observer失败，不能当作回滚收据。不会读取秘密来制作回滚副本。
+
+留空保留凭据，非空替换，`clear_api_key` 独立清除，两个动作不得同时提交。清除后的新消息被阻断；普通配置及最近测试不含密钥。macOS Native 的 `credentials` 服务通过产品 `runtime/model-credentials.mjs` 与 `model_credentials.py` 仅在系统 Keychain 解析固定模型 ref；不读取 Codex、Claude 或其他工程配置补齐。Host record 接口继续继承固定 DSH 文件 provider，使用独立 `.browser-credentials.yaml`。
+
+1A收口中，API拒绝明显掩码/空白作为新Key；普通新研究请求在创建受理收据与Native prompt之前检查凭据，缺失或未知均失败关闭。Runtime的凭据来源由describe事实映射，不能将环境/旧.env来源硬编码成系统库。新 provider 覆盖全部 ref 方法，不委托旧解析器；后端不可用仍保持 credentials 服务挂载，使 DeepSeek 不进入 ambient 分支。桥接失败只输出稳定错误码，保存的不确定性仍沿现有状态机阻断，不新增事务框架。
+
+`runtime_applied` 只在当前Runtime认证文件代际内，已有新会话实际完成 `session.selectModel` 且选择与默认值一致时为真；保存或端口可达不会设为真。代际标识仅由认证文件设备、inode与修改时间产生，不保存或散列秘密；Runtime重启更换认证文件后必须重新应用到新会话，旧证明不能冒充当前已应用。
+
+显式生成测试复用 `create/send` 与 DSH 原生日志，不创建另一个执行循环。前置所有权/凭据RPC各15秒上限，create/send/history生成段60秒预算，取消最多3秒，总上限93秒；只有原生 `turn/end completed`、最终 `assistant/message` 和非空文本齐全才通过。结果绑定模型选择，配置变化使旧测试失效；设置 GET/Doctor 不进行付费生成。工具调用另由用户显式最小研究验收。研究工具的子进程测试依赖作为调用参数传递，不访问未在 `inject` 声明的 Cordis 服务。
+
 一键安装固定 DSH 来源、提交、pnpm 与构建闭包，但不改变消息受理、双 WebSocket、SSE、恢复、
 审批或取消协议。安装失败不会启动候选 Runtime，也不会接管当前 3081/8088。
 服务管理器在 spawn 前消费 Doctor 的安装 issue；只有安装状态 `ok` 才进入 3081/8088 生命周期。
