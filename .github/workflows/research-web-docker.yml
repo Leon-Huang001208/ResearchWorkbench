@@ -263,7 +263,12 @@ jobs:
           # Fail closed: no raw line is copied, including unlabelled unknown values.
           # Only fixed diagnostic categories and aggregate counts can leave the runner.
           categories = ("health_ready", "health_failed", "probe_failed", "probe_timeout",
-                        "docker_dsh_source_verified", "docker_final_image_import_smoke_passed")
+                        "docker_dsh_source_verified", "docker_final_image_import_smoke_passed",
+                        "private_directories_ready", "child_started", "supervisor_failed",
+                        "startup_timeout", "unexpected_child_exit", "cleanup_failed",
+                        "unknown_owned_role", "auth_cleanup_failed",
+                        "MODULE_NOT_FOUND", "ERR_MODULE_NOT_FOUND", "ModuleNotFoundError",
+                        "PermissionError", "EACCES", "EROFS", "runtime_state_unsafe")
           report = {}
           for path in sorted((root / "raw").glob("*.log")):
               with path.open(errors="replace") as stream:

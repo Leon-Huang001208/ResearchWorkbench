@@ -176,6 +176,11 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
       'cookie=dsh-auth-local=fixture-cookie-value',
       'health_ready',
       '\u001b[31mtoken=fixture-terminal-value\u001b[0m',
+      'MODULE_NOT_FOUND: fixture-private-module-name',
+      'PermissionError: fixture-private-path',
+      'supervisor_failed',
+      'child_started',
+      'private_directories_ready',
     ].join('\n'));
     const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', script], {
       env: {...process.env, RWB_CI_ROOT: directory}, encoding: 'utf8', timeout: 10000,
@@ -185,9 +190,14 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
     const output = readFileSync(join(directory, 'evidence', 'failure-redacted.log'), 'utf8');
     assert.doesNotMatch(output, /fixture-|Bearer|dsh-auth|\u001b/);
     const report = JSON.parse(output)['runtime.log'];
-    assert.equal(report.scanned_lines, 5);
+    assert.equal(report.scanned_lines, 10);
     assert.equal(report.sensitive_lines_redacted, 3);
     assert.equal(report.events.health_ready, 1);
+    assert.equal(report.events.MODULE_NOT_FOUND, 1);
+    assert.equal(report.events.PermissionError, 1);
+    assert.equal(report.events.supervisor_failed, 1);
+    assert.equal(report.events.child_started, 1);
+    assert.equal(report.events.private_directories_ready, 1);
     assert.equal(report.all_raw_lines_omitted, true);
   } finally {
     rmSync(directory, {recursive: true, force: true});
