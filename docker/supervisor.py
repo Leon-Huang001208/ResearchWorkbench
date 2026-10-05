@@ -7,10 +7,12 @@ import os
 import re
 import selectors
 import signal
+import stat
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Protocol
 
@@ -19,7 +21,9 @@ if __package__ in {None, ""}:
 
 from app.research_web.process_spec import build_process_specs
 from app.research_web.runtime_auth import read_runtime_auth_record
-from app.research_web.runtime_state import runtime_state_directory
+from app.research_web.runtime_state import (
+    RuntimeStateError, _identity, _validate_directory, runtime_state_directory,
+)
 from app.research_web.service_manager import RUNTIME_TOKEN_PATTERN
 from core.observability import get_logger, setup_logging
 from core.settings import settings
@@ -28,6 +32,81 @@ from docker.healthcheck import ContainerHealth
 log = get_logger(__name__)
 ROLE_ENVIRONMENT_KEY = "RWB_SUPERVISOR_ROLE"
 MAX_ROLE_ENVIRONMENT_BYTES = 64 * 1024
+_DOCKER_PRIVATE_LEAVES = frozenset({
+    Path("/state/runtime"), Path("/run/rwb-secrets/private"), Path("/data/research-web/logs"),
+})
+
+
+def _prepare_private_leaf(path: Path) -> None:
+    """Create only fixed Docker bind children, then apply the unchanged strict guard.
+
+    Desktop can change a bind root's displayed owner on its first mkdir. Keep
+    creation separate from runtime access: no auth/credential reads occur here.
+    """
+    if os.name != "posix" or path not in _DOCKER_PRIVATE_LEAVES:
+        with runtime_state_directory(path, create=True):
+            return
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        pass
+    else:
+        # Existing leaves never receive the first-creation mapping exception.
+        with runtime_state_directory(path):
+            return
+    with ExitStack() as stack:
+        records = []
+        parent = None
+        for component in reversed(path.parents):
+            name = str(component) if parent is None else component.name
+            before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+            _validate_directory(before, leaf=False, platform_name=os.name)
+            descriptor = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            stack.callback(os.close, descriptor)
+            if _identity(os.fstat(descriptor)) != _identity(before):
+                raise RuntimeStateError("runtime_state_unsafe")
+            if component == path.parent and (
+                stat.S_IMODE(before.st_mode) != 0o700
+                or (before.st_uid, before.st_gid) not in {(0, 0), (os.getuid(), os.getgid())}
+            ):
+                raise RuntimeStateError("runtime_state_unsafe")
+            records.append((component, descriptor, parent, name, before))
+            parent = descriptor
+        # mkdirat refuses an existing racing leaf; openat never follows aliases.
+        os.mkdir(path.name, mode=0o700, dir_fd=parent)
+        leaf = os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+        stack.callback(os.close, leaf)
+        created = os.fstat(leaf)
+        _validate_directory(created, leaf=True, platform_name=os.name)
+        if stat.S_IMODE(created.st_mode) != 0o700:
+            raise RuntimeStateError("runtime_state_unsafe")
+
+        def verify_parents(*, creation_mapping=False):
+            updated = []
+            for component, descriptor, ancestor, name, before in records:
+                after = os.fstat(descriptor)
+                named = os.stat(name, dir_fd=ancestor, follow_symlinks=False)
+                _validate_directory(after, leaf=False, platform_name=os.name)
+                expected = _identity(before)
+                if (creation_mapping and component == path.parent
+                        and (before.st_uid, before.st_gid) == (0, 0)
+                        and (after.st_uid, after.st_gid) == (os.getuid(), os.getgid())):
+                    expected = (*expected[:3], os.getuid(), os.getgid())
+                if _identity(after) != expected or _identity(named) != expected:
+                    raise RuntimeStateError("runtime_state_unsafe")
+                updated.append((component, descriptor, ancestor, name, after))
+            return updated
+
+        records = verify_parents(creation_mapping=True)
+        # Re-pin with the original complete validator after the creation phase;
+        # the fresh leaf must still be the object held by our retained fd.
+        with runtime_state_directory(path):
+            if (_identity(path.lstat()) != _identity(created)
+                    or _identity(os.fstat(leaf)) != _identity(created)
+                    or _identity(os.stat(path.name, dir_fd=parent, follow_symlinks=False)) != _identity(created)):
+                raise RuntimeStateError("runtime_state_unsafe")
+        verify_parents()
+    log.info("container_private_leaf_prepared")
 
 
 @dataclass(frozen=True, slots=True)
@@ -401,10 +480,10 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
         # never chmod/chown the mount roots or weaken the shared validator.
         for private_root in (config.state_root, config.credential_root):
             if private_root is not None:
-                with runtime_state_directory(private_root, create=True):
-                    pass
+                _prepare_private_leaf(private_root)
         _event("stack", "prepared", "private_directories_ready")
-        with runtime_state_directory(config.data_root / "logs", create=True) as log_root:
+        _prepare_private_leaf(config.data_root / "logs")
+        with runtime_state_directory(config.data_root / "logs") as log_root:
             settings.LOG_DIR = str(log_root)
             setup_logging()
         if config.startup_timeout <= 0 or config.shutdown_timeout <= 0:

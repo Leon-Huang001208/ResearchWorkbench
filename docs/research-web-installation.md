@@ -128,6 +128,12 @@ Docker 的挂载根与实际私有目录不同：`/state` 仍是状态 bind 根�
 chmod/chown 挂载根。`LOG_DIR=/state/logs` 独立于私有状态叶，避免导入期日志目录创建
 提前生成权限不正确的状态叶。用户 data-root、Native 路径及 Inspector 挂载契约不变。
 
+首次 mkdir 还可能使固定 bind 根的可见 UID/GID 从 0:0 变为容器用户。Docker-only 准备器
+仅对缺失的 `/state/runtime`、`/run/rwb-secrets/private`、`/data/research-web/logs` 分阶段：
+保留 no-follow 父目录FD安全创建0700叶，固定父节点的dev/inode/mode和路径/FD一致性必须
+保持，创建阶段仅允许可信root→当前UID/GID映射；随后重新进入原完整严格校验，确认新叶
+仍为本次创建对象，才访问认证/凭据或启动进程。已有叶及自定义路径无此创建例外。
+
 Docker 容器无法等同宿主系统集成环境：Office/Wind、宿主凭据库、Tabbit 等需要 GUI、驱动、会话或本机 CLI 的能力不得仅因目录可见就标记为可调用。模型密钥须在选定模式中重新配置；Doctor/日志输出不应包含秘密或用户文件正文。`./rwb web logs --tail 100` 为有界尾部；Docker 的 `--follow` 最多读取 300 秒，每条输出流上限 64 KiB，超时或超限会结束读取，退出读取不停止服务。Doctor 的稳定 `issues` 可用于定位：`docker_cli_missing`、`docker_daemon_unavailable`、`docker_compose_missing`、`docker_architecture_unsupported`、`docker_port_8088_occupied`、`docker_port_3081_conflict`、`docker_ownership_mismatch`、`docker_build_not_ready`、`docker_data_home_unsafe`、`docker_credentials_acl_unverified`、`docker_services_unhealthy`、`runtime_stop_current_required`。按代码修复前置环境或停止已确认归属的旧模式，再重试；不要删除未知容器或修改状态文件。
 
 升级时先 `web stop`，更新受审源码和锁后用对应 `--runtime` 重建/安装，执行 Doctor、status 和实际启动验证；不能把旧安装摘要视为新代码证明。修复用同一模式的 `--repair`，先保留现有数据并核对所有权。卸载运行部分可停止服务、移除自己受管的镜像/容器或 Native `.venv`；产品数据、Docker 私有凭据和 Native 系统凭据默认保留，需先另行备份并取得明确授权才清理。没有自动执行跨模式凭据迁移或破坏性卸载。

@@ -31,6 +31,9 @@ Host controller 为一次新建启动临时叠加 launch label，Compose up失�
 校验，healthcheck 只读使用同一状态叶，Docker 显式选用 File credential backend。此区分
 兼容 Docker Desktop 的 bind 根 UID 映射，不引入 root-init 或宿主 UID 动态映射。
 
+固定state/credential叶与data-root/logs的首次创建分为受控mkdir与完整重pin两阶段，
+避免Desktop首建改变父可见owner而误报；认证、健康和子进程只能在原严格校验重新通过后运行。
+
 Docker controller 的接受状态来自私有安装摘要中的不可变镜像身份及当前构建合同；单容器
 启动只在双服务真实健康后成功。每次候选构建拥有独立 tag，发布失败不会通过共享 tag 改变
 选定镜像。此修复保留 Native/Docker 部署拓扑、DSH 唯一引擎及已有端口/挂载边界。

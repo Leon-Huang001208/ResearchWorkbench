@@ -612,3 +612,106 @@ def test_supervisor_and_health_defaults_share_private_state_leaf(monkeypatch):
     monkeypatch.setattr(healthcheck, "check", lambda *args: checks.append(args) or 0)
     assert healthcheck.main() == 0
     assert checks[0][0] == configs[0].state_root
+
+
+@pytest.mark.parametrize("name", ["runtime", "private", "logs"])
+@pytest.mark.parametrize("transition", ["mapped", "foreign_uid", "foreign_gid", "mode", "inode", "custom"])
+def test_docker_first_mkdir_owner_mapping_then_strict_repin(tmp_path, monkeypatch, name, transition):
+    from docker import supervisor
+    from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
+
+    mount = tmp_path.resolve() / "mount"
+    mount.mkdir(mode=0o700)
+    leaf = mount / name
+    real_stat, real_fstat, real_mkdir = os.stat, os.fstat, os.mkdir
+    mount_node = (real_stat(mount).st_dev, real_stat(mount).st_ino)
+    mapped = []
+
+    def project(info):
+        if (info.st_dev, info.st_ino) == mount_node:
+            values = list(info)
+            if not mapped:
+                values[4:6] = [0, 0]
+            elif transition == "foreign_uid":
+                values[4] = os.getuid() + 9876
+            elif transition == "foreign_gid":
+                values[5] = os.getgid() + 9876
+            elif transition == "mode":
+                values[0] |= 0o055
+            elif transition == "inode":
+                values[1] += 99999
+            return os.stat_result(values)
+        return info
+
+    def mkdir(path, mode=0o777, *, dir_fd=None):
+        result = real_mkdir(path, mode, dir_fd=dir_fd)
+        if str(path) == name and dir_fd is not None:
+            mapped.append(True)
+        return result
+
+    monkeypatch.setattr(os, "stat", lambda *args, **kwargs: project(real_stat(*args, **kwargs)))
+    monkeypatch.setattr(os, "fstat", lambda descriptor: project(real_fstat(descriptor)))
+    monkeypatch.setattr(os, "mkdir", mkdir)
+    # Preserve a direct reproducer of why creation inside the strict guard fails.
+    with pytest.raises(RuntimeStateError):
+        with runtime_state_directory(leaf, create=True):
+            pass
+    leaf.rmdir()
+    mapped.clear()
+    monkeypatch.setattr(supervisor, "_DOCKER_PRIVATE_LEAVES", set() if transition == "custom" else {leaf}, raising=False)
+    if transition != "mapped":
+        with pytest.raises((RuntimeStateError, OSError)):
+            supervisor._prepare_private_leaf(leaf)
+        return
+    supervisor._prepare_private_leaf(leaf)
+    assert mapped == [True]
+    with runtime_state_directory(leaf):
+        identity = leaf.stat().st_ino
+    supervisor._prepare_private_leaf(leaf)
+    assert leaf.stat().st_ino == identity
+
+
+@pytest.mark.parametrize("bad", ["parent_alias", "parent_mode", "foreign_owner", "parent_replace", "leaf_replace"])
+def test_docker_two_phase_creation_rejects_unsafe_or_replaced_nodes(tmp_path, monkeypatch, bad):
+    from docker import supervisor
+    from app.research_web.runtime_state import RuntimeStateError
+
+    mount = tmp_path.resolve() / "mount"
+    mount.mkdir(mode=0o700)
+    leaf = mount / "private"
+    monkeypatch.setattr(supervisor, "_DOCKER_PRIVATE_LEAVES", {leaf}, raising=False)
+    if bad == "parent_alias":
+        other = mount.with_name("other")
+        mount.rename(other)
+        mount.symlink_to(other, target_is_directory=True)
+    elif bad == "parent_mode":
+        mount.chmod(0o755)
+    elif bad == "foreign_owner":
+        real_stat = os.stat
+        inode = mount.stat().st_ino
+        def foreign_stat(path, *args, **kwargs):
+            info = real_stat(path, *args, **kwargs)
+            if info.st_ino == inode:
+                values = list(info)
+                values[4] = os.getuid() + 9876
+                return os.stat_result(values)
+            return info
+        monkeypatch.setattr(os, "stat", foreign_stat)
+    else:
+        original = supervisor.runtime_state_directory
+        from contextlib import contextmanager
+        @contextmanager
+        def replace_before_repin(path, **kwargs):
+            if path == leaf and leaf.exists():
+                if bad == "parent_replace":
+                    mount.rename(mount.with_name("old"))
+                    mount.mkdir(mode=0o700)
+                    leaf.mkdir(mode=0o700)
+                else:
+                    leaf.rename(mount / "old")
+                    leaf.mkdir(mode=0o700)
+            with original(path, **kwargs) as value:
+                yield value
+        monkeypatch.setattr(supervisor, "runtime_state_directory", replace_before_repin)
+    with pytest.raises((RuntimeStateError, OSError)):
+        supervisor._prepare_private_leaf(leaf)

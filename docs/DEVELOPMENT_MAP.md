@@ -18,6 +18,8 @@ Docker bind 根与私有叶布局由 Dockerfile/Compose 配置、entrypoint 父�
 严格创建与 healthcheck 只读消费共同维护；测试闭包为 `test_container_supervisor.py`、
 `test_credential_backend.py`、`test_runtime_launch.py`、`test_docker_packaging.py` 与
 `docker_runtime_contract.test.mjs`。不得通过放宽 owner、mode 或 no-follow 来适配 bind 映射。
+固定bind缺失叶的两阶段首建在supervisor内实现；其确定性测试模拟root→当前UID/GID并覆盖
+foreign owner/group、mode/inode变化、alias/替换与自定义路径不豁免，原validator不修改。
 
 `test_docker_runtime.py` 还覆盖Compose创建后返回非零/超时的恢复：本次launch标签识别、
 精确容器清理、未知实例保留、既有停止容器保护，以及离线repair失败后旧接受image重建。

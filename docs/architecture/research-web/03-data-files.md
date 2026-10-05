@@ -1,5 +1,8 @@
 # DataHub、研究资料与实际文件
 
+固定Docker bind中的私有叶首建不读取认证或凭据；创建阶段允许的父owner映射只限root到
+当前进程UID/GID，随后重新完整验证节点。已有文件、叶目录和canonical数据根均不chmod/chown。
+
 新建Compose调用的launch label通过私有临时目录内的最小配置overlay提供，退出后清除。
 它不含凭据或用户内容，不写入接受摘要；持久化数据与秘密不参与失败容器回滚删除。
 
