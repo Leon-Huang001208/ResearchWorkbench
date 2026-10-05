@@ -23,6 +23,9 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 
 ## Native 与 Docker 部署分支
 
+Host controller 为一次新建启动临时叠加 launch label，Compose up失败后也凭该标记、
+候选image与既有归属合同识别精确回滚对象；不新增常驻配置或改变部署节点与挂载。
+
 状态与凭据的 bind targets 仍是 `/state`、`/run/rwb-secrets`；容器 UID 10001 在其内部创建
 `runtime`、`private` 两个 0700 私有叶。supervisor 在 auth/probe/spawn 前调用现有严格目录
 校验，healthcheck 只读使用同一状态叶，Docker 显式选用 File credential backend。此区分

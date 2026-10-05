@@ -63,6 +63,11 @@ image ID 时，普通安装返回 `docker_upgrade_requires_container_disposition
 相关错误为 `docker_manifest_missing`、`docker_manifest_invalid`、`docker_build_contract_mismatch`、
 `docker_image_mismatch`、`docker_ready_timeout`、`docker_services_unhealthy`、`docker_rollback_failed`。
 
+Compose `up` 自身非零或超时后也执行一次有界恢复核对。新建调用使用临时配置写入一次性
+launch label，只有启动前不存在、label/安装归属/候选image全部匹配的精确容器才清理；
+并发或无法确认的实例保留，原启动issue后追加 `docker_rollback_unverified`。清理执行失败
+追加 `docker_rollback_failed`，不覆盖原up错误或自动重试删除。`--no-recreate` 保留既有停止容器。
+
 下述 `.venv` 和宿主 Node 说明仅适用于 Native。Native 默认流程会检查前置条件、创建项目自有 `.venv`、按哈希锁安装 Web 依赖、校验并安装随包
 `cjpy==0.5.2`、构建固定 DSH、启动 3081/8088 并打开浏览器。可用参数：
 

@@ -16,10 +16,12 @@ import socket
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import webbrowser
 from uuid import uuid4
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +42,7 @@ _CONTAINER_FORMAT = (
     '"service":{{json (index .Config.Labels "com.docker.compose.service")}},'
     '"installation":{{json (index .Config.Labels "io.research-workbench.installation")}},'
     '"runtime":{{json (index .Config.Labels "io.research-workbench.runtime")}},'
+    '"launch":{{json (index .Config.Labels "io.research-workbench.launch")}},'
     '"working_dir":{{json (index .Config.Labels "com.docker.compose.project.working_dir")}},'
     '"running":{{json .State.Running}},"state":{{json .State.Status}},'
     '"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}"none"{{end}},'
@@ -53,8 +56,9 @@ _CONTAINER_FORMAT = (
 class ControlError(RuntimeError):
     """Path-free issue code suitable for CLI output."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, *related: str):
         self.code = code
+        self.related = related
         super().__init__(code)
 
 
@@ -602,7 +606,7 @@ class DockerRuntime:
         except (ControlError, RuntimeModeError) as error:
             code = error.code if isinstance(error, ControlError) else "docker_data_home_unsafe"
             log.warning("docker_runtime operation=%s code=%s", operation, code)
-            return result(code, mode="docker")
+            return result(code, *getattr(error, "related", ()), mode="docker")
         except OSError:
             log.warning("docker_runtime operation=%s code=docker_io", operation)
             return result("docker_io", mode="docker")
@@ -768,20 +772,39 @@ class DockerRuntime:
             self._safe_home()
             before = self._containers()
             self._match_image(before, image_id)
-            created_id = None
-            try:
-                self._call([*self.compose_prefix, "up", "--detach", "--no-build", "--pull", "never", "research-web"], "docker_start_failed", timeout=60, image=image_id)
-                after = self._containers()
-                self._match_image(after, image_id)
-                if not before and after:
-                    created_id = after[0]["id"]
-                    self._created_container = (created_id, image_id)
-                return self._wait_ready(image_id, wait_timeout=wait_timeout)
-            except (ControlError, OSError) as error:
-                log.warning("docker_runtime code=%s", error.code if isinstance(error, ControlError) else "docker_io")
-                if created_id:
-                    self._rollback_created()
-                raise
+            launch = uuid4().hex if not before else None
+            with ExitStack() as cleanup:
+                command = list(self.compose_prefix)
+                if launch is not None:
+                    scratch = cleanup.enter_context(tempfile.TemporaryDirectory(prefix="rwb-launch-"))
+                    overlay = Path(scratch) / "launch.json"
+                    overlay.write_text(json.dumps({"services": {"research-web": {"labels": {
+                        "io.research-workbench.launch": launch,
+                    }}}}), encoding="utf-8")
+                    command.extend(("-f", str(overlay)))
+                try:
+                    self._call([*command, "up", "--detach", "--no-build", "--pull", "never", "--no-recreate", "research-web"], "docker_start_failed", timeout=60, image=image_id)
+                    if not before:
+                        self._record_created(image_id, launch)
+                    return self._wait_ready(image_id, wait_timeout=wait_timeout)
+                except (ControlError, OSError) as error:
+                    original = error.code if isinstance(error, ControlError) else "docker_io"
+                    log.warning("docker_runtime code=%s", original)
+                    if not before and self._created_container is None:
+                        # up may create before returning nonzero or timing out.
+                        # One bounded enumeration, never infer ownership merely
+                        # from a matching project/image or delete by service name.
+                        try:
+                            self._record_created(image_id, launch)
+                        except (ControlError, OSError):
+                            log.warning("docker_runtime code=docker_rollback_unverified")
+                            raise ControlError(original, "docker_rollback_unverified") from error
+                    if self._created_container is not None:
+                        try:
+                            self._rollback_created()
+                        except (ControlError, OSError):
+                            raise ControlError(original, "docker_rollback_failed") from error
+                    raise
         report = self._guard("start", start_owned)
         if report["ok"] and open_browser:
             try:
@@ -801,15 +824,27 @@ class DockerRuntime:
     def _rollback_created(self):
         if self._created_container is None:
             return
-        identity, image_id = self._created_container
+        identity, image_id, launch = self._created_container
+        # A caller's outer transaction must not silently repeat a failed delete
+        # or replace the original up error with a second cleanup exception.
+        self._created_container = None
         try:
             current = self._inspect(identity)
             self._match_image([current], image_id)
+            if current.get("launch") != launch:
+                raise ControlError("docker_rollback_unverified")
             self._call(["docker", "rm", "--force", identity], "docker_rollback_failed")
-            self._created_container = None
         except (ControlError, OSError):
             log.warning("docker_runtime code=docker_rollback_failed")
             raise ControlError("docker_rollback_failed") from None
+
+    def _record_created(self, image_id, launch):
+        containers = self._containers()
+        self._match_image(containers, image_id)
+        if containers:
+            if launch is None or containers[0].get("launch") != launch:
+                raise ControlError("docker_rollback_unverified")
+            self._created_container = (containers[0]["id"], image_id, launch)
 
     def _start_candidate(self, manifest: dict) -> dict:
         # Private installer transaction entry. Public start always reloads the

@@ -26,6 +26,11 @@ class RecordingRunner:
     def __call__(self, argv, **kwargs):
         self.calls.append((argv, kwargs))
         command = tuple(argv)
+        if "up" in command and self.container:
+            files = [argv[index + 1] for index, value in enumerate(argv[:-1]) if value == "-f"]
+            if len(files) > 1:
+                overlay = json.loads(Path(files[-1]).read_text())
+                self.container["launch"] = overlay["services"]["research-web"]["labels"]["io.research-workbench.launch"]
         if self.failure and self.failure[0] in command:
             if isinstance(self.failure[1], Exception):
                 raise self.failure[1]
@@ -207,7 +212,7 @@ def test_start_late_failure_rolls_back_only_verified_new_container(
 
     controller.runner = launch
     report = controller.start(open_browser=False, wait_timeout=0)
-    assert report["issues"] == ["docker_rollback_failed" if foreign_on_rollback else code]
+    assert report["issues"] == ([code, "docker_rollback_failed"] if foreign_on_rollback else [code])
     removals = [argv for argv, _ in runner.calls if argv[1:2] == ["rm"]]
     assert removals == ([] if foreign_on_rollback else [["docker", "rm", "--force", "c" * 64]])
     assert controller.data_dir.is_dir() and controller.credential_dir.is_dir()
@@ -276,7 +281,7 @@ def test_candidate_does_not_override_public_missing_manifest(runtime):
     assert controller.start(open_browser=False)["issues"] == ["docker_manifest_missing"]
 
 
-@pytest.mark.parametrize("failure", ["none", "unhealthy", "publish", "no_start", "race"])
+@pytest.mark.parametrize("failure", ["none", "unhealthy", "publish", "no_start", "race", "up_exit", "up_timeout"])
 def test_explicit_repair_disposes_only_stopped_owned_container_and_keeps_fallback(
     runtime, monkeypatch, failure
 ):
@@ -300,6 +305,12 @@ def test_explicit_repair_disposes_only_stopped_owned_container_and_keeps_fallbac
             runner.container.update(id="d" * 64, image=kwargs["env"]["RWB_IMAGE"])
             if failure == "unhealthy" and runner.container["image"] == candidate_image:
                 runner.container["health"] = "unhealthy"
+            if failure in ("up_exit", "up_timeout") and runner.container["image"] == candidate_image:
+                runner(argv, **kwargs)
+                if failure == "up_timeout":
+                    from research_workbench_entrypoint.docker_runtime import ControlError
+                    raise ControlError("runtime_command_timeout")
+                return subprocess.CompletedProcess(argv, 1, "", "fixture up failure")
         if argv[1:2] == ["rm"] and "--force" not in argv and failure == "race":
             runner.container.update(running=True, state="running")
             runner.calls.append((argv, kwargs))
@@ -313,7 +324,7 @@ def test_explicit_repair_disposes_only_stopped_owned_container_and_keeps_fallbac
         def fail_publish(*args):
             raise RuntimeError("injected_publish_failure")
         monkeypatch.setattr(setup_web, "_write_docker_manifest", fail_publish)
-    if failure in ("unhealthy", "publish", "race"):
+    if failure in ("unhealthy", "publish", "race", "up_exit", "up_timeout"):
         with pytest.raises(RuntimeError):
             installer.install(repair=True)
         assert path.read_bytes() == previous
@@ -349,6 +360,66 @@ def test_repair_reinspection_refuses_concurrent_start_before_rm(runtime, monkeyp
     with pytest.raises(ControlError, match="runtime_stop_current_required"):
         controller._dispose_stopped_for_repair(record)
     assert not any(argv[1:2] == ["rm"] for argv, _ in runner.calls)
+
+
+@pytest.mark.parametrize("after", ["owned", "foreign", "image", "concurrent", "unreadable", "existing", "rm_failure"])
+@pytest.mark.parametrize("failure", ["exit", "timeout"])
+def test_up_created_then_failed_recovers_only_this_launch(runtime, monkeypatch, after, failure):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.docker_runtime import ControlError
+    controller, runner, _ = runtime
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    monkeypatch.setattr(controller, "_ports_free", lambda: None)
+    if after == "existing":
+        owned(controller, runner)
+        runner.container.update(running=False, state="exited")
+    failed = []
+
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            if after != "existing":
+                owned(controller, runner)
+            runner(argv, **kwargs)
+            if after == "foreign":
+                runner.container["installation"] = "foreign"
+            elif after == "image":
+                runner.container["image"] = "sha256:" + "a" * 64
+            elif after == "concurrent":
+                runner.container["launch"] = "different-launch"
+            failed.append(True)
+            if failure == "timeout":
+                raise ControlError("runtime_command_timeout")
+            return subprocess.CompletedProcess(argv, 1, "", "fixture up failure")
+        if after == "unreadable" and failed and argv[1:2] == ["ps"]:
+            raise ControlError("docker_status_failed")
+        if after == "rm_failure" and argv[1:2] == ["rm"]:
+            runner.calls.append((argv, kwargs))
+            raise ControlError("docker_rollback_failed")
+        return runner(argv, **kwargs)
+
+    controller.runner = launch
+    report = controller.start(open_browser=False)
+    original = "runtime_command_timeout" if failure == "timeout" else "docker_start_failed"
+    assert report["issues"][0] == original
+    up = next(argv for argv, _ in runner.calls if "up" in argv)
+    assert "--no-recreate" in up
+    overlays = [up[index + 1] for index, value in enumerate(up[:-1]) if value == "-f"][1:]
+    assert len(overlays) == (0 if after == "existing" else 1)
+    assert all(not Path(path).exists() for path in overlays)
+    removals = [argv for argv, _ in runner.calls if argv[1:2] == ["rm"]]
+    if after == "owned":
+        assert removals == [["docker", "rm", "--force", "c" * 64]]
+        assert runner.container is None
+    elif after == "rm_failure":
+        assert report["issues"] == [original, "docker_rollback_failed"]
+        assert len(removals) == 1 and runner.container is not None
+        assert controller._created_container is None
+        controller._rollback_created()
+        assert len([argv for argv, _ in runner.calls if argv[1:2] == ["rm"]]) == 1
+    else:
+        assert removals == [] and runner.container is not None
+        if after != "existing":
+            assert report["issues"] == [original, "docker_rollback_unverified"]
 
 
 @pytest.mark.parametrize("health", ["unhealthy", "starting", "none"])
@@ -746,7 +817,7 @@ def test_install_and_start_use_only_named_service_without_autostart(runtime):
     controller.runner = on_up
     assert controller.start(open_browser=False)["services"]["web"]["running"]
     up = next(argv for argv, _ in runner.calls if "up" in argv)
-    assert up[-6:] == ["up", "--detach", "--no-build", "--pull", "never", "research-web"]
+    assert up[-7:] == ["up", "--detach", "--no-build", "--pull", "never", "--no-recreate", "research-web"]
     assert controller.data_dir.is_dir()
     assert controller.state_dir.is_dir()
     assert controller.credential_dir.is_dir()

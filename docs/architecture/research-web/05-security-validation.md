@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+启动前无容器不等于启动后同project容器就是本次创建：回滚还必须验证本次随机launch label、
+候选image与全部原所有权项。临时Compose overlay仅添加此非秘密标签；`--no-recreate`
+禁止改造既有停止容器，未知/不可读/不匹配状态不删除，保留原失败与恢复失败issue。
+
 Docker Desktop bind 根的 UID 映射不能替代私有目录所有权证明。Docker-only 使用挂载内
 由非 root 容器 UID 创建的 0700 子目录；原 runtime_state_directory 与 File credential
 backend 的 owner、mode、dirfd/no-follow 检查保持不变。新增回归覆盖启动前准备、重启复用、
