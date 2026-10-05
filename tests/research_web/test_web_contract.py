@@ -1,0 +1,959 @@
+"""Shared standard-library Research Web runtime contracts."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import socket
+import stat
+import struct
+import subprocess
+import sys
+import tempfile
+import threading
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+from research_workbench_entrypoint import web_contract
+from research_workbench_entrypoint.web_contract import (
+    HttpFact,
+    ListenerFact,
+    PrivateJsonFact,
+    ProcessFact,
+    classify_python_environment,
+    command_line,
+    http_get,
+    listener_pids,
+    node_version_issue,
+    pid_exists,
+    port_listening,
+    probe_process,
+    proxy_warnings,
+    read_private_json,
+    signature_matches_argv,
+)
+
+
+def _write_private_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value), encoding="utf-8")
+    path.chmod(0o600)
+
+
+def test_private_json_reader_requires_private_regular_single_link_file(tmp_path: Path) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+
+    assert read_private_json(path, trusted_root=root, max_bytes=1024) == PrivateJsonFact(
+        "valid", {"schema": 1}, None
+    )
+
+    path.chmod(0o644)
+    assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+    path.chmod(0o600)
+    hardlink = root / "run" / "hardlink.json"
+    os.link(path, hardlink)
+    assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS /var is a system alias")
+def test_private_json_reader_accepts_system_alias_above_trusted_root() -> None:
+    with tempfile.TemporaryDirectory(prefix="rwb-private-json-", dir="/var/tmp") as directory:
+        root = Path(directory)
+        path = root / "run" / "state.json"
+        _write_private_json(path, {"schema": 1})
+
+        assert read_private_json(path, trusted_root=root, max_bytes=1024) == PrivateJsonFact(
+            "valid", {"schema": 1}, None
+        )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX symlink behavior")
+def test_private_json_reader_rejects_alias_at_root_and_relative_escape(tmp_path: Path) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+    alias = tmp_path / "alias"
+    alias.symlink_to(root, target_is_directory=True)
+    assert read_private_json(alias / "run" / "state.json", trusted_root=alias).state == "invalid"
+
+    foreign = tmp_path / "foreign" / "state.json"
+    _write_private_json(foreign, {"schema": 2})
+    escaped = root / ".." / "foreign" / "state.json"
+    assert read_private_json(escaped, trusted_root=root).state == "invalid"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX link behavior")
+@pytest.mark.parametrize("alias", ["parent", "leaf"])
+def test_private_json_reader_rejects_parent_and_leaf_symlinks(tmp_path: Path, alias: str) -> None:
+    root = tmp_path / "private"
+    foreign = tmp_path / "foreign"
+    foreign_path = foreign / "state.json"
+    _write_private_json(foreign_path, {"schema": 1})
+    run = root / "run"
+    root.mkdir()
+    if alias == "parent":
+        run.symlink_to(foreign, target_is_directory=True)
+        path = run / "state.json"
+    else:
+        run.mkdir()
+        path = run / "state.json"
+        path.symlink_to(foreign_path)
+
+    assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"x" * 1025, (("[" * 1100) + "0" + ("]" * 1100)).encode()],
+    ids=["oversize", "deep-json"],
+)
+def test_private_json_reader_bounds_content_without_disclosure(
+    tmp_path: Path, content: bytes
+) -> None:
+    root = tmp_path / "private"
+    path = root / "state.json"
+    path.parent.mkdir()
+    path.write_bytes(content)
+    path.chmod(0o600)
+
+    fact = read_private_json(path, trusted_root=root, max_bytes=1024)
+
+    assert fact == PrivateJsonFact("invalid", None, "private_json_invalid")
+    assert str(tmp_path) not in repr(fact)
+
+
+@pytest.mark.parametrize("race", ["parent", "leaf"])
+def test_private_json_reader_rejects_posix_identity_races(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, race: str
+) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+    original_fstat = os.fstat
+    seen_directories = 0
+
+    def changed_fstat(fd: int):
+        nonlocal seen_directories
+        identity = original_fstat(fd)
+        target = (
+            stat.S_ISREG(identity.st_mode) if race == "leaf" else stat.S_ISDIR(identity.st_mode)
+        )
+        if target:
+            if race == "parent":
+                seen_directories += 1
+                target = seen_directories > 1
+            if target:
+                return SimpleNamespace(
+                    st_mode=identity.st_mode,
+                    st_dev=identity.st_dev,
+                    st_ino=identity.st_ino + 1,
+                    st_nlink=identity.st_nlink,
+                    st_size=identity.st_size,
+                )
+        return identity
+
+    monkeypatch.setattr(os, "fstat", changed_fstat)
+
+    assert read_private_json(path, trusted_root=root, max_bytes=1024).state == "invalid"
+
+
+@pytest.mark.parametrize("race", ["reparse-parent", "reparse-leaf", "parent", "leaf"])
+def test_private_json_reader_rejects_windows_reparse_and_identity_models(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, race: str
+) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+    target = root / "run" if "parent" in race else path
+    original_lstat = Path.lstat
+    reads = 0
+
+    def modeled_lstat(current: Path):
+        nonlocal reads
+        identity = original_lstat(current)
+        if current != target:
+            return identity
+        reads += 1
+        changed = race.startswith("reparse") or reads > 1
+        if not changed:
+            return identity
+        return SimpleNamespace(
+            st_mode=identity.st_mode,
+            st_file_attributes=(0x400 if race.startswith("reparse") else 0),
+            st_dev=identity.st_dev,
+            st_ino=identity.st_ino + (0 if race.startswith("reparse") else 1),
+            st_nlink=identity.st_nlink,
+            st_size=identity.st_size,
+        )
+
+    monkeypatch.setattr(Path, "lstat", modeled_lstat)
+
+    assert (
+        read_private_json(path, trusted_root=root, max_bytes=1024, platform_name="nt").state
+        == "invalid"
+    )
+
+
+def test_private_json_reader_rejects_windows_opened_leaf_identity_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "private"
+    path = root / "run" / "state.json"
+    _write_private_json(path, {"schema": 1})
+    original_fstat = os.fstat
+
+    def changed_fstat(fd: int):
+        identity = original_fstat(fd)
+        if stat.S_ISREG(identity.st_mode):
+            return SimpleNamespace(
+                st_mode=identity.st_mode,
+                st_file_attributes=0,
+                st_dev=identity.st_dev,
+                st_ino=identity.st_ino + 1,
+                st_nlink=identity.st_nlink,
+                st_size=identity.st_size,
+            )
+        return identity
+
+    monkeypatch.setattr(os, "fstat", changed_fstat)
+
+    assert (
+        read_private_json(path, trusted_root=root, max_bytes=1024, platform_name="nt").state
+        == "invalid"
+    )
+
+
+@pytest.mark.parametrize(
+    ("signature", "argv", "expected"),
+    [
+        (("3081",), ("python", "--port", "3081"), True),
+        (("3081",), ("python", "--port", "13081"), False),
+        (("3081",), ("python", "prefix-3081-suffix"), False),
+        (
+            ("app.research_web.main:app", "8088"),
+            ("uvicorn", "app.research_web.main:app", "--port", "8088"),
+            True,
+        ),
+        (("source", "3081"), ("3081", "source"), False),
+        (("source", "3081"), ("source", "--flag", "value", "3081"), True),
+    ],
+)
+def test_signature_matching_requires_exact_argv_tokens(signature, argv, expected) -> None:
+    assert signature_matches_argv(signature, argv) is expected
+
+
+def test_linux_cmdline_reader_preserves_nul_delimited_argv_boundaries(tmp_path: Path) -> None:
+    pid = 4321
+    path = tmp_path / str(pid) / "cmdline"
+    path.parent.mkdir()
+    path.write_bytes(b"python\0--project\0/project with spaces\0--port\x003081\0")
+
+    assert web_contract._read_linux_argv(pid, proc_root=tmp_path) == (
+        "python",
+        "--project",
+        "/project with spaces",
+        "--port",
+        "3081",
+    )
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"python\0unterminated", b"x" * (256 * 1024 + 1), b""],
+    ids=["malformed", "oversize", "empty"],
+)
+def test_linux_cmdline_reader_returns_unavailable_for_invalid_content(
+    tmp_path: Path, content: bytes
+) -> None:
+    pid = 4321
+    path = tmp_path / str(pid) / "cmdline"
+    path.parent.mkdir()
+    path.write_bytes(content)
+
+    assert web_contract._read_linux_argv(pid, proc_root=tmp_path) is None
+
+
+def test_linux_cmdline_reader_returns_unavailable_when_unreadable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "4321" / "cmdline"
+    path.parent.mkdir()
+    path.write_bytes(b"python\0")
+    original_open = Path.open
+
+    def denied(current: Path, *args, **kwargs):
+        if current == path:
+            raise PermissionError("private procfs detail")
+        return original_open(current, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", denied)
+
+    assert web_contract._read_linux_argv(4321, proc_root=tmp_path) is None
+
+
+def test_macos_procargs2_parser_preserves_exact_argv_tokens() -> None:
+    argv = ("/usr/bin/python3", "--project", "/project with spaces", "3081")
+    payload = (
+        struct.pack("=i", len(argv))
+        + b"/usr/bin/python3\0"
+        + b"\0\0\0"
+        + b"\0".join(item.encode() for item in argv)
+        + b"\0USER=test\0"
+    )
+
+    assert web_contract._parse_macos_procargs2(payload) == argv
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"",
+        struct.pack("=i", 0) + b"/python\0\0",
+        struct.pack("=i", 3) + b"/python\0\0python\0only-two\0",
+        b"x" * (256 * 1024 + 1),
+    ],
+    ids=["empty", "argc-zero", "argc-mismatch", "oversize"],
+)
+def test_macos_procargs2_parser_rejects_malformed_or_oversized_payload(payload: bytes) -> None:
+    assert web_contract._parse_macos_procargs2(payload) is None
+
+
+def test_macos_argv_reader_returns_unavailable_when_sysctl_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Library:
+        @staticmethod
+        def sysctl(*_args) -> int:
+            return -1
+
+    monkeypatch.setattr(web_contract.ctypes, "CDLL", lambda *_args, **_kwargs: Library())
+
+    assert web_contract._read_macos_argv(4321) is None
+
+
+def test_other_posix_never_guesses_argv_from_ps(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Result:
+        returncode = 0
+
+        def __init__(self, stdout: str) -> None:
+            self.stdout = stdout
+
+    results = iter(
+        [
+            Result("S+\n"),
+            Result("python --project /project with spaces --port 3081\n"),
+            Result("Mon Sep 29 15:00:00 2026\n"),
+        ]
+    )
+    monkeypatch.setattr(os, "kill", lambda _pid, _signal: None)
+    monkeypatch.setattr(web_contract, "_run_process_probe", lambda _command: next(results))
+
+    fact = probe_process(4321, platform_name="freebsd")
+
+    assert fact.state == "alive"
+    assert fact.argv is None
+    assert fact.issue == "process_argv_unavailable"
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="requires macOS KERN_PROCARGS2")
+def test_macos_real_child_probe_preserves_spaced_argv_token() -> None:
+    spaced = "/tmp/research workbench exact argv"
+    token = "unique-port-3081-exact-token"
+    child = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(5)", spaced, token],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        fact = probe_process(child.pid)
+        assert fact.state == "alive"
+        assert fact.argv is not None
+        assert spaced in fact.argv
+        assert token in fact.argv
+        assert signature_matches_argv((spaced, token), fact.argv) is True
+    finally:
+        child.terminate()
+        child.wait(timeout=5)
+
+
+@pytest.mark.parametrize(
+    ("platform_name", "returncode", "stdout", "expected"),
+    [
+        ("posix", 0, "4321\n9876\n", ListenerFact("listening", (4321, 9876), None)),
+        ("posix", 1, "", ListenerFact("closed", (), None)),
+        ("nt", 0, "4321\n", ListenerFact("listening", (4321,), None)),
+    ],
+)
+def test_listener_pid_probe_returns_exact_bounded_owners(
+    monkeypatch: pytest.MonkeyPatch,
+    platform_name: str,
+    returncode: int,
+    stdout: str,
+    expected: ListenerFact,
+) -> None:
+    calls = []
+
+    class Result:
+        def __init__(self) -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+
+    monkeypatch.setattr(
+        web_contract,
+        "_run_process_probe",
+        lambda command: calls.append(command) or Result(),
+    )
+
+    assert listener_pids(3081, platform_name=platform_name) == expected
+    if platform_name == "nt":
+        assert "Get-NetTCPConnection" in calls[0][-1]
+    else:
+        assert calls[0] == ["lsof", "-nP", "-iTCP:3081", "-sTCP:LISTEN", "-t"]
+
+
+def test_listener_pid_probe_failure_is_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(web_contract, "_run_process_probe", lambda _command: None)
+
+    assert listener_pids(3081) == ListenerFact("unknown", (), "listener_probe_failed")
+
+
+@pytest.mark.parametrize(
+    ("value", "issue"),
+    [
+        ("v22.19.0", None),
+        ("22.99.1", None),
+        ("v24.0.0", None),
+        ("  v24.0.0  ", None),
+        ("v24.999.0", None),
+        ("v22.18.9", "node_version_unsupported"),
+        ("v23.11.0", "node_version_unsupported"),
+        ("v25.0.0", "node_version_unsupported"),
+        ("garbage v24.0.0 trailing", "node_version_invalid"),
+        ("v24.0.0.1", "node_version_invalid"),
+        ("release-22.19beta", "node_version_invalid"),
+        ("v22.19", "node_version_invalid"),
+        ("v24.0.0-beta.1", "node_version_invalid"),
+        ("v٢٤.٠.٠", "node_version_invalid"),
+        ("v２４.０.０", "node_version_invalid"),
+        ("v24.０.0", "node_version_invalid"),
+        ("not-a-version", "node_version_invalid"),
+        ("", "node_version_invalid"),
+        (None, "node_version_invalid"),
+    ],
+)
+def test_node_version_issue_matches_install_contract(value: str | None, issue: str | None) -> None:
+    assert node_version_issue(value) == issue
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        f"v{'9' * 5000}.0.0",
+        f"v24.{'9' * 5000}.0",
+        f"v24.0.{'9' * 5000}",
+    ],
+    ids=["major", "minor", "patch"],
+)
+def test_node_version_issue_rejects_overlong_numeric_segments(value: str) -> None:
+    assert node_version_issue(value) == "node_version_invalid"
+
+
+def _write_interpreter(project_root: Path, platform_name: str) -> Path:
+    relative = "Scripts/python.exe" if platform_name == "nt" else "bin/python"
+    interpreter = project_root / ".venv" / relative
+    interpreter.parent.mkdir(parents=True, exist_ok=True)
+    interpreter.write_text("fixture", encoding="utf-8")
+    interpreter.chmod(0o755)
+    return interpreter
+
+
+def _environment_marker(project_root: Path) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "owner": "research-workbench-web-installer",
+        "project_root_sha256": hashlib.sha256(str(project_root.resolve()).encode()).hexdigest(),
+        "python": "Python 3.12.13",
+        "created_at": "2026-09-29T12:00:00+00:00",
+    }
+
+
+def _write_environment_marker(project_root: Path, value: object) -> Path:
+    marker = project_root / ".venv" / ".rwb-web-environment.json"
+    marker.write_text(json.dumps(value), encoding="utf-8")
+    return marker
+
+
+@pytest.mark.parametrize(
+    ("platform_name", "relative"),
+    [("posix", "bin/python"), ("nt", "Scripts/python.exe")],
+)
+def test_python_environment_selects_platform_interpreter_and_accepts_exact_marker(
+    tmp_path: Path, platform_name: str, relative: str
+) -> None:
+    interpreter = _write_interpreter(tmp_path, platform_name)
+    _write_environment_marker(tmp_path, _environment_marker(tmp_path))
+
+    fact = classify_python_environment(tmp_path, platform_name=platform_name)
+
+    assert fact.issue is None
+    assert fact.interpreter == tmp_path / ".venv" / relative
+    assert fact.interpreter == interpreter
+    assert fact.marker_valid is True
+    assert (
+        web_contract.environment_marker_valid(
+            tmp_path / ".venv", tmp_path, platform_name=platform_name
+        )
+        is True
+    )
+
+
+def test_python_environment_distinguishes_missing_incomplete_and_unusable(
+    tmp_path: Path,
+) -> None:
+    missing = classify_python_environment(tmp_path, platform_name="posix")
+    assert missing.issue == "python_environment_missing"
+    assert missing.marker_valid is False
+
+    environment = tmp_path / ".venv"
+    environment.mkdir()
+    incomplete = classify_python_environment(tmp_path, platform_name="posix")
+    assert incomplete.issue == "python_environment_incomplete"
+
+    _write_environment_marker(tmp_path, _environment_marker(tmp_path))
+    binary = environment / "bin" / "python"
+    binary.parent.mkdir()
+    binary.write_text("not executable", encoding="utf-8")
+    binary.chmod(0o644)
+    unusable = classify_python_environment(tmp_path, platform_name="posix")
+    assert unusable.issue == "python_environment_unusable"
+    assert unusable.marker_valid is True
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("schema_version", True),
+        ("schema_version", 1.0),
+        ("schema_version", "1"),
+        ("schema_version", 2),
+        ("owner", True),
+        ("owner", 1),
+        ("owner", "someone-else"),
+        ("project_root_sha256", 1),
+        ("project_root_sha256", "0" * 64),
+        ("python", None),
+        ("created_at", 1),
+    ],
+)
+def test_python_environment_rejects_wrong_marker_field_types_and_values(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    _write_interpreter(tmp_path, "posix")
+    marker = _environment_marker(tmp_path)
+    marker[field] = value
+    _write_environment_marker(tmp_path, marker)
+
+    fact = classify_python_environment(tmp_path, platform_name="posix")
+
+    assert fact.issue == "python_environment_incomplete"
+    assert fact.marker_valid is False
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["not-json", "[]", '"not-an-object"', "null"],
+)
+def test_python_environment_rejects_invalid_or_non_object_marker(
+    tmp_path: Path, value: str
+) -> None:
+    _write_interpreter(tmp_path, "posix")
+    marker = tmp_path / ".venv" / ".rwb-web-environment.json"
+    marker.write_text(value, encoding="utf-8")
+
+    fact = classify_python_environment(tmp_path, platform_name="posix")
+
+    assert fact.issue == "python_environment_incomplete"
+    assert fact.marker_valid is False
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "schema_version",
+        "owner",
+        "project_root_sha256",
+        "python",
+        "created_at",
+    ],
+)
+def test_python_environment_rejects_missing_marker_keys(tmp_path: Path, missing: str) -> None:
+    _write_interpreter(tmp_path, "posix")
+    marker = _environment_marker(tmp_path)
+    marker.pop(missing)
+    _write_environment_marker(tmp_path, marker)
+
+    assert (
+        classify_python_environment(tmp_path, platform_name="posix").issue
+        == "python_environment_incomplete"
+    )
+
+
+def test_python_environment_rejects_extra_marker_keys(tmp_path: Path) -> None:
+    _write_interpreter(tmp_path, "posix")
+    marker = _environment_marker(tmp_path)
+    marker["unexpected"] = True
+    _write_environment_marker(tmp_path, marker)
+
+    assert (
+        classify_python_environment(tmp_path, platform_name="posix").issue
+        == "python_environment_incomplete"
+    )
+
+
+def test_python_environment_rejects_marker_bound_to_another_checkout(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    _write_interpreter(second, "posix")
+    _write_environment_marker(second, _environment_marker(first))
+
+    fact = classify_python_environment(second, platform_name="posix")
+
+    assert fact.issue == "python_environment_incomplete"
+    assert fact.marker_valid is False
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_python_environment_rejects_marker_symlink(tmp_path: Path) -> None:
+    _write_interpreter(tmp_path, "posix")
+    real_marker = tmp_path / "real-marker.json"
+    real_marker.write_text(json.dumps(_environment_marker(tmp_path)), encoding="utf-8")
+    (tmp_path / ".venv" / ".rwb-web-environment.json").symlink_to(real_marker)
+
+    assert (
+        classify_python_environment(tmp_path, platform_name="posix").issue
+        == "python_environment_incomplete"
+    )
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")
+def test_python_environment_rejects_environment_symlink(tmp_path: Path) -> None:
+    real_root = tmp_path / "real"
+    project_root = tmp_path / "checkout"
+    project_root.mkdir()
+    _write_interpreter(real_root, "posix")
+    _write_environment_marker(real_root, _environment_marker(project_root))
+    (project_root / ".venv").symlink_to(real_root / ".venv", target_is_directory=True)
+
+    assert (
+        classify_python_environment(project_root, platform_name="posix").issue
+        == "python_environment_incomplete"
+    )
+
+
+def test_python_environment_rejects_windows_reparse_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    environment = tmp_path / ".venv"
+    _write_interpreter(tmp_path, "nt")
+    _write_environment_marker(tmp_path, _environment_marker(tmp_path))
+    original_lstat = Path.lstat
+
+    def lstat(path: Path) -> os.stat_result | SimpleNamespace:
+        identity = original_lstat(path)
+        if path == environment:
+            return SimpleNamespace(
+                st_mode=identity.st_mode,
+                st_file_attributes=getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400),
+            )
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", lstat)
+
+    assert web_contract.environment_marker_valid(environment, tmp_path, platform_name="nt") is False
+
+
+@pytest.mark.parametrize(
+    "environment",
+    [
+        {"HTTP_PROXY": "http://proxy.invalid", "NO_PROXY": "127.0.0.1,localhost"},
+        {"https_proxy": "http://proxy.invalid", "no_proxy": "LOCALHOST, 127.0.0.1"},
+        {"HTTPS_PROXY": "http://proxy.invalid", "NO_PROXY": "*"},
+        {"NO_PROXY": "example.com"},
+    ],
+)
+def test_proxy_warning_accepts_both_loopback_hosts_wildcard_or_no_proxy(
+    environment: dict[str, str],
+) -> None:
+    assert proxy_warnings(environment) == []
+
+
+@pytest.mark.parametrize(
+    "environment",
+    [
+        {"HTTPS_PROXY": "http://secret:secret@127.0.0.1:7890"},
+        {
+            "http_proxy": "http://secret:secret@127.0.0.1:7890",
+            "no_proxy": "localhost",
+        },
+        {"HTTP_PROXY": "http://proxy.invalid", "NO_PROXY": "127.0.0.1"},
+    ],
+)
+def test_proxy_warning_is_allowlisted_and_never_contains_proxy_values(
+    environment: dict[str, str],
+) -> None:
+    warnings = proxy_warnings(environment)
+
+    assert warnings == ["loopback_proxy_bypass_missing"]
+    assert "secret" not in repr(warnings)
+    assert "127.0.0.1:7890" not in repr(warnings)
+
+
+def test_windows_process_probe_uses_powershell_without_a_shell(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    class Result:
+        def __init__(self, returncode: int, stdout: str = "") -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+
+    results = iter(
+        [
+            Result(0),
+            Result(0, "python.exe -m app.research_web.main:app\n"),
+            Result(0, "2026-09-29T07:00:00+00:00\n"),
+            Result(0),
+            Result(0, "python.exe -m app.research_web.main:app\n"),
+            Result(0, "2026-09-29T07:00:00+00:00\n"),
+        ]
+    )
+
+    def run(command: list[str], **options: object) -> Result:
+        calls.append((command, options))
+        return next(results)
+
+    monkeypatch.setattr("subprocess.run", run)
+
+    fact = probe_process(4321, platform_name="nt")
+
+    assert fact == ProcessFact(
+        state="alive",
+        command_line="python.exe -m app.research_web.main:app",
+        issue=None,
+        argv=("python.exe", "-m", "app.research_web.main:app"),
+        started_at=datetime.fromisoformat("2026-09-29T07:00:00+00:00").timestamp(),
+    )
+    assert pid_exists(4321, platform_name="nt") is True
+    assert all(
+        call[0][:4] == ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command"]
+        for call in calls
+    )
+    assert all(call[1]["shell"] is False for call in calls)
+    assert all(int(call[1]["timeout"]) <= 5 for call in calls)
+    assert all(call[1]["encoding"] == "utf-8" for call in calls)
+    assert all(call[1]["errors"] == "replace" for call in calls)
+
+
+def test_windows_missing_pid_and_probe_failure_are_distinct(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Result:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: Result())
+    assert probe_process(4321, platform_name="nt") == ProcessFact("missing", None, None)
+    assert pid_exists(4321, platform_name="nt") is False
+
+    def fail(*_args: object, **_kwargs: object) -> object:
+        raise OSError("sensitive operating system detail")
+
+    monkeypatch.setattr("subprocess.run", fail)
+    fact = probe_process(4321, platform_name="nt")
+    assert fact == ProcessFact("inaccessible", None, "process_probe_failed")
+    assert "sensitive" not in repr(fact)
+    assert pid_exists(4321, platform_name="nt") is True
+    assert command_line(4321, platform_name="nt") == ""
+
+
+def test_process_probe_decode_failure_returns_a_stable_inaccessible_fact(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail(*_args: object, **_kwargs: object) -> object:
+        raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "private decode detail")
+
+    monkeypatch.setattr("subprocess.run", fail)
+
+    fact = probe_process(4321, platform_name="nt")
+
+    assert fact == ProcessFact("inaccessible", None, "process_probe_failed")
+    assert "private decode detail" not in repr(fact)
+
+
+def test_posix_zombie_is_missing_and_access_denied_is_inaccessible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Result:
+        returncode = 0
+        stdout = "Z+\n"
+
+    monkeypatch.setattr(os, "kill", lambda _pid, _signal: None)
+    monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: Result())
+    assert probe_process(4321, platform_name="posix") == ProcessFact("missing", None, None)
+    assert pid_exists(4321, platform_name="posix") is False
+
+    def denied(_pid: int, _signal: int) -> None:
+        raise PermissionError("private detail")
+
+    monkeypatch.setattr(os, "kill", denied)
+    fact = probe_process(4321, platform_name="posix")
+    assert fact == ProcessFact("inaccessible", None, "process_access_denied")
+    assert "private detail" not in repr(fact)
+
+
+def test_posix_command_line_uses_bounded_non_shell_probes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    class Result:
+        def __init__(self, stdout: str) -> None:
+            self.returncode = 0
+            self.stdout = stdout
+
+    results = iter(
+        [
+            Result("S+\n"),
+            Result("python -m uvicorn app.research_web.main:app\n"),
+            Result("Mon Sep 29 15:00:00 2026\n"),
+        ]
+    )
+    monkeypatch.setattr(os, "kill", lambda _pid, _signal: None)
+
+    def run(command: list[str], **options: object) -> Result:
+        calls.append((command, options))
+        return next(results)
+
+    monkeypatch.setattr("subprocess.run", run)
+
+    assert command_line(4321, platform_name="posix") == (
+        "python -m uvicorn app.research_web.main:app"
+    )
+    assert calls[0][0] == ["ps", "-p", "4321", "-o", "stat="]
+    assert calls[1][0] == ["ps", "-p", "4321", "-o", "command="]
+    assert calls[2][0] == ["ps", "-p", "4321", "-o", "lstart="]
+    assert all(call[1]["shell"] is False for call in calls)
+    assert all(int(call[1]["timeout"]) <= 5 for call in calls)
+
+
+def test_port_listening_uses_only_the_requested_ephemeral_loopback_port() -> None:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    port = int(listener.getsockname()[1])
+    try:
+        assert port_listening(port) is True
+    finally:
+        listener.close()
+
+    assert port_listening(port) is False
+
+
+class _HttpHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        if self.path == "/large":
+            body = b"x" * (2 * 1024 * 1024 + 1)
+        else:
+            body = b'{"ok":true}'
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, _format: str, *_args: object) -> None:
+        return
+
+
+@pytest.fixture
+def local_http_server() -> tuple[ThreadingHTTPServer, int]:
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _HttpHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield server, int(server.server_address[1])
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_http_get_returns_a_typed_bounded_loopback_fact(
+    local_http_server: tuple[ThreadingHTTPServer, int],
+) -> None:
+    _server, port = local_http_server
+
+    fact = http_get(port, "/health")
+
+    assert fact == HttpFact(200, "application/json; charset=utf-8", b'{"ok":true}', None)
+
+
+def test_http_get_rejects_responses_larger_than_two_mib(
+    local_http_server: tuple[ThreadingHTTPServer, int],
+) -> None:
+    _server, port = local_http_server
+
+    fact = http_get(port, "/large")
+
+    assert fact.status == 200
+    assert fact.body == b""
+    assert fact.issue == "http_response_too_large"
+
+
+def test_http_get_returns_only_a_stable_connection_issue() -> None:
+    temporary = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    temporary.bind(("127.0.0.1", 0))
+    port = int(temporary.getsockname()[1])
+    temporary.close()
+
+    fact = http_get(port, "/health")
+
+    assert fact == HttpFact(None, None, b"", "http_connection_failed")
+    assert "refused" not in repr(fact).lower()
+
+
+def test_http_get_returns_a_stable_protocol_issue_for_malformed_http() -> None:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    port = int(listener.getsockname()[1])
+
+    def serve_malformed_response() -> None:
+        connection, _address = listener.accept()
+        try:
+            connection.recv(4096)
+            connection.sendall(b"not-http\r\n\r\n")
+        finally:
+            connection.close()
+            listener.close()
+
+    thread = threading.Thread(target=serve_malformed_response, daemon=True)
+    thread.start()
+    try:
+        fact = http_get(port, "/health")
+    finally:
+        thread.join(timeout=2)
+
+    assert fact == HttpFact(None, None, b"", "http_protocol_failed")

@@ -12,6 +12,13 @@ DSH clone、checkout 与干净工作树校验都只对当前子命令应用同�
 或任意环境变量。
 服务启动在 spawn 前复用 Doctor 的安全化安装投影；未受安装器所有的 checkout 环境、锁漂移、
 CJPY/Node/DSH 未就绪均失败关闭并只输出稳定 issue code，不以 35 秒健康等待掩盖安装错误。
+后备 status/Doctor 只用标准库读取有界非秘密状态，不加载 Runtime auth 或执行生命周期操作。
+共享私有 JSON reader 对 POSIX 使用 no-follow 描述符与 0600/单链接检查，对 Windows 拒绝
+reparse 并复核打开前后身份。普通服务归属须同时证明 state 签名、精确 argv、进程启动身份和
+监听 PID；不能证明时为 unknown，不凭 PID 文件或端口猜测。生命周期 guard 锁串行化状态恢复；
+只对再次核验为 owned 的进程停止、回滚或清理 auth，foreign/unknown 一律失败关闭。
+HTTP 就绪探测直连回环、不经过代理，正文有上限；JSON 限制媒体类型、UTF-8 与对象形状。
+Doctor 只输出 allowlist issue/warning，不含 Cookie、命令行、代理 URL、响应正文或模型失败详情。
 Node 选择只接受显式路径、受控环境值、可执行的 Codex bundled 路径或 PATH，并在版本门禁后用于
 所有 Node 构建子进程。Runtime build lock 只能由固定 commit、规范 SHA-256 与固定文件数的已验证
 DSH state 原子更新；文件数必须是严格整数。POSIX 逐级使用 `dir_fd`、`O_DIRECTORY`、`O_NOFOLLOW`

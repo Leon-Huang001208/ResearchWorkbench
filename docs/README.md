@@ -9,7 +9,7 @@
 | 文档 | 状态 | 受众 | 权威范围 | 更新触发 |
 | --- | --- | --- | --- | --- |
 | [根 README](../README.md) | current | 使用者 | 产品定位、安装、启动、导航 | 用户入口或安装行为变化 |
-| [Research Web 一键安装](research-web-installation.md) | current | 使用者、运维 | 锁定依赖、Doctor、跨平台安装 | 安装器或依赖基线变化 |
+| [Research Web 一键安装](research-web-installation.md) | current | 使用者、运维 | 锁定依赖、Doctor、启动恢复与页面 ready、跨平台安装 | 安装器、依赖或启动健康合同变化 |
 | [Research Web UI](research-web-ui.md) | current | 使用者、前端开发 | 页面、交互与 DOM 合同 | 用户流程或 UI 合同变化 |
 | [能力与版本](research-web-capabilities.md) | current | 使用者、能力开发 | Skill、Method、Tool、Workflow | 能力目录或版本规则变化 |
 
