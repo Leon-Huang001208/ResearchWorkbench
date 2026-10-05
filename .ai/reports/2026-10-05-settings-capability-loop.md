@@ -197,3 +197,7 @@ C0完成代码/证据身份核对；C1完成边界调查但安全合同实施BLO
 最终源代码与测试overlay SHA-256为 `15f3fb3b98664fe0b42d44df9719c736d7f8243392cd09b82d2dfa4a5f14bb8c`；包含完整changed set中全部app/tests文件的路径、内容SHA和权限，不是旧HEAD的别名。最终Native代码34 PASS。`final-plan.json`覆盖46路径，十个政策本地catalog PASS、四个外部门BLOCKED；`receipt-validation.log`实际退出0。首次绝对plan路径被项目CLI拒绝，记录于receipt-validation-initial.log，随后按要求使用项目相对路径，未改变验收结果。正常门禁提交前stage-safety.json排除了秘密标记、认证、trace、日志和临时环境。
 
 工具安装的最小解除动作（已授权但被Hook拦截，pip尚未运行）为用户本机终端执行：`/private/tmp/rwb-c1-checks-20261006/bin/python -m pip install 'black>=23.7.0' 'isort>=5.12.0' 'mypy>=1.5.0' 'pydantic>=2.0.0'`，然后提供完成回执。本轮不为此改Hook、系统Python或产品锁。
+
+本地源码检查点已按普通 `git commit` 成功：`55a5fdb9aa2208afcef4932f74453d24c3e58b80`，46文件，源码/测试摘要与上述最终验收一致。没有使用--no-verify，也没有修改Hook；当时Git工作区干净。此检查点不是merge/release批准，不改变BLOCKED结果。本报告的提交结果补记随后单独保存，源代码检查点与完整交付46文件集合仍保持上述对应关系；当前代码CI尚无证据。
+
+下一步唯一目标：解除检查工具安装的宿主Hook人工执行阻塞，补齐C2的Black/isort/mypy真实检查；不自动进入真实账户验收或后续阶段。
