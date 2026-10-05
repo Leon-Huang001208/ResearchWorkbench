@@ -4,7 +4,7 @@
 
 当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：
 
-- Docker（推荐新安装）：Docker Desktop、运行中的 Engine、Compose v2、构建时可访问固定基础镜像及 DSH 依赖的网络。宿主不要求全局 Python/Node 包；容器使用固定 Python 3.12、Node 24 和非 root 用户。Windows 的 Docker 凭据目录 ACL 尚无可证明的安全准备/验证路径，当前以 `docker_credentials_acl_unverified` 失败关闭，不能称为 Windows Docker 已可用或已验收。
+- Docker（推荐新安装）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、运行中的 Engine、Compose v2、构建时可访问固定基础镜像及 DSH 依赖的网络；无需宿主 Node，也无需全局第三方 Python 包。容器使用固定 Python 3.12、Node 24 和非 root 用户。Windows 的 Docker 凭据目录 ACL 尚无可证明的安全准备/验证路径，当前以 `docker_credentials_acl_unverified` 失败关闭，不能称为 Windows Docker 已可用或已验收。
 - Native：Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Node 23 和 25+ 不受支持。
 - Windows Native：Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载；固定 DSH 的
   `fs-ext` 原生模块需要本机编译，安装器不会静默安装或修改系统工具链
@@ -14,21 +14,29 @@ Cookie 和账号只在本机设置页录入，不进入代码包、安装清单�
 
 ## 公开入口
 
-macOS：
+macOS Docker 推荐入口：
 
 ```bash
 ./setup-web.sh --runtime docker
 ./rwb web doctor
+```
 
-# 保留 Native；无参数 ./setup-web.sh 也默认 Native
+macOS Native 替代入口；无参数 `./setup-web.sh` 也默认 Native：
+
+```bash
 ./setup-web.sh --runtime native
 ```
 
-Windows：
+Windows Docker 对应入口（当前 ACL 门仍可能失败关闭）：
 
 ```bat
 setup-web.cmd --runtime docker
 rwb.cmd web doctor
+```
+
+Windows Native 替代入口：
+
+```bat
 setup-web.cmd --runtime native
 ```
 
@@ -53,23 +61,46 @@ Docker `--repair` 重复有界构建和镜像身份验证，不删除产品数�
 
 ## 模式、生命周期和目录归属
 
+安装后先查看当前模式；仅需切换时使用 `runtime use`，不要把两个方向当成连续安装步骤：
+
 ```bash
 ./rwb runtime status --json
-./rwb runtime use docker
+```
+
+```bash
+./rwb runtime use docker --stop-current
+```
+
+```bash
+./rwb runtime use native --stop-current
+```
+
+选定 Docker 后，可分别运行这些生命周期与诊断命令：
+
+```bash
 ./rwb web start --no-open
 ./rwb web status --json
 ./rwb web doctor --json
 ./rwb web logs --tail 100
-./rwb web restart --no-open
+```
+
+Docker 在运行中无法认证证明研究空闲；重启必须显式 `--force`，会中断研究：
+
+```bash
+./rwb web restart --force --no-open
+```
+
+停止当前受管服务：
+
+```bash
 ./rwb web stop
-./rwb runtime use native --stop-current
 ```
 
 Windows 将入口写为 `rwb.cmd runtime status --json`、`rwb.cmd runtime use docker --stop-current`、`rwb.cmd web doctor --json` 等对应命令；这些是接口说明，不表示本轮已在真实 Windows 上跑通 Docker。`runtime use` 默认不停止当前服务；存在运行中的旧模式时必须显式提供 `--stop-current`，且仅在旧进程/容器归属可验证时停止。未知端口占用、无法确认的 PID/容器、活动研究或状态异常均失败关闭；不要手动改模式记录来绕过。运行时选择保存在私有 `install/runtime.json`，无需 `.venv` 即可路由 Docker 命令；Native 命令仍进入 Native 环境。
 
 两种模式依次使用 `~/.research-workbench/research-web/` 中的同一会话、资料、附件和产物，绝不能同时写入。Native 的 PID、认证和运行状态位于 `~/.research-workbench/run/`；Docker 的状态位于 `run/docker/<installation-id>/`，容器归属由项目、服务、安装身份、镜像、挂载及端口核对，不复用 Native 的状态/认证文件。Docker 凭据存于 `secrets/docker/<installation-id>/` 并单独 bind mount 到容器；Native 仍使用宿主系统凭据库，模式切换不复制或迁移密码/令牌。Compose 只将宿主 `127.0.0.1:8088` 发布给浏览器；DSH 3081 仍留在单容器内部回环。容器以非 root、只读根文件系统、受限能力和显式可写挂载运行。
 
-Docker 容器无法等同宿主系统集成环境：Office/Wind、宿主凭据库、Tabbit 等需要 GUI、驱动、会话或本机 CLI 的能力不得仅因目录可见就标记为可调用。模型密钥须在选定模式中重新配置；Doctor/日志输出不应包含秘密或用户文件正文。`./rwb web logs --tail 100` 为有界尾部；`--follow` 会持续读取，退出读取不停止服务。Doctor 的稳定 `issues` 可用于定位：`docker_cli_missing`、`docker_daemon_unavailable`、`docker_compose_missing`、`docker_architecture_unsupported`、`docker_port_8088_occupied`、`docker_port_3081_conflict`、`docker_ownership_mismatch`、`docker_build_not_ready`、`docker_data_home_unsafe`、`docker_credentials_acl_unverified`、`docker_services_unhealthy`、`runtime_stop_current_required`。按代码修复前置环境或停止已确认归属的旧模式，再重试；不要删除未知容器或修改状态文件。
+Docker 容器无法等同宿主系统集成环境：Office/Wind、宿主凭据库、Tabbit 等需要 GUI、驱动、会话或本机 CLI 的能力不得仅因目录可见就标记为可调用。模型密钥须在选定模式中重新配置；Doctor/日志输出不应包含秘密或用户文件正文。`./rwb web logs --tail 100` 为有界尾部；Docker 的 `--follow` 最多读取 300 秒，每条输出流上限 64 KiB，超时或超限会结束读取，退出读取不停止服务。Doctor 的稳定 `issues` 可用于定位：`docker_cli_missing`、`docker_daemon_unavailable`、`docker_compose_missing`、`docker_architecture_unsupported`、`docker_port_8088_occupied`、`docker_port_3081_conflict`、`docker_ownership_mismatch`、`docker_build_not_ready`、`docker_data_home_unsafe`、`docker_credentials_acl_unverified`、`docker_services_unhealthy`、`runtime_stop_current_required`。按代码修复前置环境或停止已确认归属的旧模式，再重试；不要删除未知容器或修改状态文件。
 
 升级时先 `web stop`，更新受审源码和锁后用对应 `--runtime` 重建/安装，执行 Doctor、status 和实际启动验证；不能把旧安装摘要视为新代码证明。修复用同一模式的 `--repair`，先保留现有数据并核对所有权。卸载运行部分可停止服务、移除自己受管的镜像/容器或 Native `.venv`；产品数据、Docker 私有凭据和 Native 系统凭据默认保留，需先另行备份并取得明确授权才清理。没有自动执行跨模式凭据迁移或破坏性卸载。
 

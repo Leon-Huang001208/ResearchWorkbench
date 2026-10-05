@@ -47,10 +47,27 @@ test('current-product entry explains both Web runtimes without changing the Nati
     assert.match(text, /--runtime native/);
     assert.match(text, /默认[^\n]*Native|无参数[^\n]*Native/);
     assert.match(text, /--stop-current/);
+    const dockerPrerequisite = text.match(/^- Docker[^\n]*/m)?.[0];
+    assert.ok(dockerPrerequisite, 'Docker prerequisite must be explicit');
+    assert.match(dockerPrerequisite, /宿主 Python 3\.12/);
+    assert.match(dockerPrerequisite, /无需宿主 Node|不要求宿主 Node/);
+    assert.match(dockerPrerequisite, /无需全局第三方 Python 包|不要求全局第三方 Python 包/);
+    assert.doesNotMatch(text, /宿主不需全局 Python\/Node 包/);
+    const blocks = [...text.matchAll(/```(?:bash|bat)\n([^]*?)```/g)].map(match => match[1]);
+    for (const extension of ['sh', 'cmd']) {
+      const dockerBlock = blocks.find(block => new RegExp(`setup-web\\.${extension} --runtime docker`).test(block));
+      const nativeBlock = blocks.find(block => new RegExp(`setup-web\\.${extension} --runtime native`).test(block));
+      assert.ok(dockerBlock && nativeBlock && dockerBlock !== nativeBlock,
+        `${extension} examples must be mutually exclusive`);
+    }
   }
   assert.match(readme, /\.\/rwb web doctor/);
   assert.match(installation, /rwb\.cmd runtime use docker/);
   assert.match(installation, /docker_credentials_acl_unverified/);
+  assert.match(installation, /\.\/rwb web restart --force --no-open/);
+  assert.doesNotMatch(installation, /\.\/rwb web restart --no-open/);
+  assert.match(installation, /--force[^\n]*中断研究|中断研究[^\n]*--force/);
+  assert.match(installation, /--follow[^\n]*300 秒[^\n]*64 KiB/);
 });
 
 test('valid classification, authority, link and anchor pass', async () => {

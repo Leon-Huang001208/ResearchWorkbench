@@ -10,27 +10,36 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 ### 前置条件
 
-- Docker 模式（推荐）：Docker Desktop、可用的 Engine 与 Compose v2；镜像内使用锁定的 Python 3.12、Node 24 和固定 DSH，宿主不需全局 Python/Node 包。当前 Windows Docker 凭据目录 ACL 无法由实现证明时会以 `docker_credentials_acl_unverified` 失败关闭，不能据此宣称 Windows 已验收。
+- Docker 模式（推荐）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、可用的 Engine 与 Compose v2；无需宿主 Node，也无需全局第三方 Python 包，镜像内使用锁定的 Python 3.12、Node 24 和固定 DSH。当前 Windows Docker 凭据目录 ACL 无法由实现证明时会以 `docker_credentials_acl_unverified` 失败关闭，不能据此宣称 Windows 已验收。
 - Native 模式：宿主 Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Windows 另需 Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载。
 
 Wind、iFinD、Office 等本机或厂商能力均为可选项；缺少它们不会阻止 Research Web 启动。
 
 ### 安装
 
-在仓库根目录选择运行时。Docker 是新安装的推荐入口；无参数公开入口仍默认 Native，保持旧脚本兼容：
+在仓库根目录二选一安装。Docker 是新安装的推荐入口：
 
 ```bash
 ./setup-web.sh --runtime docker
 ./rwb web doctor
+```
 
-# 保留 Native 安装路径；./setup-web.sh 无参数也选择 Native
+Native 替代入口；`./setup-web.sh` 无参数也默认 Native：
+
+```bash
 ./setup-web.sh --runtime native
 ```
 
+Windows Docker 对应入口（真实 Windows Docker 生命周期尚未验收）：
+
 ```bat
-:: Windows 对应入口（真实 Windows Docker 生命周期尚未验收）
 setup-web.cmd --runtime docker
 rwb.cmd web doctor
+```
+
+Windows Native 替代入口：
+
+```bat
 setup-web.cmd --runtime native
 ```
 
@@ -53,12 +62,19 @@ Windows 请将 `./rwb` 替换为 `rwb.cmd`。
 
 ## 启动与管理服务
 
-Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH（3081）和 Web（8088）两个宿主进程；Docker 在单容器内运行两者，仅向宿主回环发布 8088。先查看当前选择，再按需安全切换：
+Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH（3081）和 Web（8088）两个宿主进程；Docker 在单容器内运行两者，仅向宿主回环发布 8088。先查看当前选择：
 
 ```bash
 ./rwb runtime status --json
-./rwb runtime use docker
-# 若当前模式仍在运行，必须显式允许先停止该受管运行时
+```
+
+仅在需要切换时二选一；若当前受管模式仍在运行，须显式允许先停止：
+
+```bash
+./rwb runtime use docker --stop-current
+```
+
+```bash
 ./rwb runtime use native --stop-current
 ```
 
@@ -67,9 +83,20 @@ Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH（
 ```bash
 ./rwb web start
 ./rwb web status
-./rwb web restart
 ./rwb web logs --tail 100
 ./rwb web stop
+```
+
+Native 可在确认没有活动研究时普通重启；Docker 运行中无法认证证明研究空闲，必须显式 `--force`，这会中断研究：
+
+```bash
+# 仅 Native
+./rwb web restart
+```
+
+```bash
+# 仅 Docker，显式中断研究
+./rwb web restart --force --no-open
 ```
 
 服务启动后访问 [http://127.0.0.1:8088/#/fingpt](http://127.0.0.1:8088/#/fingpt)。`start` 是幂等的；终端关闭不会停止受管服务。切换、停止和重启都要求可验证的本项目所有权，不接管未知进程或容器。Docker 模式暂不承诺宿主 Office/Wind/Tabbit 等本机集成可用；能力目录出现不等于已配置或可调用。具体升级、修复、凭据与数据目录见[安装指南](docs/research-web-installation.md)。
