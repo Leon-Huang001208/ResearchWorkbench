@@ -1578,8 +1578,8 @@
       "id": "documentation-governance",
       "level": "L0",
       "status": "PASS",
-      "durationSeconds": 1.373117958,
-      "evidence": "logs/pr74-pr77-repair/rwb-pr77-documentation-governance.log"
+      "durationSeconds": 0.259659666,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr77-final-doc-governance.log"
     },
     {
       "id": "python-file-index",

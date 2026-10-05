@@ -53,7 +53,7 @@ Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`�
 
 - Bootstrap 成功上传 `doctor.json`、`connections.json`、首页 `root.html` 和主静态模块 `app.mjs`，证明干净 runner 的安装/产品 ready 与页面资源可读取；完整 `logs/setup-web.log` 只在失败时上传。
 - Bootstrap 和 Windows Verify 的任务 artifact 保留 3 天。
-- Docker 成功 artifact 只含固定字段的健康摘要与 Compose 服务名，失败 artifact 仅含经过秘密模式扫描的固定事件分类计数；全部原始行被省略，原始 build/runtime/container 日志和凭据目录不上传。Docker artifact 保留 3 天。
+- Docker 成功 artifact 只含固定字段的健康摘要、Compose 服务名及固定阶段/数字退出码；失败 artifact 保留经过秘密模式扫描的固定事件分类计数，并附同样的阶段/退出码 JSON。全部原始行被省略，原始 build/runtime/container 日志和凭据目录不上传。Docker artifact 保留 3 天。
 - GitHub 仓库默认 Actions artifact/log retention 由仓库所有者设为 7 天；该设置不由本地代码自动修改。
 - 若账户仍有 private 仓库或其他 included-usage 消耗，在 Billing 的 budgets/alerts 中启用 90% 与 100% 邮件提醒，但不得创建正额度预算、付款方式或允许付费超额。将提醒状态与仓库默认保留期一起记入月度记录。
 - 每月记录总用量、各 workflow 次数、失败重跑数、平台耗时、估算权重和剩余额度。
@@ -62,7 +62,7 @@ Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`�
 
 2026-09-17 先观测到 private 状态下 2,000 / 2,000 included minutes 和 billing-blocked，随后通过 GitHub API 确认仓库已改为 `PUBLIC`。提交 `76d1ea1053187569bb23d30f9a22b894ccbc0675` 的 Project Constraints、Research Web Checks 和 Bootstrap 双平台均正常启动并通过；repair 提交 `de39abcdbf3551c9985615e4cf80cd121a3a16b3` 的 Project Constraints、Research Web Checks 和 Windows Verify 也通过。因此当前状态是 `public-standard`，旧 billing-blocked 只作为历史证据保留，不再冻结标准 runner。
 
-本次文档修正就是计划中的 docs-only 观察性提交：它只能创建 Project Constraints。若出现 Research Web Checks、Bootstrap、Windows、Tabbit 或 Desktop run，视为路由回归并修复后再关闭任务。
+docs-only 提交只能创建 Project Constraints。若出现 Research Web Checks、Bootstrap、Windows、Tabbit 或 Desktop run，视为路由回归。平台敏感提交则以 verification policy 与 workflow 路径合同共同决定验收责任，不从历史 run 推断当前 gate 已通过。
 
 ## 月度记录模板
 
