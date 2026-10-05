@@ -183,7 +183,12 @@ class DSHClient:
             return "skills/list", {"request": payload}
         if method == "agentPreset.list":
             return "agentPresets/list", {}
-        if method in {"credentials.set", "credentials.unset", "credentials.describe", "settings.mutate"}:
+        if method in {
+            "credentials.set",
+            "credentials.unset",
+            "credentials.describe",
+            "settings.mutate",
+        }:
             return method.replace(".", "/"), payload
         raise RuntimeFailure("未授权的 DSH 方法", "forbidden")
 

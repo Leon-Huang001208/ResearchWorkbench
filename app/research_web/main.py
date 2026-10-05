@@ -121,9 +121,11 @@ class ModelConfig(BaseModel):
     def reject_masked_key(cls, value: str | None) -> str | None:
         if value is not None:
             stripped = value.strip()
-            if not stripped or set(stripped) <= {"*", "•", "●"} or stripped.casefold() in {
-                "[redacted]", "<redacted>", "[hidden]", "<hidden>"
-            }:
+            if (
+                not stripped
+                or set(stripped) <= {"*", "•", "●"}
+                or stripped.casefold() in {"[redacted]", "<redacted>", "[hidden]", "<hidden>"}
+            ):
                 raise ValueError("credential placeholder is not a new key")
         return value
 

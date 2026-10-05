@@ -201,3 +201,44 @@ C0完成代码/证据身份核对；C1完成边界调查但安全合同实施BLO
 本地源码检查点已按普通 `git commit` 成功：`55a5fdb9aa2208afcef4932f74453d24c3e58b80`，46文件，源码/测试摘要与上述最终验收一致。没有使用--no-verify，也没有修改Hook；当时Git工作区干净。此检查点不是merge/release批准，不改变BLOCKED结果。本报告的提交结果补记随后单独保存，源代码检查点与完整交付46文件集合仍保持上述对应关系；当前代码CI尚无证据。
 
 下一步唯一目标：解除检查工具安装的宿主Hook人工执行阻塞，补齐C2的Black/isort/mypy真实检查；不自动进入真实账户验收或后续阶段。
+
+## C2 静态检查收口（2026-10-06，当前结论）
+
+本轮仅C2。输入分支 `codex/settings-model-loop`、HEAD `f641b8420bd4248872bbcfa26acf68fb06f17b95`，工作区干净；未回退55a5fdb9/f641b842或重做C1。此前安装授权已明确；人工安装后的专用环境经过实际检查，旧“等待人工安装/静态工具阻塞”已解除。无依赖安装操作、产品锁/固定DSH/其他worktree环境/生产实例变化，也没有真实Keychain生命周期、供应商请求、浏览器或图形多视口重验。
+
+### 环境与检查范围
+
+使用 `/private/tmp/rwb-c1-checks-20261006/bin/python`（Python3.12.13）。实际版本：Black26.10.0、isort9.0.2、mypy2.4.0、Pydantic2.13.5、mypy_extensions1.1.0、typing_extensions4.16.0；Ruff沿用既有0.16.6。`pip check`退出0、No broken requirements found；pydantic.mypy导入退出0，真实mypy运行也加载了仓库插件。环境证据见 `logs/settings-model-loop/c2-static/environment-executed.json`、tool-versions.json、pip-check.log、plugin-load.log。
+
+完整交付changed set是原d17459e→当前分支的46路径并合并后续工作区改动，存于complete-changed-files.json；没有只检查最后一次报告提交。格式/导入/Ruff范围为其中10个Python文件：client.py、launch_runtime.py、main.py、model_credentials.py、service.py，以及test_api.py、test_model_credentials.py、test_protocol.py、test_runtime_launch.py、test_sandbox.py。完整命令的路径列表见python-files.json和static-final-executed.json。
+
+类型检查沿既有 `.github/workflows/research-web-tabbit.yml:44` 的 `--follow-imports=skip` Web源码边界，覆盖本交付的5个app源码文件；测试fixture不扩为新的类型检查范围。通过 `--python-executable /Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/.venv/bin/python` 解析现有产品安装依赖，仅只读复用，不把专用工具环境缺少Web依赖当作产品类型错误。不新增ignore、skip配置、Any或忽略缺失导入开关，pyproject/tool规则及workflow未改。
+
+### 分别归类实际诊断
+
+1. 工具环境：启动、插件、依赖冲突检查均退出0，无当前缺项。pip的不可写缓存提示不会阻断pip check，没有使用sudo或改系统权限。
+2. 本任务引入：首次Black退出1，7文件需格式化；同版本/配置检查原基准的8个已有Python文件全部通过（black-baseline.log），新model_credentials模块与其测试不存在于基准。仅格式化app/research_web/client.py、main.py、service.py以及tests/research_web/test_api.py、test_model_credentials.py、test_protocol.py、test_runtime_launch.py这7文件，完整路径见python-files.json。isort初次即退出0；正确源码边界的mypy初次即退出0，无本轮类型修复。
+3. 既有文件诊断：初次mypy命令未沿CI边界、默认递归跟随导入，产生37条诊断于15个未改文件，退出1。import-closure-classification.json逐文件证明内容Git blob与d17459e相同；原始日志mypy-initial.log保留。它们是额外导入闭包中的既有代码静态诊断，不是环境缺依赖，也不认证为本任务新增缺陷或全仓已通过。按原有CI边界执行，不自行豁免/修改规则或扩大为全仓整改；这些诊断仍保留未处理。
+
+### 最小修复及真正通过的检查
+
+Black只改7个目标文件。format-equivalence.json记录每个文件格式前/后内容SHA及完整AST（含type_comments）相等；只读复审独立确认，运行逻辑、字符串内容、导入顺序、Keychain/provider/bridge、安全边界及状态机均未改变。py_file_index生成命令退出0但未产生索引差异。
+
+| 检查 | 实际结果 | 证据 |
+| --- | --- | --- |
+| Black `--check`，10文件 | 退出0，10 files would be left unchanged | black-final.log |
+| isort `--check-only`，10文件 | 退出0 | isort-final.log |
+| mypy，5源码，既有CI边界 | 退出0，Success: no issues found in 5 source files；既有numpy/transformers override unused提示保留 | mypy-final.log |
+| Ruff `check --no-cache`，10文件 | 退出0，All checks passed | ruff-final.log |
+| 离线模型合同 | 4 PASS、2显式deselected（真实Keychain/owned Runtime不执行） | offline-model-contracts.log |
+| 文档、索引、完整diff架构映射、Project Constraints、L4相关JS合同、doc-sync | 实际退出0 | policy-current-executed.json及对应日志 |
+
+所有工具实际argv、退出码与耗时在initial-executed.json、static-final-executed.json；首次检查及失败记录不删除。mypy命令使用既有边界参数、产品解释器依赖解析和私有cache；没有借安装成功或工具能启动宣称C2完成。
+
+完整46路径仍由既有规划器判L4。格式修复只改变文本，全部受影响AST相等，因此C1中API/协议、服务管理、本机集成和UI行为证据可复用；原生Keychain、供应商、浏览器与多视口验收没有重跑。回执中对复用项引用原日志，并在reuse-evidence.json列明AST依据；重跑项使用C2当前日志。四个CI外部门继续BLOCKED，不使用旧HEAD/旧分支CI替代当前代码。
+
+### 当前代码身份、结论与停止
+
+格式后完整app/tests交付overlay摘要为 `6c391caf8d9d621f6d22b033a0bfe6661f41131df6ac80a7382aea71cc8efcd7`，与C1原字节摘要不同；行为复用由AST相等证明，不把旧摘要冒充当前源码。输入/最终提交身份及完整文件SHA见c2-static下snapshot/commit-snapshot记录；正常本地提交必要格式修复和本报告，不使用--no-verify，不push/PR/dispatch/merge/发布。
+
+**C2必要静态检查已全部通过，C2完成。** 本轮停止。真实供应商Key生命周期、真实替换归因、带真实Key的DSH冷重启及当前代码CI仍未执行，1A整体继续BLOCKED，mergeReady=false、releaseReady=false。15个未改文件的额外37条导入闭包静态诊断保留，未声称全仓mypy通过；不自动扩展任务处理这些诊断或后续阶段。

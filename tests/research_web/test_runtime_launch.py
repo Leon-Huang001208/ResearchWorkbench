@@ -129,7 +129,9 @@ def test_runtime_keeps_dsh_home_private_but_uses_host_home_for_tabbit(tmp_path, 
 def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, monkeypatch):
     source = make_source(tmp_path)
     data = tmp_path / "data"
-    monkeypatch.setattr(launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT)
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
     monkeypatch.setenv("RESEARCH_DSH_API_KEY", "synthetic-ambient")
     _, env, _ = launch_runtime.prepare(source, data, "/node", 13081)
     overlay = (data / "runtime/overlay.yml").read_text()
@@ -137,7 +139,7 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert "model-credentials.mjs" in overlay
     assert "model_credentials.py" in overlay
     assert ".browser-credentials.yaml" in overlay
-    assert 'default: research-web' in overlay
+    assert "default: research-web" in overlay
     assert "synthetic-ambient" not in overlay
     assert "RESEARCH_DSH_API_KEY" not in env
 

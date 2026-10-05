@@ -26,7 +26,15 @@ class NativeFixture:
         if method == "credentials.describe":
             return {"credentials": {"RESEARCH_DSH_API_KEY": {"configured": True, "writable": True}}}
         if method == "llm.models":
-            return {"groups": [{"id": "deepseek-official", "models": [{"id": "deepseek-v4-flash"}, {"id": "new-model"}]}], "failures": []}
+            return {
+                "groups": [
+                    {
+                        "id": "deepseek-official",
+                        "models": [{"id": "deepseek-v4-flash"}, {"id": "new-model"}],
+                    }
+                ],
+                "failures": [],
+            }
         if method == "session.prompt" and self.fail_prompt:
             raise RuntimeFailure("connection lost")
         if method == "subagent.list":
@@ -1006,15 +1014,20 @@ async def test_model_failed_credential_write_restores_saved_default(tmp_path):
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
     original = native.rpc
+
     async def rejected(method, payload):
         if method == "credentials.set":
             raise RuntimeFailure("rejected", "credential/rejected")
         return await original(method, payload)
+
     native.rpc = rejected
     with pytest.raises(RuntimeFailure):
         await service.configure_model("deepseek-official", "new-model", "fixture-key")
     assert service.default_model["model"] == "deepseek-v4-flash"
-    assert Store(tmp_path).data.get("model", {}).get("model", "deepseek-v4-flash") == "deepseek-v4-flash"
+    assert (
+        Store(tmp_path).data.get("model", {}).get("model", "deepseek-v4-flash")
+        == "deepseek-v4-flash"
+    )
     assert Store(tmp_path).data.get("model_configuration_uncertain") is True
 
 
@@ -1023,10 +1036,14 @@ async def test_read_only_credential_refusal_preserves_usable_configuration(tmp_p
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
     original = native.rpc
+
     async def read_only(method, payload):
         if method == "credentials.describe":
-            return {"credentials": {"RESEARCH_DSH_API_KEY": {"configured": True, "writable": False}}}
+            return {
+                "credentials": {"RESEARCH_DSH_API_KEY": {"configured": True, "writable": False}}
+            }
         return await original(method, payload)
+
     native.rpc = read_only
     with pytest.raises(RuntimeFailure) as error:
         await service.configure_model("deepseek-official", "new-model", "fixture-key")
@@ -1038,14 +1055,21 @@ async def test_read_only_credential_refusal_preserves_usable_configuration(tmp_p
 
 def test_model_unknown_id_and_clear_contract(api):
     client, native, _ = api
-    response = client.put("/api/research/runtime/model", json={"model": "unknown", "api_key": "fixture-key"})
+    response = client.put(
+        "/api/research/runtime/model", json={"model": "unknown", "api_key": "fixture-key"}
+    )
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "model_unavailable"
     assert not any(method == "credentials.set" for method, _ in native.calls)
-    response = client.put("/api/research/runtime/model", json={"model": "deepseek-v4-flash", "clear_api_key": True})
+    response = client.put(
+        "/api/research/runtime/model", json={"model": "deepseek-v4-flash", "clear_api_key": True}
+    )
     assert response.status_code == 200
     assert ("credentials.unset", {"ref": "RESEARCH_DSH_API_KEY"}) in native.calls
-    response = client.put("/api/research/runtime/model", json={"model": "deepseek-v4-flash", "clear_api_key": True, "api_key": "fixture-key"})
+    response = client.put(
+        "/api/research/runtime/model",
+        json={"model": "deepseek-v4-flash", "clear_api_key": True, "api_key": "fixture-key"},
+    )
     assert response.status_code == 422
 
 
@@ -1068,7 +1092,9 @@ def test_empty_credential_blocks_regular_research_before_native_prompt(api):
 
     async def no_credential(method, payload):
         if method == "credentials.describe":
-            return {"credentials": {"RESEARCH_DSH_API_KEY": {"configured": False, "writable": True}}}
+            return {
+                "credentials": {"RESEARCH_DSH_API_KEY": {"configured": False, "writable": True}}
+            }
         return await original(method, payload)
 
     native.rpc = no_credential
@@ -1093,7 +1119,14 @@ async def test_credential_value_selection_clear_and_cold_recovery_are_instance_l
 
         async def rpc(self, method, payload):
             if method == "credentials.describe":
-                return {"credentials": {"RESEARCH_DSH_API_KEY": {"configured": self.value is not None, "writable": True}}}
+                return {
+                    "credentials": {
+                        "RESEARCH_DSH_API_KEY": {
+                            "configured": self.value is not None,
+                            "writable": True,
+                        }
+                    }
+                }
             if method == "credentials.set":
                 self.value = payload["value"]
                 self.writes += 1
@@ -1168,7 +1201,11 @@ async def test_runtime_reports_actual_credential_source_without_file_assumption(
 
     async def environment_source(method, payload):
         if method == "credentials.describe":
-            return {"credentials": {"RESEARCH_DSH_API_KEY": {"configured": True, "source": "env", "writable": False}}}
+            return {
+                "credentials": {
+                    "RESEARCH_DSH_API_KEY": {"configured": True, "source": "env", "writable": False}
+                }
+            }
         return await original(method, payload)
 
     native.rpc = environment_source
@@ -1207,10 +1244,12 @@ async def test_model_ambiguous_write_blocks_new_requests(tmp_path):
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
     original = native.rpc
+
     async def disconnected(method, payload):
         if method == "credentials.set":
             raise RuntimeFailure("response lost")
         return await original(method, payload)
+
     native.rpc = disconnected
     with pytest.raises(RuntimeFailure) as error:
         await service.configure_model("deepseek-official", "new-model", "fixture-key")
@@ -1226,16 +1265,32 @@ async def test_model_smoke_requires_native_final_text(tmp_path):
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
     service.connected = {"mux", "host"}
+
     async def history(_sid):
         return [
-            {"event": {"seq": 1, "type": "assistant/message", "data": {"turn": 1, "step": 1, "message": {"content": [{"type": "text", "text": "模型生成测试完成"}]}}}},
+            {
+                "event": {
+                    "seq": 1,
+                    "type": "assistant/message",
+                    "data": {
+                        "turn": 1,
+                        "step": 1,
+                        "message": {"content": [{"type": "text", "text": "模型生成测试完成"}]},
+                    },
+                }
+            },
             {"event": {"seq": 2, "type": "turn/end", "data": {"reason": {"kind": "completed"}}}},
         ]
+
     native.history = history
     assert (await service.test_model())["status"] == "passed"
     assert service.store.data["model_test"]["status"] == "passed"
+
     async def empty_history(_sid):
-        return [{"event": {"seq": 2, "type": "turn/end", "data": {"reason": {"kind": "completed"}}}}]
+        return [
+            {"event": {"seq": 2, "type": "turn/end", "data": {"reason": {"kind": "completed"}}}}
+        ]
+
     native.history = empty_history
     assert (await service.test_model())["status"] == "failed"
 
@@ -1246,13 +1301,17 @@ async def test_model_cancelled_write_is_uncertain_after_cold_reload(tmp_path):
     service = ResearchService(native, Store(tmp_path))
     entered = asyncio.Event()
     original = native.rpc
+
     async def suspended(method, payload):
         if method == "credentials.set":
             entered.set()
             await asyncio.Event().wait()
         return await original(method, payload)
+
     native.rpc = suspended
-    task = asyncio.create_task(service.configure_model("deepseek-official", "new-model", "fixture-key"))
+    task = asyncio.create_task(
+        service.configure_model("deepseek-official", "new-model", "fixture-key")
+    )
     await entered.wait()
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -1267,11 +1326,13 @@ async def test_model_test_cannot_admit_during_configuration(tmp_path):
     service = ResearchService(native, Store(tmp_path))
     entered, release = asyncio.Event(), asyncio.Event()
     original = native.rpc
+
     async def suspended(method, payload):
         if method == "llm.models":
             entered.set()
             await release.wait()
         return await original(method, payload)
+
     native.rpc = suspended
     task = asyncio.create_task(service.configure_model("deepseek-official", "new-model"))
     await entered.wait()
@@ -1289,12 +1350,30 @@ async def test_model_smoke_rejects_partial_text_with_empty_final_message(tmp_pat
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
     service.connected = {"mux", "host"}
+
     async def history(_sid):
         return [
-            {"event": {"seq": 1, "type": "assistant/chunk", "data": {"turn": 1, "step": 1, "chunk": {"type": "text-delta", "index": 0, "text": "partial"}}}},
-            {"event": {"seq": 2, "type": "assistant/message", "data": {"turn": 1, "step": 2, "message": {"content": []}}}},
+            {
+                "event": {
+                    "seq": 1,
+                    "type": "assistant/chunk",
+                    "data": {
+                        "turn": 1,
+                        "step": 1,
+                        "chunk": {"type": "text-delta", "index": 0, "text": "partial"},
+                    },
+                }
+            },
+            {
+                "event": {
+                    "seq": 2,
+                    "type": "assistant/message",
+                    "data": {"turn": 1, "step": 2, "message": {"content": []}},
+                }
+            },
             {"event": {"seq": 3, "type": "turn/end", "data": {"reason": {"kind": "completed"}}}},
         ]
+
     native.history = history
     assert (await service.test_model())["status"] == "failed"
 

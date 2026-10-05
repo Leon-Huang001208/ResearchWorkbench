@@ -49,7 +49,9 @@ def test_namespace_lifecycle_ignores_legacy_values(tmp_path, monkeypatch):
     other.mkdir()
     monkeypatch.setenv(bridge.MODEL_REF, "synthetic-ambient")
     (tmp_path / ".credentials.yaml").write_text("RESEARCH_DSH_API_KEY: synthetic-file")
-    call = lambda op, **kw: bridge.execute(tmp_path, {"op": op, "ref": bridge.MODEL_REF, **kw}, backend)
+    call = lambda op, **kw: bridge.execute(
+        tmp_path, {"op": op, "ref": bridge.MODEL_REF, **kw}, backend
+    )
     assert call("resolve") == {"value": None}
     assert call("describe") == {"configured": False, "source": "system-keychain", "writable": True}
     call("set", value="synthetic-first")
@@ -59,7 +61,9 @@ def test_namespace_lifecycle_ignores_legacy_values(tmp_path, monkeypatch):
     assert call("resolve")["value"] == "synthetic-first"
     call("set", value="synthetic-second")
     assert call("resolve")["value"] == "synthetic-second"
-    assert bridge.execute(other, {"op": "resolve", "ref": bridge.MODEL_REF}, backend) == {"value": None}
+    assert bridge.execute(other, {"op": "resolve", "ref": bridge.MODEL_REF}, backend) == {
+        "value": None
+    }
     call("unset")
     call("unset")
     assert call("resolve") == {"value": None}
@@ -102,7 +106,9 @@ def test_atomic_replacement_failure_never_deletes_old_value():
         return -128
 
     with pytest.raises(RuntimeError, match="synthetic-denied"):
-        bridge.update_or_add(API, denied_update, "isolated-test-service", bridge.MODEL_REF, "synthetic-new")
+        bridge.update_or_add(
+            API, denied_update, "isolated-test-service", bridge.MODEL_REF, "synthetic-new"
+        )
 
 
 @pytest.mark.skipif(
@@ -126,7 +132,11 @@ def test_real_keychain_cross_process_lifecycle(tmp_path):
             text=True,
             check=False,
             timeout=30,
-            env={"PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8", "RESEARCH_DSH_API_KEY": "synthetic-ambient"},
+            env={
+                "PATH": "/usr/bin:/bin",
+                "LANG": "en_US.UTF-8",
+                "RESEARCH_DSH_API_KEY": "synthetic-ambient",
+            },
         )
         if completed.returncode:
             pytest.fail("Keychain bridge unavailable; no secret diagnostics captured")
@@ -183,21 +193,46 @@ def test_owned_overlay_fixed_dsh_consumer_and_cold_recovery(tmp_path):
             if phase == "backend-unavailable":
                 overlay = data / "runtime/overlay.yml"
                 original = overlay.read_text()
-                overlay.write_text(original.replace(json.dumps(sys.executable), json.dumps("/usr/bin/false")))
+                overlay.write_text(
+                    original.replace(json.dumps(sys.executable), json.dumps("/usr/bin/false"))
+                )
             completed = subprocess.run(
                 [node, str(helper), str(source), str(data), phase, "13081"],
-                cwd=work, env=env, capture_output=True, text=True, timeout=60, check=False,
+                cwd=work,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
             )
             # Raw boot output can contain a launch token. Never persist/echo it.
             if completed.returncode:
-                diagnostics = [line for line in completed.stdout.splitlines() if line.startswith("C1_DIAG:")]
-                pytest.fail("owned Runtime acceptance failed; raw auth output withheld; " + " ".join(diagnostics))
-            results = [line.removeprefix("C1_RESULT:") for line in completed.stdout.splitlines() if line.startswith("C1_RESULT:")]
+                diagnostics = [
+                    line for line in completed.stdout.splitlines() if line.startswith("C1_DIAG:")
+                ]
+                pytest.fail(
+                    "owned Runtime acceptance failed; raw auth output withheld; "
+                    + " ".join(diagnostics)
+                )
+            results = [
+                line.removeprefix("C1_RESULT:")
+                for line in completed.stdout.splitlines()
+                if line.startswith("C1_RESULT:")
+            ]
             assert len(results) == 1
-            assert json.loads(results[0]) == {"phase": phase, "preset": True, "consumer": True, "hostRecords": True, "noModelFile": True}
+            assert json.loads(results[0]) == {
+                "phase": phase,
+                "preset": True,
+                "consumer": True,
+                "hostRecords": True,
+                "noModelFile": True,
+            }
     finally:
         subprocess.run(
             [sys.executable, "-I", "-B", str(BRIDGE), "--data-home", str(data)],
             input=json.dumps({"op": "unset", "ref": "RESEARCH_DSH_API_KEY"}),
-            capture_output=True, text=True, timeout=30, check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
         )
