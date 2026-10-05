@@ -242,3 +242,40 @@ Black只改7个目标文件。format-equivalence.json记录每个文件格式前
 格式后完整app/tests交付overlay摘要为 `6c391caf8d9d621f6d22b033a0bfe6661f41131df6ac80a7382aea71cc8efcd7`，与C1原字节摘要不同；行为复用由AST相等证明，不把旧摘要冒充当前源码。输入/最终提交身份及完整文件SHA见c2-static下snapshot/commit-snapshot记录；正常本地提交必要格式修复和本报告，不使用--no-verify，不push/PR/dispatch/merge/发布。
 
 **C2必要静态检查已全部通过，C2完成。** 本轮停止。真实供应商Key生命周期、真实替换归因、带真实Key的DSH冷重启及当前代码CI仍未执行，1A整体继续BLOCKED，mergeReady=false、releaseReady=false。15个未改文件的额外37条导入闭包静态诊断保留，未声称全仓mypy通过；不自动扩展任务处理这些诊断或后续阶段。
+
+## C3/C4 独立真实验收准备（2026-10-06，当前阻塞）
+
+本轮仅C3/C4，读取当前规则、附件与C1/C2记录；实际branch仍codex/settings-model-loop，输入HEAD为b4405a839e55ccd1097374a4f1f854561c7823e0，工作区干净。没有回退、架构重查、C1/C2全量重验、37条诊断整改、C5或远端操作。供应商请求预算6、公开只读工具预算1；实际均0。
+
+### 已实际完成的无秘密准备
+
+- 创建仅本任务拥有的0700独立目录 `/private/tmp/rwb-c3c4-u_4bgdb6` 与data home `/private/tmp/rwb-c3c4-u_4bgdb6/data`；按该canonical路径派生独立系统凭据命名空间。通过产品固定用途桥接的describe返回configured=false/source=system-keychain/writable=true；只保留布尔/来源元数据，未获取、打印、散列或复制任何真实Key。
+- 候选18088/13081经socket连接检查均空闲，但仅是候选端口，**没有启动服务、没有经过归属核验的设置页地址**，不能作为用户录入URL。生产3081/8088只读监听仍是PID68985/69730，未改变或读取生产凭据。
+- 通过正常WebServiceManager的安装诊断及_require_installation_ready留证，而不是覆盖/猴补启动门。既有Python3.12.13、Node24.19.0、CJPY0.5.2和固定DSH c919b2a构建可识别；当前工作树没有产品自有.venv，独立根没有install/manifest.json和data/runtime/build-lock.json。实际门返回installation_not_ready，issue列表为install_manifest_invalid、environment_not_owned、web_lock_mismatch、cjpy_not_ready、dsh_not_ready、dsh_runtime_lock_mismatch。这些含有缺少非秘密安装证据导致的派生失败，不能据此宣称现有固定构建或依赖损坏。
+- 预检事实、目录、端口、固定构建closure与零请求计数见 `logs/settings-model-loop/c3-c4-live/preflight.json`。未复制生产Key/auth、未写虚假环境owner marker/installed清单或伪造build lock；未运行可能默认影响生产根的setup-web入口。
+
+### 启动日志采集阻断的最小复现
+
+现有manager._spawn将子进程stdout直接写runtime.log，_runtime_launch_token再从该日志解析启动认证链接。用合成公开fixture、假Popen和禁用状态写入的离线复现，确认标准日志会持久化含token的认证链接；没有真实token/Cookie/Authorization、真实子进程或供应商请求。只保存 observedAuthenticationLinkPersisted=true 等元数据于startup-log-reproduction.json；原始合成fixture随本任务TemporaryDirectory退出移除。
+
+这不是C3真实用户流程通过，也不是已实施安全修复。仅事后擦除日志或过滤对话输出不能满足本轮“启动输出的采集不会记录认证链接”。现有认证交接依赖日志，彻底移除需限定地调整launcher/manager的认证交接通道并保留原受控auth record，不能只屏蔽stdout使正常认证失效；不得用临时替代preset、直接改状态、关闭认证、通用取密接口或新daemon绕开。本轮还受受管环境缺失阻断，未临时引入新的安全交接边界；附件要求涉及新增安全边界时先保留最小后续范围。
+
+### T0—T6当前回执
+
+| 步骤 | 状态 | 当前证据或未执行原因 |
+| --- | --- | --- |
+| T0 空实例 | BLOCKED | 独立命名空间未配置及端口空闲已确认；正常启动门拒绝，因此Host/设置页与产品准入阻断尚未验证，不能标T0 PASS |
+| T1 录入A/生成 | NOT_RUN | 未给出未验证地址、未请求录入、未保存任何真实Key |
+| T2 留空/刷新/旧会话新请求 | NOT_RUN | 依赖T1；未复用旧幂等回执 |
+| T3 B替换及归因 | NOT_RUN | 未录入A/B，也未推断可用Key数量；真实替换/归因未验证 |
+| T4 清除/无Key冷启动 | NOT_RUN | 没有已保存Key或所属产品进程，不能冒称清除/冷启动通过 |
+| T5 重新录入/真实Key Host与DSH冷启 | NOT_RUN | 依赖正常受管实例，未直接启动候选绕开安装门 |
+| T6 正式preset工具与最终回复 | NOT_RUN | 真实模型0/6、公开DataHub工具0/1；尚未启用模型或工具路径 |
+
+C3生命周期BLOCKED、真实替换归因NOT_RUN、C4真实Key冷重启NOT_RUN、正常研究工具路径NOT_RUN，分别记录，不合成为“连接通过”。C1/C2成功证据仍有效；供应商401/限流/余额/网络并未测试，不能写为此轮失败原因。
+
+### 最小解除条件与停止/清理
+
+首先需为**当前工作树与独立实例根**通过现有安装/受支持复用流程建立真正受管产品环境、匹配非秘密安装清单及Runtime build lock。不能手写owner/installed状态来让Doctor变绿，也不能默认执行使用生产data home的公开安装命令。新产品依赖安装不同于此前仅Black/isort/mypy的检查环境授权，须明确限定用途与作用目录；不改安装器源码、产品锁、固定DSH版本或其他worktree环境。其次需在保留正常Host认证的前提下，完成启动认证链接不落普通日志的最小受控交接，才能提供录入页；若需新增安全边界则另行收窄批准范围。
+
+遇到上述外部准备阻塞后停止，不要求用户提供Key或“A已保存”。没有实际Host/DSH测试进程，没有保存真实Key，因此产品清除和所属进程停止均不适用，不能说已经执行清除。临时合成复现资源已清理；独立空data home及脱敏证据保留以便续接。没有清理生产资源、撤销供应商Key或修改系统权限/Hook。C5仍未执行，四个现有外部门继续BLOCKED，mergeReady=false、releaseReady=false；本轮C3/C4未完成。
