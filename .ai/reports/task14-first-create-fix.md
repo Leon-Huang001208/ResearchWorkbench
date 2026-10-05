@@ -22,3 +22,8 @@ supervisor `_prepare_private_leaf` 只对 `/state/runtime`、`/run/rwb-secrets/p
 ## 物理证据边界
 
 此代理没有执行DockerDesktop。全新独立bind source上的固定private首建、File backend写读及另一新container重读由主代理继续验证；源码测试不能替代这些物理证据，也不能替代完整镜像/DSH/Web/平台/CI门。历史失败日志不覆盖、不改写Task13并发回执。
+
+主代理后续回执：新helper三目录的目标机实测命令被PreToolUse Hook拒绝，**未执行，blocked_by_hook**。
+不修改Hook、不换工具路线或重新调查一致性。新helper的真实首建、File backend首次写读及第二
+container持久化重读仍未验证；此前 `docker13backendwrite.log`、`docker13backendpersist.log`
+中的物理失败没有变为pass。本报告只认证已执行的本地单元/adversarial证据。
