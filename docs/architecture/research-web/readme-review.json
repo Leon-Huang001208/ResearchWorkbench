@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "本轮无需调整根 README，现有 Research Web 产品定位、安装与启动入口仍然准确。",
-  "reason": "本轮为已归属的 Windows 服务停止补齐非强制失败后的既有强制升级，并扩展平台验收路由；公开安装/启动命令、端口、产品入口和用户操作流程均未改变。"
+  "summary": "已复核根 README；现有安装、启动和 Doctor 指引仍准确。",
+  "reason": "合并保留主干启动稳定性与静态帮助修复、Windows 停止升级行为及平台验收路由；产品入口未改变，细节同步安装与模块文档。"
 }

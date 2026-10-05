@@ -2,6 +2,9 @@
 
 项目约束现在额外要求 `.github/workflows/research-web-bootstrap.yml` 在原生 `macos-14`
 持续执行干净安装、公开 setup 入口、Doctor、CJPY 0.5.2 和无凭据天软不可调用断言。
+当前 Bootstrap 还必须从 Doctor schema 2 确认 `installation_ok`、`product_ready` 和双服务
+ready，并在直连回环 HTTP 下读取首页 HTML 与 `/static/app.mjs`。这些文件是短期 CI artifact，
+只证明干净 macOS runner 的最小页面资源可访问，不宣称可见浏览器或 Windows 实机已经验证。
 Windows Web 验证保留原生 `windows-2022` 任务；policy 对共享安装/runtime、Windows launcher、路径/
 编码/进程和本机集成条件选择该 gate，但 workflow 仅接受 Windows 真机携带 exact SHA 的显式
 `workflow_dispatch`，Mac PR/push 不触发。未选择时为 `NOT_REQUIRED`，已选择但未从 Windows 真机运行时为 `NOT_RUN`，均不生成 Windows 通过结论。该 Web 平台路由与本文件的架构图/回执门禁并行，也不改变
@@ -12,6 +15,10 @@ Desktop/Tauri/sidecar 的独立 Windows 验收规则；这些门禁不能互相�
 Project Constraints 还运行 Actions 额度路由契约：docs-only 只进入 Ubuntu 门禁；普通 Research Web 进入 Linux 检查；安装、Windows、Tabbit 和 Desktop 分别使用独立且有界的触发面。额度与冻结状态以 [Actions 额度治理](../../actions-budget.md) 为准。
 
 ## 最小验收计划合同
+
+历史 plan-v2/receipt-v1 可在无当前策略的归档环境只读验证内部一致性；该结果仅解释原始证据，
+不能认证当前 checkout。当前策略存在时，回执仍须通过 canonical replanning；历史文件保持原 SHA
+与结论，不改写为当前通过证据。合并回归同时覆盖归档可读与当前策略拒绝旧计划两种行为。
 
 `.agents/verification-policy.json` 是 changed-file 的 Component × Risk × Platform、local/CI/real-machine lane 与 merge/release gate 唯一机器真源；`scripts/plan_verification.mjs` 只读校验策略和仓库相对路径，按最高风险合并多文件计划。公开契约、schema、依赖、CI、安全、桌面、发布和未知路径 fail-closed 到 `full-delivery`；普通 Research Web 路径不得附加桌面门。
 

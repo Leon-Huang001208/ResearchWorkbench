@@ -20,6 +20,11 @@ Research Workbench acceptance closure. Read [SKILL.md](SKILL.md) before use.
   historical plan-v2/receipt-v1 evidence.
 - A validator verdict from `scripts/validate_verification_receipt.mjs`.
 
+The thin scripts import the manifest-owned runtime at
+`.agents/runtime/leon-engineering/`. Its manifest records leon-engineering
+version `0.19.3`, source commit, protocol versions, file list and SHA-256 values;
+project policy remains outside that managed directory.
+
 ## Safety boundaries
 
 This Skill cannot publish, cannot execute planned commands automatically, and

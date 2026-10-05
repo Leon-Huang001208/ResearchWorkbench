@@ -1,8 +1,18 @@
 # Research Web Tabbit 集成
 
+2026-09-29 启动稳定性变更增加 Web/DSH ready 与页面静态资源检查，但不会自动连接、授权或使用
+Tabbit。Doctor 的产品 ready 不代表浏览器实例在线，也不读取标签、URL、Cookie 或正文；Tabbit
+仍由独立的 Runtime 状态、会话授权、实时 claim、一次性 token 与写操作审批约束。
+未安装环境中的顶层 `rwb --help` 仅打印静态诊断指引，不加载 Tabbit Profile、读取标签
+或申请浏览器授权；本轮 CI 修复不改变本页运行时合同。
+
 Web 一键安装固定 Node 支持范围与同一个 DSH 提交/构建闭包，但不下载或升级 Tabbit，也不改变
 其 Profile、实时 claim、一次性正文 token、只读声明或写操作审批。Doctor 只报告 Runtime/端口
 健康，不读取标签标题、URL、Cookie 或正文。
+纯 `rwb web status` 不加载 DSH 启动、Capability、MCP 或 Tabbit Profile 功能图；Doctor 与实际 Runtime
+启动仍按既有流程验证构建闭包、Profile 和 Tabbit 供应包。
+安装阶段的 Web import readiness 不启动 DSH 或 Tabbit，不访问浏览器实例，也不创建页面授权或正文
+token；它只证明 checkout 的 Web 入口可由新环境加载。
 `rwb web start` 在 spawn 前要求 Doctor 安装事实通过；失败时不会加载 Tabbit Profile、claim 页面或
 创建正文 token，并只返回安装 issue 与安装器指引。该门禁不新增 Tabbit 权限或浏览器探测。
 安装器选中的受支持 Node 同时用于 DSH/Tabbit 构建子进程；Runtime build lock 仅绑定已验证闭包，

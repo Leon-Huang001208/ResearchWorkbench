@@ -3,12 +3,25 @@
 一键安装固定 DSH 来源、提交、pnpm 与构建闭包，但不改变消息受理、双 WebSocket、SSE、恢复、
 审批或取消协议。安装失败不会启动候选 Runtime，也不会接管当前 3081/8088。
 服务管理器在 spawn 前消费 Doctor 的安装 issue；只有安装状态 `ok` 才进入 3081/8088 生命周期。
+启动生命周期由排他锁覆盖。管理器先有界读取私有 state，再核对 PID 存活、精确 argv、真实启动时间、
+端口监听 PID 与带认证的 DSH `session/list`；任何一个事实无法确认都不会把 PID 或开放端口当作
+owned/healthy。死 PID 与关闭端口形成可恢复 stale state；归属明确但不健康时先停止受管 Web，
+再重建 DSH 与 Web；foreign/unknown 进程保持原状并返回稳定错误。非强制重启只使用现有认证材料
+只读核对活动研究，核对失败即拒绝。Runtime auth 只在安全受管重建时更新。
+Web 进程就绪还要求 Runtime API、首页 HTML 与主 ES 模块实际读取成功；随后才打开浏览器。
+模型目录或凭据缺失只影响 `model_ready`，不改变 `product_ready` 与设置页可访问性。
 这是一条进程前置门，不新增 Runtime 状态，也不改变会话恢复、幂等受理或活动研究重启门禁。
+纯 `rwb web status` 不加载 DSH 启动功能图；固定提交来自轻量共享合同，构建闭包扫描仅由 Doctor
+和安装诊断延迟加载，因此状态核对不会提前装配 Capability、MCP 或 DataHub Runtime。
 安装事务会把已验证 DSH commit、closure SHA、文件数与 build mode 原子写入 Runtime build lock；
 锁与当前受管 DSH 不一致时 Doctor 返回 `dsh_runtime_lock_mismatch`，启动不会进入 DSH 执行链。
 首次启动会在任何 Tabbit/Profile 变更前由固定 DSH 模板创建 `web` Profile；Windows 用 CIM 核对
 PID 命令行、用 PowerShell 探测 PID 存活并按受管进程树停止，POSIX 仍按进程组停止。pnpm 的 Windows
 junction 和 POSIX symlink 都只在解析目标仍位于固定源码树时接受。这些平台分支不改变 Runtime 协议。
+安装阶段的 Web import readiness 只验证 checkout 入口可加载，不执行 FastAPI lifespan、不启动框架
+调度器、集成探测或 3081/8088；实际进程和健康状态仍只由 `rwb web start` 建立。
+未安装环境中的顶层 `rwb --help` 仅输出标准库静态帮助，不进入 DSH 会话、认证、启动或恢复链；
+`web start/restart/stop` 仍由原安装门拒绝。
 
 Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
 

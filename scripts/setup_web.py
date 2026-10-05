@@ -20,6 +20,15 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from research_workbench_entrypoint.web_contract import (
+    environment_marker_valid,
+    node_version_issue,
+)
+
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 CJPY_VERSION = "0.5.2"
 CJPY_WHEEL = "cjpy-0.5.2-py3-none-any.whl"
@@ -116,22 +125,20 @@ class SetupWebInstaller:
 
     @staticmethod
     def _node_supported(value: str) -> bool:
-        match = re.search(r"(?<!\d)(\d+)\.(\d+)", value)
-        if not match:
-            return False
-        major, minor = int(match.group(1)), int(match.group(2))
-        return (major == 22 and minor >= 19) or major == 24
+        return node_version_issue(value) is None
 
     def check(self) -> dict[str, object]:
         """Inspect prerequisites and ownership without mutating the checkout."""
         issues: list[str] = []
+        environment_exists = self.venv.exists()
+        environment_owned = self._owned_environment(self.venv) if environment_exists else False
         if self.data_home.exists() and (
             self.data_home.is_symlink()
             or self._is_reparse_point(self.data_home)
             or not self.data_home.is_dir()
         ):
             issues.append("data_home_unsafe")
-        if self.venv.exists() and not (self.venv / ENVIRONMENT_MARKER).is_file():
+        if environment_exists and not environment_owned:
             issues.append("unowned_virtual_environment")
         for code, path in (
             ("python_missing", self.python_executable),
@@ -144,13 +151,13 @@ class SetupWebInstaller:
             try:
                 if not self._python_supported(self.version_reader(self.python_executable)):
                     issues.append("python_version_unsupported")
-            except (OSError, RuntimeError, subprocess.SubprocessError):
+            except (OSError, RuntimeError, subprocess.SubprocessError, UnicodeError):
                 issues.append("python_version_unreadable")
         if "node_missing" not in issues:
             try:
                 if not self._node_supported(self.node_version_reader(self.node_executable)):
                     issues.append("node_version_unsupported")
-            except (OSError, RuntimeError, subprocess.SubprocessError):
+            except (OSError, RuntimeError, subprocess.SubprocessError, UnicodeError):
                 issues.append("node_version_unreadable")
         if issues:
             self.log.warning("setup_web_check_failed", extra={"issue_count": len(issues)})
@@ -158,7 +165,7 @@ class SetupWebInstaller:
             "schema_version": 1,
             "ok": not issues,
             "issues": issues,
-            "environment_owned": (self.venv / ENVIRONMENT_MARKER).is_file(),
+            "environment_owned": environment_owned,
         }
 
     @staticmethod
@@ -623,6 +630,21 @@ class SetupWebInstaller:
             "cjpy_sha256": bundle["sha256"],
         }
 
+    def verify_web_import(self, environment_python: Path) -> None:
+        """Prove the installed interpreter can load the checkout's Web entrypoint."""
+        self._run_checked(
+            [
+                str(environment_python),
+                "-B",
+                "-c",
+                "from app.research_web.main import app; assert app is not None",
+            ],
+            cwd=self.project_root,
+            environment=self._python_subprocess_environment(),
+            failure_code="python_web_import_failed",
+            timeout=300,
+        )
+
     def _corepack_prefix(self) -> list[str]:
         if self.corepack_executable is not None and self.corepack_executable.is_file():
             return [str(self.corepack_executable)]
@@ -680,20 +702,38 @@ class SetupWebInstaller:
             return environment / "Scripts" / "python.exe"
         return environment / "bin" / "python"
 
-    def _owned_environment(self, environment: Path) -> bool:
-        marker = environment / ENVIRONMENT_MARKER
+    def _environment_pip_ready(self, environment_python: Path) -> bool:
+        """Bound repair-mode reuse by the package manager needed for installation."""
         try:
-            if environment.is_symlink() or marker.is_symlink():
-                return False
-            value = json.loads(marker.read_text(encoding="utf-8"))
-            return (
-                value.get("schema_version") == 1
-                and value.get("owner") == "research-workbench-web-installer"
-                and value.get("project_root_sha256")
-                == hashlib.sha256(str(self.project_root).encode()).hexdigest()
+            completed = subprocess.run(
+                [str(environment_python), "-m", "pip", "--version"],
+                cwd=self.project_root,
+                env=self._python_subprocess_environment(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=15,
             )
-        except (OSError, AttributeError, TypeError, json.JSONDecodeError):
+        except (OSError, subprocess.SubprocessError) as exc:
+            self.log.warning(
+                "setup_web_owned_environment_probe_failed",
+                extra={"error_type": type(exc).__name__},
+            )
             return False
+        if completed.returncode != 0:
+            self.log.warning(
+                "setup_web_owned_environment_probe_failed",
+                extra={"return_code": completed.returncode},
+            )
+            return False
+        return True
+
+    def _owned_environment(self, environment: Path) -> bool:
+        return environment_marker_valid(
+            environment,
+            self.project_root,
+            platform_name=self.platform_name,
+        )
 
     def prepare_environment(self, *, repair: bool = False) -> Path:
         """Create or reuse the marked project-local Python 3.12 environment."""
@@ -701,7 +741,9 @@ class SetupWebInstaller:
             if not self._owned_environment(self.venv):
                 raise RuntimeError("unowned_virtual_environment")
             environment_python = self._environment_python(self.venv)
-            if environment_python.is_file():
+            if environment_python.is_file() and (
+                not repair or self._environment_pip_ready(environment_python)
+            ):
                 return environment_python
             if not repair:
                 raise RuntimeError("owned_virtual_environment_broken")
@@ -1012,6 +1054,18 @@ class SetupWebInstaller:
         self._atomic_json(self.install_manifest, manifest)
         return manifest
 
+    def write_install_transaction_state(self) -> dict[str, object]:
+        """Invalidate any previous success before the installation mutates owned state."""
+        manifest: dict[str, object] = {
+            "schema_version": 1,
+            "status": "installing",
+            "code_commit": self._code_commit(),
+            "started_at": datetime.now(UTC).isoformat(),
+            "last_diagnosis": "installing",
+        }
+        self._atomic_json(self.install_manifest, manifest)
+        return manifest
+
     def write_runtime_build_lock(self, *, dsh_state: dict[str, object]) -> dict[str, object]:
         """Publish the verified DSH closure consumed by the runtime launcher."""
         commit = dsh_state.get("commit")
@@ -1048,8 +1102,10 @@ class SetupWebInstaller:
             raise RuntimeError("unowned_virtual_environment")
         if blocking:
             raise RuntimeError(str(blocking[0]))
+        self.write_install_transaction_state()
         environment_python = self.prepare_environment(repair=repair)
         python_state = self.install_python_dependencies(environment_python)
+        self.verify_web_import(environment_python)
         dsh_state = self.provision_dsh(repair=repair)
         self.write_runtime_build_lock(dsh_state=dsh_state)
         manifest = self.write_install_manifest(

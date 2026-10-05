@@ -2,10 +2,22 @@
 
 本批没有新增 HTTP 路由。`rwb web doctor [--json]` 是本机 CLI 诊断，现有连接目录继续通过
 `GET /api/research/data/connections` 投影天软的依赖、配置、探测和可调用事实；响应仍不含凭据。
+本轮仍不新增 HTTP 路由；CLI Doctor JSON 升为 schema 2，保留 `ok` 的安装语义，并增加
+`installation_ok`、`product_ready`、`model_ready`、安全化 issues/warnings 和每服务的
+state/process/ownership/port/protocol/ready。模型 warning 不改变 Web ready。
+`rwb web status` 与 Doctor 即使发现问题也在形成完整投影时退出 0；无 `.venv` 时受限后备入口
+只提供诊断。既有 `/api/research/runtime` 与 `/api/research/models` 仅供只读就绪/模型事实核对，
+不提交研究消息、不生成内容或泄漏 Provider failure 正文。
+未安装环境的顶层 `rwb --help` 现在由后备入口直接输出静态帮助；它不请求任何 HTTP API，
+不改变本页路由、响应字段或错误码。
 `rwb web start` 现在在任何进程创建前消费 Doctor 的固定安装 issue；失败只改变 CLI 错误精度和
 等待时长，不新增 HTTP 字段、路由或状态码，也不会暴露本机路径与凭据。
 Doctor 的安全 CLI JSON 在 `dsh.runtime_lock_matches` 报告已验证安装闭包是否等于 Runtime build
 lock；不匹配加入 `dsh_runtime_lock_mismatch`。该字段不进入 HTTP API，也不返回文件路径。
+`rwb web status` 的轻量导入边界同样不新增 HTTP 路由、字段或状态码；Doctor 需要构建证明时仍执行
+完整 DSH 闭包校验，status 仅报告既有进程与健康投影。
+安装器新增的 Web import readiness 发生在任何服务启动前，只决定安装能否标记完成，不监听端口、
+不运行 lifespan，也不新增或修改 HTTP 响应契约。
 全新 Profile 初始化、Windows Git 长路径和跨平台进程管理同样不新增 HTTP 路由；3081 健康通过后
 才启动既有 8088 API，启动失败不会暴露半就绪接口。
 

@@ -17,7 +17,8 @@ downgrade.
 2. Run `scripts/plan_verification.mjs` with one `--changed-file` per path. Read
    `changeSummary`, `components`, `impact`, `requiredLevel`, `platforms`,
    `validationsByLevel`, `local`, `ci`, `realMachine`, `uncoveredRisks`, and
-   `receiptTemplate` before running anything.
+   `receiptTemplate` before running anything. Verify
+   `.agents/runtime/leon-engineering/manifest.json` before trusting the shared kernel.
 3. Execute only the returned validation closure, in L0→L4 order. Capture the
    real status, duration, and evidence path for every
    `receiptTemplate.requiredValidationIds` item. Record selected CI merge gates

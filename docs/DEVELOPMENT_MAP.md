@@ -7,6 +7,7 @@
 | 源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |
 | `app/research_web/main.py`、`service.py`、`client.py` | HTTP/SSE、会话和 DSH 投影 | `architecture/research-web/01-system.md`、`02-research-runtime.md`、`04-api.md` | `tests/research_web/test_api.py`、`test_protocol.py` | 路由、状态、恢复或认证变化 |
+| `rwb`、`rwb.cmd`、`research_workbench_entrypoint/web_*.py`、`app/research_web/service_manager.py`、`service_diagnostics.py`、`lifecycle_lock.py` | 环境后备诊断、服务事实、排他锁、启动恢复与 Web ready | `research-web-installation.md`、`architecture/research-web/01-system.md`、`02-research-runtime.md`、`05-security-validation.md` | `test_web_contract.py`、`test_web_bootstrap.py`、`test_service_manager.py`、`test_cli_lazy.py` | 公开 CLI、PID/端口归属、健康、错误码、恢复或浏览器时机变化 |
 | `app/research_web/ui/`、`app/research_web/asset_workspace.py`、`app/research_web/asset_routes.py` | 当前产品原生 UI 与 Asset Workbench backend | `research-web-ui.md`、`research-web-appearance.md` | 验证策略 focused closure：`ui/asset-workspace.mjs` → `tests/javascript/research_web_workbench.test.mjs`；`asset_workspace.py` / `asset_routes.py` → `tests/javascript/research_web_workbench.test.mjs` + `tests/research_web/test_asset_workspace.py`，并累积架构与 Project Constraints 检查；其他 UI 运行相关测试和 E2E | 导航、DOM、可访问性、交互或 Asset Workbench API 合同变化 |
 | `app/research_web/datahub/` | 目录、Provider、Broker、快照 | `research-web-datahub.md`、`architecture/research-web/03-data-files.md` | `providers_akshare.py` → `tests/research_web/test_datahub_catalog.py` + `tests/research_web/test_datahub.py`；其他已登记 DataHub 测试 | 能力、来源、字段、路由或快照合同变化 |
 | `app/research_web/integrations/` | 五阶段集成状态和探测编排 | `architecture/research-web/09-integration-coordinator.md` | `tests/research_web/test_integration*.py` | 状态、归因、授权或探测变化 |
@@ -43,10 +44,11 @@
 - `docs/AGENT_WORKFLOW.md`：选择本地快环、worktree 或后台／远程执行。
 - `.agents/project-constraints.json`：架构、平台和文档治理门禁配置。
 - `.agents/verification-policy.json`：改动路径到 Component × Risk(L0-L4) × Platform、local/CI/real-machine lane 和 merge/release gate 的唯一机器真源。
-- `scripts/plan_verification.mjs`：只读合并全部改动的 changed-set 计划；输出 components、platforms、逐级验证和三个 lane，不执行计划中的命令。
-- `scripts/validate_verification_receipt.mjs`：只读核对 plan 与真实 receipt，禁止漏项、降级、跨层假通过和错误的 merge/release readiness；继续只读兼容历史 plan v2/receipt v1。
+- `scripts/plan_verification.mjs`：受管共享内核的只读薄入口，合并全部改动的 changed-set 计划；输出 components、platforms、逐级验证和三个 lane，不执行计划中的命令。
+- `scripts/validate_verification_receipt.mjs`：受管共享内核的只读薄入口，核对 plan 与真实 receipt，禁止漏项、降级、跨层假通过和错误的 merge/release readiness；继续只读兼容历史 plan v2/receipt v1。
 - `tests/javascript/verification_policy.test.mjs`、`verification_receipt.test.mjs`：规划、升级、平台、状态、安全与证据合同。
 - `tests/javascript/repository_cross_platform_contract.test.mjs`：Git 换行、vendor 字节稳定和本机状态忽略合同。
+- `.agents/runtime/leon-engineering/manifest.json`：共享验收内核固定版本、source commit、协议和受管文件哈希；不拥有项目策略。
 - `.agents/skills/incremental-validation/`：Codex/Claude 共用的项目增量验收流程；只引用策略和脚本，不复制路由表。
 - `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。

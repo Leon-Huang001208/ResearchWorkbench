@@ -3,6 +3,14 @@
 公开 Web 安装器在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的
 `runtime/dsh/<commit>/` 版本目录；运行时仍是既有 3081 DSH 与 8088 FastAPI 两个受管进程。
 `rwb web doctor` 读取安装摘要与健康事实，不增加守护进程、端口或数据库。
+checkout Python 环境缺失或损坏时，`rwb`/`rwb.cmd` 将顶层 `--help`、`web status` 和
+`web doctor` 转入标准库后备入口；帮助输出不探测服务，诊断不管理服务或声称 DSH/Web ready。正常环境由
+`service_diagnostics.py` 表达 state、进程、归属、端口、协议与 ready，
+`lifecycle_lock.py` 串行化 `start/stop/restart`，`service_manager.py` 只对已证明归属的进程执行恢复。
+Web ready 同时要求 DSH 已认证协议、`/api/research/runtime`、首页和 `/static/app.mjs` 通过；
+浏览器仅在最终产品 ready 后打开。模型凭据与目录失败单独报告，不阻止设置页访问。
+`rwb web status` 只加载轻量服务管理合同并核对进程、端口与真实健康；DSH 构建闭包、Capability
+目录和 MCP Runtime 功能图仅在 Doctor、安装诊断或实际 Runtime 启动需要时加载。
 `rwb web start` 在创建任何子进程前复用同一份 Doctor 安装事实；checkout 专属环境、Web 锁、
 CJPY、Node 或固定 DSH 未就绪时直接返回稳定 issue code 和安装器指引，不再先启动 3081 后等待超时。
 安装器与 `rwb` 使用同一 Node 选择顺序：显式参数、`RESEARCH_NODE_BINARY`、可执行的 Codex bundled
@@ -13,6 +21,11 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 干净用户目录会先从固定 DSH 模板初始化 `web` Profile，再加入 Tabbit 层；Windows Profile 的 pnpm
 目录 junction 与 POSIX symlink 一样必须解析回固定源码树。Windows 服务归属使用 CIM 命令行核对、
 无 shell PowerShell PID 探针和 `taskkill /T`，POSIX 继续使用进程组并把僵尸状态视为已退出。
+显式 `--repair` 复用安装器自有 `.venv` 前先做 15 秒 pip 探测；不可响应时保留 `.venv.failed-*`
+并原子重建。安装清单只在 checkout 的 `app.research_web.main:app` 于 300 秒内真实导入后写为
+`installed`，因此依赖文件存在但 Web 源码仍不可读取时不会误报安装完成。
+安装器在首次修改自有环境前先把旧成功清单原子改为 `installing`；任何失败都会保持非完成状态，
+不能让 Doctor 或下一次 start 继续消费上一次事务的陈旧成功证据。
 
 研究框架由同一 Research Web 服务内的薄注册表暴露 Gold 与 Dollar；目录、调度生命周期、快照存储和新鲜度协议共享，定义、契约、采集、评分、上下文与前端 renderer 保持领域专属。它不增加独立进程、数据库或资产详情服务，浏览器 GET 只读取已保存快照，不触发外网采集。
 
@@ -44,6 +57,8 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 | 运行时组装 | `app/research_web/launch_runtime.py`、`runtime/` | 固定源码闭包、专属目录、私有模块链接校验；常驻注册 15 个 DataHub 业务工具，由 Broker 在调用时按最新状态选源 |
 | Tabbit 适配 | `app/research_web/tabbit.py`、`runtime/tabbit-adapter.mjs`、`vendor/dsh-tabbit/0.3.4/` | 固定供应包校验、会话级页面授权、实时标签 claim、一次性内存上下文与写操作审批；只复用唯一 `ctx.tabbit` 执行器 |
 | 服务管理 | `app/research_web/service_manager.py` | `rwb web` 的安装前置诊断、进程归属、健康检查、跨平台私有目录校验、项目私有 DSH 源码选择、持久后台启动、停止和失败回滚 |
+| 服务事实与生命周期锁 | `app/research_web/service_diagnostics.py`、`lifecycle_lock.py` | 无副作用的进程/监听/协议事实投影与受管服务操作排他；不授权未知 PID |
+| 后备诊断合同 | `research_workbench_entrypoint/web_contract.py`、`web_bootstrap.py` | 共享 Node/环境/安全读取合同，以及 `.venv` 不可用时的静态帮助与只读 status/Doctor |
 | 数据迁移 | `app/research_web/data_migration.py` | 会话/附件/能力/数据集/产物的哈希复制；排除凭据并支持只读归档 |
 | 能力管理 | `app/research_web/capabilities/`、`app/research_web/skills/` | 草稿、声明式内置种子、受检资源、版本、原生目录投影、版本化证据协议与只读 Tool 声明 |
 | 报告 Workflow | `app/research_web/report_workflows/`、`report_workflow_routes.py` | 具体报告的模板/底稿资源、不可变版本、迁移、Claw 运行、Excel 刷新、日程与独立交付 |

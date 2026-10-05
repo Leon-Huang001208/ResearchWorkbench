@@ -12,12 +12,27 @@ DSH clone、checkout 与干净工作树校验都只对当前子命令应用同�
 或任意环境变量。
 服务启动在 spawn 前复用 Doctor 的安全化安装投影；未受安装器所有的 checkout 环境、锁漂移、
 CJPY/Node/DSH 未就绪均失败关闭并只输出稳定 issue code，不以 35 秒健康等待掩盖安装错误。
+后备 status/Doctor 只用标准库读取有界非秘密状态，不加载 Runtime auth 或执行生命周期操作。
+后备顶层 `--help` 更窄：只输出固定命令与安装提示，不读取状态、凭据或监听端口；其他未知命令
+及未安装环境中的生命周期操作继续失败关闭。
+共享私有 JSON reader 对 POSIX 使用 no-follow 描述符与 0600/单链接检查，对 Windows 拒绝
+reparse 并复核打开前后身份。普通服务归属须同时证明 state 签名、精确 argv、进程启动身份和
+监听 PID；不能证明时为 unknown，不凭 PID 文件或端口猜测。生命周期 guard 锁串行化状态恢复；
+只对再次核验为 owned 的进程停止、回滚或清理 auth，foreign/unknown 一律失败关闭。
+HTTP 就绪探测直连回环、不经过代理，正文有上限；JSON 限制媒体类型、UTF-8 与对象形状。
+Doctor 只输出 allowlist issue/warning，不含 Cookie、命令行、代理 URL、响应正文或模型失败详情。
 Node 选择只接受显式路径、受控环境值、可执行的 Codex bundled 路径或 PATH，并在版本门禁后用于
 所有 Node 构建子进程。Runtime build lock 只能由固定 commit、规范 SHA-256 与固定文件数的已验证
 DSH state 原子更新；文件数必须是严格整数。POSIX 逐级使用 `dir_fd`、`O_DIRECTORY`、`O_NOFOLLOW`
 和独占临时文件，Windows 逐级校验 canonical path 与 reparse point；最终文件拒绝 symlink、hardlink、
 越界大小和非私有 POSIX mode。安装器在写锁前只对当前用户拥有的产品 data home 收紧为 0700，
 未知 owner 或 alias 仍失败关闭。缺失、陈旧或路径不安全时 Doctor 和 start 均失败关闭。
+状态命令的轻量导入只避免在诊断前加载 DSH Capability/MCP 功能图，不跳过任何归属、端口、认证或
+HTTP 健康核对；Doctor 与 start 仍延迟加载并执行完整构建闭包和安装证明。
+`--repair` 仅替换所有权 marker 与 checkout 哈希均匹配的环境，并保留旧目录作为回滚副本；pip
+探测和 Web import readiness 都使用不含应用秘密的 Python 子进程允许列表、有界超时和稳定错误码。
+首次安装写入前原子发布 `status=installing` 的最小清单，使已有 `installed` 证据立即失效；只有
+依赖、Web import、固定 DSH、Runtime lock 和最终清单全部成功后才重新发布 `installed`。
 
 Gold 与 Dollar 快照在路径解析前拒绝任一现存符号链接组件，限制为 2 MiB，使用各自严格 schema 和内容 revision，并同目录原子替换。旧 Gold V1 结构先保留为 `snapshot.legacy-v1.json`；已存在备份时拒绝覆盖。生产浏览器不导入测试 fixture，来源失败不得伪装成实时成功。Bot 上下文另设 80,000 字符上限，默认解释预设不暴露工具。
 

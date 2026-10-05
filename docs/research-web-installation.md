@@ -37,8 +37,16 @@ python scripts/setup_web.py
 `cjpy==0.5.2`、构建固定 DSH、启动 3081/8088 并打开浏览器。可用参数：
 
 - `--check-only`：只检查，不写入。
-- `--repair`：只修复带本项目所有权标记的 `.venv` 或 DSH 目录；未知目录拒绝覆盖。
+- `--repair`：只修复带本项目所有权标记的 `.venv` 或 DSH 目录；复用 `.venv` 前以 15 秒上限
+  验证其中的 pip 可响应，失败时把旧环境保留为 `.venv.failed-<id>` 后原子创建新环境；未知目录
+  仍拒绝覆盖。
 - `--no-start`：安装完成但不启动服务。
+
+安装器只会在当前 `.venv` 能从 checkout 加载 `app.research_web.main:app` 后写入 `installed` 清单；
+该 Web import readiness 最多等待 300 秒，用于完成云盘/FileProvider 冷文件的首次读取。超时或导入
+失败返回 `python_web_import_failed`，不会把仅依赖已安装但当前 Web 入口不可加载的环境标记为完成。
+开始修改安装器自有环境前，旧成功清单会被原子替换为 `installing`；任一步失败都保留该非完成
+状态，Doctor 与 start 因而不能继续信任上一次安装的陈旧 `installed` 证据。
 
 Node 选择顺序为：调用方显式传入、`RESEARCH_NODE_BINARY`、可执行的 Codex bundled Node、PATH。
 安装器会把选中 Node 的目录放在 npm/Corepack/DSH 构建子进程 PATH 首位，避免版本检查使用 Node 24
@@ -56,6 +64,22 @@ Node 选择顺序为：调用方显式传入、`RESEARCH_NODE_BINARY`、可执�
 
 Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要、端口和健康状态，不输出路径、
 环境变量值、凭据或用户文件正文。
+若 checkout `.venv` 缺失、所有权标记不完整或解释器不可用，顶层 `--help`、`web status` 与
+`web doctor --json` 仍由仅使用系统 Python 标准库的受限入口提供帮助或安全诊断；该入口拒绝
+`start/restart/stop`，不读取 Runtime Cookie，也不改写 PID/state。系统 Python 也缺失时，入口返回
+`python_runtime_unavailable` 并提示重新运行公开安装器。
+Doctor schema 2 区分 `installation_ok`、`product_ready` 与 `model_ready`。服务状态按 state、真实 PID、
+启动身份与命令归属、监听 PID、DSH 协议、Web HTTP 逐级核对；PID 文件或开放端口单独存在都不构成
+ready。Node 22.19+（22 系列）或 24.x 由安装器与 Doctor 使用同一版本合同核对，其他版本或畸形
+输出报告独立 issue。模型配置、凭据或目录问题只列入 warning，不阻止 Web 与设置页启动；Doctor 不
+通过真实生成请求测试模型密钥。
+`start` 在已确认死亡且端口关闭时恢复 stale state；归属明确但不健康的 DSH 只有在只读核对确认
+没有活动研究后，才按 Web → DSH 的停止顺序重建。活动研究存在或无法核对时拒绝自动停止，并提示
+显式 `rwb web restart --force`。随后依次等待 DSH、Web Runtime API、首页与 `/static/app.mjs`，
+并复查最终产品就绪状态；未就绪时返回非零退出码和具体健康 issue，不会误报启动成功或打开浏览器。
+归属不明的 PID、监听者或
+损坏且仍可能活动的 state 会失败关闭，不接管或终止未知进程。生命周期操作由同一排他锁串行化；
+浏览器打开失败会返回 `browser_open_failed` warning 和可复制 URL，已健康服务继续运行。
 `rwb web start` 会在创建 3081/8088 子进程前复用 Doctor 的安装检查。若 checkout `.venv` 不受安装器
 所有、锁摘要不符、CJPY/Node/DSH 未就绪，命令立即列出稳定 issue code，并提示重新运行上述安装器；
 它不会先创建候选 Runtime 再等待健康超时。
@@ -117,6 +141,8 @@ runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检�
 `git rev-parse HEAD` 的 exact SHA 发起 GitHub `windows-2022`；Mac 不发起该 workflow。GitHub Windows
 结果与 Windows 真机安装、升级、用户目录、Office/Excel/Wind 结果分别记录，任一未运行均不得标记为
 通过。该边界不改变桌面/Tauri/sidecar 的独立 Windows 门禁。
+Bootstrap 的 macOS 验收还要求 Doctor schema 2 的安装/产品 ready、双服务 ready，以及首页和主
+静态模块实际可读取；本机运行和单元测试不能替代该干净 runner 的结果。
 
 维护者更新直接依赖后，用 Python 3.12 重新生成锁：
 

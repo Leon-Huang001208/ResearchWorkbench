@@ -556,9 +556,10 @@
           "tests/javascript/verification_receipt.test.mjs",
           "tests/javascript/incremental_validation_skill.test.mjs"
         ],
-        "prefixes": [
-          ".agents/skills/incremental-validation/",
-          ".github/workflows/"
+      "prefixes": [
+        ".agents/runtime/leon-engineering/",
+        ".agents/skills/incremental-validation/",
+        ".github/workflows/"
         ],
         "segments": [],
         "suffixes": []

@@ -98,16 +98,44 @@ def test_web_doctor_supports_safe_json_and_human_output(monkeypatch):
     from app.cli import main as cli_module
 
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "ok": True,
-        "issues": [],
+        "installation_ok": True,
+        "product_ready": False,
+        "model_ready": False,
+        "issues": ["web_state_invalid"],
+        "warnings": ["loopback_proxy_bypass_missing"],
         "python": {"version": "Python 3.12.9", "lock_matches_manifest": True},
         "node": {"version": "v24.8.0"},
         "cjpy": {"version": "0.5.2", "ready": True},
         "dsh": {"ready": True},
         "services": {
-            "runtime": {"port": 3081, "running": True, "healthy": True},
-            "web": {"port": 8088, "running": True, "healthy": True},
+            "runtime": {
+                "state": "valid",
+                "process": "alive",
+                "ownership": "owned",
+                "port_state": "listening",
+                "protocol": "passed",
+                "ready": True,
+                "port": 3081,
+                "running": True,
+                "healthy": True,
+                "pid": 101,
+                "issues": [],
+            },
+            "web": {
+                "state": "invalid",
+                "process": "inaccessible",
+                "ownership": "unknown",
+                "port_state": "closed",
+                "protocol": "not_run",
+                "ready": False,
+                "port": 8088,
+                "running": False,
+                "healthy": False,
+                "pid": None,
+                "issues": ["web_state_invalid"],
+            },
         },
     }
 
@@ -124,5 +152,62 @@ def test_web_doctor_supports_safe_json_and_human_output(monkeypatch):
     assert json.loads(json_result.stdout) == report
     assert "diagnostic warning" in json_result.stderr
     assert human_result.exit_code == 0, human_result.output
+    assert "Installation: ready" in human_result.output
+    assert "Product: not ready" in human_result.output
+    assert "Model: not ready" in human_result.output
     assert "CJPY: 0.5.2" in human_result.output
     assert "DSH: ready" in human_result.output
+    assert "issues: web_state_invalid" in human_result.output
+    assert "warnings: loopback_proxy_bypass_missing" in human_result.output
+
+
+def test_web_status_exits_zero_with_safe_service_issues(monkeypatch):
+    from app.cli import main as cli_module
+
+    private_path = "/private/project/secret-token"
+
+    class Manager:
+        def status(self):
+            return {
+                "url": "http://127.0.0.1:8088/#/fingpt",
+                "product_ready": False,
+                "warnings": [],
+                "services": {
+                    "runtime": {
+                        "state": "invalid",
+                        "process": "inaccessible",
+                        "ownership": "unknown",
+                        "port_state": "closed",
+                        "protocol": "not_run",
+                        "ready": False,
+                        "running": False,
+                        "healthy": False,
+                        "pid": None,
+                        "port": 3081,
+                        "issues": ["runtime_state_invalid"],
+                        "log": private_path,
+                    },
+                    "web": {
+                        "state": "missing",
+                        "process": "missing",
+                        "ownership": "unknown",
+                        "port_state": "closed",
+                        "protocol": "not_run",
+                        "ready": False,
+                        "running": False,
+                        "healthy": False,
+                        "pid": None,
+                        "port": 8088,
+                        "issues": [],
+                        "log": private_path,
+                    },
+                },
+            }
+
+    monkeypatch.setattr(cli_module, "WebServiceManager", Manager)
+
+    result = CliRunner().invoke(cli_module.cli, ["web", "status"])
+
+    assert result.exit_code == 0, result.output
+    assert "runtime_state_invalid" in result.output
+    assert private_path not in result.output
