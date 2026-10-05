@@ -15,6 +15,8 @@ Cookie 和账号只在本机设置页录入，不进入代码包、安装清单�
 
 ## 公开入口
 
+受管启动使用产品Node preload将启动认证信息交接到既有私有auth控制文件，普通runtime.log不保存认证链接；正常管理器完成Cookie交换，不从旧日志恢复认证。安装依赖、固定DSH版本和构建闭包不变，独立实例仍须有真实受管环境及匹配安装/build-lock证据；测试根准备不等于干净安装CI通过。
+
 安装完成后，在设置的模型服务页录入固定 Runtime 支持的 DeepSeek 配置。留空保留、填写替换、独立清除；保存只设定新会话模型，已有会话保留选模，任务运行时拒绝变更。模型页分别显示保存、Runtime 应用、凭据与最近真实生成；生成测试显式调用模型并消耗少量额度，前置检查最多 30 秒、生成执行段最多 60 秒、取消等待最多 3 秒，不由安装或 Doctor 自动执行。
 
 macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Keychain 后端；owned overlay 使用产品受管 Python 的私有 stdio 桥接，固定 DSH 版本和构建闭包不变。命名空间由规范化 data home 派生，重启从同一系统账户恢复；不读取开发者 Codex/Claude 配置，不导入环境、旧 YAML 或任何 `.env`。旧模型 Key 不自动迁移，需在本实例设置页重新录入。Host 认证 record 独立存于 Runtime home 的 `.browser-credentials.yaml`，保留固定 DSH 锁和更新语义，不持有模型 Key。Keychain 拒绝/不可用及非 macOS 后端均明确失败，不采用文件回退。产品锁、安装器与 workflow 未变，仍须当前代码的 macOS 干净安装 CI 证明兼容。

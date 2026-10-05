@@ -171,6 +171,7 @@
         "tests/research_web/test_mcp_runtime_routes.py",
         "tests/research_web/test_mcp_transport.py",
         "tests/javascript/research_web_guard.test.mjs",
+        "tests/javascript/research_web_auth_output.test.mjs",
         "tests/javascript/research_web_mcp_adapter.test.mjs",
         "tests/javascript/research_web_mcp_marketplace.test.mjs",
         "tests/e2e/research_web_mcp_runtime.mjs"

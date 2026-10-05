@@ -27,6 +27,32 @@ from app.research_web.service_manager import (
 from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
 
 
+def test_runtime_bootstrap_token_uses_private_control_not_normal_log(tmp_path):
+    manager = WebServiceManager(
+        project_root=tmp_path, data_root=tmp_path / "research-web", runtime_port=13081
+    )
+    manager.log_root.mkdir(parents=True, exist_ok=True)
+    token = "x" * 43
+    (manager.log_root / "runtime.log").write_text(
+        f"dsh web: http://127.0.0.1:13081/?token={token}\n"
+    )
+    assert manager._runtime_launch_token() is None
+    path = manager._runtime_auth_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "authority": "127.0.0.1:13081",
+                "cwd": str((manager.data_root / "runtime/work").resolve()),
+                "source_commit": service_manager_module.PINNED_COMMIT,
+                "bootstrap_token": token,
+            }
+        )
+    )
+    path.chmod(0o600)
+    assert bool(manager._runtime_launch_token() == token)
+
+
 def _test_pid_exists(pid: int) -> bool:
     try:
         os.kill(pid, 0)

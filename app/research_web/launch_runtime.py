@@ -644,6 +644,9 @@ def prepare(
         "DSH_HOME": str(home),
         "DSH_TELEMETRY_DISABLED": "1",
         "TMPDIR": str(temp),
+        "RESEARCH_RUNTIME_AUTH": str(runtime / "auth.json"),
+        "RESEARCH_DSH_SOURCE": str(source),
+        "RESEARCH_RUNTIME_PORT": str(port),
     }
     for name in ("USERPROFILE", "LOCALAPPDATA"):
         if value := os.environ.get(name):
@@ -652,6 +655,8 @@ def prepare(
         env["TABBIT_PLAYWRIGHT_INSTANCE"] = str(tabbit_config["instance_id"])
     command = [
         node,
+        "--import",
+        str(package / "auth-bootstrap.mjs"),
         str(executable),
         "--profile",
         "web",

@@ -796,6 +796,8 @@ class WebServiceManager:
                 "cwd": str((self.data_root / "runtime/work").resolve()),
                 "source_commit": PINNED_COMMIT,
             }
+            if isinstance(value, dict) and "bootstrap_token" in value and "cookie" not in value:
+                return None
             if (
                 not isinstance(value, dict)
                 or any(value.get(key) != item for key, item in expected.items())
@@ -815,21 +817,25 @@ class WebServiceManager:
             return None
 
     def _runtime_launch_token(self) -> str | None:
-        log_path = self.log_root / "runtime.log"
         try:
-            with log_path.open("rb") as stream:
-                stream.seek(0, os.SEEK_END)
-                size = stream.tell()
-                stream.seek(max(0, size - 2 * 1024 * 1024))
-                text = stream.read().decode("utf-8", errors="replace")
-        except OSError:
+            value = read_runtime_auth_record(self._runtime_auth_path())
+            expected = {
+                "authority": f"127.0.0.1:{self.runtime_port}",
+                "cwd": str((self.data_root / "runtime/work").resolve()),
+                "source_commit": PINNED_COMMIT,
+            }
+            if not isinstance(value, dict) or any(
+                value.get(key) != item for key, item in expected.items()
+            ):
+                return None
+            token = value.get("bootstrap_token")
+            return (
+                token
+                if isinstance(token, str) and re.fullmatch(r"[A-Za-z0-9_-]{43}", token)
+                else None
+            )
+        except (OSError, ValueError, TypeError, UnicodeDecodeError):
             return None
-        matches = [
-            token
-            for port, token in RUNTIME_TOKEN_PATTERN.findall(text)
-            if int(port) == self.runtime_port
-        ]
-        return matches[-1] if matches else None
 
     def _exchange_runtime_cookie(self, token: str) -> str | None:
         connection = http.client.HTTPConnection("127.0.0.1", self.runtime_port, timeout=2)

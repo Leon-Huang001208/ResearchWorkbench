@@ -279,3 +279,19 @@ C3生命周期BLOCKED、真实替换归因NOT_RUN、C4真实Key冷重启NOT_RUN�
 首先需为**当前工作树与独立实例根**通过现有安装/受支持复用流程建立真正受管产品环境、匹配非秘密安装清单及Runtime build lock。不能手写owner/installed状态来让Doctor变绿，也不能默认执行使用生产data home的公开安装命令。新产品依赖安装不同于此前仅Black/isort/mypy的检查环境授权，须明确限定用途与作用目录；不改安装器源码、产品锁、固定DSH版本或其他worktree环境。其次需在保留正常Host认证的前提下，完成启动认证链接不落普通日志的最小受控交接，才能提供录入页；若需新增安全边界则另行收窄批准范围。
 
 遇到上述外部准备阻塞后停止，不要求用户提供Key或“A已保存”。没有实际Host/DSH测试进程，没有保存真实Key，因此产品清除和所属进程停止均不适用，不能说已经执行清除。临时合成复现资源已清理；独立空data home及脱敏证据保留以便续接。没有清理生产资源、撤销供应商Key或修改系统权限/Hook。C5仍未执行，四个现有外部门继续BLOCKED，mergeReady=false、releaseReady=false；本轮C3/C4未完成。
+
+## 隔离环境获准后的续接与T0（2026-10-06）
+
+用户明确批准原工作树.venv及独立根内的产品环境准备，旧环境阻塞已解除，未重复请求整个C3/C4授权。沿现有SetupWebInstaller.prepare_environment/install_python_dependencies/verify_web_import准备冻结依赖，verify_dsh_source只读验证既有固定构建，再由原安装器写真实manifest/build lock；没有重建或改动固定DSH、产品锁、安装器或其他worktree环境，也未由安装器自动启动。安装器常规目录为 `/private/tmp/rwb-c3c4-u_4bgdb6/research-web`，此处成为后续唯一data home；此前 `/data` 仅做空命名空间预检，从未保存Key，不能冒充后续持久化验证。环境证据environment-preparation.json。
+
+启动日志阻断已按既有直接缺陷修复授权实施最小补丁。新auth-output/auth-bootstrap产品preload在原DSH进程内处理输出；临时token使用同一个既有私有auth.json，原manager仍完成原Cookie交换，不新增daemon/Vault/接口，不重构模型Keychain/provider/bridge。先留下缺模块与旧日志解析的失败测试，再实现；JS3项通过，相关manager/runtime_auth/launcher闭包282 PASS。首次新增绑定误置导致3个launcher用例失败，已纠正并保留auth-related-regression.log，最终通过见-final.log。Black/isort/Ruff对本轮相关Python通过；service_manager直接mypy检查有24条既有诊断，未修改基准同边界同样24条（其中包含原37条导入闭包诊断的该模块问题），不增加ignore，不声称该模块类型全绿。新launcher没有类型错误，未扩大旧债务整改。
+
+正常WebServiceManager.start(open_browser=False)已经通过安装门并启动独立实例，未绕过门：Runtime PID21918/13081，Host PID22500/18088，均valid/alive/owned/listening/protocol passed/ready。子进程使用仅公共运行字段的环境，不继承模型Key；本实例MCP/Automation关闭，不建立额外研究任务。日志中认证链接和Cookie/Authorization标记计数均0；认证材料只由产品原受控认证文件/正常交换使用，不进入证据。实际启动证据managed-start.json、T0.json。
+
+**T0 PASS**：页面与设置模块HTTP200，刷新后实际浏览器模型页显示Runtime可达、凭据否、受支持DeepSeek-V4-Flash；产品新提交503/model_credentials_missing，在供应商前阻断。证据helper首次漏必需Idempotency-Key而先被422拒绝，纠正后沿同一已有T0会话完成，没有供应商调用，保留T0-header-rejected.json。T0会话dbbbee52-cb4b-4c2b-9023-e731d3dbb21d，正式research-web preset。现有settings.mutate设置llm-deepseek retryPolicy normal/maxRetries=0，未新建预算系统；后续逐次触发，工具路径请求数仍须逐步核实，不以提示词当作硬预算证明。
+
+Browser辅助初始化因本机组件签名失败，未修系统签名/权限；经现有CUA浏览器入口完成一次无Key页面与刷新确认，未填/读取密码值、剪贴板或个人开发配置。录入入口 `http://127.0.0.1:18088/#/settings/model` 无认证秘密，浏览器tab1保留为人工交接。开始录入后停止截图、DOM、HAR/trace或请求体采集。当前真实模型0/6、公开工具0/1；T1—T6仍NOT_RUN，替换归因和真实Key冷重启均未验证。现在仅等待用户在该页面录入测试Key A并回复“A已保存”，不轮询、不推断完成。
+
+完整交付changed set包含本轮最小补丁、必要测试/文档及既有成果，后续身份以快照/正常本地检查点为准，不用旧HEAD代替新代码。C5及外部门仍未执行，mergeReady/releaseReady=false。本交接点保留所属测试进程用于人工录入；最终结束再走产品清除并停止所属进程，现在没有已保存的真实Key可清除。
+
+交接代码/测试overlay SHA-256为cca944e639cb152cf59b4a11aa0a534ec83ebc5bc297cbd2409330f065dd1a41，完整交付51路径，快照auth-fix-snapshot.json。JS最终84 PASS（含新增3项），初次新增FS fixture因macOS系统临时目录别名被canonical检查拒绝，已规范化fixture路径，不削弱产品检查；首次失败日志保留。协议20 PASS。进程实际started_at与project_root/data_root绑定见instance-ownership.json，不以认证文件mtime独立证明重启。安装器提交标识记录其环境准备时的e5fb2a19；本轮新源码由该overlay与后续本地检查点识别，不能用安装清单旧code_commit替代当前代码。新认证修复的相关门与未变模块旧证据分别记录；service_manager基准类型诊断、真实生命周期和当前CI风险不删除。

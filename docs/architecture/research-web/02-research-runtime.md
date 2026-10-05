@@ -2,6 +2,8 @@
 
 ## 模型配置与显式验收
 
+受管启动在固定 CLI 加载前安装产品 `auth-bootstrap.mjs`：启动认证输出按完整行截获（包含跨chunk情况），仅向现有私有 `runtime/auth.json` 写入临时bootstrap_token及实例绑定。管理器从该受控文件完成原Cookie交换，原子替换为正常认证记录，不再从runtime.log解析token；普通日志只出现固定脱敏标记。没有新HTTP接口、daemon或模型凭据后端。解析/绑定/私有文件校验失败则认证失败关闭，不回退旧日志。
+
 模型 Provider 固定为 `deepseek-official`，模型 ID 由固定 DSH 的真实目录校验。保存与显式测试共用串行边界；保存共享凭据前拒绝活动父/子任务。已有会话保留模型，新会话在创建时应用默认值；凭据由Runtime共享，替换后用于所有后续模型请求。凭据变更前先持久化旧模型与 `model_configuration_uncertain`，成功后才提交新默认值并清标记。写入前只读拒绝不改旧状态；RPC开始后的拒绝、取消、进程退出、传输或最终保存失败均保留未知标记，冷恢复也阻断后续模型请求。固定DSH的credential/rejected也可能代表提交后的observer失败，不能当作回滚收据。不会读取秘密来制作回滚副本。
 
 留空保留凭据，非空替换，`clear_api_key` 独立清除，两个动作不得同时提交。清除后的新消息被阻断；普通配置及最近测试不含密钥。macOS Native 的 `credentials` 服务通过产品 `runtime/model-credentials.mjs` 与 `model_credentials.py` 仅在系统 Keychain 解析固定模型 ref；不读取 Codex、Claude 或其他工程配置补齐。Host record 接口继续继承固定 DSH 文件 provider，使用独立 `.browser-credentials.yaml`。
