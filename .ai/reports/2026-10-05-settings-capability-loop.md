@@ -508,3 +508,19 @@ Black/isort修改文件通过；Ruff首次因沙箱缓存写失败退出2，不�
 已用模型2/6、工具1/1时没有再执行工具。用户明确追加仅1次工具额度，使本轮总工具上限2、模型仍6；批准为加载修正只重启原所属独立实例，新进程模型上限降为剩余4、工具上限1，总账不重置、Key不重新录入或复制。修正有public-tool-red.log及对应GREEN/启动/static/邻接回归，缺项不隐去。所有后续真实记录累加到原ledger，不将进程重启当补模型额度。
 
 远端master已漂移到05326b6066f96a572db4ac87f3bdc041ff92003f；PR78当前CONFLICTING（API base仍旧9e231b6c缓存事实分别记录），自动新CI未触发，不能借旧CI成功。尚未自动合入新的master或历史分支，不为绿灯改policy/Hook。本轮工具修正和真实证据可独立推进，远端整合缺口保留。
+
+### T6真实通过、结束清理与当前外部门
+
+修正后正常受管重启产生DSH11301/Host11591，同一data home，用户未重新录入Key，configured=true/uncertain=false；新进程硬上限4模型/1工具按原总账扣减，未补模型额度。正式Web create/send的session cf1c2e6a-3e8a-4491-a5e7-bbc961a2f279实际调用datahub_get_fund_data一次、工具无错误，2模型step/0失败attempt，4.412秒completed且最终非空回复。只读快照验证provider=eastmoney_fund、source=fund_nav、row_count=1、cache_hit=false、as_of=2026-09-30、unit_nav=1.222；最终回复包含同一日期和1.2220，并准确保留1页1行/pagination_complete=false及非完整历史限制。
+
+**T6正式Web→固定DSH→真实模型→一次成功公开工具→真实最终回复PASS。** 证据T6-public-nav-proof.json、T6-snapshot-readback.json、T6-public-row-readback.json。最初证据脚本误将dataset source=fund_nav与provider=eastmoney_fund比较，产生错误FAILED；T6-public-nav-proof-initial.json保留。只读现有快照纠正判定，没有重发任何模型或工具；前一条日历HTTP400仍是真实FAILED，不与此证据错误混淆。
+
+全轮累计模型**4/6**、工具**2/2**（含首条失败，追加额度有用户明确回复），0自动重试，剩余2模型未使用且结束后不自动结转。固定DSH/产品锁/生产未修改，未新增预算系统、Provider或DataHub能力；最小控制与精确公共参数修正经8 guard/29 launcher/95邻接JS及既有300相关Python等证据验证。B实际供应商Key归因仍未验证：尚未收到按该Key关联的独立供应商记录；生成成功、Keychain configured及数据供应商eastmoney_fund都不是模型Key B的归属证明。不通过读密/散列补证，未为该缺项消耗剩余额度。
+
+清理实际PASS：确认测试会话不活跃，通过正常产品PUT clear_api_key=true清除本测试Key，HTTP200；刷新credential_configured=false、configuration_uncertain=false，清除前runtime_applied=true与清除后false分别保存final-product-key-clear.json。正常manager.stop仅停止上述owned进程，最终两个process=missing/ports=closed，final-status.json及closed ledger保存。没有供应商Key撤销或生产8088/3081升级、停止、迁移。
+
+当前修正候选fa452937a862d86983bc7e24a49c567c61c28b5e已普通push。PR78因目标迁移冲突未自动触发CI；按既有C5独立送检授权仅补发缺少的Web Checks37431032580与macOS Bootstrap37431037662，两项attempt1/workflow_dispatch/标准ubuntu-latest与macos-14最终PASS，actual checkout均为fa452937a，current-code-runs.json保存完整job/steps与Checkout精确SHA。一次run list空响应不是终止证据；随后直接读取同一两个run handle确认completed/success，没有重新发起运行。没有Windows/Docker dispatch、rerun或发布。
+
+Project Constraints当前代码CI仍BLOCKED：PR78 CONFLICTING，actual remote master05326b6066f96a572db4ac87f3bdc041ff92003f相对9e231b6c含140路径Native/Docker状态/安装/凭据/控制器迁移和20文本冲突，target-drift-summary.json保存具体列表；含README、运行协议/数据/安全文档、architecture-map、图/回执/测试等，不能当作一份回执冲突。未自动合入这份大迁移，也未直接合入历史功能分支。现有policy完整84路径回执仍BLOCKED，mergeReady=false/releaseReady=false；Mac功能T6真实PASS不等于新目标整合、B归因或完整1A全部完成。
+
+当前唯一剩余目标为在明确整合范围与非秘密归因证据条件下完成1A收口；不重做阶段0/C1/C2或已完成真实生命周期，不自动进入1B/2—6。报告最终本地提交与fa452937a代码身份分别保存；只报告补记不再push触发CI循环。本轮完成已授权控制/真实T6/清理，遇到超出当前边界的大迁移及缺B归因证据后停止。
