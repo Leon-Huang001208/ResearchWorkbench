@@ -49,6 +49,7 @@
         "tests/research_web/test_runtime_endpoints.py",
         "tests/research_web/test_control_origin.py",
         "tests/research_web/test_docker_runtime.py",
+        "tests/research_web/test_setup_web.py",
         "tests/research_web/test_docker_packaging.py",
         "tests/research_web/test_container_supervisor.py",
         "tests/research_web/test_staged_runtime.py",

@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+Docker CLI代理只来自本次host环境校验，不写研究数据、manifest、Compose或镜像；provider
+秘密和Docker endpoint/TLS覆盖项不继承。Doctor.proxy只投影state/configured/local_bypass/issues，
+没有代理URL、认证或NO_PROXY原列表。
+
 正常 Native installer auto-start 凭同次 manager 在真实持锁 scope 实际创建根并保留身份至
 build-lock 就绪，不能从已有文件认领；no-start/跨调用没有该证明。环境 marker 仅证明
 checkout-owned Python，不承载数据根 witness、lease 或控制 token。

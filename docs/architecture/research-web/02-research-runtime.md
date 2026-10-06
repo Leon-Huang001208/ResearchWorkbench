@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+Docker._environment仅在host CLI添加校验后的HTTP_PROXY/HTTPS_PROXY/NO_PROXY双大小写。
+不安全值在status/Doctor/stop过滤并报告稳定warning；install/build返回docker_proxy_configuration_invalid，
+避免静默直连。固定argv、隐式.env禁用及进程/容器归属检查保留；Native共享minimal环境不放宽。
+
 _installation_start_scope 只从 manager 真实 lease/mkdir 取得创建事实，覆盖 DSH/runtime
 build-lock/manifest；_start_installed(lease) 复核同一实际对象和根身份，执行正常安装门与端点
 生命周期，不重复 acquire、不接受 bool/tuple 跳锁。no-start/失败/scope 退出清证明；既有根

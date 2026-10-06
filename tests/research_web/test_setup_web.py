@@ -33,6 +33,44 @@ def test_setup_public_explicit_port_options():
     assert options.no_start is True
 
 
+def test_public_docker_setup_preserves_safe_cli_proxy_at_real_popen_boundary(tmp_path, monkeypatch):
+    import io
+    from scripts import setup_web
+    project = tmp_path / "project"
+    (project / "requirements").mkdir(parents=True)
+    (project / "requirements/web.lock").write_text("locked")
+    (project / "compose.yaml").write_text("services: {}")
+    home = tmp_path / "approved-home"
+    home.mkdir(mode=0o700)
+    monkeypatch.setenv("HOME", str(home))
+    for key in ("http_proxy", "https_proxy", "NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:29758")
+    monkeypatch.setenv("HTTPS_PROXY", "http://localhost:29758")
+    monkeypatch.setenv("API_KEY", "fixture-secret")
+    real_popen = subprocess.Popen
+    captured = []
+    def popen(argv, **kwargs):
+        if argv[0] != "docker":
+            return real_popen(argv, **kwargs)
+        captured.append((argv, kwargs))
+        output = b""
+        if "info" in argv:
+            output = b'"aarch64"'
+        if argv[1:3] == ["image", "inspect"]:
+            output = json.dumps({"id": "sha256:" + "b" * 64, "runtime": "docker"}).encode()
+        return SimpleNamespace(pid=999999, stdout=io.BufferedReader(io.BytesIO(output)),
+            stderr=io.BufferedReader(io.BytesIO()), returncode=0, poll=lambda: 0, wait=lambda **kwargs: 0)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    args = setup_web.build_parser().parse_args(["--runtime", "docker", "--no-start"])
+    manifest = setup_web.install_selected_runtime(args, project_root=project)
+    assert manifest["status"] == "installed"
+    assert any("build" in argv for argv, kwargs in captured)
+    assert all(kwargs["env"]["HTTP_PROXY"] == "http://127.0.0.1:29758" for argv, kwargs in captured)
+    assert all("API_KEY" not in kwargs["env"] and kwargs["env"]["COMPOSE_DISABLE_ENV_FILE"] == "1" for argv, kwargs in captured)
+    assert not any(arg in ("--build-arg", "--env", "-e") for argv, kwargs in captured for arg in argv)
+
+
 def test_docker_check_only_rejects_runtime_port_before_external_probe(tmp_path, monkeypatch):
     from scripts import setup_web
     monkeypatch.setenv("HOME", str(tmp_path))

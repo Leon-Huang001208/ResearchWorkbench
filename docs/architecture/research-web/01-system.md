@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+Docker host CLI 只继承经校验的 credentials-free loopback HTTP(S)代理和有界NO_PROXY；共享
+Native minimal环境不变。CLI传输、Docker Desktop Engine和build代理是不同层，源码保留env
+不证明真实registry/APT/镜像构建可用，也不把宿主127代理注入镜像/Compose/provider运行环境。
+
 Native installer auto-start 在 Web 依赖就绪后由同一 manager 持真实 lease 创建根，覆盖
 DSH/build-lock/manifest 与就绪门，再借原 lease 启动。公开入口先进入精确 owned venv
 （同脚本/原参数 -I），不跨进程传或持久化 fresh 证明，不新增常驻部署节点。

@@ -1,5 +1,14 @@
 # 安全边界与验证方法
 
+Docker host CLI代理允许列表：仅http/https、localhost或loopback IPv4/IPv6、显式1..65535端口，
+输入≤1024ASCII字符；userinfo/path/query/fragment/control/畸形/非回环拒绝。大小写变量同时
+存在须校验后相等；均空禁用，空/非空或不同值冲突拒绝。URL归一化scheme/host/IP/端口，
+NO_PROXY保留合法列表顺序/拼写（仅trim元素空格），两种列表不同也冲突。
+NO_PROXY输入≤2048字符/64项，每项≤253字符，仅host/IP/CIDR/*或*.domain/.domain；无URL、
+凭据、端口或控制字符。有效配置追加localhost,127.0.0.1,::1本地bypass，输出有界至2074字符。
+诊断/安全stop滤除无效pair，稳定warning/Doctor状态无原值；构建以实际传给Popen的同一已验证
+env快照失败关闭。ALL_PROXY、DOCKER_HOST/TLS/任意provider秘密仍排除；共享minimal环境不变。
+
 installer auto-start 只借 manager 实际持有的同一 lease/mkdir 身份，bool、tuple 或持久
 marker 不能充当 fresh；root/lease/监听变化拒绝，no-start/失败退出失效。公开重执行限定
 精确 owned venv/已有 marker、同脚本原参数 -I，在创建根前完成，保持批准的 HOME/Node/

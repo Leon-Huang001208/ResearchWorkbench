@@ -7,6 +7,7 @@ or unrestricted inspect output is ever included in a diagnostic report.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import logging
 import os
@@ -24,6 +25,7 @@ from uuid import uuid4
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from .runtime_mode import RuntimeModeError, RuntimeModeStore, _read_bytes, _unique_object, _same_identity
 from .runtime_endpoints import EndpointError, EndpointStore, select_port
@@ -366,6 +368,73 @@ def minimal_environment() -> dict[str, str]:
     return {**{key: os.environ[key] for key in keys if key in os.environ}, "LC_ALL": "C"}
 
 
+def _checked_cli_proxy(value):
+    if not isinstance(value, str) or not 1 <= len(value) <= 1024 or any(ord(c) < 33 or ord(c) > 126 for c in value):
+        raise ValueError("proxy")
+    parsed = urlsplit(value)
+    if not re.fullmatch(r"https?://(?:[A-Za-z0-9.]+|\[[0-9A-Fa-f:.]+\]):[0-9]{1,5}", value, re.IGNORECASE):
+        raise ValueError("proxy")
+    if (parsed.scheme not in {"http", "https"} or parsed.username is not None
+            or parsed.password is not None or parsed.path or "?" in value or "#" in value
+            or "\\" in value or "%" in value or not parsed.hostname or parsed.port is None
+            or not 1 <= parsed.port <= 65535):
+        raise ValueError("proxy")
+    host = parsed.hostname
+    if host != "localhost":
+        address = ipaddress.ip_address(host)
+        if not address.is_loopback:
+            raise ValueError("proxy")
+        host = str(address)
+    authority = f"[{host}]" if ":" in host else host
+    canonical = f"{parsed.scheme}://{authority}:{parsed.port}"
+    return canonical
+
+
+def _checked_no_proxy(value):
+    if not isinstance(value, str) or not 1 <= len(value) <= 2048 or any(ord(c) < 32 or ord(c) > 126 for c in value):
+        raise ValueError("bypass")
+    tokens = [token.strip() for token in value.split(",")]
+    if len(tokens) > 64 or any(not token or len(token) > 253 for token in tokens):
+        raise ValueError("bypass")
+    for token in tokens:
+        if token == "*":
+            continue
+        try:
+            if "/" in token:
+                ipaddress.ip_network(token, strict=False)
+            else:
+                ipaddress.ip_address(token)
+            continue
+        except ValueError:
+            if "/" in token:
+                raise ValueError("bypass") from None
+        domain = token[2:] if token.startswith("*.") else token[1:] if token.startswith(".") else token
+        if not domain or any(not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
+                             for label in domain.split(".")):
+            raise ValueError("bypass")
+    return ",".join(tokens)
+
+
+def _docker_cli_proxies():
+    """Docker-only validated transport settings; never log supplied values."""
+    environment, issues = {}, []
+    for upper, checker in (("HTTP_PROXY", _checked_cli_proxy), ("HTTPS_PROXY", _checked_cli_proxy), ("NO_PROXY", _checked_no_proxy)):
+        values = [os.environ[key] for key in (upper, upper.lower()) if key in os.environ]
+        if not values or all(value == "" for value in values):
+            continue
+        try:
+            checked = [checker(value) for value in values]
+            if len(set(checked)) != 1:
+                raise ValueError("conflict")
+            environment[upper] = environment[upper.lower()] = checked[0]
+        except (ValueError, TypeError, OverflowError):
+            issues.append("docker_no_proxy_invalid" if upper == "NO_PROXY" else "docker_proxy_invalid")
+    if any(key in environment for key in ("HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY")):
+        bypass = list(dict.fromkeys([*environment.get("NO_PROXY", "").split(","), "localhost", "127.0.0.1", "::1"]))
+        environment["NO_PROXY"] = environment["no_proxy"] = ",".join(token for token in bypass if token)
+    return environment, list(dict.fromkeys(issues))
+
+
 def port_busy(port: int) -> bool:
     # Bind also detects non-listening reservations; connect-only checks miss them.
     for family, address in ((socket.AF_INET, "127.0.0.1"), (socket.AF_INET6, "::1")):
@@ -432,9 +501,17 @@ class DockerRuntime:
     def credential_dir(self) -> Path:
         return self.home / "secrets" / "docker" / self.installation_id
 
-    def _environment(self, image: str = IMAGE) -> dict[str, str]:
+    def _environment(self, image: str = IMAGE, *, strict_proxy=False) -> dict[str, str]:
+        proxies, issues = _docker_cli_proxies()
+        if strict_proxy and issues:
+            raise ControlError("docker_proxy_configuration_invalid", *issues)
+        warned = getattr(self, "_proxy_warning_codes", set())
+        for issue in issues:
+            if issue not in warned:
+                log.warning("docker_runtime code=%s", issue)
+        self._proxy_warning_codes = warned | set(issues)
         return {
-            **minimal_environment(), "RWB_DATA_DIR": str(self.data_dir),
+            **minimal_environment(), **proxies, "RWB_DATA_DIR": str(self.data_dir),
             "RWB_STATE_DIR": str(self.state_dir),
             "RWB_CREDENTIAL_DIR": str(self.credential_dir),
             "RWB_INSTALLATION_ID": self.installation_id,
@@ -448,7 +525,7 @@ class DockerRuntime:
     def _call(self, argv, code, *, timeout=20, stream=False, check=True, image=IMAGE):
         try:
             completed = self.runner(
-                list(argv), cwd=self.project_root, env=self._environment(image),
+                list(argv), cwd=self.project_root, env=self._environment(image, strict_proxy="build" in argv),
                 timeout=timeout, max_output=MAX_OUTPUT, stream=stream,
             )
         except FileNotFoundError:
@@ -721,8 +798,12 @@ class DockerRuntime:
         return self._guard("status", inspect)
 
     def doctor(self) -> dict:
+        proxies, proxy_issues = _docker_cli_proxies()
         facts = {
             "runtime_mode": "docker", "mode": "docker",
+            "proxy": {"state": "unsafe" if proxy_issues else "configured" if proxies else "unset",
+                      "configured": bool(proxies), "local_bypass": "NO_PROXY" in proxies, "issues": proxy_issues},
+            "warnings": proxy_issues,
             "engine": {"ready": False}, "compose": {"ready": False},
             "container": {"state": "unknown", "ownership_id": None},
             "image": {"ready": False, "id": None},
@@ -795,6 +876,9 @@ class DockerRuntime:
 
     def install(self) -> dict:
         def build():
+            _proxies, issues = _docker_cli_proxies()
+            if issues:
+                raise ControlError("docker_proxy_configuration_invalid", *issues)
             self._availability()
             self._manifest(allow_missing=True, check_contract=False)
             self._containers()

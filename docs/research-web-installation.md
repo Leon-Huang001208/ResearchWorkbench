@@ -1,5 +1,15 @@
 # Research Web Native / Docker 安装与运行
 
+Docker CLI 可使用本机已设置的 credentials-free loopback HTTP_PROXY/HTTPS_PROXY（http或https、
+localhost/回环IP、显式有效端口）；不支持SOCKS、认证URL、非回环或path/query/fragment。
+大小写重复须校验后相等；两者空禁用，空/非空冲突拒绝。NO_PROXY只接受有界host/IP/CIDR/
+wildcard列表并补localhost/127.0.0.1/::1；严格边界见安全清单。status/Doctor/安全stop仍可用，
+不安全配置过滤并提示warning；install/build明确返回docker_proxy_configuration_invalid，纠正
+本机pair/冲突后重试，不静默直连。Doctor.proxy只显示安全状态，不返回地址或列表。
+仅Docker host CLI继承；Native诊断环境不放宽、不向Compose/provider/镜像写宿主127代理。
+Docker Desktop Engine/build代理与CLI传输分层，真实combined构建由对应主任务验证；不改TLS、
+签名、软件源、全局配置或用户Dockerconfig。HTTPS换源无必要且未授权。
+
 正常 Native auto-start 公开入口先建立/复用精确 checkout-owned `.venv`，用该 Python -I
 重执行同一 setup_web.py 与原参数；sys.prefix 与已有 marker 防重复，不依赖宿主全局 Web 包。
 check-only、Docker、no-start 保留 host 路径。Web 依赖就绪后，实际 manager 持原 LifecycleLock

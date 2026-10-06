@@ -53,6 +53,91 @@ class RecordingRunner:
         return subprocess.CompletedProcess(argv, 0, output, "")
 
 
+def test_docker_proxy_public_popen_and_shared_native_environment(runtime, monkeypatch):
+    import io
+    from research_workbench_entrypoint.docker_runtime import minimal_environment, run_bounded
+    controller, _runner, _record = runtime
+    controller.runner = run_bounded
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:29758")
+    monkeypatch.setenv("HTTPS_PROXY", "https://[::1]:29759")
+    monkeypatch.setenv("NO_PROXY", "example.com,10.0.0.0/8")
+    for key in ("http_proxy", "https_proxy", "no_proxy"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("API_KEY", "fixture-secret")
+    monkeypatch.setenv("ALL_PROXY", "socks5h://127.0.0.1:29757")
+    monkeypatch.setenv("DOCKER_HOST", "tcp://foreign:2375")
+    captured = []
+    def popen(argv, **kwargs):
+        captured.append((argv, kwargs))
+        return SimpleNamespace(pid=999999, stdout=io.BufferedReader(io.BytesIO(b"ok")),
+            stderr=io.BufferedReader(io.BytesIO()), returncode=0, poll=lambda: 0, wait=lambda **kwargs: 0)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    controller._call(["docker", "--version"], "docker_cli_missing")
+    argv, options = captured[0]
+    assert argv == ["docker", "--version"]
+    assert options["env"]["HTTP_PROXY"] == "http://127.0.0.1:29758"
+    assert options["env"]["HTTPS_PROXY"] == "https://[::1]:29759"
+    assert "127.0.0.1" in options["env"]["NO_PROXY"]
+    assert not {"API_KEY", "ALL_PROXY", "DOCKER_HOST"} & options["env"].keys()
+    assert not {"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} & minimal_environment().keys()
+
+
+@pytest.mark.parametrize("value", ["http://user:secret@127.0.0.1:80", "socks5h://127.0.0.1:80",
+    "http://foreign:80", "http://127.0.0.1:0", "http://127.0.0.1:80/", "http://127.0.0.1:80?",
+    "http://127.0.0.1:80#", "http://127.0.0.1:80\n", "x" * 1025], ids=["userinfo", "scheme", "foreign", "zero", "path", "query", "fragment", "control", "oversized"])
+def test_unsafe_docker_proxy_does_not_block_owned_status_stop_but_blocks_build(runtime, monkeypatch, value):
+    controller, runner, _record = runtime
+    owned(controller, runner)
+    monkeypatch.setenv("HTTP_PROXY", value)
+    monkeypatch.delenv("http_proxy", raising=False)
+    assert controller.status()["ok"]
+    assert controller.stop(wait_timeout=0)["ok"]
+    assert not any("HTTP_PROXY" in kwargs["env"] for argv, kwargs in runner.calls)
+    report = controller.install()
+    assert report["issues"][0] == "docker_proxy_configuration_invalid"
+    assert value not in json.dumps(report)
+    assert not any("build" in argv for argv, kwargs in runner.calls)
+
+
+@pytest.mark.parametrize("upper,lower,valid", [(None, "http://localhost:80", True),
+    ("", "", True), ("", "http://localhost:80", False),
+    ("HTTP://LOCALHOST:080", "http://localhost:80", True),
+    ("http://127.0.0.1:80", "http://127.0.0.1:81", False)])
+def test_docker_proxy_case_and_empty_contract(runtime, monkeypatch, upper, lower, valid):
+    from research_workbench_entrypoint.docker_runtime import _docker_cli_proxies
+    for key in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(key, raising=False)
+    if upper is not None:
+        monkeypatch.setenv("HTTP_PROXY", upper)
+    monkeypatch.setenv("http_proxy", lower)
+    env, issues = _docker_cli_proxies()
+    assert (not issues) is valid
+    if valid and lower:
+        assert env["HTTP_PROXY"] == env["http_proxy"]
+    else:
+        assert "HTTP_PROXY" not in env
+
+
+@pytest.mark.parametrize("value,valid", [("localhost,.example.com,*.example.net,127.0.0.1,::1,10.0.0.0/8,*", True),
+    ("https://host", False), ("user@host", False), ("host:80", False), ("host\n", False),
+    ("a," * 65, False), ("a" * 2049, False), ("10.0.0.0/99", False)])
+def test_docker_bypass_validation_and_doctor_safe_projection(runtime, monkeypatch, value, valid):
+    from research_workbench_entrypoint.docker_runtime import _docker_cli_proxies
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    for directory in (controller.data_dir, controller.state_dir, controller.credential_dir):
+        directory.mkdir(parents=True, mode=0o700)
+    for key in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("NO_PROXY", value)
+    env, issues = _docker_cli_proxies()
+    assert (not issues) is valid
+    report = controller.doctor()
+    assert report["ok"]
+    assert report["proxy"]["state"] == ("configured" if valid else "unsafe")
+    assert value not in json.dumps(report)
+
+
 @pytest.fixture
 def available_ports():
     with socket.socket() as web, socket.socket() as runtime:
