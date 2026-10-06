@@ -99,14 +99,13 @@ export async function trustedDirectory(ctx, exec, config) {
 }
 
 /** Register a bounded, kernel-confined native tool without widening host tools. */
-export function apply(ctx, config) {
+export function apply(ctx, config, spawnProcess = spawn) {
   for (const key of ['python', 'runnerPath', 'researchRoot']) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
   }
   const timeoutSeconds = config.timeoutSeconds ?? 15;
   const queueWaitSeconds = config.queueWaitSeconds ?? 60;
   const maxOutputBytes = config.maxOutputBytes ?? 65536;
-  const spawnProcess = typeof ctx.spawnProcess === 'function' ? ctx.spawnProcess : spawn;
   if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > 60 || !Number.isFinite(queueWaitSeconds) || queueWaitSeconds <= 0 || queueWaitSeconds > 60 || !Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 1048576) {
     throw new Error('research-tools execution limits are invalid');
   }

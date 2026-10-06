@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/docs/architecture/research-web/diagrams/01-deployment.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/outputs/research-web-architecture/01-deployment.html",
+  "input": "/private/tmp/rwb-pr78-repair-20261006/docs/architecture/research-web/diagrams/01-deployment.json",
+  "output": "/private/tmp/rwb-pr78-repair-20261006/outputs/research-web-architecture/01-deployment.html",
   "specification": {
-    "sha256": "94c6eaa9a365b3fee1d7a481742f21d0dd4c962311f18721e1118ae990c10def",
-    "bytes": 3167
+    "sha256": "39f5819cc29d5963bae03a143c61d074c8261b83a48ff58bcf84e819be9f1501",
+    "bytes": 4816
   },
   "artifact": {
-    "sha256": "400f75c7067b30c1fc5d284b65461787234a8071d45446cd8a2594e666cdd0c9",
-    "bytes": 635677
+    "sha256": "34c757afaad2953c70e0dbb4f6e8b30b28d37c67f9d56ec1d9577c89315c55c2",
+    "bytes": 637815
   },
   "validation": {
     "checksPassed": 9,

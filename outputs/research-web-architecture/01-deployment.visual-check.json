@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/outputs/research-web-architecture/01-deployment.html",
-    "sha256": "400f75c7067b30c1fc5d284b65461787234a8071d45446cd8a2594e666cdd0c9",
-    "bytes": 635677
+    "path": "/private/tmp/rwb-pr78-repair-20261006/outputs/research-web-architecture/01-deployment.html",
+    "sha256": "34c757afaad2953c70e0dbb4f6e8b30b28d37c67f9d56ec1d9577c89315c55c2",
+    "bytes": 637815
   },
   "state": {
     "detail": "read",

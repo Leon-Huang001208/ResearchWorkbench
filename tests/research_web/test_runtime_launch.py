@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -138,6 +139,24 @@ def test_runtime_keeps_dsh_home_private_but_uses_host_home_for_tabbit(tmp_path, 
     assert env["LOCALAPPDATA"] == str(local_app_data)
 
 
+def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    monkeypatch.setenv("RESEARCH_DSH_API_KEY", "synthetic-ambient")
+    _, env, _ = launch_runtime.prepare(source, data, "/node", 13081)
+    overlay = (data / "runtime/overlay.yml").read_text()
+    assert "- id: credentials" in overlay
+    assert "model-credentials.mjs" in overlay
+    assert "model_credentials.py" in overlay
+    assert ".browser-credentials.yaml" in overlay
+    assert "default: research-web" in overlay
+    assert "synthetic-ambient" not in overlay
+    assert "RESEARCH_DSH_API_KEY" not in env
+
+
 @pytest.mark.parametrize("marker", ["runtime", "web", "invalid", "runtime\nweb", ""])
 def test_clean_runtime_exec_environment_retains_only_exact_runtime_role(
     tmp_path, monkeypatch, marker
@@ -146,7 +165,8 @@ def test_clean_runtime_exec_environment_retains_only_exact_runtime_role(
     monkeypatch.setenv("RWB_SUPERVISOR_ROLE", marker)
     monkeypatch.setenv("UNRELATED_HOST_VALUE", "must-not-cross-exec-boundary")
     monkeypatch.setattr(
-        launch_runtime.subprocess, "check_output",
+        launch_runtime.subprocess,
+        "check_output",
         lambda *args, **kwargs: launch_runtime.PINNED_COMMIT,
     )
     _, env, _ = launch_runtime.prepare(source, tmp_path / "data", "/node", 3081)
@@ -157,12 +177,13 @@ def test_clean_runtime_exec_environment_retains_only_exact_runtime_role(
 
 def test_runtime_role_survives_real_exec_with_clean_environment(tmp_path):
     source = make_source(tmp_path)
-    # Python stands in for Node only at the final executable boundary. The real
-    # launcher prepare/main/execve path supplies the environment to this process.
+    # Execute the actual Node preload and final exec boundary with public fixtures.
+    node = shutil.which("node")
+    assert node is not None
+    (source / "package.json").write_text(json.dumps({"version": "fixture"}))
     (source / "apps/cli/lib/bin.js").write_text(
-        "import json,os\n"
-        "print(json.dumps({'role':os.environ.get('RWB_SUPERVISOR_ROLE'),"
-        "'host':os.environ.get('UNRELATED_HOST_VALUE')}))\n"
+        "console.log(JSON.stringify({role:process.env.RWB_SUPERVISOR_ROLE,"
+        "host:process.env.UNRELATED_HOST_VALUE ?? null}));\n"
     )
     runner = """
 import os, sys
@@ -175,12 +196,15 @@ launcher.stage_tabbit_package = lambda *a: {'version':'fixture','source_commit':
 launcher.stage_tabbit_adapter = lambda *a: None
 os.environ['RWB_SUPERVISOR_ROLE'] = 'runtime'
 os.environ['UNRELATED_HOST_VALUE'] = 'must-not-cross-exec-boundary'
-sys.argv = ['launcher', '--source', sys.argv[1], '--data', sys.argv[2], '--node', sys.executable]
+sys.argv = ['launcher', '--source', sys.argv[1], '--data', sys.argv[2], '--node', sys.argv[3]]
 launcher.main()
 """
     completed = subprocess.run(
-        [sys.executable, "-c", runner, str(source), str(tmp_path / "data")],
-        capture_output=True, text=True, timeout=5, check=True,
+        [sys.executable, "-c", runner, str(source), str(tmp_path / "data"), node],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=True,
     )
     assert json.loads(completed.stdout.splitlines()[-1]) == {"role": "runtime", "host": None}
 
@@ -207,6 +231,8 @@ def test_prepare_separates_persistent_data_from_runtime_state(
     assert work == data.resolve() / "runtime/work"
     assert command[command.index("--host") + 1] == "127.0.0.1"
     assert command[command.index("--patch") + 1] == str(state.resolve() / "overlay.yml")
+    assert env["RESEARCH_RUNTIME_AUTH"] == str(state.resolve() / "auth.json")
+    assert env["RWB_RUNTIME_STATE"] == str(state.resolve())
     assert (state / "build-lock.json").is_file()
     assert _default_auth_path() == state / "auth.json"
     if separate_state:
@@ -656,32 +682,78 @@ def test_tabbit_node_unsupported_versions_fail_closed(version, monkeypatch):
         launch_runtime.validate_tabbit_node("node")
 
 
-@pytest.mark.parametrize(("target", "stage"), [
-    ("validate_tabbit_node", "launcher_node"),
-    ("prepare", "launcher_prepare"),
-    ("prepare_runtime_module_fallback", "launcher_modules"),
-    ("stage_tabbit_package", "launcher_tabbit_package"),
-    ("stage_tabbit_adapter", "launcher_tabbit_adapter"),
-    ("_atomic_json", "launcher_config"),
-    ("execve", "launcher_exec"),
-])
-def test_launcher_failure_emits_fixed_stage_without_exception_text(tmp_path, monkeypatch, target, stage):
+def test_live_acceptance_control_is_instance_bound_and_disables_retries(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "research"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    monkeypatch.setenv(
+        "RESEARCH_ACCEPTANCE_CONTROL",
+        json.dumps(
+            {
+                "dataHome": str(data.resolve()),
+                "modelCalls": 6,
+                "tool": "datahub_get_fund_data",
+            }
+        ),
+    )
+    launch_runtime.prepare(source, data, "/node", 13081)
+    overlay = (data / "runtime/overlay.yml").read_text()
+    assert "maxRetries: 0" in overlay
+    assert "acceptance:" in overlay
+    assert "modelCalls: 6" in overlay
+    assert "tool: datahub_get_fund_data" in overlay
+    with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
+        launch_runtime.prepare(source, tmp_path / "other", "/node", 13081)
+    with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
+        launch_runtime.prepare(source, data, "/node", 3081)
+
+
+@pytest.mark.parametrize(
+    ("target", "stage"),
+    [
+        ("validate_tabbit_node", "launcher_node"),
+        ("prepare", "launcher_prepare"),
+        ("prepare_runtime_module_fallback", "launcher_modules"),
+        ("stage_tabbit_package", "launcher_tabbit_package"),
+        ("stage_tabbit_adapter", "launcher_tabbit_adapter"),
+        ("_atomic_json", "launcher_config"),
+        ("execve", "launcher_exec"),
+    ],
+)
+def test_launcher_failure_emits_fixed_stage_without_exception_text(
+    tmp_path, monkeypatch, target, stage
+):
     messages = []
-    monkeypatch.setattr(sys, "argv", ["launcher", "--source", str(tmp_path), "--data", str(tmp_path)])
+    monkeypatch.setattr(
+        sys, "argv", ["launcher", "--source", str(tmp_path), "--data", str(tmp_path)]
+    )
     monkeypatch.setattr(launch_runtime, "setup_logging", lambda: None)
-    monkeypatch.setattr(launch_runtime, "log", SimpleNamespace(
-        error=lambda event, **fields: messages.append((event, fields)), info=lambda *args, **kwargs: None,
-    ))
+    monkeypatch.setattr(
+        launch_runtime,
+        "log",
+        SimpleNamespace(
+            error=lambda event, **fields: messages.append((event, fields)),
+            info=lambda *args, **kwargs: None,
+        ),
+    )
     monkeypatch.setattr(launch_runtime, "validate_tabbit_node", lambda *args: "24.19.0")
     monkeypatch.setattr(launch_runtime, "prepare", lambda *args, **kwargs: (["node"], {}, tmp_path))
     monkeypatch.setattr(launch_runtime, "prepare_runtime_module_fallback", lambda *args: 1)
-    monkeypatch.setattr(launch_runtime, "stage_tabbit_package", lambda *args: {"version": "fixture", "source_commit": "fixture"})
+    monkeypatch.setattr(
+        launch_runtime,
+        "stage_tabbit_package",
+        lambda *args: {"version": "fixture", "source_commit": "fixture"},
+    )
     monkeypatch.setattr(launch_runtime, "stage_tabbit_adapter", lambda *args: None)
     monkeypatch.setattr(launch_runtime, "load_tabbit_config", lambda *args: {})
     monkeypatch.setattr(launch_runtime, "_atomic_json", lambda *args: None)
     monkeypatch.setattr(launch_runtime.os, "chdir", lambda *args: None)
+
     def fail(*args, **kwargs):
         raise PermissionError(13, "fixture-private-path-command-token")
+
     if target == "execve":
         monkeypatch.setattr(launch_runtime.os, target, fail)
     else:
@@ -689,8 +761,18 @@ def test_launcher_failure_emits_fixed_stage_without_exception_text(tmp_path, mon
     with pytest.raises(SystemExit) as error:
         launch_runtime.main()
     assert error.value.code == 1
-    records = [json.loads(event.removeprefix("container_startup_failure "))
-               for event, _ in messages if event.startswith("container_startup_failure ")]
-    assert records == [{"stage": stage, "exception_class": "PermissionError", "errno": 13,
-                        "runtime_returncode": None, "web_returncode": None}]
+    records = [
+        json.loads(event.removeprefix("container_startup_failure "))
+        for event, _ in messages
+        if event.startswith("container_startup_failure ")
+    ]
+    assert records == [
+        {
+            "stage": stage,
+            "exception_class": "PermissionError",
+            "errno": 13,
+            "runtime_returncode": None,
+            "web_returncode": None,
+        }
+    ]
     assert "fixture-private" not in json.dumps(messages)

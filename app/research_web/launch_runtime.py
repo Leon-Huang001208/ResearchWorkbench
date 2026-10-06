@@ -483,6 +483,32 @@ await runtime.healProfilesModuleFallback({ installAnchor: anchor, profile });
     return len(links)
 
 
+def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
+    """Bind optional, non-secret acceptance limits to one non-production instance."""
+    raw = os.environ.get("RESEARCH_ACCEPTANCE_CONTROL")
+    if raw is None:
+        return None
+    try:
+        if len(raw) > 4096:
+            raise ValueError()
+        value = json.loads(raw)
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"dataHome", "modelCalls", "tool"}
+            or value["dataHome"] != str(data.resolve())
+            or port == 3081
+            or type(value["modelCalls"]) is not int
+            or not 1 <= value["modelCalls"] <= 6
+            or value["tool"] != "datahub_get_fund_data"
+        ):
+            raise ValueError()
+    except (ValueError, TypeError):
+        log.warning("research_acceptance_control_invalid")
+        raise RuntimeError("acceptance_control_invalid") from None
+    log.info("research_acceptance_control_enabled", model_calls=value["modelCalls"])
+    return {"modelCalls": value["modelCalls"], "tool": value["tool"]}
+
+
 def prepare(
     source: Path,
     data: Path,
@@ -527,6 +553,7 @@ def _prepare_runtime(
     staged_source: dict | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
+    acceptance = live_acceptance_control(data, port)
     tabbit_config = load_tabbit_config(data)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
     if commit != PINNED_COMMIT:
@@ -620,11 +647,28 @@ def _prepare_runtime(
     overlay.write_text(
         "\n".join(
             [
+                "- id: credentials",
+                "  disabled: true",
+                "- insert:",
+                "    - id: research-model-credentials",
+                f"      name: {json.dumps(str(package / 'model-credentials.mjs'))}",
+                "      config:",
+                f"        python: {json.dumps(sys.executable)}",
+                f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
+                f"        dataHome: {json.dumps(str(data))}",
+                f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
+                f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- id: llm-deepseek",
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "    thinking: disabled",
                 "    maxTokens: 4096",
+                *(
+                    ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]
+                    if acceptance
+                    else []
+                ),
+                *(["- id: llm-retry", "  disabled: true"] if acceptance else []),
                 "- id: web-search-deepseek",
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
@@ -645,6 +689,15 @@ def _prepare_runtime(
                 f"      name: {json.dumps(str(guard))}",
                 "      config:",
                 f"        enabled: {'true' if research_tools else 'false'}",
+                *(
+                    [
+                        "        acceptance:",
+                        f"          modelCalls: {acceptance['modelCalls']}",
+                        "          tool: datahub_get_fund_data",
+                    ]
+                    if acceptance
+                    else []
+                ),
                 f"        tabbitBrowserEnabled: {'true' if tabbit_config['browser_enabled'] is True else 'false'}",
                 f"        tabbitWebFetchEnabled: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
                 f"        mcpTools: {json.dumps([item['name'] for item in mcp_bindings])}",
@@ -678,6 +731,10 @@ def _prepare_runtime(
         "DSH_HOME": str(home),
         "DSH_TELEMETRY_DISABLED": "1",
         "TMPDIR": str(temp),
+        "RESEARCH_RUNTIME_AUTH": str(state / "auth.json"),
+        "RWB_RUNTIME_STATE": str(state),
+        "RESEARCH_DSH_SOURCE": str(source),
+        "RESEARCH_RUNTIME_PORT": str(port),
     }
     for name in ("USERPROFILE", "LOCALAPPDATA"):
         if value := os.environ.get(name):
@@ -688,6 +745,8 @@ def _prepare_runtime(
         env["TABBIT_PLAYWRIGHT_INSTANCE"] = str(tabbit_config["instance_id"])
     command = [
         node,
+        "--import",
+        str(package / "auth-bootstrap.mjs"),
         str(executable),
         "--profile",
         "web",
@@ -726,7 +785,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--data", type=Path, required=True)
-    parser.add_argument("--state", type=Path, help="Runtime state directory; default <data>/runtime")
+    parser.add_argument(
+        "--state", type=Path, help="Runtime state directory; default <data>/runtime"
+    )
     parser.add_argument("--node", default="/usr/local/bin/node")
     parser.add_argument("--port", type=int, default=3081)
     parser.add_argument(
@@ -796,16 +857,35 @@ def main():
         subprocess.SubprocessError,
     ) as exc:
         name = type(exc).__name__
-        allowed = {"OSError", "PermissionError", "FileNotFoundError", "ProcessLookupError",
-                   "RuntimeStateError", "ValueError", "RuntimeError", "StoreError",
-                   "TimeoutExpired", "CalledProcessError", "SubprocessError"}
+        allowed = {
+            "OSError",
+            "PermissionError",
+            "FileNotFoundError",
+            "ProcessLookupError",
+            "RuntimeStateError",
+            "ValueError",
+            "RuntimeError",
+            "StoreError",
+            "TimeoutExpired",
+            "CalledProcessError",
+            "SubprocessError",
+        }
         kind = name if name in allowed else "Other"
         number = exc.errno if isinstance(exc, OSError) else None
         number = number if type(number) is int and 0 <= number <= 4095 else None
-        log.error("container_startup_failure " + json.dumps({
-            "stage": stage, "exception_class": kind, "errno": number,
-            "runtime_returncode": None, "web_returncode": None,
-        }, sort_keys=True))
+        log.error(
+            "container_startup_failure "
+            + json.dumps(
+                {
+                    "stage": stage,
+                    "exception_class": kind,
+                    "errno": number,
+                    "runtime_returncode": None,
+                    "web_returncode": None,
+                },
+                sort_keys=True,
+            )
+        )
         log.error("owned_dsh_launch_failed", stage=stage, error_type=kind)
         raise SystemExit(1) from exc
 

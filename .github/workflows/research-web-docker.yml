@@ -1,113 +1,12 @@
 name: Research Web Docker
 
 on:
-  pull_request:
-    paths:
-      - "Dockerfile"
-      - ".dockerignore"
-      - "compose.yaml"
-      - "docker/**"
-      - "runtimes/**"
-      - "research_workbench_entrypoint/**"
-      - "rwb"
-      - "rwb.cmd"
-      - "setup-web.sh"
-      - "setup-web.cmd"
-      - "scripts/setup_web.py"
-      - "requirements/web.in"
-      - "requirements/web.lock"
-      - "pyproject.toml"
-      - "app/cli/main.py"
-      - "app/research_web/runtime_contract.py"
-      - "app/research_web/process_spec.py"
-      - "app/research_web/__init__.py"
-      - "app/research_web/runtime_state.py"
-      - "app/research_web/staged_runtime.py"
-      - "app/research_web/runtime_auth.py"
-      - "app/research_web/service_manager.py"
-      - "app/research_web/launch_runtime.py"
-      - "app/research_web/runtime/**"
-      - "app/research_web/main.py"
-      - "app/research_web/service.py"
-      - "app/research_web/credential_backend.py"
-      - "app/research_web/datahub/connections.py"
-      - "app/research_web/mcp_registry/credentials.py"
-      - "app/research_web/mcp_runtime/credentials.py"
-      - "app/research_web/mcp_runtime/installation_store.py"
-      - "app/research_web/automation/channels.py"
-      - "core/settings/**"
-      - "core/observability/**"
-      - "vendor/cjpy/**"
-      - "vendor/dsh-tabbit/**"
-      - ".agents/verification-policy.json"
-      - "tests/javascript/verification_policy.test.mjs"
-      - "tests/javascript/actions_quota_governance.test.mjs"
-      - "tests/javascript/docker_runtime_contract.test.mjs"
-      - "tests/research_web/test_runtime_contract.py"
-      - "tests/research_web/test_setup_web.py"
-      - "tests/research_web/test_runtime_launch.py"
-      - "tests/research_web/test_service_manager.py"
-      - "tests/research_web/test_docker_packaging.py"
-      - "tests/research_web/test_runtime_mode.py"
-      - "tests/research_web/test_docker_runtime.py"
-      - "tests/research_web/test_container_supervisor.py"
-      - "tests/research_web/test_credential_backend.py"
-      - ".github/workflows/research-web-docker.yml"
-  push:
-    branches:
-      - master
-    paths:
-      - "Dockerfile"
-      - ".dockerignore"
-      - "compose.yaml"
-      - "docker/**"
-      - "runtimes/**"
-      - "research_workbench_entrypoint/**"
-      - "rwb"
-      - "rwb.cmd"
-      - "setup-web.sh"
-      - "setup-web.cmd"
-      - "scripts/setup_web.py"
-      - "requirements/web.in"
-      - "requirements/web.lock"
-      - "pyproject.toml"
-      - "app/cli/main.py"
-      - "app/research_web/runtime_contract.py"
-      - "app/research_web/process_spec.py"
-      - "app/research_web/__init__.py"
-      - "app/research_web/runtime_state.py"
-      - "app/research_web/staged_runtime.py"
-      - "app/research_web/runtime_auth.py"
-      - "app/research_web/service_manager.py"
-      - "app/research_web/launch_runtime.py"
-      - "app/research_web/runtime/**"
-      - "app/research_web/main.py"
-      - "app/research_web/service.py"
-      - "app/research_web/credential_backend.py"
-      - "app/research_web/datahub/connections.py"
-      - "app/research_web/mcp_registry/credentials.py"
-      - "app/research_web/mcp_runtime/credentials.py"
-      - "app/research_web/mcp_runtime/installation_store.py"
-      - "app/research_web/automation/channels.py"
-      - "core/settings/**"
-      - "core/observability/**"
-      - "vendor/cjpy/**"
-      - "vendor/dsh-tabbit/**"
-      - ".agents/verification-policy.json"
-      - "tests/javascript/verification_policy.test.mjs"
-      - "tests/javascript/actions_quota_governance.test.mjs"
-      - "tests/javascript/docker_runtime_contract.test.mjs"
-      - "tests/research_web/test_runtime_contract.py"
-      - "tests/research_web/test_setup_web.py"
-      - "tests/research_web/test_runtime_launch.py"
-      - "tests/research_web/test_service_manager.py"
-      - "tests/research_web/test_docker_packaging.py"
-      - "tests/research_web/test_runtime_mode.py"
-      - "tests/research_web/test_docker_runtime.py"
-      - "tests/research_web/test_container_supervisor.py"
-      - "tests/research_web/test_credential_backend.py"
-      - ".github/workflows/research-web-docker.yml"
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Exact commit SHA from the Linux verification checkout"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -137,6 +36,22 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Verify Linux-machine dispatch commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "linux_dispatch_sha_invalid" >&2
+            exit 1
+          fi
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$EXPECTED_SHA" || "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "linux_dispatch_sha_mismatch" >&2
+            exit 1
+          fi
+          echo "linux_dispatch_sha_verified"
 
       - name: Verify image locks and workflow contracts
         run: node --test tests/javascript/docker_runtime_contract.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/verification_policy.test.mjs

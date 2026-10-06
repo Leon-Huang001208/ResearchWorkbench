@@ -1,5 +1,8 @@
 # Agent 任务路由指南
 
+当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
+
+
 本指南用于在开始工作前选择合适的执行方式，并定义可复核的交付证据。共享规则以仓库根目录的 `AGENTS.md` 为准；`.agents/skills/` 中存放已跟踪的项目 skills。`.claude/` 仅是本机可选配置，不能作为共享规则来源。
 
 数据能力仅在对应任务中按需加载：`wind-find-finance-skill` 负责金融能力发现，`wind-mcp-skill` 负责受支持的 Wind 查询；`cls`、`cnstock` 和 `data-connector-development` 只维护 legacy crawler/Connector 层，不能把代码存在误报为当前 Research Web DataHub Provider 可调用。全局目录不再承载这些项目专属 Skill。
@@ -55,7 +58,7 @@ master
 
 开始任务时记录宿主平台、功能开发/平台适配类型、代码提交、验收范围。Windows/Linux 适配只能修复本平台的路径、权限、依赖发现、启动和构建等兼容问题；发现平台无关的功能缺陷时，提供复现并交回 Mac 开发任务。
 
-当前宿主不执行、不修复、不等待其他平台的适配或验收来完成本任务。GitHub runner 的操作系统决定 CI 归属，不能把 Ubuntu 的通用测试算作 macOS 验收。现有 workflow 的自动触发仍按配置运行；其他平台 CI 结果由对应真机任务负责。
+当前宿主不执行、不修复、不等待其他平台的适配或验收来完成本任务。GitHub runner 的操作系统决定 CI 归属，不能把 Ubuntu 的通用测试算作 macOS 验收。Docker CI 不从 Mac PR/push 自动触发。Linux 真机完成本机验收后，以 checkout 的 exact SHA 发起 `research-web-docker.yml` 的 `workflow_dispatch`，传入 `expected_sha`；该工作流先校验 checkout/dispatch SHA，再执行原有双架构构建、健康、重启、持久化与清理。其他 workflow 的自动触发仍按配置运行；其他平台 CI 结果由对应真机任务负责。
 
 ### 总体验收与本平台任务分开记录
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 from collections.abc import AsyncIterator
@@ -39,6 +40,7 @@ METHODS = frozenset(
         "agentPreset.list",
         "credentials.set",
         "credentials.describe",
+        "credentials.unset",
         "settings.mutate",
     }
 )
@@ -120,8 +122,18 @@ class DSHClient:
             raise ValueError("DSH 只允许本机回环 HTTP 地址")
         self.url = url.rstrip("/")
         self.metadata: dict[str, str] = {}
+        self.runtime_instance_id = uuid4().hex
         if auth_cookie is None and transport is None:
-            self.metadata = _runtime_metadata(auth_path or _default_auth_path(), parsed.netloc)
+            record_path = auth_path or _default_auth_path()
+            self.metadata = _runtime_metadata(record_path, parsed.netloc)
+            try:
+                record = record_path.lstat()
+            except OSError as exc:
+                log.warning("dsh_auth_generation_unavailable", error_type=type(exc).__name__)
+                raise RuntimeFailure("DSH 认证控制文件不可用", "runtime_auth_unavailable") from exc
+            self.runtime_instance_id = hashlib.sha256(
+                f"{record.st_dev}:{record.st_ino}:{record.st_mtime_ns}".encode()
+            ).hexdigest()
             auth_cookie = self.metadata["cookie"]
         headers = {"Cookie": auth_cookie} if auth_cookie else None
         self.http = httpx.AsyncClient(
@@ -171,7 +183,12 @@ class DSHClient:
             return "skills/list", {"request": payload}
         if method == "agentPreset.list":
             return "agentPresets/list", {}
-        if method in {"credentials.set", "credentials.describe", "settings.mutate"}:
+        if method in {
+            "credentials.set",
+            "credentials.unset",
+            "credentials.describe",
+            "settings.mutate",
+        }:
             return method.replace(".", "/"), payload
         raise RuntimeFailure("未授权的 DSH 方法", "forbidden")
 

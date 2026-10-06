@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { apply as registerResearchTools } from '../../app/research_web/runtime/research-tools.mjs';
 
 import { parseRoute } from '../../app/research_web/ui/core.mjs';
 import {
@@ -62,6 +63,27 @@ const baseOptions = {
   migrationOpen: false,
   tabbit: { status: 'ready', browser_enabled: false, web_fetch_enabled: false, saved_config: { browser_enabled: false, web_fetch_enabled: false, instance_id: null }, applied_config: { browser_enabled: true, web_fetch_enabled: false, instance_id: null }, restart_required: true, plugin_version: '0.3.4', browser_version: '1.13.23', online_instances: 1, selected_instance: 'ABCDEF0123456789', instances: [] },
 };
+
+test('model settings uses the supported provider rather than the DSH host label', () => {
+  const html = renderSettingsPage({ ...baseOptions, runtime: { connected: true, provider: 'DSH', model: 'deepseek-v4-flash', owned_runtime: true }, route: parseRoute('#/settings/model') });
+  assert.match(html, /id="provider"[^>]*value="deepseek-official"/);
+  assert.doesNotMatch(html, /placeholder="例如 openai"/);
+  assert.match(html, /data-model-clear/);
+  assert.match(html, /data-model-test/);
+  assert.match(html, /真实推理/);
+});
+
+test('research preset mounting only accesses declared DSH services', () => {
+  const tools = [];
+  const ctx = new Proxy({ tools: { register(tool) { tools.push(tool); } }, logger: { info() {}, warn() {}, error() {} } }, {
+    get(target, key) {
+      if (key === 'spawnProcess') throw new Error('cannot get property spawnProcess without inject');
+      return target[key];
+    },
+  });
+  registerResearchTools(ctx, { python: '/python', runnerPath: '/runner', researchRoot: '/research' });
+  assert.ok(tools.some((tool) => tool.name === 'research_run_script'));
+});
 
 test('settings hash contract covers five canonical sections and safe fallbacks', () => {
   assert.deepEqual(parseRoute('#/settings'), { page: 'settings', sessionId: null, settingsSection: 'general' });

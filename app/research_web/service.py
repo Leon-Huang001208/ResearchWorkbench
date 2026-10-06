@@ -52,7 +52,7 @@ from .mcp_runtime.package_planner import PackagePlanner
 from .mcp_runtime.package_resolver import PackageResolver
 from .mcp_runtime.sdk_host import SDKHost
 from .mcp_runtime.service import MCPRuntimeService, runtime_feature_enabled
-from .projection import project
+from .projection import content_text, project
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
 from .service_manager import WebServiceManager
@@ -235,6 +235,7 @@ class ResearchService:
         self.default_model = store.data.get(
             "model", {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
         )
+        self.model_test_lock = asyncio.Lock()
 
     def _build_mcp_runtime(self, keyring_backend=None):
         """Build the private Host graph only when the runtime feature is enabled."""
@@ -463,21 +464,56 @@ class ResearchService:
             if self.expected_cwd is not None:
                 self.owned = info.get("cwd") == str(self.expected_cwd.resolve())
             ready = self.connected == {"mux", "host"}
-            auth = await self.client.rpc("credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]})
-            configured = (
-                auth.get("credentials", {}).get("RESEARCH_DSH_API_KEY", {}).get("configured", False)
-            )
+            credential_code = None
+            try:
+                auth = await self.client.rpc(
+                    "credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]}
+                )
+                credential = auth.get("credentials", {}).get("RESEARCH_DSH_API_KEY", {})
+                configured = credential.get("configured")
+                credential_source = credential.get("source")
+            except RuntimeFailure:
+                # Model store failure must not erase the successful Host probe.
+                log.warning("research_model_credential_backend_unavailable")
+                configured, credential_source = None, None
+                credential_code = "model_credential_backend_unavailable"
             return {
                 "connected": ready,
                 "health_check_passed": True,
-                "provider": info.get("provider"),
+                "provider": self.default_model["provider"],
+                "runtime_provider": info.get("provider"),
                 "model": self.default_model["model"],
                 "version": info["version"],
                 "owned_runtime": self.owned,
                 "credential_configured": configured,
+                "credential_code": credential_code,
+                "credential_storage": {
+                    "file": "dsh_private_file",
+                    "env": "environment",
+                    "project-env": "project_dotenv",
+                    "user-env": "runtime_home_dotenv",
+                    "system-keychain": "system_keychain",
+                }.get(credential_source, "unknown"),
+                "configuration_saved": "model" in self.store.data,
+                "runtime_applied": self.owned
+                and ready
+                and not self.store.data.get("model_configuration_uncertain", False)
+                and self.store.data.get("model_application", {}).get("selection")
+                == self.default_model
+                and self.store.data.get("model_application", {}).get("runtime_instance")
+                == getattr(self.client, "runtime_instance_id", "fixture"),
+                "configuration_uncertain": self.store.data.get(
+                    "model_configuration_uncertain", False
+                ),
+                "model_application_scope": "new_sessions",
+                "last_model_test": self.store.data.get("model_test"),
                 "last_successful_communication_at": self.last_runtime_success_at,
                 "message": (
-                    ("DSH 已连接" if configured else "DSH 已连接；请先在下方配置 API Key")
+                    (
+                        "DSH 已连接；模型凭据后端不可用"
+                        if credential_code
+                        else "DSH 已连接" if configured else "DSH 已连接；请先在下方配置 API Key"
+                    )
                     if ready
                     else "DSH 事件通道连接中"
                 ),
@@ -486,36 +522,234 @@ class ResearchService:
             return {
                 "connected": False,
                 "health_check_passed": False,
-                "provider": "DSH",
-                "model": None,
+                "provider": self.default_model["provider"],
+                "model": self.default_model["model"],
                 "version": None,
                 "owned_runtime": self.owned,
+                "configuration_saved": "model" in self.store.data,
+                "runtime_applied": False,
+                "credential_configured": None,
+                "configuration_uncertain": self.store.data.get(
+                    "model_configuration_uncertain", False
+                ),
+                "last_model_test": self.store.data.get("model_test"),
+                "code": exc.code,
                 "last_successful_communication_at": self.last_runtime_success_at,
                 "message": str(exc),
             }
 
-    async def configure_model(self, provider, model, api_key=None):
+    async def configure_model(self, provider, model, api_key=None, *, clear_api_key=False):
         await self.ensure_owned()
-        async with self.lock:
+        if self.model_test_lock.locked():
+            raise RuntimeFailure("模型保存或测试正在运行", "model_change_busy")
+        async with self.model_test_lock, self.lock:
             selection = {"provider": provider, "model": model}
             native = await self.client.rpc("session.list", {})
-            busy = {item["sessionId"] for item in native["items"] if item["running"]}
-            if api_key:
-                await self.client.rpc(
-                    "credentials.set", {"ref": "RESEARCH_DSH_API_KEY", "value": api_key}
+            if any(item["running"] for item in native["items"]) or any(self.running.values()):
+                raise RuntimeFailure(
+                    "研究任务正在运行；请空闲后保存或清除模型凭据", "model_change_busy"
                 )
-            for sid, row in self.store.data["sessions"].items():
-                if row["created"] and sid not in busy:
-                    await self.client.rpc("session.selectModel", {"sessionId": sid, **selection})
-                    row["model"] = model
+            for row in self.store.data["sessions"].values():
+                if row["created"]:
+                    children = await self.client.rpc(
+                        "subagent.list", {"parentSessionId": row["id"]}
+                    )
+                    if any(child.get("activity") == "running" for child in children["entries"]):
+                        raise RuntimeFailure(
+                            "研究子任务正在运行；请空闲后保存或清除模型凭据", "model_change_busy"
+                        )
+            if clear_api_key and api_key is not None:
+                raise RuntimeFailure("替换与清除不能同时提交", "invalid_request")
+            if (
+                self.store.data.get("model_configuration_uncertain")
+                and api_key is None
+                and not clear_api_key
+            ):
+                raise RuntimeFailure(
+                    "凭据更新回执未知；请明确重新录入或清除后再测试",
+                    "model_configuration_uncertain",
+                )
+            catalog = await self.client.rpc("llm.models", {})
+            if provider != "deepseek-official" or not any(
+                group["id"] == provider and any(item["id"] == model for item in group["models"])
+                for group in catalog["groups"]
+            ):
+                raise RuntimeFailure(
+                    "固定 Runtime 不支持该模型；请刷新模型目录", "model_unavailable"
+                )
+            if api_key is not None or clear_api_key:
+                auth = await self.client.rpc(
+                    "credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]}
+                )
+                if auth["credentials"]["RESEARCH_DSH_API_KEY"].get("writable") is False:
+                    raise RuntimeFailure(
+                        "当前模型凭据后端只读；未更改旧配置", "model_credentials_read_only"
+                    )
+            old_selection = self.store.data.get("model")
+            old_test = self.store.data.get("model_test")
+            old_application = self.store.data.get("model_application")
+            old_uncertain = self.store.data.get("model_configuration_uncertain")
+            old_cleared = self.store.data.get("model_credential_cleared", False)
+            changing_credential = api_key is not None or clear_api_key
+            mutation_started = False
+            try:
+                if changing_credential:
+                    # Crash-safe: keep the old model and a durable fail-closed
+                    # marker until both credential mutation and final save finish.
+                    self.store.data["model_configuration_uncertain"] = True
+                    self.store.data.pop("model_test", None)
                     self.store.save()
-            # Publish the default only after native selections succeeded. No
-            # concurrent create/send can observe a half-written selection.
-            self.store.data["model"] = selection
-            self.store.save()
+                    mutation_started = True
+                    await self.client.rpc(
+                        "credentials.unset" if clear_api_key else "credentials.set",
+                        {
+                            "ref": "RESEARCH_DSH_API_KEY",
+                            **({"value": api_key} if not clear_api_key else {}),
+                        },
+                    )
+                self.store.data["model"] = selection
+                self.store.data.pop("model_test", None)
+                self.store.data.pop("model_application", None)
+                self.store.data.pop("model_configuration_uncertain", None)
+                if changing_credential:
+                    self.store.data["model_credential_cleared"] = clear_api_key
+                self.store.save()
+            except (RuntimeFailure, StoreError, OSError, asyncio.CancelledError) as exc:
+                if old_selection is None:
+                    self.store.data.pop("model", None)
+                else:
+                    self.store.data["model"] = old_selection
+                if old_test is not None:
+                    self.store.data["model_test"] = old_test
+                if old_application is not None:
+                    self.store.data["model_application"] = old_application
+                if old_uncertain:
+                    self.store.data["model_configuration_uncertain"] = True
+                else:
+                    self.store.data.pop("model_configuration_uncertain", None)
+                self.store.data["model_credential_cleared"] = old_cleared
+                # The pinned controller maps even a provider's post-commit
+                # observer failure to credential/rejected; it is not a rollback receipt.
+                uncertain = mutation_started
+                if uncertain:
+                    self.store.data["model_configuration_uncertain"] = True
+                    self.store.data.pop("model_test", None)
+                try:
+                    self.store.save()
+                except (StoreError, OSError) as rollback:
+                    log.error(
+                        "research_model_save_recovery_failed", error_type=type(rollback).__name__
+                    )
+                    raise RuntimeFailure(
+                        "配置恢复失败；停止配置操作并检查本地存储", "model_recovery_failed"
+                    ) from exc
+                log.warning("research_model_save_failed", error_type=type(exc).__name__)
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
+                if uncertain:
+                    raise RuntimeFailure(
+                        "凭据写入结果未知；旧选模已恢复，请在设置页重新录入或清除凭据",
+                        "model_configuration_uncertain",
+                    ) from exc
+                if isinstance(exc, RuntimeFailure):
+                    raise
+                raise RuntimeFailure("模型配置保存失败；未更新凭据", "model_save_failed") from exc
             self.default_model = selection
             log.info("research_model_configured", provider=provider, model=model)
-            return {"configured": True}
+            return {"configured": True, "applied_to": "new_sessions", "inference_verified": False}
+
+    async def test_model(self):
+        """Bounded explicit smoke through the existing native research channel."""
+        if self.model_test_lock.locked():
+            raise RuntimeFailure("模型测试正在运行", "model_test_busy")
+        async with self.model_test_lock:
+            await self.ensure_owned()
+            if self.store.data.get("model_configuration_uncertain"):
+                raise RuntimeFailure(
+                    "凭据写入结果未知，请先在设置页处理", "model_configuration_uncertain"
+                )
+            auth = await self.client.rpc("credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]})
+            if not auth["credentials"]["RESEARCH_DSH_API_KEY"]["configured"]:
+                raise RuntimeFailure("请通过本机设置页配置 API Key", "model_credentials_missing")
+            selection = dict(self.default_model)
+            result = {"status": "failed", "selection": selection, "checked_at": time.time()}
+            sid = None
+            try:
+                async with asyncio.timeout(60):
+                    row = await self.create(
+                        title="模型最小生成测试",
+                        purpose="model_test",
+                        agent_preset="framework-explain",
+                    )
+                    sid = row["id"]
+                    result["session_id"] = sid
+                    await self.send(
+                        sid,
+                        "这是用户显式发起的最小模型测试。不要调用任何工具，只回复：模型生成测试完成。",
+                        secrets.token_hex(16),
+                        formats=[],
+                    )
+                    while True:
+                        # Read native final events, not port health or SSE establishment.
+                        entries = await self.client.history(sid)
+                        view = project(entries)
+                        if view["status"] in {
+                            "completed",
+                            "failed",
+                            "cancelled",
+                            "blocked",
+                            "incomplete",
+                            "interrupted",
+                        }:
+                            final_text = any(
+                                entry["event"]["type"] == "assistant/message"
+                                and content_text(
+                                    entry["event"]["data"].get("message", {}).get("content")
+                                ).strip()
+                                for entry in entries
+                            )
+                            if view["status"] == "completed" and final_text:
+                                result["status"] = "passed"
+                            else:
+                                error = view.get("error", "").casefold()
+                                result["code"] = next(
+                                    (
+                                        code
+                                        for tokens, code in [
+                                            (
+                                                ("401", "invalid api key", "authentication"),
+                                                "model_auth_failed",
+                                            ),
+                                            (
+                                                ("403", "permission", "access denied"),
+                                                "model_access_denied",
+                                            ),
+                                            (("429", "rate limit"), "model_rate_limited"),
+                                            (("timeout", "timed out"), "model_network_timeout"),
+                                        ]
+                                        if any(token in error for token in tokens)
+                                    ),
+                                    "model_generation_failed",
+                                )
+                            break
+                        await asyncio.sleep(0.5)
+            except TimeoutError:
+                result["code"] = "model_test_timeout"
+                if sid is not None:
+                    try:
+                        async with asyncio.timeout(3):
+                            await self.client.rpc("session.cancel", {"sessionId": sid})
+                    except (RuntimeFailure, TimeoutError):
+                        result["cancel_confirmed"] = False
+                        log.warning("research_model_test_cancel_unconfirmed")
+            except RuntimeFailure as exc:
+                result["code"] = exc.code
+            self.store.data["model_test"] = result
+            self.store.save()
+            log.info(
+                "research_model_test_finished", status=result["status"], code=result.get("code")
+            )
+            return result
 
     async def create(
         self,
@@ -560,6 +794,10 @@ class ResearchService:
                 await self.client.rpc(
                     "session.selectModel", {"sessionId": sid, **self.default_model}
                 )
+                self.store.data["model_application"] = {
+                    "selection": dict(self.default_model),
+                    "runtime_instance": getattr(self.client, "runtime_instance_id", "fixture"),
+                }
                 await self.client.rpc("session.rename", {"sessionId": sid, "title": row["title"]})
                 self.store.save()
             except RuntimeFailure:
@@ -991,6 +1229,14 @@ class ResearchService:
     ):
         await self.ensure_owned()
         async with self.lock:
+            if self.store.data.get("model_configuration_uncertain"):
+                raise RuntimeFailure(
+                    "凭据写入结果未知，请先在设置页处理", "model_configuration_uncertain"
+                )
+            if self.store.data.get("model_credential_cleared"):
+                raise RuntimeFailure(
+                    "模型凭据已清除，请通过本机设置页重新配置", "model_credentials_missing"
+                )
             self.capabilities.assert_consistent()
             row = self.store.session(sid)
             if not row["created"]:
@@ -1079,6 +1325,20 @@ class ResearchService:
                     return {"accepted": True}
                 raise RuntimeFailure(
                     "此请求受理结果未知；请检查会话历史，不要重复发送", "admission_unknown"
+                )
+            auth = await self.client.rpc("credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]})
+            configured = (
+                auth.get("credentials", {}).get("RESEARCH_DSH_API_KEY", {}).get("configured")
+            )
+            if configured is not True:
+                log.warning("research_model_credential_admission_blocked")
+                raise RuntimeFailure(
+                    "模型凭据未配置或状态未确认，请通过本机设置页处理",
+                    (
+                        "model_credentials_missing"
+                        if configured is False
+                        else "model_credential_state_unavailable"
+                    ),
                 )
             if self.connected != {"mux", "host"}:
                 raise RuntimeFailure("DSH 事件未连接，暂不提交问题")

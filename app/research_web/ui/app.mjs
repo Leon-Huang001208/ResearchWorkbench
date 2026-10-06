@@ -328,6 +328,9 @@ function contextPanel() {
 }
 
 function render() {
+  // Keep the user's own dirty DOM form through unrelated catalog renders.
+  // Secrets never enter application state or a server-provided refill.
+  const modelForm = root.querySelector('#settings-form[data-dirty]');
   const active = document.activeElement; const focusId = active?.id;
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
@@ -340,6 +343,18 @@ function render() {
   ));
   root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
   window.ResearchWebTheme?.syncControls();
+  const freshModelForm = root.querySelector('#settings-form');
+  if (modelForm && freshModelForm) {
+    const disabled = freshModelForm.querySelector('button[type="submit"]').disabled;
+    modelForm.querySelector('button[type="submit"]').disabled = disabled;
+    const select = modelForm.querySelector('#settings-model');
+    const selected = select.value;
+    const freshSelect = freshModelForm.querySelector('#settings-model');
+    select.innerHTML = freshSelect.innerHTML;
+    select.disabled = freshSelect.disabled;
+    if ([...select.options].some(option => option.value === selected)) select.value = selected;
+    freshModelForm.replaceWith(modelForm);
+  }
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -1091,6 +1106,8 @@ function selectTabbit(tabId) {
 }
 
 root.addEventListener('input', (event) => {
+  const modelForm = event.target.closest?.('#settings-form');
+  if (modelForm) modelForm.dataset.dirty = 'true';
   if (event.target.id === 'framework-bot-input') frameworkBot.draft = event.target.value;
   if (event.target.id === 'prompt') {
     controller.setDraft(event.target.value);
@@ -1279,7 +1296,7 @@ root.addEventListener('change', async (event) => {
     root.querySelector('.format-picker')?.setAttribute('open', '');
   }
   if (target.id === 'settings-model' && target.value) {
-    try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; }
+    try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; target.closest('form').dataset.dirty = 'true'; }
     catch { safeLog('invalid_model_selection'); }
   }
   if (target.id === 'model-select' && target.value) {
@@ -1572,9 +1589,10 @@ root.addEventListener('submit', async (event) => {
     const payload = { provider: String(values.get('provider')).trim(), model: String(values.get('model')).trim(), ...(key ? { api_key: key } : {}) };
     // Capture once, clear immediately; never copy secrets into application state or logs.
     document.querySelector('#api-key').value = '';
+    delete event.target.dataset.dirty;
     const result = await controller.action(() => api.configure(payload), { refreshAfter: false });
     delete payload.api_key;
-    if (result?.configured) { success = '配置已保存。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
+    if (result?.configured) { success = '配置已保存，新会话使用此模型；真实推理待测试。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
   }
   if (event.target.matches('[data-connection-config]')) {
     const sourceId = event.target.dataset.connectionConfig;
@@ -1606,6 +1624,19 @@ root.addEventListener('submit', async (event) => {
 
 root.addEventListener('click', async (event) => {
   const clickTarget = event.target;
+  const modelAction = clickTarget?.closest?.('[data-model-clear], [data-model-test]')?.dataset;
+  if (modelAction && 'modelClear' in modelAction) {
+    if (!catalog.runtime?.model) { state.error = '当前模型未知，请先刷新 Runtime 状态。'; render(); return; }
+    if (!window.confirm('清除专属模型凭据？后续模型请求将不可用，已有会话仍保留。')) return;
+    const result = await controller.action(() => api.configure({ provider: 'deepseek-official', model: catalog.runtime.model, clear_api_key: true }), { refreshAfter: false });
+    if (result?.configured) { success = '模型凭据已清除。'; await loadCatalog(['runtime']); }
+    return;
+  }
+  if (modelAction && 'modelTest' in modelAction) {
+    const result = await controller.action(() => api.testModel(), { refreshAfter: false });
+    if (result) { if (result.status === 'passed') success = '真实生成已收到最终文本；工具调用需单独验证。'; else state.error = `真实生成测试失败：${result.code || 'model_generation_failed'}`; await loadCatalog(['runtime']); }
+    return;
+  }
   const frameworkAnchor = clickTarget?.closest?.('[data-framework-anchor]');
   const frameworkAnchorId = frameworkAnchor?.dataset?.frameworkAnchor;
   if (frameworkAnchorId) {

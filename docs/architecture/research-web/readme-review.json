@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "根 README 保留 Docker/Native 安装、切换和诊断入口，新增开发与平台验收分工。",
-  "reason": "基于最新 master 保留已有产品说明；明确 Mac 功能开发与 macOS 验收，Windows/Linux 真机只负责各自平台适配和验收，任务完成与跨平台就绪分开记录。"
+  "summary": "保留Native/Docker安装和数据边界、Mac模型Keychain/Host认证分离及最新宿主平台分工。",
+  "reason": "Mac负责功能开发、本机和MacCI；Windows/Linux真机负责各自适配与验收，不计作Mac完成前置。其他平台未验证事实保留；本轮模型功能B/T6仍须真实证据。"
 }

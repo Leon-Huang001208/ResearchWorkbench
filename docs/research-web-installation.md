@@ -1,5 +1,8 @@
 # Research Web Native / Docker 安装与运行
 
+当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
+
+
 ## 支持范围
 
 当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：
@@ -19,6 +22,14 @@ MacBook Pro 负责项目功能开发、macOS 本地验收及远端 GitHub macOS 
 各宿主任务只以本平台验收为完成条件；其他平台保留待验收与交接记录，不阻塞本平台任务，也不因 Mac 验收通过就宣称跨平台支持。Linux 适配职责不表示当前安装器或桌面包已经支持 Linux；支持声明仍须有实际证据。详细任务与总体验收的区分见 [Agent 任务路由指南](AGENT_WORKFLOW.md)。
 
 ## 公开入口
+
+受管启动使用产品Node preload将启动认证信息交接到既有私有auth控制文件，普通runtime.log不保存认证链接；正常管理器完成Cookie交换，不从旧日志恢复认证。安装依赖、固定DSH版本和构建闭包不变，独立实例仍须有真实受管环境及匹配安装/build-lock证据；测试根准备不等于干净安装CI通过。
+
+安装完成后，在设置的模型服务页录入固定 Runtime 支持的 DeepSeek 配置。留空保留、填写替换、独立清除；保存只设定新会话模型，已有会话保留选模，任务运行时拒绝变更。模型页分别显示保存、Runtime 应用、凭据与最近真实生成；生成测试显式调用模型并消耗少量额度，前置检查最多 30 秒、生成执行段最多 60 秒、取消等待最多 3 秒，不由安装或 Doctor 自动执行。
+
+macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Keychain 后端；owned overlay 使用产品受管 Python 的私有 stdio 桥接，固定 DSH 版本和构建闭包不变。命名空间由规范化 data home 派生，重启从同一系统账户恢复；不读取开发者 Codex/Claude 配置，不导入环境、旧 YAML 或任何 `.env`。旧模型 Key 不自动迁移，需在本实例设置页重新录入。Host 认证 record 独立存于 Runtime home 的 `.browser-credentials.yaml`，保留固定 DSH 锁和更新语义，不持有模型 Key。Keychain 拒绝/不可用及非 macOS 后端均明确失败，不采用文件回退。产品锁、安装器与 workflow 未变，仍须当前代码的 macOS 干净安装 CI 证明兼容。
+
+macOS：
 
 macOS Docker 推荐入口：
 

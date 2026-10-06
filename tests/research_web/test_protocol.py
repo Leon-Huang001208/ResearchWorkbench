@@ -12,6 +12,21 @@ from app.research_web.projection import project
 
 
 @pytest.mark.asyncio
+async def test_native_credential_clear_uses_unset_without_secret_payload():
+    def reply(request):
+        body = json.loads(request.content)
+        assert request.url.path == "/api/credentials/unset"
+        assert body["method"] == "credentials/unset"
+        assert body["payload"] == {"args": {"ref": "RESEARCH_DSH_API_KEY"}}
+        return httpx.Response(
+            200, json={"type": "server-response", "rpcId": body["rpcId"], "result": {"ok": True}}
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        assert await client.rpc("credentials.unset", {"ref": "RESEARCH_DSH_API_KEY"}) == {}
+
+
+@pytest.mark.asyncio
 async def test_rpc_envelope_and_no_legacy_timeout():
     def reply(request):
         body = json.loads(request.content)

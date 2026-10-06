@@ -3353,6 +3353,7 @@ Imports:
 - `asyncio`
 - `collections.abc`
 - `core.observability`
+- `hashlib`
 - `httpx`
 - `json`
 - `os`
@@ -4621,6 +4622,8 @@ Functions:
   - Keep all stable tools registered; the Broker decides availability per call.
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
+- `live_acceptance_control`
+  - Bind optional, non-secret acceptance limits to one non-production instance.
 - `prepare`
 - `_prepare_runtime`
 - `calculate_build_closure`
@@ -4842,6 +4845,7 @@ Classes:
 - `AnswerItem`
 - `Answers`
 - `ModelConfig`
+  - methods: reject_masked_key
 
 Functions:
 - `create_app`
@@ -5565,6 +5569,35 @@ Functions:
   - Validate a direct argv target; shell command strings are never accepted.
 - `validate_stdio_target`
   - Rebuild a stdio target from its explicit names and reject forged ambient state.
+
+
+## `app/research_web/model_credentials.py`
+
+Module docstring:
+> Fixed-purpose private stdio bridge for the Native macOS model Keychain.
+
+Imports:
+- `argparse`
+- `ctypes`
+- `hashlib`
+- `json`
+- `logging`
+- `pathlib`
+- `sys`
+
+Classes:
+- `MacSystemStore`
+  - Use existing keyring reads/removals and Security's atomic replacement.
+  - methods: __init__, get_password, delete_password, set_password
+
+Functions:
+- `update_or_add`
+  - Replace atomically; only an absent item may be added. Never delete first.
+- `system_backend`
+  - Select the approved backend directly, bypassing keyring configuration.
+- `execute`
+  - Operate only on this canonical data home's fixed model account.
+- `main`
 
 
 ## `app/research_web/operations.py`
@@ -6327,7 +6360,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

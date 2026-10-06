@@ -1,5 +1,19 @@
 # 研究协议、执行状态与恢复
 
+## 模型配置与显式验收
+
+受管启动在固定 CLI 加载前安装产品 `auth-bootstrap.mjs`：启动认证输出按完整行截获（包含跨chunk情况），仅向现有私有 `runtime/auth.json` 写入临时bootstrap_token及实例绑定。管理器从该受控文件完成原Cookie交换，原子替换为正常认证记录，不再从runtime.log解析token；普通日志只出现固定脱敏标记。没有新HTTP接口、daemon或模型凭据后端。解析/绑定/私有文件校验失败则认证失败关闭，不回退旧日志。
+
+模型 Provider 固定为 `deepseek-official`，模型 ID 由固定 DSH 的真实目录校验。保存与显式测试共用串行边界；保存共享凭据前拒绝活动父/子任务。已有会话保留模型，新会话在创建时应用默认值；凭据由Runtime共享，替换后用于所有后续模型请求。凭据变更前先持久化旧模型与 `model_configuration_uncertain`，成功后才提交新默认值并清标记。写入前只读拒绝不改旧状态；RPC开始后的拒绝、取消、进程退出、传输或最终保存失败均保留未知标记，冷恢复也阻断后续模型请求。固定DSH的credential/rejected也可能代表提交后的observer失败，不能当作回滚收据。不会读取秘密来制作回滚副本。
+
+留空保留凭据，非空替换，`clear_api_key` 独立清除，两个动作不得同时提交。清除后的新消息被阻断；普通配置及最近测试不含密钥。macOS Native 的 `credentials` 服务通过产品 `runtime/model-credentials.mjs` 与 `model_credentials.py` 仅在系统 Keychain 解析固定模型 ref；不读取 Codex、Claude 或其他工程配置补齐。Host record 接口继续继承固定 DSH 文件 provider，使用独立 `.browser-credentials.yaml`。
+
+1A收口中，API拒绝明显掩码/空白作为新Key；普通新研究请求在创建受理收据与Native prompt之前检查凭据，缺失或未知均失败关闭。Runtime的凭据来源由describe事实映射，不能将环境/旧.env来源硬编码成系统库。新 provider 覆盖全部 ref 方法，不委托旧解析器；后端不可用仍保持 credentials 服务挂载，使 DeepSeek 不进入 ambient 分支。桥接失败只输出稳定错误码，保存的不确定性仍沿现有状态机阻断，不新增事务框架。
+
+`runtime_applied` 只在当前Runtime认证文件代际内，已有新会话实际完成 `session.selectModel` 且选择与默认值一致时为真；保存或端口可达不会设为真。代际标识仅由认证文件设备、inode与修改时间产生，不保存或散列秘密；Runtime重启更换认证文件后必须重新应用到新会话，旧证明不能冒充当前已应用。
+
+显式生成测试复用 `create/send` 与 DSH 原生日志，不创建另一个执行循环。前置所有权/凭据RPC各15秒上限，create/send/history生成段60秒预算，取消最多3秒，总上限93秒；只有原生 `turn/end completed`、最终 `assistant/message` 和非空文本齐全才通过。结果绑定模型选择，配置变化使旧测试失效；设置 GET/Doctor 不进行付费生成。工具调用另由用户显式最小研究验收。研究工具的子进程测试依赖作为调用参数传递，不访问未在 `inject` 声明的 Cordis 服务。
+
 Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时间/监听者事实链，停止调用同一
 排他生命周期入口；状态查询不隔离或删除 stale/invalid 文件。Native 日志读取也复用精确进程
 身份，并在输出前核对状态文件内容和 inode，不能凭命令行子串或重用的 PID 证明归属。
@@ -199,3 +213,13 @@ Automation 或交付拓扑。
 Windows 受管进程停止现在允许非强制 `taskkill /T` 失败后进入既有等待与 `/F` 升级；只有已通过状态文件、
 PID 与命令签名归属核对的进程可进入该路径，强制失败仍返回错误。DSH 会话、SSE、恢复、取消与研究状态
 协议均未改变。
+
+## 独立真实验收的最小调用控制
+
+本机受管启动器可接收非秘密 `RESEARCH_ACCEPTANCE_CONTROL` JSON，仅在其中 `dataHome` 与当前规范化目录精确相同且 DSH 端口不是生产默认3081时启用。字段仅为 `dataHome`、`modelCalls`（1—6整数）及固定公开工具 `datahub_get_fund_data`（eastmoney_fund/nav/000001/limit1，禁止其他源、回退或刷新）；错误配置失败关闭，不打印参数内容。该模式沿原产品overlay和正式research-web preset工作，不替换固定DSH。
+
+现有最终guard在原生全局llm/stream seam同步预留计数：跨会话/turn共用实例上限，达到上限后不进入适配器；只允许纯文本，拒绝图片/文件/音频，避免附件回退产生额外供应商请求。原重试插件禁用、DeepSeek原retryPolicy.maxRetries=0。工具veto仅允许所选公开DataHub工具执行一次，拒绝子代理、脚本、其他数据工具或第二次执行；原guard权限仍适用。仅记录序号与稳定错误码，无Prompt、请求体、认证值或秘密哈希。
+
+这是单次独立验收的进程内控制，不是用户配额或持久预算系统。退出/重启不能作为补额度手段；调用方仍须维持该轮真实请求总账。默认不启用，既有生产、日常研究、provider/Keychain语义不改变。达到限制只能报告未完成，不能自动重试。合同及固定DSH无网络合成验证与真实供应商验收分别记证据。
+
+模型启动preload的认证文件绑定已验证的RWB_RUNTIME_STATE，与data/runtime/home分离；authority、cwd、固定源码commit和所属Runtime PID共同绑定临时bootstrap。stdout/stderr保持脱敏，所属supervisor只在启动阶段读取私有handoff，独立healthcheck不交换Cookie、不写控制文件。

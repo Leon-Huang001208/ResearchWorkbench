@@ -2,33 +2,228 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Research Web · Native 与 Docker 部署",
+    "title": "Research Web · 部署与模型凭据边界",
     "quality_profile": "showcase"
   },
-  "layout": {"mode": "grid", "origin": [42, 62], "cols": 4, "cellW": 205, "cellH": 78, "gapX": 105, "gapY": 95},
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      42,
+      62
+    ],
+    "cols": 4,
+    "cellW": 205,
+    "cellH": 78,
+    "gapX": 105,
+    "gapY": 95
+  },
   "components": [
-    {"id": "source", "type": "cloud", "label": "同一源码与依赖合同", "sublabel": "Web 锁 · CJPY · 固定 DSH", "row": 0, "col": 1, "size": [205, 78]},
-    {"id": "bootstrap", "type": "security", "label": "rwb 模式路由", "sublabel": "默认 Native · 安全切换", "row": 1, "col": 1, "size": [205, 78]},
-    {"id": "nativeWeb", "type": "backend", "label": "Native Web 进程", "sublabel": "FastAPI · 宿主 :8088", "row": 2, "col": 0, "size": [205, 78]},
-    {"id": "nativeDsh", "type": "backend", "label": "Native DSH 进程", "sublabel": "唯一研究引擎 · 宿主 :3081", "row": 2, "col": 1, "size": [205, 78]},
-    {"id": "dockerContainer", "type": "backend", "label": "Docker 单容器", "sublabel": "DSH + FastAPI · 仅发布 :8088", "row": 2, "col": 3, "size": [205, 78]},
-    {"id": "runtimeState", "type": "database", "label": "模式独立运行状态", "sublabel": "PID / 认证 / 容器归属", "row": 3, "col": 0, "size": [205, 78]},
-    {"id": "sharedData", "type": "database", "label": "共用研究数据", "sublabel": "会话 · 附件 · 快照 · 产物", "row": 3, "col": 2, "size": [205, 78]},
-    {"id": "credentials", "type": "security", "label": "模式分离凭据", "sublabel": "Native keyring / Docker 私有挂载", "row": 3, "col": 3, "size": [205, 78]}
+    {
+      "id": "source",
+      "type": "cloud",
+      "label": "同一源码与依赖合同",
+      "sublabel": "Web 锁 · CJPY · 固定 DSH",
+      "row": 0,
+      "col": 1,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "bootstrap",
+      "type": "security",
+      "label": "rwb 模式路由",
+      "sublabel": "默认 Native · 安全切换",
+      "row": 1,
+      "col": 1,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "nativeWeb",
+      "type": "backend",
+      "label": "Native Web 进程",
+      "sublabel": "FastAPI · 宿主 :8088",
+      "row": 2,
+      "col": 0,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "nativeDsh",
+      "type": "backend",
+      "label": "Native DSH 进程",
+      "sublabel": "唯一研究引擎 · 宿主 :3081",
+      "row": 2,
+      "col": 1,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "dockerContainer",
+      "type": "backend",
+      "label": "Docker 单容器",
+      "sublabel": "DSH + FastAPI · 仅发布 :8088",
+      "row": 2,
+      "col": 3,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "runtimeState",
+      "type": "database",
+      "label": "模式独立运行状态",
+      "sublabel": "PID / 认证 / 容器归属",
+      "row": 3,
+      "col": 0,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "sharedData",
+      "type": "database",
+      "label": "共用研究数据",
+      "sublabel": "会话 · 附件 · 快照 · 产物",
+      "row": 3,
+      "col": 2,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "credentials",
+      "type": "security",
+      "label": "通用服务凭据",
+      "sublabel": "Native keyring / Docker 私有挂载",
+      "row": 3,
+      "col": 3,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "modelKeychain",
+      "type": "security",
+      "label": "macOS 模型 Keychain",
+      "sublabel": "固定模型 ref · data home 隔离",
+      "row": 3,
+      "col": 1,
+      "size": [
+        205,
+        78
+      ]
+    }
   ],
   "connections": [
-    {"id": "contractRoute", "from": "source", "to": "bootstrap", "label": "读取固定合同", "variant": "emphasis", "labelDy": 24},
-    {"id": "selectNative", "from": "bootstrap", "to": "nativeWeb", "label": "选择 Native", "variant": "emphasis", "fromSide": "left", "toSide": "top"},
-    {"id": "selectDocker", "from": "bootstrap", "to": "dockerContainer", "label": "选择 Docker", "variant": "emphasis"},
-    {"id": "nativeRpc", "from": "nativeWeb", "to": "nativeDsh", "label": "私有 RPC / WS", "variant": "security"},
-    {"id": "nativeState", "from": "nativeWeb", "to": "runtimeState", "label": "独立状态", "variant": "dashed", "labelDy": 24},
-    {"id": "nativeData", "from": "nativeDsh", "to": "sharedData", "label": "顺序读写", "variant": "emphasis"},
-    {"id": "dockerData", "from": "dockerContainer", "to": "sharedData", "label": "同一数据 bind mount", "variant": "emphasis"},
-    {"id": "dockerCredential", "from": "dockerContainer", "to": "credentials", "label": "私有凭据挂载", "variant": "security", "labelDy": 24}
+    {
+      "id": "contractRoute",
+      "from": "source",
+      "to": "bootstrap",
+      "label": "读取固定合同",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "id": "selectNative",
+      "from": "bootstrap",
+      "to": "nativeWeb",
+      "label": "选择 Native",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "top"
+    },
+    {
+      "id": "selectDocker",
+      "from": "bootstrap",
+      "to": "dockerContainer",
+      "label": "选择 Docker",
+      "variant": "emphasis"
+    },
+    {
+      "id": "nativeRpc",
+      "from": "nativeWeb",
+      "to": "nativeDsh",
+      "label": "私有 RPC / WS",
+      "variant": "security"
+    },
+    {
+      "id": "nativeState",
+      "from": "nativeWeb",
+      "to": "runtimeState",
+      "label": "独立状态",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "nativeData",
+      "from": "nativeDsh",
+      "to": "sharedData",
+      "label": "顺序读写",
+      "variant": "emphasis"
+    },
+    {
+      "id": "dockerData",
+      "from": "dockerContainer",
+      "to": "sharedData",
+      "label": "同一数据 bind mount",
+      "variant": "emphasis"
+    },
+    {
+      "id": "dockerCredential",
+      "from": "dockerContainer",
+      "to": "credentials",
+      "label": "私有凭据挂载",
+      "variant": "security",
+      "labelDy": 24
+    },
+    {
+      "id": "nativeModelKey",
+      "from": "nativeDsh",
+      "to": "modelKeychain",
+      "label": "模型私有桥接",
+      "variant": "security",
+      "labelDy": 24
+    }
   ],
   "cards": [
-    {"dot": "cyan", "title": "一个产品，两种部署", "items": ["Native 保留双宿主进程与无参数默认", "Docker 以单容器监督 DSH 与 Web"]},
-    {"dot": "rose", "title": "数据与秘密", "items": ["同一研究数据只允许顺序使用", "认证状态与凭据不跨模式复用"]},
-    {"dot": "amber", "title": "验证边界", "items": ["图示不证明 Docker 镜像已运行", "Windows Docker 凭据 ACL 未验收时失败关闭"]}
+    {
+      "dot": "cyan",
+      "title": "一个产品，两种部署",
+      "items": [
+        "Native 保留双宿主进程与无参数默认",
+        "Docker 以单容器监督 DSH 与 Web"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "数据与秘密",
+      "items": [
+        "同一研究数据只允许顺序使用",
+        "认证状态与凭据不跨模式复用"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "验证边界",
+      "items": [
+        "图示不证明 Docker 镜像已运行",
+        "Windows Docker ACL 未验证则失败关闭",
+        "模型桥接当前仅 macOS Native，Host 认证独立",
+        "设置保存、Runtime 应用与真实生成分别验收"
+      ]
+    }
   ]
 }
