@@ -46,6 +46,12 @@ bind-race 分类使用；可识别 Web/DSH 命令缺少数据根证据时拒绝�
 显式指定新端口不会绕过旧 writer。fresh 证明仅来自本次持有已验证 lease 时成功 mkdir 的
 根 inode，既有根或 inode 替换不认领；证明在首个 spawn 前和 start finally 清除，不用于失败重试。
 
+Native 从有效 fresh 证明捕获本次事务的 RAM-only 恢复基线：原 lease/根 inode、选定与旧默认
+端口的监听集合，以及监听 PID/argv/启动身份；已捕获身份不刷新。spawn 后分配证明仍失效，
+只有本次所有对象精确退出且基线未变，才可用于端点 CAS/origin 回滚。Popen 后、状态写入和
+健康等待前记录 PID，内部清理不丢弃记录；已退出对象不重复停止。恢复未知时保留原始启动
+错误，附加受控 recovery_issues/日志并保留 journal；该失败不得触发 bind 重试。
+
 Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时间/监听者事实链，停止调用同一
 排他生命周期入口；状态查询不隔离或删除 stale/invalid 文件。Native 日志读取也复用精确进程
 身份，并在输出前核对状态文件内容和 inode，不能凭命令行子串或重用的 PID 证明归属。

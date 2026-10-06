@@ -10,6 +10,9 @@ Web 的 RESEARCH_DATA_HOME 与 DSH 配置均可使其他 checkout 使用相同�
 不同不足以证明隔离。fresh 创建身份仅在本次启动内存中持有，已有 setup runtime/build-lock
 目录不取得该证明；拒绝时不删除、移动数据根或改写账本以制造全新状态。
 
+fresh 失败恢复的外来监听身份仅存在于本次内存记录，不写入 ledger/journal/日志。持续根与
+lease 身份、全部本次对象退出和原监听事实一致时才恢复原 controls 字节；未知或替换保留 intent。
+
 独立端点 helper 的 `install/endpoints.json` 是运行时元数据，不是第二份依赖或研究事实。
 启动链的 origin helper 对两份 `.control` 记录保留 token/其他有效字段并改 URL，
 不迁移数据或凭据；原始回滚字节只留在内存，持久中断标记没有 token 备份。

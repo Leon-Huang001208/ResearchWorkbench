@@ -8,6 +8,9 @@ Native 管理器和模式切换桥在运行账本缺失时仍核验监听者，�
 Docker-only 的既有服务复用仍由 Docker controller 的 inspect/mapping/健康核验负责。
 Native 首启只有本次生命周期锁内成功 mkdir 且身份仍匹配的根可作 fresh 证明，子进程启动前失效。
 
+失败恢复另保留本次事务的内存证明：同一已验证 lease/根身份、原监听集合与 PID/argv/启动
+身份必须持续匹配，本次所有子进程必须已退出；该证明只恢复元数据，不授权新分配或重试。
+
 私有端点与内部 origin 事务已接入 macOS 安装器、Native 管理器和 Docker controller。
 它们不创建常驻部署节点、不迁移控制 token 或数据。Docker 单缺失控制文件的准备使用临时
 无网络/无发布端口 guest：固定接受或候选 image、仅受管 data bind，其余镜像 VOLUME 用

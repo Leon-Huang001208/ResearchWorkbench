@@ -12,6 +12,11 @@
 Native 静止与 bind retry。fresh 根只认本次已验证生命周期 lease 内成功 mkdir 的 inode，
 替换拒绝，首个 spawn 前与 finally 失效；不能用既有安装目录、测试目录名或环境开关伪造。
 
+另一个严格限于本次回滚的恢复证明要求原 lease 仍持有、根 inode 未替换、本次所有 Popen
+对象已精确退出，原外来监听集合及 PID/argv/启动身份未变。未知/新增 writer、PID 重用、
+root/lease 替换或本次对象仍活着均拒绝；内存基线不读取环境/配置，不记录 argv/秘密到日志。
+恢复证明不能恢复分配权限；恢复不确定时保留原错误和 intent，附加稳定诊断并停止重试。
+
 macOS 动态端口启动在共享生命周期锁内验证两模式静止后重绑成对可信origin；仅URL改变，
 token与其他有效字段保留。显式占用端口拒绝，自动候选不代表已保留监听；只有完整真实健康
 后写实际端点。Docker prepare-only guest必须匹配安装ID、单次nonce、不可变image、固定command、

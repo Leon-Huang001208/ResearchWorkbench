@@ -199,3 +199,46 @@ managed kernel11/11 SHA匹配。L4计划保留validation_failure与unknown_impac
 回执task-2-fix3-receipt.json valid=true，9 local PASS/5 external NOT_RUN，整体BLOCKED，
 mergeReady/releaseReady=false；未执行Mac物理/CI及其他平台门，源修复仍需独立复审。
 Fresh capability只用于public start首次分配，不在constructor/readonly/stop/restart或失败重试认领。
+
+## Task2 FIX ROUND4/5（dd9fec819 的 fresh 失败事务恢复）
+
+Review指出首次spawn前清除fresh分配证明后，失败回滚又被旧默认未知产品监听阻断，留下新
+origin/journal并掩盖原错误。只修本HIGH；上轮产品predicate、显式legacy观察及其他四HIGH
+保留，未修改Docker/controller/controls/manifest实现。现将首次分配与本次事务恢复证明分开：
+持有效fresh证明时捕获RAM-only原lease/根inode、选定+legacy监听集合与PID/argv/启动身份，
+已观察身份不刷新；spawn前分配证明仍清除。恢复必须持续同一已验证lease/根、原监听事实
+一致、所有本次PIDs精确消失。新增/未知writer、root/lease/listener/PID身份变化或活着的own
+对象均拒绝。恢复证明只用于此事务CAS/origin回滚，不用于新分配/重试，finally清除。
+
+PIDs在Popen后、state写入/健康等待前保留，内部cleanup不清空attempt；已证明退出的不重复
+停止。未知恢复保留原始startup错误，附加稳定recovery_issues/异常note/日志，保留intent；
+带恢复诊断的bind错误也不得重试。清理所有对象时每个失败单独记录固定code，不输出argv或秘密。
+
+真正RED task-2-fix4-red.log：九failed（fresh+旧产品监听+health失败；root/listener/PID-start/
+unknown/new writer/live own/lease七负例；failed-wait PID记录）。GREEN9 /0.75s。额外retry真实
+RED1（task-2-fix4-retry-red.log）后最终10passed /0.62s。控制原字节/无journal/主错误保留
+正例和负例都保留；测试安装ready/OS事实/子进程为隔离fixture，不是公开CLI/实机服务验收。
+共享闭包首次1failed/628passed/26.16s（task-2-fix4-closure.log），发现内外层重复cleanup；
+source跳过已证明missing的对象，pure fixture准确模拟已退出，旧“仅新对象stop一次”断言不变。
+定点11passed /1.25s（task-2-fix4-cleanup-green.log）。次轮1failed/629passed/25.21s
+（task-2-fix4-final-closure.log）：未改Docker三次bind预算在第三次read出现runtime_mode_changed，
+单独复核1passed /0.20s；原失败保留，尚不认证根因，不将其改写为通过。
+
+main补充公开可达性缺项：真实start在mkdir前要求installation-ready，build-lock一般已存在于
+canonical data_root/runtime；“不存在customRoot可直接rwb start”尚未获得公开入口证明。
+本轮组件fixture明确mock installation-ready，不能代表公开fresh实测。该独立缺口留作
+NEEDS_CONTEXT（核对现成公开入口/真正installer创建witness），不混入本HIGH，不复制buildlock、
+移动root或改daily环境/服务让验收变绿。main T3报告仍归main，未纳入提交。
+停止容器删除重建、HTTPSsource权限仍pending；Mac物理/CI及跨平台交接未执行。
+
+最后相同源共享closure真实630 passed /24.48s（task-2-fix4-verified-closure.log），包含原Docker
+budget case；旧失败及交互原因未确认保留。恢复捕获再收紧为复核全部已捕获端口（含已不再
+选用的preferred端口），最终service_manager整模块338 passed（task-2-fix4-final-service.log）。
+所选JS91 passed、14文件doc-sync/constraints/index PASS；不修改checker。公开fresh可达性
+须独立只读核对，不能把mock安装就绪的组件GREEN当作物理或公开入口证据。
+
+最终service_manager338 passed /6.35s；14文件L4计划保留validation_failure，文档同步/约束/
+索引/无site bootstrap导入PASS，managed kernel11/11匹配。回执task-2-fix4-receipt.json经原
+validator valid=true，7 local PASS/4 external NOT_RUN，BLOCKED，mergeReady/releaseReady=false。
+保留“公开fresh路径可达性需上下文”和“早前runtime_mode_changed交互未认证”风险，未执行
+物理Mac/CI或修改其门；格式工具仍NOT_RUN且未安装。Task3报告保持main所有权。

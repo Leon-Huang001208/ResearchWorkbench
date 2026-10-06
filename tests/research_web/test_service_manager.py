@@ -3407,6 +3407,9 @@ def test_start_rolls_back_only_new_processes(manager, monkeypatch):
         for role in ("runtime", "web")
     }
     stopped: list[str] = []
+    monkeypatch.setattr(service_manager_module, "probe_process", lambda pid:
+                        ProcessFact("missing", None, None) if len(stopped) == 2 else
+                        ProcessFact("alive", None, None, ("fixture-child",), 123.0))
     monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(manager, "_probe_service", lambda process: probes[process.role])
     monkeypatch.setattr(manager, "_spawn", lambda _process: 123)
@@ -5494,3 +5497,91 @@ def test_fix3_fresh_root_proof_is_scoped_and_identity_bound(manager, monkeypatch
     else:
         with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
             manager.start(open_browser=False)
+
+
+@pytest.mark.parametrize("change", [None, "root", "listener", "pid-reused", "unknown", "new-writer", "live-own", "lease"])
+def test_fix4_fresh_failure_restores_only_with_exact_recovery_proof(manager, monkeypatch, change):
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    mutable = {"failed": False}
+    original_bytes = []
+    original_prepare = manager._prepare_private_directories
+    def prepare(**kwargs):
+        original_prepare(**kwargs)
+        load_control(manager.data_root, "http://127.0.0.1:8088")
+        load_mcp(manager.data_root, "http://127.0.0.1:8088")
+        original_bytes.extend((manager.data_root / ".control" / name).read_bytes()
+                              for name in ("datahub.json", "mcp-runtime.json"))
+    def listeners(port):
+        if port == 8088:
+            pid = 789 if mutable["failed"] and change == "listener" else 456
+            return ListenerFact("listening", (pid,), None)
+        if mutable["failed"] and change == "new-writer" and port == manager.web_port:
+            return ListenerFact("listening", (777,), None)
+        return ListenerFact("closed", (), None)
+    def facts(pid):
+        if pid == 999888:
+            return (ProcessFact("alive", None, None, ("own-child",), 99.0)
+                    if change == "live-own" else ProcessFact("missing", None, None))
+        argv = ("python", "-m", "uvicorn", "app.research_web.main:app", "--app-dir", "/other/checkout")
+        if mutable["failed"] and change == "unknown":
+            return ProcessFact("alive", None, "process_argv_unavailable")
+        return ProcessFact("alive", None, None, argv, 321.0 if mutable["failed"] and change == "pid-reused" else 123.0)
+    mutated_bytes = []
+    def failure(**kwargs):
+        assert manager._fresh_root_identity is None
+        kwargs["owned_attempt"].append((manager._processes()[1], 999888))
+        mutated_bytes.extend((manager.data_root / ".control" / name).read_bytes()
+                             for name in ("datahub.json", "mcp-runtime.json"))
+        assert mutated_bytes != original_bytes
+        mutable["failed"] = True
+        if change == "root":
+            manager.data_root.rename(manager.data_root.with_name("retained-failed-root"))
+            manager.data_root.mkdir(mode=0o700)
+        if change == "lease":
+            manager._lifecycle_lease = None
+        raise ServiceManagerError("web_health_timeout", code="web_health_timeout", role="web")
+    monkeypatch.setattr(manager, "_prepare_private_directories", prepare)
+    monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
+    monkeypatch.setattr(service_manager_module, "listener_pids", listeners)
+    monkeypatch.setattr(service_manager_module, "probe_process", facts)
+    monkeypatch.setattr(manager, "_start_locked", failure)
+    monkeypatch.setattr(manager, "_rollback_spawned", lambda *args: None)
+    with pytest.raises(ServiceManagerError) as caught:
+        manager.start(open_browser=False)
+    assert caught.value.code == "web_health_timeout"
+    folder = (manager.data_root.with_name("retained-failed-root") if change == "root" else manager.data_root) / ".control"
+    if change is None:
+        assert [(folder / name).read_bytes() for name in ("datahub.json", "mcp-runtime.json")] == original_bytes
+        assert not (folder / "origin-transaction.json").exists()
+    else:
+        assert caught.value.recovery_issues
+        assert [(folder / name).read_bytes() for name in ("datahub.json", "mcp-runtime.json")] == mutated_bytes
+        assert (folder / "origin-transaction.json").exists()
+
+
+def test_fix4_failing_spawn_keeps_exact_pid_in_attempt_record(manager, monkeypatch):
+    attempt = []
+    manager._active_spawn_attempt = attempt
+    process = manager._processes()[1]
+    monkeypatch.setattr(manager, "_spawn", lambda process: 999888)
+    monkeypatch.setattr(manager, "_wait_for_ready", lambda *args, **kwargs: (_ for _ in ()).throw(ServiceManagerError("health", code="web_health_timeout")))
+    monkeypatch.setattr(manager, "_rollback_spawned", lambda *args: None)
+    monkeypatch.setattr(manager, "_confirmed_bind_failure", lambda *args: False)
+    with pytest.raises(ServiceManagerError):
+        manager._spawn_and_wait(process)
+    assert attempt == [(process, 999888)]
+
+
+def test_fix4_unverified_recovery_never_retries_original_bind_error(manager, monkeypatch):
+    attempts = []
+    def failure(**kwargs):
+        attempts.append(True)
+        error = ServiceManagerError("web_bind_race", code="web_bind_race", role="web")
+        error.recovery_issues = ("control_origin_recovery_unverified",)
+        raise error
+    monkeypatch.setattr(manager, "_start_endpoint_attempt", failure)
+    monkeypatch.setattr(manager, "_native_quiescent", lambda: True)
+    with pytest.raises(ServiceManagerError, match="web_bind_race"):
+        manager._start_with_endpoints(diagnosis={"ok": True}, open_browser=False)
+    assert len(attempts) == 1

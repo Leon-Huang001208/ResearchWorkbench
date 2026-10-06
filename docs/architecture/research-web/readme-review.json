@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "FIX ROUND3同步README：其他checkout产品监听不证明不同数据根，已有安装根缺账本会真实拒绝，显式端口不能绕过。",
-  "reason": "同数据根隔离影响公开启动预期，补充canonical setup-created root不是fresh以及尚未完成真实自动避让验收的具体限制。"
+  "disposition": "unchanged",
+  "summary": "FIX ROUND4复核README：恢复本次fresh事务的内存证明与首次分配证明分离，现有数据根隔离、端口和pending限制继续成立。",
+  "reason": "详细恢复身份、精确对象退出、原错误保留与不重试规则已同步安装和运行时安全文档，不增加公开CLI参数或README支持声明。"
 }

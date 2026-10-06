@@ -213,6 +213,9 @@ class WebServiceManager:
         self._spawn_log_windows = {}
         self._lifecycle_lease = None
         self._fresh_root_identity = None
+        self._fresh_recovery = None
+        self._recovering_attempt = None
+        self._active_spawn_attempt = None
         if self.endpoint_snapshot is None and self._endpoint_error is None and web_port is None and runtime_port is None:
             from research_workbench_entrypoint.web_bootstrap import native_endpoint_ports
             try:
@@ -1137,6 +1140,7 @@ class WebServiceManager:
                     start_new_session=True,
                     close_fds=True,
                 )
+                self._record_attempt_spawn(process, child.pid)
                 self._spawn_log_windows[(process.role, child.pid)] = (
                     log_identity.st_dev, log_identity.st_ino, log_offset)
             finally:
@@ -1570,6 +1574,7 @@ class WebServiceManager:
     def _spawn_and_wait(self, process: ManagedProcess) -> int:
         """Spawn one service and roll back only that exact PID if readiness fails."""
         pid = self._spawn(process)
+        self._record_attempt_spawn(process, pid)
         try:
             self._wait_for_ready(process, pid, timeout=35)
         except Exception as exc:
@@ -1583,6 +1588,10 @@ class WebServiceManager:
             raise
         self._spawn_log_windows.pop((process.role, pid), None)
         return pid
+
+    def _record_attempt_spawn(self, process, pid):
+        if self._active_spawn_attempt is not None and (process, pid) not in self._active_spawn_attempt:
+            self._active_spawn_attempt.append((process, pid))
 
     def _confirmed_bind_failure(self, process, pid):
         """Read only this launch's retained log window; never expose child text."""
@@ -1662,14 +1671,14 @@ class WebServiceManager:
                 )
                 runtime_pid = self._spawn_and_wait(runtime)
                 spawned.append((runtime, runtime_pid))
-                if owned_attempt is not None:
+                if owned_attempt is not None and (runtime, runtime_pid) not in owned_attempt:
                     owned_attempt.append((runtime, runtime_pid))
 
             if actions["web"] != "ready":
                 self._normalize_absent_probe(web, probes["web"])
                 web_pid = self._spawn_and_wait(web)
                 spawned.append((web, web_pid))
-                if owned_attempt is not None:
+                if owned_attempt is not None and (web, web_pid) not in owned_attempt:
                     owned_attempt.append((web, web_pid))
         except Exception:
             for process, pid in reversed(spawned):
@@ -1677,8 +1686,6 @@ class WebServiceManager:
                     self._rollback_spawned(process, pid)
                 except ServiceManagerError:
                     log.error("research_service_rollback_failed", role=process.role)
-            if owned_attempt is not None:
-                owned_attempt.clear()
             raise
         status = self.status()
         for _attempt in range(10):
@@ -1731,6 +1738,9 @@ class WebServiceManager:
                 return self._start_with_endpoints(diagnosis=diagnosis, open_browser=open_browser)
             finally:
                 self._fresh_root_identity = None
+                self._fresh_recovery = None
+                self._recovering_attempt = None
+                self._active_spawn_attempt = None
 
     def _fresh_root_proven(self) -> bool:
         if self._fresh_root_identity is None or self._lifecycle_lease is None:
@@ -1751,13 +1761,72 @@ class WebServiceManager:
             state, observed = self._probe_pid_and_ownership(process, state)
             if state.state not in {"missing", "stale"} or observed.process != "missing":
                 return False
+        if self._recovering_attempt is not None and self._fresh_recovery is not None:
+            return self._fresh_recovery_proven()
+        for process in self._processes():
             if not self._absent_listener_safe(process):
                 return False
             if self.endpoint_snapshot is None:
                 legacy_port = WEB_PORT if process.role == "web" else RUNTIME_PORT
                 if legacy_port != process.port and not self._absent_listener_safe(process, port=legacy_port):
                     return False
+        if self._fresh_root_proven():
+            return self._capture_fresh_recovery()
         return True
+
+    def _listener_recovery_fact(self, port):
+        listener = listener_pids(port)
+        if listener.state == "closed" and not listener.issue:
+            return listener, ()
+        if listener.state != "listening" or listener.issue or not listener.pids:
+            return None
+        identities = []
+        for pid in listener.pids:
+            observed = probe_process(pid)
+            if (observed.state != "alive" or observed.issue or not observed.argv
+                    or observed.started_at is None):
+                return None
+            checked = probe_process(pid)
+            if (checked.state != "alive" or checked.issue or checked.argv != observed.argv
+                    or checked.started_at != observed.started_at):
+                return None
+            identities.append((pid, observed.argv, observed.started_at))
+        return (listener, tuple(identities)) if listener_pids(port) == listener else None
+
+    def _capture_fresh_recovery(self):
+        """RAM-only baseline; never refresh an existing observer identity."""
+        if self._fresh_recovery is None:
+            self._fresh_recovery = (self._lifecycle_lease, self._fresh_root_identity, {})
+        lease, root_identity, before = self._fresh_recovery
+        if lease is not self._lifecycle_lease or root_identity != self._fresh_root_identity:
+            return False
+        ports = {process.port for process in self._processes()}
+        if self.endpoint_snapshot is None:
+            ports.update((WEB_PORT, RUNTIME_PORT))
+        ports.update(before)
+        for port in ports:
+            fact = self._listener_recovery_fact(port)
+            if fact is None or (port in before and before[port] != fact):
+                return False
+            before[port] = fact
+        return True
+
+    def _fresh_recovery_proven(self):
+        lease, root_identity, before = self._fresh_recovery
+        if lease is not self._lifecycle_lease:
+            return False
+        try:
+            lease.assert_held()
+            identity = self.data_root.lstat()
+            if (_is_unsafe_private_directory(self.data_root, identity, platform_name=os.name)
+                    or (identity.st_dev, identity.st_ino) != root_identity):
+                return False
+            if any(probe_process(pid).state != "missing" for _process, pid in self._recovering_attempt):
+                return False
+            return all(self._listener_recovery_fact(port) == fact for port, fact in before.items())
+        except (OSError, LifecycleLockError):
+            log.warning("research_fresh_recovery_unverified")
+            return False
 
     def _absent_listener_safe(self, process, *, port=None) -> bool:
         listener = listener_pids(process.port if port is None else port)
@@ -1794,7 +1863,7 @@ class WebServiceManager:
             try:
                 return self._start_endpoint_attempt(diagnosis=diagnosis, open_browser=open_browser)
             except ServiceManagerError as exc:
-                if exc.code not in {"web_bind_race", "runtime_bind_race"}:
+                if exc.code not in {"web_bind_race", "runtime_bind_race"} or getattr(exc, "recovery_issues", ()):
                     raise
                 explicit = self.requested_web_port if exc.role == "web" else self.requested_runtime_port
                 if explicit is not None:
@@ -1833,6 +1902,7 @@ class WebServiceManager:
         prepared = False
         completed = False
         owned_attempt = []
+        original_error = None
         try:
             web = select_port(self.requested_web_port or self.web_port,
                               explicit=self.requested_web_port is not None)
@@ -1877,8 +1947,12 @@ class WebServiceManager:
             transaction.prepare()
             prepared = True
             self._fresh_root_identity = None
-            report = self._start_locked(diagnosis=diagnosis, open_browser=False,
-                                        owned_attempt=owned_attempt)
+            self._active_spawn_attempt = owned_attempt
+            try:
+                report = self._start_locked(diagnosis=diagnosis, open_browser=False,
+                                            owned_attempt=owned_attempt)
+            finally:
+                self._active_spawn_attempt = None
             if report.get("product_ready") is not True:
                 raise ServiceManagerError("product_not_ready", code="product_not_ready")
             self.endpoint_snapshot = self.endpoint_store.publish("native", web, runtime,
@@ -1894,12 +1968,28 @@ class WebServiceManager:
                     log.warning("research_web_browser_open_failed")
             return report
         except (EndpointError, ControlOriginError) as exc:
-            raise ServiceManagerError(exc.code, code=exc.code) from exc
+            original_error = ServiceManagerError(exc.code, code=exc.code)
+            raise original_error from exc
+        except Exception as exc:
+            original_error = exc
+            raise
         finally:
             if prepared and not completed:
-                for process, pid in reversed(owned_attempt):
-                    self._rollback_spawned(process, pid)
                 try:
+                    cleanup_error = None
+                    for process, pid in reversed(owned_attempt):
+                        try:
+                            if probe_process(pid).state != "missing":
+                                self._rollback_spawned(process, pid)
+                        except Exception as exc:
+                            code = getattr(exc, "code", "control_origin_recovery_unverified")
+                            if not isinstance(code, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,95}", code):
+                                code = "control_origin_recovery_unverified"
+                            log.error("research_endpoint_cleanup_failed", role=process.role, code=code)
+                            cleanup_error = exc
+                    if cleanup_error is not None:
+                        raise cleanup_error
+                    self._recovering_attempt = owned_attempt
                     if published_endpoint is not None:
                         if not self._native_quiescent():
                             raise ServiceManagerError("control_origin_recovery_unverified",
@@ -1907,8 +1997,21 @@ class WebServiceManager:
                         self.endpoint_snapshot = self.endpoint_store.restore("native", previous_endpoint,
                                                                              expected=published_endpoint)
                     transaction.rollback()
-                except (ControlOriginError, EndpointError) as exc:
-                    raise ServiceManagerError(exc.code, code=exc.code) from exc
+                except Exception as exc:
+                    recovery_code = getattr(exc, "code", "control_origin_recovery_unverified")
+                    if not isinstance(recovery_code, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,95}", recovery_code):
+                        recovery_code = "control_origin_recovery_unverified"
+                    log.error("research_endpoint_recovery_failed", code=recovery_code)
+                    if original_error is None:
+                        raise ServiceManagerError(recovery_code, code=recovery_code) from exc
+                    if isinstance(original_error, ServiceManagerError):
+                        original_error.recovery_issues = (recovery_code,)
+                    original_error.add_note(recovery_code)
+                finally:
+                    self._recovering_attempt = None
+                    self._fresh_recovery = None
+            else:
+                self._fresh_recovery = None
             if not completed:
                 self.web_port, self.runtime_port = previous_ports
                 self.web_url = f"http://127.0.0.1:{self.web_port}/#/fingpt"
