@@ -402,3 +402,28 @@ C5仅部分送检，未通过；1A仍未完成，mergeReady=false、releaseReady
 旧Research Web Checks37411987879和Bootstrap37411993900均completed/success，实际checkout28f0263764e56d24ac12e45182f5134299600e32已从完成job的Checkout日志提取。精确run/attempt/runner/结果保存c5-sync/old-run-*.json；旧证据不标成新候选通过。当前API visibility=public/push权限true，当前标准runner预算public-standard，最近各5次native成功job保存native-budget-history.json；不改付款/额度、policy、Hook、fixed DSH、产品锁或生产实例。
 
 本轮集中合并提交后普通push同一任务分支，复用草稿PR78；后续自动CI按冻结候选记录，新候选完整SHA和Windows交接在送检证据/收口段填写。本段为送检前已发生事实，不预称CI通过。供应商请求0，B归因未验证，T6仍NOT_RUN，Windows未发起；C5/1A尚未完成，mergeReady=false、releaseReady=false。
+
+### C5 续接送检身份与 Windows 交接（冻结候选）
+
+正常merge提交/冻结候选H为**a4406b42d3b35635968941cf2b27990a4a71a96c**，父提交b7da60b692f62a01e4c7f8db7d7f7dcda2b9ab82、9e231b6c3be5279d24cac8d43453fbf9a626cca6；普通push原分支成功，旧报告提交保留。PR78仍草稿，head=H/base=固定目标，mergeable=true，文本冲突解除。新PR merge preview **24069c23e590258dc7b09935fcd7082bdb32e036** 的API父提交恰为固定base和H，不能把这个预览提交叫做已经合并master。只读API复核master未漂移。
+
+| 本轮自动门 | 结果（收口观测） | 源码及证据 |
+| --- | --- | --- |
+| Project Constraints/check | PASS | run37414820417、attempt1、pull_request、ubuntu-latest，实际Checkout24069c23e590258dc7b09935fcd7082bdb32e036 |
+| Research Web Checks/checks | PASS | run37414820502、attempt1、pull_request、ubuntu-latest，实际Checkout同一merge preview24069c23e590258dc7b09935fcd7082bdb32e036 |
+| macOS Bootstrap/Clean Web install (macos-14) | PASS | run37414820465、attempt1、pull_request、macos-14，干净安装、固定DSH构建、服务启动/Doctor/资源/未配置数据源断言完成；实际Checkout24069c23e590258dc7b09935fcd7082bdb32e036 |
+| Windows Verify | MANUAL_REQUIRED | 本轮Mac不代发；当前真实workflow要求expected_sha，交给Windows真机检出H后执行 |
+
+元数据、steps、runner、checkout精确提取见c5-sync/runs.json和pr.json。全部新run由PR自动触发，无重复dispatch/rerun或第二轮修复。gh pr edit初次被GitHub classic Projects弃用查询拒绝，改用现有REST PATCH原PR正文成功；没有改规则或另建PR。旧两项成功仅属于28f02637，仍单独保存。新本地Python确切391 passed、1 skipped、1 warning/39.59s；唯一skip为已有test_local_integrations中requires a native Windows runner的测试，不作为Windows能力通过或政策豁免。
+
+Windows可执行交接保存**logs/settings-model-loop/c5-sync/windows-handoff.ps1**，填入真实40位H，步骤为：在Windows真机的全新TEMP验收目录Git clone原仓库、fetch原任务分支、detach检出H；读取AGENTS、actions-budget和实际Windows workflow；验证本地HEAD=H、远端refs/heads/codex/settings-model-loop仍为H；记录非秘密OS、checkout和发起命令证据后执行：
+
+```powershell
+gh workflow run research-web-windows-verify.yml --repo Leon-Huang001208/ResearchWorkbench --ref codex/settings-model-loop -f expected_sha=a4406b42d3b35635968941cf2b27990a4a71a96c
+```
+
+命令必须从完成上述核对的Windows真机发起，不能单凭expected_sha宣称发起设备证明。脚本对远端漂移/clone/checkout/dispatch失败停止，不自动retry或换SHA，不覆盖生产目录，不安装依赖或索取Key。若无Windows机器保持MANUAL_REQUIRED。Windows runner CI成功仅证明workflow合同，不能代替Windows本地安装/升级/Office/Wind/企业网络验收，也不证明尚未实现的Windows模型系统凭据库后端。
+
+报告收口仅本地提交；远端任务分支冻结H供Windows验收，不为报告再push/重跑。最终报告HEAD、H及source差异另存final-identity.json。受管manifest逐文件摘要0不匹配，完整81路径安全标记/禁止artifact路径0命中，见safety-and-manifest.json；没有真实认证资料上传。必要回归已完成，未修改产品锁/fixed DSH/Hook/policy来凑结果。图证据按内容与规则不变复用，其他未变API/UI证据按相同源码复用。
+
+**C5仍部分完成，1A仍未完成；mergeReady=false、releaseReady=false。** 三个自动门已取得相同合并预览的精确PASS；尚缺Windows真机exact-SHA CI及B实际归因/T6（后两项本轮不重开）。供应商请求0，不合并PR，不发布、不修改生产，不自动进入后续阶段。本次按有界观测交接运行ID，不承诺后台持续执行；若Bootstrap继续运行，该状态不是PASS。
