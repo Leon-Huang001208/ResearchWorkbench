@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+Docker dsh-builder 的 Node binary 与完整 /usr/local/include/node 来自同一固定 node-runtime
+24.19.0 stage；仅 builder 设置 npm_config_nodedir=/usr/local，让原生扩展使用该版本本地 headers。
+最终 runtime 不复制开发 headers 或继承该 ENV，原非 root/staged-image 边界保持。
+
 research-tools 保持 tools/sessions 注入；生产执行器来自已导入的 child_process.spawn，ctx 自有
 data descriptor 只保留原测试替身，避免读取未声明 Cordis 服务 getter，不新增插件或部署节点。
 

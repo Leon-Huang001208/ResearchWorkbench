@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+DSH builder 使用同一固定 Node stage 的本地 headers 与 builder-only nodedir，避免 node-gyp
+另下载不同 headers；不关闭 TLS/签名、不改官方软件源/依赖锁/代理协议。最终 runtime 无该
+开发目录或 ENV，继续原非 root、受管挂载与完整 staged-image 校验；源码合同不替代真实构建。
+
 Docker host CLI代理允许列表：仅http/https、localhost或loopback IPv4/IPv6、显式1..65535端口，
 输入≤1024ASCII字符；userinfo/path/query/fragment/control/畸形/非回环拒绝。大小写变量同时
 存在须校验后相等；均空禁用，空/非空或不同值冲突拒绝。URL归一化scheme/host/IP/端口，

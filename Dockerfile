@@ -35,6 +35,8 @@ RUN python -c 'from pathlib import Path; from scripts.setup_web import SetupWebI
 
 FROM python-builder AS dsh-builder
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-runtime /usr/local/include/node /usr/local/include/node
+ENV npm_config_nodedir=/usr/local
 COPY --from=node-runtime /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates g++ make \
     && rm -rf /var/lib/apt/lists/* \

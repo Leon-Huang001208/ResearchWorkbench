@@ -35,6 +35,21 @@ test('builders reuse the hashed Web lock, vendored CJPY and pinned DSH verifier'
   assert.doesNotMatch(file, /requirements\/docker|git clone .*main|git clone .*master/);
 });
 
+test('DSH builder uses headers from the exact Node binary stage without runtime nodedir', () => {
+  const lines = instructions();
+  const builder = lines.slice(lines.indexOf('FROM python-builder AS dsh-builder') + 1,
+    lines.indexOf('FROM ${PYTHON_IMAGE} AS runtime'));
+  const runtime = lines.slice(lines.indexOf('FROM ${PYTHON_IMAGE} AS runtime') + 1);
+  assert.ok(builder.includes('COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node'));
+  assert.ok(builder.includes('COPY --from=node-runtime /usr/local/include/node /usr/local/include/node'));
+  assert.ok(builder.includes('ENV npm_config_nodedir=/usr/local'));
+  assert.ok(builder.indexOf('ENV npm_config_nodedir=/usr/local') <
+    builder.findIndex(line => line.startsWith('RUN corepack pnpm@')));
+  assert.equal(lines.filter(line => line.includes('/usr/local/include/node')).length, 1);
+  assert.equal(lines.filter(line => line.includes('npm_config_nodedir')).length, 1);
+  assert.ok(runtime.every(line => !line.includes('/usr/local/include/node') && !line.includes('npm_config_nodedir')));
+});
+
 test('runtime copies a bounded application set and uses the non-root PID1 supervisor', () => {
   const lines = instructions();
   const runtime = lines.slice(lines.indexOf('FROM ${PYTHON_IMAGE} AS runtime') + 1);

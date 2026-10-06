@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "research-tools Cordis getter修复复核：生产使用原spawn，不新增inject/preset或公开功能，README入口和验收限制继续成立。",
-  "reason": "执行器测试覆盖改为自有data descriptor以避开未声明服务getter，详细边界见sandbox/runtime文档，未把单元Proxy模拟当真实会话成功。"
+  "summary": "Docker Node headers修补复核：builder从同一固定Node stage取完整headers，仅builder设置nodedir；README公开入口和验收限制未变。",
+  "reason": "仅既有Docker构建实现避免node-gyp下载，不改变最终runtime、依赖、软件源或TLS，不将合同GREEN当真实镜像/生命周期PASS。"
 }

@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+Docker dsh-builder 从固定 Node24.19.0 stage 同时复制 binary 和完整 headers，使用
+npm_config_nodedir=/usr/local 供 fs-ext/node-gyp 本地编译，避免额外下载 headers。只在builder
+设置，最终runtime无headers/nodedir ENV；不更改锁、官方APT源、TLS/签名或全局代理。
+这项源码修补为一次真实重建提供新依据；先前失败日志保留，最终镜像/生命周期仍须主任务实测。
+
 Docker CLI 可使用本机已设置的 credentials-free loopback HTTP_PROXY/HTTPS_PROXY（http或https、
 localhost/回环IP、显式有效端口）；不支持SOCKS、认证URL、非回环或path/query/fragment。
 大小写重复须校验后相等；两者空禁用，空/非空冲突拒绝。NO_PROXY只接受有界host/IP/CIDR/
