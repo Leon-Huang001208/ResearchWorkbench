@@ -295,3 +295,15 @@ Browser辅助初始化因本机组件签名失败，未修系统签名/权限；
 完整交付changed set包含本轮最小补丁、必要测试/文档及既有成果，后续身份以快照/正常本地检查点为准，不用旧HEAD代替新代码。C5及外部门仍未执行，mergeReady/releaseReady=false。本交接点保留所属测试进程用于人工录入；最终结束再走产品清除并停止所属进程，现在没有已保存的真实Key可清除。
 
 交接代码/测试overlay SHA-256为cca944e639cb152cf59b4a11aa0a534ec83ebc5bc297cbd2409330f065dd1a41，完整交付51路径，快照auth-fix-snapshot.json。JS最终84 PASS（含新增3项），初次新增FS fixture因macOS系统临时目录别名被canonical检查拒绝，已规范化fixture路径，不削弱产品检查；首次失败日志保留。协议20 PASS。进程实际started_at与project_root/data_root绑定见instance-ownership.json，不以认证文件mtime独立证明重启。安装器提交标识记录其环境准备时的e5fb2a19；本轮新源码由该overlay与后续本地检查点识别，不能用安装清单旧code_commit替代当前代码。新认证修复的相关门与未变模块旧证据分别记录；service_manager基准类型诊断、真实生命周期和当前CI风险不删除。
+
+## A已保存后的T1/T2真实验收（2026-10-06）
+
+用户明确回复“A已保存”后续接，输入代码565d8fb930a8ce5a152525b5d500e5b81cd1e56c、原分支与干净工作区已核对。本轮没有代码改动，没有重新读取/操作浏览器、密码框、剪贴板、认证材料或个人配置，也没有重复C1/C2或启动额外研究任务。
+
+T1保存状态：独立18088的非秘密Runtime元数据显示configuration_saved=true、credential_configured=true、system_keychain、owned=true、configuration_uncertain=false，实际选择deepseek-official/deepseek-v4-flash。这仅是保存事实，真实推理另验。通过现有POST /api/research/runtime/model/test执行一次无工具生成，1.685秒返回passed；原生会话fe786a12-dd9d-4c8a-8c52-9b5865315189含一个step/start、一个非空assistant/message、completed turn，无assistant/attempt和工具事件，消息来源为实际deepseek-official/deepseek-v4-flash。T1真实生成PASS，证据T1-save-metadata.json、T1-generation.json、T1-native-proof.json；不保存请求体、原始历史或最终文本。输入清空/不回填沿已验证UI合同保留，本轮未检查密码字段值，不伪称再次观察过该字段。
+
+T2：通过同一正常产品PUT模型配置接口省略api_key（留空保留），保存HTTP200；刷新GET确认仍configured=true，然后向上述**已有**会话用新的Idempotency-Key ebd4b88d88574c9fb1c9b4062311c5e5发新请求。HTTP202只记受理；1.012秒后新的completed turn与最终非空消息证明真实生成通过，一次step/start、失败attempt0、工具0。T2 PASS见T2.json。留空保存按现有语义清除新会话应用证明，刷新时runtime_applied=false；这不冒充凭据不可用，也不能用该字段否定已有会话实际生成。两次原生消息来源分别为seq12/20，同一实际模型。T2的保存/刷新由产品API执行，不宣称进行了第二次浏览器表单视觉验收。
+
+实际模型请求累计2/6，公开工具0/1；已有retryPolicy maxRetries=0，固定adapter调用原生fetch并将错误交给既有retry协调器，没有SDK隐式重试层；两次各一个原生step及最终消息、失败attempt0相互印证。非秘密计数及来源见live-ledger.json；没有把预留请求直接当完成。T3尚待用户人工录入不同B，只有A时将真实替换与归因标未验证而继续其他步骤；T4/T5/T6仍NOT_RUN。C3尚未收口、C4未执行、当前代码CI未执行，mergeReady/releaseReady=false。
+
+现在在T3人工点暂停：当前同一安全设置页只由用户录入不同测试Key B并保存，回复“B已保存”；若只有A则回复“只有A”。不能重复保存A冒充B，替换后生成也不会自动算完整Key归因；没有供应商非秘密按Key关联证据时保留归因缺项。此时保留所属测试进程与已保存的测试Key用于后续生命周期，最终结束再通过产品清除/停止，不提前清除中断验收。
