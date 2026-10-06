@@ -3,6 +3,10 @@
 失败停止既有容器须重新核对精确 ID、image、installation、mount 和 launch；任一替换均
 保留对象。安装摘要恢复必须匹配原发布写 FD 的 inode 与字节，同内容替换不成为恢复权限。
 
+无 Native 环境/账本的只读监听证明须取得 alive PID、无错误的 argv 与启动身份，并复查
+进程身份和监听 PID 集合；同数据根/当前 checkout 进程或不完整/变化事实拒绝。端口可连接
+本身不证明归属；Docker 容器仍必须独立核验安装/image/mount/实际 mapping 和健康。
+
 macOS 动态端口启动在共享生命周期锁内验证两模式静止后重绑成对可信origin；仅URL改变，
 token与其他有效字段保留。显式占用端口拒绝，自动候选不代表已保留监听；只有完整真实健康
 后写实际端点。Docker prepare-only guest必须匹配安装ID、单次nonce、不可变image、固定command、

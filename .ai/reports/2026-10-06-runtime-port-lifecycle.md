@@ -128,3 +128,31 @@ SHA匹配。完整constraints首次缺README复核回执，按实际入口/限�
 （`logs/task-2-fix1-doc-sync-final.log`）。回执 `logs/task-2-fix1-receipt.json` 经原validator
 认证 valid=true，10 local PASS/5 external NOT_RUN，BLOCKED，mergeReady/releaseReady=false。
 这里是总体验收回执；foreign平台门由对应真机交接，不改变Mac宿主范围。未声称真实Mac或CI完成。
+
+## Task2 FIX ROUND2（e21c7b5fe 的后备监听误拒修复）
+
+独立复审批准fix1其余四HIGH，指出无Native环境时“数据根存在+端口忙”错误拒绝Docker-only
+幂等start及无关宿主3081监听。本轮只修改bootstrap后备判断和closest Docker tests，复用
+既有stdlib listener_pids/probe_process；不更改已批准的容器清理、controls首建或manifest CAS。
+缺失Native环境+ledger时，对既有数据根核验alive PID、argv、启动身份并复查身份和监听集合；
+未知/同数据根或当前checkout写者/身份变化拒绝，已证明外来监听允许继续。Docker仍独立核验
+完整inspect/image/install/mount/mapping/health，错误mapping保留容器并拒绝。
+
+实际RED `logs/task-2-fix2-red.log` 两例均runtime_ownership_unknown：真实8088监听下已验证
+健康Docker容器复用；真实3081无关监听下Docker首启。NativeRuntime.status未被mock；真实端口
+使用测试socket（空闲时）或保留当前已有监听，前后PID集合相同，没有停止既有68985/69730。
+GREEN `logs/task-2-fix2-green.log` 六例/2.55s，额外保留unknown/same-root/PID-reused拒绝和
+错误受管mapping负例。四模块docker_runtime/runtime_mode/web_bootstrap/setup_web共享闭包
+407 passed /44.75s（`logs/task-2-fix2-boundary-closure.log`）。测试Docker inspect与健康是fixture，
+真实socket/OS PID/argv事实不是mock；不构成真实Docker验收。后续mapping断言收紧为精确code。
+
+本宿主macOS功能开发、本地隔离fixture；未执行真实服务/环境/镜像/用户数据/Keychain/全局
+设置/依赖/远端/CI/子代理操作。真实验收由main持有，未改其detached checkout。
+停止容器自动删除重建仍未授权，docker_stopped_port_conflict保持pending；MacCI/物理验收待主任务。
+
+最终九文件L4计划 `logs/task-2-fix2-plan.json`；完整constraints和doc-sync PASS
+（`logs/task-2-fix2-{constraints,doc-sync}.log`），索引生成后无diff且--check通过。
+所选JS103 passed /2.752s（task-2-fix2-js.log）；protocol+最终六负例25 passed /1.88s
+（task-2-fix2-final-smoke.log）。宿主Python -I -S导入bootstrap通过，无core.settings/Store导入。
+回执task-2-fix2-receipt.json valid=true：8 local PASS/4 external NOT_RUN，BLOCKED，
+mergeReady/releaseReady=false；foreign平台为全局交接，Mac物理/CI另由主任务负责。

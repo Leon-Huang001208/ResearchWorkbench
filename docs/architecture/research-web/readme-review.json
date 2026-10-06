@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "FIX ROUND1复核README：五项修复落实既有归属、失败回滚和控制origin合同，入口参数、默认端口及停止容器换绑定限制仍与README一致。",
-  "reason": "详细的监听账本缺失、MCP-only首建和摘要inode恢复规则已同步安装/安全/运行时模块文档；README保留完整端口迭代与真实Mac验收尚未闭合的现状。"
+  "summary": "FIX ROUND2复核README：无Native环境的监听归属细化恢复Docker-only幂等启动及宿主3081无关监听兼容，符合现有README端口合同。",
+  "reason": "细节已同步安装/安全/运行时文档；入口参数与停止容器换绑定限制未变，README完整端口迭代和真实Mac验收未闭合说明继续有效。"
 }

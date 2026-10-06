@@ -35,7 +35,8 @@ origin commit 失败与健康失败共用精确清理：本次新建容器清除
 在重新核对 ID、镜像、安装、挂载和 launch 身份后仅 stop，保留容器。静止证明先于端点 CAS
 恢复与 origin 回滚。Native 缺失运行账本仍检查当前端口监听者；未知或同数据根监听者拒绝
 分配和模式切换，只有可证明属于其他实例的监听允许避让。缺少 Native 环境时，既有数据根
-的占用监听仍失败关闭。补齐控制文件前先只读验证全部既有记录和一致 origin，MCP-only
+的监听通过标准库 PID/argv/启动身份与监听复查核验；已证明的外来监听允许继续，未知或同根
+写者失败关闭。受管 Docker 仍须独立通过容器身份、实际 mapping 与健康检查。补齐控制文件前先只读验证全部既有记录和一致 origin，MCP-only
 动态 origin 不会被默认 DataHub origin 污染。Docker 安装摘要回滚同时核对发布写 FD 的身份
 和精确字节，内容相同的新 inode 也保留并报告 recovery_unverified。
 

@@ -3,6 +3,9 @@
 失败恢复先清理本次新建容器或停止本次启动的既有停止容器，再恢复端点/origin；既有容器
 保留。安装摘要只在发布 inode 与字节均匹配时回滚，否则报告 recovery_unverified。
 
+Docker-only 安装缺少 Native 环境时，忙端口须核验监听归属：已证明的其他实例监听与受管
+Docker 服务可继续，未知 Native 写者拒绝；无关宿主 3081 监听不阻塞 Docker 幂等启动。
+
 macOS 公开安装、start/restart 已接入私有端点记录与成对内部 origin 事务。
 依赖锁保持不变，不移动、复制或轮换控制 token，也不迁移用户数据或凭据。
 

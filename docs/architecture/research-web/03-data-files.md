@@ -3,6 +3,9 @@
 Native 补齐任一缺失控制文件前先只读验证全部既有控制记录；MCP-only 动态 origin 成为
 正常 DataHub creator 的输入，畸形 MCP 不会留下新建 DataHub 文件。
 
+Native 环境和运行账本缺失的只读桥核验监听事实，不创建账本或控制文件；外来实例的
+已证明监听不会被当作本研究数据根的写者，未知或同根进程仍保留原文件并拒绝生命周期。
+
 独立端点 helper 的 `install/endpoints.json` 是运行时元数据，不是第二份依赖或研究事实。
 启动链的 origin helper 对两份 `.control` 记录保留 token/其他有效字段并改 URL，
 不迁移数据或凭据；原始回滚字节只留在内存，持久中断标记没有 token 备份。

@@ -164,15 +164,85 @@ def test_fix1_manifest_same_bytes_replacement_is_not_rollback_owned(runtime, mon
     assert path.stat().st_ino == retained[0]
 
 
-def test_fix1_native_bridge_missing_environment_and_ledger_refuses_existing_root_listener(runtime):
+@pytest.mark.parametrize("evidence", ["unknown", "same-root", "pid-reused"])
+def test_fix1_native_bridge_missing_environment_and_ledger_refuses_existing_root_listener(runtime, monkeypatch, evidence):
+    from research_workbench_entrypoint import bootstrap
+    from research_workbench_entrypoint.web_contract import ProcessFact
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     controller, _runner, _record = runtime
     controller.data_dir.mkdir(mode=0o700)
+    calls = []
+    def facts(pid):
+        calls.append(pid)
+        argv = None if evidence == "unknown" else ("node", str(controller.data_dir) if evidence == "same-root" else "/foreign/data")
+        return ProcessFact("alive", None, None, argv, float(len(calls)) if evidence == "pid-reused" else 1.0)
+    monkeypatch.setattr(bootstrap, "probe_process", facts)
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", controller.ports[0]))
         listener.listen()
         report = NativeRuntime(controller.project_root, controller.home, ports=controller.ports).status()
         assert report["issues"] == ["runtime_ownership_unknown"], report
+
+
+def test_fix2_docker_only_healthy_start_reuses_verified_container_with_real_listener(runtime):
+    from research_workbench_entrypoint.web_contract import listener_pids
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    controller.ports = (8088, 3081)
+    owned(controller, runner)
+    identity = runner.container["id"]
+    listener = socket.socket()
+    before = listener_pids(8088)
+    try:
+        if before.state == "closed":
+            listener.bind(("127.0.0.1", 8088))
+            listener.listen()
+        observed = listener_pids(8088)
+        assert observed.state == "listening" and observed.pids
+        report = controller.start(open_browser=False)
+        assert report["ok"], report
+        assert runner.container["id"] == identity
+        assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+        assert listener_pids(8088) == observed
+    finally:
+        listener.close()
+
+
+def test_fix2_docker_only_start_keeps_real_unrelated_host3081_listener(runtime):
+    from research_workbench_entrypoint.web_contract import listener_pids
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    listener = socket.socket()
+    before = listener_pids(3081)
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = launch
+    try:
+        if before.state == "closed":
+            listener.bind(("127.0.0.1", 3081))
+            listener.listen()
+        observed = listener_pids(3081)
+        assert observed.state == "listening" and observed.pids
+        report = controller.start(open_browser=False)
+        assert report["ok"], report
+        assert runner.container and runner.container["running"]
+        assert listener_pids(3081) == observed
+        assert not any(argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+    finally:
+        listener.close()
+
+
+def test_fix2_managed_docker_mapping_mismatch_cannot_be_adopted(runtime):
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    owned(controller, runner)
+    runner.container["ports"]["8088/tcp"][0]["HostPort"] = str(controller.ports[0] + 1)
+    report = controller.start(open_browser=False)
+    assert report["issues"] == ["docker_ports_mismatch"], report
+    assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+    assert runner.container["running"]
 
 
 @pytest.mark.parametrize("replacement", ["launch", "image", "installation", "mount"])

@@ -22,7 +22,7 @@ from .docker_runtime import (
 )
 from .runtime_mode import RuntimeModeError, RuntimeModeStore
 from .runtime_endpoints import EndpointError, EndpointStore
-from .web_contract import classify_python_environment
+from .web_contract import classify_python_environment, listener_pids, probe_process
 
 log = logging.getLogger(__name__)
 
@@ -137,6 +137,31 @@ class NativeRuntime:
         from .web_bootstrap import native_endpoint_ports
         self.ports = native_endpoint_ports(Path(project_root), home / "research-web") if ports is None else ports
 
+    def _missing_ledger_listeners_safe(self, data_root: Path) -> bool:
+        """Read-only stdlib ownership proof when the Native environment is absent."""
+        for port in self.ports:
+            listener = listener_pids(port)
+            if listener.state == "closed":
+                if port_busy(port):
+                    return False
+                continue
+            if listener.state != "listening" or not listener.pids:
+                return False
+            for pid in listener.pids:
+                observed = probe_process(pid)
+                if (observed.state != "alive" or observed.issue or not observed.argv
+                        or observed.started_at is None
+                        or any(str(data_root) in argument or str(self.project_root) in argument
+                               for argument in observed.argv)):
+                    return False
+                checked = probe_process(pid)
+                if (checked.state != "alive" or checked.issue or checked.argv != observed.argv
+                        or checked.started_at != observed.started_at):
+                    return False
+            if listener_pids(port) != listener:
+                return False
+        return True
+
     def _probe(self, operation: str) -> dict:
         python = native_python(self.project_root)
         environment_issue = (
@@ -150,7 +175,9 @@ class NativeRuntime:
                 for role in ("web", "runtime")
             ):
                 data_root = self.home / "research-web"
-                if data_root.is_symlink() or (data_root.exists() and any(port_busy(port) for port in self.ports)):
+                if (data_root.is_symlink() or (data_root.exists() and
+                        (not data_root.is_dir() or not self._missing_ledger_listeners_safe(data_root)))):
+                    log.warning("native_probe code=runtime_ownership_unknown")
                     return result("runtime_ownership_unknown", mode="native")
                 return result(mode="native", services={
                     role: {"running": False, "port": port}
