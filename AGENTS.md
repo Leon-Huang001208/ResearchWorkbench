@@ -21,9 +21,19 @@
 - 桌面端改动严格遵守 `docs/desktop_packaging.md`；宣称 Windows 支持前，必须有原生 Windows CI 的构建和健康检查证据。
 - 发布桌面端版本前，另须在真实 Windows 环境完成安装级冒烟测试。
 
+## Platform ownership and acceptance (mandatory)
+
+- MacBook Pro（macOS）负责项目功能开发、macOS 适配与真机验收，以及远端 GitHub macOS CI 验收；不承担 Windows/Linux 适配与验收。
+- Windows 真机只负责既有功能的 Windows 适配、Windows 真机验收及远端 GitHub Windows CI 验收，不承担功能开发。
+- Linux 真机只负责既有功能的 Linux 适配、Linux 真机验收及远端 GitHub Linux CI 验收，不承担功能开发。
+- 每次任务先声明宿主平台、任务类型（功能开发或平台适配）及本平台验收范围。Windows/Linux 适配中发现功能缺陷时，记录复现与证据并交回 Mac 开发任务，不在适配任务中扩展功能。
+- 当前宿主任务只以本平台本地验收和适用的同平台 GitHub CI 为完成条件。其他平台的适配、真机及 CI 验收必须交接给对应真机，不得作为当前宿主任务的完成前置条件。
+- 总体验收计划和跨平台发布就绪状态仍保留所有目标平台证据；任务完成不等于跨平台已验证。按 `docs/AGENT_WORKFLOW.md` 分开记录本平台任务状态与总体验收状态，不得删门、伪造 PASS 或把未验证平台标为支持。
+- CI 的 runner 平台决定证据归属：Ubuntu run 属于 Linux，不能因测试是通用合同就计作 macOS CI。现有自动触发不改变职责，其他平台的 run 由对应平台任务处理。
+
 ## Current Research Web delivery phase (authoritative)
 
-自用户 2026-10-06 范围决定起，当前 Research Web 仅交付 **macOS Native**。Windows/Linux 产品适配、原生验证、真机验收与交接暂缓，未验证事实保留，但不阻断当前 Mac 阶段；不得执行旧 Windows 交接脚本。Ubuntu 的 Project Constraints/Research Web Checks 是通用 CI，继续保留。
+自用户 2026-10-06 范围决定起，当前 Research Web 仅交付 **macOS Native**。Windows/Linux 产品适配、原生验证、真机验收与交接暂缓，未验证事实保留，但不阻断当前 Mac 阶段；不得执行旧 Windows 交接脚本。Ubuntu 的 Project Constraints/Research Web Checks 保留自动触发，证据归属 Linux，不计为 macOS CI；由对应平台任务处理。
 
 `.agents/verification-policy.json` 的 Research Web 路由按此阶段暂不选择 Windows CI；Windows catalog、workflow、expected_sha 合同和代码保持。用户明确重新开启 Windows/跨平台范围时，恢复相应 Web 路由的 Windows CI 选择及下述原生规则；不可仅因宿主是 Mac 而跳过已重新开启的平台。此阶段不豁免 B 归因、T6、未知风险或任何 Mac 安全与功能门。
 
@@ -41,6 +51,7 @@
   `windows-2022`，但 Mac PR/push 不自动触发；必须在 Windows 真机 checkout 待验 commit 后，从该机
   以 exact SHA 执行 `workflow_dispatch`。Windows CI 不能替代 Windows 实机安装、升级、
   Office/Wind 或企业环境验证；未执行的层级必须保留 `NOT_RUN` 或 `MANUAL_REQUIRED`，不得宣称通过。
+  Linux 真机任务负责 Linux 适配、实机验收及 GitHub Linux CI；他平台未验证不阻塞 Mac 本平台任务。
   无厂商凭据的 CI 必须把天软显示为“依赖已安装但待配置”，不得伪报可调用。
 - 新增用户可配置能力时，Doctor、安装文档、安全清单和一键流程必须同步覆盖；秘密只由本机设置页或
   系统凭据库接收，禁止写入锁文件、安装日志、CI 产物或代码包。
@@ -74,7 +85,7 @@ Applies to `src-tauri/`, `desktop/`, `scripts/desktop/`, desktop configuration a
 Current phase boundary: product iteration is Web-only until the user explicitly reopens desktop work. Changes limited to `app/web/`, `app/research_web/`, general Web API/runtime code, shared Python/Node dependencies, or Web documentation are not desktop deliverables and must not trigger sidecar, Tauri, installer, or native desktop CI acceptance. The desktop rules below apply only when the task explicitly targets desktop behavior or changes a desktop-owned path such as `src-tauri/`, `desktop/`, `scripts/desktop/`, or `services/desktop_platform/`.
 
 1. Mac local development and tests do not prove Windows support; never claim Windows has been verified without native evidence.
-2. Every related change must run on a native Windows CI runner, covering dependency installation, Python sidecar build, Tauri Windows installer build, and basic startup/health checks.
-3. Before release, run an installation-level smoke test on a real Windows environment. This is mandatory for Excel/Wind, permissions, upgrade, and installer changes.
+2. Each platform task owns only its native checks and corresponding GitHub CI. The Windows device task must cover dependency installation, Python sidecar build, Tauri Windows installer build, and basic startup/health checks; these are not completion gates for the Mac task.
+3. Before releasing a platform build, its device task must complete an installation-level smoke test on that platform. The Windows task owns real Windows smoke tests for Excel/Wind, permissions, upgrade, and installer changes. Missing Windows evidence blocks Windows release readiness, not Mac task completion.
 4. Build sidecars natively for each target platform; never reuse a macOS binary on Windows or the reverse.
 5. Follow the support matrix and acceptance checklist in `docs/desktop_packaging.md`, and update that document with relevant changes.

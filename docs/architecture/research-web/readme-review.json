@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留主干 Native/Docker 安装与数据边界，同时准确说明 macOS Native 模型 Keychain、模型设置/生成和 Host 认证分离。",
-  "reason": "按合并后实现复核：通用服务凭据按模式分离；模型私有桥接仅本轮 macOS Native，其他平台不伪报支持。此为 Codex 文本复核，不代替真实验收。"
+  "summary": "保留Native/Docker安装和数据边界、Mac模型Keychain/Host认证分离及最新宿主平台分工。",
+  "reason": "Mac负责功能开发、本机和MacCI；Windows/Linux真机负责各自适配与验收，不计作Mac完成前置。其他平台未验证事实保留；本轮模型功能B/T6仍须真实证据。"
 }
