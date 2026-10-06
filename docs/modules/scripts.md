@@ -21,6 +21,12 @@
 
 ### `scripts/setup_web.py`
 
+Native public auto-start reexecutes the same script/arguments in the exact marked checkout venv before
+creating the product root. The actual manager creates the root under its real lifecycle lease, completes
+DSH/build-lock/manifest, and starts through the verified same-lease entry. Outer-home UID/0700 preparation
+reuses the existing boundary; no-start/check-only/Docker do not gain a fresh witness. Old roots/replacements
+and observer/lease changes remain refused; no global package or public flag is added.
+
 Docker selection publication retains the manifest writer's held-FD identity. A later failure restores
 the previous receipt only while both the published bytes and inode still match; same-content inode
 replacement fails closed with `docker_install_summary_recovery_unverified` and is not overwritten.

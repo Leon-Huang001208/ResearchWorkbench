@@ -1,5 +1,10 @@
 # 研究协议、执行状态与恢复
 
+_installation_start_scope 只从 manager 真实 lease/mkdir 取得创建事实，覆盖 DSH/runtime
+build-lock/manifest；_start_installed(lease) 复核同一实际对象和根身份，执行正常安装门与端点
+生命周期，不重复 acquire、不接受 bool/tuple 跳锁。no-start/失败/scope 退出清证明；既有根
+不因 reinstall 成为 fresh。公开重执行仅进入 owned venv，不跨进程借 lease。
+
 ## 实际端点与公开生命周期
 
 `EndpointStore(home)` 只在私有 `install/endpoints.json` 保存 schema 1 的 `records`，Native

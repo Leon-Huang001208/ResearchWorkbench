@@ -1,5 +1,13 @@
 # Research Web Native / Docker 安装与运行
 
+正常 Native auto-start 公开入口先建立/复用精确 checkout-owned `.venv`，用该 Python -I
+重执行同一 setup_web.py 与原参数；sys.prefix 与已有 marker 防重复，不依赖宿主全局 Web 包。
+check-only、Docker、no-start 保留 host 路径。Web 依赖就绪后，实际 manager 持原 LifecycleLock
+创建 canonical 根，继续 DSH/build-lock/manifest 与正常安装门，再借同一实际 lease 启动。
+证明不序列化；root/lease/原监听变化或未知新增 writer 拒绝。no-start/失败退出后不继承 fresh，
+已有根重装也不认领；直接 rwb start 到不存在 custom 根仍受 build-lock 前置限制，正常
+installer auto-start 是连接创建与就绪的入口。源码 fixture 不替代 main 的新 HOME 完整实测。
+
 失败恢复先清理本次新建容器或停止本次启动的既有停止容器，再恢复端点/origin；既有容器
 保留。安装摘要只在发布 inode 与字节均匹配时回滚，否则报告 recovery_unverified。
 

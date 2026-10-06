@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "FIX ROUND4复核README：恢复本次fresh事务的内存证明与首次分配证明分离，现有数据根隔离、端口和pending限制继续成立。",
-  "reason": "详细恢复身份、精确对象退出、原错误保留与不重试规则已同步安装和运行时安全文档，不增加公开CLI参数或README支持声明。"
+  "disposition": "updated",
+  "summary": "FIX ROUND5同步README：正常Native auto-start以同次真实lease/创建scope连接安装就绪与fresh启动；已结束no-start及既有根不继承证明。",
+  "reason": "公开安装进入精确owned venv重执行并借同scope启动，说明可达路径与限制，不把源码fixture当作新HOME实机或厂商能力证明。"
 }

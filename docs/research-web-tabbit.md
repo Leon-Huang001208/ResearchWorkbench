@@ -1,5 +1,8 @@
 # Research Web Tabbit 集成
 
+Native installer 进入 owned venv 后同次持锁创建并启动，不继承 Tabbit 会话/claim；
+no-start/跨调用不持久化 fresh 或浏览器授权，实际浏览器能力仍须独立证明。
+
 Native 缺失账本的监听核验不申请 Tabbit claim 或读取浏览器内容；未知或同数据根的
 监听者使生命周期失败关闭，只有已验证的端点才进入后续浏览器集成。
 

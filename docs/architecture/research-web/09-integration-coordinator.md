@@ -1,5 +1,8 @@
 # 统一集成协调器
 
+installer 同次 auto-start 的创建 scope 不传集成凭据、不改协调器阶段；owned venv 与
+实际 root/lease 就绪后进入原启动链，product_ready 仍不证明厂商能力可调用。
+
 Native 控制文件首建先核验既有 MCP/DataHub origin，一致后才补齐缺失记录；协调器消费者
 仅在成对配置与实际端点一致后启动，畸形配置失败保留原记录。
 

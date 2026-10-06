@@ -242,3 +242,48 @@ budget case；旧失败及交互原因未确认保留。恢复捕获再收紧为
 validator valid=true，7 local PASS/4 external NOT_RUN，BLOCKED，mergeReady/releaseReady=false。
 保留“公开fresh路径可达性需上下文”和“早前runtime_mode_changed交互未认证”风险，未执行
 物理Mac/CI或修改其门；格式工具仍NOT_RUN且未安装。Task3报告保持main所有权。
+
+## Task2 FIX ROUND5/5（24bb6df8d 的公开 Native fresh 可达性）
+
+R4review已APPROVED。parent批准本目标内的最小衔接：正常Native auto-start在真实manager
+LifecycleLock内实际创建canonical根，保留内存witness至DSH/runtime/build-lock/manifest与
+安装就绪门，再借同一actual lease启动；bool/tuple不是lease，root/lease/old listener变化拒绝。
+no-start保持原流程且结束后无fresh，既有根重装不认领。恢复复用R4，不序列化证明或新增flags。
+脚本把原outer-home UID/0700校验提取前移，避免txn parents mkdir0755被真实lease拒绝；
+canonical根仍只由scope实际创建。manager接口仅yield实际lease和两个private installer入口。
+
+干净host导入manager曾只读观察到pydantic缺失：verify_web_import仅venv子进程，不改变host
+依赖。parent独立批准公开main重执行方案：仅Native真正auto-start先按原prepare_environment
+建立/复用标记owned `.venv`，校验精确executor/marker，用其Python -I执行同脚本原args；
+精确sys.prefix+已有marker防重复，repair参数与原healthy-reuse/owned-broken/unknown拒绝规则
+保留。HOME/Node/代理/测试credential-root保持，不改global包/sitepath，不新增private stage协议。
+check-only/Docker/no-start仍hoststdlib路径，不在reexec前建canonical根或持proof。
+
+实际RED task-2-fix5-valid-red.log六failed/一no-startPASS：DSH/buildlock前无真实scope。
+最初task-2-fix5-red.log的no-start因不完整closure fixture失败不计行为RED，按固定closure计数
+和manifest必需字段补全后得到上述真实RED。首GREEN六/一fail暴露outer-home0755，按原边界
+前移准备后七PASS/1.15s。公开main hostexecutor/unknownmarker真正RED二failed/四PASS
+（task-2-fix5-entry-red.log），实现后13PASS/1.00s；加bool/tuple/None伪lease拒绝和精确code/
+失败origin恢复后16PASS/1.48s（task-2-fix5-final-focused.log）。真实lease、mkdir、marker、
+buildlock/manifest原子写使用临时文件；deps/DSH网络/installation事实/子进程健康是明确fixture，
+不代表干净宿主重exec或公开完整installer实机验收。legacy JSON输出seam仅模拟已在owned运行时。
+
+共享七模块setup/service/Docker/mode/bootstrap/origin/protocol：824 passed/45.06s
+（task-2-fix5-closure.log）。现有no-start/lease/privacy/unknown/alias/replacement/failure/旧Native
+负例保留，未改其他HIGH source。main将在全新专属HOME从正常完整installer实测此入口；
+不清空/移动既有canonical根、不复制buildlock、不让no-start跨调用继承fresh。无实际安装、
+service/全局config/credentials/remote/新包动作由此agent执行，main Task3报告不提交。
+停止容器处置与HTTPSsource仍未授权，不实现；物理Mac/CI、其他平台交接待main独立留证。
+
+最后同scope自审补existing unknown-before-provision真实RED1/7PASS，before-provision复用
+原Native事实预检，owned healthy仍按原归属复用；加该正例后17定点PASS/1.89s。root/lease/
+observer一致性在DSH返回、写buildlock前等边界重复验证，替换root/变化listener不会留下新
+build-lock，existing一致性inode不授fresh。最终定点17PASS/1.63s。其他模式静止也复用原
+_other_runtime_quiescent，未修改Docker网络/environment。公开完整物理验收仍属main。
+
+最终相同源码七模块825 passed /37.30s（task-2-fix5-final-closure.log）。18文件L4计划保留
+validation_failure；所选JS91 passed /2.641s、doc-sync/constraints/index PASS，11/11共享
+kernel SHA匹配。系统Python -I -S导入setup_web不加载manager/pydantic/core.settings，host
+分支保持stdlib；实际重exec仍由main在新HOME验证。回执task-2-fix5-receipt.json valid=true，
+8 local PASS/4 external NOT_RUN，BLOCKED、mergeReady/releaseReady=false，不宣称完整产品交付。
+下步main独立review package与真实installer/健康/旧实例保持证据，格式工具仍NOT_RUN未安装。

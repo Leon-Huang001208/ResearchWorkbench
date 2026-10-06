@@ -5585,3 +5585,11 @@ def test_fix4_unverified_recovery_never_retries_original_bind_error(manager, mon
     with pytest.raises(ServiceManagerError, match="web_bind_race"):
         manager._start_with_endpoints(diagnosis={"ok": True}, open_browser=False)
     assert len(attempts) == 1
+
+
+@pytest.mark.parametrize("impostor", [True, (1, 2), None])
+def test_fix5_installer_cannot_borrow_a_boolean_or_tuple_lease(manager, impostor):
+    manager._prepare_private_directories()
+    with manager._lifecycle_lock():
+        with pytest.raises(ServiceManagerError, match="lifecycle_lock_ownership_lost"):
+            manager._start_installed(impostor, open_browser=False)

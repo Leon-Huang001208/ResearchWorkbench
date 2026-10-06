@@ -214,8 +214,8 @@ class SetupWebInstaller:
         finally:
             temporary.unlink(missing_ok=True)
 
-    def _runtime_lock_directory(self) -> int | Path:
-        """Open the product runtime directory without following aliases."""
+    def _prepare_data_home(self) -> None:
+        """Reuse the existing outer-home boundary before acquiring a lease."""
         self.data_home.mkdir(parents=True, exist_ok=True, mode=0o700)
         self._reject_alias(self.data_home, "runtime_build_lock_unsafe")
         data_home_identity = self.data_home.lstat()
@@ -225,6 +225,10 @@ class SetupWebInstaller:
             if data_home_identity.st_uid != os.getuid():
                 raise RuntimeError("runtime_build_lock_unsafe")
             os.chmod(self.data_home, 0o700)
+
+    def _runtime_lock_directory(self) -> int | Path:
+        """Open the product runtime directory without following aliases."""
+        self._prepare_data_home()
         if self.platform_name == "nt":
             trusted_root = self.data_home.resolve(strict=True)
             directory = self.data_home
@@ -1120,31 +1124,41 @@ class SetupWebInstaller:
             raise RuntimeError("unowned_virtual_environment")
         if blocking:
             raise RuntimeError(str(blocking[0]))
+        self._prepare_data_home()
         self.write_install_transaction_state()
         environment_python = self.prepare_environment(repair=repair)
         python_state = self.install_python_dependencies(environment_python)
         self.verify_web_import(environment_python)
-        dsh_state = self.provision_dsh(repair=repair)
-        self.write_runtime_build_lock(dsh_state=dsh_state)
-        manifest = self.write_install_manifest(
-            python_state=python_state,
-            dsh_state=dsh_state,
-            status="installed",
-        )
-        if start:
-            os.environ["RESEARCH_DSH_SOURCE"] = str(self.dsh_source)
-            from app.research_web.service_manager import WebServiceManager
-
-            manager = WebServiceManager(
-                project_root=self.project_root,
-                data_root=self.data_home / "research-web",
-                runtime_source=self.dsh_source,
-                python=str(environment_python),
-                node=str(self.node_executable),
-                web_port=self.web_port,
-                runtime_port=self.runtime_port,
+        def complete_runtime(manager=None, lease=None):
+            def check_scope():
+                if manager is not None:
+                    manager._assert_installation_scope(lease)
+            check_scope()
+            dsh_state = self.provision_dsh(repair=repair)
+            check_scope()
+            self.write_runtime_build_lock(dsh_state=dsh_state)
+            check_scope()
+            manifest = self.write_install_manifest(
+                python_state=python_state, dsh_state=dsh_state, status="installed",
             )
-            manager.start(open_browser=True)
+            check_scope()
+            return manifest
+        if not start:
+            return complete_runtime()
+        from app.research_web.service_manager import WebServiceManager
+
+        manager = WebServiceManager(
+            project_root=self.project_root,
+            data_root=self.data_home / "research-web",
+            runtime_source=self.dsh_source,
+            python=str(environment_python),
+            node=str(self.node_executable),
+            web_port=self.web_port,
+            runtime_port=self.runtime_port,
+        )
+        with manager._installation_start_scope() as lease:
+            manifest = complete_runtime(manager, lease)
+            manager._start_installed(lease, open_browser=True)
         return manifest
 
 
@@ -1412,13 +1426,43 @@ _DOCKER_REMEDIATION = {
 }
 
 
+def _maybe_reexec_native(arguments, project_root: Path, argv: list[str]) -> int | None:
+    """Enter the exact owned venv before any product-root creation/witness."""
+    if arguments.runtime != "native" or arguments.check_only or arguments.no_start:
+        return None
+    installer = SetupWebInstaller(project_root=project_root)
+    if (Path(sys.prefix).resolve() == installer.venv.resolve()
+            and installer._owned_environment(installer.venv)):
+        return None
+    report = installer.check()
+    issues = report.get("issues")
+    if not isinstance(issues, list) or not all(isinstance(issue, str) for issue in issues):
+        raise RuntimeError("prerequisite_check_invalid")
+    if issues:
+        raise RuntimeError(issues[0])
+    python = installer.prepare_environment(repair=arguments.repair)
+    if (python != installer._environment_python(installer.venv)
+            or not installer._owned_environment(installer.venv)):
+        raise RuntimeError("unowned_virtual_environment")
+    installer.log.info("setup_web_owned_environment_reexec")
+    completed = subprocess.run(
+        [str(python), "-I", str(Path(__file__).resolve()), *argv],
+        cwd=Path.cwd(), env=dict(os.environ), check=False,
+    )
+    return completed.returncode
+
+
 def main(argv: list[str] | None = None) -> int:
-    arguments = build_parser().parse_args(argv)
+    original_arguments = list(sys.argv[1:] if argv is None else argv)
+    arguments = build_parser().parse_args(original_arguments)
     project_root = Path(__file__).resolve().parents[1]
     if not arguments.check_only:
         _configure_logging(project_root)
     try:
         _validated_setup_ports(arguments)
+        reexecuted = _maybe_reexec_native(arguments, project_root, original_arguments)
+        if reexecuted is not None:
+            return reexecuted
         if arguments.check_only:
             if arguments.runtime == "docker":
                 report = DockerRuntime(project_root, Path.home() / ".research-workbench").preflight(

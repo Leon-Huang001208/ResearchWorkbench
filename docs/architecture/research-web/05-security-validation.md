@@ -1,5 +1,10 @@
 # 安全边界与验证方法
 
+installer auto-start 只借 manager 实际持有的同一 lease/mkdir 身份，bool、tuple 或持久
+marker 不能充当 fresh；root/lease/监听变化拒绝，no-start/失败退出失效。公开重执行限定
+精确 owned venv/已有 marker、同脚本原参数 -I，在创建根前完成，保持批准的 HOME/Node/
+代理/credential-root，不输出环境值、不添加全局包或新协议。
+
 失败停止既有容器须重新核对精确 ID、image、installation、mount 和 launch；任一替换均
 保留对象。安装摘要恢复必须匹配原发布写 FD 的 inode 与字节，同内容替换不成为恢复权限。
 

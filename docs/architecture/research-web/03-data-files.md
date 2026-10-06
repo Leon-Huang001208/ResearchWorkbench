@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+正常 Native installer auto-start 凭同次 manager 在真实持锁 scope 实际创建根并保留身份至
+build-lock 就绪，不能从已有文件认领；no-start/跨调用没有该证明。环境 marker 仅证明
+checkout-owned Python，不承载数据根 witness、lease 或控制 token。
+
 Native 补齐任一缺失控制文件前先只读验证全部既有控制记录；MCP-only 动态 origin 成为
 正常 DataHub creator 的输入，畸形 MCP 不会留下新建 DataHub 文件。
 

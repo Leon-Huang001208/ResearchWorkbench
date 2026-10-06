@@ -216,6 +216,7 @@ class WebServiceManager:
         self._fresh_recovery = None
         self._recovering_attempt = None
         self._active_spawn_attempt = None
+        self._installation_root_identity = None
         if self.endpoint_snapshot is None and self._endpoint_error is None and web_port is None and runtime_port is None:
             from research_workbench_entrypoint.web_bootstrap import native_endpoint_ports
             try:
@@ -235,7 +236,7 @@ class WebServiceManager:
             ) as lease:
                 self._lifecycle_lease = lease
                 try:
-                    yield
+                    yield lease
                 finally:
                     self._lifecycle_lease = None
         except LifecycleLockError as exc:
@@ -1742,6 +1743,60 @@ class WebServiceManager:
                 self._recovering_attempt = None
                 self._active_spawn_attempt = None
 
+    @contextmanager
+    def _installation_start_scope(self):
+        """Retain only this manager's actual mkdir witness through auto-install."""
+        with self._lifecycle_lock() as lease:
+            try:
+                self._prepare_private_directories(track_creation=True)
+                identity = self.data_root.lstat()
+                self._installation_root_identity = identity.st_dev, identity.st_ino
+                self._assert_installation_scope(lease)
+                yield lease
+            finally:
+                self._fresh_root_identity = None
+                self._fresh_recovery = None
+                self._recovering_attempt = None
+                self._active_spawn_attempt = None
+                self._installation_root_identity = None
+
+    def _installation_root_matches(self):
+        try:
+            identity = self.data_root.lstat()
+            return (self._installation_root_identity is not None
+                    and not _is_unsafe_private_directory(self.data_root, identity, platform_name=os.name)
+                    and (identity.st_dev, identity.st_ino) == self._installation_root_identity)
+        except OSError:
+            return False
+
+    def _assert_installation_scope(self, lease):
+        """Recheck the actual borrowed lease/root before each runtime write."""
+        if lease is not self._lifecycle_lease or lease is None:
+            raise ServiceManagerError("lifecycle_lock_ownership_lost", code="lifecycle_lock_ownership_lost")
+        lease.assert_held()
+        if not self._installation_root_matches():
+            raise ServiceManagerError("runtime_ownership_unknown", code="runtime_ownership_unknown")
+        if not self._other_runtime_quiescent():
+            raise ServiceManagerError("runtime_other_running", code="runtime_other_running")
+        if self._fresh_root_identity is not None:
+            if not self._fresh_root_proven() or not self._native_quiescent():
+                raise ServiceManagerError("runtime_ownership_unknown", code="runtime_ownership_unknown")
+        else:
+            probes = self._service_probes()
+            if all(probe.process == "missing" and probe.state in {"missing", "stale"} for probe in probes):
+                if not self._native_quiescent():
+                    raise ServiceManagerError("runtime_ownership_unknown", code="runtime_ownership_unknown")
+            else:
+                for probe in probes:
+                    self._probe_action(probe)
+
+    def _start_installed(self, lease, *, open_browser=True):
+        """Installer-only startup using the very same active lifecycle lease."""
+        self._assert_installation_scope(lease)
+        diagnosis = self._require_installation_ready()
+        self._assert_installation_scope(lease)
+        return self._start_with_endpoints(diagnosis=diagnosis, open_browser=open_browser)
+
     def _fresh_root_proven(self) -> bool:
         if self._fresh_root_identity is None or self._lifecycle_lease is None:
             return False
@@ -1756,6 +1811,8 @@ class WebServiceManager:
 
     def _native_quiescent(self) -> bool:
         """Missing ledgers require fresh listener evidence before rebinding."""
+        if self._installation_root_identity is not None and not self._installation_root_matches():
+            return False
         for process in self._processes():
             state = self._probe_state(process)
             state, observed = self._probe_pid_and_ownership(process, state)

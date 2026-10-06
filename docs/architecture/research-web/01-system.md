@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+Native installer auto-start 在 Web 依赖就绪后由同一 manager 持真实 lease 创建根，覆盖
+DSH/build-lock/manifest 与就绪门，再借原 lease 启动。公开入口先进入精确 owned venv
+（同脚本/原参数 -I），不跨进程传或持久化 fresh 证明，不新增常驻部署节点。
+
 Native 管理器和模式切换桥在运行账本缺失时仍核验监听者，阻止未知或同数据根的活动写者
 通过新端口启动。Docker 失败恢复分别处理本次新建与本次启动的既有容器。
 

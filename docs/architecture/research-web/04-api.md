@@ -1,5 +1,8 @@
 # Research Web 接口清单
 
+公开 Native installer auto-start 在同次持锁创建根后完成安装门并启动，不新增 CLI 参数
+或 HTTP 字段。check-only/Docker/no-start 不重执行 Native auto-start；已有根未知写者仍拒绝。
+
 公开启动入口在运行账本缺失且监听归属未知时返回 `runtime_ownership_unknown`；Docker
 origin commit 失败进入与健康失败相同的归属核验和恢复顺序。
 
