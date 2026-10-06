@@ -493,7 +493,7 @@ def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
             or port == 3081
             or type(value["modelCalls"]) is not int
             or not 1 <= value["modelCalls"] <= 6
-            or value["tool"] != "datahub_get_trading_calendar"
+            or value["tool"] != "datahub_get_fund_data"
         ):
             raise ValueError()
     except (ValueError, TypeError):
@@ -652,7 +652,7 @@ def prepare(
                     [
                         "        acceptance:",
                         f"          modelCalls: {acceptance['modelCalls']}",
-                        "          tool: datahub_get_trading_calendar",
+                        "          tool: datahub_get_fund_data",
                     ]
                     if acceptance
                     else []

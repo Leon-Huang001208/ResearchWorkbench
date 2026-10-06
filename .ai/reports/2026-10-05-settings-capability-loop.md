@@ -498,3 +498,13 @@ Black/isort修改文件通过；Ruff首次因沙箱缓存写失败退出2，不�
 自动审批曾拒绝把Runtime响应credentials对象保存为证据（可能持久化凭据材料）；改为完全排除该对象及嵌套配置，只保存明确布尔/PID/公开源状态，安全替代实际通过，不绕过审批。live-preflight.json及live-ledger.json绑定代码、PID、实例和新预算，供应商请求0/6、工具执行0/1。先前固定DSH合同6次是无网络合成调用，不计真实供应商额度，也不当作T6通过。
 
 当前只等待用户在已核验 http://127.0.0.1:18088/#/settings/model 页面手动保存本轮专用测试Key后回复“已保存”；不读取密码框、剪贴板、Keychain值，不要求在对话/命令/截图提供Key。不要点击生成测试/发研究以免分散本轮计数。另仅询问供应商是否存在按该Key关联的非秘密请求记录；没有时B归因继续未验证。等待阶段保留归属明确的独立进程，未轮询人工录入或发供应商请求；结束后按产品清除Key并只停止所属进程。报告断点提交仅本地，不改变已推送控制候选，不重复CI。
+
+### 第一条真实T6与工具选择修正
+
+用户回复“已保存”后GET非秘密credential_configured=true/uncertain=false；DSH82351、Host82491仍owned/ready。经正常Web create/send触发正式research-web、纯公开日历提示，session3f402fe4-4635-4fb2-b059-3f49a984451b返回202；2次真实模型step、0失败attempt、1次datahub_get_trading_calendar原生调用，4.478秒completed且最终非空回复。但工具result.isError=true，HTTP400，故**T6本次FAILED，不因最终回复成功冒充工具通过**。只保存事件引用/计数/稳定错误摘要，不保存请求体、认证或原始trace。
+
+只读能力元数据与源码证实：AKShare来源整体callable=true，但trading_calendar绑定implemented=false；公共fund_data/eastmoney_fund绑定implemented=true/callable=true/auth_type=none/fee=free，且阶段0已有000001/nav/limit1真实1行证据。我把来源可用误当能力可用，选错工具；不是Key故障，也不开发交易日历或扩进阶段2。最小修正仅将验收控制改为datahub_get_fund_data并在最终guard约束source=eastmoney_fund/dataset=nav/code=000001/limit1、不允许回退/刷新/其他参数或来源。正常生产默认guard不变。
+
+已用模型2/6、工具1/1时没有再执行工具。用户明确追加仅1次工具额度，使本轮总工具上限2、模型仍6；批准为加载修正只重启原所属独立实例，新进程模型上限降为剩余4、工具上限1，总账不重置、Key不重新录入或复制。修正有public-tool-red.log及对应GREEN/启动/static/邻接回归，缺项不隐去。所有后续真实记录累加到原ledger，不将进程重启当补模型额度。
+
+远端master已漂移到05326b6066f96a572db4ac87f3bdc041ff92003f；PR78当前CONFLICTING（API base仍旧9e231b6c缓存事实分别记录），自动新CI未触发，不能借旧CI成功。尚未自动合入新的master或历史分支，不为绿灯改policy/Hook。本轮工具修正和真实证据可独立推进，远端整合缺口保留。

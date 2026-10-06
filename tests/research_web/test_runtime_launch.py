@@ -401,7 +401,7 @@ def test_live_acceptance_control_is_instance_bound_and_disables_retries(tmp_path
             {
                 "dataHome": str(data.resolve()),
                 "modelCalls": 6,
-                "tool": "datahub_get_trading_calendar",
+                "tool": "datahub_get_fund_data",
             }
         ),
     )
@@ -410,7 +410,7 @@ def test_live_acceptance_control_is_instance_bound_and_disables_retries(tmp_path
     assert "maxRetries: 0" in overlay
     assert "acceptance:" in overlay
     assert "modelCalls: 6" in overlay
-    assert "tool: datahub_get_trading_calendar" in overlay
+    assert "tool: datahub_get_fund_data" in overlay
     with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
         launch_runtime.prepare(source, tmp_path / "other", "/node", 13081)
     with pytest.raises(RuntimeError, match="acceptance_control_invalid"):

@@ -20,7 +20,7 @@ export function apply(ctx, config = {}) {
   if (acceptance !== undefined) {
     if (!acceptance || Object.keys(acceptance).sort().join(',') !== 'modelCalls,tool' ||
         !Number.isInteger(acceptance.modelCalls) || acceptance.modelCalls < 1 || acceptance.modelCalls > 6 ||
-        acceptance.tool !== 'datahub_get_trading_calendar') throw Error('acceptance_control_invalid');
+        acceptance.tool !== 'datahub_get_fund_data') throw Error('acceptance_control_invalid');
     const maximum = acceptance.modelCalls;
     const containsAttachment = value => value && typeof value === 'object' &&
       (['image', 'file', 'audio'].includes(value.type) || Object.values(value).some(containsAttachment));
@@ -49,7 +49,13 @@ export function apply(ctx, config = {}) {
   }
   ctx.tools.guard((execution) => {
     if (acceptance !== undefined) {
-      if (execution.name !== 'datahub_get_trading_calendar' || !execution.agent || toolCalls >= 1) {
+      const args = execution.arguments;
+      const publicNav = args && typeof args === 'object' && !Array.isArray(args) &&
+        Object.keys(args).every(key => ['source', 'dataset', 'code', 'limit', 'allow_fallback', 'refresh'].includes(key)) &&
+        args.source === 'eastmoney_fund' && args.dataset === 'nav' && args.code === '000001' && args.limit === 1 &&
+        (args.allow_fallback === undefined || args.allow_fallback === false) &&
+        (args.refresh === undefined || args.refresh === false);
+      if (execution.name !== 'datahub_get_fund_data' || !execution.agent || !publicNav || toolCalls >= 1) {
         ctx.logger.warn('research_acceptance_tool_denied');
         return 'acceptance_tool_limit';
       }

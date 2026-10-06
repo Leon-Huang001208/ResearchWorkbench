@@ -75,7 +75,8 @@ function acceptanceContext() {
       logger: { warn() {}, info() {} } },
   };
 }
-const acceptance = { modelCalls: 6, tool: 'datahub_get_trading_calendar' };
+const acceptance = { modelCalls: 6, tool: 'datahub_get_fund_data' };
+const publicNav = { source: 'eastmoney_fund', dataset: 'nav', code: '000001', limit: 1, allow_fallback: false };
 
 test('live acceptance reserves all model calls before dispatch, including concurrent and later turns', async () => {
   const c = acceptanceContext();
@@ -97,8 +98,8 @@ test('live acceptance allows one exact public tool across sessions and rejects e
   for (const name of ['subagent', 'research_run_script', 'web_search', 'datahub_search_assets']) {
     assert.ok(c.guard({ name, agent: makeAgent() }));
   }
-  assert.equal(c.guard({ name: acceptance.tool, agent: makeAgent() }), undefined);
-  assert.ok(c.guard({ name: acceptance.tool, agent: makeAgent() }));
+  assert.equal(c.guard({ name: acceptance.tool, arguments: publicNav, agent: makeAgent() }), undefined);
+  assert.ok(c.guard({ name: acceptance.tool, arguments: publicNav, agent: makeAgent() }));
 });
 
 test('live acceptance rejects invalid limits and non-text provider requests before dispatch', async () => {
@@ -112,4 +113,15 @@ test('live acceptance rejects invalid limits and non-text provider requests befo
     for await (const _ of c.listeners.get('llm/stream')({ messages: [{ content: [{ type: 'image' }] }] }, async function* () { dispatched = true; })) {}
   }, /acceptance_text_only/);
   assert.equal(dispatched, false);
+});
+
+test('live acceptance dispatches only implemented public NAV parameters', () => {
+  const c = acceptanceContext();
+  apply(c.ctx, { enabled: true, acceptance: { modelCalls: 4, tool: 'datahub_get_fund_data' } });
+  const args = { source: 'eastmoney_fund', dataset: 'nav', code: '000001', limit: 1, allow_fallback: false };
+  for (const changed of [{ source: 'tinysoft' }, { dataset: 'holdings' }, { limit: 2 }, { allow_fallback: true }]) {
+    assert.ok(c.guard({ name: 'datahub_get_fund_data', arguments: { ...args, ...changed }, agent: makeAgent() }));
+  }
+  assert.equal(c.guard({ name: 'datahub_get_fund_data', arguments: args, agent: makeAgent() }), undefined);
+  assert.ok(c.guard({ name: 'datahub_get_fund_data', arguments: args, agent: makeAgent() }));
 });
