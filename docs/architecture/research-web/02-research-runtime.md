@@ -1,5 +1,8 @@
 # 研究协议、执行状态与恢复
 
+Docker staging 补齐固定 DSH 虚拟 Profile 锚点所需的根 `node_modules` optional peer 别名。
+目标必须已属于生产图；原始完整闭包、派生 manifest 和 launcher 私有模块验证继续分别执行。
+
 构建成功仍须退出码0及候选image身份验证。大输出不截断当成功；每路超过2MiB继续runtime_output_limit并精确终止本次进程树，其他metadata命令仍64KiB。
 
 固定 Docker DSH 构建的原生 fs-ext 使用同 node-runtime stage 的完整本地 headers；builder

@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+Docker DSH 资产派生保留根 `node_modules` 与 `.pnpm/node_modules` 中指向已选生产包的相对别名，
+供固定 DSH 从虚拟 Profile 锚点查找 optional peer。不会递归复制 `.pnpm`、引入未选开发包或新增
+TypeScript 依赖；损坏或越界的生产依赖、非规范模块根、别名冲突和资产越界仍失败关闭。
+
 Docker公开构建现在允许stdout/stderr各2MiB并流式保存脱敏进度；普通命令仍64KiB。超限或非零仍明确失败，不接受候选镜像。日志须保留在私有任务目录，不上传；本地合同通过不代表真实镜像或生命周期验收。
 
 Docker dsh-builder 从固定 Node24.19.0 stage 同时复制 binary 和完整 headers，使用

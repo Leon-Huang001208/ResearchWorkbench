@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+根模块别名复用 pnpm hoist 的选中目标过滤与冲突检查；模块根须为规范真实目录，选中别名须
+严格解析到固定源码内的生产实体，输出相对链接。测试覆盖 scope、坏生产链接、越界、冲突、
+替换与资产 escape；未选开发别名不复制，launcher 不跳过私有模块校验。
+
 固定Compose构建独享每路2MiB预算，完整argv精确匹配，默认/metadata64KiB保留。既有stream在token/auth等行外，抑制SOCKS、userinfo、loopback及明确proxy行的传输URL，保留错误文字与普通公开HTTPS下载URL；跨chunk按行脱敏。超限精确清理本次树，不操作无关进程。
 
 DSH builder 使用同一固定 Node stage 的本地 headers 与 builder-only nodedir，避免 node-gyp

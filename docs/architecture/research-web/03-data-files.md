@@ -1,5 +1,8 @@
 # DataHub、研究资料与实际文件
 
+Docker 派生资产的根模块相对别名只指向镜像内已选生产包，和私有 pnpm hoist 一同进入已有
+staged manifest。它们属于只读代码资产，不迁移用户 Profile、日志、缓存或研究资料。
+
 构建stream复用调用方私有任务stdout日志；仅脱敏内容外流，不新增持久数据格式或研究文件。原始捕获每路≤2MiB、合计≤4MiB，不上传日志。
 
 Docker builder 的 Node headers 是固定基础镜像资产，和 binary 同源，不是用户数据或新依赖锁。

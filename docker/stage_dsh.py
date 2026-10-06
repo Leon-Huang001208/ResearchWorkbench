@@ -137,11 +137,12 @@ def stage_assets(source: Path, output: Path, verified: dict) -> None:
                         target.symlink_to(relative_target)
                 queue.append(resolved)
         # Native loaders may resolve a selected optional platform package from
-        # another package's anchor, relying on pnpm's shared private hoist tree.
+        # another package's anchor, relying on pnpm's root or private hoist tree.
         # Preserve only aliases to entities already selected by the production
         # graph; never stage an additional development dependency through hoists.
-        hoisted = source / "node_modules/.pnpm/node_modules"
-        if hoisted.exists():
+        for hoisted in (source / "node_modules", source / "node_modules/.pnpm/node_modules"):
+            if not os.path.lexists(hoisted):
+                continue
             if hoisted.resolve(strict=True) != hoisted or not hoisted.is_dir():
                 raise ValueError("unsafe hoist root")
             aliases = []

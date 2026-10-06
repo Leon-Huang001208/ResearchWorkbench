@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+`docker/stage_dsh.py` 在生产依赖图选定后，保留根 `node_modules` 和私有 pnpm hoist 中既有的
+普通／scope 别名，仅指向已选且位于固定源码内的包，并转为镜像内相对链接。这补齐固定 DSH
+虚拟 Profile 锚点的 optional peer 搜索，不复制整个 store、不引入开发依赖，也不放宽启动模块校验。
+
 仅固定完整 Compose build research-web argv 使用每路2MiB输出预算与既有脱敏stream；其他命令和默认run_bounded仍64KiB，不增加部署节点。
 
 Docker dsh-builder 的 Node binary 与完整 /usr/local/include/node 来自同一固定 node-runtime

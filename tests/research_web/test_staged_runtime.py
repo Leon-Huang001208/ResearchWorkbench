@@ -304,3 +304,99 @@ def test_staging_preserves_selected_pnpm_hoist_for_dynamic_native_loader(tmp_pat
     assert not os.path.lexists(output / "node_modules/.pnpm/node_modules/absent-dev-platform")
     assert not (output / "node_modules/.pnpm/node_modules/devkit").exists()
     assert not (output / dev.relative_to(source)).exists()
+
+
+@pytest.mark.parametrize("peer_name", ["typescript", "@fixture/typescript"])
+@pytest.mark.parametrize("mutation", [None, "root-link", "broken-peer", "outside-peer", "conflict", "replacement", "asset-escape"])
+def test_staging_preserves_selected_root_optional_peer_for_virtual_alias_anchor(tmp_path, monkeypatch, peer_name, mutation):
+    from docker.stage_dsh import stage_assets
+
+    source = tmp_path / "source"
+    cli = source / "apps/cli"
+    boot = source / "packages/boot/app-boot"
+    store = source / "node_modules/.pnpm"
+    history = store / "history@1/node_modules/history"
+    peer = store / "typescript@1/node_modules" / peer_name
+    dev = store / "devkit@1/node_modules/devkit"
+    for package, metadata in [
+        (cli, {"name": "cli", "files": ["lib"], "dependencies": {"boot": "1", "history": "1"}}),
+        (boot, {"name": "boot", "files": ["lib"]}),
+        (history, {"name": "history", "peerDependencies": {peer_name: "1"}, "peerDependenciesMeta": {peer_name: {"optional": True}}}),
+        (peer, {"name": peer_name}),
+        (dev, {"name": "devkit"}),
+    ]:
+        (package / "lib").mkdir(parents=True)
+        metadata["main"] = "lib/index.js"
+        (package / "package.json").write_text(json.dumps(metadata))
+        (package / "lib/index.js").write_text("module.exports = {};")
+    (cli / "lib/bin.js").write_text("// required cli asset")
+
+    def link(alias, target):
+        alias.parent.mkdir(parents=True, exist_ok=True)
+        alias.symlink_to(os.path.relpath(target, alias.parent))
+
+    link(cli / "node_modules/boot", boot)
+    link(cli / "node_modules/history", history)
+    link(history.parent / peer_name, peer)
+    link(source / "node_modules" / peer_name, peer)
+    link(source / "node_modules/devkit", dev)
+    link(source / "node_modules/absent-dev", store / "absent-dev")
+    (source / "package.json").write_text('{"devDependencies":{"devkit":"1"}}')
+    output = tmp_path / "staged"
+    if mutation:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "package.json").write_text('{"name":"outside"}')
+        if mutation == "root-link":
+            (source / "node_modules").rename(source / "aliased-modules")
+            (source / "node_modules").symlink_to("aliased-modules")
+        elif mutation in {"broken-peer", "outside-peer"}:
+            canonical = history.parent / peer_name
+            canonical.unlink()
+            canonical.symlink_to(outside if mutation == "outside-peer" else "missing")
+        elif mutation == "asset-escape":
+            (peer / "lib/index.js").unlink()
+            (peer / "lib/index.js").symlink_to(outside / "package.json")
+        elif mutation == "conflict":
+            original_copy = shutil.copy2
+
+            def conflicting_copy(src, dst, *args, **kwargs):
+                result = original_copy(src, dst, *args, **kwargs)
+                alias = output / "node_modules" / peer_name
+                if Path(src) == peer / "lib/index.js":
+                    alias.parent.mkdir(parents=True, exist_ok=True)
+                    alias.write_text("conflict")
+                return result
+
+            monkeypatch.setattr(shutil, "copy2", conflicting_copy)
+        elif mutation == "replacement":
+            original_resolve = Path.resolve
+
+            def replaced_resolve(path, strict=False):
+                if path == source / "node_modules" / peer_name and strict:
+                    return outside
+                return original_resolve(path, strict=strict)
+
+            monkeypatch.setattr(Path, "resolve", replaced_resolve)
+        with pytest.raises(RuntimeError, match="dsh_staging_invalid"):
+            stage_assets(source, output, facts())
+        return
+    stage_assets(source, output, facts())
+    node = shutil.which("node")
+    assert node is not None, "Node is required for the runtime packaging contract"
+    # Pinned DSH searches paths from a virtual alias anchor, not the real package
+    # directory. The canonical peer alias alone cannot satisfy this lookup.
+    probe = "const {createRequire}=require('node:module'); const fs=require('node:fs'); const path=require('node:path'); const r=createRequire(process.argv[1]); const p=r.resolve.paths(process.argv[2]).map(p=>path.join(p,process.argv[2])).find(p=>fs.existsSync(path.join(p,'package.json'))); if(!p)process.exit(7); console.log(fs.realpathSync(p));"
+    for tree in (source, output):
+        result = subprocess.run(
+            [node, "-e", probe, str(tree / "virtual/profile/modules/history/index.js"), peer_name],
+            capture_output=True, text=True, timeout=10,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == str(tree / peer.relative_to(source))
+    alias = output / "node_modules" / peer_name
+    assert alias.is_symlink() and not Path(os.readlink(alias)).is_absolute()
+    assert alias.resolve(strict=True) == output / peer.relative_to(source)
+    assert not os.path.lexists(output / "node_modules/devkit")
+    assert not os.path.lexists(output / "node_modules/absent-dev")
+    assert not (output / dev.relative_to(source)).exists()
