@@ -577,3 +577,11 @@ H自动运行attempt1/pull_request：Project Constraints37481022606已success；
 Mac基础模型链路与早先T6已有验证证据保持，本轮C5 macOS范围自动门完成；Ubuntu结果只记为通用门，不冒称Mac CI。Windows/Linux及Docker产品门用户暂缓，保留NOT_RUN并不作为当前Mac宿主完成前提。总体验收catalog仍选Docker，因此回执诚实BLOCKED、mergeReady=false/releaseReady=false；完整1A另有B实际供应商归因UNVERIFIED，不能因绿色CI或平台范围变化宣布完整1A/正式发布完成。当前Mac功能验收没有新增缺项，本轮供应商请求0。
 
 实际动作：gh run view/api读取最终元数据与脱敏checkout、gh run download获取Mac最小成功artifact、现有receipt validator、完整范围project constraints/documentation治理核对；无重复dispatch、第二轮CI修复、平台验收、合并、发布或生产变更。独立实例仍保留停止状态与此前产品清Key证据。后续本地报告提交与H区分，仅报告变化不推送、不诱发重复CI；代码状态与tree身份保存在final-identity.json。下一唯一目标为取得B非秘密供应商归因证据；无现成按Key记录时保持未验证，不读取/散列Key、不自动发新请求。
+
+### 用户明确豁免与Mac阶段最终收口
+
+2026-10-06用户在获知无法提供B按Key供应商记录、豁免不得改为PASS后，明确回复“确认豁免”。豁免仅限B实际供应商归因验证；该项结果SKIPPED（用户明确豁免），证据仍UNVERIFIED，不能宣称请求实际使用B。此前失败/缺证据记录完整保留，不新增真实请求、不读取或散列Key、不修改验收policy/required checks。早先凭据替换、真实生成、清除/恢复、Host/DSH冷重启和受控T6证据独立保留，不由豁免补造任何生命周期结果。
+
+hostPlatform=macOS；taskKind=功能收口/本平台验收；hostAcceptance=PASS（包含用户明确接受的B归因缺证据例外）。当前macOS Native阶段1A按用户修正的范围与明确豁免已收口；这不是全部验收项实测PASS，也不声称完整跨平台研究能力或正式发布通过。C1/C2、既有真实生命周期、T6及匹配候选的C5 Mac/通用自动门证据沿用。平台交接Windows/Linux/Docker保持用户暂缓、NOT_RUN，非本平台任务阻塞。aggregateAcceptance=BLOCKED；现有总体catalog仍含Docker未执行，mergeReady=false/releaseReady=false。豁免不改变该机械结论，不删门、不改规则或通过构造较小changed set求绿。
+
+冻结CI候选仍为4e229e855f31dc7bba96f462ad8f40731a5f0fe2，合并预览2df45889c8935007ec5b7c9b19aa6caa96fadde7，PR80保持草稿；后续本地变更仅本唯一报告。本轮供应商请求0、未修改生产、未合并或发布，不重复已有验收或触发CI。原“下一目标取得B归因”已被此次明确豁免取代；本任务结束，不自动进入1B或其他阶段。下一阶段唯一可讨论目标为1B的模型支持范围，须另行明确开启。
