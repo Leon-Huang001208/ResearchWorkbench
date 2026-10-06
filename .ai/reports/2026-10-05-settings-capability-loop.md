@@ -307,3 +307,11 @@ T2：通过同一正常产品PUT模型配置接口省略api_key（留空保留�
 实际模型请求累计2/6，公开工具0/1；已有retryPolicy maxRetries=0，固定adapter调用原生fetch并将错误交给既有retry协调器，没有SDK隐式重试层；两次各一个原生step及最终消息、失败attempt0相互印证。非秘密计数及来源见live-ledger.json；没有把预留请求直接当完成。T3尚待用户人工录入不同B，只有A时将真实替换与归因标未验证而继续其他步骤；T4/T5/T6仍NOT_RUN。C3尚未收口、C4未执行、当前代码CI未执行，mergeReady/releaseReady=false。
 
 现在在T3人工点暂停：当前同一安全设置页只由用户录入不同测试Key B并保存，回复“B已保存”；若只有A则回复“只有A”。不能重复保存A冒充B，替换后生成也不会自动算完整Key归因；没有供应商非秘密按Key关联证据时保留归因缺项。此时保留所属测试进程与已保存的测试Key用于后续生命周期，最终结束再通过产品清除/停止，不提前清除中断验收。
+
+## B已保存后的T3/T4（2026-10-06）
+
+用户回复“B已保存”后续接同一实例，输入HEAD9a13e329、原分支与干净工作区已核对；没有源码变化或重复C1/C2。只读取非秘密保存元数据：owned/configured/saved均true，system_keychain、uncertain=false，选择未改变。以现有无工具显式生成入口发起第三次真实请求，1.590秒passed；新会话22a7c022-b9db-4eba-9e06-3c55880c8e28有一步、非空最终消息、completed turn，失败attempt0/工具0。T3“用户确认不同B替换后生成”PASS，证据T3-save-metadata.json、T3-generation.json、T3-native-proof.json；**实际Key B供应商归因未独立验证**，不能把生成成功或用户确认合成完整归因PASS，未读取/比较/散列真实Key。
+
+T4产品清除：通过独立18088正常PUT模型接口clear_api_key=true，HTTP200且刷新configured=false。对T1已有会话及新建正式research-web会话65a1f915-b697-4e24-834f-1513b5631c41，各用新的幂等头发请求，均503/model_credentials_missing；没有供应商调用，见T4-clear-block.json。之后正常manager.restart_runtime(force=False)，只停止21918并启动56820；旧PID最终missing，新started_at1791256190.8045282，owned/listening/protocol passed/ready，Host22500保持运行。首次即时证据断言未满足，随后仅一次只读核对确认退出/恢复，不重复重启、不改产品状态或认证。保持同一canonical data home，重启后configured=false，且新旧会话再次分别以新的请求标识503阻断。**T4 PASS**见T4-cold-diagnostic.json及T4.json，证明没有旧Key恢复/环境或文件回退，不只是端口健康。
+
+累计实际模型3/6，公开工具0/1，自动失败重试0。现在仅在T5人工点等待重新录入同一专用B，用户在原安全设置页刷新、录入并保存后回复“已重新保存”；不会推断已录入、轮询页面或读取字段。T5带真实Key的Host/DSH完整冷启动和T6工具路径仍NOT_RUN。测试Key当前已通过产品清除；为续接保留独立Host/DSH，不停止生产、不撤销供应商Key。C3生命周期尚待重新录入恢复，替换归因仍缺；C4未完成、C5未执行，mergeReady/releaseReady=false。
