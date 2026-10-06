@@ -42,7 +42,7 @@ foreign owner/group、mode/inode变化、alias/替换与自定义路径不豁免
 
 `architecture/research-web/architecture-map.json` 是 Research Web 架构 source/document/test/diagram inventory 的机器真源；`.agents/verification-policy.json` 是 changed-file → impact → validation route 的唯一机器真源。两者互补且不互相推导：新增 Research Web 源文件仍须进入架构清单，而本表的测试闭包说明不能替代 verification policy。
 
-Docker CI 由 `.github/workflows/research-web-docker.yml` 按策略条件触发；本机 Docker 构建、Native/macOS 安装门及真实 Windows 回执必须分别记录，源码测试不替代平台生命周期。仅 docs 变化按 changed set 的规划器结果验收，不能因旧任务已验收而虚写回执。
+Docker CI 由 Linux 真机在指定提交完成本机验收后，通过 `.github/workflows/research-web-docker.yml` 的 `workflow_dispatch` 和必填 `expected_sha` 发起；Mac PR/push 不自动触发，checkout 与 dispatch SHA 不一致时失败关闭。本机 Docker 构建、Native/macOS 安装门及真实 Windows 回执必须分别记录，源码测试不替代平台生命周期。仅 docs 变化按 changed set 的规划器结果验收，不能因旧任务已验收而虚写回执。
 
 Docker 启动/安装修复的目标闭包还覆盖 `test_setup_web.py` 的候选失败与摘要恢复、
 `test_cli_lazy.py` 的 Native `status --json` 安全投影。`test_docker_runtime.py` 检查延迟健康、

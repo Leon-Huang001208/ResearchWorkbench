@@ -37,7 +37,7 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 | 共享安装器、Web 锁、固定 DSH/CJPY、跨平台 runtime/服务装配 | 自动 Research Web Checks + Bootstrap；Windows 真机对 exact SHA dispatch Windows Verify | Desktop |
 | macOS shell launcher | Research Web Checks + Bootstrap | Windows、Desktop |
 | Windows launcher、路径、认证文件、本机集成、编码/进程/服务管理 | 自动 Research Web Checks；Windows 真机对 exact SHA dispatch Windows Verify | Bootstrap、Desktop |
-| Docker 打包、共享运行时契约/控制器、容器认证与凭据边界 | Research Web Docker（Ubuntu，amd64/arm64）；共享 Native 合同仍进入 Bootstrap | 普通文档/UI 不触发 Docker；不代替 Native 或 Desktop |
+| Docker 打包、共享运行时契约/控制器、容器认证与凭据边界 | Linux 真机对 exact SHA dispatch Research Web Docker（Ubuntu，amd64/arm64）；共享 Native 合同仍进入 Bootstrap | 普通文档/UI 不触发 Docker；不代替 Native 或 Desktop |
 | Tabbit 平台合同 | 用户显式 `workflow_dispatch` | 普通 push／PR 自动触发 |
 | 桌面专属路径 | Desktop Verify | 普通 Web workflow 不能替代桌面门禁 |
 | Desktop Release | tag 或显式 dispatch | 普通 push |
@@ -48,9 +48,9 @@ Research Web Checks 的 Python 部分固定为协议、集成协调、文档服�
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
 
-Docker 路由的专项例外是 `.agents/verification-policy.json`、`tests/javascript/verification_policy.test.mjs` 及 Docker/额度契约测试：它们同时触发容器门，防止门禁 ID 与实际工作流脱节。门禁 ID 为 `.github/workflows/research-web-docker.yml#docker-runtime`。普通治理文档、产品文档和 UI 仍不触发 Docker。
+Docker 路由的专项例外是 `.agents/verification-policy.json`、`tests/javascript/verification_policy.test.mjs` 及 Docker/额度契约测试：它们仍选择容器验收门，交接给 Linux 真机对 exact SHA 手动发起，防止门禁 ID 与实际工作流脱节。门禁 ID 为 `.github/workflows/research-web-docker.yml#docker-runtime`。普通治理文档、产品文档和 UI 仍不触发 Docker。
 
-Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`、`linux/arm64` 串行执行（`max-parallel: 1`），每项最多 60 分钟；仅 arm64 设置 QEMU，Buildx 只加载本机镜像、不推送 registry。按提交与架构唯一标记镜像，构建前验证 Dockerfile 与共享运行时版本锁一致。只对相关路径触发，取消同 ref 的旧运行；两个矩阵项最多使用 120 Linux runner 分钟，不配置外部缓存或扩大 runner。
+Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`、`linux/arm64` 串行执行（`max-parallel: 1`），每项最多 60 分钟；仅 arm64 设置 QEMU，Buildx 只加载本机镜像、不推送 registry。按提交与架构唯一标记镜像，构建前验证 Dockerfile 与共享运行时版本锁一致。不从 PR/push 自动触发；Linux 真机完成本机验收后 checkout 待验提交，以 `git rev-parse HEAD` 获取 exact SHA，发起 `workflow_dispatch` 并传入必填 `expected_sha`。checkout HEAD 与 `GITHUB_SHA` 均须等于该 SHA，否则在构建前失败关闭。取消同 ref 的旧运行；两个矩阵项最多使用 120 Linux runner 分钟，不配置外部缓存或扩大 runner。
 
 容器门执行 Compose 校验、镜像构建、8088 Web 与容器内 3081 认证健康、重启、非秘密数据跨 down/up 持久化、最终 down 与宿主端口释放；每项使用独立临时 data/state/credential 挂载，最后清理。它证明 Linux 镜像行为，不能替代 GitHub macOS Native Bootstrap，也不证明 Windows Native、Docker Desktop 集成或桌面产品。首次远端运行前，本地静态合同通过不等同于两架构构建和运行已通过。
 
@@ -58,7 +58,7 @@ Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`�
 
 上述表格描述现有自动触发配置，不授予 Mac 任务 Linux/Windows 适配或验收责任。MacBook Pro 负责项目开发、本机 macOS 验收及 GitHub macOS CI；Windows/Linux 真机任务分别负责本平台适配、本机验收及对应 GitHub CI，不承担功能开发。Ubuntu 的 Project Constraints/Research Web Checks 结果属于 Linux CI，不能作为 macOS CI 证据，也不得要求 Mac 任务修复或等待其平台适配才能完成。
 
-其他平台的 CI 自动启动时，保留状态并交接对应真机任务；本平台未取得所需 CI 时仍不能宣称本平台验收通过。跨平台发布就绪继续要求各目标平台证据。验收范围和任务状态记录以 [Agent 任务路由指南](AGENT_WORKFLOW.md) 为准。本次规则修订不改变 workflow 触发器、runner、费用状态门或发布授权。
+其他平台的 CI 自动启动时，保留状态并交接对应真机任务；本平台未取得所需 CI 时仍不能宣称本平台验收通过。跨平台发布就绪继续要求各目标平台证据。验收范围和任务状态记录以 [Agent 任务路由指南](AGENT_WORKFLOW.md) 为准。Docker workflow 已改为 Linux 真机 exact-SHA 手动入口；其余自动触发配置、runner、费用状态门和发布授权不变。
 
 ## Artifact 与保留期
 

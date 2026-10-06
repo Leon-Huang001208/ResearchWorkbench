@@ -5,6 +5,7 @@
   "components": [
     "verification-system",
     "documentation",
+    "critical-chain",
     "research-web",
     "research-web-runtime",
     "research-web-api",
@@ -23,10 +24,11 @@
     "cross-platform"
   ],
   "changeSummary": {
-    "fileCount": 64,
+    "fileCount": 65,
     "ruleIds": [
       "ci",
       "documentation",
+      "critical-chain",
       "research-web",
       "research-web-runtime-platform",
       "research-web-api",
@@ -40,6 +42,7 @@
     "impactIds": [
       "verification-system",
       "documentation",
+      "critical-chain",
       "research-web",
       "research-web-runtime",
       "research-web-api",
@@ -56,6 +59,7 @@
     ".ai/reports/2026-10-05-settings-capability-loop.md",
     ".ai/reports/2026-10-06-pr78-repair-plan.json",
     ".ai/reports/2026-10-06-pr78-repair.md",
+    ".github/workflows/research-web-docker.yml",
     "AGENTS.md",
     "README.md",
     "app/research_web/client.py",
@@ -157,6 +161,26 @@
       ],
       "coupling": "low",
       "minimumLevel": "L0"
+    },
+    {
+      "path": ".github/workflows/research-web-docker.yml",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-docker.yml",
+      "rule": "critical-chain",
+      "reason": "critical_chain_change",
+      "modules": [
+        "critical-chain"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L3"
     },
     {
       "path": "AGENTS.md",
@@ -872,6 +896,16 @@
       "code": "documentation_only"
     },
     {
+      "path": ".github/workflows/research-web-docker.yml",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".github/workflows/research-web-docker.yml",
+      "rule": "critical-chain",
+      "code": "critical_chain_change"
+    },
+    {
       "path": "AGENTS.md",
       "rule": "documentation",
       "code": "documentation_only"
@@ -1499,6 +1533,17 @@
       "value": "node --test tests/javascript/research_web_architecture.test.mjs"
     },
     {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+    },
+    {
       "id": "project-constraints-local",
       "level": "L2",
       "lane": "local",
@@ -1530,17 +1575,6 @@
       ],
       "category": "tests",
       "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
-    },
-    {
-      "id": "research-web-critical-smoke",
-      "level": "L3",
-      "lane": "local",
-      "gate": "merge",
-      "platforms": [
-        "generic"
-      ],
-      "category": "tests",
-      "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
     },
     {
       "id": "research-web-api",
@@ -1714,6 +1748,17 @@
       "value": "node --test tests/javascript/research_web_architecture.test.mjs"
     },
     {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+    },
+    {
       "id": "project-constraints-local",
       "level": "L2",
       "lane": "local",
@@ -1745,17 +1790,6 @@
       ],
       "category": "tests",
       "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
-    },
-    {
-      "id": "research-web-critical-smoke",
-      "level": "L3",
-      "lane": "local",
-      "gate": "merge",
-      "platforms": [
-        "generic"
-      ],
-      "category": "tests",
-      "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
     },
     {
       "id": "research-web-api",
@@ -1832,6 +1866,7 @@
       ".ai/reports/2026-10-05-settings-capability-loop.md",
       ".ai/reports/2026-10-06-pr78-repair-plan.json",
       ".ai/reports/2026-10-06-pr78-repair.md",
+      ".github/workflows/research-web-docker.yml",
       "AGENTS.md",
       "README.md",
       "app/research_web/client.py",
@@ -1899,10 +1934,10 @@
       "incremental-validation-skill-contracts",
       "research-web-verification-full",
       "research-web-architecture",
+      "research-web-critical-smoke",
       "project-constraints-local",
       "research-web-service-manager",
       "research-web-local-integrations",
-      "research-web-critical-smoke",
       "research-web-api",
       "research-web-ui",
       "research-web-docker-contract",

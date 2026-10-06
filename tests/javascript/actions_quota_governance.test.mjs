@@ -370,9 +370,13 @@ test('Web evidence retention is short and full logs upload only on failure', () 
   assert.match(workflows.windows, /retention-days: 3/);
 });
 
-test('Docker CI routes shared runtime and packaging inputs, excluding ordinary UI and docs', () => {
+test('Docker CI is dispatched by the Linux device for an exact commit', () => {
   const docker = readWorkflow('research-web-docker.yml');
-  assert.deepEqual(workflowTriggers(docker), ['pull_request', 'push', 'workflow_dispatch']);
+  assert.deepEqual(workflowTriggers(docker), ['workflow_dispatch']);
+  assert.match(docker, /expected_sha:[\s\S]*required: true[\s\S]*type: string/);
+  assert.match(docker, /EXPECTED_SHA: \$\{\{ inputs\.expected_sha \}\}/);
+  assert.match(docker, /git rev-parse HEAD/);
+  assert.match(docker, /actual.*EXPECTED_SHA/);
   assert.deepEqual(workflowJobs(docker), [{id: 'stage-scope', runsOn: 'ubuntu-latest'}, {id: 'docker-runtime', runsOn: 'ubuntu-24.04'}]);
   for (const event of ['pull_request', 'push']) {
     for (const file of [
@@ -390,7 +394,7 @@ test('Docker CI routes shared runtime and packaging inputs, excluding ordinary U
       '.agents/verification-policy.json', 'tests/javascript/verification_policy.test.mjs',
       'tests/javascript/actions_quota_governance.test.mjs', 'tests/javascript/docker_runtime_contract.test.mjs',
       '.github/workflows/research-web-docker.yml',
-    ]) assert.equal(triggersForPath(docker, event, file), true, `${event}: ${file}`);
+    ]) assert.equal(triggersForPath(docker, event, file), false, `${event}: ${file}`);
     for (const file of ['docs/README.md', 'docs/actions-budget.md', 'app/research_web/ui/app.mjs', 'app/research_web/frameworks/service.py']) {
       assert.equal(triggersForPath(docker, event, file), false, `${event}: ${file}`);
     }
