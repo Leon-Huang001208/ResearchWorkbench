@@ -27,19 +27,31 @@ class FakeKeyring:
         self.fail_delete = False
 
     def get_password(self, service, account):
-        assert (service, account) == (MYSQL_SERVICE, MYSQL_ACCOUNT)
+        assert (
+            service.startswith(f"{MYSQL_SERVICE}.")
+            and len(service.removeprefix(f"{MYSQL_SERVICE}.")) == 64
+        )
+        assert account == MYSQL_ACCOUNT
         if self.fail_get:
             raise RuntimeError("locked")
         return self.value
 
     def set_password(self, service, account, value):
-        assert (service, account) == (MYSQL_SERVICE, MYSQL_ACCOUNT)
+        assert (
+            service.startswith(f"{MYSQL_SERVICE}.")
+            and len(service.removeprefix(f"{MYSQL_SERVICE}.")) == 64
+        )
+        assert account == MYSQL_ACCOUNT
         if self.fail_set:
             raise RuntimeError("denied")
         self.value = value
 
     def delete_password(self, service, account):
-        assert (service, account) == (MYSQL_SERVICE, MYSQL_ACCOUNT)
+        assert (
+            service.startswith(f"{MYSQL_SERVICE}.")
+            and len(service.removeprefix(f"{MYSQL_SERVICE}.")) == 64
+        )
+        assert account == MYSQL_ACCOUNT
         if self.fail_delete:
             raise RuntimeError("denied")
         self.value = None

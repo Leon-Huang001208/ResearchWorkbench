@@ -56,7 +56,7 @@ URL、SMTP 密码与 Webhook 签名秘密由 `ResearchWorkbench.Delivery` 系统
 
 DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运行的第四种能力，也不是新服务。Web 通过“能力中心 → 数据”浏览 15 项业务数据能力、22 个登记来源及其绑定矩阵；其中 21 项是远程数据源，`local_cache` 是兼容的本机投影。DSH 通过品牌无关的 `datahub_*` 业务 Tool 取数。通用 MySQL 配置与会话文件位于当前设备数据根，密码由系统凭据库隔离；15 个稳定业务 Tool 常驻 Research Runtime，Broker 在每次调用时按最新状态选源，无可调用 Provider 时返回明确错误。
 
-统一连接中心由 `datahub/connection_center.py` 汇总来源声明、非秘密配置、系统凭据存在性、平台能力、最近探测和 Runtime 适配状态；`datahub/connections.py` 仅原子保存 `<RESEARCH_DATA_HOME>/connections/` 下的非秘密 JSON，秘密通过系统凭据库按来源/账号键隔离。`datahub/probes.py` 执行有界诊断：Wind 沿用本机登录会话，iFinD SDK 探测登录后在 `finally` 登出，Excel 与插件只有实际心跳或工作簿探测才能标记可用。保存配置或检测成功都不自动等价为 Provider 可调用。
+统一连接中心由 `datahub/connection_center.py` 汇总来源声明、非秘密配置、系统凭据存在性、平台能力、最近探测和 Runtime 适配状态；`datahub/connections.py` 仅原子保存 `<RESEARCH_DATA_HOME>/connections/` 下的非秘密 JSON，秘密通过系统凭据库按规范化 data home 服务命名空间和来源/账号键隔离。`datahub/probes.py` 执行有界诊断：Wind 沿用本机登录会话，iFinD SDK 探测登录后在 `finally` 登出，Excel 与插件只有实际心跳或工作簿探测才能标记可用。保存配置或检测成功都不自动等价为 Provider 可调用。
 
 旧环境变量迁移先返回只含“是否存在、冲突、目标来源”的预览；执行时要求来源白名单与二次确认，先写入并回读系统凭据库，再原子清理 `.env` 对应项。配置文件、凭据或 `.env` 任一步失败时恢复原始字节、权限和旧凭据；DSH 模型密钥不进入该流程。
 
@@ -172,3 +172,5 @@ Method 的会话证据独立写入 `<session>/.rwb/method-trace.jsonl`，单行�
 收据、能力版本、Automation Run、系统凭据库和清理语义均未变化。各目录独立的 pending count、
 generation、逐资源 settled 和 latest-request-wins 都是内存请求账本；只有 runtime 的 pending/settled
 failure 会投影为可见 connecting/offline，且不会写入新的缓存或文件。数据文件关系和相关架构图保持不变。
+
+DataHub 连接凭据以公开 canonical data home 的 SHA-256 后缀隔离系统服务；账户标识与非秘密 JSON 保留。旧全局服务不读取、不复制、不删除，升级后需在所属实例重新录入；旧记录可供旧版回滚，不写秘密备份。

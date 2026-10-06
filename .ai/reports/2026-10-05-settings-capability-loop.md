@@ -649,3 +649,26 @@ master通过GitHub Git refs API force=false快进到固定上游，无改写历�
 <!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "已有自动任务继续经同一ResearchService和正式preset创建发送，preset声明方式迁移不新增调度器或任务注册中心。", "diagrams": []} -->
 
 独立只读Python审查发现适配结果未包含既有kind=child，且空闲值idle不符合service所需inactive。新增参数化消费者回归先得到2个KeyError失败，再在单一client适配点固定kind和activity；原生DSHClient到ResearchService的归属、取消和空闲门通过，完整protocol+launch 88 PASS。实际固定上游源码仍提供subagents/interruptByParent与session/follow，审查核对地址/父属/mode兼容。Black/isort/Ruff与diff检查exit0；未改凭据、执行循环或拓扑，不重做真实生命周期。此次必要源码修复生成新候选，feb239e69的CI只属于旧候选，不能冒称修复后已过。用户最新授权继续所有阶段及必要模型/工具调用，不再以旧次数上限阻塞；供应商Key仍仅设置页接收。
+
+
+### 用户开启后续全阶段：阶段2实例隔离与阶段6边界决策
+
+最新授权为按任务需要使用模型/工具并持续推进后续阶段；旧10/5只是历史限制，不再作为授权阻塞。原阶段0/1A在Mac范围及B归因明确豁免下已收口，新的持续Goal保持active；不把升级或部分阶段成果宣称全部完成。Windows/Linux/Docker产品仍暂缓，通用CI保留。缺失账户、端点或系统权限不被“全部授权”补造。
+
+阶段2实际RED：两个data home共享系统backend时，B留空保存后可读到A秘密，test_data_home_credentials_do_not_inherit_overwrite_or_clear_another_instance exit1。最小修复为原MySQLConnectionStore按canonical data home路径SHA-256后缀生成系统服务名，所有来源的读取/写入/回读/清除及补偿共同复用；账户ID、JSON和Provider不变。旧全局记录不回退、不读取、不复制、不删除；用户需在所属实例重新录入，旧记录保留供旧版本回滚。命名空间解析失败记录类型和稳定错误，不回显路径/秘密。
+
+connection_center/mysql_configuration/datahub回归97 PASS，另命名空间失败关闭与双实例2 PASS；Black/isort/Ruff exit0，mypy连接模块无问题（已有37条边界外诊断不被豁免）。真实macOS Keychain新建两个专用临时data home，合成值保存、替换、留空、跨进程读取、清除后重建不恢复、另一实例保留全部PASS；最终两个命名空间清理PASS，供应商请求0。这只证明真实系统库合成合同，不冒称商业数据账户查询。
+
+公开路径已有真实东方财富净值/快照/研究消费证据，并独立核对磁盘manifest及rows摘要一致：dataset f04d9a91-15de-4998-9f91-b6fcec2f0e07，provider=eastmoney_fund、source=fund_nav、cache_hit=false、row_count=1、pagination_complete=false；不宣称全历史或所有能力。数据隔离证据见dsh-upgrade/data-namespace-{red,regression,boundary}.log、data-keychain-lifecycle.json与public-dataset-proof.json。
+
+阶段1B：新固定DSH源码确有llm-pi-ai，原生openai-completions/openai-responses/anthropic-messages协议与显式provider profile扩展点；但尚无用户实际需要且可验收的额外端点/模型，产品未放宽Provider字符串假装全品牌支持。阶段2商业源也尚无本测试实例账户；已询问非秘密可用资源，不要求在对话提供Key。相关真实验收保持未验证，其他独立工作继续。
+
+阶段4使用现有产品Word真实验证入口，ID aabce313-3f97-43c7-a797-0e6283d42c40，创建/保存/重读/清理所属非敏感测试文档；等待真实完成或现有180秒加10秒协调上限，不把checking写PASS，不操作已有文档或退出用户应用。
+
+阶段6短决策已写入现有05-security-validation：local owner不等于tenant、连接/秘密/缓存/快照/任务归属、公开/授权共享/商业私有数据和模型外发许可、远端API与本机Wind/Office区别、未来TLS/认证/DNS重定向/SSRF及独立设备桥接任务。没有公网监听、注册计费或多租户实现。
+
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"连接系统凭据服务增加规范化实例路径后缀，继续由既有连接存储、Broker和快照消费；未新增Vault、服务节点或跨设备桥接。","diagrams":[]} -->
+
+Word验证最终completed/outcome=timeout（现有180+10秒上限），未得到保存后重读成功证据；不重试、不绕过OS权限，阶段4A保持未通过。独立系统库合成值清理成功不改变该外部实机结果。
+
+Office临时资源清理的独立目录读取未返回，终止本次所属审计Python/父shell（已核对PID、启动时间、cwd）；没有删除受保护文件或退出Word。清理独立证据UNVERIFIED，不将代码finally清理尝试当成实际成功；本项是外部OS/文件访问阻塞，后续不反复扫描。
