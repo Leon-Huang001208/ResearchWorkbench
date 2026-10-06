@@ -631,3 +631,19 @@ master通过GitHub Git refs API force=false快进到固定上游，无改写历�
 真实Mac Keychain合成值链路已通过，新native provider确实消费该值（仅进程内比较），公共CLI/正式framework-explain在受控Messages回环fixture生成最终回复。fixture请求1、供应商请求0，产品清除后configured=false，所属fixture进程退出；此不冒充真实推理。只读热改设置被owned overlay拒绝后保留限制，fixture采用独立实际安装数据home与冷启动，未放宽模型端点或设置权限。其早期失败还包括未启动Host服务事件通道的测试器问题，全部日志保留，按正常lifespan后PASS。
 
 原有21 Ruff诊断在HEAD基线全部存在；仅触及文件等价导入/字面量/with顺序修正，无新增ignore。698相关Python PASS（2既有平台skip）、50 API PASS、3实际native源码合同PASS、284 JS PASS。后续模型默认与协议适配的增量必须补回归。用户已在独立19088设置页保存测试Key，未读/打印/散列。当前真实预算4模型/1公开只读工具，旧轮额度不使用；计入重试/工具后的生成，跨重启保留总账，真实验证尚待执行。
+
+### DSH升级真实验收与集中CI文档修复
+
+实际候选9924fa7e22cb592095b755b19bfaab55ab8632db，目标ddcdd9784d8eda2918b8987ca8b679375e67291d，草稿PR81。独立19088/14081实例正式preset已完成真实生成、带Key Host/DSH冷退出重启后无需重新录入的生成，以及datahub_get_fund_data公开净值查询和最终回复。实际使用模型4次、工具1次；用户随后明确授权按任务必要次数继续，不继承旧轮余额，也不自动消耗额外请求。模型原生cap1的合成fixture证明第二次请求在出网前阻断，供应商请求0。所有失败及脱敏证据保留于logs/settings-model-loop/dsh-upgrade。
+
+初次当前代码CI：Research Web Checks37510747168和macOS Bootstrap37510747272 success；Project Constraints37510747653 fail，原因是当前PR差异缺少直接模块文档与当前结构复核记录。完整原任务差异虽通过，不能替代当前PR差异。集中补齐实际协议变化对应文档，未修改规则/测试边界；当前升级结构与目标分支部署拓扑一致，旧Keychain图变更已经进入目标，因而不重复截图。新文档提交仍须取得匹配候选的必要自动门，不能沿用初次成功冒称新HEAD通过。
+
+<!-- architecture-review {"group": "runtime", "structure": "unchanged", "reason": "固定DSH升级迁移模块解析、preset注册和子任务协议；仍由现有Host、Runtime和Keychain私有桥接执行，部署节点与信任边界不变。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "dual-runtime", "structure": "unchanged", "reason": "仅升级共享固定来源及Native适配，保留原运行模式控制器和存储隔离；Docker仍用户暂缓，未新增容器或宿主桥接。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "research-api", "structure": "unchanged", "reason": "以权威原生父投影和实时会话表实现既有子任务列表合同，保持HTTP入口和活动保护，没有新增执行器或信任边界。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "仅更新空实例模型默认值，保留已保存旧ID及现有设置状态、dirty表单和同源API，未改变布局组件或导航。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "已有自动任务继续经同一ResearchService和正式preset创建发送，preset声明方式迁移不新增调度器或任务注册中心。", "diagrams": []} -->

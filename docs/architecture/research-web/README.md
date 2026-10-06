@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+当前固定 DSH 为 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`（0.2.1-alpha.1），版本以 `runtimes/research_web.json` 为唯一来源。owned overlay 通过原生声明式 preset registry 挂载既有 research-web、framework-explain、framework-verify；仍由同一 Host、Runtime、DataHub 和协调器执行，Automation 不另建调度路径。升级验收针对独立 macOS Native 实例，不表示生产实例已经更新。
+
 设置中的模型服务只展示固定DSH实际支持目录，保存与显式生成分别验收。配置和测试共用ResearchService串行边界；既有Automation仍通过相同create/send执行，新会话采用新默认值，活动任务阻止共享凭据变化。macOS Native 的固定模型 ref 由产品 provider/私有进程桥接存入系统 Keychain；Host 认证 record 保留固定 DSH 的独立文件实现。没有新增执行器、调度器或凭据中心。
 
 这是当前研究产品的唯一架构主入口。源码范围为 `app/research_web/`；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。

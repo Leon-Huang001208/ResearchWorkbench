@@ -1,5 +1,7 @@
 # 研究框架
 
+DSH 0.2.1 下 framework-explain、framework-verify 由 owned overlay 显式注册到同一原生 preset registry；既有 ID、Gold/Dollar 定义、评分和快照绑定保持不变。空实例采用 `deepseek-flash`，不改写已有 Bot 会话或保存的模型值。模型生成成功与框架数据完整性分别验收，不由新版模型目录推导框架可用。
+
 模型设置更新只影响新建Bot会话的默认模型，已有Gold/Dollar会话保留选模；活动父/子任务阻止共享凭据变化。模型生成测试复用无研究工具的框架解释preset，但不绑定业务快照、不改变确定性评分或框架采集。测试通过只证明指定模型生成，不证明框架数据能力。
 
 Native 和 Docker 复用 Gold/Dollar 的定义、快照 revision、评分、renderer 和 Bot 请求合同。
