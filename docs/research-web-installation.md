@@ -31,14 +31,14 @@ macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Key
 
 macOS：
 
-macOS Docker 推荐入口：
+保留的 macOS Docker 入口（本阶段暂缓，不执行）：
 
 ```bash
 ./setup-web.sh --runtime docker
 ./rwb web doctor
 ```
 
-macOS Native 替代入口；无参数 `./setup-web.sh` 也默认 Native：
+当前 macOS Native 入口；无参数 `./setup-web.sh` 也默认 Native：
 
 ```bash
 ./setup-web.sh --runtime native

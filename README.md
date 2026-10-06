@@ -111,7 +111,7 @@ Native 可在确认没有活动研究时普通重启；Docker 运行中无法认
 
 macOS Native 的模型凭据由产品 overlay 挂载的固定用途桥接存入系统 Keychain，按规范化 data home 隔离；不回退环境、旧凭据 YAML 或 `.env`，也不把 Keychain 值复制到文件。不迁移旧模型 Key，需在该实例设置页重新录入。Host 浏览器认证 record 保留固定 DSH 的受控文件实现，和模型 Key 分开。其他平台或 Keychain 不可用时模型失败关闭，设置页与 Host 认证仍可使用；其他平台系统模型存储尚未验证。
 
-通用服务凭据按运行模式隔离：Native 使用宿主系统凭据库，Docker 使用仅容器挂载的私有目录；两者不自动互拷秘密。模型私有桥接当前仅 macOS Native，其他模式未验收。密钥不写入代码包、安装清单或日志。
+Docker相关通用业务凭据隔离实现保留；本阶段不交付Docker模型凭据后端，不把Native系统存储保证泛化到容器。
 
 ### 旧 Research Web 数据迁移
 

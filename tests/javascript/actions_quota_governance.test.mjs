@@ -377,7 +377,7 @@ test('Docker CI is dispatched by the Linux device for an exact commit', () => {
   assert.match(docker, /EXPECTED_SHA: \$\{\{ inputs\.expected_sha \}\}/);
   assert.match(docker, /git rev-parse HEAD/);
   assert.match(docker, /actual.*EXPECTED_SHA/);
-  assert.deepEqual(workflowJobs(docker), [{id: 'docker-runtime', runsOn: 'ubuntu-24.04'}]);
+  assert.deepEqual(workflowJobs(docker), [{id: 'stage-scope', runsOn: 'ubuntu-latest'}, {id: 'docker-runtime', runsOn: 'ubuntu-24.04'}]);
   for (const event of ['pull_request', 'push']) {
     for (const file of [
       'Dockerfile', '.dockerignore', 'compose.yaml', 'docker/supervisor.py',

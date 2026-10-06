@@ -508,3 +508,56 @@ Black/isort修改文件通过；Ruff首次因沙箱缓存写失败退出2，不�
 已用模型2/6、工具1/1时没有再执行工具。用户明确追加仅1次工具额度，使本轮总工具上限2、模型仍6；批准为加载修正只重启原所属独立实例，新进程模型上限降为剩余4、工具上限1，总账不重置、Key不重新录入或复制。修正有public-tool-red.log及对应GREEN/启动/static/邻接回归，缺项不隐去。所有后续真实记录累加到原ledger，不将进程重启当补模型额度。
 
 远端master已漂移到05326b6066f96a572db4ac87f3bdc041ff92003f；PR78当前CONFLICTING（API base仍旧9e231b6c缓存事实分别记录），自动新CI未触发，不能借旧CI成功。尚未自动合入新的master或历史分支，不为绿灯改policy/Hook。本轮工具修正和真实证据可独立推进，远端整合缺口保留。
+
+### T6真实通过、结束清理与当前外部门
+
+修正后正常受管重启产生DSH11301/Host11591，同一data home，用户未重新录入Key，configured=true/uncertain=false；新进程硬上限4模型/1工具按原总账扣减，未补模型额度。正式Web create/send的session cf1c2e6a-3e8a-4491-a5e7-bbc961a2f279实际调用datahub_get_fund_data一次、工具无错误，2模型step/0失败attempt，4.412秒completed且最终非空回复。只读快照验证provider=eastmoney_fund、source=fund_nav、row_count=1、cache_hit=false、as_of=2026-09-30、unit_nav=1.222；最终回复包含同一日期和1.2220，并准确保留1页1行/pagination_complete=false及非完整历史限制。
+
+**T6正式Web→固定DSH→真实模型→一次成功公开工具→真实最终回复PASS。** 证据T6-public-nav-proof.json、T6-snapshot-readback.json、T6-public-row-readback.json。最初证据脚本误将dataset source=fund_nav与provider=eastmoney_fund比较，产生错误FAILED；T6-public-nav-proof-initial.json保留。只读现有快照纠正判定，没有重发任何模型或工具；前一条日历HTTP400仍是真实FAILED，不与此证据错误混淆。
+
+全轮累计模型**4/6**、工具**2/2**（含首条失败，追加额度有用户明确回复），0自动重试，剩余2模型未使用且结束后不自动结转。固定DSH/产品锁/生产未修改，未新增预算系统、Provider或DataHub能力；最小控制与精确公共参数修正经8 guard/29 launcher/95邻接JS及既有300相关Python等证据验证。B实际供应商Key归因仍未验证：尚未收到按该Key关联的独立供应商记录；生成成功、Keychain configured及数据供应商eastmoney_fund都不是模型Key B的归属证明。不通过读密/散列补证，未为该缺项消耗剩余额度。
+
+清理实际PASS：确认测试会话不活跃，通过正常产品PUT clear_api_key=true清除本测试Key，HTTP200；刷新credential_configured=false、configuration_uncertain=false，清除前runtime_applied=true与清除后false分别保存final-product-key-clear.json。正常manager.stop仅停止上述owned进程，最终两个process=missing/ports=closed，final-status.json及closed ledger保存。没有供应商Key撤销或生产8088/3081升级、停止、迁移。
+
+当前修正候选fa452937a862d86983bc7e24a49c567c61c28b5e已普通push。PR78因目标迁移冲突未自动触发CI；按既有C5独立送检授权仅补发缺少的Web Checks37431032580与macOS Bootstrap37431037662，两项attempt1/workflow_dispatch/标准ubuntu-latest与macos-14最终PASS，actual checkout均为fa452937a，current-code-runs.json保存完整job/steps与Checkout精确SHA。一次run list空响应不是终止证据；随后直接读取同一两个run handle确认completed/success，没有重新发起运行。没有Windows/Docker dispatch、rerun或发布。
+
+Project Constraints当前代码CI仍BLOCKED：PR78 CONFLICTING，actual remote master05326b6066f96a572db4ac87f3bdc041ff92003f相对9e231b6c含140路径Native/Docker状态/安装/凭据/控制器迁移和20文本冲突，target-drift-summary.json保存具体列表；含README、运行协议/数据/安全文档、architecture-map、图/回执/测试等，不能当作一份回执冲突。未自动合入这份大迁移，也未直接合入历史功能分支。现有policy完整84路径回执仍BLOCKED，mergeReady=false/releaseReady=false；Mac功能T6真实PASS不等于新目标整合、B归因或完整1A全部完成。
+
+当前唯一剩余目标为在明确整合范围与非秘密归因证据条件下完成1A收口；不重做阶段0/C1/C2或已完成真实生命周期，不自动进入1B/2—6。报告最终本地提交与fa452937a代码身份分别保存；只报告补记不再push触发CI循环。本轮完成已授权控制/真实T6/清理，遇到超出当前边界的大迁移及缺B归因证据后停止。
+
+## 2026-10-06 固定新目标整合收口（仍只Mac Native）
+
+用户“执行”明确续接目标整合与B非秘密证据核对；实际输入HEAD2118b99d20cff8e1929bbd99e4961e1406792de1，分支/工作区核对无误，保留全部本地同任务报告提交。一次fetch固定目标1dbd7547f1c6062124ab3a7f1fbd4498058f38fa；它包含此前05326b60 Native/Docker迁移及其后的平台职责文档PR79，无额外产品源码迁移。正常merge --no-ff --no-commit进入原任务分支，未reset/rebase/force、未向master push或直接合历史功能分支，目标之后漂移只记事实，不追赶。
+
+整合保留C1模型ref→系统Keychain/无ambient与旧文件回退、Host受控record、Provider/preset边界、保存事务/清除/活动任务/dirty状态、认证输出私有交接及T6精确调用控制。合并来的运行合同和独立state目录造成认证路径直接兼容缺陷：先增强现有分离state测试取得RED，再让launcher的RESEARCH_RUNTIME_AUTH指向已验证state，新增非秘密RESEARCH_RUNTIME_STATE_ROOT，Node preload验证同一state/auth.json绑定；私有原子写入和authority/cwd/source校验不降低。真实exec测试中的Python替身不能接受Node --import，仅在fixture剥离该Node专用选项，仍执行真实exec/环境清理，未让产品跳过preload。最终启动器65 PASS。
+
+逐冲突合并README和模块文档：Native模型Keychain与非mac模型存储未验证说明保留，Docker通用业务凭据私有挂载实现保留且明确不泛化模型后端支持；同时修正旧数据文档曾遗留的“模型秘密私有文件”句子。架构清单合并两边源码/测试/映射。部署图拓扑确有变更，仅重做01-deployment：既有双部署结构加Native模型Keychain平面，showcase校验/交付及四viewport包含性/最小最大明暗截图真实通过；Codex已实际查看四图。用户结构化回复“我已查看四张截图并确认无问题”后才写same-hash reviewer=user记录，未将AI查看伪装人工。其他图同哈希既有评审复用。
+
+用户此前Mac-only明确决定继续有效。自动审批首次拒绝阶段配置/工作流门变更，随后用户具体批准“新增显式阶段配置与前置判定，Mac-only暂缓Docker job，保留工作流/测试/恢复合同、不写PASS”。机器阶段文件.agents/research-web-stage.json只声明当前Native与暂缓平台；新Docker workflow先执行通用stage-scope，显式false时不启动docker-runtime，缺省/true恢复原路径，非法配置失败。直接合同覆盖false/true/缺省/非法，与原矩阵/构建/安全证据断言并存。再次审批拒绝从总体policy移除Docker/Windows门及提前人工review的组合操作后，没有删除总体门：现有全平台plan仍保留Docker选项，其未验按暂缓保留；当前Mac任务和总体验收按目标现有platform ownership规则分开记。用户“完全访问”仅解决访问权限，不等价人工看图；本次已有独立人工回复。没有改全局Hook/共享kernel/保护规则或预算，Ubuntu通用Project Constraints/Web Checks继续保留。
+
+三类完整集合scope.json：原任务共同基线至当前整合内容182路径、相对固定目标新PR63路径、本轮前后145路径（最终Git再核对，不把旧数量固定）。现有L4计划20本地门/4总体CI门，Docker产品执行暂缓不冒充PASS；总体验收可能未就绪，不据此停止Mac工作。
+
+实际本地证据：相关Native/协议/凭据/API Python645 PASS；剩余离线容器/安装/集成合同329 PASS/1既有非本平台skip；治理/认证/guard/UI邻接JS197 PASS；阶段/路由/保留Docker代码直接合同102 PASS。这些离线合同不等于实际Docker或Windows/Linux验收，没有启动Docker。触及launcher/test的Black/isort、launcher已有mypy边界通过；4个导入目标测试SIM117不是本任务行为缺陷，限定文件等价合并nested-with而非unsafe自动修复，复跑65 PASS与Ruff通过，未用ignore/降规则。旧37条和manager既有类型诊断保留，无全仓整改。
+
+整合后在原获准独立data home补一次无Key受管启动：安装Doctor真实ok/installation_ok=true；正常页面200、Runtime connected/health/owned=true，credential_configured=false/uncertain=false，没有真实推理（预期）。随后正常stop并核对所属进程退出/端口关闭。没有更新/停止/迁移生产8088/3081、手写安装清单、安装新依赖或读取真实模型Key。早先T6真实PASS、4/6模型与2/2工具、产品清Key等证据原样保留，本轮真实供应商请求0，不消费已关闭轮次剩余额度。
+
+用户同时明确“没有按Key记录，继续保留未验证”：B实际供应商归因仍UNVERIFIED，不以这一句当作豁免，也不靠读密/哈希、保存/HTTP200/生成成功补证。不能宣布完整1A完成。整合提交/CI候选SHA及本地报告身份分开记录，新CI不复用fa452937a或e917b1c89运行冒称新HEAD通过；只普通push同一分支、复用草稿PR78，不合并/发布。按现行政策分别交付当前Mac验收与总体mergeReady/releaseReady，不删除外部门来凑全绿。
+
+### 同任务远端并发保护断点
+
+本地固定目标整合正常merge提交9a19caf2d061ba474cdb3cbabf0dbf2c40fd965b（父2118b99d2、1dbd7547f），此前所有验证与无Key清理已完成。普通push遇non-fast-forward，未使用force/rebase/reset。只读fetch证实远端同任务PR78新增e533fb204/689463a00/38df5dbf5，作者为用户账户，内容是同目标整合及认证PID/监督器加固；不能覆盖，亦不能用其三个Mac/通用成功CI认证本地9a19。
+
+在获准执行范围内正常merge固定38df5dbf5b37113111fa606c8a41d5e45bf42424，保留双方历史：复用其RWB_RUNTIME_STATE、bootstrap pid、监督器/Native读取加固，保留本地state canonical绑定、明确批准的阶段判定、原T6/清理报告及用户已经确认的部署图哈希。新测试冲突拼接曾造成triple-quoted fixture语法错误，保留concurrent-python.log；改为逐项核对后复用远端完整真实Node fixture，C1模型、调用控制及独立state测试全在，并发增量449 Python/43 JS PASS。独立Native无Key启动及正常停止已实测，不发真实请求，不动生产。
+
+旧远端另有pr78-repair报告作为既有同任务记录保留；本代理仍只维护本唯一报告，不借其未执行/拟执行真实验收声明发模型或索取Key。本轮模型/工具请求0，B仍用户明确没有按Key记录、未验证；早先T6 PASS和关闭的4模型/2工具总账不重置。
+
+准备收口时远端再次前进至677b9dc8eac227fa758a32bb34bba43204412337。此为持续同分支写入，而非缺访问权限；停止追赶、不覆盖、不自动混入未审阅版本，已向用户一次请求分支收口归属（暂停另一会话由本会话完成，或交由另一会话合入）。当前保存固定38df的已验证本地候选，等待归属明确后才推送。CI/目标提交仍分别记录，不修改工作流来冒称绿灯，不将B缺证据或暂缓平台标PASS。
+
+
+### 收口归属确认与最后增量同步
+
+用户明确暂停另一会话，由本会话继续收口。正常合入固定远端677b9dc8eac227fa758a32bb34bba43204412337，保留双方所有历史；最后两提交仅7路径，产品源码未变，因此复用13d2的449 Python/43 JS及无Key受管启动停止证据。Docker入口改为Linux真机expected_sha手动触发，保留已批准的显式stage-scope判定及原矩阵/测试/未来恢复合同。唯一文本冲突为额度合同测试，按实际手动触发加阶段前置两者更新。Docker未执行、未写PASS；Mac和通用自动门不受影响。用户人工四截图评审原哈希保留，B继续未验证，本增量供应商请求0。
+
+最后增量102合同、71文档/架构测试通过；完整范围约束初次因远端documentation组错误引用01-deployment失败，保留初次日志。按实际治理拓扑修正单条评审记录（部署由runtime/dual-runtime评审），未改图/规则；完整规划、约束及文档治理重验exit0。原报告中另一会话的合并/真实Key意图不构成本会话授权，本会话不合并PR、不恢复真实请求。
+
+PR78已由其他操作于2026-10-06T14:23:24Z合并677b9dc8，master合并提交211703cca660172b524eff804cc547458529858e。本代理未合并，b04812eb5普通push成功后无法恢复已关闭PR草稿。用户随后明确批准唯一后续草稿PR80，仅送检不合并；head b04812eb5/base211703cc，MERGEABLE。匹配初次CI：Web Checks37479735794 PASS、Mac Bootstrap37479735807 PASS、Constraints37479735956 FAIL（新PR实际24路径缺01-system/Tabbit模块同步）。保留失败日志；唯一集中修复只补认证canonical绑定的两段直接文档，不改代码/规则，按新PR差异及原完整范围双重验证后送检。

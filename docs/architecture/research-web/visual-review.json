@@ -47,20 +47,6 @@
       "notes": "已人工查看两张最终截图；发布与研究分层，无穿线/裁剪。图示为实际模块关系，不是另一个 Workflow 执行器。四视口自动检查独立记录；首次 Chrome load 超时，原样重验成功，未将失败回执算通过。"
     },
     {
-      "id": "01-deployment",
-      "artifactSha256": "34c757afaad2953c70e0dbb4f6e8b30b28d37c67f9d56ec1d9577c89315c55c2",
-      "specificationSha256": "39f5819cc29d5963bae03a143c61d074c8261b83a48ff58bcf84e819be9f1501",
-      "status": "reviewed",
-      "reviewer": "Codex PR78 合并视觉复核",
-      "date": "2026-10-06",
-      "captures": [
-        "01-deployment.visual-check.1440x900.light.png",
-        "01-deployment.visual-check.2048x1320.dark.png"
-      ],
-      "findings": [],
-      "notes": "实际查看最终同哈希1440浅色与2048深色截图；Native/Docker边界及Mac模型Keychain分离可读，无节点遮挡或剪裁。四视口均无溢出；此证据不代表真实模型或其他平台验收。"
-    },
-    {
       "id": "03-research-sequence",
       "artifactSha256": "fba864aad78ed725ea0f5dee90b37ac3626a73cf22bc1c3e1d347f023fa40a91",
       "specificationSha256": "3435e854ab1c8a3619c96493968b6d427b7271a747c74bddb8921df1efbf3a72",
@@ -143,6 +129,22 @@
       ],
       "findings": [],
       "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；Workflow 母版只读、Run 副本刷新、Provider 校验、快照复用及产物发布边界清楚，主路径平衡且无明显空带、遮挡、穿线或裁剪。"
+    },
+    {
+      "id": "01-deployment",
+      "artifactSha256": "959f560983c02c1d54272c04afdf81a6aee1f6863395a1f895d23d0a497682f6",
+      "specificationSha256": "25f9f2cacfdb9e6dddc553841de1135d9f724f53bf64dd1d3f203dd18f92ee64",
+      "status": "reviewed",
+      "reviewer": "user",
+      "date": "2026-10-06",
+      "captures": [
+        "01-deployment.visual-check.1440x900.light.png",
+        "01-deployment.visual-check.1440x900.dark.png",
+        "01-deployment.visual-check.2048x1320.light.png",
+        "01-deployment.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "用户在本轮结构化回复明确表示已查看四张截图并确认无问题；对应当前同哈希产物。Codex先前图像检查另存，未伪造人工；不证明Docker运行或B归因。"
     }
   ]
 }

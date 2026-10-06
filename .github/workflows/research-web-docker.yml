@@ -16,7 +16,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stage-scope:
+    name: Read explicit delivery stage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docker: ${{ steps.scope.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: scope
+        shell: bash
+        run: |
+          python3 - <<'PY_STAGE'
+          import json, os
+          from pathlib import Path
+          path = Path('.agents/research-web-stage.json')
+          enabled = True
+          if path.exists():
+              stage = json.loads(path.read_text())
+              if set(stage) != {'schemaVersion', 'deliveryPlatform', 'deferredPlatforms', 'dockerVerification'} or stage['schemaVersion'] != 1 or type(stage['dockerVerification']) is not bool:
+                  raise SystemExit('invalid explicit delivery stage')
+              if not stage['dockerVerification'] and stage['deliveryPlatform'] != 'macos-native':
+                  raise SystemExit('invalid deferred Docker stage')
+              enabled = stage['dockerVerification']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('docker=' + str(enabled).lower() + '\n')
+          PY_STAGE
   docker-runtime:
+    needs: stage-scope
+    if: needs.stage-scope.outputs.docker == 'true'
     name: Linux container (${{ matrix.platform }})
     runs-on: ubuntu-24.04
     timeout-minutes: 60

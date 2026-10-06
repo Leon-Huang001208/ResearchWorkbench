@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Research Web · 部署与模型凭据边界",
+    "title": "Research Web · macOS Native 与保留部署实现",
     "quality_profile": "showcase"
   },
   "layout": {
@@ -70,7 +70,7 @@
       "id": "dockerContainer",
       "type": "backend",
       "label": "Docker 单容器",
-      "sublabel": "DSH + FastAPI · 仅发布 :8088",
+      "sublabel": "保留实现 · 本阶段暂缓验收",
       "row": 2,
       "col": 3,
       "size": [
@@ -105,7 +105,7 @@
     {
       "id": "credentials",
       "type": "security",
-      "label": "通用服务凭据",
+      "label": "模式分离凭据",
       "sublabel": "Native keyring / Docker 私有挂载",
       "row": 3,
       "col": 3,
@@ -118,9 +118,9 @@
       "id": "modelKeychain",
       "type": "security",
       "label": "macOS 模型 Keychain",
-      "sublabel": "固定模型 ref · data home 隔离",
-      "row": 3,
-      "col": 1,
+      "sublabel": "固定 ref · 私有桥接 · 不落文件",
+      "row": 2,
+      "col": 2,
       "size": [
         205,
         78
@@ -190,12 +190,11 @@
       "labelDy": 24
     },
     {
-      "id": "nativeModelKey",
+      "id": "model-credential-pipe",
       "from": "nativeDsh",
       "to": "modelKeychain",
       "label": "模型私有桥接",
-      "variant": "security",
-      "labelDy": 24
+      "variant": "security"
     }
   ],
   "cards": [
@@ -219,10 +218,8 @@
       "dot": "amber",
       "title": "验证边界",
       "items": [
-        "图示不证明 Docker 镜像已运行",
-        "Windows Docker ACL 未验证则失败关闭",
-        "模型桥接当前仅 macOS Native，Host 认证独立",
-        "设置保存、Runtime 应用与真实生成分别验收"
+        "当前仅交付 macOS Native",
+        "Docker/Windows/Linux 保留且未验证"
       ]
     }
   ]

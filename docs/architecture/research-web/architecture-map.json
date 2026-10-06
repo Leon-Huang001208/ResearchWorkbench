@@ -219,10 +219,10 @@
         "tests/research_web/test_mcp_runtime_routes.py",
         "tests/research_web/test_mcp_transport.py",
         "tests/javascript/research_web_guard.test.mjs",
+        "tests/javascript/research_web_auth_output.test.mjs",
         "tests/javascript/research_web_mcp_adapter.test.mjs",
         "tests/javascript/research_web_mcp_marketplace.test.mjs",
-        "tests/e2e/research_web_mcp_runtime.mjs",
-        "tests/javascript/research_web_auth_output.test.mjs"
+        "tests/e2e/research_web_mcp_runtime.mjs"
       ]
     },
     {
@@ -287,11 +287,11 @@
       "id": "runtime",
       "sources": [
         "app/research_web/launch_runtime.py",
+        "app/research_web/model_credentials.py",
         "app/research_web/runtime/",
         "vendor/dsh-tabbit/0.3.4/",
         "app/research_web/sandbox.py",
-        "app/research_web/skills/",
-        "app/research_web/model_credentials.py"
+        "app/research_web/skills/"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -307,13 +307,13 @@
       ],
       "tests": [
         "tests/research_web/test_runtime_launch.py",
+        "tests/research_web/test_model_credentials.py",
+        "tests/research_web/model_credentials_native.mjs",
+        "tests/javascript/research_web_model_credentials.test.mjs",
         "tests/research_web/test_sandbox.py",
         "tests/javascript/research_web_guard.test.mjs",
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
-        "tests/javascript/research_web_tabbit_ui.test.mjs",
-        "tests/research_web/test_model_credentials.py",
-        "tests/research_web/model_credentials_native.mjs",
-        "tests/javascript/research_web_model_credentials.test.mjs"
+        "tests/javascript/research_web_tabbit_ui.test.mjs"
       ]
     },
     {
@@ -600,6 +600,13 @@
       "evidence": [
         {
           "subjects": [
+            "modelKeychain",
+            "model-credential-pipe"
+          ],
+          "source": "app/research_web/model_credentials.py"
+        },
+        {
+          "subjects": [
             "source"
           ],
           "source": "runtimes/research_web.json"
@@ -668,13 +675,6 @@
             "dockerCredential"
           ],
           "source": "compose.yaml"
-        },
-        {
-          "subjects": [
-            "modelKeychain",
-            "nativeModelKey"
-          ],
-          "source": "app/research_web/model_credentials.py"
         }
       ]
     },
@@ -1656,6 +1656,13 @@
       "prefix": ""
     },
     {
+      "method": "POST",
+      "path": "/api/research/runtime/model/test",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/runtime/model/test",
+      "prefix": ""
+    },
+    {
       "method": "GET",
       "path": "/api/research/workspaces",
       "source": "app/research_web/main.py",
@@ -2515,13 +2522,6 @@
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-runs/{run_id}/delivery",
       "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/runtime/model/test",
-      "source": "app/research_web/main.py",
-      "declaredPath": "/api/research/runtime/model/test",
-      "prefix": ""
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json"

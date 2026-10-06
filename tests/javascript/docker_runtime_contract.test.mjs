@@ -304,3 +304,30 @@ test('lifecycle failure evidence preserves the exact fixed stage and exit code',
     rmSync(directory, {recursive: true, force: true});
   }
 });
+
+test('explicit Mac stage defers container execution while opt-in and absent stage retain it', t => {
+  const workflow = read('.github/workflows/research-web-docker.yml');
+  assert.match(workflow, /needs: stage-scope\n\s+if: needs\.stage-scope\.outputs\.docker == 'true'/);
+  const script = workflow.match(/python3 - <<'PY_STAGE'\n([\s\S]*?)          PY_STAGE/)[1].split('\n').map(line => line.slice(10)).join('\n');
+  const directory = mkdtempSync(join(tmpdir(), 'rwb-stage-contract-'));
+  t.after(() => rmSync(directory, {recursive:true,force:true}));
+  mkdirSync(join(directory,'.agents'));
+  const output = join(directory,'output');
+  const run = () => spawnSync('python3',['-c',script],{cwd:directory,env:{...process.env,GITHUB_OUTPUT:output},encoding:'utf8'});
+  assert.equal(run().status,0);
+  assert.match(readFileSync(output,'utf8'),/docker=true/);
+  const stage = JSON.parse(read('.agents/research-web-stage.json'));
+  assert.equal(stage.deliveryPlatform,'macos-native');
+  assert.equal(stage.dockerVerification,false);
+  writeFileSync(join(directory,'.agents/research-web-stage.json'),JSON.stringify(stage));
+  writeFileSync(output,'');
+  assert.equal(run().status,0);
+  assert.equal(readFileSync(output,'utf8'),'docker=false\n');
+  stage.dockerVerification=true;
+  writeFileSync(join(directory,'.agents/research-web-stage.json'),JSON.stringify(stage));
+  writeFileSync(output,'');
+  assert.equal(run().status,0);
+  assert.equal(readFileSync(output,'utf8'),'docker=true\n');
+  writeFileSync(join(directory,'.agents/research-web-stage.json'),'{}');
+  assert.notEqual(run().status,0);
+});

@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "deliveryPlatform": "macos-native",
+  "deferredPlatforms": ["windows", "linux"],
+  "dockerVerification": false
+}

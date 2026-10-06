@@ -21,6 +21,12 @@
 - 桌面端改动严格遵守 `docs/desktop_packaging.md`；宣称 Windows 支持前，必须有原生 Windows CI 的构建和健康检查证据。
 - 发布桌面端版本前，另须在真实 Windows 环境完成安装级冒烟测试。
 
+## Current Research Web delivery phase (authoritative)
+
+机器阶段权威为 `.agents/research-web-stage.json`，依据用户 2026-10-06 明确范围：当前 Research Web 仅交付 **macOS Native**。Windows/Linux 产品适配、原生验证、真机验收与交接暂缓，未验证事实保留，但不阻断当前 Mac 阶段；不得执行旧 Windows 交接脚本。Ubuntu 的 Project Constraints/Research Web Checks 是通用 CI，继续保留。
+
+`.agents/verification-policy.json` 的 Research Web 路由按此阶段暂不选择 Windows/Docker 产品 CI；Windows catalog、workflow、expected_sha 合同和代码保持。用户明确重新开启 Windows/跨平台范围时，恢复相应 Web 路由的 Windows CI 选择及下述原生规则；不可仅因宿主是 Mac 而跳过已重新开启的平台。此阶段不豁免 B 归因、T6、未知风险或任何 Mac 安全与功能门。
+
 ## Platform ownership and acceptance (mandatory)
 
 - MacBook Pro（macOS）负责项目功能开发、macOS 适配与真机验收，以及远端 GitHub macOS CI 验收；不承担 Windows/Linux 适配与验收。
@@ -29,13 +35,7 @@
 - 每次任务先声明宿主平台、任务类型（功能开发或平台适配）及本平台验收范围。Windows/Linux 适配中发现功能缺陷时，记录复现与证据并交回 Mac 开发任务，不在适配任务中扩展功能。
 - 当前宿主任务只以本平台本地验收和适用的同平台 GitHub CI 为完成条件。其他平台的适配、真机及 CI 验收必须交接给对应真机，不得作为当前宿主任务的完成前置条件。
 - 总体验收计划和跨平台发布就绪状态仍保留所有目标平台证据；任务完成不等于跨平台已验证。按 `docs/AGENT_WORKFLOW.md` 分开记录本平台任务状态与总体验收状态，不得删门、伪造 PASS 或把未验证平台标为支持。
-- CI 的 runner 平台决定证据归属：Ubuntu run 属于 Linux，不能因测试是通用合同就计作 macOS CI。现有自动触发不改变职责，其他平台的 run 由对应平台任务处理。
-
-## Current Research Web delivery phase (authoritative)
-
-自用户 2026-10-06 范围决定起，当前 Research Web 仅交付 **macOS Native**。Windows/Linux 产品适配、原生验证、真机验收与交接暂缓，未验证事实保留，但不阻断当前 Mac 阶段；不得执行旧 Windows 交接脚本。Ubuntu 的 Project Constraints/Research Web Checks 保留自动触发，证据归属 Linux，不计为 macOS CI；由对应平台任务处理。
-
-`.agents/verification-policy.json` 的 Research Web 路由按此阶段暂不选择 Windows CI；Windows catalog、workflow、expected_sha 合同和代码保持。用户明确重新开启 Windows/跨平台范围时，恢复相应 Web 路由的 Windows CI 选择及下述原生规则；不可仅因宿主是 Mac 而跳过已重新开启的平台。此阶段不豁免 B 归因、T6、未知风险或任何 Mac 安全与功能门。
+- CI runner决定原生证据归属：Ubuntu不冒充macOS原生证据；本任务仍保留Project Constraints/Research Web Checks通用仓库门，不表示交付Linux产品。其他平台产品执行按当前阶段暂缓。
 
 ## Web installation contract (mandatory)
 
