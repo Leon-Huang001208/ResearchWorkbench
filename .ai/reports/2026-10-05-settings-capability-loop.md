@@ -315,3 +315,15 @@ T2：通过同一正常产品PUT模型配置接口省略api_key（留空保留�
 T4产品清除：通过独立18088正常PUT模型接口clear_api_key=true，HTTP200且刷新configured=false。对T1已有会话及新建正式research-web会话65a1f915-b697-4e24-834f-1513b5631c41，各用新的幂等头发请求，均503/model_credentials_missing；没有供应商调用，见T4-clear-block.json。之后正常manager.restart_runtime(force=False)，只停止21918并启动56820；旧PID最终missing，新started_at1791256190.8045282，owned/listening/protocol passed/ready，Host22500保持运行。首次即时证据断言未满足，随后仅一次只读核对确认退出/恢复，不重复重启、不改产品状态或认证。保持同一canonical data home，重启后configured=false，且新旧会话再次分别以新的请求标识503阻断。**T4 PASS**见T4-cold-diagnostic.json及T4.json，证明没有旧Key恢复/环境或文件回退，不只是端口健康。
 
 累计实际模型3/6，公开工具0/1，自动失败重试0。现在仅在T5人工点等待重新录入同一专用B，用户在原安全设置页刷新、录入并保存后回复“已重新保存”；不会推断已录入、轮询页面或读取字段。T5带真实Key的Host/DSH完整冷启动和T6工具路径仍NOT_RUN。测试Key当前已通过产品清除；为续接保留独立Host/DSH，不停止生产、不撤销供应商Key。C3生命周期尚待重新录入恢复，替换归因仍缺；C4未完成、C5未执行，mergeReady/releaseReady=false。
+
+## 已重新保存后的T5与T6预算交互点（2026-10-06）
+
+用户明确回复“已重新保存”，输入代码db41fad2、原工作树与干净状态已核对；没有源码或政策变化。仅读取独立实例非秘密元数据确认saved/configured/owned=true、system_keychain、uncertain=false，未读取、比较或散列Key，未采集浏览器/密码框/认证信息。
+
+正常manager.stop退出独立Host22500及DSH56820；**启动新进程之前**核验两个旧进程均退出、13081/18088均关闭，见T5-stop-proof.json。随后正常manager.start(open_browser=False)从同一canonical data home启动：DSH68527/started_at1791256781.965151，Host68674/started_at1791256787.5810418，均owned/ready；没有再次录入Key，见T5-start-proof.json。非秘密配置恢复后，现有最小无工具生成入口在1.616秒passed，新会话0708ba72-dc7a-4d45-b685-c1a90f3fd487含一步、completed turn和非空最终文本，失败attempt0、工具0。**T5 PASS，C4真实Key完整Host/DSH冷重启及实际生成PASS**；不是页面刷新、auth mtime或configured=true替代推理。证据T5-reentry.json、T5-generation.json、T5.json。
+
+累计模型4/6、公开工具0/1。T6尚未发起。检查固定原生loop与既有设置：公开只读工具自动执行；approval/policy ask只作用于原本要求ask的动作，不强制所有公开工具停顿；tool runtime仅有并发控制，repeat-tool-reminder只是提示，不是硬门；session.prompt无请求数/步数限制，项目现有tool guard为48调用/4子任务。剩余2次模型和1次工具额度无法仅凭禁重试、低输出或提示词保证。未修改固定DSH/preset，未放宽预算，未新增预算系统，也没有调用额外研究代理。本轮在这个必要条件核对上停住，不声称正常工具路径通过。
+
+按用户“不能约束次数则先人工逐次触发”的备选，只询问是否存在能在工具/下一次模型请求前暂停的人工单步方式；没有收到答案不推断方式可用，不自行触发整段循环。若没有可用方式，则保留T6未验证并按产品清除测试Key、停止所属进程结束；不得用Host直接取数或另一个preset冒充Web→DSH→真实模型→原生工具→最终响应。这个交互点暂保留已保存测试Key与所属进程，以便用户选择；未执行最终清理，不能说Key已清除。
+
+当前C3实际保存/留空/替换后生成/清除阻断/无Key冷启动/重新保存恢复均有分项真实证据，实际B供应商归因仍未独立验证。C4冷重启PASS、T6正常工具路径NOT_RUN，C5当前代码CI仍未执行；1A整体未完成，mergeReady/releaseReady=false。现有37条边界外及service_manager基准类型诊断原样保留，不扩大整改。
