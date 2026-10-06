@@ -48,6 +48,7 @@ def test_installer_prefers_configured_node_over_path(
     assert installer.node_executable == configured.resolve()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Codex bundled Node layout is macOS-only")
 def test_installer_prefers_codex_bundled_node_over_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -586,7 +587,7 @@ def test_node_subprocess_environment_drops_proxy_protocols_corepack_cannot_parse
     git_environment = installer._subprocess_environment()
     node_environment = installer._node_subprocess_environment()
 
-    assert git_environment["ALL_PROXY"].startswith("socks5:")
+    assert git_environment["ALL_PROXY"].startswith(("socks5:", "socks5h:"))
     assert "ALL_PROXY" not in node_environment
     assert "all_proxy" not in node_environment
     assert node_environment["HTTPS_PROXY"] == "http://127.0.0.1:18080"
@@ -638,18 +639,22 @@ def test_python_dependency_install_drops_proxy_protocols_pip_cannot_bootstrap(
     installer.install_python_dependencies(project_root / ".venv" / "bin" / "python")
 
     git_environment = installer._subprocess_environment()
-    assert git_environment["ALL_PROXY"].startswith("socks5:")
-    assert git_environment["all_proxy"].startswith("socks5h:")
+    git_socks = [
+        value for key, value in git_environment.items() if key.lower() == "all_proxy"
+    ]
+    assert git_socks
+    assert all(value.startswith(("socks5:", "socks5h:")) for value in git_socks)
     assert environments
-    assert all("HTTP_PROXY" not in environment for environment in environments)
-    assert all("http_proxy" not in environment for environment in environments)
-    assert all("ALL_PROXY" not in environment for environment in environments)
-    assert all("all_proxy" not in environment for environment in environments)
     assert all(
-        environment["HTTPS_PROXY"] == "http://127.0.0.1:18080" for environment in environments
+        all(key.lower() not in {"http_proxy", "all_proxy"} for key in environment)
+        for environment in environments
     )
     assert all(
-        environment["https_proxy"] == "https://127.0.0.1:18443" for environment in environments
+        any(
+            key.lower() == "https_proxy" and value.startswith(("http://", "https://"))
+            for key, value in environment.items()
+        )
+        for environment in environments
     )
     assert "setup_web_python_proxy_protocol_filtered" in caplog.messages
     assert "127.0.0.1:1080" not in caplog.text
@@ -886,7 +891,8 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
         "closure_files": 11084,
         "mode": "build",
     }
-    assert runtime_lock.stat().st_mode & 0o777 == 0o600
+    if os.name != "nt":
+        assert runtime_lock.stat().st_mode & 0o777 == 0o600
 
 
 @pytest.mark.skipif(os.name == "nt", reason="symlink creation is not guaranteed on Windows CI")

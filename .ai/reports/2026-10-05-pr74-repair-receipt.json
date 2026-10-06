@@ -1,0 +1,715 @@
+{
+  "schemaVersion": 2,
+  "changeSummary": {
+    "fileCount": 42,
+    "ruleIds": [
+      "ci",
+      "documentation",
+      "repository-git-semantics",
+      "research-web-ci",
+      "critical-chain",
+      "research-web",
+      "research-web-service-lifecycle-delivery",
+      "research-web-local-integrations",
+      "research-web-service-manager",
+      "research-web-installation-shared"
+    ],
+    "impactIds": [
+      "verification-system",
+      "documentation",
+      "repository-git-semantics",
+      "research-web-verification",
+      "critical-chain",
+      "research-web",
+      "research-web-service-lifecycle",
+      "research-web-local-integrations",
+      "web-installation"
+    ]
+  },
+  "changedFiles": [
+    ".agents/skills/incremental-validation/README.md",
+    ".agents/skills/incremental-validation/SKILL.md",
+    ".agents/verification-policy.json",
+    ".ai/reports/2026-09-28-platform-aware-minimal-acceptance-initial-plan.json",
+    ".ai/reports/2026-09-28-platform-aware-minimal-acceptance-plan.json",
+    ".ai/reports/2026-09-28-platform-aware-minimal-acceptance-receipt.json",
+    ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md",
+    ".ai/reports/2026-10-05-pr74-repair-plan.json",
+    ".ai/reports/2026-10-05-pr74-repair-receipt.json",
+    ".ai/reports/2026-10-05-pr74-repair.md",
+    ".claude/commands/verify-task.md",
+    ".gitattributes",
+    ".github/workflows/research-web-bootstrap.yml",
+    ".github/workflows/research-web-windows-verify.yml",
+    ".gitignore",
+    "AGENTS.md",
+    "app/research_web/service_manager.py",
+    "docs/AGENT_WORKFLOW.md",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/README.md",
+    "docs/actions-budget.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/06-documentation-contract.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/09-integration-coordinator.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/documentation-governance.json",
+    "docs/research-web-documentation.md",
+    "docs/research-web-installation.md",
+    "docs/research-web-tabbit.md",
+    "docs/superpowers/plans/2026-09-28-platform-aware-minimal-acceptance.md",
+    "docs/superpowers/specs/2026-09-28-platform-aware-minimal-acceptance-design.md",
+    "tests/javascript/actions_quota_governance.test.mjs",
+    "tests/javascript/incremental_validation_skill.test.mjs",
+    "tests/javascript/repository_cross_platform_contract.test.mjs",
+    "tests/javascript/verification_receipt.test.mjs",
+    "tests/research_web/test_local_integrations.py",
+    "tests/research_web/test_service_manager.py",
+    "tests/research_web/test_setup_web.py"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "components": [
+    "verification-system",
+    "documentation",
+    "repository-git-semantics",
+    "research-web-verification",
+    "critical-chain",
+    "research-web",
+    "research-web-service-lifecycle",
+    "research-web-local-integrations",
+    "web-installation"
+  ],
+  "platforms": [
+    "generic",
+    "linux",
+    "macos",
+    "windows",
+    "cross-platform"
+  ],
+  "impact": [
+    {
+      "path": ".agents/skills/incremental-validation/README.md",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/skills/incremental-validation/README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".agents/skills/incremental-validation/SKILL.md",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/skills/incremental-validation/SKILL.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance-initial-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-09-28-platform-aware-minimal-acceptance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-05-pr74-repair-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-05-pr74-repair-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-05-pr74-repair.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".claude/commands/verify-task.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".gitattributes",
+      "rule": "repository-git-semantics",
+      "reason": "repository_git_semantics_change",
+      "modules": [
+        "repository-git-semantics"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "research-web-ci",
+      "reason": "research_web_ci_change",
+      "modules": [
+        "research-web-verification"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "critical-chain",
+      "reason": "critical_chain_change",
+      "modules": [
+        "critical-chain"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L3"
+    },
+    {
+      "path": ".github/workflows/research-web-windows-verify.yml",
+      "rule": "research-web-ci",
+      "reason": "research_web_ci_change",
+      "modules": [
+        "research-web-verification"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-windows-verify.yml",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-windows-verify.yml",
+      "rule": "critical-chain",
+      "reason": "critical_chain_change",
+      "modules": [
+        "critical-chain"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L3"
+    },
+    {
+      "path": ".gitignore",
+      "rule": "repository-git-semantics",
+      "reason": "repository_git_semantics_change",
+      "modules": [
+        "repository-git-semantics"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "AGENTS.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web-service-lifecycle-delivery",
+      "reason": "research_web_service_lifecycle_delivery",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "docs/AGENT_WORKFLOW.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/actions-budget.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/06-documentation-contract.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/09-integration-coordinator.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/documentation-governance.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-documentation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-09-28-platform-aware-minimal-acceptance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-09-28-platform-aware-minimal-acceptance-design.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/javascript/actions_quota_governance.test.mjs",
+      "rule": "research-web-ci",
+      "reason": "research_web_ci_change",
+      "modules": [
+        "research-web-verification"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/incremental_validation_skill.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/repository_cross_platform_contract.test.mjs",
+      "rule": "repository-git-semantics",
+      "reason": "repository_git_semantics_change",
+      "modules": [
+        "repository-git-semantics"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/verification_receipt.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_local_integrations.py",
+      "rule": "research-web-local-integrations",
+      "reason": "research_web_local_integrations_change",
+      "modules": [
+        "research-web-local-integrations"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_service_manager.py",
+      "rule": "research-web-service-manager",
+      "reason": "research_web_service_manager_change",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_setup_web.py",
+      "rule": "research-web-installation-shared",
+      "reason": "research_web_installation_change",
+      "modules": [
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "executed": [
+    {
+      "id": "verification-policy-contracts",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 4.148387542,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-policy-contracts.log"
+    },
+    {
+      "id": "verification-receipt-contracts",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 4.148387542,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-policy-contracts.log"
+    },
+    {
+      "id": "incremental-validation-skill-contracts",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 4.148387542,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-policy-contracts.log"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "status": "PASS",
+      "durationSeconds": 2.2845335,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-l4-js.log"
+    },
+    {
+      "id": "repository-cross-platform-contracts",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 4.148387542,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-policy-contracts.log"
+    },
+    {
+      "id": "research-web-local-integrations",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 29.26,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-python-contracts.log"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "status": "PASS",
+      "durationSeconds": 0.282888458,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-constraints.log"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 2.2845335,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-l4-js.log"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "status": "PASS",
+      "durationSeconds": 1.32,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-protocol-smoke.log"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 29.26,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-python-contracts.log"
+    },
+    {
+      "id": "research-web-installation",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 29.26,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-python-contracts.log"
+    },
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "PASS",
+      "durationSeconds": 0.141575917,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-documentation-governance.log"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "PASS",
+      "durationSeconds": 1.081570875,
+      "evidence": "logs/pr74-pr77-repair/rwb-pr74-python-index.log"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/2026-10-05-pr74-repair.md"
+    },
+    {
+      "id": "research-web-windows-verify",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/2026-10-05-pr74-repair.md"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/2026-10-05-pr74-repair.md"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/2026-10-05-pr74-repair.md"
+    }
+  ],
+  "realMachine": [],
+  "result": "BLOCKED",
+  "mergeReady": false,
+  "releaseReady": false,
+  "uncoveredRisks": [
+    "external_gate_not_run:project-constraints",
+    "external_gate_not_run:research-web-windows-verify",
+    "external_gate_not_run:research-web-checks",
+    "external_gate_not_run:research-web-bootstrap"
+  ],
+  "escalation": {
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
+  }
+}

@@ -27,6 +27,9 @@ test("skill requires the complete plan execute escalate receipt loop", () => {
     "scripts/validate_verification_receipt.mjs",
     "uncoveredRisks",
     "external",
+    "realMachine",
+    "mergeReady",
+    "releaseReady",
   ]) {
     assert.match(skill, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -44,14 +47,19 @@ test("skill README documents inputs outputs safety and three examples", () => {
   assert.match(readme, /cannot downgrade an L4 plan/i);
 });
 
-test("workflow and development map document L0-L4 and receipt ownership", () => {
+test("workflow and development map document component risk platform and receipt ownership", () => {
   const workflow = read("docs/AGENT_WORKFLOW.md");
   const map = read("docs/DEVELOPMENT_MAP.md");
   for (const level of ["L0", "L1", "L2", "L3", "L4"]) assert.match(workflow, new RegExp(level));
-  assert.match(workflow, /Change → Impact → Validation/);
+  assert.match(workflow, /Component × Risk × Platform/);
+  assert.match(workflow, /generic.*linux.*macos.*windows.*cross-platform.*real-machine-required/s);
+  assert.match(workflow, /PASS.*FAIL.*SKIPPED.*NOT_REQUIRED.*NOT_RUN.*BLOCKED.*MANUAL_REQUIRED/s);
   assert.match(workflow, /--signal validation_failure/);
   assert.match(workflow, /validate_verification_receipt\.mjs/);
   assert.match(workflow, /external/);
+  assert.match(workflow, /realMachine/);
+  assert.match(workflow, /mergeReady/);
+  assert.match(workflow, /releaseReady/);
   assert.match(map, /validate_verification_receipt\.mjs/);
   assert.match(map, /verification_receipt\.test\.mjs/);
   assert.match(map, /incremental-validation/);
@@ -63,5 +71,10 @@ test("Claude compatibility command remains a thin policy-free entrypoint", () =>
   assert.match(command, /validate_verification_receipt\.mjs/);
   assert.match(command, /requiredLevel/);
   assert.match(command, /validationsByLevel/);
+  assert.match(command, /components/);
+  assert.match(command, /platforms/);
+  assert.match(command, /realMachine/);
+  assert.match(command, /mergeReady/);
+  assert.match(command, /releaseReady/);
   assert.doesNotMatch(command, /src-tauri|requirements\/|core\//);
 });

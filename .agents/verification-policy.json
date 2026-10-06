@@ -1160,6 +1160,48 @@
       "realMachine": []
     },
     {
+      "id": "research-web-vendor-runtime",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_vendor_runtime_change",
+      "impact": [
+        "web-runtime-vendor"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [],
+        "prefixes": [
+          "vendor/cjpy/",
+          "vendor/dsh-tabbit/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-installation",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
+    },
+    {
       "id": "research-web-runtime-platform",
       "risk": "full-delivery",
       "minimumLevel": "L4",

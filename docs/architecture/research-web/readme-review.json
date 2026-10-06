@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "已复核根 README；现有安装、启动和 Doctor 指引仍准确，无须改动入口说明。",
-  "reason": "本轮仅修复未安装环境中的顶层静态帮助；安装方式、服务生命周期和产品主入口不变，细节已更新安装指南与模块文档。"
+  "summary": "已复核根 README；现有安装、启动和 Doctor 指引仍准确。",
+  "reason": "合并保留主干启动稳定性与静态帮助修复、Windows 停止升级行为及平台验收路由；产品入口未改变，细节同步安装与模块文档。"
 }

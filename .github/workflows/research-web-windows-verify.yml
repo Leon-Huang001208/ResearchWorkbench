@@ -2,6 +2,11 @@ name: Research Web Windows Verify
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Commit SHA from the Windows verification checkout"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -14,23 +19,33 @@ jobs:
   windows-local-integrations:
     name: Windows local integrations
     runs-on: windows-2022
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify Windows-machine dispatch commit
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_SHA -ne $env:EXPECTED_SHA) {
+            throw "Dispatched SHA $env:EXPECTED_SHA does not match checked out SHA $env:GITHUB_SHA"
+          }
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22.19.0"
 
       - name: Install project test environment
         run: python -m pip install -e ".[dev]"
@@ -45,9 +60,26 @@ jobs:
             status = 'started'
           } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $artifactRoot 'run.json') -Encoding utf8
 
+      - name: Install Web stack through public Windows entrypoint
+        shell: cmd
+        run: call setup-web.cmd --no-start
+
+      - name: Run Windows public launcher smoke
+        shell: cmd
+        run: |
+          call rwb.cmd web start --no-open
+          call rwb.cmd web doctor --json > doctor.json
+          .venv\Scripts\python -c "import json; report=json.load(open('doctor.json', encoding='utf-8')); assert report['ok'], report"
+
+      - name: Stop Windows public launcher services
+        if: always()
+        shell: cmd
+        run: call rwb.cmd web stop
+
       - name: Run local integration contracts on Windows
         run: >-
           python -m pytest
+          tests/research_web/test_setup_web.py
           tests/research_web/test_local_integrations.py
           tests/research_web/test_runtime_auth.py
           tests/research_web/test_protocol.py::test_windows_runtime_auth_does_not_apply_posix_group_mode_bits
@@ -159,6 +191,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: research-web-windows-local-integrations-${{ github.run_id }}
-          path: ${{ runner.temp }}/research-web-windows-evidence
+          path: |
+            ${{ runner.temp }}/research-web-windows-evidence
+            doctor.json
+            logs/setup-web.log
           if-no-files-found: error
           retention-days: 3
