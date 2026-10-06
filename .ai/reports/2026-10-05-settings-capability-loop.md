@@ -386,3 +386,19 @@ C5仅部分送检，未通过；1A仍未完成，mergeReady=false、releaseReady
 最小剩余条件：经明确整合授权处理master治理变更与README回执冲突，形成可触发Project Constraints的候选；在Windows真机按当前exact SHA合同发起Windows Verify；完成两项已启动run的结果与实际checkout证据。此处没有申请或执行合并、发布、真实Key验收及后续阶段。
 
 本轮文档治理和完整51路径project-constraints-local实际exit0；不重跑未变源码的C1/C2与浏览器/Keychain。receipt首次校验因缺少精确external_gate_not_run:research-web-bootstrap字段exit1，初次日志保留receipt-validation-initial.log；补充真实未运行风险后同一现有validator退出0、valid=true/result=BLOCKED。回执NOT_RUN描述的是Bootstrap尚无完成验收证据，实际运行状态仍IN_PROGRESS；它不是未触发。校验通过不等于C5完成。收口仅提交本报告，本轮必要产品修复0、供应商请求0、复跑0；最终本地提交与远端候选对应关系保存在final-code-identity.json。
+
+## 2026-10-06 C5 续接：固定目标整合与重新送检
+
+用户明确批准master进入原任务分支，禁止反向合并PR/master发布。实际输入HEAD为b7da60b692f62a01e4c7f8db7d7f7dcda2b9ab82，工作区干净；一次fetch后固定目标9e231b6c3be5279d24cac8d43453fbf9a626cca6，远端任务head仍28f02637、PR78仍草稿。保持既有本地提交，正常merge --no-ff --no-commit固定SHA，没有reset/rebase/force或合入未进master历史分支。
+
+目标自d17459e共同基线涉及16提交42路径，包括现行AGENTS、平台规划、Windows exact-SHA工作流及受控Windows停止修正；产品源码只有service_manager的非强制taskkill失败允许等待/升级条件变化。逐项核对自动合并后只有这一行app源码增量，模型ref/Keychain桥接、启动认证私有控制文件和其他安全修复均保留；变更受既有归属校验限制，没有新凭据合同或大迁移。
+
+唯一文本冲突为readme-review.json。实际核对三边README和回执后，README仍保留模型支持/Keychain/no-fallback/其他平台限制及安装与Doctor入口；目标README相对共同基线未变。回执记录updated，因为README相对固定目标有模型说明变更，并明确Codex实际文本评审、不是人工或截图验收。现有schema严格只有schemaVersion/disposition/summary/reason，不支持readmeSourceSha256、readmeStatus或reviewedBy；未为附件字段扩造schema，实际README摘要和Codex身份保存在c5-sync/readme-review-evidence.json。无未合并路径或diff-check错误。图内容及图规则未变，复用已有视觉证据，不重新跑多视口截图。
+
+三类完整集合保存scope.json：原任务基线→整合后81路径、新PR相对固定目标51路径、整合前→后42路径。整合后现有policy完整范围规划L4，15本地门、4外部门。没有固定旧51上限、缩小范围或改policy。新治理合同和workflow虽非本任务新增，仍在81路径交付/整合检查范围内。
+
+本地真实检查：文档治理、生成索引、完整81路径Project Constraints退出0；治理/平台/架构/认证输出JS合计185 PASS、0skip；受影响Python（service_manager、runtime_launch、local_integrations、setup_web、protocol）退出0，详见affected-python.log。service_manager Black/isort/Ruff只读检查通过，未重做C2/全仓类型整改。37条边界外和既有manager类型诊断保留。未变的API/UI/模型凭据源码和对应测试证据按源码相等复用；没有重跑真实Keychain、供应商或浏览器生命周期。完整实际命令、退出码和耗时保存local-results.json及日志。
+
+旧Research Web Checks37411987879和Bootstrap37411993900均completed/success，实际checkout28f0263764e56d24ac12e45182f5134299600e32已从完成job的Checkout日志提取。精确run/attempt/runner/结果保存c5-sync/old-run-*.json；旧证据不标成新候选通过。当前API visibility=public/push权限true，当前标准runner预算public-standard，最近各5次native成功job保存native-budget-history.json；不改付款/额度、policy、Hook、fixed DSH、产品锁或生产实例。
+
+本轮集中合并提交后普通push同一任务分支，复用草稿PR78；后续自动CI按冻结候选记录，新候选完整SHA和Windows交接在送检证据/收口段填写。本段为送检前已发生事实，不预称CI通过。供应商请求0，B归因未验证，T6仍NOT_RUN，Windows未发起；C5/1A尚未完成，mergeReady=false、releaseReady=false。

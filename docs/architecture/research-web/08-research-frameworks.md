@@ -90,3 +90,8 @@ Bot 上下文；框架数据缺口仍只由各自严格契约判断。
 latest-request-wins 只作用于既有服务管理、目录聚合与 UI 状态；runtime-only 的可见
 connecting/offline 不进入框架状态。Gold/Dollar 的定义、采集器、调度、快照 schema/revision、
 评分、renderer、Bot 会话绑定及页面信息架构均未变化；不需要修改框架图源或制造新的运行节点。
+
+## 2026-09-28 Windows 停止兼容回执
+
+服务管理器对已归属 Windows 进程的非强制停止失败增加既有 `/F` 升级路径；Gold/Dollar 的定义、
+采集、调度、快照、评分、renderer 和 Bot 绑定均未改变，框架仍不拥有独立服务进程。

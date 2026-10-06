@@ -1,5 +1,21 @@
-/vendor/cjpy/0.5.2/** -text
-/vendor/dsh-tabbit/0.3.4/** -text
+/.gitattributes text eol=lf
+/.gitignore text eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
 /setup-web.sh text eol=lf
 /setup-web.cmd text eol=crlf
 /rwb.cmd text eol=crlf
+/vendor/cjpy/0.5.2/** -text
+/vendor/dsh-tabbit/0.3.4/** -text

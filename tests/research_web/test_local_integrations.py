@@ -207,7 +207,7 @@ def test_native_windows_runner_uses_real_host_detection_without_claiming_vendor_
     assert manager.environment.registry_app_exists("rwb-ci-definitely-missing.exe") is False
 
 
-def test_windows_manual_workflow_retains_native_contracts_and_loopback_probe():
+def test_windows_conditional_workflow_retains_native_contracts_and_loopback_probe():
     workflow = (
         Path(__file__).resolve().parents[2] / ".github/workflows/research-web-windows-verify.yml"
     ).read_text(encoding="utf-8")
@@ -217,12 +217,21 @@ def test_windows_manual_workflow_retains_native_contracts_and_loopback_probe():
     assert "  workflow_dispatch:" in trigger_block
     assert "  pull_request:" not in trigger_block
     assert "  push:" not in trigger_block
+    assert "expected_sha:" in trigger_block
+    assert "required: true" in trigger_block
     assert "runs-on: windows-2022" in workflow
-    assert 'python-version: "3.11"' in workflow
-    assert 'node-version: "20"' in workflow
+    assert 'python-version: "3.12"' in workflow
+    assert 'node-version: "22.19.0"' in workflow
     assert '- "app/research_web/**"' not in workflow
     assert "tests/research_web/test_local_integrations.py" in workflow
     assert "tests/research_web/test_runtime_auth.py" in workflow
+    assert "tests/research_web/test_setup_web.py" in workflow
+    assert "setup-web.cmd --no-start" in workflow
+    assert "rwb.cmd web start --no-open" in workflow
+    assert "rwb.cmd web doctor --json > doctor.json" in workflow
+    assert "rwb.cmd web stop" in workflow
+    assert "GITHUB_SHA" in workflow
+    assert "EXPECTED_SHA" in workflow
     assert "test_windows_runtime_auth_does_not_apply_posix_group_mode_bits" in workflow
     assert "test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits" in workflow
     assert "tests/research_web/test_api.py" not in workflow

@@ -170,3 +170,9 @@ Phase 2A/2B/2C 的 Registry、Runtime 与 Automation 在远端门禁通过后默
 latest request wins；仅 runtime pending 向 UI/Composer/submit 投影可见 `connecting`，仅 settled
 runtime failure 投影 `offline`。现有 3081/8088、单 worker、Automation、DataHub、文件与信息架构
 关系均未改变，架构图清单不变。
+
+## 2026-09-28 Windows 服务停止回执
+
+Windows 对已核对命令签名的受管 PID 先执行非强制 `taskkill /T`；该尝试返回非零但 PID 仍存活时，
+服务管理器不再提前中止，而是进入既有等待和 `/F` 强制升级。强制终止仍失败时继续 fail closed。
+该修复不改变 3081/8088、进程归属、启动顺序、服务拓扑或外部 API。

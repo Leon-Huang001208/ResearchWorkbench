@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "README 同步受支持模型、凭据动作、应用范围和 macOS Native 系统 Keychain 实际路径。",
-  "reason": "产品 provider 通过固定 DSH 扩展点拆分模型 ref 与 Host record，明确无 fallback、旧 Key 不迁移及其他平台限制。"
+  "summary": "Codex 已实际复核合并后 README；保留本任务 macOS Native Keychain、固定 DeepSeek 支持范围和其他平台限制，以及目标分支安装、Doctor 和治理内容。",
+  "reason": "相对固定目标 master，README 模型说明已更新；服务管理的 Windows 停止修正与模型/Host 认证隔离不冲突。此为 Codex 文本评审，不代表人工、截图或 Windows 功能验收。"
 }

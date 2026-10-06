@@ -4,6 +4,26 @@
 
 数据能力仅在对应任务中按需加载：`wind-find-finance-skill` 负责金融能力发现，`wind-mcp-skill` 负责受支持的 Wind 查询；`cls`、`cnstock` 和 `data-connector-development` 只维护 legacy crawler/Connector 层，不能把代码存在误报为当前 Research Web DataHub Provider 可调用。全局目录不再承载这些项目专属 Skill。
 
+## Git、设备与 Worktree 契约
+
+GitHub 是 Mac、Windows 和 Codex worktree 之间 Git-managed source code 的唯一真相源。不得使用云盘文件夹、Finder/Explorer 覆盖、U 盘、移动硬盘或同步工具复制源码；移动介质只可保存 data、database、model、cache 或 artifact。
+
+远端长期只保留 `master`。日常流程固定为：
+
+```text
+master
+  → short-lived branch/worktree
+  → local platform-aware minimal acceptance
+  → PR
+  → routed CI
+  → merge master
+  → safe cleanup
+```
+
+短期分支使用 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或 `platform/macos/*`。Mac 是主要开发机，负责功能、架构、重构和 macOS 本地验证；Windows 默认运行 `git switch master` 与 `git pull --ff-only` 后验证最新集成版本，验证成功不创建分支。只有 Windows-only 缺陷才从最新 `master` 建立 `platform/windows/*`，并通过 PR 回到 `master`。需要 GitHub Windows CI 时，Windows 真机先 checkout 待验 ref、读取 `git rev-parse HEAD`，再从该机 dispatch workflow 并传入 `expected_sha`；Mac 不发送 Windows dispatch。禁止长期维护 `windows`、`macos`、`develop` 或设备专属代码线。
+
+一个并行任务对应一个明确 branch，原则上对应一个独立 worktree。合并后仅在确认提交已进入 `master`、worktree 没有未归并修改且没有进程占用时，才移除该 worktree 和失效短期分支。仓库当前没有 GitHub branch protection；“不直接在 master 开发”是项目契约，不得误报为远端已机械强制。
+
 ## 任务路由（Routing rules）
 
 先按下列优先级路由，而不是只凭任务大小选择。后台/远程是执行通道，worktree 是本地仓库修改隔离；二者可以组合，长时本身不要求 worktree。选择最小但足够的方式，不因任务看似复杂而跳过验证。
@@ -59,12 +79,13 @@ fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非
 
 `requiredLevel` 是完整 changed set 的最高必要等级；`validationsByLevel` 是实际执行真源。等级是累积责任，但不会凭空加入不相关平台门。Web-only 的 L4 仍不能伪称已执行桌面 Windows 验收；只有规划器实际输出的外部门才进入回执。
 
-### Change → Impact → Validation
+### Component × Risk × Platform
 
 每次迭代必须读取并保留：
 
 - `changeSummary` 与 `changedFiles`：改了什么；
-- `impact` 与 `reasons`：影响模块、耦合和边界；
+- `components`、`impact` 与 `reasons`：影响组件、耦合和边界；
+- `platforms`：`generic`、`linux`、`macos`、`windows`、`cross-platform` 或 `real-machine-required`；
 - `validationsByLevel`：最能证明影响的最小测试、文档和外部门；
 - `escalations` 与 `uncoveredRisks`：为何扩大、仍未覆盖什么。
 
@@ -74,7 +95,9 @@ fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非
 
 按 L0→`requiredLevel` 执行输出项，并为每个实际检查记录状态、耗时和证据路径。局部失败后用 `--signal validation_failure` 重新规划；非预期行为用 `--signal unexpected_behavior`。两种 signal 均逐级扩大范围并保留升级原因。
 
-最终 receipt 必须包含变更摘要、精确 changed set、计划/实际等级、组件与平台、已执行项、`external` CI 门、`realMachine` 发布门、`mergeReady`、`releaseReady`、结果、`uncoveredRisks` 与升级决定，然后运行：
+Planner schema v3 将验证投影为三个 lane：`local` 是执行者本地运行的 merge validation，`ci` 是 GitHub runner merge gate，`realMachine` 是真实设备 release gate。macOS 本地通过不能替代 macOS CI，Windows CI 也不能替代 Windows 实机。
+
+最终 receipt schema v2 必须包含变更摘要、精确 changed set、组件/平台、计划/实际等级、影响判断、`executed`、`external`、`realMachine`、`mergeReady`、`releaseReady`、`uncoveredRisks` 与升级决定，然后运行：
 
 ```bash
 node scripts/validate_verification_receipt.mjs --project . \
@@ -82,11 +105,13 @@ node scripts/validate_verification_receipt.mjs --project . \
   --receipt <receipt-json>
 ```
 
-回执校验失败就不是完成。`full-delivery` 的外部门不得写成 `not_required`；未运行时必须以 `blocked` 和对应未覆盖风险保留，不能用本机检查冒充 CI/平台证据。
+回执校验失败就不是完成。已选中的 merge gate 不得写成 `NOT_REQUIRED`；未运行时必须以 `NOT_RUN` 和对应未覆盖风险保留，并令回执 `BLOCKED`，不能用本机检查冒充 CI/平台证据。
+
+规范状态只有：`PASS`、`FAIL`、`SKIPPED`、`NOT_REQUIRED`、`NOT_RUN`、`BLOCKED`、`MANUAL_REQUIRED`。选中的必需 gate 只有 `PASS` 是正向证明；`NOT_REQUIRED` 只能描述未选择的范围，不能用于已选 gate。Windows CI 为 `NOT_RUN` 时 `mergeReady=false`；Windows CI 为 `PASS` 而真实 Windows 安装为 `MANUAL_REQUIRED` 时，可以保持 merge-ready，但 `releaseReady=false`，两层证据不得合并为单一 “Windows PASS”。
 
 计划必须覆盖完整 changed set，并按最高风险合并。未知路径不能降级；非法策略、符号链接或越界路径必须先失败，不能退回猜测计划。
 
-普通 `app/research_web/` 与 `app/web/` Web-only 改动只选择相关 Web、文档与轻量 CI 门，desktop、Windows、Tauri、sidecar 和 installer 门数量必须为 0。只有桌面专属路径才附加原生 Windows 与 [`desktop_packaging.md`](desktop_packaging.md) 门。
+普通 `app/research_web/` 与 `app/web/` Web-only 改动只选择相关 Web、文档与轻量 CI 门，desktop、Windows、Tauri、sidecar 和 installer 门数量必须为 0。共享安装/runtime、Windows launcher、本机集成和路径/编码/进程边界会让 Router 选择 Windows Web CI gate；该 gate 仅由 Windows 真机对 exact SHA 手动 dispatch，Mac PR/push 不自动执行。只有桌面专属路径才附加原生 macOS/Windows Desktop gate 与 [`desktop_packaging.md`](desktop_packaging.md) 的发布前实机门。
 
 Research Web 框架的 backend、renderer 与已登记测试按组件影响合并；单个 renderer 可停在局部闭包，backend+renderer 等高耦合跨模块集合自动扩大到依赖和 smoke 闭包。其他未登记测试继续 fail closed，不能用通用测试目录规则批量降级。
 

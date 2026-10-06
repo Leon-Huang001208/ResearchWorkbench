@@ -679,7 +679,7 @@ class WebServiceManager:
             )
         except (OSError, subprocess.SubprocessError) as exc:
             raise ServiceManagerError("无法停止 Windows 服务进程树") from exc
-        if result.returncode != 0 and self._pid_exists(pid):
+        if force and result.returncode != 0 and self._pid_exists(pid):
             raise ServiceManagerError("无法停止 Windows 服务进程树")
 
     def _owned_state(self, process: ManagedProcess) -> dict[str, Any] | None:
