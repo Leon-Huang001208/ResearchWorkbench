@@ -268,7 +268,12 @@ jobs:
                         "startup_timeout", "unexpected_child_exit", "cleanup_failed",
                         "unknown_owned_role", "auth_cleanup_failed",
                         "MODULE_NOT_FOUND", "ERR_MODULE_NOT_FOUND", "ModuleNotFoundError",
-                        "PermissionError", "EACCES", "EROFS", "runtime_state_unsafe")
+                        "PermissionError", "EACCES", "EROFS", "runtime_state_unsafe",
+                        "owned_dsh_launch", "owned_dsh_launch_failed",
+                        "research_runtime_readiness_failed", "staged_runtime_verification_failed",
+                        "TypeError", "KeyError", "AttributeError", "ImportError",
+                        "ERR_DLOPEN_FAILED", "ERR_PACKAGE_PATH_NOT_EXPORTED",
+                        "ENOENT", "EADDRINUSE", "SQLITE_CANTOPEN", "OperationalError", "ServiceNotFoundError")
           stages = {"private_directories", "logging_setup", "config_validation", "ownership_init", "auth_reset",
                     "process_specs", "runtime_spawn", "runtime_wait", "runtime_probe",
                     "web_spawn", "web_wait", "web_probe", "running", "unknown",
@@ -327,7 +332,9 @@ jobs:
                   "sensitive_lines_redacted": sum(bool(SECRET_PATTERN.search(line)) for line in lines),
                   "all_raw_lines_omitted": True,
                   "startup_failures": [value for line in lines if (value := startup_record(line)) is not None][:16],
-                  "events": {event: sum(event in line for line in lines) for event in categories},
+                  "events": {event: sum(
+                      bool(re.search(r"\bowned_dsh_launch\b", line)) if event == "owned_dsh_launch"
+                      else event in line for line in lines) for event in categories},
               }
           output = json.dumps(report, sort_keys=True) + "\n"
           assert not SECRET_PATTERN.search(output)

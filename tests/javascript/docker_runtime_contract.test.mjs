@@ -209,6 +209,10 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
       'supervisor_failed',
       'child_started',
       'private_directories_ready',
+      'owned_dsh_launch',
+      'owned_dsh_launch_failed',
+      'TypeError: fixture-private-error-text',
+      'ERR_DLOPEN_FAILED: fixture-private-native-path',
       JSON.stringify({event: 'container_startup_failure ' + JSON.stringify({
         stage: 'runtime_wait', exception_class: 'RuntimeError', errno: null,
         runtime_returncode: 2, web_returncode: null,
@@ -236,7 +240,7 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
     const output = readFileSync(join(directory, 'evidence', 'failure-redacted.log'), 'utf8');
     assert.doesNotMatch(output, /fixture-|Bearer|dsh-auth|\u001b/);
     const report = JSON.parse(output)['runtime.log'];
-    assert.equal(report.scanned_lines, 14);
+    assert.equal(report.scanned_lines, 18);
     assert.equal(report.sensitive_lines_redacted, 3);
     assert.equal(report.events.health_ready, 1);
     assert.equal(report.events.MODULE_NOT_FOUND, 1);
@@ -244,6 +248,10 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
     assert.equal(report.events.supervisor_failed, 1);
     assert.equal(report.events.child_started, 1);
     assert.equal(report.events.private_directories_ready, 1);
+    assert.equal(report.events.owned_dsh_launch, 1);
+    assert.equal(report.events.owned_dsh_launch_failed, 1);
+    assert.equal(report.events.TypeError, 1);
+    assert.equal(report.events.ERR_DLOPEN_FAILED, 1);
     assert.deepEqual(report.startup_failures, [{
       stage: 'runtime_wait', exception_class: 'RuntimeError', errno: null,
       runtime_returncode: 2, web_returncode: null,
