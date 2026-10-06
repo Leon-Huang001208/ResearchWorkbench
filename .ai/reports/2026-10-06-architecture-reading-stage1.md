@@ -7,7 +7,7 @@
 - taskId: task-20261006-992c74ec267b。
 - worktree: `/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20261006-992c74ec267b`。
 - branch: `codex/task-20261006-992c74ec267b-architecture-reading-stage1`。
-- 开始基线与图示源码：`211703cca660172b524eff804cc547458529858e`；新观察远端 master：`ddcdd9784d8eda2918b8987ca8b679375e67291d`。PR #80 已由独立任务合并，本任务未修改该 PR；送审前仍需集成最新主线。
+- 开始基线与图示源码：`211703cca660172b524eff804cc547458529858e`；新观察远端 master：`ddcdd9784d8eda2918b8987ca8b679375e67291d`。PR #80 已由独立任务合并，本任务未修改该 PR；最新主线已在独立集成现场归并，后续候选另记。
 - 1A/1B/1C 实现已落地，清单 186 个唯一 Method + Path / 188 项声明；数字不是验收常量。
 - 本轮新增验证：架构 72 项（新增悬空链接及登记/允许列表 fixture）；相关 L4 Node 合同 100/100 PASS；生成完整内容一致性 PASS；实际 HTTP 安全边界 10/10 PASS；Python 语法编译 PASS。
 - 真实浏览器：Settings → 架构文档分类 → 新页图册 → 总图/分图/返回 → 框架及协调器正确 API 分类 PASS；固定基线版本的说明、源码、测试均实际点击并 HTTP 200。独立 Web 18088 禁用 lifespan，验证的是阅读面，不是 Runtime 产品 ready。
@@ -185,3 +185,14 @@ settled runtime failure 分别投影为可见 connecting/offline。阅读顺序�
 - 新总图与基线图形证据保持原哈希，无重复人工审批。后续 source 文档版本与候选提交将分开记录，不要求产物嵌入包含自身的 SHA。
 - 正常安装仍被同一 Guard 拒绝；查看 Codex App 当前设置的 native UI 也被 Computer Use 的安全策略禁止，未使用其他方式绕过。测试包安装授权继续有效，但宿主行为未改变。
 - 远端仓库 PUBLIC，master 已前进到 ddcdd9784d8eda2918b8987ca8b679375e67291d；PR #80 已合并，本任务未操作；PR #81 是另一任务，保持不动。
+
+## 独立主线集成
+
+- 功能快照：2b40f46e18b8957a0bd1960fa1b12a73478551df。
+- 最新主线：ddcdd9784d8eda2918b8987ca8b679375e67291d。
+- 集成 worktree：`/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20261006-992c74ec267b-integration`；branch：`codex/integrate-task-20261006-992c74ec267b`。
+- 归并提交：edafa7db0（准确完整 SHA 可由 git log/rev-parse 查询）；包含上述功能快照与当前主线。
+- 两处 JSON 冲突已按实际身份合并：保留主线 01-deployment 用户审阅记录与本任务 00-system-overview 用户审阅；README 复核保留 macOS Native/Keychain 支持边界和新增导航。没有选择过时哈希覆盖新证据。
+- 自动归并带入的重复架构开头已整理为职责/边界优先，保留主线模型活动门与认证 record 分工。
+- 日志作为任务证据复制到集成现场，未用文件复制同步源码。
+- 管理器初次返回 integration_conflict 时实际 Git 尚无 MERGE_HEAD 或 U 文件；核对该管理器将任何 merge 非零归为冲突后，正常 git merge 得到两处真实冲突并完成归并。未直接把干净主线误认成包含功能的 prepared 候选。
