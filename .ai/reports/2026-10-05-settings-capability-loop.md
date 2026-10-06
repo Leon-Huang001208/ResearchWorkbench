@@ -569,3 +569,11 @@ PR78已由其他操作于2026-10-06T14:23:24Z合并677b9dc8，master合并提交
 H自动运行attempt1/pull_request：Project Constraints37481022606已success；Research Web Checks37481022639与Mac Bootstrap37481022776采集时仍in_progress。当前head/base/mergePreview及runner元数据在current-ci.json；尚未完成的运行不能取得最终checkout日志，交接后再核对，不能以旧CI替代。本次没有额外dispatch、无限轮询或第二轮修复。Docker/Linux与Windows产品验收用户暂缓NOT_RUN，通用Ubuntu CI保留。旧b048两成功门脱敏checkout证据独立留存；不混用其SHA。
 
 本轮不合并、不发布，生产8088/3081未修改；独立测试实例已停止且Key已按早先产品流程清除，本轮模型/工具请求0。T6真实PASS保留，B供应商归因仍UNVERIFIED，因此完整1A仍BLOCKED；H全部Mac自动门尚未完成，C5当前候选部分完成，mergeReady=false/releaseReady=false。用户查看四部署截图并确认的same-hash人工证据保留。仅本地报告提交不推送，避免“补报告→新HEAD→再CI”循环；H与后续报告提交身份明确分开。
+
+### C5最终结果（Mac范围完成）
+
+宿主macOS，任务类型功能收口/本平台验收；用户要求在已授权范围内持续完成，不另索确认。冻结候选H=4e229e855f31dc7bba96f462ad8f40731a5f0fe2，草稿PR80目标211703cca660172b524eff804cc547458529858e，实际CI checkout均为合并预览2df45889c8935007ec5b7c9b19aa6caa96fadde7（并非H本身或报告HEAD）。三个自动门attempt1/pull_request最终success：Project Constraints37481022606、Research Web Checks37481022639（Ubuntu通用/非macOS证据）、macOS Bootstrap37481022776（macos-14本平台证据）。run/job/runner/head/base/checkout证据见integration-final/current-ci.json、各run-final.json和checkout.txt。mac-final-artifact为现行workflow最小无凭据成功产物，Doctor installation_ok=true/product_ready=true、Runtime3081/Web8088 ready=true；天软configured=false/callable=false/restart_required=false，正常停止步骤success。不借开发机环境认证干净安装，不使用真实Key。
+
+Mac基础模型链路与早先T6已有验证证据保持，本轮C5 macOS范围自动门完成；Ubuntu结果只记为通用门，不冒称Mac CI。Windows/Linux及Docker产品门用户暂缓，保留NOT_RUN并不作为当前Mac宿主完成前提。总体验收catalog仍选Docker，因此回执诚实BLOCKED、mergeReady=false/releaseReady=false；完整1A另有B实际供应商归因UNVERIFIED，不能因绿色CI或平台范围变化宣布完整1A/正式发布完成。当前Mac功能验收没有新增缺项，本轮供应商请求0。
+
+实际动作：gh run view/api读取最终元数据与脱敏checkout、gh run download获取Mac最小成功artifact、现有receipt validator、完整范围project constraints/documentation治理核对；无重复dispatch、第二轮CI修复、平台验收、合并、发布或生产变更。独立实例仍保留停止状态与此前产品清Key证据。后续本地报告提交与H区分，仅报告变化不推送、不诱发重复CI；代码状态与tree身份保存在final-identity.json。下一唯一目标为取得B非秘密供应商归因证据；无现成按Key记录时保持未验证，不读取/散列Key、不自动发新请求。
