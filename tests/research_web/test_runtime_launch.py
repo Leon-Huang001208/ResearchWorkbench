@@ -654,3 +654,43 @@ def test_tabbit_node_unsupported_versions_fail_closed(version, monkeypatch):
     monkeypatch.setattr(launch_runtime.subprocess, "check_output", lambda *args, **kwargs: version)
     with pytest.raises(RuntimeError, match="22.19"):
         launch_runtime.validate_tabbit_node("node")
+
+
+@pytest.mark.parametrize(("target", "stage"), [
+    ("validate_tabbit_node", "launcher_node"),
+    ("prepare", "launcher_prepare"),
+    ("prepare_runtime_module_fallback", "launcher_modules"),
+    ("stage_tabbit_package", "launcher_tabbit_package"),
+    ("stage_tabbit_adapter", "launcher_tabbit_adapter"),
+    ("_atomic_json", "launcher_config"),
+    ("execve", "launcher_exec"),
+])
+def test_launcher_failure_emits_fixed_stage_without_exception_text(tmp_path, monkeypatch, target, stage):
+    messages = []
+    monkeypatch.setattr(sys, "argv", ["launcher", "--source", str(tmp_path), "--data", str(tmp_path)])
+    monkeypatch.setattr(launch_runtime, "setup_logging", lambda: None)
+    monkeypatch.setattr(launch_runtime, "log", SimpleNamespace(
+        error=lambda event, **fields: messages.append((event, fields)), info=lambda *args, **kwargs: None,
+    ))
+    monkeypatch.setattr(launch_runtime, "validate_tabbit_node", lambda *args: "24.19.0")
+    monkeypatch.setattr(launch_runtime, "prepare", lambda *args, **kwargs: (["node"], {}, tmp_path))
+    monkeypatch.setattr(launch_runtime, "prepare_runtime_module_fallback", lambda *args: 1)
+    monkeypatch.setattr(launch_runtime, "stage_tabbit_package", lambda *args: {"version": "fixture", "source_commit": "fixture"})
+    monkeypatch.setattr(launch_runtime, "stage_tabbit_adapter", lambda *args: None)
+    monkeypatch.setattr(launch_runtime, "load_tabbit_config", lambda *args: {})
+    monkeypatch.setattr(launch_runtime, "_atomic_json", lambda *args: None)
+    monkeypatch.setattr(launch_runtime.os, "chdir", lambda *args: None)
+    def fail(*args, **kwargs):
+        raise PermissionError(13, "fixture-private-path-command-token")
+    if target == "execve":
+        monkeypatch.setattr(launch_runtime.os, target, fail)
+    else:
+        monkeypatch.setattr(launch_runtime, target, fail)
+    with pytest.raises(SystemExit) as error:
+        launch_runtime.main()
+    assert error.value.code == 1
+    records = [json.loads(event.removeprefix("container_startup_failure "))
+               for event, _ in messages if event.startswith("container_startup_failure ")]
+    assert records == [{"stage": stage, "exception_class": "PermissionError", "errno": 13,
+                        "runtime_returncode": None, "web_returncode": None}]
+    assert "fixture-private" not in json.dumps(messages)

@@ -271,9 +271,12 @@ jobs:
                         "PermissionError", "EACCES", "EROFS", "runtime_state_unsafe")
           stages = {"private_directories", "logging_setup", "config_validation", "ownership_init", "auth_reset",
                     "process_specs", "runtime_spawn", "runtime_wait", "runtime_probe",
-                    "web_spawn", "web_wait", "web_probe", "running", "unknown"}
+                    "web_spawn", "web_wait", "web_probe", "running", "unknown",
+                    "launcher_node", "launcher_prepare", "launcher_modules", "launcher_tabbit_package",
+                    "launcher_tabbit_adapter", "launcher_config", "launcher_exec"}
           classes = {"RuntimeStateError", "PermissionError", "FileNotFoundError", "ProcessLookupError",
-                     "OSError", "ValueError", "RuntimeError", "TimeoutExpired", "SubprocessError", "Other"}
+                     "OSError", "ValueError", "RuntimeError", "StoreError", "TimeoutExpired",
+                     "CalledProcessError", "SubprocessError", "Other"}
           fields = {"stage", "exception_class", "errno", "runtime_returncode", "web_returncode"}
           def startup_record(line):
               try:
@@ -283,6 +286,16 @@ jobs:
                   except ValueError:
                       outer = None
                   event = outer.get("event") if type(outer) is dict else None
+                  if type(event) is str and not event.startswith(prefix):
+                      try:
+                          forwarded = json.loads(event)
+                      except ValueError:
+                          forwarded = None
+                      if (type(forwarded) is dict and forwarded.get("event") == "container_child"
+                              and forwarded.get("role") == "runtime"
+                              and type(forwarded.get("output")) is str):
+                          launcher = json.loads(forwarded["output"])
+                          event = launcher.get("event") if type(launcher) is dict else None
                   if type(event) is str and event.startswith(prefix):
                       payload = event[len(prefix):]
                   elif outer is None and line.count(prefix) == 1:

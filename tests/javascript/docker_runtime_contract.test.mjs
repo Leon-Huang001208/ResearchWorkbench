@@ -217,6 +217,12 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
         stage: 'logging_setup', exception_class: 'ValueError', errno: null,
         runtime_returncode: null, web_returncode: null,
       }),
+      JSON.stringify({event: JSON.stringify({event: 'container_child', role: 'runtime', output:
+        JSON.stringify({event: 'container_startup_failure ' + JSON.stringify({
+          stage: 'launcher_modules', exception_class: 'RuntimeError', errno: null,
+          runtime_returncode: null, web_returncode: null,
+        })}),
+      })}),
       JSON.stringify({event: 'container_startup_failure ' + JSON.stringify({
         stage: 'fixture-private-stage', exception_class: 'fixture-private-error', errno: 13,
         runtime_returncode: 2, web_returncode: null, detail: 'fixture-private-path',
@@ -230,7 +236,7 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
     const output = readFileSync(join(directory, 'evidence', 'failure-redacted.log'), 'utf8');
     assert.doesNotMatch(output, /fixture-|Bearer|dsh-auth|\u001b/);
     const report = JSON.parse(output)['runtime.log'];
-    assert.equal(report.scanned_lines, 13);
+    assert.equal(report.scanned_lines, 14);
     assert.equal(report.sensitive_lines_redacted, 3);
     assert.equal(report.events.health_ready, 1);
     assert.equal(report.events.MODULE_NOT_FOUND, 1);
@@ -243,6 +249,9 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
       runtime_returncode: 2, web_returncode: null,
     }, {
       stage: 'logging_setup', exception_class: 'ValueError', errno: null,
+      runtime_returncode: null, web_returncode: null,
+    }, {
+      stage: 'launcher_modules', exception_class: 'RuntimeError', errno: null,
       runtime_returncode: null, web_returncode: null,
     }]);
     assert.equal(report.all_raw_lines_omitted, true);

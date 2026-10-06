@@ -746,8 +746,10 @@ def main():
     )
     args = parser.parse_args()
     setup_logging()
+    stage = "launcher_node"
     try:
         node_version = validate_tabbit_node(args.node)
+        stage = "launcher_prepare"
         command, env, work = prepare(
             args.source,
             args.data,
@@ -758,14 +760,18 @@ def main():
             args.datahub_url,
             state_root=args.state if args.state is not None else args.data.resolve() / "runtime",
         )
+        stage = "launcher_modules"
         module_count = prepare_runtime_module_fallback(
             args.source.resolve(), args.data.resolve() / "runtime/home", args.node
         )
+        stage = "launcher_tabbit_package"
         tabbit_manifest = stage_tabbit_package(TABBIT_VENDOR, args.data.resolve() / "runtime/home")
+        stage = "launcher_tabbit_adapter"
         stage_tabbit_adapter(
             Path(__file__).parent / "runtime" / "tabbit-adapter.mjs",
             args.data.resolve() / "runtime/home",
         )
+        stage = "launcher_config"
         _atomic_json(
             args.data.resolve() / ".control" / "tabbit-applied.json",
             load_tabbit_config(args.data.resolve()),
@@ -779,6 +785,7 @@ def main():
             tabbit_source_commit=tabbit_manifest["source_commit"],
             node_version=node_version,
         )
+        stage = "launcher_exec"
         os.chdir(work)
         os.execve(args.node, command, env)
     except (
@@ -788,7 +795,18 @@ def main():
         StoreError,
         subprocess.SubprocessError,
     ) as exc:
-        log.error("owned_dsh_launch_failed", error=str(exc))
+        name = type(exc).__name__
+        allowed = {"OSError", "PermissionError", "FileNotFoundError", "ProcessLookupError",
+                   "RuntimeStateError", "ValueError", "RuntimeError", "StoreError",
+                   "TimeoutExpired", "CalledProcessError", "SubprocessError"}
+        kind = name if name in allowed else "Other"
+        number = exc.errno if isinstance(exc, OSError) else None
+        number = number if type(number) is int and 0 <= number <= 4095 else None
+        log.error("container_startup_failure " + json.dumps({
+            "stage": stage, "exception_class": kind, "errno": number,
+            "runtime_returncode": None, "web_returncode": None,
+        }, sort_keys=True))
+        log.error("owned_dsh_launch_failed", stage=stage, error_type=kind)
         raise SystemExit(1) from exc
 
 
