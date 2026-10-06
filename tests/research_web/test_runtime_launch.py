@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -176,12 +177,13 @@ def test_clean_runtime_exec_environment_retains_only_exact_runtime_role(
 
 def test_runtime_role_survives_real_exec_with_clean_environment(tmp_path):
     source = make_source(tmp_path)
-    # Python stands in for Node only at the final executable boundary. The real
-    # launcher prepare/main/execve path supplies the environment to this process.
+    # Execute the actual Node preload and final exec boundary with public fixtures.
+    node = shutil.which("node")
+    assert node is not None
+    (source / "package.json").write_text(json.dumps({"version": "fixture"}))
     (source / "apps/cli/lib/bin.js").write_text(
-        "import json,os\n"
-        "print(json.dumps({'role':os.environ.get('RWB_SUPERVISOR_ROLE'),"
-        "'host':os.environ.get('UNRELATED_HOST_VALUE')}))\n"
+        "console.log(JSON.stringify({role:process.env.RWB_SUPERVISOR_ROLE,"
+        "host:process.env.UNRELATED_HOST_VALUE ?? null}));\n"
     )
     runner = """
 import os, sys
@@ -194,14 +196,11 @@ launcher.stage_tabbit_package = lambda *a: {'version':'fixture','source_commit':
 launcher.stage_tabbit_adapter = lambda *a: None
 os.environ['RWB_SUPERVISOR_ROLE'] = 'runtime'
 os.environ['UNRELATED_HOST_VALUE'] = 'must-not-cross-exec-boundary'
-# Python is the fixture's exec stand-in, not a Node preload runner.
-real_exec = launcher.os.execve
-launcher.os.execve = lambda executable, args, env: real_exec(executable, [args[0], *(args[3:] if args[1:2] == ['--import'] else args[1:])], env)
-sys.argv = ['launcher', '--source', sys.argv[1], '--data', sys.argv[2], '--node', sys.executable]
+sys.argv = ['launcher', '--source', sys.argv[1], '--data', sys.argv[2], '--node', sys.argv[3]]
 launcher.main()
 """
     completed = subprocess.run(
-        [sys.executable, "-c", runner, str(source), str(tmp_path / "data")],
+        [sys.executable, "-c", runner, str(source), str(tmp_path / "data"), node],
         capture_output=True,
         text=True,
         timeout=5,
@@ -229,11 +228,11 @@ def test_prepare_separates_persistent_data_from_runtime_state(
     options = {"state_root": state} if separate_state else {}
     command, env, work = launch_runtime.prepare(source, data, "/node", 3081, **options)
     assert env["DSH_HOME"] == str(data.resolve() / "runtime/home")
-    assert env["RESEARCH_RUNTIME_AUTH"] == str(state.resolve() / "auth.json")
-    assert env["RESEARCH_RUNTIME_STATE_ROOT"] == str(state.resolve())
     assert work == data.resolve() / "runtime/work"
     assert command[command.index("--host") + 1] == "127.0.0.1"
     assert command[command.index("--patch") + 1] == str(state.resolve() / "overlay.yml")
+    assert env["RESEARCH_RUNTIME_AUTH"] == str(state.resolve() / "auth.json")
+    assert env["RWB_RUNTIME_STATE"] == str(state.resolve())
     assert (state / "build-lock.json").is_file()
     assert _default_auth_path() == state / "auth.json"
     if separate_state:
@@ -384,18 +383,14 @@ def test_runtime_state_boundary_checks_owner_mode_and_identity(tmp_path, monkeyp
         return identity
 
     monkeypatch.setattr(Path, "lstat", wrong_owner)
-    with (
-        pytest.raises(runtime_state.RuntimeStateError),
-        runtime_state.runtime_state_directory(state),
-    ):
-        pytest.fail("wrong owner accepted")
+    with pytest.raises(runtime_state.RuntimeStateError):
+        with runtime_state.runtime_state_directory(state):
+            pytest.fail("wrong owner accepted")
     monkeypatch.setattr(Path, "lstat", original_lstat)
-    with (
-        pytest.raises(runtime_state.RuntimeStateError),
-        runtime_state.runtime_state_directory(state),
-    ):
-        state.rename(tmp_path / "old-state")
-        state.mkdir(mode=0o700)
+    with pytest.raises(runtime_state.RuntimeStateError):
+        with runtime_state.runtime_state_directory(state):
+            state.rename(tmp_path / "old-state")
+            state.mkdir(mode=0o700)
 
 
 def test_runtime_state_windows_rejects_reparse_without_using_posix_mode_as_acl():
@@ -427,22 +422,18 @@ def test_runtime_state_disappearance_during_open_is_rejected_before_body(tmp_pat
         return original_lstat(path)
 
     monkeypatch.setattr(Path, "lstat", disappear)
-    with (
-        pytest.raises(runtime_state.RuntimeStateError, match="runtime_state_unsafe"),
-        runtime_state.runtime_state_directory(state),
-    ):
-        pytest.fail("changed directory accepted")
+    with pytest.raises(runtime_state.RuntimeStateError, match="runtime_state_unsafe"):
+        with runtime_state.runtime_state_directory(state):
+            pytest.fail("changed directory accepted")
 
 
 def test_runtime_state_boundary_preserves_caller_errors(tmp_path):
     from app.research_web.runtime_state import runtime_state_directory
 
     failure = ValueError("caller validation failed")
-    with (
-        pytest.raises(ValueError) as raised,
-        runtime_state_directory(tmp_path / "state", create=True),
-    ):
-        raise failure
+    with pytest.raises(ValueError) as raised:
+        with runtime_state_directory(tmp_path / "state", create=True):
+            raise failure
     assert raised.value is failure
 
 

@@ -11,18 +11,22 @@ import stat
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
 from contextlib import ExitStack
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.research_web import PINNED_DSH_COMMIT
 from app.research_web.process_spec import build_process_specs
 from app.research_web.runtime_auth import read_runtime_auth_record
 from app.research_web.runtime_state import (
-    RuntimeStateError, _identity, _validate_directory, runtime_state_directory,
+    RuntimeStateError,
+    _identity,
+    _validate_directory,
+    runtime_state_directory,
 )
 from app.research_web.service_manager import RUNTIME_TOKEN_PATTERN
 from core.observability import get_logger, setup_logging
@@ -32,9 +36,13 @@ from docker.healthcheck import ContainerHealth
 log = get_logger(__name__)
 ROLE_ENVIRONMENT_KEY = "RWB_SUPERVISOR_ROLE"
 MAX_ROLE_ENVIRONMENT_BYTES = 64 * 1024
-_DOCKER_PRIVATE_LEAVES = frozenset({
-    Path("/state/runtime"), Path("/run/rwb-secrets/private"), Path("/data/research-web/logs"),
-})
+_DOCKER_PRIVATE_LEAVES = frozenset(
+    {
+        Path("/state/runtime"),
+        Path("/run/rwb-secrets/private"),
+        Path("/data/research-web/logs"),
+    }
+)
 
 
 def _prepare_private_leaf(path: Path) -> None:
@@ -88,9 +96,12 @@ def _prepare_private_leaf(path: Path) -> None:
                 named = os.stat(name, dir_fd=ancestor, follow_symlinks=False)
                 _validate_directory(after, leaf=False, platform_name=os.name)
                 expected = _identity(before)
-                if (creation_mapping and component == path.parent
-                        and (before.st_uid, before.st_gid) == (0, 0)
-                        and (after.st_uid, after.st_gid) == (os.getuid(), os.getgid())):
+                if (
+                    creation_mapping
+                    and component == path.parent
+                    and (before.st_uid, before.st_gid) == (0, 0)
+                    and (after.st_uid, after.st_gid) == (os.getuid(), os.getgid())
+                ):
                     expected = (*expected[:3], os.getuid(), os.getgid())
                 if _identity(after) != expected or _identity(named) != expected:
                     raise RuntimeStateError("runtime_state_unsafe")
@@ -101,9 +112,12 @@ def _prepare_private_leaf(path: Path) -> None:
         # Re-pin with the original complete validator after the creation phase;
         # the fresh leaf must still be the object held by our retained fd.
         with runtime_state_directory(path):
-            if (_identity(path.lstat()) != _identity(created)
-                    or _identity(os.fstat(leaf)) != _identity(created)
-                    or _identity(os.stat(path.name, dir_fd=parent, follow_symlinks=False)) != _identity(created)):
+            if (
+                _identity(path.lstat()) != _identity(created)
+                or _identity(os.fstat(leaf)) != _identity(created)
+                or _identity(os.stat(path.name, dir_fd=parent, follow_symlinks=False))
+                != _identity(created)
+            ):
                 raise RuntimeStateError("runtime_state_unsafe")
         verify_parents()
     log.info("container_private_leaf_prepared")
@@ -126,18 +140,28 @@ class SupervisorConfig:
 
 class HealthProbe(Protocol):
     def __call__(
-        self, config: SupervisorConfig, role: str, timeout: float,
-        *, launch_token: str | None = None,
+        self,
+        config: SupervisorConfig,
+        role: str,
+        timeout: float,
+        *,
+        launch_token: str | None = None,
     ) -> bool: ...
 
 
 def real_probe(config, role, timeout, *, launch_token=None):
     with runtime_state_directory(config.state_root):
         health = ContainerHealth(
-            timeout=timeout, launch_token=launch_token, data_root=config.data_root,
-            runtime_state_root=config.state_root, runtime_source=config.runtime_source,
-            project_root=config.project_root, runtime_port=config.runtime_port,
-            web_port=config.web_port, python=config.python, node=config.node,
+            timeout=timeout,
+            launch_token=launch_token,
+            data_root=config.data_root,
+            runtime_state_root=config.state_root,
+            runtime_source=config.runtime_source,
+            project_root=config.project_root,
+            runtime_port=config.runtime_port,
+            web_port=config.web_port,
+            python=config.python,
+            node=config.node,
         )
         return health._runtime_healthy() if role == "runtime" else health._web_healthy()
 
@@ -152,7 +176,8 @@ class ChildOutput:
         self.token = None
         self.runtime_port = runtime_port
         self.secrets = [
-            value for key, value in os.environ.items()
+            value
+            for key, value in os.environ.items()
             if value and re.search(r"SECRET|PASSWORD|TOKEN|COOKIE|AUTH|API_KEY", key, re.I)
         ]
 
@@ -161,6 +186,38 @@ class ChildOutput:
             if len(self.secrets) >= 1024:
                 raise RuntimeError("redaction_capacity_exceeded")
             self.secrets.append(value)
+
+    def remember_bootstrap_auth(self, config, child):
+        """Consume only this owned startup's private handoff; never print the token."""
+        try:
+            with runtime_state_directory(config.state_root):
+                value = read_runtime_auth_record(config.state_root / "auth.json")
+        except FileNotFoundError:
+            return
+        except (OSError, ValueError, TypeError, UnicodeDecodeError) as error:
+            log.warning("container_bootstrap_auth_invalid", error_type=type(error).__name__)
+            raise RuntimeError("runtime_auth_handoff_binding_invalid") from error
+        if isinstance(value, dict) and ("cookie" in value or "bootstrap_token" not in value):
+            return  # Normal cookie probes retain their existing strict validation.
+        expected = {
+            "authority": f"127.0.0.1:{config.runtime_port}",
+            "cwd": str((config.data_root / "runtime/work").resolve()),
+            "source_commit": PINNED_DSH_COMMIT,
+            "pid": child.pid,
+        }
+        token = value.get("bootstrap_token") if isinstance(value, dict) else None
+        if (
+            not isinstance(value, dict)
+            or any(value.get(key) != item for key, item in expected.items())
+            or type(value.get("pid")) is not int
+            or not isinstance(token, str)
+            or re.fullmatch(r"[A-Za-z0-9_-]{43}", token) is None
+        ):
+            log.warning("container_bootstrap_auth_invalid")
+            raise RuntimeError("runtime_auth_handoff_binding_invalid")
+        self.remember_secret(token)
+        self.token = token
+        log.info("container_bootstrap_auth_loaded")
 
     def remember_auth(self, state_root):
         with runtime_state_directory(state_root):
@@ -186,7 +243,9 @@ class ChildOutput:
         for field in re.finditer(
             r"(?:dsh-auth-[\w-]+|token|credential|password|api[_-]?key|cookie|RWB_SUPERVISOR_ROLE)"
             r"[\"']?\s*[=:]\s*"
-            r"[\"']?([^\s;\"',}]+)", line, re.I,
+            r"[\"']?([^\s;\"',}]+)",
+            line,
+            re.I,
         ):
             self.remember_secret(field[1])
         cookie_header = re.search(r"(?:set-cookie|cookie)[\"']?\s*:\s*(.+)", line, re.I)
@@ -198,10 +257,17 @@ class ChildOutput:
         for secret in sorted(self.secrets, key=len, reverse=True):
             line = line.replace(secret, "[redacted]")
         if line:
-            log.info(json.dumps({
-                "event": "container_child", "role": role, "state": "output",
-                "code": "child_output", "output": line,
-            }))
+            log.info(
+                json.dumps(
+                    {
+                        "event": "container_child",
+                        "role": role,
+                        "state": "output",
+                        "code": "child_output",
+                        "output": line,
+                    }
+                )
+            )
 
     def drain(self, wait=0):
         for key, _ in self.selector.select(wait):
@@ -238,28 +304,53 @@ def _event(role, state, code):
     log.info(f"container_supervisor role={role} state={state} code={code}")
 
 
-_FAILURE_STAGES = frozenset({
-    "private_directories", "logging_setup", "config_validation", "ownership_init", "auth_reset", "process_specs",
-    "runtime_spawn", "runtime_wait", "runtime_probe", "web_spawn", "web_wait", "web_probe", "running",
-})
-_FAILURE_CLASSES = frozenset({
-    "RuntimeStateError", "PermissionError", "FileNotFoundError", "ProcessLookupError",
-    "OSError", "ValueError", "RuntimeError", "TimeoutExpired", "SubprocessError",
-})
+_FAILURE_STAGES = frozenset(
+    {
+        "private_directories",
+        "logging_setup",
+        "config_validation",
+        "ownership_init",
+        "auth_reset",
+        "process_specs",
+        "runtime_spawn",
+        "runtime_wait",
+        "runtime_probe",
+        "web_spawn",
+        "web_wait",
+        "web_probe",
+        "running",
+    }
+)
+_FAILURE_CLASSES = frozenset(
+    {
+        "RuntimeStateError",
+        "PermissionError",
+        "FileNotFoundError",
+        "ProcessLookupError",
+        "OSError",
+        "ValueError",
+        "RuntimeError",
+        "TimeoutExpired",
+        "SubprocessError",
+    }
+)
 
 
 def _failure_diagnostics(stage, error, children):
     """Return fixed startup facts without exception text, paths or process data."""
     name = type(error).__name__
     number = error.errno if isinstance(error, OSError) else None
+
     def returncode(role):
         value = getattr(children.get(role), "returncode", None)
         return value if type(value) is int and -255 <= value <= 255 else None
+
     return {
         "stage": stage if stage in _FAILURE_STAGES else "unknown",
         "exception_class": name if name in _FAILURE_CLASSES else "Other",
         "errno": number if type(number) is int and 0 <= number <= 4095 else None,
-        "runtime_returncode": returncode("runtime"), "web_returncode": returncode("web"),
+        "runtime_returncode": returncode("runtime"),
+        "web_returncode": returncode("web"),
     }
 
 
@@ -293,7 +384,7 @@ def _adopted_role(pid, identity):
         if len(raw) > MAX_ROLE_ENVIRONMENT_BYTES:
             return "unknown"
         prefix = ROLE_ENVIRONMENT_KEY.encode() + b"="
-        markers = [item[len(prefix):] for item in raw.split(b"\0") if item.startswith(prefix)]
+        markers = [item[len(prefix) :] for item in raw.split(b"\0") if item.startswith(prefix)]
         current = _process_snapshot().get(pid)
         if current is None or current.birth != identity.birth:
             return "unknown"
@@ -323,7 +414,10 @@ def _process_snapshot():
         # This is a test/development fallback; the image uses Linux /proc.
         process = subprocess.run(
             ["/bin/ps", "-axo", "pid=,ppid=,pgid=,lstart=,stat="],
-            capture_output=True, text=True, timeout=.5, check=True,
+            capture_output=True,
+            text=True,
+            timeout=0.5,
+            check=True,
         )
         for line in process.stdout.splitlines():
             fields = line.split()
@@ -364,7 +458,8 @@ class _OwnedProcesses:
             self.adopts = True
         try:
             self.baseline = {
-                (pid, info.birth) for pid, info in _process_snapshot().items()
+                (pid, info.birth)
+                for pid, info in _process_snapshot().items()
                 if info.parent == os.getpid()
             }
         except Exception:
@@ -392,8 +487,11 @@ class _OwnedProcesses:
                             _event("unknown", "unclassified", "unknown_owned_role")
         # Resolve ancestry to closure even when children appear before parents.
         while True:
-            additions = {pid: roles[info.parent] for pid, info in snapshot.items()
-                         if pid not in roles and info.parent in roles}
+            additions = {
+                pid: roles[info.parent]
+                for pid, info in snapshot.items()
+                if pid not in roles and info.parent in roles
+            }
             if not additions:
                 break
             roles.update(additions)
@@ -413,8 +511,7 @@ class _OwnedProcesses:
                     os.close(descriptor)
                     continue
             self.owned[pid] = (role, info.birth, descriptor)
-        return {pid: info for pid, info in snapshot.items()
-                if pid in self.owned}
+        return {pid: info for pid, info in snapshot.items() if pid in self.owned}
 
     def send(self, pid, signum):
         _, birth, descriptor = self.owned[pid]
@@ -481,7 +578,7 @@ def _stop(child, role, timeout, output, children, ownership):
                     _event(role, "stopping", "signal_kill")
                     escalated = True
                 ownership.send(pid, signal.SIGKILL)
-        output.drain(.025)
+        output.drain(0.025)
     if child is not None:
         child.wait(timeout=1)
     output.drain()
@@ -527,9 +624,14 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             (config.state_root / "auth.json").unlink(missing_ok=True)
         stage = "process_specs"
         specs = build_process_specs(
-            python=config.python, node=config.node, project_root=config.project_root,
-            data_root=config.data_root, runtime_source=config.runtime_source,
-            state_root=config.state_root, web_host="0.0.0.0", web_port=config.web_port,
+            python=config.python,
+            node=config.node,
+            project_root=config.project_root,
+            data_root=config.data_root,
+            runtime_source=config.runtime_source,
+            state_root=config.state_root,
+            web_host="0.0.0.0",
+            web_port=config.web_port,
             runtime_port=config.runtime_port,
         )
         environment = {
@@ -556,9 +658,14 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                     child_environment["RWB_DSH_STAGED"] = "1"
                 output.remember_secret(f"{ROLE_ENVIRONMENT_KEY}={spec.role}")
                 child = subprocess.Popen(
-                    spec.command, cwd=config.project_root, env=child_environment,
-                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT, start_new_session=True, close_fds=True,
+                    spec.command,
+                    cwd=config.project_root,
+                    env=child_environment,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                    close_fds=True,
                 )
                 # Retain cleanup ownership even if the guard's exit recheck fails.
                 children[spec.role] = child
@@ -568,7 +675,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             deadline = time.monotonic() + config.startup_timeout
             while True:
                 stage = "runtime_wait" if spec.role == "runtime" else "web_wait"
-                output.drain(.025)
+                output.drain(0.025)
                 ownership.refresh(children)
                 _reap_children(children)
                 if requested:
@@ -580,14 +687,16 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                     _event(spec.role, "failed", "startup_timeout")
                     raise RuntimeError("startup timeout")
                 stage = "runtime_probe" if spec.role == "runtime" else "web_probe"
-                if probe(config, spec.role, min(.25, remaining), launch_token=output.token):
+                if spec.role == "runtime" and probe is real_probe and output.token is None:
+                    output.remember_bootstrap_auth(config, child)
+                if probe(config, spec.role, min(0.25, remaining), launch_token=output.token):
                     if spec.role == "runtime" and probe is real_probe:
                         output.remember_auth(config.state_root)
                     _event(spec.role, "healthy", "health_ready")
                     break
         stage = "running"
         while not requested:
-            output.drain(.05)
+            output.drain(0.05)
             ownership.refresh(children)
             _reap_children(children)
             if any(child.poll() is not None for child in children.values()):
@@ -603,7 +712,9 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
         for role in ("web", "runtime"):
             if role in children:
                 try:
-                    _stop(children[role], role, config.shutdown_timeout, output, children, ownership)
+                    _stop(
+                        children[role], role, config.shutdown_timeout, output, children, ownership
+                    )
                 except (OSError, RuntimeError, subprocess.SubprocessError):
                     _event(role, "failed", "cleanup_failed")
                     status = 1
@@ -645,12 +756,19 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
 def main():
     data = Path(os.environ.get("RWB_DATA_ROOT", "/data/research-web"))
     try:
-        return run(SupervisorConfig(
-            data_root=data, state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
-            credential_root=Path(os.environ.get("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")),
-            project_root=Path("/opt/rwb"), runtime_source=Path("/opt/dsh"),
-            python=sys.executable, node="/usr/local/bin/node",
-        ))
+        return run(
+            SupervisorConfig(
+                data_root=data,
+                state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
+                credential_root=Path(
+                    os.environ.get("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")
+                ),
+                project_root=Path("/opt/rwb"),
+                runtime_source=Path("/opt/dsh"),
+                python=sys.executable,
+                node="/usr/local/bin/node",
+            )
+        )
     except (OSError, ValueError, RuntimeError):
         _event("stack", "failed", "supervisor_configuration_failed")
         return 1

@@ -732,7 +732,7 @@ def _prepare_runtime(
         "DSH_TELEMETRY_DISABLED": "1",
         "TMPDIR": str(temp),
         "RESEARCH_RUNTIME_AUTH": str(state / "auth.json"),
-        "RESEARCH_RUNTIME_STATE_ROOT": str(state),
+        "RWB_RUNTIME_STATE": str(state),
         "RESEARCH_DSH_SOURCE": str(source),
         "RESEARCH_RUNTIME_PORT": str(port),
     }

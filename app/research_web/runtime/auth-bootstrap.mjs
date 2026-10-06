@@ -7,12 +7,12 @@ import { createAuthOutputSink, writeBootstrapAuth } from './auth-output.mjs';
 const authFile = process.env.RESEARCH_RUNTIME_AUTH;
 const home = process.env.DSH_HOME;
 const source = process.env.RESEARCH_DSH_SOURCE;
+const state = process.env.RWB_RUNTIME_STATE || resolve(home || '/', '..');
 const port = Number(process.env.RESEARCH_RUNTIME_PORT);
-const state = process.env.RESEARCH_RUNTIME_STATE_ROOT || resolve(home || '/', '..');
 if (!authFile || !home || !source || !Number.isInteger(port) || port < 1 || port > 65535 ||
     state !== resolve(state) || authFile !== resolve(state, 'auth.json')) throw Error('runtime_auth_handoff_binding_invalid');
 const metadata = {
-  authority: `127.0.0.1:${port}`, cwd: process.cwd(),
+  authority: `127.0.0.1:${port}`, cwd: process.cwd(), pid: process.pid,
   source_commit: 'c919b2a460753859665db3f60143d525fb9140cf',
   version: JSON.parse(readFileSync(join(source, 'package.json'), 'utf8')).version,
 };

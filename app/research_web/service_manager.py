@@ -39,10 +39,10 @@ from research_workbench_entrypoint.web_contract import (
 )
 
 from . import PINNED_DSH_COMMIT, RUNTIME_CONTRACT
+from .lifecycle_lock import LifecycleLock, LifecycleLockError, _fsync_directory
 from .process_spec import ProcessSpec, build_process_specs
 from .runtime_auth import read_runtime_auth_record
 from .runtime_state import RuntimeStateError, runtime_state_directory
-from .lifecycle_lock import LifecycleLock, LifecycleLockError, _fsync_directory
 from .service_diagnostics import ServiceProbe
 
 log = get_logger(__name__)
@@ -2107,7 +2107,11 @@ class WebServiceManager:
 
     def _validate_log_ownership(self) -> dict[str, tuple[bytes, tuple[int, ...]]]:
         """Read exact Native state without deleting stale state or probing Docker."""
-        from research_workbench_entrypoint.runtime_mode import RuntimeModeError, _identity, _read_bytes
+        from research_workbench_entrypoint.runtime_mode import (
+            RuntimeModeError,
+            _identity,
+            _read_bytes,
+        )
 
         proofs = {}
         try:
@@ -2138,7 +2142,10 @@ class WebServiceManager:
         """Read only owned runtime.log/web.log, bounded to 64 KiB and 300 seconds."""
         from research_workbench_entrypoint.docker_runtime import MAX_OUTPUT, safe_log_text
         from research_workbench_entrypoint.runtime_mode import (
-            RuntimeModeError, _identity, _pin_posix_parents, _pin_windows_parents,
+            RuntimeModeError,
+            _identity,
+            _pin_posix_parents,
+            _pin_windows_parents,
         )
 
         if type(tail) is not int or not 0 <= tail <= 10000:
@@ -2155,9 +2162,10 @@ class WebServiceManager:
                 files = {}
                 try:
                     pin = _pin_windows_parents if os.name == "nt" else _pin_posix_parents
-                    with runtime_state_directory(self.log_root), pin(
-                        self.log_root / "web.log", node_only=True
-                    ) as parent:
+                    with (
+                        runtime_state_directory(self.log_root),
+                        pin(self.log_root / "web.log", node_only=True) as parent,
+                    ):
                         for role in ("runtime", "web"):
                             path = self.log_root / f"{role}.log"
                             name = str(path) if parent is None else path.name
@@ -2167,21 +2175,35 @@ class WebServiceManager:
                                 continue
                             if role not in ownership:
                                 raise ServiceManagerError("native_logs_ownership_unknown")
-                            if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                            if (
+                                not stat.S_ISREG(before.st_mode)
+                                or before.st_nlink != 1
                                 or getattr(before, "st_file_attributes", 0) & 0x400
-                                or (os.name == "posix" and before.st_uid != os.getuid())):
+                                or (os.name == "posix" and before.st_uid != os.getuid())
+                            ):
                                 raise ServiceManagerError("native_logs_unsafe")
-                            descriptor = os.open(name, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-                                                 | getattr(os, "O_NONBLOCK", 0), dir_fd=parent)
+                            descriptor = os.open(
+                                name,
+                                os.O_RDONLY
+                                | getattr(os, "O_NOFOLLOW", 0)
+                                | getattr(os, "O_NONBLOCK", 0),
+                                dir_fd=parent,
+                            )
                             with os.fdopen(descriptor, "rb") as stream:
                                 identity = os.fstat(stream.fileno())
                                 key = (identity.st_dev, identity.st_ino)
                                 if _identity(identity) != _identity(before):
                                     raise ServiceManagerError("native_logs_unsafe")
                                 previous = offsets.get(role)
-                                if previous and (previous[:2] != key or identity.st_size < previous[2]):
+                                if previous and (
+                                    previous[:2] != key or identity.st_size < previous[2]
+                                ):
                                     raise ServiceManagerError("native_logs_changed")
-                                start = previous[2] if previous else max(0, identity.st_size - MAX_OUTPUT // 2)
+                                start = (
+                                    previous[2]
+                                    if previous
+                                    else max(0, identity.st_size - MAX_OUTPUT // 2)
+                                )
                                 if not previous and tail == 0:
                                     start = identity.st_size
                                 stream.seek(start)
@@ -2216,7 +2238,7 @@ class WebServiceManager:
                     if files or output:
                         raise ServiceManagerError("native_logs_changed") from None
                 for text in output:
-                    encoded = text.encode("utf-8")[:MAX_OUTPUT - emitted]
+                    encoded = text.encode("utf-8")[: MAX_OUTPUT - emitted]
                     emitted += len(encoded)
                     sys.stdout.write(encoded.decode("utf-8", "ignore"))
                 sys.stdout.flush()

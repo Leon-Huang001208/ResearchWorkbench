@@ -167,3 +167,5 @@ Method 本身无脚本、依赖、Tool 声明或外部权限；用户不能创�
 Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝不按端口或任意 PID 清理。仅非强制
 `taskkill /T` 失败可进入原有 `/F` 升级；强制失败继续 fail closed。该修复不扩大文件、凭据、网络、
 会话或本机软件权限。
+
+启动handoff不能以DSH_HOME父目录推断独立state位置。Node preload接受launcher明确的state绑定；消费方验证私有目录/文件、authority、cwd、固定commit及PID，秘密只进入脱敏集合和受控Cookie交换，独立健康检查保持只读。

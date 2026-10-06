@@ -542,3 +542,13 @@ Project Constraints当前代码CI仍BLOCKED：PR78 CONFLICTING，actual remote m
 整合后在原获准独立data home补一次无Key受管启动：安装Doctor真实ok/installation_ok=true；正常页面200、Runtime connected/health/owned=true，credential_configured=false/uncertain=false，没有真实推理（预期）。随后正常stop并核对所属进程退出/端口关闭。没有更新/停止/迁移生产8088/3081、手写安装清单、安装新依赖或读取真实模型Key。早先T6真实PASS、4/6模型与2/2工具、产品清Key等证据原样保留，本轮真实供应商请求0，不消费已关闭轮次剩余额度。
 
 用户同时明确“没有按Key记录，继续保留未验证”：B实际供应商归因仍UNVERIFIED，不以这一句当作豁免，也不靠读密/哈希、保存/HTTP200/生成成功补证。不能宣布完整1A完成。整合提交/CI候选SHA及本地报告身份分开记录，新CI不复用fa452937a或e917b1c89运行冒称新HEAD通过；只普通push同一分支、复用草稿PR78，不合并/发布。按现行政策分别交付当前Mac验收与总体mergeReady/releaseReady，不删除外部门来凑全绿。
+
+### 同任务远端并发保护断点
+
+本地固定目标整合正常merge提交9a19caf2d061ba474cdb3cbabf0dbf2c40fd965b（父2118b99d2、1dbd7547f），此前所有验证与无Key清理已完成。普通push遇non-fast-forward，未使用force/rebase/reset。只读fetch证实远端同任务PR78新增e533fb204/689463a00/38df5dbf5，作者为用户账户，内容是同目标整合及认证PID/监督器加固；不能覆盖，亦不能用其三个Mac/通用成功CI认证本地9a19。
+
+在获准执行范围内正常merge固定38df5dbf5b37113111fa606c8a41d5e45bf42424，保留双方历史：复用其RWB_RUNTIME_STATE、bootstrap pid、监督器/Native读取加固，保留本地state canonical绑定、明确批准的阶段判定、原T6/清理报告及用户已经确认的部署图哈希。新测试冲突拼接曾造成triple-quoted fixture语法错误，保留concurrent-python.log；改为逐项核对后复用远端完整真实Node fixture，C1模型、调用控制及独立state测试全在，并发增量449 Python/43 JS PASS。独立Native无Key启动及正常停止已实测，不发真实请求，不动生产。
+
+旧远端另有pr78-repair报告作为既有同任务记录保留；本代理仍只维护本唯一报告，不借其未执行/拟执行真实验收声明发模型或索取Key。本轮模型/工具请求0，B仍用户明确没有按Key记录、未验证；早先T6 PASS和关闭的4模型/2工具总账不重置。
+
+准备收口时远端再次前进至677b9dc8eac227fa758a32bb34bba43204412337。此为持续同分支写入，而非缺访问权限；停止追赶、不覆盖、不自动混入未审阅版本，已向用户一次请求分支收口归属（暂停另一会话由本会话完成，或交由另一会话合入）。当前保存固定38df的已验证本地候选，等待归属明确后才推送。CI/目标提交仍分别记录，不修改工作流来冒称绿灯，不将B缺证据或暂缓平台标PASS。

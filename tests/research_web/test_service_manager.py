@@ -144,12 +144,20 @@ def test_lifecycle_lock_rejects_live_owner_and_two_contenders(tmp_path):
 
     assert not path.exists()
 
+
 def test_native_doctor_adds_mode_without_changing_previous_payload(manager, monkeypatch):
-    previous = {"schema_version": 1, "ok": True, "issues": [],
-                **{key: {"ready": True} for key in ("python", "node", "cjpy", "dsh", "data")}}
-    probes = tuple(ServiceProbe(role, port, "missing", "missing", "unknown", "closed",
-                                "not_run", False, None, ())
-                   for role, port in (("runtime", 3081), ("web", 8088)))
+    previous = {
+        "schema_version": 1,
+        "ok": True,
+        "issues": [],
+        **{key: {"ready": True} for key in ("python", "node", "cjpy", "dsh", "data")},
+    }
+    probes = tuple(
+        ServiceProbe(
+            role, port, "missing", "missing", "unknown", "closed", "not_run", False, None, ()
+        )
+        for role, port in (("runtime", 3081), ("web", 8088))
+    )
     monkeypatch.setattr(manager, "_installation_diagnosis", lambda: previous)
     monkeypatch.setattr(manager, "_service_probes", lambda: probes)
     report = manager.doctor()
@@ -166,7 +174,9 @@ def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):
     manager.log_root.mkdir(parents=True, mode=0o700)
     _prepare_log_ownership(manager, monkeypatch)
     (manager.log_root / "web.log").write_text("old\nready\nCookie: fake-secret\nlatest\n")
-    (manager.log_root / "runtime.log").write_text("dsh web: http://127.0.0.1:3081/?token=fake-secret\n")
+    (manager.log_root / "runtime.log").write_text(
+        "dsh web: http://127.0.0.1:3081/?token=fake-secret\n"
+    )
     (manager.log_root / "unrelated.log").write_text("must-not-read")
     assert manager.logs(tail=3) == 0
     output = output_stream.getvalue()
@@ -179,11 +189,23 @@ def test_native_logs_share_strict_process_identity(manager, monkeypatch, identit
     _prepare_log_ownership(manager, monkeypatch)
     monkeypatch.setattr(manager, "_pid_exists", lambda _pid: True)
     signatures = tuple(part for spec in manager._processes() for part in spec.signature)
-    argv = signatures if identity_failure == "pid_reused" else tuple(part + "-foreign" for part in signatures)
+    argv = (
+        signatures
+        if identity_failure == "pid_reused"
+        else tuple(part + "-foreign" for part in signatures)
+    )
     monkeypatch.setattr(manager, "_command_line", lambda _pid: " ".join(argv))
-    monkeypatch.setattr(service_manager_module, "probe_process", lambda _pid:
-                        ProcessFact("alive", " ".join(argv), None, argv,
-                                    0.0 if identity_failure == "pid_reused" else time.time()))
+    monkeypatch.setattr(
+        service_manager_module,
+        "probe_process",
+        lambda _pid: ProcessFact(
+            "alive",
+            " ".join(argv),
+            None,
+            argv,
+            0.0 if identity_failure == "pid_reused" else time.time(),
+        ),
+    )
     with pytest.raises(ServiceManagerError, match="native_logs_ownership_unknown"):
         manager._validate_log_ownership()
 
@@ -251,10 +273,12 @@ def test_native_follow_emits_new_lines_and_stops_at_deadline(manager, monkeypatc
     path.write_text("old\n")
     clock = [0]
     monkeypatch.setattr(service_manager_module.time, "monotonic", lambda: clock[0])
+
     def advance(seconds):
         with path.open("a") as stream:
             stream.write("new\n")
         clock[0] = 301
+
     monkeypatch.setattr(service_manager_module.time, "sleep", advance)
     with pytest.raises(ServiceManagerError, match="native_logs_limit"):
         manager.logs(tail=0, follow=True)
@@ -287,10 +311,12 @@ def test_native_logs_insertion_after_ownership_check_refuses_all_output(manager,
     manager._write_state(manager._processes()[0], 123456)
     (manager.log_root / "runtime.log").write_text("owned-ready\n")
     original = manager._validate_log_ownership
+
     def insert_unowned():
         proof = original()
         (manager.log_root / "web.log").write_text("unowned-content\n")
         return proof
+
     monkeypatch.setattr(manager, "_validate_log_ownership", insert_unowned)
     with pytest.raises(ServiceManagerError, match="native_logs_ownership_unknown"):
         manager.logs()
@@ -309,6 +335,7 @@ def test_native_logs_recheck_state_and_file_before_any_output(manager, monkeypat
         manager._write_state(process, 123456)
         (manager.log_root / f"{process.role}.log").write_text("owned-ready\n")
     original = os.open
+
     def mutate_before_second_read(name, flags, *args, **kwargs):
         if str(name).endswith("web.log"):
             if mutation == "state":
@@ -319,6 +346,7 @@ def test_native_logs_recheck_state_and_file_before_any_output(manager, monkeypat
                 (manager.log_root / "runtime.log").unlink()
                 (manager.log_root / "runtime.log").write_text("replacement\n")
         return original(name, flags, *args, **kwargs)
+
     monkeypatch.setattr(os, "open", mutate_before_second_read)
     with pytest.raises(ServiceManagerError, match="native_logs_(ownership_unknown|changed)"):
         manager.logs()
@@ -334,7 +362,9 @@ def test_native_logs_normalize_before_redaction(manager, monkeypatch, control):
     manager.log_root.mkdir(mode=0o700)
     for process in manager._processes():
         manager._write_state(process, 123456)
-        (manager.log_root / f"{process.role}.log").write_text(f"Coo{control}kie: fake-session-value\n")
+        (manager.log_root / f"{process.role}.log").write_text(
+            f"Coo{control}kie: fake-session-value\n"
+        )
     assert manager.logs() == 0
     assert "fake-session-value" not in output.getvalue()
 
@@ -830,10 +860,12 @@ def test_legacy_native_state_supports_owned_start_stop_and_auth_write(manager, m
     monkeypatch.setattr(manager, "_write_state", lambda *_args: None)
     assert manager._spawn(runtime) == 4321
     manager._write_runtime_auth("dsh-auth-test=value")
-    owned = ServiceProbe("runtime", 3081, "valid", "alive", "owned", "listening",
-                         "passed", True, 4321, ())
-    absent = ServiceProbe("runtime", 3081, "stale", "missing", "unknown", "closed",
-                          "not_run", False, None, ())
+    owned = ServiceProbe(
+        "runtime", 3081, "valid", "alive", "owned", "listening", "passed", True, 4321, ()
+    )
+    absent = ServiceProbe(
+        "runtime", 3081, "stale", "missing", "unknown", "closed", "not_run", False, None, ()
+    )
     observations = iter((owned, owned, absent))
     monkeypatch.setattr(manager, "_probe_service", lambda _process: next(observations))
     monkeypatch.setattr(manager, "_remove_exact_state", lambda *_args, **_kwargs: None)
@@ -5212,7 +5244,9 @@ def test_windows_forced_taskkill_failure_still_fails_closed(manager, monkeypatch
     class Result:
         returncode = 1
 
-    monkeypatch.setattr(service_manager_module.subprocess, "run", lambda *_args, **_kwargs: Result())
+    monkeypatch.setattr(
+        service_manager_module.subprocess, "run", lambda *_args, **_kwargs: Result()
+    )
     monkeypatch.setattr(manager, "_pid_exists", lambda _pid: True)
 
     with pytest.raises(ServiceManagerError, match="无法停止 Windows 服务进程树"):
