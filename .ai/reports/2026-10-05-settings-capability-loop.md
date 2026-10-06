@@ -349,3 +349,40 @@ T4产品清除：通过独立18088正常PUT模型接口clear_api_key=true，HTTP
 C3生命周期的已执行操作链有真实证据，但真实替换归因缺项保留，不能写成两个Key完整归因全部通过。C4真实Key冷重启通过，正常研究工具路径未验证；C3/C4本轮按用户选择结束，不标为完整1A完成。C5当前代码CI仍未执行，四个原有外部门继续BLOCKED，mergeReady=false、releaseReady=false。37条边界外与service_manager基准类型诊断继续保留，不修改policy/Hook/固定DSH/依赖锁或其他worktree环境，不push/PR/dispatch/merge/发布，也不自动进入1B或2—6。
 
 本段为当前结论，前面“等待B/重新保存/人工方式”的段落是历史交互记录，已结束，不再后台等待或轮询。当前报告输入HEAD0c71d122，运行源码仍565d8fb9/overlay cca944e6（本阶段仅报告变更）；最终报告提交身份与完整51路径摘要见final-closeout记录，不用旧HEAD冒充新代码CI。
+
+## 2026-10-06 C5 当前候选送检（有界执行）
+
+本轮仅C5，用户明确授权普通任务分支push、唯一草稿PR和缺少的必要dispatch；没有真实供应商请求（0），未重开T6、Keychain生命周期或生产实例。输入工作树/分支为原settings-model-loop/codex/settings-model-loop，HEAD28f0263764e56d24ac12e45182f5134299600e32，工作区干净；origin为原仓库git@github.com:Leon-Huang001208/ResearchWorkbench.git。用户提供的提交只作为线索，没有reset、rebase或覆盖。
+
+### 范围、代码身份与现行政策
+
+原任务基线d17459edeff5696d2a2641c4072c2d08e9ae84d0至候选实际完整差异51路径，包含565d8fb9启动认证交接补丁。候选app/tests与565d8fb930a8ce5a152525b5d500e5b81cd1e56c没有差异，因此既有C1/C2和相关行为回归按对应源码复用，本轮不全量重验。候选Git tree、每路径摘要及完整文件集见logs/settings-model-loop/c5-ci/candidate-preflight.json；这些是代码摘要，不是Key摘要。
+
+实际fetch后的master为9e231b6c3be5279d24cac8d43453fbf9a626cca6，双方merge-base仍d17459e，候选领先9、master领先16。PR三点差异51路径；两棵树直接比较81路径，其中包含尚未集成的目标分支治理改动，不能把81都称为本任务新增。只读git merge-tree定位唯一文本冲突docs/architecture/research-web/readme-review.json：候选updated回执与master unchanged回执冲突。未自动合并目标分支或历史Native/Docker分支。系统Git不支持merge-tree --write-tree，初次exit128原文已记录；改用传统只读三参数merge-tree，未改变工作区或索引。
+
+候选现有规划器按完整51路径输出L4、10本地门、4外部门，plan.json退出0。master现行policy/AGENTS/Actions与workflow另存不可变快照，并用同一现有规划器在专用临时policy快照目录评估相同完整changed set，target-policy-plan.json同样要求四个外部门。没有更改policy或缩小范围；master新增平台政策没有被暗中覆盖。master已要求Windows真机checkout exact SHA后发起Windows Verify，workflow新增required expected_sha；候选旧workflow尚无该参数，二者差异明确保留，不能使用旧分支工作流冒充已遵循现行Windows验收责任。
+
+### 费用、安全与实际远端动作
+
+GitHub当前API确认visibility=public、非archived、push权限true。当前标准runner预算状态public-standard，included分钟上限对这些公开标准runner不适用（N/A），没有修改预算、付款、visibility或保护。最近各5次成功macOS/Windows运行的run ID、实际job起止和runner labels保存于budget-preflight.json，内部保守权重仍macOS11/Windows2。当前两项新run已经在标准runner启动，不以旧billing-blocked或历史成功替代当前事实。
+
+候选路径/标记预检未发现秘密标记或禁止artifact路径；补充所有9个提交71个更改blob的检查同样0命中（commit-artifact-safety.json）。扫描只保存计数/文件身份，不输出疑似值。既有bootstrap只白名单上传doctor/connections/root/app，失败另含安装日志；不采集data home、auth.json、Keychain、真实Key、HAR或raw trace。Desktop Release仅tag/manual，普通任务分支push/PR不会发布/部署。没有读取个人开发工具配置或生产凭据。
+
+实际执行git push origin HEAD:refs/heads/codex/settings-model-loop，exit0，新建同名任务分支，非force；之前远端该ref为404、同head PR列表为空。gh pr create --base master --head codex/settings-model-loop --draft --body-file /private/tmp/rwb-c5-pr-body.md退出0，创建并附加唯一草稿PR https://github.com/Leon-Huang001208/ResearchWorkbench/pull/78 ，标题和正文明确“1A尚未完成，仅送检”。PR head=28f0263764e56d24ac12e45182f5134299600e32，base=9e231b6c3be5279d24cac8d43453fbf9a626cca6，mergeable=false/dirty，merge_commit_sha=null；没有PR合并结果或可用merge-ref源码证据。
+
+PR冲突导致自动运行列表为空；仅对未覆盖独立门执行gh workflow run research-web-checks.yml及research-web-bootstrap.yml --repo Leon-Huang001208/ResearchWorkbench --ref codex/settings-model-loop，两命令均exit0。没有Windows dispatch、rerun或第二轮修复；没有实际CI失败需要修复的证据时，不预先修改产品。
+
+| 外部门 | 本轮状态 | 精确送检范围与限制 |
+| --- | --- | --- |
+| Project Constraints/check | BLOCKED | 当前workflow仅PR/master push，无dispatch；PR冲突阻断自动触发，不能向master push或改workflow绕开 |
+| Research Web Checks/checks | PASS | run37411987879、attempt1、workflow_dispatch、ubuntu-latest、head28f02637 |
+| macOS Bootstrap/Clean Web install (macos-14) | IN_PROGRESS | run37411993900、attempt1、workflow_dispatch、macos-14、head28f02637；正在干净安装，尚不能标安装/启动PASS |
+| Windows Verify/windows-local-integrations | MANUAL_REQUIRED | 现行master政策要求Windows真机发起exact SHA；本宿主macOS，旧候选workflow与新expected_sha合同差异保留 |
+
+run/attempt/event/head、job ID/runner/steps及PR head/base完整记录见runs-snapshot.json、pr-snapshot.json。运行head_sha不独立证明最终实际checkout：Research Web Checks完成job日志已提取Checkout精确SHA28f02637并保存checks-checkout-evidence.json；Bootstrap未完成，该证据字段仍保持null，绝不把PR base、head、merge-ref混用。CI仍运行时有界交接run ID，不承诺后台继续轮询。
+
+C5仅部分送检，未通过；1A仍未完成，mergeReady=false、releaseReady=false。B实际供应商Key归因仍未验证，T6仍用户选择NOT_RUN；37条边界外和service_manager既有类型诊断保留。本地报告收口提交若改变HEAD，只代表报告变化，不宣称两项旧run测试过该新HEAD；远端PR候选保持28f02637，源码等价另由最终身份记录证明，不制造报告提交触发重复CI的循环。
+
+最小剩余条件：经明确整合授权处理master治理变更与README回执冲突，形成可触发Project Constraints的候选；在Windows真机按当前exact SHA合同发起Windows Verify；完成两项已启动run的结果与实际checkout证据。此处没有申请或执行合并、发布、真实Key验收及后续阶段。
+
+本轮文档治理和完整51路径project-constraints-local实际exit0；不重跑未变源码的C1/C2与浏览器/Keychain。receipt首次校验因缺少精确external_gate_not_run:research-web-bootstrap字段exit1，初次日志保留receipt-validation-initial.log；补充真实未运行风险后同一现有validator退出0、valid=true/result=BLOCKED。回执NOT_RUN描述的是Bootstrap尚无完成验收证据，实际运行状态仍IN_PROGRESS；它不是未触发。校验通过不等于C5完成。收口仅提交本报告，本轮必要产品修复0、供应商请求0、复跑0；最终本地提交与远端候选对应关系保存在final-code-identity.json。
