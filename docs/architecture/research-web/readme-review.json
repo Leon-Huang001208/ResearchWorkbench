@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "根 README 展示 Docker 推荐安装、Native 默认兼容、安全切换与分离凭据；坏 Native 环境保留静态帮助和只读 Doctor。",
-  "reason": "合并保留 --runtime 与 rwb runtime 用户入口，并接入 Native 环境归属、服务事实链和完整页面就绪诊断；Windows 对应命令和未完成的平台验收继续明确区分。"
+  "summary": "根 README 保留 Docker/Native 安装、切换和诊断入口，新增开发与平台验收分工。",
+  "reason": "基于最新 master 保留已有产品说明；明确 Mac 功能开发与 macOS 验收，Windows/Linux 真机只负责各自平台适配和验收，任务完成与跨平台就绪分开记录。"
 }

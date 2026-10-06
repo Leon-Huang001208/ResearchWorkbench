@@ -12,6 +12,12 @@
 Wind、iFinD、Office 等厂商/系统软件是可选能力，缺失不阻止 Web 主体启动。模型密钥、`CJ_KEY`、
 Cookie 和账号只在本机设置页录入，不进入代码包、安装清单或日志。
 
+## 开发与验收责任
+
+MacBook Pro 负责项目功能开发、macOS 本地验收及远端 GitHub macOS CI。Windows 真机负责已有功能的 Windows 适配、本地验收及远端 GitHub Windows CI；Linux 真机负责对应的 Linux 适配、本地验收及远端 GitHub Linux CI。Windows/Linux 不承担功能开发；发现通用功能缺陷时交回 Mac 开发任务。
+
+各宿主任务只以本平台验收为完成条件；其他平台保留待验收与交接记录，不阻塞本平台任务，也不因 Mac 验收通过就宣称跨平台支持。Linux 适配职责不表示当前安装器或桌面包已经支持 Linux；支持声明仍须有实际证据。详细任务与总体验收的区分见 [Agent 任务路由指南](AGENT_WORKFLOW.md)。
+
 ## 公开入口
 
 macOS Docker 推荐入口：
@@ -240,6 +246,8 @@ runner 上运行公开安装入口、构建固定 DSH、启动 3081/8088、检�
 `git rev-parse HEAD` 的 exact SHA 发起 GitHub `windows-2022`；Mac 不发起该 workflow。GitHub Windows
 结果与 Windows 真机安装、升级、用户目录、Office/Excel/Wind 结果分别记录，任一未运行均不得标记为
 通过。该边界不改变桌面/Tauri/sidecar 的独立 Windows 门禁。
+Linux 真机任务负责 Linux 适配、本地验收与对应 GitHub CI；其他平台门交接对应真机，
+不阻塞 Mac 本平台任务，跨平台发布仍需各目标平台的真实证据。
 Bootstrap 的 macOS 验收还要求 Doctor schema 2 的安装/产品 ready、双服务 ready，以及首页和主
 静态模块实际可读取；本机运行和单元测试不能替代该干净 runner 的结果。
 

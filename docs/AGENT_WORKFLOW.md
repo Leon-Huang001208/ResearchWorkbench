@@ -45,6 +45,30 @@ master
 
 选择后仍应先阅读相关规则、目标文件及其直接依赖；任务范围、所有权或验收不明确时，先同步并拆分，而不是扩大执行范围。
 
+## 平台职责与任务完成范围
+
+| 宿主真机 | 允许的工作 | 本任务验收责任 |
+| --- | --- | --- |
+| MacBook Pro / macOS | 项目功能开发与 macOS 适配 | macOS 本地验收 + 适用的 GitHub macOS CI |
+| Windows | 已有功能的 Windows 适配；不承担功能开发 | Windows 本地验收 + 适用的 GitHub Windows CI |
+| Linux | 已有功能的 Linux 适配；不承担功能开发 | Linux 本地验收 + 适用的 GitHub Linux CI |
+
+开始任务时记录宿主平台、功能开发/平台适配类型、代码提交、验收范围。Windows/Linux 适配只能修复本平台的路径、权限、依赖发现、启动和构建等兼容问题；发现平台无关的功能缺陷时，提供复现并交回 Mac 开发任务。
+
+当前宿主不执行、不修复、不等待其他平台的适配或验收来完成本任务。GitHub runner 的操作系统决定 CI 归属，不能把 Ubuntu 的通用测试算作 macOS 验收。现有 workflow 的自动触发仍按配置运行；其他平台 CI 结果由对应真机任务负责。
+
+### 总体验收与本平台任务分开记录
+
+现有 `plan_verification.mjs` 和 `validate_verification_receipt.mjs` 仍输出、校验产品总体验收，尚无宿主范围参数。不得裁剪总计划或改写回执来假装机械校验已支持平台分工。执行代理必须：
+
+1. 保留完整 changed set、风险等级、总计划和所有平台门。
+2. 执行当前宿主可运行的通用检查、本平台检查及适用的同平台 GitHub CI；若总计划没有本平台 CI，按已存在的本平台 workflow 核对适用检查，缺少入口时如实记录本平台 CI 待配置，不凭其他平台 run 替代。
+3. 在 `.ai/reports` 任务报告中单独记录 `hostPlatform`、`taskKind`、`hostAcceptance`（PASS/FAIL/BLOCKED）、`platformHandoffs`（目标平台、提交、门 ID、未运行状态和证据）、`aggregateAcceptance`。同平台 CI 尚未取得时，本平台验收不能为 PASS。
+4. 总回执里他平台未执行的门仍保留 NOT_RUN/BLOCKED 和未覆盖风险；总体验收或跨平台发布可能未就绪，但不得据此把已完成验收的本平台任务标为失败或继续在本机适配其他平台。
+5. 当前宿主任务可在本平台验收 PASS 且交接完整后完成；`mergeReady`/`releaseReady` 继续表示总体验收，不得从本平台 PASS 推导跨平台发布就绪。发布授权和仓库分支保护仍须独立满足。
+
+这是执行代理必须遵守的任务路由规则；现有机械回执校验不会自动判定本平台任务完成，报告必须明确这一限制。
+
 ## 最小验收规划（Verification planning）
 
 双运行时 Web 改动仍使用下方同一 changed-file 规划器：Dockerfile/Compose、bootstrap、runtime contract、凭据后端与 Docker CI 命中各自策略规则；不因 Web Docker 部署自动引入 Tauri/sidecar/桌面门。`--runtime` 无参数默认 Native，真实 Docker 构建/健康与 Native 安装分别保留证据；没有镜像或平台回执时必须写 `not_run`/`blocked`，不能用模拟测试替代。模式切换需确认旧模式所有权并顺序停用，共享产品数据不能被两个模式同时写入。安装/依赖操作仍按原审批边界执行。
@@ -107,7 +131,7 @@ node scripts/validate_verification_receipt.mjs --project . \
   --receipt <receipt-json>
 ```
 
-回执校验失败就不是完成。已选中的 merge gate 不得写成 `NOT_REQUIRED`；未运行时必须以 `NOT_RUN` 和对应未覆盖风险保留，并令回执 `BLOCKED`，不能用本机检查冒充 CI/平台证据。
+总回执校验失败就不是总体验收完成；本平台任务按上述宿主范围单独记录。已选中的 merge gate 不得写成 `NOT_REQUIRED`；未运行时必须以 `NOT_RUN` 和对应未覆盖风险保留，并令回执 `BLOCKED`，不能用本机检查冒充 CI/平台证据。
 
 规范状态只有：`PASS`、`FAIL`、`SKIPPED`、`NOT_REQUIRED`、`NOT_RUN`、`BLOCKED`、`MANUAL_REQUIRED`。选中的必需 gate 只有 `PASS` 是正向证明；`NOT_REQUIRED` 只能描述未选择的范围，不能用于已选 gate。Windows CI 为 `NOT_RUN` 时 `mergeReady=false`；Windows CI 为 `PASS` 而真实 Windows 安装为 `MANUAL_REQUIRED` 时，可以保持 merge-ready，但 `releaseReady=false`，两层证据不得合并为单一 “Windows PASS”。
 
@@ -127,11 +151,11 @@ worktree 只隔离文件冲突，绝不取代桌面端原生 Windows CI，也不
 
 当前产品迭代阶段为 **Web-only**。仅修改 `app/web/`、`app/research_web/`、通用 Web API/Runtime、共享 Python/Node 依赖或 Web 文档时，不进入桌面端例外，也不运行 sidecar、Tauri、安装包或原生桌面 CI。只有用户明确重新开启桌面工作，或任务直接修改 `src-tauri/`、`desktop/`、`scripts/desktop/`、`services/desktop_platform/` 等桌面专属路径时，才恢复下列桌面验收。
 
-交付时应明确以下不可省略的验收范围：
+交付时按平台任务分配以下不可省略的验收范围；Mac 任务不等待 Windows 任务：
 
-1. 原生 Windows CI 至少覆盖依赖安装、Python sidecar（`.exe`）构建、Tauri Windows 安装包构建、真实 PostgreSQL + pgvector 的 `ready` `/health` 检查，以及数据库不可达时的 `setup_required` `/health` 检查。
-2. 原生 macOS CI 也必须完成对应平台的 sidecar 与桌面包构建，并验证 `ready` 和 `setup_required` 的 `/health` 契约。
-3. 发版前仍须在真实 Windows 设备上验证 CI 产物的安装、卸载、升级、主窗口、sidecar、`/health`、用户数据目录和日志；涉及 Excel/Wind、系统权限或自动更新时，还须验证相应功能。
+1. Windows 真机任务负责的原生 Windows CI 至少覆盖依赖安装、Python sidecar（`.exe`）构建、Tauri Windows 安装包构建、真实 PostgreSQL + pgvector 的 `ready` `/health` 检查，以及数据库不可达时的 `setup_required` `/health` 检查。
+2. MacBook Pro 任务负责的原生 macOS CI 必须完成对应平台的 sidecar 与桌面包构建，并验证 `ready` 和 `setup_required` 的 `/health` 契约。
+3. Windows 平台发版前，由 Windows 真机任务在真实 Windows 设备上验证 CI 产物的安装、卸载、升级、主窗口、sidecar、`/health`、用户数据目录和日志；涉及 Excel/Wind、系统权限或自动更新时，还须验证相应功能。
 
 macOS 本地运行或隔离 worktree 都不能证明 Windows 可用。
 
@@ -152,5 +176,5 @@ macOS 本地运行或隔离 worktree 都不能证明 Windows 可用。
 - 修正文档中的单个链接并立即确认渲染：使用本地快环，交付检查命令与简洁 diff。
 - 为独立功能修改多份配置和测试：使用独立 worktree，交付 worktree 路径、分支、针对性测试和合并计划。
 - 分析失败的 Windows CI 日志并提出有界修复：可用后台/远程执行，交付日志范围、分析报告、修复 diff、运行命令及未在真实 Windows 复测的限制。
-- 修改 Tauri sidecar 或 Wind/Excel 集成：即使在独立 worktree 中完成，也必须等待原生 Windows CI；若准备发布，还要安排真实 Windows 安装级烟测。
+- 修改 Tauri sidecar 或 Wind/Excel 集成：Mac 任务完成 macOS 验收后交接 Windows 真机任务；Windows 任务负责原生 Windows CI 和 Windows 发版前的安装级烟测，不阻塞 Mac 任务完成。
 - 只修改 Research Web 页面、Web API 或 Runtime：按 Web 测试与项目约束交付，不运行 Desktop Verify。
