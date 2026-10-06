@@ -10,6 +10,13 @@ token 或异常正文。既有外层未分类错误保留通用事件；日志 h
 容器公开启动诊断仍为原五字段，CI artifact scanner 不接收此私有日志。
 确定性负面测试证明日志与 guard 合同，不证明真实 Docker startup 或根因已修复。
 
+`identity_changed` 私有事件另含 `ownership_transition` 和 `position`。
+只有完整 `(uid,gid)` 从 `(0,0)` 到当前进程对时分类 `root_pair_to_runtime_pair`，
+相反完整匹配为 `reverse`；混合root/runtime组、foreign GID、其他变化、无法读取进程对，
+以及进程对本身为 `(0,0)` 均为 `other`。`position` 仅由检查节点与叶的关系派生为
+`leaf/parent/other_ancestor`，不硬编码Docker挂载路径。分类只是拒绝后的诊断，不改变guard、
+不证明具体业务写入层、不授权初始化修复；原字段和公开五字段启动事件保持原合同。
+
 发布目录例外仅处理 `doc/docs` 名称歧义：目录声明含 glob、negative、绝对/越界路径、非法值
 或根目录时保守不建立例外。硬开发目录和 README/suffix 过滤、source asset escape 及 manifest
 哈希校验保留；源码回归不能代替真实 Docker 生命周期验收。

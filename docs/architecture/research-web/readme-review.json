@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "私有 runtime state 拒绝日志取证复核：README公开入口与安装要求不变。",
-  "reason": "仅记录固定原因、阶段、ancestor/leaf与变化字段名；原安全guard、公开五字段启动诊断和安装依赖不变，真实Docker启动仍待另行取证。"
+  "summary": "私有 runtime state 拒绝方向与相对位置取证复核：README公开入口与安装要求不变。",
+  "reason": "仅追加完整root/runtime所有权对方向和相对叶位置枚举；原安全guard、公开五字段启动诊断和安装依赖不变，未证明具体挂载根或认证写入层。"
 }

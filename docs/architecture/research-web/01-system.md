@@ -2,6 +2,7 @@
 
 既有 `runtime_state.py` 仅增加私有拒绝证据日志，由同一 logger 输出固定原因、阶段和
 ancestor/leaf；不增加部署节点、probe或公开启动字段，详见安全边界文档。
+身份变化取证补充相对叶的 parent/other_ancestor/leaf 与精确所有权对变化分类，不识别Docker业务路径。
 
 DSH staging 的遍历剪枝与最终过滤共用包发布子树规则，保留明确声明运行目录内的 `doc/docs`
 代码及资源。包顶层文档和硬开发目录仍排除；不创建新依赖、部署节点或 yaml 专用白名单。

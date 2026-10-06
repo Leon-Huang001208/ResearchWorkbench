@@ -46,3 +46,24 @@ Docker build/start、真实状态/fixture目录操作、网络/安装、全局�
 新日志尚未在实际容器中获取，不知道实际拒绝 reason/phase；这不是根因修复。
 macOS 干净安装/真实生命周期与 GitHub CI 为 NOT_RUN；Windows/Linux 原生验收 NOT_RUN。
 日志延续既有 logger、输出与轮转配置，不增加独立日志文件或新的保留策略。
+
+## 第二轮：方向与相对位置分类
+
+基线 `0b7c801cf47ee69a8cc4878c8a1d7111684a986a`，仍为macOS Web logging-only取证。
+主会话提供新镜像公开build/install成功、实际start失败证据：`post_yield/ancestor/changed=uid,gid`。
+该事实来自主会话，本执行者没有运行Docker，也没有重新读取实际状态；变化方向和具体祖先未知。
+本轮只追加私有 `ownership_transition=root_pair_to_runtime_pair/reverse/other` 与
+`position=leaf/parent/other_ancestor`。前者精确比较完整before/current所有权对；后者只传
+component与叶/直接父的布尔关系，不硬编码Docker路径、不增加公开API、marker或异常属性。
+无法分类只记录other；所有校验/异常链保持原状，不能把拒绝定位到具体Cookie writer层。
+
+- RED：`python -m pytest tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web -k 'private_ownership_classification or ownership_classification_keeps_rejecting' -q --tb=no`，30 failed / 96 deselected，exit1，自报0.74s。
+- 初次GREEN全量launch：126 passed / exit0，自报0.77s。
+- 补mixed-root组、runtime/root对重合与分类getter失败后：131 passed / exit0，自报4.22s；仍使用首轮批准Python、`PYTHONPATH=.`和confcutdir。方向/相对位置断言无路径/数值/秘密；path与FD变化仍抛原异常。
+- 本轮完整changed set为runtime_state.py、test_runtime_launch.py、01/02/03/05模块文档、安装说明、README review及本报告（九路径）；没有新函数名或inventory变化，旧index只检查不制造diff。
+- 首轮304结果是历史执行，未作为本轮完整闭包计数；本轮后续本地门结果另补。总体CI/真实Docker取证/format/type仍NOT_RUN，非整个Goal PASS。
+- 本轮六模块闭包实际重验（与首轮相同六模块完整命令，session39376）：340 passed / exit0，自报26.53s；不将历史304倒算为本轮结果。最终类型注解与POSIX测试标注后launch再验131 passed / exit0，自报0.78s。
+- 本轮L4既有JS闭包完整命令：91 passed / exit0，自报2440.990375ms；architecture单项耗时unknown，不从复合命令摊分。
+- 完整九路径planner保留validation_failure/unexpected_behavior：exit0 / L4 / unknown_impact_boundary；local为既有五门，CI为project-constraints/research-web-checks，均NOT_RUN；mergeReady=false/releaseReady=false。
+- 九路径Constraints exit0 / violations=[]，独立工具命令0.158062375s；governance exit0 / 551 files / 79 current / violations=[]，独立命令0.121811583s；index --check exit0，独立命令0.975117042s。git diff --check PASS；总耗时unknown。
+- parent仅是相对位置，不能单独证明具体固定Docker挂载根。只有另行确证固定state bind完整root-pair→runtime-pair事实才满足下一步初始化修复设计触发；本补丁不做修复。本执行者仍未运行Docker/网络/安装/Harness/远端或改实际状态/目录权限；格式/type工具仍NOT_RUN。

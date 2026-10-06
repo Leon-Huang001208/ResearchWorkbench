@@ -28,25 +28,32 @@ def _log_rejection(
     phase: str = "enter",
     leaf: bool = False,
     changed: str = "none",
+    parent: bool = False,
+    ownership_transition: str | None = None,
 ) -> None:
     try:
         if reason is None:
             log.warning("runtime_state_directory_rejected")
         else:
-            log.warning(
-                "runtime_state_directory_rejected reason=%s phase=%s scope=%s changed=%s",
-                reason,
-                phase,
-                "leaf" if leaf else "ancestor",
-                changed,
-            )
+            message = "runtime_state_directory_rejected reason=%s phase=%s scope=%s changed=%s"
+            args: tuple[str, ...] = (reason, phase, "leaf" if leaf else "ancestor", changed)
+            if ownership_transition is not None:
+                message += " ownership_transition=%s position=%s"
+                position = "leaf" if leaf else "parent" if parent else "other_ancestor"
+                args += (ownership_transition, position)
+            log.warning(message, *args)
     except Exception:
         # A failing diagnostic handler must never replace the security rejection.
         pass
 
 
 def _log_identity_change(
-    before: os.stat_result, current: os.stat_result, *, phase: str, leaf: bool
+    before: os.stat_result,
+    current: os.stat_result,
+    *,
+    phase: str,
+    leaf: bool,
+    parent: bool = False,
 ) -> None:
     changed = ",".join(
         name
@@ -55,7 +62,27 @@ def _log_identity_change(
         )
         if old != new
     )
-    _log_rejection("identity_changed", phase=phase, leaf=leaf, changed=changed)
+    transition = "other"
+    try:
+        runtime_pair = (os.getuid(), os.getgid())
+        before_pair = (before.st_uid, before.st_gid)
+        current_pair = (current.st_uid, current.st_gid)
+        if runtime_pair != (0, 0):
+            if before_pair == (0, 0) and current_pair == runtime_pair:
+                transition = "root_pair_to_runtime_pair"
+            elif before_pair == runtime_pair and current_pair == (0, 0):
+                transition = "reverse"
+    except Exception:
+        # Optional ownership classification must not interfere with rejection.
+        pass
+    _log_rejection(
+        "identity_changed",
+        phase=phase,
+        leaf=leaf,
+        changed=changed,
+        parent=parent,
+        ownership_transition=transition,
+    )
 
 
 def _validate_directory(
@@ -166,12 +193,22 @@ def runtime_state_directory(
                     opened = os.fstat(descriptor)
                     if _identity(opened) != _identity(before):
                         _log_identity_change(
-                            before, opened, phase="open_fd", leaf=component == path
+                            before,
+                            opened,
+                            phase="open_fd",
+                            leaf=component == path,
+                            parent=component == path.parent,
                         )
                         raise RuntimeStateError("runtime_state_unsafe")
                 named = component.lstat()
                 if _identity(named) != _identity(before):
-                    _log_identity_change(before, named, phase="enter", leaf=component == path)
+                    _log_identity_change(
+                        before,
+                        named,
+                        phase="enter",
+                        leaf=component == path,
+                        parent=component == path.parent,
+                    )
                     raise RuntimeStateError("runtime_state_unsafe")
                 records.append((component, descriptor, before))
                 parent = descriptor
@@ -189,14 +226,22 @@ def runtime_state_directory(
                     )
                     if _identity(current) != _identity(before):
                         _log_identity_change(
-                            before, current, phase=phase, leaf=component == path
+                            before,
+                            current,
+                            phase=phase,
+                            leaf=component == path,
+                            parent=component == path.parent,
                         )
                         raise RuntimeStateError("runtime_state_unsafe")
                     if descriptor is not None:
                         opened = os.fstat(descriptor)
                         if _identity(opened) != _identity(before):
                             _log_identity_change(
-                                before, opened, phase=phase, leaf=component == path
+                                before,
+                                opened,
+                                phase=phase,
+                                leaf=component == path,
+                                parent=component == path.parent,
                             )
                             raise RuntimeStateError("runtime_state_unsafe")
 

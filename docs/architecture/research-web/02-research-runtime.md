@@ -2,6 +2,7 @@
 
 运行状态目录原 guard 的拒绝日志区分进入、打开FD、yield前后阶段，身份变化仅列字段名。
 认证写入、健康探测、原校验顺序、异常类型/错误码和生命周期不变；取证不授权自动重试。
+额外方向分类来自同一次已拒绝的before/current所有权对，不能据日志推断Cookie writer层或修复权限。
 
 发布运行目录中的 `doc/docs` 名称不再导致运行实现漏包；生产依赖图、optional peer、
 虚拟 Profile alias 搜索和 launcher 模块验证保持原链路，Node 加载回归验证派生资产完整性。

@@ -579,6 +579,115 @@ def test_runtime_state_same_inode_allowed_owner_change_still_rejects(
     assert "reason=identity_changed phase=pre_yield scope=ancestor changed=uid" in caplog.text
 
 
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX ownership fixture")
+@pytest.mark.parametrize(
+    "leaf,parent,position",
+    [(True, False, "leaf"), (False, True, "parent"), (False, False, "other_ancestor")],
+)
+@pytest.mark.parametrize("before_pair,current_pair,transition", [
+    ((0, 0), (7654321, 8765432), "root_pair_to_runtime_pair"),
+    ((7654321, 8765432), (0, 0), "reverse"),
+    ((0, 8765432), (7654321, 8765432), "other"),
+    ((7654321, 8765432), (0, 8765432), "other"),
+    ((0, 0), (7654321, 9876543), "other"),
+    ((7654321, 9876543), (0, 0), "other"),
+    ((0, 9876543), (7654321, 8765432), "other"),
+    ((7654321, 8765432), (7654321, 9876543), "other"),
+    ((0, 0), (0, 0), "other"),
+])
+def test_runtime_state_private_ownership_classification(
+    monkeypatch, caplog, leaf, parent, position, before_pair, current_pair, transition
+):
+    from app.research_web import runtime_state
+
+    monkeypatch.setattr(runtime_state.os, "getuid", lambda: 7654321)
+    monkeypatch.setattr(runtime_state.os, "getgid", lambda: 8765432)
+
+    def identity(pair):
+        return SimpleNamespace(
+            st_dev=6543210, st_ino=5432109, st_mode=0o40700,
+            st_uid=pair[0], st_gid=pair[1],
+        )
+
+    runtime_state._log_identity_change(
+        identity(before_pair), identity(current_pair), phase="post_yield", leaf=leaf,
+        parent=parent,
+    )
+    assert f"ownership_transition={transition} position={position}" in caplog.text
+    assert all(value not in caplog.text for value in (
+        "7654321", "8765432", "9876543", "6543210", "5432109", "40700",
+    ))
+
+
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX ownership fixture")
+@pytest.mark.parametrize("position", ["leaf", "parent", "other_ancestor"])
+@pytest.mark.parametrize("source", ["path", "fd"])
+def test_runtime_state_ownership_classification_keeps_rejecting(
+    tmp_path, monkeypatch, caplog, position, source
+):
+    import os
+
+    from app.research_web import runtime_state
+
+    parent = tmp_path / "sensitive-token-parent"
+    parent.mkdir(mode=0o700)
+    state = parent / "sensitive-cookie-leaf"
+    state.mkdir(mode=0o700)
+    target = {"leaf": state, "parent": parent, "other_ancestor": tmp_path}[position]
+    target_inode = target.stat().st_ino
+    original_lstat, original_fstat = Path.lstat, os.fstat
+    runtime_pair = (os.getuid(), os.getgid())
+    active = False
+
+    def identity(current, changed):
+        fields = list(current)
+        fields[4:6] = runtime_pair if position == "leaf" else (0, 0)
+        if active and changed:
+            fields[4:6] = (
+                (runtime_pair[0], runtime_pair[1] + 1) if position == "leaf" else runtime_pair
+            )
+        return os.stat_result(fields)
+
+    def named(path):
+        current = original_lstat(path)
+        return identity(current, source == "path") if path == target else current
+
+    def opened(descriptor):
+        current = original_fstat(descriptor)
+        return identity(current, source == "fd") if current.st_ino == target_inode else current
+
+    monkeypatch.setattr(Path, "lstat", named)
+    monkeypatch.setattr(runtime_state.os, "fstat", opened)
+    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
+        with runtime_state.runtime_state_directory(state):
+            active = True
+    transition = "other" if position == "leaf" else "root_pair_to_runtime_pair"
+    assert f"ownership_transition={transition} position={position}" in caplog.text
+    assert "phase=post_yield" in caplog.text
+    assert str(tmp_path) not in caplog.text
+    assert "sensitive-token-parent" not in caplog.text
+    assert "sensitive-cookie-leaf" not in caplog.text
+
+
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX ownership fixture")
+@pytest.mark.parametrize("unavailable", [False, True])
+def test_runtime_state_ownership_classification_is_optional(monkeypatch, caplog, unavailable):
+    from app.research_web import runtime_state
+
+    monkeypatch.setattr(runtime_state.os, "getuid", lambda: 0)
+
+    def getgid():
+        if unavailable:
+            raise RuntimeError("sensitive-token-cookie-path")
+        return 0
+
+    monkeypatch.setattr(runtime_state.os, "getgid", getgid)
+    value = SimpleNamespace(st_dev=1, st_ino=2, st_mode=0o40700, st_uid=0, st_gid=0)
+    runtime_state._log_identity_change(value, value, phase="enter", leaf=False, parent=True)
+    assert "ownership_transition=other position=parent" in caplog.text
+    assert "sensitive-token-cookie-path" not in caplog.text
+
+
 def test_runtime_projects_only_active_host_verified_mcp_bindings(tmp_path, monkeypatch):
     installation_id = "mcp-installation-0123456789abcdef0123456789abcdef"
     authorization = AuthorizationManager(tmp_path)
