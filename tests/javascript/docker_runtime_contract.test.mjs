@@ -154,11 +154,39 @@ test('Docker CI validates health, restart, persistence, cleanup and safe evidenc
   assert.match(workflow, /if: always\(\)/);
   assert.match(workflow, /Scan and redact failure logs\n\s+if: failure\(\)/);
   assert.match(workflow, /SECRET_PATTERN/);
+  assert.match(workflow, /docker compose logs --no-color --no-log-prefix --tail 200/);
   assert.match(workflow, /if: success\(\)[\s\S]*health\.json[\s\S]*retention-days: 3/);
   assert.match(workflow, /failure-redacted\.log[\s\S]*retention-days: 3/);
   assert.doesNotMatch(workflow, /path:.*(?:raw|secrets|auth\.json)/);
   const policy = JSON.parse(read('.agents/verification-policy.json'));
   assert.equal(policy.catalogs.ci['research-web-docker'].value, '.github/workflows/research-web-docker.yml#docker-runtime');
+});
+
+test('Compose diagnostic collection preserves parseable JSON events', () => {
+  const command = read('.github/workflows/research-web-docker.yml').split('\n')
+    .find(line => line.trim().startsWith('docker compose logs ')).trim();
+  const directory = mkdtempSync(join(tmpdir(), 'rwb-compose-log-format-'));
+  try {
+    mkdirSync(join(directory, 'raw'));
+    const script = `docker() {
+      local prefix='research-web-1 | '
+      for argument in "$@"; do
+        if [ "$argument" = '--no-log-prefix' ]; then prefix=''; fi
+      done
+      printf '%s%s\\n' "$prefix" '{"event":"container_startup_failure fixed"}'
+    }
+    log_status=0
+    ${command}`;
+    const result = spawnSync('bash', ['-c', script], {
+      env: {...process.env, RWB_CI_ROOT: directory}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(readFileSync(join(directory, 'raw', 'container.log'), 'utf8')),
+      {event: 'container_startup_failure fixed'});
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
 });
 
 test('failure evidence drops labelled and unlabelled values before upload', () => {
@@ -181,6 +209,18 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
       'supervisor_failed',
       'child_started',
       'private_directories_ready',
+      JSON.stringify({event: 'container_startup_failure ' + JSON.stringify({
+        stage: 'runtime_wait', exception_class: 'RuntimeError', errno: null,
+        runtime_returncode: 2, web_returncode: null,
+      })}),
+      '2026-10-06 03:42:37 [error    ] container_startup_failure ' + JSON.stringify({
+        stage: 'logging_setup', exception_class: 'ValueError', errno: null,
+        runtime_returncode: null, web_returncode: null,
+      }),
+      JSON.stringify({event: 'container_startup_failure ' + JSON.stringify({
+        stage: 'fixture-private-stage', exception_class: 'fixture-private-error', errno: 13,
+        runtime_returncode: 2, web_returncode: null, detail: 'fixture-private-path',
+      })}),
     ].join('\n'));
     const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-c', script], {
       env: {...process.env, RWB_CI_ROOT: directory}, encoding: 'utf8', timeout: 10000,
@@ -190,7 +230,7 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
     const output = readFileSync(join(directory, 'evidence', 'failure-redacted.log'), 'utf8');
     assert.doesNotMatch(output, /fixture-|Bearer|dsh-auth|\u001b/);
     const report = JSON.parse(output)['runtime.log'];
-    assert.equal(report.scanned_lines, 10);
+    assert.equal(report.scanned_lines, 13);
     assert.equal(report.sensitive_lines_redacted, 3);
     assert.equal(report.events.health_ready, 1);
     assert.equal(report.events.MODULE_NOT_FOUND, 1);
@@ -198,6 +238,13 @@ test('failure evidence drops labelled and unlabelled values before upload', () =
     assert.equal(report.events.supervisor_failed, 1);
     assert.equal(report.events.child_started, 1);
     assert.equal(report.events.private_directories_ready, 1);
+    assert.deepEqual(report.startup_failures, [{
+      stage: 'runtime_wait', exception_class: 'RuntimeError', errno: null,
+      runtime_returncode: 2, web_returncode: null,
+    }, {
+      stage: 'logging_setup', exception_class: 'ValueError', errno: null,
+      runtime_returncode: null, web_returncode: null,
+    }]);
     assert.equal(report.all_raw_lines_omitted, true);
   } finally {
     rmSync(directory, {recursive: true, force: true});

@@ -238,6 +238,35 @@ def _event(role, state, code):
     log.info(f"container_supervisor role={role} state={state} code={code}")
 
 
+_FAILURE_STAGES = frozenset({
+    "private_directories", "logging_setup", "config_validation", "ownership_init", "auth_reset", "process_specs",
+    "runtime_spawn", "runtime_wait", "runtime_probe", "web_spawn", "web_wait", "web_probe", "running",
+})
+_FAILURE_CLASSES = frozenset({
+    "RuntimeStateError", "PermissionError", "FileNotFoundError", "ProcessLookupError",
+    "OSError", "ValueError", "RuntimeError", "TimeoutExpired", "SubprocessError",
+})
+
+
+def _failure_diagnostics(stage, error, children):
+    """Return fixed startup facts without exception text, paths or process data."""
+    name = type(error).__name__
+    number = error.errno if isinstance(error, OSError) else None
+    def returncode(role):
+        value = getattr(children.get(role), "returncode", None)
+        return value if type(value) is int and -255 <= value <= 255 else None
+    return {
+        "stage": stage if stage in _FAILURE_STAGES else "unknown",
+        "exception_class": name if name in _FAILURE_CLASSES else "Other",
+        "errno": number if type(number) is int and 0 <= number <= 4095 else None,
+        "runtime_returncode": returncode("runtime"), "web_returncode": returncode("web"),
+    }
+
+
+def _emit_failure_diagnostics(value):
+    log.error("container_startup_failure " + json.dumps(value, sort_keys=True))
+
+
 class _ExternalShutdown(Exception):
     """Transfer control to cleanup without freezing the return status first."""
 
@@ -467,6 +496,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
     status = 1
     previous = {}
     ownership = None
+    stage = "private_directories"
 
     def shutdown(signum, frame):
         nonlocal requested
@@ -483,14 +513,19 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                 _prepare_private_leaf(private_root)
         _event("stack", "prepared", "private_directories_ready")
         _prepare_private_leaf(config.data_root / "logs")
+        stage = "logging_setup"
         with runtime_state_directory(config.data_root / "logs") as log_root:
             settings.LOG_DIR = str(log_root)
             setup_logging()
+        stage = "config_validation"
         if config.startup_timeout <= 0 or config.shutdown_timeout <= 0:
             raise ValueError("invalid timeout")
+        stage = "ownership_init"
         ownership = _OwnedProcesses()
+        stage = "auth_reset"
         with runtime_state_directory(config.state_root):
             (config.state_root / "auth.json").unlink(missing_ok=True)
+        stage = "process_specs"
         specs = build_process_specs(
             python=config.python, node=config.node, project_root=config.project_root,
             data_root=config.data_root, runtime_source=config.runtime_source,
@@ -510,6 +545,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
         if config.credential_root is not None:
             environment["RESEARCH_CREDENTIAL_HOME"] = str(config.credential_root)
         for spec in (specs.runtime, specs.web):
+            stage = "runtime_spawn" if spec.role == "runtime" else "web_spawn"
             if requested:
                 raise _ExternalShutdown
             if any(child.poll() is not None for child in children.values()):
@@ -531,6 +567,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             _event(spec.role, "starting", "child_started")
             deadline = time.monotonic() + config.startup_timeout
             while True:
+                stage = "runtime_wait" if spec.role == "runtime" else "web_wait"
                 output.drain(.025)
                 ownership.refresh(children)
                 _reap_children(children)
@@ -542,11 +579,13 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                 if remaining <= 0:
                     _event(spec.role, "failed", "startup_timeout")
                     raise RuntimeError("startup timeout")
+                stage = "runtime_probe" if spec.role == "runtime" else "web_probe"
                 if probe(config, spec.role, min(.25, remaining), launch_token=output.token):
                     if spec.role == "runtime" and probe is real_probe:
                         output.remember_auth(config.state_root)
                     _event(spec.role, "healthy", "health_ready")
                     break
+        stage = "running"
         while not requested:
             output.drain(.05)
             ownership.refresh(children)
@@ -557,7 +596,8 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
         status = 0
     except _ExternalShutdown:
         status = 0
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        _emit_failure_diagnostics(_failure_diagnostics(stage, error, children))
         _event("stack", "failed", "supervisor_failed")
     finally:
         for role in ("web", "runtime"):

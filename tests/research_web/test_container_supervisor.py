@@ -742,3 +742,45 @@ def test_docker_two_phase_creation_rejects_unsafe_or_replaced_nodes(tmp_path, mo
         monkeypatch.setattr(supervisor, "runtime_state_directory", replace_before_repin)
     with pytest.raises((RuntimeStateError, OSError)):
         supervisor._prepare_private_leaf(leaf)
+
+
+@pytest.mark.parametrize(("error", "kind", "number"), [
+    (PermissionError(13, "fixture-private-path"), "PermissionError", 13),
+    (ValueError("fixture-private-value"), "ValueError", None),
+    (RuntimeError("fixture-private-command"), "RuntimeError", None),
+])
+def test_failure_diagnostics_only_include_fixed_fields(error, kind, number):
+    from docker import supervisor
+
+    class Child:
+        returncode = 7
+
+    report = supervisor._failure_diagnostics("logging_setup", error, {"runtime": Child()})
+    assert report == {
+        "stage": "logging_setup", "exception_class": kind, "errno": number,
+        "runtime_returncode": 7, "web_returncode": None,
+    }
+    assert "fixture-private" not in json.dumps(report)
+
+
+def test_directory_failure_records_stage_before_starting_children(tmp_path, monkeypatch):
+    from docker import supervisor
+
+    root = tmp_path.resolve()
+    state = root / "state"
+    state.mkdir(mode=0o700)
+    config = supervisor.SupervisorConfig(
+        data_root=root / "data", state_root=state, project_root=ROOT,
+        runtime_source=root / "source", python=sys.executable, node="unused",
+    )
+    captured = []
+    monkeypatch.setattr(supervisor, "_event", lambda *args: None)
+    monkeypatch.setattr(supervisor, "_emit_failure_diagnostics", lambda value: captured.append(value))
+    def fail(_path):
+        raise PermissionError(13, "fixture-private-path")
+    monkeypatch.setattr(supervisor, "_prepare_private_leaf", fail)
+    assert supervisor.run(config) == 1
+    assert captured == [{
+        "stage": "private_directories", "exception_class": "PermissionError", "errno": 13,
+        "runtime_returncode": None, "web_returncode": None,
+    }]

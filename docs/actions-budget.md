@@ -53,7 +53,7 @@ Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`�
 
 - Bootstrap 成功上传 `doctor.json`、`connections.json`、首页 `root.html` 和主静态模块 `app.mjs`，证明干净 runner 的安装/产品 ready 与页面资源可读取；完整 `logs/setup-web.log` 只在失败时上传。
 - Bootstrap 和 Windows Verify 的任务 artifact 保留 3 天。
-- Docker 成功 artifact 只含固定字段的健康摘要、Compose 服务名及固定阶段/数字退出码；失败 artifact 保留经过秘密模式扫描的固定事件分类计数，并附同样的阶段/退出码 JSON。全部原始行被省略，原始 build/runtime/container 日志和凭据目录不上传。Docker artifact 保留 3 天。
+- Docker 成功 artifact 只含固定字段的健康摘要、Compose 服务名及固定阶段/数字退出码；失败 artifact 保留经过秘密模式扫描的固定事件分类计数，并附同样的阶段/退出码 JSON。启动失败还可保留最多 16 条精确五字段摘要（固定阶段、受控异常类别、errno、runtime/web 退出码），只接受白名单与有界整数。全部原始行被省略，原始 build/runtime/container 日志和凭据目录不上传。Docker artifact 保留 3 天。
 - GitHub 仓库默认 Actions artifact/log retention 由仓库所有者设为 7 天；该设置不由本地代码自动修改。
 - 若账户仍有 private 仓库或其他 included-usage 消耗，在 Billing 的 budgets/alerts 中启用 90% 与 100% 邮件提醒，但不得创建正额度预算、付款方式或允许付费超额。将提醒状态与仓库默认保留期一起记入月度记录。
 - 每月记录总用量、各 workflow 次数、失败重跑数、平台耗时、估算权重和剩余额度。

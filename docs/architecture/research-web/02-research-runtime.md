@@ -9,6 +9,8 @@ Docker supervisor 的启动顺序先准备 `/state/runtime` 与 `/run/rwb-secret
 重启保留私有叶及凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
 固定缺失叶的准备先用保留父FD创建，再由原runtime_state_directory完整重pin；不会捕获
 任意校验失败后无条件重试。data-root/logs使用相同首建顺序，自定义目录维持原严格create路径。
+启动失败额外记录固定阶段、受控异常类别、数字 errno 与 runtime/web 已知退出码；
+日志初始化前后使用同一安全字段，原失败退出及有界清理流程保持不变。
 
 模式选择只决定进程部署：Native 由服务管理器管理两个宿主进程，Docker 由单容器 supervisor 管理 DSH/Web；研究提交、双 WebSocket、SSE、审批与恢复协议共用。`rwb runtime status --json` 读取当前模式与安装身份；`rwb runtime use docker|native` 在旧模式运行时要求 `--stop-current` 且必须验证旧实例归属。两模式不可并发写同一研究数据。Docker `rwb web status|doctor --json` 将稳定 `issues` 返回给操作者，状态或镜像归属不明不自动接管。Windows Docker 凭据 ACL 当前未通过可证安全边界，不作为已验收模式。
 
