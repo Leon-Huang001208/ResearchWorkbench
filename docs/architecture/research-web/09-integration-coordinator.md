@@ -1,34 +1,10 @@
 # 统一集成协调器
 
-模型配置页的保存、Runtime应用、凭据与真实生成结果来自既有ResearchService，不加入第二套来源注册或五阶段协调器。模型生成成功不改变任何数据来源/本机能力的授权与可调用投影；模型凭据回执未知时阻断模型请求，来源探测仍按原合同独立报告。
+统一集成协调器聚合 DataHub 与本机能力的登记、配置/授权、探测、适配和当前可调用事实。它复用已有 Provider、本机验证器、Tabbit 和 MCP Host，不创建新的数据引擎或守护进程。
 
-Native 使用宿主 keyring；Docker 在显式配置的私有凭据目录中保存 DataHub 秘密，协调器只读取
-DataHub 的安全状态投影，仍以登记、授权、探测、适配、可调用五阶段判定结果。两模式顺序共享
-产品数据，但凭据不自动迁移；Docker 容器无法仅凭可见目录证明宿主 Wind、Office、Tabbit
-或系统会话可用。Windows Docker 凭据目录 ACL 未能证明时安装失败关闭，不能把来源提升为
-`runtime_callable`。
+从[分层阅读入口](../../../outputs/research-web-architecture/index.html#module-integrations)进入总图、说明、API、源码和测试。
 
-2026-09-29 的启动恢复只影响受管 3081/8088 的进程与页面可访问状态，不改变协调器五阶段状态、
-责任桶、来源授权、批次并发、快照或 DataHub 动态选源。Doctor 的 `product_ready` 证明 Web 壳与
-Runtime 协议可访问，不证明 Wind、天软、MySQL 或其他来源当前可调用；各来源仍须按现有配置、
-授权与真实探测结果单独投影。
-未安装环境的顶层 `rwb --help` 不初始化协调器、不恢复快照或发起来源探测；本轮 CI 修复
-不改变五阶段状态和责任归因。
-
-一键安装为协调器提供可复现的 Web 依赖与 CJPY 0.5.2，但不把“已安装”当成探测或可调用成功。
-没有 `CJ_KEY` 时天软保持待用户配置；保存后的秘密由凭据库在每次探测/查询时动态读取，协调器仍
-按既有五阶段模型和责任归因记录结果。
-安装器对 Windows DSH checkout 启用命令级长路径，Runtime 首次启动先初始化固定 `web` Profile；
-Profile junction containment 与 PowerShell PID 探针仅保证 Windows 3081 安全启动和回收；
-这些修复只保证协调器所在 8088/3081 可复现启动，不把任何来源状态提升为可调用。
-服务管理器在 spawn 前校验 Doctor 安装事实；安装未就绪时协调器和启动探测都不会创建。
-该前置门不把 CJPY 已安装、数据源已登记或历史探测快照误报为当前可调用。
-Node 选择与 Runtime build lock 的一致性只决定 3081 是否可安全启动，不改变协调器五阶段状态、
-授权或 Provider 可调用结论。
-纯 `rwb web status` 的导入不创建协调器，也不加载 Capability、MCP 或 DataHub Runtime 功能图；
-Doctor、start 与 8088 Host 仍在各自既有边界内加载并验证这些组件。
-安装阶段的 Web import readiness 不运行 lifespan 或协调器启动探测，不读取凭据，也不把任何来源
-从已安装提升为已配置、已验证或当前可调用。
+公开来源探测有界并发，本机探测串行，结果原子持久化。Native / Docker 凭据不自动迁移；Doctor 或模型生成成功不提升来源为可调用，容器可见文件也不证明宿主 Office/Wind 可用。
 
 ## 目标
 
@@ -125,14 +101,3 @@ AKShare 财务摘要的布尔缺失哨兵规范化只发生在 Provider 结果�
 
 专业数据源扩展、其他公共/监管来源、文件同步和本地 MCP 真实调用属于后续批次；未交付项必须显示为
 `not_delivered/developer`，不能计入用户“需处理”。
-
-## 2026-09-23 稳定性变更回执
-
-本轮服务重启活动门禁、会话/子 Agent 目录有界读取和浏览器目录加载呈现均不进入
-`IntegrationCoordinator`。五阶段状态、五类责任桶、探测授权、批次并发、快照持久化、DataHub
-动态选源和 Tabbit 双状态关系均未变化；无需修改协调器 API、Automation 关系或架构图。
-
-## 2026-09-28 Windows 停止兼容回执
-
-Windows 服务管理器只对已经归属核对的进程在非强制停止失败后升级 `/F`；该变化不改变协调器五阶段
-状态、责任归因、探测/授权、Provider callable 或本机集成真实验证结果。

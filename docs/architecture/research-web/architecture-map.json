@@ -433,7 +433,8 @@
         "docs/architecture/research-web/06-documentation-contract.md"
       ],
       "diagrams": [
-        "08-iteration-docs"
+        "08-iteration-docs",
+        "00-system-overview"
       ],
       "tests": [
         "tests/javascript/research_web_architecture.test.mjs",
@@ -447,6 +448,137 @@
     }
   ],
   "diagrams": [
+    {
+      "id": "00-system-overview",
+      "source": "docs/architecture/research-web/diagrams/00-system-overview.json",
+      "artifact": "outputs/research-web-architecture/00-system-overview.html",
+      "receipt": "outputs/research-web-architecture/00-system-overview.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/00-system-overview.visual-check.json",
+      "level": "overview",
+      "summary": "谁使用产品，Web / DSH 的分工，以及数据、模型、MCP 与本机集成边界。",
+      "evidence": [
+        {
+          "subjects": [
+            "researcher"
+          ],
+          "source": "app/research_web/ui/app.mjs"
+        },
+        {
+          "subjects": [
+            "web"
+          ],
+          "source": "app/research_web/main.py"
+        },
+        {
+          "subjects": [
+            "dsh"
+          ],
+          "source": "app/research_web/client.py"
+        },
+        {
+          "subjects": [
+            "models"
+          ],
+          "source": "app/research_web/model_credentials.py"
+        },
+        {
+          "subjects": [
+            "sources"
+          ],
+          "source": "app/research_web/datahub/providers.py"
+        },
+        {
+          "subjects": [
+            "datahub"
+          ],
+          "source": "app/research_web/integrations/coordinator.py"
+        },
+        {
+          "subjects": [
+            "mcp"
+          ],
+          "source": "app/research_web/mcp_runtime/service.py"
+        },
+        {
+          "subjects": [
+            "local"
+          ],
+          "source": "app/research_web/local_integrations/manager.py"
+        },
+        {
+          "subjects": [
+            "files"
+          ],
+          "source": "app/research_web/store.py"
+        },
+        {
+          "subjects": [
+            "frameworks"
+          ],
+          "source": "app/research_web/frameworks/service.py"
+        },
+        {
+          "subjects": [
+            "use"
+          ],
+          "source": "app/research_web/main.py"
+        },
+        {
+          "subjects": [
+            "execute"
+          ],
+          "source": "app/research_web/client.py"
+        },
+        {
+          "subjects": [
+            "infer"
+          ],
+          "source": "app/research_web/model_credentials.py"
+        },
+        {
+          "subjects": [
+            "query"
+          ],
+          "source": "app/research_web/datahub/broker.py"
+        },
+        {
+          "subjects": [
+            "choose"
+          ],
+          "source": "app/research_web/integrations/routes.py"
+        },
+        {
+          "subjects": [
+            "invoke"
+          ],
+          "source": "app/research_web/mcp_runtime/service.py"
+        },
+        {
+          "subjects": [
+            "persist"
+          ],
+          "source": "app/research_web/store.py"
+        },
+        {
+          "subjects": [
+            "integrate"
+          ],
+          "source": "app/research_web/report_workflows/workbook.py"
+        },
+        {
+          "subjects": [
+            "framework"
+          ],
+          "source": "app/research_web/frameworks/service.py"
+        },
+        {
+          "subjects": [
+            "deliver"
+          ],
+          "source": "app/research_web/report_rendering.py"
+        }
+      ]
+    },
     {
       "id": "02-module-dependencies",
       "source": "docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
@@ -589,7 +721,9 @@
           ],
           "source": "app/research_web/automation/routes.py"
         }
-      ]
+      ],
+      "level": "subsystems",
+      "summary": "按既有专题聚焦 MCP、自动化、报告和资产观察。"
     },
     {
       "id": "01-deployment",
@@ -676,7 +810,9 @@
           ],
           "source": "compose.yaml"
         }
-      ]
+      ],
+      "level": "deployment",
+      "summary": "Native / Docker 互斥部署、服务职责与存储归属。"
     },
     {
       "id": "03-research-sequence",
@@ -816,7 +952,9 @@
           ],
           "source": "app/research_web/datahub/snapshots.py"
         }
-      ]
+      ],
+      "level": "flows",
+      "summary": "研究受理、异步事件、审批、停止与恢复。"
     },
     {
       "id": "04-data-file-flow",
@@ -911,7 +1049,9 @@
           ],
           "source": "app/research_web/workbench.py"
         }
-      ]
+      ],
+      "level": "flows",
+      "summary": "DataHub 查询、会话隔离快照和父子 Agent 共享。"
     },
     {
       "id": "05-capability-flow",
@@ -960,7 +1100,9 @@
           ],
           "source": "app/research_web/runtime/research.cordis.yml"
         }
-      ]
+      ],
+      "level": "subsystems",
+      "summary": "Skill / Tool / Workflow 版本与受控调用。"
     },
     {
       "id": "06-run-state",
@@ -993,7 +1135,9 @@
           ],
           "source": "app/research_web/service.py"
         }
-      ]
+      ],
+      "level": "flows",
+      "summary": "研究执行状态、连接失败与恢复。"
     },
     {
       "id": "09-report-workflow-sequence",
@@ -1056,7 +1200,9 @@
           ],
           "source": "app/research_web/ui/report-workflows.mjs"
         }
-      ]
+      ],
+      "level": "flows",
+      "summary": "Excel 刷新、Claw 执行、迟到 payload 与真实交付。"
     },
     {
       "id": "10-excel-report-dataflow",
@@ -1111,7 +1257,9 @@
           ],
           "source": "app/research_web/report_rendering.py"
         }
-      ]
+      ],
+      "level": "flows",
+      "summary": "底稿副本、快照、payload 与确定性组装。"
     },
     {
       "id": "07-delivery-state",
@@ -1137,7 +1285,9 @@
           ],
           "source": "app/research_web/delivery.py"
         }
-      ]
+      ],
+      "level": "flows",
+      "summary": "文件有效、缺失、损坏与独立交付结果。"
     },
     {
       "id": "08-iteration-docs",
@@ -1203,7 +1353,9 @@
           ],
           "source": "app/research_web/documentation.py"
         }
-      ]
+      ],
+      "level": "details",
+      "summary": "源码、图文、测试和离线门禁。"
     }
   ],
   "apis": [
@@ -2524,5 +2676,185 @@
       "prefix": "/api/research"
     }
   ],
-  "visualReview": "docs/architecture/research-web/visual-review.json"
+  "visualReview": "docs/architecture/research-web/visual-review.json",
+  "reading": {
+    "repository": {
+      "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
+      "revision": "6ca33b2fbcab94357e129ee11bb236fc8683feff"
+    },
+    "levels": [
+      {
+        "id": "overview",
+        "title": "产品与系统总览"
+      },
+      {
+        "id": "deployment",
+        "title": "运行结构与部署"
+      },
+      {
+        "id": "subsystems",
+        "title": "子系统分图"
+      },
+      {
+        "id": "flows",
+        "title": "关键业务流程"
+      },
+      {
+        "id": "details",
+        "title": "API 与代码细节"
+      }
+    ],
+    "modules": [
+      {
+        "id": "dual-runtime",
+        "group": "dual-runtime",
+        "title": "部署与安装",
+        "summary": "Native / Docker 共用产品合同，服务和数据归属明确。",
+        "category": "研究会话与 Runtime"
+      },
+      {
+        "id": "ui",
+        "group": "ui",
+        "title": "产品页面",
+        "summary": "研究台、资产观察、框架、能力和设置的页面投影。",
+        "category": "研究会话与 Runtime"
+      },
+      {
+        "id": "research-api",
+        "group": "research-api",
+        "title": "研究协议",
+        "summary": "HTTP / SSE 投影原生 DSH 状态，受理与完成分离。",
+        "category": "研究会话与 Runtime"
+      },
+      {
+        "id": "frameworks",
+        "group": "research-api",
+        "title": "研究框架",
+        "summary": "Gold / Dollar 的定义、采集、版本快照、确定性评分与页面 Bot；不是第二个研究引擎。",
+        "category": "研究框架",
+        "documents": [
+          "docs/architecture/research-web/08-research-frameworks.md"
+        ],
+        "diagrams": [
+          "00-system-overview",
+          "03-research-sequence",
+          "04-data-file-flow"
+        ],
+        "sources": [
+          "app/research_web/frameworks/routes.py",
+          "app/research_web/frameworks/service.py"
+        ],
+        "tests": [
+          "tests/research_web/test_frameworks.py",
+          "tests/research_web/test_framework_collectors.py",
+          "tests/javascript/research_web_frameworks_ui.test.mjs"
+        ]
+      },
+      {
+        "id": "integrations",
+        "group": "research-api",
+        "title": "集成协调器",
+        "summary": "登记、配置、授权、探测与适配五阶段；统一数据源和本机能力状态，批次失败不伪报 ready。",
+        "category": "集成协调器",
+        "documents": [
+          "docs/architecture/research-web/09-integration-coordinator.md"
+        ],
+        "diagrams": [
+          "00-system-overview",
+          "04-data-file-flow"
+        ],
+        "sources": [
+          "app/research_web/integrations/routes.py",
+          "app/research_web/integrations/coordinator.py"
+        ],
+        "tests": [
+          "tests/research_web/test_integration_coordinator.py",
+          "tests/research_web/test_local_integrations.py"
+        ]
+      },
+      {
+        "id": "mcp-registry",
+        "group": "mcp-registry",
+        "title": "MCP Registry",
+        "summary": "只读目录、身份和同步缓存。",
+        "category": "MCP Registry"
+      },
+      {
+        "id": "datahub",
+        "group": "datahub",
+        "title": "DataHub",
+        "summary": "白名单查询、选源与会话快照，登记不等于可调用。",
+        "category": "DataHub 与交接"
+      },
+      {
+        "id": "mcp-runtime",
+        "group": "mcp-runtime",
+        "title": "MCP Host",
+        "summary": "固定安装、OAuth、逐次授权与审批。",
+        "category": "MCP Registry"
+      },
+      {
+        "id": "automations",
+        "group": "automations",
+        "title": "自动化",
+        "summary": "锁定目标版本，独立研究会话和投递账本。",
+        "category": "自动化"
+      },
+      {
+        "id": "files",
+        "group": "files",
+        "title": "文件与交付",
+        "summary": "受控路径、实际产物和独立文件验证。",
+        "category": "DataHub 与交接"
+      },
+      {
+        "id": "runtime",
+        "group": "runtime",
+        "title": "专属 DSH",
+        "summary": "唯一研究循环，原生历史、Skill、Tool 和子 Agent。",
+        "category": "研究会话与 Runtime"
+      },
+      {
+        "id": "capabilities",
+        "group": "capabilities",
+        "title": "能力中心",
+        "summary": "不可变 Skill、Method、Tool、Workflow 版本与发现。",
+        "category": "能力中心"
+      },
+      {
+        "id": "report-workflows",
+        "group": "report-workflows",
+        "title": "报告 Workflow",
+        "summary": "底稿运行副本、Excel 刷新、Claw payload 和确定性组装。",
+        "category": "报告 Workflow"
+      },
+      {
+        "id": "workbench",
+        "group": "workbench",
+        "title": "资产观察",
+        "summary": "区块查询、自选与笔记；不创建后台行情管线。",
+        "category": "资产观察"
+      },
+      {
+        "id": "operations",
+        "group": "operations",
+        "title": "运行与用量",
+        "summary": "只读聚合实际 usage、服务和存储。",
+        "category": "运行与用量"
+      },
+      {
+        "id": "documentation",
+        "group": "documentation",
+        "title": "架构文档",
+        "summary": "安全只读 HTML 和确定性离线生成门禁。",
+        "category": "架构文档"
+      }
+    ],
+    "generator": {
+      "name": "Archify",
+      "version": "2.14",
+      "entrypointSha256": "70c77afcb6f6dd2d7af0dfbf6120a544fb1dea5ac00515ddbe1b2fda6faaf443",
+      "input": "docs/architecture/research-web/diagrams/00-system-overview.json"
+    }
+  }
 }
