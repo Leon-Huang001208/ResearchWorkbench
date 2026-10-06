@@ -11,9 +11,7 @@ from core.observability import get_logger
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/api/research")
-ARTIFACT_ROOT = (
-    Path(__file__).absolute().parents[2] / "outputs" / "research-web-architecture"
-)
+ARTIFACT_ROOT = Path(__file__).absolute().parents[2] / "outputs" / "research-web-architecture"
 DOCUMENT_NAMES = frozenset(
     f"{name}.html"
     for name in (
@@ -45,7 +43,7 @@ DOCUMENT_NAVIGATION = (
     '<a href="index.html" style="color:#e5edf8">架构阅读起点</a> / '
     '<a href="index.html#modules" style="color:#e5edf8">模块说明</a> / '
     '<a href="api-atlas.html" style="color:#e5edf8">API Atlas</a></nav>'
-).encode("utf-8")
+).encode()
 
 
 def read_document(name: str) -> bytes:
@@ -59,9 +57,7 @@ def read_document(name: str) -> bytes:
             next_directory = os.open(component, flags, dir_fd=directory)
             os.close(directory)
             directory = next_directory
-        descriptor = os.open(
-            name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory
-        )
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
         with os.fdopen(descriptor, "rb") as stream:
             metadata = os.fstat(stream.fileno())
             if (

@@ -15,8 +15,8 @@
 - 真实浏览器：Settings → 架构文档分类 → 新页图册 → 总图/分图/返回 → 框架及协调器正确 API 分类 PASS；固定 211703c 基线版本的说明、源码、测试均实际点击并 HTTP 200；集成后的新源码版本尚未推送，205 个链接本地 Git 对象验证通过，HTTP 补证待送审后执行。独立 Web 18088 禁用 lifespan，验证的是阅读面，不是 Runtime 产品 ready。
 - 独立审查：生成器悬空符号链接 P2 和外部导航错误误报 BLOCKED 的 P2 均已修复并获只读复核；无新增具体问题。详见独立审查报告。
 - 总图图源/HTML/四视口/四截图与用户确认仍匹配；用户人工审阅 PASS；自动 visualReview 保持 pending。既有图只复用同哈希证据。
-- Python pytest、Ruff、Black、isort、mypy：NOT_RUN。安装早已获用户授权，但本轮正常 pip 路径仍被已加载的 leon-engineering Guard 拒绝；配置 enabled=false 尚未成为当前宿主实际行为。未绕过 Hook，未将环境错误当测试 RED。
-- hostAcceptance: BLOCKED（Python 验证与同平台 CI 未完成）；aggregateAcceptance: NOT_READY；Windows/Linux NOT_RUN 保留。
+- Python：文档路由/同步 28/28、索引 4/4 PASS；受影响两文件 Ruff/Black/isort/mypy PASS。独立 venv 的正常 pip 安装已成功，当前 Guard 拒绝已解除。仅对 UTF-8 默认编码和格式作等价修复，导航响应字节不变。
+- hostAcceptance: BLOCKED（同平台 CI 未完成）；aggregateAcceptance: NOT_READY；Windows/Linux NOT_RUN 保留。
 - PR/CI/merge/生产实例：本任务均未执行。仓库当前 PUBLIC，Actions 预算门不是阻塞。需要本地候选及最新主线集成后，沿既有送审入口取得本候选 macOS Bootstrap 实际 checkout 证据；不得借旧提交/Ubuntu run 认证 Mac。
 - 授权：独立测试依赖安装与 Guard 禁用已获明确授权，不能再次要求用户安装同一包；远端具体候选动作按本轮 Goal 与已有授权边界执行。
 
@@ -213,3 +213,11 @@ settled runtime failure 分别投影为可见 connecting/offline。阅读顺序�
 - 新导航源码快照 6ca33b2fbcab94357e129ee11bb236fc8683feff 的 205 个引用全部由 git cat-file 实证存在；尚未进行该新 SHA 的外部 HTTP 导航，不能借旧 SHA 的 200 结果认证。
 - Python 与 macOS CI 继续 NOT_RUN；没有合并本任务、没有更新运行实例。独立 18088 验证服务已停止。
 - 下一步在实际停用 Guard 的宿主：按原授权完成测试工具安装和 Python 专项，再推送本任务集成候选并创建独立送审 PR；使用现有 macOS Bootstrap 入口，对实际 checkout 取证，并补新源码版本链接实测。保留 Windows/Linux NOT_RUN，不启动阶段二/三。
+
+## Python 收尾（当前）
+
+- 已授权的正常 pip 安装成功，没有改变命令形式或绕过 Hook。测试工具仅安装于 /private/tmp/rwb-stage1-test-992c74ec。
+- 现有主工作区 Web site-packages 以 PYTHONPATH 只读提供运行依赖，项目源码从当前 worktree 导入；没有修改产品环境或 web.lock。
+- pytest 文档安全/同步 28 passed；索引 4 passed；一个既有 AnyIO BlockingPortal 弃用警告不作为产品缺陷。
+- Ruff UP012 与 Black 格式已按诊断修复（encode() 默认 UTF-8 与原内容等价）；Ruff/Black/isort PASS，mypy 两文件 PASS，仅有配置中未使用 NumPy/Transformers section 的说明。
+- 后续替换已准备候选，再对具体新 SHA 送审、macOS CI 和新源码链接补证；其他原有效证据继续复用。
