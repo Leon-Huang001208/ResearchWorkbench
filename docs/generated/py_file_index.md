@@ -3384,6 +3384,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `collections.abc`
 - `hashlib`
 - `json`
 - `logging`

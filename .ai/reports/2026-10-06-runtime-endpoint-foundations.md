@@ -60,3 +60,19 @@ black/ruff/isort/mypy 在获准解释器及 PATH 不可用，未安装，NOT_RUN
 本报告不是真实生命周期或完整发布验收。所有 CI 均 NOT_RUN；没有 push、PR、merge、dispatch、
 Docker 构建/运行或外部协调。规划器选择的外部门尚未执行，mergeReady/releaseReady 均 false。
 正常 creators 在 prepare 后创建缺失文件时，必须有明确新文件身份交接，不能靠内容推断归属。
+
+## 独立审查修复 1
+
+基线 `6e489b853667791722ea3765a3bf6e4eed04a9cd`。审查发现端点预检与锁入口间把 install
+改为 0755 时，旧共享锁会修复为 0700。新增确定性测试实际 RED：1 failed / 28 deselected，
+`logs/task-1-fix1-red.log`，原实现未抛 EndpointError。
+修复为 `_write_lock(strict_parent=True)` 传至父目录创建器；只创建缺失私有目录，现有目录
+严格验证且不修复，旧 ModeStore 默认选项保持兼容。新增回归同时检查失败后仍为 0755、记录字节不变。
+另明确 `Callable[[], object]`（返回值仍 exact True）、`Iterable[int]`、构造函数返回 None 类型。
+最小共享边界闭包 `test_runtime_endpoints.py test_control_origin.py test_runtime_mode.py`：
+133 passed / 2.62s，`logs/task-1-fix1-green.log`。旧 negative 测试预期 warning 仍存在，未修改降噪。
+新增显式旧 ModeStore 默认修复兼容用例后只补跑目标测试，不重复旧 Python 全集。
+定点兼容结果：2 passed / 28 deselected / 0.07s，`logs/task-1-fix1-compatibility.log`。
+修复后 cumulative 24 文件 Constraints、doc-sync、生成索引、stdlib 导入、diff 均 PASS；
+L4/外部未运行状态保持，证据为 `logs/task-1-fix1-plan.json`、`logs/task-1-fix1-constraints.log`、
+`logs/task-1-fix1-doc-sync.log`。未重跑无源码影响的旧全集，未安装工具或改动真实服务。

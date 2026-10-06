@@ -4,6 +4,8 @@
 不同端口、CAS revision、私有目录/文件与单链接均严格校验。新 helper 仅接受 POSIX 私有权限
 边界；这不构成 Windows/Linux 验收。共用原子 writer 保留旧调用默认行为，新 `strict_parent=True`
 禁止目录创建/权限修复，发布后仍持有写 FD 并与路径身份对照；未来操作须再次核对身份。
+端点写锁也显式使用严格父目录入口：可以创建缺失私有目录，但现存目录在预检之后变为非私有时
+只拒绝、不 chmod。原 RuntimeModeStore 未传严格选项的旧调用保持原行为。
 
 内部 origin 事务只处理 `.control/datahub.json` 与 `mcp-runtime.json` 的已知 schema，复用原 token/
 URL validator，拒绝重复 JSON key、漂移旧 origin、非私有父目录、alias 与内容相同的 inode 替换。

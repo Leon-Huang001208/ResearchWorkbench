@@ -3,6 +3,7 @@
 import json
 import os
 import socket
+from contextlib import contextmanager
 
 import pytest
 
@@ -143,6 +144,34 @@ def test_strict_writer_does_not_repair_permissions(tmp_path):
         runtime_mode._atomic_write_posix(folder / "file", b"{}", None, strict_parent=True)
     assert folder.stat().st_mode & 0o777 == 0o755
     assert not (folder / "file").exists()
+
+
+def test_publish_never_repairs_parent_changed_after_preflight(store, monkeypatch):
+    previous = store.publish("docker", web_port=18089, expected=None)
+    original_bytes = store.path.read_bytes()
+    original_lock = store._lock._write_lock
+
+    @contextmanager
+    def change_mode_before_lock(**kwargs):
+        store.path.parent.chmod(0o755)
+        with original_lock(**kwargs):
+            yield
+
+    monkeypatch.setattr(store._lock, "_write_lock", change_mode_before_lock)
+    with pytest.raises(EndpointError, match="endpoint_unsafe_path"):
+        store.publish("docker", web_port=18090, expected=previous)
+    assert store.path.parent.stat().st_mode & 0o777 == 0o755
+    assert store.path.read_bytes() == original_bytes
+
+
+def test_legacy_mode_store_keeps_default_parent_repair(store):
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    store.path.parent.mkdir(mode=0o755)
+    mode_store = RuntimeModeStore(store.home)
+    record = mode_store.write("native")
+    assert record.mode == "native"
+    assert store.path.parent.stat().st_mode & 0o777 == 0o700
 
 
 def test_atomic_writer_rejects_post_publication_identical_replacement(tmp_path, monkeypatch):

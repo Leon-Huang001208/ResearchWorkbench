@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import NoReturn
 from urllib.parse import urlsplit
@@ -120,7 +121,14 @@ def _decode(name: str, raw: bytes, origin: str) -> dict:
 class ControlOriginTransaction:
     """Prepare updates existing records; commit/rollback require owned identities."""
 
-    def __init__(self, data_root: Path, previous_origin: str, next_origin: str, *, quiescent):
+    def __init__(
+        self,
+        data_root: Path,
+        previous_origin: str,
+        next_origin: str,
+        *,
+        quiescent: Callable[[], object],
+    ) -> None:
         self.root = Path(data_root).absolute()
         self.folder = self.root / ".control"
         self.previous = _checked_origin(previous_origin)

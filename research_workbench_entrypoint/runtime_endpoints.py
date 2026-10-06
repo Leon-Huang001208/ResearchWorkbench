@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import socket
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NoReturn
@@ -124,7 +125,7 @@ class EndpointStore:
             elif runtime_port is not None:
                 _fail("endpoint_invalid_pair")
             self._validate_path()
-            with self._lock._write_lock():
+            with self._lock._write_lock(strict_parent=True):
                 records, identity = self._load()
                 if records.get(mode) != expected:
                     _fail("endpoint_conflict")
@@ -157,7 +158,9 @@ class EndpointStore:
             _fail("endpoint_facts_mismatch")
 
 
-def select_port(preferred: int, *, explicit: bool = False, excluded=()) -> int:
+def select_port(
+    preferred: int, *, explicit: bool = False, excluded: Iterable[int] = ()
+) -> int:
     """Try preferred, then bounded OS loopback candidates; caller must bind/retry."""
     _port(preferred)
     excluded = tuple(_port(port) for port in excluded)

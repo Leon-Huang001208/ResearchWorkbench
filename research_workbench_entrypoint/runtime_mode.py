@@ -216,8 +216,8 @@ def _open_posix_directory(parent: int, name: str) -> tuple[int, os.stat_result]:
 
 
 @contextmanager
-def _private_posix_parent(path: Path) -> Iterator[int]:
-    """Create and retain the private install directory without path chmod races."""
+def _private_posix_parent(path: Path, *, strict_parent: bool = False) -> Iterator[int]:
+    """Create missing private parents; strict callers never repair existing modes."""
     home = path.parent.parent
     with ExitStack() as stack:
         home_parent = stack.enter_context(_pin_posix_parents(home, node_only=True))
@@ -229,6 +229,8 @@ def _private_posix_parent(path: Path) -> Iterator[int]:
         stack.callback(os.close, home_descriptor)
         if home_identity.st_uid != os.getuid():
             _fail("unsafe_path")
+        if strict_parent:
+            _validate_posix_private_directory(home_identity)
 
         try:
             os.mkdir(path.parent.name, mode=0o700, dir_fd=home_descriptor)
@@ -241,6 +243,8 @@ def _private_posix_parent(path: Path) -> Iterator[int]:
         if install_identity.st_uid != os.getuid():
             _fail("unsafe_path")
         if stat.S_IMODE(install_identity.st_mode) != 0o700:
+            if strict_parent:
+                _fail("unsafe_path")
             os.fchmod(install_descriptor, 0o700)
         install_identity = os.fstat(install_descriptor)
         _validate_posix_private_directory(install_identity)
@@ -498,13 +502,14 @@ class RuntimeModeStore:
             _validate_directory_chain(self.path.parent)
 
     @contextmanager
-    def _write_lock(self) -> Iterator[None]:
+    def _write_lock(self, *, strict_parent: bool = False) -> Iterator[None]:
         """Retain one private, never-unlinked lock inode through readback.
 
         POSIX flock serializes independent descriptors/processes. Windows uses
         a byte lock on a no-reparse handle opened without delete sharing, so the
         locked file cannot be replaced while any writer retains its handle.
         Read-only operations never enter this context or create a lock file.
+        strict_parent keeps existing POSIX parent permissions unchanged.
         """
         lock_path = self.path.with_name("runtime.lock")
         with ExitStack() as stack:
@@ -537,7 +542,9 @@ class RuntimeModeStore:
             else:
                 import fcntl
 
-                parent = stack.enter_context(_private_posix_parent(self.path))
+                parent = stack.enter_context(
+                    _private_posix_parent(self.path, strict_parent=strict_parent)
+                )
                 descriptor = os.open(lock_path.name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
                                      0o600, dir_fd=parent)
                 stack.callback(os.close, descriptor)
