@@ -785,7 +785,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--data", type=Path, required=True)
-    parser.add_argument("--state", type=Path, help="Runtime state directory; default <data>/runtime")
+    parser.add_argument(
+        "--state", type=Path, help="Runtime state directory; default <data>/runtime"
+    )
     parser.add_argument("--node", default="/usr/local/bin/node")
     parser.add_argument("--port", type=int, default=3081)
     parser.add_argument(
@@ -855,16 +857,35 @@ def main():
         subprocess.SubprocessError,
     ) as exc:
         name = type(exc).__name__
-        allowed = {"OSError", "PermissionError", "FileNotFoundError", "ProcessLookupError",
-                   "RuntimeStateError", "ValueError", "RuntimeError", "StoreError",
-                   "TimeoutExpired", "CalledProcessError", "SubprocessError"}
+        allowed = {
+            "OSError",
+            "PermissionError",
+            "FileNotFoundError",
+            "ProcessLookupError",
+            "RuntimeStateError",
+            "ValueError",
+            "RuntimeError",
+            "StoreError",
+            "TimeoutExpired",
+            "CalledProcessError",
+            "SubprocessError",
+        }
         kind = name if name in allowed else "Other"
         number = exc.errno if isinstance(exc, OSError) else None
         number = number if type(number) is int and 0 <= number <= 4095 else None
-        log.error("container_startup_failure " + json.dumps({
-            "stage": stage, "exception_class": kind, "errno": number,
-            "runtime_returncode": None, "web_returncode": None,
-        }, sort_keys=True))
+        log.error(
+            "container_startup_failure "
+            + json.dumps(
+                {
+                    "stage": stage,
+                    "exception_class": kind,
+                    "errno": number,
+                    "runtime_returncode": None,
+                    "web_returncode": None,
+                },
+                sort_keys=True,
+            )
+        )
         log.error("owned_dsh_launch_failed", stage=stage, error_type=kind)
         raise SystemExit(1) from exc
 

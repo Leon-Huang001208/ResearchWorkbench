@@ -23,7 +23,7 @@
     "cross-platform"
   ],
   "changeSummary": {
-    "fileCount": 66,
+    "fileCount": 64,
     "ruleIds": [
       "ci",
       "documentation",
@@ -54,7 +54,6 @@
   "changedFiles": [
     ".agents/verification-policy.json",
     ".ai/reports/2026-10-05-settings-capability-loop.md",
-    ".ai/reports/2026-10-06-platform-acceptance.md",
     ".ai/reports/2026-10-06-pr78-repair-plan.json",
     ".ai/reports/2026-10-06-pr78-repair.md",
     "AGENTS.md",
@@ -89,7 +88,6 @@
     "docs/architecture/research-web/diagrams/01-deployment.json",
     "docs/architecture/research-web/readme-review.json",
     "docs/architecture/research-web/visual-review.json",
-    "docs/desktop_packaging.md",
     "docs/generated/py_file_index.md",
     "docs/research-web-appearance.md",
     "docs/research-web-capabilities.md",
@@ -132,16 +130,6 @@
     },
     {
       "path": ".ai/reports/2026-10-05-settings-capability-loop.md",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
-    },
-    {
-      "path": ".ai/reports/2026-10-06-platform-acceptance.md",
       "rule": "documentation",
       "reason": "documentation_only",
       "modules": [
@@ -582,16 +570,6 @@
       "minimumLevel": "L0"
     },
     {
-      "path": "docs/desktop_packaging.md",
-      "rule": "documentation",
-      "reason": "documentation_only",
-      "modules": [
-        "documentation"
-      ],
-      "coupling": "low",
-      "minimumLevel": "L0"
-    },
-    {
       "path": "docs/generated/py_file_index.md",
       "rule": "documentation",
       "reason": "documentation_only",
@@ -884,11 +862,6 @@
       "code": "documentation_only"
     },
     {
-      "path": ".ai/reports/2026-10-06-platform-acceptance.md",
-      "rule": "documentation",
-      "code": "documentation_only"
-    },
-    {
       "path": ".ai/reports/2026-10-06-pr78-repair-plan.json",
       "rule": "documentation",
       "code": "documentation_only"
@@ -1100,11 +1073,6 @@
     },
     {
       "path": "docs/architecture/research-web/visual-review.json",
-      "rule": "documentation",
-      "code": "documentation_only"
-    },
-    {
-      "path": "docs/desktop_packaging.md",
       "rule": "documentation",
       "code": "documentation_only"
     },
@@ -1862,7 +1830,6 @@
     "changedFiles": [
       ".agents/verification-policy.json",
       ".ai/reports/2026-10-05-settings-capability-loop.md",
-      ".ai/reports/2026-10-06-platform-acceptance.md",
       ".ai/reports/2026-10-06-pr78-repair-plan.json",
       ".ai/reports/2026-10-06-pr78-repair.md",
       "AGENTS.md",
@@ -1897,7 +1864,6 @@
       "docs/architecture/research-web/diagrams/01-deployment.json",
       "docs/architecture/research-web/readme-review.json",
       "docs/architecture/research-web/visual-review.json",
-      "docs/desktop_packaging.md",
       "docs/generated/py_file_index.md",
       "docs/research-web-appearance.md",
       "docs/research-web-capabilities.md",

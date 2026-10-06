@@ -14,7 +14,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SECRET = "fixture-private-secret-value"
 
-CHILD = r'''
+CHILD = r"""
 import http.server, json, os, signal, sys, time
 from pathlib import Path
 role, port, events, mode = sys.argv[1:]
@@ -119,9 +119,9 @@ while True:
         record("exit")
         raise SystemExit(9)
     server.handle_request()
-'''
+"""
 
-WORKER = r'''
+WORKER = r"""
 import json, os, signal, sys, time
 from pathlib import Path
 role, events = sys.argv[1:]
@@ -139,9 +139,9 @@ Path(events + ".role-" + str(os.getpid())).write_bytes(raw)
 record("start")
 print("RWB_SUPERVISOR_ROLE=" + str(marker), flush=True)
 while True: time.sleep(.01)
-'''
+"""
 
-RUNNER = r'''
+RUNNER = r"""
 import json, sys
 from pathlib import Path
 from docker import supervisor
@@ -193,7 +193,7 @@ if sys.platform == "darwin" and (runtime_mode.startswith("adopted") or web_mode.
     supervisor._OwnedProcesses.__init__ = init
     supervisor._read_role_environment = lambda pid: (root/("events.role-" + str(pid))).read_bytes()
 raise SystemExit(supervisor.run(config))
-'''
+"""
 
 
 def free_port():
@@ -212,7 +212,7 @@ def wait_for(check, timeout=6):
     while time.monotonic() < deadline:
         if check():
             return
-        time.sleep(.02)
+        time.sleep(0.02)
     pytest.fail("fixture readiness timed out")
 
 
@@ -232,9 +232,21 @@ def launch(tmp_path):
         (root / "state").chmod(state_mode)
         runtime_port, web_port = free_port(), free_port()
         proc = subprocess.Popen(
-            [sys.executable, "-c", RUNNER, str(root), str(runtime_port), str(web_port), runtime, web],
-            cwd=ROOT, env={**os.environ, "FIXTURE_SECRET": SECRET},
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            [
+                sys.executable,
+                "-c",
+                RUNNER,
+                str(root),
+                str(runtime_port),
+                str(web_port),
+                runtime,
+                web,
+            ],
+            cwd=ROOT,
+            env={**os.environ, "FIXTURE_SECRET": SECRET},
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
         )
         processes.append(proc)
         return proc, root, runtime_port, web_port
@@ -291,17 +303,19 @@ def test_start_order_signal_cleanup_and_redacted_forwarding(launch, stop_signal)
     assert "cookie cache ready" in output
     assert "retry credential [redacted]" in output
     assert "role" in output and "state" in output and "code" in output
-    assert all(value not in output for value in (
-        SECRET, "private-cookie", "x" * 43, "y" * 43, "structured-credential-value"
-    ))
+    assert all(
+        value not in output
+        for value in (SECRET, "private-cookie", "x" * 43, "y" * 43, "structured-credential-value")
+    )
     assert "kill" not in output
     assert not (root / "state/auth.json").exists()
     persisted = "".join(path.read_text() for path in (root / "data/logs").glob("*.log"))
     assert "service fixture ready" in persisted and "health_ready" in persisted
     assert "cookie cache ready" in persisted
-    assert all(value not in persisted for value in (
-        SECRET, "private-cookie", "x" * 43, "y" * 43, "structured-credential-value"
-    ))
+    assert all(
+        value not in persisted
+        for value in (SECRET, "private-cookie", "x" * 43, "y" * 43, "structured-credential-value")
+    )
 
 
 def test_auth_record_cookie_redacted_without_prior_cookie_output(launch):
@@ -325,7 +339,7 @@ def test_unobserved_adopted_workers_keep_proven_roles_or_cleanup_last(launch, ru
         wait_for(lambda: started(root, "web-worker") or proc.poll() is not None)
         wait_for(lambda: started(root, "runtime-worker") or proc.poll() is not None)
         assert proc.poll() is None, proc.communicate()[0]
-        time.sleep(.2)
+        time.sleep(0.2)
         proc.terminate()
         output = proc.communicate(timeout=6)[0]
         unknown = runtime_mode != "adopted"
@@ -353,14 +367,17 @@ def test_unobserved_adopted_workers_keep_proven_roles_or_cleanup_last(launch, ru
         unrelated.wait(timeout=3)
 
 
-@pytest.mark.parametrize("raw,expected", [
-    (b"RWB_SUPERVISOR_ROLE=runtime\0", "runtime"),
-    (b"RWB_SUPERVISOR_ROLE=web\0", "web"),
-    (b"OTHER_ROLE=runtime\0", "unknown"),
-    (b"RWB_SUPERVISOR_ROLE=runtime-extra\0", "unknown"),
-    (b"RWB_SUPERVISOR_ROLE=web\0RWB_SUPERVISOR_ROLE=runtime\0", "unknown"),
-    (b"RWB_SUPERVISOR_ROLE=runtime\0" + b"x" * 65536, "unknown"),
-])
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (b"RWB_SUPERVISOR_ROLE=runtime\0", "runtime"),
+        (b"RWB_SUPERVISOR_ROLE=web\0", "web"),
+        (b"OTHER_ROLE=runtime\0", "unknown"),
+        (b"RWB_SUPERVISOR_ROLE=runtime-extra\0", "unknown"),
+        (b"RWB_SUPERVISOR_ROLE=web\0RWB_SUPERVISOR_ROLE=runtime\0", "unknown"),
+        (b"RWB_SUPERVISOR_ROLE=runtime\0" + b"x" * 65536, "unknown"),
+    ],
+)
 def test_adopted_role_uses_only_one_exact_bounded_marker(monkeypatch, raw, expected):
     from docker import supervisor
 
@@ -380,10 +397,15 @@ def test_baseline_direct_child_is_not_adopted_or_signalled(monkeypatch):
     ownership.adopts = True
     try:
         actual_snapshot = supervisor._process_snapshot
+
         def snapshot():
             # Exclude the transient ps helper used on macOS, retain the real baseline.
-            return {pid: info for pid, info in actual_snapshot().items()
-                    if info.parent != os.getpid() or pid == baseline.pid}
+            return {
+                pid: info
+                for pid, info in actual_snapshot().items()
+                if info.parent != os.getpid() or pid == baseline.pid
+            }
+
         monkeypatch.setattr(supervisor, "_process_snapshot", snapshot)
         assert baseline.pid not in ownership.refresh({})
         assert baseline.pid not in ownership.owned
@@ -405,7 +427,7 @@ def test_cleans_setsid_descendant_even_after_direct_parent_exit(launch, unexpect
         assert proc.poll() is None, proc.communicate()[0]
         worker_pid = next(row[3] for row in events(root) if row[:2] == ["worker", "start"])
         assert os.getpgid(worker_pid) == worker_pid
-        time.sleep(.2)  # Allow the non-PID-1 macOS fixture to observe ancestry before orphaning.
+        time.sleep(0.2)  # Allow the non-PID-1 macOS fixture to observe ancestry before orphaning.
         before = time.monotonic()
         if unexpected:
             (root / "events.exit-web").touch()
@@ -415,14 +437,16 @@ def test_cleans_setsid_descendant_even_after_direct_parent_exit(launch, unexpect
         assert proc.returncode == (1 if unexpected else 0), output
         assert ["worker", "term"] in [row[:2] for row in events(root)], output
         if worker_mode == "detached-stubborn":
-            assert time.monotonic() - before >= .35
+            assert time.monotonic() - before >= 0.35
             assert "signal_kill" in output
+
         def worker_gone():
             try:
                 os.kill(worker_pid, 0)
                 return False
             except ProcessLookupError:
                 return True
+
         wait_for(worker_gone, timeout=2)
         assert unrelated.poll() is None
         worker_term = next(row[2] for row in events(root) if row[:2] == ["worker", "term"])
@@ -433,7 +457,9 @@ def test_cleans_setsid_descendant_even_after_direct_parent_exit(launch, unexpect
         unrelated.wait(timeout=3)
 
 
-@pytest.mark.parametrize("runtime,web", [("unhealthy", "normal"), ("normal", "missing"), ("normal", "unhealthy")])
+@pytest.mark.parametrize(
+    "runtime,web", [("unhealthy", "normal"), ("normal", "missing"), ("normal", "unhealthy")]
+)
 def test_start_failure_cleans_runtime(launch, runtime, web):
     proc, root, _, _ = launch(runtime, web)
     output = proc.communicate(timeout=6)[0]
@@ -461,7 +487,7 @@ def test_kill_only_after_grace_period(launch):
     proc.terminate()
     output = proc.communicate(timeout=5)[0]
     assert proc.returncode == 0, output
-    assert time.monotonic() - started_at >= .35
+    assert time.monotonic() - started_at >= 0.35
     assert "kill" in output
 
 
@@ -473,14 +499,14 @@ def test_healthcheck_real_authenticated_services_and_read_only_state(launch):
     assert proc.poll() is None, proc.communicate()[0]
     auth = root / "state/auth.json"
     before = auth.read_bytes()
-    assert check(root / "state", root / "data", runtime_port, web_port, timeout=.5) == 0
+    assert check(root / "state", root / "data", runtime_port, web_port, timeout=0.5) == 0
     assert auth.read_bytes() == before
     auth.write_text("{}")
-    assert check(root / "state", root / "data", runtime_port, web_port, timeout=.5) != 0
+    assert check(root / "state", root / "data", runtime_port, web_port, timeout=0.5) != 0
     assert auth.read_text() == "{}"
     auth.write_bytes(before)
     (root / "state").chmod(0o755)
-    assert check(root / "state", root / "data", runtime_port, web_port, timeout=.5) != 0
+    assert check(root / "state", root / "data", runtime_port, web_port, timeout=0.5) != 0
     (root / "state").chmod(0o700)
 
 
@@ -494,7 +520,7 @@ def test_healthcheck_import_exists():
 def test_container_full_page_probe_uses_shared_total_deadline(tmp_path, monkeypatch):
     from docker.healthcheck import ContainerHealth
 
-    probe = ContainerHealth(timeout=.1, data_root=tmp_path / "data")
+    probe = ContainerHealth(timeout=0.1, data_root=tmp_path / "data")
     calls = []
 
     def request(port, method, path, *args):
@@ -503,7 +529,9 @@ def test_container_full_page_probe_uses_shared_total_deadline(tmp_path, monkeypa
 
     monkeypatch.setattr(probe, "_request", request)
     assert probe._text_request(18088, "/", max_bytes=100) == (
-        200, "text/html", "Research Workbench"
+        200,
+        "text/html",
+        "Research Workbench",
     )
     assert calls == [(18088, "GET", "/")]
 
@@ -514,12 +542,12 @@ def test_healthcheck_rejects_bad_rpc_and_bounds_slow_response(launch):
     proc, root, runtime_port, web_port = launch()
     wait_for(lambda: started(root, "web") or proc.poll() is not None)
     (root / "events.bad-rpc").touch()
-    assert check(root / "state", root / "data", runtime_port, web_port, timeout=.3) == 1
+    assert check(root / "state", root / "data", runtime_port, web_port, timeout=0.3) == 1
     (root / "events.bad-rpc").unlink()
     (root / "events.stall").touch()
     before = time.monotonic()
-    assert check(root / "state", root / "data", runtime_port, web_port, timeout=.15) == 1
-    assert time.monotonic() - before < .5
+    assert check(root / "state", root / "data", runtime_port, web_port, timeout=0.15) == 1
+    assert time.monotonic() - before < 0.5
 
 
 def test_unsafe_state_never_starts_a_child(launch):
@@ -545,9 +573,11 @@ def test_reaps_untracked_children_and_preserves_owned_exit_status():
     second = subprocess.Popen([sys.executable, "-c", "raise SystemExit(0)"])
     try:
         reaped = set()
+
         def both_reaped():
             reaped.update(_reap_children({"runtime": first}))
             return reaped == {first.pid, second.pid}
+
         wait_for(both_reaped)
         assert first.returncode == 9
         with pytest.raises(ChildProcessError):
@@ -571,36 +601,46 @@ def test_shutdown_cleanup_failure_returns_nonzero(launch):
 def test_entrypoint_is_only_validation_and_exec():
     script = (ROOT / "docker/entrypoint.sh").read_text()
     assert script.splitlines() == [
-        "#!/bin/sh", "set -eu", ': "${RWB_DATA_ROOT:=/data/research-web}"',
+        "#!/bin/sh",
+        "set -eu",
+        ': "${RWB_DATA_ROOT:=/data/research-web}"',
         ': "${RWB_RUNTIME_STATE:=/state/runtime}"',
         ': "${RESEARCH_CREDENTIAL_HOME:=/run/rwb-secrets/private}"',
         'test -d "$RWB_DATA_ROOT" && test -w "$RWB_DATA_ROOT"',
         'test -d "${RWB_RUNTIME_STATE%/*}" && test -w "${RWB_RUNTIME_STATE%/*}"',
         'test -d "${RESEARCH_CREDENTIAL_HOME%/*}" && test -w "${RESEARCH_CREDENTIAL_HOME%/*}"',
-        'export RWB_DATA_ROOT RWB_RUNTIME_STATE RESEARCH_CREDENTIAL_HOME',
+        "export RWB_DATA_ROOT RWB_RUNTIME_STATE RESEARCH_CREDENTIAL_HOME",
         "exec /opt/rwb/venv/bin/python /opt/rwb/docker/supervisor.py",
     ]
 
 
 def test_private_mount_leaves_are_prepared_before_ownership_and_reused(tmp_path, monkeypatch):
-    from docker import supervisor
     import stat
+
+    from docker import supervisor
 
     root = tmp_path.resolve()
     state_mount, secret_mount = root / "state", root / "secrets"
     state_mount.mkdir(mode=0o700)
     secret_mount.mkdir(mode=0o700)
     config = supervisor.SupervisorConfig(
-        data_root=root / "data", state_root=state_mount / "runtime",
-        credential_root=secret_mount / "private", project_root=ROOT,
-        runtime_source=root / "source", python=sys.executable, node="unused",
+        data_root=root / "data",
+        state_root=state_mount / "runtime",
+        credential_root=secret_mount / "private",
+        project_root=ROOT,
+        runtime_source=root / "source",
+        python=sys.executable,
+        node="unused",
     )
     observed = []
 
     def stop_after_preparation():
-        observed.append(tuple((path.stat().st_ino, path.stat().st_uid,
-                               stat.S_IMODE(path.stat().st_mode))
-                              for path in (config.state_root, config.credential_root)))
+        observed.append(
+            tuple(
+                (path.stat().st_ino, path.stat().st_uid, stat.S_IMODE(path.stat().st_mode))
+                for path in (config.state_root, config.credential_root)
+            )
+        )
         raise RuntimeError("fixture_stop_before_children")
 
     monkeypatch.setattr(supervisor, "_OwnedProcesses", stop_after_preparation)
@@ -629,10 +669,17 @@ def test_unsafe_private_mount_leaf_fails_before_children(tmp_path, monkeypatch, 
     else:
         path.mkdir(mode=0o755)
     config = supervisor.SupervisorConfig(
-        data_root=root / "data", state_root=state, credential_root=credential,
-        project_root=ROOT, runtime_source=root / "source", python=sys.executable, node="unused",
+        data_root=root / "data",
+        state_root=state,
+        credential_root=credential,
+        project_root=ROOT,
+        runtime_source=root / "source",
+        python=sys.executable,
+        node="unused",
     )
-    monkeypatch.setattr(supervisor, "_OwnedProcesses", lambda: pytest.fail("unsafe mount reached child ownership"))
+    monkeypatch.setattr(
+        supervisor, "_OwnedProcesses", lambda: pytest.fail("unsafe mount reached child ownership")
+    )
     assert supervisor.run(config) == 1
 
 
@@ -653,10 +700,14 @@ def test_supervisor_and_health_defaults_share_private_state_leaf(monkeypatch):
 
 
 @pytest.mark.parametrize("name", ["runtime", "private", "logs"])
-@pytest.mark.parametrize("transition", ["mapped", "foreign_uid", "foreign_gid", "mode", "inode", "custom"])
-def test_docker_first_mkdir_owner_mapping_then_strict_repin(tmp_path, monkeypatch, name, transition):
-    from docker import supervisor
+@pytest.mark.parametrize(
+    "transition", ["mapped", "foreign_uid", "foreign_gid", "mode", "inode", "custom"]
+)
+def test_docker_first_mkdir_owner_mapping_then_strict_repin(
+    tmp_path, monkeypatch, name, transition
+):
     from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
+    from docker import supervisor
 
     mount = tmp_path.resolve() / "mount"
     mount.mkdir(mode=0o700)
@@ -696,7 +747,12 @@ def test_docker_first_mkdir_owner_mapping_then_strict_repin(tmp_path, monkeypatc
             pass
     leaf.rmdir()
     mapped.clear()
-    monkeypatch.setattr(supervisor, "_DOCKER_PRIVATE_LEAVES", set() if transition == "custom" else {leaf}, raising=False)
+    monkeypatch.setattr(
+        supervisor,
+        "_DOCKER_PRIVATE_LEAVES",
+        set() if transition == "custom" else {leaf},
+        raising=False,
+    )
     if transition != "mapped":
         with pytest.raises((RuntimeStateError, OSError)):
             supervisor._prepare_private_leaf(leaf)
@@ -709,10 +765,12 @@ def test_docker_first_mkdir_owner_mapping_then_strict_repin(tmp_path, monkeypatc
     assert leaf.stat().st_ino == identity
 
 
-@pytest.mark.parametrize("bad", ["parent_alias", "parent_mode", "foreign_owner", "parent_replace", "leaf_replace"])
+@pytest.mark.parametrize(
+    "bad", ["parent_alias", "parent_mode", "foreign_owner", "parent_replace", "leaf_replace"]
+)
 def test_docker_two_phase_creation_rejects_unsafe_or_replaced_nodes(tmp_path, monkeypatch, bad):
-    from docker import supervisor
     from app.research_web.runtime_state import RuntimeStateError
+    from docker import supervisor
 
     mount = tmp_path.resolve() / "mount"
     mount.mkdir(mode=0o700)
@@ -727,6 +785,7 @@ def test_docker_two_phase_creation_rejects_unsafe_or_replaced_nodes(tmp_path, mo
     elif bad == "foreign_owner":
         real_stat = os.stat
         inode = mount.stat().st_ino
+
         def foreign_stat(path, *args, **kwargs):
             info = real_stat(path, *args, **kwargs)
             if info.st_ino == inode:
@@ -734,10 +793,12 @@ def test_docker_two_phase_creation_rejects_unsafe_or_replaced_nodes(tmp_path, mo
                 values[4] = os.getuid() + 9876
                 return os.stat_result(values)
             return info
+
         monkeypatch.setattr(os, "stat", foreign_stat)
     else:
         original = supervisor.runtime_state_directory
         from contextlib import contextmanager
+
         @contextmanager
         def replace_before_repin(path, **kwargs):
             if path == leaf and leaf.exists():
@@ -750,16 +811,20 @@ def test_docker_two_phase_creation_rejects_unsafe_or_replaced_nodes(tmp_path, mo
                     leaf.mkdir(mode=0o700)
             with original(path, **kwargs) as value:
                 yield value
+
         monkeypatch.setattr(supervisor, "runtime_state_directory", replace_before_repin)
     with pytest.raises((RuntimeStateError, OSError)):
         supervisor._prepare_private_leaf(leaf)
 
 
-@pytest.mark.parametrize(("error", "kind", "number"), [
-    (PermissionError(13, "fixture-private-path"), "PermissionError", 13),
-    (ValueError("fixture-private-value"), "ValueError", None),
-    (RuntimeError("fixture-private-command"), "RuntimeError", None),
-])
+@pytest.mark.parametrize(
+    ("error", "kind", "number"),
+    [
+        (PermissionError(13, "fixture-private-path"), "PermissionError", 13),
+        (ValueError("fixture-private-value"), "ValueError", None),
+        (RuntimeError("fixture-private-command"), "RuntimeError", None),
+    ],
+)
 def test_failure_diagnostics_only_include_fixed_fields(error, kind, number):
     from docker import supervisor
 
@@ -768,8 +833,11 @@ def test_failure_diagnostics_only_include_fixed_fields(error, kind, number):
 
     report = supervisor._failure_diagnostics("logging_setup", error, {"runtime": Child()})
     assert report == {
-        "stage": "logging_setup", "exception_class": kind, "errno": number,
-        "runtime_returncode": 7, "web_returncode": None,
+        "stage": "logging_setup",
+        "exception_class": kind,
+        "errno": number,
+        "runtime_returncode": 7,
+        "web_returncode": None,
     }
     assert "fixture-private" not in json.dumps(report)
 
@@ -781,36 +849,63 @@ def test_directory_failure_records_stage_before_starting_children(tmp_path, monk
     state = root / "state"
     state.mkdir(mode=0o700)
     config = supervisor.SupervisorConfig(
-        data_root=root / "data", state_root=state, project_root=ROOT,
-        runtime_source=root / "source", python=sys.executable, node="unused",
+        data_root=root / "data",
+        state_root=state,
+        project_root=ROOT,
+        runtime_source=root / "source",
+        python=sys.executable,
+        node="unused",
     )
     captured = []
     monkeypatch.setattr(supervisor, "_event", lambda *args: None)
-    monkeypatch.setattr(supervisor, "_emit_failure_diagnostics", lambda value: captured.append(value))
+    monkeypatch.setattr(
+        supervisor, "_emit_failure_diagnostics", lambda value: captured.append(value)
+    )
+
     def fail(_path):
         raise PermissionError(13, "fixture-private-path")
+
     monkeypatch.setattr(supervisor, "_prepare_private_leaf", fail)
     assert supervisor.run(config) == 1
-    assert captured == [{
-        "stage": "private_directories", "exception_class": "PermissionError", "errno": 13,
-        "runtime_returncode": None, "web_returncode": None,
-    }]
+    assert captured == [
+        {
+            "stage": "private_directories",
+            "exception_class": "PermissionError",
+            "errno": 13,
+            "runtime_returncode": None,
+            "web_returncode": None,
+        }
+    ]
 
 
-@pytest.mark.parametrize("invalid", [None, "authority", "cwd", "source_commit", "pid", "bootstrap_token"])
+@pytest.mark.parametrize(
+    "invalid", [None, "authority", "cwd", "source_commit", "pid", "bootstrap_token"]
+)
 def test_supervisor_reads_only_bound_private_bootstrap_token(tmp_path, invalid):
     from types import SimpleNamespace
+
     from app.research_web import PINNED_DSH_COMMIT
     from docker import supervisor
 
     root = tmp_path.resolve()
     state = root / "state"
     state.mkdir(mode=0o700)
-    config = supervisor.SupervisorConfig(data_root=root / "data", state_root=state,
-        project_root=ROOT, runtime_source=root / "source", python=sys.executable, node="unused")
+    config = supervisor.SupervisorConfig(
+        data_root=root / "data",
+        state_root=state,
+        project_root=ROOT,
+        runtime_source=root / "source",
+        python=sys.executable,
+        node="unused",
+    )
     token = "x" * 43
-    record = {"authority": "127.0.0.1:3081", "cwd": str((config.data_root / "runtime/work").resolve()),
-              "source_commit": PINNED_DSH_COMMIT, "pid": 12345, "bootstrap_token": token}
+    record = {
+        "authority": "127.0.0.1:3081",
+        "cwd": str((config.data_root / "runtime/work").resolve()),
+        "source_commit": PINNED_DSH_COMMIT,
+        "pid": 12345,
+        "bootstrap_token": token,
+    }
     if invalid is not None:
         record[invalid] = "fixture-wrong-binding"
     path = state / "auth.json"
@@ -833,6 +928,7 @@ def test_supervisor_reads_only_bound_private_bootstrap_token(tmp_path, invalid):
 
 def test_standalone_health_never_consumes_bootstrap_or_writes_cookie(tmp_path):
     from docker.healthcheck import ContainerHealth
+
     root = tmp_path.resolve()
     state = root / "state"
     state.mkdir(mode=0o700)
@@ -840,8 +936,13 @@ def test_standalone_health_never_consumes_bootstrap_or_writes_cookie(tmp_path):
     path.write_text(json.dumps({"bootstrap_token": "x" * 43}))
     path.chmod(0o600)
     before = path.read_bytes()
-    health = ContainerHealth(timeout=.2, project_root=ROOT, data_root=root / "data",
-                            runtime_source=root / "source", runtime_state_root=state)
+    health = ContainerHealth(
+        timeout=0.2,
+        project_root=ROOT,
+        data_root=root / "data",
+        runtime_source=root / "source",
+        runtime_state_root=state,
+    )
     assert health._runtime_launch_token() is None
     assert path.read_bytes() == before
 
