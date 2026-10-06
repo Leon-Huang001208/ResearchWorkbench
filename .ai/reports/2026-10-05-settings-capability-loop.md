@@ -599,3 +599,19 @@ hostPlatform=macOS；taskKind=功能收口/本平台验收；hostAcceptance=PASS
 本轮新增服务名称、endpoint、model及账户均未确定；用户明确没有额外模型账户，当前未安装模型、不采购、不请求用户把Key贴入对话、不调用供应商、不消耗关闭的1A预算。原阶段1B要求选一种实际需要且可验证的服务，缺此条件时保留BLOCKED：只读支持范围核对已完成，新增产品路径实现NOT_RUN、合同/fixtureNOT_RUN、真实生成/工具/冷重启NOT_RUN，阶段1B未完成。不能以1A DeepSeek结果冒充第二服务验收。后续若用户选择实际已有服务（可包括另行录入的既有服务兼容协议路径），在独立实例设置页录入，并单独固定真实请求预算；不要求购买服务作为继续条件。
 
 本次修改仅本唯一报告，复用1A源码/CI证据而不声称CI测试过报告HEAD；相关文档/完整changed set约束和回执校验实际结果随本轮日志保存。hostAcceptance=BLOCKED（1B服务选择/真实环境缺失），aggregateAcceptance保持BLOCKED，mergeReady=false/releaseReady=false。不自动进入后续阶段、不合并/发布或修改生产。下一唯一目标仍为取得一条实际可验证的OpenAI兼容服务路径。
+
+### DSH Fork上游同步与自动检查（独立源码范围）
+
+用户明确要求同步deepseek-ai/deepseek-harness与Leon-Huang001208/deepseek-harness，并要求后续自动检查，不再依赖主动询问。该指令授权Fork源码同步，不自动升级Research Workbench固定依赖、运行实例或发布产品；1B产品接入未因此变成已实现。本次宿主macOS，任务类型Fork源码同步/必要兼容修复。实际Fork public、push/admin可用；旧master=c389f96bf3a9b6807cb71ed6bdad5849be0df6d8，旧workbench-runtime=c919b2a460753859665db3f60143d525fb9140cf，比共同基线多一项永久删除会话补丁（49路径）。一次固定上游5badb15009ae1756c3afe0ae0cef1faafc290ccc，5077个新增提交、版本0.2.1-alpha.1。
+
+master通过GitHub Git refs API force=false快进到固定上游，无改写历史；workbench-runtime不能覆盖，原普通服务端merge返回409。Git HTTPS连接失败、SSH下载无进展后停止所属下载；改用GitHub API取得源码归档、原commit/base/custom tree和必要blob，核对原上游commit SHA与tree=a9d30743edbe97adac9c8cb0811b648a0d9f6660完全一致。没有修改已安装Runtime目录。隔离源码目录/private/tmp/dsh-fork-sync-local-20261006，证据/private/tmp/dsh-fork-sync-evidence-20261006。三方合并原自有49路径，30文本无冲突、19冲突；保留新fork语义、生成目录和所有自有删除/索引/缓存/Workspace清理边界，处理新Agent setup/announce签名。旧fixture先实际RED，修正后相关回归403 PASS/8文件/6.55s。旧删除条款英文已移除“不可删除”，中文同条遗留已同步移除；两份直接模块说明按源代码和双语实际核对后更新记录，9对一致。旧功能Note的整blob回执格式已被新规则拒绝，按实际未改动双语语义迁移到段落格式，未改检查规则。
+
+新锁定依赖仅安装于该隔离源码目录（pnpm11.19.0按frozen lock；锁未改），部分下载最初报错后安装完整结束。真实本机原生模块构建通过；先因未构建flock取得失败记录，构建后381相关测试PASS，API邻接27 PASS，最终统一8文件403 PASS。Host构建完成，正常pre-merge/pre-commit/pre-push门全部通过，pre-push包含完整Host及Client类型检查（90.47s）。Git Hook最初因系统x64 Node与安装的arm64 esbuild不一致失败，改用本次命令范围的受管arm64 Node PATH，未改系统环境/Hook、未no-verify。
+
+正常合并提交48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0，实际parents为上游5badb150与自有c919b2a。本机历史因Git下载失败只取得上游边界原commit/tree，标记为浅历史，不伪造祖先；根据GitHub明确共同基线和核对后的三方tree准备正常merge元数据，由原Git Hook正常提交。经GitHub Git trees/commits API上传（未绕过任何失败Hook），远端原commit SHA、tree=ca060ccc35e2b1b55626258c60ae381dd1a4ead3与本机完全一致，delta39路径。随后force=false更新隔离候选与workbench-runtime；APIcompare证实相对上游ahead2/behind0，原自有c919提交仍为父节点。legacy分支b3e26660保留。不是将整个仓库选ours/theirs，也不是只更改ref标签冒称合并。
+
+上游镜像push自然触发现有工作流。Release(dsh/vendor)仅无凭据打包演练success，Node Addon System success；CI master仍有无自托管Linux/Windows runner的queued job，Sandbox采集时运行中。E2E37486161026实际在Key为空的preflight失败，未发供应商请求；未读取/配置真实Key或扩大旧请求预算。不删/skip工作流求绿，未启用付费runner或部署凭据。上述CI属于master5bad，不认证运行候选48504f07；运行分支没有自动PR CI，不能宣称全CI、真实推理、Research Workbench依赖升级或发布通过。本次实际Fork源码同步完成，local acceptance PASS；远端/全平台发布证据仍部分未验证。
+
+已通过Codex automation_update创建并更新自动检查dsh-fork，ACTIVE，每天北京时间09:00。监测上游/master/workbench-runtime，保留自有修改；快进正常同步，有冲突、版本/存储大迁移或检查失败时保留候选并通知。无变化/无新进展静默，只有完成或新阻塞通知。禁止force/reset、绕过Hook、改预算、供应商请求、产品固定DSH/锁升级、生产变更。自动化配置实际核对存在，不是只提出计划。
+
+本轮实际供应商请求0；产品已安装DSH仍c919b2a，Research Workbench所有源码/锁及生产8088/3081未修改，PR80未合并/发布。唯一报告只本地提交，不为此重跑原C5或推送报告循环。总体mergeReady/releaseReady仍沿用既有BLOCKED，不能从Fork同步推导产品就绪；下一唯一目标为独立评估新DSH与Research Workbench适配及固定版本升级，尚未自动实施。
