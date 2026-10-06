@@ -306,6 +306,83 @@ def test_staging_preserves_selected_pnpm_hoist_for_dynamic_native_loader(tmp_pat
     assert not (output / dev.relative_to(source)).exists()
 
 
+@pytest.mark.parametrize("document_directory", ["doc", "docs"])
+@pytest.mark.parametrize("asset_escape", [False, True])
+def test_staging_preserves_declared_runtime_document_assets(tmp_path, document_directory, asset_escape):
+    from docker.stage_dsh import stage_assets
+
+    source = tmp_path / "source"
+    cli = source / "apps/cli"
+    boot = source / "packages/boot/app-boot"
+    published = source / "node_modules/.pnpm/published@1/node_modules/published"
+    dev = source / "node_modules/.pnpm/dev@1/node_modules/dev"
+    for package, metadata in [
+        (cli, {"name": "cli", "files": ["lib"], "dependencies": {"boot": "1", "published": "1"}}),
+        (boot, {"name": "boot", "files": ["lib"]}),
+        (published, {"name": "published", "files": ["dist/"], "main": "dist/index.js"}),
+        (dev, {"name": "dev"}),
+    ]:
+        (package / "lib").mkdir(parents=True)
+        (package / "package.json").write_text(json.dumps(metadata))
+        (package / "lib/index.js").write_text("module.exports = {};")
+    (cli / "lib/bin.js").write_text("// required cli asset")
+    payload = published / "dist" / document_directory
+    payload.mkdir(parents=True)
+    (published / "dist/index.js").write_text(f"module.exports = require('./{document_directory}/directives.js');")
+    (payload / "directives.js").write_text("module.exports = 'runtime-document';")
+    (payload / "runtime.json").write_text('{"runtime":true}')
+    excluded = ["doc/manual.json", "docs/manual.json", "dist/tests/test.js", "dist/fixtures/data.json", "dist/doc/tests/test.js", "dist/docs/fixtures/data.json", "dist/README.md", "dist/doc/README.md", "dist/sample.test.js", "dist/bench/data.json", "dist/.cache/data.json", "dist/doc/.git/data.json", "dist/doc/.github/data.json", "dist/docs/__tests__/data.json", "dist/docs/__fixtures__/data.json", "dist/docs/benchmarks/data.json", "dist/doc/coverage/data.json", "dist/doc/__pycache__/data.json"]
+    for relative in excluded:
+        target = published / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("development-only")
+    for name, target in [("boot", boot), ("published", published)]:
+        alias = cli / "node_modules" / name
+        alias.parent.mkdir(parents=True, exist_ok=True)
+        alias.symlink_to(os.path.relpath(target, alias.parent))
+    (source / "node_modules/dev").symlink_to(os.path.relpath(dev, source / "node_modules"))
+    (source / "package.json").write_text('{"devDependencies":{"dev":"1"}}')
+    node = shutil.which("node")
+    assert node is not None, "Node is required for the runtime packaging contract"
+    probe = "console.log(require(process.argv[1]));"
+    original = subprocess.run([node, "-e", probe, str(published)], capture_output=True, text=True, timeout=10)
+    assert original.returncode == 0 and original.stdout.strip() == "runtime-document"
+    output = tmp_path / "staged"
+    if asset_escape:
+        outside = tmp_path / "outside.json"
+        outside.write_text("{}")
+        (payload / "runtime.json").unlink()
+        (payload / "runtime.json").symlink_to(outside)
+        with pytest.raises(RuntimeError, match="dsh_staging_invalid"):
+            stage_assets(source, output, facts())
+        return
+    stage_assets(source, output, facts())
+    derived = subprocess.run([node, "-e", probe, str(output / published.relative_to(source))], capture_output=True, text=True, timeout=10)
+    assert derived.returncode == 0, derived.stderr
+    assert derived.stdout.strip() == "runtime-document"
+    assert (output / payload.relative_to(source) / "runtime.json").is_file()
+    for relative in excluded:
+        assert not os.path.lexists(output / published.relative_to(source) / relative)
+    assert not os.path.lexists(output / "node_modules/dev")
+    assert not (output / dev.relative_to(source)).exists()
+
+
+@pytest.mark.parametrize("declaration", [None, "dist/", ["dist/**"], ["dist/", "!dist/doc/private.json"], ["../dist"], ["/dist"], ["."], ["dist/", "."], [1]])
+def test_ambiguous_published_directory_rules_do_not_exempt_document_names(tmp_path, declaration):
+    from docker.stage_dsh import _package_assets
+
+    package = tmp_path / "published"
+    (package / "dist/doc").mkdir(parents=True)
+    (package / "dist/doc/runtime.js").write_text("module.exports = {};")
+    (package / "dist/index.js").write_text("module.exports = {};")
+    (package / "other-runtime.js").write_text("module.exports = {};")
+    (package / "package.json").write_text(json.dumps({"files": declaration}))
+    _, assets = _package_assets(package, workspace=False)
+    assert package / "dist/index.js" in assets
+    assert package / "other-runtime.js" in assets
+    assert package / "dist/doc/runtime.js" not in assets
+
+
 @pytest.mark.parametrize("peer_name", ["typescript", "@fixture/typescript"])
 @pytest.mark.parametrize("mutation", [None, "root-link", "broken-peer", "outside-peer", "conflict", "replacement", "asset-escape"])
 def test_staging_preserves_selected_root_optional_peer_for_virtual_alias_anchor(tmp_path, monkeypatch, peer_name, mutation):

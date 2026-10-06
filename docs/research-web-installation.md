@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+DSH 已发布运行子树内的 `doc/docs` 同名代码目录可保留（例如 yaml 的 `dist/doc`）。仅明确、
+无 glob/negative 的包目录声明建立该例外；包顶层文档、任意层级测试/fixture/cache 等继续排除，
+第三方 tarball 的其他运行资产选择保持原合同。真实镜像启动仍须单独验收。
+
 Docker DSH 资产派生保留根 `node_modules` 与 `.pnpm/node_modules` 中指向已选生产包的相对别名，
 供固定 DSH 从虚拟 Profile 锚点查找 optional peer。不会递归复制 `.pnpm`、引入未选开发包或新增
 TypeScript 依赖；损坏或越界的生产依赖、非规范模块根、别名冲突和资产越界仍失败关闭。

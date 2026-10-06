@@ -18,19 +18,41 @@ from app.research_web.staged_runtime import verify_staged_runtime, write_staged_
 log = logging.getLogger(__name__)
 EXCLUDED = frozenset({
     ".git", ".github", "tests", "test", "__tests__", "fixtures", "__fixtures__",
-    "docs", "doc", "benchmarks", "benchmark", "bench", "website", "examples",
+    "benchmarks", "benchmark", "bench", "website", "examples",
     "coverage", ".cache", "__pycache__",
 })
 
 
-def _excluded(relative: Path) -> bool:
-    return any(part.lower() in EXCLUDED for part in relative.parts) or any(
+def _excluded(relative: Path, published_roots: tuple[Path, ...] = ()) -> bool:
+    document_parts = [index for index, part in enumerate(relative.parts) if part.lower() in {"doc", "docs"}]
+    published_document = bool(document_parts) and any(
+        relative.is_relative_to(root) and len(root.parts) <= min(document_parts)
+        for root in published_roots
+    )
+    return any(part.lower() in EXCLUDED for part in relative.parts) or (
+        bool(document_parts) and not published_document
+    ) or any(
         token in relative.name.lower() for token in (".spec.", ".test.", ".bench.")
     ) or relative.name.lower().startswith(("readme", "changelog", "contributing"))
 
 
 def _package_assets(package: Path, *, workspace: bool):
     metadata = json.loads((package / "package.json").read_text())
+    declared = metadata.get("files")
+    # Only unambiguous directory declarations establish a published runtime
+    # subtree. Glob/negative rules do not exempt doc/docs from filtering; this
+    # does not use third-party `files` to reselect its installed tarball payload.
+    published_roots = ()
+    if isinstance(declared, list) and all(
+        isinstance(rule, str) and rule and not rule.startswith("!")
+        and not any(token in rule for token in ("*", "?", "[", "\\"))
+        and Path(rule).parts and not Path(rule).is_absolute() and ".." not in Path(rule).parts
+        for rule in declared
+    ):
+        published_roots = tuple(
+            Path(rule) for rule in declared
+            if Path(rule).parts and (package / rule).is_dir()
+        )
     # Workspace package `files` fields are the upstream publish contract. Installed
     # third-party production packages already are published tarballs; keep their
     # runtime payload (including native binaries), while excluding development data.
@@ -58,13 +80,14 @@ def _package_assets(package: Path, *, workspace: bool):
         for directory, folders, files in os.walk(package, followlinks=False):
             folders[:] = [
                 name for name in folders
-                if name != "node_modules" and name.lower() not in EXCLUDED
+                if name != "node_modules"
+                and not _excluded((Path(directory) / name).relative_to(package), published_roots)
             ]
             chosen.update(Path(directory) / name for name in files)
     chosen.update(path for path in package.glob("LICENSE*") if path.is_file())
     return metadata, sorted(
         path for path in chosen
-        if not _excluded(path.relative_to(package))
+        if not _excluded(path.relative_to(package), published_roots)
         and "node_modules" not in path.relative_to(package).parts
         and (path.is_file() or path.is_symlink())
     )

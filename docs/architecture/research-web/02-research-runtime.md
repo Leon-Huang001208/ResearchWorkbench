@@ -1,5 +1,8 @@
 # 研究协议、执行状态与恢复
 
+发布运行目录中的 `doc/docs` 名称不再导致运行实现漏包；生产依赖图、optional peer、
+虚拟 Profile alias 搜索和 launcher 模块验证保持原链路，Node 加载回归验证派生资产完整性。
+
 Docker staging 补齐固定 DSH 虚拟 Profile 锚点所需的根 `node_modules` optional peer 别名。
 目标必须已属于生产图；原始完整闭包、派生 manifest 和 launcher 私有模块验证继续分别执行。
 

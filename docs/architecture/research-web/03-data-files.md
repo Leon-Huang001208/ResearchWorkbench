@@ -1,5 +1,8 @@
 # DataHub、研究资料与实际文件
 
+包明确发布子树中的 `doc/docs` 代码和配套运行资源属于镜像资产，继续进入既有 staged manifest。
+用户资料与包顶层文档不因此进入运行资产；未选开发包、测试、fixture、缓存不复制。
+
 Docker 派生资产的根模块相对别名只指向镜像内已选生产包，和私有 pnpm hoist 一同进入已有
 staged manifest。它们属于只读代码资产，不迁移用户 Profile、日志、缓存或研究资料。
 

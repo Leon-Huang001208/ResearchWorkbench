@@ -1,5 +1,8 @@
 # 部署与模块职责
 
+DSH staging 的遍历剪枝与最终过滤共用包发布子树规则，保留明确声明运行目录内的 `doc/docs`
+代码及资源。包顶层文档和硬开发目录仍排除；不创建新依赖、部署节点或 yaml 专用白名单。
+
 `docker/stage_dsh.py` 在生产依赖图选定后，保留根 `node_modules` 和私有 pnpm hoist 中既有的
 普通／scope 别名，仅指向已选且位于固定源码内的包，并转为镜像内相对链接。这补齐固定 DSH
 虚拟 Profile 锚点的 optional peer 搜索，不复制整个 store、不引入开发依赖，也不放宽启动模块校验。
