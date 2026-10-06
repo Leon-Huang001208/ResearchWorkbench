@@ -38,9 +38,11 @@ from research_workbench_entrypoint.web_contract import (
     signature_matches_argv,
 )
 
-from . import PINNED_DSH_COMMIT
-from .lifecycle_lock import LifecycleLock, LifecycleLockError, _fsync_directory
+from . import PINNED_DSH_COMMIT, RUNTIME_CONTRACT
+from .process_spec import ProcessSpec, build_process_specs
 from .runtime_auth import read_runtime_auth_record
+from .runtime_state import RuntimeStateError, runtime_state_directory
+from .lifecycle_lock import LifecycleLock, LifecycleLockError, _fsync_directory
 from .service_diagnostics import ServiceProbe
 
 log = get_logger(__name__)
@@ -52,8 +54,8 @@ WEB_URL = f"http://127.0.0.1:{WEB_PORT}/#/fingpt"
 RUNTIME_TOKEN_PATTERN = re.compile(
     r"dsh web: http://127\.0\.0\.1:(\d+)/\?token=([A-Za-z0-9_-]{43})"
 )
-CJPY_VERSION = "0.5.2"
-CJPY_SHA256 = "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
+CJPY_VERSION = RUNTIME_CONTRACT.cjpy_version
+CJPY_SHA256 = RUNTIME_CONTRACT.cjpy_sha256
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 STATE_LIMIT_BYTES = CONTROL_JSON_MAX_BYTES
 WEB_TEXT_MAX_BYTES = min(MAX_HTTP_BODY_BYTES, 256 * 1024)
@@ -114,12 +116,8 @@ def _is_unsafe_private_directory(
     )
 
 
-@dataclass(frozen=True)
-class ManagedProcess:
-    role: str
-    port: int
-    command: tuple[str, ...]
-    signature: tuple[str, ...]
+# Preserve the import name used by Native lifecycle consumers.
+ManagedProcess = ProcessSpec
 
 
 @dataclass(frozen=True)
@@ -163,6 +161,7 @@ class WebServiceManager:
         project_root: Path | None = None,
         data_root: Path | None = None,
         runtime_source: Path | None = None,
+        runtime_state_root: Path | None = None,
         python: str | None = None,
         node: str | None = None,
         web_port: int = WEB_PORT,
@@ -176,6 +175,9 @@ class WebServiceManager:
             or Path.home() / ".research-workbench" / "research-web"
         )
         self.data_root = Path(os.path.abspath(configured_data_root))
+        self.runtime_state_root = Path(
+            os.path.abspath(runtime_state_root or self.data_root / "runtime")
+        )
         configured_source = os.environ.get("RESEARCH_DSH_SOURCE")
         self.runtime_source = (
             runtime_source
@@ -214,54 +216,27 @@ class WebServiceManager:
             raise ServiceManagerError(f"{exc.code}: {message}", code=exc.code) from exc
 
     def _processes(self) -> tuple[ManagedProcess, ManagedProcess]:
-        runtime_command = (
-            self.python,
-            "-m",
-            "app.research_web.launch_runtime",
-            "--source",
-            str(self.runtime_source),
-            "--data",
-            str(self.data_root),
-            "--node",
-            self.node,
-            "--port",
-            str(self.runtime_port),
-            "--datahub-url",
-            f"http://127.0.0.1:{self.web_port}",
-            "--research-tools",
+        specs = build_process_specs(
+            python=self.python,
+            node=self.node,
+            project_root=self.project_root,
+            data_root=self.data_root,
+            runtime_source=self.runtime_source,
+            state_root=self.runtime_state_root,
+            web_host="127.0.0.1",
+            web_port=self.web_port,
+            runtime_port=self.runtime_port,
         )
-        web_command = (
-            self.python,
-            "-m",
-            "uvicorn",
-            "app.research_web.main:app",
-            "--app-dir",
-            str(self.project_root),
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(self.web_port),
-        )
-        return (
-            ManagedProcess(  # type: ignore[call-arg]
-                "runtime",
-                self.runtime_port,
-                runtime_command,
-                (
-                    str(self.runtime_source / "apps/cli/lib/bin.js"),
-                    str((self.data_root / "runtime/overlay.yml").resolve()),
-                    str(self.runtime_port),
-                ),
-            ),
-            ManagedProcess(  # type: ignore[call-arg]
-                "web",
-                self.web_port,
-                web_command,
-                ("app.research_web.main:app", str(self.project_root), str(self.web_port)),
-            ),
-        )
+        return specs.runtime, specs.web
 
     def _prepare_private_directories(self) -> None:
+        try:
+            with runtime_state_directory(self.runtime_state_root, native_data_root=self.data_root):
+                pass
+        except FileNotFoundError:
+            pass  # A first launch creates private runtime state at the write boundary.
+        except RuntimeStateError as exc:
+            raise ServiceManagerError("Runtime 状态目录不安全") from exc
         for path in (self.data_root.parent, self.data_root, self.run_root, self.log_root):
             path.mkdir(parents=True, exist_ok=True, mode=0o700)
             identity = path.lstat()
@@ -272,7 +247,7 @@ class WebServiceManager:
         return self.run_root / f"{role}.json"
 
     def _runtime_auth_path(self) -> Path:
-        return self.data_root / "runtime" / "auth.json"
+        return self.runtime_state_root / "auth.json"
 
     @staticmethod
     def _fingerprint(command: tuple[str, ...] | list[str]) -> str:
@@ -790,7 +765,8 @@ class WebServiceManager:
     def _read_runtime_auth(self) -> dict[str, str] | None:
         path = self._runtime_auth_path()
         try:
-            value = read_runtime_auth_record(path)
+            with runtime_state_directory(self.runtime_state_root, native_data_root=self.data_root):
+                value = read_runtime_auth_record(path)
             expected = {
                 "authority": f"127.0.0.1:{self.runtime_port}",
                 "cwd": str((self.data_root / "runtime/work").resolve()),
@@ -861,15 +837,23 @@ class WebServiceManager:
             connection.close()
 
     def _write_runtime_auth(self, cookie: str) -> dict[str, str]:
+        try:
+            with runtime_state_directory(
+                self.runtime_state_root, create=True, native_data_root=self.data_root
+            ):
+                return self._write_runtime_auth_record(cookie)
+        except (OSError, RuntimeStateError) as exc:
+            raise ServiceManagerError("无法写入 DSH 认证控制文件") from exc
+
+    def _write_runtime_auth_record(self, cookie: str) -> dict[str, str]:
         name: str | None = None
         try:
-            runtime = self.data_root / "runtime"
-            runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
+            runtime = self.runtime_state_root
             package = json.loads((self.runtime_source / "package.json").read_text(encoding="utf-8"))
             value = {
                 "authority": f"127.0.0.1:{self.runtime_port}",
                 "cookie": cookie,
-                "cwd": str((runtime / "work").resolve()),
+                "cwd": str((self.data_root / "runtime/work").resolve()),
                 "source_commit": PINNED_COMMIT,
                 "version": str(package["version"]),
             }
@@ -1069,6 +1053,15 @@ class WebServiceManager:
             log.error("research_service_failed_spawn_reap_failed")
 
     def _spawn(self, process: ManagedProcess) -> int:
+        try:
+            with runtime_state_directory(
+                self.runtime_state_root, create=True, native_data_root=self.data_root
+            ):
+                return self._spawn_owned_process(process)
+        except (OSError, RuntimeStateError) as exc:
+            raise ServiceManagerError(f"无法启动 {process.role} 服务") from exc
+
+    def _spawn_owned_process(self, process: ManagedProcess) -> int:
         log_path = self.log_root / f"{process.role}.log"
         environment = os.environ.copy()
         for key in (
@@ -1852,15 +1845,26 @@ class WebServiceManager:
             return {}
 
     def _runtime_build_lock_matches(self, dsh: dict[str, Any]) -> bool:
+        try:
+            with runtime_state_directory(self.runtime_state_root, native_data_root=self.data_root):
+                return self._read_runtime_build_lock_matches(dsh)
+        except (OSError, RuntimeStateError):
+            return False
+
+    def _read_runtime_build_lock_matches(self, dsh: dict[str, Any]) -> bool:
         expected_sha256 = dsh.get("closure_sha256")
         expected_files = dsh.get("closure_files")
         if not isinstance(expected_sha256, str) or type(expected_files) is not int:
             return False
-        path = self.data_root / "runtime" / "build-lock.json"
+        path = self.runtime_state_root / "build-lock.json"
         try:
             if os.name == "nt":
-                trusted_root = self.data_root.resolve(strict=True)
-                for directory in (self.data_root.parent, self.data_root, path.parent):
+                trusted_root = self.runtime_state_root.parent.resolve(strict=True)
+                for directory in (
+                    self.runtime_state_root.parent.parent,
+                    self.runtime_state_root.parent,
+                    self.runtime_state_root,
+                ):
                     identity = directory.lstat()
                     if _is_unsafe_private_directory(
                         directory, identity, platform_name="nt"
@@ -1887,18 +1891,18 @@ class WebServiceManager:
                     return False
             else:
                 parent = os.open(
-                    self.data_root.parent,
+                    self.runtime_state_root.parent.parent,
                     os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                 )
                 try:
                     root = os.open(
-                        self.data_root.name,
+                        self.runtime_state_root.parent.name or ".",
                         os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                         dir_fd=parent,
                     )
                     try:
                         runtime = os.open(
-                            "runtime",
+                            self.runtime_state_root.name,
                             os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
                             dir_fd=root,
                         )
@@ -2090,6 +2094,7 @@ class WebServiceManager:
         warnings = list(dict.fromkeys([*model_warnings, *proxy_warnings(os.environ)]))
         return {
             **diagnosis,
+            "runtime_mode": "native",
             "schema_version": 2,
             "ok": installation_ok,
             "installation_ok": installation_ok,
@@ -2099,6 +2104,130 @@ class WebServiceManager:
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
         }
+
+    def _validate_log_ownership(self) -> dict[str, tuple[bytes, tuple[int, ...]]]:
+        """Read exact Native state without deleting stale state or probing Docker."""
+        from research_workbench_entrypoint.runtime_mode import RuntimeModeError, _identity, _read_bytes
+
+        proofs = {}
+        try:
+            for process in self._processes():
+                try:
+                    raw, identity = _read_bytes(self._state_path(process.role))
+                except FileNotFoundError:
+                    if (self.log_root / f"{process.role}.log").exists():
+                        raise ServiceManagerError("native_logs_ownership_unknown")
+                    continue
+                state = self._probe_state(process)
+                if state.state != "valid":
+                    raise ServiceManagerError("native_logs_ownership_unknown")
+                _, observed = self._probe_pid_and_ownership(process, state)
+                if observed.process != "missing" and observed.ownership != "owned":
+                    raise ServiceManagerError("native_logs_ownership_unknown")
+                # Bind the validated fact chain to the exact bytes and inode read.
+                confirmed_raw, confirmed_identity = _read_bytes(self._state_path(process.role))
+                if confirmed_raw != raw or _identity(confirmed_identity) != _identity(identity):
+                    raise ServiceManagerError("native_logs_ownership_unknown")
+                proofs[process.role] = (raw, _identity(identity))
+            return proofs
+        except (OSError, ValueError, RuntimeModeError):
+            log.warning("native_logs_ownership_unknown")
+            raise ServiceManagerError("native_logs_ownership_unknown") from None
+
+    def logs(self, *, tail: int = 100, follow: bool = False) -> int:
+        """Read only owned runtime.log/web.log, bounded to 64 KiB and 300 seconds."""
+        from research_workbench_entrypoint.docker_runtime import MAX_OUTPUT, safe_log_text
+        from research_workbench_entrypoint.runtime_mode import (
+            RuntimeModeError, _identity, _pin_posix_parents, _pin_windows_parents,
+        )
+
+        if type(tail) is not int or not 0 <= tail <= 10000:
+            raise ServiceManagerError("native_logs_tail_invalid")
+        offsets: dict[str, tuple[int, int, int]] = {}
+        pending: dict[str, bytes] = {}
+        consumed = 0
+        emitted = 0
+        deadline = time.monotonic() + 300
+        try:
+            while True:
+                ownership = self._validate_log_ownership()
+                output = []
+                files = {}
+                try:
+                    pin = _pin_windows_parents if os.name == "nt" else _pin_posix_parents
+                    with runtime_state_directory(self.log_root), pin(
+                        self.log_root / "web.log", node_only=True
+                    ) as parent:
+                        for role in ("runtime", "web"):
+                            path = self.log_root / f"{role}.log"
+                            name = str(path) if parent is None else path.name
+                            try:
+                                before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                            except FileNotFoundError:
+                                continue
+                            if role not in ownership:
+                                raise ServiceManagerError("native_logs_ownership_unknown")
+                            if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                                or getattr(before, "st_file_attributes", 0) & 0x400
+                                or (os.name == "posix" and before.st_uid != os.getuid())):
+                                raise ServiceManagerError("native_logs_unsafe")
+                            descriptor = os.open(name, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                                                 | getattr(os, "O_NONBLOCK", 0), dir_fd=parent)
+                            with os.fdopen(descriptor, "rb") as stream:
+                                identity = os.fstat(stream.fileno())
+                                key = (identity.st_dev, identity.st_ino)
+                                if _identity(identity) != _identity(before):
+                                    raise ServiceManagerError("native_logs_unsafe")
+                                previous = offsets.get(role)
+                                if previous and (previous[:2] != key or identity.st_size < previous[2]):
+                                    raise ServiceManagerError("native_logs_changed")
+                                start = previous[2] if previous else max(0, identity.st_size - MAX_OUTPUT // 2)
+                                if not previous and tail == 0:
+                                    start = identity.st_size
+                                stream.seek(start)
+                                chunk = stream.read(min(MAX_OUTPUT // 2, MAX_OUTPUT - consumed))
+                                consumed += len(chunk)
+                                offsets[role] = (*key, stream.tell())
+                                if _identity(os.fstat(stream.fileno())) != _identity(identity):
+                                    raise ServiceManagerError("native_logs_changed")
+                                files[role] = _identity(identity)
+                            if not previous and start and chunk:
+                                chunk = chunk.partition(b"\n")[2]
+                            chunk = pending.get(role, b"") + chunk
+                            if follow:
+                                boundary = chunk.rfind(b"\n") + 1
+                                pending[role], chunk = chunk[boundary:], chunk[:boundary]
+                            lines = safe_log_text(chunk.decode("utf-8", "replace")).splitlines()
+                            if not previous:
+                                lines = lines[-tail:] if tail else []
+                            output.append("\n".join(lines) + ("\n" if lines else ""))
+                        if self._validate_log_ownership() != ownership:
+                            raise ServiceManagerError("native_logs_ownership_unknown")
+                        for role, identity in files.items():
+                            path = self.log_root / f"{role}.log"
+                            name = str(path) if parent is None else path.name
+                            try:
+                                current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+                            except FileNotFoundError:
+                                raise ServiceManagerError("native_logs_changed") from None
+                            if _identity(current) != identity:
+                                raise ServiceManagerError("native_logs_changed")
+                except FileNotFoundError:
+                    if files or output:
+                        raise ServiceManagerError("native_logs_changed") from None
+                for text in output:
+                    encoded = text.encode("utf-8")[:MAX_OUTPUT - emitted]
+                    emitted += len(encoded)
+                    sys.stdout.write(encoded.decode("utf-8", "ignore"))
+                sys.stdout.flush()
+                if not follow:
+                    return 0
+                if consumed >= MAX_OUTPUT or emitted >= MAX_OUTPUT or time.monotonic() >= deadline:
+                    raise ServiceManagerError("native_logs_limit")
+                time.sleep(0.1)
+        except (OSError, RuntimeStateError, RuntimeModeError):
+            log.warning("native_logs_unsafe")
+            raise ServiceManagerError("native_logs_unsafe") from None
 
     def tabbit_status(self) -> dict[str, Any]:
         """Return the safe, read-only Tabbit diagnostic exposed by the BFF."""

@@ -1,5 +1,10 @@
 # 图文更新清单契约与门禁
 
+Native/Docker 是既有 Research Web 的部署选择。部署拓扑以 `01-deployment` 图、
+`architecture-map.json` 和当前安装说明为准；模块文档记录原有 API、Provider、能力与文档治理
+边界。完整变更集检查必须包括基线至 HEAD、暂存、未暂存和新报告；`--no-start`、模拟健康测试或
+文档门禁通过均不能冒充真实 Docker build、GitHub macOS 安装或 Windows 实机验收。
+
 项目约束现在额外要求 `.github/workflows/research-web-bootstrap.yml` 在原生 `macos-14`
 持续执行干净安装、公开 setup 入口、Doctor、CJPY 0.5.2 和无凭据天软不可调用断言。
 当前 Bootstrap 还必须从 Doctor schema 2 确认 `installation_ok`、`product_ready` 和双服务

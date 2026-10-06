@@ -169,9 +169,27 @@ def web_start(no_open: bool) -> None:
 
 
 @web.command("status")
-def web_status() -> None:
-    """查看两个项目服务的独立事实链；诊断问题不改变退出码。"""
-    _run_web_action("status", open_browser=False)
+@click.option("--json", "json_output", is_flag=True, help="输出安全化 JSON")
+def web_status(json_output: bool = False) -> None:
+    """查看两个项目服务的归属与健康状态。"""
+    if not json_output:
+        _run_web_action("status", open_browser=False)
+        return
+    try:
+        with _machine_output_logging(True):
+            status = WebServiceManager().status()
+        report = {"schema_version": 2, "ok": True, "issues": status.get("issues", []), "mode": "native",
+                  "services": {role: {key: service.get(key) for key in
+                                      ("running", "healthy", "pid", "port", "state", "process",
+                                       "ownership", "port_state", "protocol", "ready", "issues")}
+                               for role, service in status["services"].items()
+                               if role in ("web", "runtime")}}
+        click.echo(json.dumps(report, ensure_ascii=False, indent=2))
+    except ServiceManagerError as exc:
+        logging.getLogger(__name__).warning("native_status_failed")
+        click.echo(json.dumps({"schema_version": 1, "ok": False, "issues": ["native_status_failed"],
+                               "mode": "native", "services": {}}))
+        raise click.exceptions.Exit(1) from exc
 
 
 @web.command("tabbit-status")
@@ -205,6 +223,19 @@ def web_doctor(json_output: bool) -> None:
 def web_stop() -> None:
     """停止仅属于当前项目的 8088/3081 进程。"""
     _run_web_action("stop", open_browser=False)
+
+
+@web.command("logs")
+@click.option("--tail", type=click.IntRange(0, 10000), default=100, show_default=True)
+@click.option("--follow", is_flag=True, help="跟随日志，最多 300 秒或 64 KiB")
+def web_logs(tail: int, follow: bool) -> None:
+    """读取归属已确认的 Web/DSH 日志；过滤认证信息。"""
+    try:
+        code = WebServiceManager().logs(tail=tail, follow=follow)
+    except ServiceManagerError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if code:
+        raise click.exceptions.Exit(code)
 
 
 @web.command("restart")

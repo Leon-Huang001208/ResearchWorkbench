@@ -10,9 +10,11 @@
 ./rwb --help
 ./rwb web --help
 ./rwb web doctor --json
+./rwb runtime status --json
+./rwb web status --json
 ```
 
-Windows 使用 `rwb.cmd`。`web start|status|restart|stop|doctor|tabbit-status` 与 `migrate-research-data`、`migrate-report-projects` 属于当前入口；其他按需加载的命令在帮助中明确标记为历史兼容命令。
+Windows 使用 `rwb.cmd`。`runtime status|use` 管理安装后的 Native/Docker 选择；`web start|status|restart|stop|doctor|logs|tabbit-status` 与 `migrate-research-data`、`migrate-report-projects` 属于当前入口。Native `web status --json` 仅输出服务的安全状态投影，不含日志路径；Docker 状态还需核对安装身份、镜像与健康。`web doctor --json` 保留完整安装诊断。公开安装入口、默认 Native、Docker 的 `--repair`／`--no-start` 边界以[安装说明](research-web-installation.md)为准；其他按需加载的命令在帮助中明确标记为历史兼容命令。
 
 ## Research Web API
 

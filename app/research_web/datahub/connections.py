@@ -22,6 +22,8 @@ from pydantic import (
 
 from core.observability import get_logger
 
+from ..credential_backend import default_credential_backend
+
 log = get_logger(__name__)
 MYSQL_SERVICE = "ResearchWorkbench.DataHub"
 MYSQL_ACCOUNT = "mysql:default:password"
@@ -221,24 +223,6 @@ class WindConfiguration(BaseModel):
     preferred_adapter: Literal["auto", "client_api", "excel"] = "auto"
 
 
-class _SystemKeyring:
-    def _module(self):
-        try:
-            import keyring
-        except ImportError as exc:
-            raise RuntimeError("keyring unavailable") from exc
-        return keyring
-
-    def get_password(self, service: str, account: str):
-        return self._module().get_password(service, account)
-
-    def set_password(self, service: str, account: str, password: str):
-        return self._module().set_password(service, account, password)
-
-    def delete_password(self, service: str, account: str):
-        return self._module().delete_password(service, account)
-
-
 def canonical_source_id(source_id: str) -> str:
     return SOURCE_ALIASES.get(source_id, source_id)
 
@@ -251,7 +235,9 @@ class MySQLConnectionStore:
         self.directory = self.root / "connections"
         self.path = self.directory / "mysql.json"
         self.env_path = Path(env_path) if env_path is not None else self.root / ".env"
-        self.keyring = keyring_backend or _SystemKeyring()
+        self.keyring = (
+            default_credential_backend() if keyring_backend is None else keyring_backend
+        )
         self._lock = RLock()
 
     def _path(self, source_id: str) -> Path:

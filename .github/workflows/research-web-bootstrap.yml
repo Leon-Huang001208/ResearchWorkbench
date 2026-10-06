@@ -18,6 +18,12 @@ on:
       - "**/*.lock"
       - "rwb"
       - "research_workbench_entrypoint/**"
+      - "runtimes/**"
+      - "app/research_web/runtime_contract.py"
+      - "app/research_web/process_spec.py"
+      - "app/research_web/__init__.py"
+      - "app/research_web/runtime_state.py"
+      - "app/research_web/staged_runtime.py"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
       - "app/research_web/runtime_auth.py"
@@ -29,6 +35,9 @@ on:
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
       - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_runtime_mode.py"
+      - "tests/research_web/test_docker_runtime.py"
   push:
     branches:
       - master
@@ -48,6 +57,12 @@ on:
       - "**/*.lock"
       - "rwb"
       - "research_workbench_entrypoint/**"
+      - "runtimes/**"
+      - "app/research_web/runtime_contract.py"
+      - "app/research_web/process_spec.py"
+      - "app/research_web/__init__.py"
+      - "app/research_web/runtime_state.py"
+      - "app/research_web/staged_runtime.py"
       - "app/cli/main.py"
       - "app/research_web/service_manager.py"
       - "app/research_web/runtime_auth.py"
@@ -59,6 +74,9 @@ on:
       - ".github/workflows/research-web-windows-verify.yml"
       - "tests/javascript/actions_quota_governance.test.mjs"
       - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_runtime_mode.py"
+      - "tests/research_web/test_docker_runtime.py"
   workflow_dispatch:
 
 permissions:

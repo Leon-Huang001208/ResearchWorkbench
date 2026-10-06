@@ -31,6 +31,7 @@ from .capabilities.models import CapabilityError, Metadata, Step
 from .capabilities.packages import MAX_COMPRESSED, import_package
 from .capabilities.tools import SELECTABLE
 from .client import DSHClient, RuntimeFailure
+from .credential_backend import default_credential_backend
 from .datahub import DataHub
 from .delivery import FINAL, Delivery, expected_formats
 from .frameworks import FrameworkService
@@ -88,7 +89,7 @@ def _persistent_mcp_key(account: str, keyring_backend=None) -> bytes:
 
     try:
         if keyring_backend is None:
-            import keyring as keyring_backend  # type: ignore[no-redef]
+            keyring_backend = default_credential_backend()
         encoded = keyring_backend.get_password(INTEGRITY_KEY_SERVICE, account)
         if encoded is None:
             generated = secrets.token_bytes(32)

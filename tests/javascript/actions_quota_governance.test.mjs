@@ -151,6 +151,23 @@ function policyRequiresGate(file, gate) {
   return verificationPolicy.rules.some(rule => rule.ci.includes(gate) && policyRuleMatches(rule, file));
 }
 
+test('Docker runtime test paths retain required Native bootstrap coverage', () => {
+  const policy = JSON.parse(fs.readFileSync(
+    new URL('../../.agents/verification-policy.json', import.meta.url), 'utf8',
+  ));
+  for (const file of [
+    'tests/research_web/test_runtime_contract.py',
+    'tests/research_web/test_runtime_mode.py',
+    'tests/research_web/test_docker_runtime.py',
+  ]) {
+    assert.ok(policy.rules.some(rule => rule.match.files.includes(file)
+      && rule.ci.includes('research-web-bootstrap')), `policy must require bootstrap: ${file}`);
+    for (const event of ['pull_request', 'push']) {
+      assert.equal(triggersForPath(workflows.bootstrap, event, file), true, `${event}: ${file}`);
+    }
+  }
+});
+
 test('documentation-only changes use only the lightweight constraints workflow', () => {
   const file = 'docs/README.md';
   assert.equal(triggersForPath(workflows.constraints, 'push', file), true);
@@ -351,4 +368,35 @@ test('Web evidence retention is short and full logs upload only on failure', () 
     /if: failure\(\)[\s\S]*logs\/setup-web\.log[\s\S]*retention-days: 3/,
   );
   assert.match(workflows.windows, /retention-days: 3/);
+});
+
+test('Docker CI routes shared runtime and packaging inputs, excluding ordinary UI and docs', () => {
+  const docker = readWorkflow('research-web-docker.yml');
+  assert.deepEqual(workflowTriggers(docker), ['pull_request', 'push', 'workflow_dispatch']);
+  assert.deepEqual(workflowJobs(docker), [{id: 'stage-scope', runsOn: 'ubuntu-latest'}, {id: 'docker-runtime', runsOn: 'ubuntu-24.04'}]);
+  for (const event of ['pull_request', 'push']) {
+    for (const file of [
+      'Dockerfile', '.dockerignore', 'compose.yaml', 'docker/supervisor.py',
+      'docker/healthcheck.py', 'docker/stage_dsh.py', 'runtimes/research_web.json',
+      'app/research_web/runtime_contract.py', 'app/research_web/runtime_state.py',
+      'app/research_web/process_spec.py', 'app/research_web/__init__.py',
+      'app/research_web/staged_runtime.py', 'app/research_web/runtime_auth.py',
+      'app/research_web/launch_runtime.py', 'app/research_web/service_manager.py',
+      'research_workbench_entrypoint/docker_runtime.py', 'research_workbench_entrypoint/runtime_mode.py',
+      'core/settings/base.py', 'core/observability/logger.py',
+      'scripts/setup_web.py', 'setup-web.sh', 'setup-web.cmd', 'rwb', 'rwb.cmd',
+      'requirements/web.lock', 'requirements/web.in', 'pyproject.toml',
+      'vendor/cjpy/0.5.2/manifest.json', 'vendor/dsh-tabbit/runtime.mjs',
+      '.agents/verification-policy.json', 'tests/javascript/verification_policy.test.mjs',
+      'tests/javascript/actions_quota_governance.test.mjs', 'tests/javascript/docker_runtime_contract.test.mjs',
+      '.github/workflows/research-web-docker.yml',
+    ]) assert.equal(triggersForPath(docker, event, file), true, `${event}: ${file}`);
+    for (const file of ['docs/README.md', 'docs/actions-budget.md', 'app/research_web/ui/app.mjs', 'app/research_web/frameworks/service.py']) {
+      assert.equal(triggersForPath(docker, event, file), false, `${event}: ${file}`);
+    }
+    for (const file of ['runtimes/research_web.json', 'app/research_web/runtime_contract.py', 'app/research_web/runtime_state.py', 'app/research_web/staged_runtime.py', 'app/research_web/process_spec.py', 'app/research_web/__init__.py']) {
+      assert.equal(triggersForPath(workflows.bootstrap, event, file), true, `native ${event}: ${file}`);
+    }
+    assert.equal(triggersForPath(workflows.bootstrap, event, 'Dockerfile'), false);
+  }
 });

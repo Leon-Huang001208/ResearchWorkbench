@@ -34,6 +34,8 @@ Update this section when:
 Research Web commands:
 
 - `rwb web start|stop|restart|status` — manage the owned loopback Web/DSH processes.
+- `rwb web status --json` — emit the Native safe service projection with schema version,
+  mode, issues and health facts; omit local log paths. The ordinary status output is unchanged.
 - `rwb web doctor [--json]` — verify the project-owned Python lock, CJPY 0.5.2,
   Node, pinned DSH closure, private data root and 3081/8088 health without exposing paths or secrets.
 - `rwb web tabbit-status` — read-only Tabbit health and pending-restart summary. It deliberately omits paths, cookies, tab titles, URLs and page content; installation and upgrades remain manual.
@@ -114,6 +116,10 @@ Related service:
 - CLI invocation tests
 - Command output verification
 - Error case handling tests
+- Docker-missing launcher tests restrict the actual child PATH to task-owned Python,
+  dirname and readlink links. They never append host binary directories. A separate
+  bootstrap subprocess disables site-packages and confirms Click/Native CLI is not
+  imported. Docker-present behavior remains covered by the runtime controller tests.
 
 ---
 

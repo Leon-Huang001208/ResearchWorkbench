@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -141,7 +142,6 @@ def test_doctor_honors_safe_launcher_probe_failure_override(tmp_path: Path) -> N
         ["web", "start"],
         ["web", "restart"],
         ["web", "stop"],
-        ["web", "status", "--json"],
         ["web", "doctor", "--verbose"],
         ["web", "doctor", "--json", "extra"],
     ],
@@ -182,7 +182,7 @@ def test_bootstrap_help_requires_no_installation_or_service_probe(
 
 @pytest.mark.parametrize(
     "argv",
-    [["web", "status"], ["web", "doctor"], ["web", "doctor", "--json"]],
+    [["web", "status"], ["web", "status", "--json"], ["web", "doctor"], ["web", "doctor", "--json"]],
 )
 def test_bootstrap_allowlist_commands_are_read_only_and_exit_zero_with_issues(
     tmp_path: Path,
@@ -950,13 +950,15 @@ def _temporary_launcher_checkout(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     package = checkout / "research_workbench_entrypoint"
     package.mkdir(parents=True)
     shutil.copy2(source_root / "rwb", checkout / "rwb")
-    for name in ("__init__.py", "__main__.py", "web_contract.py", "web_bootstrap.py"):
+    for name in ("__init__.py", "__main__.py", "web_contract.py", "web_bootstrap.py",
+                 "bootstrap.py", "runtime_mode.py", "docker_runtime.py"):
         shutil.copy2(source_root / "research_workbench_entrypoint" / name, package / name)
     binary_root = tmp_path / "bin"
     binary_root.mkdir()
     (binary_root / "python3").symlink_to(sys.executable)
     environment = {
         "PATH": f"{binary_root}:/usr/bin:/bin",
+        "HOME": str(tmp_path),
         "RESEARCH_DATA_HOME": str(tmp_path / "private" / "research-web"),
     }
     return checkout, environment
@@ -984,7 +986,15 @@ def cli(*, prog_name=None):
 def _write_owned_interpreter(owner_root: Path, *, valid_marker: bool) -> Path:
     interpreter = owner_root / ".venv" / "bin" / "python"
     interpreter.parent.mkdir(parents=True)
-    interpreter.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n', encoding="utf-8")
+    # Model a venv's sys.executable while using the available test interpreter.
+    interpreter.write_text(
+        f'#!/bin/sh\nexec "{sys.executable}" -c '
+        "'import runpy,sys; sys.executable=sys.argv.pop(1); "
+        "args=sys.argv[1:]; "
+        "exec(args[1]) if args[0] == \"-c\" else "
+        "runpy.run_module(args[1], run_name=\"__main__\", alter_sys=True)' "
+        '"$0" "$@"\n', encoding="utf-8"
+    )
     interpreter.chmod(0o755)
     marker = _environment_marker(owner_root)
     if not valid_marker:
@@ -1063,7 +1073,7 @@ def _configure_common_checkout(tmp_path: Path, checkout: Path, environment: dict
     common_root = tmp_path / "common-checkout"
     common_root.mkdir()
     git = tmp_path / "bin" / "git"
-    git.write_text('#!/bin/sh\nprintf "%s\\n" "$COMMON_GIT_DIR"\n', encoding="utf-8")
+    git.write_text('#!/bin/sh\nprintf "%s\\n" ' + shlex.quote(str(common_root / ".git")) + '\n', encoding="utf-8")
     git.chmod(0o755)
     environment["COMMON_GIT_DIR"] = str(common_root / ".git")
     _write_minimal_normal_cli(checkout)

@@ -1,4 +1,4 @@
-"""Delivery-channel metadata with operational configuration in the OS keyring."""
+"""Delivery-channel metadata with operational configuration in private storage."""
 
 from __future__ import annotations
 
@@ -10,31 +10,11 @@ from uuid import uuid4
 
 from core.observability import get_logger
 
+from ..credential_backend import default_credential_backend
 from .models import AutomationError, DeliveryChannelPut
 
 log = get_logger(__name__)
 KEYRING_SERVICE = "ResearchWorkbench.Delivery"
-
-
-class _SystemKeyring:
-    @staticmethod
-    def _module():
-        try:
-            import keyring
-        except (ImportError, RuntimeError) as exc:
-            raise AutomationError(
-                "系统凭据库不可用", "delivery_credential_store_unavailable", 503
-            ) from exc
-        return keyring
-
-    def get_password(self, service: str, account: str):
-        return self._module().get_password(service, account)
-
-    def set_password(self, service: str, account: str, value: str):
-        return self._module().set_password(service, account, value)
-
-    def delete_password(self, service: str, account: str):
-        return self._module().delete_password(service, account)
 
 
 def _safe_endpoint(value: str) -> str:
@@ -56,7 +36,9 @@ def _safe_endpoint(value: str) -> str:
 class DeliveryChannelStore:
     def __init__(self, store, *, keyring_backend=None) -> None:
         self.store = store
-        self.keyring = keyring_backend or _SystemKeyring()
+        self.keyring = (
+            default_credential_backend() if keyring_backend is None else keyring_backend
+        )
         self.store.data.setdefault("delivery_channels", {})
 
     _validated_endpoint = staticmethod(_safe_endpoint)

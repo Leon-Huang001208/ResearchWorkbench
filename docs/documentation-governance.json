@@ -16,7 +16,7 @@
     {
       "prefix": ".ai/",
       "status": "historical",
-      "purpose": "task-scoped implementation and verification evidence"
+      "purpose": "task-scoped implementation, verification and architecture structure decisions; not current product instructions"
     },
     {
       "prefix": ".superpowers/",

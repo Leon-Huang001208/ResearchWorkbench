@@ -27,13 +27,19 @@ test("skill requires the complete plan execute escalate receipt loop", () => {
     "scripts/validate_verification_receipt.mjs",
     "uncoveredRisks",
     "external",
+    "components",
+    "platforms",
     "realMachine",
     "mergeReady",
     "releaseReady",
+    ".agents/runtime/leon-engineering/manifest.json",
   ]) {
     assert.match(skill, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
-  assert.doesNotMatch(skill, /src-tauri|requirements\/|core\//);
+  assert.doesNotMatch(
+    skill,
+    /src-tauri|requirements\/|core\/|Dockerfile|compose\.yaml|research_workbench_entrypoint/,
+  );
 });
 
 test("skill README documents inputs outputs safety and three examples", () => {

@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const checkerURL = new URL('../../scripts/check_research_architecture.mjs', import.meta.url);
 const atlasURL = new URL('../../scripts/build_research_web_api_atlas.mjs', import.meta.url);
@@ -80,6 +81,32 @@ function configureReadmeReview(f, receipt={schemaVersion:1,disposition:'unchange
 
 test('portable offline fixture validates ten diagrams and ignores development absolute paths', async t => {
   assert.deepEqual((await check(fixture(t))).violations, []);
+});
+
+test('dual-runtime production paths and deployment branches have current architecture evidence', () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+  const map = JSON.parse(fs.readFileSync(path.join(root, mapPath), 'utf8'));
+  const mappedSources = new Set(map.groups.flatMap(group => group.sources));
+  for (const sourcePath of [
+    'runtimes/research_web.json', 'research_workbench_entrypoint/runtime_mode.py',
+    'research_workbench_entrypoint/docker_runtime.py', 'research_workbench_entrypoint/bootstrap.py',
+    'app/research_web/runtime_contract.py', 'app/research_web/process_spec.py',
+    'app/research_web/runtime_state.py', 'app/research_web/staged_runtime.py',
+    'app/research_web/credential_backend.py', 'research_workbench_entrypoint/__init__.py',
+    'scripts/setup_web.py', 'app/cli/main.py', 'rwb', 'rwb.cmd',
+    'setup-web.sh', 'setup-web.cmd',
+    'docker/entrypoint.sh', 'docker/stage_dsh.py', 'docker/supervisor.py',
+    'docker/healthcheck.py', 'Dockerfile', 'compose.yaml', '.dockerignore',
+  ]) assert.ok(mappedSources.has(sourcePath), `unmapped source: ${sourcePath}`);
+  const deployment = JSON.parse(fs.readFileSync(path.join(root, 'docs/architecture/research-web/diagrams/01-deployment.json'), 'utf8'));
+  const nodes = new Set(deployment.components.map(component => component.id));
+  for (const id of ['nativeDsh', 'nativeWeb', 'dockerContainer', 'sharedData', 'runtimeState']) {
+    assert.ok(nodes.has(id), `missing deployment node: ${id}`);
+  }
+  const receipt = JSON.parse(fs.readFileSync(path.join(root, readmeReview), 'utf8'));
+  assert.equal(receipt.disposition, 'updated');
+  assert.ok(receipt.summary.length > 20);
+  assert.ok(receipt.reason.length > 20);
 });
 
 test('root README participates in local Markdown link validation', async t => {

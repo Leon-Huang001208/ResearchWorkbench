@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "python": {
+    "major": 3,
+    "minor": 12,
+    "docker_image": "python:3.12.13-slim-bookworm"
+  },
+  "node": {
+    "major": 24,
+    "minimum_minor": 0,
+    "docker_image": "node:24.19.0-bookworm-slim"
+  },
+  "cjpy": {
+    "version": "0.5.2",
+    "sha256": "d8c6820a718ae5f79061b54815473dd3ecd3be73cd808634fbac5bc1c385bd94"
+  },
+  "dsh": {
+    "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
+    "commit": "c919b2a460753859665db3f60143d525fb9140cf",
+    "pnpm": "11.7.0",
+    "closure_files": 11084
+  }
+}

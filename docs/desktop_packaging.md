@@ -166,6 +166,12 @@ The generated sidecar is intentionally written under `build/desktop-sidecar/dist
 
 Research Workbench 采用“一套源码、各目标平台原生构建”的策略：Tauri 壳和 Python 业务代码共用，但 Python sidecar 是平台相关的原生可执行文件，必须分别为 macOS 和 Windows 打包。macOS 产物不能用于 Windows，反之亦然。
 
+### 平台职责
+
+MacBook Pro 负责功能开发、macOS 适配和真机验收，以及 GitHub macOS CI；Windows 真机只负责 Windows 适配和真机验收，以及 GitHub Windows CI；Linux 真机只负责 Linux 适配和真机验收，以及 GitHub Linux CI。Windows/Linux 不承担功能开发。桌面工作仍须用户明确开启，这一分工不扩展当前桌面支持矩阵。
+
+以下跨平台门按对应真机任务交接。Mac 本平台任务完成不等待 Windows/Linux；未取得的平台证据保留待验收，并阻止该平台的发布就绪声明。项目总体验收与本平台任务完成分开记录，见 [Agent 任务路由指南](AGENT_WORKFLOW.md)。
+
 ### 日常开发
 
 开发者可在 macOS 上修改和运行代码，无需为每次本地验证都重打安装包：`tauri dev` 使用源码启动 FastAPI 后端。应先运行与平台无关的单元、接口和前端测试。
@@ -175,8 +181,8 @@ Research Workbench 采用“一套源码、各目标平台原生构建”的策�
 凡影响 `src-tauri/`、`desktop/`、`scripts/desktop/`、sidecar、桌面路径/配置、安装包、更新机制或 Excel/Wind 集成的改动，必须经过以下验证：
 
 1. 在开发机运行相关的通用测试和本地桌面测试。
-2. 通过 GitHub Actions 的原生 Windows runner 完成依赖安装、Python sidecar (`.exe`) 构建、Tauri Windows 安装包构建，以及真实 PostgreSQL + pgvector 的 `ready` 启动/`/health` 检查。
-3. 通过 macOS runner 完成对应的 sidecar 和桌面包构建，并在两个 runner 上用不可连接但格式正确的 PostgreSQL URL 验证 `setup_required` 配置模式。CI 的临时 PostgreSQL 仅用于 ready 测试；安装包和 setup-required 测试不会安装或管理用户数据库。
+2. 由 Windows 真机适配任务通过 GitHub Actions 的原生 Windows runner 完成依赖安装、Python sidecar (`.exe`) 构建、Tauri Windows 安装包构建，以及真实 PostgreSQL + pgvector 的 `ready` 启动/`/health` 检查。
+3. 由 Mac 任务通过 macOS runner 完成对应的 sidecar 和桌面包构建；各平台任务分别在本平台 runner 上用不可连接但格式正确的 PostgreSQL URL 验证 `setup_required` 配置模式。CI 的临时 PostgreSQL 仅用于 ready 测试；安装包和 setup-required 测试不会安装或管理用户数据库。
 
 macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行时，不得宣称 Windows 兼容。
 
@@ -184,7 +190,7 @@ macOS 本地测试不等于 Windows 验证；Windows CI 未通过或尚未运行
 
 系统配置页保留现有健康总览、卡片和编辑机制；新增的环境能力诊断只读展示安全信息，绝不读取或导出秘密。其 catalog 只是元数据目录，当前不生成动态配置表单。`psql` 显示 available 仅表示本机可发现 PostgreSQL 客户端命令，既不表示 PostgreSQL server 可用，也不表示 pgvector 已就绪；数据库的实际健康状态仍以 `/api/setup/readiness` 和数据库连接测试为准。iFinD SDK 检测同样只是本机依赖提示。Wind 在非 Windows 平台不适用，Windows 上则必须以真实 Excel 集成验证为准。
 
-此类桌面相关改动仍必须在原生 macOS 和 Windows CI runner 上完成平台对应的构建与测试；CI 不会取代发布前在真实 Windows 环境中进行的安装级冒烟验证。
+此类桌面相关改动由 macOS 和 Windows 真机任务分别完成本平台 CI 构建与测试；CI 不会取代发布前在对应真机上进行的安装级冒烟验证。Windows 未完成不阻塞 Mac 本平台任务，但不得宣称 Windows 发布就绪。
 
 ### 发布前冒烟测试
 

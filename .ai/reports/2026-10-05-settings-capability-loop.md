@@ -524,3 +524,21 @@ Black/isort修改文件通过；Ruff首次因沙箱缓存写失败退出2，不�
 Project Constraints当前代码CI仍BLOCKED：PR78 CONFLICTING，actual remote master05326b6066f96a572db4ac87f3bdc041ff92003f相对9e231b6c含140路径Native/Docker状态/安装/凭据/控制器迁移和20文本冲突，target-drift-summary.json保存具体列表；含README、运行协议/数据/安全文档、architecture-map、图/回执/测试等，不能当作一份回执冲突。未自动合入这份大迁移，也未直接合入历史功能分支。现有policy完整84路径回执仍BLOCKED，mergeReady=false/releaseReady=false；Mac功能T6真实PASS不等于新目标整合、B归因或完整1A全部完成。
 
 当前唯一剩余目标为在明确整合范围与非秘密归因证据条件下完成1A收口；不重做阶段0/C1/C2或已完成真实生命周期，不自动进入1B/2—6。报告最终本地提交与fa452937a代码身份分别保存；只报告补记不再push触发CI循环。本轮完成已授权控制/真实T6/清理，遇到超出当前边界的大迁移及缺B归因证据后停止。
+
+## 2026-10-06 固定新目标整合收口（仍只Mac Native）
+
+用户“执行”明确续接目标整合与B非秘密证据核对；实际输入HEAD2118b99d20cff8e1929bbd99e4961e1406792de1，分支/工作区核对无误，保留全部本地同任务报告提交。一次fetch固定目标1dbd7547f1c6062124ab3a7f1fbd4498058f38fa；它包含此前05326b60 Native/Docker迁移及其后的平台职责文档PR79，无额外产品源码迁移。正常merge --no-ff --no-commit进入原任务分支，未reset/rebase/force、未向master push或直接合历史功能分支，目标之后漂移只记事实，不追赶。
+
+整合保留C1模型ref→系统Keychain/无ambient与旧文件回退、Host受控record、Provider/preset边界、保存事务/清除/活动任务/dirty状态、认证输出私有交接及T6精确调用控制。合并来的运行合同和独立state目录造成认证路径直接兼容缺陷：先增强现有分离state测试取得RED，再让launcher的RESEARCH_RUNTIME_AUTH指向已验证state，新增非秘密RESEARCH_RUNTIME_STATE_ROOT，Node preload验证同一state/auth.json绑定；私有原子写入和authority/cwd/source校验不降低。真实exec测试中的Python替身不能接受Node --import，仅在fixture剥离该Node专用选项，仍执行真实exec/环境清理，未让产品跳过preload。最终启动器65 PASS。
+
+逐冲突合并README和模块文档：Native模型Keychain与非mac模型存储未验证说明保留，Docker通用业务凭据私有挂载实现保留且明确不泛化模型后端支持；同时修正旧数据文档曾遗留的“模型秘密私有文件”句子。架构清单合并两边源码/测试/映射。部署图拓扑确有变更，仅重做01-deployment：既有双部署结构加Native模型Keychain平面，showcase校验/交付及四viewport包含性/最小最大明暗截图真实通过；Codex已实际查看四图。用户结构化回复“我已查看四张截图并确认无问题”后才写same-hash reviewer=user记录，未将AI查看伪装人工。其他图同哈希既有评审复用。
+
+用户此前Mac-only明确决定继续有效。自动审批首次拒绝阶段配置/工作流门变更，随后用户具体批准“新增显式阶段配置与前置判定，Mac-only暂缓Docker job，保留工作流/测试/恢复合同、不写PASS”。机器阶段文件.agents/research-web-stage.json只声明当前Native与暂缓平台；新Docker workflow先执行通用stage-scope，显式false时不启动docker-runtime，缺省/true恢复原路径，非法配置失败。直接合同覆盖false/true/缺省/非法，与原矩阵/构建/安全证据断言并存。再次审批拒绝从总体policy移除Docker/Windows门及提前人工review的组合操作后，没有删除总体门：现有全平台plan仍保留Docker选项，其未验按暂缓保留；当前Mac任务和总体验收按目标现有platform ownership规则分开记。用户“完全访问”仅解决访问权限，不等价人工看图；本次已有独立人工回复。没有改全局Hook/共享kernel/保护规则或预算，Ubuntu通用Project Constraints/Web Checks继续保留。
+
+三类完整集合scope.json：原任务共同基线至当前整合内容182路径、相对固定目标新PR63路径、本轮前后145路径（最终Git再核对，不把旧数量固定）。现有L4计划20本地门/4总体CI门，Docker产品执行暂缓不冒充PASS；总体验收可能未就绪，不据此停止Mac工作。
+
+实际本地证据：相关Native/协议/凭据/API Python645 PASS；剩余离线容器/安装/集成合同329 PASS/1既有非本平台skip；治理/认证/guard/UI邻接JS197 PASS；阶段/路由/保留Docker代码直接合同102 PASS。这些离线合同不等于实际Docker或Windows/Linux验收，没有启动Docker。触及launcher/test的Black/isort、launcher已有mypy边界通过；4个导入目标测试SIM117不是本任务行为缺陷，限定文件等价合并nested-with而非unsafe自动修复，复跑65 PASS与Ruff通过，未用ignore/降规则。旧37条和manager既有类型诊断保留，无全仓整改。
+
+整合后在原获准独立data home补一次无Key受管启动：安装Doctor真实ok/installation_ok=true；正常页面200、Runtime connected/health/owned=true，credential_configured=false/uncertain=false，没有真实推理（预期）。随后正常stop并核对所属进程退出/端口关闭。没有更新/停止/迁移生产8088/3081、手写安装清单、安装新依赖或读取真实模型Key。早先T6真实PASS、4/6模型与2/2工具、产品清Key等证据原样保留，本轮真实供应商请求0，不消费已关闭轮次剩余额度。
+
+用户同时明确“没有按Key记录，继续保留未验证”：B实际供应商归因仍UNVERIFIED，不以这一句当作豁免，也不靠读密/哈希、保存/HTTP200/生成成功补证。不能宣布完整1A完成。整合提交/CI候选SHA及本地报告身份分开记录，新CI不复用fa452937a或e917b1c89运行冒称新HEAD通过；只普通push同一分支、复用草稿PR78，不合并/发布。按现行政策分别交付当前Mac验收与总体mergeReady/releaseReady，不删除外部门来凑全绿。

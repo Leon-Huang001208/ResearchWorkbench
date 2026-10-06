@@ -26,6 +26,17 @@ from app.research_web.local_integrations import (
 )
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
+
+
+@pytest.fixture(autouse=True)
+def isolated_keyring(monkeypatch):
+    """Use the in-memory keyring protocol while retaining production failures."""
+    import keyring
+
+    values = {}
+    monkeypatch.setattr(keyring, "get_password", lambda service, account: values.get((service, account)))
+    monkeypatch.setattr(keyring, "set_password", lambda service, account, value: values.__setitem__((service, account), value))
+    monkeypatch.setattr(keyring, "delete_password", lambda service, account: values.pop((service, account), None))
 from app.research_web.store import Store
 
 
