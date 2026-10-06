@@ -143,6 +143,21 @@
       ],
       "findings": [],
       "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；Workflow 母版只读、Run 副本刷新、Provider 校验、快照复用及产物发布边界清楚，主路径平衡且无明显空带、遮挡、穿线或裁剪。"
+    },
+    {
+      "id": "00-system-overview",
+      "status": "reviewed",
+      "reviewer": "用户（本会话明确确认）",
+      "reviewerKind": "human",
+      "humanReview": "PASS",
+      "date": "2026-10-07",
+      "notes": "用户在本会话明确回复“已查看，确认人工审阅通过”，审阅对象为已显示的最终 1440×900 浅色与 2048×1320 深色截图。Codex Agent 独立审阅保留；自动 visualReview 仍为 pending。",
+      "artifactSha256": "1ecf68923143ddaf296b44b2711ff01bce7383f7d694b785cb365b527061abb2",
+      "specificationSha256": "2832448734f14e723fabcf8fa77bc98d244c37076782af759552bbf2a6067c7c",
+      "captures": [
+        "00-system-overview.visual-check.1440x900.light.png",
+        "00-system-overview.visual-check.2048x1320.dark.png"
+      ]
     }
   ]
 }

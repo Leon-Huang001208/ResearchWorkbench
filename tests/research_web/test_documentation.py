@@ -23,6 +23,19 @@ def test_api_atlas_is_a_fixed_read_only_document(docs):
     assert "Research Web API Atlas" in response.text
 
 
+def test_registered_product_overview_has_safe_return_navigation(docs):
+    client, root = docs
+    (root / "00-system-overview.html").write_text(
+        "<!doctype html><body><h1>产品边界</h1></body>", encoding="utf-8"
+    )
+    response = client.get("/api/research/documentation/00-system-overview.html")
+    assert response.status_code == 200
+    assert 'href="index.html"' in response.text
+    assert 'href="index.html#modules"' in response.text
+    assert "allow-same-origin" not in response.headers["content-security-policy"]
+    assert "access-control-allow-origin" not in response.headers
+
+
 @pytest.fixture
 def docs(tmp_path, monkeypatch):
     from app.research_web import documentation

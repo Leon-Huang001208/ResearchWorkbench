@@ -9,6 +9,8 @@
 
 ## 阅读顺序
 
+首次阅读先打开[交互图册](../../../outputs/research-web-architecture/index.html)：产品/系统总览 → 运行结构与部署 → 子系统分图 → 关键业务流程 → API 与代码细节。重要模块的阅读卡片使用稳定标识，将职责、分图、说明、API、源码和测试放在同一入口。
+
 前端外观以 [Research Web 外观与主题](../../research-web-appearance.md) 为准：Codex 风格、Light/Dark 与用户原图符号；不改变下述服务部署和研究契约。
 
 1. [部署与职责](01-system.md)：启动路径、模块边界和存储归属。
@@ -23,7 +25,7 @@
 10. [统一集成协调器](09-integration-coordinator.md)：数据源与本机能力的五阶段状态、启动/手动探测、授权和持久证据。
 11. [Web Native/Docker 安装](../../research-web-installation.md)：共用依赖合同、模式切换、固定 DSH/CJPY、Doctor 与分模式平台门禁。
 
-可交互图文位于仓库 `outputs/research-web-architecture/`，也可从 Web 设置的「架构文档」打开。JSON 图源在本目录 `diagrams/`。十图均以实际源码为依据；`01-deployment` 展示单一源码与数据模型下的 Native/Docker 分支。各图的自动 showcase、四视口和人工截图结论以各自当前哈希回执为准；图形证据与产品、镜像和平台验收分开保存。
+可交互图文位于仓库 `outputs/research-web-architecture/`，也可从 Web 设置的「架构文档」打开。JSON 图源在本目录 `diagrams/`。既有十图与新增 `00-system-overview` 均以实际源码为依据；`01-deployment` 展示单一源码与数据模型下的 Native/Docker 分支。各图的自动 showcase、四视口和人工截图结论以各自当前哈希回执为准；图形证据与产品、镜像和平台验收分开保存。
 
 ## 不在本轮范围
 
@@ -54,9 +56,6 @@
 - 外部数据、模型、Office/Wind、浏览器和平台支持只对本次实际验证的环境成立。
 - 旧分支、会话、产物或验收记录不决定当前 Git 交付状态；每次交付以本次 Harness、CI 和任务报告为准。
 
-## 2026-09-23 稳定性变更回执
+## 历史证据
 
-本轮只收紧非强制重启的活动会话授权、会话/子 Agent 目录的并发有界读取，以及前端每个目录独立的
-pending count、generation、逐资源 settled 与 latest-request-wins 账本。只有 runtime pending 和
-settled runtime failure 分别投影为可见 connecting/offline。阅读顺序、文档权威关系、十图清单、
-模块边界、Automation 与信息架构均未变化；外部 CI 和真实浏览器验收另由后续交付阶段记录。
+日期型稳定性核对已移至[阶段一任务报告](../../../.ai/reports/2026-10-06-architecture-reading-stage1.md)。

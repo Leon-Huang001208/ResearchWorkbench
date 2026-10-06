@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留Native/Docker安装和数据边界、Mac模型Keychain/Host认证分离及最新宿主平台分工。",
-  "reason": "Mac负责功能开发、本机和MacCI；Windows/Linux真机负责各自适配与验收，不计作Mac完成前置。其他平台未验证事实保留；本轮模型功能B/T6仍须真实证据。"
+  "summary": "根 README 新增 Settings 架构文档和确定性分层图册入口。",
+  "reason": "本轮新增产品总览与模块阅读导航，属于用户可见架构入口变化，安装和研究执行合同保持不变。"
 }

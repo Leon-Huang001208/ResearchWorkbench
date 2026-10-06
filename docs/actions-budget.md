@@ -56,6 +56,8 @@ Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`�
 
 ## 平台验收责任
 
+文档安全路由改动的 macOS 任务可对最终候选使用现有 Bootstrap 手动入口取得干净安装、固定 DSH、服务健康与 Doctor 证据，另保留本地文档路由/浏览器结果。此补充不扩大 docs-only 的自动触发面，不把 Ubuntu 文档门算作 macOS CI；dispatch 仍需独立明确授权。
+
 上述表格描述现有自动触发配置，不授予 Mac 任务 Linux/Windows 适配或验收责任。MacBook Pro 负责项目开发、本机 macOS 验收及 GitHub macOS CI；Windows/Linux 真机任务分别负责本平台适配、本机验收及对应 GitHub CI，不承担功能开发。Ubuntu 的 Project Constraints/Research Web Checks 结果属于 Linux CI，不能作为 macOS CI 证据，也不得要求 Mac 任务修复或等待其平台适配才能完成。
 
 其他平台的 CI 自动启动时，保留状态并交接对应真机任务；本平台未取得所需 CI 时仍不能宣称本平台验收通过。跨平台发布就绪继续要求各目标平台证据。验收范围和任务状态记录以 [Agent 任务路由指南](AGENT_WORKFLOW.md) 为准。Docker workflow 已改为 Linux 真机 exact-SHA 手动入口；其余自动触发配置、runner、费用状态门和发布授权不变。
