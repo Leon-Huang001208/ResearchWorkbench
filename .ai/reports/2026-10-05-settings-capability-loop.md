@@ -647,3 +647,5 @@ master通过GitHub Git refs API force=false快进到固定上游，无改写历�
 <!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "仅更新空实例模型默认值，保留已保存旧ID及现有设置状态、dirty表单和同源API，未改变布局组件或导航。", "diagrams": []} -->
 
 <!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "已有自动任务继续经同一ResearchService和正式preset创建发送，preset声明方式迁移不新增调度器或任务注册中心。", "diagrams": []} -->
+
+独立只读Python审查发现适配结果未包含既有kind=child，且空闲值idle不符合service所需inactive。新增参数化消费者回归先得到2个KeyError失败，再在单一client适配点固定kind和activity；原生DSHClient到ResearchService的归属、取消和空闲门通过，完整protocol+launch 88 PASS。实际固定上游源码仍提供subagents/interruptByParent与session/follow，审查核对地址/父属/mode兼容。Black/isort/Ruff与diff检查exit0；未改凭据、执行循环或拓扑，不重做真实生命周期。此次必要源码修复生成新候选，feb239e69的CI只属于旧候选，不能冒称修复后已过。用户最新授权继续所有阶段及必要模型/工具调用，不再以旧次数上限阻塞；供应商Key仍仅设置页接收。

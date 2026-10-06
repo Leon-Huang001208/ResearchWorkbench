@@ -1,6 +1,8 @@
 """Native DSH contract regression, deliberately independent of legacy fixtures."""
 
 import json
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -408,9 +410,24 @@ def test_remote_interaction_events_reject_invalid_identifiers(envelope):
 
 
 @pytest.mark.asyncio
-async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_and_live_status():
+@pytest.mark.parametrize("running,activity", [(True, "running"), (False, "inactive")])
+async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_and_live_status(
+    running, activity
+):
+    calls = []
+
     def reply(request):
         body = json.loads(request.content)
+        calls.append((request.url.path, body["payload"]["args"]))
+        if request.url.path in {"/api/session/cancel", "/api/subagents/interruptByParent"}:
+            return httpx.Response(
+                200,
+                json={
+                    "type": "server-response",
+                    "rpcId": body["rpcId"],
+                    "result": {"ok": True, "value": {"accepted": True}},
+                },
+            )
         assert request.url.path == "/api/session/list"
         items = [
             {
@@ -433,7 +450,7 @@ async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_an
                 "sessionId": "child",
                 "parentSession": "parent",
                 "origin": "subagent",
-                "running": True,
+                "running": running,
             },
         ]
         return httpx.Response(
@@ -448,7 +465,36 @@ async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_an
     async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
         value = await client.rpc("subagent.list", {"parentSessionId": "parent"})
         assert value["entries"][0]["id"] == "child"
-        assert value["entries"][0]["activity"] == "running"
+        assert value["entries"][0]["kind"] == "child"
+        assert value["entries"][0]["activity"] == activity
+        from app.research_web.service import ResearchService
+
+        service = object.__new__(ResearchService)
+        service.client = client
+        service.store = SimpleNamespace(
+            data={"sessions": {"parent": {"id": "parent", "created": True}}, "receipts": {}}
+        )
+        service.child_parents = {}
+        assert await service._interaction_owner("child") == "parent"
+        if not running:
+            service.capabilities = SimpleNamespace(assert_consistent=lambda: None)
+            service.ensure_owned = AsyncMock()
+            service.connected = {"mux", "host"}
+            service.detail = AsyncMock(
+                return_value={"can_cancel": False, "status": "completed", "delivery": None}
+            )
+            assert await service._capability_idle() is True
+
+        service.store.session = lambda _sid: {}
+        service.store.audit = lambda *_args, **_kwargs: None
+        service.delivery = SimpleNamespace(current=lambda _sid: None)
+        service.datahub = SimpleNamespace(cancel=AsyncMock())
+        service.notify = lambda: None
+        assert await service._cancel("parent") == {"accepted": True}
+        assert (
+            "/api/subagents/interruptByParent",
+            {"parentSessionId": "parent", "childSessionId": "child", "mode": "continuable"},
+        ) in calls
 
 
 @pytest.mark.asyncio

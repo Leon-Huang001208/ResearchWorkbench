@@ -275,7 +275,13 @@ class DSHClient:
                     or type(live.get("running")) is not bool
                 ):
                     raise RuntimeFailure("原生子会话活动状态未知", "protocol_error")
-                entries.append({**child, "activity": "running" if live["running"] else "idle"})
+                entries.append(
+                    {
+                        **child,
+                        "kind": "child",
+                        "activity": "running" if live["running"] else "inactive",
+                    }
+                )
             return {"entries": entries}
         if method == "subagent.history":
             address = {
