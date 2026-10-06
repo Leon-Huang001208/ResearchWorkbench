@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "Docker固定构建输出预算复核：每路2MiB与既有脱敏stream；README公开入口未变。",
-  "reason": "仅固定构建提升有界捕获，metadata/default64KiB及失败清理保留，不将合同GREEN当真实镜像或生命周期PASS。"
+  "summary": "私有 runtime state 拒绝日志取证复核：README公开入口与安装要求不变。",
+  "reason": "仅记录固定原因、阶段、ancestor/leaf与变化字段名；原安全guard、公开五字段启动诊断和安装依赖不变，真实Docker启动仍待另行取证。"
 }

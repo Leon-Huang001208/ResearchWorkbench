@@ -411,6 +411,174 @@ def test_runtime_state_boundary_preserves_caller_errors(tmp_path):
     assert raised.value is failure
 
 
+@pytest.mark.parametrize("leaf", [False, True])
+@pytest.mark.parametrize("reason", ["invalid_type", "reparse_point", "unsafe_owner", "unsafe_mode"])
+def test_runtime_state_rejection_reason_is_private(leaf, reason, monkeypatch, caplog):
+    import stat
+
+    from app.research_web import runtime_state
+
+    monkeypatch.setattr(runtime_state.os, "getuid", lambda: 7654321)
+    value = SimpleNamespace(
+        st_mode=stat.S_IFDIR | 0o700,
+        st_uid=7654321,
+        st_gid=8765432,
+        st_file_attributes=0,
+    )
+    if reason == "invalid_type":
+        value.st_mode = stat.S_IFREG | 0o700
+    elif reason == "reparse_point":
+        value.st_file_attributes = 0x400
+    elif reason == "unsafe_owner":
+        value.st_uid = 9876543
+    else:
+        value.st_mode |= 0o022
+    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
+        runtime_state._validate_directory(value, leaf=leaf, platform_name="posix")
+    assert f"reason={reason} phase=enter scope={'leaf' if leaf else 'ancestor'}" in caplog.text
+    assert all(secret not in caplog.text for secret in ("7654321", "8765432", "9876543"))
+
+
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX descriptor fixture")
+@pytest.mark.parametrize("phase,call", [("enter", 2), ("pre_yield", 3), ("post_yield", 4)])
+@pytest.mark.parametrize(
+    "field,index", [("dev", 2), ("ino", 1), ("mode", 0), ("uid", 4), ("gid", 5)]
+)
+def test_runtime_state_identity_rejection_evidence(
+    tmp_path, monkeypatch, caplog, phase, call, field, index
+):
+    import os
+
+    from app.research_web import runtime_state
+
+    state = tmp_path / "sensitive-cookie-token-path"
+    state.mkdir(mode=0o700)
+    original = Path.lstat
+    calls = 0
+
+    def change(path):
+        nonlocal calls
+        current = original(path)
+        if path == state:
+            calls += 1
+            if calls >= call:
+                fields = list(current)
+                # Root is allowed for ancestors, but leaf owner changes reject first.
+                fields[index] += 0o100 if field == "mode" else 1
+                return os.stat_result(fields)
+        return current
+
+    monkeypatch.setattr(Path, "lstat", change)
+    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
+        with runtime_state.runtime_state_directory(state):
+            pass
+    assert f"phase={phase} scope=leaf" in caplog.text
+    if field == "uid" and phase != "enter":
+        assert "reason=unsafe_owner" in caplog.text
+    else:
+        assert f"reason=identity_changed phase={phase} scope=leaf changed={field}" in caplog.text
+    assert str(tmp_path) not in caplog.text
+    assert "sensitive-cookie-token-path" not in caplog.text
+
+
+@pytest.mark.parametrize("guard", [False, True])
+def test_runtime_state_logging_failure_preserves_rejection(tmp_path, monkeypatch, guard):
+    import stat
+
+    from app.research_web import runtime_state
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("sensitive-cookie-token")
+
+    monkeypatch.setattr(runtime_state.log, "warning", fail)
+    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
+        if guard:
+            unsafe = tmp_path / "sensitive-cookie-token"
+            unsafe.write_text("sensitive-cookie-token")
+            with runtime_state.runtime_state_directory(unsafe):
+                pytest.fail("unsafe directory accepted after logger failure")
+        else:
+            runtime_state._validate_directory(
+                SimpleNamespace(st_mode=stat.S_IFREG), leaf=True, platform_name="posix"
+            )
+
+
+def test_runtime_state_valid_guard_emits_no_rejection(tmp_path, caplog):
+    from app.research_web import runtime_state
+
+    with runtime_state.runtime_state_directory(tmp_path / "private-state", create=True):
+        pass
+    assert "runtime_state_directory_rejected" not in caplog.text
+
+
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX descriptor fixture")
+@pytest.mark.parametrize("phase,call", [("open_fd", 1), ("pre_yield", 2), ("post_yield", 3)])
+@pytest.mark.parametrize("leaf", [False, True])
+def test_runtime_state_fd_identity_evidence(tmp_path, monkeypatch, caplog, phase, call, leaf):
+    import os
+
+    from app.research_web import runtime_state
+
+    state = tmp_path / "private-state"
+    state.mkdir(mode=0o700)
+    target = state if leaf else tmp_path
+    inode = target.stat().st_ino
+    original = os.fstat
+    calls = 0
+
+    def changed_fd(descriptor):
+        nonlocal calls
+        current = original(descriptor)
+        if current.st_ino == inode:
+            calls += 1
+            if calls >= call:
+                fields = list(current)
+                fields[4] += 1
+                return os.stat_result(fields)
+        return current
+
+    monkeypatch.setattr(runtime_state.os, "fstat", changed_fd)
+    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
+        with runtime_state.runtime_state_directory(state):
+            pass
+    assert (
+        f"reason=identity_changed phase={phase} scope={'leaf' if leaf else 'ancestor'} changed=uid"
+        in caplog.text
+    )
+    assert str(tmp_path) not in caplog.text
+
+
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX ownership fixture")
+def test_runtime_state_same_inode_allowed_owner_change_still_rejects(
+    tmp_path, monkeypatch, caplog
+):
+    import os
+
+    from app.research_web import runtime_state
+
+    state = tmp_path / "private-state"
+    state.mkdir(mode=0o700)
+    original = Path.lstat
+    calls = 0
+
+    def changed_owner(path):
+        nonlocal calls
+        current = original(path)
+        if path == tmp_path:
+            calls += 1
+            if calls >= 3:
+                fields = list(current)
+                fields[4] = 0 if current.st_uid else os.getuid() + 1
+                return os.stat_result(fields)
+        return current
+
+    monkeypatch.setattr(Path, "lstat", changed_owner)
+    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
+        with runtime_state.runtime_state_directory(state):
+            pytest.fail("same-inode ownership change accepted")
+    assert "reason=identity_changed phase=pre_yield scope=ancestor changed=uid" in caplog.text
+
+
 def test_runtime_projects_only_active_host_verified_mcp_bindings(tmp_path, monkeypatch):
     installation_id = "mcp-installation-0123456789abcdef0123456789abcdef"
     authorization = AuthorizationManager(tmp_path)

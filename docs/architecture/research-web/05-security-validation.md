@@ -1,5 +1,15 @@
 # 安全边界与验证方法
 
+`runtime_state_directory_rejected` 的私有日志在原拒绝分支记录固定原因
+`invalid_type/reparse_point/unsafe_owner/unsafe_mode/identity_changed`，阶段限定
+`enter/open_fd/pre_yield/post_yield`，范围仅 `ancestor/leaf`。身份变化仅列
+`dev/ino/mode/uid/gid` 字段名，不输出目录名、路径、身份数值、文件内容、Cookie、
+token 或异常正文。既有外层未分类错误保留通用事件；日志 handler 失败只放弃诊断，
+继续原 `RuntimeStateError("runtime_state_unsafe")` 拒绝与异常传播。
+该取证不放宽任何 owner/mode/no-follow/身份校验，不修复目录、不预写认证、不重试。
+容器公开启动诊断仍为原五字段，CI artifact scanner 不接收此私有日志。
+确定性负面测试证明日志与 guard 合同，不证明真实 Docker startup 或根因已修复。
+
 发布目录例外仅处理 `doc/docs` 名称歧义：目录声明含 glob、negative、绝对/越界路径、非法值
 或根目录时保守不建立例外。硬开发目录和 README/suffix 过滤、source asset escape 及 manifest
 哈希校验保留；源码回归不能代替真实 Docker 生命周期验收。

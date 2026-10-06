@@ -6272,6 +6272,8 @@ Classes:
 
 Functions:
 - `_identity`
+- `_log_rejection`
+- `_log_identity_change`
 - `_validate_directory`
 - `runtime_state_directory`
   - Validate and pin every ancestor before state access, then recheck identity.
