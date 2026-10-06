@@ -58,7 +58,7 @@ junction 和 POSIX symlink 都只在解析目标仍位于固定源码树时接�
 Docker 构建先对完整 DSH checkout 执行相同的固定 remote、commit、pnpm 与完整构建闭包验证，
 通过后才按已安装的 production dependency graph 和上游 package `files` 字段生成运行资产目录。
 开发依赖、测试、fixture、文档、benchmark、website 和 Git 历史不会进入该目录；CLI、profile
-模块、上游声明的运行资源及所需第三方生产依赖保留。`.rwb-dsh-runtime.json` 是构建时派生的
+模块、上游声明的运行资源及所需第三方生产依赖保留。pnpm 共享 hoist 别名仅在目标已属于所选生产图时保留，确保原生 addon 从跨包加载器基址仍能解析平台实现；不会通过 hoist 扩大开发依赖集合。`.rwb-dsh-runtime.json` 是构建时派生的
 资产清单，不是第二份依赖配置：它记录原始固定来源和完整闭包事实，以及目录、普通文件、符号
 链接的确定性清单和摘要。镜像 launcher 在创建运行状态前拒绝缺失、额外、篡改、越界链接、
 alias、错误 schema 或超限清单，并继续把原始已验证闭包写入既有 build lock。仅镜像环境明确

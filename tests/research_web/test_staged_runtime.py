@@ -2,6 +2,8 @@
 
 import json
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -247,3 +249,58 @@ def test_staging_refuses_unsafe_dependency_target(tmp_path):
     (cli / "node_modules/escape").symlink_to(outside)
     with pytest.raises(RuntimeError, match="dsh_staging_invalid"):
         stage_assets(source, tmp_path / "staged", facts())
+
+
+@pytest.mark.parametrize("platform_name", ["native-platform", "@fixture/native-platform"])
+def test_staging_preserves_selected_pnpm_hoist_for_dynamic_native_loader(tmp_path, platform_name):
+    from docker.stage_dsh import stage_assets
+    from app.research_web.staged_runtime import verify_staged_runtime
+
+    source = tmp_path / "source"
+    cli = source / "apps/cli"
+    boot = source / "packages/boot/app-boot"
+    store = source / "node_modules/.pnpm"
+    helper = store / "helper@1/node_modules/helper"
+    dispatcher = store / "dispatcher@1/node_modules/dispatcher"
+    platform = store / "native-platform@1/node_modules" / platform_name
+    dev = store / "devkit@1/node_modules/devkit"
+    for package, metadata, code in [
+        (cli, {"name": "cli", "files": ["lib"], "dependencies": {"boot": "1", "helper": "1"}, "devDependencies": {"devkit": "1"}}, "module.exports = require('helper');"),
+        (boot, {"name": "boot", "files": ["lib"]}, "module.exports = {};"),
+        (helper, {"name": "helper", "dependencies": {"dispatcher": "1"}, "optionalDependencies": {platform_name: "1"}}, "module.exports = require('dispatcher')();"),
+        (dispatcher, {"name": "dispatcher"}, f"module.exports = () => require({json.dumps(platform_name)});"),
+        (platform, {"name": platform_name}, "module.exports = 'fixture-native-binding';"),
+        (dev, {"name": "devkit"}, "module.exports = 'must-not-stage';"),
+    ]:
+        (package / "lib").mkdir(parents=True)
+        metadata["main"] = "lib/index.js"
+        (package / "package.json").write_text(json.dumps(metadata))
+        (package / "lib/index.js").write_text(code)
+    (cli / "lib/bin.js").write_text("// required cli asset")
+
+    def link(alias, target):
+        alias.parent.mkdir(parents=True, exist_ok=True)
+        alias.symlink_to(os.path.relpath(target, alias.parent))
+
+    link(cli / "node_modules/boot", boot)
+    link(cli / "node_modules/helper", helper)
+    link(helper.parent / "dispatcher", dispatcher)
+    link(helper.parent / platform_name, platform)
+    link(store / "node_modules" / platform_name, platform)
+    link(store / "node_modules/devkit", dev)
+    link(store / "node_modules/absent-dev-platform", store / "uninstalled-dev-platform")
+    (source / "package.json").write_text("{}")
+    output = tmp_path / "staged"
+    stage_assets(source, output, facts())
+    node = shutil.which("node")
+    assert node is not None, "Node is required for the runtime packaging contract"
+    probe = "console.log(require(process.argv[1]));"
+    original = subprocess.run([node, "-e", probe, str(cli)], capture_output=True, text=True, timeout=10)
+    assert original.returncode == 0 and original.stdout.strip() == "fixture-native-binding"
+    derived = subprocess.run([node, "-e", probe, str(output / "apps/cli")], capture_output=True, text=True, timeout=10)
+    assert derived.returncode == 0, derived.stderr
+    assert derived.stdout.strip() == "fixture-native-binding"
+    assert verify_staged_runtime(output) == facts()
+    assert not os.path.lexists(output / "node_modules/.pnpm/node_modules/absent-dev-platform")
+    assert not (output / "node_modules/.pnpm/node_modules/devkit").exists()
+    assert not (output / dev.relative_to(source)).exists()

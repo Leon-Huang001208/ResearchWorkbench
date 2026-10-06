@@ -136,6 +136,36 @@ def stage_assets(source: Path, output: Path, verified: dict) -> None:
                         )
                         target.symlink_to(relative_target)
                 queue.append(resolved)
+        # Native loaders may resolve a selected optional platform package from
+        # another package's anchor, relying on pnpm's shared private hoist tree.
+        # Preserve only aliases to entities already selected by the production
+        # graph; never stage an additional development dependency through hoists.
+        hoisted = source / "node_modules/.pnpm/node_modules"
+        if hoisted.exists():
+            if hoisted.resolve(strict=True) != hoisted or not hoisted.is_dir():
+                raise ValueError("unsafe hoist root")
+            aliases = []
+            for item in sorted(hoisted.iterdir()):
+                if item.name.startswith("@") and item.is_dir() and not item.is_symlink():
+                    aliases.extend(sorted(item.iterdir()))
+                else:
+                    aliases.append(item)
+            for alias in aliases:
+                if not alias.is_symlink():
+                    continue
+                resolved = alias.resolve()
+                if resolved not in visited:
+                    continue
+                if alias.resolve(strict=True) != resolved:
+                    raise ValueError("hoist alias changed")
+                target = output / alias.relative_to(source)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                relative_target = os.path.relpath(output / resolved.relative_to(source), target.parent)
+                if os.path.lexists(target):
+                    if not target.is_symlink() or target.resolve(strict=True) != output / resolved.relative_to(source):
+                        raise ValueError("conflicting hoist alias")
+                else:
+                    target.symlink_to(relative_target)
         shutil.copy2(source / "package.json", output / "package.json")
         for name in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
             if (source / name).is_file():
