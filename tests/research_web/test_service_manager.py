@@ -5396,3 +5396,39 @@ def test_native_malformed_creator_record_reports_stable_issue(manager, monkeypat
         manager.start(open_browser=False)
     assert path.read_bytes() == raw
     assert not (folder / "mcp-runtime.json").exists()
+
+
+@pytest.mark.parametrize("malformed", [False, True])
+def test_fix1_mcp_only_control_is_validated_before_creation(manager, monkeypatch, malformed):
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    from app.research_web.datahub.security import load_control
+    manager._prepare_private_directories()
+    manager.web_port = 48271
+    origin = "http://127.0.0.1:48271"
+    old = load_mcp(manager.data_root, origin)
+    path = manager.data_root / ".control/mcp-runtime.json"
+    if malformed:
+        path.write_bytes(b'{"token":"invalid"}')
+    original = path.read_bytes()
+    monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
+    monkeypatch.setattr(manager, "_start_locked", lambda **kwargs: {"product_ready": True})
+    if malformed:
+        with pytest.raises(ServiceManagerError, match="control_origin_prepare_failed"):
+            manager.start(open_browser=False)
+        assert not (manager.data_root / ".control/datahub.json").exists()
+        assert path.read_bytes() == original
+    else:
+        manager.start(open_browser=False)
+        assert load_control(manager.data_root, origin)["url"] == origin
+        assert load_mcp(manager.data_root, origin)["token"] == old["token"]
+
+
+@pytest.mark.parametrize("argv", [None, ("python", "--data-root", "SAME_ROOT")])
+def test_fix1_missing_ledger_does_not_prove_quiescence(manager, monkeypatch, argv):
+    manager._prepare_private_directories()
+    monkeypatch.setattr(service_manager_module, "listener_pids",
+                        lambda port: ListenerFact("listening", (12345,), None))
+    arguments = None if argv is None else tuple(str(manager.data_root) if a == "SAME_ROOT" else a for a in argv)
+    monkeypatch.setattr(service_manager_module, "probe_process",
+                        lambda pid: ProcessFact("alive", arguments, "start"))
+    assert manager._native_quiescent() is False

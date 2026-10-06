@@ -89,3 +89,42 @@ task-2-progress3-closure.log：640通过/5失败/46.15s；旧端口语义预期�
 返回稳定code而不创建另一文件；Native status JSON需输出安全实际URL。最终Native/Docker整模块
 472 passed / 13.86s（`logs/task-2-final-controls-lifecycle.log`），CLI整模块35 passed / 11.37s
 （`logs/task-2-final-cli-url.log`）。这些修复不更改任务的NEEDS_WORK/BLOCKED结论。
+
+## Task2 FIX ROUND1（7359157ce 上的五项 HIGH 修复）
+
+Host macOS；功能开发；本轮只做隔离 fixture 和 Mac 本地证据。Mac 安装 CI/真实服务由主任务
+接续；Windows/Linux 证据属于总体验收交接，不是本宿主任务前置。没有真实 Docker/image、
+用户数据、Keychain、日常服务、全局设置、依赖安装、远端/Git发布或子代理操作。
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"本轮修复失败尝试的清理顺序和发布CAS身份；沿用既有Native/Docker节点、生命周期锁与端点origin事务，不新增常驻节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"缺失账本改为核验监听者，控制首建先验证既有记录；复用原进程事实链和消费者接口，研究框架与协调器拓扑保持原合同。","diagrams":[]} -->
+
+- `docker_runtime.py` 把真实 ControlOriginError 纳入失败清理；本次新建实例精确清理，本次启动的
+  既有停止实例重核 ID/image/install/mount/launch 后仅 stop，证明停止后才恢复元数据。
+- `service_manager.py` 在 creator 前只读校验既有两份 controls，MCP-only 动态 origin 可作为
+  缺失 DataHub creator 输入；畸形 MCP 失败不留下 DataHub。缺失 ledger 仍检查监听者 argv/
+  同数据根/进程事实；未知和同根 writer 拒绝分配，已证明的外来监听者可避让。
+- `bootstrap.py` 的正常桥及无可用 venv 后备均不跳过既有数据根的占用监听风险。
+- `setup_web.py` 接收原子写入 held-FD publication identity，回滚核对 exact bytes+identity，
+  同内容不同 inode 保留并返回 `docker_install_summary_recovery_unverified`。
+- 已读源文件、模块、设计和审查五项；没有扩大停止容器处置权限。既有停止容器改绑定仍是
+  `docker_stopped_port_conflict`，待用户决定，不能称 Task2 完整完成。
+
+实际 RED：`logs/task-2-fix1-red.log` 7 failed（origin 新建/既有两例、MCP-only 动态/畸形两例、
+missing-ledger unknown/same-root 两例、manifest same-bytes replacement 一例）；
+`logs/task-2-fix1-bridge-red.log` 1 failed（无 venv/账本但已有数据根监听）。实际 GREEN：
+初始7 passed /2.42s；加 bridge 和 launch/image/install/mount 替换负例及摘要失败回归，
+13 passed /1.99s（`logs/task-2-fix1-negative-green.log`）。
+共享五模块闭包719 passed /51.38s（`logs/task-2-fix1-closure.log`）；后续边界变更后
+protocol/runtime_endpoints/control_origin/docker_runtime/setup_web闭包334 passed /33.48s
+（`logs/task-2-fix1-final-boundaries.log`）。JS所选完整闭包103 passed /3.521s
+（`logs/task-2-fix1-js.log`）。文档治理543/79/零违规；首次生成索引 stale 后生成并复核通过。
+首次 doc-sync 缺对应owner文档/本报告，已按实际边界补齐，不修改checker。
+格式工具延续不可用 NOT_RUN；未安装。新 helper 和测试均留在原模块，没有新文件/公共API。
+
+最终19文件L4计划 `logs/task-2-fix1-plan.json` 保留 validation_failure signal；共享内核11/11
+SHA匹配。完整constraints首次缺README复核回执，按实际入口/限制复核后更新原回执，最终零违规
+（`logs/task-2-fix1-constraints-final.log`）；doc-sync最终通过
+（`logs/task-2-fix1-doc-sync-final.log`）。回执 `logs/task-2-fix1-receipt.json` 经原validator
+认证 valid=true，10 local PASS/5 external NOT_RUN，BLOCKED，mergeReady/releaseReady=false。
+这里是总体验收回执；foreign平台门由对应真机交接，不改变Mac宿主范围。未声称真实Mac或CI完成。

@@ -1212,7 +1212,7 @@ def _docker_manifest(project_root: Path, image_id: str) -> dict[str, object]:
     }
 
 
-def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> None:
+def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> os.stat_result | None:
     """Publish only into the private install directory owned by mode store."""
     try:
         parent = path.parent.lstat()
@@ -1238,7 +1238,11 @@ def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> None:
             ))
         ):
             raise RuntimeError("docker_install_summary_unsafe")
+        if os.name == "posix":
+            raw = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+            return _atomic_write_posix(path, raw, existing)
         SetupWebInstaller._atomic_json(path, manifest)
+        return None
     except OSError as exc:
         raise RuntimeError("docker_install_summary_failed") from exc
 
@@ -1316,12 +1320,14 @@ class DockerRuntime(_DockerRuntimeController):
                 raise RuntimeError("runtime_mode_changed")
             self._manifest(allow_missing=True, check_contract=False)
             try:
-                previous, _ = _read_bytes(path)
+                previous, previous_identity = _read_bytes(path)
             except FileNotFoundError:
-                previous = None
+                previous, previous_identity = None, None
             published_mode = None
+            publication_identity = None
+            publication_bytes = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
             try:
-                _write_docker_manifest(path, manifest)
+                publication_identity = _write_docker_manifest(path, manifest)
                 # Keep the origin transaction pending until receipt and mode agree.
                 if current.mode != "docker":
                     published_mode = store._write_locked("docker", expected=current)
@@ -1333,10 +1339,15 @@ class DockerRuntime(_DockerRuntimeController):
                     published, identity = _read_bytes(path)
                 except FileNotFoundError:
                     published, identity = None, None
-                try:
-                    matches = published is not None and json.loads(published) == manifest
-                except ValueError:
-                    raise RuntimeError("docker_install_summary_changed") from None
+                if publication_identity is None:
+                    # A failed writer cannot establish ownership by later readback.
+                    if published != previous or not _same_identity(identity, previous_identity):
+                        raise RuntimeError("docker_install_summary_recovery_unverified") from None
+                    raise
+                matches = (published == publication_bytes
+                           and _same_identity(identity, publication_identity))
+                if not matches:
+                    raise RuntimeError("docker_install_summary_recovery_unverified") from None
                 if matches:
                     if previous is not None:
                         _atomic_write_posix(path, previous, identity)

@@ -21,6 +21,10 @@
 
 ### `scripts/setup_web.py`
 
+Docker selection publication retains the manifest writer's held-FD identity. A later failure restores
+the previous receipt only while both the published bytes and inode still match; same-content inode
+replacement fails closed with `docker_install_summary_recovery_unverified` and is not overwritten.
+
 Purpose:
 
 - Implements the shared macOS/Windows Web bootstrap used by `setup-web.sh` and `setup-web.cmd`; `--runtime` defaults

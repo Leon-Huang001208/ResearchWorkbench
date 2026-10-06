@@ -91,7 +91,11 @@ def _native_probe(operation: str, project_root: Path, home: Path, ports: tuple[i
             if probe.state == "invalid":
                 raise ControlError("runtime_ownership_unknown")
             try:
-                if not (probe.state == "missing" and probe.process == "missing"):
+                if probe.state == "missing" and probe.process == "missing":
+                    process = next(item for item in manager._processes() if item.role == probe.role)
+                    if not manager._absent_listener_safe(process):
+                        raise ControlError("runtime_ownership_unknown")
+                else:
                     manager._probe_action(probe)
             except ServiceManagerError as exc:
                 raise ControlError("runtime_ownership_unknown") from exc
@@ -145,6 +149,9 @@ class NativeRuntime:
                 or (self.home / "run" / (role + ".json")).is_symlink()
                 for role in ("web", "runtime")
             ):
+                data_root = self.home / "research-web"
+                if data_root.is_symlink() or (data_root.exists() and any(port_busy(port) for port in self.ports)):
+                    return result("runtime_ownership_unknown", mode="native")
                 return result(mode="native", services={
                     role: {"running": False, "port": port}
                     for role, port in zip(("web", "runtime"), self.ports)

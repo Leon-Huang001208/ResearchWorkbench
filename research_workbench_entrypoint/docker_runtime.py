@@ -823,7 +823,9 @@ class DockerRuntime:
             time.sleep(0.25)
 
     def _start_image(self, image_id, *, open_browser=True, wait_timeout=120, candidate=False) -> dict:
+        from app.research_web.control_origin import ControlOriginError
         self._created_container = None
+        self._started_container = None
         self._allocating = False
         transaction = None
         committed = False
@@ -877,6 +879,10 @@ class DockerRuntime:
             transaction = self._prepare_control_origin(image_id)
             before = self._containers()
             self._match_image(before, image_id)
+            if before:
+                if before[0]["running"]:
+                    raise ControlError("docker_ownership_mismatch")
+                self._started_container = (before[0]["id"], image_id, before[0].get("launch"))
             launch = uuid4().hex if not before else None
             with ExitStack() as cleanup:
                 command = list(self.compose_prefix)
@@ -901,8 +907,8 @@ class DockerRuntime:
                         transaction.commit()
                     committed = True
                     return ready
-                except (ControlError, EndpointError, OSError) as error:
-                    original = error.code if isinstance(error, (ControlError, EndpointError)) else "docker_io"
+                except (ControlError, EndpointError, ControlOriginError, OSError) as error:
+                    original = error.code if isinstance(error, (ControlError, EndpointError, ControlOriginError)) else "docker_io"
                     log.warning("docker_runtime code=%s", original)
                     if not before and self._created_container is None:
                         # up may create before returning nonzero or timing out.
@@ -918,6 +924,11 @@ class DockerRuntime:
                             self._rollback_created()
                         except (ControlError, OSError):
                             raise ControlError(original, "docker_rollback_failed") from error
+                    if self._started_container is not None:
+                        try:
+                            self._rollback_started()
+                        except (ControlError, OSError):
+                            raise ControlError(original, "docker_rollback_unverified") from error
                     raise
         def transactional_start():
             nonlocal transaction, committed
@@ -967,6 +978,7 @@ class DockerRuntime:
 
     def _abort_candidate(self):
         self._rollback_created()
+        self._rollback_started()
         if self._pending_start is not None:
             transaction, previous, published, ports = self._pending_start
             if not self._control_quiescent():
@@ -1122,6 +1134,25 @@ class DockerRuntime:
         except (ControlError, OSError):
             log.warning("docker_runtime code=docker_rollback_failed")
             raise ControlError("docker_rollback_failed") from None
+
+    def _rollback_started(self):
+        """Restore only the exact stopped instance started by this attempt."""
+        attempt = getattr(self, "_started_container", None)
+        if attempt is None:
+            return
+        self._started_container = None
+        identity, image_id, launch = attempt
+        current = self._inspect(identity)
+        self._match_image([current], image_id)
+        if current.get("launch") != launch:
+            raise ControlError("docker_rollback_unverified")
+        if current["running"]:
+            self._call(["docker", "stop", "--time", "35", identity], "docker_rollback_failed", timeout=45)
+        current = self._inspect(identity)
+        self._match_image([current], image_id)
+        if current.get("launch") != launch or current["running"]:
+            raise ControlError("docker_rollback_unverified")
+        log.info("docker_runtime operation=rollback_started code=ok")
 
     def _record_created(self, image_id, launch):
         containers = self._containers()

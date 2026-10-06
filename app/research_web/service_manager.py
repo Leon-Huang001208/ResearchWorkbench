@@ -1710,11 +1710,27 @@ class WebServiceManager:
             return self._start_with_endpoints(diagnosis=diagnosis, open_browser=open_browser)
 
     def _native_quiescent(self) -> bool:
-        """A foreign listener is not a writer; private run records remain authoritative."""
+        """Missing ledgers require fresh listener evidence before rebinding."""
         for process in self._processes():
             state = self._probe_state(process)
             state, observed = self._probe_pid_and_ownership(process, state)
             if state.state not in {"missing", "stale"} or observed.process != "missing":
+                return False
+            if not self._absent_listener_safe(process):
+                return False
+        return True
+
+    def _absent_listener_safe(self, process) -> bool:
+        listener = listener_pids(process.port)
+        if listener.state == "closed":
+            return True
+        if listener.state != "listening" or not listener.pids:
+            return False
+        for pid in listener.pids:
+            observed = probe_process(pid)
+            if (observed.state != "alive" or observed.issue or not observed.argv
+                    or signature_matches_argv(process.signature, observed.argv)
+                    or any(str(self.data_root) in argument for argument in observed.argv)):
                 return False
         return True
 
@@ -1793,12 +1809,26 @@ class WebServiceManager:
             from .store import StoreError
 
             try:
-                old_control = load_control(self.data_root)
-                previous_origin = old_control["url"]
+                from research_workbench_entrypoint.runtime_mode import RuntimeModeError, _read_bytes
+                from .control_origin import _decode
+                existing = []
+                for name in ("datahub.json", "mcp-runtime.json"):
+                    try:
+                        raw, _identity = _read_bytes(self.data_root / ".control" / name)
+                    except FileNotFoundError:
+                        continue
+                    value = json.loads(raw)
+                    origin = value.get("url") if isinstance(value, dict) else None
+                    _decode(name, raw, origin)
+                    existing.append(origin)
+                previous_origin = existing[0] if existing else "http://127.0.0.1:8088"
+                if any(origin != previous_origin for origin in existing):
+                    raise ControlOriginError("control_origin_unverified")
                 if previous_origin not in {"http://127.0.0.1:8088", f"http://127.0.0.1:{previous_ports[0]}"}:
                     raise ServiceManagerError("control_origin_unverified", code="control_origin_unverified")
+                load_control(self.data_root, previous_origin)
                 load_mcp_control(self.data_root, previous_origin)
-            except (StoreError, MCPControlError, OSError) as exc:
+            except (StoreError, MCPControlError, ControlOriginError, RuntimeModeError, ValueError, OSError) as exc:
                 log.warning("research_control_prepare_failed")
                 raise ServiceManagerError("control_origin_prepare_failed", code="control_origin_prepare_failed") from exc
             self.web_port, self.runtime_port = web, runtime

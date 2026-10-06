@@ -103,6 +103,104 @@ def owned(controller, runner):
     }
 
 
+@pytest.mark.parametrize("existing", [False, True])
+def test_fix1_origin_commit_failure_cleans_exact_attempt(runtime, monkeypatch, existing):
+    from app.research_web.control_origin import ControlOriginError, ControlOriginTransaction
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    origin = "http://127.0.0.1:48271"
+    controller.endpoint_store.publish("native", 48271, 48272, expected=None)
+    load_control(controller.data_dir, origin)
+    load_mcp(controller.data_dir, origin)
+    original = [(controller.data_dir / ".control" / name).read_bytes()
+                for name in ("datahub.json", "mcp-runtime.json")]
+    if existing:
+        owned(controller, runner)
+        runner.container.update(running=False, state="exited", launch="existing-launch")
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            if existing:
+                runner.container.update(running=True, state="running")
+            else:
+                owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = launch
+    def refuse(self):
+        raise ControlOriginError("control_origin_changed")
+    monkeypatch.setattr(ControlOriginTransaction, "commit", refuse)
+    report = controller.start(open_browser=False)
+    assert report["issues"] == ["control_origin_changed"], report
+    if existing:
+        assert runner.container and not runner.container["running"]
+        assert not any(argv[1] == "rm" for argv, _ in runner.calls)
+    else:
+        assert runner.container is None
+    assert controller.endpoint_store.read("docker") is None
+    assert [(controller.data_dir / ".control" / name).read_bytes()
+            for name in ("datahub.json", "mcp-runtime.json")] == original
+
+
+def test_fix1_manifest_same_bytes_replacement_is_not_rollback_owned(runtime, monkeypatch):
+    from scripts import setup_web
+    controller, runner, current = runtime
+    installer = setup_web.DockerRuntime(controller.project_root, controller.home, runner=runner)
+    path = controller.home / "install/docker-manifest.json"
+    manifest = setup_web._docker_manifest(controller.project_root, "sha256:" + "b" * 64)
+    replacement = path.with_name("replacement.json")
+    def replace_then_fail():
+        replacement.write_bytes(path.read_bytes())
+        replacement.chmod(0o600)
+        replacement.replace(path)
+        retained.append(path.stat().st_ino)
+        raise RuntimeError("fixture_commit_failure")
+    retained = []
+    monkeypatch.setattr(installer, "_commit_candidate", replace_then_fail)
+    with pytest.raises(RuntimeError, match="docker_install_summary_recovery_unverified"):
+        installer._publish_selection(installer.store, current, manifest)
+    assert path.stat().st_ino == retained[0]
+
+
+def test_fix1_native_bridge_missing_environment_and_ledger_refuses_existing_root_listener(runtime):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, _runner, _record = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", controller.ports[0]))
+        listener.listen()
+        report = NativeRuntime(controller.project_root, controller.home, ports=controller.ports).status()
+        assert report["issues"] == ["runtime_ownership_unknown"], report
+
+
+@pytest.mark.parametrize("replacement", ["launch", "image", "installation", "mount"])
+def test_fix1_started_existing_cleanup_refuses_replaced_identity(runtime, monkeypatch, replacement):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.docker_runtime import ControlError
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container.update(running=False, state="exited", launch="old-launch")
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            runner.container.update(running=True, state="running")
+        return runner(argv, **kwargs)
+    def fail_ready(*args, **kwargs):
+        if replacement == "mount":
+            runner.container["mounts"][0]["Source"] = "/foreign"
+        else:
+            runner.container[replacement] = "foreign"
+        raise ControlError("docker_services_unhealthy")
+    controller.runner = launch
+    monkeypatch.setattr(controller, "_wait_ready", fail_ready)
+    report = controller.start(open_browser=False)
+    assert "docker_rollback_unverified" in report["issues"], report
+    assert runner.container["running"]
+    assert not any(argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+
+
 def test_compose_identity_and_minimal_environment(runtime, monkeypatch):
     controller, runner, record = runtime
     monkeypatch.setenv("API_KEY", "SECRET")

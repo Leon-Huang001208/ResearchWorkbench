@@ -1,5 +1,8 @@
 # 部署与模块职责
 
+Native 管理器和模式切换桥在运行账本缺失时仍核验监听者，阻止未知或同数据根的活动写者
+通过新端口启动。Docker 失败恢复分别处理本次新建与本次启动的既有容器。
+
 私有端点与内部 origin 事务已接入 macOS 安装器、Native 管理器和 Docker controller。
 它们不创建常驻部署节点、不迁移控制 token 或数据。Docker 单缺失控制文件的准备使用临时
 无网络/无发布端口 guest：固定接受或候选 image、仅受管 data bind，其余镜像 VOLUME 用

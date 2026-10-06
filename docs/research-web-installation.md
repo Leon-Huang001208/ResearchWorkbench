@@ -1,5 +1,8 @@
 # Research Web Native / Docker 安装与运行
 
+失败恢复先清理本次新建容器或停止本次启动的既有停止容器，再恢复端点/origin；既有容器
+保留。安装摘要只在发布 inode 与字节均匹配时回滚，否则报告 recovery_unverified。
+
 macOS 公开安装、start/restart 已接入私有端点记录与成对内部 origin 事务。
 依赖锁保持不变，不移动、复制或轮换控制 token，也不迁移用户数据或凭据。
 

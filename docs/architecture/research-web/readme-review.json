@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "公开安装与start/restart加入Web及Native Runtime端口参数，README说明实际端点、自动避让、Docker内部固定端口及尚未闭合限制。",
-  "reason": "公开CLI行为已变化，需真实同步产品入口；保留停止Docker容器换绑定和真实平台验收未完成说明。"
+  "disposition": "unchanged",
+  "summary": "FIX ROUND1复核README：五项修复落实既有归属、失败回滚和控制origin合同，入口参数、默认端口及停止容器换绑定限制仍与README一致。",
+  "reason": "详细的监听账本缺失、MCP-only首建和摘要inode恢复规则已同步安装/安全/运行时模块文档；README保留完整端口迭代与真实Mac验收尚未闭合的现状。"
 }
