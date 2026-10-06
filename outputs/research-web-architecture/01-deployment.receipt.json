@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/01k50tabbit9f7h2r6c4y8n3pqa/docs/architecture/research-web/diagrams/01-deployment.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/01k50tabbit9f7h2r6c4y8n3pqa/outputs/research-web-architecture/01-deployment.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/docs/architecture/research-web/diagrams/01-deployment.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/outputs/research-web-architecture/01-deployment.html",
   "specification": {
-    "sha256": "91eef51a8867860319669905a4d289e5e725c68c962c5cfe1c5c9e6bfa6c141d",
-    "bytes": 4661
+    "sha256": "94c6eaa9a365b3fee1d7a481742f21d0dd4c962311f18721e1118ae990c10def",
+    "bytes": 3167
   },
   "artifact": {
-    "sha256": "15c6f7a9e2ce432a527aaed47dcb63e908e0ba268e1b69492e812f8105c6f3ce",
-    "bytes": 643356
+    "sha256": "400f75c7067b30c1fc5d284b65461787234a8071d45446cd8a2594e666cdd0c9",
+    "bytes": 635677
   },
   "validation": {
     "checksPassed": 9,

@@ -1,5 +1,33 @@
 # 安全边界与验证方法
 
+容器启动诊断只记录固定阶段/异常类别、errno 和两个子进程退出码，不序列化异常文本、
+路径、命令、环境或输出。CI 仅接受精确五字段、枚举白名单及有界整数，最多保留 16 条；
+未知字段或无效记录丢弃，原始日志行继续全部省略。
+launcher 不再将异常字符串写入失败事件；CI 只解码 runtime 角色的固定 child 日志封装，再按相同五字段规则验证。
+
+启动前无容器不等于启动后同project容器就是本次创建：回滚还必须验证本次随机launch label、
+候选image与全部原所有权项。临时Compose overlay仅添加此非秘密标签；`--no-recreate`
+禁止改造既有停止容器，未知/不可读/不匹配状态不删除，保留原失败与恢复失败issue。
+
+Docker Desktop bind 根的 UID 映射不能替代私有目录所有权证明。Docker-only 使用挂载内
+由非 root 容器 UID 创建的 0700 子目录；原 runtime_state_directory 与 File credential
+backend 的 owner、mode、dirfd/no-follow 检查保持不变。新增回归覆盖启动前准备、重启复用、
+state/credential alias 和不安全权限拒绝；物理 bind 映射必须另记真实 Docker 证据。
+
+Desktop首建阶段仅三个固定缺失叶可采用安全mkdir后重新pin：父FD全程保留，dev/inode/mode
+与路径一致不得变化，仅固定mount父允许root:root→当前UID:GID。已有叶、自定义路径、foreign
+UID/GID、权限改变或节点替换仍失败关闭；原runtime_state与credential backend源码规则不变。
+
+Docker 公共 start/Doctor 必须安全读取接受摘要并按不可变 image ID 核对实际容器，不能因
+共享 tag、静态 runtime label 或 `running=true` 就宣称 ready。回归覆盖摘要损坏/缺失、
+alias/hardlink/超限、锁/Compose/DSH 不匹配、tag 改写、延迟健康及失败回滚归属。
+合同 pin 仅放宽无关祖先内容活动，直接父目录瞬时 alias 检测保持；API/集成测试的内存
+keyring 隔离只在测试作用域内生效，不降低生产凭据后端的错误传播。
+
+构建时保留 pnpm hoist 拓扑须逐项核对目标属于已选生产图；未选开发/平台别名不复制，hoist 根别名、目标改变或输出冲突失败关闭。新别名同样进入派生资产摘要与启动前验证。
+
+Docker 与 Native 复用固定运行合同，但部署证据分开：Docker 构建需验证完整 DSH 来源/闭包及精简运行资产清单，镜像内再以非 root 做 Web、CLI、supervisor 和健康入口检查。Compose 不向宿主发布 DSH 3081，只 bind 共享产品数据、独立运行状态和独立凭据目录；只读根、cap drop 与 `no-new-privileges` 不是宿主系统集成能力证明。Host controller 对容器归属标签、镜像、挂载和端口做有界核对，未知实例不删除或接管。Docker 凭据目录的 Windows ACL 不能证明时返回 `docker_credentials_acl_unverified`，不得用 POSIX mode 位替代 Windows ACL。Native 保留系统 keyring。模拟单元测试与源码检查不证明真实 Docker 镜像、Windows 生命周期或第三方软件可调用；它们应在任务回执中分别列为未验证门。
+
 一键安装只允许固定 PyPI 索引、指定 DSH GitHub 仓库和随包 CJPY 文件集；Python 锁、wheel、来源、
 提交、工作树与 DSH 构建闭包任一不符即关闭失败。子进程环境采用允许列表，不传应用密钥；安装器只
 修复带当前 checkout 所有权标记的 `.venv` 与 DSH 目录，并拒绝符号链接/Windows 重解析点。

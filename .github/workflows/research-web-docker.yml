@@ -1,0 +1,382 @@
+name: Research Web Docker
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "compose.yaml"
+      - "docker/**"
+      - "runtimes/**"
+      - "research_workbench_entrypoint/**"
+      - "rwb"
+      - "rwb.cmd"
+      - "setup-web.sh"
+      - "setup-web.cmd"
+      - "scripts/setup_web.py"
+      - "requirements/web.in"
+      - "requirements/web.lock"
+      - "pyproject.toml"
+      - "app/cli/main.py"
+      - "app/research_web/runtime_contract.py"
+      - "app/research_web/process_spec.py"
+      - "app/research_web/__init__.py"
+      - "app/research_web/runtime_state.py"
+      - "app/research_web/staged_runtime.py"
+      - "app/research_web/runtime_auth.py"
+      - "app/research_web/service_manager.py"
+      - "app/research_web/launch_runtime.py"
+      - "app/research_web/runtime/**"
+      - "app/research_web/main.py"
+      - "app/research_web/service.py"
+      - "app/research_web/credential_backend.py"
+      - "app/research_web/datahub/connections.py"
+      - "app/research_web/mcp_registry/credentials.py"
+      - "app/research_web/mcp_runtime/credentials.py"
+      - "app/research_web/mcp_runtime/installation_store.py"
+      - "app/research_web/automation/channels.py"
+      - "core/settings/**"
+      - "core/observability/**"
+      - "vendor/cjpy/**"
+      - "vendor/dsh-tabbit/**"
+      - ".agents/verification-policy.json"
+      - "tests/javascript/verification_policy.test.mjs"
+      - "tests/javascript/actions_quota_governance.test.mjs"
+      - "tests/javascript/docker_runtime_contract.test.mjs"
+      - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_runtime_launch.py"
+      - "tests/research_web/test_service_manager.py"
+      - "tests/research_web/test_docker_packaging.py"
+      - "tests/research_web/test_runtime_mode.py"
+      - "tests/research_web/test_docker_runtime.py"
+      - "tests/research_web/test_container_supervisor.py"
+      - "tests/research_web/test_credential_backend.py"
+      - ".github/workflows/research-web-docker.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "compose.yaml"
+      - "docker/**"
+      - "runtimes/**"
+      - "research_workbench_entrypoint/**"
+      - "rwb"
+      - "rwb.cmd"
+      - "setup-web.sh"
+      - "setup-web.cmd"
+      - "scripts/setup_web.py"
+      - "requirements/web.in"
+      - "requirements/web.lock"
+      - "pyproject.toml"
+      - "app/cli/main.py"
+      - "app/research_web/runtime_contract.py"
+      - "app/research_web/process_spec.py"
+      - "app/research_web/__init__.py"
+      - "app/research_web/runtime_state.py"
+      - "app/research_web/staged_runtime.py"
+      - "app/research_web/runtime_auth.py"
+      - "app/research_web/service_manager.py"
+      - "app/research_web/launch_runtime.py"
+      - "app/research_web/runtime/**"
+      - "app/research_web/main.py"
+      - "app/research_web/service.py"
+      - "app/research_web/credential_backend.py"
+      - "app/research_web/datahub/connections.py"
+      - "app/research_web/mcp_registry/credentials.py"
+      - "app/research_web/mcp_runtime/credentials.py"
+      - "app/research_web/mcp_runtime/installation_store.py"
+      - "app/research_web/automation/channels.py"
+      - "core/settings/**"
+      - "core/observability/**"
+      - "vendor/cjpy/**"
+      - "vendor/dsh-tabbit/**"
+      - ".agents/verification-policy.json"
+      - "tests/javascript/verification_policy.test.mjs"
+      - "tests/javascript/actions_quota_governance.test.mjs"
+      - "tests/javascript/docker_runtime_contract.test.mjs"
+      - "tests/research_web/test_runtime_contract.py"
+      - "tests/research_web/test_setup_web.py"
+      - "tests/research_web/test_runtime_launch.py"
+      - "tests/research_web/test_service_manager.py"
+      - "tests/research_web/test_docker_packaging.py"
+      - "tests/research_web/test_runtime_mode.py"
+      - "tests/research_web/test_docker_runtime.py"
+      - "tests/research_web/test_container_supervisor.py"
+      - "tests/research_web/test_credential_backend.py"
+      - ".github/workflows/research-web-docker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-web-docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-runtime:
+    name: Linux container (${{ matrix.platform }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    env:
+      DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify image locks and workflow contracts
+        run: node --test tests/javascript/docker_runtime_contract.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/verification_policy.test.mjs
+
+      - name: Enable arm64 emulation
+        if: matrix.platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Setup isolated builder
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare task-owned mounts
+        run: |
+          set -euo pipefail
+          umask 077
+          root="$(mktemp -d "$RUNNER_TEMP/rwb-docker-ci.XXXXXXXX")"
+          arch="${DOCKER_DEFAULT_PLATFORM#linux/}"
+          mkdir -p "$root/raw" "$root/evidence"
+          sudo install -d -m 700 -o 10001 -g 10001 "$root/data" "$root/state" "$root/credentials"
+          {
+            echo "RWB_CI_ROOT=$root"
+            echo "RWB_DATA_DIR=$root/data"
+            echo "RWB_STATE_DIR=$root/state"
+            echo "RWB_CREDENTIAL_DIR=$root/credentials"
+            echo "RWB_INSTALLATION_ID=ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$arch"
+            echo "COMPOSE_PROJECT_NAME=rwb-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$arch"
+            echo "RWB_IMAGE=research-workbench:ci-${GITHUB_SHA}-${arch}"
+          } >> "$GITHUB_ENV"
+
+      - name: Validate Compose and build locked image
+        run: |
+          set -euo pipefail
+          docker compose config --quiet
+          docker compose config --services > "$RWB_CI_ROOT/evidence/compose-services.txt"
+          # The contract test proves Dockerfile bases equal runtimes/research_web.json.
+          # No secret inputs, registry publication, or alternate dependency resolution.
+          docker buildx build --load --platform "$DOCKER_DEFAULT_PLATFORM" --tag "$RWB_IMAGE" . > "$RWB_CI_ROOT/raw/build.log" 2>&1
+          test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$RWB_IMAGE")" = "$DOCKER_DEFAULT_PLATFORM"
+
+      - name: Exercise health restart and persistent data
+        run: |
+          set -euo pipefail
+          # Export only a fixed stage and numeric status; raw logs remain private.
+          phase=initial_start
+          trap 'status=$?; printf "{\"phase\":\"%s\",\"exit_code\":%s}\n" "$phase" "$status" > "$RWB_CI_ROOT/evidence/runtime-stage.json"; exit "$status"' EXIT
+          {
+            docker compose up -d --no-build --wait --wait-timeout 180
+            # Reuses authenticated DSH 3081 sessions and connected Web 8088 probes.
+            phase=initial_health
+            docker compose exec -T research-web python /opt/rwb/docker/healthcheck.py
+            phase=web_connected
+            curl --fail --silent --max-time 10 http://127.0.0.1:8088/api/research/runtime | python3 -c 'import json,sys; assert json.load(sys.stdin)["connected"] is True'
+            phase=fixture_write
+            docker compose exec -T research-web python -c 'from pathlib import Path; Path("/data/research-web/persistent-fixture.txt").write_text("rwb-ci-nonsecret-fixture\n")'
+            phase=restart
+            docker compose restart
+            phase=restart_wait
+            docker compose up -d --no-build --wait --wait-timeout 180
+            phase=restart_health
+            docker compose exec -T research-web python /opt/rwb/docker/healthcheck.py
+            phase=down
+            docker compose down --timeout 35
+            phase=up
+            docker compose up -d --no-build --wait --wait-timeout 180
+            phase=up_health
+            docker compose exec -T research-web python /opt/rwb/docker/healthcheck.py
+            phase=fixture_read
+            docker compose exec -T research-web python -c 'from pathlib import Path; assert Path("/data/research-web/persistent-fixture.txt").read_text() == "rwb-ci-nonsecret-fixture\n"'
+            phase=private_port
+            # DSH must remain private to the container network namespace.
+            python3 - <<'PY'
+          import socket
+          try:
+              connection = socket.create_connection(("127.0.0.1", 3081), timeout=1)
+          except ConnectionRefusedError:
+              pass
+          else:
+              connection.close()
+              raise SystemExit("private_runtime_port_exposed")
+          PY
+          } > "$RWB_CI_ROOT/raw/runtime.log" 2>&1
+          phase=success_evidence
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          evidence = Path(os.environ["RWB_CI_ROOT"]) / "evidence"
+          evidence.joinpath("health.json").write_text(json.dumps({
+              "platform": os.environ["DOCKER_DEFAULT_PLATFORM"],
+              "web_8088_connected": True, "dsh_3081_authenticated": True,
+              "restart": True, "down_up_persistence": True, "host_dsh_port_private": True,
+          }) + "\n")
+          PY
+
+      - name: Stop stack and prove port release
+        if: always() && env.RWB_CI_ROOT != ''
+        run: |
+          set -euo pipefail
+          # Capture diagnostics privately before down; never echo application logs.
+          log_status=0
+          docker compose logs --no-color --no-log-prefix --tail 200 > "$RWB_CI_ROOT/raw/container.log" 2>&1 || log_status=$?
+          docker compose down --timeout 35 > "$RWB_CI_ROOT/raw/down.log" 2>&1
+          containers="$(docker compose ps --all --quiet)"
+          test -z "$containers"
+          python3 - <<'PY'
+          import socket
+          for port in (8088, 3081):
+              with socket.socket() as listener:
+                  listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                  listener.bind(("127.0.0.1", port))
+          PY
+          test "$log_status" -eq 0
+
+      - name: Scan and redact failure logs
+        if: failure() && env.RWB_CI_ROOT != ''
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          root = Path(os.environ["RWB_CI_ROOT"])
+          SECRET_PATTERN = re.compile(r"token|cookie|authorization|bearer|password|secret|api[_ -]?key|credential|sk-[a-zA-Z0-9]", re.I)
+          # Fail closed: no raw line is copied, including unlabelled unknown values.
+          # Only fixed diagnostic categories and aggregate counts can leave the runner.
+          categories = ("health_ready", "health_failed", "probe_failed", "probe_timeout",
+                        "docker_dsh_source_verified", "docker_final_image_import_smoke_passed",
+                        "private_directories_ready", "child_started", "supervisor_failed",
+                        "startup_timeout", "unexpected_child_exit", "cleanup_failed",
+                        "unknown_owned_role", "auth_cleanup_failed",
+                        "MODULE_NOT_FOUND", "ERR_MODULE_NOT_FOUND", "ModuleNotFoundError",
+                        "PermissionError", "EACCES", "EROFS", "runtime_state_unsafe",
+                        "owned_dsh_launch", "owned_dsh_launch_failed",
+                        "research_runtime_readiness_failed", "staged_runtime_verification_failed",
+                        "TypeError", "KeyError", "AttributeError", "ImportError",
+                        "ERR_DLOPEN_FAILED", "ERR_PACKAGE_PATH_NOT_EXPORTED",
+                        "ENOENT", "EADDRINUSE", "SQLITE_CANTOPEN", "OperationalError", "ServiceNotFoundError")
+          stages = {"private_directories", "logging_setup", "config_validation", "ownership_init", "auth_reset",
+                    "process_specs", "runtime_spawn", "runtime_wait", "runtime_probe",
+                    "web_spawn", "web_wait", "web_probe", "running", "unknown",
+                    "launcher_node", "launcher_prepare", "launcher_modules", "launcher_tabbit_package",
+                    "launcher_tabbit_adapter", "launcher_config", "launcher_exec"}
+          classes = {"RuntimeStateError", "PermissionError", "FileNotFoundError", "ProcessLookupError",
+                     "OSError", "ValueError", "RuntimeError", "StoreError", "TimeoutExpired",
+                     "CalledProcessError", "SubprocessError", "Other"}
+          fields = {"stage", "exception_class", "errno", "runtime_returncode", "web_returncode"}
+          def startup_record(line):
+              try:
+                  prefix = "container_startup_failure "
+                  try:
+                      outer = json.loads(line)
+                  except ValueError:
+                      outer = None
+                  event = outer.get("event") if type(outer) is dict else None
+                  if type(event) is str and not event.startswith(prefix):
+                      try:
+                          forwarded = json.loads(event)
+                      except ValueError:
+                          forwarded = None
+                      if (type(forwarded) is dict and forwarded.get("event") == "container_child"
+                              and forwarded.get("role") == "runtime"
+                              and type(forwarded.get("output")) is str):
+                          launcher = json.loads(forwarded["output"])
+                          event = launcher.get("event") if type(launcher) is dict else None
+                  if type(event) is str and event.startswith(prefix):
+                      payload = event[len(prefix):]
+                  elif outer is None and line.count(prefix) == 1:
+                      payload = line.split(prefix, 1)[1]
+                  else:
+                      return None
+                  value = json.loads(payload)
+                  if type(value) is not dict or set(value) != fields:
+                      return None
+                  if value["stage"] not in stages or value["exception_class"] not in classes:
+                      return None
+                  for key, low, high in (("errno", 0, 4095), ("runtime_returncode", -255, 255), ("web_returncode", -255, 255)):
+                      number = value[key]
+                      if number is not None and (type(number) is not int or not low <= number <= high):
+                          return None
+                  return value
+              except (ValueError, TypeError, KeyError):
+                  return None
+          report = {}
+          for path in sorted((root / "raw").glob("*.log")):
+              with path.open(errors="replace") as stream:
+                  lines = []
+                  for line in stream:
+                      lines.append(line[:8192])
+                      if len(lines) >= 20000:
+                          break
+              report[path.name] = {
+                  "scanned_lines": len(lines),
+                  "sensitive_lines_redacted": sum(bool(SECRET_PATTERN.search(line)) for line in lines),
+                  "all_raw_lines_omitted": True,
+                  "startup_failures": [value for line in lines if (value := startup_record(line)) is not None][:16],
+                  "events": {event: sum(
+                      bool(re.search(r"\bowned_dsh_launch\b", line)) if event == "owned_dsh_launch"
+                      else event in line for line in lines) for event in categories},
+              }
+          output = json.dumps(report, sort_keys=True) + "\n"
+          assert not SECRET_PATTERN.search(output)
+          (root / "evidence" / "failure-redacted.log").write_text(output)
+          PY
+
+      - name: Upload successful safe evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-success-${{ strategy.job-index }}-${{ github.run_id }}
+          path: |
+            ${{ env.RWB_CI_ROOT }}/evidence/health.json
+            ${{ env.RWB_CI_ROOT }}/evidence/compose-services.txt
+            ${{ env.RWB_CI_ROOT }}/evidence/runtime-stage.json
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload scanned failure evidence
+        if: failure() && env.RWB_CI_ROOT != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-failure-${{ strategy.job-index }}-${{ github.run_id }}
+          path: |
+            ${{ env.RWB_CI_ROOT }}/evidence/failure-redacted.log
+            ${{ env.RWB_CI_ROOT }}/evidence/runtime-stage.json
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Remove task-owned temporary mounts
+        if: always() && env.RWB_CI_ROOT != ''
+        run: |
+          set -euo pipefail
+          # Exact mktemp child only; no user data paths or Docker-wide cleanup.
+          case "$RWB_CI_ROOT" in
+            "$RUNNER_TEMP"/rwb-docker-ci.*) ;;
+            *) exit 1 ;;
+          esac
+          test -d "$RWB_CI_ROOT"
+          test ! -L "$RWB_CI_ROOT"
+          # Refuse removal while a surviving container could still write mounts.
+          containers="$(docker compose ps --all --quiet)"
+          test -z "$containers"
+          sudo rm -rf -- "$RWB_CI_ROOT"
+          test ! -e "$RWB_CI_ROOT"

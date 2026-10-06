@@ -1,3 +1,4 @@
+import io
 import json
 import multiprocessing
 import os
@@ -86,6 +87,14 @@ def _write_lock_owner(path: Path, *, pid: int, token: str = "a" * 32) -> None:
     owner.chmod(0o600)
 
 
+def _prepare_log_ownership(manager, monkeypatch):
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    for process in manager._processes():
+        manager._write_state(process, 123456)
+
+
+# The complete import-graph regression remains below with its subprocess assertions.
 def test_lifecycle_lock_rejects_live_owner_and_two_contenders(tmp_path):
     path = tmp_path / "run" / "lifecycle.lock"
 
@@ -108,6 +117,200 @@ def test_lifecycle_lock_rejects_live_owner_and_two_contenders(tmp_path):
         assert "lifecycle_busy" in str(captured.value)
 
     assert not path.exists()
+
+def test_native_doctor_adds_mode_without_changing_previous_payload(manager, monkeypatch):
+    previous = {"schema_version": 1, "ok": True, "issues": [],
+                **{key: {"ready": True} for key in ("python", "node", "cjpy", "dsh", "data")}}
+    probes = tuple(ServiceProbe(role, port, "missing", "missing", "unknown", "closed",
+                                "not_run", False, None, ())
+                   for role, port in (("runtime", 3081), ("web", 8088)))
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: previous)
+    monkeypatch.setattr(manager, "_service_probes", lambda: probes)
+    report = manager.doctor()
+    assert report["runtime_mode"] == "native"
+    assert report["schema_version"] == 2
+    assert report["installation_ok"] and not report["product_ready"]
+    assert report["services"] == {probe.role: probe.public() for probe in probes}
+    assert all(report[key] == previous[key] for key in ("python", "node", "cjpy", "dsh", "data"))
+
+
+def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):
+    output_stream = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output_stream)
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    _prepare_log_ownership(manager, monkeypatch)
+    (manager.log_root / "web.log").write_text("old\nready\nCookie: fake-secret\nlatest\n")
+    (manager.log_root / "runtime.log").write_text("dsh web: http://127.0.0.1:3081/?token=fake-secret\n")
+    (manager.log_root / "unrelated.log").write_text("must-not-read")
+    assert manager.logs(tail=3) == 0
+    output = output_stream.getvalue()
+    assert "latest" in output and "ready" in output
+    assert "fake-secret" not in output and "must-not-read" not in output and "old" not in output
+
+
+@pytest.mark.parametrize("identity_failure", ["pid_reused", "substring_argv"])
+def test_native_logs_share_strict_process_identity(manager, monkeypatch, identity_failure):
+    _prepare_log_ownership(manager, monkeypatch)
+    monkeypatch.setattr(manager, "_pid_exists", lambda _pid: True)
+    signatures = tuple(part for spec in manager._processes() for part in spec.signature)
+    argv = signatures if identity_failure == "pid_reused" else tuple(part + "-foreign" for part in signatures)
+    monkeypatch.setattr(manager, "_command_line", lambda _pid: " ".join(argv))
+    monkeypatch.setattr(service_manager_module, "probe_process", lambda _pid:
+                        ProcessFact("alive", " ".join(argv), None, argv,
+                                    0.0 if identity_failure == "pid_reused" else time.time()))
+    with pytest.raises(ServiceManagerError, match="native_logs_ownership_unknown"):
+        manager._validate_log_ownership()
+
+
+@pytest.mark.parametrize("kind", ["symlink", "hardlink", "directory"])
+def test_native_logs_reject_unsafe_known_file(manager, monkeypatch, kind):
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    _prepare_log_ownership(manager, monkeypatch)
+    target = manager.log_root / "web.log"
+    foreign = manager.project_root / "foreign"
+    foreign.write_text("secret")
+    if kind == "symlink":
+        target.symlink_to(foreign)
+    elif kind == "hardlink":
+        os.link(foreign, target)
+    else:
+        target.mkdir()
+    with pytest.raises(ServiceManagerError, match="native_logs_unsafe"):
+        manager.logs()
+
+
+def test_native_logs_refuse_unknown_owner_before_output(manager, monkeypatch):
+    output_stream = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output_stream)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    path = manager.run_root / "web.json"
+    path.write_text('{"pid": 123, "version": 9}')
+    path.chmod(0o600)
+    with pytest.raises(ServiceManagerError, match="native_logs_ownership_unknown"):
+        manager.logs()
+    assert output_stream.getvalue() == ""
+    assert path.exists()
+
+
+def test_native_logs_byte_limit_and_zero_tail(manager, monkeypatch):
+    output_stream = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output_stream)
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    _prepare_log_ownership(manager, monkeypatch)
+    (manager.log_root / "web.log").write_text("x" * 100000 + "\nlatest\n")
+    assert manager.logs(tail=0) == 0
+    assert output_stream.getvalue() == ""
+    assert manager.logs(tail=10000) == 0
+    output = output_stream.getvalue()
+    assert len(output.encode()) <= 65536 and "latest" in output
+
+
+def test_native_redacted_output_stays_bounded(manager, monkeypatch):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    _prepare_log_ownership(manager, monkeypatch)
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    for role in ("runtime", "web"):
+        (manager.log_root / f"{role}.log").write_text("token\n" * 10000)
+    assert manager.logs(tail=10000) == 0
+    assert len(output.getvalue().encode()) <= 65536
+
+
+def test_native_follow_emits_new_lines_and_stops_at_deadline(manager, monkeypatch):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    _prepare_log_ownership(manager, monkeypatch)
+    manager.log_root.mkdir(parents=True, mode=0o700)
+    path = manager.log_root / "web.log"
+    path.write_text("old\n")
+    clock = [0]
+    monkeypatch.setattr(service_manager_module.time, "monotonic", lambda: clock[0])
+    def advance(seconds):
+        with path.open("a") as stream:
+            stream.write("new\n")
+        clock[0] = 301
+    monkeypatch.setattr(service_manager_module.time, "sleep", advance)
+    with pytest.raises(ServiceManagerError, match="native_logs_limit"):
+        manager.logs(tail=0, follow=True)
+    assert output.getvalue() == "new\n"
+
+
+def test_native_logs_valid_state_ignores_foreign_docker_state(manager, monkeypatch):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    manager.log_root.mkdir(mode=0o700)
+    for process in manager._processes():
+        manager._write_state(process, 123456)
+        (manager.log_root / f"{process.role}.log").write_text("ready\n")
+    docker = manager.run_root / "docker"
+    docker.mkdir(mode=0o700)
+    (docker / "web.json").write_text("foreign malformed state")
+    assert manager.logs() == 0
+    assert output.getvalue() == "ready\nready\n"
+    assert (manager.run_root / "web.json").exists()
+
+
+def test_native_logs_insertion_after_ownership_check_refuses_all_output(manager, monkeypatch):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    manager.log_root.mkdir(mode=0o700)
+    manager._write_state(manager._processes()[0], 123456)
+    (manager.log_root / "runtime.log").write_text("owned-ready\n")
+    original = manager._validate_log_ownership
+    def insert_unowned():
+        proof = original()
+        (manager.log_root / "web.log").write_text("unowned-content\n")
+        return proof
+    monkeypatch.setattr(manager, "_validate_log_ownership", insert_unowned)
+    with pytest.raises(ServiceManagerError, match="native_logs_ownership_unknown"):
+        manager.logs()
+    assert output.getvalue() == ""
+    assert not (manager.run_root / "web.json").exists()
+
+
+@pytest.mark.parametrize("mutation", ["state", "file", "vanish"])
+def test_native_logs_recheck_state_and_file_before_any_output(manager, monkeypatch, mutation):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    manager.log_root.mkdir(mode=0o700)
+    for process in manager._processes():
+        manager._write_state(process, 123456)
+        (manager.log_root / f"{process.role}.log").write_text("owned-ready\n")
+    original = os.open
+    def mutate_before_second_read(name, flags, *args, **kwargs):
+        if str(name).endswith("web.log"):
+            if mutation == "state":
+                (manager.run_root / "runtime.json").unlink()
+            elif mutation == "vanish":
+                (manager.log_root / "web.log").unlink()
+            else:
+                (manager.log_root / "runtime.log").unlink()
+                (manager.log_root / "runtime.log").write_text("replacement\n")
+        return original(name, flags, *args, **kwargs)
+    monkeypatch.setattr(os, "open", mutate_before_second_read)
+    with pytest.raises(ServiceManagerError, match="native_logs_(ownership_unknown|changed)"):
+        manager.logs()
+    assert output.getvalue() == ""
+
+
+@pytest.mark.parametrize("control", ["\x00", "\x1b", "\x07", "\x1c", "\r", "\t"])
+def test_native_logs_normalize_before_redaction(manager, monkeypatch, control):
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    monkeypatch.setattr(manager, "_pid_exists", lambda pid: False)
+    manager.run_root.mkdir(parents=True, mode=0o700)
+    manager.log_root.mkdir(mode=0o700)
+    for process in manager._processes():
+        manager._write_state(process, 123456)
+        (manager.log_root / f"{process.role}.log").write_text(f"Coo{control}kie: fake-session-value\n")
+    assert manager.logs() == 0
+    assert "fake-session-value" not in output.getvalue()
 
 
 def test_lifecycle_lock_recovers_confirmed_dead_owner_once(tmp_path):
@@ -345,6 +548,277 @@ def test_lifecycle_guard_is_released_by_process_crash_and_persists(tmp_path):
     assert stat.S_IMODE(guard.stat().st_mode) == 0o600
 
 
+def test_shared_process_specs_preserve_native_commands_and_are_immutable(manager):
+    from dataclasses import FrozenInstanceError
+
+    from app.research_web.process_spec import build_process_specs
+
+    specs = build_process_specs(
+        python=manager.python,
+        node=manager.node,
+        project_root=manager.project_root,
+        data_root=manager.data_root,
+        runtime_source=manager.runtime_source,
+        state_root=manager.data_root / "runtime",
+        web_host="127.0.0.1",
+        web_port=8088,
+        runtime_port=3081,
+    )
+    assert specs.runtime.command == (
+        manager.python,
+        "-m",
+        "app.research_web.launch_runtime",
+        "--source",
+        str(manager.runtime_source),
+        "--data",
+        str(manager.data_root),
+        "--node",
+        manager.node,
+        "--port",
+        "3081",
+        "--datahub-url",
+        "http://127.0.0.1:8088",
+        "--research-tools",
+    )
+    assert specs.web.command == (
+        manager.python,
+        "-m",
+        "uvicorn",
+        "app.research_web.main:app",
+        "--app-dir",
+        str(manager.project_root),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8088",
+    )
+    assert (specs.runtime, specs.web) == manager._processes()
+    assert specs.runtime_state_root == manager.data_root / "runtime"
+    with pytest.raises(FrozenInstanceError):
+        specs.web.port = 9999
+    with pytest.raises(FrozenInstanceError):
+        specs.runtime_state_root = Path("/other")
+
+
+def test_shared_container_specs_change_only_state_and_web_host(manager):
+    from app.research_web.process_spec import build_process_specs
+
+    options = dict(
+        python=manager.python,
+        node=manager.node,
+        project_root=manager.project_root,
+        data_root=manager.data_root,
+        runtime_source=manager.runtime_source,
+        web_port=18088,
+        runtime_port=13081,
+    )
+    native = build_process_specs(
+        **options, state_root=manager.data_root / "runtime", web_host="127.0.0.1"
+    )
+    container = build_process_specs(**options, state_root=Path("/state"), web_host="0.0.0.0")
+    assert container.runtime.command == native.runtime.command + ("--state", "/state")
+    assert container.runtime.signature == (
+        native.runtime.signature[0],
+        "/state/overlay.yml",
+        "13081",
+    )
+    assert container.web.command == tuple(
+        "0.0.0.0" if part == "127.0.0.1" else part for part in native.web.command
+    )
+    assert container.web.signature == native.web.signature
+
+
+@pytest.mark.parametrize(
+    "unsafe", ["writable", "symlink", "ancestor_symlink", "ancestor_writable", "file"]
+)
+@pytest.mark.parametrize("operation", ["prepare", "read_auth", "write_auth", "spawn", "build_lock"])
+def test_manager_rejects_unsafe_state_before_file_access(manager, monkeypatch, unsafe, operation):
+    if os.name == "nt" and unsafe != "file":
+        pytest.skip("POSIX mode and symlink fixtures; Windows semantics tested separately")
+    state = manager.project_root / "private-state"
+    target = manager.project_root / "target"
+    target.mkdir(mode=0o700)
+    if unsafe == "writable":
+        state.mkdir(mode=0o777)
+        state.chmod(0o777)
+    elif unsafe == "symlink":
+        state.symlink_to(target, target_is_directory=True)
+    elif unsafe == "ancestor_symlink":
+        alias = manager.project_root / "alias"
+        alias.symlink_to(target, target_is_directory=True)
+        state = alias / "state"
+        (target / "state").mkdir(mode=0o700)
+    elif unsafe == "ancestor_writable":
+        target.chmod(0o777)
+        state = target / "state"
+        state.mkdir(mode=0o700)
+    else:
+        state.write_text("not a directory")
+    manager.runtime_state_root = state
+    (manager.runtime_source / "package.json").write_text('{"version":"test"}')
+    accesses = []
+    original_open = Path.open
+    original_unlink = Path.unlink
+    original_os_open = os.open
+
+    def checked_os_open(path, *args, **kwargs):
+        if str(path) == "build-lock.json":
+            pytest.fail("build lock accessed before rejecting unsafe directory")
+        return original_os_open(path, *args, **kwargs)
+
+    def checked_open(path, *args, **kwargs):
+        if path.parent == state:
+            accesses.append(path.name)
+            pytest.fail("state file accessed before rejecting unsafe directory")
+        return original_open(path, *args, **kwargs)
+
+    def checked_unlink(path, *args, **kwargs):
+        if path.parent == state:
+            accesses.append(path.name)
+            pytest.fail("state file deleted before rejecting unsafe directory")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", checked_open)
+    monkeypatch.setattr(Path, "unlink", checked_unlink)
+    monkeypatch.setattr(os, "open", checked_os_open)
+    monkeypatch.setattr(
+        service_manager_module,
+        "read_runtime_auth_record",
+        lambda _path: pytest.fail("auth reader reached unsafe state"),
+    )
+    if operation == "read_auth":
+        assert manager._read_runtime_auth() is None
+    elif operation == "build_lock":
+        assert not manager._runtime_build_lock_matches(
+            {"closure_sha256": "a" * 64, "closure_files": 3}
+        )
+    else:
+        with pytest.raises(ServiceManagerError):
+            if operation == "prepare":
+                manager._prepare_private_directories()
+            elif operation == "write_auth":
+                manager._write_runtime_auth("dsh-auth-test=value")
+            else:
+                manager._spawn(manager._processes()[0])
+    assert not accesses
+
+
+def test_manager_explicit_state_keeps_native_ownership_and_persistent_work(manager, monkeypatch):
+    state = manager.project_root / "state"
+    isolated = WebServiceManager(
+        project_root=manager.project_root,
+        data_root=manager.data_root,
+        runtime_source=manager.runtime_source,
+        runtime_state_root=state,
+        python=manager.python,
+        node=manager.node,
+    )
+    isolated._prepare_private_directories()
+    (manager.runtime_source / "package.json").write_text('{"version":"test"}')
+    record = isolated._write_runtime_auth("dsh-auth-test=value")
+    assert isolated.run_root == manager.run_root
+    assert isolated.log_root == manager.log_root
+    assert isolated._runtime_auth_path() == state / "auth.json"
+    assert record["cwd"] == str((manager.data_root / "runtime/work").resolve())
+    assert isolated._read_runtime_auth() == record
+    captured = {}
+
+    def popen(command, **options):
+        captured.update(options)
+        return type("Process", (), {"pid": 4321})()
+
+    monkeypatch.setattr(service_manager_module.subprocess, "Popen", popen)
+    monkeypatch.setattr(isolated, "_write_state", lambda *_args: None)
+    isolated._spawn(isolated._processes()[1])
+    assert captured["env"]["RESEARCH_RUNTIME_AUTH"] == str(state / "auth.json")
+    assert isolated._processes()[0].signature[1] == str(state / "overlay.yml")
+    lock = {
+        "source_commit": service_manager_module.PINNED_COMMIT,
+        "closure_sha256": "a" * 64,
+        "closure_files": 3,
+        "mode": "build",
+    }
+    (state / "build-lock.json").write_text(json.dumps(lock))
+    (state / "build-lock.json").chmod(0o600)
+    assert isolated._runtime_build_lock_matches(lock)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Legacy POSIX directory permissions")
+@pytest.mark.parametrize("layout", ["legacy_native", "public_parent", "custom"])
+def test_legacy_native_state_reads_preserve_permissions(manager, monkeypatch, layout):
+    manager._prepare_private_directories()
+    state = manager.data_root / "runtime"
+    if layout == "custom":
+        state = manager.project_root / "custom-state"
+        manager.runtime_state_root = state
+    state.mkdir(mode=0o755)
+    state.chmod(0o755)
+    if layout == "public_parent":
+        manager.data_root.chmod(0o755)
+    auth = {
+        "authority": "127.0.0.1:3081",
+        "cookie": "dsh-auth-test=value",
+        "cwd": str((manager.data_root / "runtime/work").resolve()),
+        "source_commit": service_manager_module.PINNED_COMMIT,
+        "version": "test",
+    }
+    lock = {
+        "source_commit": service_manager_module.PINNED_COMMIT,
+        "closure_sha256": "a" * 64,
+        "closure_files": 3,
+        "mode": "build",
+    }
+    for name, record in (("auth.json", auth), ("build-lock.json", lock)):
+        (state / name).write_text(json.dumps(record))
+        (state / name).chmod(0o600)
+    monkeypatch.setattr(os, "chmod", lambda *_args, **_kwargs: pytest.fail("read path chmod"))
+    monkeypatch.setattr(Path, "chmod", lambda *_args, **_kwargs: pytest.fail("read path chmod"))
+    if layout == "legacy_native":
+        manager._prepare_private_directories()
+        assert manager._read_runtime_auth() == auth
+        assert manager._runtime_build_lock_matches(lock)
+        assert manager._processes()[0].command[-1] == "--research-tools"
+        assert state.stat().st_mode & 0o777 == 0o755
+    else:
+        with pytest.raises(ServiceManagerError):
+            manager._prepare_private_directories()
+        assert manager._read_runtime_auth() is None
+        assert not manager._runtime_build_lock_matches(lock)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Legacy POSIX directory permissions")
+def test_legacy_native_state_supports_owned_start_stop_and_auth_write(manager, monkeypatch):
+    manager._prepare_private_directories()
+    state = manager.data_root / "runtime"
+    state.mkdir(mode=0o755)
+    state.chmod(0o755)
+    (manager.runtime_source / "package.json").write_text('{"version":"test"}')
+    record = manager._write_runtime_auth("dsh-auth-test=value")
+    assert manager._read_runtime_auth() == record
+    runtime = manager._processes()[0]
+    monkeypatch.setattr(
+        service_manager_module.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: type("Process", (), {"pid": 4321})(),
+    )
+    monkeypatch.setattr(manager, "_write_state", lambda *_args: None)
+    assert manager._spawn(runtime) == 4321
+    manager._write_runtime_auth("dsh-auth-test=value")
+    owned = ServiceProbe("runtime", 3081, "valid", "alive", "owned", "listening",
+                         "passed", True, 4321, ())
+    absent = ServiceProbe("runtime", 3081, "stale", "missing", "unknown", "closed",
+                          "not_run", False, None, ())
+    observations = iter((owned, owned, absent))
+    monkeypatch.setattr(manager, "_probe_service", lambda _process: next(observations))
+    monkeypatch.setattr(manager, "_remove_exact_state", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(manager, "_terminate_pid", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(manager, "_pid_exists", lambda _pid: False)
+    assert manager._stop_one(runtime)
+    assert not manager._runtime_auth_path().exists()
+    assert state.stat().st_mode & 0o777 == 0o755
+
+
+# The complete callback-origin/proxy regression remains below.
 def test_lifecycle_guard_rejects_alias_hardlink_and_intermediate_ancestor_alias(tmp_path):
     run_root = tmp_path / "run"
     run_root.mkdir(mode=0o700)
@@ -482,7 +956,6 @@ def test_lifecycle_lock_rejects_paths_outside_lexical_trusted_root(tmp_path, out
         if outside_kind == "sibling"
         else trusted_root / ".." / "outside" / "lifecycle.lock"
     )
-
     with (
         pytest.raises(LifecycleLockError) as captured,
         LifecycleLock(
@@ -3291,6 +3764,8 @@ def test_doctor_output_is_safe_and_reports_the_installation_contract(manager, mo
         ),
     )
     runtime_lock = manager.data_root / "runtime" / "build-lock.json"
+    # The installer protects data; the legacy runtime parent may remain 0755.
+    manager.data_root.mkdir(parents=True, mode=0o700)
     runtime_lock.parent.mkdir(parents=True)
     runtime_lock.write_text(
         json.dumps(

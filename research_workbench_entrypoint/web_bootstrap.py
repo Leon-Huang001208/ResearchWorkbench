@@ -38,6 +38,7 @@ PYTHON_ISSUES = {
 ALLOWED_COMMANDS = {
     ("--help",),
     ("web", "status"),
+    ("web", "status", "--json"),
     ("web", "doctor"),
     ("web", "doctor", "--json"),
 }
@@ -128,7 +129,7 @@ def _expected_signature(
             return None
         return [
             str(Path(source) / "apps/cli/lib/bin.js"),
-            str(data_home / "runtime/overlay.yml"),
+            str((data_home / "runtime/overlay.yml").resolve()),
             str(RUNTIME_PORT),
         ]
     if (
@@ -330,6 +331,7 @@ def diagnose(project_root: Path, environment: Mapping[str, str] | None = None) -
     services = bootstrap_service_facts(root, _data_home(selected_environment))
     return {
         "schema_version": 2,
+        "runtime_mode": "native",
         "ok": False,
         "installation_ok": False,
         "product_ready": False,
@@ -396,7 +398,7 @@ def run(argv: Sequence[str], project_root: Path | None = None) -> int:
         print(BOOTSTRAP_HELP)
         return 0
     report = diagnose(root)
-    if command == ("web", "doctor", "--json"):
+    if command in {("web", "doctor", "--json"), ("web", "status", "--json")}:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     elif command == ("web", "doctor"):
         print(format_doctor(report))

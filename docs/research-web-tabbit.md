@@ -1,5 +1,10 @@
 # Research Web Tabbit 集成
 
+Docker 部署不会把宿主 Tabbit 的 launcher、已登录浏览器实例、会话或页面 claim 带进容器；
+容器健康仅证明 Web/DSH 服务就绪。Native 原有供应归档、授权、只读声明、一次性正文 token
+和写操作审批合同继续适用。模式切换不复制 Tabbit 授权，也不把浏览器能力标为可调用；
+Windows Docker 当前还受凭据目录 ACL 失败关闭边界约束。
+
 2026-09-29 启动稳定性变更增加 Web/DSH ready 与页面静态资源检查，但不会自动连接、授权或使用
 Tabbit。Doctor 的产品 ready 不代表浏览器实例在线，也不读取标签、URL、Cookie 或正文；Tabbit
 仍由独立的 Runtime 状态、会话授权、实时 claim、一次性 token 与写操作审批约束。

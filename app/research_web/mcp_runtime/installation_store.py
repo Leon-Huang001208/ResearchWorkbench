@@ -22,6 +22,7 @@ from pydantic import TypeAdapter
 
 from core.observability import get_logger
 
+from ..credential_backend import default_credential_backend
 from .models import InstallationManifest, InstallationPlanUnion
 
 log = get_logger(__name__)
@@ -225,9 +226,7 @@ class InstallationStore:
     def _persistent_integrity_key(keyring_backend: object | None) -> bytes:
         try:
             if keyring_backend is None:
-                import keyring
-
-                backend = cast(_KeyringBackend, keyring)
+                backend = default_credential_backend()
             else:
                 backend = cast(_KeyringBackend, keyring_backend)
             encoded = backend.get_password(INTEGRITY_KEY_SERVICE, INTEGRITY_KEY_ACCOUNT)

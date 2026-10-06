@@ -10,34 +10,46 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 ### 前置条件
 
-- Python 3.12
-- Node.js 22.19+（22 系列）或 24.x
-- Git
-- Windows 另需安装 Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载，以构建 DSH 所需的原生模块
+- Docker 模式（推荐）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、可用的 Engine 与 Compose v2；无需宿主 Node，也无需全局第三方 Python 包，镜像内使用锁定的 Python 3.12、Node 24 和固定 DSH。当前 Windows Docker 凭据目录 ACL 无法由实现证明时会以 `docker_credentials_acl_unverified` 失败关闭，不能据此宣称 Windows 已验收。
+- Native 模式：宿主 Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Windows 另需 Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载。
 
 Wind、iFinD、Office 等本机或厂商能力均为可选项；缺少它们不会阻止 Research Web 启动。
 
 ### 安装
 
-在仓库根目录使用与平台对应的公开安装入口：
+在仓库根目录二选一安装。Docker 是新安装的推荐入口：
 
 ```bash
-# macOS
-./setup-web.sh
+./setup-web.sh --runtime docker
+./rwb web doctor
 ```
 
+Native 替代入口；`./setup-web.sh` 无参数也默认 Native：
+
+```bash
+./setup-web.sh --runtime native
+```
+
+Windows Docker 对应入口（真实 Windows Docker 生命周期尚未验收）：
+
 ```bat
-:: Windows
-setup-web.cmd
+setup-web.cmd --runtime docker
+rwb.cmd web doctor
+```
+
+Windows Native 替代入口：
+
+```bat
+setup-web.cmd --runtime native
 ```
 
 跨平台底层入口：
 
 ```bash
-python scripts/setup_web.py
+python scripts/setup_web.py --runtime native
 ```
 
-安装器创建 checkout 专属 `.venv`，使用带哈希的 Web 依赖锁，验证随包 CJPY，构建固定 DSH，并启动 Research Web 所需服务。它不会依赖全局 Python 或 Node 包，也不会安装数据库、桌面 sidecar 或 Tauri。
+Native 安装器创建 checkout 专属 `.venv`；Docker 安装器构建受管镜像，使用单容器内的 DSH 与 Web。两者消费同一带哈希 Web 锁、随包 CJPY 和固定 DSH 合同，不安装数据库、桌面 sidecar 或 Tauri。Docker 构建需要网络拉取固定基础镜像和 DSH 依赖；本机未完成真实 Docker 构建与生命周期验收，不能把源码/模拟测试视为镜像可运行的证明。
 
 可在安装后检查运行环境：
 
@@ -50,16 +62,44 @@ Windows 请将 `./rwb` 替换为 `rwb.cmd`。
 
 ## 启动与管理服务
 
-Research Web 管理专属 DSH 运行时（3081）和 Web 服务（8088）。从仓库根目录运行：
+Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH（3081）和 Web（8088）两个宿主进程；Docker 在单容器内运行两者，仅向宿主回环发布 8088。先查看当前选择：
+
+```bash
+./rwb runtime status --json
+```
+
+仅在需要切换时二选一；若当前受管模式仍在运行，须显式允许先停止：
+
+```bash
+./rwb runtime use docker --stop-current
+```
+
+```bash
+./rwb runtime use native --stop-current
+```
+
+从仓库根目录运行：
 
 ```bash
 ./rwb web start
 ./rwb web status
-./rwb web restart
+./rwb web logs --tail 100
 ./rwb web stop
 ```
 
-服务启动后访问 [http://127.0.0.1:8088/#/fingpt](http://127.0.0.1:8088/#/fingpt)。`start` 是幂等的；服务由项目管理器后台运行，命令结束或终端关闭不会停止它。`stop` 与 `restart` 只处理命令指纹和归属均匹配的项目进程，不会接管用户已有的运行时或端口占用进程。
+Native 可在确认没有活动研究时普通重启；Docker 运行中无法认证证明研究空闲，必须显式 `--force`，这会中断研究：
+
+```bash
+# 仅 Native
+./rwb web restart
+```
+
+```bash
+# 仅 Docker，显式中断研究
+./rwb web restart --force --no-open
+```
+
+服务启动后访问 [http://127.0.0.1:8088/#/fingpt](http://127.0.0.1:8088/#/fingpt)。`start` 是幂等的；终端关闭不会停止受管服务。切换、停止和重启都要求可验证的本项目所有权，不接管未知进程或容器。Docker 模式暂不承诺宿主 Office/Wind/Tabbit 等本机集成可用；能力目录出现不等于已配置或可调用。具体升级、修复、凭据与数据目录见[安装指南](docs/research-web-installation.md)。
 
 网页打不开时，先运行 `./rwb web status` 和 `./rwb web doctor --json`。即使 checkout 的 `.venv` 缺失或损坏，这两个只读诊断入口也会报告 Python 环境问题并提示运行公开安装器；该后备入口不会启动或停止服务。正常启动会等 DSH、Web API、首页和主静态模块就绪后再打开浏览器。模型密钥未配置时仍可打开设置页，Doctor 会单独报告模型问题。
 
@@ -67,7 +107,7 @@ Research Web 管理专属 DSH 运行时（3081）和 Web 服务（8088）。从�
 
 ### 模型配置
 
-在产品的 **Settings（设置）→ Model（模型服务）** 中配置模型。模型密钥只由本机设置与操作系统凭据库处理，不写入代码包、安装清单、日志或旧数据迁移结果。
+在产品的 **Settings（设置）→ Model（模型服务）** 中配置模型。Native 使用宿主系统凭据库；Docker 使用仅容器挂载的私有凭据目录，两者不自动互拷秘密。密钥不写入代码包、安装清单、日志或旧数据迁移结果。
 
 ### 旧 Research Web 数据迁移
 
@@ -89,9 +129,10 @@ Research Web 管理专属 DSH 运行时（3081）和 Web 服务（8088）。从�
 
 Research Web 使用用户私有目录保存运行状态与数据：
 
-- `~/.research-workbench/research-web/`：研究会话、附件、数据集、产物和其他产品数据。
-- `~/.research-workbench/run/`：受管服务的 PID 与命令归属状态。
+- `~/.research-workbench/research-web/`：两种模式顺序使用的同一研究会话、附件、数据集、产物和其他产品数据；切换前必须停止当前运行时。
+- `~/.research-workbench/run/`：Native 受管进程的 PID 与命令归属状态；Docker 使用独立容器状态目录和归属标签，不复用 Native 认证/PID 文件。
 - `~/.research-workbench/logs/`：受管运行时与 Web 服务日志。
+- `~/.research-workbench/install/runtime.json`：当前选择与安装身份；Docker 的私有状态位于 `run/docker/<installation-id>/`，凭据位于 `secrets/docker/<installation-id>/`，均不等同于产品数据目录。
 - `~/.research-workbench/runtime/dsh/<commit>/`：固定提交的项目私有 DSH 源码与构建来源。
 - `~/.research-workbench/install/manifest.json`：安装摘要与诊断状态。
 - `logs/setup-web.log`：仓库内的一键安装日志。

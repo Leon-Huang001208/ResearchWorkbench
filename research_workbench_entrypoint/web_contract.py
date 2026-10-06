@@ -271,11 +271,16 @@ def read_private_json(
 
 def node_version_issue(value: str | None) -> str | None:
     """Return the stable issue for a Node version under the Web install contract."""
+    from app.research_web import RUNTIME_CONTRACT
+
     match = re.fullmatch(r"v?([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})", (value or "").strip())
     if match is None:
         return "node_version_invalid"
     major, minor, _patch = (int(part) for part in match.groups())
-    return None if (major == 22 and minor >= 19) or major == 24 else "node_version_unsupported"
+    supported = (major == 22 and minor >= 19) or (
+        major == RUNTIME_CONTRACT.node_major and minor >= RUNTIME_CONTRACT.node_minimum_minor
+    )
+    return None if supported else "node_version_unsupported"
 
 
 def environment_marker_valid(

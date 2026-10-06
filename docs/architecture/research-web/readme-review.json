@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "已复核根 README；现有安装、启动和 Doctor 指引仍准确。",
-  "reason": "合并保留主干启动稳定性与静态帮助修复、Windows 停止升级行为及平台验收路由；产品入口未改变，细节同步安装与模块文档。"
+  "disposition": "updated",
+  "summary": "根 README 展示 Docker 推荐安装、Native 默认兼容、安全切换与分离凭据；坏 Native 环境保留静态帮助和只读 Doctor。",
+  "reason": "合并保留 --runtime 与 rwb runtime 用户入口，并接入 Native 环境归属、服务事实链和完整页面就绪诊断；Windows 对应命令和未完成的平台验收继续明确区分。"
 }

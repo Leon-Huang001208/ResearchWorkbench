@@ -1,10 +1,12 @@
-"""OS-keyring-only secret storage for MCP Registry authentication."""
+"""Runtime-selected private secret storage for MCP Registry authentication."""
 
 from __future__ import annotations
 
 import json
 
 from core.observability import get_logger
+
+from ..credential_backend import default_credential_backend
 
 log = get_logger(__name__)
 KEYRING_SERVICE = "ResearchWorkbench.MCPRegistry"
@@ -14,28 +16,11 @@ class CredentialError(RuntimeError):
     """Stable credential-store failure without secret content."""
 
 
-class _SystemKeyring:
-    @staticmethod
-    def _module():
-        try:
-            import keyring
-        except (ImportError, RuntimeError) as exc:
-            raise CredentialError("credential_store_unavailable") from exc
-        return keyring
-
-    def get_password(self, service: str, account: str):
-        return self._module().get_password(service, account)
-
-    def set_password(self, service: str, account: str, password: str):
-        return self._module().set_password(service, account, password)
-
-    def delete_password(self, service: str, account: str):
-        return self._module().delete_password(service, account)
-
-
 class RegistryCredentialStore:
     def __init__(self, keyring_backend=None) -> None:
-        self.keyring = keyring_backend or _SystemKeyring()
+        self.keyring = (
+            default_credential_backend() if keyring_backend is None else keyring_backend
+        )
 
     @staticmethod
     def account(registry_id: str, auth_type: str) -> str:

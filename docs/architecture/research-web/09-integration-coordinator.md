@@ -1,5 +1,11 @@
 # 统一集成协调器
 
+Native 使用宿主 keyring；Docker 在显式配置的私有凭据目录中保存 DataHub 秘密，协调器只读取
+DataHub 的安全状态投影，仍以登记、授权、探测、适配、可调用五阶段判定结果。两模式顺序共享
+产品数据，但凭据不自动迁移；Docker 容器无法仅凭可见目录证明宿主 Wind、Office、Tabbit
+或系统会话可用。Windows Docker 凭据目录 ACL 未能证明时安装失败关闭，不能把来源提升为
+`runtime_callable`。
+
 2026-09-29 的启动恢复只影响受管 3081/8088 的进程与页面可访问状态，不改变协调器五阶段状态、
 责任桶、来源授权、批次并发、快照或 DataHub 动态选源。Doctor 的 `product_ready` 证明 Web 壳与
 Runtime 协议可访问，不证明 Wind、天软、MySQL 或其他来源当前可调用；各来源仍须按现有配置、

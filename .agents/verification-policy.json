@@ -179,6 +179,41 @@
         ],
         "value": "python -m pytest tests/research_web/test_setup_web.py --confcutdir=tests/research_web"
       },
+      "research-web-runtime-mode": {
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": ["generic"],
+        "value": "python -m pytest tests/research_web/test_runtime_mode.py tests/research_web/test_docker_runtime.py --confcutdir=tests/research_web"
+      },
+      "research-web-container-runtime": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": ["generic"],
+        "value": "python -m pytest tests/research_web/test_container_supervisor.py tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web"
+      },
+      "research-web-runtime-contract": {
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": ["generic"],
+        "value": "python -m pytest tests/research_web/test_runtime_contract.py --confcutdir=tests/research_web"
+      },
+      "research-web-docker-contract": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": ["generic"],
+        "value": "node --test tests/javascript/docker_runtime_contract.test.mjs"
+      },
+      "research-web-credential-backend": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": ["generic"],
+        "value": "python -m pytest tests/research_web/test_credential_backend.py --confcutdir=tests/research_web"
+      },
       "research-web-local-integrations": {
         "level": "L1",
         "lane": "local",
@@ -290,6 +325,13 @@
           "macos"
         ],
         "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
+      },
+      "research-web-docker": {
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": ["linux"],
+        "value": ".github/workflows/research-web-docker.yml#docker-runtime"
       },
       "native-windows-desktop": {
         "level": "L4",
@@ -855,6 +897,170 @@
       "documentation": [],
       "ci": [],
       "realMachine": []
+    },
+    {
+      "id": "research-web-docker-packaging",
+      "platforms": ["linux"],
+      "realMachine": [],
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_docker_packaging_change",
+      "impact": [
+        "docker-runtime",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "Dockerfile",
+          "compose.yaml",
+          ".dockerignore",
+          "tests/javascript/docker_runtime_contract.test.mjs"
+        ],
+        "prefixes": [
+          "docker/"
+        ],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-docker-contract",
+        "research-web-container-runtime",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-docker"
+      ]
+    },
+    {
+      "id": "research-web-runtime-contract",
+      "platforms": ["linux", "macos", "windows", "cross-platform"],
+      "realMachine": [],
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_runtime_contract_change",
+      "impact": [
+        "runtime-contract",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "runtimes/research_web.json",
+          "app/research_web/runtime_contract.py",
+          "tests/research_web/test_runtime_contract.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-runtime-contract",
+        "research-web-container-runtime",
+        "research-web-installation",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-docker"
+      ]
+    },
+    {
+      "id": "research-web-runtime-router",
+      "platforms": ["linux", "macos", "windows", "cross-platform"],
+      "realMachine": [],
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_runtime_router_change",
+      "impact": [
+        "runtime-router",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "research_workbench_entrypoint/__init__.py",
+          "research_workbench_entrypoint/runtime_mode.py",
+          "research_workbench_entrypoint/docker_runtime.py",
+          "research_workbench_entrypoint/bootstrap.py",
+          "tests/research_web/test_runtime_mode.py",
+          "tests/research_web/test_docker_runtime.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-runtime-mode",
+        "research-web-docker-contract",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-docker"
+      ]
+    },
+    {
+      "id": "research-web-credential-backend",
+      "platforms": ["linux", "macos", "windows", "cross-platform"],
+      "realMachine": [],
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_credential_backend_change",
+      "impact": [
+        "credential-backend",
+        "security-boundary"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/credential_backend.py",
+          "tests/research_web/test_credential_backend.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-credential-backend",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-docker"
+      ]
     },
     {
       "id": "research-web-local-integrations",

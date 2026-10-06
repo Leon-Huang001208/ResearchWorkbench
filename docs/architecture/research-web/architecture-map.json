@@ -6,6 +6,52 @@
   "artifactRoot": "outputs/research-web-architecture",
   "groups": [
     {
+      "id": "dual-runtime",
+      "sources": [
+        "runtimes/research_web.json",
+        "research_workbench_entrypoint/__init__.py",
+        "research_workbench_entrypoint/runtime_mode.py",
+        "research_workbench_entrypoint/docker_runtime.py",
+        "research_workbench_entrypoint/bootstrap.py",
+        "app/research_web/runtime_contract.py",
+        "app/research_web/process_spec.py",
+        "app/research_web/runtime_state.py",
+        "app/research_web/staged_runtime.py",
+        "app/research_web/credential_backend.py",
+        "scripts/setup_web.py",
+        "app/cli/main.py",
+        "rwb",
+        "rwb.cmd",
+        "setup-web.sh",
+        "setup-web.cmd",
+        "docker/entrypoint.sh",
+        "docker/stage_dsh.py",
+        "docker/supervisor.py",
+        "docker/healthcheck.py",
+        "Dockerfile",
+        "compose.yaml",
+        ".dockerignore"
+      ],
+      "documents": [
+        "docs/research-web-installation.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": ["01-deployment"],
+      "tests": [
+        "tests/research_web/test_runtime_contract.py",
+        "tests/research_web/test_runtime_mode.py",
+        "tests/research_web/test_docker_runtime.py",
+        "tests/research_web/test_docker_packaging.py",
+        "tests/research_web/test_container_supervisor.py",
+        "tests/research_web/test_staged_runtime.py",
+        "tests/research_web/test_credential_backend.py",
+        "tests/javascript/docker_runtime_contract.test.mjs"
+      ]
+    },
+    {
       "id": "ui",
       "sources": [
         "app/research_web/ui/"
@@ -546,78 +592,48 @@
       "visualReceipt": "outputs/research-web-architecture/01-deployment.visual-check.json",
       "evidence": [
         {
-          "subjects": [
-            "web"
-          ],
-          "source": "app/research_web/ui/app.mjs"
+          "subjects": ["source"],
+          "source": "runtimes/research_web.json"
         },
         {
-          "subjects": [
-            "bff",
-            "web-http"
-          ],
-          "source": "app/research_web/main.py"
+          "subjects": ["bootstrap", "selectNative", "selectDocker"],
+          "source": "research_workbench_entrypoint/bootstrap.py"
         },
         {
-          "subjects": [
-            "manager",
-            "processState",
-            "manage-web",
-            "process-state"
-          ],
+          "subjects": ["nativeWeb", "nativeState"],
           "source": "app/research_web/service_manager.py"
         },
         {
-          "subjects": [
-            "migration",
-            "migrate-session"
-          ],
-          "source": "app/research_web/data_migration.py"
-        },
-        {
-          "subjects": [
-            "dsh",
-            "model",
-            "history",
-            "inference",
-            "native-log"
-          ],
+          "subjects": ["nativeDsh"],
           "source": "app/research_web/launch_runtime.py"
         },
         {
-          "subjects": [
-            "runtime-wire"
-          ],
+          "subjects": ["dockerContainer"],
+          "source": "docker/supervisor.py"
+        },
+        {
+          "subjects": ["nativeRpc"],
           "source": "app/research_web/client.py"
         },
         {
-          "subjects": [
-            "index",
-            "ownership",
-            "session",
-            "files"
-          ],
+          "subjects": ["sharedData", "nativeData"],
           "source": "app/research_web/store.py"
         },
         {
-          "subjects": [
-            "sandbox",
-            "isolated-files"
-          ],
-          "source": "app/research_web/sandbox.py"
+          "subjects": ["runtimeState"],
+          "source": "app/research_web/runtime_state.py"
         },
         {
-          "subjects": [
-            "execute"
-          ],
-          "source": "app/research_web/runtime/guard.mjs"
+          "subjects": ["credentials"],
+          "source": "app/research_web/credential_backend.py"
         },
         {
-          "subjects": [
-            "tabbit",
-            "live-tabs"
-          ],
-          "source": "app/research_web/runtime/tabbit-adapter.mjs"
+          "subjects": ["contractRoute"],
+          "source": "app/research_web/runtime_contract.py"
+        },
+        {
+          "subjects": ["dockerData", "dockerCredential"],
+          "source": "compose.yaml"
         }
       ]
     },

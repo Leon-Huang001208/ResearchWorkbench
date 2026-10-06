@@ -12,6 +12,12 @@ def main() -> None:
     if not sys.path or sys.path[0] != project_root:
         sys.path.insert(0, project_root)
 
+    from .bootstrap import dispatch
+
+    exit_code = dispatch(sys.argv[1:], Path(project_root))
+    if exit_code is not None:
+        raise SystemExit(exit_code)
+
     from app.cli.main import cli
 
     cli(prog_name="rwb")
