@@ -32,6 +32,7 @@ from .runtime_endpoints import EndpointError, EndpointStore, select_port
 
 log = logging.getLogger(__name__)
 MAX_OUTPUT = 65536
+BUILD_MAX_OUTPUT = 2 * 1024 * 1024
 IMAGE = "research-workbench:local"
 _ID = re.compile(r"[a-f0-9]{64}")
 _IMAGE_ID = re.compile(r"sha256:[a-f0-9]{64}")
@@ -92,7 +93,21 @@ def safe_log_text(value: str) -> str:
         ):
             output.append("[sensitive or oversized log line omitted]\n")
         else:
-            output.append(line + "\n")
+            def redact_url(match):
+                raw = match.group(0)
+                try:
+                    parsed = urlsplit(raw)
+                    host = parsed.hostname or ""
+                    local = host in {"localhost", "host.docker.internal"}
+                    try:
+                        local = local or ipaddress.ip_address(host).is_loopback
+                    except ValueError:
+                        pass
+                    sensitive = parsed.scheme.startswith("socks") or "@" in raw or local or "proxy" in line.lower()
+                except ValueError:
+                    sensitive = True
+                return "[transport URL omitted]" if sensitive else raw
+            output.append(re.sub(r"\b(?:https?|socks[45]h?)://\S+", redact_url, line, flags=re.IGNORECASE) + "\n")
     return "".join(output)
 
 
@@ -523,16 +538,20 @@ class DockerRuntime:
         }
 
     def _call(self, argv, code, *, timeout=20, stream=False, check=True, image=IMAGE):
+        build = (tuple(argv[:2]) == ("docker", "compose")
+                 and tuple(argv[-2:]) == ("build", "research-web")
+                 and tuple(argv) == (*self.compose_prefix, "build", "research-web"))
+        budget = BUILD_MAX_OUTPUT if build else MAX_OUTPUT
         try:
             completed = self.runner(
-                list(argv), cwd=self.project_root, env=self._environment(image, strict_proxy="build" in argv),
-                timeout=timeout, max_output=MAX_OUTPUT, stream=stream,
+                list(argv), cwd=self.project_root, env=self._environment(image, strict_proxy=build),
+                timeout=timeout, max_output=budget, stream=stream or build,
             )
         except FileNotFoundError:
             raise ControlError("docker_cli_missing") from None
         except (OSError, subprocess.SubprocessError):
             raise ControlError(code) from None
-        if len(completed.stdout.encode()) > MAX_OUTPUT or len(completed.stderr.encode()) > MAX_OUTPUT:
+        if len(completed.stdout.encode()) > budget or len(completed.stderr.encode()) > budget:
             raise ControlError("runtime_output_limit")
         if check and completed.returncode:
             if code == "docker_start_failed" and "up" in argv:

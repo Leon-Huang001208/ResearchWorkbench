@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+构建成功仍须退出码0及候选image身份验证。大输出不截断当成功；每路超过2MiB继续runtime_output_limit并精确终止本次进程树，其他metadata命令仍64KiB。
+
 固定 Docker DSH 构建的原生 fs-ext 使用同 node-runtime stage 的完整本地 headers；builder
 npm_config_nodedir=/usr/local 只影响编译，最终 runtime/协议/生命周期不继承该目录或 ENV。
 

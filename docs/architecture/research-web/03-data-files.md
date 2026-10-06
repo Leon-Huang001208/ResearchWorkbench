@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+构建stream复用调用方私有任务stdout日志；仅脱敏内容外流，不新增持久数据格式或研究文件。原始捕获每路≤2MiB、合计≤4MiB，不上传日志。
+
 Docker builder 的 Node headers 是固定基础镜像资产，和 binary 同源，不是用户数据或新依赖锁。
 完整目录覆盖 config.gypi/common.gypi；只在 dsh-builder 使用，不进入最终 runtime 或研究根。
 

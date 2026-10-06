@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+仅固定完整 Compose build research-web argv 使用每路2MiB输出预算与既有脱敏stream；其他命令和默认run_bounded仍64KiB，不增加部署节点。
+
 Docker dsh-builder 的 Node binary 与完整 /usr/local/include/node 来自同一固定 node-runtime
 24.19.0 stage；仅 builder 设置 npm_config_nodedir=/usr/local，让原生扩展使用该版本本地 headers。
 最终 runtime 不复制开发 headers 或继承该 ENV，原非 root/staged-image 边界保持。

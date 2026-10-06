@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+固定Compose构建独享每路2MiB预算，完整argv精确匹配，默认/metadata64KiB保留。既有stream在token/auth等行外，抑制SOCKS、userinfo、loopback及明确proxy行的传输URL，保留错误文字与普通公开HTTPS下载URL；跨chunk按行脱敏。超限精确清理本次树，不操作无关进程。
+
 DSH builder 使用同一固定 Node stage 的本地 headers 与 builder-only nodedir，避免 node-gyp
 另下载不同 headers；不关闭 TLS/签名、不改官方软件源/依赖锁/代理协议。最终 runtime 无该
 开发目录或 ENV，继续原非 root、受管挂载与完整 staged-image 校验；源码合同不替代真实构建。

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "Docker Node headers修补复核：builder从同一固定Node stage取完整headers，仅builder设置nodedir；README公开入口和验收限制未变。",
-  "reason": "仅既有Docker构建实现避免node-gyp下载，不改变最终runtime、依赖、软件源或TLS，不将合同GREEN当真实镜像/生命周期PASS。"
+  "summary": "Docker固定构建输出预算复核：每路2MiB与既有脱敏stream；README公开入口未变。",
+  "reason": "仅固定构建提升有界捕获，metadata/default64KiB及失败清理保留，不将合同GREEN当真实镜像或生命周期PASS。"
 }

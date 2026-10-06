@@ -53,6 +53,108 @@ class RecordingRunner:
         return subprocess.CompletedProcess(argv, 0, output, "")
 
 
+@pytest.mark.parametrize("returncode", [0, 7])
+def test_fixed_build_large_public_popen_stream_retains_tail(runtime, monkeypatch, returncode):
+    import io
+    from research_workbench_entrypoint.docker_runtime import ControlError, run_bounded
+    controller, _runner, _record = runtime
+    controller.runner = run_bounded
+    payload = b"progress line\n" * 10000 + b"compiler final error detail\n"
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    calls = []
+    def popen(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return SimpleNamespace(pid=999999, stdout=io.BufferedReader(io.BytesIO(payload)),
+            stderr=io.BufferedReader(io.BytesIO()), returncode=returncode,
+            poll=lambda: returncode, wait=lambda **kwargs: returncode)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    argv = [*controller.compose_prefix, "build", "research-web"]
+    if returncode:
+        with pytest.raises(ControlError, match="docker_build_failed"):
+            controller._call(argv, "docker_build_failed")
+    else:
+        completed = controller._call(argv, "docker_build_failed")
+        assert completed.stdout.endswith("compiler final error detail\n")
+    assert output.getvalue().endswith("compiler final error detail\n")
+    assert calls[0][0] == argv
+
+
+def test_build_budget_is_exact_argv_and_same_post_capture_guard(runtime):
+    from research_workbench_entrypoint.docker_runtime import ControlError, MAX_OUTPUT
+    controller, runner, _ = runtime
+    captured = []
+    def large(argv, **kwargs):
+        captured.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0, "x" * 100000, "")
+    controller.runner = large
+    result = controller._call([*controller.compose_prefix, "build", "research-web"], "docker_build_failed")
+    assert len(result.stdout) == 100000
+    assert captured[-1]["max_output"] == 2 * 1024 * 1024 and captured[-1]["stream"] is True
+    for argv in (["docker", "image", "inspect", "build"], [*controller.compose_prefix, "build", "other"]):
+        with pytest.raises(ControlError, match="runtime_output_limit"):
+            controller._call(argv, "metadata_failed")
+        assert captured[-1]["max_output"] == MAX_OUTPUT
+
+
+def test_build_stream_omits_transport_url_without_dropping_error_detail(tmp_path, monkeypatch):
+    import io
+    from research_workbench_entrypoint.docker_runtime import run_bounded
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    script = "import sys,time;sys.stdout.write('proxy error socks5');sys.stdout.flush();time.sleep(.03);print('h://host.docker.internal:29757 failed');print('compiler final error detail')"
+    run_bounded([sys.executable, "-c", script], cwd=tmp_path, env={"PATH": os.defpath}, timeout=2, stream=True)
+    assert "host.docker.internal" not in output.getvalue()
+    assert "compiler final error detail" in output.getvalue()
+
+
+def test_build_log_redaction_preserves_public_download_url_and_error_text():
+    from research_workbench_entrypoint.docker_runtime import safe_log_text
+    public = "download error https://nodejs.org/dist/v24.19.0/node-v24.19.0-headers.tar.gz failed\n"
+    assert safe_log_text(public) == public
+    redacted = safe_log_text("proxy connection refused http://localhost:29758\nfetch failed https://user:fixture@remote.invalid/resource\n")
+    assert "localhost" not in redacted and "fixture" not in redacted
+    assert "connection refused" in redacted and "fetch failed" in redacted
+
+
+def test_large_nonzero_build_never_accepts_candidate(runtime):
+    controller, runner, _ = runtime
+    calls = []
+    before = (controller.home / "install/docker-manifest.json").read_bytes()
+    def failed(argv, **kwargs):
+        calls.append((argv, kwargs))
+        if "build" in argv:
+            return subprocess.CompletedProcess(argv, 19, "progress\n" * 20000, "compiler final error detail")
+        return runner(argv, **kwargs)
+    controller.runner = failed
+    assert controller.install()["issues"] == ["docker_build_failed"]
+    assert (controller.home / "install/docker-manifest.json").read_bytes() == before
+    assert not any(argv[1:3] == ["image", "inspect"] for argv, kwargs in calls)
+
+
+def test_two_mib_build_cap_kills_owned_descendant_not_unrelated(tmp_path):
+    from research_workbench_entrypoint.docker_runtime import BUILD_MAX_OUTPUT, ControlError, run_bounded, port_busy
+    ready = tmp_path / "owned.json"
+    child = ("import os,socket,time,json;from pathlib import Path;s=socket.socket();"
+             "s.bind(('127.0.0.1',0));s.listen();"
+             f"Path({str(ready)!r}).write_text(json.dumps([os.getpid(),s.getsockname()[1]]));time.sleep(30)")
+    script = ("import subprocess,sys,time;from pathlib import Path;"
+              f"subprocess.Popen([sys.executable,'-c',{child!r}]);ready=Path({str(ready)!r})\n"
+              "while not ready.exists():time.sleep(.01)\n"
+              f"print('x'*{BUILD_MAX_OUTPUT + 10000},flush=True);time.sleep(30)")
+    unrelated = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"])
+    try:
+        with pytest.raises(ControlError, match="runtime_output_limit"):
+            run_bounded([sys.executable, "-c", script], cwd=tmp_path, env={"PATH": os.defpath},
+                        timeout=5, max_output=BUILD_MAX_OUTPUT)
+        _pid, port = json.loads(ready.read_text())
+        assert not port_busy(port)
+        assert unrelated.poll() is None
+    finally:
+        unrelated.terminate()
+        unrelated.wait(timeout=5)
+
+
 def test_docker_proxy_public_popen_and_shared_native_environment(runtime, monkeypatch):
     import io
     from research_workbench_entrypoint.docker_runtime import minimal_environment, run_bounded

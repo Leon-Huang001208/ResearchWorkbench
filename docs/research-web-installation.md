@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+Docker公开构建现在允许stdout/stderr各2MiB并流式保存脱敏进度；普通命令仍64KiB。超限或非零仍明确失败，不接受候选镜像。日志须保留在私有任务目录，不上传；本地合同通过不代表真实镜像或生命周期验收。
+
 Docker dsh-builder 从固定 Node24.19.0 stage 同时复制 binary 和完整 headers，使用
 npm_config_nodedir=/usr/local 供 fs-ext/node-gyp 本地编译，避免额外下载 headers。只在builder
 设置，最终runtime无headers/nodedir ENV；不更改锁、官方APT源、TLS/签名或全局代理。
