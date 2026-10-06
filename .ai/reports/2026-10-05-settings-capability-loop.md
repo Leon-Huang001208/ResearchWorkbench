@@ -468,3 +468,11 @@ Mac基础模型链路已有真实证据：设置保存、系统Keychain、留空
 此次范围修改、无Key入口确认和Mac能力交接已完成；未发现本轮新增阻断Mac启动的产品缺陷。B归因需要非秘密的供应商请求归属证据，T6需要明确获准且可约束请求数/工具执行的人工单步或等效现有路径，不能拿提示词保证或用户暂缓平台替代。本轮不建设预算系统、不重开真实验收。后续报告仅本地补记、不为报告无限重跑CI；生产仍未更新，独立实例停机。
 
 最终有界观测：新Project Constraints和Research Web Checks均PASS，实际checkout均8b3678d41483cf3520c5ae579632e5d820fddd9c（PR merge preview）；新macOS Bootstrap37418741358仍IN_PROGRESS，不标PASS、未dispatch。回执仍因该Mac自动门尚无完成证据而BLOCKED，external仅3项，Windows不参与阻塞。本轮无生产更新、供应商请求0、独立实例已停机。
+
+### 2026-10-06 自动续接：Mac 当前候选三门最终证据
+
+已复核原工作树HEADd0bf8207982c8a063b4c1d3475ccbc713b4f470b/干净，上一轮属于阶段规则落地及入口验证的实际进展。本轮只续接已存在Bootstrap run37418741358，现已completed/success；安装、服务启动/Doctor、资源读取、未配置数据源断言和正常停止各step均成功。实际checkout为8b3678d41483cf3520c5ae579632e5d820fddd9c，父提交由GitHub API核实为固定base9e231b6c3be5279d24cac8d43453fbf9a626cca6与候选e917b1c8923dd9aeef3b542b22f42ffc60c53dc1，保存tested-merge-parents.json。三项自动门37418741494/37418741436/37418741358均PASS，均对应本次Mac范围候选及其merge preview；没有重新dispatch、重跑或使用真实Key。此前“运行中”保留为当时历史观测，已由此最终结果替代。
+
+**C5当前macOS范围自动门已全部通过。** 现有82路径plan所选15本地/3CI门齐全，policy catalog receipt结果PASS、mergeReady=true、releaseReady=true，表示该机械catalog的就绪范围；Windows/Linux在风险说明中为用户暂缓未验证、不参与本阶段阻塞，未写成PASS。这个catalog没有认证B归因或T6，因此完整1A/完整研究工具链的交付判断仍mergeReady=false、releaseReady=false；没有合并/发布授权或完成声明。回执合法及绿色CI不替代目标完成。
+
+本轮真正剩余的目标证据是B实际供应商归因未验证、T6正式工具闭环NOT_RUN。最新用户范围明确供应商请求0、不重开T6/不索取A/B，不能通过自动goal续接擅自消费旧预算或读密补证。本轮无新增产品修改、无重新启动实例，原独立实例仍停机且生产未更新。报告收口提交只在本地，不改变已送检e917b1c89、不为报告重复CI。下一唯一目标为在另行明确授权且调用次数可控的条件下补齐1A剩余真实验收；本轮停止，不进入1B或2—6。
