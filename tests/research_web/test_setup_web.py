@@ -25,14 +25,16 @@ from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
 def _allow_idle_runtime_selection(monkeypatch: pytest.MonkeyPatch) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from scripts import setup_web
 
     idle = {
         "ok": True,
         "services": {"web": {"running": False}, "runtime": {"running": False}},
     }
-    monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight", lambda _self, **_kwargs: idle)
+    monkeypatch.setattr(
+        setup_web._DockerRuntimeController, "preflight", lambda _self, **_kwargs: idle
+    )
     monkeypatch.setattr(setup_web._DockerRuntimeController, "status", lambda _self: idle)
     monkeypatch.setattr(NativeRuntime, "status", lambda _self: idle)
     monkeypatch.setattr(setup_web, "port_busy", lambda _port: False)
@@ -52,8 +54,8 @@ def test_runtime_parser_defaults_to_native_and_accepts_explicit_selection() -> N
 def test_docker_install_writes_summary_and_mode_only_after_verified_build(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
@@ -105,8 +107,8 @@ def test_docker_install_writes_summary_and_mode_only_after_verified_build(
 def test_docker_failed_build_preserves_native_mode_and_previous_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
@@ -173,9 +175,9 @@ def test_docker_check_only_is_read_only_and_outputs_safe_json(
 def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_running: bool
 ) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     project = tmp_path / "checkout"
     (project / "requirements").mkdir(parents=True)
@@ -213,7 +215,9 @@ def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
         listener.bind(("127.0.0.1", 0))
         listener.listen()
         controller = setup_web.DockerRuntime(
-            project, home, runner=recording_runner,
+            project,
+            home,
+            runner=recording_runner,
             ports=(listener.getsockname()[1], 13081),
         )
         with pytest.raises(RuntimeError, match="^runtime_stop_current_required$"):
@@ -269,8 +273,8 @@ def test_docker_check_only_keeps_stable_codes_and_strips_unsafe_fields(
 def test_docker_start_failure_preserves_native_selection(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
@@ -350,7 +354,9 @@ def test_explicit_native_selection_keeps_legacy_dispatch(
     monkeypatch.setattr(setup_web, "SetupWebInstaller", RecordingNative)
     for flags in ([], ["--runtime", "native"], ["--runtime", "native", "--repair", "--no-start"]):
         arguments = setup_web.build_parser().parse_args(flags)
-        assert setup_web.install_selected_runtime(arguments, project_root=tmp_path) == {"status": "installed"}
+        assert setup_web.install_selected_runtime(arguments, project_root=tmp_path) == {
+            "status": "installed"
+        }
     assert calls == [(False, True), (False, True), (True, False)]
 
 
@@ -424,8 +430,8 @@ def test_docker_success_main_prints_only_public_summary(
 
 @pytest.mark.parametrize("failure", ["publish", "mode", "unhealthy", "old_container"])
 def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatch, failure):
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     project = tmp_path / "checkout"
     (project / "requirements").mkdir(parents=True)
@@ -441,13 +447,24 @@ def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatc
     controller = setup_web.DockerRuntime(project, home)
     _allow_idle_runtime_selection(monkeypatch)
     if failure == "old_container":
-        monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight",
-                            lambda self, **kwargs: {"ok": True, "container_image_id": old["image_id"]})
-    monkeypatch.setattr(setup_web._DockerRuntimeController, "install",
-                        lambda self: {"ok": True, "image_id": "sha256:" + "b" * 64})
-    monkeypatch.setattr(controller, "_start_candidate", lambda manifest: {
-        "ok": True, "services": {role: {"healthy": failure != "unhealthy"}
-                                 for role in ("web", "runtime")}})
+        monkeypatch.setattr(
+            setup_web._DockerRuntimeController,
+            "preflight",
+            lambda self, **kwargs: {"ok": True, "container_image_id": old["image_id"]},
+        )
+    monkeypatch.setattr(
+        setup_web._DockerRuntimeController,
+        "install",
+        lambda self: {"ok": True, "image_id": "sha256:" + "b" * 64},
+    )
+    monkeypatch.setattr(
+        controller,
+        "_start_candidate",
+        lambda manifest: {
+            "ok": True,
+            "services": {role: {"healthy": failure != "unhealthy"} for role in ("web", "runtime")},
+        },
+    )
     rolled_back = []
     monkeypatch.setattr(controller, "_rollback_created", lambda: rolled_back.append(True))
 
@@ -458,7 +475,10 @@ def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatc
         monkeypatch.setattr(setup_web, "_write_docker_manifest", fail)
     elif failure == "mode":
         monkeypatch.setattr(RuntimeModeStore, "_write_locked", fail)
-    with pytest.raises(RuntimeError, match="injected_publish_failure|docker_services_unhealthy|docker_upgrade_requires_container_disposition"):
+    with pytest.raises(
+        RuntimeError,
+        match="injected_publish_failure|docker_services_unhealthy|docker_upgrade_requires_container_disposition",
+    ):
         controller.install(start=failure != "old_container")
     assert path.read_bytes() == previous
     assert store.read() == current
@@ -467,8 +487,8 @@ def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatc
 
 
 def test_candidate_start_refuses_existing_corrupt_manifest(tmp_path, monkeypatch):
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     home = tmp_path / "home"
     RuntimeModeStore(home).write("native")
@@ -476,7 +496,9 @@ def test_candidate_start_refuses_existing_corrupt_manifest(tmp_path, monkeypatch
     path.write_text("{corrupt")
     path.chmod(0o600)
     controller = setup_web.DockerRuntime(tmp_path, home)
-    monkeypatch.setattr(controller, "_start_image", lambda *args, **kwargs: pytest.fail("must reject before launch"))
+    monkeypatch.setattr(
+        controller, "_start_image", lambda *args, **kwargs: pytest.fail("must reject before launch")
+    )
     with pytest.raises(setup_web.ControlError, match="docker_manifest_invalid"):
         controller._start_candidate({"image_id": "sha256:" + "a" * 64})
 
@@ -498,6 +520,7 @@ def test_runtime_constants_share_the_machine_contract() -> None:
     assert SetupWebInstaller._node_supported("v24.0.0")
     assert not SetupWebInstaller._node_supported("v22.18.0")
     assert not SetupWebInstaller._node_supported("v25.0.0")
+
 
 def _installer_for_check(project_root: Path, data_home: Path) -> SetupWebInstaller:
     return SetupWebInstaller(
@@ -1119,9 +1142,7 @@ def test_python_dependency_install_drops_proxy_protocols_pip_cannot_bootstrap(
     installer.install_python_dependencies(project_root / ".venv" / "bin" / "python")
 
     git_environment = installer._subprocess_environment()
-    git_socks = [
-        value for key, value in git_environment.items() if key.lower() == "all_proxy"
-    ]
+    git_socks = [value for key, value in git_environment.items() if key.lower() == "all_proxy"]
     assert git_socks
     assert all(value.startswith(("socks5:", "socks5h:")) for value in git_socks)
     assert environments
@@ -1242,7 +1263,7 @@ def test_install_manifest_is_an_allowlist_and_never_serializes_secrets(tmp_path:
         dsh_state={
             "commit": "commit",
             "closure_sha256": "closure",
-            "closure_files": 11084,
+            "closure_files": 16097,
             "secret": "must-not-escape",
         },
         status="installed",
@@ -1342,7 +1363,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
         "remote": DSH_REMOTE,
         "pnpm": "11.7.0",
         "closure_sha256": "b" * 64,
-        "closure_files": 11084,
+        "closure_files": 16097,
     }
     monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(installer, "prepare_environment", lambda repair=False: environment_python)
@@ -1368,7 +1389,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
     assert json.loads(runtime_lock.read_text(encoding="utf-8")) == {
         "source_commit": DSH_COMMIT,
         "closure_sha256": "b" * 64,
-        "closure_files": 11084,
+        "closure_files": 16097,
         "mode": "build",
     }
     if os.name != "nt":
@@ -1391,7 +1412,7 @@ def test_runtime_build_lock_writer_rejects_a_linked_runtime_directory(
             dsh_state={
                 "commit": DSH_COMMIT,
                 "closure_sha256": "b" * 64,
-                "closure_files": 11084,
+                "closure_files": 16097,
             }
         )
 
@@ -1413,7 +1434,7 @@ def test_runtime_build_lock_writer_rejects_a_preexisting_data_home_alias(
             dsh_state={
                 "commit": DSH_COMMIT,
                 "closure_sha256": "b" * 64,
-                "closure_files": 11084,
+                "closure_files": 16097,
             }
         )
 
@@ -1432,7 +1453,7 @@ def test_runtime_build_lock_writer_makes_the_owned_data_home_private(
         dsh_state={
             "commit": DSH_COMMIT,
             "closure_sha256": "b" * 64,
-            "closure_files": 11084,
+            "closure_files": 16097,
         }
     )
 
@@ -1447,7 +1468,7 @@ def test_runtime_build_lock_writer_requires_an_integer_file_count(tmp_path: Path
             dsh_state={
                 "commit": DSH_COMMIT,
                 "closure_sha256": "b" * 64,
-                "closure_files": 11084.0,
+                "closure_files": 16097.0,
             }
         )
 
@@ -1455,7 +1476,7 @@ def test_runtime_build_lock_writer_requires_an_integer_file_count(tmp_path: Path
 def test_owned_dsh_source_requires_a_well_formed_local_closure_attestation(
     tmp_path: Path,
 ) -> None:
-    source = tmp_path / "data" / "runtime" / "dsh" / ("c919b2a460753859665db3f60143d525fb9140cf")
+    source = tmp_path / "data" / "runtime" / "dsh" / ("48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0")
     source.mkdir(parents=True)
     marker = source / ".rwb-dsh-source.json"
     marker.write_text(
@@ -1464,9 +1485,9 @@ def test_owned_dsh_source_requires_a_well_formed_local_closure_attestation(
                 "schema_version": 1,
                 "owner": "research-workbench-web-installer",
                 "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
-                "commit": "c919b2a460753859665db3f60143d525fb9140cf",
+                "commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
                 "closure_sha256": "a" * 64,
-                "closure_files": 11084,
+                "closure_files": 16097,
             }
         ),
         encoding="utf-8",
@@ -1486,15 +1507,15 @@ def test_provision_dsh_recovers_a_completed_installer_staging_directory(
 ) -> None:
     installer = SetupWebInstaller(project_root=tmp_path, data_home=tmp_path / "data")
     staging = installer.dsh_root / (
-        ".c919b2a460753859665db3f60143d525fb9140cf.staging-" "0123456789abcdef0123456789abcdef"
+        ".48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0.staging-" "0123456789abcdef0123456789abcdef"
     )
     staging.mkdir(parents=True)
     verified = {
-        "commit": "c919b2a460753859665db3f60143d525fb9140cf",
+        "commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
         "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
         "pnpm": "11.7.0",
         "closure_sha256": "b" * 64,
-        "closure_files": 11084,
+        "closure_files": 16097,
     }
     monkeypatch.setattr(installer, "verify_dsh_source", lambda _source: verified)
 
@@ -1504,7 +1525,7 @@ def test_provision_dsh_recovers_a_completed_installer_staging_directory(
     assert installer.dsh_source.is_dir()
     marker = json.loads((installer.dsh_source / ".rwb-dsh-source.json").read_text(encoding="utf-8"))
     assert marker["closure_sha256"] == "b" * 64
-    assert marker["closure_files"] == 11084
+    assert marker["closure_files"] == 16097
 
 
 def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
@@ -1517,11 +1538,11 @@ def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
     )
     commands: list[list[str]] = []
     verified = {
-        "commit": "c919b2a460753859665db3f60143d525fb9140cf",
+        "commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
         "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
         "pnpm": "11.7.0",
         "closure_sha256": "b" * 64,
-        "closure_files": 11084,
+        "closure_files": 16097,
     }
 
     def record(command, **_kwargs):

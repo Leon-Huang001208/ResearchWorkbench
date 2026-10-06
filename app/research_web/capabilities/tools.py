@@ -8,12 +8,13 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .. import RUNTIME_CONTRACT
 from ..datahub.catalog import build_catalog
 from ..datahub.connections import MySQLConnectionStore
 from ..datahub.contracts import BUSINESS_TOOLS
 from .models import CapabilityError
 
-PIN = "c919b2a460753859665db3f60143d525fb9140cf"
+PIN = RUNTIME_CONTRACT.dsh_commit
 DECLARATIONS = {
     "rwb_record_method_use": (
         "记录推理方法采用",

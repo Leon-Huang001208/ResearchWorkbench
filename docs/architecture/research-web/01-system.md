@@ -173,7 +173,7 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 
 当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。`rwb web start` 默认从 `~/.research-workbench/dsh-source/` 启动经过固定提交构建的项目私有 DSH，只管理 3081/8088；`RESEARCH_DSH_SOURCE` 仅用于显式覆盖。状态文件保存 PID、命令指纹、项目路径和数据根；运行监控和停止命令都要求状态内容与实际 PID 命令签名一致，绝不把任意存活 PID 当成受管进程，也绝不操作用户原有 3080。服务仅回环；无多人权限体系，不应直接暴露公网。
 
-只验证当前 macOS 脚本隔离；不把 Web 本地成功当作 Linux/Windows/桌面支持证据。DSH 固定源码提交为 `c919b2a460753859665db3f60143d525fb9140cf`，基于官方最新版并包含会话原生永久删除协议与持久层实现。
+只验证当前 macOS 脚本隔离；不把 Web 本地成功当作 Linux/Windows/桌面支持证据。DSH 固定源码提交为 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，基于官方最新版并包含会话原生永久删除协议与持久层实现。
 
 研究脚本是本机 CPU-only 能力，无 GPU 依赖；数值库子进程线程上限固定为 4。当前沙箱仍只在
 macOS 支持，Windows 只执行不加载 Wind 的 Provider 契约测试，不能作为 Windows 沙箱或真实
@@ -206,3 +206,5 @@ runtime failure 投影 `offline`。现有 3081/8088、单 worker、Automation、
 Windows 对已核对命令签名的受管 PID 先执行非强制 `taskkill /T`；该尝试返回非零但 PID 仍存活时，
 服务管理器不再提前中止，而是进入既有等待和 `/F` 强制升级。强制终止仍失败时继续 fail closed。
 该修复不改变 3081/8088、进程归属、启动顺序、服务拓扑或外部 API。
+
+固定Runtime升级只在空闲的所属独立实例验收，生产数据不自动迁移。启动模块使用原生createRuntimeResolution解析表，逐项校验仍归属于固定源码或两项受管Profile供应包。

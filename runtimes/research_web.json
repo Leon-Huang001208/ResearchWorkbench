@@ -16,8 +16,8 @@
   },
   "dsh": {
     "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
-    "commit": "c919b2a460753859665db3f60143d525fb9140cf",
+    "commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
     "pnpm": "11.7.0",
-    "closure_files": 11084
+    "closure_files": 16097
   }
 }

@@ -49,7 +49,7 @@ class NativeFixture:
                 "groups": [
                     {
                         "id": "deepseek-official",
-                        "models": [{"id": "deepseek-v4-flash"}, {"id": "new-model"}],
+                        "models": [{"id": "deepseek-flash"}, {"id": "new-model"}],
                     }
                 ],
                 "failures": [],
@@ -996,7 +996,7 @@ async def test_model_save_does_not_reselect_existing_sessions(tmp_path):
     result = await service.configure_model("deepseek-official", "new-model")
     assert result["configured"] is True
     assert not any(method == "session.selectModel" for method, _ in native.calls)
-    assert service.store.session(old["id"])["model"] == "deepseek-v4-flash"
+    assert service.store.session(old["id"])["model"] == "deepseek-flash"
     assert (await service.create())["model"] == "new-model"
 
 
@@ -1042,11 +1042,8 @@ async def test_model_failed_credential_write_restores_saved_default(tmp_path):
     native.rpc = rejected
     with pytest.raises(RuntimeFailure):
         await service.configure_model("deepseek-official", "new-model", "fixture-key")
-    assert service.default_model["model"] == "deepseek-v4-flash"
-    assert (
-        Store(tmp_path).data.get("model", {}).get("model", "deepseek-v4-flash")
-        == "deepseek-v4-flash"
-    )
+    assert service.default_model["model"] == "deepseek-flash"
+    assert Store(tmp_path).data.get("model", {}).get("model", "deepseek-flash") == "deepseek-flash"
     assert Store(tmp_path).data.get("model_configuration_uncertain") is True
 
 
@@ -1068,7 +1065,7 @@ async def test_read_only_credential_refusal_preserves_usable_configuration(tmp_p
         await service.configure_model("deepseek-official", "new-model", "fixture-key")
     assert error.value.code == "model_credentials_read_only"
     assert not service.store.data.get("model_configuration_uncertain")
-    assert service.default_model["model"] == "deepseek-v4-flash"
+    assert service.default_model["model"] == "deepseek-flash"
     assert not any(method == "credentials.set" for method, _ in native.calls)
 
 
@@ -1081,13 +1078,13 @@ def test_model_unknown_id_and_clear_contract(api):
     assert response.json()["error"]["code"] == "model_unavailable"
     assert not any(method == "credentials.set" for method, _ in native.calls)
     response = client.put(
-        "/api/research/runtime/model", json={"model": "deepseek-v4-flash", "clear_api_key": True}
+        "/api/research/runtime/model", json={"model": "deepseek-flash", "clear_api_key": True}
     )
     assert response.status_code == 200
     assert ("credentials.unset", {"ref": "RESEARCH_DSH_API_KEY"}) in native.calls
     response = client.put(
         "/api/research/runtime/model",
-        json={"model": "deepseek-v4-flash", "clear_api_key": True, "api_key": "fixture-key"},
+        json={"model": "deepseek-flash", "clear_api_key": True, "api_key": "fixture-key"},
     )
     assert response.status_code == 422
 
@@ -1097,7 +1094,7 @@ def test_model_masks_are_rejected_before_credential_write(api):
     for placeholder in ("********", "••••••••", "[REDACTED]"):
         response = client.put(
             "/api/research/runtime/model",
-            json={"model": "deepseek-v4-flash", "api_key": placeholder},
+            json={"model": "deepseek-flash", "api_key": placeholder},
         )
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "invalid_request"
@@ -1168,7 +1165,7 @@ async def test_credential_value_selection_clear_and_cold_recovery_are_instance_l
         service.model_test_lock = asyncio.Lock()
         service.running = {}
         service.default_model = service.store.data.get(
-            "model", {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
+            "model", {"provider": "deepseek-official", "model": "deepseek-flash"}
         )
         return service
 
@@ -1176,21 +1173,21 @@ async def test_credential_value_selection_clear_and_cold_recovery_are_instance_l
     a = settings_service(tmp_path / "a", native_a)
     b = settings_service(tmp_path / "b", native_b)
     old_sid = a.store.create("fingpt", "fixture old session")["id"]
-    await a.configure_model("deepseek-official", "deepseek-v4-flash", "synthetic-a")
-    await b.configure_model("deepseek-official", "deepseek-v4-flash", "synthetic-b")
-    await a.configure_model("deepseek-official", "deepseek-v4-flash")
+    await a.configure_model("deepseek-official", "deepseek-flash", "synthetic-a")
+    await b.configure_model("deepseek-official", "deepseek-flash", "synthetic-b")
+    await a.configure_model("deepseek-official", "deepseek-flash")
     assert native_a.value == "synthetic-a" and native_a.writes == 1
-    await a.configure_model("deepseek-official", "deepseek-v4-flash", "synthetic-replacement")
+    await a.configure_model("deepseek-official", "deepseek-flash", "synthetic-replacement")
     assert native_a.value == "synthetic-replacement"
     assert native_b.value == "synthetic-b"
     native_a.lose_next_response = True
     with pytest.raises(RuntimeFailure) as error:
-        await a.configure_model("deepseek-official", "deepseek-v4-flash", "synthetic-unknown")
+        await a.configure_model("deepseek-official", "deepseek-flash", "synthetic-unknown")
     assert error.value.code == "model_configuration_uncertain"
     cold = settings_service(tmp_path / "a", native_a)
     with pytest.raises(RuntimeFailure):
-        await cold.configure_model("deepseek-official", "deepseek-v4-flash")
-    await cold.configure_model("deepseek-official", "deepseek-v4-flash", clear_api_key=True)
+        await cold.configure_model("deepseek-official", "deepseek-flash")
+    await cold.configure_model("deepseek-official", "deepseek-flash", clear_api_key=True)
     assert native_a.value is None and native_b.value == "synthetic-b"
     cold = settings_service(tmp_path / "a", native_a)
     new_sid = cold.store.create("fingpt", "fixture new session")["id"]
@@ -1198,7 +1195,7 @@ async def test_credential_value_selection_clear_and_cold_recovery_are_instance_l
         with pytest.raises(RuntimeFailure) as error:
             await cold.send(sid, "fixture", "new-submission")
         assert error.value.code == "model_credentials_missing"
-    await cold.configure_model("deepseek-official", "deepseek-v4-flash", "synthetic-restored")
+    await cold.configure_model("deepseek-official", "deepseek-flash", "synthetic-restored")
     assert native_a.value == "synthetic-restored"
     assert not cold.store.data.get("model_configuration_uncertain")
     assert cold.store.data["model_credential_cleared"] is False
@@ -1211,7 +1208,7 @@ async def test_runtime_reports_actual_credential_source_without_file_assumption(
     service = object.__new__(ResearchService)
     service.client = native
     service.store = Store(tmp_path)
-    service.default_model = {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
+    service.default_model = {"provider": "deepseek-official", "model": "deepseek-flash"}
     service.expected_cwd = None
     service.owned = True
     service.connected = {"mux", "host"}
@@ -1237,7 +1234,7 @@ async def test_model_backend_failure_preserves_runtime_health_and_unknown_creden
     service = object.__new__(ResearchService)
     service.client = native
     service.store = Store(tmp_path)
-    service.default_model = {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
+    service.default_model = {"provider": "deepseek-official", "model": "deepseek-flash"}
     service.expected_cwd = None
     service.owned = True
     service.connected = {"mux", "host"}
@@ -1336,7 +1333,7 @@ async def test_model_cancelled_write_is_uncertain_after_cold_reload(tmp_path):
     with pytest.raises(asyncio.CancelledError):
         await task
     assert Store(tmp_path).data.get("model_configuration_uncertain") is True
-    assert Store(tmp_path).data.get("model", service.default_model)["model"] == "deepseek-v4-flash"
+    assert Store(tmp_path).data.get("model", service.default_model)["model"] == "deepseek-flash"
 
 
 @pytest.mark.asyncio
@@ -1461,3 +1458,13 @@ def test_each_claw_turn_appends_the_visible_language_contract_last(api):
     assert text.index("用户选择的研究工具意图") < text.index("使用 DSH 原生子 Agent")
     assert text.rstrip().endswith("不得直接以英文回答透传。")
     assert "所有可见过程说明、工具调用前后说明、提问、错误解释、总结和最终答复" in text
+
+
+def test_upgraded_empty_instance_uses_catalog_default_without_rewriting_saved_model(tmp_path):
+    empty = ResearchService(NativeFixture(), Store(tmp_path / "empty"))
+    assert empty.default_model == {"provider": "deepseek-official", "model": "deepseek-flash"}
+    old = Store(tmp_path / "old")
+    old.data["model"] = {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
+    old.save()
+    preserved = ResearchService(NativeFixture(), old)
+    assert preserved.default_model["model"] == "deepseek-v4-flash"

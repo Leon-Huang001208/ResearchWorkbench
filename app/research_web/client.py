@@ -243,6 +243,40 @@ class DSHClient:
                 {"kind": "session", "sessionId": payload["sessionId"]},
                 int(payload.get("maxMessages", 100)),
             )
+        if method == "subagent.list":
+            native = await self._rpc_wire("session/list", {"_request": {}})
+            items = native.get("items")
+            parent_id = payload.get("parentSessionId")
+            if not isinstance(items, list) or not isinstance(parent_id, str):
+                raise RuntimeFailure("原生子会话状态无效", "protocol_error")
+            rows = {item.get("sessionId"): item for item in items if isinstance(item, dict)}
+            parent = rows.get(parent_id)
+            values = (parent or {}).get("projections", {}).get("values", {})
+            if "subagentCatalog" not in values:
+                projection = await self._rpc_wire(
+                    "session/projections", {"request": {"sessionId": parent_id}}
+                )
+                values = projection.get("values", {})
+            catalog = values.get("subagentCatalog")
+            if not isinstance(catalog, list):
+                raise RuntimeFailure("原生子会话目录或状态缺失", "protocol_error")
+            entries = []
+            for child in catalog:
+                if not isinstance(child, dict) or child.get("mode") not in {
+                    "one-shot",
+                    "continuable",
+                }:
+                    raise RuntimeFailure("原生子会话状态未知", "protocol_error")
+                live = rows.get(child.get("id"))
+                if (
+                    not isinstance(live, dict)
+                    or live.get("parentSession") != parent_id
+                    or live.get("origin") != "subagent"
+                    or type(live.get("running")) is not bool
+                ):
+                    raise RuntimeFailure("原生子会话活动状态未知", "protocol_error")
+                entries.append({**child, "activity": "running" if live["running"] else "idle"})
+            return {"entries": entries}
         if method == "subagent.history":
             address = {
                 "kind": "subagent",

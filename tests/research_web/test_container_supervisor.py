@@ -100,7 +100,7 @@ if role == "runtime":
         target.write_text(json.dumps({
             "authority": "127.0.0.1:" + port,
             "cwd": str((Path(os.environ["RESEARCH_DATA_HOME"]) / "runtime/work").resolve()),
-            "source_commit": "c919b2a460753859665db3f60143d525fb9140cf",
+            "source_commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
             "pid": os.getpid(), "version": "fixture", "bootstrap_token": "x" * 43,
         }))
         target.chmod(0o600)
@@ -385,7 +385,7 @@ def test_adopted_role_uses_only_one_exact_bounded_marker(monkeypatch, raw, expec
     monkeypatch.setattr(supervisor, "_read_role_environment", lambda pid: raw)
     monkeypatch.setattr(supervisor, "_process_snapshot", lambda: {42: identity})
     assert supervisor._adopted_role(42, identity) == expected
-    monkeypatch.setattr(supervisor, "_process_snapshot", lambda: {})
+    monkeypatch.setattr(supervisor, "_process_snapshot", dict)
     assert supervisor._adopted_role(42, identity) == "unknown"
 
 
@@ -706,7 +706,10 @@ def test_supervisor_and_health_defaults_share_private_state_leaf(monkeypatch):
 def test_docker_first_mkdir_owner_mapping_then_strict_repin(
     tmp_path, monkeypatch, name, transition
 ):
-    from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
+    from app.research_web.runtime_state import (
+        RuntimeStateError,
+        runtime_state_directory,
+    )
     from docker import supervisor
 
     mount = tmp_path.resolve() / "mount"
@@ -742,9 +745,8 @@ def test_docker_first_mkdir_owner_mapping_then_strict_repin(
     monkeypatch.setattr(os, "fstat", lambda descriptor: project(real_fstat(descriptor)))
     monkeypatch.setattr(os, "mkdir", mkdir)
     # Preserve a direct reproducer of why creation inside the strict guard fails.
-    with pytest.raises(RuntimeStateError):
-        with runtime_state_directory(leaf, create=True):
-            pass
+    with pytest.raises(RuntimeStateError), runtime_state_directory(leaf, create=True):
+        pass
     leaf.rmdir()
     mapped.clear()
     monkeypatch.setattr(

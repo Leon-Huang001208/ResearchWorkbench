@@ -217,7 +217,7 @@ ready。Node 22.19+（22 系列）或 24.x 由安装器与 Doctor 使用同一�
   闭包。仓库属性禁止 Git 在 Windows checkout 改写这两个制品目录的字节，确保同一清单摘要可在
   macOS 与 Windows 验证。
 - DSH 只从 `Leon-Huang001208/deepseek-harness` 获取提交
-  `c919b2a460753859665db3f60143d525fb9140cf`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
+  `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
   Git clone、固定提交 checkout 与后续干净工作树校验都使用同一组命令级配置：
   `core.longpaths=true`、`core.autocrlf=false` 和 `core.eol=lf`，因此 Windows 不依赖机器级 Git
   长路径或换行配置。固定提交包含 Git symlink；Windows 额外统一使用 `core.symlinks=false`，接受 Git
@@ -274,3 +274,5 @@ uv pip compile requirements/web.in \
 ```
 
 提交前必须从干净 checkout 运行一键安装；不能以开发机已有 `.venv` 或全局模块作为交付证据。
+
+固定DSH为0.2.1-alpha.1兼容候选，闭包16097项。构建需要所选Node发行版附带include/node开发头文件；缺失时保留构建错误，不能复用旧安装成功标记。

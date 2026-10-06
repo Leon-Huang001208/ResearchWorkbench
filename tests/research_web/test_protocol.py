@@ -405,3 +405,76 @@ def test_remote_interaction_events_reject_invalid_identifiers(envelope):
         client._event_envelope(envelope)
 
     assert failure.value.code == "protocol_error"
+
+
+@pytest.mark.asyncio
+async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_and_live_status():
+    def reply(request):
+        body = json.loads(request.content)
+        assert request.url.path == "/api/session/list"
+        items = [
+            {
+                "sessionId": "parent",
+                "running": False,
+                "projections": {
+                    "values": {
+                        "subagentCatalog": [
+                            {
+                                "id": "child",
+                                "mode": "continuable",
+                                "label": "worker",
+                                "createdAt": 1,
+                            }
+                        ]
+                    }
+                },
+            },
+            {
+                "sessionId": "child",
+                "parentSession": "parent",
+                "origin": "subagent",
+                "running": True,
+            },
+        ]
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": {"items": items}},
+            },
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        value = await client.rpc("subagent.list", {"parentSessionId": "parent"})
+        assert value["entries"][0]["id"] == "child"
+        assert value["entries"][0]["activity"] == "running"
+
+
+@pytest.mark.asyncio
+async def test_upgraded_subagent_unknown_activity_fails_closed():
+    def reply(request):
+        body = json.loads(request.content)
+        items = [
+            {
+                "sessionId": "parent",
+                "running": False,
+                "projections": {
+                    "values": {
+                        "subagentCatalog": [{"id": "child", "mode": "one-shot", "createdAt": 1}]
+                    }
+                },
+            }
+        ]
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": {"items": items}},
+            },
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        with pytest.raises(RuntimeFailure, match="状态"):
+            await client.rpc("subagent.list", {"parentSessionId": "parent"})

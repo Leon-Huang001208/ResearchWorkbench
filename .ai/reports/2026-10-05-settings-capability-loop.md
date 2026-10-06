@@ -615,3 +615,19 @@ master通过GitHub Git refs API force=false快进到固定上游，无改写历�
 已通过Codex automation_update创建并更新自动检查dsh-fork，ACTIVE，每天北京时间09:00。监测上游/master/workbench-runtime，保留自有修改；快进正常同步，有冲突、版本/存储大迁移或检查失败时保留候选并通知。无变化/无新进展静默，只有完成或新阻塞通知。禁止force/reset、绕过Hook、改预算、供应商请求、产品固定DSH/锁升级、生产变更。自动化配置实际核对存在，不是只提出计划。
 
 本轮实际供应商请求0；产品已安装DSH仍c919b2a，Research Workbench所有源码/锁及生产8088/3081未修改，PR80未合并/发布。唯一报告只本地提交，不为此重跑原C5或推送报告循环。总体mergeReady/releaseReady仍沿用既有BLOCKED，不能从Fork同步推导产品就绪；下一唯一目标为独立评估新DSH与Research Workbench适配及固定版本升级，尚未自动实施。
+
+### DSH产品升级进行中（2026-10-07）
+
+用户明确授权“升级并验收，完成前不要暂停”。本轮目标固定48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0，不浮动跟随分支；Mac Native开发/验收，Windows/Linux产品仍暂缓。每周一北京时间09:00自动检查已按最新用户要求更新并实际核对ACTIVE，先前“每天”是历史状态。
+
+先保留旧合同拒绝新候选的RED；实际新app-boot移除healProfilesModuleFallback，先更新失败测试复现，再使用createRuntimeResolution原生解析表，检查每个packageDir只属于固定源码或两项受管供应包，不开放任意外部模块。四项模块归属合同PASS，真实固定新DSH解析579包通过。能力目录旧PIN也先真实RED，改为共享RuntimeContract来源；auth bootstrap同样读取唯一机器合同，避免认证source_commit残留旧版本。未放宽字符串校验或凭据/归属门。
+
+新DSH完整build先因受管Node24缺开发头文件失败；创建隔离Node24副本，取得官方同版本headers及SHA校验后完整build成功，不改Codex共享运行时/系统Node/DSH源码。实际构建闭包16097项，文件数而非全局绝对目录摘要固定；Corepack0.34实际启动pnpm11.7.0版本核验通过。228安装/启动/共享合同PASS，7认证/凭据JS合同PASS；仍需所属实例、真实新协议、剩余本地门与当前代码CI。安装只调用既有SetupWebInstaller真实校验/发布/安装方法，不手写installed清单。当前代码由working-code-identity.json记录HEAD加完整diff，不仅旧HEAD。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录的固定来源提交改为共享RuntimeContract，未增删能力节点或执行器；Native工具注册与版本语义另行验证，不把来源标签当可调用证据。","diagrams":[]} -->
+
+实际新版目录将默认项改为deepseek-flash（V4.1名称）；旧保存值与历史会话不自动重写，空实例默认才采用新项。先失败测试再修正默认/UI/overlay，一项兼容测试确认保留已保存旧ID。新preset体系改为原生声明式registry，旧.agent-presets文件不再自动发现；先实际agent-preset/not-found及失败合同，再在owned overlay声明research-web/framework-explain/framework-verify三个既有ID，默认registry显式research-web，未新增Agent loop。新版移除subagents/list，使用权威父投影subagentCatalog和session/list的实时running交叉验证；缺失、未知模式/活动或错误父属拒绝配置/提交，未返回空列表假装无活动。两项失败测试转绿。
+
+真实Mac Keychain合成值链路已通过，新native provider确实消费该值（仅进程内比较），公共CLI/正式framework-explain在受控Messages回环fixture生成最终回复。fixture请求1、供应商请求0，产品清除后configured=false，所属fixture进程退出；此不冒充真实推理。只读热改设置被owned overlay拒绝后保留限制，fixture采用独立实际安装数据home与冷启动，未放宽模型端点或设置权限。其早期失败还包括未启动Host服务事件通道的测试器问题，全部日志保留，按正常lifespan后PASS。
+
+原有21 Ruff诊断在HEAD基线全部存在；仅触及文件等价导入/字面量/with顺序修正，无新增ignore。698相关Python PASS（2既有平台skip）、50 API PASS、3实际native源码合同PASS、284 JS PASS。后续模型默认与协议适配的增量必须补回归。用户已在独立19088设置页保存测试Key，未读/打印/散列。当前真实预算4模型/1公开只读工具，旧轮额度不使用；计入重试/工具后的生成，跨重启保留总账，真实验证尚待执行。

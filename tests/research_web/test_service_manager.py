@@ -659,15 +659,15 @@ def test_shared_process_specs_preserve_native_commands_and_are_immutable(manager
 def test_shared_container_specs_change_only_state_and_web_host(manager):
     from app.research_web.process_spec import build_process_specs
 
-    options = dict(
-        python=manager.python,
-        node=manager.node,
-        project_root=manager.project_root,
-        data_root=manager.data_root,
-        runtime_source=manager.runtime_source,
-        web_port=18088,
-        runtime_port=13081,
-    )
+    options = {
+        "python": manager.python,
+        "node": manager.node,
+        "project_root": manager.project_root,
+        "data_root": manager.data_root,
+        "runtime_source": manager.runtime_source,
+        "web_port": 18088,
+        "runtime_port": 13081,
+    }
     native = build_process_specs(
         **options, state_root=manager.data_root / "runtime", web_host="127.0.0.1"
     )
@@ -5178,7 +5178,7 @@ def test_runtime_auth_fails_closed_for_foreign_authority(manager):
                 "authority": "127.0.0.1:9999",
                 "cookie": "dsh-auth-test=value",
                 "cwd": str((manager.data_root / "runtime/work").resolve()),
-                "source_commit": "c919b2a460753859665db3f60143d525fb9140cf",
+                "source_commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
                 "version": "0.1.3-alpha.2",
             }
         ),
@@ -5199,7 +5199,7 @@ def test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits(manage
                 "authority": "127.0.0.1:3081",
                 "cookie": "dsh-auth-test=value",
                 "cwd": str((manager.data_root / "runtime/work").resolve()),
-                "source_commit": "c919b2a460753859665db3f60143d525fb9140cf",
+                "source_commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
                 "version": "0.1.3-alpha.2",
             }
         ),

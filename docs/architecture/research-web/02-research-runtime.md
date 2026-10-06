@@ -223,3 +223,5 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 这是单次独立验收的进程内控制，不是用户配额或持久预算系统。退出/重启不能作为补额度手段；调用方仍须维持该轮真实请求总账。默认不启用，既有生产、日常研究、provider/Keychain语义不改变。达到限制只能报告未完成，不能自动重试。合同及固定DSH无网络合成验证与真实供应商验收分别记证据。
 
 模型启动preload的认证文件绑定已验证的RWB_RUNTIME_STATE，与data/runtime/home分离；authority、cwd、固定源码commit和所属Runtime PID共同绑定临时bootstrap。stdout/stderr保持脱敏，所属supervisor只在启动阶段读取私有handoff，独立healthcheck不交换Cookie、不写控制文件。
+
+认证bootstrap的source_commit与能力目录从同一runtimes/research_web.json读取，避免旧标识残留。新版Profile解析由固定DSH原生解析表提供，不再调用已移除的healProfilesModuleFallback；表为空、非法或路径越界时拒绝启动。

@@ -430,7 +430,8 @@ import { pathToFileURL } from 'node:url';
 const [modulePath, anchor, home] = process.argv.slice(1);
 const runtime = await import(pathToFileURL(modulePath).href);
 const profile = runtime.loadProfile('dsh', 'web', anchor, home);
-await runtime.healProfilesModuleFallback({ installAnchor: anchor, profile });
+const resolution = await runtime.createRuntimeResolution({ installAnchor: anchor, profile, home });
+console.log(JSON.stringify(resolution.entries.map(entry => entry.packageDir)));
 """
     environment = {
         "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
@@ -440,7 +441,7 @@ await runtime.healProfilesModuleFallback({ installAnchor: anchor, profile });
         "DSH_TELEMETRY_DISABLED": "1",
     }
     try:
-        subprocess.run(
+        result = subprocess.run(
             [
                 node,
                 "--input-type=module",
@@ -459,28 +460,27 @@ await runtime.healProfilesModuleFallback({ installAnchor: anchor, profile });
     except (OSError, subprocess.SubprocessError) as exc:
         raise RuntimeError("DSH profile 模块初始化失败") from exc
 
-    modules = home / "profiles" / "node_modules"
-    links: list[Path] = []
-    if modules.is_dir():
-        for item in modules.iterdir():
-            if item.is_symlink() or (os.name == "nt" and item.is_junction()):
-                links.append(item)
-            elif item.is_dir() and item.name.startswith("@"):
-                links.extend(
-                    child
-                    for child in item.iterdir()
-                    if child.is_symlink() or (os.name == "nt" and child.is_junction())
-                )
-    if not links:
-        raise RuntimeError("DSH profile 模块目录为空")
-    for link in links:
-        try:
-            target = link.resolve(strict=True)
-        except OSError as exc:
-            raise RuntimeError("DSH profile 存在失效模块链接") from exc
-        if not target.is_relative_to(source):
-            raise RuntimeError("DSH profile 模块越出项目私有源码目录")
-    return len(links)
+    try:
+        packages = json.loads(result.stdout)
+        if (
+            not isinstance(packages, list)
+            or not packages
+            or not all(isinstance(item, str) for item in packages)
+        ):
+            raise ValueError("invalid module table")
+        owned = (
+            source.resolve(strict=True),
+            home / "profiles/node_modules/dsh-tabbit",
+            home / "profiles/node_modules/research-tabbit-adapter",
+        )
+        for item in packages:
+            target = type(source)(item).resolve(strict=True)
+            if not any(target.is_relative_to(root) for root in owned):
+                raise RuntimeError("DSH profile 模块越出项目私有源码目录")
+    except (OSError, ValueError, TypeError) as exc:
+        raise RuntimeError("DSH profile 模块目录无效") from exc
+    log.info("research_runtime_module_resolution_verified", packages=len(packages))
+    return len(packages)
 
 
 def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
@@ -643,6 +643,24 @@ def _prepare_runtime(
         )
     guard = (package / "guard.mjs").resolve()
     overlay = state / "overlay.yml"
+    # Native 0.2 presets are declarations, not filesystem discovery.
+    preset_overlay = "- insert:\n"
+    for identity, folder in (
+        ("research-web", preset),
+        ("framework-explain", explain_preset),
+        ("framework-verify", verify_preset),
+    ):
+        rows = (folder / "agent.cordis.yml").read_text(encoding="utf-8")
+        if not rows.strip():
+            raise RuntimeError("DSH preset composition is empty")
+        preset_overlay += (
+            f"    - id: rwb-preset-{identity}\n"
+            "      name: '@deepseek-ai/dsh-agent-preset'\n"
+            "      config:\n"
+            f"        id: {identity}\n"
+            "        plugins:\n" + "".join("          " + line + "\n" for line in rows.splitlines())
+        )
+    log.info("research_runtime_presets_declared", count=3)
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"
     overlay.write_text(
         "\n".join(
@@ -675,8 +693,8 @@ def _prepare_runtime(
                 "- id: agent-default-model",
                 "  config:",
                 "    provider: deepseek-official",
-                "    model: deepseek-v4-flash",
-                "- id: agent-presets",
+                "    model: deepseek-flash",
+                "- id: agent-preset-registry",
                 "  config:",
                 "    default: research-web",
                 "- id: session-title-llm",
@@ -704,6 +722,7 @@ def _prepare_runtime(
                 "",
             ]
         )
+        + preset_overlay
         + tabbit_overlay(tabbit_config, adapter)
         + "\n",
         encoding="utf-8",

@@ -227,3 +227,5 @@ failure 会在 UI/Composer/submit 显示 connecting/offline；Tabbit 自身既�
 
 Windows 受管服务的非强制停止失败现在可升级到既有强制进程树终止；该变化不修改 Tabbit Profile、
 浏览器实例选择、页面授权、claim、一次性正文 token、写审批或真实浏览器验收边界。
+
+新版DSH原生Profile解析仍只接受固定源码与受管Tabbit/适配器目录，不改变供应归档、浏览器授权、claim或正文token边界；不能把Runtime启动当成Tabbit实际可调用。

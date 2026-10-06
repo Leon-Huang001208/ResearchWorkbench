@@ -233,7 +233,7 @@ class ResearchService:
         self.retention_task: asyncio.Task | None = None
         self.last_runtime_success_at: float | None = None
         self.default_model = store.data.get(
-            "model", {"provider": "deepseek-official", "model": "deepseek-v4-flash"}
+            "model", {"provider": "deepseek-official", "model": "deepseek-flash"}
         )
         self.model_test_lock = asyncio.Lock()
 
