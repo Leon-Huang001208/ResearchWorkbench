@@ -585,3 +585,17 @@ Mac基础模型链路与早先T6已有验证证据保持，本轮C5 macOS范围�
 hostPlatform=macOS；taskKind=功能收口/本平台验收；hostAcceptance=PASS（包含用户明确接受的B归因缺证据例外）。当前macOS Native阶段1A按用户修正的范围与明确豁免已收口；这不是全部验收项实测PASS，也不声称完整跨平台研究能力或正式发布通过。C1/C2、既有真实生命周期、T6及匹配候选的C5 Mac/通用自动门证据沿用。平台交接Windows/Linux/Docker保持用户暂缓、NOT_RUN，非本平台任务阻塞。aggregateAcceptance=BLOCKED；现有总体catalog仍含Docker未执行，mergeReady=false/releaseReady=false。豁免不改变该机械结论，不删门、不改规则或通过构造较小changed set求绿。
 
 冻结CI候选仍为4e229e855f31dc7bba96f462ad8f40731a5f0fe2，合并预览2df45889c8935007ec5b7c9b19aa6caa96fadde7，PR80保持草稿；后续本地变更仅本唯一报告。本轮供应商请求0、未修改生产、未合并或发布，不重复已有验收或触发CI。原“下一目标取得B归因”已被此次明确豁免取代；本任务结束，不自动进入1B或其他阶段。下一阶段唯一可讨论目标为1B的模型支持范围，须另行明确开启。
+
+### 阶段1B已开启：OpenAI兼容路径核对与当前边界
+
+用户明确“执行下一阶段”，并选择OpenAI兼容API；随后说明当前没有购买其他模型，希望参考cc-switch的多服务接入。此为范围推进，不撤销1A的B归因豁免，也不授权阶段2—6或声称所有品牌已支持。宿主macOS，任务类型有界功能扩展；工作树codex/settings-model-loop，实际输入HEAD2c4ae592fa7dbf5f5ccaa9158b2e22e18788973f，工作区干净。PR80原候选和已通过CI保留，不reset/覆盖/合并，不读取个人cc-switch/Codex/Claude配置或秘密。
+
+公开参考为farion1231/cc-switch的Add Provider文档（main，在线读取）：其可配置Provider与端点、显式协议、模型ID，模型列表接口失败可手填ID；某些客户端协议差异由本地代理转换，不等于所有模型原生可用。仅借鉴连接配置和能力分层，不复制个人配置投影、登录/OAuth或代理框架。参考链接：https://github.com/farion1231/cc-switch/blob/main/docs/user-manual/en/2-providers/2.1-add.md。
+
+本机固定DSH c919b2a的llm-pi-ai源代码与已构建lib真实存在；provider.ts支持openai-completions/openai-responses，config.ts支持按route配置api/baseURL/models/apiKeyEnv，index.ts支持现有settings热更新。新连接必须用独立自定义route和明确credential ref，禁止复用DeepSeek ref或依赖provider-native ambient授权；ctx.credentials缺失时仍有环境回退，因此产品绑定必须失败关闭，不能仅展示来源标签。当前产品ModelConfig/UI/configure_model只开放deepseek-official，系统桥接只允许RESEARCH_DSH_API_KEY，故尚不支持通用OpenAI服务。地址/重定向安全尚无新增产品验证，不能因底层支持协议就声称接入完成。代码引用及非秘密源文件哈希见phase1b/investigation.json。
+
+最小实施边界已确定：保留原DeepSeek；只增加一条明确协议的OpenAI兼容连接配置（连接标识、base URL、模型ID、独立系统credential ref）；经现有owned overlay挂载固定llm-pi-ai，不修改固定DSH、不新增Agent loop或代理daemon；手填ID不冒充模型发现，文本/流式/工具能力分开记录。须先取得失败测试并验证非法URL、携密重定向、两个模型凭据隔离、保存失败/活动任务/冷恢复，再通过一条真实服务的生成/研究调用验证。不能凭预设品牌列表或fixture宣称全部模型已支持。
+
+本轮新增服务名称、endpoint、model及账户均未确定；用户明确没有额外模型账户，当前未安装模型、不采购、不请求用户把Key贴入对话、不调用供应商、不消耗关闭的1A预算。原阶段1B要求选一种实际需要且可验证的服务，缺此条件时保留BLOCKED：只读支持范围核对已完成，新增产品路径实现NOT_RUN、合同/fixtureNOT_RUN、真实生成/工具/冷重启NOT_RUN，阶段1B未完成。不能以1A DeepSeek结果冒充第二服务验收。后续若用户选择实际已有服务（可包括另行录入的既有服务兼容协议路径），在独立实例设置页录入，并单独固定真实请求预算；不要求购买服务作为继续条件。
+
+本次修改仅本唯一报告，复用1A源码/CI证据而不声称CI测试过报告HEAD；相关文档/完整changed set约束和回执校验实际结果随本轮日志保存。hostAcceptance=BLOCKED（1B服务选择/真实环境缺失），aggregateAcceptance保持BLOCKED，mergeReady=false/releaseReady=false。不自动进入后续阶段、不合并/发布或修改生产。下一唯一目标仍为取得一条实际可验证的OpenAI兼容服务路径。
