@@ -8,6 +8,9 @@ macOS 安装器与 `rwb web start/restart` 支持 `--web-port`，Native另支持
 未显式指定时读取实际端点记录并可安全避让。地址以 `web status --json` 为准，完整限制与
 尚未完成的停止Docker容器换绑定分支见[安装说明](research-web-installation.md)。
 
+缺账本的既有数据根仍核验旧默认监听；其他 checkout 不证明不同数据根，未知产品写者
+拒绝，显式新端口不会绕过该边界。真正 fresh 根的创建身份由当前持锁启动证明。
+
 安装后的权威入口由 `pyproject.toml` 的 `rwb = research_workbench_entrypoint:main` 和 `app/cli/main.py` 注册：
 
 ```bash

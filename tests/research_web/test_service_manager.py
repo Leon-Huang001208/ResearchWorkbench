@@ -3298,6 +3298,7 @@ def test_posix_zombie_is_not_treated_as_a_live_owned_process(manager, monkeypatc
 
 
 def test_start_is_idempotent_and_waits_for_both_services(manager, monkeypatch):
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
     manager._prepare_private_directories()
     probes = {
         role: _service_probe(
@@ -3390,6 +3391,7 @@ def test_start_fails_fast_when_web_installation_is_not_ready(manager, monkeypatc
 
 
 def test_start_rolls_back_only_new_processes(manager, monkeypatch):
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
     manager._prepare_private_directories()
     probes = {
         role: _service_probe(
@@ -5229,6 +5231,9 @@ def test_lifecycle_lock_import_needs_no_site_packages():
 
 @pytest.mark.parametrize("action", ["start", "restart"])
 def test_native_start_avoids_busy_preferred_and_preserves_control_tokens(manager, monkeypatch, action):
+    actual_listeners = service_manager_module.listener_pids
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port:
+                        ListenerFact("closed", (), None) if port == 3081 else actual_listeners(port))
     import socket
     from app.research_web.datahub.security import load_control
     from app.research_web.mcp_runtime.control import load_control as load_mcp
@@ -5340,6 +5345,7 @@ def test_lifecycle_lease_is_verified_before_nested_operation(tmp_path):
 
 
 def test_native_commit_failure_restores_successful_endpoints_and_control_bytes(manager, monkeypatch):
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
     from app.research_web.control_origin import ControlOriginError, ControlOriginTransaction
     from app.research_web.datahub.security import load_control
     from app.research_web.mcp_runtime.control import load_control as load_mcp
@@ -5384,6 +5390,7 @@ def test_native_stop_accepts_foreign_listener_only_after_exact_old_pid_exit(mana
 
 
 def test_native_malformed_creator_record_reports_stable_issue(manager, monkeypatch):
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
     manager._prepare_private_directories()
     folder = manager.data_root / ".control"
     folder.mkdir(mode=0o700)
@@ -5400,6 +5407,7 @@ def test_native_malformed_creator_record_reports_stable_issue(manager, monkeypat
 
 @pytest.mark.parametrize("malformed", [False, True])
 def test_fix1_mcp_only_control_is_validated_before_creation(manager, monkeypatch, malformed):
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
     from app.research_web.mcp_runtime.control import load_control as load_mcp
     from app.research_web.datahub.security import load_control
     manager._prepare_private_directories()
@@ -5432,3 +5440,57 @@ def test_fix1_missing_ledger_does_not_prove_quiescence(manager, monkeypatch, arg
     monkeypatch.setattr(service_manager_module, "probe_process",
                         lambda pid: ProcessFact("alive", arguments, "start"))
     assert manager._native_quiescent() is False
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+def test_fix3_other_checkout_env_writer_is_not_proven_foreign(manager, monkeypatch, explicit):
+    manager._prepare_private_directories()
+    monkeypatch.setenv("RESEARCH_DATA_HOME", str(manager.data_root))
+    argv = ("python", "-m", "uvicorn", "app.research_web.main:app", "--app-dir",
+            "/other/checkout", "--host", "127.0.0.1", "--port", "8088")
+    if explicit:
+        manager.web_port, manager.runtime_port = 18088, 13081
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port:
+                        ListenerFact("listening", (12345,), None) if port == 8088 else ListenerFact("closed", (), None))
+    monkeypatch.setattr(service_manager_module, "probe_process", lambda pid:
+                        ProcessFact("alive", None, None, argv, 123.0))
+    assert manager._native_quiescent() is False
+
+
+def test_fix3_bind_retry_cannot_assume_other_checkout_writer_uses_other_data(manager, monkeypatch):
+    manager._prepare_private_directories()
+    web = manager._processes()[1]
+    path = manager.log_root / "web.log"
+    path.write_text("EADDRINUSE")
+    identity = path.stat()
+    manager._spawn_log_windows[("web", 123)] = (identity.st_dev, identity.st_ino, 0)
+    argv = ("python", "-m", "uvicorn", "app.research_web.main:app", "--app-dir", "/other/checkout")
+    monkeypatch.setenv("RESEARCH_DATA_HOME", str(manager.data_root))
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port: ListenerFact("listening", (456,), None))
+    monkeypatch.setattr(service_manager_module, "probe_process", lambda pid:
+                        ProcessFact("missing", None, None) if pid == 123 else ProcessFact("alive", None, None, argv, 123.0))
+    assert manager._confirmed_bind_failure(web, 123) is False
+
+
+@pytest.mark.parametrize("root_state", ["fresh", "existing", "replaced"])
+def test_fix3_fresh_root_proof_is_scoped_and_identity_bound(manager, monkeypatch, root_state):
+    if root_state == "existing":
+        manager._prepare_private_directories()
+    argv = ("node", "/other/checkout/apps/cli/lib/bin.js", "--config", "/other/state/overlay.yml")
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port: ListenerFact("listening", (456,), None))
+    monkeypatch.setattr(service_manager_module, "probe_process", lambda pid: ProcessFact("alive", None, None, argv, 123.0))
+    monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
+    monkeypatch.setattr(manager, "_start_locked", lambda **kwargs: {"product_ready": True})
+    original = manager._start_endpoint_attempt
+    def attempt(**kwargs):
+        if root_state == "replaced":
+            manager.data_root.rename(manager.data_root.with_name("retained-created-root"))
+            manager.data_root.mkdir(mode=0o700)
+        return original(**kwargs)
+    monkeypatch.setattr(manager, "_start_endpoint_attempt", attempt)
+    if root_state == "fresh":
+        assert manager.start(open_browser=False)["product_ready"]
+        assert getattr(manager, "_fresh_root_identity", None) is None
+    else:
+        with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+            manager.start(open_browser=False)

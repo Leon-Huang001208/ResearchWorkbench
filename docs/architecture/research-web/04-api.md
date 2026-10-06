@@ -3,6 +3,9 @@
 公开启动入口在运行账本缺失且监听归属未知时返回 `runtime_ownership_unknown`；Docker
 origin commit 失败进入与健康失败相同的归属核验和恢复顺序。
 
+缺运行账本/端点时，显式 --web-port/--runtime-port 也须核验旧默认端口写者；其他 checkout
+的 Web/DSH 数据根未知时仍返回 runtime_ownership_unknown，不把换端口作为新的写者权限。
+
 内部控制 JSON/URL parser 提取与独立端点/origin helper 不增加 HTTP 路由或响应字段；
 DataHub/MCP 原 reader 错误与权限合同保持。公开启动路径现消费端点/origin事务；CLI新增
 `--web-port` 和 Native-only `--runtime-port`，HTTP路由、研究协议、业务响应字段不因此增加。

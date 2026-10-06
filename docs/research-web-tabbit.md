@@ -3,6 +3,9 @@
 Native 缺失账本的监听核验不申请 Tabbit claim 或读取浏览器内容；未知或同数据根的
 监听者使生命周期失败关闭，只有已验证的端点才进入后续浏览器集成。
 
+产品监听的不同 checkout 不构成不同研究数据根证明；未知根的 Web/DSH 仍阻止启动，
+不读取浏览器会话、进程环境或秘密来绕过，也不把独立 fresh-root 验收称为 canonical 往返。
+
 macOS实际端点与控制origin事务不改变Tabbit授权、claim和浏览器归属；Native使用本次已验证的
 回环Web/Runtime端点，Docker动态宿主Web端口不会将宿主Tabbit能力带入容器。
 

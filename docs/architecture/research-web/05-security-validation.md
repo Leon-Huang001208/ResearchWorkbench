@@ -7,6 +7,11 @@
 进程身份和监听 PID 集合；同数据根/当前 checkout 进程或不完整/变化事实拒绝。端口可连接
 本身不证明归属；Docker 容器仍必须独立核验安装/image/mount/实际 mapping 和健康。
 
+稳定 PID/argv 与其他 checkout 不证明产品写者的数据根不同：Web 环境和 DSH 配置均可能
+指向当前根，可识别产品命令无该证据时拒绝；不读取全进程环境或秘密。共享判定同时约束
+Native 静止与 bind retry。fresh 根只认本次已验证生命周期 lease 内成功 mkdir 的 inode，
+替换拒绝，首个 spawn 前与 finally 失效；不能用既有安装目录、测试目录名或环境开关伪造。
+
 macOS 动态端口启动在共享生命周期锁内验证两模式静止后重绑成对可信origin；仅URL改变，
 token与其他有效字段保留。显式占用端口拒绝，自动候选不代表已保留监听；只有完整真实健康
 后写实际端点。Docker prepare-only guest必须匹配安装ID、单次nonce、不可变image、固定command、

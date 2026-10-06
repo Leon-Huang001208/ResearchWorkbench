@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "FIX ROUND2复核README：无Native环境的监听归属细化恢复Docker-only幂等启动及宿主3081无关监听兼容，符合现有README端口合同。",
-  "reason": "细节已同步安装/安全/运行时文档；入口参数与停止容器换绑定限制未变，README完整端口迭代和真实Mac验收未闭合说明继续有效。"
+  "disposition": "updated",
+  "summary": "FIX ROUND3同步README：其他checkout产品监听不证明不同数据根，已有安装根缺账本会真实拒绝，显式端口不能绕过。",
+  "reason": "同数据根隔离影响公开启动预期，补充canonical setup-created root不是fresh以及尚未完成真实自动避让验收的具体限制。"
 }

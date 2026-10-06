@@ -40,6 +40,12 @@ origin commit 失败与健康失败共用精确清理：本次新建容器清除
 动态 origin 不会被默认 DataHub origin 污染。Docker 安装摘要回滚同时核对发布写 FD 的身份
 和精确字节，内容相同的新 inode 也保留并报告 recovery_unverified。
 
+`listener_argv_is_foreign` 是既有标准库合同里的共享纯判定，供后备桥、Native 静止检查和
+bind-race 分类使用；可识别 Web/DSH 命令缺少数据根证据时拒绝，不能从其他 checkout 推断不同
+数据根，也不读取进程环境或配置。缺端点记录的既有根同时观察选定端口和旧默认8088/3081，
+显式指定新端口不会绕过旧 writer。fresh 证明仅来自本次持有已验证 lease 时成功 mkdir 的
+根 inode，既有根或 inode 替换不认领；证明在首个 spawn 前和 start finally 清除，不用于失败重试。
+
 Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时间/监听者事实链，停止调用同一
 排他生命周期入口；状态查询不隔离或删除 stale/invalid 文件。Native 日志读取也复用精确进程
 身份，并在输出前核对状态文件内容和 inode，不能凭命令行子串或重用的 PID 证明归属。

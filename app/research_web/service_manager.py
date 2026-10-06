@@ -32,6 +32,7 @@ from research_workbench_entrypoint.web_contract import (
     PROCESS_START_TOLERANCE_SECONDS,
     ListenerFact,
     listener_pids,
+    listener_argv_is_foreign,
     node_version_issue,
     probe_process,
     proxy_warnings,
@@ -210,6 +211,8 @@ class WebServiceManager:
         self.run_root = self.data_root.parent / "run"
         self.log_root = self.data_root.parent / "logs"
         self._spawn_log_windows = {}
+        self._lifecycle_lease = None
+        self._fresh_root_identity = None
         if self.endpoint_snapshot is None and self._endpoint_error is None and web_port is None and runtime_port is None:
             from research_workbench_entrypoint.web_bootstrap import native_endpoint_ports
             try:
@@ -226,8 +229,12 @@ class WebServiceManager:
                 self.run_root / "lifecycle.lock",
                 self._pid_exists,
                 trusted_root=self.data_root.parent,
-            ):
-                yield
+            ) as lease:
+                self._lifecycle_lease = lease
+                try:
+                    yield
+                finally:
+                    self._lifecycle_lease = None
         except LifecycleLockError as exc:
             messages = {
                 "lifecycle_lock_ownership_lost": "服务生命周期锁归属已丢失",
@@ -250,7 +257,7 @@ class WebServiceManager:
         )
         return specs.runtime, specs.web
 
-    def _prepare_private_directories(self) -> None:
+    def _prepare_private_directories(self, *, track_creation: bool = False) -> None:
         try:
             with runtime_state_directory(self.runtime_state_root, native_data_root=self.data_root):
                 pass
@@ -259,10 +266,23 @@ class WebServiceManager:
         except RuntimeStateError as exc:
             raise ServiceManagerError("Runtime 状态目录不安全") from exc
         for path in (self.data_root.parent, self.data_root, self.run_root, self.log_root):
-            path.mkdir(parents=True, exist_ok=True, mode=0o700)
+            created = False
+            if path == self.data_root and track_creation:
+                if self._lifecycle_lease is None:
+                    raise ServiceManagerError("lifecycle_lock_ownership_lost", code="lifecycle_lock_ownership_lost")
+                self._lifecycle_lease.assert_held()
+                try:
+                    path.mkdir(parents=True, mode=0o700)
+                    created = True
+                except FileExistsError:
+                    pass
+            else:
+                path.mkdir(parents=True, exist_ok=True, mode=0o700)
             identity = path.lstat()
             if _is_unsafe_private_directory(path, identity, platform_name=os.name):
                 raise ServiceManagerError(f"私有运行目录不安全：{path}")
+            if created:
+                self._fresh_root_identity = identity.st_dev, identity.st_ino
 
     def _state_path(self, role: str) -> Path:
         return self.run_root / f"{role}.json"
@@ -1575,8 +1595,8 @@ class WebServiceManager:
         for owner in listener.pids:
             observed = probe_process(owner)
             if (observed.state != "alive" or observed.issue or not observed.argv
-                    or signature_matches_argv(process.signature, observed.argv)
-                    or any(str(self.data_root) in argument for argument in observed.argv)):
+                    or not listener_argv_is_foreign(observed.argv, data_root=self.data_root,
+                                                    project_root=self.project_root)):
                 return False
         path = self.log_root / f"{process.role}.log"
         try:
@@ -1706,8 +1726,23 @@ class WebServiceManager:
     def start(self, *, open_browser: bool = True) -> dict[str, Any]:
         diagnosis = self._require_installation_ready()
         with self._lifecycle_lock():
-            self._prepare_private_directories()
-            return self._start_with_endpoints(diagnosis=diagnosis, open_browser=open_browser)
+            try:
+                self._prepare_private_directories(track_creation=True)
+                return self._start_with_endpoints(diagnosis=diagnosis, open_browser=open_browser)
+            finally:
+                self._fresh_root_identity = None
+
+    def _fresh_root_proven(self) -> bool:
+        if self._fresh_root_identity is None or self._lifecycle_lease is None:
+            return False
+        try:
+            self._lifecycle_lease.assert_held()
+            identity = self.data_root.lstat()
+            return (not _is_unsafe_private_directory(self.data_root, identity, platform_name=os.name)
+                    and (identity.st_dev, identity.st_ino) == self._fresh_root_identity)
+        except (OSError, LifecycleLockError):
+            log.warning("research_fresh_root_identity_unverified")
+            return False
 
     def _native_quiescent(self) -> bool:
         """Missing ledgers require fresh listener evidence before rebinding."""
@@ -1718,10 +1753,14 @@ class WebServiceManager:
                 return False
             if not self._absent_listener_safe(process):
                 return False
+            if self.endpoint_snapshot is None:
+                legacy_port = WEB_PORT if process.role == "web" else RUNTIME_PORT
+                if legacy_port != process.port and not self._absent_listener_safe(process, port=legacy_port):
+                    return False
         return True
 
-    def _absent_listener_safe(self, process) -> bool:
-        listener = listener_pids(process.port)
+    def _absent_listener_safe(self, process, *, port=None) -> bool:
+        listener = listener_pids(process.port if port is None else port)
         if listener.state == "closed":
             return True
         if listener.state != "listening" or not listener.pids:
@@ -1729,8 +1768,8 @@ class WebServiceManager:
         for pid in listener.pids:
             observed = probe_process(pid)
             if (observed.state != "alive" or observed.issue or not observed.argv
-                    or signature_matches_argv(process.signature, observed.argv)
-                    or any(str(self.data_root) in argument for argument in observed.argv)):
+                    or not listener_argv_is_foreign(observed.argv, data_root=self.data_root,
+                            project_root=self.project_root, fresh_root=self._fresh_root_proven())):
                 return False
         return True
 
@@ -1837,6 +1876,7 @@ class WebServiceManager:
                 f"http://127.0.0.1:{web}", quiescent=self._native_quiescent)
             transaction.prepare()
             prepared = True
+            self._fresh_root_identity = None
             report = self._start_locked(diagnosis=diagnosis, open_browser=False,
                                         owned_attempt=owned_attempt)
             if report.get("product_ready") is not True:

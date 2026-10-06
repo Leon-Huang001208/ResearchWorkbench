@@ -22,7 +22,7 @@ from .docker_runtime import (
 )
 from .runtime_mode import RuntimeModeError, RuntimeModeStore
 from .runtime_endpoints import EndpointError, EndpointStore
-from .web_contract import classify_python_environment, listener_pids, probe_process
+from .web_contract import classify_python_environment, listener_argv_is_foreign, listener_pids, probe_process
 
 log = logging.getLogger(__name__)
 
@@ -102,6 +102,9 @@ def _native_probe(operation: str, project_root: Path, home: Path, ports: tuple[i
             services[probe.role] = probe.public()
         if set(services) != {"web", "runtime"}:
             raise ControlError("runtime_ownership_unknown")
+        if (all(item["process"] == "missing" and item["state"] in {"missing", "stale"}
+                for item in services.values()) and not manager._native_quiescent()):
+            raise ControlError("runtime_ownership_unknown")
         return services
 
     services = states()  # Validate both roles before any stop operation.
@@ -139,7 +142,11 @@ class NativeRuntime:
 
     def _missing_ledger_listeners_safe(self, data_root: Path) -> bool:
         """Read-only stdlib ownership proof when the Native environment is absent."""
-        for port in self.ports:
+        try:
+            observed_ports = (*self.ports, 8088, 3081) if EndpointStore(self.home).read("native") is None else self.ports
+        except EndpointError:
+            return False
+        for port in dict.fromkeys(observed_ports):
             listener = listener_pids(port)
             if listener.state == "closed":
                 if port_busy(port):
@@ -151,8 +158,8 @@ class NativeRuntime:
                 observed = probe_process(pid)
                 if (observed.state != "alive" or observed.issue or not observed.argv
                         or observed.started_at is None
-                        or any(str(data_root) in argument or str(self.project_root) in argument
-                               for argument in observed.argv)):
+                        or not listener_argv_is_foreign(observed.argv, data_root=data_root,
+                                                        project_root=self.project_root)):
                     return False
                 checked = probe_process(pid)
                 if (checked.state != "alive" or checked.issue or checked.argv != observed.argv

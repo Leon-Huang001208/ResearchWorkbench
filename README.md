@@ -71,6 +71,9 @@ macOS 启动优先复用已成功记录的端口，否则优先 Web 8088／Nativ
 已有停止 Docker 容器需要更换绑定时仍返回 `docker_stopped_port_conflict`，不会隐式重建；
 这项限制与真实 macOS Docker 验收尚未闭合，不能据单元测试宣称完整端口迭代已交付。
 
+已有数据根缺运行账本时，其他 checkout 的 Web/DSH 仍可能共享该根；未知数据根写者会
+拒绝启动，显式新端口也不能绕过。安装器提前创建的目录不算本次启动的 fresh 根，详见安装指南。
+
 ```bash
 ./rwb runtime status --json
 ```

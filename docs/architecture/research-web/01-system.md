@@ -3,8 +3,10 @@
 Native 管理器和模式切换桥在运行账本缺失时仍核验监听者，阻止未知或同数据根的活动写者
 通过新端口启动。Docker 失败恢复分别处理本次新建与本次启动的既有容器。
 
-无 Native 环境的只读桥使用同一标准库监听与进程事实，按稳定 argv/启动身份区分外来实例
-和未知/同根写者；Docker-only 的既有服务复用仍由 Docker controller 的 inspect/mapping/健康核验负责。
+无 Native 环境的只读桥使用同一标准库监听与进程事实。稳定 argv/启动身份只证明进程，
+其他 checkout 的 Web/DSH 也可通过环境/配置共享当前数据根；没有不同数据根证据时拒绝。
+Docker-only 的既有服务复用仍由 Docker controller 的 inspect/mapping/健康核验负责。
+Native 首启只有本次生命周期锁内成功 mkdir 且身份仍匹配的根可作 fresh 证明，子进程启动前失效。
 
 私有端点与内部 origin 事务已接入 macOS 安装器、Native 管理器和 Docker controller。
 它们不创建常驻部署节点、不迁移控制 token 或数据。Docker 单缺失控制文件的准备使用临时

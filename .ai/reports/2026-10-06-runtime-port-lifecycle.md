@@ -156,3 +156,46 @@ GREEN `logs/task-2-fix2-green.log` 六例/2.55s，额外保留unknown/same-root/
 （task-2-fix2-final-smoke.log）。宿主Python -I -S导入bootstrap通过，无core.settings/Store导入。
 回执task-2-fix2-receipt.json valid=true：8 local PASS/4 external NOT_RUN，BLOCKED，
 mergeReady/releaseReady=false；foreign平台为全局交接，Mac物理/CI另由主任务负责。
+
+## Task2 FIX ROUND3/5（efd1d37e 的产品写者数据根证明）
+
+Review再次拒绝：其他checkout的uvicorn Web可通过RESEARCH_DATA_HOME使用当前数据根；稳定
+PID/argv路径不同不证明不同数据根。直接依赖Native _absent_listener_safe/bind-race同样有洞；
+显式新端口在缺Endpoint时还会漏旧默认8088/3081。parent明确批准在同HIGH内修复这些直接边界
+和真正fresh-root一致性，不重开已批准的其他四HIGH。
+
+源码仅bootstrap/service_manager及既有stdlib web_contract的共享纯predicate：可识别Web/DSH
+无不同data-root证据时拒绝，不读取进程环境/配置/秘密、不新增探针框架；generic listener仍可
+凭原进程事实证明不是产品写者。已有根缺Endpoint时观察选定端口与旧默认两端口，显式override
+不能绕过。Native fresh仅本次verified lifecycle lease内成功mkdir并保留匹配inode，既有根/
+替换根不认领；首个spawn前和start finally清除。其他controls/cleanup/manifest四HIGH源码未改。
+
+实际RED：task-2-fix3-red.log 六failed/一passed；涵盖其他checkout+fixture共享env数据根、
+显式新端口、bind retry、existing/replaced-root、无Native环境桥。fresh正例原本通过，保留。
+额外task-2-fix3-default-bridge-red.log 一failed/一passed，证明桥显式端点漏旧默认。初GREEN7
+/1.52s；原12失败闭包task-2-fix3-closure.log为12failed/828passed/46.21s，日志保留。
+已将纯control/spawn事务fixture的监听事实明确隔离为closed，真实busy Web socket仍保留；
+generic free-port Docker正例使用合法历史Native端点fixture+真实socket/OSPID，NativeRuntime.status
+未mock；真实日常3081 DSH无数据根证明改为精确unknown拒绝并保持监听PID集合不变，未停止服务。
+控制token往返仍是mock fixture，不冒充物理验收。stage32 passed/4.31s。
+
+随后六模块闭包task-2-fix3-final-closure.log为2failed/839passed/46.07s，分别是stale/foreign
+和temporaryHOME readonly旧预期；前者只补closed监听fixture，原foreign-before-stop负例不变，
+后者在真实默认产品写者未知根时精确runtime_ownership_unknown，并继续断言HOME零写入。
+两例定点task-2-fix3-readonly-green.log通过/1.02s，未削弱HIGH负例。
+
+具体未闭合场景：正常setup --no-start/readonlyDoctor可能已创建canonical research-web/runtime
+与buildlock；此根不是本次start创建，缺run/Endpoint时若8088/3081有其他checkout Web/DSH而
+dataRoot不可证明，就真实返回runtime_ownership_unknown，显式其他端口也不逃逸。可由所属安装
+明确授权后正常stop，或另验由startup创建的全新独立dataRoot；不删除/移动canonical根制造fresh。
+后者不替代canonical同根Native/Docker往返、默认安装→自动start组合或MacCI，均须main分别留证。
+停止容器删除重建/HTTPSsource仍未授权，pending保留。main拥有新增Task3验收报告，本提交不含它。
+
+最后受影响源码闭包 service_manager/docker_runtime/runtime_mode/web_contract/protocol：682 passed
+/24.48s（task-2-fix3-verified-closure.log）；当前源码此前setup_web/web_bootstrap模块的通过结果
+保留在839passed阶段日志，不把该阶段的两failed改写为PASS。JS所选103 passed /3.124s；完整
+20文件constraints/doc-sync/生成索引PASS；stdlib -I -S bootstrap导入不加载core.settings/Store；
+managed kernel11/11 SHA匹配。L4计划保留validation_failure与unknown_impact_boundary。
+回执task-2-fix3-receipt.json valid=true，9 local PASS/5 external NOT_RUN，整体BLOCKED，
+mergeReady/releaseReady=false；未执行Mac物理/CI及其他平台门，源修复仍需独立复审。
+Fresh capability只用于public start首次分配，不在constructor/readonly/stop/restart或失败重试认领。

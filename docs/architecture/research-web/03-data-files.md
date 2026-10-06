@@ -6,6 +6,10 @@ Native 补齐任一缺失控制文件前先只读验证全部既有控制记录�
 Native 环境和运行账本缺失的只读桥核验监听事实，不创建账本或控制文件；外来实例的
 已证明监听不会被当作本研究数据根的写者，未知或同根进程仍保留原文件并拒绝生命周期。
 
+Web 的 RESEARCH_DATA_HOME 与 DSH 配置均可使其他 checkout 使用相同数据根；仅 argv 路径
+不同不足以证明隔离。fresh 创建身份仅在本次启动内存中持有，已有 setup runtime/build-lock
+目录不取得该证明；拒绝时不删除、移动数据根或改写账本以制造全新状态。
+
 独立端点 helper 的 `install/endpoints.json` 是运行时元数据，不是第二份依赖或研究事实。
 启动链的 origin helper 对两份 `.control` 记录保留 token/其他有效字段并改 URL，
 不迁移数据或凭据；原始回滚字节只留在内存，持久中断标记没有 token 备份。

@@ -6,6 +6,14 @@
 Docker-only 安装缺少 Native 环境时，忙端口须核验监听归属：已证明的其他实例监听与受管
 Docker 服务可继续，未知 Native 写者拒绝；无关宿主 3081 监听不阻塞 Docker 幂等启动。
 
+可识别 Web/DSH 的其他 checkout 也可能通过环境/配置使用同一数据根；稳定 PID 或不同
+源码路径不足以证明数据根不同，未知时返回 runtime_ownership_unknown。缺端点/账本的既有
+根会核验旧默认8088/3081，显式新端口不能绕过。setup --no-start 或 Doctor 已创建 canonical
+research-web/runtime 后，根已存在，不满足本次 start 成功 mkdir 的 fresh 证明；若日常默认
+监听是数据根未知的 Web/DSH，该组合会真实拒绝，而不是自动避让成功。
+此时保留数据根和账本，由所属安装在明确授权后走正常 stop，或另对由启动器首次创建的
+全新独立研究根做隔离验收；后者不替代 canonical 同根 Native/Docker 往返与安装后自动启动验收。
+
 macOS 公开安装、start/restart 已接入私有端点记录与成对内部 origin 事务。
 依赖锁保持不变，不移动、复制或轮换控制 token，也不迁移用户数据或凭据。
 

@@ -188,28 +188,31 @@ def test_fix2_docker_only_healthy_start_reuses_verified_container_with_real_list
     from research_workbench_entrypoint.web_contract import listener_pids
     controller, runner, _ = runtime
     controller.data_dir.mkdir(mode=0o700)
-    controller.ports = (8088, 3081)
+    # A valid prior Native endpoint fixture isolates this genuine generic
+    # listener from unrelated host product writers whose roots are unknown.
+    controller.endpoint_store.publish("native", controller.ports[0], controller.ports[1], expected=None)
     owned(controller, runner)
     identity = runner.container["id"]
     listener = socket.socket()
-    before = listener_pids(8088)
+    port = controller.ports[0]
+    before = listener_pids(port)
     try:
         if before.state == "closed":
-            listener.bind(("127.0.0.1", 8088))
+            listener.bind(("127.0.0.1", port))
             listener.listen()
-        observed = listener_pids(8088)
+        observed = listener_pids(port)
         assert observed.state == "listening" and observed.pids
         report = controller.start(open_browser=False)
         assert report["ok"], report
         assert runner.container["id"] == identity
         assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
-        assert listener_pids(8088) == observed
+        assert listener_pids(port) == observed
     finally:
         listener.close()
 
 
-def test_fix2_docker_only_start_keeps_real_unrelated_host3081_listener(runtime):
-    from research_workbench_entrypoint.web_contract import listener_pids
+def test_fix2_docker_only_start_keeps_real_host3081_and_refuses_unknown_product(runtime):
+    from research_workbench_entrypoint.web_contract import listener_pids, probe_process
     controller, runner, _ = runtime
     controller.data_dir.mkdir(mode=0o700)
     listener = socket.socket()
@@ -225,9 +228,16 @@ def test_fix2_docker_only_start_keeps_real_unrelated_host3081_listener(runtime):
             listener.listen()
         observed = listener_pids(3081)
         assert observed.state == "listening" and observed.pids
+        facts = [probe_process(pid) for port in (8088, 3081) for pid in listener_pids(port).pids]
+        product_writer = any(fact.argv and any("app.research_web.main" in arg or "/apps/cli/lib/bin.js" in arg
+                                               for arg in fact.argv) for fact in facts)
         report = controller.start(open_browser=False)
-        assert report["ok"], report
-        assert runner.container and runner.container["running"]
+        if product_writer:
+            assert report["issues"] == ["runtime_ownership_unknown"], report
+            assert runner.container is None
+        else:
+            assert report["ok"], report
+            assert runner.container and runner.container["running"]
         assert listener_pids(3081) == observed
         assert not any(argv[1] in ("stop", "rm") for argv, _ in runner.calls)
     finally:
@@ -237,12 +247,28 @@ def test_fix2_docker_only_start_keeps_real_unrelated_host3081_listener(runtime):
 def test_fix2_managed_docker_mapping_mismatch_cannot_be_adopted(runtime):
     controller, runner, _ = runtime
     controller.data_dir.mkdir(mode=0o700)
+    controller.endpoint_store.publish("native", controller.ports[0], controller.ports[1], expected=None)
     owned(controller, runner)
     runner.container["ports"]["8088/tcp"][0]["HostPort"] = str(controller.ports[0] + 1)
     report = controller.start(open_browser=False)
     assert report["issues"] == ["docker_ports_mismatch"], report
     assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
     assert runner.container["running"]
+
+
+@pytest.mark.parametrize("default_only", [False, True])
+def test_fix3_missing_environment_other_checkout_can_share_env_data_root(runtime, monkeypatch, default_only):
+    from research_workbench_entrypoint import bootstrap
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+    controller, _runner, _record = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    monkeypatch.setenv("RESEARCH_DATA_HOME", str(controller.data_dir))
+    argv = ("python", "-m", "uvicorn", "app.research_web.main:app", "--app-dir", "/other/checkout")
+    monkeypatch.setattr(bootstrap, "listener_pids", lambda port:
+                        ListenerFact("listening", (456,), None) if not default_only or port == 8088 else ListenerFact("closed", (), None))
+    monkeypatch.setattr(bootstrap, "probe_process", lambda pid: ProcessFact("alive", None, None, argv, 123.0))
+    report = bootstrap.NativeRuntime(controller.project_root, controller.home, ports=controller.ports).status()
+    assert report["issues"] == ["runtime_ownership_unknown"], report
 
 
 @pytest.mark.parametrize("replacement", ["launch", "image", "installation", "mount"])
@@ -946,6 +972,9 @@ def test_logs_preserve_owned_process_exit_code(runtime):
 def test_native_probe_preserves_stale_state_and_refuses_foreign_before_stop(tmp_path, monkeypatch, available_ports):
     from research_workbench_entrypoint.bootstrap import _native_probe
     from app.research_web.service_manager import WebServiceManager
+    from app.research_web import service_manager as manager_module
+    from research_workbench_entrypoint.web_contract import ListenerFact
+    monkeypatch.setattr(manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
 
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
@@ -971,11 +1000,19 @@ def test_native_probe_preserves_stale_state_and_refuses_foreign_before_stop(tmp_
 
 def test_native_bridge_subprocess_with_temporary_home_does_not_write(tmp_path, available_ports):
     from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.web_contract import listener_pids, probe_process
 
     root = Path(__file__).resolve().parents[2]
     home = tmp_path / "absent"
     controller = NativeRuntime(root, home, ports=available_ports)
-    assert controller.status()["ok"]
+    facts = [probe_process(pid) for port in (8088, 3081) for pid in listener_pids(port).pids]
+    product_writer = any(fact.argv and any("app.research_web.main" in arg or "apps/cli/lib/bin.js" in arg
+                                           for arg in fact.argv) for fact in facts)
+    report = controller.status()
+    if product_writer:
+        assert report["issues"] == ["runtime_ownership_unknown"], report
+    else:
+        assert report["ok"], report
     assert not home.exists()
 
 
@@ -1422,6 +1459,9 @@ def test_installer_summary_failure_restores_pending_origin_and_endpoints(runtime
 
 
 def test_native_docker_native_control_roundtrip_preserves_both_tokens(runtime, monkeypatch):
+    from app.research_web import service_manager as manager_module
+    from research_workbench_entrypoint.web_contract import ListenerFact
+    monkeypatch.setattr(manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
     from app.research_web.service_manager import WebServiceManager
     from app.research_web.datahub.security import load_control
     from app.research_web.mcp_runtime.control import load_control as load_mcp
