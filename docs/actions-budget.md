@@ -1,5 +1,8 @@
 # GitHub Actions 免费额度治理
 
+当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
+
+
 本页是 ResearchWorkbench 的 Actions 用量、触发路由和证据保留权威规则。仓库当前为 public；GitHub 官方规则说明，公开仓库使用标准 GitHub-hosted runner 不消耗付费分钟。仓库仍不配置付款方式或付费超额预算，也不使用 self-hosted runner。若仓库以后改回 private、使用 larger runner 或出现其他计费面，立即恢复下述额度状态门。[GitHub Actions 计费规则](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
 
 ## 状态门

@@ -184,7 +184,7 @@ test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   }
 });
 
-test('policy conditionally requires Windows verification without Mac PR auto-triggering it', () => {
+test('macOS phase defers Windows verification without deleting its workflow', () => {
   for (const file of [
     'setup-web.cmd',
     'rwb.cmd',
@@ -198,7 +198,7 @@ test('policy conditionally requires Windows verification without Mac PR auto-tri
     'vendor/cjpy/0.5.2/manifest.json',
     '.gitattributes',
   ]) {
-    assert.equal(policyRequiresGate(file, 'research-web-windows-verify'), true, file);
+    assert.equal(policyRequiresGate(file, 'research-web-windows-verify'), false, file);
     assert.equal(triggersForPath(workflows.windows, 'push', file), false, `push: ${file}`);
     assert.equal(triggersForPath(workflows.windows, 'pull_request', file), false, `pull_request: ${file}`);
   }
@@ -293,7 +293,7 @@ test('ordinary Research Web code uses Linux checks without unnecessary native jo
   const platformSpecific = 'app/research_web/service_manager.py';
   assert.equal(triggersForPath(workflows.checks, 'push', platformSpecific), true);
   assert.equal(triggersForPath(workflows.bootstrap, 'push', platformSpecific), true);
-  assert.equal(policyRequiresGate(platformSpecific, 'research-web-windows-verify'), true);
+  assert.equal(policyRequiresGate(platformSpecific, 'research-web-windows-verify'), false);
   assert.equal(triggersForPath(workflows.windows, 'push', platformSpecific), false);
 });
 

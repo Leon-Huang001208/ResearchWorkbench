@@ -427,3 +427,32 @@ gh workflow run research-web-windows-verify.yml --repo Leon-Huang001208/Research
 报告收口仅本地提交；远端任务分支冻结H供Windows验收，不为报告再push/重跑。最终报告HEAD、H及source差异另存final-identity.json。受管manifest逐文件摘要0不匹配，完整81路径安全标记/禁止artifact路径0命中，见safety-and-manifest.json；没有真实认证资料上传。必要回归已完成，未修改产品锁/fixed DSH/Hook/policy来凑结果。图证据按内容与规则不变复用，其他未变API/UI证据按相同源码复用。
 
 **C5仍部分完成，1A仍未完成；mergeReady=false、releaseReady=false。** 三个自动门已取得相同合并预览的精确PASS；尚缺Windows真机exact-SHA CI及B实际归因/T6（后两项本轮不重开）。供应商请求0，不合并PR，不发布、不修改生产，不自动进入后续阶段。本次按有界观测交接运行ID，不承诺后台持续执行；若Bootstrap继续运行，该状态不是PASS。
+
+## 2026-10-06 macOS Native 优先：当前阶段结论（替代旧 Windows 交接要求）
+
+用户明确决定本阶段只推进macOS Native，Windows/Linux产品验证暂缓，未验证事实保留但不再阻断Mac。AGENTS的Current Research Web delivery phase是唯一阶段权威；安装/工作流/费用说明引用它。本轮不执行旧windows-handoff.ps1或Windows dispatch，不索取Key/供应商请求（0），不重开T6、不进入后续阶段、不改生产。
+
+输入HEADc0ac36f4ba2b4c7f4e9e972ccf35856740a78811、工作区干净。保留a4406b42d3b35635968941cf2b27990a4a71a96c及其实际CI merge preview24069c23e590258dc7b09935fcd7082bdb32e036；三个自动门已PASS，准确收口为**该候选C5 macOS范围自动门通过**。本轮治理修改产生新候选后，旧成功不冒称新HEAD成功；产品app源码完全未变，已匹配的C1/C2、T0—T5及图视觉证据复用，37条边界外与manager既有类型诊断保留。
+
+现有schema/规划器没有任务目标平台开关；最小实现使用原policy规则ci选择，暂不选择Research Web Windows gate（包括共享依赖/Git平台相关路由），保留catalog、workflow、expected_sha、现有Windows代码及桌面独立边界。平台维度仍保留潜在跨平台影响，不误称其他平台已实现；风险/unknown fallback/L4/完整changed set和Ubuntu通用CI均不降级。未来用户重新开启Windows时恢复相关路由选择；直接fixture合同证明重新选择Windows会重新要求原门。本轮没有改全局Hook、受管kernel/manifest/schema或新增框架。
+
+先新增Mac阶段合同取得实际RED，随后最小policy/直接期望调整；178条阶段、恢复Windows、回执防伪、费用、架构和文档合同实际PASS/0skip。首次旧Windows硬门期望的失败与定位脚本错误保留在macos-first日志；防伪回执测试仍针对实际必选Project Constraints，未删测试或放宽断言。没有产品源码变化、依赖安装、供应商或真实Keychain生命周期重验。完整范围和本轮增量另存scope.json，现有plan仍要求三项通用/Mac自动门，Windows不再是所选门；未执行的平台在说明/风险记为用户暂缓，未写成PASS。
+
+Mac基础模型链路已有真实证据：设置保存、系统Keychain、留空保留、替换后生成、清除后新旧会话阻断、无Key冷重启及带Key Host/DSH冷重启恢复。B实际供应商Key归因仍未验证；T6正式Web→DSH→模型→公开只读原生工具→最终回复仍NOT_RUN，原预算/单步约束障碍保留。Mac基础能力可用不等于完整研究工具链、完整1A或正式发布完成，平台范围变更不豁免这些功能项。
+
+### 已核对的独立 Mac 运行入口
+
+工作目录 `/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench`；独立实例根 `/private/tmp/rwb-c3c4-u_4bgdb6`，data home为其research-web子目录，Host18088/DSH13081，固定DSH c919b2a460753859665db3f60143d525fb9140cf、原产品专属.venv和已有真实安装清单。现有公开./rwb web start/stop/status/doctor入口默认8088/3081，没有独立端口参数，因此本独立实例复用正常WebServiceManager的已有构造参数/归属与安装门；不运行默认入口去占用或改变生产。
+
+任务专用启动薄入口 `/private/tmp/rwb-c3c4-u_4bgdb6/macos-instance.py` 仅调用现有manager，支持start/stop/status/doctor，不处理凭据，不绕过门禁，不是新产品启动系统。在上述工作目录可执行：
+
+```bash
+.venv/bin/python /private/tmp/rwb-c3c4-u_4bgdb6/macos-instance.py start
+.venv/bin/python /private/tmp/rwb-c3c4-u_4bgdb6/macos-instance.py status
+.venv/bin/python /private/tmp/rwb-c3c4-u_4bgdb6/macos-instance.py doctor
+.venv/bin/python /private/tmp/rwb-c3c4-u_4bgdb6/macos-instance.py stop
+```
+
+正常启动且status显示两owned服务ready后，设置页为 `http://127.0.0.1:18088/#/settings/model`。本轮补一次无Key受管启动/Doctor/首页检查：产品ready、安装ready、首页200；model_ready=false是未配置Key的预期状态，未执行真实生成。一次错误GET /api/research/settings/model返回HTTPError，此路由不存在，记录保留，不标模型状态API通过；正式API为/api/research/models和/api/research/runtime/model。随后正常停止所属测试进程，最终status两服务missing/ports closed。独立实例当前未运行、Key仍未录入；重新启动后才访问上述页面。不要把旧ambient浏览器地址当成当前在线证明。
+
+日常生产8088/3081没有修改/停止/升级/迁移，**生产仍未更新到本任务候选**。本轮只是可重复使用的独立Mac候选入口。原安装门、真实manifest/固定构建校验复用，不手写安装证明、复制生产凭据或读取个人工具配置。

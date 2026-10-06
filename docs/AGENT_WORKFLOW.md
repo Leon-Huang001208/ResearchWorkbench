@@ -1,5 +1,8 @@
 # Agent 任务路由指南
 
+当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
+
+
 本指南用于在开始工作前选择合适的执行方式，并定义可复核的交付证据。共享规则以仓库根目录的 `AGENTS.md` 为准；`.agents/skills/` 中存放已跟踪的项目 skills。`.claude/` 仅是本机可选配置，不能作为共享规则来源。
 
 数据能力仅在对应任务中按需加载：`wind-find-finance-skill` 负责金融能力发现，`wind-mcp-skill` 负责受支持的 Wind 查询；`cls`、`cnstock` 和 `data-connector-development` 只维护 legacy crawler/Connector 层，不能把代码存在误报为当前 Research Web DataHub Provider 可调用。全局目录不再承载这些项目专属 Skill。

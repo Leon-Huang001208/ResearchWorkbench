@@ -1,5 +1,8 @@
 # Research Web 一键本地安装
 
+当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
+
+
 ## 支持范围
 
 首版支持 macOS 与 Windows 的 Web 产品，不安装 Tauri、桌面 sidecar、数据库或桌面安装包。用户需先安装：

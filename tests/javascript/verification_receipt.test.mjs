@@ -137,17 +137,17 @@ test("valid receipt proves every required validation and external gate", t => {
   });
 });
 
-test("case G keeps required Windows CI NOT_RUN and blocks merge readiness", t => {
+test("case G keeps required generic CI NOT_RUN and blocks merge readiness", t => {
   const plan = planFor(["setup-web.cmd"]);
   const receipt = validReceipt(plan);
-  const windows = receipt.external.find(item => item.id === "research-web-windows-verify");
-  assert.ok(windows);
-  windows.status = "NOT_RUN";
-  windows.evidence = "logs/research-web-windows-verify-not-run.log";
+  const requiredCi = receipt.external.find(item => item.id === "project-constraints");
+  assert.ok(requiredCi);
+  requiredCi.status = "NOT_RUN";
+  requiredCi.evidence = "logs/project-constraints-not-run.log";
   receipt.result = "BLOCKED";
   receipt.mergeReady = false;
   receipt.releaseReady = false;
-  receipt.uncoveredRisks.push("external_gate_not_run:research-web-windows-verify");
+  receipt.uncoveredRisks.push("external_gate_not_run:project-constraints");
 
   const {root} = fixture(t, {plan, receipt});
   const verdict = success(run(root));
@@ -185,10 +185,10 @@ test("receipt v2 rejects noncanonical and false-positive status projections", t 
   failure(run(fixture(t, {plan, receipt: lowercase}).root), "RECEIPT_ERROR");
 
   const falseReady = validReceipt(plan);
-  falseReady.external.find(item => item.id === "research-web-windows-verify").status = "NOT_RUN";
+  falseReady.external.find(item => item.id === "project-constraints").status = "NOT_RUN";
   falseReady.result = "BLOCKED";
   falseReady.releaseReady = false;
-  falseReady.uncoveredRisks.push("external_gate_not_run:research-web-windows-verify");
+  falseReady.uncoveredRisks.push("external_gate_not_run:project-constraints");
   failure(run(fixture(t, {plan, receipt: falseReady}).root), "RECEIPT_ERROR");
 
   const missingLane = validReceipt(plan);
@@ -262,7 +262,7 @@ test("tampered plan cannot remove a required validation from its receipt templat
 
 test("canonical replanning rejects a self-consistent required gate removal", t => {
   const plan = planFor(["setup-web.cmd"]);
-  const removed = "research-web-windows-verify";
+  const removed = "project-constraints";
   for (const level of Object.keys(plan.validationsByLevel)) {
     plan.validationsByLevel[level] = plan.validationsByLevel[level].filter(item => item.id !== removed);
   }

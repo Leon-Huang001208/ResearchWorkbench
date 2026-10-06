@@ -487,8 +487,7 @@
       "ci": [
         "project-constraints",
         "research-web-checks",
-        "research-web-bootstrap",
-        "research-web-windows-verify"
+        "research-web-bootstrap"
       ],
       "realMachine": []
     },
@@ -531,8 +530,7 @@
       "ci": [
         "project-constraints",
         "research-web-checks",
-        "research-web-bootstrap",
-        "research-web-windows-verify"
+        "research-web-bootstrap"
       ],
       "realMachine": []
     },
@@ -613,8 +611,7 @@
         "documentation-governance"
       ],
       "ci": [
-        "project-constraints",
-        "research-web-windows-verify"
+        "project-constraints"
       ],
       "realMachine": []
     },
@@ -888,8 +885,7 @@
       ],
       "ci": [
         "project-constraints",
-        "research-web-checks",
-        "research-web-windows-verify"
+        "research-web-checks"
       ],
       "realMachine": []
     },
@@ -1196,8 +1192,7 @@
       "ci": [
         "project-constraints",
         "research-web-checks",
-        "research-web-bootstrap",
-        "research-web-windows-verify"
+        "research-web-bootstrap"
       ],
       "realMachine": []
     },
@@ -1242,8 +1237,7 @@
       "ci": [
         "project-constraints",
         "research-web-checks",
-        "research-web-bootstrap",
-        "research-web-windows-verify"
+        "research-web-bootstrap"
       ],
       "realMachine": []
     },
@@ -1283,8 +1277,7 @@
       "ci": [
         "project-constraints",
         "research-web-checks",
-        "research-web-bootstrap",
-        "research-web-windows-verify"
+        "research-web-bootstrap"
       ],
       "realMachine": []
     },
@@ -1325,8 +1318,7 @@
       "ci": [
         "project-constraints",
         "research-web-checks",
-        "research-web-bootstrap",
-        "research-web-windows-verify"
+        "research-web-bootstrap"
       ],
       "realMachine": []
     },
@@ -1403,8 +1395,7 @@
       ],
       "ci": [
         "project-constraints",
-        "research-web-checks",
-        "research-web-windows-verify"
+        "research-web-checks"
       ],
       "realMachine": []
     },

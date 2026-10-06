@@ -21,6 +21,12 @@
 - 桌面端改动严格遵守 `docs/desktop_packaging.md`；宣称 Windows 支持前，必须有原生 Windows CI 的构建和健康检查证据。
 - 发布桌面端版本前，另须在真实 Windows 环境完成安装级冒烟测试。
 
+## Current Research Web delivery phase (authoritative)
+
+自用户 2026-10-06 范围决定起，当前 Research Web 仅交付 **macOS Native**。Windows/Linux 产品适配、原生验证、真机验收与交接暂缓，未验证事实保留，但不阻断当前 Mac 阶段；不得执行旧 Windows 交接脚本。Ubuntu 的 Project Constraints/Research Web Checks 是通用 CI，继续保留。
+
+`.agents/verification-policy.json` 的 Research Web 路由按此阶段暂不选择 Windows CI；Windows catalog、workflow、expected_sha 合同和代码保持。用户明确重新开启 Windows/跨平台范围时，恢复相应 Web 路由的 Windows CI 选择及下述原生规则；不可仅因宿主是 Mac 而跳过已重新开启的平台。此阶段不豁免 B 归因、T6、未知风险或任何 Mac 安全与功能门。
+
 ## Web installation contract (mandatory)
 
 - 每次产品迭代都必须保持公开入口 `./setup-web.sh`、`setup-web.cmd` 与
@@ -31,7 +37,7 @@
   安装 CI 证明仍兼容，不能仅凭本机已有环境判断。
 - Web 交付必须先完成本机 macOS 相关验证，再等待 GitHub `macos-14` 干净安装、固定 DSH 构建、
   3081/8088 健康检查和 `rwb web doctor --json` 通过；本机成功不能替代 GitHub Mac。安装、共享 runtime、
-  Windows launcher、路径/编码/进程和本机集成等平台敏感改动会由 Router 标记为需要 GitHub
+  Windows launcher、路径/编码/进程和本机集成等平台敏感改动在明确重新开启该平台范围后，由 Router 标记为需要 GitHub
   `windows-2022`，但 Mac PR/push 不自动触发；必须在 Windows 真机 checkout 待验 commit 后，从该机
   以 exact SHA 执行 `workflow_dispatch`。Windows CI 不能替代 Windows 实机安装、升级、
   Office/Wind 或企业环境验证；未执行的层级必须保留 `NOT_RUN` 或 `MANUAL_REQUIRED`，不得宣称通过。
