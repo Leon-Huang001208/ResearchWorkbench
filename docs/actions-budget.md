@@ -27,18 +27,20 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 
 ## Workflow 路由
 
-| 改动 | 自动门禁 | 不应触发 |
+| 改动 | 自动门禁 / Windows 验证责任 | 不应触发 |
 | --- | --- | --- |
 | 文档、归档、报告 | Project Constraints（Ubuntu） | Bootstrap、Windows、Desktop、Tabbit |
 | 普通 Research Web／CLI | Research Web Checks（Ubuntu） | Bootstrap、Desktop；非 Windows 专属时不跑 Windows Verify |
-| 安装器、Web 锁、启动器、固定 DSH/CJPY、服务装配 | Research Web Checks + Bootstrap（自动 `macos-14`） | Windows Web 自动验证、Desktop |
+| 共享安装器、Web 锁、固定 DSH/CJPY、跨平台 runtime/服务装配 | 自动 Research Web Checks + Bootstrap；Windows 真机对 exact SHA dispatch Windows Verify | Desktop |
+| macOS shell launcher | Research Web Checks + Bootstrap | Windows、Desktop |
+| Windows launcher、路径、认证文件、本机集成、编码/进程/服务管理 | 自动 Research Web Checks；Windows 真机对 exact SHA dispatch Windows Verify | Bootstrap、Desktop |
 | Docker 打包、共享运行时契约/控制器、容器认证与凭据边界 | Research Web Docker（Ubuntu，amd64/arm64）；共享 Native 合同仍进入 Bootstrap | 普通文档/UI 不触发 Docker；不代替 Native 或 Desktop |
-| Windows 路径、认证文件、本机集成、服务管理 | Research Web Checks；Windows Verify 仅用户显式 `workflow_dispatch` | Desktop |
 | Tabbit 平台合同 | 用户显式 `workflow_dispatch` | 普通 push／PR 自动触发 |
 | 桌面专属路径 | Desktop Verify | 普通 Web workflow 不能替代桌面门禁 |
 | Desktop Release | tag 或显式 dispatch | 普通 push |
 
-Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 当前只自动运行 `macos-14`；Windows Web workflow 保留原生 `windows-2022` 任务与 3 天证据，但仅在用户显式手动触发时运行。未执行的 Windows 任务不得写成已通过，且这一 Web 路由边界不改变 Desktop Verify 的独立 Windows 规则。
+Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 只运行 `macos-14`。Windows Web workflow 只保留 `workflow_dispatch`：policy 对 platform-sensitive changed set 选择 Windows gate 后，Windows 真机 checkout 待验 ref，以该机 `git rev-parse HEAD` 得到的 exact SHA 发起 `windows-2022`。Mac PR/push 不触发 Windows workflow。普通 UI、文档、纯 framework/DataHub 业务代码不选择 Windows gate。Windows workflow 未选择时是 `NOT_REQUIRED`，已选择但未从 Windows 真机执行时是 `NOT_RUN`，均不得写成 `PASS`；Windows GitHub CI 也不能替代同一或另一 Windows 真机上的安装、升级、真实用户目录或 Office/Wind 验证。这一 Web 路由边界不改变 Desktop Verify 的独立原生双平台规则。
+Windows job 在 clean checkout 上执行公开 `setup-web.cmd --no-start`、`rwb.cmd` start/doctor/stop、setup contracts、local-integration contracts 和 loopback smoke；路径触发本身不能替代这些真实 job steps。
 Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
@@ -62,7 +64,7 @@ Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`�
 
 2026-09-17 先观测到 private 状态下 2,000 / 2,000 included minutes 和 billing-blocked，随后通过 GitHub API 确认仓库已改为 `PUBLIC`。提交 `76d1ea1053187569bb23d30f9a22b894ccbc0675` 的 Project Constraints、Research Web Checks 和 Bootstrap 双平台均正常启动并通过；repair 提交 `de39abcdbf3551c9985615e4cf80cd121a3a16b3` 的 Project Constraints、Research Web Checks 和 Windows Verify 也通过。因此当前状态是 `public-standard`，旧 billing-blocked 只作为历史证据保留，不再冻结标准 runner。
 
-docs-only 提交只能创建 Project Constraints。若出现 Research Web Checks、Bootstrap、Windows、Tabbit 或 Desktop run，视为路由回归。平台敏感提交则以 verification policy 与 workflow 路径合同共同决定验收责任，不从历史 run 推断当前 gate 已通过。
+docs-only 提交只能创建 Project Constraints。若出现 Research Web Checks、Bootstrap、Windows、Tabbit 或 Desktop run，视为路由回归。平台敏感提交则以 `.agents/verification-policy.json` 和 workflow path 合同共同决定 Ubuntu、macOS、Windows 或真实设备责任，不从历史 run 推断当前 gate 已通过。
 
 ## 月度记录模板
 

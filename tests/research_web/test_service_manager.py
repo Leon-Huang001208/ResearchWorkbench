@@ -5157,3 +5157,37 @@ def test_windows_runtime_auth_reader_does_not_apply_posix_group_mode_bits(manage
         auth = manager._read_runtime_auth()
 
     assert auth["cookie"] == "dsh-auth-test=value"
+
+
+def test_windows_graceful_taskkill_failure_allows_forced_escalation(manager, monkeypatch):
+    captured = []
+
+    class Result:
+        def __init__(self, returncode):
+            self.returncode = returncode
+
+    def run(command, **options):
+        captured.append((command, options))
+        return Result(0 if "/F" in command else 1)
+
+    monkeypatch.setattr(service_manager_module.subprocess, "run", run)
+    monkeypatch.setattr(manager, "_pid_exists", lambda _pid: True)
+
+    manager._terminate_pid(4321, force=False, platform_name="nt")
+    manager._terminate_pid(4321, force=True, platform_name="nt")
+
+    assert [command for command, _options in captured] == [
+        ["taskkill.exe", "/PID", "4321", "/T"],
+        ["taskkill.exe", "/PID", "4321", "/T", "/F"],
+    ]
+
+
+def test_windows_forced_taskkill_failure_still_fails_closed(manager, monkeypatch):
+    class Result:
+        returncode = 1
+
+    monkeypatch.setattr(service_manager_module.subprocess, "run", lambda *_args, **_kwargs: Result())
+    monkeypatch.setattr(manager, "_pid_exists", lambda _pid: True)
+
+    with pytest.raises(ServiceManagerError, match="无法停止 Windows 服务进程树"):
+        manager._terminate_pid(4321, force=True, platform_name="nt")

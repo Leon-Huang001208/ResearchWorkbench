@@ -66,10 +66,17 @@ function validReceipt(plan) {
   };
 }
 
-function fixture(t, {plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]), receipt} = {}) {
+function fixture(t, {plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]), receipt, historical = false} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "rwb-verification-receipt-"));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   fs.mkdirSync(path.join(root, "logs"), {recursive: true});
+  if (!historical) {
+    fs.mkdirSync(path.join(root, ".agents"), {recursive: true});
+    fs.copyFileSync(
+      path.join(repositoryRoot, ".agents/verification-policy.json"),
+      path.join(root, ".agents/verification-policy.json"),
+    );
+  }
   const actualReceipt = receipt ?? validReceipt(plan);
   for (const item of [
     ...actualReceipt.executed,
@@ -212,7 +219,9 @@ test("legacy plan v2 and receipt v1 remain valid without rewriting", t => {
     path.join(repositoryRoot, ".ai/reports/incremental-validation-v2-small-receipt.json"),
     "utf8",
   ));
-  const {root} = fixture(t, {plan, receipt});
+  // Archive reading has no current policy: it proves the historical receipt's
+  // internal consistency, never acceptance for the current checkout.
+  const {root} = fixture(t, {plan, receipt, historical: true});
   const verdict = success(run(root));
   assert.deepEqual(verdict, {
     schemaVersion: 1,
@@ -223,6 +232,17 @@ test("legacy plan v2 and receipt v1 remain valid without rewriting", t => {
     executedCount: 4,
     escalationRequired: false,
   });
+});
+
+test("legacy archive cannot certify a checkout with the current policy", t => {
+  const plan = JSON.parse(fs.readFileSync(
+    path.join(repositoryRoot, ".ai/reports/incremental-validation-v2-small-plan.json"), "utf8",
+  ));
+  const receipt = JSON.parse(fs.readFileSync(
+    path.join(repositoryRoot, ".ai/reports/incremental-validation-v2-small-receipt.json"), "utf8",
+  ));
+  const {root} = fixture(t, {plan, receipt});
+  failure(run(root), "PLAN_ERROR");
 });
 
 test("missing required validation is rejected", t => {
@@ -236,6 +256,19 @@ test("missing required validation is rejected", t => {
 test("tampered plan cannot remove a required validation from its receipt template", t => {
   const plan = planFor(["app/research_web/ui/frameworks/goldar.mjs"]);
   plan.receiptTemplate.requiredValidationIds.pop();
+  const {root} = fixture(t, {plan, receipt: validReceipt(plan)});
+  failure(run(root), "PLAN_ERROR");
+});
+
+test("canonical replanning rejects a self-consistent required gate removal", t => {
+  const plan = planFor(["setup-web.cmd"]);
+  const removed = "research-web-windows-verify";
+  for (const level of Object.keys(plan.validationsByLevel)) {
+    plan.validationsByLevel[level] = plan.validationsByLevel[level].filter(item => item.id !== removed);
+  }
+  plan.ci = plan.ci.filter(item => item.id !== removed);
+  plan.receiptTemplate.externalGateIds = plan.receiptTemplate.externalGateIds.filter(id => id !== removed);
+
   const {root} = fixture(t, {plan, receipt: validReceipt(plan)});
   failure(run(root), "PLAN_ERROR");
 });
@@ -375,6 +408,6 @@ test("commands stored in a plan are never executed", t => {
   plan.validationsByLevel[plan.tests[0].level].find(item => item.id === plan.tests[0].id).value = command;
   plan.local.find(item => item.id === plan.tests[0].id).value = command;
   const {root} = fixture(t, {plan, receipt: validReceipt(plan)});
-  success(run(root));
+  failure(run(root), "PLAN_ERROR");
   assert.equal(fs.existsSync(marker), false);
 });

@@ -29,7 +29,7 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 
 ## 开发
 
-- [Agent 工作流](AGENT_WORKFLOW.md)：本地快环、worktree、后台／远程和交付证据。
+- [Agent 工作流](AGENT_WORKFLOW.md)：GitHub/master/短期分支、Mac 开发、Windows 验证、worktree、Platform-aware Minimal Acceptance 和交付证据。
 - [最小验收规划兼容入口](../.claude/commands/verify-task.md)：仅把 Claude 命令转交给项目只读规划器；规则真源仍是 `.agents/verification-policy.json`。
 - [共享验收内核接入回执](../.ai/reports/2026-09-29-leon-verification-shared-runtime.md)：受管 runtime 版本、兼容验证与未运行外部门。
 - [参考入口](REFERENCE.md)：当前 CLI、API Atlas、生成索引与兼容平台参考。
@@ -40,7 +40,7 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 ## 运维
 
 - [Research Web 运行与用量](research-web-operations.md)：只读健康、用量和存储聚合。
-- [GitHub Actions 额度治理](actions-budget.md)：免费分钟、冻结状态、workflow 路由、macOS 自动验证与 Windows 手动证据边界。
+- [GitHub Actions 额度治理](actions-budget.md)：免费分钟、冻结状态、macOS 自动门、Windows 真机 dispatch 的 GitHub CI 及独立实机证据边界。
 - [备份、恢复与迁移](backup_restore.md)：当前 Research Web 数据目录、迁移和凭据边界。
 - [Research Web 文件交付](research-web-delivery.md)：产物格式、校验和交付状态。
 - [桌面打包历史](desktop_packaging.md)：只有明确重启桌面工作时才适用的跨平台门禁。

@@ -80,8 +80,10 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 - 对全部受跟踪 Markdown 执行状态分类；同一主题只允许一个 current 权威，当前文档的相对链接与锚点必须存在。
 - 对当前文档拒绝已知退役命令；`docs/generated/py_file_index.md` 必须与生成器输出完全一致。
 - 检查 docs-only、普通 Web、安装面、Windows、Tabbit 与 Desktop 的 workflow 路由；自动 workflow
-  必须有 concurrency、取消旧运行和超时，Web artifact 保留期不得超过 3 天。Research Web 安装自动
-  门只允许 GitHub macOS，Windows Web 与 Tabbit 暂停期间必须保持 `workflow_dispatch` 手动入口。
+  必须有 concurrency、取消旧运行和超时，Web artifact 保留期不得超过 3 天。Research Web macOS
+  Bootstrap 只处理 macOS launcher 与共享安装/runtime；policy 对共享安装/runtime、Windows launcher、
+  路径/编码/进程和本机集成条件选择 Windows gate，但 Windows workflow 只允许 Windows 真机携带
+  exact SHA 的 `workflow_dispatch`，Mac PR/push 不触发。Tabbit 仍保持独立手动入口。
 
 每个变化模块组在本次任务的 `.ai/reports/*.md` 中写入可机读标记，例如：
 
