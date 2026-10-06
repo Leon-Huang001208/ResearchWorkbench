@@ -529,36 +529,36 @@
       "id": "research-web-architecture",
       "level": "L1",
       "status": "PASS",
-      "durationSeconds": 5.888658166,
-      "evidence": "logs/stage1/final-node-verification.log"
+      "durationSeconds": 5.684104459,
+      "evidence": "logs/stage1/integrated-node-verification.log"
     },
     {
       "id": "project-constraints-local",
       "level": "L2",
       "status": "PASS",
-      "durationSeconds": 0.13613541699999995,
-      "evidence": "logs/stage1/project-constraints-current.json"
+      "durationSeconds": 0.13712570800000004,
+      "evidence": "logs/stage1/integrated-constraints.json"
     },
     {
       "id": "research-web-verification-full",
       "level": "L4",
       "status": "PASS",
-      "durationSeconds": 5.888658166,
-      "evidence": "logs/stage1/final-node-verification.log"
+      "durationSeconds": 5.684104459,
+      "evidence": "logs/stage1/integrated-node-verification.log"
     },
     {
       "id": "documentation-governance",
       "level": "L0",
       "status": "PASS",
-      "durationSeconds": 0.12702920799999998,
-      "evidence": "logs/stage1/governance-current.json"
+      "durationSeconds": 0.12780025,
+      "evidence": "logs/stage1/integrated-governance.json"
     },
     {
       "id": "python-file-index",
       "level": "L0",
       "status": "PASS",
-      "durationSeconds": 0.8885590420000001,
-      "evidence": "logs/stage1/python-index-current.log"
+      "durationSeconds": 0.929375583,
+      "evidence": "logs/stage1/integrated-python-index.log"
     }
   ],
   "external": [
@@ -583,7 +583,7 @@
     "external_gate_not_run:research-web-checks",
     "supplemental_python_checks_not_run:loaded_guard_denial",
     "supplemental_macos_bootstrap_not_run",
-    "latest_master_integration_pending"
+    "new_source_revision_repository_navigation_pending_push"
   ],
   "escalation": {
     "required": false,

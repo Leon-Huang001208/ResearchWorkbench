@@ -6,11 +6,13 @@
 - hostPlatform: macOS (Darwin)；taskKind: 功能开发。
 - taskId: task-20261006-992c74ec267b。
 - worktree: `/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20261006-992c74ec267b`。
-- branch: `codex/task-20261006-992c74ec267b-architecture-reading-stage1`。
+- 原 branch: `codex/task-20261006-992c74ec267b-architecture-reading-stage1`，功能快照 2b40f46e18b8957a0bd1960fa1b12a73478551df。
+- 当前集成 worktree: `/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20261006-992c74ec267b-integration`；branch: `codex/integrate-task-20261006-992c74ec267b`。
+- 导航固定源码/文档快照: 6ca33b2fbcab94357e129ee11bb236fc8683feff；生成物候选由该快照之后的独立提交记录。
 - 开始基线与图示源码：`211703cca660172b524eff804cc547458529858e`；新观察远端 master：`ddcdd9784d8eda2918b8987ca8b679375e67291d`。PR #80 已由独立任务合并，本任务未修改该 PR；最新主线已在独立集成现场归并，后续候选另记。
 - 1A/1B/1C 实现已落地，清单 186 个唯一 Method + Path / 188 项声明；数字不是验收常量。
 - 本轮新增验证：架构 72 项（新增悬空链接及登记/允许列表 fixture）；相关 L4 Node 合同 100/100 PASS；生成完整内容一致性 PASS；实际 HTTP 安全边界 10/10 PASS；Python 语法编译 PASS。
-- 真实浏览器：Settings → 架构文档分类 → 新页图册 → 总图/分图/返回 → 框架及协调器正确 API 分类 PASS；固定基线版本的说明、源码、测试均实际点击并 HTTP 200。独立 Web 18088 禁用 lifespan，验证的是阅读面，不是 Runtime 产品 ready。
+- 真实浏览器：Settings → 架构文档分类 → 新页图册 → 总图/分图/返回 → 框架及协调器正确 API 分类 PASS；固定 211703c 基线版本的说明、源码、测试均实际点击并 HTTP 200；集成后的新源码版本尚未推送，205 个链接本地 Git 对象验证通过，HTTP 补证待送审后执行。独立 Web 18088 禁用 lifespan，验证的是阅读面，不是 Runtime 产品 ready。
 - 独立审查：生成器悬空符号链接 P2 和外部导航错误误报 BLOCKED 的 P2 均已修复并获只读复核；无新增具体问题。详见独立审查报告。
 - 总图图源/HTML/四视口/四截图与用户确认仍匹配；用户人工审阅 PASS；自动 visualReview 保持 pending。既有图只复用同哈希证据。
 - Python pytest、Ruff、Black、isort、mypy：NOT_RUN。安装早已获用户授权，但本轮正常 pip 路径仍被已加载的 leon-engineering Guard 拒绝；配置 enabled=false 尚未成为当前宿主实际行为。未绕过 Hook，未将环境错误当测试 RED。
@@ -181,7 +183,7 @@ settled runtime failure 分别投影为可见 connecting/offline。阅读顺序�
 
 - 完整 changed set 的 planner/receipt 已更新。validator 输出 valid=true、result=BLOCKED、mergeReady=false、releaseReady=false，表示真实未完成状态结构有效，不表示验收完成。
 - 最新相关 Node 合同 100/100；生产生成物 --check、治理、Python 索引与 Project Constraints 同步通过。
-- E2E 回执绑定当前脚本与清单真实 SHA-256，Settings 起点、图页返回、两领域分类及三种仓库链接实际点击均通过。Agent 查看了实际 Settings 与 Web 服务下的总图截图；离线阅读服务的 Runtime 错误状态已如实保留，不认证产品 ready。
+- 基线 E2E 回执绑定执行当时脚本与清单真实 SHA-256，Settings 起点、图页返回、两领域分类及三种仓库链接实际点击均通过。Agent 查看了实际 Settings 与 Web 服务下的总图截图；离线阅读服务的 Runtime 错误状态已如实保留，不认证产品 ready。
 - 新总图与基线图形证据保持原哈希，无重复人工审批。后续 source 文档版本与候选提交将分开记录，不要求产物嵌入包含自身的 SHA。
 - 正常安装仍被同一 Guard 拒绝；查看 Codex App 当前设置的 native UI 也被 Computer Use 的安全策略禁止，未使用其他方式绕过。测试包安装授权继续有效，但宿主行为未改变。
 - 远端仓库 PUBLIC，master 已前进到 ddcdd9784d8eda2918b8987ca8b679375e67291d；PR #80 已合并，本任务未操作；PR #81 是另一任务，保持不动。
@@ -196,3 +198,18 @@ settled runtime failure 分别投影为可见 connecting/offline。阅读顺序�
 - 自动归并带入的重复架构开头已整理为职责/边界优先，保留主线模型活动门与认证 record 分工。
 - 日志作为任务证据复制到集成现场，未用文件复制同步源码。
 - 管理器初次返回 integration_conflict 时实际 Git 尚无 MERGE_HEAD 或 U 文件；核对该管理器将任何 merge 非零归为冲突后，正常 git merge 得到两处真实冲突并完成归并。未直接把干净主线误认成包含功能的 prepared 候选。
+
+## 源码与生成物身份分离
+
+- 当前导航说明/源码/测试固定到源码快照 `6ca33b2fbcab94357e129ee11bb236fc8683feff`，该快照包含归并后的主线与本轮源代码/文档。
+- 图 00 的 repository evidence 仍为原 211703c 快照（图中对应代码关系未改变），图源与 HTML 哈希保持冻结，用户审阅不重签。
+- 首页/Atlas 将从上述源码快照的清单生成并单独提交；最终候选 SHA 由 Git/送审回执记录，不内嵌包含自身的提交。
+- 新源码快照尚未推送，仓库链接的本地文件/版本结构可以检查，目标 HTTP 打开须在送审后补证。此前 211703c 三种链接的实际点击证据保留为基线导航证据，不能冒充新 SHA 已可打开。
+
+## 集成候选本地验证
+
+- 最新主线集成后相关 Node 100/100 PASS；生成 --check、治理、Python 索引、完整 changed-set Project Constraints 均 PASS。
+- 重新规划完整 45 文件 changed set，相对最新主线 ddcdd9784d8eda2918b8987ca8b679375e67291d；schema 2 回执 validator 返回 valid=true / BLOCKED / mergeReady=false / releaseReady=false。
+- 新导航源码快照 6ca33b2fbcab94357e129ee11bb236fc8683feff 的 205 个引用全部由 git cat-file 实证存在；尚未进行该新 SHA 的外部 HTTP 导航，不能借旧 SHA 的 200 结果认证。
+- Python 与 macOS CI 继续 NOT_RUN；没有合并本任务、没有更新运行实例。独立 18088 验证服务已停止。
+- 下一步在实际停用 Guard 的宿主：按原授权完成测试工具安装和 Python 专项，再推送本任务集成候选并创建独立送审 PR；使用现有 macOS Bootstrap 入口，对实际 checkout 取证，并补新源码版本链接实测。保留 Windows/Linux NOT_RUN，不启动阶段二/三。
