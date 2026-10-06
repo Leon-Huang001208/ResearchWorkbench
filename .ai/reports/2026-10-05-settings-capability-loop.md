@@ -490,3 +490,11 @@ GREEN：guard7 PASS/0skip；启动器29 PASS。真实固定DSH在新独立合成
 Black/isort修改文件通过；Ruff首次因沙箱缓存写失败退出2，不是产品错误，随后现有Ruff --no-cache通过。mypy沿现有follow-imports=skip并用产品.venv解析依赖，launcher1源文件通过，仅已有unused-section提示；没有新增ignore/Any/改依赖。Python索引按新增helper同步。37条边界外和manager既有诊断未整改。完整changed set阶段验收沿现有规划器，不因每小修改重跑全仓；完整1A仍需真实T6和B归因，机械回执不代替真实验收。
 
 本阶段相关回归最终94 JS/300 Python PASS；launcher静态检查通过，完整84路径约束、文档及索引检查实际执行，未删除旧失败日志。尚无新的真实供应商请求/工具执行，专用Key将由用户只在产品页录入；预计先完成单次T6，然后按可获得的非秘密供应商记录判断B归因，不重复旧生命周期。控制补丁送检身份与真实实例PID/开始时间在t6-controlled目录绑定，不以历史e917b1c89 CI冒充新补丁通过。
+
+### 安全人工录入断点
+
+控制补丁正常提交并普通push为a558cd6f7db0c6337f979d08dacaf6899571b59f；PR78复用、新自动CI尚未收集，不把旧e917b1c89成功冒充此补丁通过。原独立实例经正常manager启动：DSH82351/13081、Host82491/18088，owned/ready；正常网页HTTP200、Runtime HTTP200显示credential_configured=false、configuration_uncertain=false、runtime_applied=false，公开akshare源callable=true。正式research-web preset、6模型/1公开日历工具、禁重试overlay已挂载，生产未改变。
+
+自动审批曾拒绝把Runtime响应credentials对象保存为证据（可能持久化凭据材料）；改为完全排除该对象及嵌套配置，只保存明确布尔/PID/公开源状态，安全替代实际通过，不绕过审批。live-preflight.json及live-ledger.json绑定代码、PID、实例和新预算，供应商请求0/6、工具执行0/1。先前固定DSH合同6次是无网络合成调用，不计真实供应商额度，也不当作T6通过。
+
+当前只等待用户在已核验 http://127.0.0.1:18088/#/settings/model 页面手动保存本轮专用测试Key后回复“已保存”；不读取密码框、剪贴板、Keychain值，不要求在对话/命令/截图提供Key。不要点击生成测试/发研究以免分散本轮计数。另仅询问供应商是否存在按该Key关联的非秘密请求记录；没有时B归因继续未验证。等待阶段保留归属明确的独立进程，未轮询人工录入或发供应商请求；结束后按产品清除Key并只停止所属进程。报告断点提交仅本地，不改变已推送控制候选，不重复CI。
