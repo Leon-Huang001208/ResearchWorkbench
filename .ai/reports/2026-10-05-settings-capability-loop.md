@@ -456,3 +456,15 @@ Mac基础模型链路已有真实证据：设置保存、系统Keychain、留空
 正常启动且status显示两owned服务ready后，设置页为 `http://127.0.0.1:18088/#/settings/model`。本轮补一次无Key受管启动/Doctor/首页检查：产品ready、安装ready、首页200；model_ready=false是未配置Key的预期状态，未执行真实生成。一次错误GET /api/research/settings/model返回HTTPError，此路由不存在，记录保留，不标模型状态API通过；正式API为/api/research/models和/api/research/runtime/model。随后正常停止所属测试进程，最终status两服务missing/ports closed。独立实例当前未运行、Key仍未录入；重新启动后才访问上述页面。不要把旧ambient浏览器地址当成当前在线证明。
 
 日常生产8088/3081没有修改/停止/升级/迁移，**生产仍未更新到本任务候选**。本轮只是可重复使用的独立Mac候选入口。原安装门、真实manifest/固定构建校验复用，不手写安装证明、复制生产凭据或读取个人工具配置。
+
+### 本轮新候选与有界自动 CI
+
+新候选**e917b1c8923dd9aeef3b542b22f42ffc60c53dc1**已正常提交并普通push；产品app、requirements和公开entrypoint相对已验证a4406b42完全无差异。完整历史差异82路径，本轮增量9路径（包含报告），相对固定PR目标58路径，scope/candidate记录保留；此前scope在报告追加前列8增量，最终身份按实际Git补记。本轮不另合master或改PR目标。当前stage规则/文档与直接合同产生新CI，不借旧成功替代。
+
+自动新run：Project Constraints37418741494，Research Web Checks37418741436，macOS Bootstrap37418741358；均pull_request/attempt1，head=e917b1c89，PR仍草稿/MERGEABLE/base9e231b6c。当前Project Constraints已PASS，其余最新状态见macos-first/runs.json；完成项实际checkout与PR merge preview另存pr.json，不混用head/base。没有Windows/Linux产品运行或重复dispatch，旧windows-handoff.ps1仅为历史文件，不执行、不要求用户执行。
+
+当前政策catalog的mergeReady/releaseReady只计算所选机械门，不能认证B归因/T6或代表合并/发布授权。原完整1A及正式研究工具链仍未完成；报告的整体交付判断保留mergeReady=false/releaseReady=false直到所需功能证据闭合，即使后续Mac catalog三个自动门变为PASS。Windows/Linux暂缓不属于该功能阻塞理由。新自动检查若交接时仍运行，仅保留精确run ID/状态，不承诺后台持续执行；已有H/M的Mac C5自动门PASS不受此报告变化抹除。
+
+此次范围修改、无Key入口确认和Mac能力交接已完成；未发现本轮新增阻断Mac启动的产品缺陷。B归因需要非秘密的供应商请求归属证据，T6需要明确获准且可约束请求数/工具执行的人工单步或等效现有路径，不能拿提示词保证或用户暂缓平台替代。本轮不建设预算系统、不重开真实验收。后续报告仅本地补记、不为报告无限重跑CI；生产仍未更新，独立实例停机。
+
+最终有界观测：新Project Constraints和Research Web Checks均PASS，实际checkout均8b3678d41483cf3520c5ae579632e5d820fddd9c（PR merge preview）；新macOS Bootstrap37418741358仍IN_PROGRESS，不标PASS、未dispatch。回执仍因该Mac自动门尚无完成证据而BLOCKED，external仅3项，Windows不参与阻塞。本轮无生产更新、供应商请求0、独立实例已停机。
