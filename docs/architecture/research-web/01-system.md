@@ -90,6 +90,13 @@ Host controller 为一次新建启动临时叠加 launch label，Compose up失�
 固定state/credential叶与data-root/logs的首次创建分为受控mkdir与完整重pin两阶段，
 避免Desktop首建改变父可见owner而误报；认证、健康和子进程只能在原严格校验重新通过后运行。
 
+正常 supervisor 在配置验证后、control/auth/probe/spawn 前，仅固定受管布局的
+`/state/runtime` 以私有内部参数启用一次空临时文件创建/回收，再由原严格 guard 完整重pin。
+已有叶必须原本就是当前 UID/GID 的真实 0700 目录；credentials、data/logs、自定义路径、
+prepare-only 与只读 health/Doctor 不启用此初始化。信任前提是既有受管 host controller、
+固定 Compose/image/私有挂载配置；actual 新容器 mount 核对仍在 up 后，guest FD 校验
+不独立证明 bind mount 或不存在其他写者。controller 所有归属与单实例检查继续执行。
+
 Docker controller 的接受状态来自私有安装摘要中的不可变镜像身份及当前构建合同；单容器
 启动只在双服务真实健康后成功。每次候选构建拥有独立 tag，发布失败不会通过共享 tag 改变
 选定镜像。此修复保留 Native/Docker 部署拓扑、DSH 唯一引擎及已有端口/挂载边界。

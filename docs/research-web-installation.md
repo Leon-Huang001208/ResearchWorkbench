@@ -6,6 +6,13 @@
 身份变化日志还区分完整root/runtime所有权对方向及parent/other_ancestor/leaf相对位置；
 混合或未知变化仍拒绝，具体挂载根与认证写入层必须另行取证，不能由此自动修复。
 
+正常受管固定 Compose 布局的 supervisor 会在配置验证后、认证/控制读取和启动前，
+仅对 `/state/runtime` 执行空私有临时文件创建/回收，并用未修改的严格 guard 重pin。
+已有叶必须原本为当前 UID/GID 的真实 0700 目录，不修权限或写认证；自定义路径、
+credentials/data/logs、prepare-only 与只读 health/Doctor 不启用。依赖及一键入口保持原合同。
+guest FD 校验不独立证明 mount/no-other-writer；host 的实际新容器挂载核验仍在 up 后。
+源码测试只验证初始化边界，真实镜像/start 与 macOS 安装 CI 仍须独立证据。
+
 DSH 已发布运行子树内的 `doc/docs` 同名代码目录可保留（例如 yaml 的 `dist/doc`）。仅明确、
 无 glob/negative 的包目录声明建立该例外；包顶层文档、任意层级测试/fixture/cache 等继续排除，
 第三方 tarball 的其他运行资产选择保持原合同。真实镜像启动仍须单独验收。

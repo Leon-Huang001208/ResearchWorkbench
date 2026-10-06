@@ -102,6 +102,19 @@ Desktop首建阶段仅三个固定缺失叶可采用安全mkdir后重新pin：�
 与路径一致不得变化，仅固定mount父允许root:root→当前UID:GID。已有叶、自定义路径、foreign
 UID/GID、权限改变或节点替换仍失败关闭；原runtime_state与credential backend源码规则不变。
 
+仅正常受管固定布局的 state 初始化可处理已有合法 `/state/runtime` 叶的首次文件写映射。
+内部 `initialize_state` 默认关闭，不增加 CLI/env 开关；配置验证后、control/auth 读取、
+Popen 和 probe 前启用。保留全部祖先与叶 no-follow FD，已有叶须 UID/GID 匹配当前进程且
+精确 0700。在叶 FD 下独占创建随机名称、0600、单链接的空临时文件并保留 FD；仅此阶段
+固定 bind 父的完整 root-pair→不同 runtime-pair 可接纳一次，dev/inode/mode、具名路径和
+其他节点身份必须不变。清理前临时路径/FD 须仍为同一空、私有、单链接普通文件，未知替换
+不删除；创建、验证或清理失败均失败关闭，原失败与清理警告分别保留。随后原 guard 完整
+重pin；后续身份变化仍拒绝。该临时文件不保存认证、内容或持久 marker，不 chmod/chown。
+已有 credentials/data/logs、自定义路径、prepare-only、只读 health/Doctor 不写初始化。
+此范围依赖既有受管 host controller 与固定 Compose/image 配置；actual mount inspection
+仍在 up 后，guest FD 身份不证明实际挂载或没有其他写者，controller 原单实例、生命周期和
+post-up 归属检查不可省略。确定性 GREEN 不证明真实 Docker 根因或启动已解决。
+
 Docker 公共 start/Doctor 必须安全读取接受摘要并按不可变 image ID 核对实际容器，不能因
 共享 tag、静态 runtime label 或 `running=true` 就宣称 ready。回归覆盖摘要损坏/缺失、
 alias/hardlink/超限、锁/Compose/DSH 不匹配、tag 改写、延迟健康及失败回滚归属。

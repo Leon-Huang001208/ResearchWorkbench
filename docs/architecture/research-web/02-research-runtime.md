@@ -4,6 +4,13 @@
 认证写入、健康探测、原校验顺序、异常类型/错误码和生命周期不变；取证不授权自动重试。
 额外方向分类来自同一次已拒绝的before/current所有权对，不能据日志推断Cookie writer层或修复权限。
 
+正常受管固定布局在 config_validation 后、控制和认证读取前，只初始化 `/state/runtime`
+的文件系统写映射：独占空临时文件创建/回收后，再进入原完整 runtime guard。
+只允许初始化期间固定父目录的精确 root-pair→不同 runtime-pair；后续身份变化仍拒绝。
+此步骤不生成 auth/Cookie、持久 marker 或新协议，不改变原 auth_reset、认证交换、
+Popen/probe/恢复流程；prepare-only 和只读 health/Doctor 不调用它。
+前提来自既有受管 host/Compose 链，actual 新容器 mount 检查仍在 up 后，不由 guest FD 证明。
+
 发布运行目录中的 `doc/docs` 名称不再导致运行实现漏包；生产依赖图、optional peer、
 虚拟 Profile alias 搜索和 launcher 模块验证保持原链路，Node 加载回归验证派生资产完整性。
 

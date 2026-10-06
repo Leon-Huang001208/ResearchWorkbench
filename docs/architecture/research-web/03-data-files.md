@@ -4,6 +4,12 @@
 数值身份、文件内容、Cookie或token。不新增状态文件、marker、认证预写或数据迁移。
 身份变化日志只增加精确root/runtime对方向与相对位置枚举；仍不记录具体祖先目录或真实UID/GID。
 
+固定受管 `/state/runtime` 的写初始化仅创建随机名称、0600、单链接的空临时文件，
+保留 FD，核对具名路径为同一空私有普通文件后 unlink；未知替换不删除，失败保留真实 issue。
+成功后不留 marker、认证内容或新持久格式，不 chmod/chown 已有目录或文件。
+只在正常 supervisor 配置验证后启用；credentials、data/logs、自定义路径和只读入口不写。
+既有 host controller/Compose 信任前提与 up 后 actual mount 检查保持，guest FD 本身不证明挂载。
+
 包明确发布子树中的 `doc/docs` 代码和配套运行资源属于镜像资产，继续进入既有 staged manifest。
 用户资料与包顶层文档不因此进入运行资产；未选开发包、测试、fixture、缓存不复制。
 
