@@ -28,6 +28,8 @@ Research Web FastAPI Host（8088）
 
 ## 主要子系统
 
+[产品总图与分层图册](../outputs/research-web-architecture/index.html)先展示使用者、Web / DSH 及外部系统边界；各模块卡片继续连接说明、API、源码和测试。
+
 | 子系统 | 源码 | 职责 | 权威文档 |
 | --- | --- | --- | --- |
 | Web Host 与协议 | `app/research_web/*.py` | API、SSE、会话投影、文件和安全边界 | [系统与运行时](architecture/research-web/README.md) |

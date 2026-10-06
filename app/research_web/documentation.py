@@ -19,6 +19,7 @@ DOCUMENT_NAMES = frozenset(
     for name in (
         "index",
         "api-atlas",
+        "00-system-overview",
         "01-deployment",
         "02-module-dependencies",
         "03-research-sequence",
@@ -37,6 +38,14 @@ DOCUMENT_CSP = (
     "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
 MAX_HTML_BYTES = 4 * 1024 * 1024
+DOCUMENT_NAVIGATION = (
+    '<nav aria-label="架构导航" '
+    'style="position:fixed;bottom:8px;left:8px;z-index:1000;'
+    'padding:6px 10px;background:#142238;border-radius:8px;font:13px system-ui">'
+    '<a href="index.html" style="color:#e5edf8">架构阅读起点</a> / '
+    '<a href="index.html#modules" style="color:#e5edf8">模块说明</a> / '
+    '<a href="api-atlas.html" style="color:#e5edf8">API Atlas</a></nav>'
+).encode("utf-8")
 
 
 def read_document(name: str) -> bytes:
@@ -85,6 +94,8 @@ def architecture_document(name: str):
             status_code=404,
         )
     log.info("research_documentation_read", document=name, bytes=len(content))
+    if name not in {"index.html", "api-atlas.html"}:
+        content = content.replace(b"<body>", b"<body>" + DOCUMENT_NAVIGATION, 1)
     return Response(
         content,
         media_type="text/html",
