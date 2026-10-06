@@ -1,5 +1,8 @@
 # Research Web Native / Docker 安装与运行
 
+端点记录与成对内部 origin 事务目前仅作为独立 helper 验证，尚未接入公开安装/启动入口；
+不改变本页现有端口与依赖要求，不移动、复制或轮换控制 token，也不迁移用户数据或凭据。
+
 ## 支持范围
 
 当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：

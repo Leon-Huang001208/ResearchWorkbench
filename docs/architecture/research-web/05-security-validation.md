@@ -1,5 +1,18 @@
 # 安全边界与验证方法
 
+端点与成对 origin helper 当前仅由独立测试调用，未接入公开启动链。端点 schema/type、Native
+不同端口、CAS revision、私有目录/文件与单链接均严格校验。新 helper 仅接受 POSIX 私有权限
+边界；这不构成 Windows/Linux 验收。共用原子 writer 保留旧调用默认行为，新 `strict_parent=True`
+禁止目录创建/权限修复，发布后仍持有写 FD 并与路径身份对照；未来操作须再次核对身份。
+
+内部 origin 事务只处理 `.control/datahub.json` 与 `mcp-runtime.json` 的已知 schema，复用原 token/
+URL validator，拒绝重复 JSON key、漂移旧 origin、非私有父目录、alias 与内容相同的 inode 替换。
+`origin-transaction.json` 仅保存固定文件名、回环 origin、阶段及私有身份/摘要，不保存 token
+或原始记录备份；原始字节仅在进程内用于回滚，摘要也不进入日志。标记残留表示 interrupted，
+不自动猜测崩溃恢复。第二次写失败只有在整个 pair 仍可证明属于事务时才恢复；发布身份不确定、
+foreign 替换或未知静止状态保留标记并失败关闭。commit 不要求服务仍停止，但重验文件归属。
+原 DataHub/MCP `load_control()` 继续拒绝未经显式事务的 origin 漂移。
+
 容器启动诊断只记录固定阶段/异常类别、errno 和两个子进程退出码，不序列化异常文本、
 路径、命令、环境或输出。CI 仅接受精确五字段、枚举白名单及有界整数，最多保留 16 条；
 未知字段或无效记录丢弃，原始日志行继续全部省略。

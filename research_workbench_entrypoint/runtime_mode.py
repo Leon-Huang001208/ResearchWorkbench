@@ -390,9 +390,21 @@ def _write_all(descriptor: int, raw: bytes) -> None:
         offset += written
 
 
-def _atomic_write_posix(path: Path, raw: bytes, expected: os.stat_result | None) -> None:
+def _atomic_write_posix(
+    path: Path, raw: bytes, expected: os.stat_result | None, *, strict_parent: bool = False
+) -> os.stat_result:
+    """Publish privately and return identity proven against the retained write FD.
+
+    Strict callers create their directory separately and never repair permissions.
+    A publication/readback failure is ambiguous; callers must not adopt a later
+    path read as proof that the published file still belongs to this write.
+    """
     temporary = f".runtime.json.{secrets.token_hex(16)}.tmp"
-    with _private_posix_parent(path) as parent:
+    parent_context = (
+        _pin_posix_parents(path, node_only=True) if strict_parent else _private_posix_parent(path)
+    )
+    with parent_context as parent:
+        _validate_posix_private_directory(os.fstat(parent))
         if not _same_identity(_leaf_identity_at(parent, path.name), expected):
             _fail("changed")
         descriptor: int | None = None
@@ -407,12 +419,14 @@ def _atomic_write_posix(path: Path, raw: bytes, expected: os.stat_result | None)
             _validate_posix_private_file(os.fstat(descriptor))
             _write_all(descriptor, raw)
             os.fsync(descriptor)
-            os.close(descriptor)
-            descriptor = None
             if not _same_identity(_leaf_identity_at(parent, path.name), expected):
                 _fail("changed")
             os.replace(temporary, path.name, src_dir_fd=parent, dst_dir_fd=parent)
             os.fsync(parent)
+            published = os.fstat(descriptor)
+            if not _same_identity(_leaf_identity_at(parent, path.name), published):
+                _fail("changed")
+            return published
         finally:
             if descriptor is not None:
                 os.close(descriptor)

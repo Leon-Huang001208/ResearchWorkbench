@@ -1,5 +1,21 @@
 # 研究协议、执行状态与恢复
 
+## 尚未接入启动链的端点基础接口
+
+`EndpointStore(home)` 只在私有 `install/endpoints.json` 保存 schema 1 的 `records`，Native
+含不同的 `web_port`/`runtime_port`，Docker 仅含宿主 `web_port`，各模式带独立 opaque revision。
+`read(mode)` 缺失返回 `None`，纯只读；`publish(mode, web_port, runtime_port=None, expected=...)`
+在已有私有锁中按该模式快照 CAS，保留另一模式并返回新快照。损坏/冲突不回落默认值。
+`verify_facts()` 仅比较调用方已验证的端口，不证明 PID、监听者或容器归属。
+`select_port(preferred, explicit=False, excluded=())` 首选指定端口，再有界 bind 回环 0 获得候选；
+socket 关闭后没有预留保证，调用方仍须验证真实监听并有界重试。显式冲突拒绝自动换端口。
+
+`ControlOriginTransaction(data_root, previous_origin, next_origin, quiescent=callback)` 要求调用方
+持有生命周期锁。`prepare()` 在 exact `True` 静止证明下同时验证两份既有控制记录，再只修改 URL；
+`commit()` 在启动成功后丢弃本事务标记，`rollback()` 在目标停止后恢复内存中的原始字节。
+缺失记录留给正常 creator，origin 不变不写入。事务 helper 不启动或停止服务，不迁移业务数据。
+这些接口仅完成基础合同；当前公开安装/启动端口行为不因其存在而改变。
+
 Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时间/监听者事实链，停止调用同一
 排他生命周期入口；状态查询不隔离或删除 stale/invalid 文件。Native 日志读取也复用精确进程
 身份，并在输出前核对状态文件内容和 inode，不能凭命令行子串或重用的 PID 证明归属。

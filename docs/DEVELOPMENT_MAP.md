@@ -14,6 +14,13 @@
 
 以下原有表继续映射产品模块；上表只添加部署与运行边界，不创建第二套 Web/DSH 引擎。
 
+端点基础 helper 为 `research_workbench_entrypoint/runtime_endpoints.py`，成对内部 origin
+事务为 `app/research_web/control_origin.py`；对应 `test_runtime_endpoints.py` 与
+`test_control_origin.py`。前者保存私有端点 CAS 快照并生成回环候选，后者保留控制 token、只重绑
+既有 URL；二者尚未接入启动器。复用 `runtime_mode.py` 的私有读写/锁，修改该边界须保留
+`test_runtime_mode.py`、`test_runtime_auth.py`、`test_datahub.py`、`test_mcp_authorization.py`
+负面测试；接口合同见运行时与安全模块文档。
+
 Docker bind 根与私有叶布局由 Dockerfile/Compose 配置、entrypoint 父目录检查、supervisor
 严格创建与 healthcheck 只读消费共同维护；测试闭包为 `test_container_supervisor.py`、
 `test_credential_backend.py`、`test_runtime_launch.py`、`test_docker_packaging.py` 与

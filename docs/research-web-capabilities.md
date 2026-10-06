@@ -1,5 +1,8 @@
 # Research Web 能力包与版本
 
+MCP 内部控制 reader 的纯 parser 由 stdlib helper 共享，原版本/额外字段与错误语义保持；
+新显式 origin 事务未接入启动链，不改变工具授权、能力版本、审批或 token 所属位置。
+
 Native 和 Docker 使用同一能力目录、版本、MCP 风险与 Automation 锁定任务合同。Registry 认证、
 MCP 安装/OAuth/完整性密钥以及投递渠道秘密由同一后端接口存取，但保留各自服务命名空间：
 Native 默认系统 keyring，Docker 仅使用显式配置且权限受检的私有凭据目录。模型密钥仍由

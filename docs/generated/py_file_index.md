@@ -3377,6 +3377,46 @@ Functions:
   - Read one manager-owned authentication record through a fail-closed boundary.
 
 
+## `app/research_web/control_origin.py`
+
+Module docstring:
+> Explicit, quiescent, token-preserving transaction for the two control origins.
+
+Imports:
+- `__future__`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `ControlOriginError`
+  - Stable error without paths, tokens, fingerprints or record contents.
+  - methods: __init__
+- `ControlRecordError`
+  - Pure parser code translated by existing service-specific wrappers.
+- `ControlOriginTransaction`
+  - Prepare updates existing records; commit/rollback require owned identities.
+  - methods: __init__, _quiet, _guard, _read, _write, _journal, _verify_owned, _discard_journal, prepare, commit, rollback
+
+Functions:
+- `_fail`
+- `checked_control_url`
+  - Existing DataHub/MCP loopback predicate, usable without Web dependencies.
+- `parse_datahub_control`
+  - Original reader schema, including its additional valid JSON fields.
+- `parse_mcp_control`
+  - Original MCP reader predicate; transaction adds its own strictness.
+- `_checked_origin`
+- `_json_bytes`
+- `_decode`
+
+
 ## `app/research_web/credential_backend.py`
 
 Module docstring:
@@ -3916,15 +3956,14 @@ Module docstring:
 
 Imports:
 - `contextlib`
+- `control_origin`
 - `core.observability`
 - `json`
 - `os`
 - `pathlib`
-- `re`
 - `secrets`
 - `stat`
 - `store`
-- `urllib.parse`
 - `uuid`
 
 Functions:
@@ -5121,12 +5160,12 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `app.research_web.control_origin`
 - `app.research_web.datahub.security`
 - `app.research_web.store`
 - `core.observability`
 - `hashlib`
 - `hmac`
-- `json`
 - `os`
 - `pathlib`
 - `re`

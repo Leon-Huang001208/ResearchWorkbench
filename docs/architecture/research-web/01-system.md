@@ -1,5 +1,8 @@
 # 部署与模块职责
 
+新增私有端点与内部 origin 事务 helper 尚未接入安装器、Native 管理器或 Docker controller；
+它们不创建新部署节点，不迁移控制 token 或数据，既有部署拓扑保持不变。
+
 公开 Web 安装器的 Native 路径在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的
 `runtime/dsh/<commit>/` 版本目录；运行时仍是既有 3081 DSH 与 8088 FastAPI 两个受管进程。
 `rwb web doctor` 读取安装摘要与健康事实，不增加守护进程、端口或数据库。

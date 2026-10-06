@@ -1,5 +1,8 @@
 # Research Web 接口清单
 
+内部控制 JSON/URL parser 提取与独立端点/origin helper 不增加 HTTP 路由或响应字段；
+DataHub/MCP 原 reader 错误与权限合同保持，事务目前未接入公开启动路径。
+
 Native/Docker 模式选择、Docker 镜像接受摘要与健康等待均在公开 CLI/安装边界；本轮不增加
 HTTP 路由或响应字段。Native `rwb web status --json` 是稳定的安全状态投影，不返回日志路径；
 Doctor 仍独立校验 DSH 的 ready、build_verified、commit 和 host_applicable。Docker 的

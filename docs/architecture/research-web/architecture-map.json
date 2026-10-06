@@ -11,6 +11,8 @@
         "runtimes/research_web.json",
         "research_workbench_entrypoint/__init__.py",
         "research_workbench_entrypoint/runtime_mode.py",
+        "research_workbench_entrypoint/runtime_endpoints.py",
+        "app/research_web/control_origin.py",
         "research_workbench_entrypoint/docker_runtime.py",
         "research_workbench_entrypoint/bootstrap.py",
         "app/research_web/runtime_contract.py",
@@ -43,6 +45,8 @@
       "tests": [
         "tests/research_web/test_runtime_contract.py",
         "tests/research_web/test_runtime_mode.py",
+        "tests/research_web/test_runtime_endpoints.py",
+        "tests/research_web/test_control_origin.py",
         "tests/research_web/test_docker_runtime.py",
         "tests/research_web/test_docker_packaging.py",
         "tests/research_web/test_container_supervisor.py",

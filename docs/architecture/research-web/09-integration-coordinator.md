@@ -1,5 +1,8 @@
 # 统一集成协调器
 
+内部控制 JSON/回环 URL 的纯 parser 提取至 stdlib helper；DataHub 原 reader 保留原异常和
+额外有效字段语义，不改变协调器五阶段、来源授权、探测或凭据迁移边界。
+
 Native 使用宿主 keyring；Docker 在显式配置的私有凭据目录中保存 DataHub 秘密，协调器只读取
 DataHub 的安全状态投影，仍以登记、授权、探测、适配、可调用五阶段判定结果。两模式顺序共享
 产品数据，但凭据不自动迁移；Docker 容器无法仅凭可见目录证明宿主 Wind、Office、Tabbit
