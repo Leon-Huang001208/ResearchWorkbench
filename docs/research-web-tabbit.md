@@ -1,5 +1,8 @@
 # Research Web Tabbit 集成
 
+research-tools 的未声明 Cordis getter 修复仅限执行器选择，不增加注入或更改 preset；不读取
+Tabbit 会话、claim 或模型密钥。实际插件加载和新 session 成功仍须真实 Runtime 证据。
+
 Native installer 进入 owned venv 后同次持锁创建并启动，不继承 Tabbit 会话/claim；
 no-start/跨调用不持久化 fresh 或浏览器授权，实际浏览器能力仍须独立证明。
 

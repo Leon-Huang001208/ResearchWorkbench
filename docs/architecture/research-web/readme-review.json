@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "Docker CLI代理兼容复核：README入口和端口合同不变；新增受控loopback HTTP(S)代理与Doctor安全状态见安装/安全文档。",
-  "reason": "只修host Docker命令环境，Native/R5、镜像/Compose/provider和真实构建支持声明未扩展，README仍保留尚未完成的产品验收。"
+  "summary": "research-tools Cordis getter修复复核：生产使用原spawn，不新增inject/preset或公开功能，README入口和验收限制继续成立。",
+  "reason": "执行器测试覆盖改为自有data descriptor以避开未声明服务getter，详细边界见sandbox/runtime文档，未把单元Proxy模拟当真实会话成功。"
 }

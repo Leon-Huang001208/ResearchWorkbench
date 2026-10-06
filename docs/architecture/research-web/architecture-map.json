@@ -310,6 +310,7 @@
       "tests": [
         "tests/research_web/test_runtime_launch.py",
         "tests/research_web/test_sandbox.py",
+        "tests/javascript/research_web_method_tool.test.mjs",
         "tests/javascript/research_web_guard.test.mjs",
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
         "tests/javascript/research_web_tabbit_ui.test.mjs"

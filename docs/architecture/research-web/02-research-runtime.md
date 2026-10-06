@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+research-tools 注册时不读取 ctx.spawnProcess getter；仅自有 data descriptor.value 为函数时
+使用测试覆盖，否则用原 imported spawn。队列、终止、close 后释放和 poison 恢复合同保留；
+这项注册回归不等同真实 fixed Cordis preset 加载或成功 session 创建，后者须独立实测。
+
 Docker._environment仅在host CLI添加校验后的HTTP_PROXY/HTTPS_PROXY/NO_PROXY双大小写。
 不安全值在status/Doctor/stop过滤并报告稳定warning；install/build返回docker_proxy_configuration_invalid，
 避免静默直连。固定argv、隐式.env禁用及进程/容器归属检查保留；Native共享minimal环境不放宽。

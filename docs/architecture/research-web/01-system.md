@@ -1,5 +1,8 @@
 # 部署与模块职责
 
+research-tools 保持 tools/sessions 注入；生产执行器来自已导入的 child_process.spawn，ctx 自有
+data descriptor 只保留原测试替身，避免读取未声明 Cordis 服务 getter，不新增插件或部署节点。
+
 Docker host CLI 只继承经校验的 credentials-free loopback HTTP(S)代理和有界NO_PROXY；共享
 Native minimal环境不变。CLI传输、Docker Desktop Engine和build代理是不同层，源码保留env
 不证明真实registry/APT/镜像构建可用，也不把宿主127代理注入镜像/Compose/provider运行环境。
