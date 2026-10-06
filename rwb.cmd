@@ -4,6 +4,23 @@ for %%I in ("%~dp0.") do set "PROJECT_ROOT=%%~fI"
 set "PYTHON_BIN=%PROJECT_ROOT%\.venv\Scripts\python.exe"
 set "ENVIRONMENT_OWNER_ROOT=%PROJECT_ROOT%"
 
+cd /d "%PROJECT_ROOT%"
+py -3.12 -c "import sys; raise SystemExit(not sys.version_info >= (3,12))" >nul 2>&1
+if not errorlevel 1 (
+  py -3.12 -m research_workbench_entrypoint.bootstrap %*
+  exit /b
+)
+python3 -c "import sys; raise SystemExit(not sys.version_info >= (3,12))" >nul 2>&1
+if not errorlevel 1 (
+  python3 -m research_workbench_entrypoint.bootstrap %*
+  exit /b
+)
+python -c "import sys; raise SystemExit(not sys.version_info >= (3,12))" >nul 2>&1
+if not errorlevel 1 (
+  python -m research_workbench_entrypoint.bootstrap %*
+  exit /b
+)
+rem With no host Python, retain the exact Native worktree and ownership fallback.
 if exist "%PYTHON_BIN%" goto candidate_selected
 where git >nul 2>&1
 if errorlevel 1 goto candidate_selected

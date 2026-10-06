@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench/outputs/research-web-architecture/01-deployment.html",
-    "sha256": "78a9f66cdeff35d67e63ecdce52910933ec428d5735cecf3087cc0bfcc55fc59",
-    "bytes": 645431
+    "path": "/private/tmp/rwb-pr78-repair-20261006/outputs/research-web-architecture/01-deployment.html",
+    "sha256": "34c757afaad2953c70e0dbb4f6e8b30b28d37c67f9d56ec1d9577c89315c55c2",
+    "bytes": 637815
   },
   "state": {
     "detail": "read",

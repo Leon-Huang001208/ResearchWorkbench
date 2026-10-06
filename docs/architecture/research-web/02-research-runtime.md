@@ -14,6 +14,38 @@
 
 显式生成测试复用 `create/send` 与 DSH 原生日志，不创建另一个执行循环。前置所有权/凭据RPC各15秒上限，create/send/history生成段60秒预算，取消最多3秒，总上限93秒；只有原生 `turn/end completed`、最终 `assistant/message` 和非空文本齐全才通过。结果绑定模型选择，配置变化使旧测试失效；设置 GET/Doctor 不进行付费生成。工具调用另由用户显式最小研究验收。研究工具的子进程测试依赖作为调用参数传递，不访问未在 `inject` 声明的 Cordis 服务。
 
+Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时间/监听者事实链，停止调用同一
+排他生命周期入口；状态查询不隔离或删除 stale/invalid 文件。Native 日志读取也复用精确进程
+身份，并在输出前核对状态文件内容和 inode，不能凭命令行子串或重用的 PID 证明归属。
+
+Docker supervisor 的启动顺序先准备 `/state/runtime` 与 `/run/rwb-secrets/private` 私有叶，
+再清理本次认证状态、启动 DSH、探测并启动 Web。健康检查复用 `/state/runtime/auth.json`；
+重启保留私有叶及凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
+固定缺失叶的准备先用保留父FD创建，再由原runtime_state_directory完整重pin；不会捕获
+任意校验失败后无条件重试。data-root/logs使用相同首建顺序，自定义目录维持原严格create路径。
+启动失败额外记录固定阶段、受控异常类别、数字 errno 与 runtime/web 已知退出码；
+日志初始化前后使用同一安全字段，原失败退出及有界清理流程保持不变。
+Runtime launcher 失败进一步区分 Node 版本、prepare、模块 fallback、Tabbit 包/adapter、配置写入和 exec 阶段，仍以原退出码 1 失败。
+
+模式选择只决定进程部署：Native 由服务管理器管理两个宿主进程，Docker 由单容器 supervisor 管理 DSH/Web；研究提交、双 WebSocket、SSE、审批与恢复协议共用。`rwb runtime status --json` 读取当前模式与安装身份；`rwb runtime use docker|native` 在旧模式运行时要求 `--stop-current` 且必须验证旧实例归属。两模式不可并发写同一研究数据。Docker `rwb web status|doctor --json` 将稳定 `issues` 返回给操作者，状态或镜像归属不明不自动接管。Windows Docker 凭据 ACL 当前未通过可证安全边界，不作为已验收模式。
+
+Docker 公开 start 与 Doctor 从私有接受摘要读取不可变 image ID，并检查依赖/Compose 合同及
+容器实际 image ID；每次安装构建独立候选 tag，不能通过覆盖共享 tag 改变选定镜像。
+候选启动仅由安装事务调用，公开 start 每次重新加载接受摘要。启动在默认 120 秒健康等待
+预算内轮询（各 Docker 命令仍有独立超时），只在 DSH/Web 健康时返回成功；退出、unhealthy、
+超时均失败。本次创建容器的回滚再次验证不可变 ID 和归属；失败回滚不删除既有容器。
+up自身失败时，controller单次有界重枚举并校验一次性launch label及候选image；匹配才回滚，
+未知归属保留并附加恢复未验证issue。原up错误始终保留，回滚失败不隐式二次删除。
+显式离线 repair 可在候选启动前非 force 删除已再次验证的停止容器，但保留旧接受镜像、
+摘要、数据及凭据；失败后可按仍匹配的旧合同重新创建旧实例。运行中的容器不会被自动停止或删除。
+Doctor 保留 `dsh` 字段，区分健康 ready、摘要构建证据 build_verified、固定 commit 和宿主
+不适用项，不填造宿主 DSH/Node 版本。Native `web status --json` 同样输出安全服务投影，
+不会序列化日志路径，原有非 JSON 输出保持不变。
+
+合同读取使用 dirfd/no-follow；祖先目录比较节点 identity（设备、inode、mode、uid/gid），
+无关祖先 sibling 创建/删除不会被误判为合同替换。合同文件和直接父目录仍比较完整 metadata，
+保留瞬时 rename/alias/restore 攻击检测；直接父目录发生内容活动仍保守失败关闭。
+
 一键安装固定 DSH 来源、提交、pnpm 与构建闭包，但不改变消息受理、双 WebSocket、SSE、恢复、
 审批或取消协议。安装失败不会启动候选 Runtime，也不会接管当前 3081/8088。
 服务管理器在 spawn 前消费 Doctor 的安装 issue；只有安装状态 `ok` 才进入 3081/8088 生命周期。
@@ -36,6 +68,18 @@ junction 和 POSIX symlink 都只在解析目标仍位于固定源码树时接�
 调度器、集成探测或 3081/8088；实际进程和健康状态仍只由 `rwb web start` 建立。
 未安装环境中的顶层 `rwb --help` 仅输出标准库静态帮助，不进入 DSH 会话、认证、启动或恢复链；
 `web start/restart/stop` 仍由原安装门拒绝。
+
+Docker 构建先对完整 DSH checkout 执行相同的固定 remote、commit、pnpm 与完整构建闭包验证，
+通过后才按已安装的 production dependency graph 和上游 package `files` 字段生成运行资产目录。
+开发依赖、测试、fixture、文档、benchmark、website 和 Git 历史不会进入该目录；CLI、profile
+模块、上游声明的运行资源及所需第三方生产依赖保留。pnpm 共享 hoist 别名仅在目标已属于所选生产图时保留，确保原生 addon 从跨包加载器基址仍能解析平台实现；不会通过 hoist 扩大开发依赖集合。`.rwb-dsh-runtime.json` 是构建时派生的
+资产清单，不是第二份依赖配置：它记录原始固定来源和完整闭包事实，以及目录、普通文件、符号
+链接的确定性清单和摘要。镜像 launcher 在创建运行状态前拒绝缺失、额外、篡改、越界链接、
+alias、错误 schema 或超限清单，并继续把原始已验证闭包写入既有 build lock。仅镜像环境明确
+设置 `RWB_DSH_STAGED=1` 时启用该路径；supervisor 只向 DSH launcher 子进程传递这个精确值。
+未设置、空值、`0` 或其他值均不启用，Native 即使存在伪造或损坏的 staged 清单也忽略它，始终
+执行原有 Git identity 和 `calculate_build_closure` 路径。最终镜像还以非 root
+用户导入 Web、CLI、supervisor、healthcheck 和 iFinD HTTP 路径，避免宿主源码掩盖镜像漏包。
 
 Framework Runtime 在 Research Web 生命周期内只启动和关闭一次，一个 `AsyncIOScheduler` 管理 Gold 与 Dollar 的分频采集。采集器按区块提交最后成功值；单源失败只更新该区块的 `checked_at`、`failure_code` 与 stale/partial 状态。
 
@@ -177,3 +221,5 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 现有最终guard在原生全局llm/stream seam同步预留计数：跨会话/turn共用实例上限，达到上限后不进入适配器；只允许纯文本，拒绝图片/文件/音频，避免附件回退产生额外供应商请求。原重试插件禁用、DeepSeek原retryPolicy.maxRetries=0。工具veto仅允许所选公开DataHub工具执行一次，拒绝子代理、脚本、其他数据工具或第二次执行；原guard权限仍适用。仅记录序号与稳定错误码，无Prompt、请求体、认证值或秘密哈希。
 
 这是单次独立验收的进程内控制，不是用户配额或持久预算系统。退出/重启不能作为补额度手段；调用方仍须维持该轮真实请求总账。默认不启用，既有生产、日常研究、provider/Keychain语义不改变。达到限制只能报告未完成，不能自动重试。合同及固定DSH无网络合成验证与真实供应商验收分别记证据。
+
+模型启动preload的认证文件绑定已验证的RWB_RUNTIME_STATE，与data/runtime/home分离；authority、cwd、固定源码commit和所属Runtime PID共同绑定临时bootstrap。stdout/stderr保持脱敏，所属supervisor只在启动阶段读取私有handoff，独立healthcheck不交换Cookie、不写控制文件。

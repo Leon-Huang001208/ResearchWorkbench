@@ -1,5 +1,10 @@
 # 能力包、版本与原生调用
 
+Native/Docker 共用能力目录、不可变版本、工具风险等级与 Automation 锁定快照；模式选择不授予
+新的 MCP、DataHub 或投递权限。MCP Registry、MCP Runtime 安装完整性密钥和 Delivery 的
+既有服务名由共享凭据后端存取：Native 默认系统 keyring，Docker 仅用显式配置的私有文件目录。
+模型密钥仍由 DSH 管理，切换模式不自动复制凭据；容器内可浏览目录不代表宿主集成可调用。
+
 本节对应 `app/research_web/capabilities/` 与能力 UI 模块。后端及界面已通过限定复审；对话创建与手动导入生命周期已有真实浏览器证据，完整 Workflow 交付与全轮门禁独立记录，不能仅凭 API 实现宣称全部验收通过。
 
 ## 职责划分

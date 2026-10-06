@@ -12,6 +12,17 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store
 
 
+@pytest.fixture(autouse=True)
+def isolated_keyring(monkeypatch):
+    """Every test owns its credentials; never consult the host Keychain."""
+    import keyring
+
+    values = {}
+    monkeypatch.setattr(keyring, "get_password", lambda service, account: values.get((service, account)))
+    monkeypatch.setattr(keyring, "set_password", lambda service, account, value: values.__setitem__((service, account), value))
+    monkeypatch.setattr(keyring, "delete_password", lambda service, account: values.pop((service, account), None))
+
+
 class NativeFixture:
     def __init__(self):
         self.calls = []

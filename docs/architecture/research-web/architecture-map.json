@@ -6,6 +6,54 @@
   "artifactRoot": "outputs/research-web-architecture",
   "groups": [
     {
+      "id": "dual-runtime",
+      "sources": [
+        "runtimes/research_web.json",
+        "research_workbench_entrypoint/__init__.py",
+        "research_workbench_entrypoint/runtime_mode.py",
+        "research_workbench_entrypoint/docker_runtime.py",
+        "research_workbench_entrypoint/bootstrap.py",
+        "app/research_web/runtime_contract.py",
+        "app/research_web/process_spec.py",
+        "app/research_web/runtime_state.py",
+        "app/research_web/staged_runtime.py",
+        "app/research_web/credential_backend.py",
+        "scripts/setup_web.py",
+        "app/cli/main.py",
+        "rwb",
+        "rwb.cmd",
+        "setup-web.sh",
+        "setup-web.cmd",
+        "docker/entrypoint.sh",
+        "docker/stage_dsh.py",
+        "docker/supervisor.py",
+        "docker/healthcheck.py",
+        "Dockerfile",
+        "compose.yaml",
+        ".dockerignore"
+      ],
+      "documents": [
+        "docs/research-web-installation.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "01-deployment"
+      ],
+      "tests": [
+        "tests/research_web/test_runtime_contract.py",
+        "tests/research_web/test_runtime_mode.py",
+        "tests/research_web/test_docker_runtime.py",
+        "tests/research_web/test_docker_packaging.py",
+        "tests/research_web/test_container_supervisor.py",
+        "tests/research_web/test_staged_runtime.py",
+        "tests/research_web/test_credential_backend.py",
+        "tests/javascript/docker_runtime_contract.test.mjs"
+      ]
+    },
+    {
       "id": "ui",
       "sources": [
         "app/research_web/ui/"
@@ -171,10 +219,10 @@
         "tests/research_web/test_mcp_runtime_routes.py",
         "tests/research_web/test_mcp_transport.py",
         "tests/javascript/research_web_guard.test.mjs",
-        "tests/javascript/research_web_auth_output.test.mjs",
         "tests/javascript/research_web_mcp_adapter.test.mjs",
         "tests/javascript/research_web_mcp_marketplace.test.mjs",
-        "tests/e2e/research_web_mcp_runtime.mjs"
+        "tests/e2e/research_web_mcp_runtime.mjs",
+        "tests/javascript/research_web_auth_output.test.mjs"
       ]
     },
     {
@@ -239,11 +287,11 @@
       "id": "runtime",
       "sources": [
         "app/research_web/launch_runtime.py",
-        "app/research_web/model_credentials.py",
         "app/research_web/runtime/",
         "vendor/dsh-tabbit/0.3.4/",
         "app/research_web/sandbox.py",
-        "app/research_web/skills/"
+        "app/research_web/skills/",
+        "app/research_web/model_credentials.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -259,13 +307,13 @@
       ],
       "tests": [
         "tests/research_web/test_runtime_launch.py",
-        "tests/research_web/test_model_credentials.py",
-        "tests/research_web/model_credentials_native.mjs",
-        "tests/javascript/research_web_model_credentials.test.mjs",
         "tests/research_web/test_sandbox.py",
         "tests/javascript/research_web_guard.test.mjs",
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
-        "tests/javascript/research_web_tabbit_ui.test.mjs"
+        "tests/javascript/research_web_tabbit_ui.test.mjs",
+        "tests/research_web/test_model_credentials.py",
+        "tests/research_web/model_credentials_native.mjs",
+        "tests/javascript/research_web_model_credentials.test.mjs"
       ]
     },
     {
@@ -551,82 +599,82 @@
       "visualReceipt": "outputs/research-web-architecture/01-deployment.visual-check.json",
       "evidence": [
         {
-          "subjects": ["modelKeychain", "model-credential-pipe"],
-          "source": "app/research_web/model_credentials.py"
-        },
-        {
           "subjects": [
-            "web"
+            "source"
           ],
-          "source": "app/research_web/ui/app.mjs"
+          "source": "runtimes/research_web.json"
         },
         {
           "subjects": [
-            "bff",
-            "web-http"
+            "bootstrap",
+            "selectNative",
+            "selectDocker"
           ],
-          "source": "app/research_web/main.py"
+          "source": "research_workbench_entrypoint/bootstrap.py"
         },
         {
           "subjects": [
-            "manager",
-            "processState",
-            "manage-web",
-            "process-state"
+            "nativeWeb",
+            "nativeState"
           ],
           "source": "app/research_web/service_manager.py"
         },
         {
           "subjects": [
-            "migration",
-            "migrate-session"
-          ],
-          "source": "app/research_web/data_migration.py"
-        },
-        {
-          "subjects": [
-            "dsh",
-            "model",
-            "history",
-            "inference",
-            "native-log"
+            "nativeDsh"
           ],
           "source": "app/research_web/launch_runtime.py"
         },
         {
           "subjects": [
-            "runtime-wire"
+            "dockerContainer"
+          ],
+          "source": "docker/supervisor.py"
+        },
+        {
+          "subjects": [
+            "nativeRpc"
           ],
           "source": "app/research_web/client.py"
         },
         {
           "subjects": [
-            "index",
-            "ownership",
-            "session",
-            "files"
+            "sharedData",
+            "nativeData"
           ],
           "source": "app/research_web/store.py"
         },
         {
           "subjects": [
-            "sandbox",
-            "isolated-files"
+            "runtimeState"
           ],
-          "source": "app/research_web/sandbox.py"
+          "source": "app/research_web/runtime_state.py"
         },
         {
           "subjects": [
-            "execute"
+            "credentials"
           ],
-          "source": "app/research_web/runtime/guard.mjs"
+          "source": "app/research_web/credential_backend.py"
         },
         {
           "subjects": [
-            "tabbit",
-            "live-tabs"
+            "contractRoute"
           ],
-          "source": "app/research_web/runtime/tabbit-adapter.mjs"
+          "source": "app/research_web/runtime_contract.py"
+        },
+        {
+          "subjects": [
+            "dockerData",
+            "dockerCredential"
+          ],
+          "source": "compose.yaml"
+        },
+        {
+          "subjects": [
+            "modelKeychain",
+            "nativeModelKey"
+          ],
+          "source": "app/research_web/model_credentials.py"
         }
       ]
     },
@@ -955,23 +1003,57 @@
       "visualReceipt": "outputs/research-web-architecture/09-report-workflow-sequence.visual-check.json",
       "evidence": [
         {
-          "subjects": ["api", "catalog", "manualRun", "lockVersion", "runEvidence"],
+          "subjects": [
+            "api",
+            "catalog",
+            "manualRun",
+            "lockVersion",
+            "runEvidence"
+          ],
           "source": "app/research_web/report_workflow_routes.py"
         },
         {
-          "subjects": ["excelTool", "excel", "refreshCopy", "excelRefresh", "excelResult", "refreshManifest", "blockedData"],
+          "subjects": [
+            "excelTool",
+            "excel",
+            "refreshCopy",
+            "excelRefresh",
+            "excelResult",
+            "refreshManifest",
+            "blockedData"
+          ],
           "source": "app/research_web/report_workflows/workbook.py"
         },
         {
-          "subjects": ["dsh", "snapshot", "materialize", "createClaw", "readSnapshot", "activity", "writePayload", "turnEnd", "latePayload", "deliveryState"],
+          "subjects": [
+            "dsh",
+            "snapshot",
+            "materialize",
+            "createClaw",
+            "readSnapshot",
+            "activity",
+            "writePayload",
+            "turnEnd",
+            "latePayload",
+            "deliveryState"
+          ],
           "source": "app/research_web/report_workflows/runtime.py"
         },
         {
-          "subjects": ["renderer", "files", "project", "assembleFiles", "reopen"],
+          "subjects": [
+            "renderer",
+            "files",
+            "project",
+            "assembleFiles",
+            "reopen"
+          ],
           "source": "app/research_web/report_rendering.py"
         },
         {
-          "subjects": ["web", "download"],
+          "subjects": [
+            "web",
+            "download"
+          ],
           "source": "app/research_web/ui/report-workflows.mjs"
         }
       ]
@@ -984,23 +1066,49 @@
       "visualReceipt": "outputs/research-web-architecture/10-excel-report-dataflow.visual-check.json",
       "evidence": [
         {
-          "subjects": ["version", "providerPolicy", "runCopy", "copyVersion", "applyPolicy"],
+          "subjects": [
+            "version",
+            "providerPolicy",
+            "runCopy",
+            "copyVersion",
+            "applyPolicy"
+          ],
           "source": "app/research_web/report_workflows/catalog.py"
         },
         {
-          "subjects": ["excel", "refreshManifest", "openCopy", "recordRefresh", "authorizeSnapshot"],
+          "subjects": [
+            "excel",
+            "refreshManifest",
+            "openCopy",
+            "recordRefresh",
+            "authorizeSnapshot"
+          ],
           "source": "app/research_web/report_workflows/workbook.py"
         },
         {
-          "subjects": ["extract", "snapshot", "publishSnapshot"],
+          "subjects": [
+            "extract",
+            "snapshot",
+            "publishSnapshot"
+          ],
           "source": "app/research_web/report_workflows/tooling.py"
         },
         {
-          "subjects": ["agents", "payload", "agentRead", "authorPayload"],
+          "subjects": [
+            "agents",
+            "payload",
+            "agentRead",
+            "authorPayload"
+          ],
           "source": "app/research_web/report_workflows/runtime.py"
         },
         {
-          "subjects": ["assembler", "artifacts", "projectPayload", "deliver"],
+          "subjects": [
+            "assembler",
+            "artifacts",
+            "projectPayload",
+            "deliver"
+          ],
           "source": "app/research_web/report_rendering.py"
         }
       ]
@@ -1545,13 +1653,6 @@
       "path": "/api/research/runtime/model",
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/runtime/model",
-      "prefix": ""
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/runtime/model/test",
-      "source": "app/research_web/main.py",
-      "declaredPath": "/api/research/runtime/model/test",
       "prefix": ""
     },
     {
@@ -2414,6 +2515,13 @@
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-runs/{run_id}/delivery",
       "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/runtime/model/test",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/runtime/model/test",
+      "prefix": ""
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json"

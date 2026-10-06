@@ -6,9 +6,12 @@ import json
 import logging
 import os
 import shutil
+import socket
 import stat
 import subprocess
 import sys
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -20,6 +23,481 @@ from research_workbench_entrypoint.web_contract import (
 )
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
+
+def _allow_idle_runtime_selection(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts import setup_web
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+
+    idle = {
+        "ok": True,
+        "services": {"web": {"running": False}, "runtime": {"running": False}},
+    }
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight", lambda _self, **_kwargs: idle)
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "status", lambda _self: idle)
+    monkeypatch.setattr(NativeRuntime, "status", lambda _self: idle)
+    monkeypatch.setattr(setup_web, "port_busy", lambda _port: False)
+
+
+def test_runtime_parser_defaults_to_native_and_accepts_explicit_selection() -> None:
+    from scripts.setup_web import build_parser
+
+    parser = build_parser()
+    assert parser.parse_args([]).runtime == "native"
+    assert parser.parse_args(["--runtime", "native"]).runtime == "native"
+    docker = parser.parse_args(["--runtime", "docker", "--no-start"])
+    assert docker.runtime == "docker"
+    assert docker.no_start is True
+
+
+def test_docker_install_writes_summary_and_mode_only_after_verified_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import setup_web
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    project = tmp_path / "checkout"
+    project.mkdir()
+    (project / "requirements").mkdir()
+    (project / "requirements/web.lock").write_text("locked\n", encoding="utf-8")
+    (project / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    environment = project / ".venv"
+    environment.mkdir()
+    sentinel = environment / "user.txt"
+    sentinel.write_text("keep", encoding="utf-8")
+    monkeypatch.setattr(setup_web.Path, "home", classmethod(lambda _cls: home))
+    events: list[tuple[str, object]] = []
+
+    def build(_controller: object) -> dict[str, object]:
+        events.append(("build", None))
+        assert not (home / ".research-workbench/install/docker-manifest.json").exists()
+        assert RuntimeModeStore(home / ".research-workbench").read().mode == "native"
+        return {"ok": True, "issues": [], "image_id": "sha256:" + "a" * 64}
+
+    def start(_controller: object, *, open_browser: bool = True) -> dict[str, object]:
+        events.append(("start", open_browser))
+        return {"ok": True, "issues": []}
+
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "install", build)
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "start", start)
+    _allow_idle_runtime_selection(monkeypatch)
+    monkeypatch.setattr(
+        SetupWebInstaller,
+        "prepare_environment",
+        lambda *_args, **_kwargs: pytest.fail("Docker must not prepare Native .venv"),
+    )
+
+    arguments = setup_web.build_parser().parse_args(["--runtime", "docker", "--no-start"])
+    summary = setup_web.install_selected_runtime(arguments, project_root=project)
+
+    assert events == [("build", None)]
+    assert summary["status"] == "installed"
+    assert summary["image_id"] == "sha256:" + "a" * 64
+    assert RuntimeModeStore(home / ".research-workbench").read().mode == "docker"
+    persisted = json.loads(
+        (home / ".research-workbench/install/docker-manifest.json").read_text(encoding="utf-8")
+    )
+    assert persisted["image_id"] == summary["image_id"]
+    assert sentinel.read_text(encoding="utf-8") == "keep"
+
+
+def test_docker_failed_build_preserves_native_mode_and_previous_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import setup_web
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    data_home = home / ".research-workbench"
+    record = RuntimeModeStore(data_home).write("native")
+    summary_path = data_home / "install/docker-manifest.json"
+    summary_path.write_text('{"previous":true}\n', encoding="utf-8")
+    summary_path.chmod(0o600)
+    monkeypatch.setattr(setup_web.Path, "home", classmethod(lambda _cls: home))
+
+    monkeypatch.setattr(
+        setup_web._DockerRuntimeController,
+        "install",
+        lambda _self: {"ok": False, "issues": ["docker_build_failed"]},
+    )
+    arguments = setup_web.build_parser().parse_args(["--runtime", "docker", "--repair"])
+    with pytest.raises(RuntimeError, match="^docker_build_failed$"):
+        setup_web.install_selected_runtime(arguments, project_root=tmp_path)
+
+    assert RuntimeModeStore(data_home).read() == record
+    assert json.loads(summary_path.read_text(encoding="utf-8")) == {"previous": True}
+
+
+def test_docker_check_only_is_read_only_and_outputs_safe_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import setup_web
+
+    project = tmp_path / "checkout"
+    (project / "scripts").mkdir(parents=True)
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    monkeypatch.setattr(setup_web.Path, "home", classmethod(lambda _cls: home))
+    monkeypatch.setattr(setup_web, "__file__", str(project / "scripts/setup_web.py"))
+    monkeypatch.setattr(
+        setup_web,
+        "_configure_logging",
+        lambda _root: pytest.fail("check-only must not configure file logging"),
+    )
+
+    class RecordingDocker:
+        def __init__(self, *_args) -> None:
+            pass
+
+        def preflight(self, *, require_image: bool = True) -> dict[str, object]:
+            assert require_image is False
+            return {"schema_version": 1, "ok": True, "issues": [], "mode": "docker"}
+
+        def install(self) -> None:
+            pytest.fail("check-only must not build")
+
+    monkeypatch.setattr(setup_web, "DockerRuntime", RecordingDocker, raising=False)
+    captured = StringIO()
+    with redirect_stdout(captured):
+        assert setup_web.main(["--runtime", "docker", "--check-only"]) == 0
+    output = captured.getvalue()
+    assert json.loads(output)["mode"] == "docker"
+    assert str(tmp_path) not in output
+    assert not (home / ".research-workbench").exists()
+    assert not (project / "logs").exists()
+
+
+@pytest.mark.parametrize("native_running", [False, True])
+def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_running: bool
+) -> None:
+    from scripts import setup_web
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    project = tmp_path / "checkout"
+    (project / "requirements").mkdir(parents=True)
+    (project / "requirements/web.lock").write_text("locked\n", encoding="utf-8")
+    (project / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    store = RuntimeModeStore(home)
+    before = store.write("native")
+    manifest_path = home / "install/docker-manifest.json"
+    previous = setup_web._docker_manifest(project, "sha256:" + "b" * 64)
+    manifest_path.write_text(json.dumps(previous), encoding="utf-8")
+    manifest_path.chmod(0o600)
+    calls: list[list[str]] = []
+
+    def recording_runner(argv: list[str], **_options: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        output = ""
+        if argv[1:2] == ["info"]:
+            output = '"aarch64"'
+        elif argv[1:3] == ["image", "inspect"]:
+            output = json.dumps({"id": "sha256:" + "a" * 64, "runtime": "docker"})
+        return subprocess.CompletedProcess(argv, 0, output, "")
+
+    if native_running:
+        monkeypatch.setattr(
+            NativeRuntime,
+            "status",
+            lambda _self: {
+                "ok": True,
+                "services": {"web": {"running": True}, "runtime": {"running": True}},
+            },
+        )
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        controller = setup_web.DockerRuntime(
+            project, home, runner=recording_runner,
+            ports=(listener.getsockname()[1], 13081),
+        )
+        with pytest.raises(RuntimeError, match="^runtime_stop_current_required$"):
+            controller.install(start=False)
+
+    assert any("build" in call for call in calls)
+    assert not any("up" in call or "stop" in call for call in calls)
+    assert store.read() == before
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == previous
+    assert not (project / ".venv").exists()
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "docker_cli_missing",
+        "docker_daemon_unavailable",
+        "docker_compose_missing",
+        "docker_architecture_unsupported",
+        "docker_data_home_unsafe",
+        "docker_port_8088_occupied",
+        "docker_port_3081_conflict",
+        "docker_ownership_mismatch",
+        "docker_build_not_ready",
+    ],
+)
+def test_docker_check_only_keeps_stable_codes_and_strips_unsafe_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, code: str
+) -> None:
+    from scripts import setup_web
+
+    project = tmp_path / "checkout"
+    (project / "scripts").mkdir(parents=True)
+    monkeypatch.setattr(setup_web, "__file__", str(project / "scripts/setup_web.py"))
+
+    class FailingDocker:
+        def __init__(self, *_args) -> None:
+            pass
+
+        def preflight(self, *, require_image: bool = True) -> dict[str, object]:
+            assert require_image is False
+            return {"ok": False, "issues": [code], "unsafe_path": str(tmp_path)}
+
+    monkeypatch.setattr(setup_web, "DockerRuntime", FailingDocker)
+    captured = StringIO()
+    with redirect_stdout(captured):
+        assert setup_web.main(["--runtime", "docker", "--check-only"]) == 1
+    output = captured.getvalue()
+    assert json.loads(output)["issues"] == [code]
+    assert str(tmp_path) not in output
+
+
+def test_docker_start_failure_preserves_native_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import setup_web
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    project = tmp_path / "checkout"
+    (project / "requirements").mkdir(parents=True)
+    (project / "requirements/web.lock").write_text("locked\n", encoding="utf-8")
+    (project / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    monkeypatch.setattr(setup_web.Path, "home", classmethod(lambda _cls: home))
+
+    monkeypatch.setattr(
+        setup_web._DockerRuntimeController,
+        "install",
+        lambda _self: {"ok": True, "issues": [], "image_id": "sha256:" + "a" * 64},
+    )
+    monkeypatch.setattr(
+        setup_web._DockerRuntimeController,
+        "_start_candidate",
+        lambda _self, _manifest: {"ok": False, "issues": ["docker_port_8088_occupied"]},
+    )
+    _allow_idle_runtime_selection(monkeypatch)
+    arguments = setup_web.build_parser().parse_args(["--runtime", "docker", "--repair"])
+    with pytest.raises(RuntimeError, match="^docker_port_8088_occupied$"):
+        setup_web.install_selected_runtime(arguments, project_root=project)
+    data_home = home / ".research-workbench"
+    assert RuntimeModeStore(data_home).read().mode == "native"
+    assert not (data_home / "install/docker-manifest.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("code", "remediation"),
+    [
+        ("docker_cli_missing", "Docker Desktop"),
+        ("docker_build_failed", "构建失败"),
+        ("docker_start_failed", "启动失败"),
+        ("docker_io", "文件访问失败"),
+        ("runtime_ownership_unknown", "安装日志"),
+    ],
+)
+def test_docker_failure_uses_safe_remediation_without_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, code: str, remediation: str
+) -> None:
+    from scripts import setup_web
+
+    project = tmp_path / "checkout"
+    (project / "scripts").mkdir(parents=True)
+    monkeypatch.setattr(setup_web, "__file__", str(project / "scripts/setup_web.py"))
+    monkeypatch.setattr(setup_web, "_configure_logging", lambda _root: None)
+
+    monkeypatch.setattr(
+        setup_web._DockerRuntimeController,
+        "install",
+        lambda _self: {"ok": False, "issues": [code]},
+    )
+    captured = StringIO()
+    with redirect_stderr(captured):
+        assert setup_web.main(["--runtime", "docker", "--no-start"]) == 1
+    assert code in captured.getvalue()
+    assert remediation in captured.getvalue()
+    assert str(tmp_path) not in captured.getvalue()
+
+
+def test_explicit_native_selection_keeps_legacy_dispatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import setup_web
+
+    calls: list[tuple[bool, bool]] = []
+
+    class RecordingNative:
+        def __init__(self, *, project_root: Path) -> None:
+            assert project_root == tmp_path
+
+        def install(self, *, repair: bool, start: bool) -> dict[str, object]:
+            calls.append((repair, start))
+            return {"status": "installed"}
+
+    monkeypatch.setattr(setup_web, "SetupWebInstaller", RecordingNative)
+    for flags in ([], ["--runtime", "native"], ["--runtime", "native", "--repair", "--no-start"]):
+        arguments = setup_web.build_parser().parse_args(flags)
+        assert setup_web.install_selected_runtime(arguments, project_root=tmp_path) == {"status": "installed"}
+    assert calls == [(False, True), (False, True), (True, False)]
+
+
+def test_no_argument_main_keeps_native_json_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import setup_web
+
+    project = tmp_path / "checkout"
+    (project / "scripts").mkdir(parents=True)
+    monkeypatch.setattr(setup_web, "__file__", str(project / "scripts/setup_web.py"))
+    monkeypatch.setattr(setup_web, "_configure_logging", lambda _root: None)
+
+    class RecordingNative:
+        def __init__(self, *, project_root: Path) -> None:
+            assert project_root == project
+
+        def install(self, *, repair: bool, start: bool) -> dict[str, object]:
+            assert (repair, start) == (False, True)
+            return {
+                "status": "installed",
+                "code_commit": "a" * 40,
+                "cjpy_version": "0.5.2",
+                "dsh_commit": DSH_COMMIT,
+            }
+
+    monkeypatch.setattr(setup_web, "SetupWebInstaller", RecordingNative)
+    captured = StringIO()
+    with redirect_stdout(captured):
+        assert setup_web.main([]) == 0
+    assert json.loads(captured.getvalue()) == {
+        "status": "installed",
+        "code_commit": "a" * 40,
+        "cjpy_version": "0.5.2",
+        "dsh_commit": DSH_COMMIT,
+        "started": True,
+    }
+
+
+def test_docker_success_main_prints_only_public_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import setup_web
+
+    project = tmp_path / "checkout"
+    (project / "scripts").mkdir(parents=True)
+    monkeypatch.setattr(setup_web, "__file__", str(project / "scripts/setup_web.py"))
+    monkeypatch.setattr(setup_web, "_configure_logging", lambda _root: None)
+    monkeypatch.setattr(
+        setup_web,
+        "install_selected_runtime",
+        lambda arguments, *, project_root: {
+            "status": "installed",
+            "code_commit": "a" * 40,
+            "image_id": "sha256:" + "b" * 64,
+            "private_path": str(tmp_path),
+        },
+    )
+    captured = StringIO()
+    with redirect_stdout(captured):
+        assert setup_web.main(["--runtime", "docker", "--no-start"]) == 0
+    assert json.loads(captured.getvalue()) == {
+        "status": "installed",
+        "runtime": "docker",
+        "code_commit": "a" * 40,
+        "image_id": "sha256:" + "b" * 64,
+        "started": False,
+    }
+    assert str(tmp_path) not in captured.getvalue()
+
+
+@pytest.mark.parametrize("failure", ["publish", "mode", "unhealthy", "old_container"])
+def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatch, failure):
+    from scripts import setup_web
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    project = tmp_path / "checkout"
+    (project / "requirements").mkdir(parents=True)
+    (project / "requirements/web.lock").write_text("locked")
+    (project / "compose.yaml").write_text("services: {}")
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    current = store.write("native")
+    old = setup_web._docker_manifest(project, "sha256:" + "a" * 64)
+    path = home / "install/docker-manifest.json"
+    setup_web._write_docker_manifest(path, old)
+    previous = path.read_bytes()
+    controller = setup_web.DockerRuntime(project, home)
+    _allow_idle_runtime_selection(monkeypatch)
+    if failure == "old_container":
+        monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight",
+                            lambda self, **kwargs: {"ok": True, "container_image_id": old["image_id"]})
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "install",
+                        lambda self: {"ok": True, "image_id": "sha256:" + "b" * 64})
+    monkeypatch.setattr(controller, "_start_candidate", lambda manifest: {
+        "ok": True, "services": {role: {"healthy": failure != "unhealthy"}
+                                 for role in ("web", "runtime")}})
+    rolled_back = []
+    monkeypatch.setattr(controller, "_rollback_created", lambda: rolled_back.append(True))
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("injected_publish_failure")
+
+    if failure == "publish":
+        monkeypatch.setattr(setup_web, "_write_docker_manifest", fail)
+    elif failure == "mode":
+        monkeypatch.setattr(RuntimeModeStore, "_write_locked", fail)
+    with pytest.raises(RuntimeError, match="injected_publish_failure|docker_services_unhealthy|docker_upgrade_requires_container_disposition"):
+        controller.install(start=failure != "old_container")
+    assert path.read_bytes() == previous
+    assert store.read() == current
+    assert rolled_back == ([] if failure == "old_container" else [True])
+    assert controller._manifest()["image_id"] == old["image_id"]
+
+
+def test_candidate_start_refuses_existing_corrupt_manifest(tmp_path, monkeypatch):
+    from scripts import setup_web
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+
+    home = tmp_path / "home"
+    RuntimeModeStore(home).write("native")
+    path = home / "install/docker-manifest.json"
+    path.write_text("{corrupt")
+    path.chmod(0o600)
+    controller = setup_web.DockerRuntime(tmp_path, home)
+    monkeypatch.setattr(controller, "_start_image", lambda *args, **kwargs: pytest.fail("must reject before launch"))
+    with pytest.raises(setup_web.ControlError, match="docker_manifest_invalid"):
+        controller._start_candidate({"image_id": "sha256:" + "a" * 64})
+
+
+def test_runtime_constants_share_the_machine_contract() -> None:
+    from app.research_web.runtime_contract import load_runtime_contract
+    from scripts import setup_web
+
+    contract = load_runtime_contract()
+    assert setup_web.CJPY_VERSION == contract.cjpy_version
+    assert setup_web.CJPY_WHEEL == f"cjpy-{contract.cjpy_version}-py3-none-any.whl"
+    assert setup_web.CJPY_SHA256 == contract.cjpy_sha256
+    assert setup_web.DSH_REMOTE == contract.dsh_remote
+    assert setup_web.DSH_COMMIT == contract.dsh_commit
+    assert setup_web.DSH_PNPM == contract.dsh_pnpm
+    assert setup_web.DSH_CLOSURE_FILES == contract.dsh_closure_files
+    assert setup_web.RUNTIME_CONTRACT == contract
+    assert SetupWebInstaller._node_supported("v22.19.0")
+    assert SetupWebInstaller._node_supported("v24.0.0")
+    assert not SetupWebInstaller._node_supported("v22.18.0")
+    assert not SetupWebInstaller._node_supported("v25.0.0")
 
 def _installer_for_check(project_root: Path, data_home: Path) -> SetupWebInstaller:
     return SetupWebInstaller(
@@ -409,7 +887,9 @@ def test_repository_exposes_mac_windows_and_cross_platform_setup_entrypoints() -
     attributes = (project_root / ".gitattributes").read_text(encoding="utf-8")
 
     assert "scripts/setup_web.py" in shell
+    assert '"$@"' in shell
     assert '"%PROJECT_ROOT%\\scripts\\setup_web.py"' in windows
+    assert windows.count(" %*") == 2
     assert "%PROJECT_ROOT%\\.venv\\Scripts\\python.exe" in windows_cli
     assert "research_workbench_entrypoint" in windows_cli
     assert "import click; import app.cli.main" in windows_cli

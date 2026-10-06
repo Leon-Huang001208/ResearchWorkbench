@@ -1,16 +1,15 @@
-# Research Web 一键本地安装
+# Research Web Native / Docker 安装与运行
 
 当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
 
 
 ## 支持范围
 
-首版支持 macOS 与 Windows 的 Web 产品，不安装 Tauri、桌面 sidecar、数据库或桌面安装包。用户需先安装：
+当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：
 
-- Python 3.12
-- Node.js 22.19+（22 系列）或 24.x；Node 23 和 25+ 不在支持范围
-- Git
-- Windows：Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载；固定 DSH 的
+- Docker（推荐新安装）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、运行中的 Engine、Compose v2、构建时可访问固定基础镜像及 DSH 依赖的网络；无需宿主 Node，也无需全局第三方 Python 包。容器使用固定 Python 3.12、Node 24 和非 root 用户。Windows 的 Docker 凭据目录 ACL 尚无可证明的安全准备/验证路径，当前以 `docker_credentials_acl_unverified` 失败关闭，不能称为 Windows Docker 已可用或已验收。
+- Native：Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Node 23 和 25+ 不受支持。
+- Windows Native：Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载；固定 DSH 的
   `fs-ext` 原生模块需要本机编译，安装器不会静默安装或修改系统工具链
 
 Wind、iFinD、Office 等厂商/系统软件是可选能力，缺失不阻止 Web 主体启动。模型密钥、`CJ_KEY`、
@@ -26,30 +25,129 @@ macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Key
 
 macOS：
 
+macOS Docker 推荐入口：
+
 ```bash
-./setup-web.sh
+./setup-web.sh --runtime docker
+./rwb web doctor
 ```
 
-Windows：
+macOS Native 替代入口；无参数 `./setup-web.sh` 也默认 Native：
+
+```bash
+./setup-web.sh --runtime native
+```
+
+Windows Docker 对应入口（当前 ACL 门仍可能失败关闭）：
 
 ```bat
-setup-web.cmd
+setup-web.cmd --runtime docker
+rwb.cmd web doctor
+```
+
+Windows Native 替代入口：
+
+```bat
+setup-web.cmd --runtime native
 ```
 
 跨平台底层入口：
 
 ```bash
-python scripts/setup_web.py
+python scripts/setup_web.py --runtime native
 ```
 
-默认流程会检查前置条件、创建项目自有 `.venv`、按哈希锁安装 Web 依赖、校验并安装随包
+`--runtime` 缺省为 `native`，包括 shell、`.cmd` 和底层 Python 入口；不会因 Docker 已安装而改变旧调用语义。Docker 安装路径会做只读 preflight、构建受管镜像并核验镜像身份；只有已验证的项目安装身份且当前运行时/端口无冲突时才发布安装摘要和选择 Docker。`--no-start` 仅跳过启动，不代表镜像已实际健康运行。Docker 安装摘要为 `~/.research-workbench/install/docker-manifest.json`，与 Native 安装清单分开。
+
+Docker 构建使用每次独立的候选 tag；接受摘要记录不可变 image ID，后续 start/Doctor 不依赖
+`research-workbench:local` 当前指向。摘要通过私有文件、长度、无 alias 和字段校验，再核对
+Web 锁、Compose、Python/Node 与 CJPY/DSH 构建合同；缺失、损坏或合同不一致会失败关闭。
+默认启动有界等待容器健康检查证明 DSH/Web 同时 ready；starting 超时、unhealthy 或退出都
+不会发布成功模式或打开浏览器。失败只删除本次新建且重新确认归属的容器，保留既有容器、
+数据和凭据。显式 `--no-start` 仍允许仅接受已验证构建，不宣称实际 ready。
+候选启动或发布失败保留先前接受的镜像；模式提交失败时恢复先前摘要。已有容器使用其他
+image ID 时，普通安装返回 `docker_upgrade_requires_container_disposition`。显式 `--repair`
+可在确认旧受管容器停止、端口空闲后再次检查归属，并用非 force 的精确 ID 删除该停止容器；
+并发启动时删除失败关闭。旧接受摘要和旧不可变镜像、产品数据、凭据始终保留到候选接受，
+失败时可按旧接受合同重新 start。若同时修改了锁或 Compose，需要恢复旧合同后才能按旧镜像
+启动；不会用不匹配的新合同启动旧镜像。`--no-start` 同样要求显式 repair 才处置旧容器。
+相关错误为 `docker_manifest_missing`、`docker_manifest_invalid`、`docker_build_contract_mismatch`、
+`docker_image_mismatch`、`docker_ready_timeout`、`docker_services_unhealthy`、`docker_rollback_failed`。
+
+Compose `up` 自身非零或超时后也执行一次有界恢复核对。新建调用使用临时配置写入一次性
+launch label，只有启动前不存在、label/安装归属/候选image全部匹配的精确容器才清理；
+并发或无法确认的实例保留，原启动issue后追加 `docker_rollback_unverified`。清理执行失败
+追加 `docker_rollback_failed`，不覆盖原up错误或自动重试删除。`--no-recreate` 保留既有停止容器。
+
+下述 `.venv` 和宿主 Node 说明仅适用于 Native。Native 默认流程会检查前置条件、创建项目自有 `.venv`、按哈希锁安装 Web 依赖、校验并安装随包
 `cjpy==0.5.2`、构建固定 DSH、启动 3081/8088 并打开浏览器。可用参数：
 
 - `--check-only`：只检查，不写入。
-- `--repair`：只修复带本项目所有权标记的 `.venv` 或 DSH 目录；复用 `.venv` 前以 15 秒上限
+- `--repair`：Native 只修复带本项目所有权标记的 `.venv` 或 DSH 目录；复用 `.venv` 前以 15 秒上限
   验证其中的 pip 可响应，失败时把旧环境保留为 `.venv.failed-<id>` 后原子创建新环境；未知目录
   仍拒绝覆盖。
 - `--no-start`：安装完成但不启动服务。
+
+Docker `--repair` 重复有界构建和镜像身份验证，不删除产品数据、未知容器或 Native 环境。Docker 安装可能因远端镜像、APT、npm/pnpm 或 GitHub 网络失败；不得把 `--check-only` 成功或本机源码测试当作完整构建成功。
+
+## 模式、生命周期和目录归属
+
+安装后先查看当前模式；仅需切换时使用 `runtime use`，不要把两个方向当成连续安装步骤：
+
+```bash
+./rwb runtime status --json
+```
+
+```bash
+./rwb runtime use docker --stop-current
+```
+
+```bash
+./rwb runtime use native --stop-current
+```
+
+选定 Docker 后，可分别运行这些生命周期与诊断命令：
+
+```bash
+./rwb web start --no-open
+./rwb web status --json
+./rwb web doctor --json
+./rwb web logs --tail 100
+```
+
+Docker 在运行中无法认证证明研究空闲；重启必须显式 `--force`，会中断研究：
+
+```bash
+./rwb web restart --force --no-open
+```
+
+停止当前受管服务：
+
+```bash
+./rwb web stop
+```
+
+Windows 将入口写为 `rwb.cmd runtime status --json`、`rwb.cmd runtime use docker --stop-current`、`rwb.cmd web doctor --json` 等对应命令；这些是接口说明，不表示本轮已在真实 Windows 上跑通 Docker。`runtime use` 默认不停止当前服务；存在运行中的旧模式时必须显式提供 `--stop-current`，且仅在旧进程/容器归属可验证时停止。未知端口占用、无法确认的 PID/容器、活动研究或状态异常均失败关闭；不要手动改模式记录来绕过。运行时选择保存在私有 `install/runtime.json`，无需 `.venv` 即可路由 Docker 命令；Native 命令仍进入 Native 环境。
+
+两种模式依次使用 `~/.research-workbench/research-web/` 中的同一会话、资料、附件和产物，绝不能同时写入。Native 的 PID、认证和运行状态位于 `~/.research-workbench/run/`；Docker 的状态位于 `run/docker/<installation-id>/`，容器归属由项目、服务、安装身份、镜像、挂载及端口核对，不复用 Native 的状态/认证文件。Docker 凭据存于 `secrets/docker/<installation-id>/` 并单独 bind mount 到容器；Native 仍使用宿主系统凭据库，模式切换不复制或迁移密码/令牌。Compose 只将宿主 `127.0.0.1:8088` 发布给浏览器；DSH 3081 仍留在单容器内部回环。容器以非 root、只读根文件系统、受限能力和显式可写挂载运行。
+
+Docker 的挂载根与实际私有目录不同：`/state` 仍是状态 bind 根，DSH 状态和认证实际位于
+`/state/runtime`；`/run/rwb-secrets` 仍是凭据 bind 根，File backend 显式使用
+`RESEARCH_CREDENTIAL_HOME=/run/rwb-secrets/private`。supervisor 以容器 UID 10001 在首次
+认证、健康探测和子进程启动前创建 0700 私有叶，重启时验证并复用。Docker Desktop 可能把
+宿主创建的 bind 根呈现为 UID 0；不会因此放宽私有叶 owner/权限/no-follow 检查，也不会
+chmod/chown 挂载根。`LOG_DIR=/state/logs` 独立于私有状态叶，避免导入期日志目录创建
+提前生成权限不正确的状态叶。用户 data-root、Native 路径及 Inspector 挂载契约不变。
+
+首次 mkdir 还可能使固定 bind 根的可见 UID/GID 从 0:0 变为容器用户。Docker-only 准备器
+仅对缺失的 `/state/runtime`、`/run/rwb-secrets/private`、`/data/research-web/logs` 分阶段：
+保留 no-follow 父目录FD安全创建0700叶，固定父节点的dev/inode/mode和路径/FD一致性必须
+保持，创建阶段仅允许可信root→当前UID/GID映射；随后重新进入原完整严格校验，确认新叶
+仍为本次创建对象，才访问认证/凭据或启动进程。已有叶及自定义路径无此创建例外。
+
+Docker 容器无法等同宿主系统集成环境：Office/Wind、宿主凭据库、Tabbit 等需要 GUI、驱动、会话或本机 CLI 的能力不得仅因目录可见就标记为可调用。模型密钥须在选定模式中重新配置；Doctor/日志输出不应包含秘密或用户文件正文。`./rwb web logs --tail 100` 为有界尾部；Docker 的 `--follow` 最多读取 300 秒，每条输出流上限 64 KiB，超时或超限会结束读取，退出读取不停止服务。Doctor 的稳定 `issues` 可用于定位：`docker_cli_missing`、`docker_daemon_unavailable`、`docker_compose_missing`、`docker_architecture_unsupported`、`docker_port_8088_occupied`、`docker_port_3081_conflict`、`docker_ownership_mismatch`、`docker_build_not_ready`、`docker_data_home_unsafe`、`docker_credentials_acl_unverified`、`docker_services_unhealthy`、`runtime_stop_current_required`。按代码修复前置环境或停止已确认归属的旧模式，再重试；不要删除未知容器或修改状态文件。
+
+升级时先 `web stop`，更新受审源码和锁后用对应 `--runtime` 重建/安装，执行 Doctor、status 和实际启动验证；不能把旧安装摘要视为新代码证明。修复用同一模式的 `--repair`，先保留现有数据并核对所有权。卸载运行部分可停止服务、移除自己受管的镜像/容器或 Native `.venv`；产品数据、Docker 私有凭据和 Native 系统凭据默认保留，需先另行备份并取得明确授权才清理。没有自动执行跨模式凭据迁移或破坏性卸载。
 
 安装器只会在当前 `.venv` 能从 checkout 加载 `app.research_web.main:app` 后写入 `installed` 清单；
 该 Web import readiness 最多等待 300 秒，用于完成云盘/FileProvider 冷文件的首次读取。超时或导入
@@ -77,6 +175,9 @@ Windows 将 `./rwb` 换成 `rwb.cmd`。Doctor 的 JSON 只包含版本、摘要�
 `web doctor --json` 仍由仅使用系统 Python 标准库的受限入口提供帮助或安全诊断；该入口拒绝
 `start/restart/stop`，不读取 Runtime Cookie，也不改写 PID/state。系统 Python 也缺失时，入口返回
 `python_runtime_unavailable` 并提示重新运行公开安装器。
+该限制只适用于选中的 Native 模式：stdlib bootstrap 先选择部署模式，Docker 命令在 Native
+环境缺失或损坏时仍可路由。Native 的 `web status --json` 同样提供 schema 2 的安全事实；
+工作树复用公共 checkout 的 `.venv` 时按该环境所属根验证安装标记，不回退导入全局产品包。
 Doctor schema 2 区分 `installation_ok`、`product_ready` 与 `model_ready`。服务状态按 state、真实 PID、
 启动身份与命令归属、监听 PID、DSH 协议、Web HTTP 逐级核对；PID 文件或开放端口单独存在都不构成
 ready。Node 22.19+（22 系列）或 24.x 由安装器与 Doctor 使用同一版本合同核对，其他版本或畸形

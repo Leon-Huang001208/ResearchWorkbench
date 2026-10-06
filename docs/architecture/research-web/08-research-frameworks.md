@@ -2,6 +2,11 @@
 
 模型设置更新只影响新建Bot会话的默认模型，已有Gold/Dollar会话保留选模；活动父/子任务阻止共享凭据变化。模型生成测试复用无研究工具的框架解释preset，但不绑定业务快照、不改变确定性评分或框架采集。测试通过只证明指定模型生成，不证明框架数据能力。
 
+Native 和 Docker 复用 Gold/Dollar 的定义、快照 revision、评分、renderer 和 Bot 请求合同。
+模式只改变同一 3081/8088 服务的部署位置；Docker 单容器健康检查同时要求两项服务 ready，
+但框架采集是否取得真实外部数据仍由各自来源与缺口规则判断。Docker 健康通过不证明宿主
+Office/Wind 等可选集成可用，也不构成 Windows Docker 验收。
+
 2026-09-29 启动稳定性变更只调整 Research Web/DSH 的进程归属、恢复与页面 ready 判定。
 Gold/Dollar 仍由同一 3081 Runtime 和 8088 Host 执行；定义、采集器、调度、快照 schema/revision、
 评分、renderer、Bot 会话绑定和框架图源均未改变。模型未配置时 Web 设置页可访问，不代表框架

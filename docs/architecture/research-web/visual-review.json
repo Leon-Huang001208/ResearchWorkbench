@@ -9,7 +9,10 @@
       "status": "reviewed",
       "reviewer": "controller",
       "date": "2026-09-07",
-      "captures": ["08-iteration-docs.visual-check.1440x900.dark.png", "08-iteration-docs.visual-check.2048x1320.light.png"],
+      "captures": [
+        "08-iteration-docs.visual-check.1440x900.dark.png",
+        "08-iteration-docs.visual-check.2048x1320.light.png"
+      ],
       "findings": [],
       "notes": "已人工查看更新后 1440 浅色与 2048 浅色/深色最终截图；固定十图、源码/API/文档/测试映射、CI 和只读入口关系可读，未见穿线、遮挡或裁剪。作者更新图文与自动一致性检查分开，检查不代替语义或产品验收。"
     },
@@ -20,7 +23,12 @@
       "status": "reviewed",
       "reviewer": "controller",
       "date": "2026-09-11",
-      "captures": ["02-module-dependencies.visual-check.1440x900.light.png", "02-module-dependencies.visual-check.1440x900.dark.png", "02-module-dependencies.visual-check.2048x1320.light.png", "02-module-dependencies.visual-check.2048x1320.dark.png"],
+      "captures": [
+        "02-module-dependencies.visual-check.1440x900.light.png",
+        "02-module-dependencies.visual-check.1440x900.dark.png",
+        "02-module-dependencies.visual-check.2048x1320.light.png",
+        "02-module-dependencies.visual-check.2048x1320.dark.png"
+      ],
       "findings": [],
       "notes": "已人工查看同一最终哈希的 1440 浅色与 2048 深色截图，并以自动回执确认 1440/1600/1920/2048 包含性及最小/最大明暗截图生成；MCP Registry + Host、Automation、原子任务事实/系统凭据库、专属 DSH、报告 Workflow 与外部投递关系可读，未见遮挡、裁剪或节点穿线。图只证明结构表达，不证明 Registry、MCP Server、投递渠道、Tabbit 或 Provider 在线。"
     },
@@ -31,23 +39,26 @@
       "status": "reviewed",
       "reviewer": "controller",
       "date": "2026-09-03",
-      "captures": ["05-capability-flow.visual-check.1440x900.dark.png", "05-capability-flow.visual-check.2048x1320.light.png"],
+      "captures": [
+        "05-capability-flow.visual-check.1440x900.dark.png",
+        "05-capability-flow.visual-check.2048x1320.light.png"
+      ],
       "findings": [],
       "notes": "已人工查看两张最终截图；发布与研究分层，无穿线/裁剪。图示为实际模块关系，不是另一个 Workflow 执行器。四视口自动检查独立记录；首次 Chrome load 超时，原样重验成功，未将失败回执算通过。"
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "78a9f66cdeff35d67e63ecdce52910933ec428d5735cecf3087cc0bfcc55fc59",
-      "specificationSha256": "820ccb06b91fb2928cdd9cd752d8a64e2900085ba6f238d97c8a37eab9a560b6",
+      "artifactSha256": "34c757afaad2953c70e0dbb4f6e8b30b28d37c67f9d56ec1d9577c89315c55c2",
+      "specificationSha256": "39f5819cc29d5963bae03a143c61d074c8261b83a48ff58bcf84e819be9f1501",
       "status": "reviewed",
-      "reviewer": "Codex visual inspection",
+      "reviewer": "Codex PR78 合并视觉复核",
       "date": "2026-10-06",
       "captures": [
         "01-deployment.visual-check.1440x900.light.png",
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Codex 已直接查看上述同一最终哈希的 1440 浅色和 2048 深色截图；模型 Keychain/私有进程通道与 DSH 历史及 Host 认证 record 分开表达，未见遮挡、节点穿线或裁剪。四视口包含性有独立自动回执；此视觉检查不代表用户人工审阅或供应商验收。"
+      "notes": "实际查看最终同哈希1440浅色与2048深色截图；Native/Docker边界及Mac模型Keychain分离可读，无节点遮挡或剪裁。四视口均无溢出；此证据不代表真实模型或其他平台验收。"
     },
     {
       "id": "03-research-sequence",

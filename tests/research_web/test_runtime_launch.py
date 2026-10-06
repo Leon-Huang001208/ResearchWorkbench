@@ -1,6 +1,9 @@
 import hashlib
 import io
 import json
+import shutil
+import subprocess
+import sys
 import tarfile
 from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
@@ -9,6 +12,16 @@ import pytest
 
 from app.research_web import launch_runtime
 from app.research_web.mcp_runtime.authorization import AuthorizationManager
+
+
+def test_runtime_constants_share_the_machine_contract():
+    from app.research_web import PINNED_DSH_COMMIT
+    from app.research_web.runtime_contract import load_runtime_contract
+
+    contract = load_runtime_contract()
+    assert PINNED_DSH_COMMIT == contract.dsh_commit
+    assert launch_runtime.PINNED_COMMIT == contract.dsh_commit
+    assert launch_runtime.RUNTIME_CONTRACT == contract
 
 
 def make_source(tmp_path: Path) -> Path:
@@ -142,6 +155,281 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert "default: research-web" in overlay
     assert "synthetic-ambient" not in overlay
     assert "RESEARCH_DSH_API_KEY" not in env
+
+@pytest.mark.parametrize("marker", ["runtime", "web", "invalid", "runtime\nweb", ""])
+def test_clean_runtime_exec_environment_retains_only_exact_runtime_role(
+    tmp_path, monkeypatch, marker
+):
+    source = make_source(tmp_path)
+    monkeypatch.setenv("RWB_SUPERVISOR_ROLE", marker)
+    monkeypatch.setenv("UNRELATED_HOST_VALUE", "must-not-cross-exec-boundary")
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output",
+        lambda *args, **kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    _, env, _ = launch_runtime.prepare(source, tmp_path / "data", "/node", 3081)
+    assert env.get("RWB_SUPERVISOR_ROLE") == ("runtime" if marker == "runtime" else None)
+    assert "UNRELATED_HOST_VALUE" not in env
+    assert "must-not-cross-exec-boundary" not in env.values()
+
+
+def test_runtime_role_survives_real_exec_with_clean_environment(tmp_path):
+    source = make_source(tmp_path)
+    # Execute the actual Node preload and final exec boundary with public fixtures.
+    node = shutil.which("node")
+    assert node is not None
+    (source / "package.json").write_text(json.dumps({"version": "fixture"}))
+    (source / "apps/cli/lib/bin.js").write_text(
+        "console.log(JSON.stringify({role:process.env.RWB_SUPERVISOR_ROLE,"
+        "host:process.env.UNRELATED_HOST_VALUE ?? null}));\n"
+    )
+    runner = """
+import os, sys
+from app.research_web import launch_runtime as launcher
+launcher.setup_logging = lambda: None
+launcher.subprocess.check_output = lambda *a, **k: launcher.PINNED_COMMIT
+launcher.validate_tabbit_node = lambda node: '24.0.0'
+launcher.prepare_runtime_module_fallback = lambda *a: 0
+launcher.stage_tabbit_package = lambda *a: {'version':'fixture','source_commit':'fixture'}
+launcher.stage_tabbit_adapter = lambda *a: None
+os.environ['RWB_SUPERVISOR_ROLE'] = 'runtime'
+os.environ['UNRELATED_HOST_VALUE'] = 'must-not-cross-exec-boundary'
+sys.argv = ['launcher', '--source', sys.argv[1], '--data', sys.argv[2], '--node', sys.argv[3]]
+launcher.main()
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", runner, str(source), str(tmp_path / "data"), node],
+        capture_output=True, text=True, timeout=5, check=True,
+    )
+    assert json.loads(completed.stdout.splitlines()[-1]) == {"role": "runtime", "host": None}
+
+
+@pytest.mark.parametrize("separate_state", [False, True])
+def test_prepare_separates_persistent_data_from_runtime_state(
+    tmp_path, monkeypatch, separate_state
+):
+    from app.research_web.client import _default_auth_path
+
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    state = tmp_path / "state" if separate_state else data / "runtime"
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "check_output",
+        lambda *args, **kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    monkeypatch.setenv("RESEARCH_DATA_HOME", str(data))
+    monkeypatch.setenv("RESEARCH_RUNTIME_AUTH", str(state / "auth.json"))
+    options = {"state_root": state} if separate_state else {}
+    command, env, work = launch_runtime.prepare(source, data, "/node", 3081, **options)
+    assert env["DSH_HOME"] == str(data.resolve() / "runtime/home")
+    assert work == data.resolve() / "runtime/work"
+    assert command[command.index("--host") + 1] == "127.0.0.1"
+    assert command[command.index("--patch") + 1] == str(state.resolve() / "overlay.yml")
+    assert env["RESEARCH_RUNTIME_AUTH"] == str(state.resolve() / "auth.json")
+    assert env["RWB_RUNTIME_STATE"] == str(state.resolve())
+    assert (state / "build-lock.json").is_file()
+    assert _default_auth_path() == state / "auth.json"
+    if separate_state:
+        assert not (data / "runtime/overlay.yml").exists()
+        assert not (data / "runtime/build-lock.json").exists()
+        assert not (state / "home").exists()
+
+
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="Legacy POSIX directory permissions")
+@pytest.mark.parametrize("layout", ["legacy_native", "public_parent", "custom"])
+def test_direct_prepare_legacy_native_state_requires_private_data(tmp_path, monkeypatch, layout):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    data.mkdir(mode=0o700)
+    state = data / "runtime" if layout != "custom" else tmp_path / "state"
+    state.mkdir(mode=0o755)
+    state.chmod(0o755)
+    if layout == "public_parent":
+        data.chmod(0o755)
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "check_output",
+        lambda *_args, **_kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    if layout == "legacy_native":
+        command, env, work = launch_runtime.prepare(source, data, "/node", 3081)
+        assert command[command.index("--patch") + 1] == str(state / "overlay.yml")
+        assert env["DSH_HOME"] == str(state / "home")
+        assert work == state / "work"
+        assert state.stat().st_mode & 0o777 == 0o755
+    else:
+        with pytest.raises(ValueError, match="runtime_state_unsafe"):
+            launch_runtime.prepare(source, data, "/node", 3081, state_root=state)
+        assert not (state / "overlay.yml").exists()
+        assert not (state / "build-lock.json").exists()
+
+
+@pytest.mark.parametrize("mode", ["default", "explicit_state", "data_alias"])
+def test_launch_cli_accepts_state_and_preserves_historical_default(tmp_path, monkeypatch, mode):
+    data = tmp_path / "data"
+    state = tmp_path / "state" if mode == "explicit_state" else data / "runtime"
+    if mode == "data_alias":
+        data.mkdir()
+        alias = tmp_path / "data-alias"
+        alias.symlink_to(data, target_is_directory=True)
+        data = alias
+    argv = ["launch_runtime", "--source", str(tmp_path / "source"), "--data", str(data)]
+    if mode == "explicit_state":
+        argv += ["--state", str(state)]
+    monkeypatch.setattr(launch_runtime.sys, "argv", argv)
+    monkeypatch.setattr(launch_runtime, "setup_logging", lambda: None)
+    monkeypatch.setattr(launch_runtime, "validate_tabbit_node", lambda _node: "24.0.0")
+    observed = {}
+
+    def prepare(*args, **kwargs):
+        observed.update(kwargs)
+        raise RuntimeError("stop before any service launch")
+
+    monkeypatch.setattr(launch_runtime, "prepare", prepare)
+    with pytest.raises(SystemExit) as failure:
+        launch_runtime.main()
+    assert failure.value.code == 1
+    assert observed["state_root"] == state
+
+
+@pytest.mark.parametrize(
+    "unsafe", ["writable", "symlink", "ancestor_symlink", "ancestor_writable", "file"]
+)
+@pytest.mark.parametrize("entrypoint", ["prepare", "cli"])
+def test_launch_rejects_unsafe_state_before_file_access(tmp_path, monkeypatch, unsafe, entrypoint):
+    if launch_runtime.os.name == "nt" and unsafe != "file":
+        pytest.skip("POSIX mode and symlink fixtures; Windows semantics tested separately")
+    source = make_source(tmp_path)
+    state = tmp_path / "state"
+    target = tmp_path / "target"
+    target.mkdir(mode=0o700)
+    if unsafe == "writable":
+        state.mkdir(mode=0o777)
+        state.chmod(0o777)
+    elif unsafe == "symlink":
+        state.symlink_to(target, target_is_directory=True)
+    elif unsafe == "ancestor_symlink":
+        alias = tmp_path / "alias"
+        alias.symlink_to(target, target_is_directory=True)
+        state = alias / "state"
+        (target / "state").mkdir(mode=0o700)
+    elif unsafe == "ancestor_writable":
+        target.chmod(0o777)
+        state = target / "state"
+        state.mkdir(mode=0o700)
+    else:
+        state.write_text("not a directory")
+    original_open = Path.open
+
+    def checked_open(path, *args, **kwargs):
+        if path.parent == state:
+            pytest.fail("state file accessed before rejecting unsafe directory")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", checked_open)
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "check_output",
+        lambda *args, **kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    if entrypoint == "prepare":
+        with pytest.raises((RuntimeError, ValueError), match="runtime_state_unsafe"):
+            launch_runtime.prepare(source, tmp_path / "data", "/node", 3081, state_root=state)
+    else:
+        monkeypatch.setattr(launch_runtime, "setup_logging", lambda: None)
+        monkeypatch.setattr(launch_runtime, "validate_tabbit_node", lambda _node: "24.0.0")
+        monkeypatch.setattr(
+            launch_runtime.sys,
+            "argv",
+            [
+                "launch_runtime",
+                "--source",
+                str(source),
+                "--data",
+                str(tmp_path / "data"),
+                "--state",
+                str(state),
+            ],
+        )
+        with pytest.raises(SystemExit) as error:
+            launch_runtime.main()
+        assert error.value.code == 1
+
+
+@pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX ownership and identity fixture")
+def test_runtime_state_boundary_checks_owner_mode_and_identity(tmp_path, monkeypatch):
+    import os
+
+    from app.research_web import runtime_state
+
+    state = tmp_path / "new" / "state"
+    with runtime_state.runtime_state_directory(state, create=True):
+        assert state.stat().st_mode & 0o777 == 0o700
+        assert state.parent.stat().st_mode & 0o777 == 0o700
+    original_lstat = Path.lstat
+
+    def wrong_owner(path):
+        identity = original_lstat(path)
+        if path == state:
+            fields = list(identity)
+            fields[4] = os.getuid() + 1
+            return os.stat_result(fields)
+        return identity
+
+    monkeypatch.setattr(Path, "lstat", wrong_owner)
+    with pytest.raises(runtime_state.RuntimeStateError):
+        with runtime_state.runtime_state_directory(state):
+            pytest.fail("wrong owner accepted")
+    monkeypatch.setattr(Path, "lstat", original_lstat)
+    with pytest.raises(runtime_state.RuntimeStateError):
+        with runtime_state.runtime_state_directory(state):
+            state.rename(tmp_path / "old-state")
+            state.mkdir(mode=0o700)
+
+
+def test_runtime_state_windows_rejects_reparse_without_using_posix_mode_as_acl():
+    import stat
+
+    from app.research_web import runtime_state
+
+    windows_identity = SimpleNamespace(st_mode=stat.S_IFDIR | 0o777, st_file_attributes=0)
+    runtime_state._validate_directory(windows_identity, leaf=True, platform_name="nt")
+    windows_identity.st_file_attributes = 0x400
+    with pytest.raises(runtime_state.RuntimeStateError):
+        runtime_state._validate_directory(windows_identity, leaf=True, platform_name="nt")
+
+
+def test_runtime_state_disappearance_during_open_is_rejected_before_body(tmp_path, monkeypatch):
+    from app.research_web import runtime_state
+
+    state = tmp_path / "state"
+    state.mkdir(mode=0o700)
+    original_lstat = Path.lstat
+    calls = 0
+
+    def disappear(path):
+        nonlocal calls
+        if path == state:
+            calls += 1
+            if calls == 2:
+                raise FileNotFoundError("simulated concurrent replacement")
+        return original_lstat(path)
+
+    monkeypatch.setattr(Path, "lstat", disappear)
+    with pytest.raises(runtime_state.RuntimeStateError, match="runtime_state_unsafe"):
+        with runtime_state.runtime_state_directory(state):
+            pytest.fail("changed directory accepted")
+
+
+def test_runtime_state_boundary_preserves_caller_errors(tmp_path):
+    from app.research_web.runtime_state import runtime_state_directory
+
+    failure = ValueError("caller validation failed")
+    with pytest.raises(ValueError) as raised:
+        with runtime_state_directory(tmp_path / "state", create=True):
+            raise failure
+    assert raised.value is failure
 
 
 def test_runtime_projects_only_active_host_verified_mcp_bindings(tmp_path, monkeypatch):
@@ -415,3 +703,42 @@ def test_live_acceptance_control_is_instance_bound_and_disables_retries(tmp_path
         launch_runtime.prepare(source, tmp_path / "other", "/node", 13081)
     with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
         launch_runtime.prepare(source, data, "/node", 3081)
+
+@pytest.mark.parametrize(("target", "stage"), [
+    ("validate_tabbit_node", "launcher_node"),
+    ("prepare", "launcher_prepare"),
+    ("prepare_runtime_module_fallback", "launcher_modules"),
+    ("stage_tabbit_package", "launcher_tabbit_package"),
+    ("stage_tabbit_adapter", "launcher_tabbit_adapter"),
+    ("_atomic_json", "launcher_config"),
+    ("execve", "launcher_exec"),
+])
+def test_launcher_failure_emits_fixed_stage_without_exception_text(tmp_path, monkeypatch, target, stage):
+    messages = []
+    monkeypatch.setattr(sys, "argv", ["launcher", "--source", str(tmp_path), "--data", str(tmp_path)])
+    monkeypatch.setattr(launch_runtime, "setup_logging", lambda: None)
+    monkeypatch.setattr(launch_runtime, "log", SimpleNamespace(
+        error=lambda event, **fields: messages.append((event, fields)), info=lambda *args, **kwargs: None,
+    ))
+    monkeypatch.setattr(launch_runtime, "validate_tabbit_node", lambda *args: "24.19.0")
+    monkeypatch.setattr(launch_runtime, "prepare", lambda *args, **kwargs: (["node"], {}, tmp_path))
+    monkeypatch.setattr(launch_runtime, "prepare_runtime_module_fallback", lambda *args: 1)
+    monkeypatch.setattr(launch_runtime, "stage_tabbit_package", lambda *args: {"version": "fixture", "source_commit": "fixture"})
+    monkeypatch.setattr(launch_runtime, "stage_tabbit_adapter", lambda *args: None)
+    monkeypatch.setattr(launch_runtime, "load_tabbit_config", lambda *args: {})
+    monkeypatch.setattr(launch_runtime, "_atomic_json", lambda *args: None)
+    monkeypatch.setattr(launch_runtime.os, "chdir", lambda *args: None)
+    def fail(*args, **kwargs):
+        raise PermissionError(13, "fixture-private-path-command-token")
+    if target == "execve":
+        monkeypatch.setattr(launch_runtime.os, target, fail)
+    else:
+        monkeypatch.setattr(launch_runtime, target, fail)
+    with pytest.raises(SystemExit) as error:
+        launch_runtime.main()
+    assert error.value.code == 1
+    records = [json.loads(event.removeprefix("container_startup_failure "))
+               for event, _ in messages if event.startswith("container_startup_failure ")]
+    assert records == [{"stage": stage, "exception_class": "PermissionError", "errno": 13,
+                        "runtime_returncode": None, "web_returncode": None}]
+    assert "fixture-private" not in json.dumps(messages)

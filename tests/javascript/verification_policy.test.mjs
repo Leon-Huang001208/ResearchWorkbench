@@ -771,7 +771,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 12);
+  assert.equal(catalogs.length, 16);
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -821,6 +821,100 @@ function assertDimensions(plan, {components, platforms, local = [], ci = [], rea
   assert.deepEqual(plan.ci.map(item => item.id), ci);
   assert.deepEqual(plan.realMachine.map(item => item.id), realMachine);
 }
+
+function assertFullDockerRoute(plan) {
+  assert.equal(plan.risk, "full-delivery");
+  assert.equal(plan.requiredLevel, "L4");
+  assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-docker"), true);
+  const ids = gateIds(plan);
+  for (const forbidden of ["native-windows-desktop", "desktop-packaging"]) {
+    assert.equal(ids.includes(forbidden), false, `${forbidden} leaked into Docker/runtime plan`);
+  }
+}
+
+test("dual-runtime catalogs and Docker external gate keep their exact contracts", () => {
+  const actual = JSON.parse(fs.readFileSync(
+    path.join(repositoryRoot, ".agents/verification-policy.json"),
+    "utf8",
+  ));
+  assert.deepEqual(actual.catalogs.tests["research-web-runtime-mode"], catalog(
+    "L1",
+    "python -m pytest tests/research_web/test_runtime_mode.py tests/research_web/test_docker_runtime.py --confcutdir=tests/research_web",
+  ));
+  assert.deepEqual(actual.catalogs.tests["research-web-container-runtime"], catalog(
+    "L2",
+    "python -m pytest tests/research_web/test_container_supervisor.py tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web",
+  ));
+  assert.deepEqual(actual.catalogs.tests["research-web-runtime-contract"], catalog(
+    "L1",
+    "python -m pytest tests/research_web/test_runtime_contract.py --confcutdir=tests/research_web",
+  ));
+  assert.deepEqual(actual.catalogs.tests["research-web-docker-contract"], catalog(
+    "L2",
+    "node --test tests/javascript/docker_runtime_contract.test.mjs",
+  ));
+  assert.deepEqual(actual.catalogs.tests["research-web-credential-backend"], catalog(
+    "L2",
+    "python -m pytest tests/research_web/test_credential_backend.py --confcutdir=tests/research_web",
+  ));
+  assert.deepEqual(actual.catalogs.ci["research-web-docker"], catalog(
+    "L4",
+    ".github/workflows/research-web-docker.yml#docker-runtime",
+    "ci", "merge", ["linux"],
+  ));
+});
+
+test("Docker packaging routes to L4 Docker acceptance without desktop gates", () => {
+  const plan = success(run(repositoryRoot, [
+    "Dockerfile",
+    "compose.yaml",
+    ".dockerignore",
+    "docker/entrypoint.sh",
+    "docker/supervisor.py",
+    "docker/healthcheck.py",
+    "tests/javascript/docker_runtime_contract.test.mjs",
+  ]));
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assertFullDockerRoute(plan);
+  assert.equal(plan.tests.some(item => item.id === "research-web-docker-contract"), true);
+  assert.equal(plan.tests.some(item => item.id === "research-web-container-runtime"), true);
+});
+
+test("host runtime router is known full delivery and selects focused mode tests", () => {
+  const plan = success(run(repositoryRoot, [
+    "research_workbench_entrypoint/runtime_mode.py",
+    "research_workbench_entrypoint/docker_runtime.py",
+    "research_workbench_entrypoint/bootstrap.py",
+    "tests/research_web/test_runtime_mode.py",
+    "tests/research_web/test_docker_runtime.py",
+  ]));
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false);
+  assertFullDockerRoute(plan);
+  assert.equal(plan.tests.some(item => item.id === "research-web-runtime-mode"), true);
+});
+
+test("runtime contract and credential backend paths use their narrow L4 routes", () => {
+  const runtimeContract = success(run(repositoryRoot, [
+    "runtimes/research_web.json",
+    "app/research_web/runtime_contract.py",
+    "tests/research_web/test_runtime_contract.py",
+  ]));
+  assert.equal(runtimeContract.reasons.some(item => item.code === "unknown_path"), false);
+  assertFullDockerRoute(runtimeContract);
+  assert.equal(runtimeContract.tests.some(item => item.id === "research-web-runtime-contract"), true);
+  assert.equal(
+    runtimeContract.tests.find(item => item.id === "research-web-runtime-contract")?.value,
+    "python -m pytest tests/research_web/test_runtime_contract.py --confcutdir=tests/research_web",
+  );
+
+  const credentials = success(run(repositoryRoot, [
+    "app/research_web/credential_backend.py",
+    "tests/research_web/test_credential_backend.py",
+  ]));
+  assert.equal(credentials.reasons.some(item => item.code === "unknown_path"), false);
+  assertFullDockerRoute(credentials);
+  assert.equal(credentials.tests.some(item => item.id === "research-web-credential-backend"), true);
+});
 
 const representativeCases = {
   purePython: ["app/research_web/frameworks/goldar/context.py"],

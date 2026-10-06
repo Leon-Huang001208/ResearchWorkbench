@@ -12,4 +12,5 @@ else
   exit 1
 fi
 
+# Keep --runtime and every installer flag in the original argument order.
 exec "$PYTHON_BIN" "$PROJECT_ROOT/scripts/setup_web.py" "$@"

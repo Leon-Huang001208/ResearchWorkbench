@@ -37,6 +37,7 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 | 共享安装器、Web 锁、固定 DSH/CJPY、跨平台 runtime/服务装配 | 自动 Research Web Checks + Bootstrap；Windows 真机对 exact SHA dispatch Windows Verify | Desktop |
 | macOS shell launcher | Research Web Checks + Bootstrap | Windows、Desktop |
 | Windows launcher、路径、认证文件、本机集成、编码/进程/服务管理 | 自动 Research Web Checks；Windows 真机对 exact SHA dispatch Windows Verify | Bootstrap、Desktop |
+| Docker 打包、共享运行时契约/控制器、容器认证与凭据边界 | Research Web Docker（Ubuntu，amd64/arm64）；共享 Native 合同仍进入 Bootstrap | 普通文档/UI 不触发 Docker；不代替 Native 或 Desktop |
 | Tabbit 平台合同 | 用户显式 `workflow_dispatch` | 普通 push／PR 自动触发 |
 | 桌面专属路径 | Desktop Verify | 普通 Web workflow 不能替代桌面门禁 |
 | Desktop Release | tag 或显式 dispatch | 普通 push |
@@ -47,10 +48,17 @@ Research Web Checks 的 Python 部分固定为协议、集成协调、文档服�
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
 
+Docker 路由的专项例外是 `.agents/verification-policy.json`、`tests/javascript/verification_policy.test.mjs` 及 Docker/额度契约测试：它们同时触发容器门，防止门禁 ID 与实际工作流脱节。门禁 ID 为 `.github/workflows/research-web-docker.yml#docker-runtime`。普通治理文档、产品文档和 UI 仍不触发 Docker。
+
+Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`、`linux/arm64` 串行执行（`max-parallel: 1`），每项最多 60 分钟；仅 arm64 设置 QEMU，Buildx 只加载本机镜像、不推送 registry。按提交与架构唯一标记镜像，构建前验证 Dockerfile 与共享运行时版本锁一致。只对相关路径触发，取消同 ref 的旧运行；两个矩阵项最多使用 120 Linux runner 分钟，不配置外部缓存或扩大 runner。
+
+容器门执行 Compose 校验、镜像构建、8088 Web 与容器内 3081 认证健康、重启、非秘密数据跨 down/up 持久化、最终 down 与宿主端口释放；每项使用独立临时 data/state/credential 挂载，最后清理。它证明 Linux 镜像行为，不能替代 GitHub macOS Native Bootstrap，也不证明 Windows Native、Docker Desktop 集成或桌面产品。首次远端运行前，本地静态合同通过不等同于两架构构建和运行已通过。
+
 ## Artifact 与保留期
 
 - Bootstrap 成功上传 `doctor.json`、`connections.json`、首页 `root.html` 和主静态模块 `app.mjs`，证明干净 runner 的安装/产品 ready 与页面资源可读取；完整 `logs/setup-web.log` 只在失败时上传。
 - Bootstrap 和 Windows Verify 的任务 artifact 保留 3 天。
+- Docker 成功 artifact 只含固定字段的健康摘要、Compose 服务名及固定阶段/数字退出码；失败 artifact 保留经过秘密模式扫描的固定事件分类计数，并附同样的阶段/退出码 JSON。启动失败还可保留最多 16 条精确五字段摘要（固定阶段、受控异常类别、errno、runtime/web 退出码），只接受白名单与有界整数。全部原始行被省略，原始 build/runtime/container 日志和凭据目录不上传。Docker artifact 保留 3 天。
 - GitHub 仓库默认 Actions artifact/log retention 由仓库所有者设为 7 天；该设置不由本地代码自动修改。
 - 若账户仍有 private 仓库或其他 included-usage 消耗，在 Billing 的 budgets/alerts 中启用 90% 与 100% 邮件提醒，但不得创建正额度预算、付款方式或允许付费超额。将提醒状态与仓库默认保留期一起记入月度记录。
 - 每月记录总用量、各 workflow 次数、失败重跑数、平台耗时、估算权重和剩余额度。

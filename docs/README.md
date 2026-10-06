@@ -2,6 +2,10 @@
 
 本页是仓库文档的唯一人工导航入口。项目当前交付面是 Research Web；旧 FastAPI／PostgreSQL、桌面壳和历史实施方案仍可检索，但不会与现役产品并列。
 
+Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数据与研究接口，安装身份、
+运行状态和凭据分别管理。Docker 的构建、健康及 Windows 支持状态应以
+[一键安装](research-web-installation.md)和对应任务回执的实际证据判断；本页只负责导航。
+
 文档状态由 [`documentation-governance.json`](documentation-governance.json) 管理：`current` 表示现役答案，`generated` 表示机器生成，`historical` 表示历史证据，`package-internal` 表示随能力包维护，`cleanup-candidate` 表示等待人工确认的残留。
 
 ## 用户入门

@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 from core.observability import get_logger, setup_logging
 
-from . import PINNED_DSH_COMMIT
+from . import PINNED_DSH_COMMIT, RUNTIME_CONTRACT
 from .capabilities.catalog import CapabilityCatalog
 from .datahub.contracts import BUSINESS_TOOLS
 from .datahub.security import directory, load_control, read_file
@@ -23,6 +23,8 @@ from .mcp_runtime.authorization import (
     AuthorizationManager,
     ExactToolAllowlist,
 )
+from .runtime_state import runtime_state_directory
+from .staged_runtime import verify_staged_runtime
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -59,7 +61,8 @@ def validate_research_python(python: Path) -> None:
         if (
             completed.returncode != 0
             or not isinstance(payload, dict)
-            or payload.get("version") != [3, 12]
+            or payload.get("version")
+            != [RUNTIME_CONTRACT.python_major, RUNTIME_CONTRACT.python_minor]
             or payload.get("packages") != list(RESEARCH_PACKAGES)
         ):
             raise ValueError("unready")
@@ -401,7 +404,10 @@ def validate_tabbit_node(node: str) -> str:
     if match is None:
         raise RuntimeError("Tabbit Runtime 的 Node.js 版本格式无效")
     major, minor, _ = map(int, match.groups())
-    if not (major == 24 or (major == 22 and minor >= 19)):
+    if not (
+        (major == RUNTIME_CONTRACT.node_major and minor >= RUNTIME_CONTRACT.node_minimum_minor)
+        or (major == 22 and minor >= 19)
+    ):
         raise RuntimeError("dsh-tabbit 0.3.4 要求 Node.js 22.19.x+ 或 24.x")
     return version.removeprefix("v")
 
@@ -511,6 +517,40 @@ def prepare(
     source_mode=False,
     research_tools=False,
     datahub_url: str | None = None,
+    *,
+    state_root: Path | None = None,
+) -> tuple[list[str], dict, Path]:
+    staged_source = None
+    if os.environ.get("RWB_DSH_STAGED") == "1":
+        staged_source = verify_staged_runtime(source, required=True)
+    if staged_source is not None and source_mode:
+        raise RuntimeError("staged_runtime_invalid")
+    state = state_root if state_root is not None else data.resolve() / "runtime"
+    with runtime_state_directory(state, create=True, native_data_root=data.resolve()):
+        return _prepare_runtime(
+            source,
+            data,
+            node,
+            port,
+            source_mode,
+            research_tools,
+            datahub_url,
+            state_root=state,
+            staged_source=staged_source,
+        )
+
+
+def _prepare_runtime(
+    source: Path,
+    data: Path,
+    node: str,
+    port: int,
+    source_mode=False,
+    research_tools=False,
+    datahub_url: str | None = None,
+    *,
+    state_root: Path,
+    staged_source: dict | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
     acceptance = live_acceptance_control(data, port)
@@ -522,6 +562,7 @@ def prepare(
     if not executable.is_file():
         raise RuntimeError("DSH 构建不存在；请先授权构建依赖")
     runtime = data / "runtime"
+    state = state_root.absolute()
     home, work, temp = (runtime / name for name in ("home", "work", "tmp"))
     for path in (home, work, temp):
         path.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -601,7 +642,7 @@ def prepare(
             encoding="utf-8",
         )
     guard = (package / "guard.mjs").resolve()
-    overlay = runtime / "overlay.yml"
+    overlay = state / "overlay.yml"
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"
     overlay.write_text(
         "\n".join(
@@ -668,14 +709,18 @@ def prepare(
         encoding="utf-8",
     )
     # Pin the actual JS/config closure, not just the top-level CLI version.
-    closure_sha256, closure_files = calculate_build_closure(source)
+    if staged_source is None:
+        closure_sha256, closure_files = calculate_build_closure(source)
+    else:
+        closure_sha256 = staged_source["closure_sha256"]
+        closure_files = staged_source["closure_files"]
     manifest = {
         "source_commit": commit,
         "closure_sha256": closure_sha256,
         "closure_files": closure_files,
         "mode": "source" if source_mode else "build",
     }
-    manifest_path = runtime / ("source-lock.json" if source_mode else "build-lock.json")
+    manifest_path = state / ("source-lock.json" if source_mode else "build-lock.json")
     if manifest_path.exists() and json.loads(manifest_path.read_text(encoding="utf-8")) != manifest:
         raise RuntimeError("DSH 构建发生变化，请重新审核后更新专属构建锁")
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -686,13 +731,16 @@ def prepare(
         "DSH_HOME": str(home),
         "DSH_TELEMETRY_DISABLED": "1",
         "TMPDIR": str(temp),
-        "RESEARCH_RUNTIME_AUTH": str(runtime / "auth.json"),
+        "RESEARCH_RUNTIME_AUTH": str(state / "auth.json"),
+        "RWB_RUNTIME_STATE": str(state),
         "RESEARCH_DSH_SOURCE": str(source),
         "RESEARCH_RUNTIME_PORT": str(port),
     }
     for name in ("USERPROFILE", "LOCALAPPDATA"):
         if value := os.environ.get(name):
             env[name] = value
+    if os.environ.get("RWB_SUPERVISOR_ROLE") == "runtime":
+        env["RWB_SUPERVISOR_ROLE"] = "runtime"
     if isinstance(tabbit_config.get("instance_id"), str):
         env["TABBIT_PLAYWRIGHT_INSTANCE"] = str(tabbit_config["instance_id"])
     command = [
@@ -737,6 +785,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--state", type=Path, help="Runtime state directory; default <data>/runtime")
     parser.add_argument("--node", default="/usr/local/bin/node")
     parser.add_argument("--port", type=int, default=3081)
     parser.add_argument(
@@ -756,8 +805,10 @@ def main():
     )
     args = parser.parse_args()
     setup_logging()
+    stage = "launcher_node"
     try:
         node_version = validate_tabbit_node(args.node)
+        stage = "launcher_prepare"
         command, env, work = prepare(
             args.source,
             args.data,
@@ -766,15 +817,20 @@ def main():
             args.source_mode,
             args.research_tools,
             args.datahub_url,
+            state_root=args.state if args.state is not None else args.data.resolve() / "runtime",
         )
+        stage = "launcher_modules"
         module_count = prepare_runtime_module_fallback(
             args.source.resolve(), args.data.resolve() / "runtime/home", args.node
         )
+        stage = "launcher_tabbit_package"
         tabbit_manifest = stage_tabbit_package(TABBIT_VENDOR, args.data.resolve() / "runtime/home")
+        stage = "launcher_tabbit_adapter"
         stage_tabbit_adapter(
             Path(__file__).parent / "runtime" / "tabbit-adapter.mjs",
             args.data.resolve() / "runtime/home",
         )
+        stage = "launcher_config"
         _atomic_json(
             args.data.resolve() / ".control" / "tabbit-applied.json",
             load_tabbit_config(args.data.resolve()),
@@ -788,6 +844,7 @@ def main():
             tabbit_source_commit=tabbit_manifest["source_commit"],
             node_version=node_version,
         )
+        stage = "launcher_exec"
         os.chdir(work)
         os.execve(args.node, command, env)
     except (
@@ -797,7 +854,18 @@ def main():
         StoreError,
         subprocess.SubprocessError,
     ) as exc:
-        log.error("owned_dsh_launch_failed", error=str(exc))
+        name = type(exc).__name__
+        allowed = {"OSError", "PermissionError", "FileNotFoundError", "ProcessLookupError",
+                   "RuntimeStateError", "ValueError", "RuntimeError", "StoreError",
+                   "TimeoutExpired", "CalledProcessError", "SubprocessError"}
+        kind = name if name in allowed else "Other"
+        number = exc.errno if isinstance(exc, OSError) else None
+        number = number if type(number) is int and 0 <= number <= 4095 else None
+        log.error("container_startup_failure " + json.dumps({
+            "stage": stage, "exception_class": kind, "errno": number,
+            "runtime_returncode": None, "web_returncode": None,
+        }, sort_keys=True))
+        log.error("owned_dsh_launch_failed", stage=stage, error_type=kind)
         raise SystemExit(1) from exc
 
 

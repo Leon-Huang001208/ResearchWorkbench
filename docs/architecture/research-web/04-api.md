@@ -6,6 +6,13 @@
 
 macOS Native 模型 bridge 失败时，Runtime GET 保留成功的 Host `connected/health_check_passed`，仅将 `credential_configured` 设为 null、`credential_storage` 设为 unknown、`credential_code` 设为稳定 `model_credential_backend_unavailable`。不回显 Keychain 异常、不把未知当作可用；保存/请求仍沿既有失败关闭与 uncertain 处理。
 
+Native/Docker 模式选择、Docker 镜像接受摘要与健康等待均在公开 CLI/安装边界；本轮不增加
+HTTP 路由或响应字段。Native `rwb web status --json` 是稳定的安全状态投影，不返回日志路径；
+Doctor 仍独立校验 DSH 的 ready、build_verified、commit 和 host_applicable。Docker 的
+`status/doctor --json` 也只报告可认证的归属和健康事实，不能把构建或 `--no-start` 当成服务 ready。
+DataHub、MCP Registry、MCP Runtime 和 Automation 原有 API 的凭据读写改走按运行模式选择的
+后端；服务命名空间、请求/响应与错误边界未因此改变，HTTP 响应仍不包含秘密。
+
 本批没有新增 HTTP 路由。`rwb web doctor [--json]` 是本机 CLI 诊断，现有连接目录继续通过
 `GET /api/research/data/connections` 投影天软的依赖、配置、探测和可调用事实；响应仍不含凭据。
 本轮仍不新增 HTTP 路由；CLI Doctor JSON 升为 schema 2，保留 `ok` 的安装语义，并增加
@@ -243,7 +250,7 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 - 结构错误返回明确 4xx；DSH 协议/连接故障不回退演示。服务端日志不输出密钥。
 - MCP Registry 路由在 `RESEARCH_MCP_REGISTRY_ENABLED` 关闭时返回 404。同步固定官方 `/v0.1` 与不透明游标，失败只返回带 `stale` 的最后成功缓存；身份三元组不跨 Registry 合并。认证 Registry 必须使用 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth 端点始终使用 HTTPS。服务器 API 返回有界 Unicode plain text；包记录分别返回 `package_type_supported` 与 `immutable_reference`，不返回 `supported/installable` 或 Stage 2A 可安装承诺。Publisher 两个接口只返回规范 JSON、摘要、完整 argv 和 `executed:false`，从不启动 CLI。
 - MCP Runtime 路由在 `RESEARCH_MCP_RUNTIME_ENABLED` 关闭时返回 404。安装必须先生成绑定完整摘要的短期确认令牌；本地目标只接受固定版本、逐制品哈希、直接 argv、最小环境和安全解包，远程目标只接受 HTTPS 或显式 loopback。安装、探测、启用与授权分离；每次调用重核安装版本、工具名、schema 哈希、风险分级和会话快照。无人值守只允许任务显式锁定且标记为可无人值守的只读工具；高风险调用必须完成一次性人工审批。内部工具代理只接受私有 loopback 控制密钥，不向浏览器公开。
-- Automation 路由在 `RESEARCH_AUTOMATIONS_ENABLED` 关闭时返回 404。任务保存服务端解析的目标版本与内容 SHA；启动只补最近一次遗漏，重叠、版本漂移和中断均写入独立 Run。研究失败不自动重试，投递失败按固定退避独立重试且不改研究状态。渠道秘密只进入系统凭据库；报告日程迁移必须显式预览、逐项选择并原子应用。
+- Automation 路由在 `RESEARCH_AUTOMATIONS_ENABLED` 关闭时返回 404。任务保存服务端解析的目标版本与内容 SHA；启动只补最近一次遗漏，重叠、版本漂移和中断均写入独立 Run。研究失败不自动重试，投递失败按固定退避独立重试且不改研究状态。渠道秘密只进入当前模式的凭据后端；报告日程迁移必须显式预览、逐项选择并原子应用。
 - SSE 为 `snapshot`、`runtime_error` 和心跳；重连通过原生日志恢复。取消和审批复用真实原生 RPC。
 - 输出格式和独立交付状态见 [数据与文件](03-data-files.md)。文件下载与 HTML 预览不是任意静态仓库服务。
 

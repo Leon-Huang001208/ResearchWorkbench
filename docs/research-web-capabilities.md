@@ -2,6 +2,11 @@
 
 能力目录、安装与授权不会因模型页保存或生成测试成功而提升为可调用。Automation继续复用原生研究create/send；新增默认模型只用于新会话，旧会话保留选模，凭据清除或提交未知时拒绝新的模型消息。最小生成使用无研究工具preset，工具能力必须通过单独的受控研究证据确认，不据模型名称推断。
 
+Native 和 Docker 使用同一能力目录、版本、MCP 风险与 Automation 锁定任务合同。Registry 认证、
+MCP 安装/OAuth/完整性密钥以及投递渠道秘密由同一后端接口存取，但保留各自服务命名空间：
+Native 默认系统 keyring，Docker 仅使用显式配置且权限受检的私有凭据目录。模型密钥仍由
+DSH 拥有；模式切换不迁移任何凭据，Docker 服务健康也不证明宿主系统集成可调用。
+
 能力中心属于 `app/research_web/capabilities/`。产品保存草稿、不可变版本、来源和校验结果；
 DSH 仍是唯一执行引擎，Workflow 编译为原生 SKILL.md 步骤模板，没有第二个运行器。
 目录读取不依赖会话、在线 DSH 或模型调用。工具目录为当前研究 composition 的只读声明，
@@ -97,7 +102,7 @@ fixture，`user_input` 可提供真实业务 identity 并原样回传，Wind/Dat
 `(registry_id, server_name, version)` 保持身份独立；同名服务器不会合并或覆盖。官方适配器固定
 调用 `/v0.1` 搜索、版本与不透明游标接口，ETag、同步时间和游标随最后成功结果原子保存；同步
 失败返回带 `stale` 标记的最后成功缓存，不用错误或空结果覆盖缓存。Bearer/OAuth 凭据仅保存到
-Keyring 服务 `ResearchWorkbench.MCPRegistry`，产品索引只保留引用。Registry 默认必须使用 HTTPS；
+凭据服务 `ResearchWorkbench.MCPRegistry`，产品索引只保留引用。Registry 默认必须使用 HTTPS；
 只有 `auth=none` 且主机精确为 `127.0.0.1`、`localhost` 或 `::1` 时允许 HTTP，OAuth 授权与 token
 端点始终要求 HTTPS。规范化、缓存和 API 保存有长度限制的 Unicode plain text，拒绝控制字符与
 surrogate，不做 HTML entity escape；UI 只在最终 HTML sink 转义一次且不加载远程图标。
@@ -133,7 +138,7 @@ Workflow 的“运行计划”由 `app/research_web/automation/` 提供通用 Au
 
 无人值守 MCP 只能调用任务明确锁定且同时为 `read_only`、`allow_unattended=true` 的工具；
 私有数据须有任务级授权，外部写入与高风险工具不会被 Automation 调用。SMTP、通用 HMAC Webhook、
-飞书、企业微信和钉钉的 URL、密码及签名秘密只进入 `ResearchWorkbench.Delivery` 系统凭据库。
+飞书、企业微信和钉钉的 URL、密码及签名秘密只进入 `ResearchWorkbench.Delivery` 凭据服务。
 
 ## API（全部位于 `/api/research`）
 
@@ -166,7 +171,7 @@ Workflow 的“运行计划”由 `app/research_web/automation/` 提供通用 Au
 | GET / PATCH / DELETE `/mcp/installations/{id}` | 读取安装、逐工具保存风险等级；仅停用后可移除 |
 | GET `/mcp/installations/{id}/status`、`/capabilities` | 返回激活/健康状态与 Host 拥有的 schema、风险策略投影 |
 | POST `/mcp/installations/{id}/probe`、`/enable`、`/disable`、`/update` | 探测与 DSH 原子激活/回滚；update 返回必须重新预览的新版本约束 |
-| POST `/mcp/installations/{id}/oauth/start`、GET `/mcp/oauth/callback` | 启动并完成 PKCE OAuth；token 只进系统凭据库 |
+| POST `/mcp/installations/{id}/oauth/start`、GET `/mcp/oauth/callback` | 启动并完成 PKCE OAuth；token 只进当前模式的凭据后端 |
 | POST `/sessions/{id}/mcp-authorizations` | 锁定安装版本、工具名和 schema 哈希的会话授权 |
 | POST `/sessions/{id}/mcp/resources/read`、`/mcp/prompts/get` | 对已激活且已授权安装代理资源和提示请求 |
 | GET `/mcp/approvals`、POST `/mcp/approvals/{id}/approve`、`/deny` | 不暴露参数正文的一次性人工审批 |
@@ -174,7 +179,7 @@ Workflow 的“运行计划”由 `app/research_web/automation/` 提供通用 Au
 | GET / PATCH / DELETE `/automations/{id}` | 读取、完整校验更新或删除单个任务；运行中不可删除 |
 | POST `/automations/{id}/enable`、`/disable`、`/run` | 启停或手动触发；版本漂移与重叠均保留可审计 Run |
 | GET `/automation-runs`、POST `/automation-runs/{id}/retry` | 查询研究/投递双状态；手动重试创建关联的新 Run |
-| GET / PUT `/delivery-channels` | 管理非敏感渠道投影；秘密写入系统凭据库且不回显 |
+| GET / PUT `/delivery-channels` | 管理非敏感渠道投影；秘密写入当前模式的凭据后端且不回显 |
 | POST `/automations/migrations/report-schedules/preview`、`/apply` | 逐项预览和原子迁移旧报告日程；失败不修改两边 |
 | POST `/capabilities/creation-sessions` | `{kind:"skill"\|"workflow",goal}`，201，真实创建会话并返回未发送的 `draft` |
 | POST `/capabilities/from-artifact` | `{session_id,file_id}`，201，仅专用创建会话实际 outputs 产物导入为草稿 |

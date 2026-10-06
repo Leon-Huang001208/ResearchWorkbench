@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench/docs/architecture/research-web/diagrams/01-deployment.json",
-  "output": "/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench/outputs/research-web-architecture/01-deployment.html",
+  "input": "/private/tmp/rwb-pr78-repair-20261006/docs/architecture/research-web/diagrams/01-deployment.json",
+  "output": "/private/tmp/rwb-pr78-repair-20261006/outputs/research-web-architecture/01-deployment.html",
   "specification": {
-    "sha256": "820ccb06b91fb2928cdd9cd752d8a64e2900085ba6f238d97c8a37eab9a560b6",
-    "bytes": 5005
+    "sha256": "39f5819cc29d5963bae03a143c61d074c8261b83a48ff58bcf84e819be9f1501",
+    "bytes": 4816
   },
   "artifact": {
-    "sha256": "78a9f66cdeff35d67e63ecdce52910933ec428d5735cecf3087cc0bfcc55fc59",
-    "bytes": 645431
+    "sha256": "34c757afaad2953c70e0dbb4f6e8b30b28d37c67f9d56ec1d9577c89315c55c2",
+    "bytes": 637815
   },
   "validation": {
     "checksPassed": 9,

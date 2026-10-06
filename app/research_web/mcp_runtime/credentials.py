@@ -1,4 +1,4 @@
-"""OS-keyring-only storage for MCP server credentials."""
+"""Runtime-selected private storage for MCP server credentials."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import re
 from typing import Any
 
 from core.observability import get_logger
+
+from ..credential_backend import default_credential_backend
 
 log = get_logger(__name__)
 KEYRING_SERVICE = "ResearchWorkbench.MCPRuntime"
@@ -24,30 +26,13 @@ class RuntimeCredentialError(RuntimeError):
     """Stable failure that never contains credential content."""
 
 
-class _SystemKeyring:
-    @staticmethod
-    def _module():
-        try:
-            import keyring
-        except (ImportError, RuntimeError) as exc:
-            raise RuntimeCredentialError("credential_store_unavailable") from exc
-        return keyring
-
-    def get_password(self, service: str, account: str):
-        return self._module().get_password(service, account)
-
-    def set_password(self, service: str, account: str, value: str):
-        return self._module().set_password(service, account, value)
-
-    def delete_password(self, service: str, account: str):
-        return self._module().delete_password(service, account)
-
-
 class RuntimeCredentialStore:
     """Persist bounded JSON credential records under installation-scoped keys."""
 
     def __init__(self, keyring_backend=None) -> None:
-        self.keyring = keyring_backend or _SystemKeyring()
+        self.keyring = (
+            default_credential_backend() if keyring_backend is None else keyring_backend
+        )
 
     @staticmethod
     def account(installation_id: str, slot: str) -> str:

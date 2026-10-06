@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Codex 已实际复核合并后 README；保留本任务 macOS Native Keychain、固定 DeepSeek 支持范围和其他平台限制，以及目标分支安装、Doctor 和治理内容。",
-  "reason": "相对固定目标 master，README 模型说明已更新；服务管理的 Windows 停止修正与模型/Host 认证隔离不冲突。此为 Codex 文本评审，不代表人工、截图或 Windows 功能验收。"
+  "summary": "保留主干 Native/Docker 安装与数据边界，同时准确说明 macOS Native 模型 Keychain、模型设置/生成和 Host 认证分离。",
+  "reason": "按合并后实现复核：通用服务凭据按模式分离；模型私有桥接仅本轮 macOS Native，其他平台不伪报支持。此为 Codex 文本复核，不代替真实验收。"
 }
