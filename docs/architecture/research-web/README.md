@@ -1,7 +1,8 @@
 # Research Workbench Research Web 当前架构
 
 内部控制 parser 提取为标准库基础接口，DataHub/MCP 原 wrappers 保持读写、异常与权限合同；
-独立端点/origin 事务尚未接入启动链，不改变部署图、业务调用图或公开 API。
+macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署和业务调用图保持，HTTP API不变。
+停止Docker容器换绑定与真实平台验收的未完成项见安装文档及本轮任务报告。
 
 这是当前研究产品的唯一架构主入口。现役源码覆盖 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。Native 双宿主进程与 Docker 单容器是同一 Research Web/DSH 产品的互斥运行方式，顺序共享产品数据，不创建第二个研究引擎。
 

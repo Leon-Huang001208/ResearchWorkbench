@@ -21,6 +21,7 @@ from .docker_runtime import (
     result, run_bounded,
 )
 from .runtime_mode import RuntimeModeError, RuntimeModeStore
+from .runtime_endpoints import EndpointError, EndpointStore
 from .web_contract import classify_python_environment
 
 log = logging.getLogger(__name__)
@@ -90,7 +91,8 @@ def _native_probe(operation: str, project_root: Path, home: Path, ports: tuple[i
             if probe.state == "invalid":
                 raise ControlError("runtime_ownership_unknown")
             try:
-                manager._probe_action(probe)
+                if not (probe.state == "missing" and probe.process == "missing"):
+                    manager._probe_action(probe)
             except ServiceManagerError as exc:
                 raise ControlError("runtime_ownership_unknown") from exc
             services[probe.role] = probe.public()
@@ -124,11 +126,12 @@ class NativeRuntime:
     """Bounded bridge to existing Native ownership and stop behavior."""
 
     def __init__(self, project_root: Path, home: Path, *, runner=run_bounded,
-                 ports: tuple[int, int] = (8088, 3081)):
+                 ports: tuple[int, int] | None = None):
         self.project_root = project_root
         self.home = home
         self.runner = runner
-        self.ports = ports
+        from .web_bootstrap import native_endpoint_ports
+        self.ports = native_endpoint_ports(Path(project_root), home / "research-web") if ports is None else ports
 
     def _probe(self, operation: str) -> dict:
         python = native_python(self.project_root)
@@ -141,7 +144,7 @@ class NativeRuntime:
                 (self.home / "run" / (role + ".json")).exists()
                 or (self.home / "run" / (role + ".json")).is_symlink()
                 for role in ("web", "runtime")
-            ) and not any(port_busy(port) for port in self.ports):
+            ):
                 return result(mode="native", services={
                     role: {"running": False, "port": port}
                     for role, port in zip(("web", "runtime"), self.ports)
@@ -188,6 +191,7 @@ def _running(report: dict) -> bool:
 
 def switch_runtime(store, target, docker, native, *, stop_current=False, wait_timeout=10) -> dict:
     """Preflight, verify both owners, explicitly stop current, then atomically select."""
+    from app.research_web.lifecycle_lock import LifecycleLock, LifecycleLockError
     try:
         if target not in ("native", "docker"):
             raise ControlError("runtime_target_invalid")
@@ -206,28 +210,24 @@ def switch_runtime(store, target, docker, native, *, stop_current=False, wait_ti
             raise ControlError("runtime_stop_current_required")
         if running[target]:
             raise ControlError("runtime_other_running")
-        busy = any(port_busy(port) for port in docker.ports)
-        if busy and not running[before.mode]:
-            raise ControlError("runtime_ownership_unknown" if stop_current else "runtime_stop_current_required")
         if running[before.mode]:
             stopped = controllers[before.mode].stop()
             if not stopped.get("ok"):
                 return stopped
-        deadline = time.monotonic() + wait_timeout
-        while any(port_busy(port) for port in docker.ports):
-            if time.monotonic() >= deadline:
-                raise ControlError("runtime_ports_not_released")
-            time.sleep(0.05)
-        for controller in controllers.values():
-            report = controller.status()
-            if not report.get("ok") or _running(report):
-                raise ControlError("runtime_stop_failed")
-        if store.read() != before:
-            raise ControlError("runtime_mode_changed")
-        record = store.write(target, expected=before)
+        # Public stop owns its lock; never hold one across the Native subprocess.
+        # Reacquire the shared lock before final state checks and metadata CAS.
+        with LifecycleLock(store.home / "run/lifecycle.lock", DockerRuntime._pid_exists,
+                           trusted_root=store.home):
+            if store.read() != before:
+                raise ControlError("runtime_mode_changed")
+            for controller in controllers.values():
+                report = controller.status()
+                if not report.get("ok") or _running(report):
+                    raise ControlError("runtime_stop_failed")
+            record = store.write(target, expected=before)
         log.info("runtime_switch mode=%s code=ok", target)
         return result(mode=record.mode, installation_id=record.installation_id, changed=True)
-    except (RuntimeModeError, ControlError) as error:
+    except (RuntimeModeError, ControlError, EndpointError, LifecycleLockError) as error:
         log.warning("runtime_switch code=%s", error.code)
         return result(error.code)
 
@@ -295,6 +295,8 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
                     child.add_argument("--json", action="store_true")
                 if command in ("start", "restart"):
                     child.add_argument("--no-open", action="store_true")
+                    child.add_argument("--web-port", type=int)
+                    child.add_argument("--runtime-port", type=int)
                 if command == "restart":
                     child.add_argument("--force", action="store_true")
                 if command == "logs":
@@ -302,6 +304,13 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
                     child.add_argument("--tail", type=int, default=100)
             args = parser.parse_args(command_argv[1:])
             controller = DockerRuntime(project_root, home)
+            if args.command in ("start", "restart"):
+                if args.runtime_port is not None:
+                    raise ControlError("docker_runtime_port_unsupported")
+                if args.web_port is not None:
+                    if not 1 <= args.web_port <= 65535:
+                        raise ControlError("endpoint_invalid_port")
+                    controller.requested_web_port = args.web_port
             if args.command == "logs":
                 return controller.logs(args.follow, args.tail)
             options = {}
@@ -336,7 +345,7 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
         os.chdir(project_root)
         os.execve(str(python), [str(python), "-m", "research_workbench_entrypoint", *argv],
                   native_environment(project_root))
-    except (RuntimeModeError, ControlError) as error:
+    except (RuntimeModeError, ControlError, EndpointError) as error:
         return _emit(result(error.code))
     except OSError:
         log.warning("runtime_bootstrap code=runtime_io")

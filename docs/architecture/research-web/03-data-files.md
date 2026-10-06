@@ -1,8 +1,13 @@
 # DataHub、研究资料与实际文件
 
 独立端点 helper 的 `install/endpoints.json` 是运行时元数据，不是第二份依赖或研究事实。
-尚未接入启动链的 origin helper 仅对既有两份 `.control` 记录保留 token/其他有效字段并改 URL，
+启动链的 origin helper 对两份 `.control` 记录保留 token/其他有效字段并改 URL，
 不迁移数据或凭据；原始回滚字节只留在内存，持久中断标记没有 token 备份。
+
+Native 在可信正常 creator 补齐缺失记录后开始事务；Docker 首次两份都缺失由正常 guest
+creator 初始化，单缺失由受管 prepare-only guest 先补齐。host 保留已有文件身份并在guest
+退出后复核未被替换，再对两份可信文件建立事务基线；不认领外来替换。
+端点CAS恢复生成新revision，不覆盖并发发布或另一模式记录。
 
 固定Docker bind中的私有叶首建不读取认证或凭据；创建阶段允许的父owner映射只限root到
 当前进程UID/GID，随后重新完整验证节点。已有文件、叶目录和canonical数据根均不chmod/chown。

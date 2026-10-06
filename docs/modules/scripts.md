@@ -40,8 +40,13 @@ Purpose:
 - On Docker, builds an independent candidate tag and checks its immutable image ID and lock/Compose/runtime contract
   before publishing the private accepted-image manifest. Default start waits for both DSH and Web health; `--no-start`
   records only an accepted build. A different old container image requires explicit `--repair`, which rechecks stopped
-  ownership and free ports before a non-force removal; failed candidates preserve the prior accepted image and data.
+  ownership before a non-force removal; failed candidates preserve the prior accepted image and data.
   Windows Docker fails closed while credential-directory ACL preparation cannot be proved.
+- macOS public setup accepts `--web-port`, and Native additionally `--runtime-port`; explicit occupied ports fail.
+  `--no-start` does not allocate ports or alter control origins. A starting Docker candidate keeps its origin
+  transaction under the shared lifecycle lease until manifest/mode publication; exact cleanup and endpoint CAS
+  restoration preserve the previous accepted installation on failure. Trusted portless temporary guests may
+  fill missing controls with the existing creators, but do not mount credentials or change existing tokens.
 - Passes application secrets to neither pip nor Node/Git build commands. Git may retain the host's proxy settings;
   pip and Corepack/Node keep only HTTP(S) proxy protocols across upper- and lower-case variables. Filtering records
   only a bounded count, never a proxy value, and does not mutate the host environment. macOS discovers libc++ headers through `xcrun`, and Windows

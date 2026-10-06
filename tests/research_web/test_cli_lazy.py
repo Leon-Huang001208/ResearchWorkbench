@@ -11,6 +11,26 @@ import pytest
 from click.testing import CliRunner
 
 
+@pytest.mark.parametrize("action", ["start", "restart"])
+def test_native_public_port_options_reach_lifecycle(monkeypatch, action):
+    from app.cli import main as module
+
+    ports = []
+    class Manager:
+        def __init__(self, **options):
+            ports.append(options)
+        def start(self, **options):
+            return {"services": {role: {"running": True, "healthy": True, "port": port,
+                    "pid": None} for role, port in (("web", 48001), ("runtime", 48002))},
+                    "url": "http://127.0.0.1:48001/#/fingpt"}
+        restart = start
+    monkeypatch.setattr(module, "WebServiceManager", Manager)
+    output = CliRunner().invoke(module.cli, ["web", action, "--web-port", "48001",
+                                           "--runtime-port", "48002", "--no-open"])
+    assert output.exit_code == 0, output.output
+    assert ports == [{"web_port": 48001, "runtime_port": 48002}]
+
+
 def test_native_status_json_preserves_public_shape_and_hides_paths(monkeypatch):
     from app.cli import main as module
 
@@ -28,6 +48,7 @@ def test_native_status_json_preserves_public_shape_and_hides_paths(monkeypatch):
     assert report["schema_version"] == 2 and report["mode"] == "native"
     assert report["ok"] is True and report["issues"] == []
     assert report["services"]["web"]["running"] is False
+    assert report["url"] == "http://127.0.0.1:8088/#/fingpt"
     assert "SECRET" not in result.output
 
 

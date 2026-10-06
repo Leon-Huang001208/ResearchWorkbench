@@ -62,7 +62,14 @@ Windows 请将 `./rwb` 替换为 `rwb.cmd`。
 
 ## 启动与管理服务
 
-Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH（3081）和 Web（8088）两个宿主进程；Docker 在单容器内运行两者，仅向宿主回环发布 8088。先查看当前选择：
+Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH 和 Web 两个宿主进程，默认分别为 3081 和 8088；Docker 在单容器内运行两者，默认仅向宿主回环发布 Web 8088。
+
+macOS 启动优先复用已成功记录的端口，否则优先 Web 8088／Native DSH 3081；确认本安装已停止后，
+未显式指定的占用端口可自动避让。以 `web status --json` 的实际地址为准。安装器和
+`web start/restart` 接受 `--web-port 18088`，Native 另接受 `--runtime-port 13081`；
+显式端口被占用会失败。Docker 内部仍固定 8088／3081，不发布 DSH，宿主 3081 无关监听不阻塞 Docker。
+已有停止 Docker 容器需要更换绑定时仍返回 `docker_stopped_port_conflict`，不会隐式重建；
+这项限制与真实 macOS Docker 验收尚未闭合，不能据单元测试宣称完整端口迭代已交付。
 
 ```bash
 ./rwb runtime status --json

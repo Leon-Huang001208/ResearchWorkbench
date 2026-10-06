@@ -24,6 +24,26 @@ from research_workbench_entrypoint.web_contract import (
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
+def test_setup_public_explicit_port_options():
+    from scripts.setup_web import build_parser
+
+    options = build_parser().parse_args(["--web-port", "48001", "--runtime-port", "48002",
+                                         "--no-start"])
+    assert (options.web_port, options.runtime_port) == (48001, 48002)
+    assert options.no_start is True
+
+
+def test_docker_check_only_rejects_runtime_port_before_external_probe(tmp_path, monkeypatch):
+    from scripts import setup_web
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(setup_web.DockerRuntime, "preflight",
+                        lambda *args, **kwargs: pytest.fail("unsupported flag must fail before Docker probe"))
+    errors = StringIO()
+    with redirect_stderr(errors):
+        assert setup_web.main(["--runtime", "docker", "--runtime-port", "13081", "--check-only"]) == 1
+    assert "docker_runtime_port_unsupported" in errors.getvalue()
+
+
 def _allow_idle_runtime_selection(monkeypatch: pytest.MonkeyPatch) -> None:
     from scripts import setup_web
     from research_workbench_entrypoint.bootstrap import NativeRuntime
@@ -170,7 +190,7 @@ def test_docker_check_only_is_read_only_and_outputs_safe_json(
 
 
 @pytest.mark.parametrize("native_running", [False, True])
-def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
+def test_docker_no_start_rejects_live_native_but_does_not_allocate_host_ports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_running: bool
 ) -> None:
     from scripts import setup_web
@@ -216,13 +236,22 @@ def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
             project, home, runner=recording_runner,
             ports=(listener.getsockname()[1], 13081),
         )
-        with pytest.raises(RuntimeError, match="^runtime_stop_current_required$"):
+        if native_running:
+            with pytest.raises(RuntimeError, match="^runtime_stop_current_required$"):
+                controller.install(start=False)
+        else:
             controller.install(start=False)
+            assert listener.getsockname()[1] == controller.ports[0]
 
     assert any("build" in call for call in calls)
     assert not any("up" in call or "stop" in call for call in calls)
-    assert store.read() == before
-    assert json.loads(manifest_path.read_text(encoding="utf-8")) == previous
+    if native_running:
+        assert store.read() == before
+        assert json.loads(manifest_path.read_text(encoding="utf-8")) == previous
+    else:
+        assert store.read().mode == "docker"
+        assert not (home / "install/endpoints.json").exists()
+        assert not (home / "research-web/.control").exists()
     assert not (project / ".venv").exists()
 
 

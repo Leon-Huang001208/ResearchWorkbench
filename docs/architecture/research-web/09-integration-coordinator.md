@@ -1,5 +1,8 @@
 # 统一集成协调器
 
+macOS生命周期的实际端口记录和成对控制origin重绑只影响内部回调地址；不改变协调器五阶段，
+不迁移厂商凭据，不把Docker服务健康当作宿主Office/Wind/Tabbit可调用证据。
+
 内部控制 JSON/回环 URL 的纯 parser 提取至 stdlib helper；DataHub 原 reader 保留原异常和
 额外有效字段语义，不改变协调器五阶段、来源授权、探测或凭据迁移边界。
 

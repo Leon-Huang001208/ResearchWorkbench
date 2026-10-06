@@ -1,7 +1,10 @@
 # 部署与模块职责
 
-新增私有端点与内部 origin 事务 helper 尚未接入安装器、Native 管理器或 Docker controller；
-它们不创建新部署节点，不迁移控制 token 或数据，既有部署拓扑保持不变。
+私有端点与内部 origin 事务已接入 macOS 安装器、Native 管理器和 Docker controller。
+它们不创建常驻部署节点、不迁移控制 token 或数据。Docker 单缺失控制文件的准备使用临时
+无网络/无发布端口 guest：固定接受或候选 image、仅受管 data bind，其余镜像 VOLUME 用
+私有 tmpfs 覆盖，不挂载真实凭据。准备结束并确认精确临时容器退出后，host 才建立 origin
+事务的原文件身份基线；正式消费者仍由既有单容器 supervisor 运行。
 
 公开 Web 安装器的 Native 路径在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的
 `runtime/dsh/<commit>/` 版本目录；运行时仍是既有 3081 DSH 与 8088 FastAPI 两个受管进程。

@@ -1,7 +1,21 @@
 # Research Web Native / Docker 安装与运行
 
-端点记录与成对内部 origin 事务目前仅作为独立 helper 验证，尚未接入公开安装/启动入口；
-不改变本页现有端口与依赖要求，不移动、复制或轮换控制 token，也不迁移用户数据或凭据。
+macOS 公开安装、start/restart 已接入私有端点记录与成对内部 origin 事务。
+依赖锁保持不变，不移动、复制或轮换控制 token，也不迁移用户数据或凭据。
+
+`--web-port <1..65535>` 可用于安装器和 `rwb web start/restart`；Native 另支持
+`--runtime-port <1..65535>`，两端口必须不同。Docker 使用后者返回
+`docker_runtime_port_unsupported`。显式占用返回 `endpoint_port_in_use`，不改用别的端口。
+无显式参数时优先复用成功端点，再使用默认 Web 8088／Native Runtime 3081；目标运行记录
+已证明静止时可分配其他回环候选。有明确 bind 失败证据、且本次对象退出/清理证明完整时，
+最多执行三次启动尝试；健康/认证失败、未知归属与回滚失败不触发盲重试。
+实际地址由 `web status --json`／Doctor 报告；只读诊断、logs、mode选择和 `--no-start`
+均不分配端口或重绑控制 URL。Docker 容器内 8088／3081 固定，只选择宿主 Web 发布端口。
+停止后出现无关宿主监听不作为停止该监听者的授权。
+
+当前限制：已有停止 Docker 容器需要换 host Web 绑定时返回 `docker_stopped_port_conflict`，
+保留原容器与接受镜像，不隐式 recreate。真实 macOS 双模式往返、镜像及干净安装 CI 未由本地
+fixture 证明；Windows/Linux 本轮未验收。
 
 ## 支持范围
 

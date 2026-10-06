@@ -1,7 +1,8 @@
 # Research Web DataHub
 
 DataHub 内部控制 reader 复用 `control_origin.py` 的纯 JSON/回环 URL parser，原错误与
-额外有效字段保持兼容；显式 origin 事务尚未接入启动链，不迁移 token 或供应商凭据。
+额外有效字段保持兼容；macOS启动链现以静止证明接入显式 origin 事务，只重绑内部URL，
+保留既有 token，不迁移供应商凭据。Docker临时准备guest仅用原creator补齐缺失控制文件。
 
 Native 和 Docker 复用 15 项业务能力、22 个来源、Broker 动态选源和会话快照合同。连接秘密沿用
 `ResearchWorkbench.DataHub` 服务命名空间：Native 默认存于宿主 keyring，Docker 仅存于

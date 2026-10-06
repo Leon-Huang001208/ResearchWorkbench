@@ -1,6 +1,6 @@
 # 研究协议、执行状态与恢复
 
-## 尚未接入启动链的端点基础接口
+## 实际端点与公开生命周期
 
 `EndpointStore(home)` 只在私有 `install/endpoints.json` 保存 schema 1 的 `records`，Native
 含不同的 `web_port`/`runtime_port`，Docker 仅含宿主 `web_port`，各模式带独立 opaque revision。
@@ -14,7 +14,22 @@ socket 关闭后没有预留保证，调用方仍须验证真实监听并有界�
 持有生命周期锁。`prepare()` 在 exact `True` 静止证明下同时验证两份既有控制记录，再只修改 URL；
 `commit()` 在启动成功后丢弃本事务标记，`rollback()` 在目标停止后恢复内存中的原始字节。
 缺失记录留给正常 creator，origin 不变不写入。事务 helper 不启动或停止服务，不迁移业务数据。
-这些接口仅完成基础合同；当前公开安装/启动端口行为不因其存在而改变。
+公开 start/restart 使用这些接口；Native 健康条件仍包含准确 PID/argv/启动时间、监听者、
+认证和页面 readiness，Docker 仍核对不可变镜像、安装/launch label、挂载与实际 Web mapping。
+只读后备入口从相同端点或一致的旧 run-state 读取，不创建记录；畸形端点不回退默认值。
+旧 state 的私有读取结果在单次 bootstrap 诊断内复用，避免瞬时替换被第二次读取掩盖。
+
+Native/Docker 写生命周期共用原 `run/lifecycle.lock`，模式切换先由旧 public stop 持锁停止，
+再获取同一把锁重新验证两模式及原 mode snapshot 后 CAS；持锁区不调用跨进程 public stop。
+安装候选通过实际 `LifecycleLock.assert_held()` 对象复核进入内部启动，锁顺序固定为
+lifecycle→短时 install/runtime 元数据锁。`EndpointStore.restore(mode, previous, expected=publication)`
+只回滚本次仍为当前的发布；恢复已有端口生成新 revision，另一模式不变，首建失败可移除本模式记录。
+候选 origin 事务保留到安装摘要和模式发布完成；失败在精确容器清理和静止证明后恢复。
+
+Native 仅在本次日志窗口（保留 inode/偏移、上限64KiB）包含明确 bind 错误，原PID已退出、
+新监听可证明不是同安装写者时分类为 bind race；不输出日志原文。Docker 仅解析有界CLI的
+明确bind错误为稳定code。两者最多三次尝试；未知归属、协议/认证或回滚失败不重试。
+已有停止Docker容器若需改host绑定，当前仍拒绝 `docker_stopped_port_conflict`，该分支未达完整设计验收。
 
 Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时间/监听者事实链，停止调用同一
 排他生命周期入口；状态查询不隔离或删除 stale/invalid 文件。Native 日志读取也复用精确进程

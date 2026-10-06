@@ -5191,3 +5191,208 @@ def test_windows_forced_taskkill_failure_still_fails_closed(manager, monkeypatch
 
     with pytest.raises(ServiceManagerError, match="无法停止 Windows 服务进程树"):
         manager._terminate_pid(4321, force=True, platform_name="nt")
+
+
+def test_persisted_endpoints_drive_readonly_native_status(manager):
+    from research_workbench_entrypoint.runtime_endpoints import EndpointStore
+
+    store = EndpointStore(manager.data_root.parent)
+    store.publish("native", 48211, 48212, expected=None)
+    before = store.path.read_bytes()
+    restored = WebServiceManager(project_root=manager.project_root, data_root=manager.data_root)
+    report = restored.status()
+    assert report["url"] == "http://127.0.0.1:48211/#/fingpt"
+    assert report["services"]["runtime"]["port"] == 48212
+    assert store.path.read_bytes() == before
+    assert not restored.data_root.exists()
+
+
+@pytest.mark.parametrize("action", ["status", "logs"])
+def test_corrupt_endpoint_metadata_never_falls_back_native(manager, action):
+    from research_workbench_entrypoint.runtime_endpoints import EndpointStore
+
+    store = EndpointStore(manager.data_root.parent)
+    store.publish("native", 48211, 48212, expected=None)
+    store.path.write_text('{"schema_version": 999, "records": {}}')
+    with pytest.raises(ServiceManagerError, match="endpoint_schema"):
+        getattr(WebServiceManager(project_root=manager.project_root, data_root=manager.data_root), action)()
+
+
+def test_lifecycle_lock_import_needs_no_site_packages():
+    root = Path(__file__).resolve().parents[2]
+    completed = subprocess.run([sys.executable, "-I", "-S", "-c",
+        "import sys; sys.path.insert(0, sys.argv[1]); "
+        "import app.research_web.lifecycle_lock; "
+        "assert 'core.settings' not in sys.modules", str(root)], capture_output=True, text=True)
+    assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.parametrize("action", ["start", "restart"])
+def test_native_start_avoids_busy_preferred_and_preserves_control_tokens(manager, monkeypatch, action):
+    import socket
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    from research_workbench_entrypoint.runtime_endpoints import EndpointStore
+
+    manager._prepare_private_directories()
+    with socket.socket() as foreign:
+        foreign.bind(("127.0.0.1", 0))
+        foreign.listen()
+        preferred = foreign.getsockname()[1]
+        manager.web_port = preferred
+        manager.web_url = f"http://127.0.0.1:{preferred}/#/fingpt"
+        origin = f"http://127.0.0.1:{preferred}"
+        old = [load_control(manager.data_root, origin), load_mcp(manager.data_root, origin)]
+        manager.endpoint_snapshot = EndpointStore(manager.data_root.parent).publish(
+            "native", preferred, manager.runtime_port, expected=None)
+        monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
+        def healthy_attempt(**kwargs):
+            assert manager.web_port != preferred
+            assert load_control(manager.data_root, f"http://127.0.0.1:{manager.web_port}")["token"] == old[0]["token"]
+            assert load_mcp(manager.data_root, f"http://127.0.0.1:{manager.web_port}")["token"] == old[1]["token"]
+            return {"product_ready": True, "url": manager.web_url}
+        monkeypatch.setattr(manager, "_start_locked", healthy_attempt)
+        report = getattr(manager, action)(open_browser=False)
+        saved = EndpointStore(manager.data_root.parent).read("native")
+        assert saved.web_port == manager.web_port != preferred
+        assert report["url"] == f"http://127.0.0.1:{saved.web_port}/#/fingpt"
+        assert foreign.getsockname()[1] == preferred
+
+
+def test_native_explicit_busy_port_does_not_fallback(manager, monkeypatch):
+    import socket
+    with socket.socket() as foreign:
+        foreign.bind(("127.0.0.1", 0))
+        manager.requested_web_port = foreign.getsockname()[1]
+        monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
+        monkeypatch.setattr(manager, "_start_locked", lambda **kwargs: pytest.fail("must not spawn"))
+        with pytest.raises(ServiceManagerError, match="endpoint_port_in_use"):
+            manager.start(open_browser=False)
+
+
+def test_native_legacy_nondefault_state_is_restored_without_endpoint_write(manager, monkeypatch):
+    manager.web_port, manager.runtime_port = 48231, 48232
+    manager._prepare_private_directories()
+    for process in manager._processes():
+        manager._write_state(process, 123456789)
+    restored = WebServiceManager(project_root=manager.project_root, data_root=manager.data_root,
+                                runtime_source=manager.runtime_source, python=manager.python, node=manager.node)
+    report = restored.status()
+    assert report["services"]["web"]["port"] == 48231
+    assert report["services"]["runtime"]["port"] == 48232
+    assert not restored.endpoint_store.path.exists()
+
+
+def test_native_real_child_bind_failure_is_classified_for_bounded_retry(manager):
+    import socket
+    from app.research_web.process_spec import ProcessSpec
+    manager._prepare_private_directories()
+    with socket.socket() as foreign:
+        foreign.bind(("127.0.0.1", 0))
+        foreign.listen()
+        port = foreign.getsockname()[1]
+        script = ("import socket,sys; s=socket.socket();\ntry: s.bind(('127.0.0.1', " + str(port)
+                  + "))\nexcept OSError: print('EADDRINUSE', flush=True); sys.exit(1)")
+        process = ProcessSpec("web", port, (sys.executable, "-c", script), ("-c", script))
+        with pytest.raises(ServiceManagerError) as caught:
+            manager._spawn_and_wait(process)
+        assert caught.value.code == "web_bind_race"
+
+
+def test_native_retry_budget_does_not_retry_nonport_failures(manager, monkeypatch):
+    attempts = []
+    method = getattr(manager, "_start_endpoint_attempt", None)
+    assert callable(method), "bounded endpoint attempt is missing"
+    def race(**kwargs):
+        attempts.append(1)
+        raise ServiceManagerError("web_bind_race", code="web_bind_race", role="web")
+    monkeypatch.setattr(manager, "_start_endpoint_attempt", race)
+    monkeypatch.setattr(manager, "_native_quiescent", lambda: True)
+    with pytest.raises(ServiceManagerError, match="web_bind_race"):
+        manager._start_with_endpoints(diagnosis={"ok": True}, open_browser=False)
+    assert len(attempts) == 3
+    attempts.clear()
+    def protocol(**kwargs):
+        attempts.append(1)
+        raise ServiceManagerError("web_health_timeout", code="web_health_timeout", role="web")
+    monkeypatch.setattr(manager, "_start_endpoint_attempt", protocol)
+    with pytest.raises(ServiceManagerError, match="web_health_timeout"):
+        manager._start_with_endpoints(diagnosis={"ok": True}, open_browser=False)
+    assert len(attempts) == 1
+
+
+def test_lifecycle_lease_is_verified_before_nested_operation(tmp_path):
+    lock = LifecycleLock(tmp_path / "run/lifecycle.lock", lambda pid: True, trusted_root=tmp_path)
+    check = getattr(lock, "assert_held", None)
+    assert callable(check), "verified lifecycle lease API missing"
+    with pytest.raises(LifecycleLockError):
+        check()
+    with lock:
+        check()
+        lock.guard_path.chmod(0o640)
+        try:
+            with pytest.raises(LifecycleLockError):
+                check()
+        finally:
+            lock.guard_path.chmod(0o600)
+    with pytest.raises(LifecycleLockError):
+        check()
+
+
+def test_native_commit_failure_restores_successful_endpoints_and_control_bytes(manager, monkeypatch):
+    from app.research_web.control_origin import ControlOriginError, ControlOriginTransaction
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    manager._prepare_private_directories()
+    old_origin = "http://127.0.0.1:8088"
+    load_control(manager.data_root, old_origin)
+    load_mcp(manager.data_root, old_origin)
+    original = [(manager.data_root / ".control" / name).read_bytes()
+                for name in ("datahub.json", "mcp-runtime.json")]
+    previous = manager.endpoint_store.publish("native", 8088, 3081, expected=None)
+    manager.endpoint_snapshot = previous
+    manager.requested_web_port = 48261
+    monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
+    monkeypatch.setattr(manager, "_start_locked", lambda **kwargs: {"product_ready": True})
+    def fail_commit(self):
+        raise ControlOriginError("control_origin_recovery_unverified")
+    monkeypatch.setattr(ControlOriginTransaction, "commit", fail_commit)
+    with pytest.raises(ServiceManagerError, match="control_origin_recovery_unverified"):
+        manager.start(open_browser=False)
+    restored = manager.endpoint_store.read("native")
+    assert (restored.web_port, restored.runtime_port) == (8088, 3081)
+    assert restored.revision != previous.revision
+    assert [(manager.data_root / ".control" / name).read_bytes()
+            for name in ("datahub.json", "mcp-runtime.json")] == original
+
+
+def test_native_stop_accepts_foreign_listener_only_after_exact_old_pid_exit(manager, monkeypatch):
+    manager._prepare_private_directories()
+    web = manager._processes()[1]
+    manager._write_state(web, 123456789)
+    initial = _service_probe("web", pid=123456789)
+    stopped = _service_probe("web", state="stale", process="missing", ownership="unknown",
+                             ready=False, pid=None, port_state="listening")
+    calls = []
+    monkeypatch.setattr(manager, "_probe_service", lambda process: stopped if calls else initial)
+    monkeypatch.setattr(manager, "_terminate_pid", lambda pid, force: calls.append((pid, force)))
+    monkeypatch.setattr(service_manager_module, "probe_process", lambda pid: ProcessFact("missing", None, None))
+    monkeypatch.setattr(service_manager_module, "listener_pids", lambda port: ListenerFact("listening", (987654321,), None))
+    assert manager._stop_owned_probe(web, initial)
+    assert calls == [(123456789, False)]
+    assert not manager._state_path("web").exists()
+
+
+def test_native_malformed_creator_record_reports_stable_issue(manager, monkeypatch):
+    manager._prepare_private_directories()
+    folder = manager.data_root / ".control"
+    folder.mkdir(mode=0o700)
+    path = folder / "datahub.json"
+    raw = b'{"url":"http://127.0.0.1:8088","token":"invalid"}'
+    path.write_bytes(raw)
+    path.chmod(0o600)
+    monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
+    with pytest.raises(ServiceManagerError, match="control_origin_prepare_failed"):
+        manager.start(open_browser=False)
+    assert path.read_bytes() == raw
+    assert not (folder / "mcp-runtime.json").exists()

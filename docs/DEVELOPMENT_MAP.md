@@ -17,9 +17,17 @@
 端点基础 helper 为 `research_workbench_entrypoint/runtime_endpoints.py`，成对内部 origin
 事务为 `app/research_web/control_origin.py`；对应 `test_runtime_endpoints.py` 与
 `test_control_origin.py`。前者保存私有端点 CAS 快照并生成回环候选，后者保留控制 token、只重绑
-既有 URL；二者尚未接入启动器。复用 `runtime_mode.py` 的私有读写/锁，修改该边界须保留
+既有 URL；二者由公开启动器消费，只有真实健康后发布端点。`EndpointStore.restore` 用本次发布
+快照 CAS 恢复旧端口并生成新 revision，避免恢复旧 CAS 代际。复用 `runtime_mode.py` 的私有读写/锁，修改该边界须保留
 `test_runtime_mode.py`、`test_runtime_auth.py`、`test_datahub.py`、`test_mcp_authorization.py`
 负面测试；接口合同见运行时与安全模块文档。
+
+生命周期集成由 service_manager、bootstrap、docker_runtime、setup_web、web_bootstrap
+共同覆盖；`lifecycle_lock.py` 改用 stdlib logging，`assert_held` 验证本进程实际持有的锁对象，
+用于安装候选内部调用而不增加 skip-lock 开关。`docker/supervisor.py` 的 prepare-only 入口
+只用原 creator 补齐缺失控制文件；controller 通过无发布端口/无凭据挂载的固定镜像临时 guest
+执行，精确核对一次性归属并确认清理。新增用例在原有 service_manager/runtime_endpoints/
+runtime_mode/docker_runtime/setup_web/cli_lazy/web_bootstrap/container_supervisor 测试模块内。
 
 Docker bind 根与私有叶布局由 Dockerfile/Compose 配置、entrypoint 父目录检查、supervisor
 严格创建与 healthcheck 只读消费共同维护；测试闭包为 `test_container_supervisor.py`、

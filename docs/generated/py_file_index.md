@@ -2853,7 +2853,7 @@ Functions:
   - 管理 Web 与专属 DSH 后台服务。
 - `_run_web_action`
 - `web_start`
-  - 幂等启动 3081 DSH 和 8088 Web。
+  - 幂等启动 DSH 和 Web，优先复用已记录的端口。
 - `web_status`
   - 查看两个项目服务的归属与健康状态。
 - `web_tabbit_status`
@@ -4676,8 +4676,8 @@ Module docstring:
 Imports:
 - `__future__`
 - `collections.abc`
-- `core.observability`
 - `json`
+- `logging`
 - `math`
 - `os`
 - `pathlib`
@@ -4694,7 +4694,7 @@ Classes:
   - methods: __init__
 - `LifecycleLock`
   - Serialize lifecycle mutations using an atomic private directory lock.
-  - methods: __init__, _is_reparse, _safe_directory_identity, _validate_existing_ancestors, _trusted_root_identity, _prepare_default_trusted_root, _walk_managed_parent, _prepare_parent, _acquire_guard, _release_guard, _read_owner, _write_owner, _create, _restore_raced_lock, _reclaim_dead_owner, __enter__, __exit__
+  - methods: __init__, _is_reparse, _safe_directory_identity, _validate_existing_ancestors, _trusted_root_identity, _prepare_default_trusted_root, _walk_managed_parent, _prepare_parent, _acquire_guard, _release_guard, _read_owner, _write_owner, _create, _restore_raced_lock, _reclaim_dead_owner, __enter__, assert_held, __exit__
 
 Functions:
 - `_fsync_directory`
@@ -6399,6 +6399,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `contextlib`
+- `control_origin`
 - `core.observability`
 - `dataclasses`
 - `hashlib`
@@ -6410,6 +6411,7 @@ Imports:
 - `pathlib`
 - `process_spec`
 - `re`
+- `research_workbench_entrypoint.runtime_endpoints`
 - `research_workbench_entrypoint.web_contract`
 - `runtime_auth`
 - `runtime_state`
@@ -6425,7 +6427,7 @@ Imports:
 - `typing`
 - `urllib.parse`
 - `uuid`
-- `webbrowser`
+- ... 1 more
 
 Classes:
 - `ServiceManagerError`
@@ -6440,7 +6442,7 @@ Classes:
   - methods: __bool__
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _start_locked, start, _active_research, _active_research_read_only, _stop_one, _stop_locked, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, doctor, _validate_log_ownership, logs, tabbit_status
+  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _confirmed_bind_failure, _start_locked, start, _native_quiescent, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, doctor, _validate_log_ownership, logs, tabbit_status
 
 Functions:
 - `calculate_build_closure`
@@ -18862,6 +18864,7 @@ Functions:
   - Record public build facts, never command output or host file paths.
 - `_write_docker_manifest`
   - Publish only into the private install directory owned by mode store.
+- `_validated_setup_ports`
 - `install_selected_runtime`
 - `main`
 

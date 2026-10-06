@@ -82,8 +82,12 @@ class SetupWebInstaller:
         corepack_executable: Path | None = None,
         npm_executable: Path | None = None,
         platform_name: str | None = None,
+        web_port: int | None = None,
+        runtime_port: int | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
+        self.web_port = web_port
+        self.runtime_port = runtime_port
         configured_data_home = Path(data_home or Path.home() / ".research-workbench").expanduser()
         self.data_home = Path(os.path.abspath(configured_data_home))
         self.venv = self.project_root / ".venv"
@@ -1137,6 +1141,8 @@ class SetupWebInstaller:
                 runtime_source=self.dsh_source,
                 python=str(environment_python),
                 node=str(self.node_executable),
+                web_port=self.web_port,
+                runtime_port=self.runtime_port,
             )
             manager.start(open_browser=True)
         return manifest
@@ -1159,6 +1165,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--check-only", action="store_true", help="只检查，不写入环境")
     parser.add_argument("--repair", action="store_true", help="修复安装器拥有的环境")
     parser.add_argument("--no-start", action="store_true", help="安装完成后不启动服务")
+    parser.add_argument("--web-port", type=int, default=None, help="显式 Web 回环端口")
+    parser.add_argument("--runtime-port", type=int, default=None, help="仅 Native 的 DSH 回环端口")
     return parser
 
 
@@ -1245,7 +1253,7 @@ class DockerRuntime(_DockerRuntimeController):
         checked = self.preflight(require_image=False)
         if not checked.get("ok"):
             raise RuntimeError(_docker_issue(checked, "docker_preflight_failed"))
-        native = NativeRuntime(self.project_root, self.home, ports=self.ports).status()
+        native = NativeRuntime(self.project_root, self.home).status()
         docker = self.status()
         if not native.get("ok") or not docker.get("ok"):
             raise RuntimeError("runtime_stop_current_required")
@@ -1256,8 +1264,6 @@ class DockerRuntime(_DockerRuntimeController):
                 raise RuntimeError("runtime_stop_current_required")
         except ControlError as exc:
             raise RuntimeError("runtime_ownership_unknown") from exc
-        if any(port_busy(port) for port in self.ports):
-            raise RuntimeError("runtime_stop_current_required")
         if checked.get("container_image_id") not in (None, image_id):
             if not repair:
                 raise RuntimeError("docker_upgrade_requires_container_disposition")
@@ -1282,20 +1288,25 @@ class DockerRuntime(_DockerRuntimeController):
         current = store.read()
         if not current.installation_id:
             current = store.write(current.mode)
-        self._verify_selection_safe(current, image_id, repair=repair)
-        try:
-            if start:
-                started = self._start_candidate(manifest)
-                if not started.get("ok"):
-                    raise RuntimeError(_docker_issue(started, "docker_start_failed"))
-                if not all(started.get("services", {}).get(role, {}).get("healthy") is True
-                           for role in ("web", "runtime")):
-                    raise RuntimeError("docker_services_unhealthy")
-            self._publish_selection(store, current, manifest)
-        except (OSError, RuntimeError):
-            self._rollback_created()
-            raise
-        return manifest
+        def accept_candidate():
+            self._verify_selection_safe(current, image_id, repair=repair)
+            try:
+                if start:
+                    started = self._start_candidate(manifest)
+                    if not started.get("ok"):
+                        raise RuntimeError(_docker_issue(started, "docker_start_failed"))
+                    if not all(started.get("services", {}).get(role, {}).get("healthy") is True
+                               for role in ("web", "runtime")):
+                        raise RuntimeError("docker_services_unhealthy")
+                self._publish_selection(store, current, manifest)
+            except (OSError, RuntimeError):
+                self._abort_candidate()
+                raise
+            return manifest
+        accepted = self._locked_guard("install_selection", accept_candidate)
+        if accepted.get("ok") is False:
+            raise RuntimeError(_docker_issue(accepted, "docker_install_failed"))
+        return accepted
 
     def _publish_selection(self, store, current, manifest):
         """Serialize mode publication and restore the receipt on a failed commit."""
@@ -1308,13 +1319,16 @@ class DockerRuntime(_DockerRuntimeController):
                 previous, _ = _read_bytes(path)
             except FileNotFoundError:
                 previous = None
+            published_mode = None
             try:
                 _write_docker_manifest(path, manifest)
-                # Already-selected Docker upgrades commit in the receipt's
-                # atomic replacement: no fallible mode write follows it.
+                # Keep the origin transaction pending until receipt and mode agree.
                 if current.mode != "docker":
-                    store._write_locked("docker", expected=current)
+                    published_mode = store._write_locked("docker", expected=current)
+                self._commit_candidate()
             except (OSError, RuntimeError):
+                if published_mode is not None:
+                    store._write_locked(current.mode, expected=published_mode)
                 try:
                     published, identity = _read_bytes(path)
                 except FileNotFoundError:
@@ -1336,14 +1350,33 @@ class DockerRuntime(_DockerRuntimeController):
                 raise
 
 
+def _validated_setup_ports(arguments: argparse.Namespace) -> tuple[int | None, int | None]:
+    web_port = getattr(arguments, "web_port", None)
+    runtime_port = getattr(arguments, "runtime_port", None)
+    for port in (web_port, runtime_port):
+        if port is not None and (type(port) is not int or not 1 <= port <= 65535):
+            raise RuntimeError("endpoint_invalid_port")
+    if arguments.runtime == "docker" and runtime_port is not None:
+        raise RuntimeError("docker_runtime_port_unsupported")
+    if web_port is not None and web_port == runtime_port:
+        raise RuntimeError("endpoint_invalid_pair")
+    return web_port, runtime_port
+
+
 def install_selected_runtime(arguments: argparse.Namespace, *, project_root: Path) -> dict[str, object]:
     data_home = Path.home() / ".research-workbench"
+    web_port, runtime_port = _validated_setup_ports(arguments)
     if arguments.runtime == "docker":
-        return DockerRuntime(project_root, data_home).install(
+        controller = DockerRuntime(project_root, data_home)
+        if web_port is not None:
+            controller.requested_web_port = web_port
+        return controller.install(
             repair=arguments.repair,
             start=not arguments.no_start,
         )
-    return SetupWebInstaller(project_root=project_root).install(
+    options = {key: value for key, value in (("web_port", web_port),
+               ("runtime_port", runtime_port)) if value is not None}
+    return SetupWebInstaller(project_root=project_root, **options).install(
         repair=arguments.repair,
         start=not arguments.no_start,
     )
@@ -1355,8 +1388,10 @@ _DOCKER_REMEDIATION = {
     "docker_compose_missing": "请检查 {platform} 的 Docker Desktop Compose 插件。",
     "docker_architecture_unsupported": "当前 CPU 架构不受支持，请使用 arm64 或 x86_64 主机。",
     "docker_data_home_unsafe": "请检查本机 Research Workbench 数据目录的所有权与权限。",
-    "docker_port_8088_occupied": "请先释放本机 8088 端口。",
-    "docker_port_3081_conflict": "请先释放本机 3081 端口。",
+    "docker_port_8088_occupied": "所选宿主 Web 端口发生绑定竞争；请重试或显式选择空闲 --web-port。",
+    "docker_port_3081_conflict": "Docker DSH 使用容器内部 3081；请检查旧版本端口配置，不要停止无关宿主服务。",
+    "endpoint_port_in_use": "显式端口被占用；请选择空闲端口，或省略端口参数使用自动候选。",
+    "docker_stopped_port_conflict": "停止的受管容器保留原端口绑定；当前不会隐式重建容器。",
     "docker_ownership_mismatch": "检测到容器归属冲突，请检查已有容器。",
     "docker_build_not_ready": "请重新运行 Docker 模式安装以构建受管镜像。",
     "docker_build_failed": "Docker 镜像构建失败，请检查 Docker Desktop 与构建日志后重试。",
@@ -1372,6 +1407,7 @@ def main(argv: list[str] | None = None) -> int:
     if not arguments.check_only:
         _configure_logging(project_root)
     try:
+        _validated_setup_ports(arguments)
         if arguments.check_only:
             if arguments.runtime == "docker":
                 report = DockerRuntime(project_root, Path.home() / ".research-workbench").preflight(

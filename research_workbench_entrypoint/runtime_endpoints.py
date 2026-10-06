@@ -157,6 +157,42 @@ class EndpointStore:
         if record is None or (record.web_port, record.runtime_port) != (web_port, runtime_port):
             _fail("endpoint_facts_mismatch")
 
+    def restore(self, mode: str, previous: EndpointSnapshot | None,
+                *, expected: EndpointSnapshot) -> EndpointSnapshot | None:
+        """Restore logical ports only while this exact publication is still current.
+
+        Restoration gets a fresh revision, so rollback cannot revive an obsolete
+        CAS generation. Other-mode records remain unchanged.
+        """
+        _mode(mode)
+        if not isinstance(expected, EndpointSnapshot) or expected.mode != mode:
+            _fail("endpoint_conflict")
+        if previous is not None:
+            if not isinstance(previous, EndpointSnapshot) or previous.mode != mode:
+                _fail("endpoint_conflict")
+            return self.publish(mode, previous.web_port, previous.runtime_port, expected=expected)
+        try:
+            self._validate_path()
+            with self._lock._write_lock(strict_parent=True):
+                records, identity = self._load()
+                if records.get(mode) != expected:
+                    _fail("endpoint_conflict")
+                del records[mode]
+                values = {key: {"web_port": item.web_port, "revision": item.revision,
+                                **({"runtime_port": item.runtime_port} if key == "native" else {})}
+                          for key, item in records.items()}
+                raw = json.dumps({"schema_version": 1, "records": values}).encode()
+                published = private._atomic_write_posix(self.path, raw, identity, strict_parent=True)
+                checked, after = self._load()
+                if not private._same_identity(published, after) or checked != records:
+                    _fail("endpoint_changed")
+                log.debug("runtime_endpoints operation=restore code=ok")
+                return None
+        except private.RuntimeModeError as error:
+            _fail("endpoint_" + error.code.removeprefix("runtime_mode_"))
+        except (OSError, ValueError, TypeError):
+            _fail("endpoint_io")
+
 
 def select_port(
     preferred: int, *, explicit: bool = False, excluded: Iterable[int] = ()

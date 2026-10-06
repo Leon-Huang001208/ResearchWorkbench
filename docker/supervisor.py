@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import argparse
 import os
 import re
 import selectors
@@ -35,6 +36,29 @@ MAX_ROLE_ENVIRONMENT_BYTES = 64 * 1024
 _DOCKER_PRIVATE_LEAVES = frozenset({
     Path("/state/runtime"), Path("/run/rwb-secrets/private"), Path("/data/research-web/logs"),
 })
+
+
+def prepare_controls(data_root: Path, previous_origin: str) -> None:
+    """Use normal guest creators before consumers, preserving every existing token."""
+    from app.research_web.control_origin import _checked_origin, _decode
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp_control
+    from research_workbench_entrypoint.runtime_mode import _read_bytes
+
+    try:
+        origin = _checked_origin(previous_origin)
+        for name in ("datahub.json", "mcp-runtime.json"):
+            try:
+                raw, _ = _read_bytes(data_root / ".control" / name)
+            except FileNotFoundError:
+                continue
+            _decode(name, raw, origin)
+        load_control(data_root, origin)
+        load_mcp_control(data_root, origin)
+        log.info("container_controls_prepared")
+    except Exception as exc:
+        log.warning("container_controls_prepare_failed")
+        raise RuntimeError("control_origin_prepare_failed") from exc
 
 
 def _prepare_private_leaf(path: Path) -> None:
@@ -520,6 +544,8 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
         stage = "config_validation"
         if config.startup_timeout <= 0 or config.shutdown_timeout <= 0:
             raise ValueError("invalid timeout")
+        stage = "control_preparation"
+        prepare_controls(config.data_root, f"http://127.0.0.1:{config.web_port}")
         stage = "ownership_init"
         ownership = _OwnedProcesses()
         stage = "auth_reset"
@@ -642,9 +668,20 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
     return status
 
 
-def main():
+def main(argv=()):
     data = Path(os.environ.get("RWB_DATA_ROOT", "/data/research-web"))
     try:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--prepare-controls-only", action="store_true")
+        parser.add_argument("--previous-origin")
+        arguments = parser.parse_args(argv)
+        if arguments.prepare_controls_only:
+            if not arguments.previous_origin:
+                raise ValueError("missing origin")
+            prepare_controls(data, arguments.previous_origin)
+            return 0
+        if arguments.previous_origin is not None:
+            raise ValueError("unexpected origin")
         return run(SupervisorConfig(
             data_root=data, state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
             credential_root=Path(os.environ.get("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")),
@@ -657,4 +694,4 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

@@ -1,5 +1,8 @@
 # Research Web Tabbit 集成
 
+macOS实际端点与控制origin事务不改变Tabbit授权、claim和浏览器归属；Native使用本次已验证的
+回环Web/Runtime端点，Docker动态宿主Web端口不会将宿主Tabbit能力带入容器。
+
 Docker 部署不会把宿主 Tabbit 的 launcher、已登录浏览器实例、会话或页面 claim 带进容器；
 容器健康仅证明 Web/DSH 服务就绪。Native 原有供应归档、授权、只读声明、一次性正文 token
 和写操作审批合同继续适用。模式切换不复制 Tabbit 授权，也不把浏览器能力标为可调用；

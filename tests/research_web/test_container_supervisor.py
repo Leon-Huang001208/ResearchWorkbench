@@ -14,6 +14,36 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 SECRET = "fixture-private-secret-value"
 
+
+@pytest.mark.parametrize("existing", ["datahub", "mcp"])
+def test_guest_prepare_controls_fills_missing_without_rotating_token(tmp_path, existing):
+    from docker import supervisor
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    root = tmp_path / "data"
+    root.mkdir(mode=0o700)
+    origin = "http://127.0.0.1:48240"
+    original = (load_control if existing == "datahub" else load_mcp)(root, origin)
+    prepare = getattr(supervisor, "prepare_controls", None)
+    assert callable(prepare), "trusted guest preparation entry is missing"
+    prepare(root, origin)
+    values = {"datahub": load_control(root, origin), "mcp": load_mcp(root, origin)}
+    assert values[existing]["token"] == original["token"]
+    assert values["datahub"]["url"] == values["mcp"]["url"] == origin
+
+
+def test_guest_prepare_controls_rejects_existing_origin_mismatch(tmp_path):
+    from docker import supervisor
+    from app.research_web.datahub.security import load_control
+    root = tmp_path / "data"
+    root.mkdir(mode=0o700)
+    load_control(root, "http://127.0.0.1:48240")
+    prepare = getattr(supervisor, "prepare_controls", None)
+    assert callable(prepare), "trusted guest preparation entry is missing"
+    with pytest.raises(RuntimeError):
+        prepare(root, "http://127.0.0.1:8088")
+    assert not (root / ".control/mcp-runtime.json").exists()
+
 CHILD = r'''
 import http.server, json, os, signal, sys, time
 from pathlib import Path

@@ -1,6 +1,13 @@
 # 安全边界与验证方法
 
-端点与成对 origin helper 当前仅由独立测试调用，未接入公开启动链。端点 schema/type、Native
+macOS 动态端口启动在共享生命周期锁内验证两模式静止后重绑成对可信origin；仅URL改变，
+token与其他有效字段保留。显式占用端口拒绝，自动候选不代表已保留监听；只有完整真实健康
+后写实际端点。Docker prepare-only guest必须匹配安装ID、单次nonce、不可变image、固定command、
+受管data挂载与无发布端口，成功/超时均按精确ID复核并清理，未知替换不删除；不挂载真实凭据。
+EndpointStore.restore仍受本次发布快照CAS和严格私有目录校验，回滚不重用旧revision。
+临时guest UID映射与完整双模式往返仍待真实macOS验收，源码fixture不等于平台安全证明。
+
+端点与成对 origin helper 已接入公开启动链，独立负面测试继续保留。端点 schema/type、Native
 不同端口、CAS revision、私有目录/文件与单链接均严格校验。新 helper 仅接受 POSIX 私有权限
 边界；这不构成 Windows/Linux 验收。共用原子 writer 保留旧调用默认行为，新 `strict_parent=True`
 禁止目录创建/权限修复，发布后仍持有写 FD 并与路径身份对照；未来操作须再次核对身份。

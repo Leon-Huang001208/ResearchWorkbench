@@ -13,6 +13,7 @@
         "research_workbench_entrypoint/runtime_mode.py",
         "research_workbench_entrypoint/runtime_endpoints.py",
         "app/research_web/control_origin.py",
+        "app/research_web/lifecycle_lock.py",
         "research_workbench_entrypoint/docker_runtime.py",
         "research_workbench_entrypoint/bootstrap.py",
         "app/research_web/runtime_contract.py",

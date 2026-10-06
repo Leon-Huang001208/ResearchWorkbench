@@ -191,3 +191,25 @@ def test_atomic_writer_rejects_post_publication_identical_replacement(tmp_path, 
     monkeypatch.setattr(os, "replace", replace_then_substitute)
     with pytest.raises(runtime_mode.RuntimeModeError, match="runtime_mode_changed"):
         runtime_mode._atomic_write_posix(folder / "file", b"{}", None, strict_parent=True)
+
+
+def test_endpoint_restore_requires_exact_publication_and_preserves_other_mode(store):
+    previous = store.publish("native", 48001, 48002, expected=None)
+    docker = store.publish("docker", 48003, expected=None)
+    pending = store.publish("native", 48004, 48005, expected=previous)
+    restore = getattr(store, "restore", None)
+    assert callable(restore), "endpoint rollback API missing"
+    restored = restore("native", previous, expected=pending)
+    assert (restored.web_port, restored.runtime_port) == (48001, 48002)
+    assert restored.revision not in {previous.revision, pending.revision}
+    assert store.read("docker") == docker
+    with pytest.raises(EndpointError, match="endpoint_conflict"):
+        restore("native", previous, expected=pending)
+
+
+def test_endpoint_restore_can_remove_only_its_first_mode_publication(store):
+    pending = store.publish("docker", 48003, expected=None)
+    restore = getattr(store, "restore", None)
+    assert callable(restore), "endpoint rollback API missing"
+    assert restore("docker", None, expected=pending) is None
+    assert store.read("docker") is None

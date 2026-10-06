@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import re
@@ -14,8 +15,6 @@ from pathlib import Path
 from typing import Self
 from uuid import uuid4
 
-from core.observability import get_logger
-
 try:
     import fcntl
 except ImportError:  # pragma: no cover - native Windows
@@ -26,7 +25,7 @@ try:
 except ImportError:  # pragma: no cover - POSIX
     msvcrt = None
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
 
 _OWNER_NAME = "owner.json"
 _OWNER_LIMIT_BYTES = 4096
@@ -566,6 +565,28 @@ class LifecycleLock:
             except LifecycleLockError:
                 log.error("research_lifecycle_lock_release_failed")
             raise
+
+    def assert_held(self) -> None:
+        """Prove this live in-process lease before a nested lifecycle operation."""
+        try:
+            if (not self._entered or self._guard_handle is None or self.pid != os.getpid()
+                    or self._directory_identity != self._safe_directory_identity(self.path)):
+                raise OSError("lease inactive")
+            guard = os.fstat(self._guard_handle)
+            named = self.guard_path.lstat()
+            if ((guard.st_dev, guard.st_ino) != (named.st_dev, named.st_ino)
+                    or not stat.S_ISREG(named.st_mode) or named.st_nlink != 1
+                    or named.st_size > 1 or self._is_reparse(named)
+                    or (os.name != "nt" and stat.S_IMODE(named.st_mode) != 0o600)):
+                raise OSError("guard changed")
+            owner, identity = self._read_owner(self.path)
+            current = (self.path / _OWNER_NAME).lstat()
+            if (owner["token"] != self.token or owner["pid"] != self.pid
+                    or (current.st_dev, current.st_ino, current.st_size) != identity):
+                raise OSError("owner changed")
+        except (OSError, LifecycleLockError) as error:
+            raise LifecycleLockError("lifecycle lock ownership was lost",
+                                     code="lifecycle_lock_ownership_lost") from error
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
         if not self._entered:

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "新增独立私有端点与控制 origin 事务 helpers，README 公开安装和启动合同保持不变。",
-  "reason": "本任务尚未把 helpers 接入公开启动链，不改变用户入口、依赖、部署拓扑或支持声明；README 已核对，无需更新。"
+  "disposition": "updated",
+  "summary": "公开安装与start/restart加入Web及Native Runtime端口参数，README说明实际端点、自动避让、Docker内部固定端口及尚未闭合限制。",
+  "reason": "公开CLI行为已变化，需真实同步产品入口；保留停止Docker容器换绑定和真实平台验收未完成说明。"
 }
