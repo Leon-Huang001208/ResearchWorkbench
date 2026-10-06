@@ -477,6 +477,32 @@ await runtime.healProfilesModuleFallback({ installAnchor: anchor, profile });
     return len(links)
 
 
+def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
+    """Bind optional, non-secret acceptance limits to one non-production instance."""
+    raw = os.environ.get("RESEARCH_ACCEPTANCE_CONTROL")
+    if raw is None:
+        return None
+    try:
+        if len(raw) > 4096:
+            raise ValueError()
+        value = json.loads(raw)
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"dataHome", "modelCalls", "tool"}
+            or value["dataHome"] != str(data.resolve())
+            or port == 3081
+            or type(value["modelCalls"]) is not int
+            or not 1 <= value["modelCalls"] <= 6
+            or value["tool"] != "datahub_get_trading_calendar"
+        ):
+            raise ValueError()
+    except (ValueError, TypeError):
+        log.warning("research_acceptance_control_invalid")
+        raise RuntimeError("acceptance_control_invalid") from None
+    log.info("research_acceptance_control_enabled", model_calls=value["modelCalls"])
+    return {"modelCalls": value["modelCalls"], "tool": value["tool"]}
+
+
 def prepare(
     source: Path,
     data: Path,
@@ -487,6 +513,7 @@ def prepare(
     datahub_url: str | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
+    acceptance = live_acceptance_control(data, port)
     tabbit_config = load_tabbit_config(data)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
     if commit != PINNED_COMMIT:
@@ -595,6 +622,12 @@ def prepare(
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "    thinking: disabled",
                 "    maxTokens: 4096",
+                *(
+                    ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]
+                    if acceptance
+                    else []
+                ),
+                *(["- id: llm-retry", "  disabled: true"] if acceptance else []),
                 "- id: web-search-deepseek",
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
@@ -615,6 +648,15 @@ def prepare(
                 f"      name: {json.dumps(str(guard))}",
                 "      config:",
                 f"        enabled: {'true' if research_tools else 'false'}",
+                *(
+                    [
+                        "        acceptance:",
+                        f"          modelCalls: {acceptance['modelCalls']}",
+                        "          tool: datahub_get_trading_calendar",
+                    ]
+                    if acceptance
+                    else []
+                ),
                 f"        tabbitBrowserEnabled: {'true' if tabbit_config['browser_enabled'] is True else 'false'}",
                 f"        tabbitWebFetchEnabled: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
                 f"        mcpTools: {json.dumps([item['name'] for item in mcp_bindings])}",

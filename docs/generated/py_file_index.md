@@ -4574,6 +4574,8 @@ Functions:
   - Keep all stable tools registered; the Broker decides availability per call.
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
+- `live_acceptance_control`
+  - Bind optional, non-secret acceptance limits to one non-production instance.
 - `prepare`
 - `calculate_build_closure`
   - Hash the platform-neutral DSH runtime source/build closure.

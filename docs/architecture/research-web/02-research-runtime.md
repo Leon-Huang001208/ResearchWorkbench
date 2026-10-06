@@ -169,3 +169,11 @@ Automation 或交付拓扑。
 Windows 受管进程停止现在允许非强制 `taskkill /T` 失败后进入既有等待与 `/F` 升级；只有已通过状态文件、
 PID 与命令签名归属核对的进程可进入该路径，强制失败仍返回错误。DSH 会话、SSE、恢复、取消与研究状态
 协议均未改变。
+
+## 独立真实验收的最小调用控制
+
+本机受管启动器可接收非秘密 `RESEARCH_ACCEPTANCE_CONTROL` JSON，仅在其中 `dataHome` 与当前规范化目录精确相同且 DSH 端口不是生产默认3081时启用。字段仅为 `dataHome`、`modelCalls`（1—6整数）及固定公开工具 `datahub_get_trading_calendar`；错误配置失败关闭，不打印参数内容。该模式沿原产品overlay和正式research-web preset工作，不替换固定DSH。
+
+现有最终guard在原生全局llm/stream seam同步预留计数：跨会话/turn共用实例上限，达到上限后不进入适配器；只允许纯文本，拒绝图片/文件/音频，避免附件回退产生额外供应商请求。原重试插件禁用、DeepSeek原retryPolicy.maxRetries=0。工具veto仅允许所选公开DataHub工具执行一次，拒绝子代理、脚本、其他数据工具或第二次执行；原guard权限仍适用。仅记录序号与稳定错误码，无Prompt、请求体、认证值或秘密哈希。
+
+这是单次独立验收的进程内控制，不是用户配额或持久预算系统。退出/重启不能作为补额度手段；调用方仍须维持该轮真实请求总账。默认不启用，既有生产、日常研究、provider/Keychain语义不改变。达到限制只能报告未完成，不能自动重试。合同及固定DSH无网络合成验证与真实供应商验收分别记证据。

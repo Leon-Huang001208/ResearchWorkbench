@@ -1,5 +1,5 @@
 /** Host-global final veto; MCP tools require an exact activation allowlist. */
-export const inject = ['tools'];
+export const inject = ['tools', 'llm'];
 
 export const RESEARCH_TOOLS = new Set([
   'research_run_script',
@@ -13,6 +13,29 @@ export const RESEARCH_TOOLS = new Set([
 ]);
 
 export function apply(ctx, config = {}) {
+  // Optional instance-wide acceptance caps; the owned launcher supplies them.
+  const acceptance = config.acceptance;
+  let modelCalls = 0;
+  let toolCalls = 0;
+  if (acceptance !== undefined) {
+    if (!acceptance || Object.keys(acceptance).sort().join(',') !== 'modelCalls,tool' ||
+        !Number.isInteger(acceptance.modelCalls) || acceptance.modelCalls < 1 || acceptance.modelCalls > 6 ||
+        acceptance.tool !== 'datahub_get_trading_calendar') throw Error('acceptance_control_invalid');
+    const maximum = acceptance.modelCalls;
+    const containsAttachment = value => value && typeof value === 'object' &&
+      (['image', 'file', 'audio'].includes(value.type) || Object.values(value).some(containsAttachment));
+    ctx.on('llm/stream', async function* (options, next) {
+      options.signal?.throwIfAborted();
+      if (containsAttachment(options.messages)) throw Error('acceptance_text_only');
+      if (modelCalls >= maximum) {
+        ctx.logger.warn('research_acceptance_model_limit');
+        throw Error('acceptance_model_limit');
+      }
+      modelCalls++;
+      ctx.logger.info('research_acceptance_model_call ordinal=%s', modelCalls);
+      yield* next();
+    }, { global: true, prepend: true });
+  }
   const calls = new WeakMap();
   const mcpTools = new Set();
   if (config.mcpTools !== undefined && !Array.isArray(config.mcpTools)) throw Error('MCP tool allowlist is invalid');
@@ -25,6 +48,14 @@ export function apply(ctx, config = {}) {
     mcpTools.add(name);
   }
   ctx.tools.guard((execution) => {
+    if (acceptance !== undefined) {
+      if (execution.name !== 'datahub_get_trading_calendar' || !execution.agent || toolCalls >= 1) {
+        ctx.logger.warn('research_acceptance_tool_denied');
+        return 'acceptance_tool_limit';
+      }
+      toolCalls++;
+      ctx.logger.info('research_acceptance_tool_call ordinal=%s', toolCalls);
+    }
     const tabbitAllowed =
       (execution.name === 'tabbit_browser' && config.tabbitBrowserEnabled === true) ||
       (execution.name === 'web_fetch' && config.tabbitWebFetchEnabled === true);

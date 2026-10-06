@@ -387,3 +387,31 @@ def test_tabbit_node_unsupported_versions_fail_closed(version, monkeypatch):
     monkeypatch.setattr(launch_runtime.subprocess, "check_output", lambda *args, **kwargs: version)
     with pytest.raises(RuntimeError, match="22.19"):
         launch_runtime.validate_tabbit_node("node")
+
+
+def test_live_acceptance_control_is_instance_bound_and_disables_retries(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "research"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    monkeypatch.setenv(
+        "RESEARCH_ACCEPTANCE_CONTROL",
+        json.dumps(
+            {
+                "dataHome": str(data.resolve()),
+                "modelCalls": 6,
+                "tool": "datahub_get_trading_calendar",
+            }
+        ),
+    )
+    launch_runtime.prepare(source, data, "/node", 13081)
+    overlay = (data / "runtime/overlay.yml").read_text()
+    assert "maxRetries: 0" in overlay
+    assert "acceptance:" in overlay
+    assert "modelCalls: 6" in overlay
+    assert "tool: datahub_get_trading_calendar" in overlay
+    with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
+        launch_runtime.prepare(source, tmp_path / "other", "/node", 13081)
+    with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
+        launch_runtime.prepare(source, data, "/node", 3081)

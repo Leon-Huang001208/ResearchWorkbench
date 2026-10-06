@@ -476,3 +476,17 @@ Mac基础模型链路已有真实证据：设置保存、系统Keychain、留空
 **C5当前macOS范围自动门已全部通过。** 现有82路径plan所选15本地/3CI门齐全，policy catalog receipt结果PASS、mergeReady=true、releaseReady=true，表示该机械catalog的就绪范围；Windows/Linux在风险说明中为用户暂缓未验证、不参与本阶段阻塞，未写成PASS。这个catalog没有认证B归因或T6，因此完整1A/完整研究工具链的交付判断仍mergeReady=false、releaseReady=false；没有合并/发布授权或完成声明。回执合法及绿色CI不替代目标完成。
 
 本轮真正剩余的目标证据是B实际供应商归因未验证、T6正式工具闭环NOT_RUN。最新用户范围明确供应商请求0、不重开T6/不索取A/B，不能通过自动goal续接擅自消费旧预算或读密补证。本轮无新增产品修改、无重新启动实例，原独立实例仍停机且生产未更新。报告收口提交只在本地，不改变已送检e917b1c89、不为报告重复CI。下一唯一目标为在另行明确授权且调用次数可控的条件下补齐1A剩余真实验收；本轮停止，不进入1B或2—6。
+
+## 2026-10-06 续接1A剩余真实验收：新授权与最小控制补丁
+
+用户明确授权新一轮最多6次模型请求（包括重试/工具返回后生成）、1次公开只读DataHub工具，以及为T6补齐最小必要控制。旧额度不续用；不新建预算系统、不修改固定DSH/生产/其他平台，不在对话接收Key。此前“本轮请求0/不重开T6”是前一有界轮次，本段明确替代该执行禁令；尚未执行任何新真实请求。B供应商归因不能靠读密/哈希或替换后成功推断。
+
+本轮沿原guard和现有llm/stream seam实现实例级6次硬上限与1次精确公开日历工具，正常profile/preset和Keychain/provider不重构。仅非秘密实例绑定环境启用，拒绝生产默认端口3081、其他data home和非法参数；原llm-retry禁用/原DeepSeek策略maxRetries=0，纯文本限制阻断附件导致额外HTTP。全局计数跨session/turn不复位，拒绝子代理和其他工具；默认生产行为保持，进程重启不可补该轮额度。
+
+RED：原guard无llm seam/次数和工具限制的三条失败测试，guard-red.log。新启动器测试首次遗漏fixture的固定Git返回，属于测试环境错误，launch-red.log/launch-green.log保留，不能称根因RED。修正fixture后用HEAD的原launcher源码在独立内存模块执行同一fixture，launch-red-corrected.log因“baseline ignores acceptance control”assert实际失败，未reset产品代码。
+
+GREEN：guard7 PASS/0skip；启动器29 PASS。真实固定DSH在新独立合成profile、正式产品overlay/preset下6次native llm dispatch进入合成拒密适配器，第7次被guard拒绝；全局fetch预先拒绝、实际供应商网络0、没有Keychain读密。native-seam.log/preparation.log保存事实，ctx正常dispose。该证据是合同/合成，不是供应商验收；fixture临时根rwb-t6-contract-p6u7kb5g与真实实例隔离。Secret-bearing启动输出由既有auth-bootstrap截获，认证控制文件不进入证据或Git。
+
+Black/isort修改文件通过；Ruff首次因沙箱缓存写失败退出2，不是产品错误，随后现有Ruff --no-cache通过。mypy沿现有follow-imports=skip并用产品.venv解析依赖，launcher1源文件通过，仅已有unused-section提示；没有新增ignore/Any/改依赖。Python索引按新增helper同步。37条边界外和manager既有诊断未整改。完整changed set阶段验收沿现有规划器，不因每小修改重跑全仓；完整1A仍需真实T6和B归因，机械回执不代替真实验收。
+
+本阶段相关回归最终94 JS/300 Python PASS；launcher静态检查通过，完整84路径约束、文档及索引检查实际执行，未删除旧失败日志。尚无新的真实供应商请求/工具执行，专用Key将由用户只在产品页录入；预计先完成单次T6，然后按可获得的非秘密供应商记录判断B归因，不重复旧生命周期。控制补丁送检身份与真实实例PID/开始时间在t6-controlled目录绑定，不以历史e917b1c89 CI冒充新补丁通过。
