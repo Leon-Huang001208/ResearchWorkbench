@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+Docker fresh-root 首装接受与启动为两个独立 lifecycle 调用：no-start 不创建产品根或 controls/端点；普通 start 重新验证缺失状态后实际 mkdir 并 pin。只读 Native 状态未知并不被改写为 idle；只有该调用的真实 lease、根/父身份、缺失 Native 元数据、无容器和稳定 PID/argv/start 观察齐备时可处理原默认监听。up 前撤销分配权限；本次失败不重新获取 fresh 或重试分配，普通已有根的原 bind-race 重试保留。外层候选发布/abort 在同一真实 lease 内复核恢复，未知状态保留原错误与稳定恢复诊断，不改变认证交换。
+
 ## 模型配置与显式验收
 
 受管启动在固定 CLI 加载前安装产品 `auth-bootstrap.mjs`：启动认证输出按完整行截获（包含跨chunk情况），仅向现有私有 `runtime/auth.json` 写入临时bootstrap_token及实例绑定。管理器从该受控文件完成原Cookie交换，原子替换为正常认证记录，不再从runtime.log解析token；普通日志只出现固定脱敏标记。没有新HTTP接口、daemon或模型凭据后端。解析/绑定/私有文件校验失败则认证失败关闭，不回退旧日志。

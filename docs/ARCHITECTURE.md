@@ -4,6 +4,8 @@
 
 ## 当前产品边界
 
+Docker 首装的无启动接受与首次启动分别使用同一现有生命周期入口内的 RAM 证明：前者只确认产品根缺失，后者必须实际私有 mkdir 并 pin 父目录/根 FD。证明不持久化或跨调用转移；已有根、已知容器、Native 记录或未知变化不获得 fresh 权限，部署节点与认证实现不变。
+
 Research Workbench 当前交付的是本地优先的 Research Web，Native 与 Docker 只是同一产品的两种互斥部署：
 
 ```text

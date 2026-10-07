@@ -24,8 +24,17 @@
 Native public auto-start reexecutes the same script/arguments in the exact marked checkout venv before
 creating the product root. The actual manager creates the root under its real lifecycle lease, completes
 DSH/build-lock/manifest, and starts through the verified same-lease entry. Outer-home UID/0700 preparation
-reuses the existing boundary; no-start/check-only/Docker do not gain a fresh witness. Old roots/replacements
+reuses the existing boundary; Native no-start/check-only do not gain Native creation authority. Old roots/replacements
 and observer/lease changes remain refused; no global package or public flag is added.
+
+Docker no-start selection may retain only a missing-product-root observation under the controller's own
+outer real lifecycle lease with a pinned private parent, absent Native records/endpoints and no containers.
+It publishes the original image/mode metadata without product-root, controls, PID or endpoint creation;
+the observation ends with the call and cannot authorize a later start. Standard first start independently
+rechecks absence, performs real private mkdir and pins its root inode/descriptor in that same transaction.
+Allocation authority expires before up; existing roots/containers never gain the fresh exception. Exact
+attempt recovery under the original lease/root/parent/listener/CAS facts retains the initial error with
+stable recovery diagnostics, never deletes user data or serializes a witness.
 
 Docker selection publication retains the manifest writer's held-FD identity. A later failure restores
 the previous receipt only while both the published bytes and inode still match; same-content inode

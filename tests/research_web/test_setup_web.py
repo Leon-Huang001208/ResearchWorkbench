@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import os
 import shutil
@@ -22,6 +23,269 @@ from research_workbench_entrypoint.web_contract import (
     node_version_issue,
 )
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
+
+
+@pytest.fixture(autouse=True)
+def no_live_docker_process_in_setup_tests(monkeypatch):
+    """An incomplete subprocess fixture must fail before touching the real Engine."""
+    popen = subprocess.Popen
+    def guarded(argv, *args, **kwargs):
+        if isinstance(argv, (list, tuple)) and argv and Path(argv[0]).name == "docker":
+            raise AssertionError("setup tests require an explicit Docker subprocess fixture")
+        return popen(argv, *args, **kwargs)
+    monkeypatch.setattr(subprocess, "Popen", guarded)
+
+
+@pytest.fixture
+def fresh_docker_owned_bridge(tmp_path, monkeypatch):
+    """Validated owned-classification fixture, real Native bridge and OS facts."""
+    from research_workbench_entrypoint import bootstrap
+    from test_docker_runtime import RecordingRunner, owned
+
+    owner = tmp_path / "native-owner"
+    python = owner / ".venv/bin/python"
+    python.parent.mkdir(parents=True)
+    python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+    python.chmod(0o755)
+    (owner / ".venv/.rwb-web-environment.json").write_text(json.dumps({
+        "schema_version": 1, "owner": "research-workbench-web-installer",
+        "project_root_sha256": hashlib.sha256(str(owner.resolve()).encode()).hexdigest(),
+        "python": "Python 3.12.13", "created_at": "2026-10-07T00:00:00+00:00",
+    }))
+    assert classify_python_environment(owner).issue is None
+    monkeypatch.setattr(bootstrap, "native_python", lambda root: python)
+    child = subprocess.Popen([sys.executable, "-c",
+        "import socket,sys; s=socket.socket(); s.bind(('127.0.0.1',0)); s.listen(); "
+        "print(s.getsockname()[1],flush=True); sys.stdin.readline()",
+        "app.research_web.main", "/foreign/checkout"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        port = int(child.stdout.readline())
+        fact = bootstrap.listener_pids(port)
+        assert fact.state == "listening" and child.pid in fact.pids
+        assert "app.research_web.main" in bootstrap.probe_process(child.pid).argv
+        original_init = bootstrap.NativeRuntime.__init__
+        def native_init(self, *args, **kwargs):
+            kwargs.setdefault("ports", (port, 3081))
+            original_init(self, *args, **kwargs)
+        monkeypatch.setattr(bootstrap.NativeRuntime, "__init__", native_init)
+        project = Path(__file__).resolve().parents[2]
+        home = tmp_path / "private-home"
+        home.mkdir(mode=0o700)
+        runner = RecordingRunner()
+        from scripts.setup_web import DockerRuntime
+        controller = DockerRuntime(project, home, runner=runner)
+        def docker_runner(argv, **kwargs):
+            if "up" in argv:
+                owned(controller, runner)
+            return runner(argv, **kwargs)
+        controller.runner = docker_runner
+        yield controller, runner, child, port
+    finally:
+        child.communicate(input="\n", timeout=5)
+
+
+def test_fresh_docker_no_start_owned_native_bridge_does_not_create_product_root(fresh_docker_owned_bridge):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, child, port = fresh_docker_owned_bridge
+    assert NativeRuntime(controller.project_root, controller.home).status()["issues"] == ["runtime_ownership_unknown"]
+    assert controller.install(start=False)["status"] == "installed"
+    assert not controller.data_dir.exists()
+    assert not (controller.home / "install/endpoints.json").exists()
+    assert not controller.state_dir.exists() and not controller.credential_dir.exists()
+    assert all(not (controller.home / "run" / (role + ".json")).exists()
+               for role in ("web", "runtime"))
+    assert not any("up" in argv or argv[1] in ("start", "stop", "rm") for argv, _ in runner.calls)
+    assert child.poll() is None
+    assert controller.store.read().mode == "docker"
+
+
+def test_fresh_docker_standard_start_reacquires_actual_creation_after_no_start(fresh_docker_owned_bridge):
+    controller, runner, child, port = fresh_docker_owned_bridge
+    controller.install(start=False)
+    assert not controller.data_dir.exists()
+    assert controller.start(open_browser=False)["ok"]
+    assert controller.data_dir.stat().st_mode & 0o777 == 0o700
+    assert child.poll() is None
+    assert any("up" in argv for argv, _ in runner.calls)
+
+
+@pytest.mark.parametrize("change", ["existing-root", "root-alias", "parent-mode", "pid", "endpoints",
+    "container", "late-root", "late-pid", "late-container", "late-mode", "lease-substitution",
+    "parent-replacement", "forged-proof", "late-listener"])
+def test_fresh_docker_selection_refuses_unsafe_or_late_facts(fresh_docker_owned_bridge, monkeypatch, change):
+    from test_docker_runtime import owned
+    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    controller, runner, child, port = fresh_docker_owned_bridge
+    def mutate():
+        if change.endswith("root"):
+            controller.data_dir.mkdir(mode=0o700)
+        elif change == "root-alias":
+            other = controller.home / "foreign"
+            other.mkdir(mode=0o700)
+            controller.data_dir.symlink_to(other, target_is_directory=True)
+        elif change == "parent-mode":
+            controller.home.chmod(0o755)
+        elif change.endswith("pid"):
+            directory = controller.home / "run"
+            directory.mkdir(mode=0o700, exist_ok=True)
+            path = directory / "web.json"
+            path.write_text("{malformed}")
+            path.chmod(0o600)
+        elif change == "endpoints":
+            directory = controller.home / "install"
+            directory.mkdir(mode=0o700, exist_ok=True)
+            path = directory / "endpoints.json"
+            path.write_text("{}")
+            path.chmod(0o600)
+        elif change.endswith("container"):
+            controller.store.write("native")
+            owned(controller, runner)
+        elif change == "late-mode":
+            controller.store.write("docker")
+        elif change == "lease-substitution":
+            controller._lifecycle_lease = SimpleNamespace(path=controller.home / "run/lifecycle.lock",
+                                                        assert_held=lambda: None)
+        elif change == "parent-replacement":
+            controller.home.rename(controller.home.with_name("old-home"))
+            controller.home.mkdir(mode=0o700)
+        elif change == "forged-proof":
+            controller._fresh_root = True
+        elif change == "late-listener":
+            monkeypatch.setattr(controller, "_fresh_listener_fact", lambda port: None)
+    if change.startswith("late-") or change in {"lease-substitution", "parent-replacement", "forged-proof"}:
+        original = controller._verify_selection_safe
+        def verify(*args, **kwargs):
+            original(*args, **kwargs)
+            mutate()
+        monkeypatch.setattr(controller, "_verify_selection_safe", verify)
+    else:
+        mutate()
+    with pytest.raises(RuntimeError):
+        controller.install(start=False)
+    assert not (controller.home / "install/docker-manifest.json").exists()
+    assert not any("up" in argv or argv[1] in ("start", "stop", "rm") for argv, _ in runner.calls)
+    assert child.poll() is None
+    assert controller._fresh_root is None and controller._root_scope is None
+
+
+@pytest.mark.parametrize("change", [None, "root", "lease", "pid", "listener", "mode", "container"])
+def test_fresh_docker_nested_candidate_publication_failure_keeps_root_and_restores_metadata(
+    fresh_docker_owned_bridge, monkeypatch, change
+):
+    controller, runner, child, port = fresh_docker_owned_bridge
+    stages = []
+    call = controller._call
+    def observed(argv, *args, **kwargs):
+        if "up" in argv:
+            assert controller._fresh_root["root"] is not None
+            assert controller._fresh_root["allocating"] is False
+            stages.append("up")
+        return call(argv, *args, **kwargs)
+    monkeypatch.setattr(controller, "_call", observed)
+    def fail_commit():
+        assert controller._pending_start is not None
+        assert controller._lifecycle_lease is not None
+        assert controller._fresh_root["allocating"] is False
+        stages.append("publication")
+        if change == "root":
+            controller.data_dir.rename(controller.home / "old-product-root")
+            controller.data_dir.mkdir(mode=0o700)
+        elif change == "lease":
+            controller._lifecycle_lease = SimpleNamespace(path=controller.home / "run/lifecycle.lock",
+                                                        assert_held=lambda: None)
+        elif change == "pid":
+            path = controller.home / "run/web.json"
+            path.write_text("{}")
+            path.chmod(0o600)
+        elif change == "listener":
+            monkeypatch.setattr(controller, "_fresh_listener_fact", lambda port: None)
+        elif change == "mode":
+            # Unknown replacement bypasses, rather than re-enters, the writer's
+            # already-held metadata lock. It must never be accepted as our CAS.
+            value = json.loads(controller.store.path.read_text())
+            value["mode"] = "native"
+            replacement = controller.store.path.with_name("foreign-runtime.json")
+            replacement.write_text(json.dumps(value))
+            replacement.chmod(0o600)
+            replacement.replace(controller.store.path)
+        elif change == "container":
+            runner.container["launch"] = "foreign-launch"
+        raise RuntimeError("fixture_late_publication_failure")
+    monkeypatch.setattr(controller, "_commit_candidate", fail_commit)
+    with pytest.raises(RuntimeError, match="fixture_late_publication_failure") as raised:
+        controller.install(start=True)
+    assert stages == ["up", "publication"]
+    assert controller.data_dir.is_dir()
+    if change is None:
+        assert controller.endpoint_store.read("docker") is None
+    else:
+        assert controller.endpoint_store.read("docker") is not None
+        assert raised.value.__notes__
+    if change != "mode":
+        assert not (controller.home / "install/docker-manifest.json").exists()
+    assert controller.store.read().mode == "native"
+    assert (runner.container is None) is (change != "container")
+    assert controller._fresh_root is None and controller._root_scope is None
+    assert child.poll() is None
+
+
+def test_fresh_docker_late_control_record_refuses_before_spawn(fresh_docker_owned_bridge, monkeypatch):
+    import research_workbench_entrypoint.docker_runtime as module
+    controller, runner, child, port = fresh_docker_owned_bridge
+    select = module.select_port
+    def introduce(*args, **kwargs):
+        controls = controller.data_dir / ".control"
+        controls.mkdir(mode=0o700)
+        path = controls / "datahub.json"
+        path.write_text("{}")
+        path.chmod(0o600)
+        return select(*args, **kwargs)
+    monkeypatch.setattr(module, "select_port", introduce)
+    controller.install(start=False)
+    assert not controller.start(open_browser=False)["ok"]
+    assert (controller.data_dir / ".control/datahub.json").read_text() == "{}"
+    assert not any("up" in argv for argv, _ in runner.calls)
+    assert child.poll() is None
+
+
+def test_fresh_docker_witness_cannot_transfer_to_another_controller(fresh_docker_owned_bridge, monkeypatch):
+    from scripts.setup_web import DockerRuntime
+    controller, runner, child, port = fresh_docker_owned_bridge
+    verify = controller._verify_selection_safe
+    def inspect(*args, **kwargs):
+        verify(*args, **kwargs)
+        other = DockerRuntime(controller.project_root, controller.home, runner=controller.runner)
+        other._root_scope = controller._root_scope
+        other._root_scope_lease = controller._root_scope_lease
+        other._root_scope_controller = controller._root_scope_controller
+        other._lifecycle_lease = controller._lifecycle_lease
+        other._fresh_root = controller._fresh_root
+        assert not other._fresh_root_proven(missing=True)
+        assert controller._fresh_root_proven(missing=True)
+    monkeypatch.setattr(controller, "_verify_selection_safe", inspect)
+    assert controller.install(start=False)["status"] == "installed"
+    assert not controller.data_dir.exists()
+
+
+def test_missing_root_status_or_external_real_lease_is_not_fresh_authority(fresh_docker_owned_bridge):
+    from app.research_web.lifecycle_lock import LifecycleLock
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, child, port = fresh_docker_owned_bridge
+    native = NativeRuntime(controller.project_root, controller.home)
+    report = native.status()
+    assert report["issues"] == ["runtime_ownership_unknown"]
+    assert not controller._native_selection_safe(native, report, create=True)
+    with LifecycleLock(controller.home / "run/lifecycle.lock", controller._pid_exists,
+                       trusted_root=controller.home) as lease:
+        controller._lifecycle_lease = lease
+        try:
+            result = controller._locked_guard("selection", lambda:
+                {"ok": controller._native_selection_safe(native, report, create=True)})
+            assert result["ok"] is False
+        finally:
+            controller._lifecycle_lease = None
+    assert controller._fresh_root is None and not controller.data_dir.exists()
 
 
 def test_setup_public_explicit_port_options():
@@ -92,6 +356,7 @@ def _allow_idle_runtime_selection(monkeypatch: pytest.MonkeyPatch) -> None:
     }
     monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight", lambda _self, **_kwargs: idle)
     monkeypatch.setattr(setup_web._DockerRuntimeController, "status", lambda _self: idle)
+    monkeypatch.setattr(setup_web._DockerRuntimeController, "_containers", lambda _self: [])
     monkeypatch.setattr(NativeRuntime, "status", lambda _self: idle)
     monkeypatch.setattr(setup_web, "port_busy", lambda _port: False)
 
