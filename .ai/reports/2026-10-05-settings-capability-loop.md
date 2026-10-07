@@ -730,3 +730,22 @@ Office临时资源清理的独立目录读取未返回，终止本次所属审�
 目标新文档生成合同导致index/API atlas stale，按原build_research_web_api_atlas.mjs实际生成后复核；图源、节点/拓扑及其人工评审不改变，不重复架构多视口验收。本任务实际新增internal/skill-preflight inventory已在最终清单中；目标新增documentation.py只保留其受控导航/白名单，补直接documentation回归，来源已通过的图册浏览器证据不转述为本任务新的执行结果。
 
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"合并固定目标已评审的分层架构入口，保留其图源和导航合同；本任务新增数据准入API由既有API Atlas生成，不新建服务或修改图节点。","diagrams":[]} -->
+
+
+### 当前候选最终CI与安全收尾
+
+冻结并已普通push的候选H=32cd546cc720731c801ab4fbeb03577291b0b64a，tree=c150f80ffc6593a6a104dc8480f1c5a62165dc4f；正常merge parents=9f30d23de/c24a8a161，PR81 OPEN/draft/MERGEABLE，base=c24a8a161674678d572bf9ac35fab30489b40605。本地原任务完整范围237路径、PR范围63路径、整合增量46路径，各自规划/Project Constraints exit0。后续仅报告检查点与H区分，不伪称CI测试该报告HEAD，不为报告制造bootstrap循环。
+
+当前必要Mac阶段自动门均attempt1/pull_request SUCCESS：Project Constraints37578504746（Ubuntu check）、Research Web Checks37578504733（Ubuntu checks）、Research Web Bootstrap37578504755（macos-14 Clean Web install）。三者实际checkout均55f05daaafe4ddb737c204cd9406d055a1c10371；GitHub Git commit API实际parents为固定base c24a8a161和候选32cd546cc，合并预览与branch HEAD分别保留。Mac job runner=GitHub Actions 1000000537、label macos-14；真实干净安装、固定DSH构建、启动健康及Doctor通过，成功artifact research-web-bootstrap-macos-14-37578504755/id11464106161仅doctor.json/connections.json/root.html/app.mjs，Doctor ok/installation_ok/product_ready均true、issues=[]。run/json、日志checkout摘要、jobs/runner和artifact均在data-admission目录。未dispatch/rerun，未配置真实Key，标准公开runner，不提高预算。
+
+现行完整changed set其余离线闭包补齐：563 Python PASS（container/runtime launch/credential/runtime contract/setup/runtime mode/Docker runtime的无容器合同），113 JS PASS（planner/receipt/skill/Docker合同）；实际Docker产品生命周期/CI仍未执行，不能从离线合同推导平台成功。整合直接documentation回归25 PASS，架构/policy JS PASS，实际生成index/API atlas和文档治理/索引PASS。已有图源及独立人工审查保留，不重新截全图或把目标图册证据当本轮新执行。
+
+浏览器首选插件因本机原生库签名失败；使用既有CUA备用通道实际核对19088能力中心与基金v2详情，看到独立“数据准入：尚未验证/需完成最小数据探测”而不是将已启用提升为可运行（早前探测已过期）。此为AX语义验证，不声称全站截图/全部视觉验收。未查看设置密码框、剪贴板、认证链接或个人工具配置。
+
+最后通过所属产品PUT runtime/model clear_api_key=true，HTTP200，随后GET runtime credential_configured=false；正常manager stop仅停止所属Host57791/DSH57608，状态PID=null、19088/14081无listener。合成19089/14181同样无listener，实际Keychain合成值每组已清除。真实测试Key不撤销供应商账户，只清除本测试实例；不访问生产Key，生产8088/3081仍未更新。累计真实请求为模型6次/公开只读DataHub2次，本轮新增2/1；其他fixture供应商0。
+
+唯一plan/receipt继续为logs/settings-model-loop/{plan,receipt}.json，绑定完整237路径和L4闭包，validate_verification_receipt exit0/valid=true。完整历史changed set仍由未改政策选择research-web-docker gate，按用户暂缓如实MANUAL_REQUIRED，因此总体result=BLOCKED、mergeReady=false/releaseReady=false；没有删门或假PASS。Mac必要自动门与本机基础模型/公开Skill范围PASS，这个事实不因其他平台暂缓而停止推进，也不自动等于完整所有阶段交付。
+
+最终剩余外部条件一次列明：阶段1B需要一个实际额外服务或本地推理端点的非秘密地址/模型及安全设置页录入条件（当前没有，不用同一服务换协议冒充新增）；阶段2商业源需要所属独立实例真实账户和一个获准dataset；阶段4需要真实Office/Word权限/可响应环境及所属测试资源清理证据（原timeout/UNVERIFIED保留，不重试受保护目录）。不要求把Key发到对话、不购买/管理供应商账户、不读取生产/个人开发工具凭据。阶段3当前数据准入实现与真实公开NAV链路PASS、阶段5Mac干净交付CI PASS、阶段6最小设计完成；1B/2自有账户/4实机不具备完成证据，全部阶段仍未完成。草稿PR不合并、不发布、不更新生产、不启动暂缓平台。
+
+独立实例实际运行命令从工作目录/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench执行：.venv/bin/python /private/tmp/rwb-dsh-upgrade-acceptance-20261007/instance.py {start,status,doctor,stop}，start复用正常WebServiceManager安装门与受管入口，实例根/private/tmp/rwb-dsh-upgrade-acceptance-20261007/research-web，设置入口在start后核验为http://127.0.0.1:19088/#/settings/model。当前已停止且无Key，恢复运行不代表有推理能力。公开日常./rwb web start/status/doctor/stop默认8088/3081，本轮只核对--help，未以它们操作生产。
