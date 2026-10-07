@@ -1,0 +1,119 @@
+/** Single migration and ingestion owner. Callers pass an authorized pooled connection. */
+import type postgres from 'postgres';
+import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { sha256, contentHash, identityKeyForUrl } from './material.ts';
+import type { FeedMaterial } from './feed.ts';
+import { logEvent } from './log.ts';
+
+type Sql = ReturnType<typeof postgres>;
+type Page = { source: string; raw: string; acquiredAt: Date; materials: FeedMaterial[];
+  cursor: Record<string, postgres.JSONValue>; metadata?: Record<string, postgres.JSONValue> };
+
+function safeError(error: unknown, fallback: string): Error {
+  if (error instanceof Error && /^hot_[a-z_]+$/.test(error.message)) return error;
+  return Error(fallback);
+}
+
+function materialVersionHash(item: FeedMaterial): string {
+  return sha256([contentHash(item), item.publishedRaw, item.updatedRaw,
+    item.publishedAt?.toISOString() ?? '', item.sourceUpdatedAt?.toISOString() ?? ''].join('\u0001'));
+}
+
+export async function migrate(db: Sql): Promise<void> {
+  try {
+  await db.begin(async tx => {
+    // Same schema migration lock across connections and execution modes.
+    await tx`select pg_advisory_xact_lock(714278901)`;
+    await tx`create schema if not exists hot`;
+    await tx`create table if not exists hot.migrations (version integer primary key, checksum text not null, applied_at timestamptz not null default now())`;
+    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql']] as const) {
+    const raw = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
+    const checksum = sha256(raw);
+    const rows = await tx`select checksum from hot.migrations where version=${version}`;
+    if (rows.length) {
+      if (rows[0].checksum !== checksum) throw Error('hot_migration_checksum_changed');
+      continue;
+    }
+    await tx.unsafe(raw);
+    await tx`insert into hot.migrations (version, checksum) values (${version}, ${checksum})`;
+    }
+  });
+  logEvent('migration_ready');
+  } catch (error) {
+    logEvent('migration_failed');
+    throw safeError(error, 'hot_migration_failed');
+  }
+}
+
+export async function ingestPage(db: Sql, page: Page): Promise<{ materialIds: string[]; newVersions: number }> {
+  try {
+  if (!Number.isFinite(page.acquiredAt.getTime()) || Buffer.byteLength(page.raw) > 4_194_304 || page.materials.length > 2000) {
+    throw Error('hot_page_invalid');
+  }
+  const result = await db.begin(async tx => {
+    const sources = await tx`select id,last_success_at from hot.sources where id=${page.source} for update`;
+    if (!sources.length) throw Error('hot_source_unknown');
+    if (sources[0].last_success_at && page.acquiredAt < sources[0].last_success_at) throw Error('hot_page_obsolete');
+    const pageId = randomUUID();
+    const dates = page.materials.map(item => item.publishedAt).filter((date): date is Date => date !== null).sort((a, b) => a.getTime() - b.getTime());
+    await tx`insert into hot.raw_pages (id, source_id, body, body_hash, acquired_at, metadata, coverage, oldest_published_at, newest_published_at, parsed_count)
+      values (${pageId}, ${page.source}, ${Buffer.from(page.raw)}, ${sha256(page.raw)}, ${page.acquiredAt},
+      ${tx.json(page.metadata ?? {})}, 'latest_snapshot', ${dates[0] ?? null}, ${dates.at(-1) ?? null}, ${page.materials.length})`;
+    const materialIds: string[] = [];
+    let newVersions = 0;
+    // Lock material identities in stable order to avoid cross-source deadlock.
+    const items = page.materials.map(item => ({ item, identity: identityKeyForUrl(item.url) }));
+    if (items.some(({ identity }) => !identity)) throw Error('hot_material_url_invalid');
+    items.sort((a, b) => a.identity!.localeCompare(b.identity!));
+    const pageHashes = new Map<string, string>();
+    for (const { item, identity } of items) {
+      const hash = materialVersionHash(item);
+      if (pageHashes.has(identity!) && pageHashes.get(identity!) !== hash) throw Error('hot_page_identity_conflict');
+      pageHashes.set(identity!, hash);
+    }
+    const idsByIdentity = new Map<string, string>();
+    for (const { item, identity } of items) {
+      await tx`insert into hot.materials (id, identity, original_url, first_seen_at,last_acquired_at)
+        values (${randomUUID()}, ${identity!}, ${item.url}, ${page.acquiredAt}, ${page.acquiredAt}) on conflict(identity) do nothing`;
+      const [material] = await tx`select id, current_revision, first_seen_at,last_acquired_at from hot.materials where identity=${identity!} for update`;
+      if (page.acquiredAt < material.last_acquired_at) throw Error('hot_acquisition_order_invalid');
+      const existing = await tx`select content_hash, acquired_at from hot.material_versions where material_id=${material.id} and revision=${material.current_revision}`;
+      if (existing.length && page.acquiredAt < existing[0].acquired_at) throw Error('hot_acquisition_order_invalid');
+      // Timestamp corrections affect the immutable version too.
+      const hash = materialVersionHash(item);
+      let revision = material.current_revision;
+      if (!existing.length || existing[0].content_hash !== hash) {
+        revision++;
+        await tx`insert into hot.material_versions (material_id, revision, content_hash, title, excerpt, acquired_at,
+          published_at, published_raw, source_updated_at, source_updated_raw, raw_page_id)
+          values (${material.id}, ${revision}, ${hash}, ${item.title}, ${item.excerpt}, ${page.acquiredAt},
+          ${item.publishedAt}, ${item.publishedRaw}, ${item.sourceUpdatedAt}, ${item.updatedRaw}, ${pageId})`;
+        await tx`update hot.materials set current_revision=${revision} where id=${material.id}`;
+        newVersions++;
+      }
+      await tx`insert into hot.discoveries (source_id, material_id, page_id, upstream_id, revision)
+        values (${page.source}, ${material.id}, ${pageId}, ${item.upstreamId}, ${revision}) on conflict do nothing`;
+      idsByIdentity.set(identity!, material.id);
+      await tx`update hot.materials set last_acquired_at=${page.acquiredAt} where id=${material.id}`;
+    }
+    for (const item of page.materials) materialIds.push(idsByIdentity.get(identityKeyForUrl(item.url)!)!);
+    // Publication of raw bytes, every entry, discoveries and watermark is one commit.
+    await tx`update hot.sources set cursor=${tx.json(page.cursor)}, last_success_at=${page.acquiredAt}, last_error_code=null where id=${page.source}`;
+    return { materialIds, newVersions };
+  });
+  logEvent('page_committed', page.materials.length);
+  return result;
+  } catch (error) {
+    logEvent('ingest_failed');
+    throw safeError(error, 'hot_ingest_failed');
+  }
+}
+
+export async function versionsAt(db: Sql, ids: string[], cutoff: Date): Promise<any[]> {
+  if (!Number.isFinite(cutoff.getTime()) || ids.length > 200) throw Error('hot_asof_invalid');
+  if (ids.length === 0) return [];
+  return db`select distinct on (material_id) * from hot.material_versions
+    where material_id in ${db(ids)} and acquired_at <= ${cutoff}
+    order by material_id, acquired_at desc, revision desc`;
+}

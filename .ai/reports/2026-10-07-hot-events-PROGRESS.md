@@ -1,0 +1,29 @@
+# Hot Events authoritative progress
+
+- Goal: both attached goal documents, all stages 0–5; no reduced completion scope.
+- hostPlatform: macos; taskKind: feature-development.
+- hostAcceptance: NOT_RUN; aggregateAcceptance: NOT_RUN.
+- Base: remote master `205d2a170d9ece9c2751e014b63abe326510ab9c`, verified 2026-10-07.
+- Worktree: `/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench`.
+- Branch: `codex/hot-events-system-20261007`.
+- Harness task: `hot-events-system`; session key stays with this task.
+- Upstream: AIHOT `8e34e05feb161cb5838e592ee22715f791c7f814`; MIT and NOTICE read.
+- Current: stage 0 integration evidence obtained; early stage 1 persistence slice implemented. Full stage 1 lifecycle/configuration remains incomplete.
+- Verified: Docker Engine 29.8.2 available; public repository; independent worktree at current remote master; upstream dependency versions available on npm.
+- Important drift: stage file exists on remote master but not the older primary checkout. PR 81 and PR 84 remain unmerged and are not dependencies to assume.
+- Decisions already authorized: PostgreSQL and project-isolated required dependencies; Native full model/research baseline; Mac Docker collection/persistence/switch baseline; no production deployment or merge.
+- Fixed route after bounded integration: one internal Node/TypeScript package for Hot persistence/algorithms/queue, FastAPI for product configuration and authorized handoff. Detailed file/contract plan: [PLAN](2026-10-07-hot-events-PLAN.md).
+- Dependencies to install: postgres 3.4.9 (pool), pg-boss 12.34.0 (durable tasks), fast-xml-parser 5.11.1 (feeds). No Python dependency installed.
+- Model evidence: existing launcher injects `model-credentials.mjs`, whose Python bridge selects macOS system Keychain. Docker uses non-darwin Python and cannot use this bridge; mark model support blocked unless an existing supported alternative is actually verified. No secrets read, paid model request, or research launched yet.
+- Risk: upstream historical material stays outside event graph, so that policy cannot be copied; long-term chain linking needs RWB adaptation. Upstream uncertain grouping must not imply automatic merge.
+- Live proof: Node 24.19.0; PG 17.11 (owned Docker volume and loopback port); exact dependency lock. OpenAI 1251 entries / DeepMind 100 / Fed 20 / ECB 15. Publisher/operator identities are independent within each channel. All coverage is latest_snapshot. Raw XML SHA-256 and acquisition-after-response times in `logs/hot-stage-zero/receipt.json`.
+- Implemented: URL identity/content hash (upstream adaptation), strict RSS/Atom with unknown-date preservation; hot migrations 1/2; immutable raw pages and versions; source/discovery provenance; atomic page/watermark commit; source/material acquisition fencing; versioned normalized time; as-of query.
+- Passed: TypeScript typecheck; six unit tests plus real PostgreSQL integration (7 total), including late unchanged-page watermarks, same-page conflicting identity, XML entity, calendar validity and temporal confirmation regressions.
+- Recovery: schema-only clean-database restore with original rows paused and full-table inventory/hash comparison (except independently verified source enabled flag), schema version read from DB. This does not include events or research snapshots because those stages are not implemented.
+- Review: read-only TypeScript review found seven concrete issues plus time-confirmation revision issue; all fixed with corresponding regression checks. Final re-review found no remaining important issues in the persistence slice; it does not certify the unfinished product.
+- Additional local gates: documentation governance PASS, Python file-index check PASS, planner-selected repository JavaScript checks 104/104 PASS, git diff whitespace check PASS. Planner retains L4 and unknown_impact_boundary until the new package boundary is formally registered; applicable CI remains NOT_RUN.
+- Latest minimal recovery: hot schema v2, 6 tables; restored row inventory/hash matches, source enabled flag alone deliberately changed to false. `logs/hot-stage-zero/recovery.log` and its private manifest contain exact hashes. Research/events are outside this early schema rehearsal and remain NOT_RUN.
+- Evidence directory: `/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/logs/hot-stage-zero/`. Owned probe container `rwb-hot-probe-6a5d3231`, volume `rwb-hot-probe-6a5d3231-data`. No volume deleted; no existing shared service stopped.
+- Next: complete stage 1 strict DB/schema/role configuration, control authorization, worker/queue lease fencing and lifecycle integration. Product setup/status/doctor/backup commands and UI are not yet available.
+- Stages 2–5: NOT_RUN, including sustained collection, actual events/channels, real model, research artifact, full joint recovery, UI and same-commit CI.
+- Windows/Linux handoff: NOT_RUN; separate device ownership. Never interpret Mac Docker evidence as native Linux acceptance.
