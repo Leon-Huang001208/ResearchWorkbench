@@ -50,3 +50,16 @@ Atlas --check、Markdown 治理、当前基线架构门及完整 changed-file Pr
 说明三个失败未在隔离模块中复现，原因未确证，不据此修改生产安全门或抹去首次证据。
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"组合既有端口事务与私有账本、tmpfs及平台能力投影，不改变部署节点、认证安全门和单一DSH边界。","diagrams":[]} -->
+
+## 冻结源码与阅读链接修复
+
+真实本地合并提交为 `a1e2c90f84a32309d84b762507628abb2c508386`，父节点分别为
+当前主线 205d2a170 与目标 5be67d4d3。其后独立文档 delta 仅把既有 revision 指向该
+已存在 SHA，重新使用 Atlas 生成器，并更新四字段 README 复核及本报告。
+不会把未来提交或本文件自身提交填作源码身份。全部映射引用需在该 Git 对象中存在；
+GitHub 可达性尚未执行，图源、图形 HTML、截图及视觉回执未修改。
+
+该独立 delta 的实际核对：219 个去重 source/document/test 映射引用均存在于 a1e2c90f8
+Git 对象；完整当前基线架构门、五路径 Project Constraints、Markdown 治理、Python 索引及
+Atlas --check 均 PASS。Atlas 保留 188 项声明 / 186 唯一接口 / 13 领域。
+各文件 SHA-256 与对象核对结果在 `logs/task14-b1-repin-proof.json`，日志保持本地。
