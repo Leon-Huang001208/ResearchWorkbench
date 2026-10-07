@@ -9,9 +9,9 @@ import { schemaName } from './config.ts';
 
 type Sql = ReturnType<typeof postgres>;
 type Tx = postgres.TransactionSql;
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 type Page = { source: string; raw: string; acquiredAt: Date; materials: FeedMaterial[];
-  cursor: Record<string, postgres.JSONValue>; metadata?: Record<string, postgres.JSONValue> };
+  cursor: Record<string, postgres.JSONValue>; metadata?: Record<string, postgres.JSONValue>; existingPageId?: string };
 
 function safeError(error: unknown, fallback: string): Error {
   if (error instanceof Error && /^hot_[a-z_]+$/.test(error.message)) return error;
@@ -36,7 +36,7 @@ export async function migrate(db: Sql, schema = 'hot'): Promise<void> {
       (select nspowner=(select oid from pg_roles where rolname=current_user) from pg_namespace where nspname=${schema}) as owned`;
     if (!existing.migration_table && (!existing.owned || existing.relation_count > 0 || existing.function_count > 0)) throw Error('hot_schema_not_empty');
     await tx`create table if not exists ${tx(schema)}.migrations (version integer primary key, checksum text not null, applied_at timestamptz not null default now())`;
-    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql']] as const) {
+    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql'], [5,'0005-collection-inbox.sql']] as const) {
     const raw = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
     const checksum = sha256(raw);
     const rows = await tx`select checksum from ${tx(schema)}.migrations where version=${version}`;
@@ -66,9 +66,13 @@ export async function ingestPage(db: Sql | Tx, page: Page, schema = 'hot'): Prom
     const sources = await tx`select id,last_success_at from ${tx(schema)}.sources where id=${page.source} for update`;
     if (!sources.length) throw Error('hot_source_unknown');
     if (sources[0].last_success_at && page.acquiredAt < sources[0].last_success_at) throw Error('hot_page_obsolete');
-    const pageId = randomUUID();
+    const pageId = page.existingPageId ?? randomUUID();
     const dates = page.materials.map(item => item.publishedAt).filter((date): date is Date => date !== null).sort((a, b) => a.getTime() - b.getTime());
-    await tx`insert into ${tx(schema)}.raw_pages (id, source_id, body, body_hash, acquired_at, metadata, coverage, oldest_published_at, newest_published_at, parsed_count)
+    if(page.existingPageId){
+      const rows=await tx`select id from ${tx(schema)}.raw_pages where id=${pageId} and source_id=${page.source}
+        and body_hash=${sha256(page.raw)} and acquired_at=${page.acquiredAt}`;
+      if(rows.length!==1)throw Error('hot_raw_page_mismatch');
+    }else await tx`insert into ${tx(schema)}.raw_pages (id, source_id, body, body_hash, acquired_at, metadata, coverage, oldest_published_at, newest_published_at, parsed_count)
       values (${pageId}, ${page.source}, ${Buffer.from(page.raw)}, ${sha256(page.raw)}, ${page.acquiredAt},
       ${tx.json(page.metadata ?? {})}, 'latest_snapshot', ${dates[0] ?? null}, ${dates.at(-1) ?? null}, ${page.materials.length})`;
     const materialIds: string[] = [];

@@ -178,8 +178,9 @@ class HotManager:
 
     def _fingerprint(self, pid: int) -> str | None:
         try:
-            result = subprocess.run(["ps", "-p", str(pid), "-o", "lstart=", "-o", "command="], capture_output=True, text=True, timeout=3)
-            output = result.stdout.strip()
+            result = subprocess.run(["ps", "-ww", "-p", str(pid), "-o", "stat=", "-o", "lstart=", "-o", "command="], capture_output=True, text=True, timeout=3)
+            fields = result.stdout.strip().split(maxsplit=1)
+            output = fields[1] if len(fields) == 2 and "Z" not in fields[0] else ""
             return output if result.returncode == 0 and output and "<defunct>" not in output else None
         except (OSError, subprocess.SubprocessError):
             raise HotError("hot_process_probe_failed") from None
@@ -212,6 +213,16 @@ class HotManager:
         if not isinstance(value, dict):
             raise HotError("hot_rpc_invalid")
         return {"state": "initialized", "pid": state["pid"], **value}
+
+    def sources(self) -> list:
+        """Read source coverage without scheduling or launching collection."""
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        value = rpc(state["port"], state["owner"], self._secret("rpc-reader"), "sources")
+        if not isinstance(value, list):
+            raise HotError("hot_rpc_invalid")
+        return value
 
     @contextmanager
     def _lock(self):
@@ -454,11 +465,15 @@ class HotManager:
             if current is None:
                 log.info("hot_process_stopped")
                 return {"state": "stopped"}
-            if current != state["fingerprint"]:
-                raise HotError("hot_process_identity_mismatch")
+            # Exiting argv may briefly change before the PID vanishes. Do not signal
+            # a changed identity; only observe until the bounded escalation recheck.
             time.sleep(0.05)
         # Revalidate the exact original process immediately before escalation.
-        if self._fingerprint(state["pid"]) != state["fingerprint"]:
+        final = self._fingerprint(state["pid"])
+        if final is None:
+            log.info("hot_process_stopped")
+            return {"state": "stopped"}
+        if final != state["fingerprint"]:
             raise HotError("hot_process_identity_mismatch")
         os.kill(state["pid"], signal.SIGKILL)
         raise HotError("hot_stop_requires_recheck")

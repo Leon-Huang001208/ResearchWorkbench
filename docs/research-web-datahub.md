@@ -11,6 +11,13 @@ DSH仍是唯一研究引擎；Web只读资料，原生插件通过受控回环�
 
 ## 当前定位与命名
 
+Hot 的公开后台来源扩展目录为 `datahub/hot_public_sources.json`：OpenAI、Google DeepMind、
+Federal Reserve 与 ECB 四个固定官方 RSS/Atom 来源。不保存凭据，不导入 ResearchService。
+Hot Node 适配器读取这个目录并持久采集到独立 PG schema；原文和待解析条目先入库，
+然后按单轮上限分批生成不可变材料版本。此目录尚未注册到既有 Broker 的 15 项业务 Tool
+或来源设置页，不能把四个后台来源的实测提升为全部 DataHub 已连通。
+`channelHint` 仅帮助后续频道配置，当前尚无事件或频道模型判断。
+
 DataHub 是后台数据总机：统一描述“能查什么”、选择“从哪里查”、把供应商参数翻译成稳定业务参数、标准化结果，并把本次研究使用的数据保存为会话隔离快照。它不替代 DSH、Skill 或 Tool，也不是前端直接执行的能力类型。
 
 ```text

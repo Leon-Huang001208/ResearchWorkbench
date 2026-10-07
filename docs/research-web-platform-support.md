@@ -6,6 +6,8 @@ Hot 本轮状态单独记录：macOS 已执行核心、签名回环服务和真�
 这不是 Mac Docker 产品模式验收。完整 Hot Native 模型/研究、Mac Docker 装配与模式切换、
 同提交 macOS CI 均未完成；Windows/Linux 真机与相应 CI 保持 NOT_RUN。本页其他能力的旧
 验收证据不能用作 Hot 验收证据，详见 Hot 权威进度记录。
+本轮 Native 独立受限 worker 完成四个官方来源两轮真实采集，1389 材料/版本、8 份原文、
+待解析为零，覆盖标为 latest_snapshot；历史分页、事件频道、模型/研究和 Web UI 仍未验收。
 
 支持按能力、系统和运行方式声明。Doctor 的 `available` 表示代码具有当前实现，`unsupported` 表示明确边界，`not_verified` 表示必要安全证明缺失；`validated=false` 不会随操作系统推导为通过。实际验收由任务回执和下表的证据决定。
 

@@ -161,7 +161,7 @@ def dispatch(argv: list[str], project: Path) -> int:
     parser = SafeParser(prog="rwb hot", description="Hot configuration and diagnostics; lifecycle integration is in progress.")
     parser.add_argument("--data-home", type=Path, default=Path(os.environ.get("RESEARCH_DATA_HOME", str(Path.home() / ".research-workbench/research-web"))))
     sub = parser.add_subparsers(dest="command", required=True)
-    for command in ("status", "doctor", "start", "stop", "restart"):
+    for command in ("status", "doctor", "start", "stop", "restart", "sources"):
         sub.add_parser(command).add_argument("--json", action="store_true")
     setup = sub.add_parser("setup")
     setup.add_argument("--migration-user", default="postgres")
@@ -185,7 +185,7 @@ def dispatch(argv: list[str], project: Path) -> int:
     try:
         if args.command == "configure":
             value = save_settings(project, home, _read(args.file.absolute()))
-        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore") or (
+        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources") or (
             args.command in ("status", "doctor") and (home / "hot" / "process.json").exists()
         ):
             from .bootstrap import native_python, native_environment
@@ -230,7 +230,7 @@ def dispatch(argv: list[str], project: Path) -> int:
                 value["checks"] = {"configuration": "configured" if value["enabled"] else "disabled",
                                    "service": "NOT_RUN", "database": "NOT_RUN", "model": "NOT_RUN"}
         print(json.dumps(value, ensure_ascii=False))
-        return 1 if value.get("logging") == "unavailable" else 0
+        return 1 if isinstance(value, dict) and value.get("logging") == "unavailable" else 0
     except HotError as error:
         log.warning("hot_operation_failed code=%s", str(error))
         print(json.dumps({"state": "unavailable", "code": str(error)}))

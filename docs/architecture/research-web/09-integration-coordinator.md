@@ -5,6 +5,8 @@
 从[分层阅读入口](../../../outputs/research-web-architecture/index.html#module-integrations)进入总图、说明、API、源码和测试。
 
 公开来源探测有界并发，本机探测串行，结果原子持久化。Native / Docker 凭据不自动迁移；Doctor 或模型生成成功不提升来源为可调用，容器可见文件也不证明宿主 Office/Wind 可用。
+Hot 公开 feed 的双轮采集证据仅覆盖其四项后台适配器。共享来源目录位于 DataHub，
+尚未接入 IntegrationCoordinator UI/Broker 投影；不能据此修改其他来源的可调用状态。
 
 ## 目标
 

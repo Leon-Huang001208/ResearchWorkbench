@@ -9,7 +9,10 @@
 
 本轮增加可选 Hot 的独立 PostgreSQL/Node 组件；基础 Web 仍不要求数据库。
 当前 `rwb hot` 已提供非秘密配置、Native 独立服务生命周期与受管 PG 配置；Docker 产品装配、
-Settings、采集 worker 和研究交接尚在实施，不能作为成品安装说明。Hot Node 组件要求 Node 24.11+ 的 24 系列。
+Settings 和研究交接尚在实施，不能作为成品安装说明。Hot Node 组件要求 Node 24.11+ 的 24 系列。
+Native 启动后由受限 worker 持续采集已登记的四个官方 feed；`./rwb hot sources --json`
+查询来源成功时间、错误、待解析条目和覆盖区间。来源仅提供最新快照，当前不支持历史分页/
+`backfillDays`；状态明确返回 `backfill: not_supported`。启用 Hot 不触发付费模型或研究。
 
 ```bash
 ./rwb hot --help

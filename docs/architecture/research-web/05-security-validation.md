@@ -10,6 +10,10 @@ Native 管理器在发信号前核对 PID 启动身份与 launch nonce；受管 
 归档按当前实例 key 认证，并验证实际传入恢复工具的 Buffer；禁止覆盖现有 schema。
 容器内工具具有 deadline，失败后按唯一 application_name 取消对应 backend；无法确认的
 结果保留 outcome_unknown，不能伪称已回滚。Python 中断也信号回收独立 Node session。
+HTTP 采集限固定 DataHub catalog 来源、禁止重定向、限制时限与字节；解析不获取原文中的链接。
+pg-boss 监督仅由控制角色执行，增加 job_dependency DELETE 与 version.monitor_backoff_on
+列更新权限，并在启动前检查。普通 worker 不能修改版本编号、迁移或运行身份。
+Native stop 识别 zombie，TERM 后 argv 暂变只观察，最终再核对身份，拒绝对变更 PID 升级信号。
 
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 

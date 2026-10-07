@@ -3,6 +3,33 @@
 This package is under implementation. It is not yet a supported product entry.
 The authoritative stage record is `.ai/reports/2026-10-07-hot-events-PROGRESS.md`.
 
+## Continuous public collection
+
+Migration 5 adds collection attempts and a durable material inbox. DataHub owns
+`app/research_web/datahub/hot_public_sources.json`; Hot setup registers its four
+verified official feeds without overriding existing source settings. The internal
+service runs the actual finite-concurrency worker and source scheduler. Source
+acquisition uses 25-second HTTP deadlines, rejects redirects, bounds raw bodies
+to 4 MiB, preserves invalid UTF-8 bytes, and honors numeric Retry-After/backoff.
+Original bytes and every parsed pending entry are committed together before the
+acquisition watermark. Parse jobs drain at most collection.maxItems per batch,
+share the original raw_page and retain immutable versions; new collection waits
+for unfinished parsing. Source admission checks pending/active jobs and leases,
+and handlers bind their exact granted attempt rather than adopting a later claim.
+Interrupted attempts and bad raw XML remain visible; errors do not advance the
+success watermark. Read RPC and `rwb hot sources --json` expose recent success,
+errors, pending counts and actual snapshot coverage without triggering collection.
+
+These feeds provide latest snapshots, not complete historical ranges. Pagination
+and configured backfillDays are not supported by this first adapter; status
+explicitly returns backfill:not_supported. Event/channel inference and DataHub
+Broker/UI registration are still pending; channelHint is catalog metadata only.
+`node scripts/collection-proof.ts` tests two real scheduled cycles through the
+production worker on an isolated schema and scoped roles. The latest proof
+collected 1389 stable materials/versions and 8 originals, with zero pending items;
+its receipt includes implementation hashes. This does not certify model/research,
+Mac Docker product deployment, continuous uptime or complete source history.
+
 Node 24.11+ in the 24 series is required. Install the exact dependencies with
 `npm ci` in this directory after the project-isolated infrastructure authorization.
 Run `npm test`; `npm run proof` is the bounded stage-zero integration check.
@@ -91,8 +118,7 @@ tests. `npm test` is the offline unit suite; `npm run typecheck` checks both.
 `scripts/serve.ts` accepts one bounded private stdin bootstrap supplied by the
 owned Host. No passwords are placed in argv/environment or returned on stdout.
 The initialized control/read service exposes status, sources and task projections;
-it truthfully reports `worker:not_configured` and `model:not_integrated` until
-the corresponding adapters are completed. Real child-process startup, SIGTERM,
+it reports the actual worker state and `model:not_integrated`. Real child-process startup, SIGTERM,
 restart and database/material retention are covered by `service.integration.ts`.
 
 The only formal internal transport is a `127.0.0.1` single-frame protocol with

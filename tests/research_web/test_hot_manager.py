@@ -3,6 +3,7 @@
 import json
 import tempfile
 import signal
+from types import SimpleNamespace
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -36,6 +37,26 @@ class HotManagerTests(unittest.TestCase):
     def test_missing_process_state_does_not_create_resources(self):
         self.assertEqual(self.manager.status(), {"state": "stopped"})
         self.assertFalse(self.manager.directory.exists())
+        with self.assertRaisesRegex(HotError, "hot_service_stopped"):
+            self.manager.sources()
+
+    def test_zombie_fingerprint_is_stopped(self):
+        with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="Z Wed Oct 7 12:00:00 2026 node <defunct>")):
+            self.assertIsNone(self.manager._fingerprint(123))
+
+    def test_exiting_argv_is_observed_without_another_signal(self):
+        with patch.object(self.manager, "_state", return_value={"pid": 123, "fingerprint": "original"}):
+            with patch.object(self.manager, "_fingerprint", side_effect=["exiting argv", None]):
+                with patch("time.sleep"), patch("os.kill") as killed:
+                    self.assertEqual(self.manager._stop(), {"state": "stopped"})
+                    killed.assert_called_once_with(123, signal.SIGTERM)
+
+    def test_exit_at_escalation_boundary_is_stopped_without_kill(self):
+        with patch.object(self.manager, "_state", return_value={"pid": 123, "fingerprint": "original"}):
+            with patch.object(self.manager, "_fingerprint", side_effect=["original"] * 100 + [None]):
+                with patch("time.sleep"), patch("os.kill") as killed:
+                    self.assertEqual(self.manager._stop(), {"state": "stopped"})
+                    killed.assert_called_once_with(123, signal.SIGTERM)
 
     def test_reused_pid_is_never_signaled(self):
         self.state()

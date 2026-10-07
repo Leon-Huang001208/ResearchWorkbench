@@ -7,6 +7,8 @@ import { openQueue } from './queue.ts';
 import { checkDatabase } from './health.ts';
 import { startTransport,type RpcHandler } from './transport.ts';
 import { logEvent } from './log.ts';
+import {runWorker} from './worker.ts';
+import {collectionHandlers,scheduleCollection} from './collection.ts';
 
 export interface ServiceBootstrap {
   config: unknown; port?: number; instanceId: string; mode: 'native' | 'docker';
@@ -26,15 +28,17 @@ export async function startService(input: ServiceBootstrap) {
   let boss: Awaited<ReturnType<typeof openQueue>> | undefined;
   let transport: Awaited<ReturnType<typeof startTransport>> | undefined;
   let owner: Awaited<ReturnType<typeof activateRuntime>> | undefined;
-  let timer: ReturnType<typeof setInterval> | undefined;
+  const workerStop=new AbortController();
+  let workerTask:Promise<void>|undefined;
+  let workerState='starting';
   let closed = false;
-  let heartbeatBusy = false;
   const close = async () => {
     if(closed) return;
     closed = true;
-    if(timer) clearInterval(timer);
+    workerStop.abort();
     let failed = false;
     if(transport) { try { await transport.close(); } catch { failed=true; } }
+    if(workerTask){try{await workerTask;}catch{failed=true;}}
     if(owner) {
       try { await pauseRuntime(controller,config.database.schema,owner,input.controllerToken); }
       catch { logEvent('control_rejected'); }
@@ -46,6 +50,9 @@ export async function startService(input: ServiceBootstrap) {
   try {
     const [role] = await controller`select rolsuper,rolcreatedb,rolcreaterole from pg_roles where rolname=current_user`;
     if(role.rolsuper || role.rolcreatedb || role.rolcreaterole) throw Error('hot_controller_role_not_scoped');
+    const [supervision]=await controller`select has_table_privilege(current_user,${`${config.database.schema}.job_dependency`},'DELETE')
+      and has_column_privilege(current_user,${`${config.database.schema}.version`},'monitor_backoff_on','UPDATE') as allowed`;
+    if(!supervision.allowed)throw Error('hot_controller_supervision_permission_missing');
     boss = await openQueue(db,config.database.schema);
     owner = await activateRuntime(controller,config.database.schema,input.instanceId,input.controllerToken,input.mode,300,true);
     const current = owner;
@@ -54,12 +61,16 @@ export async function startService(input: ServiceBootstrap) {
       ['status',{permission:'read',run:async params=>{
         noParams(params);
         const [counts] = await reader`select count(*)::int n from ${reader(config.database.schema)}.sources`;
-        return { state:'initialized',worker:'not_configured',model:'not_integrated',schemaVersion:SCHEMA_VERSION,
-          mode:current.mode,generation:current.generation,sourceCount:counts.n };
+        return { state:'initialized',worker:workerState,model:'not_integrated',schemaVersion:SCHEMA_VERSION,
+          mode:current.mode,generation:current.generation,sourceCount:counts.n,collectionMode:'latest_snapshot',backfill:'not_supported' };
       }}],
       ['sources',{permission:'read',run:async params=>{
         noParams(params);
-        const rows = await reader`select id,operator,enabled,last_success_at,last_error_code from ${reader(config.database.schema)}.sources order by id limit 100`;
+        const rows = await reader`select s.id,s.operator,s.enabled,s.last_success_at,s.last_error_code,s.next_due_at,s.consecutive_failures,
+          (select count(*)::int from ${reader(config.database.schema)}.material_inbox i join ${reader(config.database.schema)}.raw_pages p on p.id=i.page_id where p.source_id=s.id and not i.processed) as pending_items,
+          (select json_build_object('coverage',p.coverage,'oldestPublishedAt',p.oldest_published_at,'newestPublishedAt',p.newest_published_at,'acquiredAt',p.acquired_at,'gap',p.gap)
+            from ${reader(config.database.schema)}.raw_pages p where p.source_id=s.id order by p.acquired_at desc limit 1) as latest_snapshot
+          from ${reader(config.database.schema)}.sources s order by s.id limit 100`;
         return JSON.parse(JSON.stringify([...rows])) as postgres.JSONValue;
       }}],
       ['tasks',{permission:'read',run:async params=>{
@@ -77,13 +88,17 @@ export async function startService(input: ServiceBootstrap) {
           and not paused and owner_until>clock_timestamp()`;
         if(live.length!==1) throw Error('hot_owner_stale');
       } });
-    timer = setInterval(()=>{
-      if(closed || heartbeatBusy) return;
-      heartbeatBusy = true;
-      void heartbeatRuntime(controller,config.database.schema,current,input.controllerToken)
-        .catch(async()=>{ logEvent('worker_stopped'); try { await close(); } catch { logEvent('worker_stopped'); } })
-        .finally(()=>{ heartbeatBusy=false; });
-    },30_000);
+    workerState='running';
+    const queue=boss;
+    workerTask=runWorker({db,controllerDb:controller,boss:queue,schema:config.database.schema,owner:current,config,
+      handlers:collectionHandlers(db,queue,config.database.schema,current,config),signal:workerStop.signal,
+      heartbeat:async()=>{
+        await heartbeatRuntime(controller,config.database.schema,current,input.controllerToken);
+        await scheduleCollection(db,queue,config.database.schema,current,config);
+      }}).catch(()=>{
+        workerState='failed';logEvent('worker_stopped');
+        queueMicrotask(()=>{void close().catch(()=>logEvent('worker_stopped'));});
+      });
     return { owner:current,port:transport.port,close };
   } catch {
     await close();

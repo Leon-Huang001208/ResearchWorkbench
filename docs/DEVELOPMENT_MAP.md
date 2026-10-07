@@ -14,6 +14,10 @@ Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、�
 归档核心为 `services/hot/src/archive.ts`，受控命令为 `scripts/archive.ts`；对应真实测试
 `archive.integration.ts`、`managed-archive.integration.ts`。Native CLI 经 HotManager 管理
 私有归档、恢复目标和未知结果日志；阶段一 schema 恢复不等同于后续研究快照联合恢复。
+Hot 持久采集位于 `services/hot/src/collection.ts`，共享源目录为
+`app/research_web/datahub/hot_public_sources.json`。migration 5 的原文/inbox/水位提交、
+分批解析、限定来源调度、重领与取消由 `collection.integration.ts` 验证；
+`scripts/collection-proof.ts` 对四个官方来源做真实双轮后台验证。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

@@ -6,6 +6,7 @@ import {initializeIdentity} from '../src/control.ts';
 import {openQueue} from '../src/queue.ts';
 import {grantWorker,grantController} from '../src/provision.ts';
 import {sha256} from '../src/material.ts';
+import {seedPublicSources} from '../src/collection.ts';
 
 let db:ReturnType<typeof postgres>|undefined;
 let phase='input';
@@ -43,6 +44,7 @@ try{
   phase='migration';await migrate(db,config.database.schema);
   phase='identity';
   await initializeIdentity(db,config.database.schema,input.instanceId,input.controllerToken);
+  await seedPublicSources(db,config.database.schema);
   phase='queue';const boss=await openQueue(db,config.database.schema,true,config.worker);await boss.stop();
   phase='grants';
   await grantWorker(db,config.database.schema,config.database.user);await grantController(db,config.database.schema,config.database.controllerUser);

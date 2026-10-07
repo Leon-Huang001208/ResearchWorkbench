@@ -7,6 +7,9 @@ Hot 业务材料、版本和任务由独立 PostgreSQL schema 持有，不让
 后台进程写现有 Store。研究快照联合恢复尚未实现；当前最小库恢复不能证明会话恢复。
 Hot 私有归档包含 `hot.dump` 和认证清单，原文 bytea 随库保存；`archive-attempt.json`
 记录非秘密执行状态，未知结果阻止自动重复恢复。当前归档上限为 256 MiB。
+`collection_runs` 关联准确领取尝试；`material_inbox` 保存不可变解析输入及单向处理标记。
+原文、全页 inbox、水位和 parse 入队原子提交；解析批次共享原文 ID，材料版本不会覆盖。
+来源为最新快照，不能推断历史完整覆盖；无效编码或 XML 保留原文与错误，成功水位不前移。
 
 模型默认值、清除/回执未知标记及最近显式生成结果只保存于既有非秘密产品索引，不保存Key。macOS Native固定DSH模型秘密仅在系统Keychain；权限受限私有文件仅用于Host认证record；不进入DataHub快照、Automation索引、模型上下文或导出。提交前的未知标记支持取消/崩溃后的冷恢复失败关闭。
 

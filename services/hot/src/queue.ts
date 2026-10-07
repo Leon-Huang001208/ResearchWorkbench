@@ -4,7 +4,7 @@ import { PgBoss } from 'pg-boss';
 import { randomUUID } from 'node:crypto';
 import { schemaName } from './config.ts';
 import type { HotConfig } from './config.ts';
-import { claimTask, commitClaim, failClaim, withOwnerTransaction, type RuntimeOwner, type Tx } from './control.ts';
+import { claimTask, commitClaim, failClaim, withOwnerTransaction, type RuntimeOwner, type Tx, type Claim } from './control.ts';
 import { logEvent } from './log.ts';
 
 type Sql = ReturnType<typeof postgres>;
@@ -109,11 +109,14 @@ export async function openQueue(db: Sql | Tx, schema: string, provision = false,
   }
 }
 export async function enqueue(boss: PgBoss, db: Sql, schema: string, owner: RuntimeOwner, name: QueueName, key: string, payload: postgres.JSONValue): Promise<string | null> {
+  return withOwnerTransaction(db,schema,owner,tx=>enqueueTransaction(boss,tx,name,key,payload));
+}
+export async function enqueueTransaction(boss:PgBoss,tx:Tx,name:QueueName,key:string,payload:postgres.JSONValue):Promise<string|null>{
   queueName(name); inputKey(key);
   if (`${name}:${key}`.length > 160) throw Error('hot_input_key_invalid');
   if (Buffer.byteLength(JSON.stringify(payload)) > 262144) throw Error('hot_payload_limit');
-  return withOwnerTransaction(db, schema, owner, tx => boss.send(name, { inputKey: `${name}:${key}`, payload },
-    { singletonKey: key, db: transactionAdapter(tx) }));
+  return boss.send(name, { inputKey: `${name}:${key}`, payload },
+    { singletonKey: key, db: transactionAdapter(tx) });
 }
 
 export async function superviseOwner(db: Sql, schema: string, owner: RuntimeOwner, name?: QueueName): Promise<void> {
@@ -150,7 +153,7 @@ export async function waitForHandler(handler: (signal: AbortSignal) => Promise<J
   });
 }
 export async function processOne(boss: PgBoss, db: Sql, schema: string, owner: RuntimeOwner, name: QueueName,
-  handler: (payload: postgres.JSONValue, signal: AbortSignal) => Promise<JobOutput>, workerId = randomUUID(), leaseSeconds = 120,
+  handler: (payload: postgres.JSONValue, signal: AbortSignal, claim:Claim) => Promise<JobOutput>, workerId = randomUUID(), leaseSeconds = 120,
   signal?: AbortSignal): Promise<'idle' | 'busy' | 'completed' | 'reused' | 'failed'> {
   queueName(name);
   if (signal?.aborted) return 'idle';
@@ -180,7 +183,7 @@ export async function processOne(boss: PgBoss, db: Sql, schema: string, owner: R
   try {
     const deadline = AbortSignal.timeout(Math.max(1, leaseSeconds - 1) * 1000);
     const handlerSignal = signal ? AbortSignal.any([signal,deadline]) : deadline;
-    const output = await waitForHandler(activeSignal => handler(job.data.payload,activeSignal), handlerSignal);
+    const output = await waitForHandler(activeSignal => handler(job.data.payload,activeSignal,acquired.claim), handlerSignal);
     await commitClaim(db, schema, acquired.claim, output.result, async tx => {
       if (output.commit) await output.commit(tx);
       await complete(tx, output.result);

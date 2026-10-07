@@ -58,7 +58,7 @@ test('real owned service process stops and restarts without deleting material or
       previousGeneration=result.owner.generation;
       const status=await rpc(result.port,result.owner,readerToken,'status',{}) as any;
       assert.equal(status.sourceCount,1);
-      assert.equal(status.worker,'not_configured');
+      assert.equal(status.worker,'running');
       const exited=once(child,'exit'); child.kill('SIGTERM');
       const [code]=await exited; assert.equal(code,0); child=undefined;
       assert.equal((await db`select paused from ${db(schema)}.runtime_identity where singleton`)[0].paused,true);

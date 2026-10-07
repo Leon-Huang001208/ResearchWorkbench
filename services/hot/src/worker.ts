@@ -5,12 +5,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { PgBoss } from 'pg-boss';
 import type { HotConfig } from './config.ts';
 import { assertNodeRuntime } from './config.ts';
-import type { RuntimeOwner } from './control.ts';
+import type { RuntimeOwner,Claim } from './control.ts';
 import { processOne, superviseOwner, type QueueName, type JobOutput } from './queue.ts';
 import { logEvent } from './log.ts';
 
 type Sql = ReturnType<typeof postgres>;
-type Handler = (payload: postgres.JSONValue, signal: AbortSignal) => Promise<JobOutput>;
+type Handler = (payload: postgres.JSONValue, signal: AbortSignal,claim:Claim) => Promise<JobOutput>;
 export interface WorkerOptions {
   db: Sql; controllerDb: Sql; boss: PgBoss; schema: string; owner: RuntimeOwner;
   config: HotConfig; handlers: Partial<Record<QueueName, Handler>>; signal: AbortSignal;
@@ -49,9 +49,10 @@ export async function runWorker(options: WorkerOptions): Promise<void> {
   };
   const guarded = async (operation: () => Promise<void>) => {
     try { await operation(); }
-    catch {
+    catch(error) {
       shutdown.abort();
-      logEvent('worker_stopped');
+      const code=error&&typeof error==='object'&&'code'in error?String(error.code):undefined;
+      logEvent('worker_stopped',undefined,code);
       throw Error('hot_worker_stopped');
     }
   };
