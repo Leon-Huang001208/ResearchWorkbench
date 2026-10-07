@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增能力支持矩阵入口和明确平台安全边界，用户重新开启跨平台任务。",
-  "reason": "Doctor实现状态不等于平台验收；README连接支持矩阵，保留严格沙箱、文档reader与ACL限制，不宣称未验证系统支持。"
+  "disposition": "unchanged",
+  "summary": "将架构阅读链接绑定已冻结的真实本地合并源码 a1e2c90f84a32309d84b762507628abb2c508386；README 的产品和平台说明仍准确。",
+  "reason": "本次仅刷新既有 reading repository revision 与生成页面，README 入口、平台能力边界和双运行时安装说明不变。源码快照已包含 runtime_endpoints、control_origin 及平台投影；未发布或验证 GitHub 链接可达性，未声称新物理或 CI 验收。"
 }

@@ -4,6 +4,12 @@
 
 ## 当前 Research Web
 
+异根 Native 私有 pair 认证共享 `web_bootstrap.py` 的现有 bounded reader；OS 用户标准根
+发现、调用内根/父/record FD 与真实 lease 复查由 Docker 和 Native manager 同路径消费。
+`test_docker_runtime.py` 覆盖重复 start、restart 预拒绝、stop/start、正常 Native bridge、
+安装 preflight 拒绝及 root/record/process/lease/scope/controller 变化；其他近处 catalog
+以临时 locator 隔离真实用户记录。fixture 不证明物理 Docker 或安装后 Native 切换。
+
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |
 | `runtimes/research_web.json`、`app/research_web/runtime_contract.py` | Native/Docker 共用 Python、Node、CJPY、DSH、pnpm 事实 | `research-web-installation.md`、`architecture/research-web/01-system.md` | `test_runtime_contract.py`、`docker_runtime_contract.test.mjs` | 固定版本、闭包或镜像事实变化 |
@@ -14,12 +20,34 @@
 
 以下原有表继续映射产品模块；上表只添加部署与运行边界，不创建第二套 Web/DSH 引擎。
 
+端点基础 helper 为 `research_workbench_entrypoint/runtime_endpoints.py`，成对内部 origin
+事务为 `app/research_web/control_origin.py`；对应 `test_runtime_endpoints.py` 与
+`test_control_origin.py`。前者保存私有端点 CAS 快照并生成回环候选，后者保留控制 token、只重绑
+既有 URL；二者由公开启动器消费，只有真实健康后发布端点。`EndpointStore.restore` 用本次发布
+快照 CAS 恢复旧端口并生成新 revision，避免恢复旧 CAS 代际。复用 `runtime_mode.py` 的私有读写/锁，修改该边界须保留
+`test_runtime_mode.py`、`test_runtime_auth.py`、`test_datahub.py`、`test_mcp_authorization.py`
+负面测试；接口合同见运行时与安全模块文档。
+
+Docker fresh-root 事务只在 `docker_runtime.py` 与 `setup_web.py` 内借外层真实 lease 保留父/根 FD 和调用内观察。`test_setup_web.py` 覆盖 owned-classification fixture 的真实 Native 子进程桥、真实临时监听身份、no-start 无产品根、后续真实 mkdir、晚期发布/恢复拒绝与 controller/lease 替换；既有 container/bind-race 测试明确使用已存在的受管数据根。Native/auth、通用 guard、依赖与验证策略不变。
+
+生命周期集成由 service_manager、bootstrap、docker_runtime、setup_web、web_bootstrap
+共同覆盖；`lifecycle_lock.py` 改用 stdlib logging，`assert_held` 验证本进程实际持有的锁对象，
+用于安装候选内部调用而不增加 skip-lock 开关。`docker/supervisor.py` 的 prepare-only 入口
+只用原 creator 补齐缺失控制文件；controller 通过无发布端口/无凭据挂载的固定镜像临时 guest
+执行，精确核对一次性归属并确认清理。新增用例在原有 service_manager/runtime_endpoints/
+runtime_mode/docker_runtime/setup_web/cli_lazy/web_bootstrap/container_supervisor 测试模块内。
+
 Docker bind 根与私有叶布局由 Dockerfile/Compose 配置、entrypoint 父目录检查、supervisor
 严格创建与 healthcheck 只读消费共同维护；测试闭包为 `test_container_supervisor.py`、
 `test_credential_backend.py`、`test_runtime_launch.py`、`test_docker_packaging.py` 与
 `docker_runtime_contract.test.mjs`。不得通过放宽 owner、mode 或 no-follow 来适配 bind 映射。
-固定bind缺失叶的两阶段首建在supervisor内实现；其确定性测试模拟root→当前UID/GID并覆盖
+固定凭据与产品日志 bind 缺失叶的两阶段首建在supervisor内实现；其确定性测试模拟root→当前UID/GID并覆盖
 foreign owner/group、mode/inode变化、alias/替换与自定义路径不豁免，原validator不修改。
+Docker `/state` 为私有 tmpfs，状态叶不采用 bind 映射例外或写初始化；宿主 state/logs 在受管
+生命周期私有创建后单独绑定。controller 测试覆盖必需 tmpfs、实际 RW、严格选项语义及
+旧 host runtime 原样保留；CI 直接 Compose fixture 同步准备 logs，平台门范围不扩展。
+同一 Engine HostConfig.Tmpfs 投影由正常与临时 control-preparer inspect 共用；后者仍只挂载
+唯一产品 data bind 与原四个私有 tmpfs，测试同时覆盖省略重复 Mounts、严格选项与未知替换不清理。
 
 `test_docker_runtime.py` 还覆盖Compose创建后返回非零/超时的恢复：本次launch标签识别、
 精确容器清理、未知实例保留、既有停止容器保护，以及离线repair失败后旧接受image重建。
@@ -52,6 +80,8 @@ Docker 启动/安装修复的目标闭包还覆盖 `test_setup_web.py` 的候选
 
 本地集成回归另覆盖 `test_web_bootstrap.py` 的工作树环境归属、`test_runtime_mode.py` 的
 坏 Native 环境与 PID 重用拒绝，以及 `test_container_supervisor.py` 的完整页面探测总时限。
+容器 supervisor 的 Web 预算回归在原测试模块使用真实 loopback HTTP/认证和确定性耗时钟，
+覆盖三项 GET 完整就绪、剩余期限裁剪、各页面错误与精确子进程清理；不替代镜像真机验收。
 Docker 控制测试使用临时端口，真实端口冲突断言继续执行，不要求停止开发者正在运行的服务。
 
 上述 DataHub 专项映射仅登记策略中明确允许的路径。未登记 DataHub 路径继续 fallback / fail closed，不能仅凭目录位置推断为低风险。`asset_workspace.py` / `asset_routes.py` → `research_web_workbench.test.mjs` + `test_asset_workspace.py` 只说明验证策略的 focused closure，不表示本次修改了 `architecture-map.json` 或从架构 inventory 推导了验收路由。
@@ -93,6 +123,10 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 - 普通 Research Web 改动由 Ubuntu `Research Web Checks` 承担；Bootstrap 和 Desktop Verify 必须依路径命中，不能由 docs-only 提交触发。Windows Verify 由 policy changed-set 条件选择，但只能从 Windows 真机以 exact SHA `workflow_dispatch`，不能由 Mac PR/push 自动触发。
 
 ## 最小验证
+
+双运行时 Python 质量检查限定于当前 changed set。格式化先核对非导入 AST 与导入集合；
+内部端口 TypedDict、已验证记录的类型说明和显式 `check=False` 不改变参数省略、拒绝或返回码合同。
+Ruff/Black/isort 与 mypy 使用的实际版本、参数和同版本基线必须记录，历史 PASS 不替代当前诊断。
 
 ```bash
 node scripts/plan_verification.mjs --project . --changed-file <path>

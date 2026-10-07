@@ -26,7 +26,11 @@ def staged(tmp_path):
 
     root = tmp_path / "runtime"
     root.mkdir()
-    for name in ("apps/cli/lib/bin.js", "apps/cli/package.json", "packages/boot/app-boot/lib/index.js"):
+    for name in (
+        "apps/cli/lib/bin.js",
+        "apps/cli/package.json",
+        "packages/boot/app-boot/lib/index.js",
+    ):
         target = root / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("{}" if name.endswith("json") else "// built runtime")
@@ -86,9 +90,7 @@ def test_container_launcher_requires_manifest_and_rejects_source_mode(tmp_path, 
 
 
 @pytest.mark.parametrize("flag", [None, "", "0", "invalid", "true", "01", " 1", "1 "])
-def test_native_ignores_forged_staged_inventory_and_detects_changed_js(
-    tmp_path, monkeypatch, flag
-):
+def test_native_ignores_forged_staged_inventory_and_detects_changed_js(tmp_path, monkeypatch, flag):
     from app.research_web.launch_runtime import calculate_build_closure, prepare
     from app.research_web.staged_runtime import MANIFEST, write_staged_manifest
 
@@ -138,12 +140,28 @@ def test_staged_manifest_rejects_ambiguous_duplicate_keys(tmp_path):
 
     source = staged(tmp_path)
     path = source / MANIFEST
-    path.write_text(path.read_text().replace('"schema_version":1', '"schema_version":2,"schema_version":1'))
+    path.write_text(
+        path.read_text().replace('"schema_version":1', '"schema_version":2,"schema_version":1')
+    )
     with pytest.raises(RuntimeError, match="staged_runtime_invalid"):
         verify_staged_runtime(source)
 
 
-@pytest.mark.parametrize("mutation", ["changed", "missing", "extra", "empty-directory", "mode", "outside-link", "dangling-link", "hardlink", "manifest-link", "root-link"])
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "changed",
+        "missing",
+        "extra",
+        "empty-directory",
+        "mode",
+        "outside-link",
+        "dangling-link",
+        "hardlink",
+        "manifest-link",
+        "root-link",
+    ],
+)
 def test_staged_manifest_rejects_tampering_and_aliases(tmp_path, mutation):
     from app.research_web.staged_runtime import MANIFEST, verify_staged_runtime
 
@@ -174,7 +192,19 @@ def test_staged_manifest_rejects_tampering_and_aliases(tmp_path, mutation):
         verify_staged_runtime(root)
 
 
-@pytest.mark.parametrize("field", ["commit", "remote", "pnpm", "closure_files", "closure_sha256", "schema_version", "assets_sha256", "asset_count"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "commit",
+        "remote",
+        "pnpm",
+        "closure_files",
+        "closure_sha256",
+        "schema_version",
+        "assets_sha256",
+        "asset_count",
+    ],
+)
 def test_staged_manifest_rejects_wrong_facts_and_schema(tmp_path, field):
     from app.research_web.staged_runtime import MANIFEST, verify_staged_runtime
 
@@ -203,8 +233,8 @@ def test_required_missing_and_oversized_manifest_fail_closed(tmp_path):
 
 
 def test_runtime_staging_copies_only_production_package_assets(tmp_path):
-    from docker.stage_dsh import stage_assets
     from app.research_web.staged_runtime import verify_staged_runtime
+    from docker.stage_dsh import stage_assets
 
     source = tmp_path / "source"
     cli = source / "apps/cli"
@@ -214,7 +244,16 @@ def test_runtime_staging_copies_only_production_package_assets(tmp_path):
         (folder / "tests/fixtures").mkdir(parents=True)
         (folder / "tests/fixtures/secret.json").write_text("fixture")
         (folder / "README.md").write_text("developer docs")
-    (cli / "package.json").write_text(json.dumps({"name": "cli", "files": ["lib"], "dependencies": {"boot": "1"}, "devDependencies": {"testkit": "1"}}))
+    (cli / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "cli",
+                "files": ["lib"],
+                "dependencies": {"boot": "1"},
+                "devDependencies": {"testkit": "1"},
+            }
+        )
+    )
     (boot / "package.json").write_text(json.dumps({"name": "boot", "files": ["lib"]}))
     (cli / "lib/bin.js").write_text("// bin")
     (boot / "lib/index.js").write_text("// boot")
@@ -233,7 +272,11 @@ def test_runtime_staging_copies_only_production_package_assets(tmp_path):
     assert "apps/cli/lib/bin.js" in names
     assert "packages/boot/app-boot/lib/index.js" in names
     assert (output / "apps/cli/node_modules/boot/lib/index.js").is_file()
-    assert not any(part in {"tests", "fixtures", "docs", "benchmarks", "website", ".github", "testkit"} for name in names for part in Path(name).parts)
+    assert not any(
+        part in {"tests", "fixtures", "docs", "benchmarks", "website", ".github", "testkit"}
+        for name in names
+        for part in Path(name).parts
+    )
 
 
 def test_staging_refuses_unsafe_dependency_target(tmp_path):
@@ -253,8 +296,8 @@ def test_staging_refuses_unsafe_dependency_target(tmp_path):
 
 @pytest.mark.parametrize("platform_name", ["native-platform", "@fixture/native-platform"])
 def test_staging_preserves_selected_pnpm_hoist_for_dynamic_native_loader(tmp_path, platform_name):
-    from docker.stage_dsh import stage_assets
     from app.research_web.staged_runtime import verify_staged_runtime
+    from docker.stage_dsh import stage_assets
 
     source = tmp_path / "source"
     cli = source / "apps/cli"
@@ -265,10 +308,31 @@ def test_staging_preserves_selected_pnpm_hoist_for_dynamic_native_loader(tmp_pat
     platform = store / "native-platform@1/node_modules" / platform_name
     dev = store / "devkit@1/node_modules/devkit"
     for package, metadata, code in [
-        (cli, {"name": "cli", "files": ["lib"], "dependencies": {"boot": "1", "helper": "1"}, "devDependencies": {"devkit": "1"}}, "module.exports = require('helper');"),
+        (
+            cli,
+            {
+                "name": "cli",
+                "files": ["lib"],
+                "dependencies": {"boot": "1", "helper": "1"},
+                "devDependencies": {"devkit": "1"},
+            },
+            "module.exports = require('helper');",
+        ),
         (boot, {"name": "boot", "files": ["lib"]}, "module.exports = {};"),
-        (helper, {"name": "helper", "dependencies": {"dispatcher": "1"}, "optionalDependencies": {platform_name: "1"}}, "module.exports = require('dispatcher')();"),
-        (dispatcher, {"name": "dispatcher"}, f"module.exports = () => require({json.dumps(platform_name)});"),
+        (
+            helper,
+            {
+                "name": "helper",
+                "dependencies": {"dispatcher": "1"},
+                "optionalDependencies": {platform_name: "1"},
+            },
+            "module.exports = require('dispatcher')();",
+        ),
+        (
+            dispatcher,
+            {"name": "dispatcher"},
+            f"module.exports = () => require({json.dumps(platform_name)});",
+        ),
         (platform, {"name": platform_name}, "module.exports = 'fixture-native-binding';"),
         (dev, {"name": "devkit"}, "module.exports = 'must-not-stage';"),
     ]:
@@ -295,12 +359,260 @@ def test_staging_preserves_selected_pnpm_hoist_for_dynamic_native_loader(tmp_pat
     node = shutil.which("node")
     assert node is not None, "Node is required for the runtime packaging contract"
     probe = "console.log(require(process.argv[1]));"
-    original = subprocess.run([node, "-e", probe, str(cli)], capture_output=True, text=True, timeout=10)
+    original = subprocess.run(
+        [node, "-e", probe, str(cli)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
     assert original.returncode == 0 and original.stdout.strip() == "fixture-native-binding"
-    derived = subprocess.run([node, "-e", probe, str(output / "apps/cli")], capture_output=True, text=True, timeout=10)
+    derived = subprocess.run(
+        [node, "-e", probe, str(output / "apps/cli")],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
     assert derived.returncode == 0, derived.stderr
     assert derived.stdout.strip() == "fixture-native-binding"
     assert verify_staged_runtime(output) == facts()
     assert not os.path.lexists(output / "node_modules/.pnpm/node_modules/absent-dev-platform")
     assert not (output / "node_modules/.pnpm/node_modules/devkit").exists()
+    assert not (output / dev.relative_to(source)).exists()
+
+
+@pytest.mark.parametrize("document_directory", ["doc", "docs"])
+@pytest.mark.parametrize("asset_escape", [False, True])
+def test_staging_preserves_declared_runtime_document_assets(
+    tmp_path, document_directory, asset_escape
+):
+    from docker.stage_dsh import stage_assets
+
+    source = tmp_path / "source"
+    cli = source / "apps/cli"
+    boot = source / "packages/boot/app-boot"
+    published = source / "node_modules/.pnpm/published@1/node_modules/published"
+    dev = source / "node_modules/.pnpm/dev@1/node_modules/dev"
+    for package, metadata in [
+        (cli, {"name": "cli", "files": ["lib"], "dependencies": {"boot": "1", "published": "1"}}),
+        (boot, {"name": "boot", "files": ["lib"]}),
+        (published, {"name": "published", "files": ["dist/"], "main": "dist/index.js"}),
+        (dev, {"name": "dev"}),
+    ]:
+        (package / "lib").mkdir(parents=True)
+        (package / "package.json").write_text(json.dumps(metadata))
+        (package / "lib/index.js").write_text("module.exports = {};")
+    (cli / "lib/bin.js").write_text("// required cli asset")
+    payload = published / "dist" / document_directory
+    payload.mkdir(parents=True)
+    (published / "dist/index.js").write_text(
+        f"module.exports = require('./{document_directory}/directives.js');"
+    )
+    (payload / "directives.js").write_text("module.exports = 'runtime-document';")
+    (payload / "runtime.json").write_text('{"runtime":true}')
+    excluded = [
+        "doc/manual.json",
+        "docs/manual.json",
+        "dist/tests/test.js",
+        "dist/fixtures/data.json",
+        "dist/doc/tests/test.js",
+        "dist/docs/fixtures/data.json",
+        "dist/README.md",
+        "dist/doc/README.md",
+        "dist/sample.test.js",
+        "dist/bench/data.json",
+        "dist/.cache/data.json",
+        "dist/doc/.git/data.json",
+        "dist/doc/.github/data.json",
+        "dist/docs/__tests__/data.json",
+        "dist/docs/__fixtures__/data.json",
+        "dist/docs/benchmarks/data.json",
+        "dist/doc/coverage/data.json",
+        "dist/doc/__pycache__/data.json",
+    ]
+    for relative in excluded:
+        target = published / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("development-only")
+    for name, target in [("boot", boot), ("published", published)]:
+        alias = cli / "node_modules" / name
+        alias.parent.mkdir(parents=True, exist_ok=True)
+        alias.symlink_to(os.path.relpath(target, alias.parent))
+    (source / "node_modules/dev").symlink_to(os.path.relpath(dev, source / "node_modules"))
+    (source / "package.json").write_text('{"devDependencies":{"dev":"1"}}')
+    node = shutil.which("node")
+    assert node is not None, "Node is required for the runtime packaging contract"
+    probe = "console.log(require(process.argv[1]));"
+    original = subprocess.run(
+        [node, "-e", probe, str(published)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert original.returncode == 0 and original.stdout.strip() == "runtime-document"
+    output = tmp_path / "staged"
+    if asset_escape:
+        outside = tmp_path / "outside.json"
+        outside.write_text("{}")
+        (payload / "runtime.json").unlink()
+        (payload / "runtime.json").symlink_to(outside)
+        with pytest.raises(RuntimeError, match="dsh_staging_invalid"):
+            stage_assets(source, output, facts())
+        return
+    stage_assets(source, output, facts())
+    derived = subprocess.run(
+        [node, "-e", probe, str(output / published.relative_to(source))],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert derived.returncode == 0, derived.stderr
+    assert derived.stdout.strip() == "runtime-document"
+    assert (output / payload.relative_to(source) / "runtime.json").is_file()
+    for relative in excluded:
+        assert not os.path.lexists(output / published.relative_to(source) / relative)
+    assert not os.path.lexists(output / "node_modules/dev")
+    assert not (output / dev.relative_to(source)).exists()
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        None,
+        "dist/",
+        ["dist/**"],
+        ["dist/", "!dist/doc/private.json"],
+        ["../dist"],
+        ["/dist"],
+        ["."],
+        ["dist/", "."],
+        [1],
+    ],
+)
+def test_ambiguous_published_directory_rules_do_not_exempt_document_names(tmp_path, declaration):
+    from docker.stage_dsh import _package_assets
+
+    package = tmp_path / "published"
+    (package / "dist/doc").mkdir(parents=True)
+    (package / "dist/doc/runtime.js").write_text("module.exports = {};")
+    (package / "dist/index.js").write_text("module.exports = {};")
+    (package / "other-runtime.js").write_text("module.exports = {};")
+    (package / "package.json").write_text(json.dumps({"files": declaration}))
+    _, assets = _package_assets(package, workspace=False)
+    assert package / "dist/index.js" in assets
+    assert package / "other-runtime.js" in assets
+    assert package / "dist/doc/runtime.js" not in assets
+
+
+@pytest.mark.parametrize("peer_name", ["typescript", "@fixture/typescript"])
+@pytest.mark.parametrize(
+    "mutation",
+    [None, "root-link", "broken-peer", "outside-peer", "conflict", "replacement", "asset-escape"],
+)
+def test_staging_preserves_selected_root_optional_peer_for_virtual_alias_anchor(
+    tmp_path, monkeypatch, peer_name, mutation
+):
+    from docker.stage_dsh import stage_assets
+
+    source = tmp_path / "source"
+    cli = source / "apps/cli"
+    boot = source / "packages/boot/app-boot"
+    store = source / "node_modules/.pnpm"
+    history = store / "history@1/node_modules/history"
+    peer = store / "typescript@1/node_modules" / peer_name
+    dev = store / "devkit@1/node_modules/devkit"
+    for package, metadata in [
+        (cli, {"name": "cli", "files": ["lib"], "dependencies": {"boot": "1", "history": "1"}}),
+        (boot, {"name": "boot", "files": ["lib"]}),
+        (
+            history,
+            {
+                "name": "history",
+                "peerDependencies": {peer_name: "1"},
+                "peerDependenciesMeta": {peer_name: {"optional": True}},
+            },
+        ),
+        (peer, {"name": peer_name}),
+        (dev, {"name": "devkit"}),
+    ]:
+        (package / "lib").mkdir(parents=True)
+        metadata["main"] = "lib/index.js"
+        (package / "package.json").write_text(json.dumps(metadata))
+        (package / "lib/index.js").write_text("module.exports = {};")
+    (cli / "lib/bin.js").write_text("// required cli asset")
+
+    def link(alias, target):
+        alias.parent.mkdir(parents=True, exist_ok=True)
+        alias.symlink_to(os.path.relpath(target, alias.parent))
+
+    link(cli / "node_modules/boot", boot)
+    link(cli / "node_modules/history", history)
+    link(history.parent / peer_name, peer)
+    link(source / "node_modules" / peer_name, peer)
+    link(source / "node_modules/devkit", dev)
+    link(source / "node_modules/absent-dev", store / "absent-dev")
+    (source / "package.json").write_text('{"devDependencies":{"devkit":"1"}}')
+    output = tmp_path / "staged"
+    if mutation:
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "package.json").write_text('{"name":"outside"}')
+        if mutation == "root-link":
+            (source / "node_modules").rename(source / "aliased-modules")
+            (source / "node_modules").symlink_to("aliased-modules")
+        elif mutation in {"broken-peer", "outside-peer"}:
+            canonical = history.parent / peer_name
+            canonical.unlink()
+            canonical.symlink_to(outside if mutation == "outside-peer" else "missing")
+        elif mutation == "asset-escape":
+            (peer / "lib/index.js").unlink()
+            (peer / "lib/index.js").symlink_to(outside / "package.json")
+        elif mutation == "conflict":
+            original_copy = shutil.copy2
+
+            def conflicting_copy(src, dst, *args, **kwargs):
+                result = original_copy(src, dst, *args, **kwargs)
+                alias = output / "node_modules" / peer_name
+                if Path(src) == peer / "lib/index.js":
+                    alias.parent.mkdir(parents=True, exist_ok=True)
+                    alias.write_text("conflict")
+                return result
+
+            monkeypatch.setattr(shutil, "copy2", conflicting_copy)
+        elif mutation == "replacement":
+            original_resolve = Path.resolve
+
+            def replaced_resolve(path, strict=False):
+                if path == source / "node_modules" / peer_name and strict:
+                    return outside
+                return original_resolve(path, strict=strict)
+
+            monkeypatch.setattr(Path, "resolve", replaced_resolve)
+        with pytest.raises(RuntimeError, match="dsh_staging_invalid"):
+            stage_assets(source, output, facts())
+        return
+    stage_assets(source, output, facts())
+    node = shutil.which("node")
+    assert node is not None, "Node is required for the runtime packaging contract"
+    # Pinned DSH searches paths from a virtual alias anchor, not the real package
+    # directory. The canonical peer alias alone cannot satisfy this lookup.
+    probe = "const {createRequire}=require('node:module'); const fs=require('node:fs'); const path=require('node:path'); const r=createRequire(process.argv[1]); const p=r.resolve.paths(process.argv[2]).map(p=>path.join(p,process.argv[2])).find(p=>fs.existsSync(path.join(p,'package.json'))); if(!p)process.exit(7); console.log(fs.realpathSync(p));"
+    for tree in (source, output):
+        result = subprocess.run(
+            [node, "-e", probe, str(tree / "virtual/profile/modules/history/index.js"), peer_name],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == str(tree / peer.relative_to(source))
+    alias = output / "node_modules" / peer_name
+    assert alias.is_symlink() and not Path(os.readlink(alias)).is_absolute()
+    assert alias.resolve(strict=True) == output / peer.relative_to(source)
+    assert not os.path.lexists(output / "node_modules/devkit")
+    assert not os.path.lexists(output / "node_modules/absent-dev")
     assert not (output / dev.relative_to(source)).exists()

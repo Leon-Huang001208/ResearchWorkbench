@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 import os
 import re
 import secrets
 from pathlib import Path
 
+from app.research_web.control_origin import ControlRecordError, parse_mcp_control
 from app.research_web.datahub.security import (
     checked_url,
     directory,
@@ -31,18 +31,8 @@ class ControlError(RuntimeError):
 
 def _parse(raw: bytes, expected_url: str) -> dict[str, str | int]:
     try:
-        value = json.loads(raw)
-        if (
-            not isinstance(value, dict)
-            or value.get("version") != 1
-            or not isinstance(value.get("token"), str)
-            or TOKEN.fullmatch(value["token"]) is None
-            or value.get("url") != expected_url
-        ):
-            raise ValueError("invalid MCP control")
-        checked_url(value["url"])
-        return value
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError, StoreError) as exc:
+        return parse_mcp_control(raw, expected_url)
+    except ControlRecordError as exc:
         raise ControlError("mcp_control_invalid") from exc
 
 
