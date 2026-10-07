@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 2,
+  "changeSummary": {
+    "fileCount": 11,
+    "ruleIds": [
+      "documentation",
+      "research-web-docker-packaging",
+      "fallback"
+    ],
+    "impactIds": [
+      "documentation",
+      "docker-runtime",
+      "web-installation",
+      "unknown-boundary"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/2026-10-07-docker-web-readiness-budget-plan.json",
+    ".ai/reports/2026-10-07-docker-web-readiness-budget-receipt.json",
+    ".ai/reports/2026-10-07-docker-web-readiness-budget.md",
+    "docker/supervisor.py",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/research-web-installation.md",
+    "tests/research_web/test_container_supervisor.py"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "components": [
+    "documentation",
+    "docker-runtime",
+    "web-installation",
+    "unknown-boundary"
+  ],
+  "platforms": [
+    "generic",
+    "linux",
+    "cross-platform"
+  ],
+  "impact": [
+    {
+      "path": ".ai/reports/2026-10-07-docker-web-readiness-budget-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-docker-web-readiness-budget-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-docker-web-readiness-budget.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docker/supervisor.py",
+      "rule": "research-web-docker-packaging",
+      "reason": "research_web_docker_packaging_change",
+      "modules": [
+        "docker-runtime",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/research_web/test_container_supervisor.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "executed": [
+    {
+      "id": "research-web-docker-contract",
+      "level": "L2",
+      "status": "PASS",
+      "durationSeconds": 7.49,
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    },
+    {
+      "id": "research-web-container-runtime",
+      "level": "L2",
+      "status": "PASS",
+      "durationSeconds": 36.32,
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 7.49,
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "status": "PASS",
+      "durationSeconds": 0.05,
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "status": "PASS",
+      "durationSeconds": 7.49,
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    },
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "status": "PASS",
+      "durationSeconds": 0.12,
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "status": "PASS",
+      "durationSeconds": 1.09,
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    },
+    {
+      "id": "research-web-docker",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/2026-10-07-docker-web-readiness-budget.md"
+    }
+  ],
+  "realMachine": [],
+  "result": "BLOCKED",
+  "mergeReady": false,
+  "releaseReady": false,
+  "uncoveredRisks": [
+    "unknown_impact_boundary",
+    "external_gate_not_run:project-constraints",
+    "external_gate_not_run:research-web-checks",
+    "external_gate_not_run:research-web-docker",
+    "physical_macos_docker_new_image_not_run",
+    "physical_native_switch_not_run",
+    "macos_bootstrap_ci_not_run",
+    "existing_mypy_errors"
+  ],
+  "escalation": {
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
+  }
+}

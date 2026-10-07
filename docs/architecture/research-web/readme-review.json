@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "更新 macOS Docker Desktop 实际生命周期证据入口及临时状态、持久数据边界。",
-  "reason": "独立安装、Doctor、重启、down/up、架构浏览器与端口释放已验证；镜像5e1b与宿主fb9身份分开，Windows/Linux及真实厂商/模型调用不从Mac结果推导通过。"
+  "disposition": "unchanged",
+  "summary": "Task14 c1 将既有端点事务与当前 master 的 Docker 运行合同集成；README 产品入口及平台边界仍准确。",
+  "reason": "动态端点、私有 tmpfs/持久日志、已发布 DSH 载荷及仅宿主 Web 映射的停止等待沿用既有产品拓扑。reading revision 暂保留已存在历史源码 a1e2c90f84a32309d84b762507628abb2c508386，当前 c1 freeze 后另以真实提交重绑定；未认证新镜像、GitHub 链接或 CI/真机结果。"
 }

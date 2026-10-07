@@ -44,6 +44,21 @@ test('builders reuse the hashed Web lock, vendored CJPY and pinned DSH verifier'
   assert.doesNotMatch(file, /requirements\/docker|git clone .*main|git clone .*master/);
 });
 
+test('DSH builder uses headers from the exact Node binary stage without runtime nodedir', () => {
+  const lines = instructions();
+  const builder = lines.slice(lines.indexOf('FROM python-builder AS dsh-builder') + 1,
+    lines.indexOf('FROM ${PYTHON_IMAGE} AS runtime'));
+  const runtime = lines.slice(lines.indexOf('FROM ${PYTHON_IMAGE} AS runtime') + 1);
+  assert.ok(builder.includes('COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node'));
+  assert.ok(builder.includes('COPY --from=node-runtime /usr/local/include/node /usr/local/include/node'));
+  assert.ok(builder.includes('ENV npm_config_nodedir=/usr/local'));
+  assert.ok(builder.indexOf('ENV npm_config_nodedir=/usr/local') <
+    builder.findIndex(line => line.startsWith('RUN corepack pnpm@')));
+  assert.equal(lines.filter(line => line.includes('/usr/local/include/node')).length, 1);
+  assert.equal(lines.filter(line => line.includes('npm_config_nodedir')).length, 1);
+  assert.ok(runtime.every(line => !line.includes('/usr/local/include/node') && !line.includes('npm_config_nodedir')));
+});
+
 test('runtime copies a bounded application set and uses the non-root PID1 supervisor', () => {
   const lines = instructions();
   const runtime = lines.slice(lines.indexOf('FROM ${PYTHON_IMAGE} AS runtime') + 1);
@@ -93,6 +108,7 @@ test('Compose requires explicit canonical mounts and includes only non-secret co
   const service = JSON.parse(read('compose.yaml')).services['research-web'];
   assert.deepEqual(service.volumes, [
     { type: 'bind', source: '${RWB_DATA_DIR:?Set RWB_DATA_DIR}', target: '/data/research-web', bind: { create_host_path: false } },
+    { type: 'bind', source: '${RWB_STATE_DIR:?Set RWB_STATE_DIR}/logs', target: '/state/logs', bind: { create_host_path: false } },
     { type: 'bind', source: '${RWB_CREDENTIAL_DIR:?Set RWB_CREDENTIAL_DIR}', target: '/run/rwb-secrets', bind: { create_host_path: false } },
   ]);
   assert.deepEqual(service.environment, { RWB_DATA_ROOT: '/data/research-web', RWB_RUNTIME_STATE: '/state/runtime', RESEARCH_CREDENTIAL_HOME: '/run/rwb-secrets/private', LOG_DIR: '/state/logs' });
@@ -102,7 +118,9 @@ test('Compose requires explicit canonical mounts and includes only non-secret co
     'io.research-workbench.runtime': 'docker',
     'io.research-workbench.installation': '${RWB_INSTALLATION_ID:?Set RWB_INSTALLATION_ID}',
   });
-  assert.deepEqual(service.tmpfs, ['/tmp:rw,nosuid,nodev,mode=1777', '/home/rwb:rw,nosuid,nodev,uid=10001,gid=10001,mode=700', '/state:rw,nosuid,nodev,uid=10001,gid=10001,mode=700']);
+  assert.deepEqual(service.tmpfs, ['/tmp:rw,nosuid,nodev,mode=1777', '/home/rwb:rw,nosuid,nodev,uid=10001,gid=10001,mode=700', '/state:rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m']);
+  assert.match(read('.github/workflows/research-web-docker.yml'), /sudo install -d -m 700 -o 10001 -g 10001 "\$root\/data" "\$root\/state" "\$root\/state\/logs" "\$root\/credentials"/);
+  assert.match(read('Dockerfile'), /VOLUME \["\/data\/research-web", "\/state", "\/run\/rwb-secrets"\]/);
 });
 
 test('build context denies local state and allows only runtime packaging inputs', () => {

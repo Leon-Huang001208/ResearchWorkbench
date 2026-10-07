@@ -2838,8 +2838,11 @@ Imports:
 - `pathlib`
 - `sys`
 - `types`
+- `typing`
 
 Classes:
+- `_WebPortOptions`
+  - Only explicitly supplied ports are forwarded to the service manager.
 - `LazyCommandGroup`
   - Expose legacy commands without importing their runtime until selected.
   - methods: list_commands, get_command, format_commands
@@ -2853,7 +2856,7 @@ Functions:
   - 管理 Web 与专属 DSH 后台服务。
 - `_run_web_action`
 - `web_start`
-  - 幂等启动 3081 DSH 和 8088 Web。
+  - 幂等启动 DSH 和 Web，优先复用已记录的端口。
 - `web_status`
   - 查看两个项目服务的归属与健康状态。
 - `web_tabbit_status`
@@ -3376,6 +3379,47 @@ Functions:
 - `_default_auth_path`
 - `_runtime_metadata`
   - Read one manager-owned authentication record through a fail-closed boundary.
+
+
+## `app/research_web/control_origin.py`
+
+Module docstring:
+> Explicit, quiescent, token-preserving transaction for the two control origins.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `ControlOriginError`
+  - Stable error without paths, tokens, fingerprints or record contents.
+  - methods: __init__
+- `ControlRecordError`
+  - Pure parser code translated by existing service-specific wrappers.
+- `ControlOriginTransaction`
+  - Prepare updates existing records; commit/rollback require owned identities.
+  - methods: __init__, _quiet, _guard, _read, _write, _journal, _verify_owned, _discard_journal, prepare, commit, rollback
+
+Functions:
+- `_fail`
+- `checked_control_url`
+  - Existing DataHub/MCP loopback predicate, usable without Web dependencies.
+- `parse_datahub_control`
+  - Original reader schema, including its additional valid JSON fields.
+- `parse_mcp_control`
+  - Original MCP reader predicate; transaction adds its own strictness.
+- `_checked_origin`
+- `_json_bytes`
+- `_decode`
 
 
 ## `app/research_web/credential_backend.py`
@@ -3917,15 +3961,14 @@ Module docstring:
 
 Imports:
 - `contextlib`
+- `control_origin`
 - `core.observability`
 - `json`
 - `os`
 - `pathlib`
-- `re`
 - `secrets`
 - `stat`
 - `store`
-- `urllib.parse`
 - `uuid`
 
 Functions:
@@ -4644,8 +4687,8 @@ Module docstring:
 Imports:
 - `__future__`
 - `collections.abc`
-- `core.observability`
 - `json`
+- `logging`
 - `math`
 - `os`
 - `pathlib`
@@ -4662,7 +4705,7 @@ Classes:
   - methods: __init__
 - `LifecycleLock`
   - Serialize lifecycle mutations using an atomic private directory lock.
-  - methods: __init__, _is_reparse, _safe_directory_identity, _validate_existing_ancestors, _trusted_root_identity, _prepare_default_trusted_root, _walk_managed_parent, _prepare_parent, _acquire_guard, _release_guard, _read_owner, _write_owner, _create, _restore_raced_lock, _reclaim_dead_owner, __enter__, __exit__
+  - methods: __init__, _is_reparse, _safe_directory_identity, _validate_existing_ancestors, _trusted_root_identity, _prepare_default_trusted_root, _walk_managed_parent, _prepare_parent, _acquire_guard, _release_guard, _read_owner, _write_owner, _create, _restore_raced_lock, _reclaim_dead_owner, __enter__, assert_held, __exit__
 
 Functions:
 - `_fsync_directory`
@@ -5130,12 +5173,12 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `app.research_web.control_origin`
 - `app.research_web.datahub.security`
 - `app.research_web.store`
 - `core.observability`
 - `hashlib`
 - `hmac`
-- `json`
 - `os`
 - `pathlib`
 - `re`
@@ -6270,6 +6313,8 @@ Classes:
 
 Functions:
 - `_identity`
+- `_log_rejection`
+- `_log_identity_change`
 - `_validate_directory`
 - `runtime_state_directory`
   - Validate and pin every ancestor before state access, then recheck identity.
@@ -6397,6 +6442,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `contextlib`
+- `control_origin`
 - `core.observability`
 - `dataclasses`
 - `hashlib`
@@ -6409,6 +6455,7 @@ Imports:
 - `process_spec`
 - `re`
 - `research_workbench_entrypoint.platform_capabilities`
+- `research_workbench_entrypoint.runtime_endpoints`
 - `research_workbench_entrypoint.web_contract`
 - `runtime_auth`
 - `runtime_state`
@@ -6423,8 +6470,7 @@ Imports:
 - `time`
 - `typing`
 - `urllib.parse`
-- `uuid`
-- `webbrowser`
+- ... 2 more
 
 Classes:
 - `ServiceManagerError`
@@ -6439,7 +6485,7 @@ Classes:
   - methods: __bool__
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _start_locked, start, _active_research, _active_research_read_only, _stop_one, _stop_locked, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, doctor, _validate_log_ownership, logs, tabbit_status
+  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, doctor, _validate_log_ownership, logs, tabbit_status
 
 Functions:
 - `calculate_build_closure`
@@ -18839,6 +18885,7 @@ Imports:
 - `stat`
 - `subprocess`
 - `sys`
+- `typing`
 - `urllib.parse`
 - `uuid`
 - `zipfile`
@@ -18846,10 +18893,12 @@ Imports:
 Classes:
 - `SetupWebInstaller`
   - Public bootstrap API used by the shell wrappers and contract tests.
-  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install
+  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install
 - `DockerRuntime`
   - Public installer adapter around the stdlib Docker lifecycle controller.
   - methods: _verify_selection_safe, install, _publish_selection
+- `_NativePortOptions`
+  - Only explicitly supplied ports are forwarded to the Native installer.
 
 Functions:
 - `_command_version`
@@ -18861,7 +18910,10 @@ Functions:
   - Record public build facts, never command output or host file paths.
 - `_write_docker_manifest`
   - Publish only into the private install directory owned by mode store.
+- `_validated_setup_ports`
 - `install_selected_runtime`
+- `_maybe_reexec_native`
+  - Enter the exact owned venv before any product-root creation/witness.
 - `main`
 
 

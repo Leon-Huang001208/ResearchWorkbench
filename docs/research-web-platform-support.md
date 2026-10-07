@@ -8,6 +8,12 @@
 
 阶段二候选/合并 `205d2a170d9ece9c2751e014b63abe326510ab9c`、PR #83 已闭合 Mac Native；[Mac Bootstrap 37587972966](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/37587972966) 的实际 checkout `4bd5a6d8660ba7072da37878ce73396b8370fbab` 为 c24/205 的 PR preview。模型与厂商调用仍未验证。用户明确目前只有 Mac，Windows/Linux 真机及其 CI 保留 NOT_RUN；Windows目标版本仍待对应设备确认，Server2022不证明Win10。Mac Docker 独立任务的真实证据见下节，未借用 Native 结果。
 
+Task14 本地集成保留 macOS Native 公开停止成功后最多 45 秒的原端口释放等待，
+异根 Native 私有账本在真实 lifecycle lease 内的调用范围认证与复查，以及 Docker
+私有 state tmpfs 和独立持久日志 bind。未知归属、同根写者和失效观察仍拒绝；这些
+实现与本地合同测试不提升下表的支持或验收状态。目标源码的物理往返、最终合并源码的
+新镜像构建及各平台 CI 证据必须分别绑定实际提交，不能把历史 PASS 当作当前候选已验收。
+
 ## 能力支持矩阵
 
 `待验` = NOT_RUN；`有实现`仍须实际验收；`不支持`不以弱化安全检查实现。Mac Native 证据只属于上列实际快照与候选；后续复用须核对受影响输入。

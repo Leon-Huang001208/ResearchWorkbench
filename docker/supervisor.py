@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -44,21 +45,44 @@ _DOCKER_PRIVATE_LEAVES = frozenset(
 )
 
 
+def prepare_controls(data_root: Path, previous_origin: str) -> None:
+    """Use normal guest creators before consumers, preserving every existing token."""
+    from app.research_web.control_origin import _checked_origin, _decode
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp_control
+    from research_workbench_entrypoint.runtime_mode import _read_bytes
+
+    try:
+        origin = _checked_origin(previous_origin)
+        for name in ("datahub.json", "mcp-runtime.json"):
+            try:
+                raw, _ = _read_bytes(data_root / ".control" / name)
+            except FileNotFoundError:
+                continue
+            _decode(name, raw, origin)
+        load_control(data_root, origin)
+        load_mcp_control(data_root, origin)
+        log.info("container_controls_prepared")
+    except Exception as exc:
+        log.warning("container_controls_prepare_failed")
+        raise RuntimeError("control_origin_prepare_failed") from exc
+
+
 def _prepare_private_leaf(path: Path) -> None:
     """Create only fixed Docker bind children, then apply the unchanged strict guard.
 
-    Desktop can change a bind root's displayed owner on its first mkdir. Keep
+    Desktop can change a bind root's displayed owner on its first write. Keep
     creation separate from runtime access: no auth/credential reads occur here.
     """
     if os.name != "posix" or path not in _DOCKER_PRIVATE_LEAVES:
         with runtime_state_directory(path, create=True):
             return
+    existing = None
     try:
-        path.lstat()
+        existing = path.lstat()
     except FileNotFoundError:
         pass
     else:
-        # Existing leaves never receive the first-creation mapping exception.
         with runtime_state_directory(path):
             return
     with ExitStack() as stack:
@@ -80,12 +104,15 @@ def _prepare_private_leaf(path: Path) -> None:
             records.append((component, descriptor, parent, name, before))
             parent = descriptor
         # mkdirat refuses an existing racing leaf; openat never follows aliases.
-        os.mkdir(path.name, mode=0o700, dir_fd=parent)
+        if existing is None:
+            os.mkdir(path.name, mode=0o700, dir_fd=parent)
         leaf = os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
         stack.callback(os.close, leaf)
         created = os.fstat(leaf)
         _validate_directory(created, leaf=True, platform_name=os.name)
         if stat.S_IMODE(created.st_mode) != 0o700:
+            raise RuntimeStateError("runtime_state_unsafe")
+        if existing is not None and _identity(created) != _identity(existing):
             raise RuntimeStateError("runtime_state_unsafe")
 
         def verify_parents(*, creation_mapping=False):
@@ -97,6 +124,7 @@ def _prepare_private_leaf(path: Path) -> None:
                 expected = _identity(before)
                 if (
                     creation_mapping
+                    and (os.getuid(), os.getgid()) != (0, 0)
                     and component == path.parent
                     and (before.st_uid, before.st_gid) == (0, 0)
                     and (after.st_uid, after.st_gid) == (os.getuid(), os.getgid())
@@ -107,10 +135,7 @@ def _prepare_private_leaf(path: Path) -> None:
                 updated.append((component, descriptor, ancestor, name, after))
             return updated
 
-        records = verify_parents(creation_mapping=True)
-        # Re-pin with the original complete validator after the creation phase;
-        # the fresh leaf must still be the object held by our retained fd.
-        with runtime_state_directory(path):
+        def verify_leaf():
             if (
                 _identity(path.lstat()) != _identity(created)
                 or _identity(os.fstat(leaf)) != _identity(created)
@@ -118,6 +143,13 @@ def _prepare_private_leaf(path: Path) -> None:
                 != _identity(created)
             ):
                 raise RuntimeStateError("runtime_state_unsafe")
+
+        records = verify_parents(creation_mapping=existing is None)
+        verify_leaf()
+        # Re-pin with the original complete validator after the creation phase;
+        # the fresh leaf must still be the object held by our retained fd.
+        with runtime_state_directory(path):
+            verify_leaf()
         verify_parents()
     log.info("container_private_leaf_prepared")
 
@@ -177,7 +209,7 @@ class ChildOutput:
         self.secrets = [
             value
             for key, value in os.environ.items()
-            if value and re.search(r"SECRET|PASSWORD|TOKEN|COOKIE|AUTH|API_KEY", key, re.I)
+            if value and re.search(r"SECRET|PASSWORD|TOKEN|COOKIE|AUTH|API_KEY", key, re.IGNORECASE)
         ]
 
     def remember_secret(self, value):
@@ -244,10 +276,10 @@ class ChildOutput:
             r"[\"']?\s*[=:]\s*"
             r"[\"']?([^\s;\"',}]+)",
             line,
-            re.I,
+            re.IGNORECASE,
         ):
             self.remember_secret(field[1])
-        cookie_header = re.search(r"(?:set-cookie|cookie)[\"']?\s*:\s*(.+)", line, re.I)
+        cookie_header = re.search(r"(?:set-cookie|cookie)[\"']?\s*:\s*(.+)", line, re.IGNORECASE)
         if cookie_header:
             self.remember_secret(cookie_header[1].strip().strip("\"'"))
             for item in cookie_header[1].split(";"):
@@ -308,6 +340,7 @@ _FAILURE_STAGES = frozenset(
         "private_directories",
         "logging_setup",
         "config_validation",
+        "control_preparation",
         "ownership_init",
         "auth_reset",
         "process_specs",
@@ -478,12 +511,15 @@ class _OwnedProcesses:
                 roles[child.pid] = role
         if self.adopts:
             for pid, info in snapshot.items():
-                if info.parent == os.getpid() and (pid, info.birth) not in self.baseline:
-                    if pid not in roles:
-                        roles[pid] = _adopted_role(pid, info)
-                        if roles[pid] == "unknown":
-                            self.unknown_roles_seen = True
-                            _event("unknown", "unclassified", "unknown_owned_role")
+                if (
+                    info.parent == os.getpid()
+                    and (pid, info.birth) not in self.baseline
+                    and pid not in roles
+                ):
+                    roles[pid] = _adopted_role(pid, info)
+                    if roles[pid] == "unknown":
+                        self.unknown_roles_seen = True
+                        _event("unknown", "unclassified", "unknown_owned_role")
         # Resolve ancestry to closure even when children appear before parents.
         while True:
             additions = {
@@ -529,9 +565,8 @@ class _OwnedProcesses:
             if descriptor is not None:
                 os.close(descriptor)
         self.owned.clear()
-        if self.was_subreaper is not None:
-            if self.libc.prctl(36, self.was_subreaper, 0, 0, 0) != 0:
-                raise RuntimeError("subreaper_restore_failed")
+        if self.was_subreaper is not None and self.libc.prctl(36, self.was_subreaper, 0, 0, 0) != 0:
+            raise RuntimeError("subreaper_restore_failed")
 
 
 def _reap_children(children):
@@ -616,6 +651,8 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
         stage = "config_validation"
         if config.startup_timeout <= 0 or config.shutdown_timeout <= 0:
             raise ValueError("invalid timeout")
+        stage = "control_preparation"
+        prepare_controls(config.data_root, f"http://127.0.0.1:{config.web_port}")
         stage = "ownership_init"
         ownership = _OwnedProcesses()
         stage = "auth_reset"
@@ -688,7 +725,12 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                 stage = "runtime_probe" if spec.role == "runtime" else "web_probe"
                 if spec.role == "runtime" and probe is real_probe and output.token is None:
                     output.remember_bootstrap_auth(config, child)
-                if probe(config, spec.role, min(0.25, remaining), launch_token=output.token):
+                # Full Web readiness shares one deadline across three requests;
+                # match the standalone healthcheck budget, within startup time.
+                probe_budget = 3.0 if spec.role == "web" else 0.25
+                if probe(
+                    config, spec.role, min(probe_budget, remaining), launch_token=output.token
+                ):
                     if spec.role == "runtime" and probe is real_probe:
                         output.remember_auth(config.state_root)
                     _event(spec.role, "healthy", "health_ready")
@@ -752,9 +794,20 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
     return status
 
 
-def main():
+def main(argv=()):
     data = Path(os.environ.get("RWB_DATA_ROOT", "/data/research-web"))
     try:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--prepare-controls-only", action="store_true")
+        parser.add_argument("--previous-origin")
+        arguments = parser.parse_args(argv)
+        if arguments.prepare_controls_only:
+            if not arguments.previous_origin:
+                raise ValueError("missing origin")
+            prepare_controls(data, arguments.previous_origin)
+            return 0
+        if arguments.previous_origin is not None:
+            raise ValueError("unexpected origin")
         return run(
             SupervisorConfig(
                 data_root=data,
@@ -774,4 +827,4 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))
