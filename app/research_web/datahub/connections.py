@@ -246,6 +246,20 @@ class MySQLConnectionStore:
         self.keyring = default_credential_backend() if keyring_backend is None else keyring_backend
         self._lock = RLock()
 
+    def configuration_revision(self, source_id: str) -> list[int] | None:
+        """Non-secret profile identity; never hash a credential."""
+        source = canonical_source_id(source_id)
+        if source not in SUPPORTED_CONFIGURATION_SOURCES:
+            return None
+        try:
+            info = self._path(source).lstat()
+            return [info.st_dev, info.st_ino, info.st_mtime_ns, info.st_size]
+        except FileNotFoundError:
+            return None
+        except OSError as exc:
+            log.warning("datahub_configuration_revision_unavailable", error_type=type(exc).__name__)
+            raise CredentialStoreError("credential_store_unavailable") from exc
+
     def _path(self, source_id: str) -> Path:
         source = canonical_source_id(source_id)
         if source not in SUPPORTED_CONFIGURATION_SOURCES:

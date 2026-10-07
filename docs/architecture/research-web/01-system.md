@@ -208,3 +208,7 @@ Windows 对已核对命令签名的受管 PID 先执行非强制 `taskkill /T`�
 该修复不改变 3081/8088、进程归属、启动顺序、服务拓扑或外部 API。
 
 固定Runtime升级只在空闲的所属独立实例验收，生产数据不自动迁移。启动模块使用原生createRuntimeResolution解析表，逐项校验仍归属于固定源码或两项受管Profile供应包。
+
+## 设置闭环阶段3：当前能力范围
+
+owned overlay将所属researchRoot绑定到原有全局guard；工具和模型步骤通过同一受鉴权DataHub回环通道检查数据范围。非AI工作台查询仍使用原DataHub授权，设置页不要求模型可用。

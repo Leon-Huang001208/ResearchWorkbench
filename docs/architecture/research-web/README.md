@@ -63,3 +63,7 @@
 pending count、generation、逐资源 settled 与 latest-request-wins 账本。只有 runtime pending 和
 settled runtime failure 分别投影为可见 connecting/offline。阅读顺序、文档权威关系、十图清单、
 模块边界、Automation 与信息架构均未变化；外部 CI 和真实浏览器验收另由后续交付阶段记录。
+
+## 设置闭环阶段3：当前能力范围
+
+现有Host/DataHub私有通道同时承担能力准入；DSH通过工具执行与原生用户技能注入的既有事件重检。没有新增研究引擎、来源注册中心或Vault。

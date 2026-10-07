@@ -196,3 +196,7 @@ Lieflat 图表只保留数据编码所需线、格、刻度与数值标签：价
 更新，latest request wins。只有 runtime pending 复用可见 `connecting` token，只有 settled runtime
 failure 复用 `offline` token；能力、会话等其他目录的 pending/failure 不提升为这两个全局状态。
 没有新增布局、主题变量、响应式断点或交互组件，信息架构、Automation 入口和既有 Light/Dark 关系不变。
+
+## 设置闭环阶段3：当前能力范围
+
+能力详情的数据范围复用现有section、notice和muted样式；不改变主题token、导航、断点或布局体系，未将静态检查绿灯作为真实数据能力。

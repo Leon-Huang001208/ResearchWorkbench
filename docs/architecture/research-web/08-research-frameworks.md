@@ -102,3 +102,7 @@ connecting/offline 不进入框架状态。Gold/Dollar 的定义、采集器、�
 
 服务管理器对已归属 Windows 进程的非强制停止失败增加既有 `/F` 升级路径；Gold/Dollar 的定义、
 采集、调度、快照、评分、renderer 和 Bot 绑定均未改变，框架仍不拥有独立服务进程。
+
+## 设置闭环阶段3：当前能力范围
+
+Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码的能力准入和脚本读取门也作用于同一Runtime，不能由模型生成成功提升为框架数据完整。无工具解释preset不因此获得专业数据授权。

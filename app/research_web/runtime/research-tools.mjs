@@ -99,7 +99,12 @@ export async function trustedDirectory(ctx, exec, config) {
 }
 
 /** Register a bounded, kernel-confined native tool without widening host tools. */
-export function apply(ctx, config, spawnProcess = spawn) {
+async function defaultAdmission(ctx, exec, config) {
+  const { nativeAdmission } = await import('./public-data.mjs');
+  return nativeAdmission(ctx, exec, config);
+}
+
+export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission) {
   for (const key of ['python', 'runnerPath', 'researchRoot']) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
   }
@@ -126,6 +131,9 @@ export function apply(ctx, config, spawnProcess = spawn) {
       try {
         const cwd = await trustedDirectory(ctx, exec, config);
         exec.signal.throwIfAborted();
+        const scope = await admissionClient(ctx, { ...exec, name: 'research_run_script' }, config);
+        if (!scope.admitted || !Array.isArray(scope.read_paths) || scope.read_paths.length > 320 ||
+            !scope.read_paths.every(path => typeof path === 'string' && /^(resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*|inputs\/datasets\/[0-9a-f-]{36})$/.test(path))) throw Error('research_script_scope_unverified');
         ctx.logger.info('research_script_run outcome=started');
         return await new Promise((resolveResult, reject) => {
         const child = spawnProcess(config.python, ['-I', '-S', '-B', config.runnerPath, '--research-root', config.researchRoot, '--python', config.python, '--session', cwd, '--timeout', String(timeoutSeconds), '--max-output', String(maxOutputBytes)], {
@@ -189,7 +197,7 @@ export function apply(ctx, config, spawnProcess = spawn) {
             resolveResult(result);
           } catch { ctx.logger.error('research_script_protocol_failed'); reject(new Error('research supervisor returned an invalid response')); }
         });
-        child.stdin.end(JSON.stringify({ code: args.code }));
+        child.stdin.end(JSON.stringify({ code: args.code, read_paths: scope.read_paths }));
         if (exec.signal.aborted) onAbort();
         });
       } finally {

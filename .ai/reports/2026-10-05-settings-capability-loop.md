@@ -672,3 +672,52 @@ connection_center/mysql_configuration/datahub回归97 PASS，另命名空间失�
 Word验证最终completed/outcome=timeout（现有180+10秒上限），未得到保存后重读成功证据；不重试、不绕过OS权限，阶段4A保持未通过。独立系统库合成值清理成功不改变该外部实机结果。
 
 Office临时资源清理的独立目录读取未返回，终止本次所属审计Python/父shell（已核对PID、启动时间、cwd）；没有删除受保护文件或退出Word。清理独立证据UNVERIFIED，不将代码finally清理尝试当成实际成功；本项是外部OS/文件访问阻塞，后续不反复扫描。
+
+
+### 持续Goal当前检查点（不代表全部阶段完成）
+
+升级冻结候选72bb737ccbb5b1c71377af0be637ceb0d65622d0三个自动门attempt1/pull_request均success：Project Constraints37513507562、Research Web Checks37513507543、Mac Bootstrap37513507752；实际checkout均为PR合并预览aa61318c299c1ea960120eb0072b527b0ac9d650。对应run元数据、jobs/runner和checkout证据已分别存于dsh-upgrade/run-<id>.json及run-<id>-checkout.json。升级Mac功能/本平台安装证据通过，不代表已更新生产。
+
+阶段2新候选7e31b012e5b58d9c02a97c019743366877400d99已普通push，草稿PR81仍OPEN/MERGEABLE，目标ddcdd9784d8eda2918b8987ca8b679375e67291d。新自动运行Project Constraints37514944642、Web Checks37514944639、Mac Bootstrap37514944641采集时in_progress，不使用旧候选成功代替。新增11路径，完整原任务差异188路径、PR差异37路径分别保留并通过规划/本地约束。生成Python索引首次过期后按原脚本重建，重验通过；phase2策略闭包91 JS PASS、文档治理/索引通过，schema2回执合法但外部门尚未取得时仍BLOCKED，mergeReady=false/releaseReady=false。
+
+当前unique报告尾部是后续本地进度，区别于已送检候选；不为报告文字自动诱发重复CI。阶段2商业账户查询、1B额外端点仍缺真实外部资源。阶段3代表性Skill结构化准入与有限/缺失条件待继续实施验证；阶段4 Word超时及其资源独立清理证据未确认，不当作PASS；阶段5只推进Mac Native，其他平台/容器保持用户暂缓；阶段6仅设计决策已完成。持续Goal active，未宣称全部完成或以授权不足停止。
+
+独立测试实例暂留以供连续任务需要，真实模型Key未读取/散列/复制，清理将在任务最终退出前通过产品流程完成；不能把早先其他实例清理当成此实例已清理。真实当前账为模型4、公开DataHub工具1，Keychain合成测试和Word验证不属于供应商模型请求。旧每轮额度由用户最新必要调用授权取代；不会为了消耗额度发无必要请求。生产8088/3081未更新、未停止，未合并PR、未发布。
+
+
+### 阶段3实施中的真实边界与代码身份
+
+基线7e31b012e5b58d9c02a97c019743366877400d99的三个自动门最终success；当前阶段3为该基线上的完整工作区改动，尚非已送检SHA，不能沿用旧CI说新代码通过。新增metadata严格data_requirements和dataset-specific语义，分别拒绝频率/复权/单位/历史时点不等价与未知；公开fund-evaluation仅NAV有限范围、industry-research公开快讯+可选财务、chanlun专业日线+独立HMAC门。只有精确未改旧builtin继任，保存历史/自定义草稿，不伪造比较回执。
+
+先实际RED证明显式提交缺硬依赖仍202与省略范围未保存，再2 PASS；缓存同call/newcall在来源失效后仍返回也先2 FAIL，再53相关PASS。独立审查确认并修复实际参数与声明不一致、缺失的可选依赖仍能查询、Workflow绑定未传递、原生/skill用户注入绕过、preflight提前登记。原生工具最终result成功后才登记，未知登记阻断未来执行，历史注入不重新视为新授权。此处仍待完整实际DSH路径及剩余回归，不因纯测试PASS宣称阶段3完成。
+
+进一步用冻结7e原sandbox实际macOS内核复现：disabled资源可读（kernel-resource-red.json），再以现有Seatbelt精确目录门关闭。模型不能传读授权路径；默认不开放旧resources/skills或全部capability/dataset；已准入版本与当前授权缓存通过同一私有响应传给现有supervisor。内核/监督回归20 PASS/1既有skip；guard/source schema实际新DSH 25 PASS/0skip；JS闭包316 PASS/1已有未设置source的skip。来源配置替换用非秘密原子文件身份修订，绝不散列Key；快照authorization_fingerprint不是秘密hash。历史材料仍可审计，不是新查询授权。
+
+必要静态检查：修复新增tuple字面量推断后，focused九改动模块mypy PASS；normal十模块及其完整传递图57诊断，冻结7e源码同解释器/配置同为57诊断且逐项完全相同（mypy-comparison.json新增0/删除0），全部位于改变边界外，不改规则/ignore或自行豁免。skip导致dataclass stub丢失的4项构造器诊断另分类为检查边界效应；normal自身sandbox无诊断，转移到既有runtime_contract债务，不混为本次缺陷。
+
+唯一报告继续累计；阶段3完整差异/PR差异/原任务完整范围均从真实git diff及untracked生成，保留每次失败。尚未运行的实际新guard/原生加载/受控完整Skill生成与本轮当前代码CI仍NOT_RUN；1B新增连接、阶段2商业账户、Word timeout/清理不可确认仍未消失。本次新增供应商请求0，既有供应商模型4/工具1总账保持；测试Key尚仅在所属独立实例系统库，生产不变。Goal active，不以原“未授权”停止，不宣称mergeReady/releaseReady。
+
+<!-- architecture-review {"group": "capabilities", "structure": "unchanged", "reason": "仅三个精确builtin增加数据声明与继任版本；沿现有不可变包、比较回执和原生Skill发现，未引入第二注册中心。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "datahub", "structure": "unchanged", "reason": "在现有Broker和快照前增加当前授权、配置修订与语义准入；仍为Host内模块，未新增Vault或数据服务。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "runtime", "structure": "unchanged", "reason": "复用固定DSH工具/预步骤/最终结果扩展与现有Seatbelt监督器，收窄读许可；既有Host与Runtime及私有DataHub通道拓扑不变。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "research-api", "structure": "unchanged", "reason": "新增的内部scope检查复用同一受鉴权回环DataHub通道，不提供取密或执行器API；公开详情只增加诚实范围投影。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "数据范围说明复用能力详情的section/notice和既有目录，不修改主题token、导航或组件拓扑，不将可准备草稿当已执行。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "自动任务沿原create/send和同一工作流绑定准入，继承Scope与实时工具重检；未新增调度器或任务运行框架。", "diagrams": []} -->
+
+
+### 阶段3集中闭包与真实Native验收（2026-10-07）
+
+续接原7e31b012工作区，完整原任务206路径、相对固定ddcdd978目标60路径、阶段3增量45路径均实际规划/Project Constraints exit0；后续修正既有metadata合同测试后增量46路径，最终再核对，不固定沿用历史数量。原7e三个CI success仅属于原代码。
+
+实际固定DSH公共CLI、owned overlay、research-web preset和独立Host 19089验证：用户/skill直接注入成功登记；模型原生skill工具成功结果后登记并继续生成；缺硬数据的直接注入在模型之前拒绝（fixture请求0）。前两组fixture请求分别1、2，供应商请求0；每组真实Mac系统库合成值均通过产品清除且configured=false，只停止所属fixture进程。旧合成实例私有DataHub origin=8088不可强改，新建admission-web数据根，复用原实际安装验证资产；prepare产出的新锁按安装私有0600权限收紧后Doctor installation_ok=true，未伪造manifest。测试器错误与失败尝试全部保留，不能当产品故障或删掉求绿。
+
+独立真实实例正常stop/start后PID为Host57791/DSH57608、端口19088/14081，安装及product_ready=true；没有重新录入或读取Key。真实fund-evaluation按新声明：公开eastmoney_fund显式probe healthy、readiness available、消息HTTP202、最终completed；实际新快照be0840b1-147c-4b35-95f1-0dffa44be260来自fund_nav，row_count=1/as_of=2026-09-30/cache_hit=false，最终回复1。原生历史固定事件计数为step/start及delivery-accepted各2、tool/call/result各1，retryPolicy maxRetries=0：本次真实模型2次、公开工具1次，累计升级及后续模型6次/公开工具2次。完整公开净值Skill范围通过，不推导完整基金评级、财务、专业行情或其他模型工具能力。脱敏证据live-fund-skill.json、live-event-counts.json、native-{host,skill,tool-skill,denied}-fixture日志位于logs/settings-model-loop/data-admission。
+
+本地真实命令：Black26.10.0/isort9.0.2/mypy2.4.0在原独立检查环境启动；完整新增/修改Python只读Black/isort及Ruff exit0。JS Research Web闭包318 PASS/1既有未设置DSH_SOURCE_ROOT的skip；必要policy JS、文档治理、生成索引exit0。能力/准入/数据声明/实际Mac sandbox集中回归97 PASS/1既有skip，唯一旧metadata全等合同缺新字段FAIL，保留失败后补明确行业/基金声明预期，单项1 PASS；原有其他字段未删除。API/protocol/local integrations118 PASS/1既有skip；service_manager305 PASS；此前DataHub/Runtime139 PASS和业务62 PASS仍对应未改变源码。mypy normal十数据/能力/sandbox模块17既有诊断，service/launch传递边界57既有诊断，两组均使用当前产品解释器解析依赖，与冻结7e逐项相同，新增0/删除0；不增加ignore、不自行豁免，既有37属于更窄历史边界，不能混称全仓通过。
+
+供应商Key尚保留在所属测试实例，仅为连续任务使用，最终通过产品流程清除；生产8088/3081未更改。阶段1B仍没有可验证的实际额外服务，不能用同一DeepSeek换协议冒充新增服务；阶段2商业数据账户缺失、阶段4Word timeout和清理UNVERIFIED仍保留外部缺项。阶段6仅最小设计完成。目标master一次fetch固定c24a8a161674678d572bf9ac35fab30489b40605，新增架构阅读/文档生成改动导致PR81冲突；先保存已验阶段3检查点，再正常merge固定目标，不重写共享历史。当前外部门仍未测试这些新增源码，mergeReady=false/releaseReady=false，Goal仍active。

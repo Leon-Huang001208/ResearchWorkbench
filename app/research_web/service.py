@@ -16,6 +16,7 @@ from websockets.exceptions import WebSocketException
 
 from core.observability import get_logger
 
+from . import PINNED_DSH_COMMIT
 from .asset_workspace import AssetWorkspace
 from .automation.channels import DeliveryChannelStore
 from .automation.delivery import DeliveryDispatcher
@@ -27,12 +28,14 @@ from .capabilities.methods import (
     read_method_trace,
     resolve_methods,
 )
-from .capabilities.models import CapabilityError, Metadata, Step
+from .capabilities.models import CapabilityError, Metadata, Step, data_preflight
 from .capabilities.packages import MAX_COMPRESSED, import_package
 from .capabilities.tools import SELECTABLE
 from .client import DSHClient, RuntimeFailure
 from .credential_backend import default_credential_backend
 from .datahub import DataHub
+from .datahub.broker import Resolution
+from .datahub.contracts import BusinessQuery
 from .delivery import FINAL, Delivery, expected_formats
 from .frameworks import FrameworkService
 from .integrations import IntegrationCoordinator
@@ -189,7 +192,7 @@ class ResearchService:
         self.expected_cwd = expected_cwd
         self.delivery = Delivery(store, delivery_python)
         self.capabilities = CapabilityCatalog(store.root)
-        self.datahub = DataHub(store)
+        self.datahub = DataHub(store, admission=self._data_query_admission)
         self.tabbit = TabbitIntegration(client, store)
         self.local_integrations = LocalIntegrationManager(store.root / "local-integrations")
         self.integrations = IntegrationCoordinator(
@@ -774,12 +777,6 @@ class ResearchService:
                 ignore=shutil.ignore_patterns("__pycache__"),
                 dirs_exist_ok=True,
             )
-            shutil.copytree(
-                Path(__file__).parent / "skills",
-                self.store.directory(sid) / "resources" / "skills",
-                ignore=shutil.ignore_patterns("__pycache__"),
-                dirs_exist_ok=True,
-            )
             try:
                 await self.client.rpc(
                     "session.create",
@@ -791,6 +788,7 @@ class ResearchService:
                 )
                 row["created"] = True
                 row["model"] = self.default_model["model"]
+                row["model_provider"] = self.default_model["provider"]
                 await self.client.rpc(
                     "session.selectModel", {"sessionId": sid, **self.default_model}
                 )
@@ -1032,6 +1030,268 @@ class ResearchService:
                 )
         return purged
 
+    def _model_tools_verified(self, sid: str | None = None) -> bool:
+        model = (
+            self.store.session(sid)
+            if sid
+            else {
+                "model": self.default_model["model"],
+                "model_provider": self.default_model["provider"],
+            }
+        )
+        # Exact tuple bound to the independently observed native tool round.
+        return (
+            PINNED_DSH_COMMIT == "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0"
+            and model.get("model_provider", "deepseek-official") == "deepseek-official"
+            and model.get("model") == "deepseek-flash"
+        )
+
+    def _task_capabilities(self, sid: str) -> tuple[dict, list[dict]]:
+        row = self.store.session(sid)
+        receipt = self.store.data["receipts"].get(f"{sid}:{row.get('delivery_key', '')}", {})
+        refs = [*receipt.get("native_capabilities", [])]
+        if receipt.get("capability"):
+            refs.append(receipt["capability"])
+        return receipt, list({ref["id"]: ref for ref in refs}.values())
+
+    def _effective_records(self, refs: list[dict]) -> list[dict]:
+        """Expand only the locked current bindings, once, with a bounded graph."""
+        pending = list(refs)
+        seen: set[tuple[str, int]] = set()
+        records: list[dict] = []
+        while pending:
+            ref = pending.pop()
+            identity = (ref["id"], ref["version"])
+            if identity in seen:
+                continue
+            if len(seen) >= 64:
+                raise CapabilityError("能力依赖图超限", "linked_version_conflict", 409)
+            seen.add(identity)
+            row = self.capabilities.row(ref["id"])
+            if row["status"] != "enabled" or row["version"] != ref["version"]:
+                raise CapabilityError("能力或绑定版本已失效", "linked_version_conflict", 409)
+            record = row["versions"][str(ref["version"])]
+            records.append({**record, "id": ref["id"]})
+            pending.extend(record["bindings"])
+        return records
+
+    def native_admission(
+        self,
+        sid: str,
+        native_name: str | None = None,
+        tool_name: str | None = None,
+        *,
+        loaded: bool = False,
+    ) -> dict:
+        """Preflight is pure; only confirmed loading records a current task scope."""
+        if self.store.session(sid)["created"] is not True:
+            raise CapabilityError("原生会话归属未确认", "session_create_failed", 409)
+        catalog = self.datahub.catalog()
+        receipt, refs = self._task_capabilities(sid)
+        refs = list(refs)
+        selected = None
+        if native_name:
+            cid = next(
+                (
+                    row["id"]
+                    for row in self.capabilities.data["items"].values()
+                    if row["status"] == "enabled"
+                    and row["versions"][str(row["version"])]["native_name"] == native_name
+                ),
+                None,
+            )
+            if cid is None:
+                raise CapabilityError("原生能力不可用", "native_package_unavailable", 409)
+            selected = self.capabilities.selection(cid)
+            refs.append(selected)
+        records = self._effective_records(refs)
+        scopes = [self.capability_readiness(ref["id"], sid, data_catalog=catalog) for ref in refs]
+        blocked = [scope for scope in scopes if not scope["admitted"]]
+        status = (
+            "unavailable"
+            if any(scope["status"] == "unavailable" for scope in blocked)
+            else (
+                "unverified"
+                if blocked or (tool_name != "agent_step" and not self._model_tools_verified(sid))
+                else (
+                    "limited"
+                    if any(scope["status"] == "limited" for scope in scopes)
+                    else "available"
+                )
+            )
+        )
+        scope = {
+            "status": status,
+            "admitted": status in {"available", "limited"},
+            "missing": [item for item_scope in scopes for item in item_scope["missing"]],
+            "omitted_sections": list(
+                dict.fromkeys(
+                    item for item_scope in scopes for item in item_scope["omitted_sections"]
+                )
+            ),
+        }
+        declared = any(record["metadata"].get("data_requirements") for record in records)
+        if (
+            declared
+            and tool_name
+            and (
+                tool_name in {"web_search", "web_fetch", "tabbit_browser"}
+                or tool_name.startswith("mcp__")
+            )
+        ):
+            scope.update(status="unavailable", admitted=False)
+            scope["missing"].append({"code": "data_scope_tool_not_authorized"})
+        if scope["admitted"] and tool_name == "research_run_script":
+            scope["read_paths"] = [
+                f"resources/capabilities/{record['id']}/{record['version']}" for record in records
+            ]
+            for did in self.datahub.snapshots.ids(sid)[:256]:
+                try:
+                    manifest = self.datahub.detail(sid, did)
+                    source = next(
+                        (
+                            item
+                            for item in catalog["sources"]
+                            if item["id"] == manifest.get("provider")
+                        ),
+                        None,
+                    )
+                    if source is None and manifest.get("provider") is not None:
+                        continue
+                    from .datahub.contracts import Query
+
+                    original = manifest["query"]
+                    if "capability" not in original:
+                        if source and source["auth_type"] != "none":
+                            continue
+                        Query.model_validate(original)
+                        if records:
+                            continue
+                        scope["read_paths"].append(f"inputs/datasets/{did}")
+                        continue
+                    query = BusinessQuery.model_validate(original)
+                    if source and source["auth_type"] == "none":
+                        from .datahub.broker import resolve
+
+                        resolution = resolve(
+                            query.model_copy(
+                                update={"source": source["id"], "allow_fallback": False}
+                            ),
+                            probes=self.datahub._latest_probes(),
+                            connection_statuses=self.datahub.connections.statuses(),
+                        )
+                        self._data_query_admission(sid, query, resolution)
+                    else:
+                        self.datahub._authorize_query(
+                            sid,
+                            query,
+                            provider=manifest.get("provider"),
+                            cached=True,
+                            authorization_fingerprint=manifest.get("authorization_fingerprint"),
+                        )
+                    scope["read_paths"].append(f"inputs/datasets/{did}")
+                except (StoreError, ValueError, KeyError):
+                    log.warning("research_script_dataset_scope_denied")
+        if loaded:
+            if selected is None or not scope["admitted"] or not receipt:
+                raise CapabilityError("能力加载范围未确认", "capability_data_unavailable", 409)
+            loaded_refs = receipt.setdefault("native_capabilities", [])
+            if not any(ref["id"] == selected["id"] for ref in loaded_refs):
+                loaded_refs.append(selected)
+            receipt["capability_readiness"] = scope
+            self.store.save()
+        return scope
+
+    def _data_query_admission(self, sid: str, query: BusinessQuery, resolution: Resolution) -> None:
+        receipt, refs = self._task_capabilities(sid)
+        refs = list(refs)
+        if not refs:
+            return  # Non-AI product queries retain their existing DataHub authorization.
+        records = self._effective_records(refs)
+        catalog = self.datahub.catalog()
+        for ref in refs:
+            scope = self.capabilities.data_readiness(ref["id"], catalog)
+            if not scope["admitted"]:
+                receipt["capability_readiness"] = scope
+                self.store.save()
+                raise CapabilityError(
+                    "任务硬依赖已失效，保留已完成资料", "capability_data_unavailable", 409
+                )
+        declared = [
+            item for record in records for item in record["metadata"].get("data_requirements", [])
+        ]
+        if not declared:
+            return
+        dataset = (
+            getattr(resolution.query, "source", None)
+            if not hasattr(resolution.query, "parameters")
+            else query.parameters.get("dataset")
+        )
+        requirements = [
+            item
+            for item in declared
+            if item["capability"] == query.capability
+            and (dataset is None or item.get("dataset") in (None, dataset))
+        ]
+        selected_catalog = {
+            **catalog,
+            "bindings": [
+                item for item in catalog["bindings"] if item["source_id"] == resolution.provider_id
+            ],
+        }
+        if (
+            not requirements
+            or data_preflight({"data_requirements": requirements}, selected_catalog)["status"]
+            != "available"
+        ):
+            raise CapabilityError(
+                "资料请求超出当前能力的可用范围", "data_outside_declared_scope", 409
+            )
+        for requirement in requirements:
+            binding: dict = next(
+                (
+                    item
+                    for item in selected_catalog["bindings"]
+                    if item["capability_id"] == query.capability
+                    and requirement.get("dataset") in item["datasets"]
+                ),
+                {},
+            )
+            semantics = binding.get("semantics", {}).get(requirement.get("dataset"), {})
+            defaults = semantics.get("query_defaults", {})
+            for key, aliases in [
+                ("frequency", {"1d": "daily", "day": "daily"}),
+                ("adjustment", {"forward": "qfq", "backward": "hfq"}),
+            ]:
+                expected = requirement.get(key)
+                if expected:
+                    actual = query.parameters.get(key, defaults.get(key))
+                    if not isinstance(actual, str) or aliases.get(actual, actual) != expected:
+                        raise CapabilityError(
+                            "实际资料参数与声明口径不等价", "data_semantics_not_equivalent", 409
+                        )
+            if requirement.get("historical_point_in_time") and not isinstance(
+                query.parameters.get("date"), str
+            ):
+                raise CapabilityError(
+                    "历史时点请求缺少明确日期", "data_semantics_not_equivalent", 409
+                )
+
+    def capability_readiness(
+        self, cid: str, sid: str | None = None, *, data_catalog: dict | None = None
+    ) -> dict:
+        """Admission scope is separate from model credentials and inference success."""
+        catalog = self.datahub.catalog() if data_catalog is None else data_catalog
+        scope = self.capabilities.data_readiness(cid, catalog)
+        row = self.capabilities.row(cid)
+        record = row["versions"].get(str(row["version"]), row["draft"])
+        verified = self._model_tools_verified(sid)
+        scope["model_tools"] = "verified" if verified else "unverified"
+        if (record["metadata"].get("required_tools") or record["bindings"]) and not verified:
+            scope.update(status="unverified", admitted=False)
+            scope["missing"].append({"code": "model_tool_capability_unverified"})
+        return scope
+
     async def detail(self, sid):
         row = self.store.session(sid)
         if not row["created"]:
@@ -1071,6 +1331,7 @@ class ResearchService:
         result["creation_kind"] = row.get("creation_kind")
         latest_receipt = self.store.data["receipts"].get(f"{sid}:{row.get('delivery_key', '')}", {})
         result["capability"] = latest_receipt.get("capability")
+        result["capability_readiness"] = latest_receipt.get("capability_readiness")
         result["methods"] = latest_receipt.get("methods", [])
         result["capability_history"] = [
             receipt["capability"]
@@ -1326,6 +1587,20 @@ class ResearchService:
                 raise RuntimeFailure(
                     "此请求受理结果未知；请检查会话历史，不要重复发送", "admission_unknown"
                 )
+            capability_readiness = None
+            if selection:
+                capability_readiness = self.capability_readiness(selection["id"], sid)
+                if not capability_readiness["admitted"]:
+                    log.warning(
+                        "research_capability_data_admission_blocked",
+                        status=capability_readiness["status"],
+                    )
+                    code = (
+                        "model_tool_capability_unverified"
+                        if capability_readiness["model_tools"] == "unverified"
+                        else "capability_data_unavailable"
+                    )
+                    raise CapabilityError("能力所需数据或模型工具范围未满足；草稿保留", code, 409)
             auth = await self.client.rpc("credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]})
             configured = (
                 auth.get("credentials", {}).get("RESEARCH_DSH_API_KEY", {}).get("configured")
@@ -1420,6 +1695,7 @@ class ResearchService:
             self.store.receipt(sid, key)["capability_catalog"] = capability_snapshots
             if selection:
                 self.store.receipt(sid, key)["capability"] = selection
+                self.store.receipt(sid, key)["capability_readiness"] = capability_readiness
             if methods:
                 self.store.receipt(sid, key)["methods"] = methods
                 self.store.receipt(sid, key)["method_trace_start"] = method_trace_start
@@ -1445,6 +1721,10 @@ class ResearchService:
                 prompt += "\n\n附件（仅本会话 inputs 目录）：\n" + "\n".join(files)
             if selection:
                 prompt += "\n\n本次能力与只读资源快照：" + json.dumps(selection, ensure_ascii=False)
+                prompt += "\n本次数据准入范围：" + json.dumps(
+                    capability_readiness, ensure_ascii=False
+                )
+                prompt += "。只执行已允许范围；省略章节不得用网页猜测或模型常识补齐。"
             if tool_ids:
                 prompt += "\n用户选择的研究工具意图（不改变原生审批、权限和限制）：" + ", ".join(
                     tool_ids

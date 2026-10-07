@@ -11,6 +11,7 @@ import json
 import logging
 import math
 import os
+import re
 import selectors
 import signal
 import subprocess
@@ -155,14 +156,28 @@ def seatbelt_profile(
     read_roots: tuple[str, ...],
     executables: tuple[str, ...],
     read_files: tuple[str, ...] = (),
+    permitted_paths: tuple[str, ...] = (),
 ) -> str:
     """Build a read-data allowlist and narrow mutation grants (metadata stays visible)."""
     read_paths = ["/System/Library", "/usr/lib", "/usr/bin", "/usr/share", "/bin", *read_roots]
-    read_paths.extend(str(session / name) for name in ("inputs", "resources", "outputs", "tmp"))
+    read_paths.extend(str(session / name) for name in ("outputs", "tmp"))
+    read_paths.extend(permitted_paths)
+    literals = [str(session / "inputs"), str(session / "resources")]
+    for directory_name, excluded in [
+        ("inputs", {"datasets"}),
+        ("resources", {"capabilities", "skills"}),
+    ]:
+        for entry in (session / directory_name).iterdir():
+            if entry.name in excluded or entry.is_symlink():
+                continue
+            if entry.is_dir():
+                read_paths.append(str(entry))
+            elif entry.is_file():
+                literals.append(str(entry))
+    file_filters = " ".join(f"(literal {json.dumps(path)})" for path in [*read_files, *literals])
     read_filters = " ".join(f"(subpath {json.dumps(path)})" for path in read_paths)
     writes = " ".join(f"(subpath {json.dumps(str(session / name))})" for name in ("outputs", "tmp"))
     exec_filters = " ".join(f"(literal {json.dumps(path)})" for path in executables)
-    file_filters = " ".join(f"(literal {json.dumps(path)})" for path in read_files)
     return (
         "(version 1)(allow default)"
         "(deny file-read-data)"
@@ -191,7 +206,7 @@ def _kill_group(process: subprocess.Popen[bytes]) -> bool:
         return False
 
 
-def run_script(config: SandboxConfig, session: Path, code: str) -> ScriptResult:
+def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()) -> ScriptResult:
     """Execute bounded Python source under kernel-enforced research capabilities."""
     if sys.platform != "darwin" or not Path("/usr/bin/sandbox-exec").is_file():
         raise SandboxError("research scripts require the verified native macOS sandbox")
@@ -209,6 +224,23 @@ def run_script(config: SandboxConfig, session: Path, code: str) -> ScriptResult:
         executable, reads, exec_paths, read_files = _runtime(str(config.python))
     except OSError as exc:
         raise SandboxError("research sandbox directories are unavailable") from exc
+    if not isinstance(read_paths, (list, tuple)) or len(read_paths) > 320:
+        raise SandboxError("invalid script resource scope")
+    permitted = []
+    for relative in read_paths:
+        if not isinstance(relative, str) or not re.fullmatch(
+            r"(?:resources/capabilities/[a-z0-9_-]+/[1-9][0-9]*|inputs/datasets/[0-9a-f-]{36})",
+            relative,
+        ):
+            raise SandboxError("invalid script resource scope")
+        target = session
+        for part in Path(relative).parts:
+            target = target / part
+            if target.is_symlink() or not target.is_dir():
+                raise SandboxError("unsafe script resource scope")
+        if target.resolve(strict=True) != target:
+            raise SandboxError("unsafe script resource scope")
+        permitted.append(str(target))
     # -I -S prevents user startup/.pth execution. Only the configured venv's
     # site-packages and this session's reviewed resources use absolute paths.
     # Relative imports require getcwd(), denied at the session root. Adding the
@@ -227,7 +259,7 @@ def run_script(config: SandboxConfig, session: Path, code: str) -> ScriptResult:
     command = [
         "/usr/bin/sandbox-exec",
         "-p",
-        seatbelt_profile(session, reads, exec_paths, read_files),
+        seatbelt_profile(session, reads, exec_paths, read_files, tuple(permitted)),
         executable,
         "-I",
         "-S",
@@ -370,9 +402,11 @@ def main() -> int:
         if len(raw) > MAX_CODE_BYTES * 6 + 1024:
             raise SandboxError("runner request is too large")
         request = json.loads(raw)
-        if not isinstance(request, dict) or set(request) != {"code"}:
+        if not isinstance(request, dict) or set(request) not in ({"code"}, {"code", "read_paths"}):
             raise SandboxError("runner request accepts only code")
-        result = run_script(config, Path(args.session), request["code"])
+        result = run_script(
+            config, Path(args.session), request["code"], read_paths=request.get("read_paths", ())
+        )
     except (SandboxError, OSError, ValueError) as exc:
         LOGGER.warning("research_sandbox_request_rejected: %s", type(exc).__name__)
         result = ScriptResult("failed", error=str(exc))

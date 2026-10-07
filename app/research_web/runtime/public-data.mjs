@@ -119,6 +119,29 @@ function smallResult(value) {
     files_json:JSON.stringify(value.files.map(({name,path,sha256})=>({name,path,sha256}))),sample_json:JSON.stringify(value.sample)};
 }
 
+/** Same authenticated loopback channel; scope only, never credentials. */
+export async function nativeAdmission(ctx, exec, config, loaded = false) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
+  const body = { session_id: basename(cwd), tool_name: exec.name };
+  if (exec.name === 'skill' || exec.nativeSkillName !== undefined) {
+    const name = exec.name === 'skill' ? exec.arguments?.name : exec.nativeSkillName;
+    if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,159}$/.test(name)) throw Error('skill_admission_invalid');
+    body.native_name = name;
+    if (loaded) body.loaded = true;
+  }
+  const response = await globalThis.fetch(control.url + '/api/research/internal/data/skill-preflight', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
+    body: JSON.stringify(body), redirect: 'error', credentials: 'omit', signal,
+  });
+  const result = await boundedJson(response, signal);
+  if (!result || !['available','limited','unavailable','unverified'].includes(result.status) ||
+      typeof result.admitted !== 'boolean' || result.admitted !== ['available','limited'].includes(result.status) ||
+      !Array.isArray(result.missing) || !Array.isArray(result.omitted_sections)) throw Error('skill_admission_state_invalid');
+  return result;
+}
+
 export function apply(ctx, config) {
   if (typeof config?.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('Public data requires an absolute research root');
   if (!Array.isArray(config.enabledTools)) throw Error('Public data enabledTools must be an array');

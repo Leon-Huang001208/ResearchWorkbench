@@ -174,3 +174,7 @@ generation、逐资源 settled 和 latest-request-wins 都是内存请求账本�
 failure 会投影为可见 connecting/offline，且不会写入新的缓存或文件。数据文件关系和相关架构图保持不变。
 
 DataHub 连接凭据以公开 canonical data home 的 SHA-256 后缀隔离系统服务；账户标识与非秘密 JSON 保留。旧全局服务不读取、不复制、不删除，升级后需在所属实例重新录入；旧记录可供旧版回滚，不写秘密备份。
+
+## 设置闭环阶段3：当前能力范围
+
+DataHub快照增加非秘密authorization_fingerprint，来自配置、实例命名空间和原子配置文件身份，不读取或散列秘密值。旧快照留作审计；新查询/回执/缓存重用须重检当前授权与配置版本。脚本只获当前准入版本和已授权dataset目录；旧resources/skills和全集版本快照不可作为执行许可。

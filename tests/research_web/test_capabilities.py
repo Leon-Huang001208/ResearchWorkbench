@@ -217,6 +217,27 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
 def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
     client, _, _ = api
     rows = {row["id"]: row for row in client.get("/api/research/capabilities").json()["items"]}
+    expected_scopes = {
+        "industry-research": [
+            {"capability": "search_news", "dataset": "telegram"},
+            {
+                "capability": "financials",
+                "dataset": "financials",
+                "required": False,
+                "currency": "CNY",
+                "omit_sections": ["专业财务量化章节"],
+            },
+        ],
+        "fund-evaluation": [
+            {
+                "capability": "fund_data",
+                "dataset": "fund_nav",
+                "frequency": "daily",
+                "adjustment": "none",
+                "units": {"unit_nav": "currency/share"},
+            }
+        ],
+    }
     existing = {
         "document-reading": (
             "资料解读",
@@ -280,6 +301,7 @@ def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
             "required_tools": tools,
             "dependencies": [],
             "method_policy": {"required": [], "recommended": [], "excluded": []},
+            "data_requirements": expected_scopes.get(slug, []),
         }
 
     workflows = {

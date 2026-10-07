@@ -286,3 +286,7 @@ API 或 Automation 契约。
 
 本轮未新增或修改 HTTP 路由、请求/响应字段或错误码。变化仅在 `rwb web stop` 的 Windows 受管进程
 实现：非强制终止失败后允许进入既有强制升级；归属不明或强制失败仍返回 CLI 错误。
+
+## 设置闭环阶段3：当前能力范围
+
+新增内部POST /api/research/internal/data/skill-preflight，复用X-Research-Data-Key、专属Runtime及所属会话边界，body仅含session_id、可选native_name/tool_name和确认加载标记loaded；响应仅为范围，不返回凭据。capabilities列表/详情附readiness；会话详情与受理回执附capability_readiness。预检只读，确认加载才记录固定版本。

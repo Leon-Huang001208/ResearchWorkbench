@@ -225,3 +225,7 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 模型启动preload的认证文件绑定已验证的RWB_RUNTIME_STATE，与data/runtime/home分离；authority、cwd、固定源码commit和所属Runtime PID共同绑定临时bootstrap。stdout/stderr保持脱敏，所属supervisor只在启动阶段读取私有handoff，独立healthcheck不交换Cookie、不写控制文件。
 
 认证bootstrap的source_commit与能力目录从同一runtimes/research_web.json读取，避免旧标识残留。新版Profile解析由固定DSH原生解析表提供，不再调用已移除的healProfilesModuleFallback；表为空、非法或路径越界时拒绝启动。
+
+## 设置闭环阶段3：当前能力范围
+
+声明式data_requirements在提交前、Skill模型工具加载、/skill用户注入、子任务和后续查询中复用当前范围。预检不登记载入；只有最终成功载入或已校验的原生注入才登记固定版本，失败/未知登记阻断后续执行。硬依赖不满足拒绝；可选依赖缺失返回省略章节。

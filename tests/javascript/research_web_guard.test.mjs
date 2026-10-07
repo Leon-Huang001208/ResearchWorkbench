@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, realpath, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { apply } from '../../app/research_web/runtime/guard.mjs';
 
 const makeAgent = () => {
@@ -124,4 +128,115 @@ test('live acceptance dispatches only implemented public NAV parameters', () => 
   }
   assert.equal(c.guard({ name: 'datahub_get_fund_data', arguments: args, agent: makeAgent() }), undefined);
   assert.ok(c.guard({ name: 'datahub_get_fund_data', arguments: args, agent: makeAgent() }));
+});
+
+
+async function admissionFixture(t, child = false) {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'rwb-skill-admission-')));
+  t.after(() => rm(root, { recursive: true }));
+  const sid = randomUUID(); const cwd = join(root, 'sessions', sid);
+  await mkdir(cwd, { recursive: true }); await mkdir(join(root, '.control'), { mode: 0o700 });
+  await writeFile(join(root, '.control', 'datahub.json'), JSON.stringify({ url: 'http://127.0.0.1:19088', token: 't'.repeat(43) }), { mode: 0o600 });
+  let handler; let guard; const handlers = new Map();
+  const parent = { header: { id: sid, cwd } };
+  const session = child ? { header: { id: randomUUID(), cwd, parentSession: sid } } : parent;
+  const ctx = { tools: { guard(fn) { guard = fn; } }, sessions: { get(id) { return id === sid ? parent : undefined; } },
+    on(name, fn) { handlers.set(name, fn); if (name === 'tools/pre-execute') handler = fn; }, logger: { warn() {}, info() {} } };
+  apply(ctx, { enabled: true, researchRoot: root });
+  return { root, sid, ctx, handler, guard, handlers, exec: { name: 'skill', arguments: { name: 'reviewed-package-v1' },
+    agent: { session }, signal: new AbortController().signal } };
+}
+
+test('native skill gate binds a child to its parent workspace and preserves prior approval', async t => {
+  const f = await admissionFixture(t, true); const original = globalThis.fetch; let body;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'http://127.0.0.1:19088/api/research/internal/data/skill-preflight');
+    assert.equal(options.redirect, 'error'); assert.equal(options.credentials, 'omit');
+    body = JSON.parse(options.body);
+    return new Response(JSON.stringify({ status: 'limited', admitted: true, missing: [], omitted_sections: ['专业章节'] }), { headers: { 'content-type': 'application/json' } });
+  };
+  const decision = { kind: 'ask', reason: 'prior approval still required' };
+  assert.equal(await f.handler(f.exec, async () => decision), decision);
+  assert.equal(body.session_id, f.sid); assert.equal(body.native_name, 'reviewed-package-v1');
+  assert.deepEqual(Object.keys(body).sort(), ['native_name', 'session_id', 'tool_name']);
+});
+
+test('native gate denies unknown or unavailable scope and never bypasses a prior denial', async t => {
+  const f = await admissionFixture(t); const original = globalThis.fetch; let calls = 0;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async () => { calls++; return new Response(JSON.stringify({ status: 'unverified', admitted: false, missing: [], omitted_sections: [] }), { headers: { 'content-type': 'application/json' } }); };
+  assert.equal((await f.handler(f.exec, async () => ({ kind: 'allow' }))).kind, 'deny');
+  const deny = { kind: 'deny', reason: 'existing security policy' };
+  assert.equal(await f.handler(f.exec, async () => deny), deny); assert.equal(calls, 1);
+  globalThis.fetch = async () => { throw Error('synthetic transport failure'); };
+  assert.equal((await f.handler(f.exec, async () => ({ kind: 'allow' }))).reason, 'capability_scope_unverified');
+});
+
+
+test('explicit slash skill injection cannot bypass admission and failed loads do not register', async t => {
+  const f = await admissionFixture(t); const original = globalThis.fetch; const requests = [];
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body); requests.push(body);
+    const admitted = !body.native_name;
+    return new Response(JSON.stringify({ status: admitted ? 'available' : 'unavailable', admitted, missing: [], omitted_sections: [] }), { headers: { 'content-type': 'application/json' } });
+  };
+  const source = { kind: 'skill-invocation', form: 'instructions', name: 'reviewed-package-v1' };
+  const options = { agent: f.exec.agent, signal: f.exec.signal, messages: [] };
+  const decision = { kind: 'enter', messages: [{ source, content: [{ type: 'text', text: 'bounded instructions' }] }] };
+  assert.deepEqual(await f.handlers.get('agent/pre-step')(options, async () => decision), { kind: 'reject' });
+  assert.ok(requests.some(body => body.native_name === source.name));
+  assert.ok(requests.every(body => body.loaded === undefined));
+  f.handlers.get('tools/result')(f.exec, { isError: true });
+  assert.ok(requests.every(body => body.loaded === undefined));
+});
+
+test('only a final successful native result registers and pre-step waits for confirmation', async t => {
+  const f = await admissionFixture(t); const original = globalThis.fetch; const requests = [];
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (_url, options) => {
+    requests.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ status: 'available', admitted: true, missing: [], omitted_sections: [] }), { headers: { 'content-type': 'application/json' } });
+  };
+  await f.handler(f.exec, async () => ({ kind: 'allow' }));
+  assert.ok(requests.every(body => body.loaded === undefined));
+  f.handlers.get('tools/result')(f.exec, { isError: false });
+  const decision = { kind: 'enter', messages: [] };
+  assert.equal(await f.handlers.get('agent/pre-step')({ agent: f.exec.agent, signal: f.exec.signal, messages: [] }, async () => decision), decision);
+  assert.equal(requests.filter(body => body.loaded === true).length, 1);
+});
+
+test('registration uncertainty is shared across parent and child agents', async t => {
+  const f = await admissionFixture(t); const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    if (body.loaded) throw Error('synthetic commit unavailable');
+    return new Response(JSON.stringify({ status: 'available', admitted: true, missing: [], omitted_sections: [] }), { headers: { 'content-type': 'application/json' } });
+  };
+  const child = { ...f.exec, agent: { session: { header: { id: randomUUID(), cwd: f.exec.agent.session.header.cwd, parentSession: f.sid } } } };
+  await f.handler(child, async () => ({ kind: 'allow' }));
+  f.handlers.get('tools/result')(child, { isError: false });
+  const decision = await f.handlers.get('agent/pre-step')({ agent: f.exec.agent, signal: f.exec.signal, messages: [] }, async () => ({ kind: 'enter', messages: [] }));
+  assert.deepEqual(decision, { kind: 'reject' });
+});
+
+
+test('a parent pending load blocks a child tool until the shared registration completes', async t => {
+  const f = await admissionFixture(t); const original = globalThis.fetch; let release; let started;
+  const start = new Promise(resolve => { started = resolve; });
+  t.after(() => { globalThis.fetch = original; });
+  const reply = () => new Response(JSON.stringify({ status: 'available', admitted: true, missing: [], omitted_sections: [] }), { headers: { 'content-type': 'application/json' } });
+  globalThis.fetch = async (_url, options) => {
+    if (JSON.parse(options.body).loaded) { started(); return new Promise(resolve => { release = () => resolve(reply()); }); }
+    return reply();
+  };
+  await f.handler(f.exec, async () => ({ kind: 'allow' }));
+  f.handlers.get('tools/result')(f.exec, { isError: false }); await start;
+  const child = { ...f.exec, name: 'research_run_script', agent: { session: { header: { id: randomUUID(), cwd: f.exec.agent.session.header.cwd, parentSession: f.sid } } } };
+  let settled = false;
+  const result = f.handler(child, async () => ({ kind: 'allow' })).then(value => { settled = true; return value; });
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(settled, false);
+  release(); assert.equal((await result).kind, 'allow');
 });

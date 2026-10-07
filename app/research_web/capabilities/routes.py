@@ -21,7 +21,12 @@ router = APIRouter(prefix="/api/research")
 async def catalog(request: Request, kind: str | None = None):
     if kind not in (None, "skill", "workflow", "method"):
         raise CapabilityError("未知能力类型")
-    return request.app.state.research.capabilities.list(kind)
+    service = request.app.state.research
+    result = service.capabilities.list(kind)
+    data_catalog = service.datahub.catalog()
+    for item in result["items"]:
+        item["readiness"] = service.capability_readiness(item["id"], data_catalog=data_catalog)
+    return result
 
 
 @router.get("/tools")
@@ -64,7 +69,10 @@ async def from_artifact(body: ArtifactInput, request: Request):
 
 @router.get("/capabilities/{cid}")
 async def detail(cid: str, request: Request):
-    return request.app.state.research.capabilities.detail(cid)
+    service = request.app.state.research
+    result = service.capabilities.detail(cid)
+    result["readiness"] = service.capability_readiness(cid)
+    return result
 
 
 @router.patch("/capabilities/{cid}/draft")

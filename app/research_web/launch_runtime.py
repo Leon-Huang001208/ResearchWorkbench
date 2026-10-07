@@ -707,6 +707,7 @@ def _prepare_runtime(
                 f"      name: {json.dumps(str(guard))}",
                 "      config:",
                 f"        enabled: {'true' if research_tools else 'false'}",
+                f"        researchRoot: {json.dumps(str(data))}",
                 *(
                     [
                         "        acceptance:",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Codex依据当前代码复核README：固定DSH 0.2.1使用共享版本合同、原生声明式preset及同一Host/Runtime/DataHub执行路径。 复核DataHub实例命名空间和旧全局记录不自动读取/迁移的用户说明。",
-  "reason": "此次升级迁移内部API但不增加部署节点；保留macOS Keychain和Host认证分离、其他平台暂缓及生产未更新事实，不冒称人工截图评审或正式发布。 新版数据源需在所属实例重新录入，旧秘密保留供旧版回滚，不声明商业查询已验收。"
+  "summary": "Codex基于当前代码复核README的数据准入、缓存授权与Mac范围说明，保存/健康/推理/工具证据仍分开。",
+  "reason": "阶段3复用现有Host/DSH/DataHub与Seatbelt，新增精确数据/资源门；没有新引擎、Vault或全品牌声明，不替代实机与当前候选CI。"
 }

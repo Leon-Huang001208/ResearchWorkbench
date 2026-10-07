@@ -2522,6 +2522,13 @@
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-runs/{run_id}/delivery",
       "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/skill-preflight",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/skill-preflight",
+      "prefix": "/api/research"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json"

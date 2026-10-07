@@ -3182,7 +3182,7 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _migrate_data_scope_builtins, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, data_readiness, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
 - `_is_host_process_entry`
@@ -3218,6 +3218,7 @@ Module docstring:
 > Editable package contracts; validation issues are retained with drafts.
 
 Imports:
+- `core.observability`
 - `pydantic`
 - `re`
 - `store`
@@ -3229,6 +3230,9 @@ Classes:
 - `InputField`
 - `MethodPolicy`
   - methods: validate_sets
+- `DataRequirement`
+  - Declared business scope; unknown provider semantics cannot satisfy it.
+  - methods: declared_scope
 - `Metadata`
 - `Step`
 - `DraftInput`
@@ -3238,6 +3242,8 @@ Classes:
 - `ArtifactInput`
 
 Functions:
+- `data_preflight`
+  - Read fresh authoritative facts without querying vendors or inferring by name.
 - `issue`
 
 
@@ -3485,7 +3491,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, query, _query, cancel, close
+  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, _query, cancel, close
 
 
 ## `app/research_web/datahub/broker.py`
@@ -3526,6 +3532,8 @@ Imports:
 Classes:
 - `SourceReadiness`
 - `DataSourceDescriptor`
+- `DatasetSemantics`
+  - Reviewed adapter scope, not account entitlement or data completeness.
 - `ProviderBinding`
 - `DataCapability`
 
@@ -3599,7 +3607,7 @@ Classes:
 - `WindConfiguration`
 - `MySQLConnectionStore`
   - Local profiles; compatibility methods continue to target MySQL.
-  - methods: __init__, _path, _read_profile, configuration, source_configuration, _secret, _set_secret_account, _delete_secret_account, _account_name, credentials, read_source_secret, status, _status, source_status, statuses, _write_profile, _write_configuration, _delete_profile, _delete_configuration, _set_secret, _delete_secret, _restore_secret_values, save, _models_for_update, _profile_secret_accounts, save_source, delete, delete_source, _env_values, migration_preview, _parse_accounts, _migration_payload, _write_env, _restore_env, apply_migration
+  - methods: __init__, configuration_revision, _path, _read_profile, configuration, source_configuration, _secret, _set_secret_account, _delete_secret_account, _account_name, credentials, read_source_secret, status, _status, source_status, statuses, _write_profile, _write_configuration, _delete_profile, _delete_configuration, _set_secret, _delete_secret, _restore_secret_values, save, _models_for_update, _profile_secret_accounts, save_source, delete, delete_source, _env_values, migration_preview, _parse_accounts, _migration_payload, _write_env, _restore_env, apply_migration
 
 Functions:
 - `_serialized`
@@ -3889,6 +3897,7 @@ Imports:
 Classes:
 - `MySQLConfigurationUpdate`
 - `MigrationRequest`
+- `SkillAdmissionRequest`
 
 Functions:
 - `_credential_error`
@@ -3908,6 +3917,7 @@ Functions:
 - `rows`
 - `download`
 - `business_query`
+- `skill_preflight`
 - `cancel`
 
 
@@ -6286,6 +6296,7 @@ Imports:
 - `math`
 - `os`
 - `pathlib`
+- `re`
 - `selectors`
 - `signal`
 - `subprocess`
@@ -6341,6 +6352,8 @@ Imports:
 - `core.observability`
 - `credential_backend`
 - `datahub`
+- `datahub.broker`
+- `datahub.contracts`
 - `datetime`
 - `delivery`
 - `frameworks`
@@ -6352,16 +6365,14 @@ Imports:
 - `mcp_runtime.authorization`
 - `mcp_runtime.control`
 - `mcp_runtime.credentials`
-- `mcp_runtime.installation_store`
-- `mcp_runtime.oauth`
-- ... 17 more
+- ... 19 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

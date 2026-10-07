@@ -183,3 +183,7 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 新增公网端点配置前必须确定 TLS、鉴权、DNS/重定向及 SSRF 规则，对环回、内网和跨用户目标失败关闭；审计只记录非秘密归属与操作结果。当前继续保持 loopback/same-origin/TrustedHost，不能通过绑定0.0.0.0宣称公网已支持。
 
 独立未来任务依次为：身份与授权归属合同；数据共享/外发许可和缓存隔离；模型端点SSRF与TLS；受限远程设备桥接。当前不实施注册、计费、多租户平台或公网监听。
+
+## 设置闭环阶段3：当前能力范围
+
+数据准入必须覆盖DSH tools/pre-execute及agent/pre-step产生的真实skill-invocation来源；不能仅依赖前端或提示词。最终tools/result成功后登记，未确认登记不继续执行。当前声明数据任务禁止借web_fetch、一般网页或MCP绕过；实际查询参数与dataset-specific频率/复权/单位及历史时点合同匹配。Seatbelt取消整resources/受限datasets读取，仅放行通用资源及受信响应生成的精确目录，模型不得指定授权路径。

@@ -191,3 +191,7 @@ settled 后独立渲染，旧 generation 的迟到响应不能覆盖最新请求
 UI、Composer 和 submit 投影为用户可见的 `connecting`，也只有 settled runtime failure 会投影为
 `offline`；其他目录的 pending/failure 保留各自资源级 loading/error 语义。该修正不改变 Hash 路由、
 目录来源、会话/Automation 关系或 API 公共契约；本地测试不冒充 Task 6 的真实浏览器验收。
+
+## 设置闭环阶段3：当前能力范围
+
+能力详情增加数据准入范围和省略章节说明，使用服务端readiness；它独立于凭据、健康和真实推理。按钮只准备草稿，不授予范围，后端每次提交/原生调用仍重检。
