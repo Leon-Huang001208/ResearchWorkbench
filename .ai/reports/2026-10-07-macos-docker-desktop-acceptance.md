@@ -17,3 +17,7 @@
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"修复镜像依赖发布载荷遗漏，不改变Native双进程与Docker单容器、挂载、认证和文件交付的结构关系。","diagrams":[]} -->
 
 当前 hostAcceptance: NOT_RUN；aggregateAcceptance: NOT_READY；尚未发布本任务修复或更新生产实例。阶段二/Native 已合并与通过的证据独立归档，不能借为本任务 Docker PASS。
+
+## 第二项实测故障：Desktop 属性视图
+
+YAML修复后最终镜像7ab5进入runtime_probe，原目录exit verify拒绝state bind根uid/gid视图从10001刷新为0。无写等待/普通原子标记不复现，同UID Node只读stat精确复现；dev/inode/mode不变，私有叶仍10001:10001/700。已在独立scratch证明固定fd上的nofollow dot stat使属性视图同步，随后原guard及Node stat都通过。补丁只在固定bind根初始化同步，所有原安全属性仍逐项一致且不授予例外。88合同PASS，独立Python审查无阻塞；整体新镜像生命周期仍待实际验收，不记录PASS。

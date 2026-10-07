@@ -45,6 +45,47 @@ _DOCKER_PRIVATE_LEAVES = frozenset(
 )
 
 
+def _synchronize_bind_parent(path: Path) -> None:
+    """Synchronize only a fixed bind parent's attributes through pinned fds.
+
+    Called inside the complete runtime directory guard. Desktop's nofollow
+    lookup cache can disagree with Node stat until this pinned dot lookup.
+    Synchronization must preserve every identity field; it grants no exception.
+    """
+    if path not in _DOCKER_PRIVATE_LEAVES:
+        raise RuntimeStateError("runtime_state_unsafe")
+    with ExitStack() as stack:
+        leaf_before = path.lstat()
+        parent_before = path.parent.lstat()
+        _validate_directory(parent_before, leaf=False, platform_name=os.name)
+        if (
+            stat.S_IMODE(parent_before.st_mode) != 0o700
+            or (parent_before.st_uid, parent_before.st_gid)
+            not in {(0, 0), (os.getuid(), os.getgid())}
+        ):
+            raise RuntimeStateError("runtime_state_unsafe")
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        leaf = os.open(path, flags)
+        stack.callback(os.close, leaf)
+        if _identity(os.fstat(leaf)) != _identity(leaf_before):
+            raise RuntimeStateError("runtime_state_unsafe")
+        parent = os.open("..", flags, dir_fd=leaf)
+        stack.callback(os.close, parent)
+        expected = _identity(parent_before)
+        if _identity(os.fstat(parent)) != expected:
+            raise RuntimeStateError("runtime_state_unsafe")
+        synchronized = os.stat(".", dir_fd=parent, follow_symlinks=False)
+        if (
+            _identity(synchronized) != expected
+            or _identity(os.fstat(parent)) != expected
+            or _identity(path.parent.lstat()) != expected
+            or _identity(os.fstat(leaf)) != _identity(leaf_before)
+            or _identity(path.lstat()) != _identity(leaf_before)
+        ):
+            raise RuntimeStateError("runtime_state_unsafe")
+    log.info("container_bind_parent_attributes_synchronized")
+
+
 def _prepare_private_leaf(path: Path) -> None:
     """Create only fixed Docker bind children, then apply the unchanged strict guard.
 
@@ -61,6 +102,7 @@ def _prepare_private_leaf(path: Path) -> None:
     else:
         # Existing leaves never receive the first-creation mapping exception.
         with runtime_state_directory(path):
+            _synchronize_bind_parent(path)
             return
     with ExitStack() as stack:
         records = []
@@ -119,6 +161,7 @@ def _prepare_private_leaf(path: Path) -> None:
                 != _identity(created)
             ):
                 raise RuntimeStateError("runtime_state_unsafe")
+            _synchronize_bind_parent(path)
         verify_parents()
     log.info("container_private_leaf_prepared")
 
