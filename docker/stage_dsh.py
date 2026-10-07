@@ -21,12 +21,23 @@ EXCLUDED = frozenset({
     "docs", "doc", "benchmarks", "benchmark", "bench", "website", "examples",
     "coverage", ".cache", "__pycache__",
 })
+METADATA_EXCLUDED = frozenset({".git", ".github", ".cache", "__pycache__"})
 
 
 def _excluded(relative: Path) -> bool:
-    return any(part.lower() in EXCLUDED for part in relative.parts) or any(
-        token in relative.name.lower() for token in (".spec.", ".test.", ".bench.")
-    ) or relative.name.lower().startswith(("readme", "changelog", "contributing"))
+    # Names such as yaml's dist/doc describe executable modules below a publish
+    # root. Only package-root development material is safe to omit by name.
+    if not relative.parts:
+        return False
+    if any(part.lower() in METADATA_EXCLUDED for part in relative.parts):
+        return True
+    return relative.parts[0].lower() in EXCLUDED or (
+        len(relative.parts) == 1
+        and (
+            any(token in relative.name.lower() for token in (".spec.", ".test.", ".bench."))
+            or relative.name.lower().startswith(("readme", "changelog", "contributing"))
+        )
+    )
 
 
 def _package_assets(package: Path, *, workspace: bool):
@@ -50,15 +61,18 @@ def _package_assets(package: Path, *, workspace: bool):
         chosen = {
             path for path in chosen
             if not any(
-                fnmatch.fnmatch(path.relative_to(package).as_posix(), rule)
+                fnmatch.fnmatch(ancestor.as_posix(), rule.rstrip("/"))
                 for rule in negatives
+                for ancestor in (path.relative_to(package), *path.relative_to(package).parents)
+                if ancestor != Path(".")
             )
         }
     else:
         for directory, folders, files in os.walk(package, followlinks=False):
             folders[:] = [
                 name for name in folders
-                if name != "node_modules" and name.lower() not in EXCLUDED
+                if name != "node_modules"
+                and not _excluded(Path(directory).relative_to(package) / name)
             ]
             chosen.update(Path(directory) / name for name in files)
     chosen.update(path for path in package.glob("LICENSE*") if path.is_file())

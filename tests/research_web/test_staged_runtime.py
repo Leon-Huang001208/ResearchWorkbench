@@ -236,6 +236,86 @@ def test_runtime_staging_copies_only_production_package_assets(tmp_path):
     assert not any(part in {"tests", "fixtures", "docs", "benchmarks", "website", ".github", "testkit"} for name in names for part in Path(name).parts)
 
 
+def test_staging_preserves_nested_runtime_doc_modules_for_real_node_import(tmp_path):
+    from app.research_web.staged_runtime import verify_staged_runtime
+    from docker.stage_dsh import stage_assets
+
+    source = tmp_path / "source"
+    cli = source / "apps/cli"
+    boot = source / "packages/boot/app-boot"
+    yaml = source / "node_modules/.pnpm/yaml@2.9.0/node_modules/yaml"
+    for package, metadata in (
+        (cli, {"name": "cli", "files": ["lib"], "dependencies": {"boot": "1", "yaml": "2.9.0"}}),
+        (boot, {"name": "boot", "files": ["lib"]}),
+        (yaml, {"name": "yaml", "version": "2.9.0", "main": "dist/index.js"}),
+    ):
+        package.mkdir(parents=True)
+        (package / "package.json").write_text(json.dumps(metadata))
+    (cli / "lib").mkdir()
+    (cli / "lib/bin.js").write_text("console.log(require('yaml'));")
+    (boot / "lib").mkdir()
+    (boot / "lib/index.js").write_text("module.exports = {};")
+    (yaml / "dist/compose").mkdir(parents=True)
+    (yaml / "dist/doc").mkdir()
+    (yaml / "dist/index.js").write_text("module.exports = require('./compose/composer.js');")
+    (yaml / "dist/compose/composer.js").write_text("module.exports = require('../doc/directives.js');")
+    (yaml / "dist/doc/directives.js").write_text("module.exports = 'fixture-directives';")
+    for name in (".git", ".github", ".cache", "__pycache__"):
+        (yaml / "dist" / name).mkdir()
+        (yaml / "dist" / name / "metadata-only.js").write_text("throw new Error('must not stage');")
+    for name in ("doc", "docs", "test", "tests", "fixtures", "benchmarks", "website"):
+        (yaml / name).mkdir()
+        (yaml / name / "development-only.js").write_text("throw new Error('must not stage');")
+    (cli / "node_modules").mkdir()
+    (cli / "node_modules/boot").symlink_to("../../../packages/boot/app-boot")
+    (cli / "node_modules/yaml").symlink_to("../../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml")
+    (source / "package.json").write_text("{}")
+    node = shutil.which("node")
+    assert node is not None, "Node is required for the runtime packaging contract"
+    original = subprocess.run([node, str(cli / "lib/bin.js")], capture_output=True, text=True, timeout=10, check=False)
+    assert original.returncode == 0 and original.stdout.strip() == "fixture-directives"
+    output = tmp_path / "staged"
+    stage_assets(source, output, facts())
+    derived = subprocess.run([node, str(output / "apps/cli/lib/bin.js")], capture_output=True, text=True, timeout=10, check=False)
+    assert derived.returncode == 0, derived.stderr
+    assert derived.stdout.strip() == "fixture-directives"
+    assert verify_staged_runtime(output) == facts()
+    for name in ("doc", "docs", "test", "tests", "fixtures", "benchmarks", "website"):
+        assert not (output / yaml.relative_to(source) / name).exists()
+    for name in (".git", ".github", ".cache", "__pycache__"):
+        assert not (output / yaml.relative_to(source) / "dist" / name).exists()
+    (output / yaml.relative_to(source) / "dist/doc/directives.js").write_text("// tampered runtime")
+    with pytest.raises(RuntimeError, match="staged_runtime_invalid"):
+        verify_staged_runtime(output)
+
+
+@pytest.mark.parametrize("negative", ["!lib/tests", "!lib/tests/**", "!lib/test?"])
+def test_staging_publish_negative_directory_excludes_all_descendants(tmp_path, negative):
+    from docker.stage_dsh import stage_assets
+
+    source = tmp_path / "source"
+    cli = source / "apps/cli"
+    boot = source / "packages/boot/app-boot"
+    for package in (cli, boot):
+        (package / "lib/tests/nested").mkdir(parents=True)
+        (package / "lib/tests/private.js").write_text("// private development fixture")
+        (package / "lib/tests/nested/private.js").write_text("// private nested fixture")
+        (package / "lib/tests-public.js").write_text("// declared runtime sibling")
+        (package / "package.json").write_text(json.dumps({"name": package.name, "files": ["lib", negative]}))
+    (cli / "package.json").write_text(json.dumps({"name": "cli", "files": ["lib", negative], "dependencies": {"boot": "1"}}))
+    (cli / "lib/bin.js").write_text("// cli")
+    (boot / "lib/index.js").write_text("// boot")
+    (cli / "node_modules").mkdir()
+    (cli / "node_modules/boot").symlink_to("../../../packages/boot/app-boot")
+    (source / "package.json").write_text("{}")
+    output = tmp_path / "staged"
+    stage_assets(source, output, facts())
+    for package in (cli, boot):
+        assert not (output / package.relative_to(source) / "lib/tests/private.js").exists()
+        assert not (output / package.relative_to(source) / "lib/tests/nested/private.js").exists()
+        assert (output / package.relative_to(source) / "lib/tests-public.js").is_file()
+
+
 def test_staging_refuses_unsafe_dependency_target(tmp_path):
     from docker.stage_dsh import stage_assets
 

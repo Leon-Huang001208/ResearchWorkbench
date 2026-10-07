@@ -20,8 +20,8 @@ Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时�
 
 Docker supervisor 的启动顺序先准备 `/state/runtime` 与 `/run/rwb-secrets/private` 私有叶，
 再清理本次认证状态、启动 DSH、探测并启动 Web。健康检查复用 `/state/runtime/auth.json`；
-重启保留私有叶及凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
-固定缺失叶的准备先用保留父FD创建，再由原runtime_state_directory完整重pin；不会捕获
+重启重新创建 tmpfs 状态叶，保留凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
+固定持久 bind 缺失叶的准备先用保留父FD创建；tmpfs 状态使用原严格 create，再由原runtime_state_directory完整重pin；不会捕获
 任意校验失败后无条件重试。data-root/logs使用相同首建顺序，自定义目录维持原严格create路径。
 启动失败额外记录固定阶段、受控异常类别、数字 errno 与 runtime/web 已知退出码；
 日志初始化前后使用同一安全字段，原失败退出及有界清理流程保持不变。
@@ -225,3 +225,11 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 模型启动preload的认证文件绑定已验证的RWB_RUNTIME_STATE，与data/runtime/home分离；authority、cwd、固定源码commit和所属Runtime PID共同绑定临时bootstrap。stdout/stderr保持脱敏，所属supervisor只在启动阶段读取私有handoff，独立healthcheck不交换Cookie、不写控制文件。
 
 研究脚本仍要求严格沙箱，当前仅 macOS Native 有实现。非 Mac/Docker 明确 unsupported；平台能力声明与任务验收分开，不用健康检查推导研究任务可执行。
+
+生产包图 staging 必须可实际加载已发布 runtime；文件 manifest 自洽不证明依赖完整。YAML dist/doc 属于代码载荷，必须由 Node 导入回归与真实 DSH 启动验证。
+
+Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_DIRECTORY/O_NOFOLLOW 固定描述符对父根执行不跟随链接的相对属性同步；前后 dev/inode/mode/uid/gid 和父别名/叶替换仍完整复核。同步不 chmod/chown、不读取秘密、不增加 owner 例外；自定义目录仍使用原严格边界。
+
+Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 `Mounts`；控制器兼容列表完全省略或完整三项表示，仍强制 HostConfig 的固定路径、UID/GID、权限和安全选项。部分、重复、别名或额外挂载均拒绝。
+
+macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；默认最多等待120秒，其余宿主默认10秒，显式等待参数保持。仍必须实际释放IPv4/IPv6绑定，超时失败关闭；不使用SO_REUSEADDR或只做连接探测来绕过占用。具体内核延迟原因未独立证实。

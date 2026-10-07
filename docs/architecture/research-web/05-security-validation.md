@@ -32,7 +32,7 @@ keyring 隔离只在测试作用域内生效，不降低生产凭据后端的错
 
 构建时保留 pnpm hoist 拓扑须逐项核对目标属于已选生产图；未选开发/平台别名不复制，hoist 根别名、目标改变或输出冲突失败关闭。新别名同样进入派生资产摘要与启动前验证。
 
-Docker 与 Native 复用固定运行合同，但部署证据分开：Docker 构建需验证完整 DSH 来源/闭包及精简运行资产清单，镜像内再以非 root 做 Web、CLI、supervisor 和健康入口检查。Compose 不向宿主发布 DSH 3081，只 bind 共享产品数据、独立运行状态和独立凭据目录；只读根、cap drop 与 `no-new-privileges` 不是宿主系统集成能力证明。Host controller 对容器归属标签、镜像、挂载和端口做有界核对，未知实例不删除或接管。Docker 凭据目录的 Windows ACL 不能证明时返回 `docker_credentials_acl_unverified`，不得用 POSIX mode 位替代 Windows ACL。Native 保留系统 keyring。模拟单元测试与源码检查不证明真实 Docker 镜像、Windows 生命周期或第三方软件可调用；它们应在任务回执中分别列为未验证门。
+Docker 与 Native 复用固定运行合同，但部署证据分开：Docker 构建需验证完整 DSH 来源/闭包及精简运行资产清单，镜像内再以非 root 做 Web、CLI、supervisor 和健康入口检查。Compose 不向宿主发布 DSH 3081，只 bind 共享产品数据和独立凭据目录；认证与临时运行状态使用 UID/GID 10001、0700 私有 tmpfs；只读根、cap drop 与 `no-new-privileges` 不是宿主系统集成能力证明。Host controller 对容器归属标签、镜像、挂载和端口做有界核对，未知实例不删除或接管。Docker 凭据目录的 Windows ACL 不能证明时返回 `docker_credentials_acl_unverified`，不得用 POSIX mode 位替代 Windows ACL。Native 保留系统 keyring。模拟单元测试与源码检查不证明真实 Docker 镜像、Windows 生命周期或第三方软件可调用；它们应在任务回执中分别列为未验证门。
 
 一键安装只允许固定 PyPI 索引、指定 DSH GitHub 仓库和随包 CJPY 文件集；Python 锁、wheel、来源、
 提交、工作树与 DSH 构建闭包任一不符即关闭失败。子进程环境采用允许列表，不传应用密钥；安装器只
@@ -171,3 +171,7 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 启动handoff不能以DSH_HOME父目录推断独立state位置。Node preload接受launcher明确的state绑定；消费方验证私有目录/文件、authority、cwd、固定commit及PID，秘密只进入脱敏集合和受控Cookie交换，独立健康检查保持只读。
 
 平台能力投影不降低安全门：Windows 安全文档 reader 不支持时返回 501；非 Mac 研究脚本保留严格沙箱阻断，Windows Docker 保留 ACL 未验证。能力 available 不等于 validated，真实验收在支持矩阵与任务回执中记录。
+
+生产资产筛选不得用模糊目录名删除程序；dist/doc 运行时代码保留，全深度 Git/cache 元数据排除以及 package graph、路径 containment、alias/no-follow 与 manifest 完整性仍失败关闭。Windows ACL、严格研究沙箱和 Docker 非 root 边界保持。
+
+Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_DIRECTORY/O_NOFOLLOW 固定描述符对父根执行不跟随链接的相对属性同步；前后 dev/inode/mode/uid/gid 和父别名/叶替换仍完整复核。同步不 chmod/chown、不读取秘密、不增加 owner 例外；自定义目录仍使用原严格边界。

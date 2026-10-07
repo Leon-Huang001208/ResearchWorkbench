@@ -1,0 +1,2100 @@
+{
+  "schemaVersion": 4,
+  "risk": "full-delivery",
+  "requiredLevel": "L4",
+  "components": [
+    "verification-system",
+    "schema-boundary",
+    "documentation",
+    "research-web-verification",
+    "critical-chain",
+    "research-web",
+    "research-web-service-lifecycle",
+    "docker-runtime",
+    "web-installation",
+    "unknown-boundary",
+    "runtime-router"
+  ],
+  "platforms": [
+    "generic",
+    "linux",
+    "macos",
+    "windows",
+    "cross-platform",
+    "real-machine-required"
+  ],
+  "changeSummary": {
+    "fileCount": 55,
+    "ruleIds": [
+      "ci",
+      "schema",
+      "documentation",
+      "research-web-ci",
+      "critical-chain",
+      "research-web",
+      "research-web-service-lifecycle-delivery",
+      "research-web-docker-packaging",
+      "fallback",
+      "research-web-runtime-router",
+      "research-web-service-manager"
+    ],
+    "impactIds": [
+      "verification-system",
+      "schema-boundary",
+      "documentation",
+      "research-web-verification",
+      "critical-chain",
+      "research-web",
+      "research-web-service-lifecycle",
+      "docker-runtime",
+      "web-installation",
+      "unknown-boundary",
+      "runtime-router"
+    ]
+  },
+  "changedFiles": [
+    ".agents/research-web-stage.json",
+    ".agents/runtime/leon-engineering/lib/verification/index.mjs",
+    ".agents/runtime/leon-engineering/lib/verification/planner.mjs",
+    ".agents/runtime/leon-engineering/lib/verification/platform-task.mjs",
+    ".agents/runtime/leon-engineering/lib/verification/receipt.mjs",
+    ".agents/runtime/leon-engineering/manifest.json",
+    ".agents/runtime/leon-engineering/schemas/verification-plan-v4.schema.json",
+    ".agents/runtime/leon-engineering/schemas/verification-receipt-v3.schema.json",
+    ".agents/verification-policy.json",
+    ".ai/reports/2026-10-06-architecture-reading-stage1.md",
+    ".ai/reports/2026-10-07-architecture-reading-stage1-delivery.json",
+    ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+    ".github/workflows/research-web-bootstrap.yml",
+    "AGENTS.md",
+    "app/research_web/documentation.py",
+    "app/research_web/service_manager.py",
+    "Dockerfile",
+    "docs/actions-budget.md",
+    "docs/AGENT_WORKFLOW.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/06-documentation-contract.md",
+    "docs/architecture/research-web/architecture-map.json",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/architecture/research-web/README.md",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/generated/py_file_index.md",
+    "docs/README.md",
+    "docs/research-web-documentation.md",
+    "docs/research-web-installation.md",
+    "docs/research-web-platform-support.md",
+    "outputs/research-web-architecture/api-atlas.html",
+    "outputs/research-web-architecture/index.html",
+    "README.md",
+    "research_workbench_entrypoint/docker_runtime.py",
+    "research_workbench_entrypoint/platform_capabilities.py",
+    "research_workbench_entrypoint/web_bootstrap.py",
+    "scripts/build_research_web_api_atlas.mjs",
+    "scripts/plan_verification.mjs",
+    "scripts/summarize_verification_delivery.mjs",
+    "tests/e2e/research_web_documentation.mjs",
+    "tests/javascript/actions_quota_governance.test.mjs",
+    "tests/javascript/docker_runtime_contract.test.mjs",
+    "tests/javascript/research_web_architecture.test.mjs",
+    "tests/javascript/verification_delivery_summary.test.mjs",
+    "tests/javascript/verification_platform_task_entry.test.mjs",
+    "tests/javascript/verification_policy.test.mjs",
+    "tests/research_web/test_docker_runtime.py",
+    "tests/research_web/test_documentation.py",
+    "tests/research_web/test_platform_capabilities.py",
+    "tests/research_web/test_service_manager.py",
+    "tests/research_web/test_web_bootstrap.py"
+  ],
+  "impact": [
+    {
+      "path": ".agents/research-web-stage.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/lib/verification/index.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/lib/verification/planner.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/lib/verification/platform-task.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/lib/verification/receipt.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/manifest.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/schemas/verification-plan-v4.schema.json",
+      "rule": "schema",
+      "reason": "schema_change",
+      "modules": [
+        "schema-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/schemas/verification-plan-v4.schema.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/schemas/verification-receipt-v3.schema.json",
+      "rule": "schema",
+      "reason": "schema_change",
+      "modules": [
+        "schema-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/schemas/verification-receipt-v3.schema.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/2026-10-06-architecture-reading-stage1.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-architecture-reading-stage1-delivery.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "research-web-ci",
+      "reason": "research_web_ci_change",
+      "modules": [
+        "research-web-verification"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "critical-chain",
+      "reason": "critical_chain_change",
+      "modules": [
+        "critical-chain"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L3"
+    },
+    {
+      "path": "AGENTS.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/documentation.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web-service-lifecycle-delivery",
+      "reason": "research_web_service_lifecycle_delivery",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "Dockerfile",
+      "rule": "research-web-docker-packaging",
+      "reason": "research_web_docker_packaging_change",
+      "modules": [
+        "docker-runtime",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "docs/actions-budget.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/AGENT_WORKFLOW.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/06-documentation-contract.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/architecture-map.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-documentation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-platform-support.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/research-web-architecture/api-atlas.html",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-architecture/index.html",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "research_workbench_entrypoint/docker_runtime.py",
+      "rule": "research-web-runtime-router",
+      "reason": "research_web_runtime_router_change",
+      "modules": [
+        "runtime-router",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "research_workbench_entrypoint/platform_capabilities.py",
+      "rule": "research-web-runtime-router",
+      "reason": "research_web_runtime_router_change",
+      "modules": [
+        "runtime-router",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "research_workbench_entrypoint/web_bootstrap.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "scripts/build_research_web_api_atlas.mjs",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "scripts/plan_verification.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "scripts/summarize_verification_delivery.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/e2e/research_web_documentation.mjs",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/actions_quota_governance.test.mjs",
+      "rule": "research-web-ci",
+      "reason": "research_web_ci_change",
+      "modules": [
+        "research-web-verification"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/docker_runtime_contract.test.mjs",
+      "rule": "research-web-docker-packaging",
+      "reason": "research_web_docker_packaging_change",
+      "modules": [
+        "docker-runtime",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/research_web_architecture.test.mjs",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/verification_delivery_summary.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/verification_platform_task_entry.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "reason": "ci_change",
+      "modules": [
+        "verification-system"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_docker_runtime.py",
+      "rule": "research-web-runtime-router",
+      "reason": "research_web_runtime_router_change",
+      "modules": [
+        "runtime-router",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_documentation.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_platform_capabilities.py",
+      "rule": "research-web-runtime-router",
+      "reason": "research_web_runtime_router_change",
+      "modules": [
+        "runtime-router",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_service_manager.py",
+      "rule": "research-web-service-manager",
+      "reason": "research_web_service_manager_change",
+      "modules": [
+        "research-web-service-lifecycle"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_web_bootstrap.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "reasons": [
+    {
+      "path": ".agents/research-web-stage.json",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/lib/verification/index.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/lib/verification/planner.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/lib/verification/platform-task.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/lib/verification/receipt.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/manifest.json",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/schemas/verification-plan-v4.schema.json",
+      "rule": "schema",
+      "code": "schema_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/schemas/verification-plan-v4.schema.json",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/schemas/verification-receipt-v3.schema.json",
+      "rule": "schema",
+      "code": "schema_change"
+    },
+    {
+      "path": ".agents/runtime/leon-engineering/schemas/verification-receipt-v3.schema.json",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".agents/verification-policy.json",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".ai/reports/2026-10-06-architecture-reading-stage1.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-architecture-reading-stage1-delivery.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "research-web-ci",
+      "code": "research_web_ci_change"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": ".github/workflows/research-web-bootstrap.yml",
+      "rule": "critical-chain",
+      "code": "critical_chain_change"
+    },
+    {
+      "path": "AGENTS.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "app/research_web/documentation.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/service_manager.py",
+      "rule": "research-web-service-lifecycle-delivery",
+      "code": "research_web_service_lifecycle_delivery"
+    },
+    {
+      "path": "Dockerfile",
+      "rule": "research-web-docker-packaging",
+      "code": "research_web_docker_packaging_change"
+    },
+    {
+      "path": "docs/actions-budget.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/AGENT_WORKFLOW.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/06-documentation-contract.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/architecture-map.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/README.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/README.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-documentation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-platform-support.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "outputs/research-web-architecture/api-atlas.html",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "outputs/research-web-architecture/index.html",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "README.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "research_workbench_entrypoint/docker_runtime.py",
+      "rule": "research-web-runtime-router",
+      "code": "research_web_runtime_router_change"
+    },
+    {
+      "path": "research_workbench_entrypoint/platform_capabilities.py",
+      "rule": "research-web-runtime-router",
+      "code": "research_web_runtime_router_change"
+    },
+    {
+      "path": "research_workbench_entrypoint/web_bootstrap.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "scripts/build_research_web_api_atlas.mjs",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "scripts/plan_verification.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": "scripts/summarize_verification_delivery.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": "tests/e2e/research_web_documentation.mjs",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/javascript/actions_quota_governance.test.mjs",
+      "rule": "research-web-ci",
+      "code": "research_web_ci_change"
+    },
+    {
+      "path": "tests/javascript/docker_runtime_contract.test.mjs",
+      "rule": "research-web-docker-packaging",
+      "code": "research_web_docker_packaging_change"
+    },
+    {
+      "path": "tests/javascript/research_web_architecture.test.mjs",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/javascript/verification_delivery_summary.test.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": "tests/javascript/verification_platform_task_entry.test.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": "tests/javascript/verification_policy.test.mjs",
+      "rule": "ci",
+      "code": "ci_change"
+    },
+    {
+      "path": "tests/research_web/test_docker_runtime.py",
+      "rule": "research-web-runtime-router",
+      "code": "research_web_runtime_router_change"
+    },
+    {
+      "path": "tests/research_web/test_documentation.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/research_web/test_platform_capabilities.py",
+      "rule": "research-web-runtime-router",
+      "code": "research_web_runtime_router_change"
+    },
+    {
+      "path": "tests/research_web/test_service_manager.py",
+      "rule": "research-web-service-manager",
+      "code": "research_web_service_manager_change"
+    },
+    {
+      "path": "tests/research_web/test_web_bootstrap.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    }
+  ],
+  "escalations": [],
+  "uncoveredRisks": [
+    "unknown_impact_boundary"
+  ],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [
+      {
+        "id": "verification-policy-contracts",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/verification_policy.test.mjs"
+      },
+      {
+        "id": "verification-receipt-contracts",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/verification_receipt.test.mjs"
+      },
+      {
+        "id": "incremental-validation-skill-contracts",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
+      },
+      {
+        "id": "verification-platform-task-contracts",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/verification_platform_task_entry.test.mjs tests/javascript/verification_delivery_summary.test.mjs"
+      },
+      {
+        "id": "research-web-local-integrations",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
+      },
+      {
+        "id": "research-web-architecture",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+      },
+      {
+        "id": "research-web-service-manager",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
+      },
+      {
+        "id": "research-web-runtime-mode",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_runtime_mode.py tests/research_web/test_docker_runtime.py --confcutdir=tests/research_web"
+      },
+      {
+        "id": "research-web-platform-capabilities",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_platform_capabilities.py --confcutdir=tests/research_web"
+      }
+    ],
+    "L2": [
+      {
+        "id": "project-constraints-local",
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+      },
+      {
+        "id": "research-web-docker-contract",
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/docker_runtime_contract.test.mjs"
+      },
+      {
+        "id": "research-web-container-runtime",
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_container_supervisor.py tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web"
+      }
+    ],
+    "L3": [
+      {
+        "id": "research-web-critical-smoke",
+        "level": "L3",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+      }
+    ],
+    "L4": [
+      {
+        "id": "research-web-verification-full",
+        "level": "L4",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+      },
+      {
+        "id": "project-constraints",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "linux"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/project-constraints.yml"
+      },
+      {
+        "id": "research-web-checks",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "linux"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/research-web-checks.yml"
+      },
+      {
+        "id": "research-web-bootstrap",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "macos"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
+      },
+      {
+        "id": "research-web-windows-verify",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "windows"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/research-web-windows-verify.yml#windows-2022"
+      },
+      {
+        "id": "research-web-docker",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "linux"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/research-web-docker.yml#docker-runtime"
+      },
+      {
+        "id": "macos-native-research-web",
+        "level": "L4",
+        "lane": "real-machine",
+        "gate": "release",
+        "platforms": [
+          "macos",
+          "real-machine-required"
+        ],
+        "category": "realMachine",
+        "value": "docs/research-web-platform-support.md#macos-native-task-smoke"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "id": "verification-policy-contracts",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_policy.test.mjs"
+    },
+    {
+      "id": "verification-receipt-contracts",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_receipt.test.mjs"
+    },
+    {
+      "id": "incremental-validation-skill-contracts",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+    },
+    {
+      "id": "verification-platform-task-contracts",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_platform_task_entry.test.mjs tests/javascript/verification_delivery_summary.test.mjs"
+    },
+    {
+      "id": "research-web-local-integrations",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-docker-contract",
+      "level": "L2",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/docker_runtime_contract.test.mjs"
+    },
+    {
+      "id": "research-web-container-runtime",
+      "level": "L2",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_container_supervisor.py tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-runtime-mode",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_runtime_mode.py tests/research_web/test_docker_runtime.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-platform-capabilities",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_platform_capabilities.py --confcutdir=tests/research_web"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [
+    {
+      "id": "project-constraints",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "linux"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/project-constraints.yml"
+    },
+    {
+      "id": "research-web-checks",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "linux"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/research-web-checks.yml"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "macos"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
+    },
+    {
+      "id": "research-web-windows-verify",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "windows"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/research-web-windows-verify.yml#windows-2022"
+    },
+    {
+      "id": "research-web-docker",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "linux"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/research-web-docker.yml#docker-runtime"
+    }
+  ],
+  "local": [
+    {
+      "id": "verification-policy-contracts",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_policy.test.mjs"
+    },
+    {
+      "id": "verification-receipt-contracts",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_receipt.test.mjs"
+    },
+    {
+      "id": "incremental-validation-skill-contracts",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/incremental_validation_skill.test.mjs"
+    },
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+    },
+    {
+      "id": "verification-platform-task-contracts",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/verification_platform_task_entry.test.mjs tests/javascript/verification_delivery_summary.test.mjs"
+    },
+    {
+      "id": "research-web-local-integrations",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-docker-contract",
+      "level": "L2",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/docker_runtime_contract.test.mjs"
+    },
+    {
+      "id": "research-web-container-runtime",
+      "level": "L2",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_container_supervisor.py tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-runtime-mode",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_runtime_mode.py tests/research_web/test_docker_runtime.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-platform-capabilities",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_platform_capabilities.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "realMachine": [
+    {
+      "id": "macos-native-research-web",
+      "level": "L4",
+      "lane": "real-machine",
+      "gate": "release",
+      "platforms": [
+        "macos",
+        "real-machine-required"
+      ],
+      "category": "realMachine",
+      "value": "docs/research-web-platform-support.md#macos-native-task-smoke"
+    }
+  ],
+  "receiptTemplate": {
+    "plannedLevel": "L4",
+    "changedFiles": [
+      ".agents/research-web-stage.json",
+      ".agents/runtime/leon-engineering/lib/verification/index.mjs",
+      ".agents/runtime/leon-engineering/lib/verification/planner.mjs",
+      ".agents/runtime/leon-engineering/lib/verification/platform-task.mjs",
+      ".agents/runtime/leon-engineering/lib/verification/receipt.mjs",
+      ".agents/runtime/leon-engineering/manifest.json",
+      ".agents/runtime/leon-engineering/schemas/verification-plan-v4.schema.json",
+      ".agents/runtime/leon-engineering/schemas/verification-receipt-v3.schema.json",
+      ".agents/verification-policy.json",
+      ".ai/reports/2026-10-06-architecture-reading-stage1.md",
+      ".ai/reports/2026-10-07-architecture-reading-stage1-delivery.json",
+      ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+      ".github/workflows/research-web-bootstrap.yml",
+      "AGENTS.md",
+      "app/research_web/documentation.py",
+      "app/research_web/service_manager.py",
+      "Dockerfile",
+      "docs/actions-budget.md",
+      "docs/AGENT_WORKFLOW.md",
+      "docs/architecture/research-web/01-system.md",
+      "docs/architecture/research-web/02-research-runtime.md",
+      "docs/architecture/research-web/03-data-files.md",
+      "docs/architecture/research-web/04-api.md",
+      "docs/architecture/research-web/05-security-validation.md",
+      "docs/architecture/research-web/06-documentation-contract.md",
+      "docs/architecture/research-web/architecture-map.json",
+      "docs/architecture/research-web/readme-review.json",
+      "docs/architecture/research-web/README.md",
+      "docs/DEVELOPMENT_MAP.md",
+      "docs/generated/py_file_index.md",
+      "docs/README.md",
+      "docs/research-web-documentation.md",
+      "docs/research-web-installation.md",
+      "docs/research-web-platform-support.md",
+      "outputs/research-web-architecture/api-atlas.html",
+      "outputs/research-web-architecture/index.html",
+      "README.md",
+      "research_workbench_entrypoint/docker_runtime.py",
+      "research_workbench_entrypoint/platform_capabilities.py",
+      "research_workbench_entrypoint/web_bootstrap.py",
+      "scripts/build_research_web_api_atlas.mjs",
+      "scripts/plan_verification.mjs",
+      "scripts/summarize_verification_delivery.mjs",
+      "tests/e2e/research_web_documentation.mjs",
+      "tests/javascript/actions_quota_governance.test.mjs",
+      "tests/javascript/docker_runtime_contract.test.mjs",
+      "tests/javascript/research_web_architecture.test.mjs",
+      "tests/javascript/verification_delivery_summary.test.mjs",
+      "tests/javascript/verification_platform_task_entry.test.mjs",
+      "tests/javascript/verification_policy.test.mjs",
+      "tests/research_web/test_docker_runtime.py",
+      "tests/research_web/test_documentation.py",
+      "tests/research_web/test_platform_capabilities.py",
+      "tests/research_web/test_service_manager.py",
+      "tests/research_web/test_web_bootstrap.py"
+    ],
+    "requiredValidationIds": [
+      "verification-policy-contracts",
+      "verification-receipt-contracts",
+      "incremental-validation-skill-contracts",
+      "research-web-verification-full",
+      "verification-platform-task-contracts",
+      "research-web-local-integrations",
+      "project-constraints-local",
+      "research-web-architecture",
+      "research-web-critical-smoke",
+      "research-web-service-manager",
+      "research-web-docker-contract",
+      "research-web-container-runtime",
+      "research-web-runtime-mode",
+      "research-web-platform-capabilities",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": [
+      "project-constraints",
+      "research-web-checks",
+      "research-web-bootstrap",
+      "research-web-windows-verify",
+      "research-web-docker"
+    ],
+    "releaseGateIds": [
+      "macos-native-research-web"
+    ]
+  },
+  "task": {
+    "hostPlatform": "macos",
+    "taskKind": "feature-development",
+    "objective": "Stage 2 platform evidence protocol and macOS Native slice of task-20261007-ffa331322bc9",
+    "acceptanceScope": "Full changed-set mechanical verification and macOS Native installation, lifecycle, strict sandbox and architecture reading. Model calls and vendor authorization remain NOT_RUN. macOS Docker lifecycle remains incomplete in linked task task-20261007-bda2aa87e13e; this Native task does not certify that separate scope. Windows/Linux native and Linux Docker are NOT_RUN handoffs. No product runtime update.",
+    "candidateCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+    "candidateBaseCommit": "c24a8a161674678d572bf9ac35fab30489b40605",
+    "supplementalGateIds": [
+      "research-web-bootstrap",
+      "macos-native-research-web"
+    ]
+  },
+  "changeSet": {
+    "entries": [
+      {
+        "path": ".agents/research-web-stage.json",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": ".agents/runtime/leon-engineering/lib/verification/index.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": ".agents/runtime/leon-engineering/lib/verification/planner.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": ".agents/runtime/leon-engineering/lib/verification/platform-task.mjs",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": ".agents/runtime/leon-engineering/lib/verification/receipt.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": ".agents/runtime/leon-engineering/manifest.json",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": ".agents/runtime/leon-engineering/schemas/verification-plan-v4.schema.json",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": ".agents/runtime/leon-engineering/schemas/verification-receipt-v3.schema.json",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": ".agents/verification-policy.json",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": ".ai/reports/2026-10-06-architecture-reading-stage1.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": ".ai/reports/2026-10-07-architecture-reading-stage1-delivery.json",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": ".github/workflows/research-web-bootstrap.yml",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "AGENTS.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "app/research_web/documentation.py",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "app/research_web/service_manager.py",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "Dockerfile",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/actions-budget.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/AGENT_WORKFLOW.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/01-system.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/02-research-runtime.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/03-data-files.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/04-api.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/05-security-validation.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/06-documentation-contract.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/architecture-map.json",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/readme-review.json",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/architecture/research-web/README.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/DEVELOPMENT_MAP.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/generated/py_file_index.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/README.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/research-web-documentation.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/research-web-installation.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "docs/research-web-platform-support.md",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": "outputs/research-web-architecture/api-atlas.html",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "outputs/research-web-architecture/index.html",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "README.md",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "research_workbench_entrypoint/docker_runtime.py",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "research_workbench_entrypoint/platform_capabilities.py",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": "research_workbench_entrypoint/web_bootstrap.py",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "scripts/build_research_web_api_atlas.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "scripts/plan_verification.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "scripts/summarize_verification_delivery.mjs",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/e2e/research_web_documentation.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/javascript/actions_quota_governance.test.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/javascript/docker_runtime_contract.test.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/javascript/research_web_architecture.test.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/javascript/verification_delivery_summary.test.mjs",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/javascript/verification_platform_task_entry.test.mjs",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/javascript/verification_policy.test.mjs",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/research_web/test_docker_runtime.py",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/research_web/test_documentation.py",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/research_web/test_platform_capabilities.py",
+        "status": "added",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/research_web/test_service_manager.py",
+        "status": "modified",
+        "origin": "committed"
+      },
+      {
+        "path": "tests/research_web/test_web_bootstrap.py",
+        "status": "modified",
+        "origin": "committed"
+      }
+    ]
+  },
+  "binding": {
+    "source": "git",
+    "baseCommit": "c24a8a161674678d572bf9ac35fab30489b40605",
+    "headCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+    "changeSetSha256": "6624b2be32207b83d211e14c5eb589f6445442245271d360eb66f9f686c747ca",
+    "policySha256": "bb3a31a83745d9260ca961d614e924f054dfedcbaae8fb4833a0e3f243b0d530",
+    "frameworkVersion": "0.19.3",
+    "frameworkCommit": "f853b1b268a1b39c537136d867ddf5a570f9730e",
+    "frameworkSha256": "c7f09bb5bf68a4795dc70a53a903db03bc1fd683ca72ce71ff0690eadcbe28a0",
+    "planSha256": "98d4b76bade939521805d222ff43bf4b7845f762067e0fccdd508b63c36bce2c"
+  }
+}

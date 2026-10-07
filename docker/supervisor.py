@@ -38,7 +38,6 @@ ROLE_ENVIRONMENT_KEY = "RWB_SUPERVISOR_ROLE"
 MAX_ROLE_ENVIRONMENT_BYTES = 64 * 1024
 _DOCKER_PRIVATE_LEAVES = frozenset(
     {
-        Path("/state/runtime"),
         Path("/run/rwb-secrets/private"),
         Path("/data/research-web/logs"),
     }
@@ -602,8 +601,8 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
     try:
         for signum in (signal.SIGTERM, signal.SIGINT):
             previous[signum] = signal.signal(signum, shutdown)
-        # Desktop bind roots can be presented as root-owned. Create and pin
-        # private children as the container user before auth, probes or spawn;
+        # Persistent bind roots can be presented as root-owned. Create and pin
+        # private children (including the tmpfs state) before auth, probes or spawn;
         # never chmod/chown the mount roots or weaken the shared validator.
         for private_root in (config.state_root, config.credential_root):
             if private_root is not None:

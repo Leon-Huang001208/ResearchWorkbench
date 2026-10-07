@@ -95,11 +95,16 @@ def owned(controller, runner):
         "ports": {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(controller.ports[0])}]},
         "mounts": [
             {"Type": "bind", "Source": str(controller.data_dir), "Destination": "/data/research-web"},
-            {"Type": "bind", "Source": str(controller.state_dir), "Destination": "/state"},
+            {"Type": "tmpfs", "Source": "", "Destination": "/state"},
             {"Type": "bind", "Source": str(controller.credential_dir), "Destination": "/run/rwb-secrets"},
             {"Type": "tmpfs", "Source": "", "Destination": "/tmp"},
             {"Type": "tmpfs", "Source": "", "Destination": "/home/rwb"},
         ],
+        "tmpfs": {
+            "/tmp": "rw,nosuid,nodev,mode=1777",
+            "/home/rwb": "rw,nosuid,nodev,uid=10001,gid=10001,mode=700",
+            "/state": "rw,nosuid,nodev,uid=10001,gid=10001,mode=700",
+        },
     }
 
 
@@ -139,6 +144,7 @@ def test_docker_doctor_allowlisted_health_and_capabilities(runtime):
     assert report["container"]["state"] == "running"
     assert len(report["container"]["ownership_id"]) == 64
     assert report["data"]["ready"] and report["volumes"]["verified"]
+    assert report["volumes"]["state"] == "tmpfs"
     assert report["ports"]["verified"]
     assert report["python"]["applicable"] is False
     assert report["cjpy"]["applicable"] is False
@@ -754,6 +760,144 @@ def test_duplicate_or_extra_mounts_fail_ownership(runtime):
     owned(controller, runner)
     runner.container["mounts"].append({"Source": "/foreign", "Destination": "/extra"})
     assert controller.stop()["issues"] == ["docker_ownership_mismatch"]
+
+
+def test_private_runtime_tmpfs_is_owned_and_host_control_state_is_retained(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    controller.state_dir.mkdir(parents=True, mode=0o700)
+    control = controller.state_dir / "control-fixture.json"
+    control.write_text("installation-control")
+    assert controller.stop()["ok"]
+    assert control.read_text() == "installation-control"
+
+
+@pytest.mark.parametrize("platform,expected_timeout", [("darwin", 120), ("linux", 10), ("win32", 10)])
+def test_stop_default_wait_keeps_real_nonlistening_reservation_until_host_deadline(
+    runtime, monkeypatch, platform, expected_timeout
+):
+    from research_workbench_entrypoint import docker_runtime as control
+
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    elapsed = [0.0]
+    monkeypatch.setattr(control.sys, "platform", platform)
+    monkeypatch.setattr(control, "time", SimpleNamespace(
+        monotonic=lambda: elapsed[0],
+        sleep=lambda interval: elapsed.__setitem__(0, elapsed[0] + interval),
+    ))
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", controller.ports[0]))
+        assert control.port_busy(controller.ports[0])
+        assert controller.stop()["issues"] == ["runtime_ports_not_released"]
+        assert expected_timeout <= elapsed[0] < expected_timeout + 0.1
+        assert control.port_busy(controller.ports[0])
+    assert not any(argv[1] == "rm" for argv, _ in runner.calls)
+
+
+@pytest.mark.parametrize("explicit_timeout", [None, 0, 5])
+def test_macos_stop_waits_for_delayed_release_but_honors_explicit_timeout(
+    runtime, monkeypatch, explicit_timeout
+):
+    from research_workbench_entrypoint import docker_runtime as control
+
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    elapsed = [0.0]
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", controller.ports[0]))
+
+        def wait(interval):
+            elapsed[0] += interval
+            if elapsed[0] >= 12:
+                reservation.close()
+
+        monkeypatch.setattr(control.sys, "platform", "darwin")
+        monkeypatch.setattr(control, "time", SimpleNamespace(monotonic=lambda: elapsed[0], sleep=wait))
+        options = {} if explicit_timeout is None else {"wait_timeout": explicit_timeout}
+        report = controller.stop(**options)
+        if explicit_timeout is None:
+            assert report["ok"]
+            assert 12 <= elapsed[0] < 12.1
+        else:
+            assert report["issues"] == ["runtime_ports_not_released"]
+            assert explicit_timeout <= elapsed[0] < explicit_timeout + 0.1
+            assert control.port_busy(controller.ports[0])
+
+
+@pytest.mark.parametrize("mounts_listed", [False, True])
+def test_engine_tmpfs_mount_projection_accepts_complete_or_host_config_only(runtime, mounts_listed):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    if not mounts_listed:
+        runner.container["mounts"] = [item for item in runner.container["mounts"] if item["Type"] == "bind"]
+    assert controller.status()["ok"]
+    assert controller.doctor()["volumes"]["verified"]
+
+
+@pytest.mark.parametrize("mutation", ["partial", "extra", "duplicate", "alias", "missing_options", "foreign_uid", "public_mode"])
+def test_host_config_only_tmpfs_rejects_partial_or_unsafe_projection(runtime, mutation):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    state = next(item for item in runner.container["mounts"] if item["Destination"] == "/state")
+    runner.container["mounts"] = [item for item in runner.container["mounts"] if item["Type"] == "bind"]
+    if mutation in {"partial", "extra", "duplicate", "alias"}:
+        runner.container["mounts"].append(state)
+        if mutation == "extra":
+            state["Destination"] = "/foreign"
+        elif mutation == "duplicate":
+            runner.container["mounts"].append(dict(state))
+        elif mutation == "alias":
+            state["Destination"] = "/state/."
+    elif mutation == "missing_options":
+        runner.container["tmpfs"].pop("/state")
+    else:
+        original, changed = ("uid=10001", "uid=0") if mutation == "foreign_uid" else ("mode=700", "mode=755")
+        runner.container["tmpfs"]["/state"] = runner.container["tmpfs"]["/state"].replace(original, changed)
+    assert controller.stop()["issues"] == ["docker_ownership_mismatch"]
+    assert not any(argv[1] in {"stop", "rm"} for argv, _ in runner.calls)
+
+
+@pytest.mark.parametrize("mutation", [
+    "state_bind", "state_volume", "state_source", "missing_state", "duplicate_state",
+    "missing_options", "foreign_uid", "foreign_gid", "public_mode", "missing_nosuid",
+    "missing_nodev", "readonly", "duplicate_option", "extra_option", "extra_tmpfs",
+    "invalid_options",
+])
+def test_runtime_tmpfs_contract_rejects_unsafe_ownership_without_mutation(runtime, mutation):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    state = next(item for item in runner.container["mounts"] if item["Destination"] == "/state")
+    options = runner.container["tmpfs"]
+    if mutation in {"state_bind", "state_volume"}:
+        state["Type"] = "bind" if mutation == "state_bind" else "volume"
+        state["Source"] = str(controller.state_dir)
+    elif mutation == "state_source":
+        state["Source"] = "/foreign"
+    elif mutation == "missing_state":
+        runner.container["mounts"].remove(state)
+    elif mutation == "duplicate_state":
+        runner.container["mounts"].append(dict(state))
+    elif mutation == "missing_options":
+        options.pop("/state")
+    elif mutation == "extra_tmpfs":
+        options["/foreign"] = "rw"
+    elif mutation == "invalid_options":
+        options["/state"] = []
+    else:
+        replacements = {
+            "foreign_uid": ("uid=10001", "uid=0"),
+            "foreign_gid": ("gid=10001", "gid=0"),
+            "public_mode": ("mode=700", "mode=755"),
+            "missing_nosuid": ("nosuid,", ""),
+            "missing_nodev": ("nodev,", ""),
+            "readonly": ("rw,", "ro,"),
+            "duplicate_option": ("rw,", "rw,rw,"),
+            "extra_option": ("rw,", "rw,exec,"),
+        }
+        options["/state"] = options["/state"].replace(*replacements[mutation])
+    assert controller.stop()["issues"] == ["docker_ownership_mismatch"]
+    assert not any(argv[1] in {"stop", "rm"} for argv, _ in runner.calls)
 
 
 def test_daemon_failure_is_not_reported_as_missing_cli(runtime):

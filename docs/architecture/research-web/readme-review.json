@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "新增能力支持矩阵入口和明确平台安全边界，用户重新开启跨平台任务。",
-  "reason": "Doctor实现状态不等于平台验收；README连接支持矩阵，保留严格沙箱、文档reader与ACL限制，不宣称未验证系统支持。"
+  "summary": "更新 macOS Docker Desktop 实际生命周期证据入口及临时状态、持久数据边界。",
+  "reason": "独立安装、Doctor、重启、down/up、架构浏览器与端口释放已验证；镜像5e1b与宿主fb9身份分开，Windows/Linux及真实厂商/模型调用不从Mac结果推导通过。"
 }
