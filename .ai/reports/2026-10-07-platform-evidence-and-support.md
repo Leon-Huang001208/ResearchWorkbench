@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-宿主 macOS；阶段二与 Mac Native 功能开发切片已完成。用户明确授权全部阶段、推送与合并，并确认目前只有 Mac；Windows/Linux 原生与其 CI 保留交接。阶段三 Mac Docker Desktop 由独立 task-20261007-bda2aa87e13e 接续，不借 Native 通过认证 Docker。
+宿主 macOS；阶段二与 Mac Native 功能开发切片已完成。用户明确授权全部阶段、推送与合并，并确认目前只有 Mac；Windows/Linux 原生与其 CI 保留交接。阶段三 Mac Docker Desktop 独立 task-20261007-bda2aa87e13e 已完成 Mac 真机与对应CI，证据见同日 macos-docker-desktop-acceptance 报告；镜像与宿主身份分开，不借 Native 认证 Docker。
 
 - taskId: task-20261007-ffa331322bc9；分支 codex/task-20261007-ffa331322bc9-platform-evidence-and-support；基线 c24a8a161674678d572bf9ac35fab30489b40605。
 - 正式共享框架已发布 f853b1b268a1b39c537136d867ddf5a570f9730e；Framework Checks 37573888876 SUCCESS；集成合同 308/308 PASS。Project runtime 正式 preview/apply/verify，无 drift；policy3/plan4/receipt3，不手改分发文件。

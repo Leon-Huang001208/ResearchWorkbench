@@ -1,0 +1,16 @@
+{
+  "recordKind": "historical-candidate-assurance",
+  "candidateCommit": "fb9ec4fb978d04caf6e6fca03ba90f49decdd64e",
+  "candidateBaseCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+  "validatedAtCandidate": true,
+  "hostAcceptance": "PASS",
+  "aggregateAcceptance": "NOT_READY",
+  "mergeReady": false,
+  "releaseReady": false,
+  "imageSourceCommit": "5e1b790b581bca01bc73583a0720b50f664e5941",
+  "actualCICheckout": "47f310b648e9d5d9f84cb1bdecd128789f1935b9",
+  "ciRunId": 37644483224,
+  "pullRequest": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/84",
+  "runtimeUpdated": false,
+  "note": "该归档认证源码候选fb9，不认证包含报告本身的后续提交；镜像5e1b与新宿主controller分开。publication/merge取PR实时与受管delivery receipt。证据按原相对路径归档于.git/leon-engineering/evidence/task-20261007-bda2aa87e13e/integration/logs/stage3；恢复候选checkout及原相对证据即可重新校验。"
+}

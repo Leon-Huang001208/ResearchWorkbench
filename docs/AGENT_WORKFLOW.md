@@ -1,6 +1,6 @@
 # Agent 任务路由指南
 
-当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
+当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：用户已开启阶段二、三，Mac 任务验收 macOS Native 与 Docker Desktop；Windows/Linux 由对应设备执行，缺设备保留交接。Ubuntu 通用 CI 不代替平台真机验收。
 
 
 本指南用于在开始工作前选择合适的执行方式，并定义可复核的交付证据。共享规则以仓库根目录的 `AGENTS.md` 为准；`.agents/skills/` 中存放已跟踪的项目 skills。`.claude/` 仅是本机可选配置，不能作为共享规则来源。

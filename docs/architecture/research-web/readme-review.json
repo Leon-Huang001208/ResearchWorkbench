@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "更新 Docker 临时状态 tmpfs 与持久产品数据、凭据的明确边界。",
-  "reason": "Desktop 状态 bind 的身份视图不稳定，改为 Linux 私有 tmpfs；README同步部署语义，真实镜像验收尚待完成，不将本地合同误作健康证明。"
+  "summary": "更新 macOS Docker Desktop 实际生命周期证据入口及临时状态、持久数据边界。",
+  "reason": "独立安装、Doctor、重启、down/up、架构浏览器与端口释放已验证；镜像5e1b与宿主fb9身份分开，Windows/Linux及真实厂商/模型调用不从Mac结果推导通过。"
 }

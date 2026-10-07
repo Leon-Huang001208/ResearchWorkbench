@@ -31,7 +31,7 @@ macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Key
 
 macOS：
 
-保留的 macOS Docker 入口（本阶段暂缓，不执行）：
+macOS Docker 入口（本任务已执行隔离安装与生命周期验收，证据见支持矩阵）：
 
 ```bash
 ./setup-web.sh --runtime docker
