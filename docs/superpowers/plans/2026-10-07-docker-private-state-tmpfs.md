@@ -49,6 +49,13 @@ node --test tests/javascript/docker_runtime_contract.test.mjs
   and HostConfig.Tmpfs; compare semantic options strictly, reject unknown or
   duplicate contradictory options, preserve image/install/launch checks. Host
   preparation validates/creates only the private logs child with existing APIs.
+  Actual created/running Docker29.8.2 proof has no --tmpfs entries in Mounts;
+  HostConfig.Tmpfs is mandatory authoritative configuration, explicit tmpfs
+  Mounts entries are optional but strictly validated when present. Apply this
+  same API normalization to the existing portless control-preparer inspector,
+  preserving its exact four original tmpfs option profiles, sole data bind,
+  nonce/image/command/entrypoint checks and cleanup. Fresh missing-control startup
+  must not fail merely because Docker omits duplicate tmpfs representation.
 
 ```text
 /state:rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m
