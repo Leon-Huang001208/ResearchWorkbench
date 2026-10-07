@@ -11,6 +11,10 @@
 Owner: one fresh implementer in the existing macos-dual-runtime-acceptance worktree.
 Allowed source: compose.yaml, research_workbench_entrypoint/docker_runtime.py,
 docker/supervisor.py; Dockerfile/entrypoint only if exact configuration needs it.
+Existing .github/workflows/research-web-docker.yml fixture preparation may only
+add "$root/state/logs" to its existing private10001:10001/0700 install command,
+because direct Compose intentionally cannot create the bind source. No trigger,
+runner, matrix or remote workflow execution changes.
 Tests: existing test_docker_runtime.py, test_container_supervisor.py,
 test_docker_packaging.py and docker_runtime_contract.test.mjs.
 Docs: ARCHITECTURE/DEVELOPMENT_MAP, research-web-installation, architecture
