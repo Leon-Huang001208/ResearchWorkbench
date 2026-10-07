@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增能力支持矩阵入口和明确平台安全边界，用户重新开启跨平台任务。",
-  "reason": "Doctor实现状态不等于平台验收；README连接支持矩阵，保留严格沙箱、文档reader与ACL限制，不宣称未验证系统支持。"
+  "disposition": "unchanged",
+  "summary": "复核 Docker 临时运行状态 tmpfs 与持久数据、凭据边界；公开安装与 CLI 入口保持。",
+  "reason": "本次修复仅改变容器内部状态挂载与严格归属核验，README 的安装入口和能力限制仍准确；真实生命周期尚待候选镜像验收。"
 }

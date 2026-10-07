@@ -33,6 +33,11 @@ MAX_OUTPUT = 65536
 IMAGE = "research-workbench:local"
 _ID = re.compile(r"[a-f0-9]{64}")
 _IMAGE_ID = re.compile(r"sha256:[a-f0-9]{64}")
+_TMPFS_OPTIONS = {
+    "/tmp": frozenset({"rw", "nosuid", "nodev", "mode=1777"}),
+    "/home/rwb": frozenset({"rw", "nosuid", "nodev", "uid=10001", "gid=10001", "mode=700"}),
+    "/state": frozenset({"rw", "nosuid", "nodev", "uid=10001", "gid=10001", "mode=700"}),
+}
 _IMAGE_FORMAT = (
     '{"id":{{json .Id}},"runtime":'
     '{{json (index .Config.Labels "io.research-workbench.runtime")}}}'
@@ -48,6 +53,7 @@ _CONTAINER_FORMAT = (
     '"running":{{json .State.Running}},"state":{{json .State.Status}},'
     '"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}"none"{{end}},'
     '"ports":{{json .NetworkSettings.Ports}},'
+    '"tmpfs":{{json .HostConfig.Tmpfs}},'
     '"mounts":[{{range $i,$m := .Mounts}}{{if $i}},{{end}}'
     '{"Source":{{json $m.Source}},"Destination":{{json $m.Destination}},'
     '"Type":{{json $m.Type}}}{{end}}]}'
@@ -412,7 +418,6 @@ class DockerRuntime:
     def _environment(self, image: str = IMAGE) -> dict[str, str]:
         return {
             **minimal_environment(), "RWB_DATA_DIR": str(self.data_dir),
-            "RWB_STATE_DIR": str(self.state_dir),
             "RWB_CREDENTIAL_DIR": str(self.credential_dir),
             "RWB_INSTALLATION_ID": self.installation_id,
             "RWB_WEB_PORT": str(self.ports[0]),
@@ -577,7 +582,7 @@ class DockerRuntime:
             raise ControlError("docker_ownership_mismatch")
         mounts = value.get("mounts")
         expected_mounts = {
-            "/data/research-web": str(self.data_dir), "/state": str(self.state_dir),
+            "/data/research-web": str(self.data_dir),
             "/run/rwb-secrets": str(self.credential_dir),
         }
         if not isinstance(mounts, list) or any(
@@ -591,9 +596,22 @@ class DockerRuntime:
         actual = {item.get("Destination"): item.get("Source") for item in binds}
         if len(binds) != len(expected_mounts) or actual != expected_mounts:
             raise ControlError("docker_ownership_mismatch")
-        if any(item.get("Type") != "tmpfs" or item.get("Destination") not in ("/tmp", "/home/rwb")
-               for item in ephemeral) or len({item.get("Destination") for item in ephemeral}) != len(ephemeral):
+        if (
+            len(ephemeral) != len(_TMPFS_OPTIONS)
+            or {item["Destination"] for item in ephemeral} != set(_TMPFS_OPTIONS)
+            or any(item["Type"] != "tmpfs" or item["Source"] != "" for item in ephemeral)
+        ):
             raise ControlError("docker_ownership_mismatch")
+        tmpfs = value.get("tmpfs")
+        if not isinstance(tmpfs, dict) or set(tmpfs) != set(_TMPFS_OPTIONS):
+            raise ControlError("docker_ownership_mismatch")
+        for destination, expected_options in _TMPFS_OPTIONS.items():
+            options = tmpfs[destination]
+            if not isinstance(options, str):
+                raise ControlError("docker_ownership_mismatch")
+            entries = options.split(",")
+            if len(entries) != len(expected_options) or set(entries) != expected_options:
+                raise ControlError("docker_ownership_mismatch")
         image = value.get("image")
         if not isinstance(image, str) or not _IMAGE_ID.fullmatch(image) or self._image(image)["id"] != image:
             raise ControlError("docker_ownership_mismatch")
@@ -647,7 +665,7 @@ class DockerRuntime:
             "container": {"state": "unknown", "ownership_id": None},
             "image": {"ready": False, "id": None},
             "ports": {"web": self.ports[0], "runtime": self.ports[1], "verified": False},
-            "volumes": {"verified": False, "data": "bind", "state": "bind", "credentials": "bind"},
+            "volumes": {"verified": False, "data": "bind", "state": "tmpfs", "credentials": "bind"},
             "data": {"ready": False},
             "python": {"applicable": False}, "node": {"applicable": False},
             "cjpy": {"applicable": False},
@@ -762,7 +780,7 @@ class DockerRuntime:
             if not self.installation_id:
                 raise ControlError("docker_installation_missing")
             for path in (self.data_dir, self.state_dir, self.credential_dir):
-                # Mount setup is explicit; readonly queries never create paths.
+                # Bind roots and host control state are explicit; reads never create paths.
                 from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
                 try:
                     with runtime_state_directory(path, create=True):

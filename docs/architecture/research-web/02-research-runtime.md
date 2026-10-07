@@ -20,8 +20,8 @@ Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时�
 
 Docker supervisor 的启动顺序先准备 `/state/runtime` 与 `/run/rwb-secrets/private` 私有叶，
 再清理本次认证状态、启动 DSH、探测并启动 Web。健康检查复用 `/state/runtime/auth.json`；
-重启保留私有叶及凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
-固定缺失叶的准备先用保留父FD创建，再由原runtime_state_directory完整重pin；不会捕获
+重启重新创建 tmpfs 状态叶，保留凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
+固定持久 bind 缺失叶的准备先用保留父FD创建；tmpfs 状态使用原严格 create，再由原runtime_state_directory完整重pin；不会捕获
 任意校验失败后无条件重试。data-root/logs使用相同首建顺序，自定义目录维持原严格create路径。
 启动失败额外记录固定阶段、受控异常类别、数字 errno 与 runtime/web 已知退出码；
 日志初始化前后使用同一安全字段，原失败退出及有界清理流程保持不变。

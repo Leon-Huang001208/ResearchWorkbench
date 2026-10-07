@@ -8,16 +8,16 @@
 新建Compose调用的launch label通过私有临时目录内的最小配置overlay提供，退出后清除。
 它不含凭据或用户内容，不写入接受摘要；持久化数据与秘密不参与失败容器回滚删除。
 
-Docker 实际持久化状态位于状态 bind 的 `runtime/` 子目录，凭据记录位于独立凭据 bind 的
+Docker 临时运行状态位于私有 tmpfs 的 `/state/runtime`，凭据记录位于独立凭据 bind 的
 `private/` 子目录；两者由容器用户创建，避免将 Desktop 映射为 root 的挂载根误作私有叶。
-容器重建后继续验证和复用这些叶，不迁移或复制 Native Keychain，也不改变 canonical data-root。
+容器重建后重新创建运行状态，并继续验证和复用持久凭据叶，不迁移或复制 Native Keychain，也不改变 canonical data-root。
 
 Docker 接受摘要 `install/docker-manifest.json` 是私有、限长、禁止 alias 的部署状态，绑定
 image ID 与构建合同，不能充当研究数据。候选健康失败或发布失败只回滚本次已确认归属的
 容器；共享研究数据、独立凭据与旧接受镜像保留。模式提交失败恢复旧接受摘要字节。
 显式离线 repair 只可非 force 移除已证明停止且归属正确的旧容器，不删除其镜像或挂载数据。
 
-双运行时不复制或分叉研究事实：Native 与 Docker 依次 bind/读取同一 `~/.research-workbench/research-web/`，会话、附件、DataHub 快照和产物仍使用下述相同文件合同。模式切换先停止并确认旧模式退出，禁止并发写。进程/认证/build lock 不放在产品数据中：Native 保留自身 `run/` 状态，Docker 使用 `run/docker/<installation-id>/`；Docker 凭据单独存入 `secrets/docker/<installation-id>/` 并 mount 到容器，Native 系统 keyring 不自动迁入。安装摘要分别记录 Native 与 Docker 事实，不能互相证明健康。卸载默认保留数据和秘密，任何清理需独立授权及备份。
+双运行时不复制或分叉研究事实：Native 与 Docker 依次 bind/读取同一 `~/.research-workbench/research-web/`，会话、附件、DataHub 快照和产物仍使用下述相同文件合同。模式切换先停止并确认旧模式退出，禁止并发写。进程/认证/build lock 不放在产品数据中：Native 保留自身 `run/` 状态，Docker 宿主管理状态使用 `run/docker/<installation-id>/`，容器认证与 build lock 使用 `/state` tmpfs；Docker 凭据单独存入 `secrets/docker/<installation-id>/` 并 mount 到容器，Native 系统 keyring 不自动迁入。安装摘要分别记录 Native 与 Docker 事实，不能互相证明健康。卸载默认保留数据和秘密，任何清理需独立授权及备份。
 
 Web 安装清单位于 Research Workbench 私有数据根的 `install/manifest.json`，只保存代码/依赖版本与
 摘要；CJPY wheel、Web 锁和 DSH 闭包均以哈希核对。清单和安装日志不保存 `CJ_KEY`、模型密钥、

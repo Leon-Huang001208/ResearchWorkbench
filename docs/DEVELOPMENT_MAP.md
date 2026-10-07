@@ -14,7 +14,7 @@
 
 以下原有表继续映射产品模块；上表只添加部署与运行边界，不创建第二套 Web/DSH 引擎。
 
-Docker bind 根与私有叶布局由 Dockerfile/Compose 配置、entrypoint 父目录检查、supervisor
+Docker 私有状态 tmpfs、持久 bind 根与私有叶布局由 Dockerfile/Compose 配置、entrypoint 父目录检查、supervisor
 严格创建与 healthcheck 只读消费共同维护；测试闭包为 `test_container_supervisor.py`、
 `test_credential_backend.py`、`test_runtime_launch.py`、`test_docker_packaging.py` 与
 `docker_runtime_contract.test.mjs`。不得通过放宽 owner、mode 或 no-follow 来适配 bind 映射。
