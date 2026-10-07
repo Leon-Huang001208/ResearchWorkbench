@@ -24,3 +24,7 @@ frameworks、integration-coordinator、本机集成与 verification-workflow 使
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"任务和证据身份字段补入既有planner与receipt，规划依然只读，图中源码映射和验证交付流程关系未变。","diagrams":[]} -->
 
 必需图源/HTML/审阅输入未改变，复用已登记哈希证据；生成索引和阅读卡片随精确映射更新，源码快照与产物交付提交分开记录。真实模型、厂商授权、Windows目标版本、Linux原生与两架构 Docker CI 待对应设备任务，不用Mac容器结果替代。
+
+## 实际网络故障与定点修复
+
+Mac Docker 构建的直连认证超时，现有系统代理匿名认证HTTP200；显式代理后APT HTTP大包仍中断，未标安装通过。同一GCC包经HTTPS完整下载16300644字节、HTTP200、29.435秒；固定Python基础镜像已有CA bundle。Dockerfile两个APT阶段改HTTPS，保留签名/原包/固定镜像，无TLS bypass。新增固定合同先RED后GREEN；重新镜像构建结果另记。Native独立安装/start/Doctor/重启、沙箱实际执行/会话外写入拒绝及非秘密数据保留已通过。当前新增门禁检查为271通过、1项原生Windows专属跳过，该跳过不认证Windows。

@@ -36,7 +36,8 @@ RUN python -c 'from pathlib import Path; from scripts.setup_web import SetupWebI
 FROM python-builder AS dsh-builder
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY --from=node-runtime /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates g++ make \
+RUN sed -i 's@http://deb.debian.org/@https://deb.debian.org/@g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends git ca-certificates g++ make \
     && rm -rf /var/lib/apt/lists/* \
     && ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && npm install --global corepack@0.34.0 \
@@ -67,7 +68,8 @@ WORKDIR /opt/rwb
 RUN python docker/stage_dsh.py
 
 FROM ${PYTHON_IMAGE} AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates libstdc++6 libgomp1 \
+RUN sed -i 's@http://deb.debian.org/@https://deb.debian.org/@g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends git ca-certificates libstdc++6 libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 rwb \
     && useradd --uid 10001 --gid 10001 --create-home rwb \
