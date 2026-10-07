@@ -6,11 +6,11 @@
 |---|---|
 | 原模型与公开研究 | 已有真实生成、受控公开净值工具、快照与最终回复证据；只覆盖声明的 NAV 范围。T6 已通过；B 供应商归因用户已豁免，归因事实仍未验证。 |
 | 兼容文本 | 独立 Ollama/Qwen2.5 无Key文本生成、普通research-web会话与Host/DSH冷重启已验证；不认证工具、多模态、带Key商业服务或研究质量。 |
-| 商业数据 | 用户已明确Wind/iFinD均有可用账户；接口权限和现成iFinD HTTP token仍待确认，不再笼统记“无账户”。Wind插件心跳通过，但一次封闭业务查询deadline/0行；不影响原公开NAV。 |
+| 商业数据 | 用户确认Wind/iFinD有可用账户；最新反馈为iFinD只有终端账户、接口权限不确定，未提供接口Token。Wind插件心跳通过，但一次封闭业务查询deadline/0行；不影响原公开NAV。 |
 | Word功能 | 旧aabce313仍timeout且具体根因未知。新212f1d02已真实创建/写入/保存，保存后的文档引用关闭失败；重新按登记名称绑定关闭成功，但同一文件重开15秒未返回，读回仍未通过。 |
 | Excel/PowerPoint | Excel283d2d51在文件准备前timeout；PowerPoint13a4c00a已创建/写入，保存timeout。两项均不能记为应用完整可用，不连续重试。 |
 | Word清理 | 旧两项用户提供的候选归属仍UNVERIFIED且未操作。新212f对象路径、固定合成正文与saved属性已核对匹配，原关闭维护成功，随后重开timeout，因此文件清理仍UNVERIFIED。其余新资源也按各自登记保留未确认状态。 |
-| hostAcceptance | PASS仅属于冻结93bc源码及匹配CI；本轮Office代码已有新修改，相关本地/新候选CI须另闭合，不能继承旧head通过或冒充Office实机成功。 |
+| hostAcceptance | 当前Office源码候选0c5c967258e29ce35e9bdb28cbe218abfc073f46工程验收PASS：相关本地闭包及匹配的新macOS安装CI通过。它不认证上述Office实机功能成功。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
 本轮用户扩大授权为macOS Native Office三件套与Wind/iFinD金融接口。Outlook/OneNote/Teams安装事实不冒称产品适配完成，不触发邮件发送或会议操作。原各轮结果和失败历史完整保留；旧段落的当时状态不覆盖本节与最新记录。机器验收plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮模型请求0。金融调用由用户最新授权执行，心跳与实际数据查询分别报告，不把HTTP200当数据成功。
@@ -972,3 +972,23 @@ Office本地合同最终56 PASS/1既有skip；4项文档/架构/额度/跨平台
 当前只已修复诊断、归属及清理保护并取得上述部分真实步骤；所有Office/金融软件未全通。Word/Excel/PPT具体卡点、对应资源清理、Wind数据deadline、iFinD官方接口权限/Token仍各自单列。已通过的模型/公开NAV仍有效；不重做B归因/T6/Keychain/DSH升级，不改生产，不合并或发布。总mergeReady/releaseReady继续false，下一步仅补受影响工程闭包及匹配新候选CI，并在人工/接口条件真的改变后处理相应实机部分，不无限重复失败操作。
 
 Office修复送检前，本机集成+协议+API累计相关回归实际129 PASS/1既有skip，307.79秒，office-local-regression-closure.log；治理JS104 PASS。最终目标Black/isort/Ruff及diff检查通过，文档治理violations=[]、Python索引check通过，mypy最终与冻结e13同边界16旧诊断逐项一致。Python只读复审确认两项P2闭合且未发现新增重要问题，未代替任何实机证据。当前仓库API为public，PR81 OPEN/draft/MERGEABLE、远端head仍93bc/base205d；只沿普通同任务分支送检，不合并、不提高预算、不dispatch他平台、不把Goal虚假标完成换权限。
+
+### 本轮工程闭包、接口条件与停止状态
+
+固定送检源码为 `0c5c967258e29ce35e9bdb28cbe218abfc073f46`；PR #81目标为 `205d2a170d9ece9c2751e014b63abe326510ab9c`，实际CI检出的合并预览为 `4ef494d0deab00304b80979e1ac4cf1c33eb5990`，父提交对应上述base/head。完整PR范围77路径，原任务范围与本轮增量分开保留。PR继续草稿、仅送检、不合并。
+
+| 当前候选自动门 | Run / attempt / event | 实际结果与平台 |
+|---|---|---|
+| Project Constraints | 37645938961 / 1 / pull_request | success；Ubuntu通用合同，不计macOS实机 |
+| Research Web Checks | 37645938981 / 1 / pull_request | success；Ubuntu通用合同，不计macOS实机 |
+| Research Web Bootstrap | 37645938975 / 1 / pull_request；job112876575295 | success；macos-14标准runner，干净安装、启动与Doctor通过 |
+
+三项metadata的head均为0c5，checkout均为4ef。Mac artifact11495050188的Doctor为ok=true、installation_ok=true、product_ready=true、issues=[]。证据在 `word-closeout/office-ci/`；只留metadata与脱敏checkout行，未上传供应商凭据。未手动dispatch、rerun或修改额度。原 `plan.json/receipt.json` 已对应完整0c5候选，校验valid=true、hostAcceptance=PASS；aggregateAcceptance=NOT_READY、mergeReady=false、releaseReady=false。这仅闭合工程门，真实Office/商业数据缺项保持原结果。未变模型/安装/运行边界的历史证据复用依据记录于office-evidence-reuse.json，并由当前相关API/协议129 PASS及新Mac安装CI补证。
+
+用户最新明确iFinD只有终端账户、接口权限不确定。记录为接口许可/安全Token路径未确认，不等于没有账户，也不推断已经具有官方API权限。当前自定义网关表单不能直接承接官方Token；本轮没有iFinD请求、Token提取/重置或账号权限变更。接口真实验收须先有官方权限事实及匹配安全接入，不能通过终端登录或HTTP200替代。不要要求购买账户或发送秘密。
+
+正常受管stop实际exit0：所属Host70793和DSH70648已停止；随后status exit0，两项pid均null、ready=false。证据office-owned-host-final-stop.json及office-owned-host-final-status.json。未停止生产8088/3081，未退出共享Word/Excel/PowerPoint。应用窗口元数据没有列出与登记ID匹配的授权/保存提示，但不据此断言无模态提示或应用可调用。旧Word候选及本轮未确认资源继续保留UNVERIFIED；停止Host不等于Office资源清理。
+
+仍未闭合的实机条件分别为Word同文件重开超时、Excel文件准备超时、PowerPoint保存超时、Wind业务deadline，以及iFinD接口权限/接入。没有确定Office系统级根因；不能仅调大超时、连续重试或绕过受保护目录。已提出的Word提示类型反馈尚未取得，不重复询问同一问题。独立工程工作已完成，实机功能目标仍未全部完成。后续只有相应应用响应/权限条件改变或直接缺陷得到失败证据后才恢复受影响实机步骤。原模型、公开NAV、T6和B豁免不重新打开。
+
+本节之后的本地提交仅更新报告，源码候选仍冻结0c5、CI对应4ef，不能说CI测试过报告新HEAD；不为报告追加反复推送/安装CI。最终报告增量按L0检查，完整交付范围和冻结验收证据保持不变。此次模型请求0，生产未更新、不合并、不发布。
