@@ -234,6 +234,11 @@ Docker 在运行中无法认证证明研究空闲；重启必须显式 `--force`
 
 Windows 将入口写为 `rwb.cmd runtime status --json`、`rwb.cmd runtime use docker --stop-current`、`rwb.cmd web doctor --json` 等对应命令；这些是接口说明，不表示本轮已在真实 Windows 上跑通 Docker。`runtime use` 默认不停止当前服务；存在运行中的旧模式时必须显式提供 `--stop-current`，且仅在旧进程/容器归属可验证时停止。未知端口占用、无法确认的 PID/容器、活动研究或状态异常均失败关闭；不要手动改模式记录来绕过。运行时选择保存在私有 `install/runtime.json`，无需 `.venv` 即可路由 Docker 命令；Native 命令仍进入 Native 环境。
 
+已确认运行中的 Native 实例在 `--stop-current` 的公开停止成功后，模式切换最多等待
+45秒让停止前的两个 Native 端口释放；超时仍为 `runtime_stop_failed`，模式保持原值。
+该等待不停止占用者，不等待外来默认端口或 Docker 内部端口；随后仍须通过原归属、
+两模式状态、锁与模式 CAS 复查。未授权、未知归属、已停止或停止失败不进入等待。
+
 `runtime use` 最终停止复查仍严格返回 `runtime_stop_failed`。stderr 的
 `runtime_switch phase=finalize` 诊断仅包含固定模式、`report_not_ok` / `still_running`
 以及受控 issue；未知代码映射为 `unknown`，仍运行时为 `none`，不输出原 report、路径或秘密。

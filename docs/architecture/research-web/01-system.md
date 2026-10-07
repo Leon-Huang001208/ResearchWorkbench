@@ -1,5 +1,8 @@
 # 部署与模块职责
 
+Native→Docker 顺序切换在公开 Native stop 成功后，沿原 stdlib bootstrap 有界等待
+原 Native 端口释放，再取得既有 switch_select lease；不新增组件或停止权限。
+
 模式切换 finalize 拒绝仅增加现有 stdlib logger 的 stderr 固定诊断字段；部署节点与控制器职责不变。
 Native bridge 的既有 status 拒绝处补固定 precheck/child/postcheck 阶段，不增加 bridge 调用或部署组件。
 

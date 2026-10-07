@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "已复核 runtime switch finalize 与 Native status 三阶段受控失败诊断；README 的公开入口和部署边界兼容，无须修改。",
-  "reason": "仅在既有拒绝分支追加 stderr 固定 mode/reason/allowlist issue，不新增公开参数、schema、探针、依赖或重试。runtime_stop_failed 返回、严格 running 校验、所有权、锁与 mode CAS 保持；历史切换原因仍待实测，诊断补足不认证生命周期已修复。"
+  "summary": "已复核公开 Native stop 后最多45秒的端口释放等待；README 入口和部署边界兼容，无须修改。",
+  "reason": "等待仅限已验证运行的实际 NativeRuntime、显式停止且公开 stop 成功；原 Native 端口、有限单调期限和原 port_busy，无新公开参数、持久格式或权限。原 switch_select lease、scope、fresh status 与 CAS 仍完整复查；物理生命周期与远端 CI 分别留证。"
 }

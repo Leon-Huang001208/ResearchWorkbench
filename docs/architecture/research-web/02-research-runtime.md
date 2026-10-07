@@ -1,5 +1,12 @@
 # 研究协议、执行状态与恢复
 
+已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，
+等待停止前捕获的 Native 两端口可由原 `port_busy` 判定释放。内部预算默认45秒，
+只接受有限的精确 int/float、0至45秒；bool与数值子类在停止前拒绝。
+单调期限下每轮最多睡眠0.1秒；超时返回 `runtime_stop_failed` 并保留旧模式。
+等待不捕获或刷新外来观察，不处理外来默认端口或 Docker 内部端口；原 switch_select
+锁、scope、两模式新状态与原快照 CAS 仍在等待后执行，任一变化照原边界拒绝。
+
 模式切换最终复查的 `runtime_stop_failed` 保持原返回与检查优先级；日志区分控制器模式及
 `report_not_ok` / `still_running`，不增加状态探测、重试或改变 lifecycle lease / mode CAS。
 Native status 三个原失败阶段用固定日志区分；安全检查、子进程次数、40秒预算和原报告原样保留。

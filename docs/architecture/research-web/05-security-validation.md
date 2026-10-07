@@ -1,5 +1,11 @@
 # 安全边界与验证方法
 
+停止端口等待不授予所有权：只在实际 NativeRuntime 的初始状态已确认运行、显式
+stop-current 与公开 stop 成功后执行；原 Native 端口在停止前冻结。预算在停止前
+拒绝 bool、数值子类、非有限、负数与超过45秒的值；巨大整数先比较界限。
+等待不刷新 ForeignLedger，不重试已失败的 guard，不用 SO_REUSEADDR；结束后仍走
+原 lease/scope、新状态和 CAS。日志仅固定 begin/released/timeout，不含身份或秘密。
+
 模式切换 finalize 日志仅输出固定模式、拒绝分支与显式 allowlist 的首个 issue 代码；未知、
 非字符串及空 issue 映射为 `unknown`，仍运行映射为 `none`，不输出 report、异常、路径或秘密。
 严格 running 类型检查、短路、错误优先级、所有权、锁与模式 CAS 均保持原合同。

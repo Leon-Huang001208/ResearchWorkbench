@@ -7,9 +7,11 @@ import logging
 import multiprocessing
 import os
 import re
+import socket
 import stat
 import subprocess
 import sys
+import threading
 import traceback
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -248,6 +250,187 @@ def test_conditional_mode_write_rejects_concurrent_change(tmp_path):
     with pytest.raises(RuntimeModeError, match="runtime_mode_changed"):
         store.write("native", expected=expected)
     assert store.read() == changed
+
+
+@pytest.fixture
+def native_stop_switch(tmp_path, monkeypatch):
+    """Isolate bridge reports; exercise real Native public stop and socket bind checks."""
+    from research_workbench_entrypoint import bootstrap
+
+    store = RuntimeModeStore(tmp_path / "home")
+    before = store.write("native")
+    native = bootstrap.NativeRuntime(tmp_path, store.home, ports=(0, 0))
+    state = {"running": True, "ok": True, "stop_ok": True, "stops": 0, "after_stop": None}
+
+    def probe(operation):
+        if operation == "stop":
+            state["stops"] += 1
+            if not state["stop_ok"]:
+                return bootstrap.result("runtime_stop_failed", mode="native")
+            state["running"] = False
+            if state["after_stop"]:
+                state["after_stop"]()
+        return bootstrap.result(
+            *(() if state["ok"] else ("runtime_ownership_unknown",)),
+            mode="native",
+            services={role: {"running": state["running"]} for role in ("web", "runtime")},
+        )
+
+    monkeypatch.setattr(native, "_probe", probe)
+    docker = SimpleNamespace(
+        preflight=lambda: bootstrap.result(mode="docker"),
+        status=lambda: bootstrap.result(
+            mode="docker", services={role: {"running": False} for role in ("web", "runtime")}
+        ),
+    )
+    return bootstrap, store, before, native, docker, state
+
+
+def test_native_stop_switch_waits_for_real_bound_socket_release(native_stop_switch, caplog):
+    bootstrap, store, _, native, docker, state = native_stop_switch
+    with socket.socket() as bound:
+        bound.bind(("127.0.0.1", 0))  # Bound, deliberately not listening.
+        native.ports = (bound.getsockname()[1], 0)
+        release = threading.Event()
+        worker = threading.Thread(target=lambda: (release.wait(0.15), bound.close()))
+        state["after_stop"] = worker.start
+        with caplog.at_level(logging.INFO, logger=bootstrap.__name__):
+            try:
+                report = bootstrap.switch_runtime(
+                    store, "docker", docker, native, stop_current=True, wait_timeout=1
+                )
+                assert report["ok"] and bound.fileno() == -1
+            finally:
+                release.set()
+                worker.join(timeout=2)
+    assert store.read().mode == "docker"
+    messages = [record.getMessage() for record in caplog.records]
+    assert "runtime_switch phase=native_port_wait code=begin" in messages
+    assert "runtime_switch phase=native_port_wait code=released" in messages
+
+
+def test_native_stop_switch_bound_timeout_keeps_mode(native_stop_switch, caplog):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+    with socket.socket() as bound:
+        bound.bind(("127.0.0.1", 0))
+        native.ports = (bound.getsockname()[1], 0)
+        report = bootstrap.switch_runtime(
+            store, "docker", docker, native, stop_current=True, wait_timeout=0.02
+        )
+        assert not report["ok"] and report["issues"] == ["runtime_stop_failed"]
+        assert bound.fileno() != -1
+    assert store.read() == before and state["stops"] == 1
+    assert "runtime_switch phase=native_port_wait code=timeout" in caplog.messages
+
+
+@pytest.mark.parametrize("budget", [-1, True, False, float("nan"), float("inf"), "1", 46, 10**1000])
+def test_native_stop_switch_rejects_invalid_budget_before_stop(native_stop_switch, budget):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+    report = bootstrap.switch_runtime(
+        store, "docker", docker, native, stop_current=True, wait_timeout=budget
+    )
+    assert not report["ok"] and state["stops"] == 0
+    assert store.read() == before
+
+
+@pytest.mark.parametrize("case", ["failed_stop", "unknown", "unauthorized", "stopped"])
+def test_native_stop_switch_no_wait_without_successful_owned_stop(
+    native_stop_switch, monkeypatch, case
+):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+    state["stop_ok"] = case != "failed_stop"
+    state["ok"] = case != "unknown"
+    state["running"] = case != "stopped"
+    monkeypatch.setattr(bootstrap, "port_busy", lambda _port: pytest.fail("unexpected wait"))
+    report = bootstrap.switch_runtime(
+        store, "docker", docker, native, stop_current=case != "unauthorized"
+    )
+    assert report["ok"] == (case == "stopped")
+    if case != "stopped":
+        assert store.read() == before
+    assert state["stops"] == (1 if case == "failed_stop" else 0)
+
+
+def test_native_stop_switch_rechecks_mode_after_wait(native_stop_switch):
+    bootstrap, store, _, native, docker, state = native_stop_switch
+    with socket.socket() as bound:
+        bound.bind(("127.0.0.1", 0))
+        native.ports = (bound.getsockname()[1], 0)
+
+        def concurrent_change():
+            store.write("docker")
+            bound.close()
+
+        release = threading.Event()
+        worker = threading.Thread(target=lambda: (release.wait(0.15), concurrent_change()))
+        state["after_stop"] = worker.start
+        try:
+            report = bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)
+        finally:
+            release.set()
+            worker.join(timeout=2)
+    assert report["issues"] == ["runtime_mode_changed"]
+
+
+def test_native_stop_switch_wait_uses_pre_stop_ports_only(native_stop_switch, monkeypatch):
+    bootstrap, store, _, native, docker, state = native_stop_switch
+    native.ports = (18088, 13081)
+    state["after_stop"] = lambda: setattr(native, "ports", (8088, 3081))
+    checked = []
+    monkeypatch.setattr(bootstrap, "port_busy", lambda port: (checked.append(port), False)[1])
+    assert bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)["ok"]
+    assert checked == [18088, 13081]
+
+
+def test_native_stop_switch_rejects_numeric_subclass(native_stop_switch):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+
+    class Budget(float):
+        pass
+
+    report = bootstrap.switch_runtime(
+        store, "docker", docker, native, stop_current=True, wait_timeout=Budget(1)
+    )
+    assert report["issues"] == ["runtime_stop_failed"]
+    assert state["stops"] == 0 and store.read() == before
+
+
+@pytest.mark.parametrize("budget", [0, 0.0, 45, 45.0])
+def test_native_stop_switch_accepts_bounded_numeric_budget(native_stop_switch, budget):
+    bootstrap, store, _, native, docker, state = native_stop_switch
+    assert bootstrap.switch_runtime(
+        store, "docker", docker, native, stop_current=True, wait_timeout=budget
+    )["ok"]
+    assert state["stops"] == 1
+
+
+def test_native_stop_switch_default_budget_is_45_seconds():
+    import inspect
+
+    from research_workbench_entrypoint.bootstrap import switch_runtime
+
+    assert inspect.signature(switch_runtime).parameters["wait_timeout"].default == 45
+
+
+def test_native_stop_switch_runtime_restart_during_wait_is_rejected(native_stop_switch):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+    with socket.socket() as bound:
+        bound.bind(("127.0.0.1", 0))
+        native.ports = (bound.getsockname()[1], 0)
+
+        def restart():
+            state["running"] = True
+            bound.close()
+
+        release = threading.Event()
+        worker = threading.Thread(target=lambda: (release.wait(0.15), restart()))
+        state["after_stop"] = worker.start
+        try:
+            report = bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)
+        finally:
+            release.set()
+            worker.join(timeout=2)
+    assert report["issues"] == ["runtime_stop_failed"] and store.read() == before
 
 
 @pytest.mark.parametrize("mode", ["native", "docker"])

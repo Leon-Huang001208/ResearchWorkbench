@@ -10,9 +10,11 @@ import argparse
 import contextlib
 import json
 import logging
+import math
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from .docker_runtime import (
@@ -341,13 +343,19 @@ def _running(report: dict) -> bool:
         raise ControlError("runtime_ownership_unknown") from None
 
 
-def switch_runtime(store, target, docker, native, *, stop_current=False, wait_timeout=10) -> dict:
+def switch_runtime(store, target, docker, native, *, stop_current=False, wait_timeout=45) -> dict:
     """Preflight, verify both owners, explicitly stop current, then atomically select."""
     from app.research_web.lifecycle_lock import LifecycleLock, LifecycleLockError
 
     try:
         if target not in ("native", "docker"):
             raise ControlError("runtime_target_invalid")
+        if (
+            type(wait_timeout) not in (int, float)
+            or not 0 <= wait_timeout <= 45
+            or not math.isfinite(wait_timeout)
+        ):
+            raise ControlError("runtime_stop_failed")
         before = store.read()
         if before.mode == target:
             return result(mode=target, changed=False)
@@ -366,6 +374,11 @@ def switch_runtime(store, target, docker, native, *, stop_current=False, wait_ti
         if running[target]:
             raise ControlError("runtime_other_running")
         if running[before.mode]:
+            native_ports = (
+                tuple(native.ports)
+                if before.mode == "native" and isinstance(native, NativeRuntime)
+                else ()
+            )
             if before.mode == "docker" and isinstance(docker, DockerRuntime):
 
                 def stop_docker():
@@ -379,6 +392,16 @@ def switch_runtime(store, target, docker, native, *, stop_current=False, wait_ti
                 stopped = controllers[before.mode].stop()
             if not stopped.get("ok"):
                 return stopped
+            if native_ports:
+                log.info("runtime_switch phase=native_port_wait code=begin")
+                deadline = time.monotonic() + wait_timeout
+                while any(port_busy(port) for port in native_ports):
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        log.warning("runtime_switch phase=native_port_wait code=timeout")
+                        raise ControlError("runtime_stop_failed")
+                    time.sleep(min(0.1, remaining))
+                log.info("runtime_switch phase=native_port_wait code=released")
 
         # Public stop owns its lock; never hold one across the Native subprocess.
         # Reacquire the shared lock before final state checks and metadata CAS.

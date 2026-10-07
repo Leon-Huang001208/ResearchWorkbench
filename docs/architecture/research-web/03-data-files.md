@@ -1,5 +1,8 @@
 # DataHub、研究资料与实际文件
 
+Native 停止端口等待只在 RAM 保留停止前端口元组与最多45秒单调期限；
+不保存观察基线或新状态，超时不写模式记录，产品数据、认证与凭据沿原路径。
+
 模式切换 finalize 诊断仅使用既有 stderr logger，不创建报告快照、marker、持久 proof 或日志目录。
 Native status 阶段诊断同样仅写固定 stderr 字段，不保存子进程报告或新增状态文件。
 
