@@ -1,6 +1,18 @@
-# 设置与真实能力闭环：阶段 0 + 1A
+# 设置与真实能力闭环：累计任务报告
 
-本轮仅阶段 0 与 1A；未执行 1B、2、3、4、5、6。附件为范围参考，用户本轮授权优先。本报告持续更新；机器验收 plan/receipt 及原始日志置于 `logs/settings-model-loop/`，不另建任务报告。
+## 当前状态（2026-10-07：macOS Word 有界收口）
+
+| 项目 | 当前结论与适用范围 |
+|---|---|
+| 原模型与公开研究 | 已有真实生成、受控公开净值工具、快照与最终回复证据；只覆盖声明的 NAV 范围。T6 已通过；B 供应商归因用户已豁免，归因事实仍未验证。 |
+| 兼容文本 | 独立 Ollama/Qwen2.5 无Key文本生成、普通research-web会话与Host/DSH冷重启已验证；不认证工具、多模态、带Key商业服务或研究质量。 |
+| 商业数据 | 所属账户与具体dataset权限缺失，真实验收未执行；不影响已验证公开能力，不要求购买。 |
+| Word功能 | 验证aabce313-3f97-43c7-a797-0e6283d42c40已结束但outcome=timeout；真实创建/保存/重开读回均没有成功证据，具体卡点与根因未知。 |
+| Word清理 | 旧Office文档清理UNVERIFIED，确切文件名未被旧记录保存；原任务自己的verification-runs目录为空不能证明Office文件不存在。新实机验证NOT_RUN，未创建新资源。 |
+| hostAcceptance | PASS属于源码候选93bc351c及其匹配Mac/通用CI；本轮离线诊断不冒充Word实机通过，报告提交不冒称已被CI测试。 |
+| aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
+
+本轮仅处理macOS Native Word超时与遗留资源。原首轮范围为阶段0与1A，后续各轮授权、结果及失败历史完整保留；旧段落的当时状态不覆盖本节与最新收口记录。附件为范围参考，用户当轮授权优先。机器验收plan/receipt及脱敏证据置于 `logs/settings-model-loop/`，不另建总报告；本轮不更新生产、不合并或发布，模型/商业数据请求均为0。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"模型配置与显式测试复用现有Host/DSH会话路径；增加最小测试路由但没有新增执行器、组件节点或信任边界，API及运行文档已同步。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"产品overlay通过固定DSH扩展点挂载模型provider，增加限定用途私有进程桥接和独立macOS Keychain边界；认证record保留原固定实现及独立文件。","diagrams":["01-deployment"]} -->
@@ -857,3 +869,46 @@ Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05�
 源码与固定候选93bc351c480d10609beb4dd7a98f148f9dc04beb一致，本切片只新增本地真实证据与本报告；既有完整256任务路径/74PR路径plan、receipt及三个匹配CI继续保留，不重跑全部C1/C2或真实旧服务生命周期、不冒称新报告HEAD已被CI测试。1B选定的一条macOS Native无Key文本路径已取得保存、测试、普通研究调用、真正Host/DSH冷重启证据，凭据隔离合同/真实系统库合成证据复用未变源码。带供应商专用Key的新增服务真实账户仍未验证，不承诺所有品牌、工具能力或研究质量。
 
 独立可完成工作收口后仍缺：阶段2自有商业账户与具体获准dataset；阶段4选定Office/Word真实可响应环境，以及原超时隔离资源的清理确认（UNVERIFIED）。这些缺项此前已连续记录，不能由扩大授权、fixture、旧CI或本地模型替代。Windows/Linux/Docker由所属平台任务留NOT_RUN，非本Mac任务阻塞。现有候选机械hostAcceptance=PASS，aggregateAcceptance=NOT_READY、mergeReady=false/releaseReady=false；全部阶段整体不能标完成。不再自动重试相同Office/TCC失败，不购买账户，不索取Key。最小解除条件是通过产品安全入口配置一个真实可用且具dataset权限的数据账户，以及可实际响应的Office/Word授权环境与所属资源清理结果；不需要扩大Git/安装权限。
+
+## macOS Word 有界收口：产品侧调查完成，旧资源仍待确认
+
+### W0：当前基线
+
+本轮开始HEAD=54f84900235bc2f63c069edd3821999093647230，工作区干净；PR81实际OPEN/draft/MERGEABLE，head93bc351c480d10609beb4dd7a98f148f9dc04beb、base205d2a170d9ece9c2751e014b63abe326510ab9c。不fetch整合新master、不reset、不覆盖后续成果。累计报告顶部现在明确当前状态，历史B缺证据与旧T6 NOT_RUN不再覆盖后续豁免/真实通过记录。当前旧源码、实际CI预览e3fac2c9与本地报告HEAD分别保存，不把报告HEAD说成CI测试过。
+
+### W1：原对象与归属限制
+
+原验证记录来自本任务 `logs/settings-model-loop/dsh-upgrade/word-verification.json`：ID aabce313-3f97-43c7-a797-0e6283d42c40、target=word、status=completed、outcome=timeout。创建2026-10-06T18:46:58.236133Z，结束18:50:08.418496Z，耗时190.182363秒；用户本地时间为2026-10-07 02:46:58—02:50:08。
+
+实例归属为 `/private/tmp/rwb-dsh-upgrade-acceptance-20261007/research-web`。只核对其已知 `local-integrations/local-integrations.json` 和 `local-integrations/verification-runs`：持久记录有word/outcome=timeout、结束时间与上下文指纹，没有validation ID到文件run UUID的映射；任务run目录现为空。源码中验证文件应落在 `/Users/leon/Library/Containers/com.microsoft.Word/Data/Documents/research-workbench-<32位随机run UUID>.docx`，但该UUID由工作目录另行随机生成，不是验证ID移除连字符所得值，无法从现存记录推导确切文件名。
+
+本轮没有对Office受保护目录做stat/list/read，没有切换工具绕过前次卡住的访问；没有扫描用户目录、Office容器或磁盘。旧清理仍UNVERIFIED：自己的run目录为空、finally尝试清理、工作进程退出均不足以独立证明Office文档不存在。文件是否实际创建、是否仍被Word打开、是否被用户接管均未知，未执行关闭或删除。
+
+一次最小人工核对已提出：只在Word现有窗口或Finder“前往文件夹”上述已知Documents路径，确认该02:46—02:50测试时间窗内research-workbench-<32位字符>.docx的完整文件名及是否接管/保留；无需文档内容，归属不明时先不删除。不得把“访问曾未返回”归因为已证实TCC拒绝；没有请求重置隐私权限或扩大系统访问。本轮实机步骤停在旧对象确认处。
+
+### W2—W3：链路、已证实症状与未知根因
+
+现有链路为routes验证请求→manager建立验证ID/queued/checking→后台verify_target创建独立spawn工作进程与另一个随机run目录→Word验证器→结果归一/持久化/能力投影。父进程上限180秒加10秒协调宽限；原耗时和timeout结果符合该上限。已知日志仅有start、process_tree_kill_failed警告及最终completed，未保留分步骤、具体异常类型或文件run UUID。该警告不能单独证明仍有子进程，更不能授权杀共享Word。
+
+| 链路段 | 当前源码行为 | 原真实证据 |
+|---|---|---|
+| 授权/Word响应 | osascript可归一明确的-1743/not authorized错误；外层统一有界停止 | 未取得授权结果或Word响应证据；不能断言TCC/登录/应用死锁 |
+| 创建 | 先在Office sandbox生成python-docx种子，再由Word打开 | 不证明Word真实创建；种子是否生成也未知 |
+| 写入/保存 | 仅对指定文件名的Word document改写并保存 | 没有步骤完成证据 |
+| 关闭/重开/读回 | 关闭指定文档、重开同一文件、由Word读取并比对合成文本 | 没有成功证据；不能用DOCX可解析替代 |
+| 工作进程清理 | POSIX专属进程组TERM/KILL及join；不退出共享Word | 原有一条kill警告，确切PID/异常类型未保存，存活情况未知 |
+| 文档/目录清理 | 限定Office文件路径、检查普通文件/拒绝symlink；finally尝试移除文件和任务run目录 | 原独立目录审计未返回，旧文件清理UNVERIFIED |
+
+`completed`表示作业结束，manager只将available提升为功能可调用；timeout仍callable=false。现有API与持久目标记录不保存分步骤或资源身份，这是原证据的诊断限制；未来诊断不能恢复已经丢失的旧随机ID。没有定位到足以解释此次190秒卡点的直接代码缺陷，也没有已复现的根因修复，不修改产品源码、脚本超时、安全判定或权限规则。若旧资源以后确认且环境条件实际改变，最多一次新实机调用前应为现有链路补最小run/步骤/清理诊断；本轮不为取得日志制造新的Office资源。
+
+离线实际命令：`/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/.venv/bin/python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web -q -k 'macos_document_verifiers_use_office_sandbox or verification_failure_outcomes_are_safely_mapped or posix_timeout_cleanup_terminates_the_worker_process_group or verify_target_timeout_uses_process_tree_cleanup_and_closes_queue'`，exit0、9 PASS/37 deselected，0.90秒，仅1条已有Starlette弃用警告。全部为离线隔离合同，不启动真实Word，不认证旧文件清理或macOS实机功能。证据 `logs/settings-model-loop/word-closeout/offline-contract-tests.log`；对象/源码与未知项为word-diagnosis.json、old-resource-ledger-audit.json、old-word-persisted-outcome.json。
+
+### W4及验收范围
+
+本轮新的真实Word验证NOT_RUN、新资源0；旧清理UNVERIFIED。旧对象未确认、前次超时条件也未证明改变，因此不启动新的Office实机调用。没有真实模型或商业数据请求，没有Office/Word关闭或删除动作，不改变生产8088/3081。商业账户仍是对应来源的独立验收缺项，不作为公开研究或模型使用前提。
+
+完整原任务实际256路径、相对固定PR目标实际74路径已重新从git生成并用现有Git-bound v4规划器核对（full-pr-plan.json，exit0，L4及全部原有外部门保留）。这份完整范围核对不是最后报告提交的缩小版；本轮增量只为报告。未变源码继续复用93bc候选的本地/真实模型/公开NAV/Keychain/固定DSH及三门CI，不把报告新HEAD绑定到旧run。只对报告增量另生成L0计划/回执并检查文档治理、Python文件索引；不重新运行安装、供应商、截图或全仓类型整改。既有完整候选plan.json/receipt.json冻结证据保留，本轮Word条件与报告增量另附在word-closeout下；增量通过不改变总体mergeReady/releaseReady=false。
+
+本轮属于附件完成条件B：可独立进行的产品侧调查及离线检查完成；Word超时具体原因和旧文档清理仍未确认，不称Word阶段完成。最小剩余条件是人工确认旧测试对象归属/不存在状态；处理旧对象后还需Word实际可响应或直接缺陷复现与修复，才满足一次真实重验条件。停止本轮，不自动启动商业账户或其他平台任务。
+
+报告增量实际检查：`node scripts/check_documentation_governance.mjs --project .` exit0；`.venv/bin/python scripts/generate_py_file_index.py --check` exit0；`node scripts/validate_verification_receipt.mjs --project . --plan logs/settings-model-loop/word-closeout/report-plan.json --receipt logs/settings-model-loop/word-closeout/report-receipt.json` exit0/valid=true，L0两项PASS。该回执的增量就绪仅表示报告文档通过，不是Word功能/清理或整个候选就绪；整体状态另外记录于closeout-state.json并保持mergeReady=false/releaseReady=false。源码没有变化，未安装依赖、不运行Black/isort/mypy、供应商/Word实机或整套CI；未修改Hook、验收schema、required checks或全局平台规则。
