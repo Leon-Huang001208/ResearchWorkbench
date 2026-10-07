@@ -851,15 +851,16 @@ def test_docker_two_phase_creation_rejects_unsafe_or_replaced_nodes(tmp_path, mo
         (RuntimeError("fixture-private-command"), "RuntimeError", None),
     ],
 )
-def test_failure_diagnostics_only_include_fixed_fields(error, kind, number):
+@pytest.mark.parametrize("stage", ["logging_setup", "control_preparation"])
+def test_failure_diagnostics_only_include_fixed_fields(error, kind, number, stage):
     from docker import supervisor
 
     class Child:
         returncode = 7
 
-    report = supervisor._failure_diagnostics("logging_setup", error, {"runtime": Child()})
+    report = supervisor._failure_diagnostics(stage, error, {"runtime": Child()})
     assert report == {
-        "stage": "logging_setup",
+        "stage": stage,
         "exception_class": kind,
         "errno": number,
         "runtime_returncode": 7,

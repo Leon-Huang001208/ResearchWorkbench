@@ -82,3 +82,34 @@ Ubuntu Docker CI 的 stage-scope 条件仍保留，未运行或被阶段禁用�
 本地 merge 提交只完成 source integration，不代表 controller prepare、Mac CI、真实安装/生命周期
 重验或总体验收；这些由主任务处理。Windows/Linux 原生验收未运行；未扩大平台范围。
 旧停止容器、原宿主状态和实际数据目录不处理。
+
+## 75b9da6 后独立评审的最小诊断修复
+
+上述 75b9da6 合并、计划、回执与 records 均保留其原始源码归属，不冒充后续 HEAD 结果。
+Python 评审发现 supervisor 已设置 `control_preparation`，但 `_FAILURE_STAGES` 缺少该阶段，
+导致原安全五字段诊断投影为 `unknown`。仅补充这个固定枚举值；认证、状态 guard、模式、
+控制事务、失败关闭、异常类别、日志字段集合与清理行为均不改变。
+
+扩展最近的 `test_failure_diagnostics_only_include_fixed_fields` 既有测试，参数覆盖
+`logging_setup` 与 `control_preparation`，仍检查全部五字段与秘密省略。
+实际 RED：`python -m pytest tests/research_web/test_container_supervisor.py -k failure_diagnostics_only_include_fixed_fields --confcutdir=tests/research_web`，
+3 FAIL / 3 PASS / 77 deselected（0.25 秒），`logs/task14-control-stage-red.log`。
+单枚举修复后同命令 GREEN：6 PASS / 77 deselected（0.18 秒），
+`logs/task14-control-stage-green.log`。这属于合成诊断回归，不是 Docker 产品真机验收。
+后续 delta 范围仅 supervisor、现有测试与本报告三个路径；完整基线 changed set 仍为 75。
+
+delta 规划器选择 L4、7 本地门和 3 CI；完整基线另存 75 路径计划。实际本地结果：
+supervisor 83 PASS（25.70 秒），launcher 133 PASS（0.78 秒），选中 container-runtime 闭包
+共 216 PASS；分开执行的原命令、退出码与日志在
+`logs/task14-control-stage-container-runtime-summary.log` 中明确记录，没有复用旧 Python 结果。
+docker contract 14 JS、architecture 63 JS、full verification 91 JS 均 PASS；后两者含重复测试，
+不重复计算独立证据。documentation-governance、生成 Python index 和完整 75 路径
+project-constraints 均 PASS；各实际命令及耗时在 `logs/task14-control-stage-records.json`。
+delta plan/receipt 在 `logs/task14-control-stage-delta-{plan,receipt}.json`；既有 schema-v2
+validator 实际 valid=true、executedCount=7、externalCount=3、result=BLOCKED、
+mergeReady=false、releaseReady=false，CI 未运行状态保留。原 75b9da6 的计划、回执和
+records 没有重写；本次记录只认证这个最小 delta，最终仍需主任务控制器重新 prepare。
+
+引用事实：受管 Task14 启动的远端基线为 `ddcdd978…`；主 checkout 的本地 master
+`1dbd7547…` 在启动前已存在，两者是不同引用。没有本地 master 并发移动的证据。
+controller prepare 应按其独立 refetch 与受管 receipt 判定实际集成基线。

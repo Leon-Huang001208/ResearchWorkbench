@@ -331,6 +331,7 @@ _FAILURE_STAGES = frozenset(
         "private_directories",
         "logging_setup",
         "config_validation",
+        "control_preparation",
         "ownership_init",
         "auth_reset",
         "process_specs",
