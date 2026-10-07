@@ -8,7 +8,7 @@
 | 兼容文本 | 独立 Ollama/Qwen2.5 无Key文本生成、普通research-web会话与Host/DSH冷重启已验证；不认证工具、多模态、带Key商业服务或研究质量。 |
 | 商业数据 | 所属账户与具体dataset权限缺失，真实验收未执行；不影响已验证公开能力，不要求购买。 |
 | Word功能 | 验证aabce313-3f97-43c7-a797-0e6283d42c40已结束但outcome=timeout；真实创建/保存/重开读回均没有成功证据，具体卡点与根因未知。 |
-| Word清理 | 旧Office文档清理UNVERIFIED，确切文件名未被旧记录保存；原任务自己的verification-runs目录为空不能证明Office文件不存在。新实机验证NOT_RUN，未创建新资源。 |
+| Word清理 | UNVERIFIED。用户在指定Documents目录的ls输出列出两项`~$search-workbench-…docx`候选名称，未列出对应正文文件；候选类型、旧任务归属及是否被用户接管均未确认，不能认定删除或全盘不存在。新实机验证NOT_RUN，未创建新资源。 |
 | hostAcceptance | PASS属于源码候选93bc351c及其匹配Mac/通用CI；本轮离线诊断不冒充Word实机通过，报告提交不冒称已被CI测试。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
@@ -912,3 +912,20 @@ Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05�
 本轮属于附件完成条件B：可独立进行的产品侧调查及离线检查完成；Word超时具体原因和旧文档清理仍未确认，不称Word阶段完成。最小剩余条件是人工确认旧测试对象归属/不存在状态；处理旧对象后还需Word实际可响应或直接缺陷复现与修复，才满足一次真实重验条件。停止本轮，不自动启动商业账户或其他平台任务。
 
 报告增量实际检查：`node scripts/check_documentation_governance.mjs --project .` exit0；`.venv/bin/python scripts/generate_py_file_index.py --check` exit0；`node scripts/validate_verification_receipt.mjs --project . --plan logs/settings-model-loop/word-closeout/report-plan.json --receipt logs/settings-model-loop/word-closeout/report-receipt.json` exit0/valid=true，L0两项PASS。该回执的增量就绪仅表示报告文档通过，不是Word功能/清理或整个候选就绪；整体状态另外记录于closeout-state.json并保持mergeReady=false/releaseReady=false。源码没有变化，未安装依赖、不运行Black/isort/mypy、供应商/Word实机或整套CI；未修改Hook、验收schema、required checks或全局平台规则。
+
+### 旧Word对象人工反馈登记（2026-10-07）
+
+本轮仅登记用户提供的人工核对，不重复上述离线调查、合同测试或CI。证据来源为用户本轮粘贴的终端输出；用户先执行 `cd /Users/leon/Library/Containers/com.microsoft.Word/Data/Documents/`，随后执行 `ls`。反馈提交日期为2026-10-07（Asia/Shanghai）；命令实际执行时间未提供，不以代理当前时间替代。
+
+该次输出的两项完整候选名称为：
+
+| 指定目录中的候选名称 | 本轮能确认的事实 | 不能确认的事实 |
+|---|---|---|
+| `~$search-workbench-ac1f792f764b405e8f8d8253d631b8f7.docx` | 用户该次ls输出列出了此名称 | 文件类型/正文文件存在、与验证aabce313的对应关系、创建步骤是否成功、用户是否接管 |
+| `~$search-workbench-ffffffffffffffffffffffffffffffff.docx` | 用户该次ls输出列出了此名称 | 是否为本任务、其他任务或历史对象；全f标识不能独立证明来源或可删除 |
+
+完整候选位置为上述指定Documents目录加各自名称。`~$`命名只能作为锁/所有者临时文件的候选解释，未经类型及应用状态核验，不宣称已确认文件类别。输出未列出相应 `research-workbench-<run UUID>.docx` 正文名称；这仅是该目录这一次普通ls输出的范围，不证明正文从未创建、已经删除、未在别处或全盘不存在。旧记录未保存文件run UUID，不能凭ac1…前缀、全f名称或时间补出旧验证身份。
+
+用户未提供接管/明确保留或允许删除某个确切对象的反馈，因此不记录为“用户接管”，不记录为“已删除”。两项候选保留，旧清理继续UNVERIFIED；不再扫描该目录或其他位置，不重复要求确认同一核对结果，不关闭用户文档或退出Word。人工目录核对已完成，与旧资源归属及清理确认未完成是不同状态。
+
+本轮没有源码修改、对象访问/删除/关闭、系统权限变更或新测试资源。Word原timeout及未知根因不变。未来再次实机验证前，仍必须沿原入口补齐验证ID与文件run UUID/目标路径映射、最后完成步骤、功能结果与清理结果；这些新增诊断只能记录新调用，不能反推旧文件身份或补造旧成功。本轮不实施新诊断或实机重验，不更新生产、不push/合并/发布；模型和商业数据请求0。原模型、公开NAV、兼容文本、Keychain及93bc候选匹配Mac CI均按原适用范围保留。
