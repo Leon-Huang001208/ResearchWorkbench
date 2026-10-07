@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Docker stdlib controller 的外层 `_locked_guard` 拥有真实 lease 下的调用内 ExitStack；缺失根观察只支持 no-start 选择，真实 mkdir 后的根/父 FD 才支持首次分配。嵌套候选沿同一 controller/lease/home/安装身份执行；up 前分配权限失效，外层发布失败仅保留受严格复核的恢复观察，finally 清除。没有新部署节点、常驻组件或持久 authority。
+
 Native私有认证bootstrap使用规范化的RWB_RUNTIME_STATE，并要求RESEARCH_RUNTIME_AUTH精确等于该目录内auth.json；拒绝目录别名或另一个认证文件。该绑定只保护所属Host/DSH交接，模型Keychain仍走独立provider。
 
 Docker Doctor 的只读 volumes 类型投影与既有挂载一致：data/独立 logs/credentials 为 bind，state 为 tmpfs；schema 1 增加固定 logs 类型字段，verified 仍消费实际 inspect，不增加部署节点。

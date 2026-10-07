@@ -22,6 +22,8 @@
 `test_runtime_mode.py`、`test_runtime_auth.py`、`test_datahub.py`、`test_mcp_authorization.py`
 负面测试；接口合同见运行时与安全模块文档。
 
+Docker fresh-root 事务只在 `docker_runtime.py` 与 `setup_web.py` 内借外层真实 lease 保留父/根 FD 和调用内观察。`test_setup_web.py` 覆盖 owned-classification fixture 的真实 Native 子进程桥、真实临时监听身份、no-start 无产品根、后续真实 mkdir、晚期发布/恢复拒绝与 controller/lease 替换；既有 container/bind-race 测试明确使用已存在的受管数据根。Native/auth、通用 guard、依赖与验证策略不变。
+
 生命周期集成由 service_manager、bootstrap、docker_runtime、setup_web、web_bootstrap
 共同覆盖；`lifecycle_lock.py` 改用 stdlib logging，`assert_held` 验证本进程实际持有的锁对象，
 用于安装候选内部调用而不增加 skip-lock 开关。`docker/supervisor.py` 的 prepare-only 入口

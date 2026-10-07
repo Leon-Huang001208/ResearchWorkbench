@@ -1271,12 +1271,13 @@ class DockerRuntime(_DockerRuntimeController):
         checked = self.preflight(require_image=False)
         if not checked.get("ok"):
             raise RuntimeError(_docker_issue(checked, "docker_preflight_failed"))
-        native = NativeRuntime(self.project_root, self.home).status()
+        native_runtime = NativeRuntime(self.project_root, self.home)
+        native = native_runtime.status()
         docker = self.status()
-        if not native.get("ok") or not docker.get("ok"):
+        if not self._native_selection_safe(native_runtime, native) or not docker.get("ok"):
             raise RuntimeError("runtime_stop_current_required")
         try:
-            native_running = _running(native)
+            native_running = _running(native) if native.get("ok") else False
             docker_running = _running(docker)
             if native_running or docker_running:
                 raise RuntimeError("runtime_stop_current_required")
@@ -1317,8 +1318,8 @@ class DockerRuntime(_DockerRuntimeController):
                                for role in ("web", "runtime")):
                         raise RuntimeError("docker_services_unhealthy")
                 self._publish_selection(store, current, manifest)
-            except (OSError, RuntimeError):
-                self._abort_candidate()
+            except (OSError, RuntimeError) as error:
+                self._recover_fresh_failure(error, self._abort_candidate)
                 raise
             return manifest
         accepted = self._locked_guard("install_selection", accept_candidate)
@@ -1329,6 +1330,7 @@ class DockerRuntime(_DockerRuntimeController):
     def _publish_selection(self, store, current, manifest):
         """Serialize mode publication and restore the receipt on a failed commit."""
         path = self.home / "install/docker-manifest.json"
+        self._revalidate_missing_selection()
         with store._write_lock():
             if store.read() != current:
                 raise RuntimeError("runtime_mode_changed")
@@ -1345,32 +1347,39 @@ class DockerRuntime(_DockerRuntimeController):
                 # Keep the origin transaction pending until receipt and mode agree.
                 if current.mode != "docker":
                     published_mode = store._write_locked("docker", expected=current)
+                    if self._fresh_root is not None:
+                        self._fresh_root["mode"] = published_mode
+                self._revalidate_missing_selection()
                 self._commit_candidate()
-            except (OSError, RuntimeError):
-                if published_mode is not None:
-                    store._write_locked(current.mode, expected=published_mode)
-                try:
-                    published, identity = _read_bytes(path)
-                except FileNotFoundError:
-                    published, identity = None, None
-                if publication_identity is None:
-                    # A failed writer cannot establish ownership by later readback.
-                    if published != previous or not _same_identity(identity, previous_identity):
+            except (OSError, RuntimeError) as error:
+                def restore_publication():
+                    if published_mode is not None:
+                        restored_mode = store._write_locked(current.mode, expected=published_mode)
+                        if self._fresh_root is not None:
+                            self._fresh_root["mode"] = restored_mode
+                    try:
+                        published, identity = _read_bytes(path)
+                    except FileNotFoundError:
+                        published, identity = None, None
+                    if publication_identity is None:
+                        # A failed writer cannot establish ownership by later readback.
+                        if published != previous or not _same_identity(identity, previous_identity):
+                            raise RuntimeError("docker_install_summary_recovery_unverified") from None
+                        return
+                    matches = (published == publication_bytes
+                               and _same_identity(identity, publication_identity))
+                    if not matches:
                         raise RuntimeError("docker_install_summary_recovery_unverified") from None
-                    raise
-                matches = (published == publication_bytes
-                           and _same_identity(identity, publication_identity))
-                if not matches:
-                    raise RuntimeError("docker_install_summary_recovery_unverified") from None
-                if matches:
-                    if previous is not None:
-                        _atomic_write_posix(path, previous, identity)
-                    else:
-                        with _private_posix_parent(path) as parent:
-                            if not _same_identity(_leaf_identity_at(parent, path.name), identity):
-                                raise RuntimeError("docker_install_summary_changed") from None
-                            os.unlink(path.name, dir_fd=parent)
-                            os.fsync(parent)
+                    if matches:
+                        if previous is not None:
+                            _atomic_write_posix(path, previous, identity)
+                        else:
+                            with _private_posix_parent(path) as parent:
+                                if not _same_identity(_leaf_identity_at(parent, path.name), identity):
+                                    raise RuntimeError("docker_install_summary_changed") from None
+                                os.unlink(path.name, dir_fd=parent)
+                                os.fsync(parent)
+                self._recover_fresh_failure(error, restore_publication)
                 logging.getLogger("research_workbench.setup_web").warning("docker_setup_publish_failed")
                 raise
 

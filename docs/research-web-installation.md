@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+macOS Docker 在全新私有 HOME 下即使 checkout 有可用 Native 环境，也可在真实 lifecycle lease 内接受 `--no-start`：产品根严格缺失、私有父目录 pin、Native PID/端点记录缺失且没有容器时，仅发布安装摘要/模式，不创建产品根、controls、PID 或端点，不分配端口。后续普通 `rwb web start` 必须重新取证并实际创建私有根；只有该调用内的真实创建证明可处理原默认端口上的其他产品监听。已有根/未知 writer 等仍失败关闭，显式端口与原认证/健康合同保持。证明不序列化；不能用旧成功清单或 no-start 调用给后续调用授权。物理首装由本平台独立验收。
+
 当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
 
 

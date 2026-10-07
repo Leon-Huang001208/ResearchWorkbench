@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from .runtime_mode import RuntimeModeError, RuntimeModeStore, _read_bytes, _unique_object, _same_identity
+from .runtime_mode import RuntimeModeError, RuntimeModeStore, _read_bytes, _unique_object, _same_identity, _pin_posix_parents, _validate_posix_private_directory
 from .runtime_endpoints import EndpointError, EndpointStore, select_port
 
 log = logging.getLogger(__name__)
@@ -513,6 +513,11 @@ class DockerRuntime:
         self._created_container = None
         self._lifecycle_lease = None
         self._pending_start = None
+        self._root_scope = None
+        self._root_scope_lease = None
+        self._root_scope_controller = None
+        self._fresh_root = None
+        self._fresh_recovering = False
 
     @property
     def installation_id(self) -> str:
@@ -791,23 +796,203 @@ class DockerRuntime:
     def _locked_guard(self, operation, function):
         from app.research_web.lifecycle_lock import LifecycleLock, LifecycleLockError
         from app.research_web.control_origin import ControlOriginError
+        def scoped():
+            if self._root_scope is not None:
+                return function()
+            with ExitStack() as scope:
+                self._root_scope = scope
+                self._root_scope_lease = self._lifecycle_lease
+                self._root_scope_controller = self
+                try:
+                    return function()
+                finally:
+                    self._fresh_root = None
+                    self._fresh_recovering = False
+                    self._root_scope = None
+                    self._root_scope_lease = None
+                    self._root_scope_controller = None
         def locked():
             try:
                 if self._lifecycle_lease is not None:
                     self._lifecycle_lease.assert_held()
                     if self._lifecycle_lease.path != self.home / "run/lifecycle.lock":
                         raise ControlError("lifecycle_lock_ownership_lost")
-                    return function()
+                    if self._root_scope is None:
+                        # An externally supplied lease may use the old ordinary
+                        # lifecycle path, but cannot manufacture fresh authority.
+                        return function()
+                    if (self._root_scope_lease is not self._lifecycle_lease
+                            or self._root_scope_controller is not self):
+                        raise ControlError("lifecycle_lock_ownership_lost")
+                    return scoped()
                 with LifecycleLock(self.home / "run/lifecycle.lock", self._pid_exists,
                                    trusted_root=self.home) as lease:
                     self._lifecycle_lease = lease
                     try:
-                        return function()
+                        return scoped()
                     finally:
                         self._lifecycle_lease = None
             except (LifecycleLockError, ControlOriginError) as error:
                 raise ControlError(error.code) from error
         return self._guard(operation, locked)
+
+    @staticmethod
+    def _root_identity(info):
+        return info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_gid
+
+    def _fresh_listener_fact(self, port):
+        from .web_contract import listener_pids, probe_process
+        observed = listener_pids(port)
+        if observed.state == "closed" and not observed.issue:
+            return (observed, ()) if not port_busy(port) else None
+        if observed.state != "listening" or observed.issue or not observed.pids:
+            return None
+        processes = []
+        for pid in observed.pids:
+            process = probe_process(pid)
+            if (process.state != "alive" or process.issue or not process.argv
+                    or process.started_at is None
+                    or any(str(self.data_dir) in argument for argument in process.argv)):
+                return None
+            checked = probe_process(pid)
+            if (checked.state != "alive" or checked.issue or checked.argv != process.argv
+                    or checked.started_at != process.started_at):
+                return None
+            processes.append((pid, process.argv, process.started_at))
+        return (observed, tuple(processes)) if listener_pids(port) == observed else None
+
+    def _fresh_root_proven(self, *, missing=False):
+        from app.research_web.lifecycle_lock import LifecycleLock, LifecycleLockError
+        proof = self._fresh_root
+        if (type(proof) is not dict or set(proof) != {"controller", "scope", "lease", "parent", "parent_identity",
+                "mode", "listeners", "root", "root_identity", "allocating"}
+                or type(self._root_scope) is not ExitStack or proof["scope"] is not self._root_scope
+                or proof["controller"] is not self or self._root_scope_controller is not self
+                or self._root_scope_lease is not self._lifecycle_lease
+                or type(self._lifecycle_lease) is not LifecycleLock
+                or proof["lease"] is not self._lifecycle_lease
+                or self._lifecycle_lease.path != self.home / "run/lifecycle.lock"):
+            return False
+        try:
+            self._lifecycle_lease.assert_held()
+            self._safe_home()
+            if (self.store.read() != proof["mode"]
+                    or self._root_identity(os.fstat(proof["parent"])) != proof["parent_identity"]
+                    or self._root_identity(self.home.lstat()) != proof["parent_identity"]):
+                return False
+            for role in ("web", "runtime"):
+                try:
+                    (self.home / "run" / (role + ".json")).lstat()
+                except FileNotFoundError:
+                    continue
+                return False
+            if (self.endpoint_store.read("native") is not None
+                    or self.endpoint_store.read("docker") != self.endpoint_snapshot):
+                return False
+            if missing:
+                if proof["root"] is not None:
+                    return False
+                try:
+                    self.data_dir.lstat()
+                except FileNotFoundError:
+                    pass
+                else:
+                    return False
+            elif (proof["root"] is None
+                  or self._root_identity(os.fstat(proof["root"])) != proof["root_identity"]
+                  or self._root_identity(self.data_dir.lstat()) != proof["root_identity"]):
+                return False
+            return all(self._fresh_listener_fact(port) == fact
+                       for port, fact in proof["listeners"].items())
+        except (OSError, RuntimeModeError, EndpointError, ControlError, LifecycleLockError):
+            log.warning("docker_runtime code=docker_fresh_root_unverified")
+            return False
+
+    def _observe_missing_root(self, native_ports):
+        """A call-local missing observation authorizes selection, never allocation."""
+        from app.research_web.lifecycle_lock import LifecycleLock
+        if self._fresh_root is not None:
+            return self._fresh_root_proven(missing=type(self._fresh_root) is dict
+                                          and self._fresh_root.get("root") is None)
+        if (os.name != "posix" or type(self._root_scope) is not ExitStack
+                or self._root_scope_controller is not self
+                or self._root_scope_lease is not self._lifecycle_lease
+                or type(self._lifecycle_lease) is not LifecycleLock):
+            return False
+        self._lifecycle_lease.assert_held()
+        self._safe_home()
+        try:
+            self.data_dir.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            return False
+        if self._containers() or self.endpoint_store.read("native") or self.endpoint_store.read("docker"):
+            return False
+        parent = self._root_scope.enter_context(_pin_posix_parents(self.data_dir, node_only=True))
+        _validate_posix_private_directory(os.fstat(parent))
+        facts = {port: self._fresh_listener_fact(port)
+                 for port in dict.fromkeys((*native_ports, *self.ports, 8088, 3081))}
+        if any(value is None for value in facts.values()):
+            return False
+        self._fresh_root = {"controller": self, "scope": self._root_scope, "lease": self._lifecycle_lease,
+            "parent": parent, "parent_identity": self._root_identity(os.fstat(parent)),
+            "mode": self.store.read(), "listeners": facts, "root": None,
+            "root_identity": None, "allocating": False}
+        return self._fresh_root_proven(missing=True)
+
+    def _native_selection_safe(self, native, report, *, create=False):
+        from .bootstrap import _running
+        if report.get("ok") is True and _running(report):
+            return False
+        if report.get("ok") is not True and report.get("issues") != ["runtime_ownership_unknown"]:
+            return False
+        observed = self._observe_missing_root(native.ports)
+        if not observed:
+            if self._fresh_root is not None:
+                return False
+            try:
+                self.data_dir.lstat()
+            except FileNotFoundError:
+                return False
+            return report.get("ok") is True and not _running(report)
+        if not self._fresh_root_proven(missing=self._fresh_root["root"] is None):
+            return False
+        if create and self._fresh_root["root"] is None:
+            proof = self._fresh_root
+            os.mkdir(self.data_dir.name, mode=0o700, dir_fd=proof["parent"])
+            descriptor = os.open(self.data_dir.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                                 dir_fd=proof["parent"])
+            self._root_scope.callback(os.close, descriptor)
+            _validate_posix_private_directory(os.fstat(descriptor))
+            proof["root"] = descriptor
+            proof["root_identity"] = self._root_identity(os.fstat(descriptor))
+            proof["allocating"] = True
+            log.info("docker_runtime code=docker_fresh_root_created")
+            return self._fresh_root_proven()
+        return True
+
+    def _revalidate_missing_selection(self):
+        if self._fresh_root is not None and type(self._fresh_root) is not dict:
+            raise ControlError("docker_fresh_root_unverified")
+        if self._fresh_root is not None and self._fresh_root.get("root") is None:
+            if not self._fresh_root_proven(missing=True) or self._containers():
+                raise ControlError("docker_fresh_root_unverified")
+
+    def _recover_fresh_failure(self, error, action):
+        """Keep the initial fresh transaction error if its exact recovery refuses."""
+        try:
+            action()
+        except (RuntimeError, RuntimeModeError, EndpointError, OSError) as recovery:
+            if self._fresh_root is None:
+                raise
+            code = getattr(recovery, "code", "control_origin_recovery_unverified")
+            if not isinstance(code, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,95}", code):
+                code = "control_origin_recovery_unverified"
+            log.warning("docker_runtime code=%s", code)
+            if isinstance(error, ControlError):
+                raise ControlError(error.code, *error.related, code) from error
+            error.add_note(code)
 
     def preflight(self, *, require_image=True) -> dict:
         def check():
@@ -991,11 +1176,11 @@ class DockerRuntime:
             containers = self._containers()
             self._match_image(containers, image_id)
             from .bootstrap import NativeRuntime, _running
-            native = NativeRuntime(self.project_root, self.home).status()
-            if not native.get("ok"):
-                raise ControlError("runtime_ownership_unknown")
-            if _running(native):
-                raise ControlError("runtime_other_running")
+            native_runtime = NativeRuntime(self.project_root, self.home)
+            native = native_runtime.status()
+            if not self._native_selection_safe(native_runtime, native, create=not containers):
+                raise ControlError("runtime_other_running" if native.get("ok") and _running(native)
+                                   else "runtime_ownership_unknown")
             if containers and containers[0]["running"]:
                 self._status(containers)
                 if self.requested_web_port is not None and self.requested_web_port != self.ports[0]:
@@ -1008,6 +1193,14 @@ class DockerRuntime:
             if containers and selected != self.ports[0]:
                 raise ControlError("docker_stopped_port_conflict")
             self.ports = selected, 3081
+            if self._fresh_root is not None:
+                if not self._fresh_root["allocating"] or not self._fresh_root_proven():
+                    raise ControlError("docker_fresh_root_unverified")
+                if selected not in self._fresh_root["listeners"]:
+                    fact = self._fresh_listener_fact(selected)
+                    if fact is None or fact[0].state != "closed":
+                        raise ControlError("docker_fresh_root_unverified")
+                    self._fresh_root["listeners"][selected] = fact
             self._allocating = True
             self._ports_free()
             if not self.installation_id:
@@ -1021,6 +1214,11 @@ class DockerRuntime:
                 except RuntimeStateError:
                     raise ControlError("docker_data_home_unsafe") from None
             self._safe_home()
+            if self._fresh_root is not None:
+                if (not self._fresh_root_proven()
+                        or (self.data_dir / ".control").exists()
+                        or (self.data_dir / ".control").is_symlink()):
+                    raise ControlError("docker_fresh_root_unverified")
             transaction = self._prepare_control_origin(image_id)
             before = self._containers()
             self._match_image(before, image_id)
@@ -1039,6 +1237,12 @@ class DockerRuntime:
                     }}}}), encoding="utf-8")
                     command.extend(("-f", str(overlay)))
                 try:
+                    if self._fresh_root is not None:
+                        if (not self._fresh_root_proven() or self._containers()
+                                or (self.data_dir / ".control").exists()
+                                or (self.data_dir / ".control").is_symlink()):
+                            raise ControlError("docker_fresh_root_unverified")
+                        self._fresh_root["allocating"] = False
                     self._call([*command, "up", "--detach", "--no-build", "--pull", "never", "--no-recreate", "research-web"], "docker_start_failed", timeout=60, image=image_id)
                     if not before:
                         self._record_created(image_id, launch)
@@ -1082,19 +1286,22 @@ class DockerRuntime:
                 try:
                     return start_owned()
                 except Exception as error:
-                    if endpoint_published is not None and not committed:
-                        if not self._control_quiescent():
-                            raise ControlError("control_origin_recovery_unverified") from error
-                        self.endpoint_snapshot = self.endpoint_store.restore("docker", endpoint_before,
-                                                                            expected=endpoint_published)
-                    if transaction is not None and not committed:
-                        # _start_image's existing exact-ID cleanup runs first.
-                        transaction.rollback()
+                    self._fresh_recovering = self._fresh_root is not None
+                    def recover_controls():
+                        if endpoint_published is not None and not committed:
+                            if not self._control_quiescent():
+                                raise ControlError("control_origin_recovery_unverified")
+                            self.endpoint_snapshot = self.endpoint_store.restore("docker", endpoint_before,
+                                                                                expected=endpoint_published)
+                        if transaction is not None and not committed:
+                            # Existing exact-ID cleanup runs before RAM recovery.
+                            transaction.rollback()
+                    self._recover_fresh_failure(error, recover_controls)
                     retry = (isinstance(error, ControlError) and not error.related
                              and error.code in {"docker_bind_race", "docker_port_8088_occupied"})
                     if retry and self.requested_web_port is not None:
                         raise ControlError("endpoint_port_in_use") from error
-                    if not retry or attempt == 2 or not self._control_quiescent() or self._containers():
+                    if self._fresh_root is not None or not retry or attempt == 2 or not self._control_quiescent() or self._containers():
                         raise
                     log.warning("docker_runtime code=docker_bind_retry")
         report = self._locked_guard("start", transactional_start)
@@ -1111,6 +1318,12 @@ class DockerRuntime:
     def _control_quiescent(self):
         from .bootstrap import NativeRuntime, _running
         native = NativeRuntime(self.project_root, self.home).status()
+        if self._fresh_root is not None:
+            return (self._fresh_root_proven()
+                    and (self._fresh_root["allocating"] or self._fresh_recovering)
+                    and (native.get("issues") == ["runtime_ownership_unknown"]
+                         or native.get("ok") is True and not _running(native))
+                    and not self._containers())
         return (native.get("ok") is True and not _running(native)
                 and not any(item["running"] for item in self._containers()))
 
@@ -1124,6 +1337,7 @@ class DockerRuntime:
     def _abort_candidate(self):
         self._rollback_created()
         self._rollback_started()
+        self._fresh_recovering = self._fresh_root is not None
         if self._pending_start is not None:
             transaction, previous, published, ports = self._pending_start
             if not self._control_quiescent():

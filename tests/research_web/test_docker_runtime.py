@@ -536,6 +536,7 @@ def test_fix1_started_existing_cleanup_refuses_replaced_identity(runtime, monkey
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     from research_workbench_entrypoint.docker_runtime import ControlError
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
     owned(controller, runner)
     runner.container.update(running=False, state="exited", launch="old-launch")
     monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
@@ -606,6 +607,8 @@ def test_docker_doctor_allowlisted_health_and_capabilities(runtime):
                                        ("starting", "docker_ready_timeout")])
 def test_start_existing_unhealthy_fails_without_removing(runtime, health, code):
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    controller.endpoint_store.publish("native", *controller.ports, expected=None)
     owned(controller, runner)
     runner.container["health"] = health
     report = controller.start(open_browser=False, wait_timeout=0)
@@ -709,6 +712,8 @@ def test_accepted_manifest_fails_closed(runtime, mutation, code):
 
 def test_overwritten_mutable_tag_cannot_change_accepted_image(runtime):
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    controller.endpoint_store.publish("native", *controller.ports, expected=None)
     owned(controller, runner)
 
     def retagged(argv, **kwargs):
@@ -750,6 +755,7 @@ def test_explicit_repair_disposes_only_stopped_owned_container_and_keeps_fallbac
     from scripts import setup_web
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
     owned(controller, runner)
     runner.container.update(running=False, state="exited")
     path = controller.home / "install/docker-manifest.json"
@@ -833,6 +839,7 @@ def test_up_created_then_failed_recovers_only_this_launch(runtime, monkeypatch, 
     monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
     monkeypatch.setattr(controller, "_ports_free", lambda: None)
     if after == "existing":
+        controller.data_dir.mkdir(mode=0o700)
         owned(controller, runner)
         runner.container.update(running=False, state="exited")
     failed = []
@@ -1381,6 +1388,8 @@ def test_private_host_logs_creation_preserves_legacy_runtime(runtime, monkeypatc
 
 def test_start_opens_only_verified_runtime_url(runtime, monkeypatch):
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    controller.endpoint_store.publish("native", *controller.ports, expected=None)
     owned(controller, runner)
     opened = []
     monkeypatch.setattr("webbrowser.open", lambda url: opened.append(url) or True)
@@ -1733,6 +1742,7 @@ def test_partial_controls_use_owned_no_port_guest_preparation(runtime, monkeypat
 def test_docker_bind_race_retries_owned_attempt_with_three_attempt_budget(runtime, monkeypatch):
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
     monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
     listeners = []
     attempts = []

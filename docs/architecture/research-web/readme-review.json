@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "Task14 本地集成保留 Native/Docker 部署、macOS 模型 Keychain、私有认证交接，并同步动态宿主端口和 state tmpfs / logs bind。",
-  "reason": "README 双模式入口已核对；模型能力、Docker 服务健康与其他平台未验证事实分别记录，不代表物理重验、CI 或发布。"
+  "disposition": "unchanged",
+  "summary": "复核 Docker 首装 missing/new-root 事务：README 公开入口、前置依赖与存储说明不变。",
+  "reason": "仅在用户批准的 macOS 双运行时任务内补充 no-start 与实际 first start 的调用内 filesystem/lease 证明，细节归安装和运行时文档；没有新增部署、依赖、持久 authority 或平台支持声明。"
 }
