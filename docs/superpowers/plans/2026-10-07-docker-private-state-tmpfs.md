@@ -17,7 +17,9 @@ because direct Compose intentionally cannot create the bind source. No trigger,
 runner, matrix or remote workflow execution changes.
 Tests: existing test_docker_runtime.py, test_container_supervisor.py,
 test_docker_packaging.py and docker_runtime_contract.test.mjs.
-Docs: ARCHITECTURE/DEVELOPMENT_MAP, research-web-installation, architecture
+Docs: README state/storage bullets and existing readme-review.json only as
+required to remove stale host-auth-state claims; ARCHITECTURE/DEVELOPMENT_MAP,
+research-web-installation, architecture
 01/02/03/05, generated index only when needed, one .ai/reports task report.
 No edits to main's three macos-port-allocation report/plan/receipt files.
 
