@@ -1,5 +1,10 @@
 # Research Web 接口清单
 
+macOS 异根私有 Native pair 认证只修复公开 CLI 的后续生命周期准入：已有根的完整不同根
+pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtime_ownership_unknown`。
+桥内 hint 不序列化到 CLI/HTTP 响应，不新增参数、配置开关、HTTP 路由或字段；force 不绕过
+重检，安装未就绪的首次 Native 切换仍在停止健康 Docker 前拒绝。
+
 内部端口 TypedDict 与显式默认值整理不改变公开参数、返回字段或错误类型；
 省略 Web/Runtime 端口仍沿原选择合同，控制与回滚错误码保持。
 

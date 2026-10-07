@@ -17,9 +17,24 @@ from types import SimpleNamespace
 
 import pytest
 
+from research_workbench_entrypoint import runtime_mode
+from research_workbench_entrypoint.runtime_mode import RuntimeModeError, RuntimeModeStore
+
+
+@pytest.fixture(autouse=True)
+def isolated_os_native_candidate(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import web_bootstrap
+
+    monkeypatch.setattr(
+        web_bootstrap,
+        "_standard_native_data_root",
+        lambda: tmp_path / "os-user/.research-workbench/research-web",
+    )
+
 
 def test_native_dispatch_incomplete_environment_uses_safe_diagnostics(tmp_path, monkeypatch):
     import io
+
     from research_workbench_entrypoint import bootstrap
 
     python = tmp_path / ".venv/bin/python"
@@ -42,15 +57,26 @@ def test_native_switch_bridge_rejects_pid_reuse_facts(tmp_path, monkeypatch):
     from app.research_web.service_manager import WebServiceManager
     from research_workbench_entrypoint import bootstrap
 
-    monkeypatch.setattr(WebServiceManager, "_service_probes", lambda _self: (
-        ServiceProbe("runtime", 3081, "valid", "alive", "foreign", "listening",
-                     "not_run", False, None, ("runtime_pid_reused",)),
-    ))
+    monkeypatch.setattr(
+        WebServiceManager,
+        "_service_probes",
+        lambda _self: (
+            ServiceProbe(
+                "runtime",
+                3081,
+                "valid",
+                "alive",
+                "foreign",
+                "listening",
+                "not_run",
+                False,
+                None,
+                ("runtime_pid_reused",),
+            ),
+        ),
+    )
     with pytest.raises(bootstrap.ControlError, match="runtime_ownership_unknown"):
         bootstrap._native_probe("status", tmp_path, tmp_path, (8088, 3081))
-
-from research_workbench_entrypoint import runtime_mode
-from research_workbench_entrypoint.runtime_mode import RuntimeModeError, RuntimeModeStore
 
 
 def _path(home: Path) -> Path:
@@ -148,7 +174,11 @@ def test_same_mode_switch_is_read_only(tmp_path):
     home = tmp_path / "missing"
     store = RuntimeModeStore(home)
     assert switch_runtime(store, "native", None, None) == {
-        "schema_version": 1, "ok": True, "issues": [], "mode": "native", "changed": False,
+        "schema_version": 1,
+        "ok": True,
+        "issues": [],
+        "mode": "native",
+        "changed": False,
     }
     assert not home.exists()
 
@@ -182,7 +212,10 @@ def test_switch_round_trip_preserves_real_data_and_isolates_runtime_state(tmp_pa
         def status(self):
             path = self.root / "owned-state.json"
             running = path.exists() and json.loads(path.read_text())["running"]
-            return {"ok": True, "services": {role: {"running": running} for role in ("web", "runtime")}}
+            return {
+                "ok": True,
+                "services": {role: {"running": running} for role in ("web", "runtime")},
+            }
 
         def stop(self):
             (self.root / "owned-state.json").write_text('{"running":false}')
@@ -193,7 +226,9 @@ def test_switch_round_trip_preserves_real_data_and_isolates_runtime_state(tmp_pa
     monkeypatch.setattr(bootstrap, "port_busy", lambda port: False)
     native.start()
     assert not docker.status()["services"]["web"]["running"]
-    assert bootstrap.switch_runtime(store, "docker", docker, native)["issues"] == ["runtime_stop_current_required"]
+    assert bootstrap.switch_runtime(store, "docker", docker, native)["issues"] == [
+        "runtime_stop_current_required"
+    ]
     assert store.read().mode == "native"
     assert bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)["ok"]
     docker.start()
@@ -531,9 +566,11 @@ def test_simulated_windows_parent_handles_reject_replacement(
     )
     monkeypatch.setattr(Path, "lstat", lstat)
 
-    with pytest.raises(RuntimeModeError, match="^runtime_mode_changed$"):
-        with runtime_mode._pin_windows_parents(path):
-            replaced = True
+    with (
+        pytest.raises(RuntimeModeError, match="^runtime_mode_changed$"),
+        runtime_mode._pin_windows_parents(path),
+    ):
+        replaced = True
 
     assert len(opened) == len(path.parents)
     assert closed == list(reversed(opened))
@@ -584,10 +621,16 @@ def test_public_windows_read_write_does_not_treat_mode_bits_as_acl(
         "_winapi",
         SimpleNamespace(CreateFile=create_file, CloseHandle=close_handle),
     )
-    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(
-        open_osfhandle=transfer_handle, LK_NBLCK=1, LK_UNLCK=0,
-        locking=lambda fd, operation, size: lock_operations.append((operation, size)),
-    ))
+    monkeypatch.setitem(
+        sys.modules,
+        "msvcrt",
+        SimpleNamespace(
+            open_osfhandle=transfer_handle,
+            LK_NBLCK=1,
+            LK_UNLCK=0,
+            locking=lambda fd, operation, size: lock_operations.append((operation, size)),
+        ),
+    )
     monkeypatch.setattr(runtime_mode.os, "name", "nt")
     monkeypatch.setattr(runtime_mode.os, "chmod", lambda *_args, **_kwargs: None)
 
@@ -702,11 +745,13 @@ def test_module_import_is_stdlib_only() -> None:
             sys.executable,
             "-I",
             "-c",
-            "import sys; sys.path.insert(0, '.'); "
-            "import research_workbench_entrypoint.runtime_mode; "
-            "assert 'click' not in sys.modules; "
-            "assert 'fastapi' not in sys.modules; "
-            "assert 'structlog' not in sys.modules",
+            (
+                "import sys; sys.path.insert(0, '.'); "
+                "import research_workbench_entrypoint.runtime_mode; "
+                "assert 'click' not in sys.modules; "
+                "assert 'fastapi' not in sys.modules; "
+                "assert 'structlog' not in sys.modules"
+            ),
         ],
         cwd=Path(__file__).resolve().parents[2],
         capture_output=True,
@@ -761,10 +806,22 @@ def test_cross_process_writes_are_serialized_through_readback(tmp_path, existing
     started = [context.Event(), context.Event()]
     finished = [context.Event(), context.Event()]
     results = context.Queue()
-    children = [context.Process(target=_interleaved_writer, args=(str(home), initial,
-                entered, release, started[index], finished[index], results,
-                "replace" if index == 0 else "none"))
-                for index in range(2)]
+    children = [
+        context.Process(
+            target=_interleaved_writer,
+            args=(
+                str(home),
+                initial,
+                entered,
+                release,
+                started[index],
+                finished[index],
+                results,
+                "replace" if index == 0 else "none",
+            ),
+        )
+        for index in range(2)
+    ]
     try:
         children[0].start()
         assert entered.wait(10)
@@ -796,9 +853,22 @@ def test_cross_process_lock_covers_persisted_readback(tmp_path):
     started = [context.Event(), context.Event()]
     finished = [context.Event(), context.Event()]
     results = context.Queue()
-    children = [context.Process(target=_interleaved_writer, args=(str(home), initial,
-                entered, release, started[index], finished[index], results,
-                "readback" if index == 0 else "none")) for index in range(2)]
+    children = [
+        context.Process(
+            target=_interleaved_writer,
+            args=(
+                str(home),
+                initial,
+                entered,
+                release,
+                started[index],
+                finished[index],
+                results,
+                "readback" if index == 0 else "none",
+            ),
+        )
+        for index in range(2)
+    ]
     try:
         children[0].start()
         assert entered.wait(10)
@@ -825,6 +895,7 @@ def test_higher_ancestor_rename_restore_cannot_redirect_record(tmp_path, monkeyp
     moved = tmp_path / "moved"
     original = os.open
     attacked = []
+
     def swap(candidate, flags, *args, **kwargs):
         if Path(candidate).name != "runtime.json":
             return original(candidate, flags, *args, **kwargs)
@@ -836,6 +907,7 @@ def test_higher_ancestor_rename_restore_cannot_redirect_record(tmp_path, monkeyp
         finally:
             home.rename(decoy)
             moved.rename(home)
+
     monkeypatch.setattr(os, "open", swap)
     assert RuntimeModeStore(home).read() == expected
     assert expected.installation_id != foreign.installation_id

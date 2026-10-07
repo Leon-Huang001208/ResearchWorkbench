@@ -11,6 +11,17 @@ import pytest
 from click.testing import CliRunner
 
 
+@pytest.fixture(autouse=True)
+def isolated_os_native_candidate(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import web_bootstrap
+
+    monkeypatch.setattr(
+        web_bootstrap,
+        "_standard_native_data_root",
+        lambda: tmp_path / "os-user/.research-workbench/research-web",
+    )
+
+
 @pytest.mark.parametrize("action", ["start", "restart"])
 def test_native_public_port_options_reach_lifecycle(monkeypatch, action):
     from app.cli import main as module

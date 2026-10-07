@@ -9,10 +9,11 @@ import math
 import os
 import sys
 from collections.abc import Mapping, Sequence
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, cast
 
-from .runtime_endpoints import EndpointStore
+from .runtime_endpoints import EndpointError, EndpointStore
 from .web_contract import (
     CONTROL_JSON_MAX_BYTES,
     PROCESS_START_TOLERANCE_SECONDS,
@@ -60,6 +61,251 @@ ENVIRONMENT_EXIT_CODES = {
 }
 
 log = logging.getLogger("research_workbench.web_bootstrap")
+
+
+def _standard_native_data_root() -> Path | None:
+    """One OS-user candidate; HOME and product overrides are not discovery authority."""
+    if sys.platform != "darwin":
+        return None
+    import pwd
+
+    try:
+        return Path(pwd.getpwuid(os.getuid()).pw_dir) / ".research-workbench/research-web"
+    except (KeyError, OSError):
+        log.warning("foreign_native_ledger code=runtime_ownership_unknown")
+        return None
+
+
+class _ForeignNativeLedger:
+    """Call-local existing-ledger observation, optionally bound to an actual lease.
+
+    Web's data association is the private launch ledger, not process-environment
+    attestation. No records, process arguments or authentication are logged.
+    """
+
+    def __init__(self, target: Path, scope: ExitStack, *, owner=None, lease=None):
+        from .runtime_mode import (
+            _open_posix_directory,
+            _pin_posix_parents,
+            _validate_posix_private_directory,
+            _validate_posix_private_file,
+        )
+
+        self.owner, self.lease, self.scope = owner, lease, scope
+        self._invalid = False
+        self.target = Path(target).absolute()
+        candidate = _standard_native_data_root()
+        if candidate is None:
+            raise ValueError("foreign_native_ledger_unverified")
+        self.candidate = Path(candidate).absolute()
+        if (
+            self.target.resolve() != self.target
+            or self.candidate.resolve() != self.candidate
+            or self.candidate == self.target
+            or self.candidate.parent == self.target.parent
+        ):
+            raise ValueError("foreign_native_ledger_unverified")
+        self.nodes = []
+        self.ancestors = {}
+        for role in ("web", "runtime"):
+            try:
+                (self.target.parent / "run" / (role + ".json")).lstat()
+            except FileNotFoundError:
+                pass
+            else:
+                raise ValueError("foreign_native_ledger_unverified")
+        for root in (self.target, self.candidate):
+            parent = scope.enter_context(_pin_posix_parents(root, node_only=True))
+            _validate_posix_private_directory(os.fstat(parent))
+            for ancestor in root.parents:
+                self.ancestors[ancestor] = self._identity(ancestor.lstat())
+            descriptor, identity = _open_posix_directory(parent, root.name)
+            scope.callback(os.close, descriptor)
+            _validate_posix_private_directory(identity)
+            self.nodes.append((root, descriptor, self._identity(identity)))
+        for role in ("web", "runtime"):
+            path = self.candidate.parent / "run" / (role + ".json")
+            parent = scope.enter_context(_pin_posix_parents(path, node_only=True))
+            _validate_posix_private_directory(os.fstat(parent))
+            self.ancestors[path.parent] = self._identity(path.parent.lstat())
+            before = os.stat(path.name, dir_fd=parent, follow_symlinks=False)
+            _validate_posix_private_file(before)
+            if before.st_size > STATE_LIMIT_BYTES:
+                raise ValueError("foreign_native_ledger_unverified")
+            descriptor = os.open(
+                path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent
+            )
+            scope.callback(os.close, descriptor)
+            identity = os.fstat(descriptor)
+            _validate_posix_private_file(identity)
+            if self._identity(identity, file=True) != self._identity(before, file=True):
+                raise ValueError("foreign_native_ledger_unverified")
+            self.nodes.append((path, descriptor, self._identity(identity, file=True)))
+        self.before = self._facts()
+        if self.before is None or not self.current():
+            raise ValueError("foreign_native_ledger_unverified")
+
+    @staticmethod
+    def _identity(info, *, file=False):
+        node = info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_gid
+        return (*node, info.st_size, info.st_mtime_ns, info.st_ctime_ns) if file else node
+
+    def _facts(self):
+        """Reuse the exact private reader and service validator, with exact PID sets."""
+        values = {}
+        for role in ("web", "runtime"):
+            fact = read_private_json(
+                self.candidate.parent / "run" / (role + ".json"),
+                trusted_root=self.candidate.parent,
+                max_bytes=STATE_LIMIT_BYTES,
+            )
+            if fact.state != "valid" or type(fact.value) is not dict:
+                return None
+            values[role] = fact.value
+        project = _bounded_string(values["web"].get("project_root"))
+        if (
+            project is None
+            or not Path(project).is_absolute()
+            or str(Path(project).resolve()) != project
+        ):
+            return None
+        services = bootstrap_service_facts(Path(project), self.candidate)
+        pids = []
+        processes, listeners = {}, {}
+        for role, service in services.items():
+            if (
+                _valid_state(
+                    values[role],
+                    role=role,
+                    port=service["port"],
+                    project_root=Path(project),
+                    data_home=self.candidate,
+                    web_port=services["web"]["port"],
+                )
+                is None
+                or values[role]["pid"] != service["pid"]
+                or service["state"] != "valid"
+                or service["ownership"] != "owned"
+                or service["process"] != "alive"
+                or service["port_state"] != "listening"
+                or service["issues"]
+            ):
+                return None
+            pid = service["pid"]
+            listener = listener_pids(service["port"])
+            process = probe_process(pid)
+            if (
+                listener.issue
+                or listener.pids != (pid,)
+                or process.state != "alive"
+                or process.issue
+                or not process.argv
+                or process.started_at is None
+                or not signature_matches_argv(tuple(values[role]["signature"]), process.argv)
+                or abs(process.started_at - values[role]["started_at"])
+                > PROCESS_START_TOLERANCE_SECONDS
+            ):
+                return None
+            pids.append(pid)
+            processes[pid] = process
+            listeners[service["port"]] = listener
+        if len(set(pids)) != 2 or len(listeners) != 2:
+            return None
+        return values, services, processes, listeners
+
+    def current(self) -> bool:
+        from .runtime_mode import RuntimeModeError
+
+        if self._invalid:
+            return False
+        try:
+            valid = (
+                all(
+                    self._identity(path.lstat()) == before
+                    for path, before in self.ancestors.items()
+                )
+                and all(
+                    self._identity(os.fstat(fd), file=path.suffix == ".json") == before
+                    and self._identity(path.lstat(), file=path.suffix == ".json") == before
+                    for path, fd, before in self.nodes
+                )
+                and self._facts() == self.before
+            )
+            self._invalid = not valid
+            return valid
+        except (OSError, ValueError, TypeError, EndpointError, RuntimeModeError):
+            self._invalid = True
+            log.warning("foreign_native_ledger code=runtime_ownership_unknown")
+            return False
+
+    def _snapshot(self):
+        """Private RAM facts for comparison only; contains no lease or authority."""
+        return (
+            self.before,
+            tuple((path, identity) for path, _fd, identity in self.nodes),
+            self.ancestors,
+        )
+
+    def _invalidate(self):
+        """Observed refusal is permanent for this call's retained witness."""
+        self._invalid = True
+
+    def permits(self, owner, scope, lease, port, listener) -> bool:
+        from app.research_web.lifecycle_lock import LifecycleLock, LifecycleLockError
+
+        if (
+            owner is not self.owner
+            or scope is not self.scope
+            or lease is not self.lease
+            or type(lease) is not LifecycleLock
+            or getattr(owner, "_foreign_scope", None) is not scope
+            or getattr(owner, "_foreign_scope_lease", None) is not lease
+            or getattr(owner, "_lifecycle_lease", None) is not lease
+        ):
+            return False
+        selected_lease = cast(LifecycleLock, lease)
+        if selected_lease.path != self.target.parent / "run/lifecycle.lock":
+            return False
+        try:
+            selected_lease.assert_held()
+            return self.current() and self.before[3].get(port) == listener
+        except LifecycleLockError:
+            self._invalid = True
+            return False
+
+
+def _foreign_native_listener_safe(
+    target: Path, port: int, listener, *, owner=None, observation=None
+) -> bool:
+    """Read-only current facts or one retained mutation observation; never transfer it."""
+    from .runtime_mode import RuntimeModeError
+
+    try:
+        if owner is None:
+            with ExitStack() as scope:
+                proof = _ForeignNativeLedger(target, scope)
+                if not proof.current() or proof.before[3].get(port) != listener:
+                    return False
+                if observation is not None:
+                    hint = getattr(observation, "_foreign_hint", None)
+                    if hint is not None and hint != proof._snapshot():
+                        return False
+                    observation._foreign_hint = proof._snapshot()
+                return True
+        scope = getattr(owner, "_foreign_scope", None)
+        lease = getattr(owner, "_foreign_scope_lease", None)
+        if type(scope) is not ExitStack or lease is None:
+            return False
+        if not getattr(owner, "_foreign_attempted", False):
+            owner._foreign_attempted = True
+            owner._foreign_ledger = _ForeignNativeLedger(target, scope, owner=owner, lease=lease)
+        proof = getattr(owner, "_foreign_ledger", None)
+        return type(proof) is _ForeignNativeLedger and proof.permits(
+            owner, scope, lease, port, listener
+        )
+    except (OSError, ValueError, TypeError, EndpointError, RuntimeModeError):
+        log.warning("foreign_native_ledger code=runtime_ownership_unknown")
+        return False
 
 
 def _absolute(path: Path) -> Path:

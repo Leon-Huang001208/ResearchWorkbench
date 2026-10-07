@@ -166,6 +166,8 @@ class NativeRuntime:
         self.project_root = project_root
         self.home = home
         self.runner = runner
+        self._foreign_ports: set[int] = set()
+        self._foreign_hint = None
         from .web_bootstrap import native_endpoint_ports
 
         self.ports = (
@@ -203,6 +205,11 @@ class NativeRuntime:
                         observed.argv, data_root=data_root, project_root=self.project_root
                     )
                 ):
+                    from .web_bootstrap import _foreign_native_listener_safe
+
+                    if _foreign_native_listener_safe(data_root, port, listener, observation=self):
+                        self._foreign_ports.add(port)
+                        break
                     return False
                 checked = probe_process(pid)
                 if (
@@ -217,6 +224,9 @@ class NativeRuntime:
         return True
 
     def _probe(self, operation: str) -> dict:
+        if operation == "status":
+            self._foreign_ports.clear()
+            self._foreign_hint = None
         python = native_python(self.project_root)
         environment_issue = (
             classify_python_environment(python.parent.parent.parent).issue
@@ -258,6 +268,17 @@ class NativeRuntime:
                 mode="native",
             )
         try:
+            absent = operation == "status" and not any(
+                (self.home / "run" / (role + ".json")).exists()
+                or (self.home / "run" / (role + ".json")).is_symlink()
+                for role in ("web", "runtime")
+            )
+            if (
+                absent
+                and (self.home / "research-web").exists()
+                and not self._missing_ledger_listeners_safe(self.home / "research-web")
+            ):
+                return result("runtime_ownership_unknown", mode="native")
             completed = self.runner(
                 [
                     str(python),
@@ -280,6 +301,17 @@ class NativeRuntime:
                 or type(value.get("ok")) is not bool
             ):
                 raise ControlError("native_probe_failed")
+            if (
+                operation == "status"
+                and value.get("ok") is True
+                and not any(
+                    (self.home / "run" / (role + ".json")).exists()
+                    or (self.home / "run" / (role + ".json")).is_symlink()
+                    for role in ("web", "runtime")
+                )
+                and not self._missing_ledger_listeners_safe(self.home / "research-web")
+            ):
+                return result("runtime_ownership_unknown", mode="native")
             return value
         except (OSError, ValueError, ControlError, subprocess.SubprocessError):
             log.warning("native_probe code=native_probe_failed")
@@ -330,23 +362,50 @@ def switch_runtime(store, target, docker, native, *, stop_current=False, wait_ti
         if running[target]:
             raise ControlError("runtime_other_running")
         if running[before.mode]:
-            stopped = controllers[before.mode].stop()
+            if before.mode == "docker" and isinstance(docker, DockerRuntime):
+
+                def stop_docker():
+                    checked_native = native.status()
+                    if not docker._native_selection_safe(native, checked_native):
+                        raise ControlError("runtime_ownership_unknown")
+                    return docker.stop()
+
+                stopped = docker._locked_guard("switch_stop", stop_docker)
+            else:
+                stopped = controllers[before.mode].stop()
             if not stopped.get("ok"):
                 return stopped
+
         # Public stop owns its lock; never hold one across the Native subprocess.
         # Reacquire the shared lock before final state checks and metadata CAS.
-        with LifecycleLock(
-            store.home / "run/lifecycle.lock", DockerRuntime._pid_exists, trusted_root=store.home
-        ):
+        def finalize():
             if store.read() != before:
                 raise ControlError("runtime_mode_changed")
             for controller in controllers.values():
                 report = controller.status()
                 if not report.get("ok") or _running(report):
                     raise ControlError("runtime_stop_failed")
+            if isinstance(docker, DockerRuntime):
+                if not docker._native_selection_safe(native, native.status()):
+                    raise ControlError("runtime_ownership_unknown")
+                if not docker._foreign_safe(native):
+                    raise ControlError("runtime_ownership_unknown")
             record = store.write(target, expected=before)
+            return result(mode=record.mode, installation_id=record.installation_id, changed=True)
+
+        if isinstance(docker, DockerRuntime):
+            final = docker._locked_guard("switch_select", finalize)
+        else:
+            with LifecycleLock(
+                store.home / "run/lifecycle.lock",
+                DockerRuntime._pid_exists,
+                trusted_root=store.home,
+            ):
+                final = finalize()
+        if not final.get("ok"):
+            return final
         log.info("runtime_switch mode=%s code=ok", target)
-        return result(mode=record.mode, installation_id=record.installation_id, changed=True)
+        return final
     except (RuntimeModeError, ControlError, EndpointError, LifecycleLockError) as error:
         log.warning("runtime_switch code=%s", error.code)
         return result(error.code)

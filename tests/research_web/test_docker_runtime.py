@@ -16,6 +16,17 @@ import pytest
 from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
 
 
+@pytest.fixture(autouse=True)
+def isolated_os_native_candidate(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import web_bootstrap
+
+    monkeypatch.setattr(
+        web_bootstrap,
+        "_standard_native_data_root",
+        lambda: tmp_path / "os-user/.research-workbench/research-web",
+    )
+
+
 class RecordingRunner:
     def __init__(self):
         self.calls = []
@@ -707,6 +718,917 @@ def test_fix2_managed_docker_mapping_mismatch_cannot_be_adopted(runtime):
     assert report["issues"] == ["docker_ports_mismatch"], report
     assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
     assert runner.container["running"]
+
+
+@pytest.fixture
+def foreign_native_pair(runtime, monkeypatch):
+    """Actual bounded private ledger reader with explicit fixture OS observations."""
+    from test_web_bootstrap import _service_state
+
+    from app.research_web import service_manager
+    from research_workbench_entrypoint import bootstrap, web_bootstrap, web_contract
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    candidate = controller.project_root / "os-user" / ".research-workbench" / "research-web"
+    candidate.mkdir(parents=True, mode=0o700)
+    candidate.parent.chmod(0o700)
+    records = candidate.parent / "run"
+    records.mkdir(mode=0o700)
+    states = {}
+    processes = {}
+    for role in ("web", "runtime"):
+        state = _service_state(controller.project_root, candidate, role)
+        path = records / (role + ".json")
+        path.write_text(json.dumps(state))
+        path.chmod(0o600)
+        states[role] = state
+        argv = tuple(state["signature"])
+        processes[state["pid"]] = ProcessFact("alive", " ".join(argv), None, argv, 1.0)
+
+    def listeners(port):
+        pids = tuple(state["pid"] for state in states.values() if state["port"] == port)
+        return ListenerFact("listening" if pids else "closed", pids, None)
+
+    monkeypatch.setattr(
+        web_bootstrap, "_standard_native_data_root", lambda: candidate, raising=False
+    )
+    for module in (web_bootstrap, bootstrap, web_contract, service_manager):
+        monkeypatch.setattr(module, "listener_pids", listeners)
+        monkeypatch.setattr(module, "probe_process", lambda pid: processes[pid])
+
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            if runner.container is None:
+                owned(controller, runner)
+            else:
+                runner.container.update(running=True, state="running")
+        return runner(argv, **kwargs)
+
+    controller.runner = launch
+    return candidate, states, processes
+
+
+def test_foreign_private_pair_allows_repeated_docker_start(runtime, foreign_native_pair):
+    controller, runner, _ = runtime
+    first = controller.start(open_browser=False)
+    assert first["ok"] is True, first
+    identity = runner.container["id"]
+    second = controller.start(open_browser=False)
+    assert second["ok"] is True, second
+    assert second["ownership"] == "verified"
+    assert runner.container["id"] == identity
+
+
+def test_foreign_private_pair_docker_lifecycle(runtime, foreign_native_pair):
+    controller, _runner, _ = runtime
+    assert controller.start(open_browser=False)["ok"] is True
+    assert controller.restart(force=True, open_browser=False)["ok"] is True
+    assert controller.stop()["ok"] is True
+    assert controller.start(open_browser=False)["ok"] is True
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "same-root",
+        "alias",
+        "unsafe-mode",
+        "missing-role",
+        "malformed",
+        "fifo",
+        "extra-listener",
+        "pid-reuse",
+        "argv-change",
+    ],
+)
+def test_foreign_private_pair_refuses_incomplete_or_unknown(
+    runtime, foreign_native_pair, monkeypatch, change
+):
+    from research_workbench_entrypoint import bootstrap, web_bootstrap, web_contract
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+    controller, runner, _ = runtime
+    candidate, states, processes = foreign_native_pair
+    if change == "same-root":
+        monkeypatch.setattr(
+            web_bootstrap, "_standard_native_data_root", lambda: controller.data_dir
+        )
+    elif change == "alias":
+        alias = candidate.with_name("alias")
+        alias.symlink_to(candidate, target_is_directory=True)
+        monkeypatch.setattr(web_bootstrap, "_standard_native_data_root", lambda: alias)
+    elif change == "unsafe-mode":
+        candidate.chmod(0o755)
+    elif change == "missing-role":
+        (candidate.parent / "run/runtime.json").unlink()
+    elif change == "malformed":
+        (candidate.parent / "run/runtime.json").write_text("{}")
+    elif change == "fifo":
+        path = candidate.parent / "run/runtime.json"
+        path.unlink()
+        os.mkfifo(path, 0o600)
+    elif change == "extra-listener":
+        for module in (web_bootstrap, bootstrap, web_contract):
+            original = module.listener_pids
+            monkeypatch.setattr(
+                module,
+                "listener_pids",
+                lambda port, original=original: (
+                    ListenerFact("listening", (*original(port).pids, 999), None)
+                    if port == 8088
+                    else original(port)
+                ),
+            )
+    else:
+        pid = states["web"]["pid"]
+        old = processes[pid]
+        argv = old.argv if change == "pid-reuse" else (*old.argv, "changed")
+        processes[pid] = ProcessFact(
+            "alive", old.command_line, None, argv, 99.0 if change == "pid-reuse" else old.started_at
+        )
+        if change == "argv-change":
+            # Keep the product-looking observation but remove its owned signature.
+            processes[pid] = ProcessFact(
+                "alive",
+                old.command_line,
+                None,
+                ("uvicorn", "app.research_web.main:app", "--app-dir", "/other"),
+                1.0,
+            )
+    report = controller.start(open_browser=False)
+    assert report["issues"] == ["runtime_ownership_unknown"], report
+    assert runner.container is None
+    assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["record", "root", "target-root", "argv", "start", "lease", "scope", "other-controller"],
+)
+def test_foreign_capture_never_refreshes_or_transfers(
+    runtime, foreign_native_pair, monkeypatch, change
+):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.docker_runtime import ControlError, DockerRuntime
+    from research_workbench_entrypoint.web_contract import ProcessFact
+
+    controller, runner, _ = runtime
+    candidate, states, processes = foreign_native_pair
+
+    def check():
+        native = NativeRuntime(controller.project_root, controller.home)
+        assert controller._native_selection_safe(native, native.status())
+        proof = controller._foreign_ledger
+        assert proof is not None
+        if change == "record":
+            path = candidate.parent / "run/web.json"
+            replacement = path.with_name("replacement.json")
+            replacement.write_bytes(path.read_bytes())
+            replacement.chmod(0o600)
+            replacement.replace(path)
+        elif change in ("root", "target-root"):
+            root = candidate if change == "root" else controller.data_dir
+            root.rename(root.with_name(root.name + "-old"))
+            root.mkdir(mode=0o700)
+        elif change in ("argv", "start"):
+            pid = states["web"]["pid"]
+            before = processes[pid]
+            processes[pid] = ProcessFact(
+                "alive",
+                before.command_line,
+                None,
+                (*before.argv, "extra") if change == "argv" else before.argv,
+                before.started_at + 1 if change == "start" else before.started_at,
+            )
+        elif change == "lease":
+            controller._lifecycle_lease = object()
+        elif change == "scope":
+            controller._foreign_scope = object()
+        else:
+            other = DockerRuntime(controller.project_root, controller.home, runner=runner)
+            port, listener = next(iter(proof.before[3].items()))
+            assert not proof.permits(
+                other, controller._foreign_scope, controller._lifecycle_lease, port, listener
+            )
+            return {"ok": True}
+        assert not controller._foreign_safe(native)
+        assert not controller._foreign_safe(native)
+        raise ControlError("runtime_ownership_unknown")
+
+    report = controller._locked_guard("fixture", check)
+    if change != "other-controller":
+        assert report["issues"] == ["runtime_ownership_unknown"], report
+    assert controller._foreign_ledger is None
+    assert runner.container is None
+
+
+def test_restart_unknown_pair_refuses_before_stopping_healthy_docker(runtime, foreign_native_pair):
+    controller, runner, _ = runtime
+    candidate, _states, _processes = foreign_native_pair
+    assert controller.start(open_browser=False)["ok"]
+    identity = runner.container["id"]
+    (candidate.parent / "run/runtime.json").unlink()
+    calls = len(runner.calls)
+    report = controller.restart(force=True, open_browser=False)
+    assert report["issues"] == ["runtime_ownership_unknown"]
+    assert runner.container["id"] == identity and runner.container["running"]
+    assert not any(argv[1] in ("stop", "rm") for argv, _ in runner.calls[calls:])
+
+
+def test_foreign_pair_normal_native_bridge_uses_existing_manager_reader(
+    runtime, foreign_native_pair, monkeypatch
+):
+    from test_web_bootstrap import _write_owned_interpreter
+
+    from app.research_web import service_manager
+    from research_workbench_entrypoint import bootstrap, web_bootstrap
+
+    controller, _runner, _ = runtime
+    _write_owned_interpreter(controller.project_root, valid_marker=True)
+    monkeypatch.setattr(service_manager, "listener_pids", web_bootstrap.listener_pids)
+    monkeypatch.setattr(service_manager, "probe_process", web_bootstrap.probe_process)
+    calls = []
+
+    def bridge(argv, **kwargs):
+        calls.append(argv)
+        report = bootstrap._native_probe(
+            argv[-5], Path(argv[-4]), Path(argv[-3]), (int(argv[-2]), int(argv[-1]))
+        )
+        return subprocess.CompletedProcess(argv, 0, json.dumps(report), "")
+
+    native = bootstrap.NativeRuntime(controller.project_root, controller.home, runner=bridge)
+    report = native.status()
+    assert report["ok"] and all(not service["running"] for service in report["services"].values())
+    assert calls and native._foreign_ports == {8088, 3081}
+    with service_manager.WebServiceManager(
+        project_root=controller.project_root, data_root=controller.data_dir
+    )._lifecycle_lock():
+        pass
+
+
+def test_first_native_switch_requires_actual_installation_preflight(runtime, foreign_native_pair):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime, switch_runtime
+
+    controller, runner, _ = runtime
+    assert controller.start(open_browser=False)["ok"]
+    identity = runner.container["id"]
+    native = NativeRuntime(controller.project_root, controller.home)
+    assert native.preflight()["issues"] == ["native_environment_missing"]
+    report = switch_runtime(controller.store, "native", controller, native, stop_current=True)
+    assert report["issues"] == ["native_environment_missing"]
+    assert runner.container["id"] == identity and runner.container["running"]
+    assert controller.store.read().mode == "docker"
+
+
+@pytest.mark.parametrize("lock_matches", [True, False])
+def test_installed_native_switch_uses_pair_reader_preflight_and_mode_cas(
+    runtime, foreign_native_pair, monkeypatch, lock_matches
+):
+    """Coherent installation facts fixture, not an actual Native/DSH installation."""
+    import hashlib
+
+    from test_web_bootstrap import _write_owned_interpreter
+
+    from app.research_web import service_manager
+    from research_workbench_entrypoint import bootstrap
+
+    controller, runner, _ = runtime
+    assert controller.start(open_browser=False)["ok"]
+    identity = runner.container["id"]
+    _write_owned_interpreter(controller.project_root, valid_marker=True)
+    node = controller.project_root / "fixture-node"
+    node.write_text("fixture executable fact")
+    monkeypatch.setenv("RESEARCH_NODE_BINARY", str(node))
+    closure = "fixture-verified-closure"
+    manifest = {
+        "schema_version": 1,
+        "status": "installed",
+        "web_lock_sha256": (
+            hashlib.sha256(
+                (controller.project_root / "requirements/web.lock").read_bytes()
+            ).hexdigest()
+            if lock_matches
+            else "mismatch"
+        ),
+        "cjpy_version": service_manager.CJPY_VERSION,
+        "cjpy_sha256": service_manager.CJPY_SHA256,
+        "dsh_commit": service_manager.PINNED_COMMIT,
+        "dsh_closure_sha256": closure,
+    }
+    path = controller.home / "install/manifest.json"
+    path.write_text(json.dumps(manifest))
+    path.chmod(0o600)
+    build_lock = controller.data_dir / "runtime/build-lock.json"
+    build_lock.parent.mkdir(mode=0o700)
+    build_lock.write_text(
+        json.dumps(
+            {
+                "source_commit": service_manager.PINNED_COMMIT,
+                "closure_sha256": closure,
+                "closure_files": 17,
+                "mode": "build",
+            }
+        )
+    )
+    build_lock.chmod(0o600)
+    # Only underlying installed-package, Node-version and accepted DSH asset
+    # facts are fixtures. The actual manager combines manifest/lock/marker and
+    # validates build-lock.json; neither preflight nor Native.status is mocked.
+    monkeypatch.setattr(
+        service_manager.WebServiceManager,
+        "_installed_package_versions",
+        lambda _self: {
+            "cjpy": service_manager.CJPY_VERSION,
+            "requests": "fixture",
+            "urllib3": "fixture",
+        },
+    )
+    monkeypatch.setattr(
+        service_manager.WebServiceManager,
+        "_executable_version",
+        staticmethod(
+            lambda executable: "v24.19.0" if executable == str(node) else "Python 3.12.13"
+        ),
+    )
+    monkeypatch.setattr(
+        service_manager.WebServiceManager,
+        "_dsh_build_status",
+        lambda _self: {
+            "commit": service_manager.PINNED_COMMIT,
+            "ready": True,
+            "closure_sha256": closure,
+            "closure_files": 17,
+        },
+    )
+    events = []
+
+    def bridge(argv, **kwargs):
+        operation = argv[-5]
+        report = bootstrap._native_probe(
+            operation, Path(argv[-4]), Path(argv[-3]), (int(argv[-2]), int(argv[-1]))
+        )
+        events.append((operation, report["ok"]))
+        return subprocess.CompletedProcess(argv, 0, json.dumps(report), "")
+
+    native = bootstrap.NativeRuntime(controller.project_root, controller.home, runner=bridge)
+    preflight = native.preflight()
+    assert preflight["ok"] is lock_matches, preflight
+    runner.on_stop = lambda: events.append(("docker-stop", True))
+    original_write = controller.store.write
+
+    def write(mode, **kwargs):
+        if mode == "native":
+            assert not runner.container["running"]
+            assert controller._foreign_ledger is not None
+            assert controller._foreign_safe(native)
+            events.append(("mode-cas", True))
+        return original_write(mode, **kwargs)
+
+    monkeypatch.setattr(controller.store, "write", write)
+    calls_before = len(runner.calls)
+    report = bootstrap.switch_runtime(
+        controller.store, "native", controller, native, stop_current=True
+    )
+    if lock_matches:
+        assert report["ok"] and report["changed"] and report["mode"] == "native", report
+        assert controller.store.read().mode == "native"
+        assert not runner.container["running"]
+        assert (
+            events.index(("preflight", True))
+            < events.index(("docker-stop", True))
+            < events.index(("mode-cas", True))
+        )
+        assert [argv for argv, _ in runner.calls[calls_before:] if argv[1] == "stop"] == [
+            ["docker", "stop", "--time", "35", identity]
+        ]
+    else:
+        assert preflight["issues"] == ["web_lock_mismatch"]
+        assert report["issues"] == ["web_lock_mismatch"]
+        assert runner.container["running"] and controller.store.read().mode == "docker"
+        assert ("docker-stop", True) not in events and ("mode-cas", True) not in events
+    assert runner.container["id"] == identity
+    assert not any("up" in argv or argv[1] == "rm" for argv, _ in runner.calls[calls_before:])
+
+
+def test_foreign_pair_native_scope_captures_and_rechecks_before_spawn(
+    runtime, foreign_native_pair, monkeypatch
+):
+    from app.research_web import service_manager
+    from research_workbench_entrypoint import web_bootstrap
+
+    controller, _runner, _ = runtime
+    candidate, _states, _processes = foreign_native_pair
+    monkeypatch.setattr(service_manager, "listener_pids", web_bootstrap.listener_pids)
+    monkeypatch.setattr(service_manager, "probe_process", web_bootstrap.probe_process)
+    manager = service_manager.WebServiceManager(
+        project_root=controller.project_root, data_root=controller.data_dir
+    )
+    with manager._lifecycle_lock():
+        assert manager._native_quiescent()
+        assert manager._foreign_ledger is not None
+        manager._assert_foreign_observation()
+        path = candidate.parent / "run/web.json"
+        replacement = path.with_name("replacement.json")
+        replacement.write_bytes(path.read_bytes())
+        replacement.chmod(0o600)
+        replacement.replace(path)
+        with pytest.raises(service_manager.ServiceManagerError, match="runtime_ownership_unknown"):
+            manager._spawn(manager._processes()[0])
+    assert manager._foreign_ledger is None and manager._foreign_scope is None
+
+
+@pytest.mark.parametrize("change", ["root", "record", "pid", "target-record"])
+def test_owned_bridge_child_facts_cannot_authorize_changed_parent(
+    runtime, foreign_native_pair, monkeypatch, change
+):
+    from test_web_bootstrap import _write_owned_interpreter
+
+    from app.research_web import service_manager
+    from research_workbench_entrypoint import bootstrap, web_bootstrap
+    from research_workbench_entrypoint.web_contract import ProcessFact
+
+    controller, runner, _ = runtime
+    candidate, states, processes = foreign_native_pair
+    _write_owned_interpreter(controller.project_root, valid_marker=True)
+    monkeypatch.setattr(service_manager, "listener_pids", web_bootstrap.listener_pids)
+    monkeypatch.setattr(service_manager, "probe_process", web_bootstrap.probe_process)
+
+    def bridge(argv, **kwargs):
+        report = bootstrap._native_probe(
+            argv[-5], Path(argv[-4]), Path(argv[-3]), (int(argv[-2]), int(argv[-1]))
+        )
+        assert report["ok"]
+        if change == "root":
+            candidate.rename(candidate.with_name("old-root"))
+            candidate.mkdir(mode=0o700)
+        elif change == "record":
+            path = candidate.parent / "run/web.json"
+            replacement = path.with_name("replacement.json")
+            replacement.write_bytes(path.read_bytes())
+            replacement.chmod(0o600)
+            replacement.replace(path)
+        elif change == "pid":
+            pid = states["web"]["pid"]
+            old = processes[pid]
+            processes[pid] = ProcessFact(
+                "alive", old.command_line, None, old.argv, old.started_at + 1
+            )
+        else:
+            path = controller.home / "run/web.json"
+            path.write_text("{}")
+            path.chmod(0o600)
+        return subprocess.CompletedProcess(argv, 0, json.dumps(report), "")
+
+    def check():
+        native = bootstrap.NativeRuntime(controller.project_root, controller.home, runner=bridge)
+        report = native.status()
+        assert not controller._native_selection_safe(native, report)
+        return {"ok": True}
+
+    assert controller._locked_guard("fixture", check)["ok"]
+    assert runner.container is None
+
+
+@pytest.mark.parametrize("boundary", ["control", "spawn"])
+def test_target_unknown_record_refuses_after_foreign_capture(
+    runtime, foreign_native_pair, monkeypatch, boundary
+):
+    controller, runner, _ = runtime
+    original = controller._prepare_control_origin
+
+    def prepare(image):
+        if boundary == "spawn":
+            result = original(image)
+        path = controller.home / "run/web.json"
+        path.write_text("{}")
+        path.chmod(0o600)
+        return result if boundary == "spawn" else original(image)
+
+    monkeypatch.setattr(controller, "_prepare_control_origin", prepare)
+    report = controller.start(open_browser=False)
+    assert report["issues"][0] == "runtime_ownership_unknown", report
+    assert not any("up" in argv for argv, _ in runner.calls)
+    assert runner.container is None
+
+
+def test_readonly_foreign_facts_and_external_lease_do_not_grant_write_scope(
+    runtime, foreign_native_pair
+):
+    from app.research_web.lifecycle_lock import LifecycleLock
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+
+    controller, _runner, _ = runtime
+    native = NativeRuntime(controller.project_root, controller.home)
+    report = native.status()
+    assert report["ok"] and native._foreign_hint is not None
+    assert controller._foreign_ledger is None
+    assert not controller._native_selection_safe(native, report)
+    with LifecycleLock(
+        controller.home / "run/lifecycle.lock", controller._pid_exists, trusted_root=controller.home
+    ) as lease:
+        controller._lifecycle_lease = lease
+        try:
+            assert not controller._native_selection_safe(native, report)
+            assert controller._foreign_ledger is None
+        finally:
+            controller._lifecycle_lease = None
+
+
+def test_foreign_lease_loss_refuses_even_if_lock_contents_are_restored(
+    runtime, foreign_native_pair
+):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+
+    controller, _runner, _ = runtime
+
+    def check():
+        native = NativeRuntime(controller.project_root, controller.home)
+        assert controller._native_selection_safe(native, native.status())
+        path = controller.home / "run/lifecycle.lock/owner.json"
+        original = path.read_bytes()
+        value = json.loads(original)
+        value["token"] = "f" * 32
+        try:
+            path.write_text(json.dumps(value))
+            assert not controller._foreign_safe(native)
+        finally:
+            path.write_bytes(original)
+        assert not controller._foreign_safe(native)
+        return {"ok": True}
+
+    assert controller._locked_guard("fixture", check)["ok"]
+
+
+@pytest.mark.parametrize("proof", [True, False, {}, (True,)])
+def test_foreign_boolean_or_tuple_is_not_a_proof(runtime, foreign_native_pair, proof):
+    controller, _runner, _ = runtime
+
+    def check():
+        controller._foreign_attempted = True
+        controller._foreign_ledger = proof
+        assert not controller._foreign_safe()
+        return {"ok": True}
+
+    assert controller._locked_guard("fixture", check)["ok"]
+
+
+def test_foreign_manager_rejects_new_owned_looking_target_record(runtime, foreign_native_pair):
+    from test_web_bootstrap import _service_state
+
+    from app.research_web.service_manager import ServiceManagerError, WebServiceManager
+
+    controller, _runner, _ = runtime
+    manager = WebServiceManager(project_root=controller.project_root, data_root=controller.data_dir)
+    with manager._lifecycle_lock():
+        assert manager._native_quiescent()
+        state = _service_state(controller.project_root, controller.data_dir, "web")
+        path = controller.home / "run/web.json"
+        path.write_text(json.dumps(state))
+        path.chmod(0o600)
+        with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+            manager._assert_foreign_observation()
+
+
+def test_foreign_switch_rechecks_target_slot_before_mode_write(
+    runtime, foreign_native_pair, monkeypatch
+):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime, switch_runtime
+
+    controller, runner, _ = runtime
+    controller.store.write("native")
+    owned(controller, runner)
+    runner.container.update(running=False, state="exited")
+    original = NativeRuntime.status
+    calls = []
+
+    def status(native):
+        report = original(native)
+        calls.append(report)
+        if len(calls) == 3:
+            path = controller.home / "run/web.json"
+            path.write_text("{}")
+            path.chmod(0o600)
+        return report
+
+    monkeypatch.setattr(NativeRuntime, "status", status)
+    native = NativeRuntime(controller.project_root, controller.home, ports=controller.ports)
+    report = switch_runtime(controller.store, "docker", controller, native, stop_current=True)
+    assert report["issues"] == ["runtime_ownership_unknown"], report
+    assert controller.store.read().mode == "native"
+    assert not runner.container["running"]
+    assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+
+
+@pytest.fixture
+def foreign_spawn_scope(runtime, foreign_native_pair, monkeypatch):
+    from app.research_web import service_manager
+    from research_workbench_entrypoint import bootstrap, web_bootstrap, web_contract
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+    controller, _runner, _ = runtime
+    _candidate, _states, processes = foreign_native_pair
+    manager = service_manager.WebServiceManager(
+        project_root=controller.project_root,
+        data_root=controller.data_dir,
+        web_port=controller.ports[0],
+        runtime_port=controller.ports[1],
+    )
+    process = manager._processes()[1]
+    listeners = {}
+    original_listener = web_bootstrap.listener_pids
+
+    def observe(port):
+        return listeners.get(port, original_listener(port))
+
+    for module in (service_manager, bootstrap, web_bootstrap, web_contract):
+        monkeypatch.setattr(module, "listener_pids", observe)
+
+    class Child:
+        pid = 778899
+        returncode = None
+
+        def poll(self):
+            return self.returncode
+
+        def wait(self, **kwargs):
+            self.returncode = 0
+            return 0
+
+    child = Child()
+
+    def popen(argv, **kwargs):
+        processes[child.pid] = ProcessFact(
+            "alive", "fixture-owned-child", None, tuple(argv), time.time()
+        )
+        listeners[process.port] = ListenerFact("listening", (child.pid,), None)
+        return child
+
+    monkeypatch.setattr(service_manager.subprocess, "Popen", popen)
+    monkeypatch.setattr(manager, "_protocol_health", lambda _process: True)
+    with manager._lifecycle_lock():
+        manager._prepare_private_directories()
+        manager._active_spawn_attempt = []
+        assert manager._native_quiescent()
+        yield manager, process, child, processes, listeners
+
+
+@pytest.mark.parametrize("boundary", ["after-popen", "second-registration"])
+def test_foreign_spawn_lock_loss_reaps_exact_child(foreign_spawn_scope, monkeypatch, boundary):
+    from app.research_web import service_manager
+
+    manager, process, child, _processes, _listeners = foreign_spawn_scope
+    original = manager._record_attempt_spawn
+    terminated = []
+    calls = []
+
+    def register(*args, **kwargs):
+        calls.append(True)
+        if len(calls) == (1 if boundary == "after-popen" else 2):
+            raise service_manager.LifecycleLockError("lost", code="lifecycle_lock_ownership_lost")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(manager, "_record_attempt_spawn", register)
+    monkeypatch.setattr(
+        manager, "_terminate_failed_spawn", lambda actual: terminated.append(actual)
+    )
+    with pytest.raises(service_manager.LifecycleLockError, match="lost"):
+        manager._spawn_and_wait(process)
+    assert terminated == [child]
+
+
+@pytest.mark.parametrize("change", ["record-inode", "argv", "start", "listener"])
+def test_foreign_spawn_observation_rejects_record_or_process_changes(foreign_spawn_scope, change):
+    from app.research_web.service_manager import ServiceManagerError
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+    manager, process, child, processes, listeners = foreign_spawn_scope
+    assert manager._spawn_and_wait(process) == child.pid
+    manager._assert_foreign_observation()
+    if change == "record-inode":
+        path = manager._state_path(process.role)
+        replacement = path.with_name("same-content.json")
+        replacement.write_bytes(path.read_bytes())
+        replacement.chmod(0o600)
+        replacement.replace(path)
+    elif change == "listener":
+        listeners[process.port] = ListenerFact("listening", (child.pid, 998877), None)
+    else:
+        old = processes[child.pid]
+        processes[child.pid] = ProcessFact(
+            "alive",
+            old.command_line,
+            None,
+            (*old.argv, "extra") if change == "argv" else old.argv,
+            old.started_at + 1 if change == "start" else old.started_at,
+        )
+    with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._assert_foreign_observation()
+
+
+def test_foreign_spawn_changed_record_refuses_rollback(foreign_spawn_scope, monkeypatch):
+    from app.research_web.service_manager import ServiceManagerError
+
+    manager, process, child, _processes, _listeners = foreign_spawn_scope
+    manager._spawn_and_wait(process)
+    path = manager._state_path(process.role)
+    replacement = path.with_name("same-content.json")
+    replacement.write_bytes(path.read_bytes())
+    replacement.chmod(0o600)
+    replacement.replace(path)
+    terminated = []
+
+    def unexpected(*args, **kwargs):
+        terminated.append(args)
+        raise ServiceManagerError("unexpected-stop")
+
+    monkeypatch.setattr(manager, "_terminate_pid", unexpected)
+    with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._rollback_spawned(process, child.pid)
+    assert not terminated
+
+
+def test_foreign_spawn_closed_to_owned_listener_is_one_time_binding(
+    foreign_spawn_scope, monkeypatch
+):
+    from app.research_web import service_manager
+    from research_workbench_entrypoint.web_contract import ListenerFact
+
+    manager, process, child, _processes, listeners = foreign_spawn_scope
+    original = service_manager.subprocess.Popen
+
+    def pending(*args, **kwargs):
+        actual = original(*args, **kwargs)
+        listeners[process.port] = ListenerFact("closed", (), None)
+        return actual
+
+    monkeypatch.setattr(service_manager.subprocess, "Popen", pending)
+    monkeypatch.setattr(
+        service_manager.time,
+        "sleep",
+        lambda _delay: listeners.__setitem__(
+            process.port, ListenerFact("listening", (child.pid,), None)
+        ),
+    )
+    assert manager._spawn_and_wait(process) == child.pid
+    witness = manager._foreign_started[(process.role, child.pid)]
+    baseline = witness["facts"]
+    assert witness["phase"] == "bound" and baseline[1].pids == (child.pid,)
+    manager._record_attempt_spawn(process, child.pid)
+    assert witness["facts"] is baseline
+    listeners[process.port] = ListenerFact("closed", (), None)
+    with pytest.raises(service_manager.ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._assert_foreign_observation()
+    listeners[process.port] = baseline[1]
+    with pytest.raises(service_manager.ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._record_attempt_spawn(process, child.pid)
+    assert witness["facts"] is baseline
+
+
+def test_foreign_spawn_unknown_rollback_keeps_original_health_error(
+    foreign_spawn_scope, monkeypatch
+):
+    from app.research_web.service_manager import ServiceManagerError
+
+    manager, process, child, _processes, _listeners = foreign_spawn_scope
+    original = manager._wait_for_ready
+
+    def fail(*args, **kwargs):
+        original(*args, **kwargs)
+        path = manager._state_path(process.role)
+        replacement = path.with_name("same-content.json")
+        replacement.write_bytes(path.read_bytes())
+        replacement.chmod(0o600)
+        replacement.replace(path)
+        raise ServiceManagerError("web_health_timeout", code="web_health_timeout")
+
+    terminated = []
+    monkeypatch.setattr(manager, "_wait_for_ready", fail)
+    monkeypatch.setattr(manager, "_terminate_pid", lambda *args, **kwargs: terminated.append(args))
+    with pytest.raises(ServiceManagerError) as caught:
+        manager._spawn_and_wait(process)
+    assert caught.value.code == "web_health_timeout"
+    assert not terminated and child.poll() is None
+
+
+def test_foreign_unknown_target_slot_removal_does_not_restore_manager_capability(
+    foreign_spawn_scope, monkeypatch
+):
+    from app.research_web.service_manager import ServiceManagerError
+
+    manager, process, child, _processes, _listeners = foreign_spawn_scope
+    manager._spawn_and_wait(process)
+    unknown = manager._state_path("runtime")
+    unknown.write_text("{}")
+    unknown.chmod(0o600)
+    with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._assert_foreign_observation()
+    unknown.unlink()
+    with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._assert_foreign_observation()
+    signalled = []
+    monkeypatch.setattr(manager, "_terminate_pid", lambda *args, **kwargs: signalled.append(args))
+    with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._rollback_spawned(process, child.pid)
+    assert not signalled and child.poll() is None
+
+
+def test_foreign_unknown_target_slot_removal_does_not_restore_docker_rollback(
+    runtime, foreign_native_pair
+):
+    from research_workbench_entrypoint.docker_runtime import ControlError
+
+    controller, runner, _ = runtime
+
+    def check():
+        assert controller.start(open_browser=False)["ok"]
+        assert controller._created_container is not None
+        unknown = controller.home / "run/runtime.json"
+        unknown.write_text("{}")
+        unknown.chmod(0o600)
+        assert not controller._foreign_safe()
+        unknown.unlink()
+        assert not controller._foreign_safe()
+        with pytest.raises(ControlError, match="docker_rollback_failed"):
+            controller._rollback_created()
+        assert runner.container["running"]
+        assert not any(argv[1] == "rm" for argv, _ in runner.calls)
+        return {"ok": True}
+
+    assert controller._locked_guard("fixture", check)["ok"]
+
+
+def test_foreign_target_slot_io_failure_never_restores_same_scope(
+    runtime, foreign_native_pair, monkeypatch
+):
+    from research_workbench_entrypoint.docker_runtime import ControlError
+
+    controller, runner, _ = runtime
+    original = Path.lstat
+    failing = {"enabled": False}
+    target = controller.home / "run/runtime.json"
+
+    def lstat(path):
+        if path == target and failing["enabled"]:
+            raise PermissionError("fixture target observation I/O")
+        return original(path)
+
+    monkeypatch.setattr(Path, "lstat", lstat)
+
+    def check():
+        assert controller.start(open_browser=False)["ok"]
+        failing["enabled"] = True
+        report = controller._guard("fixture_io", controller._foreign_safe)
+        assert report["issues"] == ["docker_io"]
+        failing["enabled"] = False
+        assert not controller._foreign_safe()
+        with pytest.raises(ControlError, match="docker_rollback_failed"):
+            controller._rollback_created()
+        assert runner.container["running"]
+        assert not any(argv[1] == "rm" for argv, _ in runner.calls)
+        return {"ok": True}
+
+    assert controller._locked_guard("fixture", check)["ok"]
+
+
+def test_foreign_exact_owned_stop_keeps_legitimate_exit_valid(foreign_spawn_scope, monkeypatch):
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+    manager, process, child, processes, listeners = foreign_spawn_scope
+    manager._spawn_and_wait(process)
+
+    def terminate(pid, **kwargs):
+        assert pid == child.pid
+        child.returncode = 0
+        processes[pid] = ProcessFact("missing", None, None)
+        listeners[process.port] = ListenerFact("closed", (), None)
+
+    monkeypatch.setattr(manager, "_terminate_pid", terminate)
+    assert manager._stop_owned_probe(process, manager._probe_service(process))
+    manager._assert_foreign_observation()
+    assert manager._foreign_started[(process.role, child.pid)]["phase"] == "stopped"
+    assert not manager._foreign_ledger._invalid
+
+
+def test_foreign_unexplained_exit_cannot_restore_scope_when_facts_reappear(foreign_spawn_scope):
+    from app.research_web.service_manager import ServiceManagerError
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+
+    manager, process, child, processes, listeners = foreign_spawn_scope
+    manager._spawn_and_wait(process)
+    before = processes[child.pid], listeners[process.port]
+    child.returncode = 1
+    processes[child.pid] = ProcessFact("missing", None, None)
+    listeners[process.port] = ListenerFact("closed", (), None)
+    with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._assert_foreign_observation()
+    # Explicit adversarial OS/child fixture reversal: observed failure is not a
+    # new permission baseline, even if later facts again look identical.
+    child.returncode = None
+    processes[child.pid], listeners[process.port] = before
+    with pytest.raises(ServiceManagerError, match="runtime_ownership_unknown"):
+        manager._assert_foreign_observation()
 
 
 @pytest.mark.parametrize("default_only", [False, True])
@@ -1403,6 +2325,7 @@ class Native:
         self.running = running
         self.close = close
         self.events = []
+        self.ports = (8088, 3081)
 
     def preflight(self):
         self.events.append("preflight")

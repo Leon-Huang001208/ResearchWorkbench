@@ -1,5 +1,9 @@
 # Research Web Tabbit 集成
 
+macOS 异根 Native 记录认证仅复核启动者的标准产品根、PID 与 listener；不会访问浏览器
+标签、URL、Cookie、正文或 Tabbit claim。调用内 lease/FD 证明不成为浏览器授权；原会话
+审批与一次性 token 保持，容器健康仍不证明宿主 Tabbit 可调用。
+
 Python 质量整理保持 Tabbit 的延迟加载与授权边界；同步回调显式绑定不读取浏览器内容，
 格式/类型检查不构成 Tabbit 可调用性证明。
 

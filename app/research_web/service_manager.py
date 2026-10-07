@@ -17,7 +17,7 @@ import sys
 import tempfile
 import time
 import webbrowser
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -222,6 +222,11 @@ class WebServiceManager:
         self.log_root = self.data_root.parent / "logs"
         self._spawn_log_windows: dict[tuple[str, int], tuple[int, int, int]] = {}
         self._lifecycle_lease = None
+        self._foreign_scope = None
+        self._foreign_scope_lease = None
+        self._foreign_ledger = None
+        self._foreign_attempted = False
+        self._foreign_started: dict[tuple[str, int], dict[str, Any]] = {}
         self._fresh_root_identity = None
         self._fresh_recovery = None
         self._recovering_attempt = None
@@ -247,16 +252,26 @@ class WebServiceManager:
     def _lifecycle_lock(self):
         """Map lock ownership failures to the stable lifecycle error contract."""
         try:
-            with LifecycleLock(
-                self.run_root / "lifecycle.lock",
-                self._pid_exists,
-                trusted_root=self.data_root.parent,
-            ) as lease:
+            with (
+                LifecycleLock(
+                    self.run_root / "lifecycle.lock",
+                    self._pid_exists,
+                    trusted_root=self.data_root.parent,
+                ) as lease,
+                ExitStack() as scope,
+            ):
                 self._lifecycle_lease = lease
+                self._foreign_scope = scope
+                self._foreign_scope_lease = lease
                 try:
                     yield lease
                 finally:
                     self._lifecycle_lease = None
+                    self._foreign_scope = None
+                    self._foreign_scope_lease = None
+                    self._foreign_ledger = None
+                    self._foreign_attempted = False
+                    self._foreign_started.clear()
         except LifecycleLockError as exc:
             messages = {
                 "lifecycle_lock_ownership_lost": "服务生命周期锁归属已丢失",
@@ -320,6 +335,7 @@ class WebServiceManager:
         return hashlib.sha256(payload.encode()).hexdigest()
 
     def _write_state(self, process: ManagedProcess, pid: int) -> None:
+        self._assert_foreign_observation()
         payload = {
             "version": 1,
             "role": process.role,
@@ -333,6 +349,15 @@ class WebServiceManager:
             "signature": list(process.signature),
         }
         fd, name = tempfile.mkstemp(prefix=f"{process.role}-", dir=self.run_root)
+        witness = self._foreign_started.get((process.role, pid))
+        try:
+            retained = os.dup(fd) if witness is not None else None
+            if retained is not None:
+                self._foreign_scope.callback(os.close, retained)
+        except OSError:
+            os.close(fd)
+            Path(name).unlink(missing_ok=True)
+            raise
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(payload, stream, ensure_ascii=False, indent=2)
@@ -340,6 +365,22 @@ class WebServiceManager:
                 os.fsync(stream.fileno())
             os.chmod(name, 0o600)
             os.replace(name, self._state_path(process.role))
+            if witness is not None and retained is not None:
+                from research_workbench_entrypoint.runtime_mode import _validate_posix_private_file
+
+                opened = os.fstat(retained)
+                _validate_posix_private_file(opened)
+                identity = self._foreign_ledger._identity(opened, file=True)
+                if (
+                    self._foreign_ledger._identity(
+                        self._state_path(process.role).lstat(), file=True
+                    )
+                    != identity
+                ):
+                    raise ServiceManagerError(
+                        "runtime_ownership_unknown", code="runtime_ownership_unknown"
+                    )
+                witness["record"] = retained, identity
         except OSError as exc:
             Path(name).unlink(missing_ok=True)
             raise ServiceManagerError("无法写入服务状态") from exc
@@ -904,6 +945,7 @@ class WebServiceManager:
             connection.close()
 
     def _write_runtime_auth(self, cookie: str) -> dict[str, str]:
+        self._assert_foreign_observation()
         try:
             with runtime_state_directory(
                 self.runtime_state_root, create=True, native_data_root=self.data_root
@@ -1120,6 +1162,7 @@ class WebServiceManager:
             log.error("research_service_failed_spawn_reap_failed")
 
     def _spawn(self, process: ManagedProcess) -> int:
+        self._assert_foreign_observation()
         try:
             with runtime_state_directory(
                 self.runtime_state_root, create=True, native_data_root=self.data_root
@@ -1167,7 +1210,12 @@ class WebServiceManager:
                     start_new_session=True,
                     close_fds=True,
                 )
-                self._record_attempt_spawn(process, child.pid)
+                try:
+                    self._record_attempt_spawn(process, child.pid, child=child)
+                except Exception:
+                    self._terminate_failed_spawn(child)
+                    log.error("research_service_spawn_registration_failed", role=process.role)
+                    raise
                 self._spawn_log_windows[(process.role, child.pid)] = (
                     log_identity.st_dev,
                     log_identity.st_ino,
@@ -1184,6 +1232,9 @@ class WebServiceManager:
             ) from exc
         try:
             self._write_state(process, child.pid)
+        except LifecycleLockError:
+            self._terminate_failed_spawn(child)
+            raise
         except Exception as exc:
             self._terminate_failed_spawn(child)
             log.error("research_service_state_write_failed", role=process.role)
@@ -1304,6 +1355,7 @@ class WebServiceManager:
         return identity.st_dev, identity.st_ino, identity.st_size
 
     def _remove_exact_state(self, process: ManagedProcess, *, expected_pid: int) -> None:
+        self._assert_foreign_observation()
         path = self._state_path(process.role)
         try:
             before = self._state_file_identity(path)
@@ -1312,6 +1364,9 @@ class WebServiceManager:
             if state.state != "valid" or state.pid != expected_pid or before != after:
                 raise OSError("state changed")
             path.unlink()
+            witness = self._foreign_started.get((process.role, expected_pid))
+            if witness is not None:
+                witness["phase"] = "stopped"
         except (OSError, ServiceManagerError) as exc:
             raise ServiceManagerError(
                 f"{process.role} 服务状态归属无法安全确认",
@@ -1366,6 +1421,7 @@ class WebServiceManager:
         *,
         clear_runtime_auth: bool = False,
     ) -> None:
+        self._assert_foreign_observation()
         if probe.state == "missing":
             if process.role == "runtime" and clear_runtime_auth:
                 self._clear_runtime_auth()
@@ -1390,6 +1446,7 @@ class WebServiceManager:
 
     def _clear_runtime_auth(self) -> None:
         """Remove only the exact private Runtime auth file."""
+        self._assert_foreign_observation()
         path = self._runtime_auth_path()
         try:
             before = path.lstat()
@@ -1455,8 +1512,10 @@ class WebServiceManager:
         deadline = time.monotonic() + timeout
         last_issue = f"{process.role}_not_ready"
         while True:
+            self._assert_foreign_observation()
             probe = self._probe_service(process)
             if probe.ready and probe.pid == pid:
+                self._assert_foreign_observation()
                 return probe
             if (
                 probe.process == "missing"
@@ -1521,6 +1580,7 @@ class WebServiceManager:
         return False
 
     def _stop_owned_probe(self, process: ManagedProcess, probe: ServiceProbe) -> bool:
+        self._assert_foreign_observation()
         if not self._is_owned_alive(probe) or probe.pid is None:
             raise ServiceManagerError(
                 f"{process.role} 服务归属无法安全确认",
@@ -1535,6 +1595,10 @@ class WebServiceManager:
                 code=f"{process.role}_ownership_unverified",
                 role=process.role,
             )
+        self._assert_foreign_observation()
+        witness = self._foreign_started.get((process.role, pid))
+        if witness is not None:
+            witness["phase"] = "stopping"
         self._terminate_pid(pid, force=False)
 
         def own_listener_gone(current):
@@ -1572,6 +1636,7 @@ class WebServiceManager:
                     code=f"{process.role}_ownership_unverified",
                     role=process.role,
                 )
+            self._assert_foreign_observation()
             self._terminate_pid(pid, force=True)
             force_deadline = time.monotonic() + 2
             while time.monotonic() < force_deadline:
@@ -1600,6 +1665,7 @@ class WebServiceManager:
         return True
 
     def _rollback_spawned(self, process: ManagedProcess, pid: int) -> None:
+        self._assert_foreign_observation()
         probe = self._probe_service(process)
         if self._is_owned_alive(probe) and probe.pid == pid:
             self._stop_owned_probe(process, probe)
@@ -1609,7 +1675,14 @@ class WebServiceManager:
     def _spawn_and_wait(self, process: ManagedProcess) -> int:
         """Spawn one service and roll back only that exact PID if readiness fails."""
         pid = self._spawn(process)
-        self._record_attempt_spawn(process, pid)
+        try:
+            self._record_attempt_spawn(process, pid)
+        except Exception:
+            witness = self._foreign_started.get((process.role, pid))
+            if witness is not None:
+                self._terminate_failed_spawn(witness["child"])
+                witness["phase"] = "failed"
+            raise
         try:
             self._wait_for_ready(process, pid, timeout=35)
         except Exception as exc:
@@ -1624,12 +1697,40 @@ class WebServiceManager:
         self._spawn_log_windows.pop((process.role, pid), None)
         return pid
 
-    def _record_attempt_spawn(self, process, pid):
+    def _record_attempt_spawn(self, process, pid, *, child=None):
         if (
             self._active_spawn_attempt is not None
             and (process, pid) not in self._active_spawn_attempt
         ):
             self._active_spawn_attempt.append((process, pid))
+        if not self._foreign_attempted:
+            return
+        if self._lifecycle_lease is None:
+            raise LifecycleLockError("lost", code="lifecycle_lock_ownership_lost")
+        self._lifecycle_lease.assert_held()
+        key = process.role, pid
+        previous = self._foreign_started.get(key)
+        if previous is not None:
+            if child is not None and previous["child"] is not child:
+                previous["invalid"] = True
+                raise ServiceManagerError(
+                    "runtime_ownership_unknown", code="runtime_ownership_unknown"
+                )
+            self._assert_foreign_observation()
+            return
+        if child is None or child.pid != pid or self._foreign_scope is None:
+            raise ServiceManagerError("runtime_ownership_unknown", code="runtime_ownership_unknown")
+        self._foreign_started[key] = {
+            "child": child,
+            "process": process,
+            "lease": self._lifecycle_lease,
+            "scope": self._foreign_scope,
+            "record": None,
+            "started": None,
+            "facts": None,
+            "phase": "pending",
+            "invalid": False,
+        }
 
     def _confirmed_bind_failure(self, process, pid):
         """Read only this launch's retained log window; never expose child text."""
@@ -1880,6 +1981,10 @@ class WebServiceManager:
         """Missing ledgers require fresh listener evidence before rebinding."""
         if self._installation_root_identity is not None and not self._installation_root_matches():
             return False
+        try:
+            self._assert_foreign_observation()
+        except ServiceManagerError:
+            return False
         for process in self._processes():
             state = self._probe_state(process)
             state, observed = self._probe_pid_and_ownership(process, state)
@@ -1967,7 +2072,14 @@ class WebServiceManager:
             return False
 
     def _absent_listener_safe(self, process, *, port=None) -> bool:
-        listener = listener_pids(process.port if port is None else port)
+        from research_workbench_entrypoint.web_bootstrap import _foreign_native_listener_safe
+
+        selected_port = process.port if port is None else port
+        listener = listener_pids(selected_port)
+        if self._foreign_attempted and (
+            self._foreign_ledger is None or not self._foreign_ledger.current()
+        ):
+            return False
         if listener.state == "closed":
             return True
         if listener.state != "listening" or not listener.pids:
@@ -1985,8 +2097,127 @@ class WebServiceManager:
                     fresh_root=self._fresh_root_proven(),
                 )
             ):
-                return False
+                return _foreign_native_listener_safe(
+                    self.data_root,
+                    selected_port,
+                    listener,
+                    owner=self if self._lifecycle_lease is not None else None,
+                )
         return True
+
+    def _assert_foreign_observation(self):
+        from research_workbench_entrypoint.web_bootstrap import _ForeignNativeLedger
+
+        if not self._foreign_attempted:
+            return
+        proof = self._foreign_ledger
+        if type(proof) is _ForeignNativeLedger:
+            port, listener = next(iter(proof.before[3].items()))
+            if proof.permits(self, self._foreign_scope, self._lifecycle_lease, port, listener):
+                for process in self._processes():
+                    state, fact = self._probe_pid_and_ownership(process, self._probe_state(process))
+                    if state.state == "missing" and fact.process == "missing":
+                        if any(
+                            witness["process"].role == process.role
+                            and witness["record"] is not None
+                            and witness["phase"] != "stopped"
+                            for witness in self._foreign_started.values()
+                        ):
+                            break
+                        continue
+                    witness = self._foreign_started.get((process.role, state.pid))
+                    if witness is None or not self._foreign_spawn_current(witness, state):
+                        break
+                else:
+                    return
+            proof._invalidate()
+        log.warning("research_foreign_native_ledger_unverified")
+        raise ServiceManagerError("runtime_ownership_unknown", code="runtime_ownership_unknown")
+
+    def _foreign_spawn_current(self, witness, state):
+        """Pin this actual Popen/write; establish owned-listen facts once only."""
+        from research_workbench_entrypoint.runtime_mode import (
+            RuntimeModeError,
+            _validate_posix_private_file,
+        )
+
+        process = witness["process"]
+        child = witness["child"]
+        try:
+            if (
+                witness["invalid"]
+                or witness["scope"] is not self._foreign_scope
+                or witness["lease"] is not self._lifecycle_lease
+                or witness["record"] is None
+                or child.pid != state.pid
+            ):
+                raise ValueError("spawn unverified")
+            descriptor, identity = witness["record"]
+            _validate_posix_private_file(os.fstat(descriptor))
+            _validate_posix_private_file(self._state_path(process.role).lstat())
+            if (
+                self._foreign_ledger._identity(os.fstat(descriptor), file=True) != identity
+                or self._foreign_ledger._identity(self._state_path(process.role).lstat(), file=True)
+                != identity
+            ):
+                raise ValueError("spawn unverified")
+            observed = probe_process(child.pid)
+            listener = listener_pids(process.port)
+            exited = child.poll() is not None
+            if observed.state == "missing" and exited:
+                legitimate_exit = (
+                    witness["phase"] in {"pending", "stopping", "failed"}
+                    and listener.state in {"closed", "listening"}
+                    and not listener.issue
+                    and child.pid not in listener.pids
+                )
+                if not legitimate_exit:
+                    raise ValueError("spawn unverified")
+                return True
+            if (
+                exited
+                or state.state != "valid"
+                or observed.state != "alive"
+                or observed.issue
+                or not observed.argv
+                or observed.started_at is None
+                or state.started_at is None
+                or abs(observed.started_at - state.started_at) > PROCESS_START_TOLERANCE_SECONDS
+                or listener.issue
+                or listener.state not in {"closed", "listening"}
+            ):
+                raise ValueError("spawn unverified")
+            if witness["started"] is None:
+                witness["started"] = observed.started_at
+            if witness["started"] != observed.started_at:
+                raise ValueError("spawn unverified")
+            facts = witness["facts"]
+            if facts is not None:
+                if observed != facts[0] or (
+                    listener != facts[1]
+                    and not (witness["phase"] == "stopping" and listener.state == "closed")
+                ):
+                    raise ValueError("spawn unverified")
+                return True
+            owned = signature_matches_argv(process.signature, observed.argv)
+            if not owned and not signature_matches_argv(process.command[1:], observed.argv):
+                raise ValueError("spawn unverified")
+            if listener.state == "listening":
+                if listener.pids != (child.pid,):
+                    raise ValueError("spawn unverified")
+                if owned:
+                    if (
+                        probe_process(child.pid) != observed
+                        or listener_pids(process.port) != listener
+                    ):
+                        raise ValueError("spawn unverified")
+                    witness["facts"] = observed, listener
+                    witness["phase"] = "bound"
+            return True
+        except (OSError, ValueError, TypeError, RuntimeModeError):
+            witness["invalid"] = True
+            log.warning("research_foreign_spawn_unverified", role=process.role)
+            return False
 
     def _other_runtime_quiescent(self) -> bool:
         from research_workbench_entrypoint.bootstrap import _running

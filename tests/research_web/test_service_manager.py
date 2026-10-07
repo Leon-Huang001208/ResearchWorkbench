@@ -28,6 +28,17 @@ from app.research_web.service_manager import (
 from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
 
 
+@pytest.fixture(autouse=True)
+def isolated_os_native_candidate(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import web_bootstrap
+
+    monkeypatch.setattr(
+        web_bootstrap,
+        "_standard_native_data_root",
+        lambda: tmp_path / "os-user/.research-workbench/research-web",
+    )
+
+
 def test_runtime_bootstrap_token_uses_private_control_not_normal_log(tmp_path):
     manager = WebServiceManager(
         project_root=tmp_path, data_root=tmp_path / "research-web", runtime_port=13081

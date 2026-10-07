@@ -60,6 +60,22 @@ build-lock/manifest；_start_installed(lease) 复核同一实际对象和根身�
 
 ## 实际端点与公开生命周期
 
+macOS 缺少目标 Native 记录而已有产品根时，可以只发现 OS 当前用户的标准产品根。
+现有 `web_bootstrap` 私有 reader 认证该根的完整 Web/Runtime pair：同 project/data root、
+准确 signature 与 PID/start/listener 集合；其他 checkout、稳定 PID 或端口可达都不足以授权。
+只读桥报告当前事实；写入另在目标真实 LifecycleLock 中 pin 两个不同 canonical 私有根、
+父目录与两份记录 FD，绑定同 controller/manager、作用域与精确 lease。每个控制写入、
+spawn、restart、switch 选择或 rollback 前复查，记录/根/进程事实变化即拒绝，finally 关闭
+FD 并清除观察；不会刷新变化后的基线或跨调用转移。Docker 不以 Native 安装为前置条件。
+force restart 先验证此边界，再停止精确健康容器；未知 pair 不先停后拒绝。
+
+该 scope 内启动 Native 时，Popen 句柄和本次 atomic state writer 的原 FD 一同保留；
+Root pair 观察之外，own child 的记录 inode/metadata、实际 start、完整 argv 与准确 listener
+另作调用内绑定。launcher→owned-listen 属于初始阶段，首次稳定 owned-listen 后仅比较原
+基线；重复登记不能刷新。正常 stop 只有已验证的精确 child 才进入 stopping/stopped 阶段。
+首次/第二次登记在 Popen 后丢锁时，由已有精确 child 句柄清理并保留原锁错误；记录/进程
+变化后的普通 rollback 拒绝，不把恢复错误替代原 health 错误。
+
 `EndpointStore(home)` 只在私有 `install/endpoints.json` 保存 schema 1 的 `records`，Native
 含不同的 `web_port`/`runtime_port`，Docker 仅含宿主 `web_port`，各模式带独立 opaque revision。
 `read(mode)` 缺失返回 `None`，纯只读；`publish(mode, web_port, runtime_port=None, expected=...)`

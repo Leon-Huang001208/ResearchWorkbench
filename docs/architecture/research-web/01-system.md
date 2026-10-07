@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+macOS 异根 Native 私有 pair 的 bounded reader 仍位于 `web_bootstrap.py`；stdlib bridge、
+Docker controller 与 Native manager 共享它。候选仅 OS 当前用户标准产品根，调用内身份观察
+和 FD 绑定目标真实 lifecycle lease；不增加服务、网络探针、安装依赖或部署节点。
+
 Python 格式、导入和内部类型整理保持本页部署职责；轻量 stdlib 模块、延迟导入及
 同一 Web/DSH 启动链不变，没有新增运行时组件。
 

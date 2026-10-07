@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import shlex
 import shutil
 import socket
 import stat
@@ -23,6 +24,17 @@ from research_workbench_entrypoint.web_contract import (
     node_version_issue,
 )
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
+
+
+@pytest.fixture(autouse=True)
+def isolated_os_native_candidate(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import web_bootstrap
+
+    monkeypatch.setattr(
+        web_bootstrap,
+        "_standard_native_data_root",
+        lambda: tmp_path / "os-user/.research-workbench/research-web",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -48,7 +60,15 @@ def fresh_docker_owned_bridge(tmp_path, monkeypatch):
     owner = tmp_path / "native-owner"
     python = owner / ".venv/bin/python"
     python.parent.mkdir(parents=True)
-    python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+    # The real bridge subprocess also needs the unit's bounded OS-home fact;
+    # an in-process locator monkeypatch cannot isolate its standard ledger read.
+    shim = (
+        "import pwd,sys; from types import SimpleNamespace; "
+        "args=sys.argv[1:]; args=args[1:] if args[:1]==['-I'] else args; "
+        f"pwd.getpwuid=lambda _uid: SimpleNamespace(pw_dir={str(tmp_path / 'os-user')!r}); "
+        "sys.argv=['-c',*args[2:]]; exec(args[1])"
+    )
+    python.write_text(f'#!/bin/sh\nexec "{sys.executable}" -c {shlex.quote(shim)} "$@"\n')
     python.chmod(0o755)
     (owner / ".venv/.rwb-web-environment.json").write_text(
         json.dumps(

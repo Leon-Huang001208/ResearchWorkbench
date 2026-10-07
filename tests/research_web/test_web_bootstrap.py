@@ -22,6 +22,17 @@ from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
 
 
 @pytest.fixture(autouse=True)
+def isolated_os_native_candidate(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import web_bootstrap
+
+    monkeypatch.setattr(
+        web_bootstrap,
+        "_standard_native_data_root",
+        lambda: tmp_path / "os-user/.research-workbench/research-web",
+    )
+
+
+@pytest.fixture(autouse=True)
 def isolated_bootstrap_environment(tmp_path, monkeypatch):
     """Diagnostics must never read the developer's real run/control tree."""
     home = tmp_path / "bootstrap-home"

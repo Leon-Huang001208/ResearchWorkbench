@@ -1,5 +1,29 @@
 # 安全边界与验证方法
 
+macOS 异根 Native 认证仅复用既有私有 launch ledger 信任模型。OS UID 的标准产品根是
+唯一候选；不使用 HOME/环境 override 扩大发现、不遍历其他用户或 checkout、不读取进程环境、
+认证秘密或执行候选源码。两角色必须完整且一致，相关 listener PID 集合精确等于已认证 pair。
+alias、不安全 owner/mode、单角色、额外未知 listener、PID 重用、argv/start 或记录/root 替换拒绝。
+Web 的 data-root 关联来自可信私有记录，未增加密码学或进程环境独立 attestation；既有同 UID
+可任意替换私有内容的信任边界没有被宣称解决。只读结果不产生写 capability；实际 lease 下的
+调用内 FD/身份观察才参与写门，scope/lease/controller 不匹配与 lease 丢失均失败关闭。
+原同根/未知写者拒绝、认证 token/额外字段保留、精确 ID 回滚和 stopped-port-conflict 均保持。
+
+本次 Native spawn 不以 `(role,pid)` 单独授权：scope 保留原 Popen 对象与实际 state writer
+FD，publish 前后及后续复核命名记录/FD identity、owner/mode、metadata；同内容换 inode
+亦拒绝。实际 start 在启动阶段只建立一次，稳定 owned-listen 时冻结完整 argv 与 exact
+listener 基线；其后变化永久失效，重复登记不重新捕获。停止阶段的合法退出不授予新 writer
+权限。Popen 返回后登记丢锁须收尾该精确新 child，保留原错误；未知记录或进程的普通
+rollback 不发信号、不删记录，health 错误继续为主错误。普通已有实例和认证字段合同不变。
+
+调用内拒绝是单调失效：已捕获 scope 看到未知 target 槽或不合法 own-child 退出时，统一撤销
+同一个 RAM 观察；未知记录后来删除、其他事实恢复原样也不能重新授权检查或 rollback。
+本次精确 stop 的 stopping/stopped 退出阶段属于预先验证的对象，不按未知退出撤销。
+该失效不持久化，finally 仍清观察与 FD；下一次调用须独立取得完整当前证据。
+
+target 槽读取的非 missing I/O 也先撤销当前观察再传播原错误；Docker 仍报告原 docker_io，
+不降级为空槽。权限/I/O 恢复不能使同 scope 重新获得 mutation 或 rollback 权限。
+
 安全拒绝与完整清理边界保留必要的宽异常捕获，逐处说明单行 lint 例外；不会为消除
 BLE001 而记录异常正文或缩窄到可能遗漏失败的类型。日志 handler 失败仍返回原拒绝路径，
 可选身份分类失败仍记录 `other`；验证脚本的 `check=False` 明示既有退出码断言责任。

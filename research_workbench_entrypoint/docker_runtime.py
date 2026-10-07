@@ -630,6 +630,10 @@ class DockerRuntime:
         self._root_scope_controller = None
         self._fresh_root = None
         self._fresh_recovering = False
+        self._foreign_scope = None
+        self._foreign_scope_lease = None
+        self._foreign_ledger = None
+        self._foreign_attempted = False
 
     @property
     def installation_id(self) -> str:
@@ -691,6 +695,8 @@ class DockerRuntime:
         }
 
     def _call(self, argv, code, *, timeout=20, stream=False, check=True, image=IMAGE):
+        if self._foreign_attempted and not self._foreign_safe():
+            raise ControlError("runtime_ownership_unknown")
         build = (
             tuple(argv[:2]) == ("docker", "compose")
             and tuple(argv[-2:]) == ("build", "research-web")
@@ -1029,6 +1035,8 @@ class DockerRuntime:
                 self._root_scope = scope
                 self._root_scope_lease = self._lifecycle_lease
                 self._root_scope_controller = self
+                self._foreign_scope = scope
+                self._foreign_scope_lease = self._lifecycle_lease
                 try:
                     return function()
                 finally:
@@ -1037,6 +1045,10 @@ class DockerRuntime:
                     self._root_scope = None
                     self._root_scope_lease = None
                     self._root_scope_controller = None
+                    self._foreign_scope = None
+                    self._foreign_scope_lease = None
+                    self._foreign_ledger = None
+                    self._foreign_attempted = False
 
         def locked():
             try:
@@ -1239,7 +1251,7 @@ class DockerRuntime:
                 self.data_dir.lstat()
             except FileNotFoundError:
                 return False
-            return report.get("ok") is True and not _running(report)
+            return report.get("ok") is True and not _running(report) and self._foreign_safe(native)
         if not self._fresh_root_proven(missing=self._fresh_root["root"] is None):
             return False
         if create and self._fresh_root["root"] is None:
@@ -1259,6 +1271,47 @@ class DockerRuntime:
             return self._fresh_root_proven()
         return True
 
+    def _foreign_safe(self, native=None):
+        """Revalidate product listeners under this controller's actual lease."""
+        from .web_bootstrap import _foreign_native_listener_safe, _ForeignNativeLedger
+        from .web_contract import listener_pids
+
+        if self._fresh_root is not None:
+            return self._fresh_root_proven(missing=self._fresh_root["root"] is None)
+        if self._foreign_attempted and self._foreign_ledger is None:
+            return False
+        if self._foreign_ledger is not None:
+            proof = self._foreign_ledger
+            if type(proof) is not _ForeignNativeLedger:
+                return False
+            port, listener = next(iter(proof.before[3].items()))
+            if not proof.permits(self, self._foreign_scope, self._lifecycle_lease, port, listener):
+                proof._invalidate()
+                return False
+            for role in ("web", "runtime"):
+                try:
+                    (self.home / "run" / (role + ".json")).lstat()
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    proof._invalidate()
+                    raise
+                proof._invalidate()
+                return False
+            return True
+        # A read-only observation only requests capture; the capture's own
+        # exact reader, root/record pins and lease establish write permission.
+        hint = getattr(native, "_foreign_hint", None) if native is not None else None
+        ports = hint[0][3] if hint is not None else ()
+        for port in ports:
+            listener = listener_pids(port)
+            if not _foreign_native_listener_safe(self.data_dir, port, listener, owner=self):
+                return False
+            if self._foreign_ledger._snapshot() != hint:
+                self._foreign_ledger._invalidate()
+                return False
+        return True
+
     def _revalidate_missing_selection(self):
         if self._fresh_root is not None and type(self._fresh_root) is not dict:
             raise ControlError("docker_fresh_root_unverified")
@@ -1274,7 +1327,7 @@ class DockerRuntime:
         try:
             action()
         except (RuntimeError, RuntimeModeError, EndpointError, OSError) as recovery:
-            if self._fresh_root is None:
+            if self._fresh_root is None and not self._foreign_attempted:
                 raise
             code = getattr(recovery, "code", "control_origin_recovery_unverified")
             if not isinstance(code, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,95}", code):
@@ -1568,6 +1621,8 @@ class DockerRuntime:
                         raise ControlError("docker_fresh_root_unverified")
                     self._fresh_root["listeners"][selected] = fact
             self._allocating = True
+            if not self._foreign_safe(native_runtime):
+                raise ControlError("runtime_ownership_unknown")
             self._ports_free()
             if not self.installation_id:
                 raise ControlError("docker_installation_missing")
@@ -1626,6 +1681,8 @@ class DockerRuntime:
                     )
                     command.extend(("-f", str(overlay)))
                 try:
+                    if not self._foreign_safe(native_runtime):
+                        raise ControlError("runtime_ownership_unknown")
                     if self._fresh_root is not None:
                         if (
                             not self._fresh_root_proven()
@@ -1748,7 +1805,8 @@ class DockerRuntime:
     def _control_quiescent(self):
         from .bootstrap import NativeRuntime, _running
 
-        native = NativeRuntime(self.project_root, self.home).status()
+        native_runtime = NativeRuntime(self.project_root, self.home)
+        native = native_runtime.status()
         if self._fresh_root is not None:
             return (
                 self._fresh_root_proven()
@@ -1763,6 +1821,7 @@ class DockerRuntime:
         return (
             native.get("ok") is True
             and not _running(native)
+            and self._foreign_safe(native_runtime)
             and not any(item["running"] for item in self._containers())
         )
 
@@ -1793,6 +1852,8 @@ class DockerRuntime:
         """Only existing paired host records are eligible for host rebinding."""
         from app.research_web.control_origin import ControlOriginTransaction
 
+        if self._foreign_attempted and not self._foreign_safe():
+            raise ControlError("runtime_ownership_unknown")
         raws = []
         identities = []
         for name in ("datahub.json", "mcp-runtime.json"):
@@ -2119,8 +2180,18 @@ class DockerRuntime:
             return current
         if current["services"]["web"]["running"] and not force:
             return result("runtime_force_required", mode="docker")
-        stopped = self.stop()
-        return self.start(open_browser=open_browser) if stopped["ok"] else stopped
+
+        def restart_owned():
+            from .bootstrap import NativeRuntime
+
+            native = NativeRuntime(self.project_root, self.home)
+            report = native.status()
+            if not self._native_selection_safe(native, report):
+                raise ControlError("runtime_ownership_unknown")
+            stopped = self.stop()
+            return self.start(open_browser=open_browser) if stopped["ok"] else stopped
+
+        return self._locked_guard("restart", restart_owned)
 
     def logs(self, follow=False, tail=100) -> int:
         def read_logs():

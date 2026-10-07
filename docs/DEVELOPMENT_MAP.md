@@ -4,6 +4,12 @@
 
 ## 当前 Research Web
 
+异根 Native 私有 pair 认证共享 `web_bootstrap.py` 的现有 bounded reader；OS 用户标准根
+发现、调用内根/父/record FD 与真实 lease 复查由 Docker 和 Native manager 同路径消费。
+`test_docker_runtime.py` 覆盖重复 start、restart 预拒绝、stop/start、正常 Native bridge、
+安装 preflight 拒绝及 root/record/process/lease/scope/controller 变化；其他近处 catalog
+以临时 locator 隔离真实用户记录。fixture 不证明物理 Docker 或安装后 Native 切换。
+
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |
 | `runtimes/research_web.json`、`app/research_web/runtime_contract.py` | Native/Docker 共用 Python、Node、CJPY、DSH、pnpm 事实 | `research-web-installation.md`、`architecture/research-web/01-system.md` | `test_runtime_contract.py`、`docker_runtime_contract.test.mjs` | 固定版本、闭包或镜像事实变化 |

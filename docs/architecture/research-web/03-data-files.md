@@ -1,5 +1,13 @@
 # DataHub、研究资料与实际文件
 
+异根 Native 认证只读取两份既有私有 launch ledger；调用内比较 hint、目录/record FD 和
+进程事实均只在 RAM。不会新增 marker、持久 proof、Native 端点或认证文件，不读取环境/秘密，
+研究会话、附件、控制 token/有效额外字段与凭据仍沿原路径；作用域退出关闭 FD 并清观察。
+
+同 scope 的 Native own state 从原 mkstemp writer FD 保留 dup 到发布/就绪/停止结束，
+只在 RAM 记录实际 Popen、记录元数据与完整进程/listener 基线。记录同内容替换不能继承
+该观察；失败按精确 child 收尾，未知持久记录保留，不新增 auth、marker 或 proof 文件。
+
 内部类型说明和格式整理不新增文件格式或持久字段；控制记录仍保留原 token/额外字段，
 私有诊断仍不写入异常正文。类型检查日志与产品数据分开，不能充当运行时归属证明。
 

@@ -74,8 +74,12 @@ Docker 服务可继续，未知 Native 写者拒绝；无关宿主 3081 监听�
 根会核验旧默认8088/3081，显式新端口不能绕过。setup --no-start 或 Doctor 已创建 canonical
 research-web/runtime 后，根已存在，不满足本次 start 成功 mkdir 的 fresh 证明；若日常默认
 监听是数据根未知的 Web/DSH，该组合会真实拒绝，而不是自动避让成功。
-此时保留数据根和账本，由所属安装在明确授权后走正常 stop，或另对由启动器首次创建的
-全新独立研究根做隔离验收；后者不替代 canonical 同根 Native/Docker 往返与安装后自动启动验收。
+macOS 现可复用 OS 当前用户标准产品根中的完整私有 Native pair，认证数据根确实不同后，
+在目标真实 lifecycle lease 下保留并复查调用内目录/记录/进程观察，再允许 Docker 后续 start、
+force restart 或顺序切换；不要求先安装 Native。该候选损坏、缺角色、同根、别名或任何观察变化
+仍拒绝，并保留已有健康容器。Web 的根关联依赖原可信私有 launch ledger，不读取秘密或进程
+环境，不宣称独立环境根证明。普通同根与无法认证的产品写者仍需所属安装的正常 stop；fresh
+证明仍仅限实际首建调用，不因另一次安装或已存在根而重获权限。真实同根双模式往返仍须另验。
 
 macOS 公开安装、start/restart 已接入私有端点记录与成对内部 origin 事务。
 依赖锁保持不变，不移动、复制或轮换控制 token，也不迁移用户数据或凭据。
