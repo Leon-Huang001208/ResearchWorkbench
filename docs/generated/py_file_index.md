@@ -4048,7 +4048,12 @@ Imports:
 - `fastapi.responses`
 - `os`
 - `pathlib`
+- `research_workbench_entrypoint.platform_capabilities`
 - `stat`
+
+Classes:
+- `DocumentationPlatformUnsupported`
+  - The required directory-relative no-follow reader is unavailable.
 
 Functions:
 - `read_document`
@@ -6403,6 +6408,7 @@ Imports:
 - `pathlib`
 - `process_spec`
 - `re`
+- `research_workbench_entrypoint.platform_capabilities`
 - `research_workbench_entrypoint.web_contract`
 - `runtime_auth`
 - `runtime_state`

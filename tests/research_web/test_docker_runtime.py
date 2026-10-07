@@ -125,6 +125,10 @@ def test_compose_identity_and_minimal_environment(runtime, monkeypatch):
 
 
 def test_docker_doctor_allowlisted_health_and_capabilities(runtime):
+    from research_workbench_entrypoint.platform_capabilities import (
+        platform_capabilities,
+    )
+
     controller, runner, record = runtime
     owned(controller, runner)
     for directory in (controller.data_dir, controller.state_dir, controller.credential_dir):
@@ -139,6 +143,7 @@ def test_docker_doctor_allowlisted_health_and_capabilities(runtime):
     assert report["python"]["applicable"] is False
     assert report["cjpy"]["applicable"] is False
     assert report["capabilities"]["office"]["status"] == "unavailable_in_docker"
+    assert report["capabilities"] == platform_capabilities("docker")
     assert report["services"]["runtime"]["pid"] is None
     assert report["dsh"]["ready"] is True
     assert report["dsh"]["build_verified"] is True

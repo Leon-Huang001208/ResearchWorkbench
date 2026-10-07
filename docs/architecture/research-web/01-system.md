@@ -206,3 +206,5 @@ runtime failure 投影 `offline`。现有 3081/8088、单 worker、Automation、
 Windows 对已核对命令签名的受管 PID 先执行非强制 `taskkill /T`；该尝试返回非零但 PID 仍存活时，
 服务管理器不再提前中止，而是进入既有等待和 `/F` 强制升级。强制终止仍失败时继续 fail closed。
 该修复不改变 3081/8088、进程归属、启动顺序、服务拓扑或外部 API。
+
+Doctor 以安全固定字段投影平台能力；available 只描述实现，不认证真机结果。Windows 文档与 Docker ACL、非 Mac 沙箱的边界见 [支持矩阵](../../research-web-platform-support.md)，不改变 Web/DSH 两服务结构。

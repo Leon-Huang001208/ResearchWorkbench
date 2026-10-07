@@ -12,6 +12,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .platform_capabilities import platform_capabilities
 from .web_contract import (
     CONTROL_JSON_MAX_BYTES,
     PROCESS_START_TOLERANCE_SECONDS,
@@ -332,6 +333,7 @@ def diagnose(project_root: Path, environment: Mapping[str, str] | None = None) -
     return {
         "schema_version": 2,
         "runtime_mode": "native",
+        "capabilities": platform_capabilities("native"),
         "ok": False,
         "installation_ok": False,
         "product_ready": False,

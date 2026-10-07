@@ -2,23 +2,26 @@
   "schemaVersion": 1,
   "adapter": "leon-engineering-project-runtime",
   "frameworkVersion": "0.19.3",
-  "sourceCommit": "b44e6630eef64e93f14feafdc2501b243935a8c5",
+  "sourceCommit": "f853b1b268a1b39c537136d867ddf5a570f9730e",
   "protocols": {
     "policy": 3,
-    "plan": 3,
-    "receipt": 2
+    "plan": 4,
+    "receipt": 3
   },
   "files": {
     "lib/verification/binding.mjs": "cae54a69b6409ec8c9258efde9a477f4ebfc510522665facea425e2e45e6219a",
     "lib/verification/changed-files.mjs": "0b2d711a4feddf06af375b45c66458729558fad5d8f2c20b379dc492fc3eab1d",
     "lib/verification/errors.mjs": "7704f25161eca009e6b58e2069801872c637e0af385ae67d23474722756c91b8",
-    "lib/verification/index.mjs": "8c55253b948c79a5f35b0adf27f96cad3a65ef9a1af468190af060e60366d28a",
+    "lib/verification/index.mjs": "35fdc2c9940e9204e089754501e739f9a2f23159ce1c612dc6501bccc7980d78",
     "lib/verification/path-safety.mjs": "aca6da2c11487ad7ad101c546374623924347dd30f7022a3b057565b6c9c42d9",
-    "lib/verification/planner.mjs": "28fce106fd75cd16bb494273f520e64bc76513eb1c3e32b49e0ae7048a6b88ac",
+    "lib/verification/planner.mjs": "15a9637e9ad32cc8ac6d20627bf7043784447a90ea5bbb9a60567656d759f43c",
     "lib/verification/policy.mjs": "0dc16d1468e1c36f3d02ebf3e4eae49694a6e43ad3d641580c18a36d77478a30",
-    "lib/verification/receipt.mjs": "caddd155697aeb9ce60fa0904b897f9dbb3675aa94201898d42de6ca13c33813",
+    "lib/verification/receipt.mjs": "215e62d5da39d31d66d1bc9e1ff6883b0c5a15fde4c1a717adcf4808ac983aff",
     "schemas/verification-policy-v3.schema.json": "59c76195c1a218f460d1d84600d86bd49546b2f55a8b8cecec5bf1e2aa54a1de",
     "schemas/verification-plan-v3.schema.json": "d4d95e006519227e131a54189da7d8f9e1b6b6d7ca4a9a6dbb984264f8d75959",
-    "schemas/verification-receipt-v2.schema.json": "07d61910adc48428d318eddaf979b86815c5ea7511035b9e78ba4aab29c09be9"
+    "schemas/verification-receipt-v2.schema.json": "07d61910adc48428d318eddaf979b86815c5ea7511035b9e78ba4aab29c09be9",
+    "lib/verification/platform-task.mjs": "cdacc6ebe5a041bf29658fcc0646eac50425f722807de7e583fba79f8baab302",
+    "schemas/verification-plan-v4.schema.json": "298f065be98b4cd0c8a0f554e1d53fed532ee1626f708035101e6ed91206c89e",
+    "schemas/verification-receipt-v3.schema.json": "6ddfbeeef5f69a9913428800e33febe70927751597e4fe39fe9c0eb53e5d84e4"
   }
 }

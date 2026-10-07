@@ -30,14 +30,16 @@
         "docker/healthcheck.py",
         "Dockerfile",
         "compose.yaml",
-        ".dockerignore"
+        ".dockerignore",
+        "research_workbench_entrypoint/platform_capabilities.py"
       ],
       "documents": [
         "docs/research-web-installation.md",
         "docs/architecture/research-web/01-system.md",
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/03-data-files.md",
-        "docs/architecture/research-web/05-security-validation.md"
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/research-web-platform-support.md"
       ],
       "diagrams": [
         "01-deployment"
@@ -50,7 +52,8 @@
         "tests/research_web/test_container_supervisor.py",
         "tests/research_web/test_staged_runtime.py",
         "tests/research_web/test_credential_backend.py",
-        "tests/javascript/docker_runtime_contract.test.mjs"
+        "tests/javascript/docker_runtime_contract.test.mjs",
+        "tests/research_web/test_platform_capabilities.py"
       ]
     },
     {
@@ -106,20 +109,13 @@
         "research_workbench_entrypoint/web_bootstrap.py",
         "app/research_web/runtime_auth.py",
         "app/research_web/client.py",
-        "app/research_web/tabbit.py",
-        "app/research_web/projection.py",
-        "app/research_web/frameworks/",
-        "app/research_web/local_integrations/",
-        "app/research_web/integrations/"
+        "app/research_web/projection.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/04-api.md",
-        "docs/architecture/research-web/05-security-validation.md",
-        "docs/architecture/research-web/08-research-frameworks.md",
-        "docs/architecture/research-web/09-integration-coordinator.md",
-        "docs/research-web-tabbit.md"
+        "docs/architecture/research-web/05-security-validation.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -129,7 +125,6 @@
       ],
       "tests": [
         "tests/research_web/test_api.py",
-        "tests/research_web/test_local_integrations.py",
         "tests/research_web/test_protocol.py",
         "tests/research_web/test_runtime_auth.py",
         "tests/research_web/test_event_recovery.py",
@@ -138,11 +133,7 @@
         "tests/research_web/test_web_contract.py",
         "tests/research_web/test_web_bootstrap.py",
         "tests/research_web/test_setup_web.py",
-        "tests/research_web/test_cli_lazy.py",
-        "tests/research_web/test_frameworks.py",
-        "tests/research_web/test_framework_collectors.py",
-        "tests/research_web/test_integration_coordinator.py",
-        "tests/research_web/test_tabbit.py"
+        "tests/research_web/test_cli_lazy.py"
       ]
     },
     {
@@ -413,22 +404,10 @@
       "sources": [
         "app/research_web/documentation.py",
         "scripts/check_research_architecture.mjs",
-        "scripts/check_documentation_governance.mjs",
-        "scripts/check_doc_sync.py",
-        "scripts/generate_py_file_index.py",
-        "scripts/build_research_web_api_atlas.mjs",
-        ".agents/project-constraints.mjs",
-        ".agents/project-constraints.json",
-        ".github/workflows/project-constraints.yml",
-        ".github/workflows/research-web-bootstrap.yml",
-        ".github/workflows/research-web-checks.yml",
-        ".github/workflows/research-web-tabbit.yml",
-        ".github/workflows/research-web-windows-verify.yml"
+        "scripts/build_research_web_api_atlas.mjs"
       ],
       "documents": [
         "docs/README.md",
-        "docs/actions-budget.md",
-        "docs/documentation-governance.json",
         "docs/research-web-documentation.md",
         "docs/architecture/research-web/06-documentation-contract.md"
       ],
@@ -438,12 +417,135 @@
       ],
       "tests": [
         "tests/javascript/research_web_architecture.test.mjs",
-        "tests/javascript/actions_quota_governance.test.mjs",
-        "tests/javascript/documentation_governance.test.mjs",
         "tests/research_web/test_documentation.py",
-        "tests/research_web/test_doc_sync.py",
-        "tests/scripts/test_generate_py_file_index.py",
         "tests/e2e/research_web_documentation.mjs"
+      ]
+    },
+    {
+      "id": "frameworks",
+      "sources": [
+        "app/research_web/frameworks/"
+      ],
+      "documents": [
+        "docs/architecture/research-web/08-research-frameworks.md"
+      ],
+      "diagrams": [
+        "00-system-overview",
+        "03-research-sequence",
+        "04-data-file-flow"
+      ],
+      "tests": [
+        "tests/research_web/test_frameworks.py",
+        "tests/research_web/test_framework_collectors.py"
+      ]
+    },
+    {
+      "id": "integration-coordinator",
+      "sources": [
+        "app/research_web/integrations/"
+      ],
+      "documents": [
+        "docs/architecture/research-web/09-integration-coordinator.md"
+      ],
+      "diagrams": [
+        "00-system-overview",
+        "04-data-file-flow"
+      ],
+      "tests": [
+        "tests/research_web/test_integration_coordinator.py"
+      ]
+    },
+    {
+      "id": "local-integrations",
+      "sources": [
+        "app/research_web/local_integrations/",
+        "app/research_web/tabbit.py"
+      ],
+      "documents": [
+        "docs/research-web-tabbit.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "03-research-sequence"
+      ],
+      "tests": [
+        "tests/research_web/test_local_integrations.py",
+        "tests/research_web/test_tabbit.py"
+      ]
+    },
+    {
+      "id": "verification-workflow",
+      "sources": [
+        "scripts/plan_verification.mjs",
+        "scripts/validate_verification_receipt.mjs",
+        "scripts/summarize_verification_delivery.mjs",
+        ".agents/verification-policy.json",
+        ".agents/research-web-stage.json",
+        ".agents/runtime/leon-engineering/",
+        ".agents/project-constraints.mjs",
+        ".agents/project-constraints.json",
+        ".github/workflows/project-constraints.yml",
+        ".github/workflows/research-web-bootstrap.yml",
+        ".github/workflows/research-web-checks.yml",
+        ".github/workflows/research-web-tabbit.yml",
+        ".github/workflows/research-web-windows-verify.yml"
+      ],
+      "documents": [
+        "docs/AGENT_WORKFLOW.md",
+        "docs/DEVELOPMENT_MAP.md",
+        "docs/actions-budget.md"
+      ],
+      "diagrams": [
+        "08-iteration-docs"
+      ],
+      "tests": [
+        "tests/javascript/verification_policy.test.mjs",
+        "tests/javascript/verification_receipt.test.mjs",
+        "tests/javascript/verification_platform_task_entry.test.mjs",
+        "tests/javascript/verification_delivery_summary.test.mjs",
+        "tests/javascript/actions_quota_governance.test.mjs"
+      ]
+    },
+    {
+      "id": "documentation-governance",
+      "sources": [
+        "scripts/check_documentation_governance.mjs",
+        "scripts/check_doc_sync.py",
+        "scripts/generate_py_file_index.py"
+      ],
+      "documents": [
+        "docs/README.md",
+        "docs/documentation-governance.json"
+      ],
+      "diagrams": [
+        "08-iteration-docs"
+      ],
+      "tests": [
+        "tests/javascript/documentation_governance.test.mjs",
+        "tests/research_web/test_doc_sync.py",
+        "tests/scripts/test_generate_py_file_index.py"
+      ]
+    },
+    {
+      "id": "research-api-contract",
+      "sources": [
+        "app/research_web/frameworks/routes.py",
+        "app/research_web/frameworks/service.py",
+        "app/research_web/integrations/routes.py",
+        "app/research_web/integrations/coordinator.py"
+      ],
+      "documents": [
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "00-system-overview",
+        "03-research-sequence",
+        "04-data-file-flow"
+      ],
+      "tests": [
+        "tests/research_web/test_frameworks.py",
+        "tests/research_web/test_integration_coordinator.py"
       ]
     }
   ],
@@ -2728,7 +2830,7 @@
       },
       {
         "id": "frameworks",
-        "group": "research-api",
+        "group": "frameworks",
         "title": "研究框架",
         "summary": "Gold / Dollar 的定义、采集、版本快照、确定性评分与页面 Bot；不是第二个研究引擎。",
         "category": "研究框架",
@@ -2752,7 +2854,7 @@
       },
       {
         "id": "integrations",
-        "group": "research-api",
+        "group": "integration-coordinator",
         "title": "集成协调器",
         "summary": "登记、配置、授权、探测与适配五阶段；统一数据源和本机能力状态，批次失败不伪报 ready。",
         "category": "集成协调器",
@@ -2848,6 +2950,34 @@
         "title": "架构文档",
         "summary": "安全只读 HTML 和确定性离线生成门禁。",
         "category": "架构文档"
+      },
+      {
+        "id": "local-integrations",
+        "group": "local-integrations",
+        "title": "本机集成",
+        "summary": "本机安装、授权和探测逐项判断；容器不推导宿主能力。",
+        "category": "本机集成"
+      },
+      {
+        "id": "verification-workflow",
+        "group": "verification-workflow",
+        "title": "平台任务与交付",
+        "summary": "完整计划、宿主验收、平台交接和总体验收分别记录。",
+        "category": "架构文档"
+      },
+      {
+        "id": "documentation-governance",
+        "group": "documentation-governance",
+        "title": "文档分类与索引",
+        "summary": "文档身份、归档与Python索引独立维护，安全reader变更不迫使分类配置改变。",
+        "category": "架构文档"
+      },
+      {
+        "id": "research-api-contract",
+        "group": "research-api-contract",
+        "title": "接口与安全契约",
+        "summary": "对外路由、协调与授权文件有额外的精确协议/安全说明义务，采集叶节点保持窄范围。",
+        "category": "研究会话与 Runtime"
       }
     ],
     "generator": {

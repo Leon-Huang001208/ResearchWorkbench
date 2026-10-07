@@ -146,6 +146,10 @@ def test_lifecycle_lock_rejects_live_owner_and_two_contenders(tmp_path):
 
 
 def test_native_doctor_adds_mode_without_changing_previous_payload(manager, monkeypatch):
+    from research_workbench_entrypoint.platform_capabilities import (
+        platform_capabilities,
+    )
+
     previous = {
         "schema_version": 1,
         "ok": True,
@@ -163,6 +167,7 @@ def test_native_doctor_adds_mode_without_changing_previous_payload(manager, monk
     report = manager.doctor()
     assert report["runtime_mode"] == "native"
     assert report["schema_version"] == 2
+    assert report["capabilities"] == platform_capabilities("native")
     assert report["installation_ok"] and not report["product_ready"]
     assert report["services"] == {probe.role: probe.public() for probe in probes}
     assert all(report[key] == previous[key] for key in ("python", "node", "cjpy", "dsh", "data"))

@@ -23,9 +23,9 @@
 
 ## Current Research Web delivery phase (authoritative)
 
-机器阶段权威为 `.agents/research-web-stage.json`，依据用户 2026-10-06 明确范围：当前 Research Web 仅交付 **macOS Native**。Windows/Linux 产品适配、原生验证、真机验收与交接暂缓，未验证事实保留，但不阻断当前 Mac 阶段；不得执行旧 Windows 交接脚本。Ubuntu 的 Project Constraints/Research Web Checks 是通用 CI，继续保留。
+机器阶段权威为 `.agents/research-web-stage.json`，依据用户 2026-10-07 明确授权：阶段二、三及 Windows/Linux 平台交接已重新开启。当前 Mac 任务执行功能开发、macOS Native 与 Mac Docker Desktop 验收；Windows/Linux 原生适配、真机及同平台 CI 由对应设备执行，缺设备保持 NOT_RUN，不冒充支持或阻断独立完成的 Mac 任务。
 
-`.agents/verification-policy.json` 的 Research Web 路由按此阶段暂不选择 Windows/Docker 产品 CI；Windows catalog、workflow、expected_sha 合同和代码保持。用户明确重新开启 Windows/跨平台范围时，恢复相应 Web 路由的 Windows CI 选择及下述原生规则；不可仅因宿主是 Mac 而跳过已重新开启的平台。此阶段不豁免 B 归因、T6、未知风险或任何 Mac 安全与功能门。
+`.agents/verification-policy.json` 保留完整目标计划与风险；Windows/Docker 条件门恢复选取。Docker workflow 仍仅由 Linux 真机对 exact SHA 手动 dispatch；Mac 不发送 Windows/Linux 产品 dispatch。Ubuntu Project Constraints/Research Web Checks 保持通用仓库门。平台能力状态与实际验收分别见 `docs/research-web-platform-support.md`。
 
 ## Platform ownership and acceptance (mandatory)
 
@@ -35,7 +35,7 @@
 - 每次任务先声明宿主平台、任务类型（功能开发或平台适配）及本平台验收范围。Windows/Linux 适配中发现功能缺陷时，记录复现与证据并交回 Mac 开发任务，不在适配任务中扩展功能。
 - 当前宿主任务只以本平台本地验收和适用的同平台 GitHub CI 为完成条件。其他平台的适配、真机及 CI 验收必须交接给对应真机，不得作为当前宿主任务的完成前置条件。
 - 总体验收计划和跨平台发布就绪状态仍保留所有目标平台证据；任务完成不等于跨平台已验证。按 `docs/AGENT_WORKFLOW.md` 分开记录本平台任务状态与总体验收状态，不得删门、伪造 PASS 或把未验证平台标为支持。
-- CI runner决定原生证据归属：Ubuntu不冒充macOS原生证据；本任务仍保留Project Constraints/Research Web Checks通用仓库门，不表示交付Linux产品。其他平台产品执行按当前阶段暂缓。
+- CI runner决定原生证据归属：Ubuntu不冒充macOS原生证据；本任务仍保留Project Constraints/Research Web Checks通用仓库门，不表示交付Linux产品。其他平台产品执行由对应设备任务接手。
 
 ## Web installation contract (mandatory)
 
@@ -47,7 +47,7 @@
   安装 CI 证明仍兼容，不能仅凭本机已有环境判断。
 - Web 交付必须先完成本机 macOS 相关验证，再等待 GitHub `macos-14` 干净安装、固定 DSH 构建、
   3081/8088 健康检查和 `rwb web doctor --json` 通过；本机成功不能替代 GitHub Mac。安装、共享 runtime、
-  Windows launcher、路径/编码/进程和本机集成等平台敏感改动在明确重新开启该平台范围后，由 Router 标记为需要 GitHub
+  Windows launcher、路径/编码/进程和本机集成等平台敏感改动由 Router 标记为需要 GitHub
   `windows-2022`，但 Mac PR/push 不自动触发；必须在 Windows 真机 checkout 待验 commit 后，从该机
   以 exact SHA 执行 `workflow_dispatch`。Windows CI 不能替代 Windows 实机安装、升级、
   Office/Wind 或企业环境验证；未执行的层级必须保留 `NOT_RUN` 或 `MANUAL_REQUIRED`，不得宣称通过。
@@ -63,8 +63,8 @@
   `master` 建立 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或
   `platform/macos/*` 短期分支/worktree，经验证和 PR 合回 `master` 后再清理。
 - Windows 默认只 fast-forward 最新 `master` 并做原生验证；只有发现 Windows-only 缺陷时才创建
-  `platform/windows/*`。不要长期维护 `windows`、`macos` 或 `develop` 平行分支。仓库当前没有远端
-  branch protection，以上是项目契约，不能把它描述成 GitHub 已机械强制。
+  `platform/windows/*`。不要长期维护 `windows`、`macos` 或 `develop` 平行分支。2026-10-07 已启用 `master`
+  branch protection：必须 PR、最新基线、GitHub Actions 的 `check`、管理员受约束、禁止强推/删主线、解决讨论。平台条件门仍由任务回执校验，不能宣称全部被 GitHub 无条件强制。
 - 不覆盖或回退无关改动。
 - 任何 `git push`、PR merge、tag、`gh run rerun`、`workflow_dispatch` 或受管发布前，必须读取 `docs/actions-budget.md` 并核对当前仓库 visibility。private／billable 状态下，当 Actions included usage 达到 95% 或当前 run 返回 billing-blocked 时，仅允许本地编辑、测试和提交；只有当前 Billing/API 证明额度已重置，或 GitHub API 证明仓库已变为 public 且当前标准 runner run 能启动，才恢复远端操作。旧 billing-blocked 记录不能覆盖更新的公开仓库运行证据。
 - 并行或高风险的仓库改动必须使用独立 Git worktree；worktree 是本地修改隔离，不等同于后台/远程执行通道。

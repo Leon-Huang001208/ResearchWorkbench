@@ -951,7 +951,7 @@ def _temporary_launcher_checkout(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     package.mkdir(parents=True)
     shutil.copy2(source_root / "rwb", checkout / "rwb")
     for name in ("__init__.py", "__main__.py", "web_contract.py", "web_bootstrap.py",
-                 "bootstrap.py", "runtime_mode.py", "docker_runtime.py"):
+                 "bootstrap.py", "runtime_mode.py", "docker_runtime.py", "platform_capabilities.py"):
         shutil.copy2(source_root / "research_workbench_entrypoint" / name, package / name)
     binary_root = tmp_path / "bin"
     binary_root.mkdir()

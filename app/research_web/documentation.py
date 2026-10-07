@@ -8,6 +8,9 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse, Response
 
 from core.observability import get_logger
+from research_workbench_entrypoint.platform_capabilities import (
+    documentation_reader_available,
+)
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/api/research")
@@ -46,10 +49,16 @@ DOCUMENT_NAVIGATION = (
 ).encode()
 
 
+class DocumentationPlatformUnsupported(RuntimeError):
+    """The required directory-relative no-follow reader is unavailable."""
+
+
 def read_document(name: str) -> bytes:
     """Open every directory and the final file without following links (POSIX only)."""
     if name not in DOCUMENT_NAMES:
         raise ValueError("unknown documentation name")
+    if not documentation_reader_available():
+        raise DocumentationPlatformUnsupported("documentation_platform_unsupported")
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     directory = os.open(ARTIFACT_ROOT.anchor, flags)
     try:
@@ -78,6 +87,17 @@ def read_document(name: str) -> bytes:
 def architecture_document(name: str):
     try:
         content = read_document(name)
+    except DocumentationPlatformUnsupported:
+        log.warning("research_documentation_platform_unsupported")
+        return JSONResponse(
+            {
+                "error": {
+                    "code": "documentation_platform_unsupported",
+                    "message": "当前平台尚未提供安全的架构文档读取实现",
+                }
+            },
+            status_code=501,
+        )
     except (OSError, ValueError, AttributeError) as exc:
         log.warning("research_documentation_unavailable", error_type=type(exc).__name__)
         return JSONResponse(

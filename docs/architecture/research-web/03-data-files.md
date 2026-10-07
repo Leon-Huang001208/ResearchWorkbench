@@ -170,3 +170,5 @@ Method 的会话证据独立写入 `<session>/.rwb/method-trace.jsonl`，单行�
 收据、能力版本、Automation Run、系统凭据库和清理语义均未变化。各目录独立的 pending count、
 generation、逐资源 settled 和 latest-request-wins 都是内存请求账本；只有 runtime 的 pending/settled
 failure 会投影为可见 connecting/offline，且不会写入新的缓存或文件。数据文件关系和相关架构图保持不变。
+
+Docker 持久数据与私有凭据挂载保持既有归属检查；Windows DACL 未验证继续阻断。Office/Wind/Tabbit 宿主能力不会因挂载可见而开放，跨模式不隐式迁移秘密。

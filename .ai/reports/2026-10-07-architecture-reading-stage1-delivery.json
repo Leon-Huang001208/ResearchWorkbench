@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "recordKind": "historical-delivery-summary",
+  "taskId": "task-20261006-992c74ec267b",
+  "hostPlatform": "macos",
+  "taskKind": "feature-development",
+  "hostAcceptance": "PASS",
+  "aggregateAcceptance": "NOT_READY",
+  "candidateCommit": "78df0448d65bc77ebf66366fd8fc6eb074bff320",
+  "mergeCommit": "c24a8a161674678d572bf9ac35fab30489b40605",
+  "sourceSnapshot": "6ca33b2fbcab94357e129ee11bb236fc8683feff",
+  "pullRequest": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/82",
+  "ci": [
+    {
+      "runId": "37566792823",
+      "runnerPlatform": "macos",
+      "runner": "macos-14",
+      "checkoutCommit": "78df0448d65bc77ebf66366fd8fc6eb074bff320",
+      "conclusion": "success",
+      "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/37566792823"
+    }
+  ],
+  "platformHandoffs": [
+    {
+      "platform": "windows",
+      "status": "NOT_RUN"
+    },
+    {
+      "platform": "linux",
+      "status": "NOT_RUN"
+    }
+  ],
+  "merged": true,
+  "runtimeUpdated": false,
+  "legacyReceiptStatus": "historical BLOCKED snapshot retained",
+  "evidenceRoot": "logs/stage1/",
+  "reportCommit": "recorded by enclosing Git commit"
+}

@@ -25,6 +25,7 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
+from .platform_capabilities import platform_capabilities
 from .runtime_mode import RuntimeModeError, RuntimeModeStore, _read_bytes, _unique_object
 
 log = logging.getLogger(__name__)
@@ -654,8 +655,7 @@ class DockerRuntime:
                     "host_applicable": False},
             "services": {role: {"running": False, "healthy": False, "pid": None, "port": port}
                          for role, port in (("web", self.ports[0]), ("runtime", self.ports[1]))},
-            "capabilities": {name: {"status": "unavailable_in_docker", "required": False}
-                             for name in ("office", "wind", "tabbit")},
+            "capabilities": platform_capabilities("docker"),
         }
 
         def diagnose():

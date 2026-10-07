@@ -139,3 +139,5 @@ no-store、no-referrer、nosniff 仍由现有中间件执行。
 单元测试不能代替真实浏览器脚本交互、人工看图或模型/平台验收；这三类证据应分别记录。
 
 生成路径逐级 lstat，悬空符号链接也拒绝；所有输出及日志在生成写入前统一检查。门禁另比较 Python 静态 HTML 允许列表与入口、Atlas 和全部登记视图的集合，新增图不得遗漏服务路由或多开私有文件入口。
+
+Windows Native 尚无已验证的安全文档 reader：缺少 POSIX no-follow/dir_fd primitive 时返回 501 documentation_platform_unsupported，Doctor 说明同一边界。Mac/Linux 的允许列表、单硬链接、大小上限与 opaque CSP 保持。

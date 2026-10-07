@@ -1,26 +1,20 @@
 # 阶段一：架构生成同步与分层阅读
 
-## 当前状态（2026-10-07）
+## 当前状态（2026-10-07，已交付）
 
-- 阶段一：未完成；阶段二、三未启动。
-- hostPlatform: macOS (Darwin)；taskKind: 功能开发。
-- taskId: task-20261006-992c74ec267b。
-- worktree: `/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20261006-992c74ec267b`。
-- 原 branch: `codex/task-20261006-992c74ec267b-architecture-reading-stage1`，功能快照 2b40f46e18b8957a0bd1960fa1b12a73478551df。
-- 当前集成 worktree: `/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20261006-992c74ec267b-integration`；branch: `codex/integrate-task-20261006-992c74ec267b`。
-- 导航固定源码/文档快照: 6ca33b2fbcab94357e129ee11bb236fc8683feff；生成物候选由该快照之后的独立提交记录。
-- 开始基线与图示源码：`211703cca660172b524eff804cc547458529858e`；新观察远端 master：`ddcdd9784d8eda2918b8987ca8b679375e67291d`。PR #80 已由独立任务合并，本任务未修改该 PR；最新主线已在独立集成现场归并，后续候选另记。
-- 1A/1B/1C 实现已落地，清单 186 个唯一 Method + Path / 188 项声明；数字不是验收常量。
-- 本轮新增验证：架构 72 项（新增悬空链接及登记/允许列表 fixture）；相关 L4 Node 合同 100/100 PASS；生成完整内容一致性 PASS；实际 HTTP 安全边界 10/10 PASS；Python 语法编译 PASS。
-- 真实浏览器：Settings → 架构文档分类 → 新页图册 → 总图/分图/返回 → 框架及协调器正确 API 分类 PASS；固定 211703c 基线版本的说明、源码、测试均实际点击并 HTTP 200；集成后的新源码版本尚未推送，205 个链接本地 Git 对象验证通过，HTTP 补证待送审后执行。独立 Web 18088 禁用 lifespan，验证的是阅读面，不是 Runtime 产品 ready。
-- 独立审查：生成器悬空符号链接 P2 和外部导航错误误报 BLOCKED 的 P2 均已修复并获只读复核；无新增具体问题。详见独立审查报告。
-- 总图图源/HTML/四视口/四截图与用户确认仍匹配；用户人工审阅 PASS；自动 visualReview 保持 pending。既有图只复用同哈希证据。
-- Python：文档路由/同步 28/28、索引 4/4 PASS；受影响两文件 Ruff/Black/isort/mypy PASS。独立 venv 的正常 pip 安装已成功，当前 Guard 拒绝已解除。仅对 UTF-8 默认编码和格式作等价修复，导航响应字节不变。
-- hostAcceptance: BLOCKED（同平台 CI 未完成）；aggregateAcceptance: NOT_READY；Windows/Linux NOT_RUN 保留。
-- PR/CI/merge/生产实例：本任务均未执行。仓库当前 PUBLIC，Actions 预算门不是阻塞。需要本地候选及最新主线集成后，沿既有送审入口取得本候选 macOS Bootstrap 实际 checkout 证据；不得借旧提交/Ubuntu run 认证 Mac。
-- 授权：独立测试依赖安装与 Guard 禁用已获明确授权，不能再次要求用户安装同一包；远端具体候选动作按本轮 Goal 与已有授权边界执行。
+- 阶段一完成；hostPlatform: macos；taskKind: feature-development；hostAcceptance: PASS。用户已另行授权阶段二、三。
+- taskId: task-20261006-992c74ec267b。最终集成候选 `78df0448d65bc77ebf66366fd8fc6eb074bff320`，分支 `codex/integrate-task-20261006-992c74ec267b-r1`。
+- [PR #82](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/82) 已于 2026-10-07T04:15:30Z 合并，主线提交 `c24a8a161674678d572bf9ac35fab30489b40605`。运行实例未更新；18088 独立阅读验证服务已停止。
+- 导航源码/文档快照 `6ca33b2fbcab94357e129ee11bb236fc8683feff`；冻结总图说明源码 `211703cca660172b524eff804cc547458529858e`。图源及 HTML 哈希保持原用户人工审阅身份；本报告的更新属于后续独立提交，无自指 SHA 要求。
+- Node 相关合同 100/100、Python 文档路由/同步 28/28、索引 4/4、两文件 Ruff/Black/isort/mypy、生成一致性及完整 changed set 约束均 PASS；HTTP 安全边界 10/10 PASS。Starlette/AnyIO 既有弃用警告保留。
+- Settings → 架构文档 → 总图/分图/返回 → 框架及协调器 API 分类 PASS；205 个固定版本链接本地对象核对，推送后新快照说明/源码/测试实际点击 HTTP 200。禁用 lifespan 的阅读服务不冒充 Runtime 健康证据。
+- 独立代码与集成审查发现的问题已修复并复核，无遗留 actionable finding。总图四视口/四截图及用户人工 PASS 继续复用相同哈希。
+- [macOS Bootstrap 37566792823](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/37566792823) SUCCESS；macos-14 实际 checkout `78df0448d65bc77ebf66366fd8fc6eb074bff320`。干净安装、固定 DSH 构建、3081/8088 与 Doctor product_ready=true 已验证。
+- Project Constraints 37566491506、Research Web Checks 37566491557 SUCCESS；两者为 Ubuntu 证据，不计作 Mac。
+- aggregateAcceptance: NOT_READY。Windows/Linux 真机及其 CI 保留 NOT_RUN/平台交接，不由 Mac 阶段一推导支持。
+- 旧 plan/receipt 文件保留当时 BLOCKED 历史快照；当前交付身份见 `2026-10-07-architecture-reading-stage1-delivery.json`，不将旧未绑定回执涂改为新协议 PASS。
 
-<!-- architecture-review {"group":"documentation","structure":"changed","reason":"清单派生首页和API图册，新增产品边界视图并登记安全只读入口与返回导航。","diagrams":["00-system-overview"]} -->
+<!-- historical-architecture-review {"group":"documentation","structure":"changed","reason":"清单派生首页和API图册，新增产品边界视图并登记安全只读入口与返回导航。","diagrams":["00-system-overview"]} -->
 
 ## 移出的过程记录
 

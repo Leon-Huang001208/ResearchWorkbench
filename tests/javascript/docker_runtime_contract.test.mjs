@@ -318,7 +318,8 @@ test('explicit Mac stage defers container execution while opt-in and absent stag
   assert.match(readFileSync(output,'utf8'),/docker=true/);
   const stage = JSON.parse(read('.agents/research-web-stage.json'));
   assert.equal(stage.deliveryPlatform,'macos-native');
-  assert.equal(stage.dockerVerification,false);
+  assert.equal(stage.dockerVerification,true);
+  stage.dockerVerification=false; // Explicit deferred fixture, independent of current reopened stage.
   writeFileSync(join(directory,'.agents/research-web-stage.json'),JSON.stringify(stage));
   writeFileSync(output,'');
   assert.equal(run().status,0);
