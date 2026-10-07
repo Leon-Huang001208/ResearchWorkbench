@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-宿主 macOS；任务为 feature-development；本平台范围为共享验收协议、Research Web 能力投影、macOS Native 和独立 Mac Docker Desktop。用户明确授权阶段二、三及推送/合并；Windows/Linux 对应设备信息尚缺，原生适配与 CI 保持交接，不冒充支持。
+宿主 macOS；阶段二与 Mac Native 功能开发切片已完成。用户明确授权全部阶段、推送与合并，并确认目前只有 Mac；Windows/Linux 原生与其 CI 保留交接。阶段三 Mac Docker Desktop 由独立 task-20261007-bda2aa87e13e 接续，不借 Native 通过认证 Docker。
 
 - taskId: task-20261007-ffa331322bc9；分支 codex/task-20261007-ffa331322bc9-platform-evidence-and-support；基线 c24a8a161674678d572bf9ac35fab30489b40605。
 - 正式共享框架已发布 f853b1b268a1b39c537136d867ddf5a570f9730e；Framework Checks 37573888876 SUCCESS；集成合同 308/308 PASS。Project runtime 正式 preview/apply/verify，无 drift；policy3/plan4/receipt3，不手改分发文件。
@@ -12,7 +12,9 @@
 - Windows/Docker 范围和原有条件门已按新授权恢复；Windows/Linux workflow 仍由对应设备 exact SHA dispatch。
 - 能力切片 578 个不同 Python目标 PASS；Doctor 三链共用轻量状态，validated=false；Windows 文档 501、非 Mac 沙箱 unsupported、Windows Docker ACL 未验证阻断，Docker 旧本机集成 status 保留。
 - 旧 Docker 大文件有既有 Black/isort/Ruff 基线问题，本任务不将整文件风格标 PASS；新模块/文档读取/新增测试及相应格式和类型检查结果见 logs/stage3/capabilities-validation.md。
-- 本平台当前尚未闭合最终候选 CI/真机使用；hostAcceptance: NOT_RUN；aggregateAcceptance: NOT_READY；PR/merge: 尚未；运行实例未更新。
+- 阶段二/Native 候选及合并提交 `205d2a170d9ece9c2751e014b63abe326510ab9c`；[PR #83](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/83) 已合并。Mac Bootstrap 37587972966、Project Constraints 37587972944、Web Checks 37587972950 SUCCESS，实际 checkout 为 `4bd5a6d8660ba7072da37878ce73396b8370fbab`，有序父提交 c24/205 已核对。Native 独立安装、owned ready、重启、沙箱及阅读链路实际通过。
+- 正式 plan4/receipt3 与摘要已由候选现场验证：hostAcceptance PASS、aggregateAcceptance NOT_READY、mergeReady/releaseReady false。Windows NOT_RUN，Linux 因 Docker CI 未运行为 BLOCKED；不把已授权的 Mac PR 合并写成跨平台发布就绪。归档 `2026-10-07-platform-evidence-native-*` 明确只认证候选205，报告后续提交身份另记。运行实例未更新。
+- 交付控制器 P1 恢复校验及失败分类修复已正式发布 a293d755ff162f294f1efff4bef67b90ec915432，314固定合同与 Framework CI37586440387 SUCCESS；项目受管核心仍为已核验f853（此次控制器修复不改分发库）。
 
 ## 映射与图证据复用
 

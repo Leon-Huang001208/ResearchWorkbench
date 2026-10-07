@@ -208,3 +208,5 @@ Windows 对已核对命令签名的受管 PID 先执行非强制 `taskkill /T`�
 该修复不改变 3081/8088、进程归属、启动顺序、服务拓扑或外部 API。
 
 Doctor 以安全固定字段投影平台能力；available 只描述实现，不认证真机结果。Windows 文档与 Docker ACL、非 Mac 沙箱的边界见 [支持矩阵](../../research-web-platform-support.md)，不改变 Web/DSH 两服务结构。
+
+镜像内 DSH 发布资产保留生产依赖的运行时目录（包括 YAML dist/doc）；筛选只剔除包根开发资料和明确元数据，不新增服务或改变单容器结构。

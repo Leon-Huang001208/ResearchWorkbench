@@ -1,0 +1,12 @@
+{
+  "recordKind": "historical-candidate-assurance",
+  "candidateCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+  "validatedAtCandidate": true,
+  "sourceScope": "阶段二与MacNative；阶段三MacDocker另由task-20261007-bda2aa87e13e继续",
+  "hostAcceptance": "PASS",
+  "aggregateAcceptance": "NOT_READY",
+  "mergedViaPullRequest": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/83",
+  "actualCICheckout": "4bd5a6d8660ba7072da37878ce73396b8370fbab",
+  "runtimeUpdated": false,
+  "note": "此归档不认证归档报告所属后续提交；原候选日志和证据身份保留，Windows/Linux NOT_RUN。"
+}
