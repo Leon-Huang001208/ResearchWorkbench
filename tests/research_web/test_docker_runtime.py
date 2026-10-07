@@ -2557,6 +2557,59 @@ def test_native_probe_preserves_stale_state_and_refuses_foreign_before_stop(
     assert not stopped
 
 
+@pytest.mark.parametrize("stage", ["precheck", "child", "postcheck"])
+def test_native_bridge_status_logs_existing_rejection_stage(
+    tmp_path, available_ports, monkeypatch, caplog, stage
+):
+    from research_workbench_entrypoint import bootstrap
+
+    home = tmp_path / "home"
+    (home / "research-web").mkdir(parents=True, mode=0o700)
+    monkeypatch.setattr(bootstrap, "native_python", lambda root: Path(sys.executable))
+    monkeypatch.setattr(
+        bootstrap, "classify_python_environment", lambda root: SimpleNamespace(issue=None)
+    )
+    child = {
+        "ok": stage != "child",
+        "issues": ["SECRET=hunter2"] if stage == "child" else [],
+        "services": {role: {"running": False} for role in ("web", "runtime")},
+    }
+    calls = []
+    safety_checks = []
+
+    def runner(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 0, json.dumps(child), "SECRET stderr")
+
+    controller = bootstrap.NativeRuntime(tmp_path, home, runner=runner, ports=available_ports)
+
+    def safe(root):
+        safety_checks.append(root)
+        return stage != "precheck" and not (stage == "postcheck" and len(safety_checks) == 2)
+
+    monkeypatch.setattr(controller, "_missing_ledger_listeners_safe", safe)
+    report = controller.status()
+    if stage == "child":
+        assert report == child
+    else:
+        assert report == {
+            "schema_version": 1,
+            "ok": False,
+            "issues": ["runtime_ownership_unknown"],
+            "mode": "native",
+        }
+    assert len(safety_checks) == (2 if stage == "postcheck" else 1)
+    assert len(calls) == (0 if stage == "precheck" else 1)
+    if calls:
+        assert calls[0][1]["timeout"] == 40
+    messages = [
+        record.getMessage() for record in caplog.records if record.name == bootstrap.__name__
+    ]
+    code = "report_not_ok" if stage == "child" else "runtime_ownership_unknown"
+    assert f"native_probe phase=status_{stage} code={code}" in messages
+    assert all("SECRET" not in message and "hunter2" not in message for message in messages)
+
+
 def test_native_bridge_subprocess_with_temporary_home_does_not_write(tmp_path, available_ports):
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     from research_workbench_entrypoint.web_contract import listener_pids, probe_process

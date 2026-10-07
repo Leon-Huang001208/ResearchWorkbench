@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "已复核 runtime switch finalize 受控失败诊断；README 的公开入口和部署边界兼容，无须修改。",
+  "summary": "已复核 runtime switch finalize 与 Native status 三阶段受控失败诊断；README 的公开入口和部署边界兼容，无须修改。",
   "reason": "仅在既有拒绝分支追加 stderr 固定 mode/reason/allowlist issue，不新增公开参数、schema、探针、依赖或重试。runtime_stop_failed 返回、严格 running 校验、所有权、锁与 mode CAS 保持；历史切换原因仍待实测，诊断补足不认证生命周期已修复。"
 }

@@ -238,6 +238,8 @@ Windows 将入口写为 `rwb.cmd runtime status --json`、`rwb.cmd runtime use d
 `runtime_switch phase=finalize` 诊断仅包含固定模式、`report_not_ok` / `still_running`
 以及受控 issue；未知代码映射为 `unknown`，仍运行时为 `none`，不输出原 report、路径或秘密。
 这只补足失败归因，不证明历史切换失败已修复；锁、归属、顺序停止和模式 CAS 保持原合同。
+Native status 原拒绝点另记录固定 `status_precheck` / `status_child` / `status_postcheck`
+阶段；子进程拒绝只记 `report_not_ok`，不回显其 issue 或 stderr，也不新增探测或重试。
 
 两种模式依次使用 `~/.research-workbench/research-web/` 中的同一会话、资料、附件和产物，绝不能同时写入。Native 的 PID、认证和运行状态位于 `~/.research-workbench/run/`；Docker 的临时状态位于容器 `/state/runtime`，持久日志位于宿主 `run/docker/<installation-id>/logs`，容器归属由项目、服务、安装身份、镜像、挂载及端口核对，不复用 Native 的状态/认证文件。Docker 凭据存于 `secrets/docker/<installation-id>/` 并单独 bind mount 到容器；Native 仍使用宿主系统凭据库，模式切换不复制或迁移密码/令牌。Compose 只将宿主 `127.0.0.1:8088` 发布给浏览器；DSH 3081 仍留在单容器内部回环。容器以非 root、只读根文件系统、受限能力和显式可写挂载运行。
 

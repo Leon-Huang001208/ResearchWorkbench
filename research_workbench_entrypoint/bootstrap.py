@@ -278,6 +278,7 @@ class NativeRuntime:
                 and (self.home / "research-web").exists()
                 and not self._missing_ledger_listeners_safe(self.home / "research-web")
             ):
+                log.warning("native_probe phase=status_precheck code=runtime_ownership_unknown")
                 return result("runtime_ownership_unknown", mode="native")
             completed = self.runner(
                 [
@@ -311,7 +312,10 @@ class NativeRuntime:
                 )
                 and not self._missing_ledger_listeners_safe(self.home / "research-web")
             ):
+                log.warning("native_probe phase=status_postcheck code=runtime_ownership_unknown")
                 return result("runtime_ownership_unknown", mode="native")
+            if operation == "status" and value.get("ok") is False:
+                log.warning("native_probe phase=status_child code=report_not_ok")
             return value
         except (OSError, ValueError, ControlError, subprocess.SubprocessError):
             log.warning("native_probe code=native_probe_failed")

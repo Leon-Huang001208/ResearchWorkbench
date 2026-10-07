@@ -1,6 +1,7 @@
 # 部署与模块职责
 
 模式切换 finalize 拒绝仅增加现有 stdlib logger 的 stderr 固定诊断字段；部署节点与控制器职责不变。
+Native bridge 的既有 status 拒绝处补固定 precheck/child/postcheck 阶段，不增加 bridge 调用或部署组件。
 
 macOS 异根 Native 私有 pair 的 bounded reader 仍位于 `web_bootstrap.py`；stdlib bridge、
 Docker controller 与 Native manager 共享它。候选仅 OS 当前用户标准产品根，调用内身份观察
