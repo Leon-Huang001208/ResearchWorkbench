@@ -749,3 +749,14 @@ Office临时资源清理的独立目录读取未返回，终止本次所属审�
 最终剩余外部条件一次列明：阶段1B需要一个实际额外服务或本地推理端点的非秘密地址/模型及安全设置页录入条件（当前没有，不用同一服务换协议冒充新增）；阶段2商业源需要所属独立实例真实账户和一个获准dataset；阶段4需要真实Office/Word权限/可响应环境及所属测试资源清理证据（原timeout/UNVERIFIED保留，不重试受保护目录）。不要求把Key发到对话、不购买/管理供应商账户、不读取生产/个人开发工具凭据。阶段3当前数据准入实现与真实公开NAV链路PASS、阶段5Mac干净交付CI PASS、阶段6最小设计完成；1B/2自有账户/4实机不具备完成证据，全部阶段仍未完成。草稿PR不合并、不发布、不更新生产、不启动暂缓平台。
 
 独立实例实际运行命令从工作目录/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench执行：.venv/bin/python /private/tmp/rwb-dsh-upgrade-acceptance-20261007/instance.py {start,status,doctor,stop}，start复用正常WebServiceManager安装门与受管入口，实例根/private/tmp/rwb-dsh-upgrade-acceptance-20261007/research-web，设置入口在start后核验为http://127.0.0.1:19088/#/settings/model。当前已停止且无Key，恢复运行不代表有推理能力。公开日常./rwb web start/status/doctor/stop默认8088/3081，本轮只核对--help，未以它们操作生产。
+
+
+### 持续Goal逐项审计与1B可行性证据
+
+上一Goal轮为实际progress：提交9f30/32cd、当前三门SUCCESS、产品清除与所属停止；不是等待或只重述计划。本轮本地HEAD e5fd7a486、工作区clean，重新比对原附件阶段3—6。阶段6六项边界及独立未来任务已在05-security-validation第175节覆盖；Mac原生与当前CI证据可复用，未执行的账户/Office/容器事实不改PASS。
+
+为避免只因未购买其他服务便停止独立工作，实际窄查已安装本地资源：Ollama可执行文件/标准Application与LM Studio标准Application未发现，11434/1234无listener（不是全机扫描/没有读取个人配置）。官方Ollama文档确认本地OpenAI兼容API服务不要求Key。但固定485源码原生pi-ai实现并非无凭据传输：真实运行其catalog.spec.ts的“leaves an unauthenticated route”一项，PASS/70未选测试，明确结果No API key for provider: local-llm、请求0；来源默认catalog也没有可直接宣称可用的Ollama路径。这证明不能只加Provider字符串或让用户填假Key冒充无Key支持，fixture不等于真实模型验收。
+
+核对官方Ollama v0.40.0 darwin archive167494179字节及发布digest；只向任务临时目录下载，180秒失败exit28，实收9623543字节，未校验为完整包、未解压、未执行、未下载模型、未系统安装。一次urllib release metadata读取也遇IncompleteRead，已有gh官方API完成固定release元数据，未连续重跑网络。当前仍没有可用额外真实端点，不将不完整下载或SDK文档计PASS。日志local-model-resource-audit.json/local-model-download-state.json/native-keyless-contract.log保留。
+
+下一独立实施范围仍仅一种openai-compatible连接，固定协议openai-completions、显式base URL/model ID和auth mode。复用固定DSH LlmAdapter扩展与现有Agent循环，不能因原生SDK强制Key而伪造用户凭据；薄传输适配须拒绝重定向、有界超时/输出/错误处理，无Key模式完全不读取秘密，有Key模式只用与DeepSeek分开的固定系统ref；现有事务和活动任务保护沿用。先只认证实际文本/流式，未经真工具验证的连接只能承担明确不依赖工具的功能。产品/检查环境、全局DSH、生产、固定版本和锁不变；单一报告记录设计及实际失败，不额外建设模型管理框架或第二Vault。暂无真实端点仍阻断真实1B完成，但不阻断必要合同/最小连接实现的独立工作，Goal继续active。
