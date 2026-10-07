@@ -284,3 +284,5 @@ API 或 Automation 契约。
 
 本轮未新增或修改 HTTP 路由、请求/响应字段或错误码。变化仅在 `rwb web stop` 的 Windows 受管进程
 实现：非强制终止失败后允许进入既有强制升级；归属不明或强制失败仍返回 CLI 错误。
+
+Doctor 的 capability 字段表示安全实现边界，validated=false 不替代平台回执；缺安全读取 primitive 的架构路由返回 501 documentation_platform_unsupported，不开放其他文件路径。

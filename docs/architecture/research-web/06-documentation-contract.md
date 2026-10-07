@@ -104,3 +104,5 @@ Web 只读入口 `/api/research/documentation/index.html`、由接口清单生�
 Web 图页附可信常量的返回导航，磁盘图与 Archify 哈希保持原样。页面继续处于 opaque sandbox，无 CORS、网络 fetch、iframe 或任意仓库读取权限。人工审阅只由实际用户确认记录，Agent 审阅单独标识；自动视觉回执的 pending 不篡改。
 
 生成器拒绝目录、输出、日志中的符号链接（含悬空链接）；登记视图与静态文档允许列表须集合等价，缺项、额外、重复或非字面量登记都失败。
+
+源码所有权按研究框架、集成协调、本机集成和验证工作流精确登记，避免领域小改要求无关章节变更。结构 changed 仍须对应图源更新；未映射、缺说明、缺审阅或缺图证据继续失败。Doctor 的平台边界与能力验收分开，Windows reader 缺安全 primitive 明确不支持。

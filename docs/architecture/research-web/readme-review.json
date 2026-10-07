@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "新增 Settings 架构文档和分层图册入口，同时复核保留主线 macOS Native、模型 Keychain 和真实支持范围。",
-  "reason": "本轮改变用户可见的架构阅读入口；最新主线模型系统存储与 Host 认证 record 的分工保留，不泛化 Docker 或 Windows/Linux 支持，也不代表发布或运行实例升级。"
+  "summary": "新增能力支持矩阵入口和明确平台安全边界，用户重新开启跨平台任务。",
+  "reason": "Doctor实现状态不等于平台验收；README连接支持矩阵，保留严格沙箱、文档reader与ACL限制，不宣称未验证系统支持。"
 }

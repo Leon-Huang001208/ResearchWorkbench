@@ -8,17 +8,24 @@ const origin = new URL(process.env.RESEARCH_WEB_URL || 'http://127.0.0.1:8088');
 if (origin.protocol !== 'http:' || !['localhost','127.0.0.1'].includes(origin.hostname)) throw new Error('Local Web only');
 const output = path.resolve('outputs/research-web-ui-acceptance/documentation');
 const receipt = {status:'running', steps:[], requests:[], repositoryNavigation:[]};
+const serverMode=process.env.RESEARCH_ACCEPTANCE_SERVER_MODE || 'documentation-only';
+if(!['documentation-only','native'].includes(serverMode)) throw new Error('Unknown acceptance server mode');
 const inventory=JSON.parse(await readFile('docs/architecture/research-web/architecture-map.json','utf8'));
 receipt.inputs={
   scriptSha256:createHash('sha256').update(await readFile(new URL(import.meta.url))).digest('hex'),
   mapSha256:createHash('sha256').update(await readFile('docs/architecture/research-web/architecture-map.json')).digest('hex'),
   describedRevision:inventory.reading.repository.revision,
-  serverMode:'isolated documentation and UI HTTP surface; lifespan disabled; Runtime readiness not asserted',
+  serverMode:serverMode==='native' ? 'isolated Native service; Runtime connected probe required; lifecycle evidence recorded separately' : 'isolated documentation and UI HTTP surface; lifespan disabled; Runtime readiness not asserted',
 };
 const uniqueOperations=new Set(inventory.apis.map(api=>`${api.method} ${api.path}`)).size;
 let browser;
 try {
   await mkdir(output,{recursive:true}); await mkdir('logs',{recursive:true});
+  if(serverMode==='native') {
+    const response=await fetch(`${origin.origin}/api/research/runtime`);
+    assert.equal(response.status,200);assert.equal((await response.json()).connected,true);
+    receipt.steps.push('isolated_native_runtime_connected');
+  }
   const {chromium} = await import(process.env.RESEARCH_PLAYWRIGHT_MODULE || 'playwright-core');
   browser = await chromium.launch({headless:true,executablePath:process.env.CHROME_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
   const context = await browser.newContext({viewport:{width:1440,height:900}});
@@ -74,7 +81,7 @@ try {
     await docs.getByRole('heading',{name:'模块阅读入口',exact:true}).waitFor();
     receipt.steps.push(`sandbox_navigation_${filename}`);
   }
-  for(const [moduleId,category] of [['frameworks','研究框架'],['integrations','集成协调器']]) {
+  for(const [moduleId,category] of [['frameworks','研究框架'],['integrations','集成协调器'],['local-integrations','本机集成']]) {
     await docs.goto(`${origin.origin}/api/research/documentation/index.html#module-${moduleId}`);
     await docs.locator(`#module-${moduleId}`).getByRole('link',{name:category,exact:true}).click();
     await docs.getByRole('heading',{name:'Research Web API Atlas',exact:true}).waitFor();

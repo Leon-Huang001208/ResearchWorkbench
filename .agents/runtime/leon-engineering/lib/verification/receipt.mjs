@@ -3,6 +3,7 @@ import path from "node:path";
 import {execFileSync} from "node:child_process";
 
 import {fail} from "./errors.mjs";
+import {normalizePlatformTask, validatePlatformReceipt} from "./platform-task.mjs";
 import {planGitVerification, planVerification} from "./planner.mjs";
 import {LEVEL_ORDER, SIGNALS, STATUS_ORDER} from "./policy.mjs";
 import {assertNoSymlinkComponents, normalizeRepositoryPath, safeProjectRoot} from "./path-safety.mjs";
@@ -110,6 +111,12 @@ function evidenceFile(root, relative) {
 }
 
 function validatePlanStructure(plan) {
+  if(plan?.schemaVersion===4) {
+    const {task,...legacy}=plan;
+    normalizePlatformTask(task);
+    validatePlanStructure({...legacy,schemaVersion:3});
+    return plan;
+  }
   const expectedKeys = plan?.schemaVersion === 2 ? PLAN_V2_KEYS
     : plan?.schemaVersion === 3 && plan.binding ? PLAN_V3_BOUND_KEYS
       : plan?.schemaVersion === 3 ? PLAN_V3_KEYS
@@ -185,14 +192,15 @@ function canonicalPlan(root, plan) {
     : [];
   let canonical;
   try {
-    canonical = plan.schemaVersion === 3 && plan.binding
+    canonical = [3,4].includes(plan.schemaVersion) && plan.binding
       ? planGitVerification({
         projectRoot: root,
         base: plan.binding.baseCommit,
         changedFiles: plan.changedFiles,
         signals,
+        ...(plan.schemaVersion===4?{task:plan.task}:{}),
       })
-      : planVerification({projectRoot: root, changedFiles: plan.changedFiles, signals});
+      : planVerification({projectRoot: root, changedFiles: plan.changedFiles, signals,...(plan.schemaVersion===4?{task:plan.task}:{})});
   } catch {
     fail("PLAN_ERROR", "plan cannot be reproduced from the current policy and change set");
   }
@@ -418,6 +426,7 @@ export function validateVerificationReceipt({projectRoot, planPath, receiptPath}
   const root = safeProjectRoot(projectRoot);
   const plan = canonicalPlan(root, readJson(root, planPath, "PLAN_ERROR"));
   const receipt = readJson(root, receiptPath, "RECEIPT_ERROR");
+  if(plan.schemaVersion===4) return validatePlatformReceipt(receipt,plan,evidence=>evidenceFile(root,evidence),root);
   if (receipt.schemaVersion === 1) return validateLegacyReceipt(receipt, root, plan);
   if (receipt.schemaVersion === 2 && plan.schemaVersion === 3) return validateReceiptV2(receipt, root, plan);
   fail("RECEIPT_ERROR", "unsupported receipt schema");

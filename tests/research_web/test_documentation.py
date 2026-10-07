@@ -130,6 +130,23 @@ def test_oversize_document_is_rejected(docs):
     assert client.get("/api/research/documentation/index.html").status_code == 404
 
 
+def test_unsupported_document_reader_fails_explicitly_without_unsafe_fallback(docs, monkeypatch):
+    from app.research_web import documentation
+
+    client, _ = docs
+    monkeypatch.setattr(documentation, "documentation_reader_available", lambda: False)
+
+    def unexpected_open(*_args, **_kwargs):
+        pytest.fail("unsupported reader must not open a path")
+
+    monkeypatch.setattr(documentation.os, "open", unexpected_open)
+    response = client.get("/api/research/documentation/index.html")
+    assert response.status_code == 501
+    assert response.json()["error"]["code"] == "documentation_platform_unsupported"
+    assert str(Path.cwd()) not in response.text
+    assert client.get("/api/research/documentation/unlisted.html").status_code == 404
+
+
 def test_user_navigation_from_opaque_index_can_read_fixed_public_diagram(docs):
     client, _ = docs
     headers = {

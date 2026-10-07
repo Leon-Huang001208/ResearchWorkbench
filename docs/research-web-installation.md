@@ -1,6 +1,6 @@
 # Research Web Native / Docker 安装与运行
 
-当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：本阶段仅 macOS Native；下述 Windows/Linux 验收要求在用户明确恢复相应范围后适用。Ubuntu 通用 CI 继续执行，暂缓不等于已通过。
+阶段二、三及跨平台范围已由用户明确重新开启；每个平台仍由对应宿主完成验收。当前实现边界、OS/运行模式、证据提交和未验证项见 [能力支持矩阵](research-web-platform-support.md)。安装路径存在不等于该平台能力已验收。
 
 
 ## 支持范围
@@ -274,3 +274,5 @@ uv pip compile requirements/web.in \
 ```
 
 提交前必须从干净 checkout 运行一键安装；不能以开发机已有 `.venv` 或全局模块作为交付证据。
+
+Docker 两个 APT 安装阶段使用 Debian HTTPS 源，保留 archive keyring 签名校验、原有包与锁定基础镜像；网络代理仅按宿主/构建环境配置，不禁用证书或包认证。HTTPS 源切换不证明 Linux/Windows 真机或 CI 已通过。

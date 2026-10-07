@@ -25,6 +25,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from core.observability import get_logger
+from research_workbench_entrypoint.platform_capabilities import platform_capabilities
 from research_workbench_entrypoint.web_contract import (
     CONTROL_JSON_MAX_BYTES,
     MAX_HTTP_BODY_BYTES,
@@ -2095,6 +2096,7 @@ class WebServiceManager:
         return {
             **diagnosis,
             "runtime_mode": "native",
+            "capabilities": platform_capabilities("native"),
             "schema_version": 2,
             "ok": installation_ok,
             "installation_ok": installation_ok,

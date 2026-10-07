@@ -62,6 +62,55 @@ async function check(f, changedFiles=[]) {
   return checkResearchArchitecture({projectRoot:f.root,changedFiles});
 }
 
+test('local integration API deep links select their own real Atlas category', async () => {
+  const {category}=await import(atlasURL);
+  assert.equal(category({path:'/api/research/local-integrations/status'}),'本机集成');
+});
+
+test('reading modules cannot silently deep link to an absent API category', t => {
+  const f=fixture(t),map=f.read(mapPath);
+  map.diagrams[0].level='overview';
+  map.reading={levels:[{id:'overview',title:'Overview'},{id:'details',title:'Details'}],modules:[{id:'runtime',group:'runtime',title:'Runtime',category:'absent-category'}]};
+  f.write(mapPath,map);
+  const result=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+  assert.notEqual(result.status,0);assert.match(result.stderr,/unknown module API category/);
+});
+
+test('narrow source owners require their own docs without unrelated protocol churn', async t => {
+  const f=fixture(t), framework='app/research_web/frameworks/example.py', owner='docs/framework.md';
+  f.write(framework,'# fixture framework');f.write(owner,'# Framework');
+  const map=f.read(mapPath);
+  map.groups.push({id:'frameworks',sources:['app/research_web/frameworks/'],documents:[owner],diagrams:['03-research-sequence'],tests:['tests/check.py']});
+  f.write(mapPath,map);
+  f.write(review,'<!-- architecture-review {"group":"frameworks","structure":"unchanged","reason":"Only framework leaf data changes, runtime topology remains unchanged.","diagrams":[]} -->');
+  const built=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
+  assert.deepEqual((await check(f,[framework,owner,review])).violations,[]);
+  assert.ok((await check(f,[framework,review])).violations.some(x=>x.code==='module_document_not_changed'&&x.path===owner));
+  f.write(review,'<!-- architecture-review {"group":"frameworks","structure":"changed","reason":"Framework runtime relationships now require a corresponding graph change.","diagrams":["03-research-sequence"]} -->');
+  assert.ok((await check(f,[framework,owner,review])).violations.some(x=>x.code==='structure_diagram_not_changed'));
+});
+
+test('actual framework route owners retain API/security obligations while collector leaves stay narrow', async t => {
+  const f=fixture(t),actual=JSON.parse(fs.readFileSync(new URL('../../docs/architecture/research-web/architecture-map.json',import.meta.url)));
+  const groups=actual.groups.filter(g=>['frameworks','integration-coordinator','research-api-contract'].includes(g.id));
+  assert.equal(groups.length,3);
+  const route='app/research_web/frameworks/routes.py',leaf='app/research_web/frameworks/fixture_leaf.py';
+  f.write(leaf,'# synthetic collector');
+  for(const group of groups) {
+    for(const file of group.sources.filter(file=>!file.endsWith('/'))) f.write(file,'# synthetic protocol owner');
+    for(const file of group.documents) f.write(file,'# Synthetic owner document');
+    for(const file of group.tests) f.write(file,'# Synthetic contract asset');
+  }
+  const map=f.read(mapPath);map.groups.push(...groups);f.write(mapPath,map);
+  f.write(review,groups.map(g=>`<!-- architecture-review ${JSON.stringify({group:g.id,structure:'unchanged',reason:'Only leaf behavior changes; runtime topology and safety boundaries remain unchanged.',diagrams:[]})} -->`).join('\n'));
+  const built=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
+  const owner='docs/architecture/research-web/08-research-frameworks.md';
+  assert.deepEqual((await check(f,[leaf,owner,review])).violations,[]);
+  const missing=(await check(f,[route,owner,review])).violations.filter(x=>x.code==='module_document_not_changed').map(x=>x.path);
+  assert.ok(missing.includes('docs/architecture/research-web/04-api.md'));
+  assert.ok(missing.includes('docs/architecture/research-web/05-security-validation.md'));
+});
+
 async function checkConstraints(f, changedFiles=[]) {
   const {checkProjectConstraints} = await import('../../.agents/project-constraints.mjs');
   return checkProjectConstraints({projectRoot:f.root,changedFiles});

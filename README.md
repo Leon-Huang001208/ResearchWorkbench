@@ -8,6 +8,8 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 架构阅读从 Settings →「架构文档」或[交互图册](outputs/research-web-architecture/index.html)开始，按产品总览、部署、子系统、关键流程和 API 逐层展开；模块入口关联权威说明、源码与测试。
 
+平台能力及实际证据见[支持矩阵](docs/research-web-platform-support.md)。非 macOS 研究脚本沙箱、Windows Native 架构阅读和 Windows Docker 凭据 ACL 目前存在明确安全边界；Doctor 的实现状态与真机验收分别记录。
+
 ## 快速开始
 
 ### 前置条件

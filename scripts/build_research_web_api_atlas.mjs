@@ -10,6 +10,7 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({'&'
 
 export function category(api) {
   const route = api.path;
+  if (route.includes('/local-integrations')) return '本机集成';
   if (route.includes('/frameworks')) return '研究框架';
   if (route.includes('/integrations')) return '集成协调器';
   if (route.includes('/automations')) return '自动化';
@@ -84,6 +85,7 @@ export function renderArtifacts(root) {
     if(!/^[a-z0-9-]+$/.test(module.id)) throw new Error('invalid module ID');
     const group=map.groups.find(item=>item.id===module.group);
     if(!group) throw new Error('unknown reading group');
+    if(module.category && !categories.includes(module.category)) throw new Error('unknown module API category');
     const links=(values)=>values.map(file=>{
       if(!fs.existsSync(checkedFile(root,file.replace(/\/$/,'')))) throw new Error('reading reference missing');
       return repositoryLink(map,file);

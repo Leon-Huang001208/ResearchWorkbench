@@ -169,3 +169,5 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 会话或本机软件权限。
 
 启动handoff不能以DSH_HOME父目录推断独立state位置。Node preload接受launcher明确的state绑定；消费方验证私有目录/文件、authority、cwd、固定commit及PID，秘密只进入脱敏集合和受控Cookie交换，独立健康检查保持只读。
+
+平台能力投影不降低安全门：Windows 安全文档 reader 不支持时返回 501；非 Mac 研究脚本保留严格沙箱阻断，Windows Docker 保留 ACL 未验证。能力 available 不等于 validated，真实验收在支持矩阵与任务回执中记录。
