@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "私有 runtime state 拒绝方向与相对位置取证复核：README公开入口与安装要求不变。",
-  "reason": "仅追加完整root/runtime所有权对方向和相对叶位置枚举；原安全guard、公开五字段启动诊断和安装依赖不变，未证明具体挂载根或认证写入层。"
+  "disposition": "updated",
+  "summary": "Docker 临时运行状态改为容器 /state/runtime，宿主 state/logs 独立持久绑定；README 存储说明同步复核。",
+  "reason": "实际挂载从整个宿主 state bind 改为私有 tmpfs 与日志子目录 bind。每次启动由原链重建认证，旧 host runtime 保留不迁移，产品数据与凭据绑定不变；本地合同不证明真实镜像或跨平台验收。"
 }

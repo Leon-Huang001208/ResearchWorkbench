@@ -18,10 +18,10 @@
       },
       "volumes": [
         { "type": "bind", "source": "${RWB_DATA_DIR:?Set RWB_DATA_DIR}", "target": "/data/research-web", "bind": { "create_host_path": false } },
-        { "type": "bind", "source": "${RWB_STATE_DIR:?Set RWB_STATE_DIR}", "target": "/state", "bind": { "create_host_path": false } },
+        { "type": "bind", "source": "${RWB_STATE_DIR:?Set RWB_STATE_DIR}/logs", "target": "/state/logs", "bind": { "create_host_path": false } },
         { "type": "bind", "source": "${RWB_CREDENTIAL_DIR:?Set RWB_CREDENTIAL_DIR}", "target": "/run/rwb-secrets", "bind": { "create_host_path": false } }
       ],
-      "tmpfs": ["/tmp:rw,nosuid,nodev,mode=1777", "/home/rwb:rw,nosuid,nodev,uid=10001,gid=10001,mode=700"],
+      "tmpfs": ["/tmp:rw,nosuid,nodev,mode=1777", "/home/rwb:rw,nosuid,nodev,uid=10001,gid=10001,mode=700", "/state:rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m"],
       "labels": {
         "io.research-workbench.runtime": "docker",
         "io.research-workbench.installation": "${RWB_INSTALLATION_ID:?Set RWB_INSTALLATION_ID}"

@@ -282,12 +282,85 @@ def owned(controller, runner):
         "ports": {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(controller.ports[0])}]},
         "mounts": [
             {"Type": "bind", "Source": str(controller.data_dir), "Destination": "/data/research-web"},
-            {"Type": "bind", "Source": str(controller.state_dir), "Destination": "/state"},
+            {"Type": "bind", "Source": str(controller.state_dir / "logs"), "Destination": "/state/logs"},
             {"Type": "bind", "Source": str(controller.credential_dir), "Destination": "/run/rwb-secrets"},
             {"Type": "tmpfs", "Source": "", "Destination": "/tmp"},
             {"Type": "tmpfs", "Source": "", "Destination": "/home/rwb"},
+            {"Type": "tmpfs", "Source": "", "Destination": "/state"},
         ],
+        "tmpfs": {"/state": "rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m",
+                  "/tmp": "rw,nosuid,nodev,mode=1777",
+                  "/home/rwb": "rw,nosuid,nodev,uid=10001,gid=10001,mode=700"},
     }
+    for mount in runner.container["mounts"]:
+        mount["RW"] = True
+
+
+@pytest.mark.parametrize("change", ["missing_state", "missing_tmp", "missing_home", "duplicate",
+    "wrong_type", "wrong_source", "legacy_bind", "readonly", "missing_rw", "rw_string",
+    "missing_config", "config_list", "extra_config", "uid", "gid", "mode", "size",
+    "noexec", "unknown", "duplicate_option", "contradiction"])
+def test_private_state_mount_contract_rejects_nearest_invalid_layout(runtime, change):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    mounts = runner.container["mounts"]
+    state = mounts[-1]
+    if change.startswith("missing_") and change in {"missing_state", "missing_tmp", "missing_home"}:
+        destination = {"missing_state": "/state", "missing_tmp": "/tmp", "missing_home": "/home/rwb"}[change]
+        mounts[:] = [item for item in mounts if item["Destination"] != destination]
+        runner.container["tmpfs"].pop(destination)
+    elif change == "duplicate":
+        mounts.append(dict(state))
+    elif change == "wrong_type":
+        state["Type"] = "volume"
+    elif change == "wrong_source":
+        mounts[1]["Source"] = str(controller.state_dir)
+    elif change == "legacy_bind":
+        state.update(Type="bind", Source=str(controller.state_dir))
+    elif change in {"readonly", "missing_rw", "rw_string"}:
+        for item in mounts:
+            if change == "missing_rw":
+                item.pop("RW")
+            else:
+                item["RW"] = False if change == "readonly" else "true"
+    elif change == "missing_config":
+        runner.container.pop("tmpfs")
+    elif change == "config_list":
+        runner.container["tmpfs"] = list(runner.container["tmpfs"])
+    elif change == "extra_config":
+        runner.container["tmpfs"]["/extra"] = "rw"
+    else:
+        options = runner.container["tmpfs"]["/state"]
+        replacements = {"uid": ("uid=10001", "uid=0"), "gid": ("gid=10001", "gid=0"),
+            "mode": ("mode=700", "mode=755"), "size": ("size=1m", "size=2m"),
+            "noexec": (",noexec", "")}
+        if change in replacements:
+            options = options.replace(*replacements[change])
+        else:
+            options += {"unknown": ",silent", "duplicate_option": ",uid=10001", "contradiction": ",ro"}[change]
+        runner.container["tmpfs"]["/state"] = options
+    assert controller.status()["issues"] == ["docker_ownership_mismatch"]
+
+
+def test_private_state_tmpfs_options_are_semantic_and_binds_writable(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["tmpfs"]["/state"] = "size=1048576,mode=0700,gid=10001,uid=10001,noexec,nodev,nosuid,rw"
+    assert controller.status()["ok"]
+    runner.container["mounts"][1]["RW"] = False
+    assert controller.status()["issues"] == ["docker_ownership_mismatch"]
+
+
+@pytest.mark.parametrize("explicit", [[], ["/state"], ["/tmp", "/home/rwb"]])
+def test_hostconfig_requires_all_tmpfs_when_engine_omits_mount_entries(runtime, explicit):
+    # Docker 29 Engine exposes --tmpfs in HostConfig, without duplicate Mounts entries.
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["mounts"][:] = [item for item in runner.container["mounts"]
+        if item["Type"] == "bind" or item["Destination"] in explicit]
+    assert controller.status()["ok"]
+    runner.container["tmpfs"].pop("/state")
+    assert controller.status()["issues"] == ["docker_ownership_mismatch"]
 
 
 @pytest.mark.parametrize("existing", [False, True])
@@ -1229,6 +1302,7 @@ def test_install_and_start_use_only_named_service_without_autostart(runtime):
     assert up[-7:] == ["up", "--detach", "--no-build", "--pull", "never", "--no-recreate", "research-web"]
     assert controller.data_dir.is_dir()
     assert controller.state_dir.is_dir()
+    assert (controller.state_dir / "logs").stat().st_mode & 0o777 == 0o700
     assert controller.credential_dir.is_dir()
 
 
@@ -1237,6 +1311,57 @@ def test_malformed_inspect_mounts_return_safe_error(runtime):
     owned(controller, runner)
     runner.container["mounts"][0]["Destination"] = []
     assert controller.status()["issues"] == ["docker_ownership_mismatch"]
+
+
+@pytest.mark.parametrize("kind", ["alias", "mode", "foreign"])
+def test_private_host_logs_refuse_unsafe_existing_child(runtime, monkeypatch, kind):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    (controller.home / "run").mkdir(mode=0o700)
+    controller.state_dir.mkdir(parents=True, mode=0o700)
+    logs = controller.state_dir / "logs"
+    if kind == "alias":
+        logs.symlink_to(controller.state_dir, target_is_directory=True)
+    else:
+        logs.mkdir(mode=0o700)
+        if kind == "mode":
+            logs.chmod(0o755)
+        else:
+            original = Path.lstat
+            def foreign(path):
+                info = original(path)
+                if path == logs:
+                    values = list(info)
+                    values[4] += 9876
+                    return os.stat_result(values)
+                return info
+            monkeypatch.setattr(Path, "lstat", foreign)
+    assert controller.start(open_browser=False)["issues"] == ["docker_data_home_unsafe"]
+    assert not any("up" in argv for argv, _ in runner.calls)
+
+
+def test_private_host_logs_creation_preserves_legacy_runtime(runtime, monkeypatch):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    (controller.home / "run").mkdir(mode=0o700)
+    controller.state_dir.mkdir(parents=True, mode=0o700)
+    legacy = controller.state_dir / "runtime"
+    legacy.mkdir(parents=True, mode=0o700)
+    record = legacy / "auth.json"
+    record.write_bytes(b"legacy-auth-retained")
+    record.chmod(0o600)
+    before = record.stat()
+    def on_up(argv, **kwargs):
+        if "up" in argv:
+            owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = on_up
+    assert controller.start(open_browser=False)["ok"]
+    assert record.read_bytes() == b"legacy-auth-retained"
+    assert record.stat().st_ino == before.st_ino
+    assert (controller.state_dir / "logs").stat().st_mode & 0o777 == 0o700
 
 
 def test_start_opens_only_verified_runtime_url(runtime, monkeypatch):
@@ -1502,8 +1627,11 @@ def test_mode_switch_final_selection_uses_shared_lifecycle_lock(runtime):
     assert controller.store.read().mode == "docker"
 
 
-@pytest.mark.parametrize("failure", [None, "timeout", "replacement"])
-def test_partial_controls_use_owned_no_port_guest_preparation(runtime, monkeypatch, failure):
+@pytest.mark.parametrize("failure", [None, "timeout", "replacement", "tmpfs_missing", "tmpfs_type",
+    "uid", "gid", "mode", "unknown", "duplicate_option", "readonly", "extra", "shadow",
+    "bind_source", "duplicate_mount", "missing_rw"])
+@pytest.mark.parametrize("explicit_tmpfs", [False, True])
+def test_partial_controls_use_owned_no_port_guest_preparation(runtime, monkeypatch, failure, explicit_tmpfs):
     from app.research_web.datahub.security import load_control
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     from research_workbench_entrypoint.runtime_endpoints import EndpointStore
@@ -1528,9 +1656,33 @@ def test_partial_controls_use_owned_no_port_guest_preparation(runtime, monkeypat
                 runtime="control-preparer", running=False, state="created", exit_code=0,
                 ports={}, entrypoint=["/opt/rwb/venv/bin/python"],
                 command=["/opt/rwb/docker/supervisor.py", "--prepare-controls-only", "--previous-origin", origin],
-                mounts=[{"Type": "bind", "Source": str(controller.data_dir), "Destination": "/data/research-web"}]
-                       + [{"Type": "tmpfs", "Source": "", "Destination": name}
-                          for name in ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb")])
+                mounts=[{"Type": "bind", "Source": str(controller.data_dir), "Destination": "/data/research-web", "RW": True}]
+                       + ([{"Type": "tmpfs", "Source": "", "Destination": name, "RW": True}
+                          for name in ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb")] if explicit_tmpfs else []),
+                tmpfs={name: "rw,nosuid,nodev,uid=10001,gid=10001,mode=700"
+                       for name in ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb")})
+            if failure == "tmpfs_missing":
+                guest["tmpfs"].pop("/state")
+            elif failure == "tmpfs_type":
+                guest["tmpfs"] = list(guest["tmpfs"])
+            elif failure in {"uid", "gid", "mode"}:
+                old, new = {"uid": ("uid=10001", "uid=0"), "gid": ("gid=10001", "gid=0"),
+                            "mode": ("mode=700", "mode=755")}[failure]
+                guest["tmpfs"]["/state"] = guest["tmpfs"]["/state"].replace(old, new)
+            elif failure in {"unknown", "duplicate_option"}:
+                guest["tmpfs"]["/state"] += ",silent" if failure == "unknown" else ",uid=10001"
+            elif failure == "extra":
+                guest["tmpfs"]["/extra"] = guest["tmpfs"]["/state"]
+            elif failure == "readonly":
+                guest["mounts"][0]["RW"] = False
+            elif failure == "missing_rw":
+                guest["mounts"][0].pop("RW")
+            elif failure == "bind_source":
+                guest["mounts"][0]["Source"] = "/foreign"
+            elif failure == "duplicate_mount":
+                guest["mounts"].append(dict(guest["mounts"][0]))
+            elif failure == "shadow":
+                guest["mounts"].append({"Type": "volume", "Source": "", "Destination": "/state", "RW": True})
             return subprocess.CompletedProcess(argv, 0, guest["id"], "")
         if argv[1:3] == ["container", "inspect"] and argv[-1] == "d" * 64:
             return subprocess.CompletedProcess(argv, 0, json.dumps(guest), "")
@@ -1554,7 +1706,7 @@ def test_partial_controls_use_owned_no_port_guest_preparation(runtime, monkeypat
     assert report["ok"] is (failure is None), report
     expected_origin = "http://127.0.0.1:8088" if failure is None else origin
     assert load_control(controller.data_dir, expected_origin)["token"] == original["token"]
-    if failure == "replacement":
+    if failure not in {None, "timeout"}:
         assert guest and not any(argv[1] == "rm" for argv in calls)
         assert "docker_prepare_cleanup_unverified" in report["issues"]
     else:

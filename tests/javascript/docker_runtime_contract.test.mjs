@@ -99,7 +99,7 @@ test('Compose requires explicit canonical mounts and includes only non-secret co
   const service = JSON.parse(read('compose.yaml')).services['research-web'];
   assert.deepEqual(service.volumes, [
     { type: 'bind', source: '${RWB_DATA_DIR:?Set RWB_DATA_DIR}', target: '/data/research-web', bind: { create_host_path: false } },
-    { type: 'bind', source: '${RWB_STATE_DIR:?Set RWB_STATE_DIR}', target: '/state', bind: { create_host_path: false } },
+    { type: 'bind', source: '${RWB_STATE_DIR:?Set RWB_STATE_DIR}/logs', target: '/state/logs', bind: { create_host_path: false } },
     { type: 'bind', source: '${RWB_CREDENTIAL_DIR:?Set RWB_CREDENTIAL_DIR}', target: '/run/rwb-secrets', bind: { create_host_path: false } },
   ]);
   assert.deepEqual(service.environment, { RWB_DATA_ROOT: '/data/research-web', RWB_RUNTIME_STATE: '/state/runtime', RESEARCH_CREDENTIAL_HOME: '/run/rwb-secrets/private', LOG_DIR: '/state/logs' });
@@ -109,7 +109,9 @@ test('Compose requires explicit canonical mounts and includes only non-secret co
     'io.research-workbench.runtime': 'docker',
     'io.research-workbench.installation': '${RWB_INSTALLATION_ID:?Set RWB_INSTALLATION_ID}',
   });
-  assert.deepEqual(service.tmpfs, ['/tmp:rw,nosuid,nodev,mode=1777', '/home/rwb:rw,nosuid,nodev,uid=10001,gid=10001,mode=700']);
+  assert.deepEqual(service.tmpfs, ['/tmp:rw,nosuid,nodev,mode=1777', '/home/rwb:rw,nosuid,nodev,uid=10001,gid=10001,mode=700', '/state:rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m']);
+  assert.match(read('.github/workflows/research-web-docker.yml'), /sudo install -d -m 700 -o 10001 -g 10001 "\$root\/data" "\$root\/state" "\$root\/state\/logs" "\$root\/credentials"/);
+  assert.match(read('Dockerfile'), /VOLUME \["\/data\/research-web", "\/state", "\/run\/rwb-secrets"\]/);
 });
 
 test('build context denies local state and allows only runtime packaging inputs', () => {

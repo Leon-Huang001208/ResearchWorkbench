@@ -4,12 +4,13 @@
 认证写入、健康探测、原校验顺序、异常类型/错误码和生命周期不变；取证不授权自动重试。
 额外方向分类来自同一次已拒绝的before/current所有权对，不能据日志推断Cookie writer层或修复权限。
 
-正常受管固定布局在 config_validation 后、控制和认证读取前，只初始化 `/state/runtime`
-的文件系统写映射：独占空临时文件创建/回收后，再进入原完整 runtime guard。
-只允许初始化期间固定父目录的精确 root-pair→不同 runtime-pair；后续身份变化仍拒绝。
-此步骤不生成 auth/Cookie、持久 marker 或新协议，不改变原 auth_reset、认证交换、
-Popen/probe/恢复流程；prepare-only 和只读 health/Doctor 不调用它。
-前提来自既有受管 host/Compose 链，actual 新容器 mount 检查仍在 up 后，不由 guest FD 证明。
+Docker `/state/runtime` 位于私有 `/state` tmpfs，正常严格 guard 创建和验证该叶。
+正常容器与既有 control-preparer 都以 HostConfig.Tmpfs 核对必需 tmpfs；Engine 可省略
+Mounts 的重复 tmpfs 条目，任何显式条目仍核对类型/来源/RW。临时 guest 仍只绑定产品 data，
+其原四个私有 tmpfs profile、无网络/无端口、image/nonce/command 与精确 cleanup 合同不变。
+每次启动/重启由原 auth_reset、认证交换、Popen/probe 顺序重新建立认证；停止容器丢弃状态。
+删除写映射初始化与已有状态叶例外，不生成认证预写、空临时文件或持久 marker。
+宿主日志子目录独立持久绑定，产品数据与凭据不迁移；Native 状态路径和协议保持原合同。
 
 发布运行目录中的 `doc/docs` 名称不再导致运行实现漏包；生产依赖图、optional peer、
 虚拟 Profile alias 搜索和 launcher 模块验证保持原链路，Node 加载回归验证派生资产完整性。
@@ -93,7 +94,7 @@ Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时�
 
 Docker supervisor 的启动顺序先准备 `/state/runtime` 与 `/run/rwb-secrets/private` 私有叶，
 再清理本次认证状态、启动 DSH、探测并启动 Web。健康检查复用 `/state/runtime/auth.json`；
-重启保留私有叶及凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
+重启重新创建状态叶和认证，保留凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
 固定缺失叶的准备先用保留父FD创建，再由原runtime_state_directory完整重pin；不会捕获
 任意校验失败后无条件重试。data-root/logs使用相同首建顺序，自定义目录维持原严格create路径。
 启动失败额外记录固定阶段、受控异常类别、数字 errno 与 runtime/web 已知退出码；

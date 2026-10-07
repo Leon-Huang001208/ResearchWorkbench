@@ -6,12 +6,13 @@
 身份变化日志还区分完整root/runtime所有权对方向及parent/other_ancestor/leaf相对位置；
 混合或未知变化仍拒绝，具体挂载根与认证写入层必须另行取证，不能由此自动修复。
 
-正常受管固定 Compose 布局的 supervisor 会在配置验证后、认证/控制读取和启动前，
-仅对 `/state/runtime` 执行空私有临时文件创建/回收，并用未修改的严格 guard 重pin。
-已有叶必须原本为当前 UID/GID 的真实 0700 目录，不修权限或写认证；自定义路径、
-credentials/data/logs、prepare-only 与只读 health/Doctor 不启用。依赖及一键入口保持原合同。
-guest FD 校验不独立证明 mount/no-other-writer；host 的实际新容器挂载核验仍在 up 后。
-源码测试只验证初始化边界，真实镜像/start 与 macOS 安装 CI 仍须独立证据。
+Docker `/state` 改为私有 tmpfs（UID/GID 10001、0700、1 MiB，rw/nosuid/nodev/noexec）。
+`/state/runtime` 由原严格 guard 创建；停止后丢弃，每次启动/重启由原链正常重建认证。
+宿主 `run/docker/<installation-id>/logs` 独立绑定 `/state/logs`，controller 在正常生命周期
+私有创建/验证该子目录，Compose 禁止自动创建宿主路径。supervisor 产品日志仍在 data-root/logs。
+旧 host state/runtime 保留，不迁移认证、不自动删除旧停止容器；不符合新挂载合同的旧实例拒绝。
+[Docker tmpfs](https://docs.docker.com/engine/storage/tmpfs/) 在 Docker VM 中可能进入 swap，
+不能声称秘密绝不落盘。现有 CI 直接 Compose fixture 同步准备 state/logs，不扩展验收平台。
 
 DSH 已发布运行子树内的 `doc/docs` 同名代码目录可保留（例如 yaml 的 `dist/doc`）。仅明确、
 无 glob/negative 的包目录声明建立该例外；包顶层文档、任意层级测试/fixture/cache 等继续排除，
@@ -199,18 +200,18 @@ Docker 在运行中无法认证证明研究空闲；重启必须显式 `--force`
 
 Windows 将入口写为 `rwb.cmd runtime status --json`、`rwb.cmd runtime use docker --stop-current`、`rwb.cmd web doctor --json` 等对应命令；这些是接口说明，不表示本轮已在真实 Windows 上跑通 Docker。`runtime use` 默认不停止当前服务；存在运行中的旧模式时必须显式提供 `--stop-current`，且仅在旧进程/容器归属可验证时停止。未知端口占用、无法确认的 PID/容器、活动研究或状态异常均失败关闭；不要手动改模式记录来绕过。运行时选择保存在私有 `install/runtime.json`，无需 `.venv` 即可路由 Docker 命令；Native 命令仍进入 Native 环境。
 
-两种模式依次使用 `~/.research-workbench/research-web/` 中的同一会话、资料、附件和产物，绝不能同时写入。Native 的 PID、认证和运行状态位于 `~/.research-workbench/run/`；Docker 的状态位于 `run/docker/<installation-id>/`，容器归属由项目、服务、安装身份、镜像、挂载及端口核对，不复用 Native 的状态/认证文件。Docker 凭据存于 `secrets/docker/<installation-id>/` 并单独 bind mount 到容器；Native 仍使用宿主系统凭据库，模式切换不复制或迁移密码/令牌。Compose 只将宿主 `127.0.0.1:8088` 发布给浏览器；DSH 3081 仍留在单容器内部回环。容器以非 root、只读根文件系统、受限能力和显式可写挂载运行。
+两种模式依次使用 `~/.research-workbench/research-web/` 中的同一会话、资料、附件和产物，绝不能同时写入。Native 的 PID、认证和运行状态位于 `~/.research-workbench/run/`；Docker 的临时状态位于容器 `/state/runtime`，持久日志位于宿主 `run/docker/<installation-id>/logs`，容器归属由项目、服务、安装身份、镜像、挂载及端口核对，不复用 Native 的状态/认证文件。Docker 凭据存于 `secrets/docker/<installation-id>/` 并单独 bind mount 到容器；Native 仍使用宿主系统凭据库，模式切换不复制或迁移密码/令牌。Compose 只将宿主 `127.0.0.1:8088` 发布给浏览器；DSH 3081 仍留在单容器内部回环。容器以非 root、只读根文件系统、受限能力和显式可写挂载运行。
 
-Docker 的挂载根与实际私有目录不同：`/state` 仍是状态 bind 根，DSH 状态和认证实际位于
+Docker 的挂载根与实际私有目录不同：`/state` 是私有 tmpfs，DSH 状态和认证实际位于
 `/state/runtime`；`/run/rwb-secrets` 仍是凭据 bind 根，File backend 显式使用
 `RESEARCH_CREDENTIAL_HOME=/run/rwb-secrets/private`。supervisor 以容器 UID 10001 在首次
-认证、健康探测和子进程启动前创建 0700 私有叶，重启时验证并复用。Docker Desktop 可能把
+认证、健康探测和子进程启动前创建 0700 私有叶，重启时重建状态、验证并复用凭据。Docker Desktop 可能把
 宿主创建的 bind 根呈现为 UID 0；不会因此放宽私有叶 owner/权限/no-follow 检查，也不会
-chmod/chown 挂载根。`LOG_DIR=/state/logs` 独立于私有状态叶，避免导入期日志目录创建
-提前生成权限不正确的状态叶。用户 data-root、Native 路径及 Inspector 挂载契约不变。
+chmod/chown 挂载根。`LOG_DIR=/state/logs` 单独绑定原宿主日志子目录，避免导入期日志创建
+影响状态叶。用户 data-root 与 Native 路径不变，Inspector 严格执行新的完整挂载合同。
 
 首次 mkdir 还可能使固定 bind 根的可见 UID/GID 从 0:0 变为容器用户。Docker-only 准备器
-仅对缺失的 `/state/runtime`、`/run/rwb-secrets/private`、`/data/research-web/logs` 分阶段：
+仅对缺失的 `/run/rwb-secrets/private`、`/data/research-web/logs` 分阶段：
 保留 no-follow 父目录FD安全创建0700叶，固定父节点的dev/inode/mode和路径/FD一致性必须
 保持，创建阶段仅允许可信root→当前UID/GID映射；随后重新进入原完整严格校验，确认新叶
 仍为本次创建对象，才访问认证/凭据或启动进程。已有叶及自定义路径无此创建例外。

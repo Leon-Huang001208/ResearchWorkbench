@@ -53,7 +53,8 @@ _CONTAINER_FORMAT = (
     '"ports":{{json .NetworkSettings.Ports}},'
     '"mounts":[{{range $i,$m := .Mounts}}{{if $i}},{{end}}'
     '{"Source":{{json $m.Source}},"Destination":{{json $m.Destination}},'
-    '"Type":{{json $m.Type}}}{{end}}]}'
+    '"Type":{{json $m.Type}},"RW":{{json $m.RW}}}{{end}}],'
+    '"tmpfs":{{json .HostConfig.Tmpfs}}}'
 )
 _PREPARER_FORMAT = (
     '{"id":{{json .Id}},"image":{{json .Image}},'
@@ -65,7 +66,8 @@ _PREPARER_FORMAT = (
     '"entrypoint":{{json .Config.Entrypoint}},"command":{{json .Config.Cmd}},'
     '"mounts":[{{range $i,$m := .Mounts}}{{if $i}},{{end}}'
     '{"Source":{{json $m.Source}},"Destination":{{json $m.Destination}},'
-    '"Type":{{json $m.Type}}}{{end}}]}'
+    '"Type":{{json $m.Type}},"RW":{{json $m.RW}}}{{end}}],'
+    '"tmpfs":{{json .HostConfig.Tmpfs}}}'
 )
 
 
@@ -76,6 +78,31 @@ class ControlError(RuntimeError):
         self.code = code
         self.related = related
         super().__init__(code)
+
+
+def _tmpfs_options(value: Any) -> dict[str, str | int]:
+    """Compare explicit mount semantics; reject unknown and repeated options."""
+    if not isinstance(value, str):
+        raise ControlError("docker_ownership_mismatch")
+    parsed: dict[str, str | int] = {}
+    for option in value.split(","):
+        key, separator, raw = option.partition("=")
+        if key in parsed:
+            raise ControlError("docker_ownership_mismatch")
+        if key in {"rw", "nosuid", "nodev", "noexec"} and not separator:
+            parsed[key] = "enabled"
+        elif key in {"uid", "gid", "mode", "size"} and separator:
+            pattern = r"[0-7]+" if key == "mode" else r"[0-9]+"
+            multiplier = 1
+            if key == "size" and raw[-1:].lower() in {"k", "m", "g"}:
+                multiplier = {"k": 1024, "m": 1024 ** 2, "g": 1024 ** 3}[raw[-1].lower()]
+                raw = raw[:-1]
+            if len(raw) > 20 or not re.fullmatch(pattern, raw):
+                raise ControlError("docker_ownership_mismatch")
+            parsed[key] = int(raw, 8 if key == "mode" else 10) * multiplier
+        else:
+            raise ControlError("docker_ownership_mismatch")
+    return parsed
 
 
 def result(*issues: str, **facts: Any) -> dict[str, Any]:
@@ -572,7 +599,7 @@ class DockerRuntime:
         # Existing components must not alias another installation or allow
         # another user to replace state. Missing components stay missing on reads.
         self.store.read()
-        for path in (self.home, self.data_dir, self.state_dir, self.credential_dir):
+        for path in (self.home, self.data_dir, self.state_dir, self.state_dir / "logs", self.credential_dir):
             for component in (*reversed(path.parents), path):
                 try:
                     identity = component.lstat()
@@ -701,12 +728,13 @@ class DockerRuntime:
             raise ControlError("docker_ownership_mismatch")
         mounts = value.get("mounts")
         expected_mounts = {
-            "/data/research-web": str(self.data_dir), "/state": str(self.state_dir),
+            "/data/research-web": str(self.data_dir), "/state/logs": str(self.state_dir / "logs"),
             "/run/rwb-secrets": str(self.credential_dir),
         }
         if not isinstance(mounts, list) or any(
             not isinstance(item, dict)
             or any(not isinstance(item.get(key), str) for key in ("Source", "Destination", "Type"))
+            or item.get("RW") is not True
             for item in mounts
         ):
             raise ControlError("docker_ownership_mismatch")
@@ -715,8 +743,22 @@ class DockerRuntime:
         actual = {item.get("Destination"): item.get("Source") for item in binds}
         if len(binds) != len(expected_mounts) or actual != expected_mounts:
             raise ControlError("docker_ownership_mismatch")
-        if any(item.get("Type") != "tmpfs" or item.get("Destination") not in ("/tmp", "/home/rwb")
-               for item in ephemeral) or len({item.get("Destination") for item in ephemeral}) != len(ephemeral):
+        expected_tmpfs = {
+            "/state": "rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m",
+            "/tmp": "rw,nosuid,nodev,mode=1777",
+            "/home/rwb": "rw,nosuid,nodev,uid=10001,gid=10001,mode=700",
+        }
+        # --tmpfs is authoritatively represented in HostConfig.Tmpfs. Some
+        # Engines omit its duplicate Mounts entries; validate any present ones
+        # without permitting a bind/volume to shadow a required destination.
+        if (len({item.get("Destination") for item in ephemeral}) != len(ephemeral)
+                or any(item.get("Type") != "tmpfs" or item.get("Source") != ""
+                       or item.get("Destination") not in expected_tmpfs for item in ephemeral)):
+            raise ControlError("docker_ownership_mismatch")
+        tmpfs = value.get("tmpfs")
+        if (not isinstance(tmpfs, dict) or set(tmpfs) != set(expected_tmpfs)
+                or any(_tmpfs_options(tmpfs[name]) != _tmpfs_options(options)
+                       for name, options in expected_tmpfs.items())):
             raise ControlError("docker_ownership_mismatch")
         image = value.get("image")
         if not isinstance(image, str) or not _IMAGE_ID.fullmatch(image) or self._image(image)["id"] != image:
@@ -970,7 +1012,7 @@ class DockerRuntime:
             self._ports_free()
             if not self.installation_id:
                 raise ControlError("docker_installation_missing")
-            for path in (self.data_dir, self.state_dir, self.credential_dir):
+            for path in (self.data_dir, self.state_dir, self.state_dir / "logs", self.credential_dir):
                 # Mount setup is explicit; readonly queries never create paths.
                 from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
                 try:
@@ -1146,14 +1188,25 @@ class DockerRuntime:
             raise ControlError("docker_prepare_ownership_unknown")
         mounts = value.get("mounts")
         if not isinstance(mounts, list) or not all(isinstance(item, dict) and all(
-            isinstance(item.get(key), str) for key in ("Source", "Destination", "Type")) for item in mounts):
+            isinstance(item.get(key), str) for key in ("Source", "Destination", "Type"))
+            and item.get("RW") is True for item in mounts):
             raise ControlError("docker_prepare_ownership_unknown")
-        expected_mounts = {(str(self.data_dir), "/data/research-web", "bind"),
-                           *(("", name, "tmpfs") for name in
-                             ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb"))}
+        paths = ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb")
+        expected_bind = (str(self.data_dir), "/data/research-web", "bind")
+        expected_mounts = {expected_bind, *(("", name, "tmpfs") for name in paths)}
         actual = {(item.get("Source"), item.get("Destination"), item.get("Type")) for item in mounts}
-        if len(mounts) != len(expected_mounts) or actual != expected_mounts:
+        if (len(mounts) != len(actual) or expected_bind not in actual
+                or not actual.issubset(expected_mounts)):
             raise ControlError("docker_prepare_ownership_unknown")
+        tmpfs = value.get("tmpfs")
+        if not isinstance(tmpfs, dict) or set(tmpfs) != set(paths):
+            raise ControlError("docker_prepare_ownership_unknown")
+        try:
+            expected_options = _tmpfs_options("rw,nosuid,nodev,uid=10001,gid=10001,mode=700")
+            if any(_tmpfs_options(tmpfs[name]) != expected_options for name in paths):
+                raise ControlError("docker_prepare_ownership_unknown")
+        except ControlError:
+            raise ControlError("docker_prepare_ownership_unknown") from None
         return value
 
     def _prepare_missing_controls(self, image_id, origin):

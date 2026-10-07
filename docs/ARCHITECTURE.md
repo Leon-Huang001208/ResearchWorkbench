@@ -25,7 +25,7 @@ Research Web FastAPI Host（8088）
   Native/Docker/最终模式选择共用 `run/lifecycle.lock`；元数据写锁在生命周期锁内短时获取。
   Docker 内部端口固定，只有宿主 Web 端口参与分配；可信控制 origin 的成对变更保留原 token。
 - Docker 安装摘要绑定不可变 image ID、依赖锁、DSH/CJPY 与 Compose；公开启动和 Doctor 必须验证该已接受构建。构建候选使用独立 tag，启动等待真实健康后才发布选择；失败只回滚本次创建且再次确认归属的容器。
-- Docker 状态/凭据 bind 根内的私有叶由容器用户创建与严格验证；实际状态为 `/state/runtime`，凭据为 `/run/rwb-secrets/private`，不改变共享产品数据根或 Native 路径。
+- Docker `/state` 使用私有 tmpfs，`/state/runtime` 在每次启动/重启由原认证链重建；日志单独持久绑定到 `/state/logs`，凭据仍为 `/run/rwb-secrets/private`。旧宿主状态保留，不迁移或自动清理；共享数据与 Native 路径不变。
 - 当前产品不要求 PostgreSQL、pgvector、Tauri、桌面 sidecar 或旧 `app/api` 生命周期。
 - 当前阶段为 Web-only；只有修改桌面专属路径或用户重新开启桌面工作时，才应用桌面原生 CI 和安装级烟测。
 

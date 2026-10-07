@@ -671,7 +671,7 @@ def test_supervisor_and_health_defaults_share_private_state_leaf(monkeypatch):
     assert checks[0][0] == configs[0].state_root
 
 
-@pytest.mark.parametrize("name", ["runtime", "private", "logs"])
+@pytest.mark.parametrize("name", ["private", "logs"])
 @pytest.mark.parametrize("transition", ["mapped", "foreign_uid", "foreign_gid", "mode", "inode", "custom"])
 def test_docker_first_mkdir_owner_mapping_then_strict_repin(tmp_path, monkeypatch, name, transition):
     from docker import supervisor
@@ -816,257 +816,31 @@ def test_directory_failure_records_stage_before_starting_children(tmp_path, monk
     }]
 
 
-def test_existing_state_leaf_initializes_mapping_before_strict_access(tmp_path, monkeypatch):
+@pytest.mark.parametrize("existing", [False, True])
+def test_private_state_uses_strict_guard_without_mapping_or_file_prewrite(tmp_path, monkeypatch, existing):
     from docker import supervisor
-    from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
 
-    mount = tmp_path.resolve() / "state"
-    mount.mkdir(mode=0o700)
-    leaf = mount / "runtime"
-    leaf.mkdir(mode=0o700)
-    real_stat, real_fstat, real_open = os.stat, os.fstat, os.open
-    node = (mount.stat().st_dev, mount.stat().st_ino)
-    mapped = []
-
-    def project(info):
-        if (info.st_dev, info.st_ino) == node and not mapped:
-            values = list(info)
-            values[4:6] = [0, 0]
-            return os.stat_result(values)
-        return info
-
-    def open_file(name, flags, mode=0o777, *, dir_fd=None):
-        descriptor = real_open(name, flags, mode, dir_fd=dir_fd)
-        if flags & os.O_CREAT and dir_fd is not None:
-            mapped.append(True)
-        return descriptor
-
-    monkeypatch.setattr(os, "stat", lambda *args, **kwargs: project(real_stat(*args, **kwargs)))
-    monkeypatch.setattr(os, "fstat", lambda descriptor: project(real_fstat(descriptor)))
-    monkeypatch.setattr(os, "open", open_file)
-    # The unchanged global guard rejects first-write parent mapping.
-    leaf_descriptor = real_open(leaf, os.O_RDONLY | os.O_DIRECTORY)
-    try:
-        with pytest.raises(RuntimeStateError):
-            with runtime_state_directory(leaf):
-                descriptor = os.open("reproducer", os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-                                     0o600, dir_fd=leaf_descriptor)
-                os.close(descriptor)
-    finally:
-        os.close(leaf_descriptor)
-    (leaf / "reproducer").unlink()
-    mapped.clear()
-    monkeypatch.setattr(supervisor, "_DOCKER_PRIVATE_LEAVES", {leaf})
-    monkeypatch.setattr(supervisor, "_DOCKER_STATE_LEAF", leaf, raising=False)
-    supervisor._prepare_private_leaf(leaf, initialize_state=True)
-    with runtime_state_directory(leaf):
-        leaf_descriptor = real_open(leaf, os.O_RDONLY | os.O_DIRECTORY)
-        try:
-            descriptor = os.open("strict-access", os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-                                 0o600, dir_fd=leaf_descriptor)
-            os.close(descriptor)
-        finally:
-            os.close(leaf_descriptor)
-    (leaf / "strict-access").unlink()
-    assert mapped
-    assert list(leaf.iterdir()) == []
-
-
-@pytest.mark.parametrize("change", [
-    "stable", "mapped", "dev", "inode", "mode", "reverse", "foreign_uid", "foreign_gid",
-    "mixed", "named_mismatch", "ancestor", "leaf", "leaf_gid", "root_overlap",
-    "parent_replace", "leaf_replace", "temp_replace", "temp_hardlink", "temp_mode",
-    "temp_content", "create_failure", "cleanup_failure", "after_init",
-])
-def test_state_initialization_identity_and_cleanup_boundary(tmp_path, monkeypatch, change):
-    from docker import supervisor
-    from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
-
-    root = tmp_path.resolve()
-    mount = root / "state"
-    mount.mkdir(mode=0o700)
-    leaf = mount / "runtime"
-    leaf.mkdir(mode=0o700)
-    real_stat, real_fstat, real_open, real_unlink = os.stat, os.fstat, os.open, os.unlink
-    mount_node = (mount.stat().st_dev, mount.stat().st_ino)
-    leaf_node = (leaf.stat().st_dev, leaf.stat().st_ino)
-    ancestor_node = (root.stat().st_dev, root.stat().st_ino)
-    runtime_pair = (os.getuid(), os.getgid())
-    created = []
-    post_init = []
-    removed = []
-    temporary_names = []
-
-    def project(info, *, named=False):
-        values = list(info)
-        node = (info.st_dev, info.st_ino)
-        if change == "root_overlap":
-            if info.st_uid == runtime_pair[0]:
-                values[4:6] = [0, 0]
-            if node == mount_node and created:
-                values[4:6] = [1, 1]
-        elif node == mount_node:
-            if change == "stable":
-                pass
-            elif not created:
-                values[4:6] = list(runtime_pair) if change == "reverse" else [0, 0]
-            elif change == "reverse":
-                values[4:6] = [0, 0]
-            elif change == "foreign_uid":
-                values[4] += 9981
-            elif change == "foreign_gid":
-                values[5] += 9981
-            elif change == "mixed":
-                values[4] = 0
-            elif change == "dev":
-                values[2] += 1
-            elif change == "inode":
-                values[1] += 1
-            elif change == "mode":
-                values[0] |= 0o055
-            elif change == "named_mismatch" and named:
-                values[1] += 1
-            elif change == "after_init" and post_init:
-                values[4:6] = [0, 0]
-        elif node == ancestor_node and change == "ancestor" and created:
-            values[1] += 1
-        elif node == leaf_node:
-            if change == "leaf" and created:
-                values[1] += 1
-            elif change == "leaf_gid":
-                values[5] += 9981
-        return os.stat_result(values)
-
-    def open_file(name, flags, mode=0o777, *, dir_fd=None):
-        if not flags & os.O_CREAT:
-            return real_open(name, flags, mode, dir_fd=dir_fd)
-        assert dir_fd is not None
-        assert flags & os.O_EXCL and flags & os.O_NOFOLLOW and flags & os.O_CLOEXEC
-        assert mode == 0o600
-        if change == "create_failure":
-            raise PermissionError("fixture_create_failure")
-        descriptor = real_open(name, flags, mode, dir_fd=dir_fd)
-        created.append(True)
-        temporary_names.append(name)
-        if change == "parent_replace":
-            mount.rename(root / "old-state")
-            mount.mkdir(mode=0o700)
-        elif change == "leaf_replace":
-            leaf.rename(mount / "old-runtime")
-            leaf.mkdir(mode=0o700)
-        elif change == "temp_replace":
-            os.rename(name, "held-original", src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
-            replacement = real_open(name, flags, mode, dir_fd=dir_fd)
-            os.close(replacement)
-        elif change == "temp_hardlink":
-            os.link(name, "extra-link", src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
-        elif change == "temp_mode":
-            os.fchmod(descriptor, 0o644)
-        elif change == "temp_content":
-            os.write(descriptor, b"foreign-content")
-        return descriptor
-
-    def unlink(name, *, dir_fd=None):
-        if change == "cleanup_failure":
-            raise PermissionError("fixture_cleanup_failure")
-        removed.append(name)
-        return real_unlink(name, dir_fd=dir_fd)
-
-    monkeypatch.setattr(os, "stat", lambda *args, **kwargs: project(real_stat(*args, **kwargs), named=True))
-    monkeypatch.setattr(os, "fstat", lambda descriptor: project(real_fstat(descriptor)))
-    monkeypatch.setattr(os, "open", open_file)
-    monkeypatch.setattr(os, "unlink", unlink)
-    monkeypatch.setattr(supervisor, "_DOCKER_PRIVATE_LEAVES", {leaf})
-    monkeypatch.setattr(supervisor, "_DOCKER_STATE_LEAF", leaf)
-    if change == "root_overlap":
-        monkeypatch.setattr(os, "getuid", lambda: 0)
-        monkeypatch.setattr(os, "getgid", lambda: 0)
-    if change in {"stable", "mapped", "after_init"}:
-        supervisor._prepare_private_leaf(leaf, initialize_state=True)
-        assert created == [True] and removed == temporary_names
-        assert list(leaf.iterdir()) == []
-        assert not (leaf / "auth.json").exists()
-        if change == "after_init":
-            with pytest.raises(RuntimeStateError):
-                with runtime_state_directory(leaf):
-                    post_init.append(True)
-        else:
-            with runtime_state_directory(leaf):
-                pass
-    else:
-        with pytest.raises((RuntimeStateError, OSError)):
-            supervisor._prepare_private_leaf(leaf, initialize_state=True)
-        if change in {"temp_replace", "temp_hardlink", "temp_mode", "temp_content", "cleanup_failure"}:
-            assert removed == []
-            assert (leaf / temporary_names[0]).exists()
-
-
-@pytest.mark.parametrize("scope", ["custom", "credential", "logs", "default_readonly"])
-def test_state_initialization_does_not_write_other_existing_leaves(tmp_path, monkeypatch, scope):
-    from docker import supervisor
-    leaf = tmp_path.resolve() / scope
-    leaf.mkdir(mode=0o700)
-    monkeypatch.setattr(supervisor, "_DOCKER_PRIVATE_LEAVES", {leaf})
-    if scope == "default_readonly":
-        monkeypatch.setattr(supervisor, "_DOCKER_STATE_LEAF", leaf)
+    leaf = tmp_path.resolve() / "state" / "runtime"
+    leaf.parent.mkdir(mode=0o700)
+    if existing:
+        leaf.mkdir(mode=0o700)
+    assert leaf not in supervisor._DOCKER_PRIVATE_LEAVES
     real_open = os.open
 
-    def no_create(name, flags, mode=0o777, *, dir_fd=None):
-        assert not flags & os.O_CREAT, "existing non-state/read-only leaf wrote a file"
+    def no_prewrite(name, flags, mode=0o777, *, dir_fd=None):
+        assert not flags & os.O_CREAT, "state preparation prewrote a file"
         return real_open(name, flags, mode, dir_fd=dir_fd)
 
-    monkeypatch.setattr(os, "open", no_create)
-    supervisor._prepare_private_leaf(leaf, initialize_state=scope != "default_readonly")
+    monkeypatch.setattr(os, "open", no_prewrite)
+    supervisor._prepare_private_leaf(leaf)
+    assert leaf.stat().st_mode & 0o777 == 0o700
     assert list(leaf.iterdir()) == []
 
 
-@pytest.mark.parametrize("layout", ["managed", "custom", "invalid_timeout"])
-def test_run_initializes_only_valid_managed_layout_before_controls(tmp_path, monkeypatch, layout):
-    from contextlib import contextmanager
+def test_fixed_state_is_excluded_from_bind_mapping_exception():
     from docker import supervisor
+    assert Path("/state/runtime") not in supervisor._DOCKER_PRIVATE_LEAVES
 
-    calls = []
-    config = supervisor.SupervisorConfig(
-        data_root=Path("/data/research-web"), state_root=Path("/state/runtime"),
-        credential_root=Path("/run/rwb-secrets/private"), project_root=Path("/opt/rwb"),
-        runtime_source=Path("/opt/dsh"), python=sys.executable, node="unused",
-        startup_timeout=0 if layout == "invalid_timeout" else 1,
-    )
-    if layout == "custom":
-        from dataclasses import replace
-        config = replace(config, state_root=tmp_path / "custom")
-
-    @contextmanager
-    def guard(*args, **kwargs):
-        yield tmp_path
-
-    def prepare(path, *, initialize_state=False):
-        calls.append(("prepare", path, initialize_state))
-
-    def stop():
-        calls.append(("ownership",))
-        raise RuntimeError("fixture_stop_before_children")
-
-    monkeypatch.setattr(supervisor, "runtime_state_directory", guard)
-    monkeypatch.setattr(supervisor, "_prepare_private_leaf", prepare)
-    monkeypatch.setattr(supervisor, "prepare_controls", lambda *args: calls.append(("controls",)))
-    monkeypatch.setattr(supervisor, "_OwnedProcesses", stop)
-    monkeypatch.setattr(supervisor, "setup_logging", lambda: calls.append(("logging",)))
-    monkeypatch.setattr(supervisor.settings, "LOG_DIR", supervisor.settings.LOG_DIR)
-    monkeypatch.setattr(Path, "unlink", lambda *args, **kwargs: None)
-    monkeypatch.setattr(supervisor.subprocess, "Popen", lambda *args, **kwargs: pytest.fail("spawned"))
-    assert supervisor.run(config) == 1
-    initializations = [i for i, item in enumerate(calls) if item[0] == "prepare" and item[2]]
-    if layout == "managed":
-        assert len(initializations) == 1
-        position = initializations[0]
-        assert calls[position][1] == config.state_root
-        assert position > calls.index(("logging",))
-        assert position < calls.index(("controls",)) < calls.index(("ownership",))
-    else:
-        assert initializations == []
-        if layout == "invalid_timeout":
-            assert ("controls",) not in calls
 
 
 def test_readonly_probe_and_prepare_only_never_initialize(tmp_path, monkeypatch):

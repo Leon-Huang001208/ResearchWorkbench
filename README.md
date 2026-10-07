@@ -141,9 +141,9 @@ Native 可在确认没有活动研究时普通重启；Docker 运行中无法认
 Research Web 使用用户私有目录保存运行状态与数据：
 
 - `~/.research-workbench/research-web/`：两种模式顺序使用的同一研究会话、附件、数据集、产物和其他产品数据；切换前必须停止当前运行时。
-- `~/.research-workbench/run/`：Native 受管进程的 PID 与命令归属状态；Docker 使用独立容器状态目录和归属标签，不复用 Native 认证/PID 文件。
+- `~/.research-workbench/run/`：Native 受管进程的 PID 与命令归属状态；Docker 认证状态位于容器私有 tmpfs `/state/runtime`，每次启动/重启正常重建，不复用 Native 认证/PID 文件。
 - `~/.research-workbench/logs/`：受管运行时与 Web 服务日志。
-- `~/.research-workbench/install/runtime.json`：当前选择与安装身份；Docker 的私有状态位于 `run/docker/<installation-id>/`，凭据位于 `secrets/docker/<installation-id>/`，均不等同于产品数据目录。
+- `~/.research-workbench/install/runtime.json`：当前选择与安装身份；Docker 宿主 `run/docker/<installation-id>/logs` 单独持久绑定，旧 `run/docker/<installation-id>/runtime` 内容保留、不迁移；凭据仍位于 `secrets/docker/<installation-id>/`，均不等同于产品数据目录。
 - `~/.research-workbench/runtime/dsh/<commit>/`：固定提交的项目私有 DSH 源码与构建来源。
 - `~/.research-workbench/install/manifest.json`：安装摘要与诊断状态。
 - `logs/setup-web.log`：仓库内的一键安装日志。

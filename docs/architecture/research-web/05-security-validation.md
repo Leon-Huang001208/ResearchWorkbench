@@ -98,22 +98,21 @@ Docker Desktop bind 根的 UID 映射不能替代私有目录所有权证明。D
 backend 的 owner、mode、dirfd/no-follow 检查保持不变。新增回归覆盖启动前准备、重启复用、
 state/credential alias 和不安全权限拒绝；物理 bind 映射必须另记真实 Docker 证据。
 
-Desktop首建阶段仅三个固定缺失叶可采用安全mkdir后重新pin：父FD全程保留，dev/inode/mode
+Desktop首建阶段仅凭据与产品日志两个固定缺失叶可采用安全mkdir后重新pin：父FD全程保留，dev/inode/mode
 与路径一致不得变化，仅固定mount父允许root:root→当前UID:GID。已有叶、自定义路径、foreign
 UID/GID、权限改变或节点替换仍失败关闭；原runtime_state与credential backend源码规则不变。
 
-仅正常受管固定布局的 state 初始化可处理已有合法 `/state/runtime` 叶的首次文件写映射。
-内部 `initialize_state` 默认关闭，不增加 CLI/env 开关；配置验证后、control/auth 读取、
-Popen 和 probe 前启用。保留全部祖先与叶 no-follow FD，已有叶须 UID/GID 匹配当前进程且
-精确 0700。在叶 FD 下独占创建随机名称、0600、单链接的空临时文件并保留 FD；仅此阶段
-固定 bind 父的完整 root-pair→不同 runtime-pair 可接纳一次，dev/inode/mode、具名路径和
-其他节点身份必须不变。清理前临时路径/FD 须仍为同一空、私有、单链接普通文件，未知替换
-不删除；创建、验证或清理失败均失败关闭，原失败与清理警告分别保留。随后原 guard 完整
-重pin；后续身份变化仍拒绝。该临时文件不保存认证、内容或持久 marker，不 chmod/chown。
-已有 credentials/data/logs、自定义路径、prepare-only、只读 health/Doctor 不写初始化。
-此范围依赖既有受管 host controller 与固定 Compose/image 配置；actual mount inspection
-仍在 up 后，guest FD 身份不证明实际挂载或没有其他写者，controller 原单实例、生命周期和
-post-up 归属检查不可省略。确定性 GREEN 不证明真实 Docker 根因或启动已解决。
+Docker 状态通过 `/state` 私有 tmpfs 隔离 Desktop bind 父节点映射，选项为
+`rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m`。controller 有界 inspect
+同时核对实际 Mounts 的 Source/Destination/Type/RW 和 HostConfig.Tmpfs，后者必需三个 tmpfs；
+兼容 Engine 省略 Mounts 的 tmpfs 重复条目；任何显式条目仍严格检查，bind/volume 遮盖拒绝。
+按选项语义核对 UID/GID、八进制 mode 与字节 size，拒绝未知、重复、矛盾或缺失选项。
+已有认证、健康与 runtime_state_directory 的 owner/mode/no-follow/身份检查保持不变；
+状态叶不再享有 bind 映射例外，也不进行文件预写或权限修复。
+host state 根及其 logs 子目录必须私有且归属明确；只在正常受管生命周期创建缺失 logs，
+只读查询不创建，alias/foreign/不安全既有目录拒绝，旧 runtime 内容保持原状。
+Docker VM tmpfs 可能进入 swap，见 [Docker 文档](https://docs.docker.com/engine/storage/tmpfs/)；
+认证每次启动正常重建不等于秘密永不落盘。真实镜像与 macOS 验收仍需独立证据。
 
 Docker 公共 start/Doctor 必须安全读取接受摘要并按不可变 image ID 核对实际容器，不能因
 共享 tag、静态 runtime label 或 `running=true` 就宣称 ready。回归覆盖摘要损坏/缺失、
@@ -123,7 +122,7 @@ keyring 隔离只在测试作用域内生效，不降低生产凭据后端的错
 
 构建时保留 pnpm hoist 拓扑须逐项核对目标属于已选生产图；未选开发/平台别名不复制，hoist 根别名、目标改变或输出冲突失败关闭。新别名同样进入派生资产摘要与启动前验证。
 
-Docker 与 Native 复用固定运行合同，但部署证据分开：Docker 构建需验证完整 DSH 来源/闭包及精简运行资产清单，镜像内再以非 root 做 Web、CLI、supervisor 和健康入口检查。Compose 不向宿主发布 DSH 3081，只 bind 共享产品数据、独立运行状态和独立凭据目录；只读根、cap drop 与 `no-new-privileges` 不是宿主系统集成能力证明。Host controller 对容器归属标签、镜像、挂载和端口做有界核对，未知实例不删除或接管。Docker 凭据目录的 Windows ACL 不能证明时返回 `docker_credentials_acl_unverified`，不得用 POSIX mode 位替代 Windows ACL。Native 保留系统 keyring。模拟单元测试与源码检查不证明真实 Docker 镜像、Windows 生命周期或第三方软件可调用；它们应在任务回执中分别列为未验证门。
+Docker 与 Native 复用固定运行合同，但部署证据分开：Docker 构建需验证完整 DSH 来源/闭包及精简运行资产清单，镜像内再以非 root 做 Web、CLI、supervisor 和健康入口检查。Compose 不向宿主发布 DSH 3081，只 bind 共享产品数据、独立日志和独立凭据目录，运行状态使用私有 tmpfs；只读根、cap drop 与 `no-new-privileges` 不是宿主系统集成能力证明。Host controller 对容器归属标签、镜像、挂载和端口做有界核对，未知实例不删除或接管。Docker 凭据目录的 Windows ACL 不能证明时返回 `docker_credentials_acl_unverified`，不得用 POSIX mode 位替代 Windows ACL。Native 保留系统 keyring。模拟单元测试与源码检查不证明真实 Docker 镜像、Windows 生命周期或第三方软件可调用；它们应在任务回执中分别列为未验证门。
 
 一键安装只允许固定 PyPI 索引、指定 DSH GitHub 仓库和随包 CJPY 文件集；Python 锁、wheel、来源、
 提交、工作树与 DSH 构建闭包任一不符即关闭失败。子进程环境采用允许列表，不传应用密钥；安装器只

@@ -157,7 +157,7 @@ jobs:
           root="$(mktemp -d "$RUNNER_TEMP/rwb-docker-ci.XXXXXXXX")"
           arch="${DOCKER_DEFAULT_PLATFORM#linux/}"
           mkdir -p "$root/raw" "$root/evidence"
-          sudo install -d -m 700 -o 10001 -g 10001 "$root/data" "$root/state" "$root/credentials"
+          sudo install -d -m 700 -o 10001 -g 10001 "$root/data" "$root/state" "$root/state/logs" "$root/credentials"
           {
             echo "RWB_CI_ROOT=$root"
             echo "RWB_DATA_DIR=$root/data"

@@ -4,11 +4,11 @@
 数值身份、文件内容、Cookie或token。不新增状态文件、marker、认证预写或数据迁移。
 身份变化日志只增加精确root/runtime对方向与相对位置枚举；仍不记录具体祖先目录或真实UID/GID。
 
-固定受管 `/state/runtime` 的写初始化仅创建随机名称、0600、单链接的空临时文件，
-保留 FD，核对具名路径为同一空私有普通文件后 unlink；未知替换不删除，失败保留真实 issue。
-成功后不留 marker、认证内容或新持久格式，不 chmod/chown 已有目录或文件。
-只在正常 supervisor 配置验证后启用；credentials、data/logs、自定义路径和只读入口不写。
-既有 host controller/Compose 信任前提与 up 后 actual mount 检查保持，guest FD 本身不证明挂载。
+Docker `/state/runtime` 位于 1 MiB 的私有 `/state` tmpfs；认证通过每次启动/重启的原链重建，
+容器停止丢弃状态，不做文件预写、marker、权限修复或旧认证迁移。
+宿主 state/logs 单独 bind `/state/logs`，产品日志继续保存在 data-root/logs；
+旧 host state/runtime 原样保留，数据与凭据持续使用原绑定。Docker VM tmpfs 可能进入 swap，
+见 [Docker 文档](https://docs.docker.com/engine/storage/tmpfs/)，不能宣称秘密永不落盘。
 
 包明确发布子树中的 `doc/docs` 代码和配套运行资源属于镜像资产，继续进入既有 staged manifest。
 用户资料与包顶层文档不因此进入运行资产；未选开发包、测试、fixture、缓存不复制。
@@ -57,9 +57,9 @@ creator 初始化，单缺失由受管 prepare-only guest 先补齐。host 保�
 新建Compose调用的launch label通过私有临时目录内的最小配置overlay提供，退出后清除。
 它不含凭据或用户内容，不写入接受摘要；持久化数据与秘密不参与失败容器回滚删除。
 
-Docker 实际持久化状态位于状态 bind 的 `runtime/` 子目录，凭据记录位于独立凭据 bind 的
-`private/` 子目录；两者由容器用户创建，避免将 Desktop 映射为 root 的挂载根误作私有叶。
-容器重建后继续验证和复用这些叶，不迁移或复制 Native Keychain，也不改变 canonical data-root。
+Docker 凭据记录继续位于独立凭据 bind 的 `private/` 子目录，重建后验证并复用；
+运行状态为临时 tmpfs 的 `runtime/` 子目录，每次正常重建认证。旧宿主 runtime 不再挂载，
+不迁移或删除，不复制 Native Keychain，也不改变 canonical data-root。
 
 Docker 接受摘要 `install/docker-manifest.json` 是私有、限长、禁止 alias 的部署状态，绑定
 image ID 与构建合同，不能充当研究数据。候选健康失败或发布失败只回滚本次已确认归属的
