@@ -11,6 +11,10 @@ Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、�
 `services/hot/tests/`。当前尚未接入 Web 生命周期、Settings、采集和研究链路，不把基础测试
 写成完整功能验收。新增入口属于 dual-runtime 清单；它不创建第二个研究引擎。
 
+归档核心为 `services/hot/src/archive.ts`，受控命令为 `scripts/archive.ts`；对应真实测试
+`archive.integration.ts`、`managed-archive.integration.ts`。Native CLI 经 HotManager 管理
+私有归档、恢复目标和未知结果日志；阶段一 schema 恢复不等同于后续研究快照联合恢复。
+
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |
 | `runtimes/research_web.json`、`app/research_web/runtime_contract.py` | Native/Docker 共用 Python、Node、CJPY、DSH、pnpm 事实 | `research-web-installation.md`、`architecture/research-web/01-system.md` | `test_runtime_contract.py`、`docker_runtime_contract.test.mjs` | 固定版本、闭包或镜像事实变化 |

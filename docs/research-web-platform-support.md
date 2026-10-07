@@ -2,7 +2,8 @@
 
 Hot 本轮状态单独记录：macOS 已执行核心、签名回环服务和真实子进程启停/重启的本地验证；
 `rwb hot` 已有 Native 独立进程生命周期与受管 PG 冷恢复证据（隔离凭据 backend），
-实际 Keychain 持久化未验证。完整 Hot Native 模型/研究、Mac Docker 装配与模式切换、
+实际 Keychain 持久化未验证。Native 最小归档/恢复已在受管 PG 完成真实验证；
+这不是 Mac Docker 产品模式验收。完整 Hot Native 模型/研究、Mac Docker 装配与模式切换、
 同提交 macOS CI 均未完成；Windows/Linux 真机与相应 CI 保持 NOT_RUN。本页其他能力的旧
 验收证据不能用作 Hot 验收证据，详见 Hot 权威进度记录。
 

@@ -167,6 +167,14 @@ def dispatch(argv: list[str], project: Path) -> int:
     setup.add_argument("--migration-user", default="postgres")
     setup.add_argument("--migration-account", default="hot-migration-database")
     setup.add_argument("--json", action="store_true")
+    for command in ("backup", "restore"):
+        archive = sub.add_parser(command)
+        archive.add_argument("--migration-user", default="postgres")
+        archive.add_argument("--migration-account", default="hot-migration-database")
+        archive.add_argument("--json", action="store_true")
+        if command == "restore":
+            archive.add_argument("--from", dest="archive_directory", type=Path, required=True)
+            archive.add_argument("--target-database", required=True)
     configure = sub.add_parser("configure")
     configure.add_argument("--file", type=Path, required=True)
     configure.add_argument("--json", action="store_true")
@@ -177,7 +185,7 @@ def dispatch(argv: list[str], project: Path) -> int:
     try:
         if args.command == "configure":
             value = save_settings(project, home, _read(args.file.absolute()))
-        elif args.command in ("setup", "start", "stop", "restart", "credential") or (
+        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore") or (
             args.command in ("status", "doctor") and (home / "hot" / "process.json").exists()
         ):
             from .bootstrap import native_python, native_environment
@@ -206,6 +214,10 @@ def dispatch(argv: list[str], project: Path) -> int:
                 value = {"state": "credential_saved"}
             elif args.command == "setup":
                 value = manager.setup(args.migration_user, args.migration_account)
+            elif args.command in ("backup", "restore"):
+                directory = args.archive_directory.absolute() if args.command == "restore" else None
+                value = manager.archive(args.command, directory, getattr(args, "target_database", None),
+                                        args.migration_user, args.migration_account)
             elif args.command == "doctor":
                 value = manager.status()
                 value["checks"] = {"service": "PASS" if value["state"] == "initialized" else "NOT_RUN",

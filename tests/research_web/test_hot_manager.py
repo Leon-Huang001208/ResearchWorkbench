@@ -2,6 +2,7 @@
 
 import json
 import tempfile
+import signal
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -101,3 +102,47 @@ class HotManagerTests(unittest.TestCase):
                 with self.assertRaisesRegex(HotError, "hot_start_failed"):
                     self.manager.start()
                 launched.assert_not_called()
+
+    def test_unknown_archive_prevents_repetition_before_configuration_or_credentials(self):
+        self.manager.directory.mkdir(mode=0o700)
+        journal = self.manager.directory / "archive-attempt.json"
+        journal.write_text(json.dumps({"version": 1, "state": "outcome_unknown"}))
+        journal.chmod(0o600)
+        with patch.object(self.manager, "_config") as configured:
+            with self.assertRaisesRegex(HotError, "hot_archive_outcome_unknown"):
+                self.manager.archive("backup")
+            configured.assert_not_called()
+
+    def test_interrupted_archive_signals_and_reaps_child_and_records_unknown(self):
+        self.manager.directory.mkdir(mode=0o700)
+        identity = self.manager.directory / "identity.json"
+        identity.write_text(json.dumps({"projectRoot": "/project", "instanceId": "11111111-1111-4111-8111-111111111111"}))
+        identity.chmod(0o600)
+        config = {"database": {"mode": "external"}, "retention": {"backupDirectory": "hot/backups"}}
+
+        class InterruptedChild:
+            def __init__(self):
+                self.signals = []
+                self.calls = 0
+                self.returncode = None
+            def communicate(self, payload=None, timeout=None):
+                self.calls += 1
+                if self.calls == 1:
+                    raise KeyboardInterrupt()
+                self.returncode = 1
+                return "", ""
+            def poll(self):
+                return self.returncode
+            def send_signal(self, value):
+                self.signals.append(value)
+
+        child = InterruptedChild()
+        with patch.object(self.manager, "_config", return_value=config):
+            with patch("research_workbench_entrypoint.hot_manager._node", return_value="node"):
+                with patch("subprocess.Popen", return_value=child):
+                    with self.assertRaises(KeyboardInterrupt):
+                        self.manager.archive("backup")
+        self.assertEqual(child.signals, [signal.SIGTERM])
+        self.assertEqual(child.calls, 2)
+        value = json.loads((self.manager.directory / "archive-attempt.json").read_text())
+        self.assertEqual(value["state"], "outcome_unknown")

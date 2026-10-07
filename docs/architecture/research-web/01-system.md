@@ -6,6 +6,7 @@
 凭据，内部接口仅绑定回环并验证签名、实例、模式与代次。它不启动 ResearchService、DSH 或旧
 Store。`rwb hot` 已接入独立 Native 启停与受管 PG；Web 生命周期与 Docker 产品装配仍待完成。
 因此下述基础 Web 部署图仍描述现有 Web/DSH；Hot 的最终部署图将在实际产品装配后同步。
+Native 归档入口复用这个独立组件及 PG 工具；恢复只进入不同目标库的不存在 schema。
 
 Native私有认证bootstrap使用规范化的RWB_RUNTIME_STATE，并要求RESEARCH_RUNTIME_AUTH精确等于该目录内auth.json；拒绝目录别名或另一个认证文件。该绑定只保护所属Host/DSH交接，模型Keychain仍走独立provider。
 

@@ -39,7 +39,15 @@ Settings、采集 worker 和研究交接尚在实施，不能作为成品安装�
 分别执行 `./rwb hot credential worker`、`./rwb hot credential controller` 和
 `./rwb hot credential migration`。默认迁移秘密引用为 `hot-migration-database`，
 用 `setup --migration-user <角色>` 指定迁移账号。外部数据库只处理明确指定 schema；
-备份、恢复命令和完整安装 CI 仍待完成。当前进程与 PG 验证使用隔离凭据 backend；
+Native 可执行 `./rwb hot stop --json` 后执行 `./rwb hot backup --json`，在配置的
+`retention.backupDirectory` 下生成新目录。恢复命令为
+`./rwb hot restore --from <备份目录> --target-database <不同的目标库> --json`。
+目标 schema 必须不存在；不会删除或覆盖原库。恢复校验 SHA-256、签名及全表内容，
+保持运行和来源暂停；随后通过配置文件将 `database.name` 指向返回目标库再启动。
+受管模式使用镜像内 PG17 工具；外部模式需已安装 PG17 的 `pg_dump/pg_restore`，不会自动安装。
+当前归档上限 256 MiB；超限明确失败，研究快照尚未纳入。`archive-attempt.json` 保存归档状态，
+未知结果禁止重复执行，自动核验/解除路径待实现。完整安装 CI 仍待完成。
+当前进程与 PG 验证使用隔离凭据 backend；
 系统 Keychain 持久化尚未实测，详见任务报告。
 
 内部服务使用仅绑定 `127.0.0.1` 的签名协议，校验实例、模式、代次和操作权限，消息不携带

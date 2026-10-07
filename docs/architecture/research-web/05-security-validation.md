@@ -7,6 +7,9 @@ Hot 阶段一内部服务使用仅回环可达的签名消息：请求/响应均
 Native 管理器在发信号前核对 PID 启动身份与 launch nonce；受管 PG 恢复前核对标签、卷、
 固定镜像和回环端口。角色不得重叠，已有 schema 所有权先于迁移检查。Keychain 持久化、
 完整产品安全与跨模式验收仍待验证，测试通过不表示跨平台已验证。
+归档按当前实例 key 认证，并验证实际传入恢复工具的 Buffer；禁止覆盖现有 schema。
+容器内工具具有 deadline，失败后按唯一 application_name 取消对应 backend；无法确认的
+结果保留 outcome_unknown，不能伪称已回滚。Python 中断也信号回收独立 Node session。
 
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 

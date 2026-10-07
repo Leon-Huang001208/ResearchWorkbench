@@ -5,6 +5,8 @@ Hot 非秘密配置位于产品数据根的 `hot/settings.json`，采用 0600 �
 `process.json` 绑定项目与进程身份；受管 PG 使用独立实例卷和私有密码文件导出，秘密权威仍为系统库。
 Hot 业务材料、版本和任务由独立 PostgreSQL schema 持有，不让
 后台进程写现有 Store。研究快照联合恢复尚未实现；当前最小库恢复不能证明会话恢复。
+Hot 私有归档包含 `hot.dump` 和认证清单，原文 bytea 随库保存；`archive-attempt.json`
+记录非秘密执行状态，未知结果阻止自动重复恢复。当前归档上限为 256 MiB。
 
 模型默认值、清除/回执未知标记及最近显式生成结果只保存于既有非秘密产品索引，不保存Key。macOS Native固定DSH模型秘密仅在系统Keychain；权限受限私有文件仅用于Host认证record；不进入DataHub快照、Automation索引、模型上下文或导出。提交前的未知标记支持取消/崩溃后的冷恢复失败关闭。
 

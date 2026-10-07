@@ -27,7 +27,29 @@ Managed PostgreSQL uses the pinned digest, an instance-labelled data volume and
 loopback-only binding; cold startup checks ownership before starting the container.
 Secrets live in the system credential backend, with a private 0600 password-file
 export for the owned PG container. External roles remain administrator-provided.
-Settings, backup/restore CLI and Docker product lifecycle remain unfinished.
+Native `rwb hot backup` creates a new private schema archive under the configured
+data-home-relative backupDirectory. `rwb hot restore --from <directory>
+--target-database <new-name>` restores only into a different database where the
+selected schema is absent. It never drops or overwrites an existing schema.
+The manager requires a stopped service; backup also requires the DB runtime paused.
+It holds the generation fence before establishing a repeatable-read exported
+snapshot, and pg_dump imports that same snapshot. The authenticated manifest
+includes SHA-256, per-table counts, database-resident raw objects and scope.
+Restore verifies the exact bytes passed to pg_restore and uses one transaction;
+inventory is checked before source collection is disabled and scoped grants restored.
+Managed mode uses the pinned image's PG17 tools. External mode requires PG17
+pg_dump/pg_restore already installed and uses an ephemeral private pgpass file.
+The present host has PG18 tools, so external-tool acceptance is NOT_RUN.
+Container tools have an internal deadline, SQL timeouts and a unique application
+name for backend cancellation. Cancellation uses a separate pool, including when
+poolMax=1. Unknown outcomes remain in private archive-attempt.json and block repeat
+archives; automatic reconciliation of that journal is still pending. Ctrl-C and
+outer timeouts signal and reap the owned child. Archives are limited to 256 MiB;
+larger datasets fail explicitly, with streaming archives still pending.
+After a verified restore, configure database.name to the returned target before
+starting it; sources remain disabled until explicitly re-enabled by future source
+configuration. Research snapshots are not integrated and cannot be claimed restored.
+Settings and Docker product lifecycle remain unfinished.
 Disabled Hot performs no credential lookup or DB connection. Secrets are passed
 only by an authorized Host resolver; the JSON schema rejects passwords and DSNs.
 Managed connections are restricted to loopback or the fixed private service

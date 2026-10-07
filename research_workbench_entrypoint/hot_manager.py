@@ -127,7 +127,7 @@ class HotManager:
 
                 admin_password = self._ensure_secret("hot-postgres-admin")
                 server = ManagedPostgres(self.home, identity["instanceId"]).start(admin_password)
-                config["database"].update({key: server[key] for key in ("host", "port", "name")})
+                config["database"].update({key: server[key] for key in ("host", "port")})
                 worker_password = self._ensure_secret(config["database"]["secretRef"])
                 controller_password = self._ensure_secret(config["database"]["controllerSecretRef"])
                 migration_user = "postgres"
@@ -241,6 +241,111 @@ class HotManager:
         with self._lock():
             return self._start()
 
+    def archive(self, operation: str, directory: Path | None = None, target_database: str | None = None,
+                migration_user: str = "postgres", migration_account: str = "hot-migration-database") -> dict:
+        """Backup a stopped installation; restore only into another database's absent schema."""
+        with self._lock():
+            if self._state() is not None:
+                raise HotError("hot_archive_requires_stopped")
+            journal = self.directory / "archive-attempt.json"
+            _no_alias(journal)
+            if journal.exists() and _read(journal, private=True).get("state") in ("running", "outcome_unknown"):
+                raise HotError("hot_archive_outcome_unknown")
+            config = self._config()
+            identity = _read(self.directory / "identity.json", private=True)
+            if identity.get("projectRoot") != str(self.project):
+                raise HotError("hot_process_foreign")
+            if config["database"]["mode"] == "managed":
+                from .hot_postgres import ManagedPostgres
+
+                password = self._secret("hot-postgres-admin")
+                server = ManagedPostgres(self.home, identity["instanceId"]).start(password)
+                config["database"].update({key: server[key] for key in ("host", "port")})
+                migration_user = "postgres"
+            else:
+                password = self._secret(migration_account)
+            if operation == "backup":
+                parent = self.home / config["retention"]["backupDirectory"]
+                _no_alias(parent)
+                parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                info = parent.stat()
+                if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
+                    raise HotError("hot_archive_unsafe")
+                directory = parent / ("backup-" + uuid4().hex)
+            elif operation != "restore" or directory is None:
+                raise HotError("hot_archive_input_invalid")
+            _no_alias(directory)
+            payload = {"operation": operation, "config": config, "instanceId": identity["instanceId"],
+                       "controllerToken": self._secret("rpc-controller"), "directory": str(directory),
+                       "targetDatabase": target_database, "migrationUser": migration_user,
+                       "migrationPassword": password}
+            attempt = {"version": 1, "state": "running", "operation": operation,
+                       "targetDatabase": target_database, "directory": str(directory)}
+            def record(state):
+                attempt["state"] = state
+                fd = os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+                with os.fdopen(fd, "w") as stream:
+                    info = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
+                        raise HotError("hot_archive_journal_unsafe")
+                    stream.truncate(0)
+                    json.dump(attempt, stream)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+            record("running")
+            child = None
+            try:
+                child = subprocess.Popen([_node(), str(self.project / "services/hot/scripts/archive.ts")],
+                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True, cwd=self.project, start_new_session=True)
+                try:
+                    output, _ = child.communicate(json.dumps(payload), timeout=240)
+                except subprocess.TimeoutExpired:
+                    child.send_signal(signal.SIGTERM)
+                    try:
+                        child.communicate(timeout=90)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.communicate(timeout=5)
+                    record("outcome_unknown")
+                    raise HotError("hot_archive_outcome_unknown") from None
+                value = json.loads(output)
+                if value.get("code") == "hot_archive_outcome_unknown":
+                    record("outcome_unknown")
+                    raise HotError("hot_archive_outcome_unknown")
+                record("completed" if child.returncode == 0 else "failed")
+                if child.returncode or value.get("state") not in ("backed_up", "restored_paused"):
+                    phase = value.get("phase")
+                    allowed = ("input", "tools", "backup", "verify", "target", "restore", "inventory")
+                    raise HotError("hot_archive_failed_" + phase if phase in allowed else "hot_archive_failed")
+            except (OSError, ValueError, subprocess.SubprocessError):
+                record("outcome_unknown")
+                raise HotError("hot_archive_outcome_unknown") from None
+            except BaseException:
+                # Ctrl-C must also cancel the independent Node session and wait for cleanup.
+                if child is not None and child.poll() is None:
+                    child.send_signal(signal.SIGTERM)
+                    try:
+                        child.communicate(timeout=90)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.communicate(timeout=5)
+                    record("outcome_unknown")
+                elif attempt["state"] == "running":
+                    record("outcome_unknown")
+                raise
+            finally:
+                if child is not None and child.poll() is None:
+                    child.send_signal(signal.SIGTERM)
+                    try:
+                        child.communicate(timeout=90)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.communicate(timeout=5)
+                    record("outcome_unknown")
+            log.info("hot_archive_completed operation=%s", operation)
+            return value
+
     def _start(self) -> dict:
         if os.name != "posix":
             raise HotError("hot_platform_not_verified")
@@ -256,7 +361,7 @@ class HotManager:
             from .hot_postgres import ManagedPostgres
 
             server = ManagedPostgres(self.home, identity["instanceId"]).start(self._secret("hot-postgres-admin"))
-            actual = {key: server[key] for key in ("host", "port", "name")}
+            actual = {key: server[key] for key in ("host", "port")}
             if any(config["database"][key] != value for key, value in actual.items()):
                 config["database"].update(actual)
                 save_settings(self.project, self.home, config)
