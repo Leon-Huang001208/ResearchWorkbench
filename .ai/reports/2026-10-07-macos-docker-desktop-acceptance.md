@@ -21,3 +21,8 @@
 ## 第二项实测故障：Desktop 属性视图
 
 YAML修复后最终镜像7ab5进入runtime_probe，原目录exit verify拒绝state bind根uid/gid视图从10001刷新为0。无写等待/普通原子标记不复现，同UID Node只读stat精确复现；dev/inode/mode不变，私有叶仍10001:10001/700。已在独立scratch证明固定fd上的nofollow dot stat使属性视图同步，随后原guard及Node stat都通过。补丁只在固定bind根初始化同步，所有原安全属性仍逐项一致且不授予例外。88合同PASS，独立Python审查无阻塞；整体新镜像生命周期仍待实际验收，不记录PASS。
+
+
+## 挂载方案实测修正
+
+完整安装证明一次属性同步不能防止 Desktop 根属性再次刷新，d292 同步方案未通过产品启动，不能作为已修复证据。独立 scratch 保留原 Supervisor、real_probe、guard、UID 和安全选项，仅将 `/state` 分别改为私有 tmpfs 与专属 named volume，两者均 runtime/web health_ready、持续60秒、原 healthcheck exit0、shutdown_complete；精确删除各自实例，未操作 foreign。产品选择临时 tmpfs；正式 publicInstaller、持久数据与生命周期验收尚未执行。实验日志为 `/private/tmp/rwb-bind-diagnosis-be41b79cac1441158bf1268673b9dff2/diagnostic.log` 与 `/private/tmp/rwb-bind-diagnosis-93a36baca72444898c88e62de61b5f14/diagnostic.log`。

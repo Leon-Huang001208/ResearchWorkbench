@@ -95,11 +95,16 @@ def owned(controller, runner):
         "ports": {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(controller.ports[0])}]},
         "mounts": [
             {"Type": "bind", "Source": str(controller.data_dir), "Destination": "/data/research-web"},
-            {"Type": "bind", "Source": str(controller.state_dir), "Destination": "/state"},
+            {"Type": "tmpfs", "Source": "", "Destination": "/state"},
             {"Type": "bind", "Source": str(controller.credential_dir), "Destination": "/run/rwb-secrets"},
             {"Type": "tmpfs", "Source": "", "Destination": "/tmp"},
             {"Type": "tmpfs", "Source": "", "Destination": "/home/rwb"},
         ],
+        "tmpfs": {
+            "/tmp": "rw,nosuid,nodev,mode=1777",
+            "/home/rwb": "rw,nosuid,nodev,uid=10001,gid=10001,mode=700",
+            "/state": "rw,nosuid,nodev,uid=10001,gid=10001,mode=700",
+        },
     }
 
 
@@ -139,6 +144,7 @@ def test_docker_doctor_allowlisted_health_and_capabilities(runtime):
     assert report["container"]["state"] == "running"
     assert len(report["container"]["ownership_id"]) == 64
     assert report["data"]["ready"] and report["volumes"]["verified"]
+    assert report["volumes"]["state"] == "tmpfs"
     assert report["ports"]["verified"]
     assert report["python"]["applicable"] is False
     assert report["cjpy"]["applicable"] is False
@@ -754,6 +760,58 @@ def test_duplicate_or_extra_mounts_fail_ownership(runtime):
     owned(controller, runner)
     runner.container["mounts"].append({"Source": "/foreign", "Destination": "/extra"})
     assert controller.stop()["issues"] == ["docker_ownership_mismatch"]
+
+
+def test_private_runtime_tmpfs_is_owned_and_host_control_state_is_retained(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    controller.state_dir.mkdir(parents=True, mode=0o700)
+    control = controller.state_dir / "control-fixture.json"
+    control.write_text("installation-control")
+    assert controller.stop()["ok"]
+    assert control.read_text() == "installation-control"
+
+
+@pytest.mark.parametrize("mutation", [
+    "state_bind", "state_volume", "state_source", "missing_state", "duplicate_state",
+    "missing_options", "foreign_uid", "foreign_gid", "public_mode", "missing_nosuid",
+    "missing_nodev", "readonly", "duplicate_option", "extra_option", "extra_tmpfs",
+    "invalid_options",
+])
+def test_runtime_tmpfs_contract_rejects_unsafe_ownership_without_mutation(runtime, mutation):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    state = next(item for item in runner.container["mounts"] if item["Destination"] == "/state")
+    options = runner.container["tmpfs"]
+    if mutation in {"state_bind", "state_volume"}:
+        state["Type"] = "bind" if mutation == "state_bind" else "volume"
+        state["Source"] = str(controller.state_dir)
+    elif mutation == "state_source":
+        state["Source"] = "/foreign"
+    elif mutation == "missing_state":
+        runner.container["mounts"].remove(state)
+    elif mutation == "duplicate_state":
+        runner.container["mounts"].append(dict(state))
+    elif mutation == "missing_options":
+        options.pop("/state")
+    elif mutation == "extra_tmpfs":
+        options["/foreign"] = "rw"
+    elif mutation == "invalid_options":
+        options["/state"] = []
+    else:
+        replacements = {
+            "foreign_uid": ("uid=10001", "uid=0"),
+            "foreign_gid": ("gid=10001", "gid=0"),
+            "public_mode": ("mode=700", "mode=755"),
+            "missing_nosuid": ("nosuid,", ""),
+            "missing_nodev": ("nodev,", ""),
+            "readonly": ("rw,", "ro,"),
+            "duplicate_option": ("rw,", "rw,rw,"),
+            "extra_option": ("rw,", "rw,exec,"),
+        }
+        options["/state"] = options["/state"].replace(*replacements[mutation])
+    assert controller.stop()["issues"] == ["docker_ownership_mismatch"]
+    assert not any(argv[1] in {"stop", "rm"} for argv, _ in runner.calls)
 
 
 def test_daemon_failure_is_not_reported_as_missing_cli(runtime):
