@@ -280,3 +280,5 @@ Docker 两个 APT 安装阶段使用 Debian HTTPS 源，保留 archive keyring �
 Docker DSH staging 按包发布载荷收录运行时代码：开发目录名称只在包根解释，嵌套 dist/doc 等代码目录不能当文档删除；.git 等元数据与 node_modules 独立包图仍受安全过滤。镜像健康还须真实证明 DSH/Web，不能只看构建与 manifest 哈希。
 
 Docker Desktop 的共享文件系统可能反复刷新 bind 根的 UID/GID 视图。容器 `/state` 使用 Linux 私有 tmpfs，避免将临时认证状态置于该祖先；数据与凭据继续使用独立持久 bind。原 dev/inode/mode/uid/gid、no-follow 与私有叶检查保持，临时状态丢失不删除研究数据或凭据。`/state/logs` 为临时内部日志，容器 stdout/stderr 仍由有界 Docker logging driver 保存。
+
+Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 `Mounts`；控制器兼容列表完全省略或完整三项表示，仍强制 HostConfig 的固定路径、UID/GID、权限和安全选项。部分、重复、别名或额外挂载均拒绝。
