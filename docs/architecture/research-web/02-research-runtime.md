@@ -1,5 +1,22 @@
 # 研究协议、执行状态与恢复
 
+已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，
+等待停止前捕获的 Native 两端口可由原 `port_busy` 判定释放。内部预算默认45秒，
+只接受有限的精确 int/float、0至45秒；bool与数值子类在停止前拒绝。
+单调期限下每轮最多睡眠0.1秒；超时返回 `runtime_stop_failed` 并保留旧模式。
+等待不捕获或刷新外来观察，不处理外来默认端口或 Docker 内部端口；原 switch_select
+锁、scope、两模式新状态与原快照 CAS 仍在等待后执行，任一变化照原边界拒绝。
+
+模式切换最终复查的 `runtime_stop_failed` 保持原返回与检查优先级；日志区分控制器模式及
+`report_not_ok` / `still_running`，不增加状态探测、重试或改变 lifecycle lease / mode CAS。
+Native status 三个原失败阶段用固定日志区分；安全检查、子进程次数、40秒预算和原报告原样保留。
+
+Python 内部端口选项以 TypedDict 标明允许的键，仍只转发显式提供的值；端点与控制记录的
+类型说明复用原有运行时校验。同步脱敏回调和失败恢复回调显式绑定当次值，不延迟执行、
+不改变重试次数、回滚顺序或生命周期权限。
+
+Docker fresh-root 首装接受与启动为两个独立 lifecycle 调用：no-start 不创建产品根或 controls/端点；普通 start 重新验证缺失状态后实际 mkdir 并 pin。只读 Native 状态未知并不被改写为 idle；只有该调用的真实 lease、根/父身份、缺失 Native 元数据、无容器和稳定 PID/argv/start 观察齐备时可处理原默认监听。up 前撤销分配权限；本次失败不重新获取 fresh 或重试分配，普通已有根的原 bind-race 重试保留。外层候选发布/abort 在同一真实 lease 内复核恢复，未知状态保留原错误与稳定恢复诊断，不改变认证交换。
+
 ## 模型配置与显式验收
 
 受管启动在固定 CLI 加载前安装产品 `auth-bootstrap.mjs`：启动认证输出按完整行截获（包含跨chunk情况），仅向现有私有 `runtime/auth.json` 写入临时bootstrap_token及实例绑定。管理器从该受控文件完成原Cookie交换，原子替换为正常认证记录，不再从runtime.log解析token；普通日志只出现固定脱敏标记。没有新HTTP接口、daemon或模型凭据后端。解析/绑定/私有文件校验失败则认证失败关闭，不回退旧日志。
@@ -14,13 +31,121 @@
 
 显式生成测试复用 `create/send` 与 DSH 原生日志，不创建另一个执行循环。前置所有权/凭据RPC各15秒上限，create/send/history生成段60秒预算，取消最多3秒，总上限93秒；只有原生 `turn/end completed`、最终 `assistant/message` 和非空文本齐全才通过。结果绑定模型选择，配置变化使旧测试失效；设置 GET/Doctor 不进行付费生成。工具调用另由用户显式最小研究验收。研究工具的子进程测试依赖作为调用参数传递，不访问未在 `inject` 声明的 Cordis 服务。
 
+Docker Doctor schema 1 的 volumes.state 显示 tmpfs，新增固定 volumes.logs=bind；只读投影不创建日志目录、不改变认证或生命周期，verified 仍取决于实际 inspect 的完整归属核验。
+
+运行状态目录原 guard 的拒绝日志区分进入、打开FD、yield前后阶段，身份变化仅列字段名。
+认证写入、健康探测、原校验顺序、异常类型/错误码和生命周期不变；取证不授权自动重试。
+额外方向分类来自同一次已拒绝的before/current所有权对，不能据日志推断Cookie writer层或修复权限。
+
+Docker `/state/runtime` 位于私有 `/state` tmpfs，正常严格 guard 创建和验证该叶。
+正常容器与既有 control-preparer 都以 HostConfig.Tmpfs 核对必需 tmpfs；Engine 可省略
+Mounts 的重复 tmpfs 条目，任何显式条目仍核对类型/来源/RW。临时 guest 仍只绑定产品 data，
+其原四个私有 tmpfs profile、无网络/无端口、image/nonce/command 与精确 cleanup 合同不变。
+每次启动/重启由原 auth_reset、认证交换、Popen/probe 顺序重新建立认证；停止容器丢弃状态。
+删除写映射初始化与已有状态叶例外，不生成认证预写、空临时文件或持久 marker。
+宿主日志子目录独立持久绑定，产品数据与凭据不迁移；Native 状态路径和协议保持原合同。
+
+发布运行目录中的 `doc/docs` 名称不再导致运行实现漏包；生产依赖图、optional peer、
+虚拟 Profile alias 搜索和 launcher 模块验证保持原链路，Node 加载回归验证派生资产完整性。
+
+Docker staging 补齐固定 DSH 虚拟 Profile 锚点所需的根 `node_modules` optional peer 别名。
+目标必须已属于生产图；原始完整闭包、派生 manifest 和 launcher 私有模块验证继续分别执行。
+
+构建成功仍须退出码0及候选image身份验证。大输出不截断当成功；每路超过2MiB继续runtime_output_limit并精确终止本次进程树，其他metadata命令仍64KiB。
+
+固定 Docker DSH 构建的原生 fs-ext 使用同 node-runtime stage 的完整本地 headers；builder
+npm_config_nodedir=/usr/local 只影响编译，最终 runtime/协议/生命周期不继承该目录或 ENV。
+
+research-tools 注册时不读取 ctx.spawnProcess getter；仅自有 data descriptor.value 为函数时
+使用测试覆盖，否则用原 imported spawn。队列、终止、close 后释放和 poison 恢复合同保留；
+这项注册回归不等同真实 fixed Cordis preset 加载或成功 session 创建，后者须独立实测。
+
+Docker._environment仅在host CLI添加校验后的HTTP_PROXY/HTTPS_PROXY/NO_PROXY双大小写。
+不安全值在status/Doctor/stop过滤并报告稳定warning；install/build返回docker_proxy_configuration_invalid，
+避免静默直连。固定argv、隐式.env禁用及进程/容器归属检查保留；Native共享minimal环境不放宽。
+
+_installation_start_scope 只从 manager 真实 lease/mkdir 取得创建事实，覆盖 DSH/runtime
+build-lock/manifest；_start_installed(lease) 复核同一实际对象和根身份，执行正常安装门与端点
+生命周期，不重复 acquire、不接受 bool/tuple 跳锁。no-start/失败/scope 退出清证明；既有根
+不因 reinstall 成为 fresh。公开重执行仅进入 owned venv，不跨进程借 lease。
+
+## 实际端点与公开生命周期
+
+macOS 缺少目标 Native 记录而已有产品根时，可以只发现 OS 当前用户的标准产品根。
+现有 `web_bootstrap` 私有 reader 认证该根的完整 Web/Runtime pair：同 project/data root、
+准确 signature 与 PID/start/listener 集合；其他 checkout、稳定 PID 或端口可达都不足以授权。
+只读桥报告当前事实；写入另在目标真实 LifecycleLock 中 pin 两个不同 canonical 私有根、
+父目录与两份记录 FD，绑定同 controller/manager、作用域与精确 lease。每个控制写入、
+spawn、restart、switch 选择或 rollback 前复查，记录/根/进程事实变化即拒绝，finally 关闭
+FD 并清除观察；不会刷新变化后的基线或跨调用转移。Docker 不以 Native 安装为前置条件。
+force restart 先验证此边界，再停止精确健康容器；未知 pair 不先停后拒绝。
+
+该 scope 内启动 Native 时，Popen 句柄和本次 atomic state writer 的原 FD 一同保留；
+Root pair 观察之外，own child 的记录 inode/metadata、实际 start、完整 argv 与准确 listener
+另作调用内绑定。launcher→owned-listen 属于初始阶段，首次稳定 owned-listen 后仅比较原
+基线；重复登记不能刷新。正常 stop 只有已验证的精确 child 才进入 stopping/stopped 阶段。
+首次/第二次登记在 Popen 后丢锁时，由已有精确 child 句柄清理并保留原锁错误；记录/进程
+变化后的普通 rollback 拒绝，不把恢复错误替代原 health 错误。
+
+`EndpointStore(home)` 只在私有 `install/endpoints.json` 保存 schema 1 的 `records`，Native
+含不同的 `web_port`/`runtime_port`，Docker 仅含宿主 `web_port`，各模式带独立 opaque revision。
+`read(mode)` 缺失返回 `None`，纯只读；`publish(mode, web_port, runtime_port=None, expected=...)`
+在已有私有锁中按该模式快照 CAS，保留另一模式并返回新快照。损坏/冲突不回落默认值。
+`verify_facts()` 仅比较调用方已验证的端口，不证明 PID、监听者或容器归属。
+`select_port(preferred, explicit=False, excluded=())` 首选指定端口，再有界 bind 回环 0 获得候选；
+socket 关闭后没有预留保证，调用方仍须验证真实监听并有界重试。显式冲突拒绝自动换端口。
+
+`ControlOriginTransaction(data_root, previous_origin, next_origin, quiescent=callback)` 要求调用方
+持有生命周期锁。`prepare()` 在 exact `True` 静止证明下同时验证两份既有控制记录，再只修改 URL；
+`commit()` 在启动成功后丢弃本事务标记，`rollback()` 在目标停止后恢复内存中的原始字节。
+缺失记录留给正常 creator，origin 不变不写入。事务 helper 不启动或停止服务，不迁移业务数据。
+公开 start/restart 使用这些接口；Native 健康条件仍包含准确 PID/argv/启动时间、监听者、
+认证和页面 readiness，Docker 仍核对不可变镜像、安装/launch label、挂载与实际 Web mapping。
+只读后备入口从相同端点或一致的旧 run-state 读取，不创建记录；畸形端点不回退默认值。
+旧 state 的私有读取结果在单次 bootstrap 诊断内复用，避免瞬时替换被第二次读取掩盖。
+
+Native/Docker 写生命周期共用原 `run/lifecycle.lock`，模式切换先由旧 public stop 持锁停止，
+再获取同一把锁重新验证两模式及原 mode snapshot 后 CAS；持锁区不调用跨进程 public stop。
+安装候选通过实际 `LifecycleLock.assert_held()` 对象复核进入内部启动，锁顺序固定为
+lifecycle→短时 install/runtime 元数据锁。`EndpointStore.restore(mode, previous, expected=publication)`
+只回滚本次仍为当前的发布；恢复已有端口生成新 revision，另一模式不变，首建失败可移除本模式记录。
+候选 origin 事务保留到安装摘要和模式发布完成；失败在精确容器清理和静止证明后恢复。
+
+Native 仅在本次日志窗口（保留 inode/偏移、上限64KiB）包含明确 bind 错误，原PID已退出、
+新监听可证明不是同安装写者时分类为 bind race；不输出日志原文。Docker 仅解析有界CLI的
+明确bind错误为稳定code。两者最多三次尝试；未知归属、协议/认证或回滚失败不重试。
+已有停止Docker容器若需改host绑定，当前仍拒绝 `docker_stopped_port_conflict`，该分支未达完整设计验收。
+
+origin commit 失败与健康失败共用精确清理：本次新建容器清除，本次启动的既有停止容器
+在重新核对 ID、镜像、安装、挂载和 launch 身份后仅 stop，保留容器。静止证明先于端点 CAS
+恢复与 origin 回滚。Native 缺失运行账本仍检查当前端口监听者；未知或同数据根监听者拒绝
+分配和模式切换，只有可证明属于其他实例的监听允许避让。缺少 Native 环境时，既有数据根
+的监听通过标准库 PID/argv/启动身份与监听复查核验；已证明的外来监听允许继续，未知或同根
+写者失败关闭。受管 Docker 仍须独立通过容器身份、实际 mapping 与健康检查。补齐控制文件前先只读验证全部既有记录和一致 origin，MCP-only
+动态 origin 不会被默认 DataHub origin 污染。Docker 安装摘要回滚同时核对发布写 FD 的身份
+和精确字节，内容相同的新 inode 也保留并报告 recovery_unverified。
+
+`listener_argv_is_foreign` 是既有标准库合同里的共享纯判定，供后备桥、Native 静止检查和
+bind-race 分类使用；可识别 Web/DSH 命令缺少数据根证据时拒绝，不能从其他 checkout 推断不同
+数据根，也不读取进程环境或配置。缺端点记录的既有根同时观察选定端口和旧默认8088/3081，
+显式指定新端口不会绕过旧 writer。fresh 证明仅来自本次持有已验证 lease 时成功 mkdir 的
+根 inode，既有根或 inode 替换不认领；证明在首个 spawn 前和 start finally 清除，不用于失败重试。
+
+Native 从有效 fresh 证明捕获本次事务的 RAM-only 恢复基线：原 lease/根 inode、选定与旧默认
+端口的监听集合，以及监听 PID/argv/启动身份；已捕获身份不刷新。spawn 后分配证明仍失效，
+只有本次所有对象精确退出且基线未变，才可用于端点 CAS/origin 回滚。Popen 后、状态写入和
+健康等待前记录 PID，内部清理不丢弃记录；已退出对象不重复停止。恢复未知时保留原始启动
+错误，附加受控 recovery_issues/日志并保留 journal；该失败不得触发 bind 重试。
+
 Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时间/监听者事实链，停止调用同一
 排他生命周期入口；状态查询不隔离或删除 stale/invalid 文件。Native 日志读取也复用精确进程
 身份，并在输出前核对状态文件内容和 inode，不能凭命令行子串或重用的 PID 证明归属。
 
 Docker supervisor 的启动顺序先准备 `/state/runtime` 与 `/run/rwb-secrets/private` 私有叶，
 再清理本次认证状态、启动 DSH、探测并启动 Web。健康检查复用 `/state/runtime/auth.json`；
-重启保留私有叶及凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
+Web 每轮三项页面请求共用最多 3 秒，与独立健康检查默认预算一致；DSH 仍为 0.25 秒。
+单轮预算取角色预算与剩余启动时间的较小值，角色启动 35 秒和停止 8 秒期限保持。
+重启重新创建状态叶和认证，保留凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
 固定缺失叶的准备先用保留父FD创建，再由原runtime_state_directory完整重pin；不会捕获
 任意校验失败后无条件重试。data-root/logs使用相同首建顺序，自定义目录维持原严格create路径。
 启动失败额外记录固定阶段、受控异常类别、数字 errno 与 runtime/web 已知退出码；

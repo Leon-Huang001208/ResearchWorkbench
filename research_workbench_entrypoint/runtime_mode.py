@@ -216,8 +216,8 @@ def _open_posix_directory(parent: int, name: str) -> tuple[int, os.stat_result]:
 
 
 @contextmanager
-def _private_posix_parent(path: Path) -> Iterator[int]:
-    """Create and retain the private install directory without path chmod races."""
+def _private_posix_parent(path: Path, *, strict_parent: bool = False) -> Iterator[int]:
+    """Create missing private parents; strict callers never repair existing modes."""
     home = path.parent.parent
     with ExitStack() as stack:
         home_parent = stack.enter_context(_pin_posix_parents(home, node_only=True))
@@ -229,6 +229,8 @@ def _private_posix_parent(path: Path) -> Iterator[int]:
         stack.callback(os.close, home_descriptor)
         if home_identity.st_uid != os.getuid():
             _fail("unsafe_path")
+        if strict_parent:
+            _validate_posix_private_directory(home_identity)
 
         try:
             os.mkdir(path.parent.name, mode=0o700, dir_fd=home_descriptor)
@@ -241,6 +243,8 @@ def _private_posix_parent(path: Path) -> Iterator[int]:
         if install_identity.st_uid != os.getuid():
             _fail("unsafe_path")
         if stat.S_IMODE(install_identity.st_mode) != 0o700:
+            if strict_parent:
+                _fail("unsafe_path")
             os.fchmod(install_descriptor, 0o700)
         install_identity = os.fstat(install_descriptor)
         _validate_posix_private_directory(install_identity)
@@ -251,9 +255,7 @@ def _private_posix_parent(path: Path) -> Iterator[int]:
         yield install_descriptor
 
         current_home = os.stat(home.name, dir_fd=home_parent, follow_symlinks=False)
-        current_install = os.stat(
-            path.parent.name, dir_fd=home_descriptor, follow_symlinks=False
-        )
+        current_install = os.stat(path.parent.name, dir_fd=home_descriptor, follow_symlinks=False)
         if (
             _node_identity(current_home) != _node_identity(home_identity)
             or current_home.st_uid != os.getuid()
@@ -288,10 +290,9 @@ def _read_bytes(path: Path) -> tuple[bytes, os.stat_result]:
             raw = stream.read(MAX_RUNTIME_MODE_BYTES + 1)
         if len(raw) > MAX_RUNTIME_MODE_BYTES:
             _fail("too_large")
-        if (
-            _identity(os.fstat(descriptor)) != _identity(before)
-            or _identity(_path_identity(path)) != _identity(before)
-        ):
+        if _identity(os.fstat(descriptor)) != _identity(before) or _identity(
+            _path_identity(path)
+        ) != _identity(before):
             _fail("changed")
     return raw, before
 
@@ -323,7 +324,8 @@ def _validate(payload: object) -> RuntimeModeRecord:
     if _UPDATED_AT.fullmatch(value["updated_at"]) is None:
         _fail("value")
     try:
-        datetime.strptime(value["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        # Validate UTC wire syntax only; the resulting naive datetime never escapes.
+        datetime.strptime(value["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ")  # noqa: DTZ007
     except ValueError:
         _fail("value")
     return RuntimeModeRecord(
@@ -390,9 +392,21 @@ def _write_all(descriptor: int, raw: bytes) -> None:
         offset += written
 
 
-def _atomic_write_posix(path: Path, raw: bytes, expected: os.stat_result | None) -> None:
+def _atomic_write_posix(
+    path: Path, raw: bytes, expected: os.stat_result | None, *, strict_parent: bool = False
+) -> os.stat_result:
+    """Publish privately and return identity proven against the retained write FD.
+
+    Strict callers create their directory separately and never repair permissions.
+    A publication/readback failure is ambiguous; callers must not adopt a later
+    path read as proof that the published file still belongs to this write.
+    """
     temporary = f".runtime.json.{secrets.token_hex(16)}.tmp"
-    with _private_posix_parent(path) as parent:
+    parent_context = (
+        _pin_posix_parents(path, node_only=True) if strict_parent else _private_posix_parent(path)
+    )
+    with parent_context as parent:
+        _validate_posix_private_directory(os.fstat(parent))
         if not _same_identity(_leaf_identity_at(parent, path.name), expected):
             _fail("changed")
         descriptor: int | None = None
@@ -407,12 +421,14 @@ def _atomic_write_posix(path: Path, raw: bytes, expected: os.stat_result | None)
             _validate_posix_private_file(os.fstat(descriptor))
             _write_all(descriptor, raw)
             os.fsync(descriptor)
-            os.close(descriptor)
-            descriptor = None
             if not _same_identity(_leaf_identity_at(parent, path.name), expected):
                 _fail("changed")
             os.replace(temporary, path.name, src_dir_fd=parent, dst_dir_fd=parent)
             os.fsync(parent)
+            published = os.fstat(descriptor)
+            if not _same_identity(_leaf_identity_at(parent, path.name), published):
+                _fail("changed")
+            return published
         finally:
             if descriptor is not None:
                 os.close(descriptor)
@@ -464,9 +480,7 @@ class RuntimeModeStore:
         try:
             self.path.lstat()
         except FileNotFoundError:
-            _validate_existing_prefix(
-                self.path, allow_private_repair=allow_missing_private_repair
-            )
+            _validate_existing_prefix(self.path, allow_private_repair=allow_missing_private_repair)
             return RuntimeModeRecord(_SCHEMA_VERSION, "native", "", None), None
         raw, identity = _read_bytes(self.path)
         record = _decode(raw)
@@ -484,13 +498,14 @@ class RuntimeModeStore:
             _validate_directory_chain(self.path.parent)
 
     @contextmanager
-    def _write_lock(self) -> Iterator[None]:
+    def _write_lock(self, *, strict_parent: bool = False) -> Iterator[None]:
         """Retain one private, never-unlinked lock inode through readback.
 
         POSIX flock serializes independent descriptors/processes. Windows uses
         a byte lock on a no-reparse handle opened without delete sharing, so the
         locked file cannot be replaced while any writer retains its handle.
         Read-only operations never enter this context or create a lock file.
+        strict_parent keeps existing POSIX parent permissions unchanged.
         """
         lock_path = self.path.with_name("runtime.lock")
         with ExitStack() as stack:
@@ -504,7 +519,9 @@ class RuntimeModeStore:
                 # OPEN_ALWAYS, FILE_FLAG_OPEN_REPARSE_POINT.
                 handle = _winapi.CreateFile(str(lock_path), 0xC0000000, 3, 0, 4, 0x00200000, 0)
                 try:
-                    descriptor = msvcrt.open_osfhandle(handle, os.O_RDWR | getattr(os, "O_BINARY", 0))
+                    descriptor = msvcrt.open_osfhandle(
+                        handle, os.O_RDWR | getattr(os, "O_BINARY", 0)
+                    )
                 except BaseException:
                     _winapi.CloseHandle(handle)
                     raise
@@ -520,12 +537,16 @@ class RuntimeModeStore:
 
                 def entry() -> os.stat_result:
                     return _path_identity(lock_path)
+
             else:
                 import fcntl
 
-                parent = stack.enter_context(_private_posix_parent(self.path))
-                descriptor = os.open(lock_path.name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
-                                     0o600, dir_fd=parent)
+                parent = stack.enter_context(
+                    _private_posix_parent(self.path, strict_parent=strict_parent)
+                )
+                descriptor = os.open(
+                    lock_path.name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=parent
+                )
                 stack.callback(os.close, descriptor)
 
                 def acquire() -> None:
@@ -543,9 +564,12 @@ class RuntimeModeStore:
             def verify() -> None:
                 opened = os.fstat(descriptor)
                 current = entry()
-                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
-                        or opened.st_size not in (0, 1)
-                        or _node_identity(opened) != _node_identity(current)):
+                if (
+                    not stat.S_ISREG(opened.st_mode)
+                    or opened.st_nlink != 1
+                    or opened.st_size not in (0, 1)
+                    or _node_identity(opened) != _node_identity(current)
+                ):
                     _fail("unsafe_path")
                 if os.name == "posix":
                     _validate_posix_private_file(opened)
@@ -558,6 +582,7 @@ class RuntimeModeStore:
                     break
                 except OSError as error:
                     import errno
+
                     if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
                         raise
                     if time.monotonic() >= deadline:

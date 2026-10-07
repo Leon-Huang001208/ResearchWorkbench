@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "新增能力支持矩阵入口和明确平台安全边界，用户重新开启跨平台任务。",
-  "reason": "Doctor实现状态不等于平台验收；README连接支持矩阵，保留严格沙箱、文档reader与ACL限制，不宣称未验证系统支持。"
+  "summary": "保留能力支持矩阵入口及平台安全边界，并复核双运行时端口事务与 Native stop 后最多45秒的释放等待。",
+  "reason": "README保留远端更新及目标分支的部署说明；Doctor实现状态不等于平台验收。等待仍仅限已验证运行的实际 NativeRuntime、显式停止且公开 stop 成功；原端口、单调期限、port_busy、switch_select lease、scope、fresh status与CAS保持。物理生命周期和远端CI分别留证，不宣称未验证平台支持。"
 }

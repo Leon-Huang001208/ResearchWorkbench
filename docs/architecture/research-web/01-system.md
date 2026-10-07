@@ -1,6 +1,68 @@
 # 部署与模块职责
 
+Native→Docker 顺序切换在公开 Native stop 成功后，沿原 stdlib bootstrap 有界等待
+原 Native 端口释放，再取得既有 switch_select lease；不新增组件或停止权限。
+
+模式切换 finalize 拒绝仅增加现有 stdlib logger 的 stderr 固定诊断字段；部署节点与控制器职责不变。
+Native bridge 的既有 status 拒绝处补固定 precheck/child/postcheck 阶段，不增加 bridge 调用或部署组件。
+
+macOS 异根 Native 私有 pair 的 bounded reader 仍位于 `web_bootstrap.py`；stdlib bridge、
+Docker controller 与 Native manager 共享它。候选仅 OS 当前用户标准产品根，调用内身份观察
+和 FD 绑定目标真实 lifecycle lease；不增加服务、网络探针、安装依赖或部署节点。
+
+Python 格式、导入和内部类型整理保持本页部署职责；轻量 stdlib 模块、延迟导入及
+同一 Web/DSH 启动链不变，没有新增运行时组件。
+
+Docker stdlib controller 的外层 `_locked_guard` 拥有真实 lease 下的调用内 ExitStack；缺失根观察只支持 no-start 选择，真实 mkdir 后的根/父 FD 才支持首次分配。嵌套候选沿同一 controller/lease/home/安装身份执行；up 前分配权限失效，外层发布失败仅保留受严格复核的恢复观察，finally 清除。没有新部署节点、常驻组件或持久 authority。
+
 Native私有认证bootstrap使用规范化的RWB_RUNTIME_STATE，并要求RESEARCH_RUNTIME_AUTH精确等于该目录内auth.json；拒绝目录别名或另一个认证文件。该绑定只保护所属Host/DSH交接，模型Keychain仍走独立provider。
+
+Docker Doctor 的只读 volumes 类型投影与既有挂载一致：data/独立 logs/credentials 为 bind，state 为 tmpfs；schema 1 增加固定 logs 类型字段，verified 仍消费实际 inspect，不增加部署节点。
+
+既有 `runtime_state.py` 仅增加私有拒绝证据日志，由同一 logger 输出固定原因、阶段和
+ancestor/leaf；不增加部署节点、probe或公开启动字段，详见安全边界文档。
+身份变化取证补充相对叶的 parent/other_ancestor/leaf 与精确所有权对变化分类，不识别Docker业务路径。
+
+DSH staging 的遍历剪枝与最终过滤共用包发布子树规则，保留明确声明运行目录内的 `doc/docs`
+代码及资源。包顶层文档和硬开发目录仍排除；不创建新依赖、部署节点或 yaml 专用白名单。
+
+`docker/stage_dsh.py` 在生产依赖图选定后，保留根 `node_modules` 和私有 pnpm hoist 中既有的
+普通／scope 别名，仅指向已选且位于固定源码内的包，并转为镜像内相对链接。这补齐固定 DSH
+虚拟 Profile 锚点的 optional peer 搜索，不复制整个 store、不引入开发依赖，也不放宽启动模块校验。
+
+仅固定完整 Compose build research-web argv 使用每路2MiB输出预算与既有脱敏stream；其他命令和默认run_bounded仍64KiB，不增加部署节点。
+
+Docker dsh-builder 的 Node binary 与完整 /usr/local/include/node 来自同一固定 node-runtime
+24.19.0 stage；仅 builder 设置 npm_config_nodedir=/usr/local，让原生扩展使用该版本本地 headers。
+最终 runtime 不复制开发 headers 或继承该 ENV，原非 root/staged-image 边界保持。
+
+research-tools 保持 tools/sessions 注入；生产执行器来自已导入的 child_process.spawn，ctx 自有
+data descriptor 只保留原测试替身，避免读取未声明 Cordis 服务 getter，不新增插件或部署节点。
+
+Docker host CLI 只继承经校验的 credentials-free loopback HTTP(S)代理和有界NO_PROXY；共享
+Native minimal环境不变。CLI传输、Docker Desktop Engine和build代理是不同层，源码保留env
+不证明真实registry/APT/镜像构建可用，也不把宿主127代理注入镜像/Compose/provider运行环境。
+
+Native installer auto-start 在 Web 依赖就绪后由同一 manager 持真实 lease 创建根，覆盖
+DSH/build-lock/manifest 与就绪门，再借原 lease 启动。公开入口先进入精确 owned venv
+（同脚本/原参数 -I），不跨进程传或持久化 fresh 证明，不新增常驻部署节点。
+
+Native 管理器和模式切换桥在运行账本缺失时仍核验监听者，阻止未知或同数据根的活动写者
+通过新端口启动。Docker 失败恢复分别处理本次新建与本次启动的既有容器。
+
+无 Native 环境的只读桥使用同一标准库监听与进程事实。稳定 argv/启动身份只证明进程，
+其他 checkout 的 Web/DSH 也可通过环境/配置共享当前数据根；没有不同数据根证据时拒绝。
+Docker-only 的既有服务复用仍由 Docker controller 的 inspect/mapping/健康核验负责。
+Native 首启只有本次生命周期锁内成功 mkdir 且身份仍匹配的根可作 fresh 证明，子进程启动前失效。
+
+失败恢复另保留本次事务的内存证明：同一已验证 lease/根身份、原监听集合与 PID/argv/启动
+身份必须持续匹配，本次所有子进程必须已退出；该证明只恢复元数据，不授权新分配或重试。
+
+私有端点与内部 origin 事务已接入 macOS 安装器、Native 管理器和 Docker controller。
+它们不创建常驻部署节点、不迁移控制 token 或数据。Docker 单缺失控制文件的准备使用临时
+无网络/无发布端口 guest：固定接受或候选 image、仅受管 data bind，其余镜像 VOLUME 用
+私有 tmpfs 覆盖，不挂载真实凭据。准备结束并确认精确临时容器退出后，host 才建立 origin
+事务的原文件身份基线；正式消费者仍由既有单容器 supervisor 运行。
 
 公开 Web 安装器的 Native 路径在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的
 `runtime/dsh/<commit>/` 版本目录；运行时仍是既有 3081 DSH 与 8088 FastAPI 两个受管进程。
@@ -35,17 +97,24 @@ HTTP(S) 代理，Git 仍可继承 SOCKS；过滤不修改宿主环境，也不�
 共享进程规范保留 Native 的规范化 overlay 路径；生命周期仍由 Native 排他锁或容器 supervisor
 分别拥有。容器复用完整 Web 页面就绪协议，但所有 HTTP 请求共用容器探测的总时限，不读取
 Native PID 账本来推断容器进程归属。
+Web 启动探测的单轮总预算为 3 秒，并受剩余启动期限裁剪；DSH 单轮保持 0.25 秒。
+这一预算调整复用现有探测器，不增加部署节点或健康接口。
 
 Host controller 为一次新建启动临时叠加 launch label，Compose up失败后也凭该标记、
 候选image与既有归属合同识别精确回滚对象；不新增常驻配置或改变部署节点与挂载。
 
-状态与凭据的 bind targets 仍是 `/state`、`/run/rwb-secrets`；容器 UID 10001 在其内部创建
-`runtime`、`private` 两个 0700 私有叶。supervisor 在 auth/probe/spawn 前调用现有严格目录
-校验，healthcheck 只读使用同一状态叶，Docker 显式选用 File credential backend。此区分
-兼容 Docker Desktop 的 bind 根 UID 映射，不引入 root-init 或宿主 UID 动态映射。
-
-固定state/credential叶与data-root/logs的首次创建分为受控mkdir与完整重pin两阶段，
-避免Desktop首建改变父可见owner而误报；认证、健康和子进程只能在原严格校验重新通过后运行。
+Docker `/state` 是 UID/GID 10001、0700、1 MiB 的私有 tmpfs，显式启用
+`rw,nosuid,nodev,noexec`；`/state/runtime` 由未修改的严格目录 guard 正常创建。
+状态认证随容器停止丢弃，每次启动/重启通过原认证链重新创建，不预写文件或 marker。
+宿主 `run/docker/<installation-id>/logs` 单独 bind 到 `/state/logs`，保留导入期日志；
+supervisor 的产品日志继续使用 `/data/research-web/logs`。数据和凭据绑定位置不变。
+仅凭据 `private` 与产品 `logs` 两个固定缺失叶保留原两阶段首建例外，状态无映射豁免。
+controller 对实际 Mounts 的类型/来源/目标/RW 和 HostConfig.Tmpfs 完整选项执行严格核验；
+HostConfig 必需 `/state`、`/tmp`、`/home/rwb`，缺失、重复、替代类型或未知选项均拒绝。
+Engine 可省略 Mounts 中 tmpfs 的重复条目；若提供则同样严格核验，不接受 bind/volume 遮盖。
+旧 host state/runtime 保留，不迁移、不自动删除旧停止容器；其挂载合同不符时失败关闭。
+Docker VM 的 tmpfs 可能进入 swap，不能据此宣称认证从不落盘；见
+[Docker tmpfs 文档](https://docs.docker.com/engine/storage/tmpfs/)。
 
 Docker controller 的接受状态来自私有安装摘要中的不可变镜像身份及当前构建合同；单容器
 启动只在双服务真实健康后成功。每次候选构建拥有独立 tag，发布失败不会通过共享 tag 改变
@@ -55,7 +124,7 @@ Docker controller 的接受状态来自私有安装摘要中的不可变镜像�
 
 Docker 路径由 `Dockerfile` 构建固定资产，以 `docker/stage_dsh.py` 派生经 `app/research_web/staged_runtime.py` 验证的运行目录，不把完整 Git/dev/test 树留在最终镜像。`compose.yaml` 以非 root、只读根文件系统、能力剥离的单容器运行 `docker/supervisor.py`，后者顺序启动 DSH 和 FastAPI，保持唯一研究引擎、双服务健康和有界停止。只有 `127.0.0.1:8088` 发布到宿主；DSH 3081 留在容器回环。`docker/healthcheck.py` 同时检查认证 DSH 与 Web。Docker 容器、镜像、挂载、端口和安装身份均由 host controller 校验；未知归属失败关闭。
 
-产品数据仍是 `~/.research-workbench/research-web/`，Native 与 Docker 顺序共享，不并发访问。Native PID/认证状态、Docker `run/docker/<installation-id>/` 状态以及 Docker `secrets/docker/<installation-id>/` 凭据分别管理；`app/research_web/credential_backend.py` 只在 Docker 显式配置时使用私有文件后端，Native 继续走宿主 keyring。Docker 的宿主 Office/Wind/Tabbit 等本机集成不因 Web 可启动而自动可调用；Windows Docker ACL 未验证时 `docker_credentials_acl_unverified` 关闭失败。部署图 `01-deployment` 表示拓扑，不替代真实镜像构建、运行或平台验收。
+产品数据仍是 `~/.research-workbench/research-web/`，Native 与 Docker 顺序共享，不并发访问。Native PID/认证状态、Docker tmpfs 状态与宿主 `run/docker/<installation-id>/logs` 持久日志以及 Docker `secrets/docker/<installation-id>/` 凭据分别管理；`app/research_web/credential_backend.py` 只在 Docker 显式配置时使用私有文件后端，Native 继续走宿主 keyring。Docker 的宿主 Office/Wind/Tabbit 等本机集成不因 Web 可启动而自动可调用；Windows Docker ACL 未验证时 `docker_credentials_acl_unverified` 关闭失败。部署图 `01-deployment` 表示拓扑，不替代真实镜像构建、运行或平台验收。
 
 研究框架由同一 Research Web 服务内的薄注册表暴露 Gold 与 Dollar；目录、调度生命周期、快照存储和新鲜度协议共享，定义、契约、采集、评分、上下文与前端 renderer 保持领域专属。它不增加独立进程、数据库或资产详情服务，浏览器 GET 只读取已保存快照，不触发外网采集。
 
