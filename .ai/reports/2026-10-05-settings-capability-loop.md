@@ -817,3 +817,23 @@ Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05�
 
 
 整合候选d3f850e917fb8257adaf3543bb6bc02eaecb6e65已普通push。完整原任务256路径约束exit0，但PR对205d目标73路径发现dual-runtime新增权威docs/research-web-platform-support.md未更新（exit1）；执行脚本没有将这一FAIL作为后续push阻断，首轮送检已发出，不认定通过。保留失败证据，集中补写本兼容模型真实Mac Native/合成/他平台证据边界，复查完整Task/PR后正常补提交；不删门或伪造矩阵。后续用新候选CI，不继承d3f尚未完结的状态。
+
+
+冻结修正候选93bc351c480d10609beb4dd7a98f148f9dc04beb已普通push，base205d2a170d9ece9c2751e014b63abe326510ab9c，PR81 OPEN/draft/MERGEABLE。原任务完整256路径和PR74路径约束均exit0；Git-bound plan v4绑定实际候选/基线和完整PR差异，另保留原任务全部影响，不用最后报告代替源码范围。
+
+当前自动门Project Constraints37593249902、Research Web Checks37593249884已success，attempt1/pull_request，实际checkout均e3fac2c9c31ea73b9c9114948bbec535132c5114；Git对象实际parents=205d2a17+93bc351c。macOS Bootstrap37593249891仍活跃，不标通过。初次d3f的Constraints37592987727确实failure、Web37592987740 cancelled；旧Bootstrap37592988138在取消请求时已terminal，未重复取消，旧结果不替代新候选。后续只用当前run证据。
+
+新政策保留Foreign Windows/Docker selected gates，当前Mac任务不dispatch、不修改global阶段或保护规则；按v4/v3区分hostAcceptance与aggregateAcceptance。当前未取得macOS新候选通过前host尚不PASS；未执行Foreign/真实账户事实保持NOT_RUN/NOT_READY，mergeReady/releaseReady不涂绿。没有真实模型Key配置进CI，供应商0，安装/工具Actor消耗只用标准public runner。
+
+
+### 冻结兼容模型候选最终证据（93bc351c）
+
+当前代码候选93bc351c480d10609beb4dd7a98f148f9dc04beb、base205d2a170d9ece9c2751e014b63abe326510ab9c，PR81 OPEN/draft/MERGEABLE。三个当前自动门37593249902 Project Constraints、37593249884 Research Web Checks、37593249891 Mac Bootstrap均attempt1/pull_request SUCCESS；实际checkout均e3fac2c9c31ea73b9c9114948bbec535132c5114，真实Git对象parents=205d+93bc，未把分支HEAD与merge preview混用。macOS artifact id11469811443/name research-web-bootstrap-macos-14-37593249891包含doctor/connections/root.html/app.mjs，Doctor ok/installation_ok/product_ready=true/issues=[]；只无供应商凭据标准public runner，不dispatch。
+
+相关本地闭包162 Python PASS/2既有opt-in skip、338 JS PASS/1source未设置skip，整合448 Python/207治理JS PASS；补齐本平台未重复覆盖的local integrations/runtime contract/container supervisor/setup闭包287 PASS/1既有skip。Black/isort/Ruff/diff通过。最终整合源码mypy四模块及传递图58诊断，与冻结205d源码同解释器/规则58诊断逐项相同、新增0/删除0；先前读取仍运行的baseline25只是临时截断，未据其判定新增缺陷，terminal后比较才有效。
+
+唯一plan/receipt已更新为logs/settings-model-loop/plan.json（Git-bound v4）/receipt.json（v3），当前PR全部74路径、task=Mac feature-development、完整平台门保留；原任务256路径完整影响和约束另保留，不只检查末尾报告。校验exit0/valid=true/result=PASS/hostAcceptance=PASS，aggregateAcceptance=NOT_READY、mergeReady=false/releaseReady=false；Linux handoff BLOCKED（通用Ubuntu CI通过、Docker NOT_RUN）、Windows NOT_RUN，未执行不能写PASS。只读delivery summary同样通过，runtimeUpdated=false、PR81；它不独立认证GitHub/实例，但这些另有当前API/checkout/进程证据。
+
+本地后续报告提交仅报告，不再push触发bootstrap；该报告HEAD未被上述CI测试，实际源码差异将核对只含报告。当前候选适配器、事务、私有配置、系统ref、无Key/Key合同与合成正常入口/真正冷重启通过，仍没有新增真实供应商/本地LLM的真实推理账户证据，不宣布完整1B。Ollama v0.40.0官方archive下载180秒exit28/实收9623543而非167494179字节，未执行/安装；不得以模型名/源标签/fixture冒充真实模型能力。合成实例配置清理、所属Host/DSH/服务器退出，无模型Key留存，真实Mac系统库测试新命名空间也已清除；本轮真实供应商请求0。
+
+剩余独立真实资源仍是：可用新增模型端点/模型（如需Key只通过产品安全设置页）、所属商业数据账户与一个获准dataset、Office/Word真实可响应环境及其原隔离临时资源清理证据（timeout/UNVERIFIED保留）。全授权不是这些资源存在的证据，不索取/复制个人工具或生产Key，不购买管理供应商账户、不重复TCC目录读取。已完成数据准入、兼容连接实现与Mac当前代码CI及最小未来部署决策；全部阶段尚未达到完整真实闭环，Goal保留active供持续任务，生产8088/3081不变、未合并/发布。
