@@ -15,7 +15,7 @@ const document = 'docs/module.md';
 const review = 'docs/architecture/research-web/review-record.md';
 const rootReadme = 'README.md';
 const readmeReview = 'docs/architecture/research-web/readme-review.json';
-const ids = ['01-deployment', '02-module-dependencies', '03-research-sequence', '04-data-file-flow', '05-capability-flow', '06-run-state', '07-delivery-state', '08-iteration-docs', '09-report-workflow-sequence', '10-excel-report-dataflow'];
+const ids = ['00-system-overview', '01-deployment', '02-module-dependencies', '03-research-sequence', '04-data-file-flow', '05-capability-flow', '06-run-state', '07-delivery-state', '08-iteration-docs', '09-report-workflow-sequence', '10-excel-report-dataflow'];
 const hash = value => ({ sha256: createHash('sha256').update(value).digest('hex'), bytes: Buffer.byteLength(value) });
 
 function fixture(t) {
@@ -51,6 +51,8 @@ function fixture(t) {
   const visualReview='docs/architecture/research-web/visual-review.json';
   write(visualReview,{schemaVersion:1,diagrams:human});
   write(mapPath,{schemaVersion:1,canonicalEntry:'docs/architecture/research-web/README.md',reviewRecord:review,visualReview,artifactRoot,groups:[{id:'runtime',sources:[source],documents:[document],diagrams:ids,tests:['tests/check.py']}],diagrams,apis:[{method:'GET',path:'/api/research/runtime',declaredPath:'/api/research/runtime',prefix:'',source}]});
+  const built=spawnSync(process.execPath,[atlasURL.pathname,root],{encoding:'utf8'});
+  assert.equal(built.status,0,built.stderr);
   return {root,write,read};
 }
 
@@ -79,7 +81,7 @@ function configureReadmeReview(f, receipt={schemaVersion:1,disposition:'unchange
   });
 }
 
-test('portable offline fixture validates ten diagrams and ignores development absolute paths', async t => {
+test('portable offline fixture validates all baseline diagrams and ignores development absolute paths', async t => {
   assert.deepEqual((await check(fixture(t))).violations, []);
 });
 
@@ -87,6 +89,7 @@ test('dual-runtime production paths and deployment branches have current archite
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
   const map = JSON.parse(fs.readFileSync(path.join(root, mapPath), 'utf8'));
   const mappedSources = new Set(map.groups.flatMap(group => group.sources));
+  for (const id of ['frameworks','integrations']) assert.ok(map.reading.modules.some(module=>module.id===id), `missing important reading module: ${id}`);
   for (const sourcePath of [
     'runtimes/research_web.json', 'research_workbench_entrypoint/runtime_mode.py',
     'research_workbench_entrypoint/docker_runtime.py', 'research_workbench_entrypoint/bootstrap.py',
@@ -193,6 +196,113 @@ test('API Atlas distinguishes unique operations from overlapping source declarat
   const html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
   assert.match(html,/<span>唯一接口<\/span><b>1<\/b>/);
   assert.match(html,/<span>源码声明<\/span><b>2<\/b>/);
+});
+
+test('generated pages detect API set drift, regenerate deterministically, and check without writes', t => {
+  const f=fixture(t);
+  const run=(...args)=>spawnSync(process.execPath,[atlasURL.pathname,f.root,...args],{encoding:'utf8'});
+  const artifact='outputs/research-web-architecture/api-atlas.html';
+  const initial=fs.readFileSync(path.join(f.root,artifact),'utf8');
+  const log=fs.readFileSync(path.join(f.root,'logs/research-api-atlas.jsonl'),'utf8');
+  assert.equal(run('--check').status,0);
+  assert.equal(fs.readFileSync(path.join(f.root,'logs/research-api-atlas.jsonl'),'utf8'),log);
+  const original=f.read(mapPath);
+  for(const mutate of [
+    map=>map.apis.push({...map.apis[0],path:'/api/research/new'}),
+    map=>{map.apis=[];},
+    map=>{map.apis[0].path='/api/research/frameworks/gold';},
+    map=>{map.apis[0].method='POST';},
+    map=>{map.apis[0].source='app/research_web/integrations/routes.py';},
+  ]) {
+    const map=structuredClone(original);mutate(map);f.write(mapPath,map);
+    const failed=run('--check');assert.notEqual(failed.status,0);
+    assert.equal(fs.readFileSync(path.join(f.root,artifact),'utf8'),initial);
+  }
+  f.write(mapPath,original);fs.unlinkSync(path.join(f.root,artifact));
+  assert.notEqual(run('--check').status,0);
+  assert.equal(fs.existsSync(path.join(f.root,artifact)),false);
+  original.apis[0].path='/api/research/frameworks/gold';f.write(mapPath,original);
+  assert.equal(run().status,0);assert.equal(run('--check').status,0);
+  const generated=fs.readFileSync(path.join(f.root,artifact),'utf8');
+  assert.match(generated,/研究框架/);assert.match(generated,/frameworks\/gold/);
+  assert.equal(run().status,0);
+  assert.equal(fs.readFileSync(path.join(f.root,artifact),'utf8'),generated);
+});
+
+test('architecture gate detects equal-count stale Atlas entries', async t => {
+  const f=fixture(t);
+  const file='outputs/research-web-architecture/api-atlas.html';
+  f.write(file,fs.readFileSync(path.join(f.root,file),'utf8').replaceAll('/api/research/runtime','/api/research/stale'));
+  assert.ok((await check(f)).violations.some(item=>item.code==='generated_artifact_stale' && item.path===file));
+});
+
+test('removing one API from a nonempty inventory detects residual output', t => {
+  const f=fixture(t);const map=f.read(mapPath);
+  map.apis.push({...map.apis[0],path:'/api/research/obsolete'});f.write(mapPath,map);
+  const run=(...args)=>spawnSync(process.execPath,[atlasURL.pathname,f.root,...args],{encoding:'utf8'});
+  assert.equal(run().status,0);map.apis.pop();f.write(mapPath,map);
+  assert.notEqual(run('--check').status,0);assert.equal(run().status,0);
+  assert.doesNotMatch(fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8'),/obsolete/);
+  assert.equal(run('--check').status,0);
+});
+
+test('API display text is escaped and unsafe methods or source paths are rejected', t => {
+  const f=fixture(t);const map=f.read(mapPath);
+  const run=()=>spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+  map.apis[0].path='/api/research/<img src=x onerror=alert(1)>';f.write(mapPath,map);
+  assert.equal(run().status,0);
+  const html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
+  assert.match(html,/&lt;img/);assert.doesNotMatch(html,/<img src=x/);
+  for(const [key,value] of [['method','GET onclick=x'],['source','../private'],['source','https://elsewhere.invalid/x'],['source','app/research_web/x".py']]) {
+    const bad=structuredClone(map);bad.apis[0][key]=value;f.write(mapPath,bad);assert.notEqual(run().status,0);
+  }
+});
+
+test('new registered diagrams still require artifacts and same-hash review evidence', async t => {
+  const f=fixture(t);const map=f.read(mapPath);const added={...map.diagrams[0],id:'11-extra-view'};
+  for(const [field,suffix] of [['artifact','.html'],['receipt','.receipt.json'],['visualReceipt','.visual-check.json']]) added[field]=`outputs/research-web-architecture/${added.id}${suffix}`;
+  map.diagrams.push(added);f.write(mapPath,map);
+  const result=await check(f);
+  assert.ok(result.violations.some(item=>item.code==='reference_missing' && item.path===added.artifact));
+  assert.ok(result.violations.some(item=>item.code==='human_review'));
+  assert.ok(!result.violations.some(item=>item.code==='artifact_boundary'),'registered safe filenames remain canonical');
+});
+
+test('generator rejects dangling output and log symlinks without writing outside the project', t => {
+  for(const file of ['outputs/research-web-architecture/index.html','outputs/research-web-architecture/api-atlas.html','logs/research-api-atlas.jsonl']) {
+    const f=fixture(t);
+    const outside=fs.mkdtempSync(path.join(os.tmpdir(),'research-atlas-outside-'));
+    t.after(()=>fs.rmSync(outside,{recursive:true,force:true}));
+    const target=path.join(outside,'not-created');
+    const output=path.join(f.root,file);
+    fs.unlinkSync(output);fs.symlinkSync(target,output);
+    const result=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+    assert.notEqual(result.status,0,file);
+    assert.equal(fs.existsSync(target),false,file);
+  }
+});
+
+test('fixed documentation names reject missing, extra and duplicate registered-view routes', async () => {
+  const {checkDocumentNames}=await import(checkerURL);
+  const sourceFor=names=>`DOCUMENT_NAMES = frozenset(f"{name}.html" for name in (${names.map(name=>JSON.stringify(name)).join(',')},))`;
+  const valid=['index','api-atlas','00-system-overview','01-deployment'];
+  assert.deepEqual(checkDocumentNames(sourceFor(valid),valid.slice(2)),[]);
+  for(const names of [valid.slice(0,-1),[...valid,'private'],[...valid,'index']]) {
+    assert.equal(checkDocumentNames(sourceFor(names),valid.slice(2))[0].code,'documentation_inventory');
+  }
+});
+
+test('product overview cannot disappear with the optional legacy fixture reading metadata', async t => {
+  const f=fixture(t);const map=f.read(mapPath);
+  map.diagrams=map.diagrams.filter(diagram=>diagram.id!=='00-system-overview');
+  map.groups[0].diagrams=map.groups[0].diagrams.filter(id=>id!=='00-system-overview');f.write(mapPath,map);
+  assert.ok((await check(f)).violations.some(item=>item.code==='diagram_inventory'));
+});
+
+test('product documentation cannot lose the layered reading metadata', t => {
+  const f=fixture(t);f.write('app/research_web/documentation.py','# production document surface fixture');
+  const result=spawnSync(process.execPath,[atlasURL.pathname,f.root,'--check'],{encoding:'utf8'});
+  assert.notEqual(result.status,0);assert.match(result.stderr,/product reading metadata is required/);
 });
 
 for (const file of [source,'app/research_web/runtime/guard.mjs','app/research_web/ui/styles.css','app/research_web/skills/demo/SKILL.md','app/research_web/runtime/research.cordis.yml']) {

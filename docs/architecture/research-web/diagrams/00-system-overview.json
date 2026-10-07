@@ -1,0 +1,301 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Research Workbench 产品与系统边界",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1500,
+      850
+    ],
+    "repository": {
+      "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
+      "revision": "211703cca660172b524eff804cc547458529858e"
+    }
+  },
+  "components": [
+    {
+      "id": "researcher",
+      "type": "external",
+      "label": "研究者",
+      "sublabel": "提问 · 分析 · 审阅文件",
+      "pos": [
+        40,
+        380
+      ],
+      "size": [
+        180,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/ui/app.mjs"
+        }
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Research Web",
+      "sublabel": "研究台 · 框架 · 能力 · 设置",
+      "pos": [
+        390,
+        380
+      ],
+      "size": [
+        230,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/main.py"
+        }
+      ]
+    },
+    {
+      "id": "dsh",
+      "type": "backend",
+      "label": "专属 DSH",
+      "sublabel": "唯一研究循环 · 历史 · 子 Agent",
+      "pos": [
+        900,
+        380
+      ],
+      "size": [
+        260,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/client.py"
+        }
+      ]
+    },
+    {
+      "id": "models",
+      "type": "external",
+      "label": "模型服务",
+      "sublabel": "用户在设置中授权",
+      "pos": [
+        1260,
+        380
+      ],
+      "size": [
+        200,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/model_credentials.py"
+        }
+      ]
+    },
+    {
+      "id": "sources",
+      "type": "external",
+      "label": "外部数据源",
+      "sublabel": "公开源 · Wind · 天软",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        210,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/datahub/providers.py"
+        }
+      ]
+    },
+    {
+      "id": "datahub",
+      "type": "backend",
+      "label": "DataHub 与集成协调器",
+      "sublabel": "白名单查询 · 五阶段探测",
+      "pos": [
+        390,
+        70
+      ],
+      "size": [
+        250,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/integrations/coordinator.py"
+        }
+      ]
+    },
+    {
+      "id": "mcp",
+      "type": "external",
+      "label": "MCP Server",
+      "sublabel": "受控 Host · 授权 · 审批",
+      "pos": [
+        900,
+        70
+      ],
+      "size": [
+        260,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/mcp_runtime/service.py"
+        }
+      ]
+    },
+    {
+      "id": "local",
+      "type": "external",
+      "label": "本机 Office / 浏览器",
+      "sublabel": "Excel · Wind 插件 · Tabbit",
+      "pos": [
+        40,
+        710
+      ],
+      "size": [
+        250,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/local_integrations/manager.py"
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "type": "database",
+      "label": "产品数据与交付文件",
+      "sublabel": "快照 · 附件 · 版本 · 产物",
+      "pos": [
+        390,
+        710
+      ],
+      "size": [
+        250,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/store.py"
+        }
+      ]
+    },
+    {
+      "id": "frameworks",
+      "type": "backend",
+      "label": "研究框架与报告 Workflow",
+      "sublabel": "Gold / Dollar · 模板 · 独立交付",
+      "pos": [
+        900,
+        710
+      ],
+      "size": [
+        290,
+        80
+      ],
+      "sources": [
+        {
+          "path": "app/research_web/frameworks/service.py"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "use",
+      "from": "researcher",
+      "to": "web",
+      "label": "同源 HTTP / SSE",
+      "variant": "emphasis"
+    },
+    {
+      "id": "execute",
+      "from": "web",
+      "to": "dsh",
+      "label": "RPC 受理 / 异步事件",
+      "variant": "emphasis"
+    },
+    {
+      "id": "infer",
+      "from": "dsh",
+      "to": "models",
+      "label": "模型请求",
+      "variant": "security"
+    },
+    {
+      "id": "query",
+      "from": "datahub",
+      "to": "sources",
+      "label": "按需查询 / 授权探测"
+    },
+    {
+      "id": "choose",
+      "from": "web",
+      "to": "datahub",
+      "label": "数据能力与可调用状态",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "invoke",
+      "from": "dsh",
+      "to": "mcp",
+      "label": "逐次重核授权",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "persist",
+      "from": "web",
+      "to": "files",
+      "label": "受控相对路径",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "integrate",
+      "from": "files",
+      "to": "local",
+      "label": "运行副本 / 探测"
+    },
+    {
+      "id": "framework",
+      "from": "frameworks",
+      "to": "dsh",
+      "label": "绑定快照 / Claw 执行",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "deliver",
+      "from": "frameworks",
+      "to": "files",
+      "label": "快照与确定性组装",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "产品职责",
+      "items": [
+        "Web 组织研究、框架、能力与文件；DSH 持有研究正文和执行事件。",
+        "Native 双进程 / Docker 单容器互斥使用同一产品数据。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "外部与失败边界",
+      "items": [
+        "目录登记、配置、授权、探测与可调用分别记录；失败不伪报 ready。",
+        "模型、数据源、本机集成和平台支持以实际环境证据为准。"
+      ]
+    }
+  ]
+}

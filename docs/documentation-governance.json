@@ -113,7 +113,7 @@
     {"topic": "product-overview", "path": "README.md"},
     {"topic": "documentation-index", "path": "docs/README.md"},
     {"topic": "system-architecture", "path": "docs/ARCHITECTURE.md"},
-    {"topic": "research-web-architecture", "path": "docs/architecture/research-web/README.md"},
+    {"topic": "research-web-architecture", "path": "docs/architecture/research-web/README.md", "purpose": "Current layered reading entry; map-derived index and API Atlas; diagram, documentation, source and test navigation"},
     {"topic": "research-web-installation", "path": "docs/research-web-installation.md", "purpose": "Public setup, status and Doctor recovery, macOS clean-install readiness, and Windows verification boundary"},
     {"topic": "development-map", "path": "docs/DEVELOPMENT_MAP.md"},
     {"topic": "reference-entry", "path": "docs/REFERENCE.md"},
