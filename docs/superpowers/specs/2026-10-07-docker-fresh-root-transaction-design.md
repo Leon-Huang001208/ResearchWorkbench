@@ -27,8 +27,17 @@ same absence. It creates the real private root through existing stdlib/private
 filesystem helpers, pins its inode/parent and retains creation authority only in
 that lifecycle transaction. Reuse the already-tested Native creation-capability
 principles, not its dependency/runtime implementation. Known container or any
-existing root/Native record, malformed record, symlink/reparse, substitution,
+existing root/Native record, malformed record, symlink/reparse, substitution after
+the first directory identity capture,
 lease loss or newly observed possible same-root writer refuses as before.
+
+The mkdir-to-first-open/fstat identity capture is not atomic, matching the existing
+Native/Supervisor creation model. The witness rejects directory replacement after
+that first capture; it does not promise to defeat arbitrary pre-capture replacement
+by a same-UID actor with writable HOME who does not cooperate with the lease.
+Mode observation uses RuntimeModeRecord values and the existing logical CAS. It
+does not retain the mode file inode across separate reads, so an otherwise valid
+same-content inode replacement alone is not claimed to invalidate the witness.
 
 A live healthy existing-mode reuse must never gain fresh authority. Allocation
 authority expires before spawning; exact attempt-only RAM recovery may retain

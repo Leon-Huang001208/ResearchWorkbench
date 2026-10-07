@@ -1,6 +1,8 @@
 # 安全边界与验证方法
 
-Docker fresh-root 权限不能由 mode、manifest、venv、bool/tuple、只读状态或外来 lease 推导。缺失观察限同一 controller 外层真实 `_locked_guard` 的私有父 FD/lease/元数据与稳定 OS 事实；真实 mkdir 成功后才有当前根 inode 的分配能力，up 前失效。parent/root/lease/mode/PID/端点/监听或容器变化拒绝；已有根不授予该例外。另一个 controller 不能转移 witness；外层 abort 仅在本次容器已精确退出且原 lease/根/父/监听与 CAS 一致时恢复，本次恢复不授权重试。所有 witness 在 finally 清除，原通用目录/生命周期 guard 与认证实现不放宽。
+Docker fresh-root 权限不能由 mode、manifest、venv、bool/tuple、只读状态或外来 lease 推导。缺失观察限同一 controller 外层真实 `_locked_guard` 的私有父 FD/lease/元数据与稳定 OS 事实；真实 mkdir 后首次 open/fstat 捕获并 pin 当前根身份，up 前失去分配权限。捕获后的 parent/root 身份、lease、mode 记录值、PID/端点/监听或容器变化拒绝；已有根不授予该例外。另一个 controller 不能转移 witness；外层 abort 仅在本次容器已精确退出且原 lease/根/父/监听与 CAS 一致时恢复，本次恢复不授权重试。所有 witness 在 finally 清除，原通用目录/生命周期 guard 与认证实现不放宽。
+
+mkdir 到首次身份捕获非原子，沿用 Native/Supervisor 创建模型，不承诺抵御同 UID、可写 HOME 且不遵守 lease 的任意捕获前替换。mode 比较沿用 RuntimeModeRecord 值和逻辑 CAS，不跨读取保留 mode 文件 inode；合法同内容换 inode 不单独使 witness 失效。该边界不改变私有读取的 alias/owner/mode/no-follow 校验，也不改变安装摘要发布时独立的字节/FD 身份恢复检查。
 
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 
