@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核 Docker 临时运行状态 tmpfs 与持久数据、凭据边界；公开安装与 CLI 入口保持。",
-  "reason": "本次修复仅改变容器内部状态挂载与严格归属核验，README 的安装入口和能力限制仍准确；真实生命周期尚待候选镜像验收。"
+  "disposition": "updated",
+  "summary": "更新 Docker 临时状态 tmpfs 与持久产品数据、凭据的明确边界。",
+  "reason": "Desktop 状态 bind 的身份视图不稳定，改为 Linux 私有 tmpfs；README同步部署语义，真实镜像验收尚待完成，不将本地合同误作健康证明。"
 }
