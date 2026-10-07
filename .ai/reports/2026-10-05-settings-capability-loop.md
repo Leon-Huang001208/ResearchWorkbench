@@ -721,3 +721,12 @@ Office临时资源清理的独立目录读取未返回，终止本次所属审�
 本地真实命令：Black26.10.0/isort9.0.2/mypy2.4.0在原独立检查环境启动；完整新增/修改Python只读Black/isort及Ruff exit0。JS Research Web闭包318 PASS/1既有未设置DSH_SOURCE_ROOT的skip；必要policy JS、文档治理、生成索引exit0。能力/准入/数据声明/实际Mac sandbox集中回归97 PASS/1既有skip，唯一旧metadata全等合同缺新字段FAIL，保留失败后补明确行业/基金声明预期，单项1 PASS；原有其他字段未删除。API/protocol/local integrations118 PASS/1既有skip；service_manager305 PASS；此前DataHub/Runtime139 PASS和业务62 PASS仍对应未改变源码。mypy normal十数据/能力/sandbox模块17既有诊断，service/launch传递边界57既有诊断，两组均使用当前产品解释器解析依赖，与冻结7e逐项相同，新增0/删除0；不增加ignore、不自行豁免，既有37属于更窄历史边界，不能混称全仓通过。
 
 供应商Key尚保留在所属测试实例，仅为连续任务使用，最终通过产品流程清除；生产8088/3081未更改。阶段1B仍没有可验证的实际额外服务，不能用同一DeepSeek换协议冒充新增服务；阶段2商业数据账户缺失、阶段4Word timeout和清理UNVERIFIED仍保留外部缺项。阶段6仅最小设计完成。目标master一次fetch固定c24a8a161674678d572bf9ac35fab30489b40605，新增架构阅读/文档生成改动导致PR81冲突；先保存已验阶段3检查点，再正常merge固定目标，不重写共享历史。当前外部门仍未测试这些新增源码，mergeReady=false/releaseReady=false，Goal仍active。
+
+
+### 固定目标整合与送检范围
+
+已按正常Hook提交阶段3检查点9f30d23de，再正常merge固定master c24a8a161674678d572bf9ac35fab30489b40605。五个冲突均为README/框架/协调器说明与README评审：合并目标分层阅读入口和治理，保留当前固定DSH、Mac Keychain、实例隔离和阶段3准入说明；目标已归档的日期型稳定性正文不重新堆入当前模块。没有整仓ours/theirs、重写历史或合入历史Native/Docker分支。README实际由Codex复核，回执保留当前schema1 disposition/summary/reason，不伪造人工截图。
+
+目标新文档生成合同导致index/API atlas stale，按原build_research_web_api_atlas.mjs实际生成后复核；图源、节点/拓扑及其人工评审不改变，不重复架构多视口验收。本任务实际新增internal/skill-preflight inventory已在最终清单中；目标新增documentation.py只保留其受控导航/白名单，补直接documentation回归，来源已通过的图册浏览器证据不转述为本任务新的执行结果。
+
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"合并固定目标已评审的分层架构入口，保留其图源和导航合同；本任务新增数据准入API由既有API Atlas生成，不新建服务或修改图节点。","diagrams":[]} -->

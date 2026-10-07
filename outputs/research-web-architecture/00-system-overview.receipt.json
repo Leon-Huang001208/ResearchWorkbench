@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20261006-992c74ec267b/docs/architecture/research-web/diagrams/00-system-overview.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/task-20261006-992c74ec267b/outputs/research-web-architecture/00-system-overview.html",
+  "specification": {
+    "sha256": "2832448734f14e723fabcf8fa77bc98d244c37076782af759552bbf2a6067c7c",
+    "bytes": 6058
+  },
+  "artifact": {
+    "sha256": "1ecf68923143ddaf296b44b2711ff01bce7383f7d694b785cb365b527061abb2",
+    "bytes": 641570
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/Leon-Huang001208/ResearchWorkbench",
+    "revision": "211703cca660172b524eff804cc547458529858e",
+    "references": 10
+  }
+}

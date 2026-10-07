@@ -28,7 +28,7 @@ Ubuntu 日常回归使用有界 Python 合同集和 `research_web*.test.mjs`；�
 
 输入契约见 [当前架构契约](architecture/research-web/06-documentation-contract.md)，
 清单见 [architecture-map.json](architecture/research-web/architecture-map.json)。
-最终必须包含 01–10 十图，不能用部分完成状态跳过门禁。其中 09 是报告运行序列，10 是 Excel 刷新、共享快照与文件组装数据流。
+01–10 是保留的必需基线图；新增 `00-system-overview` 展示产品与系统边界。所有登记视图都必须有规范 HTML、交付、视觉和真实审阅记录，不能用部分完成状态跳过门禁。视图数量取自清单，不再作为散落的验收常量。
 
 根 README 另由 [README 复核回执](architecture/research-web/readme-review.json) 记录本轮
 `updated` 或 `unchanged` 决策。`.agents/project-constraints.json` 将 Research Web、CLI、公开入口和
@@ -69,7 +69,7 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
   不支持的 `api_route`/`route`/`websocket` 声明明确报 `api_declaration_unsupported`，不静默漏检。
 - 变更组的每份模块说明和本次 `.ai/reports/*.md` 任务报告必须出现在变更清单；任务报告含明确结构决策。
 - 图源、HTML 的实际 SHA-256 和字节数必须匹配 deliver；要求 showcase 9/9、零错误零警告。
-  HTML、deliver 回执和视觉回执还必须使用根目录内按十图 ID 固定的规范文件名；
+  HTML、deliver 回执和视觉回执还必须使用根目录内按登记视图 ID 推导的规范文件名；
   `../`、非规范别名和其他文件名在读取前即被拒绝。
 - 视觉回执必须绑定当前 HTML，四个固定视口 1440×900 / 1600×1000 / 1920×1080 /
   2048×1320 包含性通过；截图存在。人工记录独立绑定同一 JSON/HTML 哈希与实际查看截图。
@@ -100,7 +100,7 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 
 设置页固定链接 `/api/research/documentation/index.html`，用新页和
 `rel="noopener noreferrer"` 隔离 opener；不自动触发模型或任何能力操作。
-`app/research_web/documentation.py` 仅允许 index 与十张图的固定 HTML 文件名，根目录固定为
+`app/research_web/documentation.py` 仅允许 index、API Atlas 与登记后显式加入允许列表的图 HTML 文件名，根目录固定为
 `outputs/research-web-architecture/`。不提供 Markdown、JSON 回执、截图、目录浏览或任意路径读取。
 缺失/非法文件返回无路径泄漏的 `documentation_unavailable` 404。
 
@@ -110,15 +110,16 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 
 只有成功的固定文档路由保留自己的 CSP：`sandbox allow-scripts`，无 `allow-same-origin`，
 无网络连接、表单提交或 base URL 权限；只允许内联 viewer 脚本、样式与 data 图片。
-原产品 `script-src 'self'` 与研究文件的空 sandbox 预览政策不变。图册的 opaque origin 会让
-相对图页链接带 `Sec-Fetch-Site: cross-site`：中间件仅对固定十二个公开 HTML（入口、API Atlas 加十图）的 GET 请求提供
+原产品 `script-src 'self'` 与研究文件的空 sandbox 预览政策不变。图页响应另附固定返回导航（阅读起点、模块说明和 API Atlas），只组合可信常量，不读取请求指定文件。该导航不改写磁盘 HTML/Archify 哈希，截图证据仍绑定独立生成物；Web 导航另做浏览器验证。
+图册的 opaque origin 会让
+相对图页链接带 `Sec-Fetch-Site: cross-site`：中间件仅对固定公开 HTML 允许列表（入口、API Atlas 与已登记图）的 GET 请求提供
 窄例外，且须同时满足 `Sec-Fetch-Mode: navigate`、`Sec-Fetch-Dest: document` 和
 `Sec-Fetch-User: ?1`。跨站 fetch、iframe、非 GET、未知路径和研究 API 仍拒绝；不开放 CORS。
 no-store、no-referrer、nosniff 仍由现有中间件执行。
 
 ## 测试与日志
 
-API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单离线生成；只包含 Method、路径、领域和仓库相对源码，不访问运行服务或外网。`/mcp/` 路由单独归类为 `MCP Registry`，避免把只读 Registry 同步、目录浏览和 Publisher 外部交接混入普通能力目录。
+首页与 API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一清单离线生成；`--check` 比较完整内容，缺失或过期时列出文件并非零退出，且不写页面、日志或工作区。唯一接口按 Method + Path 去重，源码声明保留不同声明位置；领域筛选不改变收录范围。研究框架、集成协调器与自动化分别分类。模块卡片复用 groups，固定源码版本的仓库链接连接说明、源码和测试，不提供本地 Markdown/源码浏览服务。只包含 Method、路径、领域和仓库相对源码，不访问运行服务或外网。`/mcp/` 路由单独归类为 `MCP Registry`，避免把只读 Registry 同步、目录浏览和 Publisher 外部交接混入普通能力目录。
 
 `tests/javascript/research_web_architecture.test.mjs` 构造独立临时十图 fixture，验证有效输入，
 源码无说明、未映射模块、失效接口/前缀、图源或 HTML 与旧回执、缺图、断链、丢失截图和
@@ -136,3 +137,5 @@ API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一接口清单�
 `logs/documentation-governance.jsonl`；
 后端与 Python 入口使用项目日志设施，不记录请求输入、秘密或任意异常文件路径。
 单元测试不能代替真实浏览器脚本交互、人工看图或模型/平台验收；这三类证据应分别记录。
+
+生成路径逐级 lstat，悬空符号链接也拒绝；所有输出及日志在生成写入前统一检查。门禁另比较 Python 静态 HTML 允许列表与入口、Atlas 和全部登记视图的集合，新增图不得遗漏服务路由或多开私有文件入口。

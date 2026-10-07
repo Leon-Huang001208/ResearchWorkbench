@@ -1,34 +1,14 @@
 # 研究框架
 
+研究框架为 Gold / Dollar 提供领域定义、真实采集、版本快照、确定性评分和绑定快照的 Bot。它是解释层，执行仍复用唯一 DSH，不创建独立研究引擎。
+
+从[分层阅读入口](../../../outputs/research-web-architecture/index.html#module-frameworks)进入总图、流程、API、源码和测试。
+
+Native / Docker 复用同一框架合同；模型配置影响新建 Bot 的默认模型，已有会话保留选模。采集失败保留最后成功值和缺口，集成状态或服务健康不替代框架快照证据。
+
 DSH 0.2.1 下 framework-explain、framework-verify 由 owned overlay 显式注册到同一原生 preset registry；既有 ID、Gold/Dollar 定义、评分和快照绑定保持不变。空实例采用 `deepseek-flash`，不改写已有 Bot 会话或保存的模型值。模型生成成功与框架数据完整性分别验收，不由新版模型目录推导框架可用。
 
 模型设置更新只影响新建Bot会话的默认模型，已有Gold/Dollar会话保留选模；活动父/子任务阻止共享凭据变化。模型生成测试复用无研究工具的框架解释preset，但不绑定业务快照、不改变确定性评分或框架采集。测试通过只证明指定模型生成，不证明框架数据能力。
-
-Native 和 Docker 复用 Gold/Dollar 的定义、快照 revision、评分、renderer 和 Bot 请求合同。
-模式只改变同一 3081/8088 服务的部署位置；Docker 单容器健康检查同时要求两项服务 ready，
-但框架采集是否取得真实外部数据仍由各自来源与缺口规则判断。Docker 健康通过不证明宿主
-Office/Wind 等可选集成可用，也不构成 Windows Docker 验收。
-
-2026-09-29 启动稳定性变更只调整 Research Web/DSH 的进程归属、恢复与页面 ready 判定。
-Gold/Dollar 仍由同一 3081 Runtime 和 8088 Host 执行；定义、采集器、调度、快照 schema/revision、
-评分、renderer、Bot 会话绑定和框架图源均未改变。模型未配置时 Web 设置页可访问，不代表框架
-解释或深度验证已经可调用；该能力继续由真实 Runtime、模型及快照状态决定。
-未安装环境的顶层 `rwb --help` 只输出静态诊断指引，不加载 Gold/Dollar 定义、采集器、快照
-或 Bot；本轮 CI 修复不改变框架版本和页面合同。
-
-Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定义、采集、快照 schema、评分、
-renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。
-启动前 Doctor 门只阻止未完成安装的 checkout 创建共享 Runtime；通过后仍沿用同一框架注册表、
-调度器和快照协议，不增加框架进程或改变评分、renderer 与 Bot 会话绑定。
-Runtime build lock 只绑定同一已验证 DSH 闭包；锁修复不修改 Gold/Dollar 定义、快照 revision 或调度频率。
-全新 DSH `web` Profile 初始化、Windows junction containment 和 PowerShell PID 探针只保证这条唯一 Runtime 可启动/停止，不改变
-Gold、Dollar 的注册、采集、评分、快照或页面协议。
-Office/Wind 验证 timeout 的跨平台浮点上界修正只作用于本机集成验证器，不进入框架采集、评分、
-renderer 或 Bot 会话。
-`rwb web status` 不再因服务管理器导入而加载 Runtime Capability/MCP 功能图；这只缩短停止态诊断
-路径，不改变 Gold/Dollar 注册、调度、快照、评分、renderer 或 Bot 预设。
-安装阶段的 Web import readiness 可以加载框架定义以证明入口完整，但不进入 FastAPI lifespan，
-因此不会启动采集调度、读取外部来源、写快照或创建 Bot 会话。
 
 ## 产品边界
 
@@ -90,18 +70,6 @@ Research Workbench Method 层不改变 Gold／Dollar 的领域定义、版本、
 
 资产观察对 AKShare 财务缺失哨兵的规范化不进入 Gold／Dollar 专用 collector、快照 schema、评分或
 Bot 上下文；框架数据缺口仍只由各自严格契约判断。
-
-## 2026-09-23 稳定性变更回执
-
-本轮重启活动授权、会话目录有界读取和各目录独立的 pending count/generation、逐资源 settled、
-latest-request-wins 只作用于既有服务管理、目录聚合与 UI 状态；runtime-only 的可见
-connecting/offline 不进入框架状态。Gold/Dollar 的定义、采集器、调度、快照 schema/revision、
-评分、renderer、Bot 会话绑定及页面信息架构均未变化；不需要修改框架图源或制造新的运行节点。
-
-## 2026-09-28 Windows 停止兼容回执
-
-服务管理器对已归属 Windows 进程的非强制停止失败增加既有 `/F` 升级路径；Gold/Dollar 的定义、
-采集、调度、快照、评分、renderer 和 Bot 绑定均未改变，框架仍不拥有独立服务进程。
 
 ## 设置闭环阶段3：当前能力范围
 

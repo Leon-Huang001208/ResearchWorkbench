@@ -1,16 +1,16 @@
 # Research Workbench Research Web 当前架构
 
+这是当前研究产品的唯一架构主入口。Research Web 组织研究页面、框架、能力与文件，专属 DSH 是唯一研究执行循环。当前交付范围为 macOS Native；源码同时保留 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同，Docker 实现暂缓验收。Native 双宿主进程与 Docker 单容器是互斥运行方式，顺序共享产品数据。旧 `app/api`、量化业务和 merged-platform 图文保持历史身份，不作为本入口依赖。
+
 当前固定 DSH 为 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`（0.2.1-alpha.1），版本以 `runtimes/research_web.json` 为唯一来源。owned overlay 通过原生声明式 preset registry 挂载既有 research-web、framework-explain、framework-verify；仍由同一 Host、Runtime、DataHub 和协调器执行，Automation 不另建调度路径。升级验收针对独立 macOS Native 实例，不表示生产实例已经更新。
 
 设置中的模型服务只展示固定DSH实际支持目录，保存与显式生成分别验收。配置和测试共用ResearchService串行边界；既有Automation仍通过相同create/send执行，新会话采用新默认值，活动任务阻止共享凭据变化。macOS Native 的固定模型 ref 由产品 provider/私有进程桥接存入系统 Keychain；Host 认证 record 保留固定 DSH 的独立文件实现。没有新增执行器、调度器或凭据中心。
 
-这是当前研究产品的唯一架构主入口。源码范围为 `app/research_web/`；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。
-
-这是当前研究产品的唯一架构主入口。源码同时保留 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同；当前交付范围仍为macOS Native，Docker实现保留但暂缓验收；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。Native 双宿主进程与 Docker 单容器是同一 Research Web/DSH 产品的互斥运行方式，顺序共享产品数据，不创建第二个研究引擎。
-
 研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
 
 ## 阅读顺序
+
+首次阅读先打开[交互图册](../../../outputs/research-web-architecture/index.html)：产品/系统总览 → 运行结构与部署 → 子系统分图 → 关键业务流程 → API 与代码细节。重要模块的阅读卡片使用稳定标识，将职责、分图、说明、API、源码和测试放在同一入口。
 
 前端外观以 [Research Web 外观与主题](../../research-web-appearance.md) 为准：Codex 风格、Light/Dark 与用户原图符号；不改变下述服务部署和研究契约。
 
@@ -26,7 +26,7 @@
 10. [统一集成协调器](09-integration-coordinator.md)：数据源与本机能力的五阶段状态、启动/手动探测、授权和持久证据。
 11. [Web Native/Docker 安装](../../research-web-installation.md)：共用依赖合同、模式切换、固定 DSH/CJPY、Doctor 与分模式平台门禁。
 
-可交互图文位于仓库 `outputs/research-web-architecture/`，也可从 Web 设置的「架构文档」打开。JSON 图源在本目录 `diagrams/`。十图均以实际源码为依据；`01-deployment` 展示单一源码与数据模型下的 Native/Docker 分支。各图的自动 showcase、四视口和人工截图结论以各自当前哈希回执为准；图形证据与产品、镜像和平台验收分开保存。
+可交互图文位于仓库 `outputs/research-web-architecture/`，也可从 Web 设置的「架构文档」打开。JSON 图源在本目录 `diagrams/`。既有十图与新增 `00-system-overview` 均以实际源码为依据；`01-deployment` 展示单一源码与数据模型下的 Native/Docker 分支。各图的自动 showcase、四视口和人工截图结论以各自当前哈希回执为准；图形证据与产品、镜像和平台验收分开保存。
 
 ## 不在本轮范围
 
@@ -57,12 +57,9 @@
 - 外部数据、模型、Office/Wind、浏览器和平台支持只对本次实际验证的环境成立。
 - 旧分支、会话、产物或验收记录不决定当前 Git 交付状态；每次交付以本次 Harness、CI 和任务报告为准。
 
-## 2026-09-23 稳定性变更回执
+## 历史证据
 
-本轮只收紧非强制重启的活动会话授权、会话/子 Agent 目录的并发有界读取，以及前端每个目录独立的
-pending count、generation、逐资源 settled 与 latest-request-wins 账本。只有 runtime pending 和
-settled runtime failure 分别投影为可见 connecting/offline。阅读顺序、文档权威关系、十图清单、
-模块边界、Automation 与信息架构均未变化；外部 CI 和真实浏览器验收另由后续交付阶段记录。
+日期型稳定性核对已移至[阶段一任务报告](../../../.ai/reports/2026-10-06-architecture-reading-stage1.md)。
 
 ## 设置闭环阶段3：当前能力范围
 

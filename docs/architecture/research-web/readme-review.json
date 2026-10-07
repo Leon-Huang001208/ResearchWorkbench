@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Codex基于当前代码复核README的数据准入、缓存授权与Mac范围说明，保存/健康/推理/工具证据仍分开。",
-  "reason": "阶段3复用现有Host/DSH/DataHub与Seatbelt，新增精确数据/资源门；没有新引擎、Vault或全品牌声明，不替代实机与当前候选CI。"
+  "summary": "Codex实际复核整合README：保留Settings分层架构入口、固定DSH升级、Native Keychain与阶段3数据准入说明。",
+  "reason": "合并目标的阅读治理与本任务当前能力边界；不把健康、系统存储、Mac成功或图册回执视为全部数据/其他平台/发布通过。"
 }

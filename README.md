@@ -8,6 +8,8 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 当前交付优先 macOS Native；Windows/Linux 和 Docker 保留实现、暂缓产品验收。固定 DSH 已更新为 0.2.1-alpha.1 的 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，安装版本由 `runtimes/research_web.json` 决定。空实例默认 `deepseek-flash`，已有模型 ID 和会话保留，不自动重写或更新已运行的生产实例。
 
+架构阅读从 Settings →「架构文档」或[交互图册](outputs/research-web-architecture/index.html)开始，按产品总览、部署、子系统、关键流程和 API 逐层展开；模块入口关联权威说明、源码与测试。
+
 ## 快速开始
 
 ### 前置条件

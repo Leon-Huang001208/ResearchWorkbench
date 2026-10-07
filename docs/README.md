@@ -19,6 +19,8 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 
 ## 当前架构
 
+首次阅读从[交互图册](../outputs/research-web-architecture/index.html)开始，按总览 → 部署 → 子系统 → 流程 → API 展开。模块卡片关联清单中既有说明、源码与测试；图册及 API Atlas 由同一生成器维护。
+
 | 文档 | 状态 | 受众 | 权威范围 | 更新触发 |
 | --- | --- | --- | --- | --- |
 | [系统架构总览](ARCHITECTURE.md) | current | 所有开发者 | 当前系统边界与兼容面 | 顶层边界变化 |
@@ -50,7 +52,7 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 - [数据源入口](DATA_SOURCES.md)：当前 DataHub 与旧 Connector 平台的分流说明。
 - [数据存储](DATA_STORAGE.md)：旧兼容 PostgreSQL 平台的表、契约和迁移参考，不是 Research Web 前置条件。
 - [Python 文件索引](generated/py_file_index.md)：由脚本生成，不得手工编辑。
-- `outputs/research-web-architecture/`：由架构图源生成的交互式图和校验回执。
+- `outputs/research-web-architecture/`：由 Archify 图源生成的交互式图和校验回执；首页与 API Atlas 从架构清单确定性生成。
 - `.ai/reports/`：每个任务的实现、验证和架构影响凭证，不是现役产品说明。
 
 ## 历史
