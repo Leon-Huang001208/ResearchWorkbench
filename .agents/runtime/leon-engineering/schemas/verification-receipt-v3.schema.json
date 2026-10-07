@@ -1,0 +1,457 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://leon-engineering.local/schemas/verification-receipt-v3.schema.json",
+  "title": "leon-engineering platform task verification receipt v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "changeSummary",
+    "changedFiles",
+    "plannedLevel",
+    "actualLevel",
+    "components",
+    "platforms",
+    "impact",
+    "executed",
+    "external",
+    "realMachine",
+    "result",
+    "mergeReady",
+    "releaseReady",
+    "uncoveredRisks",
+    "escalation",
+    "task",
+    "hostAcceptance",
+    "platformHandoffs",
+    "aggregateAcceptance",
+    "binding"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 3
+    },
+    "binding": {
+      "type": "object"
+    },
+    "changeSummary": {
+      "type": "object"
+    },
+    "changedFiles": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "plannedLevel": {
+      "$ref": "#/$defs/level"
+    },
+    "actualLevel": {
+      "$ref": "#/$defs/level"
+    },
+    "components": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "platforms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "impact": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object"
+      }
+    },
+    "executed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/executed"
+      }
+    },
+    "external": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/external"
+      }
+    },
+    "realMachine": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/external"
+      }
+    },
+    "result": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED"
+      ]
+    },
+    "mergeReady": {
+      "type": "boolean"
+    },
+    "releaseReady": {
+      "type": "boolean"
+    },
+    "uncoveredRisks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "targetLevel",
+        "reasons"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "targetLevel": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/level"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hostPlatform",
+        "taskKind",
+        "objective",
+        "acceptanceScope",
+        "candidateCommit",
+        "candidateBaseCommit",
+        "supplementalGateIds"
+      ],
+      "properties": {
+        "hostPlatform": {
+          "enum": [
+            "macos",
+            "linux",
+            "windows"
+          ]
+        },
+        "taskKind": {
+          "enum": [
+            "feature-development",
+            "platform-adaptation"
+          ]
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acceptanceScope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidateCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "candidateBaseCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "supplementalGateIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "hostAcceptance": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED",
+        "NOT_RUN"
+      ]
+    },
+    "aggregateAcceptance": {
+      "enum": [
+        "READY",
+        "NOT_READY"
+      ]
+    },
+    "platformHandoffs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "platform",
+          "status",
+          "gateIds"
+        ],
+        "properties": {
+          "platform": {
+            "enum": [
+              "macos",
+              "linux",
+              "windows"
+            ]
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "BLOCKED",
+              "NOT_RUN"
+            ]
+          },
+          "gateIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "level": {
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ]
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "SKIPPED",
+        "NOT_REQUIRED",
+        "NOT_RUN",
+        "BLOCKED",
+        "MANUAL_REQUIRED"
+      ]
+    },
+    "executed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "level",
+        "status",
+        "durationSeconds",
+        "evidence",
+        "runnerPlatform",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "level": {
+          "$ref": "#/$defs/level"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "durationSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "source": {
+          "const": "runner"
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runnerPlatform": {
+          "enum": [
+            "macos",
+            "linux",
+            "windows"
+          ]
+        }
+      }
+    },
+    "external": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "status",
+        "evidence",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "source": {
+          "enum": [
+            "ci",
+            "manual"
+          ]
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runnerPlatform": {
+          "enum": [
+            "macos",
+            "linux",
+            "windows"
+          ]
+        },
+        "machinePlatform": {
+          "enum": [
+            "macos",
+            "linux",
+            "windows"
+          ]
+        },
+        "runId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "checkoutKind": {
+          "enum": [
+            "candidate-head",
+            "merge-preview",
+            "mainline"
+          ]
+        },
+        "candidateCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "checkoutCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "expectedCheckoutCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "headCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "baseCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "PASS"
+              },
+              "source": {
+                "const": "ci"
+              }
+            },
+            "required": [
+              "status",
+              "source"
+            ]
+          },
+          "then": {
+            "required": [
+              "runnerPlatform",
+              "runId",
+              "workflow",
+              "candidateCommit",
+              "checkoutCommit",
+              "expectedCheckoutCommit",
+              "checkoutKind"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "PASS"
+              },
+              "source": {
+                "const": "manual"
+              }
+            },
+            "required": [
+              "status",
+              "source"
+            ]
+          },
+          "then": {
+            "required": [
+              "machinePlatform"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "checkoutKind": {
+                "const": "merge-preview"
+              }
+            },
+            "required": [
+              "checkoutKind"
+            ]
+          },
+          "then": {
+            "required": [
+              "headCommit",
+              "baseCommit"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

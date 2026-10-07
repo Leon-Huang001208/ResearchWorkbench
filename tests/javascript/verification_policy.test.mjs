@@ -771,7 +771,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 16);
+  assert.equal(catalogs.length, 17);
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -925,6 +925,20 @@ const representativeCases = {
   unknown: ["future/platform/new_adapter.py"],
 };
 
+test('platform task and capability paths select their actual fixed contracts', () => {
+  for (const file of ['scripts/summarize_verification_delivery.mjs','scripts/plan_verification.mjs','tests/javascript/verification_delivery_summary.test.mjs']) {
+    const plan=success(run(repositoryRoot,[file]));
+    const gate=plan.tests.find(item=>item.id==='verification-platform-task-contracts');
+    assert.ok(gate,`missing platform task contracts: ${file}`);
+    assert.match(gate.value,/verification_platform_task_entry\.test\.mjs/);
+    assert.match(gate.value,/verification_delivery_summary\.test\.mjs/);
+  }
+  const plan=success(run(repositoryRoot,['research_workbench_entrypoint/platform_capabilities.py']));
+  const gate=plan.tests.find(item=>item.id==='research-web-platform-capabilities');
+  assert.ok(gate);assert.match(gate.value,/test_platform_capabilities\.py/);
+  assert.match(gate.value,/--confcutdir=tests\/research_web/);
+});
+
 test("representative A-F routes expose component risk and platform dimensions", () => {
   const purePython = success(run(repositoryRoot, representativeCases.purePython));
   assert.equal(purePython.requiredLevel, "L1");
@@ -960,6 +974,7 @@ test("representative A-F routes expose component risk and platform dimensions", 
     "project-constraints",
     "research-web-checks",
     "research-web-bootstrap",
+    "research-web-windows-verify",
   ]);
 
   const windowsLauncher = success(run(repositoryRoot, representativeCases.windowsLauncher));
@@ -969,6 +984,7 @@ test("representative A-F routes expose component risk and platform dimensions", 
   assert.deepEqual(windowsLauncher.ci.map(item => item.id), [
     "project-constraints",
     "research-web-checks",
+    "research-web-windows-verify",
   ]);
   assert.equal(windowsLauncher.ci.some(item => item.id === "research-web-bootstrap"), false);
 
@@ -1061,6 +1077,7 @@ test("service lifecycle changes require the focused test and native macOS plus W
     "project-constraints",
     "research-web-checks",
     "research-web-bootstrap",
+    "research-web-windows-verify",
   ]));
   assert.equal(
     plan.ci.find(item => item.id === "research-web-bootstrap").value,
@@ -1116,6 +1133,7 @@ test("Web installation code and tests require the focused test plus native boots
     "project-constraints",
     "research-web-checks",
     "research-web-bootstrap",
+    "research-web-windows-verify",
   ]));
 });
 
@@ -1134,6 +1152,7 @@ for (const file of [
       "project-constraints",
       "research-web-checks",
       "research-web-bootstrap",
+    "research-web-windows-verify",
       ]));
     const bootstrap = plan.ci.find((item) => item.id === "research-web-bootstrap");
     assert.equal(bootstrap.value, ".github/workflows/research-web-bootstrap.yml#macos-14");
@@ -1145,7 +1164,7 @@ for (const file of [
   "tests/research_web/test_local_integrations.py",
   "app/research_web/local_integrations/manager.py",
 ]) {
-  test(`local integrations path requires focused contracts with Windows deferred: ${file}`, () => {
+  test(`local integrations path requires focused contracts with Windows handoff: ${file}`, () => {
     const plan = success(run(repositoryRoot, [file]));
     assert.equal(plan.risk, "full-delivery");
     assert.equal(plan.requiredLevel, "L4");
@@ -1153,7 +1172,7 @@ for (const file of [
     for (const id of ["research-web-local-integrations", "research-web-architecture"]) {
       assert.equal(plan.tests.some(item => item.id === id), true, `${id} missing for ${file}`);
     }
-    assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), false);
+    assert.equal(plan.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), true);
     assert.equal(plan.platforms.includes("windows"), true);
   });
 }
@@ -1757,6 +1776,7 @@ for (const {name, changedFile, ruleId, impactId, catalogId, catalogValue} of [
       "project-constraints",
       "research-web-checks",
       "research-web-bootstrap",
+      "research-web-windows-verify",
     ]);
     assert.equal(plan.tests.find(item => item.id === catalogId)?.value, catalogValue);
     const ids = gateIds(plan).join(" ").toLowerCase();
@@ -1790,6 +1810,7 @@ test("AKShare provider keeps its catalog when a dependency change requires L4", 
     "project-constraints",
     "research-web-checks",
     "research-web-bootstrap",
+    "research-web-windows-verify",
   ]);
   assert.equal(
     gateIds(plan).some(id => id === "native-windows-desktop" || id === "desktop-packaging"),
@@ -2144,10 +2165,10 @@ test("missing required CLI arguments use stable argument errors", t => {
   failure(result, "ARGUMENT_ERROR");
 });
 
-test("current macOS Native Web phase defers Windows without dropping generic CI", (t) => {
+test("reopened platform scope retains Windows handoff without dropping generic CI", (t) => {
   const files = ["app/research_web/service_manager.py", "scripts/setup_web.py"];
   const current = success(run(repositoryRoot, files));
-  assert.equal(current.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), false);
+  assert.equal(current.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), true);
   for (const id of ["project-constraints", "research-web-checks", "research-web-bootstrap"]) {
     assert.equal(current.receiptTemplate.externalGateIds.includes(id), true);
   }

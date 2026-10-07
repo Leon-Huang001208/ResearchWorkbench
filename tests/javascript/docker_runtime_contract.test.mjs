@@ -11,6 +11,15 @@ const contract = JSON.parse(read('runtimes/research_web.json'));
 const documentNames = ['index', 'api-atlas', '01-deployment', '02-module-dependencies', '03-research-sequence', '04-data-file-flow', '05-capability-flow', '06-run-state', '07-delivery-state', '08-iteration-docs', '09-report-workflow-sequence', '10-excel-report-dataflow'];
 const instructions = () => read('Dockerfile').replace(/\\\n\s*/g, ' ').split('\n').filter((line) => /^[A-Z]+ /.test(line));
 
+test('every apt stage uses authenticated HTTPS transport and retains archive verification', () => {
+  const apt=instructions().filter(line=>line.includes('apt-get update'));
+  assert.equal(apt.length,2);
+  for(const line of apt) {
+    assert.match(line,/sed -i .*https:\/\/deb\.debian\.org\//);
+    assert.doesNotMatch(line,/Verify-Peer=false|trusted=yes|AllowUnauthenticated|--allow-unauthenticated/);
+  }
+});
+
 test('image bases and stage boundaries match the shared runtime contract', () => {
   const lines = instructions();
   assert.match(read('Dockerfile'), /^# syntax=docker\/dockerfile:1\n/);
@@ -318,7 +327,8 @@ test('explicit Mac stage defers container execution while opt-in and absent stag
   assert.match(readFileSync(output,'utf8'),/docker=true/);
   const stage = JSON.parse(read('.agents/research-web-stage.json'));
   assert.equal(stage.deliveryPlatform,'macos-native');
-  assert.equal(stage.dockerVerification,false);
+  assert.equal(stage.dockerVerification,true);
+  stage.dockerVerification=false; // Explicit deferred fixture, independent of current reopened stage.
   writeFileSync(join(directory,'.agents/research-web-stage.json'),JSON.stringify(stage));
   writeFileSync(output,'');
   assert.equal(run().status,0);

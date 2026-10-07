@@ -217,3 +217,5 @@ owned overlay将所属researchRoot绑定到原有全局guard；工具和模型�
 ## 单一兼容模型适配（1B实施中）
 
 owned overlay额外挂载产品侧文本/流式LlmAdapter，Native LlmAdapter和attributionHeaders仅从固定DSH构建路径取得，研究执行仍只有既有原生loop。非秘密连接事实沿既有实例私有Host通道读取，秘密只在所属系统凭据ref通过原私有进程桥接解析。正常CLI/正式preset的无Key合成生成已验证，尚无真实新增服务/完整设置保存验收，不宣称全品牌、工具或其他平台可用。
+
+Doctor 以安全固定字段投影平台能力；available 只描述实现，不认证真机结果。Windows 文档与 Docker ACL、非 Mac 沙箱的边界见 [支持矩阵](../../research-web-platform-support.md)，不改变 Web/DSH 两服务结构。

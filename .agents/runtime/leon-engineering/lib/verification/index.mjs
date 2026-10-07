@@ -3,6 +3,7 @@ export {buildLegacyVerificationPlan, planGitVerification, planVerification} from
 export {assertCompleteChangedSet, discoverGitChangeSet} from "./changed-files.mjs";
 export {createPlanBinding} from "./binding.mjs";
 export {validateVerificationReceipt} from "./receipt.mjs";
+export {normalizePlatformTask} from "./platform-task.mjs";
 export {
   DEFAULT_POLICY_PATH,
   LEVEL_ORDER,

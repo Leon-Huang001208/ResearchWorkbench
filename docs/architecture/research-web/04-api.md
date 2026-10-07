@@ -303,3 +303,5 @@ ModelConfig 对原 deepseek-official 固定端点保持限制。新增的 openai
 
 
 兼容连接PUT沿原串行事务和活动父/子任务门，专用系统ref及uncertain/cleared状态独立于官方服务。任意配置/凭据保存或清除更新公共revision；换地址不继承旧Key，旧会话绑定地址/协议/认证方式，变化后下一提交拒绝改投。无Key模式credential_required=false、credential_configured=null、storage=not_required，不冒充已存Key或已生成。Runtime应用还绑定当前connection revision与Runtime实例。
+
+Doctor 的 capability 字段表示安全实现边界，validated=false 不替代平台回执；缺安全读取 primitive 的架构路由返回 501 documentation_platform_unsupported，不开放其他文件路径。

@@ -38,6 +38,7 @@ on:
       - "tests/research_web/test_runtime_contract.py"
       - "tests/research_web/test_runtime_mode.py"
       - "tests/research_web/test_docker_runtime.py"
+      - "tests/research_web/test_platform_capabilities.py"
   push:
     branches:
       - master
@@ -77,6 +78,7 @@ on:
       - "tests/research_web/test_runtime_contract.py"
       - "tests/research_web/test_runtime_mode.py"
       - "tests/research_web/test_docker_runtime.py"
+      - "tests/research_web/test_platform_capabilities.py"
   workflow_dispatch:
 
 permissions:

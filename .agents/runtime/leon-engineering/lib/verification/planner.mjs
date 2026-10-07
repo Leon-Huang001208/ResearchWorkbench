@@ -11,6 +11,7 @@ import {
 import {assertNoSymlinkComponents, normalizeRepositoryPath, safeProjectRoot} from "./path-safety.mjs";
 import {assertCompleteChangedSet, discoverGitChangeSet} from "./changed-files.mjs";
 import {createPlanBinding} from "./binding.mjs";
+import {applyPlatformTask, normalizePlatformTask} from "./platform-task.mjs";
 
 const CHANGE_KINDS = new Set([
   "documentation", "internal", "behavior", "contract", "schema", "database", "dependency", "ci", "security", "desktop",
@@ -162,7 +163,8 @@ function orderedPlatformUnion(values) {
   return PLATFORM_ORDER.filter(platform => selected.has(platform));
 }
 
-export function planVerification({projectRoot, changedFiles, signals = []}) {
+export function planVerification({projectRoot, changedFiles, signals = [], task}) {
+  const context=task===undefined?undefined:normalizePlatformTask(task);
   const root = safeProjectRoot(projectRoot);
   if (!Array.isArray(changedFiles) || changedFiles.length === 0) fail("ARGUMENT_ERROR", "at least one changed file is required");
   const normalizedFiles = [];
@@ -181,6 +183,7 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
     if (!normalizedSignals.includes(signal)) normalizedSignals.push(signal);
   }
   const policy = loadVerificationPolicy({projectRoot: root});
+  if(context && policy.schemaVersion!==3) fail('POLICY_ERROR','platform tasks require policy v3');
   if (policy.schemaVersion === 1) fail("POLICY_ERROR", "shared planner requires policy schema 2 or 3");
 
   let riskIndex = 0;
@@ -270,6 +273,15 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
     escalations.push({code: signal, fromLevel, toLevel, impacts: []});
   }
 
+  if(context) {
+    for(const id of context.supplementalGateIds) {
+      const categories=Object.keys(gateIds).filter(category=>policy.catalogs[category].has(id));
+      if(categories.length!==1) fail('PLAN_ERROR','supplemental gate must identify one registered validation');
+      const category=categories[0];
+      appendUnique(gateIds[category],gateSeen[category],[id]);
+      levelIndex=Math.max(levelIndex,LEVEL_ORDER.indexOf(policy.catalogs[category].get(id).level));
+    }
+  }
   const requiredLevel = LEVEL_ORDER[levelIndex];
   const tests = selectedCatalogItems(policy, "tests", gateIds.tests, levelIndex);
   const documentation = selectedCatalogItems(policy, "documentation", gateIds.documentation, levelIndex);
@@ -318,7 +330,7 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
   }
 
   const local = selectedValidations.filter(item => item.lane === "local");
-  return {
+  const result = {
     ...base,
     local,
     realMachine,
@@ -330,6 +342,7 @@ export function planVerification({projectRoot, changedFiles, signals = []}) {
       releaseGateIds: realMachine.filter(item => item.gate === "release").map(item => item.id),
     },
   };
+  return context?applyPlatformTask(result,policy,context):result;
 }
 
 export function planGitVerification({
@@ -338,13 +351,15 @@ export function planGitVerification({
   changedFiles,
   signals = [],
   policyPath = DEFAULT_POLICY_PATH,
+  task,
 }) {
   if (policyPath !== DEFAULT_POLICY_PATH) fail("ARGUMENT_ERROR", "custom policy paths are not supported by the canonical CLI");
   const root = safeProjectRoot(projectRoot);
   const discovered = discoverGitChangeSet({projectRoot: root, base});
   const completeFiles = assertCompleteChangedSet({discovered, explicitPaths: changedFiles});
-  const plan = planVerification({projectRoot: root, changedFiles: completeFiles, signals});
-  if (plan.schemaVersion !== 3) fail("POLICY_ERROR", "Git-bound planning requires policy schema 3");
+  const plan = planVerification({projectRoot: root, changedFiles: completeFiles, signals, task});
+  if (![3,4].includes(plan.schemaVersion)) fail("POLICY_ERROR", "Git-bound planning requires policy schema 3");
+  if(plan.task && (plan.task.candidateCommit!==discovered.headCommit || plan.task.candidateBaseCommit!==discovered.baseCommit)) fail('PLAN_ERROR','task candidate does not match the Git change set');
   const changeSet = {entries: discovered.entries};
   const unbound = {...plan, changeSet};
   return {

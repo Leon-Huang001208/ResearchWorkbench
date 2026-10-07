@@ -194,3 +194,5 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 新增一项固定系统ref RESEARCH_COMPAT_API_KEY，与原RESEARCH_DSH_API_KEY共享实例归属规则、使用不同系统账户；resolve/describe/set/unset不进入环境或文件，两ref也拒绝委托Host record路径。Host browser-session记录原行为保留。明确无Key模式不查询任何模型凭据，不填假Key或降级为ambient来源。
 
 新文本/流式适配复用固定DSH的LlmAdapter与同一Agent loop；请求禁止重定向、最多一次HTTP发送、90秒取消/超时、输入/输出有界，HTTP200与残缺流均不能产生成功finish。连接/凭据绑定相同公共revision，实际发送前检测变更；版本不读取或散列Key。工具、图像及其它能力未认证，不能因模型ID推导支持。保存/应用及合成生成已沿产品API接通，合成链路不冒充供应商验收。
+
+平台能力投影不降低安全门：Windows 安全文档 reader 不支持时返回 501；非 Mac 研究脚本保留严格沙箱阻断，Windows Docker 保留 ACL 未验证。能力 available 不等于 validated，真实验收在支持矩阵与任务回执中记录。

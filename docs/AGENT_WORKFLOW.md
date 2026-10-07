@@ -25,7 +25,7 @@ master
 
 短期分支使用 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或 `platform/macos/*`。Mac 是主要开发机，负责功能、架构、重构和 macOS 本地验证；Windows 默认运行 `git switch master` 与 `git pull --ff-only` 后验证最新集成版本，验证成功不创建分支。只有 Windows-only 缺陷才从最新 `master` 建立 `platform/windows/*`，并通过 PR 回到 `master`。需要 GitHub Windows CI 时，Windows 真机先 checkout 待验 ref、读取 `git rev-parse HEAD`，再从该机 dispatch workflow 并传入 `expected_sha`；Mac 不发送 Windows dispatch。禁止长期维护 `windows`、`macos`、`develop` 或设备专属代码线。
 
-一个并行任务对应一个明确 branch，原则上对应一个独立 worktree。合并后仅在确认提交已进入 `master`、worktree 没有未归并修改且没有进程占用时，才移除该 worktree 和失效短期分支。仓库当前没有 GitHub branch protection；“不直接在 master 开发”是项目契约，不得误报为远端已机械强制。
+一个并行任务对应一个明确 branch，原则上对应一个独立 worktree。合并后仅在确认提交已进入 `master`、worktree 没有未归并修改且没有进程占用时，才移除该 worktree 和失效短期分支。2026-10-07已启用master保护：PR、最新基线和Actions check（app15368）强制通过，管理员也受约束；平台条件门继续由任务回执校验。禁止强推/删除主线及未解决讨论由远端保护执行；各平台条件 CI 与真机证据仍是项目任务合同，不能宣称全部被远端无条件强制。
 
 ## 任务路由（Routing rules）
 
@@ -62,15 +62,15 @@ master
 
 ### 总体验收与本平台任务分开记录
 
-现有 `plan_verification.mjs` 和 `validate_verification_receipt.mjs` 仍输出、校验产品总体验收，尚无宿主范围参数。不得裁剪总计划或改写回执来假装机械校验已支持平台分工。执行代理必须：
+`plan_verification.mjs` 保留原 changed-files 模式；显式 `--base` 与 `--task-context` 启用 Git 绑定 plan v4，`validate_verification_receipt.mjs` 对应验证 receipt v3。完整影响与所有总门禁仍保留，机械校验另推导本宿主任务与其他平台交接，不裁剪总计划。未提供 task 的历史 plan v3 / receipt v2 继续保持原语义，不能从旧回执推断新的本宿主验收 PASS。执行代理必须：
 
 1. 保留完整 changed set、风险等级、总计划和所有平台门。
 2. 执行当前宿主可运行的通用检查、本平台检查及适用的同平台 GitHub CI；若总计划没有本平台 CI，按已存在的本平台 workflow 核对适用检查，缺少入口时如实记录本平台 CI 待配置，不凭其他平台 run 替代。
-3. 在 `.ai/reports` 任务报告中单独记录 `hostPlatform`、`taskKind`、`hostAcceptance`（PASS/FAIL/BLOCKED）、`platformHandoffs`（目标平台、提交、门 ID、未运行状态和证据）、`aggregateAcceptance`。同平台 CI 尚未取得时，本平台验收不能为 PASS。
+3. task context 记录 `hostPlatform`、`taskKind`、`objective`、`acceptanceScope`、`candidateCommit`、`candidateBaseCommit` 与 `supplementalGateIds`。RWB 薄入口要求声明宿主与实际执行宿主相同，功能开发仅允许 macOS，Windows/Linux 只接受已有功能的平台适配。receipt v3 与报告记录 `hostAcceptance`（PASS/FAIL/BLOCKED/NOT_RUN）、完整 `platformHandoffs` 和 `aggregateAcceptance`（READY/NOT_READY）。同平台 CI 尚未取得时，本平台验收不能为 PASS；若路径规则未选中适用的本平台门，可在 task 中补选策略 catalog 已登记的 gate ID，不能传入任意命令。
 4. 总回执里他平台未执行的门仍保留 NOT_RUN/BLOCKED 和未覆盖风险；总体验收或跨平台发布可能未就绪，但不得据此把已完成验收的本平台任务标为失败或继续在本机适配其他平台。
 5. 当前宿主任务可在本平台验收 PASS 且交接完整后完成；`mergeReady`/`releaseReady` 继续表示总体验收，不得从本平台 PASS 推导跨平台发布就绪。发布授权和仓库分支保护仍须独立满足。
 
-这是执行代理必须遵守的任务路由规则；现有机械回执校验不会自动判定本平台任务完成，报告必须明确这一限制。
+新模式按真实 runner/machine 平台归属证据：多平台 local gate 的一次 macOS 执行不复用为 Windows/Linux PASS；`generic` 不推断所有原生平台，`cross-platform` 未覆盖的目标仍保留 NOT_RUN 交接。CI PASS 必须绑定 workflow、run、候选、预期及实际 checkout；merge preview 还须由本地真实 Git commit 的父提交证明关联 base/head，未知对象失败关闭且 validator 不自行 fetch。候选、说明源码、图源/生成物与报告提交分别记录，避免报告或生成物自指提交。报告仍记录验收范围和证据来源；机械结构有效不代表任务已全部完成。
 
 ## 最小验收规划（Verification planning）
 
@@ -84,7 +84,26 @@ node scripts/plan_verification.mjs --project . \
   --changed-file <another-changed-file>
 ```
 
-`.agents/verification-policy.json` 是唯一政策真源；规划器只输出计划，不运行测试、Git、CI、发布或策略中的命令。`.agents/project-constraints.json` 保持独立架构门，不拥有或复制路由表。
+需要平台任务回执时，使用项目相对 JSON 作为 task context，固定当前候选 HEAD 与 Git 基线：
+
+```bash
+node scripts/plan_verification.mjs --project . --base <base-sha> \
+  --task-context <task-context.json>
+```
+
+此模式自动发现完整 committed/staged/unstaged/untracked changed set；如另传 `--changed-file`，必须与实际完整集合相等。task JSON 不接收秘密；候选未提交的字节不能借已提交候选的 CI PASS 认证，提交后重新绑定。原 changed-files 模式仍支持显式路径与 signal。
+
+验收回执固定后，用只读摘要入口同时呈现任务与交付身份：
+
+```bash
+node scripts/summarize_verification_delivery.mjs --project . \
+  --plan <project-relative-plan.json> --receipt <project-relative-receipt.json> \
+  --delivery <project-relative-delivery.json>
+```
+
+摘要要求 plan v4 / receipt v3，并调用正式 validator；旧回执或未绑定回执不能涂改为本宿主 PASS。delivery metadata 必须记录同一 `candidateCommit`、`branch` 和显式 `runtimeUpdated`，可记录 `pr`、`mergeCommit`、`sourceRevision`、`reportCommit` 与 `diagramIdentities`（ID、图源/HTML SHA-256）。未知字段拒绝，不能通过 metadata 改写验收结果或执行命令。CI checkout 身份直接来自受验证 receipt。摘要的 `deliveryMetadataVerified=false` 明确这些交付记录未由摘要独立查询 GitHub、运行实例或图形产物；本宿主 PASS 与总体验收 NOT_READY 可同时保留。命令只向 stdout 输出 JSON，不落盘、不发布；报告另由任务保存。
+
+`.agents/verification-policy.json` 是唯一政策真源；规划器只输出计划，不运行测试、构建、CI、发布或策略中的命令。Git 绑定模式只读 Git 发现与身份，不修改 Git 或工作区。`.agents/project-constraints.json` 保持独立架构门，不拥有或复制路由表。
 
 规划与回执算法来自 `.agents/runtime/leon-engineering/` 的受管最小运行时；
 `manifest.json` 固定框架版本、source commit、协议版本和每个受管文件哈希。
@@ -134,7 +153,7 @@ node scripts/validate_verification_receipt.mjs --project . \
   --receipt <receipt-json>
 ```
 
-总回执校验失败就不是总体验收完成；本平台任务按上述宿主范围单独记录。已选中的 merge gate 不得写成 `NOT_REQUIRED`；未运行时必须以 `NOT_RUN` 和对应未覆盖风险保留，并令回执 `BLOCKED`，不能用本机检查冒充 CI/平台证据。
+总回执校验失败就不是总体验收完成。已选中的 merge gate 不得写成 `NOT_REQUIRED`；未运行时必须以 `NOT_RUN` 和对应未覆盖风险保留。旧 plan3/receipt2 的总结果为 `BLOCKED`；新 plan4/receipt3 按宿主判定 `result`/`hostAcceptance`，可同时为 `PASS` 与 `aggregateAcceptance=NOT_READY`、`mergeReady=false`。不能用本机检查冒充 CI/平台证据，也不能从宿主 PASS 推导跨平台发布。
 
 规范状态只有：`PASS`、`FAIL`、`SKIPPED`、`NOT_REQUIRED`、`NOT_RUN`、`BLOCKED`、`MANUAL_REQUIRED`。选中的必需 gate 只有 `PASS` 是正向证明；`NOT_REQUIRED` 只能描述未选择的范围，不能用于已选 gate。Windows CI 为 `NOT_RUN` 时 `mergeReady=false`；Windows CI 为 `PASS` 而真实 Windows 安装为 `MANUAL_REQUIRED` 时，可以保持 merge-ready，但 `releaseReady=false`，两层证据不得合并为单一 “Windows PASS”。
 

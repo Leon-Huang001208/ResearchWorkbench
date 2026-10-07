@@ -183,3 +183,5 @@ DataHub快照增加非秘密authorization_fingerprint，来自配置、实例命
 ## 单一兼容模型连接
 
 兼容模型连接只在产品状态中持久化非秘密字段和公共revision；秘密仅存于实例系统账户RESEARCH_COMPAT_API_KEY，与原RESEARCH_DSH_API_KEY分离。地址变化不继承旧Key，文件/环境不作为模型回退。GET model-connection复用私有鉴权通道，不返回秘密；数据快照与商业数据账户合同不变。
+
+Docker 持久数据与私有凭据挂载保持既有归属检查；Windows DACL 未验证继续阻断。Office/Wind/Tabbit 宿主能力不会因挂载可见而开放，跨模式不隐式迁移秘密。

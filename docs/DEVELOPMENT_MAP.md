@@ -78,9 +78,11 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 - `docs/AGENT_WORKFLOW.md`：选择本地快环、worktree 或后台／远程执行。
 - `.agents/project-constraints.json`：架构、平台和文档治理门禁配置。
 - `.agents/verification-policy.json`：改动路径到 Component × Risk(L0-L4) × Platform、local/CI/real-machine lane 和 merge/release gate 的唯一机器真源。
-- `scripts/plan_verification.mjs`：受管共享内核的只读薄入口，合并全部改动的 changed-set 计划；输出 components、platforms、逐级验证和三个 lane，不执行计划中的命令。
-- `scripts/validate_verification_receipt.mjs`：受管共享内核的只读薄入口，核对 plan 与真实 receipt，禁止漏项、降级、跨层假通过和错误的 merge/release readiness；继续只读兼容历史 plan v2/receipt v1。
-- `tests/javascript/verification_policy.test.mjs`、`verification_receipt.test.mjs`：规划、升级、平台、状态、安全与证据合同。
+- `scripts/plan_verification.mjs`：受管共享内核的只读薄入口，保留 changed-files 模式；显式 `--base --task-context` 输出 Git 绑定 plan v4，保留完整 changed set 和总门，按实际宿主落实 RWB 功能开发/macOS 与平台适配职责，不执行计划中的命令。
+- `scripts/validate_verification_receipt.mjs`：受管共享内核的只读薄入口，receipt v3 分别推导 `hostAcceptance`、完整 `platformHandoffs` 与 `aggregateAcceptance`，同时保留总 `mergeReady`/`releaseReady`。CI 的实际 runner/checkout 和真机平台独立核对，不能用单宿主证据证明所有原生平台；继续只读兼容历史 plan v2/receipt v1、plan v3/receipt v2。
+- `scripts/summarize_verification_delivery.mjs`：只读复核 plan v4 / receipt v3 后输出任务/平台验收及交付 metadata。候选必须一致，未知 metadata 拒绝；metadata 不能改写机械结果，PR/合并/实例及图形身份只是记录，不由摘要认证实际交付。
+- `tests/javascript/verification_policy.test.mjs`、`verification_receipt.test.mjs`、`verification_platform_task_entry.test.mjs`：规划、升级、平台、状态、安全与证据合同；新薄入口 fixture 只证明参数/职责路由，受管内核集成和真实平台证据分别验收。
+- `tests/javascript/verification_delivery_summary.test.mjs`：正式受管 validator 的交付摘要合同，使用临时 Git 与明确 synthetic 证据；覆盖候选、未知 metadata、路径及旧/未绑定回执拒绝，不证明原生或远端验收。
 - `tests/javascript/repository_cross_platform_contract.test.mjs`：Git 换行、vendor 字节稳定和本机状态忽略合同。
 - `.agents/runtime/leon-engineering/manifest.json`：共享验收内核固定版本、source commit、协议和受管文件哈希；不拥有项目策略。
 - `.agents/skills/incremental-validation/`：Codex/Claude 共用的项目增量验收流程；只引用策略和脚本，不复制路由表。
@@ -94,7 +96,9 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 
 ```bash
 node scripts/plan_verification.mjs --project . --changed-file <path>
+node scripts/plan_verification.mjs --project . --base <base-sha> --task-context <project-relative-json>
 node scripts/validate_verification_receipt.mjs --project . --plan <plan-json> --receipt <receipt-json>
+node scripts/summarize_verification_delivery.mjs --project . --plan <project-relative-plan-json> --receipt <project-relative-receipt-json> --delivery <project-relative-delivery-json>
 node scripts/check_documentation_governance.mjs --project .
 python scripts/generate_py_file_index.py --check
 node scripts/check_research_architecture.mjs --project . --base <base>
@@ -103,5 +107,7 @@ node .agents/project-constraints.mjs --project . --changed-file <path>
 ```
 
 先对完整 changed set 重复传入 `--changed-file`，再按 `validationsByLevel` 从 L0 执行到 `requiredLevel`；多文件取最高风险并合并去重。局部失败或非预期行为必须带 signal 重新规划。receipt 保存摘要、组件、平台、local/CI/real-machine 实际状态、`mergeReady`、`releaseReady`、未覆盖风险和升级判断，并通过 validator 才能交接。选中 gate 未运行时记录 `NOT_RUN` 或 `MANUAL_REQUIRED`，绝不写成 `PASS`。Project Constraints 保持独立的架构/平台/文档门，不复制策略内容。
+
+平台任务由 Git 绑定模式自动发现完整变更；task 固定候选/base、目标与本宿主范围，并只能补选已登记的 `supplementalGateIds`。本宿主 PASS 不提升其他平台状态，也不推导总体验收 READY；说明源码、图源/生成物、候选、CI 实际 checkout 与报告所属提交分开记录。受管内核只由正式 source→preview/apply/verify 更新，不手工维护副本或 manifest。
 
 已知组件可以在策略中映射不同等级的候选验证：低等级只选择局部项，耦合或 signal 升级后才纳入依赖/smoke/full 项。未登记测试仍按 `unknown_path` 升级 L4/`full-delivery`，不得仅凭位于 `tests/` 目录推断低风险。

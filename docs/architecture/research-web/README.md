@@ -1,6 +1,6 @@
 # Research Workbench Research Web 当前架构
 
-这是当前研究产品的唯一架构主入口。Research Web 组织研究页面、框架、能力与文件，专属 DSH 是唯一研究执行循环。当前交付范围为 macOS Native；源码同时保留 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同，Docker 实现暂缓验收。Native 双宿主进程与 Docker 单容器是互斥运行方式，顺序共享产品数据。旧 `app/api`、量化业务和 merged-platform 图文保持历史身份，不作为本入口依赖。
+这是当前研究产品的唯一架构主入口。Research Web 组织研究页面、框架、能力与文件，专属 DSH 是唯一研究执行循环。当前任务按 macOS Native / Mac Docker Desktop 与 Windows/Linux 对应设备分工验收；源码同时保留 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同，Docker 实现按运行宿主与镜像架构分别验收；未验证项见 [支持矩阵](../../research-web-platform-support.md)。Native 双宿主进程与 Docker 单容器是互斥运行方式，顺序共享产品数据。旧 `app/api`、量化业务和 merged-platform 图文保持历史身份，不作为本入口依赖。
 
 当前固定 DSH 为 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`（0.2.1-alpha.1），版本以 `runtimes/research_web.json` 为唯一来源。owned overlay 通过原生声明式 preset registry 挂载既有 research-web、framework-explain、framework-verify；仍由同一 Host、Runtime、DataHub 和协调器执行，Automation 不另建调度路径。升级验收针对独立 macOS Native 实例，不表示生产实例已经更新。
 
@@ -68,4 +68,4 @@
 
 ## 单一兼容模型连接
 
-单一兼容文本/流式模型适配位于既有Runtime，私有非秘密配置沿同一Host/DataHub通道读取，系统ref仍沿原进程桥接；没有新增研究引擎、模型代理daemon或Vault。Native macOS合成冷启动与真实供应商验收分别记录；其他平台仍暂缓。
+单一兼容文本/流式模型适配位于既有Runtime，私有非秘密配置沿同一Host/DataHub通道读取，系统ref仍沿原进程桥接；没有新增研究引擎、模型代理daemon或Vault。Native macOS合成冷启动与真实供应商验收分别记录；本模型连接任务未执行其他平台验收，项目总平台范围以支持矩阵为准。

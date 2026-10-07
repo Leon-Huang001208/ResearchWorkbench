@@ -65,3 +65,5 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 2. 当前事实优先来自代码、配置、测试和真实运行证据；日期型验收进入 `.ai/reports/` 或归档。
 3. 新增 Markdown 必须被治理清单分类；生成文档只能由对应生成器更新。
 4. 用户可见变化才进入 `CHANGELOG.md`；实现过程、任务状态和评审流水不进入现役说明。
+
+平台与运行方式的能力边界及真实证据见 [Research Web 支持矩阵](research-web-platform-support.md)；任务机器验收和交付摘要见 [Agent 工作流](AGENT_WORKFLOW.md)。

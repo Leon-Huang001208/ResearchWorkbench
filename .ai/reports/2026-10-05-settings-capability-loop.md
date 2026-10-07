@@ -809,3 +809,8 @@ mypy四改动模块及其传递边界58诊断，冻结7e源码在同样产品解
 一次fetch固定target master205d2a170d9ece9c2751e014b63abe326510ab9c，目标新增平台证据/能力投影与验收schema v4/v3、HTTPS Docker build传输及文档生成治理，导致PR81冲突；远端任务分支仍32cd546cc，没有并发覆盖。保留当前成果，本地检查点后只正常merge该固定目标，不rebase/force、不合历史分支，不执行暂缓平台。需按整合后真实政策重新生成闭包；旧schema2 receipt和旧CI不替代新候选证据。
 
 Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05秒；JS338 PASS/1已有source未设置skip。保存真实当前代码检查点后整合固定205d2a17，保留合成/真实系统库证据和失败日志。当前新增供应商请求0；合成固定DSH API与冷重启不冒称真实模型账户。
+
+
+固定205d2a17整合的冲突按三方内容解决：模块文档保留当前平台支持/安全投影及本任务兼容模型/数据准入说明；架构map保留目标reading/source snapshot与新增platform源码，补回相对共同基线真实新增API/测试；README回执由Codex实际复核，index/atlas及Python索引按新生成器重建，不采用整仓ours/theirs。机器全局阶段随master保留已重开平台的项目事实，本聊天任务上下文仍严格macOS Native；不据项目文档的他任务授权推断可执行Windows/Linux/Docker验收，不改全局phase/config缩门。
+
+整合后architecture/documentation检查exit0，目标新版验收按platform task与完整影响分别记hostAcceptance/platformHandoffs/aggregateAcceptance；使用正常merge commit并保持候选与报告身份分开，不把旧schema回执改字涂绿。新增source_manager只有capabilities投影，模型/系统桥接/协议源码无整合修改，已有受管合成冷启动与系统库证据可复用，目标直接platform/documentation/manager/bootstrap回归另实际执行。
