@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+模式切换 finalize 拒绝仅增加现有 stdlib logger 的 stderr 固定诊断字段；部署节点与控制器职责不变。
+
 macOS 异根 Native 私有 pair 的 bounded reader 仍位于 `web_bootstrap.py`；stdlib bridge、
 Docker controller 与 Native manager 共享它。候选仅 OS 当前用户标准产品根，调用内身份观察
 和 FD 绑定目标真实 lifecycle lease；不增加服务、网络探针、安装依赖或部署节点。

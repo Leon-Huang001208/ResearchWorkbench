@@ -381,9 +381,32 @@ def switch_runtime(store, target, docker, native, *, stop_current=False, wait_ti
         def finalize():
             if store.read() != before:
                 raise ControlError("runtime_mode_changed")
-            for controller in controllers.values():
+            for name, controller in controllers.items():
                 report = controller.status()
                 if not report.get("ok") or _running(report):
+                    reason = "still_running" if report.get("ok") else "report_not_ok"
+                    issue = "none" if report.get("ok") else "unknown"
+                    issues = report.get("issues")
+                    if not report.get("ok") and isinstance(issues, list) and issues:
+                        candidate = issues[0]
+                        if type(candidate) is str and candidate in (
+                            "runtime_ownership_unknown",
+                            "native_probe_failed",
+                            "docker_ownership_mismatch",
+                            "docker_data_home_unsafe",
+                            "docker_io",
+                            "docker_cli_missing",
+                            "runtime_command_timeout",
+                            "runtime_output_limit",
+                            "lifecycle_lock_ownership_lost",
+                        ):
+                            issue = candidate
+                    log.warning(
+                        "runtime_switch phase=finalize mode=%s reason=%s issue=%s",
+                        name,
+                        reason,
+                        issue,
+                    )
                     raise ControlError("runtime_stop_failed")
             if isinstance(docker, DockerRuntime):
                 if not docker._native_selection_safe(native, native.status()):

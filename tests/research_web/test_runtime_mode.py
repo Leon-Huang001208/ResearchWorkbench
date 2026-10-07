@@ -250,6 +250,58 @@ def test_conditional_mode_write_rejects_concurrent_change(tmp_path):
     assert store.read() == changed
 
 
+@pytest.mark.parametrize("mode", ["native", "docker"])
+@pytest.mark.parametrize(
+    "failure,issues,reason,issue",
+    [
+        ("report", ["runtime_ownership_unknown"], "report_not_ok", "runtime_ownership_unknown"),
+        ("report", ["native_probe_failed"], "report_not_ok", "native_probe_failed"),
+        ("report", ["SECRET=/private/token?password=hunter2"], "report_not_ok", "unknown"),
+        ("report", [{"secret": "hunter2"}], "report_not_ok", "unknown"),
+        ("report", [], "report_not_ok", "unknown"),
+        ("running", [], "still_running", "none"),
+    ],
+)
+def test_switch_finalize_logs_only_controlled_failure_fields(
+    tmp_path, caplog, mode, failure, issues, reason, issue
+):
+    from research_workbench_entrypoint import bootstrap
+
+    store = RuntimeModeStore(tmp_path / "home")
+    before = store.write("native")
+
+    class Controller:
+        def __init__(self, name):
+            self.name = name
+            self.calls = 0
+
+        def preflight(self):
+            return {"ok": True}
+
+        def status(self):
+            self.calls += 1
+            failing = self.name == mode and self.calls == 2
+            if failing and failure == "report":
+                # Missing services must remain short-circuited by not-ok.
+                return {"ok": False, "issues": issues, "detail": "SECRET=hunter2"}
+            return {
+                "ok": True,
+                "services": {
+                    role: {"running": failing and failure == "running"}
+                    for role in ("web", "runtime")
+                },
+            }
+
+    report = bootstrap.switch_runtime(store, "docker", Controller("docker"), Controller("native"))
+    assert report == {"schema_version": 1, "ok": False, "issues": ["runtime_stop_failed"]}
+    assert store.read() == before
+    messages = [
+        record.getMessage() for record in caplog.records if record.name == bootstrap.__name__
+    ]
+    assert f"runtime_switch phase=finalize mode={mode} reason={reason} issue={issue}" in messages
+    assert all("hunter2" not in message and "SECRET" not in message for message in messages)
+
+
 @pytest.mark.parametrize(
     "raw,code",
     [

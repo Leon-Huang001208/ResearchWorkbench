@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "已复核 macOS 异根 Native 私有 pair 生命周期修复；README 的公开入口、未知写者拒绝和部署边界仍兼容。",
-  "reason": "完整已认证不同数据根的 pair 可允许后续 start/force restart；只有目标真实 lifecycle lease 内的重新捕获与未变化事实参与写入。只读桥 hint 不授予权限，不新增 CLI 参数、HTTP 接口、持久 proof、依赖或数据路径。细节同步既有安装/runtime/security 文档；真实安装、数据往返和 Mac CI 仍待主任务验收，旧冻结阅读产物不作为本提交证据。"
+  "summary": "已复核 runtime switch finalize 受控失败诊断；README 的公开入口和部署边界兼容，无须修改。",
+  "reason": "仅在既有拒绝分支追加 stderr 固定 mode/reason/allowlist issue，不新增公开参数、schema、探针、依赖或重试。runtime_stop_failed 返回、严格 running 校验、所有权、锁与 mode CAS 保持；历史切换原因仍待实测，诊断补足不认证生命周期已修复。"
 }
