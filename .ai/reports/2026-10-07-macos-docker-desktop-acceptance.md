@@ -31,3 +31,8 @@ YAML修复后最终镜像7ab5进入runtime_probe，原目录exit verify拒绝sta
 ## Engine tmpfs 表示校准
 
 最终镜像构建成功；公开安装在归属核验处失败。真实 Engine 29.8.2 将三项 tmpfs 完整登记在 HostConfig.Tmpfs，而 Mounts 只列两项持久 bind，先前 fixture 假定 tmpfs 同时出现在 Mounts。失败容器本身健康，但安装未发布成功摘要，不计为公开安装 PASS。核对唯一 installation、image、路径和精确挂载后，仅停止并删除本次容器，数据/凭据保留。控制器将兼容 tmpfs 列表完全省略或完整表示，HostConfig 的固定路径、UID/GID、0700、安全选项和额外挂载拒绝仍强制。
+
+
+## 生命周期端口释放
+
+快照5e1b790公开安装、Doctor和root/static/index/Atlas HTTP200实际通过。restart在owned容器正常exit0后的10秒严格端口释放截止返回runtime_ports_not_released；稍后无listener且两family实际bindfree。不能将原因未经证实写成TIME_WAIT，也不把该restart记PASS。Mac host controller将默认释放等待改为有界120秒，其它host10秒保持，显式wait_timeout仍生效，port_busy严格reservation检查未改变；新真实绑定/模拟时间合同先RED后GREEN，168controller tests PASS。该补丁仅宿主controller，不改变已接受镜像的实际Supervisor/DSH/Web/凭据/挂载输入；后续复验独立记录运行镜像5e1b与新宿主候选身份。

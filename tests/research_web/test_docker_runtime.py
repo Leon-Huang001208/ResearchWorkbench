@@ -772,6 +772,59 @@ def test_private_runtime_tmpfs_is_owned_and_host_control_state_is_retained(runti
     assert control.read_text() == "installation-control"
 
 
+@pytest.mark.parametrize("platform,expected_timeout", [("darwin", 120), ("linux", 10), ("win32", 10)])
+def test_stop_default_wait_keeps_real_nonlistening_reservation_until_host_deadline(
+    runtime, monkeypatch, platform, expected_timeout
+):
+    from research_workbench_entrypoint import docker_runtime as control
+
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    elapsed = [0.0]
+    monkeypatch.setattr(control.sys, "platform", platform)
+    monkeypatch.setattr(control, "time", SimpleNamespace(
+        monotonic=lambda: elapsed[0],
+        sleep=lambda interval: elapsed.__setitem__(0, elapsed[0] + interval),
+    ))
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", controller.ports[0]))
+        assert control.port_busy(controller.ports[0])
+        assert controller.stop()["issues"] == ["runtime_ports_not_released"]
+        assert expected_timeout <= elapsed[0] < expected_timeout + 0.1
+        assert control.port_busy(controller.ports[0])
+    assert not any(argv[1] == "rm" for argv, _ in runner.calls)
+
+
+@pytest.mark.parametrize("explicit_timeout", [None, 0, 5])
+def test_macos_stop_waits_for_delayed_release_but_honors_explicit_timeout(
+    runtime, monkeypatch, explicit_timeout
+):
+    from research_workbench_entrypoint import docker_runtime as control
+
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    elapsed = [0.0]
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", controller.ports[0]))
+
+        def wait(interval):
+            elapsed[0] += interval
+            if elapsed[0] >= 12:
+                reservation.close()
+
+        monkeypatch.setattr(control.sys, "platform", "darwin")
+        monkeypatch.setattr(control, "time", SimpleNamespace(monotonic=lambda: elapsed[0], sleep=wait))
+        options = {} if explicit_timeout is None else {"wait_timeout": explicit_timeout}
+        report = controller.stop(**options)
+        if explicit_timeout is None:
+            assert report["ok"]
+            assert 12 <= elapsed[0] < 12.1
+        else:
+            assert report["issues"] == ["runtime_ports_not_released"]
+            assert explicit_timeout <= elapsed[0] < explicit_timeout + 0.1
+            assert control.port_busy(controller.ports[0])
+
+
 @pytest.mark.parametrize("mounts_listed", [False, True])
 def test_engine_tmpfs_mount_projection_accepts_complete_or_host_config_only(runtime, mounts_listed):
     controller, runner, _ = runtime
