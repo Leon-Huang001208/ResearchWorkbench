@@ -5,8 +5,11 @@ import { randomUUID } from 'node:crypto';
 import { sha256, contentHash, identityKeyForUrl } from './material.ts';
 import type { FeedMaterial } from './feed.ts';
 import { logEvent } from './log.ts';
+import { schemaName } from './config.ts';
 
 type Sql = ReturnType<typeof postgres>;
+type Tx = postgres.TransactionSql;
+export const SCHEMA_VERSION = 4;
 type Page = { source: string; raw: string; acquiredAt: Date; materials: FeedMaterial[];
   cursor: Record<string, postgres.JSONValue>; metadata?: Record<string, postgres.JSONValue> };
 
@@ -20,23 +23,30 @@ function materialVersionHash(item: FeedMaterial): string {
     item.publishedAt?.toISOString() ?? '', item.sourceUpdatedAt?.toISOString() ?? ''].join('\u0001'));
 }
 
-export async function migrate(db: Sql): Promise<void> {
+export async function migrate(db: Sql, schema = 'hot'): Promise<void> {
+  schemaName(schema);
   try {
   await db.begin(async tx => {
     // Same schema migration lock across connections and execution modes.
     await tx`select pg_advisory_xact_lock(714278901)`;
-    await tx`create schema if not exists hot`;
-    await tx`create table if not exists hot.migrations (version integer primary key, checksum text not null, applied_at timestamptz not null default now())`;
-    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql']] as const) {
+    await tx`create schema if not exists ${tx(schema)}`;
+    const [existing] = await tx`select to_regclass(${`${schema}.migrations`}) as migration_table,
+      (select count(*)::int from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname=${schema}) as relation_count,
+      (select count(*)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=${schema}) as function_count,
+      (select nspowner=(select oid from pg_roles where rolname=current_user) from pg_namespace where nspname=${schema}) as owned`;
+    if (!existing.migration_table && (!existing.owned || existing.relation_count > 0 || existing.function_count > 0)) throw Error('hot_schema_not_empty');
+    await tx`create table if not exists ${tx(schema)}.migrations (version integer primary key, checksum text not null, applied_at timestamptz not null default now())`;
+    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql']] as const) {
     const raw = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
     const checksum = sha256(raw);
-    const rows = await tx`select checksum from hot.migrations where version=${version}`;
+    const rows = await tx`select checksum from ${tx(schema)}.migrations where version=${version}`;
     if (rows.length) {
       if (rows[0].checksum !== checksum) throw Error('hot_migration_checksum_changed');
       continue;
     }
-    await tx.unsafe(raw);
-    await tx`insert into hot.migrations (version, checksum) values (${version}, ${checksum})`;
+    // Only the exact migration namespace is substituted; schemaName rejects SQL syntax.
+    await tx.unsafe(raw.replace(/\bhot\./g, `"${schema}".`));
+    await tx`insert into ${tx(schema)}.migrations (version, checksum) values (${version}, ${checksum})`;
     }
   });
   logEvent('migration_ready');
@@ -46,18 +56,19 @@ export async function migrate(db: Sql): Promise<void> {
   }
 }
 
-export async function ingestPage(db: Sql, page: Page): Promise<{ materialIds: string[]; newVersions: number }> {
+export async function ingestPage(db: Sql | Tx, page: Page, schema = 'hot'): Promise<{ materialIds: string[]; newVersions: number }> {
+  schemaName(schema);
   try {
   if (!Number.isFinite(page.acquiredAt.getTime()) || Buffer.byteLength(page.raw) > 4_194_304 || page.materials.length > 2000) {
     throw Error('hot_page_invalid');
   }
-  const result = await db.begin(async tx => {
-    const sources = await tx`select id,last_success_at from hot.sources where id=${page.source} for update`;
+  const operation = async (tx: Tx) => {
+    const sources = await tx`select id,last_success_at from ${tx(schema)}.sources where id=${page.source} for update`;
     if (!sources.length) throw Error('hot_source_unknown');
     if (sources[0].last_success_at && page.acquiredAt < sources[0].last_success_at) throw Error('hot_page_obsolete');
     const pageId = randomUUID();
     const dates = page.materials.map(item => item.publishedAt).filter((date): date is Date => date !== null).sort((a, b) => a.getTime() - b.getTime());
-    await tx`insert into hot.raw_pages (id, source_id, body, body_hash, acquired_at, metadata, coverage, oldest_published_at, newest_published_at, parsed_count)
+    await tx`insert into ${tx(schema)}.raw_pages (id, source_id, body, body_hash, acquired_at, metadata, coverage, oldest_published_at, newest_published_at, parsed_count)
       values (${pageId}, ${page.source}, ${Buffer.from(page.raw)}, ${sha256(page.raw)}, ${page.acquiredAt},
       ${tx.json(page.metadata ?? {})}, 'latest_snapshot', ${dates[0] ?? null}, ${dates.at(-1) ?? null}, ${page.materials.length})`;
     const materialIds: string[] = [];
@@ -74,34 +85,35 @@ export async function ingestPage(db: Sql, page: Page): Promise<{ materialIds: st
     }
     const idsByIdentity = new Map<string, string>();
     for (const { item, identity } of items) {
-      await tx`insert into hot.materials (id, identity, original_url, first_seen_at,last_acquired_at)
+      await tx`insert into ${tx(schema)}.materials (id, identity, original_url, first_seen_at,last_acquired_at)
         values (${randomUUID()}, ${identity!}, ${item.url}, ${page.acquiredAt}, ${page.acquiredAt}) on conflict(identity) do nothing`;
-      const [material] = await tx`select id, current_revision, first_seen_at,last_acquired_at from hot.materials where identity=${identity!} for update`;
+      const [material] = await tx`select id, current_revision, first_seen_at,last_acquired_at from ${tx(schema)}.materials where identity=${identity!} for update`;
       if (page.acquiredAt < material.last_acquired_at) throw Error('hot_acquisition_order_invalid');
-      const existing = await tx`select content_hash, acquired_at from hot.material_versions where material_id=${material.id} and revision=${material.current_revision}`;
+      const existing = await tx`select content_hash, acquired_at from ${tx(schema)}.material_versions where material_id=${material.id} and revision=${material.current_revision}`;
       if (existing.length && page.acquiredAt < existing[0].acquired_at) throw Error('hot_acquisition_order_invalid');
       // Timestamp corrections affect the immutable version too.
       const hash = materialVersionHash(item);
       let revision = material.current_revision;
       if (!existing.length || existing[0].content_hash !== hash) {
         revision++;
-        await tx`insert into hot.material_versions (material_id, revision, content_hash, title, excerpt, acquired_at,
+        await tx`insert into ${tx(schema)}.material_versions (material_id, revision, content_hash, title, excerpt, acquired_at,
           published_at, published_raw, source_updated_at, source_updated_raw, raw_page_id)
           values (${material.id}, ${revision}, ${hash}, ${item.title}, ${item.excerpt}, ${page.acquiredAt},
           ${item.publishedAt}, ${item.publishedRaw}, ${item.sourceUpdatedAt}, ${item.updatedRaw}, ${pageId})`;
-        await tx`update hot.materials set current_revision=${revision} where id=${material.id}`;
+        await tx`update ${tx(schema)}.materials set current_revision=${revision} where id=${material.id}`;
         newVersions++;
       }
-      await tx`insert into hot.discoveries (source_id, material_id, page_id, upstream_id, revision)
+      await tx`insert into ${tx(schema)}.discoveries (source_id, material_id, page_id, upstream_id, revision)
         values (${page.source}, ${material.id}, ${pageId}, ${item.upstreamId}, ${revision}) on conflict do nothing`;
       idsByIdentity.set(identity!, material.id);
-      await tx`update hot.materials set last_acquired_at=${page.acquiredAt} where id=${material.id}`;
+      await tx`update ${tx(schema)}.materials set last_acquired_at=${page.acquiredAt} where id=${material.id}`;
     }
     for (const item of page.materials) materialIds.push(idsByIdentity.get(identityKeyForUrl(item.url)!)!);
     // Publication of raw bytes, every entry, discoveries and watermark is one commit.
-    await tx`update hot.sources set cursor=${tx.json(page.cursor)}, last_success_at=${page.acquiredAt}, last_error_code=null where id=${page.source}`;
+    await tx`update ${tx(schema)}.sources set cursor=${tx.json(page.cursor)}, last_success_at=${page.acquiredAt}, last_error_code=null where id=${page.source}`;
     return { materialIds, newVersions };
-  });
+  };
+  const result = 'begin' in db ? await db.begin(operation) : await db.savepoint(operation);
   logEvent('page_committed', page.materials.length);
   return result;
   } catch (error) {
@@ -110,10 +122,11 @@ export async function ingestPage(db: Sql, page: Page): Promise<{ materialIds: st
   }
 }
 
-export async function versionsAt(db: Sql, ids: string[], cutoff: Date): Promise<any[]> {
+export async function versionsAt(db: Sql, ids: string[], cutoff: Date, schema = 'hot'): Promise<any[]> {
+  schemaName(schema);
   if (!Number.isFinite(cutoff.getTime()) || ids.length > 200) throw Error('hot_asof_invalid');
   if (ids.length === 0) return [];
-  return db`select distinct on (material_id) * from hot.material_versions
+  return db`select distinct on (material_id) * from ${db(schema)}.material_versions
     where material_id in ${db(ids)} and acquired_at <= ${cutoff}
     order by material_id, acquired_at desc, revision desc`;
 }

@@ -28,6 +28,10 @@ Progress authority: [PROGRESS](2026-10-07-hot-events-PROGRESS.md).
 - Runtime roles have DML permission only within explicitly configured schema;
   migration credentials separate. Schema name must be validated and safely
   quoted. The current proof uses superuser only in isolated development PG.
+- Stage-one implementation now keeps both Hot and pg-boss tables inside that one
+  explicitly configured schema. A queue binding requires the initialized logical
+  instance; no implicit second schema is adopted. Ordinary worker SQL privileges
+  and SET ROLE escalation are checked separately from migration-owner access.
 
 ## Stage 0: baseline and reuse
 
@@ -53,6 +57,8 @@ that existing model bridge is unavailable. No live model call has run.
 2. `services/hot/src/config.ts`, `queue.ts`, `control.ts`, `worker.ts`: strict
    non-secret settings; unique durable scheduling; task input versions; leases,
    attempt state, generation fencing and conditional commit; pause/drain/restart.
+   The module-level substrate is implemented and tested; real manager/process
+   lifecycle is still pending. Paid queues have no blind automatic retry.
 3. `app/research_web/hot/` settings and credential-backend references, CLI
    `research_workbench_entrypoint/hot_*.py`, manager integration. Off/unconfigured
    Hot must not start a DB connection during base settings/research reads.
