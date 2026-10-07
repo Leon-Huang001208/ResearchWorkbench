@@ -32,3 +32,5 @@ RED（生产改动前）记录于 /tmp/rwb-tmpfs-red-python.log：1 failed、21 
 参考：[Docker tmpfs 文档](https://docs.docker.com/engine/storage/tmpfs/)。
 
 实际解释器为 `/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/.venv/bin/python`；验收未调用全局 Python 包。最终 `node scripts/validate_verification_receipt.mjs --project . --plan logs/docker-private-tmpfs/plan.json --receipt logs/docker-private-tmpfs/receipt.json` 退出 0，valid=true，仍为诚实 BLOCKED 外部门回执。
+
+评审后文档补充：独立 spec、Python、JS/Compose 与 security 评审无阻塞项；只修正 `03-data-files.md` 残留的宿主 Docker 状态路径段落，明确 Native 原 runtime 构建锁与 Docker `/state/runtime` 临时 build-lock、持久 logs 和保留旧 host runtime。此补充不改生产/测试字节，785/203 结果仍归属 `86c85a390` 的源码验收；仅执行该两文档 changed set 的 L0 文档治理、索引和现有 Project Constraints，结果见 `logs/docker-private-tmpfs/doc-review-*.log`。
