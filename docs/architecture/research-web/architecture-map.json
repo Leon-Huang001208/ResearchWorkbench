@@ -142,7 +142,8 @@
         "tests/research_web/test_frameworks.py",
         "tests/research_web/test_framework_collectors.py",
         "tests/research_web/test_integration_coordinator.py",
-        "tests/research_web/test_tabbit.py"
+        "tests/research_web/test_tabbit.py",
+        "tests/research_web/test_model_connections.py"
       ]
     },
     {
@@ -313,7 +314,8 @@
         "tests/research_web/test_sandbox.py",
         "tests/javascript/research_web_guard.test.mjs",
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
-        "tests/javascript/research_web_tabbit_ui.test.mjs"
+        "tests/javascript/research_web_tabbit_ui.test.mjs",
+        "tests/javascript/research_web_compatible_model.test.mjs"
       ]
     },
     {
@@ -2680,6 +2682,13 @@
       "path": "/api/research/internal/data/skill-preflight",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/internal/data/skill-preflight",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/internal/data/model-connection",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/model-connection",
       "prefix": "/api/research"
     }
   ],

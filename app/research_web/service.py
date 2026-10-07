@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import time
@@ -460,6 +461,70 @@ class ResearchService:
         log.warning("research_unowned_interaction_ignored")
         return None
 
+    @staticmethod
+    def _model_plane(provider):
+        if provider == "openai-compatible":
+            return (
+                "RESEARCH_COMPAT_API_KEY",
+                "compatible_model_configuration_uncertain",
+                "compatible_model_credential_cleared",
+            )
+        return "RESEARCH_DSH_API_KEY", "model_configuration_uncertain", "model_credential_cleared"
+
+    def compatible_connection(self):
+        """Detached public facts; credentials remain exclusively in the OS store."""
+        if self.store.data.get("compatible_model_configuration_uncertain"):
+            raise RuntimeFailure("兼容模型配置结果未知", "model_configuration_uncertain")
+        value = self.store.data.get("compatible_model_connection")
+        if value is None:
+            return None
+        from pydantic import ValidationError
+
+        from .main import ModelConfig
+
+        fields = {"provider", "protocol", "model", "base_url", "credential_mode"}
+        try:
+            if not isinstance(value, dict) or set(value) != fields:
+                raise ValueError("invalid connection shape")
+            parsed = ModelConfig.model_validate(value)
+            if parsed.provider != "openai-compatible":
+                raise ValueError("invalid connection route")
+            result = dict(value)
+            revision = self.store.data.get("compatible_model_connection_revision")
+            if revision is not None:
+                if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{32}", revision):
+                    raise ValueError("invalid connection generation")
+                result["revision"] = revision
+            return result
+        except (ValidationError, ValueError):
+            log.warning("research_compatible_configuration_invalid")
+            raise RuntimeFailure("兼容模型非秘密配置无效", "model_connection_invalid") from None
+
+    async def _require_model_credentials(self, provider):
+        ref, uncertain, cleared = self._model_plane(provider)
+        if self.store.data.get(uncertain):
+            raise RuntimeFailure(
+                "凭据写入结果未知，请先在设置页处理", "model_configuration_uncertain"
+            )
+        connection = self.compatible_connection() if provider == "openai-compatible" else None
+        if provider == "openai-compatible" and connection is None:
+            raise RuntimeFailure("兼容模型连接未配置", "model_connection_missing")
+        if connection and connection["credential_mode"] == "none":
+            return
+        if self.store.data.get(cleared):
+            raise RuntimeFailure("模型凭据已清除，请重新配置", "model_credentials_missing")
+        auth = await self.client.rpc("credentials.describe", {"refs": [ref]})
+        configured = auth.get("credentials", {}).get(ref, {}).get("configured")
+        if configured is not True:
+            raise RuntimeFailure(
+                "模型凭据未配置或状态未确认",
+                (
+                    "model_credentials_missing"
+                    if configured is False
+                    else "model_credential_state_unavailable"
+                ),
+            )
+
     async def runtime(self):
         try:
             info = await self.client.rpc("host.describe", {})
@@ -468,18 +533,29 @@ class ResearchService:
                 self.owned = info.get("cwd") == str(self.expected_cwd.resolve())
             ready = self.connected == {"mux", "host"}
             credential_code = None
+            ref, uncertain_key, _cleared = self._model_plane(self.default_model["provider"])
+            connection = None
+            required = True
             try:
-                auth = await self.client.rpc(
-                    "credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]}
-                )
-                credential = auth.get("credentials", {}).get("RESEARCH_DSH_API_KEY", {})
-                configured = credential.get("configured")
-                credential_source = credential.get("source")
-            except RuntimeFailure:
+                if self.default_model["provider"] == "openai-compatible":
+                    connection = self.compatible_connection()
+                    required = not connection or connection["credential_mode"] != "none"
+                if required:
+                    auth = await self.client.rpc("credentials.describe", {"refs": [ref]})
+                    credential = auth.get("credentials", {}).get(ref, {})
+                    configured = credential.get("configured")
+                    credential_source = credential.get("source")
+                else:
+                    configured, credential_source = None, "not-required"
+            except RuntimeFailure as exc:
                 # Model store failure must not erase the successful Host probe.
                 log.warning("research_model_credential_backend_unavailable")
                 configured, credential_source = None, None
-                credential_code = "model_credential_backend_unavailable"
+                credential_code = (
+                    exc.code
+                    if exc.code in {"model_connection_invalid", "model_configuration_uncertain"}
+                    else "model_credential_backend_unavailable"
+                )
             return {
                 "connected": ready,
                 "health_check_passed": True,
@@ -488,6 +564,14 @@ class ResearchService:
                 "model": self.default_model["model"],
                 "version": info["version"],
                 "owned_runtime": self.owned,
+                "credential_required": required,
+                "connection": connection,
+                "inference_verified": bool(
+                    (self.store.data.get("model_test") or {}).get("status") == "passed"
+                    and (self.store.data.get("model_test") or {}).get("selection")
+                    == self.default_model
+                    and not self.store.data.get(uncertain_key)
+                ),
                 "credential_configured": configured,
                 "credential_code": credential_code,
                 "credential_storage": {
@@ -496,17 +580,25 @@ class ResearchService:
                     "project-env": "project_dotenv",
                     "user-env": "runtime_home_dotenv",
                     "system-keychain": "system_keychain",
+                    "not-required": "not_required",
                 }.get(credential_source, "unknown"),
                 "configuration_saved": "model" in self.store.data,
                 "runtime_applied": self.owned
                 and ready
-                and not self.store.data.get("model_configuration_uncertain", False)
+                and not self.store.data.get(
+                    self._model_plane(self.default_model["provider"])[1], False
+                )
                 and self.store.data.get("model_application", {}).get("selection")
                 == self.default_model
+                and (
+                    self.default_model["provider"] != "openai-compatible"
+                    or self.store.data.get("model_application", {}).get("connection_revision")
+                    == self.store.data.get("compatible_model_connection_revision")
+                )
                 and self.store.data.get("model_application", {}).get("runtime_instance")
                 == getattr(self.client, "runtime_instance_id", "fixture"),
                 "configuration_uncertain": self.store.data.get(
-                    "model_configuration_uncertain", False
+                    self._model_plane(self.default_model["provider"])[1], False
                 ),
                 "model_application_scope": "new_sessions",
                 "last_model_test": self.store.data.get("model_test"),
@@ -515,7 +607,13 @@ class ResearchService:
                     (
                         "DSH 已连接；模型凭据后端不可用"
                         if credential_code
-                        else "DSH 已连接" if configured else "DSH 已连接；请先在下方配置 API Key"
+                        else (
+                            "DSH 已连接；此连接无需Key"
+                            if not required
+                            else (
+                                "DSH 已连接" if configured else "DSH 已连接；请先在下方配置 API Key"
+                            )
+                        )
                     )
                     if ready
                     else "DSH 事件通道连接中"
@@ -533,7 +631,7 @@ class ResearchService:
                 "runtime_applied": False,
                 "credential_configured": None,
                 "configuration_uncertain": self.store.data.get(
-                    "model_configuration_uncertain", False
+                    self._model_plane(self.default_model["provider"])[1], False
                 ),
                 "last_model_test": self.store.data.get("model_test"),
                 "code": exc.code,
@@ -541,8 +639,41 @@ class ResearchService:
                 "message": str(exc),
             }
 
-    async def configure_model(self, provider, model, api_key=None, *, clear_api_key=False):
+    async def configure_model(
+        self,
+        provider,
+        model,
+        api_key=None,
+        *,
+        clear_api_key=False,
+        base_url=None,
+        protocol=None,
+        credential_mode="api_key",
+    ):
         await self.ensure_owned()
+        compatible = provider == "openai-compatible"
+        ref, uncertain_key, cleared_key = self._model_plane(provider)
+        connection = None
+        if compatible:
+            from .main import ModelConfig
+
+            try:
+                parsed = ModelConfig(
+                    provider=provider,
+                    model=model,
+                    api_key=api_key,
+                    clear_api_key=clear_api_key,
+                    base_url=base_url,
+                    protocol=protocol,
+                    credential_mode=credential_mode,
+                )
+            except ValueError:
+                raise RuntimeFailure("模型连接请求无效", "invalid_request") from None
+            connection = {
+                name: getattr(parsed, name)
+                for name in ("provider", "protocol", "model", "base_url", "credential_mode")
+            }
+
         if self.model_test_lock.locked():
             raise RuntimeFailure("模型保存或测试正在运行", "model_change_busy")
         async with self.model_test_lock, self.lock:
@@ -563,61 +694,94 @@ class ResearchService:
                         )
             if clear_api_key and api_key is not None:
                 raise RuntimeFailure("替换与清除不能同时提交", "invalid_request")
-            if (
-                self.store.data.get("model_configuration_uncertain")
-                and api_key is None
-                and not clear_api_key
-            ):
+            if self.store.data.get(uncertain_key) and api_key is None and not clear_api_key:
                 raise RuntimeFailure(
                     "凭据更新回执未知；请明确重新录入或清除后再测试",
                     "model_configuration_uncertain",
                 )
             catalog = await self.client.rpc("llm.models", {})
-            if provider != "deepseek-official" or not any(
-                group["id"] == provider and any(item["id"] == model for item in group["models"])
+            supported = any(
+                group["id"] == provider
+                and (compatible or any(item["id"] == model for item in group["models"]))
                 for group in catalog["groups"]
+            )
+            if compatible and any(
+                item.get("id") == provider
+                and item.get("message") == "compatible_catalog_unavailable"
+                for item in catalog.get("failures", [])
             ):
+                supported = True
+            if provider not in {"deepseek-official", "openai-compatible"} or not supported:
                 raise RuntimeFailure(
                     "固定 Runtime 不支持该模型；请刷新模型目录", "model_unavailable"
                 )
-            if api_key is not None or clear_api_key:
-                auth = await self.client.rpc(
-                    "credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]}
+            previous_connection = self.store.data.get("compatible_model_connection")
+            if (
+                compatible
+                and credential_mode == "api_key"
+                and api_key is None
+                and not clear_api_key
+                and (
+                    not previous_connection
+                    or previous_connection.get("credential_mode") != "api_key"
+                    or previous_connection.get("base_url", "").rstrip("/") != base_url.rstrip("/")
                 )
-                if auth["credentials"]["RESEARCH_DSH_API_KEY"].get("writable") is False:
+            ):
+                raise RuntimeFailure(
+                    "新端点必须重新录入专用Key，不能继承其他地址的凭据",
+                    "model_connection_key_reentry_required",
+                )
+            if api_key is not None or clear_api_key:
+                auth = await self.client.rpc("credentials.describe", {"refs": [ref]})
+                if auth["credentials"][ref].get("writable") is False:
                     raise RuntimeFailure(
                         "当前模型凭据后端只读；未更改旧配置", "model_credentials_read_only"
                     )
             old_selection = self.store.data.get("model")
             old_test = self.store.data.get("model_test")
             old_application = self.store.data.get("model_application")
-            old_uncertain = self.store.data.get("model_configuration_uncertain")
-            old_cleared = self.store.data.get("model_credential_cleared", False)
+            old_uncertain = self.store.data.get(uncertain_key)
+            old_cleared = self.store.data.get(cleared_key, False)
+            old_connection = self.store.data.get("compatible_model_connection")
+            old_revision = self.store.data.get("compatible_model_connection_revision")
             changing_credential = api_key is not None or clear_api_key
             mutation_started = False
             try:
-                if changing_credential:
+                if changing_credential or compatible:
                     # Crash-safe: keep the old model and a durable fail-closed
                     # marker until both credential mutation and final save finish.
-                    self.store.data["model_configuration_uncertain"] = True
+                    self.store.data[uncertain_key] = True
                     self.store.data.pop("model_test", None)
                     self.store.save()
+                if changing_credential:
                     mutation_started = True
                     await self.client.rpc(
                         "credentials.unset" if clear_api_key else "credentials.set",
                         {
-                            "ref": "RESEARCH_DSH_API_KEY",
+                            "ref": ref,
                             **({"value": api_key} if not clear_api_key else {}),
                         },
                     )
+                if compatible:
+                    self.store.data["compatible_model_connection"] = connection
+                    self.store.data["compatible_model_connection_revision"] = secrets.token_hex(16)
                 self.store.data["model"] = selection
                 self.store.data.pop("model_test", None)
                 self.store.data.pop("model_application", None)
-                self.store.data.pop("model_configuration_uncertain", None)
+                self.store.data.pop(uncertain_key, None)
                 if changing_credential:
-                    self.store.data["model_credential_cleared"] = clear_api_key
+                    self.store.data[cleared_key] = clear_api_key
                 self.store.save()
             except (RuntimeFailure, StoreError, OSError, asyncio.CancelledError) as exc:
+                if compatible:
+                    for name, value in [
+                        ("compatible_model_connection", old_connection),
+                        ("compatible_model_connection_revision", old_revision),
+                    ]:
+                        if value is None:
+                            self.store.data.pop(name, None)
+                        else:
+                            self.store.data[name] = value
                 if old_selection is None:
                     self.store.data.pop("model", None)
                 else:
@@ -627,15 +791,15 @@ class ResearchService:
                 if old_application is not None:
                     self.store.data["model_application"] = old_application
                 if old_uncertain:
-                    self.store.data["model_configuration_uncertain"] = True
+                    self.store.data[uncertain_key] = True
                 else:
-                    self.store.data.pop("model_configuration_uncertain", None)
-                self.store.data["model_credential_cleared"] = old_cleared
+                    self.store.data.pop(uncertain_key, None)
+                self.store.data[cleared_key] = old_cleared
                 # The pinned controller maps even a provider's post-commit
                 # observer failure to credential/rejected; it is not a rollback receipt.
                 uncertain = mutation_started
                 if uncertain:
-                    self.store.data["model_configuration_uncertain"] = True
+                    self.store.data[uncertain_key] = True
                     self.store.data.pop("model_test", None)
                 try:
                     self.store.save()
@@ -658,7 +822,7 @@ class ResearchService:
                     raise
                 raise RuntimeFailure("模型配置保存失败；未更新凭据", "model_save_failed") from exc
             self.default_model = selection
-            log.info("research_model_configured", provider=provider, model=model)
+            log.info("research_model_configured", provider=provider)
             return {"configured": True, "applied_to": "new_sessions", "inference_verified": False}
 
     async def test_model(self):
@@ -667,13 +831,7 @@ class ResearchService:
             raise RuntimeFailure("模型测试正在运行", "model_test_busy")
         async with self.model_test_lock:
             await self.ensure_owned()
-            if self.store.data.get("model_configuration_uncertain"):
-                raise RuntimeFailure(
-                    "凭据写入结果未知，请先在设置页处理", "model_configuration_uncertain"
-                )
-            auth = await self.client.rpc("credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]})
-            if not auth["credentials"]["RESEARCH_DSH_API_KEY"]["configured"]:
-                raise RuntimeFailure("请通过本机设置页配置 API Key", "model_credentials_missing")
+            await self._require_model_credentials(self.default_model["provider"])
             selection = dict(self.default_model)
             result = {"status": "failed", "selection": selection, "checked_at": time.time()}
             sid = None
@@ -789,11 +947,22 @@ class ResearchService:
                 row["created"] = True
                 row["model"] = self.default_model["model"]
                 row["model_provider"] = self.default_model["provider"]
+                if row["model_provider"] == "openai-compatible":
+                    connection = self.compatible_connection()
+                    row["model_connection_binding"] = {
+                        name: connection[name]
+                        for name in ("base_url", "protocol", "credential_mode")
+                    }
                 await self.client.rpc(
                     "session.selectModel", {"sessionId": sid, **self.default_model}
                 )
                 self.store.data["model_application"] = {
                     "selection": dict(self.default_model),
+                    "connection_revision": (
+                        self.store.data.get("compatible_model_connection_revision")
+                        if self.default_model["provider"] == "openai-compatible"
+                        else None
+                    ),
                     "runtime_instance": getattr(self.client, "runtime_instance_id", "fixture"),
                 }
                 await self.client.rpc("session.rename", {"sessionId": sid, "title": row["title"]})
@@ -1490,16 +1659,31 @@ class ResearchService:
     ):
         await self.ensure_owned()
         async with self.lock:
-            if self.store.data.get("model_configuration_uncertain"):
+            provider = self.store.session(sid).get("model_provider", "deepseek-official")
+            _ref, uncertain, cleared = self._model_plane(provider)
+            if self.store.data.get(uncertain):
                 raise RuntimeFailure(
                     "凭据写入结果未知，请先在设置页处理", "model_configuration_uncertain"
                 )
-            if self.store.data.get("model_credential_cleared"):
-                raise RuntimeFailure(
-                    "模型凭据已清除，请通过本机设置页重新配置", "model_credentials_missing"
-                )
+            if self.store.data.get(cleared) and not (
+                provider == "openai-compatible"
+                and (self.compatible_connection() or {}).get("credential_mode") == "none"
+            ):
+                raise RuntimeFailure("模型凭据已清除，请重新配置", "model_credentials_missing")
             self.capabilities.assert_consistent()
             row = self.store.session(sid)
+            if provider == "openai-compatible":
+                connection = self.compatible_connection()
+                binding = (
+                    {name: connection[name] for name in ("base_url", "protocol", "credential_mode")}
+                    if connection
+                    else None
+                )
+                if row.get("model_connection_binding") != binding:
+                    raise RuntimeFailure(
+                        "连接地址或授权方式已改变，请新建研究，旧会话保留",
+                        "model_connection_changed",
+                    )
             if not row["created"]:
                 raise StoreError("会话尚未创建")
             existing = self.store.data["receipts"].get(f"{sid}:{key}")
@@ -1601,20 +1785,7 @@ class ResearchService:
                         else "capability_data_unavailable"
                     )
                     raise CapabilityError("能力所需数据或模型工具范围未满足；草稿保留", code, 409)
-            auth = await self.client.rpc("credentials.describe", {"refs": ["RESEARCH_DSH_API_KEY"]})
-            configured = (
-                auth.get("credentials", {}).get("RESEARCH_DSH_API_KEY", {}).get("configured")
-            )
-            if configured is not True:
-                log.warning("research_model_credential_admission_blocked")
-                raise RuntimeFailure(
-                    "模型凭据未配置或状态未确认，请通过本机设置页处理",
-                    (
-                        "model_credentials_missing"
-                        if configured is False
-                        else "model_credential_state_unavailable"
-                    ),
-                )
+            await self._require_model_credentials(provider)
             if self.connected != {"mux", "host"}:
                 raise RuntimeFailure("DSH 事件未连接，暂不提交问题")
             current = await self.detail(sid)

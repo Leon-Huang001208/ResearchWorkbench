@@ -100,6 +100,31 @@ async function privateControl(root) {
   } finally {await handle.close();}
 }
 
+/** Non-secret connection facts over the existing instance-private channel. */
+export async function readModelConnection(root, signal) {
+  const control = await privateControl(root);
+  const timeout = AbortSignal.timeout(4000);
+  const response = await fetch(`${control.url}/api/research/internal/data/model-connection`, {
+    headers: { 'X-Research-Data-Key': control.token }, redirect: 'error',
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+  });
+  if (!response.ok || !response.body) { await response.body?.cancel(); throw Error('compatible_configuration_unavailable'); }
+  const reader = response.body.getReader();
+  try {
+    let text = '', bytes = 0;
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    for (;;) {
+      const part = await reader.read(); if (part.done) break;
+      bytes += part.value.byteLength;
+      if (bytes > 4096) throw Error('compatible_configuration_unavailable');
+      text += decoder.decode(part.value, { stream: true });
+    }
+    const value = JSON.parse(text);
+    if (!value || Object.keys(value).join(',') !== 'connection' || (value.connection !== null && (typeof value.connection !== 'object' || Array.isArray(value.connection)))) throw Error('compatible_configuration_unavailable');
+    return value.connection;
+  } finally { try { await reader.cancel(); } catch { throw Error('compatible_configuration_unavailable'); } }
+}
+
 async function boundedJson(response, signal) {
   if (!response.ok || response.redirected) {await response.body?.cancel();throw Error(`DataHub request failed (HTTP ${response.status})`);}
   if (!response.headers.get('content-type')?.includes('application/json') || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) {await response.body?.cancel();throw Error('DataHub response type or size is invalid');}

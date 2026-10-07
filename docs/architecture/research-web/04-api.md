@@ -290,3 +290,16 @@ API 或 Automation 契约。
 ## 设置闭环阶段3：当前能力范围
 
 新增内部POST /api/research/internal/data/skill-preflight，复用X-Research-Data-Key、专属Runtime及所属会话边界，body仅含session_id、可选native_name/tool_name和确认加载标记loaded；响应仅为范围，不返回凭据。capabilities列表/详情附readiness；会话详情与受理回执附capability_readiness。预检只读，确认加载才记录固定版本。
+
+
+## 单一兼容模型连接请求合同（1B实施中）
+
+ModelConfig 对原 deepseek-official 固定端点保持限制。新增的 openai-compatible 请求合同只识别 openai-completions、显式 base_url/model 和 credential_mode；URL 拒绝 userinfo、query、fragment、非HTTP协议及控制字符。HTTP和无Key模式仅接受本机loopback，无Key模式拒绝任何Key输入/清除请求，有Key模式留空表示保留。
+
+这是请求验证，不证明Runtime已安装适配器或能推理。服务和页面现已接通单一兼容连接；固定DSH扩展与独立系统ref已完成合成合同；页面/API保存与合成冷重启恢复已验证，还须真实新增模型和当前代码CI后才完整验收，禁止只宽松Provider字符串求成功。
+
+
+内部GET model-connection复用现有实例私有DataHub鉴权，只返回五项已验证非秘密连接事实及可选公共revision；拒绝凭据字段和含认证信息URL，未知事务拒绝投影，绝不返回秘密。元数据查询不持有 mutation lock，避免本机模型查找回调死锁。适配器对连接/系统ref读取前后比对公共配置版本，并在真正发送前重检，配置变更不会把新Key发送到旧地址。
+
+
+兼容连接PUT沿原串行事务和活动父/子任务门，专用系统ref及uncertain/cleared状态独立于官方服务。任意配置/凭据保存或清除更新公共revision；换地址不继承旧Key，旧会话绑定地址/协议/认证方式，变化后下一提交拒绝改投。无Key模式credential_required=false、credential_configured=null、storage=not_required，不冒充已存Key或已生成。Runtime应用还绑定当前connection revision与Runtime实例。

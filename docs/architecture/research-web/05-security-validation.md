@@ -187,3 +187,10 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 ## 设置闭环阶段3：当前能力范围
 
 数据准入必须覆盖DSH tools/pre-execute及agent/pre-step产生的真实skill-invocation来源；不能仅依赖前端或提示词。最终tools/result成功后登记，未确认登记不继续执行。当前声明数据任务禁止借web_fetch、一般网页或MCP绕过；实际查询参数与dataset-specific频率/复权/单位及历史时点合同匹配。Seatbelt取消整resources/受限datasets读取，仅放行通用资源及受信响应生成的精确目录，模型不得指定授权路径。
+
+
+## 兼容模型的有界传输（1B实施中）
+
+新增一项固定系统ref RESEARCH_COMPAT_API_KEY，与原RESEARCH_DSH_API_KEY共享实例归属规则、使用不同系统账户；resolve/describe/set/unset不进入环境或文件，两ref也拒绝委托Host record路径。Host browser-session记录原行为保留。明确无Key模式不查询任何模型凭据，不填假Key或降级为ambient来源。
+
+新文本/流式适配复用固定DSH的LlmAdapter与同一Agent loop；请求禁止重定向、最多一次HTTP发送、90秒取消/超时、输入/输出有界，HTTP200与残缺流均不能产生成功finish。连接/凭据绑定相同公共revision，实际发送前检测变更；版本不读取或散列Key。工具、图像及其它能力未认证，不能因模型ID推导支持。保存/应用及合成生成已沿产品API接通，合成链路不冒充供应商验收。

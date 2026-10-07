@@ -3919,6 +3919,8 @@ Functions:
 - `business_query`
 - `skill_preflight`
 - `cancel`
+- `model_connection`
+  - Instance-private public facts; credentials never cross this HTTP channel.
 
 
 ## `app/research_web/datahub/security.py`
@@ -4856,7 +4858,7 @@ Classes:
 - `AnswerItem`
 - `Answers`
 - `ModelConfig`
-  - methods: reject_masked_key
+  - methods: declared_connection, reject_masked_key
 
 Functions:
 - `create_app`
@@ -5607,7 +5609,7 @@ Functions:
 - `system_backend`
   - Select the approved backend directly, bypassing keyring configuration.
 - `execute`
-  - Operate only on this canonical data home's fixed model account.
+  - Operate only on this canonical data home's two fixed model accounts.
 - `main`
 
 
@@ -6365,14 +6367,14 @@ Imports:
 - `mcp_runtime.authorization`
 - `mcp_runtime.control`
 - `mcp_runtime.credentials`
-- ... 19 more
+- ... 20 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

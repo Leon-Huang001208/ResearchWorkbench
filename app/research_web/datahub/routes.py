@@ -219,3 +219,13 @@ async def skill_preflight(body: SkillAdmissionRequest, request: Request):
 @router.post("/internal/data/cancel")
 async def cancel(body: InternalCancel, request: Request):
     return await request.app.state.research.datahub.cancel(body.session_id, body.call_id)
+
+
+@router.get("/internal/data/model-connection")
+async def model_connection(request: Request):
+    """Instance-private public facts; credentials never cross this HTTP channel."""
+    service = request.app.state.research
+    await service.ensure_owned()
+    # The detached synchronous projection must not hold the mutation lock:
+    # its owner can be waiting for a native metadata callback through this API.
+    return {"connection": service.compatible_connection()}

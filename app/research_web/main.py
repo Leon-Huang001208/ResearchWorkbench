@@ -9,14 +9,14 @@ import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from uuid import uuid4
 
 from fastapi import FastAPI, Header, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from core.observability import get_logger, setup_logging
@@ -111,10 +111,52 @@ class Answers(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    provider: Literal["deepseek-official"] = "deepseek-official"
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["deepseek-official", "openai-compatible"] = "deepseek-official"
     model: str = Field(min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9._:/-]+$")
     api_key: str | None = Field(default=None, min_length=1, max_length=1024, repr=False)
     clear_api_key: bool = False
+    base_url: str | None = Field(default=None, min_length=1, max_length=2048, repr=False)
+    protocol: Literal["openai-completions"] | None = None
+    credential_mode: Literal["api_key", "none"] = "api_key"
+
+    @model_validator(mode="after")
+    def declared_connection(self):
+        """Validate one route contract; Runtime support is checked independently."""
+        try:
+            if self.provider == "deepseek-official":
+                if self.base_url is not None or self.protocol is not None:
+                    raise ValueError("official endpoint is fixed")
+                if self.credential_mode != "api_key":
+                    raise ValueError("official credentials are required")
+                return self
+            if self.base_url is None:
+                raise ValueError("compatible endpoint is required")
+            endpoint = urlsplit(self.base_url)
+            if (
+                self.base_url != self.base_url.strip()
+                or any(ord(char) < 33 or 127 <= ord(char) <= 159 for char in self.base_url)
+                or endpoint.scheme not in {"http", "https"}
+                or not endpoint.hostname
+                or endpoint.username is not None
+                or endpoint.password is not None
+                or "?" in self.base_url
+                or "#" in self.base_url
+                or endpoint.port == 0
+            ):
+                raise ValueError("endpoint is not an unauthenticated network address")
+            local = endpoint.hostname in {"localhost", "127.0.0.1", "::1"}
+            if endpoint.scheme == "http" and not local:
+                raise ValueError("plain HTTP is only supported on local loopback")
+            if self.credential_mode == "none" and (
+                not local or self.api_key is not None or self.clear_api_key
+            ):
+                raise ValueError("keyless local route must not carry credentials")
+            self.protocol = "openai-completions"
+            return self
+        except ValueError:
+            log.warning("research_model_connection_request_rejected")
+            raise ValueError("model connection contract is invalid") from None
 
     @field_validator("api_key")
     @classmethod
@@ -318,7 +360,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         if body.clear_api_key and body.api_key is not None:
             raise StoreError("替换与清除凭据不能同时提交", "invalid_request", 422)
         return await svc(request).configure_model(
-            body.provider, body.model, body.api_key, clear_api_key=body.clear_api_key
+            body.provider,
+            body.model,
+            body.api_key,
+            clear_api_key=body.clear_api_key,
+            base_url=body.base_url,
+            protocol=body.protocol,
+            credential_mode=body.credential_mode,
         )
 
     @app.post("/api/research/runtime/model/test")

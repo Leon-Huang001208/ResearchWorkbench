@@ -178,3 +178,8 @@ DataHub 连接凭据以公开 canonical data home 的 SHA-256 后缀隔离系统
 ## 设置闭环阶段3：当前能力范围
 
 DataHub快照增加非秘密authorization_fingerprint，来自配置、实例命名空间和原子配置文件身份，不读取或散列秘密值。旧快照留作审计；新查询/回执/缓存重用须重检当前授权与配置版本。脚本只获当前准入版本和已授权dataset目录；旧resources/skills和全集版本快照不可作为执行许可。
+
+
+## 单一兼容模型连接
+
+兼容模型连接只在产品状态中持久化非秘密字段和公共revision；秘密仅存于实例系统账户RESEARCH_COMPAT_API_KEY，与原RESEARCH_DSH_API_KEY分离。地址变化不继承旧Key，文件/环境不作为模型回退。GET model-connection复用私有鉴权通道，不返回秘密；数据快照与商业数据账户合同不变。

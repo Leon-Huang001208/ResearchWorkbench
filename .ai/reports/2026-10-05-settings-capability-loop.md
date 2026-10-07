@@ -760,3 +760,52 @@ Office临时资源清理的独立目录读取未返回，终止本次所属审�
 核对官方Ollama v0.40.0 darwin archive167494179字节及发布digest；只向任务临时目录下载，180秒失败exit28，实收9623543字节，未校验为完整包、未解压、未执行、未下载模型、未系统安装。一次urllib release metadata读取也遇IncompleteRead，已有gh官方API完成固定release元数据，未连续重跑网络。当前仍没有可用额外真实端点，不将不完整下载或SDK文档计PASS。日志local-model-resource-audit.json/local-model-download-state.json/native-keyless-contract.log保留。
 
 下一独立实施范围仍仅一种openai-compatible连接，固定协议openai-completions、显式base URL/model ID和auth mode。复用固定DSH LlmAdapter扩展与现有Agent循环，不能因原生SDK强制Key而伪造用户凭据；薄传输适配须拒绝重定向、有界超时/输出/错误处理，无Key模式完全不读取秘密，有Key模式只用与DeepSeek分开的固定系统ref；现有事务和活动任务保护沿用。先只认证实际文本/流式，未经真工具验证的连接只能承担明确不依赖工具的功能。产品/检查环境、全局DSH、生产、固定版本和锁不变；单一报告记录设计及实际失败，不额外建设模型管理框架或第二Vault。暂无真实端点仍阻断真实1B完成，但不阻断必要合同/最小连接实现的独立工作，Goal继续active。
+
+
+1B当前切片实际RED：新增test_model_connections.py两个正向请求合同失败、6项既有/拒绝条件PASS；最小ModelConfig结构化校验后8 PASS。Black只读2文件PASS。新增字段不是Runtime支持标志：服务保留model_unavailable，UI仍只展示DeepSeek，尚未挂载新适配器/新增凭据ref/真实生成，不宣称1B完成。当前源码为本地2614ed4f1上的未提交main.py/新测试/直接模块文档及本报告；原候选32cd546cc的CI不认证该WIP。原API模型/凭据聚焦回归仍在执行handle23316，等待其真实终态；独立只读Python reviewer继续核对URL与模式边界。Goal保持active，下一切片实施薄适配及独立凭据事务，不因缺真实额外账户停止必要独立修复。
+
+
+1B请求合同独立review发现DEL/C1未覆盖，新增两负例真实RED（2失败），最小补齐127—159字符拒绝后10 PASS，保留全部失败。原API模型/凭据聚焦回归handle23316已exit0，结果按compatible-config-original-regression.log记录；未消耗供应商请求。当前WIP还未公开新增服务或提交源码，后续继续adapter、独立系统ref与事务、Runtime恢复、对应本地闭包/当前候选CI。原32cd候选及其三门证据保持，不重复触发。
+
+
+### 1B Runtime与独立凭据切片（持续实施，未交付）
+
+先新增单次HTTP/SSE四失败合同与独立Keychain账户失败测试，再最小新增compatible-model.mjs文本/流式LlmAdapter。固定DSH公共CLI、owned overlay、正式research-web与私有Host回调实际挂载，合成OpenAI流真实通过原生turn/end，wire无Authorization/x-api-key、请求1、供应商0；不是只检查class/source标签，也不是真实供应商验收。fixture使用非秘密配置受控seed和直接Native提交，明确尚未证明页面保存闭环。
+
+RESEARCH_COMPAT_API_KEY与原RESEARCH_DSH_API_KEY为仅两项固定系统ref，账号分开，环境/旧文件完全不读；两个ref拒绝Host record委托路径，browser-session读写保留。Python旧/新memory合同5 PASS/2既有opt-in skip；JSref/record合同先RED再PASS。新建专用真实Mac Keychain命名空间，原ref/兼容ref互不覆盖、另一data home不继承、替换、跨进程读取、清除后不恢复均PASS，最终四项命名空间/账户清理PASS，未打印/散列值；compatible-keychain-real.json/log是实际系统库合成证据，供应商0。
+
+复用现有实例私有DataHub鉴权新增GET model-connection，只返回验证过的非秘密配置，不是取密HTTP接口/新Vault。列表不要求秘密，真正有Key请求只通过固定系统ref解析，无Key模式完全不查询凭据。HTTP不重定向、不自动重试，90秒超时、输入/输出/残流限制，不依据HTTP200生成PASS；工具/图片等仍未认证。必要Runtime launch65 PASS；PrivateChannel1 PASS，源URL污染2 PASS；本次目标JS24 PASS/1既有未设置固定source的skip，非全平台证明。
+
+独立review发现三项真实问题，均留RED并修复：GET里污染的userinfo/query URL会返回秘密，现复用ModelConfig并固定异常、不回显input；prepared仅绑定地址会在切配置后用新Key访问旧地址，现捕获专属Key前后比对公共revision/连接，发送前再次检测，metadata查询不取Key；缓冲SSE取消后仍可能finish成功，现每次read、frame、yield恢复和terminal均检查融合signal。8 transport/factory/cancel合同PASS，修复后固定DSH合成路径再次1请求PASS/供应商0。后续保存必须每次配置/凭据变更更新公共revision并持久化uncertain；这项尚待实施，不将fixture默认无revision视为产品事务完成。
+
+Black初次发现新测试格式，目标单文件修正后复查；isort/Ruff/diff exit0。Python/JS只读review继续定点复核，无真实Key访问或生产改动。当前工作区包含本切片源码、测试及直接文档，尚未提交/送CI；原32cd546cc的三门不认证当前WIP。下一步接通API保存/作用域状态/恢复与UI，再用完整 changed set规划当前代码本地闭包和必要CI，真实新增模型与商业账户、Word外部缺项保留，Goal active。
+
+
+### 1B保存/状态/UI与真正冷重启切片
+
+先两保存正例RED，再接通ModelConfig到configure_model参数。沿原model_test_lock/service.lock、活动父/子任务检查、持久化uncertain与失败恢复，不新建事务框架。ref/uncertain/cleared按仅两个固定provider独立，KEY2变化不影响KEY1已用配置；每次兼容配置/凭据保存或清除更新32hex公共revision，端点改变不许保留旧Key，旧会话下一次提交拒绝改变的地址/协议/mode。无Key模式明确required=false/configured=null/storage=not_required，完全不描述/解析模型秘密，保存/应用/推理分别投影。重录/清除、旧服务失败保护与旧会话改投拒绝4 PASS；随后清除后新旧请求阻断/活动任务保护2 PASS。原模型/凭据API20 PASS，原新连接合同17 PASS（新增两条安全回归另跑）。
+
+真实固定DSH目录过滤empty group使首次保存503/model_unavailable，复现日志保留；使用已挂载适配器的固定sanitized catalog failure证明模块存在（非空假model）。同一个产品PUT保存和test API→正常create/send→research-web/framework-explain已通过合成SSE；真正退出再启动Host/DSH后GET恢复无需保存、test再次完成，合成2模型请求/供应商0，wire无Authentication。阶段1移除配置前state.configured=null是明确无需Key，阶段2清理配置后false；不是清除了真实vendor Key或模型真实账户PASS。两组owned进程均退出，只用原实际安装manifest/固定构建。
+
+UI只读review指出dirty Provider选项未刷新、错误提交未清密码、保存期间新编辑会丢失三项P2，已分别修复并复审关闭：更新选项且保留用户provider，捕获FormData即清密码、所有路径移除FormData/提交对象秘密，busy锁定全部输入/select、成功才清dirty；clear载荷在busy禁用前捕获、provider切换即清密码，NoKey不访问密码。UI11+transport/ref组合23 PASS，语法检查PASS；此非真实浏览器验收，仍待阶段闭包。不会截图密码表单。
+
+mypy四改动模块及其传递边界58诊断，冻结7e源码在同样产品解释器/配置同为58，逐项新增0/删除0；之前57/37属不同检查边界，均保留不自行豁免。Black/isort/Ruff按本切片执行，一项SIM102已最小改写，不改规则。唯一报告、原candidate32 CI证据保留；本次源码仍WIP未提交/推送，必须完整changed set规划、文档生成/相关本地闭包及新候选CI后才能交付。真实新增服务、商业数据账户和Word权限缺项仍不改PASS，Goal active，未更新生产/合并/发布。
+
+<!-- architecture-review {"group": "runtime", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "research-api", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "datahub", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+
+### 1B当前候选前完整范围检查
+
+当前完整Task240路径、PR73路径、增量36路径规划/Project Constraints均exit0；生成API atlas与Python索引真实更新，未缩小范围或改policy。JS闭包338 PASS/1既有未设置source skip；本次Python闭包仍在执行21258，先不写PASS。完整新增/修改Python7文件Black初发现追加测试格式，目标单文件修复；isort/Ruff exit0，mypy与冻结7e同边界58旧诊断、新增0。源码/独立合成Keychain/API保存/真正Host+DSH退出重启证据已复审，不重复真实生命周期或商业源请求。
+
+一次fetch固定target master205d2a170d9ece9c2751e014b63abe326510ab9c，目标新增平台证据/能力投影与验收schema v4/v3、HTTPS Docker build传输及文档生成治理，导致PR81冲突；远端任务分支仍32cd546cc，没有并发覆盖。保留当前成果，本地检查点后只正常merge该固定目标，不rebase/force、不合历史分支，不执行暂缓平台。需按整合后真实政策重新生成闭包；旧schema2 receipt和旧CI不替代新候选证据。
+
+Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05秒；JS338 PASS/1已有source未设置skip。保存真实当前代码检查点后整合固定205d2a17，保留合成/真实系统库证据和失败日志。当前新增供应商请求0；合成固定DSH API与冷重启不冒称真实模型账户。

@@ -212,3 +212,8 @@ Windows 对已核对命令签名的受管 PID 先执行非强制 `taskkill /T`�
 ## 设置闭环阶段3：当前能力范围
 
 owned overlay将所属researchRoot绑定到原有全局guard；工具和模型步骤通过同一受鉴权DataHub回环通道检查数据范围。非AI工作台查询仍使用原DataHub授权，设置页不要求模型可用。
+
+
+## 单一兼容模型适配（1B实施中）
+
+owned overlay额外挂载产品侧文本/流式LlmAdapter，Native LlmAdapter和attributionHeaders仅从固定DSH构建路径取得，研究执行仍只有既有原生loop。非秘密连接事实沿既有实例私有Host通道读取，秘密只在所属系统凭据ref通过原私有进程桥接解析。正常CLI/正式preset的无Key合成生成已验证，尚无真实新增服务/完整设置保存验收，不宣称全品牌、工具或其他平台可用。

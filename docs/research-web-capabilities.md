@@ -414,3 +414,8 @@ Tool/Workflow/Method 契约、DataHub 动态选源、MCP 授权或 Automation �
 ## 设置闭环阶段3：当前能力范围
 
 声明范围在现有metadata中表达并随不可变版本保存；UI分别显示声明范围可用/有限可用/不可用/尚未验证，未知专业语义不做品牌推断。当前模型工具证据仅绑定48504f07与deepseek-official/deepseek-flash的实际原生调用；其他选择保留未验证，文本生成不被称为工具成功。具体查询与版本bindings共享门，省略章节的依赖不可作为可选查询放行。
+
+
+## 单一兼容模型连接
+
+新增兼容连接仅认证传输的文本/流式合同；工具功能在真实受控验收前为unverified，不能启动依赖工具的Skill/Workflow。Automation仍经相同create/send执行，继承连接版本、活动保护与当前授权；不按模型名字提升能力。

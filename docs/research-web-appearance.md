@@ -200,3 +200,8 @@ failure 复用 `offline` token；能力、会话等其他目录的 pending/failu
 ## 设置闭环阶段3：当前能力范围
 
 能力详情的数据范围复用现有section、notice和muted样式；不改变主题token、导航、断点或布局体系，未将静态检查绿灯作为真实数据能力。
+
+
+## 单一兼容模型连接
+
+单一兼容模型连接仍复用设置卡片、form-grid、notice与现有主题。新增连接字段及无需Key说明；不新增主题token、布局断点或导航。异步Provider选项和busy/dirty属于交互状态，不改变架构图拓扑。

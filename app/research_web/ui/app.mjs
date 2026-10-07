@@ -16,7 +16,7 @@ import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, mergeIntegrationStatuses } from './connections.mjs';
-import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
+import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
 
 const api = createAPI();
@@ -353,7 +353,12 @@ function render() {
     select.innerHTML = freshSelect.innerHTML;
     select.disabled = freshSelect.disabled;
     if ([...select.options].some(option => option.value === selected)) select.value = selected;
+    const provider = modelForm.querySelector('#provider');
+    const selectedProvider = provider.value;
+    provider.innerHTML = freshModelForm.querySelector('#provider').innerHTML;
+    if ([...provider.options].some(option => option.value === selectedProvider)) provider.value = selectedProvider;
     freshModelForm.replaceWith(modelForm);
+    syncModelForm(modelForm, { busy: state.busy });
   }
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -1295,8 +1300,9 @@ root.addEventListener('change', async (event) => {
     controller.setFormats(selected); render();
     root.querySelector('.format-picker')?.setAttribute('open', '');
   }
+  if (target.id === 'provider' || target.name === 'credential_mode') { syncModelForm(target.closest('form'), { clearKey: true }); target.closest('form').dataset.dirty = 'true'; }
   if (target.id === 'settings-model' && target.value) {
-    try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; target.closest('form').dataset.dirty = 'true'; }
+    try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; syncModelForm(target.closest('form'), { clearKey: true }); target.closest('form').dataset.dirty = 'true'; }
     catch { safeLog('invalid_model_selection'); }
   }
   if (target.id === 'model-select' && target.value) {
@@ -1585,14 +1591,17 @@ root.addEventListener('submit', async (event) => {
     return;
   }
   if (event.target.id === 'settings-form') {
-    const values = new FormData(event.target); const key = String(values.get('api_key') || '').trim();
-    const payload = { provider: String(values.get('provider')).trim(), model: String(values.get('model')).trim(), ...(key ? { api_key: key } : {}) };
-    // Capture once, clear immediately; never copy secrets into application state or logs.
+    const values = new FormData(event.target);
+    // Every submit clears the password, including payload-validation failures.
     document.querySelector('#api-key').value = '';
-    delete event.target.dataset.dirty;
-    const result = await controller.action(() => api.configure(payload), { refreshAfter: false });
-    delete payload.api_key;
-    if (result?.configured) { success = '配置已保存，新会话使用此模型；真实推理待测试。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
+    let payload;
+    try { payload = modelConfigurationPayload(values); }
+    catch (error) { values.delete('api_key'); state.error = error.message; render(); return; }
+    values.delete('api_key');
+    const result = await controller.action(() => {
+      const pending = api.configure(payload); delete payload.api_key; return pending;
+    }, { refreshAfter: false });
+    if (result?.configured) { delete root.querySelector('#settings-form')?.dataset.dirty; success = '配置已保存，新会话使用此模型；真实推理待测试。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
   }
   if (event.target.matches('[data-connection-config]')) {
     const sourceId = event.target.dataset.connectionConfig;
@@ -1628,7 +1637,13 @@ root.addEventListener('click', async (event) => {
   if (modelAction && 'modelClear' in modelAction) {
     if (!catalog.runtime?.model) { state.error = '当前模型未知，请先刷新 Runtime 状态。'; render(); return; }
     if (!window.confirm('清除专属模型凭据？后续模型请求将不可用，已有会话仍保留。')) return;
-    const result = await controller.action(() => api.configure({ provider: 'deepseek-official', model: catalog.runtime.model, clear_api_key: true }), { refreshAfter: false });
+    const form = root.querySelector('#settings-form');
+    const values = new FormData(form); form.querySelector('#api-key').value = '';
+    values.delete('api_key');
+    let payload;
+    try { payload = modelConfigurationPayload(values, { clear: true }); }
+    catch (error) { state.error = error.message; render(); return; }
+    const result = await controller.action(() => api.configure(payload), { refreshAfter: false });
     if (result?.configured) { success = '模型凭据已清除。'; await loadCatalog(['runtime']); }
     return;
   }
