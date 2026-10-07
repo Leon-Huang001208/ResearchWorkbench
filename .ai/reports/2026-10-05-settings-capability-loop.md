@@ -837,3 +837,23 @@ Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05�
 本地后续报告提交仅报告，不再push触发bootstrap；该报告HEAD未被上述CI测试，实际源码差异将核对只含报告。当前候选适配器、事务、私有配置、系统ref、无Key/Key合同与合成正常入口/真正冷重启通过，仍没有新增真实供应商/本地LLM的真实推理账户证据，不宣布完整1B。Ollama v0.40.0官方archive下载180秒exit28/实收9623543而非167494179字节，未执行/安装；不得以模型名/源标签/fixture冒充真实模型能力。合成实例配置清理、所属Host/DSH/服务器退出，无模型Key留存，真实Mac系统库测试新命名空间也已清除；本轮真实供应商请求0。
 
 剩余独立真实资源仍是：可用新增模型端点/模型（如需Key只通过产品安全设置页）、所属商业数据账户与一个获准dataset、Office/Word真实可响应环境及其原隔离临时资源清理证据（timeout/UNVERIFIED保留）。全授权不是这些资源存在的证据，不索取/复制个人工具或生产Key，不购买管理供应商账户、不重复TCC目录读取。已完成数据准入、兼容连接实现与Mac当前代码CI及最小未来部署决策；全部阶段尚未达到完整真实闭环，Goal保留active供持续任务，生产8088/3081不变、未合并/发布。
+
+### 1B实际本地模型与产品冷重启收口（2026-10-07）
+
+上述“新增真实端点缺失”已解除。官方 Ollama v0.40.0 darwin 资产616313466通过同一有界Range传输完成：167494179字节，SHA-256 b490b4925a95c5f3dfcd889e566cf3dcd727848d59057fb00b03f1d6630326dc，与官方发布digest相同；`codesign --verify --verbose=2` exit0。只解压到 `/private/tmp/rwb-ollama-1b-20261007/distribution`，不安装全局应用或产品依赖。进程HOME、OLLAMA_MODELS均在该任务目录，OLLAMA_HOST=127.0.0.1:19434、OLLAMA_NO_CLOUD=1；未登录云账户、未读取个人工具配置、未存供应商Key。正式模型拉取均exit0。最终Qwen2.5 0.5B身份a8b0c51577010a279d933d14c2a8ab4b268079d44c5c8830c0a93900f1827c67、397821319字节、GGUF/Q4_K_M；软件/模型digest是公开包身份，不是秘密hash。
+
+沿原真实安装环境 `/private/tmp/rwb-dsh-upgrade-fixture-20261007/admission-web` 和固定48504f07源码，通过正常WebServiceManager启动Host19089/DSH14181。首次Web退出的原因是前序fixture创建的MCP控制记录绑定8088，而受管测试实例明确19089；按私有文件0600/owner/regular验证后，原记录仅在其所属测试home改名保留，正常启动自行生成正确记录。未修改MCP合同、产品源码、生产或安装manifest。Doctor installation_ok=true；修正后的公开受管启动product_ready=true。
+
+实际页面 `http://127.0.0.1:19089/#/settings/model` 选择OpenAI兼容文本/流式、填写非秘密回环地址、选择本机无Key模式并保存。真实浏览器刷新恢复Provider/model/地址/模式；状态明确区分配置已保存、Runtime待应用、尚未测试。API credential_required=false/credential_configured=null/credential_storage=not_required。浏览器专用插件遭签名错误，保留环境失败，使用已开放CUA完成页面操作；只截取非秘密状态区域，不截取密码表单、请求体、Cookie或认证链接。
+
+保留两次失败：smollm:135m真实HTTP200有文本但max-tokens结束，产品正确判incomplete，不计PASS；第一次Qwen调用在pull完成前错误发出，HTTP404/compatible_http_failed，不计PASS，不隐藏为网络成功。确认pull exit0及实际/api/tags身份后，产品model/test沿framework-explain、固定DSH和新适配器真实得到“模型生成测试完成。”，原生turn/end completed（session1715dcc8-24f9-4214-bb41-a467f35bbcbc）。随后正常stop实际退出Host92825/DSH92620，status两者pid=null/ready=false；正常start新Host22110/DSH21783，不再次保存即恢复qwen2.5:0.5b/noKey，并再次得到同一最终文本及completed（sessiond96d97df-aa7a-41ce-8e40-47be4245b2e0）。API runtime_applied=true；页面分别显示新会话默认模型、无需Key、已收到最终文本。
+
+另通过正常POST sessions与messages创建普通fingpt会话，正式research-web preset完成文本回复（sessionb47ba098-727b-4850-98f6-2ec522cb0c93），不只是model/test快捷入口。原生completed/实际source=openai-compatible/qwen2.5:0.5b/toolEvents=0。回答冗长且有概念错误（误称分散投资降低系统性风险），因此只认证文本调用链，不认证研究质量；小模型不作为金融研究质量基准。兼容服务工具/多模态仍未验证且明确不支持相应任务，未放宽能力声明。
+
+本切片总计5次本地模型HTTP请求，状态200/404/200/200/200；其中首个200不完整，后续3个200 completed。真实供应商请求0、工具0、自动重试0。实际命令包括产品解释器运行 `/private/tmp/rwb-ollama-1b-20261007/product_acceptance.py` 的doctor/start/state/test/stop/status；官方隔离CLI pull smollm:135m与qwen2.5:0.5b；普通研究经同源HTTP create/send及原生history终态校验。具体证据统一留在 `logs/settings-model-loop/data-admission/compatible-real-*`、ollama-range-state.json，官方传输/模型资源仅本机临时目录，不入Git或CI artifact。
+
+最终正常受管stop已退出所属Host/DSH；Ollama PID5966在核对精确可执行路径、serve命令和专属process group后SIGTERM退出。19089/14181/19434均不再监听；compatible-real-final-cleanup-counts.json包含实际五次请求、清理与端口证据。该连接从未存Key，凭据清理为NOT_REQUIRED，不伪称清除了真实Key；保留非秘密连接、测试资源与脱敏证据供复现，不修改生产8088/3081。已有Word资源的UNVERIFIED不能由这次清理覆盖。
+
+源码与固定候选93bc351c480d10609beb4dd7a98f148f9dc04beb一致，本切片只新增本地真实证据与本报告；既有完整256任务路径/74PR路径plan、receipt及三个匹配CI继续保留，不重跑全部C1/C2或真实旧服务生命周期、不冒称新报告HEAD已被CI测试。1B选定的一条macOS Native无Key文本路径已取得保存、测试、普通研究调用、真正Host/DSH冷重启证据，凭据隔离合同/真实系统库合成证据复用未变源码。带供应商专用Key的新增服务真实账户仍未验证，不承诺所有品牌、工具能力或研究质量。
+
+独立可完成工作收口后仍缺：阶段2自有商业账户与具体获准dataset；阶段4选定Office/Word真实可响应环境，以及原超时隔离资源的清理确认（UNVERIFIED）。这些缺项此前已连续记录，不能由扩大授权、fixture、旧CI或本地模型替代。Windows/Linux/Docker由所属平台任务留NOT_RUN，非本Mac任务阻塞。现有候选机械hostAcceptance=PASS，aggregateAcceptance=NOT_READY、mergeReady=false/releaseReady=false；全部阶段整体不能标完成。不再自动重试相同Office/TCC失败，不购买账户，不索取Key。最小解除条件是通过产品安全入口配置一个真实可用且具dataset权限的数据账户，以及可实际响应的Office/Word授权环境与所属资源清理结果；不需要扩大Git/安装权限。
