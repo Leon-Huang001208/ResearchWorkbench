@@ -1,5 +1,22 @@
 # 阶段三：macOS Docker Desktop 实测
 
+## 当前状态（完成 Mac 平台验收）
+
+阶段三 Mac Docker Desktop 任务完成；hostAcceptance PASS，aggregateAcceptance NOT_READY，Windows/Linux 原生及产品 CI NOT_RUN，等待对应设备。阶段一 PR82、阶段二 PR83 已合并。当前任务关联 [PR84](https://github.com/Leon-Huang001208/ResearchWorkbench/pull/84)，合并状态以该实时记录及受管 delivery receipt 为准；未更新日常实例。本报告的提交独立于以下验证候选，历史失败记录保留。
+
+源码候选 `fb9ec4fb978d04caf6e6fca03ba90f49decdd64e`，基线205d2a；[Mac Bootstrap37644483224](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/37644483224) SUCCESS，实际checkout `47f310b648e9d5d9f84cb1bdecd128789f1935b9`，Git父序严格[205,fb9]。正式plan4/receipt3/summary validator PASS，mergeReady/releaseReady false保留总平台门；用户明确授权Mac任务合并，不伪造跨平台ready。
+
+镜像安装源码 `5e1b790b581bca01bc73583a0720b50f664e5941`、实际image `sha256:7dc3942fbddc81f3c4d34d0e860117a086c6cb8a8637eec10624dcd551333ee7`；宿主mac14.6.1/23G93 arm64，Desktop4.94.0/Engine29.8.2，镜像Linuxarm64。最后host stop补丁使镜像中打包的controller字节与最终host不同，不称current-source镜像构建PASS；实际容器Supervisor/DSH/Web/healthcheck/依赖/Compose执行输入不变，精确scoped reuse档案证明差异只用于宿主。
+
+实际安装、authenticated双服务ready、Doctor与四项HTTP200；最新宿主restart16.773s、stop1.953s、owned down/up及容器文件SHA保留PASS。真实Chrome11步通过、Settings架构入口/图返回/API分类/固定版本docs/source/test链接200。最终stop2.962s、owned容器移除、IPv4/IPv6端口18092/13086实际绑定释放，测试data/credentials保留，foreign未操作。
+
+10个local gates PASS；新Python controller168PASS、staging48PASS、JS contract14PASS及完整选中closure已归档。Ruff/mypy无新增诊断，旧全文件格式/类型问题不称GREEN。归档plan/receipt/summary/assurance JSON明确证据范围；17份关键证据及SHA清单保留于任务archive。浏览器截图在outputs/research-web-ui-acceptance/docker-bda/documentation，图输入未变，原人工审阅哈希继续复用。
+
+未验证：模型付费生成、厂商数据授权、真实凭据操作、真实产品升级、双已安装模式切换。非Mac严格研究沙箱、Docker宿主Office/Wind/Tabbit及WindowsDocker ACL保留安全边界。没有复制他平台venv/二进制/源码，未派发Windows/Linux产品CI。
+
+## 历史诊断与修复记录
+
+
 宿主 macOS 14.6.1 / 23G93，arm64；任务类型为平台适配。taskId: task-20261007-bda2aa87e13e，基线 `205d2a170d9ece9c2751e014b63abe326510ab9c`。用户明确目前只有 Mac；Windows/Linux 真机及其 CI 保留 NOT_RUN，不作为本任务完成前置条件。
 
 ## 根因与修复
@@ -16,7 +33,7 @@
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"修复发布载荷遗漏，并将Docker临时状态由bind改为私有tmpfs。部署图以模式独立状态节点表达该边界，未声明state bind；Native双进程、Docker单容器两服务、共享研究数据、私有凭据与端口拓扑保持。","diagrams":[]} -->
 
-当前 hostAcceptance: NOT_RUN；aggregateAcceptance: NOT_READY；尚未发布本任务修复或更新生产实例。阶段二/Native 已合并与通过的证据独立归档，不能借为本任务 Docker PASS。
+当时 hostAcceptance: NOT_RUN；aggregateAcceptance: NOT_READY；尚未发布本任务修复或更新生产实例。阶段二/Native 已合并与通过的证据独立归档，不能借为本任务 Docker PASS。
 
 ## 第二项实测故障：Desktop 属性视图
 

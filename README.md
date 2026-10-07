@@ -53,7 +53,7 @@ setup-web.cmd --runtime native
 python scripts/setup_web.py --runtime native
 ```
 
-Native 安装器创建 checkout 专属 `.venv`；Docker 安装器构建受管镜像，使用单容器内的 DSH 与 Web。两者消费同一带哈希 Web 锁、随包 CJPY 和固定 DSH 合同，不安装数据库、桌面 sidecar 或 Tauri。Docker 的临时认证与运行状态使用容器私有 tmpfs，重启时重建；产品数据和私有凭据分别使用持久 bind。Docker 构建需要网络拉取固定基础镜像和 DSH 依赖；本机未完成真实 Docker 构建与生命周期验收，不能把源码/模拟测试视为镜像可运行的证明。
+Native 安装器创建 checkout 专属 `.venv`；Docker 安装器构建受管镜像，使用单容器内的 DSH 与 Web。两者消费同一带哈希 Web 锁、随包 CJPY 和固定 DSH 合同，不安装数据库、桌面 sidecar 或 Tauri。Docker 的临时认证与运行状态使用容器私有 tmpfs，重启时重建；产品数据和私有凭据分别使用持久 bind。Docker 构建需要网络拉取固定基础镜像和 DSH 依赖；macOS Docker Desktop 已有独立镜像、安装、健康、重启与重建数据保留证据，适用的镜像/宿主提交及限制见支持矩阵；这些结果不认证 Windows/Linux 或厂商授权。
 
 可在安装后检查运行环境：
 
