@@ -22,8 +22,8 @@ Progress authority: [PROGRESS](2026-10-07-hot-events-PROGRESS.md).
 - Store raw responses and versioned evidence in PostgreSQL initially, avoiding
   an extra object-directory publication transaction. Research receives frozen
   copies through the existing session snapshot contract.
-- Private internal socket with versioned request envelopes, installation
-  identity and mode generation. Host controls this socket; no browser endpoint
+- Private signed loopback transport with versioned request envelopes, installation
+  identity and mode generation. Host controls this endpoint; no browser endpoint
   can claim leases or resolve credentials. Revoke old generation on mode switch.
 - Runtime roles have DML permission only within explicitly configured schema;
   migration credentials separate. Schema name must be validated and safely

@@ -4,6 +4,12 @@
 
 ## 当前 Research Web
 
+Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（非秘密配置与只读诊断）和
+`services/hot/`（PostgreSQL、私有签名回环协议与独立 Node 服务）。对应文档为
+`services/hot/README.md` 与安装指南 Hot 小节；测试为 `test_hot_entrypoint.py` 及
+`services/hot/tests/`。当前尚未接入产品启停、Settings、采集和研究链路，不把基础测试
+写成完整功能验收。新增入口属于 dual-runtime 清单；它不创建第二个研究引擎。
+
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |
 | `runtimes/research_web.json`、`app/research_web/runtime_contract.py` | Native/Docker 共用 Python、Node、CJPY、DSH、pnpm 事实 | `research-web-installation.md`、`architecture/research-web/01-system.md` | `test_runtime_contract.py`、`docker_runtime_contract.test.mjs` | 固定版本、闭包或镜像事实变化 |

@@ -5,6 +5,28 @@
 
 ## 支持范围
 
+### Hot 实施中的入口
+
+本轮增加可选 Hot 的独立 PostgreSQL/Node 组件；基础 Web 仍不要求数据库。
+当前 `rwb hot` 已提供非秘密配置与只读诊断，完整启动/停止、受管 PG、Docker、Settings
+和研究交接尚在实施，不能作为成品安装说明。Hot Node 组件要求 Node 24.11+ 的 24 系列。
+
+```bash
+./rwb hot --help
+./rwb hot status --json
+./rwb hot doctor --json
+./rwb hot configure --file services/hot/config.example.json --json
+```
+
+配置保存于产品数据根的 `hot/settings.json`；示例默认关闭、预算为零，不接收密码或 DSN。
+`--data-home` 可指定隔离验证数据根，必须使用无 alias 的规范路径。状态/Doctor 不创建目录、
+不查询凭据、不触发采集或模型；数据库和模型未验证时保留 `NOT_RUN`。上述命令不会启动
+独立服务，完整 lifecycle 集成仍待完成。独立进程的实际启动、SIGTERM 和重启已在隔离
+PostgreSQL 测试资源验证，详细状态以 Hot 任务报告为准。
+
+内部服务使用仅绑定 `127.0.0.1` 的签名协议，校验实例、模式、代次和操作权限，消息不携带
+原始控制 key，响应也验证签名。它不暴露 SQL、路径或凭据管理给浏览器或模型。
+
 当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：
 
 - Docker（推荐新安装）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、运行中的 Engine、Compose v2、构建时可访问固定基础镜像及 DSH 依赖的网络；无需宿主 Node，也无需全局第三方 Python 包。容器使用固定 Python 3.12、Node 24 和非 root 用户。Windows 的 Docker 凭据目录 ACL 尚无可证明的安全准备/验证路径，当前以 `docker_credentials_acl_unverified` 失败关闭，不能称为 Windows Docker 已可用或已验收。

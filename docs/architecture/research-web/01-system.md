@@ -1,5 +1,12 @@
 # 部署与模块职责
 
+## Hot 阶段一组件
+
+`services/hot/` 已有独立 Node/PostgreSQL 控制与读取进程，使用私有 stdin 接收宿主解析后的
+凭据，内部接口仅绑定回环并验证签名、实例、模式与代次。它不启动 ResearchService、DSH 或旧
+Store。`rwb hot` 当前只接入配置和只读诊断；产品启停、受管 PG 与 Docker 装配仍待完成。
+因此下述基础 Web 部署图仍描述现有 Web/DSH；Hot 的最终部署图将在实际产品装配后同步。
+
 Native私有认证bootstrap使用规范化的RWB_RUNTIME_STATE，并要求RESEARCH_RUNTIME_AUTH精确等于该目录内auth.json；拒绝目录别名或另一个认证文件。该绑定只保护所属Host/DSH交接，模型Keychain仍走独立provider。
 
 公开 Web 安装器的 Native 路径在运行前创建 checkout 专属 `.venv`，并把固定 DSH 构建发布到用户私有的

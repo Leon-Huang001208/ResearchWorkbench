@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+Hot 非秘密配置位于产品数据根的 `hot/settings.json`，采用 0600 原子替换并绑定当前项目根；
+诊断不创建目录或查询凭据。Hot 业务材料、版本和任务由独立 PostgreSQL schema 持有，不让
+后台进程写现有 Store。研究快照联合恢复尚未实现；当前最小库恢复不能证明会话恢复。
+
 模型默认值、清除/回执未知标记及最近显式生成结果只保存于既有非秘密产品索引，不保存Key。macOS Native固定DSH模型秘密仅在系统Keychain；权限受限私有文件仅用于Host认证record；不进入DataHub快照、Automation索引、模型上下文或导出。提交前的未知标记支持取消/崩溃后的冷恢复失败关闭。
 
 固定Docker bind中的私有叶首建不读取认证或凭据；创建阶段允许的父owner映射只限root到

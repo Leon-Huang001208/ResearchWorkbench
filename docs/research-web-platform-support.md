@@ -1,5 +1,10 @@
 # Research Web 能力与平台证据
 
+Hot 本轮状态单独记录：macOS 已执行核心、签名回环服务和真实子进程启停/重启的本地验证；
+`rwb hot` 仅配置与只读诊断可用。完整 Hot Native 模型/研究、Mac Docker 装配与模式切换、
+同提交 macOS CI 均未完成；Windows/Linux 真机与相应 CI 保持 NOT_RUN。本页其他能力的旧
+验收证据不能用作 Hot 验收证据，详见 Hot 权威进度记录。
+
 支持按能力、系统和运行方式声明。Doctor 的 `available` 表示代码具有当前实现，`unsupported` 表示明确边界，`not_verified` 表示必要安全证明缺失；`validated=false` 不会随操作系统推导为通过。实际验收由任务回执和下表的证据决定。
 
 ## 当前证据身份

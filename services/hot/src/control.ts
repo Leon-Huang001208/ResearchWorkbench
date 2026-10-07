@@ -54,7 +54,7 @@ export async function initializeIdentity(db: Sql, schema: string, instanceId: st
     if (row.instance_id !== instanceId || row.controller_token_hash !== sha256(controllerToken)) throw Error('hot_instance_mismatch');
   });
 }
-export async function activateRuntime(db: Sql, schema: string, instanceId: string, controllerToken: string, mode: RuntimeOwner['mode'], seconds = 300): Promise<RuntimeOwner> {
+export async function activateRuntime(db: Sql, schema: string, instanceId: string, controllerToken: string, mode: RuntimeOwner['mode'], seconds = 300, requireIdle = false): Promise<RuntimeOwner> {
   schemaName(schema); identity(instanceId); token(controllerToken); duration(seconds);
   if (!['native','docker'].includes(mode)) throw Error('hot_owner_invalid');
   try {
@@ -62,7 +62,8 @@ export async function activateRuntime(db: Sql, schema: string, instanceId: strin
       await lock(tx, schema);
       const rows = await tx`update ${tx(schema)}.runtime_identity set mode=${mode}, generation=generation+1, paused=false,
         owner_until=clock_timestamp()+${seconds}*interval '1 second'
-        where singleton and instance_id=${instanceId} and controller_token_hash=${sha256(controllerToken)} returning generation`;
+        where singleton and instance_id=${instanceId} and controller_token_hash=${sha256(controllerToken)}
+        and (${!requireIdle} or paused or owner_until<=clock_timestamp() or owner_until is null) returning generation`;
       if (rows.length !== 1) throw Error('hot_control_denied');
       return { instanceId, mode, generation: String(rows[0].generation) };
     });

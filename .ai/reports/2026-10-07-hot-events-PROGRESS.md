@@ -1,6 +1,8 @@
 # Hot Events authoritative progress
 
 - Goal: both attached goal documents, all stages 0–5; no reduced completion scope.
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"本检查点仅接入独立Hot服务的开发验证入口与非秘密配置诊断，未把Hot装配进受管Web/DSH产品生命周期。部署图仍表达基础Web两服务，Hot正式装配后再同步其Node/PG拓扑；本次已更新源码、测试与阅读清单并重新生成图册入口。","diagrams":[]} -->
 - hostPlatform: macos; taskKind: feature-development.
 - hostAcceptance: NOT_RUN; aggregateAcceptance: NOT_RUN.
 - Base: remote master `205d2a170d9ece9c2751e014b63abe326510ab9c`, verified 2026-10-07.
@@ -8,9 +10,9 @@
 - Branch: `codex/hot-events-system-20261007`.
 - Harness task: `hot-events-system`; session key stays with this task.
 - Upstream: AIHOT `8e34e05feb161cb5838e592ee22715f791c7f814`; MIT and NOTICE read.
-- Current (updated 2026-10-08): stage 1 DB configuration, permissions, queue and worker substrate implemented. Product lifecycle/Settings/CLI/private transport remain incomplete; stage 1 is not complete.
+- Current (updated 2026-10-08): stage 1 private service/transport and initial public CLI configuration diagnostics implemented. Full lifecycle manager, managed PG setup, Settings and Docker integration remain incomplete; stage 1 is not complete.
 - Verified: Docker Engine 29.8.2 available; public repository; independent worktree at current remote master; upstream dependency versions available on npm.
-- Important drift: stage file exists on remote master but not the older primary checkout. PR 81 and PR 84 remain unmerged and are not dependencies to assume.
+- Baseline drift: latest `origin/master` `b0ed27b75aa915346f6cf1f1db984623dfe25f14` was fetched and merged before shared entrypoint edits. Earlier PR state statements were historical; do not assume they remain current. Existing Hot commits retained without conflicts.
 - Decisions already authorized: PostgreSQL and project-isolated required dependencies; Native full model/research baseline; Mac Docker collection/persistence/switch baseline; no production deployment or merge.
 - Fixed route after bounded integration: one internal Node/TypeScript package for Hot persistence/algorithms/queue, FastAPI for product configuration and authorized handoff. Detailed file/contract plan: [PLAN](2026-10-07-hot-events-PLAN.md).
 - Dependencies to install: postgres 3.4.9 (pool), pg-boss 12.34.0 (durable tasks), fast-xml-parser 5.11.1 (feeds). No Python dependency installed.
@@ -29,6 +31,12 @@
 - Worker additions: finite lanes, controller heartbeat/supervision loop, cancellation and finite handler wait; late returned commit callbacks discarded. Arbitrary side effects already started inside a handler cannot be forcibly undone by this library. Actual manager-owned process termination remains NOT_RUN.
 - New evidence: `stage-one-final-tests.log` reports 16/16 PASS; `stage-one-typecheck-final.log` PASS; `stage-one-role-elevation-test.log` supplements the scoped-role case after final SET ROLE hardening. Tests include a 48-character real schema, actual queue expiry/new generation recovery, stale owner delayed claim, post-failure expiry rollback, ordinary-role enqueue/process, foreign table/view/function refusal and uncooperative handler cancellation. They do not certify whole-product Native/Docker switching.
 - Reviewed: final read-only TypeScript review found no remaining important substrate defects before the small SET ROLE permission hardening; that hardening then passed typecheck and its real PG test. Earlier schema-sharing/provisioning failures are retained in `stage-one-schema-sharing-failure.log` and retry logs; root cause included attempting to update immutable pg-boss queue policy, now fixed.
-- Next: implement private instance/mode-authorized service transport and the actual `rwb hot` lifecycle/Settings/Doctor integration, then source collection. Product setup/status/doctor/backup commands and UI are not yet available.
+- Service additions: independently executable `services/hot/scripts/serve.ts`, private bounded stdin bootstrap, distinct scoped worker/controller/read pools, idle-only activation, heartbeat and signal shutdown. Real child process start/SIGTERM/restart retained materials and DB; server reports worker `not_configured` and model `not_integrated`, not whole-product ready.
+- Transport: sole formal route is signed single-frame TCP on `127.0.0.1` with HMAC request/response authentication, immutable instance/mode/generation binding, absolute deadlines, connection and in-flight limits, cancellation and decoded credential-reflection checks. Unix socket prototype was replaced to avoid libuv pathname-unlink cleanup. Old still-listening endpoints are denied after real DB generation changes.
+- Public CLI: `rwb hot configure --file`, `status --json`, `doctor --json`, and help now work through the stdlib bootstrap without starting research or querying credentials. Configuration is atomic/private, bound to project root, rejects aliases/FIFO; diagnostics honestly mark lifecycle not_integrated and DB/model NOT_RUN. CLI configure/status/Doctor were exercised on a canonical isolated data home using the non-secret disabled example.
+- Python evidence: 8 standard-library unittest cases, compile checks; pytest invocation failed because it is not installed. pytest/ruff/black/isort/mypy are absent and were not installed without permission; do not mark those gates PASS. Updated Python inventory, architecture inventory and generated reading atlas accompany this source change.
+- Latest checkpoint verification: `hot-service-final20.log` 20/20 Node/real PostgreSQL tests PASS; `hot-entrypoint-unittest-final8.log` 8/8 Python stdlib tests PASS; repository checks 104/104 PASS; TypeScript typecheck, Python compile, documentation governance and architecture checker PASS. Architecture checker initially required all dual-runtime module documents and a structure decision; those were added without weakening the check. Raw failure/repair receipts remain in the ignored evidence directory. These results do not replace missing formatter/type tools, clean installation, same-commit CI or full product acceptance.
+- Review fixes: stable I/O/argument errors, FIFO read and log refusal with explicit config-saved/log-unavailable response, escaped credential reflection prevention, fixed in-flight dispatch limit and process resource cleanup. Normal process lifecycle proof remains narrower than signed owned-process manager/whole runtime acceptance.
+- Next: implement the actual owned process/PG lifecycle manager and connect Settings/Doctor live service probes, then real source collectors. Public setup/start/stop/restart/backup/restore and complete UI are not yet available.
 - Stages 2–5: NOT_RUN, including sustained collection, actual events/channels, real model, research artifact, full joint recovery, UI and same-commit CI.
 - Windows/Linux handoff: NOT_RUN; separate device ownership. Never interpret Mac Docker evidence as native Linux acceptance.

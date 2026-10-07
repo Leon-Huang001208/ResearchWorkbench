@@ -18,8 +18,10 @@ See `THIRD_PARTY_NOTICES.md` for upstream commit, license and modification scope
 
 ## Implemented stage-one substrate
 
-`config.example.json` is a non-secret example for `parseConfig`. It does not yet
-activate a product configuration file. Settings/CLI wiring remains unfinished.
+`config.example.json` is a non-secret example for `parseConfig`. `rwb hot configure
+--file services/hot/config.example.json` now saves the normalized non-secret
+configuration. `rwb hot status/doctor` are read-only and do not start services.
+Settings and full lifecycle CLI wiring remain unfinished.
 Disabled Hot performs no credential lookup or DB connection. Secrets are passed
 only by an authorized Host resolver; the JSON schema rejects passwords and DSNs.
 Managed connections are restricted to loopback or the fixed private service
@@ -55,3 +57,22 @@ still require integration and real acceptance.
 After `npm run proof`, `npm run test:postgres` executes the real PostgreSQL
 schema, restricted-role, runtime-generation, queue transaction/crash and worker
 tests. `npm test` is the offline unit suite; `npm run typecheck` checks both.
+
+## Private service entry
+
+`scripts/serve.ts` accepts one bounded private stdin bootstrap supplied by the
+owned Host. No passwords are placed in argv/environment or returned on stdout.
+The initialized control/read service exposes status, sources and task projections;
+it truthfully reports `worker:not_configured` and `model:not_integrated` until
+the corresponding adapters are completed. Real child-process startup, SIGTERM,
+restart and database/material retention are covered by `service.integration.ts`.
+
+The only formal internal transport is a `127.0.0.1` single-frame protocol with
+HMAC requests and responses, distinct reader/controller keys, current instance,
+mode and generation checks. Keys never travel over the connection. It has fixed
+wire limits, absolute deadlines and bounded connection/in-flight counts, passes
+cancellation to handlers and checks decoded values for credential reflection.
+No Unix socket pathname is created or removed. This avoids libuv's automatic
+path unlink on pipe close ([upstream source](https://github.com/libuv/libuv/blob/v1.x/src/unix/pipe.c)).
+Actual Docker service management, signed process-state ownership and product
+manager termination remain pending; these tests do not certify the whole product.
