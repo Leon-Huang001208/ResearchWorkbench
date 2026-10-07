@@ -772,6 +772,39 @@ def test_private_runtime_tmpfs_is_owned_and_host_control_state_is_retained(runti
     assert control.read_text() == "installation-control"
 
 
+@pytest.mark.parametrize("mounts_listed", [False, True])
+def test_engine_tmpfs_mount_projection_accepts_complete_or_host_config_only(runtime, mounts_listed):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    if not mounts_listed:
+        runner.container["mounts"] = [item for item in runner.container["mounts"] if item["Type"] == "bind"]
+    assert controller.status()["ok"]
+    assert controller.doctor()["volumes"]["verified"]
+
+
+@pytest.mark.parametrize("mutation", ["partial", "extra", "duplicate", "alias", "missing_options", "foreign_uid", "public_mode"])
+def test_host_config_only_tmpfs_rejects_partial_or_unsafe_projection(runtime, mutation):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    state = next(item for item in runner.container["mounts"] if item["Destination"] == "/state")
+    runner.container["mounts"] = [item for item in runner.container["mounts"] if item["Type"] == "bind"]
+    if mutation in {"partial", "extra", "duplicate", "alias"}:
+        runner.container["mounts"].append(state)
+        if mutation == "extra":
+            state["Destination"] = "/foreign"
+        elif mutation == "duplicate":
+            runner.container["mounts"].append(dict(state))
+        elif mutation == "alias":
+            state["Destination"] = "/state/."
+    elif mutation == "missing_options":
+        runner.container["tmpfs"].pop("/state")
+    else:
+        original, changed = ("uid=10001", "uid=0") if mutation == "foreign_uid" else ("mode=700", "mode=755")
+        runner.container["tmpfs"]["/state"] = runner.container["tmpfs"]["/state"].replace(original, changed)
+    assert controller.stop()["issues"] == ["docker_ownership_mismatch"]
+    assert not any(argv[1] in {"stop", "rm"} for argv, _ in runner.calls)
+
+
 @pytest.mark.parametrize("mutation", [
     "state_bind", "state_volume", "state_source", "missing_state", "duplicate_state",
     "missing_options", "foreign_uid", "foreign_gid", "public_mode", "missing_nosuid",

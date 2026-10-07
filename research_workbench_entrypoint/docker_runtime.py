@@ -596,7 +596,9 @@ class DockerRuntime:
         actual = {item.get("Destination"): item.get("Source") for item in binds}
         if len(binds) != len(expected_mounts) or actual != expected_mounts:
             raise ControlError("docker_ownership_mismatch")
-        if (
+        # Engines may omit tmpfs from Mounts; HostConfig.Tmpfs remains mandatory.
+        # If projected here, the complete exact set must match that configuration.
+        if ephemeral and (
             len(ephemeral) != len(_TMPFS_OPTIONS)
             or {item["Destination"] for item in ephemeral} != set(_TMPFS_OPTIONS)
             or any(item["Type"] != "tmpfs" or item["Source"] != "" for item in ephemeral)

@@ -229,3 +229,5 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 生产包图 staging 必须可实际加载已发布 runtime；文件 manifest 自洽不证明依赖完整。YAML dist/doc 属于代码载荷，必须由 Node 导入回归与真实 DSH 启动验证。
 
 Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_DIRECTORY/O_NOFOLLOW 固定描述符对父根执行不跟随链接的相对属性同步；前后 dev/inode/mode/uid/gid 和父别名/叶替换仍完整复核。同步不 chmod/chown、不读取秘密、不增加 owner 例外；自定义目录仍使用原严格边界。
+
+Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 `Mounts`；控制器兼容列表完全省略或完整三项表示，仍强制 HostConfig 的固定路径、UID/GID、权限和安全选项。部分、重复、别名或额外挂载均拒绝。

@@ -14,7 +14,7 @@
 
 真实网络运输使用既有无凭据回环代理；所有命令是真实 `run_bounded`，限时和输出上限保持。quiet build 只减少构建进度输出，依赖锁、固定 DSH/Node/Python、CA/签名/哈希仍验证。源 HTTP 大包失败已由 HTTPS 源修复；未关闭安全检查或替换厂商凭据。
 
-<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"修复镜像依赖发布载荷遗漏，不改变Native双进程与Docker单容器、挂载、认证和文件交付的结构关系。","diagrams":[]} -->
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"修复发布载荷遗漏，并将Docker临时状态由bind改为私有tmpfs。部署图以模式独立状态节点表达该边界，未声明state bind；Native双进程、Docker单容器两服务、共享研究数据、私有凭据与端口拓扑保持。","diagrams":[]} -->
 
 当前 hostAcceptance: NOT_RUN；aggregateAcceptance: NOT_READY；尚未发布本任务修复或更新生产实例。阶段二/Native 已合并与通过的证据独立归档，不能借为本任务 Docker PASS。
 
@@ -26,3 +26,8 @@ YAML修复后最终镜像7ab5进入runtime_probe，原目录exit verify拒绝sta
 ## 挂载方案实测修正
 
 完整安装证明一次属性同步不能防止 Desktop 根属性再次刷新，d292 同步方案未通过产品启动，不能作为已修复证据。独立 scratch 保留原 Supervisor、real_probe、guard、UID 和安全选项，仅将 `/state` 分别改为私有 tmpfs 与专属 named volume，两者均 runtime/web health_ready、持续60秒、原 healthcheck exit0、shutdown_complete；精确删除各自实例，未操作 foreign。产品选择临时 tmpfs；正式 publicInstaller、持久数据与生命周期验收尚未执行。实验日志为 `/private/tmp/rwb-bind-diagnosis-be41b79cac1441158bf1268673b9dff2/diagnostic.log` 与 `/private/tmp/rwb-bind-diagnosis-93a36baca72444898c88e62de61b5f14/diagnostic.log`。
+
+
+## Engine tmpfs 表示校准
+
+最终镜像构建成功；公开安装在归属核验处失败。真实 Engine 29.8.2 将三项 tmpfs 完整登记在 HostConfig.Tmpfs，而 Mounts 只列两项持久 bind，先前 fixture 假定 tmpfs 同时出现在 Mounts。失败容器本身健康，但安装未发布成功摘要，不计为公开安装 PASS。核对唯一 installation、image、路径和精确挂载后，仅停止并删除本次容器，数据/凭据保留。控制器将兼容 tmpfs 列表完全省略或完整表示，HostConfig 的固定路径、UID/GID、0700、安全选项和额外挂载拒绝仍强制。
