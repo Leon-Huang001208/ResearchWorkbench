@@ -890,7 +890,10 @@ class DockerRuntime:
         if self._containers():
             raise ControlError("docker_ownership_mismatch")
 
-    def stop(self, *, wait_timeout=10) -> dict:
+    def stop(self, *, wait_timeout: float | None = None) -> dict:
+        # Docker Desktop can retain a host reservation after its container exits.
+        timeout = (120 if sys.platform == "darwin" else 10) if wait_timeout is None else wait_timeout
+
         def stop_owned():
             self._availability()
             containers = self._containers()
@@ -898,7 +901,7 @@ class DockerRuntime:
                 if container["running"]:
                     self._inspect(container["id"])
                     self._call(["docker", "stop", "--time", "35", container["id"]], "docker_stop_failed", timeout=45)
-            deadline = time.monotonic() + wait_timeout
+            deadline = time.monotonic() + timeout
             while any(port_busy(port) for port in self.ports):
                 if time.monotonic() >= deadline:
                     raise ControlError("runtime_ports_not_released")

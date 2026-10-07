@@ -282,3 +282,5 @@ Docker DSH staging 按包发布载荷收录运行时代码：开发目录名称�
 Docker Desktop 的共享文件系统可能反复刷新 bind 根的 UID/GID 视图。容器 `/state` 使用 Linux 私有 tmpfs，避免将临时认证状态置于该祖先；数据与凭据继续使用独立持久 bind。原 dev/inode/mode/uid/gid、no-follow 与私有叶检查保持，临时状态丢失不删除研究数据或凭据。`/state/logs` 为临时内部日志，容器 stdout/stderr 仍由有界 Docker logging driver 保存。
 
 Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 `Mounts`；控制器兼容列表完全省略或完整三项表示，仍强制 HostConfig 的固定路径、UID/GID、权限和安全选项。部分、重复、别名或额外挂载均拒绝。
+
+macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；默认最多等待120秒，其余宿主默认10秒，显式等待参数保持。仍必须实际释放IPv4/IPv6绑定，超时失败关闭；不使用SO_REUSEADDR或只做连接探测来绕过占用。具体内核延迟原因未独立证实。
