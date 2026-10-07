@@ -725,7 +725,12 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                 stage = "runtime_probe" if spec.role == "runtime" else "web_probe"
                 if spec.role == "runtime" and probe is real_probe and output.token is None:
                     output.remember_bootstrap_auth(config, child)
-                if probe(config, spec.role, min(0.25, remaining), launch_token=output.token):
+                # Full Web readiness shares one deadline across three requests;
+                # match the standalone healthcheck budget, within startup time.
+                probe_budget = 3.0 if spec.role == "web" else 0.25
+                if probe(
+                    config, spec.role, min(probe_budget, remaining), launch_token=output.token
+                ):
                     if spec.role == "runtime" and probe is real_probe:
                         output.remember_auth(config.state_root)
                     _event(spec.role, "healthy", "health_ready")

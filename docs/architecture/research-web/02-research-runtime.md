@@ -132,6 +132,8 @@ Native 模式切换桥复用服务管理器的 state/PID/精确 argv/启动时�
 
 Docker supervisor 的启动顺序先准备 `/state/runtime` 与 `/run/rwb-secrets/private` 私有叶，
 再清理本次认证状态、启动 DSH、探测并启动 Web。健康检查复用 `/state/runtime/auth.json`；
+Web 每轮三项页面请求共用最多 3 秒，与独立健康检查默认预算一致；DSH 仍为 0.25 秒。
+单轮预算取角色预算与剩余启动时间的较小值，角色启动 35 秒和停止 8 秒期限保持。
 重启重新创建状态叶和认证，保留凭据内容并重新检查 owner/权限/alias，不修改 Native 状态路径。
 固定缺失叶的准备先用保留父FD创建，再由原runtime_state_directory完整重pin；不会捕获
 任意校验失败后无条件重试。data-root/logs使用相同首建顺序，自定义目录维持原严格create路径。

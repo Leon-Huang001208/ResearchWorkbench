@@ -80,6 +80,8 @@ Docker 启动/安装修复的目标闭包还覆盖 `test_setup_web.py` 的候选
 
 本地集成回归另覆盖 `test_web_bootstrap.py` 的工作树环境归属、`test_runtime_mode.py` 的
 坏 Native 环境与 PID 重用拒绝，以及 `test_container_supervisor.py` 的完整页面探测总时限。
+容器 supervisor 的 Web 预算回归在原测试模块使用真实 loopback HTTP/认证和确定性耗时钟，
+覆盖三项 GET 完整就绪、剩余期限裁剪、各页面错误与精确子进程清理；不替代镜像真机验收。
 Docker 控制测试使用临时端口，真实端口冲突断言继续执行，不要求停止开发者正在运行的服务。
 
 上述 DataHub 专项映射仅登记策略中明确允许的路径。未登记 DataHub 路径继续 fallback / fail closed，不能仅凭目录位置推断为低风险。`asset_workspace.py` / `asset_routes.py` → `research_web_workbench.test.mjs` + `test_asset_workspace.py` 只说明验证策略的 focused closure，不表示本次修改了 `architecture-map.json` 或从架构 inventory 推导了验收路由。

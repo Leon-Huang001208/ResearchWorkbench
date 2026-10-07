@@ -96,12 +96,15 @@ if mode.startswith("detached") and os.fork() == 0:
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def do_GET(self):
+        if role == "web": record("get:" + self.path)
         if role == "runtime":
             self.send_response(303)
             self.send_header("Set-Cookie", "dsh-auth-fixture=private-cookie; HttpOnly")
             self.end_headers()
         else:
-            self.send_response(200)
+            self.send_response(503 if mode == "budget-api-error" and self.path == "/api/research/runtime"
+                               or mode == "budget-root-error" and self.path == "/"
+                               or mode == "budget-static-error" and self.path == "/static/app.mjs" else 200)
             content_type = "application/json"
             body = json.dumps({"connected": mode != "unhealthy",
                                "health_check_passed": mode != "unhealthy"}).encode()
@@ -185,6 +188,45 @@ config = supervisor.SupervisorConfig(data_root=root/"data", state_root=root/"sta
     project_root=Path.cwd(), runtime_source=root/"source", python=sys.executable,
     node="unused", runtime_port=int(runtime_port), web_port=int(web_port),
     startup_timeout=.9, shutdown_timeout=.35)
+if web_mode.startswith("budget-"):
+    # Real loopback HTTP/auth and production readiness; only elapsed I/O time is
+    # deterministic. Each successful Web GET costs .14 s on the probe clock.
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from docker import healthcheck
+    import httpx
+    config = replace(config, startup_timeout=35.0)
+    if web_mode == "budget-clipped":
+        config = replace(config, startup_timeout=.25)
+    offset = 0.0
+    real_monotonic = supervisor.time.monotonic
+    clock = SimpleNamespace(monotonic=lambda: real_monotonic() + offset)
+    supervisor.time = healthcheck.time = clock
+    original_client = httpx.AsyncClient
+    class TimedClient(original_client):
+        async def send(self, request, *args, **kwargs):
+            global offset
+            response = await super().send(request, *args, **kwargs)
+            if request.url.port == config.web_port:
+                offset += .14
+            return response
+    healthcheck.httpx.AsyncClient = TimedClient
+    original_probe = supervisor.real_probe
+    def timed_probe(config, role, timeout, **kwargs):
+        global offset
+        with (root/"budgets").open("a") as stream:
+            stream.write(json.dumps([role, timeout]) + "\n")
+        ready = original_probe(config, role, timeout, **kwargs)
+        if role == "web" and not ready and web_mode.endswith("-error"):
+            offset += 35.0  # Exhaust the unchanged startup deadline after one full failure.
+        return ready
+    supervisor.real_probe = timed_probe
+    original_event = supervisor._event
+    def event(role, state, code):
+        if role == "web" and state == "healthy":
+            (root/"web-ready").touch()
+        original_event(role, state, code)
+    supervisor._event = event
 def specs(**kwargs):
     assert kwargs["web_host"] == "0.0.0.0"
     def spec(role, port, mode):
@@ -225,7 +267,7 @@ if sys.platform == "darwin" and (runtime_mode.startswith("adopted") or web_mode.
     supervisor._process_snapshot = snapshot
     supervisor._OwnedProcesses.__init__ = init
     supervisor._read_role_environment = lambda pid: (root/("events.role-" + str(pid))).read_bytes()
-raise SystemExit(supervisor.run(config))
+raise SystemExit(supervisor.run(config, probe=supervisor.real_probe))
 """
 
 
@@ -567,6 +609,46 @@ def test_container_full_page_probe_uses_shared_total_deadline(tmp_path, monkeypa
         "Research Workbench",
     )
     assert calls == [(18088, "GET", "/")]
+
+
+def test_supervisor_web_budget_allows_complete_real_page_readiness(launch):
+    proc, root, _, _ = launch(web="budget-normal")
+    wait_for(lambda: (root / "web-ready").exists() or proc.poll() is not None, timeout=15)
+    ready = (root / "web-ready").exists()
+    if proc.poll() is None:
+        proc.terminate()
+    output = proc.communicate(timeout=5)[0]
+    assert ready, "complete .42 s Web readiness was starved by the per-probe budget"
+    assert proc.returncode == 0, output
+    paths = [row[1] for row in events(root) if row[0] == "web" and row[1].startswith("get:")]
+    assert paths[-3:] == ["get:/api/research/runtime", "get:/", "get:/static/app.mjs"]
+    budgets = [json.loads(line) for line in (root / "budgets").read_text().splitlines()]
+    assert all(timeout <= 0.25 for role, timeout in budgets if role == "runtime")
+    assert any(timeout == 3.0 for role, timeout in budgets if role == "web")
+    assert ["runtime", "term"] in [row[:2] for row in events(root)]
+    assert ["web", "term"] in [row[:2] for row in events(root)]
+
+
+@pytest.mark.parametrize("mode", ["clipped", "api-error", "root-error", "static-error"])
+def test_supervisor_web_budget_deadline_and_page_failures_cleanup(launch, mode):
+    proc, root, _, _ = launch(web="budget-" + mode)
+    output = proc.communicate(timeout=15)[0]
+    assert proc.returncode == 1, output
+    assert not (root / "web-ready").exists()
+    assert "startup_timeout" in output
+    budgets = [json.loads(line) for line in (root / "budgets").read_text().splitlines()]
+    web_budgets = [timeout for role, timeout in budgets if role == "web"]
+    assert web_budgets
+    assert max(web_budgets) <= (0.25 if mode == "clipped" else 3.0)
+    paths = [row[1] for row in events(root) if row[0] == "web" and row[1].startswith("get:")]
+    if mode != "clipped":
+        assert paths[-3:] == ["get:/api/research/runtime", "get:/", "get:/static/app.mjs"]
+    assert ["runtime", "term"] in [row[:2] for row in events(root)]
+    assert ["web", "term"] in [row[:2] for row in events(root)]
+    for role, event, _, pid in events(root):
+        if event == "start":
+            with pytest.raises(ProcessLookupError):
+                os.kill(pid, 0)
 
 
 def test_healthcheck_rejects_bad_rpc_and_bounds_slow_response(launch):
